@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@ckd/core/*": ["./packages/crypto-core/src/*"],
+      "@ckd/coins/*": ["./packages/coin-protocols/src/coins/*"],
+      "@ckd/export/*": ["./packages/export-core/src/*"],
+      "@ckd/dash-network/*": ["./packages/dash-network/src/*"],
+      "@ckd/dash-wasm/*": ["./packages/dash-shielded-wasm/generated/*"],
+      "@ckd/build-info": ["./packages/build-security/src/build-info.ts"],
+      "@ckd/self-test": ["./packages/verification/src/self-test.ts"],
+      "@ckd/self-test-types": ["./packages/verification/src/types.ts"],
+      "@ckd/bip39-self-test": ["./packages/verification/src/bip39-self-test.ts"],
+      "@ckd/derivation-self-test": ["./packages/verification/src/derivation-self-test.ts"],
+      "@ckd/test-support/*": ["./test/support/*"]
+    },
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["vitest/globals"]
+  },
+  "include": ["apps/**/*.ts", "packages/**/*.ts", "test/**/*.ts", "vitest.config.ts"]
+}

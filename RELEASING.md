@@ -1,0 +1,119 @@
+# GitHub source and release procedure
+
+Repository: `https://github.com/hobby-eng/multi-chain-wallet-tools`
+
+## What belongs in Git
+
+Commit the application, package, test, tooling and documentation sources together with all lockfiles. In particular, these generated-looking files are mandatory build inputs and must remain tracked:
+
+- `pnpm-lock.yaml`;
+- `packages/dash-shielded-wasm/generated/` (the audited browser WASM and offline-only glue);
+- `packages/dash-shielded-wasm/rust/Cargo.lock` (including the exact Dash Orchard revision).
+
+Do not commit installed packages, local toolchains, compiler targets, coverage, logs, editor state, wallet material, or `dist/`. The root `.gitignore` excludes them. GitHub automatically provides source `.zip` and `.tar.gz` archives for every tag; the release workflow independently rebuilds the downloadable HTML from that tagged source.
+
+The root `.gitattributes` fixes repository text files to LF line endings and marks WASM/assets as binary. This matters because release fingerprints and HTML checksums cover exact bytes.
+
+Original project code is released under the root [MIT License](LICENSE), copyright (c) 2026 hobby-eng. The license is intentionally permissive for inspection, reuse and forks. Third-party components retain the separate licenses and copyright notices recorded in `THIRD_PARTY_NOTICES.md` and `ATTRIBUTION.md`.
+
+## First push to the empty GitHub repository
+
+Do not append another heading to `README.md`; the real project README already exists. From the project root:
+
+```bash
+git init
+git branch -M main
+git remote add origin git@github.com:hobby-eng/multi-chain-wallet-tools.git
+git add -A
+git status --short
+git diff --cached --check
+```
+
+Before committing, confirm that caches and builds are ignored and the three mandatory reproducibility inputs are staged:
+
+```bash
+git check-ignore -v node_modules dist .tools packages/dash-shielded-wasm/rust/target
+git ls-files pnpm-lock.yaml packages/dash-shielded-wasm/generated packages/dash-shielded-wasm/rust/Cargo.lock
+```
+
+Inspect `git status` for accidental mnemonic, wallet, `.env`, private-key, screenshot, or personal files. Then:
+
+```bash
+git commit -m "Initial source release"
+git push -u origin main
+```
+
+If GitHub was initialized with a README or license instead of being empty, do not force-push. Fetch and merge/rebase that initial commit, or recreate the GitHub repository empty, before the final `git push`.
+
+## Automated checks
+
+The checked-in workflows use only GitHub-maintained actions and pin each one to a full commit SHA:
+
+- `.github/workflows/ci.yml` runs on every push to `main`, pull request and manual invocation. It uses Node 24, pnpm 11.19.0 and the locked dependency graph; runs TypeScript/tests/fixed vectors; runtime-verifies the committed Orchard WASM; builds all three HTML files twice; verifies CSP/security assertions and exact checksums; then creates a flat release bundle.
+- `.github/workflows/full-wasm.yml` runs when the Rust/WASM inputs change, monthly, or manually. It installs Rust/Cargo 1.85.1 and wasm-bindgen 0.2.100, runs the complete `pnpm verify`, and fails if rebuilt WASM/glue differ from the committed files.
+- `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version, creates GitHub provenance attestations, and creates a **draft** release containing the three HTML files, their sidecars, the MIT `LICENSE`, and a flat `SHA256SUMS`.
+- `.github/dependabot.yml` proposes pinned npm, Cargo and GitHub Actions updates monthly. Never merge a cryptographic/dependency update only because CI is green; inspect its changelog, lockfile diff and vectors.
+
+The normal CI/release path deliberately reuses the committed, runtime-tested WASM so a release does not depend on installing a large Rust compiler stack. The full-WASM workflow separately proves that this committed WASM still comes from the pinned Rust source/toolchain.
+
+## Release checklist
+
+1. Update `version` and `releaseDate` in `package.json`, update release notes/documentation, and commit the changes. The intended tag for version `0.1.0` is `v0.1.0`.
+2. From a clean source checkout, run `pnpm install --frozen-lockfile` and `pnpm verify`. This performs TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, a locked release WASM rebuild, generated-browser-WASM tests, two byte-identical HTML builds, manifest checks and each application's CSP/artifact verifier.
+3. Run the live network release observations below. They are intentionally not part of deterministic CI because changing chain state or a provider outage must not change the reproducible build result.
+4. Ensure the working tree is clean. A GPG key is not required. Create and push an annotated tag:
+
+   ```bash
+   git tag -a v0.1.0 -m "v0.1.0"
+   git push origin v0.1.0
+   ```
+
+   If a maintainer later configures a trusted GPG key, `git tag -s ...` may be used instead as an additional human-approval signal. GitHub Actions provenance remains available either way.
+5. Open the tag's Actions run. All checks must pass. The workflow creates a draft under **Releases**; it intentionally does not publish automatically.
+6. Rebuild locally with `pnpm verify`, then run `pnpm release:bundle`. Compare `dist/release/SHA256SUMS` with the draft release manifest. If a maintainer has a GPG key and wants an additional detached approval signature, sign that exact flat manifest locally without giving CI the private key:
+
+   ```bash
+   pnpm release:sign -- YOUR_GPG_KEY_ID
+   gh release upload v0.1.0 dist/release/SHA256SUMS.asc --repo hobby-eng/multi-chain-wallet-tools
+   ```
+
+   The `.asc` file can instead be uploaded through the GitHub release web form. Skip this optional signing step when no GPG key is configured.
+7. Review the generated notes and artifact list, then publish the draft release manually.
+
+A GPG key is optional for this project. GitHub's artifact attestation links CI-built bytes to the tagged repository, workflow and commit and is the normal reproducible provenance path. A sidecar checksum detects corruption but authenticates nothing by itself. If OpenPGP signing is used later, its private key must never be stored in the repository, GitHub Actions secrets, browser storage, or release bundle; the detached signature means only that its owner personally approved the exact flat manifest. Neither attestation nor signature proves cryptographic correctness.
+
+## Live release observations
+
+Run `pnpm test:activity-viewer:network`, both `test:activity-viewer:core-*` commands, both `test:activity-viewer:platform-*` commands, `pnpm test:discovery:mainnet`, `pnpm test:discovery:testnet`, and the bounded `pnpm test:discovery:batch-mainnet` plus `pnpm test:discovery:batch5-mainnet` checks on a network-connected test machine. The Platform Activity Viewer tests require Explorer balance/nonce to agree with proof-verified DAPI. Discovery smoke uses only documented public BIP39 vectors.
+
+Temporarily block optional lookup providers where applicable and confirm the primary finding remains visible with a warning. A changing provider must never turn a valid primary result into a false zero. Inspect request payloads in browser developer tools: only validated public addresses, public-key hashes and Orchard pool ranges may leave the isolated Discovery Scanner vault.
+
+Open all three standalone files directly with `file://` in each supported browser. Check the release passports/self-tests and narrow/mobile layout. In the Wallet Key Derivation Tool verify auto-generation and the reveal gate, then enable change generation for every Bitcoin variant and Dash Core: confirm `/0` Receive and `/1` Change paths, independent selection/paging/export state, branch-specific descriptors, a known-address match on the change branch, and that Ethereum, Platform and Orchard do not show the two-branch checkbox. Check Activity Viewer tab clearing/export and Discovery Scanner single/batch progress, cancellation, isolation diagnostics and secret-free CSV/JSON export. Complete one full Orchard cold scan separately before release.
+
+## What GitHub publishes
+
+`pnpm release:bundle` creates exactly these local upload candidates:
+
+```text
+dist/release/Wallet_Key_Derivation_Tool.html
+dist/release/Wallet_Key_Derivation_Tool.html.sha256
+dist/release/Wallet_Activity_Viewer.html
+dist/release/Wallet_Activity_Viewer.html.sha256
+dist/release/Wallet_Discovery_Scanner.html
+dist/release/Wallet_Discovery_Scanner.html.sha256
+dist/release/LICENSE
+dist/release/SHA256SUMS
+```
+
+The manifest uses plain filenames, not subdirectories, so a user can download all release assets into one directory and immediately run:
+
+```bash
+sha256sum -c SHA256SUMS
+gh attestation verify Wallet_Key_Derivation_Tool.html -R hobby-eng/multi-chain-wallet-tools
+gh attestation verify Wallet_Activity_Viewer.html -R hobby-eng/multi-chain-wallet-tools
+gh attestation verify Wallet_Discovery_Scanner.html -R hobby-eng/multi-chain-wallet-tools
+```
+
+The manifest also covers the released `LICENSE`. The attestation commands require an online GitHub CLI; checksum verification works offline. Only when a release includes the optional `SHA256SUMS.asc`, verify it separately with `gpg --verify SHA256SUMS.asc SHA256SUMS` and a public key obtained through an independent trusted channel.
+
+If an artifact is served as a web page instead of a downloadable `file://` tool, configure the host to send `Content-Security-Policy: frame-ancestors 'none'` and preferably `X-Frame-Options: DENY`. Browsers ignore `frame-ancestors` inside an HTML `<meta>` CSP, so the build cannot supply this hosting-only clickjacking control.

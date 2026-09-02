@@ -1,0 +1,51 @@
+# Installed dependencies and local package-manager state.
+node_modules/
+.pnpm-store/
+
+# Reproducible build and test outputs. Release HTML is built by CI from tags.
+dist/
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo
+
+# Local pinned toolchains and compiler output.
+.tools/
+**/target/
+src/coins/dash/shielded-wasm/pkg/
+
+# Local agent/editor/OS state.
+.agents/
+.codex/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs and caches.
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.cache/
+.eslintcache
+
+# Local configuration and common secret-bearing files. Never commit wallet data.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.kbx
+secring.gpg
+private-keys-v1.d/
+wallet.dat
+*.wallet
+
+# Intentionally tracked despite being generated:
+# - pnpm-lock.yaml
+# - packages/dash-shielded-wasm/generated/
+# - packages/dash-shielded-wasm/rust/Cargo.lock
