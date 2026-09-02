@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+# Binary inputs must never undergo line-ending or encoding normalization.
+*.wasm -text
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.ico -text
+*.woff -text
+*.woff2 -text
