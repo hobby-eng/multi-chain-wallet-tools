@@ -1,0 +1,60 @@
+{
+  "name": "multi-chain-wallet-tools",
+  "version": "0.1.0",
+  "releaseDate": "2026-09-02",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "node tooling/build-shielded-wasm.mjs && node apps/key-derivation/scripts/build-key-derivation-html.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs && node tooling/create-release-manifest.mjs",
+    "build:html": "node apps/key-derivation/scripts/build-key-derivation-html.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs && node tooling/create-release-manifest.mjs",
+    "build:quick": "node apps/key-derivation/scripts/build-key-derivation-html.mjs",
+    "build:activity-viewer": "node tooling/build-shielded-wasm.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs",
+    "build:discovery-scanner": "node tooling/build-shielded-wasm.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
+    "build:wasm": "node tooling/build-shielded-wasm.mjs",
+    "check": "tsc --noEmit",
+    "audit": "pnpm audit --audit-level high",
+    "test": "vitest run",
+    "test:rust": "node tooling/test-rust.mjs",
+    "test:wasm": "node tooling/verify-shielded-wasm.mjs",
+    "test:self-test": "node apps/key-derivation/scripts/verify-self-test.mjs",
+    "test:activity-viewer:network": "node apps/activity-viewer/scripts/smoke-activity-viewer-network.mjs testnet",
+    "test:activity-viewer:core-mainnet": "node apps/activity-viewer/scripts/smoke-core-address.mjs mainnet",
+    "test:activity-viewer:core-testnet": "node apps/activity-viewer/scripts/smoke-core-address.mjs testnet",
+    "test:activity-viewer:platform-mainnet": "node apps/activity-viewer/scripts/smoke-platform-address.mjs mainnet",
+    "test:activity-viewer:platform-testnet": "node apps/activity-viewer/scripts/smoke-platform-address.mjs testnet",
+    "test:discovery:mainnet": "node apps/discovery-scanner/scripts/smoke-discovery-network.mjs mainnet",
+    "test:discovery:testnet": "node apps/discovery-scanner/scripts/smoke-discovery-network.mjs testnet",
+    "test:discovery:batch-mainnet": "node apps/discovery-scanner/scripts/smoke-discovery-batch.mjs mainnet 2",
+    "test:discovery:batch5-mainnet": "node apps/discovery-scanner/scripts/smoke-discovery-batch.mjs mainnet 5",
+    "test:discovery:stream": "node apps/discovery-scanner/scripts/verify-shielded-stream.mjs",
+    "test:watch": "vitest",
+    "release:manifest": "node tooling/create-release-manifest.mjs",
+    "release:verify": "node tooling/verify-release-manifest.mjs",
+    "release:bundle": "node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs",
+    "release:sign": "node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs && node tooling/sign-release.mjs",
+    "verify:ci": "tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node tooling/verify-shielded-wasm.mjs && node apps/key-derivation/scripts/build-key-derivation-html.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs && node tooling/create-release-manifest.mjs && node tooling/verify-release-manifest.mjs && node tooling/verify-reproducible-build.mjs --reuse-generated-wasm && node apps/key-derivation/scripts/verify-key-derivation-artifact.mjs && node apps/activity-viewer/scripts/verify-activity-viewer-artifact.mjs && node apps/discovery-scanner/scripts/verify-discovery-scanner-artifact.mjs && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs",
+    "verify": "tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node tooling/test-rust.mjs && node tooling/build-shielded-wasm.mjs && node apps/key-derivation/scripts/build-key-derivation-html.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs && node tooling/create-release-manifest.mjs && node tooling/verify-release-manifest.mjs && node tooling/verify-shielded-wasm.mjs && node tooling/verify-reproducible-build.mjs && node apps/key-derivation/scripts/verify-key-derivation-artifact.mjs && node apps/activity-viewer/scripts/verify-activity-viewer-artifact.mjs && node apps/discovery-scanner/scripts/verify-discovery-scanner-artifact.mjs && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs"
+  },
+  "dependencies": {
+    "@dashevo/evo-sdk": "4.1.0",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
+    "@scure/base": "2.4.0",
+    "@scure/bip32": "2.4.0",
+    "@scure/bip39": "2.4.0"
+  },
+  "devDependencies": {
+    "@dashincubator/secp256k1": "1.7.1-5",
+    "dashhd": "3.3.3",
+    "dashkeys": "1.1.3",
+    "esbuild": "0.28.2",
+    "ethers": "6.17.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src __VAULT_SCRIPT_CSP__ 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Wallet Discovery Scanner</title>
+  <style>
+    :root{color-scheme:dark;background:#080b10}*{box-sizing:border-box}body{margin:0;overflow-x:hidden;min-height:100vh;background:radial-gradient(circle at 78% -20%,#253247 0,transparent 35%),#080b10;color:#f2f5f7;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.hero,main,footer{width:min(1120px,calc(100% - 36px));margin-inline:auto}.hero{padding:32px 0}.recovery-topbar{display:flex;justify-content:space-between;align-items:center}.recovery-brand{font-weight:850}.recovery-brand-mark{display:inline-grid;place-items:center;width:32px;height:32px;margin-right:10px}.recovery-brand-mark svg{display:block;width:100%;height:100%}.recovery-hero-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.55fr);gap:40px;align-items:end;padding:70px 0 28px}h1{font-size:clamp(38px,7vw,72px);line-height:.98;letter-spacing:-.055em;margin:0}.eyebrow{color:#f5a623;font-size:12px;font-weight:800;letter-spacing:.18em;margin-bottom:12px}.panel{background:#111720;border:1px solid #29323e;border-radius:16px;padding:24px}button,input,select,textarea{font:inherit}/*__INLINE_CSS__*/
+  </style>
+</head>
+<body>
+  <noscript>This discovery scanner requires JavaScript and network access.</noscript>
+  <div class="recovery-ambient recovery-ambient-one" aria-hidden="true"></div>
+  <div class="recovery-ambient recovery-ambient-two" aria-hidden="true"></div>
+
+  <header class="hero recovery-hero">
+    <div class="recovery-topbar">
+      <div class="recovery-brand"><span class="recovery-brand-mark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 943 943" role="img"><circle fill="#008de4" cx="471.5" cy="471.5" r="471"/><path fill="#fff" d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path fill="#fff" d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span><span>Multi-Chain Wallet Tools</span></div>
+      <div class="network-badge"><span></span> Isolated network worker</div>
+    </div>
+    <div class="recovery-hero-grid">
+      <div class="recovery-hero-copy">
+        <div class="eyebrow">WALLET DISCOVERY SCANNER · DASH</div>
+        <h1>Find every balance.<br><span>Recover deliberately.</span></h1>
+        <p>Scan Dash Core receive and change chains, Platform payment addresses, identities, and the complete Orchard pool from one or several BIP39 phrases.</p>
+        <div class="recovery-trust-row" aria-label="Security properties">
+          <span>Opaque-origin Secret Vault</span><span>Vault network disabled by CSP</span><span>Proof-verified Platform state</span>
+        </div>
+      </div>
+      <aside class="recovery-capability-card">
+        <div class="capability-orbit" aria-hidden="true"><span></span></div>
+        <div class="capability-kicker">MODULAR COIN ADAPTER</div>
+        <h2>Wallet discovery map</h2>
+        <div class="capability-list">
+          <div><span class="capability-check">✓</span><span>Core receive + change</span></div>
+          <div><span class="capability-check">✓</span><span>Platform addresses + identities</span></div>
+          <div><span class="capability-check">✓</span><span>Orchard account pool</span></div>
+          <div class="capability-caution"><span>!</span><span>Independent audit still required</span></div>
+        </div>
+      </aside>
+    </div>
+  </header>
+
+  <main>
+    <section class="warning danger-warning" aria-label="Critical audit warning">
+      <div class="warning-icon">!</div>
+      <div><strong>This utility has not been independently audited by a cryptography specialist.</strong> It uses pinned, ready-made cryptographic dependencies, but that does not audit their integration. If funds are found, the safest option is to copy the address, derivation path, branch/index and balance into the recovery report, then restore the phrase with a standard Dash wallet on a trusted device. Never use a mnemonic that still protects valuable funds on an untrusted computer.</div>
+    </section>
+
+    <section class="recovery-flow" aria-label="Recovery workflow">
+      <article><span>01</span><div><strong>Enter locally</strong><small>Single or batch BIP39 input</small></div></article>
+      <article><span>02</span><div><strong>Scan through isolation</strong><small>Evo SDK receives public query data only</small></div></article>
+      <article><span>03</span><div><strong>Recover safely</strong><small>Export a standard-wallet handoff</small></div></article>
+    </section>
+
+    <form id="recovery-form" autocomplete="off" spellcheck="false">
+      <section class="panel recovery-control-panel">
+        <div class="section-head recovery-section-head">
+          <div><span class="step">01</span><div><h2>Recovery source</h2><p>Nothing is stored after this page closes.</p></div></div>
+          <div class="recovery-head-badges"><span class="local-only-chip"><i></i> Secret Vault · network denied</span><span id="recovery-self-test" class="self-test-badge checking">Self-test running</span></div>
+        </div>
+
+        <div class="recovery-mode-tabs" role="radiogroup" aria-label="Mnemonic input mode">
+          <button class="recovery-mode-tab active" data-input-mode="single" type="button" aria-pressed="true">Single seed phrase</button>
+          <button class="recovery-mode-tab" data-input-mode="batch" type="button" aria-pressed="false">Batch · multiple phrases</button>
+        </div>
+
+        <div class="recovery-source-grid">
+          <div><label for="recovery-coin">Coin</label><select id="recovery-coin"></select></div>
+          <div><label for="recovery-network">Network</label><select id="recovery-network"><option value="mainnet">Mainnet</option><option value="testnet">Testnet</option></select></div>
+          <div><label for="recovery-account">Account</label><input id="recovery-account" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
+        </div>
+
+        <div id="single-input" class="secret-source-panel">
+          <label for="single-mnemonic">Recovery seed phrase</label>
+          <textarea id="single-mnemonic" class="concealed" rows="4" placeholder="Enter 12, 15, 18, 21, or 24 BIP39 English words" autocomplete="off" autocapitalize="none"></textarea>
+          <label for="single-passphrase">Optional BIP39 passphrase</label>
+          <input id="single-passphrase" class="concealed" type="text" autocomplete="off" autocapitalize="none" placeholder="Leave blank if none was used">
+        </div>
+
+        <div id="batch-input" class="secret-source-panel" hidden>
+          <div class="batch-grid">
+            <div><label for="batch-mnemonics">One seed phrase per line</label><textarea id="batch-mnemonics" class="concealed" rows="8" autocomplete="off" autocapitalize="none" placeholder="Phrase 1&#10;Phrase 2&#10;Phrase 3"></textarea></div>
+            <div><label for="batch-passphrases">Matching passphrase per line</label><textarea id="batch-passphrases" class="concealed" rows="8" autocomplete="off" autocapitalize="none" placeholder="Blank line = no passphrase"></textarea></div>
+          </div>
+          <div class="batch-concurrency-row"><div><label for="batch-concurrency">Seed phrases scanned at once</label><select id="batch-concurrency"><option value="1" selected>1 · recommended / predictable</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5 · highest DAPI load</option></select></div><p>Sequential seed scanning is the reliable default. Parallel phrases remain optional, but can increase DAPI tail latency; every active phrase also keeps its derived seed and scanner state in memory until that wallet finishes.</p></div>
+          <p class="field-note">Line N in the right box belongs to phrase N on the left. Empty passphrase lines are preserved.</p>
+        </div>
+
+        <div class="secret-actions">
+          <button id="reveal-recovery-input" class="secondary" type="button" aria-pressed="false">Reveal sensitive input</button>
+          <label class="check-option"><input id="clear-input-on-start" type="checkbox"> Clear phrase fields when scanning starts (another scan will require re-entry)</label>
+        </div>
+      </section>
+
+      <section class="panel recovery-control-panel">
+        <div class="section-head recovery-section-head">
+          <div><span class="step">02</span><div><h2>Scan coverage</h2><p>No arbitrary address limit; work is streamed in bounded batches.</p></div></div>
+          <span id="scan-estimate" class="scan-estimate">4 address batches + Orchard pool</span>
+        </div>
+        <div class="coverage-grid">
+          <div><label for="core-receive-count">Core receive minimum</label><input id="core-receive-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div><label for="core-change-count">Core change minimum</label><input id="core-change-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div><label for="platform-address-count">Platform address minimum</label><input id="platform-address-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div><label for="identity-start-index">Identity start index</label><input id="identity-start-index" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
+          <div><label for="identity-gap-limit">Identity empty-gap limit</label><input id="identity-gap-limit" type="number" value="20" min="1" step="1" inputmode="numeric"></div>
+          <div><label for="identity-scan-limit">Identity maximum attempts</label><input id="identity-scan-limit" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
+          <div><label for="request-concurrency">Parallel network requests</label><select id="request-concurrency"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5 · recommended maximum</option></select></div>
+        </div>
+        <label class="shielded-option"><input id="scan-shielded" type="checkbox" checked><span><strong>Scan complete Orchard pool</strong><small>One account-wide scan; it does not repeat for every diversified address.</small></span></label>
+        <label class="shielded-option history-option"><input id="include-used-zero-balance" type="checkbox"><span><strong>Also show spent or previously used resources with zero balance</strong><small>Off by default. When enabled, Core/Platform empty history and already-spent or outgoing-only Orchard notes are included in the page and CSV/JSON. Core history also loads lifetime totals and dates. On a CoinJoin-heavy wallet the extra Core requests can make the scan much slower; default funded/spendable-only mode is recommended.</small></span></label>
+        <div class="scale-warning"><strong>Large scans are allowed and the counts above are minimums.</strong> Every Core and Platform branch continues until 20 addresses after the last used address, so a minimum of 100 can automatically become 120, 140, or more. For example, 100,000 Core addresses require about 2,000 public DashScan batches per selected branch. Results appear progressively and cancellation is checked between batches; CPU, network traffic, memory used by findings, and total time can still be substantial.</div>
+        <div class="recovery-action-bar">
+          <div class="actions">
+            <button id="start-recovery-scan" class="primary recovery-scan-button" type="button"><span class="recovery-scan-icon" aria-hidden="true"></span><span id="start-recovery-scan-label">Scan Dash holdings</span></button>
+            <button id="cancel-recovery-scan" class="secondary" type="button" disabled>Cancel after current batch</button>
+            <button id="clear-recovery" class="secondary" type="button">Clear everything</button>
+          </div>
+          <p>Batch seed scans and every HTTP/DAPI operation use separate bounded concurrency controls; no more than five network operations run at once.</p>
+        </div>
+        <div id="recovery-error" class="error" role="alert" hidden></div>
+        <div id="recovery-status" class="status" role="status" aria-live="polite" hidden></div>
+        <div id="recovery-progress" class="progress-shell" hidden><div class="progress-overall-bar"><span id="recovery-progress-bar"></span></div><p id="recovery-progress-text">Preparing…</p><div id="recovery-wallet-progress" class="wallet-progress-list"></div></div>
+      </section>
+    </form>
+
+    <section id="recovery-results" class="recovery-results" hidden>
+      <div class="results-title recovery-results-title">
+        <div><span class="step">03</span><div><h2>Discovery map</h2><p>Only currently funded Core/Platform resources and spendable Orchard notes are listed by default; zero-balance history is optional.</p></div></div>
+        <div class="recovery-export-actions"><span>ALL SEED PHRASES · STANDARD-WALLET HANDOFF</span><button id="export-recovery-csv" class="secondary" type="button">CSV · all</button><button id="export-recovery-json" class="secondary" type="button">JSON · all</button></div>
+      </div>
+      <section class="recommended-recovery">
+        <strong>Recommended recovery path</strong>
+        <p>Verify the report, install a standard Dash wallet from its official source on a clean device, restore the same mnemonic and BIP39 passphrase, confirm the listed derivation paths, and move funds to a newly generated wallet. The export intentionally contains no mnemonic, passphrase, seed, private key, spending key, or viewing key.</p>
+      </section>
+      <nav id="recovery-result-tabs" class="recovery-result-tabs" aria-label="Seed phrase results"></nav>
+      <div id="recovery-result-list"></div>
+    </section>
+  </main>
+
+  <section class="build-passport" aria-labelledby="recovery-build-passport-title">
+    <div class="build-passport-head">
+      <div><span class="step">BUILD</span><h2 id="recovery-build-passport-title">Release passport</h2></div>
+      <span id="recovery-crypto-self-test-status" class="self-test-badge checking">Cryptographic self-test running…</span>
+    </div>
+    <div class="build-passport-grid">
+      <div><span>Version</span><code id="recovery-build-version">—</code></div>
+      <div><span>Release date</span><code id="recovery-build-date">—</code></div>
+      <div><span>Recovery runtime</span><code id="recovery-runtime">Secret Vault / Network Worker isolation check pending</code></div>
+      <div class="build-fingerprint"><span>Source/build fingerprint · SHA-256</span><code id="recovery-build-fingerprint">—</code></div>
+    </div>
+    <p id="recovery-crypto-self-test-details" class="field-note">Scanning remains disabled until deterministic derivation and secret-egress checks pass.</p>
+    <p class="field-note passport-dependencies"><strong>Embedded dependency versions and licenses:</strong> Dash Evo SDK/WASM SDK 4.1.0, Noble Curves/Hashes 2.4.0 and Scure Base/BIP32/BIP39 2.4.0 — MIT. Dash Orchard 0.14.0, official dashified-0.14.1 commit 38ac9c19a2df7bf3eeadc22ab23053e8fd538828; wasm-bindgen 0.2.100; ZIP32 0.2.0 — MIT or Apache-2.0. Full notices and the complete locked closure are in the source distribution.</p>
+    <p class="field-note"><strong>Upstream attribution:</strong> Proof queries and Shielded recovery use the open-source Dash Platform Evo/WASM SDK, specifications, and Dash Orchard fork created by their respective contributors. This independent scanner is not an official Dash product and no endorsement is implied. The Dash mark is an official brand asset used under CC BY 4.0. Sources: github.com/dashpay/platform · github.com/dashpay/orchard · dash.org/brand-guidelines. Exact versions and licenses: ATTRIBUTION.md / THIRD_PARTY_NOTICES.md.</p>
+    <p class="field-note"><strong>Project license:</strong> Original project code is MIT licensed, copyright (c) 2026 hobby-eng. Third-party components retain the licenses listed above and in the source distribution.</p>
+    <p class="field-note">The byte-for-byte HTML checksum is written beside this file as <code id="recovery-artifact-checksum-file">—</code> and detects transfer corruption only. GitHub build-provenance attestations link release bytes to tagged source. A detached OpenPGP signature, when supplied, additionally records publisher approval; it is optional.</p>
+  </section>
+
+  <footer>
+    <div class="footer-main">
+      <p>Dash Core BIP44 · Platform DIP17/DIP18 · Identity DIP13 · Dash Orchard ZIP-32 · Evo SDK 4.1.0</p>
+      <p>No persistence, analytics, cookies, external scripts, or secret-bearing network requests. Mnemonic, seed and Orchard FVK remain inside a CSP network-denied Secret Vault; Evo SDK runs in a separate Worker. <span id="recovery-build-footer">Build —</span></p>
+    </div>
+  </footer>
+  <script>/*__INLINE_JS__*/</script>
+</body>
+</html>

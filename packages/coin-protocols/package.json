@@ -1,0 +1,6 @@
+{
+  "name": "@ckd/coin-protocols",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module"
+}

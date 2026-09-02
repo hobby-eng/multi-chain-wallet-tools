@@ -1,0 +1,6 @@
+{
+  "name": "@ckd/wallet-key-derivation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module"
+}
