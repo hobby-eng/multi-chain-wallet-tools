@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 hex = { version = "=0.4.3", default-features = false, features = ["alloc"] }
 orchard = { git = "https://github.com/dashpay/orchard.git", tag = "dashified-0.14.1", default-features = false, features = ["std"] }
 wasm-bindgen = "=0.2.100"
-zip32 = { version = "=0.2.0", default-features = false }
+zip32 = { version = "=0.2.1", default-features = false }
 
 [dev-dependencies]
 bech32 = "=0.11.0"
