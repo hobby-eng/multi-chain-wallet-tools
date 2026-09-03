@@ -16,9 +16,12 @@ export interface RecoverySeedInput {
 export interface RecoveryScanConfig {
   network: RecoveryNetwork;
   account: number;
+  scanCore: boolean;
   coreReceiveCount: number;
   coreChangeCount: number;
+  scanPlatformAddresses: boolean;
   platformAddressCount: number;
+  scanPlatformIdentities: boolean;
   identityStartIndex: number;
   identityGapLimit: number;
   identityScanLimit: number;

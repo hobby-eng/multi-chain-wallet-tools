@@ -97,19 +97,24 @@
 
       <section class="panel recovery-control-panel">
         <div class="section-head recovery-section-head">
-          <div><span class="step">02</span><div><h2>Scan coverage</h2><p>No arbitrary address limit; work is streamed in bounded batches.</p></div></div>
+          <div><span class="step">02</span><div><h2>Scan coverage</h2><p>Select the Dash components and address ranges you want to check.</p></div></div>
           <span id="scan-estimate" class="scan-estimate">4 address batches + Orchard pool</span>
         </div>
+        <div class="component-selection" role="group" aria-label="Dash components to scan">
+          <label class="component-option"><input id="scan-core" type="checkbox" checked><span><strong>Dash Core · L1</strong><small>BIP44 receive and change addresses</small></span></label>
+          <label class="component-option"><input id="scan-platform-addresses" type="checkbox" checked><span><strong>Platform addresses</strong><small>DIP17 payment addresses</small></span></label>
+          <label class="component-option"><input id="scan-platform-identities" type="checkbox" checked><span><strong>Platform identities</strong><small>DIP13 identity discovery</small></span></label>
+          <label class="component-option"><input id="scan-shielded" type="checkbox" checked><span><strong>Orchard pool</strong><small>Account-wide encrypted notes</small></span></label>
+        </div>
         <div class="coverage-grid">
-          <div><label for="core-receive-count">Core receive minimum</label><input id="core-receive-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
-          <div><label for="core-change-count">Core change minimum</label><input id="core-change-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
-          <div><label for="platform-address-count">Platform address minimum</label><input id="platform-address-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
-          <div><label for="identity-start-index">Identity start index</label><input id="identity-start-index" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
-          <div><label for="identity-gap-limit">Identity empty-gap limit</label><input id="identity-gap-limit" type="number" value="20" min="1" step="1" inputmode="numeric"></div>
-          <div><label for="identity-scan-limit">Identity maximum attempts</label><input id="identity-scan-limit" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
+          <div data-component-settings="core"><label for="core-receive-count">Core receive minimum</label><input id="core-receive-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div data-component-settings="core"><label for="core-change-count">Core change minimum</label><input id="core-change-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div data-component-settings="platform"><label for="platform-address-count">Platform address minimum</label><input id="platform-address-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div data-component-settings="identity"><label for="identity-start-index">Identity start index</label><input id="identity-start-index" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
+          <div data-component-settings="identity"><label for="identity-gap-limit">Identity empty-gap limit</label><input id="identity-gap-limit" type="number" value="20" min="1" step="1" inputmode="numeric"></div>
+          <div data-component-settings="identity"><label for="identity-scan-limit">Identity maximum attempts</label><input id="identity-scan-limit" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
           <div><label for="request-concurrency">Parallel network requests</label><select id="request-concurrency"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5 · recommended maximum</option></select></div>
         </div>
-        <label class="shielded-option"><input id="scan-shielded" type="checkbox" checked><span><strong>Scan complete Orchard pool</strong><small>One account-wide scan; it does not repeat for every diversified address.</small></span></label>
         <label class="shielded-option history-option"><input id="include-used-zero-balance" type="checkbox"><span><strong>Also show spent or previously used resources with zero balance</strong><small>Off by default. When enabled, Core/Platform empty history and already-spent or outgoing-only Orchard notes are included in the page and CSV/JSON. Core history also loads lifetime totals and dates. On a CoinJoin-heavy wallet the extra Core requests can make the scan much slower; default funded/spendable-only mode is recommended.</small></span></label>
         <div class="scale-warning"><strong>Large scans are allowed and the counts above are minimums.</strong> Every Core and Platform branch continues until 20 addresses after the last used address, so a minimum of 100 can automatically become 120, 140, or more. For example, 100,000 Core addresses require about 2,000 public DashScan batches per selected branch. Results appear progressively and cancellation is checked between batches; CPU, network traffic, memory used by findings, and total time can still be substantial.</div>
         <div class="recovery-action-bar">

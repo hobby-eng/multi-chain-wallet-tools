@@ -119,8 +119,8 @@ for (const match of vaultTemplate.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
 for (const marker of [
   'Wallet Discovery Scanner', 'Opaque-origin Secret Vault', 'Vault network disabled by CSP',
   'This utility has not been independently audited by a cryptography specialist.',
-  'No arbitrary address limit', 'Core receive minimum', 'Core change minimum', 'Platform address minimum',
-  'Identity empty-gap limit', 'Scan complete Orchard pool', 'spent or previously used resources with zero balance',
+  'Select the Dash components and address ranges you want to check.', 'Core receive minimum', 'Core change minimum', 'Platform address minimum',
+  'Identity empty-gap limit', 'Platform identities', 'Account-wide encrypted notes', 'spent or previously used resources with zero balance',
   'CoinJoin', '20 addresses after the last used address', 'Self-test running', 'ALL SEED PHRASES',
   'STANDARD-WALLET HANDOFF', 'Run a new scan', 'bounded-memory page stream',
   'Release passport', 'Cryptographic self-test running', 'Embedded dependency versions and licenses:',
