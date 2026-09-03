@@ -1,4 +1,4 @@
-name: Build draft GitHub release
+name: Build and publish GitHub release
 
 on:
   push:
@@ -53,13 +53,18 @@ jobs:
         with:
           subject-path: 'dist/release/*'
 
-      - name: Create a draft release with flat downloadable assets
+      - name: Publish the verified release with flat downloadable assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          NOTES_FILE="docs/releases/$GITHUB_REF_NAME.md"
+          if [ ! -f "$NOTES_FILE" ]; then
+            echo "Missing curated release notes: $NOTES_FILE" >&2
+            exit 1
+          fi
           gh release create "$GITHUB_REF_NAME" dist/release/* \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
-            --draft \
-            --generate-notes \
+            --notes-file "$NOTES_FILE" \
+            --latest \
             --title "$GITHUB_REF_NAME"
