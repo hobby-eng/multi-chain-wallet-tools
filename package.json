@@ -1,7 +1,7 @@
 {
   "name": "multi-chain-wallet-tools",
-  "version": "0.1.0",
-  "releaseDate": "2026-09-02",
+  "version": "0.1.1",
+  "releaseDate": "2026-09-04",
   "private": true,
   "license": "MIT",
   "type": "module",
