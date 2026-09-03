@@ -16,7 +16,7 @@ An offline tool for deriving wallet addresses and keys from a BIP39 seed phrase.
 
 - Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; Dash Core, Platform and Orchard Shielded.
 - Shows standard derivation paths and accepts custom paths where the protocol permits them.
-- Can generate receive and change addresses for Bitcoin and Dash Core.
+- Can generate receive and change addresses for Bitcoin, Ethereum, Dash Core, also receive addresses for Dash Platform, Dash Orchard Pool.
 - Displays basic results or detailed protocol-specific data, with selectable clipboard and file exports.
 - Runs derivation in a disposable Web Worker and has runtime network access blocked by CSP and build verification.
 
@@ -24,7 +24,7 @@ Use this application on a trusted offline computer whenever real seed phrases or
 
 ### Wallet Activity Viewer
 
-A connected, read-only viewer for one public address or Dash Orchard viewing key.
+A connected, read-only viewer for one Dash Core, Platform public address or Orchard viewing key.
 
 - Looks up Dash Core address balances, history and transaction details.
 - Looks up Dash Platform payment-address balances and activity.
