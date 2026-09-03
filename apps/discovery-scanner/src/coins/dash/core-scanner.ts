@@ -151,24 +151,23 @@ export async function scanDashCore(
             if (info.balance > 0n || config.includeUsedZeroBalance) displayCandidates.push({ derived, info });
           });
           const historyByAddress = new Map<string, CoreHistorySummary>();
-          if (config.includeUsedZeroBalance) {
-            await Promise.all(displayCandidates
-              .filter(({ info }) => info.balance === 0n)
-              .map(async ({ derived }) => {
-                try {
-                  const value = await gateway.runPublic(
-                    { network: config.network, address: derived.address },
-                    'core.address-history',
-                    () => gateway.networkApi.coreAddressHistory(config.network, derived.address, signal),
-                    signal,
-                  );
-                  historyByAddress.set(derived.address, validateHistory(value, derived.address));
-                } catch (cause) {
-                  if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
-                  historyDetailFailures += 1;
-                }
-              }));
-          }
+          // Funded addresses are always few and recovery-relevant, so enrich
+          // every displayed result. The history option only adds used empty
+          // addresses, which can number in the thousands after CoinJoin.
+          await Promise.all(displayCandidates.map(async ({ derived }) => {
+            try {
+              const value = await gateway.runPublic(
+                { network: config.network, address: derived.address },
+                'core.address-history',
+                () => gateway.networkApi.coreAddressHistory(config.network, derived.address, signal),
+                signal,
+              );
+              historyByAddress.set(derived.address, validateHistory(value, derived.address));
+            } catch (cause) {
+              if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+              historyDetailFailures += 1;
+            }
+          }));
           for (const { derived, info } of displayCandidates) {
             const history = historyByAddress.get(derived.address);
             const finding: RecoveryFinding = {

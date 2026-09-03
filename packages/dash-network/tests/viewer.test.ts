@@ -150,6 +150,7 @@ describe('Dash shielded viewer primitives', () => {
     expect(snapshot.receivedExternal).toBe(500n);
     expect(snapshot.sentExternal).toBe(300n);
     expect(snapshot.records[0]?.spent).toBe(true);
+    expect(snapshot.records[0]?.spentAtPosition).toBe(1n);
     expect(snapshot.scannedNotes).toBe(2n);
     expect(snapshot.proofHeight).toBe(50n);
   });

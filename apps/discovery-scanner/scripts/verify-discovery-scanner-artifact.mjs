@@ -126,12 +126,14 @@ for (const marker of [
   'Release passport', 'Cryptographic self-test running', 'Embedded dependency versions and licenses:',
   'Dash Identity mainnet / DIP13', 'Dash Identity testnet / DIP13',
   'Wallet-wide located balances', 'Identity credits',
+  'Lifetime self/change', 'Spent at pool position', 'section_lifetime_received_dash',
   'No funded Dash Core L1 address was found in this section and scanned range.',
   'The Dash mark is an official brand asset used under CC BY 4.0.', '<circle fill="#008de4"',
   'wallet-discovery-report', 'Blocked ', 'Dash Platform DAPI', 'DashScan',
   'recovery CSV report export', 'recovery JSON report export',
   'isolated-network-worker-v1', 'core.address-info',
-  'platform.identity-by-public-key-hash', 'shielded.page', 'ckd-recovery-export-request-v1',
+  'platform.address-history', 'platform.identity-by-public-key-hash',
+  'platform.identity-history', 'shielded.page', 'ckd-recovery-export-request-v1',
 ]) {
   if (!html.includes(marker)) throw new Error(`Recovery artifact is missing required marker: ${marker}`);
 }
@@ -202,7 +204,8 @@ const protocolSource = readFileSync(resolve(sourceRoot, 'network-protocol.ts'), 
 if (/\burl\s*:/iu.test(protocolSource)) throw new Error('Recovery Network RPC must not accept an arbitrary URL.');
 for (const operation of [
   'ping', 'core.status', 'core.tip', 'core.address-info', 'core.address-history',
-  'platform.addresses', 'platform.identity-by-public-key-hash', 'shielded.page',
+  'platform.addresses', 'platform.address-history', 'platform.identity-by-public-key-hash',
+  'platform.identity-history', 'shielded.page',
 ]) {
   if (!protocolSource.includes(`operation: '${operation}'`)) throw new Error(`Recovery RPC is missing reviewed operation ${operation}.`);
 }

@@ -69,7 +69,13 @@ export class ShieldedActivityLedger {
       if (wireNote === undefined) throw new Error('DAPI page changed while it was being processed.');
       const actionNullifier = bytesToHex(wireNote.nullifier);
       const spent = this.#incomingByNullifier.get(actionNullifier);
-      if (spent !== undefined) spent.spent = true;
+      if (spent !== undefined) {
+        if (spent.spentAtPosition !== undefined && spent.spentAtPosition !== position) {
+          throw new Error('The Orchard stream attempted to spend one recovered note at two positions.');
+        }
+        spent.spent = true;
+        spent.spentAtPosition = position;
+      }
     }
     this.#scannedNotes = pageEnd;
     this.#proofHeight = this.#proofHeight > page.proofHeight ? this.#proofHeight : page.proofHeight;
