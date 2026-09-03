@@ -49,6 +49,20 @@ export interface PlatformAddressBatchView {
   metadata: ProofMetadataView;
 }
 
+export interface PlatformHistorySummaryView {
+  resource: string;
+  balance: string;
+  transactionCount: number;
+  incomingCount: number;
+  outgoingCount: number;
+  totalReceived: string;
+  totalSent: string;
+  totalFees: string | null;
+  firstSeen: string | null;
+  lastSeen: string | null;
+  indexedHeight: number;
+}
+
 export interface IdentityView {
   identifier: string;
   balance: string;
@@ -81,7 +95,9 @@ export interface RecoveryNetworkApi {
   coreAddressInfo(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<unknown>;
   coreAddressHistory(network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<unknown>;
   platformAddresses(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<PlatformAddressBatchView>;
+  platformAddressHistory(network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<PlatformHistorySummaryView>;
   platformIdentityByPublicKeyHash(network: RecoveryNetwork, publicKeyHashHex: string, signal?: AbortSignal): Promise<IdentityLookupView>;
+  platformIdentityHistory(network: RecoveryNetwork, identifier: string, signal?: AbortSignal): Promise<PlatformHistorySummaryView>;
   shieldedPage(network: RecoveryNetwork, startPosition: string, count: number, signal?: AbortSignal): Promise<ShieldedPageView>;
 }
 
@@ -92,7 +108,9 @@ export type RecoveryNetworkRequestInput =
   | { operation: 'core.address-info'; payload: { network: RecoveryNetwork; addresses: string[] } }
   | { operation: 'core.address-history'; payload: { network: RecoveryNetwork; address: string } }
   | { operation: 'platform.addresses'; payload: { network: RecoveryNetwork; addresses: string[] } }
+  | { operation: 'platform.address-history'; payload: { network: RecoveryNetwork; address: string } }
   | { operation: 'platform.identity-by-public-key-hash'; payload: { network: RecoveryNetwork; publicKeyHashHex: string } }
+  | { operation: 'platform.identity-history'; payload: { network: RecoveryNetwork; identifier: string } }
   | { operation: 'shielded.page'; payload: { network: RecoveryNetwork; startPosition: string; count: number } };
 
 type WithRequestId<T> = T extends RecoveryNetworkRequestInput ? T & { id: string } : never;

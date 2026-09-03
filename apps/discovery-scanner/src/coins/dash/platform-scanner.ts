@@ -5,6 +5,7 @@ import { encodePlatformP2pkh } from '@ckd/coins/dash/platform.js';
 import type { RecoveryFinding, RecoveryProgress, RecoveryScanConfig, RecoverySection } from '../../types.js';
 import { RECOVERY_PLATFORM_ADDRESS_BATCH } from '../../network-protocol.js';
 import { DashPlatformClient } from './platform-client.js';
+import { validatePlatformHistory } from './platform-history.js';
 import { ADDRESS_DISCOVERY_GAP, exactSafeInteger, exactUnsigned, extendAddressTarget, formatDashFromCredits, object } from './util.js';
 
 const DAPI_BATCH = RECOVERY_PLATFORM_ADDRESS_BATCH;
@@ -82,6 +83,9 @@ export async function scanDashPlatformAddresses(
   let scanned = 0;
   let usedCount = 0;
   let fundedCount = 0;
+  let historyDetailFailures = 0;
+  let historyDetails = 0;
+  let historyIndexedHeight = 0;
   let gapTruncated = false;
   const network = getDashNetwork(config.network);
   const root = rootFromSeed(seed, network.versions);
@@ -115,6 +119,7 @@ export async function scanDashPlatformAddresses(
       const response = validateBatch(await client.addresses(publicAddresses, signal));
       proofHeight = proofHeight > response.height ? proofHeight : response.height;
       protocolVersion = Math.max(protocolVersion, response.protocolVersion);
+      const displayed: { derived: DerivedPlatformAddress; info: PlatformInfo }[] = [];
       for (const derived of chunk) {
         const info = response.data.get(derived.storageKey);
         if (info === undefined || info === null) continue;
@@ -127,6 +132,24 @@ export async function scanDashPlatformAddresses(
         usedCount += 1;
         if (info.balance > 0n) fundedCount += 1;
         if (info.balance === 0n && !config.includeUsedZeroBalance) continue;
+        displayed.push({ derived, info });
+      }
+      const histories = await Promise.all(displayed.map(async ({ derived, info }) => {
+        try {
+          return validatePlatformHistory(await client.addressHistory(derived.address, signal), derived.address, info.balance);
+        } catch (cause) {
+          if (signal.aborted) throw cause;
+          historyDetailFailures += 1;
+          return null;
+        }
+      }));
+      for (let displayedIndex = 0; displayedIndex < displayed.length; displayedIndex += 1) {
+        const { derived, info } = displayed[displayedIndex]!;
+        const history = histories[displayedIndex] ?? null;
+        if (history !== null) {
+          historyDetails += 1;
+          historyIndexedHeight = Math.max(historyIndexedHeight, history.indexedHeight);
+        }
         const finding: RecoveryFinding = {
           id: `platform:${derived.index}`,
           title: derived.address,
@@ -137,6 +160,15 @@ export async function scanDashPlatformAddresses(
             { label: 'DIP17 derivation path', value: derived.path, copyable: true },
             { label: 'Address index', value: String(derived.index) },
             { label: 'Outgoing nonce', value: info.nonce.toString() },
+            ...(history === null ? [] : [
+              { label: 'Transactions reported', value: String(history.transactionCount) },
+              { label: 'Incoming credit events', value: String(history.incomingCount) },
+              { label: 'Outgoing credit events', value: String(history.outgoingCount) },
+              { label: 'Lifetime received', value: formatDashFromCredits(history.totalReceived) },
+              { label: 'Lifetime sent', value: formatDashFromCredits(history.totalSent) },
+              ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
+              ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
+            ]),
             { label: 'Public-key hash', value: derived.publicKeyHash, copyable: true },
           ],
         };
@@ -168,11 +200,15 @@ export async function scanDashPlatformAddresses(
       { label: 'Funded addresses', value: String(fundedCount) },
       { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
       { label: 'Addresses checked', value: `${scanned} · minimum ${config.platformAddressCount}` },
+      { label: 'History details', value: `${historyDetails}/${findings.length} enriched` },
     ],
     findings,
     scanned,
-    source: 'Dash Platform DAPI · trusted quorum discovery',
-    proof: `Proof verified at Platform height ${proofHeight} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap`,
-    ...(gapTruncated ? { warning: 'A used address was found too close to the end of the BIP32 index space to complete the 20-address safety gap.' } : {}),
+    source: 'Dash Platform DAPI · trusted quorum discovery; synchronized Platform Explorer · auxiliary history',
+    proof: `Balance proof verified at Platform height ${proofHeight} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap${historyIndexedHeight > 0 ? ` · history indexed through height ${historyIndexedHeight}` : ''}`,
+    ...((gapTruncated || historyDetailFailures > 0) ? { warning: [
+      ...(gapTruncated ? ['A used address was found too close to the end of the BIP32 index space to complete the 20-address safety gap.'] : []),
+      ...(historyDetailFailures > 0 ? [`Historical details were unavailable or failed the DAPI balance cross-check for ${historyDetailFailures} displayed address${historyDetailFailures === 1 ? '' : 'es'}; proof-verified balances remain valid.`] : []),
+    ].join(' ') } : {}),
   };
 }

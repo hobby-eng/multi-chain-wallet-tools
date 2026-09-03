@@ -48,6 +48,7 @@ export interface ShieldedActivity {
   incoming?: DecryptedNoteView;
   outgoing?: DecryptedNoteView;
   spent?: boolean;
+  spentAtPosition?: bigint;
 }
 
 export interface ActivitySnapshot {

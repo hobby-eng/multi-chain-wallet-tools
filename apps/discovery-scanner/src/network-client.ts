@@ -3,6 +3,7 @@ import {
   RECOVERY_VAULT_CHANNEL,
   type IdentityLookupView,
   type PlatformAddressBatchView,
+  type PlatformHistorySummaryView,
   type RecoveryNetworkApi,
   type RecoveryNetworkRequestInput,
   type RecoveryNetworkResponse,
@@ -105,12 +106,20 @@ class RecoveryNetworkRpcClient implements RecoveryNetworkApi {
     return this.#request({ operation: 'platform.addresses', payload: { network, addresses } }, signal);
   }
 
+  platformAddressHistory(network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<PlatformHistorySummaryView> {
+    return this.#request({ operation: 'platform.address-history', payload: { network, address } }, signal);
+  }
+
   platformIdentityByPublicKeyHash(
     network: RecoveryNetwork,
     publicKeyHashHex: string,
     signal?: AbortSignal,
   ): Promise<IdentityLookupView> {
     return this.#request({ operation: 'platform.identity-by-public-key-hash', payload: { network, publicKeyHashHex } }, signal);
+  }
+
+  platformIdentityHistory(network: RecoveryNetwork, identifier: string, signal?: AbortSignal): Promise<PlatformHistorySummaryView> {
+    return this.#request({ operation: 'platform.identity-history', payload: { network, identifier } }, signal);
   }
 
   shieldedPage(network: RecoveryNetwork, startPosition: string, count: number, signal?: AbortSignal): Promise<ShieldedPageView> {
