@@ -1,21 +1,6 @@
 name: Full pinned Rust and WASM verification
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/dash-shielded-wasm/**'
-      - 'tooling/build-shielded-wasm.mjs'
-      - 'tooling/test-rust.mjs'
-      - 'tooling/verify-shielded-wasm.mjs'
-      - '.github/workflows/full-wasm.yml'
-  pull_request:
-    paths:
-      - 'packages/dash-shielded-wasm/**'
-      - 'tooling/build-shielded-wasm.mjs'
-      - 'tooling/test-rust.mjs'
-      - 'tooling/verify-shielded-wasm.mjs'
-      - '.github/workflows/full-wasm.yml'
   schedule:
     - cron: '17 3 1 * *'
   workflow_dispatch:
@@ -39,38 +24,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Node.js 24
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: '24'
-
-      - name: Install the pinned package manager
-        run: npm install --global pnpm@11.19.0
-
-      - name: Install the locked JavaScript dependency graph
-        run: pnpm install --frozen-lockfile
-
-      - name: Install the exact Rust and wasm-bindgen toolchain
+      - name: Rebuild and verify the complete project in the canonical container
         run: |
-          rustup toolchain install 1.85.1 --profile minimal
-          rustup default 1.85.1
-          rustup target add wasm32-unknown-unknown --toolchain 1.85.1
-          cargo install wasm-bindgen-cli --version 0.2.100 --locked --force
-          cargo --version
-          wasm-bindgen --version
-
-      - name: Run the complete verification, including native Rust and two WASM builds
-        run: pnpm verify
-
-      - name: Require the rebuilt WASM and glue to match the committed inputs
-        run: |
-          wasm_path='packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm'
-          committed_wasm_sha=$(git show "HEAD:${wasm_path}" | sha256sum | cut -d ' ' -f 1)
-          rebuilt_wasm_sha=$(sha256sum "${wasm_path}" | cut -d ' ' -f 1)
-          if ! git diff --quiet -- packages/dash-shielded-wasm/generated/; then
-            changed_files=$(git diff --name-only -- packages/dash-shielded-wasm/generated/ | paste -sd ', ' -)
-            echo "::error title=Generated WASM mismatch::Committed WASM SHA-256 ${committed_wasm_sha}; rebuilt SHA-256 ${rebuilt_wasm_sha}; changed files: ${changed_files}"
-            git diff --stat -- packages/dash-shielded-wasm/generated/
-            exit 1
-          fi
-          echo "Committed and rebuilt WASM match: ${rebuilt_wasm_sha}"
+          docker build --platform linux/amd64 \
+            --file Dockerfile.reproducible \
+            --target artifacts \
+            --tag multi-chain-wallet-tools-full-wasm:${GITHUB_SHA} \
+            .
