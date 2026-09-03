@@ -1,0 +1,55 @@
+FROM buildpack-deps:noble@sha256:64ae509ccf40ede042d2cdd30d7149450e73ebd4c5362a36768ac727326dafb6 AS toolchain
+
+ARG NODE_VERSION=24.19.0
+ARG NODE_ARCHIVE_SHA256=14b342e71204f811bde6153be8e04b62aef63c236fef92b55f9c83154b409647
+ARG RUSTUP_VERSION=1.29.1
+ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71
+
+ENV CARGO_HOME=/root/.cargo \
+    RUSTUP_HOME=/root/.rustup \
+    PATH=/root/.cargo/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin \
+    CI=true
+
+RUN curl --fail --silent --show-error --location \
+      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+      --output /tmp/node.tar.xz \
+    && echo "${NODE_ARCHIVE_SHA256}  /tmp/node.tar.xz" | sha256sum --check --strict \
+    && tar --extract --xz --file /tmp/node.tar.xz --directory /usr/local --strip-components=1 \
+    && rm /tmp/node.tar.xz \
+    && node --version \
+    && npm --version
+
+RUN curl --fail --silent --show-error --location \
+      "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init" \
+      --output /tmp/rustup-init \
+    && echo "${RUSTUP_INIT_SHA256}  /tmp/rustup-init" | sha256sum --check --strict \
+    && chmod 0755 /tmp/rustup-init \
+    && /tmp/rustup-init -y --profile minimal --default-toolchain 1.85.1 --target wasm32-unknown-unknown \
+    && rm /tmp/rustup-init \
+    && cargo --version \
+    && rustc --version
+
+RUN npm install --global pnpm@11.19.0 \
+    && cargo install wasm-bindgen-cli --version 0.2.100 --locked \
+    && test "$(pnpm --version)" = '11.19.0' \
+    && test "$(cargo --version | cut -d ' ' -f 1-2)" = 'cargo 1.85.1' \
+    && test "$(wasm-bindgen --version | cut -d ' ' -f 1-2)" = 'wasm-bindgen 0.2.100'
+
+FROM toolchain AS dependencies
+WORKDIR /workspace
+COPY . .
+RUN pnpm install --frozen-lockfile \
+    && cargo fetch --manifest-path packages/dash-shielded-wasm/rust/Cargo.toml --locked
+RUN cp -a packages/dash-shielded-wasm/generated /tmp/committed-generated
+
+FROM dependencies AS built
+RUN --network=none pnpm verify
+
+FROM built AS verified
+RUN diff --recursive --brief /tmp/committed-generated packages/dash-shielded-wasm/generated
+
+FROM scratch AS artifacts
+COPY --from=verified /workspace/dist /dist
+
+FROM scratch AS wasm-artifacts
+COPY --from=built /workspace/packages/dash-shielded-wasm/generated /generated

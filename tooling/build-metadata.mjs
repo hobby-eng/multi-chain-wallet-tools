@@ -20,6 +20,8 @@ export function createBuildInfo(root, checksumFile) {
   const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
   const files = [];
   for (const path of [
+    '.dockerignore',
+    'Dockerfile.reproducible',
     'package.json',
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
