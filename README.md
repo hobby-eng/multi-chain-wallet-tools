@@ -50,6 +50,8 @@ The scanner isolates mnemonic-based derivation inside a sandboxed, network-denie
 
 Download the three HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). `SHA256SUMS` covers the complete release asset set.
 
+The SHA-256 value labelled **Source/build fingerprint** inside each file's Release passport is not the checksum of that HTML file. It identifies the source and embedded build inputs used to create it. Verify the downloaded HTML itself with its external `.sha256` sidecar or the release `SHA256SUMS` file.
+
 On Linux:
 
 ```bash
@@ -59,6 +61,8 @@ sha256sum -c Wallet_Discovery_Scanner.html.sha256
 ```
 
 The key derivation tool is designed for direct `file://` use on an offline machine. The viewer and scanner require network access for blockchain data.
+
+Official release checksums refer to the artifacts produced by the pinned Ubuntu 24.04 GitHub Actions environment. A native rebuild on another operating system can pass the same cryptographic and artifact tests yet still have different byte-level WASM, passport fingerprint and final HTML checksum. This does not make the official checksum portable to locally rebuilt files; use the tagged GitHub workflow environment when exact release-byte reproduction is required.
 
 ## Supported derivation defaults
 

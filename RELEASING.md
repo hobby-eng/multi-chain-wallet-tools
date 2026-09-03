@@ -56,6 +56,8 @@ The checked-in workflows use only GitHub-maintained actions and pin each one to 
 
 The normal CI/release path deliberately reuses the committed, runtime-tested WASM so a release does not depend on installing a large Rust compiler stack. The full-WASM workflow separately proves that this committed WASM still comes from the pinned Rust source/toolchain.
 
+The Release passport's `Source/build fingerprint · SHA-256` is a digest of the source tree and embedded build inputs, including the generated WASM; it is not the byte-for-byte HTML checksum. The latter exists only in the external per-file `.sha256` sidecar and flat `SHA256SUMS`. Official release bytes are canonicalized by the Ubuntu 24.04 GitHub runner. Even with the same declared Rust and wasm-bindgen versions, a native build on a different host distribution may produce functionally verified but byte-different WASM and therefore a different passport fingerprint and HTML checksum. Use the tagged workflow environment—or a future equivalent pinned container—when exact release-byte reproduction is required.
+
 ## Release checklist
 
 1. Update workspace versions and `releaseDate`, add curated notes at `docs/releases/v<version>.md`, update relevant documentation, and commit the changes. The intended tag is always `v` plus the root `package.json` version.
