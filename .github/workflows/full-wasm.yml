@@ -63,4 +63,14 @@ jobs:
         run: pnpm verify
 
       - name: Require the rebuilt WASM and glue to match the committed inputs
-        run: git diff --exit-code -- packages/dash-shielded-wasm/generated/
+        run: |
+          wasm_path='packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm'
+          committed_wasm_sha=$(git show "HEAD:${wasm_path}" | sha256sum | cut -d ' ' -f 1)
+          rebuilt_wasm_sha=$(sha256sum "${wasm_path}" | cut -d ' ' -f 1)
+          if ! git diff --quiet -- packages/dash-shielded-wasm/generated/; then
+            changed_files=$(git diff --name-only -- packages/dash-shielded-wasm/generated/ | paste -sd ', ' -)
+            echo "::error title=Generated WASM mismatch::Committed WASM SHA-256 ${committed_wasm_sha}; rebuilt SHA-256 ${rebuilt_wasm_sha}; changed files: ${changed_files}"
+            git diff --stat -- packages/dash-shielded-wasm/generated/
+            exit 1
+          fi
+          echo "Committed and rebuilt WASM match: ${rebuilt_wasm_sha}"
