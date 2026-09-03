@@ -51,34 +51,34 @@ The checked-in workflows use only GitHub-maintained actions and pin each one to 
 
 - `.github/workflows/ci.yml` runs on every push to `main`, pull request and manual invocation. It uses Node 24, pnpm 11.19.0 and the locked dependency graph; runs TypeScript/tests/fixed vectors; runtime-verifies the committed Orchard WASM; builds all three HTML files twice; verifies CSP/security assertions and exact checksums; then creates a flat release bundle.
 - `.github/workflows/full-wasm.yml` runs when the Rust/WASM inputs change, monthly, or manually. It installs Rust/Cargo 1.85.1 and wasm-bindgen 0.2.100, runs the complete `pnpm verify`, and fails if rebuilt WASM/glue differ from the committed files.
-- `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version, creates GitHub provenance attestations, and creates a **draft** release containing the three HTML files, their sidecars, the MIT `LICENSE`, and a flat `SHA256SUMS`.
+- `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version and a matching curated `docs/releases/<tag>.md`, creates GitHub provenance attestations, and publishes a release containing the three HTML files, their sidecars, the MIT `LICENSE`, and a flat `SHA256SUMS`.
 - `.github/dependabot.yml` proposes pinned npm, Cargo and GitHub Actions updates monthly. Never merge a cryptographic/dependency update only because CI is green; inspect its changelog, lockfile diff and vectors.
 
 The normal CI/release path deliberately reuses the committed, runtime-tested WASM so a release does not depend on installing a large Rust compiler stack. The full-WASM workflow separately proves that this committed WASM still comes from the pinned Rust source/toolchain.
 
 ## Release checklist
 
-1. Update `version` and `releaseDate` in `package.json`, update release notes/documentation, and commit the changes. The intended tag for version `0.1.0` is `v0.1.0`.
+1. Update workspace versions and `releaseDate`, add curated notes at `docs/releases/v<version>.md`, update relevant documentation, and commit the changes. The intended tag is always `v` plus the root `package.json` version.
 2. From a clean source checkout, run `pnpm install --frozen-lockfile` and `pnpm verify`. This performs TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, a locked release WASM rebuild, generated-browser-WASM tests, two byte-identical HTML builds, manifest checks and each application's CSP/artifact verifier.
 3. Run the live network release observations below. They are intentionally not part of deterministic CI because changing chain state or a provider outage must not change the reproducible build result.
 4. Ensure the working tree is clean. A GPG key is not required. Create and push an annotated tag:
 
    ```bash
-   git tag -a v0.1.0 -m "v0.1.0"
-   git push origin v0.1.0
+   git tag -a v<version> -m "v<version>"
+   git push origin v<version>
    ```
 
    If a maintainer later configures a trusted GPG key, `git tag -s ...` may be used instead as an additional human-approval signal. GitHub Actions provenance remains available either way.
-5. Open the tag's Actions run. All checks must pass. The workflow creates a draft under **Releases**; it intentionally does not publish automatically.
-6. Rebuild locally with `pnpm verify`, then run `pnpm release:bundle`. Compare `dist/release/SHA256SUMS` with the draft release manifest. If a maintainer has a GPG key and wants an additional detached approval signature, sign that exact flat manifest locally without giving CI the private key:
+5. Open the tag's Actions run. All checks must pass. Only after every gate succeeds does the workflow publish the release using its curated notes.
+6. Rebuild locally with `pnpm verify`, then run `pnpm release:bundle`. Compare `dist/release/SHA256SUMS` with the published release manifest. If a maintainer has a GPG key and wants an additional detached approval signature, sign that exact flat manifest locally without giving CI the private key:
 
    ```bash
    pnpm release:sign -- YOUR_GPG_KEY_ID
-   gh release upload v0.1.0 dist/release/SHA256SUMS.asc --repo hobby-eng/multi-chain-wallet-tools
+   gh release upload v<version> dist/release/SHA256SUMS.asc --repo hobby-eng/multi-chain-wallet-tools
    ```
 
    The `.asc` file can instead be uploaded through the GitHub release web form. Skip this optional signing step when no GPG key is configured.
-7. Review the generated notes and artifact list, then publish the draft release manually.
+7. Review the published notes, artifact list, provenance attestations, and checksums. If any release gate or post-publication comparison is wrong, remove the release and tag rather than replacing assets silently.
 
 A GPG key is optional for this project. GitHub's artifact attestation links CI-built bytes to the tagged repository, workflow and commit and is the normal reproducible provenance path. A sidecar checksum detects corruption but authenticates nothing by itself. If OpenPGP signing is used later, its private key must never be stored in the repository, GitHub Actions secrets, browser storage, or release bundle; the detached signature means only that its owner personally approved the exact flat manifest. Neither attestation nor signature proves cryptographic correctness.
 
