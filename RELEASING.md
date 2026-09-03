@@ -47,21 +47,21 @@ If GitHub was initialized with a README or license instead of being empty, do no
 
 ## Automated checks
 
-The checked-in workflows use only GitHub-maintained actions and pin each one to a full commit SHA:
+The checked-in workflows pin every referenced GitHub-maintained action to a full commit SHA. Compilation itself runs through the repository's canonical Dockerfile:
 
-- `.github/workflows/ci.yml` runs on every push to `main`, pull request and manual invocation. It uses Node 24, pnpm 11.19.0 and the locked dependency graph; runs TypeScript/tests/fixed vectors; runtime-verifies the committed Orchard WASM; builds all three HTML files twice; verifies CSP/security assertions and exact checksums; then creates a flat release bundle.
-- `.github/workflows/full-wasm.yml` runs when the Rust/WASM inputs change, monthly, or manually. It installs Rust/Cargo 1.85.1 and wasm-bindgen 0.2.100, runs the complete `pnpm verify`, and fails if rebuilt WASM/glue differ from the committed files.
+- `.github/workflows/ci.yml` runs on every push to `main`, pull request and manual invocation. It builds the canonical container, runs the complete verification suite, rebuilds Orchard WASM, rejects any generated-byte difference and creates the flat release bundle.
+- `.github/workflows/full-wasm.yml` runs monthly or manually as a fresh scheduled repetition of the same complete, pinned Rust/WASM build gate.
 - `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version and a matching curated `docs/releases/<tag>.md`, creates GitHub provenance attestations, and publishes a release containing the three HTML files, their sidecars, the MIT `LICENSE`, and a flat `SHA256SUMS`.
 - `.github/dependabot.yml` proposes pinned npm, Cargo and GitHub Actions updates monthly. Never merge a cryptographic/dependency update only because CI is green; inspect its changelog, lockfile diff and vectors.
 
-The normal CI/release path deliberately reuses the committed, runtime-tested WASM so a release does not depend on installing a large Rust compiler stack. The full-WASM workflow separately proves that this committed WASM still comes from the pinned Rust source/toolchain.
+`Dockerfile.reproducible` pins the Ubuntu 24.04-based base image by immutable digest and pins Node.js 24.19.0, pnpm 11.19.0, Rust/Cargo 1.85.1 and wasm-bindgen 0.2.100. Downloaded Node/rustup installers are checksum-verified. Dependency fetching happens before the final `pnpm verify` layer; that complete verification/build layer runs with `--network=none`. The generated WASM is compared byte for byte with the committed reviewed input before any release artifact can leave the image.
 
-The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checksum)` value is a digest of the source tree and embedded build inputs, including the generated WASM; it is not the byte-for-byte HTML checksum. The latter exists only in the external per-file `.sha256` sidecar and flat `SHA256SUMS`. Official release bytes are canonicalized by the Ubuntu 24.04 GitHub runner. Even with the same declared Rust and wasm-bindgen versions, a native build on a different host distribution may produce functionally verified but byte-different WASM and therefore a different passport fingerprint and HTML checksum. Use the tagged workflow environment—or a future equivalent pinned container—when exact release-byte reproduction is required.
+The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checksum)` value is a digest of the source tree and embedded build inputs, including the canonical Docker definition and generated WASM; it is not the byte-for-byte HTML checksum. The latter exists only in the external per-file `.sha256` sidecar and flat `SHA256SUMS`. A native build on another host may be functionally correct but byte-different. `pnpm build:reproducible` is the supported way to reproduce the official release bytes locally.
 
 ## Release checklist
 
 1. Update workspace versions and `releaseDate`, add curated notes at `docs/releases/v<version>.md`, update relevant documentation, and commit the changes. The intended tag is always `v` plus the root `package.json` version.
-2. From a clean source checkout, run `pnpm install --frozen-lockfile` and `pnpm verify`. This performs TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, a locked release WASM rebuild, generated-browser-WASM tests, two byte-identical HTML builds, manifest checks and each application's CSP/artifact verifier.
+2. From a clean source checkout with Docker Engine/Desktop running, run `pnpm build:reproducible`. This performs the locked install, TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, a release WASM rebuild and exact generated-byte comparison, generated-browser-WASM tests, two byte-identical HTML builds, manifest checks and each application's CSP/artifact verifier.
 3. Run the live network release observations below. They are intentionally not part of deterministic CI because changing chain state or a provider outage must not change the reproducible build result.
 4. Ensure the working tree is clean. A GPG key is not required. Create and push an annotated tag:
 
@@ -72,7 +72,7 @@ The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checks
 
    If a maintainer later configures a trusted GPG key, `git tag -s ...` may be used instead as an additional human-approval signal. GitHub Actions provenance remains available either way.
 5. Open the tag's Actions run. All checks must pass. Only after every gate succeeds does the workflow publish the release using its curated notes.
-6. Rebuild locally with `pnpm verify`, then run `pnpm release:bundle`. Compare `dist/release/SHA256SUMS` with the published release manifest. If a maintainer has a GPG key and wants an additional detached approval signature, sign that exact flat manifest locally without giving CI the private key:
+6. Rebuild locally with `pnpm build:reproducible`. Compare `dist/release/SHA256SUMS` with the published release manifest. If a maintainer has a GPG key and wants an additional detached approval signature, sign that exact flat manifest locally without giving CI the private key:
 
    ```bash
    pnpm release:sign -- YOUR_GPG_KEY_ID

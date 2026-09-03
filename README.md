@@ -62,7 +62,7 @@ sha256sum -c Wallet_Discovery_Scanner.html.sha256
 
 The key derivation tool is designed for direct `file://` use on an offline machine. The viewer and scanner require network access for blockchain data.
 
-Official release checksums refer to the artifacts produced by the pinned Ubuntu 24.04 GitHub Actions environment. A native rebuild on another operating system can pass the same cryptographic and artifact tests yet still have different byte-level WASM, passport fingerprint and final HTML checksum. This does not make the official checksum portable to locally rebuilt files; use the tagged GitHub workflow environment when exact release-byte reproduction is required.
+Official release checksums refer to artifacts produced by the repository's pinned Linux/amd64 Docker build. A native rebuild on another operating system can pass the same cryptographic and artifact tests yet still have different byte-level WASM, passport fingerprint and final HTML checksum. Use the canonical container when exact release-byte reproduction is required.
 
 ## Supported derivation defaults
 
@@ -84,13 +84,31 @@ Bitcoin and Dash support mainnet/testnet separation. Optional change generation 
 
 Every release is built from locked npm and Cargo dependency graphs. Startup remains fail-closed until deterministic cryptographic tests pass. Coverage includes BIP39/BIP32, Bitcoin BIP49/BIP86, Ethereum EIP-55, Dash Core BIP44, Platform DIP17/DIP18, Identity DIP13, and Dash Orchard ZIP32 on mainnet and testnet.
 
-The release pipeline also runs TypeScript tests, independent derivation comparisons, native Rust tests, generated-WASM boundary tests, CSP/static checks, secret-egress tests, reproducible HTML builds, checksum verification and artifact provenance attestation.
+The release pipeline also runs TypeScript tests, independent derivation comparisons, native Rust tests, generated-WASM boundary tests, CSP/static checks, secret-egress tests, reproducible HTML builds, checksum verification and artifact provenance attestation. GitHub Actions and local release builds use the same pinned Docker toolchain.
 
 These checks greatly reduce integration and packaging risk; they do not prove that browsers, operating systems or this project are free of vulnerabilities. Test with an empty wallet first and independently verify valuable-wallet findings in a standard wallet.
 
 See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for the threat model and known limitations, and [Architecture](docs/ARCHITECTURE.md) for the Secret Vault/network boundary and package ownership.
 
 ## Build from source
+
+### Canonical reproducible build
+
+Docker is used to make the release bytes independent of the developer's Linux distribution and locally installed compiler versions. The image is based on Ubuntu 24.04, pinned by immutable digest, and installs exact Node.js, pnpm, Rust and wasm-bindgen versions. Downloaded tool installers are checksum-verified. Dependencies are fetched in an earlier image layer; the final complete verification and build run with network access disabled.
+
+Requirements: Docker Engine or Docker Desktop with BuildKit, plus Node.js/pnpm for the convenience command below.
+
+```bash
+pnpm build:reproducible
+```
+
+This builds and tests the complete project inside the canonical Linux/amd64 container and copies the verified files to `dist/`. The first run downloads the base image and toolchains and can be slow; Docker reuses them from its local cache afterward. No Docker image or cache is committed to Git or included in a release.
+
+If the pinned Rust source is intentionally changed, regenerate the reviewed browser module with `pnpm build:reproducible:wasm`, inspect and commit the resulting `packages/dash-shielded-wasm/generated/` diff, and then run `pnpm build:reproducible`. An unexpected WASM difference makes the normal canonical build fail.
+
+### Native development build
+
+A native build is useful for fast development and runs the same functional, cryptographic and artifact checks. Its generated binary bytes are not the canonical release identity because linkers and system libraries can vary by host.
 
 Requirements:
 
