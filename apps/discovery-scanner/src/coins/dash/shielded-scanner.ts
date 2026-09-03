@@ -155,6 +155,14 @@ function sectionFromLedger(
 ): RecoverySection {
   const snapshot = ledger.snapshot(outcome.complete);
   const visibleRecords = snapshot.records.filter((record) => shouldDisplayShieldedActivity(record, config.includeUsedZeroBalance));
+  const incomingCount = snapshot.records.filter((record) => record.direction === 'received').length;
+  const outgoingCount = snapshot.records.filter((record) => record.direction === 'sent').length;
+  const selfCount = snapshot.records.filter((record) => record.direction === 'self').length;
+  const spendableCount = snapshot.records.filter((record) => record.incoming !== undefined && record.spent === false).length;
+  const spentCount = snapshot.records.filter((record) => record.incoming !== undefined && record.spent === true).length;
+  const memoCount = snapshot.records.filter((record) => (record.incoming ?? record.outgoing)?.memo.length !== 0).length;
+  const firstPosition = snapshot.records[0]?.position ?? null;
+  const lastPosition = snapshot.records.at(-1)?.position ?? null;
   const findings: RecoveryFinding[] = visibleRecords.map((record) => {
     const incoming = record.incoming;
     const outgoing = record.outgoing;
@@ -173,8 +181,10 @@ function sectionFromLedger(
         { label: 'ZIP-32 account path', value: `m/32'/${config.network === 'mainnet' ? 5 : 1}'/${config.account}'`, copyable: true },
         { label: 'Pool position', value: record.position.toString() },
         { label: 'Direction', value: record.direction },
+        { label: 'Note value', value: formatDashFromCredits(note.value) },
         { label: 'Note commitment', value: record.cmx, copyable: true },
         { label: 'Spend state', value: incoming === undefined ? 'Outgoing view only' : record.spent === true ? 'Spent' : 'Unspent' },
+        ...(record.spentAtPosition === undefined ? [] : [{ label: 'Spent at pool position', value: record.spentAtPosition.toString() }]),
         ...(note.memo.length > 0 ? [{ label: 'Memo', value: note.memo }] : []),
       ],
     };
@@ -189,7 +199,18 @@ function sectionFromLedger(
     state: outcome.complete ? 'complete' : 'partial',
     metrics: [
       { label: 'Spendable balance', value: formatDashFromCredits(snapshot.balance ?? 0n), tone: (snapshot.balance ?? 0n) > 0n ? 'positive' : 'neutral' },
-      { label: 'Spendable / recovered notes', value: `${snapshot.records.filter((record) => record.incoming !== undefined && record.spent === false).length} / ${snapshot.records.length}` },
+      { label: 'Lifetime received', value: formatDashFromCredits(snapshot.receivedExternal ?? 0n) },
+      { label: 'Lifetime sent', value: formatDashFromCredits(snapshot.sentExternal ?? 0n) },
+      { label: 'Lifetime self/change', value: formatDashFromCredits(snapshot.selfOrChange ?? 0n) },
+      { label: 'Incoming notes', value: String(incomingCount) },
+      { label: 'Outgoing notes', value: String(outgoingCount) },
+      { label: 'Self/change notes', value: String(selfCount) },
+      { label: 'Spendable notes', value: String(spendableCount) },
+      { label: 'Spent notes', value: String(spentCount) },
+      { label: 'Notes with memo', value: String(memoCount) },
+      { label: 'Recovered notes', value: String(snapshot.records.length) },
+      ...(firstPosition === null ? [] : [{ label: 'First activity pool position', value: firstPosition.toString() }]),
+      ...(lastPosition === null ? [] : [{ label: 'Last activity pool position', value: lastPosition.toString() }]),
       { label: 'Pool actions checked', value: snapshot.scannedNotes.toLocaleString() },
       { label: 'DAPI pages', value: `${outcome.pageCount}${shared ? ' · one-pass batch stream' : ' · streamed'}` },
     ],

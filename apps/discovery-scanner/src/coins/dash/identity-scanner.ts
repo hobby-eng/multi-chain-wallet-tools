@@ -4,6 +4,7 @@ import { getDashNetwork } from '@ckd/core/networks.js';
 import { deriveDashIdentityAuthenticationKey } from '@ckd/coins/dash/identity.js';
 import type { RecoveryFinding, RecoveryProgress, RecoveryScanConfig, RecoverySection } from '../../types.js';
 import { DashPlatformClient } from './platform-client.js';
+import { validatePlatformHistory } from './platform-history.js';
 import { exactSafeInteger, exactUnsigned, formatDashFromCredits, object } from './util.js';
 
 const IDENTITY_QUERY_CONCURRENCY = 5;
@@ -134,6 +135,9 @@ export async function scanDashIdentities(
   let consecutiveEmpty = 0;
   let scanned = 0;
   let proofQueries = 0;
+  let historyDetailFailures = 0;
+  let historyDetails = 0;
+  let historyIndexedHeight = 0;
   const dapiDurationsMs: number[] = [];
   const scanStartedAt = Date.now();
   try {
@@ -174,6 +178,19 @@ export async function scanDashIdentities(
             if (seen.has(identity.identifier)) continue;
             seen.add(identity.identifier);
             totalBalance += identity.balance;
+            let history = null;
+            try {
+              history = validatePlatformHistory(
+                await client.identityHistory(identity.identifier, signal),
+                identity.identifier,
+                identity.balance,
+              );
+              historyDetails += 1;
+              historyIndexedHeight = Math.max(historyIndexedHeight, history.indexedHeight);
+            } catch (cause) {
+              if (signal.aborted) throw cause;
+              historyDetailFailures += 1;
+            }
             const finding: RecoveryFinding = {
               id: `identity:${identity.identifier}`,
               title: identity.identifier,
@@ -185,6 +202,16 @@ export async function scanDashIdentities(
                 { label: 'Identity index', value: String(result.identityIndex) },
                 { label: 'Matched public-key hash', value: result.publicKeyHashHex, copyable: true },
                 { label: 'Identity revision', value: identity.revision.toString() },
+                ...(history === null ? [] : [
+                  { label: 'Transactions reported', value: String(history.transactionCount) },
+                  { label: 'Incoming credit events', value: String(history.incomingCount) },
+                  { label: 'Outgoing credit events', value: String(history.outgoingCount) },
+                  { label: 'Lifetime received', value: formatDashFromCredits(history.totalReceived) },
+                  { label: 'Lifetime sent', value: formatDashFromCredits(history.totalSent) },
+                  ...(history.totalFees === null ? [] : [{ label: 'Lifetime fees spent', value: formatDashFromCredits(history.totalFees) }]),
+                  ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
+                  ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
+                ]),
               ],
             };
             findings.push(finding);
@@ -223,11 +250,15 @@ export async function scanDashIdentities(
       { label: 'Proof queries', value: String(proofQueries) },
       { label: 'Identity scan time', value: `${(elapsedMs / 1_000).toFixed(1)} s` },
       { label: 'DAPI average / max', value: `${providerAverageMs.toFixed(0)} / ${providerMaxMs.toFixed(0)} ms` },
+      { label: 'History details', value: `${historyDetails}/${findings.length} enriched` },
     ],
     findings,
     scanned,
-    source: 'Dash Platform DAPI · trusted quorum discovery',
-    proof: `Proof verified at Platform height ${proofHeight} · protocol ${protocolVersion} · ${proofQueries} logical proof queries · DAPI average ${providerAverageMs.toFixed(0)} ms, max ${providerMaxMs.toFixed(0)} ms · concurrency ${IDENTITY_QUERY_CONCURRENCY}`,
-    ...(endedByGap ? {} : { warning: 'The configured scan limit was reached before the identity gap limit. Increase the scan limit for an authoritative result.' }),
+    source: 'Dash Platform DAPI · trusted quorum discovery; synchronized Platform Explorer · auxiliary history',
+    proof: `Balance proof verified at Platform height ${proofHeight} · protocol ${protocolVersion} · ${proofQueries} logical proof queries · DAPI average ${providerAverageMs.toFixed(0)} ms, max ${providerMaxMs.toFixed(0)} ms · concurrency ${IDENTITY_QUERY_CONCURRENCY}${historyIndexedHeight > 0 ? ` · history indexed through height ${historyIndexedHeight}` : ''}`,
+    ...((!endedByGap || historyDetailFailures > 0) ? { warning: [
+      ...(!endedByGap ? ['The configured scan limit was reached before the identity gap limit. Increase the scan limit for an authoritative result.'] : []),
+      ...(historyDetailFailures > 0 ? [`Historical details were unavailable or failed the DAPI balance cross-check for ${historyDetailFailures} identit${historyDetailFailures === 1 ? 'y' : 'ies'}; proof-verified balances remain valid.`] : []),
+    ].join(' ') } : {}),
   };
 }

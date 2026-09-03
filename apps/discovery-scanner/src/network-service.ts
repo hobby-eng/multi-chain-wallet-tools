@@ -4,6 +4,7 @@ import { validateCoreP2pkhAddress, validatePlatformP2pkhAddress } from '@ckd/das
 import type {
   IdentityLookupView,
   PlatformAddressBatchView,
+  PlatformHistorySummaryView,
   ProofMetadataView,
   RecoveryNetworkApi,
   RecoveryNetworkRequest,
@@ -18,7 +19,15 @@ import type { RecoveryNetwork } from './types.js';
 import { describeUnknownError, freeThrownValue } from './error-message.js';
 
 const PUBLIC_KEY_HASH_PATTERN = /^[0-9a-f]{40}$/u;
+const TRANSACTION_HASH_PATTERN = /^[0-9a-f]{64}$/u;
+const PLATFORM_IDENTIFIER_PATTERN = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{44}$/u;
 const DECIMAL_PATTERN = /^(?:0|[1-9][0-9]*)$/u;
+const PLATFORM_HISTORY_PAGE_SIZE = 100;
+const PLATFORM_HISTORY_MAX_PAGES = 10_000;
+const PLATFORM_EXPLORER_ENDPOINTS: Record<RecoveryNetwork, string> = {
+  mainnet: 'https://platform-explorer.pshenmic.dev',
+  testnet: 'https://testnet.platform-explorer.pshenmic.dev',
+};
 const PRIMARY_HTTP_TIMEOUT_MS = 30_000;
 const EVO_CONNECT_TIMEOUT_MS = 8_000;
 const EVO_REQUEST_TIMEOUT_MS = 10_000;
@@ -70,6 +79,52 @@ function assertSingleAddress(
   } catch {
     throw new Error(`Network Worker rejected an invalid ${label} address.`);
   }
+}
+
+function record(value: unknown, context: string): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`Platform Explorer returned malformed ${context}.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function decimal(value: unknown, context: string, nullAsZero = false): string {
+  if (nullAsZero && (value === null || value === undefined)) return '0';
+  const text = typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : value;
+  if (typeof text !== 'string' || !DECIMAL_PATTERN.test(text)) {
+    throw new Error(`Platform Explorer returned an invalid ${context}.`);
+  }
+  return text;
+}
+
+function unsignedInteger(value: unknown, context: string): number {
+  const numeric = typeof value === 'string' && DECIMAL_PATTERN.test(value) ? Number(value) : value;
+  if (typeof numeric !== 'number' || !Number.isSafeInteger(numeric) || numeric < 0) {
+    throw new Error(`Platform Explorer returned an invalid ${context}.`);
+  }
+  return numeric;
+}
+
+function timestamp(value: unknown, context: string): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) {
+    throw new Error(`Platform Explorer returned an invalid ${context}.`);
+  }
+  return value;
+}
+
+function pageItems(value: unknown, context: string): { items: Record<string, unknown>[]; total: number } {
+  const page = record(value, context);
+  if (!Array.isArray(page.resultSet)) throw new Error(`Platform Explorer ${context} omitted its result set.`);
+  const items = page.resultSet.map((item) => record(item, `${context} item`));
+  const pagination = record(page.pagination, `${context} pagination`);
+  return { items, total: unsignedInteger(pagination.total, `${context} total`) };
+}
+
+function pageTimestamp(value: unknown, context: string): string | null {
+  const { items } = pageItems(value, context);
+  if (items.length === 0) return null;
+  return timestamp(items[0]?.timestamp, `${context} timestamp`);
 }
 
 function hexToBytes(hex: string): Uint8Array {
@@ -172,6 +227,31 @@ async function fetchJson(
 
 export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
   readonly #sdkByNetworkAndPurpose = new Map<string, Promise<EvoSDK>>();
+  readonly #platformExplorerHeightByNetwork = new Map<RecoveryNetwork, Promise<number>>();
+
+  #platformExplorerHeight(network: RecoveryNetwork, signal?: AbortSignal): Promise<number> {
+    const existing = this.#platformExplorerHeightByNetwork.get(network);
+    if (existing !== undefined) return existing;
+    const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
+    const loading = (async (): Promise<number> => {
+      const status = record(await fetchJson(`${endpoint}/status`, signal), 'status');
+      const indexer = record(status.indexer, 'indexer status');
+      if (indexer.status !== 'synced') throw new Error('Platform Explorer index is not synchronized.');
+      const reportedNetwork = typeof status.network === 'string' ? status.network : '';
+      if (network === 'testnet' ? !/testnet/iu.test(reportedNetwork) : /testnet/iu.test(reportedNetwork)) {
+        throw new Error('Platform Explorer returned status for the wrong network.');
+      }
+      const api = record(status.api, 'API status');
+      return unsignedInteger(record(api.block, 'latest block').height, 'latest indexed height');
+    })();
+    this.#platformExplorerHeightByNetwork.set(network, loading);
+    void loading.catch(() => {
+      if (this.#platformExplorerHeightByNetwork.get(network) === loading) {
+        this.#platformExplorerHeightByNetwork.delete(network);
+      }
+    });
+    return loading;
+  }
 
   #sdk(network: RecoveryNetwork, purpose: 'addresses' | 'identity' | 'shielded'): Promise<EvoSDK> {
     assertNetwork(network);
@@ -263,7 +343,26 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
   async coreAddressHistory(network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<unknown> {
     assertNetwork(network);
     assertSingleAddress(address, network, validateCoreP2pkhAddress, 'Dash Core P2PKH');
-    return fetchJson(`${RECOVERY_CORE_ENDPOINTS[network]}/address/${encodeURIComponent(address)}`, signal);
+    const historyValue = await fetchJson(`${RECOVERY_CORE_ENDPOINTS[network]}/address/${encodeURIComponent(address)}`, signal);
+    if (typeof historyValue !== 'object' || historyValue === null || Array.isArray(historyValue)) return historyValue;
+    const history = historyValue as Record<string, unknown>;
+    // DashScan currently leaves firstSeenBlock/Timestamp null for some
+    // special-transaction outputs (for example Asset Unlock), while retaining
+    // the authoritative firstSeenTx hash. Resolve that transaction through the
+    // same source so the public recovery record still gets its first date.
+    if ((typeof history.firstSeenBlockTimestamp === 'string' && Number.isFinite(Date.parse(history.firstSeenBlockTimestamp)))
+      || typeof history.firstSeenTx !== 'string'
+      || !TRANSACTION_HASH_PATTERN.test(history.firstSeenTx)) return historyValue;
+    const transactionValue = await fetchJson(
+      `${RECOVERY_CORE_ENDPOINTS[network]}/transaction/${encodeURIComponent(history.firstSeenTx)}`,
+      signal,
+    );
+    if (typeof transactionValue !== 'object' || transactionValue === null || Array.isArray(transactionValue)) return historyValue;
+    const transaction = transactionValue as Record<string, unknown>;
+    if (transaction.hash !== history.firstSeenTx) return historyValue;
+    const timestamp = transaction.timestamp;
+    if (typeof timestamp !== 'string' || !Number.isFinite(Date.parse(timestamp))) return historyValue;
+    return { ...history, firstSeenBlockTimestamp: timestamp };
   }
 
   async platformAddresses(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<PlatformAddressBatchView> {
@@ -291,6 +390,39 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
       metadata.free();
       response.free();
     }
+  }
+
+  async platformAddressHistory(
+    network: RecoveryNetwork,
+    address: string,
+    signal?: AbortSignal,
+  ): Promise<PlatformHistorySummaryView> {
+    assertNetwork(network);
+    assertSingleAddress(address, network, validatePlatformP2pkhAddress, 'Dash Platform P2PKH');
+    const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
+    const indexedHeight = await this.#platformExplorerHeight(network, signal);
+    const info = record(await fetchJson(`${endpoint}/platformAddress/${encodeURIComponent(address)}/info`, signal), 'address info');
+    if (info.bech32mAddress !== address) throw new Error('Platform Explorer address info did not match the requested address.');
+    const transactionCount = unsignedInteger(info.totalTxs, 'address transaction count');
+    const [firstSeen, lastSeen] = transactionCount === 0 ? [null, null] : await Promise.all([
+      fetchJson(`${endpoint}/platformAddress/${encodeURIComponent(address)}/transactions?page=1&limit=1&order=asc`, signal)
+        .then((value) => pageTimestamp(value, 'first address transition')),
+      fetchJson(`${endpoint}/platformAddress/${encodeURIComponent(address)}/transactions?page=1&limit=1&order=desc`, signal)
+        .then((value) => pageTimestamp(value, 'last address transition')),
+    ]);
+    return {
+      resource: address,
+      balance: decimal(info.balance, 'address balance'),
+      transactionCount,
+      incomingCount: unsignedInteger(info.incomingTxs, 'incoming address transition count'),
+      outgoingCount: unsignedInteger(info.outgoingTxs, 'outgoing address transition count'),
+      totalReceived: decimal(info.totalIncomingAmount, 'total incoming amount', true),
+      totalSent: decimal(info.totalOutgoingAmount, 'total outgoing amount', true),
+      totalFees: null,
+      firstSeen,
+      lastSeen,
+      indexedHeight,
+    };
   }
 
   async platformIdentityByPublicKeyHash(
@@ -359,6 +491,65 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     }
   }
 
+  async platformIdentityHistory(
+    network: RecoveryNetwork,
+    identifier: string,
+    signal?: AbortSignal,
+  ): Promise<PlatformHistorySummaryView> {
+    assertNetwork(network);
+    if (!PLATFORM_IDENTIFIER_PATTERN.test(identifier)) throw new Error('Network Worker rejected an invalid Platform identity.');
+    const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
+    const indexedHeight = await this.#platformExplorerHeight(network, signal);
+    const info = record(await fetchJson(`${endpoint}/identity/${encodeURIComponent(identifier)}`, signal), 'identity info');
+    if (info.identifier !== identifier) throw new Error('Platform Explorer identity info did not match the requested identity.');
+    const transactionCount = unsignedInteger(info.totalTxs, 'identity transaction count');
+    const firstSeen = timestamp(info.timestamp, 'identity first-seen timestamp');
+    const lastSeen = transactionCount === 0 ? firstSeen : await fetchJson(
+      `${endpoint}/identity/${encodeURIComponent(identifier)}/transactions?page=1&limit=1&order=desc`,
+      signal,
+    ).then((value) => pageTimestamp(value, 'last identity transition'));
+    let totalReceived = 0n;
+    let totalSent = 0n;
+    let incomingCount = 0;
+    let outgoingCount = 0;
+    let processed = 0;
+    let total = 1;
+    for (let pageNumber = 1; processed < total; pageNumber += 1) {
+      if (pageNumber > PLATFORM_HISTORY_MAX_PAGES) throw new Error('Platform identity transfer history exceeded its safety ceiling.');
+      const page = pageItems(await fetchJson(
+        `${endpoint}/identity/${encodeURIComponent(identifier)}/transfers?page=${pageNumber}&limit=${PLATFORM_HISTORY_PAGE_SIZE}&order=asc`,
+        signal,
+      ), 'identity transfer page');
+      total = page.total;
+      for (const transfer of page.items) {
+        const amount = BigInt(decimal(transfer.amount, 'identity transfer amount'));
+        if (transfer.recipient === identifier) {
+          totalReceived += amount;
+          incomingCount += 1;
+        }
+        if (transfer.sender === identifier) {
+          totalSent += amount;
+          outgoingCount += 1;
+        }
+      }
+      processed += page.items.length;
+      if (page.items.length === 0 && processed < total) throw new Error('Platform Explorer truncated identity transfer history.');
+    }
+    return {
+      resource: identifier,
+      balance: decimal(info.balance, 'identity balance'),
+      transactionCount,
+      incomingCount,
+      outgoingCount,
+      totalReceived: totalReceived.toString(),
+      totalSent: totalSent.toString(),
+      totalFees: decimal(info.totalGasSpent, 'identity fees', true),
+      firstSeen,
+      lastSeen,
+      indexedHeight,
+    };
+  }
+
   async shieldedPage(
     network: RecoveryNetwork,
     startPosition: string,
@@ -400,9 +591,15 @@ export async function executeRecoveryNetworkRequest(
     case 'core.address-info': return service.coreAddressInfo(request.payload.network, request.payload.addresses, signal);
     case 'core.address-history': return service.coreAddressHistory(request.payload.network, request.payload.address, signal);
     case 'platform.addresses': return service.platformAddresses(request.payload.network, request.payload.addresses, signal);
+    case 'platform.address-history': return service.platformAddressHistory(request.payload.network, request.payload.address, signal);
     case 'platform.identity-by-public-key-hash': return service.platformIdentityByPublicKeyHash(
       request.payload.network,
       request.payload.publicKeyHashHex,
+      signal,
+    );
+    case 'platform.identity-history': return service.platformIdentityHistory(
+      request.payload.network,
+      request.payload.identifier,
       signal,
     );
     case 'shielded.page': return service.shieldedPage(

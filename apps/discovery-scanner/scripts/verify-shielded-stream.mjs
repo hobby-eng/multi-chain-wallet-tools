@@ -60,7 +60,9 @@ try {
     coreOfficialUtxos: unavailable,
     coreAddressHistory: unavailable,
     platformAddresses: unavailable,
+    platformAddressHistory: unavailable,
     platformIdentityByPublicKeyHash: unavailable,
+    platformIdentityHistory: unavailable,
     shieldedPage: async () => {
       pageRequests += 1;
       return {
