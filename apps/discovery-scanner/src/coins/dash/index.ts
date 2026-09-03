@@ -38,18 +38,25 @@ function validateConfig(config: RecoveryScanConfig): void {
   assertIndex(config.account, 'Account');
   assertCount(config.coreReceiveCount, 'Core receive count', true);
   assertCount(config.coreChangeCount, 'Core change count', true);
-  if (config.coreReceiveCount + config.coreChangeCount < 1) {
+  if (config.scanCore && config.coreReceiveCount + config.coreChangeCount < 1) {
     throw new Error('At least one Dash Core receive or change address must be scanned.');
   }
   assertCount(config.platformAddressCount, 'Platform address count', true);
+  if (config.scanPlatformAddresses && config.platformAddressCount < 1) {
+    throw new Error('At least one Dash Platform address must be scanned.');
+  }
   assertIndex(config.identityStartIndex, 'Identity start index');
   assertCount(config.identityGapLimit, 'Identity gap limit');
   assertCount(config.identityScanLimit, 'Identity scan limit');
   if (config.identityStartIndex + config.identityScanLimit - 1 > MAX_BIP32_INDEX) {
     throw new Error('The requested identity scan range exceeds the BIP32 index space.');
   }
-  if (typeof config.includeUsedZeroBalance !== 'boolean' || typeof config.scanShieldedPool !== 'boolean') {
-    throw new Error('Recovery output and Orchard options must be boolean values.');
+  const componentFlags = [config.scanCore, config.scanPlatformAddresses, config.scanPlatformIdentities, config.scanShieldedPool];
+  if (componentFlags.some((value) => typeof value !== 'boolean') || typeof config.includeUsedZeroBalance !== 'boolean') {
+    throw new Error('Recovery component and output options must be boolean values.');
+  }
+  if (!componentFlags.some(Boolean)) {
+    throw new Error('Select at least one Dash component to scan.');
   }
 }
 
@@ -68,6 +75,21 @@ async function guardedSection(
     const [title, description] = TITLES[id];
     return failedSection(id, title, description, cause);
   }
+}
+
+function skippedSection(id: RecoverySectionId): RecoverySection {
+  const [title, description] = TITLES[id];
+  return {
+    id,
+    title,
+    description: `${description} was disabled in the scan settings.`,
+    state: 'skipped',
+    metrics: [{ label: 'Status', value: 'Skipped' }],
+    findings: [],
+    scanned: id === 'shielded' ? 0n : 0,
+    source: 'Not connected',
+    proof: 'Not requested',
+  };
 }
 
 export const DASH_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
@@ -122,9 +144,15 @@ export const DASH_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
       // returned section order stable while the shared semaphore remains the
       // sole authority for the maximum number of network/DAPI operations.
       const sections = await Promise.all([
-        startSection('core', () => scanDashCore(input.id, seed, config, gateway, context.signal, onProgress, onFinding('core'))),
-        startSection('platform', () => scanDashPlatformAddresses(input.id, seed, config, platformClient, context.signal, onProgress, onFinding('platform'))),
-        startSection('identity', () => scanDashIdentities(input.id, seed, config, platformClient, context.signal, onProgress, onFinding('identity'))),
+        startSection('core', () => config.scanCore
+          ? scanDashCore(input.id, seed, config, gateway, context.signal, onProgress, onFinding('core'))
+          : Promise.resolve(skippedSection('core'))),
+        startSection('platform', () => config.scanPlatformAddresses
+          ? scanDashPlatformAddresses(input.id, seed, config, platformClient, context.signal, onProgress, onFinding('platform'))
+          : Promise.resolve(skippedSection('platform'))),
+        startSection('identity', () => config.scanPlatformIdentities
+          ? scanDashIdentities(input.id, seed, config, platformClient, context.signal, onProgress, onFinding('identity'))
+          : Promise.resolve(skippedSection('identity'))),
         startSection('shielded', async () => {
           if (context.preparedSections !== undefined) {
             const prepared = (await context.preparedSections).get(input.id);

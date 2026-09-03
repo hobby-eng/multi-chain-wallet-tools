@@ -39,9 +39,12 @@ const batchPassphrases = required<HTMLTextAreaElement>('#batch-passphrases');
 const batchConcurrencyInput = required<HTMLSelectElement>('#batch-concurrency');
 const revealButton = required<HTMLButtonElement>('#reveal-recovery-input');
 const clearInputOnStart = required<HTMLInputElement>('#clear-input-on-start');
+const scanCoreInput = required<HTMLInputElement>('#scan-core');
 const coreReceiveInput = required<HTMLInputElement>('#core-receive-count');
 const coreChangeInput = required<HTMLInputElement>('#core-change-count');
+const scanPlatformAddressesInput = required<HTMLInputElement>('#scan-platform-addresses');
 const platformCountInput = required<HTMLInputElement>('#platform-address-count');
+const scanPlatformIdentitiesInput = required<HTMLInputElement>('#scan-platform-identities');
 const identityStartInput = required<HTMLInputElement>('#identity-start-index');
 const identityGapInput = required<HTMLInputElement>('#identity-gap-limit');
 const identityLimitInput = required<HTMLInputElement>('#identity-scan-limit');
@@ -107,6 +110,22 @@ const progressSectionLabels: Record<RecoveryProgress['section'], string> = {
   shielded: 'Orchard pool',
 };
 
+const componentSettings: Record<'core' | 'platform' | 'identity', HTMLElement[]> = {
+  core: [...document.querySelectorAll<HTMLElement>('[data-component-settings="core"]')],
+  platform: [...document.querySelectorAll<HTMLElement>('[data-component-settings="platform"]')],
+  identity: [...document.querySelectorAll<HTMLElement>('[data-component-settings="identity"]')],
+};
+
+function updateComponentSettings(): void {
+  for (const [component, enabled] of [
+    ['core', scanCoreInput.checked],
+    ['platform', scanPlatformAddressesInput.checked],
+    ['identity', scanPlatformIdentitiesInput.checked],
+  ] as const) {
+    for (const element of componentSettings[component]) element.hidden = !enabled;
+  }
+}
+
 function parseInteger(input: HTMLInputElement, label: string, minimum: number): number {
   const value = Number(input.value);
   if (!Number.isSafeInteger(value) || value < minimum) {
@@ -127,9 +146,12 @@ function scanConfig(): RecoveryScanConfig {
   return {
     network: networkInput.value === 'testnet' ? 'testnet' : 'mainnet',
     account: parseInteger(accountInput, 'Account', 0),
+    scanCore: scanCoreInput.checked,
     coreReceiveCount: parseInteger(coreReceiveInput, 'Core receive count', 0),
     coreChangeCount: parseInteger(coreChangeInput, 'Core change count', 0),
+    scanPlatformAddresses: scanPlatformAddressesInput.checked,
     platformAddressCount: parseInteger(platformCountInput, 'Platform address count', 0),
+    scanPlatformIdentities: scanPlatformIdentitiesInput.checked,
     identityStartIndex: parseInteger(identityStartInput, 'Identity start index', 0),
     identityGapLimit: parseInteger(identityGapInput, 'Identity gap limit', 1),
     identityScanLimit: parseInteger(identityLimitInput, 'Identity scan limit', 1),
@@ -209,14 +231,18 @@ function setStatus(message: string): void {
 }
 
 function updateEstimate(): void {
+  updateComponentSettings();
   try {
-    const core = parseInteger(coreReceiveInput, 'Core receive count', 0) + parseInteger(coreChangeInput, 'Core change count', 0);
-    const platform = parseInteger(platformCountInput, 'Platform address count', 0);
+    const core = scanCoreInput.checked ? parseInteger(coreReceiveInput, 'Core receive count', 0) + parseInteger(coreChangeInput, 'Core change count', 0) : 0;
+    const platform = scanPlatformAddressesInput.checked ? parseInteger(platformCountInput, 'Platform address count', 0) : 0;
     const coreBatches = Math.ceil(core / 50);
     const platformBatches = Math.ceil(platform / 100);
-    const identities = parseInteger(identityLimitInput, 'Identity scan limit', 1);
+    const identities = scanPlatformIdentitiesInput.checked ? parseInteger(identityLimitInput, 'Identity scan limit', 1) : 0;
     const requests = parseConcurrency(requestConcurrencyInput, 'Network concurrency');
-    estimate.textContent = `${(coreBatches + platformBatches).toLocaleString()} minimum address batches + gap 20 · about ${(identities * 2).toLocaleString()} identity proof calls per seed phrase (unique + non-unique) · ${requests} network request${requests === 1 ? '' : 's'} at once${includeUsedZeroInput.checked ? ' · zero-balance Core/Platform/Orchard history enabled' : ''}${scanShieldedInput.checked ? ' · Orchard pool' : ''}`;
+    const components = [scanCoreInput, scanPlatformAddressesInput, scanPlatformIdentitiesInput, scanShieldedInput].filter(({ checked }) => checked).length;
+    estimate.textContent = components === 0
+      ? 'Select at least one component'
+      : `${components} component${components === 1 ? '' : 's'} · ${(coreBatches + platformBatches).toLocaleString()} minimum address batches${coreBatches + platformBatches > 0 ? ' + gap 20' : ''} · about ${(identities * 2).toLocaleString()} identity proof calls per seed phrase · ${requests} network request${requests === 1 ? '' : 's'} at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}${scanShieldedInput.checked ? ' · complete Orchard pool' : ''}`;
   } catch {
     estimate.textContent = 'Enter valid scan counts';
   }
@@ -669,9 +695,12 @@ exportCsv.addEventListener('click', () => { void downloadExport('csv'); });
 exportJson.addEventListener('click', () => { void downloadExport('json'); });
 for (const input of [
   accountInput,
+  scanCoreInput,
   coreReceiveInput,
   coreChangeInput,
+  scanPlatformAddressesInput,
   platformCountInput,
+  scanPlatformIdentitiesInput,
   identityStartInput,
   identityGapInput,
   identityLimitInput,

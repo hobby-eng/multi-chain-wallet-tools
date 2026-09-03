@@ -60,6 +60,14 @@
 .check-option { display:flex; align-items:center; gap:8px; margin:0; color:#9aa7b5; font-size:11px; font-weight:650; }
 .check-option input,.shielded-option input { width:auto; accent-color:var(--accent); }
 .coverage-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px; }
+.component-selection { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:0 0 17px; }
+.component-option { display:flex; align-items:flex-start; gap:9px; padding:12px; border:1px solid #34404d; border-radius:10px; background:#111820; cursor:pointer; }
+.component-option:has(input:checked) { border-color:#7a581e; background:#211a0f; box-shadow:inset 0 -2px 0 #f5a623; }
+.component-option input { width:auto; margin:3px 0 0; accent-color:var(--accent); }
+.component-option strong,.component-option small { display:block; }
+.component-option strong { color:#dce4ec; }
+.component-option small { color:#84909d; margin-top:4px; line-height:1.35; }
+.component-option:has(input:checked) strong { color:#ffd16b; }
 .shielded-option { display:flex; align-items:flex-start; gap:11px; margin:17px 0 0; padding:13px; border:1px solid #304438; border-radius:10px; background:#0e1a15; }
 .shielded-option input { margin-top:3px; }
 .shielded-option strong,.shielded-option small { display:block; }
@@ -149,7 +157,7 @@
 @media (max-width:900px) {
   .recovery-hero-grid { grid-template-columns:1fr; gap:30px; }
   .recovery-capability-card { min-height:0; }
-  .coverage-grid,.section-metrics { grid-template-columns:1fr 1fr; }
+  .component-selection,.coverage-grid,.section-metrics { grid-template-columns:1fr 1fr; }
 }
 @media (max-width:720px) {
   .recovery-flow { grid-template-columns:1fr; }
@@ -169,7 +177,7 @@
   .network-badge { max-width:154px; text-align:left; }
   .recovery-hero-grid { padding-top:44px; }
   .danger-warning::after { display:none; }
-  .recovery-mode-tabs,.coverage-grid,.section-metrics { grid-template-columns:1fr; }
+  .recovery-mode-tabs,.component-selection,.coverage-grid,.section-metrics { grid-template-columns:1fr; }
   .recovery-section-head,.recovery-results-title { flex-direction:column; align-items:flex-start; }
   .recovery-action-bar .actions { width:100%; }
   .recovery-action-bar button { width:100%; }

@@ -151,6 +151,7 @@ describe('streamed Core recovery scan', () => {
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
     const config: RecoveryScanConfig = {
       network: 'testnet', account: 0,
+      scanCore: true, scanPlatformAddresses: false, scanPlatformIdentities: false,
       coreReceiveCount: 201, coreChangeCount: 101, platformAddressCount: 0,
       identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
       includeUsedZeroBalance: false,
@@ -259,6 +260,7 @@ describe('dynamic recovery discovery gap and history filter', () => {
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
     const config: RecoveryScanConfig = {
       network: 'testnet', account: 0,
+      scanCore: true, scanPlatformAddresses: false, scanPlatformIdentities: false,
       coreReceiveCount: 100, coreChangeCount: 0, platformAddressCount: 0,
       identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
       includeUsedZeroBalance: false, scanShieldedPool: false,
@@ -296,6 +298,7 @@ describe('dynamic recovery discovery gap and history filter', () => {
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
     const config: RecoveryScanConfig = {
       network: 'testnet', account: 0,
+      scanCore: true, scanPlatformAddresses: false, scanPlatformIdentities: false,
       coreReceiveCount: 2, coreChangeCount: 0, platformAddressCount: 0,
       identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
       includeUsedZeroBalance: true, scanShieldedPool: false,
@@ -392,6 +395,7 @@ describe('proof-verified Platform recovery scan', () => {
     } as unknown as DashPlatformClient;
     const config: RecoveryScanConfig = {
       network: 'mainnet', account: 0,
+      scanCore: false, scanPlatformAddresses: true, scanPlatformIdentities: false,
       coreReceiveCount: 1, coreChangeCount: 0, platformAddressCount: 100,
       identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
       includeUsedZeroBalance: false,
