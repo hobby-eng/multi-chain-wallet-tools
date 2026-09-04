@@ -1,0 +1,66 @@
+name: Check pinned upstream versions
+
+on:
+  schedule:
+    - cron: '37 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: upstream-versions
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compare pinned toolchains and Dash dependencies with upstream
+        id: versions
+        continue-on-error: true
+        run: node tooling/check-upstream-versions.mjs > upstream-version-report.md 2>&1
+
+      - name: Open or refresh the dependency review issue
+        if: steps.versions.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title='Pinned upstream dependency updates are available'
+          issue_number=$(
+            gh issue list --state open --limit 100 --json number,title \
+              --jq ".[] | select(.title == \"${title}\") | .number" |
+              head -n 1
+          )
+          if [ -n "$issue_number" ]; then
+            gh issue edit "$issue_number" --body-file upstream-version-report.md
+          else
+            gh issue create --title "$title" --body-file upstream-version-report.md
+          fi
+
+      - name: Close a resolved dependency review issue
+        if: steps.versions.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title='Pinned upstream dependency updates are available'
+          issue_number=$(
+            gh issue list --state open --limit 100 --json number,title \
+              --jq ".[] | select(.title == \"${title}\") | .number" |
+              head -n 1
+          )
+          if [ -n "$issue_number" ]; then
+            gh issue close "$issue_number" --comment 'All monitored pins now match their latest reviewed upstream releases.'
+          fi
+
+      - name: Fail when a reviewed update is required
+        if: steps.versions.outcome == 'failure'
+        run: |
+          cat upstream-version-report.md
+          exit 1

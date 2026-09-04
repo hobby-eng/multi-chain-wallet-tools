@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@dashevo/evo-sdk':
-        specifier: 4.1.0
-        version: 4.1.0
+        specifier: 4.1.1
+        version: 4.1.1
       '@noble/curves':
         specifier: 2.4.0
         version: 2.4.0
@@ -34,8 +34,8 @@ importers:
         specifier: 3.3.3
         version: 3.3.3
       dashkeys:
-        specifier: 1.1.3
-        version: 1.1.3
+        specifier: 1.1.5
+        version: 1.1.5
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
@@ -76,12 +76,12 @@ packages:
   '@adraffy/ens-normalize@1.11.1':
     resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
 
-  '@dashevo/evo-sdk@4.1.0':
-    resolution: {integrity: sha512-31sSjLXc8XEm4/PCEUXRGBJvSDwearx1RHFza44zpB1e+TKD74M3RRhbO0X1WSdP4vNQxVuzYZV2LfwEgzyQzg==}
+  '@dashevo/evo-sdk@4.1.1':
+    resolution: {integrity: sha512-DsfHXlLByyhvAerDknozg0HT4KHNsYP6rEy949aj/KGLLydb9bwJBHOWyn5oDsNR016tvr3oeT/jCkjMA4qoCA==}
     engines: {node: '>=18.18'}
 
-  '@dashevo/wasm-sdk@4.1.0':
-    resolution: {integrity: sha512-4Odbmug9s3ABz+BNUi5Le2Q4csuhXdmGksqep6ev6MXIXqWm7vLGV5PZ9YJo9I9IHodKiVibPNujIoNv06NMBw==}
+  '@dashevo/wasm-sdk@4.1.1':
+    resolution: {integrity: sha512-/be0D7qohZc9fHgYjbtzOg8KOajarzo0NtKCNybv4Z1xeV617Wo0CusnsxCzwbV7C/jDgPJiGel0KtcSTzQcfQ==}
     engines: {node: '>=18.18'}
 
   '@dashincubator/secp256k1@1.7.1-5':
@@ -553,8 +553,8 @@ packages:
   dashhd@3.3.3:
     resolution: {integrity: sha512-sbhLV8EtmebnlIdx/d1hcbnxdfka/0rcLx+UO5y44kZdu5tyJ5ftBFbhhIb38vd+T+Xfcwpeo0z+0ZDznRkfaw==}
 
-  dashkeys@1.1.3:
-    resolution: {integrity: sha512-4GF5KA/HSJB8IWVm+duMK/FHs+k1IV40b4Cx5n7hU03yRxWqatc8KiPR6jAUpkdMELw6pz8RvDDKn/y1ubm+wQ==}
+  dashkeys@1.1.5:
+    resolution: {integrity: sha512-ohHoe3bNeWZPsVxmOrWFaqZrJP3GeuSk6AtAawUCx0ZXVkTraeDQyMMp7ewhy3OEHkvs5yy6woMAQnwhmooX8w==}
 
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
@@ -842,11 +842,11 @@ snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
 
-  '@dashevo/evo-sdk@4.1.0':
+  '@dashevo/evo-sdk@4.1.1':
     dependencies:
-      '@dashevo/wasm-sdk': 4.1.0
+      '@dashevo/wasm-sdk': 4.1.1
 
-  '@dashevo/wasm-sdk@4.1.0': {}
+  '@dashevo/wasm-sdk@4.1.1': {}
 
   '@dashincubator/secp256k1@1.7.1-5': {}
 
@@ -1129,7 +1129,7 @@ snapshots:
 
   dashhd@3.3.3: {}
 
-  dashkeys@1.1.3: {}
+  dashkeys@1.1.5: {}
 
   detect-libc@2.1.2: {}
 
