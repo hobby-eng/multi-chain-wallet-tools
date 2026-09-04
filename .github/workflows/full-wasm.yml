@@ -27,6 +27,7 @@ jobs:
       - name: Rebuild and verify the complete project in the canonical container
         run: |
           docker build --platform linux/amd64 \
+            --network host \
             --file Dockerfile.reproducible \
             --target artifacts \
             --tag multi-chain-wallet-tools-full-wasm:${GITHUB_SHA} \

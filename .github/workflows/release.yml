@@ -35,11 +35,12 @@ jobs:
       - name: Verify sources and build release assets in the canonical container
         run: |
           docker build --platform linux/amd64 \
+            --network host \
             --file Dockerfile.reproducible \
             --target artifacts \
             --tag multi-chain-wallet-tools-release:${GITHUB_SHA} \
             .
-          container_id=$(docker create multi-chain-wallet-tools-release:${GITHUB_SHA})
+          container_id=$(docker create multi-chain-wallet-tools-release:${GITHUB_SHA} /bin/true)
           trap 'docker rm --force "${container_id}" >/dev/null 2>&1 || true' EXIT
           docker cp "${container_id}:/dist/." dist
           cat dist/release/SHA256SUMS

@@ -7,6 +7,7 @@ ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35
 
 ENV CARGO_HOME=/root/.cargo \
     RUSTUP_HOME=/root/.rustup \
+    CARGO_NET_GIT_FETCH_WITH_CLI=true \
     PATH=/root/.cargo/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin \
     CI=true
 
@@ -29,7 +30,8 @@ RUN curl --fail --silent --show-error --location \
     && cargo --version \
     && rustc --version
 
-RUN npm install --global pnpm@11.19.0 \
+RUN git config --system http.version HTTP/1.1 \
+    && npm install --global pnpm@11.19.0 \
     && cargo install wasm-bindgen-cli --version 0.2.100 --locked \
     && test "$(pnpm --version)" = '11.19.0' \
     && test "$(cargo --version | cut -d ' ' -f 1-2)" = 'cargo 1.85.1' \
@@ -39,7 +41,17 @@ FROM toolchain AS dependencies
 WORKDIR /workspace
 COPY . .
 RUN pnpm install --frozen-lockfile \
-    && cargo fetch --manifest-path packages/dash-shielded-wasm/rust/Cargo.toml --locked
+    && for attempt in 1 2 3 4 5; do \
+         cargo fetch --manifest-path packages/dash-shielded-wasm/rust/Cargo.toml --locked && break; \
+         if [ "$attempt" = 5 ]; then exit 1; fi; \
+         echo "Cargo fetch attempt ${attempt} failed; retrying in $((attempt * 5)) seconds." >&2; \
+         rm -rf \
+           "${CARGO_HOME}/git/db/orchard-"* \
+           "${CARGO_HOME}/git/checkouts/orchard-"* \
+           "${CARGO_HOME}/git/db/zcash_note_encryption-"* \
+           "${CARGO_HOME}/git/checkouts/zcash_note_encryption-"*; \
+         sleep "$((attempt * 5))"; \
+       done
 RUN cp -a packages/dash-shielded-wasm/generated /tmp/committed-generated
 
 FROM dependencies AS built
