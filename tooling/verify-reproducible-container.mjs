@@ -41,5 +41,8 @@ const ignored = read('.dockerignore').split(/\r?\n/u);
 for (const expected of ['.git', 'node_modules', '.pnpm-store', 'dist', '**/target']) {
   if (!ignored.includes(expected)) throw new Error(`.dockerignore must exclude ${expected}`);
 }
+if (ignored.includes('.github') || ignored.includes('.github/**')) {
+  throw new Error('.dockerignore must include the GitHub workflows verified inside the canonical container.');
+}
 
 console.log('Canonical reproducible-container configuration verified.');
