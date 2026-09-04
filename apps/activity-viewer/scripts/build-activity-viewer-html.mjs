@@ -7,6 +7,7 @@ import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 import { verifyDashSdkBuild } from '../../../tooling/verify-dash-sdk-build.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+const scriptCsp = (javascript) => `'sha256-${createHash('sha256').update(javascript).digest('base64')}'`;
 verifyDashSdkBuild(root, 'The viewer');
 const template = readFileSync(resolve(root, 'apps/activity-viewer/src/index.html'), 'utf8');
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
@@ -33,12 +34,18 @@ const bundled = await build({
 });
 const javascript = bundled.outputFiles[0]?.text;
 if (javascript === undefined) throw new Error('esbuild did not produce the viewer JavaScript bundle.');
-if (!template.includes('/*__INLINE_CSS__*/') || !template.includes('/*__INLINE_JS__*/')) {
+if (
+  !template.includes('/*__INLINE_CSS__*/')
+  || !template.includes('/*__INLINE_JS__*/')
+  || !template.includes('__INLINE_SCRIPT_CSP__')
+) {
   throw new Error('Viewer HTML template is missing an inline build marker.');
 }
+const safeJavascript = javascript.replaceAll('</script', '<\\/script');
 const html = template
+  .replace('__INLINE_SCRIPT_CSP__', scriptCsp(safeJavascript))
   .replace('/*__INLINE_CSS__*/', () => css)
-  .replace('/*__INLINE_JS__*/', () => javascript.replaceAll('</script', '<\\/script'));
+  .replace('/*__INLINE_JS__*/', () => safeJavascript);
 const dist = resolve(root, 'dist/activity-viewer');
 mkdirSync(dist, { recursive: true });
 const artifact = resolve(dist, 'Wallet_Activity_Viewer.html');

@@ -49,8 +49,11 @@ export function createKeyDerivationController(
   view: KeyDerivationView,
   dependencies: KeyDerivationDependencies,
 ) {
+  let started = false;
   return {
     start(): void {
+      if (started) return;
+      started = true;
       const {
         coinFamilies,
         getAdapterFamilyId,
@@ -684,11 +687,13 @@ window.addEventListener('blur', concealSensitiveValues);
 modeBasic.addEventListener('click', () => {
   displayMode = 'basic';
   setActiveWindowStart(0);
+  updateModeButtons();
   renderCurrent();
 });
 modeAdvanced.addEventListener('click', () => {
   displayMode = 'advanced';
   setActiveWindowStart(0);
+  updateModeButtons();
   renderCurrent();
 });
 
