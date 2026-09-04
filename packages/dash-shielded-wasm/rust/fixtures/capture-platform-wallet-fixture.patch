@@ -1,0 +1,57 @@
+--- a/packages/rs-platform-wallet/src/wallet/shielded/sync/shield_decrypt_tests.rs
++++ b/packages/rs-platform-wallet/src/wallet/shielded/sync/shield_decrypt_tests.rs
+@@ -125,19 +125,49 @@
+     // stream re-parses it, then trial-decrypt with the same keyset's
+     // prepared IVK — the scanner's exact call.
+     let ivk = keys.prepared_ivk();
+-    let decrypted: Vec<u64> = v0
++    let wires: Vec<ShieldedEncryptedNote> = v0
+         .actions
+         .iter()
+-        .filter_map(|a| {
+-            let wire = ShieldedEncryptedNote {
++        .map(|a| ShieldedEncryptedNote {
+                 cmx: a.cmx.to_vec(),
+                 nullifier: a.nullifier.to_vec(),
+                 cv_net: a.cv_net.to_vec(),
+                 encrypted_note: a.encrypted_note.clone(),
+-            };
+-            try_decrypt_note(&ivk, &wire).map(|(note, _addr)| note.value().inner())
+         })
+         .collect();
++    let fixture = wires
++        .iter()
++        .find(|wire| try_decrypt_note(&ivk, wire).is_some())
++        .expect("the real recipient action must be present");
++    println!(
++        "FIXTURE_RECIPIENT_FVK={}",
++        hex::encode(keys.full_viewing_key.to_bytes())
++    );
++    println!(
++        "FIXTURE_SENDER_OVK={}",
++        hex::encode(keys.outgoing_viewing_key.as_ref())
++    );
++    println!(
++        "FIXTURE_RECIPIENT_RAW={}",
++        hex::encode(keys.default_address.to_raw_address_bytes())
++    );
++    println!("FIXTURE_VALUE={amount}");
++    println!("FIXTURE_MEMO={}", hex::encode([0u8; 36]));
++    println!("FIXTURE_CMX={}", hex::encode(&fixture.cmx));
++    println!(
++        "FIXTURE_ACTION_NULLIFIER={}",
++        hex::encode(&fixture.nullifier)
++    );
++    println!("FIXTURE_CV_NET={}", hex::encode(&fixture.cv_net));
++    println!(
++        "FIXTURE_ENCRYPTED_NOTE={}",
++        hex::encode(&fixture.encrypted_note)
++    );
++
++    let decrypted: Vec<u64> = wires
++        .iter()
++        .filter_map(|wire| try_decrypt_note(&ivk, wire).map(|(note, _addr)| note.value().inner()))
++        .collect();
+ 
+     assert_eq!(
+         decrypted.len(),
