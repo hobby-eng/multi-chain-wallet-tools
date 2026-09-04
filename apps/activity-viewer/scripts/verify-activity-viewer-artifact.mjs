@@ -2,12 +2,17 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const artifactPath = resolve(root, 'dist/activity-viewer/Wallet_Activity_Viewer.html');
 const checksumPath = resolve(root, 'dist/activity-viewer/Wallet_Activity_Viewer.html.sha256');
 const orchardWasmPath = resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm');
 const html = readFileSync(artifactPath, 'utf8');
+const expectedFingerprint = createBuildInfo(root, 'Wallet_Activity_Viewer.html.sha256').fingerprint;
+if (!html.includes(expectedFingerprint)) {
+  throw new Error('Viewer artifact does not contain the fingerprint of the current source tree.');
+}
 const expectedCsp = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src https:; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'";
 const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/u.exec(html)?.[1];
 if (csp !== expectedCsp) throw new Error('Viewer artifact CSP changed from the reviewed connected policy.');
@@ -130,7 +135,7 @@ for (const marker of [
   'Outgoing Viewing Key',
   'Auto-detected by length',
   'dash-shielded-viewing-bundle',
-  'Evo SDK 4.1.0',
+  'Evo SDK 4.1.1',
   'dashified-0.14.1',
   'DashScan Core API',
   'Dash Platform Explorer',
