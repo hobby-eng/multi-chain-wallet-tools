@@ -13,10 +13,10 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 | `@scure/base` | 2.4.0 | `paulmillr/scure-base` | MIT | Base58Check, Bech32, Bech32m |
 | `@scure/bip32` | 2.4.0 | `paulmillr/scure-bip32` | MIT | BIP32 HD key derivation/serialization |
 | `@scure/bip39` | 2.4.0 | `paulmillr/scure-bip39` | MIT | BIP39 validation, PBKDF2 seed, English list |
-| `@dashevo/evo-sdk` | 4.1.0 | `dashpay/platform` (`packages/js-evo-sdk`) | MIT | Connected Viewer/Recovery facades and trusted DAPI queries |
-| `@dashevo/wasm-sdk` | 4.1.0 | `dashpay/platform` (`packages/wasm-sdk`) | MIT | Embedded proof-verifying DAPI transport for connected artifacts |
+| `@dashevo/evo-sdk` | 4.1.1 | `dashpay/platform` (`packages/js-evo-sdk`) | MIT | Connected Viewer/Recovery facades and trusted DAPI queries |
+| `@dashevo/wasm-sdk` | 4.1.1 | `dashpay/platform` (`packages/wasm-sdk`) | MIT | Embedded proof-verifying DAPI transport for connected artifacts |
 
-The two Dash SDK packages are bundled into `Wallet_Activity_Viewer.html` and the scan-only `Wallet_Discovery_Scanner.html`, never into the Wallet Key Derivation Tool. Their pnpm integrity pins are `sha512-31sSjLXc8XEm4/PCEUXRGBJvSDwearx1RHFza44zpB1e+TKD74M3RRhbO0X1WSdP4vNQxVuzYZV2LfwEgzyQzg==` and `sha512-4Odbmug9s3ABz+BNUi5Le2Q4csuhXdmGksqep6ev6MXIXqWm7vLGV5PZ9YJo9I9IHodKiVibPNujIoNv06NMBw==`. Copyright notices embedded by Noble/Scure identify Paul Miller and, for Scure BIP32/BIP39, Patricio Palladino. esbuild preserves inline legal comments in the standalone JavaScript.
+The two Dash SDK packages are bundled into `Wallet_Activity_Viewer.html` and the scan-only `Wallet_Discovery_Scanner.html`, never into the Wallet Key Derivation Tool. Their pnpm integrity pins are `sha512-DsfHXlLByyhvAerDknozg0HT4KHNsYP6rEy949aj/KGLLydb9bwJBHOWyn5oDsNR016tvr3oeT/jCkjMA4qoCA==` and `sha512-/be0D7qohZc9fHgYjbtzOg8KOajarzo0NtKCNybv4Z1xeV617Wo0CusnsxCzwbV7C/jDgPJiGel0KtcSTzQcfQ==`. Copyright notices embedded by Noble/Scure identify Paul Miller and, for Scure BIP32/BIP39, Patricio Palladino. esbuild preserves inline legal comments in the standalone JavaScript.
 
 The Wallet Activity Viewer and Wallet Discovery Scanner headers embed the official “Dash D Circle” SVG from the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), licensed CC BY 4.0. Use of the mark identifies the Dash network currently addressed by those tools and does not imply endorsement.
 
@@ -48,7 +48,7 @@ These packages are not imported by production source except esbuild/TypeScript d
 | --- | --- | --- | --- | --- |
 | `@dashincubator/secp256k1` | 1.7.1-5 | `dashhive/secp256k1` | MIT | Dash verification dependency |
 | `dashhd` | 3.3.3 | `dashhive/dashhd.js` | MIT | Independent Dash Core cross-check |
-| `dashkeys` | 1.1.3 | `dashhive/dashkeys.js` | MIT | DashHD test closure |
+| `dashkeys` | 1.1.5 | `dashhive/dashkeys.js` | MIT | DashHD test closure |
 | `ethers` | 6.17.0 | `ethers-io/ethers.js` | MIT | Independent Ethereum cross-check |
 | `esbuild` | 0.28.2 | `evanw/esbuild` | MIT | Browser bundle and CSS minification |
 | `typescript` | 7.0.2 | `microsoft/TypeScript` | Apache-2.0 | Static type checking |
