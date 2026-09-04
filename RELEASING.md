@@ -56,12 +56,12 @@ The checked-in workflows pin every referenced GitHub-maintained action to a full
 
 `Dockerfile.reproducible` pins the Ubuntu 24.04-based base image by immutable digest and pins Node.js 24.19.0, pnpm 11.19.0, Rust/Cargo 1.85.1 and wasm-bindgen 0.2.100. Downloaded Node/rustup installers are checksum-verified. Dependency fetching happens before the final `pnpm verify` layer; that complete verification/build layer runs with `--network=none`. The generated WASM is compared byte for byte with the committed reviewed input before any release artifact can leave the image.
 
-The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checksum)` value is a digest of the source tree and embedded build inputs, including the canonical Docker definition and generated WASM; it is not the byte-for-byte HTML checksum. The latter exists only in the external per-file `.sha256` sidecar and flat `SHA256SUMS`. A native build on another host may be functionally correct but byte-different. `pnpm build:reproducible` is the supported way to reproduce the official release bytes locally.
+The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checksum)` value is a digest of the source tree and embedded build inputs, including the canonical Docker definition and generated WASM; it is not the byte-for-byte HTML checksum. The latter exists only in the external per-file `.sha256` sidecar and flat `SHA256SUMS`. A native build on another host may be functionally correct but byte-different. `./tooling/build-reproducible.sh` is the supported Docker-only way to reproduce the official release bytes locally; `pnpm build:reproducible` is an equivalent convenience command.
 
 ## Release checklist
 
 1. Update workspace versions and `releaseDate`, add curated notes at `docs/releases/v<version>.md`, update relevant documentation, and commit the changes. The intended tag is always `v` plus the root `package.json` version.
-2. From a clean source checkout with Docker Engine/Desktop running, run `pnpm build:reproducible`. This performs the locked install, TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, a release WASM rebuild and exact generated-byte comparison, generated-browser-WASM tests, two byte-identical HTML builds, manifest checks and each application's CSP/artifact verifier.
+2. From a clean source checkout with Docker Engine/Desktop running, run `./tooling/build-reproducible.sh`. This performs the locked install, TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, a release WASM rebuild and exact generated-byte comparison, generated-browser-WASM tests, two byte-identical HTML builds, manifest checks and each application's CSP/artifact verifier.
 3. Run the live network release observations below. They are intentionally not part of deterministic CI because changing chain state or a provider outage must not change the reproducible build result.
 4. Ensure the working tree is clean. A GPG key is not required. Create and push an annotated tag:
 
@@ -72,7 +72,7 @@ The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checks
 
    If a maintainer later configures a trusted GPG key, `git tag -s ...` may be used instead as an additional human-approval signal. GitHub Actions provenance remains available either way.
 5. Open the tag's Actions run. All checks must pass. Only after every gate succeeds does the workflow publish the release using its curated notes.
-6. Rebuild locally with `pnpm build:reproducible`. Compare `dist/release/SHA256SUMS` with the published release manifest. If a maintainer has a GPG key and wants an additional detached approval signature, sign that exact flat manifest locally without giving CI the private key:
+6. Rebuild locally with `./tooling/build-reproducible.sh`. Compare `dist/release/SHA256SUMS` with the published release manifest. If a maintainer has a GPG key and wants an additional detached approval signature, sign that exact flat manifest locally without giving CI the private key:
 
    ```bash
    pnpm release:sign -- YOUR_GPG_KEY_ID

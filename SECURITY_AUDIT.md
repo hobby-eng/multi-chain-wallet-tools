@@ -107,7 +107,7 @@ The prior Recovery artifact was visually exercised through a local-only HTTP ser
 
 ## Release checklist
 
-- Run `pnpm build:reproducible` from a clean checkout and compare its release checksums with CI. Use native `pnpm verify` for development, not as the byte-level release authority.
+- Run `./tooling/build-reproducible.sh` from a clean checkout and compare its release checksums with CI. Use native `pnpm verify` for development, not as the byte-level release authority.
 - Verify the GitHub build-provenance attestation and independently recompute each artifact's SHA-256 against `SHA256SUMS`. If a release also provides an optional detached OpenPGP signature, verify it as an additional publisher-approval signal. The per-file `.sha256` sidecar is a transfer-corruption check only.
 - Copy only `Wallet_Key_Derivation_Tool.html` to the offline device and open it through `file://` while physically disconnected. Open the Wallet Activity Viewer and Wallet Discovery Scanner on a clean connected device because their documented read-only workflows require network access.
 - Exercise generate/import, debounced automatic 20-row derivation after mnemonic/passphrase/coin/tab changes, Bitcoin/Dash Core receive-plus-change generation, independent branch selection/paging/export state, a change-branch known-address match, a multi-batch request and cancellation, all eight adapters, Basic table/Advanced cards, the single reveal-all gate, branch-specific Bitcoin watch-only copy/download, individual copy, selection inversion, and Clear Everything.
