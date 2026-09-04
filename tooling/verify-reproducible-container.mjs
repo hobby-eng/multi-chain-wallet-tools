@@ -20,8 +20,12 @@ for (const expected of [
   'ARG NODE_ARCHIVE_SHA256=14b342e71204f811bde6153be8e04b62aef63c236fef92b55f9c83154b409647',
   'ARG RUSTUP_VERSION=1.29.1',
   'ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71',
+  'CARGO_NET_GIT_FETCH_WITH_CLI=true',
+  'git config --system http.version HTTP/1.1',
   'npm install --global pnpm@11.19.0',
   'cargo install wasm-bindgen-cli --version 0.2.100 --locked',
+  'for attempt in 1 2 3 4 5',
+  'Cargo fetch attempt ${attempt} failed',
   'RUN --network=none pnpm verify',
   'diff --recursive --brief /tmp/committed-generated packages/dash-shielded-wasm/generated',
   'FROM scratch AS artifacts',
@@ -32,7 +36,7 @@ for (const expected of [
 
 for (const path of ['.github/workflows/ci.yml', '.github/workflows/full-wasm.yml', '.github/workflows/release.yml']) {
   const workflow = read(path);
-  for (const expected of ['--platform linux/amd64', '--file Dockerfile.reproducible', '--target artifacts']) {
+  for (const expected of ['--platform linux/amd64', '--network host', '--file Dockerfile.reproducible', '--target artifacts']) {
     if (!workflow.includes(expected)) throw new Error(`${path} does not use the canonical container setting: ${expected}`);
   }
 }
@@ -40,6 +44,9 @@ for (const path of ['.github/workflows/ci.yml', '.github/workflows/full-wasm.yml
 const ignored = read('.dockerignore').split(/\r?\n/u);
 for (const expected of ['.git', 'node_modules', '.pnpm-store', 'dist', '**/target']) {
   if (!ignored.includes(expected)) throw new Error(`.dockerignore must exclude ${expected}`);
+}
+if (ignored.includes('.github') || ignored.includes('.github/**')) {
+  throw new Error('.dockerignore must include the GitHub workflows verified inside the canonical container.');
 }
 
 console.log('Canonical reproducible-container configuration verified.');
