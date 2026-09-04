@@ -6,6 +6,7 @@ import { build, transform } from 'esbuild';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+const scriptCsp = (javascript) => `'sha256-${createHash('sha256').update(javascript).digest('base64')}'`;
 const template = readFileSync(resolve(root, 'apps/key-derivation/src/index.html'), 'utf8');
 const cssSource = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const css = (await transform(cssSource, { loader: 'css', minify: true, legalComments: 'inline' })).code;
@@ -50,15 +51,21 @@ if (javascript === undefined) throw new Error('esbuild did not produce a JavaScr
 if (!javascript.includes('wallet-key-derivation') || !javascript.includes('The derivation worker stopped unexpectedly.')) {
   throw new Error('Derivation worker client lost its reviewed startup/error lifecycle.');
 }
-if (!template.includes('/*__INLINE_CSS__*/') || !template.includes('/*__INLINE_JS__*/')) {
+if (
+  !template.includes('/*__INLINE_CSS__*/')
+  || !template.includes('/*__INLINE_JS__*/')
+  || !template.includes('__INLINE_SCRIPT_CSP__')
+) {
   throw new Error('HTML template is missing an inline build marker.');
 }
+const safeJavascript = javascript.replaceAll('</script', '<\\/script');
 const html = template
   // Callback replacements keep `$&`, `$\``, and `$'` sequences inside bundled
   // code literal. Passing bundle text as the replacement argument would make
   // String.replace interpret those sequences and can duplicate the template.
+  .replace('__INLINE_SCRIPT_CSP__', scriptCsp(safeJavascript))
   .replace('/*__INLINE_CSS__*/', () => css)
-  .replace('/*__INLINE_JS__*/', () => javascript.replaceAll('</script', '<\\/script'));
+  .replace('/*__INLINE_JS__*/', () => safeJavascript);
 const dist = resolve(root, 'dist/key-derivation');
 mkdirSync(dist, { recursive: true });
 const artifact = resolve(dist, 'Wallet_Key_Derivation_Tool.html');

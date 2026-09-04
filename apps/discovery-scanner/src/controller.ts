@@ -67,6 +67,7 @@ export function createDiscoveryScannerController(
   view: DiscoveryScannerView,
   dependencies: DiscoveryScannerDependencies,
 ) {
+  let started = false;
   let inputMode: RecoveryInputMode = 'single';
   let revealed = false;
   let running = false;
@@ -253,6 +254,10 @@ export function createDiscoveryScannerController(
 
   function startScan(): void {
     if (running) return;
+    if (!selfTestPassed) {
+      view.showError('Cryptographic startup self-test has not passed. Recovery scans remain disabled.');
+      return;
+    }
     view.clearError();
     let inputs: RecoverySeedInput[] = [];
     try {
@@ -285,6 +290,7 @@ export function createDiscoveryScannerController(
       view.showProgress();
       initializeWalletProgress(inputs);
       const run = async (): Promise<void> => {
+        let exportStagingAttempted = false;
         try {
           const networkApi = await dependencies.recoveryNetworkApi();
           const orderedResults: Array<RecoveryWalletResult | undefined> = new Array(inputs.length);
@@ -325,6 +331,7 @@ export function createDiscoveryScannerController(
             }
           });
           view.renderWalletProgress(walletProgress);
+          exportStagingAttempted = true;
           stageValidatedExports();
           renderResults();
           view.setStatus('Recovery scan complete. Review and export the standard-wallet handoff report.');
@@ -342,7 +349,7 @@ export function createDiscoveryScannerController(
           } else {
             view.showError(dependencies.describeUnknownError(cause));
           }
-          if (currentResults.length > 0) {
+          if (currentResults.length > 0 && !exportStagingAttempted) {
             try {
               stageValidatedExports();
               renderResults();
@@ -390,6 +397,8 @@ export function createDiscoveryScannerController(
 
   return {
     start(): void {
+      if (started) return;
+      started = true;
       view.startButton.addEventListener('click', startScan);
       for (const button of view.modeButtons) {
         button.addEventListener('click', () => setMode(button.dataset.inputMode === 'batch' ? 'batch' : 'single'));
