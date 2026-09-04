@@ -130,7 +130,7 @@ for (const marker of [
   'Outgoing Viewing Key',
   'Auto-detected by length',
   'dash-shielded-viewing-bundle',
-  'Evo SDK 4.1.0',
+  'Evo SDK 4.1.1',
   'dashified-0.14.1',
   'DashScan Core API',
   'Dash Platform Explorer',

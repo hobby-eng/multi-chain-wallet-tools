@@ -6,7 +6,7 @@ Original integration code is licensed under the repository's MIT License. Dash C
 
 ## Official target
 
-- Dash Platform stable release: **v4.1.0**, published 2026-07-27.
+- Dash Platform stable release: **v4.1.1**, published 2026-08-18.
 - Platform release commit: `bfc80249b9257d775d1e5260b8bda47f6fcc8674`.
 - Platform repository/license: `dashpay/platform`, MIT.
 - Platform payments: current official DIP17 and DIP18 documents, both presently marked **Proposed**.
@@ -42,7 +42,7 @@ DIP17's normative result is a raw private scalar; it does not define a Platform-
 The separate network-enabled viewer has three modes and deliberately keeps their trust models distinct:
 
 - Dash Core L1 address history uses the open-source DashScan Mainnet/Testnet API. The provider must report `ok`; the viewer also records the latest indexed Core height/time. Balances and lifetime flows are parsed as exact duffs, and each transaction is reconstructed relative to the queried address from its inputs and outputs.
-- Dash Platform address current state uses Evo SDK 4.1.0 trusted quorum discovery and `addresses.getWithProof`. Address-indexed lifetime totals and transitions come from the open-source Dash Platform Explorer Mainnet/Testnet API only after its index reports `synced`. Explorer balance/nonce are compared with the DAPI proof; DAPI wins on any disagreement.
+- Dash Platform address current state uses Evo SDK 4.1.1 trusted quorum discovery and `addresses.getWithProof`. Address-indexed lifetime totals and transitions come from the open-source Dash Platform Explorer Mainnet/Testnet API only after its index reports `synced`. Explorer balance/nonce are compared with the DAPI proof; DAPI wins on any disagreement.
 - Dash Orchard activity uses viewing-key recovery described below and does not query either public-address index.
 
 Both public indexes are behind small provider interfaces, so endpoint replacement does not require renderer or validation changes. Live Mainnet/Testnet smoke tests exercise CORS, index status, current tip metadata, pagination, and real records. The Platform smoke additionally requires Explorer balance/nonce to equal proof-verified DAPI for the same address. Platform Explorer exposes lifetime aggregate amounts but not the amount attributable to an individual address on every returned transition, so the viewer leaves that per-transition field unavailable.
@@ -60,7 +60,7 @@ m/44'/coin_type'/account'/0/index    receive
 m/44'/coin_type'/account'/1/index    change
 ```
 
-It sends only the exact public P2PKH addresses through fixed RPC to the Worker's DashScan `/addresses/info` client in batches of 50, after requiring `/status` to report `ok` and recording the indexed Core tip. DashScan is the sole Core source in this build; the result is explicitly marked single-source and must be independently verified in a standard wallet. The user count is a minimum: every balance-bearing or historically used Core address moves that branch endpoint to at least 20 following positions. Platform-payment recovery derives DIP17 key class `0'` addresses in the vault and requests Evo SDK `addresses.getManyWithProof` through fixed RPC batches of 100; balance or outgoing nonce produces the same post-use gap extension. The v4.1.0 multi-address result Map is keyed by the internal storage payload `00 || HASH160(public_key)`, not by the DIP18 Bech32m display string; recovery therefore retains both encodings and performs the lookup with the canonical storage key. Monetary values remain exact integer duffs or credits throughout.
+It sends only the exact public P2PKH addresses through fixed RPC to the Worker's DashScan `/addresses/info` client in batches of 50, after requiring `/status` to report `ok` and recording the indexed Core tip. DashScan is the sole Core source in this build; the result is explicitly marked single-source and must be independently verified in a standard wallet. The user count is a minimum: every balance-bearing or historically used Core address moves that branch endpoint to at least 20 following positions. Platform-payment recovery derives DIP17 key class `0'` addresses in the vault and requests Evo SDK `addresses.getManyWithProof` through fixed RPC batches of 100; balance or outgoing nonce produces the same post-use gap extension. The v4.1.1 multi-address result Map is keyed by the internal storage payload `00 || HASH160(public_key)`, not by the DIP18 Bech32m display string; recovery therefore retains both encodings and performs the lookup with the canonical storage key. Monetary values remain exact integer duffs or credits throughout.
 
 Core/Platform findings are funded-only by default. Opting into historical empty addresses changes presentation and export, not discovery: those addresses always count as used for the 20-address gap. The Core opt-in loads DashScan's per-address lifetime received/sent and first/last-seen summary through the bounded network scheduler. Exact input/output occurrence counts are not part of `/addresses/info` or `/address/:address`; reconstructing them would require the complete paginated transaction history and is not done by the recovery scan.
 
@@ -96,13 +96,13 @@ FullViewingKey::to_ovk(Scope::External)
 FullViewingKey::address_at(index, Scope::External)
 ```
 
-It serializes official raw bytes across a narrow JSON boundary. TypeScript validates exact sizes: SpendingKey 32, FullViewingKey 96, IncomingViewingKey 64, OutgoingViewingKey 32, and raw payment address 43 bytes. It then displays `0x10 || raw_address` using network-specific Dash Bech32m. The raw address is the 11-byte diversifier plus 32-byte diversified transmission key. No Zcash Unified Address or F4Jumble wrapper is applied because Dash v4.1.0 specifies the direct Dash encoding.
+It serializes official raw bytes across a narrow JSON boundary. TypeScript validates exact sizes: SpendingKey 32, FullViewingKey 96, IncomingViewingKey 64, OutgoingViewingKey 32, and raw payment address 43 bytes. It then displays `0x10 || raw_address` using network-specific Dash Bech32m. The raw address is the 11-byte diversifier plus 32-byte diversified transmission key. No Zcash Unified Address or F4Jumble wrapper is applied because Dash v4.1.1 specifies the direct Dash encoding.
 
 The adapter deliberately does not implement Orchard, ZIP32, Pallas/Vesta, Halo2, RedPallas, note encryption, or address generation. Generated wasm-bindgen glue is reduced to the synchronous local initializer before bundling; any remaining fetch/import-meta/async-loader marker fails the build.
 
 ## Viewing-key scanner
 
-Shielded history cannot be obtained from an address or viewing key alone while offline. The separate `Wallet_Activity_Viewer.html` uses official Evo SDK 4.1.0 trusted mode to request proof-verified encrypted-note pages from Dash Platform DAPI. Raw viewing keys never enter an SDK call; DAPI receives only public pool range queries. A 96-byte FVK enables the complete watch-only view, while 64-byte IVK and 32-byte OVK modes expose only incoming or outgoing recovery respectively.
+Shielded history cannot be obtained from an address or viewing key alone while offline. The separate `Wallet_Activity_Viewer.html` uses official Evo SDK 4.1.1 trusted mode to request proof-verified encrypted-note pages from Dash Platform DAPI. Raw viewing keys never enter an SDK call; DAPI receives only public pool range queries. A 96-byte FVK enables the complete watch-only view, while 64-byte IVK and 32-byte OVK modes expose only incoming or outgoing recovery respectively.
 
 Each returned action has `cmx(32)`, `nullifier(32)`, `cv_net(32)`, and `encrypted_note(216)`, where the latter is `epk(32) || enc_ciphertext(104) || out_ciphertext(80)`. The Rust scanner follows the official Platform wallet implementation:
 
