@@ -29,6 +29,7 @@ export function createActivityViewerController(
   view: ActivityViewerView,
   dependencies: ActivityViewerDependencies,
 ) {
+  let started = false;
   let cancellationRequested = false;
   let running = false;
   let viewerMode: ViewerMode = 'core';
@@ -86,64 +87,68 @@ export function createActivityViewerController(
       view.viewingKeyInput.value,
       view.keyCapabilityInput.value as ViewingKeyInputMode,
     );
-    if (viewingKey.bundleNetwork !== undefined && viewingKey.bundleNetwork !== network) {
-      throw new Error(`This viewing bundle is for ${viewingKey.bundleNetwork}; select that network before scanning.`);
-    }
-    dependencies.assertCanonicalViewingKey(viewingKey);
-    view.setDiagnosticDetail(`Validated canonical ${viewingKey.kind} viewing capability locally.`);
-    const ledger = new dependencies.ShieldedActivityLedger(viewingKey.kind);
-    lastShieldedPaintAt = 0;
-    const source = new dependencies.DashEvoShieldedSource(network);
-    view.setStatus(`Connecting to Dash Platform ${network} with trusted proof verification…`);
-    const connectStarted = performance.now();
-    await source.connect();
-    view.addRemoteDuration(performance.now() - connectStarted);
-    view.setDiagnosticDetail('Connected through trusted quorum discovery. Fetching proof-verified encrypted notes.');
-    const outcome = await dependencies.runShieldedPageStream({
-      fetchPage: async (position) => {
-        view.setStatus(`Fetching and verifying pool actions from aligned position ${position}…`);
-        const fetchStarted = performance.now();
-        const page = await source.fetchPage(position, dependencies.shieldedPageSize);
-        view.addRemoteDuration(performance.now() - fetchStarted);
-        view.recordRequest();
-        return page;
-      },
-      noteCount: (page) => page.notes.length,
-      onPage: (page, visit) => {
-        view.setDiagnosticProof(`${page.proofHeight} · protocol ${page.protocolVersion}`);
-        view.setDiagnosticRemoteTime(page.timeMs);
-        if (page.notes.length > 0) {
-          const scanStarted = performance.now();
-          const matches = dependencies.scanEncryptedPage(viewingKey, visit.position, page.notes, network);
-          ledger.applyPage(visit.position, page, matches);
-          view.addLocalDuration(performance.now() - scanStarted);
-        } else if (visit.emptyConfirmation < dependencies.shieldedEmptyConfirmations) {
-          view.setStatus(`Confirming empty Orchard terminal page ${visit.emptyConfirmation + 1}/${dependencies.shieldedEmptyConfirmations} at aligned position ${visit.position}…`);
-        }
-        renderShieldedProgress(ledger, false, network, false);
-        view.updateTiming();
-      },
-      disposePage: (page) => {
-        for (const note of page.notes) {
-          note.cmx.fill(0);
-          note.nullifier.fill(0);
-          note.cvNet.fill(0);
-          note.encryptedNote.fill(0);
-        }
-        page.notes.length = 0;
-      },
-      isCancelled: () => cancellationRequested,
-      yieldTurn: yieldToBrowser,
-    });
-    if (outcome.complete) {
-      renderShieldedProgress(ledger, true, network, true);
-      view.setStatus(`Scan complete after ${dependencies.shieldedEmptyConfirmations} verified empty terminal reads. ${ledger.snapshot(true).scannedNotes} pool actions checked.`);
-      view.finishDiagnostics(`Proof verification and local Orchard recovery completed through aligned position ${outcome.terminalPosition}.`);
-    } else {
-      renderShieldedProgress(ledger, false, network, true);
-      const message = `Stopped at the ${dependencies.shieldedMaxPagesPerScan.toLocaleString()}-page safety ceiling before the pool end was confirmed. Results are partial.`;
-      view.setStatus(message);
-      view.failDiagnostics(message);
+    try {
+      if (viewingKey.bundleNetwork !== undefined && viewingKey.bundleNetwork !== network) {
+        throw new Error(`This viewing bundle is for ${viewingKey.bundleNetwork}; select that network before scanning.`);
+      }
+      dependencies.assertCanonicalViewingKey(viewingKey);
+      view.setDiagnosticDetail(`Validated canonical ${viewingKey.kind} viewing capability locally.`);
+      const ledger = new dependencies.ShieldedActivityLedger(viewingKey.kind);
+      lastShieldedPaintAt = 0;
+      const source = new dependencies.DashEvoShieldedSource(network);
+      view.setStatus(`Connecting to Dash Platform ${network} with trusted proof verification…`);
+      const connectStarted = performance.now();
+      await source.connect();
+      view.addRemoteDuration(performance.now() - connectStarted);
+      view.setDiagnosticDetail('Connected through trusted quorum discovery. Fetching proof-verified encrypted notes.');
+      const outcome = await dependencies.runShieldedPageStream({
+        fetchPage: async (position) => {
+          view.setStatus(`Fetching and verifying pool actions from aligned position ${position}…`);
+          const fetchStarted = performance.now();
+          const page = await source.fetchPage(position, dependencies.shieldedPageSize);
+          view.addRemoteDuration(performance.now() - fetchStarted);
+          view.recordRequest();
+          return page;
+        },
+        noteCount: (page) => page.notes.length,
+        onPage: (page, visit) => {
+          view.setDiagnosticProof(`${page.proofHeight} · protocol ${page.protocolVersion}`);
+          view.setDiagnosticRemoteTime(page.timeMs);
+          if (page.notes.length > 0) {
+            const scanStarted = performance.now();
+            const matches = dependencies.scanEncryptedPage(viewingKey, visit.position, page.notes, network);
+            ledger.applyPage(visit.position, page, matches);
+            view.addLocalDuration(performance.now() - scanStarted);
+          } else if (visit.emptyConfirmation < dependencies.shieldedEmptyConfirmations) {
+            view.setStatus(`Confirming empty Orchard terminal page ${visit.emptyConfirmation + 1}/${dependencies.shieldedEmptyConfirmations} at aligned position ${visit.position}…`);
+          }
+          renderShieldedProgress(ledger, false, network, false);
+          view.updateTiming();
+        },
+        disposePage: (page) => {
+          for (const note of page.notes) {
+            note.cmx.fill(0);
+            note.nullifier.fill(0);
+            note.cvNet.fill(0);
+            note.encryptedNote.fill(0);
+          }
+          page.notes.length = 0;
+        },
+        isCancelled: () => cancellationRequested,
+        yieldTurn: yieldToBrowser,
+      });
+      if (outcome.complete) {
+        renderShieldedProgress(ledger, true, network, true);
+        view.setStatus(`Scan complete after ${dependencies.shieldedEmptyConfirmations} verified empty terminal reads. ${ledger.snapshot(true).scannedNotes} pool actions checked.`);
+        view.finishDiagnostics(`Proof verification and local Orchard recovery completed through aligned position ${outcome.terminalPosition}.`);
+      } else {
+        renderShieldedProgress(ledger, false, network, true);
+        const message = `Stopped at the ${dependencies.shieldedMaxPagesPerScan.toLocaleString()}-page safety ceiling before the pool end was confirmed. Results are partial.`;
+        view.setStatus(message);
+        view.failDiagnostics(message);
+      }
+    } finally {
+      viewingKey.hex = '';
     }
   }
 
@@ -288,6 +293,8 @@ export function createActivityViewerController(
 
   return {
     start(): void {
+      if (started) return;
+      started = true;
       view.form.addEventListener('submit', (event) => {
         event.preventDefault();
         void submitQuery();

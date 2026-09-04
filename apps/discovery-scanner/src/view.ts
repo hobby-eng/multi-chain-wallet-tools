@@ -1,5 +1,9 @@
 import type { BUILD_INFO } from '@ckd/build-info';
 import type { RecoveryExportFormat } from './export.js';
+import {
+  RECOVERY_CORE_ADDRESS_BATCH,
+  RECOVERY_PLATFORM_ADDRESS_BATCH,
+} from './network-protocol.js';
 import type {
   RecoveryFinding,
   RecoveryInputMode,
@@ -341,8 +345,8 @@ export function createDiscoveryScannerView(
           ? estimateInteger(coreReceiveInput.value, 0) + estimateInteger(coreChangeInput.value, 0)
           : 0;
         const platform = scanPlatformAddressesInput.checked ? estimateInteger(platformCountInput.value, 0) : 0;
-        const coreBatches = Math.ceil(core / 50);
-        const platformBatches = Math.ceil(platform / 100);
+        const coreBatches = Math.ceil(core / RECOVERY_CORE_ADDRESS_BATCH);
+        const platformBatches = Math.ceil(platform / RECOVERY_PLATFORM_ADDRESS_BATCH);
         const identities = scanPlatformIdentitiesInput.checked ? estimateInteger(identityLimitInput.value, 1) : 0;
         const requests = estimateConcurrency(requestConcurrencyInput.value);
         const components = [scanCoreInput, scanPlatformAddressesInput, scanPlatformIdentitiesInput, scanShieldedInput]
