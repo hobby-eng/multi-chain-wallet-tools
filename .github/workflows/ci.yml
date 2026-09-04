@@ -26,6 +26,7 @@ jobs:
       - name: Build and verify in the canonical pinned container
         run: |
           docker build --platform linux/amd64 \
+            --network host \
             --file Dockerfile.reproducible \
             --target artifacts \
             --tag multi-chain-wallet-tools-ci:${GITHUB_SHA} \
@@ -33,7 +34,7 @@ jobs:
 
       - name: Print release checksums in the public log
         run: |
-          container_id=$(docker create multi-chain-wallet-tools-ci:${GITHUB_SHA})
+          container_id=$(docker create multi-chain-wallet-tools-ci:${GITHUB_SHA} /bin/true)
           trap 'docker rm --force "${container_id}" >/dev/null 2>&1 || true' EXIT
           docker cp "${container_id}:/dist/." dist
           cat dist/release/SHA256SUMS

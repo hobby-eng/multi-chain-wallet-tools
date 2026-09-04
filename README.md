@@ -96,15 +96,17 @@ See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for the threat model and known limita
 
 Docker is used to make the release bytes independent of the developer's Linux distribution and locally installed compiler versions. The image is based on Ubuntu 24.04, pinned by immutable digest, and installs exact Node.js, pnpm, Rust and wasm-bindgen versions. Downloaded tool installers are checksum-verified. Dependencies are fetched in an earlier image layer; the final complete verification and build run with network access disabled.
 
-Requirements: Docker Engine or Docker Desktop with BuildKit, plus Node.js/pnpm for the convenience command below.
+Requirement: Docker Engine or Docker Desktop with BuildKit. Node.js, pnpm, Rust and Cargo are installed only inside the image.
 
 ```bash
-pnpm build:reproducible
+./tooling/build-reproducible.sh
 ```
 
 This builds and tests the complete project inside the canonical Linux/amd64 container and copies the verified files to `dist/`. The first run downloads the base image and toolchains and can be slow; Docker reuses them from its local cache afterward. No Docker image or cache is committed to Git or included in a release.
 
-If the pinned Rust source is intentionally changed, regenerate the reviewed browser module with `pnpm build:reproducible:wasm`, inspect and commit the resulting `packages/dash-shielded-wasm/generated/` diff, and then run `pnpm build:reproducible`. An unexpected WASM difference makes the normal canonical build fail.
+Developers who already have Node.js and pnpm can use the equivalent convenience command `pnpm build:reproducible`. Pass `--wasm` to the shell script, or run `pnpm build:reproducible:wasm`, when intentionally regenerating the committed browser WASM.
+
+If the pinned Rust source is intentionally changed, run `./tooling/build-reproducible.sh --wasm`, inspect and commit the resulting `packages/dash-shielded-wasm/generated/` diff, and then run `./tooling/build-reproducible.sh`. An unexpected WASM difference makes the normal canonical build fail.
 
 ### Native development build
 
