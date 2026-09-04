@@ -2,7 +2,7 @@ import { bech32m, createBase58check } from '@scure/base';
 import { sha256 } from '@ckd/core/crypto.js';
 import { DUFFS_PER_DASH } from '@ckd/core/dash-units.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
-import { requireRecord } from '@ckd/core/records.js';
+import { createProviderHttp, ProviderHttpError, type FetchLike } from './provider-http.js';
 import type { ViewerNetwork } from './types.js';
 
 const base58check = createBase58check(sha256);
@@ -42,8 +42,6 @@ export interface CoreAddressSnapshot {
   requests: number;
 }
 
-type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
-
 export interface CoreAddressProvider {
   readonly id: string;
   readonly displayName: string;
@@ -62,27 +60,13 @@ const DASHSCAN_ENDPOINTS: Record<ViewerNetwork, string> = {
   testnet: 'https://testnet.dashscan.pshenmic.dev',
 };
 
-function object(value: unknown, context: string): Record<string, unknown> {
-  return requireRecord(value, `DashScan returned malformed ${context}.`);
-}
-
-function optionalInteger(value: unknown): number | null {
-  const number = typeof value === 'string' && /^\d+$/u.test(value) ? Number(value) : value;
-  return typeof number === 'number' && Number.isSafeInteger(number) && number >= 0 ? number : null;
-}
-
-function requiredInteger(value: unknown, context: string): number {
-  const number = optionalInteger(value);
-  if (number === null) throw new Error(`DashScan returned an invalid ${context}.`);
-  return number;
-}
-
-function exactDuffs(value: unknown, context: string): bigint {
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number' && Number.isSafeInteger(value)) return BigInt(value);
-  if (typeof value === 'string' && /^-?\d+$/u.test(value)) return BigInt(value);
-  throw new Error(`DashScan returned an invalid ${context}.`);
-}
+const {
+  object,
+  optionalInteger,
+  requiredInteger,
+  exactInteger: exactDuffs,
+  fetchJson,
+} = createProviderHttp('DashScan');
 
 function optionalDuffs(value: unknown): bigint | null {
   if (value === null || value === undefined) return null;
@@ -165,18 +149,6 @@ export function validatePlatformP2pkhAddress(addressInput: string, network: View
   const decoded = decodePlatformAddress(addressInput, network);
   if (decoded.type !== 0xb0) throw new Error('The value is not a DIP18 Platform P2PKH payment address.');
   return decoded.address;
-}
-
-class ProviderHttpError extends Error {
-  constructor(readonly status: number, message: string) {
-    super(message);
-  }
-}
-
-async function fetchJson(fetcher: FetchLike, url: string, signal?: AbortSignal): Promise<unknown> {
-  const response = await fetcher(url, signal === undefined ? undefined : { signal });
-  if (!response.ok) throw new ProviderHttpError(response.status, `DashScan request failed with HTTP ${response.status}.`);
-  return response.json() as Promise<unknown>;
 }
 
 function addressesFromOutput(output: Record<string, unknown>): string[] {

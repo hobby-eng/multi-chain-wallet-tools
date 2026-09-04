@@ -1,5 +1,5 @@
 import { validatePlatformAddress } from './public-address.js';
-import { requireRecord } from '@ckd/core/records.js';
+import { createProviderHttp, ProviderHttpError, type FetchLike } from './provider-http.js';
 import type { ViewerNetwork } from './types.js';
 
 const EXPLORER_PAGE_SIZE = 100;
@@ -37,8 +37,6 @@ export interface PlatformAddressHistorySnapshot {
   requests: number;
 }
 
-type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
-
 export interface PlatformHistoryProvider {
   readonly id: string;
   readonly displayName: string;
@@ -57,42 +55,13 @@ const PLATFORM_EXPLORER_ENDPOINTS: Record<ViewerNetwork, string> = {
   testnet: 'https://testnet.platform-explorer.pshenmic.dev',
 };
 
-function object(value: unknown, context: string): Record<string, unknown> {
-  return requireRecord(value, `Platform Explorer returned malformed ${context}.`);
-}
-
-function optionalInteger(value: unknown): number | null {
-  const number = typeof value === 'string' && /^\d+$/u.test(value) ? Number(value) : value;
-  return typeof number === 'number' && Number.isSafeInteger(number) && number >= 0 ? number : null;
-}
-
-function requiredInteger(value: unknown, context: string): number {
-  const number = optionalInteger(value);
-  if (number === null) throw new Error(`Platform Explorer returned an invalid ${context}.`);
-  return number;
-}
-
-function exactCredits(value: unknown, context: string, nullAsZero = false): bigint {
-  if (nullAsZero && (value === null || value === undefined)) return 0n;
-  if (typeof value === 'bigint') return value;
-  if (typeof value === 'number' && Number.isSafeInteger(value)) return BigInt(value);
-  if (typeof value === 'string' && /^-?\d+$/u.test(value)) return BigInt(value);
-  throw new Error(`Platform Explorer returned an invalid ${context}.`);
-}
-
-class ProviderHttpError extends Error {
-  constructor(readonly status: number, message: string) {
-    super(message);
-  }
-}
-
-async function fetchJson(fetcher: FetchLike, url: string, signal?: AbortSignal): Promise<unknown> {
-  const response = await fetcher(url, signal === undefined ? undefined : { signal });
-  if (!response.ok) {
-    throw new ProviderHttpError(response.status, `Platform Explorer request failed with HTTP ${response.status}.`);
-  }
-  return response.json() as Promise<unknown>;
-}
+const {
+  object,
+  optionalInteger,
+  requiredInteger,
+  exactInteger: exactCredits,
+  fetchJson,
+} = createProviderHttp('Platform Explorer');
 
 function transitionView(value: unknown): PlatformAddressTransition {
   const transition = object(value, 'address transition');
