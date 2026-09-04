@@ -14,6 +14,7 @@ Original integration code is licensed under the repository's MIT License. Dash C
 - Orchard transitive Dash note-encryption fork: `dashpay/zcash_note_encryption`, revision `9f7e93d42cef839d02b9d75918117941d453f8cb`, locked by Cargo.
 
 `Cargo.lock` is authoritative for the complete Rust closure. The WASM build refuses an Orchard lock entry other than the audited tag and commit.
+Weekly upstream monitoring compares the pinned `zcash_note_encryption` revision with that dedicated repository's default-branch head. A differing head produces a review-required signal when the GitHub comparison changes `src/`, `Cargo.toml`, `Cargo.lock`, or `build.rs`; documentation and CI-only commits are reported as outside the reviewed cryptographic surface. A comparison at GitHub's 300-file response limit also fails closed for review. The checker never updates this dependency automatically.
 
 ## Dash Core
 

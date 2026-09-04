@@ -24,11 +24,31 @@ jobs:
 
       - name: Compare pinned toolchains and Dash dependencies with upstream
         id: versions
-        continue-on-error: true
-        run: node tooling/check-upstream-versions.mjs > upstream-version-report.md 2>&1
+        run: |
+          set +e
+          node tooling/check-upstream-versions.mjs > upstream-version-report.md 2>&1
+          exit_code=$?
+          set -e
+          case "$exit_code" in
+            0|1|2) ;;
+            *)
+              original_report=$(cat upstream-version-report.md)
+              {
+                echo '# Pinned upstream dependency checker failed'
+                echo
+                echo '**Infrastructure/parser failure — this is not an update-available signal.**'
+                echo
+                echo "The checker process exited unexpectedly with status ${exit_code}."
+                echo
+                printf '%s\n' "$original_report"
+              } > upstream-version-report.md
+              exit_code=2
+              ;;
+          esac
+          echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
 
       - name: Open or refresh the dependency review issue
-        if: steps.versions.outcome == 'failure'
+        if: steps.versions.outputs.exit_code == '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -45,7 +65,7 @@ jobs:
           fi
 
       - name: Close a resolved dependency review issue
-        if: steps.versions.outcome == 'success'
+        if: steps.versions.outputs.exit_code == '0'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -59,8 +79,40 @@ jobs:
             gh issue close "$issue_number" --comment 'All monitored pins now match their latest reviewed upstream releases.'
           fi
 
-      - name: Fail when a reviewed update is required
-        if: steps.versions.outcome == 'failure'
+      - name: Open or refresh the checker failure issue
+        if: steps.versions.outputs.exit_code == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title='Pinned upstream dependency checker failed'
+          issue_number=$(
+            gh issue list --state open --limit 100 --json number,title \
+              --jq ".[] | select(.title == \"${title}\") | .number" |
+              head -n 1
+          )
+          if [ -n "$issue_number" ]; then
+            gh issue edit "$issue_number" --body-file upstream-version-report.md
+          else
+            gh issue create --title "$title" --body-file upstream-version-report.md
+          fi
+
+      - name: Close a resolved checker failure issue
+        if: steps.versions.outputs.exit_code != '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title='Pinned upstream dependency checker failed'
+          issue_number=$(
+            gh issue list --state open --limit 100 --json number,title \
+              --jq ".[] | select(.title == \"${title}\") | .number" |
+              head -n 1
+          )
+          if [ -n "$issue_number" ]; then
+            gh issue close "$issue_number" --comment 'The upstream dependency checker is healthy again.'
+          fi
+
+      - name: Fail when review or checker repair is required
+        if: steps.versions.outputs.exit_code != '0'
         run: |
           cat upstream-version-report.md
           exit 1
