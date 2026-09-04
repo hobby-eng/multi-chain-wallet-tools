@@ -6,6 +6,7 @@
 //! key/address encodings for the TypeScript presentation layer.
 
 use orchard::keys::{FullViewingKey, Scope, SpendingKey};
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 use zip32::AccountId;
 
@@ -14,6 +15,23 @@ mod scan;
 const DASH_MAINNET_COIN_TYPE: u32 = 5;
 const DASH_TESTNET_COIN_TYPE: u32 = 1;
 const MAX_RESULTS: u32 = 50;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DerivedAddress {
+    index: u32,
+    raw_address: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DerivationResult {
+    spending_key: String,
+    full_viewing_key: String,
+    incoming_viewing_key: String,
+    outgoing_viewing_key: String,
+    rows: Vec<DerivedAddress>,
+}
 
 fn error(message: impl AsRef<str>) -> JsValue {
     JsValue::from_str(message.as_ref())
@@ -50,29 +68,27 @@ fn derive_json(
     let incoming_viewing_key = full_viewing_key.to_ivk(Scope::External);
     let outgoing_viewing_key = full_viewing_key.to_ovk(Scope::External);
 
-    let mut result = format!(
-        "{{\"spendingKey\":\"{}\",\"fullViewingKey\":\"{}\",\"incomingViewingKey\":\"{}\",\"outgoingViewingKey\":\"{}\",\"rows\":[",
-        hex::encode(spending_key.to_bytes()),
-        hex::encode(full_viewing_key.to_bytes()),
-        hex::encode(incoming_viewing_key.to_bytes()),
-        hex::encode(outgoing_viewing_key.as_ref()),
-    );
+    let mut rows = Vec::with_capacity(count as usize);
 
     for offset in 0..count {
         let index = start + offset;
         let raw_address = full_viewing_key
             .address_at(index, Scope::External)
             .to_raw_address_bytes();
-        if offset != 0 {
-            result.push(',');
-        }
-        result.push_str(&format!(
-            "{{\"index\":{index},\"rawAddress\":\"{}\"}}",
-            hex::encode(raw_address)
-        ));
+        rows.push(DerivedAddress {
+            index,
+            raw_address: hex::encode(raw_address),
+        });
     }
-    result.push_str("]}");
-    Ok(result)
+
+    serde_json::to_string(&DerivationResult {
+        spending_key: hex::encode(spending_key.to_bytes()),
+        full_viewing_key: hex::encode(full_viewing_key.to_bytes()),
+        incoming_viewing_key: hex::encode(incoming_viewing_key.to_bytes()),
+        outgoing_viewing_key: hex::encode(outgoing_viewing_key.as_ref()),
+        rows,
+    })
+    .map_err(|cause| format!("failed to serialize Orchard derivation: {cause}"))
 }
 
 /// Derives one Dash Orchard account and a sequential address batch.
@@ -99,13 +115,19 @@ mod tests {
 
     #[test]
     fn official_dash_from_seed_pin_matches() {
-        let output = derive_json(&[0x42; 64], DASH_TESTNET_COIN_TYPE, 0, 0, 1).unwrap();
-        assert!(output.contains(
-            "\"incomingViewingKey\":\"fae18cbcf032c37f646b0e3f211bda62dc79535f5276abbf274f46ba1d28d571946102f72db50fd672aadddc8346c513221c82e3fbc0c62058a2effb9669f228\""
-        ));
-        assert!(output.contains(
-            "\"rawAddress\":\"ee9f8174f92a3f035570ecbfe969aeb46f5e2f64ad69f78d34316c47ea38c2f0085b5788bebf478ce736a8\""
-        ));
+        let output: serde_json::Value = serde_json::from_str(
+            &derive_json(&[0x42; 64], DASH_TESTNET_COIN_TYPE, 0, 0, 1).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            output["incomingViewingKey"],
+            "fae18cbcf032c37f646b0e3f211bda62dc79535f5276abbf274f46ba1d28d571946102f72db50fd672aadddc8346c513221c82e3fbc0c62058a2effb9669f228"
+        );
+        assert_eq!(output["rows"][0]["index"], 0);
+        assert_eq!(
+            output["rows"][0]["rawAddress"],
+            "ee9f8174f92a3f035570ecbfe969aeb46f5e2f64ad69f78d34316c47ea38c2f0085b5788bebf478ce736a8"
+        );
     }
 
     #[test]
@@ -127,9 +149,9 @@ mod tests {
     #[test]
     fn official_orchard_key_component_vector_matches() {
         let spending_key = Option::<SpendingKey>::from(SpendingKey::from_bytes([
-            0x5d, 0x7a, 0x8f, 0x73, 0x9a, 0x2d, 0x9e, 0x94, 0x5b, 0x0c, 0xe1, 0x52, 0xa8,
-            0x04, 0x9e, 0x29, 0x4c, 0x4d, 0x6e, 0x66, 0xb1, 0x64, 0x93, 0x9d, 0xaf, 0xfa,
-            0x2e, 0xf6, 0xee, 0x69, 0x21, 0x48,
+            0x5d, 0x7a, 0x8f, 0x73, 0x9a, 0x2d, 0x9e, 0x94, 0x5b, 0x0c, 0xe1, 0x52, 0xa8, 0x04,
+            0x9e, 0x29, 0x4c, 0x4d, 0x6e, 0x66, 0xb1, 0x64, 0x93, 0x9d, 0xaf, 0xfa, 0x2e, 0xf6,
+            0xee, 0x69, 0x21, 0x48,
         ]))
         .unwrap();
         let fvk = FullViewingKey::from(&spending_key);

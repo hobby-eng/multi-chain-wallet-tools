@@ -54,8 +54,8 @@ if (!lockfile.includes(expectedOrchard)) {
   throw new Error('Cargo.lock does not contain the audited Dash Orchard release and commit.');
 }
 
-version(cargo, 'cargo 1.85.1');
-version(wasmBindgen, 'wasm-bindgen 0.2.100');
+version(cargo, 'cargo 1.98.1');
+version(wasmBindgen, 'wasm-bindgen 0.2.127');
 run(cargo, ['build', '--manifest-path', manifest, '--target', 'wasm32-unknown-unknown', '--release', '--locked']);
 mkdirSync(generated, { recursive: true });
 run(wasmBindgen, [compiled, '--target', 'web', '--out-dir', generated]);
@@ -68,9 +68,25 @@ for (const privatePrefix of [root, effectiveCargoHome, effectiveRustupHome].filt
 }
 const gluePath = resolve(generated, 'dash_shielded_wasm.js');
 const fullGlue = readFileSync(gluePath, 'utf8');
-const offlineGlue = fullGlue
-  .replace(/async function __wbg_load[\s\S]*?\nfunction __wbg_get_imports/u, 'function __wbg_get_imports')
-  .replace(/\nasync function __wbg_init[\s\S]*?\nexport \{ initSync \};\nexport default __wbg_init;\s*$/u, '\nexport { initSync };\n');
+function removeGeneratedSection(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  if (start < 0 || end < 0) {
+    throw new Error(`wasm-bindgen glue is missing the reviewed ${startMarker.trim()} section.`);
+  }
+  return source.slice(0, start) + source.slice(end);
+}
+const asyncExport = '\nexport { initSync, __wbg_init as default };';
+const withoutLoader = removeGeneratedSection(
+  fullGlue,
+  '\nasync function __wbg_load',
+  '\nfunction initSync',
+);
+const offlineGlue = removeGeneratedSection(
+  withoutLoader,
+  '\nasync function __wbg_init',
+  asyncExport,
+).replace(asyncExport, '\nexport { initSync };');
 const normalizedGlue = offlineGlue.replace('__wbg_init.__wbindgen_wasm_module = module;', 'initSync.__wbindgen_wasm_module = module;');
 if (normalizedGlue === fullGlue || /\bfetch\s*\(|import\.meta|__wbg_load|\b__wbg_init\b/u.test(normalizedGlue)) {
   throw new Error('Failed to reduce wasm-bindgen glue to its synchronous offline-only API.');

@@ -1,7 +1,7 @@
 FROM buildpack-deps:noble@sha256:64ae509ccf40ede042d2cdd30d7149450e73ebd4c5362a36768ac727326dafb6 AS toolchain
 
-ARG NODE_VERSION=24.19.0
-ARG NODE_ARCHIVE_SHA256=14b342e71204f811bde6153be8e04b62aef63c236fef92b55f9c83154b409647
+ARG NODE_VERSION=24.20.0
+ARG NODE_ARCHIVE_SHA256=2f2c0da162318f0de47665410c7c8c2ed3d36c8f3105de4bbc61176c70a7cbf2
 ARG RUSTUP_VERSION=1.29.1
 ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71
 
@@ -25,17 +25,17 @@ RUN curl --fail --silent --show-error --location \
       --output /tmp/rustup-init \
     && echo "${RUSTUP_INIT_SHA256}  /tmp/rustup-init" | sha256sum --check --strict \
     && chmod 0755 /tmp/rustup-init \
-    && /tmp/rustup-init -y --profile minimal --default-toolchain 1.85.1 --target wasm32-unknown-unknown \
+    && /tmp/rustup-init -y --profile minimal --default-toolchain 1.98.1 --target wasm32-unknown-unknown \
     && rm /tmp/rustup-init \
     && cargo --version \
     && rustc --version
 
 RUN git config --system http.version HTTP/1.1 \
-    && npm install --global pnpm@11.19.0 \
-    && cargo install wasm-bindgen-cli --version 0.2.100 --locked \
-    && test "$(pnpm --version)" = '11.19.0' \
-    && test "$(cargo --version | cut -d ' ' -f 1-2)" = 'cargo 1.85.1' \
-    && test "$(wasm-bindgen --version | cut -d ' ' -f 1-2)" = 'wasm-bindgen 0.2.100'
+    && npm install --global pnpm@11.25.0 \
+    && cargo install wasm-bindgen-cli --version 0.2.127 --locked \
+    && test "$(pnpm --version)" = '11.25.0' \
+    && test "$(cargo --version | cut -d ' ' -f 1-2)" = 'cargo 1.98.1' \
+    && test "$(wasm-bindgen --version | cut -d ' ' -f 1-2)" = 'wasm-bindgen 0.2.127'
 
 FROM toolchain AS dependencies
 WORKDIR /workspace
