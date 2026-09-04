@@ -2,12 +2,17 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const artifactPath = resolve(root, 'dist/key-derivation/Wallet_Key_Derivation_Tool.html');
 const checksumPath = resolve(root, 'dist/key-derivation/Wallet_Key_Derivation_Tool.html.sha256');
 const wasmPath = resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm');
 const html = readFileSync(artifactPath, 'utf8');
+const expectedFingerprint = createBuildInfo(root, 'Wallet_Key_Derivation_Tool.html.sha256').fingerprint;
+if (!html.includes(expectedFingerprint)) {
+  throw new Error('Standalone artifact does not contain the fingerprint of the current source tree.');
+}
 
 function occurrences(value, marker) {
   return value.split(marker).length - 1;
