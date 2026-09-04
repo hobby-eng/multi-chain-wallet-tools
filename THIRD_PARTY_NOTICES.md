@@ -18,6 +18,8 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 
 The two Dash SDK packages are bundled into `Wallet_Activity_Viewer.html` and the scan-only `Wallet_Discovery_Scanner.html`, never into the Wallet Key Derivation Tool. Their pnpm integrity pins are `sha512-DsfHXlLByyhvAerDknozg0HT4KHNsYP6rEy949aj/KGLLydb9bwJBHOWyn5oDsNR016tvr3oeT/jCkjMA4qoCA==` and `sha512-/be0D7qohZc9fHgYjbtzOg8KOajarzo0NtKCNybv4Z1xeV617Wo0CusnsxCzwbV7C/jDgPJiGel0KtcSTzQcfQ==`. Copyright notices embedded by Noble/Scure identify Paul Miller and, for Scure BIP32/BIP39, Patricio Palladino. esbuild preserves inline legal comments in the standalone JavaScript.
 
+The MIT provenance for `@dashevo/evo-sdk` and `@dashevo/wasm-sdk` is based explicitly on `dashpay/platform` v4.1.1 at commit `69b85c81af8e000e8506edaa13406d1f6274af5a` and that repository's root `LICENSE.md`. The published npm package manifests and tarballs omit license metadata, so the upstream tagged source is the authoritative license reference for these two packages.
+
 The Wallet Activity Viewer and Wallet Discovery Scanner headers embed the official “Dash D Circle” SVG from the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), licensed CC BY 4.0. Use of the mark identifies the Dash network currently addressed by those tools and does not imply endorsement.
 
 ## External runtime services (not bundled dependencies)

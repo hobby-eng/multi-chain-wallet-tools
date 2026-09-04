@@ -21,7 +21,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['apps/**/*.test.ts', 'packages/**/*.test.ts'],
+    include: ['apps/**/*.test.ts', 'packages/**/*.test.ts', 'tooling/**/*.test.mjs'],
     coverage: {
       include: ['packages/crypto-core/src/**/*.ts', 'packages/coin-protocols/src/**/*.ts'],
     },
