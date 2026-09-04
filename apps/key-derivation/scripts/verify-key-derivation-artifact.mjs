@@ -40,13 +40,20 @@ try {
   throw new Error(`Standalone application JavaScript is syntactically invalid: ${String(cause)}`);
 }
 
-const expectedCsp = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'";
+const inlineScriptHash = `'sha256-${createHash('sha256').update(inlineScript).digest('base64')}'`;
+const expectedCsp = `default-src 'none'; script-src ${inlineScriptHash} 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
 const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/u.exec(html)?.[1];
 if (csp !== expectedCsp) throw new Error('Standalone artifact CSP changed from the reviewed offline policy.');
+if (/script-src[^;]*'unsafe-inline'/u.test(csp)) {
+  throw new Error('Standalone CSP must authorize its immutable inline script by hash, not unsafe-inline.');
+}
 // 'wasm-unsafe-eval' only compiles the embedded module; the separate
 // 'unsafe-eval' keyword would additionally enable the Function constructor.
 // The quotes matter: they are what distinguishes the two tokens.
 if (csp.includes("'unsafe-eval'")) throw new Error("Standalone CSP must never grant 'unsafe-eval'.");
+if (html.includes('__INLINE_SCRIPT_CSP__') || html.includes('/*__INLINE_')) {
+  throw new Error('Standalone artifact still contains an unexpanded build marker.');
+}
 
 const ids = [...html.matchAll(/\sid="([^"]+)"/gu)].map((match) => match[1]);
 if (new Set(ids).size !== ids.length) throw new Error('Standalone artifact contains duplicate HTML IDs.');

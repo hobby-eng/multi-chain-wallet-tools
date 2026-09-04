@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
+import { assertEvoSdkReadOnly } from '../../../tooling/verify-evo-read-only.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const artifactPath = resolve(root, 'dist/activity-viewer/Wallet_Activity_Viewer.html');
@@ -13,27 +14,17 @@ const expectedFingerprint = createBuildInfo(root, 'Wallet_Activity_Viewer.html.s
 if (!html.includes(expectedFingerprint)) {
   throw new Error('Viewer artifact does not contain the fingerprint of the current source tree.');
 }
-const expectedCsp = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src https:; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'";
-const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/u.exec(html)?.[1];
-if (csp !== expectedCsp) throw new Error('Viewer artifact CSP changed from the reviewed connected policy.');
-// The pinned Evo SDK's wasm-bindgen glue hands the WASM module a `new Function`
-// import. It is inert only because the policy withholds 'unsafe-eval', so that
-// absence is asserted by name and not merely implied by the string above. The
-// quotes matter: they distinguish it from the permitted 'wasm-unsafe-eval'.
-if (csp.includes("'unsafe-eval'")) throw new Error("Viewer CSP must never grant 'unsafe-eval'.");
-
 function occurrences(value, marker) {
   return value.split(marker).length - 1;
 }
 
-function sourceTree(directory) {
+function sourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true })
     .flatMap((entry) => {
       const path = resolve(directory, entry.name);
-      if (entry.isDirectory()) return sourceTree(path);
-      return entry.isFile() && path.endsWith('.ts') ? [readFileSync(path, 'utf8')] : [];
-    })
-    .join('\n');
+      if (entry.isDirectory()) return sourceFiles(path);
+      return entry.isFile() && path.endsWith('.ts') ? [{ path, text: readFileSync(path, 'utf8') }] : [];
+    });
 }
 
 for (const [marker, expected] of [
@@ -55,6 +46,21 @@ if (scriptStart < 0 || scriptEnd <= scriptStart) {
   throw new Error('Viewer artifact has no inline application script.');
 }
 const inlineScript = html.slice(scriptStart + '<script>'.length, scriptEnd);
+const inlineScriptHash = `'sha256-${createHash('sha256').update(inlineScript).digest('base64')}'`;
+const expectedCsp = `default-src 'none'; script-src ${inlineScriptHash} 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src https:; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
+const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/u.exec(html)?.[1];
+if (csp !== expectedCsp) throw new Error('Viewer artifact CSP changed from the reviewed connected policy.');
+if (/script-src[^;]*'unsafe-inline'/u.test(csp)) {
+  throw new Error('Viewer CSP must authorize its immutable inline script by hash, not unsafe-inline.');
+}
+// The pinned Evo SDK's wasm-bindgen glue hands the WASM module a `new Function`
+// import. It is inert only because the policy withholds 'unsafe-eval', so that
+// absence is asserted by name and not merely implied by the string above. The
+// quotes matter: they distinguish it from the permitted 'wasm-unsafe-eval'.
+if (csp.includes("'unsafe-eval'")) throw new Error("Viewer CSP must never grant 'unsafe-eval'.");
+if (html.includes('__INLINE_SCRIPT_CSP__') || html.includes('/*__INLINE_')) {
+  throw new Error('Viewer artifact still contains an unexpanded build marker.');
+}
 const styleStart = html.indexOf('<style>');
 const styleEnd = html.indexOf('</style>', styleStart);
 const inlineStyle = html.slice(styleStart + '<style>'.length, styleEnd);
@@ -194,15 +200,10 @@ const expectedOrchardWasm = readFileSync(orchardWasmPath).toString('base64');
 if (occurrences(html, expectedOrchardWasm) !== 1) {
   throw new Error('Viewer does not embed exactly one byte-identical pinned Orchard WASM module.');
 }
-const reviewedSource = `${sourceTree(resolve(root, 'apps/activity-viewer/src'))}\n${sourceTree(resolve(root, 'packages/dash-network/src'))}`;
-for (const [pattern, label] of [
-  [/\.(?:addressFundsTransfer|addressFundsWithdraw|addressFundingFromAssetLock|identityCreditWithdrawal|identityTopUpFromAddresses|identityTransferToAddresses|broadcastAndWait)\s*\(/u, 'low-level state-transition method'],
-  [/\.addresses\s*\.\s*(?:transfer|withdraw|topUpIdentity|transferFromIdentity|fundFromAssetLock|createIdentity)\s*\(/u, 'write-capable address facade'],
-  [/\.identities\s*\.\s*(?:create|creditTransfer|creditWithdrawal|topUp|update)\s*\(/u, 'write-capable identity facade'],
-  [/\.stateTransitions\s*\.\s*(?:broadcast|broadcastAndWait)\s*\(/u, 'state-transition broadcast facade'],
-]) {
-  if (pattern.test(reviewedSource)) throw new Error(`Viewer source crosses its read-only boundary through a ${label}.`);
-}
+assertEvoSdkReadOnly([
+  ...sourceFiles(resolve(root, 'apps/activity-viewer/src')),
+  ...sourceFiles(resolve(root, 'packages/dash-network/src')),
+].map(({ path }) => path), 'Viewer source', root);
 
 const actual = createHash('sha256').update(html).digest('hex');
 const recorded = readFileSync(checksumPath, 'utf8').trim().split(/\s+/u)[0];
