@@ -33,12 +33,13 @@ try {
   run('docker', [
     'build',
     '--platform', 'linux/amd64',
+    '--network', 'host',
     '--file', 'Dockerfile.reproducible',
     '--target', target,
     '--tag', image,
     '.',
   ]);
-  container = run('docker', ['create', image], { capture: true });
+  container = run('docker', ['create', image, '/bin/true'], { capture: true });
   const source = wasmOnly ? '/generated/.' : '/dist/.';
   run('docker', ['cp', `${container}:${source}`, temporary]);
 
