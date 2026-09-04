@@ -44,7 +44,7 @@
     "verify": "node tooling/verify-reproducible-container.mjs && tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node tooling/test-rust.mjs && node tooling/build-shielded-wasm.mjs && node apps/key-derivation/scripts/build-key-derivation-html.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs && node tooling/create-release-manifest.mjs && node tooling/verify-release-manifest.mjs && node tooling/verify-shielded-wasm.mjs && node tooling/verify-reproducible-build.mjs && node apps/key-derivation/scripts/verify-key-derivation-artifact.mjs && node apps/activity-viewer/scripts/verify-activity-viewer-artifact.mjs && node apps/discovery-scanner/scripts/verify-discovery-scanner-artifact.mjs && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs"
   },
   "dependencies": {
-    "@dashevo/evo-sdk": "4.1.0",
+    "@dashevo/evo-sdk": "4.1.1",
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
     "@scure/base": "2.4.0",
@@ -54,7 +54,7 @@
   "devDependencies": {
     "@dashincubator/secp256k1": "1.7.1-5",
     "dashhd": "3.3.3",
-    "dashkeys": "1.1.3",
+    "dashkeys": "1.1.5",
     "esbuild": "0.28.2",
     "ethers": "6.17.0",
     "typescript": "7.0.2",
