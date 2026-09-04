@@ -14,11 +14,12 @@ use orchard::{
     note_encryption::OrchardDomain,
     value::ValueCommitment,
     zcash_note_encryption::{
-        note_bytes::{NoteBytes, NoteBytesData}, try_note_decryption,
-        try_output_recovery_with_ovk, EphemeralKeyBytes, ShieldedOutput,
+        note_bytes::{NoteBytes, NoteBytesData},
+        try_note_decryption, try_output_recovery_with_ovk, EphemeralKeyBytes, ShieldedOutput,
     },
     Address, Note,
 };
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 const FIELD_SIZE: usize = 32;
@@ -34,6 +35,33 @@ struct RecoverableOutput {
     cmx: ExtractedNoteCommitment,
     epk: EphemeralKeyBytes,
     enc: NoteBytesData<ENC_CIPHERTEXT_SIZE>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RecoveredNote {
+    value: String,
+    address_raw: String,
+    memo: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    note_nullifier: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ScanItem {
+    position: String,
+    cmx: String,
+    action_nullifier: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    incoming: Option<RecoveredNote>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    outgoing: Option<RecoveredNote>,
+}
+
+#[derive(Serialize)]
+struct ScanResult {
+    items: Vec<ScanItem>,
 }
 
 impl ShieldedOutput<OrchardDomain<DashMemo>> for RecoverableOutput {
@@ -66,7 +94,9 @@ fn validate_batch_lengths(
     }
     let count = cmx.len() / FIELD_SIZE;
     if count > MAX_SCAN_BATCH {
-        return Err(format!("shielded scan batch exceeds {MAX_SCAN_BATCH} notes"));
+        return Err(format!(
+            "shielded scan batch exceeds {MAX_SCAN_BATCH} notes"
+        ));
     }
     if nullifiers.len() != count * FIELD_SIZE {
         return Err("nullifier batch length does not match cmx batch length".to_owned());
@@ -88,9 +118,7 @@ fn parse_full_viewing_key(full_viewing_key: &[u8]) -> Result<FullViewingKey, Str
         .ok_or_else(|| "raw Orchard full viewing key is not a canonical encoding".to_owned())
 }
 
-fn parse_incoming_viewing_key(
-    incoming_viewing_key: &[u8],
-) -> Result<IncomingViewingKey, String> {
+fn parse_incoming_viewing_key(incoming_viewing_key: &[u8]) -> Result<IncomingViewingKey, String> {
     let ivk_bytes: [u8; INCOMING_VIEWING_KEY_SIZE] = incoming_viewing_key
         .try_into()
         .map_err(|_| "raw Orchard incoming viewing key must contain exactly 64 bytes".to_owned())?;
@@ -98,9 +126,7 @@ fn parse_incoming_viewing_key(
         .ok_or_else(|| "raw Orchard incoming viewing key is not a canonical encoding".to_owned())
 }
 
-fn parse_outgoing_viewing_key(
-    outgoing_viewing_key: &[u8],
-) -> Result<OutgoingViewingKey, String> {
+fn parse_outgoing_viewing_key(outgoing_viewing_key: &[u8]) -> Result<OutgoingViewingKey, String> {
     let ovk_bytes: [u8; OUTGOING_VIEWING_KEY_SIZE] = outgoing_viewing_key
         .try_into()
         .map_err(|_| "raw Orchard outgoing viewing key must contain exactly 32 bytes".to_owned())?;
@@ -112,7 +138,12 @@ fn parsed_output(
     nullifier: &[u8],
     cv_net: &[u8],
     encrypted_note: &[u8],
-) -> Option<(Nullifier, ValueCommitment, RecoverableOutput, [u8; OUT_CIPHERTEXT_SIZE])> {
+) -> Option<(
+    Nullifier,
+    ValueCommitment,
+    RecoverableOutput,
+    [u8; OUT_CIPHERTEXT_SIZE],
+)> {
     let nf = Nullifier::from_bytes(nullifier.try_into().ok()?).into_option()?;
     let cmx = ExtractedNoteCommitment::from_bytes(cmx.try_into().ok()?).into_option()?;
     let cv = ValueCommitment::from_bytes(cv_net.try_into().ok()?).into_option()?;
@@ -128,20 +159,20 @@ fn parsed_output(
     Some((nf, cv, RecoverableOutput { cmx, epk, enc }, out))
 }
 
-fn note_json(note: &Note, address: &Address, memo: &[u8; 36], note_nullifier: Option<&[u8; 32]>) -> String {
+fn recovered_note(
+    note: &Note,
+    address: &Address,
+    memo: &[u8; 36],
+    note_nullifier: Option<&[u8; 32]>,
+) -> RecoveredNote {
     // Dash Platform puts credit amounts directly into Orchard NoteValue. The
     // JS presentation layer converts 100,000,000,000 credits to one DASH.
-    let mut json = format!(
-        "{{\"value\":\"{}\",\"addressRaw\":\"{}\",\"memo\":\"{}\"",
-        note.value().inner(),
-        hex::encode(address.to_raw_address_bytes()),
-        hex::encode(memo),
-    );
-    if let Some(nullifier) = note_nullifier {
-        json.push_str(&format!(",\"noteNullifier\":\"{}\"", hex::encode(nullifier)));
+    RecoveredNote {
+        value: note.value().inner().to_string(),
+        address_raw: hex::encode(address.to_raw_address_bytes()),
+        memo: hex::encode(memo),
+        note_nullifier: note_nullifier.map(hex::encode),
     }
-    json.push('}');
-    json
 }
 
 fn scan_prepared_batch_json(
@@ -159,8 +190,7 @@ fn scan_prepared_batch_json(
         .checked_add(count as u64 - 1)
         .ok_or_else(|| "shielded note position range overflows uint64".to_owned())?;
 
-    let mut result = String::from("{\"items\":[");
-    let mut first = true;
+    let mut items = Vec::new();
 
     for index in 0..count {
         let field_start = index * FIELD_SIZE;
@@ -184,29 +214,23 @@ fn scan_prepared_batch_json(
             continue;
         }
 
-        if !first {
-            result.push(',');
-        }
-        first = false;
         let position = start_position + index as u64;
-        result.push_str(&format!(
-            "{{\"position\":\"{position}\",\"cmx\":\"{}\",\"actionNullifier\":\"{}\"",
-            hex::encode(wire_cmx),
-            hex::encode(wire_nullifier),
-        ));
-        if let Some((note, address, memo)) = incoming {
+        let incoming = incoming.map(|(note, address, memo)| {
             let note_nullifier = full_viewing_key.map(|fvk| note.nullifier(fvk).to_bytes());
-            result.push_str(",\"incoming\":");
-            result.push_str(&note_json(&note, &address, &memo, note_nullifier.as_ref()));
-        }
-        if let Some((note, address, memo)) = outgoing {
-            result.push_str(",\"outgoing\":");
-            result.push_str(&note_json(&note, &address, &memo, None));
-        }
-        result.push('}');
+            recovered_note(&note, &address, &memo, note_nullifier.as_ref())
+        });
+        let outgoing =
+            outgoing.map(|(note, address, memo)| recovered_note(&note, &address, &memo, None));
+        items.push(ScanItem {
+            position: position.to_string(),
+            cmx: hex::encode(wire_cmx),
+            action_nullifier: hex::encode(wire_nullifier),
+            incoming,
+            outgoing,
+        });
     }
-    result.push_str("]}");
-    Ok(result)
+    serde_json::to_string(&ScanResult { items })
+        .map_err(|cause| format!("failed to serialize Orchard scan: {cause}"))
 }
 
 fn scan_full_batch_json(
@@ -389,6 +413,34 @@ mod tests {
         zcash_note_encryption::Domain,
     };
     use rand_core::OsRng;
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct OfficialPlatformWalletFixture {
+        position: u64,
+        recipient_full_viewing_key: String,
+        sender_outgoing_viewing_key: String,
+        cmx: String,
+        action_nullifier: String,
+        cv_net: String,
+        encrypted_note: String,
+        expected: OfficialPlatformWalletExpected,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct OfficialPlatformWalletExpected {
+        value: String,
+        address_raw: String,
+        memo: String,
+    }
+
+    fn fixture_bytes(value: &str, expected_len: usize) -> Vec<u8> {
+        let bytes = hex::decode(value).expect("fixture field must be hexadecimal");
+        assert_eq!(bytes.len(), expected_len, "fixture field width changed");
+        bytes
+    }
 
     fn own_note_fixture() -> (FullViewingKey, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
         let spending_key = Option::<SpendingKey>::from(SpendingKey::from_bytes([0x0d; 32]))
@@ -397,8 +449,8 @@ mod tests {
         let recipient = fvk.address_at(7u32, Scope::External);
         let nf = Option::<Nullifier>::from(Nullifier::from_bytes(&[0x01; 32]))
             .expect("fixed nullifier is canonical");
-        let rho = Option::<Rho>::from(Rho::from_bytes(&[0x01; 32]))
-            .expect("fixed rho is canonical");
+        let rho =
+            Option::<Rho>::from(Rho::from_bytes(&[0x01; 32])).expect("fixed rho is canonical");
         let rseed = Option::<RandomSeed>::from(RandomSeed::from_bytes([0x02; 32], &rho))
             .expect("fixed random seed is canonical");
         // Fixed cross-layer unit vector: 123_456_789_012 Platform credits are
@@ -413,11 +465,8 @@ mod tests {
         let mut memo = [0u8; 36];
         memo[..4].copy_from_slice(&1u32.to_le_bytes());
         memo[4..15].copy_from_slice(b"viewer test");
-        let encryption = OrchardNoteEncryption::<DashMemo>::new(
-            Some(fvk.to_ovk(Scope::External)),
-            note,
-            memo,
-        );
+        let encryption =
+            OrchardNoteEncryption::<DashMemo>::new(Some(fvk.to_ovk(Scope::External)), note, memo);
         let epk = OrchardDomain::<DashMemo>::epk_bytes(encryption.epk());
         let enc = encryption.encrypt_note_plaintext();
         let out = encryption.encrypt_outgoing_plaintext(&cv, &cmx, &mut OsRng);
@@ -432,6 +481,70 @@ mod tests {
             cv.to_bytes().to_vec(),
             encrypted_note,
         )
+    }
+
+    #[test]
+    fn official_platform_wallet_fixture_recovers_incoming_and_outgoing_note() {
+        let fixture: OfficialPlatformWalletFixture = serde_json::from_str(include_str!(
+            "../fixtures/official-platform-wallet-note.json"
+        ))
+        .expect("official Platform wallet fixture must be valid JSON");
+        let fvk = fixture_bytes(&fixture.recipient_full_viewing_key, FULL_VIEWING_KEY_SIZE);
+        let ovk = fixture_bytes(
+            &fixture.sender_outgoing_viewing_key,
+            OUTGOING_VIEWING_KEY_SIZE,
+        );
+        let cmx = fixture_bytes(&fixture.cmx, FIELD_SIZE);
+        let action_nullifier = fixture_bytes(&fixture.action_nullifier, FIELD_SIZE);
+        let cv_net = fixture_bytes(&fixture.cv_net, FIELD_SIZE);
+        let encrypted_note = fixture_bytes(&fixture.encrypted_note, ENCRYPTED_NOTE_SIZE);
+
+        let full: serde_json::Value = serde_json::from_str(
+            &scan_full_batch_json(
+                &fvk,
+                fixture.position,
+                &cmx,
+                &action_nullifier,
+                &cv_net,
+                &encrypted_note,
+            )
+            .expect("recipient FVK must recover the official wallet action"),
+        )
+        .unwrap();
+        let item = &full["items"][0];
+        assert_eq!(item["position"], fixture.position.to_string());
+        assert_eq!(item["cmx"], fixture.cmx);
+        assert_eq!(item["actionNullifier"], fixture.action_nullifier);
+        for capability in ["incoming", "outgoing"] {
+            assert_eq!(item[capability]["value"], fixture.expected.value);
+            assert_eq!(item[capability]["addressRaw"], fixture.expected.address_raw);
+            assert_eq!(item[capability]["memo"], fixture.expected.memo);
+        }
+        assert_eq!(
+            item["incoming"]["noteNullifier"]
+                .as_str()
+                .expect("FVK recovery must derive the owned-note nullifier")
+                .len(),
+            FIELD_SIZE * 2
+        );
+
+        let outgoing: serde_json::Value = serde_json::from_str(
+            &scan_outgoing_batch_json(
+                &ovk,
+                fixture.position,
+                &cmx,
+                &action_nullifier,
+                &cv_net,
+                &encrypted_note,
+            )
+            .expect("sender OVK must recover the official wallet action"),
+        )
+        .unwrap();
+        assert!(outgoing["items"][0].get("incoming").is_none());
+        assert_eq!(
+            outgoing["items"][0]["outgoing"]["addressRaw"],
+            fixture.expected.address_raw
+        );
     }
 
     #[test]
@@ -450,8 +563,8 @@ mod tests {
     fn incoming_viewing_key_recovers_only_incoming_capability() {
         let (fvk, cmx, nf, cv, encrypted) = own_note_fixture();
         let ivk = fvk.to_ivk(Scope::External);
-        let json = scan_incoming_batch_json(&ivk.to_bytes(), 42, &cmx, &nf, &cv, &encrypted)
-            .unwrap();
+        let json =
+            scan_incoming_batch_json(&ivk.to_bytes(), 42, &cmx, &nf, &cv, &encrypted).unwrap();
         assert!(json.contains("\"position\":\"42\""));
         assert!(json.contains("\"incoming\""));
         assert!(json.contains("\"value\":\"123456789012\""));
@@ -463,8 +576,7 @@ mod tests {
     fn outgoing_viewing_key_recovers_only_outgoing_capability() {
         let (fvk, cmx, nf, cv, encrypted) = own_note_fixture();
         let ovk = fvk.to_ovk(Scope::External);
-        let json = scan_outgoing_batch_json(ovk.as_ref(), 42, &cmx, &nf, &cv, &encrypted)
-            .unwrap();
+        let json = scan_outgoing_batch_json(ovk.as_ref(), 42, &cmx, &nf, &cv, &encrypted).unwrap();
         assert!(json.contains("\"position\":\"42\""));
         assert!(json.contains("\"outgoing\""));
         assert!(json.contains("\"value\":\"123456789012\""));
@@ -477,7 +589,8 @@ mod tests {
         let (_, cmx, nf, cv, encrypted) = own_note_fixture();
         let other_sk = Option::<SpendingKey>::from(SpendingKey::from_bytes([0x11; 32])).unwrap();
         let other_fvk = FullViewingKey::from(&other_sk);
-        let json = scan_full_batch_json(&other_fvk.to_bytes(), 0, &cmx, &nf, &cv, &encrypted).unwrap();
+        let json =
+            scan_full_batch_json(&other_fvk.to_bytes(), 0, &cmx, &nf, &cv, &encrypted).unwrap();
         assert_eq!(json, "{\"items\":[]}");
         let json = scan_incoming_batch_json(
             &other_fvk.to_ivk(Scope::External).to_bytes(),
@@ -501,8 +614,18 @@ mod tests {
         assert!(scan_outgoing_batch_json(&[0u8; 31], 0, &cmx, &nf, &cv, &encrypted).is_err());
         assert!(scan_outgoing_batch_json(&[0u8; 32], 0, &cmx, &nf, &cv, &encrypted).is_ok());
         let (fvk, _, _, _, _) = own_note_fixture();
-        assert!(scan_full_batch_json(&fvk.to_bytes(), 0, &cmx, &nf[..31], &cv, &encrypted).is_err());
-        assert!(scan_full_batch_json(&fvk.to_bytes(), u64::MAX, &[0u8; 64], &[0u8; 64], &[0u8; 64], &[0u8; ENCRYPTED_NOTE_SIZE * 2]).is_err());
+        assert!(
+            scan_full_batch_json(&fvk.to_bytes(), 0, &cmx, &nf[..31], &cv, &encrypted).is_err()
+        );
+        assert!(scan_full_batch_json(
+            &fvk.to_bytes(),
+            u64::MAX,
+            &[0u8; 64],
+            &[0u8; 64],
+            &[0u8; 64],
+            &[0u8; ENCRYPTED_NOTE_SIZE * 2]
+        )
+        .is_err());
     }
 
     #[test]

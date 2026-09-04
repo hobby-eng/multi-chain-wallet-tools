@@ -1,6 +1,6 @@
 # Dependency and third-party license report
 
-Verified 2026-09-02 from exact package manifests, `pnpm-lock.yaml`, `Cargo.lock`, and locked Cargo metadata. This is dependency provenance information, not legal advice. The upstream license files remain authoritative.
+Verified 2026-09-04 from exact package manifests, `pnpm-lock.yaml`, `Cargo.lock`, and locked Cargo metadata. This is dependency provenance information, not legal advice. The upstream license files remain authoritative.
 
 Original project code is licensed under the repository's [MIT License](LICENSE), copyright (c) 2026 hobby-eng. The tables below describe separately licensed third-party components and do not transfer their authorship or trademarks to this project.
 
@@ -33,10 +33,12 @@ The connected Wallet Activity Viewer calls DashScan (`pshenmic/dashscan`, API pa
 | `wasm-bindgen` | 0.2.100 | `rustwasm/wasm-bindgen` / crates.io | MIT OR Apache-2.0 | Browser WASM ABI |
 | `zip32` | 0.2.0 | `zcash/librustzcash` / crates.io | MIT OR Apache-2.0 | ZIP32 account identifier/types |
 | `hex` | 0.4.3 | `KokaKiwi/rust-hex` / crates.io | MIT OR Apache-2.0 | Raw boundary serialization |
+| `serde` | 1.0.229 | `serde-rs/serde` / crates.io | MIT OR Apache-2.0 | Typed Rust boundary serialization |
+| `serde_json` | 1.0.149 | `serde-rs/json` / crates.io | MIT OR Apache-2.0 | Escaped JSON boundary encoding and fixture parsing |
 | `bech32` (test only) | 0.11.0 | `rust-bitcoin/rust-bech32` / crates.io | MIT | Independent Rust display-vector encoding |
 | `rand_core` (test only) | 0.6.4 | `rust-random/rand_core` / crates.io | MIT OR Apache-2.0 | Real encrypted-note scanner round-trip fixture |
 
-The Orchard MIT notice identifies The Electric Coin Company (2020–2025) and Zcash Open Development Lab (2026). wasm-bindgen's MIT notice identifies Alex Crichton (2014). Their upstream distributions also contain Apache-2.0 texts where dual licensed.
+The fixed scanner fixture is output from the MIT-licensed official stable `dashpay/platform` v4.1.1 wallet source at commit `69b85c81af8e000e8506edaa13406d1f6274af5a`; no upstream source code is copied into the fixture. The Orchard MIT notice identifies The Electric Coin Company (2020–2025) and Zcash Open Development Lab (2026). wasm-bindgen's MIT notice identifies Alex Crichton (2014). Their upstream distributions also contain Apache-2.0 texts where dual licensed.
 
 ## JavaScript build and independent-test dependencies
 
@@ -101,6 +103,7 @@ wasm-bindgen-macro 0.2.100      wasm-bindgen-macro-support 0.2.100
 wasm-bindgen-shared 0.2.100     zcash_note_encryption 0.4.1
 zcash_spec 0.2.1                zeroize 1.9.0
 zeroize_derive 1.5.0            zip32 0.2.0
+itoa 1.0.18                     serde_json 1.0.149
 ```
 
 `bls12_381`, `ff`, `fpe`, `group`, `jubjub`, `memuse`, and `version_check` spell the dual expression as `MIT/Apache-2.0`; the others use `MIT OR Apache-2.0` or its reversed equivalent.
@@ -118,7 +121,9 @@ nonempty 0.11.0                radium 0.7.0                  MIT
 spin 0.9.9                     tap 1.0.1                     MIT
 tracing 0.1.44                 tracing-core 0.1.36           MIT
 wyz 0.5.1                                                     MIT
+zmij 1.0.23                                                   MIT
 byteorder 1.5.0                                               Unlicense OR MIT
+memchr 2.8.3                                                  Unlicense OR MIT
 constant_time_eq 0.4.2                                        CC0-1.0 OR MIT-0 OR Apache-2.0
 subtle 2.6.1                                                  BSD-3-Clause
 unicode-ident 1.0.24                                          (MIT OR Apache-2.0) AND Unicode-3.0
