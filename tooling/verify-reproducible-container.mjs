@@ -16,14 +16,14 @@ requireMatch(
   'The canonical base image must be pinned by an immutable SHA-256 digest.',
 );
 for (const expected of [
-  'ARG NODE_VERSION=24.19.0',
-  'ARG NODE_ARCHIVE_SHA256=14b342e71204f811bde6153be8e04b62aef63c236fef92b55f9c83154b409647',
+  'ARG NODE_VERSION=24.20.0',
+  'ARG NODE_ARCHIVE_SHA256=2f2c0da162318f0de47665410c7c8c2ed3d36c8f3105de4bbc61176c70a7cbf2',
   'ARG RUSTUP_VERSION=1.29.1',
   'ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71',
   'CARGO_NET_GIT_FETCH_WITH_CLI=true',
   'git config --system http.version HTTP/1.1',
-  'npm install --global pnpm@11.19.0',
-  'cargo install wasm-bindgen-cli --version 0.2.100 --locked',
+  'npm install --global pnpm@11.25.0',
+  'cargo install wasm-bindgen-cli --version 0.2.127 --locked',
   'for attempt in 1 2 3 4 5',
   'Cargo fetch attempt ${attempt} failed',
   'RUN --network=none pnpm verify',

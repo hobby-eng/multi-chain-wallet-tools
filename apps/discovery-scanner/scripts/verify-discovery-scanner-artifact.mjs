@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const sourceRoot = resolve(root, 'apps/discovery-scanner/src');
@@ -9,6 +10,10 @@ const artifactPath = resolve(root, 'dist/discovery-scanner/Wallet_Discovery_Scan
 const checksumPath = resolve(root, 'dist/discovery-scanner/Wallet_Discovery_Scanner.html.sha256');
 const orchardWasmPath = resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm');
 const html = readFileSync(artifactPath, 'utf8');
+const expectedFingerprint = createBuildInfo(root, 'Wallet_Discovery_Scanner.html.sha256').fingerprint;
+if (!html.includes(expectedFingerprint)) {
+  throw new Error('Recovery artifact does not contain the fingerprint of the current source tree.');
+}
 const vaultTemplate = readFileSync(resolve(sourceRoot, 'index.html'), 'utf8');
 const shellTemplate = readFileSync(resolve(sourceRoot, 'shell.html'), 'utf8');
 

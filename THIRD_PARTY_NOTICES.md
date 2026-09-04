@@ -30,12 +30,12 @@ The connected Wallet Activity Viewer calls DashScan (`pshenmic/dashscan`, API pa
 | --- | --- | --- | --- | --- |
 | `orchard` | 0.14.0, tag `dashified-0.14.1`, commit `38ac9c19a2df7bf3eeadc22ab23053e8fd538828` | `dashpay/orchard` | MIT OR Apache-2.0 | Official Dash Orchard/ZIP32 key and address logic |
 | `zcash_note_encryption` | 0.4.1, revision `9f7e93d42cef839d02b9d75918117941d453f8cb` | `dashpay/zcash_note_encryption` | MIT OR Apache-2.0 | Locked Orchard transitive dependency |
-| `wasm-bindgen` | 0.2.100 | `rustwasm/wasm-bindgen` / crates.io | MIT OR Apache-2.0 | Browser WASM ABI |
-| `zip32` | 0.2.0 | `zcash/librustzcash` / crates.io | MIT OR Apache-2.0 | ZIP32 account identifier/types |
+| `wasm-bindgen` | 0.2.127 | `rustwasm/wasm-bindgen` / crates.io | MIT OR Apache-2.0 | Browser WASM ABI |
+| `zip32` | 0.2.1 | `zcash/librustzcash` / crates.io | MIT OR Apache-2.0 | ZIP32 account identifier/types |
 | `hex` | 0.4.3 | `KokaKiwi/rust-hex` / crates.io | MIT OR Apache-2.0 | Raw boundary serialization |
 | `serde` | 1.0.229 | `serde-rs/serde` / crates.io | MIT OR Apache-2.0 | Typed Rust boundary serialization |
-| `serde_json` | 1.0.149 | `serde-rs/json` / crates.io | MIT OR Apache-2.0 | Escaped JSON boundary encoding and fixture parsing |
-| `bech32` (test only) | 0.11.0 | `rust-bitcoin/rust-bech32` / crates.io | MIT | Independent Rust display-vector encoding |
+| `serde_json` | 1.0.151 | `serde-rs/json` / crates.io | MIT OR Apache-2.0 | Escaped JSON boundary encoding and fixture parsing |
+| `bech32` (test only) | 0.12.0 | `rust-bitcoin/rust-bech32` / crates.io | MIT | Independent Rust display-vector encoding |
 | `rand_core` (test only) | 0.6.4 | `rust-random/rand_core` / crates.io | MIT OR Apache-2.0 | Real encrypted-note scanner round-trip fixture |
 
 The fixed scanner fixture is output from the MIT-licensed official stable `dashpay/platform` v4.1.1 wallet source at commit `69b85c81af8e000e8506edaa13406d1f6274af5a`; no upstream source code is copied into the fixture. The Orchard MIT notice identifies The Electric Coin Company (2020–2025) and Zcash Open Development Lab (2026). wasm-bindgen's MIT notice identifies Alex Crichton (2014). Their upstream distributions also contain Apache-2.0 texts where dual licensed.
@@ -70,7 +70,7 @@ chacha20 0.9.1                  chacha20poly1305 0.10.1
 cipher 0.4.4                    cobs 0.3.0
 corez 0.1.1                     cpufeatures 0.2.17
 critical-section 1.2.0          crypto-common 0.1.7
-dash-shielded-wasm 1.0.0        document-features 0.2.12
+dash-shielded-wasm 0.1.0        document-features 0.2.12
 either 1.18.0                   embedded-io 0.4.0
 embedded-io 0.6.1               ff 0.13.1
 fpe 0.6.1                       frost-core 3.0.0
@@ -98,12 +98,12 @@ static_assertions 1.1.0         syn 2.0.119
 syn 3.0.4                       thiserror 2.0.20
 thiserror-impl 2.0.20           typenum 1.20.1
 universal-hash 0.5.1            version_check 0.9.5
-wasm-bindgen 0.2.100            wasm-bindgen-backend 0.2.100
-wasm-bindgen-macro 0.2.100      wasm-bindgen-macro-support 0.2.100
-wasm-bindgen-shared 0.2.100     zcash_note_encryption 0.4.1
+wasm-bindgen 0.2.127            wasm-bindgen-macro 0.2.127
+wasm-bindgen-macro-support 0.2.127
+wasm-bindgen-shared 0.2.127     zcash_note_encryption 0.4.1
 zcash_spec 0.2.1                zeroize 1.9.0
-zeroize_derive 1.5.0            zip32 0.2.0
-itoa 1.0.18                     serde_json 1.0.149
+zeroize_derive 1.5.0            zip32 0.2.1
+itoa 1.0.18                     serde_json 1.0.151
 ```
 
 `bls12_381`, `ff`, `fpe`, `group`, `jubjub`, `memuse`, and `version_check` spell the dual expression as `MIT/Apache-2.0`; the others use `MIT OR Apache-2.0` or its reversed equivalent.
@@ -111,12 +111,12 @@ itoa 1.0.18                     serde_json 1.0.149
 ### MIT and other permissive licenses
 
 ```text
-bech32 0.11.0                   bitvec 1.1.1                  MIT
+bech32 0.11.1 / 0.12.0          bitvec 1.1.1                  MIT
 blake2b_simd 1.0.5             const-crc32-nostd 1.3.1      MIT
 derive-getters 0.5.0           funty 2.0.0                   MIT
 generic-array 0.14.7           getrandom 0.2.17             MIT OR Apache-2.0
 getset 0.1.7                  MIT
-libm 0.2.16                    log 0.4.34                    MIT
+libm 0.2.16                                                    MIT
 nonempty 0.11.0                radium 0.7.0                  MIT
 spin 0.9.9                     tap 1.0.1                     MIT
 tracing 0.1.44                 tracing-core 0.1.36           MIT
@@ -135,7 +135,7 @@ wasi 0.11.1+wasi-snapshot-preview1                           Apache-2.0 WITH LLV
 
 - `package.json` uses exact dependency versions; pnpm's lockfile pins the npm closure and integrity hashes.
 - `Cargo.toml` uses exact registry versions and one exact audited Orchard tag; `Cargo.lock` pins all transitive versions and git commits.
-- The build validates Cargo 1.85.1, wasm-bindgen-cli 0.2.100, and the Orchard lock source before compiling.
+- The build validates Cargo 1.98.1, wasm-bindgen-cli 0.2.127, and the Orchard lock source before compiling.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` separately identifies its embedded Evo SDK/Orchard versions, external DashScan/Platform Explorer data sources, and its online security boundary.
 - `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions, DashScan/DAPI sources, mnemonic-bearing online boundary, and independent-audit warning.
