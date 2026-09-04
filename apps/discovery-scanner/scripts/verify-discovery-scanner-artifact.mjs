@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
+import { assertEvoSdkReadOnly } from '../../../tooling/verify-evo-read-only.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const sourceRoot = resolve(root, 'apps/discovery-scanner/src');
@@ -215,15 +216,10 @@ for (const operation of [
   if (!protocolSource.includes(`operation: '${operation}'`)) throw new Error(`Recovery RPC is missing reviewed operation ${operation}.`);
 }
 
-const reviewedSource = `${allRecoverySources.map(({ text }) => text).join('\n')}\n${sourceFiles(resolve(root, 'packages/dash-network/src')).map(({ text }) => text).join('\n')}`;
-for (const [pattern, label] of [
-  [/\.(?:addressFundsTransfer|addressFundsWithdraw|addressFundingFromAssetLock|identityCreditWithdrawal|identityTopUpFromAddresses|identityTransferToAddresses|broadcastAndWait)\s*\(/u, 'low-level state-transition method'],
-  [/\.addresses\s*\.\s*(?:transfer|withdraw|topUpIdentity|transferFromIdentity|fundFromAssetLock|createIdentity)\s*\(/u, 'write-capable address facade'],
-  [/\.identities\s*\.\s*(?:create|creditTransfer|creditWithdrawal|topUp|update)\s*\(/u, 'write-capable identity facade'],
-  [/\.stateTransitions\s*\.\s*(?:broadcast|broadcastAndWait)\s*\(/u, 'state-transition broadcast facade'],
-]) {
-  if (pattern.test(reviewedSource)) throw new Error(`Recovery source crosses its scan-only boundary through a ${label}.`);
-}
+assertEvoSdkReadOnly([
+  ...allRecoverySources,
+  ...sourceFiles(resolve(root, 'packages/dash-network/src')),
+].map(({ path }) => path), 'Recovery source', root);
 
 const actual = createHash('sha256').update(html).digest('hex');
 const recorded = readFileSync(checksumPath, 'utf8').trim().split(/\s+/u)[0];
