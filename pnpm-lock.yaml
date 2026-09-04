@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@dashevo/evo-sdk':
-        specifier: 4.1.0
-        version: 4.1.0
+        specifier: 4.1.1
+        version: 4.1.1
       '@noble/curves':
         specifier: 2.4.0
         version: 2.4.0
@@ -76,12 +76,12 @@ packages:
   '@adraffy/ens-normalize@1.11.1':
     resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
 
-  '@dashevo/evo-sdk@4.1.0':
-    resolution: {integrity: sha512-31sSjLXc8XEm4/PCEUXRGBJvSDwearx1RHFza44zpB1e+TKD74M3RRhbO0X1WSdP4vNQxVuzYZV2LfwEgzyQzg==}
+  '@dashevo/evo-sdk@4.1.1':
+    resolution: {integrity: sha512-DsfHXlLByyhvAerDknozg0HT4KHNsYP6rEy949aj/KGLLydb9bwJBHOWyn5oDsNR016tvr3oeT/jCkjMA4qoCA==}
     engines: {node: '>=18.18'}
 
-  '@dashevo/wasm-sdk@4.1.0':
-    resolution: {integrity: sha512-4Odbmug9s3ABz+BNUi5Le2Q4csuhXdmGksqep6ev6MXIXqWm7vLGV5PZ9YJo9I9IHodKiVibPNujIoNv06NMBw==}
+  '@dashevo/wasm-sdk@4.1.1':
+    resolution: {integrity: sha512-/be0D7qohZc9fHgYjbtzOg8KOajarzo0NtKCNybv4Z1xeV617Wo0CusnsxCzwbV7C/jDgPJiGel0KtcSTzQcfQ==}
     engines: {node: '>=18.18'}
 
   '@dashincubator/secp256k1@1.7.1-5':
@@ -842,11 +842,11 @@ snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
 
-  '@dashevo/evo-sdk@4.1.0':
+  '@dashevo/evo-sdk@4.1.1':
     dependencies:
-      '@dashevo/wasm-sdk': 4.1.0
+      '@dashevo/wasm-sdk': 4.1.1
 
-  '@dashevo/wasm-sdk@4.1.0': {}
+  '@dashevo/wasm-sdk@4.1.1': {}
 
   '@dashincubator/secp256k1@1.7.1-5': {}
 
