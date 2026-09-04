@@ -4,25 +4,10 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, transform } from 'esbuild';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
+import { verifyDashSdkBuild } from '../../../tooling/verify-dash-sdk-build.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
-const projectManifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
-const installedEvoManifest = JSON.parse(readFileSync(resolve(root, 'node_modules/@dashevo/evo-sdk/package.json'), 'utf8'));
-const installedWasmManifest = JSON.parse(readFileSync(resolve(root, 'node_modules/.pnpm/node_modules/@dashevo/wasm-sdk/package.json'), 'utf8'));
-const lockfile = readFileSync(resolve(root, 'pnpm-lock.yaml'), 'utf8');
-if (
-  projectManifest.dependencies?.['@dashevo/evo-sdk'] !== '4.1.0'
-  || installedEvoManifest.version !== '4.1.0'
-  || installedWasmManifest.version !== '4.1.0'
-) {
-  throw new Error('The Wallet Discovery Scanner requires exact installed Dash Evo SDK and WASM SDK version 4.1.0.');
-}
-for (const integrity of [
-  'sha512-31sSjLXc8XEm4/PCEUXRGBJvSDwearx1RHFza44zpB1e+TKD74M3RRhbO0X1WSdP4vNQxVuzYZV2LfwEgzyQzg==',
-  'sha512-4Odbmug9s3ABz+BNUi5Le2Q4csuhXdmGksqep6ev6MXIXqWm7vLGV5PZ9YJo9I9IHodKiVibPNujIoNv06NMBw==',
-]) {
-  if (!lockfile.includes(integrity)) throw new Error(`pnpm lockfile is missing audited Dash SDK integrity ${integrity}.`);
-}
+verifyDashSdkBuild(root, 'The Wallet Discovery Scanner');
 
 const vaultTemplate = readFileSync(resolve(root, 'apps/discovery-scanner/src/index.html'), 'utf8');
 const shellTemplate = readFileSync(resolve(root, 'apps/discovery-scanner/src/shell.html'), 'utf8');
