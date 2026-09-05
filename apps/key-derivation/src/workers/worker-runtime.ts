@@ -26,9 +26,9 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
           workerScope.postMessage({ id: request.id, ok: true, type: 'self-test', result });
           return;
         }
-        const adapter = dependencies.getRuntimeCoinAdapter(request.adapterId);
-        if (request.type === 'search') {
-          try {
+        try {
+          const adapter = dependencies.getRuntimeCoinAdapter(request.adapterId);
+          if (request.type === 'search') {
             const result = await findDerivedAddress(
               adapter,
               request.input,
@@ -37,12 +37,8 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
               request.count,
             );
             workerScope.postMessage({ id: request.id, ok: true, type: 'search', result });
-          } finally {
-            request.input.seed.fill(0);
+            return;
           }
-          return;
-        }
-        try {
           const result = await adapter.derive(request.input);
           workerScope.postMessage({ id: request.id, ok: true, type: 'derive', result });
         } finally {
