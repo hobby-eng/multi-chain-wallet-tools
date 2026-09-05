@@ -1,6 +1,6 @@
 # Wallet Discovery Scanner
 
-Network-enabled standalone scanner that derives Dash Core receive/change addresses, Platform payment addresses, Platform identities and an Orchard account locally from one or several BIP39 phrases. Each of those four components can be enabled independently, so a Core-only or otherwise targeted scan does not contact unused services. Build outputs: `dist/discovery-scanner/Wallet_Discovery_Scanner.html` and `dist/dash-community/discovery-scanner/Dash_Community_Discovery_Scanner.html`.
+Network-enabled standalone scanner with a protocol-neutral extension boundary. The current Multi-Chain build provides Dash recovery while remaining ready for additional coin adapters; Dash Community is Dash-only. It derives Dash Core receive/change addresses, Platform payment addresses, Platform identities and an Orchard account locally from one or several BIP39 phrases. Each of those four components can be enabled independently, so a Core-only or otherwise targeted scan does not contact unused services. Build outputs: `dist/discovery-scanner/Wallet_Discovery_Scanner.html` and `dist/dash-community/discovery-scanner/Dash_Community_Discovery_Scanner.html`.
 
 Dash Core recovery always scans both BIP44 branches—receive `/0` and change `/1`—with independent post-use gap tracking. This is not controlled by the optional change-display checkbox in the separate offline Wallet Key Derivation Tool: a recovery scan must include change addresses so it does not miss spendable funds returned by earlier transactions.
 

@@ -4,8 +4,8 @@
 
 Three portable wallet utilities built as standalone HTML files. One canonical source tree now produces two compile-time editions:
 
-- **Multi-Chain Edition** retains Bitcoin, Ethereum, Dash Core, Dash Platform, Dash Identity, and Dash Orchard support.
-- **Dash Community Edition** compiles only Dash Core, Platform, Identity, and Orchard registrations into its application graph and applies dedicated Dash Community branding.
+- **Multi-Chain Edition** is the extensible multi-network release and currently includes Bitcoin, Ethereum, and Dash (Core, Platform, Identity, and Orchard).
+- **Dash Community Edition** is the focused Dash-only release: it compiles only Dash Core, Platform, Identity, and Orchard registrations into its application graph and applies dedicated Dash Community branding.
 
 Download a file, verify its SHA-256 checksum, and open it in a current browser—no installation or server required. Shared controllers, exports, Worker infrastructure, security boundaries, and tests remain common source code across both editions.
 
@@ -154,7 +154,7 @@ dist/dash-community/SHA256SUMS
 
 Use `pnpm build:html:multi-chain` or `pnpm build:html:dash-community` for one profile. `pnpm build:html` builds both. `pnpm release:bundle` stages the unchanged Multi-Chain release set; `pnpm release:bundle:dash-community` stages the separately named future Dash distribution bundle without publishing it.
 
-The Dash Community theme uses the official Dash Blue `#008de4`, Deep Blue `#012060`, Midnight Blue `#0b0f3b`, white, grey, and black palette documented by the primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html) and [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/). The restrained dark treatment preserves existing responsive layouts and high-contrast security states.
+The Dash Community visual system is based on the official [Dash BrandBook](https://www.figma.com/design/cCpB1W2IAmoEGXBbGqGsfD/Dash-BrandBook?node-id=219-108&p=f), the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), and the primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html). It uses a controlled blue workspace, translucent navy surfaces, restrained ribbed geometry, and the official Dash mark while preserving the shared layouts, responsive behavior, accessible focus treatment, calm caution states, and distinct error states.
 
 For individual application instructions, see:
 

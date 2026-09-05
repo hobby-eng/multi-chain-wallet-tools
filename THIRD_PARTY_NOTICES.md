@@ -22,7 +22,7 @@ The two Dash SDK packages are bundled into both editions of the Wallet Activity 
 
 The MIT provenance for `@dashevo/evo-sdk` and `@dashevo/wasm-sdk` is based explicitly on `dashpay/platform` v4.1.1 at commit `69b85c81af8e000e8506edaa13406d1f6274af5a` and that repository's root `LICENSE.md`. The published npm package manifests and tarballs omit license metadata, so the upstream tagged source is the authoritative license reference for these two packages.
 
-The Wallet Activity Viewer and Wallet Discovery Scanner headers embed the official “Dash D Circle” SVG from the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), licensed CC BY 4.0. The Dash Community Edition also uses the official palette recorded in the primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html). Use of the mark and palette identifies the Dash network currently addressed by those tools and does not imply endorsement.
+All three Dash Community Edition headers embed the official “Dash D Circle” SVG from the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), licensed CC BY 4.0. Their color and geometric treatment is based on the official [Dash BrandBook](https://www.figma.com/design/cCpB1W2IAmoEGXBbGqGsfD/Dash-BrandBook?node-id=219-108&p=f) and the palette recorded in the primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html). Multi-Chain Edition headers do not display the Dash-only mark. Use of the mark and palette identifies the Dash-only Community Edition and does not imply endorsement.
 
 ## External runtime services (not bundled dependencies)
 

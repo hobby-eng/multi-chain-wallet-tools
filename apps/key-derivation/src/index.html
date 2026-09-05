@@ -12,17 +12,41 @@
   <noscript>This offline tool requires JavaScript.</noscript>
   <header class="hero">
     <div class="deriver-topbar">
-      <div class="eyebrow">__EDITION_EYEBROW__</div>
+      <div>__DASH_HEADER_BRAND__</div>
       <div class="offline-badge"><span></span> Runtime network access blocked by this file</div>
     </div>
-    <h1>Wallet Key Derivation Tool</h1>
-    <p>__KEY_DERIVATION_INTRODUCTION__</p>
+    <div class="deriver-hero-grid">
+      <div><div class="eyebrow">__EDITION_EYEBROW__</div>
+      <h1>Derive wallet keys locally</h1>
+      <p>__KEY_DERIVATION_INTRODUCTION__</p>
+      <div class="deriver-trust-row" aria-label="Security properties">
+        <span>Offline by design</span>
+        <span>Deterministic self-tests</span>
+        <span>No runtime network access</span>
+      </div></div>
+      <aside class="deriver-capability-card" aria-label="Derivation capabilities">
+        <div class="capability-kicker">OFFLINE KEY WORKSPACE</div>
+        <h2>Derive with confidence</h2>
+        <div class="deriver-capability-list">
+          <div><span>✓</span><span>Standard wallet derivation paths</span></div>
+          <div><span>✓</span><span>Multiple protocols and key formats</span></div>
+          <div><span>✓</span><span>Keys generated locally in your browser</span></div>
+          <div><span>✓</span><span>Runtime network access blocked</span></div>
+        </div>
+      </aside>
+    </div>
   </header>
 
   <main>
     <section class="warning" aria-label="Security warning">
       <div class="warning-icon">!</div>
       <div><strong>Use an offline, trusted computer.</strong> Anyone who sees your recovery phrase or private keys can control those funds. Test with an empty wallet first. This app does not save or send your input, but a compromised browser or operating system can still steal secrets.</div>
+    </section>
+
+    <section class="deriver-flow" aria-label="Key derivation workflow">
+      <article><span>01</span><div><strong>Enter recovery source</strong><small>Validated locally in this file</small></div></article>
+      <article><span>02</span><div><strong>Choose derivation</strong><small>Select protocol, account and range</small></div></article>
+      <article><span>03</span><div><strong>Review and export</strong><small>Inspect keys before wallet recovery</small></div></article>
     </section>
 
     <form id="derive-form" autocomplete="off" spellcheck="false">
