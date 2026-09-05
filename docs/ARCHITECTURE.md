@@ -14,16 +14,29 @@ Original project code is MIT licensed. Third-party source, generated integration
 
 Each application owns its HTML template, UI controller, app-specific styles, build script, artifact verifier, tests, README, and security notes. It may import shared packages but must not import source from another application.
 
+## Compile-time edition profiles
+
+`tooling/build-profiles.mjs` defines two allowlisted build profiles and their explicit entrypoints, names, metadata, and output paths. It does not delete source files or strip a completed bundle:
+
+| Profile | Key-derivation registry | Output root | Branding |
+| --- | --- | --- | --- |
+| `multi-chain` | `coins/registry.ts` + `coins/runtime-registry.ts` | existing `dist/<tool>/Wallet_*.html` paths | existing Multi-Chain presentation |
+| `dash-community` | `coins/dash-registry.ts` + `coins/dash-runtime-registry.ts` | `dist/dash-community/<tool>/Dash_Community_*.html` | Dash Community copy and Dash-blue theme |
+
+The metadata registry is split into protocol-specific adapter modules. The Multi-Chain entrypoint explicitly composes Bitcoin, Ethereum, and Dash arrays. The Dash entrypoint imports only the Dash array, and its Worker imports only Dash derivation implementations and Dash-only startup vectors. The Discovery Scanner uses separate explicit profile registries even though Dash is currently its only adapter. This opt-in composition ensures that adding a future coin to the Multi-Chain registry cannot silently add it to a Dash build.
+
+Application bootstrap code, controllers, views, export implementations, network boundaries, Worker lifecycle, and most tests remain shared. Edition entrypoints select dependencies at compile time; no runtime feature flag hides an already bundled adapter.
+
 ## Shared packages
 
 - `packages/crypto-core`: BIP39/BIP32 wrappers, network constants, byte-secret disposal and common types.
-- `packages/coin-protocols`: offline derivation implementations. `registry.ts` is metadata-only; `runtime-registry.ts` imports cryptographic implementations and is worker-only.
+- `packages/coin-protocols`: offline derivation implementations. Profile metadata registries are main-thread-only; profile runtime registries import cryptographic implementations and are worker-only.
 - `packages/dash-network`: public Dash data providers, Platform state/history, viewing-key parsing and Orchard activity reconstruction.
 - `packages/dash-shielded-wasm`: pinned Rust source, Cargo lock and generated browser WASM for Dash Orchard/ZIP-32. There is one compiled WASM binary shared at source/build time; each standalone connected artifact embeds its own release copy because artifacts must run independently.
 - `packages/export-core`: generic formatter, clipboard boundary and Bitcoin descriptor handling.
-- `packages/shared-ui`: common visual system. Each connected app adds only its app-specific layout.
-- `packages/build-security`: immutable build passport and ambient type declarations.
-- `packages/verification`: fixed BIP39 and cross-protocol startup vectors.
+- `packages/shared-ui`: common visual system plus the explicit `dash-community.css` token/override module.
+- `packages/build-security`: immutable build passport, including edition/profile identity, and ambient type declarations.
+- `packages/verification`: fixed BIP39, full Multi-Chain, and Dash-only startup vectors.
 
 ## Offline derivation execution
 
@@ -39,8 +52,14 @@ Recovery wallet tasks use isolated state slots and preserve input order. Seed ph
 
 ## Release ownership
 
-`tooling/` compiles the pinned Rust package, builds all standalone HTML files, creates and verifies both the source-tree `dist/SHA256SUMS` and the flat GitHub release asset set, checks reproducibility, and enforces application-specific CSP/network/storage rules. Recovery build metadata rejects network/Evo inputs in the Secret Vault, secret derivation inputs in the Network Worker, and every shell dependency except the reviewed `shell.ts` plus typed `network-protocol.ts` pair. The build passport hashes source, manifests, lockfiles, tests, the canonical Docker definition, generated pinned WASM and tooling, while excluding local dependency/build caches such as `node_modules`, `.pnpm-store` and Cargo `target`.
+`tooling/` compiles the pinned Rust package, builds all six standalone HTML files, creates and verifies per-profile manifests and flat release bundles, checks reproducibility, and enforces application-specific CSP/network/storage rules. Recovery build metadata rejects network/Evo inputs in the Secret Vault, secret derivation inputs in the Network Worker, and every shell dependency except the reviewed `shell.ts` plus typed `network-protocol.ts` pair. The Dash build additionally fails unless every bundled `coin-protocols` input is the shared registry contract, a Dash profile registry, the Dash adapter definition, or a module under `coins/dash/`; its Discovery Scanner graph has an equivalent Dash-only application allowlist. A future coin module therefore fails closed without updating the gate deliberately. Emitted HTML is then scanned for non-Dash adapter IDs and user-facing chain copy. The protocol-defined BIP32 HMAC domain string `"Bitcoin seed"` is the sole allowlisted lexical exception; it is required by Dash HD derivation and is not a Bitcoin adapter or registration. The build passport hashes source, manifests, lockfiles, tests, the canonical Docker definition, generated pinned WASM and tooling, while excluding local dependency/build caches such as `node_modules`, `.pnpm-store` and Cargo `target`.
 
 `Dockerfile.reproducible` is the byte-level release boundary. It fixes Linux/amd64, an Ubuntu 24.04-based image digest, and exact Node, pnpm, Rust and wasm-bindgen releases. Its final complete verification runs offline and rejects any difference between rebuilt and committed WASM/glue. CI, tag releases and `./tooling/build-reproducible.sh` all use this same path, so the host distribution does not silently change release fingerprints or HTML checksums. Native builds remain supported for development and functional testing, but do not define canonical release bytes. Application build/verifier scripts remain beside their application so a future split into separate repositories does not require disentangling the build logic.
 
-The three applications should remain separate standalone HTML release assets rather than being merged into one page. Their checksum sidecars, the root MIT `LICENSE`, and the flat `SHA256SUMS` are published beside them. Shared source packages are a development concern and are already embedded into each standalone artifact at build time.
+The three applications should remain separate standalone HTML release assets rather than being merged into one page. The current `hobby-eng/multi-chain-wallet-tools` tag workflow continues to publish exactly the three stable Multi-Chain filenames, sidecars, root MIT `LICENSE`, and flat `SHA256SUMS`. The separately named Dash Community bundle is prepared deterministically but is not published by that workflow.
+
+This repository is the canonical source for both editions. A future `hobby-eng/dash-wallet-tools` repository is intended only as the Dash Community distribution/release surface and does not exist yet; Dash-specific source, fixes, and shared security code remain here.
+
+## Dash Community visual identity
+
+The Dash Community theme uses official palette values from the primary [Dash documentation marketing page](https://docs.dash.org/en/stable/docs/user/marketing.html) and the linked [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/): Dash Blue `#008de4`, Deep Blue `#012060`, Midnight Blue `#0b0f3b`, White `#ffffff`, Grey `#787878`, and Black `#111921`. The theme applies blue accents over the existing dark, responsive visual system while preserving red danger states, green success states, keyboard focus visibility, and mobile breakpoints. Use of Dash branding identifies the target community and does not imply endorsement.

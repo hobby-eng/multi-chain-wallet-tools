@@ -2,13 +2,15 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getToolBuild, parseBuildProfile } from './build-profiles.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const release = resolve(root, 'dist/release');
+const profile = parseBuildProfile();
+const release = resolve(root, profile.releaseDirectory);
 const expectedArtifacts = [
-  'Wallet_Activity_Viewer.html',
-  'Wallet_Discovery_Scanner.html',
-  'Wallet_Key_Derivation_Tool.html',
+  getToolBuild(profile, 'activity-viewer').artifactName,
+  getToolBuild(profile, 'discovery-scanner').artifactName,
+  getToolBuild(profile, 'key-derivation').artifactName,
 ];
 const expectedFiles = new Set([
   ...expectedArtifacts,
@@ -45,4 +47,4 @@ if (remaining.size !== 0) throw new Error(`Flat release manifest is missing: ${[
 if (readFileSync(resolve(release, 'LICENSE'), 'utf8') !== readFileSync(resolve(root, 'LICENSE'), 'utf8')) {
   throw new Error('Flat release LICENSE differs from the root project license.');
 }
-console.log('Verified the exact flat GitHub release asset set and all checksums.');
+console.log(`Verified the exact flat ${profile.editionName} release asset set and all checksums.`);

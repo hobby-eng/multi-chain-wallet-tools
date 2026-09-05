@@ -9,7 +9,7 @@ Dash Platform and Dash Orchard functionality relies on open-source work authored
 - **Dash Platform** — protocol specifications, Evo SDK, WASM SDK, proof-verification and Platform client implementations: [github.com/dashpay/platform](https://github.com/dashpay/platform)
 - **Dash Orchard fork** — Dash-specific Orchard/ZIP-32 cryptographic implementation: [github.com/dashpay/orchard](https://github.com/dashpay/orchard)
 - **Dash Core** — network definitions and the wider Dash protocol implementation: [github.com/dashpay/dash](https://github.com/dashpay/dash)
-- **Dash brand mark** — the official “Dash D Circle” asset from the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), used under the Creative Commons Attribution 4.0 license (CC BY 4.0). The mark remains the property of its respective owner; its use does not imply endorsement.
+- **Dash brand mark and palette** — the official “Dash D Circle” asset and Dash Blue `#008de4`, Deep Blue `#012060`, Midnight Blue `#0b0f3b`, White `#ffffff`, Grey `#787878`, and Black `#111921` values from the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/) and primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html), used under the Creative Commons Attribution 4.0 license (CC BY 4.0). The mark remains the property of its respective owner; use in the Dash Community Edition identifies the target ecosystem and does not imply endorsement.
 
 This repository's code integrates those components for key derivation, activity inspection, and recovery reporting. Upstream names identify technical provenance; they do not transfer authorship of upstream code to this project.
 
