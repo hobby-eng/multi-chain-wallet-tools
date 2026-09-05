@@ -7,6 +7,7 @@ import {
   normalizeIdentityLookupInput,
 } from '../src/platform-identity-source.js';
 import {
+  assertPublicBatchLookupInput,
   assertPublicLookupInput,
   PrivateMaterialError,
 } from '../src/private-material.js';
@@ -20,6 +21,23 @@ describe('Platform Identity public input boundary', () => {
     encodeWif(Uint8Array.from({ length: 32 }, (_, index) => index + 1), 0xcc),
   ])('rejects private-key-like input before lookup', (value) => {
     expect(() => assertPublicLookupInput(value)).toThrow(PrivateMaterialError);
+  });
+
+  it('rejects a multiline mnemonic embedded beside public batch input', () => {
+    const value = [
+      'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon',
+      'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'about',
+      'alice.dash',
+    ].join('\n');
+    expect(() => assertPublicBatchLookupInput(value)).toThrow(PrivateMaterialError);
+  });
+
+  it('allows a public batch of twelve alphabetic DPNS names', () => {
+    const value = [
+      'alice', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot',
+      'golf', 'hotel', 'india', 'juliet', 'kilo', 'lima',
+    ].join('\n');
+    expect(() => assertPublicBatchLookupInput(value)).not.toThrow();
   });
 
   it('normalizes public identity identifiers and key material', () => {

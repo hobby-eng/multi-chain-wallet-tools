@@ -30,6 +30,7 @@ A connected, read-only viewer for a Dash Core address, Platform payment address,
 - Looks up Dash Platform payment-address balances and activity.
 - Resolves a Platform Identity by Base58 ID, the HASH160 fingerprint of a public key registered to the Identity, compressed ECDSA/BLS public key, or DPNS name with or without `.dash`. It proof-verifies current state, nonce, registered key roles and DPNS names, then combines indexed transactions and transfers into one deduplicated activity ledger.
 - Scans the Dash Orchard pool with FVK, IVK or OVK viewing capability without requiring a spending key.
+- Supports bounded batch queries in every mode. Core and Platform inputs use configurable concurrency, while one proof-verified Orchard page stream is reused locally across all supplied viewing keys.
 - Rejects and erases mnemonic, WIF, extended-private-key, raw-private-key and other private-material patterns before any public lookup request.
 - Exports loaded activity as compact relational CSV or object-oriented JSON without repeating complete account summaries on every record.
 

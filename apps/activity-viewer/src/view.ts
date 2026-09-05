@@ -23,6 +23,14 @@ import type { CoreAddressSnapshot, CoreAddressTransaction } from '@ckd/dash-netw
 import type { ActivitySnapshot, ShieldedActivity, ViewerNetwork } from '@ckd/dash-network/types.js';
 
 export type ViewerMode = 'shielded' | 'core' | 'platform' | 'identity';
+export type ViewerQueryMode = 'single' | 'batch';
+
+export interface ViewerBatchResultOption {
+  id: string;
+  label: string;
+  status: 'complete' | 'failed';
+  error?: string;
+}
 
 function requireElement<T extends HTMLElement>(document: Document, id: string): T {
   const element = document.getElementById(id);
@@ -51,12 +59,18 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   const capabilityControls = required<HTMLDivElement>('viewer-capability-controls');
   const historyField = required<HTMLDivElement>('viewer-history-field');
   const historyLimitInput = required<HTMLInputElement>('viewer-history-limit');
+  const batchControls = required<HTMLDivElement>('viewer-batch-controls');
+  const batchConcurrencyInput = required<HTMLSelectElement>('viewer-batch-concurrency');
+  const singleInputPanel = required<HTMLDivElement>('viewer-single-input-panel');
+  const batchInputPanel = required<HTMLDivElement>('viewer-batch-input-panel');
   const viewingKeyInput = required<HTMLInputElement>('full-viewing-key');
+  const batchInput = required<HTMLTextAreaElement>('viewer-batch-input');
   const inputLabel = required<HTMLLabelElement>('viewer-input-label');
   const inputHelp = required<HTMLParagraphElement>('viewer-input-help');
   const keyMode = required<HTMLSpanElement>('viewer-key-mode');
   const privacyChip = required<HTMLElement>('viewer-privacy-chip');
   const revealButton = required<HTMLButtonElement>('reveal-viewing-key');
+  const revealBatchButton = required<HTMLButtonElement>('reveal-batch-input');
   const scanButton = required<HTMLButtonElement>('scan-button');
   const scanButtonLabel = required<HTMLSpanElement>('scan-button-label');
   const cancelButton = required<HTMLButtonElement>('cancel-button');
@@ -66,6 +80,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   const results = required<HTMLElement>('viewer-results');
   const resultsHeading = required<HTMLHeadingElement>('viewer-results-heading');
   const resultsDescription = required<HTMLParagraphElement>('viewer-results-description');
+  const batchResults = required<HTMLDivElement>('viewer-batch-results');
   const resultHelp = required<HTMLElement>('viewer-result-help');
   const summary = required<HTMLDivElement>('viewer-summary');
   const activityList = required<HTMLDivElement>('viewer-activity');
@@ -87,10 +102,12 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   const selfTestDetails = required<HTMLElement>('viewer-crypto-self-test-details');
   const runtimeStatus = required<HTMLElement>('viewer-runtime');
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-viewer-mode]')];
+  const queryModeButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-query-mode]')];
   let queryStarted = 0;
   let requestCount = 0;
   let remoteDuration = 0;
   let localDuration = 0;
+  let queryMode: ViewerQueryMode = 'single';
 
   function valueElement(className: string, value: string): HTMLSpanElement {
     const element = document.createElement('span');
@@ -623,12 +640,16 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     keyCapabilityInput,
     historyLimitInput,
     viewingKeyInput,
+    batchInput,
+    batchConcurrencyInput,
     revealButton,
+    revealBatchButton,
     cancelButton,
     clearButton,
     exportCsvButton,
     exportJsonButton,
     modeButtons,
+    queryModeButtons,
     showError(message: string): void {
       errorBox.textContent = message;
       errorBox.hidden = false;
@@ -645,14 +666,42 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     },
     clearResults(): void {
       results.hidden = true;
+      batchResults.hidden = true;
+      batchResults.replaceChildren();
       summary.replaceChildren();
       activityList.replaceChildren();
     },
     clearQueryInput(): void {
       viewingKeyInput.value = '';
+      batchInput.value = '';
       viewingKeyInput.type = 'text';
+      batchInput.classList.remove('concealed');
       revealButton.textContent = 'Reveal key';
       revealButton.setAttribute('aria-pressed', 'false');
+      revealBatchButton.textContent = 'Reveal keys';
+      revealBatchButton.setAttribute('aria-pressed', 'false');
+    },
+    renderBatchResults(
+      options: readonly ViewerBatchResultOption[],
+      activeId: string | null,
+      activate: (id: string) => void,
+    ): void {
+      batchResults.replaceChildren(...options.map((option) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `viewer-batch-result ${option.status}${option.id === activeId ? ' active' : ''}`;
+        button.textContent = option.label;
+        button.disabled = option.status === 'failed';
+        button.setAttribute('aria-pressed', String(option.id === activeId));
+        if (option.error !== undefined) button.title = option.error;
+        if (option.status === 'complete') button.addEventListener('click', () => activate(option.id));
+        return button;
+      }));
+      batchResults.hidden = options.length === 0;
+    },
+    hideBatchResults(): void {
+      batchResults.hidden = true;
+      batchResults.replaceChildren();
     },
     setExportAvailable(available: boolean): void {
       exportActions.hidden = !available;
@@ -854,6 +903,10 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       requestCount += 1;
       diagnosticRequests.textContent = requestCount.toLocaleString();
     },
+    recordRequests(count: number): void {
+      requestCount += count;
+      diagnosticRequests.textContent = requestCount.toLocaleString();
+    },
     setRequestCount(count: number): void {
       requestCount = count;
       diagnosticRequests.textContent = count.toLocaleString();
@@ -889,9 +942,13 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       networkInput.disabled = value;
       keyCapabilityInput.disabled = value || mode !== 'shielded';
       historyLimitInput.disabled = value || mode === 'shielded';
+      batchConcurrencyInput.disabled = value || queryMode !== 'batch';
       viewingKeyInput.disabled = value;
+      batchInput.disabled = value;
       revealButton.disabled = value;
+      revealBatchButton.disabled = value;
       for (const button of modeButtons) button.disabled = value;
+      for (const button of queryModeButtons) button.disabled = value;
       cancelButton.disabled = !value;
     },
     showCancellationRequested(mode: ViewerMode): void {
@@ -903,18 +960,31 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     },
     toggleViewingKeyReveal(mode: ViewerMode): void {
       if (mode !== 'shielded') return;
-      const revealing = viewingKeyInput.type === 'password';
-      viewingKeyInput.type = revealing ? 'text' : 'password';
-      revealButton.textContent = revealing ? 'Hide key' : 'Reveal key';
-      revealButton.setAttribute('aria-pressed', String(revealing));
+      if (queryMode === 'batch') {
+        const revealing = batchInput.classList.contains('concealed');
+        batchInput.classList.toggle('concealed', !revealing);
+        revealBatchButton.textContent = revealing ? 'Hide keys' : 'Reveal keys';
+        revealBatchButton.setAttribute('aria-pressed', String(revealing));
+      } else {
+        const revealing = viewingKeyInput.type === 'password';
+        viewingKeyInput.type = revealing ? 'text' : 'password';
+        revealButton.textContent = revealing ? 'Hide key' : 'Reveal key';
+        revealButton.setAttribute('aria-pressed', String(revealing));
+      }
     },
     resetViewer(mode: ViewerMode): void {
       viewingKeyInput.value = '';
+      batchInput.value = '';
       viewingKeyInput.type = mode === 'shielded' ? 'password' : 'text';
+      batchInput.classList.toggle('concealed', mode === 'shielded');
       revealButton.textContent = 'Reveal key';
       revealButton.setAttribute('aria-pressed', 'false');
+      revealBatchButton.textContent = 'Reveal keys';
+      revealBatchButton.setAttribute('aria-pressed', 'false');
       summary.replaceChildren();
       activityList.replaceChildren();
+      batchResults.replaceChildren();
+      batchResults.hidden = true;
       results.hidden = true;
       errorBox.textContent = '';
       errorBox.hidden = true;
@@ -937,26 +1007,54 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         button.setAttribute('aria-pressed', String(active));
       }
     },
+    setQueryMode(mode: ViewerQueryMode, viewerMode: ViewerMode): void {
+      queryMode = mode;
+      singleInputPanel.hidden = mode !== 'single';
+      batchInputPanel.hidden = mode !== 'batch';
+      batchControls.hidden = mode !== 'batch';
+      inputLabel.htmlFor = mode === 'batch' ? 'viewer-batch-input' : 'full-viewing-key';
+      for (const button of queryModeButtons) {
+        const active = button.dataset.queryMode === mode;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      }
+      this.updateInputMode(viewerMode);
+    },
     updateInputMode(mode: ViewerMode): void {
-      const trimmed = viewingKeyInput.value.trim();
+      const activeInput = queryMode === 'batch' ? batchInput.value : viewingKeyInput.value;
+      const trimmed = activeInput.trim();
+      const batchCount = queryMode === 'batch'
+        ? new Set(batchInput.value.replaceAll('\r', '').split('\n').map((line) => line.trim()).filter(Boolean)).size
+        : 1;
       const length = trimmed.replace(/^0x/iu, '').replace(/\s+/gu, '').length;
       const outgoingMode = keyCapabilityInput.value === 'outgoing';
+      if (mode !== 'shielded') {
+        batchInput.classList.remove('concealed');
+        revealBatchButton.textContent = 'Reveal keys';
+        revealBatchButton.setAttribute('aria-pressed', 'false');
+      }
       if (mode === 'shielded') {
         privacyChip.lastChild!.textContent = ' Key processed locally';
         capabilityControls.hidden = false;
         historyField.hidden = true;
-        revealButton.hidden = false;
+        revealButton.hidden = queryMode !== 'single';
+        revealBatchButton.hidden = queryMode !== 'batch';
         viewingKeyInput.type = revealButton.getAttribute('aria-pressed') === 'true' ? 'text' : 'password';
         viewingKeyInput.placeholder = outgoingMode
           ? 'Paste OVK explicitly labeled Outgoing Viewing Key (64 hex)'
           : 'Paste viewing bundle, FVK (192), or IVK (128 hex)';
+        batchInput.placeholder = outgoingMode
+          ? 'One 64-hex OVK per line'
+          : 'One viewing bundle, FVK, or IVK per line';
+        batchInput.classList.toggle('concealed', revealBatchButton.getAttribute('aria-pressed') !== 'true');
         inputLabel.replaceChildren(document.createTextNode('Raw Orchard Viewing Key '), keyMode);
         inputHelp.replaceChildren(
           Object.assign(document.createElement('strong'), { textContent: '96-byte Full Viewing Key (FVK) is recommended: ' }),
-          document.createTextNode('it finds received and sent activity, derives note nullifiers, and identifies spent notes. IVK shows received notes only; OVK shows sent outputs only.'),
+          document.createTextNode(`it finds received and sent activity, derives note nullifiers, and identifies spent notes. IVK shows received notes only; OVK shows sent outputs only.${queryMode === 'batch' ? ' Enter one key or one-line viewing bundle per line; each verified pool page is reused across the batch.' : ''}`),
         );
-        scanButtonLabel.textContent = 'Scan complete shielded pool';
-        if (!outgoingMode && trimmed.startsWith('{')) keyMode.textContent = 'Viewing bundle · FVK';
+        scanButtonLabel.textContent = queryMode === 'batch' ? 'Scan batch across shielded pool' : 'Scan complete shielded pool';
+        if (queryMode === 'batch') keyMode.textContent = `${batchCount.toLocaleString()} viewing key${batchCount === 1 ? '' : 's'}`;
+        else if (!outgoingMode && trimmed.startsWith('{')) keyMode.textContent = 'Viewing bundle · FVK';
         else if (outgoingMode && length === 64) keyMode.textContent = 'OVK · outgoing only';
         else if (outgoingMode) keyMode.textContent = 'Explicit OVK mode';
         else if (length === 192) keyMode.textContent = 'FVK · complete view';
@@ -968,40 +1066,51 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         capabilityControls.hidden = true;
         historyField.hidden = false;
         revealButton.hidden = true;
+        revealBatchButton.hidden = true;
         viewingKeyInput.type = 'text';
         viewingKeyInput.placeholder = networkInput.value === 'mainnet' ? 'Paste X… or 7… Dash Core address' : 'Paste y… or 8… testnet address';
+        batchInput.placeholder = networkInput.value === 'mainnet'
+          ? 'One X… or 7… Dash Core address per line'
+          : 'One y… or 8… testnet address per line';
         inputLabel.replaceChildren(document.createTextNode('Dash Core public address '), keyMode);
-        keyMode.textContent = 'Public L1 lookup';
-        inputHelp.textContent = 'Queries the Dash-specific DashScan index for Mainnet or Testnet. Its synchronization status and latest indexed block are checked first. The public address is sent to DashScan; no private or viewing key is used.';
-        scanButtonLabel.textContent = 'Load Core address activity';
+        keyMode.textContent = queryMode === 'batch' ? `${batchCount.toLocaleString()} public addresses` : 'Public L1 lookup';
+        inputHelp.textContent = `Queries the Dash-specific DashScan index for Mainnet or Testnet. Its synchronization status and latest indexed block are checked first. ${queryMode === 'batch' ? 'Enter one address per line. ' : ''}Public addresses are sent to DashScan; no private or viewing key is used.`;
+        scanButtonLabel.textContent = queryMode === 'batch' ? 'Load Core address batch' : 'Load Core address activity';
       } else if (mode === 'platform') {
         privacyChip.lastChild!.textContent = ' Proof + public history';
         capabilityControls.hidden = true;
         historyField.hidden = false;
         revealButton.hidden = true;
+        revealBatchButton.hidden = true;
         viewingKeyInput.type = 'text';
         viewingKeyInput.placeholder = networkInput.value === 'mainnet' ? 'Paste dash1k… Platform address' : 'Paste tdash1k… Platform address';
+        batchInput.placeholder = networkInput.value === 'mainnet'
+          ? 'One dash1k… Platform address per line'
+          : 'One tdash1k… Platform address per line';
         inputLabel.replaceChildren(document.createTextNode('Dash Platform payment address '), keyMode);
-        keyMode.textContent = 'DIP18 · proof verified';
-        inputHelp.textContent = 'Verifies current balance and outgoing nonce with a GroveDB proof, then loads synchronized address totals and transitions from Dash Platform Explorer. The public address is sent to both network services.';
-        scanButtonLabel.textContent = 'Verify state & load Platform history';
+        keyMode.textContent = queryMode === 'batch' ? `${batchCount.toLocaleString()} Platform addresses` : 'DIP18 · proof verified';
+        inputHelp.textContent = `Verifies current balance and outgoing nonce with a GroveDB proof, then loads synchronized address totals and transitions from Dash Platform Explorer. ${queryMode === 'batch' ? 'Enter one address per line. ' : ''}Public addresses are sent to both network services.`;
+        scanButtonLabel.textContent = queryMode === 'batch' ? 'Verify Platform address batch' : 'Verify state & load Platform history';
       } else {
         privacyChip.lastChild!.textContent = ' Public Identity proof + history';
         capabilityControls.hidden = true;
         historyField.hidden = false;
         revealButton.hidden = true;
+        revealBatchButton.hidden = true;
         viewingKeyInput.type = 'text';
         viewingKeyInput.placeholder = 'Identity ID, idhex:<hex>, tx:<registration hash>, key, or name';
+        batchInput.placeholder = 'One Identity ID, name, HASH160, public key, or prefixed hash per line';
         inputLabel.replaceChildren(document.createTextNode('Dash Platform Identity lookup '), keyMode);
-        if (/^idhex:/iu.test(trimmed)) keyMode.textContent = 'Hex Identity ID · explicit public input';
+        if (queryMode === 'batch') keyMode.textContent = `${batchCount.toLocaleString()} Identity lookups`;
+        else if (/^idhex:/iu.test(trimmed)) keyMode.textContent = 'Hex Identity ID · explicit public input';
         else if (/^(?:tx|transition):/iu.test(trimmed)) keyMode.textContent = 'Registration transition · local owner verification';
         else if (/^(?:0x)?[0-9a-f]{40}$/iu.test(trimmed)) keyMode.textContent = 'Registered public-key HASH160 · auto-detected';
         else if (/^(?:0x)?(?:02|03)[0-9a-f]{64}$/iu.test(trimmed)) keyMode.textContent = 'ECDSA public key · local HASH160';
         else if (/^(?:0x)?[0-9a-f]{96}$/iu.test(trimmed)) keyMode.textContent = 'BLS public key · local HASH160';
         else if (/\.dash$/iu.test(trimmed)) keyMode.textContent = 'DPNS name · proof resolved';
         else keyMode.textContent = 'Identity ID / public key';
-        inputHelp.textContent = 'Accepts a public Base58 Identity ID, idhex:<64-hex Identity ID>, tx:<64-hex registration transition>, the 40-hex HASH160 fingerprint of a registered public key, a compressed ECDSA/BLS public key, or a DPNS name with or without .dash. Bare 64-hex input remains blocked because it could be a private key.';
-        scanButtonLabel.textContent = 'Verify Identity & load activity';
+        inputHelp.textContent = `Accepts ${queryMode === 'batch' ? 'one value per line: ' : ''}a public Base58 Identity ID, idhex:<64-hex Identity ID>, tx:<64-hex registration transition>, the 40-hex HASH160 fingerprint of a registered public key, a compressed ECDSA/BLS public key, or a DPNS name with or without .dash. Bare 64-hex input remains blocked because it could be a private key.`;
+        scanButtonLabel.textContent = queryMode === 'batch' ? 'Verify Identity batch & load activity' : 'Verify Identity & load activity';
       }
       diagnosticMode.textContent = `${mode} · ${networkInput.value}`;
     },

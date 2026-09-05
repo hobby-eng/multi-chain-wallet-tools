@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createViewerExport, type ViewerExportState } from '../src/export.js';
+import {
+  createViewerExport,
+  type ViewerExportState,
+  type ViewerSingleExportState,
+} from '../src/export.js';
 
 const generatedAt = new Date('2026-09-01T21:30:00.000Z');
 
@@ -180,5 +184,59 @@ describe('viewer exports', () => {
     expect(header).not.toContain('details');
     expect(rows.map((row) => row[header!.indexOf('record_type')])).toEqual(['query', 'identity', 'public_key']);
     expect(csv.text).not.toContain('{"publicKeyHash"');
+  });
+
+  it('exports a batch as one file with one header, stable labels, and isolated errors', () => {
+    const first: ViewerSingleExportState = {
+      mode: 'core',
+      network: 'mainnet',
+      snapshot: {
+        kind: 'core', provider: 'DashScan', address: 'Xfirst', network: 'mainnet',
+        balanceDuffs: 1n, unconfirmedDuffs: 0n, totalReceivedDuffs: 1n, totalSentDuffs: 0n,
+        transactionCount: 0, transactions: [], historyLimit: 20, endpoint: 'https://example.invalid',
+        indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 2,
+      },
+    };
+    const second: ViewerSingleExportState = {
+      mode: 'core',
+      network: 'mainnet',
+      snapshot: {
+        kind: 'core', provider: 'DashScan', address: 'Xsecond', network: 'mainnet',
+        balanceDuffs: 2n, unconfirmedDuffs: 0n, totalReceivedDuffs: 2n, totalSentDuffs: 0n,
+        transactionCount: 0, transactions: [], historyLimit: 20, endpoint: 'https://example.invalid',
+        indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 2,
+      },
+    };
+    const state: ViewerExportState = {
+      batch: true,
+      mode: 'core',
+      network: 'mainnet',
+      items: [
+        { id: 'query-1', label: '1 · Xfirst', state: first },
+        { id: 'query-2', label: '2 · Xsecond', state: second },
+      ],
+      errors: [{ id: 'query-3', label: '3 · invalid', message: 'Invalid address.' }],
+    };
+
+    const csv = createViewerExport(state, 'csv', generatedAt);
+    const [header, ...rows] = parseCsv(csv.text);
+    expect(csv.filename).toContain('-batch-');
+    expect(rows).toHaveLength(3);
+    expect(rows.every((row) => row.length === header!.length)).toBe(true);
+    expect(rows.map((row) => row[header!.indexOf('query_label')])).toEqual([
+      '1 · Xfirst',
+      '2 · Xsecond',
+      '3 · invalid',
+    ]);
+
+    const json = createViewerExport(state, 'json', generatedAt);
+    expect(JSON.parse(json.text)).toMatchObject({
+      version: 2,
+      data: {
+        batch: { requested: 3, succeeded: 2, failed: 1 },
+        results: [{ id: 'query-1', label: '1 · Xfirst' }, { id: 'query-2', label: '2 · Xsecond' }],
+        errors: [{ id: 'query-3', message: 'Invalid address.' }],
+      },
+    });
   });
 });

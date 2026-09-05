@@ -14,7 +14,10 @@ import {
   DashPlatformIdentitySource,
   normalizeIdentityLookupInput,
 } from '@ckd/dash-network/platform-identity-source.js';
-import { assertPublicLookupInput } from '@ckd/dash-network/private-material.js';
+import {
+  assertPublicBatchLookupInput,
+  assertPublicLookupInput,
+} from '@ckd/dash-network/private-material.js';
 import { queryCoreAddress } from '@ckd/dash-network/public-address.js';
 import {
   runShieldedPageStream,
@@ -35,6 +38,7 @@ const controller = createActivityViewerController(view, {
   DashPlatformAddressSource,
   DashPlatformIdentitySource,
   assertCanonicalViewingKey,
+  assertPublicBatchLookupInput,
   assertPublicLookupInput,
   createViewerExport,
   downloadText,
