@@ -1,4 +1,5 @@
 import { neutralizeSpreadsheetFormula } from '@ckd/export/csv.js';
+import { formatDashCredits, formatDashDuffs } from '@ckd/core/dash-units.js';
 import type { PlatformAddressHistorySnapshot } from '@ckd/dash-network/platform-address-history.js';
 import type { PlatformAddressSnapshot } from '@ckd/dash-network/platform-address-source.js';
 import type { PlatformIdentityHistoryResult } from '@ckd/dash-network/platform-identity-history.js';
@@ -60,211 +61,562 @@ function directionFromNet(value: bigint): string {
   return 'related';
 }
 
+const CSV_HEADER: CsvValue[] = [
+  'schema_version', 'generated_at', 'mode', 'network', 'query_label', 'resource_id',
+  'resource_name', 'record_type', 'record_id', 'source', 'timestamp', 'status', 'type',
+  'subtype', 'direction', 'amount_atomic', 'amount_unit', 'amount_dash',
+  'transaction_hash', 'block_height', 'public_key_hash', 'public_key', 'metadata',
+];
+
+interface CsvRecord {
+  queryLabel: string;
+  resourceId?: CsvValue;
+  resourceName?: CsvValue;
+  recordType: string;
+  recordId?: CsvValue;
+  source?: CsvValue;
+  timestamp?: CsvValue;
+  status?: CsvValue;
+  type?: CsvValue;
+  subtype?: CsvValue;
+  direction?: CsvValue;
+  amountAtomic?: bigint | null;
+  amountUnit?: 'credits' | 'duffs';
+  transactionHash?: CsvValue;
+  blockHeight?: CsvValue;
+  publicKeyHash?: CsvValue;
+  publicKey?: CsvValue;
+  metadata?: CsvValue;
+}
+
+function metadata(entries: ReadonlyArray<readonly [string, CsvValue | readonly string[] | undefined]>): string {
+  return entries
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .map(([label, value]) => `${label}=${Array.isArray(value) ? value.join('; ') : String(value)}`)
+    .join(' | ');
+}
+
+function amountDash(value: bigint | null | undefined, unit: CsvRecord['amountUnit']): string {
+  if (value === null || value === undefined || unit === undefined) return '';
+  const formatted = unit === 'duffs' ? formatDashDuffs(value, true) : formatDashCredits(value, true);
+  return formatted.replace(/ DASH$/u, '');
+}
+
+function csvRecord(
+  mode: ViewerExportState['mode'],
+  network: ViewerNetwork,
+  generatedAt: string,
+  record: CsvRecord,
+): CsvValue[] {
+  return [
+    '2', generatedAt, mode, network, record.queryLabel, record.resourceId ?? null,
+    record.resourceName ?? null, record.recordType, record.recordId ?? null, record.source ?? null,
+    record.timestamp ?? null, record.status ?? null, record.type ?? null, record.subtype ?? null,
+    record.direction ?? null, record.amountAtomic ?? null, record.amountUnit ?? null,
+    amountDash(record.amountAtomic, record.amountUnit), record.transactionHash ?? null,
+    record.blockHeight ?? null, record.publicKeyHash ?? null, record.publicKey ?? null,
+    record.metadata ?? null,
+  ];
+}
+
 function coreRows(state: Extract<ViewerExportState, { mode: 'core' }>, generatedAt: string): CsvValue[][] {
   const { snapshot } = state;
-  const header: CsvValue[] = [
-    'schema_version', 'generated_at', 'mode', 'network', 'provider', 'address', 'indexed_height',
-    'indexed_time', 'balance_duffs', 'unconfirmed_duffs', 'total_received_duffs', 'total_sent_duffs',
-    'transaction_count', 'record_type', 'txid', 'direction', 'timestamp', 'type', 'block_height',
-    'confirmations', 'instant_locked', 'chain_locked', 'received_duffs', 'spent_input_duffs',
-    'net_duffs', 'fee_duffs', 'block_hash',
+  const queryLabel = snapshot.address;
+  const records = [
+    csvRecord(state.mode, state.network, generatedAt, {
+      queryLabel, resourceId: snapshot.address, resourceName: snapshot.address,
+      recordType: 'address_summary', recordId: snapshot.address, source: snapshot.provider,
+      timestamp: timestamp(snapshot.indexedTimeMs), status: snapshot.indexStatus, type: 'CORE_ADDRESS',
+      direction: 'related', amountAtomic: snapshot.balanceDuffs, amountUnit: 'duffs',
+      blockHeight: snapshot.indexedHeight,
+      metadata: metadata([
+        ['unconfirmed_duffs', snapshot.unconfirmedDuffs],
+        ['total_received_duffs', snapshot.totalReceivedDuffs],
+        ['total_sent_duffs', snapshot.totalSentDuffs],
+        ['transaction_count', snapshot.transactionCount],
+        ['history_limit', snapshot.historyLimit],
+        ['requests', snapshot.requests],
+      ]),
+    }),
+    ...snapshot.transactions.map((transaction) => csvRecord(state.mode, state.network, generatedAt, {
+      queryLabel, resourceId: snapshot.address, resourceName: snapshot.address,
+      recordType: 'transaction', recordId: transaction.txid, source: snapshot.provider,
+      timestamp: timestamp(transaction.timestampMs), status: transaction.chainLocked
+        ? 'chain_locked'
+        : transaction.instantLocked ? 'instant_locked' : 'confirmed',
+      type: transaction.type, direction: directionFromNet(transaction.netDuffs),
+      amountAtomic: transaction.netDuffs, amountUnit: 'duffs',
+      transactionHash: transaction.txid, blockHeight: transaction.blockHeight,
+      metadata: metadata([
+        ['confirmations', transaction.confirmations],
+        ['instant_locked', transaction.instantLocked],
+        ['chain_locked', transaction.chainLocked],
+        ['received_duffs', transaction.receivedDuffs],
+        ['spent_input_duffs', transaction.spentInputDuffs],
+        ['fee_duffs', transaction.feeDuffs],
+        ['block_hash', transaction.blockHash],
+      ]),
+    })),
   ];
-  const common: CsvValue[] = [
-    '1', generatedAt, state.mode, state.network, snapshot.provider, snapshot.address,
-    snapshot.indexedHeight, timestamp(snapshot.indexedTimeMs), snapshot.balanceDuffs,
-    snapshot.unconfirmedDuffs, snapshot.totalReceivedDuffs, snapshot.totalSentDuffs,
-    snapshot.transactionCount,
-  ];
-  const records = snapshot.transactions.map((transaction): CsvValue[] => [
-    ...common, 'transaction', transaction.txid, directionFromNet(transaction.netDuffs),
-    timestamp(transaction.timestampMs), transaction.type, transaction.blockHeight,
-    transaction.confirmations, transaction.instantLocked, transaction.chainLocked,
-    transaction.receivedDuffs, transaction.spentInputDuffs, transaction.netDuffs,
-    transaction.feeDuffs, transaction.blockHash,
-  ]);
-  if (records.length === 0) records.push([...common, 'summary', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
-  return [header, ...records];
+  return [CSV_HEADER, ...records];
 }
 
 function platformRows(state: Extract<ViewerExportState, { mode: 'platform' }>, generatedAt: string): CsvValue[][] {
   const { snapshot, history } = state;
   const agrees = snapshot.balanceCredits === history.explorerBalanceCredits
     && snapshot.nonce === BigInt(history.explorerNonce);
-  const header: CsvValue[] = [
-    'schema_version', 'generated_at', 'mode', 'network', 'provider', 'address', 'legacy_alias',
-    'dapi_proof_height', 'platform_index_height', 'platform_index_time', 'balance_credits',
-    'outgoing_nonce', 'explorer_balance_credits', 'explorer_nonce', 'proof_explorer_agree',
-    'total_incoming_credits', 'total_outgoing_credits', 'transition_count', 'record_type',
-    'transition_hash', 'direction', 'timestamp', 'type', 'batch_type', 'status', 'error',
-    'block_height', 'gas_used_credits', 'block_hash',
+  const queryLabel = snapshot.address;
+  const records = [
+    csvRecord(state.mode, state.network, generatedAt, {
+      queryLabel, resourceId: snapshot.address, resourceName: history.base58Address ?? snapshot.address,
+      recordType: 'address_summary', recordId: snapshot.address, source: 'Dash Platform DAPI + Dash Platform Explorer',
+      timestamp: timestamp(history.indexedTimeMs), status: agrees ? 'proof_and_index_agree' : 'proof_takes_precedence',
+      type: 'PLATFORM_ADDRESS', direction: 'related', amountAtomic: snapshot.balanceCredits,
+      amountUnit: 'credits', blockHeight: snapshot.proofHeight,
+      metadata: metadata([
+        ['exists', snapshot.exists],
+        ['legacy_alias', history.base58Address],
+        ['outgoing_nonce', snapshot.nonce],
+        ['dapi_proof_height', snapshot.proofHeight],
+        ['core_chain_locked_height', snapshot.coreChainLockedHeight],
+        ['protocol_version', snapshot.protocolVersion],
+        ['explorer_balance_credits', history.explorerBalanceCredits],
+        ['explorer_nonce', history.explorerNonce],
+        ['platform_index_height', history.indexedHeight],
+        ['total_incoming_credits', history.totalIncomingCredits],
+        ['total_outgoing_credits', history.totalOutgoingCredits],
+        ['transition_count', history.totalTransitions],
+        ['incoming_transitions', history.incomingTransitions],
+        ['outgoing_transitions', history.outgoingTransitions],
+        ['history_limit', history.historyLimit],
+        ['requests', history.requests + 1],
+      ]),
+    }),
+    ...history.transitions.map((transition) => csvRecord(state.mode, state.network, generatedAt, {
+      queryLabel, resourceId: snapshot.address, resourceName: history.base58Address ?? snapshot.address,
+      recordType: 'transition', recordId: transition.hash, source: history.provider,
+      timestamp: timestamp(transition.timestampMs), status: transition.status, type: transition.type,
+      subtype: transition.batchType, direction: transition.incoming ? 'incoming' : 'outgoing',
+      transactionHash: transition.hash, blockHeight: transition.blockHeight,
+      metadata: metadata([
+        ['error', transition.error],
+        ['gas_used_credits', transition.gasUsed],
+        ['block_hash', transition.blockHash],
+      ]),
+    })),
   ];
-  const common: CsvValue[] = [
-    '1', generatedAt, state.mode, state.network, history.provider, snapshot.address,
-    history.base58Address, snapshot.proofHeight, history.indexedHeight, timestamp(history.indexedTimeMs),
-    snapshot.balanceCredits, snapshot.nonce, history.explorerBalanceCredits, history.explorerNonce,
-    agrees, history.totalIncomingCredits, history.totalOutgoingCredits, history.totalTransitions,
-  ];
-  const records = history.transitions.map((transition): CsvValue[] => [
-    ...common, 'transition', transition.hash, transition.incoming ? 'incoming' : 'outgoing',
-    timestamp(transition.timestampMs), transition.type, transition.batchType, transition.status,
-    transition.error, transition.blockHeight, transition.gasUsed, transition.blockHash,
-  ]);
-  if (records.length === 0) records.push([...common, 'summary', '', '', '', '', '', '', '', '', '', '']);
-  return [header, ...records];
+  return [CSV_HEADER, ...records];
 }
 
 function shieldedRows(state: Extract<ViewerExportState, { mode: 'shielded' }>, generatedAt: string): CsvValue[][] {
   const { snapshot } = state;
-  const header: CsvValue[] = [
-    'schema_version', 'generated_at', 'mode', 'network', 'key_capability', 'complete',
-    'proof_height', 'protocol_version', 'pool_actions_scanned', 'balance_credits',
-    'external_received_credits', 'external_sent_credits', 'self_change_credits', 'record_type',
-    'pool_position', 'direction', 'value_credits', 'recovered_address', 'memo', 'spent',
-    'note_commitment', 'action_nullifier', 'note_nullifier',
-  ];
-  const common: CsvValue[] = [
-    '1', generatedAt, state.mode, state.network, snapshot.keyKind, snapshot.complete,
-    snapshot.proofHeight, snapshot.protocolVersion, snapshot.scannedNotes, snapshot.balance,
-    snapshot.receivedExternal, snapshot.sentExternal, snapshot.selfOrChange,
-  ];
-  const records = snapshot.records.map((record): CsvValue[] => {
+  const queryLabel = `${snapshot.keyKind} viewing key`;
+  const records = [
+    csvRecord(state.mode, state.network, generatedAt, {
+      queryLabel, resourceId: 'shielded-pool', resourceName: queryLabel,
+      recordType: 'scan_summary', recordId: 'shielded-pool', source: 'Dash Platform DAPI proof',
+      status: snapshot.complete ? 'complete' : 'partial', type: 'ORCHARD_SCAN', direction: 'related',
+      amountAtomic: snapshot.balance, amountUnit: 'credits', blockHeight: snapshot.proofHeight,
+      metadata: metadata([
+        ['key_capability', snapshot.keyKind],
+        ['protocol_version', snapshot.protocolVersion],
+        ['pool_actions_scanned', snapshot.scannedNotes],
+        ['external_received_credits', snapshot.receivedExternal],
+        ['external_sent_credits', snapshot.sentExternal],
+        ['self_change_credits', snapshot.selfOrChange],
+      ]),
+    }),
+    ...snapshot.records.map((record) => {
     const note = record.incoming ?? record.outgoing;
-    return [
-      ...common, 'note', record.position, record.direction, note?.value ?? null,
-      note?.address ?? '', note?.memo ?? '', record.spent ?? '', record.cmx,
-      record.actionNullifier, note?.noteNullifier ?? '',
-    ];
-  });
-  if (records.length === 0) records.push([...common, 'summary', '', '', '', '', '', '', '', '', '']);
-  return [header, ...records];
+      return csvRecord(state.mode, state.network, generatedAt, {
+        queryLabel, resourceId: note?.address ?? 'shielded-pool',
+        resourceName: note?.address ?? 'Recovered Orchard note',
+        recordType: 'note', recordId: record.position, source: 'Local Orchard recovery',
+        status: record.spent === undefined ? 'unknown' : record.spent ? 'spent' : 'spendable',
+        type: 'ORCHARD_NOTE', direction: record.direction, amountAtomic: note?.value ?? null,
+        amountUnit: 'credits', blockHeight: snapshot.proofHeight,
+        metadata: metadata([
+          ['pool_position', record.position],
+          ['memo', note?.memo],
+          ['spent_at_position', record.spentAtPosition],
+          ['note_commitment', record.cmx],
+          ['action_nullifier', record.actionNullifier],
+          ['note_nullifier', note?.noteNullifier],
+        ]),
+      });
+    }),
+  ];
+  return [CSV_HEADER, ...records];
 }
 
 function identityRows(state: Extract<ViewerExportState, { mode: 'identity' }>, generatedAt: string): CsvValue[][] {
-  const header: CsvValue[] = [
-    'schema_version', 'generated_at', 'mode', 'network', 'input_kind', 'input_label',
-    'lookup_public_key_hash', 'resolved_dpns_name', 'resolved_dpns_document_id',
-    'resolved_registration_transaction_hash',
-    'identity_id', 'identity_id_hex', 'dapi_balance_credits', 'dapi_revision', 'dapi_nonce',
-    'proof_verified_dpns_names', 'proof_heights', 'explorer_balance_credits',
-    'explorer_revision', 'explorer_nonce', 'registered_at', 'registration_transaction_hash',
-    'registration_type', 'registration_funding_source', 'funding_core_transaction_hash',
-    'funding_core_transaction_output_index', 'funding_core_transaction_error',
-    'system_identity', 'total_transactions', 'total_transfers',
-    'total_documents', 'total_data_contracts', 'total_gas_spent_credits', 'total_top_ups',
-    'total_top_up_credits', 'total_withdrawals', 'total_withdrawal_credits',
-    'record_type', 'record_id', 'name', 'status', 'type', 'direction', 'amount_credits',
-    'timestamp', 'transaction_hash', 'block_height', 'details',
-  ];
   const proofHeights = [...new Set(state.snapshot.proofs.map(({ height }) => height.toString()))].join(' ');
-  const rows: CsvValue[][] = [];
+  const queryLabel = state.snapshot.resolvedDpnsName ?? state.snapshot.inputLabel;
+  const rows: CsvValue[][] = [csvRecord(state.mode, state.network, generatedAt, {
+    queryLabel,
+    resourceName: state.snapshot.resolvedDpnsName,
+    recordType: 'query',
+    recordId: state.snapshot.inputKind,
+    source: 'Dash Platform DAPI proof',
+    status: state.snapshot.identities.length === 0 ? 'not_found' : 'verified',
+    type: state.snapshot.inputKind,
+    metadata: metadata([
+      ['input_label', state.snapshot.inputLabel],
+      ['lookup_public_key_hash', state.snapshot.publicKeyHashHex],
+      ['resolved_dpns_document_id', state.snapshot.resolvedDpnsDocumentId],
+      ['resolved_registration_transaction_hash', state.snapshot.resolvedRegistrationTransactionHash],
+      ['proof_heights', proofHeights],
+      ['proof_response_count', state.snapshot.proofs.length],
+      ['requests', state.snapshot.requests],
+    ]),
+  })];
   for (const identity of state.snapshot.identities) {
     const historyResult = state.histories.find(({ identifier }) => identifier === identity.identifier);
     const history = historyResult?.history ?? null;
-    const common: CsvValue[] = [
-      '1', generatedAt, state.mode, state.network, state.snapshot.inputKind, state.snapshot.inputLabel,
-      state.snapshot.publicKeyHashHex, state.snapshot.resolvedDpnsName,
-      state.snapshot.resolvedDpnsDocumentId, state.snapshot.resolvedRegistrationTransactionHash,
-      identity.identifier, identity.identifierHex,
-      identity.balanceCredits, identity.revision, identity.nonce,
-      identity.dpnsNames.join(' '), proofHeights, history?.explorerBalanceCredits ?? null,
-      history?.explorerRevision ?? null, history?.explorerNonce ?? null,
-      timestamp(history?.registeredAtMs ?? null), history?.registrationTransactionHash ?? null,
-      history?.registrationType ?? null, history?.registrationFundingSource ?? null,
-      history?.fundingCoreTransactionHash ?? null,
-      history?.fundingCoreTransactionOutputIndex ?? null,
-      history?.fundingCoreTransactionError ?? null,
-      history?.systemIdentity ?? null,
-      history?.totalTransactions ?? null, history?.totalTransfers ?? null,
-      history?.totalDocuments ?? null, history?.totalDataContracts ?? null,
-      history?.totalGasSpentCredits ?? null, history?.totalTopUps ?? null,
-      history?.totalTopUpsCredits ?? null, history?.totalWithdrawals ?? null,
-      history?.totalWithdrawalsCredits ?? null,
-    ];
-    rows.push([
-      ...common, 'identity', identity.identifier, identity.dpnsNames.join(', '), historyResult?.error ?? 'verified',
-      'IDENTITY', 'related', identity.balanceCredits, timestamp(history?.registeredAtMs ?? null),
-      history?.registrationTransactionHash ?? null, null,
-      JSON.stringify({ keyCount: identity.publicKeys.length, historyError: historyResult?.error ?? null }),
-    ]);
+    const identityName = identity.dpnsNames[0] ?? identity.identifier;
+    rows.push(csvRecord(state.mode, state.network, generatedAt, {
+      queryLabel, resourceId: identity.identifier, resourceName: identityName,
+      recordType: 'identity', recordId: identity.identifier,
+      source: history === null ? 'Dash Platform DAPI proof' : 'Dash Platform DAPI proof + Dash Platform Explorer',
+      timestamp: timestamp(history?.registeredAtMs ?? null),
+      status: historyResult?.error === null || historyResult === undefined ? 'verified' : 'proof_verified_history_unavailable',
+      type: history?.registrationType ?? 'IDENTITY', subtype: history?.registrationFundingSource ?? null,
+      direction: 'related', amountAtomic: identity.balanceCredits, amountUnit: 'credits',
+      transactionHash: history?.registrationTransactionHash ?? null, blockHeight: history?.indexedHeight ?? null,
+      metadata: metadata([
+        ['identity_id_hex', identity.identifierHex],
+        ['dapi_revision', identity.revision],
+        ['dapi_nonce', identity.nonce],
+        ['proof_verified_dpns_names', identity.dpnsNames],
+        ['registered_at', timestamp(history?.registeredAtMs ?? null)],
+        ['funding_core_transaction_hash', history?.fundingCoreTransactionHash],
+        ['funding_core_transaction_output_index', history?.fundingCoreTransactionOutputIndex],
+        ['funding_core_transaction_error', history?.fundingCoreTransactionError],
+        ['system_identity', history?.systemIdentity],
+        ['registered_key_count', identity.publicKeys.length],
+        ['explorer_balance_credits', history?.explorerBalanceCredits],
+        ['explorer_revision', history?.explorerRevision],
+        ['explorer_nonce', history?.explorerNonce],
+        ['total_transactions', history?.totalTransactions],
+        ['total_transfers', history?.totalTransfers],
+        ['total_documents', history?.totalDocuments],
+        ['total_data_contracts', history?.totalDataContracts],
+        ['total_gas_spent_credits', history?.totalGasSpentCredits],
+        ['average_gas_spent_credits', history?.averageGasSpentCredits],
+        ['explorer_reported_top_up_count', history?.totalTopUps],
+        ['explorer_reported_top_up_credits', history?.totalTopUpsCredits],
+        ['total_withdrawals', history?.totalWithdrawals],
+        ['total_withdrawal_credits', history?.totalWithdrawalsCredits],
+        ['last_withdrawal_hash', history?.lastWithdrawalHash],
+        ['last_withdrawal_at', timestamp(history?.lastWithdrawalTimestampMs ?? null)],
+        ['explorer_index_status', history?.indexStatus],
+        ['explorer_indexed_at', timestamp(history?.indexedTimeMs ?? null)],
+        ['history_limit', history?.historyLimit],
+        ['history_requests', history?.requests],
+        ['history_error', historyResult?.error],
+      ]),
+    }));
     for (const key of identity.publicKeys) {
-      rows.push([
-        ...common, 'public_key', String(key.keyId), '', key.disabledAtMs === null ? 'active' : 'disabled',
-        `${key.purpose}/${key.securityLevel}/${key.keyType}`, 'related', null,
-        timestamp(key.disabledAtMs), null, null,
-        JSON.stringify({
-          publicKeyHash: key.publicKeyHashHex,
-          data: key.dataHex,
-          purposeNumber: key.purposeNumber,
-          securityLevelNumber: key.securityLevelNumber,
-          keyTypeNumber: key.keyTypeNumber,
-          readOnly: key.readOnly,
-          isMaster: key.isMaster,
-          matchesLookup: key.matchesLookup,
-          contractBounds: key.contractBounds,
-        }, exactJson),
-      ]);
+      rows.push(csvRecord(state.mode, state.network, generatedAt, {
+        queryLabel, resourceId: identity.identifier, resourceName: identityName,
+        recordType: 'public_key', recordId: key.keyId, source: 'Dash Platform DAPI proof',
+        timestamp: timestamp(key.disabledAtMs), status: key.disabledAtMs === null ? 'active' : 'disabled',
+        type: key.purpose, subtype: `${key.securityLevel}/${key.keyType}`, direction: 'related',
+        publicKeyHash: key.publicKeyHashHex, publicKey: key.dataHex,
+        metadata: metadata([
+          ['purpose_number', key.purposeNumber],
+          ['security_level_number', key.securityLevelNumber],
+          ['key_type_number', key.keyTypeNumber],
+          ['read_only', key.readOnly],
+          ['is_master', key.isMaster],
+          ['matches_lookup', key.matchesLookup],
+          ['contract_bounds', key.contractBounds === null ? null : JSON.stringify(key.contractBounds, exactJson)],
+        ]),
+      }));
     }
     if (history === null) continue;
     for (const alias of history.aliases) {
-      rows.push([
-        ...common, 'alias', alias.documentId, alias.name, alias.status, 'DPNS_ALIAS', 'related',
-        null, timestamp(alias.timestampMs), alias.transactionHash, null,
-        JSON.stringify({ contested: alias.contested }),
-      ]);
+      rows.push(csvRecord(state.mode, state.network, generatedAt, {
+        queryLabel, resourceId: identity.identifier, resourceName: identityName,
+        recordType: 'alias', recordId: alias.documentId, source: history.provider,
+        timestamp: timestamp(alias.timestampMs), status: alias.status, type: 'DPNS_ALIAS',
+        direction: 'related', transactionHash: alias.transactionHash,
+        metadata: metadata([['name', alias.name], ['contested', alias.contested]]),
+      }));
     }
     for (const event of history.activity) {
-      rows.push([
-        ...common, 'activity', event.transactionHash, '', event.status, event.type, event.direction,
-        event.netAmountCredits, timestamp(event.timestampMs), event.transactionHash, event.blockHeight,
-        JSON.stringify({
-          batchType: event.batchType,
-          error: event.error,
-          transfers: event.transfers,
-          blockHash: event.blockHash,
-          gasUsedCredits: event.gasUsedCredits,
-        }, exactJson),
-      ]);
+      rows.push(csvRecord(state.mode, state.network, generatedAt, {
+        queryLabel, resourceId: identity.identifier, resourceName: identityName,
+        recordType: 'activity', recordId: event.transactionHash, source: history.provider,
+        timestamp: timestamp(event.timestampMs), status: event.status, type: event.type,
+        subtype: event.batchType, direction: event.direction, amountAtomic: event.netAmountCredits,
+        amountUnit: 'credits', transactionHash: event.transactionHash, blockHeight: event.blockHeight,
+        metadata: metadata([
+          ['error', event.error],
+          ['block_hash', event.blockHash],
+          ['gas_used_credits', event.gasUsedCredits],
+        ]),
+      }));
+      event.transfers.forEach((transfer, index) => {
+        rows.push(csvRecord(state.mode, state.network, generatedAt, {
+          queryLabel, resourceId: identity.identifier, resourceName: identityName,
+          recordType: 'transfer', recordId: `${event.transactionHash}:${index}`, source: history.provider,
+          timestamp: timestamp(event.timestampMs), status: event.status, type: 'CREDIT_TRANSFER',
+          direction: transfer.direction, amountAtomic: transfer.amountCredits, amountUnit: 'credits',
+          transactionHash: event.transactionHash, blockHeight: event.blockHeight,
+          metadata: metadata([['sender', transfer.sender], ['recipient', transfer.recipient]]),
+        }));
+      });
     }
     for (const document of history.documents) {
-      rows.push([
-        ...common, 'document', document.identifier, document.documentTypeName, document.deleted ? 'deleted' : 'current',
-        'DOCUMENT', 'related', null, timestamp(document.timestampMs), document.transactionHash, null,
-        JSON.stringify(document),
-      ]);
+      rows.push(csvRecord(state.mode, state.network, generatedAt, {
+        queryLabel, resourceId: identity.identifier, resourceName: identityName,
+        recordType: 'document', recordId: document.identifier, source: history.provider,
+        timestamp: timestamp(document.timestampMs), status: document.deleted ? 'deleted' : 'current',
+        type: 'DOCUMENT', subtype: document.documentTypeName, direction: 'related',
+        transactionHash: document.transactionHash,
+        metadata: metadata([
+          ['data_contract_id', document.dataContractIdentifier],
+          ['revision', document.revision],
+          ['system', document.system],
+        ]),
+      }));
     }
     for (const contract of history.dataContracts) {
-      rows.push([
-        ...common, 'data_contract', contract.identifier, contract.name, contract.system ? 'system' : 'user',
-        'DATA_CONTRACT', 'related', null, timestamp(contract.timestampMs), contract.transactionHash, null,
-        JSON.stringify(contract),
-      ]);
+      rows.push(csvRecord(state.mode, state.network, generatedAt, {
+        queryLabel, resourceId: identity.identifier, resourceName: identityName,
+        recordType: 'data_contract', recordId: contract.identifier, source: history.provider,
+        timestamp: timestamp(contract.timestampMs), status: contract.system ? 'system' : 'user',
+        type: 'DATA_CONTRACT', subtype: contract.name, direction: 'related',
+        transactionHash: contract.transactionHash,
+        metadata: metadata([
+          ['version', contract.version],
+          ['documents_count', contract.documentsCount],
+          ['tokens_count', contract.tokensCount],
+          ['description', contract.description],
+          ['keywords', contract.keywords],
+        ]),
+      }));
     }
     for (const withdrawal of history.withdrawals) {
-      rows.push([
-        ...common, 'withdrawal', withdrawal.documentId, withdrawal.withdrawalAddress, withdrawal.status,
-        'IDENTITY_CREDIT_WITHDRAWAL', 'outgoing', withdrawal.amountCredits,
-        timestamp(withdrawal.timestampMs), withdrawal.coreTransactionHash, null,
-        JSON.stringify(withdrawal, exactJson),
-      ]);
+      rows.push(csvRecord(state.mode, state.network, generatedAt, {
+        queryLabel, resourceId: identity.identifier, resourceName: identityName,
+        recordType: 'withdrawal', recordId: withdrawal.documentId, source: history.provider,
+        timestamp: timestamp(withdrawal.timestampMs), status: withdrawal.status,
+        type: 'IDENTITY_CREDIT_WITHDRAWAL', direction: 'outgoing',
+        amountAtomic: withdrawal.amountCredits, amountUnit: 'credits',
+        transactionHash: withdrawal.coreTransactionHash,
+        metadata: metadata([['withdrawal_address', withdrawal.withdrawalAddress]]),
+      }));
     }
     for (const token of history.tokens) {
-      rows.push([
-        ...common, 'token', token.identifier, token.name, '', 'TOKEN', 'related', token.totalSupply,
-        timestamp(token.timestampMs), null, null, JSON.stringify(token, exactJson),
-      ]);
+      rows.push(csvRecord(state.mode, state.network, generatedAt, {
+        queryLabel, resourceId: identity.identifier, resourceName: identityName,
+        recordType: 'token', recordId: token.identifier, source: history.provider,
+        timestamp: timestamp(token.timestampMs), type: 'TOKEN', subtype: token.name,
+        direction: 'related', amountAtomic: token.totalSupply, amountUnit: 'credits',
+        metadata: metadata([
+          ['data_contract_id', token.dataContractIdentifier],
+          ['position', token.position],
+          ['description', token.description],
+          ['base_supply', token.baseSupply],
+          ['max_supply', token.maxSupply],
+          ['decimals', token.decimals],
+          ['mintable', token.mintable],
+          ['burnable', token.burnable],
+          ['freezable', token.freezable],
+          ['destroyable', token.destroyable],
+        ]),
+      }));
     }
   }
-  if (rows.length === 0) {
-    rows.push([
-      '1', generatedAt, state.mode, state.network, state.snapshot.inputKind, state.snapshot.inputLabel,
-      state.snapshot.publicKeyHashHex, state.snapshot.resolvedDpnsName,
-      state.snapshot.resolvedDpnsDocumentId, state.snapshot.resolvedRegistrationTransactionHash,
-      '', '', '', '', '', '', proofHeights,
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      'summary', '', '', 'not_found', 'IDENTITY', 'related', '', '', '', '', '',
-    ]);
+  return [CSV_HEADER, ...rows];
+}
+
+function groupedIdentityProofs(snapshot: PlatformIdentityLookupSnapshot): unknown[] {
+  const grouped = new Map<string, { proof: PlatformIdentityLookupSnapshot['proofs'][number]; responseCount: number }>();
+  for (const proof of snapshot.proofs) {
+    const key = [
+      proof.height,
+      proof.coreChainLockedHeight,
+      proof.protocolVersion,
+      proof.responseTimeMs,
+    ].join(':');
+    const existing = grouped.get(key);
+    if (existing === undefined) grouped.set(key, { proof, responseCount: 1 });
+    else existing.responseCount += 1;
   }
-  return [header, ...rows];
+  return [...grouped.values()].map(({ proof, responseCount }) => ({ ...proof, responseCount }));
+}
+
+function identityJsonData(state: Extract<ViewerExportState, { mode: 'identity' }>): unknown {
+  const { snapshot } = state;
+  return {
+    query: {
+      kind: snapshot.inputKind,
+      label: snapshot.inputLabel,
+      publicKeyHashHex: snapshot.publicKeyHashHex,
+      resolvedDpnsName: snapshot.resolvedDpnsName,
+      resolvedDpnsDocumentId: snapshot.resolvedDpnsDocumentId,
+      resolvedRegistrationTransactionHash: snapshot.resolvedRegistrationTransactionHash,
+      requests: snapshot.requests,
+      proofs: groupedIdentityProofs(snapshot),
+    },
+    identities: snapshot.identities.map((identity) => {
+      const result = state.histories.find(({ identifier }) => identifier === identity.identifier);
+      const history = result?.history ?? null;
+      if (history === null) {
+        return {
+          identifier: identity.identifier,
+          identifierHex: identity.identifierHex,
+          names: identity.dpnsNames,
+          state: {
+            balanceCredits: identity.balanceCredits,
+            revision: identity.revision,
+            nonce: identity.nonce,
+          },
+          keys: identity.publicKeys,
+          history: null,
+          historyError: result?.error ?? null,
+        };
+      }
+      return {
+        identifier: identity.identifier,
+        identifierHex: identity.identifierHex,
+        names: identity.dpnsNames,
+        state: {
+          balanceCredits: identity.balanceCredits,
+          revision: identity.revision,
+          nonce: identity.nonce,
+        },
+        keys: identity.publicKeys,
+        history: {
+          source: {
+            provider: history.provider,
+            endpoint: history.endpoint,
+            indexStatus: history.indexStatus,
+            indexedHeight: history.indexedHeight,
+            indexedTimeMs: history.indexedTimeMs,
+            requests: history.requests,
+          },
+          explorerState: {
+            owner: history.owner,
+            balanceCredits: history.explorerBalanceCredits,
+            revision: history.explorerRevision,
+            nonce: history.explorerNonce,
+            systemIdentity: history.systemIdentity,
+          },
+          registration: {
+            timestampMs: history.registeredAtMs,
+            type: history.registrationType,
+            transactionHash: history.registrationTransactionHash,
+            fundingSource: history.registrationFundingSource,
+            coreTransactionHash: history.fundingCoreTransactionHash,
+            coreTransactionOutputIndex: history.fundingCoreTransactionOutputIndex,
+            coreTransactionError: history.fundingCoreTransactionError,
+          },
+          totals: {
+            transactions: history.totalTransactions,
+            transfers: history.totalTransfers,
+            documents: history.totalDocuments,
+            dataContracts: history.totalDataContracts,
+            gasSpentCredits: history.totalGasSpentCredits,
+            averageGasSpentCredits: history.averageGasSpentCredits,
+            explorerReportedTopUps: history.totalTopUps,
+            explorerReportedTopUpCredits: history.totalTopUpsCredits,
+            withdrawals: history.totalWithdrawals,
+            withdrawalCredits: history.totalWithdrawalsCredits,
+            lastWithdrawalHash: history.lastWithdrawalHash,
+            lastWithdrawalTimestampMs: history.lastWithdrawalTimestampMs,
+          },
+          aliases: history.aliases,
+          activity: history.activity,
+          documents: history.documents,
+          dataContracts: history.dataContracts,
+          withdrawals: history.withdrawals,
+          tokens: history.tokens,
+          historyLimit: history.historyLimit,
+        },
+        historyError: result?.error ?? null,
+      };
+    }),
+  };
+}
+
+function jsonData(state: ViewerExportState): unknown {
+  if (state.mode === 'identity') return identityJsonData(state);
+  if (state.mode === 'platform') {
+    const { snapshot, history } = state;
+    return {
+      address: snapshot.address,
+      state: {
+        exists: snapshot.exists,
+        balanceCredits: snapshot.balanceCredits,
+        nonce: snapshot.nonce,
+        proofHeight: snapshot.proofHeight,
+        coreChainLockedHeight: snapshot.coreChainLockedHeight,
+        protocolVersion: snapshot.protocolVersion,
+        responseTimeMs: snapshot.responseTimeMs,
+      },
+      history: {
+        provider: history.provider,
+        endpoint: history.endpoint,
+        base58Address: history.base58Address,
+        totals: {
+          transitions: history.totalTransitions,
+          incomingTransitions: history.incomingTransitions,
+          outgoingTransitions: history.outgoingTransitions,
+          incomingCredits: history.totalIncomingCredits,
+          outgoingCredits: history.totalOutgoingCredits,
+        },
+        explorerState: {
+          balanceCredits: history.explorerBalanceCredits,
+          nonce: history.explorerNonce,
+        },
+        transitions: history.transitions,
+        historyLimit: history.historyLimit,
+        indexStatus: history.indexStatus,
+        indexedHeight: history.indexedHeight,
+        indexedTimeMs: history.indexedTimeMs,
+        requests: history.requests,
+      },
+    };
+  }
+  if (state.mode === 'core') {
+    const { snapshot } = state;
+    return {
+      address: snapshot.address,
+      provider: snapshot.provider,
+      endpoint: snapshot.endpoint,
+      balance: {
+        confirmedDuffs: snapshot.balanceDuffs,
+        unconfirmedDuffs: snapshot.unconfirmedDuffs,
+        totalReceivedDuffs: snapshot.totalReceivedDuffs,
+        totalSentDuffs: snapshot.totalSentDuffs,
+      },
+      transactionCount: snapshot.transactionCount,
+      transactions: snapshot.transactions,
+      historyLimit: snapshot.historyLimit,
+      indexStatus: snapshot.indexStatus,
+      indexedHeight: snapshot.indexedHeight,
+      indexedTimeMs: snapshot.indexedTimeMs,
+      requests: snapshot.requests,
+    };
+  }
+  return {
+    keyCapability: state.snapshot.keyKind,
+    complete: state.snapshot.complete,
+    summary: {
+      scannedNotes: state.snapshot.scannedNotes,
+      proofHeight: state.snapshot.proofHeight,
+      protocolVersion: state.snapshot.protocolVersion,
+      balanceCredits: state.snapshot.balance,
+      externalReceivedCredits: state.snapshot.receivedExternal,
+      externalSentCredits: state.snapshot.sentExternal,
+      selfChangeCredits: state.snapshot.selfOrChange,
+    },
+    notes: state.snapshot.records,
+  };
 }
 
 function fileStamp(date: Date): string {
@@ -279,15 +631,17 @@ export function createViewerExport(
   const generatedAtIso = generatedAt.toISOString();
   const filename = `wallet-activity-viewer-${state.mode}-${state.network}-${fileStamp(generatedAt)}.${format}`;
   if (format === 'json') {
-    const data = state.mode === 'platform'
-      ? { snapshot: state.snapshot, history: state.history }
-      : state.mode === 'identity'
-        ? { snapshot: state.snapshot, histories: state.histories }
-      : { snapshot: state.snapshot };
     return {
       filename,
       mimeType: 'application/json',
-      text: `${JSON.stringify({ schema: 'wallet-activity-viewer-export', version: 1, generatedAt: generatedAtIso, mode: state.mode, network: state.network, data }, exactJson, 2)}\n`,
+      text: `${JSON.stringify({
+        schema: 'wallet-activity-viewer-export',
+        version: 2,
+        generatedAt: generatedAtIso,
+        mode: state.mode,
+        network: state.network,
+        data: jsonData(state),
+      }, exactJson, 2)}\n`,
     };
   }
   const rows = state.mode === 'core'
