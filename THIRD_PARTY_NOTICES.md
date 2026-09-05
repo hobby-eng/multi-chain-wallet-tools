@@ -1,6 +1,6 @@
 # Dependency and third-party license report
 
-Verified 2026-09-04 from exact package manifests, `pnpm-lock.yaml`, `Cargo.lock`, and locked Cargo metadata. This is dependency provenance information, not legal advice. The upstream license files remain authoritative.
+Verified 2026-09-05 from exact package manifests, `pnpm-lock.yaml`, `Cargo.lock`, and locked Cargo metadata. This is dependency provenance information, not legal advice. The upstream license files remain authoritative.
 
 Original project code is licensed under the repository's [MIT License](LICENSE), copyright (c) 2026 hobby-eng. The tables below describe separately licensed third-party components and do not transfer their authorship or trademarks to this project.
 
