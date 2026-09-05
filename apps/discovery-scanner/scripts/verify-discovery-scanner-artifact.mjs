@@ -138,7 +138,7 @@ for (const marker of [
   'Wallet-wide located balances', 'Identity credits',
   'Lifetime self/change', 'Spent at pool position', 'section_lifetime_received_dash',
   'No funded Dash Core L1 address was found in this section and scanned range.',
-  'The Dash mark is an official brand asset used under CC BY 4.0.', '<circle fill="#008de4"',
+  'The Dash mark is an official brand asset used under CC BY 4.0.',
   'wallet-discovery-report', 'Blocked ', 'Dash Platform DAPI', 'DashScan',
   'recovery CSV report export', 'recovery JSON report export',
   'isolated-network-worker-v1', 'core.address-info',
@@ -146,6 +146,12 @@ for (const marker of [
   'platform.identity-history', 'shielded.page', 'ckd-recovery-export-request-v1',
 ]) {
   if (!html.includes(marker)) throw new Error(`Recovery artifact is missing required marker: ${marker}`);
+}
+if (profile.id === 'dash-community' && !html.includes('class="profile-brand-mark"')) {
+  throw new Error('Dash Community recovery artifact is missing the official Dash brand mark.');
+}
+if (profile.id === 'multi-chain' && html.includes('class="profile-brand-mark"')) {
+  throw new Error('Multi-Chain recovery artifact must not display the Dash-only brand mark.');
 }
 for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
   if (!html.includes(marker)) throw new Error(`Recovery artifact is missing profile marker: ${marker}`);

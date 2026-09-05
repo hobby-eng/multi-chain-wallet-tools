@@ -24,10 +24,14 @@ const template = applyProfileTemplate(
 );
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const viewerCss = readFileSync(resolve(root, 'apps/activity-viewer/src/styles.css'), 'utf8');
+const shellCss = readFileSync(resolve(root, 'packages/shared-ui/styles/tool-shell.css'), 'utf8');
 const themeCss = profile.themeStylesheet === undefined
   ? ''
   : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
-const css = (await transform(`${sharedCss}\n${viewerCss}\n${themeCss}`, {
+const viewerThemeCss = profile.id === 'dash-community'
+  ? readFileSync(resolve(root, 'apps/activity-viewer/src/styles-dash-community.css'), 'utf8')
+  : '';
+const css = (await transform(`${sharedCss}\n${viewerCss}\n${viewerThemeCss}\n${shellCss}\n${themeCss}`, {
   loader: 'css',
   minify: true,
   legalComments: 'inline',
