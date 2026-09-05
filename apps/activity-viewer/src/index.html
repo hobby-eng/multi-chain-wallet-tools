@@ -33,9 +33,9 @@
         </div>
       </div>
 
-      <aside class="viewer-capability-card" aria-label="Viewing key capabilities">
+      <aside class="viewer-capability-card" aria-label="Viewer capabilities">
         <div class="capability-orbit" aria-hidden="true"><span></span></div>
-        <div class="capability-kicker">FOUR VIEW MODES</div>
+        <div class="capability-kicker">FOUR RESOURCE TYPES</div>
         <h2>Observe, never spend</h2>
         <div class="capability-list">
           <div><span class="capability-check">✓</span><span>FVK: complete activity view</span></div>
@@ -51,19 +51,19 @@
   <main>
     <section class="warning danger-warning" aria-label="Privacy warning">
       <div class="warning-icon">!</div>
-      <div><strong>Viewing keys and public lookups are privacy-sensitive.</strong> This separate tool is intentionally network-enabled. Never paste a mnemonic, passphrase, spending key, private key, WIF, or xprv here. Viewing keys stay local. Public addresses, Identity IDs, names, and key fingerprints are sent only after local validation; private-key-like input is erased before any request.</div>
+      <div><strong>Viewing keys and public lookups are privacy-sensitive.</strong> This separate tool is intentionally network-enabled. Never paste a mnemonic, passphrase, spending key, private key, WIF, or xprv here. Viewing keys stay local. Public addresses, Identity IDs, names, key fingerprints, and registration transaction hashes are sent only after local validation; private-key-like input is erased before any request.</div>
     </section>
 
-    <section class="viewer-flow" aria-label="Scan workflow">
+    <section class="viewer-flow" aria-label="Activity query workflow">
       <article><span>01</span><div><strong>Choose Single or Batch</strong><small>One lookup or a mixed list</small></div></article>
-      <article><span>02</span><div><strong>Enter view material</strong><small>Type is detected locally</small></div></article>
+      <article><span>02</span><div><strong>Enter lookup input</strong><small>Type is detected locally</small></div></article>
       <article><span>03</span><div><strong>Query &amp; inspect</strong><small>Diagnostics stay visible</small></div></article>
     </section>
 
     <form id="viewer-form" autocomplete="off" spellcheck="false">
       <div class="section-head viewer-stage-heading viewer-section-head">
         <div><span class="step">01</span><div><h2>Start an activity query</h2><p>Nothing is stored after this page closes.</p></div></div>
-        <span id="viewer-privacy-chip" class="viewer-status-pill viewer-local-chip"><i></i> Public address lookup</span>
+        <span id="viewer-privacy-chip" class="viewer-status-pill viewer-local-chip"><i></i> Automatic local detection</span>
       </div>
       <section class="panel viewer-control-panel">
         <div class="viewer-control-heading"><strong>Query mode</strong><span>Choose one lookup or a mixed batch.</span></div>
@@ -93,7 +93,7 @@
               <option value="mainnet">Mainnet</option>
               <option value="testnet">Testnet</option>
             </select>
-            <p class="field-note">Choose the network on which the viewing key or public address was used.</p>
+            <p class="field-note">Choose the network containing the address, Identity, or Orchard activity.</p>
             <div id="viewer-capability-controls" hidden>
               <label class="viewer-capability-label" for="viewer-key-capability">Key capability</label>
               <select id="viewer-key-capability">
@@ -138,8 +138,8 @@
 
         <div class="viewer-action-bar">
           <div class="actions">
-            <button class="primary viewer-scan-button" id="scan-button" type="submit" disabled><span class="viewer-scan-icon" aria-hidden="true"></span><span id="scan-button-label">Load Core address activity</span></button>
-            <button class="secondary" id="cancel-button" type="button" disabled>Cancel after current page</button>
+            <button class="primary viewer-scan-button" id="scan-button" type="submit" disabled><span class="viewer-scan-icon" aria-hidden="true"></span><span id="scan-button-label">Detect type &amp; load activity</span></button>
+            <button class="secondary" id="cancel-button" type="button" disabled>Cancel query</button>
             <button class="secondary viewer-clear-button" id="clear-viewer" type="button">Clear viewer</button>
           </div>
           <p class="viewer-action-note">Proof verification and complete indexed lookups may take a moment.</p>
@@ -147,16 +147,16 @@
         <div id="viewer-error" class="error" role="alert" hidden></div>
         <div id="viewer-status" class="status" role="status" aria-live="polite" hidden></div>
         <section class="viewer-diagnostics" aria-labelledby="viewer-diagnostics-title">
-          <div class="viewer-diagnostics-head"><h3 id="viewer-diagnostics-title">Connection &amp; scan diagnostics</h3><span id="diagnostic-state" class="diagnostic-state idle">Idle</span></div>
+          <div class="viewer-diagnostics-head"><h3 id="viewer-diagnostics-title">Query &amp; scan diagnostics</h3><span id="diagnostic-state" class="diagnostic-state idle">Idle</span></div>
           <div class="viewer-diagnostics-grid">
-            <div><span>Mode / network</span><code id="diagnostic-mode">core · mainnet</code></div>
+            <div><span>Mode / network</span><code id="diagnostic-mode">auto · mainnet</code></div>
             <div><span>Remote source</span><code id="diagnostic-source">Not connected</code></div>
             <div><span>Requests / pages</span><code id="diagnostic-requests">0</code></div>
-            <div><span>Verified height / protocol</span><code id="diagnostic-proof">—</code></div>
+            <div><span>Height / protocol</span><code id="diagnostic-proof">—</code></div>
             <div><span>Remote time</span><code id="diagnostic-remote-time">—</code></div>
             <div><span>Timing</span><code id="diagnostic-timing">—</code></div>
           </div>
-          <p id="diagnostic-detail" class="field-note">Select a mode and start a query. Failures are reported at the exact stage that stopped.</p>
+          <p id="diagnostic-detail" class="field-note">Enter an input and start a query. Failures are reported at the exact stage that stopped.</p>
         </section>
       </section>
     </form>
@@ -198,10 +198,10 @@
     <div class="build-passport-grid">
       <div><span>Version</span><code id="viewer-build-version">—</code></div>
       <div><span>Release date</span><code id="viewer-build-date">—</code></div>
-      <div><span>Network runtime</span><code id="viewer-runtime">Local Orchard WASM · Blob Worker check pending</code></div>
+      <div><span>Viewer runtime</span><code id="viewer-runtime">Core, Platform, Identity &amp; Orchard network reads · Orchard key processing local · Blob Worker check pending</code></div>
       <div class="build-fingerprint"><span>Source/build fingerprint · SHA-256 (not the HTML checksum)</span><code id="viewer-build-fingerprint">—</code></div>
     </div>
-    <p id="viewer-crypto-self-test-details" class="field-note">Queries remain disabled until the local Orchard runtime passes deterministic checks.</p>
+    <p id="viewer-crypto-self-test-details" class="field-note">Queries remain disabled until the embedded cryptographic runtime and Blob Worker pass deterministic checks.</p>
     <p class="field-note passport-dependencies"><strong>Embedded dependency versions and licenses:</strong> Dash Evo SDK/WASM SDK 4.1.1, Noble Curves/Hashes 2.4.0, Scure Base 2.4.0, write-excel-file 4.1.1, and fflate 0.8.3 — MIT. Dash Orchard 0.14.0, official dashified-0.14.1 commit 38ac9c19a2df7bf3eeadc22ab23053e8fd538828; wasm-bindgen 0.2.127; ZIP32 0.2.1 — MIT or Apache-2.0. Full notices and the complete locked closure are in the source distribution.</p>
     <p class="field-note"><strong>Upstream attribution:</strong> Proof queries and Shielded scanning use the open-source Dash Platform Evo/WASM SDK and Dash Orchard fork created by their respective contributors. This independent viewer is not an official Dash product and no endorsement is implied. The Dash mark is an official brand asset used under CC BY 4.0. Sources: github.com/dashpay/platform · github.com/dashpay/orchard · dash.org/brand-guidelines. Exact versions and licenses: ATTRIBUTION.md / THIRD_PARTY_NOTICES.md.</p>
     <p class="field-note"><strong>Project license:</strong> Original project code is MIT licensed, copyright (c) 2026 hobby-eng. Third-party components retain the licenses listed above and in the source distribution.</p>

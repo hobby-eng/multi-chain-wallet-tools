@@ -15,7 +15,7 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 | `@scure/bip39` | 2.4.0 | `paulmillr/scure-bip39` | MIT | BIP39 validation, PBKDF2 seed, English list |
 | `@dashevo/evo-sdk` | 4.1.1 | `dashpay/platform` (`packages/js-evo-sdk`) | MIT | Connected Viewer/Recovery facades and trusted DAPI queries |
 | `@dashevo/wasm-sdk` | 4.1.1 | `dashpay/platform` (`packages/wasm-sdk`) | MIT | Embedded proof-verifying DAPI transport for connected artifacts |
-| `write-excel-file` | 4.1.1 | `catamphetamine/write-excel-file` | MIT | Local XLSX workbook generation for Activity Viewer exports |
+| `write-excel-file` | 4.1.1 | `gitlab.com/catamphetamine/write-excel-file` | MIT | Local XLSX workbook generation for Activity Viewer exports |
 | `fflate` | 0.8.3 | `101arrowz/fflate` | MIT | ZIP container generation for local XLSX exports |
 
 The two Dash SDK packages are bundled into `Wallet_Activity_Viewer.html` and the scan-only `Wallet_Discovery_Scanner.html`, never into the Wallet Key Derivation Tool. Their pnpm integrity pins are `sha512-DsfHXlLByyhvAerDknozg0HT4KHNsYP6rEy949aj/KGLLydb9bwJBHOWyn5oDsNR016tvr3oeT/jCkjMA4qoCA==` and `sha512-/be0D7qohZc9fHgYjbtzOg8KOajarzo0NtKCNybv4Z1xeV617Wo0CusnsxCzwbV7C/jDgPJiGel0KtcSTzQcfQ==`. Copyright notices embedded by Noble/Scure identify Paul Miller and, for Scure BIP32/BIP39, Patricio Palladino. esbuild preserves inline legal comments in the standalone JavaScript.
@@ -26,7 +26,7 @@ The Wallet Activity Viewer and Wallet Discovery Scanner headers embed the offici
 
 ## External runtime services (not bundled dependencies)
 
-The connected Wallet Activity Viewer calls DashScan (`pshenmic/dashscan`, API package MIT) for Dash Core L1 history and Dash Platform Explorer (`pshenmic/platform-explorer`, API package MIT) for Platform address history. The Wallet Discovery Scanner calls DashScan for batched Core address state and Dash Platform DAPI through Evo SDK for proof-verified Platform address, identity, and encrypted-note state. No code from either external server repository is copied or bundled into the artifacts; only typed client adapters for public responses are original project code. Service availability, indexing, privacy, and trust limitations are documented in README and SECURITY_AUDIT.
+The connected Wallet Activity Viewer calls DashScan (`pshenmic/dashscan`, API package MIT) for Dash Core L1 history and Dash Platform Explorer (`pshenmic/platform-explorer`, API package MIT) for Platform address and Identity history. The Wallet Discovery Scanner calls DashScan for batched Core address state and Dash Platform DAPI through Evo SDK for proof-verified Platform address, Identity, and encrypted-note state. No code from either external server repository is copied or bundled into the artifacts; only typed client adapters for public responses are original project code. Service availability, indexing, privacy, and trust limitations are documented in README and SECURITY_AUDIT.
 
 ## Rust/WASM direct and official git dependencies
 

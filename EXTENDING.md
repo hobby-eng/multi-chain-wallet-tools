@@ -59,7 +59,7 @@ Public-history services are also adapters, not UI special cases. Dash Core histo
 
 Keep consensus-backed state separate from indexed history. The Platform adapter supplies history and aggregates, while current balance/nonce continue to come from Evo SDK `getWithProof`; the viewer compares them and gives the proof-verified values precedence.
 
-When adding a viewer mode or changing its result schema, extend the `ViewerExportState` discriminated union and both CSV/JSON mappings. Add exact-integer, empty-result, filename, and spreadsheet-formula-injection tests. Never pass the raw input control or a viewing/private key into export state.
+When adding a viewer mode or changing its result schema, extend the `ViewerExportState` discriminated union, CSV/JSON mappings, and XLSX worksheet routing. Add exact-integer, empty-result, filename, worksheet-grouping, and spreadsheet-formula-injection tests. Never pass the raw input control or a viewing/private key into export state.
 
 ## Discovery scanner coin adapters
 
