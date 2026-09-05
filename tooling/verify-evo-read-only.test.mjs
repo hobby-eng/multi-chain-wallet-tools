@@ -7,13 +7,19 @@ const fixture = (name) => resolve(import.meta.dirname, 'fixtures/evo-read-only',
 
 describe('Evo SDK read-only verifier', () => {
   it('accepts reviewed read-only facade calls', () => {
-    expect(() => assertEvoSdkReadOnly([fixture('read-only.ts')], 'Fixture', root)).not.toThrow();
+    expect(() => assertEvoSdkReadOnly([
+      fixture('read-only.ts'),
+      fixture('local-mnemonic-validator.ts'),
+    ], 'Fixture', root)).not.toThrow();
   });
 
   it.each([
     ['direct property access', 'direct-write.ts'],
     ['computed, optional, and aliased access', 'computed-write.ts'],
-  ])('rejects %s write calls', (_label, name) => {
+    ['secret-capable wallet calls', 'secret-wallet-calls.ts'],
+    ['secret-capable wallet imports', 'secret-wallet-import.ts'],
+    ['combined SDK namespace imports', 'secret-wallet-namespace-import.ts'],
+  ])('rejects %s', (_label, name) => {
     expect(() => assertEvoSdkReadOnly([fixture(name)], 'Fixture', root)).toThrow(
       /crosses its read-only\/scan-only boundary/u,
     );
@@ -36,6 +42,16 @@ describe('Evo SDK read-only verifier', () => {
       'write-capable voting.masternodeVote facade',
       'low-level state-transition method broadcastStateTransition',
       'low-level state-transition method broadcastAndWaitForAffectedState',
+    ]);
+  });
+
+  it('covers the reviewed secret-capable Evo SDK wallet methods', () => {
+    const findings = findEvoWriteCalls([fixture('secret-wallet-calls.ts')], root);
+    expect(findings.map(({ description }) => description)).toEqual([
+      'secret-capable wallet.generateMnemonic SDK method',
+      'secret-capable wallet.mnemonicToSeed SDK method',
+      'secret-capable wallet.deriveKeyFromSeedPhrase SDK method',
+      'secret-capable wallet.validateMnemonic SDK method',
     ]);
   });
 });

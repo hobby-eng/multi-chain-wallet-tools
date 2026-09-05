@@ -21,6 +21,7 @@ An offline tool for deriving wallet addresses and keys from a BIP39 seed phrase.
 - Shows standards-based derivation paths and exposes protocol-specific account, branch/key-class, and index controls.
 - Derives standard receive/change branches for Bitcoin and Dash Core, an explicit EOA branch for Ethereum, Platform payment receive keys, four-key Identity candidates, and Orchard addresses and viewing material.
 - Displays basic results or detailed protocol-specific data, with selectable clipboard and file exports.
+- Generates offline, on-demand QR codes only for derived public payment addresses; key material and arbitrary metadata never receive QR actions.
 - Runs derivation in a disposable Web Worker and has runtime network access blocked by CSP and build verification.
 
 Use this application on a trusted offline computer whenever real seed phrases or private keys are involved.

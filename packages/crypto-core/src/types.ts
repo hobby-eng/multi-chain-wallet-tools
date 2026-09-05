@@ -6,6 +6,8 @@ export interface ResultField {
   label: string;
   value: string;
   secret: boolean;
+  role?: 'paymentAddress';
+  paymentUriScheme?: 'bitcoin' | 'ethereum' | 'dash';
   description?: string;
 }
 
@@ -78,4 +80,15 @@ export function field(
   return description === undefined
     ? { key, label, value, secret }
     : { key, label, value, secret, description };
+}
+
+export function paymentAddressField(
+  key: string,
+  label: string,
+  value: string,
+  paymentUriScheme?: ResultField['paymentUriScheme'],
+): ResultField {
+  return paymentUriScheme === undefined
+    ? { key, label, value, secret: false, role: 'paymentAddress' }
+    : { key, label, value, secret: false, role: 'paymentAddress', paymentUriScheme };
 }

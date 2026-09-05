@@ -1,7 +1,7 @@
 import { assertBatch, assertIndex, requirePrivate, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { bytesToHex, encodeWif, wipe } from '@ckd/core/crypto.js';
 import { getBitcoinNetwork } from '@ckd/core/networks.js';
-import { field, type Bip32BatchOptions, type DerivationResult, type ResultField } from '@ckd/core/types.js';
+import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult, type ResultField } from '@ckd/core/types.js';
 import { addDescriptorChecksum } from '@ckd/export/descriptor.js';
 import { deriveLegacyAddress } from './legacy.js';
 import { deriveNativeSegwitAddress } from './native-segwit.js';
@@ -118,7 +118,7 @@ export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): De
         path,
         title: `Address #${index}`,
         basic: [
-          field('address', 'Address', address),
+          paymentAddressField('address', 'Address', address, 'bitcoin'),
           field('publicKey', 'Compressed public key', publicKeyHex),
           field(
             'privateKey',
