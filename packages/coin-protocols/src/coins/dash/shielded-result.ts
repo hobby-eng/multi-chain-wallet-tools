@@ -1,6 +1,6 @@
 import { bytesToHex, concatBytes, hexToBytes } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
-import { field, type DerivationResult, type ShieldedBatchOptions } from '@ckd/core/types.js';
+import { field, paymentAddressField, type DerivationResult, type ShieldedBatchOptions } from '@ckd/core/types.js';
 import { encodeDashShieldedAddress, ORCHARD_ADDRESS_TYPE } from './shielded-address.js';
 
 export const DASH_ORCHARD_RELEASE = 'Dash Platform v4.1.1 / dashpay/orchard dashified-0.14.1';
@@ -73,7 +73,7 @@ export function buildDashShieldedResult(
       path: `${path} · external diversifier index ${index}`,
       title: `Shielded address #${index}`,
       basic: [
-        field('address', 'Dash Shielded receive address', address),
+        paymentAddressField('address', 'Dash Shielded receive address', address),
         field(
           'spendingKey',
           'Account Orchard spending key (same for every address)',

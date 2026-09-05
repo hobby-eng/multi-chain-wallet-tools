@@ -2,7 +2,7 @@ import { keccak_256 } from '@noble/hashes/sha3.js';
 import { utf8ToBytes } from '@noble/hashes/utils.js';
 import { assertBatch, assertIndex, requirePrivate, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
-import { field, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
+import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
 import { bip32SummaryFields } from '../../bip32-summary.js';
 
 const BIP32_MAIN_VERSIONS = { private: 0x0488ade4, public: 0x0488b21e } as const;
@@ -60,7 +60,7 @@ export function deriveEthereum(options: Bip32BatchOptions): DerivationResult {
         path,
         title: `Account #${index}`,
         basic: [
-          field('address', 'Ethereum address (EIP55)', address.checksummed),
+          paymentAddressField('address', 'Ethereum address (EIP55)', address.checksummed, 'ethereum'),
           field('publicKey', 'Uncompressed public key', bytesToHex(uncompressedPublicKey)),
           field('privateKey', 'Private key (32-byte hex)', bytesToHex(privateKey), true),
         ],

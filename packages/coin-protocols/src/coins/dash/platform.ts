@@ -2,7 +2,7 @@ import { bech32m } from '@scure/base';
 import { assertBatch, assertIndex, requirePrivate, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { bytesToHex, concatBytes, encodeWif, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
-import { field, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
+import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
 import { bip32SummaryFields } from '../../bip32-summary.js';
 
 export const PLATFORM_P2PKH_TYPE = 0xb0;
@@ -47,7 +47,7 @@ export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult
         path,
         title: `Platform address #${index}`,
         basic: [
-          field('address', 'Dash Platform address', address),
+          paymentAddressField('address', 'Dash Platform address', address),
           field('publicKey', 'Compressed secp256k1 public key', bytesToHex(publicKey)),
           field(
             'privateKey',
