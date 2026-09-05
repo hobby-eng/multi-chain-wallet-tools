@@ -1,4 +1,5 @@
 import type { ShieldedActivityLedger } from '@ckd/dash-network/activity.js';
+import type { PlatformIdentityHistoryResult } from '@ckd/dash-network/platform-identity-history.js';
 import type { ViewerNetwork } from '@ckd/dash-network/types.js';
 import type { NormalizedViewingKey, ViewingKeyInputMode } from '@ckd/dash-network/viewing-key.js';
 import type { ViewerExportFormat, ViewerExportState } from './export.js';
@@ -10,12 +11,16 @@ interface ActivityViewerDependencies {
   ShieldedActivityLedger: typeof import('@ckd/dash-network/activity.js').ShieldedActivityLedger;
   DashEvoShieldedSource: typeof import('@ckd/dash-network/dash-source.js').DashEvoShieldedSource;
   DashPlatformAddressSource: typeof import('@ckd/dash-network/platform-address-source.js').DashPlatformAddressSource;
+  DashPlatformIdentitySource: typeof import('@ckd/dash-network/platform-identity-source.js').DashPlatformIdentitySource;
   assertCanonicalViewingKey: typeof import('@ckd/dash-network/orchard-scanner.js').assertCanonicalViewingKey;
+  assertPublicLookupInput: typeof import('@ckd/dash-network/private-material.js').assertPublicLookupInput;
   createViewerExport: typeof import('./export.js').createViewerExport;
   downloadText: typeof import('@ckd/export/download.js').downloadText;
   normalizeViewingKey: typeof import('@ckd/dash-network/viewing-key.js').normalizeViewingKey;
+  normalizeIdentityLookupInput: typeof import('@ckd/dash-network/platform-identity-source.js').normalizeIdentityLookupInput;
   queryCoreAddress: typeof import('@ckd/dash-network/public-address.js').queryCoreAddress;
   queryPlatformAddressHistory: typeof import('@ckd/dash-network/platform-address-history.js').queryPlatformAddressHistory;
+  queryPlatformIdentityHistory: typeof import('@ckd/dash-network/platform-identity-history.js').queryPlatformIdentityHistory;
   runBlobWorkerSelfTest: typeof import('@ckd/dash-network/blob-worker-self-test.js').runBlobWorkerSelfTest;
   runOrchardRuntimeSelfTest: typeof import('@ckd/dash-network/orchard-scanner.js').runOrchardRuntimeSelfTest;
   runShieldedPageStream: typeof import('@ckd/dash-network/shielded-stream-policy.js').runShieldedPageStream;
@@ -55,7 +60,7 @@ export function createActivityViewerController(
     }
     const file = dependencies.createViewerExport(currentExport, format);
     dependencies.downloadText(file.text, file.filename, file.mimeType);
-    view.setStatus(`Exported ${file.filename}. The input key/address is not included.`);
+    view.setStatus(`Exported ${file.filename}. No private or viewing-key input is included.`);
   }
 
   /**
@@ -153,6 +158,7 @@ export function createActivityViewerController(
   }
 
   async function runCore(network: ViewerNetwork): Promise<void> {
+    dependencies.assertPublicLookupInput(view.viewingKeyInput.value);
     currentAbort = new AbortController();
     const limit = Number(view.historyLimitInput.value);
     view.setStatus(`Querying Dash Core ${network} address history…`);
@@ -177,6 +183,7 @@ export function createActivityViewerController(
   }
 
   async function runPlatform(network: ViewerNetwork): Promise<void> {
+    dependencies.assertPublicLookupInput(view.viewingKeyInput.value);
     currentAbort = new AbortController();
     const source = new dependencies.DashPlatformAddressSource(network);
     const limit = Number(view.historyLimitInput.value);
@@ -212,6 +219,80 @@ export function createActivityViewerController(
     view.finishDiagnostics(`Verified the GroveDB address-state proof and a ${history.indexStatus} Platform Explorer index. Proof values take precedence if the two sources disagree.`);
   }
 
+  async function runIdentity(network: ViewerNetwork): Promise<void> {
+    const input = dependencies.normalizeIdentityLookupInput(view.viewingKeyInput.value);
+    currentAbort = new AbortController();
+    const source = new dependencies.DashPlatformIdentitySource(network);
+    const limit = Number(view.historyLimitInput.value);
+    view.setStatus(`Connecting to Dash Platform ${network} with trusted proof verification…`);
+    view.setDiagnosticDetail(`Validated ${input.label} locally. No private material was sent to the network.`);
+    const connectStarted = performance.now();
+    await source.connect();
+    view.addRemoteDuration(performance.now() - connectStarted);
+    if (cancellationRequested) throw new DOMException('Identity query cancelled.', 'AbortError');
+    const lookupStarted = performance.now();
+    const snapshot = await source.query(input);
+    view.addRemoteDuration(performance.now() - lookupStarted);
+    view.setRequestCount(snapshot.requests);
+    if (cancellationRequested) throw new DOMException('Identity query cancelled.', 'AbortError');
+
+    view.setStatus(
+      snapshot.identities.length === 0
+        ? 'Identity lookup proof verified. No matching Identity was found.'
+        : `Verified ${snapshot.identities.length.toLocaleString()} Identity result(s). Loading synchronized indexed activity…`,
+    );
+    const histories: PlatformIdentityHistoryResult[] = [];
+    for (const identity of snapshot.identities) {
+      if (cancellationRequested) throw new DOMException('Identity query cancelled.', 'AbortError');
+      const historyStarted = performance.now();
+      try {
+        const history = await dependencies.queryPlatformIdentityHistory(
+          identity.identifier,
+          network,
+          limit,
+          currentAbort.signal,
+        );
+        view.addRemoteDuration(performance.now() - historyStarted);
+        view.setRequestCount(snapshot.requests + histories.reduce((total, result) => total + (result.history?.requests ?? 0), 0) + history.requests);
+        histories.push({ identifier: identity.identifier, history, error: null });
+      } catch (cause) {
+        view.addRemoteDuration(performance.now() - historyStarted);
+        if (cancellationRequested) throw cause;
+        histories.push({
+          identifier: identity.identifier,
+          history: null,
+          error: cause instanceof Error ? cause.message : String(cause),
+        });
+      }
+    }
+    const historyRequests = histories.reduce((total, result) => total + (result.history?.requests ?? 0), 0);
+    view.setRequestCount(snapshot.requests + historyRequests);
+    setExportState({ mode: 'identity', network, snapshot, histories });
+    view.renderIdentity(snapshot, histories);
+    const proofHeights = snapshot.proofs.map(({ height }) => height);
+    const highestProof = proofHeights.reduce((highest, height) => height > highest ? height : highest, 0n);
+    const explorerHeights = histories.flatMap(({ history }) => history === null ? [] : [history.indexedHeight]);
+    view.setDiagnosticSource(histories.some(({ history }) => history !== null)
+      ? 'Proof DAPI + Dash Platform Explorer'
+      : 'Dash Platform DAPI proof');
+    view.setDiagnosticProof(
+      explorerHeights.length === 0
+        ? `DAPI ${highestProof}`
+        : `DAPI ${highestProof} · Explorer ${Math.max(...explorerHeights).toLocaleString()}`,
+    );
+    const latestProofTime = snapshot.proofs.at(-1)?.responseTimeMs ?? null;
+    view.setDiagnosticRemoteTime(latestProofTime);
+    const historyFailures = histories.filter(({ error }) => error !== null).length;
+    view.setStatus(
+      snapshot.identities.length === 0
+        ? 'Proof-verified lookup complete. No matching registered Identity exists.'
+        : `Loaded ${snapshot.identities.length.toLocaleString()} proof-verified Identity result(s)${historyFailures === 0 ? ' with synchronized indexed activity' : `; indexed history failed for ${historyFailures.toLocaleString()}`}.`,
+    );
+    view.finishDiagnostics(
+      `Verified ${snapshot.proofs.length.toLocaleString()} DAPI proof response(s). Explorer history is auxiliary; proof-verified Identity state remains authoritative.`,
+    );
+  }
+
   async function submitQuery(): Promise<void> {
     if (running) return;
     if (!viewerSelfTestPassed) {
@@ -232,18 +313,22 @@ export function createActivityViewerController(
         ? 'DashScan Core API · synchronization checked'
         : viewerMode === 'platform'
           ? 'Dash Platform DAPI proof + Platform Explorer history'
-          : 'Dash Platform DAPI · trusted quorum discovery',
+          : viewerMode === 'identity'
+            ? 'Dash Platform Identity proof + Platform Explorer history'
+            : 'Dash Platform DAPI · trusted quorum discovery',
     );
     try {
       if (viewerMode === 'shielded') await runShielded(network);
       else if (viewerMode === 'core') await runCore(network);
-      else await runPlatform(network);
+      else if (viewerMode === 'platform') await runPlatform(network);
+      else await runIdentity(network);
     } catch (cause) {
       if (cancellationRequested) {
         view.setStatus('Query cancelled.');
         view.failDiagnostics('Cancelled by the user. No additional results were applied.');
       } else {
         const message = cause instanceof Error ? cause.message : String(cause);
+        if (cause instanceof Error && cause.name === 'PrivateMaterialError') view.clearQueryInput();
         view.showError(message);
         view.setStatus('');
         view.failDiagnostics(`Stopped during the current stage. Error: ${message}`);

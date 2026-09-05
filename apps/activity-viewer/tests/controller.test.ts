@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createActivityViewerController } from '../src/controller.js';
 import type { ActivityViewerView } from '../src/view.js';
 import type { NormalizedViewingKey } from '@ckd/dash-network/viewing-key.js';
+import { PrivateMaterialError } from '@ckd/dash-network/private-material.js';
 
 class TestControl extends EventTarget {
   disabled = false;
@@ -44,6 +45,8 @@ function testView() {
   coreMode.dataset.viewerMode = 'core';
   const shieldedMode = new TestControl();
   shieldedMode.dataset.viewerMode = 'shielded';
+  const identityMode = new TestControl();
+  identityMode.dataset.viewerMode = 'identity';
   const viewingKeyInput = new TestControl();
   viewingKeyInput.value = 'viewing-key';
   const keyCapabilityInput = new TestControl();
@@ -59,7 +62,7 @@ function testView() {
     revealButton,
     exportCsvButton,
     exportJsonButton,
-    modeButtons: [coreMode, shieldedMode],
+    modeButtons: [coreMode, identityMode, shieldedMode],
     viewingKeyInput,
     keyCapabilityInput,
     networkInput,
@@ -73,6 +76,7 @@ function testView() {
     renderShielded: vi.fn(),
     renderCore: vi.fn(),
     renderPlatform: vi.fn(),
+    renderIdentity: vi.fn(),
     setDiagnosticDetail: vi.fn(),
     addRemoteDuration: vi.fn(),
     recordRequest: vi.fn(),
@@ -92,8 +96,9 @@ function testView() {
     showSelfTestFailed: vi.fn(),
     toggleViewingKeyReveal: vi.fn(),
     updateInputMode: vi.fn(),
+    clearQueryInput: vi.fn(() => { viewingKeyInput.value = ''; }),
   } as unknown as ActivityViewerView;
-  return { view, controls: { form, cancelButton, shieldedMode } };
+  return { view, controls: { form, cancelButton, identityMode, shieldedMode, viewingKeyInput } };
 }
 
 function testDependencies(
@@ -126,12 +131,16 @@ function testDependencies(
     ShieldedActivityLedger: Ledger,
     DashEvoShieldedSource: Source,
     DashPlatformAddressSource: class {},
+    DashPlatformIdentitySource: class {},
     assertCanonicalViewingKey: vi.fn(),
+    assertPublicLookupInput: vi.fn(),
     createViewerExport: vi.fn(),
     downloadText: vi.fn(),
     normalizeViewingKey: vi.fn(() => viewingKey),
+    normalizeIdentityLookupInput: vi.fn(),
     queryCoreAddress: vi.fn(),
     queryPlatformAddressHistory: vi.fn(),
+    queryPlatformIdentityHistory: vi.fn(),
     runBlobWorkerSelfTest: vi.fn(async () => 1),
     runOrchardRuntimeSelfTest: vi.fn(() => ({ passed: true, checks: ['fixture'], durationMs: 1 })),
     runShieldedPageStream: vi.fn(stream),
@@ -205,4 +214,24 @@ describe('Activity Viewer controller', () => {
       }
     },
   );
+
+  it('erases private-key-like Identity input before making a network request', async () => {
+    vi.stubGlobal('window', testWindow());
+    const { view, controls } = testView();
+    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
+    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
+    vi.mocked(dependencies.normalizeIdentityLookupInput).mockImplementation(() => {
+      throw new PrivateMaterialError();
+    });
+    const controller = createActivityViewerController(view, dependencies);
+    controller.start();
+    await settle();
+    controls.identityMode.click();
+    controls.viewingKeyInput.value = '11'.repeat(32);
+    controls.form.submit();
+
+    await vi.waitFor(() => expect(view.clearQueryInput).toHaveBeenCalledOnce());
+    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('No network request was made'));
+    expect(dependencies.queryPlatformIdentityHistory).not.toHaveBeenCalled();
+  });
 });
