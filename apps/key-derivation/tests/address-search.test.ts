@@ -47,6 +47,12 @@ describe('bounded address verification search', () => {
     const produced: DerivationResult[] = [];
     const instrumented = { ...adapter, derive: ({ start, count }: { start: number; count: number }) => {
       const batch = result(start, count);
+      batch.rows[0]!.groups = [{
+        key: 'keys',
+        title: 'Keys',
+        basic: [field('privateKey', 'Private key', 'group-secret-basic')],
+        advanced: [field('wif', 'WIF', 'group-secret-advanced')],
+      }];
       produced.push(batch);
       return batch;
     } } satisfies RuntimeCoinAdapter;
@@ -58,8 +64,7 @@ describe('bounded address verification search', () => {
       5,
     );
     expect(produced).toHaveLength(2);
-    expect(produced.flatMap(({ rows }) => rows).every((row) => row.path === '')).toBe(true);
-    expect(produced.flatMap(({ rows }) => rows).flatMap((row) => row.basic).every(({ value }) => value === '')).toBe(true);
+    expect(produced.every(({ rows }) => rows.length === 0)).toBe(true);
   });
 
   it('uses a fresh seed copy for every batch when an adapter zeroes its input boundary', async () => {

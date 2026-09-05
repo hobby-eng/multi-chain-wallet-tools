@@ -18,6 +18,7 @@ const HASH160_PATTERN = /^[0-9a-f]{40}$/u;
 const HEX_IDENTIFIER_PATTERN = /^[0-9a-f]{64}$/u;
 const ECDSA_PUBLIC_KEY_PATTERN = /^(?:02|03)[0-9a-f]{64}$/u;
 const BLS_PUBLIC_KEY_PATTERN = /^[0-9a-f]{96}$/u;
+const EXPLICIT_BLS_PUBLIC_KEY_PATTERN = /^bls:\s*(?:0x)?([0-9a-f]{96})$/iu;
 const DPNS_NAME_PATTERN = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.dash)?$/u;
 const EXPLICIT_HEX_ID_PATTERN = /^idhex:\s*(?:0x)?([0-9a-f]{64})$/iu;
 const EXPLICIT_REGISTRATION_TRANSACTION_PATTERN = /^(?:tx|transition):\s*(?:0x)?([0-9a-f]{64})$/iu;
@@ -176,6 +177,20 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
       registrationTransactionHash,
     };
   }
+  const explicitBlsPublicKey = trimmed.match(EXPLICIT_BLS_PUBLIC_KEY_PATTERN)?.[1]?.toLowerCase();
+  if (explicitBlsPublicKey !== undefined) {
+    const bytes = hexToBytes(explicitBlsPublicKey);
+    try {
+      return {
+        kind: 'bls-public-key',
+        label: 'BLS12_381 public key',
+        publicKeyHashHex: bytesToHex(hash160(bytes)),
+        publicKeyHex: explicitBlsPublicKey,
+      };
+    } finally {
+      wipe(bytes);
+    }
+  }
   if (HASH160_PATTERN.test(hex)) {
     return {
       kind: 'public-key-hash',
@@ -202,17 +217,10 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
     }
   }
   if (BLS_PUBLIC_KEY_PATTERN.test(hex)) {
-    const bytes = hexToBytes(hex);
-    try {
-      return {
-        kind: 'bls-public-key',
-        label: 'BLS12_381 public key',
-        publicKeyHashHex: bytesToHex(hash160(bytes)),
-        publicKeyHex: hex,
-      };
-    } finally {
-      wipe(bytes);
-    }
+    throw new PrivateMaterialError(
+      'A bare 96-character hex value is ambiguous with truncated viewing-key material and was erased '
+      + 'without a network request. For a BLS12_381 public key use bls:<hex>.',
+    );
   }
   const identifier = canonicalIdentifier(trimmed);
   if (identifier !== null) {
