@@ -8,6 +8,7 @@ import {
   parseViewerConcurrency,
   type ViewerBatchInput,
 } from './batch.js';
+import type { DetectedViewerInput } from './detection.js';
 import type {
   ViewerBatchExportError,
   ViewerBatchExportItem,
@@ -18,6 +19,7 @@ import type {
 import type {
   ActivityViewerView,
   ViewerBatchResultOption,
+  ViewerDetectionMode,
   ViewerMode,
   ViewerQueryMode,
 } from './view.js';
@@ -30,8 +32,11 @@ interface ActivityViewerDependencies {
   DashPlatformAddressSource: typeof import('@ckd/dash-network/platform-address-source.js').DashPlatformAddressSource;
   DashPlatformIdentitySource: typeof import('@ckd/dash-network/platform-identity-source.js').DashPlatformIdentitySource;
   assertCanonicalViewingKey: typeof import('@ckd/dash-network/orchard-scanner.js').assertCanonicalViewingKey;
+  assertAutoViewerBatchInput: typeof import('./detection.js').assertAutoViewerBatchInput;
   assertPublicBatchLookupInput: typeof import('@ckd/dash-network/private-material.js').assertPublicBatchLookupInput;
   assertPublicLookupInput: typeof import('@ckd/dash-network/private-material.js').assertPublicLookupInput;
+  detectViewerInput: typeof import('./detection.js').detectViewerInput;
+  looksLikeAutoOrchardInput: typeof import('./detection.js').looksLikeAutoOrchardInput;
   createViewerExport: typeof import('./export.js').createViewerExport;
   downloadText: typeof import('@ckd/export/download.js').downloadText;
   normalizeViewingKey: typeof import('@ckd/dash-network/viewing-key.js').normalizeViewingKey;
@@ -57,6 +62,7 @@ export function createActivityViewerController(
   let running = false;
   let viewerMode: ViewerMode = 'core';
   let queryMode: ViewerQueryMode = 'single';
+  let detectionMode: ViewerDetectionMode = 'auto';
   let currentAbort: AbortController | null = null;
   let currentExport: ViewerExportState | null = null;
   let batchItems: ViewerBatchExportItem[] = [];
@@ -94,13 +100,13 @@ export function createActivityViewerController(
     index: number,
   ): string {
     const number = `${index + 1}`;
-    if (state.mode === 'shielded') return `${number} · ${state.snapshot.keyKind.toUpperCase()} viewing key`;
+    if (state.mode === 'shielded') return `${number} · ORCHARD · ${state.snapshot.keyKind.toUpperCase()} viewing key`;
     if (state.mode === 'identity') {
       const identity = state.snapshot.identities[0];
       const label = identity?.dpnsNames[0] ?? identity?.identifier ?? `No match · line ${input.line}`;
-      return `${number} · ${compactLabel(label)}`;
+      return `${number} · IDENTITY · ${compactLabel(label)}`;
     }
-    return `${number} · ${compactLabel(state.snapshot.address)}`;
+    return `${number} · ${state.mode.toUpperCase()} · ${compactLabel(state.snapshot.address)}`;
   }
 
   function renderBatchSelection(id: string): void {
@@ -162,10 +168,14 @@ export function createActivityViewerController(
     view.renderShielded(snapshot);
   }
 
-  async function runShielded(network: ViewerNetwork): Promise<void> {
+  async function runShielded(
+    network: ViewerNetwork,
+    value = view.viewingKeyInput.value,
+    inputMode = view.keyCapabilityInput.value as ViewingKeyInputMode,
+  ): Promise<void> {
     const viewingKey: NormalizedViewingKey = dependencies.normalizeViewingKey(
-      view.viewingKeyInput.value,
-      view.keyCapabilityInput.value as ViewingKeyInputMode,
+      value,
+      inputMode,
     );
     try {
       if (viewingKey.bundleNetwork !== undefined && viewingKey.bundleNetwork !== network) {
@@ -232,15 +242,15 @@ export function createActivityViewerController(
     }
   }
 
-  async function runCore(network: ViewerNetwork): Promise<void> {
-    dependencies.assertPublicLookupInput(view.viewingKeyInput.value);
+  async function runCore(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
+    dependencies.assertPublicLookupInput(value);
     currentAbort = new AbortController();
     const limit = Number(view.historyLimitInput.value);
     view.setStatus(`Querying Dash Core ${network} address history…`);
     view.setDiagnosticDetail('Validating the Base58Check address, checking DashScan synchronization, then loading exact-duff totals and history.');
     const remoteStarted = performance.now();
     const snapshot = await dependencies.queryCoreAddress(
-      view.viewingKeyInput.value,
+      value,
       network,
       limit,
       currentAbort.signal,
@@ -257,8 +267,8 @@ export function createActivityViewerController(
     view.finishDiagnostics(`DashScan reported a synchronized index at Core height ${snapshot.indexedHeight.toLocaleString()}. Loaded address totals and ${snapshot.transactions.length.toLocaleString()} newest transaction record(s) in ${snapshot.requests} request(s).`);
   }
 
-  async function runPlatform(network: ViewerNetwork): Promise<void> {
-    dependencies.assertPublicLookupInput(view.viewingKeyInput.value);
+  async function runPlatform(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
+    dependencies.assertPublicLookupInput(value);
     currentAbort = new AbortController();
     const source = new dependencies.DashPlatformAddressSource(network);
     const limit = Number(view.historyLimitInput.value);
@@ -270,14 +280,14 @@ export function createActivityViewerController(
     if (cancellationRequested) throw new DOMException('Platform query cancelled.', 'AbortError');
     view.setRequestCount(1);
     const queryStartedAt = performance.now();
-    const snapshot = await source.query(view.viewingKeyInput.value);
+    const snapshot = await source.query(value);
     view.addRemoteDuration(performance.now() - queryStartedAt);
     if (cancellationRequested) throw new DOMException('Platform query cancelled.', 'AbortError');
     view.setStatus('Platform state verified. Checking Platform Explorer synchronization and loading address history…');
     view.setDiagnosticDetail('DAPI proof verified. Querying the Platform Explorer address index and latest indexed height.');
     const historyStartedAt = performance.now();
     const history = await dependencies.queryPlatformAddressHistory(
-      view.viewingKeyInput.value,
+      value,
       network,
       limit,
       currentAbort.signal,
@@ -294,8 +304,8 @@ export function createActivityViewerController(
     view.finishDiagnostics(`Verified the GroveDB address-state proof and a ${history.indexStatus} Platform Explorer index. Proof values take precedence if the two sources disagree.`);
   }
 
-  async function runIdentity(network: ViewerNetwork): Promise<void> {
-    const input = dependencies.normalizeIdentityLookupInput(view.viewingKeyInput.value);
+  async function runIdentity(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
+    const input = dependencies.normalizeIdentityLookupInput(value);
     currentAbort = new AbortController();
     const source = new dependencies.DashPlatformIdentitySource(network);
     const limit = Number(view.historyLimitInput.value);
@@ -366,6 +376,340 @@ export function createActivityViewerController(
     view.finishDiagnostics(
       `Verified ${snapshot.proofs.length.toLocaleString()} DAPI proof response(s). Explorer history is auxiliary; proof-verified Identity state remains authoritative.`,
     );
+  }
+
+  async function runAutoSingle(network: ViewerNetwork): Promise<void> {
+    const detected = dependencies.detectViewerInput(view.viewingKeyInput.value, network);
+    view.setDiagnosticMode(detected.mode, network);
+    if (detected.mode === 'shielded') {
+      await runShielded(network, detected.value, detected.viewingKeyMode);
+    } else if (detected.mode === 'core') {
+      await runCore(network, detected.value);
+    } else if (detected.mode === 'platform') {
+      await runPlatform(network, detected.value);
+    } else {
+      await runIdentity(network, detected.value);
+    }
+  }
+
+  async function runAutoBatch(network: ViewerNetwork): Promise<void> {
+    const rawInput = view.batchInput.value;
+    dependencies.assertAutoViewerBatchInput(rawInput);
+    const inputs = parseViewerBatchInputs(rawInput);
+    const concurrency = parseViewerConcurrency(view.batchConcurrencyInput.value);
+    const limit = Number(view.historyLimitInput.value);
+    currentAbort = new AbortController();
+    batchItems = [];
+    batchErrors = [];
+    activeBatchResultId = null;
+    let completed = 0;
+    const updateProgress = (label: string): void => {
+      completed += 1;
+      view.setStatus(`Mixed batch ${completed.toLocaleString()}/${inputs.length.toLocaleString()} · ${label}`);
+      view.updateTiming();
+    };
+    const errorLabel = (input: ViewerBatchInput, mode?: ViewerMode): string => {
+      const number = Number(input.id.replace(/\D/gu, ''));
+      if (mode === 'shielded' || (mode === undefined && dependencies.looksLikeAutoOrchardInput(input.value))) {
+        return `${number} · ORCHARD · viewing key`;
+      }
+      return `${number} · ${mode === undefined ? 'AUTO' : mode.toUpperCase()} · ${compactLabel(input.value)}`;
+    };
+    const addError = (input: ViewerBatchInput, cause: unknown, mode?: ViewerMode): void => {
+      const resolvedMode = mode ?? (dependencies.looksLikeAutoOrchardInput(input.value) ? 'shielded' : undefined);
+      batchErrors.push({
+        id: input.id,
+        label: errorLabel(input, resolvedMode),
+        message: errorMessage(cause),
+        ...(resolvedMode === undefined ? {} : { mode: resolvedMode }),
+      });
+    };
+    const detectedInputs: Array<{ input: ViewerBatchInput; detected: DetectedViewerInput }> = [];
+    const identityLookups = new Map<string, ReturnType<typeof dependencies.normalizeIdentityLookupInput>>();
+    const preparedOrchard: Array<{
+      input: ViewerBatchInput;
+      detected: DetectedViewerInput;
+      key: NormalizedViewingKey;
+      ledger: ShieldedActivityLedger;
+    }> = [];
+
+    try {
+      for (const input of inputs) {
+        let key: NormalizedViewingKey | null = null;
+        let detected: DetectedViewerInput | null = null;
+        try {
+          detected = dependencies.detectViewerInput(input.value, network);
+          if (detected.mode === 'identity') {
+            identityLookups.set(input.id, dependencies.normalizeIdentityLookupInput(detected.value));
+          } else if (detected.mode === 'shielded') {
+            key = dependencies.normalizeViewingKey(detected.value, detected.viewingKeyMode);
+            if (key.bundleNetwork !== undefined && key.bundleNetwork !== network) {
+              throw new Error(`This viewing bundle is for ${key.bundleNetwork}; select that network before scanning.`);
+            }
+            dependencies.assertCanonicalViewingKey(key);
+            preparedOrchard.push({
+              input,
+              detected,
+              key,
+              ledger: new dependencies.ShieldedActivityLedger(key.kind),
+            });
+            key = null;
+          }
+          detectedInputs.push({ input, detected });
+        } catch (cause) {
+          if (key !== null) key.hex = '';
+          if (isPrivateMaterialError(cause)) throw cause;
+          addError(input, cause, detected?.mode);
+          updateProgress(`line ${input.line} rejected locally`);
+        }
+      }
+
+      const publicInputs = detectedInputs.filter(({ detected }) => detected.mode !== 'shielded');
+      const needsPlatform = publicInputs.some(({ detected }) => detected.mode === 'platform');
+      const needsIdentity = publicInputs.some(({ detected }) => detected.mode === 'identity');
+      let platformSource: InstanceType<ActivityViewerDependencies['DashPlatformAddressSource']> | null = null;
+      let platformConnectionError: unknown;
+      if (needsPlatform) {
+        const startedAt = performance.now();
+        try {
+          platformSource = new dependencies.DashPlatformAddressSource(network);
+          await platformSource.connect();
+        } catch (cause) {
+          platformConnectionError = cause;
+        } finally {
+          view.addRemoteDuration(performance.now() - startedAt);
+        }
+      }
+      let identitySource: InstanceType<ActivityViewerDependencies['DashPlatformIdentitySource']> | null = null;
+      let identityConnectionError: unknown;
+      if (needsIdentity) {
+        const startedAt = performance.now();
+        try {
+          identitySource = new dependencies.DashPlatformIdentitySource(network);
+          await identitySource.connect();
+        } catch (cause) {
+          identityConnectionError = cause;
+        } finally {
+          view.addRemoteDuration(performance.now() - startedAt);
+        }
+      }
+
+      const publicSettled = await mapViewerBatchTasks(
+        publicInputs,
+        concurrency,
+        async ({ input, detected }): Promise<ViewerSingleExportState> => {
+          if (cancellationRequested) throw new DOMException('Mixed batch cancelled.', 'AbortError');
+          const startedAt = performance.now();
+          try {
+            if (detected.mode === 'core') {
+              const snapshot = await dependencies.queryCoreAddress(
+                detected.value,
+                network,
+                limit,
+                currentAbort?.signal,
+              );
+              view.recordRequests(snapshot.requests);
+              return { mode: 'core', network: snapshot.network, snapshot };
+            }
+            if (detected.mode === 'platform') {
+              if (platformConnectionError !== undefined) throw platformConnectionError;
+              if (platformSource === null) throw new Error('Platform address source is unavailable.');
+              const snapshot = await platformSource.query(detected.value);
+              view.recordRequest();
+              const history = await dependencies.queryPlatformAddressHistory(
+                detected.value,
+                network,
+                limit,
+                currentAbort?.signal,
+              );
+              view.recordRequests(history.requests);
+              return { mode: 'platform', network: snapshot.network, snapshot, history };
+            }
+            if (identityConnectionError !== undefined) throw identityConnectionError;
+            if (identitySource === null) throw new Error('Platform Identity source is unavailable.');
+            const lookup = identityLookups.get(input.id);
+            if (lookup === undefined) throw new Error('Normalized Identity input is unavailable.');
+            const snapshot = await identitySource.query(lookup);
+            view.recordRequests(snapshot.requests);
+            const histories: PlatformIdentityHistoryResult[] = [];
+            for (const identity of snapshot.identities) {
+              if (cancellationRequested) throw new DOMException('Mixed batch cancelled.', 'AbortError');
+              try {
+                const history = await dependencies.queryPlatformIdentityHistory(
+                  identity.identifier,
+                  network,
+                  limit,
+                  currentAbort?.signal,
+                );
+                view.recordRequests(history.requests);
+                histories.push({ identifier: identity.identifier, history, error: null });
+              } catch (cause) {
+                if (cancellationRequested) throw cause;
+                histories.push({
+                  identifier: identity.identifier,
+                  history: null,
+                  error: errorMessage(cause),
+                });
+              }
+            }
+            return { mode: 'identity', network, snapshot, histories };
+          } finally {
+            view.addRemoteDuration(performance.now() - startedAt);
+            updateProgress(`${detected.mode} line ${input.line} finished`);
+          }
+        },
+      );
+
+      publicSettled.forEach((result, index) => {
+        const item = publicInputs[index];
+        if (item === undefined) return;
+        if (result.status === 'fulfilled') {
+          const ordinal = Number(item.input.id.replace(/\D/gu, '')) - 1;
+          batchItems.push({
+            id: item.input.id,
+            label: batchResultLabel(item.input, result.value, ordinal),
+            state: result.value,
+          });
+        } else {
+          addError(item.input, result.reason, item.detected.mode);
+        }
+      });
+
+      if (preparedOrchard.length > 0) {
+        const failed = new Set<string>();
+        let firstScanFailure: unknown;
+        try {
+          const source = new dependencies.DashEvoShieldedSource(network);
+          view.setStatus(`Connecting once to scan Orchard for ${preparedOrchard.length.toLocaleString()} detected viewing key(s)…`);
+          const connectStarted = performance.now();
+          await source.connect();
+          view.addRemoteDuration(performance.now() - connectStarted);
+          const outcome = await dependencies.runShieldedPageStream({
+            fetchPage: async (position) => {
+              view.setStatus(`Fetching shared verified Orchard page at aligned position ${position} for ${preparedOrchard.length - failed.size} active key(s)…`);
+              const fetchStarted = performance.now();
+              const page = await source.fetchPage(position, dependencies.shieldedPageSize);
+              view.addRemoteDuration(performance.now() - fetchStarted);
+              view.recordRequest();
+              return page;
+            },
+            noteCount: (page) => page.notes.length,
+            onPage: (page, visit) => {
+              for (const item of preparedOrchard) {
+                if (failed.has(item.input.id) || page.notes.length === 0) continue;
+                const scanStarted = performance.now();
+                try {
+                  const matches = dependencies.scanEncryptedPage(item.key, visit.position, page.notes, network);
+                  item.ledger.applyPage(visit.position, page, matches);
+                } catch (cause) {
+                  failed.add(item.input.id);
+                  firstScanFailure ??= cause;
+                  addError(item.input, cause, 'shielded');
+                  updateProgress(`Orchard line ${item.input.line} failed`);
+                } finally {
+                  view.addLocalDuration(performance.now() - scanStarted);
+                }
+              }
+              if (failed.size === preparedOrchard.length && firstScanFailure !== undefined) {
+                throw firstScanFailure;
+              }
+              view.updateTiming();
+            },
+            disposePage: (page) => {
+              for (const note of page.notes) {
+                note.cmx.fill(0);
+                note.nullifier.fill(0);
+                note.cvNet.fill(0);
+                note.encryptedNote.fill(0);
+              }
+              page.notes.length = 0;
+            },
+            isCancelled: () => cancellationRequested,
+            yieldTurn: yieldToBrowser,
+          });
+          for (const item of preparedOrchard) {
+            if (failed.has(item.input.id)) continue;
+            const state: ViewerSingleExportState = {
+              mode: 'shielded',
+              network,
+              snapshot: item.ledger.snapshot(outcome.complete),
+            };
+            const ordinal = Number(item.input.id.replace(/\D/gu, '')) - 1;
+            batchItems.push({
+              id: item.input.id,
+              label: batchResultLabel(item.input, state, ordinal),
+              state,
+            });
+            updateProgress(`Orchard line ${item.input.line} finished`);
+          }
+        } catch (cause) {
+          if (cancellationRequested) throw cause;
+          for (const item of preparedOrchard) {
+            if (failed.has(item.input.id)) continue;
+            addError(item.input, cause, 'shielded');
+            updateProgress(`Orchard line ${item.input.line} failed`);
+          }
+        }
+      }
+
+      if (cancellationRequested) throw new DOMException('Mixed batch cancelled.', 'AbortError');
+      batchItems.sort((left, right) => Number(left.id.replace(/\D/gu, '')) - Number(right.id.replace(/\D/gu, '')));
+      batchErrors.sort((left, right) => Number(left.id.replace(/\D/gu, '')) - Number(right.id.replace(/\D/gu, '')));
+      if (batchItems.length === 0) {
+        const firstError = batchErrors[0]?.message ?? 'No query returned a result.';
+        throw new Error(`Mixed batch completed without a successful result. ${firstError}`);
+      }
+      setExportState({
+        batch: true,
+        mode: 'mixed',
+        network,
+        items: batchItems,
+        errors: batchErrors,
+      });
+      const first = batchItems[0];
+      if (first === undefined) throw new Error('Batch result selection is unavailable.');
+      renderBatchSelection(first.id);
+
+      const modes = [...new Set(batchItems.map(({ state }) => state.mode))];
+      const coreHeights = batchItems.flatMap(({ state }) =>
+        state.mode === 'core' ? [state.snapshot.indexedHeight] : []);
+      const dapiHeights = batchItems.flatMap(({ state }) => {
+        if (state.mode === 'platform') return [state.snapshot.proofHeight];
+        if (state.mode === 'identity') return state.snapshot.proofs.map(({ height }) => height);
+        if (state.mode === 'shielded') return [state.snapshot.proofHeight];
+        return [];
+      });
+      const proofParts: string[] = [];
+      if (coreHeights.length > 0) proofParts.push(`Core ${Math.max(...coreHeights).toLocaleString()}`);
+      if (dapiHeights.length > 0) {
+        const dapiHeight = dapiHeights.reduce((highest, height) => height > highest ? height : highest, 0n);
+        proofParts.push(`DAPI ${dapiHeight}`);
+      }
+      const remoteTimes = batchItems.flatMap(({ state }) => {
+        if (state.mode === 'core') return [state.snapshot.indexedTimeMs];
+        if (state.mode === 'platform') return [state.history.indexedTimeMs];
+        if (state.mode === 'identity') {
+          return state.snapshot.proofs.map(({ responseTimeMs }) => Number(responseTimeMs));
+        }
+        return [];
+      }).filter((value) => Number.isFinite(value) && value > 0);
+      view.setDiagnosticMode(modes.length > 1 ? 'mixed' : modes[0]!, network);
+      const sourceLabels: Record<ViewerMode, string> = {
+        core: 'DashScan',
+        platform: 'Platform address proof/index',
+        identity: 'Identity proof/index',
+        shielded: 'Orchard proof/local scan',
+      };
+      view.setDiagnosticSource(modes.map((mode) => sourceLabels[mode]).join(' + '));
+      view.setDiagnosticProof(proofParts.join(' · '));
+      if (remoteTimes.length > 0) view.setDiagnosticRemoteTime(Math.max(...remoteTimes));
+      view.setStatus(`Mixed batch complete: ${batchItems.length.toLocaleString()} succeeded, ${batchErrors.length.toLocaleString()} failed.`);
+      view.finishDiagnostics(
+        `Detected ${modes.length.toLocaleString()} input type(s) locally and used bounded public-query concurrency ${concurrency}. Orchard viewing keys never left this page.`,
+      );
+    } finally {
+      for (const { key } of preparedOrchard) key.hex = '';
+    }
   }
 
   async function runBatch(network: ViewerNetwork): Promise<void> {
@@ -681,7 +1025,9 @@ export function createActivityViewerController(
             : 'Dash Platform DAPI · trusted quorum discovery',
     );
     try {
-      if (queryMode === 'batch') await runBatch(network);
+      if (queryMode === 'batch' && detectionMode === 'auto') await runAutoBatch(network);
+      else if (queryMode === 'batch') await runBatch(network);
+      else if (detectionMode === 'auto') await runAutoSingle(network);
       else if (viewerMode === 'shielded') await runShielded(network);
       else if (viewerMode === 'core') await runCore(network);
       else if (viewerMode === 'platform') await runPlatform(network);
@@ -721,7 +1067,9 @@ export function createActivityViewerController(
 
   function setViewerMode(mode: ViewerMode): void {
     if (running || mode === viewerMode) return;
+    detectionMode = 'advanced';
     viewerMode = mode;
+    view.setDetectionMode(detectionMode, viewerMode);
     view.setViewerMode(mode);
     resetViewer();
     setRunning(false);
@@ -731,6 +1079,14 @@ export function createActivityViewerController(
     if (running || mode === queryMode) return;
     queryMode = mode;
     view.setQueryMode(mode, viewerMode);
+    resetViewer();
+    setRunning(false);
+  }
+
+  function setDetectionMode(mode: ViewerDetectionMode): void {
+    if (running || mode === detectionMode) return;
+    detectionMode = mode;
+    view.setDetectionMode(mode, viewerMode);
     resetViewer();
     setRunning(false);
   }
@@ -771,10 +1127,14 @@ export function createActivityViewerController(
       for (const button of view.queryModeButtons) {
         button.addEventListener('click', () => setQueryMode(button.dataset.queryMode as ViewerQueryMode));
       }
+      for (const button of view.detectionModeButtons) {
+        button.addEventListener('click', () => setDetectionMode(button.dataset.detectionMode as ViewerDetectionMode));
+      }
       view.viewingKeyInput.addEventListener('input', () => view.updateInputMode(viewerMode));
       view.batchInput.addEventListener('input', () => view.updateInputMode(viewerMode));
       view.keyCapabilityInput.addEventListener('change', () => view.updateInputMode(viewerMode));
       view.networkInput.addEventListener('change', () => view.updateInputMode(viewerMode));
+      view.setDetectionMode(detectionMode, viewerMode);
       view.setQueryMode(queryMode, viewerMode);
       view.updateInputMode(viewerMode);
       setRunning(false);

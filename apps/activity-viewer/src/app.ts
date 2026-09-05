@@ -28,6 +28,11 @@ import {
 import { normalizeViewingKey } from '@ckd/dash-network/viewing-key.js';
 import { downloadText } from '@ckd/export/download.js';
 import { createActivityViewerController } from './controller.js';
+import {
+  assertAutoViewerBatchInput,
+  detectViewerInput,
+  looksLikeAutoOrchardInput,
+} from './detection.js';
 import { createViewerExport } from './export.js';
 import { createActivityViewerView } from './view.js';
 
@@ -40,6 +45,9 @@ const controller = createActivityViewerController(view, {
   assertCanonicalViewingKey,
   assertPublicBatchLookupInput,
   assertPublicLookupInput,
+  assertAutoViewerBatchInput,
+  detectViewerInput,
+  looksLikeAutoOrchardInput,
   createViewerExport,
   downloadText,
   normalizeViewingKey,
