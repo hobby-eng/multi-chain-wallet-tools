@@ -71,6 +71,7 @@ for (const marker of [
   '.viewer-hero-grid',
   '.viewer-capability-card',
   '.viewer-flow',
+  '.viewer-detection-tabs',
   '.viewer-mode-tabs',
   '.viewer-diagnostics',
   '.viewer-summary',
@@ -97,6 +98,7 @@ for (const requiredId of [
   'viewer-batch-input',
   'viewer-batch-concurrency',
   'viewer-batch-results',
+  'viewer-advanced-modes',
   'viewer-key-mode',
   'viewer-history-limit',
   'scan-button',
@@ -139,7 +141,10 @@ for (const marker of [
   'Dash Core · L1 address',
   'Dash Platform address',
   'Dash Platform Identity',
-  'Batch · multiple inputs',
+  'Batch · mixed inputs',
+  'Auto detect',
+  'Advanced · choose type',
+  'orchard-ovk:',
   'Inputs queried at once',
   'Private key-like material was detected and erased',
   'deduplicated by transaction hash',
@@ -177,7 +182,10 @@ if (!(coreTab >= 0 && coreTab < platformTab && platformTab < identityTab && iden
   throw new Error('Viewer tabs must be ordered Core, Platform address, Platform Identity, Orchard.');
 }
 if (!/<button class="viewer-mode-tab active" data-viewer-mode="core"[^>]+aria-pressed="true"/u.test(html)) {
-  throw new Error('Dash Core must be the default viewer tab.');
+  throw new Error('Dash Core must be the default Advanced viewer type.');
+}
+if (!/<button class="viewer-detection-tab active" data-detection-mode="auto"[^>]+aria-pressed="true"/u.test(html)) {
+  throw new Error('Automatic local input detection must be enabled by default.');
 }
 if (!/<button[^>]*id="scan-button"[^>]*disabled/u.test(html)) {
   throw new Error('Viewer query button must start fail-closed until its cryptographic self-test passes.');
