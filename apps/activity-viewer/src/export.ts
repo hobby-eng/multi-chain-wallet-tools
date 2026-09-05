@@ -674,8 +674,15 @@ function exportError(
   fallbackMode?: ViewerBatchExportState['mode'],
 ): ViewerBatchExportError {
   const mode = error.mode ?? (fallbackMode === 'mixed' ? undefined : fallbackMode);
-  if (mode !== 'shielded') return error;
   const ordinal = Number(error.id.replace(/\D/gu, ''));
+  if (mode === undefined) {
+    return {
+      id: error.id,
+      label: `${Number.isFinite(ordinal) ? ordinal : '?'} · AUTO · invalid input`,
+      message: 'Automatic input detection failed. Raw input is omitted from exports.',
+    };
+  }
+  if (mode !== 'shielded') return error;
   return {
     id: error.id,
     label: `${Number.isFinite(ordinal) ? ordinal : '?'} · ORCHARD · viewing key`,
