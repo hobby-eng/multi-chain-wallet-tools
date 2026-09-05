@@ -92,11 +92,44 @@
 .deriver-capability-card,
 .viewer-capability-card,
 .recovery-capability-card {
+  position:relative;
   min-height:286px;
+  overflow:hidden;
   padding:25px;
   border-color:#3b4755;
   background:linear-gradient(145deg,rgba(29,39,52,.96),rgba(13,20,29,.96));
   box-shadow:0 22px 70px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.05);
+}
+.capability-orbit {
+  position:absolute;
+  width:170px;
+  height:170px;
+  right:-72px;
+  top:-73px;
+  border:1px solid rgba(245,166,35,.2);
+  border-radius:50%;
+}
+.capability-orbit::before,
+.capability-orbit::after {
+  content:"";
+  position:absolute;
+  inset:19px;
+  border:1px solid rgba(245,166,35,.13);
+  border-radius:50%;
+}
+.capability-orbit::after {
+  inset:42px;
+  background:rgba(245,166,35,.06);
+}
+.capability-orbit span {
+  position:absolute;
+  left:18px;
+  bottom:27px;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 14px var(--accent);
 }
 .deriver-capability-card .capability-kicker,
 .viewer-capability-card .capability-kicker,
