@@ -94,6 +94,69 @@ describe('generic export formatter', () => {
     expect(displayedFields(result.rows[0]!, 'advanced')).toHaveLength(4);
   });
 
+  it('flattens grouped key fields while retaining their group labels in structured exports', () => {
+    const grouped: DerivationResult = {
+      id: 'dash-identity',
+      title: 'Identity fixture',
+      networkLabel: 'Dash mainnet Platform',
+      pathTemplate: "m/9'/5'/5'/0'/0'/identity_index'/key_id'",
+      basicSummary: [],
+      summary: [],
+      notices: [],
+      rows: [{
+        index: 0,
+        path: "m/9'/5'/5'/0'/0'/0'",
+        title: 'Identity candidate #0',
+        basic: [],
+        advanced: [field('identityId', 'Identity ID', 'Not available until registration')],
+        groups: [
+          {
+            key: 'key0',
+            title: 'Key 0 · MASTER AUTHENTICATION',
+            basic: [
+              field('key0PublicKey', 'Compressed public key', 'master-public'),
+              field('key0PrivateKeyWif', 'Private key (Dash WIF)', 'master-private', true),
+            ],
+            advanced: [field('key0Path', 'DIP13 derivation path', "m/9'/5'/5'/0'/0'/0'/0'")],
+          },
+          {
+            key: 'key1',
+            title: 'Key 1 · CRITICAL AUTHENTICATION',
+            basic: [
+              field('key1PublicKey', 'Compressed public key', 'critical-public'),
+              field('key1PrivateKeyWif', 'Private key (Dash WIF)', 'critical-private', true),
+            ],
+            advanced: [field('key1Path', 'DIP13 derivation path', "m/9'/5'/5'/0'/0'/0'/1'")],
+          },
+        ],
+      }],
+    };
+    const identityAdapter = getCoinAdapter('dash-identity');
+
+    expect(displayedFields(grouped.rows[0]!, 'basic')).toHaveLength(4);
+    const publicKeys = formatSelectedRows(
+      identityAdapter,
+      grouped,
+      new Set([0]),
+      'basic',
+      'publicKeys',
+      'plain',
+    );
+    expect(publicKeys.text).toBe('master-public\ncritical-public');
+
+    const structured = formatSelectedRows(
+      identityAdapter,
+      grouped,
+      new Set([0]),
+      'advanced',
+      'allDisplayed',
+      'structured',
+    );
+    expect(structured.text).toContain('Key 0 · MASTER AUTHENTICATION · Compressed public key: master-public');
+    expect(structured.text).toContain("Key 1 · CRITICAL AUTHENTICATION · DIP13 derivation path: m/9'/5'/5'/0'/0'/0'/1'");
+    expect(structured.containsSecret).toBe(true);
+  });
+
   it('streams the exact same bytes in bounded row-sized chunks', () => {
     const selected = new Set([0, 1]);
     const expected = formatSelectedRows(adapter, result, selected, 'advanced', 'selected', 'structured');

@@ -75,10 +75,12 @@ Official release checksums refer to artifacts produced by the repository's pinne
 | Ethereum EOA | `m/44'/60'/0'/0/i` | EIP-55 address |
 | Dash Core | `m/44'/5'/0'/0/i` | P2PKH |
 | Dash Platform | `m/9'/5'/17'/0'/0'/i` | DIP17/DIP18 address |
-| Dash Identity | `m/9'/5'/5'/0'/0'/i'/0'` | DIP13 authentication key |
+| Dash Identity | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 four-key registration profile |
 | Dash Orchard | `m/32'/5'/account'` + diversifier index | Shielded address and viewing/spending material |
 
 Bitcoin and Dash support mainnet/testnet separation. Optional change generation uses branch `/1` for Bitcoin and Dash Core. Exact protocol choices and pinned upstream references are documented in [DASH_IMPLEMENTATION.md](DASH_IMPLEMENTATION.md).
+
+Dash Identity results are grouped by candidate Identity index. Each group derives the official Platform Wallet v4.1.1 default ECDSA profile: MASTER authentication key `0`, CRITICAL authentication key `1`, HIGH authentication key `2`, and CRITICAL transfer key `3`. These roles are registration metadata rather than properties encoded by DIP13 or the key ID. The offline tool therefore never invents an Identity ID; it shows candidate keys and the public-key hashes used for later proof-verified discovery.
 
 ## Security and verification
 

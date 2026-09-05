@@ -19,14 +19,20 @@ describe('coin adapter extension contract', () => {
       'ethereum',
       'dash-core',
       'dash-platform',
+      'dash-identity',
       'dash-shielded',
     ]);
     for (const adapter of COIN_ADAPTERS) {
       expect(adapter.label.length).toBeGreaterThan(0);
       expect(adapter.variantLabel.length).toBeGreaterThan(0);
       expect(adapter.group.length).toBeGreaterThan(0);
-      expect(adapter.fieldRoles.addresses).toContain('address');
-      expect(adapter.defaults.count).toBe(20);
+      if (adapter.id === 'dash-identity') {
+        expect(adapter.fieldRoles.addresses).toEqual([]);
+        expect(adapter.defaults.count).toBe(5);
+      } else {
+        expect(adapter.fieldRoles.addresses).toContain('address');
+        expect(adapter.defaults.count).toBe(20);
+      }
       expect(adapter.pathPreview({ ...adapter.defaults })).toContain('m/');
       expect(getCoinAdapter(adapter.id)).toBe(adapter);
     }
@@ -47,6 +53,7 @@ describe('coin adapter extension contract', () => {
     expect(COIN_FAMILIES.find(({ id }) => id === 'dash')?.adapters.map(({ variantLabel }) => variantLabel)).toEqual([
       'Core · BIP44',
       'Platform · DIP17 / DIP18',
+      'Identity · DIP13',
       'Shielded · Orchard / ZIP-32',
     ]);
     expect(getDefaultCoinAdapter('bitcoin').id).toBe('bitcoin-taproot');
@@ -66,6 +73,20 @@ describe('coin adapter extension contract', () => {
     expect(getCoinAdapter('ethereum').branchControl?.label).toBe('Address branch');
     expect(getCoinAdapter('dash-platform').addressBranches).toBeUndefined();
     expect(getCoinAdapter('dash-platform').branchControl?.label).toBe('Key class');
+    expect(getCoinAdapter('dash-identity')).toMatchObject({
+      accountControl: false,
+      controlLabels: {
+        start: 'Start Identity index',
+        count: 'Number of Identity candidates',
+      },
+    });
+    expect(getCoinAdapter('dash-identity').pathPreview({
+      network: 'mainnet',
+      account: 0,
+      branch: 0,
+      start: 1,
+      count: 2,
+    })).toBe("m/9'/5'/5'/0'/0'/{1'…2'}/{0'…3'}");
     expect(getCoinAdapter('dash-shielded').addressBranches).toBeUndefined();
   });
 });
