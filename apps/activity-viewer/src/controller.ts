@@ -436,7 +436,8 @@ export function createActivityViewerController(
       if (mode === 'shielded' || (mode === undefined && dependencies.looksLikeAutoOrchardInput(input.value))) {
         return `${number} · ORCHARD · viewing key`;
       }
-      return `${number} · ${mode === undefined ? 'AUTO' : mode.toUpperCase()} · ${compactLabel(input.value)}`;
+      if (mode === undefined) return `${number} · AUTO · line ${input.line}`;
+      return `${number} · ${mode.toUpperCase()} · ${compactLabel(input.value)}`;
     };
     const addError = (input: ViewerBatchInput, cause: unknown, mode?: ViewerMode): void => {
       const resolvedMode = mode ?? (dependencies.looksLikeAutoOrchardInput(input.value) ? 'shielded' : undefined);
