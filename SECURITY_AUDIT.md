@@ -1,12 +1,12 @@
 # Security and implementation audit
 
-Review date: 2026-09-05. Scope: supplied baseline, modular source, both compile-time build profiles, generated WASM, the Bitcoin/Ethereum/Dash Wallet Key Derivation Tool, the connected Wallet Activity Viewer, and the mnemonic-based scan-only Wallet Discovery Scanner. The source is deliberately modular so additional coins and result types can be added without rewriting the generic UI/export layers. This is an engineering review, not a third-party security audit or formal cryptographic proof.
+Review date: 2026-09-05. Scope: supplied baseline, modular source, both compile-time build profiles, generated WASM, the extensible Multi-Chain Wallet Key Derivation Tool (currently Bitcoin, Ethereum, and Dash), the connected Wallet Activity Viewer, and the mnemonic-based scan-only Wallet Discovery Scanner. Dash Community is a separate Dash-only compile-time profile. The source is deliberately modular so additional Multi-Chain coins and result types can be added without rewriting the generic UI/export layers or entering the Dash-only graph. This is an engineering review, not a third-party security audit or formal cryptographic proof.
 
 ## Historical Bitcoin-only baseline
 
 The supplied `Taproot_Key_Deriver.html` was a 102,545-byte single-file Bitcoin Taproot application. It bundled minified Noble/Scure-family code with MIT license markers, used standard BIP39/BIP32 and secp256k1 primitives, and correctly performed BIP341 key-path derivation: even-Y internal-key normalization, tagged `TapTweak`, output point addition, tweaked secret calculation, Bech32m, and P2TR scriptPubKey. Its CSP blocked connections and it did not use persistent storage or runtime network APIs.
 
-That description applies only to the historical input prototype, not to the current suite. The current Wallet Key Derivation Tool supports Bitcoin Legacy/Nested SegWit/Native SegWit/Taproot, Ethereum EOA, Dash Core, Dash Platform payments, Dash Platform Identity keys, and Dash Orchard; the connected Wallet Activity Viewer and Wallet Discovery Scanner cover the documented Dash read-only workflows.
+That description applies only to the historical input prototype, not to the current suite. The extensible Multi-Chain profile currently supports Bitcoin, Ethereum, and Dash (Core, Platform payments, Platform Identity keys, and Orchard); the Dash Community profile contains only those Dash capabilities. The connected Wallet Activity Viewer and Wallet Discovery Scanner currently cover the documented Dash read-only workflows in both editions.
 
 The main security weakness was secret duplication in DOM `data-copy` attributes. It also rendered large HTML fragments with `innerHTML`, did not generate BIP39 phrases, and had no automated vector suite, bulk selection, dependency lock, or modular source. Dependency versions were not reliably recoverable from the minified artifact.
 

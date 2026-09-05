@@ -21,10 +21,11 @@ const template = applyProfileTemplate(
   tool,
 );
 const cssSource = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
+const shellCss = readFileSync(resolve(root, 'packages/shared-ui/styles/tool-shell.css'), 'utf8');
 const themeCss = profile.themeStylesheet === undefined
   ? ''
   : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
-const css = (await transform(`${cssSource}\n${themeCss}`, { loader: 'css', minify: true, legalComments: 'inline' })).code;
+const css = (await transform(`${cssSource}\n${shellCss}\n${themeCss}`, { loader: 'css', minify: true, legalComments: 'inline' })).code;
 const workerBuild = await build({
   absWorkingDir: root,
   entryPoints: [tool.workerEntryPoint],
