@@ -519,6 +519,8 @@ export function createDiscoveryScannerView(
     setBuildInfo(): void {
       required<HTMLElement>('#recovery-build-version').textContent = buildInfo.version;
       required<HTMLElement>('#recovery-build-date').textContent = buildInfo.releaseDate;
+      required<HTMLElement>('#recovery-build-edition').textContent = buildInfo.edition;
+      required<HTMLElement>('#recovery-build-profile').textContent = buildInfo.profile;
       required<HTMLElement>('#recovery-build-fingerprint').textContent = buildInfo.fingerprint;
       required<HTMLElement>('#recovery-artifact-checksum-file').textContent = buildInfo.checksumFile;
       required<HTMLElement>('#recovery-build-footer').textContent = `v${buildInfo.version} · ${buildInfo.fingerprint.slice(0, 16)}…`;

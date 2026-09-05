@@ -5,6 +5,7 @@ import {
   configureControls,
   populateCoinSelect,
   updatePathPreview,
+  type CoinMetadataRegistry,
   type DerivationControlValues,
   type DerivationControls,
 } from './inputs.js';
@@ -29,7 +30,7 @@ function requireElement<T extends Element>(document: Document, selector: string)
   return match;
 }
 
-export function createKeyDerivationView(document: Document) {
+export function createKeyDerivationView(document: Document, registry: CoinMetadataRegistry) {
   const required = <T extends Element>(selector: string): T => requireElement<T>(document, selector);
   const controls: DerivationControls = {
     coin: required<HTMLSelectElement>('#coin'),
@@ -153,10 +154,10 @@ export function createKeyDerivationView(document: Document) {
       statusRoot.hidden = true;
     },
     populateCoinSelect(): void {
-      populateCoinSelect(controls.coin);
+      populateCoinSelect(controls.coin, registry);
     },
     configureControls(adapter: CoinAdapter, values?: DerivationControlValues): void {
-      configureControls(adapter, controls, values);
+      configureControls(adapter, controls, registry, values);
       addressSearchAvailable = adapter.fieldRoles.addresses.length > 0;
       addressSearchPanel.hidden = !addressSearchAvailable;
       searchAddressButton.disabled = !cryptoControlsEnabled || !addressSearchAvailable;
@@ -386,9 +387,13 @@ export function createKeyDerivationView(document: Document) {
       releaseDate: string;
       fingerprint: string;
       checksumFile: string;
+      profile: string;
+      edition: string;
     }): void {
       required<HTMLElement>('#build-version').textContent = info.version;
       required<HTMLElement>('#build-date').textContent = info.releaseDate;
+      required<HTMLElement>('#build-edition').textContent = info.edition;
+      required<HTMLElement>('#build-profile').textContent = info.profile;
       required<HTMLElement>('#build-fingerprint').textContent = info.fingerprint;
       required<HTMLElement>('#artifact-checksum-file').textContent = info.checksumFile;
     },

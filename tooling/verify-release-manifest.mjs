@@ -2,15 +2,15 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseBuildProfile, profileArtifacts } from './build-profiles.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const dist = resolve(root, 'dist');
-const manifest = readFileSync(resolve(dist, 'SHA256SUMS'), 'utf8').trim().split('\n');
-const expectedNames = new Set([
-  'activity-viewer/Wallet_Activity_Viewer.html',
-  'discovery-scanner/Wallet_Discovery_Scanner.html',
-  'key-derivation/Wallet_Key_Derivation_Tool.html',
-]);
+const profile = parseBuildProfile();
+const manifest = readFileSync(resolve(root, profile.manifestPath), 'utf8').trim().split('\n');
+const expectedNames = new Set(profileArtifacts(profile).map((name) => (
+  profile.id === 'dash-community' ? name.replace(/^dash-community\//u, '') : name
+)));
 
 if (manifest.length !== expectedNames.size) throw new Error('SHA256SUMS must contain exactly three release artifacts.');
 for (const line of manifest) {
@@ -18,10 +18,11 @@ for (const line of manifest) {
   if (match === null) throw new Error(`Malformed SHA256SUMS line: ${line}`);
   const [, recorded, name] = match;
   if (!expectedNames.delete(name)) throw new Error(`Unexpected or duplicate release artifact: ${name}`);
-  const path = resolve(dist, name);
-  if (relative(dist, path) !== name) throw new Error(`Unsafe release artifact name: ${name}`);
+  const artifactName = profile.id === 'dash-community' ? `dash-community/${name}` : name;
+  const path = resolve(dist, artifactName);
+  if (relative(dist, path) !== artifactName) throw new Error(`Unsafe release artifact name: ${name}`);
   const actual = createHash('sha256').update(readFileSync(path)).digest('hex');
   if (recorded !== actual) throw new Error(`Release manifest checksum mismatch for ${name}.`);
 }
 if (expectedNames.size !== 0) throw new Error(`Release manifest is missing: ${[...expectedNames].join(', ')}`);
-console.log('Verified dist/SHA256SUMS for all standalone HTML artifacts.');
+console.log(`Verified ${profile.manifestPath} for ${profile.editionName} artifacts.`);

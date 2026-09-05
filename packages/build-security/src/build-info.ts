@@ -3,6 +3,8 @@ export interface BuildInfo {
   releaseDate: string;
   fingerprint: string;
   checksumFile: string;
+  profile: 'multi-chain' | 'dash-community';
+  edition: 'Multi-Chain Edition' | 'Dash Community Edition';
 }
 
 declare const __BUILD_INFO__: BuildInfo;

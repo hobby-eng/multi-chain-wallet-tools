@@ -2,15 +2,13 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseBuildProfile, profileArtifacts } from './build-profiles.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const dist = resolve(root, 'dist');
-const release = resolve(dist, 'release');
-const artifacts = [
-  'key-derivation/Wallet_Key_Derivation_Tool.html',
-  'activity-viewer/Wallet_Activity_Viewer.html',
-  'discovery-scanner/Wallet_Discovery_Scanner.html',
-];
+const profile = parseBuildProfile();
+const release = resolve(root, profile.releaseDirectory);
+const artifacts = profileArtifacts(profile);
 
 rmSync(release, { force: true, recursive: true });
 mkdirSync(release, { recursive: true });
@@ -47,4 +45,4 @@ copyFileSync(licenseSource, resolve(release, licenseName));
 manifest.push(`${licenseDigest}  ${licenseName}`);
 
 writeFileSync(resolve(release, 'SHA256SUMS'), `${manifest.sort().join('\n')}\n`);
-console.log('Created flat GitHub release assets in dist/release/.');
+console.log(`Created flat ${profile.editionName} release assets in ${profile.releaseDirectory}/.`);

@@ -1,10 +1,14 @@
-import {
-  COIN_FAMILIES,
-  getAdapterFamilyId,
-  getCoinFamily,
-  type CoinAdapter,
-  type CoinDerivationInput,
-} from '@ckd/coins/registry.js';
+import type {
+  CoinAdapter,
+  CoinDerivationInput,
+  CoinFamily,
+} from '@ckd/coins/registry-base.js';
+
+export interface CoinMetadataRegistry {
+  COIN_FAMILIES: readonly CoinFamily[];
+  getAdapterFamilyId(adapter: CoinAdapter): string;
+  getCoinFamily(id: string): CoinFamily;
+}
 
 export interface DerivationControls {
   coin: HTMLSelectElement;
@@ -40,9 +44,12 @@ function setNumeric(input: HTMLInputElement, value: number, max = 2_147_483_647)
   input.step = '1';
 }
 
-export function populateCoinSelect(select: HTMLSelectElement): void {
+export function populateCoinSelect(
+  select: HTMLSelectElement,
+  registry: CoinMetadataRegistry,
+): void {
   select.replaceChildren();
-  for (const family of COIN_FAMILIES) {
+  for (const family of registry.COIN_FAMILIES) {
     const option = document.createElement('option');
     option.value = family.id;
     option.textContent = family.label;
@@ -50,9 +57,13 @@ export function populateCoinSelect(select: HTMLSelectElement): void {
   }
 }
 
-function renderProtocolTabs(adapter: CoinAdapter, controls: DerivationControls): void {
+function renderProtocolTabs(
+  adapter: CoinAdapter,
+  controls: DerivationControls,
+  registry: CoinMetadataRegistry,
+): void {
   controls.protocolTabs.replaceChildren();
-  const family = getCoinFamily(getAdapterFamilyId(adapter));
+  const family = registry.getCoinFamily(registry.getAdapterFamilyId(adapter));
   for (const variant of family.adapters) {
     const button = document.createElement('button');
     const selected = variant.id === adapter.id;
@@ -70,12 +81,13 @@ function renderProtocolTabs(adapter: CoinAdapter, controls: DerivationControls):
 export function configureControls(
   adapter: CoinAdapter,
   controls: DerivationControls,
+  registry: CoinMetadataRegistry,
   remembered?: DerivationControlValues,
 ): void {
   const defaults = adapter.defaults;
   const values: DerivationControlValues = remembered ?? { ...defaults, includeChange: false };
-  controls.coin.value = getAdapterFamilyId(adapter);
-  renderProtocolTabs(adapter, controls);
+  controls.coin.value = registry.getAdapterFamilyId(adapter);
+  renderProtocolTabs(adapter, controls, registry);
   controls.network.replaceChildren();
   for (const network of ['mainnet', 'testnet'] as const) {
     const option = document.createElement('option');
