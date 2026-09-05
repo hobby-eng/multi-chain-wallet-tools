@@ -982,9 +982,9 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     },
     showCancellationRequested(mode: ViewerMode): void {
       cancelButton.disabled = true;
-      statusBox.textContent = mode === 'shielded' || detectionMode === 'auto'
+      statusBox.textContent = mode === 'shielded' && detectionMode === 'advanced'
         ? 'Cancellation requested; waiting for the current verified DAPI page…'
-        : 'Cancellation requested…';
+        : 'Cancellation requested; waiting for the current network operation…';
       statusBox.hidden = false;
     },
     toggleViewingKeyReveal(mode: ViewerMode): void {
@@ -1026,7 +1026,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       diagnosticProof.textContent = '—';
       diagnosticRemoteTime.textContent = '—';
       diagnosticTiming.textContent = '—';
-      diagnosticDetail.textContent = 'Select a mode and start a query. Failures are reported at the exact stage that stopped.';
+      diagnosticDetail.textContent = 'Enter an input and start a query. Failures are reported at the exact stage that stopped.';
       this.updateInputMode(mode);
     },
     setViewerMode(mode: ViewerMode): void {
@@ -1182,7 +1182,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       selfTestStatus.classList.add('passed');
       selfTestStatus.textContent = 'Cryptographic self-test passed';
       selfTestDetails.textContent = `${checks.length + 1} runtime checks passed: ${checks.join(' · ')} · Blob Worker execution (${blobWorkerDurationMs.toLocaleString()} ms). Queries are enabled.`;
-      runtimeStatus.textContent = 'Orchard recovery runs locally on the main thread · Blob Worker execution verified';
+      runtimeStatus.textContent = 'Core, Platform, Identity & Orchard network reads · Orchard key processing local · Blob Worker verified';
     },
     showSelfTestFailed(message: string): void {
       selfTestStatus.classList.remove('checking', 'passed');
