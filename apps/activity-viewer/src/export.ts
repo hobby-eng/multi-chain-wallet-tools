@@ -1,6 +1,8 @@
 import { neutralizeSpreadsheetFormula } from '@ckd/export/csv.js';
 import type { PlatformAddressHistorySnapshot } from '@ckd/dash-network/platform-address-history.js';
 import type { PlatformAddressSnapshot } from '@ckd/dash-network/platform-address-source.js';
+import type { PlatformIdentityHistoryResult } from '@ckd/dash-network/platform-identity-history.js';
+import type { PlatformIdentityLookupSnapshot } from '@ckd/dash-network/platform-identity-source.js';
 import type { CoreAddressSnapshot } from '@ckd/dash-network/public-address.js';
 import type { ActivitySnapshot, ViewerNetwork } from '@ckd/dash-network/types.js';
 
@@ -11,6 +13,12 @@ export type ViewerExportState =
     network: ViewerNetwork;
     snapshot: PlatformAddressSnapshot;
     history: PlatformAddressHistorySnapshot;
+  }
+  | {
+    mode: 'identity';
+    network: ViewerNetwork;
+    snapshot: PlatformIdentityLookupSnapshot;
+    histories: PlatformIdentityHistoryResult[];
   }
   | { mode: 'shielded'; network: ViewerNetwork; snapshot: ActivitySnapshot };
 
@@ -131,6 +139,134 @@ function shieldedRows(state: Extract<ViewerExportState, { mode: 'shielded' }>, g
   return [header, ...records];
 }
 
+function identityRows(state: Extract<ViewerExportState, { mode: 'identity' }>, generatedAt: string): CsvValue[][] {
+  const header: CsvValue[] = [
+    'schema_version', 'generated_at', 'mode', 'network', 'input_kind', 'input_label',
+    'lookup_public_key_hash', 'resolved_dpns_name', 'resolved_dpns_document_id',
+    'resolved_registration_transaction_hash',
+    'identity_id', 'identity_id_hex', 'dapi_balance_credits', 'dapi_revision', 'dapi_nonce',
+    'proof_verified_dpns_names', 'proof_heights', 'explorer_balance_credits',
+    'explorer_revision', 'explorer_nonce', 'registered_at', 'registration_transaction_hash',
+    'registration_type', 'registration_funding_source', 'funding_core_transaction_hash',
+    'funding_core_transaction_output_index', 'funding_core_transaction_error',
+    'system_identity', 'total_transactions', 'total_transfers',
+    'total_documents', 'total_data_contracts', 'total_gas_spent_credits', 'total_top_ups',
+    'total_top_up_credits', 'total_withdrawals', 'total_withdrawal_credits',
+    'record_type', 'record_id', 'name', 'status', 'type', 'direction', 'amount_credits',
+    'timestamp', 'transaction_hash', 'block_height', 'details',
+  ];
+  const proofHeights = [...new Set(state.snapshot.proofs.map(({ height }) => height.toString()))].join(' ');
+  const rows: CsvValue[][] = [];
+  for (const identity of state.snapshot.identities) {
+    const historyResult = state.histories.find(({ identifier }) => identifier === identity.identifier);
+    const history = historyResult?.history ?? null;
+    const common: CsvValue[] = [
+      '1', generatedAt, state.mode, state.network, state.snapshot.inputKind, state.snapshot.inputLabel,
+      state.snapshot.publicKeyHashHex, state.snapshot.resolvedDpnsName,
+      state.snapshot.resolvedDpnsDocumentId, state.snapshot.resolvedRegistrationTransactionHash,
+      identity.identifier, identity.identifierHex,
+      identity.balanceCredits, identity.revision, identity.nonce,
+      identity.dpnsNames.join(' '), proofHeights, history?.explorerBalanceCredits ?? null,
+      history?.explorerRevision ?? null, history?.explorerNonce ?? null,
+      timestamp(history?.registeredAtMs ?? null), history?.registrationTransactionHash ?? null,
+      history?.registrationType ?? null, history?.registrationFundingSource ?? null,
+      history?.fundingCoreTransactionHash ?? null,
+      history?.fundingCoreTransactionOutputIndex ?? null,
+      history?.fundingCoreTransactionError ?? null,
+      history?.systemIdentity ?? null,
+      history?.totalTransactions ?? null, history?.totalTransfers ?? null,
+      history?.totalDocuments ?? null, history?.totalDataContracts ?? null,
+      history?.totalGasSpentCredits ?? null, history?.totalTopUps ?? null,
+      history?.totalTopUpsCredits ?? null, history?.totalWithdrawals ?? null,
+      history?.totalWithdrawalsCredits ?? null,
+    ];
+    rows.push([
+      ...common, 'identity', identity.identifier, identity.dpnsNames.join(', '), historyResult?.error ?? 'verified',
+      'IDENTITY', 'related', identity.balanceCredits, timestamp(history?.registeredAtMs ?? null),
+      history?.registrationTransactionHash ?? null, null,
+      JSON.stringify({ keyCount: identity.publicKeys.length, historyError: historyResult?.error ?? null }),
+    ]);
+    for (const key of identity.publicKeys) {
+      rows.push([
+        ...common, 'public_key', String(key.keyId), '', key.disabledAtMs === null ? 'active' : 'disabled',
+        `${key.purpose}/${key.securityLevel}/${key.keyType}`, 'related', null,
+        timestamp(key.disabledAtMs), null, null,
+        JSON.stringify({
+          publicKeyHash: key.publicKeyHashHex,
+          data: key.dataHex,
+          purposeNumber: key.purposeNumber,
+          securityLevelNumber: key.securityLevelNumber,
+          keyTypeNumber: key.keyTypeNumber,
+          readOnly: key.readOnly,
+          isMaster: key.isMaster,
+          matchesLookup: key.matchesLookup,
+          contractBounds: key.contractBounds,
+        }, exactJson),
+      ]);
+    }
+    if (history === null) continue;
+    for (const alias of history.aliases) {
+      rows.push([
+        ...common, 'alias', alias.documentId, alias.name, alias.status, 'DPNS_ALIAS', 'related',
+        null, timestamp(alias.timestampMs), alias.transactionHash, null,
+        JSON.stringify({ contested: alias.contested }),
+      ]);
+    }
+    for (const event of history.activity) {
+      rows.push([
+        ...common, 'activity', event.transactionHash, '', event.status, event.type, event.direction,
+        event.netAmountCredits, timestamp(event.timestampMs), event.transactionHash, event.blockHeight,
+        JSON.stringify({
+          batchType: event.batchType,
+          error: event.error,
+          transfers: event.transfers,
+          blockHash: event.blockHash,
+          gasUsedCredits: event.gasUsedCredits,
+        }, exactJson),
+      ]);
+    }
+    for (const document of history.documents) {
+      rows.push([
+        ...common, 'document', document.identifier, document.documentTypeName, document.deleted ? 'deleted' : 'current',
+        'DOCUMENT', 'related', null, timestamp(document.timestampMs), document.transactionHash, null,
+        JSON.stringify(document),
+      ]);
+    }
+    for (const contract of history.dataContracts) {
+      rows.push([
+        ...common, 'data_contract', contract.identifier, contract.name, contract.system ? 'system' : 'user',
+        'DATA_CONTRACT', 'related', null, timestamp(contract.timestampMs), contract.transactionHash, null,
+        JSON.stringify(contract),
+      ]);
+    }
+    for (const withdrawal of history.withdrawals) {
+      rows.push([
+        ...common, 'withdrawal', withdrawal.documentId, withdrawal.withdrawalAddress, withdrawal.status,
+        'IDENTITY_CREDIT_WITHDRAWAL', 'outgoing', withdrawal.amountCredits,
+        timestamp(withdrawal.timestampMs), withdrawal.coreTransactionHash, null,
+        JSON.stringify(withdrawal, exactJson),
+      ]);
+    }
+    for (const token of history.tokens) {
+      rows.push([
+        ...common, 'token', token.identifier, token.name, '', 'TOKEN', 'related', token.totalSupply,
+        timestamp(token.timestampMs), null, null, JSON.stringify(token, exactJson),
+      ]);
+    }
+  }
+  if (rows.length === 0) {
+    rows.push([
+      '1', generatedAt, state.mode, state.network, state.snapshot.inputKind, state.snapshot.inputLabel,
+      state.snapshot.publicKeyHashHex, state.snapshot.resolvedDpnsName,
+      state.snapshot.resolvedDpnsDocumentId, state.snapshot.resolvedRegistrationTransactionHash,
+      '', '', '', '', '', '', proofHeights,
+      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+      'summary', '', '', 'not_found', 'IDENTITY', 'related', '', '', '', '', '',
+    ]);
+  }
+  return [header, ...rows];
+}
+
 function fileStamp(date: Date): string {
   return date.toISOString().replace(/[-:]/gu, '').replace(/\.\d{3}Z$/u, 'Z');
 }
@@ -145,6 +281,8 @@ export function createViewerExport(
   if (format === 'json') {
     const data = state.mode === 'platform'
       ? { snapshot: state.snapshot, history: state.history }
+      : state.mode === 'identity'
+        ? { snapshot: state.snapshot, histories: state.histories }
       : { snapshot: state.snapshot };
     return {
       filename,
@@ -156,6 +294,8 @@ export function createViewerExport(
     ? coreRows(state, generatedAtIso)
     : state.mode === 'platform'
       ? platformRows(state, generatedAtIso)
+      : state.mode === 'identity'
+        ? identityRows(state, generatedAtIso)
       : shieldedRows(state, generatedAtIso);
   return { filename, mimeType: 'text/csv', text: csv(rows) };
 }

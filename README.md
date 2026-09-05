@@ -24,11 +24,13 @@ Use this application on a trusted offline computer whenever real seed phrases or
 
 ### Wallet Activity Viewer
 
-A connected, read-only viewer for one Dash Core, Platform public address or Orchard viewing key.
+A connected, read-only viewer for a Dash Core address, Platform payment address, Platform Identity, or Orchard viewing key.
 
 - Looks up Dash Core address balances, history and transaction details.
 - Looks up Dash Platform payment-address balances and activity.
+- Resolves a Platform Identity by Base58 ID, the HASH160 fingerprint of a public key registered to the Identity, compressed ECDSA/BLS public key, or DPNS name with or without `.dash`. It proof-verifies current state, nonce, registered key roles and DPNS names, then combines indexed transactions and transfers into one deduplicated activity ledger.
 - Scans the Dash Orchard pool with FVK, IVK or OVK viewing capability without requiring a spending key.
+- Rejects and erases mnemonic, WIF, extended-private-key, raw-private-key and other private-material patterns before any public lookup request.
 - Exports the loaded activity as CSV or JSON.
 
 Public-address lookups reveal the queried address and source IP to the provider. Orchard viewing keys cannot spend funds, but they reveal privacy-sensitive wallet activity.

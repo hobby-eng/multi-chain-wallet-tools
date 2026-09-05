@@ -135,6 +135,9 @@ for (const marker of [
   'Wallet Activity Viewer',
   'Dash Core · L1 address',
   'Dash Platform address',
+  'Dash Platform Identity',
+  'Private key-like material was detected and erased',
+  'deduplicated by transaction hash',
   'Connection &amp; scan diagnostics',
   'Full Viewing Key',
   'Incoming Viewing Key',
@@ -163,9 +166,10 @@ if (occurrences(html, 'Embedded dependency versions and licenses') !== 1) {
 
 const coreTab = html.indexOf('data-viewer-mode="core"');
 const platformTab = html.indexOf('data-viewer-mode="platform"');
+const identityTab = html.indexOf('data-viewer-mode="identity"');
 const orchardTab = html.indexOf('data-viewer-mode="shielded"');
-if (!(coreTab >= 0 && coreTab < platformTab && platformTab < orchardTab)) {
-  throw new Error('Viewer tabs must be ordered Core, Platform, Orchard.');
+if (!(coreTab >= 0 && coreTab < platformTab && platformTab < identityTab && identityTab < orchardTab)) {
+  throw new Error('Viewer tabs must be ordered Core, Platform address, Platform Identity, Orchard.');
 }
 if (!/<button class="viewer-mode-tab active" data-viewer-mode="core"[^>]+aria-pressed="true"/u.test(html)) {
   throw new Error('Dash Core must be the default viewer tab.');

@@ -25,7 +25,7 @@
       <div class="viewer-hero-copy">
         <div class="eyebrow">WALLET ACTIVITY VIEWER · DASH</div>
         <h1>Wallet activity,<br><span>made visible.</span></h1>
-        <p>Scan Orchard activity locally with a viewing key, inspect a public Dash Core address, or query the proof-verified state of a Dash Platform payment address.</p>
+        <p>Scan Orchard activity locally, inspect public Core and Platform addresses, or resolve a Dash Platform Identity with proof-verified keys and state.</p>
         <div class="viewer-trust-row" aria-label="Security properties">
           <span>Proof-verified Platform DAPI</span>
           <span>Local note recovery</span>
@@ -35,12 +35,13 @@
 
       <aside class="viewer-capability-card" aria-label="Viewing key capabilities">
         <div class="capability-orbit" aria-hidden="true"><span></span></div>
-        <div class="capability-kicker">THREE VIEW MODES</div>
+        <div class="capability-kicker">FOUR VIEW MODES</div>
         <h2>Observe, never spend</h2>
         <div class="capability-list">
           <div><span class="capability-check">✓</span><span>FVK: complete activity view</span></div>
           <div><span class="capability-check">✓</span><span>Core: transactions and totals</span></div>
           <div><span class="capability-check">✓</span><span>Platform: verified state + history</span></div>
+          <div><span class="capability-check">✓</span><span>Identity: keys, names + activity</span></div>
           <div class="capability-denied"><span>×</span><span>Authorize transactions</span></div>
         </div>
       </aside>
@@ -50,25 +51,25 @@
   <main>
     <section class="warning danger-warning" aria-label="Privacy warning">
       <div class="warning-icon">!</div>
-      <div><strong>Viewing keys and address lookups are privacy-sensitive.</strong> This separate tool is intentionally network-enabled. Never paste a mnemonic, passphrase, spending key, or private key here. Viewing keys stay local, but a remote service can observe the pool scan or public address you query.</div>
+      <div><strong>Viewing keys and public lookups are privacy-sensitive.</strong> This separate tool is intentionally network-enabled. Never paste a mnemonic, passphrase, spending key, private key, WIF, or xprv here. Viewing keys stay local. Public addresses, Identity IDs, names, and key fingerprints are sent only after local validation; private-key-like input is erased before any request.</div>
     </section>
 
     <section class="viewer-flow" aria-label="Scan workflow">
-      <article><span>01</span><div><strong>Choose a view mode</strong><small>Core L1, Platform, or Orchard</small></div></article>
-      <article><span>02</span><div><strong>Provide view material</strong><small>Viewing key or public address</small></div></article>
+      <article><span>01</span><div><strong>Choose a view mode</strong><small>Core, Platform, Identity, or Orchard</small></div></article>
+      <article><span>02</span><div><strong>Provide view material</strong><small>Viewing key or public identifier</small></div></article>
       <article><span>03</span><div><strong>Query &amp; inspect</strong><small>Diagnostics stay visible</small></div></article>
     </section>
 
     <form id="viewer-form" autocomplete="off" spellcheck="false">
+      <div class="section-head viewer-stage-heading viewer-section-head">
+        <div><span class="step">01</span><div><h2>Start an activity query</h2><p>Nothing is stored after this page closes.</p></div></div>
+        <span id="viewer-privacy-chip" class="viewer-status-pill viewer-local-chip"><i></i> Public address lookup</span>
+      </div>
       <section class="panel viewer-control-panel">
-        <div class="section-head viewer-section-head">
-          <div><span class="step">01</span><div><h2>Start an activity query</h2><p>Nothing is stored after this page closes.</p></div></div>
-          <span id="viewer-privacy-chip" class="viewer-local-chip"><i></i> Public address lookup</span>
-        </div>
-
         <div class="viewer-mode-tabs" role="radiogroup" aria-label="Viewer mode">
           <button class="viewer-mode-tab active" data-viewer-mode="core" type="button" aria-pressed="true">Dash Core · L1 address</button>
           <button class="viewer-mode-tab" data-viewer-mode="platform" type="button" aria-pressed="false">Dash Platform address</button>
+          <button class="viewer-mode-tab" data-viewer-mode="identity" type="button" aria-pressed="false">Dash Platform Identity</button>
           <button class="viewer-mode-tab" data-viewer-mode="shielded" type="button" aria-pressed="false">Dash Orchard · viewing key</button>
         </div>
 
@@ -91,7 +92,7 @@
             <div id="viewer-history-field">
               <label class="viewer-capability-label" for="viewer-history-limit">Newest history entries to load</label>
               <input id="viewer-history-limit" type="number" value="200" min="1" max="1000" step="1">
-              <p class="field-note">Aggregated totals cover the complete indexed address history; the displayed ledger is capped at this limit.</p>
+              <p class="field-note">Aggregated totals cover complete indexed history where available; each displayed history section is capped at this limit.</p>
             </div>
           </div>
           <div class="viewer-key-field">
@@ -99,7 +100,7 @@
             <div class="viewer-key-row">
               <div class="viewer-secret-input">
                 <span class="viewer-key-icon" aria-hidden="true">◇</span>
-                <input id="full-viewing-key" type="text" autocomplete="off" autocapitalize="none" placeholder="Paste X… or 7… Dash Core address">
+                <input id="full-viewing-key" type="text" autocomplete="off" autocapitalize="none" data-1p-ignore="true" data-lpignore="true" data-form-type="other" placeholder="Paste X… or 7… Dash Core address">
               </div>
               <button id="reveal-viewing-key" class="secondary" type="button" aria-pressed="false" hidden>Reveal key</button>
             </div>
@@ -113,7 +114,7 @@
             <button class="secondary" id="cancel-button" type="button" disabled>Cancel after current page</button>
             <button class="secondary viewer-clear-button" id="clear-viewer" type="button">Clear viewer</button>
           </div>
-          <p class="viewer-action-note">The first complete scan may take a moment.</p>
+          <p class="viewer-action-note">Proof verification and complete indexed lookups may take a moment.</p>
         </div>
         <div id="viewer-error" class="error" role="alert" hidden></div>
         <div id="viewer-status" class="status" role="status" aria-live="polite" hidden></div>
@@ -133,15 +134,15 @@
     </form>
 
     <section id="viewer-results" class="viewer-results" hidden>
-      <div class="results-title viewer-results-title">
+      <div class="results-title viewer-stage-heading viewer-results-title">
         <div><span class="step">02</span><div><h2 id="viewer-results-heading">Recovered shielded activity</h2><p id="viewer-results-description">A local view reconstructed from the encrypted pool.</p></div></div>
         <div class="viewer-results-tools">
-          <span class="viewer-results-badge">VIEW-ONLY RESULTS</span>
           <div id="viewer-export-actions" class="viewer-export-actions" hidden>
             <span>Export loaded data</span>
             <button id="viewer-export-csv" class="secondary" type="button" disabled>CSV</button>
             <button id="viewer-export-json" class="secondary" type="button" disabled>JSON</button>
           </div>
+          <span class="viewer-status-pill viewer-results-badge">VIEW-ONLY RESULTS</span>
         </div>
       </div>
       <section class="panel viewer-summary-panel">
@@ -151,7 +152,10 @@
       <section id="viewer-result-help" class="result-help">
         Results are note-level activity ordered by shielded-pool position. The current DAPI note query does not expose a state-transition hash or exact creation timestamp per encrypted note, so this viewer does not invent transaction IDs or dates. “Sent outputs” exclude notes that also decrypt as this wallet’s own change; protocol fees are not reconstructed here.
       </section>
-      <div class="viewer-ledger-head"><span id="viewer-ledger-title">Activity ledger</span><span id="viewer-ledger-order">Oldest → newest</span></div>
+      <div class="section-head viewer-stage-heading viewer-ledger-head">
+        <div><span class="step">03</span><div><h2 id="viewer-ledger-title">Activity ledger</h2></div></div>
+        <span id="viewer-ledger-order" class="viewer-status-pill viewer-local-chip"><i></i> Oldest → newest</span>
+      </div>
       <div id="viewer-activity"></div>
     </section>
   </main>
@@ -177,7 +181,7 @@
   <footer>
     <div class="footer-main">
       <p>Dash Evo SDK 4.1.1 · proof-verified DAPI queries · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer</p>
-      <p>No spending capability is accepted or required. <span id="viewer-build-footer">Build —</span></p>
+      <p>No spending capability is accepted or required; private-key-like public lookup input is blocked locally. <span id="viewer-build-footer">Build —</span></p>
     </div>
   </footer>
   <script>/*__INLINE_JS__*/</script>

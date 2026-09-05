@@ -9,6 +9,12 @@ import {
 } from '@ckd/dash-network/orchard-scanner.js';
 import { queryPlatformAddressHistory } from '@ckd/dash-network/platform-address-history.js';
 import { DashPlatformAddressSource } from '@ckd/dash-network/platform-address-source.js';
+import { queryPlatformIdentityHistory } from '@ckd/dash-network/platform-identity-history.js';
+import {
+  DashPlatformIdentitySource,
+  normalizeIdentityLookupInput,
+} from '@ckd/dash-network/platform-identity-source.js';
+import { assertPublicLookupInput } from '@ckd/dash-network/private-material.js';
 import { queryCoreAddress } from '@ckd/dash-network/public-address.js';
 import {
   runShieldedPageStream,
@@ -27,12 +33,16 @@ const controller = createActivityViewerController(view, {
   ShieldedActivityLedger,
   DashEvoShieldedSource,
   DashPlatformAddressSource,
+  DashPlatformIdentitySource,
   assertCanonicalViewingKey,
+  assertPublicLookupInput,
   createViewerExport,
   downloadText,
   normalizeViewingKey,
+  normalizeIdentityLookupInput,
   queryCoreAddress,
   queryPlatformAddressHistory,
+  queryPlatformIdentityHistory,
   runBlobWorkerSelfTest,
   runOrchardRuntimeSelfTest,
   runShieldedPageStream,
