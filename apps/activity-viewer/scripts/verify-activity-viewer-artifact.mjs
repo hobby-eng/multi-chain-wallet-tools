@@ -3,14 +3,17 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
+import { getToolBuild, parseBuildProfile } from '../../../tooling/build-profiles.mjs';
 import { assertEvoSdkReadOnly } from '../../../tooling/verify-evo-read-only.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
-const artifactPath = resolve(root, 'dist/activity-viewer/Wallet_Activity_Viewer.html');
-const checksumPath = resolve(root, 'dist/activity-viewer/Wallet_Activity_Viewer.html.sha256');
+const profile = parseBuildProfile();
+const tool = getToolBuild(profile, 'activity-viewer');
+const artifactPath = resolve(root, 'dist', tool.artifactRelativePath);
+const checksumPath = resolve(root, 'dist', tool.artifactDirectory, tool.checksumFile);
 const orchardWasmPath = resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm');
 const html = readFileSync(artifactPath, 'utf8');
-const expectedFingerprint = createBuildInfo(root, 'Wallet_Activity_Viewer.html.sha256').fingerprint;
+const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
 if (!html.includes(expectedFingerprint)) {
   throw new Error('Viewer artifact does not contain the fingerprint of the current source tree.');
 }
@@ -124,6 +127,8 @@ for (const requiredId of [
   'viewer-crypto-self-test-details',
   'viewer-build-version',
   'viewer-build-date',
+  'viewer-build-edition',
+  'viewer-build-profile',
   'viewer-runtime',
   'viewer-build-fingerprint',
   'viewer-artifact-checksum-file',
@@ -173,6 +178,9 @@ for (const marker of [
   '<circle fill="#008de4"',
 ]) {
   if (!html.includes(marker)) throw new Error(`Viewer artifact is missing required marker: ${marker}`);
+}
+for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
+  if (!html.includes(marker)) throw new Error(`Viewer artifact is missing profile marker: ${marker}`);
 }
 if (occurrences(html, 'Embedded dependency versions and licenses') !== 1) {
   throw new Error('Viewer dependency versions must appear exactly once inside the Release passport.');

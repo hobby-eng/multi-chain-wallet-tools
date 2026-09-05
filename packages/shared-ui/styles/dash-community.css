@@ -1,0 +1,58 @@
+:root {
+  --dash-deep-blue:#012060;
+  --dash-midnight-blue:#0b0f3b;
+  --bg:#0b0f3b;
+  --panel:#111921;
+  --panel2:#091622;
+  --text:#f7fbff;
+  --muted:#9eb3c7;
+  --line:#264765;
+  --accent:#008de4;
+  --accent2:#79ceff;
+}
+body {
+  background-color:var(--bg);
+  background-image:radial-gradient(circle 760px at 78% -120px,rgba(0,141,228,.3) 0,transparent 72%);
+}
+body.result-mode-basic {
+  background-color:var(--bg);
+  background-image:radial-gradient(circle 760px at 78% -120px,rgba(0,141,228,.3) 0,transparent 72%);
+}
+body.result-mode-advanced {
+  background-color:var(--dash-midnight-blue);
+  background-image:radial-gradient(circle 760px at 78% -120px,rgba(1,32,96,.72) 0,transparent 72%);
+}
+.primary {
+  background:#008de4;
+  color:#00182b;
+}
+.primary:hover:not(:disabled) { background:#36adf2; }
+button:focus-visible { outline-color:rgba(121,206,255,.58); }
+textarea:focus,input:focus,select:focus {
+  border-color:#008de4;
+  box-shadow:0 0 0 3px rgba(0,141,228,.2);
+}
+.protocol-tab.active,.result-branch-tab.active,.viewer-input-mode-tab.active,
+.viewer-mode-tab.active,.recovery-mode-tab.active,.recovery-result-tab.active {
+  color:#c9edff;
+  border-color:#087fc4;
+  background:linear-gradient(180deg,#0c3150,#0a2237);
+}
+.protocol-tab.active::after,.viewer-input-mode-tab.active::after,
+.recovery-mode-tab.active::after { background:#008de4; }
+.mode-toggle button.active { background:#0c3150;color:#c9edff; }
+.path-preview code,.address,.viewer-stat-value,.finding-head strong { color:#79ceff; }
+.viewer-ambient-one,.recovery-ambient-one {
+  background:radial-gradient(circle,rgba(0,141,228,.23),transparent 68%);
+}
+.viewer-ambient-two,.recovery-ambient-two {
+  background:radial-gradient(circle,rgba(1,32,96,.35),transparent 70%);
+}
+.capability-orbit { border-color:rgba(0,141,228,.28); }
+.capability-orbit::before,.capability-orbit::after { border-color:rgba(0,141,228,.2); }
+.capability-orbit::after { background:rgba(0,141,228,.1); }
+.capability-orbit span { background:#008de4;box-shadow:0 0 14px #008de4; }
+.capability-kicker,.eyebrow,.step { color:#79ceff; }
+.build-passport {
+  background:linear-gradient(145deg,var(--dash-deep-blue),#081624);
+}

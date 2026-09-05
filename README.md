@@ -2,9 +2,12 @@
 
 [![Source and artifact checks](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml)
 
-Three portable wallet utilities built as standalone HTML files. Download a file, verify its SHA-256 checksum, and open it in a current browser—no installation or server required.
+Three portable wallet utilities built as standalone HTML files. One canonical source tree now produces two compile-time editions:
 
-Dash is the first fully integrated ecosystem. The key derivation tool also supports Bitcoin and Ethereum, and the project is structured so more chains can be added later.
+- **Multi-Chain Edition** retains Bitcoin, Ethereum, Dash Core, Dash Platform, Dash Identity, and Dash Orchard support.
+- **Dash Community Edition** compiles only Dash Core, Platform, Identity, and Orchard registrations into its application graph and applies dedicated Dash Community branding.
+
+Download a file, verify its SHA-256 checksum, and open it in a current browser—no installation or server required. Shared controllers, exports, Worker infrastructure, security boundaries, and tests remain common source code across both editions.
 
 This is an independent hobby project, not an official Dash product and not a replacement for a hardware or standard wallet. It has extensive automated checks but has not received an independent cryptography-specialist audit.
 
@@ -53,7 +56,9 @@ The scanner isolates mnemonic-based derivation inside a sandboxed, network-denie
 
 ## Download and verify
 
-Download the three HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). `SHA256SUMS` covers the complete release asset set.
+Download the three Multi-Chain Edition HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). `SHA256SUMS` covers the complete release asset set.
+
+This repository remains the canonical source and Multi-Chain release surface. A future `hobby-eng/dash-wallet-tools` repository is intended to distribute the Dash Community Edition from these canonical sources; it does not exist yet and must not become a divergent source fork.
 
 The SHA-256 value labelled **Source/build fingerprint** inside each file's Release passport is not the checksum of that HTML file. It identifies the source and embedded build inputs used to create it. Verify the downloaded HTML itself with its external `.sha256` sidecar or the release `SHA256SUMS` file.
 
@@ -109,7 +114,7 @@ Requirement: Docker Engine or Docker Desktop with BuildKit. Node.js, pnpm, Rust 
 ./tooling/build-reproducible.sh
 ```
 
-This builds and tests the complete project inside the canonical Linux/amd64 container and copies the verified files to `dist/`. The first run downloads the base image and toolchains and can be slow; Docker reuses them from its local cache afterward. No Docker image or cache is committed to Git or included in a release.
+This builds and tests both editions inside the canonical Linux/amd64 container and copies the verified files to `dist/`. The first run downloads the base image and toolchains and can be slow; Docker reuses them from its local cache afterward. No Docker image or cache is committed to Git or included in a release.
 
 Developers who already have Node.js and pnpm can use the equivalent convenience command `pnpm build:reproducible`. Pass `--wasm` to the shell script, or run `pnpm build:reproducible:wasm`, when intentionally regenerating the committed browser WASM.
 
@@ -141,7 +146,15 @@ dist/key-derivation/Wallet_Key_Derivation_Tool.html
 dist/activity-viewer/Wallet_Activity_Viewer.html
 dist/discovery-scanner/Wallet_Discovery_Scanner.html
 dist/SHA256SUMS
+dist/dash-community/key-derivation/Dash_Community_Key_Derivation_Tool.html
+dist/dash-community/activity-viewer/Dash_Community_Activity_Viewer.html
+dist/dash-community/discovery-scanner/Dash_Community_Discovery_Scanner.html
+dist/dash-community/SHA256SUMS
 ```
+
+Use `pnpm build:html:multi-chain` or `pnpm build:html:dash-community` for one profile. `pnpm build:html` builds both. `pnpm release:bundle` stages the unchanged Multi-Chain release set; `pnpm release:bundle:dash-community` stages the separately named future Dash distribution bundle without publishing it.
+
+The Dash Community theme uses the official Dash Blue `#008de4`, Deep Blue `#012060`, Midnight Blue `#0b0f3b`, white, grey, and black palette documented by the primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html) and [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/). The restrained dark treatment preserves existing responsive layouts and high-contrast security states.
 
 For individual application instructions, see:
 

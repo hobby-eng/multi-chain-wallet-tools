@@ -635,6 +635,8 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
 
   required<HTMLElement>('viewer-build-version').textContent = buildInfo.version;
   required<HTMLElement>('viewer-build-date').textContent = buildInfo.releaseDate;
+  required<HTMLElement>('viewer-build-edition').textContent = buildInfo.edition;
+  required<HTMLElement>('viewer-build-profile').textContent = buildInfo.profile;
   required<HTMLElement>('viewer-build-fingerprint').textContent = buildInfo.fingerprint;
   required<HTMLElement>('viewer-artifact-checksum-file').textContent = buildInfo.checksumFile;
   required<HTMLElement>('viewer-build-footer').textContent = `Build ${buildInfo.version} · ${buildInfo.releaseDate} · ${buildInfo.fingerprint.slice(0, 16)}…`;
