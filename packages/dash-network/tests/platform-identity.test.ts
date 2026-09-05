@@ -86,6 +86,19 @@ describe('Platform Identity public input boundary', () => {
       .toThrow(PrivateMaterialError);
   });
 
+  it('requires an explicit prefix for ambiguous 96-hex BLS public keys', () => {
+    const publicKeyHex = '12'.repeat(48);
+    expect(() => normalizeIdentityLookupInput(publicKeyHex))
+      .toThrow('bls:<hex>');
+    expect(() => normalizeIdentityLookupInput(publicKeyHex))
+      .toThrow(PrivateMaterialError);
+    expect(normalizeIdentityLookupInput(`bls:${publicKeyHex}`)).toMatchObject({
+      kind: 'bls-public-key',
+      publicKeyHex,
+      publicKeyHashHex: bytesToHex(hash160(Uint8Array.from({ length: 48 }, () => 0x12))),
+    });
+  });
+
   it('does not reinterpret a malformed public key as another input type', () => {
     expect(() => normalizeIdentityLookupInput(`02${'00'.repeat(32)}`))
       .toThrow('compressed secp256k1 public key is invalid');

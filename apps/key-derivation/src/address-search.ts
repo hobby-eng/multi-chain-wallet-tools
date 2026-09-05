@@ -1,16 +1,7 @@
 import type { CoinDerivationInput } from '@ckd/coins/registry.js';
 import type { RuntimeCoinAdapter } from '@ckd/coins/runtime-registry.js';
+import { clearDerivationResult } from '@ckd/core/secrets.js';
 import type { DerivationResult } from '@ckd/core/types.js';
-
-function clearTemporaryResult(result: DerivationResult | null): void {
-  if (result === null) return;
-  for (const field of [...result.basicSummary, ...result.summary]) field.value = '';
-  if (result.watchOnly !== undefined) result.watchOnly.text = '';
-  for (const row of result.rows) {
-    row.path = '';
-    for (const field of [...row.basic, ...row.advanced]) field.value = '';
-  }
-}
 
 export interface AddressSearchMatch {
   index: number;
@@ -49,7 +40,7 @@ export async function findDerivedAddress(
       }
     } finally {
       batchSeed.fill(0);
-      clearTemporaryResult(result);
+      clearDerivationResult(result);
     }
     offset += batchCount;
   }
