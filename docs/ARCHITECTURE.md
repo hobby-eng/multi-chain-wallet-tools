@@ -20,10 +20,10 @@ Each application owns its HTML template, UI controller, app-specific styles, bui
 
 | Profile | Key-derivation registry | Output root | Branding |
 | --- | --- | --- | --- |
-| `multi-chain` | `coins/registry.ts` + `coins/runtime-registry.ts` | existing `dist/<tool>/Wallet_*.html` paths | existing Multi-Chain presentation |
-| `dash-community` | `coins/dash-registry.ts` + `coins/dash-runtime-registry.ts` | `dist/dash-community/<tool>/Dash_Community_*.html` | Dash Community copy and Dash-blue theme |
+| `multi-chain` | `coins/registry.ts` + `coins/runtime-registry.ts` | existing `dist/<tool>/Wallet_*.html` paths | extensible Multi-Chain presentation; currently Bitcoin, Ethereum, and Dash (Core, Platform, Identity, Orchard) |
+| `dash-community` | `coins/dash-registry.ts` + `coins/dash-runtime-registry.ts` | `dist/dash-community/<tool>/Dash_Community_*.html` | Dash-only copy, graph, branding, and theme |
 
-The metadata registry is split into protocol-specific adapter modules. The Multi-Chain entrypoint explicitly composes Bitcoin, Ethereum, and Dash arrays. The Dash entrypoint imports only the Dash array, and its Worker imports only Dash derivation implementations and Dash-only startup vectors. The Discovery Scanner uses separate explicit profile registries even though Dash is currently its only adapter. This opt-in composition ensures that adding a future coin to the Multi-Chain registry cannot silently add it to a Dash build.
+The metadata registry is split into protocol-specific adapter modules. The extensible Multi-Chain entrypoint currently composes the Bitcoin, Ethereum, and Dash arrays; more adapters can be added explicitly. The Dash entrypoint imports only the Dash array, and its Worker imports only Dash derivation implementations and Dash-only startup vectors. The Discovery Scanner uses separate explicit profile registries even though Dash is currently its only adapter. This opt-in composition ensures that adding a future coin to the Multi-Chain registry cannot silently add it to a Dash build.
 
 Application bootstrap code, controllers, views, export implementations, network boundaries, Worker lifecycle, and most tests remain shared. Edition entrypoints select dependencies at compile time; no runtime feature flag hides an already bundled adapter.
 
@@ -34,7 +34,7 @@ Application bootstrap code, controllers, views, export implementations, network 
 - `packages/dash-network`: public Dash data providers, Platform state/history, viewing-key parsing and Orchard activity reconstruction.
 - `packages/dash-shielded-wasm`: pinned Rust source, Cargo lock and generated browser WASM for Dash Orchard/ZIP-32. There is one compiled WASM binary shared at source/build time; each standalone connected artifact embeds its own release copy because artifacts must run independently.
 - `packages/export-core`: generic formatter, clipboard boundary and Bitcoin descriptor handling.
-- `packages/shared-ui`: common visual system plus the explicit `dash-community.css` token/override module.
+- `packages/shared-ui`: common visual system, the post-application `tool-shell.css` layout/state layer shared by both editions, and the explicit `dash-community.css` palette/brand override module.
 - `packages/build-security`: immutable build passport, including edition/profile identity, and ambient type declarations.
 - `packages/verification`: fixed BIP39, full Multi-Chain, and Dash-only startup vectors.
 
@@ -62,4 +62,4 @@ This repository is the canonical source for both editions. A future `hobby-eng/d
 
 ## Dash Community visual identity
 
-The Dash Community theme uses official palette values from the primary [Dash documentation marketing page](https://docs.dash.org/en/stable/docs/user/marketing.html) and the linked [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/): Dash Blue `#008de4`, Deep Blue `#012060`, Midnight Blue `#0b0f3b`, White `#ffffff`, Grey `#787878`, and Black `#111921`. The theme applies blue accents over the existing dark, responsive visual system while preserving red danger states, green success states, keyboard focus visibility, and mobile breakpoints. Use of Dash branding identifies the target community and does not imply endorsement.
+The Dash Community theme is derived from the visual principles and palette in the official [Dash BrandBook](https://www.figma.com/design/cCpB1W2IAmoEGXBbGqGsfD/Dash-BrandBook?node-id=219-108&p=f), the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), and the primary [Dash documentation marketing page](https://docs.dash.org/en/stable/docs/user/marketing.html). It applies controlled Dash blue, translucent navy surfaces, restrained ribbed geometry, and the official mark over the shared responsive shell. Expected privacy/security notices use calm caution styling; red is reserved for actual errors. Use of Dash branding identifies the target community and does not imply endorsement.
