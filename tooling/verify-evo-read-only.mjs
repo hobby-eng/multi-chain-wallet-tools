@@ -40,6 +40,18 @@ const FACADE_WRITE_METHODS = new Map([
   ])],
 ]);
 
+const SECRET_CAPABLE_WALLET_METHODS = new Set([
+  'generateMnemonic',
+  'mnemonicToSeed',
+  'deriveKeyFromSeedPhrase',
+  'validateMnemonic',
+]);
+
+function isEvoModuleSpecifier(node) {
+  if (!ts.isStringLiteral(node)) return false;
+  return node.text === '@dashevo/evo-sdk' || node.text.startsWith('@dashevo/evo-sdk/');
+}
+
 function staticString(node, strings) {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
   if (ts.isIdentifier(node)) return strings.get(node.text);
@@ -86,8 +98,11 @@ function recordBinding(binding, path, aliases) {
 function describeWrite(path) {
   const method = path.at(-1);
   if (method === undefined) return undefined;
-  if (LOW_LEVEL_WRITE_METHODS.has(method)) return `low-level state-transition method ${method}`;
   const facade = path.at(-2);
+  if (facade === 'wallet' && SECRET_CAPABLE_WALLET_METHODS.has(method)) {
+    return `secret-capable wallet.${method} SDK method`;
+  }
+  if (LOW_LEVEL_WRITE_METHODS.has(method)) return `low-level state-transition method ${method}`;
   if (facade !== undefined && FACADE_WRITE_METHODS.get(facade)?.has(method) === true) {
     return `write-capable ${facade}.${method} facade`;
   }
@@ -100,6 +115,43 @@ function findInSourceFile(sourceFile) {
   const findings = [];
 
   function visit(node) {
+    if (ts.isImportDeclaration(node) && isEvoModuleSpecifier(node.moduleSpecifier)) {
+      const clause = node.importClause;
+      const bindings = clause?.namedBindings;
+      if (bindings !== undefined && ts.isNamespaceImport(bindings)) {
+        aliases.set(bindings.name.text, []);
+        const location = sourceFile.getLineAndCharacterOfPosition(bindings.getStart(sourceFile));
+        findings.push({
+          path: sourceFile.fileName,
+          line: location.line + 1,
+          column: location.character + 1,
+          description: 'combined Evo SDK namespace import exposing the secret-capable wallet API',
+        });
+      } else if (bindings !== undefined && ts.isNamedImports(bindings)) {
+        for (const element of bindings.elements) {
+          const imported = element.propertyName?.text ?? element.name.text;
+          if (imported === 'wallet') {
+            aliases.set(element.name.text, ['wallet']);
+            const location = sourceFile.getLineAndCharacterOfPosition(element.getStart(sourceFile));
+            findings.push({
+              path: sourceFile.fileName,
+              line: location.line + 1,
+              column: location.character + 1,
+              description: 'secret-capable Evo SDK wallet API import',
+            });
+          } else if (SECRET_CAPABLE_WALLET_METHODS.has(imported)) {
+            aliases.set(element.name.text, ['wallet', imported]);
+            const location = sourceFile.getLineAndCharacterOfPosition(element.getStart(sourceFile));
+            findings.push({
+              path: sourceFile.fileName,
+              line: location.line + 1,
+              column: location.character + 1,
+              description: `secret-capable wallet.${imported} SDK import`,
+            });
+          }
+        }
+      }
+    }
     if (ts.isVariableDeclaration(node) && node.initializer !== undefined) {
       if (ts.isIdentifier(node.name)) {
         const value = staticString(node.initializer, strings);

@@ -12,6 +12,8 @@ The main UI loads protocol metadata only. All runtime key derivation and the sin
 
 Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot plus Dash Core can optionally derive the standard internal/change branch `/1` alongside the receive branch `/0`. Receive and Change are separate result tabs with independent row selection, paging, copy/download state and branch-specific Bitcoin watch-only descriptors. Ethereum keeps its explicit address-branch selector pending the separate custom-path/preset work; Dash Platform key classes and Orchard diversifiers are not mislabeled as change branches.
 
+Every derived public payment address has an on-demand offline QR preview beside its copy action. Bitcoin, Ethereum, and Dash Core use their canonical address-only URI schemes; Platform and Orchard encode the exact address because no broader payment-URI mapping is assumed. Mnemonics, private/public keys, descriptors, viewing keys, Identity keys, paths, fingerprints, and metadata never receive QR actions.
+
 The **Also generate change addresses** checkbox appears only for adapters that explicitly declare the standard two-branch model. It is off by default. When enabled, the same account, network, start index and result count are derived once under `/0` and once under `/1`; the first tab remains **Receive addresses** and the second tab contains **Change addresses**. Automatic derivation, manual derivation, cancellation, known-address search, Basic/Advanced display, secret reveal, selection, copy and download all respect the active branch. Disabling the checkbox discards the change result rather than silently mixing it with receive rows.
 
 Build only this artifact after generated WASM is already verified:
