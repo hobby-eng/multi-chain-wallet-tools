@@ -314,6 +314,29 @@ describe('viewer exports', () => {
       }
   });
 
+  it('redacts unresolved automatic input labels and messages in mixed exports', () => {
+      const fragment = 'ab'.repeat(95) + 'a';
+      const state: ViewerExportState = {
+        batch: true,
+        mode: 'mixed',
+        network: 'mainnet',
+        items: [],
+        errors: [{
+          id: 'query-8',
+          label: `8 · AUTO · ${fragment.slice(0, 16)}…${fragment.slice(-16)}`,
+          message: `Invalid input ${fragment}`,
+        }],
+      };
+
+      for (const format of ['csv', 'json'] as const) {
+        const exported = createViewerExport(state, format, generatedAt);
+        expect(exported.text).toContain('8 · AUTO · invalid input');
+        expect(exported.text).toContain('Raw input is omitted from exports.');
+        expect(exported.text).not.toContain(fragment.slice(0, 16));
+        expect(exported.text).not.toContain(fragment.slice(-16));
+      }
+  });
+
   it('exports mixed batches as separate Excel worksheets without losing exact integers', async () => {
     const core: ViewerSingleExportState = {
       mode: 'core',
