@@ -14,9 +14,9 @@ This is an independent hobby project, not an official Dash product and not a rep
 
 An offline tool for deriving wallet addresses and keys from a BIP39 seed phrase.
 
-- Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; Dash Core, Platform and Orchard Shielded.
-- Shows standard derivation paths and accepts custom paths where the protocol permits them.
-- Can generate receive and change addresses for Bitcoin, Ethereum, Dash Core, also receive addresses for Dash Platform, Dash Orchard Pool.
+- Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; and Dash Core, Platform payment, Identity, and Orchard Shielded derivation.
+- Shows standards-based derivation paths and exposes protocol-specific account, branch/key-class, and index controls.
+- Derives standard receive/change branches for Bitcoin and Dash Core, an explicit EOA branch for Ethereum, Platform payment receive keys, four-key Identity candidates, and Orchard addresses and viewing material.
 - Displays basic results or detailed protocol-specific data, with selectable clipboard and file exports.
 - Runs derivation in a disposable Web Worker and has runtime network access blocked by CSP and build verification.
 
@@ -30,7 +30,7 @@ A connected, read-only viewer for a Dash Core address, Platform payment address,
 - Accepts mixed Core, Platform, Identity, and Orchard records in one batch while keeping viewing keys local.
 - Looks up Dash Core address balances, history and transaction details.
 - Looks up Dash Platform payment-address balances and activity.
-- Resolves a Platform Identity by Base58 ID, the HASH160 fingerprint of a public key registered to the Identity, compressed ECDSA/BLS public key, or DPNS name with or without `.dash`. It proof-verifies current state, nonce, registered key roles and DPNS names, then combines indexed transactions and transfers into one deduplicated activity ledger.
+- Resolves a Platform Identity by Base58 ID, explicit hexadecimal ID, registration transaction, the HASH160 fingerprint of a registered public key, compressed ECDSA/BLS public key, or DPNS name with or without `.dash`. It proof-verifies current state, nonce, registered key roles and DPNS names, then combines indexed transactions and transfers into one deduplicated activity ledger.
 - Scans the Dash Orchard pool with FVK, IVK or OVK viewing capability without requiring a spending key.
 - Supports bounded batch queries for every resource type. Core addresses, Platform addresses, and Identity lookups use configurable concurrency, while one proof-verified Orchard page stream is reused locally across all supplied viewing keys.
 - Rejects and erases mnemonic, WIF, extended-private-key, raw-private-key and other private-material patterns before any public lookup request.
