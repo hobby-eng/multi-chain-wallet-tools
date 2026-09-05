@@ -38,6 +38,8 @@ interface ActivityViewerDependencies {
   detectViewerInput: typeof import('./detection.js').detectViewerInput;
   looksLikeAutoOrchardInput: typeof import('./detection.js').looksLikeAutoOrchardInput;
   createViewerExport: typeof import('./export.js').createViewerExport;
+  createViewerWorkbookExport: typeof import('./export.js').createViewerWorkbookExport;
+  downloadBlob: typeof import('@ckd/export/download.js').downloadBlob;
   downloadText: typeof import('@ckd/export/download.js').downloadText;
   normalizeViewingKey: typeof import('@ckd/dash-network/viewing-key.js').normalizeViewingKey;
   normalizeIdentityLookupInput: typeof import('@ckd/dash-network/platform-identity-source.js').normalizeIdentityLookupInput;
@@ -70,6 +72,7 @@ export function createActivityViewerController(
   let activeBatchResultId: string | null = null;
   let viewerSelfTestPassed = false;
   let lastShieldedPaintAt = 0;
+  let exportingWorkbook = false;
 
   function setRunning(value: boolean): void {
     running = value;
@@ -134,14 +137,34 @@ export function createActivityViewerController(
     return cause instanceof Error && cause.name === 'PrivateMaterialError';
   }
 
-  function downloadExport(format: ViewerExportFormat): void {
+  async function downloadExport(format: ViewerExportFormat): Promise<void> {
     if (currentExport === null) {
       view.showError('Run a query before exporting data.');
       return;
     }
-    const file = dependencies.createViewerExport(currentExport, format);
-    dependencies.downloadText(file.text, file.filename, file.mimeType);
-    view.setStatus(`Exported ${file.filename}. No private or viewing-key input is included.`);
+    try {
+      if (format === 'xlsx') {
+        if (exportingWorkbook) return;
+        exportingWorkbook = true;
+        view.setExportBusy(true);
+        view.setStatus('Building XLSX workbook locally…');
+        const file = await dependencies.createViewerWorkbookExport(currentExport);
+        dependencies.downloadBlob(file.blob, file.filename);
+        view.setStatus(`Exported ${file.filename}. No private or viewing-key input is included.`);
+        return;
+      }
+      const file = dependencies.createViewerExport(currentExport, format);
+      dependencies.downloadText(file.text, file.filename, file.mimeType);
+      view.setStatus(`Exported ${file.filename}. No private or viewing-key input is included.`);
+    } catch (cause) {
+      view.showError(`Export failed: ${errorMessage(cause)}`);
+    } finally {
+      if (format === 'xlsx') {
+        exportingWorkbook = false;
+        view.setExportBusy(false);
+        view.setExportAvailable(currentExport !== null);
+      }
+    }
   }
 
   /**
@@ -734,7 +757,12 @@ export function createActivityViewerController(
       return `${number} · ${compactLabel(input.value)}`;
     };
     const addPreflightError = (input: ViewerBatchInput, cause: unknown): void => {
-      batchErrors.push({ id: input.id, label: errorLabel(input), message: errorMessage(cause) });
+      batchErrors.push({
+        id: input.id,
+        label: errorLabel(input),
+        message: errorMessage(cause),
+        mode: viewerMode,
+      });
       updateProgress(`line ${input.line} rejected locally`);
     };
 
@@ -902,6 +930,7 @@ export function createActivityViewerController(
                     id: item.input.id,
                     label: errorLabel(item.input),
                     message: errorMessage(cause),
+                    mode: viewerMode,
                   });
                 } finally {
                   view.addLocalDuration(performance.now() - scanStarted);
@@ -950,7 +979,12 @@ export function createActivityViewerController(
           state: result.value,
         });
       } else {
-        batchErrors.push({ id: input.id, label: errorLabel(input), message: errorMessage(result.reason) });
+        batchErrors.push({
+          id: input.id,
+          label: errorLabel(input),
+          message: errorMessage(result.reason),
+          mode: viewerMode,
+        });
       }
     });
     batchItems.sort((left, right) => Number(left.id.replace(/\D/gu, '')) - Number(right.id.replace(/\D/gu, '')));
@@ -1119,8 +1153,9 @@ export function createActivityViewerController(
       view.clearButton.addEventListener('click', resetViewer);
       view.revealButton.addEventListener('click', () => view.toggleViewingKeyReveal(viewerMode));
       view.revealBatchButton.addEventListener('click', () => view.toggleViewingKeyReveal(viewerMode));
-      view.exportCsvButton.addEventListener('click', () => downloadExport('csv'));
-      view.exportJsonButton.addEventListener('click', () => downloadExport('json'));
+      view.exportCsvButton.addEventListener('click', () => { void downloadExport('csv'); });
+      view.exportXlsxButton.addEventListener('click', () => { void downloadExport('xlsx'); });
+      view.exportJsonButton.addEventListener('click', () => { void downloadExport('json'); });
       for (const button of view.modeButtons) {
         button.addEventListener('click', () => setViewerMode(button.dataset.viewerMode as ViewerMode));
       }
