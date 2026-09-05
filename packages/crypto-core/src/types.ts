@@ -9,12 +9,22 @@ export interface ResultField {
   description?: string;
 }
 
+export interface ResultFieldGroup {
+  key: string;
+  title: string;
+  description?: string;
+  basic: ResultField[];
+  advanced: ResultField[];
+}
+
 export interface DerivedRow {
   index: number;
   path: string;
   title: string;
   basic: ResultField[];
   advanced: ResultField[];
+  /** Related fields rendered together while the row remains the selection/export unit. */
+  groups?: ResultFieldGroup[];
 }
 
 export interface WatchOnlyExport {

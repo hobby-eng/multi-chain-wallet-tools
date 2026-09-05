@@ -1,7 +1,7 @@
 {
   "name": "multi-chain-wallet-tools",
-  "version": "0.1.1",
-  "releaseDate": "2026-09-04",
+  "version": "0.1.2",
+  "releaseDate": "2026-09-05",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -49,7 +49,9 @@
     "@noble/hashes": "2.4.0",
     "@scure/base": "2.4.0",
     "@scure/bip32": "2.4.0",
-    "@scure/bip39": "2.4.0"
+    "@scure/bip39": "2.4.0",
+    "fflate": "0.8.3",
+    "write-excel-file": "4.1.1"
   },
   "devDependencies": {
     "@dashincubator/secp256k1": "1.7.1-5",
