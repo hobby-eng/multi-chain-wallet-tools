@@ -1,4 +1,5 @@
 import type { DerivationResult, DerivedRow, DisplayMode, ResultField } from '@ckd/core/types.js';
+import { createPaymentQrAction, paymentQrPayload } from './payment-qr.js';
 
 export interface ResultsRenderOptions {
   mode: DisplayMode;
@@ -55,11 +56,19 @@ function fieldRow(
   copy.dataset.secret = String(field.secret);
   copy.disabled = field.secret && !secretsRevealed;
   copy.title = copy.disabled ? 'Reveal private and privacy-sensitive values before copying.' : `Copy ${field.label}`;
-  row.append(label, value, copy);
+  const actions = element('div', 'field-actions');
+  actions.append(copy);
+  const qrPayload = paymentQrPayload(field);
+  if (qrPayload !== undefined) actions.append(createPaymentQrAction(document, qrPayload, field.label));
+  row.append(label, value, actions);
   return row;
 }
 
-function basicFieldCell(field: ResultField | undefined, rowIndex: number, secretsRevealed: boolean): HTMLTableCellElement {
+function basicFieldCell(
+  field: ResultField | undefined,
+  rowIndex: number,
+  secretsRevealed: boolean,
+): HTMLTableCellElement {
   const highlight = field?.key === 'address' || field?.key.endsWith('PublicKeyHash') === true;
   const cell = element('td', highlight ? 'basic-address-cell' : undefined);
   if (field === undefined) {
@@ -77,6 +86,8 @@ function basicFieldCell(field: ResultField | undefined, rowIndex: number, secret
   copy.disabled = field.secret && !secretsRevealed;
   copy.title = copy.disabled ? 'Reveal sensitive values before copying.' : `Copy ${field.label}`;
   content.append(value, copy);
+  const qrPayload = paymentQrPayload(field);
+  if (qrPayload !== undefined) content.append(createPaymentQrAction(document, qrPayload, field.label));
   cell.append(content);
   return cell;
 }
@@ -111,7 +122,11 @@ function appendBasicRows(
     }));
     row.append(selectionCell, element('td', 'path-column value', derived.path));
     for (const key of fieldKeys) {
-      row.append(basicFieldCell(derived.basic.find((field) => field.key === key), derived.index, options.secretsRevealed));
+      row.append(basicFieldCell(
+        derived.basic.find((field) => field.key === key),
+        derived.index,
+        options.secretsRevealed,
+      ));
     }
     fragment.append(row);
   }

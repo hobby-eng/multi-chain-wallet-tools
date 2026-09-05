@@ -17,6 +17,7 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 | `@dashevo/wasm-sdk` | 4.1.1 | `dashpay/platform` (`packages/wasm-sdk`) | MIT | Embedded proof-verifying DAPI transport for connected artifacts |
 | `write-excel-file` | 4.1.1 | `gitlab.com/catamphetamine/write-excel-file` | MIT | Local XLSX workbook generation for Activity Viewer exports |
 | `fflate` | 0.8.3 | `101arrowz/fflate` | MIT | ZIP container generation for local XLSX exports |
+| `uqr` | 0.1.3 | `unjs/uqr` | MIT | Offline QR matrix encoding for public payment addresses |
 
 The two Dash SDK packages are bundled into both editions of the Wallet Activity Viewer and scan-only Wallet Discovery Scanner, never into either Wallet Key Derivation Tool. Their pnpm integrity pins are `sha512-DsfHXlLByyhvAerDknozg0HT4KHNsYP6rEy949aj/KGLLydb9bwJBHOWyn5oDsNR016tvr3oeT/jCkjMA4qoCA==` and `sha512-/be0D7qohZc9fHgYjbtzOg8KOajarzo0NtKCNybv4Z1xeV617Wo0CusnsxCzwbV7C/jDgPJiGel0KtcSTzQcfQ==`. Copyright notices embedded by Noble/Scure identify Paul Miller and, for Scure BIP32/BIP39, Patricio Palladino. esbuild preserves inline legal comments in the standalone JavaScript.
 
