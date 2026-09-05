@@ -80,8 +80,8 @@ describe('viewer exports', () => {
     };
     const result = createViewerExport(state, 'json', generatedAt);
     expect(JSON.parse(result.text)).toMatchObject({
-      schema: 'wallet-activity-viewer-export', version: 1, mode: 'platform', network: 'testnet',
-      data: { snapshot: { balanceCredits: '9007199254740993', nonce: '7' } },
+      schema: 'wallet-activity-viewer-export', version: 2, mode: 'platform', network: 'testnet',
+      data: { state: { balanceCredits: '9007199254740993', nonce: '7' } },
     });
   });
 
@@ -96,7 +96,7 @@ describe('viewer exports', () => {
     };
     const result = createViewerExport(state, 'json', generatedAt);
     expect(result.text).not.toMatch(/viewing.?key|fvk|ivk|ovk/iu);
-    expect(JSON.parse(result.text).data.snapshot.scannedNotes).toBe('25');
+    expect(JSON.parse(result.text).data.summary.scannedNotes).toBe('25');
   });
 
   it('exports proof-verified Identity names and key metadata without secret input', () => {
@@ -114,6 +114,11 @@ describe('viewer exports', () => {
         resolvedDpnsDocumentId: null,
         resolvedRegistrationTransactionHash: null,
         proofs: [{
+          height: 12n,
+          coreChainLockedHeight: 10,
+          protocolVersion: 13,
+          responseTimeMs: 1n,
+        }, {
           height: 12n,
           coreChainLockedHeight: 10,
           protocolVersion: 13,
@@ -152,6 +157,18 @@ describe('viewer exports', () => {
     expect(json.text).toContain('alice.dash');
     expect(json.text).toContain('"matchesLookup": true');
     expect(json.text).not.toMatch(/privateKey|mnemonic|xprv/iu);
+    expect(JSON.parse(json.text)).toMatchObject({
+      version: 2,
+      data: {
+        query: { proofs: [{ height: '12', responseCount: 2 }] },
+        identities: [{
+          identifier: identityId,
+          state: { balanceCredits: '123', revision: '2', nonce: '7' },
+          history: null,
+          historyError: 'Explorer unavailable',
+        }],
+      },
+    });
 
     const csv = createViewerExport(state, 'csv', generatedAt);
     expect(csv.text).toContain('alice.dash');
@@ -159,5 +176,9 @@ describe('viewer exports', () => {
     expect(csv.text).toContain('ECDSA_SECP256K1');
     const [header, ...rows] = parseCsv(csv.text);
     expect(rows.every((row) => row.length === header!.length)).toBe(true);
+    expect(header).toHaveLength(23);
+    expect(header).not.toContain('details');
+    expect(rows.map((row) => row[header!.indexOf('record_type')])).toEqual(['query', 'identity', 'public_key']);
+    expect(csv.text).not.toContain('{"publicKeyHash"');
   });
 });
