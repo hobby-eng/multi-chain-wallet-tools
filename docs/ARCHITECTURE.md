@@ -1,6 +1,6 @@
 # Repository architecture
 
-This repository is a pnpm monorepo with three independently releasable browser applications and a shared package layer. A single root `package.json`, `pnpm-lock.yaml`, TypeScript configuration, Rust lockfile, and release pipeline prevent dependency copies from drifting between applications.
+This repository is a pnpm monorepo with three independently runnable browser applications and a shared package layer. A single root `package.json`, `pnpm-lock.yaml`, TypeScript configuration, Rust lockfile, and release pipeline prevent dependency copies from drifting between applications.
 
 Original project code is MIT licensed. Third-party source, generated integration inputs and the Dash brand asset remain governed by the licenses and attribution recorded in the root notices.
 
