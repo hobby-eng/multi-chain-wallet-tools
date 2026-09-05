@@ -4,21 +4,40 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, transform } from 'esbuild';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
+import {
+  applyProfileTemplate,
+  assertDashOnlyGraph,
+  getToolBuild,
+  parseBuildProfile,
+} from '../../../tooling/build-profiles.mjs';
 import { verifyDashSdkBuild } from '../../../tooling/verify-dash-sdk-build.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+const profile = parseBuildProfile();
+const tool = getToolBuild(profile, 'discovery-scanner');
 verifyDashSdkBuild(root, 'The Wallet Discovery Scanner');
 
-const vaultTemplate = readFileSync(resolve(root, 'apps/discovery-scanner/src/index.html'), 'utf8');
-const shellTemplate = readFileSync(resolve(root, 'apps/discovery-scanner/src/shell.html'), 'utf8');
+const vaultTemplate = applyProfileTemplate(
+  readFileSync(resolve(root, 'apps/discovery-scanner/src/index.html'), 'utf8'),
+  profile,
+  tool,
+);
+const shellTemplate = applyProfileTemplate(
+  readFileSync(resolve(root, 'apps/discovery-scanner/src/shell.html'), 'utf8'),
+  profile,
+  tool,
+);
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const recoveryCss = readFileSync(resolve(root, 'apps/discovery-scanner/src/styles.css'), 'utf8');
-const css = (await transform(`${sharedCss}\n${recoveryCss}`, {
+const themeCss = profile.themeStylesheet === undefined
+  ? ''
+  : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
+const css = (await transform(`${sharedCss}\n${recoveryCss}\n${themeCss}`, {
   loader: 'css',
   minify: true,
   legalComments: 'inline',
 })).code;
-const buildInfo = createBuildInfo(root, 'Wallet_Discovery_Scanner.html.sha256');
+const buildInfo = createBuildInfo(root, tool.checksumFile, profile);
 const scriptCsp = (javascript) => `'sha256-${createHash('sha256').update(javascript).digest('base64')}'`;
 function dynamicCodeSurface(javascript) {
   // TypeScript 7 deliberately removed its stable in-process parser API. Use
@@ -34,7 +53,7 @@ function dynamicCodeSurface(javascript) {
 }
 const vaultBundle = await build({
   absWorkingDir: root,
-  entryPoints: ['apps/discovery-scanner/src/app.ts'],
+  entryPoints: [tool.entryPoint],
   bundle: true,
   format: 'iife',
   platform: 'browser',
@@ -50,6 +69,9 @@ const vaultBundle = await build({
 const vaultJavascript = vaultBundle.outputFiles[0]?.text;
 if (vaultJavascript === undefined) throw new Error('esbuild did not produce the Recovery Secret Vault bundle.');
 const vaultInputs = Object.keys(vaultBundle.metafile.inputs);
+if (profile.id === 'dash-community') {
+  assertDashOnlyGraph(vaultInputs, 'Dash Community Recovery Secret Vault');
+}
 if (vaultInputs.some((input) => input.includes('@dashevo/evo-sdk') || input.endsWith('/network-service.ts') || input.endsWith('/network-worker.ts'))) {
   throw new Error('Recovery Secret Vault bundle unexpectedly contains the network SDK/service.');
 }
@@ -163,11 +185,11 @@ const html = shellTemplate
   // script hash; the vault's own connect-src remains the stricter 'none'.
   .replace('__VAULT_SCRIPT_CSP__', scriptCsp(safeVaultJavascript))
   .replace('/*__SHELL_JS__*/', () => safeShellJavascript);
-const dist = resolve(root, 'dist/discovery-scanner');
+const dist = resolve(root, 'dist', tool.artifactDirectory);
 mkdirSync(dist, { recursive: true });
-const artifact = resolve(dist, 'Wallet_Discovery_Scanner.html');
+const artifact = resolve(dist, tool.artifactName);
 writeFileSync(artifact, html);
 const checksum = createHash('sha256').update(html).digest('hex');
-writeFileSync(resolve(dist, 'Wallet_Discovery_Scanner.html.sha256'), `${checksum}  Wallet_Discovery_Scanner.html\n`);
-console.log(`Built dist/discovery-scanner/Wallet_Discovery_Scanner.html (${Buffer.byteLength(html).toLocaleString()} bytes)`);
+writeFileSync(resolve(dist, tool.checksumFile), `${checksum}  ${tool.artifactName}\n`);
+console.log(`Built dist/${tool.artifactRelativePath} (${Buffer.byteLength(html).toLocaleString()} bytes)`);
 console.log(`SHA-256 ${checksum}`);

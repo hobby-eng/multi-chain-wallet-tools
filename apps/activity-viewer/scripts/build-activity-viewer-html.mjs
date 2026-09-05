@@ -4,23 +4,38 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, transform } from 'esbuild';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
+import {
+  applyProfileTemplate,
+  assertDashOnlyGraph,
+  getToolBuild,
+  parseBuildProfile,
+} from '../../../tooling/build-profiles.mjs';
 import { verifyDashSdkBuild } from '../../../tooling/verify-dash-sdk-build.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+const profile = parseBuildProfile();
+const tool = getToolBuild(profile, 'activity-viewer');
 const scriptCsp = (javascript) => `'sha256-${createHash('sha256').update(javascript).digest('base64')}'`;
 verifyDashSdkBuild(root, 'The viewer');
-const template = readFileSync(resolve(root, 'apps/activity-viewer/src/index.html'), 'utf8');
+const template = applyProfileTemplate(
+  readFileSync(resolve(root, 'apps/activity-viewer/src/index.html'), 'utf8'),
+  profile,
+  tool,
+);
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const viewerCss = readFileSync(resolve(root, 'apps/activity-viewer/src/styles.css'), 'utf8');
-const css = (await transform(`${sharedCss}\n${viewerCss}`, {
+const themeCss = profile.themeStylesheet === undefined
+  ? ''
+  : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
+const css = (await transform(`${sharedCss}\n${viewerCss}\n${themeCss}`, {
   loader: 'css',
   minify: true,
   legalComments: 'inline',
 })).code;
-const buildInfo = createBuildInfo(root, 'Wallet_Activity_Viewer.html.sha256');
+const buildInfo = createBuildInfo(root, tool.checksumFile, profile);
 const bundled = await build({
   absWorkingDir: root,
-  entryPoints: ['apps/activity-viewer/src/app.ts'],
+  entryPoints: [tool.entryPoint],
   bundle: true,
   format: 'iife',
   platform: 'browser',
@@ -29,11 +44,15 @@ const bundled = await build({
   minify: true,
   legalComments: 'inline',
   loader: { '.wasm': 'binary' },
+  metafile: true,
   define: { __BUILD_INFO__: JSON.stringify(buildInfo) },
   write: false,
 });
 const javascript = bundled.outputFiles[0]?.text;
 if (javascript === undefined) throw new Error('esbuild did not produce the viewer JavaScript bundle.');
+if (profile.id === 'dash-community') {
+  assertDashOnlyGraph(Object.keys(bundled.metafile.inputs), 'Dash Community activity viewer');
+}
 if (
   !template.includes('/*__INLINE_CSS__*/')
   || !template.includes('/*__INLINE_JS__*/')
@@ -48,11 +67,11 @@ const html = template
   .replace('__INLINE_SCRIPT_CSP__', scriptCsp(safeJavascript))
   .replace('/*__INLINE_CSS__*/', () => css)
   .replace('/*__INLINE_JS__*/', () => safeJavascript);
-const dist = resolve(root, 'dist/activity-viewer');
+const dist = resolve(root, 'dist', tool.artifactDirectory);
 mkdirSync(dist, { recursive: true });
-const artifact = resolve(dist, 'Wallet_Activity_Viewer.html');
+const artifact = resolve(dist, tool.artifactName);
 writeFileSync(artifact, html);
 const checksum = createHash('sha256').update(html).digest('hex');
-writeFileSync(resolve(dist, 'Wallet_Activity_Viewer.html.sha256'), `${checksum}  Wallet_Activity_Viewer.html\n`);
-console.log(`Built dist/activity-viewer/Wallet_Activity_Viewer.html (${Buffer.byteLength(html).toLocaleString()} bytes)`);
+writeFileSync(resolve(dist, tool.checksumFile), `${checksum}  ${tool.artifactName}\n`);
+console.log(`Built dist/${tool.artifactRelativePath} (${Buffer.byteLength(html).toLocaleString()} bytes)`);
 console.log(`SHA-256 ${checksum}`);

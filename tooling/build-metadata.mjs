@@ -16,7 +16,7 @@ function collectFiles(root, relativePath, output) {
   }
 }
 
-export function createBuildInfo(root, checksumFile) {
+export function createBuildInfo(root, checksumFile, profile) {
   const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
   const files = [];
   for (const path of [
@@ -46,5 +46,7 @@ export function createBuildInfo(root, checksumFile) {
     releaseDate: String(manifest.releaseDate),
     fingerprint: hash.digest('hex'),
     checksumFile,
+    profile: profile.id,
+    edition: profile.editionName,
   };
 }
