@@ -239,4 +239,76 @@ describe('viewer exports', () => {
       },
     });
   });
+
+  it('exports mixed batch records with their detected modes', () => {
+      const core: ViewerSingleExportState = {
+        mode: 'core',
+        network: 'mainnet',
+        snapshot: {
+          kind: 'core', provider: 'DashScan', address: 'Xfirst', network: 'mainnet',
+          balanceDuffs: 1n, unconfirmedDuffs: 0n, totalReceivedDuffs: 1n, totalSentDuffs: 0n,
+          transactionCount: 0, transactions: [], historyLimit: 20, endpoint: 'https://example.invalid',
+          indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 2,
+        },
+      };
+      const shielded: ViewerSingleExportState = {
+        mode: 'shielded',
+        network: 'mainnet',
+        snapshot: {
+          records: [], scannedNotes: 25n, proofHeight: 12n, protocolVersion: 13,
+          complete: true, keyKind: 'full', balance: 0n, receivedExternal: 0n,
+          sentExternal: 0n, selfOrChange: 0n,
+        },
+      };
+      const state: ViewerExportState = {
+        batch: true,
+        mode: 'mixed',
+        network: 'mainnet',
+        items: [
+          { id: 'query-1', label: '1 · CORE · Xfirst', state: core },
+          { id: 'query-2', label: '2 · ORCHARD · FULL viewing key', state: shielded },
+        ],
+        errors: [],
+      };
+
+      const json = createViewerExport(state, 'json', generatedAt);
+      expect(json.filename).toContain('wallet-activity-viewer-mixed-batch-mainnet');
+      expect(JSON.parse(json.text)).toMatchObject({
+        mode: 'mixed',
+        data: {
+          results: [
+            { id: 'query-1', mode: 'core' },
+            { id: 'query-2', mode: 'shielded' },
+          ],
+        },
+      });
+
+      const csv = createViewerExport(state, 'csv', generatedAt);
+      const [header, ...rows] = parseCsv(csv.text);
+      const modeIndex = header!.indexOf('mode');
+      expect(rows.map((row) => row[modeIndex])).toEqual(['core', 'shielded']);
+  });
+
+  it('redacts failed Orchard input labels in mixed exports', () => {
+      const viewingKey = 'ab'.repeat(96);
+      const state: ViewerExportState = {
+        batch: true,
+        mode: 'mixed',
+        network: 'mainnet',
+        items: [],
+        errors: [{
+          id: 'query-7',
+          label: `7 · ORCHARD · ${viewingKey.slice(0, 16)}…${viewingKey.slice(-16)}`,
+          message: 'Invalid viewing key.',
+          mode: 'shielded',
+        }],
+      };
+
+      for (const format of ['csv', 'json'] as const) {
+        const exported = createViewerExport(state, format, generatedAt);
+        expect(exported.text).toContain('7 · ORCHARD · viewing key');
+        expect(exported.text).not.toContain(viewingKey.slice(0, 16));
+        expect(exported.text).not.toContain(viewingKey.slice(-16));
+      }
+  });
 });

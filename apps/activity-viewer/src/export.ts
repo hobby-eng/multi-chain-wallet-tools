@@ -33,11 +33,12 @@ export interface ViewerBatchExportError {
   id: string;
   label: string;
   message: string;
+  mode?: ViewerSingleExportState['mode'];
 }
 
 export interface ViewerBatchExportState {
   batch: true;
-  mode: ViewerSingleExportState['mode'];
+  mode: ViewerSingleExportState['mode'] | 'mixed';
   network: ViewerNetwork;
   items: ViewerBatchExportItem[];
   errors: ViewerBatchExportError[];
@@ -125,7 +126,7 @@ function amountDash(value: bigint | null | undefined, unit: CsvRecord['amountUni
 }
 
 function csvRecord(
-  mode: ViewerSingleExportState['mode'],
+  mode: ViewerBatchExportState['mode'],
   network: ViewerNetwork,
   generatedAt: string,
   record: CsvRecord,
@@ -659,6 +660,17 @@ function isBatchExportState(state: ViewerExportState): state is ViewerBatchExpor
   return 'batch' in state && state.batch;
 }
 
+function exportError(error: ViewerBatchExportError): ViewerBatchExportError {
+  if (error.mode !== 'shielded') return error;
+  const ordinal = Number(error.id.replace(/\D/gu, ''));
+  return {
+    id: error.id,
+    label: `${Number.isFinite(ordinal) ? ordinal : '?'} · ORCHARD · viewing key`,
+    message: error.message,
+    mode: error.mode,
+  };
+}
+
 export function createViewerExport(
   state: ViewerExportState,
   format: ViewerExportFormat,
@@ -678,9 +690,10 @@ export function createViewerExport(
           results: state.items.map((item) => ({
             id: item.id,
             label: item.label,
+            mode: item.state.mode,
             data: jsonData(item.state),
           })),
-          errors: state.errors,
+          errors: state.errors.map(exportError),
         }
       : jsonData(state);
     return {
@@ -704,13 +717,16 @@ export function createViewerExport(
           labeled[4] = item.label;
           return labeled;
         })),
-        ...state.errors.map((error) => csvRecord(state.mode, state.network, generatedAtIso, {
+        ...state.errors.map((sourceError) => {
+          const error = exportError(sourceError);
+          return csvRecord(state.mode, state.network, generatedAtIso, {
           queryLabel: error.label,
           recordType: 'error',
           recordId: error.id,
           status: 'failed',
           metadata: metadata([['message', error.message]]),
-        })),
+          });
+        }),
       ]
     : singleRows(state, generatedAtIso);
   return { filename, mimeType: 'text/csv', text: csv(rows) };

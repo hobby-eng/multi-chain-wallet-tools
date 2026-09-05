@@ -3,6 +3,7 @@ import { createActivityViewerController } from '../src/controller.js';
 import type { ActivityViewerView } from '../src/view.js';
 import type { NormalizedViewingKey } from '@ckd/dash-network/viewing-key.js';
 import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/dash-network/private-material.js';
+import { assertAutoViewerBatchInput, detectViewerInput } from '../src/detection.js';
 
 class TestControl extends EventTarget {
   disabled = false;
@@ -52,6 +53,10 @@ function testView() {
   singleQueryMode.dataset.queryMode = 'single';
   const batchQueryMode = new TestControl();
   batchQueryMode.dataset.queryMode = 'batch';
+  const autoDetectionMode = new TestControl();
+  autoDetectionMode.dataset.detectionMode = 'auto';
+  const advancedDetectionMode = new TestControl();
+  advancedDetectionMode.dataset.detectionMode = 'advanced';
   const viewingKeyInput = new TestControl();
   viewingKeyInput.value = 'viewing-key';
   const batchInput = new TestControl();
@@ -73,6 +78,7 @@ function testView() {
     exportJsonButton,
     modeButtons: [coreMode, identityMode, shieldedMode],
     queryModeButtons: [singleQueryMode, batchQueryMode],
+    detectionModeButtons: [autoDetectionMode, advancedDetectionMode],
     viewingKeyInput,
     batchInput,
     batchConcurrencyInput,
@@ -107,6 +113,8 @@ function testView() {
     showCancellationRequested: vi.fn(),
     resetViewer: vi.fn(),
     setViewerMode: vi.fn(),
+    setDetectionMode: vi.fn(),
+    setDiagnosticMode: vi.fn(),
     setQueryMode: vi.fn(),
     showSelfTestPassed: vi.fn(),
     showSelfTestFailed: vi.fn(),
@@ -122,8 +130,11 @@ function testView() {
       identityMode,
       shieldedMode,
       batchQueryMode,
+      autoDetectionMode,
+      advancedDetectionMode,
       viewingKeyInput,
       batchInput,
+      exportJsonButton,
     },
   };
 }
@@ -132,6 +143,7 @@ function testDependencies(
   viewingKey: NormalizedViewingKey,
   stream: (options: { isCancelled(): boolean }) => Promise<{ complete: boolean; terminalPosition: bigint }>,
   connect: () => Promise<void> = async () => {},
+  overrides: Record<string, unknown> = {},
 ) {
   class Ledger {
     readonly #kind: NormalizedViewingKey['kind'];
@@ -171,9 +183,17 @@ function testDependencies(
     DashPlatformAddressSource: class {},
     DashPlatformIdentitySource: class {},
     assertCanonicalViewingKey: vi.fn(),
+    assertAutoViewerBatchInput: vi.fn(),
     assertPublicBatchLookupInput: vi.fn(),
     assertPublicLookupInput: vi.fn(),
     createViewerExport: vi.fn(),
+    detectViewerInput: vi.fn((value) => ({
+      mode: 'core',
+      value,
+      viewingKeyMode: 'automatic',
+      explicit: false,
+    })),
+    looksLikeAutoOrchardInput: vi.fn(() => false),
     downloadText: vi.fn(),
     normalizeViewingKey: vi.fn(() => viewingKey),
     normalizeIdentityLookupInput: vi.fn(),
@@ -187,6 +207,7 @@ function testDependencies(
     shieldedEmptyConfirmations: 2,
     shieldedMaxPagesPerScan: 4096,
     shieldedPageSize: 2048,
+    ...overrides,
   } as unknown as Parameters<typeof createActivityViewerController>[1];
 }
 
@@ -359,6 +380,35 @@ describe('Activity Viewer controller', () => {
     expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('No network request was made'));
   });
 
+  it.each(['identity', 'orchard'])(
+    'blocks a multiline mnemonic with a prefixed first word before Auto batch networking: %s',
+    async (prefix) => {
+    vi.stubGlobal('window', testWindow());
+    const { view, controls } = testView();
+    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
+    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
+    vi.mocked(dependencies.assertAutoViewerBatchInput).mockImplementation(assertAutoViewerBatchInput);
+    vi.mocked(dependencies.detectViewerInput).mockImplementation(detectViewerInput);
+    const mnemonic = [
+      `${prefix}:abandon`,
+      ...Array.from({ length: 10 }, () => 'abandon'),
+      'about',
+      'alice.dash',
+    ].join('\n');
+    const controller = createActivityViewerController(view, dependencies);
+    controller.start();
+    await settle();
+    controls.batchQueryMode.click();
+    controls.batchInput.value = mnemonic;
+    controls.form.submit();
+
+    await vi.waitFor(() => expect(view.clearQueryInput).toHaveBeenCalledOnce());
+    expect(dependencies.detectViewerInput).not.toHaveBeenCalled();
+    expect(dependencies.queryPlatformIdentityHistory).not.toHaveBeenCalled();
+    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('No network request was made'));
+    },
+  );
+
   it.each(['canonical validation', 'source connection'] as const)(
     'erases normalized Orchard keys after a %s failure',
     async (failureStage) => {
@@ -413,5 +463,198 @@ describe('Activity Viewer controller', () => {
     expect(view.renderShielded).toHaveBeenCalledOnce();
     expect(firstKey.hex).toBe('');
     expect(secondKey.hex).toBe('');
+  });
+
+  it('auto-detects and executes a mixed batch across all four viewer types', async () => {
+    vi.stubGlobal('window', testWindow());
+    const { view, controls } = testView();
+    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
+    const platformQuery = vi.fn(async () => ({
+      kind: 'platform' as const,
+      address: 'platform-value',
+      network: 'testnet' as const,
+      exists: true,
+      balanceCredits: 1n,
+      nonce: 0n,
+      proofHeight: 12n,
+      coreChainLockedHeight: 10,
+      protocolVersion: 13,
+      responseTimeMs: 1n,
+    }));
+    const identityQuery = vi.fn(async () => ({
+      kind: 'identity' as const,
+      network: 'testnet' as const,
+      inputKind: 'dpns-name' as const,
+      inputLabel: 'DPNS name',
+      publicKeyHashHex: null,
+      resolvedDpnsName: 'alice.dash',
+      resolvedDpnsDocumentId: null,
+      resolvedRegistrationTransactionHash: null,
+      proofs: [{ height: 12n, coreChainLockedHeight: 10, protocolVersion: 13, responseTimeMs: 1n }],
+      requests: 1,
+      identities: [],
+    }));
+    const dependencies = testDependencies(
+      key,
+      async () => ({ complete: true, terminalPosition: 0n }),
+      async () => {},
+      {
+        DashPlatformAddressSource: class {
+          async connect(): Promise<void> {}
+          query = platformQuery;
+        },
+        DashPlatformIdentitySource: class {
+          async connect(): Promise<void> {}
+          query = identityQuery;
+        },
+      },
+    );
+    vi.mocked(dependencies.detectViewerInput).mockImplementation((value) => ({
+      mode: value.replace('-value', '') as 'core' | 'platform' | 'identity' | 'shielded',
+      value,
+      viewingKeyMode: 'automatic',
+      explicit: false,
+    }));
+    vi.mocked(dependencies.normalizeIdentityLookupInput).mockReturnValue({
+      kind: 'dpns-name',
+      label: 'DPNS name',
+      dpnsName: 'alice.dash',
+    });
+    vi.mocked(dependencies.queryCoreAddress).mockResolvedValue({
+      kind: 'core',
+      provider: 'DashScan',
+      address: 'core-value',
+      network: 'testnet',
+      balanceDuffs: 1n,
+      unconfirmedDuffs: 0n,
+      totalReceivedDuffs: 1n,
+      totalSentDuffs: 0n,
+      transactionCount: 0,
+      transactions: [],
+      historyLimit: 10,
+      endpoint: 'https://example.invalid',
+      indexStatus: 'ok',
+      indexedHeight: 11,
+      indexedTimeMs: 1,
+      requests: 2,
+    });
+    vi.mocked(dependencies.queryPlatformAddressHistory).mockResolvedValue({
+      provider: 'Dash Platform Explorer',
+      address: 'platform-value',
+      base58Address: null,
+      totalTransitions: 0,
+      incomingTransitions: 0,
+      outgoingTransitions: 0,
+      totalIncomingCredits: 0n,
+      totalOutgoingCredits: 0n,
+      explorerBalanceCredits: 1n,
+      explorerNonce: 0,
+      transitions: [],
+      historyLimit: 10,
+      endpoint: 'https://example.invalid',
+      indexStatus: 'synced',
+      indexedHeight: 12,
+      indexedTimeMs: 1,
+      requests: 3,
+    });
+
+    const controller = createActivityViewerController(view, dependencies);
+    controller.start();
+    await settle();
+    controls.batchQueryMode.click();
+    controls.batchInput.value = 'core-value\nplatform-value\nidentity-value\nshielded-value';
+    controls.form.submit();
+
+    await vi.waitFor(() => expect(view.renderBatchResults).toHaveBeenCalled());
+    expect(dependencies.queryCoreAddress).toHaveBeenCalledOnce();
+    expect(platformQuery).toHaveBeenCalledOnce();
+    expect(identityQuery).toHaveBeenCalledOnce();
+    expect(dependencies.runShieldedPageStream).toHaveBeenCalledOnce();
+    expect(view.renderBatchResults).toHaveBeenLastCalledWith(
+      [
+        expect.objectContaining({ id: 'query-1', status: 'complete' }),
+        expect.objectContaining({ id: 'query-2', status: 'complete' }),
+        expect.objectContaining({ id: 'query-3', status: 'complete' }),
+        expect.objectContaining({ id: 'query-4', status: 'complete' }),
+      ],
+      'query-1',
+      expect.any(Function),
+    );
+    expect(key.hex).toBe('');
+  });
+
+  it('redacts a failed Orchard key throughout mixed batch state', async () => {
+    vi.stubGlobal('window', testWindow());
+    const { view, controls } = testView();
+    const viewingKeyValue = 'ab'.repeat(96);
+    const key: NormalizedViewingKey = { kind: 'full', hex: viewingKeyValue };
+    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
+    vi.mocked(dependencies.detectViewerInput).mockImplementation((value) => ({
+      mode: value === viewingKeyValue ? 'shielded' : 'core',
+      value,
+      viewingKeyMode: 'automatic',
+      explicit: false,
+    }));
+    vi.mocked(dependencies.looksLikeAutoOrchardInput).mockImplementation(
+      (value) => value === viewingKeyValue,
+    );
+    vi.mocked(dependencies.assertCanonicalViewingKey).mockImplementation(() => {
+      throw new Error('fixture canonical validation failure');
+    });
+    vi.mocked(dependencies.queryCoreAddress).mockResolvedValue({
+      kind: 'core',
+      provider: 'DashScan',
+      address: 'core-value',
+      network: 'mainnet',
+      balanceDuffs: 1n,
+      unconfirmedDuffs: 0n,
+      totalReceivedDuffs: 1n,
+      totalSentDuffs: 0n,
+      transactionCount: 0,
+      transactions: [],
+      historyLimit: 10,
+      endpoint: 'https://example.invalid',
+      indexStatus: 'ok',
+      indexedHeight: 11,
+      indexedTimeMs: 1,
+      requests: 2,
+    });
+    vi.mocked(dependencies.createViewerExport).mockReturnValue({
+      filename: 'fixture.json',
+      mimeType: 'application/json',
+      text: '{}',
+    });
+    const controller = createActivityViewerController(view, dependencies);
+    controller.start();
+    await settle();
+    controls.batchQueryMode.click();
+    controls.batchInput.value = `core-value\n${viewingKeyValue}`;
+    controls.form.submit();
+
+    await vi.waitFor(() => expect(view.renderBatchResults).toHaveBeenCalled());
+    controls.exportJsonButton.click();
+    expect(view.renderBatchResults).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'query-2',
+          label: '2 · ORCHARD · viewing key',
+          status: 'failed',
+        }),
+      ]),
+      'query-1',
+      expect.any(Function),
+    );
+    expect(dependencies.createViewerExport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'mixed',
+        errors: [expect.objectContaining({
+          id: 'query-2',
+          label: '2 · ORCHARD · viewing key',
+          mode: 'shielded',
+        })],
+      }),
+      'json',
+    );
+    expect(key.hex).toBe('');
   });
 });

@@ -55,8 +55,8 @@
     </section>
 
     <section class="viewer-flow" aria-label="Scan workflow">
-      <article><span>01</span><div><strong>Choose a view mode</strong><small>Core, Platform, Identity, or Orchard</small></div></article>
-      <article><span>02</span><div><strong>Provide view material</strong><small>Viewing key or public identifier</small></div></article>
+      <article><span>01</span><div><strong>Choose Single or Batch</strong><small>One lookup or a mixed list</small></div></article>
+      <article><span>02</span><div><strong>Enter view material</strong><small>Type is detected locally</small></div></article>
       <article><span>03</span><div><strong>Query &amp; inspect</strong><small>Diagnostics stay visible</small></div></article>
     </section>
 
@@ -66,15 +66,22 @@
         <span id="viewer-privacy-chip" class="viewer-status-pill viewer-local-chip"><i></i> Public address lookup</span>
       </div>
       <section class="panel viewer-control-panel">
-        <div class="viewer-mode-tabs" role="radiogroup" aria-label="Viewer mode">
-          <button class="viewer-mode-tab active" data-viewer-mode="core" type="button" aria-pressed="true">Dash Core · L1 address</button>
-          <button class="viewer-mode-tab" data-viewer-mode="platform" type="button" aria-pressed="false">Dash Platform address</button>
-          <button class="viewer-mode-tab" data-viewer-mode="identity" type="button" aria-pressed="false">Dash Platform Identity</button>
-          <button class="viewer-mode-tab" data-viewer-mode="shielded" type="button" aria-pressed="false">Dash Orchard · viewing key</button>
-        </div>
         <div class="viewer-input-mode-tabs" role="radiogroup" aria-label="Query input mode">
           <button class="viewer-input-mode-tab active" data-query-mode="single" type="button" aria-pressed="true">Single lookup</button>
-          <button class="viewer-input-mode-tab" data-query-mode="batch" type="button" aria-pressed="false">Batch · multiple inputs</button>
+          <button class="viewer-input-mode-tab" data-query-mode="batch" type="button" aria-pressed="false">Batch · mixed inputs</button>
+        </div>
+        <div class="viewer-detection-tabs" role="radiogroup" aria-label="Input detection mode">
+          <button class="viewer-detection-tab active" data-detection-mode="auto" type="button" aria-pressed="true">Auto detect</button>
+          <button class="viewer-detection-tab" data-detection-mode="advanced" type="button" aria-pressed="false">Advanced · choose type</button>
+        </div>
+        <div id="viewer-advanced-modes" class="viewer-advanced-modes" hidden>
+          <div class="viewer-advanced-heading"><strong>Type override</strong><span>Use when a value is ambiguous or you want to restrict the batch to one type.</span></div>
+          <div class="viewer-mode-tabs" role="radiogroup" aria-label="Advanced viewer type">
+            <button class="viewer-mode-tab active" data-viewer-mode="core" type="button" aria-pressed="true">Dash Core · L1 address</button>
+            <button class="viewer-mode-tab" data-viewer-mode="platform" type="button" aria-pressed="false">Dash Platform address</button>
+            <button class="viewer-mode-tab" data-viewer-mode="identity" type="button" aria-pressed="false">Dash Platform Identity</button>
+            <button class="viewer-mode-tab" data-viewer-mode="shielded" type="button" aria-pressed="false">Dash Orchard · viewing key</button>
+          </div>
         </div>
 
         <div class="viewer-form-grid">
@@ -111,19 +118,19 @@
             </div>
           </div>
           <div class="viewer-key-field">
-            <label id="viewer-input-label" for="full-viewing-key">Dash Core public address <span id="viewer-key-mode" class="viewer-key-mode">Public L1 lookup</span></label>
+            <label id="viewer-input-label" for="full-viewing-key">Any supported Dash lookup <span id="viewer-key-mode" class="viewer-key-mode">Auto detect</span></label>
             <div id="viewer-single-input-panel" class="viewer-key-row">
               <div class="viewer-secret-input">
                 <span class="viewer-key-icon" aria-hidden="true">◇</span>
-                <input id="full-viewing-key" type="text" autocomplete="off" autocapitalize="none" data-1p-ignore="true" data-lpignore="true" data-form-type="other" placeholder="Paste X… or 7… Dash Core address">
+                <input id="full-viewing-key" type="text" autocomplete="off" autocapitalize="none" data-1p-ignore="true" data-lpignore="true" data-form-type="other" placeholder="Core, Platform, Identity, or Orchard viewing key">
               </div>
               <button id="reveal-viewing-key" class="secondary" type="button" aria-pressed="false" hidden>Reveal key</button>
             </div>
             <div id="viewer-batch-input-panel" class="viewer-batch-input-panel" hidden>
-              <textarea id="viewer-batch-input" rows="7" autocomplete="off" autocapitalize="none" data-1p-ignore="true" data-lpignore="true" data-form-type="other" placeholder="One public address per line"></textarea>
+              <textarea id="viewer-batch-input" rows="7" autocomplete="off" autocapitalize="none" data-1p-ignore="true" data-lpignore="true" data-form-type="other" placeholder="One Core, Platform, Identity, or Orchard input per line"></textarea>
               <button id="reveal-batch-input" class="secondary" type="button" aria-pressed="false" hidden>Reveal keys</button>
             </div>
-            <p id="viewer-input-help" class="field-note">Queries the Dash-specific DashScan index for Mainnet or Testnet. Its synchronization status and latest indexed block are checked first. The public address is sent to DashScan; no private or viewing key is used.</p>
+            <p id="viewer-input-help" class="field-note">The type is detected locally before any request. Mixed batches may contain Core addresses, Platform addresses, Identity lookups, and Orchard viewing keys. Use explicit prefixes for ambiguous values.</p>
           </div>
         </div>
 

@@ -42,14 +42,24 @@
 .viewer-flow small { color:var(--muted); font-size:10.5px; }
 .viewer-control-panel { position:relative; overflow:hidden; padding:27px; border-color:#34404c; box-shadow:0 22px 65px rgba(0,0,0,.24); }
 .viewer-control-panel::before { content:""; position:absolute; width:270px; height:270px; right:-150px; bottom:-190px; border:1px solid rgba(245,166,35,.12); border-radius:50%; box-shadow:0 0 80px rgba(245,166,35,.035); }
-.viewer-mode-tabs { position:relative; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:0 0 18px; padding:5px; border:1px solid #293540; border-radius:12px; background:#0a1016; }
+.viewer-input-mode-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin:0 0 14px; }
+.viewer-input-mode-tab { position:relative; min-height:48px; border:1px solid #303b47; color:#aeb9c5; background:#0f161e; font-size:16px; font-weight:800; }
+.viewer-input-mode-tab:hover { color:#eef2f5; border-color:#4a596a; }
+.viewer-input-mode-tab.active { color:var(--accent2); border-color:#76551e; background:linear-gradient(180deg,#2a2113,#1b1811); }
+.viewer-input-mode-tab.active::after { content:""; position:absolute; left:18px; right:18px; bottom:6px; height:2px; background:var(--accent); border-radius:2px; }
+.viewer-detection-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; max-width:470px; margin:0 0 18px; padding:4px; border:1px solid #293540; border-radius:10px; background:#0a1016; }
+.viewer-detection-tab { padding:9px 12px; border:1px solid transparent; border-radius:7px; color:#8f9ba8; background:transparent; font-size:11px; font-weight:800; }
+.viewer-detection-tab:hover { color:#e7edf2; background:#121b24; }
+.viewer-detection-tab.active { color:#c9e8d8; border-color:#315e49; background:#11271e; }
+.viewer-advanced-modes { margin:0 0 18px; padding:13px; border:1px solid #2d3945; border-radius:12px; background:#0c131b; }
+.viewer-advanced-modes[hidden] { display:none; }
+.viewer-advanced-heading { display:flex; align-items:baseline; justify-content:space-between; gap:18px; margin:0 2px 10px; }
+.viewer-advanced-heading strong { color:#dce4eb; font-size:11px; }
+.viewer-advanced-heading span { color:#7f8b99; font-size:10px; text-align:right; }
+.viewer-mode-tabs { position:relative; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:0; padding:5px; border:1px solid #293540; border-radius:12px; background:#0a1016; }
 .viewer-mode-tab { position:relative; padding:12px 10px; border:1px solid transparent; border-radius:8px; color:#9eabb8; background:transparent; font-size:12px; font-weight:800; }
 .viewer-mode-tab:hover { color:#e7edf2; background:#121b24; }
 .viewer-mode-tab.active { color:var(--accent2); border-color:#654a1e; background:linear-gradient(180deg,#2a2113,#191711); box-shadow:inset 0 1px rgba(255,211,122,.07); }
-.viewer-input-mode-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; max-width:470px; margin:0 0 18px; padding:4px; border:1px solid #293540; border-radius:10px; background:#0a1016; }
-.viewer-input-mode-tab { padding:9px 12px; border:1px solid transparent; border-radius:7px; color:#8f9ba8; background:transparent; font-size:11px; font-weight:800; }
-.viewer-input-mode-tab:hover { color:#e7edf2; background:#121b24; }
-.viewer-input-mode-tab.active { color:#c9e8d8; border-color:#315e49; background:#11271e; }
 .viewer-stage-heading { position:relative; align-items:flex-start; margin:0 4px 16px; }
 .viewer-stage-heading>div:first-child { align-items:flex-start; }
 .viewer-stage-heading h2 { margin-bottom:5px; }
@@ -186,7 +196,7 @@
   .viewer-summary { grid-template-columns:1fr 1fr; }
   .viewer-action-bar { align-items:flex-start; flex-direction:column; }
   .viewer-mode-tabs { grid-template-columns:1fr; }
-  .viewer-input-mode-tabs { max-width:none; }
+  .viewer-detection-tabs { max-width:none; }
 }
 @media (max-width:560px) {
   .viewer-topbar { align-items:flex-start; }
@@ -201,6 +211,8 @@
   .viewer-local-chip { margin-left:36px; }
   .viewer-form-grid { padding:16px; }
   .viewer-key-row,.viewer-batch-input-panel,.viewer-summary { grid-template-columns:1fr; }
+  .viewer-input-mode-tabs,.viewer-detection-tabs { grid-template-columns:1fr; }
+  .viewer-advanced-heading { align-items:flex-start; flex-direction:column; gap:4px; }
   .viewer-action-bar .actions { width:100%; }
   .viewer-action-bar button { width:100%; justify-content:center; }
   .viewer-action-note { padding-left:2px; }

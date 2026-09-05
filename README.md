@@ -26,6 +26,8 @@ Use this application on a trusted offline computer whenever real seed phrases or
 
 A connected, read-only viewer for a Dash Core address, Platform payment address, Platform Identity, or Orchard viewing key.
 
+- Uses one Auto-detect input by default, with Single/Batch as the primary choice and an Advanced type override when required.
+- Accepts mixed Core, Platform, Identity, and Orchard records in one batch while keeping viewing keys local.
 - Looks up Dash Core address balances, history and transaction details.
 - Looks up Dash Platform payment-address balances and activity.
 - Resolves a Platform Identity by Base58 ID, the HASH160 fingerprint of a public key registered to the Identity, compressed ECDSA/BLS public key, or DPNS name with or without `.dash`. It proof-verifies current state, nonce, registered key roles and DPNS names, then combines indexed transactions and transfers into one deduplicated activity ledger.

@@ -21,9 +21,11 @@ import type {
 } from '@ckd/dash-network/platform-identity-source.js';
 import type { CoreAddressSnapshot, CoreAddressTransaction } from '@ckd/dash-network/public-address.js';
 import type { ActivitySnapshot, ShieldedActivity, ViewerNetwork } from '@ckd/dash-network/types.js';
+import { looksLikeAutoOrchardInput } from './detection.js';
 
 export type ViewerMode = 'shielded' | 'core' | 'platform' | 'identity';
 export type ViewerQueryMode = 'single' | 'batch';
+export type ViewerDetectionMode = 'auto' | 'advanced';
 
 export interface ViewerBatchResultOption {
   id: string;
@@ -65,6 +67,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   const batchInputPanel = required<HTMLDivElement>('viewer-batch-input-panel');
   const viewingKeyInput = required<HTMLInputElement>('full-viewing-key');
   const batchInput = required<HTMLTextAreaElement>('viewer-batch-input');
+  const advancedModes = required<HTMLDivElement>('viewer-advanced-modes');
   const inputLabel = required<HTMLLabelElement>('viewer-input-label');
   const inputHelp = required<HTMLParagraphElement>('viewer-input-help');
   const keyMode = required<HTMLSpanElement>('viewer-key-mode');
@@ -103,11 +106,13 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   const runtimeStatus = required<HTMLElement>('viewer-runtime');
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-viewer-mode]')];
   const queryModeButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-query-mode]')];
+  const detectionModeButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-detection-mode]')];
   let queryStarted = 0;
   let requestCount = 0;
   let remoteDuration = 0;
   let localDuration = 0;
   let queryMode: ViewerQueryMode = 'single';
+  let detectionMode: ViewerDetectionMode = 'auto';
 
   function valueElement(className: string, value: string): HTMLSpanElement {
     const element = document.createElement('span');
@@ -650,6 +655,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     exportJsonButton,
     modeButtons,
     queryModeButtons,
+    detectionModeButtons,
     showError(message: string): void {
       errorBox.textContent = message;
       errorBox.hidden = false;
@@ -743,6 +749,16 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
           : 'No notes recovered in the scanned portion yet.';
         activityList.append(empty);
       }
+    },
+    setDetectionMode(mode: ViewerDetectionMode, viewerMode: ViewerMode): void {
+      detectionMode = mode;
+      advancedModes.hidden = mode !== 'advanced';
+      for (const button of detectionModeButtons) {
+        const active = button.dataset.detectionMode === mode;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      }
+      this.updateInputMode(viewerMode);
     },
     renderCore(snapshot: CoreAddressSnapshot): void {
       completeness.classList.remove('viewer-completeness-warning');
@@ -879,7 +895,10 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         activityList.append(empty);
       }
     },
-    startDiagnostics(mode: ViewerMode, network: ViewerNetwork, source: string): void {
+    setDiagnosticMode(mode: ViewerMode | 'auto' | 'mixed', network: ViewerNetwork): void {
+      diagnosticMode.textContent = `${mode} · ${network}`;
+    },
+    startDiagnostics(mode: ViewerMode | 'auto' | 'mixed', network: ViewerNetwork, source: string): void {
       queryStarted = performance.now();
       requestCount = 0;
       remoteDuration = 0;
@@ -940,8 +959,8 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       document.body.classList.toggle('viewer-is-scanning', value);
       scanButton.disabled = value || !selfTestPassed;
       networkInput.disabled = value;
-      keyCapabilityInput.disabled = value || mode !== 'shielded';
-      historyLimitInput.disabled = value || mode === 'shielded';
+      keyCapabilityInput.disabled = value || detectionMode !== 'advanced' || mode !== 'shielded';
+      historyLimitInput.disabled = value || (detectionMode === 'advanced' && mode === 'shielded');
       batchConcurrencyInput.disabled = value || queryMode !== 'batch';
       viewingKeyInput.disabled = value;
       batchInput.disabled = value;
@@ -949,17 +968,18 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       revealBatchButton.disabled = value;
       for (const button of modeButtons) button.disabled = value;
       for (const button of queryModeButtons) button.disabled = value;
+      for (const button of detectionModeButtons) button.disabled = value;
       cancelButton.disabled = !value;
     },
     showCancellationRequested(mode: ViewerMode): void {
       cancelButton.disabled = true;
-      statusBox.textContent = mode === 'shielded'
+      statusBox.textContent = mode === 'shielded' || detectionMode === 'auto'
         ? 'Cancellation requested; waiting for the current verified DAPI page…'
         : 'Cancellation requested…';
       statusBox.hidden = false;
     },
     toggleViewingKeyReveal(mode: ViewerMode): void {
-      if (mode !== 'shielded') return;
+      if (mode !== 'shielded' && detectionMode !== 'auto') return;
       if (queryMode === 'batch') {
         const revealing = batchInput.classList.contains('concealed');
         batchInput.classList.toggle('concealed', !revealing);
@@ -975,8 +995,8 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     resetViewer(mode: ViewerMode): void {
       viewingKeyInput.value = '';
       batchInput.value = '';
-      viewingKeyInput.type = mode === 'shielded' ? 'password' : 'text';
-      batchInput.classList.toggle('concealed', mode === 'shielded');
+      viewingKeyInput.type = detectionMode === 'advanced' && mode === 'shielded' ? 'password' : 'text';
+      batchInput.classList.toggle('concealed', detectionMode === 'advanced' && mode === 'shielded');
       revealButton.textContent = 'Reveal key';
       revealButton.setAttribute('aria-pressed', 'false');
       revealBatchButton.textContent = 'Reveal keys';
@@ -991,7 +1011,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       statusBox.textContent = '';
       statusBox.hidden = true;
       setDiagnosticState('idle', 'Idle');
-      diagnosticMode.textContent = `${mode} · ${networkInput.value}`;
+      diagnosticMode.textContent = `${detectionMode === 'auto' ? 'auto' : mode} · ${networkInput.value}`;
       diagnosticSource.textContent = 'Not connected';
       diagnosticRequests.textContent = '0';
       diagnosticProof.textContent = '—';
@@ -1028,6 +1048,40 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         : 1;
       const length = trimmed.replace(/^0x/iu, '').replace(/\s+/gu, '').length;
       const outgoingMode = keyCapabilityInput.value === 'outgoing';
+      if (detectionMode === 'auto') {
+        const values = queryMode === 'batch'
+          ? batchInput.value.replaceAll('\r', '').split('\n').map((line) => line.trim()).filter(Boolean)
+          : [trimmed];
+        const containsOrchard = values.some(looksLikeAutoOrchardInput);
+        privacyChip.lastChild!.textContent = containsOrchard
+          ? ' Auto detection · viewing keys stay local'
+          : ' Automatic local detection';
+        capabilityControls.hidden = true;
+        historyField.hidden = false;
+        revealButton.hidden = queryMode !== 'single' || !containsOrchard;
+        revealBatchButton.hidden = queryMode !== 'batch' || !containsOrchard;
+        viewingKeyInput.type = containsOrchard && revealButton.getAttribute('aria-pressed') !== 'true'
+          ? 'password'
+          : 'text';
+        batchInput.classList.toggle(
+          'concealed',
+          containsOrchard && revealBatchButton.getAttribute('aria-pressed') !== 'true',
+        );
+        viewingKeyInput.placeholder = 'Core, Platform, Identity, or Orchard viewing key';
+        batchInput.placeholder = 'One Core, Platform, Identity, or Orchard input per line';
+        inputLabel.replaceChildren(document.createTextNode('Any supported Dash lookup '), keyMode);
+        keyMode.textContent = queryMode === 'batch'
+          ? `${batchCount.toLocaleString()} input${batchCount === 1 ? '' : 's'} · mixed types allowed`
+          : containsOrchard ? 'Orchard viewing key · local scan' : 'Auto detect';
+        inputHelp.textContent = queryMode === 'batch'
+          ? 'Enter one value per line. Core, Platform, Identity, and Orchard inputs may be mixed. Detection happens locally before networking; Orchard pages are fetched once for every detected viewing key.'
+          : 'The type is detected locally before any request. Use Advanced to force a type, or prefixes such as core:, platform:, identity:, orchard-fvk:, orchard-ivk:, and orchard-ovk: for ambiguous values.';
+        scanButtonLabel.textContent = queryMode === 'batch'
+          ? 'Detect & load mixed batch'
+          : 'Detect type & load activity';
+        diagnosticMode.textContent = `auto · ${networkInput.value}`;
+        return;
+      }
       if (mode !== 'shielded') {
         batchInput.classList.remove('concealed');
         revealBatchButton.textContent = 'Reveal keys';
