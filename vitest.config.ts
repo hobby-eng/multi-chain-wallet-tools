@@ -17,6 +17,7 @@ export default defineConfig({
       { find: '@ckd/self-test-types', replacement: `${root}packages/verification/src/types.ts` },
       { find: '@ckd/bip39-self-test', replacement: `${root}packages/verification/src/bip39-self-test.ts` },
       { find: '@ckd/derivation-self-test', replacement: `${root}packages/verification/src/derivation-self-test.ts` },
+      { find: '@ckd/dash-derivation-self-test', replacement: `${root}packages/verification/src/derivation-self-test-dash.ts` },
     ],
   },
   test: {

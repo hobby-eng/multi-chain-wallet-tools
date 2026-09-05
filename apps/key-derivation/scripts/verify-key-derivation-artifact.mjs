@@ -3,13 +3,16 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
+import { getToolBuild, parseBuildProfile } from '../../../tooling/build-profiles.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
-const artifactPath = resolve(root, 'dist/key-derivation/Wallet_Key_Derivation_Tool.html');
-const checksumPath = resolve(root, 'dist/key-derivation/Wallet_Key_Derivation_Tool.html.sha256');
+const profile = parseBuildProfile();
+const tool = getToolBuild(profile, 'key-derivation');
+const artifactPath = resolve(root, 'dist', tool.artifactRelativePath);
+const checksumPath = resolve(root, 'dist', tool.artifactDirectory, tool.checksumFile);
 const wasmPath = resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm');
 const html = readFileSync(artifactPath, 'utf8');
-const expectedFingerprint = createBuildInfo(root, 'Wallet_Key_Derivation_Tool.html.sha256').fingerprint;
+const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
 if (!html.includes(expectedFingerprint)) {
   throw new Error('Standalone artifact does not contain the fingerprint of the current source tree.');
 }
@@ -84,6 +87,8 @@ for (const requiredId of [
   'address-list',
   'build-version',
   'build-date',
+  'build-edition',
+  'build-profile',
   'worker-runtime',
   'build-fingerprint',
   'crypto-self-test-status',
@@ -131,6 +136,12 @@ const required = [
 ];
 for (const marker of required) {
   if (!html.includes(marker)) throw new Error(`Standalone artifact is missing required marker: ${marker}`);
+}
+for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
+  if (!html.includes(marker)) throw new Error(`Standalone artifact is missing profile marker: ${marker}`);
+}
+if (profile.id === 'dash-community' && !html.includes('Dash master/account extended-key integrity')) {
+  throw new Error('Dash Community artifact is missing its Dash-only extended-key startup vector.');
 }
 if (occurrences(html, 'Embedded dependency versions and licenses') !== 1) {
   throw new Error('Dependency versions must appear exactly once inside the Release passport.');
