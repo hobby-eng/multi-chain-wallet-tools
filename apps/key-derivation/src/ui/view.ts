@@ -36,6 +36,8 @@ export function createKeyDerivationView(document: Document) {
     protocolTabs: required<HTMLElement>('#protocol-tabs'),
     network: required<HTMLSelectElement>('#network'),
     networkField: required<HTMLElement>('#network-field'),
+    accountField: required<HTMLElement>('#account-field'),
+    accountLabel: required<HTMLLabelElement>('#account-label'),
     account: required<HTMLInputElement>('#account'),
     branchField: required<HTMLElement>('#branch-field'),
     branchLabel: required<HTMLLabelElement>('#branch-label'),
@@ -43,7 +45,9 @@ export function createKeyDerivationView(document: Document) {
     branchSelect: required<HTMLSelectElement>('#branch-select'),
     changeField: required<HTMLElement>('#change-addresses-field'),
     includeChange: required<HTMLInputElement>('#include-change-addresses'),
+    startLabel: required<HTMLLabelElement>('#start-label'),
     start: required<HTMLInputElement>('#start'),
+    countLabel: required<HTMLLabelElement>('#count-label'),
     count: required<HTMLInputElement>('#count'),
     preview: required<HTMLElement>('#path-preview'),
   };
@@ -72,6 +76,7 @@ export function createKeyDerivationView(document: Document) {
   const watchOnlyPanel = required<HTMLElement>('#watch-only-export');
   const watchOnlyDescription = required<HTMLElement>('#watch-only-description');
   const searchAddressButton = required<HTMLButtonElement>('#search-address');
+  const addressSearchPanel = required<HTMLElement>('#address-search');
   const selfTestStatus = required<HTMLElement>('#crypto-self-test-status');
   const selfTestDetails = required<HTMLElement>('#crypto-self-test-details');
   const workerRuntime = required<HTMLElement>('#worker-runtime');
@@ -83,6 +88,8 @@ export function createKeyDerivationView(document: Document) {
   const searchCount = required<HTMLInputElement>('#search-count');
   const searchResult = required<HTMLElement>('#search-result');
   const temporaryButtonLabels = new WeakMap<HTMLButtonElement, string>();
+  let cryptoControlsEnabled = false;
+  let addressSearchAvailable = true;
 
   return {
     document,
@@ -150,12 +157,15 @@ export function createKeyDerivationView(document: Document) {
     },
     configureControls(adapter: CoinAdapter, values?: DerivationControlValues): void {
       configureControls(adapter, controls, values);
+      addressSearchAvailable = adapter.fieldRoles.addresses.length > 0;
+      addressSearchPanel.hidden = !addressSearchAvailable;
+      searchAddressButton.disabled = !cryptoControlsEnabled || !addressSearchAvailable;
     },
     updatePathPreview(adapter: CoinAdapter): void {
       updatePathPreview(adapter, controls);
     },
     resetDeriveAction(): void {
-      deriveButton.textContent = 'Derive keys & addresses';
+      deriveButton.textContent = 'Derive selected results';
     },
     showLargeRequestConfirmation(): void {
       deriveButton.textContent = 'Confirm large request';
@@ -168,7 +178,7 @@ export function createKeyDerivationView(document: Document) {
     },
     showDerivationIdle(enabled: boolean): void {
       deriveButton.disabled = !enabled;
-      deriveButton.textContent = 'Derive keys & addresses';
+      deriveButton.textContent = 'Derive selected results';
       cancelDerivationButton.hidden = true;
     },
     showCancellationRequested(): void {
@@ -212,10 +222,10 @@ export function createKeyDerivationView(document: Document) {
       if (previous !== undefined) searchAddressButton.textContent = previous;
       temporaryButtonLabels.delete(searchAddressButton);
     },
-    setGeneratedMnemonic(phrase: string): void {
+    setGeneratedMnemonic(phrase: string, resultCount: number): void {
       mnemonic.value = phrase;
       controls.start.value = '0';
-      controls.count.value = '20';
+      controls.count.value = String(resultCount);
     },
     clearAllInputs(): void {
       mnemonic.value = '';
@@ -383,8 +393,9 @@ export function createKeyDerivationView(document: Document) {
       required<HTMLElement>('#artifact-checksum-file').textContent = info.checksumFile;
     },
     setCryptoControlsEnabled(enabled: boolean): void {
+      cryptoControlsEnabled = enabled;
       deriveButton.disabled = !enabled;
-      searchAddressButton.disabled = !enabled;
+      searchAddressButton.disabled = !enabled || !addressSearchAvailable;
       generate12Button.disabled = !enabled;
       generate24Button.disabled = !enabled;
     },

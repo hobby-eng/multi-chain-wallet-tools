@@ -71,6 +71,7 @@ for (const marker of [
   '.viewer-hero-grid',
   '.viewer-capability-card',
   '.viewer-flow',
+  '.viewer-detection-tabs',
   '.viewer-mode-tabs',
   '.viewer-diagnostics',
   '.viewer-summary',
@@ -94,6 +95,10 @@ for (const requiredId of [
   'viewer-key-capability',
   'viewer-privacy-chip',
   'full-viewing-key',
+  'viewer-batch-input',
+  'viewer-batch-concurrency',
+  'viewer-batch-results',
+  'viewer-advanced-modes',
   'viewer-key-mode',
   'viewer-history-limit',
   'scan-button',
@@ -104,6 +109,7 @@ for (const requiredId of [
   'viewer-activity',
   'viewer-export-actions',
   'viewer-export-csv',
+  'viewer-export-xlsx',
   'viewer-export-json',
   'diagnostic-state',
   'diagnostic-mode',
@@ -135,7 +141,15 @@ for (const marker of [
   'Wallet Activity Viewer',
   'Dash Core · L1 address',
   'Dash Platform address',
-  'Connection &amp; scan diagnostics',
+  'Dash Platform Identity',
+  'Batch · mixed inputs',
+  'Auto detect',
+  'Advanced · choose type',
+  'orchard-ovk:',
+  'Inputs queried at once',
+  'Private key-like material was detected and erased',
+  'deduplicated by transaction hash',
+  'Query &amp; scan diagnostics',
   'Full Viewing Key',
   'Incoming Viewing Key',
   'Outgoing Viewing Key',
@@ -146,6 +160,9 @@ for (const marker of [
   'DashScan Core API',
   'Dash Platform Explorer',
   'Export loaded data',
+  'write-excel-file 4.1.1',
+  'fflate 0.8.3',
+  'Core, Platform, Identity &amp; Orchard network reads',
   'wallet-activity-viewer-export',
   'Release passport',
   'Embedded dependency versions and licenses:',
@@ -163,12 +180,16 @@ if (occurrences(html, 'Embedded dependency versions and licenses') !== 1) {
 
 const coreTab = html.indexOf('data-viewer-mode="core"');
 const platformTab = html.indexOf('data-viewer-mode="platform"');
+const identityTab = html.indexOf('data-viewer-mode="identity"');
 const orchardTab = html.indexOf('data-viewer-mode="shielded"');
-if (!(coreTab >= 0 && coreTab < platformTab && platformTab < orchardTab)) {
-  throw new Error('Viewer tabs must be ordered Core, Platform, Orchard.');
+if (!(coreTab >= 0 && coreTab < platformTab && platformTab < identityTab && identityTab < orchardTab)) {
+  throw new Error('Viewer tabs must be ordered Core, Platform address, Platform Identity, Orchard.');
 }
 if (!/<button class="viewer-mode-tab active" data-viewer-mode="core"[^>]+aria-pressed="true"/u.test(html)) {
-  throw new Error('Dash Core must be the default viewer tab.');
+  throw new Error('Dash Core must be the default Advanced viewer type.');
+}
+if (!/<button class="viewer-detection-tab active" data-detection-mode="auto"[^>]+aria-pressed="true"/u.test(html)) {
+  throw new Error('Automatic local input detection must be enabled by default.');
 }
 if (!/<button[^>]*id="scan-button"[^>]*disabled/u.test(html)) {
   throw new Error('Viewer query button must start fail-closed until its cryptographic self-test passes.');

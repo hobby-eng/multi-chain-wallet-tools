@@ -48,6 +48,12 @@ export interface CoinAdapter {
   addressBranches?: AddressBranches;
   branchControl?: BranchControl;
   limits?: CoinLimits;
+  accountControl?: boolean;
+  controlLabels?: {
+    account?: string;
+    start?: string;
+    count?: string;
+  };
   /** Internal work chunk. This is not a user-visible total-result limit. */
   batchSize?: number;
   defaults: { network: NetworkName; account: number; branch: number; start: number; count: number };
@@ -158,6 +164,42 @@ export const COIN_ADAPTERS: readonly CoinAdapter[] = [
     fieldRoles: TRANSPARENT_ROLES,
     pathPreview: ({ network, account, branch, start, count }) =>
       `m/9'/${network === 'mainnet' ? 5 : 1}'/17'/${account}'/${branch}'/${indexRange(start, count)}`,
+  },
+  {
+    id: 'dash-identity',
+    group: 'Dash',
+    label: 'Dash Platform Identity · DIP13',
+    variantLabel: 'Identity · DIP13',
+    networkControl: true,
+    accountControl: false,
+    controlLabels: {
+      start: 'Start Identity index',
+      count: 'Number of Identity candidates',
+    },
+    defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 5 },
+    fieldRoles: {
+      addresses: [],
+      publicKeys: [
+        'key0PublicKey',
+        'key1PublicKey',
+        'key2PublicKey',
+        'key3PublicKey',
+      ],
+      privateKeys: [
+        'key0PrivateKeyWif',
+        'key0PrivateKeyHex',
+        'key1PrivateKeyWif',
+        'key1PrivateKeyHex',
+        'key2PrivateKeyWif',
+        'key2PrivateKeyHex',
+        'key3PrivateKeyWif',
+        'key3PrivateKeyHex',
+      ],
+    },
+    pathPreview: ({ network, start, count }) => {
+      const identity = count > 1 ? `{${start}'…${start + count - 1}'}` : `${start}'`;
+      return `m/9'/${network === 'mainnet' ? 5 : 1}'/5'/0'/0'/${identity}/{0'…3'}`;
+    },
   },
   {
     id: 'dash-shielded',

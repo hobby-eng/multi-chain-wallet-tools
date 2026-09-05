@@ -1,6 +1,6 @@
 # Dash Platform and Shielded implementation report
 
-Research and implementation review date: 2026-09-02.
+Research and implementation review date: 2026-09-05.
 
 Original integration code is licensed under the repository's MIT License. Dash Core, Platform, Orchard, brand materials, and all other upstream components retain their respective authorship and licenses documented in `ATTRIBUTION.md` and `THIRD_PARTY_NOTICES.md`.
 
@@ -38,17 +38,37 @@ The implementation uses Scure BIP32, Noble secp256k1/hash functions, and Scure B
 
 DIP17's normative result is a raw private scalar; it does not define a Platform-specific WIF. Therefore basic mode exposes raw 32-byte private-key hex. Advanced mode provides a clearly qualified Dash-compatible WIF transport encoding because the secret is the same secp256k1 scalar, but warns that WIF carries no Platform address/path metadata.
 
+## Platform Identity keys
+
+The offline derivation tool exposes the official Platform Wallet v4.1.1 default Identity registration profile through DIP13:
+
+```text
+m/9'/coin_type'/5'/0'/0'/identity_index'/0'  MASTER / AUTHENTICATION
+m/9'/coin_type'/5'/0'/0'/identity_index'/1'  CRITICAL / AUTHENTICATION
+m/9'/coin_type'/5'/0'/0'/identity_index'/2'  HIGH / AUTHENTICATION
+m/9'/coin_type'/5'/0'/0'/identity_index'/3'  CRITICAL / TRANSFER
+```
+
+All seven path levels are hardened and all four default keys use compressed ECDSA/secp256k1 public-key data. The final key ID does not cryptographically encode its purpose or security level. Those values are explicit `IdentityPublicKey` metadata assigned by the registration transition; a custom valid registration can use different IDs or role assignments. The UI therefore labels this mapping as the official wallet default profile rather than a universal DIP13 rule.
+
+One result and selection unit is an Identity candidate containing all four key slots. Basic mode shows each slot's HASH160 discovery fingerprint, compressed public key, and Dash-compatible WIF transport encoding. Advanced mode adds key ID, purpose, security level, key type, full path, raw private scalar, public-key size, hardened status, `readOnly`, and contract-bound metadata. Public-key HASH160 is neither a payment address nor an Identity ID.
+
+Identity IDs are created from registration funding inputs, not from the recovery phrase or DIP13 path. Consequently the offline tool does not fabricate an ID, registration status, balance, or DPNS name. It derives candidate registration keys only; the connected Discovery Scanner separately uses the first MASTER key's HASH160 to locate an Identity that has already been registered.
+
 ## Public address viewing
 
-The separate network-enabled viewer has three modes and deliberately keeps their trust models distinct:
+The separate network-enabled viewer supports four resource types and deliberately keeps their trust models distinct:
 
 - Dash Core L1 address history uses the open-source DashScan Mainnet/Testnet API. The provider must report `ok`; the viewer also records the latest indexed Core height/time. Balances and lifetime flows are parsed as exact duffs, and each transaction is reconstructed relative to the queried address from its inputs and outputs.
 - Dash Platform address current state uses Evo SDK 4.1.1 trusted quorum discovery and `addresses.getWithProof`. Address-indexed lifetime totals and transitions come from the open-source Dash Platform Explorer Mainnet/Testnet API only after its index reports `synced`. Explorer balance/nonce are compared with the DAPI proof; DAPI wins on any disagreement.
+- Dash Platform Identity lookup accepts a Base58 Identity ID, an explicitly labelled `idhex:<64-hex Identity ID>`, an explicitly labelled `tx:<64-hex registration transition>`, the HASH160 fingerprint of a public key registered to the Identity, a compressed ECDSA/BLS public key, or a DPNS name with or without `.dash`. Bare 64-hex input remains blocked because an identifier or transition hash is indistinguishable from a raw private key without an explicit prefix. Public keys are hashed locally before lookup. A registration-transaction lookup accepts only an Identity creation transition, verifies its hash against the indexed raw bytes, decodes its owner locally with the pinned Evo SDK, and then requests the resulting Identity from proof-verified DAPI. DAPI proofs provide current balance, revision, nonce, every registered public key with its actual purpose/security metadata, and the Identity's DPNS names. A DPNS forward resolution is accepted only after the resolved Identity's proof-verified username set confirms the requested name. Explorer registration metadata, aliases and history remain explicitly auxiliary; registration time/hash are selected from the actual Identity creation transition, and the pinned Evo SDK locally decodes the Core asset-lock outpoint for classic registrations. Address-funded and shielded-pool registrations are labelled separately. Owner transactions and transfer legs are grouped by transaction hash into one ledger event without losing multiple transfer legs.
 - Dash Orchard activity uses viewing-key recovery described below and does not query either public-address index.
 
-Both public indexes are behind small provider interfaces, so endpoint replacement does not require renderer or validation changes. Live Mainnet/Testnet smoke tests exercise CORS, index status, current tip metadata, pagination, and real records. The Platform smoke additionally requires Explorer balance/nonce to equal proof-verified DAPI for the same address. Platform Explorer exposes lifetime aggregate amounts but not the amount attributable to an individual address on every returned transition, so the viewer leaves that per-transition field unavailable.
+All public lookup modes reject and erase mnemonic, WIF, extended-private-key, raw-private-key and structured private-material patterns before opening a network connection. The public indexes are behind small provider interfaces, so endpoint replacement does not require renderer or validation changes. Live Mainnet/Testnet smoke tests exercise CORS, index status, current tip metadata, pagination, and real records. The Platform smoke additionally requires Explorer balance/nonce to equal proof-verified DAPI for the same address. Platform Explorer exposes lifetime aggregate amounts but not the amount attributable to an individual address on every returned transition, so the viewer leaves that per-transition field unavailable.
 
-Viewer results use a mode-tagged export boundary in `apps/activity-viewer/src/export.ts`. CSV repeats the verified/indexed summary alongside each loaded ledger record and protects string cells from spreadsheet formula execution. JSON is schema-versioned and serializes integer duffs, credits, heights, positions, nonces, and nullifiers without numeric precision loss. The input viewing key is deliberately absent from the export state.
+Single/Batch is the primary viewer choice. Auto mode classifies unambiguous Core, Platform address, Identity, and Orchard inputs locally and can process all four types in one newline-delimited batch; Advanced mode retains an explicit type override. Ambiguous values use explicit `core:`, `platform:`, `identity:`, `orchard-fvk:`, `orchard-ivk:`, or `orchard-ovk:` prefixes, while an unlabelled 64-hex value remains blocked. Public batches are completely screened for private material before networking starts, preserve input order, isolate ordinary per-item failures, and limit concurrent lookups to at most five. Platform address and Identity batches reuse one trusted SDK connection. Orchard batches validate every viewing capability locally, fetch each proof-verified encrypted-note page once, scan that page against each active key, and erase every normalized key reference when the run ends. The UI keeps completed mixed results in local selector tabs, so switching objects does not issue another request.
+
+Viewer results use a mode-tagged export boundary in `apps/activity-viewer/src/export.ts`. CSV v2 emits one summary row per queried resource plus compact typed record rows, retaining only the resource identifier needed to relate those rows instead of repeating the full verified/indexed summary. Less common typed values use readable `key=value` metadata rather than nested JSON inside a CSV cell, and every string cell is protected from spreadsheet formula execution. XLSX uses a Summary worksheet plus separate Addresses, Identities, Orchard, and Errors worksheets, omits empty category columns, and stores arbitrary-size integers as text. JSON v2 is object-oriented: each Identity owns its state, keys, registration, indexed history and explicitly grouped proof metadata without a separate snapshot/history join. Exact integer duffs, credits, heights, positions, nonces, and nullifiers are serialized without numeric precision loss. The input viewing key is deliberately absent from every export.
 
 ## Mnemonic recovery scanner
 
