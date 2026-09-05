@@ -14,6 +14,7 @@
       "@ckd/self-test-types": ["./packages/verification/src/types.ts"],
       "@ckd/bip39-self-test": ["./packages/verification/src/bip39-self-test.ts"],
       "@ckd/derivation-self-test": ["./packages/verification/src/derivation-self-test.ts"],
+      "@ckd/dash-derivation-self-test": ["./packages/verification/src/derivation-self-test-dash.ts"],
       "@ckd/test-support/*": ["./test/support/*"]
     },
     "lib": ["ES2022", "DOM", "DOM.Iterable"],

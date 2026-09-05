@@ -6,7 +6,11 @@ The application is designed so a new derivation family normally requires one iso
 
 Implement a function that accepts one bounded internal derivation batch and returns `DerivationResult`. A result contains protocol-neutral metadata, optional account-level `basicSummary` and advanced `summary` fields, an optional privacy-sensitive `watchOnly` export, sequential row objects, and basic/advanced `ResultField` arrays. Every field declares a stable key, user-facing label, string value, and whether it is sensitive. Account-scoped keys normally belong in a summary. If a recovery workflow explicitly repeats one beside each address (as Dash Shielded Basic does), the label and description must state that it is account-wide and identical across those rows.
 
-Register metadata in `packages/coin-protocols/src/coins/registry.ts` and the matching derivation implementation in `packages/coin-protocols/src/coins/runtime-registry.ts`. This split keeps cryptographic code and Orchard WASM out of the main UI bundle while preserving one declarative adapter model.
+Add metadata in a protocol-specific module under `packages/coin-protocols/src/coins/adapters/`, then explicitly compose it into `registry.ts` and add its derivation implementation to `runtime-registry.ts`. This split keeps cryptographic code and Orchard WASM out of the main UI bundle while preserving one declarative adapter model.
+
+Do not add a new adapter to `dash-registry.ts` or `dash-runtime-registry.ts` unless it is part of Dash Core, Platform, Identity, or Orchard. Dash Community is an explicit allowlist: adding a future coin to Multi-Chain must not change the Dash graph.
+
+`assertDashOnlyGraph` in `tooling/build-profiles.mjs` enforces this rule over every esbuild metafile. Any newly reachable coin module outside the Dash allowlist fails all Dash Community builds until the boundary is reviewed and changed deliberately.
 
 - a unique ID, coin-family group, full label, and concise horizontal-tab `variantLabel`;
 - network behavior (the UI consistently presents `Mainnet` / `Testnet`);

@@ -3,6 +3,7 @@ import {
   getAdapterFamilyId,
   getCoinAdapter,
   getDefaultCoinAdapter,
+  getCoinFamily,
 } from '@ckd/coins/registry.js';
 import { BUILD_INFO } from '@ckd/build-info';
 import { generateMnemonic, mnemonicToSeed } from '@ckd/core/bip39.js';
@@ -13,7 +14,11 @@ import { DerivationWorkerClient } from '../workers/derive-client.js';
 import { createKeyDerivationController } from './controller.js';
 import { createKeyDerivationView } from './view.js';
 
-const view = createKeyDerivationView(document);
+const view = createKeyDerivationView(document, {
+  COIN_FAMILIES,
+  getAdapterFamilyId,
+  getCoinFamily,
+});
 const controller = createKeyDerivationController(view, {
   coinFamilies: COIN_FAMILIES,
   getAdapterFamilyId,

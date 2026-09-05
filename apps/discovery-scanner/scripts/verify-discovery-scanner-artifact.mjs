@@ -3,20 +3,23 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
+import { applyProfileTemplate, getToolBuild, parseBuildProfile } from '../../../tooling/build-profiles.mjs';
 import { assertEvoSdkReadOnly } from '../../../tooling/verify-evo-read-only.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+const profile = parseBuildProfile();
+const tool = getToolBuild(profile, 'discovery-scanner');
 const sourceRoot = resolve(root, 'apps/discovery-scanner/src');
-const artifactPath = resolve(root, 'dist/discovery-scanner/Wallet_Discovery_Scanner.html');
-const checksumPath = resolve(root, 'dist/discovery-scanner/Wallet_Discovery_Scanner.html.sha256');
+const artifactPath = resolve(root, 'dist', tool.artifactRelativePath);
+const checksumPath = resolve(root, 'dist', tool.artifactDirectory, tool.checksumFile);
 const orchardWasmPath = resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm');
 const html = readFileSync(artifactPath, 'utf8');
-const expectedFingerprint = createBuildInfo(root, 'Wallet_Discovery_Scanner.html.sha256').fingerprint;
+const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
 if (!html.includes(expectedFingerprint)) {
   throw new Error('Recovery artifact does not contain the fingerprint of the current source tree.');
 }
-const vaultTemplate = readFileSync(resolve(sourceRoot, 'index.html'), 'utf8');
-const shellTemplate = readFileSync(resolve(sourceRoot, 'shell.html'), 'utf8');
+const vaultTemplate = applyProfileTemplate(readFileSync(resolve(sourceRoot, 'index.html'), 'utf8'), profile, tool);
+const shellTemplate = applyProfileTemplate(readFileSync(resolve(sourceRoot, 'shell.html'), 'utf8'), profile, tool);
 
 function occurrences(value, marker) {
   return value.split(marker).length - 1;
@@ -115,6 +118,7 @@ for (const requiredId of [
   'export-recovery-csv', 'export-recovery-json', 'recovery-self-test', 'recovery-build-footer',
   'recovery-crypto-self-test-status', 'recovery-crypto-self-test-details', 'recovery-build-version',
   'recovery-build-date', 'recovery-runtime', 'recovery-build-fingerprint', 'recovery-artifact-checksum-file',
+  'recovery-build-edition', 'recovery-build-profile',
 ]) {
   if (!vaultIds.includes(requiredId)) throw new Error(`Recovery Secret Vault is missing required element #${requiredId}.`);
 }
@@ -142,6 +146,9 @@ for (const marker of [
   'platform.identity-history', 'shielded.page', 'ckd-recovery-export-request-v1',
 ]) {
   if (!html.includes(marker)) throw new Error(`Recovery artifact is missing required marker: ${marker}`);
+}
+for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
+  if (!html.includes(marker)) throw new Error(`Recovery artifact is missing profile marker: ${marker}`);
 }
 const allFunctionConstructors = html.match(/(?:^|[^.\w])(?:new\s+)?Function\s*\(/gu) ?? [];
 if (

@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src __INLINE_SCRIPT_CSP__ 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Offline Wallet Key Derivation Tool</title>
+  <title>__DOCUMENT_TITLE__</title>
   <style>/*__INLINE_CSS__*/</style>
 </head>
 <body>
   <noscript>This offline tool requires JavaScript.</noscript>
   <header class="hero">
     <div class="deriver-topbar">
-      <div class="eyebrow">MULTI-CHAIN WALLET TOOLS · OFFLINE</div>
+      <div class="eyebrow">__EDITION_EYEBROW__</div>
       <div class="offline-badge"><span></span> Runtime network access blocked by this file</div>
     </div>
     <h1>Wallet Key Derivation Tool</h1>
-    <p>Derive standard Bitcoin, Ethereum, and Dash wallet keys from a 12- or 24-word English BIP39 recovery phrase.</p>
+    <p>__KEY_DERIVATION_INTRODUCTION__</p>
   </header>
 
   <main>
@@ -195,6 +195,8 @@
     <div class="build-passport-grid">
       <div><span>Version</span><code id="build-version">—</code></div>
       <div><span>Release date</span><code id="build-date">—</code></div>
+      <div><span>Edition</span><code id="build-edition">__EDITION_NAME__</code></div>
+      <div><span>Build profile</span><code id="build-profile">__BUILD_PROFILE__</code></div>
       <div><span>Derivation runtime</span><code id="worker-runtime">Dedicated Web Worker</code></div>
       <div class="build-fingerprint"><span>Source/build fingerprint · SHA-256 (not the HTML checksum)</span><code id="build-fingerprint">—</code></div>
     </div>
@@ -207,7 +209,7 @@
 
   <footer>
     <div class="footer-main">
-      <p>BIP39 · BIP32 · Bitcoin · Ethereum · Dash Core · Platform · Identity · Shielded</p>
+      <p>__KEY_DERIVATION_FOOTER_PROTOCOLS__</p>
       <p>No warranty. Verify valuable-wallet results with a second independent offline implementation.</p>
     </div>
   </footer>

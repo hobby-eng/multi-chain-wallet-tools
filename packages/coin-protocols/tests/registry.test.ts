@@ -6,6 +6,11 @@ import {
   getCoinAdapter,
   getDefaultCoinAdapter,
 } from '../src/coins/registry.js';
+import {
+  COIN_ADAPTERS as DASH_COIN_ADAPTERS,
+  COIN_FAMILIES as DASH_COIN_FAMILIES,
+  getCoinAdapter as getDashCoinAdapter,
+} from '../src/coins/dash-registry.js';
 
 describe('coin adapter extension contract', () => {
   it('registers unique, complete adapters without UI-specific branching', () => {
@@ -88,5 +93,17 @@ describe('coin adapter extension contract', () => {
       count: 2,
     })).toBe("m/9'/5'/5'/0'/0'/{1'…2'}/{0'…3'}");
     expect(getCoinAdapter('dash-shielded').addressBranches).toBeUndefined();
+  });
+
+  it('keeps the Dash Community registry explicitly Dash-only', () => {
+    expect(DASH_COIN_ADAPTERS.map(({ id }) => id)).toEqual([
+      'dash-core',
+      'dash-platform',
+      'dash-identity',
+      'dash-shielded',
+    ]);
+    expect(DASH_COIN_FAMILIES.map(({ id }) => id)).toEqual(['dash']);
+    expect(() => getDashCoinAdapter('bitcoin-taproot')).toThrow('Unsupported derivation protocol');
+    expect(() => getDashCoinAdapter('ethereum')).toThrow('Unsupported derivation protocol');
   });
 });

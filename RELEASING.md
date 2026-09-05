@@ -2,6 +2,8 @@
 
 Repository: `https://github.com/hobby-eng/multi-chain-wallet-tools`
 
+This repository is the canonical source for both build profiles and the release surface for the Multi-Chain Edition. A future `hobby-eng/dash-wallet-tools` repository is intended to be a separate distribution/release surface for Dash Community Edition artifacts built from this source. It does not exist yet; do not copy or independently evolve application source there.
+
 ## What belongs in Git
 
 Commit the application, package, test, tooling and documentation sources together with all lockfiles. In particular, these generated-looking files are mandatory build inputs and must remain tracked:
@@ -49,9 +51,9 @@ If GitHub was initialized with a README or license instead of being empty, do no
 
 The checked-in workflows pin every referenced GitHub-maintained action to a full commit SHA. Compilation itself runs through the repository's canonical Dockerfile:
 
-- `.github/workflows/ci.yml` runs on every push to `main`, pull request and manual invocation. It builds the canonical container, runs the complete verification suite, rebuilds Orchard WASM, rejects any generated-byte difference and creates the flat release bundle.
+- `.github/workflows/ci.yml` runs on every push to `main`, pull request and manual invocation. It builds the canonical container, runs the complete verification suite for both profiles, rebuilds Orchard WASM, rejects any generated-byte difference and creates both local flat bundles.
 - `.github/workflows/full-wasm.yml` runs monthly or manually as a fresh scheduled repetition of the same complete, pinned Rust/WASM build gate.
-- `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version and a matching curated `docs/releases/<tag>.md`, creates GitHub provenance attestations, and publishes a release containing the three HTML files, their sidecars, the MIT `LICENSE`, and a flat `SHA256SUMS`.
+- `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version and a matching curated `docs/releases/<tag>.md`, creates GitHub provenance attestations, and publishes a Multi-Chain release containing the existing three filenames, their sidecars, the MIT `LICENSE`, and a flat `SHA256SUMS`. It intentionally does not publish the Dash Community bundle.
 - `.github/dependabot.yml` proposes pinned npm, Cargo, GitHub Actions and Docker updates weekly. `.github/workflows/upstream-versions.yml` separately compares the pinned Node LTS, pnpm, stable Rust, rustup, Evo SDK, wasm-bindgen and Dash Orchard tag/commit with their upstream releases; it opens or refreshes one review issue instead of modifying release inputs. Never merge a cryptographic/dependency update only because CI is green; inspect its changelog, lockfile diff and vectors.
 
 `Dockerfile.reproducible` pins the Ubuntu 24.04-based base image by immutable digest and pins Node.js 24.20.0, pnpm 11.25.0, Rust/Cargo 1.98.1 and wasm-bindgen 0.2.127. Downloaded Node/rustup installers are checksum-verified. Dependency fetching happens before the final `pnpm verify` layer; that complete verification/build layer runs with `--network=none`. The generated WASM is compared byte for byte with the committed reviewed input before any release artifact can leave the image.
@@ -61,7 +63,7 @@ The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checks
 ## Release checklist
 
 1. Update workspace versions and `releaseDate`, add curated notes at `docs/releases/v<version>.md`, update relevant documentation, and commit the changes. Give each significant user-facing, security, dependency, or build change its own release-note bullet instead of combining distinct features. The intended tag is always `v` plus the root `package.json` version.
-2. From a clean source checkout with Docker Engine/Desktop running, run `./tooling/build-reproducible.sh`. This performs the locked install, TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, a release WASM rebuild and exact generated-byte comparison, generated-browser-WASM tests, two byte-identical HTML builds, manifest checks and each application's CSP/artifact verifier.
+2. From a clean source checkout with Docker Engine/Desktop running, run `./tooling/build-reproducible.sh`. This performs the locked install, TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, a release WASM rebuild and exact generated-byte comparison, generated-browser-WASM tests, two byte-identical builds of both profiles, per-profile manifest checks, Dash graph/content isolation checks, and each application's CSP/artifact verifier.
 3. Run the live network release observations below. They are intentionally not part of deterministic CI because changing chain state or a provider outage must not change the reproducible build result.
 4. Ensure the working tree is clean. A GPG key is not required. Create and push an annotated tag:
 
@@ -106,6 +108,21 @@ dist/release/Wallet_Discovery_Scanner.html.sha256
 dist/release/LICENSE
 dist/release/SHA256SUMS
 ```
+
+It remains the only bundle published by this repository's tag workflow. `pnpm release:bundle:dash-community` separately prepares, but does not publish:
+
+```text
+dist/dash-community/release/Dash_Community_Key_Derivation_Tool.html
+dist/dash-community/release/Dash_Community_Key_Derivation_Tool.html.sha256
+dist/dash-community/release/Dash_Community_Activity_Viewer.html
+dist/dash-community/release/Dash_Community_Activity_Viewer.html.sha256
+dist/dash-community/release/Dash_Community_Discovery_Scanner.html
+dist/dash-community/release/Dash_Community_Discovery_Scanner.html.sha256
+dist/dash-community/release/LICENSE
+dist/dash-community/release/SHA256SUMS
+```
+
+Do not attach those files to a `multi-chain-wallet-tools` release. A future Dash distribution workflow should check out an exact canonical source commit/tag, run the same pinned container, select the verified Dash bundle, and publish it without maintaining a source fork.
 
 The manifest uses plain filenames, not subdirectories, so a user can download all release assets into one directory and immediately run:
 

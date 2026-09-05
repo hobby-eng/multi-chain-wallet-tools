@@ -1,4 +1,6 @@
 import type { RecoveryExportFile, RecoveryExportFormat } from './export.js';
+import type { RecoveryCoinRegistry } from './coins/registry.js';
+import type { RecoverySelfTestReport } from './recovery-self-test.js';
 import type { DiscoveryScannerView, RecoveryInputSnapshot, WalletProgressView } from './view.js';
 import type {
   RecoveryFinding,
@@ -16,12 +18,12 @@ interface DiscoveryScannerDependencies {
   assertValidMnemonic: typeof import('@ckd/core/bip39.js').assertValidMnemonic;
   createRecoveryExport: typeof import('./export.js').createRecoveryExport;
   describeUnknownError: typeof import('./error-message.js').describeUnknownError;
-  getRecoveryCoin: typeof import('./coins/index.js').getRecoveryCoin;
-  listRecoveryCoins: typeof import('./coins/index.js').listRecoveryCoins;
+  getRecoveryCoin: RecoveryCoinRegistry['getRecoveryCoin'];
+  listRecoveryCoins: RecoveryCoinRegistry['listRecoveryCoins'];
   mapRecoveryTasks: typeof import('./concurrency.js').mapRecoveryTasks;
   recoveryNetworkApi: typeof import('./network-client.js').recoveryNetworkApi;
   requestRecoveryExport: typeof import('./download-client.js').requestRecoveryExport;
-  runRecoverySelfTest: typeof import('./self-test.js').runRecoverySelfTest;
+  runRecoverySelfTest: () => Promise<RecoverySelfTestReport>;
 }
 
 const exportTripwireContext: Record<RecoveryExportFormat, string> = {

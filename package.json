@@ -10,10 +10,12 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "build": "node tooling/build-shielded-wasm.mjs && node apps/key-derivation/scripts/build-key-derivation-html.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs && node tooling/create-release-manifest.mjs",
+    "build": "node tooling/build-shielded-wasm.mjs && node tooling/build-html-profiles.mjs",
     "build:reproducible": "node tooling/build-reproducible.mjs",
     "build:reproducible:wasm": "node tooling/build-reproducible.mjs --wasm",
-    "build:html": "node apps/key-derivation/scripts/build-key-derivation-html.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs && node tooling/create-release-manifest.mjs",
+    "build:html": "node tooling/build-html-profiles.mjs",
+    "build:html:multi-chain": "node tooling/build-html-profiles.mjs --profile multi-chain",
+    "build:html:dash-community": "node tooling/build-html-profiles.mjs --profile dash-community",
     "build:quick": "node apps/key-derivation/scripts/build-key-derivation-html.mjs",
     "build:activity-viewer": "node tooling/build-shielded-wasm.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs",
     "build:discovery-scanner": "node tooling/build-shielded-wasm.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
@@ -24,6 +26,7 @@
     "test:rust": "node tooling/test-rust.mjs",
     "test:wasm": "node tooling/verify-shielded-wasm.mjs",
     "test:self-test": "node apps/key-derivation/scripts/verify-self-test.mjs",
+    "test:self-test:dash-community": "node apps/key-derivation/scripts/verify-dash-self-test.mjs",
     "test:activity-viewer:network": "node apps/activity-viewer/scripts/smoke-activity-viewer-network.mjs testnet",
     "test:activity-viewer:core-mainnet": "node apps/activity-viewer/scripts/smoke-core-address.mjs mainnet",
     "test:activity-viewer:core-testnet": "node apps/activity-viewer/scripts/smoke-core-address.mjs testnet",
@@ -39,9 +42,10 @@
     "release:manifest": "node tooling/create-release-manifest.mjs",
     "release:verify": "node tooling/verify-release-manifest.mjs",
     "release:bundle": "node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs",
+    "release:bundle:dash-community": "node tooling/create-github-release-assets.mjs --profile dash-community && node tooling/verify-github-release-assets.mjs --profile dash-community",
     "release:sign": "node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs && node tooling/sign-release.mjs",
-    "verify:ci": "node tooling/verify-reproducible-container.mjs && tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node tooling/verify-shielded-wasm.mjs && node apps/key-derivation/scripts/build-key-derivation-html.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs && node tooling/create-release-manifest.mjs && node tooling/verify-release-manifest.mjs && node tooling/verify-reproducible-build.mjs --reuse-generated-wasm && node apps/key-derivation/scripts/verify-key-derivation-artifact.mjs && node apps/activity-viewer/scripts/verify-activity-viewer-artifact.mjs && node apps/discovery-scanner/scripts/verify-discovery-scanner-artifact.mjs && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs",
-    "verify": "node tooling/verify-reproducible-container.mjs && tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node tooling/test-rust.mjs && node tooling/build-shielded-wasm.mjs && node apps/key-derivation/scripts/build-key-derivation-html.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs && node tooling/create-release-manifest.mjs && node tooling/verify-release-manifest.mjs && node tooling/verify-shielded-wasm.mjs && node tooling/verify-reproducible-build.mjs && node apps/key-derivation/scripts/verify-key-derivation-artifact.mjs && node apps/activity-viewer/scripts/verify-activity-viewer-artifact.mjs && node apps/discovery-scanner/scripts/verify-discovery-scanner-artifact.mjs && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs"
+    "verify:ci": "node tooling/verify-reproducible-container.mjs && tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node apps/key-derivation/scripts/verify-dash-self-test.mjs && node tooling/verify-shielded-wasm.mjs && node tooling/build-html-profiles.mjs && node tooling/verify-reproducible-build.mjs --reuse-generated-wasm && node tooling/verify-artifact-profiles.mjs && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs && node tooling/create-github-release-assets.mjs --profile dash-community && node tooling/verify-github-release-assets.mjs --profile dash-community",
+    "verify": "node tooling/verify-reproducible-container.mjs && tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node apps/key-derivation/scripts/verify-dash-self-test.mjs && node tooling/test-rust.mjs && node tooling/build-shielded-wasm.mjs && node tooling/build-html-profiles.mjs && node tooling/verify-shielded-wasm.mjs && node tooling/verify-reproducible-build.mjs && node tooling/verify-artifact-profiles.mjs && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs && node tooling/create-github-release-assets.mjs --profile dash-community && node tooling/verify-github-release-assets.mjs --profile dash-community"
   },
   "dependencies": {
     "@dashevo/evo-sdk": "4.1.1",

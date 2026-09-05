@@ -1,6 +1,6 @@
 # Wallet Key Derivation Tool
 
-Offline, standalone BIP39/BIP32/ZIP-32 derivation for Bitcoin, Ethereum, Dash Core, Dash Platform payments, Dash Platform Identity keys, and Dash Orchard. Build output: `dist/key-derivation/Wallet_Key_Derivation_Tool.html`.
+Offline, standalone BIP39/BIP32/ZIP-32 derivation. Multi-Chain supports Bitcoin, Ethereum, Dash Core, Dash Platform payments, Dash Platform Identity keys, and Dash Orchard. Dash Community compiles only the four Dash adapters. Build outputs: `dist/key-derivation/Wallet_Key_Derivation_Tool.html` and `dist/dash-community/key-derivation/Dash_Community_Key_Derivation_Tool.html`.
 
 The Release passport contains the self-test result, deterministic build identity, checksum sidecar name, and embedded dependency versions/licenses. The former duplicate expandable dependency footer has been removed.
 
