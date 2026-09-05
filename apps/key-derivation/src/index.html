@@ -60,8 +60,8 @@
             <label id="protocol-tabs-label">Derivation type</label>
             <div id="protocol-tabs" class="protocol-tabs" role="radiogroup" aria-labelledby="protocol-tabs-label"></div>
           </div>
-          <div>
-            <label for="account">Account</label>
+          <div id="account-field">
+            <label id="account-label" for="account">Account</label>
             <input id="account" type="number" value="0" min="0" max="2147483647" step="1">
           </div>
           <div id="branch-field">
@@ -70,11 +70,11 @@
             <select id="branch-select" hidden></select>
           </div>
           <div>
-            <label for="start">Start index</label>
+            <label id="start-label" for="start">Start index</label>
             <input id="start" type="number" value="0" min="0" max="2147483647" step="1">
           </div>
           <div>
-            <label for="count">Number of results</label>
+            <label id="count-label" for="count">Number of results</label>
             <input id="count" type="number" value="20" min="1" max="2147483648" step="1">
           </div>
           <div class="path-preview span-two">
@@ -89,12 +89,12 @@
           </div>
         </div>
         <div class="actions">
-          <button class="primary" id="derive-button" type="submit">Derive keys & addresses</button>
+          <button class="primary" id="derive-button" type="submit">Derive selected results</button>
           <button class="secondary" id="cancel-derivation" type="button" hidden>Cancel generation</button>
           <button class="secondary" id="clear-all" type="button">Clear everything</button>
         </div>
         <p class="field-note auto-derive-note">Generating or pasting a complete phrase, changing its BIP39 passphrase, coin, or derivation tab automatically derives the selected result count. Remembered totals above 20 require a manual click; larger requests run in visible batches and can consume substantial CPU, memory, and browser time.</p>
-        <section class="address-search" aria-labelledby="address-search-title">
+        <section id="address-search" class="address-search" aria-labelledby="address-search-title">
           <div>
             <h3 id="address-search-title">Find a known address</h3>
             <p>Verify that an expected address belongs to the selected account by scanning receive and, when enabled, change indices locally.</p>
@@ -207,7 +207,7 @@
 
   <footer>
     <div class="footer-main">
-      <p>BIP39 · BIP32 · Bitcoin · Ethereum · Dash Core · Platform · Shielded</p>
+      <p>BIP39 · BIP32 · Bitcoin · Ethereum · Dash Core · Platform · Identity · Shielded</p>
       <p>No warranty. Verify valuable-wallet results with a second independent offline implementation.</p>
     </div>
   </footer>
