@@ -92,6 +92,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   const ledgerOrder = required<HTMLElement>('viewer-ledger-order');
   const exportActions = required<HTMLElement>('viewer-export-actions');
   const exportCsvButton = required<HTMLButtonElement>('viewer-export-csv');
+  const exportXlsxButton = required<HTMLButtonElement>('viewer-export-xlsx');
   const exportJsonButton = required<HTMLButtonElement>('viewer-export-json');
   const diagnosticState = required<HTMLElement>('diagnostic-state');
   const diagnosticMode = required<HTMLElement>('diagnostic-mode');
@@ -652,6 +653,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     cancelButton,
     clearButton,
     exportCsvButton,
+    exportXlsxButton,
     exportJsonButton,
     modeButtons,
     queryModeButtons,
@@ -712,7 +714,14 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     setExportAvailable(available: boolean): void {
       exportActions.hidden = !available;
       exportCsvButton.disabled = !available;
+      exportXlsxButton.disabled = !available;
       exportJsonButton.disabled = !available;
+    },
+    setExportBusy(busy: boolean): void {
+      exportActions.setAttribute('aria-busy', String(busy));
+      exportCsvButton.disabled = busy;
+      exportXlsxButton.disabled = busy;
+      exportJsonButton.disabled = busy;
     },
     renderShielded(snapshot: ActivitySnapshot): void {
       completeness.classList.remove('viewer-completeness-warning');

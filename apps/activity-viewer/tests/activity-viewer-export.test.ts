@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   createViewerExport,
+  createViewerWorkbookExport,
   type ViewerExportState,
   type ViewerSingleExportState,
 } from '../src/export.js';
+import { strFromU8, unzipSync } from 'fflate';
 
 const generatedAt = new Date('2026-09-01T21:30:00.000Z');
 
@@ -310,5 +312,135 @@ describe('viewer exports', () => {
         expect(exported.text).not.toContain(viewingKey.slice(0, 16));
         expect(exported.text).not.toContain(viewingKey.slice(-16));
       }
+  });
+
+  it('exports mixed batches as separate Excel worksheets without losing exact integers', async () => {
+    const core: ViewerSingleExportState = {
+      mode: 'core',
+      network: 'mainnet',
+      snapshot: {
+        kind: 'core', provider: 'DashScan', address: '=Xunsafe', network: 'mainnet',
+        balanceDuffs: 9_007_199_254_740_993n, unconfirmedDuffs: 0n,
+        totalReceivedDuffs: 9_007_199_254_740_993n, totalSentDuffs: 0n,
+        transactionCount: 0, transactions: [], historyLimit: 20, endpoint: 'https://example.invalid',
+        indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 2,
+      },
+    };
+    const identity: ViewerSingleExportState = {
+      mode: 'identity',
+      network: 'mainnet',
+      snapshot: {
+        kind: 'identity',
+        network: 'mainnet',
+        inputKind: 'dpns-name',
+        inputLabel: 'alice.dash',
+        publicKeyHashHex: null,
+        resolvedDpnsName: 'alice.dash',
+        resolvedDpnsDocumentId: null,
+        resolvedRegistrationTransactionHash: null,
+        proofs: [],
+        requests: 1,
+        identities: [],
+      },
+      histories: [],
+    };
+    const shielded: ViewerSingleExportState = {
+      mode: 'shielded',
+      network: 'mainnet',
+      snapshot: {
+        records: [], scannedNotes: 25n, proofHeight: 12n, protocolVersion: 13,
+        complete: true, keyKind: 'full', balance: 0n, receivedExternal: 0n,
+        sentExternal: 0n, selfOrChange: 0n,
+      },
+    };
+    const viewingKey = 'ab'.repeat(96);
+    const state: ViewerExportState = {
+      batch: true,
+      mode: 'mixed',
+      network: 'mainnet',
+      items: [
+        { id: 'query-1', label: '1 · CORE · =Xunsafe', state: core },
+        { id: 'query-2', label: '2 · IDENTITY · alice.dash', state: identity },
+        { id: 'query-3', label: `3 · ORCHARD · ${viewingKey}`, state: shielded },
+      ],
+      errors: [{
+        id: 'query-4',
+        label: `4 · ORCHARD · ${viewingKey}`,
+        message: `Invalid viewing key ${viewingKey}`,
+        mode: 'shielded',
+      }],
+    };
+
+    const result = await createViewerWorkbookExport(state, generatedAt);
+    expect(result.filename).toBe('wallet-activity-viewer-mixed-batch-mainnet-20260901T213000Z.xlsx');
+    expect(result.mimeType).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    const files = unzipSync(new Uint8Array(await result.blob.arrayBuffer()));
+    const xml = Object.entries(files)
+      .filter(([name]) => name.endsWith('.xml'))
+      .map(([, bytes]) => strFromU8(bytes))
+      .join('\n');
+    expect(xml).toContain('name="Summary"');
+    expect(xml).toContain('name="Addresses"');
+    expect(xml).toContain('name="Identities"');
+    expect(xml).toContain('name="Orchard"');
+    expect(xml).toContain('name="Errors"');
+    expect(xml).toContain('=Xunsafe');
+    expect(xml).not.toContain('<f>');
+    expect(xml).toContain('9007199254740993');
+    expect(xml).toContain('not_found');
+    expect(xml).toContain('3 · ORCHARD · FULL viewing key');
+    expect(xml).toContain('4 · ORCHARD · viewing key');
+    expect(xml).toContain('Orchard lookup failed. Viewing-key input is omitted from exports.');
+    expect(xml).not.toContain(viewingKey);
+  });
+
+  it('creates a focused workbook for a single result', async () => {
+    const state: ViewerExportState = {
+      mode: 'core',
+      network: 'mainnet',
+      snapshot: {
+        kind: 'core', provider: 'DashScan', address: 'Xsingle', network: 'mainnet',
+        balanceDuffs: 1n, unconfirmedDuffs: 0n, totalReceivedDuffs: 1n, totalSentDuffs: 0n,
+        transactionCount: 0, transactions: [], historyLimit: 20, endpoint: 'https://example.invalid',
+        indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 2,
+      },
+    };
+
+    const result = await createViewerWorkbookExport(state, generatedAt);
+    const files = unzipSync(new Uint8Array(await result.blob.arrayBuffer()));
+    const xml = Object.entries(files)
+      .filter(([name]) => name.endsWith('.xml'))
+      .map(([, bytes]) => strFromU8(bytes))
+      .join('\n');
+    expect(xml).toContain('name="Summary"');
+    expect(xml).toContain('name="Addresses"');
+    expect(xml).not.toContain('name="Identities"');
+    expect(xml).not.toContain('name="Orchard"');
+    expect(xml).not.toContain('name="Errors"');
+  });
+
+  it('redacts Orchard-only batch failures even when an error has no explicit mode', async () => {
+    const viewingKey = 'cd'.repeat(96);
+    const state: ViewerExportState = {
+      batch: true,
+      mode: 'shielded',
+      network: 'mainnet',
+      items: [],
+      errors: [{
+        id: 'query-1',
+        label: `1 · ${viewingKey}`,
+        message: `Invalid viewing key ${viewingKey}`,
+      }],
+    };
+
+    const result = await createViewerWorkbookExport(state, generatedAt);
+    const files = unzipSync(new Uint8Array(await result.blob.arrayBuffer()));
+    const xml = Object.entries(files)
+      .filter(([name]) => name.endsWith('.xml'))
+      .map(([, bytes]) => strFromU8(bytes))
+      .join('\n');
+    expect(xml).toContain('1 · ORCHARD · viewing key');
+    expect(xml).not.toContain(viewingKey);
   });
 });

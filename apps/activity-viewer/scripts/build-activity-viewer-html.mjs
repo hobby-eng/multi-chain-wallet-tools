@@ -41,7 +41,9 @@ if (
 ) {
   throw new Error('Viewer HTML template is missing an inline build marker.');
 }
-const safeJavascript = javascript.replaceAll('</script', '<\\/script');
+const safeJavascript = javascript
+  .replaceAll('</script', '<\\/script')
+  .replaceAll('<script', '\\x3cscript');
 const html = template
   .replace('__INLINE_SCRIPT_CSP__', scriptCsp(safeJavascript))
   .replace('/*__INLINE_CSS__*/', () => css)
