@@ -7,7 +7,7 @@ import type { PlatformIdentityLookupSnapshot } from '@ckd/dash-network/platform-
 import type { CoreAddressSnapshot } from '@ckd/dash-network/public-address.js';
 import type { ActivitySnapshot, ViewerNetwork } from '@ckd/dash-network/types.js';
 
-export type ViewerExportState =
+export type ViewerSingleExportState =
   | { mode: 'core'; network: ViewerNetwork; snapshot: CoreAddressSnapshot }
   | {
     mode: 'platform';
@@ -22,6 +22,28 @@ export type ViewerExportState =
     histories: PlatformIdentityHistoryResult[];
   }
   | { mode: 'shielded'; network: ViewerNetwork; snapshot: ActivitySnapshot };
+
+export interface ViewerBatchExportItem {
+  id: string;
+  label: string;
+  state: ViewerSingleExportState;
+}
+
+export interface ViewerBatchExportError {
+  id: string;
+  label: string;
+  message: string;
+}
+
+export interface ViewerBatchExportState {
+  batch: true;
+  mode: ViewerSingleExportState['mode'];
+  network: ViewerNetwork;
+  items: ViewerBatchExportItem[];
+  errors: ViewerBatchExportError[];
+}
+
+export type ViewerExportState = ViewerSingleExportState | ViewerBatchExportState;
 
 export type ViewerExportFormat = 'csv' | 'json';
 
@@ -103,7 +125,7 @@ function amountDash(value: bigint | null | undefined, unit: CsvRecord['amountUni
 }
 
 function csvRecord(
-  mode: ViewerExportState['mode'],
+  mode: ViewerSingleExportState['mode'],
   network: ViewerNetwork,
   generatedAt: string,
   record: CsvRecord,
@@ -119,7 +141,7 @@ function csvRecord(
   ];
 }
 
-function coreRows(state: Extract<ViewerExportState, { mode: 'core' }>, generatedAt: string): CsvValue[][] {
+function coreRows(state: Extract<ViewerSingleExportState, { mode: 'core' }>, generatedAt: string): CsvValue[][] {
   const { snapshot } = state;
   const queryLabel = snapshot.address;
   const records = [
@@ -161,7 +183,7 @@ function coreRows(state: Extract<ViewerExportState, { mode: 'core' }>, generated
   return [CSV_HEADER, ...records];
 }
 
-function platformRows(state: Extract<ViewerExportState, { mode: 'platform' }>, generatedAt: string): CsvValue[][] {
+function platformRows(state: Extract<ViewerSingleExportState, { mode: 'platform' }>, generatedAt: string): CsvValue[][] {
   const { snapshot, history } = state;
   const agrees = snapshot.balanceCredits === history.explorerBalanceCredits
     && snapshot.nonce === BigInt(history.explorerNonce);
@@ -208,7 +230,7 @@ function platformRows(state: Extract<ViewerExportState, { mode: 'platform' }>, g
   return [CSV_HEADER, ...records];
 }
 
-function shieldedRows(state: Extract<ViewerExportState, { mode: 'shielded' }>, generatedAt: string): CsvValue[][] {
+function shieldedRows(state: Extract<ViewerSingleExportState, { mode: 'shielded' }>, generatedAt: string): CsvValue[][] {
   const { snapshot } = state;
   const queryLabel = `${snapshot.keyKind} viewing key`;
   const records = [
@@ -249,7 +271,7 @@ function shieldedRows(state: Extract<ViewerExportState, { mode: 'shielded' }>, g
   return [CSV_HEADER, ...records];
 }
 
-function identityRows(state: Extract<ViewerExportState, { mode: 'identity' }>, generatedAt: string): CsvValue[][] {
+function identityRows(state: Extract<ViewerSingleExportState, { mode: 'identity' }>, generatedAt: string): CsvValue[][] {
   const proofHeights = [...new Set(state.snapshot.proofs.map(({ height }) => height.toString()))].join(' ');
   const queryLabel = state.snapshot.resolvedDpnsName ?? state.snapshot.inputLabel;
   const rows: CsvValue[][] = [csvRecord(state.mode, state.network, generatedAt, {
@@ -449,7 +471,7 @@ function groupedIdentityProofs(snapshot: PlatformIdentityLookupSnapshot): unknow
   return [...grouped.values()].map(({ proof, responseCount }) => ({ ...proof, responseCount }));
 }
 
-function identityJsonData(state: Extract<ViewerExportState, { mode: 'identity' }>): unknown {
+function identityJsonData(state: Extract<ViewerSingleExportState, { mode: 'identity' }>): unknown {
   const { snapshot } = state;
   return {
     query: {
@@ -543,7 +565,7 @@ function identityJsonData(state: Extract<ViewerExportState, { mode: 'identity' }
   };
 }
 
-function jsonData(state: ViewerExportState): unknown {
+function jsonData(state: ViewerSingleExportState): unknown {
   if (state.mode === 'identity') return identityJsonData(state);
   if (state.mode === 'platform') {
     const { snapshot, history } = state;
@@ -623,14 +645,44 @@ function fileStamp(date: Date): string {
   return date.toISOString().replace(/[-:]/gu, '').replace(/\.\d{3}Z$/u, 'Z');
 }
 
+function singleRows(state: ViewerSingleExportState, generatedAt: string): CsvValue[][] {
+  return state.mode === 'core'
+    ? coreRows(state, generatedAt)
+    : state.mode === 'platform'
+      ? platformRows(state, generatedAt)
+      : state.mode === 'identity'
+        ? identityRows(state, generatedAt)
+        : shieldedRows(state, generatedAt);
+}
+
+function isBatchExportState(state: ViewerExportState): state is ViewerBatchExportState {
+  return 'batch' in state && state.batch;
+}
+
 export function createViewerExport(
   state: ViewerExportState,
   format: ViewerExportFormat,
   generatedAt = new Date(),
 ): ViewerExportFile {
   const generatedAtIso = generatedAt.toISOString();
-  const filename = `wallet-activity-viewer-${state.mode}-${state.network}-${fileStamp(generatedAt)}.${format}`;
+  const batch = isBatchExportState(state);
+  const filename = `wallet-activity-viewer-${state.mode}${batch ? '-batch' : ''}-${state.network}-${fileStamp(generatedAt)}.${format}`;
   if (format === 'json') {
+    const data = isBatchExportState(state)
+      ? {
+          batch: {
+            requested: state.items.length + state.errors.length,
+            succeeded: state.items.length,
+            failed: state.errors.length,
+          },
+          results: state.items.map((item) => ({
+            id: item.id,
+            label: item.label,
+            data: jsonData(item.state),
+          })),
+          errors: state.errors,
+        }
+      : jsonData(state);
     return {
       filename,
       mimeType: 'application/json',
@@ -640,16 +692,26 @@ export function createViewerExport(
         generatedAt: generatedAtIso,
         mode: state.mode,
         network: state.network,
-        data: jsonData(state),
+        data,
       }, exactJson, 2)}\n`,
     };
   }
-  const rows = state.mode === 'core'
-    ? coreRows(state, generatedAtIso)
-    : state.mode === 'platform'
-      ? platformRows(state, generatedAtIso)
-      : state.mode === 'identity'
-        ? identityRows(state, generatedAtIso)
-      : shieldedRows(state, generatedAtIso);
+  const rows = isBatchExportState(state)
+    ? [
+        CSV_HEADER,
+        ...state.items.flatMap((item) => singleRows(item.state, generatedAtIso).slice(1).map((row) => {
+          const labeled = [...row];
+          labeled[4] = item.label;
+          return labeled;
+        })),
+        ...state.errors.map((error) => csvRecord(state.mode, state.network, generatedAtIso, {
+          queryLabel: error.label,
+          recordType: 'error',
+          recordId: error.id,
+          status: 'failed',
+          metadata: metadata([['message', error.message]]),
+        })),
+      ]
+    : singleRows(state, generatedAtIso);
   return { filename, mimeType: 'text/csv', text: csv(rows) };
 }

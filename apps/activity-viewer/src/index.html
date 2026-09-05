@@ -72,6 +72,10 @@
           <button class="viewer-mode-tab" data-viewer-mode="identity" type="button" aria-pressed="false">Dash Platform Identity</button>
           <button class="viewer-mode-tab" data-viewer-mode="shielded" type="button" aria-pressed="false">Dash Orchard · viewing key</button>
         </div>
+        <div class="viewer-input-mode-tabs" role="radiogroup" aria-label="Query input mode">
+          <button class="viewer-input-mode-tab active" data-query-mode="single" type="button" aria-pressed="true">Single lookup</button>
+          <button class="viewer-input-mode-tab" data-query-mode="batch" type="button" aria-pressed="false">Batch · multiple inputs</button>
+        </div>
 
         <div class="viewer-form-grid">
           <div class="viewer-network-field">
@@ -94,15 +98,30 @@
               <input id="viewer-history-limit" type="number" value="200" min="1" max="1000" step="1">
               <p class="field-note">Aggregated totals cover complete indexed history where available; each displayed history section is capped at this limit.</p>
             </div>
+            <div id="viewer-batch-controls" hidden>
+              <label class="viewer-capability-label" for="viewer-batch-concurrency">Inputs queried at once</label>
+              <select id="viewer-batch-concurrency">
+                <option value="1">1 · sequential</option>
+                <option value="2" selected>2 · recommended</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5 · highest provider load</option>
+              </select>
+              <p class="field-note">Concurrency is bounded across public lookups. Orchard pages are fetched once and scanned locally against every supplied viewing key.</p>
+            </div>
           </div>
           <div class="viewer-key-field">
             <label id="viewer-input-label" for="full-viewing-key">Dash Core public address <span id="viewer-key-mode" class="viewer-key-mode">Public L1 lookup</span></label>
-            <div class="viewer-key-row">
+            <div id="viewer-single-input-panel" class="viewer-key-row">
               <div class="viewer-secret-input">
                 <span class="viewer-key-icon" aria-hidden="true">◇</span>
                 <input id="full-viewing-key" type="text" autocomplete="off" autocapitalize="none" data-1p-ignore="true" data-lpignore="true" data-form-type="other" placeholder="Paste X… or 7… Dash Core address">
               </div>
               <button id="reveal-viewing-key" class="secondary" type="button" aria-pressed="false" hidden>Reveal key</button>
+            </div>
+            <div id="viewer-batch-input-panel" class="viewer-batch-input-panel" hidden>
+              <textarea id="viewer-batch-input" rows="7" autocomplete="off" autocapitalize="none" data-1p-ignore="true" data-lpignore="true" data-form-type="other" placeholder="One public address per line"></textarea>
+              <button id="reveal-batch-input" class="secondary" type="button" aria-pressed="false" hidden>Reveal keys</button>
             </div>
             <p id="viewer-input-help" class="field-note">Queries the Dash-specific DashScan index for Mainnet or Testnet. Its synchronization status and latest indexed block are checked first. The public address is sent to DashScan; no private or viewing key is used.</p>
           </div>
@@ -145,6 +164,7 @@
           <span class="viewer-status-pill viewer-results-badge">VIEW-ONLY RESULTS</span>
         </div>
       </div>
+      <div id="viewer-batch-results" class="viewer-batch-results" hidden></div>
       <section class="panel viewer-summary-panel">
         <div id="viewer-summary" class="viewer-summary"></div>
         <p id="viewer-completeness" class="viewer-completeness"></p>
