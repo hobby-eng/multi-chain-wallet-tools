@@ -3,6 +3,39 @@ import { createViewerExport, type ViewerExportState } from '../src/export.js';
 
 const generatedAt = new Date('2026-09-01T21:30:00.000Z');
 
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index]!;
+    if (character === '"') {
+      if (quoted && text[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === ',' && !quoted) {
+      row.push(field);
+      field = '';
+    } else if (character === '\n' && !quoted) {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+    } else if (character !== '\r') {
+      field += character;
+    }
+  }
+  if (row.length > 0 || field.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
 describe('viewer exports', () => {
   it('exports exact Core amounts and spreadsheet-safe text to CSV', () => {
     const state: ViewerExportState = {
@@ -64,5 +97,67 @@ describe('viewer exports', () => {
     const result = createViewerExport(state, 'json', generatedAt);
     expect(result.text).not.toMatch(/viewing.?key|fvk|ivk|ovk/iu);
     expect(JSON.parse(result.text).data.snapshot.scannedNotes).toBe('25');
+  });
+
+  it('exports proof-verified Identity names and key metadata without secret input', () => {
+    const identityId = 'HhNWsiTQfpJwnqenTFVUG8JqNwAeccWmAYW2vjEvNNXY';
+    const state: ViewerExportState = {
+      mode: 'identity',
+      network: 'mainnet',
+      snapshot: {
+        kind: 'identity',
+        network: 'mainnet',
+        inputKind: 'public-key-hash',
+        inputLabel: 'Public-key HASH160',
+        publicKeyHashHex: 'ab'.repeat(20),
+        resolvedDpnsName: null,
+        resolvedDpnsDocumentId: null,
+        resolvedRegistrationTransactionHash: null,
+        proofs: [{
+          height: 12n,
+          coreChainLockedHeight: 10,
+          protocolVersion: 13,
+          responseTimeMs: 1n,
+        }],
+        requests: 3,
+        identities: [{
+          identifier: identityId,
+          identifierHex: '01'.repeat(32),
+          balanceCredits: 123n,
+          revision: 2n,
+          nonce: 7n,
+          dpnsNames: ['alice.dash'],
+          publicKeys: [{
+            keyId: 1,
+            purpose: 'AUTHENTICATION',
+            purposeNumber: 0,
+            securityLevel: 'MASTER',
+            securityLevelNumber: 0,
+            keyType: 'ECDSA_SECP256K1',
+            keyTypeNumber: 0,
+            dataHex: `02${'11'.repeat(32)}`,
+            publicKeyHashHex: 'ab'.repeat(20),
+            readOnly: false,
+            isMaster: true,
+            disabledAtMs: null,
+            contractBounds: null,
+            matchesLookup: true,
+          }],
+        }],
+      },
+      histories: [{ identifier: identityId, history: null, error: 'Explorer unavailable' }],
+    };
+
+    const json = createViewerExport(state, 'json', generatedAt);
+    expect(json.text).toContain('alice.dash');
+    expect(json.text).toContain('"matchesLookup": true');
+    expect(json.text).not.toMatch(/privateKey|mnemonic|xprv/iu);
+
+    const csv = createViewerExport(state, 'csv', generatedAt);
+    expect(csv.text).toContain('alice.dash');
+    expect(csv.text).toContain('public_key');
+    expect(csv.text).toContain('ECDSA_SECP256K1');
+    const [header, ...rows] = parseCsv(csv.text);
+    expect(rows.every((row) => row.length === header!.length)).toBe(true);
   });
 });
