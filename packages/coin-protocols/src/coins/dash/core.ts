@@ -1,7 +1,7 @@
 import { assertBatch, assertIndex, requirePrivate, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { bytesToHex, encodeP2pkh, encodeWif, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
-import { field, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
+import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
 import { bip32SummaryFields } from '../../bip32-summary.js';
 
 export function deriveDashCore(options: Bip32BatchOptions): DerivationResult {
@@ -33,7 +33,7 @@ export function deriveDashCore(options: Bip32BatchOptions): DerivationResult {
         path,
         title: `Address #${index}`,
         basic: [
-          field('address', 'Dash Core address', address),
+          paymentAddressField('address', 'Dash Core address', address, 'dash'),
           field('publicKey', 'Compressed public key', bytesToHex(publicKey)),
           field('privateKey', 'Private key (WIF)', encodeWif(privateKey, network.wif), true),
         ],
