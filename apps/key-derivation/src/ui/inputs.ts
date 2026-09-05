@@ -11,6 +11,8 @@ export interface DerivationControls {
   protocolTabs: HTMLElement;
   network: HTMLSelectElement;
   networkField: HTMLElement;
+  accountField: HTMLElement;
+  accountLabel: HTMLLabelElement;
   account: HTMLInputElement;
   branchField: HTMLElement;
   branchLabel: HTMLLabelElement;
@@ -18,7 +20,9 @@ export interface DerivationControls {
   branchSelect: HTMLSelectElement;
   changeField: HTMLElement;
   includeChange: HTMLInputElement;
+  startLabel: HTMLLabelElement;
   start: HTMLInputElement;
+  countLabel: HTMLLabelElement;
   count: HTMLInputElement;
   preview: HTMLElement;
 }
@@ -82,6 +86,10 @@ export function configureControls(
   controls.network.value = values.network;
   controls.network.disabled = !adapter.networkControl;
   controls.networkField.classList.toggle('control-disabled', !adapter.networkControl);
+  controls.accountField.hidden = adapter.accountControl === false;
+  controls.accountLabel.textContent = adapter.controlLabels?.account ?? 'Account';
+  controls.startLabel.textContent = adapter.controlLabels?.start ?? 'Start index';
+  controls.countLabel.textContent = adapter.controlLabels?.count ?? 'Number of results';
   setNumeric(controls.account, values.account, adapter.limits?.accountMax ?? DEFAULT_INDEX_MAX);
   setNumeric(controls.start, values.start, adapter.limits?.startMax ?? DEFAULT_INDEX_MAX);
   setNumeric(controls.count, values.count, (adapter.limits?.startMax ?? DEFAULT_INDEX_MAX) + 1);

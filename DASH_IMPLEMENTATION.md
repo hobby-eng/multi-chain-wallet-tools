@@ -1,6 +1,6 @@
 # Dash Platform and Shielded implementation report
 
-Research and implementation review date: 2026-09-02.
+Research and implementation review date: 2026-09-05.
 
 Original integration code is licensed under the repository's MIT License. Dash Core, Platform, Orchard, brand materials, and all other upstream components retain their respective authorship and licenses documented in `ATTRIBUTION.md` and `THIRD_PARTY_NOTICES.md`.
 
@@ -37,6 +37,23 @@ DIP18 P2PKH display is exactly `type 0xb0 || HASH160(compressed_public_key)`, co
 The implementation uses Scure BIP32, Noble secp256k1/hash functions, and Scure Bech32m rather than importing the much larger online Platform SDK. This path is fully specified by the normative DIPs and matches every published DIP17/DIP18 vector. It introduces no hand-written primitive. Platform's SDK/WASM is optimized for network protocol/state transitions and would add substantial unrelated surface to a transport-free offline key derivation tool.
 
 DIP17's normative result is a raw private scalar; it does not define a Platform-specific WIF. Therefore basic mode exposes raw 32-byte private-key hex. Advanced mode provides a clearly qualified Dash-compatible WIF transport encoding because the secret is the same secp256k1 scalar, but warns that WIF carries no Platform address/path metadata.
+
+## Platform Identity keys
+
+The offline derivation tool exposes the official Platform Wallet v4.1.1 default Identity registration profile through DIP13:
+
+```text
+m/9'/coin_type'/5'/0'/0'/identity_index'/0'  MASTER / AUTHENTICATION
+m/9'/coin_type'/5'/0'/0'/identity_index'/1'  CRITICAL / AUTHENTICATION
+m/9'/coin_type'/5'/0'/0'/identity_index'/2'  HIGH / AUTHENTICATION
+m/9'/coin_type'/5'/0'/0'/identity_index'/3'  CRITICAL / TRANSFER
+```
+
+All seven path levels are hardened and all four default keys use compressed ECDSA/secp256k1 public-key data. The final key ID does not cryptographically encode its purpose or security level. Those values are explicit `IdentityPublicKey` metadata assigned by the registration transition; a custom valid registration can use different IDs or role assignments. The UI therefore labels this mapping as the official wallet default profile rather than a universal DIP13 rule.
+
+One result and selection unit is an Identity candidate containing all four key slots. Basic mode shows each slot's HASH160 discovery fingerprint, compressed public key, and Dash-compatible WIF transport encoding. Advanced mode adds key ID, purpose, security level, key type, full path, raw private scalar, public-key size, hardened status, `readOnly`, and contract-bound metadata. Public-key HASH160 is neither a payment address nor an Identity ID.
+
+Identity IDs are created from registration funding inputs, not from the recovery phrase or DIP13 path. Consequently the offline tool does not fabricate an ID, registration status, balance, or DPNS name. It derives candidate registration keys only; the connected Discovery Scanner separately uses the first MASTER key's HASH160 to locate an Identity that has already been registered.
 
 ## Public address viewing
 

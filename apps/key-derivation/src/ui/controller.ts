@@ -1,6 +1,7 @@
 import type { CoinAdapter } from '@ckd/coins/registry.js';
 import type { DerivationResult, DisplayMode, ResultField } from '@ckd/core/types.js';
 import {
+  displayedFields,
   formatSelectedRows,
   inspectSelectedRows,
   iterateSelectedRows,
@@ -214,7 +215,9 @@ function sensitiveField(scope: 'summary' | 'row', fieldKey: string, rowIndex?: n
     return [...currentResult.basicSummary, ...currentResult.summary].find((field) => field.key === fieldKey);
   }
   const row = currentResult.rows.find((candidate) => candidate.index === rowIndex);
-  return row === undefined ? undefined : [...row.basic, ...row.advanced].find((field) => field.key === fieldKey);
+  return row === undefined
+    ? undefined
+    : displayedFields(row, 'advanced').find((field) => field.key === fieldKey);
 }
 
 async function copyText(button: HTMLButtonElement, text: string, containsSecret: boolean): Promise<void> {
@@ -624,7 +627,7 @@ for (const control of [controls.network, controls.account, controls.branchInput,
     rememberCurrentSettings();
     pendingLargeRequestFingerprint = null;
     view.resetDeriveAction();
-    if (control === controls.includeChange) scheduleAutomaticDerivation();
+    scheduleAutomaticDerivation();
   });
 }
 for (const input of [mnemonic, passphrase]) {
@@ -647,10 +650,10 @@ for (const [words, generateButton] of [[12, generate12Button], [24, generate24Bu
     clearResults();
     clearMessages();
     try {
-      view.setGeneratedMnemonic(generateMnemonic(words));
+      view.setGeneratedMnemonic(generateMnemonic(words), adapter.defaults.count);
       rememberCurrentSettings();
       updateWordCount();
-      showStatus(`Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues(). Deriving 20 results…`);
+      showStatus(`Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues(). Deriving ${adapter.defaults.count} results…`);
       void deriveCurrent(true);
     } catch (cause) {
       showError(cause instanceof Error ? cause.message : 'Secure phrase generation failed.');
