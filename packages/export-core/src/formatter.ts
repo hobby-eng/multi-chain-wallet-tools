@@ -17,8 +17,25 @@ export interface ExportInspection {
   rowCount: number;
 }
 
+interface DisplayedFieldEntry {
+  field: ResultField;
+  groupTitle?: string;
+}
+
+function displayedFieldEntries(row: DerivedRow, mode: DisplayMode): DisplayedFieldEntry[] {
+  const entries: DisplayedFieldEntry[] = row.basic.map((field) => ({ field }));
+  if (mode === 'advanced') entries.push(...row.advanced.map((field) => ({ field })));
+  for (const group of row.groups ?? []) {
+    entries.push(...group.basic.map((field) => ({ field, groupTitle: group.title })));
+    if (mode === 'advanced') {
+      entries.push(...group.advanced.map((field) => ({ field, groupTitle: group.title })));
+    }
+  }
+  return entries;
+}
+
 export function displayedFields(row: DerivedRow, mode: DisplayMode): ResultField[] {
-  return mode === 'advanced' ? [...row.basic, ...row.advanced] : [...row.basic];
+  return displayedFieldEntries(row, mode).map(({ field }) => field);
 }
 
 function roleKeys(adapter: CoinAdapter, action: ExportAction): Set<string> | null {
@@ -34,9 +51,12 @@ function fieldsForAction(
   mode: DisplayMode,
   action: ExportAction,
 ): ResultField[] {
-  const fields = displayedFields(row, mode);
   const keys = roleKeys(adapter, action);
-  return keys === null ? fields : fields.filter((field) => keys.has(field.key));
+  return displayedFieldEntries(row, mode)
+    .filter(({ field }) => keys === null || keys.has(field.key))
+    .map(({ field, groupTitle }) => groupTitle === undefined
+      ? field
+      : { ...field, label: `${groupTitle} · ${field.label}` });
 }
 
 /**

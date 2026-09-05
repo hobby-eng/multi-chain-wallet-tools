@@ -24,14 +24,19 @@ Use this application on a trusted offline computer whenever real seed phrases or
 
 ### Wallet Activity Viewer
 
-A connected, read-only viewer for one Dash Core, Platform public address or Orchard viewing key.
+A connected, read-only viewer for a Dash Core address, Platform payment address, Platform Identity, or Orchard viewing key.
 
+- Uses one Auto-detect input by default, with Single/Batch as the primary choice and an Advanced type override when required.
+- Accepts mixed Core, Platform, Identity, and Orchard records in one batch while keeping viewing keys local.
 - Looks up Dash Core address balances, history and transaction details.
 - Looks up Dash Platform payment-address balances and activity.
+- Resolves a Platform Identity by Base58 ID, the HASH160 fingerprint of a public key registered to the Identity, compressed ECDSA/BLS public key, or DPNS name with or without `.dash`. It proof-verifies current state, nonce, registered key roles and DPNS names, then combines indexed transactions and transfers into one deduplicated activity ledger.
 - Scans the Dash Orchard pool with FVK, IVK or OVK viewing capability without requiring a spending key.
-- Exports the loaded activity as CSV or JSON.
+- Supports bounded batch queries for every resource type. Core addresses, Platform addresses, and Identity lookups use configurable concurrency, while one proof-verified Orchard page stream is reused locally across all supplied viewing keys.
+- Rejects and erases mnemonic, WIF, extended-private-key, raw-private-key and other private-material patterns before any public lookup request.
+- Exports loaded activity as compact relational CSV, structured multi-sheet XLSX, or object-oriented JSON without repeating complete account summaries on every record.
 
-Public-address lookups reveal the queried address and source IP to the provider. Orchard viewing keys cannot spend funds, but they reveal privacy-sensitive wallet activity.
+Public address and Identity lookups reveal the queried public identifier and source IP to the provider. Orchard viewing keys cannot spend funds, but they reveal privacy-sensitive wallet activity.
 
 ### Wallet Discovery Scanner
 
@@ -75,10 +80,12 @@ Official release checksums refer to artifacts produced by the repository's pinne
 | Ethereum EOA | `m/44'/60'/0'/0/i` | EIP-55 address |
 | Dash Core | `m/44'/5'/0'/0/i` | P2PKH |
 | Dash Platform | `m/9'/5'/17'/0'/0'/i` | DIP17/DIP18 address |
-| Dash Identity | `m/9'/5'/5'/0'/0'/i'/0'` | DIP13 authentication key |
+| Dash Identity | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 four-key registration profile |
 | Dash Orchard | `m/32'/5'/account'` + diversifier index | Shielded address and viewing/spending material |
 
 Bitcoin and Dash support mainnet/testnet separation. Optional change generation uses branch `/1` for Bitcoin and Dash Core. Exact protocol choices and pinned upstream references are documented in [DASH_IMPLEMENTATION.md](DASH_IMPLEMENTATION.md).
+
+Dash Identity results are grouped by candidate Identity index. Each group derives the official Platform Wallet v4.1.1 default ECDSA profile: MASTER authentication key `0`, CRITICAL authentication key `1`, HIGH authentication key `2`, and CRITICAL transfer key `3`. These roles are registration metadata rather than properties encoded by DIP13 or the key ID. The offline tool therefore never invents an Identity ID; it shows candidate keys and the public-key hashes used for later proof-verified discovery.
 
 ## Security and verification
 

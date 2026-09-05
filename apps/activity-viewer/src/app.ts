@@ -9,6 +9,15 @@ import {
 } from '@ckd/dash-network/orchard-scanner.js';
 import { queryPlatformAddressHistory } from '@ckd/dash-network/platform-address-history.js';
 import { DashPlatformAddressSource } from '@ckd/dash-network/platform-address-source.js';
+import { queryPlatformIdentityHistory } from '@ckd/dash-network/platform-identity-history.js';
+import {
+  DashPlatformIdentitySource,
+  normalizeIdentityLookupInput,
+} from '@ckd/dash-network/platform-identity-source.js';
+import {
+  assertPublicBatchLookupInput,
+  assertPublicLookupInput,
+} from '@ckd/dash-network/private-material.js';
 import { queryCoreAddress } from '@ckd/dash-network/public-address.js';
 import {
   runShieldedPageStream,
@@ -17,9 +26,14 @@ import {
   SHIELDED_PAGE_SIZE,
 } from '@ckd/dash-network/shielded-stream-policy.js';
 import { normalizeViewingKey } from '@ckd/dash-network/viewing-key.js';
-import { downloadText } from '@ckd/export/download.js';
+import { downloadBlob, downloadText } from '@ckd/export/download.js';
 import { createActivityViewerController } from './controller.js';
-import { createViewerExport } from './export.js';
+import {
+  assertAutoViewerBatchInput,
+  detectViewerInput,
+  looksLikeAutoOrchardInput,
+} from './detection.js';
+import { createViewerExport, createViewerWorkbookExport } from './export.js';
 import { createActivityViewerView } from './view.js';
 
 const view = createActivityViewerView(document, BUILD_INFO);
@@ -27,12 +41,22 @@ const controller = createActivityViewerController(view, {
   ShieldedActivityLedger,
   DashEvoShieldedSource,
   DashPlatformAddressSource,
+  DashPlatformIdentitySource,
   assertCanonicalViewingKey,
+  assertPublicBatchLookupInput,
+  assertPublicLookupInput,
+  assertAutoViewerBatchInput,
+  detectViewerInput,
+  looksLikeAutoOrchardInput,
   createViewerExport,
+  createViewerWorkbookExport,
+  downloadBlob,
   downloadText,
   normalizeViewingKey,
+  normalizeIdentityLookupInput,
   queryCoreAddress,
   queryPlatformAddressHistory,
+  queryPlatformIdentityHistory,
   runBlobWorkerSelfTest,
   runOrchardRuntimeSelfTest,
   runShieldedPageStream,

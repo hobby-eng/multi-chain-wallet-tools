@@ -9,6 +9,12 @@ export function clearDerivationResult(result: DerivationResult | null): void {
   for (const row of result.rows) {
     row.path = '';
     for (const field of [...row.basic, ...row.advanced]) field.value = '';
+    for (const group of row.groups ?? []) {
+      for (const field of [...group.basic, ...group.advanced]) field.value = '';
+      group.basic.length = 0;
+      group.advanced.length = 0;
+    }
+    row.groups?.splice(0);
     row.basic.length = 0;
     row.advanced.length = 0;
   }

@@ -60,7 +60,8 @@ function fieldRow(
 }
 
 function basicFieldCell(field: ResultField | undefined, rowIndex: number, secretsRevealed: boolean): HTMLTableCellElement {
-  const cell = element('td', field?.key === 'address' ? 'basic-address-cell' : undefined);
+  const highlight = field?.key === 'address' || field?.key.endsWith('PublicKeyHash') === true;
+  const cell = element('td', highlight ? 'basic-address-cell' : undefined);
   if (field === undefined) {
     cell.append(element('span', 'table-empty', '—'));
     return cell;
@@ -80,12 +81,17 @@ function basicFieldCell(field: ResultField | undefined, rowIndex: number, secret
   return cell;
 }
 
-function selectionCheckbox(derivedIndex: number, checked: boolean, onChange: (checked: boolean) => void): HTMLInputElement {
+function selectionCheckbox(
+  derivedIndex: number,
+  checked: boolean,
+  onChange: (checked: boolean) => void,
+  label = `Select result ${derivedIndex}`,
+): HTMLInputElement {
   const checkbox = element('input');
   checkbox.type = 'checkbox';
   checkbox.checked = checked;
   checkbox.dataset.selectRow = String(derivedIndex);
-  checkbox.setAttribute('aria-label', `Select result ${derivedIndex}`);
+  checkbox.setAttribute('aria-label', label);
   checkbox.addEventListener('change', () => onChange(checkbox.checked));
   return checkbox;
 }
@@ -112,8 +118,76 @@ function appendBasicRows(
   body.append(fragment);
 }
 
+function groupedBasicCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLElement {
+  const card = element('article', 'address-card grouped-result-card');
+  const head = element('div', 'card-head');
+  const identity = element('div');
+  identity.append(
+    element('h3', undefined, derived.title),
+    element('div', 'card-index', derived.path),
+  );
+  const right = element('div', 'card-right');
+  right.append(element('div', 'identity-profile-badge', `${derived.groups?.length ?? 0}-key standard profile`));
+  const selectionLabel = element('label', 'row-selection');
+  const checkbox = selectionCheckbox(
+    derived.index,
+    options.selected.has(derived.index),
+    (checked) => options.onSelectionChange(derived.index, checked),
+    `Select ${derived.title} and all of its key slots`,
+  );
+  selectionLabel.append(checkbox, document.createTextNode(' Select this Identity candidate'));
+  right.append(selectionLabel);
+  head.append(identity, right);
+
+  const body = element('div', 'grouped-basic-body');
+  for (const field of derived.basic) {
+    body.append(fieldRow(field, { scope: 'row', row: derived.index }, options.secretsRevealed));
+  }
+
+  const groups = derived.groups ?? [];
+  if (groups.length > 0) {
+    const wrapper = element('div', 'identity-key-table-wrap');
+    const table = element('table', 'identity-key-table');
+    const tableHead = element('thead');
+    const headerRow = element('tr');
+    headerRow.append(element('th', 'identity-key-role-column', 'Key slot · official default role'));
+    for (const field of groups[0]?.basic ?? []) {
+      const header = element('th', undefined, field.label);
+      if (field.description !== undefined) {
+        header.title = field.description;
+        header.classList.add('has-description');
+      }
+      headerRow.append(header);
+    }
+    tableHead.append(headerRow);
+
+    const tableBody = element('tbody');
+    for (const group of groups) {
+      const row = element('tr');
+      const role = element('td', 'identity-key-role-column');
+      const title = element('strong', undefined, group.title);
+      if (group.description !== undefined) {
+        title.title = group.description;
+        title.classList.add('has-description');
+      }
+      role.append(title);
+      row.append(role);
+      for (const field of group.basic) {
+        row.append(basicFieldCell(field, derived.index, options.secretsRevealed));
+      }
+      tableBody.append(row);
+    }
+    table.append(tableHead, tableBody);
+    wrapper.append(table);
+    body.append(wrapper);
+  }
+
+  card.append(head, body);
+  return card;
+}
+
 function advancedCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLElement {
-  const card = element('article', 'address-card');
+  const card = element('article', `address-card${derived.groups === undefined ? '' : ' grouped-result-card'}`);
   const head = element('div', 'card-head');
   const identity = element('div');
   identity.append(
@@ -121,13 +195,23 @@ function advancedCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLE
     element('div', 'card-index', derived.path),
   );
   const selectionLabel = element('label', 'row-selection');
-  const checkbox = selectionCheckbox(derived.index, options.selected.has(derived.index), (checked) => {
-    options.onSelectionChange(derived.index, checked);
-  });
-  selectionLabel.append(checkbox, document.createTextNode(' Select this result'));
+  const grouped = derived.groups !== undefined;
+  const checkbox = selectionCheckbox(
+    derived.index,
+    options.selected.has(derived.index),
+    (checked) => options.onSelectionChange(derived.index, checked),
+    grouped ? `Select ${derived.title} and all of its key slots` : `Select result ${derived.index}`,
+  );
+  selectionLabel.append(
+    checkbox,
+    document.createTextNode(grouped ? ' Select this Identity candidate' : ' Select this result'),
+  );
   const address = derived.basic.find((field) => field.key === 'address');
   const right = element('div', 'card-right');
   if (address !== undefined) right.append(element('div', 'address', address.value));
+  if (derived.groups !== undefined) {
+    right.append(element('div', 'identity-profile-badge', `${derived.groups.length}-key standard profile`));
+  }
   right.append(selectionLabel);
   head.append(identity, right);
 
@@ -141,6 +225,25 @@ function advancedCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLE
       detailRows.append(fieldRow(field, { scope: 'row', row: derived.index }, options.secretsRevealed));
     }
     body.append(detailRows);
+  }
+  if (derived.groups !== undefined) {
+    const groups = element('div', 'field-groups');
+    for (const group of derived.groups) {
+      const section = element('section', 'field-group');
+      const groupHead = element('div', 'field-group-head');
+      groupHead.append(element('h4', undefined, group.title));
+      if (group.description !== undefined) {
+        groupHead.append(element('p', undefined, group.description));
+      }
+      section.append(groupHead);
+      const fields = element('div', 'field-group-rows');
+      for (const field of [...group.basic, ...group.advanced]) {
+        fields.append(fieldRow(field, { scope: 'row', row: derived.index }, options.secretsRevealed));
+      }
+      section.append(fields);
+      groups.append(section);
+    }
+    body.append(groups);
   }
   card.append(head, body);
   return card;
@@ -217,6 +320,12 @@ export function renderResults(
   listRoot.append(resultWindowControls(result.rows.length, window, options));
 
   if (options.mode === 'basic') {
+    if ((result.rows[0]?.groups?.length ?? 0) > 0) {
+      const groupedResults = element('div', 'grouped-basic-results');
+      for (const derived of visibleRows) groupedResults.append(groupedBasicCard(derived, options));
+      listRoot.append(groupedResults);
+      return;
+    }
     const fieldDefinitions = new Map<string, ResultField>();
     for (const field of result.rows[0]?.basic ?? []) fieldDefinitions.set(field.key, field);
     const wrapper = element('div', 'basic-table-wrap');
