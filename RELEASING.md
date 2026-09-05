@@ -60,7 +60,7 @@ The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checks
 
 ## Release checklist
 
-1. Update workspace versions and `releaseDate`, add curated notes at `docs/releases/v<version>.md`, update relevant documentation, and commit the changes. The intended tag is always `v` plus the root `package.json` version.
+1. Update workspace versions and `releaseDate`, add curated notes at `docs/releases/v<version>.md`, update relevant documentation, and commit the changes. Give each significant user-facing, security, dependency, or build change its own release-note bullet instead of combining distinct features. The intended tag is always `v` plus the root `package.json` version.
 2. From a clean source checkout with Docker Engine/Desktop running, run `./tooling/build-reproducible.sh`. This performs the locked install, TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, a release WASM rebuild and exact generated-byte comparison, generated-browser-WASM tests, two byte-identical HTML builds, manifest checks and each application's CSP/artifact verifier.
 3. Run the live network release observations below. They are intentionally not part of deterministic CI because changing chain state or a provider outage must not change the reproducible build result.
 4. Ensure the working tree is clean. A GPG key is not required. Create and push an annotated tag:

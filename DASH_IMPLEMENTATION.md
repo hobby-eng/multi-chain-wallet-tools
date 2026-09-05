@@ -7,7 +7,7 @@ Original integration code is licensed under the repository's MIT License. Dash C
 ## Official target
 
 - Dash Platform stable release: **v4.1.1**, published 2026-08-18.
-- Platform release commit: `bfc80249b9257d775d1e5260b8bda47f6fcc8674`.
+- Platform release commit: `69b85c81af8e000e8506edaa13406d1f6274af5a`.
 - Platform repository/license: `dashpay/platform`, MIT.
 - Platform payments: current official DIP17 and DIP18 documents, both presently marked **Proposed**.
 - Shielded implementation: `dashpay/orchard`, tag `dashified-0.14.1`, commit `38ac9c19a2df7bf3eeadc22ab23053e8fd538828`, MIT OR Apache-2.0.
@@ -119,7 +119,7 @@ FullViewingKey::address_at(index, Scope::External)
 
 It serializes official raw bytes across a narrow JSON boundary. TypeScript validates exact sizes: SpendingKey 32, FullViewingKey 96, IncomingViewingKey 64, OutgoingViewingKey 32, and raw payment address 43 bytes. It then displays `0x10 || raw_address` using network-specific Dash Bech32m. The raw address is the 11-byte diversifier plus 32-byte diversified transmission key. No Zcash Unified Address or F4Jumble wrapper is applied because Dash v4.1.1 specifies the direct Dash encoding.
 
-The adapter deliberately does not implement Orchard, ZIP32, Pallas/Vesta, Halo2, RedPallas, note encryption, or address generation. Generated wasm-bindgen glue is reduced to the synchronous local initializer before bundling; any remaining fetch/import-meta/async-loader marker fails the build.
+The TypeScript boundary deliberately does not reimplement Orchard, ZIP32, Pallas/Vesta, Halo2, RedPallas, note encryption, or address generation; those operations remain in the pinned official Rust implementation. Generated wasm-bindgen glue is reduced to the synchronous local initializer before bundling; any remaining fetch/import-meta/async-loader marker fails the build.
 
 ## Viewing-key scanner
 
