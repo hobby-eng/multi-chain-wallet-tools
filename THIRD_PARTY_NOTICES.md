@@ -15,6 +15,8 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 | `@scure/bip39` | 2.4.0 | `paulmillr/scure-bip39` | MIT | BIP39 validation, PBKDF2 seed, English list |
 | `@dashevo/evo-sdk` | 4.1.1 | `dashpay/platform` (`packages/js-evo-sdk`) | MIT | Connected Viewer/Recovery facades and trusted DAPI queries |
 | `@dashevo/wasm-sdk` | 4.1.1 | `dashpay/platform` (`packages/wasm-sdk`) | MIT | Embedded proof-verifying DAPI transport for connected artifacts |
+| `write-excel-file` | 4.1.1 | `catamphetamine/write-excel-file` | MIT | Local XLSX workbook generation for Activity Viewer exports |
+| `fflate` | 0.8.3 | `101arrowz/fflate` | MIT | ZIP container generation for local XLSX exports |
 
 The two Dash SDK packages are bundled into `Wallet_Activity_Viewer.html` and the scan-only `Wallet_Discovery_Scanner.html`, never into the Wallet Key Derivation Tool. Their pnpm integrity pins are `sha512-DsfHXlLByyhvAerDknozg0HT4KHNsYP6rEy949aj/KGLLydb9bwJBHOWyn5oDsNR016tvr3oeT/jCkjMA4qoCA==` and `sha512-/be0D7qohZc9fHgYjbtzOg8KOajarzo0NtKCNybv4Z1xeV617Wo0CusnsxCzwbV7C/jDgPJiGel0KtcSTzQcfQ==`. Copyright notices embedded by Noble/Scure identify Paul Miller and, for Scure BIP32/BIP39, Patricio Palladino. esbuild preserves inline legal comments in the standalone JavaScript.
 

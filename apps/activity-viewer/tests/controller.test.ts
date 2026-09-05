@@ -42,6 +42,7 @@ function testView() {
   const revealButton = new TestControl();
   const revealBatchButton = new TestControl();
   const exportCsvButton = new TestControl();
+  const exportXlsxButton = new TestControl();
   const exportJsonButton = new TestControl();
   const coreMode = new TestControl();
   coreMode.dataset.viewerMode = 'core';
@@ -75,6 +76,7 @@ function testView() {
     revealButton,
     revealBatchButton,
     exportCsvButton,
+    exportXlsxButton,
     exportJsonButton,
     modeButtons: [coreMode, identityMode, shieldedMode],
     queryModeButtons: [singleQueryMode, batchQueryMode],
@@ -87,6 +89,7 @@ function testView() {
     historyLimitInput,
     setRunning: vi.fn(),
     setExportAvailable: vi.fn(),
+    setExportBusy: vi.fn(),
     showError: vi.fn(),
     setStatus: vi.fn(),
     clearMessages: vi.fn(),
@@ -134,6 +137,7 @@ function testView() {
       advancedDetectionMode,
       viewingKeyInput,
       batchInput,
+      exportXlsxButton,
       exportJsonButton,
     },
   };
@@ -187,6 +191,7 @@ function testDependencies(
     assertPublicBatchLookupInput: vi.fn(),
     assertPublicLookupInput: vi.fn(),
     createViewerExport: vi.fn(),
+    createViewerWorkbookExport: vi.fn(),
     detectViewerInput: vi.fn((value) => ({
       mode: 'core',
       value,
@@ -194,6 +199,7 @@ function testDependencies(
       explicit: false,
     })),
     looksLikeAutoOrchardInput: vi.fn(() => false),
+    downloadBlob: vi.fn(),
     downloadText: vi.fn(),
     normalizeViewingKey: vi.fn(() => viewingKey),
     normalizeIdentityLookupInput: vi.fn(),
@@ -624,6 +630,11 @@ describe('Activity Viewer controller', () => {
       mimeType: 'application/json',
       text: '{}',
     });
+    vi.mocked(dependencies.createViewerWorkbookExport).mockResolvedValue({
+      filename: 'fixture.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      blob: new Blob(['fixture']),
+    });
     const controller = createActivityViewerController(view, dependencies);
     controller.start();
     await settle();
@@ -655,6 +666,11 @@ describe('Activity Viewer controller', () => {
       }),
       'json',
     );
+    controls.exportXlsxButton.click();
+    await vi.waitFor(() => expect(dependencies.downloadBlob).toHaveBeenCalledWith(
+      expect.any(Blob),
+      'fixture.xlsx',
+    ));
     expect(key.hex).toBe('');
   });
 });

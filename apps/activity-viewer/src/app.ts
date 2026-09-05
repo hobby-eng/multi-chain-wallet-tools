@@ -26,14 +26,14 @@ import {
   SHIELDED_PAGE_SIZE,
 } from '@ckd/dash-network/shielded-stream-policy.js';
 import { normalizeViewingKey } from '@ckd/dash-network/viewing-key.js';
-import { downloadText } from '@ckd/export/download.js';
+import { downloadBlob, downloadText } from '@ckd/export/download.js';
 import { createActivityViewerController } from './controller.js';
 import {
   assertAutoViewerBatchInput,
   detectViewerInput,
   looksLikeAutoOrchardInput,
 } from './detection.js';
-import { createViewerExport } from './export.js';
+import { createViewerExport, createViewerWorkbookExport } from './export.js';
 import { createActivityViewerView } from './view.js';
 
 const view = createActivityViewerView(document, BUILD_INFO);
@@ -49,6 +49,8 @@ const controller = createActivityViewerController(view, {
   detectViewerInput,
   looksLikeAutoOrchardInput,
   createViewerExport,
+  createViewerWorkbookExport,
+  downloadBlob,
   downloadText,
   normalizeViewingKey,
   normalizeIdentityLookupInput,
