@@ -175,9 +175,14 @@ for (const marker of [
   'Dash Orchard ZIP-32 fixed vector',
   'Blob Worker execution',
   'The Dash mark is an official brand asset used under CC BY 4.0.',
-  '<circle fill="#008de4"',
 ]) {
   if (!html.includes(marker)) throw new Error(`Viewer artifact is missing required marker: ${marker}`);
+}
+if (profile.id === 'dash-community' && !html.includes('class="profile-brand-mark"')) {
+  throw new Error('Dash Community viewer is missing the official Dash brand mark.');
+}
+if (profile.id === 'multi-chain' && html.includes('class="profile-brand-mark"')) {
+  throw new Error('Multi-Chain viewer must not display the Dash-only brand mark.');
 }
 for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
   if (!html.includes(marker)) throw new Error(`Viewer artifact is missing profile marker: ${marker}`);

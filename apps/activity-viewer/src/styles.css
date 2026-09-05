@@ -27,8 +27,8 @@
 .capability-list>div { display:flex; align-items:center; gap:10px; color:#c6d0da; font-size:12px; }
 .capability-list>div>span:first-child { display:grid; place-items:center; width:19px; height:19px; flex:0 0 19px; border-radius:6px; }
 .capability-check { color:#aee7ca; border:1px solid #315e49; background:#11271e; font-size:11px; }
-.capability-list .capability-denied { color:#8f9aa7; }
-.capability-denied>span:first-child { color:#ffb1b7; border:1px solid #5f3035; background:#281719; }
+.capability-list .capability-safe { color:#c6d0da; }
+.capability-safe>span:first-child { color:#b9caff; border:1px solid #405fa2; background:#132d5a; font-size:11px; }
 .danger-warning { position:relative; background:linear-gradient(100deg,rgba(44,24,27,.96),rgba(29,20,24,.92)); border-color:#67383d; color:#efc6c9; box-shadow:0 12px 40px rgba(0,0,0,.16); }
 .danger-warning::after { content:"PRIVACY BOUNDARY"; position:absolute; right:17px; top:9px; color:rgba(255,183,188,.12); font:800 10px var(--mono); letter-spacing:.13em; }
 .danger-warning .warning-icon { background:var(--danger); box-shadow:0 0 22px rgba(255,107,107,.22); }

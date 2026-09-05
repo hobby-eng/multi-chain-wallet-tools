@@ -29,10 +29,11 @@ const shellTemplate = applyProfileTemplate(
 );
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const recoveryCss = readFileSync(resolve(root, 'apps/discovery-scanner/src/styles.css'), 'utf8');
+const shellCss = readFileSync(resolve(root, 'packages/shared-ui/styles/tool-shell.css'), 'utf8');
 const themeCss = profile.themeStylesheet === undefined
   ? ''
   : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
-const css = (await transform(`${sharedCss}\n${recoveryCss}\n${themeCss}`, {
+const css = (await transform(`${sharedCss}\n${recoveryCss}\n${shellCss}\n${themeCss}`, {
   loader: 'css',
   minify: true,
   legalComments: 'inline',
