@@ -1,5 +1,10 @@
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import type { IdentityLookupView, PlatformAddressBatchView, PlatformHistorySummaryView } from '../../network-protocol.js';
+import type {
+  DashCoreTransactionView,
+  IdentityLookupView,
+  PlatformAddressBatchView,
+  PlatformHistorySummaryView,
+} from '../../network-protocol.js';
 import type { RecoveryNetwork } from '../../types.js';
 
 export class DashPlatformClient {
@@ -40,6 +45,15 @@ export class DashPlatformClient {
       { network: this.network, identifier },
       'platform.identity-history',
       () => this.gateway.networkApi.platformIdentityHistory(this.network, identifier, signal),
+      signal,
+    );
+  }
+
+  coreTransaction(hash: string, signal?: AbortSignal): Promise<DashCoreTransactionView> {
+    return this.gateway.runPublic(
+      { network: this.network, hash },
+      'core.transaction',
+      () => this.gateway.networkApi.coreTransaction(this.network, hash, signal),
       signal,
     );
   }

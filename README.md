@@ -19,7 +19,8 @@ An offline tool for deriving wallet addresses and keys from a BIP39 seed phrase.
 
 - Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; and Dash Core, Platform payment, Identity, and Orchard Shielded derivation.
 - Shows standards-based derivation paths and exposes protocol-specific account, branch/key-class, and index controls.
-- Derives standard receive/change branches for Bitcoin and Dash Core, an explicit EOA branch for Ethereum, Platform payment receive keys, four-key Identity candidates, and Orchard addresses and viewing material.
+- Derives standard receive/change branches for Bitcoin and Dash Core, three common EOA path profiles for Ethereum recovery, Platform payment receive keys, four-key Identity candidates, and Orchard addresses and viewing material.
+- Scanner coin adapters can expose validated custom-path templates with coin-appropriate address formats; the shared UI automatically supports the capability for current and future adapters.
 - Displays basic results or detailed protocol-specific data, with selectable clipboard and file exports.
 - Generates offline, on-demand QR codes only for derived public payment addresses; key material and arbitrary metadata never receive QR actions.
 - Runs derivation in a disposable Web Worker and has runtime network access blocked by CSP and build verification.
@@ -49,7 +50,8 @@ A connected recovery scanner that searches for Dash resources belonging to one o
 - Lets you select Dash Core BIP44 scanning; when selected, it covers receive/change branches and continues 20 addresses past the last used address on each branch.
 - Optionally adds historical/current Dash mobile, CoinJoin/DIP9, identity-funding and provider-holdings P2PKH families; Platform payment addresses, Platform identities and Orchard scanning remain separately selectable.
 - Supports large ranges through bounded batches with progress and cancellation.
-- Clearly separates scan family, branch and exact derivation path in results and exports.
+- Produces detailed Dash Core L1 recovery records with exact path and branch, current balance, transaction count, lifetime received/sent, first/last activity, public-key hash, and linked Identity-funding transactions when applicable.
+- Clearly separates Core L1, Platform addresses, Platform identities, and Orchard into focused result tabs while preserving the complete report in exports.
 - Shows funded resources by default; historical zero-balance activity is optional.
 - Exports component-aware CSV and JSON reports containing only relevant fields and no seed phrase or private key.
 - Never creates, signs or broadcasts transactions. Recover found funds with a standard Dash wallet.

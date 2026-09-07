@@ -6,12 +6,15 @@ import {
 } from './network-protocol.js';
 import type {
   RecoveryFinding,
+  RecoveryCoinAdapter,
   RecoveryInputMode,
   RecoveryProgress,
   RecoverySection,
   RecoverySectionId,
   RecoveryWalletResult,
 } from './types.js';
+
+declare const __DASH_COMMUNITY__: boolean;
 
 export type WalletProgressState = 'queued' | 'running' | 'complete' | 'failed';
 
@@ -37,6 +40,10 @@ export interface RecoveryInputSnapshot {
   scanCore: boolean;
   coreReceiveCount: string;
   coreChangeCount: string;
+  scanCustomPath: boolean;
+  customPathTemplate: string;
+  customPathFormat: string;
+  customPathCount: string;
   scanLegacyCore: boolean;
   legacyCoreCount: string;
   scanCoinJoin: boolean;
@@ -69,6 +76,38 @@ const progressSectionLabels: Record<RecoveryProgress['section'], string> = {
   identity: 'Platform identities',
   shielded: 'Orchard pool',
 };
+
+export type RecoveryComponentGroupId = 'core' | 'platform' | 'identity' | 'shielded';
+
+/**
+ * Second-level result tabs. Each scanned seed phrase is split by component so
+ * Core L1 addresses, Platform payment addresses, Platform identities and the
+ * Orchard pool are never mixed in one list. Every Core-compatible P2PKH family
+ * (BIP44, legacy mobile, CoinJoin, identity funding, masternode holdings) is
+ * an L1 address set and therefore lives under the Core tab.
+ */
+const componentGroups: ReadonlyArray<{ id: RecoveryComponentGroupId; label: string; sections: readonly RecoverySectionId[] }> = [
+  { id: 'core', label: 'Dash Core · L1', sections: ['core', 'legacyCore', 'coinjoin', 'providerCollateral'] },
+  { id: 'platform', label: 'Platform addresses', sections: ['platform'] },
+  { id: 'identity', label: 'Platform identities', sections: ['identity'] },
+  { id: 'shielded', label: 'Orchard pool', sections: ['shielded'] },
+];
+
+function groupSections(result: RecoveryWalletResult, group: (typeof componentGroups)[number]): RecoverySection[] {
+  return group.sections
+    .map((id) => result.sections.find((section) => section.id === id))
+    .filter((section): section is RecoverySection => section !== undefined);
+}
+
+function groupSummary(sections: readonly RecoverySection[]): { label: string; tone: 'skipped' | 'failed' | 'partial' | 'complete' } {
+  if (sections.length === 0 || sections.every(({ state }) => state === 'skipped')) return { label: 'skipped', tone: 'skipped' };
+  const funded = sections.reduce((sum, section) => sum + section.findings.filter(({ balanceAtomic }) => balanceAtomic > 0n).length, 0);
+  const listed = sections.reduce((sum, section) => sum + section.findings.length, 0);
+  const count = funded === listed ? `${funded} funded` : `${funded} funded · ${listed} listed`;
+  if (sections.some(({ state }) => state === 'failed')) return { label: `${count} · warning`, tone: 'failed' };
+  if (sections.some(({ state }) => state === 'partial')) return { label: `${count} · partial`, tone: 'partial' };
+  return { label: count, tone: 'complete' };
+}
 
 const COINJOIN_COIN_TYPE: Record<'mainnet' | 'testnet', number> = { mainnet: 5, testnet: 1 };
 
@@ -104,7 +143,22 @@ export function createDiscoveryScannerView(
   const form = required<HTMLFormElement>('#recovery-form');
   const coinInput = document.querySelector<HTMLSelectElement>('#recovery-coin');
   let profileCoinId: string | null = null;
+  const coinAdapters = new Map<string, RecoveryCoinAdapter>();
   const networkInput = required<HTMLSelectElement>('#recovery-network');
+  const scanCoverageDescription = required<HTMLElement>('#scan-coverage-description');
+  const genericCoinScanNote = required<HTMLElement>('#generic-coin-scan-note');
+  const receiveField = required<HTMLElement>('#recovery-receive-field');
+  const receiveLabel = required<HTMLLabelElement>('#recovery-receive-label');
+  const changeField = required<HTMLElement>('#recovery-change-field');
+  const changeLabel = required<HTMLLabelElement>('#recovery-change-label');
+  const customPathOptions = required<HTMLElement>('#custom-path-options');
+  const customPathField = required<HTMLElement>('#custom-path-field');
+  const scanCustomPathInput = required<HTMLInputElement>('#scan-custom-path');
+  const customPathTemplateInput = required<HTMLInputElement>('#custom-path-template');
+  const customPathFormatInput = required<HTMLSelectElement>('#custom-path-format');
+  const customPathCountInput = required<HTMLInputElement>('#custom-path-count');
+  const customPathDescription = required<HTMLElement>('#custom-path-description');
+  const dashCoverage = [...document.querySelectorAll<HTMLElement>('[data-dash-coverage]')];
   const accountInput = required<HTMLInputElement>('#recovery-account');
   const singlePanel = required<HTMLElement>('#single-input');
   const batchPanel = required<HTMLElement>('#batch-input');
@@ -161,6 +215,11 @@ export function createDiscoveryScannerView(
   const recoveryRuntime = required<HTMLElement>('#recovery-runtime');
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-input-mode]')];
   const estimateInputs = [
+    ...(coinInput === null ? [] : [coinInput]),
+    scanCustomPathInput,
+    customPathTemplateInput,
+    customPathFormatInput,
+    customPathCountInput,
     networkInput,
     accountInput,
     scanCoreInput,
@@ -198,11 +257,58 @@ export function createDiscoveryScannerView(
   };
 
   function setComponentSettings(): void {
+    const coinId = coinInput?.value ?? profileCoinId ?? 'dash';
+    const dash = coinId === 'dash';
+    const customPath = coinAdapters.get(coinId)?.customPath;
+    for (const element of dashCoverage) element.hidden = !dash;
+    genericCoinScanNote.hidden = dash;
+    customPathOptions.hidden = customPath === undefined;
+    customPathField.hidden = customPath === undefined || !scanCustomPathInput.checked;
+    for (const input of [customPathTemplateInput, customPathFormatInput, customPathCountInput]) {
+      input.disabled = customPath === undefined || !scanCustomPathInput.checked;
+    }
+    if (customPath !== undefined) {
+      customPathDescription.textContent = customPath.description;
+      customPathTemplateInput.placeholder = customPath.placeholder;
+      const selectedFormat = customPathFormatInput.value;
+      customPathFormatInput.replaceChildren(...customPath.formats.map((format) => {
+        const option = document.createElement('option');
+        option.value = format.id;
+        option.textContent = format.label;
+        return option;
+      }));
+      customPathFormatInput.value = customPath.formats.some(({ id }) => id === selectedFormat)
+        ? selectedFormat
+        : (customPath.formats[0]?.id ?? '');
+    }
+    if (!__DASH_COMMUNITY__ && !dash) {
+      for (const elements of Object.values(componentSettings)) {
+        for (const element of elements) element.hidden = true;
+      }
+      receiveField.hidden = false;
+      changeField.hidden = coinId === 'ethereum';
+      receiveLabel.textContent = coinId === 'bitcoin' ? 'Receive addresses per Bitcoin family' : 'Ethereum EOA address minimum';
+      changeLabel.textContent = 'Change addresses per Bitcoin family';
+      scanCoverageDescription.textContent = coinId === 'bitcoin'
+        ? 'Scan the standard Bitcoin BIP44, BIP49, BIP84, and BIP86 receive/change families.'
+        : 'Scan three common Ethereum externally owned account path profiles.';
+      genericCoinScanNote.textContent = coinId === 'bitcoin'
+        ? 'Bitcoin recovery includes legacy, nested SegWit, native SegWit, and Taproot, extending every receive/change chain through a 20-address post-use gap.'
+        : 'Ethereum recovery checks Standard BIP44, Ledger Live, and Legacy Ledger paths by default, extending each through a 20-address post-use gap. Duplicate addresses are queried and counted once. ERC-20 tokens and contract wallets are outside this scan.';
+      networkInput.options[0]!.textContent = coinId === 'bitcoin' ? 'Bitcoin mainnet' : 'Ethereum mainnet';
+      networkInput.options[1]!.textContent = coinId === 'bitcoin' ? 'Bitcoin testnet' : 'Sepolia testnet';
+      return;
+    }
+    receiveLabel.textContent = 'Core receive minimum';
+    changeLabel.textContent = 'Core change minimum';
+    scanCoverageDescription.textContent = 'Select the Dash components and address ranges you want to check.';
+    networkInput.options[0]!.textContent = 'Mainnet';
+    networkInput.options[1]!.textContent = 'Testnet';
     for (const [component, enabled] of [
       ['core', scanCoreInput.checked],
       ['legacyCore', scanCoreInput.checked && scanLegacyCoreInput.checked],
       ['coinjoin', scanCoreInput.checked && scanCoinJoinInput.checked],
-      ['identityFunding', scanCoreInput.checked && scanIdentityFundingInput.checked],
+      ['identityFunding', scanPlatformIdentitiesInput.checked && scanIdentityFundingInput.checked],
       ['providerCollateral', scanCoreInput.checked && scanProviderCollateralInput.checked],
       ['platform', scanPlatformAddressesInput.checked],
       ['identity', scanPlatformIdentitiesInput.checked],
@@ -328,6 +434,78 @@ export function createDiscoveryScannerView(
     errorBox.hidden = false;
   }
 
+  let activeComponentGroup: RecoveryComponentGroupId = 'core';
+
+  function renderComponentTabs(result: RecoveryWalletResult): HTMLElement {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'component-results component-results-tabbed';
+    const heading = document.createElement('header');
+    heading.className = 'component-results-head';
+    const title = document.createElement('h4');
+    title.textContent = 'Detailed results by recovery type';
+    const note = document.createElement('p');
+    note.textContent = 'Select a tab to inspect its balances, derivation paths, activity, and recovery details.';
+    heading.append(title, note);
+    const tabs = document.createElement('div');
+    tabs.className = 'component-result-tabs';
+    tabs.setAttribute('role', 'tablist');
+    tabs.setAttribute('aria-label', 'Scan components for this seed phrase');
+    const panel = document.createElement('div');
+    panel.className = 'component-result-panel';
+    panel.setAttribute('role', 'tabpanel');
+    const available = componentGroups.filter((group) => groupSections(result, group).length > 0);
+    if (!available.some(({ id }) => id === activeComponentGroup)) activeComponentGroup = available[0]?.id ?? 'core';
+
+    const renderPanel = (): void => {
+      const group = available.find(({ id }) => id === activeComponentGroup) ?? available[0];
+      panel.replaceChildren();
+      if (group === undefined) return;
+      panel.id = `component-panel-${result.inputId}-${group.id}`;
+      panel.setAttribute('aria-label', group.label);
+      panel.append(...groupSections(result, group).map(renderSection));
+      for (const button of tabs.querySelectorAll<HTMLButtonElement>('[data-component-group]')) {
+        const active = button.dataset.componentGroup === group.id;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+      }
+    };
+
+    available.forEach((group) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'component-result-tab';
+      button.dataset.componentGroup = group.id;
+      button.setAttribute('role', 'tab');
+      button.setAttribute('aria-controls', `component-panel-${result.inputId}-${group.id}`);
+      const name = document.createElement('strong');
+      name.textContent = group.label;
+      const summary = groupSummary(groupSections(result, group));
+      const detail = document.createElement('small');
+      detail.className = summary.tone;
+      detail.textContent = summary.label;
+      button.append(name, detail);
+      button.addEventListener('click', () => {
+        activeComponentGroup = group.id;
+        renderPanel();
+      });
+      button.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+        event.preventDefault();
+        const index = available.findIndex(({ id }) => id === activeComponentGroup);
+        const next = available[(index + (event.key === 'ArrowRight' ? 1 : available.length - 1)) % available.length];
+        if (next === undefined) return;
+        activeComponentGroup = next.id;
+        renderPanel();
+        tabs.querySelector<HTMLButtonElement>(`[data-component-group="${next.id}"]`)?.focus();
+      });
+      tabs.append(button);
+    });
+    renderPanel();
+    wrapper.append(heading, tabs, panel);
+    return wrapper;
+  }
+
   return {
     form,
     startButton,
@@ -352,28 +530,32 @@ export function createDiscoveryScannerView(
         batchConcurrency: batchConcurrencyInput.value,
         requestConcurrency: requestConcurrencyInput.value,
         clearInputOnStart: clearInputOnStart.checked,
-        scanCore: scanCoreInput.checked,
+        scanCore: coinId === 'dash' ? scanCoreInput.checked : true,
         coreReceiveCount: coreReceiveInput.value,
         coreChangeCount: coreChangeInput.value,
-        scanLegacyCore: scanCoreInput.checked && scanLegacyCoreInput.checked,
+        scanCustomPath: scanCustomPathInput.checked,
+        customPathTemplate: customPathTemplateInput.value,
+        customPathFormat: customPathFormatInput.value,
+        customPathCount: customPathCountInput.value,
+        scanLegacyCore: coinId === 'dash' && scanCoreInput.checked && scanLegacyCoreInput.checked,
         legacyCoreCount: legacyCoreCountInput.value,
-        scanCoinJoin: scanCoreInput.checked && scanCoinJoinInput.checked,
+        scanCoinJoin: coinId === 'dash' && scanCoreInput.checked && scanCoinJoinInput.checked,
         coinJoinExternalCount: coinJoinExternalCountInput.value,
         coinJoinInternalCount: coinJoinInternalCountInput.value,
-        scanIdentityFunding: scanCoreInput.checked && scanIdentityFundingInput.checked,
+        scanIdentityFunding: coinId === 'dash' && scanPlatformIdentitiesInput.checked && scanIdentityFundingInput.checked,
         identityFundingCount: identityFundingCountInput.value,
         identityTopUpIdentityCount: identityTopUpIdentityCountInput.value,
         identityTopUpCount: identityTopUpCountInput.value,
-        scanProviderCollateral: scanCoreInput.checked && scanProviderCollateralInput.checked,
+        scanProviderCollateral: coinId === 'dash' && scanCoreInput.checked && scanProviderCollateralInput.checked,
         providerCollateralCount: providerCollateralCountInput.value,
-        scanPlatformAddresses: scanPlatformAddressesInput.checked,
+        scanPlatformAddresses: coinId === 'dash' && scanPlatformAddressesInput.checked,
         platformAddressCount: platformCountInput.value,
-        scanPlatformIdentities: scanPlatformIdentitiesInput.checked,
+        scanPlatformIdentities: coinId === 'dash' && scanPlatformIdentitiesInput.checked,
         identityStartIndex: identityStartInput.value,
         identityGapLimit: identityGapInput.value,
         identityScanLimit: identityLimitInput.value,
         includeUsedZeroBalance: includeUsedZeroInput.checked,
-        scanShieldedPool: scanShieldedInput.checked,
+        scanShieldedPool: coinId === 'dash' && scanShieldedInput.checked,
       };
     },
     setMode(mode: RecoveryInputMode): void {
@@ -414,15 +596,25 @@ export function createDiscoveryScannerView(
       setComponentSettings();
       coinJoinPathPreview.textContent = coinJoinPathPattern(networkInput.value);
       try {
+        const coinId = coinInput?.value ?? profileCoinId ?? 'dash';
+        if (!__DASH_COMMUNITY__ && coinId === 'bitcoin') {
+          const perFamily = estimateInteger(coreReceiveInput.value, 0) + estimateInteger(coreChangeInput.value, 0);
+          estimate.textContent = `Bitcoin · 4 standard address families${scanCustomPathInput.checked ? ' + custom path' : ''} · ${(perFamily * 4).toLocaleString()} standard minimum addresses + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}`;
+          startButtonLabel.textContent = 'Scan Bitcoin holdings';
+          return;
+        }
+        if (!__DASH_COMMUNITY__ && coinId === 'ethereum') {
+          estimate.textContent = `Ethereum EOA · 3 standard wallet profiles${scanCustomPathInput.checked ? ' + custom path' : ''} · ${estimateInteger(coreReceiveInput.value, 1).toLocaleString()} minimum derivations per profile + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · used zero-balance accounts enabled' : ''}`;
+          startButtonLabel.textContent = 'Scan Ethereum holdings';
+          return;
+        }
+        startButtonLabel.textContent = 'Scan Dash holdings';
         const core = scanCoreInput.checked ? estimateInteger(coreReceiveInput.value, 0) + estimateInteger(coreChangeInput.value, 0) : 0;
         const legacyCore = scanCoreInput.checked && scanLegacyCoreInput.checked ? estimateInteger(legacyCoreCountInput.value, 0) * 2 : 0;
         const coinJoin = scanCoreInput.checked && scanCoinJoinInput.checked
           ? estimateInteger(coinJoinExternalCountInput.value, 0) + estimateInteger(coinJoinInternalCountInput.value, 0)
           : 0;
-        const identityFunding = scanCoreInput.checked && scanIdentityFundingInput.checked
-          ? estimateInteger(identityFundingCountInput.value, 0) * 5
-            + estimateInteger(identityTopUpIdentityCountInput.value, 0) * estimateInteger(identityTopUpCountInput.value, 0)
-          : 0;
+        const identityFunding = 0;
         const providerCollateral = scanCoreInput.checked && scanProviderCollateralInput.checked ? estimateInteger(providerCollateralCountInput.value, 0) : 0;
         const platform = scanPlatformAddressesInput.checked ? estimateInteger(platformCountInput.value, 0) : 0;
         const coreLike = core + legacyCore + coinJoin + identityFunding + providerCollateral;
@@ -434,10 +626,10 @@ export function createDiscoveryScannerView(
         const optionalFamilies = [
           scanCoreInput.checked && scanLegacyCoreInput.checked,
           scanCoreInput.checked && scanCoinJoinInput.checked,
-          scanCoreInput.checked && scanIdentityFundingInput.checked,
+          scanPlatformIdentitiesInput.checked && scanIdentityFundingInput.checked,
           scanCoreInput.checked && scanProviderCollateralInput.checked,
         ].filter(Boolean).length;
-        estimate.textContent = `${scanCoreInput.checked ? 'Dash Core BIP44 selected' : 'Dash Core skipped'} · ${optionalFamilies} extra Core-family scan${optionalFamilies === 1 ? '' : 's'} · ${totalBatches.toLocaleString()} minimum address batches${totalBatches > 0 ? ' + gap 20' : ''} · about ${(identities * 2).toLocaleString()} identity proof calls per seed phrase · ${requests} network request${requests === 1 ? '' : 's'} at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}${scanShieldedInput.checked ? ' · complete Orchard pool' : ''}`;
+        estimate.textContent = `${scanCoreInput.checked ? 'Dash Core BIP44 selected' : 'Dash Core skipped'}${scanCustomPathInput.checked ? ' · custom path selected' : ''} · ${optionalFamilies} optional coverage item${optionalFamilies === 1 ? '' : 's'} · ${totalBatches.toLocaleString()} minimum address batches${totalBatches > 0 ? ' + gap 20' : ''} · about ${(identities * 2).toLocaleString()} identity proof calls per seed phrase · ${requests} network request${requests === 1 ? '' : 's'} at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}${scanShieldedInput.checked ? ' · complete Orchard pool' : ''}`;
       } catch {
         estimate.textContent = 'Enter valid scan counts';
       }
@@ -454,7 +646,12 @@ export function createDiscoveryScannerView(
       revealButton.disabled = value;
       if (value) startButtonLabel.textContent = 'Scanning…';
       else if (hasCompletedScan) startButtonLabel.textContent = 'Run a new scan';
-      else startButtonLabel.textContent = 'Scan Dash holdings';
+      else {
+        const coinId = coinInput?.value ?? profileCoinId ?? 'dash';
+        startButtonLabel.textContent = __DASH_COMMUNITY__
+          ? 'Scan Dash holdings'
+          : `Scan ${coinId === 'bitcoin' ? 'Bitcoin' : coinId === 'ethereum' ? 'Ethereum' : 'Dash'} holdings`;
+      }
     },
     showProgress(): void {
       progressShell.hidden = false;
@@ -552,13 +749,22 @@ export function createDiscoveryScannerView(
         const overviewTitle = document.createElement('strong');
         overviewTitle.textContent = 'Wallet-wide located balances';
         const overviewNote = document.createElement('p');
-        overviewNote.textContent = 'This total includes funded Core addresses, Platform payment addresses, identity credits, and spendable Orchard notes from the completed sections below.';
+        overviewNote.textContent = result.coinId === 'dash'
+          ? 'This total includes funded Core addresses, Platform payment addresses, identity credits, and spendable Orchard notes from the completed sections below.'
+          : `This total includes the ${result.coinLabel} resources found in the completed scan below.`;
         const overviewMetrics = document.createElement('div');
         overviewMetrics.className = 'section-metrics wallet-overview-metrics';
         overviewMetrics.append(...result.overview.map((metric) => renderMetric(metric.label, metric.value, metric.tone)));
         overview.append(overviewTitle, overviewNote, overviewMetrics);
         wallet.append(overview);
-        wallet.append(...result.sections.map(renderSection));
+        if (result.coinId === 'dash') {
+          wallet.append(renderComponentTabs(result));
+        } else {
+          const sections = document.createElement('div');
+          sections.className = 'component-results single-component-results';
+          sections.append(...result.sections.map(renderSection));
+          wallet.append(sections);
+        }
         resultList.append(wallet);
       }
       resultTabs.hidden = results.length < 2;
@@ -567,6 +773,7 @@ export function createDiscoveryScannerView(
       exportJsonButton.disabled = !exportFormats.has('json');
     },
     resetResults(): void {
+      activeComponentGroup = 'core';
       resultList.replaceChildren();
       resultTabs.replaceChildren();
       walletProgressRoot.replaceChildren();
@@ -575,8 +782,9 @@ export function createDiscoveryScannerView(
       exportCsvButton.disabled = true;
       exportJsonButton.disabled = true;
     },
-    populateCoins(coins: ReadonlyArray<{ id: string; label: string }>): void {
+    populateCoins(coins: ReadonlyArray<RecoveryCoinAdapter>): void {
       if (coins.length === 0) throw new Error('Recovery coin registry is empty.');
+      for (const coin of coins) coinAdapters.set(coin.id, coin);
       if (coinInput === null) {
         if (coins.length !== 1) throw new Error('A profile without a coin selector must register exactly one recovery coin.');
         profileCoinId = coins[0]?.id ?? null;
@@ -588,6 +796,7 @@ export function createDiscoveryScannerView(
         option.textContent = coin.label;
         coinInput.append(option);
       }
+      coinInput.value = coins[0]?.id ?? '';
     },
     showSelfTestPassed(checks: readonly string[], durationMs: number): void {
       selfTestBadge.className = 'self-test-badge passed';
