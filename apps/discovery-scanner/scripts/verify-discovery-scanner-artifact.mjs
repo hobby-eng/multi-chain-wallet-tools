@@ -131,6 +131,29 @@ if (profile.id === 'dash-community' && vaultIds.includes('recovery-coin')) {
 if (profile.id === 'multi-chain' && !vaultIds.includes('recovery-coin')) {
   throw new Error('Multi-Chain recovery artifact is missing its coin selector.');
 }
+for (const id of [
+  'custom-path-options', 'scan-custom-path', 'custom-path-field',
+  'custom-path-template', 'custom-path-format', 'custom-path-count',
+]) {
+  if (!vaultIds.includes(id)) throw new Error(`Recovery artifact is missing extensible custom-path control #${id}.`);
+}
+for (const marker of ['Bitcoin wallet addresses', 'Ethereum EOA addresses']) {
+  if (profile.id === 'multi-chain' && !html.includes(marker)) {
+    throw new Error(`Multi-Chain recovery artifact is missing its ${marker} adapter.`);
+  }
+  if (profile.id === 'dash-community' && html.includes(marker)) {
+    throw new Error(`Dash Community recovery vault unexpectedly bundles the ${marker} adapter.`);
+  }
+}
+for (const marker of [
+  'Custom derivation path',
+  'Custom path template',
+  'Address format',
+  'Minimum addresses',
+  '{index}',
+]) {
+  if (!html.includes(marker)) throw new Error(`Recovery artifact is missing its generic custom-path marker: ${marker}`);
+}
 for (const match of vaultTemplate.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
   if (!vaultIds.includes(match[1])) throw new Error(`Recovery label references missing control #${match[1]}.`);
 }
@@ -140,27 +163,31 @@ for (const marker of [
   'This utility has not been independently audited by a cryptography specialist.',
   'Select the Dash components and address ranges you want to check.', 'Core receive minimum', 'Core change minimum', 'Platform address minimum',
   'Identity empty-gap limit', 'Platform identities', 'Account-wide encrypted notes', 'spent or previously used resources with zero balance',
-  'CoinJoin', 'Legacy mobile per branch', 'Identity funding per chain', 'Identity-bound top-up identities',
-  'Masternode holdings minimum', 'Masternode collateral holding path', 'MASTERNODE_HOLDINGS',
+  'CoinJoin', 'Legacy mobile per branch', 'Registration funding keys to match', 'Identity-bound top-up identities',
+  'Masternode holdings minimum', 'Masternode holdings', 'Rare DashSync/dashj collateral addresses.',
+  'Scan components for this seed phrase', 'component-result-tab',
   '20 addresses after the last used address', 'Self-test running', 'ALL SEED PHRASES',
   'STANDARD-WALLET HANDOFF', 'Run a new scan', 'bounded-memory page stream',
-  'Scan mobile CoinJoin / DIP9', 'intentionally separates high-activity CoinJoin keys',
+  'Mobile CoinJoin', 'Separate mobile receive and change chains.',
+  'Identity registration funding', 'Show the L1 asset-lock and funding inputs.',
+  'Legacy mobile Core', 'Older Dash Wallet for Android backups.',
   'Dash Core', 'BIP44 receive and change addresses',
   'CoinJoin/DIP9 paths for the selected network', 'm/9\'/5\'/4\'/0\'/0/i',
-  'BIP44 became the default in v5.18 (May 2018)', 'CoinJoin external minimum', 'CoinJoin internal minimum',
+  'CoinJoin external minimum', 'CoinJoin internal minimum',
   'No funded mobile CoinJoin/DIP9 address was found in this section and scanned range.',
   'core.address-info',
   'Release passport', 'Cryptographic self-test running', 'Embedded dependency versions and licenses:',
   'Dash Identity mainnet / DIP13', 'Dash Identity testnet / DIP13',
-  'Wallet-wide located balances', 'Identity credits',
+  'Wallet-wide located balances', 'Detailed results by recovery type', 'Identity credits',
   'Lifetime self/change', 'Spent at pool position', 'section_lifetime_received_dash',
   'No funded Dash Core L1 address was found in this section and scanned range.',
   'The Dash mark is an official brand asset used under CC BY 4.0.',
   'wallet-discovery-report', 'Blocked ', 'Dash Platform DAPI', 'DashScan',
   'recovery CSV report export', 'recovery JSON report export',
-  'isolated-network-worker-v1', 'core.address-info',
+  'isolated-network-worker-v1', 'core.address-info', 'core.transaction',
   'platform.address-history', 'platform.identity-by-public-key-hash',
-  'platform.identity-history', 'shielded.page', 'ckd-recovery-export-request-v1',
+  'platform.identity-history', 'shielded.page', 'utxo.addresses', 'evm.accounts',
+  'ckd-recovery-export-request-v1',
 ]) {
   if (!html.includes(marker)) throw new Error(`Recovery artifact is missing required marker: ${marker}`);
 }

@@ -11,6 +11,7 @@ export interface ValidatedPlatformHistory {
   firstSeen: string | null;
   lastSeen: string | null;
   indexedHeight: number;
+  fundingCoreTx: string | null;
 }
 
 function optionalTimestamp(value: unknown, label: string): string | null {
@@ -40,5 +41,8 @@ export function validatePlatformHistory(
     firstSeen: optionalTimestamp(history.firstSeen, 'first-seen timestamp'),
     lastSeen: optionalTimestamp(history.lastSeen, 'last-seen timestamp'),
     indexedHeight: exactSafeInteger(history.indexedHeight, 'Platform history indexed height'),
+    fundingCoreTx: typeof history.fundingCoreTx === 'string' && /^[0-9a-f]{64}$/u.test(history.fundingCoreTx)
+      ? history.fundingCoreTx
+      : null,
   };
 }
