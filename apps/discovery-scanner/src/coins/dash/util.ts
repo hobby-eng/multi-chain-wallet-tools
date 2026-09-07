@@ -1,7 +1,8 @@
-import type { RecoveryMetric, RecoverySection, RecoverySectionId } from '../../types.js';
+import type { RecoveryMetric, RecoveryNetwork, RecoverySection, RecoverySectionId } from '../../types.js';
 import { MAX_BIP32_INDEX } from '@ckd/core/bip32.js';
 import { requireRecord } from '@ckd/core/records.js';
 import { describeUnknownError } from '../../error-message.js';
+import type { RecoveryNetworkGateway } from '../../network-gateway.js';
 
 export {
   formatDashCredits as formatDashFromCredits,
@@ -35,6 +36,87 @@ export function exactSafeInteger(value: unknown, context: string): number {
     throw new Error(`${context} is not a safe non-negative integer.`);
   }
   return number;
+}
+
+/**
+ * Shared DashScan Core address batch/history plumbing. Both the standard
+ * BIP44 scanner and the optional CoinJoin/DIP9 scanner query the exact same
+ * `/addresses/info` and `/address/:address` DashScan operations for locally
+ * derived P2PKH addresses; only the derivation path differs. Reusing these
+ * validators avoids a second, independently-risky parse of network responses.
+ */
+export interface DashScanAddressInfo {
+  balance: bigint;
+  txCount: number;
+}
+
+export interface DashScanHistorySummary {
+  txCount: number;
+  received: bigint;
+  sent: bigint;
+  firstSeen: string | null;
+  lastSeen: string | null;
+}
+
+function optionalTimestamp(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return Number.isFinite(Date.parse(value)) ? value : null;
+}
+
+export function validateDashScanAddressHistory(value: unknown, expectedAddress: string): DashScanHistorySummary {
+  const history = object(value, 'DashScan address history summary');
+  if (history.address !== expectedAddress) throw new Error('DashScan address history did not match the requested address.');
+  return {
+    txCount: exactSafeInteger(history.txCount, 'DashScan address history transaction count'),
+    received: exactUnsigned(history.received, 'DashScan lifetime received amount'),
+    sent: exactUnsigned(history.sent, 'DashScan lifetime sent amount'),
+    firstSeen: optionalTimestamp(history.firstSeenBlockTimestamp),
+    lastSeen: optionalTimestamp(history.lastSeenBlockTimestamp),
+  };
+}
+
+export function validateDashScanAddressBatch(value: unknown, expectedAddresses: readonly string[]): DashScanAddressInfo[] {
+  if (!Array.isArray(value) || value.length !== expectedAddresses.length) {
+    throw new Error('DashScan address batch did not preserve the requested result count.');
+  }
+  return value.map((item, index) => {
+    const info = object(item, 'DashScan address batch');
+    if (info.address !== expectedAddresses[index]) {
+      throw new Error('DashScan address batch did not preserve the locally derived address order.');
+    }
+    return {
+      balance: exactUnsigned(info.balance, 'DashScan address balance'),
+      txCount: exactSafeInteger(info.txCount, 'DashScan address transaction count'),
+    };
+  });
+}
+
+export async function fetchDashScanIndexedHeight(
+  gateway: RecoveryNetworkGateway,
+  network: RecoveryNetwork,
+  signal: AbortSignal,
+): Promise<number> {
+  const status = object(await gateway.runPublic(
+    { network },
+    'core.status',
+    () => gateway.networkApi.coreStatus(network, signal),
+    signal,
+  ), 'DashScan status');
+  if (status.status !== 'ok') throw new Error('DashScan reports that its index is not synchronized.');
+
+  const tipPage = object(
+    await gateway.runPublic(
+      { network },
+      'core.tip',
+      () => gateway.networkApi.coreTip(network, signal),
+      signal,
+    ),
+    'DashScan block page',
+  );
+  const tipItems = Array.isArray(tipPage.resultSet) ? tipPage.resultSet : [];
+  if (tipItems.length !== 1) throw new Error('DashScan did not return exactly one indexed tip.');
+  const tip = object(tipItems[0], 'DashScan indexed tip');
+  return exactSafeInteger(tip.height, 'DashScan indexed height');
 }
 
 export function failedSection(id: RecoverySectionId, title: string, description: string, cause: unknown): RecoverySection {

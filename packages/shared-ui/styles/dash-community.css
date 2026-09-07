@@ -289,8 +289,7 @@ body::before {
   stroke:rgba(225,234,255,.42);
   stroke-width:10px;
 }
-.form-grid>div:has(>#coin),
-.recovery-source-grid>div:has(>#recovery-coin) {
+.form-grid>div:has(>#coin) {
   display:none;
 }
 .form-grid .protocol-tabs {

@@ -24,6 +24,9 @@ export interface DerivationControls {
   branchSelect: HTMLSelectElement;
   changeField: HTMLElement;
   includeChange: HTMLInputElement;
+  coinJoinField: HTMLElement;
+  includeCoinJoin: HTMLInputElement;
+  coinJoinHelp: HTMLElement;
   startLabel: HTMLLabelElement;
   start: HTMLInputElement;
   countLabel: HTMLLabelElement;
@@ -33,6 +36,7 @@ export interface DerivationControls {
 
 export type DerivationControlValues = Omit<CoinDerivationInput, 'seed'> & {
   includeChange: boolean;
+  includeCoinJoin: boolean;
 };
 
 const DEFAULT_INDEX_MAX = 2_147_483_647;
@@ -85,7 +89,7 @@ export function configureControls(
   remembered?: DerivationControlValues,
 ): void {
   const defaults = adapter.defaults;
-  const values: DerivationControlValues = remembered ?? { ...defaults, includeChange: false };
+  const values: DerivationControlValues = remembered ?? { ...defaults, includeChange: false, includeCoinJoin: false };
   controls.coin.value = registry.getAdapterFamilyId(adapter);
   renderProtocolTabs(adapter, controls, registry);
   controls.network.replaceChildren();
@@ -131,6 +135,8 @@ export function configureControls(
   }
   controls.changeField.hidden = adapter.addressBranches === undefined;
   controls.includeChange.checked = adapter.addressBranches !== undefined && values.includeChange;
+  controls.coinJoinField.hidden = adapter.coinJoin === undefined;
+  controls.includeCoinJoin.checked = adapter.coinJoin !== undefined && values.includeCoinJoin;
   updatePathPreview(adapter, controls);
 }
 
@@ -169,6 +175,7 @@ export function readControls(adapter: CoinAdapter, controls: DerivationControls)
     start,
     count,
     includeChange: adapter.addressBranches !== undefined && controls.includeChange.checked,
+    includeCoinJoin: adapter.coinJoin !== undefined && controls.includeCoinJoin.checked,
   };
 }
 
@@ -176,13 +183,20 @@ export function updatePathPreview(adapter: CoinAdapter, controls: DerivationCont
   try {
     const { includeChange, ...input } = readControls(adapter, controls);
     const receivePath = adapter.pathPreview(input);
-    if (!includeChange || adapter.addressBranches === undefined) {
+    if (includeChange && adapter.addressBranches !== undefined) {
+      const changePath = adapter.pathPreview({ ...input, branch: adapter.addressBranches.change });
+      controls.preview.textContent = `Receive: ${receivePath} · Change: ${changePath}`;
+    } else {
       controls.preview.textContent = receivePath;
-      return;
     }
-    const changePath = adapter.pathPreview({ ...input, branch: adapter.addressBranches.change });
-    controls.preview.textContent = `Receive: ${receivePath} · Change: ${changePath}`;
+    if (adapter.coinJoin !== undefined) {
+      const { external, internal } = adapter.coinJoin.pathPreview(input);
+      controls.coinJoinHelp.textContent = `${external} · ${internal}`;
+    }
   } catch {
     controls.preview.textContent = 'Enter valid integer controls to preview the path.';
+    if (adapter.coinJoin !== undefined) {
+      controls.coinJoinHelp.textContent = 'Enter valid integer controls to preview the CoinJoin / DIP9 paths.';
+    }
   }
 }
