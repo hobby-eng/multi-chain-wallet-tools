@@ -108,9 +108,12 @@ if (!html.includes('connect-src https:')) throw new Error('Recovery Network Work
 
 const vaultIds = assertNoDuplicateIds(vaultTemplate, 'Recovery Secret Vault template');
 for (const requiredId of [
-  'recovery-form', 'recovery-coin', 'recovery-network', 'recovery-account',
+  'recovery-form', 'recovery-network', 'recovery-account',
   'single-mnemonic', 'single-passphrase', 'batch-mnemonics', 'batch-passphrases', 'batch-concurrency',
-  'reveal-recovery-input', 'core-receive-count', 'core-change-count', 'platform-address-count',
+  'reveal-recovery-input', 'scan-core', 'core-receive-count', 'core-change-count',
+  'scan-legacy-core', 'legacy-core-count', 'scan-coinjoin', 'coinjoin-external-count', 'coinjoin-internal-count',
+  'scan-identity-funding', 'identity-funding-count', 'identity-topup-identity-count', 'identity-topup-count',
+  'scan-provider-collateral', 'provider-collateral-count', 'coinjoin-path-preview', 'platform-address-count',
   'identity-start-index', 'identity-gap-limit', 'identity-scan-limit', 'request-concurrency',
   'include-used-zero-balance', 'scan-shielded', 'scan-estimate', 'start-recovery-scan',
   'start-recovery-scan-label', 'cancel-recovery-scan', 'clear-recovery', 'recovery-progress',
@@ -122,6 +125,12 @@ for (const requiredId of [
 ]) {
   if (!vaultIds.includes(requiredId)) throw new Error(`Recovery Secret Vault is missing required element #${requiredId}.`);
 }
+if (profile.id === 'dash-community' && vaultIds.includes('recovery-coin')) {
+  throw new Error('Dash Community recovery artifact must omit the single-coin selector from its HTML.');
+}
+if (profile.id === 'multi-chain' && !vaultIds.includes('recovery-coin')) {
+  throw new Error('Multi-Chain recovery artifact is missing its coin selector.');
+}
 for (const match of vaultTemplate.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
   if (!vaultIds.includes(match[1])) throw new Error(`Recovery label references missing control #${match[1]}.`);
 }
@@ -131,8 +140,16 @@ for (const marker of [
   'This utility has not been independently audited by a cryptography specialist.',
   'Select the Dash components and address ranges you want to check.', 'Core receive minimum', 'Core change minimum', 'Platform address minimum',
   'Identity empty-gap limit', 'Platform identities', 'Account-wide encrypted notes', 'spent or previously used resources with zero balance',
-  'CoinJoin', '20 addresses after the last used address', 'Self-test running', 'ALL SEED PHRASES',
+  'CoinJoin', 'Legacy mobile per branch', 'Identity funding per chain', 'Identity-bound top-up identities',
+  'Masternode holdings minimum', 'Masternode collateral holding path', 'MASTERNODE_HOLDINGS',
+  '20 addresses after the last used address', 'Self-test running', 'ALL SEED PHRASES',
   'STANDARD-WALLET HANDOFF', 'Run a new scan', 'bounded-memory page stream',
+  'Scan mobile CoinJoin / DIP9', 'intentionally separates high-activity CoinJoin keys',
+  'Dash Core', 'BIP44 receive and change addresses',
+  'CoinJoin/DIP9 paths for the selected network', 'm/9\'/5\'/4\'/0\'/0/i',
+  'BIP44 became the default in v5.18 (May 2018)', 'CoinJoin external minimum', 'CoinJoin internal minimum',
+  'No funded mobile CoinJoin/DIP9 address was found in this section and scanned range.',
+  'core.address-info',
   'Release passport', 'Cryptographic self-test running', 'Embedded dependency versions and licenses:',
   'Dash Identity mainnet / DIP13', 'Dash Identity testnet / DIP13',
   'Wallet-wide located balances', 'Identity credits',

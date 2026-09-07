@@ -19,6 +19,22 @@ export interface RecoveryScanConfig {
   scanCore: boolean;
   coreReceiveCount: number;
   coreChangeCount: number;
+  scanLegacyCore: boolean;
+  legacyCoreCount: number;
+  /**
+   * Optional mobile/DashSync CoinJoin compatibility scan appended to the same
+   * run. Desktop Dash Core CoinJoin is already covered by the always-on BIP44
+   * receive/change scan; this family derives the separate DIP9 mobile paths.
+   */
+  scanCoinJoin: boolean;
+  coinJoinExternalCount: number;
+  coinJoinInternalCount: number;
+  scanIdentityFunding: boolean;
+  identityFundingCount: number;
+  identityTopUpIdentityCount: number;
+  identityTopUpCount: number;
+  scanProviderCollateral: boolean;
+  providerCollateralCount: number;
   scanPlatformAddresses: boolean;
   platformAddressCount: number;
   scanPlatformIdentities: boolean;
@@ -29,7 +45,15 @@ export interface RecoveryScanConfig {
   scanShieldedPool: boolean;
 }
 
-export type RecoverySectionId = 'core' | 'platform' | 'identity' | 'shielded';
+export type RecoverySectionId =
+  | 'core'
+  | 'legacyCore'
+  | 'coinjoin'
+  | 'identityFunding'
+  | 'providerCollateral'
+  | 'platform'
+  | 'identity'
+  | 'shielded';
 export type RecoverySectionState = 'complete' | 'partial' | 'skipped' | 'failed';
 
 export interface RecoveryMetric {

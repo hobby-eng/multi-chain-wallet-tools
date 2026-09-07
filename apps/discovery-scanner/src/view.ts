@@ -37,6 +37,17 @@ export interface RecoveryInputSnapshot {
   scanCore: boolean;
   coreReceiveCount: string;
   coreChangeCount: string;
+  scanLegacyCore: boolean;
+  legacyCoreCount: string;
+  scanCoinJoin: boolean;
+  coinJoinExternalCount: string;
+  coinJoinInternalCount: string;
+  scanIdentityFunding: boolean;
+  identityFundingCount: string;
+  identityTopUpIdentityCount: string;
+  identityTopUpCount: string;
+  scanProviderCollateral: boolean;
+  providerCollateralCount: string;
   scanPlatformAddresses: boolean;
   platformAddressCount: string;
   scanPlatformIdentities: boolean;
@@ -50,10 +61,21 @@ export interface RecoveryInputSnapshot {
 const progressSectionLabels: Record<RecoveryProgress['section'], string> = {
   prepare: 'Preparing locally',
   core: 'Dash Core · L1',
+  legacyCore: 'Legacy mobile Core',
+  coinjoin: 'CoinJoin · DIP9',
+  identityFunding: 'Identity funding',
+  providerCollateral: 'Masternode holdings',
   platform: 'Platform addresses',
   identity: 'Platform identities',
   shielded: 'Orchard pool',
 };
+
+const COINJOIN_COIN_TYPE: Record<'mainnet' | 'testnet', number> = { mainnet: 5, testnet: 1 };
+
+function coinJoinPathPattern(network: string): string {
+  const coinType = COINJOIN_COIN_TYPE[network as 'mainnet' | 'testnet'] ?? COINJOIN_COIN_TYPE.mainnet;
+  return `external m/9'/${coinType}'/4'/0'/0/i · internal m/9'/${coinType}'/4'/0'/1/i`;
+}
 
 function requireElement<T extends HTMLElement>(document: Document, selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -80,7 +102,8 @@ export function createDiscoveryScannerView(
 ) {
   const required = <T extends HTMLElement>(selector: string): T => requireElement<T>(document, selector);
   const form = required<HTMLFormElement>('#recovery-form');
-  const coinInput = required<HTMLSelectElement>('#recovery-coin');
+  const coinInput = document.querySelector<HTMLSelectElement>('#recovery-coin');
+  let profileCoinId: string | null = null;
   const networkInput = required<HTMLSelectElement>('#recovery-network');
   const accountInput = required<HTMLInputElement>('#recovery-account');
   const singlePanel = required<HTMLElement>('#single-input');
@@ -93,8 +116,20 @@ export function createDiscoveryScannerView(
   const revealButton = required<HTMLButtonElement>('#reveal-recovery-input');
   const clearInputOnStart = required<HTMLInputElement>('#clear-input-on-start');
   const scanCoreInput = required<HTMLInputElement>('#scan-core');
+  const scanLegacyCoreInput = required<HTMLInputElement>('#scan-legacy-core');
+  const legacyCoreCountInput = required<HTMLInputElement>('#legacy-core-count');
+  const scanCoinJoinInput = required<HTMLInputElement>('#scan-coinjoin');
   const coreReceiveInput = required<HTMLInputElement>('#core-receive-count');
   const coreChangeInput = required<HTMLInputElement>('#core-change-count');
+  const coinJoinExternalCountInput = required<HTMLInputElement>('#coinjoin-external-count');
+  const coinJoinInternalCountInput = required<HTMLInputElement>('#coinjoin-internal-count');
+  const coinJoinPathPreview = required<HTMLElement>('#coinjoin-path-preview');
+  const scanIdentityFundingInput = required<HTMLInputElement>('#scan-identity-funding');
+  const identityFundingCountInput = required<HTMLInputElement>('#identity-funding-count');
+  const identityTopUpIdentityCountInput = required<HTMLInputElement>('#identity-topup-identity-count');
+  const identityTopUpCountInput = required<HTMLInputElement>('#identity-topup-count');
+  const scanProviderCollateralInput = required<HTMLInputElement>('#scan-provider-collateral');
+  const providerCollateralCountInput = required<HTMLInputElement>('#provider-collateral-count');
   const scanPlatformAddressesInput = required<HTMLInputElement>('#scan-platform-addresses');
   const platformCountInput = required<HTMLInputElement>('#platform-address-count');
   const scanPlatformIdentitiesInput = required<HTMLInputElement>('#scan-platform-identities');
@@ -126,10 +161,22 @@ export function createDiscoveryScannerView(
   const recoveryRuntime = required<HTMLElement>('#recovery-runtime');
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-input-mode]')];
   const estimateInputs = [
+    networkInput,
     accountInput,
     scanCoreInput,
     coreReceiveInput,
     coreChangeInput,
+    scanLegacyCoreInput,
+    legacyCoreCountInput,
+    scanCoinJoinInput,
+    coinJoinExternalCountInput,
+    coinJoinInternalCountInput,
+    scanIdentityFundingInput,
+    identityFundingCountInput,
+    identityTopUpIdentityCountInput,
+    identityTopUpCountInput,
+    scanProviderCollateralInput,
+    providerCollateralCountInput,
     scanPlatformAddressesInput,
     platformCountInput,
     scanPlatformIdentitiesInput,
@@ -140,8 +187,12 @@ export function createDiscoveryScannerView(
     includeUsedZeroInput,
     scanShieldedInput,
   ];
-  const componentSettings: Record<'core' | 'platform' | 'identity', HTMLElement[]> = {
+  const componentSettings: Record<'core' | 'legacyCore' | 'coinjoin' | 'identityFunding' | 'providerCollateral' | 'platform' | 'identity', HTMLElement[]> = {
     core: [...document.querySelectorAll<HTMLElement>('[data-component-settings="core"]')],
+    legacyCore: [...document.querySelectorAll<HTMLElement>('[data-component-settings="legacy-core"]')],
+    coinjoin: [...document.querySelectorAll<HTMLElement>('[data-component-settings="coinjoin"]')],
+    identityFunding: [...document.querySelectorAll<HTMLElement>('[data-component-settings="identity-funding"]')],
+    providerCollateral: [...document.querySelectorAll<HTMLElement>('[data-component-settings="provider-collateral"]')],
     platform: [...document.querySelectorAll<HTMLElement>('[data-component-settings="platform"]')],
     identity: [...document.querySelectorAll<HTMLElement>('[data-component-settings="identity"]')],
   };
@@ -149,6 +200,10 @@ export function createDiscoveryScannerView(
   function setComponentSettings(): void {
     for (const [component, enabled] of [
       ['core', scanCoreInput.checked],
+      ['legacyCore', scanCoreInput.checked && scanLegacyCoreInput.checked],
+      ['coinjoin', scanCoreInput.checked && scanCoinJoinInput.checked],
+      ['identityFunding', scanCoreInput.checked && scanIdentityFundingInput.checked],
+      ['providerCollateral', scanCoreInput.checked && scanProviderCollateralInput.checked],
       ['platform', scanPlatformAddressesInput.checked],
       ['identity', scanPlatformIdentitiesInput.checked],
     ] as const) {
@@ -251,6 +306,10 @@ export function createDiscoveryScannerView(
       empty.className = 'finding-empty';
       const emptyMessages: Record<RecoverySectionId, string> = {
         core: 'No funded Dash Core L1 address was found in this section and scanned range.',
+        legacyCore: 'No funded legacy mobile Core address was found in this section and scanned range.',
+        coinjoin: 'No funded mobile CoinJoin/DIP9 address was found in this section and scanned range.',
+        identityFunding: 'No funded identity funding address was found in this section and scanned range.',
+        providerCollateral: 'No funded provider collateral/holdings address was found in this section and scanned range.',
         platform: 'No funded Dash Platform payment address was found in this section and scanned range.',
         identity: 'No funded Dash Platform identity was found in this section and scanned range.',
         shielded: 'No spendable Dash Orchard note was found in this section of the complete pool scan.',
@@ -280,8 +339,10 @@ export function createDiscoveryScannerView(
     modeButtons,
     estimateInputs,
     readInputs(): RecoveryInputSnapshot {
+      const coinId = coinInput?.value ?? profileCoinId;
+      if (coinId === null || coinId.length === 0) throw new Error('Recovery coin registry is empty.');
       return {
-        coinId: coinInput.value,
+        coinId,
         network: networkInput.value,
         account: accountInput.value,
         singleMnemonic: singleMnemonic.value,
@@ -294,6 +355,17 @@ export function createDiscoveryScannerView(
         scanCore: scanCoreInput.checked,
         coreReceiveCount: coreReceiveInput.value,
         coreChangeCount: coreChangeInput.value,
+        scanLegacyCore: scanCoreInput.checked && scanLegacyCoreInput.checked,
+        legacyCoreCount: legacyCoreCountInput.value,
+        scanCoinJoin: scanCoreInput.checked && scanCoinJoinInput.checked,
+        coinJoinExternalCount: coinJoinExternalCountInput.value,
+        coinJoinInternalCount: coinJoinInternalCountInput.value,
+        scanIdentityFunding: scanCoreInput.checked && scanIdentityFundingInput.checked,
+        identityFundingCount: identityFundingCountInput.value,
+        identityTopUpIdentityCount: identityTopUpIdentityCountInput.value,
+        identityTopUpCount: identityTopUpCountInput.value,
+        scanProviderCollateral: scanCoreInput.checked && scanProviderCollateralInput.checked,
+        providerCollateralCount: providerCollateralCountInput.value,
         scanPlatformAddresses: scanPlatformAddressesInput.checked,
         platformAddressCount: platformCountInput.value,
         scanPlatformIdentities: scanPlatformIdentitiesInput.checked,
@@ -340,20 +412,32 @@ export function createDiscoveryScannerView(
     },
     updateEstimate(): void {
       setComponentSettings();
+      coinJoinPathPreview.textContent = coinJoinPathPattern(networkInput.value);
       try {
-        const core = scanCoreInput.checked
-          ? estimateInteger(coreReceiveInput.value, 0) + estimateInteger(coreChangeInput.value, 0)
+        const core = scanCoreInput.checked ? estimateInteger(coreReceiveInput.value, 0) + estimateInteger(coreChangeInput.value, 0) : 0;
+        const legacyCore = scanCoreInput.checked && scanLegacyCoreInput.checked ? estimateInteger(legacyCoreCountInput.value, 0) * 2 : 0;
+        const coinJoin = scanCoreInput.checked && scanCoinJoinInput.checked
+          ? estimateInteger(coinJoinExternalCountInput.value, 0) + estimateInteger(coinJoinInternalCountInput.value, 0)
           : 0;
+        const identityFunding = scanCoreInput.checked && scanIdentityFundingInput.checked
+          ? estimateInteger(identityFundingCountInput.value, 0) * 5
+            + estimateInteger(identityTopUpIdentityCountInput.value, 0) * estimateInteger(identityTopUpCountInput.value, 0)
+          : 0;
+        const providerCollateral = scanCoreInput.checked && scanProviderCollateralInput.checked ? estimateInteger(providerCollateralCountInput.value, 0) : 0;
         const platform = scanPlatformAddressesInput.checked ? estimateInteger(platformCountInput.value, 0) : 0;
-        const coreBatches = Math.ceil(core / RECOVERY_CORE_ADDRESS_BATCH);
+        const coreLike = core + legacyCore + coinJoin + identityFunding + providerCollateral;
+        const coreBatches = Math.ceil(coreLike / RECOVERY_CORE_ADDRESS_BATCH);
         const platformBatches = Math.ceil(platform / RECOVERY_PLATFORM_ADDRESS_BATCH);
         const identities = scanPlatformIdentitiesInput.checked ? estimateInteger(identityLimitInput.value, 1) : 0;
         const requests = estimateConcurrency(requestConcurrencyInput.value);
-        const components = [scanCoreInput, scanPlatformAddressesInput, scanPlatformIdentitiesInput, scanShieldedInput]
-          .filter(({ checked }) => checked).length;
-        estimate.textContent = components === 0
-          ? 'Select at least one component'
-          : `${components} component${components === 1 ? '' : 's'} · ${(coreBatches + platformBatches).toLocaleString()} minimum address batches${coreBatches + platformBatches > 0 ? ' + gap 20' : ''} · about ${(identities * 2).toLocaleString()} identity proof calls per seed phrase · ${requests} network request${requests === 1 ? '' : 's'} at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}${scanShieldedInput.checked ? ' · complete Orchard pool' : ''}`;
+        const totalBatches = coreBatches + platformBatches;
+        const optionalFamilies = [
+          scanCoreInput.checked && scanLegacyCoreInput.checked,
+          scanCoreInput.checked && scanCoinJoinInput.checked,
+          scanCoreInput.checked && scanIdentityFundingInput.checked,
+          scanCoreInput.checked && scanProviderCollateralInput.checked,
+        ].filter(Boolean).length;
+        estimate.textContent = `${scanCoreInput.checked ? 'Dash Core BIP44 selected' : 'Dash Core skipped'} · ${optionalFamilies} extra Core-family scan${optionalFamilies === 1 ? '' : 's'} · ${totalBatches.toLocaleString()} minimum address batches${totalBatches > 0 ? ' + gap 20' : ''} · about ${(identities * 2).toLocaleString()} identity proof calls per seed phrase · ${requests} network request${requests === 1 ? '' : 's'} at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}${scanShieldedInput.checked ? ' · complete Orchard pool' : ''}`;
       } catch {
         estimate.textContent = 'Enter valid scan counts';
       }
@@ -492,6 +576,12 @@ export function createDiscoveryScannerView(
       exportJsonButton.disabled = true;
     },
     populateCoins(coins: ReadonlyArray<{ id: string; label: string }>): void {
+      if (coins.length === 0) throw new Error('Recovery coin registry is empty.');
+      if (coinInput === null) {
+        if (coins.length !== 1) throw new Error('A profile without a coin selector must register exactly one recovery coin.');
+        profileCoinId = coins[0]?.id ?? null;
+        return;
+      }
       for (const coin of coins) {
         const option = document.createElement('option');
         option.value = coin.id;

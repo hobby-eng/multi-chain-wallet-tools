@@ -107,6 +107,9 @@ export function applyProfileTemplate(template, profile, tool) {
   const profileBrandMark = profile.id === 'dash-community'
     ? '<span class="profile-brand-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle fill="#008de4" cx="471.5" cy="471.5" r="471"/><path fill="#fff" d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path fill="#fff" d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span>'
     : '';
+  const recoveryCoinField = profile.id === 'dash-community'
+    ? ''
+    : '<div><label for="recovery-coin">Coin</label><select id="recovery-coin"></select></div>';
   const replacements = {
     '__DOCUMENT_TITLE__': tool.documentTitle,
     '__EDITION_NAME__': profile.editionName,
@@ -117,13 +120,14 @@ export function applyProfileTemplate(template, profile, tool) {
     '__KEY_DERIVATION_FOOTER_PROTOCOLS__': tool.footerProtocols,
     '__DASH_HEADER_BRAND__': dashBrandMark,
     '__PROFILE_BRAND_MARK__': profileBrandMark,
+    '__RECOVERY_COIN_FIELD__': recoveryCoinField,
     '__TOOL_INTRODUCTION__': tool.introduction,
   };
   let rendered = template;
   for (const [marker, value] of Object.entries(replacements)) {
     if (value !== undefined) rendered = rendered.replaceAll(marker, value);
   }
-  const remaining = rendered.match(/__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|TOOL_INTRODUCTION)__/gu);
+  const remaining = rendered.match(/__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|TOOL_INTRODUCTION)__/gu);
   if (remaining !== null) throw new Error(`Unexpanded build-profile marker: ${remaining.join(', ')}`);
   return rendered;
 }

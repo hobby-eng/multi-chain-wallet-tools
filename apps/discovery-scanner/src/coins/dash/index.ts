@@ -12,7 +12,13 @@ import type {
   RecoveryWalletResult,
 } from '../../types.js';
 import { scanDashCore } from './core-scanner.js';
+import { scanDashCoinJoin } from './coinjoin-scanner.js';
+import {
+  scanDashIdentityFunding,
+  scanDashProviderCollateral,
+} from './funding-scanner.js';
 import { scanDashIdentities } from './identity-scanner.js';
+import { scanDashLegacyCore } from './legacy-core-scanner.js';
 import { DashPlatformClient } from './platform-client.js';
 import { scanDashPlatformAddresses } from './platform-scanner.js';
 import { scanDashShielded, scanDashShieldedBatch } from './shielded-scanner.js';
@@ -22,6 +28,10 @@ import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
 
 const TITLES: Record<RecoverySectionId, [string, string]> = {
   core: ['Dash Core · L1', 'BIP44 receive and change address scan'],
+  legacyCore: ['Dash Core · legacy mobile', 'Historical DashSync legacy account scan'],
+  coinjoin: ['Dash CoinJoin · DIP9', 'Mobile/DashSync CoinJoin compatibility scan'],
+  identityFunding: ['Dash Platform identity funding', 'Registration/top-up/invitation Core funding scan'],
+  providerCollateral: ['Dash provider collateral/holdings', 'Masternode provider collateral/holdings scan'],
   platform: ['Dash Platform addresses', 'DIP17 payment address scan'],
   identity: ['Dash Platform identities', 'DIP13 identity discovery'],
   shielded: ['Dash Orchard · shielded pool', 'Account-wide encrypted note recovery'],
@@ -41,6 +51,25 @@ function validateConfig(config: RecoveryScanConfig): void {
   if (config.scanCore && config.coreReceiveCount + config.coreChangeCount < 1) {
     throw new Error('At least one Dash Core receive or change address must be scanned.');
   }
+  assertCount(config.legacyCoreCount, 'Legacy Core address count', true);
+  if (config.scanLegacyCore && config.legacyCoreCount < 1) {
+    throw new Error('At least one legacy Core address per branch must be scanned.');
+  }
+  assertCount(config.coinJoinExternalCount, 'CoinJoin/DIP9 external address count', true);
+  assertCount(config.coinJoinInternalCount, 'CoinJoin/DIP9 internal address count', true);
+  if (config.scanCoinJoin && config.coinJoinExternalCount + config.coinJoinInternalCount < 1) {
+    throw new Error('At least one CoinJoin/DIP9 external or internal address must be scanned.');
+  }
+  assertCount(config.identityFundingCount, 'Identity funding address count', true);
+  assertCount(config.identityTopUpIdentityCount, 'Identity-bound top-up identity count', true);
+  assertCount(config.identityTopUpCount, 'Identity-bound top-ups per identity', true);
+  if (config.scanIdentityFunding && config.identityFundingCount < 1) {
+    throw new Error('At least one identity funding address per chain must be scanned.');
+  }
+  assertCount(config.providerCollateralCount, 'Provider collateral address count', true);
+  if (config.scanProviderCollateral && config.providerCollateralCount < 1) {
+    throw new Error('At least one provider collateral/holdings address must be scanned.');
+  }
   assertCount(config.platformAddressCount, 'Platform address count', true);
   if (config.scanPlatformAddresses && config.platformAddressCount < 1) {
     throw new Error('At least one Dash Platform address must be scanned.');
@@ -51,12 +80,22 @@ function validateConfig(config: RecoveryScanConfig): void {
   if (config.identityStartIndex + config.identityScanLimit - 1 > MAX_BIP32_INDEX) {
     throw new Error('The requested identity scan range exceeds the BIP32 index space.');
   }
-  const componentFlags = [config.scanCore, config.scanPlatformAddresses, config.scanPlatformIdentities, config.scanShieldedPool];
+  const componentFlags = [
+    config.scanCore,
+    config.scanLegacyCore,
+    config.scanCoinJoin,
+    config.scanIdentityFunding,
+    config.scanProviderCollateral,
+    config.scanPlatformAddresses,
+    config.scanPlatformIdentities,
+    config.scanShieldedPool,
+  ];
   if (componentFlags.some((value) => typeof value !== 'boolean') || typeof config.includeUsedZeroBalance !== 'boolean') {
     throw new Error('Recovery component and output options must be boolean values.');
   }
-  if (!componentFlags.some(Boolean)) {
-    throw new Error('Select at least one Dash component to scan.');
+  if (!componentFlags.some(Boolean)) throw new Error('Select at least one Dash component to scan.');
+  if (!config.scanCore && (config.scanLegacyCore || config.scanCoinJoin || config.scanIdentityFunding || config.scanProviderCollateral)) {
+    throw new Error('Additional Dash Core path families require Dash Core · L1 scanning.');
   }
 }
 
@@ -147,6 +186,18 @@ export const DASH_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
         startSection('core', () => config.scanCore
           ? scanDashCore(input.id, seed, config, gateway, context.signal, onProgress, onFinding('core'))
           : Promise.resolve(skippedSection('core'))),
+        startSection('legacyCore', () => config.scanLegacyCore
+          ? scanDashLegacyCore(input.id, seed, config, gateway, context.signal, onProgress, onFinding('legacyCore'))
+          : Promise.resolve(skippedSection('legacyCore'))),
+        startSection('coinjoin', () => config.scanCoinJoin
+          ? scanDashCoinJoin(input.id, seed, config, gateway, context.signal, onProgress, onFinding('coinjoin'))
+          : Promise.resolve(skippedSection('coinjoin'))),
+        startSection('identityFunding', () => config.scanIdentityFunding
+          ? scanDashIdentityFunding(input.id, seed, config, gateway, context.signal, onProgress, onFinding('identityFunding'))
+          : Promise.resolve(skippedSection('identityFunding'))),
+        startSection('providerCollateral', () => config.scanProviderCollateral
+          ? scanDashProviderCollateral(input.id, seed, config, gateway, context.signal, onProgress, onFinding('providerCollateral'))
+          : Promise.resolve(skippedSection('providerCollateral'))),
         startSection('platform', () => config.scanPlatformAddresses
           ? scanDashPlatformAddresses(input.id, seed, config, platformClient, context.signal, onProgress, onFinding('platform'))
           : Promise.resolve(skippedSection('platform'))),

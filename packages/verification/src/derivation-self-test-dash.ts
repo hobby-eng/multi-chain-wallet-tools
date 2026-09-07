@@ -3,8 +3,8 @@ import {
   deriveDashIdentityAuthenticationKey,
 } from '@ckd/coins/dash/identity.js';
 import { deriveDashPlatform } from '@ckd/coins/dash/platform.js';
-import { rootFromSeed } from '@ckd/core/bip32.js';
-import { bytesToHex, hexToBytes, wipe } from '@ckd/core/crypto.js';
+import { requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
+import { bytesToHex, encodeP2pkh, hash160, hexToBytes, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
 import { clearDerivationResult } from '@ckd/core/secrets.js';
 import { expectEqual, now, resultValue } from './helpers.js';
@@ -13,6 +13,15 @@ import type { CryptoSelfTestReport } from './types.js';
 const FIXED_SEED_HEX =
   '5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc1' +
   '9a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4';
+
+// The canonical upstream BIP39 test vector "abandon x11 about" + passphrase
+// "TREZOR", already independently pinned by bip39-self-test.ts. Reusing the
+// raw seed hex here (rather than re-deriving from the mnemonic) keeps this
+// module's dependency surface unchanged while letting the DIP9 CoinJoin
+// vectors below cite the exact same, separately verifiable seed value.
+const COINJOIN_SEED_HEX =
+  'c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e5349553' +
+  '1f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04';
 
 /** Dash-only worker vectors. This module has no non-Dash protocol imports. */
 export async function runDashDerivationSelfTest(): Promise<CryptoSelfTestReport> {
@@ -110,6 +119,53 @@ export async function runDashDerivationSelfTest(): Promise<CryptoSelfTestReport>
     }
   } finally {
     identitySeed.fill(0);
+  }
+
+  // DIP-0009 CoinJoin external-chain vectors: m/9'/coin_type'/4'/0'/0/0.
+  // Independently derived from the canonical upstream BIP39 vector above and
+  // cross-checked against Dash Core v23.1.8 GetPathTemplate()/CHDChain
+  // semantics (src/wallet/scriptpubkeyman.cpp, src/wallet/hdchain.h) and
+  // DIP-0009 §"Address Generation and Assignment" (account 0', external
+  // chain 0 only; no DIP9 change chain in current Dash Core).
+  const coinJoinSeed = hexToBytes(COINJOIN_SEED_HEX);
+  try {
+    for (const vector of [
+      {
+        name: 'Dash CoinJoin mainnet / DIP9',
+        network: 'mainnet',
+        path: "m/9'/5'/4'/0'/0/0",
+        publicKey: '02fb4b00c2a6cf2cf7e1f80b3ca6be04e5c99ce53ae1ebb31a7e2fde1dd1e82b01',
+        publicKeyHash: 'bab467926a71dc2aa47d528cc165fb469aa65914',
+        address: 'Xsi3dfT53GpKNG7T8qe1t1ez7rxM6xiQis',
+      },
+      {
+        name: 'Dash CoinJoin testnet / DIP9',
+        network: 'testnet',
+        path: "m/9'/1'/4'/0'/0/0",
+        publicKey: '0210abacaec7e80e1528390c6ad997fd245ab039a969550ab1a5218bb9d39fad73',
+        publicKeyHash: 'bff329c72e0a5509028f5b491dd4216a21c880bf',
+        address: 'ydpPD7n983b32qM6oVwmQdHPwijhfYR8EB',
+      },
+    ] as const) {
+      const network = getDashNetwork(vector.network);
+      const root = rootFromSeed(coinJoinSeed.slice(), network.versions);
+      const node = root.derive(vector.path);
+      try {
+        const publicKey = requirePublic(node, vector.path);
+        const publicKeyHash = hash160(publicKey);
+        const address = encodeP2pkh(publicKeyHash, network.p2pkh);
+        expectEqual(`${vector.name} public key`, bytesToHex(publicKey), vector.publicKey);
+        expectEqual(`${vector.name} HASH160`, bytesToHex(publicKeyHash), vector.publicKeyHash);
+        expectEqual(`${vector.name} address`, address, vector.address);
+        checks.push(vector.name);
+        wipe(publicKey, publicKeyHash);
+      } finally {
+        node.wipePrivateData();
+        root.wipePrivateData();
+      }
+    }
+  } finally {
+    coinJoinSeed.fill(0);
   }
 
   const shieldedSeed = new Uint8Array(64).fill(0x42);
