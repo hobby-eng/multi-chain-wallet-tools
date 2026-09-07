@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertDashOnlyGraph,
   BUILD_PROFILES,
+  applyProfileTemplate,
   getToolBuild,
   profileArtifacts,
 } from './build-profiles.mjs';
@@ -26,8 +27,17 @@ describe('build profiles', () => {
       entryPoint: 'apps/key-derivation/src/ui/app-dash-community.ts',
       workerEntryPoint: 'apps/key-derivation/src/workers/derive-worker-dash-community.ts',
     });
+
     expect(getToolBuild(profile, 'activity-viewer').entryPoint).toContain('app-dash-community.ts');
     expect(getToolBuild(profile, 'discovery-scanner').entryPoint).toContain('app-dash-community.ts');
+  });
+
+  it('omits the recovery coin selector only from Dash Community HTML', () => {
+    const template = '<main>__RECOVERY_COIN_FIELD__</main>';
+    const multi = applyProfileTemplate(template, BUILD_PROFILES['multi-chain'], getToolBuild(BUILD_PROFILES['multi-chain'], 'discovery-scanner'));
+    const dash = applyProfileTemplate(template, BUILD_PROFILES['dash-community'], getToolBuild(BUILD_PROFILES['dash-community'], 'discovery-scanner'));
+    expect(multi).toContain('id="recovery-coin"');
+    expect(dash).toBe('<main></main>');
   });
 
   it('rejects current and future non-Dash modules from Dash build graphs', () => {

@@ -76,6 +76,11 @@
 .history-option strong { color:#f1d18d; }
 .history-option small { color:#c5ad87; line-height:1.5; }
 .scale-warning { margin-top:14px; padding:12px 14px; border-left:3px solid var(--accent); background:#19160f; color:#cfc4a8; font-size:11.5px; line-height:1.55; }
+.scan-always-on-note { margin:0 0 17px; padding:10px 13px; border:1px solid #2c3742; border-radius:10px; background:#111820; color:#84909d; font-size:11px; line-height:1.4; }
+.scan-always-on-note strong { color:#dce4ec; }
+.coinjoin-option { width:100%; margin:0 0 8px; }
+.coinjoin-path-note { margin:0 0 17px; padding:0 2px; color:#84909d; font-size:11px; line-height:1.4; }
+.coinjoin-path-note code,code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace; background:#0e1a15; color:#ffd16b; padding:1px 6px; border-radius:5px; border:1px solid #304438; }
 .recovery-action-bar { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; margin-top:18px; padding-top:17px; border-top:1px solid #28333e; }
 .recovery-action-bar .actions { margin:0; }
 .recovery-action-bar>p { max-width:280px; margin:0 0 4px; color:#768391; font-size:10.5px; text-align:right; }

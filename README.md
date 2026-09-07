@@ -46,9 +46,10 @@ Public address and Identity lookups reveal the queried public identifier and sou
 
 A connected recovery scanner that searches for Dash resources belonging to one or several BIP39 seed phrases.
 
-- Lets the user independently enable Dash Core, Platform payment addresses, Platform identities and Orchard scanning.
-- Scans Core receive/change branches and continues 20 addresses past the last used address.
+- Lets you select Dash Core BIP44 scanning; when selected, it covers receive/change branches and continues 20 addresses past the last used address on each branch.
+- Optionally adds historical/current Dash mobile, CoinJoin/DIP9, identity-funding and provider-holdings P2PKH families; Platform payment addresses, Platform identities and Orchard scanning remain separately selectable.
 - Supports large ranges through bounded batches with progress and cancellation.
+- Clearly separates scan family, branch and exact derivation path in results and exports.
 - Shows funded resources by default; historical zero-balance activity is optional.
 - Exports component-aware CSV and JSON reports containing only relevant fields and no seed phrase or private key.
 - Never creates, signs or broadcasts transactions. Recover found funds with a standard Dash wallet.
@@ -85,6 +86,10 @@ Official release checksums refer to artifacts produced by the repository's pinne
 | Bitcoin Taproot | `m/86'/0'/0'/0/i` | BIP86 P2TR |
 | Ethereum EOA | `m/44'/60'/0'/0/i` | EIP-55 address |
 | Dash Core | `m/44'/5'/0'/0/i` | P2PKH |
+| Dash mobile legacy Core | `m/0'/0/i` | P2PKH |
+| Dash mobile CoinJoin/DIP9 | `m/9'/5'/4'/0'/0/i` | P2PKH |
+| Dash identity funding | `m/9'/5'/5'/1'/i` | P2PKH |
+| Dash provider holdings | `m/9'/5'/3'/0'/i` | P2PKH |
 | Dash Platform | `m/9'/5'/17'/0'/0'/i` | DIP17/DIP18 address |
 | Dash Identity | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 four-key registration profile |
 | Dash Orchard | `m/32'/5'/account'` + diversifier index | Shielded address and viewing/spending material |

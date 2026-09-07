@@ -1,4 +1,5 @@
 import type { DerivationResult } from '@ckd/core/types.js';
+import { deriveDashCoinJoin } from './dash/coinjoin.js';
 import { deriveDashCore } from './dash/core.js';
 import { deriveDashIdentity } from './dash/identity.js';
 import { deriveDashPlatform } from './dash/platform.js';
@@ -9,6 +10,10 @@ export interface RuntimeCoinAdapter extends CoinAdapter {
 }
 
 export function getRuntimeCoinAdapter(id: string): RuntimeCoinAdapter {
+  // The DIP9 CoinJoin chain reuses Dash Core's account/network controls but
+  // derives from an entirely separate path template, so it is dispatched
+  // under its own worker id without becoming a selectable protocol tab.
+  if (id === 'dash-core-coinjoin') return { ...getCoinAdapter('dash-core'), id, derive: deriveDashCoinJoin };
   const metadata = getCoinAdapter(id);
   if (id === 'dash-core') return { ...metadata, derive: deriveDashCore };
   if (id === 'dash-platform') return { ...metadata, derive: deriveDashPlatform };

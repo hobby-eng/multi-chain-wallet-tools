@@ -1,7 +1,13 @@
 import { mnemonicToSeed } from '@ckd/core/bip39.js';
 import type { ShieldedActivity } from '@ckd/dash-network/types.js';
 import { mapRecoveryTasks, RecoveryConcurrencyLimiter } from '../src/concurrency.js';
+import { scanDashCoinJoin } from '../src/coins/dash/coinjoin-scanner.js';
 import { scanDashCore } from '../src/coins/dash/core-scanner.js';
+import {
+  scanDashIdentityFunding,
+  scanDashProviderCollateral,
+} from '../src/coins/dash/funding-scanner.js';
+import { scanDashLegacyCore } from '../src/coins/dash/legacy-core-scanner.js';
 import type { DashPlatformClient } from '../src/coins/dash/platform-client.js';
 import { scanDashPlatformAddresses } from '../src/coins/dash/platform-scanner.js';
 import { shouldDisplayShieldedActivity } from '../src/coins/dash/shielded-filter.js';
@@ -233,9 +239,14 @@ describe('streamed Core recovery scan', () => {
     });
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
     const config: RecoveryScanConfig = {
-      network: 'testnet', account: 0,
-      scanCore: true, scanPlatformAddresses: false, scanPlatformIdentities: false,
+      network: 'testnet', account: 0, scanCore: true,
+      scanPlatformAddresses: false, scanPlatformIdentities: false,
       coreReceiveCount: 201, coreChangeCount: 101, platformAddressCount: 0,
+      scanLegacyCore: false, legacyCoreCount: 0,
+      scanCoinJoin: false, coinJoinExternalCount: 0, coinJoinInternalCount: 0,
+      scanIdentityFunding: false, identityFundingCount: 0,
+      identityTopUpIdentityCount: 0, identityTopUpCount: 0,
+      scanProviderCollateral: false, providerCollateralCount: 0,
       identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
       includeUsedZeroBalance: false,
       scanShieldedPool: false,
@@ -254,6 +265,71 @@ describe('streamed Core recovery scan', () => {
       expect(findings).toHaveLength(2);
       expect(section.metrics[0]?.value).toBe('2 DASH');
       expect(gateway.requestCount).toBe(12);
+    } finally {
+      seed.fill(0);
+    }
+  });
+
+  it('derives opt-in Dash transparent recovery families without transmitting secret material', async () => {
+    const seed = mnemonicToSeed(MNEMONIC);
+    const guard = new SecretEgressGuard();
+    guard.registerString('mnemonic', MNEMONIC);
+    guard.registerBytes('seed', seed);
+    const requestedAddresses: string[] = [];
+    const networkApi = mockNetwork({
+      coreStatus: async () => ({ status: 'ok' }),
+      coreTip: async () => ({ resultSet: [{ height: 2_300_000, timestamp: '2026-09-02T00:00:00.000Z' }] }),
+      coreAddressInfo: async (_network, addresses) => {
+        requestedAddresses.push(...addresses);
+        return addresses.map((address) => ({ address, balance: addresses.length === 1 ? '1' : '0', txCount: addresses.length === 1 ? 1 : 0 }));
+      },
+      coreAddressHistory: async (_network, address) => ({
+        address, txCount: 1, received: '1', sent: '0',
+        firstSeenBlockTimestamp: '2026-01-01T00:00:00.000Z',
+        lastSeenBlockTimestamp: '2026-01-01T00:00:00.000Z',
+      }),
+    });
+    const gateway = new RecoveryNetworkGateway(guard, networkApi);
+    const config: RecoveryScanConfig = {
+      network: 'testnet', account: 0, scanCore: true,
+      scanPlatformAddresses: false, scanPlatformIdentities: false,
+      coreReceiveCount: 1, coreChangeCount: 0, platformAddressCount: 0,
+      scanLegacyCore: true, legacyCoreCount: 1,
+      scanCoinJoin: true, coinJoinExternalCount: 1, coinJoinInternalCount: 1,
+      scanIdentityFunding: true, identityFundingCount: 1,
+      identityTopUpIdentityCount: 1, identityTopUpCount: 1,
+      scanProviderCollateral: true, providerCollateralCount: 1,
+      identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
+      includeUsedZeroBalance: false, scanShieldedPool: false,
+    };
+    try {
+      const coinjoin = await scanDashCoinJoin('seed-1', seed, config, gateway, new AbortController().signal, () => {}, () => {});
+      const legacy = await scanDashLegacyCore('seed-1', seed, config, gateway, new AbortController().signal, () => {}, () => {});
+      const identityFunding = await scanDashIdentityFunding('seed-1', seed, config, gateway, new AbortController().signal, () => {}, () => {});
+      const providerCollateral = await scanDashProviderCollateral('seed-1', seed, config, gateway, new AbortController().signal, () => {}, () => {});
+      const paths = [
+        ...coinjoin.findings,
+        ...legacy.findings,
+        ...identityFunding.findings,
+        ...providerCollateral.findings,
+      ].map((finding) => finding.fields.find(({ label }) => label === 'Derivation path')?.value);
+      expect(paths).toEqual(expect.arrayContaining([
+        "m/9'/1'/4'/0'/0/0",
+        "m/9'/1'/4'/0'/1/0",
+        "m/0'/0/0",
+        "m/0'/1/0",
+        "m/9'/1'/5'/1'/0",
+        "m/9'/1'/5'/2'/0",
+        "m/9'/1'/5'/2'/0'/0",
+        "m/9'/1'/5'/3'/0'",
+        "m/9'/1'/5'/4'/0'",
+        "m/9'/1'/5'/5'/0'",
+        "m/9'/1'/3'/0'/0",
+      ]));
+      expect(requestedAddresses).toHaveLength(231);
+      expect(requestedAddresses).not.toContain(MNEMONIC);
+      expect(requestedAddresses.some((value) => value.length > 0 && value !== MNEMONIC)).toBe(true);
+      expect(coinjoin.findings[0]?.fields).toContainEqual({ label: 'Scan family', value: 'CoinJoin / DIP9 mobile compatibility' });
     } finally {
       seed.fill(0);
     }
@@ -350,9 +426,14 @@ describe('dynamic recovery discovery gap and history filter', () => {
     });
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
     const config: RecoveryScanConfig = {
-      network: 'testnet', account: 0,
-      scanCore: true, scanPlatformAddresses: false, scanPlatformIdentities: false,
+      network: 'testnet', account: 0, scanCore: true,
+      scanPlatformAddresses: false, scanPlatformIdentities: false,
       coreReceiveCount: 100, coreChangeCount: 0, platformAddressCount: 0,
+      scanLegacyCore: false, legacyCoreCount: 0,
+      scanCoinJoin: false, coinJoinExternalCount: 0, coinJoinInternalCount: 0,
+      scanIdentityFunding: false, identityFundingCount: 0,
+      identityTopUpIdentityCount: 0, identityTopUpCount: 0,
+      scanProviderCollateral: false, providerCollateralCount: 0,
       identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
       includeUsedZeroBalance: false, scanShieldedPool: false,
     };
@@ -396,9 +477,14 @@ describe('dynamic recovery discovery gap and history filter', () => {
     });
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
     const config: RecoveryScanConfig = {
-      network: 'testnet', account: 0,
-      scanCore: true, scanPlatformAddresses: false, scanPlatformIdentities: false,
+      network: 'testnet', account: 0, scanCore: true,
+      scanPlatformAddresses: false, scanPlatformIdentities: false,
       coreReceiveCount: 2, coreChangeCount: 0, platformAddressCount: 0,
+      scanLegacyCore: false, legacyCoreCount: 0,
+      scanCoinJoin: false, coinJoinExternalCount: 0, coinJoinInternalCount: 0,
+      scanIdentityFunding: false, identityFundingCount: 0,
+      identityTopUpIdentityCount: 0, identityTopUpCount: 0,
+      scanProviderCollateral: false, providerCollateralCount: 0,
       identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
       includeUsedZeroBalance: true, scanShieldedPool: false,
     };
@@ -510,9 +596,14 @@ describe('proof-verified Platform recovery scan', () => {
       }),
     } as unknown as DashPlatformClient;
     const config: RecoveryScanConfig = {
-      network: 'mainnet', account: 0,
-      scanCore: false, scanPlatformAddresses: true, scanPlatformIdentities: false,
+      network: 'mainnet', account: 0, scanCore: true,
+      scanPlatformAddresses: true, scanPlatformIdentities: false,
       coreReceiveCount: 1, coreChangeCount: 0, platformAddressCount: 100,
+      scanLegacyCore: false, legacyCoreCount: 0,
+      scanCoinJoin: false, coinJoinExternalCount: 0, coinJoinInternalCount: 0,
+      scanIdentityFunding: false, identityFundingCount: 0,
+      identityTopUpIdentityCount: 0, identityTopUpCount: 0,
+      scanProviderCollateral: false, providerCollateralCount: 0,
       identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
       includeUsedZeroBalance: false,
       scanShieldedPool: false,
