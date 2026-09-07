@@ -160,6 +160,7 @@ export function assertDashOnlyGraph(inputs, label) {
       return !(
         relative === 'registry.ts'
         || relative === 'dash-community.ts'
+        || relative === 'custom-path.ts'
         || relative.startsWith('dash/')
       );
     }

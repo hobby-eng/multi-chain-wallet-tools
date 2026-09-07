@@ -63,7 +63,10 @@ const vaultBundle = await build({
   minify: true,
   legalComments: 'inline',
   loader: { '.wasm': 'binary' },
-  define: { __BUILD_INFO__: JSON.stringify(buildInfo) },
+  define: {
+    __BUILD_INFO__: JSON.stringify(buildInfo),
+    __DASH_COMMUNITY__: JSON.stringify(profile.id === 'dash-community'),
+  },
   metafile: true,
   write: false,
 });
@@ -90,7 +93,9 @@ const vaultHtml = vaultTemplate
 
 const networkBundle = await build({
   absWorkingDir: root,
-  entryPoints: ['apps/discovery-scanner/src/network-worker.ts'],
+  entryPoints: [profile.id === 'dash-community'
+    ? 'apps/discovery-scanner/src/network-worker-dash-community.ts'
+    : 'apps/discovery-scanner/src/network-worker.ts'],
   bundle: true,
   format: 'iife',
   platform: 'browser',
@@ -99,6 +104,7 @@ const networkBundle = await build({
   minify: true,
   legalComments: 'inline',
   loader: { '.wasm': 'binary' },
+  define: { __DASH_COMMUNITY__: JSON.stringify(profile.id === 'dash-community') },
   metafile: true,
   write: false,
 });
@@ -107,6 +113,13 @@ if (networkJavascript === undefined) throw new Error('esbuild did not produce th
 const networkInputs = Object.keys(networkBundle.metafile.inputs);
 if (!networkInputs.some((input) => input.includes('@dashevo/evo-sdk'))) {
   throw new Error('Recovery Network Worker bundle omitted the pinned Evo SDK.');
+}
+const hasMultiChainNetworkService = networkInputs.some((input) => input.endsWith('/network-service-multichain.ts'));
+if (profile.id === 'dash-community' && hasMultiChainNetworkService) {
+  throw new Error('Dash Community Recovery Network Worker unexpectedly contains non-Dash providers.');
+}
+if (profile.id === 'multi-chain' && !hasMultiChainNetworkService) {
+  throw new Error('Multi-Chain Recovery Network Worker omitted its Bitcoin/Ethereum providers.');
 }
 for (const forbidden of [
   '/app.ts',

@@ -19,6 +19,10 @@ export interface RecoveryScanConfig {
   scanCore: boolean;
   coreReceiveCount: number;
   coreChangeCount: number;
+  scanCustomPath?: boolean;
+  customPathTemplate?: string;
+  customPathFormat?: string;
+  customPathCount?: number;
   scanLegacyCore: boolean;
   legacyCoreCount: number;
   /**
@@ -129,6 +133,11 @@ export interface RecoveryCoinAdapter {
   readonly id: string;
   readonly label: string;
   readonly networks: readonly RecoveryNetwork[];
+  readonly customPath?: {
+    readonly description: string;
+    readonly placeholder: string;
+    readonly formats: ReadonlyArray<{ id: string; label: string }>;
+  };
   prepareBatch?(
     inputs: readonly RecoverySeedInput[],
     config: RecoveryScanConfig,

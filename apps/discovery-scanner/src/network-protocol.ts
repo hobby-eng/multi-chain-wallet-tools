@@ -8,8 +8,13 @@ export const RECOVERY_EXPORT_REQUEST = 'ckd-recovery-export-request-v1';
 export const RECOVERY_EXPORT_RESULT = 'ckd-recovery-export-result-v1';
 // One reviewed source of truth shared by the vault scanners and the isolated
 // worker validators. Changing a transport limit now changes both sides.
-export const RECOVERY_CORE_ADDRESS_BATCH = 50;
+export const RECOVERY_CORE_ADDRESS_BATCH = 100;
 export const RECOVERY_PLATFORM_ADDRESS_BATCH = 100;
+// Blockchain.info's lightweight balance endpoint and BlockCypher both accept
+// up to 100 addresses, so keep the vault and worker on that shared ceiling.
+export const RECOVERY_UTXO_ADDRESS_BATCH = 100;
+// One address contributes balance and nonce calls to the JSON-RPC batch.
+export const RECOVERY_EVM_ACCOUNT_BATCH = 100;
 export const RECOVERY_CORE_ENDPOINTS = {
   mainnet: 'https://dashscan.pshenmic.dev',
   testnet: 'https://testnet.dashscan.pshenmic.dev',
@@ -61,6 +66,18 @@ export interface PlatformHistorySummaryView {
   firstSeen: string | null;
   lastSeen: string | null;
   indexedHeight: number;
+  fundingCoreTx?: string;
+}
+
+export interface DashCoreTransactionView {
+  hash: string;
+  type: string;
+  timestamp: string | null;
+  inputAddresses: string[];
+  assetLockCreditOutputs: Array<{
+    amount: string;
+    publicKeyHash: string;
+  }>;
 }
 
 export interface IdentityView {
@@ -88,17 +105,37 @@ export interface ShieldedPageView {
   metadata: ProofMetadataView;
 }
 
+export interface UtxoAddressView {
+  address: string;
+  balance: string;
+  transactionCount: number;
+}
+
+export interface EvmAccountView {
+  address: string;
+  balance: string;
+  nonce: string;
+}
+
+export interface EvmAccountBatchView {
+  entries: EvmAccountView[];
+  blockNumber: string;
+}
+
 export interface RecoveryNetworkApi {
   ping(signal?: AbortSignal): Promise<string>;
   coreStatus(network: RecoveryNetwork, signal?: AbortSignal): Promise<unknown>;
   coreTip(network: RecoveryNetwork, signal?: AbortSignal): Promise<unknown>;
   coreAddressInfo(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<unknown>;
   coreAddressHistory(network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<unknown>;
+  coreTransaction(network: RecoveryNetwork, hash: string, signal?: AbortSignal): Promise<DashCoreTransactionView>;
   platformAddresses(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<PlatformAddressBatchView>;
   platformAddressHistory(network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<PlatformHistorySummaryView>;
   platformIdentityByPublicKeyHash(network: RecoveryNetwork, publicKeyHashHex: string, signal?: AbortSignal): Promise<IdentityLookupView>;
   platformIdentityHistory(network: RecoveryNetwork, identifier: string, signal?: AbortSignal): Promise<PlatformHistorySummaryView>;
   shieldedPage(network: RecoveryNetwork, startPosition: string, count: number, signal?: AbortSignal): Promise<ShieldedPageView>;
+  utxoAddresses(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<UtxoAddressView[]>;
+  evmAccounts(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<EvmAccountBatchView>;
 }
 
 export type RecoveryNetworkRequestInput =
@@ -107,11 +144,14 @@ export type RecoveryNetworkRequestInput =
   | { operation: 'core.tip'; payload: { network: RecoveryNetwork } }
   | { operation: 'core.address-info'; payload: { network: RecoveryNetwork; addresses: string[] } }
   | { operation: 'core.address-history'; payload: { network: RecoveryNetwork; address: string } }
+  | { operation: 'core.transaction'; payload: { network: RecoveryNetwork; hash: string } }
   | { operation: 'platform.addresses'; payload: { network: RecoveryNetwork; addresses: string[] } }
   | { operation: 'platform.address-history'; payload: { network: RecoveryNetwork; address: string } }
   | { operation: 'platform.identity-by-public-key-hash'; payload: { network: RecoveryNetwork; publicKeyHashHex: string } }
   | { operation: 'platform.identity-history'; payload: { network: RecoveryNetwork; identifier: string } }
-  | { operation: 'shielded.page'; payload: { network: RecoveryNetwork; startPosition: string; count: number } };
+  | { operation: 'shielded.page'; payload: { network: RecoveryNetwork; startPosition: string; count: number } }
+  | { operation: 'utxo.addresses'; payload: { network: RecoveryNetwork; addresses: string[] } }
+  | { operation: 'evm.accounts'; payload: { network: RecoveryNetwork; addresses: string[] } };
 
 type WithRequestId<T> = T extends RecoveryNetworkRequestInput ? T & { id: string } : never;
 

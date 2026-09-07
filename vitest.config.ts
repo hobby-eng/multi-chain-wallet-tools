@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
+  define: {
+    __DASH_COMMUNITY__: 'false',
+  },
   resolve: {
     alias: [
       { find: /^@ckd\/core\/(.+)\.js$/u, replacement: `${root}packages/crypto-core/src/$1.ts` },

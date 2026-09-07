@@ -9,6 +9,10 @@ const network = process.argv[2] ?? 'testnet';
 if (network !== 'mainnet' && network !== 'testnet') {
   throw new Error('Recovery smoke argument must be mainnet or testnet.');
 }
+const identityIndexes = Number(process.argv[3] ?? '1');
+if (!Number.isSafeInteger(identityIndexes) || identityIndexes < 1 || identityIndexes > 20) {
+  throw new Error('Recovery smoke identity-index argument must be an integer from 1 through 20.');
+}
 
 // Public BIP39 vector. It is intentionally not a user wallet and must never receive funds.
 const mnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -43,12 +47,26 @@ try {
     {
       network,
       account: 0,
+      scanCore: true,
       coreReceiveCount: 2,
       coreChangeCount: 2,
+      scanLegacyCore: false,
+      legacyCoreCount: 0,
+      scanCoinJoin: false,
+      coinJoinExternalCount: 0,
+      coinJoinInternalCount: 0,
+      scanIdentityFunding: false,
+      identityFundingCount: 0,
+      identityTopUpIdentityCount: 0,
+      identityTopUpCount: 0,
+      scanProviderCollateral: false,
+      providerCollateralCount: 0,
+      scanPlatformAddresses: true,
       platformAddressCount: 2,
+      scanPlatformIdentities: true,
       identityStartIndex: 0,
-      identityGapLimit: 1,
-      identityScanLimit: 1,
+      identityGapLimit: identityIndexes,
+      identityScanLimit: identityIndexes,
       includeUsedZeroBalance: false,
       scanShieldedPool: false,
     },
@@ -86,8 +104,10 @@ try {
   ) {
     throw new Error('Recovery smoke did not observe the expected internal Platform Map key and funded value.');
   }
+  const identityMetrics = new Map(byId.get('identity')?.metrics.map(({ label, value }) => [label, value]));
   console.log(
     `Live recovery ${network} smoke passed: Core ${byId.get('core')?.scanned}; Platform ${byId.get('platform')?.scanned}; identity ${byId.get('identity')?.scanned}; funded Platform Map shape; `
+      + `${identityMetrics.get('Proof queries')} identity proofs; DAPI avg/max ${identityMetrics.get('DAPI average / max')}; `
       + `${progress.length} progress events; ${Math.round(performance.now() - startedAt)} ms.`,
   );
 } finally {
