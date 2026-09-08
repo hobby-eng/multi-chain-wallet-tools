@@ -265,11 +265,13 @@ async function queryDashScan(
   const balanceDuffs = exactDuffs(summary.balance, 'address balance');
   const totalReceivedDuffs = exactDuffs(summary.received, 'total received');
   const totalSentDuffs = exactDuffs(summary.sent, 'total sent');
-  let transactionCount = requiredInteger(summary.txCount, 'transaction count');
+  const transactionCount = requiredInteger(summary.txCount, 'transaction count');
   const transactions: CoreAddressTransaction[] = [];
   let target = Math.min(Math.max(transactionCount, 1), historyLimit);
+  // Page-number APIs calculate offsets from the requested limit. Keep it fixed.
+  const limit = Math.min(DASHSCAN_PAGE_SIZE, historyLimit);
+  const seen = new Set<string>();
   for (let pageNumber = 1; transactions.length < target; pageNumber += 1) {
-    const limit = Math.min(DASHSCAN_PAGE_SIZE, target - transactions.length);
     requests += 1;
     const page = object(
       await fetchJson(
@@ -282,11 +284,21 @@ async function queryDashScan(
     const items = Array.isArray(page.resultSet) ? page.resultSet : [];
     const pagination = object(page.pagination, 'transaction pagination');
     const reportedTotal = optionalInteger(pagination.total);
-    if (reportedTotal !== null) transactionCount = Math.max(transactionCount, reportedTotal);
+    if (reportedTotal !== null && reportedTotal !== transactionCount) {
+      throw new Error('Address history changed during pagination. Retry the query.');
+    }
     target = Math.min(transactionCount, historyLimit);
     const remaining = target - transactions.length;
-    transactions.push(...items.slice(0, remaining).map((item) => transactionView(item, address)));
-    if (items.length < limit) break;
+    const parsed = items.slice(0, remaining).map((item) => transactionView(item, address));
+    for (const item of parsed) {
+      const id = item.txid.toLowerCase();
+      if (id === 'unknown' || seen.has(id)) throw new Error('Address history contains a missing or repeated transaction ID.');
+      seen.add(id);
+    }
+    transactions.push(...parsed);
+    if (items.length < limit && transactions.length < target) {
+      throw new Error('Address history ended before the reported transaction count. Retry the query.');
+    }
   }
   // Difference between the reported balance and the confirmed inflow minus
   // outflow. It equals the mempool delta only if the provider includes
