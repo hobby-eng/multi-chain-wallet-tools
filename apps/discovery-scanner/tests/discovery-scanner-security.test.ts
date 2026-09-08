@@ -704,7 +704,7 @@ describe('dynamic recovery discovery gap and history filter', () => {
       expect(section.scanned).toBe(22);
       expect(section.findings).toHaveLength(2);
       expect(historyAddresses).toHaveLength(2);
-      expect(section.findings.some(({ balanceAtomic }) => balanceAtomic > 0n)).toBe(true);
+      expect(section.findings.some(({ balanceAtomic }) => (balanceAtomic ?? 0n) > 0n)).toBe(true);
       expect(section.findings[0]?.fields).toContainEqual({ label: 'Lifetime received', value: '2.5 DASH' });
       expect(section.findings[0]?.fields).toContainEqual({ label: 'Lifetime sent', value: '2.5 DASH' });
       expect(section.findings[0]?.fields).toContainEqual({ label: 'First seen', value: '2025-01-01T00:00:00.000Z' });
@@ -781,18 +781,18 @@ describe('Orchard recovery output filter', () => {
     const unknown = { ...base, position: 2n, direction: 'received', incoming: note } satisfies ShieldedActivity;
     const outgoing = { ...base, position: 3n, direction: 'sent', outgoing: note } satisfies ShieldedActivity;
 
-    expect(shieldedFindingPresentation(spendable)).toEqual({
+    expect(shieldedFindingPresentation(spendable, true)).toEqual({
       balanceAtomic: 1n,
       balanceLabel: '0.00000000001 DASH',
       spendState: 'Unspent',
     });
-    expect(shieldedFindingPresentation(unknown)).toEqual({
-      balanceAtomic: 0n,
+    expect(shieldedFindingPresentation(unknown, true)).toEqual({
+      balanceAtomic: null,
       balanceLabel: 'Current balance unavailable · spend state unknown',
       spendState: 'Unknown · FVK required',
     });
-    expect(shieldedFindingPresentation(outgoing)).toEqual({
-      balanceAtomic: 0n,
+    expect(shieldedFindingPresentation(outgoing, true)).toEqual({
+      balanceAtomic: null,
       balanceLabel: 'Current balance unavailable · outgoing view only',
       spendState: 'Outgoing view only',
     });

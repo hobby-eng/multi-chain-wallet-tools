@@ -555,7 +555,7 @@ async function scanIdentityLookup(
       finding.fields.push({ label: 'Note', value: 'More than one identity matched this key hash; each is listed independently.' });
     });
   }
-  const totalBalance = findings.reduce((sum, finding) => sum + finding.balanceAtomic, 0n);
+  const totalBalance = findings.reduce((sum, finding) => sum + (finding.balanceAtomic ?? 0n), 0n);
   const section: RecoverySection = {
     id: 'identity',
     title: 'Dash Platform identity lookup',

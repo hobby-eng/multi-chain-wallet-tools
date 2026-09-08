@@ -157,7 +157,8 @@ export interface RecoveryFinding {
   id: string;
   title: string;
   subtitle: string;
-  balanceAtomic: bigint;
+  /** null means current balance cannot be established from this observation. */
+  balanceAtomic: bigint | null;
   balanceLabel: string;
   balanceUnit?: RecoveryAmountUnit;
   fields: RecoveryField[];
@@ -169,6 +170,7 @@ export interface RecoverySection {
   title: string;
   description: string;
   state: RecoverySectionState;
+  balanceAvailable?: boolean;
   metrics: RecoveryMetric[];
   findings: RecoveryFinding[];
   scanned: number | bigint;
@@ -267,7 +269,7 @@ export interface RecoveryExportFinding {
   id: string;
   title: string;
   subtitle: string;
-  balanceAtomic: string;
+  balanceAtomic: string | null;
   balanceLabel: string;
   balanceUnit?: RecoveryAmountUnit;
   fields: RecoveryField[];
@@ -279,6 +281,7 @@ export interface RecoveryExportSection {
   title: string;
   description: string;
   state: RecoverySectionState;
+  balanceAvailable?: boolean;
   scanned: string;
   source: string;
   proof: string;
