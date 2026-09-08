@@ -1,3 +1,4 @@
+import { getEthereumHistory } from './history.js';
 import { MAX_BIP32_INDEX, assertIndex, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { assertValidMnemonic, mnemonicToSeed } from '@ckd/core/bip39.js';
 import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
@@ -16,8 +17,8 @@ import type {
 } from '../../types.js';
 import { parseCustomPathTemplate } from '../custom-path.js';
 import { extendAddressTarget } from '../dash/util.js';
-
-const ETHEREUM_VERSIONS = { private: 0x0488ade4, public: 0x0488b21e } as const;
+import { ETHEREUM_VERSIONS, formatEther } from './shared.js';
+import { detectEthereumWatchOnly, scanEthereumWatchOnly } from './watch-only.js';
 
 interface EthereumPathProfile {
   id: string;
@@ -26,12 +27,6 @@ interface EthereumPathProfile {
   maximumCount: number;
 }
 
-function formatEther(wei: bigint): string {
-  const unit = 1_000_000_000_000_000_000n;
-  const whole = wei / unit;
-  const fraction = (wei % unit).toString().padStart(18, '0').replace(/0+$/u, '');
-  return `${whole.toLocaleString('en-US')}${fraction.length > 0 ? `.${fraction}` : ''} ETH`;
-}
 
 function validateBatch(value: EvmAccountBatchView, expected: readonly string[]): EvmAccountBatchView {
   if (!/^(?:0|[1-9][0-9]*)$/u.test(value.blockNumber)
@@ -267,6 +262,8 @@ async function scanEthereum(
 
 export const ETHEREUM_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
   id: 'ethereum',
+  amountUnit: () => ({ asset: 'ETH', atomicUnit: 'wei', decimals: 18 }),
+  getHistory: getEthereumHistory,
   label: 'Ethereum',
   networks: ['mainnet', 'testnet'],
   customPath: {
@@ -275,4 +272,6 @@ export const ETHEREUM_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
     formats: [{ id: 'eoa', label: 'Ethereum EOA · EIP-55' }],
   },
   scan: scanEthereum,
+  detectWatchOnly: detectEthereumWatchOnly,
+  scanWatchOnly: scanEthereumWatchOnly,
 };

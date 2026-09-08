@@ -1,3 +1,4 @@
+import { dashCoreHistory } from './history.js';
 import { rootFromSeed, requirePublic } from '@ckd/core/bip32.js';
 import { bytesToHex, encodeP2pkh, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
@@ -130,6 +131,7 @@ export async function scanDashCore(
               subtitle: derived.branch === 0 ? `Receive address #${derived.index}` : `Change address #${derived.index}`,
               balanceAtomic: info.balance,
               balanceLabel: formatDashFromDuffs(info.balance),
+              ...(history === undefined ? {} : { history: dashCoreHistory(history) }),
               fields: [
                 { label: 'Scan family', value: 'Standard BIP44' },
                 { label: 'Derivation path', value: derived.path, copyable: true },
@@ -243,6 +245,7 @@ export async function scanDashCore(
             subtitle: `Custom P2PKH path · index ${derived.index}`,
             balanceAtomic: info.balance,
             balanceLabel: formatDashFromDuffs(info.balance),
+            ...(history === undefined ? {} : { history: dashCoreHistory(history) }),
             fields: [
               { label: 'Scan family', value: 'Custom P2PKH path' },
               { label: 'Derivation path', value: derived.path, copyable: true },

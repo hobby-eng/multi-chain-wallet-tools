@@ -1,3 +1,5 @@
+import { historyFields } from './history.js';
+import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from './watch-only.js';
 import type { BUILD_INFO } from '@ckd/build-info';
 import type { RecoveryExportFormat } from './export.js';
 import {
@@ -8,6 +10,7 @@ import type {
   RecoveryFinding,
   RecoveryCoinAdapter,
   RecoveryInputMode,
+  RecoverySourceMode,
   RecoveryProgress,
   RecoverySection,
   RecoverySectionId,
@@ -28,6 +31,9 @@ export interface WalletProgressView {
 
 export interface RecoveryInputSnapshot {
   coinId: string;
+  sourceMode: RecoverySourceMode;
+  watchOnlyKeys: string;
+  watchOnlyMinimumCount: string;
   network: string;
   account: string;
   singleMnemonic: string;
@@ -143,6 +149,8 @@ export function createDiscoveryScannerView(
   const form = required<HTMLFormElement>('#recovery-form');
   const coinInput = document.querySelector<HTMLSelectElement>('#recovery-coin');
   let profileCoinId: string | null = null;
+  let seedCoinId = '';
+  let publicCoinId = 'auto';
   const coinAdapters = new Map<string, RecoveryCoinAdapter>();
   const networkInput = required<HTMLSelectElement>('#recovery-network');
   const scanCoverageDescription = required<HTMLElement>('#scan-coverage-description');
@@ -160,6 +168,16 @@ export function createDiscoveryScannerView(
   const customPathDescription = required<HTMLElement>('#custom-path-description');
   const dashCoverage = [...document.querySelectorAll<HTMLElement>('[data-dash-coverage]')];
   const accountInput = required<HTMLInputElement>('#recovery-account');
+  const sourceGrid = required<HTMLElement>('.recovery-source-grid');
+  let sourceMode: RecoverySourceMode = 'seed';
+  let seedMode: RecoveryInputMode = 'single';
+  const sourceButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-source-mode]')];
+  const publicPanel = required<HTMLElement>('#public-input');
+  const seedModeTabs = required<HTMLElement>('#seed-mode-tabs');
+  const watchOnlyKeys = required<HTMLTextAreaElement>('#watch-only-keys');
+  const watchOnlyMinimum = required<HTMLInputElement>('#watch-only-minimum');
+  const watchOnlyDetection = required<HTMLElement>('#watch-only-detection');
+  const seedCoverage = required<HTMLElement>('#seed-coverage');
   const singlePanel = required<HTMLElement>('#single-input');
   const batchPanel = required<HTMLElement>('#batch-input');
   const singleMnemonic = required<HTMLTextAreaElement>('#single-mnemonic');
@@ -215,6 +233,8 @@ export function createDiscoveryScannerView(
   const recoveryRuntime = required<HTMLElement>('#recovery-runtime');
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-input-mode]')];
   const estimateInputs = [
+    watchOnlyKeys,
+    watchOnlyMinimum,
     ...(coinInput === null ? [] : [coinInput]),
     scanCustomPathInput,
     customPathTemplateInput,
@@ -258,6 +278,7 @@ export function createDiscoveryScannerView(
 
   function setComponentSettings(): void {
     const coinId = coinInput?.value ?? profileCoinId ?? 'dash';
+    if (sourceMode === 'public') return;
     const dash = coinId === 'dash';
     const customPath = coinAdapters.get(coinId)?.customPath;
     for (const element of dashCoverage) element.hidden = !dash;
@@ -352,7 +373,7 @@ export function createDiscoveryScannerView(
     if (!compact) {
       const fields = document.createElement('dl');
       fields.className = 'finding-fields';
-      for (const field of finding.fields) {
+      for (const field of [...finding.fields.filter(field => finding.history === undefined || !['Lifetime received', 'Lifetime sent', 'Lifetime fees spent', 'First seen', 'Last seen'].includes(field.label)), ...(finding.history ? historyFields(finding.history) : [])]) {
         const term = document.createElement('dt');
         term.textContent = field.label;
         const description = document.createElement('dd');
@@ -377,7 +398,7 @@ export function createDiscoveryScannerView(
     return metric;
   }
 
-  function renderSection(section: RecoverySection): HTMLElement {
+  function renderSection(section: RecoverySection, coinLabel = 'Dash'): HTMLElement {
     const article = document.createElement('section');
     article.className = `scan-section ${section.state}`;
     const head = document.createElement('div');
@@ -420,7 +441,7 @@ export function createDiscoveryScannerView(
         identity: 'No funded Dash Platform identity was found in this section and scanned range.',
         shielded: 'No spendable Dash Orchard note was found in this section of the complete pool scan.',
       };
-      empty.textContent = section.state === 'complete' ? emptyMessages[section.id] : 'No authoritative findings are available for this section.';
+      empty.textContent = section.state === 'complete' ? (coinLabel === 'Dash' ? emptyMessages[section.id] : `No funded ${coinLabel} address was found in this section and scanned range.`) : 'No authoritative findings are available for this section.';
       findings.append(empty);
     } else {
       findings.append(...section.findings.map((finding) => findingCard(finding)));
@@ -449,7 +470,7 @@ export function createDiscoveryScannerView(
     const tabs = document.createElement('div');
     tabs.className = 'component-result-tabs';
     tabs.setAttribute('role', 'tablist');
-    tabs.setAttribute('aria-label', 'Scan components for this seed phrase');
+    tabs.setAttribute('aria-label', 'Scan components for this result');
     const panel = document.createElement('div');
     panel.className = 'component-result-panel';
     panel.setAttribute('role', 'tabpanel');
@@ -462,7 +483,7 @@ export function createDiscoveryScannerView(
       if (group === undefined) return;
       panel.id = `component-panel-${result.inputId}-${group.id}`;
       panel.setAttribute('aria-label', group.label);
-      panel.append(...groupSections(result, group).map(renderSection));
+      panel.append(...groupSections(result, group).map((section) => renderSection(section)));
       for (const button of tabs.querySelectorAll<HTMLButtonElement>('[data-component-group]')) {
         const active = button.dataset.componentGroup === group.id;
         button.classList.toggle('active', active);
@@ -506,7 +527,25 @@ export function createDiscoveryScannerView(
     return wrapper;
   }
 
-  return {
+  for (const [index, button] of sourceButtons.entries()) {
+    const select = (): void => {
+      if (coinInput !== null) {
+        if (sourceMode === 'seed') seedCoinId = coinInput.value;
+        else publicCoinId = coinInput.value;
+      }
+      sourceMode = button.dataset.sourceMode === 'public' ? 'public' : 'seed';
+      if (coinInput !== null) coinInput.value = sourceMode === 'public' ? publicCoinId : seedCoinId;
+      view.updateEstimate();
+    };
+    button.addEventListener('click', select);
+    button.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === 'Home' ? sourceButtons[0] : event.key === 'End' ? sourceButtons.at(-1) : sourceButtons[(index + 1) % sourceButtons.length];
+      if (next?.disabled === false) { next.click(); next.focus(); }
+    });
+  }
+  const view = {
     form,
     startButton,
     cancelButton,
@@ -521,6 +560,9 @@ export function createDiscoveryScannerView(
       if (coinId === null || coinId.length === 0) throw new Error('Recovery coin registry is empty.');
       return {
         coinId,
+        sourceMode,
+        watchOnlyKeys: watchOnlyKeys.value,
+        watchOnlyMinimumCount: watchOnlyMinimum.value,
         network: networkInput.value,
         account: accountInput.value,
         singleMnemonic: singleMnemonic.value,
@@ -559,8 +601,9 @@ export function createDiscoveryScannerView(
       };
     },
     setMode(mode: RecoveryInputMode): void {
-      singlePanel.hidden = mode !== 'single';
-      batchPanel.hidden = mode !== 'batch';
+      seedMode = mode;
+      singlePanel.hidden = sourceMode !== 'seed' || mode !== 'single';
+      batchPanel.hidden = sourceMode !== 'seed' || mode !== 'batch';
       for (const button of modeButtons) {
         const active = button.dataset.inputMode === mode;
         button.classList.toggle('active', active);
@@ -579,6 +622,8 @@ export function createDiscoveryScannerView(
       singlePassphrase.value = '';
       batchMnemonics.value = '';
       batchPassphrases.value = '';
+      watchOnlyKeys.value = '';
+      this.updateEstimate();
     },
     showError,
     clearError(): void {
@@ -593,7 +638,77 @@ export function createDiscoveryScannerView(
       statusBox.hidden = true;
     },
     updateEstimate(): void {
+      const publicInput = sourceMode === 'public';
+      if (coinInput !== null) {
+        const autoOption = coinInput.querySelector<HTMLOptionElement>('option[value="auto"]');
+        if (autoOption !== null) {
+          autoOption.hidden = !publicInput;
+          autoOption.disabled = !publicInput;
+        }
+        if (publicInput) publicCoinId = coinInput.value;
+        else seedCoinId = coinInput.value;
+      }
       setComponentSettings();
+      publicPanel.hidden = !publicInput;
+      required<HTMLElement>('#seed-source-panel').hidden = publicInput;
+      seedModeTabs.hidden = publicInput;
+      singlePanel.hidden = publicInput || seedMode !== 'single';
+      batchPanel.hidden = publicInput || seedMode !== 'batch';
+      revealButton.hidden = publicInput;
+      for (const button of sourceButtons) {
+        const active = button.dataset.sourceMode === sourceMode;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+      }
+      accountInput.parentElement!.hidden = publicInput;
+      if (coinInput !== null) coinInput.parentElement!.hidden = false;
+      sourceGrid.style.gridTemplateColumns = publicInput ? (coinInput === null ? '1fr' : '1.2fr 1fr') : '';
+      seedCoverage.hidden = publicInput;
+      for (const input of [singleMnemonic, singlePassphrase, batchMnemonics, batchPassphrases, batchConcurrencyInput, accountInput]) input.disabled = publicInput;
+      if (coinInput !== null) coinInput.disabled = false;
+      watchOnlyMinimum.parentElement!.hidden = !publicInput;
+      watchOnlyDetection.textContent = 'Select a coin, or use Auto-detect for formats that identify exactly one coin.';
+      if (publicInput) {
+        startButtonLabel.textContent = 'Scan public keys';
+        networkInput.options[0]!.textContent = 'Mainnet';
+        networkInput.options[1]!.textContent = 'Testnet';
+        scanCoverageDescription.textContent = 'Public-key discovery · detected coins and supported address types';
+        try {
+          assertWatchOnlyBatchInput(watchOnlyKeys.value);
+          const selectedCoin = coinInput?.value ?? profileCoinId ?? 'dash';
+          const candidateAdapters = selectedCoin === 'auto'
+            ? [...coinAdapters.values()]
+            : [coinAdapters.get(selectedCoin)!];
+          const targets = parseWatchOnlyLines(watchOnlyKeys.value).flatMap((line) => resolveWatchOnlyTargets(line, candidateAdapters));
+          const labels = [...new Set(targets.map(({ adapterId, material }) => material.detectionLabel ?? coinAdapters.get(adapterId)!.label))];
+          const bip32 = targets.find(({ ambiguity }) => ambiguity?.kind === 'bip32')?.ambiguity;
+          const sec1 = targets.some(({ ambiguity }) => ambiguity?.kind === 'sec1');
+          const needsCoin = selectedCoin === 'auto' && targets.length > parseWatchOnlyLines(watchOnlyKeys.value).length;
+          const formatText = needsCoin
+            ? `Coin could not be determined uniquely. Select Coin before scanning. Compatible candidates: ${labels.join(' · ')}.`
+            : bip32 !== undefined
+            ? `Ambiguous BIP32 xpub${bip32.depth === undefined ? '' : ` (depth ${bip32.depth})`}: coin and hardened purpose are not encoded. Compatible scan candidates: ${labels.join(' · ')}. A used address can identify a matching candidate; an unused key cannot be attributed.`
+            : sec1
+              ? `Ambiguous SEC1 public key: it contains no coin identifier. Compatible exact-address candidates: ${labels.join(' · ')}.`
+              : `${labels.join(' · ')}. Recognized encoded format.`;
+          const hasEncodedNetwork = targets.some(({ network }) => network !== undefined);
+          const hasSelectedNetwork = targets.some(({ network }) => network === undefined);
+          const networkText = hasEncodedNetwork && hasSelectedNetwork
+            ? 'The encoded network is used where present; other candidates use the selected network.'
+            : hasEncodedNetwork ? 'The network encoded in the key is used.' : 'Using the selected network.';
+          watchOnlyDetection.textContent = `${formatText} ${networkText} Only the public-key tab is scanned.`;
+          estimate.textContent = needsCoin
+            ? 'Select one coin to continue'
+            : `${targets.length} coin scan${targets.length === 1 ? '' : 's'} · ${estimateInteger(watchOnlyMinimum.value, 1)} minimum addresses per derived branch; single public keys are checked exactly`;
+        } catch (cause) {
+          watchOnlyDetection.textContent = cause instanceof Error && cause.name === 'PrivateMaterialError'
+            ? 'Private material is not accepted in the public-key field.'
+            : cause instanceof Error ? cause.message : 'Public key not recognized.';
+          estimate.textContent = 'Check the public key input';
+        }
+        return;
+      }
       coinJoinPathPreview.textContent = coinJoinPathPattern(networkInput.value);
       try {
         const coinId = coinInput?.value ?? profileCoinId ?? 'dash';
@@ -642,16 +757,11 @@ export function createDiscoveryScannerView(
       for (const input of form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input,select,textarea')) {
         input.disabled = value;
       }
-      for (const button of modeButtons) button.disabled = value;
+      for (const button of [...modeButtons, ...sourceButtons]) button.disabled = value;
       revealButton.disabled = value;
       if (value) startButtonLabel.textContent = 'Scanning…';
-      else if (hasCompletedScan) startButtonLabel.textContent = 'Run a new scan';
-      else {
-        const coinId = coinInput?.value ?? profileCoinId ?? 'dash';
-        startButtonLabel.textContent = __DASH_COMMUNITY__
-          ? 'Scan Dash holdings'
-          : `Scan ${coinId === 'bitcoin' ? 'Bitcoin' : coinId === 'ethereum' ? 'Ethereum' : 'Dash'} holdings`;
-      }
+      else if (hasCompletedScan) { this.updateEstimate(); startButtonLabel.textContent = 'Run a new scan'; }
+      else this.updateEstimate();
     },
     showProgress(): void {
       progressShell.hidden = false;
@@ -680,7 +790,7 @@ export function createDiscoveryScannerView(
       progressBar.style.width = total === 0 ? '0%' : `${(completed / total) * 100}%`;
       progressText.textContent = total === 0
         ? 'Preparing…'
-        : `Completed ${completed} of ${total} seed phrase scan${total === 1 ? '' : 's'} · every active stage is shown below.`;
+        : `Completed ${completed} of ${total} scan${total === 1 ? '' : 's'} · every active stage is shown below.`;
     },
     progressSectionLabel(section: RecoveryProgress['section']): string {
       return progressSectionLabels[section];
@@ -720,7 +830,7 @@ export function createDiscoveryScannerView(
         const active = result.inputId === activeResultId;
         tab.classList.toggle('active', active);
         tab.setAttribute('aria-pressed', String(active));
-        const failed = result.sections.some(({ state }) => state === 'failed');
+        const failed = result.sections.some(({ state }) => state === 'failed' || state === 'partial');
         tab.textContent = `${result.label}${failed ? ' · warning' : ' · complete'}`;
         tab.addEventListener('click', () => selectResult(result.inputId));
         resultTabs.append(tab);
@@ -739,11 +849,17 @@ export function createDiscoveryScannerView(
         copy.append(title, subtitle);
         const state = document.createElement('span');
         state.className = 'wallet-state';
-        state.textContent = result.sections.some(({ state: sectionState }) => sectionState === 'failed')
+        state.textContent = result.sections.some(({ state: sectionState }) => sectionState === 'failed' || sectionState === 'partial')
           ? 'Completed with warnings'
           : 'Scan complete';
         head.append(copy, state);
         wallet.append(head);
+        for (const message of result.warnings) {
+          const warning = document.createElement('p');
+          warning.className = 'section-warning';
+          warning.textContent = message;
+          wallet.append(warning);
+        }
         const overview = document.createElement('section');
         overview.className = 'wallet-overview';
         const overviewTitle = document.createElement('strong');
@@ -762,7 +878,7 @@ export function createDiscoveryScannerView(
         } else {
           const sections = document.createElement('div');
           sections.className = 'component-results single-component-results';
-          sections.append(...result.sections.map(renderSection));
+          sections.append(...result.sections.map((section) => renderSection(section, result.coinLabel)));
           wallet.append(sections);
         }
         resultList.append(wallet);
@@ -796,7 +912,14 @@ export function createDiscoveryScannerView(
         option.textContent = coin.label;
         coinInput.append(option);
       }
-      coinInput.value = coins[0]?.id ?? '';
+      const auto = document.createElement('option');
+      auto.value = 'auto';
+      auto.textContent = 'Auto-detect (exact formats only)';
+      auto.hidden = true;
+      auto.disabled = true;
+      coinInput.prepend(auto);
+      seedCoinId = coins[0]?.id ?? '';
+      coinInput.value = seedCoinId;
     },
     showSelfTestPassed(checks: readonly string[], durationMs: number): void {
       selfTestBadge.className = 'self-test-badge passed';
@@ -825,6 +948,7 @@ export function createDiscoveryScannerView(
       required<HTMLElement>('#recovery-build-footer').textContent = `v${buildInfo.version} · ${buildInfo.fingerprint.slice(0, 16)}…`;
     },
   };
+  return view;
 }
 
 export type DiscoveryScannerView = ReturnType<typeof createDiscoveryScannerView>;

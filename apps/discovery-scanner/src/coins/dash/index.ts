@@ -1,3 +1,4 @@
+import { getDashHistory, dashAmountUnit } from './history.js';
 import { MAX_BIP32_INDEX, assertIndex } from '@ckd/core/bip32.js';
 import { assertValidMnemonic, mnemonicToSeed } from '@ckd/core/bip39.js';
 import { SecretEgressGuard, disposeSecretBytes } from '../../secret-guard.js';
@@ -23,6 +24,7 @@ import { scanDashPlatformAddresses } from './platform-scanner.js';
 import { scanDashShielded, scanDashShieldedBatch } from './shielded-scanner.js';
 import { failedSection } from './util.js';
 import { summarizeDashSections } from './summary.js';
+import { detectDashWatchOnly, scanDashWatchOnly } from './watch-only.js';
 import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
 
 const TITLES: Record<RecoverySectionId, [string, string]> = {
@@ -139,6 +141,8 @@ function skippedSection(id: RecoverySectionId): RecoverySection {
 
 export const DASH_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
   id: 'dash',
+  getHistory: getDashHistory,
+  amountUnit: dashAmountUnit,
   label: 'Dash',
   networks: ['mainnet', 'testnet'],
   customPath: {
@@ -146,6 +150,8 @@ export const DASH_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
     placeholder: "m/44'/5'/7'/0/{index}",
     formats: [{ id: 'p2pkh', label: 'Dash Core · P2PKH' }],
   },
+  detectWatchOnly: detectDashWatchOnly,
+  scanWatchOnly: scanDashWatchOnly,
 
   async prepareBatch(inputs, config, context): Promise<ReadonlyMap<string, RecoverySection>> {
     validateConfig(config);

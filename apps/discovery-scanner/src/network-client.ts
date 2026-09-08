@@ -132,6 +132,10 @@ class RecoveryNetworkRpcClient implements RecoveryNetworkApi {
     return this.#request({ operation: 'shielded.page', payload: { network, startPosition, count } }, signal);
   }
 
+  addressHistory(coin: 'bitcoin' | 'ethereum', network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<import('./types.js').RecoveryHistory> {
+    return this.#request({ operation: 'address.history', payload: { coin, network, address } }, signal);
+  }
+
   utxoAddresses(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<import('./network-protocol.js').UtxoAddressView[]> {
     return this.#request(
       { operation: 'utxo.addresses', payload: { network, addresses } },
