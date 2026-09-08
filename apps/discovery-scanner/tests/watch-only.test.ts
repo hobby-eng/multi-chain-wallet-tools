@@ -1,4 +1,5 @@
 import { encodePlatformP2pkh } from '@ckd/coins/dash/platform.js';
+import { deriveBitcoin } from '@ckd/coins/bitcoin/index.js';
 import { describe, expect, it, vi } from 'vitest';
 import { HDKey } from '@scure/bip32';
 import { createBase58check } from '@scure/base';
@@ -134,6 +135,32 @@ describe('automatic public-key discovery', () => {
     expect(queries.join()).not.toContain(account.publicExtendedKey);
     expect(createRecoveryExport([result], 'json').text).not.toContain(account.publicExtendedKey);
     expect(() => ctx.sessionSecretGuard!.assertPublic(account.publicExtendedKey, 'export')).toThrow(/Blocked/u);
+  });
+  it('preserves descriptor child paths in funded findings and exports for every script family and branch', async () => {
+    const seed = new Uint8Array(32).fill(33);
+    for (const mode of ['legacy', 'nested-segwit', 'native-segwit', 'taproot'] as const) {
+      for (const branch of [0, 1]) {
+        const derived = deriveBitcoin(mode, { seed, network: 'mainnet', account: 0, branch, start: 17, count: 1 });
+        const expectedAddress = derived.rows[0]!.basic.find(({ key }) => key === 'address')!.value;
+        const result = await scan(BITCOIN_RECOVERY_ADAPTER, derived.watchOnly!.text, context({
+          utxoAddresses: async (_network, addresses) => addresses.map((address) => ({
+            address,
+            balance: address === expectedAddress ? '100' : '0',
+            transactionCount: address === expectedAddress ? 1 : 0,
+          })),
+        }), { ...config, minimumCount: 18 });
+        const expectedPath = `descriptor/${branch}/17`;
+        expect(result.sections[0]?.findings).toHaveLength(1);
+        expect(result.sections[0]?.findings[0]).toMatchObject({
+          title: expectedAddress,
+          fields: expect.arrayContaining([{ label: 'Relative derivation path', value: expectedPath, copyable: true }]),
+        });
+        for (const format of ['json', 'csv'] as const) {
+          expect(createRecoveryExport([result], format).text).toContain(expectedPath);
+        }
+      }
+    }
+    seed.fill(0);
   });
   it('allows an explicit Identity hash lookup and converts Core duffs and Platform credits correctly', async () => {
     const identity = { identities: [{ identifier: '123456789ABCDEFGHJKLMNPQRSTUV', balance: '100000000000', revision: '0' }], metadata: { height: '1', protocolVersion: 1, coreChainLockedHeight: 1, timeMs: '1' }, proofQueries: 1, dapiDurationsMs: [1] };
