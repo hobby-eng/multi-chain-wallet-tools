@@ -196,7 +196,7 @@ export function updatePathPreview(adapter: CoinAdapter, controls: DerivationCont
   } catch {
     controls.preview.textContent = 'Enter valid integer controls to preview the path.';
     if (adapter.coinJoin !== undefined) {
-      controls.coinJoinHelp.textContent = 'Enter valid integer controls to preview the CoinJoin / DIP9 paths.';
+      controls.coinJoinHelp.textContent = 'Enter valid integer controls to preview the Dash Mobile CoinJoin · DIP9 paths.';
     }
   }
 }

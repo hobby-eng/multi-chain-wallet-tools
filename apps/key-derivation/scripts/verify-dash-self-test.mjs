@@ -31,8 +31,8 @@ try {
     'Dash master/account extended-key integrity',
     'Dash Identity mainnet / DIP13',
     'Dash Identity testnet / DIP13',
-    'Dash CoinJoin mainnet / DIP9',
-    'Dash CoinJoin testnet / DIP9',
+    'Dash Mobile CoinJoin · DIP9 · mainnet',
+    'Dash Mobile CoinJoin · DIP9 · testnet',
     'Dash Orchard testnet / ZIP32',
     'Dash Orchard mainnet / ZIP32',
   ];

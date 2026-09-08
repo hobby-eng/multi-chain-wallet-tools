@@ -75,7 +75,7 @@ const progressSectionLabels: Record<RecoveryProgress['section'], string> = {
   prepare: 'Preparing locally',
   core: 'Dash Core · L1',
   legacyCore: 'Legacy mobile Core',
-  coinjoin: 'CoinJoin · DIP9',
+  coinjoin: 'Dash Mobile CoinJoin · DIP9',
   identityFunding: 'Identity funding',
   providerCollateral: 'Masternode holdings',
   platform: 'Platform addresses',
@@ -150,7 +150,7 @@ export function createDiscoveryScannerView(
   const coinInput = document.querySelector<HTMLSelectElement>('#recovery-coin');
   let profileCoinId: string | null = null;
   let seedCoinId = '';
-  let publicCoinId = 'auto';
+  let publicCoinId = '';
   const coinAdapters = new Map<string, RecoveryCoinAdapter>();
   const networkInput = required<HTMLSelectElement>('#recovery-network');
   const scanCoverageDescription = required<HTMLElement>('#scan-coverage-description');
@@ -316,8 +316,8 @@ export function createDiscoveryScannerView(
       genericCoinScanNote.textContent = coinId === 'bitcoin'
         ? 'Bitcoin recovery includes legacy, nested SegWit, native SegWit, and Taproot, extending every receive/change chain through a 20-address post-use gap.'
         : 'Ethereum recovery checks Standard BIP44, Ledger Live, and Legacy Ledger paths by default, extending each through a 20-address post-use gap. Duplicate addresses are queried and counted once. ERC-20 tokens and contract wallets are outside this scan.';
-      networkInput.options[0]!.textContent = coinId === 'bitcoin' ? 'Bitcoin mainnet' : 'Ethereum mainnet';
-      networkInput.options[1]!.textContent = coinId === 'bitcoin' ? 'Bitcoin testnet' : 'Sepolia testnet';
+      networkInput.options[0]!.textContent = 'Mainnet';
+      networkInput.options[1]!.textContent = 'Testnet';
       return;
     }
     receiveLabel.textContent = 'Core receive minimum';
@@ -434,7 +434,7 @@ export function createDiscoveryScannerView(
       const emptyMessages: Record<RecoverySectionId, string> = {
         core: 'No funded Dash Core L1 address was found in this section and scanned range.',
         legacyCore: 'No funded legacy mobile Core address was found in this section and scanned range.',
-        coinjoin: 'No funded mobile CoinJoin/DIP9 address was found in this section and scanned range.',
+        coinjoin: 'No funded Dash Mobile CoinJoin · DIP9 address was found in this section and scanned range.',
         identityFunding: 'No funded identity funding address was found in this section and scanned range.',
         providerCollateral: 'No funded provider collateral/holdings address was found in this section and scanned range.',
         platform: 'No funded Dash Platform payment address was found in this section and scanned range.',
@@ -918,7 +918,9 @@ export function createDiscoveryScannerView(
       auto.hidden = true;
       auto.disabled = true;
       coinInput.prepend(auto);
-      seedCoinId = coins[0]?.id ?? '';
+      const defaultCoinId = coins[0]?.id ?? '';
+      seedCoinId = defaultCoinId;
+      publicCoinId = defaultCoinId;
       coinInput.value = seedCoinId;
     },
     showSelfTestPassed(checks: readonly string[], durationMs: number): void {

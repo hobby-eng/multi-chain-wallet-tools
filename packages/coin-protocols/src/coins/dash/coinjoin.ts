@@ -66,7 +66,7 @@ export function deriveDashCoinJoin(options: Bip32BatchOptions): DerivationResult
 
     return {
       id: 'dash-core-coinjoin',
-      title: `Dash CoinJoin / DIP9 · ${chainLabel} chain`,
+      title: `Dash Mobile CoinJoin · DIP9 · ${chainLabel} chain`,
       networkLabel: network.label,
       pathTemplate: `${branchPath}/i`,
       basicSummary: [],

@@ -1,7 +1,7 @@
 const toolDefinitions = {
   'key-derivation': {
     multiChain: {
-      artifactDirectory: 'key-derivation',
+      artifactDirectory: 'multi-chain-edition/key-derivation',
       artifactName: 'Wallet_Key_Derivation_Tool.html',
       documentTitle: 'Offline Wallet Key Derivation Tool',
       entryPoint: 'apps/key-derivation/src/ui/app.ts',
@@ -11,7 +11,7 @@ const toolDefinitions = {
       footerProtocols: 'BIP39 · BIP32 · Bitcoin · Ethereum · Dash Core · Platform · Identity · Shielded',
     },
     dashCommunity: {
-      artifactDirectory: 'dash-community/key-derivation',
+      artifactDirectory: 'dash-community-edition/key-derivation',
       artifactName: 'Dash_Community_Key_Derivation_Tool.html',
       documentTitle: 'Dash Community Edition — Wallet Key Derivation Tool',
       entryPoint: 'apps/key-derivation/src/ui/app-dash-community.ts',
@@ -23,7 +23,7 @@ const toolDefinitions = {
   },
   'activity-viewer': {
     multiChain: {
-      artifactDirectory: 'activity-viewer',
+      artifactDirectory: 'multi-chain-edition/activity-viewer',
       artifactName: 'Wallet_Activity_Viewer.html',
       documentTitle: 'Wallet Activity Viewer',
       entryPoint: 'apps/activity-viewer/src/app.ts',
@@ -31,7 +31,7 @@ const toolDefinitions = {
       introduction: 'Inspect supported public addresses, identities, and privacy-preserving activity with local validation and proof-aware network queries.',
     },
     dashCommunity: {
-      artifactDirectory: 'dash-community/activity-viewer',
+      artifactDirectory: 'dash-community-edition/activity-viewer',
       artifactName: 'Dash_Community_Activity_Viewer.html',
       documentTitle: 'Dash Community Edition — Wallet Activity Viewer',
       entryPoint: 'apps/activity-viewer/src/app-dash-community.ts',
@@ -41,7 +41,7 @@ const toolDefinitions = {
   },
   'discovery-scanner': {
     multiChain: {
-      artifactDirectory: 'discovery-scanner',
+      artifactDirectory: 'multi-chain-edition/discovery-scanner',
       artifactName: 'Wallet_Discovery_Scanner.html',
       documentTitle: 'Wallet Discovery Scanner',
       entryPoint: 'apps/discovery-scanner/src/app.ts',
@@ -49,7 +49,7 @@ const toolDefinitions = {
       introduction: 'Search supported wallet account structures from one or several BIP39 recovery phrases, then review and export recovery findings.',
     },
     dashCommunity: {
-      artifactDirectory: 'dash-community/discovery-scanner',
+      artifactDirectory: 'dash-community-edition/discovery-scanner',
       artifactName: 'Dash_Community_Discovery_Scanner.html',
       documentTitle: 'Dash Community Edition — Wallet Discovery Scanner',
       entryPoint: 'apps/discovery-scanner/src/app-dash-community.ts',
@@ -65,16 +65,18 @@ export const BUILD_PROFILES = {
     editionName: 'Multi-Chain Edition',
     brandName: 'Multi-Chain Wallet Tools',
     themeStylesheet: undefined,
-    manifestPath: 'dist/SHA256SUMS',
-    releaseDirectory: 'dist/release',
+    outputDirectory: 'multi-chain-edition',
+    manifestPath: 'dist/multi-chain-edition/SHA256SUMS',
+    releaseDirectory: 'dist/multi-chain-edition/release',
   },
   'dash-community': {
     id: 'dash-community',
     editionName: 'Dash Community Edition',
     brandName: 'Dash Community Edition',
     themeStylesheet: 'packages/shared-ui/styles/dash-community.css',
-    manifestPath: 'dist/dash-community/SHA256SUMS',
-    releaseDirectory: 'dist/dash-community/release',
+    outputDirectory: 'dash-community-edition',
+    manifestPath: 'dist/dash-community-edition/SHA256SUMS',
+    releaseDirectory: 'dist/dash-community-edition/release',
   },
 };
 
@@ -116,6 +118,9 @@ export function applyProfileTemplate(template, profile, tool) {
   const recoveryPublicKeyScope = profile.id === 'dash-community'
     ? '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any.'
     : '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.';
+  const activityCoinControl = profile.id === 'dash-community'
+    ? ''
+    : '<div class="viewer-coin-field"><label for="viewer-coin">Coin</label><select id="viewer-coin"><option value="bitcoin" selected>Bitcoin</option><option value="ethereum">Ethereum</option><option value="dash">Dash</option></select><p class="field-note">Choose the coin before entering a public lookup.</p></div>';
   const replacements = {
     '__DOCUMENT_TITLE__': tool.documentTitle,
     '__EDITION_NAME__': profile.editionName,
@@ -129,13 +134,14 @@ export function applyProfileTemplate(template, profile, tool) {
     '__RECOVERY_COIN_FIELD__': recoveryCoinField,
     '__RECOVERY_PUBLIC_KEY_PLACEHOLDER__': recoveryPublicKeyPlaceholder,
     '__RECOVERY_PUBLIC_KEY_SCOPE__': recoveryPublicKeyScope,
+    '__ACTIVITY_COIN_CONTROL__': activityCoinControl,
     '__TOOL_INTRODUCTION__': tool.introduction,
   };
   let rendered = template;
   for (const [marker, value] of Object.entries(replacements)) {
     if (value !== undefined) rendered = rendered.replaceAll(marker, value);
   }
-  const remaining = rendered.match(/__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|TOOL_INTRODUCTION)__/gu);
+  const remaining = rendered.match(/__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_COIN_CONTROL|TOOL_INTRODUCTION)__/gu);
   if (remaining !== null) throw new Error(`Unexpanded build-profile marker: ${remaining.join(', ')}`);
   return rendered;
 }

@@ -43,12 +43,12 @@ jobs:
           container_id=$(docker create multi-chain-wallet-tools-release:${GITHUB_SHA} /bin/true)
           trap 'docker rm --force "${container_id}" >/dev/null 2>&1 || true' EXIT
           docker cp "${container_id}:/dist/." dist
-          cat dist/release/SHA256SUMS
+          cat dist/multi-chain-edition/release/SHA256SUMS
 
       - name: Generate GitHub build-provenance attestations
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: 'dist/release/*'
+          subject-path: 'dist/multi-chain-edition/release/*'
 
       - name: Publish the verified release with flat downloadable assets
         env:
@@ -59,7 +59,7 @@ jobs:
             echo "Missing curated release notes: $NOTES_FILE" >&2
             exit 1
           fi
-          gh release create "$GITHUB_REF_NAME" dist/release/* \
+          gh release create "$GITHUB_REF_NAME" dist/multi-chain-edition/release/* \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --notes-file "$NOTES_FILE" \

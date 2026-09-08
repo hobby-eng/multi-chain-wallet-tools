@@ -36,7 +36,7 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
     { label: 'Total located value', value: formatDashFromCredits(totalCredits), tone: totalCredits > 0n ? 'positive' : 'neutral' },
     { label: 'Funded resources', value: String(fundedResources), tone: fundedResources > 0 ? 'positive' : 'neutral' },
     { label: 'Core L1', value: formatDashFromDuffs(coreChain), tone: coreChain > 0n ? 'positive' : 'neutral' },
-    { label: 'CoinJoin · DIP9', value: formatDashFromDuffs(coinjoin), tone: coinjoin > 0n ? 'positive' : 'neutral' },
+    { label: 'Dash Mobile CoinJoin · DIP9', value: formatDashFromDuffs(coinjoin), tone: coinjoin > 0n ? 'positive' : 'neutral' },
     { label: 'Identity funding', value: formatDashFromDuffs(identityFunding), tone: identityFunding > 0n ? 'positive' : 'neutral' },
     { label: 'Provider holdings', value: formatDashFromDuffs(providerCollateral), tone: providerCollateral > 0n ? 'positive' : 'neutral' },
     { label: 'Platform addresses', value: formatDashFromCredits(platform), tone: platform > 0n ? 'positive' : 'neutral' },

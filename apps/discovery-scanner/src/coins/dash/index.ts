@@ -30,7 +30,7 @@ import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
 const TITLES: Record<RecoverySectionId, [string, string]> = {
   core: ['Dash Core · L1', 'BIP44 receive and change address scan'],
   legacyCore: ['Dash Core · legacy mobile', 'Historical DashSync legacy account scan'],
-  coinjoin: ['Dash CoinJoin · DIP9', 'Mobile/DashSync CoinJoin compatibility scan'],
+  coinjoin: ['Dash Mobile CoinJoin · DIP9', 'Mobile/DashSync CoinJoin compatibility scan'],
   identityFunding: ['Dash Platform identity funding', 'Registration/top-up/invitation Core funding scan'],
   providerCollateral: ['Dash provider collateral/holdings', 'Masternode provider collateral/holdings scan'],
   platform: ['Dash Platform addresses', 'DIP17 payment address scan'],
@@ -60,10 +60,10 @@ function validateConfig(config: RecoveryScanConfig): void {
   if (config.scanLegacyCore && config.legacyCoreCount < 1) {
     throw new Error('At least one legacy Core address per branch must be scanned.');
   }
-  assertCount(config.coinJoinExternalCount, 'CoinJoin/DIP9 external address count', true);
-  assertCount(config.coinJoinInternalCount, 'CoinJoin/DIP9 internal address count', true);
+  assertCount(config.coinJoinExternalCount, 'Dash Mobile CoinJoin · DIP9 external address count', true);
+  assertCount(config.coinJoinInternalCount, 'Dash Mobile CoinJoin · DIP9 internal address count', true);
   if (config.scanCoinJoin && config.coinJoinExternalCount + config.coinJoinInternalCount < 1) {
-    throw new Error('At least one CoinJoin/DIP9 external or internal address must be scanned.');
+    throw new Error('At least one Dash Mobile CoinJoin · DIP9 external or internal address must be scanned.');
   }
   assertCount(config.identityFundingCount, 'Identity funding address count', true);
   assertCount(config.identityTopUpIdentityCount, 'Identity-bound top-up identity count', true);

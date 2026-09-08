@@ -170,13 +170,13 @@ for (const marker of [
   'Scan components for this result', 'component-result-tab',
   '20 addresses after the last used address', 'Self-test running', 'ALL RESULTS',
   'STANDARD-WALLET HANDOFF', 'Run a new scan', 'bounded-memory page stream',
-  'Mobile CoinJoin', 'Separate mobile receive and change chains.',
+  'Dash Mobile CoinJoin · DIP9', 'Separate mobile receive and change chains.',
   'Identity registration funding', 'Show the L1 asset-lock and funding inputs.',
   'Legacy mobile Core', 'Older Dash Wallet for Android backups.',
   'Dash Core', 'BIP44 receive and change addresses',
-  'CoinJoin/DIP9 paths for the selected network', 'm/9\'/5\'/4\'/0\'/0/i',
+  'Dash Mobile CoinJoin · DIP9 paths for the selected network', 'm/9\'/5\'/4\'/0\'/0/i',
   'CoinJoin external minimum', 'CoinJoin internal minimum',
-  'No funded mobile CoinJoin/DIP9 address was found in this section and scanned range.',
+  'No funded Dash Mobile CoinJoin · DIP9 address was found in this section and scanned range.',
   'core.address-info',
   'Release passport', 'Cryptographic self-test running', 'Embedded dependency versions and licenses:',
   'Dash Identity mainnet / DIP13', 'Dash Identity testnet / DIP13',
@@ -191,7 +191,11 @@ for (const marker of [
   'platform.identity-history', 'shielded.page', 'utxo.addresses', 'evm.accounts',
   'ckd-recovery-export-request-v1',
 ]) {
-  if (!html.includes(marker)) throw new Error(`Recovery artifact is missing required marker: ${marker}`);
+  const escapedMarker = marker.replaceAll('·', String.raw`\xB7`);
+  const srcdocEscapedMarker = marker.replaceAll('·', String.raw`\\xB7`);
+  if (!html.includes(marker) && !html.includes(escapedMarker) && !html.includes(srcdocEscapedMarker)) {
+    throw new Error(`Recovery artifact is missing required marker: ${marker}`);
+  }
 }
 if (profile.id === 'dash-community' && !html.includes('class="profile-brand-mark"')) {
   throw new Error('Dash Community recovery artifact is missing the official Dash brand mark.');

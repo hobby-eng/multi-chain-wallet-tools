@@ -122,7 +122,6 @@ function familyId(label: string): string {
 
 export function createCoinRegistry(coinAdapters: readonly CoinAdapter[]) {
   const coinFamilies: readonly CoinFamily[] = [...new Set(coinAdapters.map(({ group }) => group))]
-    .sort((left, right) => left === 'Dash' ? -1 : right === 'Dash' ? 1 : 0)
     .map((label) => ({
       id: familyId(label),
       label,

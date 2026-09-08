@@ -121,7 +121,7 @@ const lastVariantByCoin = new Map<string, string>();
 const settingsByAdapter = new Map<string, DerivationControlValues>();
 const includeChangeByCoin = new Map<string, boolean>();
 const includeCoinJoinByCoin = new Map<string, boolean>();
-/** Remembers which CoinJoin sub-branch was last shown, so re-activating the CoinJoin / DIP9 tab returns to it. */
+/** Remembers which CoinJoin sub-branch was last shown, so re-activating the Dash Mobile CoinJoin · DIP9 tab returns to it. */
 let activeCoinJoinBranch: 'coinjoin-external' | 'coinjoin-internal' = 'coinjoin-external';
 
 function updateWordCount(): void {
@@ -164,7 +164,7 @@ function activateResultBranch(branch: ResultBranch, render = true): void {
   if (render) renderCurrent();
 }
 
-/** Selecting the top-level CoinJoin / DIP9 tab restores whichever nested External/Internal branch was last shown. */
+/** Selecting the top-level Dash Mobile CoinJoin · DIP9 tab restores whichever nested External/Internal branch was last shown. */
 function activateCoinJoinTab(render = true): void {
   const remembered = branchResultStates.has(activeCoinJoinBranch)
     ? activeCoinJoinBranch

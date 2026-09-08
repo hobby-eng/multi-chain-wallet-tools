@@ -8,20 +8,20 @@ import {
 } from './build-profiles.mjs';
 
 describe('build profiles', () => {
-  it('keeps existing Multi-Chain artifact names stable', () => {
+  it('places Multi-Chain artifacts in their edition directory', () => {
     expect(profileArtifacts(BUILD_PROFILES['multi-chain'])).toEqual([
-      'activity-viewer/Wallet_Activity_Viewer.html',
-      'discovery-scanner/Wallet_Discovery_Scanner.html',
-      'key-derivation/Wallet_Key_Derivation_Tool.html',
+      'multi-chain-edition/activity-viewer/Wallet_Activity_Viewer.html',
+      'multi-chain-edition/discovery-scanner/Wallet_Discovery_Scanner.html',
+      'multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html',
     ]);
   });
 
   it('uses explicit Dash Community entrypoints and filenames', () => {
     const profile = BUILD_PROFILES['dash-community'];
     expect(profileArtifacts(profile)).toEqual([
-      'dash-community/activity-viewer/Dash_Community_Activity_Viewer.html',
-      'dash-community/discovery-scanner/Dash_Community_Discovery_Scanner.html',
-      'dash-community/key-derivation/Dash_Community_Key_Derivation_Tool.html',
+      'dash-community-edition/activity-viewer/Dash_Community_Activity_Viewer.html',
+      'dash-community-edition/discovery-scanner/Dash_Community_Discovery_Scanner.html',
+      'dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html',
     ]);
     expect(getToolBuild(profile, 'key-derivation')).toMatchObject({
       entryPoint: 'apps/key-derivation/src/ui/app-dash-community.ts',
@@ -37,6 +37,15 @@ describe('build profiles', () => {
     const multi = applyProfileTemplate(template, BUILD_PROFILES['multi-chain'], getToolBuild(BUILD_PROFILES['multi-chain'], 'discovery-scanner'));
     const dash = applyProfileTemplate(template, BUILD_PROFILES['dash-community'], getToolBuild(BUILD_PROFILES['dash-community'], 'discovery-scanner'));
     expect(multi).toContain('id="recovery-coin"');
+    expect(dash).toBe('<main></main>');
+  });
+
+  it('keeps the activity coin selector in Multi-Chain with Bitcoin selected', () => {
+    const template = '<main>__ACTIVITY_COIN_CONTROL__</main>';
+    const multi = applyProfileTemplate(template, BUILD_PROFILES['multi-chain'], getToolBuild(BUILD_PROFILES['multi-chain'], 'activity-viewer'));
+    const dash = applyProfileTemplate(template, BUILD_PROFILES['dash-community'], getToolBuild(BUILD_PROFILES['dash-community'], 'activity-viewer'));
+    expect(multi).toContain('id="viewer-coin"');
+    expect(multi).toContain('value="bitcoin" selected');
     expect(dash).toBe('<main></main>');
   });
 
