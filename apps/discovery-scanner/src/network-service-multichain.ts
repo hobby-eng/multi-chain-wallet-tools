@@ -18,7 +18,6 @@ import type { RecoveryNetwork } from './types.js';
 const BITCOIN_HTTP_CONCURRENCY = 3;
 const BITCOIN_HTTP_ATTEMPTS = 3;
 const BITCOIN_HTTP_TIMEOUT_MS = 15_000;
-const BITCOIN_CACHE_TTL_MS = 5 * 60_000;
 const BITCOIN_RETRY_DELAYS_MS = [350, 900] as const;
 const BITCOIN_ENDPOINTS: Record<RecoveryNetwork, ReadonlyArray<{ label: string; url: string }>> = {
   mainnet: [
@@ -264,8 +263,6 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
     throw new Error('Unsupported history coin.');
   }
 
-  readonly #bitcoinAddressCache = new Map<string, { expiresAt: number; value: UtxoAddressView }>();
-
   override async utxoAddresses(
     network: RecoveryNetwork,
     addresses: string[],
@@ -276,36 +273,24 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
       throw new Error(`Network Worker requires 1 to ${RECOVERY_UTXO_ADDRESS_BATCH} Bitcoin addresses per request.`);
     }
     addresses.forEach((address) => assertBitcoinAddress(address, network));
-    const now = Date.now();
-    const missing = addresses.filter((address) => {
-      const cached = this.#bitcoinAddressCache.get(`${network}:${address}`);
-      if (cached !== undefined && cached.expiresAt > now) return false;
-      if (cached !== undefined) this.#bitcoinAddressCache.delete(`${network}:${address}`);
-      return true;
-    });
-    if (missing.length > 0) {
-      let loaded: UtxoAddressView[];
-      let batchFailure: unknown;
+    signal?.throwIfAborted();
+    const unique = [...new Set(addresses)];
+    let loaded: UtxoAddressView[];
+    try {
+      loaded = await fetchBitcoinBatch(network, unique, signal);
+    } catch (cause) {
+      if (signal?.aborted === true) throw cause;
       try {
-        loaded = await fetchBitcoinBatch(network, missing, signal);
-      } catch (cause) {
-        if (signal?.aborted === true) throw cause;
-        batchFailure = cause;
-        try {
-          loaded = await mapConcurrent(missing, BITCOIN_HTTP_CONCURRENCY, (address) => fetchBitcoinAddress(network, address, signal));
-        } catch (fallbackCause) {
-          const batchMessage = bitcoinFailureSummary(batchFailure);
-          const fallbackMessage = bitcoinFailureSummary(fallbackCause);
-          throw new Error(`Bitcoin batch providers failed (${batchMessage}); Esplora fallback also failed (${fallbackMessage}).`);
-        }
+        loaded = await mapConcurrent(unique, BITCOIN_HTTP_CONCURRENCY, (address) => fetchBitcoinAddress(network, address, signal));
+      } catch (fallbackCause) {
+        throw new Error(`Bitcoin batch providers failed (${bitcoinFailureSummary(cause)}); Esplora fallback also failed (${bitcoinFailureSummary(fallbackCause)}).`);
       }
-      const expiresAt = Date.now() + BITCOIN_CACHE_TTL_MS;
-      for (const value of loaded) this.#bitcoinAddressCache.set(`${network}:${value.address}`, { expiresAt, value });
     }
-    return addresses.map((address) => {
-      const cached = this.#bitcoinAddressCache.get(`${network}:${address}`);
-      if (cached === undefined) throw new Error('Bitcoin address cache omitted a validated response.');
-      return cached.value;
+    const byAddress = new Map(loaded.map(value => [value.address, value]));
+    return addresses.map(address => {
+      const value = byAddress.get(address);
+      if (value === undefined) throw new Error('Bitcoin lookup omitted a validated response.');
+      return value;
     });
   }
 
