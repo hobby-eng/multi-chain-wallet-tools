@@ -106,7 +106,7 @@ function groupSections(result: RecoveryWalletResult, group: (typeof componentGro
 
 function groupSummary(sections: readonly RecoverySection[]): { label: string; tone: 'skipped' | 'failed' | 'partial' | 'complete' } {
   if (sections.length === 0 || sections.every(({ state }) => state === 'skipped')) return { label: 'skipped', tone: 'skipped' };
-  const funded = sections.reduce((sum, section) => sum + section.findings.filter(({ balanceAtomic }) => balanceAtomic > 0n).length, 0);
+  const funded = sections.reduce((sum, section) => sum + section.findings.filter(({ balanceAtomic }) => (balanceAtomic ?? 0n) > 0n).length, 0);
   const listed = sections.reduce((sum, section) => sum + section.findings.length, 0);
   const count = funded === listed ? `${funded} funded` : `${funded} funded · ${listed} listed`;
   if (sections.some(({ state }) => state === 'failed')) return { label: `${count} · warning`, tone: 'failed' };

@@ -31,9 +31,10 @@ export const getDashHistory: NonNullable<RecoveryCoinAdapter['getHistory']> = as
   h.scope = platform ? 'Indexed Platform credit history' : 'Indexed Core address history';
   h.note = 'First/last seen are activity dates, not necessarily receipt/spend dates. The provider does not expose separate first/last receipt and spend dates.';
   if (section === 'shielded') return { ...h, status: 'unsupported', source: 'Orchard pool', scope: 'Recovered notes',
-    note: 'Per-note calendar dates and lifetime address totals are not exposed by this pool API. See note values, spend state and the section lifetime totals.' };
+    note: 'Per-note calendar dates and lifetime address totals are not exposed by this pool API. See note values, spend state and the section totals, labelled Observed when the scan is incomplete.' };
   const gateway = historyGateway(context);
   if (platform) {
+    if (finding.balanceAtomic === null) throw new Error('Platform balance unavailable; history cannot be reconciled.');
     const value = await gateway.runPublic({ network, address: finding.title }, `platform.${section}-history`,
       () => section === 'identity'
         ? context.networkApi.platformIdentityHistory(network, finding.title, context.signal)

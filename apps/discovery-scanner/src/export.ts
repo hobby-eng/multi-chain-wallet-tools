@@ -36,6 +36,7 @@ function exportableResults(results: RecoveryWalletResult[]): RecoveryExportResul
       title: section.title,
       description: section.description,
       state: section.state,
+      ...(section.balanceAvailable === undefined ? {} : { balanceAvailable: section.balanceAvailable }),
       scanned: section.scanned.toString(),
       source: section.source,
       proof: section.proof,
@@ -45,7 +46,7 @@ function exportableResults(results: RecoveryWalletResult[]): RecoveryExportResul
         id: finding.id,
         title: finding.title,
         subtitle: finding.subtitle,
-        balanceAtomic: finding.balanceAtomic.toString(),
+        balanceAtomic: finding.balanceAtomic?.toString() ?? null,
         balanceLabel: finding.balanceLabel,
         ...(finding.balanceUnit === undefined ? {} : { balanceUnit: {
           asset: finding.balanceUnit.asset, atomicUnit: finding.balanceUnit.atomicUnit, decimals: finding.balanceUnit.decimals,
@@ -87,6 +88,9 @@ const CSV_SECTION_METRIC_COLUMNS = [
   ['Lifetime received', 'section_lifetime_received_dash', true, ['shielded']],
   ['Lifetime sent', 'section_lifetime_sent_dash', true, ['shielded']],
   ['Lifetime self/change', 'section_lifetime_self_change_dash', true, ['shielded']],
+  ['Observed received', 'section_observed_received_dash', true, ['shielded']],
+  ['Observed sent', 'section_observed_sent_dash', true, ['shielded']],
+  ['Observed self/change', 'section_observed_self_change_dash', true, ['shielded']],
   ['Incoming notes', 'section_incoming_notes', false, ['shielded']],
   ['Outgoing notes', 'section_outgoing_notes', false, ['shielded']],
   ['Self/change notes', 'section_self_change_notes', false, ['shielded']],
@@ -180,7 +184,7 @@ function toCsv(results: RecoveryWalletResult[]): string {
           section.state,
           '',
           section.description,
-          '0',
+          '',
           '', '', '',
           '',
           ...HISTORY_COLUMNS.map(() => ''),
@@ -188,7 +192,7 @@ function toCsv(results: RecoveryWalletResult[]): string {
           ...fieldColumns.map(() => ''),
           ...sectionMetricColumns.map(([label, , numeric]) => sectionMetricValue(section.metrics, label, numeric)),
           section.warning ?? '',
-          result.warnings.join(' | '),
+          [...result.warnings, ...(section.warning ? [section.warning] : [])].join(' | '),
           section.proof,
         ].map(csvCell).join(','));
         continue;
@@ -206,7 +210,7 @@ function toCsv(results: RecoveryWalletResult[]): string {
           section.state,
           finding.title,
           finding.subtitle,
-          finding.balanceAtomic.toString(),
+          finding.balanceAtomic?.toString() ?? '',
           finding.balanceUnit?.asset ?? '', finding.balanceUnit?.atomicUnit ?? '', String(finding.balanceUnit?.decimals ?? ''),
           numericDash(finding.balanceLabel),
           ...HISTORY_COLUMNS.map(([key]) => String(finding.history?.[key] ?? '')),
@@ -214,7 +218,7 @@ function toCsv(results: RecoveryWalletResult[]): string {
           ...fieldColumns.map(([label]) => label === 'First seen' && finding.history ? finding.history.firstSeen ?? '' : label === 'Last seen' && finding.history ? finding.history.lastSeen ?? '' : csvFieldValue(finding.fields, label)),
           ...sectionMetricColumns.map(([label, , numeric]) => sectionMetricValue(section.metrics, label, numeric)),
           metadata,
-          result.warnings.join(' | '),
+          [...result.warnings, ...(section.warning ? [section.warning] : [])].join(' | '),
           section.proof,
         ].map(csvCell).join(','));
       }
