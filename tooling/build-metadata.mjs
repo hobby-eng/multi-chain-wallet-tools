@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { readReleaseMetadata } from './project-metadata.mjs';
 
 const ignoredDirectoryNames = new Set(['.git', '.pnpm-store', 'node_modules', 'target']);
 
@@ -17,7 +18,7 @@ function collectFiles(root, relativePath, output) {
 }
 
 export function createBuildInfo(root, checksumFile, profile) {
-  const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
+  const release = readReleaseMetadata(root);
   const files = [];
   for (const path of [
     '.dockerignore',
@@ -42,8 +43,8 @@ export function createBuildInfo(root, checksumFile, profile) {
     hash.update('\0');
   }
   return {
-    version: String(manifest.version),
-    releaseDate: String(manifest.releaseDate),
+    version: release.version,
+    releaseDate: release.releaseDate,
     fingerprint: hash.digest('hex'),
     checksumFile,
     profile: profile.id,

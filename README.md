@@ -43,7 +43,7 @@ Public lookups reveal the queried identifier and source IP to the selected provi
 
 ### Wallet Discovery Scanner
 
-In the universal Multi-Chain Edition, this connected recovery scanner supports Bitcoin, Ethereum, and Dash. Dash Community Edition scans only Dash. Both editions accept one BIP39 seed phrase, a batch of phrases, one public key, or a batch of public keys.
+In the universal Multi-Chain Edition, this connected discovery scanner supports Bitcoin, Ethereum, and Dash. Dash Community Edition scans only Dash. Both editions accept one BIP39 seed phrase, a batch of phrases, one public key, or a batch of public keys.
 
 - Keeps seed-phrase and public-key searches in separate tabs. Public-key mode includes a coin selector and refuses to guess when an extended-key format is shared by several coins.
 - Scans Bitcoin Legacy, Nested SegWit, Native SegWit, and Taproot receive/change accounts through a 20-address post-use gap.
@@ -172,7 +172,7 @@ Contributor references: [EXTENDING.md](EXTENDING.md), [RELEASING.md](RELEASING.m
 
 ## Project status and data sources
 
-The connected tools currently use DashScan for Dash Core history, proof-verified Dash Platform DAPI for authoritative Platform state, Platform Explorer for compatible historical metadata, and the pinned official Dash Orchard fork for shielded derivation/scanning. Provider failures are reported explicitly and never converted into a false zero balance.
+For Bitcoin, the connected Multi-Chain tools use Blockchain.com and BlockCypher for bounded balance batches with Blockstream.info/Mempool.space fallbacks and Esplora-compatible confirmed history. Ethereum uses PublicNode for current JSON-RPC state and Blockscout for confirmed native-ETH and internal-transfer history. Dash uses DashScan for Core history, proof-verified Dash Platform DAPI for authoritative Platform state, Platform Explorer for compatible historical metadata, and the pinned official Dash Orchard fork for shielded derivation/scanning. Provider failures are reported explicitly and never converted into a false zero balance.
 
 Network providers and protocol dependencies may evolve. Their exact versions, licenses and upstream projects are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [ATTRIBUTION.md](ATTRIBUTION.md).
 
