@@ -33,6 +33,7 @@ const scannerView = read('apps/discovery-scanner/src/view.ts');
 const scannerRegistry = read('apps/discovery-scanner/src/coins/index.ts');
 const derivationRegistry = read('packages/coin-protocols/src/coins/registry.ts');
 const buildProfiles = read('tooling/build-profiles.mjs');
+const reproducibleBuildWrapper = read('tooling/build-reproducible.sh');
 
 requireText(rootReadme, formatEnglishList(PRODUCT_FACTS.multiChainCoins), 'README Multi-Chain coin list');
 for (const capability of PRODUCT_FACTS.dashCommunityCapabilities) {
@@ -50,6 +51,9 @@ requireText(dashReport, `batches of ${coreBatch}`, 'Dash Core batch size');
 requireText(dashReport, `batches of ${platformBatch}`, 'Dash Platform batch size');
 requireText(dashReport, `At most ${identityConcurrency} Identity proof requests`, 'Identity concurrency');
 requireText(scannerView, 'about ${identities.toLocaleString()} identity proof calls per seed phrase', 'Identity request estimate');
+
+const multiChainReleaseManifest = `${BUILD_PROFILES['multi-chain'].releaseDirectory.replace(/^dist\//u, '')}/SHA256SUMS`;
+requireText(reproducibleBuildWrapper, `expected_path=\"${multiChainReleaseManifest}\"`, 'Canonical build wrapper release-manifest path');
 
 for (const profile of Object.values(BUILD_PROFILES)) {
   for (const toolId of ['key-derivation', 'activity-viewer', 'discovery-scanner']) {
