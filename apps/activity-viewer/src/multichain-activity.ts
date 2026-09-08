@@ -79,7 +79,7 @@ function resultCard(document: Document, result: AddressResult): HTMLElement {
     ['First seen', formatDate(result.history.firstSeen)],
     ['Last seen', formatDate(result.history.lastSeen)],
     ...(result.nonce === null ? [] : [['Account nonce', result.nonce.toLocaleString()] as const]),
-    ...(result.blockHeight === null ? [] : [['Queried block', result.blockHeight.toLocaleString()] as const]),
+    ...(result.blockHeight === null ? [] : [['Account query block height', result.blockHeight.toLocaleString()] as const]),
     ['History source', result.history.source],
   ];
   for (const [name, value] of rows) {
@@ -247,7 +247,7 @@ export function installMultiChainActivity(
         activity.replaceChildren(...loaded.map((item) => resultCard(document, item)));
         diagnosticSource.textContent = [...new Set(loaded.map(({ history }) => history.source))].join(' + ');
         diagnosticRequests.textContent = 'Bounded provider requests';
-        diagnosticProof.textContent = loaded[0]?.blockHeight === null ? 'Confirmed history' : `Block ${loaded[0]!.blockHeight!.toLocaleString()}`;
+        diagnosticProof.textContent = loaded[0]?.blockHeight === null ? 'Confirmed history' : `Account query heights ${loaded.map(item => item.blockHeight!.toString()).filter((height, index, all) => all.indexOf(height) === index).join(', ')}`;
         status.textContent = `${metadata.label} activity loaded for ${loaded.length.toLocaleString()} address${loaded.length === 1 ? '' : 'es'}.`;
         results.hidden = false;
       } catch (cause) {
