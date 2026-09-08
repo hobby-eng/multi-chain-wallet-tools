@@ -1,6 +1,7 @@
 import type { DerivationResult } from '@ckd/core/types.js';
 import { deriveDashCoinJoin } from './dash/coinjoin.js';
 import { deriveDashCore } from './dash/core.js';
+import { deriveDashLegacyMobile } from './dash/legacy-mobile.js';
 import { deriveDashIdentity } from './dash/identity.js';
 import { deriveDashPlatform } from './dash/platform.js';
 import { getCoinAdapter, type CoinAdapter, type CoinDerivationInput } from './dash-registry.js';
@@ -16,6 +17,7 @@ export function getRuntimeCoinAdapter(id: string): RuntimeCoinAdapter {
   if (id === 'dash-core-coinjoin') return { ...getCoinAdapter('dash-core'), id, derive: deriveDashCoinJoin };
   const metadata = getCoinAdapter(id);
   if (id === 'dash-core') return { ...metadata, derive: deriveDashCore };
+  if (id === 'dash-legacy-mobile') return { ...metadata, derive: deriveDashLegacyMobile };
   if (id === 'dash-platform') return { ...metadata, derive: deriveDashPlatform };
   if (id === 'dash-identity') return { ...metadata, derive: deriveDashIdentity };
   if (id === 'dash-shielded') {
