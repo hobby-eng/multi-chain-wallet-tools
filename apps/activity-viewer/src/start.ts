@@ -34,9 +34,9 @@ import {
   looksLikeAutoOrchardInput,
 } from './detection.js';
 import { createViewerExport, createViewerWorkbookExport } from './export.js';
-import { createActivityViewerView } from './view.js';
+import { createActivityViewerView, type ActivityViewerView } from './view.js';
 
-export function startActivityViewer(): void {
+export function startActivityViewer(): ActivityViewerView {
   const view = createActivityViewerView(document, BUILD_INFO);
   const controller = createActivityViewerController(view, {
     ShieldedActivityLedger,
@@ -68,4 +68,5 @@ export function startActivityViewer(): void {
   });
 
   controller.start();
+  return view;
 }
