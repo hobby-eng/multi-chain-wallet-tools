@@ -31,6 +31,11 @@ import { SecretEgressGuard } from '../src/secret-guard.js';
 import type { RecoveryScanConfig, RecoveryWalletResult } from '../src/types.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@ckd/dash-wasm/dash_shielded_wasm_bg.wasm', async () => {
+  const { readFileSync } = await import('node:fs');
+  return { default: readFileSync(new URL('../../../packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm', import.meta.url)) };
+});
+
 const MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 afterEach(() => {
