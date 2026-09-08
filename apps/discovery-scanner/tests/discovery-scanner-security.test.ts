@@ -467,7 +467,7 @@ describe('streamed Core recovery scan', () => {
       expect(requestedAddresses).toHaveLength(105);
       expect(requestedAddresses).not.toContain(MNEMONIC);
       expect(requestedAddresses.some((value) => value.length > 0 && value !== MNEMONIC)).toBe(true);
-      expect(coinjoin.findings[0]?.fields).toContainEqual({ label: 'Scan family', value: 'CoinJoin / DIP9 mobile compatibility' });
+      expect(coinjoin.findings[0]?.fields).toContainEqual({ label: 'Scan family', value: 'Dash Mobile CoinJoin · DIP9' });
     } finally {
       seed.fill(0);
     }

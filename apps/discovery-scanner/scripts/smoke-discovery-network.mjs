@@ -36,6 +36,7 @@ try {
     platform: 'node',
     target: 'node24',
     loader: { '.wasm': 'binary' },
+    define: { __DASH_COMMUNITY__: 'false' },
     logLevel: 'silent',
   });
   const module = await import(`${pathToFileURL(output).href}?run=${Date.now()}`);

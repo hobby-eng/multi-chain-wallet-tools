@@ -13,8 +13,8 @@ export function scanDashCoinJoin(
 ): Promise<RecoverySection> {
   return scanDashTransparentFamily(inputId, seed, config, gateway, signal, {
     id: 'coinjoin',
-    title: 'Dash CoinJoin · DIP9 mobile compatibility',
-    familyLabel: 'CoinJoin / DIP9 mobile compatibility',
+    title: 'Dash Mobile CoinJoin · DIP9',
+    familyLabel: 'Dash Mobile CoinJoin · DIP9',
     description: 'Scans the released mobile/DashSync DIP9 CoinJoin compatibility chains. Dash Core desktop CoinJoin outputs remain covered by the always-on BIP44 receive/change scan.',
     proofLabel: 'DIP9 mobile compatibility P2PKH scan',
     branches: [

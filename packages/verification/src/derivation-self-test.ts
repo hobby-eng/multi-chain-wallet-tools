@@ -114,7 +114,7 @@ export async function runDerivationSelfTest(): Promise<CryptoSelfTestReport> {
   // chain 0 only; no DIP9 change chain in current Dash Core).
   const coinJoinVectors = [
     {
-      name: 'Dash CoinJoin mainnet / DIP9',
+      name: 'Dash Mobile CoinJoin · DIP9 · mainnet',
       network: 'mainnet',
       path: "m/9'/5'/4'/0'/0/0",
       publicKey: '02fb4b00c2a6cf2cf7e1f80b3ca6be04e5c99ce53ae1ebb31a7e2fde1dd1e82b01',
@@ -122,7 +122,7 @@ export async function runDerivationSelfTest(): Promise<CryptoSelfTestReport> {
       address: 'Xsi3dfT53GpKNG7T8qe1t1ez7rxM6xiQis',
     },
     {
-      name: 'Dash CoinJoin testnet / DIP9',
+      name: 'Dash Mobile CoinJoin · DIP9 · testnet',
       network: 'testnet',
       path: "m/9'/1'/4'/0'/0/0",
       publicKey: '0210abacaec7e80e1528390c6ad997fd245ab039a969550ab1a5218bb9d39fad73',

@@ -4,8 +4,8 @@
 
 Three portable wallet utilities built as standalone HTML files. One canonical source tree now produces two compile-time editions:
 
-- **Multi-Chain Edition** is the extensible multi-network release and currently includes Bitcoin, Ethereum, and Dash (Core, Platform, Identity, and Orchard).
-- **Dash Community Edition** is the focused Dash-only release: it compiles only Dash Core, Platform, Identity, and Orchard registrations into its application graph and applies dedicated Dash Community branding.
+- **Multi-Chain Edition** is the universal, extensible edition. It currently supports Bitcoin, Ethereum, and Dash, including Dash Core, Dash Platform, Dash Identity, and Dash Orchard.
+- **Dash Community Edition** is the Dash-only edition. Its application graph contains only Dash Core, Dash Platform, Dash Identity, and Dash Orchard, and its visual design follows the official Dash BrandBook and Brand Guidelines.
 
 Download a file, verify its SHA-256 checksum, and open it in a current browser—no installation or server required. Shared controllers, exports, Worker infrastructure, security boundaries, and tests remain common source code across both editions.
 
@@ -19,8 +19,7 @@ An offline tool for deriving wallet addresses and keys from a BIP39 seed phrase.
 
 - Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; and Dash Core, Platform payment, Identity, and Orchard Shielded derivation.
 - Shows standards-based derivation paths and exposes protocol-specific account, branch/key-class, and index controls.
-- Derives standard receive/change branches for Bitcoin and Dash Core, three common EOA path profiles for Ethereum recovery, Platform payment receive keys, four-key Identity candidates, and Orchard addresses and viewing material.
-- Scanner coin adapters can expose validated custom-path templates with coin-appropriate address formats; the shared UI automatically supports the capability for current and future adapters.
+- Derives standard receive/change branches for Bitcoin and Dash Core, three common Ethereum EOA path profiles, Dash Platform payment receive keys, Dash Identity four-key candidates, and Dash Orchard addresses and viewing material.
 - Displays basic results or detailed protocol-specific data, with selectable clipboard and file exports.
 - Generates offline, on-demand QR codes only for derived public payment addresses; key material and arbitrary metadata never receive QR actions.
 - Runs derivation in a disposable Web Worker and has runtime network access blocked by CSP and build verification.
@@ -29,34 +28,33 @@ Use this application on a trusted offline computer whenever real seed phrases or
 
 ### Wallet Activity Viewer
 
-A connected, read-only viewer for a Dash Core address, Platform payment address, Platform Identity, or Orchard viewing key.
+In the universal Multi-Chain Edition, this connected read-only viewer supports Bitcoin and Ethereum public addresses plus Dash Core, Dash Platform, Dash Identity, and Dash Orchard records. Dash Community Edition provides the same Dash capabilities without other coins.
 
-- Uses one Auto-detect input by default, with Single/Batch as the primary choice and an Advanced type override when required.
-- Accepts mixed Core, Platform, Identity, and Orchard records in one batch while keeping viewing keys local.
-- Looks up Dash Core address balances, history and transaction details.
-- Looks up Dash Platform payment-address balances and activity.
-- Resolves a Platform Identity by Base58 ID, explicit hexadecimal ID, registration transaction, the HASH160 fingerprint of a registered public key, compressed ECDSA/BLS public key, or DPNS name with or without `.dash`. It proof-verifies current state, nonce, registered key roles and DPNS names, then combines indexed transactions and transfers into one deduplicated activity ledger.
-- Scans the Dash Orchard pool with FVK, IVK or OVK viewing capability without requiring a spending key.
-- Supports bounded batch queries for every resource type. Core addresses, Platform addresses, and Identity lookups use configurable concurrency, while one proof-verified Orchard page stream is reused locally across all supplied viewing keys.
-- Rejects and erases mnemonic, WIF, extended-private-key, raw-private-key and other private-material patterns before any public lookup request.
-- Exports loaded activity as compact relational CSV, structured multi-sheet XLSX, or object-oriented JSON without repeating complete account summaries on every record.
+- In Multi-Chain Edition, the coin selector defaults to Bitcoin and supports Bitcoin, Ethereum, and Dash. Dash Community Edition contains only the Dash workflow.
+- Loads current balance, confirmed lifetime totals, transaction counts, and first/last activity for Bitcoin and Ethereum public addresses in Single or Batch mode.
+- For Dash, Auto mode recognizes Core addresses, Platform payment addresses, Platform Identities, and Orchard viewing keys. Advanced mode allows an explicit Dash record type.
+- Accepts mixed Dash Core, Dash Platform, Dash Identity, and Dash Orchard records in one batch while keeping Orchard viewing keys local.
+- Resolves a Dash Platform Identity from its ID, registration transaction, registered public key or HASH160, or DPNS name, then presents proof-verified state with indexed activity.
+- Scans the Dash Orchard pool with FVK, IVK, or OVK viewing capability without requiring a spending key.
+- Rejects and erases mnemonic, WIF, extended-private-key, raw-private-key, and other private-material patterns before any public lookup request.
+- Exports Dash activity as CSV, XLSX, or JSON. Bitcoin and Ethereum results remain concise address-history summaries in the current release.
 
-Public address and Identity lookups reveal the queried public identifier and source IP to the provider. Orchard viewing keys cannot spend funds, but they reveal privacy-sensitive wallet activity.
+Public lookups reveal the queried identifier and source IP to the selected provider. Orchard viewing keys cannot spend funds, but they reveal privacy-sensitive wallet activity.
 
 ### Wallet Discovery Scanner
 
-A connected recovery scanner that searches for Dash resources belonging to one or several BIP39 seed phrases.
+In the universal Multi-Chain Edition, this connected recovery scanner supports Bitcoin, Ethereum, and Dash. Dash Community Edition scans only Dash. Both editions accept one BIP39 seed phrase, a batch of phrases, one public key, or a batch of public keys.
 
-- Lets you select Dash Core BIP44 scanning; when selected, it covers receive/change branches and continues 20 addresses past the last used address on each branch.
-- Optionally adds historical/current Dash mobile, CoinJoin/DIP9, identity-funding and provider-holdings P2PKH families; Platform payment addresses, Platform identities and Orchard scanning remain separately selectable.
-- Supports large ranges through bounded batches with progress and cancellation.
-- Produces detailed Dash Core L1 recovery records with exact path and branch, current balance, transaction count, lifetime received/sent, first/last activity, public-key hash, and linked Identity-funding transactions when applicable.
-- Clearly separates Core L1, Platform addresses, Platform identities, and Orchard into focused result tabs while preserving the complete report in exports.
-- Shows funded resources by default; historical zero-balance activity is optional.
-- Exports component-aware CSV and JSON reports containing only relevant fields and no seed phrase or private key.
-- Never creates, signs or broadcasts transactions. Recover found funds with a standard Dash wallet.
+- Keeps seed-phrase and public-key searches in separate tabs. Public-key mode includes a coin selector and refuses to guess when an extended-key format is shared by several coins.
+- Scans Bitcoin Legacy, Nested SegWit, Native SegWit, and Taproot receive/change accounts through a 20-address post-use gap.
+- Scans three common Ethereum EOA layouts: Standard BIP44/MetaMask/Trezor, Ledger Live, and Legacy Ledger/MEW.
+- Lets Dash users independently enable Core BIP44, legacy mobile Core, Dash Mobile CoinJoin · DIP9, identity funding, provider holdings, Dash Platform payment addresses, Dash Platform identities, and Dash Orchard.
+- Loads adapter-provided history for Bitcoin, Ethereum, and Dash, including current balance, confirmed lifetime totals, transaction counts, and first/last activity when the provider offers complete data.
+- Supports bounded batches with progress and cancellation, and can include previously used addresses whose current balance is zero.
+- Exports public recovery results as CSV or JSON without seed phrases, private keys, extended public keys, or Orchard viewing keys.
+- Never creates, signs, or broadcasts transactions. Verify every finding in a standard wallet before recovery.
 
-The scanner isolates mnemonic-based derivation inside a sandboxed, network-denied Secret Vault. Only validated public addresses, public-key hashes and Orchard pool ranges cross the typed boundary to the separate network worker.
+Seed derivation runs inside a sandboxed, network-denied Secret Vault. Only validated public lookup material crosses the typed boundary to the network worker. A public key can cover only the account, branch, or address formats reachable below that key; use the original seed phrase and BIP39 passphrase for the broadest supported search.
 
 ## Download and verify
 
@@ -89,7 +87,7 @@ Official release checksums refer to artifacts produced by the repository's pinne
 | Ethereum EOA | `m/44'/60'/0'/0/i` | EIP-55 address |
 | Dash Core | `m/44'/5'/0'/0/i` | P2PKH |
 | Dash mobile legacy Core | `m/0'/0/i` | P2PKH |
-| Dash mobile CoinJoin/DIP9 | `m/9'/5'/4'/0'/0/i` | P2PKH |
+| Dash Mobile CoinJoin · DIP9 | `m/9'/5'/4'/0'/0/i` | P2PKH |
 | Dash identity funding | `m/9'/5'/5'/1'/i` | P2PKH |
 | Dash provider holdings | `m/9'/5'/3'/0'/i` | P2PKH |
 | Dash Platform | `m/9'/5'/17'/0'/0'/i` | DIP17/DIP18 address |
@@ -150,14 +148,14 @@ pnpm verify
 Generated files are written to:
 
 ```text
-dist/key-derivation/Wallet_Key_Derivation_Tool.html
-dist/activity-viewer/Wallet_Activity_Viewer.html
-dist/discovery-scanner/Wallet_Discovery_Scanner.html
-dist/SHA256SUMS
-dist/dash-community/key-derivation/Dash_Community_Key_Derivation_Tool.html
-dist/dash-community/activity-viewer/Dash_Community_Activity_Viewer.html
-dist/dash-community/discovery-scanner/Dash_Community_Discovery_Scanner.html
-dist/dash-community/SHA256SUMS
+dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html
+dist/multi-chain-edition/activity-viewer/Wallet_Activity_Viewer.html
+dist/multi-chain-edition/discovery-scanner/Wallet_Discovery_Scanner.html
+dist/multi-chain-edition/SHA256SUMS
+dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html
+dist/dash-community-edition/activity-viewer/Dash_Community_Activity_Viewer.html
+dist/dash-community-edition/discovery-scanner/Dash_Community_Discovery_Scanner.html
+dist/dash-community-edition/SHA256SUMS
 ```
 
 Use `pnpm build:html:multi-chain` or `pnpm build:html:dash-community` for one profile. `pnpm build:html` builds both. `pnpm release:bundle` stages the unchanged Multi-Chain release set; `pnpm release:bundle:dash-community` stages the separately named future Dash distribution bundle without publishing it.
