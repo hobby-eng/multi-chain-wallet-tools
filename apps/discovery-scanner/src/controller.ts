@@ -71,7 +71,7 @@ function scanConfig(snapshot: RecoveryInputSnapshot): RecoveryScanConfig {
     coinJoinExternalCount: parseInteger(snapshot.coinJoinExternalCount, 'Dash Mobile CoinJoin · DIP9 external address count', 0),
     coinJoinInternalCount: parseInteger(snapshot.coinJoinInternalCount, 'Dash Mobile CoinJoin · DIP9 internal address count', 0),
     scanIdentityFunding: snapshot.scanIdentityFunding,
-    identityFundingCount: parseInteger(snapshot.identityFundingCount, 'Identity funding address count', 0),
+    identityFundingCount: parseInteger(snapshot.identityFundingCount, 'Registration funding keys to compare', 0),
     identityTopUpIdentityCount: parseInteger(snapshot.identityTopUpIdentityCount, 'Identity-bound top-up identity count', 0),
     identityTopUpCount: parseInteger(snapshot.identityTopUpCount, 'Identity-bound top-ups per identity', 0),
     scanProviderCollateral: snapshot.scanProviderCollateral,

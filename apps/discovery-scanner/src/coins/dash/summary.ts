@@ -14,7 +14,6 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
   const core = positiveBalance(sections.find(({ id }) => id === 'core'));
   const legacyCore = positiveBalance(sections.find(({ id }) => id === 'legacyCore'));
   const coinjoin = positiveBalance(sections.find(({ id }) => id === 'coinjoin'));
-  const identityFunding = positiveBalance(sections.find(({ id }) => id === 'identityFunding'));
   const providerCollateral = positiveBalance(sections.find(({ id }) => id === 'providerCollateral'));
   const platform = positiveBalance(sections.find(({ id }) => id === 'platform'));
   const identity = positiveBalance(sections.find(({ id }) => id === 'identity'));
@@ -26,7 +25,7 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
   // rs-unified-sdk-jni/src/funding.rs documents 1 DASH = 1e11 credits, while
   // rs-platform-wallet/.../memo_roundtrip_tests.rs passes `value_credits`
   // directly to `NoteValue::from_raw` (the production builder does likewise).
-  const coreChain = core + legacyCore + coinjoin + identityFunding + providerCollateral;
+  const coreChain = core + legacyCore + coinjoin + providerCollateral;
   const totalCredits = coreChain * CREDITS_PER_DUFF + platform + identity + shielded;
   const fundedResources = sections.reduce(
     (sum, section) => sum + section.findings.filter(({ balanceAtomic }) => balanceAtomic > 0n).length,
@@ -37,7 +36,6 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
     { label: 'Funded resources', value: String(fundedResources), tone: fundedResources > 0 ? 'positive' : 'neutral' },
     { label: 'Core L1', value: formatDashFromDuffs(coreChain), tone: coreChain > 0n ? 'positive' : 'neutral' },
     { label: 'Dash Mobile CoinJoin · DIP9', value: formatDashFromDuffs(coinjoin), tone: coinjoin > 0n ? 'positive' : 'neutral' },
-    { label: 'Identity funding', value: formatDashFromDuffs(identityFunding), tone: identityFunding > 0n ? 'positive' : 'neutral' },
     { label: 'Provider holdings', value: formatDashFromDuffs(providerCollateral), tone: providerCollateral > 0n ? 'positive' : 'neutral' },
     { label: 'Platform addresses', value: formatDashFromCredits(platform), tone: platform > 0n ? 'positive' : 'neutral' },
     { label: 'Identity credits', value: formatDashFromCredits(identity), tone: identity > 0n ? 'positive' : 'neutral' },

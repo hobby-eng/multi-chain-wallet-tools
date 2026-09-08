@@ -154,7 +154,7 @@ it('validates history RPC address, network and coin before network access', asyn
 it('exports explicit Dash L1/L2 units even when history cannot be loaded', async () => {
   const r = report(); r.coinId = 'dash'; r.coinLabel = 'Dash';
   const base = r.sections[0]!;
-  r.sections = (['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral', 'platform', 'identity', 'shielded'] as const)
+  r.sections = (['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity', 'shielded'] as const)
     .map(id => ({ ...base, id, findings: [{ ...finding(), id, balanceAtomic: 1n }] }));
   const dash = { ...adapter(async () => { throw new Error('offline'); }), amountUnit: dashAmountUnit };
   await enrichRecoveryHistory(dash, r, context());
