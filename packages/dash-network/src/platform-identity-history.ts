@@ -1,3 +1,4 @@
+import { IdentityPageIntegrity } from './identity-pagination.js';
 import { createProviderHttp, ProviderHttpError, type FetchLike } from './provider-http.js';
 import type { ViewerNetwork } from './types.js';
 import {
@@ -131,6 +132,7 @@ export interface PlatformIdentityHistorySnapshot {
   withdrawals: IdentityWithdrawalHistory[];
   tokens: IdentityTokenHistory[];
   historyLimit: number;
+  historyWarnings?: string[];
   endpoint: string;
   indexStatus: 'synced';
   indexedHeight: number;
@@ -469,11 +471,13 @@ async function paginatedItems(
   context: string,
   signal: AbortSignal | undefined,
   onRequest: () => void,
+  kind: 'transactions' | 'transfers' | 'resources',
+  expected: number | null,
+  warnings: string[],
 ): Promise<Record<string, unknown>[]> {
   const items: Record<string, unknown>[] = [];
   const limit = Math.min(EXPLORER_PAGE_SIZE, historyLimit);
-  let total: number | null = null;
-  const seenPages = new Set<string>();
+  const integrity = new IdentityPageIntegrity(context, kind, expected);
   for (let pageNumber = 1; items.length < historyLimit; pageNumber += 1) {
     if (pageNumber > EXPLORER_MAX_PAGES) throw new Error(`Platform Explorer ${context} exceeded its pagination safety ceiling.`);
     onRequest();
@@ -481,22 +485,15 @@ async function paginatedItems(
       await fetchJson(fetcher, `${endpoint}${path}?page=${pageNumber}&limit=${limit}&order=desc`, signal),
       context,
     );
-    if (response.total !== null) {
-      if (total !== null && total !== response.total) throw new Error(`Platform Explorer ${context} changed during pagination.`);
-      total = response.total;
-    }
-    const fingerprint = JSON.stringify(response.items);
-    if (response.items.length > 0 && seenPages.has(fingerprint)) throw new Error(`Platform Explorer ${context} repeated a page.`);
-    seenPages.add(fingerprint);
+    integrity.accept(response.items, response.total, limit, historyLimit);
     items.push(...response.items.slice(0, historyLimit - items.length));
-    if (response.items.length < limit && total !== null && items.length < Math.min(total, historyLimit)) {
-      throw new Error(`Platform Explorer ${context} ended before its reported count.`);
-    }
     if (
       response.items.length < limit
-      || (response.total !== null && items.length >= response.total)
+      || (integrity.total !== null && items.length >= integrity.total)
     ) break;
   }
+  if (integrity.total === null) warnings.push(`${context}: provider did not report a total count; collection completeness is unverified.`);
+  else if (items.length < integrity.total) warnings.push(`${context}: showing ${items.length} of ${integrity.total} records (display limit).`);
   return items;
 }
 
@@ -544,6 +541,10 @@ export async function queryPlatformIdentityHistory(
   );
   if (info.identifier !== identifier) throw new Error('Platform Explorer identity info did not match the requested Identity.');
   const totalTransactions = requiredInteger(info.totalTxs, 'identity transaction count');
+  const totalTransfers = requiredInteger(info.totalTransfers, 'identity transfer count');
+  const totalDocuments = requiredInteger(info.totalDocuments, 'identity document count');
+  const totalDataContracts = requiredInteger(info.totalDataContracts, 'identity data-contract count');
+  const historyWarnings: string[] = [];
 
   const paths = {
     transactions: `/identity/${encodeURIComponent(identifier)}/transactions`,
@@ -553,11 +554,11 @@ export async function queryPlatformIdentityHistory(
     tokens: `/identity/${encodeURIComponent(identifier)}/tokens`,
   };
   const [transactions, transfers, documents, dataContracts, tokens, withdrawalsValue] = await Promise.all([
-    paginatedItems(fetcher, endpoint, paths.transactions, historyLimit, 'identity transactions', signal, request),
-    paginatedItems(fetcher, endpoint, paths.transfers, historyLimit, 'identity transfers', signal, request),
-    paginatedItems(fetcher, endpoint, paths.documents, historyLimit, 'identity documents', signal, request),
-    paginatedItems(fetcher, endpoint, paths.dataContracts, historyLimit, 'identity data contracts', signal, request),
-    paginatedItems(fetcher, endpoint, paths.tokens, historyLimit, 'identity tokens', signal, request),
+    paginatedItems(fetcher, endpoint, paths.transactions, historyLimit, 'identity transactions', signal, request, 'transactions', totalTransactions, historyWarnings),
+    paginatedItems(fetcher, endpoint, paths.transfers, historyLimit, 'identity transfers', signal, request, 'transfers', totalTransfers, historyWarnings),
+    paginatedItems(fetcher, endpoint, paths.documents, historyLimit, 'identity documents', signal, request, 'resources', totalDocuments, historyWarnings),
+    paginatedItems(fetcher, endpoint, paths.dataContracts, historyLimit, 'identity data contracts', signal, request, 'resources', totalDataContracts, historyWarnings),
+    paginatedItems(fetcher, endpoint, paths.tokens, historyLimit, 'identity tokens', signal, request, 'resources', null, historyWarnings),
     (async (): Promise<unknown> => {
       request();
       return fetchJson(
@@ -631,9 +632,9 @@ export async function queryPlatformIdentityHistory(
     systemIdentity: info.isSystem === true,
     aliases,
     totalTransactions,
-    totalTransfers: requiredInteger(info.totalTransfers, 'identity transfer count'),
-    totalDocuments: requiredInteger(info.totalDocuments, 'identity document count'),
-    totalDataContracts: requiredInteger(info.totalDataContracts, 'identity data-contract count'),
+    totalTransfers,
+    totalDocuments,
+    totalDataContracts,
     totalGasSpentCredits: optionalExactInteger(info.totalGasSpent, 'total gas spent'),
     averageGasSpentCredits: optionalExactInteger(info.averageGasSpent, 'average gas spent'),
     totalTopUps: optionalInteger(info.totalTopUps),
@@ -648,6 +649,7 @@ export async function queryPlatformIdentityHistory(
     withdrawals: withdrawals.map(withdrawalView),
     tokens: tokens.map(tokenView),
     historyLimit,
+    historyWarnings: historyWarnings.sort(),
     endpoint,
     indexStatus: 'synced',
     indexedHeight,

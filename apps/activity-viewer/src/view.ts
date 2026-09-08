@@ -861,6 +861,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         stat('Verified DPNS names', verifiedNames.toLocaleString(), '@'),
         stat('Highest proof height', proofHeight.toLocaleString(), '↥'),
       );
+      const historyWarnings = histories.flatMap(({ history }) => history?.historyWarnings ?? []);
       const failedHistories = histories.filter(({ error }) => error !== null);
       const disagreements = histories.filter(({ identifier, history }) => {
         if (history === null) return false;
@@ -873,7 +874,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       });
       completeness.classList.toggle(
         'viewer-completeness-warning',
-        failedHistories.length > 0 || disagreements.length > 0,
+        failedHistories.length > 0 || disagreements.length > 0 || historyWarnings.length > 0,
       );
       const hashText = snapshot.publicKeyHashHex === null
         ? ''
@@ -893,6 +894,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
           : disagreements.length > 0
             ? `DAPI verified ${snapshot.identities.length.toLocaleString()} Identity result(s). WARNING: ${disagreements.length.toLocaleString()} Explorer snapshot(s) disagree with current proof values; DAPI values take precedence.${hashText}${nameText}${transactionText}`
             : `DAPI verified ${snapshot.identities.length.toLocaleString()} Identity result(s), and synchronized Explorer balance/revision/nonce values agree where available.${hashText}${nameText}${transactionText}`;
+      if (historyWarnings.length > 0) completeness.textContent += ` ${[...new Set(historyWarnings)].join(' ')}`;
       activityList.replaceChildren(
         ...snapshot.identities.flatMap((identity) => [
           identityResultHeading(identity),

@@ -73,9 +73,9 @@ describe('recovery secret boundary', () => {
     await expect(service.platformIdentityByPublicKeyHash('mainnet', 'AA')).rejects.toThrow(/20-byte lowercase/u);
     await expect(service.shieldedPage('mainnet', '-1', 2048)).rejects.toThrow(/pool position/u);
     await expect(service.coreTransaction('mainnet', 'not-a-transaction')).rejects.toThrow(/invalid transaction hash/u);
-    await expect(multiChainService.utxoAddresses('mainnet', ['not-a-bitcoin-address'])).rejects.toThrow(/invalid Bitcoin/u);
+    await expect(multiChainService.utxoAddresses('mainnet', ['not-a-bitcoin-address'])).rejects.toThrow(/invalid Bitcoin/iu);
     await expect(multiChainService.utxoAddresses('mainnet', Array(101).fill('1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA'))).rejects.toThrow(/1 to 100/u);
-    await expect(multiChainService.evmAccounts('mainnet', ['0xnot-an-ethereum-address'])).rejects.toThrow(/invalid Ethereum/u);
+    await expect(multiChainService.evmAccounts('mainnet', ['0xnot-an-ethereum-address'])).rejects.toThrow(/invalid Ethereum/iu);
     await expect(multiChainService.evmAccounts('mainnet', Array(101).fill('0x9858EfFD232B4033E47d90003D41EC34EcaEda94'))).rejects.toThrow(/1 to 100/u);
     await expect(executeRecoveryNetworkRequest(
       mockNetwork(),
@@ -143,7 +143,7 @@ describe('recovery secret boundary', () => {
     ];
     await expect(service.utxoAddresses('mainnet', addresses)).resolves.toEqual(expected);
     await expect(service.utxoAddresses('mainnet', [...addresses].reverse())).resolves.toEqual([...expected].reverse());
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
     expect(fetcher.mock.calls[0]?.[0]).toContain('blockchain.info/balance');
   });
 
@@ -259,6 +259,7 @@ describe('recovery secret boundary', () => {
         identifier,
         balance: '500',
         totalTxs: 4,
+        totalTransfers: 2,
         totalGasSpent: '100',
         timestamp: '2026-02-01T00:00:00.000Z',
         fundingCoreTx: 'ad4cc9b6e395204a46f3e8df20f220f70f433c578469e5617b588d0df53d7998',
