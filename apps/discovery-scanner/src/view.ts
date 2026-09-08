@@ -684,7 +684,7 @@ export function createDiscoveryScannerView(
           const labels = [...new Set(targets.map(({ adapterId, material }) => material.detectionLabel ?? coinAdapters.get(adapterId)!.label))];
           const bip32 = targets.find(({ ambiguity }) => ambiguity?.kind === 'bip32')?.ambiguity;
           const sec1 = targets.some(({ ambiguity }) => ambiguity?.kind === 'sec1');
-          const needsCoin = selectedCoin === 'auto' && targets.length > parseWatchOnlyLines(watchOnlyKeys.value).length;
+          const needsCoin = selectedCoin === 'auto' && targets.some(({ ambiguity }) => ambiguity !== undefined);
           const formatText = needsCoin
             ? `Coin could not be determined uniquely. Select Coin before scanning. Compatible candidates: ${labels.join(' · ')}.`
             : bip32 !== undefined

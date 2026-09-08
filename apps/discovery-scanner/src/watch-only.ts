@@ -19,6 +19,14 @@ export class WatchOnlyNotRecognizedError extends Error {
   }
 }
 
+/** The coin is known, but an ordinary xpub does not encode its hardened family. */
+export class WatchOnlyNeedsFamilyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WatchOnlyNeedsFamilyError';
+  }
+}
+
 /**
  * Explicit prefixes and the single coin each unambiguously names. `public-key:`
  * is deliberately absent: a bare SEC1 public key carries no chain metadata in
@@ -31,6 +39,7 @@ export const WATCH_ONLY_PREFIX_COINS: Readonly<Record<string, string>> = {
     'ethereum-xpub': 'ethereum',
   }),
   'dash-core-xpub': 'dash',
+  'dash-coinjoin-xpub': 'dash',
   'dash-platform-xpub': 'dash',
   identity: 'dash',
   'orchard-fvk': 'dash',
@@ -195,8 +204,8 @@ export function resolveWatchOnlyTargets(
     // Depth describes what can be derived, not which coin originally created the key.
     if (sharedXpub && depth !== undefined) {
       const supported = __DASH_COMMUNITY__
-        ? [3, 5]
-        : adapter.id === 'bitcoin' ? [3, 4] : adapter.id === 'ethereum' ? [3, 4, 5] : [3, 5];
+        ? [3, 4, 5]
+        : adapter.id === 'bitcoin' ? [3, 4] : adapter.id === 'ethereum' ? [3, 4, 5] : [3, 4, 5];
       if (!supported.includes(depth) || (!__DASH_COMMUNITY__ && adapter.id === 'ethereum' && network === 'testnet')) continue;
     }
     try {
@@ -210,6 +219,7 @@ export function resolveWatchOnlyTargets(
         } : {}),
         ...(inferredNetwork === undefined ? {} : { network: inferredNetwork }) });
     } catch (cause) {
+      if (cause instanceof WatchOnlyNeedsFamilyError && adapters.length > 1) continue;
       if (!(cause instanceof WatchOnlyNotRecognizedError)) throw cause;
     }
   }

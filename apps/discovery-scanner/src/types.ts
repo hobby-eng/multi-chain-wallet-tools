@@ -24,6 +24,7 @@ export type RecoveryWatchOnlyKind =
   | 'bitcoin-xpub'
   | 'ethereum-xpub'
   | 'dash-core-xpub'
+  | 'dash-coinjoin-xpub'
   | 'dash-platform-xpub'
   | 'public-key'
   | 'identity'
