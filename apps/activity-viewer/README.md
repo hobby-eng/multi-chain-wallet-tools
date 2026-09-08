@@ -24,3 +24,11 @@ node apps/activity-viewer/scripts/verify-activity-viewer-artifact.mjs
 Live provider checks are separate from deterministic builds; see the root [release procedure](../../RELEASING.md). Read [SECURITY.md](SECURITY.md) before pasting a viewing key.
 
 Query controls, including Coin, remain locked until the active request settles. Clear and Cancel discard late responses. Dash address-history pagination uses a fixed page size; inconsistent totals, repeated transaction IDs or premature page termination produce an error instead of an apparently complete ledger. Explorer histories remain provider-reported data.
+
+### Input and history integrity
+
+Bitcoin addresses are decoded with Base58Check or the appropriate Bech32/Bech32m witness checksum, including network and program-length checks. Uniform uppercase Bech32 is accepted and normalized. Ethereum mixed-case addresses must pass EIP-55; lower/uppercase representations are accepted and canonicalized before batch deduplication. The complete input batch is screened before any network request; detected private material is erased from both input fields.
+
+Identity history reconciles transaction, transfer, document and contract counts with the Identity summary. Repeated record identities, overlapping pages, changed counts and premature end-of-history fail explicitly. Multiple transfer legs can share a transaction hash. The current Explorer response omits stable transfer row IDs, so indistinguishable legs across page boundaries are rejected as ambiguous rather than silently counted. Collection counts unavailable from both summary and pagination remain explicitly unverified; display limits remain visible.
+
+Created-token supply is token metadata, not the Identity's owned balance or Platform credits. CSV/XLSX leave DASH amount columns empty for token-supply records and retain the token ID, atomic supply and decimals in metadata; JSON preserves the typed token fields.

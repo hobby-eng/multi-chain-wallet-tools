@@ -4,6 +4,8 @@ Audit baseline: [2026-09-08 review record](docs/audits/2026-09-08-baseline.json)
 
 Scope: first-party source, security boundaries, integration with the pinned generated WASM, build tooling and documentation. Dependency source audits and an independent cryptographic proof are excluded. Multi-Chain Edition supports Bitcoin, Ethereum, and Dash. Dash Community Edition contains only Dash Core, Dash Platform payments, Dash Platform Identity, and Dash Orchard capabilities. This is an internal engineering review, not a third-party security certification.
 
+Follow-up: [2026-09-09 corrections and verification scope](docs/audits/2026-09-09-remediation.md). This records subsequent fixes without changing the baseline above.
+
 ## Current release architecture
 
 - The repository builds three applications: the offline Wallet Key Derivation Tool, the connected Wallet Activity Viewer, and the connected Wallet Discovery Scanner.
