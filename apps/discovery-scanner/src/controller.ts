@@ -402,7 +402,9 @@ export function createDiscoveryScannerController(
               orderedResults[index] = result;
               currentResults = orderedResults.filter((candidate): candidate is RecoveryWalletResult => candidate !== undefined);
               renderResults();
-              finishWalletProgress(input.id);
+              const incomplete = result.sections.some(({ state }) => state === 'failed' || state === 'partial');
+              if (incomplete) result.warnings.push('Scan incomplete: some sections were not fully checked; see section warnings.');
+              finishWalletProgress(input.id, incomplete);
               return result;
             } catch (cause) {
               finishWalletProgress(input.id, true);
@@ -417,8 +419,10 @@ export function createDiscoveryScannerController(
           exportStagingAttempted = true;
           stageValidatedExports();
           renderResults();
-          view.setStatus('Recovery scan complete. Review and export the standard-wallet handoff report.');
-          scanCompleted = true;
+          scanCompleted = currentResults.every(result => result.sections.every(({ state }) => state !== 'failed' && state !== 'partial'));
+          view.setStatus(scanCompleted
+            ? 'Recovery scan complete. Review and export the standard-wallet handoff report.'
+            : 'Recovery scan incomplete. Available reports remain exportable; review section warnings and unknown balances.');
         } catch (cause) {
           for (const progress of walletProgress.values()) {
             if (progress.state === 'complete' || progress.state === 'failed') continue;

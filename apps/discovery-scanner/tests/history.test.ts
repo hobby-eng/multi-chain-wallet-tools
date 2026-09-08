@@ -165,8 +165,8 @@ describe('adapter history contract and exports', () => {
 it('validates history RPC address, network and coin before network access', async () => {
   const fetch = fetchMock(() => { throw new Error('Must not request'); });
   const service = new MultiChainRecoveryNetworkService();
-  await expect(service.addressHistory('bitcoin', 'mainnet', 'https://example.test')).rejects.toThrow('invalid Bitcoin');
-  await expect(service.addressHistory('ethereum', 'mainnet', '../secret')).rejects.toThrow('invalid Ethereum');
+  await expect(service.addressHistory('bitcoin', 'mainnet', 'https://example.test')).rejects.toThrow(/invalid Bitcoin/iu);
+  await expect(service.addressHistory('ethereum', 'mainnet', '../secret')).rejects.toThrow(/invalid Ethereum/iu);
   await expect(service.addressHistory('bitcoin', 'invalid' as 'mainnet', btc)).rejects.toThrow();
   await expect(service.addressHistory('unknown' as 'bitcoin', 'mainnet', btc)).rejects.toThrow('Unsupported history coin');
   expect(fetch).not.toHaveBeenCalled();

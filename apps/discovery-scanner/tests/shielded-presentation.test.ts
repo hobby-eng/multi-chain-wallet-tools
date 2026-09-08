@@ -18,8 +18,8 @@ describe('Orchard viewing-key presentation', () => {
     const unknown = { ...base, direction: 'received', incoming: note } satisfies ShieldedActivity;
 
     expect(shouldDisplayShieldedActivity(unknown, false)).toBe(true);
-    expect(shieldedFindingPresentation(unknown)).toEqual({
-      balanceAtomic: 0n,
+    expect(shieldedFindingPresentation(unknown, true)).toEqual({
+      balanceAtomic: null,
       balanceLabel: 'Current balance unavailable · spend state unknown',
       spendState: 'Unknown · FVK required',
     });
@@ -29,13 +29,13 @@ describe('Orchard viewing-key presentation', () => {
     const spendable = { ...base, direction: 'received', incoming: note, spent: false } satisfies ShieldedActivity;
     const outgoing = { ...base, position: 2n, direction: 'sent', outgoing: note } satisfies ShieldedActivity;
 
-    expect(shieldedFindingPresentation(spendable)).toEqual({
+    expect(shieldedFindingPresentation(spendable, true)).toEqual({
       balanceAtomic: 1n,
       balanceLabel: '0.00000000001 DASH',
       spendState: 'Unspent',
     });
-    expect(shieldedFindingPresentation(outgoing)).toEqual({
-      balanceAtomic: 0n,
+    expect(shieldedFindingPresentation(outgoing, true)).toEqual({
+      balanceAtomic: null,
       balanceLabel: 'Current balance unavailable · outgoing view only',
       spendState: 'Outgoing view only',
     });

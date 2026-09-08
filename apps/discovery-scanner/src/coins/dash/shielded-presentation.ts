@@ -1,14 +1,14 @@
 import type { ShieldedActivity } from '@ckd/dash-network/types.js';
 import { formatDashFromCredits } from './util.js';
 
-export function shieldedFindingPresentation(record: ShieldedActivity): {
-  balanceAtomic: bigint;
+export function shieldedFindingPresentation(record: ShieldedActivity, complete: boolean): {
+  balanceAtomic: bigint | null;
   balanceLabel: string;
   spendState: string;
 } {
   if (record.incoming === undefined) {
     return {
-      balanceAtomic: 0n,
+      balanceAtomic: null,
       balanceLabel: 'Current balance unavailable · outgoing view only',
       spendState: 'Outgoing view only',
     };
@@ -20,6 +20,9 @@ export function shieldedFindingPresentation(record: ShieldedActivity): {
       spendState: 'Spent',
     };
   }
+  if (record.spent === false && !complete) {
+    return { balanceAtomic: null, balanceLabel: 'Current balance unavailable · scan incomplete', spendState: 'Unknown · scan incomplete' };
+  }
   if (record.spent === false) {
     return {
       balanceAtomic: record.incoming.value,
@@ -28,7 +31,7 @@ export function shieldedFindingPresentation(record: ShieldedActivity): {
     };
   }
   return {
-    balanceAtomic: 0n,
+    balanceAtomic: null,
     balanceLabel: 'Current balance unavailable · spend state unknown',
     spendState: 'Unknown · FVK required',
   };
