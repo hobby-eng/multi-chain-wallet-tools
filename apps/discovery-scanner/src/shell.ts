@@ -83,7 +83,7 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
   const viewport = event.data as Partial<RecoveryVaultHeight>;
   if (viewport.type === RECOVERY_VAULT_HEIGHT) {
     if (typeof viewport.height === 'number' && Number.isSafeInteger(viewport.height) && viewport.height > 0 && viewport.height <= 10_000_000) {
-      vault.style.height = `${Math.max(window.innerHeight, viewport.height)}px`;
+      vault.style.height = `${viewport.height}px`;
     }
     return;
   }
