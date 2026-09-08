@@ -108,9 +108,14 @@ if (!html.includes('connect-src https:')) throw new Error('Recovery Network Work
 
 const vaultIds = assertNoDuplicateIds(vaultTemplate, 'Recovery Secret Vault template');
 for (const requiredId of [
-  'recovery-form', 'recovery-coin', 'recovery-network', 'recovery-account',
+  'recovery-form', 'recovery-network', 'recovery-account',
+  'seed-source-tab', 'public-source-tab', 'seed-source-panel', 'public-input', 'seed-mode-tabs',
+  'watch-only-keys', 'watch-only-minimum', 'watch-only-detection', 'seed-coverage',
   'single-mnemonic', 'single-passphrase', 'batch-mnemonics', 'batch-passphrases', 'batch-concurrency',
-  'reveal-recovery-input', 'core-receive-count', 'core-change-count', 'platform-address-count',
+  'reveal-recovery-input', 'scan-core', 'core-receive-count', 'core-change-count',
+  'scan-legacy-core', 'legacy-core-count', 'scan-coinjoin', 'coinjoin-external-count', 'coinjoin-internal-count',
+  'scan-identity-funding', 'identity-funding-count', 'identity-topup-identity-count', 'identity-topup-count',
+  'scan-provider-collateral', 'provider-collateral-count', 'coinjoin-path-preview', 'platform-address-count',
   'identity-start-index', 'identity-gap-limit', 'identity-scan-limit', 'request-concurrency',
   'include-used-zero-balance', 'scan-shielded', 'scan-estimate', 'start-recovery-scan',
   'start-recovery-scan-label', 'cancel-recovery-scan', 'clear-recovery', 'recovery-progress',
@@ -122,6 +127,35 @@ for (const requiredId of [
 ]) {
   if (!vaultIds.includes(requiredId)) throw new Error(`Recovery Secret Vault is missing required element #${requiredId}.`);
 }
+if (profile.id === 'dash-community' && vaultIds.includes('recovery-coin')) {
+  throw new Error('Dash Community recovery artifact must omit the single-coin selector from its HTML.');
+}
+if (profile.id === 'multi-chain' && !vaultIds.includes('recovery-coin')) {
+  throw new Error('Multi-Chain recovery artifact is missing its coin selector.');
+}
+for (const id of [
+  'custom-path-options', 'scan-custom-path', 'custom-path-field',
+  'custom-path-template', 'custom-path-format', 'custom-path-count',
+]) {
+  if (!vaultIds.includes(id)) throw new Error(`Recovery artifact is missing extensible custom-path control #${id}.`);
+}
+for (const marker of ['Bitcoin wallet addresses', 'Ethereum EOA addresses']) {
+  if (profile.id === 'multi-chain' && !html.includes(marker)) {
+    throw new Error(`Multi-Chain recovery artifact is missing its ${marker} adapter.`);
+  }
+  if (profile.id === 'dash-community' && html.includes(marker)) {
+    throw new Error(`Dash Community recovery vault unexpectedly bundles the ${marker} adapter.`);
+  }
+}
+for (const marker of [
+  'Custom derivation path',
+  'Custom path template',
+  'Address format',
+  'Minimum addresses',
+  '{index}',
+]) {
+  if (!html.includes(marker)) throw new Error(`Recovery artifact is missing its generic custom-path marker: ${marker}`);
+}
 for (const match of vaultTemplate.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
   if (!vaultIds.includes(match[1])) throw new Error(`Recovery label references missing control #${match[1]}.`);
 }
@@ -131,21 +165,37 @@ for (const marker of [
   'This utility has not been independently audited by a cryptography specialist.',
   'Select the Dash components and address ranges you want to check.', 'Core receive minimum', 'Core change minimum', 'Platform address minimum',
   'Identity empty-gap limit', 'Platform identities', 'Account-wide encrypted notes', 'spent or previously used resources with zero balance',
-  'CoinJoin', '20 addresses after the last used address', 'Self-test running', 'ALL SEED PHRASES',
+  'CoinJoin', 'Legacy mobile per branch', 'Registration funding keys to match', 'Identity-bound top-up identities',
+  'Masternode holdings minimum', 'Masternode holdings', 'Rare DashSync/dashj collateral addresses.',
+  'Scan components for this result', 'component-result-tab',
+  '20 addresses after the last used address', 'Self-test running', 'ALL RESULTS',
   'STANDARD-WALLET HANDOFF', 'Run a new scan', 'bounded-memory page stream',
+  'Dash Mobile CoinJoin · DIP9', 'Separate mobile receive and change chains.',
+  'Identity registration funding', 'Show the L1 asset-lock and funding inputs.',
+  'Legacy mobile Core', 'Older Dash Wallet for Android backups.',
+  'Dash Core', 'BIP44 receive and change addresses',
+  'Dash Mobile CoinJoin · DIP9 paths for the selected network', 'm/9\'/5\'/4\'/0\'/0/i',
+  'CoinJoin external minimum', 'CoinJoin internal minimum',
+  'No funded Dash Mobile CoinJoin · DIP9 address was found in this section and scanned range.',
+  'core.address-info',
   'Release passport', 'Cryptographic self-test running', 'Embedded dependency versions and licenses:',
   'Dash Identity mainnet / DIP13', 'Dash Identity testnet / DIP13',
-  'Wallet-wide located balances', 'Identity credits',
+  'Wallet-wide located balances', 'Detailed results by recovery type', 'Identity credits',
   'Lifetime self/change', 'Spent at pool position', 'section_lifetime_received_dash',
   'No funded Dash Core L1 address was found in this section and scanned range.',
   'The Dash mark is an official brand asset used under CC BY 4.0.',
   'wallet-discovery-report', 'Blocked ', 'Dash Platform DAPI', 'DashScan',
   'recovery CSV report export', 'recovery JSON report export',
-  'isolated-network-worker-v1', 'core.address-info',
+  'isolated-network-worker-v1', 'core.address-info', 'core.transaction',
   'platform.address-history', 'platform.identity-by-public-key-hash',
-  'platform.identity-history', 'shielded.page', 'ckd-recovery-export-request-v1',
+  'platform.identity-history', 'shielded.page', 'utxo.addresses', 'evm.accounts',
+  'ckd-recovery-export-request-v1',
 ]) {
-  if (!html.includes(marker)) throw new Error(`Recovery artifact is missing required marker: ${marker}`);
+  const escapedMarker = marker.replaceAll('·', String.raw`\xB7`);
+  const srcdocEscapedMarker = marker.replaceAll('·', String.raw`\\xB7`);
+  if (!html.includes(marker) && !html.includes(escapedMarker) && !html.includes(srcdocEscapedMarker)) {
+    throw new Error(`Recovery artifact is missing required marker: ${marker}`);
+  }
 }
 if (profile.id === 'dash-community' && !html.includes('class="profile-brand-mark"')) {
   throw new Error('Dash Community recovery artifact is missing the official Dash brand mark.');

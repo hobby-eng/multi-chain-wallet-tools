@@ -1,16 +1,21 @@
-import { rootFromSeed } from '@ckd/core/bip32.js';
-import { bytesToHex, wipe } from '@ckd/core/crypto.js';
+import { dashPlatformHistory } from './history.js';
+import { requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
+import { bytesToHex, encodeP2pkh, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
 import { deriveDashIdentityAuthenticationKey } from '@ckd/coins/dash/identity.js';
-import type { RecoveryFinding, RecoveryProgress, RecoveryScanConfig, RecoverySection } from '../../types.js';
+import type { DashCoreTransactionView } from '../../network-protocol.js';
+import type { RecoveryField, RecoveryFinding, RecoveryProgress, RecoveryScanConfig, RecoverySection } from '../../types.js';
 import { DashPlatformClient } from './platform-client.js';
 import { validatePlatformHistory } from './platform-history.js';
-import { exactSafeInteger, exactUnsigned, formatDashFromCredits, object } from './util.js';
+import { exactSafeInteger, exactUnsigned, formatDashFromCredits, formatDashFromDuffs, object } from './util.js';
 
-const IDENTITY_QUERY_CONCURRENCY = 5;
+// The current Evo SDK exposes only one proof lookup per unique ECDSA key hash.
+// Two concurrent calls avoid overloading one shared DAPI connection while
+// leaving capacity for the other independently running Dash scan sections.
+const IDENTITY_QUERY_CONCURRENCY = 2;
 const IDENTITY_PROGRESS_HEARTBEAT_MS = 2_000;
 
-interface IdentityView {
+export interface IdentityView {
   identifier: string;
   balance: bigint;
   revision: bigint;
@@ -25,6 +30,53 @@ interface IdentityIndexResult {
   protocolVersion: number;
   proofQueries: number;
   dapiDurationsMs: number[];
+}
+
+function identityFundingFields(
+  root: ReturnType<typeof rootFromSeed>,
+  network: ReturnType<typeof getDashNetwork>,
+  count: number,
+  transaction: DashCoreTransactionView,
+): RecoveryField[] {
+  if (transaction.type !== 'ASSET_LOCK' || transaction.assetLockCreditOutputs.length === 0) {
+    throw new Error('The linked Core transaction is not a supported asset-lock transaction.');
+  }
+  const output = transaction.assetLockCreditOutputs[0];
+  if (output === undefined) throw new Error('The linked asset lock has no credit output.');
+  let matchingPath: string | null = null;
+  let matchingAddress: string | null = null;
+  const branchPath = `m/9'/${network.coinType}'/5'/1'`;
+  const branch = root.derive(branchPath);
+  try {
+    for (let index = 0; index < count; index += 1) {
+      const child = branch.deriveChild(index);
+      const path = `${branchPath}/${index}`;
+      const publicKey = requirePublic(child, path);
+      const publicKeyHash = hash160(publicKey);
+      if (bytesToHex(publicKeyHash) === output.publicKeyHash) {
+        matchingPath = path;
+        matchingAddress = encodeP2pkh(publicKeyHash, network.p2pkh);
+      }
+      wipe(publicKey, publicKeyHash);
+      child.wipePrivateData();
+      if (matchingPath !== null) break;
+    }
+  } finally {
+    branch.wipePrivateData();
+  }
+  return [
+    { label: 'L1 funding transaction', value: transaction.hash, copyable: true },
+    { label: 'L1 funding inputs', value: transaction.inputAddresses.join(' · ') || 'Not reported by DashScan' },
+    { label: 'Asset-lock amount (Core L1)', value: formatDashFromDuffs(BigInt(output.amount)) },
+    { label: 'Asset-lock credit key hash', value: output.publicKeyHash, copyable: true },
+    ...(matchingPath === null ? [{
+      label: 'Registration funding key',
+      value: `No match in indexes 0–${Math.max(count - 1, 0)}; increase the funding-key range`,
+    }] : [
+      { label: 'Registration funding key path', value: matchingPath, copyable: true },
+      { label: 'Registration funding key address', value: matchingAddress as string, copyable: true },
+    ]),
+  ];
 }
 
 async function awaitIdentityBatch(
@@ -54,7 +106,7 @@ async function awaitIdentityBatch(
   }
 }
 
-function validateIdentityLookup(
+export function validateIdentityLookup(
   value: Awaited<ReturnType<DashPlatformClient['identity']>>,
 ): Omit<IdentityIndexResult, 'identityIndex' | 'path' | 'publicKeyHashHex'> {
   const response = object(value, 'Isolated identity response');
@@ -74,7 +126,7 @@ function validateIdentityLookup(
   });
   const metadata = object(response.metadata, 'Isolated identity proof metadata');
   const proofQueries = exactSafeInteger(response.proofQueries, 'Identity proof-query count');
-  if (proofQueries !== 1 && proofQueries !== 2) throw new Error('Identity proof-query count must be one or two.');
+  if (proofQueries !== 1) throw new Error('Identity proof-query count must be one.');
   if (!Array.isArray(response.dapiDurationsMs) || response.dapiDurationsMs.length !== proofQueries) {
     throw new Error('Isolated identity response returned inconsistent timing information.');
   }
@@ -137,6 +189,7 @@ export async function scanDashIdentities(
   let proofQueries = 0;
   let historyDetailFailures = 0;
   let historyDetails = 0;
+  let fundingDetails = 0;
   let historyIndexedHeight = 0;
   const dapiDurationsMs: number[] = [];
   const scanStartedAt = Date.now();
@@ -179,6 +232,7 @@ export async function scanDashIdentities(
             seen.add(identity.identifier);
             totalBalance += identity.balance;
             let history = null;
+            let fundingFields: RecoveryField[] = [];
             try {
               history = validatePlatformHistory(
                 await client.identityHistory(identity.identifier, signal),
@@ -187,6 +241,15 @@ export async function scanDashIdentities(
               );
               historyDetails += 1;
               historyIndexedHeight = Math.max(historyIndexedHeight, history.indexedHeight);
+              if (config.scanIdentityFunding && history.fundingCoreTx !== null) {
+                fundingFields = identityFundingFields(
+                  root,
+                  network,
+                  config.identityFundingCount,
+                  await client.coreTransaction(history.fundingCoreTx, signal),
+                );
+                fundingDetails += 1;
+              }
             } catch (cause) {
               if (signal.aborted) throw cause;
               historyDetailFailures += 1;
@@ -197,6 +260,7 @@ export async function scanDashIdentities(
               subtitle: `Identity discovered at local index ${result.identityIndex}`,
               balanceAtomic: identity.balance,
               balanceLabel: formatDashFromCredits(identity.balance),
+              ...(history === null ? {} : { history: dashPlatformHistory(history) }),
               fields: [
                 { label: 'Identity derivation path', value: result.path, copyable: true },
                 { label: 'Identity index', value: String(result.identityIndex) },
@@ -212,6 +276,7 @@ export async function scanDashIdentities(
                   ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
                   ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
                 ]),
+                ...fundingFields,
               ],
             };
             findings.push(finding);
@@ -251,6 +316,7 @@ export async function scanDashIdentities(
       { label: 'Identity scan time', value: `${(elapsedMs / 1_000).toFixed(1)} s` },
       { label: 'DAPI average / max', value: `${providerAverageMs.toFixed(0)} / ${providerMaxMs.toFixed(0)} ms` },
       { label: 'History details', value: `${historyDetails}/${findings.length} enriched` },
+      ...(config.scanIdentityFunding ? [{ label: 'L1 funding details', value: `${fundingDetails}/${findings.length} linked` }] : []),
     ],
     findings,
     scanned,

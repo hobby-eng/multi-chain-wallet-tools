@@ -1,5 +1,6 @@
 export const DUFFS_PER_DASH = 100_000_000n;
 export const CREDITS_PER_DASH = 100_000_000_000n;
+export const CREDITS_PER_DUFF = CREDITS_PER_DASH / DUFFS_PER_DASH;
 
 function formatDashAtomic(value: bigint, divisor: bigint, fractionDigits: number, signed: boolean): string {
   const negative = value < 0n;

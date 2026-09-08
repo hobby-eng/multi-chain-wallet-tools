@@ -25,6 +25,24 @@ export interface AddressBranches {
   change: number;
 }
 
+/** Non-hardened branch indices for an optional DIP9 CoinJoin chain, separate from BIP44 receive/change. */
+export interface CoinJoinBranches {
+  external: number;
+  internal: number;
+}
+
+export interface CoinJoinPathPreview {
+  external: string;
+  internal: string;
+}
+
+export interface CoinJoinSupport {
+  branches: CoinJoinBranches;
+  /** Worker-dispatch id for this chain's derive() function; distinct from the adapter id because the path template differs from the adapter's own protocol. */
+  workerAdapterId: string;
+  pathPreview(input: { network: NetworkName; account: number; start: number; count: number }): CoinJoinPathPreview;
+}
+
 export interface CoinLimits {
   accountMax?: number;
   startMax?: number;
@@ -46,6 +64,8 @@ export interface CoinAdapter {
   networkControl: boolean;
   /** Standard external/internal address branches exposed as Receive/Change result tabs. */
   addressBranches?: AddressBranches;
+  /** Optional DIP9 CoinJoin chain, exposed as its own opt-in result tab with nested External/Internal branches. */
+  coinJoin?: CoinJoinSupport;
   branchControl?: BranchControl;
   limits?: CoinLimits;
   accountControl?: boolean;
@@ -102,7 +122,6 @@ function familyId(label: string): string {
 
 export function createCoinRegistry(coinAdapters: readonly CoinAdapter[]) {
   const coinFamilies: readonly CoinFamily[] = [...new Set(coinAdapters.map(({ group }) => group))]
-    .sort((left, right) => left === 'Dash' ? -1 : right === 'Dash' ? 1 : 0)
     .map((label) => ({
       id: familyId(label),
       label,

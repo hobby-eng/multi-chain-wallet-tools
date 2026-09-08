@@ -1,8 +1,10 @@
+import { enrichRecoveryHistory } from './history.js';
 import type { RecoveryExportFile, RecoveryExportFormat } from './export.js';
 import type { RecoveryCoinRegistry } from './coins/registry.js';
 import type { RecoverySelfTestReport } from './recovery-self-test.js';
 import type { DiscoveryScannerView, RecoveryInputSnapshot, WalletProgressView } from './view.js';
 import type {
+  RecoveryCoinAdapter,
   RecoveryFinding,
   RecoveryInputMode,
   RecoveryProgress,
@@ -10,12 +12,17 @@ import type {
   RecoverySectionId,
   RecoverySeedInput,
   RecoveryWalletResult,
+  RecoveryWatchOnlyInput,
+  RecoveryWatchOnlyScanConfig,
 } from './types.js';
 
 interface DiscoveryScannerDependencies {
   RecoveryConcurrencyLimiter: typeof import('./concurrency.js').RecoveryConcurrencyLimiter;
   SecretEgressGuard: typeof import('./secret-guard.js').SecretEgressGuard;
   assertValidMnemonic: typeof import('@ckd/core/bip39.js').assertValidMnemonic;
+  assertWatchOnlyBatchInput: typeof import('./watch-only.js').assertWatchOnlyBatchInput;
+  parseWatchOnlyLines: typeof import('./watch-only.js').parseWatchOnlyLines;
+  resolveWatchOnlyTargets: typeof import('./watch-only.js').resolveWatchOnlyTargets;
   createRecoveryExport: typeof import('./export.js').createRecoveryExport;
   describeUnknownError: typeof import('./error-message.js').describeUnknownError;
   getRecoveryCoin: RecoveryCoinRegistry['getRecoveryCoin'];
@@ -54,6 +61,21 @@ function scanConfig(snapshot: RecoveryInputSnapshot): RecoveryScanConfig {
     scanCore: snapshot.scanCore,
     coreReceiveCount: parseInteger(snapshot.coreReceiveCount, 'Core receive count', 0),
     coreChangeCount: parseInteger(snapshot.coreChangeCount, 'Core change count', 0),
+    scanCustomPath: snapshot.scanCustomPath,
+    customPathTemplate: snapshot.customPathTemplate.trim(),
+    customPathFormat: snapshot.customPathFormat,
+    customPathCount: parseInteger(snapshot.customPathCount, 'Custom path address count', 1),
+    scanLegacyCore: snapshot.scanLegacyCore,
+    legacyCoreCount: parseInteger(snapshot.legacyCoreCount, 'Legacy Core address count', 0),
+    scanCoinJoin: snapshot.scanCoinJoin,
+    coinJoinExternalCount: parseInteger(snapshot.coinJoinExternalCount, 'Dash Mobile CoinJoin · DIP9 external address count', 0),
+    coinJoinInternalCount: parseInteger(snapshot.coinJoinInternalCount, 'Dash Mobile CoinJoin · DIP9 internal address count', 0),
+    scanIdentityFunding: snapshot.scanIdentityFunding,
+    identityFundingCount: parseInteger(snapshot.identityFundingCount, 'Identity funding address count', 0),
+    identityTopUpIdentityCount: parseInteger(snapshot.identityTopUpIdentityCount, 'Identity-bound top-up identity count', 0),
+    identityTopUpCount: parseInteger(snapshot.identityTopUpCount, 'Identity-bound top-ups per identity', 0),
+    scanProviderCollateral: snapshot.scanProviderCollateral,
+    providerCollateralCount: parseInteger(snapshot.providerCollateralCount, 'Provider collateral/holdings address count', 0),
     scanPlatformAddresses: snapshot.scanPlatformAddresses,
     platformAddressCount: parseInteger(snapshot.platformAddressCount, 'Platform address count', 0),
     scanPlatformIdentities: snapshot.scanPlatformIdentities,
@@ -143,6 +165,59 @@ export function createDiscoveryScannerController(
     snapshot.singlePassphrase = '';
     snapshot.batchMnemonics = '';
     snapshot.batchPassphrases = '';
+    snapshot.watchOnlyKeys = '';
+  }
+
+  interface WatchOnlyTarget {
+    input: RecoveryWatchOnlyInput;
+    adapter: RecoveryCoinAdapter;
+    network?: 'mainnet' | 'testnet';
+    ambiguous: boolean;
+  }
+
+  function watchOnlyScanConfig(snapshot: RecoveryInputSnapshot): RecoveryWatchOnlyScanConfig {
+    return {
+      network: snapshot.network === 'testnet' ? 'testnet' : 'mainnet',
+      minimumCount: parseInteger(snapshot.watchOnlyMinimumCount, 'Watch-only address minimum', 1),
+      includeUsedZeroBalance: snapshot.includeUsedZeroBalance,
+    };
+  }
+
+  function watchOnlyTargets(snapshot: RecoveryInputSnapshot): WatchOnlyTarget[] {
+    dependencies.assertWatchOnlyBatchInput(snapshot.watchOnlyKeys);
+    const lines = dependencies.parseWatchOnlyLines(snapshot.watchOnlyKeys);
+    if (lines.length === 0) {
+      throw new Error('Enter at least one public key, extended public key, descriptor, Identity value, or Orchard viewing key.');
+    }
+    const adapters = snapshot.coinId === 'auto'
+      ? dependencies.listRecoveryCoins()
+      : [dependencies.getRecoveryCoin(snapshot.coinId)];
+    return lines.flatMap((line, index) => {
+      const resolved = dependencies.resolveWatchOnlyTargets(line, adapters);
+      if (snapshot.coinId === 'auto' && resolved.length > 1) {
+        const labels = [...new Set(resolved.map(({ material, adapterId }) =>
+          material.detectionLabel ?? dependencies.getRecoveryCoin(adapterId).label))];
+        throw new Error(`This public key does not identify one coin. Select Coin before scanning. Compatible candidates: ${labels.join(' · ')}.`);
+      }
+      return resolved.map((target) => {
+        const adapter = dependencies.getRecoveryCoin(target.adapterId);
+        const number = index + 1;
+        return {
+          adapter,
+          ...(target.network === undefined ? {} : { network: target.network }),
+          ambiguous: resolved.length > 1,
+          input: {
+            id: `watch-${number}-${adapter.id}`,
+            label: `Public key #${number} · ${target.material.detectionLabel ?? adapter.label}${resolved.length > 1 ? ' · candidate' : ''}`,
+            ...target.material,
+          },
+        };
+      });
+    });
+  }
+
+  function wipeWatchOnlyTargets(targets: readonly WatchOnlyTarget[]): void {
+    for (const { input } of targets) input.value = '';
   }
 
   function renderResults(): void {
@@ -161,14 +236,14 @@ export function createDiscoveryScannerController(
     );
   }
 
-  function initializeWalletProgress(inputs: RecoverySeedInput[]): void {
+  function initializeWalletProgress(inputs: readonly Pick<RecoverySeedInput, 'id' | 'label'>[]): void {
     walletProgress.clear();
     for (const input of inputs) {
       walletProgress.set(input.id, {
         label: input.label,
         state: 'queued',
         stage: 'Queued',
-        message: 'Waiting for a seed-scan slot',
+        message: 'Waiting for a scan slot',
         sections: new Map(),
       });
     }
@@ -180,7 +255,7 @@ export function createDiscoveryScannerController(
     if (progress === undefined) return;
     progress.state = failed ? 'failed' : 'complete';
     progress.stage = failed ? 'Stopped' : 'Complete';
-    progress.message = failed ? 'This wallet did not produce a complete report' : 'All selected Dash recovery sections finished';
+    progress.message = failed ? 'This wallet did not produce a complete report' : 'All requested scan sections finished';
     if (!failed) (progress.sections as Map<RecoveryProgress['section'], string>).clear();
     view.renderWalletProgress(walletProgress);
   }
@@ -264,6 +339,10 @@ export function createDiscoveryScannerController(
     let inputs: RecoverySeedInput[] = [];
     try {
       const snapshot = view.readInputs();
+      if (snapshot.sourceMode === 'public') {
+        startWatchOnlyScan(snapshot);
+        return;
+      }
       try {
         inputs = recoveryInputs(snapshot);
       } finally {
@@ -318,6 +397,8 @@ export function createDiscoveryScannerController(
                 onProgress: updateProgress,
                 onFinding: renderLiveFinding,
               });
+              await enrichRecoveryHistory(adapter, result, { signal: runController.signal, networkApi, networkLimiter, sessionSecretGuard,
+                onProgress: updateProgress, onFinding: renderLiveFinding });
               orderedResults[index] = result;
               currentResults = orderedResults.filter((candidate): candidate is RecoveryWalletResult => candidate !== undefined);
               renderResults();
@@ -369,6 +450,126 @@ export function createDiscoveryScannerController(
       void run();
     } catch (cause) {
       wipeInputObjects(inputs);
+      sessionSecretGuard.clear();
+      view.showError(dependencies.describeUnknownError(cause));
+    }
+  }
+
+  function startWatchOnlyScan(snapshot: RecoveryInputSnapshot): void {
+    view.clearError();
+    let targets: WatchOnlyTarget[] = [];
+    try {
+      try {
+        targets = watchOnlyTargets(snapshot);
+      } finally {
+        // The raw pasted field must not survive into the asynchronous scan;
+        // the resolved public material already lives in `targets`.
+        wipeInputSnapshot(snapshot);
+      }
+      const config = watchOnlyScanConfig(snapshot);
+      const requestConcurrency = parseConcurrency(snapshot.requestConcurrency, 'Network concurrency');
+      for (const { adapter, network } of targets) {
+        if (!adapter.networks.includes(network ?? config.network)) throw new Error(`${adapter.label} does not support ${config.network}.`);
+      }
+      sessionSecretGuard.clear();
+      validatedExports.clear();
+      if (snapshot.clearInputOnStart) clearVisibleSecrets();
+      currentResults = [];
+      activeResultId = null;
+      resultTabTouched = false;
+      scanCompleted = false;
+      liveFindingCount = 0;
+      renderResults();
+      currentAbort = new AbortController();
+      const runController = currentAbort;
+      const networkLimiter = new dependencies.RecoveryConcurrencyLimiter(requestConcurrency);
+      setRunning(true);
+      view.showProgress();
+      initializeWalletProgress(targets.map(({ input }) => input));
+      const run = async (): Promise<void> => {
+        let exportStagingAttempted = false;
+        try {
+          const networkApi = await dependencies.recoveryNetworkApi();
+          const orderedResults: Array<RecoveryWalletResult | undefined> = new Array(targets.length);
+          view.setStatus(`Scanning ${targets.length} watch-only key${targets.length === 1 ? '' : 's'} · up to ${requestConcurrency} at once…`);
+          const failures: string[] = [];
+          await dependencies.mapRecoveryTasks(targets, requestConcurrency, async (target, index) => {
+            try {
+              if (target.adapter.scanWatchOnly === undefined) {
+                throw new Error(`${target.adapter.label} does not support watch-only scanning in this build.`);
+              }
+              const result = await target.adapter.scanWatchOnly(target.input, { ...config, network: target.network ?? config.network }, {
+                signal: runController.signal,
+                networkApi,
+                networkLimiter,
+                sessionSecretGuard,
+                onProgress: updateProgress,
+                onFinding: renderLiveFinding,
+              });
+              await enrichRecoveryHistory(target.adapter, result, { signal: runController.signal, networkApi, networkLimiter, sessionSecretGuard,
+                onProgress: updateProgress, onFinding: renderLiveFinding });
+              if (target.ambiguous) result.warnings.unshift('This key has no unique coin identifier. This report checks one candidate coin; an empty result does not establish which coin created the key.');
+              orderedResults[index] = result;
+              currentResults = orderedResults.filter((candidate): candidate is RecoveryWalletResult => candidate !== undefined);
+              renderResults();
+              const incomplete = result.sections.some(({ state }) => state === 'failed' || state === 'partial');
+              if (incomplete) failures.push(`${target.adapter.label}: some sections were not fully checked; see the report.`);
+              finishWalletProgress(target.input.id, incomplete);
+              return result;
+            } catch (cause) {
+              finishWalletProgress(target.input.id, true);
+              if (runController.signal.aborted) throw cause;
+              failures.push(`${target.adapter.label}: ${dependencies.describeUnknownError(cause)}`);
+              return undefined;
+            } finally {
+              target.input.value = '';
+            }
+          });
+          view.renderWalletProgress(walletProgress);
+          for (const report of currentResults) {
+            for (const failure of failures) report.warnings.push(`Scan incomplete: ${failure}`);
+          }
+          exportStagingAttempted = true;
+          stageValidatedExports();
+          renderResults();
+          if (runController.signal.aborted) throw new DOMException('Public-key scan cancelled.', 'AbortError');
+          view.setStatus(failures.length === 0
+            ? 'Public-key scan complete. Review the results by coin and export the public report.'
+            : `Public-key scan incomplete: ${currentResults.length} reports available, ${failures.length} coin scans incomplete. Completed reports remain exportable.`);
+          if (failures.length > 0) view.showError(failures.join('\n'));
+          scanCompleted = failures.length === 0;
+        } catch (cause) {
+          for (const progress of walletProgress.values()) {
+            if (progress.state === 'complete' || progress.state === 'failed') continue;
+            progress.state = 'failed';
+            progress.stage = 'Stopped';
+            progress.message = 'This watch-only key did not produce a complete report';
+          }
+          view.renderWalletProgress(walletProgress);
+          if (cause instanceof DOMException && cause.name === 'AbortError') {
+            view.setStatus('Scan cancelled between bounded operations. Completed reports remain exportable; the active key is incomplete and was not added.');
+          } else {
+            view.showError(dependencies.describeUnknownError(cause));
+          }
+          if (currentResults.length > 0 && !exportStagingAttempted) {
+            try {
+              stageValidatedExports();
+              renderResults();
+            } catch (exportCause) {
+              view.showError(`Completed reports could not pass the export tripwire: ${dependencies.describeUnknownError(exportCause)}`);
+            }
+          }
+        } finally {
+          wipeWatchOnlyTargets(targets);
+          sessionSecretGuard.clear();
+          currentAbort = null;
+          setRunning(false);
+        }
+      };
+      void run();
+    } catch (cause) {
+      if (cause instanceof Error && cause.name === 'PrivateMaterialError') clearVisibleSecrets();
+      wipeWatchOnlyTargets(targets);
       sessionSecretGuard.clear();
       view.showError(dependencies.describeUnknownError(cause));
     }

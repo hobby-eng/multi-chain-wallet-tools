@@ -1,3 +1,4 @@
+import { validateHistory, historyAmount } from './history.js';
 import { neutralizeSpreadsheetFormula } from '@ckd/export/csv.js';
 import type { RecoveryExportEnvelope, RecoveryExportResult, RecoverySectionId, RecoveryWalletResult } from './types.js';
 
@@ -11,6 +12,12 @@ export interface RecoveryExportFile {
 
 function safeTimestamp(date = new Date()): string {
   return date.toISOString().replace(/[:.]/gu, '-');
+}
+
+function exportHistory(value: NonNullable<RecoveryWalletResult['sections'][number]['findings'][number]['history']>) {
+  const history = validateHistory(value);
+  const { firstReceived: _firstReceived, lastReceived: _lastReceived, firstSpent: _firstSpent, lastSpent: _lastSpent, ...summary } = history;
+  return summary;
 }
 
 function exportableResults(results: RecoveryWalletResult[]): RecoveryExportResult[] {
@@ -40,7 +47,11 @@ function exportableResults(results: RecoveryWalletResult[]): RecoveryExportResul
         subtitle: finding.subtitle,
         balanceAtomic: finding.balanceAtomic.toString(),
         balanceLabel: finding.balanceLabel,
+        ...(finding.balanceUnit === undefined ? {} : { balanceUnit: {
+          asset: finding.balanceUnit.asset, atomicUnit: finding.balanceUnit.atomicUnit, decimals: finding.balanceUnit.decimals,
+        } }),
         fields: finding.fields,
+        ...(finding.history === undefined ? {} : { history: exportHistory(finding.history) }),
       })),
     })),
   }));
@@ -51,18 +62,19 @@ function csvCell(value: string): string {
 }
 
 const CSV_FIELD_COLUMNS = [
-  ['Derivation path', 'derivation_path', ['core', 'platform', 'identity', 'shielded']],
-  ['Branch', 'branch', ['core']],
-  ['Address index', 'address_index', ['core', 'platform']],
-  ['Transactions reported', 'transactions_reported', ['core', 'platform', 'identity']],
+  ['Scan family', 'scan_family', ['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral']],
+  ['Derivation path', 'derivation_path', ['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral', 'platform', 'identity', 'shielded']],
+  ['Branch', 'branch', ['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral']],
+  ['Address index', 'address_index', ['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral', 'platform']],
+  ['Transactions reported', 'transactions_reported', ['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral', 'platform', 'identity']],
   ['Incoming credit events', 'incoming_credit_events', ['platform', 'identity']],
   ['Outgoing credit events', 'outgoing_credit_events', ['platform', 'identity']],
-  ['Lifetime received', 'lifetime_received_dash', ['core', 'platform', 'identity']],
-  ['Lifetime sent', 'lifetime_sent_dash', ['core', 'platform', 'identity']],
+  ['Lifetime received', 'lifetime_received_dash', ['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral', 'platform', 'identity']],
+  ['Lifetime sent', 'lifetime_sent_dash', ['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral', 'platform', 'identity']],
   ['Lifetime fees spent', 'lifetime_fees_spent_dash', ['identity']],
-  ['First seen', 'first_seen', ['core', 'platform', 'identity']],
-  ['Last seen', 'last_seen', ['core', 'platform', 'identity']],
-  ['Public-key hash', 'public_key_hash', ['core', 'platform', 'identity']],
+  ['First seen', 'first_seen', ['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral', 'platform', 'identity']],
+  ['Last seen', 'last_seen', ['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral', 'platform', 'identity']],
+  ['Public-key hash', 'public_key_hash', ['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral', 'platform', 'identity']],
   ['Pool position', 'pool_position', ['shielded']],
   ['Spent at pool position', 'spent_at_pool_position', ['shielded']],
   ['Direction', 'direction', ['shielded']],
@@ -123,6 +135,15 @@ function sectionMetricValue(
   return numeric ? numericDash(value) : value;
 }
 
+const HISTORY_COLUMNS = [
+  ['status', 'history_status'], ['source', 'history_source'], ['scope', 'history_scope'], ['note', 'history_note'],
+  ['asset', 'history_asset'], ['atomicUnit', 'history_atomic_unit'], ['decimals', 'history_decimals'],
+  ['totalReceivedAtomic', 'total_received_atomic'], ['totalSentAtomic', 'total_sent_atomic'], ['totalFeesAtomic', 'total_fees_atomic'],
+  ['firstSeen', 'history_first_seen_utc'], ['lastSeen', 'history_last_seen_utc'],
+  ['transactionCount', 'history_transaction_count'], ['pendingTransactionCount', 'pending_transaction_count'],
+] as const;
+const HISTORY_AMOUNT_COLUMNS = [['totalReceivedAtomic', 'total_received'], ['totalSentAtomic', 'total_sent'], ['totalFeesAtomic', 'total_fees']] as const;
+
 function toCsv(results: RecoveryWalletResult[]): string {
   const includedSections = new Set<RecoverySectionId>(results.flatMap((result) =>
     result.sections.filter((section) => section.state !== 'skipped').map((section) => section.id)));
@@ -137,10 +158,14 @@ function toCsv(results: RecoveryWalletResult[]): string {
     'resource',
     'description',
     'balance_atomic',
+    'balance_asset', 'balance_atomic_unit', 'balance_decimals',
     'balance_dash',
+    ...HISTORY_COLUMNS.map(([, column]) => column),
+    ...HISTORY_AMOUNT_COLUMNS.map(([, column]) => column),
     ...fieldColumns.map(([, column]) => column),
     ...sectionMetricColumns.map(([, column]) => column),
     'metadata',
+    'warnings',
     'proof',
   ];
   const rows = [header.map(csvCell).join(',')];
@@ -156,10 +181,14 @@ function toCsv(results: RecoveryWalletResult[]): string {
           '',
           section.description,
           '0',
+          '', '', '',
           '',
+          ...HISTORY_COLUMNS.map(() => ''),
+          ...HISTORY_AMOUNT_COLUMNS.map(() => ''),
           ...fieldColumns.map(() => ''),
           ...sectionMetricColumns.map(([label, , numeric]) => sectionMetricValue(section.metrics, label, numeric)),
           section.warning ?? '',
+          result.warnings.join(' | '),
           section.proof,
         ].map(csvCell).join(','));
         continue;
@@ -178,10 +207,14 @@ function toCsv(results: RecoveryWalletResult[]): string {
           finding.title,
           finding.subtitle,
           finding.balanceAtomic.toString(),
+          finding.balanceUnit?.asset ?? '', finding.balanceUnit?.atomicUnit ?? '', String(finding.balanceUnit?.decimals ?? ''),
           numericDash(finding.balanceLabel),
-          ...fieldColumns.map(([label]) => csvFieldValue(finding.fields, label)),
+          ...HISTORY_COLUMNS.map(([key]) => String(finding.history?.[key] ?? '')),
+          ...HISTORY_AMOUNT_COLUMNS.map(([key]) => finding.history?.[key] == null ? '' : historyAmount(finding.history[key]!, finding.history).split(' ')[0]!),
+          ...fieldColumns.map(([label]) => label === 'First seen' && finding.history ? finding.history.firstSeen ?? '' : label === 'Last seen' && finding.history ? finding.history.lastSeen ?? '' : csvFieldValue(finding.fields, label)),
           ...sectionMetricColumns.map(([label, , numeric]) => sectionMetricValue(section.metrics, label, numeric)),
           metadata,
+          result.warnings.join(' | '),
           section.proof,
         ].map(csvCell).join(','));
       }
