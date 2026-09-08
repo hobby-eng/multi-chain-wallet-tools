@@ -102,6 +102,22 @@ describe('automatic public-key discovery', () => {
     expect(() => resolveWatchOnlyTargets(broken, adapters)).toThrow(/checksum/u);
     expect(() => resolveWatchOnlyTargets(HDKey.fromMasterSeed(new Uint8Array(32).fill(9)).publicExtendedKey, adapters)).toThrow(/master/u);
   });
+  it.each([
+    [0x049d7cb2, 'mainnet', 'Nested SegWit'], [0x04b24746, 'mainnet', 'Native SegWit'],
+    [0x044a5262, 'testnet', 'Nested SegWit'], [0x045f1cf6, 'testnet', 'Native SegWit'],
+  ] as const)('preserves prefixed SLIP132 metadata and scans its encoded network (%s)', async (version, network, family) => {
+    const encoded = slip132(account.publicExtendedKey, version);
+    const bare = resolveWatchOnlyTargets(encoded, adapters)[0]!;
+    const prefixed = resolveWatchOnlyTargets(`bitcoin-xpub:${encoded}`, adapters)[0]!;
+    expect(prefixed.network).toBe(network);
+    expect(prefixed.material).toEqual(bare.material);
+    expect(prefixed.material.detectionLabel).toContain(family);
+    const query = vi.fn(async (_network, addresses: string[]) => addresses.map(address => ({ address, balance: '0', transactionCount: 0 })));
+    await BITCOIN_RECOVERY_ADAPTER.scanWatchOnly!({ ...prefixed.material, id: 'encoded', label: 'encoded' },
+      { ...config, network: prefixed.network ?? 'mainnet' }, context({ utxoAddresses: query }));
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls.every(([queriedNetwork]) => queriedNetwork === network)).toBe(true);
+  });
   it('rejects secret material anywhere in a batch, including prefixed private payloads', () => {
     for (const secret of [account.privateExtendedKey, '11'.repeat(32), `public-key:${'11'.repeat(32)}`, 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about']) {
       expect(() => assertWatchOnlyBatchInput(`${publicKey}\n${secret}`)).toThrow(/Private/u);
