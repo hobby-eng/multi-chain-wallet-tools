@@ -362,6 +362,39 @@ describe('recovery secret boundary', () => {
 });
 
 describe('streamed Core recovery scan', () => {
+  it('uses the selected account for Dash Mobile CoinJoin discovery', async () => {
+    const seed = mnemonicToSeed(MNEMONIC);
+    const guard = new SecretEgressGuard();
+    guard.registerBytes('seed', seed);
+    const requestedAddresses: string[] = [];
+    const gateway = new RecoveryNetworkGateway(guard, mockNetwork({
+      coreStatus: async () => ({ status: 'ok' }),
+      coreTip: async () => ({ resultSet: [{ height: 2_300_000 }] }),
+      coreAddressInfo: async (_network, addresses) => {
+        requestedAddresses.push(...addresses);
+        return addresses.map((address) => ({ address, balance: '0', txCount: 0 }));
+      },
+    }));
+    const config: RecoveryScanConfig = {
+      network: 'mainnet', account: 1, scanCore: false,
+      scanPlatformAddresses: false, scanPlatformIdentities: false,
+      coreReceiveCount: 0, coreChangeCount: 0, platformAddressCount: 0,
+      scanLegacyCore: false, legacyCoreCount: 0,
+      scanCoinJoin: true, coinJoinExternalCount: 1, coinJoinInternalCount: 0,
+      scanIdentityFunding: false, identityFundingCount: 0,
+      identityTopUpIdentityCount: 0, identityTopUpCount: 0,
+      scanProviderCollateral: false, providerCollateralCount: 0,
+      identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
+      includeUsedZeroBalance: false, scanShieldedPool: false,
+    };
+    try {
+      await scanDashCoinJoin('seed-1', seed, config, gateway, new AbortController().signal, () => {}, () => {});
+      expect(requestedAddresses).toEqual(['XueRMZYBUVDiqsg43YL769qepr7JmxGwhG']);
+    } finally {
+      seed.fill(0);
+    }
+  });
+
   it('derives and queries branch-bounded chunks without transmitting the seed', async () => {
     const seed = mnemonicToSeed(MNEMONIC);
     const guard = new SecretEgressGuard();
