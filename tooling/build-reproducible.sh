@@ -5,7 +5,7 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 target="artifacts"
 source_path="/dist/."
 destination="$root/dist"
-expected_path="release/SHA256SUMS"
+expected_path="multi-chain-edition/release/SHA256SUMS"
 
 if [[ "${1:-}" == "--wasm" ]]; then
   target="wasm-artifacts"
@@ -55,6 +55,6 @@ cp -a -- "$temporary/." "$destination/"
 if [[ "$target" == "wasm-artifacts" ]]; then
   echo "Replaced the committed generated WASM inputs with the canonical container build."
 else
-  cat "$destination/release/SHA256SUMS"
+  cat "$destination/$expected_path"
   echo "Copied the canonical container build to dist/."
 fi
