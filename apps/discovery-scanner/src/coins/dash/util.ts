@@ -40,7 +40,7 @@ export function exactSafeInteger(value: unknown, context: string): number {
 
 /**
  * Shared DashScan Core address batch/history plumbing. Both the standard
- * BIP44 scanner and the optional CoinJoin/DIP9 scanner query the exact same
+ * BIP44 scanner and the optional Dash Mobile CoinJoin · DIP9 scanner query the exact same
  * `/addresses/info` and `/address/:address` DashScan operations for locally
  * derived P2PKH addresses; only the derivation path differs. Reusing these
  * validators avoids a second, independently-risky parse of network responses.

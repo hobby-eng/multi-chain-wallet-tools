@@ -318,7 +318,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
           ? hasChange || hasCoinJoin ? ' · Receive addresses' : ''
           : activeGroup === 'change'
             ? ' · Change addresses'
-            : activeBranch === 'coinjoin-external' ? ' · CoinJoin / DIP9 external' : ' · CoinJoin / DIP9 internal';
+            : activeBranch === 'coinjoin-external' ? ' · Dash Mobile CoinJoin · DIP9 external' : ' · Dash Mobile CoinJoin · DIP9 internal';
         resultTitle.textContent = `${result.title}${suffix}`;
       }
       for (const [button, branch] of [
