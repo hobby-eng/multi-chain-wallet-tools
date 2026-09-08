@@ -96,13 +96,13 @@ A compromised browser, extension, operating system, firmware, build host, or alr
 9. **Embedding protection depends on delivery.** A CSP supplied through `<meta>` cannot enforce `frame-ancestors`. An HTTP host must send `Content-Security-Policy: frame-ancestors 'none'`, preferably with `X-Frame-Options: DENY`.
 10. **Checksum sidecars do not establish authenticity.** A `.sha256` file distributed beside an HTML file detects transfer corruption. GitHub provenance attestations or a separately trusted signature bind artifacts to a publisher/build identity, but do not prove the software is safe.
 11. **Standards and providers can change.** Proposed Platform specifications, SDK behavior, endpoint contracts, and browser security behavior require review when dependencies or protocols are upgraded.
-12. **No independent audit has been completed.** Tests and cross-implementation vectors reduce integration risk; they do not prove absence of implementation or supply-chain vulnerabilities.
+12. **No independent cryptography-specialist audit has been completed.** Tests and cross-implementation vectors reduce integration risk; they do not prove absence of implementation or supply-chain vulnerabilities.
 
 ## Verification evidence and limits
 
 Historical test totals and live-provider observations are not a verification record for the current checkout. The previous unpinned “265 TypeScript / 11 Rust tests passed” summary has been withdrawn as a current-status claim. Record each new run with its source commit, command, runtime, date and result; keep real-browser acceptance separate from source-level tests.
 
-The baseline audit identified A01–A09, DOC01–DOC03 and T01. Corrections are tracked in individual commits after the baseline. Full verification, a fresh build and direct `file://` browser acceptance are required before treating those corrections as release-ready. A passing source regression does not prove that the final HTML behaves correctly in a browser.
+The baseline audit identified A01–A09, DOC01–DOC03 and T01. Corrections and bounded verification evidence are recorded in the [English remediation report](docs/audits/2026-09-08-remediation.md), with one commit per finding. Full verification, a fresh build and direct `file://` browser acceptance are required before treating those corrections as release-ready. A passing source regression does not prove that the final HTML behaves correctly in a browser.
 
 The canonical release build is defined by `Dockerfile.reproducible`: Linux/amd64, an Ubuntu 24.04-based image pinned by immutable digest, exact Node/pnpm/Rust/wasm-bindgen versions, checksum-verified installers, locked JavaScript and Cargo graphs, and a final complete verification layer without network access. Rebuilt Dash Orchard WASM/glue must byte-match the reviewed committed files. A native build can pass the same functional checks while producing different release bytes because host linkers and system libraries vary.
 
