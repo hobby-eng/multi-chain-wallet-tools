@@ -168,11 +168,12 @@ describe('recovery secret boundary', () => {
     expect(urls[2]).toContain('blockchain.info/multiaddr');
   });
 
-  it('loads 100 Ethereum addresses in one JSON-RPC batch', async () => {
+  it('pins all 100 Ethereum account reads to the previously observed block height', async () => {
     const address = '0x9858EfFD232B4033E47d90003D41EC34EcaEda94';
     const addresses = Array(100).fill(address);
     const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      const requests = JSON.parse(String(init?.body)) as Array<{ id: string }>;
+      const requests = JSON.parse(String(init?.body)) as { id: string } | Array<{ id: string }>;
+      if (!Array.isArray(requests)) return new Response(JSON.stringify({ jsonrpc: '2.0', id: requests.id, result: '0x10' }));
       return new Response(JSON.stringify(requests.map(({ id }) => ({
         jsonrpc: '2.0',
         id,
@@ -184,8 +185,10 @@ describe('recovery secret boundary', () => {
       blockNumber: '16',
       entries: addresses.map((entry) => ({ address: entry, balance: '0', nonce: '0' })),
     });
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toHaveLength(201);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    const reads = JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body)) as Array<{ params: string[] }>;
+    expect(reads).toHaveLength(200);
+    expect(reads.every(read => read.params[1] === '0x10')).toBe(true);
   });
 
   it('recovers a missing DashScan first-seen timestamp from its first transaction', async () => {

@@ -138,7 +138,8 @@ async function scanEthereum(
   let fundedCount = 0;
   let usedCount = 0;
   let scanned = 0;
-  let blockNumber = 0n;
+  let firstBlock: bigint | null = null;
+  let lastBlock: bigint | null = null;
   const startedAt = new Date().toISOString();
   try {
     for (const profile of profiles) {
@@ -160,7 +161,9 @@ async function scanEthereum(
             () => gateway.networkApi.evmAccounts(config.network, addresses, context.signal),
             context.signal,
           ), addresses);
-          blockNumber = BigInt(response.blockNumber);
+          const block = BigInt(response.blockNumber);
+          firstBlock = firstBlock === null || block < firstBlock ? block : firstBlock;
+          lastBlock = lastBlock === null || block > lastBlock ? block : lastBlock;
           for (const entry of response.entries) {
             const addressKey = entry.address.toLowerCase();
             accountStates.set(addressKey, entry);
@@ -232,8 +235,8 @@ async function scanEthereum(
       findings,
       scanned,
       source: config.network === 'mainnet' ? 'https://ethereum-rpc.publicnode.com' : 'https://ethereum-sepolia-rpc.publicnode.com',
-      proof: `${config.network === 'mainnet' ? 'Ethereum mainnet' : 'Sepolia testnet'} JSON-RPC state at block ${blockNumber} · independent 20-address post-use gaps`,
-      warning: 'This is a single-source public RPC view. ERC-20 token balances and contract-wallet ownership are not scanned.',
+      proof: `${config.network === 'mainnet' ? 'Ethereum mainnet' : 'Sepolia testnet'} JSON-RPC account batches at heights ${firstBlock ?? 'unavailable'}–${lastBlock ?? 'unavailable'} · independent 20-address post-use gaps`,
+      warning: 'Each account batch uses an explicit block height; different batches may use different heights. This is a single-source public RPC view, without a block-hash snapshot across reorganizations. ERC-20 token balances and contract-wallet ownership are not scanned.',
     };
     return {
       inputId: input.id,

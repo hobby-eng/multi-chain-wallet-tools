@@ -319,11 +319,18 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
       throw new Error(`Network Worker requires 1 to ${RECOVERY_EVM_ACCOUNT_BATCH} Ethereum addresses per request.`);
     }
     addresses.forEach(assertEthereumAddress);
+    const head = record(await fetchJson(ETHEREUM_ENDPOINTS[network], signal, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 'block', method: 'eth_blockNumber', params: [] }),
+    }), 'Ethereum block response');
+    if (head.error !== undefined || head.id !== 'block' || typeof head.result !== 'string'
+      || !/^0x[0-9a-f]+$/u.test(head.result)) throw new Error('Ethereum RPC returned an invalid block number.');
+    const blockNumber = head.result;
     const requests = [
-      { jsonrpc: '2.0', id: 'block', method: 'eth_blockNumber', params: [] },
       ...addresses.flatMap((address, index) => [
-        { jsonrpc: '2.0', id: `balance:${index}`, method: 'eth_getBalance', params: [address, 'latest'] },
-        { jsonrpc: '2.0', id: `nonce:${index}`, method: 'eth_getTransactionCount', params: [address, 'latest'] },
+        { jsonrpc: '2.0', id: `balance:${index}`, method: 'eth_getBalance', params: [address, blockNumber] },
+        { jsonrpc: '2.0', id: `nonce:${index}`, method: 'eth_getTransactionCount', params: [address, blockNumber] },
       ]),
     ];
     const raw = await fetchJson(ETHEREUM_ENDPOINTS[network], signal, {
@@ -339,10 +346,9 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
         || !/^0x[0-9a-f]+$/u.test(response.result)) {
         throw new Error('Ethereum RPC returned a malformed or failed response.');
       }
+      if (results.has(response.id)) throw new Error('Ethereum RPC repeated a response ID.');
       results.set(response.id, response.result);
     }
-    const blockNumber = results.get('block');
-    if (blockNumber === undefined) throw new Error('Ethereum RPC omitted the block number.');
     return {
       blockNumber: BigInt(blockNumber).toString(),
       entries: addresses.map((address, index) => {
