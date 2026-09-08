@@ -508,6 +508,7 @@ describe('Orchard stream completion', () => {
         return { count: counts.shift() ?? 0 };
       },
       noteCount: (page) => page.count,
+      revision: () => 10n,
       onPage: (page, visit) => {
         visited.push({ position: visit.position, count: page.count, emptyConfirmation: visit.emptyConfirmation });
       },
@@ -517,6 +518,35 @@ describe('Orchard stream completion', () => {
     expect(visited.map(({ emptyConfirmation }) => emptyConfirmation)).toEqual([0, 0, 1, 2]);
     expect(disposed).toEqual([1634, 2, 0, 0]);
     expect(outcome).toEqual({ complete: true, pageCount: 4, terminalPosition: 4096n });
+  });
+
+  it('refreshes the last partial chunk when the terminal proof height advances', async () => {
+    const pages = [
+      { count: 1, height: 100n },
+      { count: 0, height: 101n },
+      { count: 2, height: 101n },
+      { count: 0, height: 101n },
+      { count: 0, height: 101n },
+    ];
+    const requested: bigint[] = [];
+    const observed: Array<{ position: bigint; count: number; height: bigint }> = [];
+    const outcome = await runShieldedPageStream({
+      fetchPage: async (position) => {
+        requested.push(position);
+        const page = pages.shift();
+        if (page === undefined) throw new Error('Unexpected Orchard request.');
+        return page;
+      },
+      noteCount: (page) => page.count,
+      revision: (page) => page.height,
+      onPage: (page, visit) => {
+        observed.push({ position: visit.position, ...page });
+      },
+      disposePage: () => undefined,
+    });
+    expect(requested).toEqual([0n, 2048n, 0n, 2048n, 2048n]);
+    expect(observed[2]).toEqual({ position: 0n, count: 2, height: 101n });
+    expect(outcome).toEqual({ complete: true, pageCount: 5, terminalPosition: 2048n });
   });
 });
 

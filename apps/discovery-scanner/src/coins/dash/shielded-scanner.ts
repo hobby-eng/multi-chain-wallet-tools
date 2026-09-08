@@ -257,6 +257,7 @@ async function streamPool(
   return runShieldedPageStream({
     fetchPage: (position) => fetchShieldedPage(network, gateway, position, signal),
     noteCount: (page) => page.notes.length,
+    revision: (page) => page.proofHeight,
     onPage: (page, visit) => {
       const noteCount = page.notes.length;
       if (noteCount > 0) {
