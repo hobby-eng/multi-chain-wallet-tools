@@ -105,6 +105,7 @@ export async function runShieldedPageStream<Page>(options: {
   let cursor = initialShieldedStreamCursor();
   let lastPartial: { position: bigint; revision: bigint } | undefined;
   let terminalRevision: bigint | undefined;
+  let highestRevision: bigint | undefined;
   for (;;) {
     if (options.isCancelled?.() === true) throw new DOMException('Shielded pool scan cancelled.', 'AbortError');
     const page = await options.fetchPage(cursor.position);
@@ -117,6 +118,12 @@ export async function runShieldedPageStream<Page>(options: {
       if (typeof revision !== 'bigint' || revision < 0n) {
         throw new Error('Orchard proof revision must be a non-negative bigint.');
       }
+      // A proof authenticates a state, not its freshness relative to earlier
+      // pages. Never combine an older tail with a newer ledger snapshot.
+      if (highestRevision !== undefined && revision < highestRevision) {
+        throw new Error('Orchard proof height decreased during the scan. Retry with a synchronized provider.');
+      }
+      highestRevision = revision;
       const partialMatchesRevision = lastPartial === undefined || lastPartial.revision === revision;
       const emptyConfirmation = noteCount === 0
         ? partialMatchesRevision && terminalRevision === revision ? cursor.consecutiveEmpty + 1 : 1
