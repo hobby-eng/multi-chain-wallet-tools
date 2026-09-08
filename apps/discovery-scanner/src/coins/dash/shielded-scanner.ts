@@ -19,6 +19,7 @@ import type {
   RecoverySeedInput,
 } from '../../types.js';
 import { shouldDisplayShieldedActivity } from './shielded-filter.js';
+import { shieldedFindingPresentation } from './shielded-presentation.js';
 import {
   runShieldedPageStream,
   SHIELDED_EMPTY_CONFIRMATIONS,
@@ -175,22 +176,20 @@ function sectionFromLedger(
     const outgoing = record.outgoing;
     const note = incoming ?? outgoing;
     if (note === undefined) throw new Error('Recovered Orchard activity has no note view.');
-    const unspent = incoming !== undefined && record.spent === false;
+    const presentation = shieldedFindingPresentation(record);
     const finding: RecoveryFinding = {
       id: `shielded:${record.position}`,
       title: note.address,
       subtitle: `${record.direction === 'received' ? 'Received' : record.direction === 'sent' ? 'Sent output' : 'Self/change'} · pool position ${record.position}`,
-      balanceAtomic: unspent ? note.value : 0n,
-      balanceLabel: unspent
-        ? formatDashFromCredits(note.value)
-        : record.spent === true ? '0 DASH · already spent' : '0 DASH · outgoing activity',
+      balanceAtomic: presentation.balanceAtomic,
+      balanceLabel: presentation.balanceLabel,
       fields: [
         { label: 'Account/viewing-key path', value: options.accountPathLabel, copyable: true },
         { label: 'Pool position', value: record.position.toString() },
         { label: 'Direction', value: record.direction },
         { label: 'Note value', value: formatDashFromCredits(note.value) },
         { label: 'Note commitment', value: record.cmx, copyable: true },
-        { label: 'Spend state', value: incoming === undefined ? 'Outgoing view only' : record.spent === true ? 'Spent' : 'Unspent' },
+        { label: 'Spend state', value: presentation.spendState },
         ...(record.spentAtPosition === undefined ? [] : [{ label: 'Spent at pool position', value: record.spentAtPosition.toString() }]),
         ...(note.memo.length > 0 ? [{ label: 'Memo', value: note.memo }] : []),
       ],
