@@ -90,37 +90,85 @@ export function advanceShieldedStream(
 export async function runShieldedPageStream<Page>(options: {
   fetchPage(position: bigint): Promise<Page>;
   noteCount(page: Page): number;
+  /** Platform height authenticated by this page's proof. */
+  revision(page: Page): bigint;
   onPage(page: Page, visit: ShieldedPageVisit): void | Promise<void>;
   disposePage(page: Page): void;
   isCancelled?(): boolean;
   yieldTurn?(): Promise<void>;
   maximumPages?: number;
 }): Promise<ShieldedStreamOutcome> {
+  const maximumPages = options.maximumPages ?? SHIELDED_MAX_PAGES_PER_SCAN;
+  if (!Number.isSafeInteger(maximumPages) || maximumPages < SHIELDED_EMPTY_CONFIRMATIONS) {
+    throw new Error('Orchard stream page ceiling is invalid.');
+  }
   let cursor = initialShieldedStreamCursor();
+  let lastPartial: { position: bigint; revision: bigint } | undefined;
+  let terminalRevision: bigint | undefined;
   for (;;) {
     if (options.isCancelled?.() === true) throw new DOMException('Shielded pool scan cancelled.', 'AbortError');
     const page = await options.fetchPage(cursor.position);
     let noteCount: number;
+    let revision: bigint;
     try {
       noteCount = options.noteCount(page);
       isTerminalShieldedPage(noteCount);
+      revision = options.revision(page);
+      if (typeof revision !== 'bigint' || revision < 0n) {
+        throw new Error('Orchard proof revision must be a non-negative bigint.');
+      }
+      const partialMatchesRevision = lastPartial === undefined || lastPartial.revision === revision;
+      const emptyConfirmation = noteCount === 0
+        ? partialMatchesRevision && terminalRevision === revision ? cursor.consecutiveEmpty + 1 : 1
+        : 0;
       await options.onPage(page, {
         position: cursor.position,
         pageNumber: cursor.pageCount + 1,
-        emptyConfirmation: noteCount === 0 ? cursor.consecutiveEmpty + 1 : 0,
+        emptyConfirmation,
       });
     } finally {
       options.disposePage(page);
     }
-    const step = advanceShieldedStream(cursor, noteCount, options.maximumPages);
-    cursor = step;
-    if (step.decision !== 'continue') {
+    const pageCount = cursor.pageCount + 1;
+    if (noteCount > 0) {
+      lastPartial = noteCount < SHIELDED_PAGE_SIZE
+        ? { position: cursor.position, revision }
+        : undefined;
+      terminalRevision = undefined;
+      const position = cursor.position + BigInt(SHIELDED_PAGE_SIZE);
+      if (pageCount >= maximumPages) {
+        return { complete: false, pageCount, terminalPosition: position };
+      }
+      cursor = { position, pageCount, consecutiveEmpty: 0 };
+      await options.yieldTurn?.();
+      continue;
+    }
+
+    // A newer terminal proof can contain actions appended inside the previous
+    // partial chunk. Refresh that chunk before accepting the empty successor.
+    if (lastPartial !== undefined && lastPartial.revision !== revision) {
+      terminalRevision = undefined;
+      if (pageCount >= maximumPages) {
+        return { complete: false, pageCount, terminalPosition: lastPartial.position };
+      }
+      cursor = { position: lastPartial.position, pageCount, consecutiveEmpty: 0 };
+      await options.yieldTurn?.();
+      continue;
+    }
+
+    const consecutiveEmpty = terminalRevision === revision ? cursor.consecutiveEmpty + 1 : 1;
+    terminalRevision = revision;
+    if (consecutiveEmpty >= SHIELDED_EMPTY_CONFIRMATIONS) {
       return {
-        complete: step.decision === 'complete',
-        pageCount: step.pageCount,
-        terminalPosition: step.position,
+        complete: true,
+        pageCount,
+        terminalPosition: cursor.position,
       };
     }
+    if (pageCount >= maximumPages) {
+      return { complete: false, pageCount, terminalPosition: cursor.position };
+    }
+    cursor = { position: cursor.position, pageCount, consecutiveEmpty };
     await options.yieldTurn?.();
   }
 }

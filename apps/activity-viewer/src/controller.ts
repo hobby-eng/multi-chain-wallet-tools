@@ -224,6 +224,7 @@ export function createActivityViewerController(
           return page;
         },
         noteCount: (page) => page.notes.length,
+        revision: (page) => page.proofHeight,
         onPage: (page, visit) => {
           view.setDiagnosticProof(`${page.proofHeight} · protocol ${page.protocolVersion}`);
           view.setDiagnosticRemoteTime(page.timeMs);
@@ -618,6 +619,7 @@ export function createActivityViewerController(
               return page;
             },
             noteCount: (page) => page.notes.length,
+            revision: (page) => page.proofHeight,
             onPage: (page, visit) => {
               for (const item of preparedOrchard) {
                 if (failed.has(item.input.id) || page.notes.length === 0) continue;
@@ -915,6 +917,7 @@ export function createActivityViewerController(
               return page;
             },
             noteCount: (page) => page.notes.length,
+            revision: (page) => page.proofHeight,
             onPage: (page, visit) => {
               view.setDiagnosticProof(`${page.proofHeight} · protocol ${page.protocolVersion}`);
               view.setDiagnosticRemoteTime(page.timeMs);
