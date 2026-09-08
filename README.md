@@ -48,7 +48,7 @@ In the universal Multi-Chain Edition, this connected discovery scanner supports 
 - Keeps seed-phrase and public-key searches in separate tabs. Public-key mode includes a coin selector and refuses to guess when an extended-key format is shared by several coins.
 - Scans Bitcoin Legacy, Nested SegWit, Native SegWit, and Taproot receive/change accounts through a 20-address post-use gap.
 - Scans three common Ethereum EOA layouts: Standard BIP44/MetaMask/Trezor, Ledger Live, and Legacy Ledger/MEW.
-- Lets Dash users independently enable Core BIP44, legacy mobile Core, Dash Mobile CoinJoin · DIP9, identity funding, provider holdings, Dash Platform payment addresses, Dash Platform identities, and Dash Orchard.
+- Lets Dash users independently enable Core BIP44, legacy mobile Core, Dash Mobile CoinJoin · DIP9, provider holdings, Dash Platform payment addresses, Dash Platform identities, and Dash Orchard. An optional Identity setting links identities already discovered to their reported L1 asset-lock transaction and compares its credit key with locally derived registration funding keys.
 - Loads adapter-provided history for Bitcoin, Ethereum, and Dash, including current balance, confirmed lifetime totals, transaction counts, and first/last activity when the provider offers complete data.
 - Supports bounded batches with progress and cancellation, and can include previously used addresses whose current balance is zero.
 - Exports public recovery results as CSV or JSON without seed phrases, private keys, extended public keys, or Orchard viewing keys.
@@ -88,7 +88,7 @@ Official release checksums refer to artifacts produced by the repository's pinne
 | Dash Core | `m/44'/5'/0'/0/i` | P2PKH |
 | Dash mobile legacy Core | `m/0'/0/i` | P2PKH |
 | Dash Mobile CoinJoin · DIP9 | `m/9'/5'/4'/0'/0/i` | P2PKH |
-| Dash identity funding | `m/9'/5'/5'/1'/i` | P2PKH |
+| Dash Identity registration funding-key comparison | `m/9'/5'/5'/1'/i` | Linked asset-lock detail for an Identity already discovered |
 | Dash provider holdings | `m/9'/5'/3'/0'/i` | P2PKH |
 | Dash Platform | `m/9'/5'/17'/0'/0'/i` | DIP17/DIP18 address |
 | Dash Identity | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 four-key registration profile |
@@ -97,6 +97,8 @@ Official release checksums refer to artifacts produced by the repository's pinne
 Bitcoin and Dash support mainnet/testnet separation. Optional change generation uses branch `/1` for Bitcoin and Dash Core. Exact protocol choices and pinned upstream references are documented in [DASH_IMPLEMENTATION.md](DASH_IMPLEMENTATION.md).
 
 Dash Identity results are grouped by candidate Identity index. Each group derives the official Platform Wallet v4.1.1 default ECDSA profile: MASTER authentication key `0`, CRITICAL authentication key `1`, HIGH authentication key `2`, and CRITICAL transfer key `3`. These roles are registration metadata rather than properties encoded by DIP13 or the key ID. The offline tool therefore never invents an Identity ID; it shows candidate keys and the public-key hashes used for later proof-verified discovery.
+
+Capabilities that require future authoritative Platform/SDK queries are tracked in [docs/ROADMAP.md](docs/ROADMAP.md). In particular, independent discovery of unused asset-lock credits remains a planned feature; the current release only links funding details to an Identity already discovered.
 
 ## Security and verification
 

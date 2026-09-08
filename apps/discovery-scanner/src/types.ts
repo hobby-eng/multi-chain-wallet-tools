@@ -108,7 +108,6 @@ export type RecoverySectionId =
   | 'core'
   | 'legacyCore'
   | 'coinjoin'
-  | 'identityFunding'
   | 'providerCollateral'
   | 'platform'
   | 'identity'
