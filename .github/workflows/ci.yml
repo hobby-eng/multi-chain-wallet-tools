@@ -37,4 +37,4 @@ jobs:
           container_id=$(docker create multi-chain-wallet-tools-ci:${GITHUB_SHA} /bin/true)
           trap 'docker rm --force "${container_id}" >/dev/null 2>&1 || true' EXIT
           docker cp "${container_id}:/dist/." dist
-          cat dist/release/SHA256SUMS
+          cat dist/multi-chain-edition/release/SHA256SUMS

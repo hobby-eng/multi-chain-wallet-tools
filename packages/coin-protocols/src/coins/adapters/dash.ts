@@ -14,6 +14,18 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     defaultVariant: true,
     networkControl: true,
     addressBranches: BIP44_ADDRESS_BRANCHES,
+    coinJoin: {
+      branches: { external: 0, internal: 1 },
+      workerAdapterId: 'dash-core-coinjoin',
+      pathPreview: ({ network, account, start, count }) => {
+        const coinType = network === 'mainnet' ? 5 : 1;
+        const range = indexRange(start, count);
+        return {
+          external: `m/9'/${coinType}'/4'/${account}'/0/${range}`,
+          internal: `m/9'/${coinType}'/4'/${account}'/1/${range}`,
+        };
+      },
+    },
     defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: TRANSPARENT_ROLES,
     pathPreview: ({ network, account, branch, start, count }) =>

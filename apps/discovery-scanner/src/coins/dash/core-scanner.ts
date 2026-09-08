@@ -1,13 +1,22 @@
+import { dashCoreHistory } from './history.js';
 import { rootFromSeed, requirePublic } from '@ckd/core/bip32.js';
 import { bytesToHex, encodeP2pkh, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
 import { RECOVERY_CORE_ADDRESS_BATCH, RECOVERY_CORE_ENDPOINTS } from '../../network-protocol.js';
 import type { RecoveryFinding, RecoveryProgress, RecoveryScanConfig, RecoverySection } from '../../types.js';
-import { ADDRESS_DISCOVERY_GAP, exactSafeInteger, exactUnsigned, extendAddressTarget, formatDashFromDuffs, object } from './util.js';
+import { parseCustomPathTemplate } from '../custom-path.js';
+import {
+  ADDRESS_DISCOVERY_GAP,
+  extendAddressTarget,
+  fetchDashScanIndexedHeight,
+  formatDashFromDuffs,
+  validateDashScanAddressBatch,
+  validateDashScanAddressHistory,
+} from './util.js';
 
-// Keeps DashScan query URLs below conservative proxy/browser request-line
-// limits while still amortizing network overhead.
+// DashScan accepts 100 P2PKH addresses while the resulting URL remains within
+// the request-line limits of supported browsers and the deployed proxy.
 const ADDRESS_CHUNK = RECOVERY_CORE_ADDRESS_BATCH;
 
 interface DerivedCoreAddress {
@@ -17,47 +26,6 @@ interface DerivedCoreAddress {
   branch: number;
   index: number;
   publicKeyHash: string;
-}
-
-interface CoreHistorySummary {
-  txCount: number;
-  received: bigint;
-  sent: bigint;
-  firstSeen: string | null;
-  lastSeen: string | null;
-}
-
-function optionalTimestamp(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  return Number.isFinite(Date.parse(value)) ? value : null;
-}
-
-function validateHistory(value: unknown, expectedAddress: string): CoreHistorySummary {
-  const history = object(value, 'DashScan address history summary');
-  if (history.address !== expectedAddress) throw new Error('DashScan address history did not match the requested address.');
-  return {
-    txCount: exactSafeInteger(history.txCount, 'DashScan address history transaction count'),
-    received: exactUnsigned(history.received, 'DashScan lifetime received amount'),
-    sent: exactUnsigned(history.sent, 'DashScan lifetime sent amount'),
-    firstSeen: optionalTimestamp(history.firstSeenBlockTimestamp),
-    lastSeen: optionalTimestamp(history.lastSeenBlockTimestamp),
-  };
-}
-
-function validateInfo(value: unknown, expected: DerivedCoreAddress[]): Array<{ balance: bigint; txCount: number }> {
-  if (!Array.isArray(value) || value.length !== expected.length) {
-    throw new Error('DashScan address batch did not preserve the requested result count.');
-  }
-  return value.map((item, index) => {
-    const info = object(item, 'DashScan address batch');
-    if (info.address !== expected[index]?.address) {
-      throw new Error('DashScan address batch did not preserve the locally derived address order.');
-    }
-    return {
-      balance: exactUnsigned(info.balance, 'DashScan address balance'),
-      txCount: exactSafeInteger(info.txCount, 'DashScan address transaction count'),
-    };
-  });
 }
 
 export async function scanDashCore(
@@ -70,28 +38,10 @@ export async function scanDashCore(
   onFinding: (finding: RecoveryFinding) => void,
 ): Promise<RecoverySection> {
   const endpoint = RECOVERY_CORE_ENDPOINTS[config.network];
-  const status = object(await gateway.runPublic(
-    { network: config.network },
-    'core.status',
-    () => gateway.networkApi.coreStatus(config.network, signal),
-    signal,
-  ), 'DashScan status');
-  if (status.status !== 'ok') throw new Error('DashScan reports that its index is not synchronized.');
-
-  const tipPage = object(
-    await gateway.runPublic(
-      { network: config.network },
-      'core.tip',
-      () => gateway.networkApi.coreTip(config.network, signal),
-      signal,
-    ),
-    'DashScan block page',
-  );
-  const tipItems = Array.isArray(tipPage.resultSet) ? tipPage.resultSet : [];
-  if (tipItems.length !== 1) throw new Error('DashScan did not return exactly one indexed tip.');
-  const tip = object(tipItems[0], 'DashScan indexed tip');
-  const indexedHeight = exactSafeInteger(tip.height, 'DashScan indexed height');
+  const indexedHeight = await fetchDashScanIndexedHeight(gateway, config.network, signal);
   const findings: RecoveryFinding[] = [];
+  const findingsByAddress = new Map<string, RecoveryFinding>();
+  const addressInfos = new Map<string, { balance: bigint; txCount: number }>();
   let totalBalance = 0n;
   let usedCount = 0;
   let fundedCount = 0;
@@ -100,7 +50,9 @@ export async function scanDashCore(
   const root = rootFromSeed(seed, network.versions);
   const accountPath = `m/44'/${network.coinType}'/${config.account}'`;
   const account = root.derive(accountPath);
-  const branchTargets: [number, number] = [config.coreReceiveCount, config.coreChangeCount];
+  const branchTargets: [number, number] = config.scanCore
+    ? [config.coreReceiveCount, config.coreChangeCount]
+    : [0, 0];
   const scannedCounts: [number, number] = [0, 0];
   let completed = 0;
   let gapTruncated = false;
@@ -135,22 +87,25 @@ export async function scanDashCore(
             () => gateway.networkApi.coreAddressInfo(config.network, addresses, signal),
             signal,
           );
-          const infos = validateInfo(dashScanValue, chunk);
+          const infos = validateDashScanAddressBatch(dashScanValue, addresses);
           const displayCandidates: Array<{ derived: DerivedCoreAddress; info: { balance: bigint; txCount: number } }> = [];
           infos.forEach((info, index) => {
             const derived = chunk[index];
             if (derived === undefined) throw new Error('Local Core address batch changed during scanning.');
-            totalBalance += info.balance;
+            addressInfos.set(derived.address, info);
             const used = info.txCount > 0 || info.balance > 0n;
             if (!used) return;
             const extension = extendAddressTarget(branchTargets[branch], derived.index);
             branchTargets[branch] = extension.target;
             gapTruncated ||= extension.truncated;
-            usedCount += 1;
-            if (info.balance > 0n) fundedCount += 1;
             if (info.balance > 0n || config.includeUsedZeroBalance) displayCandidates.push({ derived, info });
           });
-          const historyByAddress = new Map<string, CoreHistorySummary>();
+          for (const info of infos) {
+            totalBalance += info.balance;
+            if (info.txCount > 0 || info.balance > 0n) usedCount += 1;
+            if (info.balance > 0n) fundedCount += 1;
+          }
+          const historyByAddress = new Map<string, ReturnType<typeof validateDashScanAddressHistory>>();
           // Funded addresses are always few and recovery-relevant, so enrich
           // every displayed result. The history option only adds used empty
           // addresses, which can number in the thousands after CoinJoin.
@@ -162,7 +117,7 @@ export async function scanDashCore(
                 () => gateway.networkApi.coreAddressHistory(config.network, derived.address, signal),
                 signal,
               );
-              historyByAddress.set(derived.address, validateHistory(value, derived.address));
+              historyByAddress.set(derived.address, validateDashScanAddressHistory(value, derived.address));
             } catch (cause) {
               if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
               historyDetailFailures += 1;
@@ -176,7 +131,9 @@ export async function scanDashCore(
               subtitle: derived.branch === 0 ? `Receive address #${derived.index}` : `Change address #${derived.index}`,
               balanceAtomic: info.balance,
               balanceLabel: formatDashFromDuffs(info.balance),
+              ...(history === undefined ? {} : { history: dashCoreHistory(history) }),
               fields: [
+                { label: 'Scan family', value: 'Standard BIP44' },
                 { label: 'Derivation path', value: derived.path, copyable: true },
                 { label: 'Branch', value: derived.branch === 0 ? '0 · receive' : '1 · change' },
                 { label: 'Address index', value: String(derived.index) },
@@ -190,6 +147,7 @@ export async function scanDashCore(
                 { label: 'Public-key hash', value: derived.publicKeyHash, copyable: true },
               ],
             };
+            findingsByAddress.set(derived.address, finding);
             findings.push(finding);
             onFinding(finding);
           }
@@ -208,6 +166,115 @@ export async function scanDashCore(
         branchNode.wipePrivateData();
       }
     }
+    if (config.scanCustomPath === true) {
+      if (config.customPathFormat !== 'p2pkh') throw new Error('Dash custom paths require the P2PKH address format.');
+      const parsed = parseCustomPathTemplate(config.customPathTemplate ?? '');
+      let target = config.customPathCount ?? 0;
+      for (let offset = 0; offset < target;) {
+        if (signal.aborted) throw new DOMException('Core scan cancelled.', 'AbortError');
+        const end = Math.min(offset + ADDRESS_CHUNK, target);
+        const chunk: DerivedCoreAddress[] = [];
+        for (let index = offset; index < end; index += 1) {
+          const path = parsed.path(index);
+          const child = root.derive(path);
+          const publicKey = requirePublic(child, path);
+          const publicKeyHash = hash160(publicKey);
+          chunk.push({
+            address: encodeP2pkh(publicKeyHash, network.p2pkh),
+            path,
+            account: config.account,
+            branch: -1,
+            index,
+            publicKeyHash: bytesToHex(publicKeyHash),
+          });
+          wipe(publicKey, publicKeyHash);
+          child.wipePrivateData();
+        }
+        const missing = chunk.filter(({ address }) => !addressInfos.has(address));
+        if (missing.length > 0) {
+          const addresses = missing.map(({ address }) => address);
+          const value = await gateway.runPublic(
+            { network: config.network, addresses },
+            'core.address-info',
+            () => gateway.networkApi.coreAddressInfo(config.network, addresses, signal),
+            signal,
+          );
+          const infos = validateDashScanAddressBatch(value, addresses);
+          infos.forEach((info, index) => {
+            const address = addresses[index];
+            if (address === undefined) throw new Error('Custom Dash address batch changed during scanning.');
+            addressInfos.set(address, info);
+            totalBalance += info.balance;
+            if (info.txCount > 0 || info.balance > 0n) usedCount += 1;
+            if (info.balance > 0n) fundedCount += 1;
+          });
+        }
+        for (const derived of chunk) {
+          const info = addressInfos.get(derived.address);
+          if (info === undefined) throw new Error('Dash account state cache omitted a custom-path address.');
+          const used = info.txCount > 0 || info.balance > 0n;
+          if (used) {
+            const extension = extendAddressTarget(target, derived.index);
+            target = extension.target;
+            gapTruncated ||= extension.truncated;
+          }
+          if (info.balance === 0n && !(config.includeUsedZeroBalance && used)) continue;
+          const existing = findingsByAddress.get(derived.address);
+          if (existing !== undefined) {
+            if (!existing.fields.some(({ value }) => value === derived.path)) {
+              existing.fields.push({ label: 'Alternate derivation path', value: derived.path, copyable: true });
+            }
+            continue;
+          }
+          let history: ReturnType<typeof validateDashScanAddressHistory> | undefined;
+          try {
+            const historyValue = await gateway.runPublic(
+              { network: config.network, address: derived.address },
+              'core.address-history',
+              () => gateway.networkApi.coreAddressHistory(config.network, derived.address, signal),
+              signal,
+            );
+            history = validateDashScanAddressHistory(historyValue, derived.address);
+          } catch (cause) {
+            if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+            historyDetailFailures += 1;
+          }
+          const finding: RecoveryFinding = {
+            id: `core:custom:${derived.index}`,
+            title: derived.address,
+            subtitle: `Custom P2PKH path · index ${derived.index}`,
+            balanceAtomic: info.balance,
+            balanceLabel: formatDashFromDuffs(info.balance),
+            ...(history === undefined ? {} : { history: dashCoreHistory(history) }),
+            fields: [
+              { label: 'Scan family', value: 'Custom P2PKH path' },
+              { label: 'Derivation path', value: derived.path, copyable: true },
+              { label: 'Profile index', value: String(derived.index) },
+              { label: 'Transactions reported', value: String(history?.txCount ?? info.txCount) },
+              ...(history === undefined ? [] : [
+                { label: 'Lifetime received', value: formatDashFromDuffs(history.received) },
+                { label: 'Lifetime sent', value: formatDashFromDuffs(history.sent) },
+                ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
+                ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
+              ]),
+              { label: 'Public-key hash', value: derived.publicKeyHash, copyable: true },
+            ],
+          };
+          findingsByAddress.set(derived.address, finding);
+          findings.push(finding);
+          onFinding(finding);
+        }
+        completed += chunk.length;
+        offset = end;
+        onProgress({
+          inputId,
+          section: 'core',
+          message: `Custom P2PKH path: checked ${offset.toLocaleString()} of ${target.toLocaleString()} addresses`,
+          completed,
+          total: null,
+        });
+      }
+    }
   } finally {
     account.wipePrivateData();
     root.wipePrivateData();
@@ -220,16 +287,16 @@ export async function scanDashCore(
   return {
     id: 'core',
     title: 'Dash Core · L1',
-    description: 'BIP44 receive and change branches are derived locally; only public addresses are sent in batches to DashScan.',
+    description: `BIP44 receive and change branches${config.scanCustomPath === true ? ' plus the selected custom P2PKH path are' : ' are'} derived locally; only public addresses are sent in batches to DashScan.`,
     state: 'complete',
     metrics: [
       { label: 'Spendable balance', value: formatDashFromDuffs(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
       { label: 'Funded addresses', value: String(fundedCount) },
       { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
-      { label: 'Addresses checked', value: `R ${scannedCounts[0]} · C ${scannedCounts[1]}` },
+      { label: 'Addresses checked', value: `R ${scannedCounts[0]} · C ${scannedCounts[1]}${config.scanCustomPath === true ? ` · custom ${completed - scannedCounts[0] - scannedCounts[1]}` : ''}` },
     ],
     findings,
-    scanned: scannedCounts[0] + scannedCounts[1],
+    scanned: completed,
     source: endpoint,
     proof: `DashScan synchronized · indexed Core height ${indexedHeight} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap · single-source result`,
     ...(warningParts.length === 0 ? {} : { warning: warningParts.join(' ') }),

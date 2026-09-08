@@ -1,7 +1,9 @@
 import {
   RECOVERY_NETWORK_FATAL,
   RECOVERY_VAULT_CHANNEL,
+  type DashCoreTransactionView,
   type IdentityLookupView,
+  type EvmAccountBatchView,
   type PlatformAddressBatchView,
   type PlatformHistorySummaryView,
   type RecoveryNetworkApi,
@@ -102,6 +104,10 @@ class RecoveryNetworkRpcClient implements RecoveryNetworkApi {
     return this.#request({ operation: 'core.address-history', payload: { network, address } }, signal);
   }
 
+  coreTransaction(network: RecoveryNetwork, hash: string, signal?: AbortSignal): Promise<DashCoreTransactionView> {
+    return this.#request({ operation: 'core.transaction', payload: { network, hash } }, signal);
+  }
+
   platformAddresses(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<PlatformAddressBatchView> {
     return this.#request({ operation: 'platform.addresses', payload: { network, addresses } }, signal);
   }
@@ -124,6 +130,21 @@ class RecoveryNetworkRpcClient implements RecoveryNetworkApi {
 
   shieldedPage(network: RecoveryNetwork, startPosition: string, count: number, signal?: AbortSignal): Promise<ShieldedPageView> {
     return this.#request({ operation: 'shielded.page', payload: { network, startPosition, count } }, signal);
+  }
+
+  addressHistory(coin: 'bitcoin' | 'ethereum', network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<import('./types.js').RecoveryHistory> {
+    return this.#request({ operation: 'address.history', payload: { coin, network, address } }, signal);
+  }
+
+  utxoAddresses(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<import('./network-protocol.js').UtxoAddressView[]> {
+    return this.#request(
+      { operation: 'utxo.addresses', payload: { network, addresses } },
+      signal,
+    );
+  }
+
+  evmAccounts(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<EvmAccountBatchView> {
+    return this.#request({ operation: 'evm.accounts', payload: { network, addresses } }, signal);
   }
 }
 

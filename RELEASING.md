@@ -74,11 +74,11 @@ The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checks
 
    If a maintainer later configures a trusted GPG key, `git tag -s ...` may be used instead as an additional human-approval signal. GitHub Actions provenance remains available either way.
 5. Open the tag's Actions run. All checks must pass. Only after every gate succeeds does the workflow publish the release using its curated notes.
-6. Rebuild locally with `./tooling/build-reproducible.sh`. Compare `dist/release/SHA256SUMS` with the published release manifest. If a maintainer has a GPG key and wants an additional detached approval signature, sign that exact flat manifest locally without giving CI the private key:
+6. Rebuild locally with `./tooling/build-reproducible.sh`. Compare `dist/multi-chain-edition/release/SHA256SUMS` with the published release manifest. If a maintainer has a GPG key and wants an additional detached approval signature, sign that exact flat manifest locally without giving CI the private key:
 
    ```bash
    pnpm release:sign -- YOUR_GPG_KEY_ID
-   gh release upload v<version> dist/release/SHA256SUMS.asc --repo hobby-eng/multi-chain-wallet-tools
+   gh release upload v<version> dist/multi-chain-edition/release/SHA256SUMS.asc --repo hobby-eng/multi-chain-wallet-tools
    ```
 
    The `.asc` file can instead be uploaded through the GitHub release web form. Skip this optional signing step when no GPG key is configured.
@@ -99,27 +99,27 @@ Open all three standalone files directly with `file://` in each supported browse
 `pnpm release:bundle` creates exactly these local upload candidates:
 
 ```text
-dist/release/Wallet_Key_Derivation_Tool.html
-dist/release/Wallet_Key_Derivation_Tool.html.sha256
-dist/release/Wallet_Activity_Viewer.html
-dist/release/Wallet_Activity_Viewer.html.sha256
-dist/release/Wallet_Discovery_Scanner.html
-dist/release/Wallet_Discovery_Scanner.html.sha256
-dist/release/LICENSE
-dist/release/SHA256SUMS
+dist/multi-chain-edition/release/Wallet_Key_Derivation_Tool.html
+dist/multi-chain-edition/release/Wallet_Key_Derivation_Tool.html.sha256
+dist/multi-chain-edition/release/Wallet_Activity_Viewer.html
+dist/multi-chain-edition/release/Wallet_Activity_Viewer.html.sha256
+dist/multi-chain-edition/release/Wallet_Discovery_Scanner.html
+dist/multi-chain-edition/release/Wallet_Discovery_Scanner.html.sha256
+dist/multi-chain-edition/release/LICENSE
+dist/multi-chain-edition/release/SHA256SUMS
 ```
 
 It remains the only bundle published by this repository's tag workflow. `pnpm release:bundle:dash-community` separately prepares, but does not publish:
 
 ```text
-dist/dash-community/release/Dash_Community_Key_Derivation_Tool.html
-dist/dash-community/release/Dash_Community_Key_Derivation_Tool.html.sha256
-dist/dash-community/release/Dash_Community_Activity_Viewer.html
-dist/dash-community/release/Dash_Community_Activity_Viewer.html.sha256
-dist/dash-community/release/Dash_Community_Discovery_Scanner.html
-dist/dash-community/release/Dash_Community_Discovery_Scanner.html.sha256
-dist/dash-community/release/LICENSE
-dist/dash-community/release/SHA256SUMS
+dist/dash-community-edition/release/Dash_Community_Key_Derivation_Tool.html
+dist/dash-community-edition/release/Dash_Community_Key_Derivation_Tool.html.sha256
+dist/dash-community-edition/release/Dash_Community_Activity_Viewer.html
+dist/dash-community-edition/release/Dash_Community_Activity_Viewer.html.sha256
+dist/dash-community-edition/release/Dash_Community_Discovery_Scanner.html
+dist/dash-community-edition/release/Dash_Community_Discovery_Scanner.html.sha256
+dist/dash-community-edition/release/LICENSE
+dist/dash-community-edition/release/SHA256SUMS
 ```
 
 Do not attach those files to a `multi-chain-wallet-tools` release. A future Dash distribution workflow should check out an exact canonical source commit/tag, run the same pinned container, select the verified Dash bundle, and publish it without maintaining a source fork.

@@ -45,9 +45,9 @@ describe('coin adapter extension contract', () => {
 
   it('derives coin dropdown families and horizontal variants from the adapter registry', () => {
     expect(COIN_FAMILIES.map(({ id, label }) => ({ id, label }))).toEqual([
-      { id: 'dash', label: 'Dash' },
       { id: 'bitcoin', label: 'Bitcoin' },
       { id: 'ethereum', label: 'Ethereum' },
+      { id: 'dash', label: 'Dash' },
     ]);
     expect(COIN_FAMILIES.find(({ id }) => id === 'bitcoin')?.adapters.map(({ variantLabel }) => variantLabel)).toEqual([
       'Legacy · BIP44',

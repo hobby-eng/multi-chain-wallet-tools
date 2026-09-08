@@ -9,6 +9,7 @@ function controls(count: string, start = '0', includeChange = false, branch = '0
     branchInput: { value: branch },
     branchSelect: { value: branch },
     includeChange: { checked: includeChange },
+    includeCoinJoin: { checked: false },
     start: { value: start },
     count: { value: count },
   } as unknown as DerivationControls;

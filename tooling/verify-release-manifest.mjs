@@ -8,9 +8,11 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const dist = resolve(root, 'dist');
 const profile = parseBuildProfile();
 const manifest = readFileSync(resolve(root, profile.manifestPath), 'utf8').trim().split('\n');
-const expectedNames = new Set(profileArtifacts(profile).map((name) => (
-  profile.id === 'dash-community' ? name.replace(/^dash-community\//u, '') : name
-)));
+const prefix = `${profile.outputDirectory}/`;
+const expectedNames = new Set(profileArtifacts(profile).map((name) => {
+  if (!name.startsWith(prefix)) throw new Error(`Release artifact is outside ${prefix}: ${name}.`);
+  return name.slice(prefix.length);
+}));
 
 if (manifest.length !== expectedNames.size) throw new Error('SHA256SUMS must contain exactly three release artifacts.');
 for (const line of manifest) {
@@ -18,7 +20,7 @@ for (const line of manifest) {
   if (match === null) throw new Error(`Malformed SHA256SUMS line: ${line}`);
   const [, recorded, name] = match;
   if (!expectedNames.delete(name)) throw new Error(`Unexpected or duplicate release artifact: ${name}`);
-  const artifactName = profile.id === 'dash-community' ? `dash-community/${name}` : name;
+  const artifactName = `${prefix}${name}`;
   const path = resolve(dist, artifactName);
   if (relative(dist, path) !== artifactName) throw new Error(`Unsafe release artifact name: ${name}`);
   const actual = createHash('sha256').update(readFileSync(path)).digest('hex');

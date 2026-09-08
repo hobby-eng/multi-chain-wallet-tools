@@ -50,7 +50,7 @@
     </section>
 
     <section class="recovery-flow" aria-label="Recovery workflow">
-      <article><span>01</span><div><strong>Enter locally</strong><small>Single or batch BIP39 input</small></div></article>
+      <article><span>01</span><div><strong>Enter locally</strong><small>BIP39 phrases or a public key</small></div></article>
       <article><span>02</span><div><strong>Scan through isolation</strong><small>Evo SDK receives public query data only</small></div></article>
       <article><span>03</span><div><strong>Recover safely</strong><small>Export a standard-wallet handoff</small></div></article>
     </section>
@@ -62,17 +62,25 @@
           <div class="recovery-head-badges"><span class="local-only-chip"><i></i> Secret Vault · network denied</span><span id="recovery-self-test" class="self-test-badge checking">Self-test running</span></div>
         </div>
 
-        <div class="recovery-mode-tabs" role="radiogroup" aria-label="Mnemonic input mode">
-          <button class="recovery-mode-tab active" data-input-mode="single" type="button" aria-pressed="true">Single seed phrase</button>
-          <button class="recovery-mode-tab" data-input-mode="batch" type="button" aria-pressed="false">Batch · multiple phrases</button>
+        <div class="recovery-mode-tabs recovery-source-tabs" role="tablist" aria-label="Search source">
+          <button id="seed-source-tab" class="recovery-mode-tab active" data-source-mode="seed" role="tab" aria-selected="true" aria-controls="seed-source-panel" type="button"><strong>Seed phrase</strong><small>Broad wallet search</small></button>
+          <button id="public-source-tab" class="recovery-mode-tab" data-source-mode="public" role="tab" aria-selected="false" aria-controls="public-input" tabindex="-1" type="button"><strong>Public keys</strong><small>Limited watch-only search</small></button>
         </div>
 
         <div class="recovery-source-grid">
-          <div><label for="recovery-coin">Coin</label><select id="recovery-coin"></select></div>
+          __RECOVERY_COIN_FIELD__
           <div><label for="recovery-network">Network</label><select id="recovery-network"><option value="mainnet">Mainnet</option><option value="testnet">Testnet</option></select></div>
           <div><label for="recovery-account">Account</label><input id="recovery-account" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
         </div>
 
+        <div id="seed-source-panel" role="tabpanel" aria-labelledby="seed-source-tab">
+        <div class="seed-mode-control">
+          <div class="seed-mode-copy"><strong>Seed input mode</strong><small>Scan one phrase or paste a line-by-line batch</small></div>
+          <div id="seed-mode-tabs" class="seed-mode-tabs" role="group" aria-label="Seed input mode">
+            <button class="seed-mode-tab active" data-input-mode="single" type="button" aria-pressed="true">Single</button>
+            <button class="seed-mode-tab" data-input-mode="batch" type="button" aria-pressed="false">Batch</button>
+          </div>
+        </div>
         <div id="single-input" class="secret-source-panel">
           <label for="single-mnemonic">Recovery seed phrase</label>
           <textarea id="single-mnemonic" class="concealed" rows="4" placeholder="Enter 12, 15, 18, 21, or 24 BIP39 English words" autocomplete="off" autocapitalize="none"></textarea>
@@ -89,34 +97,70 @@
           <p class="field-note">Line N in the right box belongs to phrase N on the left. Empty passphrase lines are preserved.</p>
         </div>
 
+        </div>
+        <div id="public-input" role="tabpanel" aria-labelledby="public-source-tab" class="secret-source-panel public-key-source" hidden>
+          <label for="watch-only-keys">Public key or batch · one key per line</label>
+          <textarea id="watch-only-keys" rows="3" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="watch-only-detection" placeholder="__RECOVERY_PUBLIC_KEY_PLACEHOLDER__"></textarea>
+          <p class="field-note public-key-scope">__RECOVERY_PUBLIC_KEY_SCOPE__</p>
+          <p id="watch-only-detection" class="field-note" role="status" aria-live="polite">Paste one public key or a batch, one key per line. Coins are detected automatically.</p>
+        </div>
+
         <div class="secret-actions">
           <button id="reveal-recovery-input" class="secondary" type="button" aria-pressed="false">Reveal sensitive input</button>
-          <label class="check-option"><input id="clear-input-on-start" type="checkbox"> Clear phrase fields when scanning starts (another scan will require re-entry)</label>
+          <label class="check-option"><input id="clear-input-on-start" type="checkbox"> Clear input fields when scanning starts (another scan will require re-entry)</label>
         </div>
       </section>
 
       <section class="panel recovery-control-panel">
         <div class="section-head recovery-section-head">
-          <div><span class="step">02</span><div><h2>Scan coverage</h2><p>Select the Dash components and address ranges you want to check.</p></div></div>
+          <div><span class="step">02</span><div><h2>Scan coverage</h2><p id="scan-coverage-description">Select the Dash components and address ranges you want to check.</p></div></div>
           <span id="scan-estimate" class="scan-estimate">4 address batches + Orchard pool</span>
         </div>
-        <div class="component-selection" role="group" aria-label="Dash components to scan">
+        <div id="seed-coverage">
+        <div class="component-selection" role="group" aria-label="Dash components to scan" data-dash-coverage>
           <label class="component-option"><input id="scan-core" type="checkbox" checked><span><strong>Dash Core · L1</strong><small>BIP44 receive and change addresses</small></span></label>
           <label class="component-option"><input id="scan-platform-addresses" type="checkbox" checked><span><strong>Platform addresses</strong><small>DIP17 payment addresses</small></span></label>
           <label class="component-option"><input id="scan-platform-identities" type="checkbox" checked><span><strong>Platform identities</strong><small>DIP13 identity discovery</small></span></label>
           <label class="component-option"><input id="scan-shielded" type="checkbox" checked><span><strong>Orchard pool</strong><small>Account-wide encrypted notes</small></span></label>
         </div>
+        <div class="component-selection optional-coverage" role="group" aria-label="Additional Dash recovery coverage" data-dash-coverage>
+          <label class="component-option" data-component-settings="core"><input id="scan-legacy-core" type="checkbox"><span><strong>Legacy mobile Core</strong><small>Older Dash Wallet for Android backups.</small></span></label>
+          <label class="component-option" data-component-settings="core"><input id="scan-coinjoin" type="checkbox"><span><strong>Dash Mobile CoinJoin · DIP9</strong><small>Separate mobile receive and change chains.</small></span></label>
+          <label class="component-option" data-component-settings="core"><input id="scan-provider-collateral" type="checkbox"><span><strong>Masternode holdings</strong><small>Rare DashSync/dashj collateral addresses.</small></span></label>
+          <label class="component-option" data-component-settings="identity"><input id="scan-identity-funding" type="checkbox"><span><strong>Identity registration funding</strong><small>Show the L1 asset-lock and funding inputs.</small></span></label>
+        </div>
+        <p id="generic-coin-scan-note" class="coinjoin-path-note path-preview" hidden></p>
+        <div id="custom-path-options" class="custom-path-options" hidden>
+          <label class="custom-path-toggle"><input id="scan-custom-path" type="checkbox"><span><strong>Custom derivation path</strong><small id="custom-path-description">Optional wallet-specific path</small></span></label>
+          <div id="custom-path-field" class="custom-path-field" hidden>
+            <div><label for="custom-path-template">Custom path template</label><input id="custom-path-template" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="m/44'/0'/0'/0/{index}"><small>Use exactly one <code>{index}</code> segment, optionally hardened as <code>{index}'</code>.</small></div>
+            <div><label for="custom-path-format">Address format</label><select id="custom-path-format"></select></div>
+            <div><label for="custom-path-count">Minimum addresses</label><input id="custom-path-count" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
+          </div>
+        </div>
+        <p class="coinjoin-path-note path-preview" data-component-settings="coinjoin" data-dash-coverage>Dash Mobile CoinJoin · DIP9 paths for the selected network: <code id="coinjoin-path-preview">external m/9'/5'/4'/0'/0/i · internal m/9'/5'/4'/0'/1/i</code></p>
         <div class="coverage-grid">
-          <div data-component-settings="core"><label for="core-receive-count">Core receive minimum</label><input id="core-receive-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
-          <div data-component-settings="core"><label for="core-change-count">Core change minimum</label><input id="core-change-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div id="recovery-receive-field" data-component-settings="core"><label id="recovery-receive-label" for="core-receive-count">Core receive minimum</label><input id="core-receive-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div id="recovery-change-field" data-component-settings="core"><label id="recovery-change-label" for="core-change-count">Core change minimum</label><input id="core-change-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div data-component-settings="legacy-core"><label for="legacy-core-count">Legacy mobile per branch</label><input id="legacy-core-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div data-component-settings="coinjoin"><label for="coinjoin-external-count">CoinJoin external minimum</label><input id="coinjoin-external-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div data-component-settings="coinjoin"><label for="coinjoin-internal-count">CoinJoin internal minimum</label><input id="coinjoin-internal-count" type="number" value="20" min="0" step="1" inputmode="numeric"></div>
+          <div data-component-settings="identity-funding"><label for="identity-funding-count">Registration funding keys to match</label><input id="identity-funding-count" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
+          <div hidden><label for="identity-topup-identity-count">Identity-bound top-up identities</label><input id="identity-topup-identity-count" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
+          <div hidden><label for="identity-topup-count">Top-ups per identity</label><input id="identity-topup-count" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
+          <div data-component-settings="provider-collateral"><label for="provider-collateral-count">Masternode holdings minimum</label><input id="provider-collateral-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
           <div data-component-settings="platform"><label for="platform-address-count">Platform address minimum</label><input id="platform-address-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
           <div data-component-settings="identity"><label for="identity-start-index">Identity start index</label><input id="identity-start-index" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
           <div data-component-settings="identity"><label for="identity-gap-limit">Identity empty-gap limit</label><input id="identity-gap-limit" type="number" value="20" min="1" step="1" inputmode="numeric"></div>
           <div data-component-settings="identity"><label for="identity-scan-limit">Identity maximum attempts</label><input id="identity-scan-limit" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
+        </div>
+        </div>
+        <div class="coverage-grid">
+          <div hidden><label for="watch-only-minimum">Minimum addresses per public-key branch</label><input id="watch-only-minimum" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
           <div><label for="request-concurrency">Parallel network requests</label><select id="request-concurrency"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5 · recommended maximum</option></select></div>
         </div>
-        <label class="shielded-option history-option"><input id="include-used-zero-balance" type="checkbox"><span><strong>Also show spent or previously used resources with zero balance</strong><small>Off by default. Funded Core addresses always include lifetime totals and first/last-seen dates. Enabling this option additionally includes Core/Platform empty history and already-spent or outgoing-only Orchard notes in the page and CSV/JSON. On a CoinJoin-heavy wallet the extra Core requests can make the scan much slower; default funded/spendable-only mode is recommended.</small></span></label>
-        <div class="scale-warning"><strong>Large scans are allowed and the counts above are minimums.</strong> Every Core and Platform branch continues until 20 addresses after the last used address, so a minimum of 100 can automatically become 120, 140, or more. For example, 100,000 Core addresses require about 2,000 public DashScan batches per selected branch. Results appear progressively and cancellation is checked between batches; CPU, network traffic, memory used by findings, and total time can still be substantial.</div>
+        <label class="shielded-option history-option"><input id="include-used-zero-balance" type="checkbox"><span><strong>Show spent or previously used resources with zero balance</strong><small>Off by default. Displayed resources include history details when supported by the coin adapter and provider. Enabling this option additionally includes Core/Platform empty history and already-spent or outgoing-only Orchard notes in the page and CSV/JSON. On a CoinJoin-heavy wallet the extra Core requests can make the scan much slower; default funded/spendable-only mode is recommended.</small></span></label>
+        <div id="dash-scale-warning" class="scale-warning" data-dash-coverage><strong>Large scans are allowed and the counts above are minimums.</strong> Every Core and Platform branch continues until 20 addresses after the last used address, so a minimum of 100 can automatically become 120, 140, or more. For example, 100,000 Core addresses require about 2,000 public DashScan batches per selected branch. Results appear progressively and cancellation is checked between batches; CPU, network traffic, memory used by findings, and total time can still be substantial.</div>
         <div class="recovery-action-bar">
           <div class="actions">
             <button id="start-recovery-scan" class="primary recovery-scan-button" type="button"><span class="recovery-scan-icon" aria-hidden="true"></span><span id="start-recovery-scan-label">Scan Dash holdings</span></button>
@@ -134,13 +178,13 @@
     <section id="recovery-results" class="recovery-results" hidden>
       <div class="results-title recovery-results-title">
         <div><span class="step">03</span><div><h2>Discovery map</h2><p>Only currently funded Core/Platform resources and spendable Orchard notes are listed by default; zero-balance history is optional.</p></div></div>
-        <div class="recovery-export-actions"><span>ALL SEED PHRASES · STANDARD-WALLET HANDOFF</span><button id="export-recovery-csv" class="secondary" type="button">CSV · all</button><button id="export-recovery-json" class="secondary" type="button">JSON · all</button></div>
+        <div class="recovery-export-actions"><span>ALL RESULTS · STANDARD-WALLET HANDOFF</span><button id="export-recovery-csv" class="secondary" type="button">CSV · all</button><button id="export-recovery-json" class="secondary" type="button">JSON · all</button></div>
       </div>
       <section class="recommended-recovery">
         <strong>Recommended recovery path</strong>
-        <p>Verify the report, install a standard Dash wallet from its official source on a clean device, restore the same mnemonic and BIP39 passphrase, confirm the listed derivation paths, and move funds to a newly generated wallet. The export intentionally contains no mnemonic, passphrase, seed, private key, spending key, or viewing key.</p>
+        <p>Verify the report, install a standard wallet for the selected network from its official source on a clean device, use your original recovery phrase or wallet backup, confirm the listed derivation paths, and move funds to a newly generated wallet. The export intentionally contains no mnemonic, passphrase, seed, private key, spending key, or viewing key.</p>
       </section>
-      <nav id="recovery-result-tabs" class="recovery-result-tabs" aria-label="Seed phrase results"></nav>
+      <nav id="recovery-result-tabs" class="recovery-result-tabs" aria-label="Scan results by source and coin"></nav>
       <div id="recovery-result-list"></div>
     </section>
   </main>

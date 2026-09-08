@@ -80,6 +80,9 @@ export function createKeyDerivationController(
         modeAdvanced,
         resultReceiveTab,
         resultChangeTab,
+        resultCoinJoinTab,
+        resultCoinJoinExternalTab,
+        resultCoinJoinInternalTab,
         toggleSensitiveValues,
         copyMnemonicButton,
         copyWatchOnlyButton,
@@ -117,6 +120,9 @@ let pendingAutomaticDerivation: number | null = null;
 const lastVariantByCoin = new Map<string, string>();
 const settingsByAdapter = new Map<string, DerivationControlValues>();
 const includeChangeByCoin = new Map<string, boolean>();
+const includeCoinJoinByCoin = new Map<string, boolean>();
+/** Remembers which CoinJoin sub-branch was last shown, so re-activating the Dash Mobile CoinJoin · DIP9 tab returns to it. */
+let activeCoinJoinBranch: 'coinjoin-external' | 'coinjoin-internal' = 'coinjoin-external';
 
 function updateWordCount(): void {
   view.updateWordCount(sensitiveValuesRevealed);
@@ -150,11 +156,20 @@ function activateResultBranch(branch: ResultBranch, render = true): void {
   const state = branchResultStates.get(branch);
   if (state === undefined) return;
   activeResultBranch = branch;
+  if (branch === 'coinjoin-external' || branch === 'coinjoin-internal') activeCoinJoinBranch = branch;
   currentResult = state.result;
   selected = state.selected;
   resultWindowStart = state.windowStart;
   updateResultBranchTabs();
   if (render) renderCurrent();
+}
+
+/** Selecting the top-level Dash Mobile CoinJoin · DIP9 tab restores whichever nested External/Internal branch was last shown. */
+function activateCoinJoinTab(render = true): void {
+  const remembered = branchResultStates.has(activeCoinJoinBranch)
+    ? activeCoinJoinBranch
+    : branchResultStates.has('coinjoin-external') ? 'coinjoin-external' : 'coinjoin-internal';
+  activateResultBranch(remembered, render);
 }
 
 function setActiveWindowStart(start: number): void {
@@ -329,6 +344,9 @@ function rememberCurrentSettings(): void {
     if (adapter.addressBranches !== undefined) {
       includeChangeByCoin.set(getAdapterFamilyId(adapter), values.includeChange);
     }
+    if (adapter.coinJoin !== undefined) {
+      includeCoinJoinByCoin.set(getAdapterFamilyId(adapter), values.includeCoinJoin);
+    }
   } catch {
     // Invalid partially edited controls are not persisted across variants.
   }
@@ -340,6 +358,7 @@ function resetForAdapter(next: CoinAdapter, autoDerive = true): void {
   stopActiveDerivation();
   derivationRevision += 1;
   clearResults();
+  activeCoinJoinBranch = 'coinjoin-external';
   pendingLargeRequestFingerprint = null;
   view.resetDeriveAction();
   adapter = next;
@@ -348,9 +367,12 @@ function resetForAdapter(next: CoinAdapter, autoDerive = true): void {
   const includeChange = adapter.addressBranches === undefined
     ? false
     : includeChangeByCoin.get(getAdapterFamilyId(adapter)) ?? remembered?.includeChange ?? false;
+  const includeCoinJoin = adapter.coinJoin === undefined
+    ? false
+    : includeCoinJoinByCoin.get(getAdapterFamilyId(adapter)) ?? remembered?.includeCoinJoin ?? false;
   view.configureControls(adapter, remembered === undefined
-    ? { ...adapter.defaults, includeChange }
-    : { ...remembered, includeChange });
+    ? { ...adapter.defaults, includeChange, includeCoinJoin }
+    : { ...remembered, includeChange, includeCoinJoin });
   clearMessages();
   view.hideSearchResult();
   if (autoDerive && mnemonicMayBeComplete()) void deriveCurrent(true);
@@ -426,7 +448,7 @@ function renderStreamingProgress(force: boolean): void {
 }
 
 function largeRequestFingerprint(input: DerivationControlValues): string {
-  return [adapter.id, input.network, input.account, input.branch, input.start, input.count, input.includeChange].join(':');
+  return [adapter.id, input.network, input.account, input.branch, input.start, input.count, input.includeChange, input.includeCoinJoin].join(':');
 }
 
 function approximateMemoryRange(count: number): string {
@@ -441,7 +463,8 @@ function authorizeRequestedCount(input: DerivationControlValues, automatic: bool
     showStatus(`Automatic generation was skipped because this tab remembers ${input.count.toLocaleString()} results. Click Derive manually to run the large request.`);
     return false;
   }
-  const branchCount = input.includeChange && adapter.addressBranches !== undefined ? 2 : 1;
+  const branchCount = (input.includeChange && adapter.addressBranches !== undefined ? 2 : 1)
+    + (input.includeCoinJoin && adapter.coinJoin !== undefined ? 2 : 0);
   const totalCount = input.count * branchCount;
   if (automatic || totalCount < LARGE_REQUEST_CONFIRM_THRESHOLD) {
     pendingLargeRequestFingerprint = null;
@@ -489,8 +512,8 @@ async function deriveCurrent(automatic = false): Promise<void> {
   try {
     settingsByAdapter.set(adapter.id, input);
     seed = mnemonicToSeed(mnemonic.value, passphrase.value);
-    const { includeChange, ...baseInput } = input;
-    const resultBranches = planResultBranches(requestedAdapter, baseInput.branch, includeChange);
+    const { includeChange, includeCoinJoin, ...baseInput } = input;
+    const resultBranches = planResultBranches(requestedAdapter, baseInput.branch, includeChange, includeCoinJoin);
     const totalRequested = input.count * resultBranches.length;
     const batchSize = requestedAdapter.batchSize ?? 50;
     if (!Number.isSafeInteger(batchSize) || batchSize < 1) {
@@ -500,14 +523,14 @@ async function deriveCurrent(automatic = false): Promise<void> {
       showStatus(`Large request: ${totalRequested.toLocaleString()} results will be generated and displayed in batches. Keep this tab open; you can cancel immediately.`);
     }
     let generatedTotal = 0;
-    branchLoop: for (const { kind: resultBranch, branch } of resultBranches) {
+    branchLoop: for (const { kind: resultBranch, branch, workerAdapterId } of resultBranches) {
       let destination: DerivationResult | null = null;
       let generated = 0;
       while (generated < input.count) {
         if (revision !== derivationRevision || requestedAdapter !== adapter) return;
         if (cancellationRequested) break branchLoop;
         const count = Math.min(batchSize, input.count - generated);
-        const batch = await worker.derive(requestedAdapter.id, {
+        const batch = await worker.derive(workerAdapterId ?? requestedAdapter.id, {
           ...baseInput,
           branch,
           seed,
@@ -618,7 +641,7 @@ controls.protocolTabs.addEventListener('keydown', (event) => {
   resetForAdapter(getCoinAdapter(id));
   view.focusProtocolButton(id);
 });
-for (const control of [controls.network, controls.account, controls.branchInput, controls.branchSelect, controls.includeChange, controls.start, controls.count]) {
+for (const control of [controls.network, controls.account, controls.branchInput, controls.branchSelect, controls.includeChange, controls.includeCoinJoin, controls.start, controls.count]) {
   control.addEventListener('input', () => {
     stopActiveDerivation();
     derivationRevision += 1;
@@ -669,8 +692,10 @@ clearAllButton.addEventListener('click', () => {
   pendingLargeRequestFingerprint = null;
   // Browser strings are immutable, so this only releases DOM references; mutable seed bytes are zeroed separately.
   clearResults();
+  activeCoinJoinBranch = 'coinjoin-external';
   settingsByAdapter.clear();
   includeChangeByCoin.clear();
+  includeCoinJoinByCoin.clear();
   view.configureControls(adapter);
   setSensitiveValuesVisibility(false);
   clearMessages();
@@ -700,12 +725,47 @@ modeAdvanced.addEventListener('click', () => {
   renderCurrent();
 });
 
-for (const [button, branch] of [[resultReceiveTab, 'receive'], [resultChangeTab, 'change']] as const) {
+type TopLevelResultTab = 'receive' | 'change' | 'coinjoin';
+const topLevelTabButtons: ReadonlyArray<readonly [HTMLButtonElement, TopLevelResultTab]> = [
+  [resultReceiveTab, 'receive'],
+  [resultChangeTab, 'change'],
+  [resultCoinJoinTab, 'coinjoin'],
+];
+
+function activateTopLevelTab(tab: TopLevelResultTab): void {
+  if (tab === 'coinjoin') activateCoinJoinTab();
+  else activateResultBranch(tab);
+}
+
+for (const [button, tab] of topLevelTabButtons) {
+  button.addEventListener('click', () => activateTopLevelTab(tab));
+  button.addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const visible = topLevelTabButtons.filter(([candidate]) => !candidate.hidden);
+    if (visible.length === 0) return;
+    const currentIndex = visible.findIndex(([candidate]) => candidate === button);
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? visible.length - 1
+        : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + visible.length) % visible.length;
+    const next = visible[nextIndex];
+    if (next === undefined || next[0].disabled) return;
+    activateTopLevelTab(next[1]);
+    next[0].focus();
+  });
+}
+
+for (const [button, branch] of [
+  [resultCoinJoinExternalTab, 'coinjoin-external'],
+  [resultCoinJoinInternalTab, 'coinjoin-internal'],
+] as const) {
   button.addEventListener('click', () => activateResultBranch(branch));
   button.addEventListener('keydown', (event) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
-    const next = event.key === 'ArrowLeft' || event.key === 'Home' ? 'receive' : 'change';
+    const next = event.key === 'ArrowLeft' || event.key === 'Home' ? 'coinjoin-external' : 'coinjoin-internal';
     if (!view.resultBranchEnabled(next)) return;
     activateResultBranch(next);
     view.focusResultBranch(next);

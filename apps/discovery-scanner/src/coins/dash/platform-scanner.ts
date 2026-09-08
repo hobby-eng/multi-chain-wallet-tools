@@ -1,3 +1,4 @@
+import { dashPlatformHistory } from './history.js';
 import { rootFromSeed, requirePublic } from '@ckd/core/bip32.js';
 import { bytesToHex, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
@@ -19,12 +20,12 @@ interface DerivedPlatformAddress {
   storageKey: string;
 }
 
-interface PlatformInfo {
+export interface PlatformInfo {
   balance: bigint;
   nonce: bigint;
 }
 
-function validateBatch(
+export function validatePlatformAddressBatch(
   value: Awaited<ReturnType<DashPlatformClient['addresses']>>,
 ): { data: Map<string, PlatformInfo | null>; height: bigint; protocolVersion: number } {
   const response = object(value, 'Isolated Platform address response');
@@ -116,7 +117,7 @@ export async function scanDashPlatformAddresses(
         child.wipePrivateData();
       }
       const publicAddresses = chunk.map(({ address }) => address);
-      const response = validateBatch(await client.addresses(publicAddresses, signal));
+      const response = validatePlatformAddressBatch(await client.addresses(publicAddresses, signal));
       proofHeight = proofHeight > response.height ? proofHeight : response.height;
       protocolVersion = Math.max(protocolVersion, response.protocolVersion);
       const displayed: { derived: DerivedPlatformAddress; info: PlatformInfo }[] = [];
@@ -156,6 +157,7 @@ export async function scanDashPlatformAddresses(
           subtitle: `Platform payment address #${derived.index}`,
           balanceAtomic: info.balance,
           balanceLabel: formatDashFromCredits(info.balance),
+          ...(history === null ? {} : { history: dashPlatformHistory(history) }),
           fields: [
             { label: 'DIP17 derivation path', value: derived.path, copyable: true },
             { label: 'Address index', value: String(derived.index) },

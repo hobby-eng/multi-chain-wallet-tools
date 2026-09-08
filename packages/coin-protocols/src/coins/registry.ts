@@ -10,6 +10,9 @@ export type {
   CoinDerivationInput,
   CoinFamily,
   CoinFieldRoles,
+  CoinJoinBranches,
+  CoinJoinPathPreview,
+  CoinJoinSupport,
   CoinLimits,
   ControlOption,
 } from './registry-base.js';
