@@ -24,7 +24,7 @@ An offline tool for deriving wallet addresses and keys from a BIP39 seed phrase.
 - Generates offline, on-demand QR codes only for derived public payment addresses; key material and arbitrary metadata never receive QR actions.
 - Runs derivation in a disposable Web Worker and has runtime network access blocked by CSP and build verification.
 
-Use this application on a trusted offline computer whenever real seed phrases or private keys are involved.
+Seed input is BIP39; native Electrum seed phrases are not supported. Use this application on a trusted offline computer whenever real seed phrases or private keys are involved.
 
 ### Wallet Activity Viewer
 
@@ -60,7 +60,7 @@ Seed derivation runs inside a sandboxed, network-denied Secret Vault. Only valid
 
 Download the three Multi-Chain Edition HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). `SHA256SUMS` covers the complete release asset set.
 
-This repository remains the canonical source and Multi-Chain release surface. A future `hobby-eng/dash-wallet-tools` repository is intended to distribute the Dash Community Edition from these canonical sources; it does not exist yet and must not become a divergent source fork.
+This repository is the canonical source and Multi-Chain release surface. [Dash Community releases](https://github.com/hobby-eng/dash-wallet-tools/releases) are distributed separately from the same canonical sources; that repository is a release surface, not a source fork.
 
 The SHA-256 value labelled **Source/build fingerprint** inside each file's Release passport is not the checksum of that HTML file. It identifies the source and embedded build inputs used to create it. Verify the downloaded HTML itself with its external `.sha256` sidecar or the release `SHA256SUMS` file.
 
