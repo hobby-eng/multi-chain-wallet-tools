@@ -72,7 +72,10 @@ for (const browserName of selectedBrowsers) {
         const artifact = resolve(root, 'dist', tool.artifactRelativePath);
         const run = { browser: browserName, browserVersion: browser.version(), profile: profile.id, tool: toolId, artifact, passed: false, errors: [], console: [], requests: [], unexpectedRequests: [], checks: [] };
         report.runs.push(run);
-        const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
+        // Use a fresh context without Playwright's serviceWorkers:'block' init script.
+        // That script reads navigator.serviceWorker and throws in an opaque sandbox.
+        // File-origin/CSP restrictions stay intact; all HTTP is still intercepted below.
+        const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
         const page = await context.newPage();
         page.setDefaultTimeout(20000);
         page.on('pageerror', error => run.errors.push(String(error)));
@@ -141,6 +144,7 @@ for (const browserName of selectedBrowsers) {
             run.checks.push('Mocked public-address lookup and 150-row Dash pagination');
             await page.locator('#clear-viewer').click();
           }
+          run.layouts = [];
           for (const width of [1280, 390]) {
             await page.setViewportSize({ width, height: 800 });
             const bottom = scope.locator('footer');
@@ -151,10 +155,12 @@ for (const browserName of selectedBrowsers) {
               height: document.documentElement.scrollHeight,
               footerBottom: document.querySelector('footer').getBoundingClientRect().bottom + scrollY,
             }));
-            assert.ok(dimensions.width <= dimensions.viewport + 2, 'Horizontal overflow');
-            assert.ok(dimensions.height - dimensions.footerBottom < 200, 'Excess blank space below footer');
+            run.layouts.push({ width, ...dimensions });
+            assert.ok(dimensions.width <= dimensions.viewport + 2, `Horizontal overflow: ${dimensions.width}px document / ${dimensions.viewport}px viewport`);
+            assert.ok(dimensions.height - dimensions.footerBottom < 200, `Excess blank space below footer: ${Math.round(dimensions.height - dimensions.footerBottom)}px`);
             if (toolId === 'discovery-scanner') {
               const frameHeight = await page.locator('#recovery-secret-vault').evaluate(element => element.getBoundingClientRect().height);
+              run.layouts.at(-1).frameHeight = frameHeight;
               assert.ok(Math.abs(frameHeight - dimensions.footerBottom) < 200, 'Vault frame height does not follow content');
             }
           }
