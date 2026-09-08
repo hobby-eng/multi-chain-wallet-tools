@@ -3,9 +3,10 @@
 - This application is intentionally online. Do not enter a mnemonic, BIP39 passphrase, spending key or private key.
 - Raw 32-byte Orchard data is accepted as OVK only after an explicit advanced selection because its length cannot distinguish it from a spending key.
 - The viewing key remains local, but a remote provider can observe the source IP, query timing and complete-pool scan pattern.
-- Public Core/Platform address and Identity queries reveal those public identifiers to their providers.
+- Bitcoin, Ethereum, Dash Core/Platform address, and Identity queries reveal those public identifiers and their timing to the selected providers.
+- Bitcoin and Ethereum balances/history are third-party indexed or RPC data rather than locally verified consensus state. Bounded or incomplete history is labelled partial and unavailable totals or dates are not inferred.
 - Core indexed history is not consensus-proofed. Platform address/Identity current state and encrypted-note pages use DAPI proofs; indexed Platform history is separately trusted and cross-checked where possible.
-- Exported CSV/XLSX/JSON contains privacy-sensitive activity metadata even though it contains no viewing key. XLSX generation is local and separates addresses, Identities, Orchard records, and errors into worksheets.
+- Dash CSV/XLSX/JSON exports contain privacy-sensitive activity metadata even though they contain no viewing key. XLSX generation is local and separates addresses, Identities, Orchard records, and errors into worksheets. Bitcoin and Ethereum results are displayed without export controls in this release.
 - An Orchard balance/spent state is authoritative only after scanning from pool position zero through a proof-verified empty terminal page. A short non-empty response is processed and followed by another request; it is never treated as the pool end.
 - All query types start disabled and fail closed until the embedded Orchard runtime passes fixed public derivation, canonical-key, malformed-key, and scanner-boundary checks and the Blob Worker check succeeds.
 - The connected CSP permits `worker-src blob:` because the pinned official Evo SDK creates a local compilation worker from its already embedded JavaScript. Remote and sibling worker URLs remain blocked.

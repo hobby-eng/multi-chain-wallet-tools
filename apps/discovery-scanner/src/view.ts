@@ -314,8 +314,8 @@ export function createDiscoveryScannerView(
         ? 'Scan the standard Bitcoin BIP44, BIP49, BIP84, and BIP86 receive/change families.'
         : 'Scan three common Ethereum externally owned account path profiles.';
       genericCoinScanNote.textContent = coinId === 'bitcoin'
-        ? 'Bitcoin recovery includes legacy, nested SegWit, native SegWit, and Taproot, extending every receive/change chain through a 20-address post-use gap.'
-        : 'Ethereum recovery checks Standard BIP44, Ledger Live, and Legacy Ledger paths by default, extending each through a 20-address post-use gap. Duplicate addresses are queried and counted once. ERC-20 tokens and contract wallets are outside this scan.';
+        ? 'Bitcoin discovery includes legacy, nested SegWit, native SegWit, and Taproot, extending every receive/change chain through a 20-address post-use gap.'
+        : 'Ethereum discovery checks Standard BIP44, Ledger Live, and Legacy Ledger paths by default, extending each through a 20-address post-use gap. Duplicate addresses are queried and counted once. ERC-20 tokens and contract wallets are outside this scan.';
       networkInput.options[0]!.textContent = 'Mainnet';
       networkInput.options[1]!.textContent = 'Testnet';
       return;
@@ -744,7 +744,7 @@ export function createDiscoveryScannerView(
           scanPlatformIdentitiesInput.checked && scanIdentityFundingInput.checked,
           scanCoreInput.checked && scanProviderCollateralInput.checked,
         ].filter(Boolean).length;
-        estimate.textContent = `${scanCoreInput.checked ? 'Dash Core BIP44 selected' : 'Dash Core skipped'}${scanCustomPathInput.checked ? ' · custom path selected' : ''} · ${optionalFamilies} optional coverage item${optionalFamilies === 1 ? '' : 's'} · ${totalBatches.toLocaleString()} minimum address batches${totalBatches > 0 ? ' + gap 20' : ''} · about ${(identities * 2).toLocaleString()} identity proof calls per seed phrase · ${requests} network request${requests === 1 ? '' : 's'} at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}${scanShieldedInput.checked ? ' · complete Orchard pool' : ''}`;
+        estimate.textContent = `${scanCoreInput.checked ? 'Dash Core BIP44 selected' : 'Dash Core skipped'}${scanCustomPathInput.checked ? ' · custom path selected' : ''} · ${optionalFamilies} optional coverage item${optionalFamilies === 1 ? '' : 's'} · ${totalBatches.toLocaleString()} minimum address batches${totalBatches > 0 ? ' + gap 20' : ''} · about ${identities.toLocaleString()} identity proof calls per seed phrase · ${requests} network request${requests === 1 ? '' : 's'} at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}${scanShieldedInput.checked ? ' · complete Orchard pool' : ''}`;
       } catch {
         estimate.textContent = 'Enter valid scan counts';
       }
