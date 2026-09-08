@@ -1,3 +1,4 @@
+import { normalizeBitcoinAddress, normalizeEthereumAddress } from './public-address-multichain.js';
 import { bitcoinAddressHistory, ethereumAddressHistory } from './address-history-service.js';
 import {
   RECOVERY_EVM_ACCOUNT_BATCH,
@@ -39,21 +40,6 @@ const ETHEREUM_ENDPOINTS: Record<RecoveryNetwork, string> = {
   mainnet: 'https://ethereum-rpc.publicnode.com',
   testnet: 'https://ethereum-sepolia-rpc.publicnode.com',
 };
-
-function assertBitcoinAddress(address: unknown, network: RecoveryNetwork): asserts address is string {
-  const pattern = network === 'mainnet'
-    ? /^(?:[13][1-9A-HJ-NP-Za-km-z]{25,34}|bc1[ac-hj-np-z02-9]{11,87})$/u
-    : /^(?:[mn2][1-9A-HJ-NP-Za-km-z]{25,34}|tb1[ac-hj-np-z02-9]{11,87})$/u;
-  if (typeof address !== 'string' || !pattern.test(address)) {
-    throw new Error(`Network Worker rejected an invalid Bitcoin ${network} address.`);
-  }
-}
-
-function assertEthereumAddress(address: unknown): asserts address is string {
-  if (typeof address !== 'string' || !/^0x[0-9a-fA-F]{40}$/u.test(address)) {
-    throw new Error('Network Worker rejected an invalid Ethereum address.');
-  }
-}
 
 async function mapConcurrent<T, R>(
   values: readonly T[],
@@ -253,11 +239,11 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
     assertNetwork(network);
     const historySignal = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(60_000)]);
     if (coin === 'bitcoin') {
-      assertBitcoinAddress(address, network);
+      address = normalizeBitcoinAddress(address, network);
       return bitcoinAddressHistory(address, BITCOIN_ENDPOINTS[network], historySignal);
     }
     if (coin === 'ethereum') {
-      assertEthereumAddress(address);
+      normalizeEthereumAddress(address);
       return ethereumAddressHistory(address, network, historySignal);
     }
     throw new Error('Unsupported history coin.');
@@ -272,7 +258,7 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
     if (!Array.isArray(addresses) || addresses.length < 1 || addresses.length > RECOVERY_UTXO_ADDRESS_BATCH) {
       throw new Error(`Network Worker requires 1 to ${RECOVERY_UTXO_ADDRESS_BATCH} Bitcoin addresses per request.`);
     }
-    addresses.forEach((address) => assertBitcoinAddress(address, network));
+    addresses = addresses.map((address) => normalizeBitcoinAddress(address, network));
     signal?.throwIfAborted();
     const unique = [...new Set(addresses)];
     let loaded: UtxoAddressView[];
@@ -303,7 +289,7 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
     if (!Array.isArray(addresses) || addresses.length < 1 || addresses.length > RECOVERY_EVM_ACCOUNT_BATCH) {
       throw new Error(`Network Worker requires 1 to ${RECOVERY_EVM_ACCOUNT_BATCH} Ethereum addresses per request.`);
     }
-    addresses.forEach(assertEthereumAddress);
+    addresses.forEach(normalizeEthereumAddress);
     const head = record(await fetchJson(ETHEREUM_ENDPOINTS[network], signal, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
