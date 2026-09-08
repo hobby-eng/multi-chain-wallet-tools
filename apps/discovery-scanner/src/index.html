@@ -159,7 +159,7 @@
           <div hidden><label for="watch-only-minimum">Minimum addresses per public-key branch</label><input id="watch-only-minimum" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
           <div><label for="request-concurrency">Parallel network requests</label><select id="request-concurrency"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5 · recommended maximum</option></select></div>
         </div>
-        <label class="shielded-option history-option"><input id="include-used-zero-balance" type="checkbox"><span><strong>Show spent or previously used resources with zero balance</strong><small>Off by default. Displayed resources include history details when supported by the coin adapter and provider. Enabling this option additionally includes Core/Platform empty history and already-spent or outgoing-only Orchard notes in the page and CSV/JSON. On a CoinJoin-heavy wallet the extra Core requests can make the scan much slower; default funded/spendable-only mode is recommended.</small></span></label>
+        <label class="shielded-option history-option"><input id="include-used-zero-balance" type="checkbox"><span><strong>Show spent or previously used resources with zero balance</strong><small>Off by default. Displayed resources include history details when supported by the coin adapter and provider. Enabling this option additionally includes Core/Platform empty history and already-spent or outgoing-only Orchard notes in the page and CSV/JSON. On a CoinJoin-heavy wallet the extra Core requests can make the scan much slower; the default hides known-spent notes; an incoming-only viewing key cannot determine whether a note is spent.</small></span></label>
         <div id="dash-scale-warning" class="scale-warning" data-dash-coverage><strong>Large scans are allowed and the counts above are minimums.</strong> Every Core and Platform branch continues until 20 addresses after the last used address, so a minimum of 100 can automatically become 120, 140, or more. For example, 100,000 Core addresses require about 2,000 public DashScan batches per selected branch. Results appear progressively and cancellation is checked between batches; CPU, network traffic, memory used by findings, and total time can still be substantial.</div>
         <div class="recovery-action-bar">
           <div class="actions">
@@ -177,7 +177,7 @@
 
     <section id="recovery-results" class="recovery-results" hidden>
       <div class="results-title recovery-results-title">
-        <div><span class="step">03</span><div><h2>Discovery map</h2><p>Only currently funded Core/Platform resources and spendable Orchard notes are listed by default; zero-balance history is optional.</p></div></div>
+        <div><span class="step">03</span><div><h2>Discovery map</h2><p>By default, funded Core/Platform resources and Orchard notes not known to be spent are listed. Incoming-only viewing keys cannot prove a spendable balance; zero-balance history is optional.</p></div></div>
         <div class="recovery-export-actions"><span>ALL RESULTS · STANDARD-WALLET HANDOFF</span><button id="export-recovery-csv" class="secondary" type="button">CSV · all</button><button id="export-recovery-json" class="secondary" type="button">JSON · all</button></div>
       </div>
       <section class="recommended-recovery">
