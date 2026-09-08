@@ -194,10 +194,10 @@ export function createDiscoveryScannerController(
       : [dependencies.getRecoveryCoin(snapshot.coinId)];
     return lines.flatMap((line, index) => {
       const resolved = dependencies.resolveWatchOnlyTargets(line, adapters);
-      if (snapshot.coinId === 'auto' && resolved.length > 1) {
+      if (snapshot.coinId === 'auto' && resolved.some(({ ambiguity }) => ambiguity !== undefined)) {
         const labels = [...new Set(resolved.map(({ material, adapterId }) =>
           material.detectionLabel ?? dependencies.getRecoveryCoin(adapterId).label))];
-        throw new Error(`This public key does not identify one coin. Select Coin before scanning. Compatible candidates: ${labels.join(' · ')}.`);
+        throw new Error(`This public key does not identify one coin. Select Coin before scanning. A Dash xpub may also require an explicit Core, CoinJoin, or Platform prefix. Compatible candidates: ${labels.join(' · ')}.`);
       }
       return resolved.map((target) => {
         const adapter = dependencies.getRecoveryCoin(target.adapterId);
