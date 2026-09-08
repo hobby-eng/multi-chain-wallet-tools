@@ -25,7 +25,7 @@ class Control extends EventTarget {
   replaceChildren = vi.fn();
   click(): void { if (!this.disabled) this.dispatchEvent(new Event('click')); }
 }
-function fixture() {
+function fixture(batchMode = false) {
   const controls = new Map<string, Control>();
   const element = (id: string): Control => {
     if (!controls.has(id)) controls.set(id, new Control());
@@ -33,7 +33,7 @@ function fixture() {
   };
   const document = {
     getElementById: element,
-    querySelector: (selector: string) => selector === '[data-query-mode="batch"].active' ? null : element(selector.replace(/^#/u, '')),
+    querySelector: (selector: string) => selector === '[data-query-mode="batch"].active' ? (batchMode ? element('batch-active') : null) : element(selector.replace(/^#/u, '')),
     querySelectorAll: (selector: string) => [element(selector)],
     body: element('body'),
     createElement: () => new Control(),
@@ -121,4 +121,23 @@ describe('shared Activity Viewer query ownership', () => {
     expect(network.addressHistory).not.toHaveBeenCalled();
     expect(element('scan-button').disabled).toBe(true);
   });
+});
+
+it('counts Ethereum addresses once regardless of casing, while keeping distinct accounts', async () => {
+  const { element } = fixture(true);
+  await settle();
+  element('viewer-coin').value = 'ethereum';
+  const address = '0x52908400098527886E0F7030069857D2E4169EE7';
+  const other = '0xde709f2102306220921060314715629080e2fb77';
+  element('viewer-batch-input').value = [address, address.toLowerCase(), other].join('\n');
+  network.addressHistory.mockResolvedValue({ ...emptyHistory('ETH', 'wei', 18), status: 'complete' });
+  network.evmAccounts.mockImplementation(async (_network, addresses) => ({
+    blockNumber: '1', entries: addresses.map((address: string) => ({ address, balance: '1000000000000000000', nonce: '0' })),
+  }));
+  element('viewer-form').dispatchEvent(new Event('submit', { cancelable: true }));
+  await settle();
+  expect(network.evmAccounts).toHaveBeenCalledTimes(2);
+  expect(element('viewer-results-description').textContent).toBe('2 public addresses');
+  const cards = element('viewer-summary').replaceChildren.mock.calls[0]! as Control[];
+  expect(cards[0]!.append.mock.calls[0]![2].textContent).toBe('2 ETH');
 });
