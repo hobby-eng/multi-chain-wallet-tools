@@ -144,8 +144,10 @@ pnpm install --frozen-lockfile
 rustup toolchain install 1.98.1
 rustup target add wasm32-unknown-unknown --toolchain 1.98.1
 cargo +1.98.1 install wasm-bindgen-cli --version 0.2.127 --locked
-pnpm verify
+RUSTUP_TOOLCHAIN=1.98.1 pnpm verify
 ```
+
+The `RUSTUP_TOOLCHAIN` variable selects the installed pinned toolchain for child Cargo commands even when your global Rust default is older. Use the same variable for native `pnpm build`, `pnpm build:wasm`, and `pnpm test:rust`. Installing a toolchain alone does not select it.
 
 Generated files are written to:
 
