@@ -471,15 +471,27 @@ async function paginatedItems(
   onRequest: () => void,
 ): Promise<Record<string, unknown>[]> {
   const items: Record<string, unknown>[] = [];
+  const limit = Math.min(EXPLORER_PAGE_SIZE, historyLimit);
+  let total: number | null = null;
+  const seenPages = new Set<string>();
   for (let pageNumber = 1; items.length < historyLimit; pageNumber += 1) {
     if (pageNumber > EXPLORER_MAX_PAGES) throw new Error(`Platform Explorer ${context} exceeded its pagination safety ceiling.`);
-    const limit = Math.min(EXPLORER_PAGE_SIZE, historyLimit - items.length);
     onRequest();
     const response = page(
       await fetchJson(fetcher, `${endpoint}${path}?page=${pageNumber}&limit=${limit}&order=desc`, signal),
       context,
     );
+    if (response.total !== null) {
+      if (total !== null && total !== response.total) throw new Error(`Platform Explorer ${context} changed during pagination.`);
+      total = response.total;
+    }
+    const fingerprint = JSON.stringify(response.items);
+    if (response.items.length > 0 && seenPages.has(fingerprint)) throw new Error(`Platform Explorer ${context} repeated a page.`);
+    seenPages.add(fingerprint);
     items.push(...response.items.slice(0, historyLimit - items.length));
+    if (response.items.length < limit && total !== null && items.length < Math.min(total, historyLimit)) {
+      throw new Error(`Platform Explorer ${context} ended before its reported count.`);
+    }
     if (
       response.items.length < limit
       || (response.total !== null && items.length >= response.total)
