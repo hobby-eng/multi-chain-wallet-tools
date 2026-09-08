@@ -218,7 +218,7 @@ export async function fetchJson(
     requestController.abort();
   }, timeoutMs);
   try {
-    const response = await globalThis.fetch(url, { ...init, signal: requestController.signal });
+    const response = await globalThis.fetch(url, { ...init, cache: 'no-store', signal: requestController.signal });
     if (!response.ok) {
       const detail = (await response.text().catch(() => '')).slice(0, 300);
       throw new Error(`Network request failed with HTTP ${response.status}${detail ? ` — ${detail}` : ''}.`);
@@ -237,30 +237,18 @@ export async function fetchJson(
 
 export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
   readonly #sdkByNetworkAndPurpose = new Map<string, Promise<EvoSDK>>();
-  readonly #platformExplorerHeightByNetwork = new Map<RecoveryNetwork, Promise<number>>();
 
-  #platformExplorerHeight(network: RecoveryNetwork, signal?: AbortSignal): Promise<number> {
-    const existing = this.#platformExplorerHeightByNetwork.get(network);
-    if (existing !== undefined) return existing;
+  async #platformExplorerHeight(network: RecoveryNetwork, signal?: AbortSignal): Promise<number> {
     const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
-    const loading = (async (): Promise<number> => {
-      const status = record(await fetchJson(`${endpoint}/status`, signal), 'status');
-      const indexer = record(status.indexer, 'indexer status');
-      if (indexer.status !== 'synced') throw new Error('Platform Explorer index is not synchronized.');
-      const reportedNetwork = typeof status.network === 'string' ? status.network : '';
-      if (network === 'testnet' ? !/testnet/iu.test(reportedNetwork) : /testnet/iu.test(reportedNetwork)) {
-        throw new Error('Platform Explorer returned status for the wrong network.');
-      }
-      const api = record(status.api, 'API status');
-      return unsignedInteger(record(api.block, 'latest block').height, 'latest indexed height');
-    })();
-    this.#platformExplorerHeightByNetwork.set(network, loading);
-    void loading.catch(() => {
-      if (this.#platformExplorerHeightByNetwork.get(network) === loading) {
-        this.#platformExplorerHeightByNetwork.delete(network);
-      }
-    });
-    return loading;
+    const status = record(await fetchJson(`${endpoint}/status`, signal), 'status');
+    const indexer = record(status.indexer, 'indexer status');
+    if (indexer.status !== 'synced') throw new Error('Platform Explorer index is not synchronized.');
+    const reportedNetwork = typeof status.network === 'string' ? status.network : '';
+    if (network === 'testnet' ? !/testnet/iu.test(reportedNetwork) : /testnet/iu.test(reportedNetwork)) {
+      throw new Error('Platform Explorer returned status for the wrong network.');
+    }
+    const api = record(status.api, 'API status');
+    return unsignedInteger(record(api.block, 'latest block').height, 'latest indexed height');
   }
 
   #sdk(network: RecoveryNetwork, purpose: 'addresses' | 'identity' | 'shielded'): Promise<EvoSDK> {
