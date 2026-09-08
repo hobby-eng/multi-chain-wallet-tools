@@ -11,7 +11,8 @@ const hash = (i: number): string => i.toString(16).padStart(64, '0');
 
 describe('page-number explorer histories', () => {
   for (const kind of ['core', 'platform', 'identity'] as const) {
-    for (const [historyLimit, fault] of [[150, 'none'], [200, 'none'], [150, 'short'], [150, 'changed']] as const) {
+    for (const [historyLimit, fault] of [[150, 'none'], [200, 'none'], [150, 'short'], [150, 'changed'], [150, 'overlap'], [150, 'empty-unknown']] as const) {
+      if (kind !== 'identity' && (fault === 'overlap' || fault === 'empty-unknown')) continue;
       it(`${kind}: ${historyLimit}-row display limit, ${fault} page`, async () => {
         const limits: number[] = [];
         const fetcher = async (input: string): Promise<Response> => {
@@ -29,7 +30,7 @@ describe('page-number explorer histories', () => {
             const rows = Array.from({ length: 150 }, (_, i) => ({
               hash: hash(i), type: 'CLASSIC', timestamp, vIn: [], vOut: [],
             }));
-            value = { resultSet: page === 2 && fault === 'short' ? [] : rows.slice((page - 1) * limit, page * limit), pagination: { total: rows.length + (page === 2 && fault === 'changed' ? 1 : 0) } };
+            value = { resultSet: fault === 'empty-unknown' || (page === 2 && fault === 'short') ? [] : rows.slice((page - 1) * limit - (page === 2 && fault === 'overlap' ? 1 : 0), fault === 'overlap' && page === 2 ? 149 : page * limit), pagination: { total: fault === 'empty-unknown' ? null : rows.length + (page === 2 && fault === 'changed' ? 1 : 0) } };
           } else if (url.search) value = { resultSet: [], pagination: { total: 0 } };
           else if (kind === 'core') value = { txCount: 150, balance: '0', received: '0', sent: '0' };
           else if (kind === 'platform') value = {
@@ -45,7 +46,7 @@ describe('page-number explorer histories', () => {
             ? (await queryPlatformAddressHistory(platform, 'mainnet', historyLimit, undefined, fetcher)).transitions.map(tx => tx.hash)
             : (await queryPlatformIdentityHistory(identity, 'mainnet', historyLimit, undefined, fetcher)).activity.map(tx => tx.transactionHash);
         if (fault !== 'none') {
-          await expect(queryIds()).rejects.toThrow(fault === 'short' ? /ended before/u : /changed during/u);
+          await expect(queryIds()).rejects.toThrow(fault === 'short' || fault === 'empty-unknown' ? /ended before/u : fault === 'overlap' ? /repeated/u : /changed during/u);
           return;
         }
         const ids = await queryIds();

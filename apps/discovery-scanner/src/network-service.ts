@@ -1,3 +1,4 @@
+import { IdentityPageIntegrity } from '@ckd/dash-network/identity-pagination.js';
 import { EvoSDK, type Identity, type ShieldedEncryptedNote } from '@dashevo/evo-sdk';
 import { copyAndFreeEvoShieldedNote } from '@ckd/dash-network/evo-shielded-note.js';
 import { validateCoreP2pkhAddress, validatePlatformP2pkhAddress } from '@ckd/dash-network/public-address.js';
@@ -531,14 +532,16 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     let incomingCount = 0;
     let outgoingCount = 0;
     let processed = 0;
-    let total = 1;
+    const expectedTransfers = unsignedInteger(info.totalTransfers, 'identity transfer count');
+    const integrity = new IdentityPageIntegrity('identity transfers', 'transfers', expectedTransfers);
+    const total = expectedTransfers;
     for (let pageNumber = 1; processed < total; pageNumber += 1) {
       if (pageNumber > PLATFORM_HISTORY_MAX_PAGES) throw new Error('Platform identity transfer history exceeded its safety ceiling.');
       const page = pageItems(await fetchJson(
         `${endpoint}/identity/${encodeURIComponent(identifier)}/transfers?page=${pageNumber}&limit=${PLATFORM_HISTORY_PAGE_SIZE}&order=asc`,
         signal,
       ), 'identity transfer page');
-      total = page.total;
+      integrity.accept(page.items, page.total, PLATFORM_HISTORY_PAGE_SIZE, Number.MAX_SAFE_INTEGER);
       for (const transfer of page.items) {
         const amount = BigInt(decimal(transfer.amount, 'identity transfer amount'));
         if (transfer.recipient === identifier) {
