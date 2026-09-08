@@ -130,8 +130,10 @@ Each returned action has `cmx(32)`, `nullifier(32)`, `cv_net(32)`, and `encrypte
 ```text
 FullViewingKey::from_bytes
 FullViewingKey::to_ivk(Scope::External).prepare
+FullViewingKey::to_ivk(Scope::Internal).prepare
 try_note_decryption                    incoming note, amount, address, memo
 FullViewingKey::to_ovk(Scope::External)
+FullViewingKey::to_ovk(Scope::Internal)
 try_output_recovery_with_ovk           sender's outgoing output
 Note::nullifier(&full_viewing_key)      owned-note spend detection
 ```

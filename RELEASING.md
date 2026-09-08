@@ -2,7 +2,7 @@
 
 Repository: `https://github.com/hobby-eng/multi-chain-wallet-tools`
 
-This repository is the canonical source for both build profiles and the release surface for the Multi-Chain Edition. A future `hobby-eng/dash-wallet-tools` repository is intended to be a separate distribution/release surface for Dash Community Edition artifacts built from this source. It does not exist yet; do not copy or independently evolve application source there.
+This repository is the canonical source for both build profiles and the release surface for Multi-Chain Edition. [dash-wallet-tools](https://github.com/hobby-eng/dash-wallet-tools/releases) is the separate Dash Community release surface. Build its artifacts from an exact commit/tag here; keep application source and fixes here.
 
 ## What belongs in Git
 
@@ -18,34 +18,9 @@ The root `.gitattributes` fixes repository text files to LF line endings and mar
 
 Original project code is released under the root [MIT License](LICENSE), copyright (c) 2026 hobby-eng. The license is intentionally permissive for inspection, reuse and forks. Third-party components retain the separate licenses and copyright notices recorded in `THIRD_PARTY_NOTICES.md` and `ATTRIBUTION.md`.
 
-## First push to the empty GitHub repository
+## Preparing an existing checkout
 
-Do not append another heading to `README.md`; the real project README already exists. From the project root:
-
-```bash
-git init
-git branch -M main
-git remote add origin git@github.com:hobby-eng/multi-chain-wallet-tools.git
-git add -A
-git status --short
-git diff --cached --check
-```
-
-Before committing, confirm that caches and builds are ignored and the three mandatory reproducibility inputs are staged:
-
-```bash
-git check-ignore -v node_modules dist .tools packages/dash-shielded-wasm/rust/target
-git ls-files pnpm-lock.yaml packages/dash-shielded-wasm/generated packages/dash-shielded-wasm/rust/Cargo.lock
-```
-
-Inspect `git status` for accidental mnemonic, wallet, `.env`, private-key, screenshot, or personal files. Then:
-
-```bash
-git commit -m "Initial source release"
-git push -u origin main
-```
-
-If GitHub was initialized with a README or license instead of being empty, do not force-push. Fetch and merge/rebase that initial commit, or recreate the GitHub repository empty, before the final `git push`.
+Use a clean checkout of the intended canonical source commit/tag. Confirm that lockfiles, generated WASM/glue and source changes are tracked and that `dist/`, `node_modules/`, `.tools/` and Cargo `target/` remain ignored. Record the source commit alongside verification logs before preparing release assets.
 
 ## Automated checks
 
@@ -122,7 +97,7 @@ dist/dash-community-edition/release/LICENSE
 dist/dash-community-edition/release/SHA256SUMS
 ```
 
-Do not attach those files to a `multi-chain-wallet-tools` release. A future Dash distribution workflow should check out an exact canonical source commit/tag, run the same pinned container, select the verified Dash bundle, and publish it without maintaining a source fork.
+Publish that verified bundle to `hobby-eng/dash-wallet-tools`, recording the canonical source commit/tag in its release notes. The checked-in `.github/workflows/release.yml` publishes Multi-Chain assets to this repository; it does not currently publish the Dash bundle to the separate repository. Dash publication is a separate step, whether manual or driven by an explicitly configured distribution workflow. Do not claim GitHub attestations for a manual upload unless they were actually generated for those bytes.
 
 The manifest uses plain filenames, not subdirectories, so a user can download all release assets into one directory and immediately run:
 
