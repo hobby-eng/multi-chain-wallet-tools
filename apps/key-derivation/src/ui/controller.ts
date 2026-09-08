@@ -121,6 +121,13 @@ const lastVariantByCoin = new Map<string, string>();
 const settingsByAdapter = new Map<string, DerivationControlValues>();
 const includeChangeByCoin = new Map<string, boolean>();
 const includeCoinJoinByCoin = new Map<string, boolean>();
+interface AddressSearchOperation {
+  revision: number;
+  worker: DerivationWorkerClient | null;
+  seed: Uint8Array | null;
+}
+let addressSearchRevision = 0;
+let activeAddressSearch: AddressSearchOperation | null = null;
 /** Remembers which CoinJoin sub-branch was last shown, so re-activating the Dash Mobile CoinJoin · DIP9 tab returns to it. */
 let activeCoinJoinBranch: 'coinjoin-external' | 'coinjoin-internal' = 'coinjoin-external';
 
@@ -136,6 +143,23 @@ function mnemonicMayBeComplete(): boolean {
 function stopActiveDerivation(message = 'Derivation superseded by a new request.'): void {
   activeDerivationWorker?.terminate(new DerivationCancelledError(message));
   activeDerivationWorker = null;
+}
+
+function releaseAddressSearch(search: AddressSearchOperation): void {
+  search.worker?.terminate(new DerivationCancelledError('Address-search worker released.'));
+  search.worker = null;
+  search.seed?.fill(0);
+  search.seed = null;
+}
+
+function invalidateAddressSearch(): void {
+  addressSearchRevision += 1;
+  if (activeAddressSearch !== null) {
+    releaseAddressSearch(activeAddressSearch);
+    activeAddressSearch = null;
+    view.setSearchRunning(false);
+  }
+  view.hideSearchResult();
 }
 
 function clearResults(): void {
@@ -354,6 +378,7 @@ function rememberCurrentSettings(): void {
 
 function resetForAdapter(next: CoinAdapter, autoDerive = true): void {
   cancelAutomaticDerivation();
+  invalidateAddressSearch();
   rememberCurrentSettings();
   stopActiveDerivation();
   derivationRevision += 1;
@@ -644,6 +669,7 @@ controls.protocolTabs.addEventListener('keydown', (event) => {
 for (const control of [controls.network, controls.account, controls.branchInput, controls.branchSelect, controls.includeChange, controls.includeCoinJoin, controls.start, controls.count]) {
   control.addEventListener('input', () => {
     stopActiveDerivation();
+    invalidateAddressSearch();
     derivationRevision += 1;
     if (currentResult !== null) clearResults();
     view.updatePathPreview(adapter);
@@ -656,6 +682,7 @@ for (const control of [controls.network, controls.account, controls.branchInput,
 for (const input of [mnemonic, passphrase]) {
   input.addEventListener('input', () => {
     stopActiveDerivation();
+    invalidateAddressSearch();
     derivationRevision += 1;
     if (currentResult !== null) clearResults();
     if (input === mnemonic) updateWordCount();
@@ -665,10 +692,15 @@ for (const input of [mnemonic, passphrase]) {
   });
 }
 
+for (const input of [expectedAddress, searchStart, searchCount]) {
+  input.addEventListener('input', invalidateAddressSearch);
+}
+
 toggleSensitiveValues.addEventListener('click', () => setSensitiveValuesVisibility(!sensitiveValuesRevealed));
 for (const [words, generateButton] of [[12, generate12Button], [24, generate24Button]] as const) {
   generateButton.addEventListener('click', () => {
     cancelAutomaticDerivation();
+    invalidateAddressSearch();
     derivationRevision += 1;
     clearResults();
     clearMessages();
@@ -688,6 +720,7 @@ clearAllButton.addEventListener('click', () => {
   cancellationRequested = true;
   cancelAutomaticDerivation();
   stopActiveDerivation('Derivation cleared by the user.');
+  invalidateAddressSearch();
   derivationRevision += 1;
   pendingLargeRequestFingerprint = null;
   // Browser strings are immutable, so this only releases DOM references; mutable seed bytes are zeroed separately.
@@ -833,30 +866,38 @@ cancelDerivationButton.addEventListener('click', () => {
 });
 
 searchAddressButton.addEventListener('click', () => {
+  if (!cryptoReady) {
+    showError('Cryptographic self-test has not completed successfully. Address search is blocked.');
+    return;
+  }
+  if (adapter.fieldRoles.addresses.length === 0) return;
+  invalidateAddressSearch();
+  const search: AddressSearchOperation = { revision: addressSearchRevision, worker: null, seed: null };
+  activeAddressSearch = search;
+  const requestedAdapter = adapter;
+  const address = expectedAddress.value;
   void (async () => {
     clearMessages();
-    view.hideSearchResult();
     view.setSearchRunning(true);
-    let seed: Uint8Array | null = null;
-    let worker: DerivationWorkerClient | null = null;
     try {
-      const input = readControls(adapter, controls);
+      const input = readControls(requestedAdapter, controls);
       const { includeChange, ...baseInput } = input;
       const start = Number(searchStart.value);
       const count = Number(searchCount.value);
-      seed = mnemonicToSeed(mnemonic.value, passphrase.value);
-      worker = createWorker();
-      const branches = planResultBranches(adapter, baseInput.branch, includeChange);
+      search.seed = mnemonicToSeed(mnemonic.value, passphrase.value);
+      search.worker = createWorker();
+      const branches = planResultBranches(requestedAdapter, baseInput.branch, includeChange);
       let match: Awaited<ReturnType<DerivationWorkerClient['search']>> = null;
       let matchedBranch: ResultBranch = 'receive';
       for (const candidate of branches) {
-        match = await worker.search(
-          adapter.id,
-          { seed, network: baseInput.network, account: baseInput.account, branch: candidate.branch },
-          expectedAddress.value,
+        match = await search.worker.search(
+          requestedAdapter.id,
+          { seed: search.seed, network: baseInput.network, account: baseInput.account, branch: candidate.branch },
+          address,
           start,
           count,
         );
+        if (search.revision !== addressSearchRevision) return;
         if (match !== null) {
           matchedBranch = candidate.kind;
           break;
@@ -868,12 +909,14 @@ searchAddressButton.addEventListener('click', () => {
         : `Match found in the ${matchedBranch} branch at index ${match.index}: ${match.path}`;
       view.showSearchResult(message, match !== null);
     } catch (cause) {
+      if (search.revision !== addressSearchRevision) return;
       showError(cause instanceof Error ? cause.message : 'Address search failed.');
     } finally {
-      worker?.terminate(new DerivationCancelledError('Address-search worker released.'));
-      seed?.fill(0);
-      seed = null;
-      view.setSearchRunning(false);
+      releaseAddressSearch(search);
+      if (activeAddressSearch === search) {
+        activeAddressSearch = null;
+        view.setSearchRunning(false);
+      }
     }
   })();
 });
