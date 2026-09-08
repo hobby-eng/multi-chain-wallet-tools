@@ -235,7 +235,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
         searchAddressButton.textContent = 'Searching…';
         return;
       }
-      searchAddressButton.disabled = false;
+      searchAddressButton.disabled = !cryptoControlsEnabled || !addressSearchAvailable;
       const previous = temporaryButtonLabels.get(searchAddressButton);
       if (previous !== undefined) searchAddressButton.textContent = previous;
       temporaryButtonLabels.delete(searchAddressButton);
