@@ -46,7 +46,7 @@ const toolDefinitions = {
       documentTitle: 'Wallet Discovery Scanner',
       entryPoint: 'apps/discovery-scanner/src/app.ts',
       eyebrow: 'DISCOVERY SCANNER',
-      introduction: 'Search supported wallet account structures from one or several BIP39 recovery phrases, then review and export recovery findings.',
+      introduction: 'Search supported wallet account structures from one or several BIP39 recovery phrases, then review and export discovery findings.',
     },
     dashCommunity: {
       artifactDirectory: 'dash-community-edition/discovery-scanner',
