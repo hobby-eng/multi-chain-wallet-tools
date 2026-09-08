@@ -74,7 +74,7 @@ describe('shared Activity Viewer query ownership', () => {
       let resolveHistory: (value: ReturnType<typeof emptyHistory>) => void = () => {};
       network.addressHistory.mockImplementation(() => new Promise(resolve => { resolveHistory = resolve; }));
       network.utxoAddresses.mockResolvedValue([{ balance: '1' }]);
-      element('full-viewing-key').value = 'public-address';
+      element('full-viewing-key').value = '1BoatSLRHtKNngkdXEeobR76b53LETtpyT';
       element('viewer-form').dispatchEvent(new Event('submit', { cancelable: true }));
       expect(view.isQueryRunning()).toBe(true);
       for (const id of ['viewer-coin', 'viewer-network', 'full-viewing-key', 'viewer-batch-input', '[data-query-mode]']) {
@@ -102,7 +102,7 @@ describe('shared Activity Viewer query ownership', () => {
     await settle();
     network.addressHistory.mockResolvedValue({ ...emptyHistory('BTC', 'satoshi', 8), status: 'complete' });
     network.utxoAddresses.mockResolvedValue([{ balance: '1' }]);
-    element('full-viewing-key').value = 'public-address';
+    element('full-viewing-key').value = '1BoatSLRHtKNngkdXEeobR76b53LETtpyT';
     element('viewer-form').dispatchEvent(new Event('submit', { cancelable: true }));
     await settle();
     expect(element('viewer-results').hidden).toBe(false);
@@ -116,7 +116,7 @@ describe('shared Activity Viewer query ownership', () => {
     const { element, view } = fixture();
     await settle();
     view.setRunning(false, false, 'core');
-    element('full-viewing-key').value = 'public-address';
+    element('full-viewing-key').value = '1BoatSLRHtKNngkdXEeobR76b53LETtpyT';
     element('viewer-form').dispatchEvent(new Event('submit', { cancelable: true }));
     expect(network.addressHistory).not.toHaveBeenCalled();
     expect(element('scan-button').disabled).toBe(true);
@@ -140,4 +140,23 @@ it('counts Ethereum addresses once regardless of casing, while keeping distinct 
   expect(element('viewer-results-description').textContent).toBe('2 public addresses');
   const cards = element('viewer-summary').replaceChildren.mock.calls[0]! as Control[];
   expect(cards[0]!.append.mock.calls[0]![2].textContent).toBe('2 ETH');
+});
+
+for (const input of [
+  '1BoatSLRHtKNngkdXEeobR76b53LETtpyT\n1BoatSLRHtKNngkdXEeobR76b53LETtpyU',
+  '1BoatSLRHtKNngkdXEeobR76b53LETtpyT\n' + 'abandon '.repeat(11) + 'about',
+]) it('preflights the entire batch before any network call and erases detected secrets', async () => {
+  const { element } = fixture(true);
+  await settle();
+  element('viewer-batch-input').value = input;
+  element('full-viewing-key').value = 'stale input';
+  element('viewer-form').dispatchEvent(new Event('submit', { cancelable: true }));
+  await settle();
+  expect(network.addressHistory).not.toHaveBeenCalled();
+  expect(network.utxoAddresses).not.toHaveBeenCalled();
+  expect(element('viewer-error').hidden).toBe(false);
+  if (input.includes('abandon')) {
+    expect(element('viewer-batch-input').value).toBe('');
+    expect(element('full-viewing-key').value).toBe('');
+  }
 });

@@ -1,3 +1,5 @@
+import { normalizeBitcoinAddress, normalizeEthereumAddress } from '../../discovery-scanner/src/public-address-multichain.js';
+import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/dash-network/private-material.js';
 import type { ActivityViewerView } from './view.js';
 import { MultiChainRecoveryNetworkService } from '../../discovery-scanner/src/network-service-multichain.js';
 import type { RecoveryHistory, RecoveryNetwork } from '../../discovery-scanner/src/types.js';
@@ -196,8 +198,19 @@ export function installMultiChainActivity(
       error.hidden = true;
       results.hidden = true;
       const selectedNetwork = network.value as RecoveryNetwork;
-      const values = (queryMode() === 'batch' ? batch.value : single.value)
-        .replaceAll('\r', '').split('\n').map((value) => value.trim()).filter(Boolean);
+      let values: string[];
+      try {
+        const input = queryMode() === 'batch' ? batch.value : single.value;
+        assertPublicBatchLookupInput(input);
+        values = input.replaceAll('\r', '').split('\n').map(value => value.trim()).filter(Boolean)
+          .map(value => selected === 'bitcoin' ? normalizeBitcoinAddress(value, selectedNetwork) : normalizeEthereumAddress(value));
+      } catch (cause) {
+        if (cause instanceof PrivateMaterialError) { single.value = ''; batch.value = ''; }
+        error.textContent = cause instanceof Error ? cause.message : 'Invalid public address input.';
+        error.hidden = false;
+        status.hidden = true;
+        return;
+      }
       if (values.length === 0) {
         error.textContent = `Enter a ${COINS[selected].label} public address.`;
         error.hidden = false;
