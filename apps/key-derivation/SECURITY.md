@@ -2,7 +2,7 @@
 
 - This is the only application in the repository intended for an offline computer.
 - Verify its checksum externally, disconnect all networking, and disable untrusted browser extensions before entering valuable-wallet material.
-- Startup is fail-closed: 14 fixed BIP39, cross-protocol derivation, extended-key and Orchard vectors must pass before generation/derivation is enabled.
+- Startup is fail-closed: the applicable BIP39, cross-protocol derivation, extended-key and Orchard self-test groups must pass before generation/derivation is enabled.
 - CSP, artifact verification and source separation prohibit network APIs; an already modified HTML file or compromised browser/OS remains out of scope.
 - Secret text is concealed by default and automatically reconcealed on window blur or tab hiding. This is visual protection only.
 - Mutable byte arrays are cleared where supported. JavaScript strings, the DOM, garbage-collected copies, clipboard history, swap and crash dumps cannot be guaranteed erased.
@@ -13,3 +13,5 @@
 - Verify any valuable-wallet address/key with an independent implementation before use.
 
 The comprehensive shared review and residual-risk list is in [SECURITY_AUDIT.md](../../SECURITY_AUDIT.md).
+
+- Known-address search has its own revision token and disposable Worker. Clear, seed/passphrase changes, derivation settings and search-range changes terminate it and wipe its retained seed buffer; late results and errors are ignored. This best-effort cleanup does not guarantee erasure of immutable JavaScript strings or browser copies.
