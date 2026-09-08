@@ -4,6 +4,7 @@ import type { ActivityViewerView } from '../src/view.js';
 import type { NormalizedViewingKey } from '@ckd/dash-network/viewing-key.js';
 import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/dash-network/private-material.js';
 import { assertAutoViewerBatchInput, detectViewerInput } from '../src/detection.js';
+import { runShieldedPageStream } from '@ckd/dash-network/shielded-stream-policy.js';
 
 class TestControl extends EventTarget {
   disabled = false;
@@ -130,6 +131,7 @@ function testView() {
     controls: {
       form,
       cancelButton,
+      clearButton,
       identityMode,
       shieldedMode,
       batchQueryMode,
@@ -221,6 +223,53 @@ describe('Activity Viewer controller', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it.each(['clear', 'cancel'] as const)('does not restore a late terminal Orchard result after %s', async action => {
+    vi.stubGlobal('window', testWindow());
+    const { view, controls } = testView();
+    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
+    const page = () => ({ notes: [], proofHeight: 100n, protocolVersion: 1, timeMs: 0n });
+    let release!: (value: ReturnType<typeof page>) => void;
+    const terminal = new Promise<ReturnType<typeof page>>(resolve => { release = resolve; });
+    const fetchPage = vi.fn().mockImplementationOnce(async () => page()).mockImplementationOnce(() => terminal);
+    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }), undefined, {
+      runShieldedPageStream,
+      DashEvoShieldedSource: class { async connect() {} fetchPage = fetchPage; },
+    });
+    createActivityViewerController(view, dependencies).start();
+    await settle();
+    controls.shieldedMode.click();
+    controls.form.submit();
+    await vi.waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2));
+    if (action === 'clear') controls.clearButton.click(); else controls.cancelButton.click();
+    vi.mocked(view.renderShielded).mockClear();
+    vi.mocked(view.setExportAvailable).mockClear();
+    vi.mocked(view.setStatus).mockClear();
+    release(page());
+    await vi.waitFor(() => expect(key.hex).toBe(''));
+    expect(view.renderShielded).not.toHaveBeenCalled();
+    expect(view.setExportAvailable).not.toHaveBeenCalledWith(true);
+    expect(view.setStatus).not.toHaveBeenCalledWith(expect.stringContaining('Scan complete'));
+    if (action === 'clear') expect(view.setStatus).not.toHaveBeenCalled();
+    else expect(view.setStatus).toHaveBeenCalledWith('Query cancelled.');
+  });
+
+  it('rejects a completion from a stream implementation that ignores cancellation', async () => {
+    vi.stubGlobal('window', testWindow());
+    const { view, controls } = testView();
+    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
+    const dependencies = testDependencies(key, async () => {
+      controls.clearButton.click();
+      return { complete: true, terminalPosition: 0n };
+    });
+    createActivityViewerController(view, dependencies).start();
+    await settle();
+    controls.shieldedMode.click();
+    controls.form.submit();
+    await vi.waitFor(() => expect(key.hex).toBe(''));
+    expect(view.renderShielded).not.toHaveBeenCalled();
+    expect(view.setExportAvailable).not.toHaveBeenCalledWith(true);
   });
 
   it('gates queries until startup checks pass and registers listeners only once', async () => {

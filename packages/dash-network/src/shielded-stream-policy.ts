@@ -102,16 +102,20 @@ export async function runShieldedPageStream<Page>(options: {
   if (!Number.isSafeInteger(maximumPages) || maximumPages < SHIELDED_EMPTY_CONFIRMATIONS) {
     throw new Error('Orchard stream page ceiling is invalid.');
   }
+  const checkCancellation = (): void => {
+    if (options.isCancelled?.() === true) throw new DOMException('Shielded pool scan cancelled.', 'AbortError');
+  };
   let cursor = initialShieldedStreamCursor();
   let lastPartial: { position: bigint; revision: bigint } | undefined;
   let terminalRevision: bigint | undefined;
   let highestRevision: bigint | undefined;
   for (;;) {
-    if (options.isCancelled?.() === true) throw new DOMException('Shielded pool scan cancelled.', 'AbortError');
+    checkCancellation();
     const page = await options.fetchPage(cursor.position);
     let noteCount: number;
     let revision: bigint;
     try {
+      checkCancellation();
       noteCount = options.noteCount(page);
       isTerminalShieldedPage(noteCount);
       revision = options.revision(page);
@@ -133,6 +137,7 @@ export async function runShieldedPageStream<Page>(options: {
         pageNumber: cursor.pageCount + 1,
         emptyConfirmation,
       });
+      checkCancellation();
     } finally {
       options.disposePage(page);
     }

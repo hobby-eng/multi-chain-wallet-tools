@@ -61,6 +61,7 @@ export function createActivityViewerController(
 ) {
   let started = false;
   let cancellationRequested = false;
+  let resetRevision = 0;
   let running = false;
   let viewerMode: ViewerMode = 'core';
   let queryMode: ViewerQueryMode = 'single';
@@ -73,6 +74,10 @@ export function createActivityViewerController(
   let viewerSelfTestPassed = false;
   let lastShieldedPaintAt = 0;
   let exportingWorkbook = false;
+
+  function checkCancellation(): void {
+    if (cancellationRequested) throw new DOMException('Viewer query cancelled.', 'AbortError');
+  }
 
   function setRunning(value: boolean): void {
     running = value;
@@ -212,6 +217,7 @@ export function createActivityViewerController(
       view.setStatus(`Connecting to Dash Platform ${network} with trusted proof verification…`);
       const connectStarted = performance.now();
       await source.connect();
+      checkCancellation();
       view.addRemoteDuration(performance.now() - connectStarted);
       view.setDiagnosticDetail('Connected through trusted quorum discovery. Fetching proof-verified encrypted notes.');
       const outcome = await dependencies.runShieldedPageStream({
@@ -219,13 +225,16 @@ export function createActivityViewerController(
           view.setStatus(`Fetching and verifying pool actions from aligned position ${position}…`);
           const fetchStarted = performance.now();
           const page = await source.fetchPage(position, dependencies.shieldedPageSize);
-          view.addRemoteDuration(performance.now() - fetchStarted);
-          view.recordRequest();
+          if (!cancellationRequested) {
+            view.addRemoteDuration(performance.now() - fetchStarted);
+            view.recordRequest();
+          }
           return page;
         },
         noteCount: (page) => page.notes.length,
         revision: (page) => page.proofHeight,
         onPage: (page, visit) => {
+          checkCancellation();
           view.setDiagnosticProof(`${page.proofHeight} · protocol ${page.protocolVersion}`);
           view.setDiagnosticRemoteTime(page.timeMs);
           if (page.notes.length > 0) {
@@ -251,6 +260,7 @@ export function createActivityViewerController(
         isCancelled: () => cancellationRequested,
         yieldTurn: yieldToBrowser,
       });
+      checkCancellation();
       if (outcome.complete) {
         renderShieldedProgress(ledger, true, network, true);
         view.setStatus(`Scan complete after ${dependencies.shieldedEmptyConfirmations} verified empty terminal reads. ${ledger.snapshot(true).scannedNotes} pool actions checked.`);
@@ -300,6 +310,7 @@ export function createActivityViewerController(
     view.setDiagnosticDetail('Validating the DIP18 address and establishing a trusted DAPI context.');
     const connectStarted = performance.now();
     await source.connect();
+    checkCancellation();
     view.addRemoteDuration(performance.now() - connectStarted);
     if (cancellationRequested) throw new DOMException('Platform query cancelled.', 'AbortError');
     view.setRequestCount(1);
@@ -337,6 +348,7 @@ export function createActivityViewerController(
     view.setDiagnosticDetail(`Validated ${input.label} locally. No private material was sent to the network.`);
     const connectStarted = performance.now();
     await source.connect();
+    checkCancellation();
     view.addRemoteDuration(performance.now() - connectStarted);
     if (cancellationRequested) throw new DOMException('Identity query cancelled.', 'AbortError');
     const lookupStarted = performance.now();
@@ -608,19 +620,23 @@ export function createActivityViewerController(
           view.setStatus(`Connecting once to scan Orchard for ${preparedOrchard.length.toLocaleString()} detected viewing key(s)…`);
           const connectStarted = performance.now();
           await source.connect();
+          checkCancellation();
           view.addRemoteDuration(performance.now() - connectStarted);
           const outcome = await dependencies.runShieldedPageStream({
             fetchPage: async (position) => {
               view.setStatus(`Fetching shared verified Orchard page at aligned position ${position} for ${preparedOrchard.length - failed.size} active key(s)…`);
               const fetchStarted = performance.now();
               const page = await source.fetchPage(position, dependencies.shieldedPageSize);
-              view.addRemoteDuration(performance.now() - fetchStarted);
-              view.recordRequest();
+              if (!cancellationRequested) {
+                view.addRemoteDuration(performance.now() - fetchStarted);
+                view.recordRequest();
+              }
               return page;
             },
             noteCount: (page) => page.notes.length,
             revision: (page) => page.proofHeight,
             onPage: (page, visit) => {
+              checkCancellation();
               for (const item of preparedOrchard) {
                 if (failed.has(item.input.id) || page.notes.length === 0) continue;
                 const scanStarted = performance.now();
@@ -653,6 +669,7 @@ export function createActivityViewerController(
             isCancelled: () => cancellationRequested,
             yieldTurn: yieldToBrowser,
           });
+          checkCancellation();
           for (const item of preparedOrchard) {
             if (failed.has(item.input.id)) continue;
             const state: ViewerSingleExportState = {
@@ -800,6 +817,7 @@ export function createActivityViewerController(
       view.setStatus(`Connecting once for ${inputs.length.toLocaleString()} Platform address lookup(s)…`);
       const connectStarted = performance.now();
       await source.connect();
+      checkCancellation();
       view.addRemoteDuration(performance.now() - connectStarted);
       view.setDiagnosticDetail(`Validated all public inputs before opening DAPI; running up to ${concurrency} address lookup(s) at once.`);
       settled = await mapViewerBatchTasks(inputs, concurrency, async (input) => {
@@ -838,6 +856,7 @@ export function createActivityViewerController(
         view.setStatus(`Connecting once for ${taskInputs.length.toLocaleString()} valid Identity lookup(s)…`);
         const connectStarted = performance.now();
         await source.connect();
+        checkCancellation();
         view.addRemoteDuration(performance.now() - connectStarted);
         view.setDiagnosticDetail(`All Identity inputs were checked locally before DAPI; running up to ${concurrency} lookup(s) at once.`);
         settled = await mapViewerBatchTasks(taskInputs, concurrency, async (input) => {
@@ -903,6 +922,7 @@ export function createActivityViewerController(
           view.setStatus(`Connecting once to scan the Orchard pool for ${prepared.length.toLocaleString()} viewing key(s)…`);
           const connectStarted = performance.now();
           await source.connect();
+          checkCancellation();
           view.addRemoteDuration(performance.now() - connectStarted);
           view.setDiagnosticDetail('Every viewing key was validated locally. Verified encrypted pool pages are fetched once and reused across the batch.');
           const failed = new Set<string>();
@@ -912,13 +932,16 @@ export function createActivityViewerController(
               view.setStatus(`Fetching shared verified Orchard page at aligned position ${position} for ${prepared.length - failed.size} active key(s)…`);
               const fetchStarted = performance.now();
               const page = await source.fetchPage(position, dependencies.shieldedPageSize);
-              view.addRemoteDuration(performance.now() - fetchStarted);
-              view.recordRequest();
+              if (!cancellationRequested) {
+                view.addRemoteDuration(performance.now() - fetchStarted);
+                view.recordRequest();
+              }
               return page;
             },
             noteCount: (page) => page.notes.length,
             revision: (page) => page.proofHeight,
             onPage: (page, visit) => {
+              checkCancellation();
               view.setDiagnosticProof(`${page.proofHeight} · protocol ${page.protocolVersion}`);
               view.setDiagnosticRemoteTime(page.timeMs);
               for (const item of prepared) {
@@ -955,6 +978,7 @@ export function createActivityViewerController(
             isCancelled: () => cancellationRequested,
             yieldTurn: yieldToBrowser,
           });
+          checkCancellation();
           settled = prepared
             .filter(({ input }) => !failed.has(input.id))
             .map(({ ledger }): PromiseFulfilledResult<ViewerSingleExportState> => ({
@@ -1044,6 +1068,7 @@ export function createActivityViewerController(
       view.showError('Cryptographic startup self-test has not passed. Queries remain disabled.');
       return;
     }
+    const submittedRevision = resetRevision;
     view.clearMessages();
     view.clearResults();
     setExportState(null);
@@ -1071,6 +1096,7 @@ export function createActivityViewerController(
       else if (viewerMode === 'platform') await runPlatform(network);
       else await runIdentity(network);
     } catch (cause) {
+      if (submittedRevision !== resetRevision) return;
       if (cancellationRequested) {
         view.setStatus('Query cancelled.');
         view.failDiagnostics('Cancelled by the user. No additional results were applied.');
@@ -1094,6 +1120,7 @@ export function createActivityViewerController(
   }
 
   function resetViewer(): void {
+    resetRevision++;
     cancellationRequested = true;
     currentAbort?.abort();
     setExportState(null);
