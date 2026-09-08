@@ -426,7 +426,7 @@ export async function scanBitcoinWatchOnly(
           if (publicKey === null) throw new Error('Watch-only derivation unexpectedly produced no public key.');
           derived.push({
             address: addressFor(profile.mode, publicKey, network),
-            path: profile.path.replace('i', String(index)),
+            path: profile.path.replace(/\/i$/u, `/${index}`),
             index,
             profile,
           });
