@@ -8,6 +8,7 @@ import { scanDashLegacyCore } from '../src/coins/dash/legacy-core-scanner.js';
 import type { DashPlatformClient } from '../src/coins/dash/platform-client.js';
 import { scanDashPlatformAddresses } from '../src/coins/dash/platform-scanner.js';
 import { shouldDisplayShieldedActivity } from '../src/coins/dash/shielded-filter.js';
+import { shieldedFindingPresentation } from '../src/coins/dash/shielded-presentation.js';
 import {
   advanceShieldedStream,
   initialShieldedStreamCursor,
@@ -754,14 +755,38 @@ describe('Orchard recovery output filter', () => {
   };
   const base = { position: 1n, cmx: '22', actionNullifier: '33' };
 
-  it('shows only spendable incoming notes by default and all activity on opt-in', () => {
+  it('shows incoming notes not known to be spent by default and all activity on opt-in', () => {
     const spendable = { ...base, direction: 'received', incoming: note, spent: false } satisfies ShieldedActivity;
-    const spent = { ...base, position: 2n, direction: 'received', incoming: note, spent: true } satisfies ShieldedActivity;
-    const outgoing = { ...base, position: 3n, direction: 'sent', outgoing: note } satisfies ShieldedActivity;
+    const unknown = { ...base, position: 2n, direction: 'received', incoming: note } satisfies ShieldedActivity;
+    const spent = { ...base, position: 3n, direction: 'received', incoming: note, spent: true } satisfies ShieldedActivity;
+    const outgoing = { ...base, position: 4n, direction: 'sent', outgoing: note } satisfies ShieldedActivity;
     expect(shouldDisplayShieldedActivity(spendable, false)).toBe(true);
+    expect(shouldDisplayShieldedActivity(unknown, false)).toBe(true);
     expect(shouldDisplayShieldedActivity(spent, false)).toBe(false);
     expect(shouldDisplayShieldedActivity(outgoing, false)).toBe(false);
-    expect([spendable, spent, outgoing].filter((record) => shouldDisplayShieldedActivity(record, true))).toHaveLength(3);
+    expect([spendable, unknown, spent, outgoing].filter((record) => shouldDisplayShieldedActivity(record, true))).toHaveLength(4);
+  });
+
+  it('does not present an IVK note as unspent or as outgoing activity', () => {
+    const spendable = { ...base, direction: 'received', incoming: note, spent: false } satisfies ShieldedActivity;
+    const unknown = { ...base, position: 2n, direction: 'received', incoming: note } satisfies ShieldedActivity;
+    const outgoing = { ...base, position: 3n, direction: 'sent', outgoing: note } satisfies ShieldedActivity;
+
+    expect(shieldedFindingPresentation(spendable)).toEqual({
+      balanceAtomic: 1n,
+      balanceLabel: '0.00000000001 DASH',
+      spendState: 'Unspent',
+    });
+    expect(shieldedFindingPresentation(unknown)).toEqual({
+      balanceAtomic: 0n,
+      balanceLabel: 'Current balance unavailable · spend state unknown',
+      spendState: 'Unknown · FVK required',
+    });
+    expect(shieldedFindingPresentation(outgoing)).toEqual({
+      balanceAtomic: 0n,
+      balanceLabel: 'Current balance unavailable · outgoing view only',
+      spendState: 'Outgoing view only',
+    });
   });
 });
 
