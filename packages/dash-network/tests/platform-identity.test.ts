@@ -215,7 +215,7 @@ describe('Platform Identity public input boundary', () => {
     });
     expect(fetcher).toHaveBeenCalledWith(
       `https://platform-explorer.pshenmic.dev/transaction/${transactionHash}`,
-      undefined,
+      { cache: 'no-store' },
     );
     expect(decoder).toHaveBeenCalledWith('encoded-registration-transition', transactionHash);
   });
