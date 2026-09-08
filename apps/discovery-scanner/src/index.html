@@ -127,7 +127,7 @@
           <label class="component-option" data-component-settings="core"><input id="scan-legacy-core" type="checkbox"><span><strong>Legacy mobile Core</strong><small>Older Dash Wallet for Android backups.</small></span></label>
           <label class="component-option" data-component-settings="core"><input id="scan-coinjoin" type="checkbox"><span><strong>Dash Mobile CoinJoin · DIP9</strong><small>Separate mobile receive and change chains.</small></span></label>
           <label class="component-option" data-component-settings="core"><input id="scan-provider-collateral" type="checkbox"><span><strong>Masternode holdings</strong><small>Rare DashSync/dashj collateral addresses.</small></span></label>
-          <label class="component-option" data-component-settings="identity"><input id="scan-identity-funding" type="checkbox"><span><strong>Identity registration funding</strong><small>Show the L1 asset-lock and funding inputs.</small></span></label>
+          <label class="component-option" data-component-settings="identity"><input id="scan-identity-funding" type="checkbox"><span><strong>Discovered Identity funding details</strong><small>For identities found above, show the linked L1 asset-lock and funding inputs.</small></span></label>
         </div>
         <p id="generic-coin-scan-note" class="coinjoin-path-note path-preview" hidden></p>
         <div id="custom-path-options" class="custom-path-options" hidden>
@@ -145,7 +145,7 @@
           <div data-component-settings="legacy-core"><label for="legacy-core-count">Legacy mobile per branch</label><input id="legacy-core-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
           <div data-component-settings="coinjoin"><label for="coinjoin-external-count">CoinJoin external minimum</label><input id="coinjoin-external-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
           <div data-component-settings="coinjoin"><label for="coinjoin-internal-count">CoinJoin internal minimum</label><input id="coinjoin-internal-count" type="number" value="20" min="0" step="1" inputmode="numeric"></div>
-          <div data-component-settings="identity-funding"><label for="identity-funding-count">Registration funding keys to match</label><input id="identity-funding-count" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
+          <div data-component-settings="identity-funding"><label for="identity-funding-count">Registration funding keys to compare</label><input id="identity-funding-count" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
           <div hidden><label for="identity-topup-identity-count">Identity-bound top-up identities</label><input id="identity-topup-identity-count" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
           <div hidden><label for="identity-topup-count">Top-ups per identity</label><input id="identity-topup-count" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
           <div data-component-settings="provider-collateral"><label for="provider-collateral-count">Masternode holdings minimum</label><input id="provider-collateral-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
