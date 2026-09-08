@@ -467,3 +467,31 @@ describe('viewer exports', () => {
     expect(xml).not.toContain(viewingKey);
   });
 });
+
+
+it('keeps created-token supply out of DASH amounts in CSV and XLSX, preserving JSON token data', async () => {
+  // Deliberately non-11-decimal token: supply is not an Identity credit balance.
+  const state = {
+    mode: 'identity', network: 'mainnet',
+    snapshot: { inputKind: 'identifier', inputLabel: 'id', proofs: [], identities: [
+      { identifier: 'id', dpnsNames: [], publicKeys: [], balanceCredits: 123n, revision: 1n, nonce: 0n },
+    ] },
+    histories: [{ identifier: 'id', error: null, history: {
+      registeredAtMs: null, lastWithdrawalTimestampMs: null, indexedTimeMs: null,
+      aliases: [], activity: [], documents: [], dataContracts: [], withdrawals: [],
+      tokens: [{ identifier: 'token-id', totalSupply: 100000000000n, decimals: 2, timestampMs: null }],
+    } }],
+  } as unknown as ViewerExportState;
+  const [header, ...rows] = parseCsv(createViewerExport(state, 'csv', generatedAt).text);
+  const row = rows.find(row => row[header!.indexOf('record_type')] === 'token')!;
+  for (const name of ['amount_atomic', 'amount_unit', 'amount_dash']) expect(row[header!.indexOf(name)]).toBe('');
+  expect(row[header!.indexOf('metadata')]).toContain('total_supply=100000000000');
+  expect(row[header!.indexOf('metadata')]).toContain('decimals=2');
+  const workbook = await createViewerWorkbookExport(state, generatedAt);
+  const files = unzipSync(new Uint8Array(await workbook.blob.arrayBuffer()));
+  const xml = Object.values(files).map(value => strFromU8(value)).join('');
+  expect(xml).toContain('supply_unit=token atomic units');
+  expect(xml).toContain('total_supply=100000000000');
+  const json = JSON.parse(createViewerExport(state, 'json', generatedAt).text);
+  expect(json.data.identities[0].history.tokens[0]).toMatchObject({ totalSupply: '100000000000', decimals: 2 });
+});
