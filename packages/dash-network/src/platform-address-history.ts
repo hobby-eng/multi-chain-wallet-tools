@@ -141,13 +141,15 @@ async function queryPlatformExplorer(
   }
 
   const info = object(infoValue, 'address info');
-  let totalTransitions = requiredInteger(info.totalTxs, 'total transition count');
+  const totalTransitions = requiredInteger(info.totalTxs, 'total transition count');
   const incomingTransitions = requiredInteger(info.incomingTxs, 'incoming transition count');
   const outgoingTransitions = requiredInteger(info.outgoingTxs, 'outgoing transition count');
   const transitions: PlatformAddressTransition[] = [];
   let target = Math.min(totalTransitions, historyLimit);
+  // Page-number APIs calculate offsets from the requested limit. Keep it fixed.
+  const limit = Math.min(EXPLORER_PAGE_SIZE, historyLimit);
+  const seen = new Set<string>();
   for (let pageNumber = 1; transitions.length < target; pageNumber += 1) {
-    const limit = Math.min(EXPLORER_PAGE_SIZE, target - transitions.length);
     requests += 1;
     const page = object(
       await fetchJson(
@@ -160,11 +162,21 @@ async function queryPlatformExplorer(
     const items = Array.isArray(page.resultSet) ? page.resultSet : [];
     const pagination = object(page.pagination, 'address-transition pagination');
     const reportedTotal = optionalInteger(pagination.total);
-    if (reportedTotal !== null) totalTransitions = Math.max(totalTransitions, reportedTotal);
+    if (reportedTotal !== null && reportedTotal !== totalTransitions) {
+      throw new Error('Address history changed during pagination. Retry the query.');
+    }
     target = Math.min(totalTransitions, historyLimit);
     const remaining = target - transitions.length;
-    transitions.push(...items.slice(0, remaining).map(transitionView));
-    if (items.length < limit) break;
+    const parsed = items.slice(0, remaining).map(transitionView);
+    for (const item of parsed) {
+      const id = item.hash.toLowerCase();
+      if (id === 'unknown' || seen.has(id)) throw new Error('Address history contains a missing or repeated transaction ID.');
+      seen.add(id);
+    }
+    transitions.push(...parsed);
+    if (items.length < limit && transitions.length < target) {
+      throw new Error('Address history ended before the reported transaction count. Retry the query.');
+    }
   }
   return {
     provider: PLATFORM_EXPLORER_PROVIDER.displayName,
