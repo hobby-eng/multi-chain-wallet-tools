@@ -62,6 +62,28 @@ function trace(n: number, index: number, from: string, to: string, value: string
   return { transaction_hash: `0x${txid(n)}`, index, block_number: n, timestamp: new Date(1700000000000 + n * 1000).toISOString(), from: { hash: from }, to: { hash: to }, value, success: true, error: null, type: 'call' };
 }
 describe('Ethereum history', () => {
+  it('counts contract deployment value once when the normal recipient is null', async () => {
+    const deployed = { ...ethTx(1, other, eth, '100'), to: null, created_contract: { hash: eth } };
+    const root = { ...trace(1, 0, other, eth, '100'), to: null, created_contract: { hash: eth }, type: 'create' };
+    fetchMock(url => ({ items: url.endsWith('/internal-transactions') ? [root] : [deployed], next_page_params: null }));
+    expect(await ethereumAddressHistory(eth, 'mainnet')).toMatchObject({
+      status: 'complete', totalReceivedAtomic: '100', totalSentAtomic: '0', totalFeesAtomic: '0', transactionCount: 1,
+      firstSeen: deployed.timestamp,
+    });
+    expect(await ethereumAddressHistory(other, 'mainnet')).toMatchObject({
+      totalReceivedAtomic: '0', totalSentAtomic: '100', totalFeesAtomic: '3', transactionCount: 1,
+    });
+  });
+
+  it('counts only the sender fee for a failed deployment and rejects unrelated deployments', async () => {
+    const deployed = { ...ethTx(1, other, eth, '100', 'error'), to: null, created_contract: null };
+    fetchMock(url => ({ items: url.endsWith('/internal-transactions') ? [] : [deployed], next_page_params: null }));
+    expect(await ethereumAddressHistory(other, 'mainnet')).toMatchObject({
+      totalReceivedAtomic: '0', totalSentAtomic: '0', totalFeesAtomic: '3',
+    });
+    await expect(ethereumAddressHistory(eth, 'mainnet')).rejects.toThrow('Unrelated');
+  });
+
   it('counts incoming/internal ETH exactly, separates gas and ignores failed transfers and duplicate root calls', async () => {
     fetchMock(url => ({ items: url.endsWith('/internal-transactions')
       ? [trace(1, 0, other, eth, '100'), trace(2, 1, other, eth, '7'), { ...trace(3, 1, other, eth, '999'), success: false, error: 'reverted' }]
