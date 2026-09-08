@@ -6,6 +6,7 @@ export const RECOVERY_VAULT_CHANNEL = 'ckd-recovery-vault-channel-v1';
 export const RECOVERY_NETWORK_FATAL = 'ckd-recovery-network-fatal-v1';
 export const RECOVERY_EXPORT_REQUEST = 'ckd-recovery-export-request-v1';
 export const RECOVERY_EXPORT_RESULT = 'ckd-recovery-export-result-v1';
+export const RECOVERY_VAULT_HEIGHT = 'ckd-recovery-vault-height-v1';
 // One reviewed source of truth shared by the vault scanners and the isolated
 // worker validators. Changing a transport limit now changes both sides.
 export const RECOVERY_CORE_ADDRESS_BATCH = 100;
@@ -35,6 +36,11 @@ export interface RecoveryExportBrokerResult {
   ok: boolean;
   filename?: string;
   error?: string;
+}
+
+export interface RecoveryVaultHeight {
+  type: typeof RECOVERY_VAULT_HEIGHT;
+  height: number;
 }
 
 export interface ProofMetadataView {

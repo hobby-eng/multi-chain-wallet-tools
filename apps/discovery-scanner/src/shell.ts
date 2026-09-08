@@ -4,9 +4,11 @@ import {
   RECOVERY_NETWORK_ATTACH,
   RECOVERY_NETWORK_FATAL,
   RECOVERY_NETWORK_READY,
+  RECOVERY_VAULT_HEIGHT,
   RECOVERY_VAULT_CHANNEL,
   type RecoveryExportBrokerRequest,
   type RecoveryExportBrokerResult,
+  type RecoveryVaultHeight,
 } from './network-protocol.js';
 
 declare const __RECOVERY_VAULT_HTML__: string;
@@ -70,8 +72,6 @@ vault.addEventListener('load', () => {
   }
   target.postMessage({ type: RECOVERY_VAULT_CHANNEL }, '*', [channel.port2]);
 });
-vault.srcdoc = __RECOVERY_VAULT_HTML__;
-
 const MAX_EXPORT_BYTES = 268_435_456;
 
 function exportResult(target: Window, result: RecoveryExportBrokerResult): void {
@@ -80,6 +80,13 @@ function exportResult(target: Window, result: RecoveryExportBrokerResult): void 
 
 window.addEventListener('message', (event: MessageEvent<unknown>) => {
   if (event.source !== vault.contentWindow || typeof event.data !== 'object' || event.data === null) return;
+  const viewport = event.data as Partial<RecoveryVaultHeight>;
+  if (viewport.type === RECOVERY_VAULT_HEIGHT) {
+    if (typeof viewport.height === 'number' && Number.isSafeInteger(viewport.height) && viewport.height > 0 && viewport.height <= 10_000_000) {
+      vault.style.height = `${Math.max(window.innerHeight, viewport.height)}px`;
+    }
+    return;
+  }
   const request = event.data as Partial<RecoveryExportBrokerRequest>;
   if (request.type !== RECOVERY_EXPORT_REQUEST || typeof request.id !== 'string') return;
   const target = event.source as Window;
@@ -116,6 +123,11 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 });
+
+// Install every vault message handler before srcdoc starts executing. Local
+// single-file pages can load srcdoc synchronously enough for an initial
+// viewport message to otherwise arrive before the shell is listening.
+vault.srcdoc = __RECOVERY_VAULT_HTML__;
 
 window.addEventListener('beforeunload', () => {
   clearTimeout(workerReadyTimeout);
