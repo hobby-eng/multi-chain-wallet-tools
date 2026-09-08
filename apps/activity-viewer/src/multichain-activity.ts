@@ -212,7 +212,9 @@ export function installMultiChainActivity(
       diagnosticDetail.textContent = 'Validating public addresses and loading current state plus confirmed lifetime history.';
       try {
         const loaded: AddressResult[] = [];
-        for (const value of [...new Set(values)]) {
+        // Ethereum identity is the 20-byte address, independent of display casing.
+        const unique = [...new Map(values.map(value => [selected === 'ethereum' ? value.toLowerCase() : value, value])).values()];
+        for (const value of unique) {
           if (signal.aborted) throw new DOMException('Query cancelled.', 'AbortError');
           const result = await queryAddress(selected, value, selectedNetwork, signal);
           if (signal.aborted) throw new DOMException('Query cancelled.', 'AbortError');
