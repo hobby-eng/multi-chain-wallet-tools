@@ -1,6 +1,6 @@
 # Dash Platform and Shielded implementation report
 
-Research and implementation review date: 2026-09-08. Release: 0.1.3.
+Research baseline: 2026-09-08, commit `6462c67d677ab73bea49051c3e3d866fcd157894` (release 0.1.3 at review). See the immutable [review record](docs/audits/2026-09-08-baseline.json). Later implementation corrections are recorded in Git; release metadata synchronization never renews this review date.
 
 Original integration code is licensed under the repository's MIT License. Dash Core, Platform, Orchard, brand materials, and all other upstream components retain their respective authorship and licenses documented in `ATTRIBUTION.md` and `THIRD_PARTY_NOTICES.md`.
 

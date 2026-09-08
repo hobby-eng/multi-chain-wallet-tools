@@ -26,4 +26,4 @@ The ratio is confirmed by the [official withdrawal documentation](https://docs.d
 
 ## Validation
 
-TypeScript checking and all 262 tests passed, including exact large integers, single-duff/single-credit values, the 1000:1 conversion, mixed L1/L2 totals, CSV/JSON units during provider failure, rejection of mismatched history units, and DIP17 public-xpub discovery with 11-decimal precision. The standalone HTML editions are built directly with the existing generated WASM, without Docker. Visual acceptance of the final files is left to the user.
+The expanded source review baseline is commit `6462c67d677ab73bea49051c3e3d866fcd157894`, recorded on 2026-09-08. The earlier unpinned “262 tests passed” summary is not current-checkout evidence. Unit regressions cover exact large integers, single-duff/single-credit values, the 1000:1 conversion, mixed L1/L2 totals, CSV/JSON units during provider failure, mismatched history units and 11-decimal Platform precision. New runs must record their commit, command and result. Rebuilt HTML and real-browser acceptance remain separate checks.

@@ -1,6 +1,8 @@
 # Security and implementation audit
 
-Review date: 2026-09-08. Release: 0.1.3. Scope: the current modular source, locked dependency graphs, generated Dash Orchard WASM, canonical build process, six standalone HTML artifacts, and both compile-time editions. Multi-Chain Edition supports Bitcoin, Ethereum, and Dash. Dash Community Edition contains only Dash Core, Dash Platform payments, Dash Platform Identity, and Dash Orchard capabilities. This is an internal engineering review, not a third-party security audit or formal cryptographic proof.
+Audit baseline: [2026-09-08 review record](docs/audits/2026-09-08-baseline.json), commit `6462c67d677ab73bea49051c3e3d866fcd157894`, release 0.1.3 at review. This date and commit are immutable review metadata; a release bump does not refresh them. The review found defects and test gaps. Later corrections require their own verification evidence.
+
+Scope: first-party source, security boundaries, integration with the pinned generated WASM, build tooling and documentation. Dependency source audits and an independent cryptographic proof are excluded. Multi-Chain Edition supports Bitcoin, Ethereum, and Dash. Dash Community Edition contains only Dash Core, Dash Platform payments, Dash Platform Identity, and Dash Orchard capabilities. This is an internal engineering review, not a third-party security certification.
 
 ## Current release architecture
 
@@ -96,11 +98,11 @@ A compromised browser, extension, operating system, firmware, build host, or alr
 11. **Standards and providers can change.** Proposed Platform specifications, SDK behavior, endpoint contracts, and browser security behavior require review when dependencies or protocols are upgraded.
 12. **No independent audit has been completed.** Tests and cross-implementation vectors reduce integration risk; they do not prove absence of implementation or supply-chain vulnerabilities.
 
-## Verification status for 0.1.3
+## Verification evidence and limits
 
-The complete native `pnpm verify` run passed for the 0.1.3 source: TypeScript compilation, 265 TypeScript tests, 11 native Rust tests, deterministic derivation vectors, independent DIP13 reproduction, startup self-tests, generated-WASM checks, CSP and storage checks, Secret Vault/Network Worker graph separation, RPC and response validation, secret-egress tests, exact-integer exports, profile isolation, reproducibility checks, release manifests, checksums, and both edition bundles.
+Historical test totals and live-provider observations are not a verification record for the current checkout. The previous unpinned “265 TypeScript / 11 Rust tests passed” summary has been withdrawn as a current-status claim. Record each new run with its source commit, command, runtime, date and result; keep real-browser acceptance separate from source-level tests.
 
-Live smoke tests also passed for Dash Orchard testnet viewing, Dash Core mainnet/testnet, Dash Platform mainnet/testnet, Discovery Scanner mainnet/testnet, and two-phrase and five-phrase mainnet discovery batches. These observations verify provider compatibility at the test time; they do not guarantee future provider availability or complete chain truth.
+The baseline audit identified A01–A09, DOC01–DOC03 and T01. Corrections are tracked in individual commits after the baseline. Full verification, a fresh build and direct `file://` browser acceptance are required before treating those corrections as release-ready. A passing source regression does not prove that the final HTML behaves correctly in a browser.
 
 The canonical release build is defined by `Dockerfile.reproducible`: Linux/amd64, an Ubuntu 24.04-based image pinned by immutable digest, exact Node/pnpm/Rust/wasm-bindgen versions, checksum-verified installers, locked JavaScript and Cargo graphs, and a final complete verification layer without network access. Rebuilt Dash Orchard WASM/glue must byte-match the reviewed committed files. A native build can pass the same functional checks while producing different release bytes because host linkers and system libraries vary.
 
