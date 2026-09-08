@@ -1,3 +1,4 @@
+import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from './watch-only.js';
 import { BUILD_INFO } from '@ckd/build-info';
 import { assertValidMnemonic } from '@ckd/core/bip39.js';
 import { writeClipboard } from '@ckd/export/clipboard.js';
@@ -21,6 +22,9 @@ export function startDiscoveryScanner(
     RecoveryConcurrencyLimiter,
     SecretEgressGuard,
     assertValidMnemonic,
+    assertWatchOnlyBatchInput,
+    parseWatchOnlyLines,
+    resolveWatchOnlyTargets,
     createRecoveryExport,
     describeUnknownError,
     getRecoveryCoin: registry.getRecoveryCoin,

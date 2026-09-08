@@ -9,7 +9,7 @@ import {
   type DerivationControlValues,
   type DerivationControls,
 } from './inputs.js';
-import type { BranchResultState, ResultBranch } from './result-branches.js';
+import { resultBranchGroup, type BranchResultState, type ResultBranch } from './result-branches.js';
 import { renderResults, updateSecretVisibility, type ResultsRenderOptions } from './results.js';
 import { clearDerivationResult, clearRenderedSecrets } from './secrets.js';
 
@@ -46,6 +46,9 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     branchSelect: required<HTMLSelectElement>('#branch-select'),
     changeField: required<HTMLElement>('#change-addresses-field'),
     includeChange: required<HTMLInputElement>('#include-change-addresses'),
+    coinJoinField: required<HTMLElement>('#coinjoin-addresses-field'),
+    includeCoinJoin: required<HTMLInputElement>('#include-coinjoin-addresses'),
+    coinJoinHelp: required<HTMLElement>('#coinjoin-path-help'),
     startLabel: required<HTMLLabelElement>('#start-label'),
     start: required<HTMLInputElement>('#start'),
     countLabel: required<HTMLLabelElement>('#count-label'),
@@ -69,6 +72,16 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const resultBranchTabs = required<HTMLElement>('#result-branch-tabs');
   const resultReceiveTab = required<HTMLButtonElement>('#result-receive-tab');
   const resultChangeTab = required<HTMLButtonElement>('#result-change-tab');
+  const resultCoinJoinTab = required<HTMLButtonElement>('#result-coinjoin-tab');
+  const coinJoinBranchTabs = required<HTMLElement>('#coinjoin-branch-tabs');
+  const resultCoinJoinExternalTab = required<HTMLButtonElement>('#result-coinjoin-external-tab');
+  const resultCoinJoinInternalTab = required<HTMLButtonElement>('#result-coinjoin-internal-tab');
+  const branchTabButtons: Record<ResultBranch, HTMLButtonElement> = {
+    receive: resultReceiveTab,
+    change: resultChangeTab,
+    'coinjoin-external': resultCoinJoinExternalTab,
+    'coinjoin-internal': resultCoinJoinInternalTab,
+  };
   const branchResultContent = required<HTMLElement>('#branch-result-content');
   const toggleSensitiveValues = required<HTMLButtonElement>('#toggle-sensitive-values');
   const copyMnemonicButton = required<HTMLButtonElement>('#copy-mnemonic');
@@ -115,6 +128,10 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     resultBranchTabs,
     resultReceiveTab,
     resultChangeTab,
+    resultCoinJoinTab,
+    coinJoinBranchTabs,
+    resultCoinJoinExternalTab,
+    resultCoinJoinInternalTab,
     branchResultContent,
     toggleSensitiveValues,
     copyMnemonicButton,
@@ -264,6 +281,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       }
       if (currentResult !== null && !cleared.has(currentResult)) clearDerivationResult(currentResult);
       resultBranchTabs.hidden = true;
+      coinJoinBranchTabs.hidden = true;
       resultsRoot.classList.remove('revealed');
       resultsRoot.hidden = true;
     },
@@ -289,24 +307,46 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       activeBranch: ResultBranch,
     ): void {
       const hasChange = branchStates.has('change');
-      resultBranchTabs.hidden = !hasChange;
+      const hasCoinJoin = branchStates.has('coinjoin-external') || branchStates.has('coinjoin-internal');
+      resultBranchTabs.hidden = !hasChange && !hasCoinJoin;
+      resultChangeTab.hidden = !hasChange;
+      resultCoinJoinTab.hidden = !hasCoinJoin;
+      const activeGroup = resultBranchGroup(activeBranch);
+      coinJoinBranchTabs.hidden = !hasCoinJoin || activeGroup !== 'coinjoin';
       if (result !== null) {
-        const suffix = hasChange
-          ? activeBranch === 'receive' ? ' · Receive addresses' : ' · Change addresses'
-          : '';
+        const suffix = activeGroup === 'receive'
+          ? hasChange || hasCoinJoin ? ' · Receive addresses' : ''
+          : activeGroup === 'change'
+            ? ' · Change addresses'
+            : activeBranch === 'coinjoin-external' ? ' · Dash Mobile CoinJoin · DIP9 external' : ' · Dash Mobile CoinJoin · DIP9 internal';
         resultTitle.textContent = `${result.title}${suffix}`;
       }
-      for (const [button, branch] of [[resultReceiveTab, 'receive'], [resultChangeTab, 'change']] as const) {
+      for (const [button, branch] of [
+        [resultReceiveTab, 'receive'],
+        [resultChangeTab, 'change'],
+      ] as const) {
+        const active = activeGroup === branch;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+        button.disabled = !branchStates.has(branch);
+      }
+      const coinJoinActive = activeGroup === 'coinjoin';
+      resultCoinJoinTab.classList.toggle('active', coinJoinActive);
+      resultCoinJoinTab.setAttribute('aria-selected', String(coinJoinActive));
+      resultCoinJoinTab.tabIndex = coinJoinActive ? 0 : -1;
+      resultCoinJoinTab.disabled = !hasCoinJoin;
+      for (const [button, branch] of [
+        [resultCoinJoinExternalTab, 'coinjoin-external'],
+        [resultCoinJoinInternalTab, 'coinjoin-internal'],
+      ] as const) {
         const active = activeBranch === branch;
         button.classList.toggle('active', active);
         button.setAttribute('aria-selected', String(active));
         button.tabIndex = active ? 0 : -1;
         button.disabled = !branchStates.has(branch);
       }
-      branchResultContent.setAttribute(
-        'aria-labelledby',
-        activeBranch === 'receive' ? resultReceiveTab.id : resultChangeTab.id,
-      );
+      branchResultContent.setAttribute('aria-labelledby', branchTabButtons[activeBranch].id);
     },
     updateMode(mode: DisplayMode): void {
       const basic = mode === 'basic';
@@ -432,10 +472,10 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
         ?.focus();
     },
     resultBranchEnabled(branch: ResultBranch): boolean {
-      return !(branch === 'receive' ? resultReceiveTab : resultChangeTab).disabled;
+      return !branchTabButtons[branch].disabled;
     },
     focusResultBranch(branch: ResultBranch): void {
-      (branch === 'receive' ? resultReceiveTab : resultChangeTab).focus();
+      branchTabButtons[branch].focus();
     },
     documentActionFrom(target: EventTarget | null): DocumentAction | null {
       if (!(target instanceof Element)) return null;

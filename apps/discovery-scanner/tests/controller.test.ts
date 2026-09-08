@@ -27,6 +27,9 @@ async function settle(): Promise<void> {
 function snapshot(): RecoveryInputSnapshot {
   return {
     coinId: 'dash',
+    sourceMode: 'seed',
+    watchOnlyKeys: '',
+    watchOnlyMinimumCount: '100',
     network: 'mainnet',
     account: '0',
     singleMnemonic: 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu',
@@ -39,6 +42,21 @@ function snapshot(): RecoveryInputSnapshot {
     scanCore: true,
     coreReceiveCount: '1',
     coreChangeCount: '1',
+    scanCustomPath: false,
+    customPathTemplate: '',
+    customPathFormat: '',
+    customPathCount: '100',
+    scanLegacyCore: false,
+    legacyCoreCount: '0',
+    scanCoinJoin: false,
+    coinJoinExternalCount: '0',
+    coinJoinInternalCount: '0',
+    scanIdentityFunding: false,
+    identityFundingCount: '0',
+    identityTopUpIdentityCount: '0',
+    identityTopUpCount: '0',
+    scanProviderCollateral: false,
+    providerCollateralCount: '0',
     scanPlatformAddresses: false,
     platformAddressCount: '0',
     scanPlatformIdentities: false,
@@ -109,7 +127,7 @@ function testView() {
   } as unknown as DiscoveryScannerView;
   return {
     view,
-    controls: { startButton, singleMode, batchMode, revealButton, cancelButton, clearButton, exportCsvButton },
+    controls: { startButton, singleMode, batchMode, revealButton, cancelButton, clearButton, exportCsvButton, exportJsonButton },
   };
 }
 
@@ -132,7 +150,7 @@ describe('Discovery Scanner controller', () => {
       ordering.push(`tripwire:${context}`);
       originalAssertPublic.call(this, value, context);
     });
-    const requestRecoveryExport = vi.fn(async () => 'report.csv');
+    const requestRecoveryExport = vi.fn(async (_text: string, _format: 'csv' | 'json') => 'report.csv');
     const dependencies = {
       RecoveryConcurrencyLimiter,
       SecretEgressGuard,
@@ -298,5 +316,139 @@ describe('Discovery Scanner controller', () => {
     expect(view.setStatus).toHaveBeenCalledWith(
       'Recovery scan complete. Review and export the standard-wallet handoff report.',
     );
+  });
+});
+
+// The selected source determines the scan; hidden field contents never override it.
+import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from '../src/watch-only.js';
+import type { RecoveryCoinAdapter, RecoveryWatchOnlyInput, RecoveryWatchOnlyScanConfig, RecoveryScanContext } from '../src/types.js';
+import { createRecoveryExport } from '../src/export.js';
+
+const PUBLIC_KEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
+function publicHarness(scan?: (coin: string, input: RecoveryWatchOnlyInput, config: RecoveryWatchOnlyScanConfig, context: RecoveryScanContext) => Promise<RecoveryWalletResult>) {
+  const { view, controls } = testView();
+  const scanSeed = vi.fn(async (input) => ({ ...result(), inputId: input.id, label: input.label }));
+  const scanKey = vi.fn(async (coin: string, input: RecoveryWatchOnlyInput, config: RecoveryWatchOnlyScanConfig, context: RecoveryScanContext) => scan
+    ? scan(coin, input, config, context)
+    : { ...result(), inputId: input.id, label: input.label, coinId: coin, coinLabel: coin, network: config.network });
+  const adapters: RecoveryCoinAdapter[] = ['bitcoin', 'ethereum', 'dash'].map((id) => ({
+    id, label: id, networks: ['mainnet', 'testnet'], scan: scanSeed,
+    detectWatchOnly: (value) => ({ coinId: id, kind: 'public-key', value }),
+    scanWatchOnly: (input, config, context) => scanKey(id, input, config, context),
+  }));
+  const getRecoveryCoin = (id: string) => adapters.find((adapter) => adapter.id === id)!;
+  const assertValidMnemonic = vi.fn((value: string) => value);
+  const requestRecoveryExport = vi.fn(async (_text: string, _format: 'csv' | 'json') => 'report.csv');
+  const recoveryNetworkApi = vi.fn(async () => ({ ping: async () => 'isolated-network-worker-v1' as const } as RecoveryScanContext['networkApi']));
+  vi.mocked(view.readInputs).mockImplementation(() => ({ ...snapshot(), sourceMode: 'public', watchOnlyKeys: PUBLIC_KEY, watchOnlyMinimumCount: '1', requestConcurrency: '1' }));
+  const controller = createDiscoveryScannerController(view, {
+    RecoveryConcurrencyLimiter, SecretEgressGuard, assertValidMnemonic, assertWatchOnlyBatchInput,
+    parseWatchOnlyLines, resolveWatchOnlyTargets, createRecoveryExport,
+    describeUnknownError: (cause) => cause instanceof Error ? cause.message : String(cause),
+    getRecoveryCoin, listRecoveryCoins: () => adapters, mapRecoveryTasks, recoveryNetworkApi,
+    requestRecoveryExport, runRecoverySelfTest: async () => ({ passed: true, checks: [], durationMs: 0 }),
+  });
+  return { controller, view, controls, scanSeed, scanKey, assertValidMnemonic, requestRecoveryExport, recoveryNetworkApi };
+}
+
+describe('public-key source integration', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+  it('scans only the coin selected for public input and ignores the hidden phrase', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    h.controller.start(); await settle(); h.controls.startButton.click();
+    await vi.waitFor(() => expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Public-key scan complete')));
+    expect(h.scanKey.mock.calls.map(([coin]) => coin)).toEqual(['dash']);
+    expect(h.scanSeed).not.toHaveBeenCalled();
+    expect(h.assertValidMnemonic).not.toHaveBeenCalled();
+    expect(h.scanKey.mock.calls.every(([, input]) => input.value === '')).toBe(true);
+    h.controls.exportJsonButton.click(); await settle();
+    expect(h.requestRecoveryExport).toHaveBeenCalledOnce();
+    expect(h.requestRecoveryExport.mock.calls[0]?.[0]).not.toContain(snapshot().singleMnemonic);
+  });
+  it('requires a coin choice when Auto-detect finds more than one compatible adapter', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockReturnValue({ ...snapshot(), coinId: 'auto', sourceMode: 'public', watchOnlyKeys: PUBLIC_KEY });
+    h.controller.start(); await settle(); h.controls.startButton.click(); await settle();
+    expect(h.scanKey).not.toHaveBeenCalled();
+    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining('Select Coin'));
+  });
+  it('allows Auto-detect when an explicit format identifies exactly one coin', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockReturnValue({ ...snapshot(), coinId: 'auto', sourceMode: 'public', watchOnlyKeys: `dash-core-xpub:${PUBLIC_KEY}` });
+    h.controller.start(); await settle(); h.controls.startButton.click();
+    await vi.waitFor(() => expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Public-key scan complete')));
+    expect(h.scanKey.mock.calls.map(([coin]) => coin)).toEqual(['dash']);
+  });
+  it('rejects a mixed public/private batch before invoking a scan and erases the input', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockReturnValue({ ...snapshot(), sourceMode: 'public', watchOnlyKeys: `${PUBLIC_KEY}\n${'11'.repeat(32)}` });
+    h.controller.start(); await settle(); h.controls.startButton.click(); await settle();
+    expect(h.scanKey).not.toHaveBeenCalled();
+    expect(h.view.clearVisibleSecrets).toHaveBeenCalled();
+    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining('Private'));
+  });
+  it('stops at cancellation and keeps only completed coin reports exportable', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const pending = deferred<RecoveryWalletResult>();
+    const h = publicHarness(async (coin, input, config, context) => {
+      if (input.id === 'watch-2-dash') {
+        await pending.promise;
+        if (context.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+      }
+      return { ...result(), inputId: input.id, coinId: coin, label: input.label, network: config.network };
+    });
+    vi.mocked(h.view.readInputs).mockReturnValue({ ...snapshot(), coinId: 'dash', sourceMode: 'public', watchOnlyKeys: `${PUBLIC_KEY}\n${PUBLIC_KEY}`, requestConcurrency: '1' });
+    h.controller.start(); await settle(); h.controls.startButton.click();
+    await vi.waitFor(() => expect(h.scanKey).toHaveBeenCalledTimes(2));
+    h.controls.cancelButton.click(); pending.resolve(result());
+    await vi.waitFor(() => expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Scan cancelled')));
+    expect(h.scanKey).toHaveBeenCalledTimes(2);
+    h.controls.exportJsonButton.click(); await settle();
+    expect(h.requestRecoveryExport.mock.calls[0]?.[0]).toContain('watch-1-dash');
+    expect(h.requestRecoveryExport.mock.calls[0]?.[0]).not.toContain('watch-2-dash');
+  });
+});
+
+
+describe('explicit source selection and both batch modes', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+  it('scans the seed tab even when a public key remains in the hidden tab', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockReturnValue({ ...snapshot(), sourceMode: 'seed', watchOnlyKeys: PUBLIC_KEY });
+    h.controller.start(); await settle(); h.controls.startButton.click();
+    await vi.waitFor(() => expect(h.scanSeed).toHaveBeenCalledOnce());
+    expect(h.scanKey).not.toHaveBeenCalled();
+    expect(h.assertValidMnemonic).toHaveBeenCalled();
+  });
+  it('requires a public key on the public tab even when a seed is present', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockReturnValue({ ...snapshot(), sourceMode: 'public', watchOnlyKeys: '' });
+    h.controller.start(); await settle(); h.controls.startButton.click(); await settle();
+    expect(h.scanSeed).not.toHaveBeenCalled(); expect(h.scanKey).not.toHaveBeenCalled();
+    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining('Enter at least one public key'));
+  });
+  it('keeps seed batches and ignores hidden public-key contents', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), sourceMode: 'seed', watchOnlyKeys: PUBLIC_KEY,
+      batchMnemonics: `${snapshot().singleMnemonic}\n${snapshot().singleMnemonic}`, batchPassphrases: '\n' }));
+    h.controller.start(); await settle(); h.controls.batchMode.click(); h.controls.startButton.click();
+    await vi.waitFor(() => expect(h.scanSeed).toHaveBeenCalledTimes(2));
+    expect(h.scanKey).not.toHaveBeenCalled();
+  });
+  it('scans every public-key batch line independently of the seed single/batch selector', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), sourceMode: 'public', watchOnlyKeys: `${PUBLIC_KEY}\n${PUBLIC_KEY}` }));
+    h.controller.start(); await settle(); h.controls.batchMode.click(); h.controls.startButton.click();
+    await vi.waitFor(() => expect(h.scanKey).toHaveBeenCalledTimes(2));
+    expect(h.scanSeed).not.toHaveBeenCalled();
+    expect(h.scanKey.mock.calls.map(([, input]) => input.id)).toEqual(['watch-1-dash', 'watch-2-dash']);
   });
 });

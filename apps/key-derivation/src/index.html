@@ -112,6 +112,12 @@
               <span><strong>Also generate change addresses</strong><small>Uses the standard internal branch <code>/1</code> and shows it in a separate result tab.</small></span>
             </label>
           </div>
+          <div id="coinjoin-addresses-field" class="change-addresses-option span-three" hidden>
+            <label for="include-coinjoin-addresses">
+              <input id="include-coinjoin-addresses" type="checkbox">
+              <span><strong>Show Dash Mobile CoinJoin · DIP9 addresses</strong><small>A separate DIP9 CoinJoin chain not covered by normal BIP44. External is the commonly used mobile/DashSync branch; internal is a compatibility/defensive branch that's rarely used. Shows a separate result tab and adds derivation work. <code id="coinjoin-path-help"></code></small></span>
+            </label>
+          </div>
         </div>
         <div class="actions">
           <button class="primary" id="derive-button" type="submit">Derive selected results</button>
@@ -160,6 +166,11 @@
       <div id="result-branch-tabs" class="result-branch-tabs" role="tablist" aria-label="Address branch" hidden>
         <button id="result-receive-tab" class="result-branch-tab active" type="button" role="tab" aria-selected="true" aria-controls="branch-result-content">Receive addresses</button>
         <button id="result-change-tab" class="result-branch-tab" type="button" role="tab" aria-selected="false" aria-controls="branch-result-content">Change addresses</button>
+        <button id="result-coinjoin-tab" class="result-branch-tab" type="button" role="tab" aria-selected="false" aria-controls="branch-result-content" hidden>Dash Mobile CoinJoin · DIP9</button>
+      </div>
+      <div id="coinjoin-branch-tabs" class="result-branch-tabs nested-branch-tabs" role="tablist" aria-label="Dash Mobile CoinJoin · DIP9 chain" hidden>
+        <button id="result-coinjoin-external-tab" class="result-branch-tab active" type="button" role="tab" aria-selected="true" aria-controls="branch-result-content">External</button>
+        <button id="result-coinjoin-internal-tab" class="result-branch-tab" type="button" role="tab" aria-selected="false" aria-controls="branch-result-content">Internal</button>
       </div>
 
       <div id="branch-result-content" role="tabpanel" aria-live="polite">
