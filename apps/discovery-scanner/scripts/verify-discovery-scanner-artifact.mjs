@@ -109,6 +109,8 @@ if (!html.includes('connect-src https:')) throw new Error('Recovery Network Work
 const vaultIds = assertNoDuplicateIds(vaultTemplate, 'Recovery Secret Vault template');
 for (const requiredId of [
   'recovery-form', 'recovery-network', 'recovery-account',
+  'seed-source-tab', 'public-source-tab', 'seed-source-panel', 'public-input', 'seed-mode-tabs',
+  'watch-only-keys', 'watch-only-minimum', 'watch-only-detection', 'seed-coverage',
   'single-mnemonic', 'single-passphrase', 'batch-mnemonics', 'batch-passphrases', 'batch-concurrency',
   'reveal-recovery-input', 'scan-core', 'core-receive-count', 'core-change-count',
   'scan-legacy-core', 'legacy-core-count', 'scan-coinjoin', 'coinjoin-external-count', 'coinjoin-internal-count',
@@ -165,8 +167,8 @@ for (const marker of [
   'Identity empty-gap limit', 'Platform identities', 'Account-wide encrypted notes', 'spent or previously used resources with zero balance',
   'CoinJoin', 'Legacy mobile per branch', 'Registration funding keys to match', 'Identity-bound top-up identities',
   'Masternode holdings minimum', 'Masternode holdings', 'Rare DashSync/dashj collateral addresses.',
-  'Scan components for this seed phrase', 'component-result-tab',
-  '20 addresses after the last used address', 'Self-test running', 'ALL SEED PHRASES',
+  'Scan components for this result', 'component-result-tab',
+  '20 addresses after the last used address', 'Self-test running', 'ALL RESULTS',
   'STANDARD-WALLET HANDOFF', 'Run a new scan', 'bounded-memory page stream',
   'Mobile CoinJoin', 'Separate mobile receive and change chains.',
   'Identity registration funding', 'Show the L1 asset-lock and funding inputs.',

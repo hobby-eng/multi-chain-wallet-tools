@@ -75,6 +75,7 @@ export interface DashCoreTransactionView {
   timestamp: string | null;
   inputAddresses: string[];
   assetLockCreditOutputs: Array<{
+    /** Core transaction output value in duffs; not Platform credits. */
     amount: string;
     publicKeyHash: string;
   }>;
@@ -134,6 +135,7 @@ export interface RecoveryNetworkApi {
   platformIdentityByPublicKeyHash(network: RecoveryNetwork, publicKeyHashHex: string, signal?: AbortSignal): Promise<IdentityLookupView>;
   platformIdentityHistory(network: RecoveryNetwork, identifier: string, signal?: AbortSignal): Promise<PlatformHistorySummaryView>;
   shieldedPage(network: RecoveryNetwork, startPosition: string, count: number, signal?: AbortSignal): Promise<ShieldedPageView>;
+  addressHistory(coin: 'bitcoin' | 'ethereum', network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<import('./types.js').RecoveryHistory>;
   utxoAddresses(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<UtxoAddressView[]>;
   evmAccounts(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<EvmAccountBatchView>;
 }
@@ -150,6 +152,7 @@ export type RecoveryNetworkRequestInput =
   | { operation: 'platform.identity-by-public-key-hash'; payload: { network: RecoveryNetwork; publicKeyHashHex: string } }
   | { operation: 'platform.identity-history'; payload: { network: RecoveryNetwork; identifier: string } }
   | { operation: 'shielded.page'; payload: { network: RecoveryNetwork; startPosition: string; count: number } }
+  | { operation: 'address.history'; payload: { coin: 'bitcoin' | 'ethereum'; network: RecoveryNetwork; address: string } }
   | { operation: 'utxo.addresses'; payload: { network: RecoveryNetwork; addresses: string[] } }
   | { operation: 'evm.accounts'; payload: { network: RecoveryNetwork; addresses: string[] } };
 

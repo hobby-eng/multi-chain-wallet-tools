@@ -1,11 +1,8 @@
+import { getBitcoinHistory } from './history.js';
 import { MAX_BIP32_INDEX, assertIndex, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { assertValidMnemonic, mnemonicToSeed } from '@ckd/core/bip39.js';
 import { bytesToHex, wipe } from '@ckd/core/crypto.js';
 import { getBitcoinNetwork } from '@ckd/core/networks.js';
-import { deriveLegacyAddress } from '@ckd/coins/bitcoin/legacy.js';
-import { deriveNativeSegwitAddress } from '@ckd/coins/bitcoin/native-segwit.js';
-import { deriveNestedSegwitAddress } from '@ckd/coins/bitcoin/nested-segwit.js';
-import { deriveTaprootAddress } from '@ckd/coins/bitcoin/taproot.js';
 import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
 import { RECOVERY_UTXO_ADDRESS_BATCH, type UtxoAddressView } from '../../network-protocol.js';
@@ -20,15 +17,8 @@ import type {
 } from '../../types.js';
 import { parseCustomPathTemplate } from '../custom-path.js';
 import { extendAddressTarget } from '../dash/util.js';
-
-type BitcoinMode = 'legacy' | 'nested-segwit' | 'native-segwit' | 'taproot';
-
-const MODES: ReadonlyArray<{ mode: BitcoinMode; label: string; purpose: number }> = [
-  { mode: 'legacy', label: 'Legacy · BIP44', purpose: 44 },
-  { mode: 'nested-segwit', label: 'Nested SegWit · BIP49', purpose: 49 },
-  { mode: 'native-segwit', label: 'Native SegWit · BIP84', purpose: 84 },
-  { mode: 'taproot', label: 'Taproot · BIP86', purpose: 86 },
-];
+import { addressFor, BITCOIN_MODES as MODES, formatBitcoin, type BitcoinMode } from './shared.js';
+import { detectBitcoinWatchOnly, scanBitcoinWatchOnly } from './watch-only.js';
 
 interface BitcoinPathProfile {
   id: string;
@@ -36,19 +26,6 @@ interface BitcoinPathProfile {
   mode: BitcoinMode;
   initialCount: number;
   path(index: number): string;
-}
-
-function formatBitcoin(satoshis: bigint): string {
-  const whole = satoshis / 100_000_000n;
-  const fraction = (satoshis % 100_000_000n).toString().padStart(8, '0').replace(/0+$/u, '');
-  return `${whole.toLocaleString('en-US')}${fraction.length > 0 ? `.${fraction}` : ''} BTC`;
-}
-
-function addressFor(mode: BitcoinMode, publicKey: Uint8Array, network: ReturnType<typeof getBitcoinNetwork>): string {
-  if (mode === 'legacy') return deriveLegacyAddress(publicKey, network).address;
-  if (mode === 'nested-segwit') return deriveNestedSegwitAddress(publicKey, network).address;
-  if (mode === 'native-segwit') return deriveNativeSegwitAddress(publicKey, network).address;
-  return deriveTaprootAddress(publicKey, network).address;
 }
 
 function validatedEntries(value: UtxoAddressView[], expected: readonly string[]): UtxoAddressView[] {
@@ -267,6 +244,8 @@ async function scanBitcoin(
 
 export const BITCOIN_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
   id: 'bitcoin',
+  amountUnit: () => ({ asset: 'BTC', atomicUnit: 'satoshis', decimals: 8 }),
+  getHistory: getBitcoinHistory,
   label: 'Bitcoin',
   networks: ['mainnet', 'testnet'],
   customPath: {
@@ -280,4 +259,6 @@ export const BITCOIN_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
     ],
   },
   scan: scanBitcoin,
+  detectWatchOnly: detectBitcoinWatchOnly,
+  scanWatchOnly: scanBitcoinWatchOnly,
 };

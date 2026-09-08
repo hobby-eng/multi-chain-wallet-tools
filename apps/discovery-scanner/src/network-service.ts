@@ -397,11 +397,15 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
         const match = /OP_HASH160 OP_PUSHBYTES_20 ([0-9a-f]{40}) OP_EQUALVERIFY/u.exec(script);
         if (match?.[1] === undefined) throw new Error('DashScan asset-lock payload contained an unsupported credit script.');
         return {
-          amount: decimal(output.satoshis, 'DashScan asset-lock credit amount'),
+          amount: decimal(output.satoshis, 'DashScan asset-lock output amount in duffs'),
           publicKeyHash: match[1],
         };
       }),
     };
+  }
+
+  async addressHistory(_coin: 'bitcoin' | 'ethereum', _network: RecoveryNetwork, _address: string, _signal?: AbortSignal): Promise<import('./types.js').RecoveryHistory> {
+    throw new Error('This build rejected an unsupported network operation.');
   }
 
   async utxoAddresses(
@@ -637,6 +641,7 @@ export async function executeRecoveryNetworkRequest(
       request.payload.count,
       signal,
     );
+    case 'address.history': return service.addressHistory(request.payload.coin, request.payload.network, request.payload.address, signal);
     case 'utxo.addresses': return service.utxoAddresses(
       request.payload.network,
       request.payload.addresses,

@@ -27,7 +27,7 @@ function api(overrides: Partial<RecoveryNetworkApi>): RecoveryNetworkApi {
     platformIdentityByPublicKeyHash: unavailable,
     platformIdentityHistory: unavailable,
     shieldedPage: unavailable,
-    utxoAddresses: unavailable,
+    addressHistory: unavailable, utxoAddresses: unavailable,
     evmAccounts: unavailable,
     ...overrides,
   };

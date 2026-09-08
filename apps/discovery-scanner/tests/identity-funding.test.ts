@@ -31,7 +31,7 @@ function baseApi(): RecoveryNetworkApi {
     platformIdentityByPublicKeyHash: unavailable,
     platformIdentityHistory: unavailable,
     shieldedPage: unavailable,
-    utxoAddresses: unavailable,
+    addressHistory: unavailable, utxoAddresses: unavailable,
     evmAccounts: unavailable,
   };
 }
