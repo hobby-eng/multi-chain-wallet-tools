@@ -1,6 +1,6 @@
 # Dependency and third-party license report
 
-Verified 2026-09-05 from exact package manifests, `pnpm-lock.yaml`, `Cargo.lock`, and locked Cargo metadata. This is dependency provenance information, not legal advice. The upstream license files remain authoritative.
+Verified 2026-09-08 from exact package manifests, `pnpm-lock.yaml`, `Cargo.lock`, and locked Cargo metadata. This is dependency provenance information, not legal advice. The upstream license files remain authoritative.
 
 Original project code is licensed under the repository's [MIT License](LICENSE), copyright (c) 2026 hobby-eng. The tables below describe separately licensed third-party components and do not transfer their authorship or trademarks to this project.
 
@@ -27,7 +27,7 @@ All three Dash Community Edition headers embed the official “Dash D Circle” 
 
 ## External runtime services (not bundled dependencies)
 
-The connected Wallet Activity Viewer calls DashScan (`pshenmic/dashscan`, API package MIT) for Dash Core L1 history and Dash Platform Explorer (`pshenmic/platform-explorer`, API package MIT) for Platform address and Identity history. The Wallet Discovery Scanner calls DashScan for batched Core address state and Dash Platform DAPI through Evo SDK for proof-verified Platform address, Identity, and encrypted-note state. No code from either external server repository is copied or bundled into the artifacts; only typed client adapters for public responses are original project code. Service availability, indexing, privacy, and trust limitations are documented in README and SECURITY_AUDIT.
+The connected Multi-Chain applications use Blockchain.com, BlockCypher, Blockstream.info, and Mempool.space for Bitcoin public-address state or confirmed history; PublicNode for Ethereum JSON-RPC state; and Blockscout for confirmed native-ETH and internal-transfer history. Dash queries use DashScan (`pshenmic/dashscan`, API package MIT) for Core L1 state/history, Dash Platform Explorer (`pshenmic/platform-explorer`, API package MIT) for Platform address and Identity history, and Dash Platform DAPI through Evo SDK for proof-verified Platform address, Identity, and encrypted-note state. No external service implementation is copied or bundled into the artifacts; only typed clients and response validators are project code. Service availability, indexing, privacy, and trust limitations are documented in README and SECURITY_AUDIT.
 
 ## Rust/WASM direct and official git dependencies
 
@@ -75,7 +75,7 @@ chacha20 0.9.1                  chacha20poly1305 0.10.1
 cipher 0.4.4                    cobs 0.3.0
 corez 0.1.1                     cpufeatures 0.2.17
 critical-section 1.2.0          crypto-common 0.1.7
-dash-shielded-wasm 0.1.0        document-features 0.2.12
+dash-shielded-wasm 0.1.3        document-features 0.2.12
 either 1.18.0                   embedded-io 0.4.0
 embedded-io 0.6.1               ff 0.13.1
 fpe 0.6.1                       frost-core 3.0.0
@@ -142,6 +142,6 @@ wasi 0.11.1+wasi-snapshot-preview1                           Apache-2.0 WITH LLV
 - `Cargo.toml` uses exact registry versions and one exact audited Orchard tag; `Cargo.lock` pins all transitive versions and git commits.
 - The build validates Cargo 1.98.1, wasm-bindgen-cli 0.2.127, and the Orchard lock source before compiling.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
-- `apps/activity-viewer/src/index.html` separately identifies its embedded Evo SDK/Orchard versions, external DashScan/Platform Explorer data sources, and its online security boundary.
-- `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions, DashScan/DAPI sources, mnemonic-bearing online boundary, and independent-audit warning.
+- `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.
+- `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions, mnemonic-bearing online boundary, and independent-audit warning; its current Bitcoin, Ethereum, and Dash providers are documented in its application README and the root security audit.
 - Original project code is licensed under MIT as declared in the root `LICENSE` and `package.json`. Third-party components retain the licenses and notices listed above.

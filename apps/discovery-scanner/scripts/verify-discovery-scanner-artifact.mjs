@@ -16,7 +16,7 @@ const orchardWasmPath = resolve(root, 'packages/dash-shielded-wasm/generated/das
 const html = readFileSync(artifactPath, 'utf8');
 const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
 if (!html.includes(expectedFingerprint)) {
-  throw new Error('Recovery artifact does not contain the fingerprint of the current source tree.');
+  throw new Error('Discovery Scanner artifact does not contain the fingerprint of the current source tree.');
 }
 const vaultTemplate = applyProfileTemplate(readFileSync(resolve(sourceRoot, 'index.html'), 'utf8'), profile, tool);
 const shellTemplate = applyProfileTemplate(readFileSync(resolve(sourceRoot, 'shell.html'), 'utf8'), profile, tool);
@@ -59,7 +59,7 @@ const scriptEnd = html.lastIndexOf('</script>');
 const styleStart = html.indexOf('<style>');
 const styleEnd = html.indexOf('</style>', styleStart);
 if (scriptStart < 0 || scriptEnd <= scriptStart || styleStart < 0 || styleEnd <= styleStart) {
-  throw new Error('Recovery artifact has no complete isolation-shell script/style pair.');
+  throw new Error('Discovery Scanner artifact has no complete isolation-shell script/style pair.');
 }
 const inlineScript = html.slice(scriptStart + '<script>'.length, scriptEnd);
 const shellScriptHash = `'sha256-${createHash('sha256').update(inlineScript).digest('base64')}'`;
@@ -101,7 +101,7 @@ if (!/script-src __VAULT_SCRIPT_CSP__ 'wasm-unsafe-eval'/u.test(vaultCsp)) {
   throw new Error('Recovery Secret Vault script policy no longer uses a build-time SHA-256 placeholder.');
 }
 if (html.includes('__VAULT_SCRIPT_CSP__') || html.includes('__SHELL_SCRIPT_CSP__') || html.includes('/*__INLINE_')) {
-  throw new Error('Recovery artifact still contains an unexpanded build marker.');
+  throw new Error('Discovery Scanner artifact still contains an unexpanded build marker.');
 }
 if (!html.includes("connect-src 'none'")) throw new Error('Embedded Recovery Secret Vault CSP is missing from the artifact.');
 if (!html.includes('connect-src https:')) throw new Error('Recovery Network Worker shell has no HTTPS permission.');
@@ -128,20 +128,20 @@ for (const requiredId of [
   if (!vaultIds.includes(requiredId)) throw new Error(`Recovery Secret Vault is missing required element #${requiredId}.`);
 }
 if (profile.id === 'dash-community' && vaultIds.includes('recovery-coin')) {
-  throw new Error('Dash Community recovery artifact must omit the single-coin selector from its HTML.');
+  throw new Error('Dash Community Discovery Scanner artifact must omit the single-coin selector from its HTML.');
 }
 if (profile.id === 'multi-chain' && !vaultIds.includes('recovery-coin')) {
-  throw new Error('Multi-Chain recovery artifact is missing its coin selector.');
+  throw new Error('Multi-Chain Discovery Scanner artifact is missing its coin selector.');
 }
 for (const id of [
   'custom-path-options', 'scan-custom-path', 'custom-path-field',
   'custom-path-template', 'custom-path-format', 'custom-path-count',
 ]) {
-  if (!vaultIds.includes(id)) throw new Error(`Recovery artifact is missing extensible custom-path control #${id}.`);
+  if (!vaultIds.includes(id)) throw new Error(`Discovery Scanner artifact is missing extensible custom-path control #${id}.`);
 }
 for (const marker of ['Bitcoin wallet addresses', 'Ethereum EOA addresses']) {
   if (profile.id === 'multi-chain' && !html.includes(marker)) {
-    throw new Error(`Multi-Chain recovery artifact is missing its ${marker} adapter.`);
+    throw new Error(`Multi-Chain Discovery Scanner artifact is missing its ${marker} adapter.`);
   }
   if (profile.id === 'dash-community' && html.includes(marker)) {
     throw new Error(`Dash Community recovery vault unexpectedly bundles the ${marker} adapter.`);
@@ -154,7 +154,7 @@ for (const marker of [
   'Minimum addresses',
   '{index}',
 ]) {
-  if (!html.includes(marker)) throw new Error(`Recovery artifact is missing its generic custom-path marker: ${marker}`);
+  if (!html.includes(marker)) throw new Error(`Discovery Scanner artifact is missing its generic custom-path marker: ${marker}`);
 }
 for (const match of vaultTemplate.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
   if (!vaultIds.includes(match[1])) throw new Error(`Recovery label references missing control #${match[1]}.`);
@@ -194,17 +194,17 @@ for (const marker of [
   const escapedMarker = marker.replaceAll('·', String.raw`\xB7`);
   const srcdocEscapedMarker = marker.replaceAll('·', String.raw`\\xB7`);
   if (!html.includes(marker) && !html.includes(escapedMarker) && !html.includes(srcdocEscapedMarker)) {
-    throw new Error(`Recovery artifact is missing required marker: ${marker}`);
+    throw new Error(`Discovery Scanner artifact is missing required marker: ${marker}`);
   }
 }
 if (profile.id === 'dash-community' && !html.includes('class="profile-brand-mark"')) {
-  throw new Error('Dash Community recovery artifact is missing the official Dash brand mark.');
+  throw new Error('Dash Community Discovery Scanner artifact is missing the official Dash brand mark.');
 }
 if (profile.id === 'multi-chain' && html.includes('class="profile-brand-mark"')) {
-  throw new Error('Multi-Chain recovery artifact must not display the Dash-only brand mark.');
+  throw new Error('Multi-Chain Discovery Scanner artifact must not display the Dash-only brand mark.');
 }
 for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
-  if (!html.includes(marker)) throw new Error(`Recovery artifact is missing profile marker: ${marker}`);
+  if (!html.includes(marker)) throw new Error(`Discovery Scanner artifact is missing profile marker: ${marker}`);
 }
 const allFunctionConstructors = html.match(/(?:^|[^.\w])(?:new\s+)?Function\s*\(/gu) ?? [];
 if (
@@ -213,7 +213,7 @@ if (
   || occurrences(html, 'Function(${o})') !== 1
   || !html.includes('return import(\"node:zlib\")')
 ) {
-  throw new Error('Recovery artifact changed from the two reviewed, CSP-blocked SDK dynamic-code glue paths.');
+  throw new Error('Discovery Scanner artifact changed from the two reviewed, CSP-blocked SDK dynamic-code glue paths.');
 }
 if (occurrences(html, 'Embedded dependency versions and licenses') !== 1) {
   throw new Error('Recovery dependency versions must appear exactly once inside the Release passport.');
@@ -237,9 +237,9 @@ for (const [pattern, label] of [
   [/sourceMappingURL/u, 'source map reference'], [/<script\b[^>]+src=/iu, 'external script'],
   [/<link\b[^>]+href=/iu, 'external stylesheet'],
 ]) {
-  if (pattern.test(html)) throw new Error(`Recovery artifact contains forbidden ${label}.`);
+  if (pattern.test(html)) throw new Error(`Discovery Scanner artifact contains forbidden ${label}.`);
 }
-if (!html.includes('AGFzbQ') && !html.includes('AGFzbQE')) throw new Error('Embedded WebAssembly was not found in the recovery artifact.');
+if (!html.includes('AGFzbQ') && !html.includes('AGFzbQE')) throw new Error('Embedded WebAssembly was not found in the Discovery Scanner artifact.');
 const expectedOrchardWasm = readFileSync(orchardWasmPath).toString('base64');
 if (occurrences(html, expectedOrchardWasm) !== 1) {
   throw new Error('Recovery does not embed exactly one byte-identical pinned Orchard WASM module.');
@@ -287,4 +287,4 @@ assertEvoSdkReadOnly([
 const actual = createHash('sha256').update(html).digest('hex');
 const recorded = readFileSync(checksumPath, 'utf8').trim().split(/\s+/u)[0];
 if (actual !== recorded) throw new Error('Recovery SHA-256 sidecar does not match its HTML.');
-console.log(`Verified sandboxed recovery artifact: ${actual}`);
+console.log(`Verified sandboxed Discovery Scanner artifact: ${actual}`);

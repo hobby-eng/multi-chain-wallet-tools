@@ -51,17 +51,16 @@ Keep complex official Rust integrations behind a narrow adapter. Validate every 
 
 ## Viewer network providers
 
-Public-history services are also adapters, not UI special cases. Dash Core history implements `CoreAddressProvider`; Platform address history implements `PlatformHistoryProvider`. A replacement provider must:
+Public-history services remain outside the UI. Bitcoin and Ethereum implement the common `RecoveryHistory` contract through the Multi-Chain network service; Dash Core history implements `CoreAddressProvider`, and Platform address history implements `PlatformHistoryProvider`. Every replacement provider must:
 
 1. expose separate, explicit Mainnet and Testnet endpoints;
 2. support direct browser CORS requests from a standalone `file://` document;
-3. publish an index synchronization signal and latest indexed height/time;
-4. preserve monetary values as integer duffs or Platform credits—never floating-point DASH;
-5. cap and validate pagination locally even if the server ignores its requested limit;
-6. treat missing addresses as empty history, but malformed responses and lagging indexes as failures;
-7. receive mocked parser/pagination/failure tests and explicit live Mainnet/Testnet smoke tests.
+3. preserve monetary values as exact atomic integers—satoshis, wei, duffs, or Platform credits—never floating-point coin amounts;
+4. cap and validate pagination locally even if the server ignores its requested limit;
+5. treat missing addresses as empty history, while treating malformed and incomplete responses as failures or explicit partial results;
+6. receive mocked parser/pagination/failure tests and explicit live Mainnet/Testnet smoke tests.
 
-Keep consensus-backed state separate from indexed history. The Platform adapter supplies history and aggregates, while current balance/nonce continue to come from Evo SDK `getWithProof`; the viewer compares them and gives the proof-verified values precedence.
+When an index exposes synchronization and tip metadata, require and display it rather than assuming freshness. Keep consensus-backed state separate from indexed history. The Platform adapter supplies history and aggregates, while current balance/nonce continue to come from Evo SDK `getWithProof`; the viewer compares them and gives the proof-verified values precedence.
 
 When adding a viewer mode or changing its result schema, extend the `ViewerExportState` discriminated union, CSV/JSON mappings, and XLSX worksheet routing. Add exact-integer, empty-result, filename, worksheet-grouping, and spreadsheet-formula-injection tests. Never pass the raw input control or a viewing/private key into export state.
 
@@ -81,4 +80,4 @@ For a new recovery coin:
 8. Add fixed derivation vectors, mocked multi-batch and secret-egress tests, malformed response tests, cancellation tests, concurrency-limit/order tests, Mainnet/Testnet separation, and explicit live smoke commands using only a documented public vector. Extend the artifact verifier so it fails if the vault bundle reaches the new network implementation or the worker reaches secret derivation code; validate every structured-clone response inside the vault before accounting.
 9. Update `README.md`, `SECURITY_AUDIT.md`, `DASH_IMPLEMENTATION.md` when relevant, `THIRD_PARTY_NOTICES.md`, and `RELEASING.md` before publishing.
 
-The current Dash implementation is intentionally split into `core-scanner.ts`, `platform-scanner.ts`, `identity-scanner.ts`, and `shielded-scanner.ts`. The generic app owns ordered batch scheduling and the shared request semaphore; coin modules own only protocol discovery. Bitcoin variants should share one Bitcoin family adapter/configuration instead of duplicating the renderer for Legacy, Nested SegWit, Native SegWit, and Taproot. Ethereum should be another adapter. Adding a coin must not add coin-ID branches to `apps/discovery-scanner/src/app.ts`.
+The current Dash implementation is split into `core-scanner.ts`, `platform-scanner.ts`, `identity-scanner.ts`, and `shielded-scanner.ts`. Bitcoin variants share one Bitcoin family adapter/configuration for Legacy, Nested SegWit, Native SegWit, and Taproot, while Ethereum has its own adapter for the three supported EOA layouts. The generic app owns ordered batch scheduling and the shared request semaphore; coin modules own protocol discovery. Adding another coin must not add coin-ID branches to `apps/discovery-scanner/src/app.ts`.
