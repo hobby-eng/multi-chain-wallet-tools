@@ -1,6 +1,6 @@
 # Wallet Key Derivation Tool
 
-Offline, standalone BIP39/BIP32/ZIP-32 derivation. The extensible Multi-Chain edition currently includes Bitcoin, Ethereum, and Dash (Core, Platform payments, Platform Identity keys, and Orchard). Dash Community is Dash-only and compiles only those four Dash adapters. Build outputs: `dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html` and `dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html`.
+Offline, standalone BIP39/BIP32/ZIP-32 derivation. The extensible Multi-Chain edition currently includes Bitcoin, Ethereum, and Dash (Core BIP44, legacy mobile Core, Platform payments, Platform Identity keys, and Orchard). Dash Community is Dash-only and compiles only those five Dash adapters. Build outputs: `dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html` and `dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html`.
 
 The Release passport contains the self-test result, deterministic build identity, checksum sidecar name, and embedded dependency versions/licenses. The former duplicate expandable dependency footer has been removed.
 
@@ -10,7 +10,7 @@ Original project code is released under the repository's [MIT License](../../LIC
 
 The main UI loads protocol metadata only. All runtime key derivation and the single Orchard WASM instance execute in a disposable Blob worker. The final HTML has `connect-src 'none'`, no external assets, no storage APIs and no runtime install requirement.
 
-Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot plus Dash Core can optionally derive the standard internal/change branch `/1` alongside the receive branch `/0`. Receive and Change are separate result tabs with independent row selection, paging, copy/download state and branch-specific Bitcoin watch-only descriptors. Ethereum keeps its explicit address-branch selector pending the separate custom-path/preset work; Dash Platform key classes and Orchard diversifiers are not mislabeled as change branches.
+Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot plus Dash Core can optionally derive the standard internal/change branch `/1` alongside the receive branch `/0`. Dash legacy mobile exposes the historical `m/0'/0/i` receive and `m/0'/1/i` change paths through the same two result tabs. Receive and Change have independent row selection, paging, copy/download state and branch-specific Bitcoin watch-only descriptors. Ethereum keeps its explicit address-branch selector pending the separate custom-path/preset work; Dash Platform key classes and Orchard diversifiers are not mislabeled as change branches.
 
 Every derived public payment address has an on-demand offline QR preview beside its copy action. Bitcoin, Ethereum, and Dash Core use their canonical address-only URI schemes; Platform and Orchard encode the exact address because no broader payment-URI mapping is assumed. Mnemonics, private/public keys, descriptors, viewing keys, Identity keys, paths, fingerprints, and metadata never receive QR actions.
 

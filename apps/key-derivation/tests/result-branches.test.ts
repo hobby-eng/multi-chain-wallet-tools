@@ -26,6 +26,10 @@ describe('receive/change result planning', () => {
       { kind: 'receive', branch: 0 },
       { kind: 'change', branch: 1 },
     ]);
+    expect(planResultBranches(getCoinAdapter('dash-legacy-mobile'), 0, true)).toEqual([
+      { kind: 'receive', branch: 0 },
+      { kind: 'change', branch: 1 },
+    ]);
   });
 
   it('preserves a selected custom/key-class branch when change semantics do not apply', () => {

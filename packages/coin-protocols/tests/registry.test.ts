@@ -23,6 +23,7 @@ describe('coin adapter extension contract', () => {
       'bitcoin-taproot',
       'ethereum',
       'dash-core',
+      'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',
       'dash-shielded',
@@ -57,6 +58,7 @@ describe('coin adapter extension contract', () => {
     ]);
     expect(COIN_FAMILIES.find(({ id }) => id === 'dash')?.adapters.map(({ variantLabel }) => variantLabel)).toEqual([
       'Core · BIP44',
+      'Legacy mobile Core',
       'Platform · DIP17 / DIP18',
       'Identity · DIP13',
       'Shielded · Orchard / ZIP-32',
@@ -70,7 +72,7 @@ describe('coin adapter extension contract', () => {
   });
 
   it('declares receive/change capability independently from protocol-specific branch controls', () => {
-    for (const id of ['bitcoin-legacy', 'bitcoin-nested-segwit', 'bitcoin-native-segwit', 'bitcoin-taproot', 'dash-core']) {
+    for (const id of ['bitcoin-legacy', 'bitcoin-nested-segwit', 'bitcoin-native-segwit', 'bitcoin-taproot', 'dash-core', 'dash-legacy-mobile']) {
       expect(getCoinAdapter(id).addressBranches).toEqual({ receive: 0, change: 1 });
       expect(getCoinAdapter(id).branchControl).toBeUndefined();
     }
@@ -98,6 +100,7 @@ describe('coin adapter extension contract', () => {
   it('keeps the Dash Community registry explicitly Dash-only', () => {
     expect(DASH_COIN_ADAPTERS.map(({ id }) => id)).toEqual([
       'dash-core',
+      'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',
       'dash-shielded',
