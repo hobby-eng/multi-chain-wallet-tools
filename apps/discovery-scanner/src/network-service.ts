@@ -223,7 +223,8 @@ export async function fetchJson(
       const detail = (await response.text().catch(() => '')).slice(0, 300);
       throw new Error(`Network request failed with HTTP ${response.status}${detail ? ` — ${detail}` : ''}.`);
     }
-    return response.json() as Promise<unknown>;
+    // Keep timeout and caller cancellation active until the body is consumed.
+    return await response.json() as unknown;
   } catch (cause) {
     if (signal?.aborted) throw abortError();
     if (timedOut) throw new Error(`Network request timed out after ${Math.ceil(timeoutMs / 1_000)} seconds.`);
