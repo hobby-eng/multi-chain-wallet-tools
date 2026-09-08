@@ -176,9 +176,9 @@ fn recovered_note(
 }
 
 fn scan_prepared_batch_json(
-    prepared_ivk: Option<&PreparedIncomingViewingKey>,
+    prepared_ivks: &[PreparedIncomingViewingKey],
     full_viewing_key: Option<&FullViewingKey>,
-    outgoing_viewing_key: Option<&OutgoingViewingKey>,
+    outgoing_viewing_keys: &[OutgoingViewingKey],
     start_position: u64,
     cmx: &[u8],
     nullifiers: &[u8],
@@ -206,8 +206,10 @@ fn scan_prepared_batch_json(
             continue;
         };
         let domain = OrchardDomain::<DashMemo>::for_nullifier(nf);
-        let incoming = prepared_ivk.and_then(|ivk| try_note_decryption(&domain, ivk, &output));
-        let outgoing = outgoing_viewing_key.and_then(|ovk| {
+        let incoming = prepared_ivks
+            .iter()
+            .find_map(|ivk| try_note_decryption(&domain, ivk, &output));
+        let outgoing = outgoing_viewing_keys.iter().find_map(|ovk| {
             try_output_recovery_with_ovk(&domain, ovk, &output, &cv, &out_ciphertext)
         });
         if incoming.is_none() && outgoing.is_none() {
@@ -242,12 +244,18 @@ fn scan_full_batch_json(
     encrypted_notes: &[u8],
 ) -> Result<String, String> {
     let fvk = parse_full_viewing_key(full_viewing_key)?;
-    let prepared_ivk = fvk.to_ivk(Scope::External).prepare();
-    let ovk = fvk.to_ovk(Scope::External);
+    let prepared_ivks = [
+        fvk.to_ivk(Scope::External).prepare(),
+        fvk.to_ivk(Scope::Internal).prepare(),
+    ];
+    let outgoing_viewing_keys = [
+        fvk.to_ovk(Scope::External),
+        fvk.to_ovk(Scope::Internal),
+    ];
     scan_prepared_batch_json(
-        Some(&prepared_ivk),
+        &prepared_ivks,
         Some(&fvk),
-        Some(&ovk),
+        &outgoing_viewing_keys,
         start_position,
         cmx,
         nullifiers,
@@ -265,10 +273,11 @@ fn scan_incoming_batch_json(
     encrypted_notes: &[u8],
 ) -> Result<String, String> {
     let ivk = parse_incoming_viewing_key(incoming_viewing_key)?;
+    let prepared_ivks = [ivk.prepare()];
     scan_prepared_batch_json(
-        Some(&ivk.prepare()),
+        &prepared_ivks,
         None,
-        None,
+        &[],
         start_position,
         cmx,
         nullifiers,
@@ -286,10 +295,11 @@ fn scan_outgoing_batch_json(
     encrypted_notes: &[u8],
 ) -> Result<String, String> {
     let ovk = parse_outgoing_viewing_key(outgoing_viewing_key)?;
+    let outgoing_viewing_keys = [ovk];
     scan_prepared_batch_json(
+        &[],
         None,
-        None,
-        Some(&ovk),
+        &outgoing_viewing_keys,
         start_position,
         cmx,
         nullifiers,
@@ -442,11 +452,13 @@ mod tests {
         bytes
     }
 
-    fn own_note_fixture() -> (FullViewingKey, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
+    fn own_note_fixture_for_scope(
+        scope: Scope,
+    ) -> (FullViewingKey, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
         let spending_key = Option::<SpendingKey>::from(SpendingKey::from_bytes([0x0d; 32]))
             .expect("fixed spending key is canonical");
         let fvk = FullViewingKey::from(&spending_key);
-        let recipient = fvk.address_at(7u32, Scope::External);
+        let recipient = fvk.address_at(7u32, scope);
         let nf = Option::<Nullifier>::from(Nullifier::from_bytes(&[0x01; 32]))
             .expect("fixed nullifier is canonical");
         let rho =
@@ -466,7 +478,7 @@ mod tests {
         memo[..4].copy_from_slice(&1u32.to_le_bytes());
         memo[4..15].copy_from_slice(b"viewer test");
         let encryption =
-            OrchardNoteEncryption::<DashMemo>::new(Some(fvk.to_ovk(Scope::External)), note, memo);
+            OrchardNoteEncryption::<DashMemo>::new(Some(fvk.to_ovk(scope)), note, memo);
         let epk = OrchardDomain::<DashMemo>::epk_bytes(encryption.epk());
         let enc = encryption.encrypt_note_plaintext();
         let out = encryption.encrypt_outgoing_plaintext(&cv, &cmx, &mut OsRng);
@@ -481,6 +493,10 @@ mod tests {
             cv.to_bytes().to_vec(),
             encrypted_note,
         )
+    }
+
+    fn own_note_fixture() -> (FullViewingKey, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
+        own_note_fixture_for_scope(Scope::External)
     }
 
     #[test]
@@ -556,6 +572,16 @@ mod tests {
         assert!(json.contains("\"outgoing\""));
         assert!(json.contains("\"value\":\"123456789012\""));
         assert!(json.contains("010000007669657765722074657374"));
+        assert!(json.contains("\"noteNullifier\":"));
+    }
+
+    #[test]
+    fn full_viewing_key_recovers_internal_scope_note() {
+        let (fvk, cmx, nf, cv, encrypted) = own_note_fixture_for_scope(Scope::Internal);
+        let json = scan_full_batch_json(&fvk.to_bytes(), 42, &cmx, &nf, &cv, &encrypted).unwrap();
+        assert!(json.contains("\"position\":\"42\""));
+        assert!(json.contains("\"incoming\""));
+        assert!(json.contains("\"outgoing\""));
         assert!(json.contains("\"noteNullifier\":"));
     }
 
