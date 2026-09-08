@@ -1,3 +1,4 @@
+import { dashCoreHistory } from './history.js';
 import { MAX_BIP32_INDEX, rootFromSeed, requirePublic } from '@ckd/core/bip32.js';
 import { bytesToHex, encodeP2pkh, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
@@ -138,6 +139,7 @@ export async function scanDashTransparentFamily(
               subtitle: `${derived.branchLabel} #${derived.index}`,
               balanceAtomic: info.balance,
               balanceLabel: formatDashFromDuffs(info.balance),
+              ...(history === undefined ? {} : { history: dashCoreHistory(history) }),
               fields: [
                 { label: 'Scan family', value: spec.familyLabel },
                 { label: 'Branch', value: derived.branchLabel },

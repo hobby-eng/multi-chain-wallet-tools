@@ -110,6 +110,12 @@ export function applyProfileTemplate(template, profile, tool) {
   const recoveryCoinField = profile.id === 'dash-community'
     ? ''
     : '<div><label for="recovery-coin">Coin</label><select id="recovery-coin"></select></div>';
+  const recoveryPublicKeyPlaceholder = profile.id === 'dash-community'
+    ? 'Paste a public key, account xpub, or Dash Orchard viewing key. One key per line.'
+    : 'Paste a public key, account xpub, Bitcoin descriptor, or Dash Orchard viewing key. One key per line.';
+  const recoveryPublicKeyScope = profile.id === 'dash-community'
+    ? '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any.'
+    : '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.';
   const replacements = {
     '__DOCUMENT_TITLE__': tool.documentTitle,
     '__EDITION_NAME__': profile.editionName,
@@ -121,13 +127,15 @@ export function applyProfileTemplate(template, profile, tool) {
     '__DASH_HEADER_BRAND__': dashBrandMark,
     '__PROFILE_BRAND_MARK__': profileBrandMark,
     '__RECOVERY_COIN_FIELD__': recoveryCoinField,
+    '__RECOVERY_PUBLIC_KEY_PLACEHOLDER__': recoveryPublicKeyPlaceholder,
+    '__RECOVERY_PUBLIC_KEY_SCOPE__': recoveryPublicKeyScope,
     '__TOOL_INTRODUCTION__': tool.introduction,
   };
   let rendered = template;
   for (const [marker, value] of Object.entries(replacements)) {
     if (value !== undefined) rendered = rendered.replaceAll(marker, value);
   }
-  const remaining = rendered.match(/__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|TOOL_INTRODUCTION)__/gu);
+  const remaining = rendered.match(/__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|TOOL_INTRODUCTION)__/gu);
   if (remaining !== null) throw new Error(`Unexpanded build-profile marker: ${remaining.join(', ')}`);
   return rendered;
 }

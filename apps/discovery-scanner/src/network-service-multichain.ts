@@ -1,3 +1,4 @@
+import { bitcoinAddressHistory, ethereumAddressHistory } from './address-history-service.js';
 import {
   RECOVERY_EVM_ACCOUNT_BATCH,
   RECOVERY_UTXO_ADDRESS_BATCH,
@@ -249,6 +250,20 @@ async function fetchBitcoinBatch(
 }
 
 export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkService {
+  override async addressHistory(coin: 'bitcoin' | 'ethereum', network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<import('./types.js').RecoveryHistory> {
+    assertNetwork(network);
+    const historySignal = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(60_000)]);
+    if (coin === 'bitcoin') {
+      assertBitcoinAddress(address, network);
+      return bitcoinAddressHistory(address, BITCOIN_ENDPOINTS[network], historySignal);
+    }
+    if (coin === 'ethereum') {
+      assertEthereumAddress(address);
+      return ethereumAddressHistory(address, network, historySignal);
+    }
+    throw new Error('Unsupported history coin.');
+  }
+
   readonly #bitcoinAddressCache = new Map<string, { expiresAt: number; value: UtxoAddressView }>();
 
   override async utxoAddresses(

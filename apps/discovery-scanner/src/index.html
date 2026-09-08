@@ -50,7 +50,7 @@
     </section>
 
     <section class="recovery-flow" aria-label="Recovery workflow">
-      <article><span>01</span><div><strong>Enter locally</strong><small>Single or batch BIP39 input</small></div></article>
+      <article><span>01</span><div><strong>Enter locally</strong><small>BIP39 phrases or a public key</small></div></article>
       <article><span>02</span><div><strong>Scan through isolation</strong><small>Evo SDK receives public query data only</small></div></article>
       <article><span>03</span><div><strong>Recover safely</strong><small>Export a standard-wallet handoff</small></div></article>
     </section>
@@ -62,9 +62,9 @@
           <div class="recovery-head-badges"><span class="local-only-chip"><i></i> Secret Vault · network denied</span><span id="recovery-self-test" class="self-test-badge checking">Self-test running</span></div>
         </div>
 
-        <div class="recovery-mode-tabs" role="radiogroup" aria-label="Mnemonic input mode">
-          <button class="recovery-mode-tab active" data-input-mode="single" type="button" aria-pressed="true">Single seed phrase</button>
-          <button class="recovery-mode-tab" data-input-mode="batch" type="button" aria-pressed="false">Batch · multiple phrases</button>
+        <div class="recovery-mode-tabs recovery-source-tabs" role="tablist" aria-label="Search source">
+          <button id="seed-source-tab" class="recovery-mode-tab active" data-source-mode="seed" role="tab" aria-selected="true" aria-controls="seed-source-panel" type="button"><strong>Seed phrase</strong><small>Broad wallet search</small></button>
+          <button id="public-source-tab" class="recovery-mode-tab" data-source-mode="public" role="tab" aria-selected="false" aria-controls="public-input" tabindex="-1" type="button"><strong>Public keys</strong><small>Limited watch-only search</small></button>
         </div>
 
         <div class="recovery-source-grid">
@@ -73,6 +73,14 @@
           <div><label for="recovery-account">Account</label><input id="recovery-account" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
         </div>
 
+        <div id="seed-source-panel" role="tabpanel" aria-labelledby="seed-source-tab">
+        <div class="seed-mode-control">
+          <div class="seed-mode-copy"><strong>Seed input mode</strong><small>Scan one phrase or paste a line-by-line batch</small></div>
+          <div id="seed-mode-tabs" class="seed-mode-tabs" role="group" aria-label="Seed input mode">
+            <button class="seed-mode-tab active" data-input-mode="single" type="button" aria-pressed="true">Single</button>
+            <button class="seed-mode-tab" data-input-mode="batch" type="button" aria-pressed="false">Batch</button>
+          </div>
+        </div>
         <div id="single-input" class="secret-source-panel">
           <label for="single-mnemonic">Recovery seed phrase</label>
           <textarea id="single-mnemonic" class="concealed" rows="4" placeholder="Enter 12, 15, 18, 21, or 24 BIP39 English words" autocomplete="off" autocapitalize="none"></textarea>
@@ -89,9 +97,17 @@
           <p class="field-note">Line N in the right box belongs to phrase N on the left. Empty passphrase lines are preserved.</p>
         </div>
 
+        </div>
+        <div id="public-input" role="tabpanel" aria-labelledby="public-source-tab" class="secret-source-panel public-key-source" hidden>
+          <label for="watch-only-keys">Public key or batch · one key per line</label>
+          <textarea id="watch-only-keys" rows="3" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="watch-only-detection" placeholder="__RECOVERY_PUBLIC_KEY_PLACEHOLDER__"></textarea>
+          <p class="field-note public-key-scope">__RECOVERY_PUBLIC_KEY_SCOPE__</p>
+          <p id="watch-only-detection" class="field-note" role="status" aria-live="polite">Paste one public key or a batch, one key per line. Coins are detected automatically.</p>
+        </div>
+
         <div class="secret-actions">
           <button id="reveal-recovery-input" class="secondary" type="button" aria-pressed="false">Reveal sensitive input</button>
-          <label class="check-option"><input id="clear-input-on-start" type="checkbox"> Clear phrase fields when scanning starts (another scan will require re-entry)</label>
+          <label class="check-option"><input id="clear-input-on-start" type="checkbox"> Clear input fields when scanning starts (another scan will require re-entry)</label>
         </div>
       </section>
 
@@ -100,6 +116,7 @@
           <div><span class="step">02</span><div><h2>Scan coverage</h2><p id="scan-coverage-description">Select the Dash components and address ranges you want to check.</p></div></div>
           <span id="scan-estimate" class="scan-estimate">4 address batches + Orchard pool</span>
         </div>
+        <div id="seed-coverage">
         <div class="component-selection" role="group" aria-label="Dash components to scan" data-dash-coverage>
           <label class="component-option"><input id="scan-core" type="checkbox" checked><span><strong>Dash Core · L1</strong><small>BIP44 receive and change addresses</small></span></label>
           <label class="component-option"><input id="scan-platform-addresses" type="checkbox" checked><span><strong>Platform addresses</strong><small>DIP17 payment addresses</small></span></label>
@@ -136,9 +153,13 @@
           <div data-component-settings="identity"><label for="identity-start-index">Identity start index</label><input id="identity-start-index" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
           <div data-component-settings="identity"><label for="identity-gap-limit">Identity empty-gap limit</label><input id="identity-gap-limit" type="number" value="20" min="1" step="1" inputmode="numeric"></div>
           <div data-component-settings="identity"><label for="identity-scan-limit">Identity maximum attempts</label><input id="identity-scan-limit" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
+        </div>
+        </div>
+        <div class="coverage-grid">
+          <div hidden><label for="watch-only-minimum">Minimum addresses per public-key branch</label><input id="watch-only-minimum" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
           <div><label for="request-concurrency">Parallel network requests</label><select id="request-concurrency"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5 · recommended maximum</option></select></div>
         </div>
-        <label class="shielded-option history-option"><input id="include-used-zero-balance" type="checkbox"><span><strong>Show spent or previously used resources with zero balance</strong><small>Off by default. Funded Core addresses always include lifetime totals and first/last-seen dates. Enabling this option additionally includes Core/Platform empty history and already-spent or outgoing-only Orchard notes in the page and CSV/JSON. On a CoinJoin-heavy wallet the extra Core requests can make the scan much slower; default funded/spendable-only mode is recommended.</small></span></label>
+        <label class="shielded-option history-option"><input id="include-used-zero-balance" type="checkbox"><span><strong>Show spent or previously used resources with zero balance</strong><small>Off by default. Displayed resources include history details when supported by the coin adapter and provider. Enabling this option additionally includes Core/Platform empty history and already-spent or outgoing-only Orchard notes in the page and CSV/JSON. On a CoinJoin-heavy wallet the extra Core requests can make the scan much slower; default funded/spendable-only mode is recommended.</small></span></label>
         <div id="dash-scale-warning" class="scale-warning" data-dash-coverage><strong>Large scans are allowed and the counts above are minimums.</strong> Every Core and Platform branch continues until 20 addresses after the last used address, so a minimum of 100 can automatically become 120, 140, or more. For example, 100,000 Core addresses require about 2,000 public DashScan batches per selected branch. Results appear progressively and cancellation is checked between batches; CPU, network traffic, memory used by findings, and total time can still be substantial.</div>
         <div class="recovery-action-bar">
           <div class="actions">
@@ -157,13 +178,13 @@
     <section id="recovery-results" class="recovery-results" hidden>
       <div class="results-title recovery-results-title">
         <div><span class="step">03</span><div><h2>Discovery map</h2><p>Only currently funded Core/Platform resources and spendable Orchard notes are listed by default; zero-balance history is optional.</p></div></div>
-        <div class="recovery-export-actions"><span>ALL SEED PHRASES · STANDARD-WALLET HANDOFF</span><button id="export-recovery-csv" class="secondary" type="button">CSV · all</button><button id="export-recovery-json" class="secondary" type="button">JSON · all</button></div>
+        <div class="recovery-export-actions"><span>ALL RESULTS · STANDARD-WALLET HANDOFF</span><button id="export-recovery-csv" class="secondary" type="button">CSV · all</button><button id="export-recovery-json" class="secondary" type="button">JSON · all</button></div>
       </div>
       <section class="recommended-recovery">
         <strong>Recommended recovery path</strong>
-        <p>Verify the report, install a standard wallet for the selected network from its official source on a clean device, restore the same mnemonic and BIP39 passphrase, confirm the listed derivation paths, and move funds to a newly generated wallet. The export intentionally contains no mnemonic, passphrase, seed, private key, spending key, or viewing key.</p>
+        <p>Verify the report, install a standard wallet for the selected network from its official source on a clean device, use your original recovery phrase or wallet backup, confirm the listed derivation paths, and move funds to a newly generated wallet. The export intentionally contains no mnemonic, passphrase, seed, private key, spending key, or viewing key.</p>
       </section>
-      <nav id="recovery-result-tabs" class="recovery-result-tabs" aria-label="Seed phrase results"></nav>
+      <nav id="recovery-result-tabs" class="recovery-result-tabs" aria-label="Scan results by source and coin"></nav>
       <div id="recovery-result-list"></div>
     </section>
   </main>

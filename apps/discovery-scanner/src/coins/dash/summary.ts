@@ -1,3 +1,4 @@
+import { CREDITS_PER_DUFF } from '@ckd/core/dash-units.js';
 import type { RecoveryMetric, RecoverySection } from '../../types.js';
 import { formatDashFromCredits, formatDashFromDuffs } from './util.js';
 
@@ -26,7 +27,7 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
   // rs-platform-wallet/.../memo_roundtrip_tests.rs passes `value_credits`
   // directly to `NoteValue::from_raw` (the production builder does likewise).
   const coreChain = core + legacyCore + coinjoin + identityFunding + providerCollateral;
-  const totalCredits = coreChain * 1_000n + platform + identity + shielded;
+  const totalCredits = coreChain * CREDITS_PER_DUFF + platform + identity + shielded;
   const fundedResources = sections.reduce(
     (sum, section) => sum + section.findings.filter(({ balanceAtomic }) => balanceAtomic > 0n).length,
     0,

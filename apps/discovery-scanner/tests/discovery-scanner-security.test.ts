@@ -51,7 +51,7 @@ function mockNetwork(overrides: Partial<RecoveryNetworkApi> = {}): RecoveryNetwo
     platformIdentityByPublicKeyHash: unavailable,
     platformIdentityHistory: unavailable,
     shieldedPage: unavailable,
-    utxoAddresses: unavailable,
+    addressHistory: unavailable, utxoAddresses: unavailable,
     evmAccounts: unavailable,
     ...overrides,
   };

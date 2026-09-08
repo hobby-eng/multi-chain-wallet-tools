@@ -1,3 +1,4 @@
+import { dashPlatformHistory } from './history.js';
 import { requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { bytesToHex, encodeP2pkh, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
@@ -14,7 +15,7 @@ import { exactSafeInteger, exactUnsigned, formatDashFromCredits, formatDashFromD
 const IDENTITY_QUERY_CONCURRENCY = 2;
 const IDENTITY_PROGRESS_HEARTBEAT_MS = 2_000;
 
-interface IdentityView {
+export interface IdentityView {
   identifier: string;
   balance: bigint;
   revision: bigint;
@@ -66,7 +67,7 @@ function identityFundingFields(
   return [
     { label: 'L1 funding transaction', value: transaction.hash, copyable: true },
     { label: 'L1 funding inputs', value: transaction.inputAddresses.join(' · ') || 'Not reported by DashScan' },
-    { label: 'Asset-lock credit amount', value: formatDashFromDuffs(BigInt(output.amount)) },
+    { label: 'Asset-lock amount (Core L1)', value: formatDashFromDuffs(BigInt(output.amount)) },
     { label: 'Asset-lock credit key hash', value: output.publicKeyHash, copyable: true },
     ...(matchingPath === null ? [{
       label: 'Registration funding key',
@@ -105,7 +106,7 @@ async function awaitIdentityBatch(
   }
 }
 
-function validateIdentityLookup(
+export function validateIdentityLookup(
   value: Awaited<ReturnType<DashPlatformClient['identity']>>,
 ): Omit<IdentityIndexResult, 'identityIndex' | 'path' | 'publicKeyHashHex'> {
   const response = object(value, 'Isolated identity response');
@@ -259,6 +260,7 @@ export async function scanDashIdentities(
               subtitle: `Identity discovered at local index ${result.identityIndex}`,
               balanceAtomic: identity.balance,
               balanceLabel: formatDashFromCredits(identity.balance),
+              ...(history === null ? {} : { history: dashPlatformHistory(history) }),
               fields: [
                 { label: 'Identity derivation path', value: result.path, copyable: true },
                 { label: 'Identity index', value: String(result.identityIndex) },

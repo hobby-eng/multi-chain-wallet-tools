@@ -11,6 +11,7 @@ import { RecoveryNetworkGateway } from '../../network-gateway.js';
 import { SecretEgressGuard, disposeSecretBytes } from '../../secret-guard.js';
 import type {
   RecoveryFinding,
+  RecoveryNetwork,
   RecoveryProgress,
   RecoveryScanConfig,
   RecoveryScanContext,
@@ -83,15 +84,15 @@ function wipeShieldedPage(page: ShieldedPage): void {
 }
 
 async function fetchShieldedPage(
-  config: RecoveryScanConfig,
+  network: RecoveryNetwork,
   gateway: RecoveryNetworkGateway,
   position: bigint,
   signal: AbortSignal,
 ): Promise<ShieldedPage> {
   return validateShieldedPage(await gateway.runPublic(
-    { network: config.network, startPosition: position.toString(), count: PAGE_SIZE },
+    { network, startPosition: position.toString(), count: PAGE_SIZE },
     'shielded.page',
-    () => gateway.networkApi.shieldedPage(config.network, position.toString(), PAGE_SIZE, signal),
+    () => gateway.networkApi.shieldedPage(network, position.toString(), PAGE_SIZE, signal),
     signal,
   ), PAGE_SIZE);
 }
@@ -146,15 +147,21 @@ function skippedSection(): RecoverySection {
   };
 }
 
+interface ShieldedSectionOptions {
+  includeUsedZeroBalance: boolean;
+  /** Display-only label for the finding fields; watch-only viewing keys have no BIP32 account path. */
+  accountPathLabel: string;
+}
+
 function sectionFromLedger(
   ledger: ShieldedActivityLedger,
-  config: RecoveryScanConfig,
+  options: ShieldedSectionOptions,
   outcome: ShieldedStreamOutcome,
   shared: boolean,
   onFinding: (finding: RecoveryFinding) => void,
 ): RecoverySection {
   const snapshot = ledger.snapshot(outcome.complete);
-  const visibleRecords = snapshot.records.filter((record) => shouldDisplayShieldedActivity(record, config.includeUsedZeroBalance));
+  const visibleRecords = snapshot.records.filter((record) => shouldDisplayShieldedActivity(record, options.includeUsedZeroBalance));
   const incomingCount = snapshot.records.filter((record) => record.direction === 'received').length;
   const outgoingCount = snapshot.records.filter((record) => record.direction === 'sent').length;
   const selfCount = snapshot.records.filter((record) => record.direction === 'self').length;
@@ -178,7 +185,7 @@ function sectionFromLedger(
         ? formatDashFromCredits(note.value)
         : record.spent === true ? '0 DASH · already spent' : '0 DASH · outgoing activity',
       fields: [
-        { label: 'ZIP-32 account path', value: `m/32'/${config.network === 'mainnet' ? 5 : 1}'/${config.account}'`, copyable: true },
+        { label: 'Account/viewing-key path', value: options.accountPathLabel, copyable: true },
         { label: 'Pool position', value: record.position.toString() },
         { label: 'Direction', value: record.direction },
         { label: 'Note value', value: formatDashFromCredits(note.value) },
@@ -192,16 +199,27 @@ function sectionFromLedger(
     return finding;
   });
 
+  const keyKind = snapshot.keyKind;
+  const capabilityNote = keyKind === 'full'
+    ? undefined
+    : keyKind === 'incoming'
+      ? 'An Incoming Viewing Key sees incoming notes only. It cannot see outgoing notes, cannot prove a note is unspent, and therefore has no authoritative current balance.'
+      : 'An Outgoing Viewing Key sees outgoing notes only. It cannot see incoming notes and has no concept of a current balance.';
+  const balanceMetric = keyKind === 'full'
+    ? { label: 'Spendable balance', value: formatDashFromCredits(snapshot.balance ?? 0n), tone: (snapshot.balance ?? 0n) > 0n ? 'positive' as const : 'neutral' as const }
+    : { label: 'Spendable balance', value: 'Not available · not an authoritative full balance', tone: 'neutral' as const };
   return {
     id: 'shielded',
     title: 'Dash Orchard · shielded pool',
-    description: 'The account FVK is derived locally. Each proof-verified encrypted page is decrypted inside the network-denied Secret Vault and then wiped before the next page is requested.',
+    description: keyKind === 'full'
+      ? 'The account FVK is derived locally. Each proof-verified encrypted page is decrypted inside the network-denied Secret Vault and then wiped before the next page is requested.'
+      : `The pasted ${keyKind === 'incoming' ? 'Incoming' : 'Outgoing'} Viewing Key stays local. Each proof-verified encrypted page is decrypted inside the network-denied Secret Vault and then wiped before the next page is requested. ${capabilityNote ?? ''}`,
     state: outcome.complete ? 'complete' : 'partial',
     metrics: [
-      { label: 'Spendable balance', value: formatDashFromCredits(snapshot.balance ?? 0n), tone: (snapshot.balance ?? 0n) > 0n ? 'positive' : 'neutral' },
-      { label: 'Lifetime received', value: formatDashFromCredits(snapshot.receivedExternal ?? 0n) },
-      { label: 'Lifetime sent', value: formatDashFromCredits(snapshot.sentExternal ?? 0n) },
-      { label: 'Lifetime self/change', value: formatDashFromCredits(snapshot.selfOrChange ?? 0n) },
+      balanceMetric,
+      ...(keyKind === 'outgoing' ? [] : [{ label: 'Lifetime received', value: formatDashFromCredits(snapshot.receivedExternal ?? 0n) }]),
+      ...(keyKind === 'incoming' ? [] : [{ label: 'Lifetime sent', value: formatDashFromCredits(snapshot.sentExternal ?? 0n) }]),
+      ...(keyKind === 'full' ? [{ label: 'Lifetime self/change', value: formatDashFromCredits(snapshot.selfOrChange ?? 0n) }] : []),
       { label: 'Incoming notes', value: String(incomingCount) },
       { label: 'Outgoing notes', value: String(outgoingCount) },
       { label: 'Self/change notes', value: String(selfCount) },
@@ -220,27 +238,30 @@ function sectionFromLedger(
     proof: outcome.complete
       ? `Complete from pool position 0 through ${SHIELDED_EMPTY_CONFIRMATIONS} proof-verified empty terminal reads at aligned position ${outcome.terminalPosition} · proof height ${snapshot.proofHeight} · protocol ${snapshot.protocolVersion} · bounded-memory page stream${shared ? ' shared across this seed batch' : ''}`
       : `Partial at the ${SHIELDED_MAX_PAGES_PER_SCAN.toLocaleString()}-page safety ceiling · next aligned position ${outcome.terminalPosition} · proof height ${snapshot.proofHeight} · protocol ${snapshot.protocolVersion} · bounded-memory page stream${shared ? ' shared across this seed batch' : ''}`,
-    ...(outcome.complete ? {} : {
-      warning: `The Orchard scan reached its ${SHIELDED_MAX_PAGES_PER_SCAN.toLocaleString()}-page safety ceiling before two proof-verified empty terminal reads. Results are partial; do not treat the displayed balance as authoritative.`,
+    ...(outcome.complete && capabilityNote === undefined ? {} : {
+      warning: [
+        ...(outcome.complete ? [] : [`The Orchard scan reached its ${SHIELDED_MAX_PAGES_PER_SCAN.toLocaleString()}-page safety ceiling before two proof-verified empty terminal reads. Results are partial; do not treat the displayed balance as authoritative.`]),
+        ...(capabilityNote === undefined ? [] : [capabilityNote]),
+      ].join(' '),
     }),
   };
 }
 
 async function streamPool(
   participants: readonly ShieldedParticipant[],
-  config: RecoveryScanConfig,
+  network: RecoveryNetwork,
   gateway: RecoveryNetworkGateway,
   signal: AbortSignal,
   onProgress: (progress: RecoveryProgress) => void,
 ): Promise<ShieldedStreamOutcome> {
   return runShieldedPageStream({
-    fetchPage: (position) => fetchShieldedPage(config, gateway, position, signal),
+    fetchPage: (position) => fetchShieldedPage(network, gateway, position, signal),
     noteCount: (page) => page.notes.length,
     onPage: (page, visit) => {
       const noteCount = page.notes.length;
       if (noteCount > 0) {
         for (const participant of participants) {
-          const matches = scanEncryptedPage(participant.viewingKey, visit.position, page.notes, config.network);
+          const matches = scanEncryptedPage(participant.viewingKey, visit.position, page.notes, network);
           participant.ledger.applyPage(visit.position, page, matches);
           const checked = visit.position + BigInt(noteCount);
           onProgress({
@@ -284,8 +305,14 @@ export async function scanDashShielded(
   const ledger = new ShieldedActivityLedger('full');
   try {
     onProgress({ inputId, section: 'shielded', message: 'Streaming proof-verified Orchard pages through bounded memory', completed: 0, total: null });
-    const outcome = await streamPool([{ inputId, viewingKey, ledger }], config, gateway, signal, onProgress);
-    return sectionFromLedger(ledger, config, outcome, false, onFinding);
+    const outcome = await streamPool([{ inputId, viewingKey, ledger }], config.network, gateway, signal, onProgress);
+    return sectionFromLedger(
+      ledger,
+      { includeUsedZeroBalance: config.includeUsedZeroBalance, accountPathLabel: `m/32'/${config.network === 'mainnet' ? 5 : 1}'/${config.account}'` },
+      outcome,
+      false,
+      onFinding,
+    );
   } finally {
     viewingKey.hex = '';
   }
@@ -334,12 +361,12 @@ export async function scanDashShieldedBatch(
     for (const participant of participants) {
       context.onProgress({ inputId: participant.inputId, section: 'shielded', message: 'Waiting for the shared one-pass Orchard page stream', completed: 0, total: null });
     }
-    const outcome = await streamPool(participants, config, gateway, context.signal, context.onProgress);
+    const outcome = await streamPool(participants, config.network, gateway, context.signal, context.onProgress);
     const results = new Map<string, RecoverySection>();
     for (const participant of participants) {
       results.set(participant.inputId, sectionFromLedger(
         participant.ledger,
-        config,
+        { includeUsedZeroBalance: config.includeUsedZeroBalance, accountPathLabel: `m/32'/${config.network === 'mainnet' ? 5 : 1}'/${config.account}'` },
         outcome,
         true,
         (finding) => context.onFinding(participant.inputId, 'shielded', finding),
@@ -350,4 +377,34 @@ export async function scanDashShieldedBatch(
     for (const participant of participants) participant.viewingKey.hex = '';
     guard.clear();
   }
+}
+
+/**
+ * Scans a viewing key the user pasted directly (FVK/IVK/OVK) rather than one
+ * derived from a seed. The key is validated canonically, streamed through the
+ * exact same bounded-memory proof-verified page stream as the seed-based
+ * scan, and wiped afterward. Only the encrypted note pages are ever public;
+ * the viewing key itself never reaches `gateway.networkApi`.
+ */
+export async function scanDashShieldedWatchOnly(
+  inputId: string,
+  viewingKey: NormalizedViewingKey,
+  network: RecoveryNetwork,
+  includeUsedZeroBalance: boolean,
+  gateway: RecoveryNetworkGateway,
+  signal: AbortSignal,
+  onProgress: (progress: RecoveryProgress) => void,
+  onFinding: (finding: RecoveryFinding) => void,
+): Promise<RecoverySection> {
+  assertCanonicalViewingKey(viewingKey);
+  const ledger = new ShieldedActivityLedger(viewingKey.kind);
+  onProgress({ inputId, section: 'shielded', message: 'Streaming proof-verified Orchard pages through bounded memory', completed: 0, total: null });
+  const outcome = await streamPool([{ inputId, viewingKey, ledger }], network, gateway, signal, onProgress);
+  return sectionFromLedger(
+    ledger,
+    { includeUsedZeroBalance, accountPathLabel: 'Pasted watch-only Orchard viewing key (no BIP32 account path)' },
+    outcome,
+    false,
+    onFinding,
+  );
 }
