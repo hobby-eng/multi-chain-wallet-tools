@@ -575,14 +575,49 @@ mod tests {
         assert!(json.contains("\"noteNullifier\":"));
     }
 
+    /// Regenerate only when intentionally updating the committed test fixture.
+    /// Expected plaintext and nullifier come from the constructed note, not scanner output.
+    #[test]
+    #[ignore]
+    fn capture_internal_scope_fixture() {
+        let (fvk, cmx, nf, cv, encrypted) = own_note_fixture_for_scope(Scope::Internal);
+        let recipient = fvk.address_at(7u32, Scope::Internal);
+        let rho = Option::<Rho>::from(Rho::from_bytes(&[0x01; 32])).unwrap();
+        let rseed = Option::<RandomSeed>::from(RandomSeed::from_bytes([0x02; 32], &rho)).unwrap();
+        let note = Option::<Note>::from(Note::from_parts(
+            recipient, NoteValue::from_raw(123_456_789_012), rho, rseed,
+        )).unwrap();
+        let mut memo = [0u8; 36];
+        memo[..4].copy_from_slice(&1u32.to_le_bytes());
+        memo[4..15].copy_from_slice(b"viewer test");
+        println!("INTERNAL_FIXTURE={}", serde_json::json!({
+            "source": { "kind": "local synthetic Internal-scope note", "generator": "scan::tests::capture_internal_scope_fixture", "orchardCommit": "38ac9c19a2df7bf3eeadc22ab23053e8fd538828" },
+            "position": 42,
+            "recipientFullViewingKey": hex::encode(fvk.to_bytes()),
+            "recipientIncomingViewingKey": hex::encode(fvk.to_ivk(Scope::Internal).to_bytes()),
+            "externalIncomingViewingKey": hex::encode(fvk.to_ivk(Scope::External).to_bytes()),
+            "senderOutgoingViewingKey": hex::encode(fvk.to_ovk(Scope::Internal).as_ref()),
+            "cmx": hex::encode(cmx), "actionNullifier": hex::encode(nf),
+            "cvNet": hex::encode(cv), "encryptedNote": hex::encode(encrypted),
+            "expected": { "value": "123456789012", "addressRaw": hex::encode(recipient.to_raw_address_bytes()), "memo": hex::encode(memo), "noteNullifier": hex::encode(note.nullifier(&fvk).to_bytes()) }
+        }));
+    }
+
     #[test]
     fn full_viewing_key_recovers_internal_scope_note() {
         let (fvk, cmx, nf, cv, encrypted) = own_note_fixture_for_scope(Scope::Internal);
         let json = scan_full_batch_json(&fvk.to_bytes(), 42, &cmx, &nf, &cv, &encrypted).unwrap();
-        assert!(json.contains("\"position\":\"42\""));
-        assert!(json.contains("\"incoming\""));
-        assert!(json.contains("\"outgoing\""));
-        assert!(json.contains("\"noteNullifier\":"));
+        let result: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../fixtures/internal-scope-note.json")).unwrap();
+        let items = result["items"].as_array().unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["position"], "42");
+        for capability in ["incoming", "outgoing"] {
+            for field in ["value", "addressRaw", "memo"] {
+                assert_eq!(items[0][capability][field], fixture["expected"][field]);
+            }
+        }
+        assert_eq!(items[0]["incoming"]["noteNullifier"], fixture["expected"]["noteNullifier"]);
     }
 
     #[test]
