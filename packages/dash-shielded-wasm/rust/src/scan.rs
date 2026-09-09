@@ -176,9 +176,9 @@ fn recovered_note(
 }
 
 fn scan_prepared_batch_json(
-    prepared_ivk: Option<&PreparedIncomingViewingKey>,
+    prepared_ivks: &[PreparedIncomingViewingKey],
     full_viewing_key: Option<&FullViewingKey>,
-    outgoing_viewing_key: Option<&OutgoingViewingKey>,
+    outgoing_viewing_keys: &[OutgoingViewingKey],
     start_position: u64,
     cmx: &[u8],
     nullifiers: &[u8],
@@ -206,8 +206,10 @@ fn scan_prepared_batch_json(
             continue;
         };
         let domain = OrchardDomain::<DashMemo>::for_nullifier(nf);
-        let incoming = prepared_ivk.and_then(|ivk| try_note_decryption(&domain, ivk, &output));
-        let outgoing = outgoing_viewing_key.and_then(|ovk| {
+        let incoming = prepared_ivks
+            .iter()
+            .find_map(|ivk| try_note_decryption(&domain, ivk, &output));
+        let outgoing = outgoing_viewing_keys.iter().find_map(|ovk| {
             try_output_recovery_with_ovk(&domain, ovk, &output, &cv, &out_ciphertext)
         });
         if incoming.is_none() && outgoing.is_none() {
@@ -242,12 +244,18 @@ fn scan_full_batch_json(
     encrypted_notes: &[u8],
 ) -> Result<String, String> {
     let fvk = parse_full_viewing_key(full_viewing_key)?;
-    let prepared_ivk = fvk.to_ivk(Scope::External).prepare();
-    let ovk = fvk.to_ovk(Scope::External);
+    let prepared_ivks = [
+        fvk.to_ivk(Scope::External).prepare(),
+        fvk.to_ivk(Scope::Internal).prepare(),
+    ];
+    let outgoing_viewing_keys = [
+        fvk.to_ovk(Scope::External),
+        fvk.to_ovk(Scope::Internal),
+    ];
     scan_prepared_batch_json(
-        Some(&prepared_ivk),
+        &prepared_ivks,
         Some(&fvk),
-        Some(&ovk),
+        &outgoing_viewing_keys,
         start_position,
         cmx,
         nullifiers,
@@ -265,10 +273,11 @@ fn scan_incoming_batch_json(
     encrypted_notes: &[u8],
 ) -> Result<String, String> {
     let ivk = parse_incoming_viewing_key(incoming_viewing_key)?;
+    let prepared_ivks = [ivk.prepare()];
     scan_prepared_batch_json(
-        Some(&ivk.prepare()),
+        &prepared_ivks,
         None,
-        None,
+        &[],
         start_position,
         cmx,
         nullifiers,
@@ -286,10 +295,11 @@ fn scan_outgoing_batch_json(
     encrypted_notes: &[u8],
 ) -> Result<String, String> {
     let ovk = parse_outgoing_viewing_key(outgoing_viewing_key)?;
+    let outgoing_viewing_keys = [ovk];
     scan_prepared_batch_json(
+        &[],
         None,
-        None,
-        Some(&ovk),
+        &outgoing_viewing_keys,
         start_position,
         cmx,
         nullifiers,
@@ -442,11 +452,13 @@ mod tests {
         bytes
     }
 
-    fn own_note_fixture() -> (FullViewingKey, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
+    fn own_note_fixture_for_scope(
+        scope: Scope,
+    ) -> (FullViewingKey, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
         let spending_key = Option::<SpendingKey>::from(SpendingKey::from_bytes([0x0d; 32]))
             .expect("fixed spending key is canonical");
         let fvk = FullViewingKey::from(&spending_key);
-        let recipient = fvk.address_at(7u32, Scope::External);
+        let recipient = fvk.address_at(7u32, scope);
         let nf = Option::<Nullifier>::from(Nullifier::from_bytes(&[0x01; 32]))
             .expect("fixed nullifier is canonical");
         let rho =
@@ -466,7 +478,7 @@ mod tests {
         memo[..4].copy_from_slice(&1u32.to_le_bytes());
         memo[4..15].copy_from_slice(b"viewer test");
         let encryption =
-            OrchardNoteEncryption::<DashMemo>::new(Some(fvk.to_ovk(Scope::External)), note, memo);
+            OrchardNoteEncryption::<DashMemo>::new(Some(fvk.to_ovk(scope)), note, memo);
         let epk = OrchardDomain::<DashMemo>::epk_bytes(encryption.epk());
         let enc = encryption.encrypt_note_plaintext();
         let out = encryption.encrypt_outgoing_plaintext(&cv, &cmx, &mut OsRng);
@@ -481,6 +493,10 @@ mod tests {
             cv.to_bytes().to_vec(),
             encrypted_note,
         )
+    }
+
+    fn own_note_fixture() -> (FullViewingKey, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
+        own_note_fixture_for_scope(Scope::External)
     }
 
     #[test]
@@ -557,6 +573,51 @@ mod tests {
         assert!(json.contains("\"value\":\"123456789012\""));
         assert!(json.contains("010000007669657765722074657374"));
         assert!(json.contains("\"noteNullifier\":"));
+    }
+
+    /// Regenerate only when intentionally updating the committed test fixture.
+    /// Expected plaintext and nullifier come from the constructed note, not scanner output.
+    #[test]
+    #[ignore]
+    fn capture_internal_scope_fixture() {
+        let (fvk, cmx, nf, cv, encrypted) = own_note_fixture_for_scope(Scope::Internal);
+        let recipient = fvk.address_at(7u32, Scope::Internal);
+        let rho = Option::<Rho>::from(Rho::from_bytes(&[0x01; 32])).unwrap();
+        let rseed = Option::<RandomSeed>::from(RandomSeed::from_bytes([0x02; 32], &rho)).unwrap();
+        let note = Option::<Note>::from(Note::from_parts(
+            recipient, NoteValue::from_raw(123_456_789_012), rho, rseed,
+        )).unwrap();
+        let mut memo = [0u8; 36];
+        memo[..4].copy_from_slice(&1u32.to_le_bytes());
+        memo[4..15].copy_from_slice(b"viewer test");
+        println!("INTERNAL_FIXTURE={}", serde_json::json!({
+            "source": { "kind": "local synthetic Internal-scope note", "generator": "scan::tests::capture_internal_scope_fixture", "orchardCommit": "38ac9c19a2df7bf3eeadc22ab23053e8fd538828" },
+            "position": 42,
+            "recipientFullViewingKey": hex::encode(fvk.to_bytes()),
+            "recipientIncomingViewingKey": hex::encode(fvk.to_ivk(Scope::Internal).to_bytes()),
+            "externalIncomingViewingKey": hex::encode(fvk.to_ivk(Scope::External).to_bytes()),
+            "senderOutgoingViewingKey": hex::encode(fvk.to_ovk(Scope::Internal).as_ref()),
+            "cmx": hex::encode(cmx), "actionNullifier": hex::encode(nf),
+            "cvNet": hex::encode(cv), "encryptedNote": hex::encode(encrypted),
+            "expected": { "value": "123456789012", "addressRaw": hex::encode(recipient.to_raw_address_bytes()), "memo": hex::encode(memo), "noteNullifier": hex::encode(note.nullifier(&fvk).to_bytes()) }
+        }));
+    }
+
+    #[test]
+    fn full_viewing_key_recovers_internal_scope_note() {
+        let (fvk, cmx, nf, cv, encrypted) = own_note_fixture_for_scope(Scope::Internal);
+        let json = scan_full_batch_json(&fvk.to_bytes(), 42, &cmx, &nf, &cv, &encrypted).unwrap();
+        let result: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../fixtures/internal-scope-note.json")).unwrap();
+        let items = result["items"].as_array().unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["position"], "42");
+        for capability in ["incoming", "outgoing"] {
+            for field in ["value", "addressRaw", "memo"] {
+                assert_eq!(items[0][capability][field], fixture["expected"][field]);
+            }
+        }
+        assert_eq!(items[0]["incoming"]["noteNullifier"], fixture["expected"]["noteNullifier"]);
     }
 
     #[test]

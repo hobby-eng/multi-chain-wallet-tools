@@ -12,7 +12,7 @@ Original project code is MIT licensed. Third-party source, generated integration
 | Wallet Activity Viewer | `apps/activity-viewer` | `dist/multi-chain-edition/activity-viewer/Wallet_Activity_Viewer.html` | HTTPS enabled | Dash Orchard viewing capability only; public addresses/Identity identifiers are non-secret; never mnemonic/spending key |
 | Wallet Discovery Scanner | `apps/discovery-scanner` | `dist/multi-chain-edition/discovery-scanner/Wallet_Discovery_Scanner.html` | HTTPS only in an outer Network Worker; inner Secret Vault has `connect-src 'none'` | Mnemonic/passphrase/seed/FVK confined to the opaque-origin vault; public-key material remains in the vault and only derived public lookup values cross fixed RPC |
 
-Each application owns its HTML template, UI controller, app-specific styles, build script, artifact verifier, tests, README, and security notes. It may import shared packages but must not import source from another application.
+Each application owns its HTML template, UI controller, app-specific styles, build script, artifact verifier, tests, README, and security notes. Most reusable code lives in shared packages. The current Multi-Chain Activity Viewer also imports the Discovery Scanner network/history modules; these cross-application imports are an existing implementation dependency, not an enforced isolation boundary. Dash Community uses its separate Dash entry point.
 
 ## Compile-time edition profiles
 
@@ -58,7 +58,7 @@ Discovery Scanner wallet tasks use isolated state slots and preserve input order
 
 The three applications should remain separate standalone HTML release assets rather than being merged into one page. The current `hobby-eng/multi-chain-wallet-tools` tag workflow continues to publish exactly the three stable Multi-Chain filenames, sidecars, root MIT `LICENSE`, and flat `SHA256SUMS`. The separately named Dash Community bundle is prepared deterministically but is not published by that workflow.
 
-This repository is the canonical source for both editions. A future `hobby-eng/dash-wallet-tools` repository is intended only as the Dash Community distribution/release surface and does not exist yet; Dash-specific source, fixes, and shared security code remain here.
+This repository is the canonical source for both editions. [dash-wallet-tools](https://github.com/hobby-eng/dash-wallet-tools) distributes Dash Community releases; Dash-specific source, fixes and shared security code remain here.
 
 ## Dash Community visual identity
 

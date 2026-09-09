@@ -42,7 +42,7 @@ describe('Platform Identity Explorer history', () => {
           totalTxs: 1,
           totalTransfers: 2,
           totalDocuments: 1,
-          totalDataContracts: 1,
+          totalDataContracts: 0,
           totalGasSpent: '40',
           averageGasSpent: '40',
           totalTopUps: 1,

@@ -39,6 +39,7 @@ try {
       return { count: counts.shift() ?? 0 };
     },
     noteCount: (page) => page.count,
+    revision: () => 10n,
     onPage: () => {},
     disposePage: () => {},
   });

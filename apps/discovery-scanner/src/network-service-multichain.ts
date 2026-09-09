@@ -1,3 +1,4 @@
+import { normalizeBitcoinAddress, normalizeEthereumAddress } from './public-address-multichain.js';
 import { bitcoinAddressHistory, ethereumAddressHistory } from './address-history-service.js';
 import {
   RECOVERY_EVM_ACCOUNT_BATCH,
@@ -18,7 +19,6 @@ import type { RecoveryNetwork } from './types.js';
 const BITCOIN_HTTP_CONCURRENCY = 3;
 const BITCOIN_HTTP_ATTEMPTS = 3;
 const BITCOIN_HTTP_TIMEOUT_MS = 15_000;
-const BITCOIN_CACHE_TTL_MS = 5 * 60_000;
 const BITCOIN_RETRY_DELAYS_MS = [350, 900] as const;
 const BITCOIN_ENDPOINTS: Record<RecoveryNetwork, ReadonlyArray<{ label: string; url: string }>> = {
   mainnet: [
@@ -40,21 +40,6 @@ const ETHEREUM_ENDPOINTS: Record<RecoveryNetwork, string> = {
   mainnet: 'https://ethereum-rpc.publicnode.com',
   testnet: 'https://ethereum-sepolia-rpc.publicnode.com',
 };
-
-function assertBitcoinAddress(address: unknown, network: RecoveryNetwork): asserts address is string {
-  const pattern = network === 'mainnet'
-    ? /^(?:[13][1-9A-HJ-NP-Za-km-z]{25,34}|bc1[ac-hj-np-z02-9]{11,87})$/u
-    : /^(?:[mn2][1-9A-HJ-NP-Za-km-z]{25,34}|tb1[ac-hj-np-z02-9]{11,87})$/u;
-  if (typeof address !== 'string' || !pattern.test(address)) {
-    throw new Error(`Network Worker rejected an invalid Bitcoin ${network} address.`);
-  }
-}
-
-function assertEthereumAddress(address: unknown): asserts address is string {
-  if (typeof address !== 'string' || !/^0x[0-9a-fA-F]{40}$/u.test(address)) {
-    throw new Error('Network Worker rejected an invalid Ethereum address.');
-  }
-}
 
 async function mapConcurrent<T, R>(
   values: readonly T[],
@@ -254,17 +239,15 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
     assertNetwork(network);
     const historySignal = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(60_000)]);
     if (coin === 'bitcoin') {
-      assertBitcoinAddress(address, network);
+      address = normalizeBitcoinAddress(address, network);
       return bitcoinAddressHistory(address, BITCOIN_ENDPOINTS[network], historySignal);
     }
     if (coin === 'ethereum') {
-      assertEthereumAddress(address);
+      normalizeEthereumAddress(address);
       return ethereumAddressHistory(address, network, historySignal);
     }
     throw new Error('Unsupported history coin.');
   }
-
-  readonly #bitcoinAddressCache = new Map<string, { expiresAt: number; value: UtxoAddressView }>();
 
   override async utxoAddresses(
     network: RecoveryNetwork,
@@ -275,37 +258,25 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
     if (!Array.isArray(addresses) || addresses.length < 1 || addresses.length > RECOVERY_UTXO_ADDRESS_BATCH) {
       throw new Error(`Network Worker requires 1 to ${RECOVERY_UTXO_ADDRESS_BATCH} Bitcoin addresses per request.`);
     }
-    addresses.forEach((address) => assertBitcoinAddress(address, network));
-    const now = Date.now();
-    const missing = addresses.filter((address) => {
-      const cached = this.#bitcoinAddressCache.get(`${network}:${address}`);
-      if (cached !== undefined && cached.expiresAt > now) return false;
-      if (cached !== undefined) this.#bitcoinAddressCache.delete(`${network}:${address}`);
-      return true;
-    });
-    if (missing.length > 0) {
-      let loaded: UtxoAddressView[];
-      let batchFailure: unknown;
+    addresses = addresses.map((address) => normalizeBitcoinAddress(address, network));
+    signal?.throwIfAborted();
+    const unique = [...new Set(addresses)];
+    let loaded: UtxoAddressView[];
+    try {
+      loaded = await fetchBitcoinBatch(network, unique, signal);
+    } catch (cause) {
+      if (signal?.aborted === true) throw cause;
       try {
-        loaded = await fetchBitcoinBatch(network, missing, signal);
-      } catch (cause) {
-        if (signal?.aborted === true) throw cause;
-        batchFailure = cause;
-        try {
-          loaded = await mapConcurrent(missing, BITCOIN_HTTP_CONCURRENCY, (address) => fetchBitcoinAddress(network, address, signal));
-        } catch (fallbackCause) {
-          const batchMessage = bitcoinFailureSummary(batchFailure);
-          const fallbackMessage = bitcoinFailureSummary(fallbackCause);
-          throw new Error(`Bitcoin batch providers failed (${batchMessage}); Esplora fallback also failed (${fallbackMessage}).`);
-        }
+        loaded = await mapConcurrent(unique, BITCOIN_HTTP_CONCURRENCY, (address) => fetchBitcoinAddress(network, address, signal));
+      } catch (fallbackCause) {
+        throw new Error(`Bitcoin batch providers failed (${bitcoinFailureSummary(cause)}); Esplora fallback also failed (${bitcoinFailureSummary(fallbackCause)}).`);
       }
-      const expiresAt = Date.now() + BITCOIN_CACHE_TTL_MS;
-      for (const value of loaded) this.#bitcoinAddressCache.set(`${network}:${value.address}`, { expiresAt, value });
     }
-    return addresses.map((address) => {
-      const cached = this.#bitcoinAddressCache.get(`${network}:${address}`);
-      if (cached === undefined) throw new Error('Bitcoin address cache omitted a validated response.');
-      return cached.value;
+    const byAddress = new Map(loaded.map(value => [value.address, value]));
+    return addresses.map(address => {
+      const value = byAddress.get(address);
+      if (value === undefined) throw new Error('Bitcoin lookup omitted a validated response.');
+      return value;
     });
   }
 
@@ -318,12 +289,19 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
     if (!Array.isArray(addresses) || addresses.length < 1 || addresses.length > RECOVERY_EVM_ACCOUNT_BATCH) {
       throw new Error(`Network Worker requires 1 to ${RECOVERY_EVM_ACCOUNT_BATCH} Ethereum addresses per request.`);
     }
-    addresses.forEach(assertEthereumAddress);
+    addresses.forEach(normalizeEthereumAddress);
+    const head = record(await fetchJson(ETHEREUM_ENDPOINTS[network], signal, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 'block', method: 'eth_blockNumber', params: [] }),
+    }), 'Ethereum block response');
+    if (head.error !== undefined || head.id !== 'block' || typeof head.result !== 'string'
+      || !/^0x[0-9a-f]+$/u.test(head.result)) throw new Error('Ethereum RPC returned an invalid block number.');
+    const blockNumber = head.result;
     const requests = [
-      { jsonrpc: '2.0', id: 'block', method: 'eth_blockNumber', params: [] },
       ...addresses.flatMap((address, index) => [
-        { jsonrpc: '2.0', id: `balance:${index}`, method: 'eth_getBalance', params: [address, 'latest'] },
-        { jsonrpc: '2.0', id: `nonce:${index}`, method: 'eth_getTransactionCount', params: [address, 'latest'] },
+        { jsonrpc: '2.0', id: `balance:${index}`, method: 'eth_getBalance', params: [address, blockNumber] },
+        { jsonrpc: '2.0', id: `nonce:${index}`, method: 'eth_getTransactionCount', params: [address, blockNumber] },
       ]),
     ];
     const raw = await fetchJson(ETHEREUM_ENDPOINTS[network], signal, {
@@ -339,10 +317,9 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
         || !/^0x[0-9a-f]+$/u.test(response.result)) {
         throw new Error('Ethereum RPC returned a malformed or failed response.');
       }
+      if (results.has(response.id)) throw new Error('Ethereum RPC repeated a response ID.');
       results.set(response.id, response.result);
     }
-    const blockNumber = results.get('block');
-    if (blockNumber === undefined) throw new Error('Ethereum RPC omitted the block number.');
     return {
       blockNumber: BigInt(blockNumber).toString(),
       entries: addresses.map((address, index) => {
