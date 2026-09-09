@@ -33,7 +33,7 @@ export function createProviderHttp(provider: string) {
   }
 
   async function fetchJson(fetcher: FetchLike, url: string, signal?: AbortSignal): Promise<unknown> {
-    const response = await fetcher(url, signal === undefined ? undefined : { signal });
+    const response = await fetcher(url, { cache: 'no-store', ...(signal === undefined ? {} : { signal }) });
     if (!response.ok) {
       throw new ProviderHttpError(response.status, `${provider} request failed with HTTP ${response.status}.`);
     }

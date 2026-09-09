@@ -71,7 +71,11 @@ export function detectBitcoinWatchOnly(raw: string, mode: { auto: boolean }): De
   if (matched !== null) {
     if (matched.prefix === 'bitcoin-xpub') {
       if (matched.value.length === 0) throw new Error('bitcoin-xpub: requires a value.');
-      return { coinId: 'bitcoin', kind: 'bitcoin-xpub', value: matched.value };
+      const slip132 = parseSlip132(matched.value);
+      return {
+        coinId: 'bitcoin', kind: 'bitcoin-xpub', value: matched.value,
+        ...(slip132 === null ? {} : { detectionLabel: slip132.label, bundleNetwork: slip132.network }),
+      };
     }
     if (matched.prefix === 'public-key') {
       if (matched.value.length === 0) throw new Error('public-key: requires a value.');
@@ -426,7 +430,7 @@ export async function scanBitcoinWatchOnly(
           if (publicKey === null) throw new Error('Watch-only derivation unexpectedly produced no public key.');
           derived.push({
             address: addressFor(profile.mode, publicKey, network),
-            path: profile.path.replace('i', String(index)),
+            path: profile.path.replace(/\/i$/u, `/${index}`),
             index,
             profile,
           });

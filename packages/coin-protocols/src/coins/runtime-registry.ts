@@ -2,6 +2,7 @@ import type { DerivationResult } from '@ckd/core/types.js';
 import { deriveBitcoin, type BitcoinMode } from './bitcoin/index.js';
 import { deriveDashCoinJoin } from './dash/coinjoin.js';
 import { deriveDashCore } from './dash/core.js';
+import { deriveDashLegacyMobile } from './dash/legacy-mobile.js';
 import { deriveDashIdentity } from './dash/identity.js';
 import { deriveDashPlatform } from './dash/platform.js';
 import { deriveEthereum } from './ethereum/index.js';
@@ -25,6 +26,7 @@ function deriveForAdapter(
   if (bitcoinMode !== undefined) return (input) => deriveBitcoin(bitcoinMode, input);
   if (adapterId === 'ethereum') return deriveEthereum;
   if (adapterId === 'dash-core') return deriveDashCore;
+  if (adapterId === 'dash-legacy-mobile') return deriveDashLegacyMobile;
   if (adapterId === 'dash-platform') return deriveDashPlatform;
   if (adapterId === 'dash-identity') return deriveDashIdentity;
   if (adapterId === 'dash-shielded') {

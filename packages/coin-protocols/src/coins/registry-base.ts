@@ -23,6 +23,7 @@ export interface BranchControl {
 export interface AddressBranches {
   receive: number;
   change: number;
+  help?: string;
 }
 
 /** Non-hardened branch indices for an optional DIP9 CoinJoin chain, separate from BIP44 receive/change. */
@@ -62,7 +63,7 @@ export interface CoinAdapter {
   variantLabel: string;
   defaultVariant?: boolean;
   networkControl: boolean;
-  /** Standard external/internal address branches exposed as Receive/Change result tabs. */
+  /** Receive/internal selectors exposed as Receive/Change tabs; the adapter defines their path and hardening. */
   addressBranches?: AddressBranches;
   /** Optional DIP9 CoinJoin chain, exposed as its own opt-in result tab with nested External/Internal branches. */
   coinJoin?: CoinJoinSupport;

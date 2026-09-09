@@ -45,6 +45,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     branchInput: required<HTMLInputElement>('#branch-input'),
     branchSelect: required<HTMLSelectElement>('#branch-select'),
     changeField: required<HTMLElement>('#change-addresses-field'),
+    changeHelp: required<HTMLElement>('#change-addresses-help'),
     includeChange: required<HTMLInputElement>('#include-change-addresses'),
     coinJoinField: required<HTMLElement>('#coinjoin-addresses-field'),
     includeCoinJoin: required<HTMLInputElement>('#include-coinjoin-addresses'),
@@ -235,7 +236,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
         searchAddressButton.textContent = 'Searching…';
         return;
       }
-      searchAddressButton.disabled = false;
+      searchAddressButton.disabled = !cryptoControlsEnabled || !addressSearchAvailable;
       const previous = temporaryButtonLabels.get(searchAddressButton);
       if (previous !== undefined) searchAddressButton.textContent = previous;
       temporaryButtonLabels.delete(searchAddressButton);

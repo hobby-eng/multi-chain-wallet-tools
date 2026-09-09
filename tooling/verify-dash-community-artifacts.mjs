@@ -19,6 +19,7 @@ export const DASH_FORBIDDEN_ARTIFACT_PATTERNS = [
 
 const DASH_DERIVATION_ADAPTER_IDS = new Set([
   'dash-core',
+  'dash-legacy-mobile',
   'dash-platform',
   'dash-identity',
   'dash-shielded',
@@ -85,7 +86,7 @@ export function verifyDashCommunityArtifacts(projectRoot = root) {
 
   const keyTool = getToolBuild(profile, 'key-derivation');
   const keyArtifact = readFileSync(resolve(projectRoot, 'dist', keyTool.artifactRelativePath), 'utf8');
-  for (const adapterId of ['dash-core', 'dash-platform', 'dash-identity', 'dash-shielded']) {
+  for (const adapterId of ['dash-core', 'dash-legacy-mobile', 'dash-platform', 'dash-identity', 'dash-shielded']) {
     if (!keyArtifact.includes(adapterId)) {
       throw new Error(`Dash Community key derivation artifact omitted ${adapterId}.`);
     }

@@ -31,7 +31,6 @@ const TITLES: Record<RecoverySectionId, [string, string]> = {
   core: ['Dash Core · L1', 'BIP44 receive and change address scan'],
   legacyCore: ['Dash Core · legacy mobile', 'Historical DashSync legacy account scan'],
   coinjoin: ['Dash Mobile CoinJoin · DIP9', 'Mobile/DashSync CoinJoin compatibility scan'],
-  identityFunding: ['Dash Platform identity funding', 'Registration/top-up/invitation Core funding scan'],
   providerCollateral: ['Dash provider collateral/holdings', 'Masternode provider collateral/holdings scan'],
   platform: ['Dash Platform addresses', 'DIP17 payment address scan'],
   identity: ['Dash Platform identities', 'DIP13 identity discovery'],
@@ -65,11 +64,11 @@ function validateConfig(config: RecoveryScanConfig): void {
   if (config.scanCoinJoin && config.coinJoinExternalCount + config.coinJoinInternalCount < 1) {
     throw new Error('At least one Dash Mobile CoinJoin · DIP9 external or internal address must be scanned.');
   }
-  assertCount(config.identityFundingCount, 'Identity funding address count', true);
+  assertCount(config.identityFundingCount, 'Registration funding keys to compare', true);
   assertCount(config.identityTopUpIdentityCount, 'Identity-bound top-up identity count', true);
   assertCount(config.identityTopUpCount, 'Identity-bound top-ups per identity', true);
   if (config.scanIdentityFunding && config.identityFundingCount < 1) {
-    throw new Error('At least one identity funding address per chain must be scanned.');
+    throw new Error('At least one registration funding key must be compared.');
   }
   assertCount(config.providerCollateralCount, 'Provider collateral address count', true);
   if (config.scanProviderCollateral && config.providerCollateralCount < 1) {

@@ -71,7 +71,7 @@ function scanConfig(snapshot: RecoveryInputSnapshot): RecoveryScanConfig {
     coinJoinExternalCount: parseInteger(snapshot.coinJoinExternalCount, 'Dash Mobile CoinJoin · DIP9 external address count', 0),
     coinJoinInternalCount: parseInteger(snapshot.coinJoinInternalCount, 'Dash Mobile CoinJoin · DIP9 internal address count', 0),
     scanIdentityFunding: snapshot.scanIdentityFunding,
-    identityFundingCount: parseInteger(snapshot.identityFundingCount, 'Identity funding address count', 0),
+    identityFundingCount: parseInteger(snapshot.identityFundingCount, 'Registration funding keys to compare', 0),
     identityTopUpIdentityCount: parseInteger(snapshot.identityTopUpIdentityCount, 'Identity-bound top-up identity count', 0),
     identityTopUpCount: parseInteger(snapshot.identityTopUpCount, 'Identity-bound top-ups per identity', 0),
     scanProviderCollateral: snapshot.scanProviderCollateral,
@@ -194,10 +194,10 @@ export function createDiscoveryScannerController(
       : [dependencies.getRecoveryCoin(snapshot.coinId)];
     return lines.flatMap((line, index) => {
       const resolved = dependencies.resolveWatchOnlyTargets(line, adapters);
-      if (snapshot.coinId === 'auto' && resolved.length > 1) {
+      if (snapshot.coinId === 'auto' && resolved.some(({ ambiguity }) => ambiguity !== undefined)) {
         const labels = [...new Set(resolved.map(({ material, adapterId }) =>
           material.detectionLabel ?? dependencies.getRecoveryCoin(adapterId).label))];
-        throw new Error(`This public key does not identify one coin. Select Coin before scanning. Compatible candidates: ${labels.join(' · ')}.`);
+        throw new Error(`This public key does not identify one coin. Select Coin before scanning. A Dash xpub may also require an explicit Core, CoinJoin, or Platform prefix. Compatible candidates: ${labels.join(' · ')}.`);
       }
       return resolved.map((target) => {
         const adapter = dependencies.getRecoveryCoin(target.adapterId);
@@ -402,7 +402,9 @@ export function createDiscoveryScannerController(
               orderedResults[index] = result;
               currentResults = orderedResults.filter((candidate): candidate is RecoveryWalletResult => candidate !== undefined);
               renderResults();
-              finishWalletProgress(input.id);
+              const incomplete = result.sections.some(({ state }) => state === 'failed' || state === 'partial');
+              if (incomplete) result.warnings.push('Scan incomplete: some sections were not fully checked; see section warnings.');
+              finishWalletProgress(input.id, incomplete);
               return result;
             } catch (cause) {
               finishWalletProgress(input.id, true);
@@ -417,8 +419,10 @@ export function createDiscoveryScannerController(
           exportStagingAttempted = true;
           stageValidatedExports();
           renderResults();
-          view.setStatus('Recovery scan complete. Review and export the standard-wallet handoff report.');
-          scanCompleted = true;
+          scanCompleted = currentResults.every(result => result.sections.every(({ state }) => state !== 'failed' && state !== 'partial'));
+          view.setStatus(scanCompleted
+            ? 'Recovery scan complete. Review and export the standard-wallet handoff report.'
+            : 'Recovery scan incomplete. Available reports remain exportable; review section warnings and unknown balances.');
         } catch (cause) {
           for (const progress of walletProgress.values()) {
             if (progress.state === 'complete' || progress.state === 'failed') continue;

@@ -167,7 +167,7 @@ export async function ethereumAddressHistory(address: string, network: RecoveryN
     if (ids.has(id)) throw new Error('Repeated Ethereum transaction.');
     ids.add(id); transactions.add(id);
     const date = timestamp(tx.timestamp);
-    const from = ethAddress(tx.from), to = ethAddress(tx.to);
+    const from = ethAddress(tx.from), to = ethAddress(tx.to ?? tx.created_contract ?? null);
     if (from !== target && to !== target) throw new Error('Unrelated Ethereum transaction.');
     if (tx.status !== 'ok' && tx.status !== 'error') throw new Error('Unknown Ethereum transaction status.');
     const value = BigInt(decimal(tx.value, 'Ethereum value'));

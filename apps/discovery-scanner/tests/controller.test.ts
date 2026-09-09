@@ -452,3 +452,22 @@ describe('explicit source selection and both batch modes', () => {
     expect(h.scanKey.mock.calls.map(([, input]) => input.id)).toEqual(['watch-1-dash', 'watch-2-dash']);
   });
 });
+
+for (const sourceMode of ['seed', 'public'] as const) it(`reports a partial ${sourceMode} scan as incomplete and keeps its public report exportable`, async () => {
+  vi.stubGlobal('window', { addEventListener: vi.fn() });
+  const partial = { ...result(), sections: [{
+    id: 'shielded' as const, title: 'Orchard', description: 'fixture', state: 'partial' as const,
+    balanceAvailable: false, metrics: [], findings: [], scanned: 1n, source: 'fixture', proof: 'prefix', warning: 'Incomplete stream',
+  }] };
+  const h = publicHarness(async () => partial);
+  h.scanSeed.mockResolvedValue(partial);
+  vi.mocked(h.view.readInputs).mockReturnValue({ ...snapshot(), sourceMode, watchOnlyKeys: PUBLIC_KEY });
+  h.controller.start(); await settle(); h.controls.startButton.click();
+  await vi.waitFor(() => expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringMatching(/scan incomplete/iu)));
+  h.controls.exportJsonButton.click(); await settle();
+  expect(h.requestRecoveryExport).toHaveBeenCalledOnce();
+  const exported = JSON.parse(h.requestRecoveryExport.mock.calls[0]![0]);
+  expect(exported.results[0].sections[0].state).toBe('partial');
+  expect(exported.results[0].warnings.join(' ')).toMatch(/incomplete/u);
+  vi.unstubAllGlobals();
+});

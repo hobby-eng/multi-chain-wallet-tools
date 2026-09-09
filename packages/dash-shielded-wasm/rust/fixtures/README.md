@@ -45,3 +45,13 @@ docker run --rm --network host \
 ```
 
 The wallet builder uses operating-system randomness, so another valid run will produce different ciphertext bytes. This committed output is therefore an immutable external wallet compatibility pin, not an upstream-published deterministic cryptographic test vector and not evidence of an independent Orchard implementation. The local scanner test never regenerates it. Position `42` is synthetic scanner metadata; it is not part of the encrypted action.
+
+## Internal-scope regression fixture
+
+`internal-scope-note.json` is a local synthetic fixture, not an official-wallet capture or an independent cryptographic implementation. Its public test key controls no real funds. The ignored Rust test `scan::tests::capture_internal_scope_fixture` constructs a note with the pinned Orchard library and emits ciphertext, scope-specific keys, plaintext and the note's nullifier. Expected fields come from that constructed note, never from this application's scanner output. Regeneration is explicit:
+
+```sh
+cargo test --locked --manifest-path packages/dash-shielded-wasm/rust/Cargo.toml capture_internal_scope_fixture -- --ignored --nocapture
+```
+
+The `INTERNAL_FIXTURE=` output is reviewed and saved deliberately; ordinary tests never overwrite the fixture. Both committed fixtures run through the generated browser WASM in `pnpm test:wasm`, including positive FVK/OVK recovery, exact plaintext, key-buffer clearing, foreign-key rejection and ledger spend reconstruction. The Internal fixture additionally pins its exact nullifier, positive Internal IVK recovery and negative External IVK recovery. The external capture does not independently pin an expected nullifier.

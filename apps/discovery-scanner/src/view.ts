@@ -1,3 +1,4 @@
+import { DIP17_PAYMENT_CHAINS } from '@ckd/coins/dash/platform-paths.js';
 import { historyFields } from './history.js';
 import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from './watch-only.js';
 import type { BUILD_INFO } from '@ckd/build-info';
@@ -76,7 +77,6 @@ const progressSectionLabels: Record<RecoveryProgress['section'], string> = {
   core: 'Dash Core · L1',
   legacyCore: 'Legacy mobile Core',
   coinjoin: 'Dash Mobile CoinJoin · DIP9',
-  identityFunding: 'Identity funding',
   providerCollateral: 'Masternode holdings',
   platform: 'Platform addresses',
   identity: 'Platform identities',
@@ -89,7 +89,7 @@ export type RecoveryComponentGroupId = 'core' | 'platform' | 'identity' | 'shiel
  * Second-level result tabs. Each scanned seed phrase is split by component so
  * Core L1 addresses, Platform payment addresses, Platform identities and the
  * Orchard pool are never mixed in one list. Every Core-compatible P2PKH family
- * (BIP44, legacy mobile, CoinJoin, identity funding, masternode holdings) is
+ * (BIP44, legacy mobile, CoinJoin, masternode holdings) is
  * an L1 address set and therefore lives under the Core tab.
  */
 const componentGroups: ReadonlyArray<{ id: RecoveryComponentGroupId; label: string; sections: readonly RecoverySectionId[] }> = [
@@ -107,7 +107,7 @@ function groupSections(result: RecoveryWalletResult, group: (typeof componentGro
 
 function groupSummary(sections: readonly RecoverySection[]): { label: string; tone: 'skipped' | 'failed' | 'partial' | 'complete' } {
   if (sections.length === 0 || sections.every(({ state }) => state === 'skipped')) return { label: 'skipped', tone: 'skipped' };
-  const funded = sections.reduce((sum, section) => sum + section.findings.filter(({ balanceAtomic }) => balanceAtomic > 0n).length, 0);
+  const funded = sections.reduce((sum, section) => sum + section.findings.filter(({ balanceAtomic }) => (balanceAtomic ?? 0n) > 0n).length, 0);
   const listed = sections.reduce((sum, section) => sum + section.findings.length, 0);
   const count = funded === listed ? `${funded} funded` : `${funded} funded · ${listed} listed`;
   if (sections.some(({ state }) => state === 'failed')) return { label: `${count} · warning`, tone: 'failed' };
@@ -435,7 +435,6 @@ export function createDiscoveryScannerView(
         core: 'No funded Dash Core L1 address was found in this section and scanned range.',
         legacyCore: 'No funded legacy mobile Core address was found in this section and scanned range.',
         coinjoin: 'No funded Dash Mobile CoinJoin · DIP9 address was found in this section and scanned range.',
-        identityFunding: 'No funded identity funding address was found in this section and scanned range.',
         providerCollateral: 'No funded provider collateral/holdings address was found in this section and scanned range.',
         platform: 'No funded Dash Platform payment address was found in this section and scanned range.',
         identity: 'No funded Dash Platform identity was found in this section and scanned range.',
@@ -684,7 +683,7 @@ export function createDiscoveryScannerView(
           const labels = [...new Set(targets.map(({ adapterId, material }) => material.detectionLabel ?? coinAdapters.get(adapterId)!.label))];
           const bip32 = targets.find(({ ambiguity }) => ambiguity?.kind === 'bip32')?.ambiguity;
           const sec1 = targets.some(({ ambiguity }) => ambiguity?.kind === 'sec1');
-          const needsCoin = selectedCoin === 'auto' && targets.length > parseWatchOnlyLines(watchOnlyKeys.value).length;
+          const needsCoin = selectedCoin === 'auto' && targets.some(({ ambiguity }) => ambiguity !== undefined);
           const formatText = needsCoin
             ? `Coin could not be determined uniquely. Select Coin before scanning. Compatible candidates: ${labels.join(' · ')}.`
             : bip32 !== undefined
@@ -729,12 +728,11 @@ export function createDiscoveryScannerView(
         const coinJoin = scanCoreInput.checked && scanCoinJoinInput.checked
           ? estimateInteger(coinJoinExternalCountInput.value, 0) + estimateInteger(coinJoinInternalCountInput.value, 0)
           : 0;
-        const identityFunding = 0;
         const providerCollateral = scanCoreInput.checked && scanProviderCollateralInput.checked ? estimateInteger(providerCollateralCountInput.value, 0) : 0;
         const platform = scanPlatformAddressesInput.checked ? estimateInteger(platformCountInput.value, 0) : 0;
-        const coreLike = core + legacyCore + coinJoin + identityFunding + providerCollateral;
+        const coreLike = core + legacyCore + coinJoin + providerCollateral;
         const coreBatches = Math.ceil(coreLike / RECOVERY_CORE_ADDRESS_BATCH);
-        const platformBatches = Math.ceil(platform / RECOVERY_PLATFORM_ADDRESS_BATCH);
+        const platformBatches = DIP17_PAYMENT_CHAINS.length * Math.ceil(platform / RECOVERY_PLATFORM_ADDRESS_BATCH);
         const identities = scanPlatformIdentitiesInput.checked ? estimateInteger(identityLimitInput.value, 1) : 0;
         const requests = estimateConcurrency(requestConcurrencyInput.value);
         const totalBatches = coreBatches + platformBatches;

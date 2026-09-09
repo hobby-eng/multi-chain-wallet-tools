@@ -26,4 +26,10 @@ The ratio is confirmed by the [official withdrawal documentation](https://docs.d
 
 ## Validation
 
-TypeScript checking and all 262 tests passed, including exact large integers, single-duff/single-credit values, the 1000:1 conversion, mixed L1/L2 totals, CSV/JSON units during provider failure, rejection of mismatched history units, and DIP17 public-xpub discovery with 11-decimal precision. The standalone HTML editions are built directly with the existing generated WASM, without Docker. Visual acceptance of the final files is left to the user.
+The expanded source review baseline is commit `6462c67d677ab73bea49051c3e3d866fcd157894`, recorded on 2026-09-08. The earlier unpinned “262 tests passed” summary is not current-checkout evidence. Unit regressions cover exact large integers, single-duff/single-credit values, the 1000:1 conversion, mixed L1/L2 totals, CSV/JSON units during provider failure, mismatched history units and 11-decimal Platform precision. New runs must record their commit, command and result. Rebuilt HTML and real-browser acceptance remain separate checks.
+
+## Follow-up — 2026-09-09
+
+The repeat review of `94eb337` found a separate unit error outside the Core-duff/Platform-credit conversion checked above: created-token supply was tagged as credits by Activity Viewer CSV/XLSX. The correction removes that supply from DASH amount columns and preserves token ID, supply and decimals as token metadata. Supply is not an owned token balance. The earlier review's negative finding did not cover this case adequately.
+
+Incomplete Orchard scans now withhold unknown current balances (`null` in JSON; blank numeric CSV cells). Note values remain credits, while incomplete aggregate received/sent/self-change amounts are explicitly labelled Observed. This changes completeness semantics, not the 1,000:1 duff/credit conversion. See the [repeat-audit remediation record](../docs/audits/2026-09-09-remediation.md) for verification scope.

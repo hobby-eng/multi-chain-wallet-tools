@@ -21,6 +21,7 @@ import {
   looksLikeSec1PublicKey,
   matchExplicitPrefix,
   normalizedHexKey,
+  WatchOnlyNeedsFamilyError,
   WatchOnlyNotRecognizedError,
 } from '../../watch-only.js';
 import { summarizeDashSections } from './summary.js';
@@ -78,6 +79,10 @@ export function detectDashWatchOnly(raw: string, mode: { auto: boolean }): Detec
     if (matched.prefix === 'dash-core-xpub') {
       if (matched.value.length === 0) throw new Error('dash-core-xpub: requires a value.');
       return { coinId: 'dash', kind: 'dash-core-xpub', value: matched.value };
+    }
+    if (matched.prefix === 'dash-coinjoin-xpub') {
+      if (matched.value.length === 0) throw new Error('dash-coinjoin-xpub: requires a value.');
+      return { coinId: 'dash', kind: 'dash-coinjoin-xpub', value: matched.value };
     }
     if (matched.prefix === 'dash-platform-xpub') {
       if (matched.value.length === 0) throw new Error('dash-platform-xpub: requires a value.');
@@ -146,10 +151,15 @@ export function detectDashWatchOnly(raw: string, mode: { auto: boolean }): Detec
   if (looksLikeExtendedPublicKey(trimmed)) {
     if (mode.auto) throw new WatchOnlyNotRecognizedError();
     const depth = sniffExtendedKeyDepth(trimmed);
-    return {
-      coinId: 'dash', kind: depth === 5 ? 'dash-platform-xpub' : 'dash-core-xpub', value: trimmed,
-      detectionLabel: depth === 5 ? 'Dash Platform · candidate key-class xpub' : 'Dash Core · candidate account xpub',
-    };
+    if (depth === 3) {
+      return {
+        coinId: 'dash', kind: 'dash-core-xpub', value: trimmed,
+        detectionLabel: 'Dash Core · candidate account xpub',
+      };
+    }
+    throw new WatchOnlyNeedsFamilyError(
+      `A Dash xpub at depth ${depth} does not encode its hardened ancestry. Prefix it with dash-core-xpub:, dash-coinjoin-xpub:, or dash-platform-xpub: so the scanner uses the intended address family.`,
+    );
   }
   if (looksLikeSec1PublicKey(trimmed)) {
     if (mode.auto) throw new WatchOnlyNotRecognizedError();
@@ -166,12 +176,17 @@ function rejectMasterXpub(node: HDKey, kindLabel: string): void {
   }
 }
 
-async function scanCoreXpub(
+async function scanTransparentXpub(
   input: RecoveryWatchOnlyInput,
   config: RecoveryWatchOnlyScanConfig,
   context: RecoveryScanContext,
   gateway: RecoveryNetworkGateway,
 ): Promise<RecoveryWalletResult> {
+  const coinjoin = input.kind === 'dash-coinjoin-xpub';
+  const accountDepth = coinjoin ? 4 : 3;
+  const branchDepth = accountDepth + 1;
+  const familyLabel = coinjoin ? 'Dash Mobile CoinJoin · DIP9' : 'Dash Core · BIP44';
+  const sectionId = coinjoin ? 'coinjoin' as const : 'core' as const;
   const network = getDashNetwork(config.network);
   let node: HDKey;
   try {
@@ -179,9 +194,9 @@ async function scanCoreXpub(
   } catch {
     throw new Error(`This extended public key does not match the selected ${network.label} version bytes, or is malformed.`);
   }
-  rejectMasterXpub(node, 'standard BIP44 Core addresses');
-  if (node.depth !== 3) {
-    throw new Error(`A Dash Core account xpub has depth 3; this key has depth ${node.depth} and cannot be scanned for descendant addresses.`);
+  rejectMasterXpub(node, `${familyLabel} addresses`);
+  if (node.depth !== accountDepth && node.depth !== branchDepth) {
+    throw new Error(`${familyLabel} requires an account xpub at depth ${accountDepth} or branch xpub at depth ${branchDepth}; this key has depth ${node.depth}.`);
   }
   const indexedHeight = await fetchDashScanIndexedHeight(gateway, config.network, context.signal);
   const findings: RecoveryFinding[] = [];
@@ -189,8 +204,10 @@ async function scanCoreXpub(
   let scanned = 0;
   let gapTruncated = false;
   const startedAt = new Date().toISOString();
-  for (const branch of [0, 1] as const) {
-    const branchNode = node.deriveChild(branch);
+  const branches: Array<{ branch: 0 | 1 | null; node: HDKey }> = node.depth === accountDepth
+    ? ([0, 1] as const).map((branch) => ({ branch, node: node.deriveChild(branch) }))
+    : [{ branch: null, node }];
+  for (const { branch, node: branchNode } of branches) {
     let target = config.minimumCount;
     for (let offset = 0; offset < target;) {
       if (context.signal.aborted) throw new DOMException('Dash Core watch-only scan cancelled.', 'AbortError');
@@ -204,7 +221,7 @@ async function scanCoreXpub(
         derived.push({
           address: encodeP2pkh(publicKeyHash, network.p2pkh),
           index,
-          path: `<account xpub>/${branch}/${index}`,
+          path: branch === null ? `<branch xpub>/${index}` : `<account xpub>/${branch}/${index}`,
           publicKeyHash: bytesToHex(publicKeyHash),
         });
       }
@@ -227,9 +244,9 @@ async function scanCoreXpub(
         }
         if (info.balance === 0n && !(config.includeUsedZeroBalance && used)) return;
         const finding: RecoveryFinding = {
-          id: `dash-core-xpub:${branch}:${derivedItem.index}`,
+          id: `${coinjoin ? 'dash-coinjoin-xpub' : 'dash-core-xpub'}:${branch ?? 'branch'}:${derivedItem.index}`,
           title: derivedItem.address,
-          subtitle: `${branch === 0 ? 'Receive' : 'Change'} address #${derivedItem.index}`,
+          subtitle: `${branch === 0 ? 'External' : branch === 1 ? 'Internal' : 'Branch'} address #${derivedItem.index}`,
           balanceAtomic: info.balance,
           balanceLabel: formatDashFromDuffs(info.balance),
           fields: [
@@ -239,14 +256,14 @@ async function scanCoreXpub(
           ],
         };
         findings.push(finding);
-        context.onFinding(input.id, 'core', finding);
+        context.onFinding(input.id, sectionId, finding);
       });
       scanned += derived.length;
       offset = end;
       context.onProgress({
         inputId: input.id,
-        section: 'core',
-        message: `${branch === 0 ? 'Receive' : 'Change'}: checked ${offset} of ${target}`,
+        section: sectionId,
+        message: `${branch === 0 ? 'External' : branch === 1 ? 'Internal' : 'Branch'}: checked ${offset} of ${target}`,
         completed: scanned,
         total: null,
       });
@@ -261,9 +278,11 @@ async function scanCoreXpub(
     if (info.balance > 0n || info.txCount > 0) usedCount += 1;
   }
   const section: RecoverySection = {
-    id: 'core',
-    title: 'Dash Core watch-only addresses',
-    description: 'A Core account xpub (depth 3) is below the hardened BIP44 levels, so its receive (/0/i) and change (/1/i) branches can be derived and queried without a seed.',
+    id: sectionId,
+    title: `${familyLabel} watch-only addresses`,
+    description: node.depth === accountDepth
+      ? `The account xpub at depth ${accountDepth} derives its external (/0/i) and internal (/1/i) branches without a seed.`
+      : `The branch xpub at depth ${branchDepth} derives its relative /i address indices without a seed. The xpub does not reveal whether this is the external or internal branch.`,
     state: 'complete',
     metrics: [
       { label: 'Spendable balance', value: formatDashFromDuffs(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
@@ -536,7 +555,7 @@ async function scanIdentityLookup(
       finding.fields.push({ label: 'Note', value: 'More than one identity matched this key hash; each is listed independently.' });
     });
   }
-  const totalBalance = findings.reduce((sum, finding) => sum + finding.balanceAtomic, 0n);
+  const totalBalance = findings.reduce((sum, finding) => sum + (finding.balanceAtomic ?? 0n), 0n);
   const section: RecoverySection = {
     id: 'identity',
     title: 'Dash Platform identity lookup',
@@ -634,7 +653,8 @@ export async function scanDashWatchOnly(
   const client = new DashPlatformClient(config.network, gateway);
   switch (input.kind) {
     case 'dash-core-xpub':
-      return scanCoreXpub(input, config, context, gateway);
+    case 'dash-coinjoin-xpub':
+      return scanTransparentXpub(input, config, context, gateway);
     case 'dash-platform-xpub':
       return scanPlatformXpub(input, config, context, client);
     case 'public-key':

@@ -1,0 +1,12 @@
+{
+  "reviewedAt": "2026-09-08",
+  "reviewedCommit": "6462c67d677ab73bea49051c3e3d866fcd157894",
+  "releaseAtReview": "0.1.3",
+  "scope": "First-party application, integration, build and documentation code in both editions; mainnet and testnet paths.",
+  "excluded": [
+    "Third-party dependency source audit",
+    "Independent cryptographic proof",
+    "Real-browser file URL acceptance (pending)"
+  ],
+  "outcome": "Findings A01-A09, DOC01-DOC03 and test gap T01 recorded; this baseline is not a clean bill of health or approval of later commits."
+}

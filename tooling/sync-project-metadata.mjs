@@ -43,12 +43,7 @@ stage('packages/dash-shielded-wasm/rust/Cargo.lock', (text) =>
   replaceRequired(text, /(\[\[package\]\]\nname = "dash-shielded-wasm"\nversion = ")[^"]+(")/u, `$1${release.version}$2`, 'Rust lock version'));
 stage('THIRD_PARTY_NOTICES.md', (text) =>
   replaceRequired(text, /^(dash-shielded-wasm\s+)[0-9]+\.[0-9]+\.[0-9]+(\s+)/mu, `$1${release.version}$2`, 'Rust notice version'));
-stage('SECURITY_AUDIT.md', (text) =>
-  replaceRequired(text, /^Review date: \d{4}-\d{2}-\d{2}\. Release: [0-9]+\.[0-9]+\.[0-9]+\./mu,
-    `Review date: ${release.releaseDate}. Release: ${release.version}.`, 'security review release'));
-stage('DASH_IMPLEMENTATION.md', (text) =>
-  replaceRequired(text, /^Research and implementation review date: \d{4}-\d{2}-\d{2}\. Release: [0-9]+\.[0-9]+\.[0-9]+\./mu,
-    `Research and implementation review date: ${release.releaseDate}. Release: ${release.version}.`, 'Dash review release'));
+// Audit dates, reviewed commits and evidence records are not release metadata.
 
 const releaseNotes = `docs/releases/${release.tag}.md`;
 stage(releaseNotes, (text) => {

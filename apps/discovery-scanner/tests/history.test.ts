@@ -62,6 +62,28 @@ function trace(n: number, index: number, from: string, to: string, value: string
   return { transaction_hash: `0x${txid(n)}`, index, block_number: n, timestamp: new Date(1700000000000 + n * 1000).toISOString(), from: { hash: from }, to: { hash: to }, value, success: true, error: null, type: 'call' };
 }
 describe('Ethereum history', () => {
+  it('counts contract deployment value once when the normal recipient is null', async () => {
+    const deployed = { ...ethTx(1, other, eth, '100'), to: null, created_contract: { hash: eth } };
+    const root = { ...trace(1, 0, other, eth, '100'), to: null, created_contract: { hash: eth }, type: 'create' };
+    fetchMock(url => ({ items: url.endsWith('/internal-transactions') ? [root] : [deployed], next_page_params: null }));
+    expect(await ethereumAddressHistory(eth, 'mainnet')).toMatchObject({
+      status: 'complete', totalReceivedAtomic: '100', totalSentAtomic: '0', totalFeesAtomic: '0', transactionCount: 1,
+      firstSeen: deployed.timestamp,
+    });
+    expect(await ethereumAddressHistory(other, 'mainnet')).toMatchObject({
+      totalReceivedAtomic: '0', totalSentAtomic: '100', totalFeesAtomic: '3', transactionCount: 1,
+    });
+  });
+
+  it('counts only the sender fee for a failed deployment and rejects unrelated deployments', async () => {
+    const deployed = { ...ethTx(1, other, eth, '100', 'error'), to: null, created_contract: null };
+    fetchMock(url => ({ items: url.endsWith('/internal-transactions') ? [] : [deployed], next_page_params: null }));
+    expect(await ethereumAddressHistory(other, 'mainnet')).toMatchObject({
+      totalReceivedAtomic: '0', totalSentAtomic: '0', totalFeesAtomic: '3',
+    });
+    await expect(ethereumAddressHistory(eth, 'mainnet')).rejects.toThrow('Unrelated');
+  });
+
   it('counts incoming/internal ETH exactly, separates gas and ignores failed transfers and duplicate root calls', async () => {
     fetchMock(url => ({ items: url.endsWith('/internal-transactions')
       ? [trace(1, 0, other, eth, '100'), trace(2, 1, other, eth, '7'), { ...trace(3, 1, other, eth, '999'), success: false, error: 'reverted' }]
@@ -143,8 +165,8 @@ describe('adapter history contract and exports', () => {
 it('validates history RPC address, network and coin before network access', async () => {
   const fetch = fetchMock(() => { throw new Error('Must not request'); });
   const service = new MultiChainRecoveryNetworkService();
-  await expect(service.addressHistory('bitcoin', 'mainnet', 'https://example.test')).rejects.toThrow('invalid Bitcoin');
-  await expect(service.addressHistory('ethereum', 'mainnet', '../secret')).rejects.toThrow('invalid Ethereum');
+  await expect(service.addressHistory('bitcoin', 'mainnet', 'https://example.test')).rejects.toThrow(/invalid Bitcoin/iu);
+  await expect(service.addressHistory('ethereum', 'mainnet', '../secret')).rejects.toThrow(/invalid Ethereum/iu);
   await expect(service.addressHistory('bitcoin', 'invalid' as 'mainnet', btc)).rejects.toThrow();
   await expect(service.addressHistory('unknown' as 'bitcoin', 'mainnet', btc)).rejects.toThrow('Unsupported history coin');
   expect(fetch).not.toHaveBeenCalled();
@@ -154,7 +176,7 @@ it('validates history RPC address, network and coin before network access', asyn
 it('exports explicit Dash L1/L2 units even when history cannot be loaded', async () => {
   const r = report(); r.coinId = 'dash'; r.coinLabel = 'Dash';
   const base = r.sections[0]!;
-  r.sections = (['core', 'legacyCore', 'coinjoin', 'identityFunding', 'providerCollateral', 'platform', 'identity', 'shielded'] as const)
+  r.sections = (['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity', 'shielded'] as const)
     .map(id => ({ ...base, id, findings: [{ ...finding(), id, balanceAtomic: 1n }] }));
   const dash = { ...adapter(async () => { throw new Error('offline'); }), amountUnit: dashAmountUnit };
   await enrichRecoveryHistory(dash, r, context());

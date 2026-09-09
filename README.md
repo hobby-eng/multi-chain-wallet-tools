@@ -17,14 +17,14 @@ This is an independent hobby project, not an official Dash product and not a rep
 
 An offline tool for deriving wallet addresses and keys from a BIP39 seed phrase.
 
-- Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; and Dash Core, Platform payment, Identity, and Orchard Shielded derivation.
-- Shows standards-based derivation paths and exposes protocol-specific account, branch/key-class, and index controls.
-- Derives standard receive/change branches for Bitcoin and Dash Core, three common Ethereum EOA path profiles, Dash Platform payment receive keys, Dash Identity four-key candidates, and Dash Orchard addresses and viewing material.
+- Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; and Dash Core BIP44, legacy mobile Core, Platform payment, Identity, and Orchard Shielded derivation.
+- Shows standards-based derivation paths and exposes protocol-specific account, address-branch and index controls.
+- Derives standard receive/change branches for Bitcoin and Dash Core, historical mobile receive/change branches, Ethereum EOA keys at `m/44'/60'/account'/branch/index`, Dash Platform receive and optional internal/change payment keys, Dash Identity four-key candidates, and Dash Orchard addresses and viewing material.
 - Displays basic results or detailed protocol-specific data, with selectable clipboard and file exports.
 - Generates offline, on-demand QR codes only for derived public payment addresses; key material and arbitrary metadata never receive QR actions.
 - Runs derivation in a disposable Web Worker and has runtime network access blocked by CSP and build verification.
 
-Use this application on a trusted offline computer whenever real seed phrases or private keys are involved.
+Seed input is BIP39; native Electrum seed phrases are not supported. Use this application on a trusted offline computer whenever real seed phrases or private keys are involved.
 
 ### Wallet Activity Viewer
 
@@ -48,7 +48,7 @@ In the universal Multi-Chain Edition, this connected discovery scanner supports 
 - Keeps seed-phrase and public-key searches in separate tabs. Public-key mode includes a coin selector and refuses to guess when an extended-key format is shared by several coins.
 - Scans Bitcoin Legacy, Nested SegWit, Native SegWit, and Taproot receive/change accounts through a 20-address post-use gap.
 - Scans three common Ethereum EOA layouts: Standard BIP44/MetaMask/Trezor, Ledger Live, and Legacy Ledger/MEW.
-- Lets Dash users independently enable Core BIP44, legacy mobile Core, Dash Mobile CoinJoin · DIP9, identity funding, provider holdings, Dash Platform payment addresses, Dash Platform identities, and Dash Orchard.
+- Lets Dash users independently enable Core BIP44, legacy mobile Core, Dash Mobile CoinJoin · DIP9, provider holdings, Dash Platform payment addresses, Dash Platform identities, and Dash Orchard. An optional Identity setting links identities already discovered to their reported L1 asset-lock transaction and compares its credit key with locally derived registration funding keys.
 - Loads adapter-provided history for Bitcoin, Ethereum, and Dash, including current balance, confirmed lifetime totals, transaction counts, and first/last activity when the provider offers complete data.
 - Supports bounded batches with progress and cancellation, and can include previously used addresses whose current balance is zero.
 - Exports public recovery results as CSV or JSON without seed phrases, private keys, extended public keys, or Orchard viewing keys.
@@ -60,7 +60,7 @@ Seed derivation runs inside a sandboxed, network-denied Secret Vault. Only valid
 
 Download the three Multi-Chain Edition HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). `SHA256SUMS` covers the complete release asset set.
 
-This repository remains the canonical source and Multi-Chain release surface. A future `hobby-eng/dash-wallet-tools` repository is intended to distribute the Dash Community Edition from these canonical sources; it does not exist yet and must not become a divergent source fork.
+This repository is the canonical source and Multi-Chain release surface. [Dash Community releases](https://github.com/hobby-eng/dash-wallet-tools/releases) are distributed separately from the same canonical sources; that repository is a release surface, not a source fork.
 
 The SHA-256 value labelled **Source/build fingerprint** inside each file's Release passport is not the checksum of that HTML file. It identifies the source and embedded build inputs used to create it. Verify the downloaded HTML itself with its external `.sha256` sidecar or the release `SHA256SUMS` file.
 
@@ -86,17 +86,19 @@ Official release checksums refer to artifacts produced by the repository's pinne
 | Bitcoin Taproot | `m/86'/0'/0'/0/i` | BIP86 P2TR |
 | Ethereum EOA | `m/44'/60'/0'/0/i` | EIP-55 address |
 | Dash Core | `m/44'/5'/0'/0/i` | P2PKH |
-| Dash mobile legacy Core | `m/0'/0/i` | P2PKH |
+| Dash mobile legacy Core | `m/account'/0/i` | P2PKH |
 | Dash Mobile CoinJoin · DIP9 | `m/9'/5'/4'/0'/0/i` | P2PKH |
-| Dash identity funding | `m/9'/5'/5'/1'/i` | P2PKH |
+| Dash Identity registration funding-key comparison | `m/9'/5'/5'/1'/i` | Linked asset-lock detail for an Identity already discovered |
 | Dash provider holdings | `m/9'/5'/3'/0'/i` | P2PKH |
-| Dash Platform | `m/9'/5'/17'/0'/0'/i` | DIP17/DIP18 address |
+| Dash Platform | `m/9'/5'/17'/0'/0'/i` and `m/9'/5'/17'/0'/1'/i` | DIP17/DIP18 receive and internal/change |
 | Dash Identity | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 four-key registration profile |
 | Dash Orchard | `m/32'/5'/account'` + diversifier index | Shielded address and viewing/spending material |
 
 Bitcoin and Dash support mainnet/testnet separation. Optional change generation uses branch `/1` for Bitcoin and Dash Core. Exact protocol choices and pinned upstream references are documented in [DASH_IMPLEMENTATION.md](DASH_IMPLEMENTATION.md).
 
 Dash Identity results are grouped by candidate Identity index. Each group derives the official Platform Wallet v4.1.1 default ECDSA profile: MASTER authentication key `0`, CRITICAL authentication key `1`, HIGH authentication key `2`, and CRITICAL transfer key `3`. These roles are registration metadata rather than properties encoded by DIP13 or the key ID. The offline tool therefore never invents an Identity ID; it shows candidate keys and the public-key hashes used for later proof-verified discovery.
+
+Capabilities that require future authoritative Platform/SDK queries are tracked in [docs/ROADMAP.md](docs/ROADMAP.md). In particular, independent discovery of unused asset-lock credits remains a planned feature; the current release only links funding details to an Identity already discovered.
 
 ## Security and verification
 
@@ -142,8 +144,10 @@ pnpm install --frozen-lockfile
 rustup toolchain install 1.98.1
 rustup target add wasm32-unknown-unknown --toolchain 1.98.1
 cargo +1.98.1 install wasm-bindgen-cli --version 0.2.127 --locked
-pnpm verify
+RUSTUP_TOOLCHAIN=1.98.1 pnpm verify
 ```
+
+The `RUSTUP_TOOLCHAIN` variable selects the installed pinned toolchain for child Cargo commands even when your global Rust default is older. Use the same variable for native `pnpm build`, `pnpm build:wasm`, and `pnpm test:rust`. Installing a toolchain alone does not select it.
 
 Generated files are written to:
 
@@ -158,7 +162,7 @@ dist/dash-community-edition/discovery-scanner/Dash_Community_Discovery_Scanner.h
 dist/dash-community-edition/SHA256SUMS
 ```
 
-Use `pnpm build:html:multi-chain` or `pnpm build:html:dash-community` for one profile. `pnpm build:html` builds both. `pnpm release:bundle` stages the unchanged Multi-Chain release set; `pnpm release:bundle:dash-community` stages the separately named future Dash distribution bundle without publishing it.
+Use `pnpm build:html:multi-chain` or `pnpm build:html:dash-community` for one profile. `pnpm build:html` builds both. `pnpm release:bundle` stages the unchanged Multi-Chain release set; `pnpm release:bundle:dash-community` stages the separately named Dash Community distribution bundle without publishing it.
 
 The Dash Community visual system is based on the official [Dash BrandBook](https://www.figma.com/design/cCpB1W2IAmoEGXBbGqGsfD/Dash-BrandBook?node-id=219-108&p=f), the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), and the primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html). It uses a controlled blue workspace, translucent navy surfaces, restrained ribbed geometry, and the official Dash mark while preserving the shared layouts, responsive behavior, accessible focus treatment, calm caution states, and distinct error states.
 
