@@ -1,3 +1,4 @@
+import { DIP17_PAYMENT_CHAINS } from '../dash/platform-paths.js';
 import {
   BIP44_ADDRESS_BRANCHES,
   indexRange,
@@ -50,7 +51,11 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     label: 'Dash Platform · DIP17 / DIP18',
     variantLabel: 'Platform · DIP17 / DIP18',
     networkControl: true,
-    branchControl: { label: 'Key class', max: 2_147_483_647 },
+    addressBranches: {
+      receive: DIP17_PAYMENT_CHAINS[0].keyClass,
+      change: DIP17_PAYMENT_CHAINS[1].keyClass,
+      help: "Also derives the optional internal/change addresses in a separate result tab. Platform uses hardened classes 0' (receive) and 1' (internal); each has its own public export key.",
+    },
     defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: TRANSPARENT_ROLES,
     pathPreview: ({ network, account, branch, start, count }) =>
