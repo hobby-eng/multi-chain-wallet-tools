@@ -1,6 +1,6 @@
 # Dash Platform and Shielded implementation report
 
-Research and implementation review date: 2026-09-08. Release: 0.1.3.
+Research baseline: 2026-09-08, commit `6462c67d677ab73bea49051c3e3d866fcd157894` (release 0.1.3 at review). See the immutable [review record](docs/audits/2026-09-08-baseline.json). Later implementation corrections are recorded in Git; release metadata synchronization never renews this review date.
 
 Original integration code is licensed under the repository's MIT License. Dash Core, Platform, Orchard, brand materials, and all other upstream components retain their respective authorship and licenses documented in `ATTRIBUTION.md` and `THIRD_PARTY_NOTICES.md`.
 
@@ -130,8 +130,10 @@ Each returned action has `cmx(32)`, `nullifier(32)`, `cv_net(32)`, and `encrypte
 ```text
 FullViewingKey::from_bytes
 FullViewingKey::to_ivk(Scope::External).prepare
+FullViewingKey::to_ivk(Scope::Internal).prepare
 try_note_decryption                    incoming note, amount, address, memo
 FullViewingKey::to_ovk(Scope::External)
+FullViewingKey::to_ovk(Scope::Internal)
 try_output_recovery_with_ovk           sender's outgoing output
 Note::nullifier(&full_viewing_key)      owned-note spend detection
 ```

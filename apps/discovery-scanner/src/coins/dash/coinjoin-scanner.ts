@@ -22,13 +22,13 @@ export function scanDashCoinJoin(
         key: 'external',
         label: 'External mobile/DashSync',
         count: config.coinJoinExternalCount,
-        pathPrefix: (coinType: number) => `m/9'/${coinType}'/4'/0'/0`,
+        pathPrefix: (coinType: number) => `m/9'/${coinType}'/4'/${config.account}'/0`,
       },
       {
         key: 'internal',
         label: 'Internal defensive compatibility',
         count: config.coinJoinInternalCount,
-        pathPrefix: (coinType: number) => `m/9'/${coinType}'/4'/0'/1`,
+        pathPrefix: (coinType: number) => `m/9'/${coinType}'/4'/${config.account}'/1`,
       },
     ].filter(({ count }) => count > 0),
   }, onProgress, onFinding);

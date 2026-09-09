@@ -111,6 +111,7 @@ const required = [
   'Reveal all sensitive values',
   'Derivation type',
   'dash-identity',
+  'dash-legacy-mobile',
   'DIP13',
   'Official Platform Wallet v4.1.1',
   'Identity ID',

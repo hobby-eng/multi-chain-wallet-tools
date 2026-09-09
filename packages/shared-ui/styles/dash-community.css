@@ -96,7 +96,8 @@ body::before {
   background-size:48px 48px;
   mask-image:linear-gradient(to bottom,black,transparent 760px);
 }
-.hero { padding:28px 0 32px; }
+/* Contain the transformed brand decoration without widening the page. */
+.hero { padding:28px 0 32px; overflow:clip; }
 .deriver-topbar,
 .viewer-topbar,
 .recovery-topbar {
@@ -298,6 +299,9 @@ body::before {
   width:100%;
 }
 .form-grid .protocol-tab {
+  min-width:0;
+  white-space:normal;
+  overflow-wrap:anywhere;
   width:100%;
   text-align:center;
 }

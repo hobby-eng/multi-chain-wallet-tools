@@ -1,3 +1,4 @@
+import { IdentityPageIntegrity } from '@ckd/dash-network/identity-pagination.js';
 import { EvoSDK, type Identity, type ShieldedEncryptedNote } from '@dashevo/evo-sdk';
 import { copyAndFreeEvoShieldedNote } from '@ckd/dash-network/evo-shielded-note.js';
 import { validateCoreP2pkhAddress, validatePlatformP2pkhAddress } from '@ckd/dash-network/public-address.js';
@@ -218,12 +219,13 @@ export async function fetchJson(
     requestController.abort();
   }, timeoutMs);
   try {
-    const response = await globalThis.fetch(url, { ...init, signal: requestController.signal });
+    const response = await globalThis.fetch(url, { ...init, cache: 'no-store', signal: requestController.signal });
     if (!response.ok) {
       const detail = (await response.text().catch(() => '')).slice(0, 300);
       throw new Error(`Network request failed with HTTP ${response.status}${detail ? ` — ${detail}` : ''}.`);
     }
-    return response.json() as Promise<unknown>;
+    // Keep timeout and caller cancellation active until the body is consumed.
+    return await response.json() as unknown;
   } catch (cause) {
     if (signal?.aborted) throw abortError();
     if (timedOut) throw new Error(`Network request timed out after ${Math.ceil(timeoutMs / 1_000)} seconds.`);
@@ -236,30 +238,18 @@ export async function fetchJson(
 
 export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
   readonly #sdkByNetworkAndPurpose = new Map<string, Promise<EvoSDK>>();
-  readonly #platformExplorerHeightByNetwork = new Map<RecoveryNetwork, Promise<number>>();
 
-  #platformExplorerHeight(network: RecoveryNetwork, signal?: AbortSignal): Promise<number> {
-    const existing = this.#platformExplorerHeightByNetwork.get(network);
-    if (existing !== undefined) return existing;
+  async #platformExplorerHeight(network: RecoveryNetwork, signal?: AbortSignal): Promise<number> {
     const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
-    const loading = (async (): Promise<number> => {
-      const status = record(await fetchJson(`${endpoint}/status`, signal), 'status');
-      const indexer = record(status.indexer, 'indexer status');
-      if (indexer.status !== 'synced') throw new Error('Platform Explorer index is not synchronized.');
-      const reportedNetwork = typeof status.network === 'string' ? status.network : '';
-      if (network === 'testnet' ? !/testnet/iu.test(reportedNetwork) : /testnet/iu.test(reportedNetwork)) {
-        throw new Error('Platform Explorer returned status for the wrong network.');
-      }
-      const api = record(status.api, 'API status');
-      return unsignedInteger(record(api.block, 'latest block').height, 'latest indexed height');
-    })();
-    this.#platformExplorerHeightByNetwork.set(network, loading);
-    void loading.catch(() => {
-      if (this.#platformExplorerHeightByNetwork.get(network) === loading) {
-        this.#platformExplorerHeightByNetwork.delete(network);
-      }
-    });
-    return loading;
+    const status = record(await fetchJson(`${endpoint}/status`, signal), 'status');
+    const indexer = record(status.indexer, 'indexer status');
+    if (indexer.status !== 'synced') throw new Error('Platform Explorer index is not synchronized.');
+    const reportedNetwork = typeof status.network === 'string' ? status.network : '';
+    if (network === 'testnet' ? !/testnet/iu.test(reportedNetwork) : /testnet/iu.test(reportedNetwork)) {
+      throw new Error('Platform Explorer returned status for the wrong network.');
+    }
+    const api = record(status.api, 'API status');
+    return unsignedInteger(record(api.block, 'latest block').height, 'latest indexed height');
   }
 
   #sdk(network: RecoveryNetwork, purpose: 'addresses' | 'identity' | 'shielded'): Promise<EvoSDK> {
@@ -542,14 +532,16 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     let incomingCount = 0;
     let outgoingCount = 0;
     let processed = 0;
-    let total = 1;
+    const expectedTransfers = unsignedInteger(info.totalTransfers, 'identity transfer count');
+    const integrity = new IdentityPageIntegrity('identity transfers', 'transfers', expectedTransfers);
+    const total = expectedTransfers;
     for (let pageNumber = 1; processed < total; pageNumber += 1) {
       if (pageNumber > PLATFORM_HISTORY_MAX_PAGES) throw new Error('Platform identity transfer history exceeded its safety ceiling.');
       const page = pageItems(await fetchJson(
         `${endpoint}/identity/${encodeURIComponent(identifier)}/transfers?page=${pageNumber}&limit=${PLATFORM_HISTORY_PAGE_SIZE}&order=asc`,
         signal,
       ), 'identity transfer page');
-      total = page.total;
+      integrity.accept(page.items, page.total, PLATFORM_HISTORY_PAGE_SIZE, Number.MAX_SAFE_INTEGER);
       for (const transfer of page.items) {
         const amount = BigInt(decimal(transfer.amount, 'identity transfer amount'));
         if (transfer.recipient === identifier) {

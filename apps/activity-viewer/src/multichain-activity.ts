@@ -1,3 +1,6 @@
+import { normalizeBitcoinAddress, normalizeEthereumAddress } from '../../discovery-scanner/src/public-address-multichain.js';
+import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/dash-network/private-material.js';
+import type { ActivityViewerView } from './view.js';
 import { MultiChainRecoveryNetworkService } from '../../discovery-scanner/src/network-service-multichain.js';
 import type { RecoveryHistory, RecoveryNetwork } from '../../discovery-scanner/src/types.js';
 
@@ -78,7 +81,7 @@ function resultCard(document: Document, result: AddressResult): HTMLElement {
     ['First seen', formatDate(result.history.firstSeen)],
     ['Last seen', formatDate(result.history.lastSeen)],
     ...(result.nonce === null ? [] : [['Account nonce', result.nonce.toLocaleString()] as const]),
-    ...(result.blockHeight === null ? [] : [['Queried block', result.blockHeight.toLocaleString()] as const]),
+    ...(result.blockHeight === null ? [] : [['Account query block height', result.blockHeight.toLocaleString()] as const]),
     ['History source', result.history.source],
   ];
   for (const [name, value] of rows) {
@@ -92,7 +95,10 @@ function resultCard(document: Document, result: AddressResult): HTMLElement {
   return card;
 }
 
-export function installMultiChainActivity(document: Document): void {
+export function installMultiChainActivity(
+  document: Document,
+  view: Pick<ActivityViewerView, 'canStartQuery' | 'isQueryRunning' | 'setExternalRunning'>,
+): void {
   const coin = required<HTMLSelectElement>(document, '#viewer-coin');
   const network = required<HTMLSelectElement>(document, '#viewer-network');
   const form = required<HTMLFormElement>(document, '#viewer-form');
@@ -101,7 +107,6 @@ export function installMultiChainActivity(document: Document): void {
   const inputLabel = required<HTMLLabelElement>(document, '#viewer-input-label');
   const inputHelp = required<HTMLElement>(document, '#viewer-input-help');
   const scanLabel = required<HTMLElement>(document, '#scan-button-label');
-  const scanButton = required<HTMLButtonElement>(document, '#scan-button');
   const cancelButton = required<HTMLButtonElement>(document, '#cancel-button');
   const clearButton = required<HTMLButtonElement>(document, '#clear-viewer');
   const status = required<HTMLElement>(document, '#viewer-status');
@@ -126,12 +131,13 @@ export function installMultiChainActivity(document: Document): void {
   const diagnosticProof = required<HTMLElement>(document, '#diagnostic-proof');
   const diagnosticDetail = required<HTMLElement>(document, '#diagnostic-detail');
   const service = new MultiChainRecoveryNetworkService();
-  let abort: AbortController | null = null;
+  let active: { controller: AbortController; cleared: boolean } | null = null;
 
   const externalCoin = (): ExternalCoin | null => coin.value === 'dash' ? null : coin.value as ExternalCoin;
   const queryMode = (): 'single' | 'batch' => document.querySelector('[data-query-mode="batch"].active') === null ? 'single' : 'batch';
 
   const configure = (): void => {
+    if (view.isQueryRunning()) return;
     const selected = externalCoin();
     if (selected === null) {
       detectionTabs.hidden = false;
@@ -158,18 +164,18 @@ export function installMultiChainActivity(document: Document): void {
     diagnosticMode.textContent = `${selected} · ${network.value}`;
   };
 
-  async function queryAddress(selected: ExternalCoin, address: string, selectedNetwork: RecoveryNetwork): Promise<AddressResult> {
-    const historyPromise = service.addressHistory(selected, selectedNetwork, address, abort?.signal);
+  async function queryAddress(selected: ExternalCoin, address: string, selectedNetwork: RecoveryNetwork, signal: AbortSignal): Promise<AddressResult> {
+    const historyPromise = service.addressHistory(selected, selectedNetwork, address, signal);
     if (selected === 'bitcoin') {
       const [history, entries] = await Promise.all([
         historyPromise,
-        service.utxoAddresses(selectedNetwork, [address], abort?.signal),
+        service.utxoAddresses(selectedNetwork, [address], signal),
       ]);
       return { coin: selected, address, balanceAtomic: BigInt(entries[0]!.balance), nonce: null, blockHeight: null, history };
     }
     const [history, accounts] = await Promise.all([
       historyPromise,
-      service.evmAccounts(selectedNetwork, [address], abort?.signal),
+      service.evmAccounts(selectedNetwork, [address], signal),
     ]);
     const account = accounts.entries[0]!;
     return {
@@ -187,28 +193,46 @@ export function installMultiChainActivity(document: Document): void {
     if (selected === null) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    if (abort !== null) return;
+    if (active !== null || !view.canStartQuery()) return;
     void (async () => {
       error.hidden = true;
       results.hidden = true;
       const selectedNetwork = network.value as RecoveryNetwork;
-      const values = (queryMode() === 'batch' ? batch.value : single.value)
-        .replaceAll('\r', '').split('\n').map((value) => value.trim()).filter(Boolean);
+      let values: string[];
+      try {
+        const input = queryMode() === 'batch' ? batch.value : single.value;
+        assertPublicBatchLookupInput(input);
+        values = input.replaceAll('\r', '').split('\n').map(value => value.trim()).filter(Boolean)
+          .map(value => selected === 'bitcoin' ? normalizeBitcoinAddress(value, selectedNetwork) : normalizeEthereumAddress(value));
+      } catch (cause) {
+        if (cause instanceof PrivateMaterialError) { single.value = ''; batch.value = ''; }
+        error.textContent = cause instanceof Error ? cause.message : 'Invalid public address input.';
+        error.hidden = false;
+        status.hidden = true;
+        return;
+      }
       if (values.length === 0) {
         error.textContent = `Enter a ${COINS[selected].label} public address.`;
         error.hidden = false;
         return;
       }
-      abort = new AbortController();
-      coin.disabled = true;
-      scanButton.disabled = true;
-      cancelButton.disabled = false;
+      const operation = { controller: new AbortController(), cleared: false };
+      active = operation;
+      const signal = operation.controller.signal;
+      view.setExternalRunning(true);
       status.textContent = `Loading ${values.length.toLocaleString()} ${COINS[selected].label} address${values.length === 1 ? '' : 'es'}…`;
       status.hidden = false;
       diagnosticDetail.textContent = 'Validating public addresses and loading current state plus confirmed lifetime history.';
       try {
         const loaded: AddressResult[] = [];
-        for (const value of [...new Set(values)]) loaded.push(await queryAddress(selected, value, selectedNetwork));
+        // Ethereum identity is the 20-byte address, independent of display casing.
+        const unique = [...new Map(values.map(value => [selected === 'ethereum' ? value.toLowerCase() : value, value])).values()];
+        for (const value of unique) {
+          if (signal.aborted) throw new DOMException('Query cancelled.', 'AbortError');
+          const result = await queryAddress(selected, value, selectedNetwork, signal);
+          if (signal.aborted) throw new DOMException('Query cancelled.', 'AbortError');
+          loaded.push(result);
+        }
         const metadata = COINS[selected];
         const balance = loaded.reduce((total, item) => total + item.balanceAtomic, 0n);
         const received = loaded.every(({ history }) => history.totalReceivedAtomic !== null)
@@ -238,34 +262,37 @@ export function installMultiChainActivity(document: Document): void {
         activity.replaceChildren(...loaded.map((item) => resultCard(document, item)));
         diagnosticSource.textContent = [...new Set(loaded.map(({ history }) => history.source))].join(' + ');
         diagnosticRequests.textContent = 'Bounded provider requests';
-        diagnosticProof.textContent = loaded[0]?.blockHeight === null ? 'Confirmed history' : `Block ${loaded[0]!.blockHeight!.toLocaleString()}`;
+        diagnosticProof.textContent = loaded[0]?.blockHeight === null ? 'Confirmed history' : `Account query heights ${loaded.map(item => item.blockHeight!.toString()).filter((height, index, all) => all.indexOf(height) === index).join(', ')}`;
         status.textContent = `${metadata.label} activity loaded for ${loaded.length.toLocaleString()} address${loaded.length === 1 ? '' : 'es'}.`;
         results.hidden = false;
       } catch (cause) {
-        if (abort?.signal.aborted === true) status.textContent = 'Query cancelled.';
+        if (operation.cleared) return;
+        if (signal.aborted) status.textContent = 'Query cancelled.';
         else {
           error.textContent = cause instanceof Error ? cause.message : String(cause);
           error.hidden = false;
           status.hidden = true;
         }
       } finally {
-        abort = null;
-        coin.disabled = false;
-        scanButton.disabled = false;
-        cancelButton.disabled = true;
+        active = null;
+        view.setExternalRunning(false);
       }
     })();
   }, true);
 
   cancelButton.addEventListener('click', (event) => {
-    if (externalCoin() === null) return;
+    if (active === null) return;
     event.stopImmediatePropagation();
-    abort?.abort();
+    active.controller.abort();
   }, true);
   clearButton.addEventListener('click', (event) => {
-    if (externalCoin() === null) return;
+    // Route by the operation owner, even if script changes the disabled Coin control.
+    if (active === null && (externalCoin() === null || view.isQueryRunning())) return;
     event.stopImmediatePropagation();
-    abort?.abort();
+    if (active !== null) {
+      active.cleared = true;
+      active.controller.abort();
+    }
     single.value = '';
     batch.value = '';
     results.hidden = true;

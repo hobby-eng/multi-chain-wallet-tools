@@ -23,6 +23,7 @@ describe('coin adapter extension contract', () => {
       'bitcoin-taproot',
       'ethereum',
       'dash-core',
+      'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',
       'dash-shielded',
@@ -57,6 +58,7 @@ describe('coin adapter extension contract', () => {
     ]);
     expect(COIN_FAMILIES.find(({ id }) => id === 'dash')?.adapters.map(({ variantLabel }) => variantLabel)).toEqual([
       'Core · BIP44',
+      'Legacy mobile Core',
       'Platform · DIP17 / DIP18',
       'Identity · DIP13',
       'Shielded · Orchard / ZIP-32',
@@ -70,14 +72,22 @@ describe('coin adapter extension contract', () => {
   });
 
   it('declares receive/change capability independently from protocol-specific branch controls', () => {
-    for (const id of ['bitcoin-legacy', 'bitcoin-nested-segwit', 'bitcoin-native-segwit', 'bitcoin-taproot', 'dash-core']) {
+    for (const id of ['bitcoin-legacy', 'bitcoin-nested-segwit', 'bitcoin-native-segwit', 'bitcoin-taproot', 'dash-core', 'dash-legacy-mobile']) {
       expect(getCoinAdapter(id).addressBranches).toEqual({ receive: 0, change: 1 });
       expect(getCoinAdapter(id).branchControl).toBeUndefined();
     }
     expect(getCoinAdapter('ethereum').addressBranches).toBeUndefined();
     expect(getCoinAdapter('ethereum').branchControl?.label).toBe('Address branch');
-    expect(getCoinAdapter('dash-platform').addressBranches).toBeUndefined();
-    expect(getCoinAdapter('dash-platform').branchControl?.label).toBe('Key class');
+    const platform = getCoinAdapter('dash-platform');
+    expect(platform.addressBranches).toMatchObject({ receive: 0, change: 1 });
+    expect(platform.branchControl).toBeUndefined();
+    for (const network of ['mainnet', 'testnet'] as const) {
+      const coinType = network === 'mainnet' ? 5 : 1;
+      for (const branch of [0, 1]) {
+        expect(platform.pathPreview({ network, account: 7, branch, start: 2, count: 1 }))
+          .toBe(`m/9'/${coinType}'/17'/7'/${branch}'/2`);
+      }
+    }
     expect(getCoinAdapter('dash-identity')).toMatchObject({
       accountControl: false,
       controlLabels: {
@@ -98,6 +108,7 @@ describe('coin adapter extension contract', () => {
   it('keeps the Dash Community registry explicitly Dash-only', () => {
     expect(DASH_COIN_ADAPTERS.map(({ id }) => id)).toEqual([
       'dash-core',
+      'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',
       'dash-shielded',

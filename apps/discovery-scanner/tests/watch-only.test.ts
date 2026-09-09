@@ -1,8 +1,10 @@
 import { encodePlatformP2pkh } from '@ckd/coins/dash/platform.js';
+import { deriveBitcoin } from '@ckd/coins/bitcoin/index.js';
 import { describe, expect, it, vi } from 'vitest';
 import { HDKey } from '@scure/bip32';
 import { createBase58check } from '@scure/base';
-import { bytesToHex, hash160, hexToBytes, sha256 } from '@ckd/core/crypto.js';
+import { bytesToHex, encodeP2pkh, hash160, hexToBytes, sha256 } from '@ckd/core/crypto.js';
+import { getDashNetwork } from '@ckd/core/networks.js';
 import { descriptorChecksum } from '@ckd/export/descriptor.js';
 import { BITCOIN_RECOVERY_ADAPTER } from '../src/coins/bitcoin/index.js';
 import { ETHEREUM_RECOVERY_ADAPTER } from '../src/coins/ethereum/index.js';
@@ -11,7 +13,7 @@ import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets
 import { SecretEgressGuard } from '../src/secret-guard.js';
 import { createRecoveryExport } from '../src/export.js';
 import type { RecoveryNetworkApi } from '../src/network-protocol.js';
-import type { RecoveryCoinAdapter, RecoveryScanContext } from '../src/types.js';
+import type { RecoveryCoinAdapter, RecoveryScanContext, RecoveryWatchOnlyScanConfig } from '../src/types.js';
 
 vi.mock('@ckd/dash-wasm/dash_shielded_wasm_bg.wasm', async () => {
   const { readFileSync } = await import('node:fs');
@@ -44,9 +46,9 @@ function context(overrides: Partial<RecoveryNetworkApi> = {}): RecoveryScanConte
     },
   };
 }
-async function scan(adapter: RecoveryCoinAdapter, raw: string, ctx: RecoveryScanContext) {
+async function scan(adapter: RecoveryCoinAdapter, raw: string, ctx: RecoveryScanContext, scanConfig: RecoveryWatchOnlyScanConfig = config) {
   const target = resolveWatchOnlyTargets(raw, [adapter])[0]!;
-  return adapter.scanWatchOnly!({ ...target.material, id: 'public-1', label: adapter.label }, config, ctx);
+  return adapter.scanWatchOnly!({ ...target.material, id: 'public-1', label: adapter.label }, scanConfig, ctx);
 }
 
 describe('automatic public-key discovery', () => {
@@ -60,6 +62,7 @@ describe('automatic public-key discovery', () => {
     expect(resolveWatchOnlyTargets(`ethereum-xpub:${account.publicExtendedKey}`, adapters).map(({ adapterId }) => adapterId)).toEqual(['ethereum']);
     expect(resolveWatchOnlyTargets(`ethereum-xpub:${account.publicExtendedKey}`, adapters)[0]?.network).toBeUndefined();
     expect(resolveWatchOnlyTargets(`dash-core-xpub:${account.publicExtendedKey}`, adapters).map(({ adapterId }) => adapterId)).toEqual(['dash']);
+    expect(resolveWatchOnlyTargets(`dash-coinjoin-xpub:${account.deriveChild(0).publicExtendedKey}`, adapters).map(({ adapterId }) => adapterId)).toEqual(['dash']);
     const body = `wpkh([12345678/84h/0h/0h]${account.publicExtendedKey}/0/*)`;
     expect(resolveWatchOnlyTargets(`${body}#${descriptorChecksum(body)}`, adapters).map(({ adapterId }) => adapterId)).toEqual(['bitcoin']);
     expect(resolveWatchOnlyTargets(`identity:${hash}`, adapters)[0]?.material.kind).toBe('identity');
@@ -99,6 +102,22 @@ describe('automatic public-key discovery', () => {
     expect(() => resolveWatchOnlyTargets(broken, adapters)).toThrow(/checksum/u);
     expect(() => resolveWatchOnlyTargets(HDKey.fromMasterSeed(new Uint8Array(32).fill(9)).publicExtendedKey, adapters)).toThrow(/master/u);
   });
+  it.each([
+    [0x049d7cb2, 'mainnet', 'Nested SegWit'], [0x04b24746, 'mainnet', 'Native SegWit'],
+    [0x044a5262, 'testnet', 'Nested SegWit'], [0x045f1cf6, 'testnet', 'Native SegWit'],
+  ] as const)('preserves prefixed SLIP132 metadata and scans its encoded network (%s)', async (version, network, family) => {
+    const encoded = slip132(account.publicExtendedKey, version);
+    const bare = resolveWatchOnlyTargets(encoded, adapters)[0]!;
+    const prefixed = resolveWatchOnlyTargets(`bitcoin-xpub:${encoded}`, adapters)[0]!;
+    expect(prefixed.network).toBe(network);
+    expect(prefixed.material).toEqual(bare.material);
+    expect(prefixed.material.detectionLabel).toContain(family);
+    const query = vi.fn(async (_network, addresses: string[]) => addresses.map(address => ({ address, balance: '0', transactionCount: 0 })));
+    await BITCOIN_RECOVERY_ADAPTER.scanWatchOnly!({ ...prefixed.material, id: 'encoded', label: 'encoded' },
+      { ...config, network: prefixed.network ?? 'mainnet' }, context({ utxoAddresses: query }));
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls.every(([queriedNetwork]) => queriedNetwork === network)).toBe(true);
+  });
   it('rejects secret material anywhere in a batch, including prefixed private payloads', () => {
     for (const secret of [account.privateExtendedKey, '11'.repeat(32), `public-key:${'11'.repeat(32)}`, 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about']) {
       expect(() => assertWatchOnlyBatchInput(`${publicKey}\n${secret}`)).toThrow(/Private/u);
@@ -132,6 +151,32 @@ describe('automatic public-key discovery', () => {
     expect(queries.join()).not.toContain(account.publicExtendedKey);
     expect(createRecoveryExport([result], 'json').text).not.toContain(account.publicExtendedKey);
     expect(() => ctx.sessionSecretGuard!.assertPublic(account.publicExtendedKey, 'export')).toThrow(/Blocked/u);
+  });
+  it('preserves descriptor child paths in funded findings and exports for every script family and branch', async () => {
+    const seed = new Uint8Array(32).fill(33);
+    for (const mode of ['legacy', 'nested-segwit', 'native-segwit', 'taproot'] as const) {
+      for (const branch of [0, 1]) {
+        const derived = deriveBitcoin(mode, { seed, network: 'mainnet', account: 0, branch, start: 17, count: 1 });
+        const expectedAddress = derived.rows[0]!.basic.find(({ key }) => key === 'address')!.value;
+        const result = await scan(BITCOIN_RECOVERY_ADAPTER, derived.watchOnly!.text, context({
+          utxoAddresses: async (_network, addresses) => addresses.map((address) => ({
+            address,
+            balance: address === expectedAddress ? '100' : '0',
+            transactionCount: address === expectedAddress ? 1 : 0,
+          })),
+        }), { ...config, minimumCount: 18 });
+        const expectedPath = `descriptor/${branch}/17`;
+        expect(result.sections[0]?.findings).toHaveLength(1);
+        expect(result.sections[0]?.findings[0]).toMatchObject({
+          title: expectedAddress,
+          fields: expect.arrayContaining([{ label: 'Relative derivation path', value: expectedPath, copyable: true }]),
+        });
+        for (const format of ['json', 'csv'] as const) {
+          expect(createRecoveryExport([result], format).text).toContain(expectedPath);
+        }
+      }
+    }
+    seed.fill(0);
   });
   it('allows an explicit Identity hash lookup and converts Core duffs and Platform credits correctly', async () => {
     const identity = { identities: [{ identifier: '123456789ABCDEFGHJKLMNPQRSTUV', balance: '100000000000', revision: '0' }], metadata: { height: '1', protocolVersion: 1, coreChainLockedHeight: 1, timeMs: '1' }, proofQueries: 1, dapiDurationsMs: [1] };
@@ -169,12 +214,12 @@ describe('automatic public-key discovery', () => {
 });
 
 
-it('derives Dash L2 payment addresses from a DIP17 key-class xpub and keeps credits intact', async () => {
-  const keyClass = HDKey.fromMasterSeed(new Uint8Array(32).fill(7)).derive("m/9'/5'/17'/0'/0'");
+it.each([0, 1])('derives Dash L2 payment addresses from DIP17 class %i xpub and keeps credits intact', async (classIndex) => {
+  const keyClass = HDKey.fromMasterSeed(new Uint8Array(32).fill(7)).derive(`m/9'/5'/17'/0'/${classIndex}'`);
   const childHash = hash160(keyClass.deriveChild(0).publicKey!);
   const address = encodePlatformP2pkh(childHash, 'dash');
   const publicXpub = keyClass.publicExtendedKey;
-  expect(resolveWatchOnlyTargets(publicXpub, adapters).find(({ adapterId }) => adapterId === 'dash')?.material.kind).toBe('dash-platform-xpub');
+  expect(() => resolveWatchOnlyTargets(publicXpub, [DASH_RECOVERY_ADAPTER])).toThrow(/does not encode its hardened ancestry/u);
   const queries: string[] = [];
   const ctx = context({ platformAddresses: async (_network, addresses) => {
     queries.push(...addresses);
@@ -186,4 +231,55 @@ it('derives Dash L2 payment addresses from a DIP17 key-class xpub and keeps cred
   expect(queries).toHaveLength(21);
   expect(queries.join()).not.toContain(publicXpub);
   expect(createRecoveryExport([result], 'json').text).not.toContain(publicXpub);
+});
+
+it('scans explicitly labelled Dash Core branch xpubs at relative child indices', async () => {
+  const branch = HDKey.fromMasterSeed(new Uint8Array(32).fill(10)).derive("m/44'/5'/0'/0");
+  const expectedHash = hash160(branch.deriveChild(0).publicKey!);
+  const expectedAddress = createBase58check(sha256).encode(new Uint8Array([0x4c, ...expectedHash]));
+  const queried: string[] = [];
+  const result = await scan(DASH_RECOVERY_ADAPTER, `dash-core-xpub:${branch.publicExtendedKey}`, context({
+    coreStatus: async () => ({ status: 'ok' }),
+    coreTip: async () => ({ resultSet: [{ height: 1 }] }),
+    coreAddressInfo: async (_network, addresses) => {
+      queried.push(...addresses);
+      return addresses.map((address) => ({ address, balance: '0', txCount: 0 }));
+    },
+  }));
+  expect(queried).toEqual([expectedAddress]);
+  expect(result.sections[0]?.description).toContain('branch xpub at depth 4');
+});
+
+it('scans explicitly labelled DIP9 branch xpubs without routing them to Platform', async () => {
+  const branch = HDKey.fromMasterSeed(new Uint8Array(32).fill(11)).derive("m/9'/5'/4'/0'/0");
+  const expectedHash = hash160(branch.deriveChild(0).publicKey!);
+  const expectedAddress = createBase58check(sha256).encode(new Uint8Array([0x4c, ...expectedHash]));
+  const queried: string[] = [];
+  const result = await scan(DASH_RECOVERY_ADAPTER, `dash-coinjoin-xpub:${branch.publicExtendedKey}`, context({
+    coreStatus: async () => ({ status: 'ok' }),
+    coreTip: async () => ({ resultSet: [{ height: 1 }] }),
+    coreAddressInfo: async (_network, addresses) => {
+      queried.push(...addresses);
+      return addresses.map((address) => ({ address, balance: '0', txCount: 0 }));
+    },
+  }));
+  expect(queried).toEqual([expectedAddress]);
+  expect(result.sections[0]).toMatchObject({ id: 'coinjoin', title: 'Dash Mobile CoinJoin · DIP9 watch-only addresses' });
+});
+
+it('applies the same DIP9 branch scan to a testnet tpub', async () => {
+  const network = getDashNetwork('testnet');
+  const branch = HDKey.fromMasterSeed(new Uint8Array(32).fill(12), network.versions).derive("m/9'/1'/4'/0'/0");
+  const expectedAddress = encodeP2pkh(hash160(branch.deriveChild(0).publicKey!), network.p2pkh);
+  const queried: string[] = [];
+  await scan(DASH_RECOVERY_ADAPTER, `dash-coinjoin-xpub:${branch.publicExtendedKey}`, context({
+    coreStatus: async () => ({ status: 'ok' }),
+    coreTip: async () => ({ resultSet: [{ height: 1 }] }),
+    coreAddressInfo: async (_network, addresses) => {
+      queried.push(...addresses);
+      return addresses.map((address) => ({ address, balance: '0', txCount: 0 }));
+    },
+  }), { ...config, network: 'testnet' });
+  expect(branch.publicExtendedKey.startsWith('tpub')).toBe(true);
+  expect(queried).toEqual([expectedAddress]);
 });
