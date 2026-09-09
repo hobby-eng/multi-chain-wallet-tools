@@ -459,7 +459,7 @@ describe('streamed Core recovery scan', () => {
     }
   });
 
-  it('derives opt-in Dash transparent recovery families without transmitting secret material', async () => {
+  it.each([0, 7])('derives opt-in Dash transparent recovery families for account %i without transmitting secret material', async (account) => {
     const seed = mnemonicToSeed(MNEMONIC);
     const guard = new SecretEgressGuard();
     guard.registerString('mnemonic', MNEMONIC);
@@ -480,7 +480,7 @@ describe('streamed Core recovery scan', () => {
     });
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
     const config: RecoveryScanConfig = {
-      network: 'testnet', account: 0, scanCore: true,
+      network: 'testnet', account, scanCore: true,
       scanPlatformAddresses: false, scanPlatformIdentities: false,
       coreReceiveCount: 1, coreChangeCount: 0, platformAddressCount: 0,
       scanLegacyCore: true, legacyCoreCount: 1,
@@ -501,10 +501,10 @@ describe('streamed Core recovery scan', () => {
         ...providerCollateral.findings,
       ].map((finding) => finding.fields.find(({ label }) => label === 'Derivation path')?.value);
       expect(paths).toEqual(expect.arrayContaining([
-        "m/9'/1'/4'/0'/0/0",
-        "m/9'/1'/4'/0'/1/0",
-        "m/0'/0/0",
-        "m/0'/1/0",
+        `m/9'/1'/4'/${account}'/0/0`,
+        `m/9'/1'/4'/${account}'/1/0`,
+        `m/${account}'/0/0`,
+        `m/${account}'/1/0`,
         "m/9'/1'/3'/0'/0",
       ]));
       expect(requestedAddresses).toHaveLength(105);
