@@ -30,10 +30,13 @@ describe('user-visible derivation count', () => {
   it('exposes the optional change branch only for adapters that declare it', () => {
     const bitcoin = readControls(getCoinAdapter('bitcoin-taproot'), controls('20', '0', true));
     const dash = readControls(getCoinAdapter('dash-core'), controls('20', '0', true));
+    const platform = readControls(getCoinAdapter('dash-platform'), controls('20', '0', true, '7'));
     const ethereum = readControls(getCoinAdapter('ethereum'), controls('20', '0', true, '1'));
 
     expect(bitcoin).toMatchObject({ branch: 0, includeChange: true });
     expect(dash).toMatchObject({ branch: 0, includeChange: true });
+    expect(platform).toMatchObject({ branch: 0, includeChange: true });
+    expect(getCoinAdapter('dash-platform').branchControl).toBeUndefined();
     expect(ethereum).toMatchObject({ branch: 1, includeChange: false });
   });
 });

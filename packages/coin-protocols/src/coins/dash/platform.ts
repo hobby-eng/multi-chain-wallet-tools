@@ -89,7 +89,7 @@ export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult
       summary,
       rows,
       notices: [
-        'Platform addresses are not Dash Core addresses. DIP17 uses a hardened key-class level and a non-hardened leaf index; it has no BIP44 change level.',
+        "Platform addresses are not Dash Core addresses. DIP17 uses a hardened key-class level and a non-hardened leaf index; receive uses class 0' and optional internal/change addresses use class 1'. These are separate hardened classes, not a BIP44 change level.",
       ],
     };
   } finally {
