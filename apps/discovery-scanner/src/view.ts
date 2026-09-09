@@ -1,3 +1,4 @@
+import { DIP17_PAYMENT_CHAINS } from '@ckd/coins/dash/platform-paths.js';
 import { historyFields } from './history.js';
 import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from './watch-only.js';
 import type { BUILD_INFO } from '@ckd/build-info';
@@ -731,7 +732,7 @@ export function createDiscoveryScannerView(
         const platform = scanPlatformAddressesInput.checked ? estimateInteger(platformCountInput.value, 0) : 0;
         const coreLike = core + legacyCore + coinJoin + providerCollateral;
         const coreBatches = Math.ceil(coreLike / RECOVERY_CORE_ADDRESS_BATCH);
-        const platformBatches = Math.ceil(platform / RECOVERY_PLATFORM_ADDRESS_BATCH);
+        const platformBatches = DIP17_PAYMENT_CHAINS.length * Math.ceil(platform / RECOVERY_PLATFORM_ADDRESS_BATCH);
         const identities = scanPlatformIdentitiesInput.checked ? estimateInteger(identityLimitInput.value, 1) : 0;
         const requests = estimateConcurrency(requestConcurrencyInput.value);
         const totalBatches = coreBatches + platformBatches;

@@ -1,3 +1,4 @@
+import { DIP17_PAYMENT_CHAINS } from '@ckd/coins/dash/platform-paths.js';
 import { dashPlatformHistory } from './history.js';
 import { rootFromSeed, requirePublic } from '@ckd/core/bip32.js';
 import { bytesToHex, hash160, wipe } from '@ckd/core/crypto.js';
@@ -80,7 +81,6 @@ export async function scanDashPlatformAddresses(
   let totalBalance = 0n;
   let proofHeight = 0n;
   let protocolVersion = 0;
-  let target = config.platformAddressCount;
   let scanned = 0;
   let usedCount = 0;
   let fundedCount = 0;
@@ -90,124 +90,133 @@ export async function scanDashPlatformAddresses(
   let gapTruncated = false;
   const network = getDashNetwork(config.network);
   const root = rootFromSeed(seed, network.versions);
-  const accountPath = `m/9'/${network.coinType}'/17'/${config.account}'/0'`;
-  const account = root.derive(accountPath);
   try {
-    for (let offset = 0; offset < target;) {
-      if (signal.aborted) throw new DOMException('Platform address scan cancelled.', 'AbortError');
-      const chunk: DerivedPlatformAddress[] = [];
-      const end = Math.min(offset + DAPI_BATCH, target);
-      for (let index = offset; index < end; index += 1) {
-        const child = account.deriveChild(index);
-        const path = `${accountPath}/${index}`;
-        const publicKey = requirePublic(child, path);
-        const publicKeyHash = hash160(publicKey);
-        const publicKeyHashHex = bytesToHex(publicKeyHash);
-        chunk.push({
-          address: encodePlatformP2pkh(publicKeyHash, network.platformHrp),
-          path,
-          account: config.account,
-          index,
-          publicKeyHash: publicKeyHashHex,
-          // Evo SDK getManyWithProof() keys its result Map by the canonical
-          // internal Platform address payload, not by the Bech32m display text.
-          storageKey: `00${publicKeyHashHex}`,
-        });
-        wipe(publicKey, publicKeyHash);
-        child.wipePrivateData();
-      }
-      const publicAddresses = chunk.map(({ address }) => address);
-      const response = validatePlatformAddressBatch(await client.addresses(publicAddresses, signal));
-      proofHeight = proofHeight > response.height ? proofHeight : response.height;
-      protocolVersion = Math.max(protocolVersion, response.protocolVersion);
-      const displayed: { derived: DerivedPlatformAddress; info: PlatformInfo }[] = [];
-      for (const derived of chunk) {
-        const info = response.data.get(derived.storageKey);
-        if (info === undefined || info === null) continue;
-        totalBalance += info.balance;
-        const used = info.balance > 0n || info.nonce > 0n;
-        if (!used) continue;
-        const extension = extendAddressTarget(target, derived.index);
-        target = extension.target;
-        gapTruncated ||= extension.truncated;
-        usedCount += 1;
-        if (info.balance > 0n) fundedCount += 1;
-        if (info.balance === 0n && !config.includeUsedZeroBalance) continue;
-        displayed.push({ derived, info });
-      }
-      const histories = await Promise.all(displayed.map(async ({ derived, info }) => {
-        try {
-          return validatePlatformHistory(await client.addressHistory(derived.address, signal), derived.address, info.balance);
-        } catch (cause) {
-          if (signal.aborted) throw cause;
-          historyDetailFailures += 1;
-          return null;
+    for (const [chainIndex, { keyClass, label: chainLabel }] of DIP17_PAYMENT_CHAINS.entries()) {
+      // Each hardened class has its own minimum and post-use gap.
+      let target = config.platformAddressCount;
+      const scannedBeforeChain = scanned;
+      const accountPath = `m/9'/${network.coinType}'/17'/${config.account}'/${keyClass}'`;
+      const account = root.derive(accountPath);
+      try {
+        for (let offset = 0; offset < target;) {
+          if (signal.aborted) throw new DOMException('Platform address scan cancelled.', 'AbortError');
+          const chunk: DerivedPlatformAddress[] = [];
+          const end = Math.min(offset + DAPI_BATCH, target);
+          for (let index = offset; index < end; index += 1) {
+            const child = account.deriveChild(index);
+            const path = `${accountPath}/${index}`;
+            const publicKey = requirePublic(child, path);
+            const publicKeyHash = hash160(publicKey);
+            const publicKeyHashHex = bytesToHex(publicKeyHash);
+            chunk.push({
+              address: encodePlatformP2pkh(publicKeyHash, network.platformHrp),
+              path,
+              account: config.account,
+              index,
+              publicKeyHash: publicKeyHashHex,
+              // Evo SDK getManyWithProof() keys its result Map by the canonical
+              // internal Platform address payload, not by the Bech32m display text.
+              storageKey: `00${publicKeyHashHex}`,
+            });
+            wipe(publicKey, publicKeyHash);
+            child.wipePrivateData();
+          }
+          const publicAddresses = chunk.map(({ address }) => address);
+          const response = validatePlatformAddressBatch(await client.addresses(publicAddresses, signal));
+          proofHeight = proofHeight > response.height ? proofHeight : response.height;
+          protocolVersion = Math.max(protocolVersion, response.protocolVersion);
+          const displayed: { derived: DerivedPlatformAddress; info: PlatformInfo }[] = [];
+          for (const derived of chunk) {
+            const info = response.data.get(derived.storageKey);
+            if (info === undefined || info === null) continue;
+            totalBalance += info.balance;
+            const used = info.balance > 0n || info.nonce > 0n;
+            if (!used) continue;
+            const extension = extendAddressTarget(target, derived.index);
+            target = extension.target;
+            gapTruncated ||= extension.truncated;
+            usedCount += 1;
+            if (info.balance > 0n) fundedCount += 1;
+            if (info.balance === 0n && !config.includeUsedZeroBalance) continue;
+            displayed.push({ derived, info });
+          }
+          const histories = await Promise.all(displayed.map(async ({ derived, info }) => {
+            try {
+              return validatePlatformHistory(await client.addressHistory(derived.address, signal), derived.address, info.balance);
+            } catch (cause) {
+              if (signal.aborted) throw cause;
+              historyDetailFailures += 1;
+              return null;
+            }
+          }));
+          for (let displayedIndex = 0; displayedIndex < displayed.length; displayedIndex += 1) {
+            const { derived, info } = displayed[displayedIndex]!;
+            const history = histories[displayedIndex] ?? null;
+            if (history !== null) {
+              historyDetails += 1;
+              historyIndexedHeight = Math.max(historyIndexedHeight, history.indexedHeight);
+            }
+            const finding: RecoveryFinding = {
+              id: `platform:${keyClass}:${derived.index}`,
+              title: derived.address,
+              subtitle: `Platform ${chainLabel.toLowerCase()} address #${derived.index}`,
+              balanceAtomic: info.balance,
+              balanceLabel: formatDashFromCredits(info.balance),
+              ...(history === null ? {} : { history: dashPlatformHistory(history) }),
+              fields: [
+                { label: 'DIP17 derivation path', value: derived.path, copyable: true },
+                { label: 'Branch', value: `${keyClass}' · ${chainLabel.toLowerCase()}` },
+                { label: 'Address index', value: String(derived.index) },
+                { label: 'Outgoing nonce', value: info.nonce.toString() },
+                ...(history === null ? [] : [
+                  { label: 'Transactions reported', value: String(history.transactionCount) },
+                  { label: 'Incoming credit events', value: String(history.incomingCount) },
+                  { label: 'Outgoing credit events', value: String(history.outgoingCount) },
+                  { label: 'Lifetime received', value: formatDashFromCredits(history.totalReceived) },
+                  { label: 'Lifetime sent', value: formatDashFromCredits(history.totalSent) },
+                  ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
+                  ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
+                ]),
+                { label: 'Public-key hash', value: derived.publicKeyHash, copyable: true },
+              ],
+            };
+            findings.push(finding);
+            onFinding(finding);
+          }
+          scanned += chunk.length;
+          offset = end;
+          onProgress({
+            inputId,
+            section: 'platform',
+            message: `Proof-checked ${scanned.toLocaleString()} Platform addresses · ${chainLabel} · maintaining an independent ${ADDRESS_DISCOVERY_GAP}-address empty gap`,
+            completed: scanned,
+            total: scannedBeforeChain + target + (DIP17_PAYMENT_CHAINS.length - chainIndex - 1) * config.platformAddressCount,
+          });
         }
-      }));
-      for (let displayedIndex = 0; displayedIndex < displayed.length; displayedIndex += 1) {
-        const { derived, info } = displayed[displayedIndex]!;
-        const history = histories[displayedIndex] ?? null;
-        if (history !== null) {
-          historyDetails += 1;
-          historyIndexedHeight = Math.max(historyIndexedHeight, history.indexedHeight);
-        }
-        const finding: RecoveryFinding = {
-          id: `platform:${derived.index}`,
-          title: derived.address,
-          subtitle: `Platform payment address #${derived.index}`,
-          balanceAtomic: info.balance,
-          balanceLabel: formatDashFromCredits(info.balance),
-          ...(history === null ? {} : { history: dashPlatformHistory(history) }),
-          fields: [
-            { label: 'DIP17 derivation path', value: derived.path, copyable: true },
-            { label: 'Address index', value: String(derived.index) },
-            { label: 'Outgoing nonce', value: info.nonce.toString() },
-            ...(history === null ? [] : [
-              { label: 'Transactions reported', value: String(history.transactionCount) },
-              { label: 'Incoming credit events', value: String(history.incomingCount) },
-              { label: 'Outgoing credit events', value: String(history.outgoingCount) },
-              { label: 'Lifetime received', value: formatDashFromCredits(history.totalReceived) },
-              { label: 'Lifetime sent', value: formatDashFromCredits(history.totalSent) },
-              ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
-              ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
-            ]),
-            { label: 'Public-key hash', value: derived.publicKeyHash, copyable: true },
-          ],
-        };
-        findings.push(finding);
-        onFinding(finding);
+      } finally {
+        account.wipePrivateData();
       }
-      scanned += chunk.length;
-      offset = end;
-      onProgress({
-        inputId,
-        section: 'platform',
-        message: `Proof-checked ${scanned.toLocaleString()} of ${target.toLocaleString()} Platform addresses · maintaining a ${ADDRESS_DISCOVERY_GAP}-address empty gap`,
-        completed: scanned,
-        total: target,
-      });
     }
   } finally {
-    account.wipePrivateData();
     root.wipePrivateData();
   }
 
   return {
     id: 'platform',
     title: 'Dash Platform addresses',
-    description: 'DIP17 payment addresses are derived locally and queried through proof-verified Platform DAPI batches.',
-    state: 'complete',
+    description: "DIP17 receive (0') and internal/change (1') addresses are derived locally and queried through proof-verified Platform DAPI batches.",
+    state: gapTruncated ? 'partial' : 'complete',
     metrics: [
       { label: 'Address balance', value: formatDashFromCredits(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
       { label: 'Funded addresses', value: String(fundedCount) },
       { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
-      { label: 'Addresses checked', value: `${scanned} · minimum ${config.platformAddressCount}` },
+      { label: 'Addresses checked', value: `${scanned} · minimum ${config.platformAddressCount} per receive/internal chain` },
       { label: 'History details', value: `${historyDetails}/${findings.length} enriched` },
     ],
     findings,
     scanned,
     source: 'Dash Platform DAPI · trusted quorum discovery; synchronized Platform Explorer · auxiliary history',
-    proof: `Balance proof verified at Platform height ${proofHeight} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap${historyIndexedHeight > 0 ? ` · history indexed through height ${historyIndexedHeight}` : ''}`,
+    proof: `Balance proof verified at Platform height ${proofHeight} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap per receive/internal chain${historyIndexedHeight > 0 ? ` · history indexed through height ${historyIndexedHeight}` : ''}`,
     ...((gapTruncated || historyDetailFailures > 0) ? { warning: [
       ...(gapTruncated ? ['A used address was found too close to the end of the BIP32 index space to complete the 20-address safety gap.'] : []),
       ...(historyDetailFailures > 0 ? [`Historical details were unavailable or failed the DAPI balance cross-check for ${historyDetailFailures} displayed address${historyDetailFailures === 1 ? '' : 'es'}; proof-verified balances remain valid.`] : []),
