@@ -119,7 +119,7 @@
         <div id="seed-coverage">
         <div class="component-selection" role="group" aria-label="Dash components to scan" data-dash-coverage>
           <label class="component-option"><input id="scan-core" type="checkbox" checked><span><strong>Dash Core · L1</strong><small>BIP44 receive and change addresses</small></span></label>
-          <label class="component-option"><input id="scan-platform-addresses" type="checkbox" checked><span><strong>Platform addresses</strong><small>DIP17 payment addresses</small></span></label>
+          <label class="component-option"><input id="scan-platform-addresses" type="checkbox" checked><span><strong>Platform addresses</strong><small>DIP17 receive + internal/change</small></span></label>
           <label class="component-option"><input id="scan-platform-identities" type="checkbox" checked><span><strong>Platform identities</strong><small>DIP13 identity discovery</small></span></label>
           <label class="component-option"><input id="scan-shielded" type="checkbox" checked><span><strong>Orchard pool</strong><small>Account-wide encrypted notes</small></span></label>
         </div>
@@ -149,7 +149,7 @@
           <div hidden><label for="identity-topup-identity-count">Identity-bound top-up identities</label><input id="identity-topup-identity-count" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
           <div hidden><label for="identity-topup-count">Top-ups per identity</label><input id="identity-topup-count" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
           <div data-component-settings="provider-collateral"><label for="provider-collateral-count">Masternode holdings minimum</label><input id="provider-collateral-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
-          <div data-component-settings="platform"><label for="platform-address-count">Platform address minimum</label><input id="platform-address-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
+          <div data-component-settings="platform"><label for="platform-address-count">Platform minimum per receive/change chain</label><input id="platform-address-count" type="number" value="100" min="0" step="1" inputmode="numeric"></div>
           <div data-component-settings="identity"><label for="identity-start-index">Identity start index</label><input id="identity-start-index" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
           <div data-component-settings="identity"><label for="identity-gap-limit">Identity empty-gap limit</label><input id="identity-gap-limit" type="number" value="20" min="1" step="1" inputmode="numeric"></div>
           <div data-component-settings="identity"><label for="identity-scan-limit">Identity maximum attempts</label><input id="identity-scan-limit" type="number" value="100" min="1" step="1" inputmode="numeric"></div>

@@ -95,6 +95,7 @@ export interface RecoveryScanConfig {
   scanProviderCollateral: boolean;
   providerCollateralCount: number;
   scanPlatformAddresses: boolean;
+  /** Minimum per DIP17 receive/internal hardened class, each with its own discovery gap. */
   platformAddressCount: number;
   scanPlatformIdentities: boolean;
   identityStartIndex: number;
