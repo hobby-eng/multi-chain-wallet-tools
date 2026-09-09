@@ -78,8 +78,16 @@ describe('coin adapter extension contract', () => {
     }
     expect(getCoinAdapter('ethereum').addressBranches).toBeUndefined();
     expect(getCoinAdapter('ethereum').branchControl?.label).toBe('Address branch');
-    expect(getCoinAdapter('dash-platform').addressBranches).toBeUndefined();
-    expect(getCoinAdapter('dash-platform').branchControl?.label).toBe('Key class');
+    const platform = getCoinAdapter('dash-platform');
+    expect(platform.addressBranches).toMatchObject({ receive: 0, change: 1 });
+    expect(platform.branchControl).toBeUndefined();
+    for (const network of ['mainnet', 'testnet'] as const) {
+      const coinType = network === 'mainnet' ? 5 : 1;
+      for (const branch of [0, 1]) {
+        expect(platform.pathPreview({ network, account: 7, branch, start: 2, count: 1 }))
+          .toBe(`m/9'/${coinType}'/17'/7'/${branch}'/2`);
+      }
+    }
     expect(getCoinAdapter('dash-identity')).toMatchObject({
       accountControl: false,
       controlLabels: {
