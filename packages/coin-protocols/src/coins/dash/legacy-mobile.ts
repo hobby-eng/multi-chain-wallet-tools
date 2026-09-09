@@ -4,14 +4,15 @@ import { getDashNetwork } from '@ckd/core/networks.js';
 import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
 import { bip32SummaryFields } from '../../bip32-summary.js';
 
-/** Historical Dash Wallet/DashSync mobile path: m/0'/branch/index. */
+/** Historical Dash Wallet/DashSync mobile path: m/account'/branch/index. */
 export function deriveDashLegacyMobile(options: Bip32BatchOptions): DerivationResult {
   const network = getDashNetwork(options.network);
+  assertIndex(options.account, 'Account');
   assertIndex(options.branch, 'Branch', 1);
   assertBatch(options.start, options.count);
 
   const root = rootFromSeed(options.seed, network.versions);
-  const accountPath = "m/0'";
+  const accountPath = `m/${options.account}'`;
   const branchPath = `${accountPath}/${options.branch}`;
   const account = root.derive(accountPath);
   const branch = root.derive(branchPath);
@@ -63,7 +64,7 @@ export function deriveDashLegacyMobile(options: Bip32BatchOptions): DerivationRe
       summary,
       rows,
       notices: [
-        "Historical Dash Wallet/DashSync mobile path m/0'/branch/index. Use it only for recovery of wallets that predate the BIP44 mobile default.",
+        "Historical Dash Wallet/DashSync mobile path m/account'/branch/index. Account 0 is the historical default. Use it only for recovery of wallets that predate the BIP44 mobile default.",
       ],
     };
   } finally {

@@ -38,12 +38,11 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     label: 'Dash Core · legacy mobile',
     variantLabel: 'Legacy mobile Core',
     networkControl: true,
-    accountControl: false,
     addressBranches: BIP44_ADDRESS_BRANCHES,
     defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: TRANSPARENT_ROLES,
-    pathPreview: ({ branch, start, count }) =>
-      `m/0'/${branch}/${indexRange(start, count)}`,
+    pathPreview: ({ account, branch, start, count }) =>
+      `m/${account}'/${branch}/${indexRange(start, count)}`,
   },
   {
     id: 'dash-platform',

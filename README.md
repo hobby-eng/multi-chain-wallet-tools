@@ -86,7 +86,7 @@ Official release checksums refer to artifacts produced by the repository's pinne
 | Bitcoin Taproot | `m/86'/0'/0'/0/i` | BIP86 P2TR |
 | Ethereum EOA | `m/44'/60'/0'/0/i` | EIP-55 address |
 | Dash Core | `m/44'/5'/0'/0/i` | P2PKH |
-| Dash mobile legacy Core | `m/0'/0/i` | P2PKH |
+| Dash mobile legacy Core | `m/account'/0/i` | P2PKH |
 | Dash Mobile CoinJoin · DIP9 | `m/9'/5'/4'/0'/0/i` | P2PKH |
 | Dash Identity registration funding-key comparison | `m/9'/5'/5'/1'/i` | Linked asset-lock detail for an Identity already discovered |
 | Dash provider holdings | `m/9'/5'/3'/0'/i` | P2PKH |
