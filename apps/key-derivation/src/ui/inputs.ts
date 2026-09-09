@@ -23,6 +23,7 @@ export interface DerivationControls {
   branchInput: HTMLInputElement;
   branchSelect: HTMLSelectElement;
   changeField: HTMLElement;
+  changeHelp: HTMLElement;
   includeChange: HTMLInputElement;
   coinJoinField: HTMLElement;
   includeCoinJoin: HTMLInputElement;
@@ -134,6 +135,7 @@ export function configureControls(
     }
   }
   controls.changeField.hidden = adapter.addressBranches === undefined;
+  controls.changeHelp.textContent = adapter.addressBranches?.help ?? 'Uses the standard internal branch /1 and shows it in a separate result tab.';
   controls.includeChange.checked = adapter.addressBranches !== undefined && values.includeChange;
   controls.coinJoinField.hidden = adapter.coinJoin === undefined;
   controls.includeCoinJoin.checked = adapter.coinJoin !== undefined && values.includeCoinJoin;
