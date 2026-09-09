@@ -847,7 +847,7 @@ describe('proof-verified Platform recovery scan', () => {
       const section = await scanDashPlatformAddresses(
         'seed-1', seed, config, client, new AbortController().signal, () => {}, () => {},
       );
-      expect(queried).toHaveLength(1);
+      expect(queried).toHaveLength(2);
       expect(queried[0]?.[0]).toBe('dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs');
       expect(queried[0]).toHaveLength(100);
       expect(section.findings).toHaveLength(1);

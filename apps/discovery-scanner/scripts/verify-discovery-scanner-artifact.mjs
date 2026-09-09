@@ -163,7 +163,7 @@ for (const match of vaultTemplate.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
 for (const marker of [
   'Wallet Discovery Scanner', 'Opaque-origin Secret Vault', 'Vault network disabled by CSP',
   'This utility has not been independently audited by a cryptography specialist.',
-  'Select the Dash components and address ranges you want to check.', 'Core receive minimum', 'Core change minimum', 'Platform address minimum',
+  'Select the Dash components and address ranges you want to check.', 'Core receive minimum', 'Core change minimum', 'Platform minimum per receive/change chain',
   'Identity empty-gap limit', 'Platform identities', 'Account-wide encrypted notes', 'spent or previously used resources with zero balance',
   'CoinJoin', 'Legacy mobile per branch', 'Discovered Identity funding details', 'Identity-bound top-up identities',
   'Masternode holdings minimum', 'Masternode holdings', 'Rare DashSync/dashj collateral addresses.',

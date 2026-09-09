@@ -65,7 +65,7 @@ function csvCell(value: string): string {
 const CSV_FIELD_COLUMNS = [
   ['Scan family', 'scan_family', ['core', 'legacyCore', 'coinjoin', 'providerCollateral']],
   ['Derivation path', 'derivation_path', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity', 'shielded']],
-  ['Branch', 'branch', ['core', 'legacyCore', 'coinjoin', 'providerCollateral']],
+  ['Branch', 'branch', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform']],
   ['Address index', 'address_index', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform']],
   ['Transactions reported', 'transactions_reported', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity']],
   ['Incoming credit events', 'incoming_credit_events', ['platform', 'identity']],

@@ -214,8 +214,8 @@ describe('automatic public-key discovery', () => {
 });
 
 
-it('derives Dash L2 payment addresses from a DIP17 key-class xpub and keeps credits intact', async () => {
-  const keyClass = HDKey.fromMasterSeed(new Uint8Array(32).fill(7)).derive("m/9'/5'/17'/0'/0'");
+it.each([0, 1])('derives Dash L2 payment addresses from DIP17 class %i xpub and keeps credits intact', async (classIndex) => {
+  const keyClass = HDKey.fromMasterSeed(new Uint8Array(32).fill(7)).derive(`m/9'/5'/17'/0'/${classIndex}'`);
   const childHash = hash160(keyClass.deriveChild(0).publicKey!);
   const address = encodePlatformP2pkh(childHash, 'dash');
   const publicXpub = keyClass.publicExtendedKey;

@@ -90,7 +90,7 @@ Official release checksums refer to artifacts produced by the repository's pinne
 | Dash Mobile CoinJoin · DIP9 | `m/9'/5'/4'/0'/0/i` | P2PKH |
 | Dash Identity registration funding-key comparison | `m/9'/5'/5'/1'/i` | Linked asset-lock detail for an Identity already discovered |
 | Dash provider holdings | `m/9'/5'/3'/0'/i` | P2PKH |
-| Dash Platform | `m/9'/5'/17'/0'/0'/i` | DIP17/DIP18 address |
+| Dash Platform | `m/9'/5'/17'/0'/0'/i` and `m/9'/5'/17'/0'/1'/i` | DIP17/DIP18 receive and internal/change |
 | Dash Identity | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 four-key registration profile |
 | Dash Orchard | `m/32'/5'/account'` + diversifier index | Shielded address and viewing/spending material |
 
