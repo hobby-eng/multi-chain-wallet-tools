@@ -39,4 +39,16 @@ describe('user-visible derivation count', () => {
     expect(getCoinAdapter('dash-platform').branchControl).toBeUndefined();
     expect(ethereum).toMatchObject({ branch: 1, includeChange: false });
   });
+  it('reads a legacy account and keeps receive/change controls available', () => {
+    const form = controls('3', '2', true);
+    form.account.value = '7';
+    const adapter = getCoinAdapter('dash-legacy-mobile');
+    const input = readControls(adapter, form);
+    expect(input).toMatchObject({ account: 7, start: 2, count: 3, includeChange: true });
+    expect(adapter.pathPreview(input)).toBe("m/7'/0/2…4");
+    expect(adapter.pathPreview({ ...input, branch: 1 })).toBe("m/7'/1/2…4");
+  });
+
+
+
 });
