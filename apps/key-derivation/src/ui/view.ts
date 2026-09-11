@@ -96,6 +96,9 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     privateDownload: required<HTMLButtonElement>('#download-private-descriptors'),
   };
   const descriptorPanel = required<HTMLElement>('#account-descriptor-export');
+  required<HTMLSelectElement>('#account-export-format').addEventListener('change', () => {
+    required<HTMLElement>('#account-export-range-options').hidden = required<HTMLSelectElement>('#account-export-format').value !== 'core';
+  });
   const descriptorDialog = required<HTMLDialogElement>('#account-export-dialog');
   required<HTMLButtonElement>('#open-account-export').addEventListener('click', () => descriptorDialog.showModal());
   required<HTMLButtonElement>('#close-account-export').addEventListener('click', () => descriptorDialog.close());
