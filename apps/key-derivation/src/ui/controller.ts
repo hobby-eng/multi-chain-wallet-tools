@@ -1,3 +1,4 @@
+import { coreImportCommand } from './descriptor-export.js';
 import type { CoinAdapter } from '@ckd/coins/registry.js';
 import type { DerivationResult, DisplayMode, ResultField } from '@ckd/core/types.js';
 import {
@@ -851,9 +852,21 @@ for (const [action, button] of Object.entries(descriptorButtons)) {
       showError('Reveal sensitive values before exporting private descriptors.');
       return;
     }
-    const text = privateExport ? bundle.privateText : bundle.publicText;
+    const descriptors = privateExport ? bundle.privateText : bundle.publicText;
+    const coreFormat = document.querySelector<HTMLSelectElement>('#account-export-format')!.value === 'core';
+    let text = descriptors;
+    try {
+      if (coreFormat) {
+        const value = document.querySelector<HTMLInputElement>('#account-export-range')!.value.trim();
+        if (!/^\d+$/.test(value)) throw new Error('Enter a valid last address index.');
+        text = coreImportCommand(descriptors, Number(value));
+      }
+    } catch (cause) {
+      showError(cause instanceof Error ? cause.message : 'Unable to prepare account export.');
+      return;
+    }
     if (action === 'publicDownload' || action === 'privateDownload') {
-      const filename = `${bundle.fileStem}.${privateExport ? 'PRIVATE' : 'public'}.descriptors.txt`;
+      const filename = `${bundle.fileStem}.${privateExport ? 'PRIVATE' : 'public'}.${coreFormat ? 'core-import' : 'descriptors'}.txt`;
       downloadText(text, filename, 'text/plain');
       showStatus(privateExport ? `Created ${filename}. Contains unencrypted account private keys.` : `Created ${filename}. Public account data; cannot spend.`);
     } else {
