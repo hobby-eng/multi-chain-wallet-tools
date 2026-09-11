@@ -126,6 +126,10 @@ for (const browserName of selectedBrowsers) {
             await scope.locator('#scan-custom-path').uncheck();
             run.checks.push('Prefilled custom range, visual account editing and arbitrary free-form path preservation');
             await scope.locator('#public-source-tab').click();
+            if (profile.id === 'multi-chain') await scope.locator('#recovery-coin').selectOption('dash');
+            await scope.locator('#watch-only-keys').fill("dash-descriptor:pkh([c7fe8acb/44'/1'/0']tpubDDgGSmowbmYWepHK5PJYCfzUFrKy1c7PHVumScWELYwwjaGBf73ZD1JD1xc2y4hKQDp4qHUKjxz8HQyJXmM5UQh797enQQSpq8vife8yva8/0/*)#tz4w30l2");
+            assert.match(await scope.locator('#watch-only-detection').innerText(), /Dash Core BIP44 descriptor/);
+            run.checks.push('Dash public descriptor detection');
             await scope.locator('#watch-only-keys').fill(`${pubkey}\n${pubkey}`);
             assert.equal(await scope.locator('#seed-source-panel').isVisible(), false);
             assert.equal(await scope.locator('.public-key-scope').isVisible(), true);
