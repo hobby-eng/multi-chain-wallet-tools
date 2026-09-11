@@ -33,3 +33,7 @@ For Dash Platform, leave **Also generate change addresses** off to derive receiv
 Legacy mobile Account selects the hardened root `m/account'`; zero remains the historical default. This matches [DashSync’s BIP32 account implementation](https://github.com/dashevo/dashsync-iOS/blob/master/DashSync/shared/Models/Derivation%20Paths/DSFundsDerivationPath.m). Discovery uses the selected account for both receive and change chains, on mainnet and testnet.
 
 Legacy mobile results include **Copy public scan key** and a text-file export for the active branch. Paste the `dash-legacy-xpub:` export into Discovery Scanner; it covers that branch without revealing private keys.
+
+### Account descriptor export
+
+The Key Derivation Tool exports public and **unencrypted private** account descriptors for all four Bitcoin address profiles and Dash Core P2PKH families (BIP44, legacy mobile and mobile DIP9 CoinJoin). Each export contains two checksummed lines, receive first and change second, independent of displayed row count. Public export cannot spend; private export grants account spending access. Both require revealing sensitive values. **Copy for Scanner** exports only public data. Other accounts, other Bitcoin address profiles, Dash Platform, Identity and Orchard are not included. See [account descriptor instructions](../../docs/ACCOUNT_DESCRIPTORS.md) for scope and Core import requirements.
