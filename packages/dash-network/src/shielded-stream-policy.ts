@@ -1,6 +1,7 @@
 export const SHIELDED_PAGE_SIZE = 2048;
 export const SHIELDED_EMPTY_CONFIRMATIONS = 2;
 export const SHIELDED_MAX_PAGES_PER_SCAN = 4096;
+export const SHIELDED_MAX_RECONCILIATIONS = 16;
 
 export interface ShieldedStreamCursor {
   /** Chunk-aligned DAPI start index for the next request. */
@@ -18,6 +19,7 @@ export interface ShieldedStreamOutcome {
   complete: boolean;
   pageCount: number;
   terminalPosition: bigint;
+  limitReason?: 'changing-tip';
 }
 
 export interface ShieldedPageVisit {
@@ -97,11 +99,17 @@ export async function runShieldedPageStream<Page>(options: {
   isCancelled?(): boolean;
   yieldTurn?(): Promise<void>;
   maximumPages?: number;
+  maximumReconciliations?: number;
 }): Promise<ShieldedStreamOutcome> {
   const maximumPages = options.maximumPages ?? SHIELDED_MAX_PAGES_PER_SCAN;
   if (!Number.isSafeInteger(maximumPages) || maximumPages < SHIELDED_EMPTY_CONFIRMATIONS) {
     throw new Error('Orchard stream page ceiling is invalid.');
   }
+  const maximumReconciliations = options.maximumReconciliations ?? SHIELDED_MAX_RECONCILIATIONS;
+  if (!Number.isSafeInteger(maximumReconciliations) || maximumReconciliations < 1) {
+    throw new Error('Orchard reconciliation ceiling is invalid.');
+  }
+  let reconciliations = 0;
   const checkCancellation = (): void => {
     if (options.isCancelled?.() === true) throw new DOMException('Shielded pool scan cancelled.', 'AbortError');
   };
@@ -114,6 +122,7 @@ export async function runShieldedPageStream<Page>(options: {
     const page = await options.fetchPage(cursor.position);
     let noteCount: number;
     let revision: bigint;
+    let refreshPosition: bigint | undefined;
     try {
       checkCancellation();
       noteCount = options.noteCount(page);
@@ -132,7 +141,11 @@ export async function runShieldedPageStream<Page>(options: {
       const emptyConfirmation = noteCount === 0
         ? partialMatchesRevision && terminalRevision === revision ? cursor.consecutiveEmpty + 1 : 1
         : 0;
-      await options.onPage(page, {
+      // A nonempty successor can also prove that the earlier partial chunk
+      // grew. Reconcile it first, before applying later nullifiers out of order.
+      if (lastPartial !== undefined && cursor.position !== lastPartial.position && !partialMatchesRevision) {
+        refreshPosition = lastPartial.position;
+      } else await options.onPage(page, {
         position: cursor.position,
         pageNumber: cursor.pageCount + 1,
         emptyConfirmation,
@@ -142,6 +155,17 @@ export async function runShieldedPageStream<Page>(options: {
       options.disposePage(page);
     }
     const pageCount = cursor.pageCount + 1;
+    if (refreshPosition !== undefined) {
+      terminalRevision = undefined;
+      reconciliations += 1;
+      if (reconciliations >= maximumReconciliations || pageCount >= maximumPages) {
+        return { complete: false, pageCount, terminalPosition: refreshPosition,
+          ...(reconciliations >= maximumReconciliations ? { limitReason: 'changing-tip' as const } : {}) };
+      }
+      cursor = { position: refreshPosition, pageCount, consecutiveEmpty: 0 };
+      await options.yieldTurn?.();
+      continue;
+    }
     if (noteCount > 0) {
       lastPartial = noteCount < SHIELDED_PAGE_SIZE
         ? { position: cursor.position, revision }
@@ -152,18 +176,6 @@ export async function runShieldedPageStream<Page>(options: {
         return { complete: false, pageCount, terminalPosition: position };
       }
       cursor = { position, pageCount, consecutiveEmpty: 0 };
-      await options.yieldTurn?.();
-      continue;
-    }
-
-    // A newer terminal proof can contain actions appended inside the previous
-    // partial chunk. Refresh that chunk before accepting the empty successor.
-    if (lastPartial !== undefined && lastPartial.revision !== revision) {
-      terminalRevision = undefined;
-      if (pageCount >= maximumPages) {
-        return { complete: false, pageCount, terminalPosition: lastPartial.position };
-      }
-      cursor = { position: lastPartial.position, pageCount, consecutiveEmpty: 0 };
       await options.yieldTurn?.();
       continue;
     }

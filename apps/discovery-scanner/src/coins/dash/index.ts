@@ -146,7 +146,8 @@ export const DASH_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
   networks: ['mainnet', 'testnet'],
   customPath: {
     description: 'Optional; standard Dash recovery stays enabled.',
-    placeholder: "m/44'/5'/7'/0/{index}",
+    placeholder: "m/44'/5'/0'/0/{index}",
+    defaultTemplate: (network) => `m/44'/${network === 'mainnet' ? 5 : 1}'/0'/0/{index}`,
     formats: [{ id: 'p2pkh', label: 'Dash Core · P2PKH' }],
   },
   detectWatchOnly: detectDashWatchOnly,

@@ -55,6 +55,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     countLabel: required<HTMLLabelElement>('#count-label'),
     count: required<HTMLInputElement>('#count'),
     preview: required<HTMLElement>('#path-preview'),
+    fixedPath: required<HTMLElement>('#standard-path-details'),
   };
   const errorRoot = required<HTMLElement>('#error');
   const statusRoot = required<HTMLElement>('#status');
@@ -88,6 +89,17 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const copyMnemonicButton = required<HTMLButtonElement>('#copy-mnemonic');
   const copyWatchOnlyButton = required<HTMLButtonElement>('#copy-watch-only');
   const downloadWatchOnlyButton = required<HTMLButtonElement>('#download-watch-only');
+  const descriptorButtons = {
+    publicCopy: required<HTMLButtonElement>('#copy-public-descriptors'),
+    publicDownload: required<HTMLButtonElement>('#download-public-descriptors'),
+    privateCopy: required<HTMLButtonElement>('#copy-private-descriptors'),
+    privateDownload: required<HTMLButtonElement>('#download-private-descriptors'),
+  };
+  const descriptorPanel = required<HTMLElement>('#account-descriptor-export');
+  const descriptorDialog = required<HTMLDialogElement>('#account-export-dialog');
+  required<HTMLButtonElement>('#open-account-export').addEventListener('click', () => descriptorDialog.showModal());
+  required<HTMLButtonElement>('#close-account-export').addEventListener('click', () => descriptorDialog.close());
+  const descriptorDescription = required<HTMLElement>('#account-descriptor-description');
   const watchOnlyPanel = required<HTMLElement>('#watch-only-export');
   const watchOnlyDescription = required<HTMLElement>('#watch-only-description');
   const searchAddressButton = required<HTMLButtonElement>('#search-address');
@@ -138,6 +150,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     copyMnemonicButton,
     copyWatchOnlyButton,
     downloadWatchOnlyButton,
+    descriptorButtons,
     watchOnlyPanel,
     watchOnlyDescription,
     cancelDerivationButton,
@@ -395,7 +408,16 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       required<HTMLButtonElement>('#select-all').disabled = result === null;
       required<HTMLButtonElement>('#select-none').disabled = result === null || selected.size === 0;
       required<HTMLButtonElement>('#select-invert').disabled = result === null;
-      const watchOnly = result?.watchOnly;
+      const descriptors = result?.accountDescriptors;
+      descriptorPanel.hidden = descriptors === undefined;
+      if (descriptors === undefined && descriptorDialog.open) descriptorDialog.close();
+      descriptorDescription.textContent = descriptors === undefined ? '' : `${result!.title} · ${result!.networkLabel} · account ${descriptors.accountPath}`;
+      for (const [action, button] of Object.entries(descriptorButtons)) {
+        const privateExport = action === 'privateCopy' || action === 'privateDownload';
+        button.disabled = descriptors === undefined || (privateExport && !revealed);
+        button.title = privateExport && !revealed ? 'Reveal sensitive values before exporting private descriptors.' : '';
+      }
+      const watchOnly = descriptors === undefined ? result?.watchOnly : undefined;
       watchOnlyPanel.hidden = watchOnly === undefined;
       copyWatchOnlyButton.disabled = watchOnly === undefined || !revealed;
       downloadWatchOnlyButton.disabled = watchOnly === undefined || !revealed;

@@ -87,7 +87,8 @@ export function dashDecimalToDuffs(value: unknown): bigint {
   if (typeof value === 'bigint') return value;
   if (typeof value !== 'number' && typeof value !== 'string') return 0n;
   const text = typeof value === 'number' ? value.toFixed(8) : value.trim();
-  const match = /^(-?)(\d+)(?:\.(\d{0,8}))?$/u.exec(text);
+  if (text.length > 110) throw new Error('Decimal DASH amount exceeds the safety limit.');
+  const match = /^(-?)(\d{1,100})(?:\.(\d{0,8}))?$/u.exec(text);
   if (match === null) return 0n;
   const whole = BigInt(match[2]!);
   const fraction = BigInt((match[3] ?? '').padEnd(8, '0'));

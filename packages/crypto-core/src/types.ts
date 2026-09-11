@@ -39,6 +39,15 @@ export interface WatchOnlyExport {
   privacySensitive: true;
 }
 
+/** Separate explicit export; privateText grants account spending access and is never public report data. */
+export interface AccountDescriptorExport {
+  accountPath: string;
+  publicText: string;
+  privateText: string;
+  scannerText: string;
+  fileStem: string;
+}
+
 export interface DerivationResult {
   id: string;
   title: string;
@@ -49,6 +58,7 @@ export interface DerivationResult {
   /** Additional account/root fields shown in Advanced mode. */
   summary: ResultField[];
   watchOnly?: WatchOnlyExport;
+  accountDescriptors?: AccountDescriptorExport;
   rows: DerivedRow[];
   notices: string[];
 }

@@ -15,6 +15,7 @@ function bitcoinAdapter(
   return {
     id,
     group: 'Bitcoin',
+    fixedPathLabels: ['Purpose', 'Coin type'],
     label,
     variantLabel,
     defaultVariant,

@@ -1,3 +1,5 @@
+import { detectDashDescriptor } from './descriptor.js';
+import { assertWatchOnlyMinimum } from '../../watch-only.js';
 import { HDKey } from '@scure/bip32';
 import { bytesToHex, encodeP2pkh, hash160, secp256k1, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
@@ -76,6 +78,11 @@ export function detectDashWatchOnly(raw: string, mode: { auto: boolean }): Detec
   const trimmed = raw.trim();
   const matched = matchExplicitPrefix(trimmed);
   if (matched !== null) {
+    if (matched.prefix === 'dash-descriptor') return detectDashDescriptor(matched.value, true);
+    if (matched.prefix === 'dash-legacy-xpub') {
+      if (matched.value.length === 0) throw new Error('dash-legacy-xpub: requires a value.');
+      return { coinId: 'dash', kind: 'dash-legacy-xpub', value: matched.value };
+    }
     if (matched.prefix === 'dash-core-xpub') {
       if (matched.value.length === 0) throw new Error('dash-core-xpub: requires a value.');
       return { coinId: 'dash', kind: 'dash-core-xpub', value: matched.value };
@@ -130,6 +137,7 @@ export function detectDashWatchOnly(raw: string, mode: { auto: boolean }): Detec
     throw new Error(`Unrecognized prefix "${matched.prefix}:".`);
   }
 
+  if (/^pkh\(/u.test(trimmed)) return detectDashDescriptor(trimmed);
   const orchardShape = looksLikeOrchardBundleOrRaw(trimmed);
   if (orchardShape !== false) {
     // Only Dash implements Orchard in this build, so an unprefixed viewing
@@ -158,7 +166,7 @@ export function detectDashWatchOnly(raw: string, mode: { auto: boolean }): Detec
       };
     }
     throw new WatchOnlyNeedsFamilyError(
-      `A Dash xpub at depth ${depth} does not encode its hardened ancestry. Prefix it with dash-core-xpub:, dash-coinjoin-xpub:, or dash-platform-xpub: so the scanner uses the intended address family.`,
+      `A Dash xpub at depth ${depth} does not encode its hardened ancestry. Prefix it with dash-core-xpub:, dash-legacy-xpub:, dash-coinjoin-xpub:, or dash-platform-xpub: so the scanner uses the intended address family.`,
     );
   }
   if (looksLikeSec1PublicKey(trimmed)) {
@@ -183,10 +191,11 @@ async function scanTransparentXpub(
   gateway: RecoveryNetworkGateway,
 ): Promise<RecoveryWalletResult> {
   const coinjoin = input.kind === 'dash-coinjoin-xpub';
-  const accountDepth = coinjoin ? 4 : 3;
+  const legacy = input.kind === 'dash-legacy-xpub';
+  const accountDepth = legacy ? 1 : coinjoin ? 4 : 3;
   const branchDepth = accountDepth + 1;
-  const familyLabel = coinjoin ? 'Dash Mobile CoinJoin · DIP9' : 'Dash Core · BIP44';
-  const sectionId = coinjoin ? 'coinjoin' as const : 'core' as const;
+  const familyLabel = legacy ? 'Dash Core · legacy mobile' : coinjoin ? 'Dash Mobile CoinJoin · DIP9' : 'Dash Core · BIP44';
+  const sectionId = legacy ? 'legacyCore' as const : coinjoin ? 'coinjoin' as const : 'core' as const;
   const network = getDashNetwork(config.network);
   let node: HDKey;
   try {
@@ -244,13 +253,14 @@ async function scanTransparentXpub(
         }
         if (info.balance === 0n && !(config.includeUsedZeroBalance && used)) return;
         const finding: RecoveryFinding = {
-          id: `${coinjoin ? 'dash-coinjoin-xpub' : 'dash-core-xpub'}:${branch ?? 'branch'}:${derivedItem.index}`,
+          id: `${input.kind}:${branch ?? 'branch'}:${derivedItem.index}`,
           title: derivedItem.address,
           subtitle: `${branch === 0 ? 'External' : branch === 1 ? 'Internal' : 'Branch'} address #${derivedItem.index}`,
           balanceAtomic: info.balance,
           balanceLabel: formatDashFromDuffs(info.balance),
           fields: [
             { label: 'Relative derivation path', value: derivedItem.path, copyable: true },
+            ...(input.descriptorPath === undefined ? [] : [{ label: 'Descriptor derivation path', value: `${input.descriptorPath}/${derivedItem.index}`, copyable: true }]),
             { label: 'Transactions reported', value: String(info.txCount) },
             { label: 'Public-key hash', value: derivedItem.publicKeyHash, copyable: true },
           ],
@@ -641,9 +651,7 @@ export async function scanDashWatchOnly(
   config: RecoveryWatchOnlyScanConfig,
   context: RecoveryScanContext,
 ): Promise<RecoveryWalletResult> {
-  if (!Number.isSafeInteger(config.minimumCount) || config.minimumCount < 1) {
-    throw new Error('The watch-only address minimum must be a positive integer.');
-  }
+  assertWatchOnlyMinimum(config.minimumCount);
   const guard = new SecretEgressGuard();
   if (input.kind !== 'public-key' && input.kind !== 'identity') {
     guard.registerString('Dash watch-only input', input.value);
@@ -652,6 +660,7 @@ export async function scanDashWatchOnly(
   const gateway = new RecoveryNetworkGateway(guard, context.networkApi, context.networkLimiter ?? new RecoveryConcurrencyLimiter(5));
   const client = new DashPlatformClient(config.network, gateway);
   switch (input.kind) {
+    case 'dash-legacy-xpub':
     case 'dash-core-xpub':
     case 'dash-coinjoin-xpub':
       return scanTransparentXpub(input, config, context, gateway);

@@ -1,3 +1,5 @@
+import { assertWatchOnlyMinimum } from '../../watch-only.js';
+import { isUint256Decimal } from '@ckd/core/numeric-limits.js';
 import { HDKey } from '@scure/bip32';
 import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
 import { ethereumAddressFromPublicKey } from '@ckd/coins/ethereum/index.js';
@@ -87,11 +89,11 @@ async function queryAccounts(
     () => gateway.networkApi.evmAccounts(networkName, [...addresses], signal),
     signal,
   );
-  if (!/^(?:0|[1-9][0-9]*)$/u.test(response.blockNumber) || !Array.isArray(response.entries) || response.entries.length !== addresses.length) {
+  if (!isUint256Decimal(response.blockNumber) || !Array.isArray(response.entries) || response.entries.length !== addresses.length) {
     throw new Error('Ethereum RPC returned an incomplete account batch.');
   }
   response.entries.forEach((entry, index) => {
-    if (entry.address !== addresses[index] || !/^(?:0|[1-9][0-9]*)$/u.test(entry.balance) || !/^(?:0|[1-9][0-9]*)$/u.test(entry.nonce)) {
+    if (entry.address !== addresses[index] || !isUint256Decimal(entry.balance) || !isUint256Decimal(entry.nonce)) {
       throw new Error('Ethereum RPC returned malformed account data.');
     }
   });
@@ -103,9 +105,7 @@ export async function scanEthereumWatchOnly(
   config: RecoveryWatchOnlyScanConfig,
   context: RecoveryScanContext,
 ): Promise<RecoveryWalletResult> {
-  if (!Number.isSafeInteger(config.minimumCount) || config.minimumCount < 1) {
-    throw new Error('The watch-only address minimum must be a positive integer.');
-  }
+  assertWatchOnlyMinimum(config.minimumCount);
   const guard = new SecretEgressGuard();
   if (input.kind !== 'public-key' && input.kind !== 'identity') {
     guard.registerString('Ethereum watch-only input', input.value);

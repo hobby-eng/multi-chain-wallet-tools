@@ -27,7 +27,7 @@ function fixture() {
     if (!methods.has(key)) methods.set(key, vi.fn());
     return methods.get(key)!;
   };
-  const view = new Proxy({ ...fields, controls }, { get(target, key: string) {
+  const view = new Proxy({ ...fields, controls, descriptorButtons: {} }, { get(target, key: string) {
     return key in target ? target[key as keyof typeof target] : method(key);
   } }) as unknown as KeyDerivationView;
   const seed = new Uint8Array(64).fill(7);
