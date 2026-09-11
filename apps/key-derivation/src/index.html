@@ -6,7 +6,8 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src __INLINE_SCRIPT_CSP__ 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
   <title>__DOCUMENT_TITLE__</title>
-  <style>/*__INLINE_CSS__*/</style>
+  <style>/*__INLINE_CSS__*/.standard-path-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;padding:16px;border:1px solid #33404e;border-radius:10px;background:rgba(0,0,0,.14)}.standard-path-label{display:block;font-size:12px;color:#aeb8c3;margin-bottom:8px}.standard-path-details output{display:block;font:inherit;overflow-wrap:anywhere}.standard-path-section>.field-note{margin-top:0}
+  </style>
 </head>
 <body>
   <noscript>This offline tool requires JavaScript.</noscript>
@@ -85,6 +86,10 @@
             <label id="protocol-tabs-label">Derivation type</label>
             <div id="protocol-tabs" class="protocol-tabs" role="radiogroup" aria-labelledby="protocol-tabs-label"></div>
           </div>
+          <div class="standard-path-section span-three">
+            <p class="field-note">The selected scheme fixes the derivation rules and address format. Edit the supported controls below; the full path updates automatically. Only change the default scheme or account if you know your wallet’s derivation path; other wallets may not find funds at a different path.</p>
+            <div id="standard-path-details" class="standard-path-details" aria-label="Fixed scheme parameters"></div>
+          </div>
           <div id="account-field">
             <label id="account-label" for="account">Account</label>
             <input id="account" type="number" value="0" min="0" max="2147483647" step="1">
@@ -102,8 +107,8 @@
             <label id="count-label" for="count">Number of results</label>
             <input id="count" type="number" value="20" min="1" max="2147483648" step="1">
           </div>
-          <div class="path-preview span-two">
-            <label>Path preview</label>
+          <div class="path-preview span-three">
+            <label>Standard derivation path · read-only</label>
             <code id="path-preview"></code>
           </div>
           <div id="change-addresses-field" class="change-addresses-option span-three" hidden>
@@ -178,6 +183,30 @@
         <div class="bulk-row">
           <strong><span id="selected-count">0</span> selected</strong>
           <div class="mini-actions">
+            <div id="account-descriptor-export" hidden>
+              <button class="secondary compact" id="open-account-export" type="button" aria-haspopup="dialog">Account export</button>
+              <dialog id="account-export-dialog" aria-labelledby="account-export-title">
+                <div class="account-export-heading"><h3 id="account-export-title">Account export</h3><button class="secondary compact" id="close-account-export" type="button" aria-label="Close account export">Close</button></div>
+                <p id="account-descriptor-description"></p>
+                <p>Includes receive and change addresses for this account and address type. A non-default account may require this descriptor to be found by another wallet.</p>
+                <label for="account-export-format">Export format</label>
+                <select id="account-export-format"><option value="core">Core wallet console command</option><option value="raw">Raw descriptors · Scanner / other wallets</option></select>
+                <p class="field-note">Imports this account for receiving and change, using Core’s automatic address pool. Makes it active for this address type; use a separate wallet to keep an existing account active. Historical scanning may take over an hour.</p>
+                <h4>Public descriptors</h4>
+                <p>Requires a descriptor wallet with private keys disabled (watch-only). Cannot spend funds.</p>
+                <div class="watch-only-actions">
+                  <button class="secondary" id="copy-public-descriptors" type="button">Copy public descriptors</button>
+                  <button class="secondary" id="download-public-descriptors" type="button">Download public descriptors</button>
+                </div>
+                <h4>Private descriptors</h4>
+                <p>For a descriptor wallet with private keys enabled. Unencrypted keys allow spending. Reveal sensitive values before export.</p>
+                <div class="watch-only-actions">
+                  <button class="secondary" id="copy-private-descriptors" type="button">Copy private descriptors</button>
+                  <button class="secondary" id="download-private-descriptors" type="button">Download private descriptors</button>
+                </div>
+                <p class="field-note">For wallet descriptor import, not PSBT transaction import. This is not a complete seed backup.</p>
+              </dialog>
+            </div>
             <button class="secondary compact" id="select-all" type="button">Select all</button>
             <button class="secondary compact" id="select-none" type="button">Select none</button>
             <button class="secondary compact" id="select-invert" type="button">Invert selection</button>
@@ -201,7 +230,7 @@
             <button class="secondary compact" id="download-selection" data-download="allDisplayed" type="button">Download selected</button>
           </div>
         </div>
-        <p class="field-note">Bulk actions use selected rows only. Basic mode exports only basic fields; Advanced mode includes the row’s advanced fields. Sensitive exports remain disabled until values are revealed.</p>
+        <p class="field-note">Row exports use selected rows only. Account export includes both account branches regardless of selection. Basic mode exports only basic fields; Advanced mode includes the row’s advanced fields. Sensitive exports remain disabled until values are revealed.</p>
       </section>
 
       <section id="watch-only-export" class="panel watch-only-panel" aria-labelledby="watch-only-title" hidden>

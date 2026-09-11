@@ -89,6 +89,12 @@
         </div>
 
         <div id="batch-input" class="secret-source-panel" hidden>
+          <label class="candidate-choice"><input id="automatic-candidates" type="checkbox"> Automatically check candidates across selected coins</label>
+          <div id="candidate-options" hidden>
+            <p class="field-note">Ready BIP39 phrases only, one per line. Checks run sequentially. Invalid candidates and failed coin checks do not stop the others. No missing-word generation.</p>
+            <fieldset class="candidate-coin-picker"><legend>Coins to check</legend><label class="candidate-choice"><input id="candidate-all-coins" type="checkbox"> All supported coins</label><div id="candidate-coins" class="section-metrics"></div></fieldset>
+            <p class="field-note">The selected network and account apply to every coin. Address minimums apply per supported standard branch; Dash component settings below apply only to Dash. Zero-balance activity is included. Custom paths and parallel scanning are disabled in this mode. An empty result covers only the configured paths and ranges.</p>
+          </div>
           <div class="batch-grid">
             <div><label for="batch-mnemonics">One seed phrase per line</label><textarea id="batch-mnemonics" class="concealed" rows="8" autocomplete="off" autocapitalize="none" placeholder="Phrase 1&#10;Phrase 2&#10;Phrase 3"></textarea></div>
             <div><label for="batch-passphrases">Matching passphrase per line</label><textarea id="batch-passphrases" class="concealed" rows="8" autocomplete="off" autocapitalize="none" placeholder="Blank line = no passphrase"></textarea></div>
@@ -101,7 +107,9 @@
         <div id="public-input" role="tabpanel" aria-labelledby="public-source-tab" class="secret-source-panel public-key-source" hidden>
           <label for="watch-only-keys">Public key or batch · one key per line</label>
           <textarea id="watch-only-keys" rows="3" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="watch-only-detection" placeholder="__RECOVERY_PUBLIC_KEY_PLACEHOLDER__"></textarea>
+          <p class="field-note">Dash Core public descriptors: select Dash and paste a checksummed pkh([fingerprint/path]xpub/0/*) or /1/* descriptor, one per line. The dash-descriptor: prefix selects Dash explicitly. BIP44, legacy mobile and mobile DIP9 CoinJoin account origins are supported. Private descriptors are not accepted here.</p>
           <p class="field-note public-key-scope">__RECOVERY_PUBLIC_KEY_SCOPE__</p>
+          <p class="field-note">For Dash legacy mobile keys, use <code>dash-legacy-xpub:</code> followed by the account or branch xpub. An account key scans receive and change; a branch key scans that branch only.</p>
           <p id="watch-only-detection" class="field-note" role="status" aria-live="polite">Paste one public key or a batch, one key per line. Coins are detected automatically.</p>
         </div>
 
@@ -133,9 +141,19 @@
         <div id="custom-path-options" class="custom-path-options" hidden>
           <label class="custom-path-toggle"><input id="scan-custom-path" type="checkbox"><span><strong>Custom derivation path</strong><small id="custom-path-description">Optional wallet-specific path</small></span></label>
           <div id="custom-path-field" class="custom-path-field" hidden>
+            <label class="custom-range-toggle"><input id="custom-path-range" type="checkbox" aria-controls="custom-range-finish"> <strong>Scan range</strong><small>Accounts in this custom path only</small></label>
+            <div id="custom-path-parts" class="custom-path-parts" hidden>
+              <div><label for="custom-part-purpose">Purpose</label><output id="custom-part-purpose"></output></div>
+              <div><label for="custom-part-coin">Coin type</label><output id="custom-part-coin"></output></div>
+              <div><label for="custom-part-account">Account · hardened</label><input id="custom-part-account" type="number" min="0" max="2147483647" step="1"></div>
+              <div><label for="custom-part-finish-account">Finish account · inclusive</label><input id="custom-part-finish-account" type="number" min="0" max="2147483647" step="1"></div>
+              <div><label for="custom-part-branch">Receive 0 / Change 1</label><input id="custom-part-branch" type="number" min="0" max="2147483647" step="1"></div>
+            </div>
             <div><label for="custom-path-template">Custom path template</label><input id="custom-path-template" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="m/44'/0'/0'/0/{index}"><small>Use exactly one <code>{index}</code> segment, optionally hardened as <code>{index}'</code>.</small></div>
+            <div id="custom-range-finish" hidden><label for="custom-path-range-end">Finish path (inclusive)</label><input id="custom-path-range-end" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" disabled><small>Change only the account number. Both full paths are freely editable.</small></div>
             <div><label for="custom-path-format">Address format</label><select id="custom-path-format"></select></div>
             <div><label for="custom-path-count">Minimum addresses</label><input id="custom-path-count" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
+            <p id="custom-range-summary" class="field-note custom-range-summary" role="status"></p>
           </div>
         </div>
         <p class="coinjoin-path-note path-preview" data-component-settings="coinjoin" data-dash-coverage>Dash Mobile CoinJoin · DIP9 paths for the selected network: <code id="coinjoin-path-preview">external m/9'/5'/4'/0'/0/i · internal m/9'/5'/4'/0'/1/i</code></p>
@@ -156,7 +174,7 @@
         </div>
         </div>
         <div class="coverage-grid">
-          <div hidden><label for="watch-only-minimum">Minimum addresses per public-key branch</label><input id="watch-only-minimum" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
+          <div hidden><label for="watch-only-minimum">Minimum addresses per public-key branch</label><input id="watch-only-minimum" type="number" value="100" min="1" max="2147483648" step="1" inputmode="numeric"></div>
           <div><label for="request-concurrency">Parallel network requests</label><select id="request-concurrency"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5 · recommended maximum</option></select></div>
         </div>
         <label class="shielded-option history-option"><input id="include-used-zero-balance" type="checkbox"><span><strong>Show spent or previously used resources with zero balance</strong><small>Off by default. Displayed resources include history details when supported by the coin adapter and provider. Enabling this option additionally includes Core/Platform empty history and already-spent or outgoing-only Orchard notes in the page and CSV/JSON. On a CoinJoin-heavy wallet the extra Core requests can make the scan much slower; the default hides known-spent notes; an incoming-only viewing key cannot determine whether a note is spent.</small></span></label>

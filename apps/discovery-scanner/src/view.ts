@@ -1,3 +1,6 @@
+import { candidateSummary } from './candidate-scan.js';
+import { parseCustomAccountRange } from './coins/custom-path.js';
+import { describeCustomPath, editCustomPath } from './custom-path-editor.js';
 import { DIP17_PAYMENT_CHAINS } from '@ckd/coins/dash/platform-paths.js';
 import { historyFields } from './history.js';
 import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from './watch-only.js';
@@ -32,6 +35,8 @@ export interface WalletProgressView {
 
 export interface RecoveryInputSnapshot {
   coinId: string;
+  automaticCandidates?: boolean;
+  candidateCoinIds?: string[];
   sourceMode: RecoverySourceMode;
   watchOnlyKeys: string;
   watchOnlyMinimumCount: string;
@@ -49,6 +54,8 @@ export interface RecoveryInputSnapshot {
   coreChangeCount: string;
   scanCustomPath: boolean;
   customPathTemplate: string;
+  scanCustomRange: boolean;
+  customPathRangeEnd: string;
   customPathFormat: string;
   customPathCount: string;
   scanLegacyCore: boolean;
@@ -163,6 +170,25 @@ export function createDiscoveryScannerView(
   const customPathField = required<HTMLElement>('#custom-path-field');
   const scanCustomPathInput = required<HTMLInputElement>('#scan-custom-path');
   const customPathTemplateInput = required<HTMLInputElement>('#custom-path-template');
+  const customRangeInput = required<HTMLInputElement>('#custom-path-range');
+  const customRangeEndInput = required<HTMLInputElement>('#custom-path-range-end');
+  const customRangeFinish = required<HTMLElement>('#custom-range-finish');
+  const customPathLabel = required<HTMLLabelElement>('label[for="custom-path-template"]');
+  const customRangeSummary = required<HTMLElement>('#custom-range-summary');
+  const pathParts = required<HTMLElement>('#custom-path-parts');
+  const pathPurpose = required<HTMLOutputElement>('#custom-part-purpose');
+  const pathCoin = required<HTMLOutputElement>('#custom-part-coin');
+  const pathAccount = required<HTMLInputElement>('#custom-part-account');
+  const pathEndAccount = required<HTMLInputElement>('#custom-part-finish-account');
+  const pathBranch = required<HTMLInputElement>('#custom-part-branch');
+  let previousDefaultPath: string | undefined;
+  let previousDefaultFinish: string | undefined;
+  pathAccount.addEventListener('input', () => { customPathTemplateInput.value = editCustomPath(customPathTemplateInput.value, 'account', pathAccount.value); });
+  pathEndAccount.addEventListener('input', () => { customRangeEndInput.value = editCustomPath(customRangeEndInput.value, 'account', pathEndAccount.value); });
+  pathBranch.addEventListener('input', () => {
+    customPathTemplateInput.value = editCustomPath(customPathTemplateInput.value, 'branch', pathBranch.value);
+    customRangeEndInput.value = editCustomPath(customRangeEndInput.value, 'branch', pathBranch.value);
+  });
   const customPathFormatInput = required<HTMLSelectElement>('#custom-path-format');
   const customPathCountInput = required<HTMLInputElement>('#custom-path-count');
   const customPathDescription = required<HTMLElement>('#custom-path-description');
@@ -180,6 +206,13 @@ export function createDiscoveryScannerView(
   const seedCoverage = required<HTMLElement>('#seed-coverage');
   const singlePanel = required<HTMLElement>('#single-input');
   const batchPanel = required<HTMLElement>('#batch-input');
+  const automaticCandidates = required<HTMLInputElement>('#automatic-candidates');
+  const candidateOptions = required<HTMLElement>('#candidate-options');
+  const candidateCoins = required<HTMLElement>('#candidate-coins');
+  const candidateAll = required<HTMLInputElement>('#candidate-all-coins');
+  const candidateCoinInputs: HTMLInputElement[] = [];
+  const candidateMode = (): boolean => sourceMode === 'seed' && seedMode === 'batch' && automaticCandidates.checked;
+
   const singleMnemonic = required<HTMLTextAreaElement>('#single-mnemonic');
   const singlePassphrase = required<HTMLInputElement>('#single-passphrase');
   const batchMnemonics = required<HTMLTextAreaElement>('#batch-mnemonics');
@@ -233,11 +266,17 @@ export function createDiscoveryScannerView(
   const recoveryRuntime = required<HTMLElement>('#recovery-runtime');
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-input-mode]')];
   const estimateInputs = [
+    automaticCandidates,
     watchOnlyKeys,
     watchOnlyMinimum,
     ...(coinInput === null ? [] : [coinInput]),
     scanCustomPathInput,
     customPathTemplateInput,
+    customRangeInput,
+    customRangeEndInput,
+    pathAccount,
+    pathEndAccount,
+    pathBranch,
     customPathFormatInput,
     customPathCountInput,
     networkInput,
@@ -277,10 +316,10 @@ export function createDiscoveryScannerView(
   };
 
   function setComponentSettings(): void {
-    const coinId = coinInput?.value ?? profileCoinId ?? 'dash';
+    const coinId = candidateMode() && candidateCoinInputs.some(input => input.checked && input.value === 'dash') ? 'dash' : coinInput?.value ?? profileCoinId ?? 'dash';
     if (sourceMode === 'public') return;
     const dash = coinId === 'dash';
-    const customPath = coinAdapters.get(coinId)?.customPath;
+    const customPath = candidateMode() ? undefined : coinAdapters.get(coinId)?.customPath;
     for (const element of dashCoverage) element.hidden = !dash;
     genericCoinScanNote.hidden = dash;
     customPathOptions.hidden = customPath === undefined;
@@ -288,7 +327,42 @@ export function createDiscoveryScannerView(
     for (const input of [customPathTemplateInput, customPathFormatInput, customPathCountInput]) {
       input.disabled = customPath === undefined || !scanCustomPathInput.checked;
     }
+    customRangeInput.disabled = customPath === undefined || !scanCustomPathInput.checked;
+    customRangeFinish.hidden = !customRangeInput.checked;
+    customRangeEndInput.disabled = customRangeInput.disabled || !customRangeInput.checked;
+    customPathField.classList.toggle('range-active', customRangeInput.checked);
+    customPathLabel.textContent = customRangeInput.checked ? 'Start path' : 'Custom path template';
+    required<HTMLLabelElement>('label[for="custom-part-account"]').textContent = customRangeInput.checked ? 'Start account · hardened' : 'Account · hardened';
     if (customPath !== undefined) {
+      const defaultPath = customPath.defaultTemplate?.(networkInput.value === 'testnet' ? 'testnet' : 'mainnet') ?? customPath.placeholder;
+      if (previousDefaultPath === undefined || customPathTemplateInput.value === previousDefaultPath) customPathTemplateInput.value = defaultPath;
+      previousDefaultPath = defaultPath;
+      const parts = customPathTemplateInput.value.trim().split('/');
+      const accountMatch = /^(0|[1-9][0-9]*)'$/u.exec(parts[3] ?? '');
+      if (accountMatch !== null && Number(accountMatch[1]) < 2147483647) parts[3] = `${Number(accountMatch[1]) + 1}'`;
+      const finish = parts.join('/');
+      if (previousDefaultFinish === undefined || customRangeEndInput.value === previousDefaultFinish) customRangeEndInput.value = finish;
+      previousDefaultFinish = finish;
+      customRangeSummary.textContent = '';
+      if (customRangeInput.checked) {
+        try {
+          const range = parseCustomAccountRange(customPathTemplateInput.value, customRangeEndInput.value);
+          customRangeSummary.textContent = `Custom accounts ${range.first}–${range.last} (inclusive) · ${range.last - range.first + 1} paths · address minimum + 20 per account, extended after activity. Standard scans run once using the Account setting above.`;
+        } catch (cause) { customRangeSummary.textContent = cause instanceof Error ? cause.message : 'Check the Start and Finish paths.'; }
+      }
+      const description = describeCustomPath(customPathTemplateInput.value);
+      pathParts.hidden = description === null;
+      if (description !== null) {
+        pathPurpose.value = `${description.purpose}'`;
+        pathCoin.value = `${description.coin}'`;
+        if (document.activeElement !== pathAccount) pathAccount.value = String(description.account);
+        if (document.activeElement !== pathBranch) pathBranch.value = String(description.branch);
+        const end = describeCustomPath(customRangeEndInput.value);
+        if (document.activeElement !== pathEndAccount) pathEndAccount.value = end === null ? '' : String(end.account);
+      }
+      pathEndAccount.parentElement!.hidden = !customRangeInput.checked;
+      for (const input of [pathAccount, pathBranch]) input.disabled = customRangeInput.disabled;
+      pathEndAccount.disabled = customRangeEndInput.disabled;
       customPathDescription.textContent = customPath.description;
       customPathTemplateInput.placeholder = customPath.placeholder;
       const selectedFormat = customPathFormatInput.value;
@@ -559,6 +633,8 @@ export function createDiscoveryScannerView(
       if (coinId === null || coinId.length === 0) throw new Error('Recovery coin registry is empty.');
       return {
         coinId,
+        automaticCandidates: candidateMode(),
+        candidateCoinIds: candidateCoinInputs.filter(input => input.checked).map(input => input.value),
         sourceMode,
         watchOnlyKeys: watchOnlyKeys.value,
         watchOnlyMinimumCount: watchOnlyMinimum.value,
@@ -571,32 +647,34 @@ export function createDiscoveryScannerView(
         batchConcurrency: batchConcurrencyInput.value,
         requestConcurrency: requestConcurrencyInput.value,
         clearInputOnStart: clearInputOnStart.checked,
-        scanCore: coinId === 'dash' ? scanCoreInput.checked : true,
+        scanCore: (coinId === 'dash' || candidateMode()) ? scanCoreInput.checked : true,
         coreReceiveCount: coreReceiveInput.value,
         coreChangeCount: coreChangeInput.value,
-        scanCustomPath: scanCustomPathInput.checked,
+        scanCustomPath: !candidateMode() && scanCustomPathInput.checked,
         customPathTemplate: customPathTemplateInput.value,
+        scanCustomRange: customRangeInput.checked,
+        customPathRangeEnd: customRangeEndInput.value,
         customPathFormat: customPathFormatInput.value,
         customPathCount: customPathCountInput.value,
-        scanLegacyCore: coinId === 'dash' && scanCoreInput.checked && scanLegacyCoreInput.checked,
+        scanLegacyCore: (coinId === 'dash' || candidateMode()) && scanCoreInput.checked && scanLegacyCoreInput.checked,
         legacyCoreCount: legacyCoreCountInput.value,
-        scanCoinJoin: coinId === 'dash' && scanCoreInput.checked && scanCoinJoinInput.checked,
+        scanCoinJoin: (coinId === 'dash' || candidateMode()) && scanCoreInput.checked && scanCoinJoinInput.checked,
         coinJoinExternalCount: coinJoinExternalCountInput.value,
         coinJoinInternalCount: coinJoinInternalCountInput.value,
-        scanIdentityFunding: coinId === 'dash' && scanPlatformIdentitiesInput.checked && scanIdentityFundingInput.checked,
+        scanIdentityFunding: (coinId === 'dash' || candidateMode()) && scanPlatformIdentitiesInput.checked && scanIdentityFundingInput.checked,
         identityFundingCount: identityFundingCountInput.value,
         identityTopUpIdentityCount: identityTopUpIdentityCountInput.value,
         identityTopUpCount: identityTopUpCountInput.value,
-        scanProviderCollateral: coinId === 'dash' && scanCoreInput.checked && scanProviderCollateralInput.checked,
+        scanProviderCollateral: (coinId === 'dash' || candidateMode()) && scanCoreInput.checked && scanProviderCollateralInput.checked,
         providerCollateralCount: providerCollateralCountInput.value,
-        scanPlatformAddresses: coinId === 'dash' && scanPlatformAddressesInput.checked,
+        scanPlatformAddresses: (coinId === 'dash' || candidateMode()) && scanPlatformAddressesInput.checked,
         platformAddressCount: platformCountInput.value,
-        scanPlatformIdentities: coinId === 'dash' && scanPlatformIdentitiesInput.checked,
+        scanPlatformIdentities: (coinId === 'dash' || candidateMode()) && scanPlatformIdentitiesInput.checked,
         identityStartIndex: identityStartInput.value,
         identityGapLimit: identityGapInput.value,
         identityScanLimit: identityLimitInput.value,
         includeUsedZeroBalance: includeUsedZeroInput.checked,
-        scanShieldedPool: coinId === 'dash' && scanShieldedInput.checked,
+        scanShieldedPool: (coinId === 'dash' || candidateMode()) && scanShieldedInput.checked,
       };
     },
     setMode(mode: RecoveryInputMode): void {
@@ -638,6 +716,7 @@ export function createDiscoveryScannerView(
     },
     updateEstimate(): void {
       const publicInput = sourceMode === 'public';
+      candidateOptions.hidden = !candidateMode();
       if (coinInput !== null) {
         const autoOption = coinInput.querySelector<HTMLOptionElement>('option[value="auto"]');
         if (autoOption !== null) {
@@ -665,7 +744,16 @@ export function createDiscoveryScannerView(
       sourceGrid.style.gridTemplateColumns = publicInput ? (coinInput === null ? '1fr' : '1.2fr 1fr') : '';
       seedCoverage.hidden = publicInput;
       for (const input of [singleMnemonic, singlePassphrase, batchMnemonics, batchPassphrases, batchConcurrencyInput, accountInput]) input.disabled = publicInput;
-      if (coinInput !== null) coinInput.disabled = false;
+      if (coinInput !== null) {
+        coinInput.disabled = candidateMode();
+        coinInput.parentElement!.hidden = candidateMode();
+      }
+      batchConcurrencyInput.closest<HTMLElement>('.batch-concurrency-row')!.hidden = candidateMode();
+      requestConcurrencyInput.disabled = candidateMode();
+      requestConcurrencyInput.parentElement!.hidden = candidateMode();
+      includeUsedZeroInput.disabled = candidateMode();
+      includeUsedZeroInput.parentElement!.hidden = candidateMode();
+
       watchOnlyMinimum.parentElement!.hidden = !publicInput;
       watchOnlyDetection.textContent = 'Select a coin, or use Auto-detect for formats that identify exactly one coin.';
       if (publicInput) {
@@ -708,17 +796,28 @@ export function createDiscoveryScannerView(
         }
         return;
       }
+      if (candidateMode()) {
+        coreReceiveInput.parentElement!.hidden = false;
+        coreChangeInput.parentElement!.hidden = false;
+        required<HTMLElement>('label[for="core-receive-count"]').textContent = 'Receive addresses per standard family';
+        required<HTMLElement>('label[for="core-change-count"]').textContent = 'Change addresses per standard family (where supported)';
+        startButtonLabel.textContent = 'Check seed candidates';
+        const selected = candidateCoinInputs.filter(input => input.checked);
+        estimate.textContent = `${selected.map(input => coinAdapters.get(input.value)?.label).join(' · ') || 'Select at least one coin'} · one candidate and one coin at a time · one network request at a time · zero-balance activity included`;
+        scanCoverageDescription.textContent = 'Candidate scan coverage · standard branches and selected Dash components';
+        return;
+      }
       coinJoinPathPreview.textContent = coinJoinPathPattern(networkInput.value);
       try {
         const coinId = coinInput?.value ?? profileCoinId ?? 'dash';
         if (!__DASH_COMMUNITY__ && coinId === 'bitcoin') {
           const perFamily = estimateInteger(coreReceiveInput.value, 0) + estimateInteger(coreChangeInput.value, 0);
-          estimate.textContent = `Bitcoin · 4 standard address families${scanCustomPathInput.checked ? ' + custom path' : ''} · ${(perFamily * 4).toLocaleString()} standard minimum addresses + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}`;
+          estimate.textContent = `Bitcoin · 4 standard address families${scanCustomPathInput.checked ? (customRangeInput.checked ? ' + custom account range' : ' + custom path') : ''} · ${(perFamily * 4).toLocaleString()} standard minimum addresses + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}`;
           startButtonLabel.textContent = 'Scan Bitcoin holdings';
           return;
         }
         if (!__DASH_COMMUNITY__ && coinId === 'ethereum') {
-          estimate.textContent = `Ethereum EOA · 3 standard wallet profiles${scanCustomPathInput.checked ? ' + custom path' : ''} · ${estimateInteger(coreReceiveInput.value, 1).toLocaleString()} minimum derivations per profile + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · used zero-balance accounts enabled' : ''}`;
+          estimate.textContent = `Ethereum EOA · 3 standard wallet profiles${scanCustomPathInput.checked ? (customRangeInput.checked ? ' + custom account range' : ' + custom path') : ''} · ${estimateInteger(coreReceiveInput.value, 1).toLocaleString()} minimum derivations per profile + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · used zero-balance accounts enabled' : ''}`;
           startButtonLabel.textContent = 'Scan Ethereum holdings';
           return;
         }
@@ -821,7 +920,25 @@ export function createDiscoveryScannerView(
     ): void {
       resultList.replaceChildren();
       resultTabs.replaceChildren();
-      for (const result of results) {
+      const candidates = results.some(result => result.inputId.startsWith('candidate-'));
+      if (candidates) {
+        const summary = document.createElement('section');
+        summary.className = 'candidate-summary';
+        const heading = document.createElement('h3');
+        heading.textContent = 'Candidate outcomes';
+        summary.append(heading);
+        for (const report of results) {
+          const row = document.createElement('button');
+          row.type = 'button';
+          row.className = 'candidate-outcome';
+          row.textContent = `${report.label} — ${candidateSummary(report)}`;
+          row.setAttribute('aria-pressed', String(report.inputId === activeResultId));
+          row.addEventListener('click', () => selectResult(report.inputId));
+          summary.append(row);
+        }
+        resultList.append(summary);
+      }
+      for (const result of candidates ? [] : results) {
         const tab = document.createElement('button');
         tab.type = 'button';
         tab.className = 'recovery-result-tab';
@@ -881,7 +998,7 @@ export function createDiscoveryScannerView(
         }
         resultList.append(wallet);
       }
-      resultTabs.hidden = results.length < 2;
+      resultTabs.hidden = candidates || results.length < 2;
       resultsSection.hidden = results.length === 0;
       exportCsvButton.disabled = !exportFormats.has('csv');
       exportJsonButton.disabled = !exportFormats.has('json');
@@ -898,7 +1015,25 @@ export function createDiscoveryScannerView(
     },
     populateCoins(coins: ReadonlyArray<RecoveryCoinAdapter>): void {
       if (coins.length === 0) throw new Error('Recovery coin registry is empty.');
-      for (const coin of coins) coinAdapters.set(coin.id, coin);
+      for (const coin of coins) {
+        coinAdapters.set(coin.id, coin);
+        const label = document.createElement('label');
+        label.className = 'candidate-choice';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox'; checkbox.value = coin.id; checkbox.checked = coin === coins[0];
+        checkbox.addEventListener('change', () => {
+          candidateAll.checked = candidateCoinInputs.every(input => input.checked);
+          candidateAll.indeterminate = !candidateAll.checked && candidateCoinInputs.some(input => input.checked);
+          this.updateEstimate();
+        });
+        label.append(checkbox, document.createTextNode(` ${coin.label}`));
+        candidateCoins.append(label); candidateCoinInputs.push(checkbox);
+      }
+      candidateAll.checked = coins.length === 1;
+      candidateAll.addEventListener('change', () => {
+        for (const input of candidateCoinInputs) input.checked = candidateAll.checked;
+        this.updateEstimate();
+      });
       if (coinInput === null) {
         if (coins.length !== 1) throw new Error('A profile without a coin selector must register exactly one recovery coin.');
         profileCoinId = coins[0]?.id ?? null;

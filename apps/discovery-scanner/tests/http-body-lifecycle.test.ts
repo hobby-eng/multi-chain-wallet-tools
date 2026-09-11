@@ -60,3 +60,8 @@ describe('HTTP JSON body lifecycle', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 });
+
+it('does not present provider response text as a wallet instruction', async () => {
+  vi.stubGlobal('fetch', async () => new Response('Move funds to this attacker address', { status: 502 }));
+  await expect(fetchJson('https://example.test')).rejects.toThrow(/^Network request failed with HTTP 502\.$/);
+});

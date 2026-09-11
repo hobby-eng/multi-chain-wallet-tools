@@ -23,6 +23,7 @@ export type RecoveryWatchOnlyKind =
   | 'bitcoin-descriptor'
   | 'bitcoin-xpub'
   | 'ethereum-xpub'
+  | 'dash-legacy-xpub'
   | 'dash-core-xpub'
   | 'dash-coinjoin-xpub'
   | 'dash-platform-xpub'
@@ -46,6 +47,8 @@ export interface DetectedWatchOnlyMaterial {
   value: string;
   /** Human-readable result of local format detection; never a claim of ownership. */
   detectionLabel?: string;
+  /** Public origin supplied by a validated descriptor; ancestry is descriptive, not proven. */
+  descriptorPath?: string;
   /** Present when the serialized public material declares its own network. */
   bundleNetwork?: 'mainnet' | 'testnet';
 }
@@ -76,6 +79,8 @@ export interface RecoveryScanConfig {
   coreChangeCount: number;
   scanCustomPath?: boolean;
   customPathTemplate?: string;
+  /** Inclusive account range endpoint; absent for a single arbitrary path. */
+  customPathRangeEnd?: string;
   customPathFormat?: string;
   customPathCount?: number;
   scanLegacyCore: boolean;
@@ -233,6 +238,7 @@ export interface RecoveryCoinAdapter {
   readonly customPath?: {
     readonly description: string;
     readonly placeholder: string;
+    readonly defaultTemplate?: (network: RecoveryNetwork) => string;
     readonly formats: ReadonlyArray<{ id: string; label: string }>;
   };
   prepareBatch?(

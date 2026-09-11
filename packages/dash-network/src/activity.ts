@@ -77,7 +77,8 @@ export class ShieldedActivityLedger {
         spent.spentAtPosition = position;
       }
     }
-    this.#scannedNotes = pageEnd;
+    // Empty aligned successors do not contain actions; rereads add no duplicates.
+    if (page.notes.length > 0 && pageEnd > this.#scannedNotes) this.#scannedNotes = pageEnd;
     this.#proofHeight = this.#proofHeight > page.proofHeight ? this.#proofHeight : page.proofHeight;
     this.#protocolVersion = Math.max(this.#protocolVersion, page.protocolVersion);
   }

@@ -1,3 +1,6 @@
+import { scanCandidates } from './candidate-scan.js';
+import { customScanPaths } from './coins/custom-path.js';
+import { assertWatchOnlyMinimum } from './watch-only.js';
 import { enrichRecoveryHistory } from './history.js';
 import type { RecoveryExportFile, RecoveryExportFormat } from './export.js';
 import type { RecoveryCoinRegistry } from './coins/registry.js';
@@ -63,6 +66,7 @@ function scanConfig(snapshot: RecoveryInputSnapshot): RecoveryScanConfig {
     coreChangeCount: parseInteger(snapshot.coreChangeCount, 'Core change count', 0),
     scanCustomPath: snapshot.scanCustomPath,
     customPathTemplate: snapshot.customPathTemplate.trim(),
+    ...(snapshot.scanCustomPath && snapshot.scanCustomRange ? { customPathRangeEnd: snapshot.customPathRangeEnd.trim() } : {}),
     customPathFormat: snapshot.customPathFormat,
     customPathCount: parseInteger(snapshot.customPathCount, 'Custom path address count', 1),
     scanLegacyCore: snapshot.scanLegacyCore,
@@ -119,6 +123,7 @@ export function createDiscoveryScannerController(
   function setMode(mode: RecoveryInputMode): void {
     inputMode = mode;
     view.setMode(mode);
+    view.updateEstimate();
     setRevealed(false);
   }
 
@@ -176,9 +181,11 @@ export function createDiscoveryScannerController(
   }
 
   function watchOnlyScanConfig(snapshot: RecoveryInputSnapshot): RecoveryWatchOnlyScanConfig {
+    const minimumCount = parseInteger(snapshot.watchOnlyMinimumCount, 'Watch-only address minimum', 1);
+    assertWatchOnlyMinimum(minimumCount);
     return {
       network: snapshot.network === 'testnet' ? 'testnet' : 'mainnet',
-      minimumCount: parseInteger(snapshot.watchOnlyMinimumCount, 'Watch-only address minimum', 1),
+      minimumCount,
       includeUsedZeroBalance: snapshot.includeUsedZeroBalance,
     };
   }
@@ -329,6 +336,73 @@ export function createDiscoveryScannerController(
     setRunning(false);
   }
 
+  function startCandidateScan(snapshot: RecoveryInputSnapshot): void {
+    const config = scanConfig(snapshot);
+    const adapters = [...new Set(snapshot.candidateCoinIds ?? [])].map(id => dependencies.getRecoveryCoin(id));
+    if (adapters.length === 0) { wipeInputSnapshot(snapshot); throw new Error('Select at least one coin for candidate scanning.'); }
+    const phrases = snapshot.batchMnemonics.replaceAll('\r', '').split('\n');
+    const passwords = snapshot.batchPassphrases.replaceAll('\r', '').split('\n');
+    const inputs = phrases.flatMap((mnemonic, line) => mnemonic.trim() ? [{
+      id: `candidate-${line + 1}`, label: `Candidate · source line ${line + 1}`, mnemonic, passphrase: passwords[line] ?? '',
+    }] : []);
+    phrases.fill('');
+    passwords.fill('');
+    wipeInputSnapshot(snapshot);
+    if (inputs.length === 0) throw new Error('Enter at least one candidate seed phrase.');
+    sessionSecretGuard.clear();
+    validatedExports.clear();
+    if (snapshot.clearInputOnStart) clearVisibleSecrets();
+    currentResults = [];
+    activeResultId = null;
+    resultTabTouched = false;
+    scanCompleted = false;
+    liveFindingCount = 0;
+    renderResults();
+    currentAbort = new AbortController();
+    const runController = currentAbort;
+    const networkLimiter = new dependencies.RecoveryConcurrencyLimiter(1);
+    initializeWalletProgress(inputs.flatMap(input => adapters.map(adapter => ({
+      id: `${input.id}-${adapter.id}`, label: `${input.label} · ${adapter.label}`,
+    }))));
+    setRunning(true);
+    view.showProgress();
+    view.setStatus(`Checking ${inputs.length} candidates across ${adapters.length} selected coins, sequentially. Only configured coverage is checked.`);
+    void (async () => {
+      try {
+        const networkApi = await dependencies.recoveryNetworkApi();
+        await scanCandidates(inputs, adapters, config, {
+          signal: runController.signal, networkApi, networkLimiter, sessionSecretGuard,
+          onProgress: updateProgress, onFinding: renderLiveFinding,
+        }, dependencies.assertValidMnemonic, result => {
+          currentResults.push(result);
+          if (result.coinId === 'input') {
+            for (const adapter of adapters) finishWalletProgress(`${result.inputId}-${adapter.id}`, true);
+          } else finishWalletProgress(result.inputId, result.sections.some(section => section.state === 'failed' || section.state === 'partial'));
+          renderResults();
+        });
+        scanCompleted = currentResults.length > 0 && currentResults.every(result => result.sections.every(section => section.state !== 'failed' && section.state !== 'partial'));
+        view.setStatus('Candidate pass finished. Review each coin outcome; failed or skipped checks do not establish an empty wallet.');
+      } catch (cause) {
+        view.setStatus(runController.signal.aborted
+          ? 'Candidate scan stopped. Completed checks remain available; queued checks were not performed.'
+          : 'Candidate scan could not finish. Remaining checks were not performed.');
+      } finally {
+        for (const progress of walletProgress.values()) {
+          if (progress.state === 'queued' || progress.state === 'running') {
+            progress.state = 'failed'; progress.stage = 'Not completed'; progress.message = 'No conclusion about balance or activity';
+          }
+        }
+        view.renderWalletProgress(walletProgress);
+        wipeInputObjects(inputs);
+        try { stageValidatedExports(); renderResults(); }
+        catch { view.showError('Candidate reports failed the export safety check. Export is disabled.'); }
+        sessionSecretGuard.clear();
+        currentAbort = null;
+        setRunning(false);
+      }
+    })();
+  }
+
   function startScan(): void {
     if (running) return;
     if (!selfTestPassed) {
@@ -343,6 +417,10 @@ export function createDiscoveryScannerController(
         startWatchOnlyScan(snapshot);
         return;
       }
+      if (inputMode === 'batch' && snapshot.automaticCandidates) {
+        try { startCandidateScan(snapshot); } finally { wipeInputSnapshot(snapshot); }
+        return;
+      }
       try {
         inputs = recoveryInputs(snapshot);
       } finally {
@@ -351,6 +429,7 @@ export function createDiscoveryScannerController(
         wipeInputSnapshot(snapshot);
       }
       const config = scanConfig(snapshot);
+      customScanPaths(config); // Validate both endpoints before starting scan queries.
       const seedConcurrency = inputMode === 'single' ? 1 : parseConcurrency(snapshot.batchConcurrency, 'Batch seed concurrency');
       const requestConcurrency = parseConcurrency(snapshot.requestConcurrency, 'Network concurrency');
       const adapter = dependencies.getRecoveryCoin(snapshot.coinId);

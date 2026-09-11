@@ -1,3 +1,5 @@
+import { assertWatchOnlyMinimum } from '../../watch-only.js';
+import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
 import { HDKey } from '@scure/bip32';
 import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
 import { getBitcoinNetwork } from '@ckd/core/networks.js';
@@ -27,10 +29,10 @@ import { extendAddressTarget } from '../dash/util.js';
 import { addressFor, BITCOIN_MODES, formatBitcoin, type BitcoinMode } from './shared.js';
 
 const DESCRIPTOR_PATTERNS: ReadonlyArray<{ mode: BitcoinMode; wrappers: number; pattern: RegExp }> = [
-  { mode: 'legacy', wrappers: 1, pattern: /^pkh\(\[([0-9a-f]{8})((?:\/\d+h?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
-  { mode: 'nested-segwit', wrappers: 2, pattern: /^sh\(wpkh\(\[([0-9a-f]{8})((?:\/\d+h?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)\)#([0-9a-z]{8})$/iu },
-  { mode: 'native-segwit', wrappers: 1, pattern: /^wpkh\(\[([0-9a-f]{8})((?:\/\d+h?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
-  { mode: 'taproot', wrappers: 1, pattern: /^tr\(\[([0-9a-f]{8})((?:\/\d+h?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
+  { mode: 'legacy', wrappers: 1, pattern: /^pkh\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
+  { mode: 'nested-segwit', wrappers: 2, pattern: /^sh\(wpkh\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)\)#([0-9a-z]{8})$/iu },
+  { mode: 'native-segwit', wrappers: 1, pattern: /^wpkh\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
+  { mode: 'taproot', wrappers: 1, pattern: /^tr\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
 ];
 
 const SLIP132_PUBLIC_VERSIONS: ReadonlyArray<{
@@ -230,7 +232,7 @@ async function queryAddresses(
   }
   return value.map((entry, index) => {
     if (entry.address !== addresses[index]
-      || !/^(?:0|[1-9][0-9]*)$/u.test(entry.balance)
+      || !PROVIDER_UNSIGNED_DECIMAL.test(entry.balance)
       || !Number.isSafeInteger(entry.transactionCount)
       || entry.transactionCount < 0) {
       throw new Error('Bitcoin address service returned malformed data.');
@@ -301,9 +303,7 @@ export async function scanBitcoinWatchOnly(
   config: RecoveryWatchOnlyScanConfig,
   context: RecoveryScanContext,
 ): Promise<RecoveryWalletResult> {
-  if (!Number.isSafeInteger(config.minimumCount) || config.minimumCount < 1) {
-    throw new Error('The watch-only address minimum must be a positive integer.');
-  }
+  assertWatchOnlyMinimum(config.minimumCount);
   const guard = new SecretEgressGuard();
   if (input.kind !== 'public-key' && input.kind !== 'identity') {
     guard.registerString('Bitcoin watch-only input', input.value);

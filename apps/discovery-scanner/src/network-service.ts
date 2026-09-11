@@ -1,3 +1,5 @@
+import { readProviderJson } from '@ckd/dash-network/provider-json.js';
+import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
 import { IdentityPageIntegrity } from '@ckd/dash-network/identity-pagination.js';
 import { EvoSDK, type Identity, type ShieldedEncryptedNote } from '@dashevo/evo-sdk';
 import { copyAndFreeEvoShieldedNote } from '@ckd/dash-network/evo-shielded-note.js';
@@ -25,9 +27,10 @@ import { describeUnknownError, freeThrownValue } from './error-message.js';
 const PUBLIC_KEY_HASH_PATTERN = /^[0-9a-f]{40}$/u;
 const TRANSACTION_HASH_PATTERN = /^[0-9a-f]{64}$/u;
 const PLATFORM_IDENTIFIER_PATTERN = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{44}$/u;
-const DECIMAL_PATTERN = /^(?:0|[1-9][0-9]*)$/u;
+const DECIMAL_PATTERN = PROVIDER_UNSIGNED_DECIMAL;
 const PLATFORM_HISTORY_PAGE_SIZE = 100;
-const PLATFORM_HISTORY_MAX_PAGES = 10_000;
+export const PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS = 1_000;
+export const PLATFORM_IDENTITY_HISTORY_TIMEOUT_MS = 30_000;
 const PLATFORM_EXPLORER_ENDPOINTS: Record<RecoveryNetwork, string> = {
   mainnet: 'https://platform-explorer.pshenmic.dev',
   testnet: 'https://testnet.platform-explorer.pshenmic.dev',
@@ -221,11 +224,11 @@ export async function fetchJson(
   try {
     const response = await globalThis.fetch(url, { ...init, cache: 'no-store', signal: requestController.signal });
     if (!response.ok) {
-      const detail = (await response.text().catch(() => '')).slice(0, 300);
-      throw new Error(`Network request failed with HTTP ${response.status}${detail ? ` — ${detail}` : ''}.`);
+      void response.body?.cancel().catch(() => {});
+      throw new Error(`Network request failed with HTTP ${response.status}.`);
     }
     // Keep timeout and caller cancellation active until the body is consumed.
-    return await response.json() as unknown;
+    return await readProviderJson(response, requestController.signal);
   } catch (cause) {
     if (signal?.aborted) throw abortError();
     if (timedOut) throw new Error(`Network request timed out after ${Math.ceil(timeoutMs / 1_000)} seconds.`);
@@ -515,33 +518,40 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     identifier: string,
     signal?: AbortSignal,
   ): Promise<PlatformHistorySummaryView> {
+    const deadline = Date.now() + PLATFORM_IDENTITY_HISTORY_TIMEOUT_MS;
+    const request = (url: string): Promise<unknown> => {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error('Platform identity history exceeded its time budget.');
+      return fetchJson(url, signal, {}, remaining);
+    };
     assertNetwork(network);
     if (!PLATFORM_IDENTIFIER_PATTERN.test(identifier)) throw new Error('Network Worker rejected an invalid Platform identity.');
     const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
     const indexedHeight = await this.#platformExplorerHeight(network, signal);
-    const info = record(await fetchJson(`${endpoint}/identity/${encodeURIComponent(identifier)}`, signal), 'identity info');
+    const info = record(await request(`${endpoint}/identity/${encodeURIComponent(identifier)}`), 'identity info');
     if (info.identifier !== identifier) throw new Error('Platform Explorer identity info did not match the requested identity.');
+    const expectedTransfers = unsignedInteger(info.totalTransfers, 'identity transfer count');
+    if (expectedTransfers > PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS) {
+      throw new Error(`Platform identity history exceeds the ${PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS}-transfer safety limit; proof-verified balance remains available.`);
+    }
     const transactionCount = unsignedInteger(info.totalTxs, 'identity transaction count');
     const firstSeen = timestamp(info.timestamp, 'identity first-seen timestamp');
-    const lastSeen = transactionCount === 0 ? firstSeen : await fetchJson(
+    const lastSeen = transactionCount === 0 ? firstSeen : await request(
       `${endpoint}/identity/${encodeURIComponent(identifier)}/transactions?page=1&limit=1&order=desc`,
-      signal,
     ).then((value) => pageTimestamp(value, 'last identity transition'));
     let totalReceived = 0n;
     let totalSent = 0n;
     let incomingCount = 0;
     let outgoingCount = 0;
     let processed = 0;
-    const expectedTransfers = unsignedInteger(info.totalTransfers, 'identity transfer count');
     const integrity = new IdentityPageIntegrity('identity transfers', 'transfers', expectedTransfers);
     const total = expectedTransfers;
     for (let pageNumber = 1; processed < total; pageNumber += 1) {
-      if (pageNumber > PLATFORM_HISTORY_MAX_PAGES) throw new Error('Platform identity transfer history exceeded its safety ceiling.');
-      const page = pageItems(await fetchJson(
+      if (pageNumber > Math.ceil(PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS / PLATFORM_HISTORY_PAGE_SIZE)) throw new Error('Platform identity transfer history exceeded its safety ceiling.');
+      const page = pageItems(await request(
         `${endpoint}/identity/${encodeURIComponent(identifier)}/transfers?page=${pageNumber}&limit=${PLATFORM_HISTORY_PAGE_SIZE}&order=asc`,
-        signal,
-      ), 'identity transfer page');
-      integrity.accept(page.items, page.total, PLATFORM_HISTORY_PAGE_SIZE, Number.MAX_SAFE_INTEGER);
+        ), 'identity transfer page');
+      integrity.accept(page.items, page.total, PLATFORM_HISTORY_PAGE_SIZE, PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS);
       for (const transfer of page.items) {
         const amount = BigInt(decimal(transfer.amount, 'identity transfer amount'));
         if (transfer.recipient === identifier) {

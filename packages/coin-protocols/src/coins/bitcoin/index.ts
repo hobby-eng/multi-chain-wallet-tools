@@ -7,6 +7,7 @@ import { deriveLegacyAddress } from './legacy.js';
 import { deriveNativeSegwitAddress } from './native-segwit.js';
 import { deriveNestedSegwitAddress } from './nested-segwit.js';
 import { deriveTaprootDetails } from './taproot.js';
+import { accountDescriptorExport } from '../../account-descriptors.js';
 import { bip32SummaryFields } from '../../bip32-summary.js';
 
 export type BitcoinMode = 'legacy' | 'nested-segwit' | 'native-segwit' | 'taproot';
@@ -149,6 +150,12 @@ export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): De
       pathTemplate: `${branchPath}/i`,
       basicSummary: [],
       summary,
+      accountDescriptors: accountDescriptorExport({
+        script: mode === 'legacy' ? 'pkh' : mode === 'nested-segwit' ? 'sh-wpkh' : mode === 'native-segwit' ? 'wpkh' : 'tr',
+        fingerprint: masterFingerprint, accountPath,
+        publicKey: account.publicExtendedKey, privateKey: account.privateExtendedKey,
+        fileStem: `bitcoin-${mode}-${options.network}-account-${options.account}`,
+      }),
       watchOnly: {
         label: 'Copy Bitcoin watch-only descriptor',
         description: `Checksummed ranged ${config.label} output descriptor for branch ${options.branch}. It contains the account xpub and can reveal every address on that branch, but cannot spend.`,
