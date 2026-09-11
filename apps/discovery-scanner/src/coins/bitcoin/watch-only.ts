@@ -28,10 +28,10 @@ import { extendAddressTarget } from '../dash/util.js';
 import { addressFor, BITCOIN_MODES, formatBitcoin, type BitcoinMode } from './shared.js';
 
 const DESCRIPTOR_PATTERNS: ReadonlyArray<{ mode: BitcoinMode; wrappers: number; pattern: RegExp }> = [
-  { mode: 'legacy', wrappers: 1, pattern: /^pkh\(\[([0-9a-f]{8})((?:\/\d+h?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
-  { mode: 'nested-segwit', wrappers: 2, pattern: /^sh\(wpkh\(\[([0-9a-f]{8})((?:\/\d+h?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)\)#([0-9a-z]{8})$/iu },
-  { mode: 'native-segwit', wrappers: 1, pattern: /^wpkh\(\[([0-9a-f]{8})((?:\/\d+h?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
-  { mode: 'taproot', wrappers: 1, pattern: /^tr\(\[([0-9a-f]{8})((?:\/\d+h?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
+  { mode: 'legacy', wrappers: 1, pattern: /^pkh\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
+  { mode: 'nested-segwit', wrappers: 2, pattern: /^sh\(wpkh\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)\)#([0-9a-z]{8})$/iu },
+  { mode: 'native-segwit', wrappers: 1, pattern: /^wpkh\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
+  { mode: 'taproot', wrappers: 1, pattern: /^tr\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu },
 ];
 
 const SLIP132_PUBLIC_VERSIONS: ReadonlyArray<{
