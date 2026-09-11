@@ -152,13 +152,15 @@ describe('automatic public-key discovery', () => {
     expect(createRecoveryExport([result], 'json').text).not.toContain(account.publicExtendedKey);
     expect(() => ctx.sessionSecretGuard!.assertPublic(account.publicExtendedKey, 'export')).toThrow(/Blocked/u);
   });
-  it('preserves descriptor child paths in funded findings and exports for every script family and branch', async () => {
+  it.each(['h', "'"])('preserves %s descriptor paths in funded findings and exports for every script family and branch', async marker => {
     const seed = new Uint8Array(32).fill(33);
     for (const mode of ['legacy', 'nested-segwit', 'native-segwit', 'taproot'] as const) {
       for (const branch of [0, 1]) {
         const derived = deriveBitcoin(mode, { seed, network: 'mainnet', account: 0, branch, start: 17, count: 1 });
         const expectedAddress = derived.rows[0]!.basic.find(({ key }) => key === 'address')!.value;
-        const result = await scan(BITCOIN_RECOVERY_ADAPTER, derived.watchOnly!.text, context({
+        const body = derived.watchOnly!.text.split('#')[0]!.replace(/\[[^\]]+\]/u, origin => origin.replaceAll('h', marker));
+        const descriptor = `${body}#${descriptorChecksum(body)}`;
+        const result = await scan(BITCOIN_RECOVERY_ADAPTER, descriptor, context({
           utxoAddresses: async (_network, addresses) => addresses.map((address) => ({
             address,
             balance: address === expectedAddress ? '100' : '0',
@@ -282,4 +284,10 @@ it('applies the same DIP9 branch scan to a testnet tpub', async () => {
   }), { ...config, network: 'testnet' });
   expect(branch.publicExtendedKey.startsWith('tpub')).toBe(true);
   expect(queried).toEqual([expectedAddress]);
+});
+
+it('checks the original checksum before deriving an apostrophe-origin descriptor', async () => {
+  const body = `wpkh([00000000/84h/0h/0h]${account.publicExtendedKey}/0/*)`;
+  const apostrophe = body.replaceAll('/84h/0h/0h', "/84'/0'/0'");
+  await expect(scan(BITCOIN_RECOVERY_ADAPTER, `${apostrophe}#${descriptorChecksum(body)}`, context())).rejects.toThrow('checksum');
 });
