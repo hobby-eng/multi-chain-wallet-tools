@@ -128,6 +128,10 @@ for (const browserName of selectedBrowsers) {
             run.checks.push('Seed batch/public-key batch tabs, testnet selection, scope warning and Clear');
           } else if (toolId === 'key-derivation') {
             await page.locator('#crypto-self-test-status.passed').waitFor();
+            assert.equal(await page.locator('#standard-path-details').isVisible(), true);
+            assert.equal(await page.locator('#standard-path-details input').count(), 0);
+            assert.ok((await page.locator('#standard-path-details').innerText()).includes('Selected scheme'));
+            run.checks.push('Read-only standard scheme parameters and canonical path preview');
             if (profile.id === 'multi-chain') assert.equal(await page.locator('#coin').inputValue(), 'bitcoin');
             await page.locator('#mnemonic').fill(phrase);
             await page.locator('#count').fill('1');
