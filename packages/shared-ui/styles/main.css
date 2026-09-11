@@ -226,7 +226,12 @@ footer p { margin:0; }
 @media (prefers-reduced-motion:reduce) { .payment-qr-popover { scroll-behavior:auto; } }
 @media print { body::before,.actions,.copy,.warning,.offline-badge,.danger-outline,.bulk-panel,.watch-only-panel,.mode-toggle,.result-branch-tabs { display:none!important; } .secret-value { filter:blur(8px)!important; } body { background:white; color:black; } .panel,.key-card,.address-card { box-shadow:none; border-color:#bbb; background:white; } }
 
-#account-descriptor-export { display:block; }
-#account-descriptor-export p { margin:10px 0; }
-#account-descriptor-export .watch-only-actions { flex-wrap:wrap; }
-#account-descriptor-export button { white-space:normal; }
+#account-descriptor-export { margin-bottom:16px; }
+#account-export-dialog { width:min(560px,calc(100vw - 32px)); max-height:calc(100dvh - 40px); overflow:auto; box-sizing:border-box; padding:24px; border:1px solid var(--line); border-radius:16px; background:var(--panel); color:var(--text); }
+#account-export-dialog::backdrop { background:rgba(0,0,0,.65); }
+.account-export-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+#account-export-dialog p { margin:10px 0; }
+#account-export-dialog h4 { margin:20px 0 8px; }
+#account-export-dialog .watch-only-actions { flex-wrap:wrap; }
+#account-export-dialog button { white-space:normal; }
+@media print { #account-descriptor-export { display:none!important; } }
