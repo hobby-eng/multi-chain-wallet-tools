@@ -588,7 +588,12 @@ describe('Orchard stream completion', () => {
       disposePage: () => undefined,
     });
     expect(requested).toEqual([0n, 2048n, 0n, 2048n, 2048n]);
-    expect(observed[2]).toEqual({ position: 0n, count: 2, height: 101n });
+    expect(observed).toEqual([
+      { position: 0n, count: 1, height: 100n },
+      { position: 0n, count: 2, height: 101n },
+      { position: 2048n, count: 0, height: 101n },
+      { position: 2048n, count: 0, height: 101n },
+    ]);
     expect(outcome).toEqual({ complete: true, pageCount: 5, terminalPosition: 2048n });
   });
 });
