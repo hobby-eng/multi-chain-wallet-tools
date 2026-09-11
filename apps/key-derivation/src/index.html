@@ -86,6 +86,12 @@
             <label id="protocol-tabs-label">Derivation type</label>
             <div id="protocol-tabs" class="protocol-tabs" role="radiogroup" aria-labelledby="protocol-tabs-label"></div>
           </div>
+          <div id="legacy-mobile-field" class="change-addresses-option span-three" hidden>
+            <label for="include-legacy-mobile">
+              <input id="include-legacy-mobile" type="checkbox">
+              <span><strong>Show legacy mobile Core</strong><small>Reveals the historical Dash mobile <code>m/account'/branch/index</code> derivation tab. Leave this hidden unless you specifically need an old DashSync/mobile path.</small></span>
+            </label>
+          </div>
           <div class="standard-path-section span-three">
             <p class="field-note">The selected scheme fixes the derivation rules and address format. Edit the supported controls below; the full path updates automatically. Only change the default scheme or account if you know your wallet’s derivation path; other wallets may not find funds at a different path.</p>
             <div id="standard-path-details" class="standard-path-details" aria-label="Fixed scheme parameters"></div>

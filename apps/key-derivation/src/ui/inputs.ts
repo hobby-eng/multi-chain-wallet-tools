@@ -13,6 +13,8 @@ export interface CoinMetadataRegistry {
 export interface DerivationControls {
   coin: HTMLSelectElement;
   protocolTabs: HTMLElement;
+  legacyMobileField: HTMLElement;
+  includeLegacyMobile: HTMLInputElement;
   network: HTMLSelectElement;
   networkField: HTMLElement;
   accountField: HTMLElement;
@@ -70,7 +72,8 @@ function renderProtocolTabs(
 ): void {
   controls.protocolTabs.replaceChildren();
   const family = registry.getCoinFamily(registry.getAdapterFamilyId(adapter));
-  for (const variant of family.adapters) {
+  const showHidden = controls.includeLegacyMobile.checked;
+  for (const variant of family.adapters.filter((candidate) => !candidate.hiddenByDefault || showHidden || candidate.id === adapter.id)) {
     const button = document.createElement('button');
     const selected = variant.id === adapter.id;
     button.type = 'button';
@@ -94,6 +97,9 @@ export function configureControls(
   const defaults = adapter.defaults;
   const values: DerivationControlValues = remembered ?? { ...defaults, includeChange: false, includeCoinJoin: false };
   controls.coin.value = registry.getAdapterFamilyId(adapter);
+  const family = registry.getCoinFamily(registry.getAdapterFamilyId(adapter));
+  controls.legacyMobileField.hidden = !family.adapters.some(({ id }) => id === 'dash-legacy-mobile');
+  if (adapter.id === 'dash-legacy-mobile') controls.includeLegacyMobile.checked = true;
   renderProtocolTabs(adapter, controls, registry);
   controls.network.replaceChildren();
   for (const network of ['mainnet', 'testnet'] as const) {

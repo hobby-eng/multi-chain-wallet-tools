@@ -35,6 +35,8 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const controls: DerivationControls = {
     coin: required<HTMLSelectElement>('#coin'),
     protocolTabs: required<HTMLElement>('#protocol-tabs'),
+    legacyMobileField: required<HTMLElement>('#legacy-mobile-field'),
+    includeLegacyMobile: required<HTMLInputElement>('#include-legacy-mobile'),
     network: required<HTMLSelectElement>('#network'),
     networkField: required<HTMLElement>('#network-field'),
     accountField: required<HTMLElement>('#account-field'),

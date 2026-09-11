@@ -60,6 +60,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     group: 'Dash',
     label: 'Dash Core · legacy mobile',
     variantLabel: 'Legacy mobile Core',
+    hiddenByDefault: true,
     networkControl: true,
     addressBranches: BIP44_ADDRESS_BRANCHES,
     defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
