@@ -158,22 +158,27 @@
     </form>
 
     <section id="results" hidden>
-      <section id="account-descriptor-export" class="panel watch-only-panel" hidden>
-        <h3>Account export</h3>
-        <p id="account-descriptor-description"></p>
-        <p>Both receive and change branches are included, regardless of the displayed row count. Other accounts and address schemes are not included. Select the matching coin and network in the destination wallet.</p>
-        <div class="watch-only-actions">
-          <button class="secondary" id="copy-scanner-bundle" type="button">Copy for Scanner · public</button>
-          <button class="secondary" id="copy-public-descriptors" type="button">Copy public descriptors</button>
-          <button class="secondary" id="download-public-descriptors" type="button">Download public descriptors</button>
-        </div>
-        <p><strong>Private descriptors contain unencrypted account private keys and allow spending.</strong> Reveal sensitive values to enable private export. Neither descriptor export is a complete seed backup.</p>
-        <div class="watch-only-actions">
-          <button class="secondary" id="copy-private-descriptors" type="button">Copy private descriptors</button>
-          <button class="secondary" id="download-private-descriptors" type="button">Download private descriptors</button>
-        </div>
-        <p class="field-note">Descriptor files contain two lines: receive /0/* first, change /1/* second. For Core importdescriptors, put each line in its own request and set internal:true for change. Choose the rescan timestamp and address range to cover your wallet history; the file is not a ready-made RPC request.</p>
-      </section>
+      <div id="account-descriptor-export" hidden>
+        <button class="secondary" id="open-account-export" type="button" aria-haspopup="dialog">Account export</button>
+        <dialog id="account-export-dialog" aria-labelledby="account-export-title">
+          <div class="account-export-heading"><h3 id="account-export-title">Account export</h3><button class="secondary compact" id="close-account-export" type="button" aria-label="Close account export">Close</button></div>
+          <p id="account-descriptor-description"></p>
+          <p>Includes receive and change addresses for this account and address type.</p>
+          <h4>Public descriptors</h4>
+          <p>View addresses and activity. Cannot spend funds.</p>
+          <div class="watch-only-actions">
+            <button class="secondary" id="copy-public-descriptors" type="button">Copy public descriptors</button>
+            <button class="secondary" id="download-public-descriptors" type="button">Download public descriptors</button>
+          </div>
+          <h4>Private descriptors</h4>
+          <p>Unencrypted keys that allow spending. Reveal sensitive values before export.</p>
+          <div class="watch-only-actions">
+            <button class="secondary" id="copy-private-descriptors" type="button">Copy private descriptors</button>
+            <button class="secondary" id="download-private-descriptors" type="button">Download private descriptors</button>
+          </div>
+          <p class="field-note">For wallet descriptor import, not PSBT transaction import. This is not a complete seed backup.</p>
+        </dialog>
+      </div>
 
       <div class="results-title">
         <div><span class="step">03</span><h2 id="result-title">Derived results</h2></div>
