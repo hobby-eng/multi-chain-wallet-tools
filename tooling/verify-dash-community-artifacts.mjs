@@ -22,6 +22,7 @@ const DASH_DERIVATION_ADAPTER_IDS = new Set([
   'dash-legacy-mobile',
   'dash-platform',
   'dash-identity',
+  'dash-multisig-p2sh',
   'dash-shielded',
 ]);
 const DASH_RECOVERY_ADAPTER_IDS = new Set(['dash']);
@@ -86,7 +87,7 @@ export function verifyDashCommunityArtifacts(projectRoot = root) {
 
   const keyTool = getToolBuild(profile, 'key-derivation');
   const keyArtifact = readFileSync(resolve(projectRoot, 'dist', keyTool.artifactRelativePath), 'utf8');
-  for (const adapterId of ['dash-core', 'dash-legacy-mobile', 'dash-platform', 'dash-identity', 'dash-shielded']) {
+  for (const adapterId of ['dash-core', 'dash-legacy-mobile', 'dash-platform', 'dash-identity', 'dash-multisig-p2sh', 'dash-shielded']) {
     if (!keyArtifact.includes(adapterId)) {
       throw new Error(`Dash Community key derivation artifact omitted ${adapterId}.`);
     }

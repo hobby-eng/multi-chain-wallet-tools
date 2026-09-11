@@ -96,6 +96,27 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     },
   },
   {
+    id: 'dash-multisig-p2sh',
+    fixedPathLabels: ['Purpose', 'Coin type', 'Script type'],
+    group: 'Dash',
+    label: 'Dash multisig cosigner · Purpose48 / P2SH',
+    variantLabel: 'Multisig · Purpose48 P2SH',
+    networkControl: true,
+    addressBranches: {
+      receive: 0,
+      change: 1,
+      help: "Also derives the internal/change cosigner public keys in a separate result tab. These are not single-signer payment addresses; they are inputs to shared P2SH multisig scripts.",
+    },
+    defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
+    fieldRoles: {
+      addresses: [],
+      publicKeys: ['publicKey', 'childXpub', 'descriptorKey', 'descriptorAccountKey'],
+      privateKeys: ['privateKey', 'privateKeyHex', 'childXprv'],
+    },
+    pathPreview: ({ network, account, branch, start, count }) =>
+      `m/48'/${network === 'mainnet' ? 5 : 1}'/${account}'/0'/${branch}/${indexRange(start, count)}`,
+  },
+  {
     id: 'dash-shielded',
     fixedPathLabels: ['ZIP-32 purpose', 'Coin type'],
     group: 'Dash',

@@ -3,7 +3,7 @@
 The derivation form displays the fixed purpose, coin type and selected scheme from the same adapter that defines the standard path. The path is read-only: account, address branch controls, start index and result count remain editable where supported. Receive/change generation retains its existing checkbox. Identity has no account control; Orchard labels its diversifier index explicitly. Legacy mobile paths do not display nonexistent purpose/coin levels. There is no arbitrary-path mode in this tool.
 
 
-Offline, standalone BIP39/BIP32/ZIP-32 derivation. The extensible Multi-Chain edition currently includes Bitcoin, Ethereum, and Dash (Core BIP44, legacy mobile Core, Platform payments, Platform Identity keys, and Orchard). Dash Community is Dash-only and compiles only those five Dash adapters. Build outputs: `dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html` and `dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html`.
+Offline, standalone BIP39/BIP32/ZIP-32 derivation. The extensible Multi-Chain edition currently includes Bitcoin, Ethereum, and Dash (Core BIP44, legacy mobile Core, Platform payments, Platform Identity keys, Purpose48 P2SH multisig cosigner keys, and Orchard). Dash Community is Dash-only and compiles only those six Dash adapters. Build outputs: `dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html` and `dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html`.
 
 The Release passport contains the self-test result, deterministic build identity, checksum sidecar name, and embedded dependency versions/licenses. The former duplicate expandable dependency footer has been removed.
 
@@ -33,6 +33,12 @@ For Dash Platform, leave **Also generate change addresses** off to derive receiv
 Legacy mobile Account selects the hardened root `m/account'`; zero remains the historical default. This matches [DashSync’s BIP32 account implementation](https://github.com/dashevo/dashsync-iOS/blob/master/DashSync/shared/Models/Derivation%20Paths/DSFundsDerivationPath.m). Discovery uses the selected account for both receive and change chains, on mainnet and testnet.
 
 Legacy mobile results include **Copy public scan key** and a text-file export for the active branch. Paste the `dash-legacy-xpub:` export into Discovery Scanner; it covers that branch without revealing private keys.
+
+### Dash multisig cosigner export
+
+The Dash multisig cosigner mode derives standard-style legacy P2SH multisig account material at `m/48'/5'/account'/0'` on mainnet and `m/48'/1'/account'/0'` on testnet. Advanced mode shows the same root/account disclosure fields as other BIP32 schemes, including master xpub/xprv, master fingerprint, account xpub/xprv, and child keys.
+
+Use the origin-tagged account xpub (`[fingerprint/48h/5h/accounth/0h]xpub...`) as one cosigner input in the PSBT Inspector / Multisig wallet utility. That utility combines all cosigner xpubs to build the shared 2-of-N P2SH address range. The single-signer addresses from Dash Core BIP44 are not part of this multisig wallet.
 
 ### Account descriptor export
 

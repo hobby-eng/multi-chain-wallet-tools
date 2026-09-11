@@ -2,13 +2,13 @@
 
 Audit baseline: [2026-09-08 review record](docs/audits/2026-09-08-baseline.json), commit `6462c67d677ab73bea49051c3e3d866fcd157894`, release 0.1.3 at review. This date and commit are immutable review metadata; a release bump does not refresh them. The review found defects and test gaps. Later corrections require their own verification evidence.
 
-Scope: first-party source, security boundaries, integration with the pinned generated WASM, build tooling and documentation. Dependency source audits and an independent cryptographic proof are excluded. Multi-Chain Edition supports Bitcoin, Ethereum, and Dash. Dash Community Edition contains only Dash Core, Dash Platform payments, Dash Platform Identity, and Dash Orchard capabilities. This is an internal engineering review, not a third-party security certification.
+Scope: first-party source, security boundaries, integration with the pinned generated WASM, build tooling and documentation. Dependency source audits and an independent cryptographic proof are excluded. Multi-Chain Edition supports Bitcoin, Ethereum, and Dash. Dash Community Edition contains only Dash Core, Dash Platform payments, Dash Platform Identity, Dash Purpose48 P2SH multisig cosigner, and Dash Orchard capabilities. This is an internal engineering review, not a third-party security certification.
 
 Follow-up: [2026-09-09 corrections and verification scope](docs/audits/2026-09-09-remediation.md). This records subsequent fixes without changing the baseline above.
 
 ## Current release architecture
 
-- The repository builds three applications: the offline Wallet Key Derivation Tool, the connected Wallet Activity Viewer, and the connected Wallet Discovery Scanner.
+- The repository builds four applications: the offline Wallet Key Derivation Tool, the connected Wallet Activity Viewer, the connected Wallet Discovery Scanner, and the offline PSBT Inspector.
 - Each application is emitted in a universal Multi-Chain Edition and a Dash-only Dash Community Edition. Edition selection happens at compile time; it is not a runtime switch over hidden bundled adapters.
 - The Multi-Chain Key Derivation Tool and Discovery Scanner support Bitcoin, Ethereum, and Dash. The Multi-Chain Activity Viewer accepts Bitcoin and Ethereum public addresses and the supported Dash public records. Bitcoin is the default coin wherever the Multi-Chain interface contains it.
 - Dash Community build graphs are checked against positive Dash-only allowlists. Artifact checks also reject non-Dash adapter registrations, identifiers, filenames, profile metadata, and user-facing chain copy. The standards-required BIP32 HMAC domain string `"Bitcoin seed"` is the sole exact lexical exception in Dash HD derivation.
@@ -67,12 +67,20 @@ A compromised browser, extension, operating system, firmware, build host, or alr
 - Batch Orchard downloads each proof-verified page once, applies it locally to every participating FVK, clears its byte arrays, and then advances by the required 2,048-action-aligned cursor. Two proof-verified empty reads establish completion; the 4,096-page ceiling yields a visible partial result rather than an unbounded scan.
 - Discovery CSV/JSON is a public-data projection. It excludes phrases, passphrases, seeds, private/spending keys, extended public keys, Orchard viewing keys, and internal re-derivation locators. The vault can request only a prevalidated `csv` or `json` Blob download through the fixed shell broker.
 
+### PSBT Inspector
+
+- The artifact is offline: its CSP sets `connect-src 'none'`, blocks remote assets, and authorizes the immutable inline application script by a build-time hash.
+- The PSBT parser accepts Bitcoin PSBT v0/v2 and Dash Core PSBT v0, rejects duplicate map keys, non-minimal CompactSize integers, unsupported versions, trailing data, and unreasonably large collections.
+- The Script and descriptor workflows display user-provided public transaction/script/descriptor material with DOM nodes and `textContent`; they do not sign, finalize, fund, broadcast, or query UTXOs.
+- The policy and ranged wallet builders accept compressed public secp256k1 keys or account public keys with explicit origin fingerprints only. They emit scripts, addresses, descriptors, checksums, derivation details, and Bitcoin/Dash watch-only import text for review and testing, but never accept or export private keys.
+- Supplied-order `multi()` and BIP67 `sortedmulti()` are explicit policy choices. The utility does not silently sort supplied-order keys or present sorted descriptors for supplied-order addresses.
+
 ## Cryptographic review results
 
 - Key derivation and address construction use pinned Noble/Scure primitives for BIP39, BIP32, hashing, secp256k1, Base58Check, Bech32/Bech32m, Keccak, and Schnorr operations. No custom curve or encryption primitive was introduced.
 - Bitcoin Legacy, Nested SegWit, Native SegWit, and Taproot derivations are covered by fixed and independent vectors. Taproot matches the complete official BIP86 vector, including internal key, TapTweak, output key, scriptPubKey, and address. BIP380 descriptor checksums are checked against an official fixed vector.
 - Ethereum derives an uncompressed secp256k1 public key, hashes `X || Y` with Keccak-256, selects the final 20 bytes, and applies EIP-55. Results are cross-checked with ethers.
-- Dash Core constants match Dash chain parameters and are cross-checked with DashHD and a published SLIP vector. Dash Platform payment derivation matches DIP17 key and DIP18 address vectors. Dash Identity DIP13 mainnet/testnet path, private key, public key, and HASH160 vectors are independently reproduced with `dashhd`.
+- Dash Core constants match Dash chain parameters and are cross-checked with DashHD and a published SLIP vector. Dash Purpose48 P2SH multisig cosigner derivation is separated from BIP44 single-sig paths and covered for mainnet/testnet account xpub and child-key output. Dash Platform payment derivation matches DIP17 key and DIP18 address vectors. Dash Identity DIP13 mainnet/testnet path, private key, public key, and HASH160 vectors are independently reproduced with `dashhd`.
 - Dash Orchard math comes from the pinned official Dash Orchard fork. Native Rust tests, generated-WASM tests, upstream component vectors, ZIP32 pins, network separation, malformed-input cases, and fixed encrypted-note fixtures cover derivation and viewing-key scanning.
 - Core duffs use 8 decimal places. Dash Platform credits and Orchard raw values use 11 decimal places. The applications keep these atomic units distinct until an explicitly unit-safe DASH aggregate is required.
 
