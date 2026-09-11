@@ -151,7 +151,6 @@ for (const browserName of selectedBrowsers) {
             assert.equal(await page.locator('#account-descriptor-export').isVisible(), true);
             assert.equal(await page.locator('#download-private-descriptors').isDisabled(), true);
             assert.equal(await page.locator('#copy-public-descriptors').isEnabled(), true);
-            assert.equal(await page.locator('#account-descriptor-export').evaluate(el => Boolean(el.compareDocumentPosition(document.querySelector('.results-title')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
             await page.locator('#open-account-export').click();
             for (const kind of ['public', 'private']) {
               if (kind === 'private') {
@@ -166,6 +165,8 @@ for (const browserName of selectedBrowsers) {
               assert.ok(text.startsWith("importdescriptors '["));
               const requests = JSON.parse(text.slice("importdescriptors '".length, -1));
               assert.equal(requests.length, 2);
+              assert.ok(requests.every(r => r.active === true && !('range' in r)));
+              assert.equal(await page.locator('.bulk-panel #open-account-export').count(), 1);
               assert.deepEqual(requests.map(r => r.internal), [false, true]);
               assert.deepEqual(requests.map(r => r.timestamp), [0, 0]);
               assert.match(text, kind === 'private' ? /[xt]prv/ : /[xt]pub/);
