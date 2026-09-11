@@ -409,9 +409,10 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       const descriptors = result?.accountDescriptors;
       descriptorPanel.hidden = descriptors === undefined;
       descriptorDescription.textContent = descriptors === undefined ? '' : `${result!.title} · ${result!.networkLabel} · account ${descriptors.accountPath}`;
-      for (const button of Object.values(descriptorButtons)) {
-        button.disabled = descriptors === undefined || !revealed;
-        button.title = revealed ? '' : 'Reveal sensitive values before exporting account data.';
+      for (const [action, button] of Object.entries(descriptorButtons)) {
+        const privateExport = action === 'privateCopy' || action === 'privateDownload';
+        button.disabled = descriptors === undefined || (privateExport && !revealed);
+        button.title = privateExport && !revealed ? 'Reveal sensitive values before exporting private descriptors.' : '';
       }
       const watchOnly = descriptors === undefined ? result?.watchOnly : undefined;
       watchOnlyPanel.hidden = watchOnly === undefined;
