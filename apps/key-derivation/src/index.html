@@ -183,6 +183,30 @@
         <div class="bulk-row">
           <strong><span id="selected-count">0</span> selected</strong>
           <div class="mini-actions">
+            <div id="account-descriptor-export" hidden>
+              <button class="secondary compact" id="open-account-export" type="button" aria-haspopup="dialog">Account export</button>
+              <dialog id="account-export-dialog" aria-labelledby="account-export-title">
+                <div class="account-export-heading"><h3 id="account-export-title">Account export</h3><button class="secondary compact" id="close-account-export" type="button" aria-label="Close account export">Close</button></div>
+                <p id="account-descriptor-description"></p>
+                <p>Includes receive and change addresses for this account and address type.</p>
+                <label for="account-export-format">Export format</label>
+                <select id="account-export-format"><option value="core">Core wallet console command</option><option value="raw">Raw descriptors · Scanner / other wallets</option></select>
+                <p class="field-note">Imports this account for receiving and change, using Core’s automatic address pool. Makes it active for this address type; use a separate wallet to keep an existing account active. Historical scanning may take over an hour.</p>
+                <h4>Public descriptors</h4>
+                <p>Requires a descriptor wallet with private keys disabled (watch-only). Cannot spend funds.</p>
+                <div class="watch-only-actions">
+                  <button class="secondary" id="copy-public-descriptors" type="button">Copy public descriptors</button>
+                  <button class="secondary" id="download-public-descriptors" type="button">Download public descriptors</button>
+                </div>
+                <h4>Private descriptors</h4>
+                <p>For a descriptor wallet with private keys enabled. Unencrypted keys allow spending. Reveal sensitive values before export.</p>
+                <div class="watch-only-actions">
+                  <button class="secondary" id="copy-private-descriptors" type="button">Copy private descriptors</button>
+                  <button class="secondary" id="download-private-descriptors" type="button">Download private descriptors</button>
+                </div>
+                <p class="field-note">For wallet descriptor import, not PSBT transaction import. This is not a complete seed backup.</p>
+              </dialog>
+            </div>
             <button class="secondary compact" id="select-all" type="button">Select all</button>
             <button class="secondary compact" id="select-none" type="button">Select none</button>
             <button class="secondary compact" id="select-invert" type="button">Invert selection</button>
@@ -204,31 +228,6 @@
             <button class="secret-action compact" data-bulk="selected" type="button">Copy selected</button>
             <button class="secret-action compact" data-bulk="allDisplayed" type="button">Copy all displayed fields</button>
             <button class="secondary compact" id="download-selection" data-download="allDisplayed" type="button">Download selected</button>
-      <div id="account-descriptor-export" hidden>
-        <button class="secondary compact" id="open-account-export" type="button" aria-haspopup="dialog">Account export</button>
-        <dialog id="account-export-dialog" aria-labelledby="account-export-title">
-          <div class="account-export-heading"><h3 id="account-export-title">Account export</h3><button class="secondary compact" id="close-account-export" type="button" aria-label="Close account export">Close</button></div>
-          <p id="account-descriptor-description"></p>
-          <p>Includes receive and change addresses for this account and address type.</p>
-          <label for="account-export-format">Export format</label>
-          <select id="account-export-format"><option value="core">Core wallet console command</option><option value="raw">Raw descriptors · Scanner / other wallets</option></select>
-          <p class="field-note">Imports this account for receiving and change, using Core’s automatic address pool. Makes it active for this address type; use a separate wallet to keep an existing account active. Historical scanning may take over an hour.</p>
-          <h4>Public descriptors</h4>
-          <p>Requires a descriptor wallet with private keys disabled (watch-only). Cannot spend funds.</p>
-          <div class="watch-only-actions">
-            <button class="secondary" id="copy-public-descriptors" type="button">Copy public descriptors</button>
-            <button class="secondary" id="download-public-descriptors" type="button">Download public descriptors</button>
-          </div>
-          <h4>Private descriptors</h4>
-          <p>For a descriptor wallet with private keys enabled. Unencrypted keys allow spending. Reveal sensitive values before export.</p>
-          <div class="watch-only-actions">
-            <button class="secondary" id="copy-private-descriptors" type="button">Copy private descriptors</button>
-            <button class="secondary" id="download-private-descriptors" type="button">Download private descriptors</button>
-          </div>
-          <p class="field-note">For wallet descriptor import, not PSBT transaction import. This is not a complete seed backup.</p>
-        </dialog>
-      </div>
-
           </div>
         </div>
         <p class="field-note">Row exports use selected rows only. Account export includes both account branches regardless of selection. Basic mode exports only basic fields; Advanced mode includes the row’s advanced fields. Sensitive exports remain disabled until values are revealed.</p>
