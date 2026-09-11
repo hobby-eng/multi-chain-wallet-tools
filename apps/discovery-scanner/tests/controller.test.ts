@@ -139,6 +139,36 @@ describe('Discovery Scanner controller', () => {
     vi.unstubAllGlobals();
   });
 
+  it('routes automatic Batch through selected coins and keeps invalid candidates in the public report', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const { view, controls } = testView();
+    const state = { ...snapshot(), automaticCandidates: true, candidateCoinIds: ['bitcoin', 'dash'],
+      batchMnemonics: 'invalid phrase\nvalid candidate', batchPassphrases: '\noptional password' };
+    vi.mocked(view.readInputs).mockImplementation(() => ({ ...state }));
+    const calls: string[] = [];
+    const dependencies = {
+      RecoveryConcurrencyLimiter, SecretEgressGuard, mapRecoveryTasks,
+      assertValidMnemonic: (text: string) => { if (text === 'invalid phrase') throw new Error(text); return text; },
+      getRecoveryCoin: (id: string) => ({ id, label: id, networks: ['mainnet'], scan: async (input: import('../src/types.js').RecoverySeedInput) => {
+        calls.push(`${input.id}:${input.mnemonic}:${input.passphrase}`);
+        return { ...result(), inputId: input.id, label: input.label, coinId: id, coinLabel: id };
+      } }),
+      listRecoveryCoins: () => [],
+      recoveryNetworkApi: async () => ({ ping: async () => 'isolated-network-worker-v1' }),
+      createRecoveryExport: (_results: RecoveryWalletResult[], format: string) => ({ filename: `report.${format}`, mimeType: 'text/csv', text: 'public report' }),
+      runRecoverySelfTest: async () => ({ checks: [], durationMs: 1 }),
+      describeUnknownError: String,
+    } as unknown as Parameters<typeof createDiscoveryScannerController>[1];
+    createDiscoveryScannerController(view, dependencies).start();
+    await settle(); controls.batchMode.click(); controls.startButton.click();
+    await vi.waitFor(() => expect(view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Candidate pass finished')));
+    expect(calls).toEqual(['candidate-2-bitcoin:valid candidate:optional password', 'candidate-2-dash:valid candidate:optional password']);
+    const reports = vi.mocked(view.renderResults).mock.calls.at(-1)![0];
+    expect(reports).toHaveLength(3); expect(reports[0]!.coinId).toBe('input');
+    expect(JSON.stringify(reports)).not.toContain('invalid phrase');
+    expect(view.showError).not.toHaveBeenCalled();
+  });
+
   it('blocks a registered mnemonic before export and never calls the shell export broker', async () => {
     vi.stubGlobal('window', { addEventListener: vi.fn() });
     const { view, controls } = testView();
