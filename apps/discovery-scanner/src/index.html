@@ -89,6 +89,12 @@
         </div>
 
         <div id="batch-input" class="secret-source-panel" hidden>
+          <label class="candidate-choice"><input id="automatic-candidates" type="checkbox"> Automatically check candidates across selected coins</label>
+          <div id="candidate-options" hidden>
+            <p class="field-note">Ready BIP39 phrases only, one per line. Checks run sequentially. Invalid candidates and failed coin checks do not stop the others. No missing-word generation.</p>
+            <fieldset class="candidate-coin-picker"><legend>Coins to check</legend><label class="candidate-choice"><input id="candidate-all-coins" type="checkbox"> All supported coins</label><div id="candidate-coins" class="section-metrics"></div></fieldset>
+            <p class="field-note">The selected network and account apply to every coin. Address minimums apply per supported standard branch; Dash component settings below apply only to Dash. Zero-balance activity is included. Custom paths and parallel scanning are disabled in this mode. An empty result covers only the configured paths and ranges.</p>
+          </div>
           <div class="batch-grid">
             <div><label for="batch-mnemonics">One seed phrase per line</label><textarea id="batch-mnemonics" class="concealed" rows="8" autocomplete="off" autocapitalize="none" placeholder="Phrase 1&#10;Phrase 2&#10;Phrase 3"></textarea></div>
             <div><label for="batch-passphrases">Matching passphrase per line</label><textarea id="batch-passphrases" class="concealed" rows="8" autocomplete="off" autocapitalize="none" placeholder="Blank line = no passphrase"></textarea></div>

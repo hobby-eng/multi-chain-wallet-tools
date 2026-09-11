@@ -101,6 +101,13 @@ for (const browserName of selectedBrowsers) {
             run.checks.push('Opaque vault parent-DOM isolation');
             if (profile.id === 'multi-chain') assert.equal(await scope.locator('#recovery-coin').inputValue(), 'bitcoin');
             await scope.locator('[data-input-mode="batch"]').click();
+            await scope.locator('#automatic-candidates').check();
+            assert.equal(await scope.locator('#candidate-options').isVisible(), true);
+            assert.equal(await scope.locator('#candidate-coins input').count(), profile.id === 'multi-chain' ? 3 : 1);
+            await scope.locator('#candidate-all-coins').check();
+            assert.equal(await scope.locator('#custom-path-options').isVisible(), false);
+            await scope.locator('#automatic-candidates').uncheck();
+            run.checks.push('Automatic candidate coin selection and custom-path isolation');
             await scope.locator('#batch-mnemonics').fill(`${phrase}\n${phrase}`);
             await scope.locator('#scan-custom-path').check();
             const initialPath = await scope.locator('#custom-path-template').inputValue();

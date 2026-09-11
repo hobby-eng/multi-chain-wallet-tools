@@ -87,3 +87,11 @@ Seed scans cover both DIP17 hardened classes: receive `0'` and optional wallet-i
 A Platform xpub still covers only its own hardened class. To search both through public keys, paste both exported class xpubs in Batch mode; the scanner cannot derive `1'` from the `0'` xpub. Other future or wallet-specific classes are outside automatic discovery.
 
 Legacy mobile public-key scans support mainnet and testnet. Key Derivation can export a labelled branch key directly for import here; public-key batches can contain several such exports.
+
+### Automatic seed candidate checks
+
+In the Discovery Scanner, select **By seed phrase → Batch → Automatically check candidates across selected coins**. Paste ready BIP39 candidates, one per line, and optionally their BIP39 passphrases on matching lines. Select individual coins or all supported coins; Multi-Chain defaults to Bitcoin, while Dash Community offers only Dash.
+
+The scanner checks one candidate and one coin at a time with one network request at a time. It uses the selected network/account and configured standard address minimums, plus the selected Dash components. Zero-balance activity is included. Custom paths and parallel scanning are disabled for this mode. Invalid input and failed coin checks remain explicit outcomes and do not stop subsequent candidates. Unsupported networks are reported as unchecked. Cancellation leaves completed reports available.
+
+The common summary links to each candidate/coin report with available addresses, paths, balances and history. It distinguishes positive balances, located resources/activity, no activity within checked coverage, and incomplete/unknown results. It does not identify the original wallet application, discover every possible path, generate missing words, or include seed phrases/passphrases in exports.
