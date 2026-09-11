@@ -72,6 +72,10 @@ export interface RecoveryWatchOnlyScanConfig {
 export interface RecoveryScanConfig {
   network: RecoveryNetwork;
   account: number;
+  /** Optional inclusive seed-only range. Public keys never use this setting. */
+  accountRangeEnd?: number;
+  /** Original first account, retained by the range runner for fixed-path scans. */
+  accountRangeStart?: number;
   scanCore: boolean;
   coreReceiveCount: number;
   coreChangeCount: number;

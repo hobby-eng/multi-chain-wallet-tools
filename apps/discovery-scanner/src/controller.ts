@@ -1,3 +1,4 @@
+import { accountScanConfigs } from './account-range.js';
 import { assertWatchOnlyMinimum } from './watch-only.js';
 import { enrichRecoveryHistory } from './history.js';
 import type { RecoveryExportFile, RecoveryExportFormat } from './export.js';
@@ -56,9 +57,12 @@ function parseConcurrency(value: string, label: string): number {
 }
 
 function scanConfig(snapshot: RecoveryInputSnapshot): RecoveryScanConfig {
+  if (snapshot.scanAccountRange && snapshot.account.trim() === '') throw new Error('Enter the first account.');
+  if (snapshot.scanAccountRange && snapshot.accountRangeEnd.trim() === '') throw new Error('Enter the last account.');
   return {
     network: snapshot.network === 'testnet' ? 'testnet' : 'mainnet',
     account: parseInteger(snapshot.account, 'Account', 0),
+    ...(snapshot.scanAccountRange ? { accountRangeEnd: parseInteger(snapshot.accountRangeEnd, 'Last account', 0) } : {}),
     scanCore: snapshot.scanCore,
     coreReceiveCount: parseInteger(snapshot.coreReceiveCount, 'Core receive count', 0),
     coreChangeCount: parseInteger(snapshot.coreChangeCount, 'Core change count', 0),
@@ -357,6 +361,7 @@ export function createDiscoveryScannerController(
       const seedConcurrency = inputMode === 'single' ? 1 : parseConcurrency(snapshot.batchConcurrency, 'Batch seed concurrency');
       const requestConcurrency = parseConcurrency(snapshot.requestConcurrency, 'Network concurrency');
       const adapter = dependencies.getRecoveryCoin(snapshot.coinId);
+      const accountConfigs = accountScanConfigs(config, adapter.id);
       if (!adapter.networks.includes(config.network)) throw new Error(`${adapter.label} does not support ${config.network}.`);
       sessionSecretGuard.clear();
       validatedExports.clear();
@@ -377,8 +382,8 @@ export function createDiscoveryScannerController(
         let exportStagingAttempted = false;
         try {
           const networkApi = await dependencies.recoveryNetworkApi();
-          const orderedResults: Array<RecoveryWalletResult | undefined> = new Array(inputs.length);
-          const preparedSections = inputs.length > 1 && config.scanShieldedPool && adapter.prepareBatch !== undefined
+          const orderedResults: RecoveryWalletResult[][] = Array.from({ length: inputs.length }, () => []);
+          const preparedSections = config.accountRangeEnd === undefined && inputs.length > 1 && config.scanShieldedPool && adapter.prepareBatch !== undefined
             ? adapter.prepareBatch(inputs, config, {
                 signal: runController.signal,
                 networkApi,
@@ -391,24 +396,40 @@ export function createDiscoveryScannerController(
           view.setStatus(`Scanning ${inputs.length} seed phrase${inputs.length === 1 ? '' : 's'} · up to ${seedConcurrency} seed scan${seedConcurrency === 1 ? '' : 's'} and ${requestConcurrency} network request${requestConcurrency === 1 ? '' : 's'} at once…`);
           await dependencies.mapRecoveryTasks(inputs, seedConcurrency, async (input, index) => {
             try {
-              const result = await adapter.scan(input, config, {
-                signal: runController.signal,
-                networkApi,
-                networkLimiter,
-                sessionSecretGuard,
-                ...(preparedSections === undefined ? {} : { preparedSections }),
-                onProgress: updateProgress,
-                onFinding: renderLiveFinding,
-              });
-              await enrichRecoveryHistory(adapter, result, { signal: runController.signal, networkApi, networkLimiter, sessionSecretGuard,
-                onProgress: updateProgress, onFinding: renderLiveFinding });
-              orderedResults[index] = result;
-              currentResults = orderedResults.filter((candidate): candidate is RecoveryWalletResult => candidate !== undefined);
-              renderResults();
-              const incomplete = result.sections.some(({ state }) => state === 'failed' || state === 'partial');
-              if (incomplete) result.warnings.push('Scan incomplete: some sections were not fully checked; see section warnings.');
+              let incomplete = false;
+              for (const accountConfig of accountConfigs) {
+                runController.signal.throwIfAborted();
+                const ranged = config.accountRangeEnd !== undefined;
+                const accountLabel = `Account ${accountConfig.account}`;
+                const scopedInput = ranged ? { ...input, id: `${input.id}:account:${accountConfig.account}`, label: `${input.label} · ${accountLabel}` } : input;
+                const context = {
+                  signal: runController.signal, networkApi, networkLimiter, sessionSecretGuard,
+                  ...(preparedSections === undefined ? {} : { preparedSections }),
+                  onProgress: (progress: RecoveryProgress) => updateProgress(ranged
+                    ? { ...progress, inputId: input.id, message: `${accountLabel} of ${config.account}–${config.accountRangeEnd} · ${progress.message}` }
+                    : progress),
+                  onFinding: renderLiveFinding,
+                };
+                try {
+                  const result = await adapter.scan(scopedInput, accountConfig, context);
+                  await enrichRecoveryHistory(adapter, result, context);
+                  if (ranged) {
+                    result.inputId = scopedInput.id;
+                    result.label = scopedInput.label;
+                    result.overview.unshift({ label: 'Account', value: String(accountConfig.account) });
+                  }
+                  const partial = result.sections.some(({ state }) => state === 'failed' || state === 'partial');
+                  incomplete ||= partial;
+                  if (partial) result.warnings.push('Scan incomplete: some sections were not fully checked; see section warnings.');
+                  orderedResults[index]!.push(result);
+                  currentResults = orderedResults.flat();
+                  renderResults();
+                } finally {
+                  // Do not discard the original seed until all accounts finish.
+                  if (ranged) { scopedInput.mnemonic = ''; scopedInput.passphrase = ''; }
+                }
+              }
               finishWalletProgress(input.id, incomplete);
-              return result;
             } catch (cause) {
               finishWalletProgress(input.id, true);
               runController.abort();
