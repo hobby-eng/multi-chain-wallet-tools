@@ -39,6 +39,7 @@ export const WATCH_ONLY_PREFIX_COINS: Readonly<Record<string, string>> = {
     'ethereum-xpub': 'ethereum',
   }),
   'dash-core-xpub': 'dash',
+  'dash-legacy-xpub': 'dash',
   'dash-coinjoin-xpub': 'dash',
   'dash-platform-xpub': 'dash',
   identity: 'dash',
