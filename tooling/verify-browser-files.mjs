@@ -150,8 +150,11 @@ for (const browserName of selectedBrowsers) {
             await page.locator('#results').waitFor({ state: 'visible' });
             assert.equal(await page.locator('#account-descriptor-export').isVisible(), true);
             assert.equal(await page.locator('#download-private-descriptors').isDisabled(), true);
-            await page.locator('#toggle-sensitive-values').click();
+            assert.equal(await page.locator('#copy-public-descriptors').isEnabled(), true);
+            assert.equal(await page.locator('#copy-scanner-bundle').isEnabled(), true);
+            assert.equal(await page.locator('#account-descriptor-export').evaluate(el => Boolean(el.compareDocumentPosition(document.querySelector('.results-title')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
             for (const kind of ['public', 'private']) {
+              if (kind === 'private') await page.locator('#toggle-sensitive-values').click();
               const pending = page.waitForEvent('download');
               await page.locator(`#download-${kind}-descriptors`).click();
               const download = await pending;
