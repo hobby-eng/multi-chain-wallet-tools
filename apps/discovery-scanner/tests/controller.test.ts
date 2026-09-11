@@ -32,8 +32,6 @@ function snapshot(): RecoveryInputSnapshot {
     watchOnlyMinimumCount: '100',
     network: 'mainnet',
     account: '0',
-    scanAccountRange: false,
-    accountRangeEnd: '1',
     singleMnemonic: 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu',
     singlePassphrase: 'registered passphrase',
     batchMnemonics: '',
@@ -46,6 +44,8 @@ function snapshot(): RecoveryInputSnapshot {
     coreChangeCount: '1',
     scanCustomPath: false,
     customPathTemplate: '',
+    scanCustomRange: false,
+    customPathRangeEnd: '',
     customPathFormat: '',
     customPathCount: '100',
     scanLegacyCore: false,
@@ -329,7 +329,7 @@ import { createRecoveryExport } from '../src/export.js';
 const PUBLIC_KEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
 function publicHarness(scan?: (coin: string, input: RecoveryWatchOnlyInput, config: RecoveryWatchOnlyScanConfig, context: RecoveryScanContext) => Promise<RecoveryWalletResult>) {
   const { view, controls } = testView();
-  const scanSeed = vi.fn(async (input: import('../src/types.js').RecoverySeedInput, _config: import('../src/types.js').RecoveryScanConfig, _context: RecoveryScanContext) => ({ ...result(), inputId: input.id, label: input.label }));
+  const scanSeed = vi.fn(async (input, _config: import('../src/types.js').RecoveryScanConfig) => ({ ...result(), inputId: input.id, label: input.label }));
   const scanKey = vi.fn(async (coin: string, input: RecoveryWatchOnlyInput, config: RecoveryWatchOnlyScanConfig, context: RecoveryScanContext) => scan
     ? scan(coin, input, config, context)
     : { ...result(), inputId: input.id, label: input.label, coinId: coin, coinLabel: coin, network: config.network });
@@ -475,49 +475,31 @@ for (const sourceMode of ['seed', 'public'] as const) it(`reports a partial ${so
 });
 
 
-describe('account range controller', () => {
+describe('custom account range controller', () => {
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
-  it('scans accounts sequentially per seed in batch mode and exports account labels', async () => {
+  it('passes one custom range per seed while leaving the standard Account setting unchanged', async () => {
     vi.stubGlobal('window', { addEventListener: vi.fn() });
     const h = publicHarness();
-    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), scanAccountRange: true, accountRangeEnd: '2', batchMnemonics: 'phrase one\nphrase two' }));
-    h.controller.start(); await settle(); h.controls.batchMode.click(); h.controls.startButton.click();
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), account:'3', scanCustomPath:true, scanCustomRange:true, customPathTemplate:"m/44'/5'/7'/0/{index}", customPathRangeEnd:"m/44'/5'/9'/0/{index}", batchMnemonics:'phrase one\nphrase two' }));
+    h.controller.start();await settle();h.controls.batchMode.click();h.controls.startButton.click();
     await vi.waitFor(() => expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Recovery scan complete')));
-    expect(h.scanSeed.mock.calls.map(([input, cfg]) => [input.id, cfg.account, cfg.coreReceiveCount])).toEqual([
-      ['seed-1:account:0',0,21],['seed-1:account:1',1,21],['seed-1:account:2',2,21],
-      ['seed-2:account:0',0,21],['seed-2:account:1',1,21],['seed-2:account:2',2,21],
-    ]);
-    for (const [input] of h.scanSeed.mock.calls) expect(input.mnemonic).toBe('');
-    const reports = vi.mocked(h.view.renderResults).mock.calls.at(-1)![0];
-    expect(reports).toHaveLength(6);
-    expect(reports[5]!.label).toContain('Account 2');
-    expect(createRecoveryExport([...reports], 'json').text).toContain('seed-2:account:2');
-  });
-  it('cancels before the next account and retains completed account reports', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
-    const h = publicHarness();
-    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), scanAccountRange: true, accountRangeEnd: '5' }));
-    h.scanSeed.mockImplementation(async (input, cfg) => {
-      if (cfg.account === 1) { h.controls.cancelButton.click(); throw new DOMException('Cancelled', 'AbortError'); }
-      return { ...result(), inputId: input.id, label: input.label };
-    });
-    h.controller.start(); await settle(); h.controls.startButton.click();
-    await vi.waitFor(() => expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Scan cancelled')));
     expect(h.scanSeed).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(h.view.renderResults).mock.calls.at(-1)![0]).toHaveLength(1);
-    for (const [input] of h.scanSeed.mock.calls) expect(input.mnemonic).toBe('');
+    for(const [,cfg] of h.scanSeed.mock.calls) expect(cfg).toMatchObject({account:3,customPathTemplate:"m/44'/5'/7'/0/{index}",customPathRangeEnd:"m/44'/5'/9'/0/{index}"});
   });
-  it('ignores hidden range fields for public keys and rejects a bad seed range before network startup', async () => {
+  it('rejects a branch mismatch before starting network queries', async () => {
     vi.stubGlobal('window', { addEventListener: vi.fn() });
     const h = publicHarness();
-    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), sourceMode: 'public', watchOnlyKeys: PUBLIC_KEY, scanAccountRange: true, account: '3', accountRangeEnd: '1' }));
-    h.controller.start(); await settle(); h.controls.startButton.click();
-    await vi.waitFor(() => expect(h.scanKey).toHaveBeenCalledTimes(1));
-    await settle();
-    h.recoveryNetworkApi.mockClear();
-    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), scanAccountRange: true, account: '3', accountRangeEnd: '1' }));
-    h.controls.startButton.click();
-    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining('Last account'));
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), scanCustomPath:true, scanCustomRange:true, customPathTemplate:"m/44'/5'/0'/0/{index}", customPathRangeEnd:"m/44'/5'/1'/1/{index}" }));
+    h.controller.start();await settle();h.recoveryNetworkApi.mockClear();h.controls.startButton.click();
+    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining('differ only'));
     expect(h.recoveryNetworkApi).not.toHaveBeenCalled();
+  });
+  it('ignores a stale Finish path when range mode is off and accepts a fully custom single path', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), scanCustomPath:true, scanCustomRange:false, customPathTemplate:"m/123'/4/{index}'/8", customPathRangeEnd:'bad' }));
+    h.controller.start();await settle();h.controls.startButton.click();
+    await vi.waitFor(() => expect(h.scanSeed).toHaveBeenCalledTimes(1));
+    expect(h.scanSeed.mock.calls[0]![1].customPathRangeEnd).toBeUndefined();
   });
 });
