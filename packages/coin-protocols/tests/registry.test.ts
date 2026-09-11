@@ -58,7 +58,7 @@ describe('coin adapter extension contract', () => {
       'Taproot · BIP86',
     ]);
     expect(COIN_FAMILIES.find(({ id }) => id === 'dash')?.adapters.map(({ variantLabel }) => variantLabel)).toEqual([
-      'Core · BIP44 P2PKH',
+      'Core · BIP44\nP2PKH',
       'Multisig · Purpose48 P2SH',
       'Legacy mobile Core',
       'Platform · DIP17 / DIP18',
