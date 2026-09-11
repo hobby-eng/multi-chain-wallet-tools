@@ -267,7 +267,9 @@ export function createActivityViewerController(
         view.finishDiagnostics(`Proof verification and local Orchard recovery completed through aligned position ${outcome.terminalPosition}.`);
       } else {
         renderShieldedProgress(ledger, false, network, true);
-        const message = `Stopped at the ${dependencies.shieldedMaxPagesPerScan.toLocaleString()}-page safety ceiling before the pool end was confirmed. Results are partial.`;
+        const message = outcome.limitReason === 'changing-tip'
+          ? 'The pool kept changing while its last partial page was being reconciled. Results are partial; retry later.'
+          : `Stopped at the ${dependencies.shieldedMaxPagesPerScan.toLocaleString()}-page safety ceiling before the pool end was confirmed. Results are partial.`;
         view.setStatus(message);
         view.failDiagnostics(message);
       }

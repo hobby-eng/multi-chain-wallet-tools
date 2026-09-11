@@ -62,6 +62,9 @@ export function sectionFromLedger(
       ? 'An Incoming Viewing Key sees incoming notes only. It cannot see outgoing notes, cannot prove a note is unspent, and therefore has no authoritative current balance.'
       : 'An Outgoing Viewing Key sees outgoing notes only. It cannot see incoming notes and has no concept of a current balance.';
   const balanceAvailable = keyKind === 'full' && outcome.complete;
+  const incompleteReason = outcome.limitReason === 'changing-tip'
+    ? 'The pool kept changing while its last partial page was being reconciled.'
+    : `The Orchard scan reached its ${SHIELDED_MAX_PAGES_PER_SCAN.toLocaleString()}-page safety ceiling before two proof-verified empty terminal reads.`;
   const totalScope = outcome.complete ? 'Lifetime' : 'Observed';
   const balanceMetric = balanceAvailable
     ? { label: 'Spendable balance', value: formatDashFromCredits(snapshot.balance ?? 0n), tone: (snapshot.balance ?? 0n) > 0n ? 'positive' as const : 'neutral' as const }
@@ -96,10 +99,10 @@ export function sectionFromLedger(
     source: 'Dash Platform DAPI · proof-verified encrypted notes',
     proof: outcome.complete
       ? `Complete from pool position 0 through ${SHIELDED_EMPTY_CONFIRMATIONS} proof-verified empty terminal reads at aligned position ${outcome.terminalPosition} · proof height ${snapshot.proofHeight} · protocol ${snapshot.protocolVersion} · bounded-memory page stream${shared ? ' shared across this seed batch' : ''}`
-      : `Partial at the ${SHIELDED_MAX_PAGES_PER_SCAN.toLocaleString()}-page safety ceiling · next aligned position ${outcome.terminalPosition} · proof height ${snapshot.proofHeight} · protocol ${snapshot.protocolVersion} · bounded-memory page stream${shared ? ' shared across this seed batch' : ''}`,
+      : `Partial: ${incompleteReason} · next aligned position ${outcome.terminalPosition} · proof height ${snapshot.proofHeight} · protocol ${snapshot.protocolVersion} · bounded-memory page stream${shared ? ' shared across this seed batch' : ''}`,
     ...(outcome.complete && capabilityNote === undefined ? {} : {
       warning: [
-        ...(outcome.complete ? [] : [`The Orchard scan reached its ${SHIELDED_MAX_PAGES_PER_SCAN.toLocaleString()}-page safety ceiling before two proof-verified empty terminal reads. Results are partial; do not treat the displayed balance as authoritative.`]),
+        ...(outcome.complete ? [] : [`${incompleteReason} Results are partial; do not treat the displayed balance as authoritative.`]),
         ...(capabilityNote === undefined ? [] : [capabilityNote]),
       ].join(' '),
     }),
