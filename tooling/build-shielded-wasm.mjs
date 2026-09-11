@@ -55,7 +55,7 @@ if (!lockfile.includes(expectedOrchard)) {
 }
 
 version(cargo, 'cargo 1.98.1');
-version(wasmBindgen, 'wasm-bindgen 0.2.127');
+version(wasmBindgen, 'wasm-bindgen 0.2.128');
 run(cargo, ['build', '--manifest-path', manifest, '--target', 'wasm32-unknown-unknown', '--release', '--locked']);
 mkdirSync(generated, { recursive: true });
 run(wasmBindgen, [compiled, '--target', 'web', '--out-dir', generated]);

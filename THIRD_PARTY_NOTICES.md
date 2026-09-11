@@ -35,7 +35,7 @@ The connected Multi-Chain applications use Blockchain.com, BlockCypher, Blockstr
 | --- | --- | --- | --- | --- |
 | `orchard` | 0.14.0, tag `dashified-0.14.1`, commit `38ac9c19a2df7bf3eeadc22ab23053e8fd538828` | `dashpay/orchard` | MIT OR Apache-2.0 | Official Dash Orchard/ZIP32 key and address logic |
 | `zcash_note_encryption` | 0.4.1, revision `9f7e93d42cef839d02b9d75918117941d453f8cb` | `dashpay/zcash_note_encryption` | MIT OR Apache-2.0 | Locked Orchard transitive dependency |
-| `wasm-bindgen` | 0.2.127 | `rustwasm/wasm-bindgen` / crates.io | MIT OR Apache-2.0 | Browser WASM ABI |
+| `wasm-bindgen` | 0.2.128 | `rustwasm/wasm-bindgen` / crates.io | MIT OR Apache-2.0 | Browser WASM ABI |
 | `zip32` | 0.2.1 | `zcash/librustzcash` / crates.io | MIT OR Apache-2.0 | ZIP32 account identifier/types |
 | `hex` | 0.4.3 | `KokaKiwi/rust-hex` / crates.io | MIT OR Apache-2.0 | Raw boundary serialization |
 | `serde` | 1.0.229 | `serde-rs/serde` / crates.io | MIT OR Apache-2.0 | Typed Rust boundary serialization |
@@ -103,9 +103,9 @@ static_assertions 1.1.0         syn 2.0.119
 syn 3.0.4                       thiserror 2.0.20
 thiserror-impl 2.0.20           typenum 1.20.1
 universal-hash 0.5.1            version_check 0.9.5
-wasm-bindgen 0.2.127            wasm-bindgen-macro 0.2.127
-wasm-bindgen-macro-support 0.2.127
-wasm-bindgen-shared 0.2.127     zcash_note_encryption 0.4.1
+wasm-bindgen 0.2.128            wasm-bindgen-macro 0.2.128
+wasm-bindgen-macro-support 0.2.128
+wasm-bindgen-shared 0.2.128     zcash_note_encryption 0.4.1
 zcash_spec 0.2.1                zeroize 1.9.0
 zeroize_derive 1.5.0            zip32 0.2.1
 itoa 1.0.18                     serde_json 1.0.151
@@ -140,7 +140,7 @@ wasi 0.11.1+wasi-snapshot-preview1                           Apache-2.0 WITH LLV
 
 - `package.json` uses exact dependency versions; pnpm's lockfile pins the npm closure and integrity hashes.
 - `Cargo.toml` uses exact registry versions and one exact audited Orchard tag; `Cargo.lock` pins all transitive versions and git commits.
-- The build validates Cargo 1.98.1, wasm-bindgen-cli 0.2.127, and the Orchard lock source before compiling.
+- The build validates Cargo 1.98.1, wasm-bindgen-cli 0.2.128, and the Orchard lock source before compiling.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.
 - `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions, mnemonic-bearing online boundary, and independent-audit warning; its current Bitcoin, Ethereum, and Dash providers are documented in its application README and the root security audit.
