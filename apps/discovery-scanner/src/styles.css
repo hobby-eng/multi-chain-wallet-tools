@@ -241,3 +241,5 @@
   .custom-path-field { grid-template-columns:1fr; }
 }
 @media (prefers-reduced-motion:reduce) { .recovery-is-scanning .recovery-scan-icon { animation-duration:1.8s; } }
+
+.account-range-panel{margin:16px 0}.account-range-panel>.check-option{display:flex;align-items:center;gap:10px}.account-range-panel input[type=checkbox]{width:auto}.account-range-end{max-width:260px;margin-top:12px}

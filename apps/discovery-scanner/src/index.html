@@ -70,7 +70,15 @@
         <div class="recovery-source-grid">
           __RECOVERY_COIN_FIELD__
           <div><label for="recovery-network">Network</label><select id="recovery-network"><option value="mainnet">Mainnet</option><option value="testnet">Testnet</option></select></div>
-          <div><label for="recovery-account">Account</label><input id="recovery-account" type="number" value="0" min="0" step="1" inputmode="numeric"></div>
+          <div><label for="recovery-account">Account</label><input id="recovery-account" type="number" value="0" min="0" max="2147483647" step="1" inputmode="numeric"></div>
+        </div>
+
+        <div id="account-range-panel" class="account-range-panel">
+          <label class="check-option"><input id="scan-account-range" type="checkbox" aria-controls="account-range-details"> Scan a range of accounts <span class="field-note">Optional</span></label>
+          <div id="account-range-details" hidden>
+            <div class="account-range-end"><label for="account-range-end">Last account (inclusive)</label><input id="account-range-end" type="number" value="1" min="0" max="2147483647" step="1" inputmode="numeric" disabled></div>
+            <p id="account-range-note" class="field-note"></p>
+          </div>
         </div>
 
         <div id="seed-source-panel" role="tabpanel" aria-labelledby="seed-source-tab">

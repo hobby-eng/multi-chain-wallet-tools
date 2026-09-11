@@ -56,6 +56,7 @@ function customPathProfile(templateValue: string): EthereumPathProfile {
 }
 
 function pathProfiles(config: RecoveryScanConfig): EthereumPathProfile[] {
+  const ranged = config.accountRangeEnd !== undefined;
   const profiles: EthereumPathProfile[] = [
     {
       id: 'standard',
@@ -67,7 +68,7 @@ function pathProfiles(config: RecoveryScanConfig): EthereumPathProfile[] {
       id: 'ledger-live',
       label: 'Ledger Live accounts',
       path: (index) => `m/44'/60'/${config.account + index}'/0/0`,
-      maximumCount: MAX_BIP32_INDEX - config.account + 1,
+      maximumCount: ranged ? 1 : MAX_BIP32_INDEX - config.account + 1,
     },
     {
       id: 'ledger-legacy',
@@ -76,6 +77,7 @@ function pathProfiles(config: RecoveryScanConfig): EthereumPathProfile[] {
       maximumCount: MAX_BIP32_INDEX + 1,
     },
   ];
+  if (ranged && config.account !== config.accountRangeStart) profiles.splice(2, 1);
   if (config.scanCustomPath === true) {
     if (config.customPathFormat !== 'eoa') throw new Error('Ethereum custom paths require the EOA address format.');
     profiles.push(customPathProfile(config.customPathTemplate ?? ''));
@@ -114,7 +116,7 @@ async function scanEthereum(
     throw new Error('Custom path address minimum must be at least 1.');
   }
   const profiles = pathProfiles(config);
-  if (profiles.some(({ id, maximumCount }) => (id === 'custom' ? config.customPathCount ?? 0 : config.coreReceiveCount) > maximumCount)) {
+  if (profiles.some(({ id, maximumCount }) => (id === 'ledger-live' && config.accountRangeEnd !== undefined ? 1 : id === 'custom' ? config.customPathCount ?? 0 : config.coreReceiveCount) > maximumCount)) {
     throw new Error('The requested Ethereum scan range exceeds the BIP32 index space.');
   }
   const mnemonic = assertValidMnemonic(input.mnemonic);
@@ -144,7 +146,7 @@ async function scanEthereum(
   const startedAt = new Date().toISOString();
   try {
     for (const profile of profiles) {
-      let target = profile.id === 'custom' ? (config.customPathCount ?? 0) : config.coreReceiveCount;
+      let target = profile.id === 'ledger-live' && config.accountRangeEnd !== undefined ? 1 : profile.id === 'custom' ? (config.customPathCount ?? 0) : config.coreReceiveCount;
       for (let offset = 0; offset < target;) {
         if (context.signal.aborted) throw new DOMException('Ethereum scan cancelled.', 'AbortError');
         const end = Math.min(offset + RECOVERY_EVM_ACCOUNT_BATCH, target);
@@ -224,7 +226,7 @@ async function scanEthereum(
     const section: RecoverySection = {
       id: 'core',
       title: 'Ethereum EOA addresses',
-      description: `Scans ${profiles.map(({ label }) => label).join(', ')} through independent 20-address post-use gaps.`,
+      description: `Scans ${profiles.map(({ label }) => label).join(', ')}. ${config.accountRangeEnd === undefined ? 'Independent 20-address post-use gaps.' : 'Address branches use 20-address post-use gaps; Ledger Live checks only this account’s /0/0 address.'}`,
       state: 'complete',
       metrics: [
         { label: 'Spendable balance', value: formatEther(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
@@ -236,7 +238,7 @@ async function scanEthereum(
       findings,
       scanned,
       source: config.network === 'mainnet' ? 'https://ethereum-rpc.publicnode.com' : 'https://ethereum-sepolia-rpc.publicnode.com',
-      proof: `${config.network === 'mainnet' ? 'Ethereum mainnet' : 'Sepolia testnet'} JSON-RPC account batches at heights ${firstBlock ?? 'unavailable'}–${lastBlock ?? 'unavailable'} · independent 20-address post-use gaps`,
+      proof: `${config.network === 'mainnet' ? 'Ethereum mainnet' : 'Sepolia testnet'} JSON-RPC account batches at heights ${firstBlock ?? 'unavailable'}–${lastBlock ?? 'unavailable'} · ${config.accountRangeEnd === undefined ? 'independent 20-address post-use gaps' : 'address-branch gaps; one Ledger Live address per selected account'}`,
       warning: 'Each account batch uses an explicit block height; different batches may use different heights. This is a single-source public RPC view, without a block-hash snapshot across reorganizations. ERC-20 token balances and contract-wallet ownership are not scanned.',
     };
     return {
