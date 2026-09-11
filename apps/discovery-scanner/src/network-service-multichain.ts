@@ -1,3 +1,4 @@
+import { EVM_RPC_QUANTITY } from '@ckd/core/numeric-limits.js';
 import { normalizeBitcoinAddress, normalizeEthereumAddress } from './public-address-multichain.js';
 import { bitcoinAddressHistory, ethereumAddressHistory } from './address-history-service.js';
 import {
@@ -296,7 +297,7 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
       body: JSON.stringify({ jsonrpc: '2.0', id: 'block', method: 'eth_blockNumber', params: [] }),
     }), 'Ethereum block response');
     if (head.error !== undefined || head.id !== 'block' || typeof head.result !== 'string'
-      || !/^0x[0-9a-f]+$/u.test(head.result)) throw new Error('Ethereum RPC returned an invalid block number.');
+      || !EVM_RPC_QUANTITY.test(head.result)) throw new Error('Ethereum RPC returned an invalid block number.');
     const blockNumber = head.result;
     const requests = [
       ...addresses.flatMap((address, index) => [
@@ -314,7 +315,7 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
     for (const item of raw) {
       const response = record(item, 'Ethereum RPC response');
       if (response.error !== undefined || typeof response.id !== 'string' || typeof response.result !== 'string'
-        || !/^0x[0-9a-f]+$/u.test(response.result)) {
+        || !EVM_RPC_QUANTITY.test(response.result)) {
         throw new Error('Ethereum RPC returned a malformed or failed response.');
       }
       if (results.has(response.id)) throw new Error('Ethereum RPC repeated a response ID.');
