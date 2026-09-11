@@ -79,6 +79,7 @@ function renderProtocolTabs(
     button.setAttribute('role', 'radio');
     button.setAttribute('aria-checked', String(selected));
     button.tabIndex = selected ? 0 : -1;
+    button.style.whiteSpace = 'pre-line';
     button.textContent = variant.variantLabel;
     controls.protocolTabs.append(button);
   }

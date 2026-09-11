@@ -12,7 +12,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     fixedPathLabels: ['Purpose', 'Coin type'],
     group: 'Dash',
     label: 'Dash Core · BIP44 / P2PKH',
-    variantLabel: 'Core · BIP44 P2PKH',
+    variantLabel: 'Core · BIP44\nP2PKH',
     defaultVariant: true,
     networkControl: true,
     addressBranches: BIP44_ADDRESS_BRANCHES,
