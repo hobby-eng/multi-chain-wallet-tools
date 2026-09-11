@@ -89,6 +89,7 @@ describe('Key Derivation controller', () => {
       resultCoinJoinInternalTab: new TestControl(),
       toggleSensitiveValues: new TestControl(),
       copyMnemonicButton: new TestControl(),
+      descriptorButtons: Object.fromEntries(['scanner','publicCopy','publicDownload','privateCopy','privateDownload'].map(key => [key, new TestControl()])),
       copyWatchOnlyButton: new TestControl(),
       downloadWatchOnlyButton: new TestControl(),
       cancelDerivationButton: new TestControl(),

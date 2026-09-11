@@ -2,6 +2,7 @@ import { assertBatch, assertIndex, requirePrivate, requirePublic, rootFromSeed }
 import { bytesToHex, encodeP2pkh, encodeWif, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
 import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
+import { accountDescriptorExport } from '../../account-descriptors.js';
 import { bip32SummaryFields } from '../../bip32-summary.js';
 
 export function deriveDashCore(options: Bip32BatchOptions): DerivationResult {
@@ -15,7 +16,7 @@ export function deriveDashCore(options: Bip32BatchOptions): DerivationResult {
   const branchPath = `${accountPath}/${options.branch}`;
   const account = root.derive(accountPath);
   const branch = root.derive(branchPath);
-  const { fields: summary } = bip32SummaryFields(root, account, accountPath);
+  const { fields: summary, masterFingerprint } = bip32SummaryFields(root, account, accountPath);
   const rows = [];
 
   try {
@@ -57,6 +58,12 @@ export function deriveDashCore(options: Bip32BatchOptions): DerivationResult {
       pathTemplate: `${branchPath}/i`,
       basicSummary: [],
       summary,
+      accountDescriptors: accountDescriptorExport({
+        script: 'pkh', fingerprint: masterFingerprint, accountPath,
+        publicKey: account.publicExtendedKey, privateKey: account.privateExtendedKey,
+        fileStem: `dash-core-${options.network}-account-${options.account}`,
+        scannerPrefix: 'dash-core-xpub',
+      }),
       rows,
       notices: [],
     };

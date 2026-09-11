@@ -144,7 +144,24 @@ for (const browserName of selectedBrowsers) {
             await page.locator('#count').fill('1');
             await page.locator('#derive-button').click();
             await page.locator('#results').waitFor({ state: 'visible' });
+            assert.equal(await page.locator('#account-descriptor-export').isVisible(), true);
+            assert.equal(await page.locator('#download-private-descriptors').isDisabled(), true);
+            await page.locator('#toggle-sensitive-values').click();
+            for (const kind of ['public', 'private']) {
+              const pending = page.waitForEvent('download');
+              await page.locator(`#download-${kind}-descriptors`).click();
+              const download = await pending;
+              const text = readFileSync(await download.path(), 'utf8');
+              assert.equal(text.trim().split('\n').length, 2);
+              assert.match(text, kind === 'private' ? /[xt]prv/ : /[xt]pub/);
+              if (kind === 'public') assert.doesNotMatch(text, /[xt]prv/);
+              await download.delete();
+            }
+            await page.locator('#toggle-sensitive-values').click();
+            assert.equal(await page.locator('#download-private-descriptors').isDisabled(), true);
+            run.checks.push('Public/private account descriptor downloads and reveal gate');
             await page.locator('#clear-all').click();
+            assert.equal(await page.locator('#download-private-descriptors').isDisabled(), true);
             assert.equal(await page.locator('#mnemonic').inputValue(), '');
             assert.equal(await page.locator('#results').isVisible(), false);
             assert.equal(run.requests.length, 0, 'Offline derivation attempted HTTP');

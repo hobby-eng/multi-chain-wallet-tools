@@ -221,6 +221,22 @@
         </div>
       </section>
 
+      <section id="account-descriptor-export" class="panel watch-only-panel" hidden>
+        <h3>Account export</h3>
+        <p id="account-descriptor-description"></p>
+        <p>Both receive and change branches are included, regardless of the displayed row count. Other accounts and address schemes are not included. Select the matching coin and network in the destination wallet.</p>
+        <div class="watch-only-actions">
+          <button class="secondary" id="copy-scanner-bundle" type="button">Copy for Scanner · public</button>
+          <button class="secondary" id="copy-public-descriptors" type="button">Copy public descriptors</button>
+          <button class="secondary" id="download-public-descriptors" type="button">Download public descriptors</button>
+        </div>
+        <p><strong>Private descriptors contain unencrypted account private keys and allow spending.</strong> Reveal sensitive values to enable export. Neither descriptor export is a complete seed backup.</p>
+        <div class="watch-only-actions">
+          <button class="secondary" id="copy-private-descriptors" type="button">Copy private descriptors</button>
+          <button class="secondary" id="download-private-descriptors" type="button">Download private descriptors</button>
+        </div>
+        <p class="field-note">Descriptor files contain two lines: receive /0/* first, change /1/* second. For Core importdescriptors, put each line in its own request and set internal:true for change. Choose the rescan timestamp and address range to cover your wallet history; the file is not a ready-made RPC request.</p>
+      </section>
       <div id="summary"></div>
       <div id="result-notices"></div>
       <div id="address-list"></div>
