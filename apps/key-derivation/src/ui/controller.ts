@@ -846,18 +846,18 @@ for (const [action, button] of Object.entries(descriptorButtons)) {
   button.addEventListener('click', () => {
     const bundle = currentResult?.accountDescriptors;
     if (bundle === undefined) return;
-    if (!sensitiveValuesRevealed) {
-      showError('Reveal sensitive values before exporting account data.');
+    const privateExport = action === 'privateCopy' || action === 'privateDownload';
+    if (privateExport && !sensitiveValuesRevealed) {
+      showError('Reveal sensitive values before exporting private descriptors.');
       return;
     }
-    const privateExport = action === 'privateCopy' || action === 'privateDownload';
     const text = action === 'scanner' ? bundle.scannerText : privateExport ? bundle.privateText : bundle.publicText;
     if (action === 'publicDownload' || action === 'privateDownload') {
       const filename = `${bundle.fileStem}.${privateExport ? 'PRIVATE' : 'public'}.descriptors.txt`;
       downloadText(text, filename, 'text/plain');
       showStatus(privateExport ? `Created ${filename}. Contains unencrypted account private keys.` : `Created ${filename}. Public account data; cannot spend.`);
     } else {
-      void copyText(button, text, true);
+      void copyText(button, text, privateExport);
     }
   });
 }
