@@ -151,10 +151,14 @@ for (const browserName of selectedBrowsers) {
             assert.equal(await page.locator('#account-descriptor-export').isVisible(), true);
             assert.equal(await page.locator('#download-private-descriptors').isDisabled(), true);
             assert.equal(await page.locator('#copy-public-descriptors').isEnabled(), true);
-            assert.equal(await page.locator('#copy-scanner-bundle').isEnabled(), true);
             assert.equal(await page.locator('#account-descriptor-export').evaluate(el => Boolean(el.compareDocumentPosition(document.querySelector('.results-title')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
+            await page.locator('#open-account-export').click();
             for (const kind of ['public', 'private']) {
-              if (kind === 'private') await page.locator('#toggle-sensitive-values').click();
+              if (kind === 'private') {
+                await page.locator('#close-account-export').click();
+                await page.locator('#toggle-sensitive-values').click();
+                await page.locator('#open-account-export').click();
+              }
               const pending = page.waitForEvent('download');
               await page.locator(`#download-${kind}-descriptors`).click();
               const download = await pending;
@@ -164,6 +168,7 @@ for (const browserName of selectedBrowsers) {
               if (kind === 'public') assert.doesNotMatch(text, /[xt]prv/);
               await download.delete();
             }
+            await page.keyboard.press('Escape');
             await page.locator('#toggle-sensitive-values').click();
             assert.equal(await page.locator('#download-private-descriptors').isDisabled(), true);
             run.checks.push('Public/private account descriptor downloads and reveal gate');

@@ -30,7 +30,7 @@ A public key cannot prove its complete hardened ancestry or uniquely identify a 
 
 ## Scanner handoff
 
-**Copy for Scanner** emits both public descriptors for Bitcoin, or an explicitly labelled account xpub for Dash (`dash-core-xpub:`, `dash-legacy-xpub:` or `dash-coinjoin-xpub:`). The latter scans both branches. Scanner also accepts the two public Dash descriptor lines when Dash is selected, or with `dash-descriptor:` before each line. Each descriptor covers only its declared branch; multipath `/<0;1>/*` is not supported. Paste into Scanner's public-key tab. Private descriptor files are for the destination signing wallet; Scanner's public-key tab rejects them.
+**Copy public descriptors** copies both receive and change descriptors. Open **Account export** to access copy and download actions. Scanner also accepts the two public Dash descriptor lines when Dash is selected, or with `dash-descriptor:` before each line. Each descriptor covers only its declared branch; multipath `/<0;1>/*` is not supported. Paste into Scanner's public-key tab. Private descriptor files are for the destination signing wallet; Scanner's public-key tab rejects them.
 
 ## Verification and references
 
@@ -41,3 +41,7 @@ Automated tests compare exported account descendants on both networks with indep
 - [Dash importdescriptors and listdescriptors](https://docs.dash.org/en/stable/docs/core/api/remote-procedure-calls-wallet.html#importdescriptors)
 - [BIP380 checksum specification](https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki)
 - [Upstream follow-up checklist](ROADMAP.md#dash-address-and-descriptor-evolution)
+
+### Descriptor files are not PSBT files
+
+A PSBT contains a transaction for signing. A descriptor describes wallet scripts and keys. Renaming a descriptor text file to `.psbt` does not convert it and causes an invalid PSBT magic bytes error. Use the wallet’s `importdescriptors` RPC for descriptor imports, not its PSBT transaction loading action.

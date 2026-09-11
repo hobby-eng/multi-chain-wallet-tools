@@ -851,7 +851,7 @@ for (const [action, button] of Object.entries(descriptorButtons)) {
       showError('Reveal sensitive values before exporting private descriptors.');
       return;
     }
-    const text = action === 'scanner' ? bundle.scannerText : privateExport ? bundle.privateText : bundle.publicText;
+    const text = privateExport ? bundle.privateText : bundle.publicText;
     if (action === 'publicDownload' || action === 'privateDownload') {
       const filename = `${bundle.fileStem}.${privateExport ? 'PRIVATE' : 'public'}.descriptors.txt`;
       downloadText(text, filename, 'text/plain');
