@@ -9,6 +9,7 @@ import {
 export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
   {
     id: 'dash-core',
+    fixedPathLabels: ['Purpose', 'Coin type'],
     group: 'Dash',
     label: 'Dash Core · BIP44 / P2PKH',
     variantLabel: 'Core · BIP44',
@@ -34,6 +35,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
   },
   {
     id: 'dash-legacy-mobile',
+    fixedPathLabels: [],
     group: 'Dash',
     label: 'Dash Core · legacy mobile',
     variantLabel: 'Legacy mobile Core',
@@ -46,6 +48,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
   },
   {
     id: 'dash-platform',
+    fixedPathLabels: ['Purpose', 'Coin type', 'Payment feature'],
     group: 'Dash',
     label: 'Dash Platform · DIP17 / DIP18',
     variantLabel: 'Platform · DIP17 / DIP18',
@@ -62,6 +65,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
   },
   {
     id: 'dash-identity',
+    fixedPathLabels: ['Purpose', 'Coin type'],
     group: 'Dash',
     label: 'Dash Platform Identity · DIP13',
     variantLabel: 'Identity · DIP13',
@@ -93,11 +97,13 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
   },
   {
     id: 'dash-shielded',
+    fixedPathLabels: ['ZIP-32 purpose', 'Coin type'],
     group: 'Dash',
     label: 'Dash Shielded · Orchard / ZIP-32',
     variantLabel: 'Shielded · Orchard / ZIP-32',
     networkControl: true,
     limits: { startMax: 0xffff_ffff },
+    controlLabels: { start: 'Start diversifier index', count: 'Number of addresses' },
     defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: {
       addresses: ['address'],
