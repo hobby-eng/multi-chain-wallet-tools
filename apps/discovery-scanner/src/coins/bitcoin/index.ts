@@ -1,3 +1,4 @@
+import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
 import { getBitcoinHistory } from './history.js';
 import { MAX_BIP32_INDEX, assertIndex, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { assertValidMnemonic, mnemonicToSeed } from '@ckd/core/bip39.js';
@@ -34,7 +35,7 @@ function validatedEntries(value: UtxoAddressView[], expected: readonly string[])
   }
   return value.map((entry, index) => {
     if (entry.address !== expected[index]
-      || !/^(?:0|[1-9][0-9]*)$/u.test(entry.balance)
+      || !PROVIDER_UNSIGNED_DECIMAL.test(entry.balance)
       || !Number.isSafeInteger(entry.transactionCount)
       || entry.transactionCount < 0) {
       throw new Error('Bitcoin address service returned malformed data.');

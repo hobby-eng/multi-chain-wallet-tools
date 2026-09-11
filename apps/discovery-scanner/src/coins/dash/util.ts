@@ -1,3 +1,4 @@
+import { PROVIDER_UNSIGNED_DECIMAL, MAX_PROVIDER_INTEGER } from '@ckd/core/numeric-limits.js';
 import type { RecoveryMetric, RecoveryNetwork, RecoverySection, RecoverySectionId } from '../../types.js';
 import { MAX_BIP32_INDEX } from '@ckd/core/bip32.js';
 import { requireRecord } from '@ckd/core/records.js';
@@ -24,9 +25,9 @@ export function object(value: unknown, context: string): Record<string, unknown>
 }
 
 export function exactUnsigned(value: unknown, context: string): bigint {
-  if (typeof value === 'bigint' && value >= 0n) return value;
+  if (typeof value === 'bigint' && value >= 0n && value <= MAX_PROVIDER_INTEGER) return value;
   if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return BigInt(value);
-  if (typeof value === 'string' && /^(0|[1-9][0-9]*)$/u.test(value)) return BigInt(value);
+  if (typeof value === 'string' && PROVIDER_UNSIGNED_DECIMAL.test(value)) return BigInt(value);
   throw new Error(`${context} is not an exact non-negative integer.`);
 }
 

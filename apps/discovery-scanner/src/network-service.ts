@@ -1,3 +1,5 @@
+import { readProviderJson } from '@ckd/dash-network/provider-json.js';
+import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
 import { IdentityPageIntegrity } from '@ckd/dash-network/identity-pagination.js';
 import { EvoSDK, type Identity, type ShieldedEncryptedNote } from '@dashevo/evo-sdk';
 import { copyAndFreeEvoShieldedNote } from '@ckd/dash-network/evo-shielded-note.js';
@@ -25,7 +27,7 @@ import { describeUnknownError, freeThrownValue } from './error-message.js';
 const PUBLIC_KEY_HASH_PATTERN = /^[0-9a-f]{40}$/u;
 const TRANSACTION_HASH_PATTERN = /^[0-9a-f]{64}$/u;
 const PLATFORM_IDENTIFIER_PATTERN = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{44}$/u;
-const DECIMAL_PATTERN = /^(?:0|[1-9][0-9]*)$/u;
+const DECIMAL_PATTERN = PROVIDER_UNSIGNED_DECIMAL;
 const PLATFORM_HISTORY_PAGE_SIZE = 100;
 const PLATFORM_HISTORY_MAX_PAGES = 10_000;
 const PLATFORM_EXPLORER_ENDPOINTS: Record<RecoveryNetwork, string> = {
@@ -221,11 +223,11 @@ export async function fetchJson(
   try {
     const response = await globalThis.fetch(url, { ...init, cache: 'no-store', signal: requestController.signal });
     if (!response.ok) {
-      const detail = (await response.text().catch(() => '')).slice(0, 300);
-      throw new Error(`Network request failed with HTTP ${response.status}${detail ? ` — ${detail}` : ''}.`);
+      void response.body?.cancel().catch(() => {});
+      throw new Error(`Network request failed with HTTP ${response.status}.`);
     }
     // Keep timeout and caller cancellation active until the body is consumed.
-    return await response.json() as unknown;
+    return await readProviderJson(response, requestController.signal);
   } catch (cause) {
     if (signal?.aborted) throw abortError();
     if (timedOut) throw new Error(`Network request timed out after ${Math.ceil(timeoutMs / 1_000)} seconds.`);
