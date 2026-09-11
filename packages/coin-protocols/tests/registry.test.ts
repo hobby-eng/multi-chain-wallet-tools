@@ -26,15 +26,16 @@ describe('coin adapter extension contract', () => {
       'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',
+      'dash-multisig-p2sh',
       'dash-shielded',
     ]);
     for (const adapter of COIN_ADAPTERS) {
       expect(adapter.label.length).toBeGreaterThan(0);
       expect(adapter.variantLabel.length).toBeGreaterThan(0);
       expect(adapter.group.length).toBeGreaterThan(0);
-      if (adapter.id === 'dash-identity') {
+      if (adapter.id === 'dash-identity' || adapter.id === 'dash-multisig-p2sh') {
         expect(adapter.fieldRoles.addresses).toEqual([]);
-        expect(adapter.defaults.count).toBe(5);
+        expect(adapter.defaults.count).toBe(adapter.id === 'dash-identity' ? 5 : 20);
       } else {
         expect(adapter.fieldRoles.addresses).toContain('address');
         expect(adapter.defaults.count).toBe(20);
@@ -61,6 +62,7 @@ describe('coin adapter extension contract', () => {
       'Legacy mobile Core',
       'Platform · DIP17 / DIP18',
       'Identity · DIP13',
+      'Multisig · Purpose48 P2SH',
       'Shielded · Orchard / ZIP-32',
     ]);
     expect(getDefaultCoinAdapter('bitcoin').id).toBe('bitcoin-taproot');
@@ -102,6 +104,15 @@ describe('coin adapter extension contract', () => {
       start: 1,
       count: 2,
     })).toBe("m/9'/5'/5'/0'/0'/{1'…2'}/{0'…3'}");
+    const dashMultisig = getCoinAdapter('dash-multisig-p2sh');
+    expect(dashMultisig.addressBranches).toMatchObject({ receive: 0, change: 1 });
+    expect(dashMultisig.pathPreview({
+      network: 'mainnet',
+      account: 0,
+      branch: 0,
+      start: 0,
+      count: 1,
+    })).toBe("m/48'/5'/0'/0'/0/0");
     expect(getCoinAdapter('dash-shielded').addressBranches).toBeUndefined();
   });
 
@@ -111,6 +122,7 @@ describe('coin adapter extension contract', () => {
       'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',
+      'dash-multisig-p2sh',
       'dash-shielded',
     ]);
     expect(DASH_COIN_FAMILIES.map(({ id }) => id)).toEqual(['dash']);

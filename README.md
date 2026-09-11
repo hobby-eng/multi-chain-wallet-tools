@@ -2,7 +2,7 @@
 
 [![Source and artifact checks](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml)
 
-Three portable wallet utilities built as standalone HTML files. One canonical source tree now produces two compile-time editions:
+Four portable wallet utilities built as standalone HTML files. One canonical source tree now produces two compile-time editions:
 
 - **Multi-Chain Edition** is the universal, extensible edition. It currently supports Bitcoin, Ethereum, and Dash, including Dash Core, Dash Platform, Dash Identity, and Dash Orchard.
 - **Dash Community Edition** is the Dash-only edition. Its application graph contains only Dash Core, Dash Platform, Dash Identity, and Dash Orchard, and its visual design follows the official Dash BrandBook and Brand Guidelines.
@@ -11,13 +11,13 @@ Download a file, verify its SHA-256 checksum, and open it in a current browserâ€
 
 This is an independent hobby project, not an official Dash product and not a replacement for a hardware or standard wallet. It has extensive automated checks but has not received an independent cryptography-specialist audit.
 
-## The three tools
+## The four tools
 
 ### Wallet Key Derivation Tool
 
 An offline tool for deriving wallet addresses and keys from a BIP39 seed phrase.
 
-- Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; and Dash Core BIP44, legacy mobile Core, Platform payment, Identity, and Orchard Shielded derivation.
+- Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; and Dash Core BIP44, legacy mobile Core, Platform payment, Identity, Purpose48 P2SH multisig cosigner, and Orchard Shielded derivation.
 - Shows standards-based derivation paths and exposes protocol-specific account, address-branch and index controls.
 - Derives standard receive/change branches for Bitcoin and Dash Core, historical mobile receive/change branches, Ethereum EOA keys at `m/44'/60'/account'/branch/index`, Dash Platform receive and optional internal/change payment keys, Dash Identity four-key candidates, and Dash Orchard addresses and viewing material.
 - Displays basic results or detailed protocol-specific data, with selectable clipboard and file exports.
@@ -56,9 +56,22 @@ In the universal Multi-Chain Edition, this connected discovery scanner supports 
 
 Seed derivation runs inside a sandboxed, network-denied Secret Vault. Only validated public lookup material crosses the typed boundary to the network worker. A public key can cover only the account, branch, or address formats reachable below that key; use the original seed phrase and BIP39 passphrase for the broadest supported search.
 
+### PSBT Inspector
+
+An offline experimental utility for reviewing partially signed transactions, spending scripts, and watch-only multisig wallet policies before signing. Do not use this fourth HTML utility with real funds yet; test only with valueless examples or testnet funds until its scripts, descriptors, imports, wallet compatibility, and recovery procedure have been independently verified.
+
+- Decodes Bitcoin PSBT v0/v2 and Dash Core PSBT v0, including known and unknown key-value records.
+- Displays unsigned-transaction inputs, outputs, derived standard output addresses, supplied input values, and fees when all input amounts are present.
+- Decodes raw Script hex and Bitcoin output descriptors/Miniscript into inspectable operations and policy summaries.
+- Builds one concrete public-key-only m-of-n multisig or timelocked P2SH/P2WSH policy, including redeemScript, scriptPubKey, address, descriptor/checksum, and Dash Core watch-only import commands for generated Dash P2SH scripts.
+- Builds deterministic ranged watch-only multisig wallets from account public keys with explicit origin fingerprints, receive/change branches, selected index ranges, supplied-order `multi()` or BIP67 `sortedmulti()` policy, descriptors/checksums, derived addresses, script material, and Bitcoin/Dash import text.
+- Never signs, finalizes, funds, queries UTXOs, stores data, broadcasts transactions, or opens a network connection.
+
+Use it to inspect transaction intent and construct test policies only. Verify scripts with valueless testnet funds and independent wallet tooling before relying on them.
+
 ## Download and verify
 
-Download the three Multi-Chain Edition HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). `SHA256SUMS` covers the complete release asset set.
+Download the Multi-Chain Edition HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). `SHA256SUMS` covers the complete release asset set.
 
 This repository is the canonical source and Multi-Chain release surface. [Dash Community releases](https://github.com/hobby-eng/dash-wallet-tools/releases) are distributed separately from the same canonical sources; that repository is a release surface, not a source fork.
 
@@ -70,6 +83,7 @@ On Linux:
 sha256sum -c Wallet_Key_Derivation_Tool.html.sha256
 sha256sum -c Wallet_Activity_Viewer.html.sha256
 sha256sum -c Wallet_Discovery_Scanner.html.sha256
+sha256sum -c PSBT_Inspector.html.sha256
 ```
 
 The key derivation tool is designed for direct `file://` use on an offline machine. The viewer and scanner require network access for blockchain data.
@@ -155,6 +169,7 @@ Generated files are written to:
 dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html
 dist/multi-chain-edition/activity-viewer/Wallet_Activity_Viewer.html
 dist/multi-chain-edition/discovery-scanner/Wallet_Discovery_Scanner.html
+dist/multi-chain-edition/psbt-inspector/PSBT_Inspector.html
 dist/multi-chain-edition/SHA256SUMS
 dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html
 dist/dash-community-edition/activity-viewer/Dash_Community_Activity_Viewer.html
@@ -171,6 +186,7 @@ For individual application instructions, see:
 - [Wallet Key Derivation Tool](apps/key-derivation/README.md)
 - [Wallet Activity Viewer](apps/activity-viewer/README.md)
 - [Wallet Discovery Scanner](apps/discovery-scanner/README.md)
+- [PSBT Inspector](apps/psbt-inspector/README.md)
 
 Contributor references: [EXTENDING.md](EXTENDING.md), [RELEASING.md](RELEASING.md), [architecture](docs/ARCHITECTURE.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
 

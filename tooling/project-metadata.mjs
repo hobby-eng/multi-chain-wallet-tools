@@ -8,12 +8,14 @@ export const PRODUCT_FACTS = Object.freeze({
     'Dash Core',
     'Dash Platform payments',
     'Dash Platform Identity',
+    'Dash Purpose48 P2SH multisig cosigner',
     'Dash Orchard',
   ]),
   tools: Object.freeze([
     'Wallet Key Derivation Tool',
     'Wallet Activity Viewer',
     'Wallet Discovery Scanner',
+    'PSBT Inspector',
   ]),
 });
 
