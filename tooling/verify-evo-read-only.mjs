@@ -83,6 +83,8 @@ function recordBinding(binding, path, aliases) {
     return;
   }
   for (const element of binding.elements) {
+    // The pinned TS native API represents array holes as nameless BindingElements.
+    if (ts.isOmittedExpression(element) || (ts.isArrayBindingPattern(binding) && element.name === undefined)) continue;
     if (element.dotDotDotToken !== undefined) continue;
     const property = element.propertyName === undefined
       ? ts.isIdentifier(element.name) ? element.name.text : undefined

@@ -75,7 +75,7 @@ chacha20 0.9.1                  chacha20poly1305 0.10.1
 cipher 0.4.4                    cobs 0.3.0
 corez 0.1.1                     cpufeatures 0.2.17
 critical-section 1.2.0          crypto-common 0.1.7
-dash-shielded-wasm 0.1.3        document-features 0.2.12
+dash-shielded-wasm 0.1.4        document-features 0.2.12
 either 1.18.0                   embedded-io 0.4.0
 embedded-io 0.6.1               ff 0.13.1
 fpe 0.6.1                       frost-core 3.0.0

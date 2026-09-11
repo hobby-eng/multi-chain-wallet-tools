@@ -1,5 +1,8 @@
 # Wallet Key Derivation Tool
 
+The derivation form displays the fixed purpose, coin type and selected scheme from the same adapter that defines the standard path. The path is read-only: account, address branch controls, start index and result count remain editable where supported. Receive/change generation retains its existing checkbox. Identity has no account control; Orchard labels its diversifier index explicitly. Legacy mobile paths do not display nonexistent purpose/coin levels. There is no arbitrary-path mode in this tool.
+
+
 Offline, standalone BIP39/BIP32/ZIP-32 derivation. The extensible Multi-Chain edition currently includes Bitcoin, Ethereum, and Dash (Core BIP44, legacy mobile Core, Platform payments, Platform Identity keys, and Orchard). Dash Community is Dash-only and compiles only those five Dash adapters. Build outputs: `dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html` and `dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html`.
 
 The Release passport contains the self-test result, deterministic build identity, checksum sidecar name, and embedded dependency versions/licenses. The former duplicate expandable dependency footer has been removed.
@@ -28,3 +31,12 @@ For a release, use the root `pnpm verify` command instead. Read [SECURITY.md](SE
 For Dash Platform, leave **Also generate change addresses** off to derive receive addresses, or enable it for both receive and internal/change addresses. The advanced numeric Key class input is replaced by this standard choice; the underlying derivation library still accepts explicit classes. A receive-class xpub cannot derive the separate hardened internal class, so each result tab exposes its own xpub.
 
 Legacy mobile Account selects the hardened root `m/account'`; zero remains the historical default. This matches [DashSync’s BIP32 account implementation](https://github.com/dashevo/dashsync-iOS/blob/master/DashSync/shared/Models/Derivation%20Paths/DSFundsDerivationPath.m). Discovery uses the selected account for both receive and change chains, on mainnet and testnet.
+
+Legacy mobile results include **Copy public scan key** and a text-file export for the active branch. Paste the `dash-legacy-xpub:` export into Discovery Scanner; it covers that branch without revealing private keys.
+
+### Account descriptor export
+
+The Key Derivation Tool exports public and **unencrypted private** account descriptors for all four Bitcoin address profiles and Dash Core P2PKH families (BIP44, legacy mobile and mobile DIP9 CoinJoin). The default export is a ready-to-paste Core console import command covering receive and change, with active account branches, Core-managed address pools and a full historical rescan. Raw checksummed descriptor lines remain available for Scanner and other wallets. Public export cannot spend; private export grants account spending access. Public export is available without revealing sensitive values; private export requires revealing them. The **Account export** button opens a dialog with public and private copy/download actions. Other accounts, other Bitcoin address profiles, Dash Platform, Identity and Orchard are not included. See [account descriptor instructions](../../docs/ACCOUNT_DESCRIPTORS.md) for scope and Core import requirements.
+
+
+Only change the default scheme or account when you know the source wallet’s derivation path. A different account produces different keys and addresses; other wallets may not discover its funds automatically. Exports preserve the selected account, including a nonzero account number. The deriver supports the selected scheme’s account controls, not arbitrary custom path templates.

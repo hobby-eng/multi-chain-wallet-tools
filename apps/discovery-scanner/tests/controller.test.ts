@@ -44,6 +44,8 @@ function snapshot(): RecoveryInputSnapshot {
     coreChangeCount: '1',
     scanCustomPath: false,
     customPathTemplate: '',
+    scanCustomRange: false,
+    customPathRangeEnd: '',
     customPathFormat: '',
     customPathCount: '100',
     scanLegacyCore: false,
@@ -135,6 +137,36 @@ describe('Discovery Scanner controller', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it('routes automatic Batch through selected coins and keeps invalid candidates in the public report', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const { view, controls } = testView();
+    const state = { ...snapshot(), automaticCandidates: true, candidateCoinIds: ['bitcoin', 'dash'],
+      batchMnemonics: 'invalid phrase\nvalid candidate', batchPassphrases: '\noptional password' };
+    vi.mocked(view.readInputs).mockImplementation(() => ({ ...state }));
+    const calls: string[] = [];
+    const dependencies = {
+      RecoveryConcurrencyLimiter, SecretEgressGuard, mapRecoveryTasks,
+      assertValidMnemonic: (text: string) => { if (text === 'invalid phrase') throw new Error(text); return text; },
+      getRecoveryCoin: (id: string) => ({ id, label: id, networks: ['mainnet'], scan: async (input: import('../src/types.js').RecoverySeedInput) => {
+        calls.push(`${input.id}:${input.mnemonic}:${input.passphrase}`);
+        return { ...result(), inputId: input.id, label: input.label, coinId: id, coinLabel: id };
+      } }),
+      listRecoveryCoins: () => [],
+      recoveryNetworkApi: async () => ({ ping: async () => 'isolated-network-worker-v1' }),
+      createRecoveryExport: (_results: RecoveryWalletResult[], format: string) => ({ filename: `report.${format}`, mimeType: 'text/csv', text: 'public report' }),
+      runRecoverySelfTest: async () => ({ checks: [], durationMs: 1 }),
+      describeUnknownError: String,
+    } as unknown as Parameters<typeof createDiscoveryScannerController>[1];
+    createDiscoveryScannerController(view, dependencies).start();
+    await settle(); controls.batchMode.click(); controls.startButton.click();
+    await vi.waitFor(() => expect(view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Candidate pass finished')));
+    expect(calls).toEqual(['candidate-2-bitcoin:valid candidate:optional password', 'candidate-2-dash:valid candidate:optional password']);
+    const reports = vi.mocked(view.renderResults).mock.calls.at(-1)![0];
+    expect(reports).toHaveLength(3); expect(reports[0]!.coinId).toBe('input');
+    expect(JSON.stringify(reports)).not.toContain('invalid phrase');
+    expect(view.showError).not.toHaveBeenCalled();
   });
 
   it('blocks a registered mnemonic before export and never calls the shell export broker', async () => {
@@ -327,7 +359,7 @@ import { createRecoveryExport } from '../src/export.js';
 const PUBLIC_KEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
 function publicHarness(scan?: (coin: string, input: RecoveryWatchOnlyInput, config: RecoveryWatchOnlyScanConfig, context: RecoveryScanContext) => Promise<RecoveryWalletResult>) {
   const { view, controls } = testView();
-  const scanSeed = vi.fn(async (input) => ({ ...result(), inputId: input.id, label: input.label }));
+  const scanSeed = vi.fn(async (input, _config: import('../src/types.js').RecoveryScanConfig) => ({ ...result(), inputId: input.id, label: input.label }));
   const scanKey = vi.fn(async (coin: string, input: RecoveryWatchOnlyInput, config: RecoveryWatchOnlyScanConfig, context: RecoveryScanContext) => scan
     ? scan(coin, input, config, context)
     : { ...result(), inputId: input.id, label: input.label, coinId: coin, coinLabel: coin, network: config.network });
@@ -470,4 +502,34 @@ for (const sourceMode of ['seed', 'public'] as const) it(`reports a partial ${so
   expect(exported.results[0].sections[0].state).toBe('partial');
   expect(exported.results[0].warnings.join(' ')).toMatch(/incomplete/u);
   vi.unstubAllGlobals();
+});
+
+
+describe('custom account range controller', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+  it('passes one custom range per seed while leaving the standard Account setting unchanged', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), account:'3', scanCustomPath:true, scanCustomRange:true, customPathTemplate:"m/44'/5'/7'/0/{index}", customPathRangeEnd:"m/44'/5'/9'/0/{index}", batchMnemonics:'phrase one\nphrase two' }));
+    h.controller.start();await settle();h.controls.batchMode.click();h.controls.startButton.click();
+    await vi.waitFor(() => expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Recovery scan complete')));
+    expect(h.scanSeed).toHaveBeenCalledTimes(2);
+    for(const [,cfg] of h.scanSeed.mock.calls) expect(cfg).toMatchObject({account:3,customPathTemplate:"m/44'/5'/7'/0/{index}",customPathRangeEnd:"m/44'/5'/9'/0/{index}"});
+  });
+  it('rejects a branch mismatch before starting network queries', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), scanCustomPath:true, scanCustomRange:true, customPathTemplate:"m/44'/5'/0'/0/{index}", customPathRangeEnd:"m/44'/5'/1'/1/{index}" }));
+    h.controller.start();await settle();h.recoveryNetworkApi.mockClear();h.controls.startButton.click();
+    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining('differ only'));
+    expect(h.recoveryNetworkApi).not.toHaveBeenCalled();
+  });
+  it('ignores a stale Finish path when range mode is off and accepts a fully custom single path', async () => {
+    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    const h = publicHarness();
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...snapshot(), scanCustomPath:true, scanCustomRange:false, customPathTemplate:"m/123'/4/{index}'/8", customPathRangeEnd:'bad' }));
+    h.controller.start();await settle();h.controls.startButton.click();
+    await vi.waitFor(() => expect(h.scanSeed).toHaveBeenCalledTimes(1));
+    expect(h.scanSeed.mock.calls[0]![1].customPathRangeEnd).toBeUndefined();
+  });
 });

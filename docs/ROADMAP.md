@@ -1,6 +1,6 @@
 # Roadmap
 
-This file tracks recovery capabilities that are intentionally not claimed by the current release because the required authoritative public query is not yet available through the supported SDK/provider interface.
+This file tracks planned capabilities and upstream changes that require follow-up before support can be claimed.
 
 ## Dash Platform asset-lock funding
 
@@ -17,3 +17,10 @@ Acceptance requires a regression fixture in which the funding resource exists wi
 ## Shared address-history modules
 
 - [ ] Move the network/history modules currently imported by Multi-Chain Activity Viewer from Discovery Scanner into a shared package, preserving existing security and edition-isolation tests.
+
+## Dash address and descriptor evolution
+
+- [ ] Monitor Dash Core releases, DIPs and descriptor/RPC documentation for new address/script types and corresponding descriptor expressions. Current account descriptor exports cover Core L1 P2PKH via `pkh(...)` only (BIP44, legacy mobile and mobile DIP9 CoinJoin paths). Do not assume a new Platform or Orchard address format is a Core descriptor.
+- [ ] When upstream support is specified and available, verify mainnet/testnet address and key encodings, derivation paths, public/private descriptor syntax, checksum rules and minimum Core version. Add independent vectors and Core import/derive-address tests before enabling generation, scanner detection or export.
+
+References: [Dash Core releases](https://github.com/dashpay/dash/releases), [DIPs](https://github.com/dashpay/dips), [descriptor utilities](https://docs.dash.org/en/stable/docs/core/api/remote-procedure-calls-util.html#deriveaddresses), [importdescriptors](https://docs.dash.org/en/stable/docs/core/api/remote-procedure-calls-wallet.html#importdescriptors).

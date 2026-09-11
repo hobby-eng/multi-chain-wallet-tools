@@ -152,13 +152,15 @@ describe('automatic public-key discovery', () => {
     expect(createRecoveryExport([result], 'json').text).not.toContain(account.publicExtendedKey);
     expect(() => ctx.sessionSecretGuard!.assertPublic(account.publicExtendedKey, 'export')).toThrow(/Blocked/u);
   });
-  it('preserves descriptor child paths in funded findings and exports for every script family and branch', async () => {
+  it.each(['h', "'"])('preserves %s descriptor paths in funded findings and exports for every script family and branch', async marker => {
     const seed = new Uint8Array(32).fill(33);
     for (const mode of ['legacy', 'nested-segwit', 'native-segwit', 'taproot'] as const) {
       for (const branch of [0, 1]) {
         const derived = deriveBitcoin(mode, { seed, network: 'mainnet', account: 0, branch, start: 17, count: 1 });
         const expectedAddress = derived.rows[0]!.basic.find(({ key }) => key === 'address')!.value;
-        const result = await scan(BITCOIN_RECOVERY_ADAPTER, derived.watchOnly!.text, context({
+        const body = derived.watchOnly!.text.split('#')[0]!.replace(/\[[^\]]+\]/u, origin => origin.replaceAll('h', marker));
+        const descriptor = `${body}#${descriptorChecksum(body)}`;
+        const result = await scan(BITCOIN_RECOVERY_ADAPTER, descriptor, context({
           utxoAddresses: async (_network, addresses) => addresses.map((address) => ({
             address,
             balance: address === expectedAddress ? '100' : '0',
@@ -282,4 +284,76 @@ it('applies the same DIP9 branch scan to a testnet tpub', async () => {
   }), { ...config, network: 'testnet' });
   expect(branch.publicExtendedKey.startsWith('tpub')).toBe(true);
   expect(queried).toEqual([expectedAddress]);
+});
+
+it('checks the original checksum before deriving an apostrophe-origin descriptor', async () => {
+  const body = `wpkh([00000000/84h/0h/0h]${account.publicExtendedKey}/0/*)`;
+  const apostrophe = body.replaceAll('/84h/0h/0h', "/84'/0'/0'");
+  await expect(scan(BITCOIN_RECOVERY_ADAPTER, `${apostrophe}#${descriptorChecksum(body)}`, context())).rejects.toThrow('checksum');
+});
+
+it.each(['mainnet', 'testnet'] as const)('scans explicit legacy account and branch keys on %s', async networkName => {
+  const network = getDashNetwork(networkName);
+  const root = HDKey.fromMasterSeed(new Uint8Array(32).fill(27), network.versions);
+  const node = root.derive("m/7'");
+  const address = (branch: number) => encodeP2pkh(hash160(root.derive(`m/7'/${branch}/0`).publicKey!), network.p2pkh);
+  for (const branch of [null, 0, 1]) {
+    const publicNode = branch === null ? node : node.deriveChild(branch);
+    const queried: string[] = [];
+    const result = await scan(DASH_RECOVERY_ADAPTER, `dash-legacy-xpub:${publicNode.publicExtendedKey}`, context({
+      coreStatus: async () => ({ status: 'ok' }),
+      coreTip: async () => ({ resultSet: [{ height: 1 }] }),
+      coreAddressInfo: async (_network, addresses) => { queried.push(...addresses); return addresses.map(address => ({ address, balance: '0', txCount: 0 })); },
+    }), { ...config, network: networkName });
+    expect(queried).toEqual(branch === null ? [address(0), address(1)] : [address(branch)]);
+    expect(result.sections[0]?.id).toBe('legacyCore');
+    expect(createRecoveryExport([result], 'json').text).not.toContain(publicNode.publicExtendedKey);
+    expect(() => resolveWatchOnlyTargets(publicNode.publicExtendedKey, [DASH_RECOVERY_ADAPTER])).toThrow();
+  }
+  expect(() => assertWatchOnlyBatchInput(`dash-legacy-xpub:${node.privateExtendedKey}`)).toThrow();
+  await expect(scan(DASH_RECOVERY_ADAPTER, `dash-legacy-xpub:${node.derive("m/0/0").publicExtendedKey}`, context(), { ...config, network: networkName })).rejects.toThrow('depth');
+  root.wipePrivateData(); node.wipePrivateData();
+});
+
+it('does not treat inherited object properties as supported prefixes', () => {
+  expect(() => resolveWatchOnlyTargets('constructor:abc', adapters)).toThrow('No supported scan');
+});
+it.each([BITCOIN_RECOVERY_ADAPTER, ETHEREUM_RECOVERY_ADAPTER, DASH_RECOVERY_ADAPTER])('rejects an out-of-range address count before $id sends requests', async adapter => {
+  await expect(scan(adapter, publicKey, context(), { ...config, minimumCount: 2147483649 })).rejects.toThrow('1 to 2147483648');
+});
+
+it.each(['mainnet', 'testnet'] as const)('scans the exact Dash descriptor branch on %s and rejects altered origins/checksums', async network => {
+  const net = getDashNetwork(network);
+  const root = HDKey.fromMasterSeed(new Uint8Array(32).fill(12), net.versions);
+  const account = root.derive(`m/44'/${net.coinType}'/7'`);
+  const body = `pkh([12345678/44h/${net.coinType}h/7h]${account.publicExtendedKey}/1/*)`;
+  const descriptor = `${body}#${descriptorChecksum(body)}`;
+  const expected = encodeP2pkh(hash160(account.deriveChild(1).deriveChild(0).publicKey!), net.p2pkh);
+  const queried: string[] = [];
+  const result = await scan(DASH_RECOVERY_ADAPTER, `dash-descriptor:${descriptor}`, context({
+    coreStatus: async () => ({ status: 'ok' }), coreTip: async () => ({ resultSet: [{ height: 1 }] }),
+    coreAddressInfo: async (_network, addresses) => {
+      queried.push(...addresses);
+      return addresses.map(address => ({ address, balance: address === expected ? '1' : '0', txCount: address === expected ? 1 : 0 }));
+    },
+  }), { ...config, network });
+  expect(queried[0]).toBe(expected);
+  expect(result.sections[0]!.findings[0]!.fields).toContainEqual({ label: 'Descriptor derivation path', value: `m/44'/${net.coinType}'/7'/1/0`, copyable: true });
+  const bare = resolveWatchOnlyTargets(descriptor, adapters);
+  expect(bare).toHaveLength(2); expect(bare.every(target => target.ambiguity !== undefined)).toBe(true);
+  expect(resolveWatchOnlyTargets(`dash-descriptor:${descriptor}`, adapters)).toHaveLength(1);
+  const wrongOrigin = body.replace('/7h]', '/8h]');
+  expect(() => resolveWatchOnlyTargets(`dash-descriptor:${wrongOrigin}#${descriptorChecksum(wrongOrigin)}`, adapters)).toThrow(/child index/u);
+  const wrongSum = descriptor.slice(0, -1) + (descriptor.endsWith('q') ? 'p' : 'q');
+  expect(() => resolveWatchOnlyTargets(`dash-descriptor:${wrongSum}`, adapters)).toThrow(/checksum/u);
+  const privateBody = body.replace(account.publicExtendedKey, account.privateExtendedKey);
+  expect(() => resolveWatchOnlyTargets(`dash-descriptor:${privateBody}#${descriptorChecksum(privateBody)}`, adapters)).toThrow();
+});
+
+it.each(["m/7'", "m/9'/5'/4'/7'"])('recognizes non-BIP44 Dash descriptor origin %s without deriving a different family', path => {
+  const account = HDKey.fromMasterSeed(new Uint8Array(32).fill(13)).derive(path);
+  const body = `pkh([12345678${path.slice(1)}]${account.publicExtendedKey}/0/*)`;
+  const target = resolveWatchOnlyTargets(`dash-descriptor:${body}#${descriptorChecksum(body)}`, adapters)[0]!;
+  expect(target.material.kind).toBe(path === "m/7'" ? 'dash-legacy-xpub' : 'dash-coinjoin-xpub');
+  expect(target.material.value).toBe(account.deriveChild(0).publicExtendedKey);
 });

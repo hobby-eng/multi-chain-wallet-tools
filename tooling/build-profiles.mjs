@@ -114,7 +114,7 @@ export function applyProfileTemplate(template, profile, tool) {
     : '<div><label for="recovery-coin">Coin</label><select id="recovery-coin"></select></div>';
   const recoveryPublicKeyPlaceholder = profile.id === 'dash-community'
     ? 'Paste a public key, account xpub, or Dash Orchard viewing key. One key per line.'
-    : 'Paste a public key, account xpub, Bitcoin descriptor, or Dash Orchard viewing key. One key per line.';
+    : 'Paste a public key, account xpub, descriptor, or Dash Orchard viewing key. One key per line.';
   const recoveryPublicKeyScope = profile.id === 'dash-community'
     ? '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any.'
     : '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.';

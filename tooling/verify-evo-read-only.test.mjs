@@ -25,6 +25,12 @@ describe('Evo SDK read-only verifier', () => {
     );
   });
 
+  it('accepts omitted array bindings without losing subsequent write-call detection', () => {
+    const findings = findEvoWriteCalls([fixture('omitted-bindings.ts')], root);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].description).toBe('write-capable tokens.transfer facade');
+  });
+
   it('reports source locations for rejected calls', () => {
     expect(findEvoWriteCalls([fixture('direct-write.ts')], root)).toEqual([
       expect.objectContaining({ path: fixture('direct-write.ts'), line: 2, column: 1 }),

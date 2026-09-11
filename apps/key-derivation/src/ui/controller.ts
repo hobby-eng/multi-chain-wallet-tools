@@ -1,3 +1,4 @@
+import { coreImportCommand } from './descriptor-export.js';
 import type { CoinAdapter } from '@ckd/coins/registry.js';
 import type { DerivationResult, DisplayMode, ResultField } from '@ckd/core/types.js';
 import {
@@ -87,6 +88,7 @@ export function createKeyDerivationController(
         copyMnemonicButton,
         copyWatchOnlyButton,
         downloadWatchOnlyButton,
+        descriptorButtons,
         cancelDerivationButton,
         expectedAddress,
         searchStart,
@@ -840,6 +842,34 @@ copyMnemonicButton.addEventListener('click', () => {
     }
   })();
 });
+
+for (const [action, button] of Object.entries(descriptorButtons)) {
+  button.addEventListener('click', () => {
+    const bundle = currentResult?.accountDescriptors;
+    if (bundle === undefined) return;
+    const privateExport = action === 'privateCopy' || action === 'privateDownload';
+    if (privateExport && !sensitiveValuesRevealed) {
+      showError('Reveal sensitive values before exporting private descriptors.');
+      return;
+    }
+    const descriptors = privateExport ? bundle.privateText : bundle.publicText;
+    const coreFormat = document.querySelector<HTMLSelectElement>('#account-export-format')!.value === 'core';
+    let text = descriptors;
+    try {
+      if (coreFormat) text = coreImportCommand(descriptors);
+    } catch (cause) {
+      showError(cause instanceof Error ? cause.message : 'Unable to prepare account export.');
+      return;
+    }
+    if (action === 'publicDownload' || action === 'privateDownload') {
+      const filename = `${bundle.fileStem}.${privateExport ? 'PRIVATE' : 'public'}.${coreFormat ? 'core-import' : 'descriptors'}.txt`;
+      downloadText(text, filename, 'text/plain');
+      showStatus(privateExport ? `Created ${filename}. Contains unencrypted account private keys.` : `Created ${filename}. Public account data; cannot spend.`);
+    } else {
+      void copyText(button, text, privateExport);
+    }
+  });
+}
 
 copyWatchOnlyButton.addEventListener('click', () => {
   const watchOnly = currentResult?.watchOnly;
