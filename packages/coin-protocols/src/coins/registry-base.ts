@@ -57,6 +57,8 @@ export interface CoinFieldRoles {
 
 /** Extension contract: the UI renders and exports only this protocol-neutral API. */
 export interface CoinAdapter {
+  /** Labels for fixed leading path segments, sourced from pathPreview. */
+  readonly fixedPathLabels?: readonly string[];
   id: string;
   group: string;
   label: string;

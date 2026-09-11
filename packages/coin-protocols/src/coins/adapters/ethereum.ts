@@ -17,6 +17,7 @@ const ETHEREUM_ADDRESS_BRANCH_CONTROL: BranchControl = {
 export const ETHEREUM_COIN_ADAPTERS: readonly CoinAdapter[] = [{
   id: 'ethereum',
   group: 'Ethereum',
+  fixedPathLabels: ['Purpose', 'Coin type'],
   label: 'Ethereum EOA · BIP44',
   variantLabel: 'EOA · BIP44',
   defaultVariant: true,

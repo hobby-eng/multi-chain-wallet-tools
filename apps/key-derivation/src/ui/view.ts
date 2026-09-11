@@ -55,6 +55,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     countLabel: required<HTMLLabelElement>('#count-label'),
     count: required<HTMLInputElement>('#count'),
     preview: required<HTMLElement>('#path-preview'),
+    fixedPath: required<HTMLElement>('#standard-path-details'),
   };
   const errorRoot = required<HTMLElement>('#error');
   const statusRoot = required<HTMLElement>('#status');

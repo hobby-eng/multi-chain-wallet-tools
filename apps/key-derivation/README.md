@@ -1,5 +1,8 @@
 # Wallet Key Derivation Tool
 
+The derivation form displays the fixed purpose, coin type and selected scheme from the same adapter that defines the standard path. The path is read-only: account, address branch controls, start index and result count remain editable where supported. Receive/change generation retains its existing checkbox. Identity has no account control; Orchard labels its diversifier index explicitly. Legacy mobile paths do not display nonexistent purpose/coin levels. There is no arbitrary-path mode in this tool.
+
+
 Offline, standalone BIP39/BIP32/ZIP-32 derivation. The extensible Multi-Chain edition currently includes Bitcoin, Ethereum, and Dash (Core BIP44, legacy mobile Core, Platform payments, Platform Identity keys, and Orchard). Dash Community is Dash-only and compiles only those five Dash adapters. Build outputs: `dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html` and `dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html`.
 
 The Release passport contains the self-test result, deterministic build identity, checksum sidecar name, and embedded dependency versions/licenses. The former duplicate expandable dependency footer has been removed.
