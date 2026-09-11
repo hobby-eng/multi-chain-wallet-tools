@@ -163,7 +163,11 @@ for (const browserName of selectedBrowsers) {
               await page.locator(`#download-${kind}-descriptors`).click();
               const download = await pending;
               const text = readFileSync(await download.path(), 'utf8');
-              assert.equal(text.trim().split('\n').length, 2);
+              assert.ok(text.startsWith("importdescriptors '["));
+              const requests = JSON.parse(text.slice("importdescriptors '".length, -1));
+              assert.equal(requests.length, 2);
+              assert.deepEqual(requests.map(r => r.internal), [false, true]);
+              assert.deepEqual(requests.map(r => r.timestamp), [0, 0]);
               assert.match(text, kind === 'private' ? /[xt]prv/ : /[xt]pub/);
               if (kind === 'public') assert.doesNotMatch(text, /[xt]prv/);
               await download.delete();

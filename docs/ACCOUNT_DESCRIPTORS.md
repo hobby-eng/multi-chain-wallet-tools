@@ -14,15 +14,15 @@ The Key Derivation Tool's **Account export** panel exports the selected account 
 
 Testnet uses coin type `1'` where a coin-type segment exists and tpub/tprv version bytes. Legacy mobile has no coin-type segment. Taproot exports the untweaked BIP32 account key; `tr()` applies the required output-key construction. Dash exports do not describe Platform, Identity or Orchard resources.
 
-Each file contains exactly two descriptors with BIP380 checksums: `/0/*` receive and `/1/*` change. This avoids requiring multipath `/<0;1>/*` support. The pair covers future child indices too, not just the rows displayed in the tool. Another account or address profile requires its own export.
+Raw descriptor exports contain exactly two descriptors with BIP380 checksums: `/0/*` receive and `/1/*` change. This avoids requiring multipath `/<0;1>/*` support. The pair covers future child indices too, not just the rows displayed in the tool. Another account or address profile requires its own export.
 
 **Public descriptors** contain xpub/tpub only. **Private descriptors** contain unencrypted xprv/tprv and permit spending from that account. The checksum detects transcription errors; it provides no encryption. Private descriptors are available only through explicit private copy/download actions after revealing sensitive values. No descriptor secret is placed in DOM attributes or displayed automatically by the export panel.
 
 ## Core import
 
-Use a descriptor-enabled wallet on the correct coin and network. A wallet with private keys disabled is suitable for public descriptors; importing private descriptors requires a wallet that accepts private keys. Dash documents `importdescriptors` starting with Core 21.0.0. Bitcoin Taproot additionally requires a Core version supporting `tr()` and descriptor wallets.
+Use a descriptor-enabled wallet on the correct coin and network. Public descriptors require a wallet with private keys disabled; importing private descriptors requires a wallet that accepts private keys. Dash documents `importdescriptors` starting with Core 21.0.0. Bitcoin Taproot additionally requires a Core version supporting `tr()` and descriptor wallets.
 
-The text file is not itself an RPC request. Supply each descriptor as `desc` in a separate `importdescriptors` request. Set `internal: false` for receive and `internal: true` for change. `active: true` makes a ranged descriptor available for new address generation. Select `range` and `next_index` deliberately; do not assume the deriver's displayed row count defines wallet coverage.
+The default export is a one-line `importdescriptors` console command containing both descriptors, with `internal: false` for receive and `internal: true` for change. Copy it into the selected wallet’s Core console, or open the downloaded `.core-import.txt` file and copy its contents. It is not a GUI wallet-backup import file. The command uses `timestamp: 0` and range `[0,999]` by default; the last index is editable in the export dialog. It omits `active`, so it does not replace the wallet’s active address-generation descriptors. `active: true` makes a ranged descriptor available for new address generation. Select `range` and `next_index` deliberately; do not assume the deriver's displayed row count defines wallet coverage.
 
 Set `timestamp` to a time preceding the wallet's activity, or `0` for a full historical rescan. `"now"` skips old history and is appropriate only for known-unused outputs. Rescan availability also depends on available blockchain data. Check the RPC result for both descriptors and compare derived addresses against the tool before relying on the import.
 
@@ -30,7 +30,7 @@ A public key cannot prove its complete hardened ancestry or uniquely identify a 
 
 ## Scanner handoff
 
-**Copy public descriptors** copies both receive and change descriptors. Open **Account export** to access copy and download actions. Scanner also accepts the two public Dash descriptor lines when Dash is selected, or with `dash-descriptor:` before each line. Each descriptor covers only its declared branch; multipath `/<0;1>/*` is not supported. Paste into Scanner's public-key tab. Private descriptor files are for the destination signing wallet; Scanner's public-key tab rejects them.
+Select **Raw descriptors · Scanner / other wallets**, then **Copy public descriptors** to copy both receive and change descriptors. Open **Account export** to access copy and download actions. Scanner also accepts the two public Dash descriptor lines when Dash is selected, or with `dash-descriptor:` before each line. Each descriptor covers only its declared branch; multipath `/<0;1>/*` is not supported. Paste into Scanner's public-key tab. Private descriptor files are for the destination signing wallet; Scanner's public-key tab rejects them.
 
 ## Verification and references
 

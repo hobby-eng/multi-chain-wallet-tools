@@ -164,14 +164,21 @@
           <div class="account-export-heading"><h3 id="account-export-title">Account export</h3><button class="secondary compact" id="close-account-export" type="button" aria-label="Close account export">Close</button></div>
           <p id="account-descriptor-description"></p>
           <p>Includes receive and change addresses for this account and address type.</p>
+          <label for="account-export-format">Export format</label>
+          <select id="account-export-format"><option value="core">Core wallet console command</option><option value="raw">Raw descriptors · Scanner / other wallets</option></select>
+          <div id="account-export-range-options">
+            <label for="account-export-range">Last address index to import (starts at 0)</label>
+            <input id="account-export-range" type="number" min="0" max="2147483647" value="999" step="1">
+            <p class="field-note">Scans the full blockchain history for both branches. This may take over an hour. Paste the command into the matching Dash Core or Bitcoin Core wallet console.</p>
+          </div>
           <h4>Public descriptors</h4>
-          <p>View addresses and activity. Cannot spend funds.</p>
+          <p>Requires a descriptor wallet with private keys disabled (watch-only). Cannot spend funds.</p>
           <div class="watch-only-actions">
             <button class="secondary" id="copy-public-descriptors" type="button">Copy public descriptors</button>
             <button class="secondary" id="download-public-descriptors" type="button">Download public descriptors</button>
           </div>
           <h4>Private descriptors</h4>
-          <p>Unencrypted keys that allow spending. Reveal sensitive values before export.</p>
+          <p>For a descriptor wallet with private keys enabled. Unencrypted keys allow spending. Reveal sensitive values before export.</p>
           <div class="watch-only-actions">
             <button class="secondary" id="copy-private-descriptors" type="button">Copy private descriptors</button>
             <button class="secondary" id="download-private-descriptors" type="button">Download private descriptors</button>
