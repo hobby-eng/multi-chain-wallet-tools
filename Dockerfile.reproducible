@@ -32,10 +32,10 @@ RUN curl --fail --silent --show-error --location \
 
 RUN git config --system http.version HTTP/1.1 \
     && npm install --global pnpm@11.25.0 \
-    && cargo install wasm-bindgen-cli --version 0.2.127 --locked \
+    && cargo install wasm-bindgen-cli --version 0.2.128 --locked \
     && test "$(pnpm --version)" = '11.25.0' \
     && test "$(cargo --version | cut -d ' ' -f 1-2)" = 'cargo 1.98.1' \
-    && test "$(wasm-bindgen --version | cut -d ' ' -f 1-2)" = 'wasm-bindgen 0.2.127'
+    && test "$(wasm-bindgen --version | cut -d ' ' -f 1-2)" = 'wasm-bindgen 0.2.128'
 
 FROM toolchain AS dependencies
 WORKDIR /workspace
