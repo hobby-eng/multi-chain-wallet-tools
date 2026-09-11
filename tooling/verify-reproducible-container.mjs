@@ -23,7 +23,7 @@ for (const expected of [
   'CARGO_NET_GIT_FETCH_WITH_CLI=true',
   'git config --system http.version HTTP/1.1',
   'npm install --global pnpm@11.25.0',
-  'cargo install wasm-bindgen-cli --version 0.2.127 --locked',
+  'cargo install wasm-bindgen-cli --version 0.2.128 --locked',
   'for attempt in 1 2 3 4 5',
   'Cargo fetch attempt ${attempt} failed',
   'RUN --network=none pnpm verify',

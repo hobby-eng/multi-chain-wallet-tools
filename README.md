@@ -137,13 +137,13 @@ Requirements:
 - Node.js 24+
 - pnpm 11.25.0
 - Rust/Cargo 1.98.1 with `wasm32-unknown-unknown` (the Rust crate retains MSRV 1.85.1)
-- `wasm-bindgen-cli` 0.2.127
+- `wasm-bindgen-cli` 0.2.128
 
 ```bash
 pnpm install --frozen-lockfile
 rustup toolchain install 1.98.1
 rustup target add wasm32-unknown-unknown --toolchain 1.98.1
-cargo +1.98.1 install wasm-bindgen-cli --version 0.2.127 --locked
+cargo +1.98.1 install wasm-bindgen-cli --version 0.2.128 --locked
 RUSTUP_TOOLCHAIN=1.98.1 pnpm verify
 ```
 
