@@ -23,10 +23,10 @@ describe('coin adapter extension contract', () => {
       'bitcoin-taproot',
       'ethereum',
       'dash-core',
+      'dash-multisig-p2sh',
       'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',
-      'dash-multisig-p2sh',
       'dash-shielded',
     ]);
     for (const adapter of COIN_ADAPTERS) {
@@ -58,11 +58,11 @@ describe('coin adapter extension contract', () => {
       'Taproot · BIP86',
     ]);
     expect(COIN_FAMILIES.find(({ id }) => id === 'dash')?.adapters.map(({ variantLabel }) => variantLabel)).toEqual([
-      'Core · BIP44',
+      'Core · BIP44 P2PKH',
+      'Multisig · Purpose48 P2SH',
       'Legacy mobile Core',
       'Platform · DIP17 / DIP18',
       'Identity · DIP13',
-      'Multisig · Purpose48 P2SH',
       'Shielded · Orchard / ZIP-32',
     ]);
     expect(getDefaultCoinAdapter('bitcoin').id).toBe('bitcoin-taproot');
@@ -119,10 +119,10 @@ describe('coin adapter extension contract', () => {
   it('keeps the Dash Community registry explicitly Dash-only', () => {
     expect(DASH_COIN_ADAPTERS.map(({ id }) => id)).toEqual([
       'dash-core',
+      'dash-multisig-p2sh',
       'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',
-      'dash-multisig-p2sh',
       'dash-shielded',
     ]);
     expect(DASH_COIN_FAMILIES.map(({ id }) => id)).toEqual(['dash']);
