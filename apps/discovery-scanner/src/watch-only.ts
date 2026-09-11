@@ -1,3 +1,4 @@
+import { MAX_BIP32_INDEX } from '@ckd/core/bip32.js';
 import { HDKey } from '@scure/bip32';
 import { secp256k1 } from '@ckd/core/crypto.js';
 import { assertPublicBatchLookupInput } from '@ckd/dash-network/private-material.js';
@@ -48,6 +49,16 @@ export const WATCH_ONLY_PREFIX_COINS: Readonly<Record<string, string>> = {
   'orchard-ovk': 'dash',
 };
 
+function prefixCoin(prefix: string): string | undefined {
+  return Object.hasOwn(WATCH_ONLY_PREFIX_COINS, prefix) ? WATCH_ONLY_PREFIX_COINS[prefix] : undefined;
+}
+
+export function assertWatchOnlyMinimum(count: number): void {
+  if (!Number.isSafeInteger(count) || count < 1 || count > MAX_BIP32_INDEX + 1) {
+    throw new Error(`The watch-only address minimum must be an integer from 1 to ${MAX_BIP32_INDEX + 1}.`);
+  }
+}
+
 export const WATCH_ONLY_EXPLICIT_PREFIXES: readonly string[] = [
   ...Object.keys(WATCH_ONLY_PREFIX_COINS),
   'public-key',
@@ -81,7 +92,7 @@ export function matchExplicitPrefix(raw: string): ExplicitPrefixMatch | null {
 export function foreignPrefixCoin(raw: string, ownCoinId: string): string | null {
   const matched = matchExplicitPrefix(raw);
   if (matched === null) return null;
-  const targetCoin = WATCH_ONLY_PREFIX_COINS[matched.prefix];
+  const targetCoin = prefixCoin(matched.prefix);
   if (targetCoin === undefined || targetCoin === ownCoinId) return null;
   return targetCoin;
 }
@@ -176,7 +187,7 @@ export function resolveWatchOnlyTargets(
   if (!trimmed) throw new Error('Enter a public key.');
   const prefix = matchExplicitPrefix(trimmed);
   const value = prefix?.value ?? trimmed;
-  const owner = prefix === null ? undefined : WATCH_ONLY_PREFIX_COINS[prefix.prefix];
+  const owner = prefix === null ? undefined : prefixCoin(prefix.prefix);
   const sharedPublicKey = (prefix === null || prefix.prefix === 'public-key') && looksLikeSec1PublicKey(value);
   const sharedXpub = prefix === null && looksLikeExtendedPublicKey(value);
   let depth: number | undefined;

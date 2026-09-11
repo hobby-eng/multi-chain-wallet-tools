@@ -1,3 +1,4 @@
+import { assertWatchOnlyMinimum } from '../../watch-only.js';
 import { isUint256Decimal } from '@ckd/core/numeric-limits.js';
 import { HDKey } from '@scure/bip32';
 import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
@@ -104,9 +105,7 @@ export async function scanEthereumWatchOnly(
   config: RecoveryWatchOnlyScanConfig,
   context: RecoveryScanContext,
 ): Promise<RecoveryWalletResult> {
-  if (!Number.isSafeInteger(config.minimumCount) || config.minimumCount < 1) {
-    throw new Error('The watch-only address minimum must be a positive integer.');
-  }
+  assertWatchOnlyMinimum(config.minimumCount);
   const guard = new SecretEgressGuard();
   if (input.kind !== 'public-key' && input.kind !== 'identity') {
     guard.registerString('Ethereum watch-only input', input.value);

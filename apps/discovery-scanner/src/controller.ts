@@ -1,3 +1,4 @@
+import { assertWatchOnlyMinimum } from './watch-only.js';
 import { enrichRecoveryHistory } from './history.js';
 import type { RecoveryExportFile, RecoveryExportFormat } from './export.js';
 import type { RecoveryCoinRegistry } from './coins/registry.js';
@@ -176,9 +177,11 @@ export function createDiscoveryScannerController(
   }
 
   function watchOnlyScanConfig(snapshot: RecoveryInputSnapshot): RecoveryWatchOnlyScanConfig {
+    const minimumCount = parseInteger(snapshot.watchOnlyMinimumCount, 'Watch-only address minimum', 1);
+    assertWatchOnlyMinimum(minimumCount);
     return {
       network: snapshot.network === 'testnet' ? 'testnet' : 'mainnet',
-      minimumCount: parseInteger(snapshot.watchOnlyMinimumCount, 'Watch-only address minimum', 1),
+      minimumCount,
       includeUsedZeroBalance: snapshot.includeUsedZeroBalance,
     };
   }

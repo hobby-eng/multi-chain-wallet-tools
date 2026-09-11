@@ -157,7 +157,7 @@
         </div>
         </div>
         <div class="coverage-grid">
-          <div hidden><label for="watch-only-minimum">Minimum addresses per public-key branch</label><input id="watch-only-minimum" type="number" value="100" min="1" step="1" inputmode="numeric"></div>
+          <div hidden><label for="watch-only-minimum">Minimum addresses per public-key branch</label><input id="watch-only-minimum" type="number" value="100" min="1" max="2147483648" step="1" inputmode="numeric"></div>
           <div><label for="request-concurrency">Parallel network requests</label><select id="request-concurrency"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5 · recommended maximum</option></select></div>
         </div>
         <label class="shielded-option history-option"><input id="include-used-zero-balance" type="checkbox"><span><strong>Show spent or previously used resources with zero balance</strong><small>Off by default. Displayed resources include history details when supported by the coin adapter and provider. Enabling this option additionally includes Core/Platform empty history and already-spent or outgoing-only Orchard notes in the page and CSV/JSON. On a CoinJoin-heavy wallet the extra Core requests can make the scan much slower; the default hides known-spent notes; an incoming-only viewing key cannot determine whether a note is spent.</small></span></label>
