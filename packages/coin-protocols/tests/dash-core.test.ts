@@ -2,8 +2,9 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import DashHd from 'dashhd';
 import { describe, expect, it } from 'vitest';
 import { deriveDashCore } from '../src/coins/dash/core.js';
+import { deriveDashMultisig } from '../src/coins/dash/multisig.js';
 import { mnemonicToSeed } from '@ckd/core/bip39.js';
-import { rowValue, TEST_MNEMONIC } from '@ckd/test-support/helpers.js';
+import { rowValue, TEST_MNEMONIC, value } from '@ckd/test-support/helpers.js';
 
 describe('Dash Core', () => {
   it('matches the published SLIP-0014 Dash BIP44 vector', () => {
@@ -56,5 +57,40 @@ describe('Dash Core', () => {
 
     DashHd.wipePrivateData(referenceRoot);
     seed.fill(0);
+  });
+});
+
+describe('Dash Purpose48 multisig cosigner', () => {
+  it('exports the standard Dash mainnet P2SH multisig cosigner account xpub and child public keys', () => {
+    const seed = mnemonicToSeed(TEST_MNEMONIC);
+    try {
+      const result = deriveDashMultisig({ seed, network: 'mainnet', account: 0, branch: 0, start: 0, count: 2 });
+      expect(result.id).toBe('dash-multisig-p2sh');
+      expect(result.title).toBe('Dash multisig cosigner (Purpose48 / P2SH)');
+      expect(result.pathTemplate).toBe("m/48'/5'/0'/0'/0/i");
+      expect(result.rows.map(({ path }) => path)).toEqual(["m/48'/5'/0'/0'/0/0", "m/48'/5'/0'/0'/0/1"]);
+      expect(value(result.summary, 'accountPath')).toBe("m/48'/5'/0'/0'");
+      expect(value(result.basicSummary, 'descriptorAccountKey')).toMatch(/^\[[0-9a-f]{8}\/48h\/5h\/0h\/0h\]xpub/u);
+      expect(rowValue(result, 'publicKey')).toMatch(/^(02|03)[0-9a-f]{64}$/u);
+      expect(rowValue(result, 'descriptorKey')).toMatch(/^\[[0-9a-f]{8}\/48h\/5h\/0h\/0h\]xpub.+\/0\/0$/u);
+      expect(result.watchOnly?.text).toBe(`${value(result.basicSummary, 'descriptorAccountKey')}\n`);
+      expect(result.notices.join('\n')).toContain("Do not mix it with BIP44 m/44'/5'/account'");
+    } finally {
+      seed.fill(0);
+    }
+  });
+
+  it('uses Dash testnet coin type 1 and exposes change branch cosigner keys', () => {
+    const seed = mnemonicToSeed(TEST_MNEMONIC);
+    try {
+      const result = deriveDashMultisig({ seed, network: 'testnet', account: 3, branch: 1, start: 4, count: 1 });
+      expect(result.pathTemplate).toBe("m/48'/1'/3'/0'/1/i");
+      expect(result.rows[0]?.path).toBe("m/48'/1'/3'/0'/1/4");
+      expect(value(result.summary, 'accountPath')).toBe("m/48'/1'/3'/0'");
+      expect(value(result.basicSummary, 'descriptorAccountKey')).toMatch(/^\[[0-9a-f]{8}\/48h\/1h\/3h\/0h\]tpub/u);
+      expect(rowValue(result, 'privateKey')).toMatch(/^c/u);
+    } finally {
+      seed.fill(0);
+    }
   });
 });
