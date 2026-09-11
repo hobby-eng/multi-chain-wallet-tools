@@ -1,3 +1,4 @@
+import { assertWatchOnlyMinimum } from '../../watch-only.js';
 import { HDKey } from '@scure/bip32';
 import { bytesToHex, encodeP2pkh, hash160, secp256k1, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
@@ -646,9 +647,7 @@ export async function scanDashWatchOnly(
   config: RecoveryWatchOnlyScanConfig,
   context: RecoveryScanContext,
 ): Promise<RecoveryWalletResult> {
-  if (!Number.isSafeInteger(config.minimumCount) || config.minimumCount < 1) {
-    throw new Error('The watch-only address minimum must be a positive integer.');
-  }
+  assertWatchOnlyMinimum(config.minimumCount);
   const guard = new SecretEgressGuard();
   if (input.kind !== 'public-key' && input.kind !== 'identity') {
     guard.registerString('Dash watch-only input', input.value);
