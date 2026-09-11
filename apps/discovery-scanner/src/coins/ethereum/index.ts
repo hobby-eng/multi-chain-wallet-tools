@@ -16,7 +16,7 @@ import type {
   RecoverySeedInput,
   RecoveryWalletResult,
 } from '../../types.js';
-import { parseCustomPathTemplate } from '../custom-path.js';
+import { appendCustomPaths, customScanPaths } from '../custom-path.js';
 import { extendAddressTarget } from '../dash/util.js';
 import { ETHEREUM_VERSIONS, formatEther } from './shared.js';
 import { detectEthereumWatchOnly, scanEthereumWatchOnly } from './watch-only.js';
@@ -26,6 +26,7 @@ interface EthereumPathProfile {
   label: string;
   path(index: number): string;
   maximumCount: number;
+  initialCount: number;
 }
 
 
@@ -45,44 +46,36 @@ function validateBatch(value: EvmAccountBatchView, expected: readonly string[]):
   return value;
 }
 
-function customPathProfile(templateValue: string): EthereumPathProfile {
-  const parsed = parseCustomPathTemplate(templateValue);
-  return {
-    id: 'custom',
-    label: 'Custom EVM path',
-    path: parsed.path,
-    maximumCount: MAX_BIP32_INDEX + 1,
-  };
-}
-
-function pathProfiles(config: RecoveryScanConfig): EthereumPathProfile[] {
-  const ranged = config.accountRangeEnd !== undefined;
+function pathProfiles(config: RecoveryScanConfig): Iterable<EthereumPathProfile> & { readonly length: number } {
   const profiles: EthereumPathProfile[] = [
     {
       id: 'standard',
       label: 'Standard BIP44 · MetaMask / Trezor',
       path: (index) => `m/44'/60'/${config.account}'/0/${index}`,
+      initialCount: config.coreReceiveCount,
       maximumCount: MAX_BIP32_INDEX + 1,
     },
     {
       id: 'ledger-live',
       label: 'Ledger Live accounts',
       path: (index) => `m/44'/60'/${config.account + index}'/0/0`,
-      maximumCount: ranged ? 1 : MAX_BIP32_INDEX - config.account + 1,
+      initialCount: config.coreReceiveCount,
+      maximumCount: MAX_BIP32_INDEX - config.account + 1,
     },
     {
       id: 'ledger-legacy',
       label: 'Legacy Ledger / MEW',
       path: (index) => `m/44'/60'/0'/${index}`,
+      initialCount: config.coreReceiveCount,
       maximumCount: MAX_BIP32_INDEX + 1,
     },
   ];
-  if (ranged && config.account !== config.accountRangeStart) profiles.splice(2, 1);
-  if (config.scanCustomPath === true) {
-    if (config.customPathFormat !== 'eoa') throw new Error('Ethereum custom paths require the EOA address format.');
-    profiles.push(customPathProfile(config.customPathTemplate ?? ''));
-  }
-  return profiles;
+  if (profiles.some(profile => profile.initialCount > profile.maximumCount)) throw new Error('The requested Ethereum scan range exceeds the BIP32 index space.');
+  const custom = customScanPaths(config);
+  if (custom.length > 0 && config.customPathFormat !== 'eoa') throw new Error('Ethereum custom paths require the EOA address format.');
+  return appendCustomPaths<EthereumPathProfile>(profiles, custom, (path) => ({
+    id: path.id, label: `${path.label} · EVM`, path: path.path, initialCount: path.minimum, maximumCount: MAX_BIP32_INDEX + 1,
+  }));
 }
 
 function deriveAddress(
@@ -116,9 +109,6 @@ async function scanEthereum(
     throw new Error('Custom path address minimum must be at least 1.');
   }
   const profiles = pathProfiles(config);
-  if (profiles.some(({ id, maximumCount }) => (id === 'ledger-live' && config.accountRangeEnd !== undefined ? 1 : id === 'custom' ? config.customPathCount ?? 0 : config.coreReceiveCount) > maximumCount)) {
-    throw new Error('The requested Ethereum scan range exceeds the BIP32 index space.');
-  }
   const mnemonic = assertValidMnemonic(input.mnemonic);
   const seed = mnemonicToSeed(mnemonic, input.passphrase);
   const guard = new SecretEgressGuard();
@@ -146,7 +136,7 @@ async function scanEthereum(
   const startedAt = new Date().toISOString();
   try {
     for (const profile of profiles) {
-      let target = profile.id === 'ledger-live' && config.accountRangeEnd !== undefined ? 1 : profile.id === 'custom' ? (config.customPathCount ?? 0) : config.coreReceiveCount;
+      let target = profile.initialCount;
       for (let offset = 0; offset < target;) {
         if (context.signal.aborted) throw new DOMException('Ethereum scan cancelled.', 'AbortError');
         const end = Math.min(offset + RECOVERY_EVM_ACCOUNT_BATCH, target);
@@ -226,7 +216,7 @@ async function scanEthereum(
     const section: RecoverySection = {
       id: 'core',
       title: 'Ethereum EOA addresses',
-      description: `Scans ${profiles.map(({ label }) => label).join(', ')}. ${config.accountRangeEnd === undefined ? 'Independent 20-address post-use gaps.' : 'Address branches use 20-address post-use gaps; Ledger Live checks only this account’s /0/0 address.'}`,
+      description: `Scans three standard EOA profiles${config.scanCustomPath ? ' and the selected custom paths' : ''} through independent 20-address post-use gaps.`,
       state: 'complete',
       metrics: [
         { label: 'Spendable balance', value: formatEther(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
@@ -238,7 +228,7 @@ async function scanEthereum(
       findings,
       scanned,
       source: config.network === 'mainnet' ? 'https://ethereum-rpc.publicnode.com' : 'https://ethereum-sepolia-rpc.publicnode.com',
-      proof: `${config.network === 'mainnet' ? 'Ethereum mainnet' : 'Sepolia testnet'} JSON-RPC account batches at heights ${firstBlock ?? 'unavailable'}–${lastBlock ?? 'unavailable'} · ${config.accountRangeEnd === undefined ? 'independent 20-address post-use gaps' : 'address-branch gaps; one Ledger Live address per selected account'}`,
+      proof: `${config.network === 'mainnet' ? 'Ethereum mainnet' : 'Sepolia testnet'} JSON-RPC account batches at heights ${firstBlock ?? 'unavailable'}–${lastBlock ?? 'unavailable'} · independent 20-address post-use gaps`,
       warning: 'Each account batch uses an explicit block height; different batches may use different heights. This is a single-source public RPC view, without a block-hash snapshot across reorganizations. ERC-20 token balances and contract-wallet ownership are not scanned.',
     };
     return {
@@ -274,7 +264,8 @@ export const ETHEREUM_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
   networks: ['mainnet', 'testnet'],
   customPath: {
     description: 'Optional; three standard profiles stay enabled.',
-    placeholder: "m/44'/60'/7'/0/{index}",
+    placeholder: "m/44'/60'/0'/0/{index}",
+    defaultTemplate: () => "m/44'/60'/0'/0/{index}",
     formats: [{ id: 'eoa', label: 'Ethereum EOA · EIP-55' }],
   },
   scan: scanEthereum,

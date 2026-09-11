@@ -16,7 +16,7 @@ import type {
   RecoverySeedInput,
   RecoveryWalletResult,
 } from '../../types.js';
-import { parseCustomPathTemplate } from '../custom-path.js';
+import { appendCustomPaths, customScanPaths } from '../custom-path.js';
 import { extendAddressTarget } from '../dash/util.js';
 import { addressFor, BITCOIN_MODES as MODES, formatBitcoin, type BitcoinMode } from './shared.js';
 import { detectBitcoinWatchOnly, scanBitcoinWatchOnly } from './watch-only.js';
@@ -44,7 +44,7 @@ function validatedEntries(value: UtxoAddressView[], expected: readonly string[])
   });
 }
 
-function pathProfiles(config: RecoveryScanConfig, coinType: number): BitcoinPathProfile[] {
+function pathProfiles(config: RecoveryScanConfig, coinType: number): Iterable<BitcoinPathProfile> & { readonly length: number } {
   const profiles = MODES.flatMap((family) => ([0, 1] as const).flatMap((branch) => {
     const initialCount = branch === 0 ? config.coreReceiveCount : config.coreChangeCount;
     return initialCount === 0 ? [] : [{
@@ -55,19 +55,13 @@ function pathProfiles(config: RecoveryScanConfig, coinType: number): BitcoinPath
       path: (index: number) => `m/${family.purpose}'/${coinType}'/${config.account}'/${branch}/${index}`,
     }];
   }));
-  if (config.scanCustomPath === true) {
-    const selectedMode = MODES.find((entry) => entry.mode === config.customPathFormat);
-    if (selectedMode === undefined) throw new Error('Select a valid Bitcoin address format for the custom path.');
-    const parsed = parseCustomPathTemplate(config.customPathTemplate ?? '');
-    profiles.push({
-      id: 'custom',
-      label: `Custom path · ${selectedMode.label}`,
-      mode: selectedMode.mode,
-      initialCount: config.customPathCount ?? 0,
-      path: parsed.path,
-    });
-  }
-  return profiles;
+  const custom = customScanPaths(config);
+  const selectedMode = MODES.find((entry) => entry.mode === config.customPathFormat);
+  if (custom.length > 0 && selectedMode === undefined) throw new Error('Select a valid Bitcoin address format for the custom path.');
+  return appendCustomPaths<BitcoinPathProfile>(profiles, custom, (parsed) => ({
+    id: parsed.id, label: `${parsed.label} · ${selectedMode!.label}`, mode: selectedMode!.mode,
+    initialCount: parsed.minimum, path: parsed.path,
+  }));
 }
 
 async function scanBitcoin(
@@ -89,6 +83,8 @@ async function scanBitcoin(
       || (config.customPathCount ?? 0) > MAX_BIP32_INDEX + 1)) {
     throw new Error(`Custom path address minimum must be within 1–${MAX_BIP32_INDEX + 1}.`);
   }
+  const network = getBitcoinNetwork(config.network);
+  const profiles = pathProfiles(config, network.coinType);
   const mnemonic = assertValidMnemonic(input.mnemonic);
   const seed = mnemonicToSeed(mnemonic, input.passphrase);
   const guard = new SecretEgressGuard();
@@ -103,9 +99,7 @@ async function scanBitcoin(
     context.networkApi,
     context.networkLimiter ?? new RecoveryConcurrencyLimiter(5),
   );
-  const network = getBitcoinNetwork(config.network);
   const root = rootFromSeed(seed, network.versions);
-  const profiles = pathProfiles(config, network.coinType);
   const findings: RecoveryFinding[] = [];
   const findingsByAddress = new Map<string, RecoveryFinding>();
   const addressStates = new Map<string, UtxoAddressView>();
@@ -251,7 +245,8 @@ export const BITCOIN_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
   networks: ['mainnet', 'testnet'],
   customPath: {
     description: 'Optional; four standard families stay enabled.',
-    placeholder: "m/84'/0'/7'/0/{index}",
+    placeholder: "m/44'/0'/0'/0/{index}",
+    defaultTemplate: (network) => `m/44'/${network === 'mainnet' ? 0 : 1}'/0'/0/{index}`,
     formats: [
       { id: 'legacy', label: 'Legacy · P2PKH' },
       { id: 'nested-segwit', label: 'Nested SegWit · P2SH-P2WPKH' },

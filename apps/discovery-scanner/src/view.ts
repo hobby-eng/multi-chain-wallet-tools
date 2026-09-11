@@ -1,3 +1,5 @@
+import { parseCustomAccountRange } from './coins/custom-path.js';
+import { describeCustomPath, editCustomPath } from './custom-path-editor.js';
 import { DIP17_PAYMENT_CHAINS } from '@ckd/coins/dash/platform-paths.js';
 import { historyFields } from './history.js';
 import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from './watch-only.js';
@@ -37,8 +39,6 @@ export interface RecoveryInputSnapshot {
   watchOnlyMinimumCount: string;
   network: string;
   account: string;
-  scanAccountRange: boolean;
-  accountRangeEnd: string;
   singleMnemonic: string;
   singlePassphrase: string;
   batchMnemonics: string;
@@ -51,6 +51,8 @@ export interface RecoveryInputSnapshot {
   coreChangeCount: string;
   scanCustomPath: boolean;
   customPathTemplate: string;
+  scanCustomRange: boolean;
+  customPathRangeEnd: string;
   customPathFormat: string;
   customPathCount: string;
   scanLegacyCore: boolean;
@@ -165,17 +167,30 @@ export function createDiscoveryScannerView(
   const customPathField = required<HTMLElement>('#custom-path-field');
   const scanCustomPathInput = required<HTMLInputElement>('#scan-custom-path');
   const customPathTemplateInput = required<HTMLInputElement>('#custom-path-template');
+  const customRangeInput = required<HTMLInputElement>('#custom-path-range');
+  const customRangeEndInput = required<HTMLInputElement>('#custom-path-range-end');
+  const customRangeFinish = required<HTMLElement>('#custom-range-finish');
+  const customPathLabel = required<HTMLLabelElement>('label[for="custom-path-template"]');
+  const customRangeSummary = required<HTMLElement>('#custom-range-summary');
+  const pathParts = required<HTMLElement>('#custom-path-parts');
+  const pathPurpose = required<HTMLOutputElement>('#custom-part-purpose');
+  const pathCoin = required<HTMLOutputElement>('#custom-part-coin');
+  const pathAccount = required<HTMLInputElement>('#custom-part-account');
+  const pathEndAccount = required<HTMLInputElement>('#custom-part-finish-account');
+  const pathBranch = required<HTMLInputElement>('#custom-part-branch');
+  let previousDefaultPath: string | undefined;
+  let previousDefaultFinish: string | undefined;
+  pathAccount.addEventListener('input', () => { customPathTemplateInput.value = editCustomPath(customPathTemplateInput.value, 'account', pathAccount.value); });
+  pathEndAccount.addEventListener('input', () => { customRangeEndInput.value = editCustomPath(customRangeEndInput.value, 'account', pathEndAccount.value); });
+  pathBranch.addEventListener('input', () => {
+    customPathTemplateInput.value = editCustomPath(customPathTemplateInput.value, 'branch', pathBranch.value);
+    customRangeEndInput.value = editCustomPath(customRangeEndInput.value, 'branch', pathBranch.value);
+  });
   const customPathFormatInput = required<HTMLSelectElement>('#custom-path-format');
   const customPathCountInput = required<HTMLInputElement>('#custom-path-count');
   const customPathDescription = required<HTMLElement>('#custom-path-description');
   const dashCoverage = [...document.querySelectorAll<HTMLElement>('[data-dash-coverage]')];
   const accountInput = required<HTMLInputElement>('#recovery-account');
-  const accountRangePanel = required<HTMLElement>('#account-range-panel');
-  const accountRangeInput = required<HTMLInputElement>('#scan-account-range');
-  const accountRangeEndInput = required<HTMLInputElement>('#account-range-end');
-  const accountRangeDetails = required<HTMLElement>('#account-range-details');
-  const accountRangeNote = required<HTMLElement>('#account-range-note');
-  const accountLabel = required<HTMLLabelElement>('label[for="recovery-account"]');
   const sourceGrid = required<HTMLElement>('.recovery-source-grid');
   let sourceMode: RecoverySourceMode = 'seed';
   let seedMode: RecoveryInputMode = 'single';
@@ -246,12 +261,15 @@ export function createDiscoveryScannerView(
     ...(coinInput === null ? [] : [coinInput]),
     scanCustomPathInput,
     customPathTemplateInput,
+    customRangeInput,
+    customRangeEndInput,
+    pathAccount,
+    pathEndAccount,
+    pathBranch,
     customPathFormatInput,
     customPathCountInput,
     networkInput,
     accountInput,
-    accountRangeInput,
-    accountRangeEndInput,
     scanCoreInput,
     coreReceiveInput,
     coreChangeInput,
@@ -298,7 +316,42 @@ export function createDiscoveryScannerView(
     for (const input of [customPathTemplateInput, customPathFormatInput, customPathCountInput]) {
       input.disabled = customPath === undefined || !scanCustomPathInput.checked;
     }
+    customRangeInput.disabled = customPath === undefined || !scanCustomPathInput.checked;
+    customRangeFinish.hidden = !customRangeInput.checked;
+    customRangeEndInput.disabled = customRangeInput.disabled || !customRangeInput.checked;
+    customPathField.classList.toggle('range-active', customRangeInput.checked);
+    customPathLabel.textContent = customRangeInput.checked ? 'Start path' : 'Custom path template';
+    required<HTMLLabelElement>('label[for="custom-part-account"]').textContent = customRangeInput.checked ? 'Start account · hardened' : 'Account · hardened';
     if (customPath !== undefined) {
+      const defaultPath = customPath.defaultTemplate?.(networkInput.value === 'testnet' ? 'testnet' : 'mainnet') ?? customPath.placeholder;
+      if (previousDefaultPath === undefined || customPathTemplateInput.value === previousDefaultPath) customPathTemplateInput.value = defaultPath;
+      previousDefaultPath = defaultPath;
+      const parts = customPathTemplateInput.value.trim().split('/');
+      const accountMatch = /^(0|[1-9][0-9]*)'$/u.exec(parts[3] ?? '');
+      if (accountMatch !== null && Number(accountMatch[1]) < 2147483647) parts[3] = `${Number(accountMatch[1]) + 1}'`;
+      const finish = parts.join('/');
+      if (previousDefaultFinish === undefined || customRangeEndInput.value === previousDefaultFinish) customRangeEndInput.value = finish;
+      previousDefaultFinish = finish;
+      customRangeSummary.textContent = '';
+      if (customRangeInput.checked) {
+        try {
+          const range = parseCustomAccountRange(customPathTemplateInput.value, customRangeEndInput.value);
+          customRangeSummary.textContent = `Custom accounts ${range.first}–${range.last} (inclusive) · ${range.last - range.first + 1} paths · address minimum + 20 per account, extended after activity. Standard scans run once using the Account setting above.`;
+        } catch (cause) { customRangeSummary.textContent = cause instanceof Error ? cause.message : 'Check the Start and Finish paths.'; }
+      }
+      const description = describeCustomPath(customPathTemplateInput.value);
+      pathParts.hidden = description === null;
+      if (description !== null) {
+        pathPurpose.value = `${description.purpose}'`;
+        pathCoin.value = `${description.coin}'`;
+        if (document.activeElement !== pathAccount) pathAccount.value = String(description.account);
+        if (document.activeElement !== pathBranch) pathBranch.value = String(description.branch);
+        const end = describeCustomPath(customRangeEndInput.value);
+        if (document.activeElement !== pathEndAccount) pathEndAccount.value = end === null ? '' : String(end.account);
+      }
+      pathEndAccount.parentElement!.hidden = !customRangeInput.checked;
+      for (const input of [pathAccount, pathBranch]) input.disabled = customRangeInput.disabled;
+      pathEndAccount.disabled = customRangeEndInput.disabled;
       customPathDescription.textContent = customPath.description;
       customPathTemplateInput.placeholder = customPath.placeholder;
       const selectedFormat = customPathFormatInput.value;
@@ -574,8 +627,6 @@ export function createDiscoveryScannerView(
         watchOnlyMinimumCount: watchOnlyMinimum.value,
         network: networkInput.value,
         account: accountInput.value,
-        scanAccountRange: accountRangeInput.checked,
-        accountRangeEnd: accountRangeEndInput.value,
         singleMnemonic: singleMnemonic.value,
         singlePassphrase: singlePassphrase.value,
         batchMnemonics: batchMnemonics.value,
@@ -588,6 +639,8 @@ export function createDiscoveryScannerView(
         coreChangeCount: coreChangeInput.value,
         scanCustomPath: scanCustomPathInput.checked,
         customPathTemplate: customPathTemplateInput.value,
+        scanCustomRange: customRangeInput.checked,
+        customPathRangeEnd: customRangeEndInput.value,
         customPathFormat: customPathFormatInput.value,
         customPathCount: customPathCountInput.value,
         scanLegacyCore: coinId === 'dash' && scanCoreInput.checked && scanLegacyCoreInput.checked,
@@ -673,16 +726,6 @@ export function createDiscoveryScannerView(
         button.tabIndex = active ? 0 : -1;
       }
       accountInput.parentElement!.hidden = publicInput;
-      accountRangePanel.hidden = publicInput;
-      accountRangeDetails.hidden = !accountRangeInput.checked;
-      accountRangeInput.disabled = publicInput;
-      accountRangeEndInput.disabled = publicInput || !accountRangeInput.checked;
-      accountLabel.textContent = accountRangeInput.checked && !publicInput ? 'First account' : 'Account';
-      accountRangeNote.textContent = !__DASH_COMMUNITY__ && (coinInput?.value ?? profileCoinId) === 'ethereum'
-        ? 'Each BIP44 account checks its address minimum + 20, continuing until 20 unused addresses follow the last used one. Ledger Live checks one address per selected account. Legacy Ledger and custom paths run once. Results are separated by account.'
-        : !__DASH_COMMUNITY__ && (coinInput?.value ?? profileCoinId) === 'bitcoin'
-          ? 'Each enabled receive/change branch in all four Bitcoin families checks its minimum + 20, continuing until 20 unused addresses follow the last used one. Empty accounts do not stop the range. Custom paths run once. Results are separated by account.'
-          : 'Each enabled address branch checks its minimum + 20, continuing until 20 unused addresses follow the last used one. Empty accounts do not stop the range. Dash Identity, masternode holdings and custom paths run once. If selected, Orchard checks the full pool for each account. Results are separated by account.';
       if (coinInput !== null) coinInput.parentElement!.hidden = false;
       sourceGrid.style.gridTemplateColumns = publicInput ? (coinInput === null ? '1fr' : '1.2fr 1fr') : '';
       seedCoverage.hidden = publicInput;
@@ -733,22 +776,14 @@ export function createDiscoveryScannerView(
       coinJoinPathPreview.textContent = coinJoinPathPattern(networkInput.value);
       try {
         const coinId = coinInput?.value ?? profileCoinId ?? 'dash';
-        if (accountRangeInput.checked) {
-          const first = Number(accountInput.value);
-          const last = Number(accountRangeEndInput.value);
-          if (accountInput.value.trim() === '' || accountRangeEndInput.value.trim() === '' || !Number.isInteger(first) || !Number.isInteger(last) || first < 0 || last < first || last > 2147483647) throw new Error('Invalid account range');
-          estimate.textContent = `Accounts ${first}–${last} · ${(last - first + 1).toLocaleString()} accounts per seed, scanned sequentially · address minimum + 20 per enabled branch; used branches may extend further${coinId === 'dash' && scanShieldedInput.checked ? ' · full Orchard pool per account' : ''}`;
-          startButtonLabel.textContent = 'Scan account range';
-          return;
-        }
         if (!__DASH_COMMUNITY__ && coinId === 'bitcoin') {
           const perFamily = estimateInteger(coreReceiveInput.value, 0) + estimateInteger(coreChangeInput.value, 0);
-          estimate.textContent = `Bitcoin · 4 standard address families${scanCustomPathInput.checked ? ' + custom path' : ''} · ${(perFamily * 4).toLocaleString()} standard minimum addresses + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}`;
+          estimate.textContent = `Bitcoin · 4 standard address families${scanCustomPathInput.checked ? (customRangeInput.checked ? ' + custom account range' : ' + custom path') : ''} · ${(perFamily * 4).toLocaleString()} standard minimum addresses + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}`;
           startButtonLabel.textContent = 'Scan Bitcoin holdings';
           return;
         }
         if (!__DASH_COMMUNITY__ && coinId === 'ethereum') {
-          estimate.textContent = `Ethereum EOA · 3 standard wallet profiles${scanCustomPathInput.checked ? ' + custom path' : ''} · ${estimateInteger(coreReceiveInput.value, 1).toLocaleString()} minimum derivations per profile + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · used zero-balance accounts enabled' : ''}`;
+          estimate.textContent = `Ethereum EOA · 3 standard wallet profiles${scanCustomPathInput.checked ? (customRangeInput.checked ? ' + custom account range' : ' + custom path') : ''} · ${estimateInteger(coreReceiveInput.value, 1).toLocaleString()} minimum derivations per profile + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · used zero-balance accounts enabled' : ''}`;
           startButtonLabel.textContent = 'Scan Ethereum holdings';
           return;
         }
