@@ -63,7 +63,7 @@ The cross-utility monetary-unit review is recorded in [DASH_UNITS_AUDIT.md](../D
 
 ## Seed compatibility
 
-Seed input uses BIP39. Native Electrum seed phrases use a different seed-version and seed-derivation scheme and are not supported. Electrum can also import BIP39 wallets; those require the original BIP39 phrase/passphrase and a supported path. Native Electrum support must be a separate explicit seed format if added later, rather than interpreting its words as BIP39. Legacy depth-1/2 extended keys are not covered by the supported account/branch xpub importer.
+Seed input uses BIP39. Native Electrum seed phrases use a different seed-version and seed-derivation scheme and are not supported. Electrum can also import BIP39 wallets; those require the original BIP39 phrase/passphrase and a supported path. Native Electrum support must be a separate explicit seed format if added later, rather than interpreting its words as BIP39. Legacy depth-1/2 extended keys require `dash-legacy-xpub:`: account depth 1 scans `/0/i` and `/1/i`, while branch depth 2 scans `/i`. Their hardened account ancestry is not inferred from bare keys.
 
 ### Freshness and incomplete results
 
@@ -76,3 +76,5 @@ Orchard spendability requires a full viewing key and a completed pool traversal.
 Seed scans cover both DIP17 hardened classes: receive `0'` and optional wallet-internal/change `1'`. The Platform address minimum applies **to each class**, with an independent 20-address post-use gap. A minimum of 100 therefore checks at least 200 Platform addresses per seed. The request estimate includes both chains, and findings/exported records identify their branch and full path. This applies to mainnet and testnet in both editions.
 
 A Platform xpub still covers only its own hardened class. To search both through public keys, paste both exported class xpubs in Batch mode; the scanner cannot derive `1'` from the `0'` xpub. Other future or wallet-specific classes are outside automatic discovery.
+
+Legacy mobile public-key scans support mainnet and testnet. Key Derivation can export a labelled branch key directly for import here; public-key batches can contain several such exports.
