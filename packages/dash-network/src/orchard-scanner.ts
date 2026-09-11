@@ -1,3 +1,4 @@
+import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
 import { bytesToHex, hexToBytes } from '@ckd/core/crypto.js';
 import { encodeDashShieldedAddress } from '@ckd/coins/dash/shielded-address.js';
 import wasmBytes from '@ckd/dash-wasm/dash_shielded_wasm_bg.wasm';
@@ -55,7 +56,7 @@ function assertHex(value: unknown, bytes: number, label: string): string {
 }
 
 function parseU64(value: unknown, label: string): bigint {
-  if (typeof value !== 'string' || !/^(0|[1-9][0-9]*)$/u.test(value)) {
+  if (typeof value !== 'string' || !PROVIDER_UNSIGNED_DECIMAL.test(value)) {
     throw new Error(`The official Orchard scanner returned an invalid ${label}.`);
   }
   const parsed = BigInt(value);

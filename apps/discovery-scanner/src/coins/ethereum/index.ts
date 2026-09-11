@@ -1,3 +1,4 @@
+import { isUint256Decimal } from '@ckd/core/numeric-limits.js';
 import { getEthereumHistory } from './history.js';
 import { MAX_BIP32_INDEX, assertIndex, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { assertValidMnemonic, mnemonicToSeed } from '@ckd/core/bip39.js';
@@ -29,15 +30,15 @@ interface EthereumPathProfile {
 
 
 function validateBatch(value: EvmAccountBatchView, expected: readonly string[]): EvmAccountBatchView {
-  if (!/^(?:0|[1-9][0-9]*)$/u.test(value.blockNumber)
+  if (!isUint256Decimal(value.blockNumber)
     || !Array.isArray(value.entries)
     || value.entries.length !== expected.length) {
     throw new Error('Ethereum RPC returned an incomplete account batch.');
   }
   value.entries.forEach((entry, index) => {
     if (entry.address !== expected[index]
-      || !/^(?:0|[1-9][0-9]*)$/u.test(entry.balance)
-      || !/^(?:0|[1-9][0-9]*)$/u.test(entry.nonce)) {
+      || !isUint256Decimal(entry.balance)
+      || !isUint256Decimal(entry.nonce)) {
       throw new Error('Ethereum RPC returned malformed account data.');
     }
   });

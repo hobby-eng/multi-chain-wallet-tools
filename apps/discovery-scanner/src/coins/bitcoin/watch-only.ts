@@ -1,3 +1,4 @@
+import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
 import { HDKey } from '@scure/bip32';
 import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
 import { getBitcoinNetwork } from '@ckd/core/networks.js';
@@ -230,7 +231,7 @@ async function queryAddresses(
   }
   return value.map((entry, index) => {
     if (entry.address !== addresses[index]
-      || !/^(?:0|[1-9][0-9]*)$/u.test(entry.balance)
+      || !PROVIDER_UNSIGNED_DECIMAL.test(entry.balance)
       || !Number.isSafeInteger(entry.transactionCount)
       || entry.transactionCount < 0) {
       throw new Error('Bitcoin address service returned malformed data.');

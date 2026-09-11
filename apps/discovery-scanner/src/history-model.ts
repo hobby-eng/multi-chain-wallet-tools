@@ -1,3 +1,4 @@
+import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
 import type { RecoveryField, RecoveryHistory } from './types.js';
 
 export function emptyHistory(asset = '', atomicUnit = '', decimals = 0): RecoveryHistory {
@@ -20,7 +21,7 @@ export function validateHistory(value: RecoveryHistory): RecoveryHistory {
   h.decimals = value.decimals;
   for (const key of ['totalReceivedAtomic', 'totalSentAtomic', 'totalFeesAtomic'] as const) {
     const amount = value[key];
-    if (amount !== null && (typeof amount !== 'string' || !/^(0|[1-9][0-9]{0,99})$/u.test(amount))) throw new Error('Invalid history amount.');
+    if (amount !== null && (typeof amount !== 'string' || !PROVIDER_UNSIGNED_DECIMAL.test(amount))) throw new Error('Invalid history amount.');
     h[key] = amount;
   }
   for (const key of ['firstSeen', 'lastSeen', 'firstReceived', 'lastReceived', 'firstSpent', 'lastSpent'] as const) {
