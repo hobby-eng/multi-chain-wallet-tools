@@ -72,15 +72,13 @@ export interface RecoveryWatchOnlyScanConfig {
 export interface RecoveryScanConfig {
   network: RecoveryNetwork;
   account: number;
-  /** Optional inclusive seed-only range. Public keys never use this setting. */
-  accountRangeEnd?: number;
-  /** Original first account, retained by the range runner for fixed-path scans. */
-  accountRangeStart?: number;
   scanCore: boolean;
   coreReceiveCount: number;
   coreChangeCount: number;
   scanCustomPath?: boolean;
   customPathTemplate?: string;
+  /** Inclusive account range endpoint; absent for a single arbitrary path. */
+  customPathRangeEnd?: string;
   customPathFormat?: string;
   customPathCount?: number;
   scanLegacyCore: boolean;
@@ -238,6 +236,7 @@ export interface RecoveryCoinAdapter {
   readonly customPath?: {
     readonly description: string;
     readonly placeholder: string;
+    readonly defaultTemplate?: (network: RecoveryNetwork) => string;
     readonly formats: ReadonlyArray<{ id: string; label: string }>;
   };
   prepareBatch?(
