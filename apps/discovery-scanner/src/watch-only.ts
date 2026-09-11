@@ -40,6 +40,7 @@ export const WATCH_ONLY_PREFIX_COINS: Readonly<Record<string, string>> = {
     'ethereum-xpub': 'ethereum',
   }),
   'dash-core-xpub': 'dash',
+  'dash-descriptor': 'dash',
   'dash-legacy-xpub': 'dash',
   'dash-coinjoin-xpub': 'dash',
   'dash-platform-xpub': 'dash',
@@ -242,6 +243,9 @@ export function resolveWatchOnlyTargets(
     throw new Error(__DASH_COMMUNITY__
       ? 'No supported Dash scan matches this public key format or derivation depth. Enter a public key, account/branch xpub, or Dash Orchard viewing key.'
       : 'No supported scan matches this public key format or derivation depth. Enter a public key, account/branch xpub, Bitcoin descriptor, or Dash Orchard viewing key.');
+  }
+  if (owner === undefined && candidates.length > 1 && /^pkh\(/u.test(value)) {
+    for (const candidate of candidates) candidate.ambiguity = { kind: 'bip32' };
   }
   return candidates;
 }

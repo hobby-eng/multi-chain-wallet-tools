@@ -47,6 +47,8 @@ export interface DetectedWatchOnlyMaterial {
   value: string;
   /** Human-readable result of local format detection; never a claim of ownership. */
   detectionLabel?: string;
+  /** Public origin supplied by a validated descriptor; ancestry is descriptive, not proven. */
+  descriptorPath?: string;
   /** Present when the serialized public material declares its own network. */
   bundleNetwork?: 'mainnet' | 'testnet';
 }
