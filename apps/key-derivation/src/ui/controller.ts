@@ -646,6 +646,13 @@ controls.coin.addEventListener('change', () => {
     ? getDefaultCoinAdapter(controls.coin.value)
     : getCoinAdapter(remembered));
 });
+controls.includeLegacyMobile.addEventListener('change', () => {
+  if (!controls.includeLegacyMobile.checked && adapter.id === 'dash-legacy-mobile') {
+    resetForAdapter(getCoinAdapter('dash-core'));
+    return;
+  }
+  resetForAdapter(adapter, false);
+});
 controls.protocolTabs.addEventListener('click', (event) => {
   const id = view.protocolAdapterIdFrom(event.target);
   if (id === undefined || id === adapter.id) return;

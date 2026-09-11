@@ -64,6 +64,7 @@ export interface CoinAdapter {
   label: string;
   variantLabel: string;
   defaultVariant?: boolean;
+  hiddenByDefault?: boolean;
   networkControl: boolean;
   /** Receive/internal selectors exposed as Receive/Change tabs; the adapter defines their path and hardening. */
   addressBranches?: AddressBranches;

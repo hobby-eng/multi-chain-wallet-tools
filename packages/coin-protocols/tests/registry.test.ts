@@ -113,6 +113,7 @@ describe('coin adapter extension contract', () => {
       start: 0,
       count: 1,
     })).toBe("m/48'/5'/0'/0'/0/0");
+    expect(getCoinAdapter('dash-legacy-mobile').hiddenByDefault).toBe(true);
     expect(getCoinAdapter('dash-shielded').addressBranches).toBeUndefined();
   });
 
