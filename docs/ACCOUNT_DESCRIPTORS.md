@@ -18,6 +18,10 @@ Raw descriptor exports contain exactly two descriptors with BIP380 checksums: `/
 
 **Public descriptors** contain xpub/tpub only. **Private descriptors** contain unencrypted xprv/tprv and permit spending from that account. The checksum detects transcription errors; it provides no encryption. Private descriptors are available only through explicit private copy/download actions after revealing sensitive values. No descriptor secret is placed in DOM attributes or displayed automatically by the export panel.
 
+## Non-default accounts
+
+Only change the default scheme or account when you know the source wallet’s derivation path. A different account produces different keys and addresses; other wallets may not discover its funds automatically. Exports preserve the selected account, including a nonzero account number. The deriver supports the selected scheme’s account controls, not arbitrary custom path templates.
+
 ## Core import
 
 Use a descriptor-enabled wallet on the correct coin and network. Public descriptors require a wallet with private keys disabled; importing private descriptors requires a wallet that accepts private keys. Dash documents `importdescriptors` starting with Core 21.0.0. Bitcoin Taproot additionally requires a Core version supporting `tr()` and descriptor wallets.
