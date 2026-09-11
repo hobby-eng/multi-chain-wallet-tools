@@ -58,3 +58,15 @@ it('returns incomplete on the reconciliation budget and disposes unconsumed succ
   expect(result).toEqual({ complete: false, pageCount: 4, terminalPosition: 0n, limitReason: 'changing-tip' });
   expect(applied).toBe(2); expect(disposed).toBe(4);
 });
+
+it('counts actual actions, excluding empty cursor padding and repeated earlier pages', () => {
+  const ledger = new ShieldedActivityLedger('full');
+  ledger.applyPage(0n, page(5, 100n), []);
+  ledger.applyPage(2048n, page(0, 100n), []);
+  expect(ledger.snapshot(true).scannedNotes).toBe(5n);
+  ledger.applyPage(0n, page(6, 101n), []);
+  ledger.applyPage(0n, page(5, 101n), []);
+  expect(ledger.snapshot(false).scannedNotes).toBe(6n);
+  ledger.applyPage(2048n, page(0, 101n), []);
+  expect(ledger.snapshot(true).scannedNotes).toBe(6n);
+});
