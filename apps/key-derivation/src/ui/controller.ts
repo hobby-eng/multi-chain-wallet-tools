@@ -856,11 +856,7 @@ for (const [action, button] of Object.entries(descriptorButtons)) {
     const coreFormat = document.querySelector<HTMLSelectElement>('#account-export-format')!.value === 'core';
     let text = descriptors;
     try {
-      if (coreFormat) {
-        const value = document.querySelector<HTMLInputElement>('#account-export-range')!.value.trim();
-        if (!/^\d+$/.test(value)) throw new Error('Enter a valid last address index.');
-        text = coreImportCommand(descriptors, Number(value));
-      }
+      if (coreFormat) text = coreImportCommand(descriptors);
     } catch (cause) {
       showError(cause instanceof Error ? cause.message : 'Unable to prepare account export.');
       return;
