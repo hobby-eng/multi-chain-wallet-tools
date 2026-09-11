@@ -678,9 +678,9 @@ export function createDiscoveryScannerView(
       accountRangeInput.disabled = publicInput;
       accountRangeEndInput.disabled = publicInput || !accountRangeInput.checked;
       accountLabel.textContent = accountRangeInput.checked && !publicInput ? 'First account' : 'Account';
-      accountRangeNote.textContent = (coinInput?.value ?? profileCoinId) === 'ethereum'
+      accountRangeNote.textContent = !__DASH_COMMUNITY__ && (coinInput?.value ?? profileCoinId) === 'ethereum'
         ? 'Each BIP44 account checks its address minimum + 20, continuing until 20 unused addresses follow the last used one. Ledger Live checks one address per selected account. Legacy Ledger and custom paths run once. Results are separated by account.'
-        : (coinInput?.value ?? profileCoinId) === 'bitcoin'
+        : !__DASH_COMMUNITY__ && (coinInput?.value ?? profileCoinId) === 'bitcoin'
           ? 'Each enabled receive/change branch in all four Bitcoin families checks its minimum + 20, continuing until 20 unused addresses follow the last used one. Empty accounts do not stop the range. Custom paths run once. Results are separated by account.'
           : 'Each enabled address branch checks its minimum + 20, continuing until 20 unused addresses follow the last used one. Empty accounts do not stop the range. Dash Identity, masternode holdings and custom paths run once. If selected, Orchard checks the full pool for each account. Results are separated by account.';
       if (coinInput !== null) coinInput.parentElement!.hidden = false;

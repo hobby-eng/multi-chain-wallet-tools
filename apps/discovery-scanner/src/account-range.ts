@@ -2,13 +2,15 @@ import { assertIndex, MAX_BIP32_INDEX } from '@ckd/core/bip32.js';
 import { ADDRESS_DISCOVERY_GAP } from './coins/dash/util.js';
 import type { RecoveryScanConfig } from './types.js';
 
+declare const __DASH_COMMUNITY__: boolean;
+
 /** Validates the entire range before any network operation; iteration stays lazy. */
 export function accountScanConfigs(config: RecoveryScanConfig, coinId: string): Iterable<RecoveryScanConfig> {
   assertIndex(config.account, 'Account');
   if (config.accountRangeEnd === undefined) return [config];
   assertIndex(config.accountRangeEnd, 'Last account');
   if (config.accountRangeEnd < config.account) throw new Error('Last account must be at least the first account.');
-  if (!['bitcoin', 'ethereum', 'dash'].includes(coinId)) throw new Error('This coin does not support account ranges.');
+  if (!(__DASH_COMMUNITY__ ? ['dash'] : ['bitcoin', 'ethereum', 'dash']).includes(coinId)) throw new Error('This coin does not support account ranges.');
   if (coinId === 'dash' && !(config.scanCore || config.scanLegacyCore || config.scanCoinJoin || config.scanPlatformAddresses || config.scanShieldedPool)) {
     throw new Error('Select an account-based Dash component: Core, Platform addresses, or Orchard.');
   }
@@ -22,7 +24,7 @@ export function accountScanConfigs(config: RecoveryScanConfig, coinId: string): 
     padded[key] = count === 0 ? 0 : count + ADDRESS_DISCOVERY_GAP;
   };
   if (coinId !== 'dash' || config.scanCore) pad('coreReceiveCount');
-  if (coinId === 'bitcoin' || (coinId === 'dash' && config.scanCore)) pad('coreChangeCount');
+  if ((!__DASH_COMMUNITY__ && coinId === 'bitcoin') || (coinId === 'dash' && config.scanCore)) pad('coreChangeCount');
   if (coinId === 'dash') {
     if (config.scanLegacyCore) pad('legacyCoreCount');
     if (config.scanCoinJoin) { pad('coinJoinExternalCount'); pad('coinJoinInternalCount'); }
