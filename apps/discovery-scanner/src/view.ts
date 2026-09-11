@@ -37,6 +37,8 @@ export interface RecoveryInputSnapshot {
   watchOnlyMinimumCount: string;
   network: string;
   account: string;
+  scanAccountRange: boolean;
+  accountRangeEnd: string;
   singleMnemonic: string;
   singlePassphrase: string;
   batchMnemonics: string;
@@ -168,6 +170,12 @@ export function createDiscoveryScannerView(
   const customPathDescription = required<HTMLElement>('#custom-path-description');
   const dashCoverage = [...document.querySelectorAll<HTMLElement>('[data-dash-coverage]')];
   const accountInput = required<HTMLInputElement>('#recovery-account');
+  const accountRangePanel = required<HTMLElement>('#account-range-panel');
+  const accountRangeInput = required<HTMLInputElement>('#scan-account-range');
+  const accountRangeEndInput = required<HTMLInputElement>('#account-range-end');
+  const accountRangeDetails = required<HTMLElement>('#account-range-details');
+  const accountRangeNote = required<HTMLElement>('#account-range-note');
+  const accountLabel = required<HTMLLabelElement>('label[for="recovery-account"]');
   const sourceGrid = required<HTMLElement>('.recovery-source-grid');
   let sourceMode: RecoverySourceMode = 'seed';
   let seedMode: RecoveryInputMode = 'single';
@@ -242,6 +250,8 @@ export function createDiscoveryScannerView(
     customPathCountInput,
     networkInput,
     accountInput,
+    accountRangeInput,
+    accountRangeEndInput,
     scanCoreInput,
     coreReceiveInput,
     coreChangeInput,
@@ -564,6 +574,8 @@ export function createDiscoveryScannerView(
         watchOnlyMinimumCount: watchOnlyMinimum.value,
         network: networkInput.value,
         account: accountInput.value,
+        scanAccountRange: accountRangeInput.checked,
+        accountRangeEnd: accountRangeEndInput.value,
         singleMnemonic: singleMnemonic.value,
         singlePassphrase: singlePassphrase.value,
         batchMnemonics: batchMnemonics.value,
@@ -661,6 +673,16 @@ export function createDiscoveryScannerView(
         button.tabIndex = active ? 0 : -1;
       }
       accountInput.parentElement!.hidden = publicInput;
+      accountRangePanel.hidden = publicInput;
+      accountRangeDetails.hidden = !accountRangeInput.checked;
+      accountRangeInput.disabled = publicInput;
+      accountRangeEndInput.disabled = publicInput || !accountRangeInput.checked;
+      accountLabel.textContent = accountRangeInput.checked && !publicInput ? 'First account' : 'Account';
+      accountRangeNote.textContent = (coinInput?.value ?? profileCoinId) === 'ethereum'
+        ? 'Each BIP44 account checks its address minimum + 20, continuing until 20 unused addresses follow the last used one. Ledger Live checks one address per selected account. Legacy Ledger and custom paths run once. Results are separated by account.'
+        : (coinInput?.value ?? profileCoinId) === 'bitcoin'
+          ? 'Each enabled receive/change branch in all four Bitcoin families checks its minimum + 20, continuing until 20 unused addresses follow the last used one. Empty accounts do not stop the range. Custom paths run once. Results are separated by account.'
+          : 'Each enabled address branch checks its minimum + 20, continuing until 20 unused addresses follow the last used one. Empty accounts do not stop the range. Dash Identity, masternode holdings and custom paths run once. If selected, Orchard checks the full pool for each account. Results are separated by account.';
       if (coinInput !== null) coinInput.parentElement!.hidden = false;
       sourceGrid.style.gridTemplateColumns = publicInput ? (coinInput === null ? '1fr' : '1.2fr 1fr') : '';
       seedCoverage.hidden = publicInput;
@@ -711,6 +733,14 @@ export function createDiscoveryScannerView(
       coinJoinPathPreview.textContent = coinJoinPathPattern(networkInput.value);
       try {
         const coinId = coinInput?.value ?? profileCoinId ?? 'dash';
+        if (accountRangeInput.checked) {
+          const first = Number(accountInput.value);
+          const last = Number(accountRangeEndInput.value);
+          if (accountInput.value.trim() === '' || accountRangeEndInput.value.trim() === '' || !Number.isInteger(first) || !Number.isInteger(last) || first < 0 || last < first || last > 2147483647) throw new Error('Invalid account range');
+          estimate.textContent = `Accounts ${first}–${last} · ${(last - first + 1).toLocaleString()} accounts per seed, scanned sequentially · address minimum + 20 per enabled branch; used branches may extend further${coinId === 'dash' && scanShieldedInput.checked ? ' · full Orchard pool per account' : ''}`;
+          startButtonLabel.textContent = 'Scan account range';
+          return;
+        }
         if (!__DASH_COMMUNITY__ && coinId === 'bitcoin') {
           const perFamily = estimateInteger(coreReceiveInput.value, 0) + estimateInteger(coreChangeInput.value, 0);
           estimate.textContent = `Bitcoin · 4 standard address families${scanCustomPathInput.checked ? ' + custom path' : ''} · ${(perFamily * 4).toLocaleString()} standard minimum addresses + 20-address post-use gaps · ${estimateConcurrency(requestConcurrencyInput.value)} network requests at once${includeUsedZeroInput.checked ? ' · zero-balance history enabled' : ''}`;
