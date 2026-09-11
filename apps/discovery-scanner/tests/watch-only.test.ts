@@ -291,3 +291,26 @@ it('checks the original checksum before deriving an apostrophe-origin descriptor
   const apostrophe = body.replaceAll('/84h/0h/0h', "/84'/0'/0'");
   await expect(scan(BITCOIN_RECOVERY_ADAPTER, `${apostrophe}#${descriptorChecksum(body)}`, context())).rejects.toThrow('checksum');
 });
+
+it.each(['mainnet', 'testnet'] as const)('scans explicit legacy account and branch keys on %s', async networkName => {
+  const network = getDashNetwork(networkName);
+  const root = HDKey.fromMasterSeed(new Uint8Array(32).fill(27), network.versions);
+  const node = root.derive("m/7'");
+  const address = (branch: number) => encodeP2pkh(hash160(root.derive(`m/7'/${branch}/0`).publicKey!), network.p2pkh);
+  for (const branch of [null, 0, 1]) {
+    const publicNode = branch === null ? node : node.deriveChild(branch);
+    const queried: string[] = [];
+    const result = await scan(DASH_RECOVERY_ADAPTER, `dash-legacy-xpub:${publicNode.publicExtendedKey}`, context({
+      coreStatus: async () => ({ status: 'ok' }),
+      coreTip: async () => ({ resultSet: [{ height: 1 }] }),
+      coreAddressInfo: async (_network, addresses) => { queried.push(...addresses); return addresses.map(address => ({ address, balance: '0', txCount: 0 })); },
+    }), { ...config, network: networkName });
+    expect(queried).toEqual(branch === null ? [address(0), address(1)] : [address(branch)]);
+    expect(result.sections[0]?.id).toBe('legacyCore');
+    expect(createRecoveryExport([result], 'json').text).not.toContain(publicNode.publicExtendedKey);
+    expect(() => resolveWatchOnlyTargets(publicNode.publicExtendedKey, [DASH_RECOVERY_ADAPTER])).toThrow();
+  }
+  expect(() => assertWatchOnlyBatchInput(`dash-legacy-xpub:${node.privateExtendedKey}`)).toThrow();
+  await expect(scan(DASH_RECOVERY_ADAPTER, `dash-legacy-xpub:${node.derive("m/0/0").publicExtendedKey}`, context(), { ...config, network: networkName })).rejects.toThrow('depth');
+  root.wipePrivateData(); node.wipePrivateData();
+});

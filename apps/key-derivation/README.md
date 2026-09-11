@@ -28,3 +28,5 @@ For a release, use the root `pnpm verify` command instead. Read [SECURITY.md](SE
 For Dash Platform, leave **Also generate change addresses** off to derive receive addresses, or enable it for both receive and internal/change addresses. The advanced numeric Key class input is replaced by this standard choice; the underlying derivation library still accepts explicit classes. A receive-class xpub cannot derive the separate hardened internal class, so each result tab exposes its own xpub.
 
 Legacy mobile Account selects the hardened root `m/account'`; zero remains the historical default. This matches [DashSync’s BIP32 account implementation](https://github.com/dashevo/dashsync-iOS/blob/master/DashSync/shared/Models/Derivation%20Paths/DSFundsDerivationPath.m). Discovery uses the selected account for both receive and change chains, on mainnet and testnet.
+
+Legacy mobile results include **Copy public scan key** and a text-file export for the active branch. Paste the `dash-legacy-xpub:` export into Discovery Scanner; it covers that branch without revealing private keys.

@@ -63,6 +63,13 @@ export function deriveDashLegacyMobile(options: Bip32BatchOptions): DerivationRe
       basicSummary: [],
       summary,
       rows,
+      watchOnly: {
+        label: 'Copy public scan key',
+        description: 'Import this labelled public key into Discovery Scanner to scan this legacy mobile branch. It cannot spend, but exposes branch addresses and activity.',
+        text: `dash-legacy-xpub:${branch.publicExtendedKey}`,
+        fileName: `dash-legacy-${options.network}-account-${options.account}-branch-${options.branch}.txt`,
+        mimeType: 'text/plain', privacySensitive: true,
+      },
       notices: [
         "Historical Dash Wallet/DashSync mobile path m/account'/branch/index. Account 0 is the historical default. Use it only for recovery of wallets that predate the BIP44 mobile default.",
       ],
