@@ -57,7 +57,7 @@ These packages are not imported by production source except esbuild/TypeScript d
 | `ethers` | 6.17.0 | `ethers-io/ethers.js` | MIT | Independent Ethereum cross-check |
 | `esbuild` | 0.28.2 | `evanw/esbuild` | MIT | Browser bundle and CSS minification |
 | `typescript` | 7.0.2 | `microsoft/TypeScript` | Apache-2.0 | Static type checking |
-| `vitest` | 4.1.11 | `vitest-dev/vitest` | MIT | JS/TS tests |
+| `vitest` | 5.0.0 | `vitest-dev/vitest` | MIT | JS/TS tests |
 
 ## Complete locked Rust metadata closure
 
