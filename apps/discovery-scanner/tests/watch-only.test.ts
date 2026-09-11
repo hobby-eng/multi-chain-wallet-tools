@@ -314,3 +314,10 @@ it.each(['mainnet', 'testnet'] as const)('scans explicit legacy account and bran
   await expect(scan(DASH_RECOVERY_ADAPTER, `dash-legacy-xpub:${node.derive("m/0/0").publicExtendedKey}`, context(), { ...config, network: networkName })).rejects.toThrow('depth');
   root.wipePrivateData(); node.wipePrivateData();
 });
+
+it('does not treat inherited object properties as supported prefixes', () => {
+  expect(() => resolveWatchOnlyTargets('constructor:abc', adapters)).toThrow('No supported scan');
+});
+it.each([BITCOIN_RECOVERY_ADAPTER, ETHEREUM_RECOVERY_ADAPTER, DASH_RECOVERY_ADAPTER])('rejects an out-of-range address count before $id sends requests', async adapter => {
+  await expect(scan(adapter, publicKey, context(), { ...config, minimumCount: 2147483649 })).rejects.toThrow('1 to 2147483648');
+});
