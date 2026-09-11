@@ -1,3 +1,4 @@
+import { detectDashDescriptor } from './descriptor.js';
 import { assertWatchOnlyMinimum } from '../../watch-only.js';
 import { HDKey } from '@scure/bip32';
 import { bytesToHex, encodeP2pkh, hash160, secp256k1, wipe } from '@ckd/core/crypto.js';
@@ -77,6 +78,7 @@ export function detectDashWatchOnly(raw: string, mode: { auto: boolean }): Detec
   const trimmed = raw.trim();
   const matched = matchExplicitPrefix(trimmed);
   if (matched !== null) {
+    if (matched.prefix === 'dash-descriptor') return detectDashDescriptor(matched.value, true);
     if (matched.prefix === 'dash-legacy-xpub') {
       if (matched.value.length === 0) throw new Error('dash-legacy-xpub: requires a value.');
       return { coinId: 'dash', kind: 'dash-legacy-xpub', value: matched.value };
@@ -135,6 +137,7 @@ export function detectDashWatchOnly(raw: string, mode: { auto: boolean }): Detec
     throw new Error(`Unrecognized prefix "${matched.prefix}:".`);
   }
 
+  if (/^pkh\(/u.test(trimmed)) return detectDashDescriptor(trimmed);
   const orchardShape = looksLikeOrchardBundleOrRaw(trimmed);
   if (orchardShape !== false) {
     // Only Dash implements Orchard in this build, so an unprefixed viewing
@@ -257,6 +260,7 @@ async function scanTransparentXpub(
           balanceLabel: formatDashFromDuffs(info.balance),
           fields: [
             { label: 'Relative derivation path', value: derivedItem.path, copyable: true },
+            ...(input.descriptorPath === undefined ? [] : [{ label: 'Descriptor derivation path', value: `${input.descriptorPath}/${derivedItem.index}`, copyable: true }]),
             { label: 'Transactions reported', value: String(info.txCount) },
             { label: 'Public-key hash', value: derivedItem.publicKeyHash, copyable: true },
           ],

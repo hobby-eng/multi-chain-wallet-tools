@@ -107,6 +107,7 @@
         <div id="public-input" role="tabpanel" aria-labelledby="public-source-tab" class="secret-source-panel public-key-source" hidden>
           <label for="watch-only-keys">Public key or batch · one key per line</label>
           <textarea id="watch-only-keys" rows="3" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="watch-only-detection" placeholder="__RECOVERY_PUBLIC_KEY_PLACEHOLDER__"></textarea>
+          <p class="field-note">Dash Core public descriptors: select Dash and paste a checksummed pkh([fingerprint/path]xpub/0/*) or /1/* descriptor, one per line. The dash-descriptor: prefix selects Dash explicitly. BIP44, legacy mobile and mobile DIP9 CoinJoin account origins are supported. Private descriptors are not accepted here.</p>
           <p class="field-note public-key-scope">__RECOVERY_PUBLIC_KEY_SCOPE__</p>
           <p class="field-note">For Dash legacy mobile keys, use <code>dash-legacy-xpub:</code> followed by the account or branch xpub. An account key scans receive and change; a branch key scans that branch only.</p>
           <p id="watch-only-detection" class="field-note" role="status" aria-live="polite">Paste one public key or a batch, one key per line. Coins are detected automatically.</p>
