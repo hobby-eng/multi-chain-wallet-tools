@@ -28,6 +28,8 @@ jobs:
           docker build --platform linux/amd64 \
             --network host \
             --file Dockerfile.reproducible \
+            --build-arg SOURCE_COMMIT=${GITHUB_SHA} \
+            --build-arg SOURCE_DIRTY=false \
             --target artifacts \
             --tag multi-chain-wallet-tools-ci:${GITHUB_SHA} \
             .
