@@ -26,6 +26,10 @@ for (const expected of [
   'cargo install wasm-bindgen-cli --version 0.2.128 --locked',
   'for attempt in 1 2 3 4 5',
   'Cargo fetch attempt ${attempt} failed',
+  'ARG SOURCE_COMMIT=unavailable',
+  'ARG SOURCE_DIRTY=false',
+  'VERIFICATION_COMMIT=${SOURCE_COMMIT}',
+  'VERIFICATION_DIRTY=${SOURCE_DIRTY}',
   'RUN --network=none pnpm verify',
   'diff --recursive --brief /tmp/committed-generated packages/dash-shielded-wasm/generated',
   'FROM scratch AS artifacts',
@@ -36,7 +40,7 @@ for (const expected of [
 
 for (const path of ['.github/workflows/ci.yml', '.github/workflows/full-wasm.yml', '.github/workflows/release.yml']) {
   const workflow = read(path);
-  for (const expected of ['--platform linux/amd64', '--network host', '--file Dockerfile.reproducible', '--target artifacts']) {
+  for (const expected of ['--platform linux/amd64', '--network host', '--file Dockerfile.reproducible', '--build-arg SOURCE_COMMIT=${GITHUB_SHA}', '--build-arg SOURCE_DIRTY=false', '--target artifacts']) {
     if (!workflow.includes(expected)) throw new Error(`${path} does not use the canonical container setting: ${expected}`);
   }
 }

@@ -10,6 +10,12 @@ const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
 const wasmOnly = process.argv.includes('--wasm');
 const target = wasmOnly ? 'wasm-artifacts' : 'artifacts';
 const image = `multi-chain-wallet-tools-reproducible:${String(manifest.version)}-${target}`;
+let sourceCommit = 'unavailable';
+let sourceDirty = false;
+try {
+  sourceCommit = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim() || 'unavailable';
+  sourceDirty = spawnSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).stdout.trim() !== '';
+} catch {}
 const temporary = mkdtempSync(join(tmpdir(), 'multi-chain-wallet-tools-reproducible-'));
 let container;
 
@@ -36,6 +42,8 @@ try {
     '--platform', 'linux/amd64',
     '--network', 'host',
     '--file', 'Dockerfile.reproducible',
+    '--build-arg', `SOURCE_COMMIT=${sourceCommit}`,
+    '--build-arg', `SOURCE_DIRTY=${String(sourceDirty)}`,
     '--target', target,
     '--tag', image,
     '.',
