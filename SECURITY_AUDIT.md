@@ -2,7 +2,7 @@
 
 Audit baseline: [2026-09-08 review record](docs/audits/2026-09-08-baseline.json), commit `6462c67d677ab73bea49051c3e3d866fcd157894`, release 0.1.3 at review. This date and commit are immutable review metadata; a release bump does not refresh them. The review found defects and test gaps. Later corrections require their own verification evidence.
 
-Latest completed review: [2026-09-12 independent audit](docs/audits/2026-09-12-04-independent-audit.md). Earlier [initial](docs/audits/2026-09-12-01-initial-audit.md), [remediation](docs/audits/2026-09-12-02-remediation-audit.md), and [follow-up](docs/audits/2026-09-12-03-followup-audit.md) records preserve their point-in-time results. A new verification record and remediation report are required after the current fixes; historical totals are not current acceptance evidence.
+Latest completed review: [2026-09-12 independent-audit remediation verification](docs/audits/2026-09-12-05-independent-remediation.md), covering commit `d978dd4de68e6b51743d8ce0f01fcd6128d88553`. Earlier [initial](docs/audits/2026-09-12-01-initial-audit.md), [remediation](docs/audits/2026-09-12-02-remediation-audit.md), [follow-up](docs/audits/2026-09-12-03-followup-audit.md), and [independent](docs/audits/2026-09-12-04-independent-audit.md) records preserve their point-in-time results.
 
 Scope: first-party source, security boundaries, integration with the pinned generated WASM, build tooling and documentation. Dependency source audits and an independent cryptographic proof are excluded. Multi-Chain Edition supports Bitcoin, Ethereum, and Dash. Dash Community Edition contains only Dash Core, Dash Platform payments, Dash Platform Identity, Dash Purpose48 P2SH multisig cosigner, and Dash Orchard capabilities. This is an internal engineering review, not a third-party security certification.
 
@@ -118,7 +118,7 @@ A compromised browser, extension, operating system, firmware, build host, or alr
 
 ## Verification evidence and limits
 
-The [2026-09-12 follow-up review](docs/audits/2026-09-12-03-followup-audit.md) and [subsequent independent audit](docs/audits/2026-09-12-04-independent-audit.md) identify descriptor/PSBT edge cases, a shared Worker lifecycle defect, test-evidence gaps, and documentation drift. Their findings remain immutable historical records; the current checkout requires fresh verification after remediation.
+The [2026-09-12 follow-up review](docs/audits/2026-09-12-03-followup-audit.md) and [subsequent independent audit](docs/audits/2026-09-12-04-independent-audit.md) identified descriptor/PSBT edge cases, a shared Worker lifecycle defect, test-evidence gaps, and documentation drift. Their findings remain immutable historical records. The [remediation verification](docs/audits/2026-09-12-05-independent-remediation.md) records the corrected snapshot, canonical build, artifact hashes and final 16/16 plus 38/38 browser matrices.
 
 Historical test totals and live-provider observations are not a verification record for the current checkout. The previous unpinned “265 TypeScript / 11 Rust tests passed” summary has been withdrawn as a current-status claim. Record each new run with its source commit, command, runtime, date and result; keep real-browser acceptance separate from source-level tests.
 
