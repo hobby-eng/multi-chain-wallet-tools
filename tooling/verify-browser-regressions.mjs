@@ -252,6 +252,27 @@ async function childWallet(context, profile, run) {
   run.checks.push('Auto-derived BIP85 exact child mnemonic; independent BIP86 address with distinct child passphrase; child signature accepted, changed message rejected; Clear/reload/storage/no HTTP');
 }
 
+async function workerReadiness(context, profile, run) {
+  for (const action of ['clear', 'cancel', 'tab-switch']) {
+    const page = await open(context, profile, 'key-derivation', run);
+    let crashed = false;
+    page.on('crash', () => { crashed = true; });
+    await page.locator('#count').fill('20');
+    await page.locator('#mnemonic').fill(mnemonic);
+    await page.evaluate((requestedAction) => {
+      document.querySelector('#derive-button').click();
+      if (requestedAction === 'clear') document.querySelector('#clear-all').click();
+      else if (requestedAction === 'cancel') document.querySelector('#cancel-derivation').click();
+      else document.querySelectorAll('#protocol-tabs [data-adapter-id]')[1].click();
+    }, action);
+    await page.waitForTimeout(500);
+    assert.equal(crashed, false, `Page crashed after early ${action}`);
+    assert.equal(await page.locator('body').isVisible(), true);
+    await page.close();
+  }
+  run.checks.push('Worker boot readiness survives immediate Clear, Cancel, and protocol-tab switch');
+}
+
 async function coinJoin(context, profile, run) {
   const page = await open(context, profile, 'key-derivation', run);
   if (profile.id === 'multi-chain') await page.locator('#coin').selectOption('dash');
@@ -350,6 +371,7 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? 'chromium,firefox').sp
       const cases = profileToolIds(profile).map(tool => [`${tool}-boundaries`, (context, run) => boundaries(context, profile, tool, run)]);
       cases.push(['descriptor-followup', (context, run) => descriptorFollowup(context, profile, run)]);
       cases.push(['verifier-revision', (context, run) => verifierRevision(context, profile, run)]);
+      cases.push(['worker-readiness', (context, run) => workerReadiness(context, profile, run)]);
       cases.push(['coinjoin', (context, run) => coinJoin(context, profile, run)]);
       cases.push(['bip38-message', (context, run) => bip38(context, profile, run)]);
       if (profile.id === 'multi-chain') cases.push(['bip85-child-signer', (context, run) => childWallet(context, profile, run)]);

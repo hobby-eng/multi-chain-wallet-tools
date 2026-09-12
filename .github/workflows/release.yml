@@ -15,7 +15,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Node and pnpm runtimes
+        uses: pnpm/setup@d36251dc5e9235e7dae772d97bccdad4fb6271b9 # v2.0.1
+        with:
+          version: 11.25.0
+          runtime: node@24.20.0
+          cache: true
+
+      - name: Install locked JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install pinned Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium firefox
+
+      - name: Build standalone HTML from committed WASM
+        run: pnpm build:html
+
+      - name: Run direct-file browser acceptance
+        run: pnpm test:browser:files
+
+      - name: Run extended browser regressions
+        run: pnpm test:browser:regressions
+
   release:
+    needs: browser
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
