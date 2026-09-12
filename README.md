@@ -9,6 +9,13 @@ Four portable wallet utilities built as standalone HTML files. One canonical sou
 - **Multi-Chain Edition** is the universal, extensible edition. It currently supports Bitcoin, Ethereum, and Dash, including Dash Core, Dash Platform, Dash Identity, and Dash Orchard.
 - **Dash Community Edition** is the Dash-only edition. Its application graph contains only Dash Core, Dash Platform, Dash Identity, and Dash Orchard, and its visual design follows the official Dash BrandBook and Brand Guidelines.
 
+| Utility | Runtime boundary | Primary input | Purpose |
+| --- | --- | --- | --- |
+| Wallet Key Derivation Tool | Offline | BIP39 phrase and optional passphrase | Derive addresses, account descriptors, public keys and reveal-gated private material |
+| Wallet Activity Viewer | Connected | Public addresses, Identity records, or Orchard viewing capability | Inspect current state and available confirmed history without spending authority |
+| Wallet Discovery Scanner | Connected outer shell with a network-denied Secret Vault | BIP39 candidates or watch-only public keys/descriptors | Discover supported accounts, branches and previously used addresses |
+| PSBT & Multisig Inspector | Offline | PSBT, Script, descriptor, public policy keys, or optional BIP38 recovery input | Review transaction/policy structure and construct test multisig/watch-only material without signing or broadcasting |
+
 Download a file, verify its SHA-256 checksum, and open it in a current browser—no installation or server required. Shared controllers, exports, Worker infrastructure, security boundaries, and tests remain common source code across both editions.
 
 This is an independent hobby project, not an official Dash product and not a replacement for a hardware or standard wallet. It has extensive automated checks but has not received an independent cryptography-specialist audit.
@@ -92,7 +99,7 @@ sha256sum -c Wallet_Discovery_Scanner.html.sha256
 sha256sum -c PSBT_Multisig_Inspector.html.sha256
 ```
 
-The key derivation tool is designed for direct `file://` use on an offline machine. The viewer and scanner require network access for blockchain data.
+The Wallet Key Derivation Tool and PSBT & Multisig Inspector are designed for direct `file://` use on an offline machine. The Activity Viewer and Discovery Scanner require network access for public blockchain data; the Scanner confines seed and viewing-key work to its network-denied Secret Vault.
 
 Official release checksums refer to artifacts produced by the repository's pinned Linux/amd64 Docker build. A native rebuild on another operating system can pass the same cryptographic and artifact tests yet still have different byte-level WASM, passport fingerprint and final HTML checksum. Use the canonical container when exact release-byte reproduction is required.
 
@@ -123,7 +130,7 @@ Capabilities that require future authoritative Platform/SDK queries are tracked 
 
 ## Security and verification
 
-Every release is built from locked npm and Cargo dependency graphs. Deriver, Viewer and Scanner gate their workflows on their startup checks. Inspector validates parser boundaries when inputs are submitted; it does not currently run an equivalent startup cryptographic vector suite. Automated coverage includes BIP39/BIP32, Bitcoin BIP49/BIP86, Ethereum EIP-55, Dash Core BIP44, Platform DIP17/DIP18, Identity DIP13, and Dash Orchard ZIP32 on mainnet and testnet.
+Every release is built from locked npm and Cargo dependency graphs. All four utilities have explicit validation boundaries: Deriver, Viewer and Scanner gate their workflows on startup checks, while Inspector validates parser and policy boundaries when input is submitted. Inspector does not currently run an equivalent startup cryptographic vector suite. Automated coverage includes BIP39/BIP32, Bitcoin BIP49/BIP86, Ethereum EIP-55, Dash Core BIP44, Platform DIP17/DIP18, Identity DIP13, and Dash Orchard ZIP32 on mainnet and testnet.
 
 The release pipeline also runs TypeScript tests, independent derivation comparisons, native Rust tests, generated-WASM boundary tests, CSP/static checks, secret-egress tests, reproducible HTML builds, direct `file://` Chromium/Firefox acceptance, checksum verification and artifact provenance attestation. GitHub Actions and local release builds use the same pinned Docker toolchain. Successful verification emits `dist/verification-record.json` with the source revision, toolchain, performed check groups and hashes for every HTML/WASM integration artifact.
 
