@@ -19,5 +19,5 @@ input revision and discarded after edits or Clear. Descriptor expansion checks
 context, arity, origins and multipath bounds before constructing output scripts.
 PSBT known-field schemas, UTXO outpoint binding, nonce point shapes and partial
 scalar ranges are validated; structural decoding is not a signature check or a
-proof of blockchain inclusion. See `../../docs/AUDIT_REMEDIATION_2026-09-12.md`
+proof of blockchain inclusion. See `../../docs/audits/2026-09-12-02-remediation-audit.md`
 for the tested snapshot and remaining boundaries.

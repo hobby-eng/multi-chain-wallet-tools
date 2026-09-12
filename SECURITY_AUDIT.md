@@ -2,7 +2,7 @@
 
 Audit baseline: [2026-09-08 review record](docs/audits/2026-09-08-baseline.json), commit `6462c67d677ab73bea49051c3e3d866fcd157894`, release 0.1.3 at review. This date and commit are immutable review metadata; a release bump does not refresh them. The review found defects and test gaps. Later corrections require their own verification evidence.
 
-Latest local review: [2026-09-12 independent audit](docs/AUDIT_2026-09-12.md) and [remediation with verification results](docs/AUDIT_REMEDIATION_2026-09-12.md). These describe the local v0.1.4 implementation, including PSBT Inspector; the older baseline above is not current acceptance evidence.
+Latest completed review: [2026-09-12 independent audit](docs/audits/2026-09-12-04-independent-audit.md). Earlier [initial](docs/audits/2026-09-12-01-initial-audit.md), [remediation](docs/audits/2026-09-12-02-remediation-audit.md), and [follow-up](docs/audits/2026-09-12-03-followup-audit.md) records preserve their point-in-time results. A new verification record and remediation report are required after the current fixes; historical totals are not current acceptance evidence.
 
 Scope: first-party source, security boundaries, integration with the pinned generated WASM, build tooling and documentation. Dependency source audits and an independent cryptographic proof are excluded. Multi-Chain Edition supports Bitcoin, Ethereum, and Dash. Dash Community Edition contains only Dash Core, Dash Platform payments, Dash Platform Identity, Dash Purpose48 P2SH multisig cosigner, and Dash Orchard capabilities. This is an internal engineering review, not a third-party security certification.
 
@@ -13,7 +13,7 @@ Follow-up: [2026-09-09 corrections and verification scope](docs/audits/2026-09-0
 - The repository builds four applications: the offline Wallet Key Derivation Tool, the connected Wallet Activity Viewer, the connected Wallet Discovery Scanner, and the offline PSBT & Multisig Inspector.
 - Each application is emitted in a universal Multi-Chain Edition and a Dash-only Dash Community Edition. Edition selection happens at compile time; it is not a runtime switch over hidden bundled adapters.
 - The Multi-Chain Key Derivation Tool and Discovery Scanner support Bitcoin, Ethereum, and Dash. The Multi-Chain Activity Viewer accepts Bitcoin and Ethereum public addresses and the supported Dash public records. Bitcoin is the default coin wherever the Multi-Chain interface contains it.
-- Dash Community build graphs are checked against positive Dash-only allowlists. Artifact checks also reject non-Dash adapter registrations, identifiers, filenames, profile metadata, and user-facing chain copy. The standards-required BIP32 HMAC domain string `"Bitcoin seed"` is the sole exact lexical exception in Dash HD derivation.
+- Dash Community build graphs are checked against positive Dash-only allowlists. Artifact checks also reject non-Dash adapter registrations, identifiers, filenames, profile metadata, and user-facing chain copy. Narrow reviewed lexical exceptions cover protocol constants such as the standards-required BIP32 HMAC domain string `"Bitcoin seed"` and bounded shared Inspector decoder vocabulary; they do not enable Bitcoin adapters or controls.
 - Shared controllers, views, exports, security boundaries, and tests remain common source code. Protocol behavior is supplied through derivation, viewer, history, and recovery interfaces so future Multi-Chain support can be added without entering the Dash Community graph.
 
 ## Threat model
@@ -118,13 +118,13 @@ A compromised browser, extension, operating system, firmware, build host, or alr
 
 ## Verification evidence and limits
 
-The [2026-09-12 follow-up review](docs/AUDIT_FOLLOWUP_2026-09-12.md) identifies additional descriptor/PSBT edge cases and documentation drift after the first remediation. The remediation addendum in that report records the fixes and their new regression evidence; broader coverage recommendations remain separate from confirmed defects.
+The [2026-09-12 follow-up review](docs/audits/2026-09-12-03-followup-audit.md) and [subsequent independent audit](docs/audits/2026-09-12-04-independent-audit.md) identify descriptor/PSBT edge cases, a shared Worker lifecycle defect, test-evidence gaps, and documentation drift. Their findings remain immutable historical records; the current checkout requires fresh verification after remediation.
 
 Historical test totals and live-provider observations are not a verification record for the current checkout. The previous unpinned “265 TypeScript / 11 Rust tests passed” summary has been withdrawn as a current-status claim. Record each new run with its source commit, command, runtime, date and result; keep real-browser acceptance separate from source-level tests.
 
 The baseline audit identified A01–A09, DOC01–DOC03 and T01. Corrections and bounded verification evidence are recorded in the [English remediation report](docs/audits/2026-09-08-remediation.md), with one commit per finding. Full verification, a fresh build and direct `file://` browser acceptance are required before treating those corrections as release-ready. A passing source regression does not prove that the final HTML behaves correctly in a browser.
 
-The canonical release build is defined by `Dockerfile.reproducible`: Linux/amd64, an Ubuntu 24.04-based image pinned by immutable digest, exact Node/pnpm/Rust/wasm-bindgen versions, checksum-verified installers, locked JavaScript and Cargo graphs, and a final complete verification layer without network access. Rebuilt Dash Orchard WASM/glue must byte-match the reviewed committed files. A native build can pass the same functional checks while producing different release bytes because host linkers and system libraries vary.
+The canonical release build is defined by `Dockerfile.reproducible`: Linux/amd64, an Ubuntu 24.04-based image pinned by immutable digest, exact Node/pnpm/Rust/wasm-bindgen versions, checksum-verified installers, locked JavaScript and Cargo graphs, and a final complete verification layer without network access. Rebuilt Dash Orchard WASM/glue must byte-match the reviewed committed files. A native build can pass the same functional checks while producing different release bytes because host linkers and system libraries vary. Successful canonical verification emits `dist/verification-record.json`; the tag workflow binds published assets to its repository, commit, workflow, and run with GitHub OIDC provenance attestations.
 
 ## Release checklist
 

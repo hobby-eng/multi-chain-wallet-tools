@@ -159,7 +159,7 @@
           "profile": "multi-chain",
           "name": "discovery-scanner-boundaries",
           "passed": false,
-          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'undefined',\n+   'undefined'\n+ ]\n- []\n\n    at file:///home/sergio/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:337:18"
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'undefined',\n+   'undefined'\n+ ]\n- []\n\n    at file:///home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:337:18"
         },
         {
           "browser": "chromium",
@@ -223,7 +223,7 @@
           "profile": "dash-community",
           "name": "discovery-scanner-boundaries",
           "passed": false,
-          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'undefined'\n+ ]\n- []\n\n    at file:///home/sergio/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:337:18"
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'undefined'\n+ ]\n- []\n\n    at file:///home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:337:18"
         },
         {
           "browser": "chromium",
@@ -327,7 +327,7 @@
           "profile": "multi-chain",
           "name": "bip85-child-signer",
           "passed": false,
-          "error": "page.reload: Page crashed\nCall log:\n\u001b[2m  - waiting for navigation until \"load\"\u001b[22m\n\u001b[2m    - navigated to \"file:///home/sergio/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html\"\u001b[22m\n\n    at childWallet (/home/sergio/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:217:14)\n    at async file:///home/sergio/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:336:11"
+          "error": "page.reload: Page crashed\nCall log:\n\u001b[2m  - waiting for navigation until \"load\"\u001b[22m\n\u001b[2m    - navigated to \"file:///home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html\"\u001b[22m\n\n    at childWallet (/home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:217:14)\n    at async file:///home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:336:11"
         },
         {
           "browser": "firefox",

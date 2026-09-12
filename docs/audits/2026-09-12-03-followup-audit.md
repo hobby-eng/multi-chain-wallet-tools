@@ -18,13 +18,13 @@ The previous passing tests are real, but they do not establish complete descript
 
 No new mismatch was found in the selected standard Bitcoin, Ethereum, Dash Core, DIP13/DIP17 or Orchard path/vector checks. This statement is bounded by the coverage matrix below. Wallet-specific paths, public-key scope, script grammar and import compatibility must remain separate claims.
 
-Exact public reproduction inputs, observed outputs, extra-check results and link statuses are in [the evidence record](AUDIT_FOLLOWUP_2026-09-12.json). They contain only synthetic/public test material. Existing user mnemonics/xpubs were not used.
+Exact public reproduction inputs, observed outputs, extra-check results and link statuses are in [the evidence record](2026-09-12-03-followup-audit.json). They contain only synthetic/public test material. Existing user mnemonics/xpubs were not used.
 
 ## Findings at discovery (remediation status below)
 
 ### C01 — Medium: MuSig multipath is validated inconsistently
 
-Locations: [descriptor.ts:131](../apps/psbt-inspector/src/descriptor.ts#L131), [descriptor.ts:264](../apps/psbt-inspector/src/descriptor.ts#L264), [descriptor.ts:646](../apps/psbt-inspector/src/descriptor.ts#L646), and [musig-descriptor.ts](../apps/psbt-inspector/src/musig-descriptor.ts).
+Locations: [descriptor.ts:131](../../apps/psbt-inspector/src/descriptor.ts#L131), [descriptor.ts:264](../../apps/psbt-inspector/src/descriptor.ts#L264), [descriptor.ts:646](../../apps/psbt-inspector/src/descriptor.ts#L646), and [musig-descriptor.ts](../../apps/psbt-inspector/src/musig-descriptor.ts).
 
 Using public synthetic xpubs A/B:
 
@@ -37,7 +37,7 @@ The installed Go descriptor parser does not support these MuSig descriptor expre
 
 ### C02 — Medium: a MuSig key inside a Taproot tree bypasses origin validation
 
-Locations: [descriptor.ts:264](../apps/psbt-inspector/src/descriptor.ts#L264), [descriptor.ts:397](../apps/psbt-inspector/src/descriptor.ts#L397), [musig-descriptor.ts](../apps/psbt-inspector/src/musig-descriptor.ts).
+Locations: [descriptor.ts:264](../../apps/psbt-inspector/src/descriptor.ts#L264), [descriptor.ts:397](../../apps/psbt-inspector/src/descriptor.ts#L397), [musig-descriptor.ts](../../apps/psbt-inspector/src/musig-descriptor.ts).
 
 `tr(G,{pk(musig([bad]G,H)),pk(H)})` is accepted and compiled. G/H are the compressed public points for public test scalars 1/2. The nested MuSig parser strips the malformed origin, while ordinary descriptor-key validation rejects it. Tree branches represented as strings bypass the common recursive key validator.
 
@@ -45,7 +45,7 @@ Origin metadata does not itself change these fixed public points, so this is not
 
 ### C03 — Medium: known PSBT hash-preimage fields are not validated
 
-Location: [psbt.ts:281](../apps/psbt-inspector/src/psbt.ts#L281), `validateMap`, and the field-name table.
+Location: [psbt.ts:281](../../apps/psbt-inspector/src/psbt.ts#L281), `validateMap`, and the field-name table.
 
 A synthetic PSBTv2 accepts input type `0x0a` with a one-byte hash key. It also accepts a 20-byte all-zero key paired with `public preimage`, whose RIPEMD160 digest is different. Both exact Base64 reproductions are in the evidence record. The other BIP174 preimage types `0x0b`–`0x0d` lack corresponding checks too.
 
@@ -55,7 +55,7 @@ Do not expand the documentation claim to “all known fields validated”: DER s
 
 ### C04 — Low: valid legacy uncompressed P2SH-P2PKH compilation fails
 
-Locations: [miniscript-engine.ts:105](../apps/psbt-inspector/src/miniscript-engine.ts#L105) and [descriptor.ts:436](../apps/psbt-inspector/src/descriptor.ts#L436).
+Locations: [miniscript-engine.ts:105](../../apps/psbt-inspector/src/miniscript-engine.ts#L105) and [descriptor.ts:436](../../apps/psbt-inspector/src/descriptor.ts#L436).
 
 `sh(pkh(U))`, where U is the valid 65-byte uncompressed public point for scalar 1, passes key validation but fails ASM serialization at `<HASH160(U)>`. The serializer supports 32/33-byte hash arguments only. The Go descriptor oracle accepted this example and returned `3LRW7jeCvQCRdPF8S3yUCfRAx4eqXFmdcr`. **Correction during remediation:** this is the compressed-key address; that oracle normalized the supplied 65-byte key. Independent Python/OpenSSL hashing and explicit script serialization establish `3DJgFhQBWVq9CdfzyJ9m5Lo6cYKh24anLh` for the actual uncompressed key. The regression now asserts both encodings separately.
 
@@ -63,13 +63,13 @@ Locations: [miniscript-engine.ts:105](../apps/psbt-inspector/src/miniscript-engi
 
 ### C05 — Low: recognized-only descriptor forms accept malformed arguments
 
-Location: [descriptor.ts:588](../apps/psbt-inspector/src/descriptor.ts#L588).
+Location: [descriptor.ts:588](../../apps/psbt-inspector/src/descriptor.ts#L588).
 
 `sp()` and `combo(00)` return a decoded summary instead of rejecting missing/invalid keys. They do not produce a compiled output, limiting the impact. The UI's phrase “structurally decoded” is stronger than the checks actually performed. Validate arity/key shapes for supported recognition, or clearly return an unsupported/unvalidated result. Do not treat recognition as a successful wallet-import check.
 
 ### C06 — Low: Docker wrapper exits can skip cleanup
 
-Location: [build-reproducible.mjs:19](../tooling/build-reproducible.mjs#L19), `run()` and outer `finally`.
+Location: [build-reproducible.mjs:19](../../tooling/build-reproducible.mjs#L19), `run()` and outer `finally`.
 
 Static control-flow finding: `run()` calls `process.exit()` when a Docker subprocess fails. If `docker cp` fails after container creation, this terminates Node without executing the outer cleanup `finally`; the created container and temporary directory can remain. The corrected per-edition manifest paths do not address this failure path. Propagate a failure through cleanup and set the exit status afterward. Add a fake-Docker subprocess test asserting container removal and preservation of prior `dist`; no actual Docker build is needed for that regression. This scenario was not executed against a real Docker daemon in this pass.
 
@@ -117,7 +117,7 @@ External-link GET checks returned HTTP 200 for all **49 unique URLs** extracted 
 
 ## Earlier tests and command wiring
 
-The current Vitest configuration includes **70 `.test.ts` files plus six tooling `.test.mjs` files**. It does not ignore the existing `independent-conformance-audit` or Inspector conformance suite. The separate verification scripts are documented in [VERIFICATION.md](VERIFICATION.md).
+The current Vitest configuration includes **70 `.test.ts` files plus six tooling `.test.mjs` files**. It does not ignore the existing `independent-conformance-audit` or Inspector conformance suite. The separate verification scripts are documented in [VERIFICATION.md](../VERIFICATION.md).
 
 Compared relative verification filenames with available `super-broccoli`, `supreme-broccoli`, the renamed Documents checkout and `.copilot/repos/multi-chain-wallet-tools`. Three test filenames exist in `super-broccoli` but not here:
 
@@ -172,7 +172,7 @@ Reviewer/implementer: OpenAI Codex, GPT-6 family; exact service snapshot unavail
 
 Restored the three earlier regression files against the current APIs, not old production code. Vector refresh now asserts the pinned BIP32 path counts, Core Miniscript count and each PSBT corpus's positive/negative counts before overwriting fixtures. The updater itself was syntax-checked; no remote refresh was needed. Input copy now lists all five accepted BIP39 lengths; generated phrases still offer 12/24. Inspector uses a chain-neutral compiled-data heading. The BIP39 error comment now accurately describes local diagnostics and candidate-export sanitization.
 
-Verification: full Vitest **973/973 in 80 files**, TypeScript, metadata synchronization, project facts, JavaScript syntax and whitespace checks passed. Source regressions are [audit-followup.test.ts](../apps/psbt-inspector/tests/audit-followup.test.ts), the existing [independent conformance suite](../apps/psbt-inspector/tests/independent-audit/crypto-conformance.test.ts), and [Docker cleanup tests](../tooling/build-reproducible.test.mjs), plus the restored Dash pagination/network files. Final artifact/browser evidence is appended after completion.
+Verification: full Vitest **973/973 in 80 files**, TypeScript, metadata synchronization, project facts, JavaScript syntax and whitespace checks passed. Source regressions are [audit-followup.test.ts](../../apps/psbt-inspector/tests/audit-followup.test.ts), the existing [independent conformance suite](../../apps/psbt-inspector/tests/independent-audit/crypto-conformance.test.ts), and [Docker cleanup tests](../../tooling/build-reproducible.test.mjs), plus the restored Dash pagination/network files. Final artifact/browser evidence is appended after completion.
 
 Scope remains bounded: arbitrary-length multipath tuples, full PSBT signature/semantic validation, actual wallet import/sign/spend and broad architectural refactors are not added. Earlier intermittent Firefox BIP85 reload failure is tracked separately; a fresh passing run alone cannot establish its root cause. The corrections were committed locally; no push, tag or release is implied.
 
@@ -180,4 +180,4 @@ Scope remains bounded: arbitrary-length multipath tuples, full PSBT signature/se
 
 All eight HTML artifacts were rebuilt locally without Docker. Artifact source fingerprints, checksums, CSP/security markers and edition exclusion checks passed. **16/16** basic direct-file acceptance cases and **34/34** extended Chromium/Firefox regression cases passed, including the new descriptor replacement scenarios. The extended run also passed Firefox BIP85; this does not establish the cause of the earlier intermittent reload crash.
 
-Structured checks, source fingerprint, artifact hashes and individual browser outcomes are retained in [the evidence record](AUDIT_FOLLOWUP_2026-09-12.json), under `remediation`. Full local browser reports/screenshots are in `test-results/browser-files/2026-09-12T04-24-07.364Z/` and `test-results/browser-regressions/2026-09-12T04-26-24.921Z/`. No Docker build, native Rust run, WASM regeneration, funded transaction or publication was performed in this correction pass.
+Structured checks, source fingerprint, artifact hashes and individual browser outcomes are retained in [the evidence record](2026-09-12-03-followup-audit.json), under `remediation`. Full local browser reports/screenshots are in `test-results/browser-files/2026-09-12T04-24-07.364Z/` and `test-results/browser-regressions/2026-09-12T04-26-24.921Z/`. No Docker build, native Rust run, WASM regeneration, funded transaction or publication was performed in this correction pass.
