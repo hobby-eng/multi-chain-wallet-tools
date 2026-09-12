@@ -1,3 +1,5 @@
+import { validateAddressHistoryPage } from './provider-json.js';
+import { assertPlatformExplorerNetwork } from './provider-json.js';
 import { validatePlatformAddress } from './public-address.js';
 import { createProviderHttp, ProviderHttpError, type FetchLike } from './provider-http.js';
 import type { ViewerNetwork } from './types.js';
@@ -97,10 +99,7 @@ async function queryPlatformExplorer(
   if (indexer.status !== 'synced') {
     throw new Error('Platform Explorer reports that its index is not synchronized with Dash Platform.');
   }
-  const reportedNetwork = typeof status.network === 'string' ? status.network : '';
-  if (network === 'testnet' ? !/testnet/iu.test(reportedNetwork) : /testnet/iu.test(reportedNetwork)) {
-    throw new Error(`Platform Explorer returned status for the wrong network (${reportedNetwork || 'unknown'}).`);
-  }
+  assertPlatformExplorerNetwork(status.network, network);
   const api = object(status.api, 'API status');
   const tip = object(api.block, 'latest indexed block');
   const indexedHeight = requiredInteger(tip.height, 'latest indexed Platform height');
@@ -159,20 +158,13 @@ async function queryPlatformExplorer(
       ),
       'address-transition page',
     );
-    const items = Array.isArray(page.resultSet) ? page.resultSet : [];
+    const items: unknown = page.resultSet;
     const pagination = object(page.pagination, 'address-transition pagination');
-    const reportedTotal = optionalInteger(pagination.total);
-    if (reportedTotal !== null && reportedTotal !== totalTransitions) {
-      throw new Error('Address history changed during pagination. Retry the query.');
-    }
+    validateAddressHistoryPage(items, pagination.total, totalTransitions, limit, seen);
+    const fullPage = items.map(transitionView);
     target = Math.min(totalTransitions, historyLimit);
     const remaining = target - transitions.length;
-    const parsed = items.slice(0, remaining).map(transitionView);
-    for (const item of parsed) {
-      const id = item.hash.toLowerCase();
-      if (id === 'unknown' || seen.has(id)) throw new Error('Address history contains a missing or repeated transaction ID.');
-      seen.add(id);
-    }
+    const parsed = fullPage.slice(0, remaining);
     transitions.push(...parsed);
     if (items.length < limit && transitions.length < target) {
       throw new Error('Address history ended before the reported transaction count. Retry the query.');
