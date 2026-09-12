@@ -4,6 +4,7 @@ import { bytesToHex, concatBytes, encodeWif, hash160, wipe } from '@ckd/core/cry
 import { getDashNetwork } from '@ckd/core/networks.js';
 import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
 import { bip32SummaryFields } from '../../bip32-summary.js';
+import { DIP17_PAYMENT_CHAINS } from './platform-paths.js';
 
 export const PLATFORM_P2PKH_TYPE = 0xb0;
 
@@ -18,6 +19,9 @@ export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult
   const network = getDashNetwork(options.network);
   assertIndex(options.account, 'Account');
   assertIndex(options.branch, 'Key class');
+  if (!DIP17_PAYMENT_CHAINS.some(({ keyClass }) => keyClass === options.branch)) {
+    throw new Error("DIP17 Platform payment key class must be 0 (receive) or 1 (internal/change).");
+  }
   assertBatch(options.start, options.count);
 
   const root = rootFromSeed(options.seed, network.versions);

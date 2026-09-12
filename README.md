@@ -2,7 +2,9 @@
 
 [![Source and artifact checks](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml)
 
-Three portable wallet utilities built as standalone HTML files. One canonical source tree now produces two compile-time editions:
+This documentation describes the **unreleased v0.1.4 source tree**. Published release assets may expose fewer features.
+
+Four portable wallet utilities built as standalone HTML files. One canonical source tree now produces two compile-time editions:
 
 - **Multi-Chain Edition** is the universal, extensible edition. It currently supports Bitcoin, Ethereum, and Dash, including Dash Core, Dash Platform, Dash Identity, and Dash Orchard.
 - **Dash Community Edition** is the Dash-only edition. Its application graph contains only Dash Core, Dash Platform, Dash Identity, and Dash Orchard, and its visual design follows the official Dash BrandBook and Brand Guidelines.
@@ -11,16 +13,18 @@ Download a file, verify its SHA-256 checksum, and open it in a current browserâ€
 
 This is an independent hobby project, not an official Dash product and not a replacement for a hardware or standard wallet. It has extensive automated checks but has not received an independent cryptography-specialist audit.
 
-## The three tools
+## The four tools
 
 ### Wallet Key Derivation Tool
 
 An offline tool for deriving wallet addresses and keys from a BIP39 seed phrase.
 
-- Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; and Dash Core BIP44, legacy mobile Core, Platform payment, Identity, and Orchard Shielded derivation.
+- Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; and Dash Core BIP44, legacy mobile Core, Platform payment, Identity, Purpose48 P2SH multisig cosigner, and Orchard Shielded derivation.
 - Shows standards-based derivation paths and exposes protocol-specific account, address-branch and index controls.
 - Derives standard receive/change branches for Bitcoin and Dash Core, historical mobile receive/change branches, Ethereum EOA keys at `m/44'/60'/account'/branch/index`, Dash Platform receive and optional internal/change payment keys, Dash Identity four-key candidates, and Dash Orchard addresses and viewing material.
 - Displays basic results or detailed protocol-specific data, with selectable clipboard and file exports.
+- Signs messages locally for supported Bitcoin/Dash addresses and optionally encrypts compressed Bitcoin/Dash P2PKH private keys with BIP38.
+- Multi-Chain also derives BIP85 child secrets/wallets and BIP352 Silent Payment addresses; it does not scan Silent Payment transactions.
 - Generates offline, on-demand QR codes only for derived public payment addresses; key material and arbitrary metadata never receive QR actions.
 - Runs derivation in a disposable Web Worker and has runtime network access blocked by CSP and build verification.
 
@@ -56,9 +60,24 @@ In the universal Multi-Chain Edition, this connected discovery scanner supports 
 
 Seed derivation runs inside a sandboxed, network-denied Secret Vault. Only validated public lookup material crosses the typed boundary to the network worker. A public key can cover only the account, branch, or address formats reachable below that key; use the original seed phrase and BIP39 passphrase for the broadest supported search.
 
+### PSBT & Multisig Inspector
+
+An offline experimental utility for reviewing partially signed transactions, spending scripts, hashlock/timelock policies, and watch-only multisig wallet policies before signing. Multi-Chain supports Bitcoin and Dash; Dash Community emits a separate P2SH-only build without Bitcoin SegWit, Taproot, or MuSig2. Do not use this fourth HTML utility with real funds yet; test only with valueless examples or testnet funds until its scripts, descriptors, imports, wallet compatibility, and recovery procedure have been independently verified.
+
+- Decodes Bitcoin PSBT v0/v2 and Dash Core PSBT v0, including known and unknown key-value records.
+- Displays unsigned-transaction inputs, outputs, derived standard output addresses, supplied input values, and fees when all input amounts are present.
+- Decodes raw Script hex and Bitcoin output descriptors/Miniscript into inspectable operations and policy summaries.
+- Calculates exact 32-byte preimages from local UTF-8 phrases, creates HTLC-like policies, and builds staged `or_d`/`or_i` recovery descriptors using library-derived concrete xpub children.
+- Builds one concrete public-key-only m-of-n multisig or timelocked P2SH/P2WSH policy, including redeemScript, scriptPubKey, address, descriptor/checksum, and Dash Core watch-only import commands for generated Dash P2SH scripts. Custom Dash policies export a non-solvable `raw(scriptPubKey)` watch descriptor because Dash Core does not accept Miniscript policy expressions as descriptors or automatically satisfy them.
+- Builds deterministic ranged watch-only multisig wallets from account public keys with explicit origin fingerprints, receive/change branches, selected index ranges, supplied-order `multi()` or BIP67 `sortedmulti()` policy, descriptors/checksums, derived addresses, script material, and Bitcoin/Dash import text.
+- Verifies Bitcoin/Dash message proofs and locally decrypts supported BIP38 private keys; recovered keys stay masked until revealed.
+- Never signs, finalizes, funds, queries UTXOs, persists data, broadcasts transactions, or opens a network connection.
+
+Use it to inspect transaction intent and construct test policies only. Verify scripts with valueless testnet funds and independent wallet tooling before relying on them.
+
 ## Download and verify
 
-Download the three Multi-Chain Edition HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). `SHA256SUMS` covers the complete release asset set.
+Download the Multi-Chain Edition HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). `SHA256SUMS` covers the complete release asset set.
 
 This repository is the canonical source and Multi-Chain release surface. [Dash Community releases](https://github.com/hobby-eng/dash-wallet-tools/releases) are distributed separately from the same canonical sources; that repository is a release surface, not a source fork.
 
@@ -70,6 +89,7 @@ On Linux:
 sha256sum -c Wallet_Key_Derivation_Tool.html.sha256
 sha256sum -c Wallet_Activity_Viewer.html.sha256
 sha256sum -c Wallet_Discovery_Scanner.html.sha256
+sha256sum -c PSBT_Multisig_Inspector.html.sha256
 ```
 
 The key derivation tool is designed for direct `file://` use on an offline machine. The viewer and scanner require network access for blockchain data.
@@ -89,6 +109,7 @@ Official release checksums refer to artifacts produced by the repository's pinne
 | Dash mobile legacy Core | `m/account'/0/i` | P2PKH |
 | Dash Mobile CoinJoin Â· DIP9 | `m/9'/5'/4'/0'/0/i` | P2PKH |
 | Dash Identity registration funding-key comparison | `m/9'/5'/5'/1'/i` | Linked asset-lock detail for an Identity already discovered |
+| Dash multisig cosigner | `m/48'/5'/account'/0'/branch/i` | Purpose48 legacy P2SH cosigner keys; wallet-specific convention |
 | Dash provider holdings | `m/9'/5'/3'/0'/i` | P2PKH |
 | Dash Platform | `m/9'/5'/17'/0'/0'/i` and `m/9'/5'/17'/0'/1'/i` | DIP17/DIP18 receive and internal/change |
 | Dash Identity | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 four-key registration profile |
@@ -102,9 +123,9 @@ Capabilities that require future authoritative Platform/SDK queries are tracked 
 
 ## Security and verification
 
-Every release is built from locked npm and Cargo dependency graphs. Startup remains fail-closed until deterministic cryptographic tests pass. Coverage includes BIP39/BIP32, Bitcoin BIP49/BIP86, Ethereum EIP-55, Dash Core BIP44, Platform DIP17/DIP18, Identity DIP13, and Dash Orchard ZIP32 on mainnet and testnet.
+Every release is built from locked npm and Cargo dependency graphs. Deriver, Viewer and Scanner gate their workflows on their startup checks. Inspector validates parser boundaries when inputs are submitted; it does not currently run an equivalent startup cryptographic vector suite. Automated coverage includes BIP39/BIP32, Bitcoin BIP49/BIP86, Ethereum EIP-55, Dash Core BIP44, Platform DIP17/DIP18, Identity DIP13, and Dash Orchard ZIP32 on mainnet and testnet.
 
-The release pipeline also runs TypeScript tests, independent derivation comparisons, native Rust tests, generated-WASM boundary tests, CSP/static checks, secret-egress tests, reproducible HTML builds, checksum verification and artifact provenance attestation. GitHub Actions and local release builds use the same pinned Docker toolchain.
+The release pipeline also runs TypeScript tests, independent derivation comparisons, native Rust tests, generated-WASM boundary tests, CSP/static checks, secret-egress tests, reproducible HTML builds, direct `file://` Chromium/Firefox acceptance, checksum verification and artifact provenance attestation. GitHub Actions and local release builds use the same pinned Docker toolchain. Successful verification emits `dist/verification-record.json` with the source revision, toolchain, performed check groups and hashes for every HTML/WASM integration artifact.
 
 These checks greatly reduce integration and packaging risk; they do not prove that browsers, operating systems or this project are free of vulnerabilities. Test with an empty wallet first and independently verify valuable-wallet findings in a standard wallet.
 
@@ -155,10 +176,12 @@ Generated files are written to:
 dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html
 dist/multi-chain-edition/activity-viewer/Wallet_Activity_Viewer.html
 dist/multi-chain-edition/discovery-scanner/Wallet_Discovery_Scanner.html
+dist/multi-chain-edition/psbt-inspector/PSBT_Multisig_Inspector.html
 dist/multi-chain-edition/SHA256SUMS
 dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html
 dist/dash-community-edition/activity-viewer/Dash_Community_Activity_Viewer.html
 dist/dash-community-edition/discovery-scanner/Dash_Community_Discovery_Scanner.html
+dist/dash-community-edition/psbt-inspector/Dash_Community_PSBT_Multisig_Inspector.html
 dist/dash-community-edition/SHA256SUMS
 ```
 
@@ -171,6 +194,9 @@ For individual application instructions, see:
 - [Wallet Key Derivation Tool](apps/key-derivation/README.md)
 - [Wallet Activity Viewer](apps/activity-viewer/README.md)
 - [Wallet Discovery Scanner](apps/discovery-scanner/README.md)
+- [PSBT & Multisig Inspector](apps/psbt-inspector/README.md)
+
+For the actual commands, included suites and checks that run separately from CI, see [verification map](docs/VERIFICATION.md).
 
 Contributor references: [EXTENDING.md](EXTENDING.md), [RELEASING.md](RELEASING.md), [architecture](docs/ARCHITECTURE.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
 

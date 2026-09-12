@@ -9,6 +9,10 @@ export interface ResultsRenderOptions {
   windowSize: number;
   onWindowChange(start: number): void;
   onSelectionChange(index: number, selected: boolean): void;
+  canSignMessages: boolean;
+  onSignMessage(index: number, address: string): void;
+  encryptedBip38: ReadonlyMap<number, string>;
+  rowLimit?: number;
 }
 
 export interface ResultWindow {
@@ -36,10 +40,46 @@ function element<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+function iconButton(label: string, pathData: string): HTMLButtonElement {
+  const button = element('button', 'copy icon-action');
+  button.type = 'button';
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  button.dataset.iconButton = 'true';
+  const namespace = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(namespace, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(namespace, 'path');
+  path.setAttribute('d', pathData);
+  svg.append(path);
+  button.append(svg);
+  return button;
+}
+
+function copyButton(field: ResultField, locator: { scope: 'summary' | 'row'; row?: number }, secretsRevealed: boolean): HTMLButtonElement {
+  const copy = iconButton(`Copy ${field.label}`, 'M8 7V3h13v13h-4v5H3V7h5zm2 0h7v7h2V5h-9v2zm5 2H5v10h10V9z');
+  copy.dataset.copyScope = locator.scope;
+  copy.dataset.copyField = field.key;
+  if (locator.row !== undefined) copy.dataset.copyRow = String(locator.row);
+  copy.dataset.secret = String(field.secret);
+  copy.disabled = field.secret && !secretsRevealed;
+  copy.title = copy.disabled ? 'Reveal private and privacy-sensitive values before copying.' : `Copy ${field.label}`;
+  return copy;
+}
+
+function signButton(index: number, address: string, onSign: (index: number, address: string) => void): HTMLButtonElement {
+  const sign = iconButton('Sign a message with this address', 'M4 20h4l11-11-4-4L4 16v4zm12-16 4 4 1-1a1.4 1.4 0 0 0 0-2l-2-2a1.4 1.4 0 0 0-2 0l-1 1z');
+  sign.dataset.signMessage = String(index);
+  sign.dataset.signAddress = address;
+  sign.addEventListener('click', () => onSign(index, address));
+  return sign;
+}
+
 function fieldRow(
   field: ResultField,
   locator: { scope: 'summary' | 'row'; row?: number },
-  secretsRevealed: boolean,
+  options: ResultsRenderOptions,
 ): HTMLElement {
   const row = element('div', 'row');
   const label = element('div', 'row-label', field.label);
@@ -48,18 +88,14 @@ function fieldRow(
     label.classList.add('has-description');
   }
   const value = element('div', `value${field.secret ? ' secret-value' : ''}`, field.value);
-  const copy = element('button', 'copy', 'COPY');
-  copy.type = 'button';
-  copy.dataset.copyScope = locator.scope;
-  copy.dataset.copyField = field.key;
-  if (locator.row !== undefined) copy.dataset.copyRow = String(locator.row);
-  copy.dataset.secret = String(field.secret);
-  copy.disabled = field.secret && !secretsRevealed;
-  copy.title = copy.disabled ? 'Reveal private and privacy-sensitive values before copying.' : `Copy ${field.label}`;
+  const copy = copyButton(field, locator, options.secretsRevealed);
   const actions = element('div', 'field-actions');
   actions.append(copy);
   const qrPayload = paymentQrPayload(field);
   if (qrPayload !== undefined) actions.append(createPaymentQrAction(document, qrPayload, field.label));
+  if (field.role === 'paymentAddress' && locator.row !== undefined && options.canSignMessages) {
+    actions.append(signButton(locator.row, field.value, options.onSignMessage));
+  }
   row.append(label, value, actions);
   return row;
 }
@@ -67,7 +103,7 @@ function fieldRow(
 function basicFieldCell(
   field: ResultField | undefined,
   rowIndex: number,
-  secretsRevealed: boolean,
+  options: ResultsRenderOptions,
 ): HTMLTableCellElement {
   const highlight = field?.key === 'address' || field?.key.endsWith('PublicKeyHash') === true;
   const cell = element('td', highlight ? 'basic-address-cell' : undefined);
@@ -77,17 +113,13 @@ function basicFieldCell(
   }
   const content = element('div', 'table-value-wrap');
   const value = element('span', `value${field.secret ? ' secret-value' : ''}`, field.value);
-  const copy = element('button', 'copy', 'COPY');
-  copy.type = 'button';
-  copy.dataset.copyScope = 'row';
-  copy.dataset.copyRow = String(rowIndex);
-  copy.dataset.copyField = field.key;
-  copy.dataset.secret = String(field.secret);
-  copy.disabled = field.secret && !secretsRevealed;
-  copy.title = copy.disabled ? 'Reveal sensitive values before copying.' : `Copy ${field.label}`;
+  const copy = copyButton(field, { scope: 'row', row: rowIndex }, options.secretsRevealed);
   content.append(value, copy);
   const qrPayload = paymentQrPayload(field);
   if (qrPayload !== undefined) content.append(createPaymentQrAction(document, qrPayload, field.label));
+  if (field.role === 'paymentAddress' && options.canSignMessages) {
+    content.append(signButton(rowIndex, field.value, options.onSignMessage));
+  }
   cell.append(content);
   return cell;
 }
@@ -125,8 +157,21 @@ function appendBasicRows(
       row.append(basicFieldCell(
         derived.basic.find((field) => field.key === key),
         derived.index,
-        options.secretsRevealed,
+        options,
       ));
+      if (key === 'address' && options.encryptedBip38.size > 0) {
+        const encryptedKey = options.encryptedBip38.get(derived.index);
+        row.append(basicFieldCell(
+          encryptedKey === undefined ? undefined : {
+            key: 'bip38EncryptedKey',
+            label: 'Encrypted private key · BIP38',
+            value: encryptedKey,
+            secret: true,
+          },
+          derived.index,
+          options,
+        ));
+      }
     }
     fragment.append(row);
   }
@@ -156,7 +201,7 @@ function groupedBasicCard(derived: DerivedRow, options: ResultsRenderOptions): H
 
   const body = element('div', 'grouped-basic-body');
   for (const field of derived.basic) {
-    body.append(fieldRow(field, { scope: 'row', row: derived.index }, options.secretsRevealed));
+    body.append(fieldRow(field, { scope: 'row', row: derived.index }, options));
   }
 
   const groups = derived.groups ?? [];
@@ -188,7 +233,7 @@ function groupedBasicCard(derived: DerivedRow, options: ResultsRenderOptions): H
       role.append(title);
       row.append(role);
       for (const field of group.basic) {
-        row.append(basicFieldCell(field, derived.index, options.secretsRevealed));
+        row.append(basicFieldCell(field, derived.index, options));
       }
       tableBody.append(row);
     }
@@ -232,12 +277,21 @@ function advancedCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLE
 
   const body = element('div', 'address-body');
   for (const field of derived.basic) {
-    body.append(fieldRow(field, { scope: 'row', row: derived.index }, options.secretsRevealed));
+    body.append(fieldRow(field, { scope: 'row', row: derived.index }, options));
+  }
+  const encryptedKey = options.encryptedBip38.get(derived.index);
+  if (encryptedKey !== undefined) {
+    body.append(fieldRow({
+      key: 'bip38EncryptedKey',
+      label: 'Encrypted private key · BIP38',
+      value: encryptedKey,
+      secret: true,
+    }, { scope: 'row', row: derived.index }, options));
   }
   if (derived.advanced.length > 0) {
     const detailRows = element('div', 'advanced-field-rows');
     for (const field of derived.advanced) {
-      detailRows.append(fieldRow(field, { scope: 'row', row: derived.index }, options.secretsRevealed));
+      detailRows.append(fieldRow(field, { scope: 'row', row: derived.index }, options));
     }
     body.append(detailRows);
   }
@@ -253,7 +307,7 @@ function advancedCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLE
       section.append(groupHead);
       const fields = element('div', 'field-group-rows');
       for (const field of [...group.basic, ...group.advanced]) {
-        fields.append(fieldRow(field, { scope: 'row', row: derived.index }, options.secretsRevealed));
+        fields.append(fieldRow(field, { scope: 'row', row: derived.index }, options));
       }
       section.append(fields);
       groups.append(section);
@@ -321,7 +375,7 @@ export function renderResults(
       ),
     );
     for (const field of accountFields) {
-      card.append(fieldRow(field, { scope: 'summary' }, options.secretsRevealed));
+      card.append(fieldRow(field, { scope: 'summary' }, options));
     }
     summaryRoot.append(card);
   }
@@ -330,9 +384,10 @@ export function renderResults(
     noticesRoot.append(element('div', 'result-help', notice));
   }
 
-  const window = normalizeResultWindow(result.rows.length, options.windowStart, options.windowSize);
-  const visibleRows = result.rows.slice(window.start, window.end);
-  listRoot.append(resultWindowControls(result.rows.length, window, options));
+  const renderedRows = options.rowLimit === undefined ? result.rows : result.rows.slice(0, options.rowLimit);
+  const window = normalizeResultWindow(renderedRows.length, options.windowStart, options.windowSize);
+  const visibleRows = renderedRows.slice(window.start, window.end);
+  listRoot.append(resultWindowControls(renderedRows.length, window, options));
 
   if (options.mode === 'basic') {
     if ((result.rows[0]?.groups?.length ?? 0) > 0) {
@@ -347,7 +402,7 @@ export function renderResults(
     const table = element('table', 'basic-results-table');
     const head = element('thead');
     const headerRow = element('tr');
-    headerRow.append(element('th', 'select-column', 'Use'), element('th', 'path-column', 'Derivation path / address index'));
+    headerRow.append(element('th', 'select-column', 'Use'), element('th', 'path-column', 'Path'));
     for (const field of fieldDefinitions.values()) {
       const header = element('th', undefined, field.label);
       header.dataset.fieldKey = field.key;
@@ -356,6 +411,9 @@ export function renderResults(
         header.classList.add('has-description');
       }
       headerRow.append(header);
+      if (field.key === 'address' && options.encryptedBip38.size > 0) {
+        headerRow.append(element('th', undefined, 'Encrypted private key · BIP38'));
+      }
     }
     head.append(headerRow);
     const body = element('tbody');

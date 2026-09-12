@@ -4,6 +4,7 @@ import type { KeyDerivationView } from '../src/ui/view.js';
 
 class Control extends EventTarget {
   value = ''; checked = false; disabled = false;
+  querySelectorAll(): Control[] { return []; }
   click(): void { this.dispatchEvent(new Event('click')); }
   input(): void { this.dispatchEvent(new Event('input')); }
 }
@@ -17,7 +18,7 @@ function fixture() {
     'clearAllButton', 'selectAllButton', 'selectNoneButton', 'selectInvertButton'];
   const fields = Object.fromEntries(names.map(name => [name, new Control()]));
   const controls = Object.fromEntries(['coin', 'protocolTabs', 'network', 'account', 'branchInput', 'branchSelect',
-    'includeChange', 'includeCoinJoin', 'start', 'count'].map(name => [name, new Control()]));
+    'includeChange', 'includeCoinJoin', 'includeLegacyMobile', 'start', 'count'].map(name => [name, new Control()]));
   controls.network!.value = 'mainnet'; controls.account!.value = '0';
   controls.start!.value = '0'; controls.count!.value = '1'; controls.includeChange!.checked = true;
   fields.mnemonic!.value = 'public synthetic phrase'; fields.expectedAddress!.value = 'original-address';

@@ -12,8 +12,18 @@ function positiveBalance(section: RecoverySection | undefined): bigint {
 
 /** Coin-owned overview keeps Dash unit conversion out of the generic renderer. */
 export function summarizeDashSections(sections: readonly RecoverySection[]): RecoveryMetric[] {
-  const core = positiveBalance(sections.find(({ id }) => id === 'core'));
-  const legacyCore = positiveBalance(sections.find(({ id }) => id === 'legacyCore'));
+  const coreIds = ['core', 'legacyCore', 'coinjoin', 'providerCollateral'];
+  const coreResources = new Map<string, bigint | null>();
+  const confirmedCore = new Set<string>();
+  for (const section of sections.filter(section => coreIds.includes(section.id))) {
+    for (const finding of section.findings) {
+      const key = finding.title;
+      if (!coreResources.has(key)) coreResources.set(key, finding.balanceAtomic);
+      else if (coreResources.get(key) !== finding.balanceAtomic) coreResources.set(key, null);
+      if (section.state === 'complete' && section.balanceAvailable !== false) confirmedCore.add(key);
+    }
+  }
+  const coreConflict = [...coreResources.values()].some(value => value === null);
   const coinjoin = positiveBalance(sections.find(({ id }) => id === 'coinjoin'));
   const providerCollateral = positiveBalance(sections.find(({ id }) => id === 'providerCollateral'));
   const platform = positiveBalance(sections.find(({ id }) => id === 'platform'));
@@ -26,11 +36,11 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
   // rs-unified-sdk-jni/src/funding.rs documents 1 DASH = 1e11 credits, while
   // rs-platform-wallet/.../memo_roundtrip_tests.rs passes `value_credits`
   // directly to `NoteValue::from_raw` (the production builder does likewise).
-  const coreChain = core + legacyCore + coinjoin + providerCollateral;
+  const coreChain = [...coreResources.values()].reduce<bigint>((sum, value) => sum + (value !== null && value > 0n ? value : 0n), 0n);
   const totalCredits = coreChain * CREDITS_PER_DUFF + platform + identity + shielded;
-  const unavailable = (ids?: string[]): boolean => sections.some(section => (!ids || ids.includes(section.id))
+  const unavailable = (ids?: string[]): boolean => (coreConflict && (ids === undefined || coreIds.every(id => ids.includes(id)))) || sections.some(section => (!ids || ids.includes(section.id))
     && (section.state === 'partial' || section.state === 'failed' || section.balanceAvailable === false || section.findings.some(finding => finding.balanceAtomic === null)));
-  const fundedResources = sections.filter(section => section.state === 'complete' && section.balanceAvailable !== false).reduce(
+  const fundedResources = [...confirmedCore].filter(key => (coreResources.get(key) ?? 0n) > 0n).length + sections.filter(section => !coreIds.includes(section.id) && section.state === 'complete' && section.balanceAvailable !== false).reduce(
     (sum, section) => sum + section.findings.filter(({ balanceAtomic }) => (balanceAtomic ?? 0n) > 0n).length,
     0,
   );

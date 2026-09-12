@@ -1,0 +1,1365 @@
+{
+  "date": "2026-09-12",
+  "reviewer": "OpenAI Codex, GPT-6 family; exact service snapshot unavailable",
+  "head": "ea5d4215ccbf355dd86f1c9928e213df1e23d186",
+  "workingTree": "Substantial uncommitted changes; HEAD alone is not the reviewed snapshot",
+  "descriptorProbes": [
+    {
+      "name": "aggregate_multipath",
+      "input": "tr(musig(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8,xpub661MyMwAqRbcEyvzYN3jWvgtkFQznWssG5i55m1TDqeZTkLPE1XpnDDAPEqazFNvZqhLXFJFpyaWUvqfVip3vcPR2fr9vmntLMYrxP15q7x)/<0;1>/*)",
+      "accepted": false,
+      "error": "Staged recovery keys must be compressed public keys or public extended keys with numeric, multipath, and wildcard suffixes."
+    },
+    {
+      "name": "forbidden_participant_multipath",
+      "input": "tr(musig(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8/<0;1>,xpub661MyMwAqRbcEyvzYN3jWvgtkFQznWssG5i55m1TDqeZTkLPE1XpnDDAPEqazFNvZqhLXFJFpyaWUvqfVip3vcPR2fr9vmntLMYrxP15q7x/<0;1>)/0/*)",
+      "accepted": true,
+      "output": {
+        "asm": "OP_1 fee9f0f8135d4fb028c4c67b85af1e514457745748268bc5e49cb6ab146cb727",
+        "rows": [
+          {
+            "label": "scriptPubKey",
+            "value": "5120fee9f0f8135d4fb028c4c67b85af1e514457745748268bc5e49cb6ab146cb727"
+          },
+          {
+            "label": "Address",
+            "value": "bc1plm5lp7qnt48mq2xyceacttc729z9wazhfqngh30ynjm2k9rvkunsugzx7m"
+          },
+          {
+            "label": "Output type",
+            "value": "P2TR"
+          },
+          {
+            "label": "Witness version",
+            "value": "1"
+          }
+        ]
+      },
+      "summary": "Taproot descriptor with key-path spending \u00b7 1 MuSig2 aggregate key"
+    },
+    {
+      "name": "malformed_leaf_origin",
+      "input": "tr(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,{pk(musig([bad]0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)),pk(02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)})",
+      "accepted": true,
+      "output": {
+        "asm": "OP_1 1837ccd26c575a5e877741db5f3545948031813161869673b5c4f5e727e5d1bf",
+        "rows": [
+          {
+            "label": "scriptPubKey",
+            "value": "51201837ccd26c575a5e877741db5f3545948031813161869673b5c4f5e727e5d1bf"
+          },
+          {
+            "label": "Address",
+            "value": "bc1prqmue5nv2ad9apmhg8d47d29jjqrrqf3vxrfvua4cn67wfl96xlslezf25"
+          },
+          {
+            "label": "Output type",
+            "value": "P2TR"
+          },
+          {
+            "label": "Witness version",
+            "value": "1"
+          }
+        ]
+      },
+      "summary": "Taproot descriptor with key-path spending \u00b7 1 MuSig2 aggregate key"
+    },
+    {
+      "name": "uncompressed_sh_pkh",
+      "input": "sh(pkh(0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8))",
+      "accepted": false,
+      "error": "The Miniscript compiler emitted an unsupported ASM token: <HASH160(0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8)>."
+    },
+    {
+      "name": "empty_sp",
+      "input": "sp()",
+      "accepted": true,
+      "output": null,
+      "summary": "Silent Payments descriptor"
+    },
+    {
+      "name": "invalid_combo",
+      "input": "combo(00)",
+      "accepted": true,
+      "output": null,
+      "summary": "combo output descriptor"
+    }
+  ],
+  "psbtProbes": [
+    {
+      "name": "ripemd_wrong_key_length",
+      "input": "cHNidP8B+wQCAAAAAQIEAgAAAAEEAQEBBQEBAAEOIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ8EAAAAAAIKAAEAAAEDCGQAAAAAAAAAAQQBUQA=",
+      "accepted": true,
+      "version": 2
+    },
+    {
+      "name": "ripemd_wrong_commitment",
+      "input": "cHNidP8B+wQCAAAAAQIEAgAAAAEEAQEBBQEBAAEOIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ8EAAAAABUKAAAAAAAAAAAAAAAAAAAAAAAAAAAPcHVibGljIHByZWltYWdlAAEDCGQAAAAAAAAAAQQBUQA=",
+      "accepted": true,
+      "version": 2
+    }
+  ],
+  "oracleProbes": [
+    {
+      "name": "aggregate_multipath",
+      "accepted": false,
+      "error": "parse descriptor: invalid key \"musig(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8,xpub661MyMwAqRbcEyvzYN3jWvgtkFQznWssG5i55m1TDqeZTkLPE1XpnDDAPEqazFNvZqhLXFJFpyaWUvqfVip3vcPR2fr9vmntLMYrxP15q7x)\": the provided serialized extended key length is invalid"
+    },
+    {
+      "name": "forbidden_participant_multipath",
+      "accepted": false,
+      "error": "parse descriptor: invalid key \"musig(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8\": the provided serialized extended key length is invalid"
+    },
+    {
+      "name": "uncompressed_sh_pkh",
+      "accepted": true,
+      "branch0": "3LRW7jeCvQCRdPF8S3yUCfRAx4eqXFmdcr",
+      "branch1": null
+    }
+  ],
+  "oracleLimit": "Go descriptor parser does not support musig; its rejection is not a MuSig conformance oracle.",
+  "extraChecks": [
+    {
+      "command": "node tooling/verify-dip13-vectors.mjs",
+      "exit": 0,
+      "output": "Verified DIP13 mainnet/testnet vectors with independent dashhd 3.3.3 derivation.\n"
+    },
+    {
+      "command": "node apps/discovery-scanner/scripts/verify-shielded-stream.mjs",
+      "exit": 0,
+      "output": "Verified one-pass bounded-memory Orchard stream, aligned chunk cursors, repeated-empty termination, and the hard page ceiling across three independent FVK ledgers.\n"
+    },
+    {
+      "command": "node apps/key-derivation/scripts/verify-self-test.mjs",
+      "exit": 0,
+      "output": "Verified startup cryptographic self-test: BIP39 \u00b7 Bitcoin Taproot / BIP86 \u00b7 Bitcoin testnet / BIP49 \u00b7 Bitcoin maximum child index \u00b7 Ethereum / EIP55 \u00b7 Dash Core / BIP44 \u00b7 Dash Core testnet / BIP44 \u00b7 Dash Platform / DIP17 \u00b7 Dash Platform testnet / DIP17 \u00b7 Dash Identity mainnet / DIP13 \u00b7 Dash Identity testnet / DIP13 \u00b7 Dash Mobile CoinJoin \u00b7 DIP9 \u00b7 mainnet \u00b7 Dash Mobile CoinJoin \u00b7 DIP9 \u00b7 testnet \u00b7 Master/account extended-key integrity \u00b7 Dash Orchard testnet / ZIP32 \u00b7 Dash Orchard mainnet / ZIP32 (308 ms)\n"
+    },
+    {
+      "command": "node apps/key-derivation/scripts/verify-dash-self-test.mjs",
+      "exit": 0,
+      "output": "Verified Dash Community startup self-test: Dash Core / BIP44 \u00b7 Dash Core testnet / BIP44 \u00b7 Dash Platform / DIP17 \u00b7 Dash Platform testnet / DIP17 \u00b7 Dash master/account extended-key integrity \u00b7 Dash Identity mainnet / DIP13 \u00b7 Dash Identity testnet / DIP13 \u00b7 Dash Mobile CoinJoin \u00b7 DIP9 \u00b7 mainnet \u00b7 Dash Mobile CoinJoin \u00b7 DIP9 \u00b7 testnet \u00b7 Dash Orchard testnet / ZIP32 \u00b7 Dash Orchard mainnet / ZIP32 (208 ms)\n"
+    },
+    {
+      "command": "node tooling/verify-shielded-wasm.mjs",
+      "exit": 0,
+      "output": "Verified generated Dash Orchard WASM vectors, domain separation, scanner boundary, and key zeroing.\nVerified compiled WASM External/Internal ciphertext recovery, exact plaintext, Internal nullifier, IVK/OVK capabilities, key wiping, and ledger spend reconstruction.\n"
+    }
+  ],
+  "linkReachability": [
+    {
+      "url": "https://docs.blockscout.com/api-reference/get-address-internal-transactions",
+      "status": 200
+    },
+    {
+      "url": "https://docs.blockscout.com/api-reference/get-address-transactions",
+      "status": 200
+    },
+    {
+      "url": "https://docs.dash.org/en/stable/docs/core/api/remote-procedure-calls-util.html",
+      "status": 200
+    },
+    {
+      "url": "https://docs.dash.org/en/stable/docs/core/api/remote-procedure-calls-wallet.html",
+      "status": 200
+    },
+    {
+      "url": "https://docs.dash.org/en/stable/docs/user/marketing.html",
+      "status": 200
+    },
+    {
+      "url": "https://docs.dash.org/projects/platform/en/latest/docs/tutorials/identities-and-names/withdraw-an-identity-balance.html",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/Blockstream/esplora/blob/master/API.md",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0045.mediawiki",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0112.mediawiki",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0174.mediawiki",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0342.mediawiki",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0370.mediawiki",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0371.mediawiki",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0382.mediawiki",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0386.mediawiki",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0389.mediawiki",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bips/tree/bfc142f2b580a314c846dbce3c15c659c2b1d32d",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bitcoin/blob/f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d/src/test/miniscript_tests.cpp",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/bitcoinerlab/miniscript",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashevo/dashsync-iOS/blob/master/DashSync/shared/Models/Derivation%20Paths/DSFundsDerivationPath.m",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/dash",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/dash/blob/master/src/test/descriptor_tests.cpp",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/dash/releases",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/dips",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/dips/blob/161637b85d735fa02b85d28d1214157a7e7bbe75/dip-0009.md",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/dips/blob/a4d46dd2d1d53471fe68912ec1b18e17bad9b76c/dip-0009/assignments.md",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/orchard",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/platform",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/platform.git",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/platform/blob/69b85c81af8e000e8506edaa13406d1f6274af5a/packages/rs-platform-wallet/src/wallet/shielded/sync/shield_decrypt_tests.rs",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/platform/commit/69b85c81af8e000e8506edaa13406d1f6274af5a",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/platform/releases/tag/v4.1.1",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/dashpay/rust-dashcore/blob/7e315af582bc6ec9c088447a7699099b5fbf0f96/key-wallet/src/account/account_type.rs",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/guggero/btcutil-js",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/hobby-eng/dash-wallet-tools",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/hobby-eng/dash-wallet-tools/releases",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/hobby-eng/multi-chain-wallet-tools",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml/badge.svg",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/hobby-eng/multi-chain-wallet-tools/releases",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/paulmillr/noble-ciphers",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/paulmillr/scure-btc-signer",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/protocolbuffers/protobuf/releases/download/v32.0/protoc-32.0-linux-x86_64.zip",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/pshenmic/platform-explorer/blob/ddc4c24a482906d2e6a15b13419786586cac3807/packages/api/src/dao/IdentitiesDAO.js",
+      "status": 200
+    },
+    {
+      "url": "https://github.com/pshenmic/platform-explorer/blob/ddc4c24a482906d2e6a15b13419786586cac3807/packages/indexer/src/entities/transfer.rs",
+      "status": 200
+    },
+    {
+      "url": "https://www.dash.org/brand-guidelines/",
+      "status": 200
+    },
+    {
+      "url": "https://www.figma.com/design/cCpB1W2IAmoEGXBbGqGsfD/Dash-BrandBook?node-id=219-108&p=f",
+      "status": 200
+    }
+  ],
+  "missingEarlierTestFiles": [
+    "packages/dash-network/tests/address-pagination.test.ts",
+    "packages/dash-network/tests/platform-explorer-network.test.ts",
+    "tooling/build-reproducible.test.mjs"
+  ],
+  "finalChecks": [
+    {
+      "command": "node tooling/sync-project-metadata.mjs --check",
+      "exit": 0,
+      "output": "Project metadata is synchronized at v0.1.4 (2026-09-11).\n"
+    },
+    {
+      "command": "node tooling/verify-project-facts.mjs",
+      "exit": 0,
+      "output": "Verified current project facts for v0.1.4: 14 network operations, Core/Platform batches 100/100, Identity concurrency 2.\n"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "command": "node --check tooling/verify-browser-files.mjs",
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0,
+      "output": ""
+    }
+  ],
+  "remediation": {
+    "date": "2026-09-12",
+    "status": {
+      "C01": "fixed",
+      "C02": "fixed",
+      "C03": "fixed",
+      "C04": "fixed",
+      "C05": "fixed",
+      "C06": "fixed"
+    },
+    "sourceFingerprint": "5f3224c008f326ef78584cf53c18db1dd4ec0941c0de237573b26f68aed0a37b",
+    "unitTests": {
+      "passed": 973,
+      "files": 80,
+      "addedTests": 54
+    },
+    "finalChecks": [
+      {
+        "command": "node tooling/sync-project-metadata.mjs --check",
+        "exit": 0,
+        "output": "Project metadata is synchronized at v0.1.4 (2026-09-11).\n"
+      },
+      {
+        "command": "node tooling/verify-project-facts.mjs",
+        "exit": 0,
+        "output": "Verified current project facts for v0.1.4: 14 network operations, Core/Platform batches 100/100, Identity concurrency 2.\n"
+      },
+      {
+        "command": "node node_modules/typescript/bin/tsc --noEmit",
+        "exit": 0,
+        "output": ""
+      },
+      {
+        "command": "git diff --check",
+        "exit": 0,
+        "output": ""
+      }
+    ],
+    "browserBasic": {
+      "path": "test-results/browser-files/2026-09-12T04-24-07.364Z/report.json",
+      "runs": [
+        {
+          "browser": "chromium",
+          "profile": "multi-chain",
+          "tool": "activity-viewer",
+          "passed": true,
+          "checks": [
+            "Mocked public-address lookup and 150-row Dash pagination",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "profile": "multi-chain",
+          "tool": "discovery-scanner",
+          "passed": true,
+          "checks": [
+            "Opaque vault parent-DOM isolation",
+            "Automatic candidate coin selection and custom-path isolation",
+            "Prefilled custom range, visual account editing and arbitrary free-form path preservation",
+            "Dash public descriptor detection",
+            "Scanner descriptor scan, pending-request cancellation, restart and secret-free JSON download",
+            "Seed batch/public-key batch tabs, testnet selection, scope warning and Clear",
+            "Scanner two-seed Core batch, isolated results, JSON export and Clear",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "profile": "multi-chain",
+          "tool": "key-derivation",
+          "passed": true,
+          "checks": [
+            "Read-only standard scheme parameters and canonical path preview",
+            "Public/private account descriptor downloads and reveal gate",
+            "Startup, synthetic BIP39 derivation, Clear and no HTTP",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "profile": "multi-chain",
+          "tool": "psbt-inspector",
+          "passed": true,
+          "checks": [
+            "Offline PSBT summary/advanced decoding, signed-message verification, script decoding, P2SH/P2WSH/P2TR/MuSig2 policy build and no HTTP",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "profile": "dash-community",
+          "tool": "activity-viewer",
+          "passed": true,
+          "checks": [
+            "Mocked public-address lookup and 150-row Dash pagination",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "profile": "dash-community",
+          "tool": "discovery-scanner",
+          "passed": true,
+          "checks": [
+            "Opaque vault parent-DOM isolation",
+            "Automatic candidate coin selection and custom-path isolation",
+            "Prefilled custom range, visual account editing and arbitrary free-form path preservation",
+            "Dash public descriptor detection",
+            "Scanner descriptor scan, pending-request cancellation, restart and secret-free JSON download",
+            "Seed batch/public-key batch tabs, testnet selection, scope warning and Clear",
+            "Scanner two-seed Core batch, isolated results, JSON export and Clear",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "profile": "dash-community",
+          "tool": "key-derivation",
+          "passed": true,
+          "checks": [
+            "Read-only standard scheme parameters and canonical path preview",
+            "Public/private account descriptor downloads and reveal gate",
+            "Startup, synthetic BIP39 derivation, Clear and no HTTP",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "profile": "dash-community",
+          "tool": "psbt-inspector",
+          "passed": true,
+          "checks": [
+            "Offline PSBT summary/advanced decoding, signed-message verification, script decoding, P2SH/P2WSH/P2TR/MuSig2 policy build and no HTTP",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "profile": "multi-chain",
+          "tool": "activity-viewer",
+          "passed": true,
+          "checks": [
+            "Mocked public-address lookup and 150-row Dash pagination",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "profile": "multi-chain",
+          "tool": "discovery-scanner",
+          "passed": true,
+          "checks": [
+            "Opaque vault parent-DOM isolation",
+            "Automatic candidate coin selection and custom-path isolation",
+            "Prefilled custom range, visual account editing and arbitrary free-form path preservation",
+            "Dash public descriptor detection",
+            "Scanner descriptor scan, pending-request cancellation, restart and secret-free JSON download",
+            "Seed batch/public-key batch tabs, testnet selection, scope warning and Clear",
+            "Scanner two-seed Core batch, isolated results, JSON export and Clear",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "profile": "multi-chain",
+          "tool": "key-derivation",
+          "passed": true,
+          "checks": [
+            "Read-only standard scheme parameters and canonical path preview",
+            "Public/private account descriptor downloads and reveal gate",
+            "Startup, synthetic BIP39 derivation, Clear and no HTTP",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "profile": "multi-chain",
+          "tool": "psbt-inspector",
+          "passed": true,
+          "checks": [
+            "Offline PSBT summary/advanced decoding, signed-message verification, script decoding, P2SH/P2WSH/P2TR/MuSig2 policy build and no HTTP",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "profile": "dash-community",
+          "tool": "activity-viewer",
+          "passed": true,
+          "checks": [
+            "Mocked public-address lookup and 150-row Dash pagination",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "profile": "dash-community",
+          "tool": "discovery-scanner",
+          "passed": true,
+          "checks": [
+            "Opaque vault parent-DOM isolation",
+            "Automatic candidate coin selection and custom-path isolation",
+            "Prefilled custom range, visual account editing and arbitrary free-form path preservation",
+            "Dash public descriptor detection",
+            "Scanner descriptor scan, pending-request cancellation, restart and secret-free JSON download",
+            "Seed batch/public-key batch tabs, testnet selection, scope warning and Clear",
+            "Scanner two-seed Core batch, isolated results, JSON export and Clear",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "profile": "dash-community",
+          "tool": "key-derivation",
+          "passed": true,
+          "checks": [
+            "Read-only standard scheme parameters and canonical path preview",
+            "Public/private account descriptor downloads and reveal gate",
+            "Startup, synthetic BIP39 derivation, Clear and no HTTP",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "profile": "dash-community",
+          "tool": "psbt-inspector",
+          "passed": true,
+          "checks": [
+            "Offline PSBT summary/advanced decoding, signed-message verification, script decoding, P2SH/P2WSH/P2TR/MuSig2 policy build and no HTTP",
+            "Desktop/mobile screenshots, footer scrolling and bounded bottom whitespace"
+          ]
+        }
+      ]
+    },
+    "browserExtended": {
+      "path": "test-results/browser-regressions/2026-09-12T04-26-24.921Z/report.json",
+      "runs": [
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "activity-viewer-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-KUMncl9ii+Vy2U18pkHHeZok+/qxqsSjX58q2llh2XA=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src https:; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": true,
+                "violations": [
+                  "script-src-elem"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "discovery-scanner-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-lqACka7eZl9bXlWSGMaJcb88o+L6Y7vnGymuSdAEKnc=' 'sha256-3m1jsQ0ia08bmVcytJTNt/Q8mH3OQiQ4Mm2vZZViRW4=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; connect-src https:; worker-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": true,
+                "violations": [
+                  "script-src-elem"
+                ],
+                "parentBlocked": null
+              }
+            },
+            {
+              "scope": "opaque-vault",
+              "csp": "default-src 'none'; script-src 'sha256-3m1jsQ0ia08bmVcytJTNt/Q8mH3OQiQ4Mm2vZZViRW4=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": "SecurityError",
+                "sessionStorage": "SecurityError",
+                "caches": "SecurityError",
+                "cookie": "SecurityError",
+                "indexedDB": "SecurityError"
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": true
+              }
+            }
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "key-derivation-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-OSiQNVLxElTt28M+X3JWmksh9t0fhj7D2KDK8V73vGk=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "psbt-inspector-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-xmTu4r5PIpig7gA/6leNBhlyEeUMovD7W33BwLVGUGE=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "descriptor-followup",
+          "passed": true,
+          "checks": [
+            "Valid descriptor compiles; malformed replacement hides all previous compiled results"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "verifier-revision",
+          "passed": true,
+          "checks": [
+            "Verification results invalidated on edit/Clear; unsafe custom Tapscript keys rejected before showing an output"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "coinjoin",
+          "passed": true,
+          "checks": [
+            "CoinJoin tab auto-derives visible external/internal results; distinct branch addresses; standard tab restores visible results"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "bip38-message",
+          "passed": true,
+          "checks": [
+            "bitcoin: compact message valid/tampered verification; two-key BIP38 round trip and wrong-password batch; reveal gates; clear/reload/storage/no HTTP"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "bip85-child-signer",
+          "passed": true,
+          "checks": [
+            "Auto-derived BIP85 exact child mnemonic; independent BIP86 address with distinct child passphrase; child signature accepted, changed message rejected; Clear/reload/storage/no HTTP"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "activity-viewer-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-cBOzOQZeeddsvJQtyn8h7egL3pxdQTvtDukLm8YQ4fk=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src https:; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": true,
+                "violations": [
+                  "script-src-elem"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "discovery-scanner-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-BgH5REjZ2e8EsGdTM9AApWPfkwHOb7HSyxQiJcE9Mzk=' 'sha256-k/8qihC8C+4GvI9WWcKzBCmZ+fXcxE66PgCTxtKs+p4=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; connect-src https:; worker-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": true,
+                "violations": [
+                  "script-src-elem"
+                ],
+                "parentBlocked": null
+              }
+            },
+            {
+              "scope": "opaque-vault",
+              "csp": "default-src 'none'; script-src 'sha256-k/8qihC8C+4GvI9WWcKzBCmZ+fXcxE66PgCTxtKs+p4=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": "SecurityError",
+                "sessionStorage": "SecurityError",
+                "caches": "SecurityError",
+                "cookie": "SecurityError",
+                "indexedDB": "SecurityError"
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": true
+              }
+            }
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "key-derivation-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-uCFogxDyjARCt9MSpcqJdaM2lfx9EFA73CLovobhRUs=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "psbt-inspector-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-jMC49HwLpeYQcjQLbhX1hiXuUKaNkX65bErlBp8eeXI='; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "descriptor-followup",
+          "passed": true,
+          "checks": [
+            "Valid descriptor compiles; malformed replacement hides all previous compiled results"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "verifier-revision",
+          "passed": true,
+          "checks": [
+            "Verification results invalidated on edit/Clear; unsafe custom Tapscript keys rejected before showing an output"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "coinjoin",
+          "passed": true,
+          "checks": [
+            "CoinJoin tab auto-derives visible external/internal results; distinct branch addresses; standard tab restores visible results"
+          ]
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "bip38-message",
+          "passed": true,
+          "checks": [
+            "dash: compact message valid/tampered verification; two-key BIP38 round trip and wrong-password batch; reveal gates; clear/reload/storage/no HTTP"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "activity-viewer-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-KUMncl9ii+Vy2U18pkHHeZok+/qxqsSjX58q2llh2XA=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src https:; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": true,
+                "violations": [
+                  "script-src-elem"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "discovery-scanner-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-lqACka7eZl9bXlWSGMaJcb88o+L6Y7vnGymuSdAEKnc=' 'sha256-3m1jsQ0ia08bmVcytJTNt/Q8mH3OQiQ4Mm2vZZViRW4=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; connect-src https:; worker-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": true,
+                "violations": [
+                  "script-src-elem"
+                ],
+                "parentBlocked": null
+              }
+            },
+            {
+              "scope": "opaque-vault",
+              "csp": "default-src 'none'; script-src 'sha256-3m1jsQ0ia08bmVcytJTNt/Q8mH3OQiQ4Mm2vZZViRW4=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": "SecurityError",
+                "sessionStorage": "SecurityError",
+                "caches": "SecurityError",
+                "cookie": "SecurityError",
+                "indexedDB": "SecurityError"
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": true
+              }
+            }
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "key-derivation-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-OSiQNVLxElTt28M+X3JWmksh9t0fhj7D2KDK8V73vGk=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "psbt-inspector-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-xmTu4r5PIpig7gA/6leNBhlyEeUMovD7W33BwLVGUGE=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "descriptor-followup",
+          "passed": true,
+          "checks": [
+            "Valid descriptor compiles; malformed replacement hides all previous compiled results"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "verifier-revision",
+          "passed": true,
+          "checks": [
+            "Verification results invalidated on edit/Clear; unsafe custom Tapscript keys rejected before showing an output"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "coinjoin",
+          "passed": true,
+          "checks": [
+            "CoinJoin tab auto-derives visible external/internal results; distinct branch addresses; standard tab restores visible results"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "bip38-message",
+          "passed": true,
+          "checks": [
+            "bitcoin: compact message valid/tampered verification; two-key BIP38 round trip and wrong-password batch; reveal gates; clear/reload/storage/no HTTP"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "bip85-child-signer",
+          "passed": true,
+          "checks": [
+            "Auto-derived BIP85 exact child mnemonic; independent BIP86 address with distinct child passphrase; child signature accepted, changed message rejected; Clear/reload/storage/no HTTP"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "activity-viewer-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-cBOzOQZeeddsvJQtyn8h7egL3pxdQTvtDukLm8YQ4fk=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src https:; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": true,
+                "violations": [
+                  "script-src-elem"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "discovery-scanner-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-BgH5REjZ2e8EsGdTM9AApWPfkwHOb7HSyxQiJcE9Mzk=' 'sha256-k/8qihC8C+4GvI9WWcKzBCmZ+fXcxE66PgCTxtKs+p4=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; connect-src https:; worker-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": true,
+                "violations": [
+                  "script-src-elem"
+                ],
+                "parentBlocked": null
+              }
+            },
+            {
+              "scope": "opaque-vault",
+              "csp": "default-src 'none'; script-src 'sha256-k/8qihC8C+4GvI9WWcKzBCmZ+fXcxE66PgCTxtKs+p4=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": "SecurityError",
+                "sessionStorage": "SecurityError",
+                "caches": "SecurityError",
+                "cookie": "SecurityError",
+                "indexedDB": "SecurityError"
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": true
+              }
+            }
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "key-derivation-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-uCFogxDyjARCt9MSpcqJdaM2lfx9EFA73CLovobhRUs=' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "psbt-inspector-boundaries",
+          "passed": true,
+          "checks": [
+            {
+              "scope": "top-level",
+              "csp": "default-src 'none'; script-src 'sha256-jMC49HwLpeYQcjQLbhX1hiXuUKaNkX65bErlBp8eeXI='; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+              "storage": {
+                "localStorage": {},
+                "sessionStorage": {},
+                "caches": [],
+                "cookie": "",
+                "indexedDB": []
+              },
+              "probes": {
+                "inlineExecuted": false,
+                "fetchAllowed": false,
+                "violations": [
+                  "script-src-elem",
+                  "connect-src"
+                ],
+                "parentBlocked": null
+              }
+            }
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "descriptor-followup",
+          "passed": true,
+          "checks": [
+            "Valid descriptor compiles; malformed replacement hides all previous compiled results"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "verifier-revision",
+          "passed": true,
+          "checks": [
+            "Verification results invalidated on edit/Clear; unsafe custom Tapscript keys rejected before showing an output"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "coinjoin",
+          "passed": true,
+          "checks": [
+            "CoinJoin tab auto-derives visible external/internal results; distinct branch addresses; standard tab restores visible results"
+          ]
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "bip38-message",
+          "passed": true,
+          "checks": [
+            "dash: compact message valid/tampered verification; two-key BIP38 round trip and wrong-password batch; reveal gates; clear/reload/storage/no HTTP"
+          ]
+        }
+      ]
+    },
+    "artifactHashes": {
+      "dist/multi-chain-edition/release/Wallet_Discovery_Scanner.html": "d62251ff7d80a1734323ca6db74ccc7f22d7c259636fbebb827fbb2b7aba8006",
+      "dist/multi-chain-edition/release/PSBT_Multisig_Inspector.html": "0a6a866b4dae60c22b91f6ade4b6ff19c91855ed71f8844a1aa42a3df6a79dc0",
+      "dist/multi-chain-edition/release/Wallet_Key_Derivation_Tool.html": "a466ecf7a1640189c50d3f88940ac1ad8e6dd2305bee5a302d20784da9bd8c92",
+      "dist/multi-chain-edition/release/Wallet_Activity_Viewer.html": "e5e50d9140bef3752af1975c4e781c5a72435cd7abae37413c7580d805c1deed",
+      "dist/multi-chain-edition/discovery-scanner/Wallet_Discovery_Scanner.html": "977ae4ac1ec9114ea39e88ae8b45818457e3af3bbe281364b74cd0b4c7b6f2c5",
+      "dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html": "9365eb994cb3799fba58cf49510997709a05b37ab99cb601f41e76ae1466e340",
+      "dist/multi-chain-edition/activity-viewer/Wallet_Activity_Viewer.html": "e2119b5f8ff37f0e0eb8e9d6ed0cb7b3b830bbebccff11fc7cca21f3ba9765b4",
+      "dist/multi-chain-edition/psbt-inspector/PSBT_Multisig_Inspector.html": "1091051c001e5d66a782826d599983d2853c481bb33c0256e5454823055aeadf",
+      "dist/dash-community-edition/release/Dash_Community_Discovery_Scanner.html": "c95fdfff696dbcca0f29d1899f608fd7ee828e545c98899631d18906ec605c38",
+      "dist/dash-community-edition/release/Dash_Community_Activity_Viewer.html": "276e0ebafc7839f44ab94ecfc4a10284caffed1ca96c275fb2ab48bbc565e073",
+      "dist/dash-community-edition/release/Dash_Community_Key_Derivation_Tool.html": "2ece0db264d99a83c85d8d085e3c4ecb9aa2b99a351842583a9167cb06aeea3b",
+      "dist/dash-community-edition/release/Dash_Community_PSBT_Multisig_Inspector.html": "1ec347c1494ed36a407f391e35aa472635f5211a01b7799a6fe983d17e217bd9",
+      "dist/dash-community-edition/discovery-scanner/Dash_Community_Discovery_Scanner.html": "498bc41aaaf5c5340e87bcc41ea08bc0a608d1fd98b51103ec7a02cb35298f15",
+      "dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html": "11506e1d2304d90dcedab3adf9ae993437f94568c0680663689f1265e394a3bf",
+      "dist/dash-community-edition/activity-viewer/Dash_Community_Activity_Viewer.html": "f5a640586f49a6502a01acd611f648fa4682fa266d1e061bb19aa2ac015d7982",
+      "dist/dash-community-edition/psbt-inspector/Dash_Community_PSBT_Multisig_Inspector.html": "a451fdfdb30b098f09aa54e09590c5c24c2ee311a9ea09afce903009523be2e9"
+    },
+    "buildAndArtifactLog": "Built dist/multi-chain-edition/activity-viewer/Wallet_Activity_Viewer.html (10,979,341 bytes)\nSHA-256 e2119b5f8ff37f0e0eb8e9d6ed0cb7b3b830bbebccff11fc7cca21f3ba9765b4\nBuilt dist/multi-chain-edition/discovery-scanner/Wallet_Discovery_Scanner.html (11,058,109 bytes)\nSHA-256 977ae4ac1ec9114ea39e88ae8b45818457e3af3bbe281364b74cd0b4c7b6f2c5\nBuilt dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html (12,818,529 bytes)\nSHA-256 9365eb994cb3799fba58cf49510997709a05b37ab99cb601f41e76ae1466e340\nBuilt dist/multi-chain-edition/psbt-inspector/PSBT_Multisig_Inspector.html (12,398,794 bytes)\nSHA-256 1091051c001e5d66a782826d599983d2853c481bb33c0256e5454823055aeadf\nCreated dist/multi-chain-edition/SHA256SUMS for Multi-Chain Edition artifacts.\nBuilt dist/dash-community-edition/activity-viewer/Dash_Community_Activity_Viewer.html (10,956,723 bytes)\nSHA-256 f5a640586f49a6502a01acd611f648fa4682fa266d1e061bb19aa2ac015d7982\nBuilt dist/dash-community-edition/discovery-scanner/Dash_Community_Discovery_Scanner.html (10,999,581 bytes)\nSHA-256 498bc41aaaf5c5340e87bcc41ea08bc0a608d1fd98b51103ec7a02cb35298f15\nBuilt dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html (691,297 bytes)\nSHA-256 11506e1d2304d90dcedab3adf9ae993437f94568c0680663689f1265e394a3bf\nBuilt dist/dash-community-edition/psbt-inspector/Dash_Community_PSBT_Multisig_Inspector.html (342,026 bytes)\nSHA-256 a451fdfdb30b098f09aa54e09590c5c24c2ee311a9ea09afce903009523be2e9\nCreated dist/dash-community-edition/SHA256SUMS for Dash Community Edition artifacts.\nVerified separate network-enabled viewer artifact: e2119b5f8ff37f0e0eb8e9d6ed0cb7b3b830bbebccff11fc7cca21f3ba9765b4\nVerified sandboxed Discovery Scanner artifact: 977ae4ac1ec9114ea39e88ae8b45818457e3af3bbe281364b74cd0b4c7b6f2c5\nVerified standalone offline artifact: 9365eb994cb3799fba58cf49510997709a05b37ab99cb601f41e76ae1466e340\nVerified offline PSBT & Multisig Inspector artifact: 1091051c001e5d66a782826d599983d2853c481bb33c0256e5454823055aeadf\nVerified dist/multi-chain-edition/SHA256SUMS for Multi-Chain Edition artifacts.\nVerified separate network-enabled viewer artifact: f5a640586f49a6502a01acd611f648fa4682fa266d1e061bb19aa2ac015d7982\nVerified sandboxed Discovery Scanner artifact: 498bc41aaaf5c5340e87bcc41ea08bc0a608d1fd98b51103ec7a02cb35298f15\nVerified standalone offline artifact: 11506e1d2304d90dcedab3adf9ae993437f94568c0680663689f1265e394a3bf\nVerified offline PSBT & Multisig Inspector artifact: a451fdfdb30b098f09aa54e09590c5c24c2ee311a9ea09afce903009523be2e9\nVerified dist/dash-community-edition/SHA256SUMS for Dash Community Edition artifacts.\nVerified Dash Community artifact branding, filenames, metadata, and non-Dash code/copy exclusion.\n",
+    "oracleCorrection": "Go normalized the 65-byte legacy key to compressed form. Explicit Python/OpenSSL hashing establishes 3DJgFhQBWVq9CdfzyJ9m5Lo6cYKh24anLh for the original uncompressed key; 3LRW7jeCvQCRdPF8S3yUCfRAx4eqXFmdcr belongs to the compressed form. Both have regression assertions.",
+    "limitations": [
+      "No fresh Docker/native Rust/WASM rebuild; generated WASM unchanged.",
+      "Vector updater syntax checked, not refreshed over the network.",
+      "Earlier intermittent Firefox reload failure not reproduced in the complete passing run; root cause remains unestablished.",
+      "Corrections committed locally; no push or release."
+    ]
+  }
+}

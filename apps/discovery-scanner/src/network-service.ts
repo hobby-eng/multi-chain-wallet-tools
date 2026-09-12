@@ -1,3 +1,4 @@
+import { assertPlatformExplorerNetwork } from '@ckd/dash-network/provider-json.js';
 import { readProviderJson } from '@ckd/dash-network/provider-json.js';
 import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
 import { IdentityPageIntegrity } from '@ckd/dash-network/identity-pagination.js';
@@ -247,10 +248,7 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     const status = record(await fetchJson(`${endpoint}/status`, signal), 'status');
     const indexer = record(status.indexer, 'indexer status');
     if (indexer.status !== 'synced') throw new Error('Platform Explorer index is not synchronized.');
-    const reportedNetwork = typeof status.network === 'string' ? status.network : '';
-    if (network === 'testnet' ? !/testnet/iu.test(reportedNetwork) : /testnet/iu.test(reportedNetwork)) {
-      throw new Error('Platform Explorer returned status for the wrong network.');
-    }
+    assertPlatformExplorerNetwork(status.network, network);
     const api = record(status.api, 'API status');
     return unsignedInteger(record(api.block, 'latest block').height, 'latest indexed height');
   }

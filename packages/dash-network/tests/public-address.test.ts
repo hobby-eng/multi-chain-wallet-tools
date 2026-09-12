@@ -18,6 +18,8 @@ describe('public Dash address viewer', () => {
     expect(validateCoreAddress(CORE_ADDRESS, 'mainnet')).toBe(CORE_ADDRESS);
     expect(() => validateCoreAddress(CORE_ADDRESS, 'testnet')).toThrow(/testnet/u);
     expect(validatePlatformAddress(PLATFORM_ADDRESS, 'mainnet')).toBe(PLATFORM_ADDRESS);
+    expect(validatePlatformAddress(PLATFORM_ADDRESS.toUpperCase(), 'mainnet')).toBe(PLATFORM_ADDRESS);
+    expect(() => validatePlatformAddress(PLATFORM_ADDRESS.replace('dash', 'daSh'), 'mainnet')).toThrow();
     expect(() => validatePlatformAddress(PLATFORM_ADDRESS, 'testnet')).toThrow(/testnet/u);
   });
 
@@ -69,6 +71,7 @@ describe('public Dash address viewer', () => {
         };
       } else {
         body = {
+          address: CORE_ADDRESS,
           balance: '810',
           received: '1000',
           sent: '200',

@@ -1,3 +1,4 @@
+import { assertPlatformExplorerNetwork } from './provider-json.js';
 import { IdentityPageIntegrity } from './identity-pagination.js';
 import { createProviderHttp, ProviderHttpError, type FetchLike } from './provider-http.js';
 import type { ViewerNetwork } from './types.js';
@@ -524,10 +525,7 @@ export async function queryPlatformIdentityHistory(
   if (indexer.status !== 'synced') {
     throw new Error('Platform Explorer reports that its index is not synchronized with Dash Platform.');
   }
-  const reportedNetwork = text(status.network) ?? '';
-  if (network === 'testnet' ? !/testnet/iu.test(reportedNetwork) : /testnet/iu.test(reportedNetwork)) {
-    throw new Error(`Platform Explorer returned status for the wrong network (${reportedNetwork || 'unknown'}).`);
-  }
+  assertPlatformExplorerNetwork(status.network, network);
   const api = object(status.api, 'API status');
   const tip = object(api.block, 'latest indexed block');
   const indexedHeight = requiredInteger(tip.height, 'latest indexed Platform height');

@@ -55,6 +55,10 @@ RUN pnpm install --frozen-lockfile \
 RUN cp -a packages/dash-shielded-wasm/generated /tmp/committed-generated
 
 FROM dependencies AS built
+ARG SOURCE_COMMIT=unavailable
+ARG SOURCE_DIRTY=false
+ENV VERIFICATION_COMMIT=${SOURCE_COMMIT} \
+    VERIFICATION_DIRTY=${SOURCE_DIRTY}
 RUN --network=none pnpm verify
 
 FROM built AS verified

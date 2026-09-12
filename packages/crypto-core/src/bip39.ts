@@ -17,8 +17,8 @@ export function assertValidMnemonic(value: string): string {
     throw new Error('Enter exactly 12, 15, 18, 21, or 24 BIP39 English words.');
   }
   if (!validateMnemonic(mnemonic, wordlist)) {
-    // This call gives a useful unknown-word/checksum error in development, but the UI keeps
-    // the public message concise and avoids echoing recovery words.
+    // Preserve a concise diagnostic for local input validation. The candidate-scan
+    // export boundary replaces this error with fixed text before reporting it.
     try {
       mnemonicToEntropy(mnemonic, wordlist);
     } catch (error) {
@@ -40,6 +40,7 @@ export function generateMnemonic(wordCount: 12 | 24): string {
   if (globalThis.crypto?.getRandomValues === undefined) {
     throw new Error('Secure randomness is unavailable: crypto.getRandomValues is required.');
   }
+
   const entropy = new Uint8Array(wordCount === 12 ? 16 : 32);
   globalThis.crypto.getRandomValues(entropy);
   try {
@@ -47,4 +48,8 @@ export function generateMnemonic(wordCount: 12 | 24): string {
   } finally {
     entropy.fill(0);
   }
+}
+
+export function entropyToEnglishMnemonic(entropy: Uint8Array): string {
+  return entropyToMnemonic(entropy, wordlist);
 }

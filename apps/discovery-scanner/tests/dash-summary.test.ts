@@ -56,3 +56,14 @@ describe('Dash wallet-wide recovery summary', () => {
     expect(overview.find(({ label }) => label === 'Total located value')?.value).toBe('0.755463372 DASH');
   });
 });
+
+
+describe('Audit regressions: overlapping Core families', () => {
+  it.each([100_000_000n, 200_000_000n])('deduplicates or rejects inconsistent observations %s', balance => {
+    const core = section('core', [100_000_000n]); const legacy = section('legacyCore', [balance]);
+    const findings = legacy.findings.map(finding => ({ ...finding, title: core.findings[0]!.title }));
+    const metrics = summarizeDashSections([core, { ...legacy, findings }]);
+    expect(metrics.find(row => row.label === 'Total located value')?.value).toBe(balance === 100_000_000n ? '1 DASH' : 'Unavailable · incomplete balance coverage');
+    if (balance === 100_000_000n) expect(metrics.find(row => row.label === 'Funded resources')?.value).toBe('1');
+  });
+});

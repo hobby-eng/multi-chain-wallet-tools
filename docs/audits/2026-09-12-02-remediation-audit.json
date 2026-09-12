@@ -1,0 +1,465 @@
+{
+  "reviewedAt": "2026-09-12T03:59:22.574429+00:00",
+  "reviewer": "OpenAI Codex (GPT-6 family; exact service snapshot not exposed)",
+  "baseCommit": "ea5d4215ccbf355dd86f1c9928e213df1e23d186",
+  "source": "hobby-eng-studious-tribble plus uncommitted changes",
+  "version": "0.1.4",
+  "unitTests": {
+    "files": 76,
+    "passed": 919
+  },
+  "browser": {
+    "remediation-browser-files": {
+      "startedAt": "2026-09-12T03:52:51.611Z",
+      "runs": [
+        {
+          "browser": "chromium",
+          "version": null,
+          "profile": "multi-chain",
+          "name": "activity-viewer",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": null,
+          "profile": "multi-chain",
+          "name": "discovery-scanner",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": null,
+          "profile": "multi-chain",
+          "name": "key-derivation",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": null,
+          "profile": "multi-chain",
+          "name": "psbt-inspector",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": null,
+          "profile": "dash-community",
+          "name": "activity-viewer",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": null,
+          "profile": "dash-community",
+          "name": "discovery-scanner",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": null,
+          "profile": "dash-community",
+          "name": "key-derivation",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": null,
+          "profile": "dash-community",
+          "name": "psbt-inspector",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": null,
+          "profile": "multi-chain",
+          "name": "activity-viewer",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": null,
+          "profile": "multi-chain",
+          "name": "discovery-scanner",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": null,
+          "profile": "multi-chain",
+          "name": "key-derivation",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": null,
+          "profile": "multi-chain",
+          "name": "psbt-inspector",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": null,
+          "profile": "dash-community",
+          "name": "activity-viewer",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": null,
+          "profile": "dash-community",
+          "name": "discovery-scanner",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": null,
+          "profile": "dash-community",
+          "name": "key-derivation",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": null,
+          "profile": "dash-community",
+          "name": "psbt-inspector",
+          "passed": true,
+          "error": null
+        }
+      ]
+    },
+    "remediation-browser-regressions": {
+      "startedAt": "2026-09-12T03:54:49.112Z",
+      "runs": [
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "activity-viewer-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "discovery-scanner-boundaries",
+          "passed": false,
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'undefined',\n+   'undefined'\n+ ]\n- []\n\n    at file:///home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:337:18"
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "key-derivation-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "psbt-inspector-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "verifier-revision",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "coinjoin",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "bip38-message",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "bip85-child-signer",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "activity-viewer-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "discovery-scanner-boundaries",
+          "passed": false,
+          "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'undefined'\n+ ]\n- []\n\n    at file:///home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:337:18"
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "key-derivation-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "psbt-inspector-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "verifier-revision",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "coinjoin",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "bip38-message",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "activity-viewer-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "discovery-scanner-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "key-derivation-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "psbt-inspector-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "verifier-revision",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "coinjoin",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "bip38-message",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "bip85-child-signer",
+          "passed": false,
+          "error": "page.reload: Page crashed\nCall log:\n\u001b[2m  - waiting for navigation until \"load\"\u001b[22m\n\u001b[2m    - navigated to \"file:///home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html\"\u001b[22m\n\n    at childWallet (/home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:217:14)\n    at async file:///home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble/tooling/verify-browser-regressions.mjs:336:11"
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "activity-viewer-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "discovery-scanner-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "key-derivation-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "psbt-inspector-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "verifier-revision",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "coinjoin",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "dash-community",
+          "name": "bip38-message",
+          "passed": true,
+          "error": null
+        }
+      ]
+    },
+    "remediation-chromium-boundaries": {
+      "startedAt": "2026-09-12T03:57:42.949Z",
+      "runs": [
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "multi-chain",
+          "name": "discovery-scanner-boundaries",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "chromium",
+          "version": "151.0.7922.34",
+          "profile": "dash-community",
+          "name": "discovery-scanner-boundaries",
+          "passed": true,
+          "error": null
+        }
+      ]
+    },
+    "remediation-firefox-bip85": {
+      "startedAt": "2026-09-12T03:56:43.759Z",
+      "runs": [
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "bip85-child-signer",
+          "passed": true,
+          "error": null
+        }
+      ]
+    },
+    "remediation-firefox-sequence": {
+      "startedAt": "2026-09-12T03:57:59.524Z",
+      "runs": [
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "bip38-message",
+          "passed": true,
+          "error": null
+        },
+        {
+          "browser": "firefox",
+          "version": "153.0",
+          "profile": "multi-chain",
+          "name": "bip85-child-signer",
+          "passed": true,
+          "error": null
+        }
+      ]
+    }
+  },
+  "artifacts": {
+    "dist/dash-community-edition/activity-viewer/Dash_Community_Activity_Viewer.html": "d70f59ff7bcef03bb1cbf75d095f8eaaab6e3ef7d7574f8f8eeb16cdcc0aafe1",
+    "dist/dash-community-edition/discovery-scanner/Dash_Community_Discovery_Scanner.html": "41b232dab90a583cadb0ac92984186bdfcdf34eb8b520bf2c10727167cd520ce",
+    "dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html": "f9b85d64c1314f91aedc3297df98cad911c013c4a48579560f93318dd6019cad",
+    "dist/dash-community-edition/psbt-inspector/Dash_Community_PSBT_Multisig_Inspector.html": "f0815bfda8a307042fb69c86a4c149fae1f05604e22f33a58dab7c8f3d69346d",
+    "dist/dash-community-edition/release/Dash_Community_Activity_Viewer.html": "276e0ebafc7839f44ab94ecfc4a10284caffed1ca96c275fb2ab48bbc565e073",
+    "dist/dash-community-edition/release/Dash_Community_Discovery_Scanner.html": "c95fdfff696dbcca0f29d1899f608fd7ee828e545c98899631d18906ec605c38",
+    "dist/dash-community-edition/release/Dash_Community_Key_Derivation_Tool.html": "2ece0db264d99a83c85d8d085e3c4ecb9aa2b99a351842583a9167cb06aeea3b",
+    "dist/dash-community-edition/release/Dash_Community_PSBT_Multisig_Inspector.html": "1ec347c1494ed36a407f391e35aa472635f5211a01b7799a6fe983d17e217bd9",
+    "dist/multi-chain-edition/activity-viewer/Wallet_Activity_Viewer.html": "145e4a8efec67be1dd54a597e53a21fcac3dfd8d6fd9300f2f2eb17c4a7cde02",
+    "dist/multi-chain-edition/discovery-scanner/Wallet_Discovery_Scanner.html": "696ae4d83119dfe15bbcb005c9a2685abf34ce99470438e613f56da6039d87c0",
+    "dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html": "a24e7d89768747493a46b2266130cba4492e57d3b62c13986b486a5456a15dfd",
+    "dist/multi-chain-edition/psbt-inspector/PSBT_Multisig_Inspector.html": "03721a170df1a84b47b958915e22ca8893a1ad997d75277982d1cecc37332639",
+    "dist/multi-chain-edition/release/PSBT_Multisig_Inspector.html": "0a6a866b4dae60c22b91f6ade4b6ff19c91855ed71f8844a1aa42a3df6a79dc0",
+    "dist/multi-chain-edition/release/Wallet_Activity_Viewer.html": "e5e50d9140bef3752af1975c4e781c5a72435cd7abae37413c7580d805c1deed",
+    "dist/multi-chain-edition/release/Wallet_Discovery_Scanner.html": "d62251ff7d80a1734323ca6db74ccc7f22d7c259636fbebb827fbb2b7aba8006",
+    "dist/multi-chain-edition/release/Wallet_Key_Derivation_Tool.html": "a466ecf7a1640189c50d3f88940ac1ad8e6dd2305bee5a302d20784da9bd8c92"
+  },
+  "remainingIssue": "Firefox BIP85 page.reload crash occurred in the full matrix; isolated and BIP38-to-BIP85 sequence reruns passed. Root cause unresolved."
+}

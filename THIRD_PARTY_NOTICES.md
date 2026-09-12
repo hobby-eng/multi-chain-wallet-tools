@@ -1,6 +1,6 @@
 # Dependency and third-party license report
 
-Verified 2026-09-08 from exact package manifests, `pnpm-lock.yaml`, `Cargo.lock`, and locked Cargo metadata. This is dependency provenance information, not legal advice. The upstream license files remain authoritative.
+Initial provenance review: 2026-09-08, using exact package manifests, `pnpm-lock.yaml`, `Cargo.lock`, and locked Cargo metadata. Direct JavaScript versions were reconciled with the current manifest again on 2026-09-12; this does not renew the upstream source or license review. This is dependency provenance information, not legal advice. The upstream license files remain authoritative.
 
 Original project code is licensed under the repository's [MIT License](LICENSE), copyright (c) 2026 hobby-eng. The tables below describe separately licensed third-party components and do not transfer their authorship or trademarks to this project.
 
@@ -8,7 +8,13 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 
 | Package | Exact version | Source repository | License | Purpose |
 | --- | --- | --- | --- | --- |
+| `@bitcoinerlab/miniscript` | 2.0.0 | `bitcoinerlab/miniscript` | MIT | Local Bitcoin Miniscript parsing, safety analysis, and Script ASM compilation |
+| `bip68` | 1.0.4 | `bitcoinjs/bip68` | ISC | Relative-locktime handling used by the Miniscript analyzer |
+| `@scure/btc-signer` | 2.4.1 | `paulmillr/scure-btc-signer` | MIT | Local BIP-327 MuSig2 key aggregation, BIP-328 derivation, Taproot output construction, and BIP-373 field definitions |
+| `btcutil-js` | 0.4.1 | `guggero/btcutil-js` | MIT | Offline BIP-322 legacy/simple/full/proof-of-funds verification using a btcd-derived Bitcoin Script engine compiled to WebAssembly |
+| `micro-packed` | 0.11.1 | `paulmillr/micro-packed` | MIT | Binary codecs used by Scure BTC Signer |
 | `@noble/curves` | 2.4.0 | `paulmillr/noble-curves` | MIT | secp256k1, BIP340/Schnorr utilities |
+| `@noble/ciphers` | 2.4.0 | `paulmillr/noble-ciphers` | MIT | AES-256-ECB primitive used only for BIP38 compatibility; padding is disabled as required by BIP38 |
 | `@noble/hashes` | 2.4.0 | `paulmillr/noble-hashes` | MIT | SHA-2, RIPEMD160, Keccak, byte utilities |
 | `@scure/base` | 2.4.0 | `paulmillr/scure-base` | MIT | Base58Check, Bech32, Bech32m |
 | `@scure/bip32` | 2.4.0 | `paulmillr/scure-bip32` | MIT | BIP32 HD key derivation/serialization |
@@ -23,7 +29,7 @@ The two Dash SDK packages are bundled into both editions of the Wallet Activity 
 
 The MIT provenance for `@dashevo/evo-sdk` and `@dashevo/wasm-sdk` is based explicitly on `dashpay/platform` v4.1.1 at commit `69b85c81af8e000e8506edaa13406d1f6274af5a` and that repository's root `LICENSE.md`. The published npm package manifests and tarballs omit license metadata, so the upstream tagged source is the authoritative license reference for these two packages.
 
-All three Dash Community Edition headers embed the official “Dash D Circle” SVG from the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), licensed CC BY 4.0. Their color and geometric treatment is based on the official [Dash BrandBook](https://www.figma.com/design/cCpB1W2IAmoEGXBbGqGsfD/Dash-BrandBook?node-id=219-108&p=f) and the palette recorded in the primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html). Multi-Chain Edition headers do not display the Dash-only mark. Use of the mark and palette identifies the Dash-only Community Edition and does not imply endorsement.
+All four Dash Community Edition headers embed the official “Dash D Circle” SVG from the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), licensed CC BY 4.0. Their color and geometric treatment is based on the official [Dash BrandBook](https://www.figma.com/design/cCpB1W2IAmoEGXBbGqGsfD/Dash-BrandBook?node-id=219-108&p=f) and the palette recorded in the primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html). Multi-Chain Edition headers do not display the Dash-only mark. Use of the mark and palette identifies the Dash-only Community Edition and does not imply endorsement.
 
 ## External runtime services (not bundled dependencies)
 
@@ -58,6 +64,7 @@ These packages are not imported by production source except esbuild/TypeScript d
 | `esbuild` | 0.28.2 | `evanw/esbuild` | MIT | Browser bundle and CSS minification |
 | `typescript` | 7.0.2 | `microsoft/TypeScript` | Apache-2.0 | Static type checking |
 | `vitest` | 5.0.0 | `vitest-dev/vitest` | MIT | JS/TS tests |
+| `playwright` | 1.62.1 | `microsoft/playwright` | Apache-2.0 | Chromium/Firefox standalone-file and browser-regression tests |
 
 ## Complete locked Rust metadata closure
 
@@ -144,4 +151,5 @@ wasi 0.11.1+wasi-snapshot-preview1                           Apache-2.0 WITH LLV
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.
 - `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions, mnemonic-bearing online boundary, and independent-audit warning; its current Bitcoin, Ethereum, and Dash providers are documented in its application README and the root security audit.
+- `apps/psbt-inspector/src/index.html` identifies its embedded BitcoinerLab Miniscript compiler/analyzer and Scure BTC Signer MuSig2 inspection dependency. The pinned dependency remains unmodified; the standalone esbuild bundle may tree-shake signing APIs that this inspect/derive-only application does not import.
 - Original project code is licensed under MIT as declared in the root `LICENSE` and `package.json`. Third-party components retain the licenses and notices listed above.

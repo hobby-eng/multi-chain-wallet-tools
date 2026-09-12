@@ -32,11 +32,18 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$root"
+source_commit="$(git rev-parse HEAD 2>/dev/null || printf '%s' unavailable)"
+source_dirty=false
+if [[ -n "$(git status --porcelain 2>/dev/null || true)" ]]; then
+  source_dirty=true
+fi
 docker version
 docker build \
   --platform linux/amd64 \
   --network host \
   --file Dockerfile.reproducible \
+  --build-arg "SOURCE_COMMIT=$source_commit" \
+  --build-arg "SOURCE_DIRTY=$source_dirty" \
   --target "$target" \
   --tag "$image" \
   .

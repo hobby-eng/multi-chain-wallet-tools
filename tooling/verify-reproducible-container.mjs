@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const dockerfile = read('Dockerfile.reproducible');
+const shellWrapper = read('tooling/build-reproducible.sh');
 
 function requireMatch(text, pattern, message) {
   if (!pattern.test(text)) throw new Error(message);
@@ -26,6 +27,10 @@ for (const expected of [
   'cargo install wasm-bindgen-cli --version 0.2.128 --locked',
   'for attempt in 1 2 3 4 5',
   'Cargo fetch attempt ${attempt} failed',
+  'ARG SOURCE_COMMIT=unavailable',
+  'ARG SOURCE_DIRTY=false',
+  'VERIFICATION_COMMIT=${SOURCE_COMMIT}',
+  'VERIFICATION_DIRTY=${SOURCE_DIRTY}',
   'RUN --network=none pnpm verify',
   'diff --recursive --brief /tmp/committed-generated packages/dash-shielded-wasm/generated',
   'FROM scratch AS artifacts',
@@ -34,11 +39,36 @@ for (const expected of [
   if (!dockerfile.includes(expected)) throw new Error(`Missing canonical container assertion: ${expected}`);
 }
 
+for (const expected of [
+  'git rev-parse HEAD',
+  'git status --porcelain',
+  '--build-arg "SOURCE_COMMIT=$source_commit"',
+  '--build-arg "SOURCE_DIRTY=$source_dirty"',
+]) {
+  if (!shellWrapper.includes(expected)) {
+    throw new Error(`The local reproducible-build wrapper is missing provenance binding: ${expected}`);
+  }
+}
+
 for (const path of ['.github/workflows/ci.yml', '.github/workflows/full-wasm.yml', '.github/workflows/release.yml']) {
   const workflow = read(path);
-  for (const expected of ['--platform linux/amd64', '--network host', '--file Dockerfile.reproducible', '--target artifacts']) {
+  for (const expected of ['--platform linux/amd64', '--network host', '--file Dockerfile.reproducible', '--build-arg SOURCE_COMMIT=${GITHUB_SHA}', '--build-arg SOURCE_DIRTY=false', '--target artifacts']) {
     if (!workflow.includes(expected)) throw new Error(`${path} does not use the canonical container setting: ${expected}`);
   }
+}
+
+for (const path of ['.github/workflows/ci.yml', '.github/workflows/release.yml']) {
+  const workflow = read(path);
+  for (const expected of [
+    'playwright install --with-deps chromium firefox',
+    'pnpm test:browser:files',
+    'pnpm test:browser:regressions',
+  ]) {
+    if (!workflow.includes(expected)) throw new Error(`${path} is missing the browser release gate: ${expected}`);
+  }
+}
+if (!read('.github/workflows/release.yml').includes('needs: browser')) {
+  throw new Error('The release job must wait for the browser gate.');
 }
 
 const ignored = read('.dockerignore').split(/\r?\n/u);

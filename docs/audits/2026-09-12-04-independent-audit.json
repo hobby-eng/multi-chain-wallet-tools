@@ -1,0 +1,154 @@
+{
+  "report": "docs/audits/2026-09-12-04-independent-audit.md",
+  "reviewer": { "model": "Claude Fable 5.1", "modelId": "claude-fable-5-1", "vendor": "Anthropic", "harness": "Claude Code (Claude desktop app)" },
+  "dateUtc": "2026-09-12",
+  "windowUtc": { "start": "2026-09-12T11:10:22Z", "end": "2026-09-12T12:07:00Z" },
+  "host": { "os": "Ubuntu 26.04.1 LTS", "kernel": "Linux 7.0.0-31-generic x86_64", "cpuThreads": 16, "memoryGiB": 14 },
+  "repository": {
+    "path": "/home/user/.copilot/repos/copilot-worktrees/derivationtool/hobby-eng-studious-tribble",
+    "branch": "hobby-eng-psbt-inspector-v4",
+    "head": "a652ad5f6879849febad2ad18a15df446b8e9063",
+    "expectedHead": "a652ad5f6879849febad2ad18a15df446b8e9063",
+    "originMain": "2afe70a53723de73fe94067dc784a3548e158728",
+    "commitsAheadOfMain": 10,
+    "workingTreeCleanAtStart": true,
+    "workingTreeCleanAtEnd": true,
+    "gitDiffCheck": "exit 0",
+    "gitFsck": "exit 0 (dangling objects only)",
+    "pullRequest": "https://github.com/hobby-eng/multi-chain-wallet-tools/pull/32",
+    "filesAddedByAudit": ["docs/audits/2026-09-12-04-independent-audit.md", "docs/audits/2026-09-12-04-independent-audit.json"],
+    "filesModifiedByAudit": []
+  },
+  "toolchain": {
+    "node": "v24.19.0", "pnpmLocal": "11.19.0", "pnpmPinned": "11.25.0", "typescript": "7.0.2", "vitest": "5.0.0",
+    "playwright": "1.62.1", "chromium": "151.0.7922.34 (chromium-1234)", "firefox": "153.0 (firefox-1538)",
+    "docker": "29.8.0 (server 29.8.0, containerd v2.3.4, runc 1.5.1)", "git": "2.53.0", "python": "3.14.4",
+    "rustc": "1.98.1", "cargo": "1.98.1", "wasmBindgenLocal": "0.2.127 (not used)", "wasmBindgenPinned": "0.2.128 (used in container)",
+    "btcutilJs": "0.4.1"
+  },
+  "sourceFingerprint": "5f3224c008f326ef78584cf53c18db1dd4ec0941c0de237573b26f68aed0a37b",
+  "version": { "package": "0.1.4", "releaseDate": "2026-09-11", "workspaceManifests": 12, "cargoToml": "0.1.4", "allSynchronized": true },
+  "commands": [
+    { "command": "git status --short --branch && git rev-parse HEAD && git log --oneline -10 && git diff --check && git fsck --full", "timeUtc": "11:10", "result": "pass" },
+    { "command": "node tooling/sync-project-metadata.mjs --check", "timeUtc": "11:11", "result": "pass" },
+    { "command": "node tooling/verify-project-facts.mjs", "timeUtc": "11:11", "result": "pass" },
+    { "command": "node node_modules/typescript/bin/tsc --noEmit", "timeUtc": "11:11", "result": "pass", "note": "267 files incl. 73 test files; effectiveness confirmed with a scratch error file" },
+    { "command": "node node_modules/vitest/vitest.mjs run --maxWorkers=4 --reporter=verbose --reporter=json", "timeUtc": "11:12:46", "result": "pass", "files": 80, "tests": 973, "skipped": 0, "todo": 0, "durationSeconds": 24.04 },
+    { "command": "node tooling/verify-reproducible-container.mjs", "timeUtc": "11:15", "result": "pass" },
+    { "command": "node tooling/verify-dip13-vectors.mjs", "timeUtc": "11:15", "result": "pass" },
+    { "command": "node apps/discovery-scanner/scripts/verify-shielded-stream.mjs", "timeUtc": "11:15", "result": "pass" },
+    { "command": "node apps/key-derivation/scripts/verify-self-test.mjs", "timeUtc": "11:15", "result": "pass" },
+    { "command": "node apps/key-derivation/scripts/verify-dash-self-test.mjs", "timeUtc": "11:15", "result": "pass" },
+    { "command": "node tooling/verify-shielded-wasm.mjs", "timeUtc": "11:15", "result": "pass" },
+    { "command": "RUSTUP_TOOLCHAIN=1.98.1 node tooling/test-rust.mjs", "timeUtc": "11:15", "result": "pass", "rust": { "passed": 12, "failed": 0, "ignored": 1 } },
+    { "command": "docker build --platform linux/amd64 --network host --file Dockerfile.reproducible --target artifacts --tag multi-chain-wallet-tools-independent-audit:a652ad5f .", "timeUtc": "11:12:04-11:14:42", "result": "pass" },
+    { "command": "docker build --no-cache ... --tag multi-chain-wallet-tools-independent-audit:a652ad5f-rebuild .", "timeUtc": "11:16:08-11:19:53", "result": "pass", "note": "38 files byte-identical to first build" },
+    { "command": "docker build ... --target wasm-artifacts", "timeUtc": "11:20", "result": "pass", "note": "regenerated WASM/glue identical to committed generated/" },
+    { "command": "node tooling/build-html-profiles.mjs", "timeUtc": "11:17", "result": "pass" },
+    { "command": "node tooling/verify-artifact-profiles.mjs", "timeUtc": "11:17", "result": "pass" },
+    { "command": "node tooling/verify-reproducible-build.mjs --reuse-generated-wasm", "timeUtc": "11:17", "result": "pass" },
+    { "command": "node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs", "timeUtc": "11:18", "result": "pass" },
+    { "command": "node tooling/create-github-release-assets.mjs --profile dash-community && node tooling/verify-github-release-assets.mjs --profile dash-community", "timeUtc": "11:18", "result": "pass" },
+    { "command": "pnpm audit --audit-level high", "timeUtc": "11:20", "result": "pass", "note": "No known vulnerabilities found" },
+    { "command": "pnpm test:activity-viewer:network", "timeUtc": "11:20:53", "result": "pass" },
+    { "command": "pnpm test:activity-viewer:core-mainnet", "timeUtc": "11:21:06", "result": "pass" },
+    { "command": "pnpm test:activity-viewer:core-testnet", "timeUtc": "11:21:08", "result": "pass" },
+    { "command": "pnpm test:activity-viewer:platform-mainnet", "timeUtc": "11:21:10", "result": "pass" },
+    { "command": "pnpm test:activity-viewer:platform-testnet", "timeUtc": "11:21:15", "result": "pass" },
+    { "command": "pnpm test:discovery:mainnet", "timeUtc": "11:21:20", "result": "pass" },
+    { "command": "pnpm test:discovery:testnet", "timeUtc": "11:21:24", "result": "pass" },
+    { "command": "pnpm test:discovery:batch-mainnet", "timeUtc": "11:21:33", "result": "pass" },
+    { "command": "pnpm test:discovery:batch5-mainnet", "timeUtc": "11:21:45", "result": "pass" },
+    { "command": "PLAYWRIGHT_MODULE=... CHROMIUM_EXECUTABLE_PATH=... FIREFOX_EXECUTABLE_PATH=... node tooling/verify-browser-files.mjs", "timeUtc": "11:19:01-11:20:33", "result": "pass", "cases": "16/16" },
+    { "command": "PLAYWRIGHT_MODULE=... node tooling/verify-browser-regressions.mjs", "timeUtc": "11:21:55-11:23:17", "result": "fail", "cases": "33/34", "failed": ["firefox multi-chain bip85-child-signer: page.reload: Page crashed"] }
+  ],
+  "artifacts": {
+    "multi-chain-edition": {
+      "activity-viewer/Wallet_Activity_Viewer.html": "e2119b5f8ff37f0e0eb8e9d6ed0cb7b3b830bbebccff11fc7cca21f3ba9765b4",
+      "discovery-scanner/Wallet_Discovery_Scanner.html": "977ae4ac1ec9114ea39e88ae8b45818457e3af3bbe281364b74cd0b4c7b6f2c5",
+      "key-derivation/Wallet_Key_Derivation_Tool.html": "9365eb994cb3799fba58cf49510997709a05b37ab99cb601f41e76ae1466e340",
+      "psbt-inspector/PSBT_Multisig_Inspector.html": "1091051c001e5d66a782826d599983d2853c481bb33c0256e5454823055aeadf"
+    },
+    "dash-community-edition": {
+      "activity-viewer/Dash_Community_Activity_Viewer.html": "f5a640586f49a6502a01acd611f648fa4682fa266d1e061bb19aa2ac015d7982",
+      "discovery-scanner/Dash_Community_Discovery_Scanner.html": "498bc41aaaf5c5340e87bcc41ea08bc0a608d1fd98b51103ec7a02cb35298f15",
+      "key-derivation/Dash_Community_Key_Derivation_Tool.html": "11506e1d2304d90dcedab3adf9ae993437f94568c0680663689f1265e394a3bf",
+      "psbt-inspector/Dash_Community_PSBT_Multisig_Inspector.html": "a451fdfdb30b098f09aa54e09590c5c24c2ee311a9ea09afce903009523be2e9"
+    },
+    "generatedWasm": {
+      "dash_shielded_wasm_bg.wasm": "defbee2872123ee69b5e693d001c0a040a5879cb48e21a081fbd873176272fac",
+      "dash_shielded_wasm.js": "b14b79c953221b022dd589c09f8e5b95b9a8699fa703788e185a1320f2faa56d",
+      "dash_shielded_wasm.d.ts": "e38d08ed2d86940ba89f2c53ffc36cb5cf1b83c5a2603b8749e9d859d87b0153",
+      "dash_shielded_wasm_bg.wasm.d.ts": "9b3908298e96d3ef185465eff22748cffe84316e388ede0a055fccc9e631d8bb"
+    },
+    "identicalAcross": ["local build-html-profiles", "docker build 1", "docker build 2 (--no-cache)", "pre-existing dist/ edition files"],
+    "absolutePathsFound": false
+  },
+  "officialVectorFixture": {
+    "file": "apps/psbt-inspector/tests/independent-audit/official-vectors.json",
+    "sha256": "5b316a7ba76b828e95860c44fff8368ee1fd263da9461f92708861b296d9bf65",
+    "refetchedFromPinnedSourcesSha256": "5b316a7ba76b828e95860c44fff8368ee1fd263da9461f92708861b296d9bf65",
+    "byteIdentical": true,
+    "counts": { "bip32Paths": [6, 6, 2, 3], "coreMiniscript": 97, "psbt": { "0174": [24, 20], "0370": [24, 24], "0371": [6, 11], "0373": [14, 10] }, "bip341": 7, "bip327": { "valid": 4, "error": 5 }, "bip328": 3 },
+    "pins": { "bips": "bfc142f2b580a314c846dbce3c15c659c2b1d32d", "bitcoinCore": "f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d" }
+  },
+  "probes": {
+    "location": "/tmp/claude-1000/-home-user--copilot-repos-copilot-worktrees-derivationtool-hobby-eng-studious-tribble/c4fab9ec-5918-4b16-95b7-b1c3d88c2fb4/scratchpad/probes",
+    "results": {
+      "p1-miniscript-flags": { "validContextsCompiled": 119, "compileFailures": 0, "flagMismatches": 0 },
+      "p2-psbt-reasons": { "invalidRejected": 65, "validAccepted": 68, "incidentalRejectionReasons": 2 },
+      "p3-descriptor-adversarial": { "bip341MultiLeafTrees": 2, "goDifferentialCombinations": 60, "goMismatches": 0, "goUnsupported": "sortedmulti_a", "uncompressedP2shP2pkh": "3DJgFhQBWVq9CdfzyJ9m5Lo6cYKh24anLh", "compressedP2shP2pkh": "3LRW7jeCvQCRdPF8S3yUCfRAx4eqXFmdcr" },
+      "p4-derivation-go": { "bitcoinRows": 96, "dashRows": 96, "ethereumRows": 5, "dip13Keys": 16, "taprootVsGoDescriptors": 16, "publishedConstantsMatched": ["BIP86 x3", "BIP44/49/84 Trezor-seed", "Ethereum index 0/1", "EIP-55 x4"], "uniqueAddresses": 280 },
+      "p5-psbt-relations": { "acceptedWithoutCrossCheck": 21, "rejected": 5 },
+      "p6-dash-network": { "adversarialProviderCases": 22, "mixedCaseBech32mRejected": true, "explorerNetworkFailClosed": true },
+      "p7-crypto-core": { "bip85OfficialVectors": "WIF, XPRV, HEX-64, 12-word: match (already asserted by packages/crypto-core/tests/bip85.test.ts; erratum)", "bip38CompressedVectors": "match (already asserted by packages/crypto-core/tests/bip38.test.ts; erratum)", "bip38UncompressedVector2": "NOT verified: probe used an unpublished address taken from memory and failed; use published hex 09c2686880095b1a4c249ee3ac4eea8a014f11e6f986d0b5025ac1f39afbd9ae", "bip39Normalization": "pass", "compactMessageEdgeCases": "pass" },
+      "p8-multi-limits": { "wshMulti21DistinctKeys": "compiled bc1q9q67755plv5t8amhcx0ng26g2mqzz4jxtkpkaptzn8250m4drafq3g9ezy (DEFECT IA-01)", "multiA1000": "compiled (DEFECT IA-01 sub-item)", "bareMulti4": "compiled (DEFECT IA-01 sub-item)" },
+      "p9-p10": { "nestedAndV": "valid; earlier failure was a probe construction error", "goWshMulti21": "also accepted by Go/btcd" },
+      "p11-misc": { "sortedmultiRows": "duplicated/misleading (DEFECT IA-03)", "ethereumScannerLayouts": ["m/44'/60'/a'/0/i", "m/44'/60'/(a+i)'/0/0", "m/44'/60'/0'/i"] }
+    }
+  },
+  "firefoxCrashIsolation": {
+    "artifact": "dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html",
+    "browser": "Playwright Firefox 153.0 (firefox-1538), headless",
+    "crashing": { "clear-during-in-flight-derivation": "3/3", "cancel-during-derivation": "3/3", "protocol-tab-then-clear": "3/3", "protocol-tab-switch-during-derivation": "3/3", "bip85-tab-then-protocol-tab-then-clear": "4/4 and 3/3", "full-bip85-child-signer-flow": "4/4" },
+    "stable": { "clear-after-derivation-finished": "0/3", "clear-before-derivation-started": "0/3", "reload-only": "0/4", "main-derive-then-reload": "0/4", "bip85-without-clear": "0/4", "mnemonic-edit-during-derivation": "0/3", "bip85-dom-steps-replayed-individually": "0/18", "chromium-same-sequence": "0/9", "dash-community-deriver-same-sequence": "0/3", "synthetic-12MB-blob-worker-terminate": "0/8" },
+    "rootCause": "not established at engine level; trigger is termination of the Multi-Chain derivation worker while in flight (worker embeds Orchard WASM and the Go/btcd BIP-322 WASM); documentation's 'intermittent BIP85 reload crash' description is inaccurate"
+  },
+  "findings": [
+    { "id": "IA-01", "severity": "High", "confidence": "Confirmed", "title": "multi()/sortedmulti() with >20 keys compiles to an unspendable P2WSH output labelled sane", "files": ["apps/psbt-inspector/src/miniscript-engine.ts:452-481", "apps/psbt-inspector/src/descriptor.ts:560-586", "apps/psbt-inspector/src/descriptor.ts:461-497"], "edition": "Multi-Chain Inspector (descriptor decoding)", "trigger": "wsh(multi(1,<21 distinct children of BIP32 vector-1 xpub>))", "observed": "bc1q9q67755plv5t8amhcx0ng26g2mqzz4jxtkpkaptzn8250m4drafq3g9ezy, 718-byte script, 'sane · signature required'", "expected": "rejection; MAX_PUBKEYS_PER_MULTISIG=20 (Core script.h:35, interpreter.cpp:1127, descriptor.cpp:2431), BIP383", "impact": "funds sent to the displayed address are unspendable", "subItems": ["multi_a/sortedmulti_a accepts 1000 keys (limit 999)", "bare multi accepts 4-20 keys (limit 3)"], "existingTestsMissedBecause": "no vector above 15 keys; Go oracle also accepts; builder capped at 16" },
+    { "id": "IA-02", "severity": "Medium", "confidence": "Confirmed", "title": "Firefox page crash when an in-flight derivation worker is terminated (Clear/Cancel/tab switch)", "files": ["apps/key-derivation/src/ui/controller.ts:828-831", "apps/key-derivation/src/ui/controller.ts:1544-1547", "apps/key-derivation/src/ui/controller.ts:1970-1975", "apps/key-derivation/src/ui/controller.ts:1159-1164", "apps/key-derivation/src/workers/derive-client.ts:158-164"], "edition": "Multi-Chain Key Derivation Tool, Firefox 153", "trigger": "start derivation (public phrase, count 1), click Clear/Cancel/other protocol tab within ~400 ms", "observed": "page crash event 12/12; 0/9 Chromium; 0/3 Dash Community Firefox", "expected": "no crash", "impact": "session loss; crash dumps may capture seed material", "existingTestsMissedBecause": "acceptance waits for results before Clear; extended suite attributed the crash to reload" },
+    { "id": "IA-03", "severity": "Low", "confidence": "Confirmed", "title": "sortedmulti shows a contradictory supplied-order row; sortedmulti_a described as order preserved", "files": ["apps/psbt-inspector/src/descriptor.ts:371-382", "apps/psbt-inspector/src/descriptor.ts:678", "apps/psbt-inspector/src/descriptor.ts:697-712"], "edition": "both Inspectors", "trigger": "wsh(sortedmulti(2,K0,K1)); tr(K2,sortedmulti_a(2,K0,K1))", "observed": "two Multisig rows (multi() supplied order + sortedmulti()); 'key order preserved' for sortedmulti_a", "expected": "one row stating BIP67/lexicographic sorting", "impact": "misleading key-order information (compiled script is correct)" },
+    { "id": "IA-04", "severity": "Low", "confidence": "Confirmed", "title": "PSBT cross-field relationships accepted without verification", "files": ["apps/psbt-inspector/src/psbt.ts:380-401", "apps/psbt-inspector/src/psbt.ts:253-269", "apps/psbt-inspector/src/psbt.ts:282-349", "apps/psbt-inspector/src/psbt.ts:350-365"], "edition": "Multi-Chain Inspector", "trigger": "synthetic v0/v2 PSBTs with generator points", "observed": "MuSig2 aggregate mismatch, foreign nonce/partial-sig participants, non-DER signature, script/UTXO hash mismatch, control-block key mismatch, 300-level path, 2^63 amounts, unsatisfiable v2 locks all accepted", "expected": "cheap deterministic checks or explicit unverified list", "impact": "coherent-looking summary for malicious PSBTs; documented as structural only" },
+    { "id": "IA-05", "severity": "Low", "confidence": "Confirmed", "title": "Dash Community artifact content gate skips the PSBT Inspector; bundle carries unreachable Bitcoin code and copy", "files": ["tooling/verify-dash-community-artifacts.mjs:96", "apps/psbt-inspector/scripts/verify-psbt-inspector-artifact.mjs:82-95"], "edition": "Dash Community Inspector", "observed": "'Bitcoin' x23, 'Taproot' x38, 'MuSig' x34, Bitcoin network table present; @scure/btc-signer and btcutil-js absent", "expected": "artifact-level lexical/adapter scan for all four tools or a substitutable Bitcoin-only module", "impact": "documentation claim broader than the check; no runtime exposure" },
+    { "id": "IA-06", "severity": "Medium", "confidence": "Confirmed", "title": "Independent conformance suite skips 56 valid Core Miniscript contexts, never compares TESTMODE flags, and accepts any error for invalid PSBT vectors", "files": ["apps/psbt-inspector/tests/independent-audit/crypto-conformance.test.ts:80", "apps/psbt-inspector/tests/independent-audit/crypto-conformance.test.ts:146-155", "apps/psbt-inspector/tests/independent-audit/crypto-conformance.test.ts:115-127"], "observed": "56/194 valid contexts skipped; 0 flag assertions; 2 incidental rejection reasons; multi-leaf BIP341 trees excluded", "independentResult": "all 119 valid contexts compile, 0 flag mismatches, both multi-leaf trees pass", "impact": "coverage claims overstate assertions; regressions in analysis flags would pass" }
+  ],
+  "staticUnconfirmed": [
+    "DashScan pending-only address (txCount 0, pagination.total 1) would fail with 'changed during pagination'; live semantics not observed",
+    "Whitespace inside descriptors is stripped before checksum verification, unlike Bitcoin Core",
+    "older(65536) shown as '0 blocks' without an effective-no-lock warning",
+    "deriveDashPlatform accepts any hardened key class at the library level (UI restricts)"
+  ],
+  "documentationDrift": [
+    "ROADMAP/AUDIT_REMEDIATION/AUDIT_FOLLOWUP describe an intermittent Firefox BIP85 reload crash; actual trigger is deterministic worker termination",
+    "AUDIT_FOLLOWUP/VERIFICATION report 34/34 extended browser cases; this run reproduced 33/34",
+    "SECURITY_AUDIT/README chain-copy claims do not cover the Dash Community Inspector bundle (IA-05)",
+    "SECURITY_AUDIT 'never conflates supplied/sorted order' contradicted by sortedmulti display rows (IA-03)",
+    "docs/releases/v0.1.4.md lists an implemented upgrade under 'Pending release preparation'"
+  ],
+  "linkCheck": { "markdownFiles": 31, "relativeLinks": 110, "brokenRelative": 0, "uniqueExternalUrls": 56, "non200": 0 },
+  "liveProviders": {
+    "recordedUtc": "2026-09-12T11:20:52Z/11:22:11Z",
+    "endpoints": ["https://dashscan.pshenmic.dev", "https://testnet.dashscan.pshenmic.dev", "https://platform-explorer.pshenmic.dev", "https://testnet.platform-explorer.pshenmic.dev", "Dash Platform DAPI via Evo SDK 4.1.1 trusted quorum"],
+    "results": "9/9 pass (see report section 7)"
+  },
+  "checksNotPerformed": [
+    "real Docker daemon failure injection for build-reproducible.mjs cleanup (fake-Docker tests + static review only)",
+    "local WASM rebuild with wasm-bindgen 0.2.127 (deliberately skipped)",
+    "system Firefox /usr/bin/firefox (snap/AppArmor)",
+    "headed browser run / Firefox crash dump",
+    "full mainnet Orchard cold scan, funded transactions",
+    "Core RPC descriptor import / PSBT signing round trips",
+    "pnpm install with pinned 11.25.0 outside Docker",
+    "synthetic Firefox worker experiment cases 5-6 (stopped for time)"
+  ]
+}

@@ -1,6 +1,6 @@
 # Wallet Key Derivation Tool security boundary
 
-- This is the only application in the repository intended for an offline computer.
+- This application and the PSBT & Multisig Inspector are intended for offline use. The Activity Viewer and Discovery Scanner require public network queries.
 - Verify its checksum externally, disconnect all networking, and disable untrusted browser extensions before entering valuable-wallet material.
 - Startup is fail-closed: the applicable BIP39, cross-protocol derivation, extended-key and Orchard self-test groups must pass before generation/derivation is enabled.
 - CSP, artifact verification and source separation prohibit network APIs; an already modified HTML file or compromised browser/OS remains out of scope.

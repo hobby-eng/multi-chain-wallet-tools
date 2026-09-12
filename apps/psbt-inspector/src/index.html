@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src __INLINE_SCRIPT_CSP__; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>__DOCUMENT_TITLE__</title>
+  <style>:root{color-scheme:dark;background:#080b10}*{box-sizing:border-box}body{margin:0;overflow-x:hidden;min-height:100vh;background:radial-gradient(circle at 78% -20%,#253247 0,transparent 35%),#080b10;color:#f2f5f7;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.hero,main,footer{width:min(1120px,calc(100% - 36px));margin-inline:auto}.hero{padding:32px 0}.psbt-topbar{display:flex;justify-content:space-between;align-items:center}.psbt-brand{font-weight:850}.psbt-brand-mark{display:inline-grid;place-items:center;width:32px;height:32px;margin-right:10px}.psbt-hero-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.55fr);gap:40px;align-items:end;padding:70px 0 28px}h1{font-size:clamp(38px,7vw,72px);line-height:.98;letter-spacing:-.055em;margin:0}.eyebrow{color:#f5a623;font-size:12px;font-weight:800;letter-spacing:.18em;margin-bottom:12px}.panel{background:#111720;border:1px solid #29323e;border-radius:16px;padding:24px}button,input,select,textarea{font:inherit}/*__INLINE_CSS__*/</style>
+</head>
+<body>
+  <noscript>This offline inspector requires JavaScript.</noscript>
+  <div class="psbt-ambient psbt-ambient-one" aria-hidden="true"></div>
+  <div class="psbt-ambient psbt-ambient-two" aria-hidden="true"></div>
+  <header class="hero psbt-hero">
+    <div class="psbt-topbar">
+      <div class="psbt-brand">__PROFILE_BRAND_MARK__<span>__BRAND_NAME__</span></div>
+      <div class="offline-badge"><span></span> Runtime network access blocked by this file</div>
+    </div>
+    <div class="psbt-hero-grid">
+      <div class="psbt-hero-copy">
+        <div class="eyebrow">__EDITION_EYEBROW____PSBT_CHAIN_SCOPE__</div>
+        <h1>Inspect scripts.<br><span>Build multisig safely.</span><br>Verify.</h1>
+        <p>__TOOL_INTRODUCTION__</p>
+        <div class="psbt-trust-row"><span>Offline parsing</span><span>Message verification</span><span>Unknown fields preserved visibly</span><span>No transaction broadcast</span></div>
+      </div>
+      <aside class="psbt-capability-card">
+        <div class="capability-orbit" aria-hidden="true"><span></span></div>
+        <div class="capability-kicker">SIX WORKFLOWS</div>
+        <h2>Inspect and construct</h2>
+        <div class="capability-list">
+          __PSBT_CAPABILITIES__
+          <div><span class="capability-check">✓</span><span>Multisig + lock policies</span></div>
+          <div class="capability-caution"><span>!</span><span>Private keys never leave this page</span></div>
+        </div>
+      </aside>
+    </div>
+  </header>
+  <main>
+    <section class="warning danger-warning"><div class="warning-icon">!</div><div><strong>Decode before signing.</strong> A PSBT can request an unexpectedly high fee, hide change among ordinary outputs, or contain misleading key paths. This utility inspects PSBTs, constructs public policies, verifies message proofs, and decrypts BIP38 keys locally; it does not sign or broadcast transactions.</div></section>
+    <section class="warning danger-warning"><div class="warning-icon">!</div><div><strong>Experimental utility — do not use with real funds yet.</strong> This fourth HTML tool is an early review build for offline inspection and watch-only multisig construction. Test only with valueless examples or testnet funds until the scripts, descriptors, imports, wallet compatibility and recovery procedure have been independently verified.</div></section>
+    <nav class="psbt-mode-tabs primary-mode-tabs" aria-label="PSBT workflow">
+      <button class="psbt-mode-tab primary-mode-tab active" data-mode="inspector" type="button" aria-pressed="true">Inspect PSBT</button>
+      <button class="psbt-mode-tab primary-mode-tab" data-mode="script" type="button" aria-pressed="false">Decode script</button>
+      <button class="psbt-mode-tab primary-mode-tab" data-mode="builder" type="button" aria-pressed="false">Build multisig policy</button>
+      <button class="psbt-mode-tab primary-mode-tab" data-mode="wallet" type="button" aria-pressed="false">Multisig wallet</button>
+      <button class="psbt-mode-tab primary-mode-tab" data-mode="verify" type="button" aria-pressed="false">Verify message</button>
+      <button class="psbt-mode-tab primary-mode-tab" data-mode="bip38" type="button" aria-pressed="false">Decrypt BIP38</button>
+    </nav>
+
+    <section id="inspector-panel">
+      <section class="panel psbt-control-panel">
+        <div class="section-head psbt-section-head"><div><span class="step">01</span><div><h2>Decode a transaction package</h2><p>Select the chain explicitly; the PSBT envelope does not identify it safely.</p></div></div><span class="local-only-chip"><i></i> Local only</span></div>
+        <div class="psbt-selector-grid">
+          <div><label for="psbt-chain">Transaction format</label><select id="psbt-chain">__PSBT_CHAIN_OPTIONS__</select></div>
+          <div><label for="psbt-network">Address network</label><select id="psbt-network">__PSBT_NETWORK_OPTIONS__</select></div>
+        </div>
+        <label for="psbt-input">PSBT · Base64 or hexadecimal</label>
+        <textarea id="psbt-input" rows="8" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="cHNidP8... or 70736274ff..."></textarea>
+        <div class="actions"><button id="inspect-button" class="primary" type="button">Inspect PSBT</button><button id="clear-inspector" class="secondary" type="button">Clear</button></div>
+        <div id="psbt-error" class="error" role="alert" hidden></div>
+      </section>
+      <section id="psbt-results" class="psbt-results" hidden>
+        <div class="results-title"><div><span class="step">02</span><div><h2>Decoded package</h2><p>Amounts and addresses are derived from the selected chain rules.</p></div></div></div>
+        <section class="panel"><div id="psbt-summary" class="psbt-summary"></div></section>
+        <section class="panel"><div id="transaction-details"></div></section>
+        <details class="panel psbt-advanced-details">
+          <summary>Raw / advanced PSBT maps</summary>
+          <p class="field-note">These are the exact global, input, and output key-value records carried by the PSBT, including unknown and proprietary fields.</p>
+          <div id="map-details"></div>
+        </details>
+      </section>
+    </section>
+
+    <section id="script-panel" hidden>
+      <section class="panel psbt-control-panel">
+        <div class="section-head psbt-section-head"><div><span class="step">01</span><div><h2>Decode script or descriptor</h2><p>__PSBT_DECODER_INTRODUCTION__</p></div></div><span class="local-only-chip"><i></i> Local only</span></div>
+        <div class="builder-grid">
+          <div><label for="script-chain">Chain</label><select id="script-chain">__PSBT_CHAIN_OPTIONS__</select></div>
+          <div><label for="script-network">Network</label><select id="script-network">__PSBT_NETWORK_OPTIONS__</select></div>
+          <div><label for="script-role">Input represents</label><select id="script-role"><option value="spending">Redeem / witness script</option><option value="script-pubkey">scriptPubKey</option></select></div>
+          <div><label for="script-branch">Descriptor multipath branch</label><select id="script-branch"><option value="0">First / receive</option><option value="1">Second / change</option></select></div>
+          <div><label for="script-wildcard-index">Descriptor wildcard index</label><input id="script-wildcard-index" type="number" value="0" min="0" max="2147483647" step="1"></div>
+        </div>
+        <label for="script-input">Script hex or output descriptor</label>
+        <textarea id="script-input" rows="7" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="__PSBT_SCRIPT_PLACEHOLDER__"></textarea>
+        <p class="field-note">Descriptor input is shown as a policy tree with logical requirements and wrapper semantics. Raw Script is decoded operation by operation; only high-confidence templates are inferred because arbitrary Script does not have a unique inverse Miniscript expression.</p>
+        <div class="actions"><button id="decode-script" class="primary" type="button">Decode input</button><button id="clear-script" class="secondary" type="button">Clear</button></div>
+        <div id="script-error" class="error" role="alert" hidden></div>
+      </section>
+      <section id="script-results" class="panel policy-results" hidden>
+        <div class="section-head"><div><span class="step">02</span><h2>Decoded script</h2></div></div>
+        <div class="policy-row"><span>Recognized policy</span><code id="script-policy"></code><button class="secondary compact" data-copy="script-policy" type="button">Copy</button></div>
+        <div class="policy-row"><span>Compiled ASM</span><code id="script-asm"></code><button class="secondary compact" data-copy="script-asm" type="button">Copy</button></div>
+        <div class="policy-row"><span>Direct classification</span><code id="script-classification"></code></div>
+        <div id="script-wrappers"></div>
+        <div id="script-operations"></div>
+      </section>
+    </section>
+
+    <section id="verify-panel" hidden>
+      <section class="panel psbt-control-panel">
+        <div class="section-head psbt-section-head"><div><span class="step">01</span><div><h2>Verify a signed message</h2><p>Check a public proof locally. No private key is requested, stored, or needed.</p></div></div><span class="local-only-chip"><i></i> Verify only</span></div>
+        <div class="psbt-selector-grid">
+          <div><label for="verify-chain">Signature protocol</label><select id="verify-chain">__PSBT_CHAIN_OPTIONS__</select></div>
+          <div><label for="verify-network">Address network</label><select id="verify-network">__PSBT_NETWORK_OPTIONS__</select></div>
+        </div>
+        <label for="verify-address">Claimed signer address</label>
+        <input id="verify-address" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="__PSBT_VERIFY_ADDRESS_PLACEHOLDER__">
+        <label for="verify-message">Exact message</label>
+        <textarea id="verify-message" rows="6" autocomplete="off" autocapitalize="none" spellcheck="false"></textarea>
+        <label for="verify-signature">Signature</label>
+        <textarea id="verify-signature" rows="4" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="__PSBT_VERIFY_SIGNATURE_PLACEHOLDER__"></textarea>
+        <p class="field-note">__PSBT_MESSAGE_VERIFY_SCOPE__</p>
+        <div class="actions"><button id="verify-message-button" class="primary" type="button">Verify signature</button><button id="clear-verifier" class="secondary" type="button">Clear</button></div>
+        <div id="verify-error" class="error" role="alert" hidden></div>
+      </section>
+
+      <section id="verify-results" class="panel policy-results" hidden>
+        <div class="section-head"><div><span class="step">02</span><h2>Verification result</h2></div></div>
+        <div class="policy-row"><span>Result</span><code id="verify-validity"></code></div>
+        <div class="policy-row"><span>Format</span><code id="verify-format"></code></div>
+        <div class="policy-row"><span>Message domain</span><code id="verify-magic"></code></div>
+        <div class="policy-row"><span>Address checked</span><code id="verify-recovered-address"></code></div>
+        <div class="policy-row"><span>Recovered public key</span><code id="verify-recovered-key"></code></div>
+        <div class="policy-row"><span>Time constraints</span><code id="verify-time-constraints"></code></div>
+      </section>
+    </section>
+
+    <section id="bip38-panel" hidden>
+      <section class="panel psbt-control-panel">
+        <div class="section-head psbt-section-head"><div><span class="step">01</span><div><h2>Decrypt a BIP38 private key</h2><p>Recover one encrypted <code>6P…</code> key locally. The encrypted key, password, and recovered private key never leave this page.</p></div></div><span class="local-only-chip"><i></i> Local secret operation</span></div>
+        <div class="psbt-selector-grid">
+          <div><label for="bip38-chain">Coin</label><select id="bip38-chain">__PSBT_CHAIN_OPTIONS__</select></div>
+          <div><label for="bip38-network">Address network</label><select id="bip38-network">__PSBT_NETWORK_OPTIONS__</select></div>
+        </div>
+        <label for="bip38-encrypted-key">Encrypted private keys · BIP38 · one per line</label>
+        <textarea id="bip38-encrypted-key" rows="6" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="6P…&#10;6P…&#10;6P…"></textarea>
+        <label for="bip38-password">BIP38 password</label>
+        <div class="secret-field">
+          <input id="bip38-password" type="password" autocomplete="off" spellcheck="false">
+          <button id="toggle-bip38-password" class="secret-toggle" type="button" aria-pressed="false">Show</button>
+        </div>
+        <p class="field-note">Choose the original coin and network. A wrong password or network cannot satisfy the BIP38 address-hash check.</p>
+        <div class="actions"><button id="decrypt-bip38" class="primary" type="button">Decrypt keys</button><button id="clear-bip38" class="secondary" type="button">Clear</button></div>
+        <div id="bip38-progress" class="status" role="status" aria-live="polite" hidden></div>
+        <div id="bip38-error" class="error" role="alert" hidden></div>
+      </section>
+      <section id="bip38-results" class="panel policy-results" hidden>
+        <div class="section-head"><div><span class="step">02</span><h2>Recovered keys</h2></div><button id="toggle-bip38-result" class="secondary compact" type="button" aria-pressed="false" disabled>Reveal private keys</button></div>
+        <div id="bip38-result-list" class="bip38-result-list"></div>
+        <p class="field-note">Verify the recovered address against your backup before importing. Prefer sweeping the WIF into a new wallet address.</p>
+      </section>
+    </section>
+
+    <section id="builder-panel" hidden>
+      <section class="panel psbt-control-panel">
+        <div class="section-head psbt-section-head"><div><span class="step">01</span><div><h2>Define a multisig policy</h2><p>Build one multisig/timelock spending script and funding address. This does not create a PSBT.</p></div></div><span class="local-only-chip"><i></i> Script builder</span></div>
+        <div class="builder-grid">
+          <div><label for="builder-chain">Chain</label><select id="builder-chain">__PSBT_CHAIN_OPTIONS__</select></div>
+          <div><label for="builder-network">Network</label><select id="builder-network">__PSBT_NETWORK_OPTIONS__</select></div>
+          <div class="preset-policy-field"><label for="builder-wrapper">Output wrapper</label><select id="builder-wrapper">__PSBT_BUILDER_WRAPPER_OPTIONS__</select></div>
+          <div><label for="policy-mode">Policy shape</label><select id="policy-mode"><option value="locked-multisig">Plain / HODL multisig · M-of-N, optional lock applies to all</option><option value="htlc">HTLC-like · signatures + preimage OR delayed fallback</option><option value="staged-recovery">Staged recovery · key now OR first/second delayed key</option><option value="delayed-recovery">Recovery key · M-of-N now OR one key later</option><option value="delayed-recovery-multisig">Recovery multisig · M-of-N now OR R-of-K later</option><option value="backup-committee">Flexible multisig · primary OR backup committee later</option><option value="decaying-multisig">Decaying multisig · threshold lowers later</option><option value="expanding-multisig">Expanding multisig · key set grows later</option><option value="escalating-recovery">Escalating timelocked recovery</option>__PSBT_CUSTOM_MINISCRIPT_OPTION__</select></div>
+          <div class="preset-policy-field"><label for="builder-key-order">Key order</label><select id="builder-key-order"><option value="bip67" selected>BIP67 sorted · sortedmulti()</option><option value="supplied">Supplied order · multi()</option></select></div>
+          <div class="preset-policy-field"><label for="required-signatures">Required signatures</label><input id="required-signatures" type="number" value="2" min="1" max="16"></div>
+          <div class="preset-policy-field"><label for="lock-kind">Additional condition</label><select id="lock-kind"><option value="none">No timelock</option><option value="height">Spend after block height</option><option value="time">Spend after Unix time</option><option value="relative-blocks">Spend N blocks after confirmation</option><option value="relative-time">Relative time after confirmation</option></select></div>
+          <div id="lock-value-field" hidden><label id="lock-value-label" for="lock-value">Lock value</label><input id="lock-value" type="number" value="1" min="0" step="1"></div>
+          <div id="time-unit-field" hidden><label for="time-unit">Time unit</label><select id="time-unit"><option value="seconds">Seconds</option><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days" selected>Days</option><option value="months">Months (30 days)</option></select></div>
+          <div class="span-three preset-policy-field"><label id="public-keys-label" for="public-keys">Compressed public keys · one per line, in committed order</label><textarea id="public-keys" rows="6" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="02...&#10;03...&#10;02..."></textarea></div>
+          <div id="recovery-required-field" hidden><label for="recovery-required">Recovery/backup required signatures</label><input id="recovery-required" type="number" value="1" min="1" max="16"></div>
+          <div id="second-lock-field" class="second-lock-grid" hidden>
+            <div><label for="second-lock-kind">Second recovery lock</label><select id="second-lock-kind"><option value="height">Spend after block height</option><option value="time">Spend after Unix time</option><option value="relative-blocks">Spend N blocks after confirmation</option><option value="relative-time">Relative time after confirmation</option></select></div>
+            <div><label id="second-lock-value-label" for="second-lock-value">Second lock value</label><div class="lock-value-with-unit"><input id="second-lock-value" type="number" value="2" min="0" step="1"><select id="second-time-unit" hidden><option value="seconds">Seconds</option><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days" selected>Days</option><option value="months">Months (30 days)</option></select></div></div>
+          </div>
+          <div id="recovery-key-field" class="span-three" hidden><label id="recovery-public-key-label" for="recovery-public-key">Recovery compressed public keys · one per line</label><textarea id="recovery-public-key" rows="4" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="02...&#10;03..."></textarea></div>
+          <div id="htlc-hash-field" class="span-three" hidden><label for="htlc-hash-kind">Hashlock commitment</label><select id="htlc-hash-kind"><option value="sha256">sha256 · 32-byte digest</option><option value="hash256">hash256 · 32-byte digest</option><option value="ripemd160">ripemd160 · 20-byte digest</option><option value="hash160">hash160 · 20-byte digest</option></select><label for="htlc-hash-digest">Commitment digest hex</label><input id="htlc-hash-digest" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="64 hex characters for sha256/hash256"></div>
+          <div id="staged-derivation-field" class="span-three" hidden><label for="staged-multipath-choice">Concrete output for ranged descriptor</label><select id="staged-multipath-choice"><option value="0">First multipath branch (for example 0 from &lt;0;1&gt;)</option><option value="1">Second multipath branch (for example 1 from &lt;0;1&gt;)</option></select><label for="staged-wildcard-index">Wildcard index</label><input id="staged-wildcard-index" type="number" min="0" max="2147483647" step="1" value="0"></div>
+          <div id="emergency-key-field" class="span-three" hidden><div id="emergency-required-control"><label id="emergency-required-label" for="emergency-required">Emergency required signatures</label><input id="emergency-required" type="number" value="1" min="1" max="16"></div><label id="emergency-public-keys-label" for="emergency-public-keys">Emergency compressed public keys · one per line</label><textarea id="emergency-public-keys" rows="4" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="02...&#10;03..."></textarea></div>
+          <!--__PSBT_CUSTOM_MINISCRIPT_FIELDS_START__-->
+          <div id="custom-miniscript-field" class="span-three" hidden>
+            <label for="custom-miniscript-context">Bitcoin script context</label>
+            <select id="custom-miniscript-context"><option value="p2wsh">SegWit v0 · P2WSH (`multi`, compressed keys)</option><option value="tapscript">Taproot script path · Tapscript (`multi_a`, x-only keys)</option></select>
+            <label for="custom-miniscript">Custom Miniscript fragment</label>
+            <textarea id="custom-miniscript" rows="6" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="and_v(v:pk(02...),or_i(sha256(...),older(144)))"></textarea>
+            <p class="field-note">BitcoinerLab validates types and compiles constants, key checks, timelocks, all four hashlocks, AND/OR/threshold combinators, and wrappers <code>a s c t d v j n l u</code>. P2WSH and Tapscript use different multisig/key rules: use <code>multi()</code> with compressed keys for P2WSH and <code>multi_a()</code> with x-only keys for Tapscript. The Taproot output uses Scure BTC Signer's standard unspendable NUMS internal key and one script leaf.</p>
+          </div>
+          <!--__PSBT_CUSTOM_MINISCRIPT_FIELDS_END__-->
+        </div>
+        <p id="builder-cardinality-note" class="field-note"></p>
+        <details class="psbt-entry-card preimage-calculator">
+          <summary>Local 32-byte preimage &amp; HTLC commitment calculator</summary>
+          <div class="psbt-map-table">
+            <label for="preimage-phrase">Phrase · UTF-8, kept only in this page</label>
+            <div class="secret-field">
+              <input id="preimage-phrase" type="password" autocomplete="off" autocapitalize="none" spellcheck="false">
+              <button id="toggle-preimage-visibility" class="secret-toggle" type="button" aria-pressed="false">Show</button>
+            </div>
+            <p class="field-note">Miniscript hashlocks require exactly 32 preimage bytes. A phrase with another UTF-8 length is first normalized to 32 bytes with SHA-256; the displayed commitments hash that 32-byte value.</p>
+            <div class="actions"><button id="calculate-preimage" class="secondary" type="button">Calculate</button><button id="clear-preimage" class="secondary" type="button">Clear</button><button id="use-preimage-builder" class="secondary" type="button" hidden>Use in HTLC</button></div>
+            <div id="preimage-error" class="error" role="alert" hidden></div>
+            <div id="preimage-results" hidden>
+              <div class="policy-row"><span>UTF-8 bytes</span><code id="preimage-raw"></code></div>
+              <div class="policy-row"><span>32-byte Miniscript preimage</span><code id="preimage-normalized"></code><button class="secondary compact" data-copy="preimage-normalized" type="button">Copy</button></div>
+              <div class="policy-row"><span>Normalization</span><code id="preimage-normalization"></code></div>
+              <div class="policy-row"><span>sha256() commitment</span><code id="preimage-sha256"></code><button class="secondary compact" data-copy="preimage-sha256" type="button">Copy</button></div>
+              <div class="policy-row"><span>hash256() commitment</span><code id="preimage-hash256"></code><button class="secondary compact" data-copy="preimage-hash256" type="button">Copy</button></div>
+              <div class="policy-row"><span>ripemd160() commitment</span><code id="preimage-ripemd160"></code><button class="secondary compact" data-copy="preimage-ripemd160" type="button">Copy</button></div>
+              <div class="policy-row"><span>hash160() commitment</span><code id="preimage-hash160"></code><button class="secondary compact" data-copy="preimage-hash160" type="button">Copy</button></div>
+            </div>
+          </div>
+        </details>
+        <p class="field-note">A 2-of-3 policy should normally use public keys whose corresponding private keys are controlled on separate devices.</p>
+        <p class="field-note">Advanced shapes are custom scripts: HODL, HTLC-like hashlock, flexible, decaying, expanding, recovery multisig, backup committee, and staged/escalating timelocked recovery are compiled by BitcoinerLab Miniscript, but wallet auto-signing support varies. Staged recovery also accepts ranged xpub expressions; Scure BIP32 derives the selected branch/index while the exported descriptor remains ranged. OP_RETURN and vault/cancel covenant-style flows remain excluded.</p>
+        <p class="field-note"><strong>Dash HD multisig:</strong> current Dash Electrum supports legacy P2SH cosigner keys at <code>m/45'/0</code> (only partially BIP45-compatible) and its Purpose48 P2SH convention at <code>m/48'/5'/account'/0'</code>, followed by <code>/change/address_index</code>. The builder accepts already-derived public keys, so a derivation path is recovery metadata and is not encoded in the resulting P2SH address.</p>
+        <div class="actions"><button id="build-policy" class="primary" type="button">Build address &amp; scripts</button></div>
+        <div id="builder-error" class="error" role="alert" hidden></div>
+      </section>
+      <section id="policy-results" class="panel policy-results" hidden>
+        <div class="section-head"><div><span class="step">02</span><h2>Generated policy</h2></div></div>
+        <div class="policy-row"><span>Funding address</span><code id="policy-address"></code><button class="secondary compact" data-copy="policy-address" type="button">Copy</button></div>
+        <div id="policy-threshold-row" class="policy-row"><span>Multisig threshold</span><code id="policy-threshold"></code></div>
+        <div class="policy-row"><span>Requirement</span><code id="policy-requirement"></code><button class="secondary compact" data-copy="policy-requirement" type="button">Copy</button></div>
+        <div class="policy-row"><span>Wallet compatibility</span><code id="policy-compatibility"></code><button class="secondary compact" data-copy="policy-compatibility" type="button">Copy</button></div>
+        <div class="policy-row"><span>Portable output descriptor</span><code id="policy-descriptor"></code><button class="secondary compact" data-copy="policy-descriptor" type="button">Copy</button></div>
+        <div class="policy-row"><span>Miniscript fragment</span><code id="policy-miniscript"></code><button class="secondary compact" data-copy="policy-miniscript" type="button">Copy</button></div>
+        <div class="policy-row"><span>Compiled Script ASM</span><code id="policy-miniscript-asm"></code><button class="secondary compact" data-copy="policy-miniscript-asm" type="button">Copy</button></div>
+        <div class="policy-row"><span>Miniscript safety analysis</span><code id="policy-miniscript-analysis"></code><button class="secondary compact" data-copy="policy-miniscript-analysis" type="button">Copy</button></div>
+        <div class="policy-row"><span>Policy expression</span><code id="policy-expression"></code><button class="secondary compact" data-copy="policy-expression" type="button">Copy</button></div>
+        <div class="policy-row"><span>Policy script / Tapscript leaf</span><code id="redeem-script"></code><button class="secondary compact" data-copy="redeem-script" type="button">Copy</button></div>
+        <div class="policy-row"><span>scriptPubKey</span><code id="policy-script-pubkey"></code><button class="secondary compact" data-copy="policy-script-pubkey" type="button">Copy</button></div>
+        <div id="dash-gui-row" class="policy-row" hidden><span>Full policy descriptor · Dash Core v21+</span><code id="dash-gui-command"></code><div class="export-actions"><button class="secondary compact" data-copy="dash-gui-command" type="button">Copy GUI command</button><button id="download-dash-json" class="secondary compact" type="button">Download RPC JSON</button></div></div>
+        <div id="dash-import-row" class="policy-row" hidden><span>Legacy wallet only · importmulti</span><code id="dash-import-command"></code><div class="export-actions"><button class="secondary compact" data-copy="dash-import-command" type="button">Copy terminal command</button></div></div>
+        <div id="dash-descriptor-row" class="policy-row" hidden><span>Fallback · descriptor wallet watch address only</span><code id="dash-descriptor-command"></code><button class="secondary compact" data-copy="dash-descriptor-command" type="button">Copy fallback command</button></div>
+        <p id="dash-import-warning" class="field-note" hidden><code>timestamp:"now"</code> scans only from the current time. For historical recovery, review the descriptor and replace it with an early timestamp or <code>0</code> before import.</p>
+        <p class="result-help">Back up the script, public keys, their exact order and the lock condition. For HD cosigners also back up every master fingerprint, account xpub and exact derivation convention (including change and address index). Public keys do not contain or recover their private keys. An address alone is not sufficient to reconstruct an arbitrary multisig policy.</p>
+      </section>
+    </section>
+
+    <section id="wallet-panel" hidden>
+      <section class="panel psbt-control-panel">
+        <div class="section-head psbt-section-head"><div><span class="step">01</span><div><h2>Build an offline multisig wallet</h2><p>Construct one concrete multisig script from fixed public keys, or derive a deterministic watch-only range from account-level public keys with explicit origin metadata.</p></div></div><span class="local-only-chip"><i></i> Watch-only</span></div>
+        <div class="builder-grid">
+          <div><label for="wallet-chain">Chain</label><select id="wallet-chain">__PSBT_CHAIN_OPTIONS__</select></div>
+          <div><label for="wallet-network">Network</label><select id="wallet-network">__PSBT_NETWORK_OPTIONS__</select></div>
+          <div><label for="wallet-wrapper">Output wrapper</label><select id="wallet-wrapper">__PSBT_WALLET_WRAPPER_OPTIONS__</select></div>
+          <div><label for="wallet-order">Key order policy</label><select id="wallet-order"><option value="bip67" selected>BIP67 sorted · sortedmulti()</option><option value="supplied">Supplied order · multi()</option></select></div>
+          <div><label for="wallet-required">Required signatures</label><input id="wallet-required" type="number" value="2" min="1" max="16"></div>
+          <div class="span-three wallet-mode-fields">
+            <div class="builder-grid nested-builder-grid">
+              <div><label for="wallet-start-index">Start index</label><input id="wallet-start-index" type="number" value="0" min="0" step="1"></div>
+              <div><label for="wallet-end-index">End index for xpub ranges</label><input id="wallet-end-index" type="number" value="19" min="0" step="1"></div>
+              <fieldset class="branch-fieldset"><legend>Branches</legend><label><input id="wallet-receive-branch" type="checkbox" checked> Receive /0</label><label><input id="wallet-change-branch" type="checkbox" checked> Change /1</label></fieldset>
+            </div>
+            <label for="wallet-keys">Compressed child public keys or account xpubs · one per line</label>
+            <textarea id="wallet-keys" rows="7" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="02...&#10;03...&#10;or account xpubs:&#10;[d34db33f/48h/5h/0h/0h]xpub...&#10;xpub..."></textarea>
+            <p class="field-note">Input is detected automatically. If every line is a compressed child public key, the utility builds one concrete address. If every line is an xpub/tpub, it derives the selected receive/change range; default range is the first 20 receive and change entries.</p>
+          </div>
+        </div>
+        <p class="field-note"><strong>Automatic mode:</strong> child public keys produce one concrete m-of-n address; account xpubs produce a deterministic ranged watch-only wallet. BIP67 <code>sortedmulti()</code> is selected by default because it is the usual deterministic multisig policy; switch to supplied-order <code>multi()</code> only when matching an existing wallet that used that exact order.</p>
+        <p class="field-note">Results regenerate automatically after changing keys, signature threshold, network, ordering, wrapper, branches, or index range.</p>
+        <p class="field-note"><strong>Standard Dash P2SH multisig path:</strong> use BIP48-style Purpose48 account keys at <code>m/48'/5'/account'/0'</code> for Dash mainnet legacy P2SH multisig. This is the standard HD multisig separation pattern <code>m/48'/coin_type'/account'/script_type'</code>, not an Electrum-only private address scheme. Do not mix it with legacy multisig keys from <code>m/45'/0</code> or regular Dash Core BIP44 account xpubs at <code>m/44'/5'/account'</code>; those are different HD branches and intentionally produce different multisig scripts and addresses.</p>
+        <p class="field-note"><strong>Mainnet/testnet xpubs differ:</strong> Dash mainnet Purpose48 uses <code>m/48'/5'/account'/0'</code> and exports <code>xpub...</code>; Dash testnet uses <code>m/48'/1'/account'/0'</code> and exports <code>tpub...</code>. Do not switch a mainnet xpub into testnet mode.</p>
+        <p class="field-note"><strong>Concrete Dash multisig keys:</strong> when manually building one standard P2SH multisig address, use one child public key from each cosigner's Purpose48 branch at the same suffix, for example <code>m/48'/5'/0'/0'/0/0</code>. If you paste xpubs instead, the first row is receive <code>/0/0</code>. Do not use ordinary single-sig BIP44 child keys such as <code>m/44'/5'/0'/0/0</code> unless you intentionally want a nonstandard wallet policy that may be harder to restore.</p>
+        <p class="field-note"><strong>What P2SH uses:</strong> individual single-signer receive addresses are not part of the multisig wallet. Each shared P2SH address is derived from the child public key of every cosigner at the same branch/index, then hashed as one redeemScript. A watch-only wallet needs the cosigner xpubs and origin paths; private keys are needed only by signers when spending.</p>
+        <div class="actions"><button id="build-wallet" class="primary" type="button">Build multisig outputs</button><button id="clear-wallet" class="secondary" type="button">Clear</button></div>
+        <div id="wallet-error" class="error" role="alert" hidden></div>
+      </section>
+      <section id="wallet-results" class="panel policy-results" hidden>
+        <div class="section-head"><div><span class="step">02</span><h2>Multisig wallet outputs</h2></div></div>
+        <section class="wallet-export-panel">
+          <div class="wallet-export-head"><strong id="wallet-selected-count">0 selected</strong><div><button id="wallet-select-all" class="secondary compact" type="button">Select all</button><button id="wallet-select-none" class="secondary compact" type="button">Select none</button><button id="wallet-select-invert" class="secondary compact" type="button">Invert selection</button></div></div>
+          <label for="wallet-export-format">Clipboard format</label>
+          <div class="wallet-export-grid">
+            <select id="wallet-export-format"><option value="structured">Human-readable structured text</option><option value="plain">Plain values</option><option value="tsv">Tab-separated table</option></select>
+            <button id="wallet-copy-addresses" class="secondary compact" type="button">Copy addresses</button>
+            <button id="wallet-copy-public-keys" class="secondary compact" type="button">Copy public keys</button>
+            <button id="wallet-copy-selected" class="secondary compact" type="button">Copy selected</button>
+            <button id="wallet-copy-all-displayed" class="secondary compact" type="button">Copy all displayed fields</button>
+            <button id="wallet-download-selected" class="secondary compact" type="button">Download selected</button>
+          </div>
+        </section>
+        <div class="wallet-result-controls">
+          <div class="mode-toggle" aria-label="Multisig result detail mode">
+            <button id="wallet-mode-basic" type="button" class="active" aria-pressed="true">Basic</button>
+            <button id="wallet-mode-advanced" type="button" aria-pressed="false">Advanced</button>
+          </div>
+        </div>
+        <div id="wallet-branch-tabs" class="result-branch-tabs" role="tablist" aria-label="Multisig address branch" hidden>
+          <button id="wallet-receive-tab" class="result-branch-tab active" type="button" role="tab" aria-selected="true">Receive addresses</button>
+          <button id="wallet-change-tab" class="result-branch-tab" type="button" role="tab" aria-selected="false">Change addresses</button>
+        </div>
+        <div id="wallet-address-rows"></div>
+        <div id="wallet-advanced-output" hidden>
+          <div id="wallet-descriptors"></div>
+          <div class="policy-row"><span>Import command</span><code id="wallet-import-text" class="scroll-code"></code><button class="secondary compact" data-copy="wallet-import-text" type="button">Copy</button></div>
+          <div class="policy-row"><span>Import JSON</span><code id="wallet-import-json" class="scroll-code"></code><button class="secondary compact" data-copy="wallet-import-json" type="button">Copy</button></div>
+          <div class="policy-row"><span>Derivation details</span><code id="wallet-derivation-details" class="scroll-code"></code><button class="secondary compact" data-copy="wallet-derivation-details" type="button">Copy</button></div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <section class="build-passport" aria-labelledby="psbt-passport-title">
+    <div class="build-passport-head"><div><span class="step">BUILD</span><h2 id="psbt-passport-title">Release passport</h2></div><span class="self-test-badge passed">Parser boundary checks enabled</span></div>
+    <div class="build-passport-grid"><div><span>Version</span><code id="psbt-build-version">—</code></div><div><span>Release date</span><code id="psbt-build-date">—</code></div><div><span>Runtime</span><code>Offline main thread</code></div><div class="build-fingerprint"><span>Source/build fingerprint · SHA-256</span><code id="psbt-build-fingerprint">—</code></div></div>
+    <p class="field-note"><strong>Edition:</strong> <span>__EDITION_NAME__</span> · <span>__BUILD_PROFILE__</span></p>
+    <p class="field-note"><strong>Scope:</strong> __PSBT_PROTOCOL_SCOPE__</p>
+    __PSBT_POLICY_SCOPE__
+    __PSBT_NUNCHUK_SCOPE__
+    __PSBT_DESCRIPTOR_SCOPE__
+    __PSBT_MUSIG_SCOPE__
+    <p class="field-note"><strong>Embedded dependencies:</strong> __PSBT_DEPENDENCY_SCOPE__</p>
+    <p class="field-note">The byte-for-byte HTML checksum is written beside this file as <code id="psbt-artifact-checksum-file">—</code>.</p>
+  </section>
+  <footer><div class="footer-main"><p>__PSBT_FOOTER_PROTOCOLS__</p><p>No persistence, network requests, signing, or broadcast. <span id="psbt-build-footer">Build —</span></p></div></footer>
+  <script>/*__INLINE_JS__*/</script>
+</body>
+</html>
