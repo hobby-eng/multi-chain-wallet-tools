@@ -41,6 +41,20 @@ for (const path of ['.github/workflows/ci.yml', '.github/workflows/full-wasm.yml
   }
 }
 
+for (const path of ['.github/workflows/ci.yml', '.github/workflows/release.yml']) {
+  const workflow = read(path);
+  for (const expected of [
+    'playwright install --with-deps chromium firefox',
+    'pnpm test:browser:files',
+    'pnpm test:browser:regressions',
+  ]) {
+    if (!workflow.includes(expected)) throw new Error(`${path} is missing the browser release gate: ${expected}`);
+  }
+}
+if (!read('.github/workflows/release.yml').includes('needs: browser')) {
+  throw new Error('The release job must wait for the browser gate.');
+}
+
 const ignored = read('.dockerignore').split(/\r?\n/u);
 for (const expected of ['.git', 'node_modules', '.pnpm-store', 'dist', '**/target']) {
   if (!ignored.includes(expected)) throw new Error(`.dockerignore must exclude ${expected}`);
