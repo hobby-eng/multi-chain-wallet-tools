@@ -60,6 +60,34 @@ describe('page-number explorer histories', () => {
 
 
 describe('Audit regressions: complete Dash explorer pages', () => {
+  it('accepts a pending-only DashScan page whose total includes the pending row', async () => {
+    const pendingHash = hash(999);
+    const fetcher = async (input: string): Promise<Response> => {
+      const url = new URL(input);
+      let value: unknown;
+      if (url.pathname.endsWith('/status')) value = { status: 'ok' };
+      else if (url.pathname.endsWith('/blocks')) value = { resultSet: [{ height: 100, timestamp }] };
+      else if (url.pathname.endsWith('/transactions')) value = {
+        resultSet: [{
+          hash: pendingHash,
+          timestamp: null,
+          type: 'CLASSIC',
+          blockHeight: null,
+          blockHash: null,
+          confirmations: 0,
+          vIn: [],
+          vOut: [],
+        }],
+        pagination: { total: 1 },
+      };
+      else value = { address: core, txCount: 0, balance: '0', received: '0', sent: '0' };
+      return new Response(JSON.stringify(value));
+    };
+    const result = await queryCoreAddress(core, 'mainnet', 20, undefined, fetcher);
+    expect(result.transactionCount).toBe(0);
+    expect(result.transactions.map(({ txid }) => txid)).toEqual([pendingHash]);
+  });
+
   it.each(['resource', 'missing-total', 'oversized', 'malformed-tail', 'pending'])('%s response boundary', async fault => {
     const calls: number[] = [];
     const fetcher = async (input: string): Promise<Response> => {

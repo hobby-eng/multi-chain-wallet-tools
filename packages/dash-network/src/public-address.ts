@@ -272,6 +272,7 @@ async function queryDashScan(
   const transactions: CoreAddressTransaction[] = [];
   const pending: CoreAddressTransaction[] = [];
   const pendingIds = new Set<string>();
+  let paginationPendingOffset: number | null = null;
   let target = Math.min(Math.max(transactionCount, 1), historyLimit);
   // Page-number APIs calculate offsets from the requested limit. Keep it fixed.
   const limit = Math.min(DASHSCAN_PAGE_SIZE, historyLimit);
@@ -298,7 +299,16 @@ async function queryDashScan(
     pending.push(...pendingRows.map(item => transactionView(item, address)));
     const items: unknown = page.resultSet.filter(item => !isPending(item));
     const pagination = object(page.pagination, 'transaction pagination');
-    validateAddressHistoryPage(items, pagination.total, transactionCount, limit, seen);
+    const pageTotal = requiredInteger(pagination.total, 'transaction pagination total');
+    if (paginationPendingOffset === null) {
+      const possibleOffsets = [...new Set([0, pendingRows.length])]
+        .filter(offset => pageTotal - offset === transactionCount);
+      if (possibleOffsets.length !== 1) {
+        throw new Error('Address history changed during pagination or disagrees with its confirmed transaction count.');
+      }
+      paginationPendingOffset = possibleOffsets[0]!;
+    }
+    validateAddressHistoryPage(items, pageTotal - paginationPendingOffset, transactionCount, limit, seen);
     if (items.some(item => pendingIds.has(String(item.hash).toLowerCase()))) throw new Error('A pending transaction changed confirmation state during pagination.');
     const fullPage = items.map(item => transactionView(item, address));
     target = Math.min(transactionCount, historyLimit);
