@@ -28,6 +28,13 @@ describe('Dash Platform DIP17/DIP18 official vectors', () => {
     expect(rowValue(result, 'address')).toBe('dash1kpkeye606ez89g7lelp7hnldwwpt76va0v3j6x28');
   });
 
+  it.each([-1, 2, 17, 0x7fffffff])('rejects undefined DIP17 payment key class %s at the library boundary', (branch) => {
+    const seed = mnemonicToSeed(TEST_MNEMONIC);
+    try {
+      expect(() => deriveDashPlatform({ seed, network: 'mainnet', account: 0, branch, start: 0, count: 1 })).toThrow(/[Kk]ey class must/u);
+    } finally { seed.fill(0); }
+  });
+
   it('matches the platform-address vector used by Dash Desktop', () => {
     const seed = mnemonicToSeed('deliver frame tomato ring tool second dream mutual fade sponsor visa teach');
     const result = deriveDashPlatform({ seed, network: 'testnet', account: 0, branch: 0, start: 0, count: 3 });

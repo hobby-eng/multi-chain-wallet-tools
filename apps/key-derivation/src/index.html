@@ -6,8 +6,7 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src __INLINE_SCRIPT_CSP__ 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
   <title>__DOCUMENT_TITLE__</title>
-  <style>/*__INLINE_CSS__*/.standard-path-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;padding:16px;border:1px solid #33404e;border-radius:10px;background:rgba(0,0,0,.14)}.standard-path-label{display:block;font-size:12px;color:#aeb8c3;margin-bottom:8px}.standard-path-details output{display:block;font:inherit;overflow-wrap:anywhere}.standard-path-section>.field-note{margin-top:0}
-  </style>
+  <style>/*__INLINE_CSS__*/</style>
 </head>
 <body>
   <noscript>This offline tool requires JavaScript.</noscript>
@@ -58,7 +57,7 @@
           <button class="danger-outline" id="toggle-sensitive-values" type="button" aria-pressed="false">Reveal all sensitive values</button>
         </div>
         <label for="mnemonic">BIP39 recovery phrase</label>
-        <textarea id="mnemonic" class="concealed" rows="4" placeholder="Enter 12 or 24 English words separated by spaces" autocomplete="off" autocapitalize="none"></textarea>
+        <textarea id="mnemonic" class="concealed" rows="4" placeholder="Enter 12, 15, 18, 21, or 24 English words separated by spaces" autocomplete="off" autocapitalize="none"></textarea>
         <div class="input-meta"><span id="word-count">0 words</span><span>English wordlist · checksum validated</span></div>
         <div class="generate-actions" aria-label="Generate a new recovery phrase">
           <button class="secondary compact" id="generate-12" type="button">Generate 12 words</button>
@@ -71,66 +70,75 @@
         <p class="field-note">A passphrase is not a PIN. Every different passphrase creates a different wallet across all selected protocols, with no error for a wrong one.</p>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="derivation-panel">
         <div class="section-head"><div><span class="step">02</span><h2>Protocol & derivation</h2></div></div>
         <div class="form-grid">
-          <div class="span-two">
+          <div class="span-two standard-derivation-content">
             <label for="coin">Coin</label>
             <select id="coin"></select>
           </div>
-          <div id="network-field">
+          <div id="network-field" class="standard-derivation-content">
             <label for="network">Network</label>
             <select id="network"></select>
           </div>
           <div class="protocol-tabs-field span-three">
             <label id="protocol-tabs-label">Derivation type</label>
-            <div id="protocol-tabs" class="protocol-tabs" role="radiogroup" aria-labelledby="protocol-tabs-label"></div>
+            <div id="protocol-tabs" class="protocol-tabs primary-mode-tabs" role="radiogroup" aria-labelledby="protocol-tabs-label">
+              __SILENT_PAYMENT_TAB__
+              __BIP85_TAB__
+              <button type="button" id="coinjoin-tab" class="protocol-tab primary-mode-tab" data-feature-tab="coinjoin" role="radio" aria-checked="false" tabindex="-1" hidden><span>Dash Mobile CoinJoin</span><small>DIP9</small></button>
+            </div>
           </div>
-          <div class="standard-path-section span-three">
-            <p class="field-note">The selected scheme fixes the derivation rules and address format. Edit the supported controls below; the full path updates automatically. Only change the default scheme or account if you know your wallet’s derivation path; other wallets may not find funds at a different path.</p>
-            <div id="standard-path-details" class="standard-path-details" aria-label="Fixed scheme parameters"></div>
+          <div class="feature-tab-options span-three">
+            __SILENT_PAYMENT_TOGGLE__
+            __BIP85_TOGGLE__
+            <label id="legacy-mobile-field" class="feature-tab-toggle standard-derivation-content" for="include-legacy-mobile" title="Reveal the historical Dash mobile m/account'/branch/index derivation tab only when an old DashSync/mobile path is required." hidden>
+              <input id="include-legacy-mobile" type="checkbox">
+              <span>Show legacy mobile Core</span>
+            </label>
+            <label id="coinjoin-addresses-field" class="feature-tab-toggle standard-derivation-content" for="include-coinjoin-addresses" title="Generate the separate Dash Mobile CoinJoin DIP9 external and compatibility/internal chains." hidden>
+              <input id="include-coinjoin-addresses" type="checkbox">
+              <span>Show Dash Mobile CoinJoin · DIP9 addresses</span>
+              <span id="coinjoin-path-help" hidden></span>
+            </label>
           </div>
-          <div id="account-field">
+          __SILENT_PAYMENT_PANEL__
+          __BIP85_PANEL__
+          <div id="account-field" class="standard-derivation-content">
             <label id="account-label" for="account">Account</label>
             <input id="account" type="number" value="0" min="0" max="2147483647" step="1">
           </div>
-          <div id="branch-field">
+          <div id="branch-field" class="standard-derivation-content">
             <label id="branch-label" for="branch-input">Branch</label>
             <input id="branch-input" type="number" value="0" min="0" max="2147483647" step="1">
             <select id="branch-select" hidden></select>
           </div>
-          <div>
+          <div class="standard-derivation-content">
             <label id="start-label" for="start">Start index</label>
             <input id="start" type="number" value="0" min="0" max="2147483647" step="1">
           </div>
-          <div>
+          <div class="standard-derivation-content">
             <label id="count-label" for="count">Number of results</label>
             <input id="count" type="number" value="20" min="1" max="2147483648" step="1">
           </div>
-          <div class="path-preview span-three">
+          <div class="path-preview span-three standard-derivation-content">
             <label>Standard derivation path · read-only</label>
             <code id="path-preview"></code>
           </div>
-          <div id="change-addresses-field" class="change-addresses-option span-three" hidden>
+          <div id="change-addresses-field" class="change-addresses-option span-three standard-derivation-content" hidden>
             <label for="include-change-addresses">
               <input id="include-change-addresses" type="checkbox">
               <span><strong>Also generate change addresses</strong><small id="change-addresses-help">Uses the standard internal branch <code>/1</code> and shows it in a separate result tab.</small></span>
             </label>
           </div>
-          <div id="coinjoin-addresses-field" class="change-addresses-option span-three" hidden>
-            <label for="include-coinjoin-addresses">
-              <input id="include-coinjoin-addresses" type="checkbox">
-              <span><strong>Show Dash Mobile CoinJoin · DIP9 addresses</strong><small>A separate DIP9 CoinJoin chain not covered by normal BIP44. External is the commonly used mobile/DashSync branch; internal is a compatibility/defensive branch that's rarely used. Shows a separate result tab and adds derivation work. <code id="coinjoin-path-help"></code></small></span>
-            </label>
-          </div>
         </div>
-        <div class="actions">
+        <div class="actions standard-derivation-content">
           <button class="primary" id="derive-button" type="submit">Derive selected results</button>
           <button class="secondary" id="cancel-derivation" type="button" hidden>Cancel generation</button>
           <button class="secondary" id="clear-all" type="button">Clear everything</button>
         </div>
-        <p class="field-note auto-derive-note">Generating or pasting a complete phrase, changing its BIP39 passphrase, coin, or derivation tab automatically derives the selected result count. Remembered totals above 20 require a manual click; larger requests run in visible batches and can consume substantial CPU, memory, and browser time.</p>
-        <section id="address-search" class="address-search" aria-labelledby="address-search-title">
+        <p class="field-note auto-derive-note standard-derivation-content">Generating or pasting a complete phrase, changing its BIP39 passphrase, coin, or derivation tab automatically derives the selected result count. Remembered totals above 20 require a manual click; larger requests run in visible batches and can consume substantial CPU, memory, and browser time.</p>
+        <section id="address-search" class="address-search standard-derivation-content" aria-labelledby="address-search-title">
           <div>
             <h3 id="address-search-title">Find a known address</h3>
             <p>Verify that an expected address belongs to the selected account by scanning receive and, when enabled, change indices locally.</p>
@@ -179,6 +187,20 @@
       </div>
 
       <div id="branch-result-content" role="tabpanel" aria-live="polite">
+      <section id="bulk-bip38-panel" class="bulk-bip38-control" aria-labelledby="bulk-bip38-title" hidden>
+        <label class="feature-tab-toggle" for="enable-bulk-bip38">
+          <input id="enable-bulk-bip38" type="checkbox">
+          <span id="bulk-bip38-title">Encrypt private keys using BIP38 and this password</span>
+        </label>
+        <div id="bulk-bip38-fields" class="bulk-bip38-inline" hidden>
+          <label class="visually-hidden" for="bulk-bip38-passphrase">BIP38 password</label>
+          <input id="bulk-bip38-passphrase" type="password" autocomplete="new-password" placeholder="BIP38 password">
+          <button class="secondary compact" id="toggle-bulk-bip38-passphrase" type="button" aria-pressed="false">Show</button>
+          <span class="field-note">Encryption starts after leaving the password field or pressing Enter. This tool keeps standard compressed public keys; Ian Coleman's BIP39 Tool may show different Legacy P2PKH addresses when its BIP38 mode switches to uncompressed keys. Standard BIP38 scrypt parameters are unchanged. Work runs asynchronously in a dedicated worker, so the page stays responsive and completion time may differ.</span>
+        </div>
+        <div id="bulk-bip38-status" class="field-note" role="status" aria-live="polite"></div>
+        <div id="bulk-bip38-error" class="error" role="alert" hidden></div>
+      </section>
       <section class="panel bulk-panel" aria-label="Selection and clipboard export">
         <div class="bulk-row">
           <strong><span id="selected-count">0</span> selected</strong>
@@ -250,6 +272,35 @@
       <div id="address-list"></div>
       </div>
     </section>
+
+    <dialog id="message-signer-dialog" aria-labelledby="message-signer-title">
+        <div class="section-head">
+          <div><span class="step">SIGN</span><h2 id="message-signer-title">Sign message</h2></div>
+          <button class="secondary compact" id="close-message-signer" type="button">Close</button>
+        </div>
+        <p class="field-note">The private key remains in the local derivation worker. Only the signature is returned to this dialog.</p>
+        <div class="signer-context">
+          <div><span>Address</span><code id="message-signer-address"></code></div>
+          <div><span>Derivation path</span><code id="message-signer-path"></code></div>
+          <div><span>Format</span><strong id="message-signer-format"></strong></div>
+        </div>
+        __KEY_DERIVATION_SIGNER_FORMAT_FIELD__
+        <label for="message-signer-message">Message</label>
+        <textarea id="message-signer-message" rows="5" autocomplete="off" spellcheck="false" placeholder="Enter the exact message to sign"></textarea>
+        <div class="actions">
+          <button class="primary" id="sign-message-button" type="button">Sign message</button>
+        </div>
+        <div id="message-signer-error" class="error" role="alert" hidden></div>
+        <section id="message-signature-result" hidden>
+          <label for="message-signature-output">Base64 signature</label>
+          <textarea id="message-signature-output" rows="4" readonly></textarea>
+          <div class="actions">
+            <button class="secondary compact" id="copy-message-signature" type="button">Copy signature</button>
+          </div>
+          <p id="message-signature-verification" class="field-note"></p>
+        </section>
+      </dialog>
+
   </main>
 
   <section class="build-passport" aria-labelledby="build-passport-title">

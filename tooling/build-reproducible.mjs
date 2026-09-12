@@ -1,3 +1,4 @@
+import { BUILD_PROFILES } from './build-profiles.mjs';
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -9,6 +10,12 @@ const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
 const wasmOnly = process.argv.includes('--wasm');
 const target = wasmOnly ? 'wasm-artifacts' : 'artifacts';
 const image = `multi-chain-wallet-tools-reproducible:${String(manifest.version)}-${target}`;
+let sourceCommit = 'unavailable';
+let sourceDirty = false;
+try {
+  sourceCommit = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim() || 'unavailable';
+  sourceDirty = spawnSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).stdout.trim() !== '';
+} catch {}
 const temporary = mkdtempSync(join(tmpdir(), 'multi-chain-wallet-tools-reproducible-'));
 let container;
 
@@ -24,7 +31,7 @@ function run(command, args, options = {}) {
     }
     throw result.error;
   }
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  if (result.status !== 0) throw Object.assign(new Error(`${command} ${args[0]} failed (exit ${result.status ?? 'signal'}).`), { exitCode: result.status ?? 1 });
   return options.capture === true ? result.stdout.trim() : '';
 }
 
@@ -35,6 +42,8 @@ try {
     '--platform', 'linux/amd64',
     '--network', 'host',
     '--file', 'Dockerfile.reproducible',
+    '--build-arg', `SOURCE_COMMIT=${sourceCommit}`,
+    '--build-arg', `SOURCE_DIRTY=${String(sourceDirty)}`,
     '--target', target,
     '--tag', image,
     '.',
@@ -53,14 +62,18 @@ try {
     console.log('Replaced the committed generated WASM inputs with the canonical container build.');
   } else {
     const destination = resolve(root, 'dist');
-    if (!existsSync(resolve(temporary, 'release/SHA256SUMS'))) {
+    const manifests = Object.values(BUILD_PROFILES).map(profile => `${profile.outputDirectory}/release/SHA256SUMS`);
+    if (manifests.some(path => !existsSync(resolve(temporary, path)))) {
       throw new Error('The reproducible build did not contain the verified release bundle.');
     }
     rmSync(destination, { recursive: true, force: true });
     cpSync(temporary, destination, { recursive: true });
-    console.log(readFileSync(resolve(destination, 'release/SHA256SUMS'), 'utf8').trim());
+    for (const path of manifests) console.log(readFileSync(resolve(destination, path), 'utf8').trim());
     console.log('Copied the canonical container build to dist/.');
   }
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = error?.exitCode ?? 1;
 } finally {
   if (container !== undefined && container.length > 0) {
     spawnSync('docker', ['rm', '--force', container], { cwd: root, stdio: 'ignore' });

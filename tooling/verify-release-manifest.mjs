@@ -14,7 +14,7 @@ const expectedNames = new Set(profileArtifacts(profile).map((name) => {
   return name.slice(prefix.length);
 }));
 
-if (manifest.length !== expectedNames.size) throw new Error('SHA256SUMS must contain exactly three release artifacts.');
+if (manifest.length !== expectedNames.size) throw new Error(`SHA256SUMS must contain exactly ${expectedNames.size} release artifacts.`);
 for (const line of manifest) {
   const match = /^([0-9a-f]{64})  ([a-z0-9-]+\/[A-Za-z0-9_.-]+)$/u.exec(line);
   if (match === null) throw new Error(`Malformed SHA256SUMS line: ${line}`);

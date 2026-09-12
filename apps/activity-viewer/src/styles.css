@@ -45,11 +45,7 @@
 .viewer-control-heading { position:relative; display:flex; align-items:baseline; justify-content:space-between; gap:18px; margin:0 3px 8px; }
 .viewer-control-heading strong { color:#dce4eb; font-size:13px; font-weight:850; }
 .viewer-control-heading span { color:#7f8b99; font-size:10.5px; text-align:right; }
-.viewer-input-mode-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin:0 0 14px; }
-.viewer-input-mode-tab { position:relative; min-height:48px; border:1px solid #303b47; color:#aeb9c5; background:#0f161e; font-size:16px; font-weight:800; }
-.viewer-input-mode-tab:hover { color:#eef2f5; border-color:#4a596a; }
-.viewer-input-mode-tab.active { color:var(--accent2); border-color:#76551e; background:linear-gradient(180deg,#2a2113,#1b1811); }
-.viewer-input-mode-tab.active::after { content:""; position:absolute; left:18px; right:18px; bottom:6px; height:2px; background:var(--accent); border-radius:2px; }
+.viewer-input-mode-tabs { margin:0 0 14px; }
 .viewer-detection-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; max-width:470px; margin:0 0 18px; padding:4px; border:1px solid #293540; border-radius:10px; background:#0a1016; }
 .viewer-detection-tab { padding:9px 12px; border:1px solid transparent; border-radius:7px; color:#8f9ba8; background:transparent; font-size:11px; font-weight:800; }
 .viewer-detection-tab:hover { color:#e7edf2; background:#121b24; }

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BUILD_PROFILES, getToolBuild } from './build-profiles.mjs';
+import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.mjs';
 import { formatEnglishList, PRODUCT_FACTS, readReleaseMetadata } from './project-metadata.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -56,7 +56,7 @@ const multiChainReleaseManifest = `${BUILD_PROFILES['multi-chain'].releaseDirect
 requireText(reproducibleBuildWrapper, `expected_path=\"${multiChainReleaseManifest}\"`, 'Canonical build wrapper release-manifest path');
 
 for (const profile of Object.values(BUILD_PROFILES)) {
-  for (const toolId of ['key-derivation', 'activity-viewer', 'discovery-scanner']) {
+  for (const toolId of profileToolIds(profile)) {
     const relative = `dist/${getToolBuild(profile, toolId).artifactRelativePath}`;
     const documentation = `${rootReadme}\n${architecture}\n${read(`apps/${toolId}/README.md`)}`;
     requireText(documentation, relative, `${profile.editionName} ${toolId} artifact path`);

@@ -10,6 +10,10 @@ Dash Platform and Dash Orchard functionality relies on open-source work authored
 - **Dash Orchard fork** — Dash-specific Orchard/ZIP-32 cryptographic implementation: [github.com/dashpay/orchard](https://github.com/dashpay/orchard)
 - **Dash Core** — network definitions and the wider Dash protocol implementation: [github.com/dashpay/dash](https://github.com/dashpay/dash)
 - **Dash brand mark and palette** — the official “Dash D Circle” asset and the blue, navy, white, and cool-neutral visual direction from the official [Dash BrandBook](https://www.figma.com/design/cCpB1W2IAmoEGXBbGqGsfD/Dash-BrandBook?node-id=219-108&p=f), [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), and primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html), used under the Creative Commons Attribution 4.0 license (CC BY 4.0). The mark remains the property of its respective owner; use in the Dash-only Community Edition identifies the target ecosystem and does not imply endorsement.
+- **BitcoinerLab Miniscript** — TypeScript Miniscript compiler, safety analyzer, and symbolic satisfier: [github.com/bitcoinerlab/miniscript](https://github.com/bitcoinerlab/miniscript), MIT licensed.
+- **btcutil-js** — Bitcoin utilities and BIP-322 verification backed by btcd/btcutil compiled to WebAssembly: [github.com/guggero/btcutil-js](https://github.com/guggero/btcutil-js), MIT licensed.
+- **Noble Ciphers** — audited JavaScript cryptographic primitives; AES-256-ECB is used only by the BIP38 compatibility layer: [github.com/paulmillr/noble-ciphers](https://github.com/paulmillr/noble-ciphers), MIT licensed.
+- **Scure BTC Signer** — audited Bitcoin, Taproot, PSBT, and BIP-327 MuSig2 primitives used for inspection, derivation and local Bitcoin BIP322 message signing in the Key Derivation Tool: [github.com/paulmillr/scure-btc-signer](https://github.com/paulmillr/scure-btc-signer), MIT licensed.
 
 This repository's code integrates those components for key derivation, activity inspection, and recovery reporting. Upstream names identify technical provenance; they do not transfer authorship of upstream code to this project.
 

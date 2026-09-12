@@ -35,6 +35,8 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const controls: DerivationControls = {
     coin: required<HTMLSelectElement>('#coin'),
     protocolTabs: required<HTMLElement>('#protocol-tabs'),
+    legacyMobileField: required<HTMLElement>('#legacy-mobile-field'),
+    includeLegacyMobile: required<HTMLInputElement>('#include-legacy-mobile'),
     network: required<HTMLSelectElement>('#network'),
     networkField: required<HTMLElement>('#network-field'),
     accountField: required<HTMLElement>('#account-field'),
@@ -55,7 +57,6 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     countLabel: required<HTMLLabelElement>('#count-label'),
     count: required<HTMLInputElement>('#count'),
     preview: required<HTMLElement>('#path-preview'),
-    fixedPath: required<HTMLElement>('#standard-path-details'),
   };
   const errorRoot = required<HTMLElement>('#error');
   const statusRoot = required<HTMLElement>('#status');
@@ -114,6 +115,18 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const searchStart = required<HTMLInputElement>('#search-start');
   const searchCount = required<HTMLInputElement>('#search-count');
   const searchResult = required<HTMLElement>('#search-result');
+  const messageSignerDialog = required<HTMLDialogElement>('#message-signer-dialog');
+  const messageSignerAddress = required<HTMLElement>('#message-signer-address');
+  const messageSignerPath = required<HTMLElement>('#message-signer-path');
+  const messageSignerFormat = required<HTMLElement>('#message-signer-format');
+  const messageSignerMessage = required<HTMLTextAreaElement>('#message-signer-message');
+  const signMessageButton = required<HTMLButtonElement>('#sign-message-button');
+  const closeMessageSignerButton = required<HTMLButtonElement>('#close-message-signer');
+  const messageSignerError = required<HTMLElement>('#message-signer-error');
+  const messageSignatureResult = required<HTMLElement>('#message-signature-result');
+  const messageSignatureOutput = required<HTMLTextAreaElement>('#message-signature-output');
+  const messageSignatureVerification = required<HTMLElement>('#message-signature-verification');
+  const copyMessageSignature = required<HTMLButtonElement>('#copy-message-signature');
   const temporaryButtonLabels = new WeakMap<HTMLButtonElement, string>();
   let cryptoControlsEnabled = false;
   let addressSearchAvailable = true;
@@ -159,6 +172,12 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     searchCount,
     searchAddressButton,
     searchResult,
+    messageSignerDialog,
+    messageSignerMessage,
+    signMessageButton,
+    closeMessageSignerButton,
+    messageSignatureOutput,
+    copyMessageSignature,
     selfTestStatus,
     selfTestDetails,
     generate12Button,
@@ -168,6 +187,43 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     selectNoneButton: required<HTMLButtonElement>('#select-none'),
     selectInvertButton: required<HTMLButtonElement>('#select-invert'),
     downloadSelectionButton: required<HTMLButtonElement>('#download-selection'),
+    openMessageSigner(address: string, path: string, format: string): void {
+      messageSignerAddress.textContent = address;
+      messageSignerPath.textContent = path;
+      messageSignerFormat.textContent = format;
+      messageSignerMessage.value = '';
+      messageSignatureOutput.value = '';
+      messageSignerError.textContent = '';
+      messageSignerError.hidden = true;
+      messageSignatureResult.hidden = true;
+      signMessageButton.disabled = false;
+      signMessageButton.textContent = 'Sign message';
+      messageSignerDialog.showModal();
+      messageSignerMessage.focus();
+    },
+    closeMessageSigner(): void {
+      messageSignerMessage.value = '';
+      messageSignatureOutput.value = '';
+      messageSignerError.textContent = '';
+      messageSignerError.hidden = true;
+      messageSignatureResult.hidden = true;
+      messageSignerDialog.close();
+    },
+    showMessageSigning(running: boolean): void {
+      signMessageButton.disabled = running;
+      signMessageButton.textContent = running ? 'Signing…' : 'Sign message';
+    },
+    showMessageSignature(signature: string, format: string): void {
+      messageSignerError.hidden = true;
+      messageSignatureOutput.value = signature;
+      messageSignatureResult.hidden = false;
+      messageSignatureVerification.textContent = `Verified locally against the selected address · ${format}`;
+    },
+    showMessageSignerError(message: string): void {
+      messageSignatureResult.hidden = true;
+      messageSignerError.textContent = message;
+      messageSignerError.hidden = false;
+    },
     showError(message: string): void {
       statusRoot.hidden = true;
       errorRoot.textContent = message;
@@ -217,6 +273,16 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       cancelDerivationButton.disabled = true;
     },
     flashCopied(button: HTMLButtonElement): void {
+      if (button.dataset.iconButton === 'true') {
+        const previousTitle = button.title;
+        button.classList.add('copied');
+        button.title = 'Copied';
+        window.setTimeout(() => {
+          button.classList.remove('copied');
+          button.title = previousTitle;
+        }, 900);
+        return;
+      }
       const previous = button.textContent;
       button.textContent = 'COPIED';
       window.setTimeout(() => {
@@ -321,8 +387,10 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       activeBranch: ResultBranch,
     ): void {
       const hasChange = branchStates.has('change');
+      const hasReceive = branchStates.has('receive');
       const hasCoinJoin = branchStates.has('coinjoin-external') || branchStates.has('coinjoin-internal');
-      resultBranchTabs.hidden = !hasChange && !hasCoinJoin;
+      resultBranchTabs.hidden = (!hasChange && !hasCoinJoin) || (hasCoinJoin && !hasReceive && !hasChange);
+      resultReceiveTab.hidden = !hasReceive;
       resultChangeTab.hidden = !hasChange;
       resultCoinJoinTab.hidden = !hasCoinJoin;
       const activeGroup = resultBranchGroup(activeBranch);
@@ -332,7 +400,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
           ? hasChange || hasCoinJoin ? ' · Receive addresses' : ''
           : activeGroup === 'change'
             ? ' · Change addresses'
-            : activeBranch === 'coinjoin-external' ? ' · Dash Mobile CoinJoin · DIP9 external' : ' · Dash Mobile CoinJoin · DIP9 internal';
+            : '';
         resultTitle.textContent = `${result.title}${suffix}`;
       }
       for (const [button, branch] of [

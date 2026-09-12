@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findDashArtifactViolations } from './verify-dash-community-artifacts.mjs';
+import { findDashArtifactViolations, findDashInspectorArtifactViolations } from './verify-dash-community-artifacts.mjs';
 
 describe('Dash Community artifact exclusion rules', () => {
   it('rejects non-Dash registrations, protocol copy, and branding', () => {
@@ -40,4 +40,16 @@ describe('Dash Community artifact exclusion rules', () => {
       + 'var recovery={id:"dash",label:"Dash",networks:["mainnet","testnet"]}',
     )).toEqual([]);
   });
+
+  it('applies a reviewed shared-decoder allowlist to the Dash Inspector', () => {
+    const safe = '<main>Dash only</main><script>const labels = ["Bitcoin", "Taproot", "MuSig2", "rawtr", "multi_a", "P2TR", "P2WPKH"];</script>';
+    expect(findDashInspectorArtifactViolations(safe)).toEqual([]);
+    expect(findDashInspectorArtifactViolations(safe.replace('</script>', 'keyAggregate();</script>')))
+      .toContain('Bitcoin MuSig2 aggregation implementation');
+    expect(findDashInspectorArtifactViolations('<main>Ethereum wallet</main><script></script>'))
+      .toContain('Ethereum');
+    expect(findDashInspectorArtifactViolations(`<main>Dash</main><script>${'Bitcoin '.repeat(72)}</script>`))
+      .toContain('Bitcoin shared-decoder terms exceed reviewed allowlist: 72 > 71');
+  });
+
 });
