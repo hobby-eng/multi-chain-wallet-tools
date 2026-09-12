@@ -81,3 +81,11 @@ For a new recovery coin:
 9. Update `README.md`, `SECURITY_AUDIT.md`, `DASH_IMPLEMENTATION.md` when relevant, `THIRD_PARTY_NOTICES.md`, and `RELEASING.md` before publishing.
 
 The current Dash implementation is split into `core-scanner.ts`, `platform-scanner.ts`, `identity-scanner.ts`, and `shielded-scanner.ts`. Bitcoin variants share one Bitcoin family adapter/configuration for Legacy, Nested SegWit, Native SegWit, and Taproot, while Ethereum has its own adapter for the three supported EOA layouts. The generic app owns ordered batch scheduling and the shared request semaphore; coin modules own protocol discovery. Adding another coin must not add coin-ID branches to `apps/discovery-scanner/src/app.ts`.
+
+## PSBT & Multisig Inspector protocol extensions
+
+The fourth application is intentionally not part of the derivation or discovery adapter registries. Adding a chain or transaction/policy feature to the Inspector is a cross-cutting parser change: update the explicit `PsbtChain` and network model, transaction framing and field schema, address/script rules, descriptor or policy context, UI controls, edition build substitutions, and artifact gates together. Do not make an unsupported chain appear available through a presentation-only selector.
+
+Consume consensus and policy bounds from `apps/psbt-inspector/src/consensus-limits.ts`; do not duplicate numeric limits in parsers or builders. New PSBT fields need exact key/value framing rules plus any deterministic cross-field relationship checks the UI claims to verify. Relationships outside the implementation's proof scope must remain visibly **not verified** rather than being inferred from successful parsing.
+
+Every extension requires official stored vectors where available, independent script/address comparisons, malformed and boundary cases, both relevant edition profiles, and direct `file://` Chromium/Firefox coverage. A Dash Community change must also update its counted shared-decoder allowlist or forbidden markers deliberately and prove that Bitcoin-only providers and controls remain absent.

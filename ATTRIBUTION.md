@@ -15,6 +15,6 @@ Dash Platform and Dash Orchard functionality relies on open-source work authored
 - **Noble Ciphers** — audited JavaScript cryptographic primitives; AES-256-ECB is used only by the BIP38 compatibility layer: [github.com/paulmillr/noble-ciphers](https://github.com/paulmillr/noble-ciphers), MIT licensed.
 - **Scure BTC Signer** — audited Bitcoin, Taproot, PSBT, and BIP-327 MuSig2 primitives used for inspection, derivation and local Bitcoin BIP322 message signing in the Key Derivation Tool: [github.com/paulmillr/scure-btc-signer](https://github.com/paulmillr/scure-btc-signer), MIT licensed.
 
-This repository's code integrates those components for key derivation, activity inspection, and recovery reporting. Upstream names identify technical provenance; they do not transfer authorship of upstream code to this project.
+This repository's code integrates those components for key derivation, activity inspection, wallet discovery, and offline PSBT, Script, descriptor, and multisig-policy inspection. Upstream names identify technical provenance; they do not transfer authorship of upstream code to this project.
 
 Exact pinned versions, commits, package integrity values, transitive dependencies, copyright notices and license identifiers are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [DASH_IMPLEMENTATION.md](DASH_IMPLEMENTATION.md), the lockfiles and the Release passport embedded in each standalone artifact.
