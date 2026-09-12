@@ -125,7 +125,7 @@ Capabilities that require future authoritative Platform/SDK queries are tracked 
 
 Every release is built from locked npm and Cargo dependency graphs. Deriver, Viewer and Scanner gate their workflows on their startup checks. Inspector validates parser boundaries when inputs are submitted; it does not currently run an equivalent startup cryptographic vector suite. Automated coverage includes BIP39/BIP32, Bitcoin BIP49/BIP86, Ethereum EIP-55, Dash Core BIP44, Platform DIP17/DIP18, Identity DIP13, and Dash Orchard ZIP32 on mainnet and testnet.
 
-The release pipeline also runs TypeScript tests, independent derivation comparisons, native Rust tests, generated-WASM boundary tests, CSP/static checks, secret-egress tests, reproducible HTML builds, checksum verification and artifact provenance attestation. GitHub Actions and local release builds use the same pinned Docker toolchain.
+The release pipeline also runs TypeScript tests, independent derivation comparisons, native Rust tests, generated-WASM boundary tests, CSP/static checks, secret-egress tests, reproducible HTML builds, direct `file://` Chromium/Firefox acceptance, checksum verification and artifact provenance attestation. GitHub Actions and local release builds use the same pinned Docker toolchain. Successful verification emits `dist/verification-record.json` with the source revision, toolchain, performed check groups and hashes for every HTML/WASM integration artifact.
 
 These checks greatly reduce integration and packaging risk; they do not prove that browsers, operating systems or this project are free of vulnerabilities. Test with an empty wallet first and independently verify valuable-wallet findings in a standard wallet.
 

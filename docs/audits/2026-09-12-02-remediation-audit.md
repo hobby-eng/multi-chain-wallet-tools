@@ -3,11 +3,11 @@
 Reviewer/implementation assistant: OpenAI Codex (GPT-6 family; exact service snapshot not exposed).
 Date: 2026-09-12 (evidence timestamps in UTC). Application: 0.1.4, unpublished local state.
 Branch: `hobby-eng-psbt-inspector-v4`.
-Target: `hobby-eng-studious-tribble`, based on `ea5d4215ccbf355dd86f1c9928e213df1e23d186` plus the existing local changes.
+Target: `hobby-eng-studious-tribble`, based on `f16a0987c903f83ef9428aefcb8fac9227fcc7f0` plus the existing local changes.
 
 Changes are applied to the current implementation. Earlier `super-broccoli` fixes were reviewed for intent and regression evidence; whole application files were not replaced with old versions.
 
-Original findings: [independent audit](AUDIT_2026-09-12.md). This record concerns first-party fixes and integration tests, not a dependency source audit. Existing uncommitted work was retained; no commit, push or release was made.
+Original findings: [independent audit](2026-09-12-01-initial-audit.md). This record concerns first-party fixes and integration tests, not a dependency source audit. Existing uncommitted work was retained; no commit, push or release was made.
 
 ## Changes
 
@@ -54,7 +54,7 @@ Two initial Chromium failures were caused by the test explicitly calling `indexe
 
 The earlier Rust/WASM audit results apply to the unchanged module. A fresh canonical Docker/WASM rebuild was not performed in this remediation: the available local wasm-bindgen CLI is 0.2.127 whereas the project pins 0.2.128. Container configuration checks do not prove byte-for-byte container reproducibility.
 
-Machine-readable outcomes and artifact SHA-256 hashes: [validation record](AUDIT_REMEDIATION_2026-09-12.json). Detailed local logs and browser evidence: `/tmp/wallet-independent-20260912/evidence/remediation-*`. These temporary evidence paths are not release assets.
+Machine-readable outcomes and artifact SHA-256 hashes: [validation record](2026-09-12-02-remediation-audit.json). Detailed local logs and browser evidence: `/tmp/wallet-independent-20260912/evidence/remediation-*`. These temporary evidence paths are not release assets.
 
 No full-suite rerun is silently counted as passing after a failure: the initial failure and targeted reruns remain separate in the validation record.
 
