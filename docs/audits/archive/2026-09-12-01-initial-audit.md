@@ -1,6 +1,6 @@
 # Independent audit of the local wallet tools — 2026-09-12
 
-> Historical pre-remediation findings. See [the remediation record](2026-09-12-02-remediation-audit.md) for subsequent changes, test results and corrections to two oracle descriptions. External evidence paths below identify the original review environment.
+> Historical pre-remediation findings. See [the remediation record](../2026-09-12-02-remediation-audit.md) for subsequent changes, test results and corrections to two oracle descriptions. External evidence paths below identify the original review environment.
 
 ## Audit identity and scope
 
@@ -54,7 +54,7 @@ Severity describes demonstrated impact, not the number of failed test cases. Sug
 
 ### F01 — High: custom Tapscript accepts the wrong public-key type and reports a signature requirement it does not enforce
 
-**Locations:** [custom-miniscript.ts:34](../../apps/psbt-inspector/src/custom-miniscript.ts#L34), [custom-miniscript.ts:61](../../apps/psbt-inspector/src/custom-miniscript.ts#L61), [miniscript-engine.ts:131](../../apps/psbt-inspector/src/miniscript-engine.ts#L131).
+**Locations:** [custom-miniscript.ts:34](../../../apps/psbt-inspector/src/custom-miniscript.ts#L34), [custom-miniscript.ts:61](../../../apps/psbt-inspector/src/custom-miniscript.ts#L61), [miniscript-engine.ts:131](../../../apps/psbt-inspector/src/miniscript-engine.ts#L131).
 
 The application trusts Miniscript analysis without first enforcing the cryptographic key type for the selected context. A compressed 33-byte SEC key is accepted inside Tapscript `multi_a`, compiled literally, and shown as sane and requiring a signature.
 
@@ -87,7 +87,7 @@ A second input, `multi_a(1,` followed by 32 bytes of `ff` and `)`, is also label
 
 ### F02 — Medium: Inspector displays a verification result for an obsolete message, including after Clear
 
-**Locations:** [app.ts:575](../../apps/psbt-inspector/src/app.ts#L575), [app.ts:1292](../../apps/psbt-inspector/src/app.ts#L1292).
+**Locations:** [app.ts:575](../../../apps/psbt-inspector/src/app.ts#L575), [app.ts:1292](../../../apps/psbt-inspector/src/app.ts#L1292).
 
 `verifyMessageSignature()` awaits asynchronous verification and then renders unconditionally. Input edits and Clear do not invalidate the operation. A valid public fixture is submitted; before the promise resolves, the message is changed. The visible form contains the new message while the verdict says “VALID … exact message” for the old one. Clear can also be followed by the old result reappearing.
 
@@ -99,7 +99,7 @@ A second input, `multi_a(1,` followed by 32 bytes of `ff` and `)`, is also label
 
 ### F03 — Medium: PSBT parsing is substantially more permissive than the advertised versions' field schemas
 
-**Locations:** [psbt.ts:143](../../apps/psbt-inspector/src/psbt.ts#L143), [psbt.ts:273](../../apps/psbt-inspector/src/psbt.ts#L273).
+**Locations:** [psbt.ts:143](../../../apps/psbt-inspector/src/psbt.ts#L143), [psbt.ts:273](../../../apps/psbt-inspector/src/psbt.ts#L273).
 
 The generic map reader correctly rejects duplicate raw keys and several framing errors. However, most recognized field types are not validated for key-data size, value shape, applicability to PSBT version, or required combinations.
 
@@ -119,7 +119,7 @@ Fresh official valid/invalid PSBT corpora produced 12 BIP174, 19 BIP370, and 11 
 
 ### F04 — Medium: displayed PSBT fee is calculated from unbound or conflicting UTXO claims
 
-**Locations:** [psbt.ts:229](../../apps/psbt-inspector/src/psbt.ts#L229), [psbt.ts:312](../../apps/psbt-inspector/src/psbt.ts#L312), [app.ts:492](../../apps/psbt-inspector/src/app.ts#L492).
+**Locations:** [psbt.ts:229](../../../apps/psbt-inspector/src/psbt.ts#L229), [psbt.ts:312](../../../apps/psbt-inspector/src/psbt.ts#L312), [app.ts:492](../../../apps/psbt-inspector/src/app.ts#L492).
 
 The non-witness previous transaction is read without checking that its hash equals the input's referenced transaction ID. If witness and non-witness UTXOs conflict, the witness value takes precedence without a consistency error.
 
@@ -133,7 +133,7 @@ Synthetic examples produce a known fee of 100 from an unrelated previous transac
 
 ### F05 — Medium: descriptor validation permits invalid contexts and malformed tree/multipath syntax
 
-**Locations:** [descriptor-key.ts:24](../../apps/psbt-inspector/src/descriptor-key.ts#L24), [descriptor-key.ts:69](../../apps/psbt-inspector/src/descriptor-key.ts#L69), [descriptor.ts:350](../../apps/psbt-inspector/src/descriptor.ts#L350), [descriptor.ts:483](../../apps/psbt-inspector/src/descriptor.ts#L483).
+**Locations:** [descriptor-key.ts:24](../../../apps/psbt-inspector/src/descriptor-key.ts#L24), [descriptor-key.ts:69](../../../apps/psbt-inspector/src/descriptor-key.ts#L69), [descriptor.ts:350](../../../apps/psbt-inspector/src/descriptor.ts#L350), [descriptor.ts:483](../../../apps/psbt-inspector/src/descriptor.ts#L483).
 
 Confirmed examples include:
 
@@ -149,7 +149,7 @@ Confirmed examples include:
 
 ### F06 — Medium: mixed-case Dash Platform addresses are normalized before checksum validation
 
-**Location:** [public-address.ts:127](../../packages/dash-network/src/public-address.ts#L127).
+**Location:** [public-address.ts:127](../../../packages/dash-network/src/public-address.ts#L127).
 
 The decoder lowercases before Bech32m decoding. Public synthetic input `daSh1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs` is accepted as the lowercase address. Mixed case is invalid, even when the all-lowercase spelling has a valid checksum. This weakens validation of copied/malformed payment addresses.
 
@@ -159,7 +159,7 @@ The decoder lowercases before Bech32m decoding. Public synthetic input `daSh1krm
 
 ### F07 — Medium: the Dash discovery overview double-counts an address found in overlapping L1 families
 
-**Location:** [summary.ts:5](../../apps/discovery-scanner/src/coins/dash/summary.ts#L5), especially line 29.
+**Location:** [summary.ts:5](../../../apps/discovery-scanner/src/coins/dash/summary.ts#L5), especially line 29.
 
 Each section is summed independently, then Core/Legacy/CoinJoin/provider holdings are added. A synthetic address with 100,000,000 duffs appearing in both Core and Legacy yields **2 DASH**, not 1. The funded-resource count is also inflated.
 
@@ -171,7 +171,7 @@ This is **not a credits-versus-duffs conversion error**: the conversion constant
 
 ### F08 — Medium: Dash Core history pagination can skip confirmed records and accepts incomplete page validation
 
-**Location:** [public-address.ts:265](../../packages/dash-network/src/public-address.ts#L265), particularly lines 285–300.
+**Location:** [public-address.ts:265](../../../packages/dash-network/src/public-address.ts#L265), particularly lines 285–300.
 
 Only `items.slice(0, remaining)` is parsed/validated. Missing total metadata is tolerated. Oversized confirmed pages and malformed records beyond the retained prefix can therefore escape validation. When pending rows are prepended to a page-number API's confirmed rows, truncation to the display limit can discard a confirmed record; the next page advances past it.
 
@@ -183,7 +183,7 @@ A deterministic 150-record probe returned 150 displayed IDs including a pending 
 
 ### F09 — Medium: some Dash explorer responses are not strictly bound to the requested resource/network
 
-**Locations:** [public-address.ts:265](../../packages/dash-network/src/public-address.ts#L265), [platform-address-history.ts:100](../../packages/dash-network/src/platform-address-history.ts#L100), [platform-identity-history.ts:527](../../packages/dash-network/src/platform-identity-history.ts#L527), [network-service.ts:250](../../apps/discovery-scanner/src/network-service.ts#L250).
+**Locations:** [public-address.ts:265](../../../packages/dash-network/src/public-address.ts#L265), [platform-address-history.ts:100](../../../packages/dash-network/src/platform-address-history.ts#L100), [platform-identity-history.ts:527](../../../packages/dash-network/src/platform-identity-history.ts#L527), [network-service.ts:250](../../../apps/discovery-scanner/src/network-service.ts#L250).
 
 The Core summary's returned address is not compared with the requested address. A fixture carrying another address is accepted and displayed under the requested one. Several Platform status checks treat “does not contain testnet” as sufficient proof of mainnet; missing or unknown network identifiers can pass that check.
 
@@ -195,7 +195,7 @@ The Core summary's returned address is not compared with the requested address. 
 
 ### F10 — Medium: an absolute “block height” can compile as a timestamp lock
 
-**Location:** [policy.ts:107](../../apps/psbt-inspector/src/policy.ts#L107).
+**Location:** [policy.ts:107](../../../apps/psbt-inspector/src/policy.ts#L107).
 
 `lockKind: 'height'` accepts 500,000,000 and 1,700,000,000 and describes them as block heights. CLTV interprets values at or above 500,000,000 as time-based locks. The program can therefore describe a substantially different spending condition from the script it emits.
 
@@ -205,9 +205,9 @@ The Core summary's returned address is not compared with the requested address. 
 
 ### F11 — Medium: two Deriver UI regressions hide or interrupt successfully requested operations
 
-**CoinJoin:** [controller.ts:1371](../../apps/key-derivation/src/ui/controller.ts#L1371) hides the main result section whenever any feature tab is active, including CoinJoin, which needs that section. Both browsers and both editions contain generated rows and a successful derivation status while the result section remains hidden.
+**CoinJoin:** [controller.ts:1371](../../../apps/key-derivation/src/ui/controller.ts#L1371) hides the main result section whenever any feature tab is active, including CoinJoin, which needs that section. Both browsers and both editions contain generated rows and a successful derivation status while the result section remains hidden.
 
-**BIP38:** [controller.ts:1727](../../apps/key-derivation/src/ui/controller.ts#L1727), [controller.ts:1819](../../apps/key-derivation/src/ui/controller.ts#L1819). Entering the password and pressing Enter in Chromium triggers the reproducible error “Superseded by a new BIP38 encryption request.” No encrypted rows remain visible. The change and Enter handlers share a reentrant start path, and the start routine disables the focused input before establishing the worker lifecycle. The same small two-key operation completes in Firefox. The event ordering is the likely mechanism; the browser-specific failure itself is confirmed.
+**BIP38:** [controller.ts:1727](../../../apps/key-derivation/src/ui/controller.ts#L1727), [controller.ts:1819](../../../apps/key-derivation/src/ui/controller.ts#L1819). Entering the password and pressing Enter in Chromium triggers the reproducible error “Superseded by a new BIP38 encryption request.” No encrypted rows remain visible. The change and Enter handlers share a reentrant start path, and the start routine disables the focused input before establishing the worker lifecycle. The same small two-key operation completes in Firefox. The event ordering is the likely mechanism; the browser-specific failure itself is confirmed.
 
 **Evidence:** `deriver-browser.json`, screenshots, and the existing browser regression log. Public test seed/password only.
 
@@ -215,7 +215,7 @@ The Core summary's returned address is not compared with the requested address. 
 
 ### F12 — Medium (build/reliability): reproducible Docker wrapper checks an obsolete output path
 
-**Location:** [build-reproducible.mjs:56](../../tooling/build-reproducible.mjs#L56), also line 61.
+**Location:** [build-reproducible.mjs:56](../../../tooling/build-reproducible.mjs#L56), also line 61.
 
 The full-build copy-out wrapper expects `release/SHA256SUMS` under the extracted dist directory. Current release assets are generated under `multi-chain-edition/release/` and `dash-community-edition/release/`. The wrapper will reject a correctly generated edition layout before replacing local dist.
 
@@ -225,7 +225,7 @@ The full-build copy-out wrapper expects `release/SHA256SUMS` under the extracted
 
 ### F13 — Medium (verification/release): the uncommitted audit suite and canonical check are not runnable as delivered
 
-**Location:** [crypto-conformance.test.ts:4](../../apps/psbt-inspector/tests/independent-audit/crypto-conformance.test.ts#L4), lines 18–19 and 110.
+**Location:** [crypto-conformance.test.ts:4](../../../apps/psbt-inspector/tests/independent-audit/crypto-conformance.test.ts#L4), lines 18–19 and 110.
 
 The test imports a non-exported root type, passes an incompatible WASM buffer type, and uses a Taproot result overload lacking the accessed property. TypeScript reports three errors. Its WASM relative path resolves to `node_modules` **above** the repository, so its `beforeAll` fails and 327 cases do not run.
 
@@ -237,7 +237,7 @@ The simple file browser suite also waits for a removed `#standard-path-details` 
 
 ### F14 — Low / capability gap: several valid descriptor/Miniscript paths remain inspection-only or unsupported
 
-**Locations:** [descriptor.ts:483](../../apps/psbt-inspector/src/descriptor.ts#L483), [musig-descriptor.ts:180](../../apps/psbt-inspector/src/musig-descriptor.ts#L180), [miniscript-engine.ts:127](../../apps/psbt-inspector/src/miniscript-engine.ts#L127).
+**Locations:** [descriptor.ts:483](../../../apps/psbt-inspector/src/descriptor.ts#L483), [musig-descriptor.ts:180](../../../apps/psbt-inspector/src/musig-descriptor.ts#L180), [miniscript-engine.ts:127](../../../apps/psbt-inspector/src/miniscript-engine.ts#L127).
 
 Ordinary `tr()` script trees and MuSig descriptors with script branches are not fully compiled into output scripts by these entry points. Six fresh official BIP390 script-path expectations return no output script. The UI explicitly identifies compilation as unimplemented in relevant paths, so this is **not** evidence of an incorrectly computed Merkle root or tweak there.
 
@@ -247,7 +247,7 @@ Seven valid Bitcoin Core Tapscript Miniscript compilation cases fail in the appl
 
 ### F15 — Low: a BIP45 documentation shortcut omits a meaningful derivation level
 
-**Location:** [Inspector README:11](../../apps/psbt-inspector/README.md#L11).
+**Location:** [Inspector README:11](../../../apps/psbt-inspector/README.md#L11).
 
 “Legacy multisig commonly uses m/45'/0” is too abbreviated as user guidance. BIP45 has purpose, cosigner index, change, and address index; it does not use the BIP44 account layout. Explain the complete hierarchy and what the shown zero means. Also distinguish wallet-specific legacy Purpose-48 variants from universal BIP48 interoperability. [BIP45](https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0045.mediawiki).
 
