@@ -258,7 +258,7 @@ These are point-in-time observations of public fixtures; they do not establish a
 
 ## Reproduction and evidence layout (outside the repository)
 
-Scratchpad: `/tmp/claude-1000/-home-sergio--copilot-repos-copilot-worktrees-derivationtool-hobby-eng-studious-tribble/c4fab9ec-5918-4b16-95b7-b1c3d88c2fb4/scratchpad/` — `logs/` (Vitest verbose + JSON, Docker build logs, browser logs, live-network log, link check), `browser-files/` and `browser-regressions/` (reports and screenshots), `docker-dist-1/`, `docker-dist-2/`, `docker-wasm/` (extracted container outputs), `probes/` (`p1`–`p11` Vitest probe files and `vitest.probe.config.mjs`), `ff-crash*.mjs` (Firefox reproduction harnesses), `bips/` (re-fetched pinned BIP/Core sources), `vectors-refetch/` (fresh official-vector extraction). These paths are session-scoped and are not release assets.
+Scratchpad: `/tmp/claude-1000/-home-user--copilot-repos-copilot-worktrees-derivationtool-hobby-eng-studious-tribble/c4fab9ec-5918-4b16-95b7-b1c3d88c2fb4/scratchpad/` — `logs/` (Vitest verbose + JSON, Docker build logs, browser logs, live-network log, link check), `browser-files/` and `browser-regressions/` (reports and screenshots), `docker-dist-1/`, `docker-dist-2/`, `docker-wasm/` (extracted container outputs), `probes/` (`p1`–`p11` Vitest probe files and `vitest.probe.config.mjs`), `ff-crash*.mjs` (Firefox reproduction harnesses), `bips/` (re-fetched pinned BIP/Core sources), `vectors-refetch/` (fresh official-vector extraction). These paths are session-scoped and are not release assets.
 
 Probe invocation:
 

@@ -93,7 +93,7 @@
     "pins": { "bips": "bfc142f2b580a314c846dbce3c15c659c2b1d32d", "bitcoinCore": "f3fec67c3eeb27d5be1bc9d57ca737b74fcd762d" }
   },
   "probes": {
-    "location": "/tmp/claude-1000/-home-sergio--copilot-repos-copilot-worktrees-derivationtool-hobby-eng-studious-tribble/c4fab9ec-5918-4b16-95b7-b1c3d88c2fb4/scratchpad/probes",
+    "location": "/tmp/claude-1000/-home-user--copilot-repos-copilot-worktrees-derivationtool-hobby-eng-studious-tribble/c4fab9ec-5918-4b16-95b7-b1c3d88c2fb4/scratchpad/probes",
     "results": {
       "p1-miniscript-flags": { "validContextsCompiled": 119, "compileFailures": 0, "flagMismatches": 0 },
       "p2-psbt-reasons": { "invalidRejected": 65, "validAccepted": 68, "incidentalRejectionReasons": 2 },

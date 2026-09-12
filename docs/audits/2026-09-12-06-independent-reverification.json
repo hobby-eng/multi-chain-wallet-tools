@@ -1,0 +1,203 @@
+{
+  "schema": "independent-audit-report/1",
+  "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
+  "date": "2026-09-12",
+  "timeUtc": "13:29-13:58",
+  "commitReviewed": "d978dd4de68e6b51743d8ce0f01fcd6128d88553",
+  "artifactCommit": "0b747882a5a43aa362ba6bf0d03b63bc02c0dd7c",
+  "previousReport": "2026-09-12-04-independent-audit.md",
+  "branch": "hobby-eng-psbt-inspector-v4",
+  "treeClean": true,
+  "toolchain": {
+    "node": "24.19.0",
+    "pnpmLocal": "11.19.0",
+    "pnpmPinned": "11.25.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0",
+    "playwright": "1.62.1",
+    "chromium": "151.0.7922.34",
+    "firefox": "153.0",
+    "docker": "29.8.0",
+    "rust": "1.98.1",
+    "wasmBindgenLocal": "0.2.128 (unused)",
+    "btcutilJs": "0.4.1"
+  },
+  "previousFindings": [
+    {
+      "id": "IA-01",
+      "severity": "High",
+      "status": "fixed",
+      "evidence": "probe R1: 21-key multi/sortedmulti rejected (p2wsh 20), bare 4 rejected (3), multi_a 1000 rejected (999); consensus-limits.ts + tests"
+    },
+    {
+      "id": "IA-02",
+      "severity": "Medium",
+      "status": "fixed-behaviourally",
+      "evidence": "24 Firefox + 2 Chromium harness runs, 0 crashes (previously 12/12 crashed); worker-readiness browser case 38/38"
+    },
+    {
+      "id": "IA-03",
+      "severity": "Low",
+      "status": "fixed",
+      "evidence": "exact multisig rows for multi/sortedmulti/multi_a/sortedmulti_a"
+    },
+    {
+      "id": "IA-04",
+      "severity": "Low",
+      "status": "fixed",
+      "evidence": "KeyAgg mismatch, foreign nonce participant, non-DER sig, depth 300, MAX_MONEY rejected; commitments/control block/v2 locks flagged in verification matrix"
+    },
+    {
+      "id": "IA-05",
+      "severity": "Low",
+      "status": "mitigated-documented-exception",
+      "evidence": "gate iterates profileToolIds, counted allowlist + forbidden markers; shared Bitcoin decoder code still bundled"
+    },
+    {
+      "id": "IA-06",
+      "severity": "Medium (test credibility)",
+      "status": "fixed",
+      "evidence": "119 Core contexts compiled, 0 flag mismatches; expectedPsbtError per vector; BIP341 vectors 5/6"
+    },
+    {
+      "id": "static-dashscan-pending",
+      "status": "fixed-mocked",
+      "evidence": "pending-only pages with total 1/0 accepted; off-by-2 and changing totals still rejected"
+    },
+    {
+      "id": "static-whitespace",
+      "status": "fixed"
+    },
+    {
+      "id": "static-older-65536",
+      "status": "fixed"
+    },
+    {
+      "id": "static-dip17-keyclass",
+      "status": "fixed"
+    }
+  ],
+  "docDrift": {
+    "fixed": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "historicalSnapshotOnly": [
+      "docs/audits/2026-09-12-03-followup-audit.md still says 'intermittent'"
+    ]
+  },
+  "maintainability": {
+    "1-calls-substring": "mitigated",
+    "2-grammar-layers": "open-roadmap",
+    "3-imports-polymod": "open-roadmap",
+    "4-controller": "partial (lifecycle explicit; 2056 lines)",
+    "5-psbt-relationships": "addressed",
+    "6-tool-list": "fixed",
+    "7-conformance": "fixed"
+  },
+  "testsToAdd": {
+    "1": "added",
+    "2": "added",
+    "3": "added",
+    "4": "added",
+    "5": "added",
+    "6": "partial (no Dash-prefix BIP38 round trip)",
+    "7": "added",
+    "8": "added",
+    "9": "added",
+    "10": "not done"
+  },
+  "recommendations": {
+    "releaseGating": "done",
+    "consensusLimitTable": "done",
+    "verificationMatrixUI": "done",
+    "workerReadiness": "done",
+    "verificationRecord": "done (unsigned)",
+    "features1to5": "not implemented (optional)"
+  },
+  "newFindings": [
+    {
+      "id": "NF-01",
+      "severity": "Low",
+      "summary": "RELEASING.md 'What GitHub publishes' lists omit verification-record.json for both bundles",
+      "file": "RELEASING.md",
+      "lines": "72-101"
+    },
+    {
+      "id": "NF-02",
+      "severity": "Informational",
+      "summary": "THIRD_PARTY_NOTICES.md omits playwright@1.62.1 devDependency",
+      "file": "THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "id": "NF-03",
+      "severity": "Informational",
+      "summary": "Dash Community Inspector bundles shared Bitcoin decoder vocabulary under a counted allowlist (documented exception)"
+    },
+    {
+      "id": "NF-04",
+      "severity": "Informational",
+      "summary": "consensus-limits.ts uses identical MAX_MONEY for Bitcoin and Dash (correct; source comment suggested)"
+    },
+    {
+      "id": "NF-05",
+      "severity": "Informational",
+      "summary": "musig(999)+1024-leaf tree probe 4.2 s, no regression"
+    }
+  ],
+  "checks": {
+    "vitest": {
+      "files": 84,
+      "suites": 185,
+      "passed": 1071,
+      "failed": 0,
+      "skipped": 0
+    },
+    "rust": {
+      "passed": 12,
+      "ignored": 1
+    },
+    "tsc": "pass",
+    "browserFiles": "16/16",
+    "browserRegressions": "38/38",
+    "probes": "9/9",
+    "docker": {
+      "commit": "d978dd4d",
+      "dirty": false,
+      "filesCompared": 40,
+      "identical": true
+    },
+    "linkCheck": {
+      "markdownFiles": 32,
+      "relativeLinks": 134,
+      "urls": 54,
+      "broken": 0
+    },
+    "pnpmAudit": "clean",
+    "firefoxHarness": {
+      "firefoxRuns": 24,
+      "chromiumRuns": 2,
+      "crashes": 0
+    }
+  },
+  "notPerformed": [
+    "live-provider smoke (not repeated)",
+    "local WASM rebuild",
+    "headed browser/crash dump",
+    "frozen-lockfile with pnpm 11.25.0 outside Docker",
+    "Core RPC import / PSBT signing round trips"
+  ],
+  "remainingOpen": [
+    "NF-01",
+    "NF-02",
+    "maintainability 1-4 (roadmap)",
+    "BIP38 Dash-prefix round-trip test",
+    "live DashScan pending-only fixture",
+    "IA-05 documented exception",
+    "feature suggestions 1-5"
+  ],
+  "pathHygiene": "no /home/<user> real path in tracked files; ignored test-results reports and reviewer logs rewritten to /home/user; one Playwright-managed .links symlink left untouched"
+}
