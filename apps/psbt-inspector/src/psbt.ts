@@ -1,6 +1,7 @@
 import { ripemd160 } from '@noble/hashes/legacy.js';
 import { bech32, bech32m } from '@scure/base';
 import { bytesToHex, encodeBase58Check, hash160, secp256k1, sha256 } from '@ckd/core/crypto.js';
+import { CONSENSUS_LIMITS } from './consensus-limits.js';
 
 export type PsbtChain = 'bitcoin' | 'dash';
 export type PsbtNetwork = 'mainnet' | 'testnet' | 'regtest';
@@ -327,7 +328,7 @@ function validateMap(map: readonly PsbtPair[], scope: 'global' | 'input' | 'outp
       if (value.length === 65 && ![1, 2, 3, 129, 130, 131].includes(value[64]!)) throw new Error('Invalid explicit Taproot sighash byte.');
     }
     if (input && type === 21) {
-      if (key.length < 33 || key.length > 33 + 128 * 32 || (key.length - 33) % 32 !== 0) throw new Error('Invalid Taproot control block length.');
+      if (key.length < 33 || key.length > 33 + CONSENSUS_LIMITS.maximumTaprootTreeDepth * 32 || (key.length - 33) % 32 !== 0) throw new Error('Invalid Taproot control block length.');
       validatePoint(key.slice(1, 33), true);
       if (value.length === 0 || value[value.length - 1] !== (key[0]! & 0xfe)) throw new Error('Tapleaf version disagrees with the control block.');
     }
@@ -335,7 +336,7 @@ function validateMap(map: readonly PsbtPair[], scope: 'global' | 'input' | 'outp
       const reader = new Reader(value); const depths: number[] = [];
       while (reader.remaining > 0) {
         const depth = reader.read(1)[0]!; const version = reader.read(1)[0]!;
-        if (depth > 128 || (version & 1) !== 0) throw new Error('Invalid Taproot tree depth or leaf version.');
+        if (depth > CONSENSUS_LIMITS.maximumTaprootTreeDepth || (version & 1) !== 0) throw new Error('Invalid Taproot tree depth or leaf version.');
         reader.varBytes('Taproot leaf script'); depths.push(depth);
         while (depths.length > 1 && depths.at(-1) === depths.at(-2)) {
           const current = depths.pop()!; depths.pop();
@@ -358,8 +359,8 @@ function validateVersionFields(global: readonly PsbtPair[], inputs: readonly (re
   for (const map of inputs) {
     if (pair(map, 14) === undefined || pair(map, 15) === undefined) throw new Error('PSBT v2 input is missing its previous transaction ID or output index.');
     const time = pair(map, 17); const height = pair(map, 18);
-    if (time !== undefined && littleU32(time.value, 'time lock') < 500_000_000) throw new Error('Required time lock is below 500000000.');
-    if (height !== undefined && (littleU32(height.value, 'height lock') === 0 || littleU32(height.value, 'height lock') >= 500_000_000)) throw new Error('Required height lock is outside 1..499999999.');
+    if (time !== undefined && littleU32(time.value, 'time lock') < CONSENSUS_LIMITS.absoluteLockTimeThreshold) throw new Error('Required time lock is below 500000000.');
+    if (height !== undefined && (littleU32(height.value, 'height lock') === 0 || littleU32(height.value, 'height lock') >= CONSENSUS_LIMITS.absoluteLockTimeThreshold)) throw new Error('Required height lock is outside 1..499999999.');
   }
   if (outputs.some(map => pair(map, 3) === undefined || pair(map, 4) === undefined)) throw new Error('PSBT v2 output is missing its amount or script.');
 }

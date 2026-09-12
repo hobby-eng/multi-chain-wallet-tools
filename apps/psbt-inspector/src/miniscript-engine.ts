@@ -1,5 +1,6 @@
 import { analyzeMiniscript, compileMiniscript } from '@bitcoinerlab/miniscript';
 import { hash160, hexToBytes, secp256k1 } from '@ckd/core/crypto.js';
+import { validateMultisigConsensusLimits, type ScriptPolicyContext } from './consensus-limits.js';
 
 export interface CompiledMiniscript {
   readonly script: Uint8Array;
@@ -26,11 +27,19 @@ function invalidMiniscript(error: string): Error {
   return new Error(`Invalid Miniscript type: ${error}.`);
 }
 
+export interface MiniscriptContextOptions {
+  readonly tapscript?: boolean;
+  readonly allowUncompressed?: boolean;
+  readonly context?: ScriptPolicyContext;
+}
+
 export function validatePolicyMiniscript(
   miniscript: string,
-  options: { readonly tapscript?: boolean } = {},
+  options: MiniscriptContextOptions = {},
 ): ValidatedMiniscript {
   try {
+    const context = options.context ?? (options.tapscript === true ? 'tapscript' : 'p2wsh');
+    validateMultisigConsensusLimits(miniscript, context);
     const analysis = analyzeMiniscript(miniscript, options);
     if (!analysis.valid) throw invalidMiniscript(analysis.error ?? 'type validation failed');
     return { analysis };
@@ -129,7 +138,7 @@ export function scriptFromMiniscriptAsm(asm: string): Uint8Array {
   return Uint8Array.from(bytes);
 }
 
-export function compilePolicyMiniscript(miniscript: string, options: { readonly tapscript?: boolean; readonly allowUncompressed?: boolean } = {}): CompiledMiniscript {
+export function compilePolicyMiniscript(miniscript: string, options: MiniscriptContextOptions = {}): CompiledMiniscript {
   // The compiler type-checks symbols; it does not prove that literal keys
   // are valid points of the required consensus key type.
   for (const match of miniscript.matchAll(/(?:^|[^a-z_])(?:pk|pk_k|pkh|pk_h|multi|multi_a)\(([^()]*)\)/gu)) {

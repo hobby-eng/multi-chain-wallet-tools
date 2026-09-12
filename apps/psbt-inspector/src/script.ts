@@ -1,5 +1,6 @@
 import { bytesToHex, hash160, hexToBytes, sha256 } from '@ckd/core/crypto.js';
 import { describeScript, type PsbtChain, type PsbtNetwork } from './psbt.js';
+import { CONSENSUS_LIMITS } from './consensus-limits.js';
 
 export interface ScriptOperation {
   readonly offset: number;
@@ -116,7 +117,7 @@ function parse(hexText: string): { bytes: Uint8Array; operations: ScriptOperatio
   if (!/^[0-9a-f]+$/u.test(hex)) throw new Error('Malformed Script hex: only hexadecimal characters and whitespace are allowed.');
   if (hex.length % 2 !== 0) throw new Error('Malformed Script hex: odd-length hex is missing one nibble.');
   const bytes = hexToBytes(hex);
-  if (bytes.length > 10_000) throw new Error('Script is unreasonably large.');
+  if (bytes.length > CONSENSUS_LIMITS.maximumScriptBytes) throw new Error('Script is unreasonably large.');
   const operations: ScriptOperation[] = [];
   let offset = 0;
   while (offset < bytes.length) {
@@ -163,7 +164,7 @@ function lockAt(ops: readonly ScriptOperation[], start: number): { next: number;
   if (lock === null || (lockOp !== 0xb1 && lockOp !== 0xb2) || (terminal !== 0x69 && terminal !== 0x75)) return null;
   const condition = lockOp === 0xb1
     ? `absolute lock ${lock}`
-    : ((lock & (1 << 22)) !== 0 ? `relative delay ${(lock & 0xffff) * 512} seconds` : `relative delay ${lock & 0xffff} blocks`);
+    : ((lock & CONSENSUS_LIMITS.bip68TypeFlag) !== 0 ? `relative delay ${(lock & CONSENSUS_LIMITS.bip68SequenceMask) * 512} seconds` : `relative delay ${lock & CONSENSUS_LIMITS.bip68SequenceMask} blocks`);
   return { next: start + 3, condition };
 }
 
@@ -213,8 +214,8 @@ export function decodeScript(hexText: string, chain: PsbtChain, network: PsbtNet
   if (role === 'spending') {
     const p2sh = Uint8Array.of(0xa9, 0x14, ...hash160(bytes), 0x87);
     const p2shDescription = describeScript(p2sh, chain, network);
-    if (bytes.length <= 520 && p2shDescription.address !== null) wrappers.push({ label: `${chain === 'dash' ? 'Dash' : 'Bitcoin'} P2SH`, address: p2shDescription.address, scriptPubKey: bytesToHex(p2sh) });
-    if (chain === 'bitcoin' && bytes.length <= 10_000) {
+    if (bytes.length <= CONSENSUS_LIMITS.maximumScriptElementBytes && p2shDescription.address !== null) wrappers.push({ label: `${chain === 'dash' ? 'Dash' : 'Bitcoin'} P2SH`, address: p2shDescription.address, scriptPubKey: bytesToHex(p2sh) });
+    if (chain === 'bitcoin' && bytes.length <= CONSENSUS_LIMITS.maximumScriptBytes) {
       const p2wsh = Uint8Array.of(0x00, 0x20, ...sha256(bytes));
       const description = describeScript(p2wsh, chain, network);
       if (description.address !== null) wrappers.push({ label: 'Bitcoin P2WSH', address: description.address, scriptPubKey: bytesToHex(p2wsh) });

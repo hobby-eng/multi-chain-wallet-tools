@@ -1,4 +1,5 @@
 export interface DescriptorRow { readonly label: string; readonly value: string }
+import { CONSENSUS_LIMITS } from './consensus-limits.js';
 export interface DecodedDescriptor {
   readonly classification: string;
   readonly summary: string;
@@ -168,7 +169,7 @@ function unwrapWrapper(node: ExpressionNode): ExpressionNode {
 
 function describeAbsolute(value: number): string {
   if (!Number.isSafeInteger(value) || value < 0) return `invalid absolute lock ${value}`;
-  if (value < 500_000_000) return `after block height ${value}`;
+  if (value < CONSENSUS_LIMITS.absoluteLockTimeThreshold) return `after block height ${value}`;
   const date = new Date(value * 1000);
   return Number.isNaN(date.valueOf()) ? `after Unix time ${value}` : `after approximately ${date.toISOString()} (Unix time ${value}, enforced using median-time-past)`;
 }
@@ -374,6 +375,8 @@ function calls(text: string, name: string): string[] {
   while (true) {
     const start = text.indexOf(`${name}(`, from);
     if (start === -1) return results;
+    const previous = start === 0 ? '' : text[start - 1]!;
+    if (/[a-z0-9_]/u.test(previous)) { from = start + name.length; continue; }
     const open = start + name.length;
     const close = matchingClose(text, open);
     results.push(text.slice(open + 1, close));
@@ -382,9 +385,9 @@ function calls(text: string, name: string): string[] {
 }
 
 function relativeLock(value: number): string {
-  if ((value & 0x80000000) !== 0) return `${value} (disabled flag set; invalid as an active relative lock)`;
-  const units = value & 0xffff;
-  if ((value & (1 << 22)) !== 0) {
+  if ((value & CONSENSUS_LIMITS.bip68DisableFlag) !== 0) return `${value} (disabled flag set; invalid as an active relative lock)`;
+  const units = value & CONSENSUS_LIMITS.bip68SequenceMask;
+  if ((value & CONSENSUS_LIMITS.bip68TypeFlag) !== 0) {
     const seconds = units * 512;
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -462,7 +465,7 @@ function compiledDescriptorOutput(
     const parsed = expression(payload);
     if (parsed === null) return null;
     const concreteMiniscript = materializedExpression(parsed, network, multipathChoice, wildcardIndex);
-    const compiled = compilePolicyMiniscript(concreteMiniscript, { allowUncompressed: true });
+    const compiled = compilePolicyMiniscript(concreteMiniscript, { allowUncompressed: true, context: 'bare' });
     spendingScript = compiled.script;
     scriptPubKey = spendingScript;
     asm = compiled.asm;
@@ -482,10 +485,10 @@ function compiledDescriptorOutput(
     }
     if (['wpkh', 'wsh', 'sh', 'tr', 'rawtr', 'addr', 'raw'].includes(parsed.name)) throw new Error('Invalid nested output wrapper.');
     const concreteMiniscript = materializedExpression(parsed, network, multipathChoice, wildcardIndex);
-    const compiled = compilePolicyMiniscript(concreteMiniscript, { allowUncompressed: type === 'sh' });
+    const compiled = compilePolicyMiniscript(concreteMiniscript, { allowUncompressed: type === 'sh', context: type === 'sh' ? 'p2sh' : 'p2wsh' });
     spendingScript = compiled.script;
     asm = compiled.asm;
-    if (spendingScript.length > (type === 'sh' ? 520 : 10_000)) throw new Error('Spending script exceeds the selected wrapper limit.');
+    if (spendingScript.length > (type === 'sh' ? CONSENSUS_LIMITS.maximumScriptElementBytes : CONSENSUS_LIMITS.maximumScriptBytes)) throw new Error('Spending script exceeds the selected wrapper limit.');
     if (type === 'wsh') {
       const witnessProgram = sha256(spendingScript);
       scriptPubKey = Uint8Array.of(0x00, 0x20, ...witnessProgram);
@@ -675,7 +678,10 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
       });
     });
   }
-  const multisigs = calls(payload, 'multi_a');
+  const multisigs = [
+    ...calls(payload, 'multi_a').map((body) => ({ body, sorted: false })),
+    ...calls(payload, 'sortedmulti_a').map((body) => ({ body, sorted: true })),
+  ];
   musigAnalysis?.keys.forEach((key, index) => {
     rows.push(
       { label: `MuSig2 aggregate ${index + 1}`, value: `${key.participantCount} participants · ${key.aggregateCompressedKey}` },
@@ -705,17 +711,20 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
       { label: `Multisig ${index + 1} · key order`, value: sorted ? 'BIP67 lexicographic sort · sortedmulti()' : 'Supplied order preserved · multi()' },
     );
   });
-  multisigs.forEach((body, index) => {
+  multisigs.forEach(({ body, sorted }, index) => {
     const argumentsList = splitTopLevel(body);
     const threshold = Number(argumentsList[0]);
-    rows.push({ label: `Tapscript multisig ${index + 1}`, value: `${threshold}-of-${Math.max(0, argumentsList.length - 1)} · key order preserved` });
+    rows.push({
+      label: `Tapscript multisig ${index + 1}`,
+      value: `${threshold}-of-${Math.max(0, argumentsList.length - 1)} · ${sorted ? 'lexicographic x-only key sort · sortedmulti_a()' : 'supplied key order · multi_a()'}`,
+    });
   });
   const locks = calls(payload, 'older');
   locks.forEach((body, index) => {
     const value = Number(body);
-    if (!Number.isSafeInteger(value) || value < 1 || value >= 0x80000000) throw new Error(`older() value ${body} is invalid.`);
-    const timeBased = (value & (1 << 22)) !== 0;
-    const units = value & 0xffff;
+    if (!Number.isSafeInteger(value) || value < 1 || value >= CONSENSUS_LIMITS.bip68DisableFlag) throw new Error(`older() value ${body} is invalid.`);
+    const timeBased = (value & CONSENSUS_LIMITS.bip68TypeFlag) !== 0;
+    const units = value & CONSENSUS_LIMITS.bip68SequenceMask;
     const approximateSeconds = timeBased ? units * 512 : units * 600;
     rows.push(
       { label: `Relative lock ${index + 1}`, value: relativeLock(value) },
@@ -730,9 +739,9 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
   const absoluteLocks = calls(payload, 'after');
   absoluteLocks.forEach((body, index) => {
     const value = Number(body);
-    if (!Number.isSafeInteger(value) || value < 1 || value >= 0x80000000) throw new Error(`Invalid timelock: after() value ${body} is outside the supported nLockTime range.`);
+    if (!Number.isSafeInteger(value) || value < 1 || value >= CONSENSUS_LIMITS.bip68DisableFlag) throw new Error(`Invalid timelock: after() value ${body} is outside the supported nLockTime range.`);
     rows.push(
-      { label: `Absolute timelock ${index + 1} · type`, value: value < 500_000_000 ? 'Absolute block height' : 'Absolute median-time-past' },
+      { label: `Absolute timelock ${index + 1} · type`, value: value < CONSENSUS_LIMITS.absoluteLockTimeThreshold ? 'Absolute block height' : 'Absolute median-time-past' },
       { label: `Absolute timelock ${index + 1} · opcode`, value: 'OP_CHECKLOCKTIMEVERIFY' },
       { label: `Absolute timelock ${index + 1} · BIP`, value: 'BIP65' },
       { label: `Absolute timelock ${index + 1} · value`, value: describeAbsolute(value) },
