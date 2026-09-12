@@ -1,6 +1,6 @@
 # Dash unit review — 2026-09-08
 
-Scope: Key Derivation, Activity Viewer, Discovery Scanner, their shared TypeScript packages, CSV/JSON exporters, and the Orchard Rust-to-JavaScript amount boundary. This is a focused monetary-unit review, not an independent cryptographic audit.
+Original scope: Key Derivation, Activity Viewer, Discovery Scanner, their shared TypeScript packages, CSV/JSON exporters, and the Orchard Rust-to-JavaScript amount boundary. The PSBT & Multisig Inspector was added later and is covered by the 2026-09-12 follow-up below. This is a focused monetary-unit review, not an independent cryptographic audit.
 
 ## Verified unit map
 
@@ -33,3 +33,7 @@ The expanded source review baseline is commit `6462c67d677ab73bea49051c3e3d866fc
 The repeat review of `94eb337` found a separate unit error outside the Core-duff/Platform-credit conversion checked above: created-token supply was tagged as credits by Activity Viewer CSV/XLSX. The correction removes that supply from DASH amount columns and preserves token ID, supply and decimals as token metadata. Supply is not an owned token balance. The earlier review's negative finding did not cover this case adequately.
 
 Incomplete Orchard scans now withhold unknown current balances (`null` in JSON; blank numeric CSV cells). Note values remain credits, while incomplete aggregate received/sent/self-change amounts are explicitly labelled Observed. This changes completeness semantics, not the 1,000:1 duff/credit conversion. See the [repeat-audit remediation record](../docs/audits/archive/2026-09-09-remediation.md) for verification scope.
+
+## PSBT & Multisig Inspector addition — 2026-09-12
+
+The fourth utility parses Bitcoin and Dash Core transaction/UTXO amounts as exact integers. It formats the selected chain's same eight-decimal L1 atomic field as satoshis for Bitcoin or duffs for Dash and rejects individual or aggregate values above that chain's `MAX_MONEY`. It does not parse Dash Platform PSBTs or reinterpret any Core amount as Platform credits. Inspector amount/fee summaries are derived only from the UTXOs supplied inside the PSBT and remain explicitly unverified against the blockchain.
