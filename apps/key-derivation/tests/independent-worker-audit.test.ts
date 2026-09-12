@@ -15,13 +15,45 @@ class FakeWorker {
   reply(message: WorkerMessage): void { this.listeners.get('message')!({ data: message }); }
 }
 
-function client(): DerivationWorkerClient {
+function client(ready = true): DerivationWorkerClient {
   vi.stubGlobal('Worker', FakeWorker);
   vi.stubGlobal('__DERIVATION_WORKER_SOURCE__', '');
-  return new DerivationWorkerClient();
+  const result = new DerivationWorkerClient();
+  if (ready) FakeWorker.latest.reply({ type: 'ready' });
+  return result;
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('derivation worker readiness contract', () => {
+  it('queues sensitive requests until the worker reports ready', async () => {
+    const worker = client(false);
+    const ready = worker.ready();
+    const result = worker.deriveBip85(new Uint8Array(64).fill(3), { application: 'hex', bytes: 16, index: 0 });
+    expect(FakeWorker.latest.requests).toEqual([]);
+    FakeWorker.latest.reply({ type: 'ready' });
+    await expect(ready).resolves.toBeUndefined();
+    expect(FakeWorker.latest.requests).toHaveLength(1);
+    FakeWorker.latest.reply({ id: 1, ok: true, type: 'bip85', result: { kind: 'hex', path: 'ready', value: '03' } });
+    await expect(result).resolves.toMatchObject({ path: 'ready' });
+    worker.terminate();
+  });
+
+  it('cancels before ready without posting secrets or terminating a booting worker', async () => {
+    const worker = client(false);
+    const ready = worker.ready();
+    const result = worker.deriveBip85(new Uint8Array(64).fill(4), { application: 'hex', bytes: 16, index: 0 });
+    const rejectedReady = expect(ready).rejects.toBeInstanceOf(DerivationCancelledError);
+    const rejectedResult = expect(result).rejects.toBeInstanceOf(DerivationCancelledError);
+    worker.terminate();
+    expect(FakeWorker.latest.requests).toEqual([]);
+    expect(FakeWorker.latest.terminate).not.toHaveBeenCalled();
+    await Promise.all([rejectedReady, rejectedResult]);
+    FakeWorker.latest.reply({ type: 'ready' });
+    expect(FakeWorker.latest.requests).toEqual([]);
+    expect(FakeWorker.latest.terminate).toHaveBeenCalledOnce();
+  });
+});
 
 describe('independent derivation worker lifecycle audit', () => {
   it('correlates out-of-order replies rather than the current request', async () => {
