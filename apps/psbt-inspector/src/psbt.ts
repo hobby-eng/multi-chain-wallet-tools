@@ -569,8 +569,19 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
   let outputCount: number;
   if (version === 0) {
     if (unsignedPair === undefined) throw new Error('PSBT v0 is missing its global unsigned transaction.');
-    transaction = readTransaction(unsignedPair.value, chain, false);
-    if (transaction.hasWitness) throw new Error('A PSBT v0 global unsigned transaction must use legacy serialization without witness data.');
+    try {
+      transaction = readTransaction(unsignedPair.value, chain, false);
+    } catch (legacyError) {
+      if (chain === 'bitcoin') {
+        try {
+          const witnessCandidate = readTransaction(unsignedPair.value, chain, true);
+          if (witnessCandidate.hasWitness) throw new Error('A PSBT v0 global unsigned transaction must use legacy serialization without witness data.');
+        } catch (witnessError) {
+          if (witnessError instanceof Error && /legacy serialization without witness/u.test(witnessError.message)) throw witnessError;
+        }
+      }
+      throw legacyError;
+    }
     if (transaction.inputs.some(({ scriptSig }) => scriptSig.length !== 0)) {
       throw new Error('A PSBT v0 global unsigned transaction must have an empty scriptSig for every input.');
     }
@@ -584,16 +595,19 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
     inputCount = compactValue(inputCountPair.value, 'PSBT input count');
     outputCount = compactValue(outputCountPair.value, 'PSBT output count');
   }
-  const inputs = Array.from({ length: inputCount }, () => readMap(reader));
-  const outputs = Array.from({ length: outputCount }, () => readMap(reader));
+  const inputs = Array.from({ length: inputCount }, () => {
+    const map = readMap(reader);
+    validateMap(map, 'input');
+    if (chain === 'bitcoin') validateMusigPsbtFields(map, 'input');
+    return map;
+  });
+  const outputs = Array.from({ length: outputCount }, () => {
+    const map = readMap(reader);
+    validateMap(map, 'output');
+    if (chain === 'bitcoin') validateMusigPsbtFields(map, 'output');
+    return map;
+  });
   if (reader.remaining !== 0) throw new Error('PSBT contains trailing data after its maps.');
-  if (chain === 'bitcoin') {
-    inputs.forEach((map) => validateMusigPsbtFields(map, 'input'));
-    outputs.forEach((map) => validateMusigPsbtFields(map, 'output'));
-  }
-
-  for (const map of inputs) validateMap(map, 'input');
-  for (const map of outputs) validateMap(map, 'output');
   const mixedLockKinds = validateVersionFields(global, inputs, outputs, version);
   const suppliedUtxos = inputs.map((map, index) => inputUtxo(map, transaction?.inputs[index], chain));
   const commitmentFailures = suppliedUtxos.map((utxo, index) => {
