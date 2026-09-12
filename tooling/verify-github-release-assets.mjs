@@ -2,16 +2,12 @@ import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getToolBuild, parseBuildProfile } from './build-profiles.mjs';
+import { parseBuildProfile, profileArtifacts } from './build-profiles.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const profile = parseBuildProfile();
 const release = resolve(root, profile.releaseDirectory);
-const expectedArtifacts = [
-  getToolBuild(profile, 'activity-viewer').artifactName,
-  getToolBuild(profile, 'discovery-scanner').artifactName,
-  getToolBuild(profile, 'key-derivation').artifactName,
-];
+const expectedArtifacts = profileArtifacts(profile).map((artifact) => basename(artifact)).sort();
 const expectedFiles = new Set([
   ...expectedArtifacts,
   ...expectedArtifacts.map((name) => `${name}.sha256`),
@@ -26,7 +22,7 @@ if (actualFiles.length !== expectedFiles.size || actualFiles.some((name) => !exp
 
 const lines = readFileSync(resolve(release, 'SHA256SUMS'), 'utf8').trim().split('\n');
 if (lines.length !== expectedArtifacts.length + 1) {
-  throw new Error('Flat SHA256SUMS must contain the three standalone HTML files and LICENSE.');
+  throw new Error(`Flat SHA256SUMS must contain ${expectedArtifacts.length} standalone HTML file(s) and LICENSE.`);
 }
 
 const remaining = new Set([...expectedArtifacts, 'LICENSE']);

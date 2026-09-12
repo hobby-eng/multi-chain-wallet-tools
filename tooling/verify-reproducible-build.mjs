@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { BUILD_PROFILES, getToolBuild } from './build-profiles.mjs';
+import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const wasm = resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm');
@@ -24,7 +24,7 @@ function run(script, args = []) {
 }
 
 const artifacts = Object.values(BUILD_PROFILES).flatMap((profile) => (
-  ['key-derivation', 'activity-viewer', 'discovery-scanner'].map((toolId) => ({
+  profileToolIds(profile).map((toolId) => ({
     label: `${profile.id}/${toolId}`,
     path: resolve(root, 'dist', getToolBuild(profile, toolId).artifactRelativePath),
   }))
@@ -37,11 +37,16 @@ const firstArtifacts = new Map(artifacts.map(({ label, path }) => [label, digest
 const firstWasm = digest(wasm);
 if (!reuseGeneratedWasm) run('tooling/build-shielded-wasm.mjs');
 for (const profile of Object.values(BUILD_PROFILES)) {
-  for (const script of [
-    'apps/key-derivation/scripts/build-key-derivation-html.mjs',
-    'apps/activity-viewer/scripts/build-activity-viewer-html.mjs',
-    'apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs',
-  ]) run(script, ['--profile', profile.id]);
+  for (const toolId of profileToolIds(profile)) {
+    const script = {
+      'key-derivation': 'apps/key-derivation/scripts/build-key-derivation-html.mjs',
+      'activity-viewer': 'apps/activity-viewer/scripts/build-activity-viewer-html.mjs',
+      'discovery-scanner': 'apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs',
+      'psbt-inspector': 'apps/psbt-inspector/scripts/build-psbt-inspector-html.mjs',
+    }[toolId];
+    if (script === undefined) throw new Error(`Missing reproducible build script for ${toolId}.`);
+    run(script, ['--profile', profile.id]);
+  }
 }
 const secondWasm = digest(wasm);
 
