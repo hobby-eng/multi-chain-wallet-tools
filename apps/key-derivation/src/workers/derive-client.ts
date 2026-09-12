@@ -14,6 +14,18 @@ interface PendingRequest {
   reject(reason: Error): void;
 }
 
+interface QueuedRequest {
+  readonly request: WorkerRequest;
+  readonly transfer: readonly Transferable[];
+}
+
+interface ReadyWaiter {
+  resolve(): void;
+  reject(reason: Error): void;
+}
+
+type WorkerLifecycle = 'booting' | 'ready' | 'terminated';
+
 export class DerivationCancelledError extends Error {
   constructor(message = 'Derivation cancelled.') {
     super(message);
@@ -24,8 +36,10 @@ export class DerivationCancelledError extends Error {
 export class DerivationWorkerClient {
   readonly #worker: Worker;
   readonly #pending = new Map<number, PendingRequest>();
+  readonly #queued = new Map<number, QueuedRequest>();
+  readonly #readyWaiters = new Set<ReadyWaiter>();
   #nextId = 1;
-  #terminated = false;
+  #lifecycle: WorkerLifecycle = 'booting';
   #workerUrl: string | null;
   #workerUrlTimer: ReturnType<typeof globalThis.setTimeout> | null;
 
@@ -42,7 +56,17 @@ export class DerivationWorkerClient {
     this.#worker.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
       const response = event.data;
       if (!('id' in response)) {
-        this.#revokeWorkerUrl();
+        if (this.#lifecycle === 'booting') {
+          this.#revokeWorkerUrl();
+          this.#lifecycle = 'ready';
+          for (const waiter of this.#readyWaiters) waiter.resolve();
+          this.#readyWaiters.clear();
+          for (const queued of this.#queued.values()) this.#post(queued);
+          this.#queued.clear();
+        } else if (this.#lifecycle === 'terminated') {
+          this.#worker.terminate();
+          this.#revokeWorkerUrl();
+        }
         return;
       }
       const pending = this.#pending.get(response.id);
@@ -55,9 +79,22 @@ export class DerivationWorkerClient {
       // The worker is gone: without marking the client terminated, a later
       // request would post to a dead worker and never settle, leaving the UI
       // stuck on "Deriving…" with no timeout to release it.
-      this.#terminated = true;
+      const failure = new Error(event.message || 'The derivation worker stopped unexpectedly.');
+      this.#lifecycle = 'terminated';
+      this.#wipeQueued();
       this.#revokeWorkerUrl();
-      this.#rejectAll(new Error(event.message || 'The derivation worker stopped unexpectedly.'));
+      this.#rejectAll(failure);
+      for (const waiter of this.#readyWaiters) waiter.reject(failure);
+      this.#readyWaiters.clear();
+    });
+  }
+
+
+  ready(): Promise<void> {
+    if (this.#lifecycle === 'ready') return Promise.resolve();
+    if (this.#lifecycle === 'terminated') return Promise.reject(new Error('The derivation worker is no longer available.'));
+    return new Promise<void>((resolve, reject) => {
+      this.#readyWaiters.add({ resolve, reject });
     });
   }
 
@@ -156,11 +193,17 @@ export class DerivationWorkerClient {
   }
 
   terminate(reason = new DerivationCancelledError()): void {
-    if (this.#terminated) return;
-    this.#terminated = true;
-    this.#worker.terminate();
-    this.#revokeWorkerUrl();
+    if (this.#lifecycle === 'terminated') return;
+    const ready = this.#lifecycle === 'ready';
+    this.#lifecycle = 'terminated';
+    this.#wipeQueued();
     this.#rejectAll(reason);
+    for (const waiter of this.#readyWaiters) waiter.reject(reason);
+    this.#readyWaiters.clear();
+    if (ready) {
+      this.#worker.terminate();
+      this.#revokeWorkerUrl();
+    }
   }
 
   #revokeWorkerUrl(): void {
@@ -175,15 +218,41 @@ export class DerivationWorkerClient {
     request: WorkerRequest,
     transfer: Transferable[] = [],
   ): Promise<T> {
-    if (this.#terminated) return Promise.reject(new Error('The derivation worker is no longer available.'));
+    if (this.#lifecycle === 'terminated') {
+      this.#wipeRequest(request);
+      return Promise.reject(new Error('The derivation worker is no longer available.'));
+    }
     this.#nextId += 1;
     return new Promise<T>((resolve, reject) => {
       this.#pending.set(request.id, {
         resolve: (value) => resolve(value as T),
         reject,
       });
-      this.#worker.postMessage(request, transfer);
+      const queued = { request, transfer };
+      if (this.#lifecycle === 'ready') this.#post(queued);
+      else this.#queued.set(request.id, queued);
     });
+  }
+
+  #post(queued: QueuedRequest): void {
+    try {
+      this.#worker.postMessage(queued.request, [...queued.transfer]);
+    } catch (cause) {
+      this.#wipeRequest(queued.request);
+      const pending = this.#pending.get(queued.request.id);
+      this.#pending.delete(queued.request.id);
+      pending?.reject(cause instanceof Error ? cause : new Error(String(cause)));
+    }
+  }
+
+  #wipeRequest(request: WorkerRequest): void {
+    if ('seed' in request) request.seed.fill(0);
+    if ('input' in request) request.input.seed.fill(0);
+  }
+
+  #wipeQueued(): void {
+    for (const queued of this.#queued.values()) this.#wipeRequest(queued.request);
+    this.#queued.clear();
   }
 
   #rejectAll(reason: Error): void {

@@ -42,7 +42,7 @@ async function fixture() {
   const worker = { signMessage: vi.fn(() => pending), terminate: vi.fn() };
   const result = { id: 'bitcoin-taproot', rows: [{ index: 0, path: "m/86'/0'/0'/0/0", basic: [], advanced: [] }], summary: [], basicSummary: [], notices: [] };
   const startup = { selfTest: async () => ({ passed: true, checks: [], durationMs: 0 }), terminate: vi.fn() };
-  const derive = { derive: async () => result, terminate: vi.fn() };
+  const derive = { ready: vi.fn(async () => {}), derive: async () => result, terminate: vi.fn() };
   const createWorker = vi.fn().mockReturnValueOnce(startup).mockReturnValueOnce(derive).mockReturnValue(worker);
   const adapter = { id: 'bitcoin-taproot', variantLabel: 'BIP86', defaults: { branch: 0 },
     addressBranches: { receive: 0, change: 1 }, fieldRoles: { addresses: ['address'], publicKeys: [], privateKeys: [] } };

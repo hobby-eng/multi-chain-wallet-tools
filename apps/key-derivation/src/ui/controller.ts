@@ -1328,6 +1328,9 @@ async function deriveCurrent(automatic = false): Promise<void> {
   const worker = createWorker();
   activeDerivationWorker = worker;
   try {
+    showStatus('Initialising cryptography locally…');
+    await worker.ready();
+    if (revision !== derivationRevision || requestedAdapter !== adapter) return;
     settingsByAdapter.set(adapter.id, input);
     seed = mnemonicToSeed(mnemonic.value, passphrase.value);
     const baseInput = {
