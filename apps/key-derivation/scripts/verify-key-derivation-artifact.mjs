@@ -34,8 +34,12 @@ for (const [marker, expected] of [
   if (actual !== expected) throw new Error(`Expected ${expected} ${marker} marker; found ${actual}.`);
 }
 
-const inlineScript = /<script>([\s\S]*)<\/script>/u.exec(html)?.[1];
-if (inlineScript === undefined) throw new Error('Standalone artifact has no inline application script.');
+const scriptStart = html.indexOf('<script>');
+const scriptEnd = html.lastIndexOf('</script>');
+if (scriptStart === -1 || scriptEnd <= scriptStart) {
+  throw new Error('Standalone artifact has no inline application script.');
+}
+const inlineScript = html.slice(scriptStart + '<script>'.length, scriptEnd);
 try {
   // Parse without executing browser or cryptographic code.
   Function(inlineScript);
@@ -192,8 +196,9 @@ const forbidden = [
   [/https?:\/\//iu, 'HTTP URL'],
   [/(?:src|href)\s*=\s*["'](?:https?:|\/\/|\.\/|\.\.\/|file:)/iu, 'external or sibling resource'],
 ];
+const securityScanSource = html.replaceAll('http://www.w3.org/2000/svg', '');
 for (const [pattern, label] of forbidden) {
-  if (pattern.test(html)) throw new Error(`Standalone artifact contains forbidden ${label}.`);
+  if (pattern.test(securityScanSource)) throw new Error(`Standalone artifact contains forbidden ${label}.`);
 }
 const expectedWasmBase64 = readFileSync(wasmPath).toString('base64');
 const wasmCopies = occurrences(html, expectedWasmBase64);

@@ -58,6 +58,7 @@ describe('Key Derivation controller', () => {
       branchSelect: new TestControl(),
       includeChange: new TestControl(),
       includeCoinJoin: new TestControl(),
+      includeLegacyMobile: new TestControl(),
       start: new TestControl(),
       count: new TestControl(),
     };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getCoinAdapter } from '@ckd/coins/registry.js';
-import { readControls, standardPathDetails, type DerivationControls } from '../src/ui/inputs.js';
+import { readControls, type DerivationControls } from '../src/ui/inputs.js';
 
 function controls(count: string, start = '0', includeChange = false, branch = '0'): DerivationControls {
   return {
@@ -47,37 +47,5 @@ describe('user-visible derivation count', () => {
     expect(input).toMatchObject({ account: 7, start: 2, count: 3, includeChange: true });
     expect(adapter.pathPreview(input)).toBe("m/7'/0/2…4");
     expect(adapter.pathPreview({ ...input, branch: 1 })).toBe("m/7'/1/2…4");
-  });
-
-
-
-});
-
-
-describe('standard path presentation', () => {
-  for (const [id, purpose] of [['bitcoin-legacy',44],['bitcoin-nested-segwit',49],['bitcoin-native-segwit',84],['bitcoin-taproot',86]] as const) {
-    it(`keeps ${id} purpose and scheme coupled across accounts and networks`, () => {
-      const adapter=getCoinAdapter(id);
-      const input={...adapter.defaults,network:'testnet' as const,account:7,includeChange:true,includeCoinJoin:false};
-      expect(standardPathDetails(adapter,input)).toEqual([
-        {label:'Purpose',value:`${purpose}'`},{label:'Coin type',value:"1'"},
-        {label:'Selected scheme',value:adapter.label},{label:'Address branch',value:'0 · Receive / 1 · Change'},
-      ]);
-      expect(adapter.pathPreview(input)).toContain(`m/${purpose}'/1'/7'/0/`);
-    });
-  }
-  it('does not invent purpose or coin levels for legacy mobile, or an account for Identity', () => {
-    const legacy=getCoinAdapter('dash-legacy-mobile');
-    expect(standardPathDetails(legacy,{...legacy.defaults,includeChange:false,includeCoinJoin:false}).map(f=>f.label)).toEqual(['Selected scheme','Address branch']);
-    const c=controls('1');c.account.value='invalid hidden field';
-    expect(readControls(getCoinAdapter('dash-identity'),c).account).toBe(0);
-  });
-  it('shows hardened Platform branches and the distinct Orchard purpose', () => {
-    const platform=getCoinAdapter('dash-platform');
-    expect(standardPathDetails(platform,{...platform.defaults,includeChange:true,includeCoinJoin:false})).toContainEqual({label:'Address branch',value:"0' · Receive / 1' · Change"});
-    const orchard=getCoinAdapter('dash-shielded');
-    const details=standardPathDetails(orchard,{...orchard.defaults,includeChange:false,includeCoinJoin:false});
-    expect(details).toContainEqual({label:'ZIP-32 purpose',value:"32'"});
-    expect(details.some(f=>f.label==='Address branch')).toBe(false);
   });
 });

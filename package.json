@@ -19,6 +19,7 @@
     "build:quick": "node apps/key-derivation/scripts/build-key-derivation-html.mjs",
     "build:activity-viewer": "node tooling/build-shielded-wasm.mjs && node apps/activity-viewer/scripts/build-activity-viewer-html.mjs",
     "build:discovery-scanner": "node tooling/build-shielded-wasm.mjs && node apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
+    "build:psbt-inspector": "node apps/psbt-inspector/scripts/build-psbt-inspector-html.mjs",
     "build:wasm": "node tooling/build-shielded-wasm.mjs",
     "metadata:sync": "node tooling/sync-project-metadata.mjs",
     "metadata:check": "node tooling/sync-project-metadata.mjs --check && node tooling/verify-project-facts.mjs",
@@ -39,6 +40,7 @@
     "test:discovery:batch-mainnet": "node apps/discovery-scanner/scripts/smoke-discovery-batch.mjs mainnet 2",
     "test:discovery:batch5-mainnet": "node apps/discovery-scanner/scripts/smoke-discovery-batch.mjs mainnet 5",
     "test:discovery:stream": "node apps/discovery-scanner/scripts/verify-shielded-stream.mjs",
+    "test:psbt-inspector": "pnpm exec vitest run apps/psbt-inspector/tests/psbt.test.ts --reporter=dot",
     "test:watch": "vitest",
     "verify:container": "node tooling/verify-reproducible-container.mjs",
     "release:manifest": "node tooling/create-release-manifest.mjs",
@@ -51,12 +53,16 @@
     "test:browser:files": "node tooling/verify-browser-files.mjs"
   },
   "dependencies": {
+    "@bitcoinerlab/miniscript": "2.0.0",
     "@dashevo/evo-sdk": "4.1.1",
+    "@noble/ciphers": "2.4.0",
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
     "@scure/base": "2.4.0",
     "@scure/bip32": "2.4.0",
     "@scure/bip39": "2.4.0",
+    "@scure/btc-signer": "2.4.1",
+    "btcutil-js": "0.4.1",
     "fflate": "0.8.3",
     "uqr": "0.1.3",
     "write-excel-file": "4.1.1"
