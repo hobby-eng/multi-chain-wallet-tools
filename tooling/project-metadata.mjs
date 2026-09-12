@@ -15,7 +15,7 @@ export const PRODUCT_FACTS = Object.freeze({
     'Wallet Key Derivation Tool',
     'Wallet Activity Viewer',
     'Wallet Discovery Scanner',
-    'PSBT Inspector',
+    'PSBT & Multisig Inspector',
   ]),
 });
 
