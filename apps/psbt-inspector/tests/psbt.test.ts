@@ -244,6 +244,23 @@ describe('PSBT inspector core', () => {
     });
   });
 
+  it('treats descriptor spaces as checksum-significant and rejects whitespace grammar', () => {
+    const spaced = 'raw( deadbeef )';
+    const compactChecksum = descriptorChecksum('raw(deadbeef)');
+    const spacedChecksum = descriptorChecksum(spaced);
+    expect(spacedChecksum).not.toBe(compactChecksum);
+    expect(() => decodeDescriptor(`${spaced}#${compactChecksum}`)).toThrow(/checksum/u);
+    expect(() => decodeDescriptor(`${spaced}#${spacedChecksum}`)).toThrow(/Whitespace is not permitted/u);
+  });
+
+  it('makes an older() value whose BIP68 delay mask is zero explicit', () => {
+    const decoded = decodeDescriptor('wsh(older(65536))');
+    expect(decoded.rows).toContainEqual({
+      label: 'Timelock 1 · effective constraint',
+      value: 'None · BIP68 masks this value to a zero delay; reserved bits do not add a lock.',
+    });
+  });
+
   it('validates the BIP380 descriptor checksum vector', () => {
     expect(descriptorChecksum('raw(deadbeef)')).toBe('89f8spxm');
     expect(decodeDescriptor('raw(deadbeef)#89f8spxm').checksum).toBe('valid · 89f8spxm');
