@@ -1,5 +1,5 @@
 {
-  "report": "docs/audits/2026-09-12-05-independent-remediation.md",
+  "report": "docs/audits/2026-09-12-05-remediation-verification.md",
   "reviewer": {
     "vendor": "OpenAI",
     "model": "GPT-6 Astra",

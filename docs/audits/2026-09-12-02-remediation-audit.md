@@ -7,7 +7,7 @@ Target: `hobby-eng-studious-tribble`, based on `ea5d4215ccbf355dd86f1c9928e213df
 
 Changes are applied to the current implementation. Earlier `super-broccoli` fixes were reviewed for intent and regression evidence; whole application files were not replaced with old versions.
 
-Original findings: [independent audit](2026-09-12-01-initial-audit.md). This record concerns first-party fixes and integration tests, not a dependency source audit. Existing uncommitted work was retained; no commit, push or release was made.
+Original findings: [independent audit](archive/2026-09-12-01-initial-audit.md). This record concerns first-party fixes and integration tests, not a dependency source audit. Existing uncommitted work was retained; no commit, push or release was made.
 
 ## Changes
 
