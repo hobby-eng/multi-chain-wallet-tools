@@ -1,6 +1,7 @@
 import type { TaprootScriptTree } from '@scure/btc-signer/payment.js';
 import { materializeDescriptorKey, validateDescriptorPublicKey } from './descriptor-key.js';
 import { compilePolicyMiniscript } from './miniscript-engine.js';
+import { CONSENSUS_LIMITS } from './consensus-limits.js';
 import { HDKey, type Versions } from '@scure/bip32';
 import { bech32m } from '@scure/base';
 import { NETWORK, TEST_NETWORK, p2tr } from '@scure/btc-signer';
@@ -192,14 +193,14 @@ export function compileTaprootDescriptor(payload: string, network: PsbtNetwork, 
     return `${match[1] ?? ''}${name === 'sortedmulti_a' ? 'multi_a' : name}(${args.join(',')})`;
   }
   function tree(text: string, depth = 0): TaprootScriptTree {
-    if (depth > 128) throw new Error('Taproot tree exceeds 128 levels.');
+    if (depth > CONSENSUS_LIMITS.maximumTaprootTreeDepth) throw new Error('Taproot tree exceeds 128 levels.');
     if (text.startsWith('{')) {
       if (!text.endsWith('}')) throw new Error('Unclosed Taproot tree.');
       const nodes = splitTopLevel(text.slice(1, -1));
       if (nodes.length !== 2) throw new Error('Taproot tree branches must have exactly two children.');
       return [tree(nodes[0]!, depth + 1), tree(nodes[1]!, depth + 1)];
     }
-    return { script: compilePolicyMiniscript(fragment(text), { tapscript: true }).script };
+    return { script: compilePolicyMiniscript(fragment(text), { tapscript: true, context: 'tapscript' }).script };
   }
   const type = payload.startsWith('rawtr(') ? 'rawtr' : 'tr';
   const open = payload.indexOf('(');
