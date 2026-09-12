@@ -82,6 +82,7 @@ dist/multi-chain-edition/release/Wallet_Discovery_Scanner.html
 dist/multi-chain-edition/release/Wallet_Discovery_Scanner.html.sha256
 dist/multi-chain-edition/release/PSBT_Multisig_Inspector.html
 dist/multi-chain-edition/release/PSBT_Multisig_Inspector.html.sha256
+dist/multi-chain-edition/release/verification-record.json
 dist/multi-chain-edition/release/LICENSE
 dist/multi-chain-edition/release/SHA256SUMS
 ```
@@ -97,6 +98,7 @@ dist/dash-community-edition/release/Dash_Community_Discovery_Scanner.html
 dist/dash-community-edition/release/Dash_Community_Discovery_Scanner.html.sha256
 dist/dash-community-edition/release/Dash_Community_PSBT_Multisig_Inspector.html
 dist/dash-community-edition/release/Dash_Community_PSBT_Multisig_Inspector.html.sha256
+dist/dash-community-edition/release/verification-record.json
 dist/dash-community-edition/release/LICENSE
 dist/dash-community-edition/release/SHA256SUMS
 ```
@@ -111,6 +113,7 @@ gh attestation verify Wallet_Key_Derivation_Tool.html -R hobby-eng/multi-chain-w
 gh attestation verify Wallet_Activity_Viewer.html -R hobby-eng/multi-chain-wallet-tools
 gh attestation verify Wallet_Discovery_Scanner.html -R hobby-eng/multi-chain-wallet-tools
 gh attestation verify PSBT_Multisig_Inspector.html -R hobby-eng/multi-chain-wallet-tools
+gh attestation verify verification-record.json -R hobby-eng/multi-chain-wallet-tools
 ```
 
 The manifest also covers the released `LICENSE`. The attestation commands require an online GitHub CLI; checksum verification works offline. Only when a release includes the optional `SHA256SUMS.asc`, verify it separately with `gpg --verify SHA256SUMS.asc SHA256SUMS` and a public key obtained through an independent trusted channel.
