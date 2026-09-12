@@ -1,7 +1,6 @@
 // Synthetic, direct-file integration tests. Never point this at a live browser profile.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createRequire } from 'node:module';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -11,11 +10,11 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { hmac } from '@noble/hashes/hmac.js';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { p2tr } from '@scure/btc-signer';
+import { loadPlaywright } from './playwright-loader.mjs';
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const require = createRequire(import.meta.url);
-const { chromium, firefox } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE ?? require.resolve('playwright')).href);
+const { chromium, firefox } = await loadPlaywright();
 const output = process.env.BROWSER_OUTPUT_DIR ?? resolve(root, 'test-results/browser-regressions', new Date().toISOString().replaceAll(':', '-'));
 mkdirSync(output, { recursive: true });
 // Trezor's official BIP39 English zero-entropy vector. Everything below is public test data.

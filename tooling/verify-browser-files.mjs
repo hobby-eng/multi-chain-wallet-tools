@@ -1,6 +1,5 @@
 // User-run acceptance of the actual standalone files. No CSP/sandbox bypass flags.
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -8,12 +7,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.mjs';
 import { readReleaseMetadata } from './project-metadata.mjs';
+import { loadPlaywright } from './playwright-loader.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const release = readReleaseMetadata(root);
-const require = createRequire(import.meta.url);
-const playwrightPath = process.env.PLAYWRIGHT_MODULE ?? require.resolve('playwright');
-const { chromium, firefox } = await import(pathToFileURL(playwrightPath).href);
+const { chromium, firefox } = await loadPlaywright();
 const output = process.env.BROWSER_OUTPUT_DIR ?? resolve(root, 'test-results/browser-files', new Date().toISOString().replaceAll(':', '-'));
 mkdirSync(output, { recursive: true });
 const phrase = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
