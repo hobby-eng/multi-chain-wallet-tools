@@ -589,7 +589,7 @@ function validateDescriptorMiniscript(payload: string, type: string): void {
 }
 
 export function decodeDescriptor(input: string, options: { readonly chain?: 'bitcoin' | 'dash'; readonly network?: PsbtNetwork; readonly multipathChoice?: 0 | 1; readonly wildcardIndex?: number } = {}): DecodedDescriptor {
-  const normalized = input.trim().replaceAll('\\_', '_').replaceAll('\\*', '*').replaceAll(/\s+/gu, '');
+  const normalized = input.trim().replaceAll('\\_', '_').replaceAll('\\*', '*');
   const separator = normalized.lastIndexOf('#');
   const payload = separator === -1 ? normalized : normalized.slice(0, separator);
   const supplied = separator === -1 ? null : normalized.slice(separator + 1);
@@ -601,8 +601,9 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
     if (restoredWildcards !== payload && descriptorChecksum(restoredWildcards) === supplied) {
       throw new Error(`Invalid descriptor checksum: a wildcard was removed. One or more derivation paths end with "/"; restore "/*" at those positions and checksum ${supplied} is valid.`);
     }
-    throw new Error(`Invalid descriptor checksum: supplied ${supplied}, expected ${expected}. The checksum covers the exact descriptor text, including every derivation wildcard "*".`);
+    throw new Error(`Invalid descriptor checksum: supplied ${supplied}, expected ${expected}. The checksum covers the exact descriptor text, including every derivation wildcard "*" and any spaces.`);
   }
+  if (/\s/u.test(payload)) throw new Error('Whitespace is not permitted inside a descriptor expression; its checksum covers the exact spaced text.');
   const type = /^([a-z0-9_]+)\(/u.exec(payload)?.[1];
   if (type === undefined) throw new Error('Input is neither Script hex nor a recognized output descriptor.');
   if (!['tr', 'rawtr', 'sp', 'wsh', 'sh', 'pk', 'pkh', 'wpkh', 'combo', 'addr', 'raw', 'multi', 'sortedmulti'].includes(type)) throw new Error(`Unsupported top-level descriptor ${type}().`);
@@ -728,6 +729,7 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
     const approximateSeconds = timeBased ? units * 512 : units * 600;
     rows.push(
       { label: `Relative lock ${index + 1}`, value: relativeLock(value) },
+      ...(units === 0 ? [{ label: `Timelock ${index + 1} · effective constraint`, value: 'None · BIP68 masks this value to a zero delay; reserved bits do not add a lock.' }] : []),
       { label: `Timelock ${index + 1} · type`, value: 'Relative' },
       { label: `Timelock ${index + 1} · opcode`, value: 'OP_CHECKSEQUENCEVERIFY' },
       { label: `Timelock ${index + 1} · BIPs`, value: 'BIP68 / BIP112' },
