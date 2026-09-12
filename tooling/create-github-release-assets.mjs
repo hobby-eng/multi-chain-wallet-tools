@@ -34,6 +34,16 @@ for (const relativeSource of artifacts) {
   manifest.push(`${digest}  ${name}`);
 }
 
+const verificationSource = resolve(dist, 'verification-record.json');
+if (!existsSync(verificationSource)) {
+  throw new Error('Verification record is missing. Run tooling/create-verification-record.mjs after building artifacts.');
+}
+const verificationName = 'verification-record.json';
+const verificationBytes = readFileSync(verificationSource);
+const verificationDigest = createHash('sha256').update(verificationBytes).digest('hex');
+copyFileSync(verificationSource, resolve(release, verificationName));
+manifest.push(`${verificationDigest}  ${verificationName}`);
+
 const licenseSource = resolve(root, 'LICENSE');
 if (!existsSync(licenseSource)) {
   throw new Error('Root LICENSE is missing.');
