@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const dockerfile = read('Dockerfile.reproducible');
+const shellWrapper = read('tooling/build-reproducible.sh');
 
 function requireMatch(text, pattern, message) {
   if (!pattern.test(text)) throw new Error(message);
@@ -36,6 +37,17 @@ for (const expected of [
   'FROM scratch AS wasm-artifacts',
 ]) {
   if (!dockerfile.includes(expected)) throw new Error(`Missing canonical container assertion: ${expected}`);
+}
+
+for (const expected of [
+  'git rev-parse HEAD',
+  'git status --porcelain',
+  '--build-arg "SOURCE_COMMIT=$source_commit"',
+  '--build-arg "SOURCE_DIRTY=$source_dirty"',
+]) {
+  if (!shellWrapper.includes(expected)) {
+    throw new Error(`The local reproducible-build wrapper is missing provenance binding: ${expected}`);
+  }
 }
 
 for (const path of ['.github/workflows/ci.yml', '.github/workflows/full-wasm.yml', '.github/workflows/release.yml']) {
