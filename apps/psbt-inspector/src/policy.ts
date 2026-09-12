@@ -7,6 +7,7 @@ import { compilePolicyMiniscript } from './miniscript-engine.js';
 import { analyzeMusigDescriptor } from './musig-descriptor.js';
 import type { HashlockKind } from './preimage.js';
 import type { PsbtChain, PsbtNetwork } from './psbt.js';
+import { CONSENSUS_LIMITS } from './consensus-limits.js';
 
 export type LockKind = 'none' | 'height' | 'time' | 'relative-blocks' | 'relative-time';
 export type PolicyMode =
@@ -103,21 +104,21 @@ function lockDetails(kind: LockKind, value: number): { fragment: string; require
   let fragmentName: 'after' | 'older';
   if (!Number.isSafeInteger(value) || value < 0 || value > 0x7fffffff) throw new Error('Lock value is outside the supported script-number range.');
   if (kind === 'height') {
-    if (value >= 500_000_000) throw new Error('Absolute block height must be below 500000000; larger values are timestamps.');
+    if (value >= CONSENSUS_LIMITS.absoluteLockTimeThreshold) throw new Error('Absolute block height must be below 500000000; larger values are timestamps.');
     fragmentName = 'after';
     requirement = `Absolute block height ≥ ${value}; spending input sequence must not be final`;
   } else if (kind === 'time') {
-    if (value < 500_000_000) throw new Error('Absolute Unix locktime must be at least 500000000.');
+    if (value < CONSENSUS_LIMITS.absoluteLockTimeThreshold) throw new Error('Absolute Unix locktime must be at least 500000000.');
     fragmentName = 'after';
     requirement = `Absolute median-time-past locktime ≥ ${value}; spending input sequence must not be final`;
   } else if (kind === 'relative-blocks') {
-    if (value > 0xffff) throw new Error('Relative block delay cannot exceed 65535.');
+    if (value > CONSENSUS_LIMITS.bip68SequenceMask) throw new Error('Relative block delay cannot exceed 65535.');
     fragmentName = 'older';
     requirement = `Relative delay of ${value} blocks via BIP68/BIP112 sequence`;
   } else {
     const units = Math.ceil(value / 512);
-    if (units > 0xffff) throw new Error('Relative time delay is too large.');
-    encoded = (1 << 22) | units;
+    if (units > CONSENSUS_LIMITS.bip68SequenceMask) throw new Error('Relative time delay is too large.');
+    encoded = CONSENSUS_LIMITS.bip68TypeFlag | units;
     fragmentName = 'older';
     requirement = `Relative delay of ${units * 512} seconds (${units} × 512-second units) via BIP68/BIP112 sequence`;
   }
@@ -319,9 +320,12 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
     policyExpression = request.lockKind === 'none' ? primaryExpression : `after(${request.lockValue},${primaryExpression})`;
     miniscript = lockedMiniscript(primaryMiniscript, locked);
   }
-  const compiled = compilePolicyMiniscript(miniscript, { tapscript });
+  const compiled = compilePolicyMiniscript(miniscript, {
+    tapscript,
+    context: tapscript ? 'tapscript' : request.bitcoinWrapper === 'p2wsh' ? 'p2wsh' : 'p2sh',
+  });
   const redeemScript = compiled.script;
-  if ((request.chain === 'dash' || request.bitcoinWrapper === 'p2sh') && redeemScript.length > 520) {
+  if ((request.chain === 'dash' || request.bitcoinWrapper === 'p2sh') && redeemScript.length > CONSENSUS_LIMITS.maximumScriptElementBytes) {
     throw new Error('This P2SH redeem script exceeds the 520-byte script element limit. Use fewer public keys or Bitcoin P2WSH.');
   }
 

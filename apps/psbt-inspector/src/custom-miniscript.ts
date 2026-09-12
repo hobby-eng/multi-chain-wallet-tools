@@ -4,6 +4,7 @@ import { bytesToHex, sha256 } from '@ckd/core/crypto.js';
 import { descriptorChecksum } from './descriptor.js';
 import { compilePolicyMiniscript } from './miniscript-engine.js';
 import type { PsbtNetwork } from './psbt.js';
+import { CONSENSUS_LIMITS } from './consensus-limits.js';
 
 export type CustomMiniscriptContext = 'p2wsh' | 'tapscript';
 
@@ -32,8 +33,8 @@ export function buildCustomMiniscriptPolicy(
   if (miniscript.length === 0) throw new Error('Enter a Miniscript fragment.');
   if (miniscript.length > 100_000) throw new Error('Miniscript is unreasonably large.');
   const tapscript = context === 'tapscript';
-  const compiled = compilePolicyMiniscript(miniscript, { tapscript });
-  if (context === 'p2wsh' && compiled.script.length > 10_000) {
+  const compiled = compilePolicyMiniscript(miniscript, { tapscript, context });
+  if (context === 'p2wsh' && compiled.script.length > CONSENSUS_LIMITS.maximumScriptBytes) {
     throw new Error('Compiled witnessScript exceeds the 10,000-byte P2WSH consensus limit.');
   }
   const safetyNotice = compiled.sane && compiled.needsSignature
