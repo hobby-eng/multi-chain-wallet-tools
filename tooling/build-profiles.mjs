@@ -302,6 +302,9 @@ export function applyProfileTemplate(template, profile, tool) {
   const psbtCustomMiniscriptOption = profile.id === 'dash-community'
     ? ''
     : '<option value="custom-miniscript">Custom Bitcoin Miniscript · P2WSH or Tapscript</option>';
+  const psbtVerifyAddressPlaceholder = profile.id === 'dash-community'
+    ? 'Dash address'
+    : 'Bitcoin or Dash address';
   const psbtVerifySignaturePlaceholder = profile.id === 'dash-community'
     ? 'Base64 Dash Core compact signature'
     : 'Base64 signature, prefixed with smp, ful, or pof when applicable';
@@ -348,6 +351,7 @@ export function applyProfileTemplate(template, profile, tool) {
     '__PSBT_POLICY_SCOPE__': psbtPolicyScope,
     '__PSBT_NUNCHUK_SCOPE__': psbtNunchukScope,
     '__PSBT_CUSTOM_MINISCRIPT_OPTION__': psbtCustomMiniscriptOption,
+    '__PSBT_VERIFY_ADDRESS_PLACEHOLDER__': psbtVerifyAddressPlaceholder,
     '__PSBT_VERIFY_SIGNATURE_PLACEHOLDER__': psbtVerifySignaturePlaceholder,
     '__PSBT_MESSAGE_VERIFY_SCOPE__': psbtMessageVerifyScope,
     '__PSBT_FOOTER_PROTOCOLS__': psbtFooterProtocols,
