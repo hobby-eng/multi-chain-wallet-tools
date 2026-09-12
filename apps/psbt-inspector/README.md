@@ -44,7 +44,7 @@ pnpm build:psbt-inspector
 
 Build outputs: `dist/multi-chain-edition/psbt-inspector/PSBT_Multisig_Inspector.html` and `dist/dash-community-edition/psbt-inspector/Dash_Community_PSBT_Multisig_Inspector.html`.
 
-Known descriptor edge cases and missing regression coverage are recorded in [the documentation/code follow-up](../../docs/AUDIT_FOLLOWUP_2026-09-12.md). The follow-up fixes validate original MuSig participant/aggregate paths before selecting either of the two supported branches, including nested origins. Arbitrary-length multipath tuples remain unsupported.
+The historical [documentation/code follow-up](../../docs/audits/2026-09-12-03-followup-audit.md) records descriptor defects and their original remediation. Current regressions validate original MuSig participant/aggregate paths before selecting either supported branch, including nested origins, and enforce centralised script/policy limits. Arbitrary-length multipath tuples remain unsupported.
 
 
 ## Validation boundaries

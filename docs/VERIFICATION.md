@@ -18,13 +18,13 @@ These commands describe the current source tree. A command being available is no
 | `node tooling/verify-artifact-profiles.mjs` | Four tools × two editions, CSP, graph/content boundaries and artifact invariants | `verify`, `verify:ci` |
 | `node tooling/verify-reproducible-build.mjs` | Two HTML builds, source/build identity and deterministic outputs | `verify`; CI variant uses `--reuse-generated-wasm` |
 | Release bundle/manifest verifiers | Exact named files, sidecars, manifests and edition separation | `verify`, `verify:ci` |
-| `pnpm test:browser:files` | Real standalone `file://` UI in Chromium/Firefox, both editions | **Separate**, not included in `verify`/current CI |
-| `node tooling/verify-browser-regressions.mjs` | CSP/storage probes, verifier revisions, CoinJoin, BIP38 and BIP85 | **Separate**, not included in `verify`/current CI |
+| `pnpm test:browser:files` | Real standalone `file://` UI in Chromium/Firefox, both editions | Separate from `verify`; mandatory `browser` job in pull-request, `main`, and release CI |
+| `pnpm test:browser:regressions` | CSP/storage probes, worker readiness, verifier revisions, CoinJoin, BIP38 and BIP85 | Separate from `verify`; mandatory `browser` job in pull-request, `main`, and release CI |
 | `test:activity-viewer:*`, `test:discovery:mainnet`, `test:discovery:testnet`, `test:discovery:batch*` | Mutable public-provider observations | **Separate**, intentionally outside deterministic CI |
 | `pnpm audit` | Package vulnerability advisories, not first-party correctness | Separate online command |
 | `node tooling/check-upstream-versions.mjs` | Upstream version/pin comparison | Separate scheduled workflow; does not update dependencies |
 
-The current GitHub `ci.yml` builds `Dockerfile.reproducible`, whose final build layer runs **`pnpm verify`**, not `pnpm verify:ci`. This includes native Rust and a WASM rebuild before the committed-byte comparison. It does not run Playwright or live providers.
+The current GitHub `ci.yml` has two mandatory jobs. `verify` builds `Dockerfile.reproducible`, whose final build layer runs **`pnpm verify`**, including native Rust and a WASM rebuild before the committed-byte comparison. `browser` installs the pinned Playwright package and matching Chromium/Firefox binaries, builds all eight standalone HTML files from committed WASM, and runs both browser suites directly over `file://`. Neither job contacts mutable wallet-data providers.
 
 Some verifiers are imported modules rather than standalone executable tests: `verify-dash-sdk-build.mjs` checks installed SDK versions/integrities when Viewer/Scanner build; `verify-evo-read-only.mjs` and Dash graph gates are used by artifact/build checks. Their presence in `tooling/` does not mean they need another identical CLI invocation.
 
@@ -36,11 +36,13 @@ Some verifiers are imported modules rather than standalone executable tests: `ve
 4. Run live network observations separately, with public fixtures only.
 5. Before release, use the canonical Docker verification and compare its generated WASM with the committed bytes. Review both editions' manifests.
 
-Browser filters: `BROWSER_ENGINES` works for both runners. The extended runner also accepts `BROWSER_PROFILE` and `BROWSER_CASES`. `PLAYWRIGHT_MODULE` points to a local Playwright installation; Playwright is not a runtime dependency of the HTML applications.
+Browser filters: `BROWSER_ENGINES` works for both runners. The extended runner also accepts `BROWSER_PROFILE` and `BROWSER_CASES`. The repository pins Playwright as a development dependency; `PLAYWRIGHT_MODULE` can override module resolution for a separately installed matching copy. Playwright is not bundled into or used at runtime by the HTML applications.
 
 ## Existing evidence and coverage limits
 
-The [remediation record](AUDIT_REMEDIATION_2026-09-12.md) records 919 passing module tests and a 16/16 standalone acceptance matrix for its snapshot, plus a qualified extended-browser result. The [follow-up audit](AUDIT_FOLLOWUP_2026-09-12.md) found additional edge cases outside that coverage. Historical success is not a claim that those new findings are fixed.
+The [remediation record](audits/2026-09-12-02-remediation-audit.md) records 919 passing module tests and a 16/16 standalone acceptance matrix for its snapshot, plus a qualified extended-browser result. The [follow-up audit](audits/2026-09-12-03-followup-audit.md) found additional edge cases outside that coverage. The [independent audit](audits/2026-09-12-04-independent-audit.md) records the later pre-remediation state. Historical success is not evidence for the current checkout; use its generated `dist/verification-record.json` and the latest audit report.
+
+`pnpm verify` and `pnpm verify:ci` emit `dist/verification-record.json` after their checks succeed. It records the exact source commit and dirty state, source fingerprint, pinned toolchain, check groups, and SHA-256 hashes of all eight HTML artifacts and four generated Orchard integration files. Both edition bundles contain the same record, and their `SHA256SUMS` files cover it. The record is machine-readable evidence, not a signature. Tagged GitHub releases additionally use GitHub's OIDC build-provenance attestation; verify a downloaded release asset with `gh attestation verify <file> --repo hobby-eng/multi-chain-wallet-tools`.
 
 - Ethers, dashhd, Go/btcd WASM and literal upstream vectors provide useful comparisons, but shared primitive ancestry must be considered. Two package names do not automatically mean two independent cryptographic implementations.
 - The BitcoinerLab compiler is production code here; comparing its result to another call into itself is not an independent script oracle.

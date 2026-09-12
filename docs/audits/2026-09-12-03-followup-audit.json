@@ -1,7 +1,7 @@
 {
   "date": "2026-09-12",
   "reviewer": "OpenAI Codex, GPT-6 family; exact service snapshot unavailable",
-  "head": "ea5d4215ccbf355dd86f1c9928e213df1e23d186",
+  "head": "f16a0987c903f83ef9428aefcb8fac9227fcc7f0",
   "workingTree": "Substantial uncommitted changes; HEAD alone is not the reviewed snapshot",
   "descriptorProbes": [
     {
@@ -35,7 +35,7 @@
           }
         ]
       },
-      "summary": "Taproot descriptor with key-path spending \u00b7 1 MuSig2 aggregate key"
+      "summary": "Taproot descriptor with key-path spending · 1 MuSig2 aggregate key"
     },
     {
       "name": "malformed_leaf_origin",
@@ -62,7 +62,7 @@
           }
         ]
       },
-      "summary": "Taproot descriptor with key-path spending \u00b7 1 MuSig2 aggregate key"
+      "summary": "Taproot descriptor with key-path spending · 1 MuSig2 aggregate key"
     },
     {
       "name": "uncompressed_sh_pkh",
@@ -132,12 +132,12 @@
     {
       "command": "node apps/key-derivation/scripts/verify-self-test.mjs",
       "exit": 0,
-      "output": "Verified startup cryptographic self-test: BIP39 \u00b7 Bitcoin Taproot / BIP86 \u00b7 Bitcoin testnet / BIP49 \u00b7 Bitcoin maximum child index \u00b7 Ethereum / EIP55 \u00b7 Dash Core / BIP44 \u00b7 Dash Core testnet / BIP44 \u00b7 Dash Platform / DIP17 \u00b7 Dash Platform testnet / DIP17 \u00b7 Dash Identity mainnet / DIP13 \u00b7 Dash Identity testnet / DIP13 \u00b7 Dash Mobile CoinJoin \u00b7 DIP9 \u00b7 mainnet \u00b7 Dash Mobile CoinJoin \u00b7 DIP9 \u00b7 testnet \u00b7 Master/account extended-key integrity \u00b7 Dash Orchard testnet / ZIP32 \u00b7 Dash Orchard mainnet / ZIP32 (308 ms)\n"
+      "output": "Verified startup cryptographic self-test: BIP39 · Bitcoin Taproot / BIP86 · Bitcoin testnet / BIP49 · Bitcoin maximum child index · Ethereum / EIP55 · Dash Core / BIP44 · Dash Core testnet / BIP44 · Dash Platform / DIP17 · Dash Platform testnet / DIP17 · Dash Identity mainnet / DIP13 · Dash Identity testnet / DIP13 · Dash Mobile CoinJoin · DIP9 · mainnet · Dash Mobile CoinJoin · DIP9 · testnet · Master/account extended-key integrity · Dash Orchard testnet / ZIP32 · Dash Orchard mainnet / ZIP32 (308 ms)\n"
     },
     {
       "command": "node apps/key-derivation/scripts/verify-dash-self-test.mjs",
       "exit": 0,
-      "output": "Verified Dash Community startup self-test: Dash Core / BIP44 \u00b7 Dash Core testnet / BIP44 \u00b7 Dash Platform / DIP17 \u00b7 Dash Platform testnet / DIP17 \u00b7 Dash master/account extended-key integrity \u00b7 Dash Identity mainnet / DIP13 \u00b7 Dash Identity testnet / DIP13 \u00b7 Dash Mobile CoinJoin \u00b7 DIP9 \u00b7 mainnet \u00b7 Dash Mobile CoinJoin \u00b7 DIP9 \u00b7 testnet \u00b7 Dash Orchard testnet / ZIP32 \u00b7 Dash Orchard mainnet / ZIP32 (208 ms)\n"
+      "output": "Verified Dash Community startup self-test: Dash Core / BIP44 · Dash Core testnet / BIP44 · Dash Platform / DIP17 · Dash Platform testnet / DIP17 · Dash master/account extended-key integrity · Dash Identity mainnet / DIP13 · Dash Identity testnet / DIP13 · Dash Mobile CoinJoin · DIP9 · mainnet · Dash Mobile CoinJoin · DIP9 · testnet · Dash Orchard testnet / ZIP32 · Dash Orchard mainnet / ZIP32 (208 ms)\n"
     },
     {
       "command": "node tooling/verify-shielded-wasm.mjs",
