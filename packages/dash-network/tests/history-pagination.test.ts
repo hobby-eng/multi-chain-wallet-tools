@@ -32,7 +32,7 @@ describe('page-number explorer histories', () => {
             }));
             value = { resultSet: fault === 'empty-unknown' || (page === 2 && fault === 'short') ? [] : rows.slice((page - 1) * limit - (page === 2 && fault === 'overlap' ? 1 : 0), fault === 'overlap' && page === 2 ? 149 : page * limit), pagination: { total: fault === 'empty-unknown' ? null : rows.length + (page === 2 && fault === 'changed' ? 1 : 0) } };
           } else if (url.search) value = { resultSet: [], pagination: { total: 0 } };
-          else if (kind === 'core') value = { txCount: 150, balance: '0', received: '0', sent: '0' };
+          else if (kind === 'core') value = { address: core, txCount: 150, balance: '0', received: '0', sent: '0' };
           else if (kind === 'platform') value = {
             totalTxs: 150, incomingTxs: 150, outgoingTxs: 0, nonce: 0,
             balance: '0', totalIncomingAmount: '0', totalOutgoingAmount: '0',
@@ -56,4 +56,58 @@ describe('page-number explorer histories', () => {
       });
     }
   }
+});
+
+
+describe('Audit regressions: complete Dash explorer pages', () => {
+  it('accepts a pending-only DashScan page whose total includes the pending row', async () => {
+    const pendingHash = hash(999);
+    const fetcher = async (input: string): Promise<Response> => {
+      const url = new URL(input);
+      let value: unknown;
+      if (url.pathname.endsWith('/status')) value = { status: 'ok' };
+      else if (url.pathname.endsWith('/blocks')) value = { resultSet: [{ height: 100, timestamp }] };
+      else if (url.pathname.endsWith('/transactions')) value = {
+        resultSet: [{
+          hash: pendingHash,
+          timestamp: null,
+          type: 'CLASSIC',
+          blockHeight: null,
+          blockHash: null,
+          confirmations: 0,
+          vIn: [],
+          vOut: [],
+        }],
+        pagination: { total: 1 },
+      };
+      else value = { address: core, txCount: 0, balance: '0', received: '0', sent: '0' };
+      return new Response(JSON.stringify(value));
+    };
+    const result = await queryCoreAddress(core, 'mainnet', 20, undefined, fetcher);
+    expect(result.transactionCount).toBe(0);
+    expect(result.transactions.map(({ txid }) => txid)).toEqual([pendingHash]);
+  });
+
+  it.each(['resource', 'missing-total', 'oversized', 'malformed-tail', 'pending'])('%s response boundary', async fault => {
+    const calls: number[] = [];
+    const fetcher = async (input: string): Promise<Response> => {
+      const url = new URL(input); let value: unknown;
+      if (url.pathname.endsWith('/status')) value = { status: 'ok' };
+      else if (url.pathname.endsWith('/blocks')) value = { resultSet: [{ height: 100, timestamp }] };
+      else if (url.pathname.endsWith('/transactions')) {
+        const page = Number(url.searchParams.get('page')); const limit = Number(url.searchParams.get('limit')); calls.push(limit);
+        const rows = Array.from({ length: 150 }, (_, i) => ({ hash: hash(i), timestamp, type: 'CLASSIC', blockHeight: 100, blockHash: hash(888), confirmations: 1, vIn: [], vOut: [] }));
+        const items: unknown[] = rows.slice((page - 1) * limit, page * limit);
+        if (fault === 'oversized') items.push(rows[0]);
+        if (fault === 'malformed-tail') items[items.length - 1] = { hash: 'invalid' };
+        if (fault === 'pending' && page === 1) items.unshift({ ...rows[0], hash: hash(999), timestamp: null, blockHash: null, blockHeight: null, confirmations: 0 });
+        value = { resultSet: items, pagination: fault === 'missing-total' ? {} : { total: 150 } };
+      } else value = { address: fault === 'resource' ? 'wrong-address' : core, txCount: 150, balance: '0', received: '0', sent: '0' };
+      return new Response(JSON.stringify(value));
+    };
+    if (fault !== 'pending') { await expect(queryCoreAddress(core, 'mainnet', 120, undefined, fetcher)).rejects.toThrow(); return; }
+    const result = await queryCoreAddress(core, 'mainnet', 200, undefined, fetcher);
+    expect(result.transactions.map(row => row.txid)).toEqual([hash(999), ...Array.from({ length: 150 }, (_, i) => hash(i))]);
+    expect(calls).toEqual([100, 100]);
+  });
 });

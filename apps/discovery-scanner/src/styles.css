@@ -45,17 +45,8 @@
 .recovery-head-badges { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:7px; }
 .local-only-chip i { width:6px; height:6px; border-radius:50%; background:var(--ok); box-shadow:0 0 8px var(--ok); }
 .scan-estimate { color:#f1d18d; border-color:#594621; background:#211c12; }
-.recovery-mode-tabs { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin:0 0 16px; }
-.recovery-mode-tab { position:relative; min-height:48px; border:1px solid #303b47; color:#aeb9c5; background:#0f161e; }
-.recovery-mode-tab:hover { color:#eef2f5; border-color:#4a596a; }
-.recovery-mode-tab.active { color:var(--accent2); border-color:#76551e; background:linear-gradient(180deg,#2a2113,#1b1811); }
-.recovery-mode-tab.active::after { content:""; position:absolute; left:18px; right:18px; bottom:6px; height:2px; background:var(--accent); border-radius:2px; }
+.recovery-mode-tabs { margin:0 0 16px; }
 .recovery-source-tabs { margin-bottom:16px; }
-.recovery-source-tabs .recovery-mode-tab { display:flex; align-items:center; justify-content:center; gap:11px; min-height:62px; padding:10px 18px; }
-.recovery-source-tabs .recovery-mode-tab strong,.recovery-source-tabs .recovery-mode-tab small { display:block; }
-.recovery-source-tabs .recovery-mode-tab strong { color:inherit; font-size:14px; }
-.recovery-source-tabs .recovery-mode-tab small { color:#748291; font-size:10px; font-weight:600; }
-.recovery-source-tabs .recovery-mode-tab.active small { color:#c7a86e; }
 .recovery-source-grid { display:grid; grid-template-columns:1.2fr 1fr .7fr; gap:12px; padding:16px; border:1px solid #26323e; border-radius:12px 12px 0 0; background:#0b1118; }
 .seed-mode-control { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:12px 16px; border-inline:1px solid #26323e; border-bottom:1px solid #202b35; background:#0d141c; }
 .seed-mode-copy strong,.seed-mode-copy small { display:block; }

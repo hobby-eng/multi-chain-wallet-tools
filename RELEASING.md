@@ -28,7 +28,7 @@ The checked-in workflows pin every referenced GitHub-maintained action to a full
 
 - `.github/workflows/ci.yml` runs on every push to `main`, pull request and manual invocation. It builds the canonical container, runs the complete verification suite for both profiles, rebuilds Orchard WASM, rejects any generated-byte difference and creates both local flat bundles.
 - `.github/workflows/full-wasm.yml` runs monthly or manually as a fresh scheduled repetition of the same complete, pinned Rust/WASM build gate.
-- `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version and a matching curated `docs/releases/<tag>.md`, creates GitHub provenance attestations, and publishes a Multi-Chain release containing the existing three filenames, their sidecars, the MIT `LICENSE`, and a flat `SHA256SUMS`. It intentionally does not publish the Dash Community bundle.
+- `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version and a matching curated `docs/releases/<tag>.md`, creates GitHub provenance attestations, and publishes a Multi-Chain release containing the four standalone HTML files, their sidecars, the MIT `LICENSE`, and a flat `SHA256SUMS`. It intentionally does not publish the Dash Community bundle.
 - `.github/dependabot.yml` proposes pinned npm, Cargo, GitHub Actions and Docker updates weekly. `.github/workflows/upstream-versions.yml` separately compares the pinned Node LTS, pnpm, stable Rust, rustup, Evo SDK, wasm-bindgen and Dash Orchard tag/commit with their upstream releases; it opens or refreshes one review issue instead of modifying release inputs. Never merge a cryptographic/dependency update only because CI is green; inspect its changelog, lockfile diff and vectors.
 
 `Dockerfile.reproducible` pins the Ubuntu 24.04-based base image by immutable digest and pins Node.js 24.20.0, pnpm 11.25.0, Rust/Cargo 1.98.1 and wasm-bindgen 0.2.128. Downloaded Node/rustup installers are checksum-verified. Dependency fetching happens before the final `pnpm verify` layer; that complete verification/build layer runs with `--network=none`. The generated WASM is compared byte for byte with the committed reviewed input before any release artifact can leave the image.
@@ -39,7 +39,7 @@ The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checks
 
 1. Set the version and `releaseDate` once in the root `package.json`, create curated notes at `docs/releases/v<version>.md`, then run `pnpm metadata:sync`. That command copies the release version into workspace manifests, the local Rust crate/lock entry, and notices. Audit dates, reviewed commits, and evidence remain unchanged. `pnpm metadata:check` derives network-operation counts, batch sizes, Identity concurrency, artifact paths, and current release-note expectations from their canonical code/build definitions and fails when documentation drifts. Update the remaining substantive documentation and commit the changes. Give each significant user-facing, security, dependency, or build change its own release-note bullet instead of combining distinct features. The intended tag is always `v` plus the root `package.json` version.
 2. From a clean source checkout with Docker Engine/Desktop running, run `./tooling/build-reproducible.sh`. This performs the locked install, TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, a release WASM rebuild and exact generated-byte comparison, generated-browser-WASM tests, two byte-identical builds of both profiles, per-profile manifest checks, Dash graph/content isolation checks, and each application's CSP/artifact verifier.
-3. Run the live network release observations below. They are intentionally not part of deterministic CI because changing chain state or a provider outage must not change the reproducible build result.
+3. Run direct-file acceptance and extended browser regressions for the eight freshly built artifacts using [the verification map](docs/VERIFICATION.md). These browser checks are separate from the current Docker/CI command. Then run the live network release observations below. They are intentionally not part of deterministic CI because changing chain state or a provider outage must not change the reproducible build result.
 4. Ensure the working tree is clean. A GPG key is not required. Create and push an annotated tag:
 
    ```bash
@@ -67,7 +67,7 @@ Run `pnpm test:activity-viewer:network`, both `test:activity-viewer:core-*` comm
 
 Temporarily block optional lookup providers where applicable and confirm the primary finding remains visible with a warning. A changing provider must never turn a valid primary result into a false zero. Inspect request payloads in browser developer tools: only validated public addresses, public-key hashes and Orchard pool ranges may leave the isolated Discovery Scanner vault.
 
-Open all three standalone files directly with `file://` in each supported browser. Check the release passports/self-tests and narrow/mobile layout. In the Wallet Key Derivation Tool verify auto-generation and the reveal gate, then enable change generation for every Bitcoin variant and Dash Core: confirm `/0` Receive and `/1` Change paths, independent selection/paging/export state, branch-specific descriptors, a known-address match on the change branch, and that Ethereum, Platform and Orchard do not show the two-branch checkbox. Check Activity Viewer Single/Batch, Auto/Advanced, mixed-result selection, clearing, and CSV/XLSX/JSON export; check Discovery Scanner single/batch progress, cancellation, isolation diagnostics, and secret-free CSV/JSON export. Complete one full Orchard cold scan separately before release.
+Open all standalone files directly with `file://` in each supported browser. Check the release passports/self-tests and narrow/mobile layout. In the Wallet Key Derivation Tool verify auto-generation and the reveal gate, then enable change generation for every Bitcoin variant and Dash Core: confirm `/0` Receive and `/1` Change paths, independent selection/paging/export state, branch-specific descriptors, a known-address match on the change branch, and that Ethereum, Platform and Orchard do not show the two-branch checkbox. Check Activity Viewer Single/Batch, Auto/Advanced, mixed-result selection, clearing, and CSV/XLSX/JSON export; check Discovery Scanner single/batch progress, cancellation, isolation diagnostics, and secret-free CSV/JSON export; check PSBT & Multisig Inspector offline PSBT/script decoding, policy construction, and multisig wallet construction. Complete one full Orchard cold scan separately before release.
 
 ## What GitHub publishes
 
@@ -80,6 +80,9 @@ dist/multi-chain-edition/release/Wallet_Activity_Viewer.html
 dist/multi-chain-edition/release/Wallet_Activity_Viewer.html.sha256
 dist/multi-chain-edition/release/Wallet_Discovery_Scanner.html
 dist/multi-chain-edition/release/Wallet_Discovery_Scanner.html.sha256
+dist/multi-chain-edition/release/PSBT_Multisig_Inspector.html
+dist/multi-chain-edition/release/PSBT_Multisig_Inspector.html.sha256
+dist/multi-chain-edition/release/verification-record.json
 dist/multi-chain-edition/release/LICENSE
 dist/multi-chain-edition/release/SHA256SUMS
 ```
@@ -93,6 +96,9 @@ dist/dash-community-edition/release/Dash_Community_Activity_Viewer.html
 dist/dash-community-edition/release/Dash_Community_Activity_Viewer.html.sha256
 dist/dash-community-edition/release/Dash_Community_Discovery_Scanner.html
 dist/dash-community-edition/release/Dash_Community_Discovery_Scanner.html.sha256
+dist/dash-community-edition/release/Dash_Community_PSBT_Multisig_Inspector.html
+dist/dash-community-edition/release/Dash_Community_PSBT_Multisig_Inspector.html.sha256
+dist/dash-community-edition/release/verification-record.json
 dist/dash-community-edition/release/LICENSE
 dist/dash-community-edition/release/SHA256SUMS
 ```
@@ -106,6 +112,8 @@ sha256sum -c SHA256SUMS
 gh attestation verify Wallet_Key_Derivation_Tool.html -R hobby-eng/multi-chain-wallet-tools
 gh attestation verify Wallet_Activity_Viewer.html -R hobby-eng/multi-chain-wallet-tools
 gh attestation verify Wallet_Discovery_Scanner.html -R hobby-eng/multi-chain-wallet-tools
+gh attestation verify PSBT_Multisig_Inspector.html -R hobby-eng/multi-chain-wallet-tools
+gh attestation verify verification-record.json -R hobby-eng/multi-chain-wallet-tools
 ```
 
 The manifest also covers the released `LICENSE`. The attestation commands require an online GitHub CLI; checksum verification works offline. Only when a release includes the optional `SHA256SUMS.asc`, verify it separately with `gpg --verify SHA256SUMS.asc SHA256SUMS` and a public key obtained through an independent trusted channel.

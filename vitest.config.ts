@@ -21,6 +21,7 @@ export default defineConfig({
       { find: '@ckd/bip39-self-test', replacement: `${root}packages/verification/src/bip39-self-test.ts` },
       { find: '@ckd/derivation-self-test', replacement: `${root}packages/verification/src/derivation-self-test.ts` },
       { find: '@ckd/dash-derivation-self-test', replacement: `${root}packages/verification/src/derivation-self-test-dash.ts` },
+      { find: 'btcutil-js-wasm', replacement: `${root}test/support/btcutil-wasm.ts` },
     ],
   },
   test: {

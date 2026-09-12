@@ -1,3 +1,4 @@
+import { validateAddressHistoryPage } from './provider-json.js';
 import { bech32m, createBase58check } from '@scure/base';
 import { sha256 } from '@ckd/core/crypto.js';
 import { DUFFS_PER_DASH } from '@ckd/core/dash-units.js';
@@ -125,7 +126,7 @@ export function validateCoreP2pkhAddress(addressInput: string, network: ViewerNe
 }
 
 function decodePlatformAddress(addressInput: string, network: ViewerNetwork): { address: string; type: number } {
-  const address = addressInput.trim().toLowerCase();
+  const address = addressInput.trim();
   let decoded: ReturnType<typeof bech32m.decode>;
   try {
     decoded = bech32m.decode(address as `${string}1${string}`, 200);
@@ -138,7 +139,7 @@ function decodePlatformAddress(addressInput: string, network: ViewerNetwork): { 
   if (payload.length !== 21 || (payload[0] !== 0xb0 && payload[0] !== 0x80)) {
     throw new Error('The value is not a DIP18 Platform P2PKH/P2SH payment address.');
   }
-  return { address, type: payload[0] };
+  return { address: address.toLowerCase(), type: payload[0] };
 }
 
 export function validatePlatformAddress(addressInput: string, network: ViewerNetwork): string {
@@ -263,11 +264,15 @@ async function queryDashScan(
   }
 
   const summary = object(summaryValue, 'address summary');
+  if (summary.address !== address) throw new Error('Core explorer returned a summary for a different or missing address.');
   const balanceDuffs = exactDuffs(summary.balance, 'address balance');
   const totalReceivedDuffs = exactDuffs(summary.received, 'total received');
   const totalSentDuffs = exactDuffs(summary.sent, 'total sent');
   const transactionCount = requiredInteger(summary.txCount, 'transaction count');
   const transactions: CoreAddressTransaction[] = [];
+  const pending: CoreAddressTransaction[] = [];
+  const pendingIds = new Set<string>();
+  let paginationPendingOffset: number | null = null;
   let target = Math.min(Math.max(transactionCount, 1), historyLimit);
   // Page-number APIs calculate offsets from the requested limit. Keep it fixed.
   const limit = Math.min(DASHSCAN_PAGE_SIZE, historyLimit);
@@ -282,20 +287,33 @@ async function queryDashScan(
       ),
       'transaction page',
     );
-    const items = Array.isArray(page.resultSet) ? page.resultSet : [];
+    if (!Array.isArray(page.resultSet)) throw new Error('Address history returned an invalid page.');
+    const isPending = (item: unknown): boolean => {
+      if (item === null || typeof item !== 'object') return false;
+      const tx = item as Record<string, unknown>;
+      return tx.blockHeight === null && tx.blockHash === null && tx.timestamp === null && (tx.confirmations === null || tx.confirmations === 0);
+    };
+    const pendingRows = page.resultSet.filter(isPending);
+    if (pageNumber !== 1 && pendingRows.length > 0) throw new Error('Unconfirmed history changed during pagination.');
+    if (pageNumber === 1) validateAddressHistoryPage(pendingRows, pendingRows.length, pendingRows.length, 1000, pendingIds);
+    pending.push(...pendingRows.map(item => transactionView(item, address)));
+    const items: unknown = page.resultSet.filter(item => !isPending(item));
     const pagination = object(page.pagination, 'transaction pagination');
-    const reportedTotal = optionalInteger(pagination.total);
-    if (reportedTotal !== null && reportedTotal !== transactionCount) {
-      throw new Error('Address history changed during pagination. Retry the query.');
+    const pageTotal = requiredInteger(pagination.total, 'transaction pagination total');
+    if (paginationPendingOffset === null) {
+      const possibleOffsets = [...new Set([0, pendingRows.length])]
+        .filter(offset => pageTotal - offset === transactionCount);
+      if (possibleOffsets.length !== 1) {
+        throw new Error('Address history changed during pagination or disagrees with its confirmed transaction count.');
+      }
+      paginationPendingOffset = possibleOffsets[0]!;
     }
+    validateAddressHistoryPage(items, pageTotal - paginationPendingOffset, transactionCount, limit, seen);
+    if (items.some(item => pendingIds.has(String(item.hash).toLowerCase()))) throw new Error('A pending transaction changed confirmation state during pagination.');
+    const fullPage = items.map(item => transactionView(item, address));
     target = Math.min(transactionCount, historyLimit);
     const remaining = target - transactions.length;
-    const parsed = items.slice(0, remaining).map((item) => transactionView(item, address));
-    for (const item of parsed) {
-      const id = item.txid.toLowerCase();
-      if (id === 'unknown' || seen.has(id)) throw new Error('Address history contains a missing or repeated transaction ID.');
-      seen.add(id);
-    }
+    const parsed = fullPage.slice(0, remaining);
     transactions.push(...parsed);
     if (items.length < limit && transactions.length < target) {
       throw new Error('Address history ended before the reported transaction count. Retry the query.');
@@ -317,7 +335,7 @@ async function queryDashScan(
     totalReceivedDuffs,
     totalSentDuffs,
     transactionCount,
-    transactions,
+    transactions: [...pending, ...transactions].slice(0, historyLimit),
     historyLimit,
     endpoint,
     indexStatus: 'ok',

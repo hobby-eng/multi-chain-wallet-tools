@@ -23,6 +23,7 @@ describe('coin adapter extension contract', () => {
       'bitcoin-taproot',
       'ethereum',
       'dash-core',
+      'dash-multisig-p2sh',
       'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',
@@ -32,9 +33,9 @@ describe('coin adapter extension contract', () => {
       expect(adapter.label.length).toBeGreaterThan(0);
       expect(adapter.variantLabel.length).toBeGreaterThan(0);
       expect(adapter.group.length).toBeGreaterThan(0);
-      if (adapter.id === 'dash-identity') {
+      if (adapter.id === 'dash-identity' || adapter.id === 'dash-multisig-p2sh') {
         expect(adapter.fieldRoles.addresses).toEqual([]);
-        expect(adapter.defaults.count).toBe(5);
+        expect(adapter.defaults.count).toBe(adapter.id === 'dash-identity' ? 5 : 20);
       } else {
         expect(adapter.fieldRoles.addresses).toContain('address');
         expect(adapter.defaults.count).toBe(20);
@@ -57,7 +58,8 @@ describe('coin adapter extension contract', () => {
       'Taproot · BIP86',
     ]);
     expect(COIN_FAMILIES.find(({ id }) => id === 'dash')?.adapters.map(({ variantLabel }) => variantLabel)).toEqual([
-      'Core · BIP44',
+      'Core · BIP44\nP2PKH',
+      'Multisig · Purpose48 P2SH',
       'Legacy mobile Core',
       'Platform · DIP17 / DIP18',
       'Identity · DIP13',
@@ -102,12 +104,23 @@ describe('coin adapter extension contract', () => {
       start: 1,
       count: 2,
     })).toBe("m/9'/5'/5'/0'/0'/{1'…2'}/{0'…3'}");
+    const dashMultisig = getCoinAdapter('dash-multisig-p2sh');
+    expect(dashMultisig.addressBranches).toMatchObject({ receive: 0, change: 1 });
+    expect(dashMultisig.pathPreview({
+      network: 'mainnet',
+      account: 0,
+      branch: 0,
+      start: 0,
+      count: 1,
+    })).toBe("m/48'/5'/0'/0'/0/0");
+    expect(getCoinAdapter('dash-legacy-mobile').hiddenByDefault).toBe(true);
     expect(getCoinAdapter('dash-shielded').addressBranches).toBeUndefined();
   });
 
   it('keeps the Dash Community registry explicitly Dash-only', () => {
     expect(DASH_COIN_ADAPTERS.map(({ id }) => id)).toEqual([
       'dash-core',
+      'dash-multisig-p2sh',
       'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',

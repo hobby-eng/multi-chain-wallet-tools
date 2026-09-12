@@ -3,7 +3,7 @@
 The derivation form displays the fixed purpose, coin type and selected scheme from the same adapter that defines the standard path. The path is read-only: account, address branch controls, start index and result count remain editable where supported. Receive/change generation retains its existing checkbox. Identity has no account control; Orchard labels its diversifier index explicitly. Legacy mobile paths do not display nonexistent purpose/coin levels. There is no arbitrary-path mode in this tool.
 
 
-Offline, standalone BIP39/BIP32/ZIP-32 derivation. The extensible Multi-Chain edition currently includes Bitcoin, Ethereum, and Dash (Core BIP44, legacy mobile Core, Platform payments, Platform Identity keys, and Orchard). Dash Community is Dash-only and compiles only those five Dash adapters. Build outputs: `dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html` and `dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html`.
+Offline, standalone BIP39/BIP32/ZIP-32 derivation. The extensible Multi-Chain edition currently includes Bitcoin, Ethereum, and Dash (Core BIP44, legacy mobile Core, Platform payments, Platform Identity keys, Purpose48 P2SH multisig cosigner keys, and Orchard). Dash Community is Dash-only and compiles only those six Dash adapters. Build outputs: `dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html` and `dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html`.
 
 The Release passport contains the self-test result, deterministic build identity, checksum sidecar name, and embedded dependency versions/licenses. The former duplicate expandable dependency footer has been removed.
 
@@ -11,9 +11,13 @@ This independent tool uses the official open-source Dash Orchard fork and Dash P
 
 Original project code is released under the repository's [MIT License](../../LICENSE); embedded dependencies retain their separately listed licenses.
 
-The main UI loads protocol metadata only. All runtime key derivation and the single Orchard WASM instance execute in a disposable Blob worker. The final HTML has `connect-src 'none'`, no external assets, no storage APIs and no runtime install requirement.
+The main UI loads protocol metadata only. All runtime key derivation and the single Orchard WASM instance execute in a disposable Blob worker. Message signing, BIP38 encryption, BIP85 child-secret derivation, and BIP352 scan/spend-key derivation use the same disposable-worker boundary. The final HTML has `connect-src 'none'`, no external assets, no storage APIs and no runtime install requirement.
 
-Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot plus Dash Core can optionally derive the standard internal/change branch `/1` alongside the receive branch `/0`. Dash legacy mobile exposes the historical `m/account'/0/i` receive and `m/account'/1/i` change paths through the same two result tabs. Receive and Change have independent row selection, paging, copy/download state and branch-specific Bitcoin watch-only descriptors. Ethereum keeps its explicit address-branch selector pending the separate custom-path/preset work; Dash Platform uses the same Receive/Change result tabs for DIP17's hardened receive class `0'` and optional internal/change class `1'`; Orchard diversifiers retain their own controls.
+Supported Bitcoin addresses expose local message signing: compact BIP137 for P2PKH and BIP322 for nested SegWit, native SegWit, and Taproot. Dash P2PKH uses Dash Core compact-message framing. BIP38 encryption is offered only for compressed Bitcoin and Dash P2PKH keys because BIP38 carries neither a script type nor a descriptor. It runs the standard scrypt and AES-256-ECB compatibility construction in the worker.
+
+The Multi-Chain edition also includes BIP85 BIP39/WIF/XPRV/hex applications and BIP352 Silent Payment address derivation. BIP85 child mnemonics can be opened as an in-memory child wallet context while retaining a return path to the parent context; no URL, storage, popup, or network transport is used. Silent Payments show the canonical scan and spend paths, base address, and reserved `m=0` change label. This offline utility does not scan chain history: detecting payments still requires eligible transaction input data and ordered outputs.
+
+Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot plus Dash Core can optionally derive the standard internal/change branch `/1` alongside the receive branch `/0`. Dash legacy mobile exposes the historical `m/account'/0/i` receive and `m/account'/1/i` change paths through the same two result tabs. Receive and Change have independent row selection, paging, copy/download state and branch-specific Bitcoin watch-only descriptors. Ethereum keeps its explicit address-branch selector; arbitrary custom paths are not offered by this Deriver; Dash Platform uses the same Receive/Change result tabs for DIP17's hardened receive class `0'` and optional internal/change class `1'`; Orchard diversifiers retain their own controls.
 
 Every derived public payment address has an on-demand offline QR preview beside its copy action. Bitcoin, Ethereum, and Dash Core use their canonical address-only URI schemes; Platform and Orchard encode the exact address because no broader payment-URI mapping is assumed. Mnemonics, private/public keys, descriptors, viewing keys, Identity keys, paths, fingerprints, and metadata never receive QR actions.
 
@@ -33,6 +37,14 @@ For Dash Platform, leave **Also generate change addresses** off to derive receiv
 Legacy mobile Account selects the hardened root `m/account'`; zero remains the historical default. This matches [DashSync’s BIP32 account implementation](https://github.com/dashevo/dashsync-iOS/blob/master/DashSync/shared/Models/Derivation%20Paths/DSFundsDerivationPath.m). Discovery uses the selected account for both receive and change chains, on mainnet and testnet.
 
 Legacy mobile results include **Copy public scan key** and a text-file export for the active branch. Paste the `dash-legacy-xpub:` export into Discovery Scanner; it covers that branch without revealing private keys.
+
+### Dash multisig cosigner export
+
+The Dash multisig cosigner mode derives wallet-specific Purpose48 legacy P2SH multisig account material at `m/48'/5'/account'/0'` on mainnet and `m/48'/1'/account'/0'` on testnet. Advanced mode shows the same root/account disclosure fields as other BIP32 schemes, including master xpub/xprv, master fingerprint, account xpub/xprv, and child keys.
+
+BIP48 itself specifies script types `1'` and `2'` for SegWit multisig; this tool’s Dash legacy `0'` convention must be checked against the intended wallet. A matching path does not prove import or signing compatibility.
+
+Use the origin-tagged account xpub (`[fingerprint/48h/5h/accounth/0h]xpub...`) as one cosigner input in the PSBT & Multisig Inspector utility. That utility combines all cosigner xpubs to build the shared 2-of-N P2SH address range. The single-signer addresses from Dash Core BIP44 are not part of this multisig wallet.
 
 ### Account descriptor export
 
