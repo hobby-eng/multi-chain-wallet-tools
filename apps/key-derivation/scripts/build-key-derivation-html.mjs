@@ -37,6 +37,27 @@ const workerBuild = await build({
   minify: true,
   legalComments: 'inline',
   loader: { '.wasm': 'binary' },
+  plugins: profile.id === 'multi-chain'
+    ? [{
+        name: 'embedded-btcutil-wasm',
+        setup(buildContext) {
+          buildContext.onResolve({ filter: /^btcutil-js-wasm$/ }, () => ({ path: 'btcutil-js-wasm', namespace: 'btcutil-wasm' }));
+          buildContext.onLoad({ filter: /.*/, namespace: 'btcutil-wasm' }, () => ({
+            contents: readFileSync(resolve(root, 'node_modules/btcutil-js/dist/btcutil.wasm')),
+            loader: 'binary',
+          }));
+          buildContext.onLoad({ filter: /node_modules\/btcutil-js\/dist\/index\.js$/ }, ({ path }) => ({
+            contents: `const __offlineFetch = () => Promise.reject(new Error('Network access is unavailable in the offline browser artifact.'));\n${readFileSync(path, 'utf8')
+              .replaceAll(
+                'new Function("m", "return import(m)")',
+                '((moduleName) => Promise.reject(new Error(`Node-only module ${moduleName} is unavailable in the offline browser artifact.`)))',
+              )
+              .replaceAll('fetch(', '__offlineFetch(')}`,
+            loader: 'js',
+          }));
+        },
+      }]
+    : [],
   metafile: true,
   write: false,
 });
@@ -61,6 +82,7 @@ const bundled = await build({
   define: {
     __BUILD_INFO__: JSON.stringify(buildInfo),
     __DERIVATION_WORKER_SOURCE__: JSON.stringify(workerSource),
+    __DASH_COMMUNITY__: profile.id === 'dash-community' ? 'true' : 'false',
   },
   write: false,
 });

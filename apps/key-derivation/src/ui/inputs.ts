@@ -35,7 +35,6 @@ export interface DerivationControls {
   countLabel: HTMLLabelElement;
   count: HTMLInputElement;
   preview: HTMLElement;
-  fixedPath: HTMLElement;
 }
 
 export type DerivationControlValues = Omit<CoinDerivationInput, 'seed'> & {
@@ -70,6 +69,7 @@ function renderProtocolTabs(
   controls: DerivationControls,
   registry: CoinMetadataRegistry,
 ): void {
+  const featureTabs = [...controls.protocolTabs.querySelectorAll<HTMLButtonElement>('[data-feature-tab]')];
   controls.protocolTabs.replaceChildren();
   const family = registry.getCoinFamily(registry.getAdapterFamilyId(adapter));
   const showHidden = controls.includeLegacyMobile.checked;
@@ -77,7 +77,7 @@ function renderProtocolTabs(
     const button = document.createElement('button');
     const selected = variant.id === adapter.id;
     button.type = 'button';
-    button.className = `protocol-tab${selected ? ' active' : ''}`;
+    button.className = `protocol-tab primary-mode-tab${selected ? ' active' : ''}`;
     button.dataset.adapterId = variant.id;
     button.setAttribute('role', 'radio');
     button.setAttribute('aria-checked', String(selected));
@@ -86,6 +86,7 @@ function renderProtocolTabs(
     button.textContent = variant.variantLabel;
     controls.protocolTabs.append(button);
   }
+  controls.protocolTabs.append(...featureTabs);
 }
 
 export function configureControls(
@@ -190,30 +191,10 @@ export function readControls(adapter: CoinAdapter, controls: DerivationControls)
   };
 }
 
-/** Display only: all fixed values come from the selected adapter's canonical path. */
-export function standardPathDetails(adapter: CoinAdapter, input: DerivationControlValues): Array<{ label: string; value: string }> {
-  const path = adapter.pathPreview(input);
-  const segments = path.split('/');
-  const fields = (adapter.fixedPathLabels ?? []).map((label, index) => ({ label, value: segments[index + 1] ?? '' }));
-  fields.push({ label: 'Selected scheme', value: adapter.label });
-  if (adapter.addressBranches !== undefined) {
-    const receive = segments.at(-2)!;
-    const change = adapter.pathPreview({ ...input, branch: adapter.addressBranches.change }).split('/').at(-2)!;
-    fields.push({ label: 'Address branch', value: input.includeChange ? `${receive} · Receive / ${change} · Change` : `${receive} · Receive` });
-  }
-  return fields;
-}
-
 export function updatePathPreview(adapter: CoinAdapter, controls: DerivationControls): void {
   try {
     const values = readControls(adapter, controls);
     const { includeChange, ...input } = values;
-    controls.fixedPath.replaceChildren(...standardPathDetails(adapter, values).map(({ label, value }) => {
-      const field = document.createElement('div');
-      const caption = document.createElement('span'); caption.className = 'standard-path-label'; caption.textContent = label;
-      const output = document.createElement('output'); output.textContent = value;
-      field.append(caption, output); return field;
-    }));
     const receivePath = adapter.pathPreview(input);
     if (includeChange && adapter.addressBranches !== undefined) {
       const changePath = adapter.pathPreview({ ...input, branch: adapter.addressBranches.change });
@@ -226,7 +207,6 @@ export function updatePathPreview(adapter: CoinAdapter, controls: DerivationCont
       controls.coinJoinHelp.textContent = `${external} · ${internal}`;
     }
   } catch {
-    controls.fixedPath.replaceChildren();
     controls.preview.textContent = 'Enter valid integer controls to preview the path.';
     if (adapter.coinJoin !== undefined) {
       controls.coinJoinHelp.textContent = 'Enter valid integer controls to preview the Dash Mobile CoinJoin · DIP9 paths.';
