@@ -1,3 +1,4 @@
+import { assertPlatformExplorerNetwork } from '../src/provider-json.js';
 import { expect, it, vi } from 'vitest';
 import { readProviderJson } from '../src/provider-json.js';
 import { createProviderHttp } from '../src/provider-http.js';
@@ -28,4 +29,9 @@ it('rejects huge signed provider amounts while preserving supported negative amo
   const provider = createProviderHttp('Test');
   expect(provider.exactInteger('-123', 'amount')).toBe(-123n);
   expect(() => provider.exactInteger('9'.repeat(101), 'amount')).toThrow('invalid');
+});
+
+
+it.each([undefined, '', 'unrelated-chain', 'devnet', 'testnet'])('rejects unknown/wrong mainnet status %s', value => {
+  expect(() => assertPlatformExplorerNetwork(value, 'mainnet')).toThrow(/network/iu);
 });

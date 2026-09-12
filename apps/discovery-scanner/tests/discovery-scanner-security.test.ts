@@ -223,7 +223,7 @@ describe('recovery secret boundary', () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       const body = url.endsWith('/status')
-        ? { network: 'dash', indexer: { status: 'synced' }, api: { block: { height: 500_001 } } }
+        ? { network: 'evo1', indexer: { status: 'synced' }, api: { block: { height: 500_001 } } }
         : url.endsWith('/info')
           ? { bech32mAddress: address, balance: '1000', totalTxs: 3, incomingTxs: 2, outgoingTxs: 1, totalIncomingAmount: '2500', totalOutgoingAmount: '1500' }
           : { resultSet: [{ timestamp: url.includes('order=asc') ? '2026-01-01T00:00:00.000Z' : '2026-01-02T00:00:00.000Z' }], pagination: { total: 3 } };
@@ -246,7 +246,7 @@ describe('recovery secret boundary', () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       let body: unknown;
-      if (url.endsWith('/status')) body = { network: 'dash', indexer: { status: 'synced' }, api: { block: { height: 500_002 } } };
+      if (url.endsWith('/status')) body = { network: 'evo1', indexer: { status: 'synced' }, api: { block: { height: 500_002 } } };
       else if (url.includes('/transactions')) body = { resultSet: [{ timestamp: '2026-02-03T00:00:00.000Z' }], pagination: { total: 4 } };
       else if (url.includes('/transfers')) body = {
         resultSet: [
