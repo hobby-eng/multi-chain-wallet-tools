@@ -9,6 +9,7 @@ export const CONSENSUS_LIMITS = Object.freeze({
   maximumScriptElementBytes: 520,
   maximumScriptBytes: 10_000,
   maximumTaprootTreeDepth: 128,
+  maximumBip32Depth: 255,
   maximumBitcoinMoney: 21_000_000n * 100_000_000n,
   maximumDashMoney: 21_000_000n * 100_000_000n,
 });

@@ -454,6 +454,27 @@ function renderMaps(
   return section;
 }
 
+function verificationMatrix(title: string, checks: readonly import('./psbt.js').PsbtVerificationCheck[]): HTMLElement {
+  const card = document.createElement('article');
+  card.className = 'psbt-entry-card verification-card';
+  card.append(textElement('h4', '', title));
+  const table = document.createElement('div');
+  table.className = 'verification-matrix';
+  for (const check of checks) {
+    const row = document.createElement('div');
+    row.className = `verification-row verification-${check.status}`;
+    const status = check.status === 'not-applicable' ? 'N/A' : check.status === 'not-verified' ? 'Not verified' : check.status === 'failed' ? 'Failed' : 'Verified';
+    row.append(
+      textElement('span', 'verification-relationship', check.relationship),
+      textElement('strong', 'verification-status', status),
+      textElement('span', 'verification-detail', check.detail),
+    );
+    table.append(row);
+  }
+  card.append(table);
+  return card;
+}
+
 function inputMapCount(parsed: ParsedPsbt, types: readonly bigint[]): number {
   return parsed.inputs.filter((map) => map.some((item) => types.includes(item.type))).length;
 }
@@ -513,6 +534,12 @@ function render(parsed: ParsedPsbt): void {
       ['Output total', amount(parsed.outputValues.reduce((total, value) => total + value, 0n), parsed.chain)],
       ['Fee from supplied UTXOs (not chain-verified)', parsed.fee === null ? 'Unavailable · one or more input values are missing' : amount(parsed.fee, parsed.chain)],
     ]),
+  );
+  cards.push(
+    textElement('h3', 'psbt-subheading', 'Verification matrix'),
+    textElement('p', 'field-note', 'Verified means this offline inspector checked the stated relationship against data inside this PSBT. It does not prove blockchain inclusion or validate signatures.'),
+    verificationMatrix('Global PSBT checks', parsed.globalVerification),
+    ...parsed.inputVerification.map((checks, index) => verificationMatrix(`Input ${index} checks`, checks)),
   );
   if (parsed.transaction !== null) {
     cards.push(textElement('h3', 'psbt-subheading', 'Unsigned transaction'));

@@ -46,12 +46,14 @@ const bundled = await build({
     ? [{
         name: 'dash-psbt-capabilities',
         setup(buildContext) {
-          buildContext.onResolve({ filter: /^\.\/(?:musig-descriptor|custom-miniscript|message-verifier)\.js$/ }, ({ path }) => ({
+          buildContext.onResolve({ filter: /^\.\/(?:musig-descriptor|musig-psbt|custom-miniscript|message-verifier)\.js$/ }, ({ path }) => ({
             path: resolve(
               root,
               path === './musig-descriptor.js'
                 ? 'apps/psbt-inspector/src/musig-descriptor-disabled.ts'
-                : path === './custom-miniscript.js'
+                : path === './musig-psbt.js'
+                  ? 'apps/psbt-inspector/src/musig-psbt-disabled.ts'
+                  : path === './custom-miniscript.js'
                   ? 'apps/psbt-inspector/src/custom-miniscript-disabled.ts'
                   : 'apps/psbt-inspector/src/message-verifier-dash.ts',
             ),
@@ -88,6 +90,7 @@ if (profile.id === 'dash-community') {
   const inputs = Object.keys(bundled.metafile.inputs).map((input) => input.replaceAll('\\', '/'));
   const forbidden = inputs.filter((input) =>
     input.endsWith('/musig-descriptor.ts')
+    || input.endsWith('/musig-psbt.ts')
     || input.endsWith('/custom-miniscript.ts')
     || input.endsWith('/bip322-verifier.ts')
     || input.endsWith('/message-verifier.ts')
