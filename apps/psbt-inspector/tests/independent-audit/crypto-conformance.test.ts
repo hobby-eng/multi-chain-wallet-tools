@@ -9,7 +9,7 @@ import { descriptors, hdkeychain, init, musig2 } from 'btcutil-js';
 import { bytesToHex, hexToBytes } from '@ckd/core/crypto.js';
 import { decodeDescriptor } from '../../src/descriptor.js';
 import { materializeDescriptorKey } from '../../src/descriptor-key.js';
-import { compilePolicyMiniscript } from '../../src/miniscript-engine.js';
+import { compilePolicyMiniscript, validatePolicyMiniscript } from '../../src/miniscript-engine.js';
 import { analyzeMusigDescriptor } from '../../src/musig-descriptor.js';
 import { describeScript, parsePsbt } from '../../src/psbt.js';
 import vectors from './official-vectors.json';
@@ -72,18 +72,26 @@ describe('Independent audit: BIP32 + multipath + final key ordering', () => {
   );
 });
 
-describe('Independent audit: Bitcoin Core Miniscript exact bytes', () => {
+describe('Independent audit: Bitcoin Core Miniscript exact bytes and flags', () => {
   for (const [index, vector] of vectors.miniscript.entries()) {
     for (const tapscript of [false, true]) {
       const expected = tapscript ? vector.tapscript === '=' ? vector.script : vector.tapscript : vector.script;
       const invalid = !vector.valid || vector.mode.includes(tapscript ? 'TESTMODE_TAPSCRIPT_INVALID' : 'TESTMODE_P2WSH_INVALID');
-      if (!invalid && !/^[0-9a-f]+$/.test(expected)) continue;
       const expression = tapscript
         ? vector.expression.replace(/(?<=[,(])0[23]([0-9a-f]{64})(?=[,)])/g, '$1')
         : vector.expression;
       it(`${index}: ${tapscript ? 'Tapscript' : 'P2WSH'} ${vector.expression.slice(0, 80)}`, () => {
-        if (invalid) expect(() => compilePolicyMiniscript(expression, { tapscript })).toThrow();
-        else expect(hex(compilePolicyMiniscript(expression, { tapscript }).script)).toBe(expected);
+        if (invalid) {
+          expect(() => compilePolicyMiniscript(expression, { tapscript })).toThrow();
+          return;
+        }
+        const compiled = compilePolicyMiniscript(expression, { tapscript });
+        if (/^[0-9a-f]+$/u.test(expected)) expect(hex(compiled.script)).toBe(expected);
+        else expect(compiled.script.length).toBeGreaterThan(0);
+        const analysis = validatePolicyMiniscript(expression, { tapscript }).analysis;
+        expect(analysis.nonMalleable, `${index} nonMalleable`).toBe(vector.mode.includes('TESTMODE_NONMAL'));
+        expect(analysis.needsSignature, `${index} needsSignature`).toBe(vector.mode.includes('TESTMODE_NEEDSIG'));
+        expect(analysis.timelockMix, `${index} timelockMix`).toBe(vector.mode.includes('TESTMODE_TIMELOCKMIX'));
       });
     }
   }
@@ -112,9 +120,10 @@ describe('Independent audit: BIP341 wallet tree/tweak/address', () => {
       expect(describeScript(payment.script, 'bitcoin', 'mainnet').address).toBe(vector.expected.bip350Address);
       if (tree !== undefined) expect(hex(p2tr(hexToBytes(vector.given.internalPubkey), tree, undefined, true).tapMerkleRoot!)).toBe(vector.intermediary.merkleRoot);
     });
-    if (vector.given.scriptTree === null || (
-      !Array.isArray(vector.given.scriptTree) && /^20[0-9a-f]{64}ac$/.test(vector.given.scriptTree.script)
-    )) {
+    const inspectorCompatible = vector.given.scriptTree === null
+      || (!Array.isArray(vector.given.scriptTree) && /^20[0-9a-f]{64}ac$/.test(vector.given.scriptTree.script))
+      || [5, 6].includes(index);
+    if (inspectorCompatible) {
       const source = `tr(${vector.given.internalPubkey}${vector.given.scriptTree === null ? '' : `,${descriptorTree(vector.given.scriptTree)}`})`;
       it(`Go independently matches official wallet descriptor ${index}`, async () => {
         const go = await descriptors.create(source);
@@ -143,12 +152,34 @@ describe('Independent audit: MuSig2 aggregate keys', () => {
   }
 });
 
+function expectedPsbtError(bip: string, index: number): RegExp {
+  if (bip === '0174') {
+    if (index === 0) return /magic bytes/u;
+    if (index === 1 || index === 19) return /(?:end|trailing|unsupported)/u;
+    if (index === 2) return /scriptSig/u;
+    if (index === 3) return /unsigned transaction/u;
+    if (index === 4) return /Duplicate PSBT key/u;
+    if (index === 18) return /legacy serialization without witness/u;
+    return /(?:Invalid (?:global|input|output) field|public key)/u;
+  }
+  if (bip === '0370') {
+    if (index <= 13) return /PSBT v[02]/u;
+    if (index <= 16) return /PSBT v2 is missing/u;
+    if (index <= 18) return /PSBT v2 input is missing/u;
+    if (index <= 20) return /PSBT v2 output is missing/u;
+    return /Required (?:time|height) lock/u;
+  }
+  if (bip === '0371') return /(?:Taproot|taproot|Invalid (?:input|output) field)/u;
+  if (bip === '0373') return /MuSig2/u;
+  throw new Error(`No expected PSBT error class for BIP${bip} vector ${index}.`);
+}
+
 describe('Independent audit: official PSBT parser corpus', () => {
   for (const [bip, cases] of Object.entries(vectors.psbt)) {
     for (const [index, row] of cases.entries()) {
       it(`BIP${bip} ${row.valid ? 'valid' : 'invalid'} ${index}: ${row.name}`, () => {
         if (row.valid) expect(() => parsePsbt(row.base64, 'bitcoin')).not.toThrow();
-        else expect(() => parsePsbt(row.base64, 'bitcoin')).toThrow();
+        else expect(() => parsePsbt(row.base64, 'bitcoin')).toThrow(expectedPsbtError(bip, index));
       });
     }
   }
