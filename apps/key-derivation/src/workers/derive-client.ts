@@ -1,12 +1,16 @@
 import type { CoinDerivationInput } from '@ckd/coins/registry.js';
 import type { CryptoSelfTestReport } from '@ckd/self-test-types';
 import type { DerivationResult } from '@ckd/core/types.js';
-import type { AddressSearchMatch, WorkerMessage, WorkerRequest } from './protocol.js';
+import type { AddressSearchMatch, MessageSigningFormat, WorkerMessage, WorkerRequest } from './protocol.js';
+import type { CompactMessageSignature } from '@ckd/core/compact-message.js';
+import type { SilentPaymentResult } from './silent-payment.js';
+import type { Bip85RequestOptions, Bip85Result } from './bip85-deriver.js';
+import type { Bip38EncryptionResult } from './protocol.js';
 
 declare const __DERIVATION_WORKER_SOURCE__: string;
 
 interface PendingRequest {
-  resolve(value: DerivationResult | CryptoSelfTestReport | AddressSearchMatch | null): void;
+  resolve(value: DerivationResult | CryptoSelfTestReport | AddressSearchMatch | CompactMessageSignature | SilentPaymentResult | Bip85Result | Bip38EncryptionResult | null): void;
   reject(reason: Error): void;
 }
 
@@ -88,6 +92,69 @@ export class DerivationWorkerClient {
     }, [seed.buffer]);
   }
 
+  async signMessage(
+    adapterId: string,
+    input: CoinDerivationInput,
+    address: string,
+    message: string,
+    format: MessageSigningFormat,
+  ): Promise<CompactMessageSignature> {
+    const seed = input.seed.slice();
+    return this.#request<CompactMessageSignature>({
+      id: this.#nextId,
+      type: 'sign-message',
+      adapterId,
+      input: { ...input, seed },
+      address,
+      message,
+      format,
+    }, [seed.buffer]);
+  }
+
+  async deriveSilentPayment(
+    seedInput: Uint8Array,
+    network: 'mainnet' | 'testnet',
+    account: number,
+    labelIndexes?: readonly number[],
+  ): Promise<SilentPaymentResult> {
+    const seed = seedInput.slice();
+    return this.#request<SilentPaymentResult>({
+      id: this.#nextId,
+      type: 'silent-payment',
+      seed,
+      network,
+      account,
+      ...(labelIndexes === undefined ? {} : { labelIndexes }),
+    }, [seed.buffer]);
+  }
+
+  async deriveBip85(seedInput: Uint8Array, options: Bip85RequestOptions): Promise<Bip85Result> {
+    const seed = seedInput.slice();
+    return this.#request<Bip85Result>({
+      id: this.#nextId,
+      type: 'bip85',
+      seed,
+      options,
+    }, [seed.buffer]);
+  }
+
+  async encryptBip38(
+    adapterId: string,
+    input: CoinDerivationInput,
+    address: string,
+    passphrase: string,
+  ): Promise<Bip38EncryptionResult> {
+    const seed = input.seed.slice();
+    return this.#request<Bip38EncryptionResult>({
+      id: this.#nextId,
+      type: 'bip38-encrypt',
+      adapterId,
+      input: { ...input, seed },
+      address,
+      passphrase,
+    }, [seed.buffer]);
+  }
+
   terminate(reason = new DerivationCancelledError()): void {
     if (this.#terminated) return;
     this.#terminated = true;
@@ -104,7 +171,7 @@ export class DerivationWorkerClient {
     this.#workerUrl = null;
   }
 
-  #request<T extends DerivationResult | CryptoSelfTestReport | AddressSearchMatch | null>(
+  #request<T extends DerivationResult | CryptoSelfTestReport | AddressSearchMatch | CompactMessageSignature | SilentPaymentResult | Bip85Result | Bip38EncryptionResult | null>(
     request: WorkerRequest,
     transfer: Transferable[] = [],
   ): Promise<T> {

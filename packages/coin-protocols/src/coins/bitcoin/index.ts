@@ -165,9 +165,7 @@ export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): De
         privacySensitive: true,
       },
       rows,
-      notices: mode === 'taproot'
-        ? ['The basic WIF is the BIP32 child key. Advanced mode also exposes the BIP341-tweaked output key. WIF alone carries no Taproot descriptor metadata.']
-        : [],
+      notices: [],
     };
   } finally {
     branch.wipePrivateData();
