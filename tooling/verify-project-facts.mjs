@@ -27,7 +27,7 @@ if (!Number.isSafeInteger(identityConcurrency)) throw new Error('Missing canonic
 const rootReadme = read('README.md');
 const audit = read('SECURITY_AUDIT.md');
 const architecture = read('docs/ARCHITECTURE.md');
-const dashReport = read('DASH_IMPLEMENTATION.md');
+const dashReport = read('docs/reference/DASH_IMPLEMENTATION.md');
 const scannerSecurity = read('apps/discovery-scanner/SECURITY.md');
 const scannerView = read('apps/discovery-scanner/src/view.ts');
 const scannerRegistry = read('apps/discovery-scanner/src/coins/index.ts');
@@ -75,7 +75,7 @@ const forbiddenCurrentText = [
 for (const [path, text] of [
   ['README.md', rootReadme],
   ['SECURITY_AUDIT.md', audit],
-  ['DASH_IMPLEMENTATION.md', dashReport],
+  ['docs/reference/DASH_IMPLEMENTATION.md', dashReport],
   ['docs/ARCHITECTURE.md', architecture],
   ['apps/activity-viewer/README.md', read('apps/activity-viewer/README.md')],
   ['apps/discovery-scanner/README.md', read('apps/discovery-scanner/README.md')],
