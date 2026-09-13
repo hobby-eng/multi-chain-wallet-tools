@@ -78,7 +78,7 @@ For a new recovery coin:
 6. Keep consensus/proof-verified state separate from third-party indexed history. Mark partial, failed, and provider-reported results explicitly.
 7. Make exports a one-way public-data projection. Never export the internal locator or any phrase, seed, private/spending key, extended private key, or viewing key. Retain CSV formula hardening.
 8. Add fixed derivation vectors, mocked multi-batch and secret-egress tests, malformed response tests, cancellation tests, concurrency-limit/order tests, Mainnet/Testnet separation, and explicit live smoke commands using only a documented public vector. Extend the artifact verifier so it fails if the vault bundle reaches the new network implementation or the worker reaches secret derivation code; validate every structured-clone response inside the vault before accounting.
-9. Update `README.md`, `SECURITY_AUDIT.md`, `DASH_IMPLEMENTATION.md` when relevant, `THIRD_PARTY_NOTICES.md`, and `RELEASING.md` before publishing.
+9. Update `README.md`, `SECURITY_AUDIT.md`, `docs/reference/DASH_IMPLEMENTATION.md` when relevant, `THIRD_PARTY_NOTICES.md`, and `RELEASING.md` before publishing.
 
 The current Dash implementation is split into `core-scanner.ts`, `platform-scanner.ts`, `identity-scanner.ts`, and `shielded-scanner.ts`. Bitcoin variants share one Bitcoin family adapter/configuration for Legacy, Nested SegWit, Native SegWit, and Taproot, while Ethereum has its own adapter for the three supported EOA layouts. The generic app owns ordered batch scheduling and the shared request semaphore; coin modules own protocol discovery. Adding another coin must not add coin-ID branches to `apps/discovery-scanner/src/app.ts`.
 
