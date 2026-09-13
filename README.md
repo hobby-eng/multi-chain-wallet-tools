@@ -29,7 +29,7 @@ Use the Deriver on a trusted offline computer whenever real seed phrases or priv
 - Derives Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot addresses; Ethereum EOAs; and supported Dash Core, Platform Payment, Identity, multisig-cosigner, and Orchard material.
 - Shows receive and optional change/internal results in separate tabs with paging, selection, copy, and download controls.
 - Creates QR codes locally for public payment addresses only. Secret keys, phrases, paths, and metadata never receive QR actions.
-- Signs messages locally with a generated Bitcoin or Dash address. Bitcoin uses BIP137 or BIP322 according to address type; Dash Core P2PKH uses its compact-message format.
+- Includes optional local signing of any message with the derived Bitcoin or Dash key, using pinned and tested cryptographic libraries without importing the key into a wallet. Transaction signing and broadcasting are not implemented, which keeps spending operations outside the tool’s security boundary.
 - Exports public or private Bitcoin/Dash Core account descriptors. Public descriptors are watch-only; private descriptors grant account spending access.
 - Offers BIP38 encryption for supported compressed Bitcoin/Dash P2PKH private keys.
 - In Multi-Chain, derives BIP85 child BIP39 phrases, WIFs, XPRVs, and hex entropy. A child phrase can be opened immediately as a temporary child-wallet context, with a visible path back to the parent, so its addresses can be reviewed without another page or window.
