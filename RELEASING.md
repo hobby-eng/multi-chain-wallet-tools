@@ -58,6 +58,7 @@ The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checks
 
    The `.asc` file can instead be uploaded through the GitHub release web form. Skip this optional signing step when no GPG key is configured.
 7. Review the published notes, artifact list, provenance attestations, and checksums. If any release gate or post-publication comparison is wrong, remove the release and tag rather than replacing assets silently.
+8. After the canonical release succeeds, run [Build and publish Dash Community release](https://github.com/hobby-eng/dash-wallet-tools/actions/workflows/release.yml) with both `source_ref` and `release_tag` set to that exact tag. Wait for its canonical rebuild, Dash-only asset check, checksums, attestations, and publication to succeed; then verify its release separately in `hobby-eng/dash-wallet-tools`.
 
 A GPG key is optional for this project. GitHub's artifact attestation links CI-built bytes to the tagged repository, workflow and commit and is the normal reproducible provenance path. A sidecar checksum detects corruption but authenticates nothing by itself. If OpenPGP signing is used later, its private key must never be stored in the repository, GitHub Actions secrets, browser storage, or release bundle; the detached signature means only that its owner personally approved the exact flat manifest. Neither attestation nor signature proves cryptographic correctness.
 
@@ -87,7 +88,7 @@ dist/multi-chain-edition/release/LICENSE
 dist/multi-chain-edition/release/SHA256SUMS
 ```
 
-It remains the only bundle published by this repository's tag workflow. `pnpm release:bundle:dash-community` separately prepares, but does not publish:
+It remains the only bundle published by this repository's tag workflow. `pnpm release:bundle:dash-community` prepares the following separately named bundle for the verified Dash Community distribution workflow:
 
 ```text
 dist/dash-community-edition/release/Dash_Community_Key_Derivation_Tool.html
@@ -103,7 +104,7 @@ dist/dash-community-edition/release/LICENSE
 dist/dash-community-edition/release/SHA256SUMS
 ```
 
-Publish that verified bundle to `hobby-eng/dash-wallet-tools`, recording the canonical source commit/tag in its release notes. The checked-in `.github/workflows/release.yml` publishes Multi-Chain assets to this repository; it does not currently publish the Dash bundle to the separate repository. Dash publication is a separate step, whether manual or driven by an explicitly configured distribution workflow. Do not claim GitHub attestations for a manual upload unless they were actually generated for those bytes.
+The separate `hobby-eng/dash-wallet-tools` repository contains a manual **Build and publish Dash Community release** workflow. After the canonical tag workflow succeeds, run that workflow with `source_ref` and `release_tag` both set to the same canonical tag. It checks out that immutable tag, requires it to match `package.json`, repeats the canonical pinned build, verifies the exact Dash-only bundle and `SHA256SUMS`, creates attestations in the Dash release repository, and publishes the curated Dash Community notes from this source tree. It never copies application source into the distribution repository.
 
 The manifest uses plain filenames, not subdirectories, so a user can download all release assets into one directory and immediately run:
 
