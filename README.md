@@ -2,7 +2,7 @@
 
 [![Source and artifact checks](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml)
 
-This documentation describes the **unreleased v0.1.4 source tree**. Published release assets may expose fewer features.
+This documentation describes **v0.1.4**, released on 2026-09-13. Both editions are built from the same tagged source revision.
 
 Multi-Chain Wallet Tools is a set of four portable wallet utilities delivered as standalone HTML files. Download the tool you need, verify its checksum, and open it in a current browser. No installation or server is required.
 
