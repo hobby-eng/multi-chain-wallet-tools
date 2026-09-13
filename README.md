@@ -4,93 +4,125 @@
 
 This documentation describes the **unreleased v0.1.4 source tree**. Published release assets may expose fewer features.
 
-Four portable wallet utilities built as standalone HTML files. One canonical source tree now produces two compile-time editions:
+Multi-Chain Wallet Tools is a set of four portable wallet utilities delivered as standalone HTML files. Download the tool you need, verify its checksum, and open it in a current browser. No installation or server is required.
 
-- **Multi-Chain Edition** is the universal, extensible edition. It currently supports Bitcoin, Ethereum, and Dash, including Dash Core, Dash Platform, Dash Identity, and Dash Orchard.
-- **Dash Community Edition** is the Dash-only edition. Its application graph contains only Dash Core, Dash Platform, Dash Identity, and Dash Orchard, and its visual design follows the official Dash BrandBook and Brand Guidelines.
+The same source tree produces two editions:
 
-| Utility | Runtime boundary | Primary input | Purpose |
-| --- | --- | --- | --- |
-| Wallet Key Derivation Tool | Offline | BIP39 phrase and optional passphrase | Derive addresses, account descriptors, public keys and reveal-gated private material |
-| Wallet Activity Viewer | Connected | Public addresses, Identity records, or Orchard viewing capability | Inspect current state and available confirmed history without spending authority |
-| Wallet Discovery Scanner | Connected outer shell with a network-denied Secret Vault | BIP39 candidates or watch-only public keys/descriptors | Discover supported accounts, branches and previously used addresses |
-| PSBT & Multisig Inspector | Offline | PSBT, Script, descriptor, public policy keys, or optional BIP38 recovery input | Review transaction/policy structure and construct test multisig/watch-only material without signing or broadcasting |
+- **Multi-Chain Edition** is the universal and extensible edition. It currently supports Bitcoin, Ethereum, and Dash.
+- **Dash Community Edition** contains only Dash Core, Platform Payments, Identity, and Orchard features. Its visual design follows the official Dash BrandBook and Brand Guidelines.
 
-Download a file, verify its SHA-256 checksum, and open it in a current browser—no installation or server required. Shared controllers, exports, Worker infrastructure, security boundaries, and tests remain common source code across both editions.
+This is an independent hobby project. It is not an official Dash product or a replacement for a hardware or standard wallet.
 
-This is an independent hobby project, not an official Dash product and not a replacement for a hardware or standard wallet. It has extensive automated checks but has not received an independent cryptography-specialist audit.
+## Choose a tool
 
-## The four tools
+| Tool | Works | Use it to |
+| --- | --- | --- |
+| **Wallet Key Derivation Tool** | Offline | Derive addresses, public keys, account descriptors, and reveal-gated private material from a BIP39 phrase |
+| **Wallet Activity Viewer** | Connected | Inspect public address, Identity, or Orchard viewing activity without spending authority |
+| **Wallet Discovery Scanner** | Connected, with an isolated Secret Vault | Find supported accounts and previously used addresses from BIP39 candidates or watch-only public keys/descriptors |
+| **PSBT & Multisig Inspector** | Offline | Inspect PSBTs, scripts, descriptors, and test multisig policies without signing or broadcasting |
 
 ### Wallet Key Derivation Tool
 
-An offline tool for deriving wallet addresses and keys from a BIP39 seed phrase.
+Use the Deriver on a trusted offline computer whenever real seed phrases or private keys are involved.
 
-- Supports Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot; Ethereum EOA; and Dash Core BIP44, legacy mobile Core, Platform payment, Identity, Purpose48 P2SH multisig cosigner, and Orchard Shielded derivation.
-- Shows standards-based derivation paths and exposes protocol-specific account, address-branch and index controls.
-- Derives standard receive/change branches for Bitcoin and Dash Core, historical mobile receive/change branches, Ethereum EOA keys at `m/44'/60'/account'/branch/index`, Dash Platform receive and optional internal/change payment keys, Dash Identity four-key candidates, and Dash Orchard addresses and viewing material.
-- Displays basic results or detailed protocol-specific data, with selectable clipboard and file exports.
-- Signs messages locally for supported Bitcoin/Dash addresses and optionally encrypts compressed Bitcoin/Dash P2PKH private keys with BIP38.
-- Multi-Chain also derives BIP85 child secrets/wallets and BIP352 Silent Payment addresses; it does not scan Silent Payment transactions.
-- Generates offline, on-demand QR codes only for derived public payment addresses; key material and arbitrary metadata never receive QR actions.
-- Runs derivation in a disposable Web Worker and has runtime network access blocked by CSP and build verification.
+- Derives Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot addresses; Ethereum EOAs; and supported Dash Core, Platform Payment, Identity, multisig-cosigner, and Orchard material.
+- Shows receive and optional change/internal results in separate tabs with paging, selection, copy, and download controls.
+- Creates QR codes locally for public payment addresses only. Secret keys, phrases, paths, and metadata never receive QR actions.
+- Signs messages locally with a generated Bitcoin or Dash address. Bitcoin uses BIP137 or BIP322 according to address type; Dash Core P2PKH uses its compact-message format.
+- Exports public or private Bitcoin/Dash Core account descriptors. Public descriptors are watch-only; private descriptors grant account spending access.
+- Offers BIP38 encryption for supported compressed Bitcoin/Dash P2PKH private keys.
+- In Multi-Chain, derives BIP85 child BIP39 phrases, WIFs, XPRVs, and hex entropy. A child phrase can be opened immediately as a temporary child-wallet context, with a visible path back to the parent, so its addresses can be reviewed without another page or window.
+- In Multi-Chain, derives BIP352 Silent Payment addresses and their scan/spend paths. It does not scan the blockchain for Silent Payments.
 
-Seed input is BIP39; native Electrum seed phrases are not supported. Use this application on a trusted offline computer whenever real seed phrases or private keys are involved.
+The input is BIP39; native Electrum seed phrases are not supported. The path follows the selected standard scheme. Account, branch, start index, and result count remain editable where that scheme defines them, while arbitrary custom path templates are deliberately excluded from the Deriver.
+
+[Detailed Deriver instructions](apps/key-derivation/README.md)
 
 ### Wallet Activity Viewer
 
-In the universal Multi-Chain Edition, this connected read-only viewer supports Bitcoin and Ethereum public addresses plus Dash Core, Dash Platform, Dash Identity, and Dash Orchard records. Dash Community Edition provides the same Dash capabilities without other coins.
+The Viewer accepts public or watch-only input and retrieves fresh public state without storing a wallet secret.
 
-- In Multi-Chain Edition, the coin selector defaults to Bitcoin and supports Bitcoin, Ethereum, and Dash. Dash Community Edition contains only the Dash workflow.
-- Loads current balance, confirmed lifetime totals, transaction counts, and first/last activity for Bitcoin and Ethereum public addresses in Single or Batch mode.
-- For Dash, Auto mode recognizes Core addresses, Platform payment addresses, Platform Identities, and Orchard viewing keys. Advanced mode allows an explicit Dash record type.
-- Accepts mixed Dash Core, Dash Platform, Dash Identity, and Dash Orchard records in one batch while keeping Orchard viewing keys local.
-- Resolves a Dash Platform Identity from its ID, registration transaction, registered public key or HASH160, or DPNS name, then presents proof-verified state with indexed activity.
-- Scans the Dash Orchard pool with FVK, IVK, or OVK viewing capability without requiring a spending key.
-- Rejects and erases mnemonic, WIF, extended-private-key, raw-private-key, and other private-material patterns before any public lookup request.
-- Exports Dash activity as CSV, XLSX, or JSON. Bitcoin and Ethereum results remain concise address-history summaries in the current release.
+- Multi-Chain views Bitcoin and Ethereum public addresses plus Dash Core, Platform Payments, Identity, and Orchard records. Dash Community contains the same Dash workflows without other coins.
+- Single and Batch modes show current balance/state, confirmed history, transaction counts, lifetime totals, and first/last activity when complete provider data is available.
+- Dash Auto mode recognizes unambiguous Core, Platform, Identity, and Orchard formats; Advanced mode lets the user specify the record type.
+- Identity results organize proof-verified state, names, registered keys and their actual roles, activity, documents, contracts, withdrawals, and tokens.
+- Orchard FVK, IVK, and OVK modes decrypt the corresponding view of proof-verified encrypted-note pages locally. Viewing keys remain privacy-sensitive even though they cannot spend.
+- Dash reports export to CSV, XLSX, or structured JSON without the supplied Orchard viewing key. Exact large integer amounts remain text-safe.
+- Incomplete histories and provider disagreements stay visible; the application does not turn a failed lookup into a zero balance.
 
-Public lookups reveal the queried identifier and source IP to the selected provider. Orchard viewing keys cannot spend funds, but they reveal privacy-sensitive wallet activity.
+Public lookups reveal the queried identifier and source IP to the selected provider. The Viewer rejects mnemonic, WIF, extended-private-key, raw-private-key, and structured private-material patterns before opening a request.
+
+[Detailed Viewer instructions](apps/activity-viewer/README.md)
 
 ### Wallet Discovery Scanner
 
-In the universal Multi-Chain Edition, this connected discovery scanner supports Bitcoin, Ethereum, and Dash. Dash Community Edition scans only Dash. Both editions accept one BIP39 seed phrase, a batch of phrases, one public key, or a batch of public keys.
+The Scanner searches supported standard wallet paths from one or many BIP39 candidates, public keys, or descriptors.
 
-- Keeps seed-phrase and public-key searches in separate tabs. Public-key mode includes a coin selector and refuses to guess when an extended-key format is shared by several coins.
-- Scans Bitcoin Legacy, Nested SegWit, Native SegWit, and Taproot receive/change accounts through a 20-address post-use gap.
-- Scans three common Ethereum EOA layouts: Standard BIP44/MetaMask/Trezor, Ledger Live, and Legacy Ledger/MEW.
-- Lets Dash users independently enable Core BIP44, legacy mobile Core, Dash Mobile CoinJoin · DIP9, provider holdings, Dash Platform payment addresses, Dash Platform identities, and Dash Orchard. An optional Identity setting links identities already discovered to their reported L1 asset-lock transaction and compares its credit key with locally derived registration funding keys.
-- Loads adapter-provided history for Bitcoin, Ethereum, and Dash, including current balance, confirmed lifetime totals, transaction counts, and first/last activity when the provider offers complete data.
-- Supports bounded batches with progress and cancellation, and can include previously used addresses whose current balance is zero.
-- Exports public recovery results as CSV or JSON without seed phrases, private keys, extended public keys, or Orchard viewing keys.
-- Never creates, signs, or broadcasts transactions. Verify every finding in a standard wallet before recovery.
+- Scans Bitcoin Legacy, Nested SegWit, Native SegWit, and Taproot receive/change chains; three common Ethereum EOA layouts; and independently selected Dash Core, Platform Payment, Identity, and Orchard families.
+- Includes previously used addresses whose current balance is zero and continues through the configured post-use gap.
+- Provides Single and Batch modes for both seed phrases and public keys. It refuses to guess the coin when extended-key encodings are shared.
+- The automatic candidate workflow checks a prepared list of BIP39 candidates across selected coins and summarizes which candidate/coin combinations contain funds or prior activity.
+- An optional custom-path editor supports a fully editable path and inclusive account range for advanced recovery cases.
+- Accepts supported Bitcoin and Dash Core public descriptors and labelled Dash legacy scan keys.
+- Loads history details through coin adapters, displays incomplete coverage explicitly, and exports public findings as CSV or JSON without phrases, passphrases, extended public keys, or Orchard viewing keys.
+- Every explicit scan requests fresh provider state; prior balance/history results are not reused as a cache.
 
-Seed derivation runs inside a sandboxed, network-denied Secret Vault. Only validated public lookup material crosses the typed boundary to the network worker. A public key can cover only the account, branch, or address formats reachable below that key; use the original seed phrase and BIP39 passphrase for the broadest supported search.
+Seed derivation runs in a network-denied Secret Vault. Only validated public lookup material crosses to the Network Worker. A public key covers only paths reachable below that key; a seed phrase and its passphrase provide the broadest supported search. The Scanner never creates, signs, or broadcasts transactions.
+
+[Detailed Scanner instructions](apps/discovery-scanner/README.md)
 
 ### PSBT & Multisig Inspector
 
-An offline experimental utility for reviewing partially signed transactions, spending scripts, hashlock/timelock policies, and watch-only multisig wallet policies before signing. Multi-Chain supports Bitcoin and Dash; Dash Community emits a separate P2SH-only build without Bitcoin SegWit, Taproot, or MuSig2. Do not use this fourth HTML utility with real funds yet; test only with valueless examples or testnet funds until its scripts, descriptors, imports, wallet compatibility, and recovery procedure have been independently verified.
+The Inspector is an offline review and test-policy utility for Bitcoin and Dash Core.
 
-- Decodes Bitcoin PSBT v0/v2 and Dash Core PSBT v0, including known and unknown key-value records.
-- Displays unsigned-transaction inputs, outputs, derived standard output addresses, supplied input values, and fees when all input amounts are present.
-- Decodes raw Script hex and Bitcoin output descriptors/Miniscript into inspectable operations and policy summaries.
-- Calculates exact 32-byte preimages from local UTF-8 phrases, creates HTLC-like policies, and builds staged `or_d`/`or_i` recovery descriptors using library-derived concrete xpub children.
-- Builds one concrete public-key-only m-of-n multisig or timelocked P2SH/P2WSH policy, including redeemScript, scriptPubKey, address, descriptor/checksum, and Dash Core watch-only import commands for generated Dash P2SH scripts. Custom Dash policies export a non-solvable `raw(scriptPubKey)` watch descriptor because Dash Core does not accept Miniscript policy expressions as descriptors or automatically satisfy them.
-- Builds deterministic ranged watch-only multisig wallets from account public keys with explicit origin fingerprints, receive/change branches, selected index ranges, supplied-order `multi()` or BIP67 `sortedmulti()` policy, descriptors/checksums, derived addresses, script material, and Bitcoin/Dash import text.
-- Verifies Bitcoin/Dash message proofs and locally decrypts supported BIP38 private keys; recovered keys stay masked until revealed.
-- Never signs, finalizes, funds, queries UTXOs, persists data, broadcasts transactions, or opens a network connection.
+- Decodes supported Bitcoin PSBT v0/v2 and Dash PSBT v0 fields, unknown/proprietary records, transactions, scripts, supplied input values, and fees when the required UTXOs are present.
+- Shows a per-input verification matrix so structural checks are distinguishable from relationships the utility has not proven.
+- Decodes raw Script, common descriptors, and supported Bitcoin Miniscript/Tapscript constructions into inspectable operations and policy summaries.
+- Builds concrete or ranged public-key-only multisig/watch-only policies, addresses, scripts, checksummed descriptors, and Core import data for supported Bitcoin/Dash cases.
+- Supports timelock, hashlock, staged recovery, Taproot script-path, and MuSig2 inspection/construction only within the explicitly documented Bitcoin scope.
+- Verifies supported Bitcoin BIP322 and Dash compact-message proofs.
+- Locally decrypts supported BIP38 keys in batches; recovered private material stays masked until revealed.
 
-Use it to inspect transaction intent and construct test policies only. Verify scripts with valueless testnet funds and independent wallet tooling before relying on them.
+It does not sign, finalize, fund, query UTXOs, persist data, or broadcast transactions. This is the newest and most experimental tool. Use valueless examples or testnet funds until the complete wallet workflow and recovery procedure have been independently verified.
+
+[Detailed Inspector instructions](apps/psbt-inspector/README.md)
+
+## Safety boundaries
+
+- Keep the Deriver and Inspector offline. Their Content Security Policy blocks runtime network access.
+- The Viewer accepts public/watch-only material and rejects private-material patterns before lookup.
+- The Scanner is connected, but its Secret Vault cannot access the network. A compromised host or browser still remains outside this isolation boundary.
+- None of the tools restores funds, signs recovery transactions, or broadcasts them. Verify findings and imports in a standard wallet.
+- Exports containing private descriptors or private keys grant spending access. Treat them like the seed phrase.
+
+The project has extensive automated checks but has not received an independent cryptography-specialist audit. See the [security model and current limitations](SECURITY_AUDIT.md).
+
+## Supported standard derivation defaults
+
+These are the main defaults, not an exhaustive list of every optional recovery family or descriptor form.
+
+| Protocol | Default receive path or model | Result |
+| --- | --- | --- |
+| Bitcoin Legacy | `m/44'/0'/account'/0/index` | P2PKH |
+| Bitcoin Nested SegWit | `m/49'/0'/account'/0/index` | P2SH-P2WPKH |
+| Bitcoin Native SegWit | `m/84'/0'/account'/0/index` | P2WPKH |
+| Bitcoin Taproot | `m/86'/0'/account'/0/index` | BIP86 P2TR |
+| Ethereum EOA | `m/44'/60'/account'/branch/index` | EIP-55 address |
+| Dash Core | `m/44'/5'/account'/0/index` | P2PKH |
+| Dash legacy mobile Core | `m/account'/0/index` | P2PKH |
+| Dash Mobile CoinJoin | `m/9'/5'/4'/0'/0/index` | DIP9 P2PKH |
+| Dash Platform Payment | `m/9'/5'/17'/account'/0'/index` | DIP17/DIP18 receive address |
+| Dash Identity candidate | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 registration key profile |
+| Dash Orchard | `m/32'/5'/account'` plus diversifier index | Shielded address and key material |
+
+For Bitcoin and Dash Core, change normally uses branch `/1`. Dash Platform's optional internal/change-like results use the separate hardened key class `1'`. Testnet changes the applicable coin type and network encoding. Advanced Dash recovery families, exact semantics, and authoritative references are documented in [How Dash support works](docs/DASH.md) and the [detailed Dash reference](docs/reference/DASH_IMPLEMENTATION.md).
 
 ## Download and verify
 
-Download the Multi-Chain Edition HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). `SHA256SUMS` covers the complete release asset set.
+Download Multi-Chain HTML files and their `.sha256` sidecars from [GitHub Releases](https://github.com/hobby-eng/multi-chain-wallet-tools/releases). [Dash Community releases](https://github.com/hobby-eng/dash-wallet-tools/releases) are built from this same canonical source tree and distributed separately.
 
-This repository is the canonical source and Multi-Chain release surface. [Dash Community releases](https://github.com/hobby-eng/dash-wallet-tools/releases) are distributed separately from the same canonical sources; that repository is a release surface, not a source fork.
-
-The SHA-256 value labelled **Source/build fingerprint** inside each file's Release passport is not the checksum of that HTML file. It identifies the source and embedded build inputs used to create it. Verify the downloaded HTML itself with its external `.sha256` sidecar or the release `SHA256SUMS` file.
-
-On Linux:
+On Linux, verify the Multi-Chain files you downloaded:
 
 ```bash
 sha256sum -c Wallet_Key_Derivation_Tool.html.sha256
@@ -99,135 +131,44 @@ sha256sum -c Wallet_Discovery_Scanner.html.sha256
 sha256sum -c PSBT_Multisig_Inspector.html.sha256
 ```
 
-The Wallet Key Derivation Tool and PSBT & Multisig Inspector are designed for direct `file://` use on an offline machine. The Activity Viewer and Discovery Scanner require network access for public blockchain data; the Scanner confines seed and viewing-key work to its network-denied Secret Vault.
+`SHA256SUMS` covers the complete release asset set. The **Source/build fingerprint** inside an HTML Release passport identifies its source and embedded build inputs; it is not that HTML file's checksum. Release provenance attestations and `verification-record.json` connect the GitHub Actions build to its source revision and artifact hashes.
 
-Official release checksums refer to artifacts produced by the repository's pinned Linux/amd64 Docker build. A native rebuild on another operating system can pass the same cryptographic and artifact tests yet still have different byte-level WASM, passport fingerprint and final HTML checksum. Use the canonical container when exact release-byte reproduction is required.
+## Documentation map
 
-## Supported derivation defaults
+Start with the document that matches what you need:
 
-| Protocol | Default receive path / model | Main result |
-| --- | --- | --- |
-| Bitcoin Legacy | `m/44'/0'/0'/0/i` | P2PKH |
-| Bitcoin Nested SegWit | `m/49'/0'/0'/0/i` | P2SH-P2WPKH |
-| Bitcoin Native SegWit | `m/84'/0'/0'/0/i` | P2WPKH |
-| Bitcoin Taproot | `m/86'/0'/0'/0/i` | BIP86 P2TR |
-| Ethereum EOA | `m/44'/60'/0'/0/i` | EIP-55 address |
-| Dash Core | `m/44'/5'/0'/0/i` | P2PKH |
-| Dash mobile legacy Core | `m/account'/0/i` | P2PKH |
-| Dash Mobile CoinJoin · DIP9 | `m/9'/5'/4'/0'/0/i` | P2PKH |
-| Dash Identity registration funding-key comparison | `m/9'/5'/5'/1'/i` | Linked asset-lock detail for an Identity already discovered |
-| Dash multisig cosigner | `m/48'/5'/account'/0'/branch/i` | Purpose48 legacy P2SH cosigner keys; wallet-specific convention |
-| Dash provider holdings | `m/9'/5'/3'/0'/i` | P2PKH |
-| Dash Platform | `m/9'/5'/17'/0'/0'/i` and `m/9'/5'/17'/0'/1'/i` | DIP17/DIP18 receive and internal/change |
-| Dash Identity | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 four-key registration profile |
-| Dash Orchard | `m/32'/5'/account'` + diversifier index | Shielded address and viewing/spending material |
-
-Bitcoin and Dash support mainnet/testnet separation. Optional change generation uses branch `/1` for Bitcoin and Dash Core. Exact protocol choices and pinned upstream references are documented in [DASH_IMPLEMENTATION.md](DASH_IMPLEMENTATION.md).
-
-Dash Identity results are grouped by candidate Identity index. Each group derives the official Platform Wallet v4.1.1 default ECDSA profile: MASTER authentication key `0`, CRITICAL authentication key `1`, HIGH authentication key `2`, and CRITICAL transfer key `3`. These roles are registration metadata rather than properties encoded by DIP13 or the key ID. The offline tool therefore never invents an Identity ID; it shows candidate keys and the public-key hashes used for later proof-verified discovery.
-
-Capabilities that require future authoritative Platform/SDK queries are tracked in [docs/ROADMAP.md](docs/ROADMAP.md). In particular, independent discovery of unused asset-lock credits remains a planned feature; the current release only links funding details to an Identity already discovered.
-
-## Security and verification
-
-Every release is built from locked npm and Cargo dependency graphs. All four utilities have explicit validation boundaries: Deriver, Viewer and Scanner gate their workflows on startup checks, while Inspector validates parser and policy boundaries when input is submitted. Inspector does not currently run an equivalent startup cryptographic vector suite. Automated coverage includes BIP39/BIP32, Bitcoin BIP49/BIP86, Ethereum EIP-55, Dash Core BIP44, Platform DIP17/DIP18, Identity DIP13, and Dash Orchard ZIP32 on mainnet and testnet.
-
-The release pipeline also runs TypeScript tests, independent derivation comparisons, native Rust tests, generated-WASM boundary tests, CSP/static checks, secret-egress tests, reproducible HTML builds, direct `file://` Chromium/Firefox acceptance, checksum verification and artifact provenance attestation. GitHub Actions and local release builds use the same pinned Docker toolchain. Successful verification emits `dist/verification-record.json` with the source revision, toolchain, performed check groups and hashes for every HTML/WASM integration artifact.
-
-These checks greatly reduce integration and packaging risk; they do not prove that browsers, operating systems or this project are free of vulnerabilities. Test with an empty wallet first and independently verify valuable-wallet findings in a standard wallet.
-
-See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for the threat model and known limitations, and [Architecture](docs/ARCHITECTURE.md) for the Secret Vault/network boundary and package ownership.
+- [How Dash support works](docs/DASH.md) explains the four Dash resource models, tool roles, and data flow without implementation-level detail.
+- [Dash implementation and verification reference](docs/reference/DASH_IMPLEMENTATION.md) records exact paths, encodings, upstream pins, trust boundaries, protocol behavior, and verification fixtures.
+- [Architecture](docs/ARCHITECTURE.md) describes application/package ownership and the Scanner's Secret Vault boundary.
+- [Account descriptor guide](docs/ACCOUNT_DESCRIPTORS.md) explains Bitcoin and Dash Core descriptor scope and import requirements.
+- [Verification map](docs/VERIFICATION.md) lists the checks run locally and in CI.
+- [Security audit](SECURITY_AUDIT.md), [audit records](docs/audits/README.md), and [roadmap](docs/ROADMAP.md) document reviewed risks, evidence, and planned work.
+- [Third-party notices](THIRD_PARTY_NOTICES.md) and [attribution](ATTRIBUTION.md) identify dependencies and upstream work.
+- Developers can use [EXTENDING.md](EXTENDING.md) and [RELEASING.md](RELEASING.md).
 
 ## Build from source
 
-### Canonical reproducible build
-
-Docker is used to make the release bytes independent of the developer's Linux distribution and locally installed compiler versions. The image is based on Ubuntu 24.04, pinned by immutable digest, and installs exact Node.js, pnpm, Rust and wasm-bindgen versions. Downloaded tool installers are checksum-verified. Dependencies are fetched in an earlier image layer; the final complete verification and build run with network access disabled.
-
-Requirement: Docker Engine or Docker Desktop with BuildKit. Node.js, pnpm, Rust and Cargo are installed only inside the image.
+The canonical release build uses a pinned Linux/amd64 Docker environment and runs the complete verification suite before copying artifacts to `dist/`:
 
 ```bash
 ./tooling/build-reproducible.sh
 ```
 
-This builds and tests both editions inside the canonical Linux/amd64 container and copies the verified files to `dist/`. The first run downloads the base image and toolchains and can be slow; Docker reuses them from its local cache afterward. No Docker image or cache is committed to Git or included in a release.
-
-Developers who already have Node.js and pnpm can use the equivalent convenience command `pnpm build:reproducible`. Pass `--wasm` to the shell script, or run `pnpm build:reproducible:wasm`, when intentionally regenerating the committed browser WASM.
-
-If the pinned Rust source is intentionally changed, run `./tooling/build-reproducible.sh --wasm`, inspect and commit the resulting `packages/dash-shielded-wasm/generated/` diff, and then run `./tooling/build-reproducible.sh`. An unexpected WASM difference makes the normal canonical build fail.
-
-### Native development build
-
-A native build is useful for fast development and runs the same functional, cryptographic and artifact checks. Its generated binary bytes are not the canonical release identity because linkers and system libraries can vary by host.
-
-Requirements:
-
-- Node.js 24+
-- pnpm 11.25.0
-- Rust/Cargo 1.98.1 with `wasm32-unknown-unknown` (the Rust crate retains MSRV 1.85.1)
-- `wasm-bindgen-cli` 0.2.128
+Use `./tooling/build-reproducible.sh --wasm` only when intentionally regenerating the committed Dash Orchard browser WASM. Native development requires Node.js 24+, pnpm 11.25.0, Rust/Cargo 1.98.1 with `wasm32-unknown-unknown`, and `wasm-bindgen-cli` 0.2.128:
 
 ```bash
 pnpm install --frozen-lockfile
-rustup toolchain install 1.98.1
-rustup target add wasm32-unknown-unknown --toolchain 1.98.1
-cargo +1.98.1 install wasm-bindgen-cli --version 0.2.128 --locked
 RUSTUP_TOOLCHAIN=1.98.1 pnpm verify
 ```
 
-The `RUSTUP_TOOLCHAIN` variable selects the installed pinned toolchain for child Cargo commands even when your global Rust default is older. Use the same variable for native `pnpm build`, `pnpm build:wasm`, and `pnpm test:rust`. Installing a toolchain alone does not select it.
+Generated editions appear under `dist/multi-chain-edition/` and `dist/dash-community-edition/`. Exact commands, toolchain rules, release contents, and GitHub provenance steps are documented in [RELEASING.md](RELEASING.md).
 
-Generated files are written to:
+## Data sources and limitations
 
-```text
-dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html
-dist/multi-chain-edition/activity-viewer/Wallet_Activity_Viewer.html
-dist/multi-chain-edition/discovery-scanner/Wallet_Discovery_Scanner.html
-dist/multi-chain-edition/psbt-inspector/PSBT_Multisig_Inspector.html
-dist/multi-chain-edition/SHA256SUMS
-dist/dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html
-dist/dash-community-edition/activity-viewer/Dash_Community_Activity_Viewer.html
-dist/dash-community-edition/discovery-scanner/Dash_Community_Discovery_Scanner.html
-dist/dash-community-edition/psbt-inspector/Dash_Community_PSBT_Multisig_Inspector.html
-dist/dash-community-edition/SHA256SUMS
-```
+Connected Bitcoin workflows use public address/index services, Ethereum uses public JSON-RPC and indexed history providers, and Dash uses DashScan, proof-verified Dash Platform DAPI, compatible indexed metadata, and the pinned Dash Orchard implementation. Provider failures are reported explicitly rather than converted into a false zero balance.
 
-Use `pnpm build:html:multi-chain` or `pnpm build:html:dash-community` for one profile. `pnpm build:html` builds both. `pnpm release:bundle` stages the unchanged Multi-Chain release set; `pnpm release:bundle:dash-community` stages the separately named Dash Community distribution bundle without publishing it.
-
-The Dash Community visual system is based on the official [Dash BrandBook](https://www.figma.com/design/cCpB1W2IAmoEGXBbGqGsfD/Dash-BrandBook?node-id=219-108&p=f), the [Dash Brand Guidelines](https://www.dash.org/brand-guidelines/), and the primary [Dash documentation](https://docs.dash.org/en/stable/docs/user/marketing.html). It uses a controlled blue workspace, translucent navy surfaces, restrained ribbed geometry, and the official Dash mark while preserving the shared layouts, responsive behavior, accessible focus treatment, calm caution states, and distinct error states.
-
-For individual application instructions, see:
-
-- [Wallet Key Derivation Tool](apps/key-derivation/README.md)
-- [Wallet Activity Viewer](apps/activity-viewer/README.md)
-- [Wallet Discovery Scanner](apps/discovery-scanner/README.md)
-- [PSBT & Multisig Inspector](apps/psbt-inspector/README.md)
-
-For the actual commands, included suites and checks that run separately from CI, see [verification map](docs/VERIFICATION.md).
-
-Contributor references: [EXTENDING.md](EXTENDING.md), [RELEASING.md](RELEASING.md), [architecture](docs/ARCHITECTURE.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
-
-## Project status and data sources
-
-For Bitcoin, the connected Multi-Chain tools use Blockchain.com and BlockCypher for bounded balance batches with Blockstream.info/Mempool.space fallbacks and Esplora-compatible confirmed history. Ethereum uses PublicNode for current JSON-RPC state and Blockscout for confirmed native-ETH and internal-transfer history. Dash uses DashScan for Core history, proof-verified Dash Platform DAPI for authoritative Platform state, Platform Explorer for compatible historical metadata, and the pinned official Dash Orchard fork for shielded derivation/scanning. Provider failures are reported explicitly and never converted into a false zero balance.
-
-Network providers and protocol dependencies may evolve. Their exact versions, licenses and upstream projects are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [ATTRIBUTION.md](ATTRIBUTION.md).
+Providers and protocols can evolve. Exact supported behavior and pins live in the detailed reference documents, tests, and lockfiles. Test with an empty wallet first and independently verify valuable-wallet results in a standard wallet.
 
 ## License
 
 Original project code is released under the [MIT License](LICENSE), copyright (c) 2026 hobby-eng. Third-party components retain their own licenses and copyright notices.
-
-### Automatic seed candidate checks
-
-In the Discovery Scanner, select **By seed phrase → Batch → Automatically check candidates across selected coins**. Paste ready BIP39 candidates, one per line, and optionally their BIP39 passphrases on matching lines. Select individual coins or all supported coins; Multi-Chain defaults to Bitcoin, while Dash Community offers only Dash.
-
-The scanner checks one candidate and one coin at a time with one network request at a time. It uses the selected network/account and configured standard address minimums, plus the selected Dash components. Zero-balance activity is included. Custom paths and parallel scanning are disabled for this mode. Invalid input and failed coin checks remain explicit outcomes and do not stop subsequent candidates. Unsupported networks are reported as unchecked. Cancellation leaves completed reports available.
-
-The common summary links to each candidate/coin report with available addresses, paths, balances and history. It distinguishes positive balances, located resources/activity, no activity within checked coverage, and incomplete/unknown results. It does not identify the original wallet application, discover every possible path, generate missing words, or include seed phrases/passphrases in exports.
-
-### Account descriptor export
-
-The Key Derivation Tool exports public and **unencrypted private** account descriptors for all four Bitcoin address profiles and Dash Core P2PKH families (BIP44, legacy mobile and mobile DIP9 CoinJoin). The default export is a ready-to-paste Core console import command covering receive and change, with active account branches, Core-managed address pools and a full historical rescan. Raw checksummed descriptor lines remain available for Scanner and other wallets. Public export cannot spend; private export grants account spending access. Public export is available without revealing sensitive values; private export requires revealing them. The **Account export** button opens a dialog with public and private copy/download actions. Other accounts, other Bitcoin address profiles, Dash Platform, Identity and Orchard are not included. See [account descriptor instructions](docs/ACCOUNT_DESCRIPTORS.md) for scope and Core import requirements.
-
-
-Only change the default scheme or account when you know the source wallet’s derivation path. A different account produces different keys and addresses; other wallets may not discover its funds automatically. Exports preserve the selected account, including a nonzero account number. The deriver supports the selected scheme’s account controls, not arbitrary custom path templates.

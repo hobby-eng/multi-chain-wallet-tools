@@ -1,8 +1,9 @@
-# Dash Platform and Shielded implementation report
+# Dash implementation and verification reference
+\n> This is the detailed implementation and verification reference. For a conceptual overview, see [How Dash support works](../DASH.md). For a first-use introduction to the four tools, see the [project README](../../README.md).
 
-Research baseline: 2026-09-08, commit `6462c67d677ab73bea49051c3e3d866fcd157894` (release 0.1.3 at review). See the immutable [review record](docs/audits/2026-09-08-baseline.json). Later implementation corrections are recorded in Git; release metadata synchronization never renews this review date.
+Research baseline: 2026-09-08, commit `6462c67d677ab73bea49051c3e3d866fcd157894` (release 0.1.3 at review). See the immutable [review record](../audits/2026-09-08-baseline.json). Later implementation corrections are recorded in Git; release metadata synchronization never renews this review date.
 
-Original integration code is licensed under the repository's MIT License. Dash Core, Platform, Orchard, brand materials, and all other upstream components retain their respective authorship and licenses documented in `ATTRIBUTION.md` and `THIRD_PARTY_NOTICES.md`.
+Original integration code is licensed under the repository's MIT License. Dash Core, Platform, Orchard, brand materials, and all other upstream components retain their respective authorship and licenses documented in [ATTRIBUTION.md](../../ATTRIBUTION.md) and [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
 
 ## Official target
 
