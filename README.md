@@ -17,7 +17,7 @@ This is an independent hobby project. It is not an official Dash product or a re
 
 | Tool | Works | Use it to |
 | --- | --- | --- |
-| **Wallet Key Derivation Tool** | Offline | Derive addresses, public keys, account descriptors, and reveal-gated private material from a BIP39 phrase |
+| **Wallet Key Derivation Tool** | Offline | Generate or enter a 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase, then derive addresses, public keys, account descriptors, and reveal-gated private material |
 | **Wallet Activity Viewer** | Connected | Inspect public address, Identity, or Orchard viewing activity without spending authority |
 | **Wallet Discovery Scanner** | Connected, with an isolated Secret Vault | Find supported accounts and previously used addresses from BIP39 candidates or watch-only public keys/descriptors |
 | **PSBT & Multisig Inspector** | Offline | Inspect PSBTs, scripts, descriptors, and test multisig policies without signing or broadcasting |
