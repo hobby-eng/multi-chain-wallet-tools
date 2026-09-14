@@ -37,7 +37,7 @@ describe('independent public-vector cryptographic audit', () => {
     child.wipePrivateData();
   });
 
-  it.each(['', 'TREZOR', 'é', 'e\u0301', ' public \u0000 🔑 '])('matches OpenSSL PBKDF2 for public passphrase %j', passphrase => {
+  it.each(['', 'TREZOR', 'é', 'e\u0301', ' public \u0000 🔑 ', ' кириллица 中文 \"quotes\" \\ \n\t 🔑 '])('matches OpenSSL PBKDF2 for public passphrase %j', passphrase => {
     expect(Buffer.from(mnemonicToSeed(AUDIT_MNEMONIC, passphrase))).toEqual(referenceSeed(passphrase));
   });
 

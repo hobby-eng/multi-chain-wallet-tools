@@ -36,6 +36,13 @@ export interface ParsedTransaction {
   readonly extraPayload: Uint8Array | null;
 }
 
+export interface SuppliedUtxo {
+  readonly value: bigint;
+  readonly script: Uint8Array;
+  readonly binding: 'non-witness' | 'witness-only';
+  readonly previousTransaction: ParsedTransaction | null;
+}
+
 export type VerificationStatus = 'verified' | 'failed' | 'not-verified' | 'not-applicable';
 
 export interface PsbtVerificationCheck {
@@ -51,6 +58,7 @@ export interface ParsedPsbt {
   readonly inputs: readonly (readonly PsbtPair[])[];
   readonly outputs: readonly (readonly PsbtPair[])[];
   readonly transaction: ParsedTransaction | null;
+  readonly inputUtxos: readonly (SuppliedUtxo | null)[];
   readonly inputValues: readonly (bigint | null)[];
   readonly outputValues: readonly bigint[];
   readonly fee: bigint | null;
@@ -241,7 +249,7 @@ function readTxOut(value: Uint8Array): TransactionOutput {
   return output;
 }
 
-function previousTxid(transaction: ParsedTransaction): string {
+export function parsedTransactionId(transaction: ParsedTransaction): string {
   let serialized = transaction.raw;
   if (transaction.hasWitness) {
     const reader = new Reader(serialized);
@@ -262,28 +270,22 @@ function previousTxid(transaction: ParsedTransaction): string {
   return reverseHex(sha256(sha256(serialized)));
 }
 
-interface SuppliedUtxo {
-  readonly value: bigint;
-  readonly script: Uint8Array;
-  readonly binding: 'non-witness' | 'witness-only';
-}
-
 function inputUtxo(map: readonly PsbtPair[], txInput: TransactionInput | undefined, chain: PsbtChain): SuppliedUtxo | null {
   const witnessPair = pair(map, 0x01);
   const witness = chain === 'bitcoin' && witnessPair !== undefined ? readTxOut(witnessPair.value) : undefined;
   const previous = pair(map, 0x00);
   const outputIndexPair = pair(map, 0x0f);
   const outputIndex = txInput?.vout ?? (outputIndexPair === undefined ? undefined : littleU32(outputIndexPair.value, 'PSBT v2 previous output index'));
-  if (previous === undefined) return witness === undefined ? null : { ...witness, binding: 'witness-only' };
+  if (previous === undefined) return witness === undefined ? null : { ...witness, binding: 'witness-only', previousTransaction: null };
   const transaction = readTransaction(previous.value, chain);
   const id = txInput?.txid ?? (pair(map, 0x0e) === undefined ? undefined : reverseHex(pair(map, 0x0e)!.value));
-  if (id === undefined || previousTxid(transaction) !== id) throw new Error('Non-witness UTXO transaction ID does not match the referenced input.');
+  if (id === undefined || parsedTransactionId(transaction) !== id) throw new Error('Non-witness UTXO transaction ID does not match the referenced input.');
   const output = outputIndex === undefined ? undefined : transaction.outputs[outputIndex];
   if (output === undefined) throw new Error('Referenced output is absent from the non-witness UTXO.');
   if (witness !== undefined && (witness.value !== output.value || bytesToHex(witness.script) !== bytesToHex(output.script))) {
     throw new Error('Witness and non-witness UTXOs disagree.');
   }
-  return { ...output, binding: 'non-witness' };
+  return { ...output, binding: 'non-witness', previousTransaction: transaction };
 }
 
 function maximumMoney(chain: PsbtChain): bigint {
@@ -635,7 +637,7 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
     ? { relationship: 'PSBT transaction-modifiable flags', status: 'not-verified', detail: `Undefined flag bits 0x${(modifiable & 0xf8).toString(16).padStart(2, '0')} are preserved but have no defined BIP370 meaning.` }
     : { relationship: 'PSBT transaction-modifiable flags', status: 'verified', detail: 'All supplied transaction-modifiable bits have defined BIP370 meanings.' }];
   const inputVerificationRows = inputs.map((map, index) => inputVerification(map, suppliedUtxos[index] ?? null, chain, commitmentFailures[index] ?? null, mixedLockKinds));
-  return { chain, version, global, inputs, outputs, transaction, inputValues, outputValues, fee, globalVerification, inputVerification: inputVerificationRows };
+  return { chain, version, global, inputs, outputs, transaction, inputUtxos: suppliedUtxos, inputValues, outputValues, fee, globalVerification, inputVerification: inputVerificationRows };
 }
 
 export function pairName(scope: 'global' | 'input' | 'output', type: bigint, chain: PsbtChain = 'bitcoin'): string {

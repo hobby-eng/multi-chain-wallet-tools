@@ -313,7 +313,7 @@ async function bip38(context, profile, run) {
   assert.equal(new Set(encrypted).size, 2);
   assert.ok(encrypted.every(value => /^6P/.test(value)));
   assert.equal(await page.locator('[data-copy-field="bip38EncryptedKey"]').first().isDisabled(), true);
-  await page.locator('#toggle-sensitive-values').click();
+  await page.locator('#toggle-result-secrets').click();
   assert.equal(await page.locator('[data-copy-field="bip38EncryptedKey"]').first().isEnabled(), true);
   const verifier = await open(context, profile, 'psbt-inspector', run);
   const verifierBefore = await storageSnapshot(verifier);
