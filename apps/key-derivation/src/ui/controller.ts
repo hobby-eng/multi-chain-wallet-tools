@@ -96,6 +96,7 @@ export function createKeyDerivationController(
         resultCoinJoinExternalTab,
         resultCoinJoinInternalTab,
         toggleSensitiveValues,
+        toggleResultSecrets,
         copyMnemonicButton,
         copyWatchOnlyButton,
         downloadWatchOnlyButton,
@@ -131,7 +132,8 @@ let selected = new Set<number>();
 let activeResultBranch: ResultBranch = 'receive';
 const branchResultStates = new Map<ResultBranch, BranchResultState>();
 let displayMode: DisplayMode = 'basic';
-let sensitiveValuesRevealed = false;
+let recoverySourceRevealed = false;
+let resultSecretsRevealed = false;
 let derivationRevision = 0;
 let derivationsInFlight = 0;
 let cancellationRequested = false;
@@ -474,7 +476,7 @@ function renderBip85Wallet(): void {
   renderResults(bip85WalletSummary, bip85WalletList, bip85WalletNotices, result, {
     mode: bip85WalletMode,
     selected: bip85WalletSelected,
-    secretsRevealed: sensitiveValuesRevealed,
+    secretsRevealed: resultSecretsRevealed,
     windowStart: bip85WalletWindowStart,
     windowSize: bip85WalletMode === 'basic' ? BASIC_WINDOW_SIZE : ADVANCED_WINDOW_SIZE,
     onWindowChange(start) {
@@ -491,7 +493,7 @@ function renderBip85Wallet(): void {
     },
     encryptedBip38: new Map(),
   });
-  updateSecretVisibility(bip85WalletResults, sensitiveValuesRevealed);
+  updateSecretVisibility(bip85WalletResults, resultSecretsRevealed);
   bip85WalletResults.hidden = false;
 }
 
@@ -774,7 +776,7 @@ deriveBip85Button?.addEventListener('click', () => {
         }
       }
       output.value = displayedValue;
-      setBip85SecretVisibility(sensitiveValuesRevealed || bip85SecretRevealed);
+      setBip85SecretVisibility(resultSecretsRevealed || bip85SecretRevealed);
       derivedBip85Mnemonic = derived.kind === 'bip39' ? displayedValue : null;
       if (openBip85WalletButton !== null) openBip85WalletButton.hidden = derivedBip85Mnemonic === null;
       if (derivedBip85Mnemonic === null) {
@@ -820,12 +822,12 @@ optionalElement<HTMLInputElement>('#bip85-child-passphrase')?.addEventListener('
 });
 
 function updateWordCount(): void {
-  view.updateWordCount(sensitiveValuesRevealed);
+  view.updateWordCount(recoverySourceRevealed);
 }
 
 function mnemonicMayBeComplete(): boolean {
   const count = mnemonic.value.trim() === '' ? 0 : mnemonic.value.trim().split(/\s+/u).length;
-  return count === 12 || count === 24;
+  return count === 12 || count === 15 || count === 18 || count === 21 || count === 24;
 }
 
 function stopActiveDerivation(message = 'Derivation superseded by a new request.'): void {
@@ -929,7 +931,7 @@ function currentRenderOptions() {
   return {
     mode: displayMode,
     selected,
-    secretsRevealed: sensitiveValuesRevealed,
+    secretsRevealed: resultSecretsRevealed,
     windowStart: resultWindowStart,
     windowSize: displayMode === 'basic' ? BASIC_WINDOW_SIZE : ADVANCED_WINDOW_SIZE,
     onWindowChange(start: number) {
@@ -1010,12 +1012,12 @@ function renderCurrent(): void {
     branchResultStates,
     activeResultBranch,
     adapter,
-    sensitiveValuesRevealed,
+    resultSecretsRevealed,
   );
 }
 
 function updateBulkActions(): void {
-  view.updateBulkActions(currentResult, selected, adapter, displayMode, sensitiveValuesRevealed);
+  view.updateBulkActions(currentResult, selected, adapter, displayMode, resultSecretsRevealed);
 }
 
 function sensitiveField(scope: 'summary' | 'row', fieldKey: string, rowIndex?: number): ResultField | undefined {
@@ -1039,7 +1041,7 @@ function sensitiveField(scope: 'summary' | 'row', fieldKey: string, rowIndex?: n
 }
 
 async function copyText(button: HTMLButtonElement, text: string, containsSecret: boolean): Promise<void> {
-  if (containsSecret && !sensitiveValuesRevealed) {
+  if (containsSecret && !resultSecretsRevealed) {
     showError('Reveal private and privacy-sensitive values before copying them.');
     return;
   }
@@ -1089,7 +1091,7 @@ async function downloadSelectedRows(button: HTMLButtonElement, action: ExportAct
     showError('That field type does not apply to the selected protocol and display mode.');
     return;
   }
-  if (inspection.containsSecret && !sensitiveValuesRevealed) {
+  if (inspection.containsSecret && !resultSecretsRevealed) {
     showError('Reveal private and privacy-sensitive values before exporting them.');
     return;
   }
@@ -1119,9 +1121,14 @@ async function downloadSelectedRows(button: HTMLButtonElement, action: ExportAct
   }
 }
 
-function setSensitiveValuesVisibility(revealed: boolean): void {
-  sensitiveValuesRevealed = revealed;
-  view.setSensitiveValuesVisibility(revealed);
+function setRecoverySourceVisibility(revealed: boolean): void {
+  recoverySourceRevealed = revealed;
+  view.setRecoverySourceVisibility(revealed);
+}
+
+function setResultSecretsVisibility(revealed: boolean): void {
+  resultSecretsRevealed = revealed;
+  view.setResultSecretsVisibility(revealed);
   setBip85SecretVisibility(revealed);
   setBip85ChildPassphraseVisibility(revealed);
   optionalElement<HTMLElement>('#silent-payment-result')?.classList.toggle('revealed', revealed);
@@ -1527,7 +1534,8 @@ for (const input of [expectedAddress, searchStart, searchCount]) {
   input.addEventListener('input', invalidateAddressSearch);
 }
 
-toggleSensitiveValues.addEventListener('click', () => setSensitiveValuesVisibility(!sensitiveValuesRevealed));
+toggleSensitiveValues.addEventListener('click', () => setRecoverySourceVisibility(!recoverySourceRevealed));
+toggleResultSecrets.addEventListener('click', () => setResultSecretsVisibility(!resultSecretsRevealed));
 for (const [words, generateButton] of [
   [12, generate12Button], [15, generate15Button], [18, generate18Button], [21, generate21Button], [24, generate24Button],
 ] as const) {
@@ -1563,7 +1571,8 @@ clearAllButton.addEventListener('click', () => {
   includeChangeByCoin.clear();
   includeCoinJoinByCoin.clear();
   view.configureControls(adapter);
-  setSensitiveValuesVisibility(false);
+  setRecoverySourceVisibility(false);
+  setResultSecretsVisibility(false);
   clearMessages();
   invalidateMessageSigning();
   if (messageSignerDialog?.open === true) view.closeMessageSigner();
@@ -1614,7 +1623,8 @@ clearAllButton.addEventListener('click', () => {
 });
 
 function concealSensitiveValues(): void {
-  if (sensitiveValuesRevealed) setSensitiveValuesVisibility(false);
+  if (recoverySourceRevealed) setRecoverySourceVisibility(false);
+  if (resultSecretsRevealed) setResultSecretsVisibility(false);
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -1912,7 +1922,7 @@ selectInvertButton.addEventListener('click', () => {
 exportFormat.addEventListener('change', updateBulkActions);
 
 copyMnemonicButton.addEventListener('click', () => {
-  if (!sensitiveValuesRevealed || mnemonic.value.trim().length === 0) {
+  if (!recoverySourceRevealed || mnemonic.value.trim().length === 0) {
     showError('Reveal the recovery phrase before copying it.');
     return;
   }
@@ -1935,7 +1945,7 @@ for (const [action, button] of Object.entries(descriptorButtons)) {
     const bundle = currentResult?.accountDescriptors;
     if (bundle === undefined) return;
     const privateExport = action === 'privateCopy' || action === 'privateDownload';
-    if (privateExport && !sensitiveValuesRevealed) {
+    if (privateExport && !resultSecretsRevealed) {
       showError('Reveal sensitive values before exporting private descriptors.');
       return;
     }
@@ -1967,7 +1977,7 @@ copyWatchOnlyButton.addEventListener('click', () => {
 downloadWatchOnlyButton.addEventListener('click', () => {
   const watchOnly = currentResult?.watchOnly;
   if (watchOnly === undefined) return;
-  if (!sensitiveValuesRevealed) {
+  if (!resultSecretsRevealed) {
     showError('Reveal privacy-sensitive values before downloading a watch-only export.');
     return;
   }

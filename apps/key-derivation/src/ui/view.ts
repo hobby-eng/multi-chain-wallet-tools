@@ -87,6 +87,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   };
   const branchResultContent = required<HTMLElement>('#branch-result-content');
   const toggleSensitiveValues = required<HTMLButtonElement>('#toggle-sensitive-values');
+  const toggleResultSecrets = required<HTMLButtonElement>('#toggle-result-secrets');
   const copyMnemonicButton = required<HTMLButtonElement>('#copy-mnemonic');
   const copyWatchOnlyButton = required<HTMLButtonElement>('#copy-watch-only');
   const downloadWatchOnlyButton = required<HTMLButtonElement>('#download-watch-only');
@@ -163,6 +164,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     resultCoinJoinInternalTab,
     branchResultContent,
     toggleSensitiveValues,
+    toggleResultSecrets,
     copyMnemonicButton,
     copyWatchOnlyButton,
     downloadWatchOnlyButton,
@@ -508,13 +510,17 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
         ? `Download ${watchOnly.fileName}`
         : `Reveal sensitive values before downloading ${watchOnly.fileName}.`;
     },
-    setSensitiveValuesVisibility(revealed: boolean): void {
+    setRecoverySourceVisibility(revealed: boolean): void {
       mnemonic.classList.toggle('concealed', !revealed);
       passphrase.type = revealed ? 'text' : 'password';
-      updateSecretVisibility(resultsRoot, revealed);
-      toggleSensitiveValues.textContent = revealed ? 'Hide all sensitive values' : 'Reveal all sensitive values';
+      toggleSensitiveValues.textContent = revealed ? 'Hide recovery source' : 'Reveal recovery source';
       toggleSensitiveValues.setAttribute('aria-pressed', String(revealed));
       copyMnemonicButton.disabled = !revealed || mnemonic.value.trim().length === 0;
+    },
+    setResultSecretsVisibility(revealed: boolean): void {
+      updateSecretVisibility(resultsRoot, revealed);
+      toggleResultSecrets.textContent = revealed ? 'Hide all private keys' : 'Reveal all private keys';
+      toggleResultSecrets.setAttribute('aria-pressed', String(revealed));
     },
     showResults(): void {
       resultsRoot.hidden = false;
