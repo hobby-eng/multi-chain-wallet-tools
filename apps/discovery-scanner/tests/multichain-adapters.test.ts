@@ -4,8 +4,8 @@ import { BITCOIN_RECOVERY_ADAPTER } from '../src/coins/bitcoin/index.js';
 import { scanDashCore } from '../src/coins/dash/core-scanner.js';
 import { ETHEREUM_RECOVERY_ADAPTER } from '../src/coins/ethereum/index.js';
 import { RecoveryNetworkGateway } from '../src/network-gateway.js';
-import type { RecoveryNetworkApi } from '../src/network-protocol.js';
-import { SecretEgressGuard } from '../src/secret-guard.js';
+import type { RecoveryNetworkApi } from '@ckd/network-boundary/protocol.js';
+import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
 import type { RecoveryScanConfig } from '../src/types.js';
 
 const MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -27,7 +27,8 @@ function api(overrides: Partial<RecoveryNetworkApi>): RecoveryNetworkApi {
     platformIdentityByPublicKeyHash: unavailable,
     platformIdentityHistory: unavailable,
     shieldedPage: unavailable,
-    addressHistory: unavailable, utxoAddresses: unavailable,
+    addressHistory: unavailable,
+    utxoAddresses: unavailable,
     evmAccounts: unavailable,
     ...overrides,
   };
@@ -133,14 +134,17 @@ describe('Multi-Chain recovery adapters', () => {
         customPathFormat: 'p2pkh',
         customPathCount: 1,
       },
-      new RecoveryNetworkGateway(guard, api({
-        coreStatus: async () => ({ status: 'ok' }),
-        coreTip: async () => ({ resultSet: [{ height: 2_300_000, timestamp: '2026-09-02T00:00:00.000Z' }] }),
-        coreAddressInfo: async (_network, addresses) => {
-          requested.push(...addresses);
-          return addresses.map((address) => ({ address, balance: '0', txCount: 0 }));
-        },
-      })),
+      new RecoveryNetworkGateway(
+        guard,
+        api({
+          coreStatus: async () => ({ status: 'ok' }),
+          coreTip: async () => ({ resultSet: [{ height: 2_300_000, timestamp: '2026-09-02T00:00:00.000Z' }] }),
+          coreAddressInfo: async (_network, addresses) => {
+            requested.push(...addresses);
+            return addresses.map((address) => ({ address, balance: '0', txCount: 0 }));
+          },
+        }),
+      ),
       new AbortController().signal,
       () => {},
       () => {},
@@ -187,39 +191,39 @@ describe('Multi-Chain recovery adapters', () => {
     expect(result.overview).toContainEqual({ label: 'Unique addresses queried', value: '2' });
   });
 
-  it.each([
-    "m/44'/60'/7'/0/{index}",
-    "m/44'/60'/7'/0/{index}'",
-  ])('supports validated custom Ethereum path template %s', async (evmPathTemplate) => {
-    const requested: string[] = [];
-    const result = await ETHEREUM_RECOVERY_ADAPTER.scan(
-      { id: 'seed-1', label: 'Seed phrase #1', mnemonic: MNEMONIC, passphrase: '' },
-      {
-        ...config,
-        scanCustomPath: true,
-        customPathTemplate: evmPathTemplate,
-        customPathFormat: 'eoa',
-        customPathCount: 1,
-      },
-      {
-        signal: new AbortController().signal,
-        networkApi: api({
-          evmAccounts: async (_network, addresses) => {
-            requested.push(...addresses);
-            return {
-              blockNumber: '1',
-              entries: addresses.map((address) => ({ address, balance: '0', nonce: '0' })),
-            };
-          },
-        }),
-        onProgress: () => {},
-        onFinding: () => {},
-      },
-    );
-    expect(new Set(requested).size).toBe(3);
-    expect(result.sections[0]?.scanned).toBe(4);
-    expect(result.overview).toContainEqual({ label: 'Path profiles', value: '4' });
-  });
+  it.each(["m/44'/60'/7'/0/{index}", "m/44'/60'/7'/0/{index}'"])(
+    'supports validated custom Ethereum path template %s',
+    async (evmPathTemplate) => {
+      const requested: string[] = [];
+      const result = await ETHEREUM_RECOVERY_ADAPTER.scan(
+        { id: 'seed-1', label: 'Seed phrase #1', mnemonic: MNEMONIC, passphrase: '' },
+        {
+          ...config,
+          scanCustomPath: true,
+          customPathTemplate: evmPathTemplate,
+          customPathFormat: 'eoa',
+          customPathCount: 1,
+        },
+        {
+          signal: new AbortController().signal,
+          networkApi: api({
+            evmAccounts: async (_network, addresses) => {
+              requested.push(...addresses);
+              return {
+                blockNumber: '1',
+                entries: addresses.map((address) => ({ address, balance: '0', nonce: '0' })),
+              };
+            },
+          }),
+          onProgress: () => {},
+          onFinding: () => {},
+        },
+      );
+      expect(new Set(requested).size).toBe(3);
+      expect(result.sections[0]?.scanned).toBe(4);
+      expect(result.overview).toContainEqual({ label: 'Path profiles', value: '4' });
+    },
+  );
 
   it.each([
     '',
@@ -229,21 +233,23 @@ describe('Multi-Chain recovery adapters', () => {
     "m/044'/60'/0'/0/{index}",
     "m/44'/60'/2147483648'/0/{index}",
   ])('rejects invalid custom Ethereum template %j', async (evmPathTemplate) => {
-    await expect(ETHEREUM_RECOVERY_ADAPTER.scan(
-      { id: 'seed-1', label: 'Seed phrase #1', mnemonic: MNEMONIC, passphrase: '' },
-      {
-        ...config,
-        scanCustomPath: true,
-        customPathTemplate: evmPathTemplate,
-        customPathFormat: 'eoa',
-        customPathCount: 1,
-      },
-      {
-        signal: new AbortController().signal,
-        networkApi: api({}),
-        onProgress: () => {},
-        onFinding: () => {},
-      },
-    )).rejects.toThrow(/Custom path/u);
+    await expect(
+      ETHEREUM_RECOVERY_ADAPTER.scan(
+        { id: 'seed-1', label: 'Seed phrase #1', mnemonic: MNEMONIC, passphrase: '' },
+        {
+          ...config,
+          scanCustomPath: true,
+          customPathTemplate: evmPathTemplate,
+          customPathFormat: 'eoa',
+          customPathCount: 1,
+        },
+        {
+          signal: new AbortController().signal,
+          networkApi: api({}),
+          onProgress: () => {},
+          onFinding: () => {},
+        },
+      ),
+    ).rejects.toThrow(/Custom path/u);
   });
 });

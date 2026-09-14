@@ -1,4 +1,4 @@
-import { DASH_COIN_ADAPTERS } from './adapters/dash.js';
+import { DASH_COMMUNITY_COIN_ADAPTERS } from './dash-community-registry-profile.js';
 import { createCoinRegistry } from './registry-base.js';
 
 export type {
@@ -12,6 +12,7 @@ export type {
   CoinJoinPathPreview,
   CoinJoinSupport,
   CoinLimits,
+  CoinRegistry,
   ControlOption,
 } from './registry-base.js';
 
@@ -22,4 +23,4 @@ export const {
   getCoinAdapter,
   getCoinFamily,
   getDefaultCoinAdapter,
-} = createCoinRegistry(DASH_COIN_ADAPTERS);
+} = createCoinRegistry(DASH_COMMUNITY_COIN_ADAPTERS);

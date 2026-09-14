@@ -1,4 +1,10 @@
-import { CREDITS_PER_DASH, CREDITS_PER_DUFF, DUFFS_PER_DASH, formatDashCredits, formatDashDuffs } from '../src/dash-units.js';
+import {
+  CREDITS_PER_DASH,
+  CREDITS_PER_DUFF,
+  DUFFS_PER_DASH,
+  formatDashCredits,
+  formatDashDuffs,
+} from '../src/dash-units.js';
 import { describe, expect, it } from 'vitest';
 
 describe('Dash monetary units', () => {
@@ -15,7 +21,6 @@ describe('Dash monetary units', () => {
     expect(formatDashCredits(0n, true)).toBe('0 DASH');
   });
 });
-
 
 it('preserves the 1000:1 cross-layer ratio for tiny and large exact balances', () => {
   expect(CREDITS_PER_DUFF).toBe(1000n);

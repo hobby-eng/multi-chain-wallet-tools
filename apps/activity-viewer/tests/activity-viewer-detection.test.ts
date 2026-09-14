@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  assertAutoViewerBatchInput,
-  detectViewerInput,
-  looksLikeAutoOrchardInput,
-} from '../src/detection.js';
+import { assertAutoViewerBatchInput, detectViewerInput, looksLikeAutoOrchardInput } from '../src/detection.js';
 
 describe('Activity Viewer input detection', () => {
   it.each([
@@ -48,29 +44,15 @@ describe('Activity Viewer input detection', () => {
   it.each([
     [
       'one prefixed word',
-      [
-        'identity:abandon',
-        ...Array.from({ length: 10 }, () => 'abandon'),
-        'about',
-        'alice.dash',
-      ].join('\n'),
+      ['identity:abandon', ...Array.from({ length: 10 }, () => 'abandon'), 'about', 'alice.dash'].join('\n'),
     ],
     [
       'every prefixed word',
-      [
-        ...Array.from({ length: 11 }, () => 'identity:abandon'),
-        'identity:about',
-        'alice.dash',
-      ].join('\n'),
+      [...Array.from({ length: 11 }, () => 'identity:abandon'), 'identity:about', 'alice.dash'].join('\n'),
     ],
     [
       'an Orchard-prefixed word',
-      [
-        'orchard:abandon',
-        ...Array.from({ length: 10 }, () => 'abandon'),
-        'about',
-        'alice.dash',
-      ].join('\n'),
+      ['orchard:abandon', ...Array.from({ length: 10 }, () => 'abandon'), 'about', 'alice.dash'].join('\n'),
     ],
   ])('blocks a multiline mnemonic with %s', (_label, value) => {
     expect(() => assertAutoViewerBatchInput(value)).toThrow('Private key-like material');
@@ -78,8 +60,18 @@ describe('Activity Viewer input detection', () => {
 
   it('allows twelve ordinary alphabetic DPNS names in Auto batch', () => {
     const value = [
-      'alice', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot',
-      'golf', 'hotel', 'india', 'juliet', 'kilo', 'lima',
+      'alice',
+      'bravo',
+      'charlie',
+      'delta',
+      'echo',
+      'foxtrot',
+      'golf',
+      'hotel',
+      'india',
+      'juliet',
+      'kilo',
+      'lima',
     ].join('\n');
     expect(() => assertAutoViewerBatchInput(value)).not.toThrow();
   });

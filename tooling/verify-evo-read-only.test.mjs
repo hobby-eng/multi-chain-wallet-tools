@@ -7,10 +7,9 @@ const fixture = (name) => resolve(import.meta.dirname, 'fixtures/evo-read-only',
 
 describe('Evo SDK read-only verifier', () => {
   it('accepts reviewed read-only facade calls', () => {
-    expect(() => assertEvoSdkReadOnly([
-      fixture('read-only.ts'),
-      fixture('local-mnemonic-validator.ts'),
-    ], 'Fixture', root)).not.toThrow();
+    expect(() =>
+      assertEvoSdkReadOnly([fixture('read-only.ts'), fixture('local-mnemonic-validator.ts')], 'Fixture', root),
+    ).not.toThrow();
   });
 
   it.each([

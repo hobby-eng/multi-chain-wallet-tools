@@ -99,16 +99,20 @@ function scriptNumberFromPush(hex: string): string | null {
   let value = 0;
   for (let index = 0; index < bytes.length; index += 1) {
     const byte = index === bytes.length - 1 ? bytes[index]! & 0x7f : bytes[index]!;
-    value += byte * (2 ** (8 * index));
+    value += byte * 2 ** (8 * index);
   }
   return String(negative ? -value : value);
 }
 
 function normalizeMiniscriptAsm(asm: string): string {
-  return asm.split(/\s+/u).filter(Boolean).map((token) => {
-    const pushed = /^<([0-9a-fA-F]*)>$/u.exec(token)?.[1];
-    return pushed === undefined ? token : scriptNumberFromPush(pushed) ?? token;
-  }).join(' ');
+  return asm
+    .split(/\s+/u)
+    .filter(Boolean)
+    .map((token) => {
+      const pushed = /^<([0-9a-fA-F]*)>$/u.exec(token)?.[1];
+      return pushed === undefined ? token : (scriptNumberFromPush(pushed) ?? token);
+    })
+    .join(' ');
 }
 
 export function scriptFromMiniscriptAsm(asm: string): Uint8Array {
@@ -138,17 +142,28 @@ export function scriptFromMiniscriptAsm(asm: string): Uint8Array {
   return Uint8Array.from(bytes);
 }
 
-export function compilePolicyMiniscript(miniscript: string, options: MiniscriptContextOptions = {}): CompiledMiniscript {
+export function compilePolicyMiniscript(
+  miniscript: string,
+  options: MiniscriptContextOptions = {},
+): CompiledMiniscript {
   // The compiler type-checks symbols; it does not prove that literal keys
   // are valid points of the required consensus key type.
   for (const match of miniscript.matchAll(/(?:^|[^a-z_])(?:pk|pk_k|pkh|pk_h|multi|multi_a)\(([^()]*)\)/gu)) {
     const values = match[1]!.split(',');
     const keys = match[0]!.includes('multi') ? values.slice(1) : values;
     for (const key of keys) {
-      const expected = options.tapscript === true ? /^[0-9a-fA-F]{64}$/u : options.allowUncompressed === true ? /^(?:(?:02|03)[0-9a-fA-F]{64}|04[0-9a-fA-F]{128})$/u : /^(?:02|03)[0-9a-fA-F]{64}$/u;
+      const expected =
+        options.tapscript === true
+          ? /^[0-9a-fA-F]{64}$/u
+          : options.allowUncompressed === true
+            ? /^(?:(?:02|03)[0-9a-fA-F]{64}|04[0-9a-fA-F]{128})$/u
+            : /^(?:02|03)[0-9a-fA-F]{64}$/u;
       if (!expected.test(key)) throw new Error('Invalid public key for the selected Miniscript context.');
-      try { secp256k1.Point.fromBytes(hexToBytes(options.tapscript === true ? `02${key}` : key)); }
-      catch { throw new Error('Invalid public key: not a secp256k1 point.'); }
+      try {
+        secp256k1.Point.fromBytes(hexToBytes(options.tapscript === true ? `02${key}` : key));
+      } catch {
+        throw new Error('Invalid public key: not a secp256k1 point.');
+      }
     }
   }
   const { analysis } = validatePolicyMiniscript(miniscript, options);

@@ -139,7 +139,7 @@ export function buildDashShieldedResult(
         'Account Orchard spending key (raw 32-byte hex)',
         raw.spendingKey,
         true,
-        'Canonical raw Orchard SpendingKey bytes from Dash\'s official ZIP-32 implementation. This is not WIF.',
+        "Canonical raw Orchard SpendingKey bytes from Dash's official ZIP-32 implementation. This is not WIF.",
       ),
       field(
         'fullViewingKey',

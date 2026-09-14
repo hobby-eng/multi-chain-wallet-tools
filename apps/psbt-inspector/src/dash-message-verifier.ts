@@ -85,7 +85,9 @@ export async function verifyDashSignedMessage(
       .recoverPublicKey(digest)
       .toBytes(compressed);
   } catch {
-    throw new Error('The compact signature contains invalid ECDSA values or a recovery identifier that cannot recover a key.');
+    throw new Error(
+      'The compact signature contains invalid ECDSA values or a recovery identifier that cannot recover a key.',
+    );
   }
   if (!secp256k1.verify(signature.slice(1), digest, publicKey, { prehash: false, lowS: false })) {
     throw new Error('The recovered public key does not verify this message signature.');

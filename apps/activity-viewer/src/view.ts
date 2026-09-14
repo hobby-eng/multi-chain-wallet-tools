@@ -167,18 +167,16 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   function renderShieldedActivity(record: ShieldedActivity): HTMLElement {
     const note = record.incoming ?? record.outgoing;
     if (note === undefined) throw new Error('Activity record has no recovered note view.');
-    const direction = record.direction === 'received'
-      ? 'Received'
-      : record.direction === 'sent'
-        ? 'Sent'
-        : 'Self / change';
-    const status = record.incoming === undefined
-      ? 'Outgoing view'
-      : record.spent === undefined
-        ? 'Spend state unavailable'
-        : record.spent
-          ? 'Spent'
-          : 'Unspent';
+    const direction =
+      record.direction === 'received' ? 'Received' : record.direction === 'sent' ? 'Sent' : 'Self / change';
+    const status =
+      record.incoming === undefined
+        ? 'Outgoing view'
+        : record.spent === undefined
+          ? 'Spend state unavailable'
+          : record.spent
+            ? 'Spent'
+            : 'Unspent';
     return detailsCard(
       `direction-${record.direction}`,
       direction,
@@ -195,13 +193,14 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   }
 
   function renderCoreTransaction(transaction: CoreAddressTransaction): HTMLElement {
-    const direction = transaction.netDuffs > 0n
-      ? { className: 'direction-received', label: 'Received' }
-      : transaction.netDuffs < 0n
-        ? { className: 'direction-sent', label: 'Sent / spent' }
-        : transaction.receivedDuffs > 0n && transaction.spentInputDuffs > 0n
-          ? { className: 'direction-self', label: 'Self / change' }
-          : { className: 'direction-neutral', label: 'Related transaction' };
+    const direction =
+      transaction.netDuffs > 0n
+        ? { className: 'direction-received', label: 'Received' }
+        : transaction.netDuffs < 0n
+          ? { className: 'direction-sent', label: 'Sent / spent' }
+          : transaction.receivedDuffs > 0n && transaction.spentInputDuffs > 0n
+            ? { className: 'direction-self', label: 'Self / change' }
+            : { className: 'direction-neutral', label: 'Related transaction' };
     const lockStatus = transaction.chainLocked
       ? 'ChainLocked'
       : transaction.instantLocked
@@ -258,10 +257,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     const titleElement = document.createElement('h4');
     titleElement.className = 'viewer-identity-subsection-title';
     titleElement.textContent = title;
-    heading.append(
-      titleElement,
-      valueElement('viewer-identity-subsection-detail', detail),
-    );
+    heading.append(titleElement, valueElement('viewer-identity-subsection-detail', detail));
     return heading;
   }
 
@@ -283,9 +279,10 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   }
 
   function renderIdentityKey(key: IdentityPublicKeySnapshot): HTMLElement {
-    const contract = key.contractBounds === null
-      ? 'None'
-      : `${key.contractBounds.type} · ${key.contractBounds.identifier}${key.contractBounds.documentTypeName === null ? '' : ` · ${key.contractBounds.documentTypeName}`}`;
+    const contract =
+      key.contractBounds === null
+        ? 'None'
+        : `${key.contractBounds.type} · ${key.contractBounds.identifier}${key.contractBounds.documentTypeName === null ? '' : ` · ${key.contractBounds.documentTypeName}`}`;
     return detailsCard(
       `${key.matchesLookup ? 'identity-key-match' : ''} ${key.disabledAtMs === null ? 'direction-neutral' : 'direction-sent'}`.trim(),
       `Key ${key.keyId}${key.matchesLookup ? ' · LOOKUP MATCH' : ''}`,
@@ -307,28 +304,44 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   }
 
   function renderIdentityActivity(event: IdentityActivityEvent): HTMLElement {
-    const direction = event.direction === 'incoming'
-      ? { className: 'direction-received', label: 'Incoming' }
-      : event.direction === 'outgoing'
-        ? { className: 'direction-sent', label: 'Outgoing' }
-        : event.direction === 'self'
-          ? { className: 'direction-self', label: 'Self transfer' }
-          : { className: 'direction-neutral', label: 'Identity transition' };
+    const direction =
+      event.direction === 'incoming'
+        ? { className: 'direction-received', label: 'Incoming' }
+        : event.direction === 'outgoing'
+          ? { className: 'direction-sent', label: 'Outgoing' }
+          : event.direction === 'self'
+            ? { className: 'direction-self', label: 'Self transfer' }
+            : { className: 'direction-neutral', label: 'Identity transition' };
     return detailsCard(
       direction.className,
       direction.label,
       event.transactionHash,
-      event.netAmountCredits === null ? event.status ?? 'Indexed' : formatSignedPlatformCredits(event.netAmountCredits),
+      event.netAmountCredits === null
+        ? (event.status ?? 'Indexed')
+        : formatSignedPlatformCredits(event.netAmountCredits),
       [
         ['Date / time', formatDate(event.timestampMs)],
         ['Transition type', event.type],
         ['Batch type', event.batchType ?? 'Not a batch transition'],
         ['Status', event.status ?? 'Not separately reported'],
         ['Direction', event.direction],
-        ['Transfer legs', event.transfers.length === 0
-          ? 'None'
-          : event.transfers.map((transfer, index) => `${index + 1}. ${transfer.direction} · ${formatPlatformCredits(transfer.amountCredits)} · ${transfer.sender ?? 'protocol'} → ${transfer.recipient ?? 'protocol'}`).join(' | ')],
-        ['Net Identity amount', event.netAmountCredits === null ? 'No transfer amount for this transition' : formatSignedPlatformCredits(event.netAmountCredits)],
+        [
+          'Transfer legs',
+          event.transfers.length === 0
+            ? 'None'
+            : event.transfers
+                .map(
+                  (transfer, index) =>
+                    `${index + 1}. ${transfer.direction} · ${formatPlatformCredits(transfer.amountCredits)} · ${transfer.sender ?? 'protocol'} → ${transfer.recipient ?? 'protocol'}`,
+                )
+                .join(' | '),
+        ],
+        [
+          'Net Identity amount',
+          event.netAmountCredits === null
+            ? 'No transfer amount for this transition'
+            : formatSignedPlatformCredits(event.netAmountCredits),
+        ],
         ['Block height', event.blockHeight?.toLocaleString() ?? 'Unavailable'],
         ['Gas used', event.gasUsedCredits === null ? 'Unavailable' : formatPlatformCredits(event.gasUsedCredits)],
         ['Error', event.error ?? 'None reported'],
@@ -402,12 +415,17 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         ['Base supply', value.baseSupply?.toLocaleString() ?? 'Unavailable'],
         ['Maximum supply', value.maxSupply?.toLocaleString() ?? 'Unlimited / unavailable'],
         ['Decimals', value.decimals?.toLocaleString() ?? 'Unavailable'],
-        ['Capabilities', [
-          value.mintable === true ? 'mintable' : null,
-          value.burnable === true ? 'burnable' : null,
-          value.freezable === true ? 'freezable' : null,
-          value.destroyable === true ? 'destroyable' : null,
-        ].filter((item): item is string => item !== null).join(', ') || 'None reported'],
+        [
+          'Capabilities',
+          [
+            value.mintable === true ? 'mintable' : null,
+            value.burnable === true ? 'burnable' : null,
+            value.freezable === true ? 'freezable' : null,
+            value.destroyable === true ? 'destroyable' : null,
+          ]
+            .filter((item): item is string => item !== null)
+            .join(', ') || 'None reported',
+        ],
       ],
     );
   }
@@ -425,31 +443,30 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   ): HTMLElement {
     const history = historyResult?.history ?? null;
     const aliases = history?.aliases.map(({ name, status }) => `${name} (${status})`) ?? [];
-    const fundingSource = history?.registrationFundingSource === 'core-asset-lock'
-      ? 'Dash Core asset lock'
-      : history?.registrationFundingSource === 'platform-addresses'
-        ? 'Dash Platform addresses'
-        : history?.registrationFundingSource === 'shielded-pool'
-          ? 'Dash Platform shielded pool'
-          : 'Unavailable';
-    const fundingCoreTransaction = history?.fundingCoreTransactionHash === null
-      || history?.fundingCoreTransactionHash === undefined
-      ? history?.registrationFundingSource === 'platform-addresses'
-        || history?.registrationFundingSource === 'shielded-pool'
-        ? 'Not applicable'
-        : 'Unavailable'
-      : history.fundingCoreTransactionOutputIndex === null
-        ? history.fundingCoreTransactionHash
-        : `${history.fundingCoreTransactionHash}:${history.fundingCoreTransactionOutputIndex}`;
-    const fundingDataStatus = history === null
-      ? 'Unavailable'
-      : history.fundingCoreTransactionError
-        ?? (
-          history.registrationFundingSource === 'core-asset-lock'
-          && history.fundingCoreTransactionHash === null
+    const fundingSource =
+      history?.registrationFundingSource === 'core-asset-lock'
+        ? 'Dash Core asset lock'
+        : history?.registrationFundingSource === 'platform-addresses'
+          ? 'Dash Platform addresses'
+          : history?.registrationFundingSource === 'shielded-pool'
+            ? 'Dash Platform shielded pool'
+            : 'Unavailable';
+    const fundingCoreTransaction =
+      history?.fundingCoreTransactionHash === null || history?.fundingCoreTransactionHash === undefined
+        ? history?.registrationFundingSource === 'platform-addresses' ||
+          history?.registrationFundingSource === 'shielded-pool'
+          ? 'Not applicable'
+          : 'Unavailable'
+        : history.fundingCoreTransactionOutputIndex === null
+          ? history.fundingCoreTransactionHash
+          : `${history.fundingCoreTransactionHash}:${history.fundingCoreTransactionOutputIndex}`;
+    const fundingDataStatus =
+      history === null
+        ? 'Unavailable'
+        : (history.fundingCoreTransactionError ??
+          (history.registrationFundingSource === 'core-asset-lock' && history.fundingCoreTransactionHash === null
             ? 'Core asset-lock data unavailable from index'
-            : 'Available'
-        );
+            : 'Available'));
     const overview: HTMLElement[] = [
       detailsCard(
         'viewer-identity-overview direction-neutral',
@@ -481,7 +498,10 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       overview.push(warning);
     } else if (history !== null) {
       overview.push(
-        subsection('Indexed Identity summary', `${history.provider} · synchronized at Platform height ${history.indexedHeight.toLocaleString()}`),
+        subsection(
+          'Indexed Identity summary',
+          `${history.provider} · synchronized at Platform height ${history.indexedHeight.toLocaleString()}`,
+        ),
         detailsCard(
           'direction-neutral',
           'Indexed lifetime totals',
@@ -491,12 +511,30 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
             ['Transfers', history.totalTransfers.toLocaleString()],
             ['Documents', history.totalDocuments.toLocaleString()],
             ['Data contracts', history.totalDataContracts.toLocaleString()],
-            ['Total gas spent', history.totalGasSpentCredits === null ? 'Unavailable' : formatPlatformCredits(history.totalGasSpentCredits)],
-            ['Average gas', history.averageGasSpentCredits === null ? 'Unavailable' : formatPlatformCredits(history.averageGasSpentCredits)],
+            [
+              'Total gas spent',
+              history.totalGasSpentCredits === null
+                ? 'Unavailable'
+                : formatPlatformCredits(history.totalGasSpentCredits),
+            ],
+            [
+              'Average gas',
+              history.averageGasSpentCredits === null
+                ? 'Unavailable'
+                : formatPlatformCredits(history.averageGasSpentCredits),
+            ],
             ['Top-ups', history.totalTopUps?.toLocaleString() ?? 'Unavailable'],
-            ['Top-up amount', history.totalTopUpsCredits === null ? 'Unavailable' : formatPlatformCredits(history.totalTopUpsCredits)],
+            [
+              'Top-up amount',
+              history.totalTopUpsCredits === null ? 'Unavailable' : formatPlatformCredits(history.totalTopUpsCredits),
+            ],
             ['Withdrawals', history.totalWithdrawals?.toLocaleString() ?? 'Unavailable'],
-            ['Withdrawal amount', history.totalWithdrawalsCredits === null ? 'Unavailable' : formatPlatformCredits(history.totalWithdrawalsCredits)],
+            [
+              'Withdrawal amount',
+              history.totalWithdrawalsCredits === null
+                ? 'Unavailable'
+                : formatPlatformCredits(history.totalWithdrawalsCredits),
+            ],
             ['Last withdrawal', history.lastWithdrawalHash ?? 'None indexed'],
             ['Last withdrawal time', formatDate(history.lastWithdrawalTimestampMs)],
           ],
@@ -504,62 +542,74 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       );
       if (history.aliases.length > 0) {
         overview.push(subsection('DPNS aliases', `${history.aliases.length.toLocaleString()} indexed alias record(s)`));
-        overview.push(...history.aliases.map((alias) => detailsCard(
-          'direction-neutral',
-          alias.name,
-          alias.documentId ?? 'DPNS alias',
-          alias.status,
-          [
-            ['Contested', alias.contested ? 'Yes' : 'No'],
-            ['Timestamp', formatDate(alias.timestampMs)],
-            ['Transaction hash', alias.transactionHash ?? 'Unavailable'],
-          ],
-        )));
+        overview.push(
+          ...history.aliases.map((alias) =>
+            detailsCard('direction-neutral', alias.name, alias.documentId ?? 'DPNS alias', alias.status, [
+              ['Contested', alias.contested ? 'Yes' : 'No'],
+              ['Timestamp', formatDate(alias.timestampMs)],
+              ['Transaction hash', alias.transactionHash ?? 'Unavailable'],
+            ]),
+          ),
+        );
       }
     }
-    const unavailable = (category: string): HTMLElement => emptyIdentitySection(
-      historyResult?.error === null || historyResult?.error === undefined
-        ? `No ${category} were returned within the current history limit.`
-        : `${category} are unavailable because indexed history could not be loaded.`,
-    );
+    const unavailable = (category: string): HTMLElement =>
+      emptyIdentitySection(
+        historyResult?.error === null || historyResult?.error === undefined
+          ? `No ${category} were returned within the current history limit.`
+          : `${category} are unavailable because indexed history could not be loaded.`,
+      );
     const keys: HTMLElement[] = [
-      subsection('Registered public keys', `${identity.publicKeys.length.toLocaleString()} key(s) · highlighted key matched the lookup fingerprint`),
+      subsection(
+        'Registered public keys',
+        `${identity.publicKeys.length.toLocaleString()} key(s) · highlighted key matched the lookup fingerprint`,
+      ),
       ...identity.publicKeys.map(renderIdentityKey),
     ];
-    const activity: HTMLElement[] = history !== null && history.activity.length > 0
-      ? [
-        subsection('Unified activity', `${history.activity.length.toLocaleString()} transaction/transfer record(s), deduplicated by transaction hash`),
-        ...history.activity.map(renderIdentityActivity),
-      ]
-      : [unavailable('activity records')];
-    const documents: HTMLElement[] = history !== null && history.documents.length > 0
-      ? [
-        subsection('Documents', `${history.documents.length.toLocaleString()} loaded`),
-        ...history.documents.map(renderIdentityDocument),
-      ]
-      : [unavailable('documents')];
-    const contracts: HTMLElement[] = history !== null && history.dataContracts.length > 0
-      ? [
-        subsection('Data contracts', `${history.dataContracts.length.toLocaleString()} loaded`),
-        ...history.dataContracts.map(renderIdentityContract),
-      ]
-      : [unavailable('data contracts')];
-    const withdrawals: HTMLElement[] = history !== null && history.withdrawals.length > 0
-      ? [
-        subsection('Withdrawals', `${history.withdrawals.length.toLocaleString()} loaded`),
-        ...history.withdrawals.map(renderIdentityWithdrawal),
-      ]
-      : [emptyIdentitySection(
-        historyResult?.error === null || historyResult?.error === undefined
-          ? 'No Identity credit-withdrawal transitions were indexed. Incoming and outgoing Identity credit transfers are shown under Activity.'
-          : 'Withdrawals are unavailable because indexed history could not be loaded.',
-      )];
-    const tokens: HTMLElement[] = history !== null && history.tokens.length > 0
-      ? [
-        subsection('Created tokens', `${history.tokens.length.toLocaleString()} loaded`),
-        ...history.tokens.map(renderIdentityToken),
-      ]
-      : [unavailable('tokens')];
+    const activity: HTMLElement[] =
+      history !== null && history.activity.length > 0
+        ? [
+            subsection(
+              'Unified activity',
+              `${history.activity.length.toLocaleString()} transaction/transfer record(s), deduplicated by transaction hash`,
+            ),
+            ...history.activity.map(renderIdentityActivity),
+          ]
+        : [unavailable('activity records')];
+    const documents: HTMLElement[] =
+      history !== null && history.documents.length > 0
+        ? [
+            subsection('Documents', `${history.documents.length.toLocaleString()} loaded`),
+            ...history.documents.map(renderIdentityDocument),
+          ]
+        : [unavailable('documents')];
+    const contracts: HTMLElement[] =
+      history !== null && history.dataContracts.length > 0
+        ? [
+            subsection('Data contracts', `${history.dataContracts.length.toLocaleString()} loaded`),
+            ...history.dataContracts.map(renderIdentityContract),
+          ]
+        : [unavailable('data contracts')];
+    const withdrawals: HTMLElement[] =
+      history !== null && history.withdrawals.length > 0
+        ? [
+            subsection('Withdrawals', `${history.withdrawals.length.toLocaleString()} loaded`),
+            ...history.withdrawals.map(renderIdentityWithdrawal),
+          ]
+        : [
+            emptyIdentitySection(
+              historyResult?.error === null || historyResult?.error === undefined
+                ? 'No Identity credit-withdrawal transitions were indexed. Incoming and outgoing Identity credit transfers are shown under Activity.'
+                : 'Withdrawals are unavailable because indexed history could not be loaded.',
+            ),
+          ];
+    const tokens: HTMLElement[] =
+      history !== null && history.tokens.length > 0
+        ? [
+            subsection('Created tokens', `${history.tokens.length.toLocaleString()} loaded`),
+            ...history.tokens.map(renderIdentityToken),
+          ]
+        : [unavailable('tokens')];
     const sections = [
       { key: 'overview', label: 'Overview & names', count: null, content: overview },
       { key: 'keys', label: 'Keys', count: identity.publicKeys.length, content: keys },
@@ -642,7 +692,8 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   required<HTMLElement>('viewer-build-profile').textContent = buildInfo.profile;
   required<HTMLElement>('viewer-build-fingerprint').textContent = buildInfo.fingerprint;
   required<HTMLElement>('viewer-artifact-checksum-file').textContent = buildInfo.checksumFile;
-  required<HTMLElement>('viewer-build-footer').textContent = `Build ${buildInfo.version} · ${buildInfo.releaseDate} · ${buildInfo.fingerprint.slice(0, 16)}…`;
+  required<HTMLElement>('viewer-build-footer').textContent =
+    `Build ${buildInfo.version} · ${buildInfo.releaseDate} · ${buildInfo.fingerprint.slice(0, 16)}…`;
 
   return {
     document,
@@ -699,17 +750,19 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       activeId: string | null,
       activate: (id: string) => void,
     ): void {
-      batchResults.replaceChildren(...options.map((option) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `viewer-batch-result ${option.status}${option.id === activeId ? ' active' : ''}`;
-        button.textContent = option.label;
-        button.disabled = option.status === 'failed';
-        button.setAttribute('aria-pressed', String(option.id === activeId));
-        if (option.error !== undefined) button.title = option.error;
-        if (option.status === 'complete') button.addEventListener('click', () => activate(option.id));
-        return button;
-      }));
+      batchResults.replaceChildren(
+        ...options.map((option) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = `viewer-batch-result ${option.status}${option.id === activeId ? ' active' : ''}`;
+          button.textContent = option.label;
+          button.disabled = option.status === 'failed';
+          button.setAttribute('aria-pressed', String(option.id === activeId));
+          if (option.error !== undefined) button.title = option.error;
+          if (option.status === 'complete') button.addEventListener('click', () => activate(option.id));
+          return button;
+        }),
+      );
       batchResults.hidden = options.length === 0;
     },
     hideBatchResults(): void {
@@ -735,13 +788,15 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       resultsDescription.textContent = 'A local view reconstructed from the encrypted pool.';
       ledgerTitle.textContent = 'Activity ledger';
       ledgerOrder.textContent = 'Oldest → newest';
-      resultHelp.textContent = 'Results are note-level activity ordered by shielded-pool position. The current DAPI note query does not expose a state-transition hash or exact creation timestamp per encrypted note, so this viewer does not invent transaction IDs or dates. “Sent outputs” exclude notes that also decrypt as this wallet’s own change; protocol fees are not reconstructed here.';
-      const unavailable = snapshot.keyKind === 'incoming'
-        ? 'Unavailable with IVK'
-        : snapshot.keyKind === 'outgoing'
-          ? 'Unavailable with OVK'
-          : 'Unavailable';
-      const amount = (value: bigint | null): string => value === null ? unavailable : formatPlatformCredits(value);
+      resultHelp.textContent =
+        'Results are note-level activity ordered by shielded-pool position. The current DAPI note query does not expose a state-transition hash or exact creation timestamp per encrypted note, so this viewer does not invent transaction IDs or dates. “Sent outputs” exclude notes that also decrypt as this wallet’s own change; protocol fees are not reconstructed here.';
+      const unavailable =
+        snapshot.keyKind === 'incoming'
+          ? 'Unavailable with IVK'
+          : snapshot.keyKind === 'outgoing'
+            ? 'Unavailable with OVK'
+            : 'Unavailable';
+      const amount = (value: bigint | null): string => (value === null ? unavailable : formatPlatformCredits(value));
       summary.replaceChildren(
         stat('Spendable balance', amount(snapshot.balance), '◎', true),
         stat('External received', amount(snapshot.receivedExternal), '↓'),
@@ -750,10 +805,14 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         stat('Pool actions scanned', snapshot.scannedNotes.toString(), '⌁'),
         stat('Recovered notes', snapshot.records.length.toString(), '◇'),
       );
-      if (!snapshot.complete) completeness.textContent = 'Partial scan: results are incomplete until the scan reaches the end of the pool.';
-      else if (snapshot.keyKind === 'full') completeness.textContent = `Complete full-capability scan from pool position 0. Proof response height ${snapshot.proofHeight}; Platform protocol ${snapshot.protocolVersion}.`;
-      else if (snapshot.keyKind === 'incoming') completeness.textContent = `Complete incoming-only scan. Received notes are visible; outgoing activity, spend state, and balance require the 96-byte FVK. Proof height ${snapshot.proofHeight}.`;
-      else completeness.textContent = `Complete outgoing-only scan. Sent outputs are visible; incoming activity and balance require the 96-byte FVK. Proof height ${snapshot.proofHeight}.`;
+      if (!snapshot.complete)
+        completeness.textContent = 'Partial scan: results are incomplete until the scan reaches the end of the pool.';
+      else if (snapshot.keyKind === 'full')
+        completeness.textContent = `Complete full-capability scan from pool position 0. Proof response height ${snapshot.proofHeight}; Platform protocol ${snapshot.protocolVersion}.`;
+      else if (snapshot.keyKind === 'incoming')
+        completeness.textContent = `Complete incoming-only scan. Received notes are visible; outgoing activity, spend state, and balance require the 96-byte FVK. Proof height ${snapshot.proofHeight}.`;
+      else
+        completeness.textContent = `Complete outgoing-only scan. Sent outputs are visible; incoming activity and balance require the 96-byte FVK. Proof height ${snapshot.proofHeight}.`;
       activityList.replaceChildren(...snapshot.records.map(renderShieldedActivity));
       if (snapshot.records.length === 0) {
         const empty = document.createElement('p');
@@ -781,7 +840,8 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       resultsDescription.textContent = snapshot.address;
       ledgerTitle.textContent = 'Transaction ledger';
       ledgerOrder.textContent = `Newest ${snapshot.transactions.length.toLocaleString()} of ${snapshot.transactionCount.toLocaleString()}`;
-      resultHelp.textContent = 'Core totals come from the Dash-specific DashScan index after its synchronization status and latest indexed block are checked. “Total sent” is the sum of UTXO inputs spent from this address, while “total received” includes outputs returning as change. Each transaction therefore also shows its net effect on the queried address.';
+      resultHelp.textContent =
+        'Core totals come from the Dash-specific DashScan index after its synchronization status and latest indexed block are checked. “Total sent” is the sum of UTXO inputs spent from this address, while “total received” includes outputs returning as change. Each transaction therefore also shows its net effect on the queried address.';
       summary.replaceChildren(
         stat('Current balance', formatDashDuffs(snapshot.balanceDuffs), '◎', true),
         stat('Total received outputs', formatDashDuffs(snapshot.totalReceivedDuffs), '↓'),
@@ -790,9 +850,10 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         stat('Balance vs. confirmed flow', formatDashDuffs(snapshot.unconfirmedDuffs, true), '◌'),
         stat('Transactions loaded', snapshot.transactions.length.toLocaleString(), '◇'),
       );
-      completeness.textContent = snapshot.transactions.length < snapshot.transactionCount
-        ? `Totals cover the full address history. The ledger shows the newest ${snapshot.transactions.length.toLocaleString()} transactions because the display limit is ${snapshot.historyLimit.toLocaleString()}.`
-        : 'The complete transaction list reported for this address is displayed.';
+      completeness.textContent =
+        snapshot.transactions.length < snapshot.transactionCount
+          ? `Totals cover the full address history. The ledger shows the newest ${snapshot.transactions.length.toLocaleString()} transactions because the display limit is ${snapshot.historyLimit.toLocaleString()}.`
+          : 'The complete transaction list reported for this address is displayed.';
       activityList.replaceChildren(...snapshot.transactions.map(renderCoreTransaction));
       if (snapshot.transactions.length === 0) {
         const empty = document.createElement('p');
@@ -804,12 +865,14 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     renderPlatform(snapshot: PlatformAddressSnapshot, history: PlatformAddressHistorySnapshot): void {
       results.hidden = false;
       resultsHeading.textContent = 'Dash Platform address state';
-      resultsDescription.textContent = history.base58Address === null
-        ? snapshot.address
-        : `${snapshot.address} · legacy alias ${history.base58Address}`;
+      resultsDescription.textContent =
+        history.base58Address === null
+          ? snapshot.address
+          : `${snapshot.address} · legacy alias ${history.base58Address}`;
       ledgerTitle.textContent = 'Platform transition ledger';
       ledgerOrder.textContent = `Newest ${history.transitions.length.toLocaleString()} of ${history.totalTransitions.toLocaleString()}`;
-      resultHelp.textContent = 'Current balance and nonce come from proof-verified Platform DAPI. Lifetime totals and the address-indexed transition list come from the synchronized Dash Platform Explorer. Explorer does not expose the amount attributable to this address on each individual transition, so per-transition amounts are not invented.';
+      resultHelp.textContent =
+        'Current balance and nonce come from proof-verified Platform DAPI. Lifetime totals and the address-indexed transition list come from the synchronized Dash Platform Explorer. Explorer does not expose the amount attributable to this address on each individual transition, so per-transition amounts are not invented.';
       summary.replaceChildren(
         stat('Current balance', formatPlatformCredits(snapshot.balanceCredits), '◎', true),
         stat('Lifetime incoming', formatPlatformCredits(history.totalIncomingCredits), '↓'),
@@ -818,8 +881,8 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         stat('Outgoing address nonce', snapshot.nonce.toLocaleString(), '↗'),
         stat('Verified Platform height', snapshot.proofHeight.toLocaleString(), '✓'),
       );
-      const agrees = snapshot.balanceCredits === history.explorerBalanceCredits
-        && snapshot.nonce === BigInt(history.explorerNonce);
+      const agrees =
+        snapshot.balanceCredits === history.explorerBalanceCredits && snapshot.nonce === BigInt(history.explorerNonce);
       completeness.classList.toggle('viewer-completeness-warning', !agrees);
       const proofText = snapshot.exists
         ? `Address state proof verified at Platform height ${snapshot.proofHeight}; protocol ${snapshot.protocolVersion}; Core ChainLocked height ${snapshot.coreChainLockedHeight}.`
@@ -836,23 +899,22 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         activityList.append(empty);
       }
     },
-    renderIdentity(
-      snapshot: PlatformIdentityLookupSnapshot,
-      histories: PlatformIdentityHistoryResult[],
-    ): void {
+    renderIdentity(snapshot: PlatformIdentityLookupSnapshot, histories: PlatformIdentityHistoryResult[]): void {
       results.hidden = false;
       resultsHeading.textContent = 'Dash Platform Identity';
-      resultsDescription.textContent = snapshot.identities.length === 0
-        ? `${snapshot.inputLabel} · no registered Identity found`
-        : 'Proof-verified state and indexed history';
+      resultsDescription.textContent =
+        snapshot.identities.length === 0
+          ? `${snapshot.inputLabel} · no registered Identity found`
+          : 'Proof-verified state and indexed history';
       ledgerTitle.textContent = 'Identity details';
       ledgerOrder.textContent = `${snapshot.identities.length.toLocaleString()} proof-verified result(s)`;
-      resultHelp.textContent = 'Use the local tabs to switch between overview and names, registered keys, unified activity, documents, contracts, withdrawals, and tokens without making another network request. Identity state, nonce, keys, key roles, key hashes, and DPNS names come from proof-verified DAPI queries. Explorer timestamps and history remain auxiliary indexed data.';
+      resultHelp.textContent =
+        'Use the local tabs to switch between overview and names, registered keys, unified activity, documents, contracts, withdrawals, and tokens without making another network request. Identity state, nonce, keys, key roles, key hashes, and DPNS names come from proof-verified DAPI queries. Explorer timestamps and history remain auxiliary indexed data.';
       const allKeys = snapshot.identities.flatMap(({ publicKeys }) => publicKeys);
       const totalBalance = snapshot.identities.reduce((total, { balanceCredits }) => total + balanceCredits, 0n);
       const verifiedNames = snapshot.identities.reduce((total, { dpnsNames }) => total + dpnsNames.length, 0);
       const matchedKeys = allKeys.filter(({ matchesLookup }) => matchesLookup).length;
-      const proofHeight = snapshot.proofs.reduce((highest, { height }) => height > highest ? height : highest, 0n);
+      const proofHeight = snapshot.proofs.reduce((highest, { height }) => (height > highest ? height : highest), 0n);
       summary.replaceChildren(
         stat('Identities found', snapshot.identities.length.toLocaleString(), '◇', true),
         stat('Combined current balance', formatPlatformCredits(totalBalance), '◎'),
@@ -866,34 +928,37 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       const disagreements = histories.filter(({ identifier, history }) => {
         if (history === null) return false;
         const identity = snapshot.identities.find((item) => item.identifier === identifier);
-        return identity !== undefined && (
-          identity.balanceCredits !== history.explorerBalanceCredits
-          || identity.revision !== history.explorerRevision
-          || (identity.nonce !== null && history.explorerNonce !== null && identity.nonce !== history.explorerNonce)
+        return (
+          identity !== undefined &&
+          (identity.balanceCredits !== history.explorerBalanceCredits ||
+            identity.revision !== history.explorerRevision ||
+            (identity.nonce !== null && history.explorerNonce !== null && identity.nonce !== history.explorerNonce))
         );
       });
       completeness.classList.toggle(
         'viewer-completeness-warning',
         failedHistories.length > 0 || disagreements.length > 0 || historyWarnings.length > 0,
       );
-      const hashText = snapshot.publicKeyHashHex === null
-        ? ''
-        : ` Lookup registered-public-key HASH160 ${snapshot.publicKeyHashHex}.`;
-      const nameText = snapshot.resolvedDpnsName === null
-        ? ''
-        : snapshot.resolvedDpnsDocumentId === null
-          ? ` DPNS ${snapshot.resolvedDpnsName} resolved and reverse-confirmed by proof.`
-          : ` DPNS ${snapshot.resolvedDpnsName} resolved with proof document ${snapshot.resolvedDpnsDocumentId}.`;
-      const transactionText = snapshot.resolvedRegistrationTransactionHash === null
-        ? ''
-        : ` Registration transition ${snapshot.resolvedRegistrationTransactionHash} was decoded locally and its Identity owner was proof-verified.`;
-      completeness.textContent = snapshot.identities.length === 0
-        ? `No matching registered Identity was present in the proof-verified state.${hashText}${nameText}${transactionText}`
-        : failedHistories.length > 0
-          ? `DAPI verified ${snapshot.identities.length.toLocaleString()} Identity result(s). Indexed history failed for ${failedHistories.length.toLocaleString()} result(s); proof-verified state remains authoritative.${hashText}${nameText}${transactionText}`
-          : disagreements.length > 0
-            ? `DAPI verified ${snapshot.identities.length.toLocaleString()} Identity result(s). WARNING: ${disagreements.length.toLocaleString()} Explorer snapshot(s) disagree with current proof values; DAPI values take precedence.${hashText}${nameText}${transactionText}`
-            : `DAPI verified ${snapshot.identities.length.toLocaleString()} Identity result(s), and synchronized Explorer balance/revision/nonce values agree where available.${hashText}${nameText}${transactionText}`;
+      const hashText =
+        snapshot.publicKeyHashHex === null ? '' : ` Lookup registered-public-key HASH160 ${snapshot.publicKeyHashHex}.`;
+      const nameText =
+        snapshot.resolvedDpnsName === null
+          ? ''
+          : snapshot.resolvedDpnsDocumentId === null
+            ? ` DPNS ${snapshot.resolvedDpnsName} resolved and reverse-confirmed by proof.`
+            : ` DPNS ${snapshot.resolvedDpnsName} resolved with proof document ${snapshot.resolvedDpnsDocumentId}.`;
+      const transactionText =
+        snapshot.resolvedRegistrationTransactionHash === null
+          ? ''
+          : ` Registration transition ${snapshot.resolvedRegistrationTransactionHash} was decoded locally and its Identity owner was proof-verified.`;
+      completeness.textContent =
+        snapshot.identities.length === 0
+          ? `No matching registered Identity was present in the proof-verified state.${hashText}${nameText}${transactionText}`
+          : failedHistories.length > 0
+            ? `DAPI verified ${snapshot.identities.length.toLocaleString()} Identity result(s). Indexed history failed for ${failedHistories.length.toLocaleString()} result(s); proof-verified state remains authoritative.${hashText}${nameText}${transactionText}`
+            : disagreements.length > 0
+              ? `DAPI verified ${snapshot.identities.length.toLocaleString()} Identity result(s). WARNING: ${disagreements.length.toLocaleString()} Explorer snapshot(s) disagree with current proof values; DAPI values take precedence.${hashText}${nameText}${transactionText}`
+              : `DAPI verified ${snapshot.identities.length.toLocaleString()} Identity result(s), and synchronized Explorer balance/revision/nonce values agree where available.${hashText}${nameText}${transactionText}`;
       if (historyWarnings.length > 0) completeness.textContent += ` ${[...new Set(historyWarnings)].join(' ')}`;
       activityList.replaceChildren(
         ...snapshot.identities.flatMap((identity) => [
@@ -1003,9 +1068,10 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     },
     showCancellationRequested(mode: ViewerMode): void {
       cancelButton.disabled = true;
-      statusBox.textContent = mode === 'shielded' && detectionMode === 'advanced'
-        ? 'Cancellation requested; waiting for the current verified DAPI page…'
-        : 'Cancellation requested; waiting for the current network operation…';
+      statusBox.textContent =
+        mode === 'shielded' && detectionMode === 'advanced'
+          ? 'Cancellation requested; waiting for the current verified DAPI page…'
+          : 'Cancellation requested; waiting for the current network operation…';
       statusBox.hidden = false;
     },
     toggleViewingKeyReveal(mode: ViewerMode): void {
@@ -1047,7 +1113,8 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       diagnosticProof.textContent = '—';
       diagnosticRemoteTime.textContent = '—';
       diagnosticTiming.textContent = '—';
-      diagnosticDetail.textContent = 'Enter an input and start a query. Failures are reported at the exact stage that stopped.';
+      diagnosticDetail.textContent =
+        'Enter an input and start a query. Failures are reported at the exact stage that stopped.';
       this.updateInputMode(mode);
     },
     setViewerMode(mode: ViewerMode): void {
@@ -1073,15 +1140,27 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     updateInputMode(mode: ViewerMode): void {
       const activeInput = queryMode === 'batch' ? batchInput.value : viewingKeyInput.value;
       const trimmed = activeInput.trim();
-      const batchCount = queryMode === 'batch'
-        ? new Set(batchInput.value.replaceAll('\r', '').split('\n').map((line) => line.trim()).filter(Boolean)).size
-        : 1;
+      const batchCount =
+        queryMode === 'batch'
+          ? new Set(
+              batchInput.value
+                .replaceAll('\r', '')
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean),
+            ).size
+          : 1;
       const length = trimmed.replace(/^0x/iu, '').replace(/\s+/gu, '').length;
       const outgoingMode = keyCapabilityInput.value === 'outgoing';
       if (detectionMode === 'auto') {
-        const values = queryMode === 'batch'
-          ? batchInput.value.replaceAll('\r', '').split('\n').map((line) => line.trim()).filter(Boolean)
-          : [trimmed];
+        const values =
+          queryMode === 'batch'
+            ? batchInput.value
+                .replaceAll('\r', '')
+                .split('\n')
+                .map((line) => line.trim())
+                .filter(Boolean)
+            : [trimmed];
         const containsOrchard = values.some(looksLikeAutoOrchardInput);
         privacyChip.lastChild!.textContent = containsOrchard
           ? ' Auto detection · viewing keys stay local'
@@ -1090,9 +1169,8 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         historyField.hidden = false;
         revealButton.hidden = queryMode !== 'single' || !containsOrchard;
         revealBatchButton.hidden = queryMode !== 'batch' || !containsOrchard;
-        viewingKeyInput.type = containsOrchard && revealButton.getAttribute('aria-pressed') !== 'true'
-          ? 'password'
-          : 'text';
+        viewingKeyInput.type =
+          containsOrchard && revealButton.getAttribute('aria-pressed') !== 'true' ? 'password' : 'text';
         batchInput.classList.toggle(
           'concealed',
           containsOrchard && revealBatchButton.getAttribute('aria-pressed') !== 'true',
@@ -1100,15 +1178,18 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         viewingKeyInput.placeholder = 'Core, Platform, Identity, or Orchard viewing key';
         batchInput.placeholder = 'One Core, Platform, Identity, or Orchard input per line';
         inputLabel.replaceChildren(document.createTextNode('Any supported Dash lookup '), keyMode);
-        keyMode.textContent = queryMode === 'batch'
-          ? `${batchCount.toLocaleString()} input${batchCount === 1 ? '' : 's'} · mixed types allowed`
-          : containsOrchard ? 'Orchard viewing key · local scan' : 'Auto detect';
-        inputHelp.textContent = queryMode === 'batch'
-          ? 'Enter one value per line. Core, Platform, Identity, and Orchard inputs may be mixed. Detection happens locally before networking; Orchard pages are fetched once for every detected viewing key.'
-          : 'The type is detected locally before any request. Use Advanced to force a type, or prefixes such as core:, platform:, identity:, orchard-fvk:, orchard-ivk:, and orchard-ovk: for ambiguous values.';
-        scanButtonLabel.textContent = queryMode === 'batch'
-          ? 'Detect & load mixed batch'
-          : 'Detect type & load activity';
+        keyMode.textContent =
+          queryMode === 'batch'
+            ? `${batchCount.toLocaleString()} input${batchCount === 1 ? '' : 's'} · mixed types allowed`
+            : containsOrchard
+              ? 'Orchard viewing key · local scan'
+              : 'Auto detect';
+        inputHelp.textContent =
+          queryMode === 'batch'
+            ? 'Enter one value per line. Core, Platform, Identity, and Orchard inputs may be mixed. Detection happens locally before networking; Orchard pages are fetched once for every detected viewing key.'
+            : 'The type is detected locally before any request. Use Advanced to force a type, or prefixes such as core:, platform:, identity:, orchard-fvk:, orchard-ivk:, and orchard-ovk: for ambiguous values.';
+        scanButtonLabel.textContent =
+          queryMode === 'batch' ? 'Detect & load mixed batch' : 'Detect type & load activity';
         diagnosticMode.textContent = `auto · ${networkInput.value}`;
         return;
       }
@@ -1127,17 +1208,21 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         viewingKeyInput.placeholder = outgoingMode
           ? 'Paste OVK explicitly labeled Outgoing Viewing Key (64 hex)'
           : 'Paste viewing bundle, FVK (192), or IVK (128 hex)';
-        batchInput.placeholder = outgoingMode
-          ? 'One 64-hex OVK per line'
-          : 'One viewing bundle, FVK, or IVK per line';
+        batchInput.placeholder = outgoingMode ? 'One 64-hex OVK per line' : 'One viewing bundle, FVK, or IVK per line';
         batchInput.classList.toggle('concealed', revealBatchButton.getAttribute('aria-pressed') !== 'true');
         inputLabel.replaceChildren(document.createTextNode('Raw Orchard Viewing Key '), keyMode);
         inputHelp.replaceChildren(
-          Object.assign(document.createElement('strong'), { textContent: '96-byte Full Viewing Key (FVK) is recommended: ' }),
-          document.createTextNode(`it finds received and sent activity, derives note nullifiers, and identifies spent notes. IVK shows received notes only; OVK shows sent outputs only.${queryMode === 'batch' ? ' Enter one key or one-line viewing bundle per line; each verified pool page is reused across the batch.' : ''}`),
+          Object.assign(document.createElement('strong'), {
+            textContent: '96-byte Full Viewing Key (FVK) is recommended: ',
+          }),
+          document.createTextNode(
+            `it finds received and sent activity, derives note nullifiers, and identifies spent notes. IVK shows received notes only; OVK shows sent outputs only.${queryMode === 'batch' ? ' Enter one key or one-line viewing bundle per line; each verified pool page is reused across the batch.' : ''}`,
+          ),
         );
-        scanButtonLabel.textContent = queryMode === 'batch' ? 'Scan batch across shielded pool' : 'Scan complete shielded pool';
-        if (queryMode === 'batch') keyMode.textContent = `${batchCount.toLocaleString()} viewing key${batchCount === 1 ? '' : 's'}`;
+        scanButtonLabel.textContent =
+          queryMode === 'batch' ? 'Scan batch across shielded pool' : 'Scan complete shielded pool';
+        if (queryMode === 'batch')
+          keyMode.textContent = `${batchCount.toLocaleString()} viewing key${batchCount === 1 ? '' : 's'}`;
         else if (!outgoingMode && trimmed.startsWith('{')) keyMode.textContent = 'Viewing bundle · FVK';
         else if (outgoingMode && length === 64) keyMode.textContent = 'OVK · outgoing only';
         else if (outgoingMode) keyMode.textContent = 'Explicit OVK mode';
@@ -1152,12 +1237,15 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         revealButton.hidden = true;
         revealBatchButton.hidden = true;
         viewingKeyInput.type = 'text';
-        viewingKeyInput.placeholder = networkInput.value === 'mainnet' ? 'Paste X… or 7… Dash Core address' : 'Paste y… or 8… testnet address';
-        batchInput.placeholder = networkInput.value === 'mainnet'
-          ? 'One X… or 7… Dash Core address per line'
-          : 'One y… or 8… testnet address per line';
+        viewingKeyInput.placeholder =
+          networkInput.value === 'mainnet' ? 'Paste X… or 7… Dash Core address' : 'Paste y… or 8… testnet address';
+        batchInput.placeholder =
+          networkInput.value === 'mainnet'
+            ? 'One X… or 7… Dash Core address per line'
+            : 'One y… or 8… testnet address per line';
         inputLabel.replaceChildren(document.createTextNode('Dash Core public address '), keyMode);
-        keyMode.textContent = queryMode === 'batch' ? `${batchCount.toLocaleString()} public addresses` : 'Public L1 lookup';
+        keyMode.textContent =
+          queryMode === 'batch' ? `${batchCount.toLocaleString()} public addresses` : 'Public L1 lookup';
         inputHelp.textContent = `Queries the Dash-specific DashScan index for Mainnet or Testnet. Its synchronization status and latest indexed block are checked first. ${queryMode === 'batch' ? 'Enter one address per line. ' : ''}Public addresses are sent to DashScan; no private or viewing key is used.`;
         scanButtonLabel.textContent = queryMode === 'batch' ? 'Load Core address batch' : 'Load Core address activity';
       } else if (mode === 'platform') {
@@ -1167,14 +1255,18 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         revealButton.hidden = true;
         revealBatchButton.hidden = true;
         viewingKeyInput.type = 'text';
-        viewingKeyInput.placeholder = networkInput.value === 'mainnet' ? 'Paste dash1k… Platform address' : 'Paste tdash1k… Platform address';
-        batchInput.placeholder = networkInput.value === 'mainnet'
-          ? 'One dash1k… Platform address per line'
-          : 'One tdash1k… Platform address per line';
+        viewingKeyInput.placeholder =
+          networkInput.value === 'mainnet' ? 'Paste dash1k… Platform address' : 'Paste tdash1k… Platform address';
+        batchInput.placeholder =
+          networkInput.value === 'mainnet'
+            ? 'One dash1k… Platform address per line'
+            : 'One tdash1k… Platform address per line';
         inputLabel.replaceChildren(document.createTextNode('Dash Platform payment address '), keyMode);
-        keyMode.textContent = queryMode === 'batch' ? `${batchCount.toLocaleString()} Platform addresses` : 'DIP18 · proof verified';
+        keyMode.textContent =
+          queryMode === 'batch' ? `${batchCount.toLocaleString()} Platform addresses` : 'DIP18 · proof verified';
         inputHelp.textContent = `Verifies current balance and outgoing nonce with a GroveDB proof, then loads synchronized address totals and transitions from Dash Platform Explorer. ${queryMode === 'batch' ? 'Enter one address per line. ' : ''}Public addresses are sent to both network services.`;
-        scanButtonLabel.textContent = queryMode === 'batch' ? 'Verify Platform address batch' : 'Verify state & load Platform history';
+        scanButtonLabel.textContent =
+          queryMode === 'batch' ? 'Verify Platform address batch' : 'Verify state & load Platform history';
       } else {
         privacyChip.lastChild!.textContent = ' Public Identity proof + history';
         capabilityControls.hidden = true;
@@ -1187,14 +1279,18 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
         inputLabel.replaceChildren(document.createTextNode('Dash Platform Identity lookup '), keyMode);
         if (queryMode === 'batch') keyMode.textContent = `${batchCount.toLocaleString()} Identity lookups`;
         else if (/^idhex:/iu.test(trimmed)) keyMode.textContent = 'Hex Identity ID · explicit public input';
-        else if (/^(?:tx|transition):/iu.test(trimmed)) keyMode.textContent = 'Registration transition · local owner verification';
-        else if (/^(?:0x)?[0-9a-f]{40}$/iu.test(trimmed)) keyMode.textContent = 'Registered public-key HASH160 · auto-detected';
-        else if (/^(?:0x)?(?:02|03)[0-9a-f]{64}$/iu.test(trimmed)) keyMode.textContent = 'ECDSA public key · local HASH160';
+        else if (/^(?:tx|transition):/iu.test(trimmed))
+          keyMode.textContent = 'Registration transition · local owner verification';
+        else if (/^(?:0x)?[0-9a-f]{40}$/iu.test(trimmed))
+          keyMode.textContent = 'Registered public-key HASH160 · auto-detected';
+        else if (/^(?:0x)?(?:02|03)[0-9a-f]{64}$/iu.test(trimmed))
+          keyMode.textContent = 'ECDSA public key · local HASH160';
         else if (/^(?:0x)?[0-9a-f]{96}$/iu.test(trimmed)) keyMode.textContent = 'BLS public key · local HASH160';
         else if (/\.dash$/iu.test(trimmed)) keyMode.textContent = 'DPNS name · proof resolved';
         else keyMode.textContent = 'Identity ID / public key';
         inputHelp.textContent = `Accepts ${queryMode === 'batch' ? 'one value per line: ' : ''}a public Base58 Identity ID, idhex:<64-hex Identity ID>, tx:<64-hex registration transition>, the 40-hex HASH160 fingerprint of a registered public key, a compressed ECDSA/BLS public key, or a DPNS name with or without .dash. Bare 64-hex input remains blocked because it could be a private key.`;
-        scanButtonLabel.textContent = queryMode === 'batch' ? 'Verify Identity batch & load activity' : 'Verify Identity & load activity';
+        scanButtonLabel.textContent =
+          queryMode === 'batch' ? 'Verify Identity batch & load activity' : 'Verify Identity & load activity';
       }
       diagnosticMode.textContent = `${mode} · ${networkInput.value}`;
     },
@@ -1203,7 +1299,8 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       selfTestStatus.classList.add('passed');
       selfTestStatus.textContent = 'Cryptographic self-test passed';
       selfTestDetails.textContent = `${checks.length + 1} runtime checks passed: ${checks.join(' · ')} · Blob Worker execution (${blobWorkerDurationMs.toLocaleString()} ms). Queries are enabled.`;
-      runtimeStatus.textContent = 'Core, Platform, Identity & Orchard network reads · Orchard key processing local · Blob Worker verified';
+      runtimeStatus.textContent =
+        'Core, Platform, Identity & Orchard network reads · Orchard key processing local · Blob Worker verified';
     },
     showSelfTestFailed(message: string): void {
       selfTestStatus.classList.remove('checking', 'passed');

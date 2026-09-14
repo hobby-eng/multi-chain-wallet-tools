@@ -9,18 +9,19 @@ const localRustupHome = resolve(root, '.tools/rustup');
 const fallbackHome = process.env.HOME;
 const effectiveCargoHome = existsSync(localCargoHome)
   ? localCargoHome
-  : process.env.CARGO_HOME ?? (fallbackHome === undefined ? undefined : resolve(fallbackHome, '.cargo'));
+  : (process.env.CARGO_HOME ?? (fallbackHome === undefined ? undefined : resolve(fallbackHome, '.cargo')));
 const effectiveRustupHome = existsSync(localRustupHome)
   ? localRustupHome
-  : process.env.RUSTUP_HOME ?? (fallbackHome === undefined ? undefined : resolve(fallbackHome, '.rustup'));
-const cargo = existsSync(resolve(localCargoHome, 'bin/cargo'))
-  ? resolve(localCargoHome, 'bin/cargo')
-  : 'cargo';
+  : (process.env.RUSTUP_HOME ?? (fallbackHome === undefined ? undefined : resolve(fallbackHome, '.rustup')));
+const cargo = existsSync(resolve(localCargoHome, 'bin/cargo')) ? resolve(localCargoHome, 'bin/cargo') : 'cargo';
 const wasmBindgen = existsSync(resolve(localCargoHome, 'bin/wasm-bindgen'))
   ? resolve(localCargoHome, 'bin/wasm-bindgen')
   : 'wasm-bindgen';
 const manifest = resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.toml');
-const compiled = resolve(root, 'packages/dash-shielded-wasm/rust/target/wasm32-unknown-unknown/release/dash_shielded_wasm.wasm');
+const compiled = resolve(
+  root,
+  'packages/dash-shielded-wasm/rust/target/wasm32-unknown-unknown/release/dash_shielded_wasm.wasm',
+);
 const generated = resolve(root, 'packages/dash-shielded-wasm/generated');
 const environment = {
   ...process.env,
@@ -49,7 +50,8 @@ function version(command, expected) {
 }
 
 const lockfile = readFileSync(resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.lock'), 'utf8');
-const expectedOrchard = 'git+https://github.com/dashpay/orchard.git?tag=dashified-0.14.1#38ac9c19a2df7bf3eeadc22ab23053e8fd538828';
+const expectedOrchard =
+  'git+https://github.com/dashpay/orchard.git?tag=dashified-0.14.1#38ac9c19a2df7bf3eeadc22ab23053e8fd538828';
 if (!lockfile.includes(expectedOrchard)) {
   throw new Error('Cargo.lock does not contain the audited Dash Orchard release and commit.');
 }
@@ -77,23 +79,23 @@ function removeGeneratedSection(source, startMarker, endMarker) {
   return source.slice(0, start) + source.slice(end);
 }
 const asyncExport = '\nexport { initSync, __wbg_init as default };';
-const withoutLoader = removeGeneratedSection(
-  fullGlue,
-  '\nasync function __wbg_load',
-  '\nfunction initSync',
-);
-const offlineGlue = removeGeneratedSection(
-  withoutLoader,
-  '\nasync function __wbg_init',
+const withoutLoader = removeGeneratedSection(fullGlue, '\nasync function __wbg_load', '\nfunction initSync');
+const offlineGlue = removeGeneratedSection(withoutLoader, '\nasync function __wbg_init', asyncExport).replace(
   asyncExport,
-).replace(asyncExport, '\nexport { initSync };');
-const normalizedGlue = offlineGlue.replace('__wbg_init.__wbindgen_wasm_module = module;', 'initSync.__wbindgen_wasm_module = module;');
+  '\nexport { initSync };',
+);
+const normalizedGlue = offlineGlue.replace(
+  '__wbg_init.__wbindgen_wasm_module = module;',
+  'initSync.__wbindgen_wasm_module = module;',
+);
 if (normalizedGlue === fullGlue || /\bfetch\s*\(|import\.meta|__wbg_load|\b__wbg_init\b/u.test(normalizedGlue)) {
   throw new Error('Failed to reduce wasm-bindgen glue to its synchronous offline-only API.');
 }
 writeFileSync(gluePath, normalizedGlue);
 const declarationsPath = resolve(generated, 'dash_shielded_wasm.d.ts');
-writeFileSync(declarationsPath, `/* Generated offline-only wasm-bindgen declarations. */
+writeFileSync(
+  declarationsPath,
+  `/* Generated offline-only wasm-bindgen declarations. */
 export function derive_shielded_json(
   seed: Uint8Array,
   coin_type: number,
@@ -149,5 +151,6 @@ export interface InitOutput {
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;
 export function initSync(module: { module: SyncInitInput } | SyncInitInput): InitOutput;
-`);
+`,
+);
 console.log('Generated pinned Dash Orchard browser WASM.');

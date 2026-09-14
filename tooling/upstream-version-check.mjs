@@ -3,12 +3,7 @@ import { resolve } from 'node:path';
 
 export const WASM_BINDGEN_CRATE_URL = 'https://crates.io/api/v1/crates/wasm-bindgen';
 const NOTE_ENCRYPTION_REPOSITORY_URL = 'https://api.github.com/repos/dashpay/zcash_note_encryption';
-const NOTE_ENCRYPTION_REVIEWED_PATHS = [
-  'src/',
-  'Cargo.toml',
-  'Cargo.lock',
-  'build.rs',
-];
+const NOTE_ENCRYPTION_REVIEWED_PATHS = ['src/', 'Cargo.toml', 'Cargo.lock', 'build.rs'];
 
 function capture(text, pattern, label) {
   const value = pattern.exec(text)?.[1];
@@ -46,7 +41,9 @@ async function fetchJson(fetchImpl, url) {
   try {
     return JSON.parse(await fetchText(fetchImpl, url));
   } catch (cause) {
-    throw new Error(`Cannot parse upstream JSON from ${url}: ${cause instanceof Error ? cause.message : String(cause)}`);
+    throw new Error(
+      `Cannot parse upstream JSON from ${url}: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
   }
 }
 
@@ -63,12 +60,13 @@ export async function fetchWasmBindgenMaxStableVersion(fetchImpl) {
 export function noteEncryptionChangeRequiresReview(compare) {
   if (compare.status !== 'ahead' || !Array.isArray(compare.files)) return true;
   if (compare.files.length >= 300) return true;
-  return compare.files.some(({ filename }) => (
-    typeof filename !== 'string'
-    || NOTE_ENCRYPTION_REVIEWED_PATHS.some((path) => (
-      path.endsWith('/') ? filename.startsWith(path) : filename === path
-    ))
-  ));
+  return compare.files.some(
+    ({ filename }) =>
+      typeof filename !== 'string' ||
+      NOTE_ENCRYPTION_REVIEWED_PATHS.some((path) =>
+        path.endsWith('/') ? filename.startsWith(path) : filename === path,
+      ),
+  );
 }
 
 async function inspectNoteEncryption(fetchImpl, pinnedRevision) {
@@ -175,9 +173,19 @@ export async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     { label: 'Rust stable', current: rust, latest: latestRust, matches: rust === latestRust },
     { label: 'rustup', current: rustup, latest: latestRustupName, matches: rustup === latestRustupName },
     { label: 'Dash Evo SDK', current: evo, latest: latestEvo, matches: evo === latestEvo },
-    { label: 'wasm-bindgen', current: wasmBindgen, latest: latestWasmBindgen, matches: wasmBindgen === latestWasmBindgen },
+    {
+      label: 'wasm-bindgen',
+      current: wasmBindgen,
+      latest: latestWasmBindgen,
+      matches: wasmBindgen === latestWasmBindgen,
+    },
     { label: 'Dash Orchard tag', current: orchard, latest: latestOrchardName, matches: orchard === latestOrchardName },
-    { label: 'Dash Orchard commit', current: orchardCommit, latest: latestOrchardCommit, matches: orchardCommit === latestOrchardCommit },
+    {
+      label: 'Dash Orchard commit',
+      current: orchardCommit,
+      latest: latestOrchardCommit,
+      matches: orchardCommit === latestOrchardCommit,
+    },
     {
       label: 'Dash note-encryption reviewed source',
       current: noteEncryptionCommit,
@@ -195,14 +203,15 @@ export function renderUpstreamVersionReport(checks) {
     '',
     '| Dependency | Pinned | Latest upstream | Status |',
     '| --- | --- | --- | --- |',
-    ...checks.map(({ label, current, latest, matches }) => (
-      `| ${label} | \`${current}\` | \`${latest}\` | ${matches ? 'current' : '**review required**'} |`
-    )),
+    ...checks.map(
+      ({ label, current, latest, matches }) =>
+        `| ${label} | \`${current}\` | \`${latest}\` | ${matches ? 'current' : '**review required**'} |`,
+    ),
     '',
-    'The `dashpay/zcash_note_encryption` row compares the pinned revision with the dedicated repository default-branch head. '
-      + 'A differing head triggers review only when the GitHub compare includes `src/`, `Cargo.toml`, `Cargo.lock`, or `build.rs`; '
-      + 'documentation and CI-only commits do not create a cryptographic update alert. A response at GitHub\'s 300-file limit fails closed '
-      + 'for review. This checker never updates cryptographic dependencies.',
+    'The `dashpay/zcash_note_encryption` row compares the pinned revision with the dedicated repository default-branch head. ' +
+      'A differing head triggers review only when the GitHub compare includes `src/`, `Cargo.toml`, `Cargo.lock`, or `build.rs`; ' +
+      "documentation and CI-only commits do not create a cryptographic update alert. A response at GitHub's 300-file limit fails closed " +
+      'for review. This checker never updates cryptographic dependencies.',
   ];
   const noteDetail = checks.find(({ label }) => label === 'Dash note-encryption reviewed source')?.detail;
   if (noteDetail !== undefined) lines.push('', `Note-encryption comparison: ${noteDetail}.`);
@@ -216,14 +225,16 @@ export async function runUpstreamVersionCheck(root, fetchImpl = fetch, output = 
     output.write(result.report);
     return result.updateRequired ? 1 : 0;
   } catch (cause) {
-    output.write([
-      '# Pinned upstream dependency checker failed',
-      '',
-      '**Infrastructure/parser failure — this is not an update-available signal.**',
-      '',
-      cause instanceof Error ? cause.message : String(cause),
-      '',
-    ].join('\n'));
+    output.write(
+      [
+        '# Pinned upstream dependency checker failed',
+        '',
+        '**Infrastructure/parser failure — this is not an update-available signal.**',
+        '',
+        cause instanceof Error ? cause.message : String(cause),
+        '',
+      ].join('\n'),
+    );
     return 2;
   }
 }

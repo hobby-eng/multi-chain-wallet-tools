@@ -94,8 +94,6 @@ for (const requiredId of [
   'download-watch-only',
   'download-selection',
   'watch-only-export',
-  'expected-address',
-  'search-address',
   'clear-all',
   'results',
   'result-branch-tabs',
@@ -139,7 +137,6 @@ const required = [
   'Also generate change addresses',
   'Receive addresses',
   'Change addresses',
-  'Find a known address',
   'Payment QR',
   'Encoded payload:',
   'aria-haspopup',
@@ -159,6 +156,9 @@ const required = [
   'ACCOUNT-SCOPED MATERIAL',
   'dashified-0.14.1',
 ];
+if (profile.id !== 'dash-community') {
+  required.push('expected-address', 'search-address');
+}
 for (const marker of required) {
   if (!html.includes(marker)) throw new Error(`Standalone artifact is missing required marker: ${marker}`);
 }
@@ -167,6 +167,21 @@ for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
 }
 if (profile.id === 'dash-community' && !html.includes('Dash master/account extended-key integrity')) {
   throw new Error('Dash Community artifact is missing its Dash-only extended-key startup vector.');
+}
+if (profile.id === 'dash-community') {
+  for (const marker of [
+    'Recover by address',
+    'Bitcoin address or addresses',
+    'expected-address',
+    'search-address',
+    '@ckd/recovery/address-targets',
+    '@ckd/recovery/multi-address-search',
+  ]) {
+    if (html.includes(marker))
+      throw new Error(`Dash Community artifact contains excluded Bitcoin address-search marker: ${marker}`);
+  }
+} else if (!html.includes('Recover by address')) {
+  throw new Error('Multi-Chain artifact is missing the address recovery panel.');
 }
 if (occurrences(html, 'Embedded dependency versions and licenses') !== 1) {
   throw new Error('Dependency versions must appear exactly once inside the Release passport.');
@@ -217,9 +232,11 @@ if (wasmCopies !== 1) throw new Error(`Expected exactly one embedded Orchard WAS
 const wordlistMarker = 'abandon\nability\nable\nabout\nabove\nabsent';
 const escapedWordlistMarker = 'abandon\\nability\\nable\\nabout\\nabove\\nabsent';
 const wordlistCopies = occurrences(html, wordlistMarker) + occurrences(html, escapedWordlistMarker);
-if (wordlistCopies !== 1) throw new Error(`Expected exactly one embedded BIP39 English wordlist; found ${wordlistCopies}.`);
-for (const deceptiveWipe of [".repeat(mnemonicLength)", ".repeat(passphraseLength)"]) {
-  if (html.includes(deceptiveWipe)) throw new Error('Artifact contains a misleading JavaScript string-overwrite pattern.');
+if (wordlistCopies !== 1)
+  throw new Error(`Expected exactly one embedded BIP39 English wordlist; found ${wordlistCopies}.`);
+for (const deceptiveWipe of ['.repeat(mnemonicLength)', '.repeat(passphraseLength)']) {
+  if (html.includes(deceptiveWipe))
+    throw new Error('Artifact contains a misleading JavaScript string-overwrite pattern.');
 }
 
 const actual = createHash('sha256').update(html).digest('hex');

@@ -44,7 +44,8 @@ function assertNoDuplicateIds(markup, label) {
 }
 
 const expectedOuterCspPrefix = "default-src 'none'; script-src ";
-const expectedOuterCspSuffix = " 'wasm-unsafe-eval'; style-src 'unsafe-inline'; connect-src https:; worker-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'";
+const expectedOuterCspSuffix =
+  " 'wasm-unsafe-eval'; style-src 'unsafe-inline'; connect-src https:; worker-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'";
 const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/u.exec(html)?.[1];
 if (csp === undefined || !csp.startsWith(expectedOuterCspPrefix) || !csp.endsWith(expectedOuterCspSuffix)) {
   throw new Error('Recovery shell CSP changed from the reviewed isolated-network policy.');
@@ -86,7 +87,13 @@ const iframe = /<iframe\b[^>]+id="recovery-secret-vault"[^>]*>/u.exec(shellTempl
 if (iframe === undefined || !/\bsandbox="allow-scripts"/u.test(iframe)) {
   throw new Error('Recovery Secret Vault must be sandboxed with scripts as its only sandbox capability.');
 }
-for (const forbidden of ['allow-downloads', 'allow-same-origin', 'allow-forms', 'allow-popups', 'allow-top-navigation']) {
+for (const forbidden of [
+  'allow-downloads',
+  'allow-same-origin',
+  'allow-forms',
+  'allow-popups',
+  'allow-top-navigation',
+]) {
   if (iframe.includes(forbidden)) throw new Error(`Recovery Secret Vault unexpectedly grants ${forbidden}.`);
 }
 
@@ -103,29 +110,78 @@ if (!/script-src __VAULT_SCRIPT_CSP__ 'wasm-unsafe-eval'/u.test(vaultCsp)) {
 if (html.includes('__VAULT_SCRIPT_CSP__') || html.includes('__SHELL_SCRIPT_CSP__') || html.includes('/*__INLINE_')) {
   throw new Error('Discovery Scanner artifact still contains an unexpanded build marker.');
 }
-if (!html.includes("connect-src 'none'")) throw new Error('Embedded Recovery Secret Vault CSP is missing from the artifact.');
+if (!html.includes("connect-src 'none'"))
+  throw new Error('Embedded Recovery Secret Vault CSP is missing from the artifact.');
 if (!html.includes('connect-src https:')) throw new Error('Recovery Network Worker shell has no HTTPS permission.');
 
 const vaultIds = assertNoDuplicateIds(vaultTemplate, 'Recovery Secret Vault template');
 for (const requiredId of [
-  'recovery-form', 'recovery-network', 'recovery-account',
-  'seed-source-tab', 'public-source-tab', 'seed-source-panel', 'public-input', 'seed-mode-tabs',
-  'watch-only-keys', 'watch-only-minimum', 'watch-only-detection', 'seed-coverage',
-  'single-mnemonic', 'single-passphrase', 'batch-mnemonics', 'batch-passphrases', 'batch-concurrency',
-  'reveal-recovery-input', 'scan-core', 'core-receive-count', 'core-change-count',
-  'scan-legacy-core', 'legacy-core-count', 'scan-coinjoin', 'coinjoin-external-count', 'coinjoin-internal-count',
-  'scan-identity-funding', 'identity-funding-count', 'identity-topup-identity-count', 'identity-topup-count',
-  'scan-provider-collateral', 'provider-collateral-count', 'coinjoin-path-preview', 'platform-address-count',
-  'identity-start-index', 'identity-gap-limit', 'identity-scan-limit', 'request-concurrency',
-  'include-used-zero-balance', 'scan-shielded', 'scan-estimate', 'start-recovery-scan',
-  'start-recovery-scan-label', 'cancel-recovery-scan', 'clear-recovery', 'recovery-progress',
-  'recovery-wallet-progress', 'recovery-results', 'recovery-result-tabs', 'recovery-result-list',
-  'export-recovery-csv', 'export-recovery-json', 'recovery-self-test', 'recovery-build-footer',
-  'recovery-crypto-self-test-status', 'recovery-crypto-self-test-details', 'recovery-build-version',
-  'recovery-build-date', 'recovery-runtime', 'recovery-build-fingerprint', 'recovery-artifact-checksum-file',
-  'recovery-build-edition', 'recovery-build-profile',
+  'recovery-form',
+  'recovery-network',
+  'recovery-account',
+  'seed-source-tab',
+  'public-source-tab',
+  'seed-source-panel',
+  'public-input',
+  'seed-mode-tabs',
+  'watch-only-keys',
+  'watch-only-minimum',
+  'watch-only-detection',
+  'seed-coverage',
+  'single-mnemonic',
+  'single-passphrase',
+  'batch-mnemonics',
+  'batch-passphrases',
+  'batch-concurrency',
+  'reveal-recovery-input',
+  'scan-core',
+  'core-receive-count',
+  'core-change-count',
+  'scan-legacy-core',
+  'legacy-core-count',
+  'scan-coinjoin',
+  'coinjoin-external-count',
+  'coinjoin-internal-count',
+  'scan-identity-funding',
+  'identity-funding-count',
+  'identity-topup-identity-count',
+  'identity-topup-count',
+  'scan-provider-collateral',
+  'provider-collateral-count',
+  'coinjoin-path-preview',
+  'platform-address-count',
+  'identity-start-index',
+  'identity-gap-limit',
+  'identity-scan-limit',
+  'request-concurrency',
+  'include-used-zero-balance',
+  'scan-shielded',
+  'scan-estimate',
+  'start-recovery-scan',
+  'start-recovery-scan-label',
+  'cancel-recovery-scan',
+  'clear-recovery',
+  'recovery-progress',
+  'recovery-wallet-progress',
+  'recovery-results',
+  'recovery-result-tabs',
+  'recovery-result-list',
+  'export-recovery-csv',
+  'export-recovery-json',
+  'recovery-self-test',
+  'recovery-build-footer',
+  'recovery-crypto-self-test-status',
+  'recovery-crypto-self-test-details',
+  'recovery-build-version',
+  'recovery-build-date',
+  'recovery-runtime',
+  'recovery-build-fingerprint',
+  'recovery-artifact-checksum-file',
+  'recovery-build-edition',
+  'recovery-build-profile',
 ]) {
-  if (!vaultIds.includes(requiredId)) throw new Error(`Recovery Secret Vault is missing required element #${requiredId}.`);
+  if (!vaultIds.includes(requiredId))
+    throw new Error(`Recovery Secret Vault is missing required element #${requiredId}.`);
 }
 if (profile.id === 'dash-community' && vaultIds.includes('recovery-coin')) {
   throw new Error('Dash Community Discovery Scanner artifact must omit the single-coin selector from its HTML.');
@@ -134,10 +190,15 @@ if (profile.id === 'multi-chain' && !vaultIds.includes('recovery-coin')) {
   throw new Error('Multi-Chain Discovery Scanner artifact is missing its coin selector.');
 }
 for (const id of [
-  'custom-path-options', 'scan-custom-path', 'custom-path-field',
-  'custom-path-template', 'custom-path-format', 'custom-path-count',
+  'custom-path-options',
+  'scan-custom-path',
+  'custom-path-field',
+  'custom-path-template',
+  'custom-path-format',
+  'custom-path-count',
 ]) {
-  if (!vaultIds.includes(id)) throw new Error(`Discovery Scanner artifact is missing extensible custom-path control #${id}.`);
+  if (!vaultIds.includes(id))
+    throw new Error(`Discovery Scanner artifact is missing extensible custom-path control #${id}.`);
 }
 for (const marker of ['Bitcoin wallet addresses', 'Ethereum EOA addresses']) {
   if (profile.id === 'multi-chain' && !html.includes(marker)) {
@@ -154,41 +215,83 @@ for (const marker of [
   'Minimum addresses',
   '{index}',
 ]) {
-  if (!html.includes(marker)) throw new Error(`Discovery Scanner artifact is missing its generic custom-path marker: ${marker}`);
+  if (!html.includes(marker))
+    throw new Error(`Discovery Scanner artifact is missing its generic custom-path marker: ${marker}`);
 }
 for (const match of vaultTemplate.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
   if (!vaultIds.includes(match[1])) throw new Error(`Recovery label references missing control #${match[1]}.`);
 }
 
 for (const marker of [
-  'Wallet Discovery Scanner', 'Opaque-origin Secret Vault', 'Vault network disabled by CSP',
+  'Wallet Discovery Scanner',
+  'Opaque-origin Secret Vault',
+  'Vault network disabled by CSP',
   'This utility has not been independently audited by a cryptography specialist.',
-  'Select the Dash components and address ranges you want to check.', 'Core receive minimum', 'Core change minimum', 'Platform minimum per receive/change chain',
-  'Identity empty-gap limit', 'Platform identities', 'Account-wide encrypted notes', 'spent or previously used resources with zero balance',
-  'CoinJoin', 'Legacy mobile per branch', 'Discovered Identity funding details', 'Identity-bound top-up identities',
-  'Masternode holdings minimum', 'Masternode holdings', 'Rare DashSync/dashj collateral addresses.',
-  'Scan components for this result', 'component-result-tab',
-  '20 addresses after the last used address', 'Self-test running', 'ALL RESULTS',
-  'STANDARD-WALLET HANDOFF', 'Run a new scan', 'bounded-memory page stream',
-  'Dash Mobile CoinJoin · DIP9', 'Separate mobile receive and change chains.',
-  'Identity registration funding', 'For identities found above, show the linked L1 asset-lock and funding inputs.',
-  'Legacy mobile Core', 'Older Dash Wallet for Android backups.',
-  'Dash Core', 'BIP44 receive and change addresses',
-  'Dash Mobile CoinJoin · DIP9 paths for the selected network', 'm/9\'/5\'/4\'/0\'/0/i',
-  'CoinJoin external minimum', 'CoinJoin internal minimum',
+  'Select the Dash components and address ranges you want to check.',
+  'Core receive minimum',
+  'Core change minimum',
+  'Platform minimum per receive/change chain',
+  'Identity empty-gap limit',
+  'Platform identities',
+  'Account-wide encrypted notes',
+  'spent or previously used resources with zero balance',
+  'CoinJoin',
+  'Legacy mobile per branch',
+  'Discovered Identity funding details',
+  'Identity-bound top-up identities',
+  'Masternode holdings minimum',
+  'Masternode holdings',
+  'Rare DashSync/dashj collateral addresses.',
+  'Scan components for this result',
+  'component-result-tab',
+  '20 addresses after the last used address',
+  'Self-test running',
+  'ALL RESULTS',
+  'STANDARD-WALLET HANDOFF',
+  'Run a new scan',
+  'bounded-memory page stream',
+  'Dash Mobile CoinJoin · DIP9',
+  'Separate mobile receive and change chains.',
+  'Identity registration funding',
+  'For identities found above, show the linked L1 asset-lock and funding inputs.',
+  'Legacy mobile Core',
+  'Older Dash Wallet for Android backups.',
+  'Dash Core',
+  'BIP44 receive and change addresses',
+  'Dash Mobile CoinJoin · DIP9 paths for the selected network',
+  "m/9'/5'/4'/0'/0/i",
+  'CoinJoin external minimum',
+  'CoinJoin internal minimum',
   'No funded Dash Mobile CoinJoin · DIP9 address was found in this section and scanned range.',
   'core.address-info',
-  'Release passport', 'Cryptographic self-test running', 'Embedded dependency versions and licenses:',
-  'Dash Identity mainnet / DIP13', 'Dash Identity testnet / DIP13',
-  'Wallet-wide located balances', 'Detailed results by recovery type', 'Identity credits',
-  'Lifetime self/change', 'Spent at pool position', 'section_lifetime_received_dash',
+  'Release passport',
+  'Cryptographic self-test running',
+  'Embedded dependency versions and licenses:',
+  'Dash Identity mainnet / DIP13',
+  'Dash Identity testnet / DIP13',
+  'Wallet-wide located balances',
+  'Detailed results by recovery type',
+  'Identity credits',
+  'Lifetime self/change',
+  'Spent at pool position',
+  'section_lifetime_received_dash',
   'No funded Dash Core L1 address was found in this section and scanned range.',
   'The Dash mark is an official brand asset used under CC BY 4.0.',
-  'wallet-discovery-report', 'Blocked ', 'Dash Platform DAPI', 'DashScan',
-  'recovery CSV report export', 'recovery JSON report export',
-  'isolated-network-worker-v1', 'core.address-info', 'core.transaction',
-  'platform.address-history', 'platform.identity-by-public-key-hash',
-  'platform.identity-history', 'shielded.page', 'utxo.addresses', 'evm.accounts',
+  'wallet-discovery-report',
+  'Blocked ',
+  'Dash Platform DAPI',
+  'DashScan',
+  'recovery CSV report export',
+  'recovery JSON report export',
+  'isolated-network-worker-v1',
+  'core.address-info',
+  'core.transaction',
+  'platform.address-history',
+  'platform.identity-by-public-key-hash',
+  'platform.identity-history',
+  'shielded.page',
+  'utxo.addresses',
+  'evm.accounts',
   'ckd-recovery-export-request-v1',
 ]) {
   const escapedMarker = marker.replaceAll('·', String.raw`\xB7`);
@@ -208,18 +311,20 @@ for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
 }
 const allFunctionConstructors = html.match(/(?:^|[^.\w])(?:new\s+)?Function\s*\(/gu) ?? [];
 if (
-  occurrences(html, 'new Function') !== 2
-  || allFunctionConstructors.length !== 3
-  || occurrences(html, 'Function(${o})') !== 1
-  || !html.includes('return import(\"node:zlib\")')
+  occurrences(html, 'new Function') !== 2 ||
+  allFunctionConstructors.length !== 3 ||
+  occurrences(html, 'Function(${o})') !== 1 ||
+  !html.includes('return import(\"node:zlib\")')
 ) {
   throw new Error('Discovery Scanner artifact changed from the two reviewed, CSP-blocked SDK dynamic-code glue paths.');
 }
 if (occurrences(html, 'Embedded dependency versions and licenses') !== 1) {
   throw new Error('Recovery dependency versions must appear exactly once inside the Release passport.');
 }
-if (html.includes('<span class="recovery-brand-mark">D</span>')) throw new Error('Recovery still contains the old homemade Dash letter mark.');
-if (html.includes('Spent / not spendable')) throw new Error('Recovery exposes spent Orchard notes in the default spendable-only presentation.');
+if (html.includes('<span class="recovery-brand-mark">D</span>'))
+  throw new Error('Recovery still contains the old homemade Dash letter mark.');
+if (html.includes('Spent / not spendable'))
+  throw new Error('Recovery exposes spent Orchard notes in the default spendable-only presentation.');
 
 for (const id of ['core-receive-count', 'core-change-count', 'platform-address-count']) {
   const tag = new RegExp(`<input[^>]+id="${id}"[^>]*>`, 'u').exec(vaultTemplate)?.[0];
@@ -228,18 +333,24 @@ for (const id of ['core-receive-count', 'core-change-count', 'platform-address-c
 }
 const startButtonTag = /<button[^>]+id="start-recovery-scan"[^>]*>/u.exec(vaultTemplate)?.[0];
 if (startButtonTag === undefined || !/\btype="button"/u.test(startButtonTag)) {
-  throw new Error('Recovery start control must be a non-submit button because the Secret Vault intentionally lacks allow-forms.');
+  throw new Error(
+    'Recovery start control must be a non-submit button because the Secret Vault intentionally lacks allow-forms.',
+  );
 }
 for (const [pattern, label] of [
-  [/\blocalStorage\b/u, 'localStorage'], [/\bsessionStorage\b/u, 'sessionStorage'],
-  [/\bindexedDB\b/u, 'IndexedDB'], [/\bdocument\.cookie\b/u, 'cookie access'],
+  [/\blocalStorage\b/u, 'localStorage'],
+  [/\bsessionStorage\b/u, 'sessionStorage'],
+  [/\bindexedDB\b/u, 'IndexedDB'],
+  [/\bdocument\.cookie\b/u, 'cookie access'],
   [/\bdata-(?:copy-value|value)\s*=/iu, 'secret-bearing data attribute'],
-  [/sourceMappingURL/u, 'source map reference'], [/<script\b[^>]+src=/iu, 'external script'],
+  [/sourceMappingURL/u, 'source map reference'],
+  [/<script\b[^>]+src=/iu, 'external script'],
   [/<link\b[^>]+href=/iu, 'external stylesheet'],
 ]) {
   if (pattern.test(html)) throw new Error(`Discovery Scanner artifact contains forbidden ${label}.`);
 }
-if (!html.includes('AGFzbQ') && !html.includes('AGFzbQE')) throw new Error('Embedded WebAssembly was not found in the Discovery Scanner artifact.');
+if (!html.includes('AGFzbQ') && !html.includes('AGFzbQE'))
+  throw new Error('Embedded WebAssembly was not found in the Discovery Scanner artifact.');
 const expectedOrchardWasm = readFileSync(orchardWasmPath).toString('base64');
 if (occurrences(html, expectedOrchardWasm) !== 1) {
   throw new Error('Recovery does not embed exactly one byte-identical pinned Orchard WASM module.');
@@ -251,16 +362,24 @@ const vaultSources = allRecoverySources
   .map(({ text }) => text)
   .join('\n');
 for (const [pattern, label] of [
-  [/@dashevo\/evo-sdk/u, 'Evo SDK import'], [/\bEvoSDK\b/u, 'Evo SDK reference'],
-  [/\bglobalThis\.fetch\b/u, 'global fetch'], [/(?:^|[^.\w])fetch\s*\(/mu, 'direct fetch call'],
-  [/\bXMLHttpRequest\b/u, 'XMLHttpRequest'], [/\bWebSocket\b/u, 'WebSocket'],
-  [/URL\.createObjectURL/u, 'direct object-URL creation'], [/\.download\s*=/u, 'direct download initiation'],
+  [/@dashevo\/evo-sdk/u, 'Evo SDK import'],
+  [/\bEvoSDK\b/u, 'Evo SDK reference'],
+  [/\bglobalThis\.fetch\b/u, 'global fetch'],
+  [/(?:^|[^.\w])fetch\s*\(/mu, 'direct fetch call'],
+  [/\bXMLHttpRequest\b/u, 'XMLHttpRequest'],
+  [/\bWebSocket\b/u, 'WebSocket'],
+  [/URL\.createObjectURL/u, 'direct object-URL creation'],
+  [/\.download\s*=/u, 'direct download initiation'],
 ]) {
   if (pattern.test(vaultSources)) throw new Error(`Recovery Secret Vault source contains forbidden ${label}.`);
 }
 
-const networkSources = ['network-protocol.ts', 'network-service.ts', 'network-worker.ts']
-  .map((name) => readFileSync(resolve(sourceRoot, name), 'utf8'))
+const networkSources = [
+  resolve(root, 'packages/network-boundary/src/protocol.ts'),
+  resolve(sourceRoot, 'network-service.ts'),
+  resolve(sourceRoot, 'network-worker.ts'),
+]
+  .map((path) => readFileSync(path, 'utf8'))
   .join('\n');
 for (const [pattern, label] of [
   [/mnemonicToSeed|assertValidMnemonic|\bmnemonic\b|\bpassphrase\b/iu, 'mnemonic/passphrase handling'],
@@ -269,20 +388,29 @@ for (const [pattern, label] of [
 ]) {
   if (pattern.test(networkSources)) throw new Error(`Recovery Network Worker source contains forbidden ${label}.`);
 }
-const protocolSource = readFileSync(resolve(sourceRoot, 'network-protocol.ts'), 'utf8');
+const protocolSource = readFileSync(resolve(root, 'packages/network-boundary/src/protocol.ts'), 'utf8');
 if (/\burl\s*:/iu.test(protocolSource)) throw new Error('Recovery Network RPC must not accept an arbitrary URL.');
 for (const operation of [
-  'ping', 'core.status', 'core.tip', 'core.address-info', 'core.address-history',
-  'platform.addresses', 'platform.address-history', 'platform.identity-by-public-key-hash',
-  'platform.identity-history', 'shielded.page',
+  'ping',
+  'core.status',
+  'core.tip',
+  'core.address-info',
+  'core.address-history',
+  'platform.addresses',
+  'platform.address-history',
+  'platform.identity-by-public-key-hash',
+  'platform.identity-history',
+  'shielded.page',
 ]) {
-  if (!protocolSource.includes(`operation: '${operation}'`)) throw new Error(`Recovery RPC is missing reviewed operation ${operation}.`);
+  if (!protocolSource.includes(`operation: '${operation}'`))
+    throw new Error(`Recovery RPC is missing reviewed operation ${operation}.`);
 }
 
-assertEvoSdkReadOnly([
-  ...allRecoverySources,
-  ...sourceFiles(resolve(root, 'packages/dash-network/src')),
-].map(({ path }) => path), 'Recovery source', root);
+assertEvoSdkReadOnly(
+  [...allRecoverySources, ...sourceFiles(resolve(root, 'packages/dash-network/src'))].map(({ path }) => path),
+  'Recovery source',
+  root,
+);
 
 const actual = createHash('sha256').update(html).digest('hex');
 const recorded = readFileSync(checksumPath, 'utf8').trim().split(/\s+/u)[0];

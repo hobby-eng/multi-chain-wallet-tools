@@ -8,7 +8,7 @@ import { keyAggregate } from '@scure/btc-signer/musig2.js';
 import { descriptors, hdkeychain, init, musig2 } from 'btcutil-js';
 import { bytesToHex, hexToBytes } from '@ckd/core/crypto.js';
 import { decodeDescriptor } from '../../src/descriptor.js';
-import { materializeDescriptorKey } from '../../src/descriptor-key.js';
+import { materializeDescriptorKey } from '@ckd/core/descriptor-key.js';
 import { compilePolicyMiniscript, validatePolicyMiniscript } from '../../src/miniscript-engine.js';
 import { analyzeMusigDescriptor } from '../../src/musig-descriptor.js';
 import { describeScript, parsePsbt } from '../../src/psbt.js';
@@ -26,8 +26,9 @@ const g = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
 const h = '02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5';
 const rootXpub = vectors.bip32[0]!.paths[0]!.xpub;
 function output(source: string, branch: 0 | 1 = 0, index = 0, label = 'scriptPubKey') {
-  return decodeDescriptor(source, { multipathChoice: branch, wildcardIndex: index })
-    .compiledOutput?.rows.find((row) => row.label === label)?.value;
+  return decodeDescriptor(source, { multipathChoice: branch, wildcardIndex: index }).compiledOutput?.rows.find(
+    (row) => row.label === label,
+  )?.value;
 }
 
 describe('Independent audit: BIP32 + multipath + final key ordering', () => {
@@ -38,8 +39,7 @@ describe('Independent audit: BIP32 + multipath + final key ordering', () => {
       for (const row of vector.paths) {
         expect(scure.derive(row.path).publicExtendedKey).toBe(row.xpub);
         expect(await hdkeychain.neuter(await hdkeychain.derivePath(go, row.path))).toBe(row.xpub);
-        expect(materializeDescriptorKey(row.xpub, 'mainnet', 0, 0))
-          .toBe(hex(await hdkeychain.publicKey(row.xpub)));
+        expect(materializeDescriptorKey(row.xpub, 'mainnet', 0, 0)).toBe(hex(await hdkeychain.publicKey(row.xpub)));
       }
     });
   }
@@ -55,18 +55,24 @@ describe('Independent audit: BIP32 + multipath + final key ordering', () => {
           const goSupplied = await descriptors.create(supplied);
           try {
             expect(output(supplied, branch, index, 'Address')).toBe(goSupplied.addressAt('mainnet', branch, index));
-          } finally { goSupplied.free(); }
-        } finally { go.free(); }
+          } finally {
+            goSupplied.free();
+          }
+        } finally {
+          go.free();
+        }
       });
     }
   }
   it.each([-1, 0x80000000, 0xffffffff, 0.5, Number.NaN, Number.MAX_SAFE_INTEGER])(
-    'rejects invalid wildcard index %s', (index) => {
+    'rejects invalid wildcard index %s',
+    (index) => {
       expect(() => materializeDescriptorKey(`${rootXpub}/*`, 'mainnet', 0, index)).toThrow();
     },
   );
   it.each(["/0'", '/0h', '/0H', '/2147483648', '/4294967295', '/*/0', '/*/*'])(
-    'rejects impossible or malformed public derivation %s', (suffix) => {
+    'rejects impossible or malformed public derivation %s',
+    (suffix) => {
       expect(() => materializeDescriptorKey(`${rootXpub}${suffix}`, 'mainnet', 0, 0)).toThrow();
     },
   );
@@ -75,8 +81,9 @@ describe('Independent audit: BIP32 + multipath + final key ordering', () => {
 describe('Independent audit: Bitcoin Core Miniscript exact bytes and flags', () => {
   for (const [index, vector] of vectors.miniscript.entries()) {
     for (const tapscript of [false, true]) {
-      const expected = tapscript ? vector.tapscript === '=' ? vector.script : vector.tapscript : vector.script;
-      const invalid = !vector.valid || vector.mode.includes(tapscript ? 'TESTMODE_TAPSCRIPT_INVALID' : 'TESTMODE_P2WSH_INVALID');
+      const expected = tapscript ? (vector.tapscript === '=' ? vector.script : vector.tapscript) : vector.script;
+      const invalid =
+        !vector.valid || vector.mode.includes(tapscript ? 'TESTMODE_TAPSCRIPT_INVALID' : 'TESTMODE_P2WSH_INVALID');
       const expression = tapscript
         ? vector.expression.replace(/(?<=[,(])0[23]([0-9a-f]{64})(?=[,)])/g, '$1')
         : vector.expression;
@@ -114,21 +121,31 @@ describe('Independent audit: BIP341 wallet tree/tweak/address', () => {
   for (const [index, vector] of vectors.bip341.entries()) {
     it(`Scure matches official wallet scriptPubKey, address and control blocks ${index}`, () => {
       const tree = scureTree(vector.given.scriptTree);
-      const payment = tree === undefined ? p2tr(hexToBytes(vector.given.internalPubkey)) : p2tr(hexToBytes(vector.given.internalPubkey), tree, undefined, true);
+      const payment =
+        tree === undefined
+          ? p2tr(hexToBytes(vector.given.internalPubkey))
+          : p2tr(hexToBytes(vector.given.internalPubkey), tree, undefined, true);
       expect(hex(payment.script)).toBe(vector.expected.scriptPubKey);
       expect(payment.address).toBe(vector.expected.bip350Address);
       expect(describeScript(payment.script, 'bitcoin', 'mainnet').address).toBe(vector.expected.bip350Address);
-      if (tree !== undefined) expect(hex(p2tr(hexToBytes(vector.given.internalPubkey), tree, undefined, true).tapMerkleRoot!)).toBe(vector.intermediary.merkleRoot);
+      if (tree !== undefined)
+        expect(hex(p2tr(hexToBytes(vector.given.internalPubkey), tree, undefined, true).tapMerkleRoot!)).toBe(
+          vector.intermediary.merkleRoot,
+        );
     });
-    const inspectorCompatible = vector.given.scriptTree === null
-      || (!Array.isArray(vector.given.scriptTree) && /^20[0-9a-f]{64}ac$/.test(vector.given.scriptTree.script))
-      || [5, 6].includes(index);
+    const inspectorCompatible =
+      vector.given.scriptTree === null ||
+      (!Array.isArray(vector.given.scriptTree) && /^20[0-9a-f]{64}ac$/.test(vector.given.scriptTree.script)) ||
+      [5, 6].includes(index);
     if (inspectorCompatible) {
       const source = `tr(${vector.given.internalPubkey}${vector.given.scriptTree === null ? '' : `,${descriptorTree(vector.given.scriptTree)}`})`;
       it(`Go independently matches official wallet descriptor ${index}`, async () => {
         const go = await descriptors.create(source);
-        try { expect(go.addressAt('mainnet', 0, 0)).toBe(vector.expected.bip350Address); }
-        finally { go.free(); }
+        try {
+          expect(go.addressAt('mainnet', 0, 0)).toBe(vector.expected.bip350Address);
+        } finally {
+          go.free();
+        }
       });
       it(`Inspector compiles official Taproot descriptor ${index}`, () => {
         expect(output(source)).toBe(vector.expected.scriptPubKey);
@@ -197,38 +214,58 @@ describe('Independent audit: descriptor grammar rejection', () => {
     `wpkh(${rootXpub}/<0;1>/<0;1>/*)`,
   ])('rejects %s (independently checked by Go)', async (source) => {
     // BIP380/BIP382 prohibit these cases even though the Go oracle normalizes/accepts them.
-    if (!source.includes('[deadbeef/2147483648]') && !source.startsWith('wpkh(04')) await expect((async () => {
-      const descriptor = await descriptors.create(source);
-      try { descriptor.addressAt('mainnet', 0, 0); } finally { descriptor.free(); }
-    })()).rejects.toThrow();
+    if (!source.includes('[deadbeef/2147483648]') && !source.startsWith('wpkh(04'))
+      await expect(
+        (async () => {
+          const descriptor = await descriptors.create(source);
+          try {
+            descriptor.addressAt('mainnet', 0, 0);
+          } finally {
+            descriptor.free();
+          }
+        })(),
+      ).rejects.toThrow();
     expect(() => decodeDescriptor(source)).toThrow();
   });
 });
 
 describe('Audit regressions: malformed claims and complete BIP390 outputs', () => {
-  for (const [name, value] of Object.entries(remediation.invalidPsbt)) it(name, () => expect(() => parsePsbt(value, 'bitcoin')).toThrow());
-  for (const [i, vector] of remediation.musig.entries()) it(`official BIP390 output ${i}`, () => {
-    expect(analyzeMusigDescriptor(vector.descriptor, 'mainnet', vector.index)?.outputScript).toBe(vector.script);
-    expect(output(vector.descriptor, 0, vector.index)).toBe(vector.script);
-  });
+  for (const [name, value] of Object.entries(remediation.invalidPsbt))
+    it(name, () => expect(() => parsePsbt(value, 'bitcoin')).toThrow());
+  for (const [i, vector] of remediation.musig.entries())
+    it(`official BIP390 output ${i}`, () => {
+      expect(analyzeMusigDescriptor(vector.descriptor, 'mainnet', vector.index)?.outputScript).toBe(vector.script);
+      expect(output(vector.descriptor, 0, vector.index)).toBe(vector.script);
+    });
 });
 
 // Independently construct the BIP328 synthetic xpub from Go KeyAgg, then
 // derive it through Go HDKey and let Go compile the concrete Taproot key.
 describe('Follow-up: aggregate multipath differential construction', () => {
-  for (const branch of [0, 1] as const) it(`matches Go aggregate/BIP32/Taproot for branch ${branch}`, async () => {
-    const a = rootXpub;
-    const b = HDKey.fromExtendedKey(a).deriveChild(1).publicExtendedKey;
-    const keys = [hex(await hdkeychain.publicKey(a)), hex(await hdkeychain.publicKey(b))].sort();
-    const agg = await musig2.aggregateKeys(keys);
-    const synthetic = new HDKey({ publicKey: agg.combinedKey, chainCode: hexToBytes('868087ca02a6f974c4598924c36b57762d32cb45717167e300622c7167e38965') }).publicExtendedKey;
-    for (const index of [0, 7, 2147483647]) {
-      const child = await hdkeychain.derivePath(synthetic, `m/${branch}/${index}`);
-      const key = hex(await hdkeychain.publicKey(child)).slice(2);
-      const go = await descriptors.create(`tr(${key})`);
-      try {
-        expect(decodeDescriptor(`tr(musig(${a},${b})/<0;1>/*)`, {multipathChoice:branch, wildcardIndex:index}).compiledOutput?.rows.find(row=>row.label==='Address')?.value).toBe(go.addressAt('mainnet', 0, 0));
-      } finally { go.free(); }
-    }
-  });
+  for (const branch of [0, 1] as const)
+    it(`matches Go aggregate/BIP32/Taproot for branch ${branch}`, async () => {
+      const a = rootXpub;
+      const b = HDKey.fromExtendedKey(a).deriveChild(1).publicExtendedKey;
+      const keys = [hex(await hdkeychain.publicKey(a)), hex(await hdkeychain.publicKey(b))].sort();
+      const agg = await musig2.aggregateKeys(keys);
+      const synthetic = new HDKey({
+        publicKey: agg.combinedKey,
+        chainCode: hexToBytes('868087ca02a6f974c4598924c36b57762d32cb45717167e300622c7167e38965'),
+      }).publicExtendedKey;
+      for (const index of [0, 7, 2147483647]) {
+        const child = await hdkeychain.derivePath(synthetic, `m/${branch}/${index}`);
+        const key = hex(await hdkeychain.publicKey(child)).slice(2);
+        const go = await descriptors.create(`tr(${key})`);
+        try {
+          expect(
+            decodeDescriptor(`tr(musig(${a},${b})/<0;1>/*)`, {
+              multipathChoice: branch,
+              wildcardIndex: index,
+            }).compiledOutput?.rows.find((row) => row.label === 'Address')?.value,
+          ).toBe(go.addressAt('mainnet', 0, 0));
+        } finally {
+          go.free();
+        }
+      }
+    });
 });

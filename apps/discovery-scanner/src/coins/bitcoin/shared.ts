@@ -19,7 +19,11 @@ export function formatBitcoin(satoshis: bigint): string {
   return `${whole.toLocaleString('en-US')}${fraction.length > 0 ? `.${fraction}` : ''} BTC`;
 }
 
-export function addressFor(mode: BitcoinMode, publicKey: Uint8Array, network: ReturnType<typeof getBitcoinNetwork>): string {
+export function addressFor(
+  mode: BitcoinMode,
+  publicKey: Uint8Array,
+  network: ReturnType<typeof getBitcoinNetwork>,
+): string {
   if (mode === 'legacy') return deriveLegacyAddress(publicKey, network).address;
   if (mode === 'nested-segwit') return deriveNestedSegwitAddress(publicKey, network).address;
   if (mode === 'native-segwit') return deriveNativeSegwitAddress(publicKey, network).address;

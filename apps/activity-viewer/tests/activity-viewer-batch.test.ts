@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  mapViewerBatchTasks,
-  parseViewerBatchInputs,
-  parseViewerConcurrency,
-} from '../src/batch.js';
+import { mapViewerBatchTasks, parseViewerBatchInputs, parseViewerConcurrency } from '../src/batch.js';
 
 describe('Activity Viewer batch helpers', () => {
   it('keeps source lines, removes blank lines, and de-duplicates exact inputs', () => {

@@ -22,7 +22,8 @@ describe('recovery coin registry', () => {
   });
 
   it('rejects duplicate adapter ids', () => {
-    expect(() => createRecoveryCoinRegistry([adapter('dash'), adapter('dash')]))
-      .toThrow('Recovery coin adapter dash is already registered');
+    expect(() => createRecoveryCoinRegistry([adapter('dash'), adapter('dash')])).toThrow(
+      'Recovery coin adapter dash is already registered',
+    );
   });
 });

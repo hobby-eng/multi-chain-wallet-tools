@@ -33,13 +33,7 @@ export function deriveDashShielded(options: ShieldedBatchOptions): DerivationRes
   }
   initWasm();
 
-  let json = deriveOfficialOrchardJson(
-    options.seed,
-    network.coinType,
-    options.account,
-    options.start,
-    options.count,
-  );
+  let json = deriveOfficialOrchardJson(options.seed, network.coinType, options.account, options.start, options.count);
   try {
     return buildDashShieldedResult(json, options);
   } finally {

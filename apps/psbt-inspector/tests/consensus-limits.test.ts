@@ -28,7 +28,9 @@ describe('central consensus and descriptor policy limits', () => {
 
   it.each(['multi_a', 'sortedmulti_a'] as const)('accepts 999 and rejects 1000 keys in %s()', (name) => {
     expect(() => validateMultisigConsensusLimits(multisig(name, 999), 'tapscript')).not.toThrow();
-    expect(() => validateMultisigConsensusLimits(multisig(name, 1000), 'tapscript')).toThrow(/1000 keys.*tapscript limit is 999/u);
+    expect(() => validateMultisigConsensusLimits(multisig(name, 1000), 'tapscript')).toThrow(
+      /1000 keys.*tapscript limit is 999/u,
+    );
   });
 
   it('owns the script and timelock limits used by the Inspector', () => {
@@ -62,9 +64,11 @@ describe('multisig descriptor presentation', () => {
     const internal = xOnly[0]!;
     const supplied = decodeDescriptor(`tr(${internal},multi_a(2,${xOnly.join(',')}))`);
     const sorted = decodeDescriptor(`tr(${internal},sortedmulti_a(2,${xOnly.join(',')}))`);
-    expect(supplied.rows.find(({ label }) => label === 'Tapscript multisig 1')?.value)
-      .toBe('2-of-3 · supplied key order · multi_a()');
-    expect(sorted.rows.find(({ label }) => label === 'Tapscript multisig 1')?.value)
-      .toBe('2-of-3 · lexicographic x-only key sort · sortedmulti_a()');
+    expect(supplied.rows.find(({ label }) => label === 'Tapscript multisig 1')?.value).toBe(
+      '2-of-3 · supplied key order · multi_a()',
+    );
+    expect(sorted.rows.find(({ label }) => label === 'Tapscript multisig 1')?.value).toBe(
+      '2-of-3 · lexicographic x-only key sort · sortedmulti_a()',
+    );
   });
 });

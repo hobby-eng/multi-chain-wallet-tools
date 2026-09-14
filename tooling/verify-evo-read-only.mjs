@@ -14,30 +14,32 @@ const LOW_LEVEL_WRITE_METHODS = new Set([
 ]);
 
 const FACADE_WRITE_METHODS = new Map([
-  ['addresses', new Set(['transfer', 'withdraw', 'topUpIdentity', 'transferFromIdentity', 'fundFromAssetLock', 'createIdentity'])],
+  [
+    'addresses',
+    new Set(['transfer', 'withdraw', 'topUpIdentity', 'transferFromIdentity', 'fundFromAssetLock', 'createIdentity']),
+  ],
   ['identities', new Set(['create', 'creditTransfer', 'creditWithdrawal', 'topUp', 'update'])],
   ['documents', new Set(['create', 'replace', 'delete', 'transfer', 'purchase', 'setPrice'])],
   ['contracts', new Set(['publish', 'update'])],
-  ['tokens', new Set([
-    'mint',
-    'burn',
-    'transfer',
-    'freeze',
-    'unfreeze',
-    'destroyFrozen',
-    'emergencyAction',
-    'setPrice',
-    'directPurchase',
-    'claim',
-    'configUpdate',
-  ])],
+  [
+    'tokens',
+    new Set([
+      'mint',
+      'burn',
+      'transfer',
+      'freeze',
+      'unfreeze',
+      'destroyFrozen',
+      'emergencyAction',
+      'setPrice',
+      'directPurchase',
+      'claim',
+      'configUpdate',
+    ]),
+  ],
   ['dpns', new Set(['registerName'])],
   ['voting', new Set(['masternodeVote'])],
-  ['stateTransitions', new Set([
-    'broadcastStateTransition',
-    'broadcastAndWait',
-    'broadcastAndWaitForAffectedState',
-  ])],
+  ['stateTransitions', new Set(['broadcastStateTransition', 'broadcastAndWait', 'broadcastAndWaitForAffectedState'])],
 ]);
 
 const SECRET_CAPABLE_WALLET_METHODS = new Set([
@@ -69,9 +71,7 @@ function expressionPath(node, aliases, strings) {
   }
   if (ts.isElementAccessExpression(node)) {
     const base = expressionPath(node.expression, aliases, strings);
-    const property = node.argumentExpression === undefined
-      ? undefined
-      : staticString(node.argumentExpression, strings);
+    const property = node.argumentExpression === undefined ? undefined : staticString(node.argumentExpression, strings);
     return base === undefined || property === undefined ? undefined : [...base, property];
   }
   return undefined;
@@ -86,13 +86,16 @@ function recordBinding(binding, path, aliases) {
     // The pinned TS native API represents array holes as nameless BindingElements.
     if (ts.isOmittedExpression(element) || (ts.isArrayBindingPattern(binding) && element.name === undefined)) continue;
     if (element.dotDotDotToken !== undefined) continue;
-    const property = element.propertyName === undefined
-      ? ts.isIdentifier(element.name) ? element.name.text : undefined
-      : ts.isIdentifier(element.propertyName)
-        || ts.isStringLiteral(element.propertyName)
-        || ts.isNoSubstitutionTemplateLiteral(element.propertyName)
-        ? element.propertyName.text
-        : undefined;
+    const property =
+      element.propertyName === undefined
+        ? ts.isIdentifier(element.name)
+          ? element.name.text
+          : undefined
+        : ts.isIdentifier(element.propertyName) ||
+            ts.isStringLiteral(element.propertyName) ||
+            ts.isNoSubstitutionTemplateLiteral(element.propertyName)
+          ? element.propertyName.text
+          : undefined;
     if (property !== undefined) recordBinding(element.name, [...path, property], aliases);
   }
 }
@@ -205,8 +208,8 @@ export function assertEvoSdkReadOnly(paths, boundaryName, cwd = process.cwd()) {
   const finding = findEvoWriteCalls(paths, cwd)[0];
   if (finding !== undefined) {
     throw new Error(
-      `${boundaryName} crosses its read-only/scan-only boundary through a ${finding.description} `
-      + `at ${finding.path}:${finding.line}:${finding.column}.`,
+      `${boundaryName} crosses its read-only/scan-only boundary through a ${finding.description} ` +
+        `at ${finding.path}:${finding.line}:${finding.column}.`,
     );
   }
 }

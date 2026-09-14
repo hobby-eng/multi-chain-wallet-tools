@@ -1,7 +1,7 @@
 import { getDashHistory, dashAmountUnit } from './history.js';
 import { MAX_BIP32_INDEX, assertIndex } from '@ckd/core/bip32.js';
 import { assertValidMnemonic, mnemonicToSeed } from '@ckd/core/bip39.js';
-import { SecretEgressGuard, disposeSecretBytes } from '../../secret-guard.js';
+import { SecretEgressGuard, disposeSecretBytes } from '@ckd/secret-boundary/secret-guard.js';
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
 import type {
   RecoveryCoinAdapter,
@@ -14,9 +14,7 @@ import type {
 } from '../../types.js';
 import { scanDashCore } from './core-scanner.js';
 import { scanDashCoinJoin } from './coinjoin-scanner.js';
-import {
-  scanDashProviderCollateral,
-} from './funding-scanner.js';
+import { scanDashProviderCollateral } from './funding-scanner.js';
 import { scanDashIdentities } from './identity-scanner.js';
 import { scanDashLegacyCore } from './legacy-core-scanner.js';
 import { DashPlatformClient } from './platform-client.js';
@@ -24,7 +22,8 @@ import { scanDashPlatformAddresses } from './platform-scanner.js';
 import { scanDashShielded, scanDashShieldedBatch } from './shielded-scanner.js';
 import { failedSection } from './util.js';
 import { summarizeDashSections } from './summary.js';
-import { detectDashWatchOnly, scanDashWatchOnly } from './watch-only.js';
+import { scanDashWatchOnly } from './watch-only.js';
+import { detectDashWatchOnly } from '@ckd/recovery/watch-only/dash.js';
 import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
 
 const TITLES: Record<RecoverySectionId, [string, string]> = {
@@ -94,7 +93,10 @@ function validateConfig(config: RecoveryScanConfig): void {
     config.scanPlatformIdentities,
     config.scanShieldedPool,
   ];
-  if (componentFlags.some((value) => typeof value !== 'boolean') || typeof config.includeUsedZeroBalance !== 'boolean') {
+  if (
+    componentFlags.some((value) => typeof value !== 'boolean') ||
+    typeof config.includeUsedZeroBalance !== 'boolean'
+  ) {
     throw new Error('Recovery component and output options must be boolean values.');
   }
   if (!componentFlags.some(Boolean)) throw new Error('Select at least one Dash component to scan.');
@@ -110,10 +112,7 @@ function isAbort(cause: unknown): boolean {
   return cause instanceof DOMException && cause.name === 'AbortError';
 }
 
-async function guardedSection(
-  id: RecoverySectionId,
-  run: () => Promise<RecoverySection>,
-): Promise<RecoverySection> {
+async function guardedSection(id: RecoverySectionId, run: () => Promise<RecoverySection>): Promise<RecoverySection> {
   try {
     return await run();
   } catch (cause) {
@@ -169,30 +168,49 @@ export const DASH_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
     context.sessionSecretGuard?.registerString('BIP39 mnemonic', mnemonic);
     context.sessionSecretGuard?.registerString('BIP39 passphrase', input.passphrase);
     context.sessionSecretGuard?.registerBytes('BIP39 seed', seed);
-    const gateway = new RecoveryNetworkGateway(guard, context.networkApi, context.networkLimiter ?? new RecoveryConcurrencyLimiter(5));
+    const gateway = new RecoveryNetworkGateway(
+      guard,
+      context.networkApi,
+      context.networkLimiter ?? new RecoveryConcurrencyLimiter(5),
+    );
     const platformClient = new DashPlatformClient(config.network, gateway);
     const startedAt = new Date().toISOString();
     const onProgress = (progress: RecoveryProgress): void => context.onProgress(progress);
-    const onFinding = (section: RecoverySectionId) => (finding: Parameters<typeof context.onFinding>[2]): void => {
-      context.onFinding(input.id, section, finding);
-    };
+    const onFinding =
+      (section: RecoverySectionId) =>
+      (finding: Parameters<typeof context.onFinding>[2]): void => {
+        context.onFinding(input.id, section, finding);
+      };
     try {
-      context.onProgress({ inputId: input.id, section: 'prepare', message: 'Mnemonic validated and seed derived locally', completed: 1, total: 1 });
+      context.onProgress({
+        inputId: input.id,
+        section: 'prepare',
+        message: 'Mnemonic validated and seed derived locally',
+        completed: 1,
+        total: 1,
+      });
       const startSection = async (
         id: RecoverySectionId,
         task: () => Promise<RecoverySection>,
       ): Promise<RecoverySection> => {
-        context.onProgress({ inputId: input.id, section: id, message: `Starting ${TITLES[id][0]} scan`, completed: 0, total: null });
+        context.onProgress({
+          inputId: input.id,
+          section: id,
+          message: `Starting ${TITLES[id][0]} scan`,
+          completed: 0,
+          total: null,
+        });
         const section = await guardedSection(id, task);
-        const message = section.state === 'failed'
-          ? `Failed · ${section.warning ?? 'authoritative result unavailable'}`
-          : section.state === 'partial'
-            ? `Partial · ${section.warning ?? 'configured range ended before discovery completed'}`
-            : section.state === 'skipped'
-              ? 'Skipped by scan settings'
-              // `scanned` is a number for address scans and a bigint for the
-              // Orchard pool; `=== 1` alone is always false for the bigint.
-              : `Complete · ${section.scanned.toLocaleString()} item${section.scanned === 1 || section.scanned === 1n ? '' : 's'} checked`;
+        const message =
+          section.state === 'failed'
+            ? `Failed · ${section.warning ?? 'authoritative result unavailable'}`
+            : section.state === 'partial'
+              ? `Partial · ${section.warning ?? 'configured range ended before discovery completed'}`
+              : section.state === 'skipped'
+                ? 'Skipped by scan settings'
+                : // `scanned` is a number for address scans and a bigint for the
+                  // Orchard pool; `=== 1` alone is always false for the bigint.
+                  `Complete · ${section.scanned.toLocaleString()} item${section.scanned === 1 || section.scanned === 1n ? '' : 's'} checked`;
         context.onProgress({ inputId: input.id, section: id, message, completed: 1, total: 1 });
         return section;
       };
@@ -200,24 +218,60 @@ export const DASH_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
       // returned section order stable while the shared semaphore remains the
       // sole authority for the maximum number of network/DAPI operations.
       const sections = await Promise.all([
-        startSection('core', () => config.scanCore || config.scanCustomPath === true
-          ? scanDashCore(input.id, seed, config, gateway, context.signal, onProgress, onFinding('core'))
-          : Promise.resolve(skippedSection('core'))),
-        startSection('legacyCore', () => config.scanLegacyCore
-          ? scanDashLegacyCore(input.id, seed, config, gateway, context.signal, onProgress, onFinding('legacyCore'))
-          : Promise.resolve(skippedSection('legacyCore'))),
-        startSection('coinjoin', () => config.scanCoinJoin
-          ? scanDashCoinJoin(input.id, seed, config, gateway, context.signal, onProgress, onFinding('coinjoin'))
-          : Promise.resolve(skippedSection('coinjoin'))),
-        startSection('providerCollateral', () => config.scanProviderCollateral
-          ? scanDashProviderCollateral(input.id, seed, config, gateway, context.signal, onProgress, onFinding('providerCollateral'))
-          : Promise.resolve(skippedSection('providerCollateral'))),
-        startSection('platform', () => config.scanPlatformAddresses
-          ? scanDashPlatformAddresses(input.id, seed, config, platformClient, context.signal, onProgress, onFinding('platform'))
-          : Promise.resolve(skippedSection('platform'))),
-        startSection('identity', () => config.scanPlatformIdentities
-          ? scanDashIdentities(input.id, seed, config, platformClient, context.signal, onProgress, onFinding('identity'))
-          : Promise.resolve(skippedSection('identity'))),
+        startSection('core', () =>
+          config.scanCore || config.scanCustomPath === true
+            ? scanDashCore(input.id, seed, config, gateway, context.signal, onProgress, onFinding('core'))
+            : Promise.resolve(skippedSection('core')),
+        ),
+        startSection('legacyCore', () =>
+          config.scanLegacyCore
+            ? scanDashLegacyCore(input.id, seed, config, gateway, context.signal, onProgress, onFinding('legacyCore'))
+            : Promise.resolve(skippedSection('legacyCore')),
+        ),
+        startSection('coinjoin', () =>
+          config.scanCoinJoin
+            ? scanDashCoinJoin(input.id, seed, config, gateway, context.signal, onProgress, onFinding('coinjoin'))
+            : Promise.resolve(skippedSection('coinjoin')),
+        ),
+        startSection('providerCollateral', () =>
+          config.scanProviderCollateral
+            ? scanDashProviderCollateral(
+                input.id,
+                seed,
+                config,
+                gateway,
+                context.signal,
+                onProgress,
+                onFinding('providerCollateral'),
+              )
+            : Promise.resolve(skippedSection('providerCollateral')),
+        ),
+        startSection('platform', () =>
+          config.scanPlatformAddresses
+            ? scanDashPlatformAddresses(
+                input.id,
+                seed,
+                config,
+                platformClient,
+                context.signal,
+                onProgress,
+                onFinding('platform'),
+              )
+            : Promise.resolve(skippedSection('platform')),
+        ),
+        startSection('identity', () =>
+          config.scanPlatformIdentities
+            ? scanDashIdentities(
+                input.id,
+                seed,
+                config,
+                platformClient,
+                context.signal,
+                onProgress,
+                onFinding('identity'),
+              )
+            : Promise.resolve(skippedSection('identity')),
+        ),
         startSection('shielded', async () => {
           if (context.preparedSections !== undefined) {
             const prepared = (await context.preparedSections).get(input.id);

@@ -1,8 +1,4 @@
-import type {
-  CoinAdapter,
-  CoinDerivationInput,
-  CoinFamily,
-} from '@ckd/coins/registry-base.js';
+import type { CoinAdapter, CoinDerivationInput, CoinFamily } from '@ckd/coins/registry-base.js';
 
 export interface CoinMetadataRegistry {
   COIN_FAMILIES: readonly CoinFamily[];
@@ -51,10 +47,7 @@ function setNumeric(input: HTMLInputElement, value: number, max = 2_147_483_647)
   input.step = '1';
 }
 
-export function populateCoinSelect(
-  select: HTMLSelectElement,
-  registry: CoinMetadataRegistry,
-): void {
+export function populateCoinSelect(select: HTMLSelectElement, registry: CoinMetadataRegistry): void {
   select.replaceChildren();
   for (const family of registry.COIN_FAMILIES) {
     const option = document.createElement('option');
@@ -64,16 +57,14 @@ export function populateCoinSelect(
   }
 }
 
-function renderProtocolTabs(
-  adapter: CoinAdapter,
-  controls: DerivationControls,
-  registry: CoinMetadataRegistry,
-): void {
+function renderProtocolTabs(adapter: CoinAdapter, controls: DerivationControls, registry: CoinMetadataRegistry): void {
   const featureTabs = [...controls.protocolTabs.querySelectorAll<HTMLButtonElement>('[data-feature-tab]')];
   controls.protocolTabs.replaceChildren();
   const family = registry.getCoinFamily(registry.getAdapterFamilyId(adapter));
   const showHidden = controls.includeLegacyMobile.checked;
-  for (const variant of family.adapters.filter((candidate) => !candidate.hiddenByDefault || showHidden || candidate.id === adapter.id)) {
+  for (const variant of family.adapters.filter(
+    (candidate) => !candidate.hiddenByDefault || showHidden || candidate.id === adapter.id,
+  )) {
     const button = document.createElement('button');
     const selected = variant.id === adapter.id;
     button.type = 'button';
@@ -145,14 +136,20 @@ export function configureControls(
     }
   }
   controls.changeField.hidden = adapter.addressBranches === undefined;
-  controls.changeHelp.textContent = adapter.addressBranches?.help ?? 'Uses the standard internal branch /1 and shows it in a separate result tab.';
+  controls.changeHelp.textContent =
+    adapter.addressBranches?.help ?? 'Uses the standard internal branch /1 and shows it in a separate result tab.';
   controls.includeChange.checked = adapter.addressBranches !== undefined && values.includeChange;
   controls.coinJoinField.hidden = adapter.coinJoin === undefined;
   controls.includeCoinJoin.checked = adapter.coinJoin !== undefined && values.includeCoinJoin;
   updatePathPreview(adapter, controls);
 }
 
-function numericValue(input: HTMLInputElement | HTMLSelectElement, label: string, min = 0, max = DEFAULT_INDEX_MAX): number {
+function numericValue(
+  input: HTMLInputElement | HTMLSelectElement,
+  label: string,
+  min = 0,
+  max = DEFAULT_INDEX_MAX,
+): number {
   const value = Number(input.value);
   if (!Number.isSafeInteger(value) || value < min || value > max) {
     throw new Error(`${label} must be an integer from ${min} to ${max}.`);
@@ -163,14 +160,16 @@ function numericValue(input: HTMLInputElement | HTMLSelectElement, label: string
 export function readControls(adapter: CoinAdapter, controls: DerivationControls): DerivationControlValues {
   const accountMax = adapter.limits?.accountMax ?? DEFAULT_INDEX_MAX;
   const startMax = adapter.limits?.startMax ?? DEFAULT_INDEX_MAX;
-  const branch = adapter.addressBranches?.receive ?? (adapter.branchControl === undefined
-    ? adapter.defaults.branch
-    : numericValue(
-      adapter.branchControl.options === undefined ? controls.branchInput : controls.branchSelect,
-      adapter.branchControl.label,
-      0,
-      adapter.branchControl.max,
-    ));
+  const branch =
+    adapter.addressBranches?.receive ??
+    (adapter.branchControl === undefined
+      ? adapter.defaults.branch
+      : numericValue(
+          adapter.branchControl.options === undefined ? controls.branchInput : controls.branchSelect,
+          adapter.branchControl.label,
+          0,
+          adapter.branchControl.max,
+        ));
   const start = numericValue(controls.start, 'Start index', 0, startMax);
   const count = numericValue(controls.count, 'Number of results', 1, startMax + 1);
   if (start + count - 1 > startMax) {
@@ -182,7 +181,10 @@ export function readControls(adapter: CoinAdapter, controls: DerivationControls)
   }
   return {
     network,
-    account: adapter.accountControl === false ? adapter.defaults.account : numericValue(controls.account, 'Account', 0, accountMax),
+    account:
+      adapter.accountControl === false
+        ? adapter.defaults.account
+        : numericValue(controls.account, 'Account', 0, accountMax),
     branch,
     start,
     count,
@@ -209,7 +211,8 @@ export function updatePathPreview(adapter: CoinAdapter, controls: DerivationCont
   } catch {
     controls.preview.textContent = 'Enter valid integer controls to preview the path.';
     if (adapter.coinJoin !== undefined) {
-      controls.coinJoinHelp.textContent = 'Enter valid integer controls to preview the Dash Mobile CoinJoin · DIP9 paths.';
+      controls.coinJoinHelp.textContent =
+        'Enter valid integer controls to preview the Dash Mobile CoinJoin · DIP9 paths.';
     }
   }
 }

@@ -1,5 +1,5 @@
 import type { DerivationResult, DerivedRow, DisplayMode, ResultField } from '@ckd/core/types.js';
-import { createPaymentQrAction, paymentQrPayload } from './payment-qr.js';
+import { createPaymentQrAction, paymentQrPayload } from '@ckd/ui/payment-qr.js';
 
 export interface ResultsRenderOptions {
   mode: DisplayMode;
@@ -57,7 +57,11 @@ function iconButton(label: string, pathData: string): HTMLButtonElement {
   return button;
 }
 
-function copyButton(field: ResultField, locator: { scope: 'summary' | 'row'; row?: number }, secretsRevealed: boolean): HTMLButtonElement {
+function copyButton(
+  field: ResultField,
+  locator: { scope: 'summary' | 'row'; row?: number },
+  secretsRevealed: boolean,
+): HTMLButtonElement {
   const copy = iconButton(`Copy ${field.label}`, 'M8 7V3h13v13h-4v5H3V7h5zm2 0h7v7h2V5h-9v2zm5 2H5v10h10V9z');
   copy.dataset.copyScope = locator.scope;
   copy.dataset.copyField = field.key;
@@ -68,8 +72,15 @@ function copyButton(field: ResultField, locator: { scope: 'summary' | 'row'; row
   return copy;
 }
 
-function signButton(index: number, address: string, onSign: (index: number, address: string) => void): HTMLButtonElement {
-  const sign = iconButton('Sign a message with this address', 'M4 20h4l11-11-4-4L4 16v4zm12-16 4 4 1-1a1.4 1.4 0 0 0 0-2l-2-2a1.4 1.4 0 0 0-2 0l-1 1z');
+function signButton(
+  index: number,
+  address: string,
+  onSign: (index: number, address: string) => void,
+): HTMLButtonElement {
+  const sign = iconButton(
+    'Sign a message with this address',
+    'M4 20h4l11-11-4-4L4 16v4zm12-16 4 4 1-1a1.4 1.4 0 0 0 0-2l-2-2a1.4 1.4 0 0 0-2 0l-1 1z',
+  );
   sign.dataset.signMessage = String(index);
   sign.dataset.signAddress = address;
   sign.addEventListener('click', () => onSign(index, address));
@@ -149,28 +160,36 @@ function appendBasicRows(
   for (const derived of rows) {
     const row = element('tr');
     const selectionCell = element('td', 'select-column');
-    selectionCell.append(selectionCheckbox(derived.index, options.selected.has(derived.index), (checked) => {
-      options.onSelectionChange(derived.index, checked);
-    }));
+    selectionCell.append(
+      selectionCheckbox(derived.index, options.selected.has(derived.index), (checked) => {
+        options.onSelectionChange(derived.index, checked);
+      }),
+    );
     row.append(selectionCell, element('td', 'path-column value', derived.path));
     for (const key of fieldKeys) {
-      row.append(basicFieldCell(
-        derived.basic.find((field) => field.key === key),
-        derived.index,
-        options,
-      ));
-      if (key === 'address' && options.encryptedBip38.size > 0) {
-        const encryptedKey = options.encryptedBip38.get(derived.index);
-        row.append(basicFieldCell(
-          encryptedKey === undefined ? undefined : {
-            key: 'bip38EncryptedKey',
-            label: 'Encrypted private key · BIP38',
-            value: encryptedKey,
-            secret: true,
-          },
+      row.append(
+        basicFieldCell(
+          derived.basic.find((field) => field.key === key),
           derived.index,
           options,
-        ));
+        ),
+      );
+      if (key === 'address' && options.encryptedBip38.size > 0) {
+        const encryptedKey = options.encryptedBip38.get(derived.index);
+        row.append(
+          basicFieldCell(
+            encryptedKey === undefined
+              ? undefined
+              : {
+                  key: 'bip38EncryptedKey',
+                  label: 'Encrypted private key · BIP38',
+                  value: encryptedKey,
+                  secret: true,
+                },
+            derived.index,
+            options,
+          ),
+        );
       }
     }
     fragment.append(row);
@@ -182,10 +201,7 @@ function groupedBasicCard(derived: DerivedRow, options: ResultsRenderOptions): H
   const card = element('article', 'address-card grouped-result-card');
   const head = element('div', 'card-head');
   const identity = element('div');
-  identity.append(
-    element('h3', undefined, derived.title),
-    element('div', 'card-index', derived.path),
-  );
+  identity.append(element('h3', undefined, derived.title), element('div', 'card-index', derived.path));
   const right = element('div', 'card-right');
   right.append(element('div', 'identity-profile-badge', `${derived.groups?.length ?? 0}-key standard profile`));
   const selectionLabel = element('label', 'row-selection');
@@ -250,10 +266,7 @@ function advancedCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLE
   const card = element('article', `address-card${derived.groups === undefined ? '' : ' grouped-result-card'}`);
   const head = element('div', 'card-head');
   const identity = element('div');
-  identity.append(
-    element('h3', undefined, derived.title),
-    element('div', 'card-index', derived.path),
-  );
+  identity.append(element('h3', undefined, derived.title), element('div', 'card-index', derived.path));
   const selectionLabel = element('label', 'row-selection');
   const grouped = derived.groups !== undefined;
   const checkbox = selectionCheckbox(
@@ -281,12 +294,18 @@ function advancedCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLE
   }
   const encryptedKey = options.encryptedBip38.get(derived.index);
   if (encryptedKey !== undefined) {
-    body.append(fieldRow({
-      key: 'bip38EncryptedKey',
-      label: 'Encrypted private key · BIP38',
-      value: encryptedKey,
-      secret: true,
-    }, { scope: 'row', row: derived.index }, options));
+    body.append(
+      fieldRow(
+        {
+          key: 'bip38EncryptedKey',
+          label: 'Encrypted private key · BIP38',
+          value: encryptedKey,
+          secret: true,
+        },
+        { scope: 'row', row: derived.index },
+        options,
+      ),
+    );
   }
   if (derived.advanced.length > 0) {
     const detailRows = element('div', 'advanced-field-rows');
@@ -359,9 +378,7 @@ export function renderResults(
   listRoot.replaceChildren();
   noticesRoot.replaceChildren();
 
-  const accountFields = options.mode === 'advanced'
-    ? [...result.basicSummary, ...result.summary]
-    : result.basicSummary;
+  const accountFields = options.mode === 'advanced' ? [...result.basicSummary, ...result.summary] : result.basicSummary;
   if (accountFields.length > 0 || (options.mode === 'advanced' && result.summary.length > 0)) {
     const card = element('article', 'key-card summary-card root-material-card');
     card.append(

@@ -1,9 +1,4 @@
-import {
-  deriveBip85Bip39,
-  deriveBip85Hex,
-  deriveBip85Wif,
-  deriveBip85Xprv,
-} from '@ckd/core/bip85.js';
+import { deriveBip85Bip39, deriveBip85Hex, deriveBip85Wif, deriveBip85Xprv } from '@ckd/core/bip85.js';
 
 export type Bip85Application = 'bip39' | 'wif' | 'xprv' | 'hex';
 

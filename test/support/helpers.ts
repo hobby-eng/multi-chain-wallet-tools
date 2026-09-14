@@ -1,6 +1,7 @@
 import type { DerivationResult, ResultField } from '@ckd/core/types.js';
 
-export const TEST_MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+export const TEST_MNEMONIC =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 export function value(fields: ResultField[], key: string): string {
   const match = fields.find((field) => field.key === key);

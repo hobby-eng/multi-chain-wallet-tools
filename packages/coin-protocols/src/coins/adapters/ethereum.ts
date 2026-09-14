@@ -1,9 +1,4 @@
-import {
-  indexRange,
-  TRANSPARENT_ROLES,
-  type BranchControl,
-  type CoinAdapter,
-} from '../registry-base.js';
+import { indexRange, TRANSPARENT_ROLES, type BranchControl, type CoinAdapter } from '../registry-base.js';
 
 const ETHEREUM_ADDRESS_BRANCH_CONTROL: BranchControl = {
   label: 'Address branch',
@@ -14,18 +9,19 @@ const ETHEREUM_ADDRESS_BRANCH_CONTROL: BranchControl = {
   ],
 };
 
-export const ETHEREUM_COIN_ADAPTERS: readonly CoinAdapter[] = [{
-  id: 'ethereum',
-  group: 'Ethereum',
-  fixedPathLabels: ['Purpose', 'Coin type'],
-  label: 'Ethereum EOA · BIP44',
-  variantLabel: 'EOA · BIP44',
-  defaultVariant: true,
-  networkControl: false,
-  branchControl: ETHEREUM_ADDRESS_BRANCH_CONTROL,
-  defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
-  fieldRoles: TRANSPARENT_ROLES,
-  addressesEqual: (derived, expected) => derived.toLowerCase() === expected.toLowerCase(),
-  pathPreview: ({ account, branch, start, count }) =>
-    `m/44'/60'/${account}'/${branch}/${indexRange(start, count)}`,
-}] as const;
+export const ETHEREUM_COIN_ADAPTERS: readonly CoinAdapter[] = [
+  {
+    id: 'ethereum',
+    group: 'Ethereum',
+    fixedPathLabels: ['Purpose', 'Coin type'],
+    label: 'Ethereum EOA · BIP44',
+    variantLabel: 'EOA · BIP44',
+    defaultVariant: true,
+    networkControl: false,
+    branchControl: ETHEREUM_ADDRESS_BRANCH_CONTROL,
+    defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
+    fieldRoles: TRANSPARENT_ROLES,
+    addressesEqual: (derived, expected) => derived.toLowerCase() === expected.toLowerCase(),
+    pathPreview: ({ account, branch, start, count }) => `m/44'/60'/${account}'/${branch}/${indexRange(start, count)}`,
+  },
+] as const;

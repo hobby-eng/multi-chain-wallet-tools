@@ -15,7 +15,7 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
   const coreIds = ['core', 'legacyCore', 'coinjoin', 'providerCollateral'];
   const coreResources = new Map<string, bigint | null>();
   const confirmedCore = new Set<string>();
-  for (const section of sections.filter(section => coreIds.includes(section.id))) {
+  for (const section of sections.filter((section) => coreIds.includes(section.id))) {
     for (const finding of section.findings) {
       const key = finding.title;
       if (!coreResources.has(key)) coreResources.set(key, finding.balanceAtomic);
@@ -23,7 +23,7 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
       if (section.state === 'complete' && section.balanceAvailable !== false) confirmedCore.add(key);
     }
   }
-  const coreConflict = [...coreResources.values()].some(value => value === null);
+  const coreConflict = [...coreResources.values()].some((value) => value === null);
   const coinjoin = positiveBalance(sections.find(({ id }) => id === 'coinjoin'));
   const providerCollateral = positiveBalance(sections.find(({ id }) => id === 'providerCollateral'));
   const platform = positiveBalance(sections.find(({ id }) => id === 'platform'));
@@ -36,22 +36,77 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
   // rs-unified-sdk-jni/src/funding.rs documents 1 DASH = 1e11 credits, while
   // rs-platform-wallet/.../memo_roundtrip_tests.rs passes `value_credits`
   // directly to `NoteValue::from_raw` (the production builder does likewise).
-  const coreChain = [...coreResources.values()].reduce<bigint>((sum, value) => sum + (value !== null && value > 0n ? value : 0n), 0n);
-  const totalCredits = coreChain * CREDITS_PER_DUFF + platform + identity + shielded;
-  const unavailable = (ids?: string[]): boolean => (coreConflict && (ids === undefined || coreIds.every(id => ids.includes(id)))) || sections.some(section => (!ids || ids.includes(section.id))
-    && (section.state === 'partial' || section.state === 'failed' || section.balanceAvailable === false || section.findings.some(finding => finding.balanceAtomic === null)));
-  const fundedResources = [...confirmedCore].filter(key => (coreResources.get(key) ?? 0n) > 0n).length + sections.filter(section => !coreIds.includes(section.id) && section.state === 'complete' && section.balanceAvailable !== false).reduce(
-    (sum, section) => sum + section.findings.filter(({ balanceAtomic }) => (balanceAtomic ?? 0n) > 0n).length,
-    0,
+  const coreChain = [...coreResources.values()].reduce<bigint>(
+    (sum, value) => sum + (value !== null && value > 0n ? value : 0n),
+    0n,
   );
+  const totalCredits = coreChain * CREDITS_PER_DUFF + platform + identity + shielded;
+  const unavailable = (ids?: string[]): boolean =>
+    (coreConflict && (ids === undefined || coreIds.every((id) => ids.includes(id)))) ||
+    sections.some(
+      (section) =>
+        (!ids || ids.includes(section.id)) &&
+        (section.state === 'partial' ||
+          section.state === 'failed' ||
+          section.balanceAvailable === false ||
+          section.findings.some((finding) => finding.balanceAtomic === null)),
+    );
+  const fundedResources =
+    [...confirmedCore].filter((key) => (coreResources.get(key) ?? 0n) > 0n).length +
+    sections
+      .filter(
+        (section) =>
+          !coreIds.includes(section.id) && section.state === 'complete' && section.balanceAvailable !== false,
+      )
+      .reduce(
+        (sum, section) => sum + section.findings.filter(({ balanceAtomic }) => (balanceAtomic ?? 0n) > 0n).length,
+        0,
+      );
   return [
-    { label: 'Total located value', value: unavailable() ? 'Unavailable · incomplete balance coverage' : formatDashFromCredits(totalCredits), tone: !unavailable() && totalCredits > 0n ? 'positive' : 'neutral' },
-    { label: unavailable() ? 'Confirmed funded resources' : 'Funded resources', value: String(fundedResources), tone: fundedResources > 0 ? 'positive' : 'neutral' },
-    { label: 'Core L1', value: unavailable(['core', 'legacyCore', 'coinjoin', 'providerCollateral']) ? 'Unavailable' : formatDashFromDuffs(coreChain), tone: !unavailable(['core', 'legacyCore', 'coinjoin', 'providerCollateral']) && coreChain > 0n ? 'positive' : 'neutral' },
-    { label: 'Dash Mobile CoinJoin · DIP9', value: unavailable(['coinjoin']) ? 'Unavailable' : formatDashFromDuffs(coinjoin), tone: !unavailable(['coinjoin']) && coinjoin > 0n ? 'positive' : 'neutral' },
-    { label: 'Provider holdings', value: unavailable(['providerCollateral']) ? 'Unavailable' : formatDashFromDuffs(providerCollateral), tone: !unavailable(['providerCollateral']) && providerCollateral > 0n ? 'positive' : 'neutral' },
-    { label: 'Platform addresses', value: unavailable(['platform']) ? 'Unavailable' : formatDashFromCredits(platform), tone: !unavailable(['platform']) && platform > 0n ? 'positive' : 'neutral' },
-    { label: 'Identity credits', value: unavailable(['identity']) ? 'Unavailable' : formatDashFromCredits(identity), tone: !unavailable(['identity']) && identity > 0n ? 'positive' : 'neutral' },
-    { label: 'Shielded spendable', value: unavailable(['shielded']) ? 'Unavailable' : formatDashFromCredits(shielded), tone: !unavailable(['shielded']) && shielded > 0n ? 'positive' : 'neutral' },
+    {
+      label: 'Total located value',
+      value: unavailable() ? 'Unavailable · incomplete balance coverage' : formatDashFromCredits(totalCredits),
+      tone: !unavailable() && totalCredits > 0n ? 'positive' : 'neutral',
+    },
+    {
+      label: unavailable() ? 'Confirmed funded resources' : 'Funded resources',
+      value: String(fundedResources),
+      tone: fundedResources > 0 ? 'positive' : 'neutral',
+    },
+    {
+      label: 'Core L1',
+      value: unavailable(['core', 'legacyCore', 'coinjoin', 'providerCollateral'])
+        ? 'Unavailable'
+        : formatDashFromDuffs(coreChain),
+      tone:
+        !unavailable(['core', 'legacyCore', 'coinjoin', 'providerCollateral']) && coreChain > 0n
+          ? 'positive'
+          : 'neutral',
+    },
+    {
+      label: 'Dash Mobile CoinJoin · DIP9',
+      value: unavailable(['coinjoin']) ? 'Unavailable' : formatDashFromDuffs(coinjoin),
+      tone: !unavailable(['coinjoin']) && coinjoin > 0n ? 'positive' : 'neutral',
+    },
+    {
+      label: 'Provider holdings',
+      value: unavailable(['providerCollateral']) ? 'Unavailable' : formatDashFromDuffs(providerCollateral),
+      tone: !unavailable(['providerCollateral']) && providerCollateral > 0n ? 'positive' : 'neutral',
+    },
+    {
+      label: 'Platform addresses',
+      value: unavailable(['platform']) ? 'Unavailable' : formatDashFromCredits(platform),
+      tone: !unavailable(['platform']) && platform > 0n ? 'positive' : 'neutral',
+    },
+    {
+      label: 'Identity credits',
+      value: unavailable(['identity']) ? 'Unavailable' : formatDashFromCredits(identity),
+      tone: !unavailable(['identity']) && identity > 0n ? 'positive' : 'neutral',
+    },
+    {
+      label: 'Shielded spendable',
+      value: unavailable(['shielded']) ? 'Unavailable' : formatDashFromCredits(shielded),
+      tone: !unavailable(['shielded']) && shielded > 0n ? 'positive' : 'neutral',
+    },
   ];
 }

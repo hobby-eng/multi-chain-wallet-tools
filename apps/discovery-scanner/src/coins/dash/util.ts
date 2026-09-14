@@ -2,7 +2,7 @@ import { PROVIDER_UNSIGNED_DECIMAL, MAX_PROVIDER_INTEGER } from '@ckd/core/numer
 import type { RecoveryMetric, RecoveryNetwork, RecoverySection, RecoverySectionId } from '../../types.js';
 import { MAX_BIP32_INDEX } from '@ckd/core/bip32.js';
 import { requireRecord } from '@ckd/core/records.js';
-import { describeUnknownError } from '../../error-message.js';
+import { describeUnknownError } from '@ckd/core/error-handling.js';
 import type { RecoveryNetworkGateway } from '../../network-gateway.js';
 
 export {
@@ -66,7 +66,8 @@ function optionalTimestamp(value: unknown): string | null {
 
 export function validateDashScanAddressHistory(value: unknown, expectedAddress: string): DashScanHistorySummary {
   const history = object(value, 'DashScan address history summary');
-  if (history.address !== expectedAddress) throw new Error('DashScan address history did not match the requested address.');
+  if (history.address !== expectedAddress)
+    throw new Error('DashScan address history did not match the requested address.');
   return {
     txCount: exactSafeInteger(history.txCount, 'DashScan address history transaction count'),
     received: exactUnsigned(history.received, 'DashScan lifetime received amount'),
@@ -76,7 +77,10 @@ export function validateDashScanAddressHistory(value: unknown, expectedAddress: 
   };
 }
 
-export function validateDashScanAddressBatch(value: unknown, expectedAddresses: readonly string[]): DashScanAddressInfo[] {
+export function validateDashScanAddressBatch(
+  value: unknown,
+  expectedAddresses: readonly string[],
+): DashScanAddressInfo[] {
   if (!Array.isArray(value) || value.length !== expectedAddresses.length) {
     throw new Error('DashScan address batch did not preserve the requested result count.');
   }
@@ -97,21 +101,14 @@ export async function fetchDashScanIndexedHeight(
   network: RecoveryNetwork,
   signal: AbortSignal,
 ): Promise<number> {
-  const status = object(await gateway.runPublic(
-    { network },
-    'core.status',
-    () => gateway.networkApi.coreStatus(network, signal),
-    signal,
-  ), 'DashScan status');
+  const status = object(
+    await gateway.runPublic({ network }, 'core.status', () => gateway.networkApi.coreStatus(network, signal), signal),
+    'DashScan status',
+  );
   if (status.status !== 'ok') throw new Error('DashScan reports that its index is not synchronized.');
 
   const tipPage = object(
-    await gateway.runPublic(
-      { network },
-      'core.tip',
-      () => gateway.networkApi.coreTip(network, signal),
-      signal,
-    ),
+    await gateway.runPublic({ network }, 'core.tip', () => gateway.networkApi.coreTip(network, signal), signal),
     'DashScan block page',
   );
   const tipItems = Array.isArray(tipPage.resultSet) ? tipPage.resultSet : [];
@@ -120,7 +117,12 @@ export async function fetchDashScanIndexedHeight(
   return exactSafeInteger(tip.height, 'DashScan indexed height');
 }
 
-export function failedSection(id: RecoverySectionId, title: string, description: string, cause: unknown): RecoverySection {
+export function failedSection(
+  id: RecoverySectionId,
+  title: string,
+  description: string,
+  cause: unknown,
+): RecoverySection {
   const message = describeUnknownError(cause);
   const metrics: RecoveryMetric[] = [{ label: 'Status', value: 'Stopped', tone: 'warning' }];
   return {

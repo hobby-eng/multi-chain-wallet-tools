@@ -7,9 +7,7 @@ function fixture(chain: 'bitcoin' | 'dash', network: 'mainnet' | 'testnet') {
   const privateKey = new Uint8Array(32);
   privateKey[31] = 1;
   const publicKey = secp256k1.getPublicKey(privateKey, true);
-  const prefix = chain === 'bitcoin'
-    ? (network === 'mainnet' ? 0x00 : 0x6f)
-    : (network === 'mainnet' ? 0x4c : 0x8c);
+  const prefix = chain === 'bitcoin' ? (network === 'mainnet' ? 0x00 : 0x6f) : network === 'mainnet' ? 0x4c : 0x8c;
   return { privateKey, address: encodeP2pkh(hash160(publicKey), prefix) };
 }
 
@@ -24,7 +22,9 @@ describe('compact signed messages', () => {
       const { privateKey, address } = fixture(chain, network);
       const signed = signCompactP2pkhMessage(privateKey, address, 'offline message fixture', chain, network);
       expect(signed.verified).toBe(true);
-      expect(verifyCompactP2pkhMessage(address, 'offline message fixture', signed.signature, chain, network)).toBe(true);
+      expect(verifyCompactP2pkhMessage(address, 'offline message fixture', signed.signature, chain, network)).toBe(
+        true,
+      );
       expect(verifyCompactP2pkhMessage(address, 'different message', signed.signature, chain, network)).toBe(false);
     });
   }

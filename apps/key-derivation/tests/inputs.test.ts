@@ -23,8 +23,12 @@ describe('user-visible derivation count', () => {
   });
 
   it('retains only protocol index-space bounds, not the former 50-result limit', () => {
-    expect(() => readControls(getCoinAdapter('bitcoin-native-segwit'), controls('2147483649'))).toThrow(/1 to 2147483648/u);
-    expect(() => readControls(getCoinAdapter('bitcoin-native-segwit'), controls('2', '2147483647'))).toThrow(/range exceeds/u);
+    expect(() => readControls(getCoinAdapter('bitcoin-native-segwit'), controls('2147483649'))).toThrow(
+      /1 to 2147483648/u,
+    );
+    expect(() => readControls(getCoinAdapter('bitcoin-native-segwit'), controls('2', '2147483647'))).toThrow(
+      /range exceeds/u,
+    );
   });
 
   it('exposes the optional change branch only for adapters that declare it', () => {

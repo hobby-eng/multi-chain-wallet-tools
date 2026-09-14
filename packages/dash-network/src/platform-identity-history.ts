@@ -2,12 +2,7 @@ import { assertPlatformExplorerNetwork } from './provider-json.js';
 import { IdentityPageIntegrity } from './identity-pagination.js';
 import { createProviderHttp, ProviderHttpError, type FetchLike } from './provider-http.js';
 import type { ViewerNetwork } from './types.js';
-import {
-  IdentityCreateTransition,
-  StateTransition,
-  type AssetLockProof,
-  type OutPoint,
-} from '@dashevo/evo-sdk';
+import { IdentityCreateTransition, StateTransition, type AssetLockProof, type OutPoint } from '@dashevo/evo-sdk';
 import { base58 } from '@scure/base';
 
 const EXPLORER_PAGE_SIZE = 100;
@@ -177,13 +172,7 @@ const PLATFORM_IDENTITY_HISTORY_PROVIDER: PlatformIdentityHistoryProvider = {
   },
 };
 
-const {
-  object,
-  optionalInteger,
-  requiredInteger,
-  exactInteger,
-  fetchJson,
-} = createProviderHttp('Platform Explorer');
+const { object, optionalInteger, requiredInteger, exactInteger, fetchJson } = createProviderHttp('Platform Explorer');
 
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
@@ -250,13 +239,13 @@ function transactionEvent(value: Record<string, unknown>): IdentityActivityEvent
   };
 }
 
-function creationTransaction(
-  transactions: Record<string, unknown>[],
-): Record<string, unknown> | null {
-  return transactions.find((transaction) => {
-    const type = text(transaction.type);
-    return type !== null && IDENTITY_CREATION_TYPES.has(type);
-  }) ?? null;
+function creationTransaction(transactions: Record<string, unknown>[]): Record<string, unknown> | null {
+  return (
+    transactions.find((transaction) => {
+      const type = text(transaction.type);
+      return type !== null && IDENTITY_CREATION_TYPES.has(type);
+    }) ?? null
+  );
 }
 
 function decodeClassicIdentityFunding(base64: string): ClassicIdentityFunding {
@@ -309,33 +298,34 @@ function transferMovement(
   if (transactionHash === null) throw new Error('Platform Explorer returned a transfer without a transaction hash.');
   const sender = text(value.sender);
   const recipient = text(value.recipient);
-  const direction = sender === identifier && recipient === identifier
-    ? 'self'
-    : recipient === identifier
-      ? 'incoming'
-      : sender === identifier
-        ? 'outgoing'
-        : 'related';
+  const direction =
+    sender === identifier && recipient === identifier
+      ? 'self'
+      : recipient === identifier
+        ? 'incoming'
+        : sender === identifier
+          ? 'outgoing'
+          : 'related';
   const amountCredits = exactInteger(value.amount, 'identity transfer amount');
   const movement: IdentityTransferMovement = { direction, amountCredits, sender, recipient };
-  return { transactionHash, movement, event: {
+  return {
     transactionHash,
-    type: text(value.type) ?? 'UNKNOWN',
-    batchType: null,
-    status: null,
-    error: null,
-    timestampMs: timestamp(value.timestamp),
-    blockHeight: null,
-    blockHash: text(value.blockHash),
-    gasUsedCredits: optionalExactInteger(value.gasUsed, 'identity transfer gas'),
-    direction,
-    netAmountCredits: direction === 'incoming'
-      ? amountCredits
-      : direction === 'outgoing'
-        ? -amountCredits
-        : 0n,
-    transfers: [movement],
-  } };
+    movement,
+    event: {
+      transactionHash,
+      type: text(value.type) ?? 'UNKNOWN',
+      batchType: null,
+      status: null,
+      error: null,
+      timestampMs: timestamp(value.timestamp),
+      blockHeight: null,
+      blockHash: text(value.blockHash),
+      gasUsedCredits: optionalExactInteger(value.gasUsed, 'identity transfer gas'),
+      direction,
+      netAmountCredits: direction === 'incoming' ? amountCredits : direction === 'outgoing' ? -amountCredits : 0n,
+      transfers: [movement],
+    },
+  };
 }
 
 function combinedDirection(transfers: IdentityTransferMovement[]): IdentityActivityEvent['direction'] {
@@ -369,18 +359,21 @@ function mergeActivity(
     const { transactionHash, movement, event } = transferMovement(transfer, identifier);
     const transition = merged.get(transactionHash);
     const combinedTransfers = transition === undefined ? [movement] : [...transition.transfers, movement];
-    merged.set(transactionHash, transition === undefined
-      ? event
-      : {
-        ...transition,
-        type: transition.type === 'UNKNOWN' ? event.type : transition.type,
-        timestampMs: transition.timestampMs ?? event.timestampMs,
-        blockHash: transition.blockHash ?? event.blockHash,
-        gasUsedCredits: transition.gasUsedCredits ?? event.gasUsedCredits,
-        direction: combinedDirection(combinedTransfers),
-        netAmountCredits: netTransferAmount(combinedTransfers),
-        transfers: combinedTransfers,
-      });
+    merged.set(
+      transactionHash,
+      transition === undefined
+        ? event
+        : {
+            ...transition,
+            type: transition.type === 'UNKNOWN' ? event.type : transition.type,
+            timestampMs: transition.timestampMs ?? event.timestampMs,
+            blockHash: transition.blockHash ?? event.blockHash,
+            gasUsedCredits: transition.gasUsedCredits ?? event.gasUsedCredits,
+            direction: combinedDirection(combinedTransfers),
+            netAmountCredits: netTransferAmount(combinedTransfers),
+            transfers: combinedTransfers,
+          },
+    );
   }
   return [...merged.values()].sort((left, right) => {
     const leftTime = left.timestampMs ?? Number.MIN_SAFE_INTEGER;
@@ -417,7 +410,9 @@ function contractView(value: Record<string, unknown>): IdentityDataContractHisto
     documentsCount: optionalInteger(value.documentsCount),
     tokensCount: optionalInteger(value.tokensCount),
     description: text(value.description),
-    keywords: Array.isArray(value.keywords) ? value.keywords.filter((item): item is string => typeof item === 'string') : [],
+    keywords: Array.isArray(value.keywords)
+      ? value.keywords.filter((item): item is string => typeof item === 'string')
+      : [],
   };
 }
 
@@ -480,7 +475,8 @@ async function paginatedItems(
   const limit = Math.min(EXPLORER_PAGE_SIZE, historyLimit);
   const integrity = new IdentityPageIntegrity(context, kind, expected);
   for (let pageNumber = 1; items.length < historyLimit; pageNumber += 1) {
-    if (pageNumber > EXPLORER_MAX_PAGES) throw new Error(`Platform Explorer ${context} exceeded its pagination safety ceiling.`);
+    if (pageNumber > EXPLORER_MAX_PAGES)
+      throw new Error(`Platform Explorer ${context} exceeded its pagination safety ceiling.`);
     onRequest();
     const response = page(
       await fetchJson(fetcher, `${endpoint}${path}?page=${pageNumber}&limit=${limit}&order=desc`, signal),
@@ -488,13 +484,12 @@ async function paginatedItems(
     );
     integrity.accept(response.items, response.total, limit, historyLimit);
     items.push(...response.items.slice(0, historyLimit - items.length));
-    if (
-      response.items.length < limit
-      || (integrity.total !== null && items.length >= integrity.total)
-    ) break;
+    if (response.items.length < limit || (integrity.total !== null && items.length >= integrity.total)) break;
   }
-  if (integrity.total === null) warnings.push(`${context}: provider did not report a total count; collection completeness is unverified.`);
-  else if (items.length < integrity.total) warnings.push(`${context}: showing ${items.length} of ${integrity.total} records (display limit).`);
+  if (integrity.total === null)
+    warnings.push(`${context}: provider did not report a total count; collection completeness is unverified.`);
+  else if (items.length < integrity.total)
+    warnings.push(`${context}: showing ${items.length} of ${integrity.total} records (display limit).`);
   return items;
 }
 
@@ -517,7 +512,9 @@ export async function queryPlatformIdentityHistory(
   }
   const endpoint = provider.endpoint(network);
   let requests = 0;
-  const request = (): void => { requests += 1; };
+  const request = (): void => {
+    requests += 1;
+  };
 
   request();
   const status = object(await fetchJson(fetcher, `${endpoint}/status`, signal), 'index status');
@@ -537,7 +534,8 @@ export async function queryPlatformIdentityHistory(
     await fetchJson(fetcher, `${endpoint}/identity/${encodeURIComponent(identifier)}`, signal),
     'identity info',
   );
-  if (info.identifier !== identifier) throw new Error('Platform Explorer identity info did not match the requested Identity.');
+  if (info.identifier !== identifier)
+    throw new Error('Platform Explorer identity info did not match the requested Identity.');
   const totalTransactions = requiredInteger(info.totalTxs, 'identity transaction count');
   const totalTransfers = requiredInteger(info.totalTransfers, 'identity transfer count');
   const totalDocuments = requiredInteger(info.totalDocuments, 'identity document count');
@@ -552,11 +550,66 @@ export async function queryPlatformIdentityHistory(
     tokens: `/identity/${encodeURIComponent(identifier)}/tokens`,
   };
   const [transactions, transfers, documents, dataContracts, tokens, withdrawalsValue] = await Promise.all([
-    paginatedItems(fetcher, endpoint, paths.transactions, historyLimit, 'identity transactions', signal, request, 'transactions', totalTransactions, historyWarnings),
-    paginatedItems(fetcher, endpoint, paths.transfers, historyLimit, 'identity transfers', signal, request, 'transfers', totalTransfers, historyWarnings),
-    paginatedItems(fetcher, endpoint, paths.documents, historyLimit, 'identity documents', signal, request, 'resources', totalDocuments, historyWarnings),
-    paginatedItems(fetcher, endpoint, paths.dataContracts, historyLimit, 'identity data contracts', signal, request, 'resources', totalDataContracts, historyWarnings),
-    paginatedItems(fetcher, endpoint, paths.tokens, historyLimit, 'identity tokens', signal, request, 'resources', null, historyWarnings),
+    paginatedItems(
+      fetcher,
+      endpoint,
+      paths.transactions,
+      historyLimit,
+      'identity transactions',
+      signal,
+      request,
+      'transactions',
+      totalTransactions,
+      historyWarnings,
+    ),
+    paginatedItems(
+      fetcher,
+      endpoint,
+      paths.transfers,
+      historyLimit,
+      'identity transfers',
+      signal,
+      request,
+      'transfers',
+      totalTransfers,
+      historyWarnings,
+    ),
+    paginatedItems(
+      fetcher,
+      endpoint,
+      paths.documents,
+      historyLimit,
+      'identity documents',
+      signal,
+      request,
+      'resources',
+      totalDocuments,
+      historyWarnings,
+    ),
+    paginatedItems(
+      fetcher,
+      endpoint,
+      paths.dataContracts,
+      historyLimit,
+      'identity data contracts',
+      signal,
+      request,
+      'resources',
+      totalDataContracts,
+      historyWarnings,
+    ),
+    paginatedItems(
+      fetcher,
+      endpoint,
+      paths.tokens,
+      historyLimit,
+      'identity tokens',
+      signal,
+      request,
+      'resources',
+      null,
+      historyWarnings,
+    ),
     (async (): Promise<unknown> => {
       request();
       return fetchJson(
@@ -583,15 +636,11 @@ export async function queryPlatformIdentityHistory(
     registration = creationTransaction(oldestTransactions);
   }
   const registrationType = registration === null ? null : text(registration.type);
-  const registrationTransactionHash = registration === null
-    ? text(info.txHash)
-    : text(registration.hash);
+  const registrationTransactionHash = registration === null ? text(info.txHash) : text(registration.hash);
   if (registration !== null && registrationTransactionHash === null) {
     throw new Error('Platform Explorer returned an Identity creation transition without a hash.');
   }
-  const registeredAtMs = registration === null
-    ? timestamp(info.timestamp)
-    : timestamp(registration.timestamp);
+  const registeredAtMs = registration === null ? timestamp(info.timestamp) : timestamp(registration.timestamp);
   let fundingCoreTransactionHash = text(info.fundingCoreTx);
   let fundingCoreTransactionOutputIndex: number | null = null;
   let fundingCoreTransactionError: string | null = null;
@@ -603,12 +652,13 @@ export async function queryPlatformIdentityHistory(
         fundingCoreTransactionHash = funding.coreTransactionHash;
         fundingCoreTransactionOutputIndex = funding.outputIndex;
       } catch {
-        fundingCoreTransactionError = 'The indexed Identity creation transition could not be decoded by the pinned Dash Evo SDK.';
+        fundingCoreTransactionError =
+          'The indexed Identity creation transition could not be decoded by the pinned Dash Evo SDK.';
       }
     }
   } else if (
-    registrationType === 'IDENTITY_CREATE_FROM_ADDRESSES'
-    || registrationType === 'IDENTITY_CREATE_FROM_SHIELDED_POOL'
+    registrationType === 'IDENTITY_CREATE_FROM_ADDRESSES' ||
+    registrationType === 'IDENTITY_CREATE_FROM_SHIELDED_POOL'
   ) {
     fundingCoreTransactionHash = null;
   }

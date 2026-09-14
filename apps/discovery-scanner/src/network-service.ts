@@ -16,14 +16,14 @@ import type {
   RecoveryNetworkRequest,
   ShieldedPageView,
   UtxoAddressView,
-} from './network-protocol.js';
+} from '@ckd/network-boundary/protocol.js';
 import {
   RECOVERY_CORE_ADDRESS_BATCH,
   RECOVERY_CORE_ENDPOINTS,
   RECOVERY_PLATFORM_ADDRESS_BATCH,
-} from './network-protocol.js';
-import type { RecoveryNetwork } from './types.js';
-import { describeUnknownError, freeThrownValue } from './error-message.js';
+} from '@ckd/network-boundary/protocol.js';
+import type { RecoveryNetwork } from '@ckd/network-boundary/protocol.js';
+import { describeUnknownError, freeThrownValue } from '@ckd/core/error-handling.js';
 
 const PUBLIC_KEY_HASH_PATTERN = /^[0-9a-f]{40}$/u;
 const TRANSACTION_HASH_PATTERN = /^[0-9a-f]{64}$/u;
@@ -142,7 +142,8 @@ function pageTimestamp(value: unknown, context: string): string | null {
 }
 
 function hexToBytes(hex: string): Uint8Array {
-  if (!PUBLIC_KEY_HASH_PATTERN.test(hex)) throw new Error('Network Worker requires a 20-byte lowercase public-key hash.');
+  if (!PUBLIC_KEY_HASH_PATTERN.test(hex))
+    throw new Error('Network Worker requires a 20-byte lowercase public-key hash.');
   const bytes = new Uint8Array(20);
   for (let offset = 0; offset < bytes.length; offset += 1) {
     bytes[offset] = Number.parseInt(hex.slice(offset * 2, offset * 2 + 2), 16);
@@ -269,9 +270,7 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
         retries: 0,
         banFailedAddress: true,
       };
-      const sdk = network === 'mainnet'
-        ? EvoSDK.mainnetTrusted({ settings })
-        : EvoSDK.testnetTrusted({ settings });
+      const sdk = network === 'mainnet' ? EvoSDK.mainnetTrusted({ settings }) : EvoSDK.testnetTrusted({ settings });
       await sdk.connect();
       return sdk;
     })();
@@ -311,7 +310,9 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
           throw new Error(`Proof query was rejected without retry (${failure}).`);
         }
         if (attempt === EVO_EXPLICIT_ATTEMPTS) {
-          throw new Error(`Proof query failed after ${EVO_EXPLICIT_ATTEMPTS} bounded attempts (${failures.join('; ')}).`);
+          throw new Error(
+            `Proof query failed after ${EVO_EXPLICIT_ATTEMPTS} bounded attempts (${failures.join('; ')}).`,
+          );
         }
         await waitBeforeProofRetry(attempt, signal);
       }
@@ -337,27 +338,38 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
   async coreAddressInfo(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<unknown> {
     assertNetwork(network);
     assertAddressBatch(addresses, network, validateCoreP2pkhAddress, 'Dash Core P2PKH', RECOVERY_CORE_ADDRESS_BATCH);
-    return fetchJson(`${RECOVERY_CORE_ENDPOINTS[network]}/addresses/info?addresses=${addresses.map(encodeURIComponent).join(',')}`, signal);
+    return fetchJson(
+      `${RECOVERY_CORE_ENDPOINTS[network]}/addresses/info?addresses=${addresses.map(encodeURIComponent).join(',')}`,
+      signal,
+    );
   }
 
   async coreAddressHistory(network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<unknown> {
     assertNetwork(network);
     assertSingleAddress(address, network, validateCoreP2pkhAddress, 'Dash Core P2PKH');
-    const historyValue = await fetchJson(`${RECOVERY_CORE_ENDPOINTS[network]}/address/${encodeURIComponent(address)}`, signal);
+    const historyValue = await fetchJson(
+      `${RECOVERY_CORE_ENDPOINTS[network]}/address/${encodeURIComponent(address)}`,
+      signal,
+    );
     if (typeof historyValue !== 'object' || historyValue === null || Array.isArray(historyValue)) return historyValue;
     const history = historyValue as Record<string, unknown>;
     // DashScan currently leaves firstSeenBlock/Timestamp null for some
     // special-transaction outputs (for example Asset Unlock), while retaining
     // the authoritative firstSeenTx hash. Resolve that transaction through the
     // same source so the public recovery record still gets its first date.
-    if ((typeof history.firstSeenBlockTimestamp === 'string' && Number.isFinite(Date.parse(history.firstSeenBlockTimestamp)))
-      || typeof history.firstSeenTx !== 'string'
-      || !TRANSACTION_HASH_PATTERN.test(history.firstSeenTx)) return historyValue;
+    if (
+      (typeof history.firstSeenBlockTimestamp === 'string' &&
+        Number.isFinite(Date.parse(history.firstSeenBlockTimestamp))) ||
+      typeof history.firstSeenTx !== 'string' ||
+      !TRANSACTION_HASH_PATTERN.test(history.firstSeenTx)
+    )
+      return historyValue;
     const transactionValue = await fetchJson(
       `${RECOVERY_CORE_ENDPOINTS[network]}/transaction/${encodeURIComponent(history.firstSeenTx)}`,
       signal,
     );
-    if (typeof transactionValue !== 'object' || transactionValue === null || Array.isArray(transactionValue)) return historyValue;
+    if (typeof transactionValue !== 'object' || transactionValue === null || Array.isArray(transactionValue))
+      return historyValue;
     const transaction = transactionValue as Record<string, unknown>;
     if (transaction.hash !== history.firstSeenTx) return historyValue;
     const timestamp = transaction.timestamp;
@@ -365,7 +377,11 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     return { ...history, firstSeenBlockTimestamp: timestamp };
   }
 
-  async coreTransaction(network: RecoveryNetwork, hash: string, signal?: AbortSignal): Promise<DashCoreTransactionView> {
+  async coreTransaction(
+    network: RecoveryNetwork,
+    hash: string,
+    signal?: AbortSignal,
+  ): Promise<DashCoreTransactionView> {
     assertNetwork(network);
     assertHash(hash);
     const transaction = record(
@@ -380,13 +396,15 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
       hash,
       type: typeof transaction.type === 'string' ? transaction.type : '',
       timestamp: timestamp(transaction.timestamp, 'DashScan transaction timestamp'),
-      inputAddresses: inputs.map((value) => record(value, 'DashScan transaction input').address)
+      inputAddresses: inputs
+        .map((value) => record(value, 'DashScan transaction input').address)
         .filter((address): address is string => typeof address === 'string'),
       assetLockCreditOutputs: outputs.map((value) => {
         const output = record(value, 'DashScan asset-lock credit output');
         const script = typeof output.script === 'string' ? output.script : '';
         const match = /OP_HASH160 OP_PUSHBYTES_20 ([0-9a-f]{40}) OP_EQUALVERIFY/u.exec(script);
-        if (match?.[1] === undefined) throw new Error('DashScan asset-lock payload contained an unsupported credit script.');
+        if (match?.[1] === undefined)
+          throw new Error('DashScan asset-lock payload contained an unsupported credit script.');
         return {
           amount: decimal(output.satoshis, 'DashScan asset-lock output amount in duffs'),
           publicKeyHash: match[1],
@@ -395,7 +413,12 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     };
   }
 
-  async addressHistory(_coin: 'bitcoin' | 'ethereum', _network: RecoveryNetwork, _address: string, _signal?: AbortSignal): Promise<import('./types.js').RecoveryHistory> {
+  async addressHistory(
+    _coin: 'bitcoin' | 'ethereum',
+    _network: RecoveryNetwork,
+    _address: string,
+    _signal?: AbortSignal,
+  ): Promise<import('./types.js').RecoveryHistory> {
     throw new Error('This build rejected an unsupported network operation.');
   }
 
@@ -415,10 +438,20 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     throw new Error('This build rejected an unsupported network operation.');
   }
 
-  async platformAddresses(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<PlatformAddressBatchView> {
+  async platformAddresses(
+    network: RecoveryNetwork,
+    addresses: string[],
+    signal?: AbortSignal,
+  ): Promise<PlatformAddressBatchView> {
     throwIfAborted(signal);
     assertNetwork(network);
-    assertAddressBatch(addresses, network, validatePlatformP2pkhAddress, 'Dash Platform P2PKH', RECOVERY_PLATFORM_ADDRESS_BATCH);
+    assertAddressBatch(
+      addresses,
+      network,
+      validatePlatformP2pkhAddress,
+      'Dash Platform P2PKH',
+      RECOVERY_PLATFORM_ADDRESS_BATCH,
+    );
     const response = await this.#proofWithExplicitRetry(
       network,
       'addresses',
@@ -451,15 +484,26 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     assertSingleAddress(address, network, validatePlatformP2pkhAddress, 'Dash Platform P2PKH');
     const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
     const indexedHeight = await this.#platformExplorerHeight(network, signal);
-    const info = record(await fetchJson(`${endpoint}/platformAddress/${encodeURIComponent(address)}/info`, signal), 'address info');
-    if (info.bech32mAddress !== address) throw new Error('Platform Explorer address info did not match the requested address.');
+    const info = record(
+      await fetchJson(`${endpoint}/platformAddress/${encodeURIComponent(address)}/info`, signal),
+      'address info',
+    );
+    if (info.bech32mAddress !== address)
+      throw new Error('Platform Explorer address info did not match the requested address.');
     const transactionCount = unsignedInteger(info.totalTxs, 'address transaction count');
-    const [firstSeen, lastSeen] = transactionCount === 0 ? [null, null] : await Promise.all([
-      fetchJson(`${endpoint}/platformAddress/${encodeURIComponent(address)}/transactions?page=1&limit=1&order=asc`, signal)
-        .then((value) => pageTimestamp(value, 'first address transition')),
-      fetchJson(`${endpoint}/platformAddress/${encodeURIComponent(address)}/transactions?page=1&limit=1&order=desc`, signal)
-        .then((value) => pageTimestamp(value, 'last address transition')),
-    ]);
+    const [firstSeen, lastSeen] =
+      transactionCount === 0
+        ? [null, null]
+        : await Promise.all([
+            fetchJson(
+              `${endpoint}/platformAddress/${encodeURIComponent(address)}/transactions?page=1&limit=1&order=asc`,
+              signal,
+            ).then((value) => pageTimestamp(value, 'first address transition')),
+            fetchJson(
+              `${endpoint}/platformAddress/${encodeURIComponent(address)}/transactions?page=1&limit=1&order=desc`,
+              signal,
+            ).then((value) => pageTimestamp(value, 'last address transition')),
+          ]);
     return {
       resource: address,
       balance: decimal(info.balance, 'address balance'),
@@ -523,20 +567,27 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
       return fetchJson(url, signal, {}, remaining);
     };
     assertNetwork(network);
-    if (!PLATFORM_IDENTIFIER_PATTERN.test(identifier)) throw new Error('Network Worker rejected an invalid Platform identity.');
+    if (!PLATFORM_IDENTIFIER_PATTERN.test(identifier))
+      throw new Error('Network Worker rejected an invalid Platform identity.');
     const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
     const indexedHeight = await this.#platformExplorerHeight(network, signal);
     const info = record(await request(`${endpoint}/identity/${encodeURIComponent(identifier)}`), 'identity info');
-    if (info.identifier !== identifier) throw new Error('Platform Explorer identity info did not match the requested identity.');
+    if (info.identifier !== identifier)
+      throw new Error('Platform Explorer identity info did not match the requested identity.');
     const expectedTransfers = unsignedInteger(info.totalTransfers, 'identity transfer count');
     if (expectedTransfers > PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS) {
-      throw new Error(`Platform identity history exceeds the ${PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS}-transfer safety limit; proof-verified balance remains available.`);
+      throw new Error(
+        `Platform identity history exceeds the ${PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS}-transfer safety limit; proof-verified balance remains available.`,
+      );
     }
     const transactionCount = unsignedInteger(info.totalTxs, 'identity transaction count');
     const firstSeen = timestamp(info.timestamp, 'identity first-seen timestamp');
-    const lastSeen = transactionCount === 0 ? firstSeen : await request(
-      `${endpoint}/identity/${encodeURIComponent(identifier)}/transactions?page=1&limit=1&order=desc`,
-    ).then((value) => pageTimestamp(value, 'last identity transition'));
+    const lastSeen =
+      transactionCount === 0
+        ? firstSeen
+        : await request(
+            `${endpoint}/identity/${encodeURIComponent(identifier)}/transactions?page=1&limit=1&order=desc`,
+          ).then((value) => pageTimestamp(value, 'last identity transition'));
     let totalReceived = 0n;
     let totalSent = 0n;
     let incomingCount = 0;
@@ -545,10 +596,14 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     const integrity = new IdentityPageIntegrity('identity transfers', 'transfers', expectedTransfers);
     const total = expectedTransfers;
     for (let pageNumber = 1; processed < total; pageNumber += 1) {
-      if (pageNumber > Math.ceil(PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS / PLATFORM_HISTORY_PAGE_SIZE)) throw new Error('Platform identity transfer history exceeded its safety ceiling.');
-      const page = pageItems(await request(
-        `${endpoint}/identity/${encodeURIComponent(identifier)}/transfers?page=${pageNumber}&limit=${PLATFORM_HISTORY_PAGE_SIZE}&order=asc`,
-        ), 'identity transfer page');
+      if (pageNumber > Math.ceil(PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS / PLATFORM_HISTORY_PAGE_SIZE))
+        throw new Error('Platform identity transfer history exceeded its safety ceiling.');
+      const page = pageItems(
+        await request(
+          `${endpoint}/identity/${encodeURIComponent(identifier)}/transfers?page=${pageNumber}&limit=${PLATFORM_HISTORY_PAGE_SIZE}&order=asc`,
+        ),
+        'identity transfer page',
+      );
       integrity.accept(page.items, page.total, PLATFORM_HISTORY_PAGE_SIZE, PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS);
       for (const transfer of page.items) {
         const amount = BigInt(decimal(transfer.amount, 'identity transfer amount'));
@@ -562,7 +617,8 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
         }
       }
       processed += page.items.length;
-      if (page.items.length === 0 && processed < total) throw new Error('Platform Explorer truncated identity transfer history.');
+      if (page.items.length === 0 && processed < total)
+        throw new Error('Platform Explorer truncated identity transfer history.');
     }
     return {
       resource: identifier,
@@ -590,7 +646,8 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
   ): Promise<ShieldedPageView> {
     throwIfAborted(signal);
     assertNetwork(network);
-    if (!DECIMAL_PATTERN.test(startPosition)) throw new Error('Network Worker rejected an invalid Orchard pool position.');
+    if (!DECIMAL_PATTERN.test(startPosition))
+      throw new Error('Network Worker rejected an invalid Orchard pool position.');
     if (!Number.isSafeInteger(count) || count < 1 || count > 8192) {
       throw new Error('Network Worker requires an Orchard page size from 1 to 8192.');
     }
@@ -617,41 +674,40 @@ export async function executeRecoveryNetworkRequest(
   signal?: AbortSignal,
 ): Promise<unknown> {
   switch (request.operation) {
-    case 'ping': return service.ping(signal);
-    case 'core.status': return service.coreStatus(request.payload.network, signal);
-    case 'core.tip': return service.coreTip(request.payload.network, signal);
-    case 'core.address-info': return service.coreAddressInfo(request.payload.network, request.payload.addresses, signal);
-    case 'core.address-history': return service.coreAddressHistory(request.payload.network, request.payload.address, signal);
-    case 'core.transaction': return service.coreTransaction(request.payload.network, request.payload.hash, signal);
-    case 'platform.addresses': return service.platformAddresses(request.payload.network, request.payload.addresses, signal);
-    case 'platform.address-history': return service.platformAddressHistory(request.payload.network, request.payload.address, signal);
-    case 'platform.identity-by-public-key-hash': return service.platformIdentityByPublicKeyHash(
-      request.payload.network,
-      request.payload.publicKeyHashHex,
-      signal,
-    );
-    case 'platform.identity-history': return service.platformIdentityHistory(
-      request.payload.network,
-      request.payload.identifier,
-      signal,
-    );
-    case 'shielded.page': return service.shieldedPage(
-      request.payload.network,
-      request.payload.startPosition,
-      request.payload.count,
-      signal,
-    );
-    case 'address.history': return service.addressHistory(request.payload.coin, request.payload.network, request.payload.address, signal);
-    case 'utxo.addresses': return service.utxoAddresses(
-      request.payload.network,
-      request.payload.addresses,
-      signal,
-    );
-    case 'evm.accounts': return service.evmAccounts(
-      request.payload.network,
-      request.payload.addresses,
-      signal,
-    );
-    default: throw new Error('Recovery Network Worker rejected an unsupported operation.');
+    case 'ping':
+      return service.ping(signal);
+    case 'core.status':
+      return service.coreStatus(request.payload.network, signal);
+    case 'core.tip':
+      return service.coreTip(request.payload.network, signal);
+    case 'core.address-info':
+      return service.coreAddressInfo(request.payload.network, request.payload.addresses, signal);
+    case 'core.address-history':
+      return service.coreAddressHistory(request.payload.network, request.payload.address, signal);
+    case 'core.transaction':
+      return service.coreTransaction(request.payload.network, request.payload.hash, signal);
+    case 'platform.addresses':
+      return service.platformAddresses(request.payload.network, request.payload.addresses, signal);
+    case 'platform.address-history':
+      return service.platformAddressHistory(request.payload.network, request.payload.address, signal);
+    case 'platform.identity-by-public-key-hash':
+      return service.platformIdentityByPublicKeyHash(request.payload.network, request.payload.publicKeyHashHex, signal);
+    case 'platform.identity-history':
+      return service.platformIdentityHistory(request.payload.network, request.payload.identifier, signal);
+    case 'shielded.page':
+      return service.shieldedPage(
+        request.payload.network,
+        request.payload.startPosition,
+        request.payload.count,
+        signal,
+      );
+    case 'address.history':
+      return service.addressHistory(request.payload.coin, request.payload.network, request.payload.address, signal);
+    case 'utxo.addresses':
+      return service.utxoAddresses(request.payload.network, request.payload.addresses, signal);
+    case 'evm.accounts':
+      return service.evmAccounts(request.payload.network, request.payload.addresses, signal);
+    default:
+      throw new Error('Recovery Network Worker rejected an unsupported operation.');
   }
 }
