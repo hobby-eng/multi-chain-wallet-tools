@@ -1,0 +1,52 @@
+{
+  "multi-chain": {
+    "id": "multi-chain",
+    "chains": ["bitcoin", "dash", "ethereum"],
+    "capabilities": {
+      "derivation": true,
+      "secretBoundary": true,
+      "publicNetwork": true,
+      "recoveryNetwork": true,
+      "offlineOnly": false,
+      "recoveryAddressSearch": true,
+      "bip85": true,
+      "bitcoinSilentPayments": true,
+      "bitcoinMessageSigning": true,
+      "dashMessageSigning": true,
+      "publicActivity": true,
+      "discoveryScanner": true,
+      "advancedPsbt": true
+    },
+    "tools": {
+      "key-derivation": { "secretBoundary": true, "publicNetwork": false, "recoveryNetwork": false, "offlineOnly": true },
+      "activity-viewer": { "secretBoundary": false, "publicNetwork": true, "recoveryNetwork": false, "offlineOnly": false },
+      "discovery-scanner": { "secretBoundary": true, "publicNetwork": true, "recoveryNetwork": true, "offlineOnly": false },
+      "psbt-inspector": { "secretBoundary": false, "publicNetwork": false, "recoveryNetwork": false, "offlineOnly": true }
+    }
+  },
+  "dash-community": {
+    "id": "dash-community",
+    "chains": ["dash"],
+    "capabilities": {
+      "derivation": true,
+      "secretBoundary": true,
+      "publicNetwork": true,
+      "recoveryNetwork": true,
+      "offlineOnly": false,
+      "recoveryAddressSearch": true,
+      "bip85": false,
+      "bitcoinSilentPayments": false,
+      "bitcoinMessageSigning": false,
+      "dashMessageSigning": true,
+      "publicActivity": true,
+      "discoveryScanner": true,
+      "advancedPsbt": false
+    },
+    "tools": {
+      "key-derivation": { "secretBoundary": true, "publicNetwork": false, "recoveryNetwork": false, "offlineOnly": true },
+      "activity-viewer": { "secretBoundary": false, "publicNetwork": true, "recoveryNetwork": false, "offlineOnly": false },
+      "discovery-scanner": { "secretBoundary": true, "publicNetwork": true, "recoveryNetwork": true, "offlineOnly": false },
+      "psbt-inspector": { "secretBoundary": false, "publicNetwork": false, "recoveryNetwork": false, "offlineOnly": true }
+    }
+  }
+}
