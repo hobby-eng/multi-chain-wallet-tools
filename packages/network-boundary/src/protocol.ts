@@ -21,10 +21,6 @@ export const RECOVERY_VAULT_HEIGHT = 'ckd-recovery-vault-height-v1';
 export const RECOVERY_CORE_ADDRESS_BATCH = 100;
 export const RECOVERY_PLATFORM_ADDRESS_BATCH = 100;
 export { RECOVERY_UTXO_ADDRESS_BATCH, RECOVERY_EVM_ACCOUNT_BATCH } from './data-types.js';
-export const RECOVERY_CORE_ENDPOINTS = {
-  mainnet: 'https://dashscan.pshenmic.dev',
-  testnet: 'https://testnet.dashscan.pshenmic.dev',
-} as const;
 
 export type RecoveryExportBrokerFormat = 'csv' | 'json';
 export interface RecoveryExportBrokerRequest {
@@ -100,12 +96,6 @@ export interface ShieldedPageView {
   notes: ShieldedNoteView[];
   metadata: ProofMetadataView;
 }
-export interface PublicNetworkRequest {
-  operation: 'address-history' | 'utxo-balance' | 'platform-lookup';
-  network: 'mainnet' | 'testnet';
-  addresses: string[];
-}
-
 export interface RecoveryNetworkApi {
   ping(signal?: AbortSignal): Promise<string>;
   coreStatus(network: RecoveryNetwork, signal?: AbortSignal): Promise<unknown>;
@@ -184,11 +174,11 @@ export type RecoveryNetworkRequest = WithRequestId<RecoveryNetworkRequestInput>;
 export type RecoveryNetworkResponse =
   | { id: string; ok: true; value: unknown }
   | { id: string; ok: false; error: string };
-export interface RecoveryNetworkCancel {
+interface RecoveryNetworkCancel {
   type: 'cancel';
   id: string;
 }
-export interface RecoveryNetworkInvoke {
+interface RecoveryNetworkInvoke {
   type: 'invoke';
   request: RecoveryNetworkRequest;
 }

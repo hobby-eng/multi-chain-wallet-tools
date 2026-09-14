@@ -1,6 +1,10 @@
 import { MultiChainRecoveryNetworkService } from '../src/network-service-multichain.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { bitcoinAddressHistory, ethereumAddressHistory, HISTORY_MAX_PAGES } from '../src/address-history-service.js';
+import {
+  bitcoinAddressHistory,
+  ethereumAddressHistory,
+  HISTORY_MAX_PAGES,
+} from '../../../packages/public-data-providers/src/history.js';
 import { emptyHistory, enrichRecoveryHistory, historyAmount, validateHistory } from '../src/history.js';
 import { getDashHistory, dashAmountUnit } from '../src/coins/dash/history.js';
 import { createRecoveryExport } from '../src/export.js';

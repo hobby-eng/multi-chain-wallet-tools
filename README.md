@@ -99,6 +99,8 @@ It does not sign, finalize, fund, query UTXOs, persist data, or broadcast transa
 
 The project has extensive automated checks but has not received an independent cryptography-specialist audit. See the [security model and current limitations](SECURITY_AUDIT.md).
 
+For source reviewers, the applications depend on shared packages with one-way responsibilities: `crypto-core` and `coin-protocols` own cryptographic primitives and derivation; `secret-boundary`, `secret-vault`, and `network-boundary` own the connected-tool trust boundaries; `public-data-providers` owns Bitcoin/Ethereum public reads; and `wallet-recovery` owns reusable watch-only detection and bounded recovery searches. Build checks reject cross-app imports, package-to-application imports, package dependency cycles, and non-allowlisted modules in Dash Community artifacts. See [Architecture](docs/ARCHITECTURE.md) for the complete dependency and execution model.
+
 ## Supported standard derivation defaults
 
 These are the main defaults, not an exhaustive list of every optional recovery family or descriptor form.

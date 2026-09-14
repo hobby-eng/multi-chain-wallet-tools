@@ -38,6 +38,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Official-vector and large descriptor suites are CPU-heavy under full parallel CI.
+    testTimeout: 20_000,
     include: ['apps/**/*.test.ts', 'packages/**/*.test.ts', 'tooling/**/*.test.mjs'],
     coverage: {
       include: ['packages/crypto-core/src/**/*.ts', 'packages/coin-protocols/src/**/*.ts'],

@@ -125,6 +125,13 @@ describe('build profiles', () => {
       'packages/coin-protocols/src/coins/registry.ts',
       'apps/discovery-scanner/src/coins/index.ts',
       'apps/discovery-scanner/src/coins/future-coin/index.ts',
+      'packages/public-data-providers/src/multi-chain-service.ts',
+      'packages/public-data-providers/src/future-provider.ts',
+      'packages/secret-boundary/src/future-network-bridge.ts',
+      'packages/network-boundary/src/future-generic-request.ts',
+      'packages/secret-vault/src/future-wallet-runtime.ts',
+      'packages/wallet-recovery/src/multi-seed-search.ts',
+      'packages/wallet-recovery/src/future-coin.ts',
     ]) {
       expect(() => assertDashOnlyGraph([input], 'fixture')).toThrow('outside the Dash allowlist');
     }

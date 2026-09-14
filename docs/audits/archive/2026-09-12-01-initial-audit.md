@@ -133,7 +133,7 @@ Synthetic examples produce a known fee of 100 from an unrelated previous transac
 
 ### F05 — Medium: descriptor validation permits invalid contexts and malformed tree/multipath syntax
 
-**Locations:** [descriptor-key.ts:24](../../../packages/crypto-core/src/descriptor-key.ts#L24), [descriptor-key.ts:69](../../../packages/crypto-core/src/descriptor-key.ts#L69), [descriptor.ts:350](../../../apps/psbt-inspector/src/descriptor.ts#L350), [descriptor.ts:483](../../../apps/psbt-inspector/src/descriptor.ts#L483).
+**Locations at audit time:** `apps/psbt-inspector/src/descriptor-key.ts:24,69` (later moved to [the shared helper](../../../packages/crypto-core/src/descriptor-key.ts)), [descriptor.ts:350](../../../apps/psbt-inspector/src/descriptor.ts#L350), [descriptor.ts:483](../../../apps/psbt-inspector/src/descriptor.ts#L483).
 
 Confirmed examples include:
 

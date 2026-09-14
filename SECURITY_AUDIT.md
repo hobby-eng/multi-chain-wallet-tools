@@ -57,6 +57,14 @@ A compromised browser, extension, operating system, firmware, build host, or alr
 - Viewer controls stay disabled until the embedded Orchard runtime passes fixed public tests and the same-document Evo Blob Worker completes its startup handshake.
 - Dash CSV/XLSX/JSON exports are generated locally from the loaded result snapshot and exclude Orchard viewing keys. They can still contain privacy-sensitive addresses, identities, transactions, notes, memos, commitments, nullifiers, and activity patterns. Bitcoin and Ethereum results are displayed without export controls in this release.
 
+### Shared boundary ownership
+
+- `packages/secret-boundary` owns public-input rejection, registered-secret egress checks, and explicit byte disposal.
+- `packages/network-boundary` owns neutral request/response DTOs, MessagePort cancellation, and the worker runtime; it does not import provider implementations.
+- `packages/public-data-providers` owns fixed Bitcoin/Ethereum public endpoints and response validation.
+- `packages/secret-vault` owns the opaque iframe channel bootstrap, while `packages/wallet-recovery` owns reusable watch-only detection and bounded local search coordinators.
+- Automated module-boundary tests reject app-to-app imports, package-to-app imports, package cycles, and a provider dependency from `network-boundary`.
+
 ### Wallet Discovery Scanner
 
 - Seed-phrase and public-key searches are separate modes, each supporting Single and Batch input. Public-key mode uses a coin selector and refuses to infer a coin when a shared extended-key encoding is ambiguous.

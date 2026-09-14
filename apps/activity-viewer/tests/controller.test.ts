@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createActivityViewerController } from '../src/controller.js';
 import type { ActivityViewerView } from '../src/view.js';
 import type { NormalizedViewingKey } from '@ckd/dash-network/viewing-key.js';
-import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/public-data-providers/private-material.js';
+import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/secret-boundary/public-input-guard.js';
 import { assertAutoViewerBatchInput, detectViewerInput } from '../src/detection.js';
 import { runShieldedPageStream } from '@ckd/dash-network/shielded-stream-policy.js';
 

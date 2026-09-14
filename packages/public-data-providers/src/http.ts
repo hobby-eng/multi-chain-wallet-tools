@@ -2,7 +2,7 @@ import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
 
 const DECIMAL_PATTERN = PROVIDER_UNSIGNED_DECIMAL;
 
-function abortError(): DOMException {
+export function publicProviderAbortError(): DOMException {
   return new DOMException('Recovery network operation cancelled.', 'AbortError');
 }
 
@@ -17,7 +17,7 @@ function readProviderJson(response: Response, signal: AbortSignal): Promise<unkn
       }
     },
     (cause) => {
-      if (signal.aborted) throw abortError();
+      if (signal.aborted) throw publicProviderAbortError();
       throw cause;
     },
   );
@@ -53,7 +53,7 @@ export async function fetchJson(
   init: RequestInit = {},
   timeoutMs = 30_000,
 ): Promise<unknown> {
-  if (signal?.aborted) throw abortError();
+  if (signal?.aborted) throw publicProviderAbortError();
   const requestController = new AbortController();
   let timedOut = false;
   const abortFromCaller = (): void => requestController.abort();
@@ -70,7 +70,7 @@ export async function fetchJson(
     }
     return await readProviderJson(response, requestController.signal);
   } catch (cause) {
-    if (signal?.aborted) throw abortError();
+    if (signal?.aborted) throw publicProviderAbortError();
     if (timedOut) throw new Error(`Network request timed out after ${Math.ceil(timeoutMs / 1_000)} seconds.`);
     throw cause;
   } finally {

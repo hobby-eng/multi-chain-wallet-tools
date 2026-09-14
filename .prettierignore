@@ -6,3 +6,4 @@ test-results/
 packages/dash-shielded-wasm/generated/
 .git/
 .github/
+docs/audits/archive/

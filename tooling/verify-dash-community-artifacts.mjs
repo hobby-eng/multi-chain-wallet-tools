@@ -97,10 +97,10 @@ export function verifyDashCommunityArtifacts(projectRoot = root) {
       `edition:"${profile.editionName}"`,
       `<title>${tool.documentTitle}</title>`,
       '.primary{background:#008de4',
-      '--bg:#0b0f3b',
+      /--bg:\s*#0b0f3b/u,
       'var(--dash-deep-blue)',
     ]) {
-      if (!html.includes(marker)) {
+      if (typeof marker === 'string' ? !html.includes(marker) : !marker.test(html)) {
         throw new Error(`${tool.artifactName} is missing Dash Community marker: ${marker}`);
       }
     }
