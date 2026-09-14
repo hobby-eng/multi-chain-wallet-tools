@@ -12,10 +12,12 @@ import { buildDashCoreImport } from '../src/dash-import.js';
 import { buildConcreteMultisigWallet, buildRangedWallet, concreteDescriptor } from '../src/multisig-wallet.js';
 import { buildPolicy, policyHex } from '../src/policy.js';
 import { calculatePhrasePreimage } from '../src/preimage.js';
-import { describeScript, pairName, pairSummary, parsePsbt, transactionId, validateMusigPsbtFields } from '../src/psbt.js';
+import { describeScript, pairName, pairSummary, parsePsbt, parsedTransactionId, transactionId, validateMusigPsbtFields } from '../src/psbt.js';
 import { decodeScript } from '../src/script.js';
 
 const BIP174_CREATOR = '70736274ff01009a020000000258e87a21b56daf0c23be8e7070456c336f7cbaa5c8757924f545887bb2abdd750000000000ffffffff838d0427d0ec650a68aa46bb0b098aea4422c071b2ca78352a077959d07cea1d0100000000ffffffff0270aaf00800000000160014d85c2b71d0060b09c9886aeb815e50991dda124d00e1f5050000000016001400aea9a2e5f0f876a588df5546e8742d1d87008f000000000000000000';
+const WITNESS_PREVIOUS_TX_PSBT = 'cHNidP8BAHUCAAAAAQZB8bKqHgj6j1e86DcczS5N9qCOeeHVqdHmTRgvmaSEAAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQB8AQAAAAABARERERERERERERERERERERERERERERERERERERERERERAQAAAAD/////AgDC6wsAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKxy/vhOLAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHhwIBAQECAAAAAAAAAA==';
+const NON_WITNESS_UTXO_PSBT = 'cHNidP8BAHUCAAAAAQZB8bKqHgj6j1e86DcczS5N9qCOeeHVqdHmTRgvmaSEAAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQB1AQAAAAEREREREREREREREREREREREREREREREREREREREREREQEAAAAA/////wIAwusLAAAAABl2qRTQxZkDxbrChodg6Q/VIaRmWqdlIIiscv74TiwAAAAXqRQ1RebjO4MsRwUPJNPuuTycA5SLx4cAAAAAAAAA';
 const DASH_CORE_DOCS_PSBT = 'cHNidP8BAEICAAAAAXgRxzbShUlivVFKgoLyhk0RCCYLZKCYTl/tYRd+yGImAAAAAAD/////AQAAAAAAAAAABmoEAAECAwAAAAAAAAA=';
 
 describe('Bitcoin regtest address rendering', () => {
@@ -559,6 +561,30 @@ describe('PSBT inspector core', () => {
 
     expect(decodeScript(bytesToHex(output!.script), 'bitcoin', 'mainnet', 'script-pubkey').asm)
       .toBe('OP_0 d85c2b71d0060b09c9886aeb815e50991dda124d');
+  });
+
+  it('reports the txid rather than the wtxid for a witness-serialized previous transaction', () => {
+    const parsed = parsePsbt(WITNESS_PREVIOUS_TX_PSBT, 'bitcoin');
+    const previous = parsed.inputUtxos[0]?.previousTransaction;
+    expect(previous?.hasWitness).toBe(true);
+    expect(parsedTransactionId(previous!)).toBe('84a4992f184de6d1a9d5e1798ea0f64d2ecd1c37e8bc578ffa081eaab2f14106');
+    expect(transactionId(previous!.raw)).toBe('cbfc00f18e0fb2e37b410b25b13e5c6c89cd602074d53e397d8b99f8b085314e');
+  });
+
+  it.each(['bitcoin', 'dash'] as const)('retains a decoded non-witness UTXO for complete %s transaction display', (chain) => {
+    const parsed = parsePsbt(NON_WITNESS_UTXO_PSBT, chain);
+    expect(parsed.fee).toBe(301n);
+    expect(parsed.inputUtxos).toHaveLength(1);
+    expect(parsed.inputUtxos[0]?.binding).toBe('non-witness');
+    const previous = parsed.inputUtxos[0]?.previousTransaction;
+    expect(previous).not.toBeNull();
+    expect(previous?.inputs).toHaveLength(1);
+    expect(previous?.outputs.map(({ value }) => value)).toEqual([200_000_000n, 190_303_501_938n]);
+    expect(transactionId(previous!.raw)).toBe('84a4992f184de6d1a9d5e1798ea0f64d2ecd1c37e8bc578ffa081eaab2f14106');
+    const descriptions = previous!.outputs.map(({ script }) => describeScript(script, chain, 'mainnet'));
+    expect(descriptions.map(({ type }) => type)).toEqual(['P2PKH', 'P2SH']);
+    expect(descriptions[0]?.address).toMatch(chain === 'bitcoin' ? /^1/u : /^X/u);
+    expect(descriptions[1]?.address).toMatch(chain === 'bitcoin' ? /^3/u : /^7/u);
   });
 
   it('separates a BIP32 master fingerprint from its derivation path', () => {

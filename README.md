@@ -17,7 +17,7 @@ This is an independent hobby project. It is not an official Dash product or a re
 
 | Tool | Works | Use it to |
 | --- | --- | --- |
-| **Wallet Key Derivation Tool** | Offline | Derive addresses, public keys, account descriptors, and reveal-gated private material from a BIP39 phrase |
+| **Wallet Key Derivation Tool** | Offline | Generate or enter a 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase, then derive addresses, public keys, account descriptors, and reveal-gated private material |
 | **Wallet Activity Viewer** | Connected | Inspect public address, Identity, or Orchard viewing activity without spending authority |
 | **Wallet Discovery Scanner** | Connected, with an isolated Secret Vault | Find supported accounts and previously used addresses from BIP39 candidates or watch-only public keys/descriptors |
 | **PSBT & Multisig Inspector** | Offline | Inspect PSBTs, scripts, descriptors, and test multisig policies without signing or broadcasting |
@@ -27,6 +27,7 @@ This is an independent hobby project. It is not an official Dash product or a re
 Use the Deriver on a trusted offline computer whenever real seed phrases or private keys are involved.
 
 - Derives Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot addresses; Ethereum EOAs; and supported Dash Core, Platform Payment, Identity, multisig-cosigner, and Orchard material.
+- Checks the entered phrase locally with Seed Diagnostic: word count, English BIP39 membership, checksum, NFKD normalization, entropy/checksum sizes, typo suggestions, and the passphrase-sensitive BIP32 master fingerprint.
 - Shows receive and optional change/internal results in separate tabs with paging, selection, copy, and download controls.
 - Creates QR codes locally for public payment addresses only. Secret keys, phrases, paths, and metadata never receive QR actions.
 - Includes optional local signing of any message with the derived Bitcoin or Dash key, using pinned and tested cryptographic libraries without importing the key into a wallet. Transaction signing and broadcasting are not implemented, which keeps spending operations outside the tool’s security boundary.

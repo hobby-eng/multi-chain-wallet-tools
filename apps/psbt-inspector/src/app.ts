@@ -14,9 +14,11 @@ import {
 } from './multisig-wallet.js';
 import { buildPolicy, policyHex, type LockKind } from './policy.js';
 import { calculatePhrasePreimage, type HashlockKind } from './preimage.js';
-import { describeScript, pairName, pairSummary, parsePsbt, transactionId, type ParsedPsbt, type PsbtChain, type PsbtNetwork } from './psbt.js';
+import { describeScript, pairName, pairSummary, parsePsbt, parsedTransactionId, transactionId, type ParsedPsbt, type PsbtChain, type PsbtNetwork, type SuppliedUtxo } from './psbt.js';
 import { decodeScript } from './script.js';
 import { verifySignedMessage } from './message-verifier.js';
+import { analyzeInputSigning } from './signing-commitments.js';
+import { describeOpReturn, describePreviousScriptSig } from './transaction-display.js';
 import { createPaymentQrAction } from '../../key-derivation/src/ui/payment-qr.js';
 
 function required<T extends HTMLElement>(id: string): T {
@@ -398,6 +400,112 @@ function amount(value: bigint, selectedChain: PsbtChain): string {
   return `${whole}.${fraction} ${selectedChain === 'dash' ? 'DASH' : 'BTC'} (${value} ${selectedChain === 'dash' ? 'duffs' : 'sat'})`;
 }
 
+function unsignedFeeRateEstimate(parsed: ParsedPsbt): string {
+  if (parsed.fee === null) return 'Unavailable · one or more input values are missing';
+  if (parsed.transaction === null) return 'Unavailable · PSBT v2 does not carry one complete unsigned transaction';
+  const rate = Number(parsed.fee) / parsed.transaction.raw.length;
+  return `${rate.toFixed(2)} ${parsed.chain === 'dash' ? 'duffs' : 'sat'}/vB · not the final transaction fee rate; signatures increase serialized size`;
+}
+
+function transactionOutputRows(
+  output: import('./psbt.js').TransactionOutput,
+  chain: PsbtChain,
+  selectedNetwork: PsbtNetwork,
+): [string, string][] {
+  const description = describeScript(output.script, chain, selectedNetwork);
+  const rows: [string, string][] = [
+    ['Amount', amount(output.value, chain)],
+    ['Type', description.type],
+    ['Address', description.address ?? '—'],
+  ];
+  const opReturn = describeOpReturn(output.script, chain, selectedNetwork);
+  if (opReturn !== null) {
+    rows.push(
+      ['Payload hex', opReturn.payloadHex.length === 0 ? 'Empty' : opReturn.payloadHex],
+      ['Payload size', `${opReturn.payloadSize} byte${opReturn.payloadSize === 1 ? '' : 's'}`],
+    );
+    if (opReturn.pushCount > 1) rows.push(['Payload pushes', opReturn.pushCount.toString()]);
+  }
+  rows.push(
+    ['scriptPubKey ASM', outputAsm(output.script, chain, selectedNetwork)],
+    ['scriptPubKey', bytesToHex(output.script)],
+  );
+  return rows;
+}
+
+function referencedOutputDetails(
+  vout: number,
+  utxo: SuppliedUtxo,
+  chain: PsbtChain,
+  selectedNetwork: PsbtNetwork,
+): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'referenced-output-card';
+  section.append(
+    textElement('h5', '', 'Referenced previous output'),
+    detailRows([
+      ['vout', vout.toString()],
+      ...transactionOutputRows({ value: utxo.value, script: utxo.script }, chain, selectedNetwork),
+      ['UTXO binding', '✓ Matches current input prevout'],
+    ]),
+  );
+  return section;
+}
+
+function previousTransactionDetails(
+  transaction: import('./psbt.js').ParsedTransaction,
+  chain: PsbtChain,
+  selectedNetwork: PsbtNetwork,
+  referencedVout: number,
+): HTMLDetailsElement {
+  const details = document.createElement('details');
+  details.className = 'previous-transaction-details';
+  const heading = document.createElement('summary');
+  heading.textContent = 'Complete previous transaction · non-witness UTXO';
+  details.append(heading, detailRows([
+    ['Transaction ID', parsedTransactionId(transaction)],
+    ['Version', transaction.version.toString()],
+    ['Dash transaction type', transaction.dashType === null ? 'Not applicable' : transaction.dashType.toString()],
+    ['Serialized size', `${transaction.raw.length} bytes`],
+    ['Witness serialization', transaction.hasWitness ? 'Present' : 'Not present'],
+    ['Inputs', transaction.inputs.length.toString()],
+    ['Outputs', transaction.outputs.length.toString()],
+    ['Locktime', transaction.lockTime.toString()],
+    ['Special payload', transaction.extraPayload === null ? 'None' : bytesToHex(transaction.extraPayload)],
+  ]));
+  transaction.inputs.forEach((input, index) => {
+    const card = document.createElement('article');
+    card.className = 'previous-transaction-item';
+    const scriptSig = describePreviousScriptSig(input.scriptSig, chain, selectedNetwork);
+    const scriptRows: [string, string][] = [
+      ['Previous output', `${input.txid}:${input.vout}`],
+      ['Sequence', `0x${input.sequence.toString(16).padStart(8, '0')} (${input.sequence})`],
+    ];
+    if (scriptSig.signature !== null) {
+      scriptRows.push(
+        ['Previous transaction signature', scriptSig.signature],
+        ['Signature hash', scriptSig.signatureHash ?? 'Unknown'],
+        ['Public key', scriptSig.publicKey ?? '—'],
+      );
+    } else {
+      scriptSig.pushes.forEach((push, pushIndex) => scriptRows.push([`Pushed item ${pushIndex + 1}`, push]));
+    }
+    scriptRows.push(['scriptSig ASM', scriptSig.asm], ['Raw scriptSig', scriptSig.raw.length === 0 ? 'Empty' : scriptSig.raw]);
+    card.append(textElement('h5', '', `Previous transaction input ${index}`), detailRows(scriptRows));
+    details.append(card);
+  });
+  transaction.outputs.forEach((output, index) => {
+    const card = document.createElement('article');
+    card.className = `previous-transaction-item${index === referencedVout ? ' referenced-previous-output' : ''}`;
+    card.append(textElement('h5', '', `Previous transaction output ${index}${index === referencedVout ? ' · referenced by current input' : ''}`), detailRows(
+      transactionOutputRows(output, chain, selectedNetwork),
+    ));
+    details.append(card);
+  });
+  details.append(detailRows([['Raw transaction', bytesToHex(transaction.raw)]]));
+  return details;
+}
+
 function v2OutputScript(parsed: ParsedPsbt, index: number): Uint8Array | null {
   if (parsed.transaction !== null) return parsed.transaction.outputs[index]?.script ?? null;
   return parsed.outputs[index]?.find((item) => item.type === 4n && item.keyData.length === 0)?.value ?? null;
@@ -463,7 +571,7 @@ function verificationMatrix(title: string, checks: readonly import('./psbt.js').
   for (const check of checks) {
     const row = document.createElement('div');
     row.className = `verification-row verification-${check.status}`;
-    const status = check.status === 'not-applicable' ? 'N/A' : check.status === 'not-verified' ? 'Not verified' : check.status === 'failed' ? 'Failed' : 'Verified';
+    const status = check.status === 'not-applicable' ? 'N/A' : check.status === 'not-verified' ? 'Not verified' : check.status === 'failed' ? 'Failed' : 'Internally verified';
     row.append(
       textElement('span', 'verification-relationship', check.relationship),
       textElement('strong', 'verification-status', status),
@@ -533,6 +641,7 @@ function render(parsed: ParsedPsbt): void {
         : `Unavailable · values missing for ${parsed.inputs.length - knownInputCount} input(s)`],
       ['Output total', amount(parsed.outputValues.reduce((total, value) => total + value, 0n), parsed.chain)],
       ['Fee from supplied UTXOs (not chain-verified)', parsed.fee === null ? 'Unavailable · one or more input values are missing' : amount(parsed.fee, parsed.chain)],
+      ['Fee / current unsigned size', unsignedFeeRateEstimate(parsed)],
     ]),
   );
   cards.push(
@@ -540,6 +649,31 @@ function render(parsed: ParsedPsbt): void {
     textElement('p', 'field-note', 'Verified means this offline inspector checked the stated relationship against data inside this PSBT. It does not prove blockchain inclusion or validate signatures.'),
     verificationMatrix('Global PSBT checks', parsed.globalVerification),
     ...parsed.inputVerification.map((checks, index) => verificationMatrix(`Input ${index} checks`, checks)),
+  );
+  cards.push(
+    textElement('h3', 'psbt-subheading', 'Signing commitments / transaction mutability'),
+    textElement('p', 'field-note', 'This explains what each input signature would commit under the requested sighash. It does not verify a signature or predict every node policy.'),
+    ...parsed.inputs.map((_map, index) => {
+      const analysis = analyzeInputSigning(parsed, index);
+      const card = document.createElement('article');
+      card.className = 'psbt-entry-card signing-commitment-card';
+      card.append(textElement('h4', '', `Input ${index}`));
+      if (analysis.sighash.unusual) card.append(textElement('p', 'signing-policy-warning', '⚠ Unusual or inconsistent signing policy'));
+      card.append(detailRows([
+        ['Signature', analysis.signature],
+        ['Signature protocol', analysis.protocol],
+        ['Sighash', analysis.sighash.label],
+        ['Current input', analysis.sighash.currentInput],
+        ['Other inputs', analysis.sighash.otherInputs],
+        ['Other input sequences', analysis.sighash.otherInputSequences],
+        ['Outputs', analysis.sighash.outputs],
+        ['Current input amount', analysis.sighash.currentInputAmount],
+        ['RBF', analysis.rbf],
+        ['Locktime', analysis.locktime],
+        ['Relative locktime', analysis.relativeLocktime],
+      ]));
+      return card;
+    }),
   );
   if (parsed.transaction !== null) {
     cards.push(textElement('h3', 'psbt-subheading', 'Unsigned transaction'));
@@ -565,21 +699,24 @@ function render(parsed: ParsedPsbt): void {
         ['Sequence', `0x${input.sequence.toString(16).padStart(8, '0')} (${input.sequence})`],
         ['Input value', parsed.inputValues[index] === null || parsed.inputValues[index] === undefined ? 'Not supplied' : amount(parsed.inputValues[index], parsed.chain)],
       ]));
+      const suppliedUtxo = parsed.inputUtxos[index];
+      if (suppliedUtxo !== null && suppliedUtxo !== undefined) {
+        card.append(referencedOutputDetails(input.vout, suppliedUtxo, parsed.chain, selectedNetwork));
+        if (suppliedUtxo.previousTransaction !== null) {
+          card.append(previousTransactionDetails(suppliedUtxo.previousTransaction, parsed.chain, selectedNetwork, input.vout));
+        }
+      }
       cards.push(card);
     });
   }
   parsed.outputValues.forEach((value, index) => {
     const script = v2OutputScript(parsed, index);
-    const description = script === null ? null : describeScript(script, parsed.chain, selectedNetwork);
     const card = document.createElement('article');
     card.className = 'psbt-entry-card psbt-output-card';
-    card.append(textElement('h4', '', `Output ${index}`), detailRows([
-      ['Amount', amount(value, parsed.chain)],
-      ['Type', description?.type ?? 'Script not supplied'],
-      ['Address', description?.address ?? '—'],
-      ['scriptPubKey ASM', script === null ? '—' : outputAsm(script, parsed.chain, selectedNetwork)],
-      ['scriptPubKey', script === null ? '—' : bytesToHex(script)],
-    ]));
+    const rows: [string, string][] = script === null
+      ? [['Amount', amount(value, parsed.chain)], ['Type', 'Script not supplied'], ['Address', '—'], ['scriptPubKey ASM', '—'], ['scriptPubKey', '—']]
+      : transactionOutputRows({ value, script }, parsed.chain, selectedNetwork);
+    card.append(textElement('h4', '', `Output ${index}`), detailRows(rows));
     cards.push(card);
   });
   transactionDetails.replaceChildren(...cards);

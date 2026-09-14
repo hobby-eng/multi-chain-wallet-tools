@@ -54,20 +54,27 @@
       <section class="panel input-panel">
         <div class="section-head">
           <div><span class="step">01</span><h2>Recovery seed phrase</h2></div>
-          <button class="danger-outline" id="toggle-sensitive-values" type="button" aria-pressed="false">Reveal all sensitive values</button>
+          <button class="danger-outline" id="toggle-sensitive-values" type="button" aria-pressed="false">Reveal recovery source</button>
         </div>
         <label for="mnemonic">BIP39 recovery phrase</label>
         <textarea id="mnemonic" class="concealed" rows="4" placeholder="Enter 12, 15, 18, 21, or 24 English words separated by spaces" autocomplete="off" autocapitalize="none"></textarea>
         <div class="input-meta"><span id="word-count">0 words</span><span>English wordlist · checksum validated</span></div>
         <div class="generate-actions" aria-label="Generate a new recovery phrase">
           <button class="secondary compact" id="generate-12" type="button">Generate 12 words</button>
+          <button class="secondary compact" id="generate-15" type="button">Generate 15 words</button>
+          <button class="secondary compact" id="generate-18" type="button">Generate 18 words</button>
+          <button class="secondary compact" id="generate-21" type="button">Generate 21 words</button>
           <button class="secondary compact" id="generate-24" type="button">Generate 24 words</button>
           <button class="secret-action compact" id="copy-mnemonic" type="button" disabled>Copy recovery phrase</button>
         </div>
+        <section id="seed-diagnostic" class="seed-diagnostic" aria-labelledby="seed-diagnostic-title" aria-live="polite">
+          <div class="seed-diagnostic-head"><h3 id="seed-diagnostic-title">Seed Diagnostic</h3><span>Local · no network</span></div>
+          <p class="field-note">Enter an English BIP39 recovery phrase to check its structure.</p>
+        </section>
 
         <label for="passphrase">BIP39 passphrase <span class="optional">optional, case-sensitive</span></label>
         <input id="passphrase" type="password" autocomplete="off" placeholder="Leave blank unless your wallet uses one">
-        <p class="field-note">A passphrase is not a PIN. Every different passphrase creates a different wallet across all selected protocols, with no error for a wrong one.</p>
+        <p class="field-note">A passphrase is not a PIN or another mnemonic word. Unicode is supported; case, spaces, and symbols are significant. Standard BIP39 NFKD normalization is applied. Every different passphrase creates a different wallet, with no error for a wrong one.</p>
       </section>
 
       <section class="panel" id="derivation-panel">
@@ -86,7 +93,7 @@
             <div id="protocol-tabs" class="protocol-tabs primary-mode-tabs" role="radiogroup" aria-labelledby="protocol-tabs-label">
               __SILENT_PAYMENT_TAB__
               __BIP85_TAB__
-              <button type="button" id="coinjoin-tab" class="protocol-tab primary-mode-tab" data-feature-tab="coinjoin" role="radio" aria-checked="false" tabindex="-1" hidden><span>Dash Mobile CoinJoin</span><small>DIP9</small></button>
+              <button type="button" id="coinjoin-tab" class="protocol-tab primary-mode-tab" data-feature-tab="coinjoin" role="radio" aria-checked="false" tabindex="-1" hidden><span>Dash Mobile</span><small>CoinJoin · DIP9</small></button>
             </div>
           </div>
           <div class="feature-tab-options span-three">
@@ -169,6 +176,7 @@
       <div class="results-title">
         <div><span class="step">03</span><h2 id="result-title">Derived results</h2></div>
         <div class="result-controls">
+          <button class="danger-outline compact" id="toggle-result-secrets" type="button" aria-pressed="false">Reveal all private keys</button>
           <div class="mode-toggle" aria-label="Result detail mode">
             <button id="mode-basic" type="button" class="active" aria-pressed="true">Basic</button>
             <button id="mode-advanced" type="button" aria-pressed="false">Advanced</button>

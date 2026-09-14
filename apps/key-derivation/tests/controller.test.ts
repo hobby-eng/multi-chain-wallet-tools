@@ -89,6 +89,7 @@ describe('Key Derivation controller', () => {
       resultCoinJoinExternalTab: new TestControl(),
       resultCoinJoinInternalTab: new TestControl(),
       toggleSensitiveValues: new TestControl(),
+      toggleResultSecrets: new TestControl(),
       copyMnemonicButton: new TestControl(),
       descriptorButtons: Object.fromEntries(['scanner','publicCopy','publicDownload','privateCopy','privateDownload'].map(key => [key, new TestControl()])),
       copyWatchOnlyButton: new TestControl(),
@@ -99,6 +100,9 @@ describe('Key Derivation controller', () => {
       searchCount: new TestControl(),
       searchAddressButton: new TestControl(),
       generate12Button: new TestControl(),
+      generate15Button: new TestControl(),
+      generate18Button: new TestControl(),
+      generate21Button: new TestControl(),
       generate24Button: new TestControl(),
       clearAllButton: new TestControl(),
       selectAllButton: new TestControl(),
@@ -110,12 +114,15 @@ describe('Key Derivation controller', () => {
       populateCoinSelect: vi.fn(),
       configureControls: vi.fn(),
       updateWordCount: vi.fn(),
+      updateSeedDiagnostic: vi.fn(),
       updateMode: vi.fn(),
       updateBulkActions: vi.fn(),
       populateBuildPassport: vi.fn(),
       setCryptoControlsEnabled: vi.fn(),
       showCryptoSelfTestPassed: vi.fn(),
       showCryptoSelfTestFailed: vi.fn(),
+      setRecoverySourceVisibility: vi.fn(),
+      setResultSecretsVisibility: vi.fn(),
       resetDeriveAction: vi.fn(),
       hideSearchResult: vi.fn(),
       documentActionFrom: vi.fn(() => null),
@@ -153,6 +160,12 @@ describe('Key Derivation controller', () => {
     resolveWorkerSelfTest({ passed: true, checks: ['worker fixture'], durationMs: 1 });
     await settle();
     expect(view.setCryptoControlsEnabled).toHaveBeenLastCalledWith(true);
+
+    view.toggleSensitiveValues.click();
+    expect(view.setRecoverySourceVisibility).toHaveBeenCalledWith(true);
+    expect(view.setResultSecretsVisibility).not.toHaveBeenCalled();
+    view.toggleResultSecrets.click();
+    expect(view.setResultSecretsVisibility).toHaveBeenCalledWith(true);
 
     modeAdvanced.click();
     modeBasic.click();
