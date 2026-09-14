@@ -35,7 +35,7 @@ for (const [marker, expected] of [['<!doctype html>', 1], ['<style>', 1], ['</st
 }
 for (const marker of [
   'PSBT & Multisig Inspector', profile.brandName, 'Inspect PSBT', 'Decode script', 'Build multisig policy', 'Verify message',
-  'Transaction accounting', 'Transaction ID', 'Virtual size', 'scriptPubKey ASM', 'Raw / advanced PSBT maps',
+  'Transaction accounting', 'Current unsigned fee rate estimate', 'decoded previous transaction', 'Internally verified', 'Transaction ID', 'Virtual size', 'scriptPubKey ASM', 'Raw / advanced PSBT maps',
   'No PSBT metadata supplied', 'Signing state', 'Verify a signed message', 'No private key is requested',
   'This does not create a PSBT',
   'Portable output descriptor', 'Miniscript fragment', 'Compiled Script ASM', 'Miniscript safety analysis', 'Policy expression',
