@@ -294,9 +294,10 @@ for (const browserName of selectedBrowsers) {
             assert.match(await page.locator('#psbt-summary').innerText(), /Signing state[\s\S]*Unsigned[\s\S]*UTXO information/u);
             assert.match(await page.locator('#transaction-details').innerText(), /INTERNALLY VERIFIED/u);
             assert.match(await page.locator('#transaction-details').innerText(), /Signing commitments \/ transaction mutability[\s\S]*Signature[\s\S]*Not signed[\s\S]*Sighash[\s\S]*Not specified[\s\S]*RBF[\s\S]*(?:Not signaled|Not supported by Dash Core)[\s\S]*Locktime[\s\S]*Block height 1257139/u);
+            assert.match(await page.locator('#transaction-details').innerText(), /Referenced previous output[\s\S]*Matches current input prevout/u);
             const previousTransaction = page.locator('.previous-transaction-details');
             await previousTransaction.locator(':scope > summary').click();
-            assert.match(await previousTransaction.innerText(), /Referenced previous output[\s\S]*Matches current input prevout[\s\S]*Complete previous transaction[\s\S]*84a4992f[\s\S]*Previous transaction input 0[\s\S]*Previous transaction output 0[\s\S]*P2PKH[\s\S]*Previous transaction output 1[\s\S]*P2SH[\s\S]*Raw transaction/u);
+            assert.match(await previousTransaction.innerText(), /Complete previous transaction[\s\S]*84a4992f[\s\S]*Previous transaction input 0[\s\S]*Previous transaction output 0[\s\S]*P2PKH[\s\S]*Previous transaction output 1[\s\S]*P2SH[\s\S]*Raw transaction/u);
             const advanced = page.locator('.psbt-advanced-details');
             assert.equal(await advanced.getAttribute('open'), null);
             await advanced.locator(':scope > summary').click();
