@@ -306,15 +306,18 @@ body::before {
   display:none;
 }
 .form-grid .protocol-tabs {
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
+  display:flex;
+  flex-wrap:nowrap;
   width:100%;
 }
 .form-grid .protocol-tab {
+  flex:1 1 0;
   min-width:0;
   white-space:normal;
-  overflow-wrap:anywhere;
-  width:100%;
+  overflow-wrap:normal;
+  word-break:normal;
+  hyphens:none;
+  width:auto;
   text-align:center;
 }
 .recovery-source-grid {
@@ -504,7 +507,6 @@ footer { border-top-color:rgba(196,215,255,.18); }
 }
 @media (max-width:560px) {
   .hero::after { width:440px;height:290px;right:-145px;top:82px;opacity:.34; }
-  .form-grid .protocol-tabs { grid-template-columns:1fr 1fr; }
   .deriver-hero-grid h1,
   .viewer-hero-copy h1,
   .recovery-hero-copy h1,
