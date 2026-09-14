@@ -1,4 +1,10 @@
 import { DirectRecoveryNetworkService } from './network-service.js';
-import { startRecoveryNetworkWorker } from './network-worker-runtime.js';
+import { startNetworkBoundaryWorker } from '@ckd/network-boundary/worker-runtime.js';
+import { executeRecoveryNetworkRequest } from './network-service.js';
+import { describeUnknownError, freeThrownValue } from '@ckd/core/error-handling.js';
 
-startRecoveryNetworkWorker(new DirectRecoveryNetworkService());
+startNetworkBoundaryWorker(new DirectRecoveryNetworkService(), executeRecoveryNetworkRequest, (cause) => {
+  const message = describeUnknownError(cause);
+  freeThrownValue(cause);
+  return message;
+});

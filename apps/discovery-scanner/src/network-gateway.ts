@@ -1,6 +1,6 @@
-import { SecretEgressGuard } from './secret-guard.js';
+import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
 import type { RecoveryTaskLimiter } from './concurrency.js';
-import type { RecoveryNetworkApi } from './network-protocol.js';
+import type { RecoveryNetworkApi } from '@ckd/network-boundary/protocol.js';
 
 export interface RecoveryOperationStats {
   count: number;

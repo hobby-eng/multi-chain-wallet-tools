@@ -23,12 +23,12 @@ function run(script, args = []) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-const artifacts = Object.values(BUILD_PROFILES).flatMap((profile) => (
+const artifacts = Object.values(BUILD_PROFILES).flatMap((profile) =>
   profileToolIds(profile).map((toolId) => ({
     label: `${profile.id}/${toolId}`,
     path: resolve(root, 'dist', getToolBuild(profile, toolId).artifactRelativePath),
-  }))
-));
+  })),
+);
 const missingArtifacts = artifacts.filter(({ path }) => !existsSync(path)).map(({ label }) => label);
 if (missingArtifacts.length > 0) {
   throw new Error(`Build both profiles before checking determinism. Missing: ${missingArtifacts.join(', ')}`);

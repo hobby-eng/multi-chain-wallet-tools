@@ -15,7 +15,9 @@ describe('Dash Platform DIP17/DIP18 official vectors', () => {
     expect(rowValue(result, 'publicKeyHash')).toBe('f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525');
     expect(rowValue(result, 'address')).toBe('dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs');
 
-    expect(rowValue(result, 'privateKeyHex', 1)).toBe('eef58ce73383f63d5062f281ed0c1e192693c170fbc0049662a73e48a1981523');
+    expect(rowValue(result, 'privateKeyHex', 1)).toBe(
+      'eef58ce73383f63d5062f281ed0c1e192693c170fbc0049662a73e48a1981523',
+    );
     expect(rowValue(result, 'address', 1)).toBe('dash1kzjl7qzxy9lar37j8r37z3kvt07epqe20ckxfezw');
   });
 
@@ -31,8 +33,12 @@ describe('Dash Platform DIP17/DIP18 official vectors', () => {
   it.each([-1, 2, 17, 0x7fffffff])('rejects undefined DIP17 payment key class %s at the library boundary', (branch) => {
     const seed = mnemonicToSeed(TEST_MNEMONIC);
     try {
-      expect(() => deriveDashPlatform({ seed, network: 'mainnet', account: 0, branch, start: 0, count: 1 })).toThrow(/[Kk]ey class must/u);
-    } finally { seed.fill(0); }
+      expect(() => deriveDashPlatform({ seed, network: 'mainnet', account: 0, branch, start: 0, count: 1 })).toThrow(
+        /[Kk]ey class must/u,
+      );
+    } finally {
+      seed.fill(0);
+    }
   });
 
   it('matches the platform-address vector used by Dash Desktop', () => {

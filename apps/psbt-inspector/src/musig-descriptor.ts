@@ -1,5 +1,5 @@
 import type { TaprootScriptTree } from '@scure/btc-signer/payment.js';
-import { materializeDescriptorKey, validateDescriptorPublicKey } from './descriptor-key.js';
+import { materializeDescriptorKey, validateDescriptorPublicKey } from '@ckd/core/descriptor-key.js';
 import { compilePolicyMiniscript } from './miniscript-engine.js';
 import { CONSENSUS_LIMITS } from './consensus-limits.js';
 import { HDKey, type Versions } from '@scure/bip32';
@@ -66,7 +66,12 @@ function splitTopLevel(text: string): string[] {
   return result;
 }
 
-function parseParticipant(expression: string, network: PsbtNetwork, wildcardIndex: number, branch: 0 | 1): { publicKey: Uint8Array; xpub: boolean; ranged: boolean; multipath: boolean } {
+function parseParticipant(
+  expression: string,
+  network: PsbtNetwork,
+  wildcardIndex: number,
+  branch: 0 | 1,
+): { publicKey: Uint8Array; xpub: boolean; ranged: boolean; multipath: boolean } {
   validateDescriptorPublicKey(expression, network, { wildcardIndex });
   const withoutOrigin = expression.replace(/^\[[^\]]+\]/u, '');
   if (/^(02|03)[0-9a-fA-F]{64}$/u.test(withoutOrigin)) {
@@ -75,9 +80,13 @@ function parseParticipant(expression: string, network: PsbtNetwork, wildcardInde
     return { publicKey, xpub: false, ranged: false, multipath: false };
   }
   const match = /^([xt]pub[1-9A-HJ-NP-Za-km-z]+)(.*)$/u.exec(withoutOrigin);
-  if (match === null) throw new Error('BIP-390 participants must be compressed public keys or public extended keys; private keys are not accepted.');
+  if (match === null)
+    throw new Error(
+      'BIP-390 participants must be compressed public keys or public extended keys; private keys are not accepted.',
+    );
   const expectedPrefix = network === 'mainnet' ? 'xpub' : 'tpub';
-  if (!match[1]!.startsWith(expectedPrefix)) throw new Error(`The selected ${network} network requires ${expectedPrefix} MuSig2 participant keys.`);
+  if (!match[1]!.startsWith(expectedPrefix))
+    throw new Error(`The selected ${network} network requires ${expectedPrefix} MuSig2 participant keys.`);
   const suffix = match[2]!;
   const publicKey = hexToBytes(materializeDescriptorKey(expression, network, branch, wildcardIndex));
   return { publicKey, xpub: true, ranged: suffix.includes('*'), multipath: suffix.includes('<') };
@@ -90,23 +99,35 @@ function aggregate(publicKeys: readonly Uint8Array[]): { compressed: Uint8Array;
   return { compressed: context.aggPublicKey.toBytes(true), xOnly: context.aggPublicKey.toBytes(true).slice(1) };
 }
 
-function parseMusigExpression(expression: string, network: PsbtNetwork, wildcardIndex: number, branch: 0 | 1 = 0): MusigKeyAnalysis {
+function parseMusigExpression(
+  expression: string,
+  network: PsbtNetwork,
+  wildcardIndex: number,
+  branch: 0 | 1 = 0,
+): MusigKeyAnalysis {
   if (!expression.startsWith('musig(')) throw new Error('Expected a musig() key expression.');
   const close = matchingClose(expression, 5);
   const suffix = expression.slice(close + 1);
-  if (suffix.includes('*') && (!suffix.endsWith('/*') || suffix.indexOf('*') !== suffix.lastIndexOf('*'))) throw new Error('MuSig2 derivation permits at most one final wildcard.');
+  if (suffix.includes('*') && (!suffix.endsWith('/*') || suffix.indexOf('*') !== suffix.lastIndexOf('*')))
+    throw new Error('MuSig2 derivation permits at most one final wildcard.');
   if (/[hH']/u.test(suffix)) throw new Error('BIP-390 MuSig2 derivation cannot contain hardened child steps.');
   if (suffix.length > 0 && !suffix.startsWith('/')) throw new Error('Unexpected data after musig() expression.');
   const participantExpressions = splitTopLevel(expression.slice(6, close));
-  if (participantExpressions.some((participant) => participant.includes('musig('))) throw new Error('BIP-390 musig() expressions cannot be nested.');
+  if (participantExpressions.some((participant) => participant.includes('musig(')))
+    throw new Error('BIP-390 musig() expressions cannot be nested.');
   if (participantExpressions.length > 999) throw new Error('BIP-390 musig() supports at most 999 participant keys.');
-  const participants = participantExpressions.map((participant) => parseParticipant(participant, network, wildcardIndex, branch));
+  const participants = participantExpressions.map((participant) =>
+    parseParticipant(participant, network, wildcardIndex, branch),
+  );
   let aggregateKey = aggregate(participants.map(({ publicKey }) => publicKey));
   let syntheticXpub: string | null = null;
   if (suffix.length > 0) {
-    if (participants.some(({ xpub }) => !xpub)) throw new Error('A derived BIP-390 musig() expression requires every participant to be an xpub.');
+    if (participants.some(({ xpub }) => !xpub))
+      throw new Error('A derived BIP-390 musig() expression requires every participant to be an xpub.');
     if (participants.some(({ ranged, multipath }) => ranged || multipath)) {
-      throw new Error('BIP-390 does not allow participant wildcard/multipath derivation together with aggregate-key derivation.');
+      throw new Error(
+        'BIP-390 does not allow participant wildcard/multipath derivation together with aggregate-key derivation.',
+      );
     }
     const versions = network === 'mainnet' ? MAINNET_VERSIONS : TESTNET_VERSIONS;
     const synthetic = new HDKey({ publicKey: aggregateKey.compressed, chainCode: SYNTHETIC_CHAIN_CODE, versions });
@@ -122,7 +143,10 @@ function parseMusigExpression(expression: string, network: PsbtNetwork, wildcard
     aggregateCompressedKey: bytesToHex(aggregateKey.compressed),
     aggregateXOnlyKey: bytesToHex(aggregateKey.xOnly),
     syntheticXpub,
-    derivation: suffix.length === 0 ? `participant keys derived at wildcard index ${wildcardIndex}, then KeySort + KeyAgg` : `BIP-328 synthetic aggregate xpub derived at ${suffix.replace('*', String(wildcardIndex))}`,
+    derivation:
+      suffix.length === 0
+        ? `participant keys derived at wildcard index ${wildcardIndex}, then KeySort + KeyAgg`
+        : `BIP-328 synthetic aggregate xpub derived at ${suffix.replace('*', String(wildcardIndex))}`,
   };
 }
 
@@ -152,12 +176,18 @@ function musigExpressions(text: string): string[] {
   }
 }
 
-export function analyzeMusigDescriptor(input: string, network: PsbtNetwork, wildcardIndex: number, branch: 0 | 1 = 0): MusigDescriptorAnalysis | null {
+export function analyzeMusigDescriptor(
+  input: string,
+  network: PsbtNetwork,
+  wildcardIndex: number,
+  branch: 0 | 1 = 0,
+): MusigDescriptorAnalysis | null {
   const payload = input.trim().replaceAll('\\_', '_').replaceAll('\\*', '*').replaceAll(/\s+/gu, '').split('#')[0]!;
   const type = /^(rawtr|tr|sp)\(/u.exec(payload)?.[1];
   const expressions = musigExpressions(payload);
   if (expressions.length === 0) return null;
-  if (type === undefined) throw new Error('BIP-390 musig() is permitted only inside tr(), rawtr(), or sp() descriptors.');
+  if (type === undefined)
+    throw new Error('BIP-390 musig() is permitted only inside tr(), rawtr(), or sp() descriptors.');
   const keys = expressions.map((expression) => parseMusigExpression(expression, network, wildcardIndex, branch));
   if (type === 'sp') return { keys, outputScript: null, address: null };
   const payment = compileTaprootDescriptor(payload, network, wildcardIndex, branch);
@@ -165,13 +195,21 @@ export function analyzeMusigDescriptor(input: string, network: PsbtNetwork, wild
 }
 
 /** Expand keys before sorting/compiling, and preserve the exact binary tree. */
-export function compileTaprootDescriptor(payload: string, network: PsbtNetwork, wildcardIndex: number, branch: 0 | 1 = 0): { script: Uint8Array; address: string } {
+export function compileTaprootDescriptor(
+  payload: string,
+  network: PsbtNetwork,
+  wildcardIndex: number,
+  branch: 0 | 1 = 0,
+): { script: Uint8Array; address: string } {
   function key(text: string): string {
     if (text.startsWith('musig(')) return parseMusigExpression(text, network, wildcardIndex, branch).aggregateXOnlyKey;
     validateDescriptorPublicKey(text, network, { allowXOnly: true, wildcardIndex });
     const bare = text.replace(/^\[[^\]]+\]/u, '');
-    const concrete = /^[0-9a-fA-F]{64}$/u.test(bare) ? bare.toLowerCase() : materializeDescriptorKey(text, network, branch, wildcardIndex);
-    if (concrete.length !== 64 && concrete.length !== 66) throw new Error('Taproot keys must be x-only or compressed points.');
+    const concrete = /^[0-9a-fA-F]{64}$/u.test(bare)
+      ? bare.toLowerCase()
+      : materializeDescriptorKey(text, network, branch, wildcardIndex);
+    if (concrete.length !== 64 && concrete.length !== 66)
+      throw new Error('Taproot keys must be x-only or compressed points.');
     return concrete.length === 66 ? concrete.slice(2) : concrete;
   }
   function fragment(text: string): string {
@@ -186,7 +224,8 @@ export function compileTaprootDescriptor(payload: string, network: PsbtNetwork, 
       args = [key(args[0]!)];
     } else if (name === 'multi_a' || name === 'sortedmulti_a') {
       const threshold = Number(args[0]);
-      if (!/^[1-9][0-9]*$/u.test(args[0]!) || threshold > args.length - 1) throw new Error('Invalid Tapscript multisig threshold.');
+      if (!/^[1-9][0-9]*$/u.test(args[0]!) || threshold > args.length - 1)
+        throw new Error('Invalid Tapscript multisig threshold.');
       const keys = args.slice(1).map(key);
       args = [args[0]!, ...(name === 'sortedmulti_a' ? keys.sort() : keys)];
     } else args = args.map(fragment);
@@ -208,11 +247,16 @@ export function compileTaprootDescriptor(payload: string, network: PsbtNetwork, 
   const args = splitTopLevel(payload.slice(open + 1, -1));
   if (args.length < 1 || args.length > (type === 'tr' ? 2 : 1)) throw new Error('Invalid Taproot descriptor arity.');
   const internal = hexToBytes(key(args[0]!));
-  if (type === 'rawtr') return {
-    script: Uint8Array.of(0x51, 0x20, ...internal),
-    address: bech32m.encode(network === 'mainnet' ? 'bc' : network === 'regtest' ? 'bcrt' : 'tb', [1, ...bech32m.toWords(internal)]),
-  };
-  const net = network === 'mainnet' ? NETWORK : network === 'regtest' ? { ...TEST_NETWORK, bech32: 'bcrt' } : TEST_NETWORK;
+  if (type === 'rawtr')
+    return {
+      script: Uint8Array.of(0x51, 0x20, ...internal),
+      address: bech32m.encode(network === 'mainnet' ? 'bc' : network === 'regtest' ? 'bcrt' : 'tb', [
+        1,
+        ...bech32m.toWords(internal),
+      ]),
+    };
+  const net =
+    network === 'mainnet' ? NETWORK : network === 'regtest' ? { ...TEST_NETWORK, bech32: 'bcrt' } : TEST_NETWORK;
   const payment = args[1] === undefined ? p2tr(internal, undefined, net) : p2tr(internal, tree(args[1]), net, true);
   return { script: payment.script, address: payment.address };
 }

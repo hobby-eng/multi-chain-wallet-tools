@@ -7,5 +7,10 @@ export const EVM_RPC_QUANTITY = /^0x[0-9a-f]{1,64}$/u;
 const MAX_UINT256 = (1n << 256n) - 1n;
 
 export function isUint256Decimal(value: unknown): value is string {
-  return typeof value === 'string' && value.length <= 78 && PROVIDER_UNSIGNED_DECIMAL.test(value) && BigInt(value) <= MAX_UINT256;
+  return (
+    typeof value === 'string' &&
+    value.length <= 78 &&
+    PROVIDER_UNSIGNED_DECIMAL.test(value) &&
+    BigInt(value) <= MAX_UINT256
+  );
 }

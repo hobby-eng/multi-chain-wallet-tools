@@ -22,10 +22,11 @@ const template = applyProfileTemplate(
 );
 const cssSource = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const shellCss = readFileSync(resolve(root, 'packages/shared-ui/styles/tool-shell.css'), 'utf8');
-const themeCss = profile.themeStylesheet === undefined
-  ? ''
-  : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
-const css = (await transform(`${cssSource}\n${shellCss}\n${themeCss}`, { loader: 'css', minify: true, legalComments: 'inline' })).code;
+const themeCss =
+  profile.themeStylesheet === undefined ? '' : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
+const css = (
+  await transform(`${cssSource}\n${shellCss}\n${themeCss}`, { loader: 'css', minify: true, legalComments: 'inline' })
+).code;
 const workerBuild = await build({
   absWorkingDir: root,
   entryPoints: [tool.workerEntryPoint],
@@ -37,27 +38,36 @@ const workerBuild = await build({
   minify: true,
   legalComments: 'inline',
   loader: { '.wasm': 'binary' },
-  plugins: profile.id === 'multi-chain'
-    ? [{
-        name: 'embedded-btcutil-wasm',
-        setup(buildContext) {
-          buildContext.onResolve({ filter: /^btcutil-js-wasm$/ }, () => ({ path: 'btcutil-js-wasm', namespace: 'btcutil-wasm' }));
-          buildContext.onLoad({ filter: /.*/, namespace: 'btcutil-wasm' }, () => ({
-            contents: readFileSync(resolve(root, 'node_modules/btcutil-js/dist/btcutil.wasm')),
-            loader: 'binary',
-          }));
-          buildContext.onLoad({ filter: /node_modules\/btcutil-js\/dist\/index\.js$/ }, ({ path }) => ({
-            contents: `const __offlineFetch = () => Promise.reject(new Error('Network access is unavailable in the offline browser artifact.'));\n${readFileSync(path, 'utf8')
-              .replaceAll(
-                'new Function("m", "return import(m)")',
-                '((moduleName) => Promise.reject(new Error(`Node-only module ${moduleName} is unavailable in the offline browser artifact.`)))',
-              )
-              .replaceAll('fetch(', '__offlineFetch(')}`,
-            loader: 'js',
-          }));
-        },
-      }]
-    : [],
+  plugins:
+    profile.id === 'multi-chain'
+      ? [
+          {
+            name: 'embedded-btcutil-wasm',
+            setup(buildContext) {
+              buildContext.onResolve({ filter: /^btcutil-js-wasm$/ }, () => ({
+                path: 'btcutil-js-wasm',
+                namespace: 'btcutil-wasm',
+              }));
+              buildContext.onLoad({ filter: /.*/, namespace: 'btcutil-wasm' }, () => ({
+                contents: readFileSync(resolve(root, 'node_modules/btcutil-js/dist/btcutil.wasm')),
+                loader: 'binary',
+              }));
+              buildContext.onLoad({ filter: /node_modules\/btcutil-js\/dist\/index\.js$/ }, ({ path }) => ({
+                contents: `const __offlineFetch = () => Promise.reject(new Error('Network access is unavailable in the offline browser artifact.'));\n${readFileSync(
+                  path,
+                  'utf8',
+                )
+                  .replaceAll(
+                    'new Function("m", "return import(m)")',
+                    '((moduleName) => Promise.reject(new Error(`Node-only module ${moduleName} is unavailable in the offline browser artifact.`)))',
+                  )
+                  .replaceAll('fetch(', '__offlineFetch(')}`,
+                loader: 'js',
+              }));
+            },
+          },
+        ]
+      : [],
   metafile: true,
   write: false,
 });
@@ -89,18 +99,21 @@ const bundled = await build({
 const javascript = bundled.outputFiles[0]?.text;
 if (javascript === undefined) throw new Error('esbuild did not produce a JavaScript bundle.');
 if (profile.id === 'dash-community') {
-  assertDashOnlyGraph([
-    ...Object.keys(workerBuild.metafile.inputs),
-    ...Object.keys(bundled.metafile.inputs),
-  ], 'Dash Community key derivation');
+  assertDashOnlyGraph(
+    [...Object.keys(workerBuild.metafile.inputs), ...Object.keys(bundled.metafile.inputs)],
+    'Dash Community key derivation',
+  );
 }
-if (!javascript.includes('wallet-key-derivation') || !javascript.includes('The derivation worker stopped unexpectedly.')) {
+if (
+  !javascript.includes('wallet-key-derivation') ||
+  !javascript.includes('The derivation worker stopped unexpectedly.')
+) {
   throw new Error('Derivation worker client lost its reviewed startup/error lifecycle.');
 }
 if (
-  !template.includes('/*__INLINE_CSS__*/')
-  || !template.includes('/*__INLINE_JS__*/')
-  || !template.includes('__INLINE_SCRIPT_CSP__')
+  !template.includes('/*__INLINE_CSS__*/') ||
+  !template.includes('/*__INLINE_JS__*/') ||
+  !template.includes('__INLINE_SCRIPT_CSP__')
 ) {
   throw new Error('HTML template is missing an inline build marker.');
 }

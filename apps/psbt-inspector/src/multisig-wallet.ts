@@ -96,7 +96,8 @@ export function concreteDescriptor(
   keyOrder: MultisigKeyOrder,
 ): string {
   const selectedWrapper = normalizedWrapper(chain, wrapper);
-  const keys = keyOrder === 'bip67' ? [...publicKeys].sort((left, right) => left.localeCompare(right)) : [...publicKeys];
+  const keys =
+    keyOrder === 'bip67' ? [...publicKeys].sort((left, right) => left.localeCompare(right)) : [...publicKeys];
   const payload = `${selectedWrapper === 'p2wsh' ? 'wsh' : 'sh'}(${descriptorFunction(keyOrder)}(${required},${keys.join(',')}))`;
   return descriptorWithChecksum(payload);
 }
@@ -126,23 +127,34 @@ export interface ConcreteMultisigWallet {
 }
 
 function assertConcreteRequest(request: ConcreteMultisigRequest): void {
-  if (request.publicKeys.length < 1 || request.publicKeys.length > 16) throw new Error('Enter from 1 to 16 compressed child public keys or account xpubs.');
+  if (request.publicKeys.length < 1 || request.publicKeys.length > 16)
+    throw new Error('Enter from 1 to 16 compressed child public keys or account xpubs.');
   if (!Number.isSafeInteger(request.required) || request.required < 1 || request.required > request.publicKeys.length) {
     throw new Error(`Required signatures must be from 1 to ${request.publicKeys.length}.`);
   }
-  if (request.branch !== undefined && request.branch !== 0 && request.branch !== 1) throw new Error('Concrete xpub branch must be 0 (receive) or 1 (change).');
-  if (request.index !== undefined && (!Number.isSafeInteger(request.index) || request.index < 0 || request.index > 0x7fff_ffff)) {
+  if (request.branch !== undefined && request.branch !== 0 && request.branch !== 1)
+    throw new Error('Concrete xpub branch must be 0 (receive) or 1 (change).');
+  if (
+    request.index !== undefined &&
+    (!Number.isSafeInteger(request.index) || request.index < 0 || request.index > 0x7fff_ffff)
+  ) {
     throw new Error('Concrete xpub index must be a non-negative non-hardened integer.');
   }
 }
 
-function concreteImportPayload(request: ConcreteMultisigRequest, address: string, redeemScript: string, descriptor: string): { text: string; json: string } {
+function concreteImportPayload(
+  request: ConcreteMultisigRequest,
+  address: string,
+  redeemScript: string,
+  descriptor: string,
+): { text: string; json: string } {
   if (request.chain === 'dash') {
     const dashImport = buildDashCoreImport(address, redeemScript, descriptor);
     return {
-      text: dashImport.fullPolicyGuiCommand === null
-        ? dashImport.legacyCommand
-        : `dash-cli ${dashImport.fullPolicyGuiCommand}`,
+      text:
+        dashImport.fullPolicyGuiCommand === null
+          ? dashImport.legacyCommand
+          : `dash-cli ${dashImport.fullPolicyGuiCommand}`,
       json: dashImport.rpcJson,
     };
   }
@@ -171,19 +183,23 @@ function parseConcreteKeyInput(
   try {
     node = HDKey.fromExtendedKey(bare, versions(request.chain, request.network));
   } catch (cause) {
-    throw new Error(`Account xpub ${position} is not valid for the selected network: ${String(cause)}.${xpubNetworkHint(bare, request.network)}`);
+    throw new Error(
+      `Account xpub ${position} is not valid for the selected network: ${String(cause)}.${xpubNetworkHint(bare, request.network)}`,
+    );
   }
   const child = node.deriveChild(branch).deriveChild(index);
   const publicKey = child.publicKey;
-  if (publicKey === null) throw new Error(`Account xpub ${position} did not derive a child public key at /${branch}/${index}.`);
+  if (publicKey === null)
+    throw new Error(`Account xpub ${position} did not derive a child public key at /${branch}/${index}.`);
   const origin = originMatch?.[1]?.replaceAll("'", 'h').toLowerCase();
   child.wipePrivateData();
   node.wipePrivateData();
   return {
     publicKey: bytesToHex(publicKey),
-    detail: origin === undefined
-      ? `${position}. account xpub -> /${branch}/${index}`
-      : `${position}. [${origin}] account xpub -> /${branch}/${index}`,
+    detail:
+      origin === undefined
+        ? `${position}. account xpub -> /${branch}/${index}`
+        : `${position}. [${origin}] account xpub -> /${branch}/${index}`,
   };
 }
 
@@ -205,9 +221,8 @@ export function buildConcreteMultisigWallet(request: ConcreteMultisigRequest): C
   });
   const hex = policyHex(policy);
   const descriptor = concreteDescriptor(request.chain, request.wrapper, request.required, publicKeys, request.keyOrder);
-  const orderedPublicKeys = request.keyOrder === 'bip67'
-    ? [...publicKeys].sort((left, right) => left.localeCompare(right))
-    : publicKeys;
+  const orderedPublicKeys =
+    request.keyOrder === 'bip67' ? [...publicKeys].sort((left, right) => left.localeCompare(right)) : publicKeys;
   const importData = concreteImportPayload(request, policy.address, hex.redeemScript, descriptor);
   return {
     address: policy.address,
@@ -231,18 +246,27 @@ export function buildConcreteMultisigWallet(request: ConcreteMultisigRequest): C
   };
 }
 
-export function parseAccountXpub(line: string, chain: PsbtChain, network: PsbtNetwork, index: number): ParsedAccountXpub {
+export function parseAccountXpub(
+  line: string,
+  chain: PsbtChain,
+  network: PsbtNetwork,
+  index: number,
+): ParsedAccountXpub {
   const value = line.trim();
   const match = /^\[([0-9a-fA-F]{8})((?:\/[0-9]+['hH]?)+)\]([A-Za-z0-9]+)$/u.exec(value);
   const xpub = match?.[3] ?? value;
   if (!/^[xt]pub[1-9A-HJ-NP-Za-km-z]+$/u.test(xpub)) {
-    throw new Error(`Account public key ${index + 1} must be an xpub/tpub, optionally prefixed as [fingerprint/path]xpub.`);
+    throw new Error(
+      `Account public key ${index + 1} must be an xpub/tpub, optionally prefixed as [fingerprint/path]xpub.`,
+    );
   }
   let node: HDKey;
   try {
     node = HDKey.fromExtendedKey(xpub, versions(chain, network));
   } catch (cause) {
-    throw new Error(`Account public key ${index + 1} is not valid for the selected network: ${String(cause)}.${xpubNetworkHint(xpub, network)}`);
+    throw new Error(
+      `Account public key ${index + 1} is not valid for the selected network: ${String(cause)}.${xpubNetworkHint(xpub, network)}`,
+    );
   }
   if (node.publicKey === null) throw new Error(`Account public key ${index + 1} does not contain public key material.`);
   const fingerprint = match?.[1]?.toLowerCase() ?? 'not supplied';
@@ -258,14 +282,21 @@ export function parseAccountXpub(line: string, chain: PsbtChain, network: PsbtNe
 }
 
 function validateRange(startIndex: number, endIndex: number): void {
-  if (!Number.isSafeInteger(startIndex) || startIndex < 0) throw new Error('Start index must be a non-negative integer.');
-  if (!Number.isSafeInteger(endIndex) || endIndex < startIndex) throw new Error('End index must be greater than or equal to the start index.');
+  if (!Number.isSafeInteger(startIndex) || startIndex < 0)
+    throw new Error('Start index must be a non-negative integer.');
+  if (!Number.isSafeInteger(endIndex) || endIndex < startIndex)
+    throw new Error('End index must be greater than or equal to the start index.');
   if (endIndex - startIndex + 1 > 200) throw new Error('Build at most 200 addresses per branch at once.');
 }
 
 function assertRequest(request: RangedWalletRequest): void {
-  if (request.accountXpubs.length < 1 || request.accountXpubs.length > 16) throw new Error('Enter from 1 to 16 account public keys.');
-  if (!Number.isSafeInteger(request.required) || request.required < 1 || request.required > request.accountXpubs.length) {
+  if (request.accountXpubs.length < 1 || request.accountXpubs.length > 16)
+    throw new Error('Enter from 1 to 16 account public keys.');
+  if (
+    !Number.isSafeInteger(request.required) ||
+    request.required < 1 ||
+    request.required > request.accountXpubs.length
+  ) {
     throw new Error(`Required signatures must be from 1 to ${request.accountXpubs.length}.`);
   }
   if (request.branches.length === 0) throw new Error('Select at least one branch.');
@@ -291,7 +322,12 @@ function branchDescriptor(
   return descriptorWithChecksum(payload);
 }
 
-function deriveRow(request: RangedWalletRequest, accounts: readonly ParsedAccountXpub[], branch: MultisigBranch, index: number): RangedAddressRow {
+function deriveRow(
+  request: RangedWalletRequest,
+  accounts: readonly ParsedAccountXpub[],
+  branch: MultisigBranch,
+  index: number,
+): RangedAddressRow {
   const publicKeys = accounts.map((account) => {
     const key = account.node.deriveChild(branch).deriveChild(index).publicKey;
     if (key === null) throw new Error(`${account.label} did not derive public key /${branch}/${index}.`);
@@ -311,14 +347,18 @@ function deriveRow(request: RangedWalletRequest, accounts: readonly ParsedAccoun
     branch,
     index,
     pathSuffix: `/${branch}/${index}`,
-    publicKeys: request.keyOrder === 'bip67' ? [...publicKeys].sort((left, right) => left.localeCompare(right)) : publicKeys,
+    publicKeys:
+      request.keyOrder === 'bip67' ? [...publicKeys].sort((left, right) => left.localeCompare(right)) : publicKeys,
     redeemScript: policyHex(policy).redeemScript,
     scriptPubKey: policyHex(policy).scriptPubKey,
     address: policy.address,
   };
 }
 
-function importPayload(request: RangedWalletRequest, descriptors: readonly DescriptorRecord[]): { text: string; json: string } {
+function importPayload(
+  request: RangedWalletRequest,
+  descriptors: readonly DescriptorRecord[],
+): { text: string; json: string } {
   if (request.chain === 'bitcoin') {
     const payload = descriptors.map((descriptor) => ({
       desc: descriptor.descriptor,
@@ -345,7 +385,9 @@ function importPayload(request: RangedWalletRequest, descriptors: readonly Descr
 
 export function buildRangedWallet(request: RangedWalletRequest): RangedWallet {
   assertRequest(request);
-  const accounts = request.accountXpubs.map((line, index) => parseAccountXpub(line, request.chain, request.network, index));
+  const accounts = request.accountXpubs.map((line, index) =>
+    parseAccountXpub(line, request.chain, request.network, index),
+  );
   assertConsistentOrigins(accounts);
   const descriptors = request.branches.map((branch) => ({
     branch,
@@ -371,7 +413,9 @@ export function buildRangedWallet(request: RangedWalletRequest): RangedWallet {
       `Branches: ${request.branches.map((branch) => `${branchLabel(branch)} /${branch}`).join(', ')}`,
       `Index range: ${request.startIndex}-${request.endIndex}`,
       'All cosigner account public keys must come from the same multisig derivation family; mixed m/45 and Purpose48 keys intentionally produce different addresses.',
-      ...accounts.map((account) => `${account.label}: ${account.originPath} · fingerprint ${account.fingerprint} · ${account.xpub}`),
+      ...accounts.map(
+        (account) => `${account.label}: ${account.originPath} · fingerprint ${account.fingerprint} · ${account.xpub}`,
+      ),
     ].join('\n'),
   };
 }

@@ -134,11 +134,7 @@ function standardKeyGroup(
           false,
           'Public lookup fingerprint used by proof-verified Identity discovery. It is not an address or an Identity ID.',
         ),
-        field(
-          keyFieldKey(key.keyId, 'PublicKey'),
-          'Compressed public key',
-          bytesToHex(derived.publicKey),
-        ),
+        field(keyFieldKey(key.keyId, 'PublicKey'), 'Compressed public key', bytesToHex(derived.publicKey)),
         field(
           keyFieldKey(key.keyId, 'PrivateKeyWif'),
           'Private key (Dash WIF)',
@@ -207,7 +203,8 @@ export function deriveDashIdentity(options: Bip32BatchOptions): DerivationResult
           field('registrationState', 'Registration state', 'Candidate keys only · not registered'),
         ],
         groups: DASH_IDENTITY_STANDARD_KEYS.map((key) =>
-          standardKeyGroup(root, options.network, key, identityIndex, network.wif)),
+          standardKeyGroup(root, options.network, key, identityIndex, network.wif),
+        ),
       });
     }
 

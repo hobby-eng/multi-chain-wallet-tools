@@ -5,11 +5,11 @@ import {
   RECOVERY_NETWORK_FATAL,
   RECOVERY_NETWORK_READY,
   RECOVERY_VAULT_HEIGHT,
-  RECOVERY_VAULT_CHANNEL,
   type RecoveryExportBrokerRequest,
   type RecoveryExportBrokerResult,
   type RecoveryVaultHeight,
-} from './network-protocol.js';
+} from '@ckd/network-boundary/protocol.js';
+import { bootstrapVaultDocument } from '@ckd/secret-vault/worker-bootstrap.js';
 
 declare const __RECOVERY_VAULT_HTML__: string;
 declare const __RECOVERY_NETWORK_WORKER_JS__: string;
@@ -24,8 +24,10 @@ const vault = required<HTMLIFrameElement>('#recovery-secret-vault');
 const errorBox = required<HTMLElement>('#recovery-shell-error');
 const workerUrl = URL.createObjectURL(new Blob([__RECOVERY_NETWORK_WORKER_JS__], { type: 'text/javascript' }));
 const networkWorker = new Worker(workerUrl, { name: 'wallet-discovery-public-network' });
-const channel = new MessageChannel();
-let channelDelivered = false;
+const networkChannel = new MessageChannel();
+const vaultBootstrap = bootstrapVaultDocument(vault, __RECOVERY_VAULT_HTML__, networkChannel.port2, (cause) => {
+  fatal(cause instanceof Error ? cause.message : String(cause));
+});
 let workerReady = false;
 let workerUrlRevoked = false;
 const workerReadyTimeout = setTimeout(() => {
@@ -60,18 +62,8 @@ networkWorker.addEventListener('message', (event: MessageEvent<unknown>) => {
 networkWorker.addEventListener('messageerror', () => {
   fatal('The isolated Recovery Network Worker emitted an unreadable message.');
 });
-networkWorker.postMessage({ type: RECOVERY_NETWORK_ATTACH }, [channel.port1]);
+networkWorker.postMessage({ type: RECOVERY_NETWORK_ATTACH }, [networkChannel.port1]);
 
-vault.addEventListener('load', () => {
-  if (channelDelivered) return;
-  channelDelivered = true;
-  const target = vault.contentWindow;
-  if (target === null) {
-    fatal('The browser did not create the isolated Recovery Secret Vault.');
-    return;
-  }
-  target.postMessage({ type: RECOVERY_VAULT_CHANNEL }, '*', [channel.port2]);
-});
 const MAX_EXPORT_BYTES = 268_435_456;
 
 function exportResult(target: Window, result: RecoveryExportBrokerResult): void {
@@ -82,7 +74,12 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
   if (event.source !== vault.contentWindow || typeof event.data !== 'object' || event.data === null) return;
   const viewport = event.data as Partial<RecoveryVaultHeight>;
   if (viewport.type === RECOVERY_VAULT_HEIGHT) {
-    if (typeof viewport.height === 'number' && Number.isSafeInteger(viewport.height) && viewport.height > 0 && viewport.height <= 10_000_000) {
+    if (
+      typeof viewport.height === 'number' &&
+      Number.isSafeInteger(viewport.height) &&
+      viewport.height > 0 &&
+      viewport.height <= 10_000_000
+    ) {
       vault.style.height = `${viewport.height}px`;
     }
     return;
@@ -91,7 +88,12 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
   if (request.type !== RECOVERY_EXPORT_REQUEST || typeof request.id !== 'string') return;
   const target = event.source as Window;
   if ((request.format !== 'csv' && request.format !== 'json') || typeof request.text !== 'string') {
-    exportResult(target, { type: RECOVERY_EXPORT_RESULT, id: request.id, ok: false, error: 'Malformed export request.' });
+    exportResult(target, {
+      type: RECOVERY_EXPORT_RESULT,
+      id: request.id,
+      ok: false,
+      error: 'Malformed export request.',
+    });
     return;
   }
   const suffix = new Date().toISOString().replace(/[:.]/gu, '-');
@@ -99,7 +101,12 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
   const mimeType = request.format === 'json' ? 'application/json' : 'text/csv';
   const blob = new Blob([request.text], { type: `${mimeType};charset=utf-8` });
   if (blob.size > MAX_EXPORT_BYTES) {
-    exportResult(target, { type: RECOVERY_EXPORT_RESULT, id: request.id, ok: false, error: 'The export exceeds the 256 MiB safety ceiling.' });
+    exportResult(target, {
+      type: RECOVERY_EXPORT_RESULT,
+      id: request.id,
+      ok: false,
+      error: 'The export exceeds the 256 MiB safety ceiling.',
+    });
     return;
   }
   const url = URL.createObjectURL(blob);
@@ -124,13 +131,9 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
   }
 });
 
-// Install every vault message handler before srcdoc starts executing. Local
-// single-file pages can load srcdoc synchronously enough for an initial
-// viewport message to otherwise arrive before the shell is listening.
-vault.srcdoc = __RECOVERY_VAULT_HTML__;
-
 window.addEventListener('beforeunload', () => {
   clearTimeout(workerReadyTimeout);
   revokeWorkerUrl();
   networkWorker.terminate();
+  vaultBootstrap.stop();
 });

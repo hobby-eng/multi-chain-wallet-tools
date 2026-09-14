@@ -2,7 +2,7 @@ import { BUILD_INFO } from '@ckd/build-info';
 import { bytesToHex } from '@ckd/core/crypto.js';
 import { decryptBip38Key } from './bip38-decryptor.js';
 import { decodeDescriptor, type DecodedDescriptor } from './descriptor.js';
-import { isRangedDescriptorKey, materializeDescriptorKey } from './descriptor-key.js';
+import { isRangedDescriptorKey, materializeDescriptorKey } from '@ckd/core/descriptor-key.js';
 import { buildDashCoreImport, type DashCoreImportArtifacts } from './dash-import.js';
 import {
   buildConcreteMultisigWallet,
@@ -14,12 +14,23 @@ import {
 } from './multisig-wallet.js';
 import { buildPolicy, policyHex, type LockKind } from './policy.js';
 import { calculatePhrasePreimage, type HashlockKind } from './preimage.js';
-import { describeScript, pairName, pairSummary, parsePsbt, parsedTransactionId, transactionId, type ParsedPsbt, type PsbtChain, type PsbtNetwork, type SuppliedUtxo } from './psbt.js';
+import {
+  describeScript,
+  pairName,
+  pairSummary,
+  parsePsbt,
+  parsedTransactionId,
+  transactionId,
+  type ParsedPsbt,
+  type PsbtChain,
+  type PsbtNetwork,
+  type SuppliedUtxo,
+} from './psbt.js';
 import { decodeScript } from './script.js';
 import { verifySignedMessage } from './message-verifier.js';
 import { analyzeInputSigning } from './signing-commitments.js';
 import { describeOpReturn, describePreviousScriptSig } from './transaction-display.js';
-import { createPaymentQrAction } from '../../key-derivation/src/ui/payment-qr.js';
+import { createPaymentQrAction } from '@ckd/ui/payment-qr.js';
 
 function required<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -205,12 +216,16 @@ let pendingWalletBuild: number | null = null;
 let bip38DecryptRevision = 0;
 let bip38ResultsRevealed = false;
 
-function chain(): PsbtChain { return chainSelect.value === 'dash' ? 'dash' : 'bitcoin'; }
+function chain(): PsbtChain {
+  return chainSelect.value === 'dash' ? 'dash' : 'bitcoin';
+}
 function selectedNetwork(select: HTMLSelectElement, selectedChain: PsbtChain): PsbtNetwork {
   if (selectedChain === 'bitcoin' && select.value === 'regtest') return 'regtest';
   return select.value === 'testnet' ? 'testnet' : 'mainnet';
 }
-function network(): PsbtNetwork { return selectedNetwork(networkSelect, chain()); }
+function network(): PsbtNetwork {
+  return selectedNetwork(networkSelect, chain());
+}
 
 function syncNetworkChoice(chainControl: HTMLSelectElement, networkControl: HTMLSelectElement): void {
   const regtest = networkControl.querySelector<HTMLOptionElement>('option[value="regtest"]');
@@ -248,10 +263,7 @@ function clearBip38Decryptor(): void {
   decryptBip38Button.textContent = 'Decrypt keys';
 }
 
-function appendBip38Decryption(
-  position: number,
-  decrypted: Awaited<ReturnType<typeof decryptBip38Key>>,
-): void {
+function appendBip38Decryption(position: number, decrypted: Awaited<ReturnType<typeof decryptBip38Key>>): void {
   const card = document.createElement('article');
   card.className = 'bip38-result-card';
   card.append(textElement('h3', '', `Recovered key #${position}`));
@@ -261,7 +273,9 @@ function appendBip38Decryption(
   const address = textElement('code', '', decrypted.address);
   const copyAddress = textElement('button', 'secondary compact', 'Copy') as HTMLButtonElement;
   copyAddress.type = 'button';
-  copyAddress.addEventListener('click', () => { void copyPlainText(decrypted.address); });
+  copyAddress.addEventListener('click', () => {
+    void copyPlainText(decrypted.address);
+  });
   addressRow.append(textElement('span', '', 'Verified P2PKH address'), address, copyAddress);
 
   const compressionRow = document.createElement('div');
@@ -283,7 +297,9 @@ function appendBip38Decryption(
     copy.type = 'button';
     copy.disabled = !bip38ResultsRevealed;
     copy.dataset.copyBip38Secret = 'true';
-    copy.addEventListener('click', () => { void copyPlainText(value); });
+    copy.addEventListener('click', () => {
+      void copyPlainText(value);
+    });
     row.append(textElement('label', '', label), input, copy);
     return row;
   };
@@ -313,7 +329,14 @@ async function decryptSelectedBip38Key(): Promise<void> {
   bip38ResultList.replaceChildren();
   setBip38ResultVisibility(false);
   toggleBip38Result.disabled = true;
-  const keys = [...new Set(bip38EncryptedKey.value.split(/[\s,;]+/u).map((value) => value.trim()).filter(Boolean))];
+  const keys = [
+    ...new Set(
+      bip38EncryptedKey.value
+        .split(/[\s,;]+/u)
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ];
   if (keys.length === 0) {
     bip38Error.textContent = 'Enter at least one BIP38 encrypted private key.';
     bip38Error.hidden = false;
@@ -462,17 +485,20 @@ function previousTransactionDetails(
   details.className = 'previous-transaction-details';
   const heading = document.createElement('summary');
   heading.textContent = 'Complete previous transaction · non-witness UTXO';
-  details.append(heading, detailRows([
-    ['Transaction ID', parsedTransactionId(transaction)],
-    ['Version', transaction.version.toString()],
-    ['Dash transaction type', transaction.dashType === null ? 'Not applicable' : transaction.dashType.toString()],
-    ['Serialized size', `${transaction.raw.length} bytes`],
-    ['Witness serialization', transaction.hasWitness ? 'Present' : 'Not present'],
-    ['Inputs', transaction.inputs.length.toString()],
-    ['Outputs', transaction.outputs.length.toString()],
-    ['Locktime', transaction.lockTime.toString()],
-    ['Special payload', transaction.extraPayload === null ? 'None' : bytesToHex(transaction.extraPayload)],
-  ]));
+  details.append(
+    heading,
+    detailRows([
+      ['Transaction ID', parsedTransactionId(transaction)],
+      ['Version', transaction.version.toString()],
+      ['Dash transaction type', transaction.dashType === null ? 'Not applicable' : transaction.dashType.toString()],
+      ['Serialized size', `${transaction.raw.length} bytes`],
+      ['Witness serialization', transaction.hasWitness ? 'Present' : 'Not present'],
+      ['Inputs', transaction.inputs.length.toString()],
+      ['Outputs', transaction.outputs.length.toString()],
+      ['Locktime', transaction.lockTime.toString()],
+      ['Special payload', transaction.extraPayload === null ? 'None' : bytesToHex(transaction.extraPayload)],
+    ]),
+  );
   transaction.inputs.forEach((input, index) => {
     const card = document.createElement('article');
     card.className = 'previous-transaction-item';
@@ -490,16 +516,24 @@ function previousTransactionDetails(
     } else {
       scriptSig.pushes.forEach((push, pushIndex) => scriptRows.push([`Pushed item ${pushIndex + 1}`, push]));
     }
-    scriptRows.push(['scriptSig ASM', scriptSig.asm], ['Raw scriptSig', scriptSig.raw.length === 0 ? 'Empty' : scriptSig.raw]);
+    scriptRows.push(
+      ['scriptSig ASM', scriptSig.asm],
+      ['Raw scriptSig', scriptSig.raw.length === 0 ? 'Empty' : scriptSig.raw],
+    );
     card.append(textElement('h5', '', `Previous transaction input ${index}`), detailRows(scriptRows));
     details.append(card);
   });
   transaction.outputs.forEach((output, index) => {
     const card = document.createElement('article');
     card.className = `previous-transaction-item${index === referencedVout ? ' referenced-previous-output' : ''}`;
-    card.append(textElement('h5', '', `Previous transaction output ${index}${index === referencedVout ? ' · referenced by current input' : ''}`), detailRows(
-      transactionOutputRows(output, chain, selectedNetwork),
-    ));
+    card.append(
+      textElement(
+        'h5',
+        '',
+        `Previous transaction output ${index}${index === referencedVout ? ' · referenced by current input' : ''}`,
+      ),
+      detailRows(transactionOutputRows(output, chain, selectedNetwork)),
+    );
     details.append(card);
   });
   details.append(detailRows([['Raw transaction', bytesToHex(transaction.raw)]]));
@@ -525,7 +559,10 @@ function renderMaps(
     const details = document.createElement('details');
     if (maps.length === 1) details.open = true;
     const heading = document.createElement('summary');
-    heading.textContent = scope === 'global' ? `${map.length} key-value records` : `${scope === 'input' ? 'Input' : 'Output'} ${index} · ${map.length} records`;
+    heading.textContent =
+      scope === 'global'
+        ? `${map.length} key-value records`
+        : `${scope === 'input' ? 'Input' : 'Output'} ${index} · ${map.length} records`;
     details.append(heading);
     if (map.length === 0) {
       details.append(textElement('p', 'field-note', 'No PSBT metadata supplied.'));
@@ -571,7 +608,14 @@ function verificationMatrix(title: string, checks: readonly import('./psbt.js').
   for (const check of checks) {
     const row = document.createElement('div');
     row.className = `verification-row verification-${check.status}`;
-    const status = check.status === 'not-applicable' ? 'N/A' : check.status === 'not-verified' ? 'Not verified' : check.status === 'failed' ? 'Failed' : 'Internally verified';
+    const status =
+      check.status === 'not-applicable'
+        ? 'N/A'
+        : check.status === 'not-verified'
+          ? 'Not verified'
+          : check.status === 'failed'
+            ? 'Failed'
+            : 'Internally verified';
     row.append(
       textElement('span', 'verification-relationship', check.relationship),
       textElement('strong', 'verification-status', status),
@@ -634,76 +678,127 @@ function render(parsed: ParsedPsbt): void {
   const cards: HTMLElement[] = [];
   cards.push(
     textElement('h3', 'psbt-subheading', 'Transaction accounting'),
-    textElement('p', 'field-note', 'Amounts come from supplied UTXOs. This inspection does not verify blockchain inclusion, every script commitment, or transaction signatures.'),
+    textElement(
+      'p',
+      'field-note',
+      'Amounts come from supplied UTXOs. This inspection does not verify blockchain inclusion, every script commitment, or transaction signatures.',
+    ),
     detailRows([
-      ['Supplied input total', knownInputCount === parsed.inputs.length
-        ? amount(parsed.inputValues.reduce<bigint>((total, value) => total + (value ?? 0n), 0n), parsed.chain)
-        : `Unavailable · values missing for ${parsed.inputs.length - knownInputCount} input(s)`],
-      ['Output total', amount(parsed.outputValues.reduce((total, value) => total + value, 0n), parsed.chain)],
-      ['Fee from supplied UTXOs (not chain-verified)', parsed.fee === null ? 'Unavailable · one or more input values are missing' : amount(parsed.fee, parsed.chain)],
+      [
+        'Supplied input total',
+        knownInputCount === parsed.inputs.length
+          ? amount(
+              parsed.inputValues.reduce<bigint>((total, value) => total + (value ?? 0n), 0n),
+              parsed.chain,
+            )
+          : `Unavailable · values missing for ${parsed.inputs.length - knownInputCount} input(s)`,
+      ],
+      [
+        'Output total',
+        amount(
+          parsed.outputValues.reduce((total, value) => total + value, 0n),
+          parsed.chain,
+        ),
+      ],
+      [
+        'Fee from supplied UTXOs (not chain-verified)',
+        parsed.fee === null ? 'Unavailable · one or more input values are missing' : amount(parsed.fee, parsed.chain),
+      ],
       ['Fee / current unsigned size', unsignedFeeRateEstimate(parsed)],
     ]),
   );
   cards.push(
     textElement('h3', 'psbt-subheading', 'Verification matrix'),
-    textElement('p', 'field-note', 'Verified means this offline inspector checked the stated relationship against data inside this PSBT. It does not prove blockchain inclusion or validate signatures.'),
+    textElement(
+      'p',
+      'field-note',
+      'Verified means this offline inspector checked the stated relationship against data inside this PSBT. It does not prove blockchain inclusion or validate signatures.',
+    ),
     verificationMatrix('Global PSBT checks', parsed.globalVerification),
     ...parsed.inputVerification.map((checks, index) => verificationMatrix(`Input ${index} checks`, checks)),
   );
   cards.push(
     textElement('h3', 'psbt-subheading', 'Signing commitments / transaction mutability'),
-    textElement('p', 'field-note', 'This explains what each input signature would commit under the requested sighash. It does not verify a signature or predict every node policy.'),
+    textElement(
+      'p',
+      'field-note',
+      'This explains what each input signature would commit under the requested sighash. It does not verify a signature or predict every node policy.',
+    ),
     ...parsed.inputs.map((_map, index) => {
       const analysis = analyzeInputSigning(parsed, index);
       const card = document.createElement('article');
       card.className = 'psbt-entry-card signing-commitment-card';
       card.append(textElement('h4', '', `Input ${index}`));
-      if (analysis.sighash.unusual) card.append(textElement('p', 'signing-policy-warning', '⚠ Unusual or inconsistent signing policy'));
-      card.append(detailRows([
-        ['Signature', analysis.signature],
-        ['Signature protocol', analysis.protocol],
-        ['Sighash', analysis.sighash.label],
-        ['Current input', analysis.sighash.currentInput],
-        ['Other inputs', analysis.sighash.otherInputs],
-        ['Other input sequences', analysis.sighash.otherInputSequences],
-        ['Outputs', analysis.sighash.outputs],
-        ['Current input amount', analysis.sighash.currentInputAmount],
-        ['RBF', analysis.rbf],
-        ['Locktime', analysis.locktime],
-        ['Relative locktime', analysis.relativeLocktime],
-      ]));
+      if (analysis.sighash.unusual)
+        card.append(textElement('p', 'signing-policy-warning', '⚠ Unusual or inconsistent signing policy'));
+      card.append(
+        detailRows([
+          ['Signature', analysis.signature],
+          ['Signature protocol', analysis.protocol],
+          ['Sighash', analysis.sighash.label],
+          ['Current input', analysis.sighash.currentInput],
+          ['Other inputs', analysis.sighash.otherInputs],
+          ['Other input sequences', analysis.sighash.otherInputSequences],
+          ['Outputs', analysis.sighash.outputs],
+          ['Current input amount', analysis.sighash.currentInputAmount],
+          ['RBF', analysis.rbf],
+          ['Locktime', analysis.locktime],
+          ['Relative locktime', analysis.relativeLocktime],
+        ]),
+      );
       return card;
     }),
   );
   if (parsed.transaction !== null) {
     cards.push(textElement('h3', 'psbt-subheading', 'Unsigned transaction'));
     const serializedSize = parsed.transaction.raw.length;
-    cards.push(detailRows([
-      ['Transaction ID', parsed.chain === 'dash' && parsed.transaction.dashType !== 0
-        ? 'Unavailable from the special-transaction PSBT encoding alone'
-        : transactionId(parsed.transaction.raw)],
-      ['Serialized size', `${serializedSize} bytes`],
-      ['Virtual size', `${serializedSize} vB (unsigned transaction has no witness data)`],
-      ['Weight', `${serializedSize * 4} WU`],
-      ['Transaction version', parsed.transaction.version.toString()],
-      ['Dash transaction type', parsed.transaction.dashType === null ? 'Not applicable' : parsed.transaction.dashType.toString()],
-      ['Witness serialization', parsed.transaction.hasWitness ? 'Present' : 'Not present'],
-      ['Locktime', parsed.transaction.lockTime.toString()],
-      ['Special payload', parsed.transaction.extraPayload === null ? 'None' : bytesToHex(parsed.transaction.extraPayload)],
-    ]));
+    cards.push(
+      detailRows([
+        [
+          'Transaction ID',
+          parsed.chain === 'dash' && parsed.transaction.dashType !== 0
+            ? 'Unavailable from the special-transaction PSBT encoding alone'
+            : transactionId(parsed.transaction.raw),
+        ],
+        ['Serialized size', `${serializedSize} bytes`],
+        ['Virtual size', `${serializedSize} vB (unsigned transaction has no witness data)`],
+        ['Weight', `${serializedSize * 4} WU`],
+        ['Transaction version', parsed.transaction.version.toString()],
+        [
+          'Dash transaction type',
+          parsed.transaction.dashType === null ? 'Not applicable' : parsed.transaction.dashType.toString(),
+        ],
+        ['Witness serialization', parsed.transaction.hasWitness ? 'Present' : 'Not present'],
+        ['Locktime', parsed.transaction.lockTime.toString()],
+        [
+          'Special payload',
+          parsed.transaction.extraPayload === null ? 'None' : bytesToHex(parsed.transaction.extraPayload),
+        ],
+      ]),
+    );
     parsed.transaction.inputs.forEach((input, index) => {
       const card = document.createElement('article');
       card.className = 'psbt-entry-card';
-      card.append(textElement('h4', '', `Input ${index}`), detailRows([
-        ['Previous output', `${input.txid}:${input.vout}`],
-        ['Sequence', `0x${input.sequence.toString(16).padStart(8, '0')} (${input.sequence})`],
-        ['Input value', parsed.inputValues[index] === null || parsed.inputValues[index] === undefined ? 'Not supplied' : amount(parsed.inputValues[index], parsed.chain)],
-      ]));
+      card.append(
+        textElement('h4', '', `Input ${index}`),
+        detailRows([
+          ['Previous output', `${input.txid}:${input.vout}`],
+          ['Sequence', `0x${input.sequence.toString(16).padStart(8, '0')} (${input.sequence})`],
+          [
+            'Input value',
+            parsed.inputValues[index] === null || parsed.inputValues[index] === undefined
+              ? 'Not supplied'
+              : amount(parsed.inputValues[index], parsed.chain),
+          ],
+        ]),
+      );
       const suppliedUtxo = parsed.inputUtxos[index];
       if (suppliedUtxo !== null && suppliedUtxo !== undefined) {
         card.append(referencedOutputDetails(input.vout, suppliedUtxo, parsed.chain, selectedNetwork));
         if (suppliedUtxo.previousTransaction !== null) {
-          card.append(previousTransactionDetails(suppliedUtxo.previousTransaction, parsed.chain, selectedNetwork, input.vout));
+          card.append(
+            previousTransactionDetails(suppliedUtxo.previousTransaction, parsed.chain, selectedNetwork, input.vout),
+          );
         }
       }
       cards.push(card);
@@ -713,9 +808,16 @@ function render(parsed: ParsedPsbt): void {
     const script = v2OutputScript(parsed, index);
     const card = document.createElement('article');
     card.className = 'psbt-entry-card psbt-output-card';
-    const rows: [string, string][] = script === null
-      ? [['Amount', amount(value, parsed.chain)], ['Type', 'Script not supplied'], ['Address', '—'], ['scriptPubKey ASM', '—'], ['scriptPubKey', '—']]
-      : transactionOutputRows({ value, script }, parsed.chain, selectedNetwork);
+    const rows: [string, string][] =
+      script === null
+        ? [
+            ['Amount', amount(value, parsed.chain)],
+            ['Type', 'Script not supplied'],
+            ['Address', '—'],
+            ['scriptPubKey ASM', '—'],
+            ['scriptPubKey', '—'],
+          ]
+        : transactionOutputRows({ value, script }, parsed.chain, selectedNetwork);
     card.append(textElement('h4', '', `Output ${index}`), detailRows(rows));
     cards.push(card);
   });
@@ -730,8 +832,9 @@ function render(parsed: ParsedPsbt): void {
 function inspect(): void {
   errorBox.hidden = true;
   results.hidden = true;
-  try { render(parsePsbt(psbtInput.value, chain())); }
-  catch (error) {
+  try {
+    render(parsePsbt(psbtInput.value, chain()));
+  } catch (error) {
     errorBox.textContent = error instanceof Error ? error.message : String(error);
     errorBox.hidden = false;
   }
@@ -789,11 +892,17 @@ function inspectScript(): void {
         multipathChoice: scriptBranch.value === '1' ? 1 : 0,
         wildcardIndex: Number(scriptWildcardIndex.value),
       });
-      scriptPolicy.textContent = descriptor.spendingPaths.length === 0 ? descriptor.summary : descriptor.spendingPaths.join('\n');
-      scriptAsm.textContent = descriptor.compiledOutput?.asm ?? 'This descriptor is structurally decoded, but concrete compilation is not implemented for this descriptor family.';
+      scriptPolicy.textContent =
+        descriptor.spendingPaths.length === 0 ? descriptor.summary : descriptor.spendingPaths.join('\n');
+      scriptAsm.textContent =
+        descriptor.compiledOutput?.asm ??
+        'This descriptor is structurally decoded, but concrete compilation is not implemented for this descriptor family.';
       scriptClassification.textContent = `${descriptor.classification} · checksum ${descriptor.checksum} · ${descriptor.ranged ? 'ranged (*)' : 'fixed'}`;
       scriptWrappers.replaceChildren(renderDescriptorVisualization(descriptor));
-      scriptOperations.replaceChildren(textElement('h3', 'psbt-subheading', 'Descriptor structure'), detailRows(descriptor.rows.map((row) => [row.label, row.value] as const)));
+      scriptOperations.replaceChildren(
+        textElement('h3', 'psbt-subheading', 'Descriptor structure'),
+        detailRows(descriptor.rows.map((row) => [row.label, row.value] as const)),
+      );
       scriptResults.hidden = false;
       return;
     }
@@ -829,7 +938,10 @@ function inspectScript(): void {
         root.append(cards);
       }
       if (descriptor.policyTree.length > 0) {
-        root.append(textElement('h3', 'psbt-subheading', 'Policy tree'), textElement('pre', 'policy-tree', descriptor.policyTree.join('\n')));
+        root.append(
+          textElement('h3', 'psbt-subheading', 'Policy tree'),
+          textElement('pre', 'policy-tree', descriptor.policyTree.join('\n')),
+        );
       }
       root.append(textElement('h3', 'psbt-subheading', 'Technical analysis'));
       return root;
@@ -843,16 +955,24 @@ function inspectScript(): void {
     scriptPolicy.textContent = decoded.inferredPolicy;
     scriptAsm.textContent = decoded.asm;
     scriptClassification.textContent = `${decoded.classification}${decoded.directAddress === null ? '' : ` · ${decoded.directAddress}`} · ${decoded.byteLength} bytes`;
-    scriptWrappers.replaceChildren(...decoded.wrappers.map((wrapper) => {
-      const row = document.createElement('div');
-      row.className = 'policy-row';
-      row.append(textElement('span', '', wrapper.label), textElement('code', '', `${wrapper.address} · scriptPubKey ${wrapper.scriptPubKey}`));
-      return row;
-    }));
-    const operationRows = decoded.operations.map((operation) => [
-      `Byte ${operation.offset}`,
-      `${operation.data === null ? operation.name : `${operation.name} · ${operation.data}`} — ${operation.meaning}`,
-    ] as const);
+    scriptWrappers.replaceChildren(
+      ...decoded.wrappers.map((wrapper) => {
+        const row = document.createElement('div');
+        row.className = 'policy-row';
+        row.append(
+          textElement('span', '', wrapper.label),
+          textElement('code', '', `${wrapper.address} · scriptPubKey ${wrapper.scriptPubKey}`),
+        );
+        return row;
+      }),
+    );
+    const operationRows = decoded.operations.map(
+      (operation) =>
+        [
+          `Byte ${operation.offset}`,
+          `${operation.data === null ? operation.name : `${operation.name} · ${operation.data}`} — ${operation.meaning}`,
+        ] as const,
+    );
     const operationHeading = textElement('h3', 'psbt-subheading', 'Operations');
     scriptOperations.replaceChildren(operationHeading, detailRows(operationRows));
     scriptResults.hidden = false;
@@ -868,7 +988,10 @@ function syncBuilderControls(): void {
   builderChain.disabled = custom;
   builderWrapper.disabled = builderChain.value === 'dash';
   if (builderChain.value === 'dash') builderWrapper.value = 'p2sh';
-  const primaryCount = publicKeys.value.split(/\r?\n/u).map((value) => value.trim()).filter(Boolean).length;
+  const primaryCount = publicKeys.value
+    .split(/\r?\n/u)
+    .map((value) => value.trim())
+    .filter(Boolean).length;
   const musig2 = !custom && builderWrapper.value === 'p2tr-musig2';
   if (musig2) {
     policyMode.value = 'locked-multisig';
@@ -879,24 +1002,38 @@ function syncBuilderControls(): void {
   builderKeyOrder.disabled = musig2;
   const sortedOption = builderKeyOrder.querySelector<HTMLOptionElement>('option[value="bip67"]');
   const suppliedOption = builderKeyOrder.querySelector<HTMLOptionElement>('option[value="supplied"]');
-  if (sortedOption !== null) sortedOption.textContent = builderWrapper.value === 'p2tr'
-    ? 'Lexicographic x-only order · multi_a()'
-    : builderWrapper.value === 'p2tr-musig2'
-      ? 'BIP327 KeySort · required'
-      : 'BIP67 sorted · sortedmulti()';
-  if (suppliedOption !== null) suppliedOption.textContent = builderWrapper.value === 'p2tr'
-    ? 'Supplied x-only order · multi_a()'
-    : 'Supplied order · multi()';
+  if (sortedOption !== null)
+    sortedOption.textContent =
+      builderWrapper.value === 'p2tr'
+        ? 'Lexicographic x-only order · multi_a()'
+        : builderWrapper.value === 'p2tr-musig2'
+          ? 'BIP327 KeySort · required'
+          : 'BIP67 sorted · sortedmulti()';
+  if (suppliedOption !== null)
+    suppliedOption.textContent =
+      builderWrapper.value === 'p2tr' ? 'Supplied x-only order · multi_a()' : 'Supplied order · multi()';
   if (musig2) builderKeyOrder.value = 'bip67';
-  presetPolicyFields.forEach((field) => { field.hidden = custom; });
+  presetPolicyFields.forEach((field) => {
+    field.hidden = custom;
+  });
   if (customMiniscriptField !== null) customMiniscriptField.hidden = !custom;
   const selectedMode = policyMode.value;
   const noLock = lockKind.value === 'none';
   lockValueField.hidden = noLock;
   timeUnitField.hidden = lockKind.value !== 'relative-time';
   recoveryKeyField.hidden = selectedMode === 'locked-multisig';
-  recoveryRequiredField.hidden = selectedMode !== 'delayed-recovery-multisig' && selectedMode !== 'backup-committee' && selectedMode !== 'escalating-recovery';
-  recoveryRequiredField.hidden = !['htlc', 'delayed-recovery-multisig', 'backup-committee', 'escalating-recovery', 'decaying-multisig', 'expanding-multisig'].includes(selectedMode);
+  recoveryRequiredField.hidden =
+    selectedMode !== 'delayed-recovery-multisig' &&
+    selectedMode !== 'backup-committee' &&
+    selectedMode !== 'escalating-recovery';
+  recoveryRequiredField.hidden = ![
+    'htlc',
+    'delayed-recovery-multisig',
+    'backup-committee',
+    'escalating-recovery',
+    'decaying-multisig',
+    'expanding-multisig',
+  ].includes(selectedMode);
   secondLockField.hidden = selectedMode !== 'escalating-recovery' && selectedMode !== 'staged-recovery';
   emergencyKeyField.hidden = selectedMode !== 'escalating-recovery' && selectedMode !== 'staged-recovery';
   emergencyRequiredControl.hidden = selectedMode === 'staged-recovery';
@@ -910,13 +1047,13 @@ function syncBuilderControls(): void {
       ? 'MuSig2 participant compressed public keys · one per line, all must sign'
       : builderWrapper.value === 'p2tr'
         ? 'Compressed public keys · converted to x-only for Tapscript'
-    : 'Compressed public keys · one per line, in committed order';
-  required<HTMLLabelElement>('emergency-public-keys-label').textContent = selectedMode === 'staged-recovery'
-    ? 'Second delayed recovery compressed public key'
-    : 'Emergency compressed public keys · one per line';
-  required<HTMLLabelElement>('emergency-required-label').textContent = selectedMode === 'staged-recovery'
-    ? 'Second recovery required signatures'
-    : 'Emergency required signatures';
+        : 'Compressed public keys · one per line, in committed order';
+  required<HTMLLabelElement>('emergency-public-keys-label').textContent =
+    selectedMode === 'staged-recovery'
+      ? 'Second delayed recovery compressed public key'
+      : 'Emergency compressed public keys · one per line';
+  required<HTMLLabelElement>('emergency-required-label').textContent =
+    selectedMode === 'staged-recovery' ? 'Second recovery required signatures' : 'Emergency required signatures';
   htlcHashField.hidden = selectedMode !== 'htlc';
   stagedDerivationField.hidden = selectedMode !== 'staged-recovery';
   if (custom) {
@@ -929,54 +1066,84 @@ function syncBuilderControls(): void {
     htlcHashField.hidden = true;
     stagedDerivationField.hidden = true;
   }
-  required<HTMLLabelElement>('recovery-public-key-label').textContent = selectedMode === 'staged-recovery'
-    ? 'First delayed recovery compressed public key'
-    : selectedMode === 'htlc'
-    ? 'Timelocked fallback compressed public keys · one per line'
-    : selectedMode === 'delayed-recovery'
-    ? 'Recovery compressed public key'
-    : selectedMode === 'backup-committee'
-      ? 'Backup committee compressed public keys · one per line'
-      : selectedMode === 'expanding-multisig'
-        ? 'Additional expansion compressed public keys · one per line'
-      : 'Recovery compressed public keys · one per line';
+  required<HTMLLabelElement>('recovery-public-key-label').textContent =
+    selectedMode === 'staged-recovery'
+      ? 'First delayed recovery compressed public key'
+      : selectedMode === 'htlc'
+        ? 'Timelocked fallback compressed public keys · one per line'
+        : selectedMode === 'delayed-recovery'
+          ? 'Recovery compressed public key'
+          : selectedMode === 'backup-committee'
+            ? 'Backup committee compressed public keys · one per line'
+            : selectedMode === 'expanding-multisig'
+              ? 'Additional expansion compressed public keys · one per line'
+              : 'Recovery compressed public keys · one per line';
   if (selectedMode === 'decaying-multisig') recoveryKeyField.hidden = true;
   const labels: Record<string, string> = {
-    height: 'Absolute block height', time: 'Unix locktime', 'relative-blocks': 'Delay in blocks', 'relative-time': 'Delay amount', none: 'Lock value',
+    height: 'Absolute block height',
+    time: 'Unix locktime',
+    'relative-blocks': 'Delay in blocks',
+    'relative-time': 'Delay amount',
+    none: 'Lock value',
   };
   required<HTMLLabelElement>('lock-value-label').textContent = labels[lockKind.value] ?? 'Lock value';
   secondLockValueLabel.textContent = `Second ${labels[secondLockKind.value]?.toLowerCase() ?? 'lock value'}`;
   secondTimeUnit.hidden = secondLockKind.value !== 'relative-time';
   const singleRecovery = selectedMode === 'delayed-recovery' || stagedRecovery;
-  const recoveryCount = recoveryPublicKey.value.split(/\r?\n/u).map((value) => value.trim()).filter(Boolean).length;
-  const emergencyCount = emergencyPublicKeys.value.split(/\r?\n/u).map((value) => value.trim()).filter(Boolean).length;
-  publicKeys.setCustomValidity(stagedRecovery && primaryCount > 1 ? 'Staged recovery accepts exactly one primary key.' : '');
-  recoveryPublicKey.setCustomValidity(singleRecovery && recoveryCount > 1 ? 'This recovery branch accepts exactly one key.' : '');
-  emergencyPublicKeys.setCustomValidity(stagedRecovery && emergencyCount > 1 ? 'Staged recovery accepts exactly one second recovery key.' : '');
-  const tooManyKeys = (stagedRecovery && (primaryCount > 1 || emergencyCount > 1)) || (singleRecovery && recoveryCount > 1);
+  const recoveryCount = recoveryPublicKey.value
+    .split(/\r?\n/u)
+    .map((value) => value.trim())
+    .filter(Boolean).length;
+  const emergencyCount = emergencyPublicKeys.value
+    .split(/\r?\n/u)
+    .map((value) => value.trim())
+    .filter(Boolean).length;
+  publicKeys.setCustomValidity(
+    stagedRecovery && primaryCount > 1 ? 'Staged recovery accepts exactly one primary key.' : '',
+  );
+  recoveryPublicKey.setCustomValidity(
+    singleRecovery && recoveryCount > 1 ? 'This recovery branch accepts exactly one key.' : '',
+  );
+  emergencyPublicKeys.setCustomValidity(
+    stagedRecovery && emergencyCount > 1 ? 'Staged recovery accepts exactly one second recovery key.' : '',
+  );
+  const tooManyKeys =
+    (stagedRecovery && (primaryCount > 1 || emergencyCount > 1)) || (singleRecovery && recoveryCount > 1);
   buildButton.disabled = tooManyKeys;
   builderCardinalityNote.textContent = musig2
     ? 'MuSig2 creates one aggregate Taproot key and one cooperative Schnorr signature. Every listed participant must sign; this is N-of-N and has no Tapscript fallback.'
     : stagedRecovery
-    ? 'Staged recovery is fixed to three 1-of-1 branches: one primary key, one first recovery key, and one second recovery key. Additional key lines are not accepted.'
-    : selectedMode === 'delayed-recovery'
-      ? 'The delayed recovery branch accepts exactly one recovery key; the immediate primary branch may remain M-of-N.'
-      : selectedMode === 'decaying-multisig'
-        ? 'Both branches use the same primary key set; only the required signature count decreases after the lock.'
-        : 'Thresholds are validated against the number of keys supplied for each branch.';
+      ? 'Staged recovery is fixed to three 1-of-1 branches: one primary key, one first recovery key, and one second recovery key. Additional key lines are not accepted.'
+      : selectedMode === 'delayed-recovery'
+        ? 'The delayed recovery branch accepts exactly one recovery key; the immediate primary branch may remain M-of-N.'
+        : selectedMode === 'decaying-multisig'
+          ? 'Both branches use the same primary key set; only the required signature count decreases after the lock.'
+          : 'Thresholds are validated against the number of keys supplied for each branch.';
 }
 
 function normalizedLockValue(): number {
   const value = Number(lockValue.value);
   if (lockKind.value !== 'relative-time') return value;
-  const multipliers: Record<string, number> = { seconds: 1, minutes: 60, hours: 3_600, days: 86_400, months: 2_592_000 };
+  const multipliers: Record<string, number> = {
+    seconds: 1,
+    minutes: 60,
+    hours: 3_600,
+    days: 86_400,
+    months: 2_592_000,
+  };
   return value * (multipliers[timeUnit.value] ?? 1);
 }
 
 function normalizedSecondLockValue(): number {
   const value = Number(secondLockValue.value);
   if (secondLockKind.value !== 'relative-time') return value;
-  const multipliers: Record<string, number> = { seconds: 1, minutes: 60, hours: 3_600, days: 86_400, months: 2_592_000 };
+  const multipliers: Record<string, number> = {
+    seconds: 1,
+    minutes: 60,
+    hours: 3_600,
+    days: 86_400,
+    months: 2_592_000,
+  };
   return value * (multipliers[secondTimeUnit.value] ?? 1);
 }
 
@@ -1018,26 +1185,39 @@ function buildSelectedPolicy(): void {
   builderError.hidden = true;
   policyResults.hidden = true;
   try {
-    const enteredKeys = publicKeys.value.split(/\r?\n/u).map((value) => value.trim()).filter(Boolean);
-    const enteredRecoveryKeys = recoveryPublicKey.value.split(/\r?\n/u).map((value) => value.trim()).filter(Boolean);
-    const enteredEmergencyKeys = emergencyPublicKeys.value.split(/\r?\n/u).map((value) => value.trim()).filter(Boolean);
+    const enteredKeys = publicKeys.value
+      .split(/\r?\n/u)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const enteredRecoveryKeys = recoveryPublicKey.value
+      .split(/\r?\n/u)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const enteredEmergencyKeys = emergencyPublicKeys.value
+      .split(/\r?\n/u)
+      .map((value) => value.trim())
+      .filter(Boolean);
     const network = selectedNetwork(builderNetwork, builderChain.value === 'dash' ? 'dash' : 'bitcoin');
-    const stagedRanged = policyMode.value === 'staged-recovery'
-      && [...enteredKeys, ...enteredRecoveryKeys, ...enteredEmergencyKeys].some(isRangedDescriptorKey);
-    const materialize = (value: string): string => materializeDescriptorKey(
-      value,
-      network,
-      stagedMultipathChoice.value === '1' ? 1 : 0,
-      Number(stagedWildcardIndex.value),
-    );
+    const stagedRanged =
+      policyMode.value === 'staged-recovery' &&
+      [...enteredKeys, ...enteredRecoveryKeys, ...enteredEmergencyKeys].some(isRangedDescriptorKey);
+    const materialize = (value: string): string =>
+      materializeDescriptorKey(
+        value,
+        network,
+        stagedMultipathChoice.value === '1' ? 1 : 0,
+        Number(stagedWildcardIndex.value),
+      );
     const keys = stagedRanged ? enteredKeys.map(materialize) : enteredKeys;
     const recoveryKeys = stagedRanged ? enteredRecoveryKeys.map(materialize) : enteredRecoveryKeys;
     const emergencyKeys = stagedRanged ? enteredEmergencyKeys.map(materialize) : enteredEmergencyKeys;
-    const stagedDescriptorKeys = stagedRanged ? {
-      primary: enteredKeys[0] ?? '',
-      recovery: enteredRecoveryKeys[0] ?? '',
-      emergency: enteredEmergencyKeys[0] ?? '',
-    } : null;
+    const stagedDescriptorKeys = stagedRanged
+      ? {
+          primary: enteredKeys[0] ?? '',
+          recovery: enteredRecoveryKeys[0] ?? '',
+          emergency: enteredEmergencyKeys[0] ?? '',
+        }
+      : null;
     const policy = buildPolicy({
       chain: builderChain.value === 'dash' ? 'dash' : 'bitcoin',
       network,
@@ -1046,30 +1226,34 @@ function buildSelectedPolicy(): void {
       keyOrder: builderKeyOrder.value === 'bip67' ? 'bip67' : 'supplied',
       lockKind: lockKind.value as LockKind,
       lockValue: normalizedLockValue(),
-      bitcoinWrapper: builderWrapper.value === 'p2sh'
-        ? 'p2sh'
-        : builderWrapper.value === 'p2tr'
-          ? 'p2tr'
-          : builderWrapper.value === 'p2tr-musig2'
-            ? 'p2tr-musig2'
-            : 'p2wsh',
-      mode: policyMode.value === 'delayed-recovery'
-        ? 'delayed-recovery'
-        : policyMode.value === 'delayed-recovery-multisig'
-          ? 'delayed-recovery-multisig'
-          : policyMode.value === 'backup-committee'
-            ? 'backup-committee'
-            : policyMode.value === 'decaying-multisig'
-              ? 'decaying-multisig'
-              : policyMode.value === 'expanding-multisig'
-                ? 'expanding-multisig'
-                : policyMode.value === 'escalating-recovery'
-                  ? 'escalating-recovery'
-                  : policyMode.value === 'staged-recovery'
-                    ? 'staged-recovery'
-                    : policyMode.value === 'htlc'
-                      ? 'htlc'
-                      : policyMode.value === 'custom-miniscript' ? 'custom-miniscript' : 'locked-multisig',
+      bitcoinWrapper:
+        builderWrapper.value === 'p2sh'
+          ? 'p2sh'
+          : builderWrapper.value === 'p2tr'
+            ? 'p2tr'
+            : builderWrapper.value === 'p2tr-musig2'
+              ? 'p2tr-musig2'
+              : 'p2wsh',
+      mode:
+        policyMode.value === 'delayed-recovery'
+          ? 'delayed-recovery'
+          : policyMode.value === 'delayed-recovery-multisig'
+            ? 'delayed-recovery-multisig'
+            : policyMode.value === 'backup-committee'
+              ? 'backup-committee'
+              : policyMode.value === 'decaying-multisig'
+                ? 'decaying-multisig'
+                : policyMode.value === 'expanding-multisig'
+                  ? 'expanding-multisig'
+                  : policyMode.value === 'escalating-recovery'
+                    ? 'escalating-recovery'
+                    : policyMode.value === 'staged-recovery'
+                      ? 'staged-recovery'
+                      : policyMode.value === 'htlc'
+                        ? 'htlc'
+                        : policyMode.value === 'custom-miniscript'
+                          ? 'custom-miniscript'
+                          : 'locked-multisig',
       recoveryPublicKey: recoveryKeys[0] ?? '',
       recoveryPublicKeys: recoveryKeys,
       recoveryRequired: Number(recoveryRequired.value),
@@ -1098,15 +1282,20 @@ function buildSelectedPolicy(): void {
       'htlc',
     ].includes(policyMode.value);
     if (modeHasRecovery && recoveryKeys.length > 0) {
-      const recoveryThreshold = ['delayed-recovery-multisig', 'backup-committee', 'decaying-multisig', 'expanding-multisig', 'escalating-recovery'].includes(policyMode.value)
+      const recoveryThreshold = [
+        'delayed-recovery-multisig',
+        'backup-committee',
+        'decaying-multisig',
+        'expanding-multisig',
+        'escalating-recovery',
+      ].includes(policyMode.value)
         ? recoveryRequired.value
         : '1';
       thresholds.push(`Recovery: ${recoveryThreshold} of ${recoveryKeys.length}`);
     }
     if (emergencyKeys.length > 0) thresholds.push(`Emergency: ${emergencyRequired.value} of ${emergencyKeys.length}`);
-    policyThreshold.textContent = thresholds.length === 1
-      ? `${requiredSignatures.value} of ${keys.length}`
-      : thresholds.join('\n');
+    policyThreshold.textContent =
+      thresholds.length === 1 ? `${requiredSignatures.value} of ${keys.length}` : thresholds.join('\n');
     policyRequirement.textContent = policy.spendingRequirement;
     policyCompatibility.textContent = policy.compatibility;
     policyDescriptor.textContent = policy.descriptor;
@@ -1117,9 +1306,8 @@ function buildSelectedPolicy(): void {
     redeemScript.textContent = hex.redeemScript;
     policyScriptPubKey.textContent = hex.scriptPubKey;
     dashImportRow.hidden = builderChain.value !== 'dash';
-    dashImportArtifacts = builderChain.value === 'dash'
-      ? buildDashCoreImport(policy.address, hex.redeemScript, policy.descriptor)
-      : null;
+    dashImportArtifacts =
+      builderChain.value === 'dash' ? buildDashCoreImport(policy.address, hex.redeemScript, policy.descriptor) : null;
     dashGuiRow.hidden = builderChain.value !== 'dash' || dashImportArtifacts?.fullPolicyGuiCommand === null;
     dashDescriptorRow.hidden = builderChain.value !== 'dash';
     dashImportWarning.hidden = builderChain.value !== 'dash';
@@ -1162,32 +1350,38 @@ function buildWallet(): void {
   walletResults.hidden = true;
   try {
     const common = {
-      chain: walletChain.value === 'dash' ? 'dash' as const : 'bitcoin' as const,
+      chain: walletChain.value === 'dash' ? ('dash' as const) : ('bitcoin' as const),
       network: selectedNetwork(walletNetwork, walletChain.value === 'dash' ? 'dash' : 'bitcoin'),
       required: Number(walletRequired.value),
-      keyOrder: walletOrder.value === 'bip67' ? 'bip67' as const : 'supplied' as const,
-      wrapper: walletWrapper.value === 'p2sh' ? 'p2sh' as const : 'p2wsh' as const,
+      keyOrder: walletOrder.value === 'bip67' ? ('bip67' as const) : ('supplied' as const),
+      wrapper: walletWrapper.value === 'p2sh' ? ('p2sh' as const) : ('p2wsh' as const),
     };
-    const inputs = walletKeys.value.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
+    const inputs = walletKeys.value
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean);
     const childKeyCount = inputs.filter(isCompressedPublicKey).length;
     const xpubCount = inputs.filter(isAccountXpub).length;
     if (inputs.length === 0) throw new Error('Enter compressed child public keys or account xpubs.');
     if (childKeyCount !== inputs.length && xpubCount !== inputs.length) {
-      throw new Error('Use either all compressed child public keys or all account xpubs. Do not mix fixed child keys with ranged xpub derivation in one wallet.');
+      throw new Error(
+        'Use either all compressed child public keys or all account xpubs. Do not mix fixed child keys with ranged xpub derivation in one wallet.',
+      );
     }
 
-    currentWallet = xpubCount === inputs.length
-      ? buildRangedWallet({
-          ...common,
-          accountXpubs: inputs,
-          branches: selectedWalletBranches(),
-          startIndex: Number(walletStartIndex.value),
-          endIndex: Number(walletEndIndex.value),
-        })
-      : buildConcreteMultisigWallet({
-          ...common,
-          publicKeys: inputs,
-        });
+    currentWallet =
+      xpubCount === inputs.length
+        ? buildRangedWallet({
+            ...common,
+            accountXpubs: inputs,
+            branches: selectedWalletBranches(),
+            startIndex: Number(walletStartIndex.value),
+            endIndex: Number(walletEndIndex.value),
+          })
+        : buildConcreteMultisigWallet({
+            ...common,
+            publicKeys: inputs,
+          });
     activeWalletBranch = 'rows' in currentWallet && currentWallet.rows.some((row) => row.branch === 0) ? 0 : 1;
     selectedWalletRows = new Set(walletRowRecords(currentWallet).map((row) => row.id));
     renderWallet();
@@ -1207,30 +1401,31 @@ function scheduleWalletBuild(): void {
 }
 
 interface WalletDisplayRow {
-    readonly id: string;
-    readonly branch: MultisigBranch;
-    readonly index: number;
-    readonly path: string;
-    readonly address: string;
-    readonly publicKeys: readonly string[];
-    readonly scriptPubKey: string;
-    readonly redeemScript: string;
-  }
+  readonly id: string;
+  readonly branch: MultisigBranch;
+  readonly index: number;
+  readonly path: string;
+  readonly address: string;
+  readonly publicKeys: readonly string[];
+  readonly scriptPubKey: string;
+  readonly redeemScript: string;
+}
 
 function walletRowRecords(wallet: WalletBuild): WalletDisplayRow[] {
-    if ('rows' in wallet) {
-      return wallet.rows.map((row) => ({
-        id: `${row.branch}:${row.index}`,
-        branch: row.branch,
-        index: row.index,
-        path: `${branchLabel(row.branch)} ${row.pathSuffix}`,
-        address: row.address,
-        publicKeys: row.publicKeys,
-        scriptPubKey: row.scriptPubKey,
-        redeemScript: row.redeemScript,
-      }));
-    }
-    return [{
+  if ('rows' in wallet) {
+    return wallet.rows.map((row) => ({
+      id: `${row.branch}:${row.index}`,
+      branch: row.branch,
+      index: row.index,
+      path: `${branchLabel(row.branch)} ${row.pathSuffix}`,
+      address: row.address,
+      publicKeys: row.publicKeys,
+      scriptPubKey: row.scriptPubKey,
+      redeemScript: row.redeemScript,
+    }));
+  }
+  return [
+    {
       id: 'concrete',
       branch: 0,
       index: 0,
@@ -1239,63 +1434,80 @@ function walletRowRecords(wallet: WalletBuild): WalletDisplayRow[] {
       publicKeys: wallet.orderedPublicKeys,
       scriptPubKey: wallet.scriptPubKey,
       redeemScript: wallet.redeemScript,
-    }];
+    },
+  ];
 }
 
 function visibleWalletRows(): WalletDisplayRow[] {
-    if (currentWallet === null) return [];
-    const rows = walletRowRecords(currentWallet);
-    return 'rows' in currentWallet ? rows.filter((row) => row.branch === activeWalletBranch) : rows;
+  if (currentWallet === null) return [];
+  const rows = walletRowRecords(currentWallet);
+  return 'rows' in currentWallet ? rows.filter((row) => row.branch === activeWalletBranch) : rows;
 }
 
 function updateWalletBulkControls(): void {
-    const total = currentWallet === null ? 0 : walletRowRecords(currentWallet).length;
-    walletSelectedCount.textContent = `${selectedWalletRows.size.toLocaleString()} selected`;
-    const disabled = currentWallet === null || selectedWalletRows.size === 0;
-    for (const button of [walletCopyAddresses, walletCopyPublicKeys, walletCopySelected, walletCopyAllDisplayed, walletDownloadSelected, walletSelectAll, walletSelectNone, walletSelectInvert]) {
-      button.disabled = currentWallet === null || (button !== walletSelectAll && disabled);
-    }
-    if (currentWallet !== null && selectedWalletRows.size === total) walletSelectedCount.textContent = `${total.toLocaleString()} selected`;
+  const total = currentWallet === null ? 0 : walletRowRecords(currentWallet).length;
+  walletSelectedCount.textContent = `${selectedWalletRows.size.toLocaleString()} selected`;
+  const disabled = currentWallet === null || selectedWalletRows.size === 0;
+  for (const button of [
+    walletCopyAddresses,
+    walletCopyPublicKeys,
+    walletCopySelected,
+    walletCopyAllDisplayed,
+    walletDownloadSelected,
+    walletSelectAll,
+    walletSelectNone,
+    walletSelectInvert,
+  ]) {
+    button.disabled = currentWallet === null || (button !== walletSelectAll && disabled);
+  }
+  if (currentWallet !== null && selectedWalletRows.size === total)
+    walletSelectedCount.textContent = `${total.toLocaleString()} selected`;
 }
 
 function walletFields(row: WalletDisplayRow): Array<readonly [string, string]> {
-    const base: Array<readonly [string, string]> = [
-      ['Path', row.path],
-      ['Address', row.address],
-    ];
-    if (walletDetailMode === 'advanced') {
-      base.push(
-        ['Public keys', row.publicKeys.join('\n')],
-        ['scriptPubKey', row.scriptPubKey],
-        ['redeemScript', row.redeemScript],
-      );
-    }
-    return base;
+  const base: Array<readonly [string, string]> = [
+    ['Path', row.path],
+    ['Address', row.address],
+  ];
+  if (walletDetailMode === 'advanced') {
+    base.push(
+      ['Public keys', row.publicKeys.join('\n')],
+      ['scriptPubKey', row.scriptPubKey],
+      ['redeemScript', row.redeemScript],
+    );
+  }
+  return base;
 }
 
 function walletExportRows(action: 'addresses' | 'publicKeys' | 'selected' | 'allDisplayed'): string {
-    const rows = walletRowRecords(currentWallet!).filter((row) => selectedWalletRows.has(row.id));
-    const format = walletExportFormat.value;
-    const fields = (row: WalletDisplayRow): Array<readonly [string, string]> => {
-      if (action === 'addresses') return [['Address', row.address]];
-      if (action === 'publicKeys') return [['Public keys', row.publicKeys.join('\n')]];
-      return walletFields(row);
-    };
-    if (format === 'plain') {
-      return rows.flatMap((row) => fields(row).map(([, value]) => value)).join('\n');
-    }
-    if (format === 'tsv') {
-      const sampleFields = rows[0] === undefined ? [] : fields(rows[0]);
-      const headers = ['Path', ...sampleFields.map(([label]) => label).filter((label) => label !== 'Path')];
-      return [
-        headers.join('\t'),
-        ...rows.map((row) => headers.map((header) => {
-          const match = (header === 'Path' ? walletFields(row) : fields(row)).find(([label]) => label === header);
-          return (match?.[1] ?? '').replace(/[\t\r\n]+/gu, ' ');
-        }).join('\t')),
-      ].join('\n');
-    }
-    return rows.map((row) => [`Index: ${row.index}`, ...fields(row).map(([label, value]) => `${label}: ${value}`)].join('\n')).join('\n\n');
+  const rows = walletRowRecords(currentWallet!).filter((row) => selectedWalletRows.has(row.id));
+  const format = walletExportFormat.value;
+  const fields = (row: WalletDisplayRow): Array<readonly [string, string]> => {
+    if (action === 'addresses') return [['Address', row.address]];
+    if (action === 'publicKeys') return [['Public keys', row.publicKeys.join('\n')]];
+    return walletFields(row);
+  };
+  if (format === 'plain') {
+    return rows.flatMap((row) => fields(row).map(([, value]) => value)).join('\n');
+  }
+  if (format === 'tsv') {
+    const sampleFields = rows[0] === undefined ? [] : fields(rows[0]);
+    const headers = ['Path', ...sampleFields.map(([label]) => label).filter((label) => label !== 'Path')];
+    return [
+      headers.join('\t'),
+      ...rows.map((row) =>
+        headers
+          .map((header) => {
+            const match = (header === 'Path' ? walletFields(row) : fields(row)).find(([label]) => label === header);
+            return (match?.[1] ?? '').replace(/[\t\r\n]+/gu, ' ');
+          })
+          .join('\t'),
+      ),
+    ].join('\n');
+  }
+  return rows
+    .map((row) => [`Index: ${row.index}`, ...fields(row).map(([label, value]) => `${label}: ${value}`)].join('\n'))
+    .join('\n\n');
 }
 
 function setWalletMode(mode: 'basic' | 'advanced'): void {
@@ -1316,13 +1528,16 @@ function renderWallet(): void {
   const wallet = currentWallet;
   if (wallet === null) return;
   updateWalletBulkControls();
-  const descriptors = 'descriptors' in wallet ? wallet.descriptors : [{ label: 'concrete address', descriptor: wallet.descriptor }];
-  walletDescriptors.replaceChildren(...descriptors.map((descriptor) => {
-    const row = document.createElement('div');
-    row.className = 'policy-row';
-    row.append(textElement('span', '', descriptor.label), textElement('code', 'scroll-code', descriptor.descriptor));
-    return row;
-  }));
+  const descriptors =
+    'descriptors' in wallet ? wallet.descriptors : [{ label: 'concrete address', descriptor: wallet.descriptor }];
+  walletDescriptors.replaceChildren(
+    ...descriptors.map((descriptor) => {
+      const row = document.createElement('div');
+      row.className = 'policy-row';
+      row.append(textElement('span', '', descriptor.label), textElement('code', 'scroll-code', descriptor.descriptor));
+      return row;
+    }),
+  );
   walletImportText.textContent = wallet.importText;
   walletImportJson.textContent = wallet.importJson;
   walletDerivationDetails.textContent = wallet.derivationDetails;
@@ -1363,7 +1578,11 @@ function renderWallet(): void {
       addressLine.append(
         textElement('code', 'wallet-inline-value', row.address),
         copyButton(row.address),
-        createPaymentQrAction(document, `${walletChain.value === 'dash' ? 'dash' : 'bitcoin'}:${row.address}`, 'multisig address'),
+        createPaymentQrAction(
+          document,
+          `${walletChain.value === 'dash' ? 'dash' : 'bitcoin'}:${row.address}`,
+          'multisig address',
+        ),
       );
       address.append(addressLine);
       tr.append(use, path, address);
@@ -1396,28 +1615,36 @@ function copyButton(value: string): HTMLButtonElement {
     await copyPlainText(value);
     const previous = button.textContent;
     button.textContent = 'Copied';
-    setTimeout(() => { button.textContent = previous; }, 900);
+    setTimeout(() => {
+      button.textContent = previous;
+    }, 900);
   });
   return button;
 }
 
-modeButtons.forEach((button) => button.addEventListener('click', () => {
-  const mode = button.dataset.mode;
-  inspectorPanel.hidden = mode !== 'inspector';
-  scriptPanel.hidden = mode !== 'script';
-  builderPanel.hidden = mode !== 'builder';
-  walletPanel.hidden = mode !== 'wallet';
-  verifyPanel.hidden = mode !== 'verify';
-  bip38Panel.hidden = mode !== 'bip38';
-  modeButtons.forEach((item) => {
-    const active = item === button;
-    item.classList.toggle('active', active);
-    item.setAttribute('aria-pressed', String(active));
-  });
-}));
+modeButtons.forEach((button) =>
+  button.addEventListener('click', () => {
+    const mode = button.dataset.mode;
+    inspectorPanel.hidden = mode !== 'inspector';
+    scriptPanel.hidden = mode !== 'script';
+    builderPanel.hidden = mode !== 'builder';
+    walletPanel.hidden = mode !== 'wallet';
+    verifyPanel.hidden = mode !== 'verify';
+    bip38Panel.hidden = mode !== 'bip38';
+    modeButtons.forEach((item) => {
+      const active = item === button;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-pressed', String(active));
+    });
+  }),
+);
 inspectButton.addEventListener('click', inspect);
-verifyMessageButton.addEventListener('click', () => { void verifyMessageSignature(); });
-decryptBip38Button.addEventListener('click', () => { void decryptSelectedBip38Key(); });
+verifyMessageButton.addEventListener('click', () => {
+  void verifyMessageSignature();
+});
+decryptBip38Button.addEventListener('click', () => {
+  void decryptSelectedBip38Key();
+});
 clearBip38Button.addEventListener('click', clearBip38Decryptor);
 toggleBip38Password.addEventListener('click', () => {
   const revealed = bip38Password.type === 'password';
@@ -1441,7 +1668,16 @@ clearPreimageButton.addEventListener('click', () => {
   preimagePhrase.type = 'password';
   togglePreimageVisibilityButton.textContent = 'Show';
   togglePreimageVisibilityButton.setAttribute('aria-pressed', 'false');
-  for (const output of [preimageRaw, preimageNormalized, preimageNormalization, preimageSha256, preimageHash256, preimageRipemd160, preimageHash160]) output.textContent = '';
+  for (const output of [
+    preimageRaw,
+    preimageNormalized,
+    preimageNormalization,
+    preimageSha256,
+    preimageHash256,
+    preimageRipemd160,
+    preimageHash160,
+  ])
+    output.textContent = '';
   preimageResults.hidden = true;
   preimageError.hidden = true;
   usePreimageBuilderButton.hidden = true;
@@ -1480,7 +1716,8 @@ builderWrapper.addEventListener('change', syncBuilderControls);
 lockKind.addEventListener('change', syncBuilderControls);
 secondLockKind.addEventListener('change', syncBuilderControls);
 policyMode.addEventListener('change', syncBuilderControls);
-for (const keyField of [publicKeys, recoveryPublicKey, emergencyPublicKeys]) keyField.addEventListener('input', syncBuilderControls);
+for (const keyField of [publicKeys, recoveryPublicKey, emergencyPublicKeys])
+  keyField.addEventListener('input', syncBuilderControls);
 buildButton.addEventListener('click', buildSelectedPolicy);
 walletChain.addEventListener('change', syncWalletControls);
 for (const [chainControl, networkControl] of [
@@ -1509,7 +1746,18 @@ window.addEventListener('blur', () => {
   setBip38ResultVisibility(false);
 });
 buildWalletButton.addEventListener('click', buildWallet);
-for (const control of [walletChain, walletNetwork, walletWrapper, walletOrder, walletRequired, walletKeys, walletStartIndex, walletEndIndex, walletReceiveBranch, walletChangeBranch]) {
+for (const control of [
+  walletChain,
+  walletNetwork,
+  walletWrapper,
+  walletOrder,
+  walletRequired,
+  walletKeys,
+  walletStartIndex,
+  walletEndIndex,
+  walletReceiveBranch,
+  walletChangeBranch,
+]) {
   control.addEventListener('input', scheduleWalletBuild);
   control.addEventListener('change', scheduleWalletBuild);
 }
@@ -1521,7 +1769,10 @@ walletSelectAll.addEventListener('click', () => {
   if (currentWallet !== null) selectedWalletRows = new Set(walletRowRecords(currentWallet).map((row) => row.id));
   renderWallet();
 });
-walletSelectNone.addEventListener('click', () => { selectedWalletRows.clear(); renderWallet(); });
+walletSelectNone.addEventListener('click', () => {
+  selectedWalletRows.clear();
+  renderWallet();
+});
 walletSelectInvert.addEventListener('click', () => {
   if (currentWallet !== null) {
     const all = walletRowRecords(currentWallet);
@@ -1529,13 +1780,25 @@ walletSelectInvert.addEventListener('click', () => {
   }
   renderWallet();
 });
-walletCopyAddresses.addEventListener('click', () => { void copyPlainText(walletExportRows('addresses')); });
-walletCopyPublicKeys.addEventListener('click', () => { void copyPlainText(walletExportRows('publicKeys')); });
-walletCopySelected.addEventListener('click', () => { void copyPlainText(walletExportRows('selected')); });
-walletCopyAllDisplayed.addEventListener('click', () => { void copyPlainText(walletExportRows('allDisplayed')); });
+walletCopyAddresses.addEventListener('click', () => {
+  void copyPlainText(walletExportRows('addresses'));
+});
+walletCopyPublicKeys.addEventListener('click', () => {
+  void copyPlainText(walletExportRows('publicKeys'));
+});
+walletCopySelected.addEventListener('click', () => {
+  void copyPlainText(walletExportRows('selected'));
+});
+walletCopyAllDisplayed.addEventListener('click', () => {
+  void copyPlainText(walletExportRows('allDisplayed'));
+});
 walletDownloadSelected.addEventListener('click', () => {
   const extension = walletExportFormat.value === 'tsv' ? 'tsv' : 'txt';
-  downloadText(`multisig-wallet-selected.${extension}`, walletExportRows('selected'), walletExportFormat.value === 'tsv' ? 'text/tab-separated-values;charset=utf-8' : 'text/plain;charset=utf-8');
+  downloadText(
+    `multisig-wallet-selected.${extension}`,
+    walletExportRows('selected'),
+    walletExportFormat.value === 'tsv' ? 'text/tab-separated-values;charset=utf-8' : 'text/plain;charset=utf-8',
+  );
 });
 clearWalletButton.addEventListener('click', () => {
   if (pendingWalletBuild !== null) {
@@ -1548,15 +1811,20 @@ clearWalletButton.addEventListener('click', () => {
   walletError.hidden = true;
 });
 downloadDashJson.addEventListener('click', () => {
-  if (dashImportArtifacts !== null) downloadText('dash-core-import.json', dashImportArtifacts.rpcJson, 'application/json;charset=utf-8');
+  if (dashImportArtifacts !== null)
+    downloadText('dash-core-import.json', dashImportArtifacts.rpcJson, 'application/json;charset=utf-8');
 });
-document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((button) => button.addEventListener('click', async () => {
-  const source = required<HTMLElement>(button.dataset.copy ?? '');
-  await navigator.clipboard.writeText(source.textContent ?? '');
-  const old = button.textContent;
-  button.textContent = 'Copied';
-  setTimeout(() => { button.textContent = old; }, 900);
-}));
+document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((button) =>
+  button.addEventListener('click', async () => {
+    const source = required<HTMLElement>(button.dataset.copy ?? '');
+    await navigator.clipboard.writeText(source.textContent ?? '');
+    const old = button.textContent;
+    button.textContent = 'Copied';
+    setTimeout(() => {
+      button.textContent = old;
+    }, 900);
+  }),
+);
 
 required<HTMLElement>('psbt-build-version').textContent = BUILD_INFO.version;
 required<HTMLElement>('psbt-build-date').textContent = BUILD_INFO.releaseDate;

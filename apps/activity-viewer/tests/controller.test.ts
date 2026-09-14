@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createActivityViewerController } from '../src/controller.js';
 import type { ActivityViewerView } from '../src/view.js';
 import type { NormalizedViewingKey } from '@ckd/dash-network/viewing-key.js';
-import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/dash-network/private-material.js';
+import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/public-data-providers/private-material.js';
 import { assertAutoViewerBatchInput, detectViewerInput } from '../src/detection.js';
 import { runShieldedPageStream } from '@ckd/dash-network/shielded-stream-policy.js';
 
@@ -124,7 +124,9 @@ function testView() {
     showSelfTestFailed: vi.fn(),
     toggleViewingKeyReveal: vi.fn(),
     updateInputMode: vi.fn(),
-    clearQueryInput: vi.fn(() => { viewingKeyInput.value = ''; }),
+    clearQueryInput: vi.fn(() => {
+      viewingKeyInput.value = '';
+    }),
   } as unknown as ActivityViewerView;
   return {
     view,
@@ -225,24 +227,33 @@ describe('Activity Viewer controller', () => {
     vi.unstubAllGlobals();
   });
 
-  it.each(['clear', 'cancel'] as const)('does not restore a late terminal Orchard result after %s', async action => {
+  it.each(['clear', 'cancel'] as const)('does not restore a late terminal Orchard result after %s', async (action) => {
     vi.stubGlobal('window', testWindow());
     const { view, controls } = testView();
     const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
     const page = () => ({ notes: [], proofHeight: 100n, protocolVersion: 1, timeMs: 0n });
     let release!: (value: ReturnType<typeof page>) => void;
-    const terminal = new Promise<ReturnType<typeof page>>(resolve => { release = resolve; });
-    const fetchPage = vi.fn().mockImplementationOnce(async () => page()).mockImplementationOnce(() => terminal);
+    const terminal = new Promise<ReturnType<typeof page>>((resolve) => {
+      release = resolve;
+    });
+    const fetchPage = vi
+      .fn()
+      .mockImplementationOnce(async () => page())
+      .mockImplementationOnce(() => terminal);
     const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }), undefined, {
       runShieldedPageStream,
-      DashEvoShieldedSource: class { async connect() {} fetchPage = fetchPage; },
+      DashEvoShieldedSource: class {
+        async connect() {}
+        fetchPage = fetchPage;
+      },
     });
     createActivityViewerController(view, dependencies).start();
     await settle();
     controls.shieldedMode.click();
     controls.form.submit();
     await vi.waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2));
-    if (action === 'clear') controls.clearButton.click(); else controls.cancelButton.click();
+    if (action === 'clear') controls.clearButton.click();
+    else controls.cancelButton.click();
     vi.mocked(view.renderShielded).mockClear();
     vi.mocked(view.setExportAvailable).mockClear();
     vi.mocked(view.setStatus).mockClear();
@@ -276,7 +287,9 @@ describe('Activity Viewer controller', () => {
     vi.stubGlobal('window', testWindow());
     const { view, controls } = testView();
     let releaseSelfTest!: () => void;
-    const selfTest = new Promise<void>((resolve) => { releaseSelfTest = resolve; });
+    const selfTest = new Promise<void>((resolve) => {
+      releaseSelfTest = resolve;
+    });
     const key: NormalizedViewingKey = { kind: 'full', hex: 'aa'.repeat(96) };
     const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
     vi.mocked(dependencies.runBlobWorkerSelfTest).mockImplementation(async () => {
@@ -359,10 +372,22 @@ describe('Activity Viewer controller', () => {
     vi.mocked(dependencies.queryCoreAddress).mockImplementation(async (address) => {
       if (address === 'Xbad') throw new Error('Invalid fixture address.');
       return {
-        kind: 'core', provider: 'DashScan', address, network: 'testnet',
-        balanceDuffs: 1n, unconfirmedDuffs: 0n, totalReceivedDuffs: 1n, totalSentDuffs: 0n,
-        transactionCount: 0, transactions: [], historyLimit: 10, endpoint: 'https://example.invalid',
-        indexStatus: 'ok', indexedHeight: 1, indexedTimeMs: 1, requests: 2,
+        kind: 'core',
+        provider: 'DashScan',
+        address,
+        network: 'testnet',
+        balanceDuffs: 1n,
+        unconfirmedDuffs: 0n,
+        totalReceivedDuffs: 1n,
+        totalSentDuffs: 0n,
+        transactionCount: 0,
+        transactions: [],
+        historyLimit: 10,
+        endpoint: 'https://example.invalid',
+        indexStatus: 'ok',
+        indexedHeight: 1,
+        indexedTimeMs: 1,
+        requests: 2,
       };
     });
     const controller = createActivityViewerController(view, dependencies);
@@ -415,8 +440,18 @@ describe('Activity Viewer controller', () => {
     const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
     vi.mocked(dependencies.assertPublicBatchLookupInput).mockImplementation(assertPublicBatchLookupInput);
     const mnemonic = [
-      'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'abandon',
-      'abandon', 'abandon', 'abandon', 'abandon', 'abandon', 'about',
+      'abandon',
+      'abandon',
+      'abandon',
+      'abandon',
+      'abandon',
+      'abandon',
+      'abandon',
+      'abandon',
+      'abandon',
+      'abandon',
+      'abandon',
+      'about',
       'alice.dash',
     ].join('\n');
     const controller = createActivityViewerController(view, dependencies);
@@ -438,29 +473,29 @@ describe('Activity Viewer controller', () => {
   it.each(['identity', 'orchard'])(
     'blocks a multiline mnemonic with a prefixed first word before Auto batch networking: %s',
     async (prefix) => {
-    vi.stubGlobal('window', testWindow());
-    const { view, controls } = testView();
-    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
-    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
-    vi.mocked(dependencies.assertAutoViewerBatchInput).mockImplementation(assertAutoViewerBatchInput);
-    vi.mocked(dependencies.detectViewerInput).mockImplementation(detectViewerInput);
-    const mnemonic = [
-      `${prefix}:abandon`,
-      ...Array.from({ length: 10 }, () => 'abandon'),
-      'about',
-      'alice.dash',
-    ].join('\n');
-    const controller = createActivityViewerController(view, dependencies);
-    controller.start();
-    await settle();
-    controls.batchQueryMode.click();
-    controls.batchInput.value = mnemonic;
-    controls.form.submit();
+      vi.stubGlobal('window', testWindow());
+      const { view, controls } = testView();
+      const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
+      const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
+      vi.mocked(dependencies.assertAutoViewerBatchInput).mockImplementation(assertAutoViewerBatchInput);
+      vi.mocked(dependencies.detectViewerInput).mockImplementation(detectViewerInput);
+      const mnemonic = [
+        `${prefix}:abandon`,
+        ...Array.from({ length: 10 }, () => 'abandon'),
+        'about',
+        'alice.dash',
+      ].join('\n');
+      const controller = createActivityViewerController(view, dependencies);
+      controller.start();
+      await settle();
+      controls.batchQueryMode.click();
+      controls.batchInput.value = mnemonic;
+      controls.form.submit();
 
-    await vi.waitFor(() => expect(view.clearQueryInput).toHaveBeenCalledOnce());
-    expect(dependencies.detectViewerInput).not.toHaveBeenCalled();
-    expect(dependencies.queryPlatformIdentityHistory).not.toHaveBeenCalled();
-    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('No network request was made'));
+      await vi.waitFor(() => expect(view.clearQueryInput).toHaveBeenCalledOnce());
+      expect(dependencies.detectViewerInput).not.toHaveBeenCalled();
+      expect(dependencies.queryPlatformIdentityHistory).not.toHaveBeenCalled();
+      expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('No network request was made'));
     },
   );
 
@@ -501,9 +536,7 @@ describe('Activity Viewer controller', () => {
     const firstKey: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
     const secondKey: NormalizedViewingKey = { kind: 'incoming', hex: 'cd'.repeat(64) };
     const dependencies = testDependencies(firstKey, async () => ({ complete: true, terminalPosition: 0n }));
-    vi.mocked(dependencies.normalizeViewingKey)
-      .mockReturnValueOnce(firstKey)
-      .mockReturnValueOnce(secondKey);
+    vi.mocked(dependencies.normalizeViewingKey).mockReturnValueOnce(firstKey).mockReturnValueOnce(secondKey);
     const controller = createActivityViewerController(view, dependencies);
     controller.start();
     await settle();
@@ -650,9 +683,7 @@ describe('Activity Viewer controller', () => {
       viewingKeyMode: 'automatic',
       explicit: false,
     }));
-    vi.mocked(dependencies.looksLikeAutoOrchardInput).mockImplementation(
-      (value) => value === viewingKeyValue,
-    );
+    vi.mocked(dependencies.looksLikeAutoOrchardInput).mockImplementation((value) => value === viewingKeyValue);
     vi.mocked(dependencies.assertCanonicalViewingKey).mockImplementation(() => {
       throw new Error('fixture canonical validation failure');
     });
@@ -707,19 +738,18 @@ describe('Activity Viewer controller', () => {
     expect(dependencies.createViewerExport).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: 'mixed',
-        errors: [expect.objectContaining({
-          id: 'query-2',
-          label: '2 · ORCHARD · viewing key',
-          mode: 'shielded',
-        })],
+        errors: [
+          expect.objectContaining({
+            id: 'query-2',
+            label: '2 · ORCHARD · viewing key',
+            mode: 'shielded',
+          }),
+        ],
       }),
       'json',
     );
     controls.exportXlsxButton.click();
-    await vi.waitFor(() => expect(dependencies.downloadBlob).toHaveBeenCalledWith(
-      expect.any(Blob),
-      'fixture.xlsx',
-    ));
+    await vi.waitFor(() => expect(dependencies.downloadBlob).toHaveBeenCalledWith(expect.any(Blob), 'fixture.xlsx'));
     expect(key.hex).toBe('');
   });
 });

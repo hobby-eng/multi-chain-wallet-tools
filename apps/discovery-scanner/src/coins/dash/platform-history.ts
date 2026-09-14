@@ -1,4 +1,4 @@
-import type { PlatformHistorySummaryView } from '../../network-protocol.js';
+import type { PlatformHistorySummaryView } from '@ckd/network-boundary/protocol.js';
 import { exactSafeInteger, exactUnsigned, object } from './util.js';
 
 export interface ValidatedPlatformHistory {
@@ -30,7 +30,8 @@ export function validatePlatformHistory(
   const history = object(value, 'Isolated Platform history response');
   if (history.resource !== expectedResource) throw new Error('Isolated Platform history returned the wrong resource.');
   const balance = exactUnsigned(history.balance, 'Platform history balance');
-  if (balance !== expectedBalance) throw new Error('Platform Explorer balance did not match the proof-verified DAPI balance.');
+  if (balance !== expectedBalance)
+    throw new Error('Platform Explorer balance did not match the proof-verified DAPI balance.');
   return {
     transactionCount: exactSafeInteger(history.transactionCount, 'Platform history transaction count'),
     incomingCount: exactSafeInteger(history.incomingCount, 'Platform history incoming count'),
@@ -41,8 +42,9 @@ export function validatePlatformHistory(
     firstSeen: optionalTimestamp(history.firstSeen, 'first-seen timestamp'),
     lastSeen: optionalTimestamp(history.lastSeen, 'last-seen timestamp'),
     indexedHeight: exactSafeInteger(history.indexedHeight, 'Platform history indexed height'),
-    fundingCoreTx: typeof history.fundingCoreTx === 'string' && /^[0-9a-f]{64}$/u.test(history.fundingCoreTx)
-      ? history.fundingCoreTx
-      : null,
+    fundingCoreTx:
+      typeof history.fundingCoreTx === 'string' && /^[0-9a-f]{64}$/u.test(history.fundingCoreTx)
+        ? history.fundingCoreTx
+        : null,
   };
 }

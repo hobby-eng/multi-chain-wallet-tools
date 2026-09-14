@@ -46,19 +46,23 @@ export async function signBip322Message(
       : await api.bip322.buildToSignPacketSimple(message, scriptPubKey);
     const transaction = Transaction.fromPSBT(decodeBase64(psbt));
     if (mode === 'nested-segwit') {
-      if (redeemScriptHex === undefined) throw new Error('Nested SegWit message signing requires the P2WPKH redeem script.');
+      if (redeemScriptHex === undefined)
+        throw new Error('Nested SegWit message signing requires the P2WPKH redeem script.');
       transaction.updateInput(0, { redeemScript: hexToBytes(redeemScriptHex) });
     } else if (mode === 'taproot') {
-      if (internalPublicKeyHex === undefined) throw new Error('Taproot message signing requires the internal x-only public key.');
+      if (internalPublicKeyHex === undefined)
+        throw new Error('Taproot message signing requires the internal x-only public key.');
       transaction.updateInput(0, { tapInternalKey: hexToBytes(internalPublicKeyHex) });
     }
-    if (!transaction.signIdx(privateKey, 0)) throw new Error('The selected private key could not sign the BIP-322 transaction.');
+    if (!transaction.signIdx(privateKey, 0))
+      throw new Error('The selected private key could not sign the BIP-322 transaction.');
     transaction.finalizeIdx(0);
     const signature = full
       ? `ful${encodeBase64(transaction.extract())}`
       : `smp${encodeBase64(await api.bip322.serializeTxWitness(transaction.getInput(0).finalScriptWitness ?? []))}`;
     const verification = await api.bip322.verifyMessage(message, address, signature, network as Network);
-    if (!verification.valid) throw new Error('The generated BIP-322 signature did not verify against the selected address.');
+    if (!verification.valid)
+      throw new Error('The generated BIP-322 signature did not verify against the selected address.');
     return {
       signature,
       format: full ? 'BIP-322 full' : 'BIP-322 simple',

@@ -17,11 +17,14 @@ if (network !== 'mainnet' && network !== 'testnet') {
 const wasm = readFileSync(resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm'));
 initSync({ module: wasm });
 
-const sdk = network === 'mainnet' ? EvoSDK.mainnetTrusted({
-  settings: { connectTimeoutMs: 10_000, timeoutMs: 30_000, retries: 3, banFailedAddress: true },
-}) : EvoSDK.testnetTrusted({
-  settings: { connectTimeoutMs: 10_000, timeoutMs: 30_000, retries: 3, banFailedAddress: true },
-});
+const sdk =
+  network === 'mainnet'
+    ? EvoSDK.mainnetTrusted({
+        settings: { connectTimeoutMs: 10_000, timeoutMs: 30_000, retries: 3, banFailedAddress: true },
+      })
+    : EvoSDK.testnetTrusted({
+        settings: { connectTimeoutMs: 10_000, timeoutMs: 30_000, retries: 3, banFailedAddress: true },
+      });
 await sdk.connect();
 const startedAt = performance.now();
 let position = 0n;
@@ -44,33 +47,35 @@ while (emptyConfirmations < 2) {
     lastHeight = metadata.height;
     lastProtocol = metadata.protocolVersion;
     actions += notes.length;
-  const concatenate = (field, width) => {
-    const output = new Uint8Array(notes.length * width);
-    notes.forEach((note, index) => {
-      const bytes = note[field];
-      if (!(bytes instanceof Uint8Array) || bytes.length !== width) {
-        throw new Error(`Live DAPI ${field} field does not contain ${width} bytes.`);
-      }
-      output.set(bytes, index * width);
-    });
-    return output;
-  };
-  if (notes.length > 0) {
-    const result = JSON.parse(scan_shielded_batch_json(
-      fvk.slice(),
-      position,
-      concatenate('cmx', 32),
-      concatenate('nullifier', 32),
-      concatenate('cvNet', 32),
-      concatenate('encryptedNote', 216),
-    ));
-    if (!Array.isArray(result.items)) throw new Error('Live DAPI scan did not return an items array.');
-    emptyConfirmations = 0;
-    position += BigInt(smokeCount);
-  } else {
-    emptyConfirmations += 1;
-  }
-  notes.forEach((note) => note.free());
+    const concatenate = (field, width) => {
+      const output = new Uint8Array(notes.length * width);
+      notes.forEach((note, index) => {
+        const bytes = note[field];
+        if (!(bytes instanceof Uint8Array) || bytes.length !== width) {
+          throw new Error(`Live DAPI ${field} field does not contain ${width} bytes.`);
+        }
+        output.set(bytes, index * width);
+      });
+      return output;
+    };
+    if (notes.length > 0) {
+      const result = JSON.parse(
+        scan_shielded_batch_json(
+          fvk.slice(),
+          position,
+          concatenate('cmx', 32),
+          concatenate('nullifier', 32),
+          concatenate('cvNet', 32),
+          concatenate('encryptedNote', 216),
+        ),
+      );
+      if (!Array.isArray(result.items)) throw new Error('Live DAPI scan did not return an items array.');
+      emptyConfirmations = 0;
+      position += BigInt(smokeCount);
+    } else {
+      emptyConfirmations += 1;
+    }
+    notes.forEach((note) => note.free());
   } finally {
     metadata.free();
     response.free();

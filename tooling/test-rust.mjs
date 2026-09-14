@@ -12,11 +12,10 @@ const environment = {
   ...(existsSync(cargoHome) ? { CARGO_HOME: cargoHome } : {}),
   ...(existsSync(rustupHome) ? { RUSTUP_HOME: rustupHome } : {}),
 };
-const result = spawnSync(cargo, [
-  'test',
-  '--manifest-path',
-  resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.toml'),
-  '--locked',
-], { cwd: root, env: environment, stdio: 'inherit' });
+const result = spawnSync(
+  cargo,
+  ['test', '--manifest-path', resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.toml'), '--locked'],
+  { cwd: root, env: environment, stdio: 'inherit' },
+);
 if (result.error !== undefined) throw result.error;
 process.exit(result.status ?? 1);

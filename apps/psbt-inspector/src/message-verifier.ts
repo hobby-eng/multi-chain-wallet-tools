@@ -1,5 +1,5 @@
 import { verifyCompactP2pkhMessage } from '@ckd/core/compact-message.js';
-import { verifyBip322Message } from './bip322-verifier.js';
+import { verifyBip322Message } from '@ckd/core/bip322-verifier.js';
 import { verifyDashSignedMessage, type MessageVerification } from './dash-message-verifier.js';
 import type { PsbtChain, PsbtNetwork } from './psbt.js';
 
@@ -26,7 +26,13 @@ export async function verifySignedMessage(
   if (chain === 'dash') return verifyDashSignedMessage(address, message, signature, network);
   if (isBitcoinCompactSignature(signature)) {
     return {
-      valid: verifyCompactP2pkhMessage(address, message, signature, 'bitcoin', network === 'regtest' ? 'testnet' : network),
+      valid: verifyCompactP2pkhMessage(
+        address,
+        message,
+        signature,
+        'bitcoin',
+        network === 'regtest' ? 'testnet' : network,
+      ),
       format: 'Bitcoin compact P2PKH (BIP137)',
       recoveredAddress: address.trim(),
       recoveredPublicKey: null,
@@ -38,7 +44,14 @@ export async function verifySignedMessage(
   const prefix = signature.trim().slice(0, 3);
   return {
     valid: result.valid,
-    format: prefix === 'ful' ? 'BIP-322 full' : prefix === 'pof' ? 'BIP-322 proof of funds' : prefix === 'smp' ? 'BIP-322 simple' : 'BIP-322 simple or legacy compact',
+    format:
+      prefix === 'ful'
+        ? 'BIP-322 full'
+        : prefix === 'pof'
+          ? 'BIP-322 proof of funds'
+          : prefix === 'smp'
+            ? 'BIP-322 simple'
+            : 'BIP-322 simple or legacy compact',
     recoveredAddress: address.trim(),
     recoveredPublicKey: null,
     messageMagic: 'BIP0322-signed-message tagged hash',

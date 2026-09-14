@@ -9,7 +9,7 @@ describe('BIP39', () => {
     expect(assertValidMnemonic(`  ${mnemonic.toUpperCase()}  `)).toBe(mnemonic);
     expect(bytesToHex(mnemonicToSeed(mnemonic, 'TREZOR'))).toBe(
       'c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e5349553' +
-      '1f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04',
+        '1f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04',
     );
   });
 
@@ -18,9 +18,12 @@ describe('BIP39', () => {
     expect(() => assertValidMnemonic('abandon '.repeat(12))).toThrow(/checksum/u);
   });
 
-  it.each([12, 15, 18, 21, 24] as const)('generates a checksum-valid %i-word phrase with the secure browser API', (wordCount) => {
-    expect(assertValidMnemonic(generateMnemonic(wordCount)).split(' ')).toHaveLength(wordCount);
-  });
+  it.each([12, 15, 18, 21, 24] as const)(
+    'generates a checksum-valid %i-word phrase with the secure browser API',
+    (wordCount) => {
+      expect(assertValidMnemonic(generateMnemonic(wordCount)).split(' ')).toHaveLength(wordCount);
+    },
+  );
 
   it('rejects unsupported generation lengths at the runtime boundary', () => {
     expect(() => generateMnemonic(13 as 12)).toThrow(/12, 15, 18, 21, or 24/u);
@@ -28,7 +31,7 @@ describe('BIP39', () => {
 });
 
 describe('BIP32', () => {
-  it('matches official vector 1 at the root and m/0\'', () => {
+  it("matches official vector 1 at the root and m/0'", () => {
     const root = HDKey.fromMasterSeed(hexToBytes('000102030405060708090a0b0c0d0e0f'));
     expect(root.privateExtendedKey).toBe(
       'xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi',

@@ -1,12 +1,12 @@
-import { assertWatchOnlyMinimum } from '../../watch-only.js';
+import { assertWatchOnlyMinimum } from '@ckd/recovery/watch-only.js';
 import { isUint256Decimal } from '@ckd/core/numeric-limits.js';
 import { HDKey } from '@scure/bip32';
 import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
 import { ethereumAddressFromPublicKey } from '@ckd/coins/ethereum/index.js';
 import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import { RECOVERY_EVM_ACCOUNT_BATCH, type EvmAccountView } from '../../network-protocol.js';
-import { SecretEgressGuard } from '../../secret-guard.js';
+import { RECOVERY_EVM_ACCOUNT_BATCH, type EvmAccountView } from '@ckd/network-boundary/protocol.js';
+import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
 import type {
   DetectedWatchOnlyMaterial,
   RecoveryFinding,
@@ -23,7 +23,8 @@ import {
   matchExplicitPrefix,
   normalizedHexKey,
   WatchOnlyNotRecognizedError,
-} from '../../watch-only.js';
+} from '@ckd/recovery/watch-only.js';
+import { MULTI_CHAIN_WATCH_ONLY_PREFIX_COINS } from '@ckd/recovery/watch-only/multi-chain-profile.js';
 import { extendAddressTarget } from '../dash/util.js';
 import { ETHEREUM_VERSIONS, formatEther } from './shared.js';
 
@@ -39,17 +40,24 @@ export function detectEthereumWatchOnly(raw: string, mode: { auto: boolean }): D
       if (matched.value.length === 0) throw new Error('public-key: requires a value.');
       return { coinId: 'ethereum', kind: 'public-key', value: normalizedHexKey(matched.value) };
     }
-    const conflict = foreignPrefixCoin(trimmed, 'ethereum');
+    const conflict = foreignPrefixCoin(trimmed, 'ethereum', MULTI_CHAIN_WATCH_ONLY_PREFIX_COINS);
     if (conflict !== null) {
       if (mode.auto) throw new WatchOnlyNotRecognizedError();
-      throw new Error(`"${matched.prefix}:" belongs to ${conflict}, not Ethereum. Remove the prefix or select ${conflict === 'dash' ? 'Dash' : 'Bitcoin'}.`);
+      throw new Error(
+        `"${matched.prefix}:" belongs to ${conflict}, not Ethereum. Remove the prefix or select ${conflict === 'dash' ? 'Dash' : 'Bitcoin'}.`,
+      );
     }
     if (mode.auto) throw new WatchOnlyNotRecognizedError();
     throw new Error(`Unrecognized prefix "${matched.prefix}:".`);
   }
   if (looksLikeExtendedPublicKey(trimmed)) {
     if (mode.auto) throw new WatchOnlyNotRecognizedError();
-    return { coinId: 'ethereum', kind: 'ethereum-xpub', value: trimmed, detectionLabel: 'Ethereum EOA · candidate BIP32 key' };
+    return {
+      coinId: 'ethereum',
+      kind: 'ethereum-xpub',
+      value: trimmed,
+      detectionLabel: 'Ethereum EOA · candidate BIP32 key',
+    };
   }
   if (looksLikeSec1PublicKey(trimmed)) {
     if (mode.auto) throw new WatchOnlyNotRecognizedError();
@@ -89,10 +97,14 @@ async function queryAccounts(
     () => gateway.networkApi.evmAccounts(networkName, [...addresses], signal),
     signal,
   );
-  if (!isUint256Decimal(response.blockNumber) || !Array.isArray(response.entries) || response.entries.length !== addresses.length) {
+  if (
+    !isUint256Decimal(response.blockNumber) ||
+    !Array.isArray(response.entries) ||
+    response.entries.length !== addresses.length
+  ) {
     throw new Error('Ethereum RPC returned an incomplete account batch.');
   }
-  response.entries.forEach((entry, index) => {
+  response.entries.forEach((entry: EvmAccountView, index: number) => {
     if (entry.address !== addresses[index] || !isUint256Decimal(entry.balance) || !isUint256Decimal(entry.nonce)) {
       throw new Error('Ethereum RPC returned malformed account data.');
     }
@@ -111,7 +123,11 @@ export async function scanEthereumWatchOnly(
     guard.registerString('Ethereum watch-only input', input.value);
     context.sessionSecretGuard?.registerString('Ethereum watch-only input', input.value);
   }
-  const gateway = new RecoveryNetworkGateway(guard, context.networkApi, context.networkLimiter ?? new RecoveryConcurrencyLimiter(5));
+  const gateway = new RecoveryNetworkGateway(
+    guard,
+    context.networkApi,
+    context.networkLimiter ?? new RecoveryConcurrencyLimiter(5),
+  );
   const startedAt = new Date().toISOString();
   const findings: RecoveryFinding[] = [];
   const accountStates = new Map<string, EvmAccountView>();
@@ -184,26 +200,54 @@ export async function scanEthereumWatchOnly(
       accountStates.set(address, entry);
       recordFinding(address, 'exact leaf key', 'Exact leaf public key · EOA', entry);
       scanned = 1;
-      descriptionText = 'A depth-5 leaf extended public key is already one exact account key; it cannot derive further descendants.';
+      descriptionText =
+        'A depth-5 leaf extended public key is already one exact account key; it cannot derive further descendants.';
     } else if (node.depth === 3 || node.depth === 4) {
-      const profiles: EthCandidateProfile[] = node.depth === 4
-        ? [{ id: 'branch', label: 'Branch xpub · relative /i', path: '<branch xpub>/i', deriveChild: (index) => node.deriveChild(index) }]
-        : [
-            { id: 'standard', label: 'Account xpub · relative /0/i · standard receive chain', path: '<account xpub>/0/i', deriveChild: (index) => node.deriveChild(0).deriveChild(index) },
-            { id: 'legacy', label: 'Account xpub · relative /i · legacy Ledger/MEW', path: '<account xpub>/i', deriveChild: (index) => node.deriveChild(index) },
-          ];
+      const profiles: EthCandidateProfile[] =
+        node.depth === 4
+          ? [
+              {
+                id: 'branch',
+                label: 'Branch xpub · relative /i',
+                path: '<branch xpub>/i',
+                deriveChild: (index) => node.deriveChild(index),
+              },
+            ]
+          : [
+              {
+                id: 'standard',
+                label: 'Account xpub · relative /0/i · standard receive chain',
+                path: '<account xpub>/0/i',
+                deriveChild: (index) => node.deriveChild(0).deriveChild(index),
+              },
+              {
+                id: 'legacy',
+                label: 'Account xpub · relative /i · legacy Ledger/MEW',
+                path: '<account xpub>/i',
+                deriveChild: (index) => node.deriveChild(index),
+              },
+            ];
       for (const profile of profiles) {
         let target = config.minimumCount;
-        for (let offset = 0; offset < target;) {
+        for (let offset = 0; offset < target; ) {
           if (context.signal.aborted) throw new DOMException('Ethereum watch-only scan cancelled.', 'AbortError');
           const end = Math.min(offset + RECOVERY_EVM_ACCOUNT_BATCH, target);
           const derived = Array.from({ length: end - offset }, (_, relativeIndex) => {
             const index = offset + relativeIndex;
-            return { address: addressForNode(profile.deriveChild(index)), index, path: profile.path.replace('i', String(index)) };
+            return {
+              address: addressForNode(profile.deriveChild(index)),
+              index,
+              path: profile.path.replace('i', String(index)),
+            };
           });
           const missing = derived.filter(({ address }) => !accountStates.has(address.toLowerCase()));
           if (missing.length > 0) {
-            const { entries, blockNumber: block } = await queryAccounts(gateway, config.network, missing.map(({ address }) => address), context.signal);
+            const { entries, blockNumber: block } = await queryAccounts(
+              gateway,
+              config.network,
+              missing.map(({ address }) => address),
+              context.signal,
+            );
             blockNumber = block;
             for (const entry of entries) accountStates.set(entry.address.toLowerCase(), entry);
           }
@@ -230,11 +274,14 @@ export async function scanEthereumWatchOnly(
           });
         }
       }
-      descriptionText = node.depth === 4
-        ? 'Depth-4 branch extended public key: scanning its relative /i indices.'
-        : 'Depth-3 account extended public key: scanning the standard /0/i receive chain and the legacy Ledger/MEW /i chain.';
+      descriptionText =
+        node.depth === 4
+          ? 'Depth-4 branch extended public key: scanning its relative /i indices.'
+          : 'Depth-3 account extended public key: scanning the standard /0/i receive chain and the legacy Ledger/MEW /i chain.';
     } else {
-      throw new Error(`This extended public key has depth ${node.depth}. Only an account xpub (depth 3), a branch xpub (depth 4), or a leaf xpub (depth 5) can be scanned.`);
+      throw new Error(
+        `This extended public key has depth ${node.depth}. Only an account xpub (depth 3), a branch xpub (depth 4), or a leaf xpub (depth 5) can be scanned.`,
+      );
     }
   }
 
@@ -254,7 +301,11 @@ export async function scanEthereumWatchOnly(
     description: descriptionText,
     state: 'complete',
     metrics: [
-      { label: 'Spendable balance', value: formatEther(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
+      {
+        label: 'Spendable balance',
+        value: formatEther(totalBalance),
+        tone: totalBalance > 0n ? 'positive' : 'neutral',
+      },
       { label: 'Funded addresses', value: String(fundedCount) },
       { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
       { label: 'Unique addresses queried', value: String(accountStates.size) },
@@ -262,9 +313,17 @@ export async function scanEthereumWatchOnly(
     ],
     findings,
     scanned,
-    source: config.network === 'mainnet' ? 'https://ethereum-rpc.publicnode.com' : 'https://ethereum-sepolia-rpc.publicnode.com',
+    source:
+      config.network === 'mainnet'
+        ? 'https://ethereum-rpc.publicnode.com'
+        : 'https://ethereum-sepolia-rpc.publicnode.com',
     proof: `${config.network === 'mainnet' ? 'Ethereum mainnet' : 'Sepolia testnet'} JSON-RPC state at block ${blockNumber}`,
-    ...(gapTruncated ? { warning: 'A used address was found too close to the end of the BIP32 index space to complete the post-use gap.' } : {}),
+    ...(gapTruncated
+      ? {
+          warning:
+            'A used address was found too close to the end of the BIP32 index space to complete the post-use gap.',
+        }
+      : {}),
   };
   return {
     inputId: input.id,
@@ -275,7 +334,11 @@ export async function scanEthereumWatchOnly(
     startedAt,
     completedAt: new Date().toISOString(),
     overview: [
-      { label: 'Total located value', value: formatEther(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
+      {
+        label: 'Total located value',
+        value: formatEther(totalBalance),
+        tone: totalBalance > 0n ? 'positive' : 'neutral',
+      },
       { label: 'Funded accounts', value: String(fundedCount), tone: fundedCount > 0 ? 'positive' : 'neutral' },
       { label: 'Unique addresses queried', value: String(accountStates.size) },
     ],

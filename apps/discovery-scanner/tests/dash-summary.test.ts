@@ -29,7 +29,9 @@ describe('Dash wallet-wide recovery summary', () => {
   it('renders the fixed Orchard raw-credit vector without a 1,000x unit error', () => {
     expect(formatDashFromCredits(123_456_789_012n)).toBe('1.23456789012 DASH');
     const overview = summarizeDashSections([
-      section('core', []), section('platform', []), section('identity', []),
+      section('core', []),
+      section('platform', []),
+      section('identity', []),
       section('shielded', [123_456_789_012n]),
     ]);
     expect(overview.find(({ label }) => label === 'Total located value')?.value).toBe('1.23456789012 DASH');
@@ -57,13 +59,15 @@ describe('Dash wallet-wide recovery summary', () => {
   });
 });
 
-
 describe('Audit regressions: overlapping Core families', () => {
-  it.each([100_000_000n, 200_000_000n])('deduplicates or rejects inconsistent observations %s', balance => {
-    const core = section('core', [100_000_000n]); const legacy = section('legacyCore', [balance]);
-    const findings = legacy.findings.map(finding => ({ ...finding, title: core.findings[0]!.title }));
+  it.each([100_000_000n, 200_000_000n])('deduplicates or rejects inconsistent observations %s', (balance) => {
+    const core = section('core', [100_000_000n]);
+    const legacy = section('legacyCore', [balance]);
+    const findings = legacy.findings.map((finding) => ({ ...finding, title: core.findings[0]!.title }));
     const metrics = summarizeDashSections([core, { ...legacy, findings }]);
-    expect(metrics.find(row => row.label === 'Total located value')?.value).toBe(balance === 100_000_000n ? '1 DASH' : 'Unavailable · incomplete balance coverage');
-    if (balance === 100_000_000n) expect(metrics.find(row => row.label === 'Funded resources')?.value).toBe('1');
+    expect(metrics.find((row) => row.label === 'Total located value')?.value).toBe(
+      balance === 100_000_000n ? '1 DASH' : 'Unavailable · incomplete balance coverage',
+    );
+    if (balance === 100_000_000n) expect(metrics.find((row) => row.label === 'Funded resources')?.value).toBe('1');
   });
 });

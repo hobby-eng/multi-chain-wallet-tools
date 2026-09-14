@@ -93,11 +93,12 @@ try {
   const preparedSections = scanShielded
     ? module.DASH_RECOVERY_ADAPTER.prepareBatch(inputs, config, context)
     : undefined;
-  const results = await module.mapRecoveryTasks(inputs, phraseConcurrency, (input) => module.DASH_RECOVERY_ADAPTER.scan(
-    input,
-    config,
-    { ...context, ...(preparedSections === undefined ? {} : { preparedSections }) },
-  ));
+  const results = await module.mapRecoveryTasks(inputs, phraseConcurrency, (input) =>
+    module.DASH_RECOVERY_ADAPTER.scan(input, config, {
+      ...context,
+      ...(preparedSections === undefined ? {} : { preparedSections }),
+    }),
+  );
   const summaries = results.map((result, index) => {
     if (result === undefined) throw new Error(`Batch result ${index + 1} is missing.`);
     const identity = result.sections.find(({ id }) => id === 'identity');
@@ -109,11 +110,15 @@ try {
       throw new Error(`Batch Orchard ${index + 1} failed: ${shielded?.warning ?? 'missing section'}`);
     }
     return identity.metrics
-      .filter(({ label }) => ['Indexes checked', 'Proof queries', 'Identity scan time', 'DAPI average / max'].includes(label))
+      .filter(({ label }) =>
+        ['Indexes checked', 'Proof queries', 'Identity scan time', 'DAPI average / max'].includes(label),
+      )
       .map(({ label, value }) => `${label} ${value}`)
       .join(', ');
   });
-  console.log(`Live recovery ${network} ${phraseCount}-seed batch at phrase concurrency ${phraseConcurrency}${scanShielded ? ' with shared Orchard stream' : ''} passed in ${Math.round(performance.now() - startedAt)} ms.`);
+  console.log(
+    `Live recovery ${network} ${phraseCount}-seed batch at phrase concurrency ${phraseConcurrency}${scanShielded ? ' with shared Orchard stream' : ''} passed in ${Math.round(performance.now() - startedAt)} ms.`,
+  );
   summaries.forEach((summary, index) => console.log(`Phrase ${index + 1}: ${summary}`));
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });

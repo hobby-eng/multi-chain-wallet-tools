@@ -8,12 +8,9 @@ describe('BIP38 non-EC-multiplied keys', () => {
     try {
       expect(decrypted.compressed).toBe(true);
       expect(decrypted.address).toBe('164MQi977u9GUteHr4EPH27VkkdxmfCvGW');
-      await expect(encryptBip38(
-        decrypted.privateKey,
-        decrypted.compressed,
-        'TestingOneTwoThree',
-        { p2pkh: 0x00 },
-      )).resolves.toEqual({
+      await expect(
+        encryptBip38(decrypted.privateKey, decrypted.compressed, 'TestingOneTwoThree', { p2pkh: 0x00 }),
+      ).resolves.toEqual({
         encryptedKey,
         address: decrypted.address,
       });
@@ -30,12 +27,10 @@ describe('BIP38 non-EC-multiplied keys', () => {
       expect(Buffer.from(decrypted.privateKey).toString('hex')).toBe(
         '09c2686880095b1a4c249ee3ac4eea8a014f11e6f986d0b5025ac1f39afbd9ae',
       );
-      await expect(encryptBip38(
-        decrypted.privateKey,
-        true,
-        'Satoshi',
-        { p2pkh: 0x00 },
-      )).resolves.toEqual({ encryptedKey, address: decrypted.address });
+      await expect(encryptBip38(decrypted.privateKey, true, 'Satoshi', { p2pkh: 0x00 })).resolves.toEqual({
+        encryptedKey,
+        address: decrypted.address,
+      });
     } finally {
       decrypted.privateKey.fill(0);
     }
@@ -49,22 +44,18 @@ describe('BIP38 non-EC-multiplied keys', () => {
       expect(Buffer.from(decrypted.privateKey).toString('hex')).toBe(
         '09c2686880095b1a4c249ee3ac4eea8a014f11e6f986d0b5025ac1f39afbd9ae',
       );
-      await expect(encryptBip38(
-        decrypted.privateKey,
-        false,
-        'Satoshi',
-        { p2pkh: 0x00 },
-      )).resolves.toEqual({ encryptedKey, address: decrypted.address });
+      await expect(encryptBip38(decrypted.privateKey, false, 'Satoshi', { p2pkh: 0x00 })).resolves.toEqual({
+        encryptedKey,
+        address: decrypted.address,
+      });
     } finally {
       decrypted.privateKey.fill(0);
     }
   }, 30_000);
 
   it('rejects a wrong passphrase', async () => {
-    await expect(decryptBip38(
-      '6PYLtMnXvfG3oJde97zRyLYFZCYizPU5T3LwgdYJz1fRhh16bU7u6PPmY7',
-      'wrong',
-      { p2pkh: 0x00 },
-    )).rejects.toThrow(/passphrase/u);
+    await expect(
+      decryptBip38('6PYLtMnXvfG3oJde97zRyLYFZCYizPU5T3LwgdYJz1fRhh16bU7u6PPmY7', 'wrong', { p2pkh: 0x00 }),
+    ).rejects.toThrow(/passphrase/u);
   }, 30_000);
 });

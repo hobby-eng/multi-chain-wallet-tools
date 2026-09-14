@@ -6,8 +6,12 @@ import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
 import { ethereumAddressFromPublicKey } from '@ckd/coins/ethereum/index.js';
 import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import { RECOVERY_EVM_ACCOUNT_BATCH, type EvmAccountBatchView, type EvmAccountView } from '../../network-protocol.js';
-import { SecretEgressGuard } from '../../secret-guard.js';
+import {
+  RECOVERY_EVM_ACCOUNT_BATCH,
+  type EvmAccountBatchView,
+  type EvmAccountView,
+} from '@ckd/network-boundary/protocol.js';
+import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
 import type {
   RecoveryCoinAdapter,
   RecoveryFinding,
@@ -29,17 +33,16 @@ interface EthereumPathProfile {
   initialCount: number;
 }
 
-
 function validateBatch(value: EvmAccountBatchView, expected: readonly string[]): EvmAccountBatchView {
-  if (!isUint256Decimal(value.blockNumber)
-    || !Array.isArray(value.entries)
-    || value.entries.length !== expected.length) {
+  if (
+    !isUint256Decimal(value.blockNumber) ||
+    !Array.isArray(value.entries) ||
+    value.entries.length !== expected.length
+  ) {
     throw new Error('Ethereum RPC returned an incomplete account batch.');
   }
   value.entries.forEach((entry, index) => {
-    if (entry.address !== expected[index]
-      || !isUint256Decimal(entry.balance)
-      || !isUint256Decimal(entry.nonce)) {
+    if (entry.address !== expected[index] || !isUint256Decimal(entry.balance) || !isUint256Decimal(entry.nonce)) {
       throw new Error('Ethereum RPC returned malformed account data.');
     }
   });
@@ -70,18 +73,21 @@ function pathProfiles(config: RecoveryScanConfig): Iterable<EthereumPathProfile>
       maximumCount: MAX_BIP32_INDEX + 1,
     },
   ];
-  if (profiles.some(profile => profile.initialCount > profile.maximumCount)) throw new Error('The requested Ethereum scan range exceeds the BIP32 index space.');
+  if (profiles.some((profile) => profile.initialCount > profile.maximumCount))
+    throw new Error('The requested Ethereum scan range exceeds the BIP32 index space.');
   const custom = customScanPaths(config);
-  if (custom.length > 0 && config.customPathFormat !== 'eoa') throw new Error('Ethereum custom paths require the EOA address format.');
+  if (custom.length > 0 && config.customPathFormat !== 'eoa')
+    throw new Error('Ethereum custom paths require the EOA address format.');
   return appendCustomPaths<EthereumPathProfile>(profiles, custom, (path) => ({
-    id: path.id, label: `${path.label} · EVM`, path: path.path, initialCount: path.minimum, maximumCount: MAX_BIP32_INDEX + 1,
+    id: path.id,
+    label: `${path.label} · EVM`,
+    path: path.path,
+    initialCount: path.minimum,
+    maximumCount: MAX_BIP32_INDEX + 1,
   }));
 }
 
-function deriveAddress(
-  root: ReturnType<typeof rootFromSeed>,
-  path: string,
-): string {
+function deriveAddress(root: ReturnType<typeof rootFromSeed>, path: string): string {
   const child = root.derive(path);
   const compressed = requirePublic(child, path);
   const uncompressed = secp256k1.Point.fromHex(bytesToHex(compressed)).toBytes(false);
@@ -99,13 +105,17 @@ async function scanEthereum(
   context: Parameters<RecoveryCoinAdapter['scan']>[2],
 ): Promise<RecoveryWalletResult> {
   assertIndex(config.account, 'Account');
-  if (!Number.isSafeInteger(config.coreReceiveCount)
-    || config.coreReceiveCount < 1
-    || config.coreReceiveCount > MAX_BIP32_INDEX + 1) {
+  if (
+    !Number.isSafeInteger(config.coreReceiveCount) ||
+    config.coreReceiveCount < 1 ||
+    config.coreReceiveCount > MAX_BIP32_INDEX + 1
+  ) {
     throw new Error(`Ethereum address minimum must be within 1–${MAX_BIP32_INDEX + 1}.`);
   }
-  if (config.scanCustomPath === true
-    && (!Number.isSafeInteger(config.customPathCount) || (config.customPathCount ?? 0) < 1)) {
+  if (
+    config.scanCustomPath === true &&
+    (!Number.isSafeInteger(config.customPathCount) || (config.customPathCount ?? 0) < 1)
+  ) {
     throw new Error('Custom path address minimum must be at least 1.');
   }
   const profiles = pathProfiles(config);
@@ -137,7 +147,7 @@ async function scanEthereum(
   try {
     for (const profile of profiles) {
       let target = profile.initialCount;
-      for (let offset = 0; offset < target;) {
+      for (let offset = 0; offset < target; ) {
         if (context.signal.aborted) throw new DOMException('Ethereum scan cancelled.', 'AbortError');
         const end = Math.min(offset + RECOVERY_EVM_ACCOUNT_BATCH, target);
         const derived = Array.from({ length: end - offset }, (_, relativeIndex) => {
@@ -148,12 +158,15 @@ async function scanEthereum(
         const missing = derived.filter(({ address }) => !accountStates.has(address.toLowerCase()));
         if (missing.length > 0) {
           const addresses = missing.map(({ address }) => address);
-          const response = validateBatch(await gateway.runPublic(
-            { network: config.network, addresses },
-            'evm.accounts',
-            () => gateway.networkApi.evmAccounts(config.network, addresses, context.signal),
-            context.signal,
-          ), addresses);
+          const response = validateBatch(
+            await gateway.runPublic(
+              { network: config.network, addresses },
+              'evm.accounts',
+              () => gateway.networkApi.evmAccounts(config.network, addresses, context.signal),
+              context.signal,
+            ),
+            addresses,
+          );
           const block = BigInt(response.blockNumber);
           firstBlock = firstBlock === null || block < firstBlock ? block : firstBlock;
           lastBlock = lastBlock === null || block > lastBlock ? block : lastBlock;
@@ -219,7 +232,11 @@ async function scanEthereum(
       description: `Scans three standard EOA profiles${config.scanCustomPath ? ' and the selected custom paths' : ''} through independent 20-address post-use gaps.`,
       state: 'complete',
       metrics: [
-        { label: 'Spendable balance', value: formatEther(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
+        {
+          label: 'Spendable balance',
+          value: formatEther(totalBalance),
+          tone: totalBalance > 0n ? 'positive' : 'neutral',
+        },
         { label: 'Funded addresses', value: String(fundedCount) },
         { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
         { label: 'Unique addresses queried', value: String(accountStates.size) },
@@ -227,9 +244,13 @@ async function scanEthereum(
       ],
       findings,
       scanned,
-      source: config.network === 'mainnet' ? 'https://ethereum-rpc.publicnode.com' : 'https://ethereum-sepolia-rpc.publicnode.com',
+      source:
+        config.network === 'mainnet'
+          ? 'https://ethereum-rpc.publicnode.com'
+          : 'https://ethereum-sepolia-rpc.publicnode.com',
       proof: `${config.network === 'mainnet' ? 'Ethereum mainnet' : 'Sepolia testnet'} JSON-RPC account batches at heights ${firstBlock ?? 'unavailable'}–${lastBlock ?? 'unavailable'} · independent 20-address post-use gaps`,
-      warning: 'Each account batch uses an explicit block height; different batches may use different heights. This is a single-source public RPC view, without a block-hash snapshot across reorganizations. ERC-20 token balances and contract-wallet ownership are not scanned.',
+      warning:
+        'Each account batch uses an explicit block height; different batches may use different heights. This is a single-source public RPC view, without a block-hash snapshot across reorganizations. ERC-20 token balances and contract-wallet ownership are not scanned.',
     };
     return {
       inputId: input.id,
@@ -240,14 +261,20 @@ async function scanEthereum(
       startedAt,
       completedAt: new Date().toISOString(),
       overview: [
-        { label: 'Total located value', value: formatEther(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
+        {
+          label: 'Total located value',
+          value: formatEther(totalBalance),
+          tone: totalBalance > 0n ? 'positive' : 'neutral',
+        },
         { label: 'Funded accounts', value: String(fundedCount), tone: fundedCount > 0 ? 'positive' : 'neutral' },
         { label: 'Used accounts', value: String(usedCount) },
         { label: 'Path profiles', value: String(profiles.length) },
         { label: 'Unique addresses queried', value: String(accountStates.size) },
       ],
       sections: [section],
-      warnings: ['Only native ETH in mnemonic-derived EOAs is scanned; tokens and smart-contract wallets require separate recovery tooling.'],
+      warnings: [
+        'Only native ETH in mnemonic-derived EOAs is scanned; tokens and smart-contract wallets require separate recovery tooling.',
+      ],
     };
   } finally {
     root.wipePrivateData();

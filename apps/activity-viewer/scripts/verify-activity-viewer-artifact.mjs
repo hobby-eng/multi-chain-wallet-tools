@@ -22,12 +22,11 @@ function occurrences(value, marker) {
 }
 
 function sourceFiles(directory) {
-  return readdirSync(directory, { withFileTypes: true })
-    .flatMap((entry) => {
-      const path = resolve(directory, entry.name);
-      if (entry.isDirectory()) return sourceFiles(path);
-      return entry.isFile() && path.endsWith('.ts') ? [{ path, text: readFileSync(path, 'utf8') }] : [];
-    });
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return entry.isFile() && path.endsWith('.ts') ? [{ path, text: readFileSync(path, 'utf8') }] : [];
+  });
 }
 
 for (const [marker, expected] of [
@@ -51,8 +50,10 @@ if (scriptStart < 0 || scriptEnd <= scriptStart) {
 const inlineScript = html.slice(scriptStart + '<script>'.length, scriptEnd);
 const inlineScriptHash = `'sha256-${createHash('sha256').update(inlineScript).digest('base64')}'`;
 const expectedCsp = `default-src 'none'; script-src ${inlineScriptHash} 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src https:; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
-const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/u.exec(html)?.[1];
-if (csp !== expectedCsp) throw new Error('Viewer artifact CSP changed from the reviewed connected policy.');
+const csp = /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/su.exec(html)?.[1];
+const normalizeCsp = (value) => value?.replace(/\s+/gu, ' ').trim();
+if (normalizeCsp(csp) !== normalizeCsp(expectedCsp))
+  throw new Error('Viewer artifact CSP changed from the reviewed connected policy.');
 if (/script-src[^;]*'unsafe-inline'/u.test(csp)) {
   throw new Error('Viewer CSP must authorize its immutable inline script by hash, not unsafe-inline.');
 }
@@ -140,7 +141,7 @@ for (const match of html.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
 }
 
 for (const marker of [
-  "connect-src https:",
+  'connect-src https:',
   'worker-src blob:',
   "'wasm-unsafe-eval'",
   'Wallet Activity Viewer',
@@ -234,10 +235,14 @@ const expectedOrchardWasm = readFileSync(orchardWasmPath).toString('base64');
 if (occurrences(html, expectedOrchardWasm) !== 1) {
   throw new Error('Viewer does not embed exactly one byte-identical pinned Orchard WASM module.');
 }
-assertEvoSdkReadOnly([
-  ...sourceFiles(resolve(root, 'apps/activity-viewer/src')),
-  ...sourceFiles(resolve(root, 'packages/dash-network/src')),
-].map(({ path }) => path), 'Viewer source', root);
+assertEvoSdkReadOnly(
+  [
+    ...sourceFiles(resolve(root, 'apps/activity-viewer/src')),
+    ...sourceFiles(resolve(root, 'packages/dash-network/src')),
+  ].map(({ path }) => path),
+  'Viewer source',
+  root,
+);
 
 const actual = createHash('sha256').update(html).digest('hex');
 const recorded = readFileSync(checksumPath, 'utf8').trim().split(/\s+/u)[0];

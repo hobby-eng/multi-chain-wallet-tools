@@ -25,17 +25,19 @@ const template = applyProfileTemplate(
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const viewerCss = readFileSync(resolve(root, 'apps/activity-viewer/src/styles.css'), 'utf8');
 const shellCss = readFileSync(resolve(root, 'packages/shared-ui/styles/tool-shell.css'), 'utf8');
-const themeCss = profile.themeStylesheet === undefined
-  ? ''
-  : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
-const viewerThemeCss = profile.id === 'dash-community'
-  ? readFileSync(resolve(root, 'apps/activity-viewer/src/styles-dash-community.css'), 'utf8')
-  : '';
-const css = (await transform(`${sharedCss}\n${viewerCss}\n${viewerThemeCss}\n${shellCss}\n${themeCss}`, {
-  loader: 'css',
-  minify: true,
-  legalComments: 'inline',
-})).code;
+const themeCss =
+  profile.themeStylesheet === undefined ? '' : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
+const viewerThemeCss =
+  profile.id === 'dash-community'
+    ? readFileSync(resolve(root, 'apps/activity-viewer/src/styles-dash-community.css'), 'utf8')
+    : '';
+const css = (
+  await transform(`${sharedCss}\n${viewerCss}\n${viewerThemeCss}\n${shellCss}\n${themeCss}`, {
+    loader: 'css',
+    minify: true,
+    legalComments: 'inline',
+  })
+).code;
 const buildInfo = createBuildInfo(root, tool.checksumFile, profile);
 const bundled = await build({
   absWorkingDir: root,
@@ -58,15 +60,13 @@ if (profile.id === 'dash-community') {
   assertDashOnlyGraph(Object.keys(bundled.metafile.inputs), 'Dash Community activity viewer');
 }
 if (
-  !template.includes('/*__INLINE_CSS__*/')
-  || !template.includes('/*__INLINE_JS__*/')
-  || !template.includes('__INLINE_SCRIPT_CSP__')
+  !template.includes('/*__INLINE_CSS__*/') ||
+  !template.includes('/*__INLINE_JS__*/') ||
+  !template.includes('__INLINE_SCRIPT_CSP__')
 ) {
   throw new Error('Viewer HTML template is missing an inline build marker.');
 }
-const safeJavascript = javascript
-  .replaceAll('</script', '<\\/script')
-  .replaceAll('<script', '\\x3cscript');
+const safeJavascript = javascript.replaceAll('</script', '<\\/script').replaceAll('<script', '\\x3cscript');
 const html = template
   .replace('__INLINE_SCRIPT_CSP__', scriptCsp(safeJavascript))
   .replace('/*__INLINE_CSS__*/', () => css)

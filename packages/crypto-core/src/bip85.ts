@@ -17,9 +17,7 @@ function assertIndex(index: number): void {
 type Bip85Root = Uint8Array | string;
 
 function entropyAt(source: Bip85Root, path: string): Uint8Array {
-  const root = typeof source === 'string'
-    ? HDKey.fromExtendedKey(source)
-    : rootFromSeed(source, MAIN_VERSIONS);
+  const root = typeof source === 'string' ? HDKey.fromExtendedKey(source) : rootFromSeed(source, MAIN_VERSIONS);
   const child = root.derive(path);
   const privateKey = child.privateKey;
   try {
@@ -43,7 +41,7 @@ export function deriveBip85Bip39(
   index: number,
 ): { path: string; entropyHex: string } {
   assertIndex(index);
-  const byteLength = words / 3 * 4;
+  const byteLength = (words / 3) * 4;
   const path = `m/${BIP85_PURPOSE}'/39'/0'/${words}'/${index}'`;
   const entropy = entropyAt(seed, path);
   const selected = entropy.slice(0, byteLength);
@@ -57,11 +55,7 @@ export function deriveBip85Bip39(
   }
 }
 
-export function deriveBip85Wif(
-  seed: Bip85Root,
-  index: number,
-  wifVersion = 0x80,
-): { path: string; wif: string } {
+export function deriveBip85Wif(seed: Bip85Root, index: number, wifVersion = 0x80): { path: string; wif: string } {
   assertIndex(index);
   if (!Number.isInteger(wifVersion) || wifVersion < 0 || wifVersion > 0xff) {
     throw new Error('WIF version must be one byte.');
@@ -77,10 +71,7 @@ export function deriveBip85Wif(
   }
 }
 
-export function deriveBip85Xprv(
-  seed: Bip85Root,
-  index: number,
-): { path: string; xprv: string } {
+export function deriveBip85Xprv(seed: Bip85Root, index: number): { path: string; xprv: string } {
   assertIndex(index);
   const path = `m/${BIP85_PURPOSE}'/32'/${index}'`;
   const entropy = entropyAt(seed, path);
@@ -98,11 +89,7 @@ export function deriveBip85Xprv(
   }
 }
 
-export function deriveBip85Hex(
-  seed: Bip85Root,
-  bytes: number,
-  index: number,
-): { path: string; entropyHex: string } {
+export function deriveBip85Hex(seed: Bip85Root, bytes: number, index: number): { path: string; entropyHex: string } {
   assertIndex(index);
   if (!Number.isSafeInteger(bytes) || bytes < 16 || bytes > 64) {
     throw new Error('BIP85 hexadecimal entropy length must be from 16 to 64 bytes.');

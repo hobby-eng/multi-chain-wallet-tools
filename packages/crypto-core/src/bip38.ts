@@ -34,11 +34,7 @@ export async function encryptBip38(
   if (passphrase.length === 0) throw new Error('Enter a BIP38 passphrase.');
   const address = addressFor(privateKey, compressed, network);
   const salt = addressHash(address);
-  const derived = await scryptAsync(
-    new TextEncoder().encode(passphrase.normalize('NFC')),
-    salt,
-    SCRYPT_OPTIONS,
-  );
+  const derived = await scryptAsync(new TextEncoder().encode(passphrase.normalize('NFC')), salt, SCRYPT_OPTIONS);
   const block = xor(privateKey, derived.slice(0, 32));
   let encrypted: Uint8Array | null = null;
   try {
@@ -72,11 +68,7 @@ export async function decryptBip38(
   if (flag !== 0xc0 && flag !== 0xe0) throw new Error('Invalid BIP38 compression flag.');
   const compressed = flag === 0xe0;
   const salt = payload.slice(3, 7);
-  const derived = await scryptAsync(
-    new TextEncoder().encode(passphrase.normalize('NFC')),
-    salt,
-    SCRYPT_OPTIONS,
-  );
+  const derived = await scryptAsync(new TextEncoder().encode(passphrase.normalize('NFC')), salt, SCRYPT_OPTIONS);
   const decrypted = ecb(derived.slice(32), { disablePadding: true }).decrypt(payload.slice(7));
   const privateKey = xor(decrypted, derived.slice(0, 32));
   try {

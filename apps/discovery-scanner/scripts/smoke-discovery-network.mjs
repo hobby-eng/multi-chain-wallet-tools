@@ -91,25 +91,26 @@ try {
   if (byId.get('shielded')?.state !== 'skipped' || progress.length < 3) {
     throw new Error('Recovery smoke did not preserve disabled Orchard state or progress reporting.');
   }
-  const knownAddress = network === 'mainnet'
-    ? 'dash1kzpkh894d6xxqldkflqk9kac06scjk7emup08hdj'
-    : 'tdash1krstjne0t2sd2gt4w047jw0kv5qwfs4wf5npref0';
+  const knownAddress =
+    network === 'mainnet'
+      ? 'dash1kzpkh894d6xxqldkflqk9kac06scjk7emup08hdj'
+      : 'tdash1krstjne0t2sd2gt4w047jw0kv5qwfs4wf5npref0';
   const addressResponse = await networkApi.platformAddresses(network, [knownAddress]);
   const entries = addressResponse.entries;
   if (
-    entries.length !== 1
-    || entries[0][0] === knownAddress
-    || !/^00[0-9a-f]{40}$/u.test(entries[0][0])
-    || entries[0][1] == null
-    || BigInt(entries[0][1].balance) <= 0n
+    entries.length !== 1 ||
+    entries[0][0] === knownAddress ||
+    !/^00[0-9a-f]{40}$/u.test(entries[0][0]) ||
+    entries[0][1] == null ||
+    BigInt(entries[0][1].balance) <= 0n
   ) {
     throw new Error('Recovery smoke did not observe the expected internal Platform Map key and funded value.');
   }
   const identityMetrics = new Map(byId.get('identity')?.metrics.map(({ label, value }) => [label, value]));
   console.log(
-    `Live recovery ${network} smoke passed: Core ${byId.get('core')?.scanned}; Platform ${byId.get('platform')?.scanned}; identity ${byId.get('identity')?.scanned}; funded Platform Map shape; `
-      + `${identityMetrics.get('Proof queries')} identity proofs; DAPI avg/max ${identityMetrics.get('DAPI average / max')}; `
-      + `${progress.length} progress events; ${Math.round(performance.now() - startedAt)} ms.`,
+    `Live recovery ${network} smoke passed: Core ${byId.get('core')?.scanned}; Platform ${byId.get('platform')?.scanned}; identity ${byId.get('identity')?.scanned}; funded Platform Map shape; ` +
+      `${identityMetrics.get('Proof queries')} identity proofs; DAPI avg/max ${identityMetrics.get('DAPI average / max')}; ` +
+      `${progress.length} progress events; ${Math.round(performance.now() - startedAt)} ms.`,
   );
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });

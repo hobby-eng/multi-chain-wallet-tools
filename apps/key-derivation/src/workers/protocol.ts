@@ -27,40 +27,40 @@ export type MessageSigningFormat =
 export type WorkerRequest =
   | { id: number; type: 'derive'; adapterId: string; input: CoinDerivationInput }
   | {
-    id: number;
-    type: 'search';
-    adapterId: string;
-    input: Omit<CoinDerivationInput, 'start' | 'count'>;
-    expectedAddress: string;
-    start: number;
-    count: number;
-  }
+      id: number;
+      type: 'search';
+      adapterId: string;
+      input: Omit<CoinDerivationInput, 'start' | 'count'>;
+      expectedAddress: string;
+      start: number;
+      count: number;
+    }
   | {
-    id: number;
-    type: 'sign-message';
-    adapterId: string;
-    input: CoinDerivationInput;
-    address: string;
-    message: string;
-    format: MessageSigningFormat;
-  }
+      id: number;
+      type: 'sign-message';
+      adapterId: string;
+      input: CoinDerivationInput;
+      address: string;
+      message: string;
+      format: MessageSigningFormat;
+    }
   | {
-    id: number;
-    type: 'silent-payment';
-    seed: Uint8Array;
-    network: 'mainnet' | 'testnet';
-    account: number;
-    labelIndexes?: readonly number[];
-  }
+      id: number;
+      type: 'silent-payment';
+      seed: Uint8Array;
+      network: 'mainnet' | 'testnet';
+      account: number;
+      labelIndexes?: readonly number[];
+    }
   | { id: number; type: 'bip85'; seed: Uint8Array; options: Bip85RequestOptions }
   | {
-    id: number;
-    type: 'bip38-encrypt';
-    adapterId: string;
-    input: CoinDerivationInput;
-    address: string;
-    passphrase: string;
-  }
+      id: number;
+      type: 'bip38-encrypt';
+      adapterId: string;
+      input: CoinDerivationInput;
+      address: string;
+      passphrase: string;
+    }
   | { id: number; type: 'self-test' };
 
 export type WorkerSuccess =

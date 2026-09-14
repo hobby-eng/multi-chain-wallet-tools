@@ -1,8 +1,8 @@
-import { normalizeBitcoinAddress, normalizeEthereumAddress } from '../../discovery-scanner/src/public-address-multichain.js';
-import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/dash-network/private-material.js';
+import { normalizeBitcoinAddress, normalizeEthereumAddress } from '@ckd/public-data-providers/address-normalization.js';
+import { PublicMultiChainDataService } from '@ckd/public-data-providers/multi-chain-service.js';
+import type { PublicDataNetwork, RecoveryHistory } from '@ckd/public-data-providers/types.js';
+import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/public-data-providers/private-material.js';
 import type { ActivityViewerView } from './view.js';
-import { MultiChainRecoveryNetworkService } from '../../discovery-scanner/src/network-service-multichain.js';
-import type { RecoveryHistory, RecoveryNetwork } from '../../discovery-scanner/src/types.js';
 
 type ExternalCoin = 'bitcoin' | 'ethereum';
 
@@ -39,8 +39,11 @@ function formatAtomic(value: bigint | string | null, asset: string, decimals: nu
 
 function formatDate(value: string | null): string {
   if (value === null) return 'Unavailable';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'medium', timeZone: 'UTC' })
-    .format(new Date(value)) + ' UTC';
+  return (
+    new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'medium', timeZone: 'UTC' }).format(
+      new Date(value),
+    ) + ' UTC'
+  );
 }
 
 function textElement(document: Document, className: string, text: string): HTMLElement {
@@ -68,7 +71,10 @@ function resultCard(document: Document, result: AddressResult): HTMLElement {
   const head = document.createElement('div');
   head.className = 'viewer-activity-head';
   const title = document.createElement('div');
-  title.append(textElement(document, 'viewer-direction', `${label} public address`), textElement(document, 'viewer-position', result.address));
+  title.append(
+    textElement(document, 'viewer-direction', `${label} public address`),
+    textElement(document, 'viewer-position', result.address),
+  );
   head.append(title, textElement(document, 'viewer-amount', formatAtomic(result.balanceAtomic, asset, decimals)));
   const details = document.createElement('dl');
   const rows: Array<readonly [string, string]> = [
@@ -81,7 +87,9 @@ function resultCard(document: Document, result: AddressResult): HTMLElement {
     ['First seen', formatDate(result.history.firstSeen)],
     ['Last seen', formatDate(result.history.lastSeen)],
     ...(result.nonce === null ? [] : [['Account nonce', result.nonce.toLocaleString()] as const]),
-    ...(result.blockHeight === null ? [] : [['Account query block height', result.blockHeight.toLocaleString()] as const]),
+    ...(result.blockHeight === null
+      ? []
+      : [['Account query block height', result.blockHeight.toLocaleString()] as const]),
     ['History source', result.history.source],
   ];
   for (const [name, value] of rows) {
@@ -130,11 +138,12 @@ export function installMultiChainActivity(
   const diagnosticRequests = required<HTMLElement>(document, '#diagnostic-requests');
   const diagnosticProof = required<HTMLElement>(document, '#diagnostic-proof');
   const diagnosticDetail = required<HTMLElement>(document, '#diagnostic-detail');
-  const service = new MultiChainRecoveryNetworkService();
+  const service = new PublicMultiChainDataService();
   let active: { controller: AbortController; cleared: boolean } | null = null;
 
-  const externalCoin = (): ExternalCoin | null => coin.value === 'dash' ? null : coin.value as ExternalCoin;
-  const queryMode = (): 'single' | 'batch' => document.querySelector('[data-query-mode="batch"].active') === null ? 'single' : 'batch';
+  const externalCoin = (): ExternalCoin | null => (coin.value === 'dash' ? null : (coin.value as ExternalCoin));
+  const queryMode = (): 'single' | 'batch' =>
+    document.querySelector('[data-query-mode="batch"].active') === null ? 'single' : 'batch';
 
   const configure = (): void => {
     if (view.isQueryRunning()) return;
@@ -159,19 +168,33 @@ export function installMultiChainActivity(
     single.placeholder = selected === 'bitcoin' ? 'Paste a Bitcoin address' : 'Paste an Ethereum 0x address';
     batch.placeholder = selected === 'bitcoin' ? 'One Bitcoin address per line' : 'One Ethereum address per line';
     inputHelp.textContent = `Loads current ${metadata.asset} balance and confirmed lifetime address history. Only public addresses are sent to fixed network providers.`;
-    scanLabel.textContent = batchMode ? `Load ${metadata.label} address batch` : `Load ${metadata.label} address activity`;
+    scanLabel.textContent = batchMode
+      ? `Load ${metadata.label} address batch`
+      : `Load ${metadata.label} address activity`;
     privacyChip.lastChild!.textContent = ' Public address lookup';
     diagnosticMode.textContent = `${selected} · ${network.value}`;
   };
 
-  async function queryAddress(selected: ExternalCoin, address: string, selectedNetwork: RecoveryNetwork, signal: AbortSignal): Promise<AddressResult> {
+  async function queryAddress(
+    selected: ExternalCoin,
+    address: string,
+    selectedNetwork: PublicDataNetwork,
+    signal: AbortSignal,
+  ): Promise<AddressResult> {
     const historyPromise = service.addressHistory(selected, selectedNetwork, address, signal);
     if (selected === 'bitcoin') {
       const [history, entries] = await Promise.all([
         historyPromise,
         service.utxoAddresses(selectedNetwork, [address], signal),
       ]);
-      return { coin: selected, address, balanceAtomic: BigInt(entries[0]!.balance), nonce: null, blockHeight: null, history };
+      return {
+        coin: selected,
+        address,
+        balanceAtomic: BigInt(entries[0]!.balance),
+        nonce: null,
+        blockHeight: null,
+        history,
+      };
     }
     const [history, accounts] = await Promise.all([
       historyPromise,
@@ -188,117 +211,153 @@ export function installMultiChainActivity(
     };
   }
 
-  form.addEventListener('submit', (event) => {
-    const selected = externalCoin();
-    if (selected === null) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    if (active !== null || !view.canStartQuery()) return;
-    void (async () => {
-      error.hidden = true;
-      results.hidden = true;
-      const selectedNetwork = network.value as RecoveryNetwork;
-      let values: string[];
-      try {
-        const input = queryMode() === 'batch' ? batch.value : single.value;
-        assertPublicBatchLookupInput(input);
-        values = input.replaceAll('\r', '').split('\n').map(value => value.trim()).filter(Boolean)
-          .map(value => selected === 'bitcoin' ? normalizeBitcoinAddress(value, selectedNetwork) : normalizeEthereumAddress(value));
-      } catch (cause) {
-        if (cause instanceof PrivateMaterialError) { single.value = ''; batch.value = ''; }
-        error.textContent = cause instanceof Error ? cause.message : 'Invalid public address input.';
-        error.hidden = false;
-        status.hidden = true;
-        return;
-      }
-      if (values.length === 0) {
-        error.textContent = `Enter a ${COINS[selected].label} public address.`;
-        error.hidden = false;
-        return;
-      }
-      const operation = { controller: new AbortController(), cleared: false };
-      active = operation;
-      const signal = operation.controller.signal;
-      view.setExternalRunning(true);
-      status.textContent = `Loading ${values.length.toLocaleString()} ${COINS[selected].label} address${values.length === 1 ? '' : 'es'}…`;
-      status.hidden = false;
-      diagnosticDetail.textContent = 'Validating public addresses and loading current state plus confirmed lifetime history.';
-      try {
-        const loaded: AddressResult[] = [];
-        // Ethereum identity is the 20-byte address, independent of display casing.
-        const unique = [...new Map(values.map(value => [selected === 'ethereum' ? value.toLowerCase() : value, value])).values()];
-        for (const value of unique) {
-          if (signal.aborted) throw new DOMException('Query cancelled.', 'AbortError');
-          const result = await queryAddress(selected, value, selectedNetwork, signal);
-          if (signal.aborted) throw new DOMException('Query cancelled.', 'AbortError');
-          loaded.push(result);
-        }
-        const metadata = COINS[selected];
-        const balance = loaded.reduce((total, item) => total + item.balanceAtomic, 0n);
-        const received = loaded.every(({ history }) => history.totalReceivedAtomic !== null)
-          ? loaded.reduce((total, item) => total + BigInt(item.history.totalReceivedAtomic!), 0n)
-          : null;
-        const sent = loaded.every(({ history }) => history.totalSentAtomic !== null)
-          ? loaded.reduce((total, item) => total + BigInt(item.history.totalSentAtomic!), 0n)
-          : null;
-        const transactions = loaded.every(({ history }) => history.transactionCount !== null)
-          ? loaded.reduce((total, item) => total + item.history.transactionCount!, 0)
-          : null;
-        resultsHeading.textContent = `${metadata.label} address activity`;
-        resultsDescription.textContent = loaded.length === 1 ? loaded[0]!.address : `${loaded.length.toLocaleString()} public addresses`;
-        summary.replaceChildren(
-          stat(document, 'Current balance', formatAtomic(balance, metadata.asset, metadata.decimals), '◎', true),
-          stat(document, 'Total received', formatAtomic(received, metadata.asset, metadata.decimals), '↓'),
-          stat(document, 'Total sent', formatAtomic(sent, metadata.asset, metadata.decimals), '↑'),
-          stat(document, 'Transactions', transactions?.toLocaleString() ?? 'Unavailable', '≡'),
-          stat(document, 'Addresses', loaded.length.toLocaleString(), '◇'),
-        );
-        ledgerTitle.textContent = 'Address history summaries';
-        ledgerOrder.textContent = `${loaded.length.toLocaleString()} loaded`;
-        resultHelp.textContent = loaded.map(({ history }) => history.note).filter((value, index, all) => all.indexOf(value) === index).join(' ');
-        completeness.textContent = loaded.every(({ history }) => history.status === 'complete')
-          ? 'Complete provider history was read for every address.'
-          : 'At least one provider history reached its bounded pagination limit; unavailable lifetime dates or sums are not inferred.';
-        activity.replaceChildren(...loaded.map((item) => resultCard(document, item)));
-        diagnosticSource.textContent = [...new Set(loaded.map(({ history }) => history.source))].join(' + ');
-        diagnosticRequests.textContent = 'Bounded provider requests';
-        diagnosticProof.textContent = loaded[0]?.blockHeight === null ? 'Confirmed history' : `Account query heights ${loaded.map(item => item.blockHeight!.toString()).filter((height, index, all) => all.indexOf(height) === index).join(', ')}`;
-        status.textContent = `${metadata.label} activity loaded for ${loaded.length.toLocaleString()} address${loaded.length === 1 ? '' : 'es'}.`;
-        results.hidden = false;
-      } catch (cause) {
-        if (operation.cleared) return;
-        if (signal.aborted) status.textContent = 'Query cancelled.';
-        else {
-          error.textContent = cause instanceof Error ? cause.message : String(cause);
+  form.addEventListener(
+    'submit',
+    (event) => {
+      const selected = externalCoin();
+      if (selected === null) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (active !== null || !view.canStartQuery()) return;
+      void (async () => {
+        error.hidden = true;
+        results.hidden = true;
+        const selectedNetwork = network.value as PublicDataNetwork;
+        let values: string[];
+        try {
+          const input = queryMode() === 'batch' ? batch.value : single.value;
+          assertPublicBatchLookupInput(input);
+          values = input
+            .replaceAll('\r', '')
+            .split('\n')
+            .map((value) => value.trim())
+            .filter(Boolean)
+            .map((value) =>
+              selected === 'bitcoin'
+                ? normalizeBitcoinAddress(value, selectedNetwork)
+                : normalizeEthereumAddress(value),
+            );
+        } catch (cause) {
+          if (cause instanceof PrivateMaterialError) {
+            single.value = '';
+            batch.value = '';
+          }
+          error.textContent = cause instanceof Error ? cause.message : 'Invalid public address input.';
           error.hidden = false;
           status.hidden = true;
+          return;
         }
-      } finally {
-        active = null;
-        view.setExternalRunning(false);
-      }
-    })();
-  }, true);
+        if (values.length === 0) {
+          error.textContent = `Enter a ${COINS[selected].label} public address.`;
+          error.hidden = false;
+          return;
+        }
+        const operation = { controller: new AbortController(), cleared: false };
+        active = operation;
+        const signal = operation.controller.signal;
+        view.setExternalRunning(true);
+        status.textContent = `Loading ${values.length.toLocaleString()} ${COINS[selected].label} address${values.length === 1 ? '' : 'es'}…`;
+        status.hidden = false;
+        diagnosticDetail.textContent =
+          'Validating public addresses and loading current state plus confirmed lifetime history.';
+        try {
+          const loaded: AddressResult[] = [];
+          // Ethereum identity is the 20-byte address, independent of display casing.
+          const unique = [
+            ...new Map(values.map((value) => [selected === 'ethereum' ? value.toLowerCase() : value, value])).values(),
+          ];
+          for (const value of unique) {
+            if (signal.aborted) throw new DOMException('Query cancelled.', 'AbortError');
+            const result = await queryAddress(selected, value, selectedNetwork, signal);
+            if (signal.aborted) throw new DOMException('Query cancelled.', 'AbortError');
+            loaded.push(result);
+          }
+          const metadata = COINS[selected];
+          const balance = loaded.reduce((total, item) => total + item.balanceAtomic, 0n);
+          const received = loaded.every(({ history }) => history.totalReceivedAtomic !== null)
+            ? loaded.reduce((total, item) => total + BigInt(item.history.totalReceivedAtomic!), 0n)
+            : null;
+          const sent = loaded.every(({ history }) => history.totalSentAtomic !== null)
+            ? loaded.reduce((total, item) => total + BigInt(item.history.totalSentAtomic!), 0n)
+            : null;
+          const transactions = loaded.every(({ history }) => history.transactionCount !== null)
+            ? loaded.reduce((total, item) => total + item.history.transactionCount!, 0)
+            : null;
+          resultsHeading.textContent = `${metadata.label} address activity`;
+          resultsDescription.textContent =
+            loaded.length === 1 ? loaded[0]!.address : `${loaded.length.toLocaleString()} public addresses`;
+          summary.replaceChildren(
+            stat(document, 'Current balance', formatAtomic(balance, metadata.asset, metadata.decimals), '◎', true),
+            stat(document, 'Total received', formatAtomic(received, metadata.asset, metadata.decimals), '↓'),
+            stat(document, 'Total sent', formatAtomic(sent, metadata.asset, metadata.decimals), '↑'),
+            stat(document, 'Transactions', transactions?.toLocaleString() ?? 'Unavailable', '≡'),
+            stat(document, 'Addresses', loaded.length.toLocaleString(), '◇'),
+          );
+          ledgerTitle.textContent = 'Address history summaries';
+          ledgerOrder.textContent = `${loaded.length.toLocaleString()} loaded`;
+          resultHelp.textContent = loaded
+            .map(({ history }) => history.note)
+            .filter((value, index, all) => all.indexOf(value) === index)
+            .join(' ');
+          completeness.textContent = loaded.every(({ history }) => history.status === 'complete')
+            ? 'Complete provider history was read for every address.'
+            : 'At least one provider history reached its bounded pagination limit; unavailable lifetime dates or sums are not inferred.';
+          activity.replaceChildren(...loaded.map((item) => resultCard(document, item)));
+          diagnosticSource.textContent = [...new Set(loaded.map(({ history }) => history.source))].join(' + ');
+          diagnosticRequests.textContent = 'Bounded provider requests';
+          diagnosticProof.textContent =
+            loaded[0]?.blockHeight === null
+              ? 'Confirmed history'
+              : `Account query heights ${loaded
+                  .map((item) => item.blockHeight!.toString())
+                  .filter((height, index, all) => all.indexOf(height) === index)
+                  .join(', ')}`;
+          status.textContent = `${metadata.label} activity loaded for ${loaded.length.toLocaleString()} address${loaded.length === 1 ? '' : 'es'}.`;
+          results.hidden = false;
+        } catch (cause) {
+          if (operation.cleared) return;
+          if (signal.aborted) status.textContent = 'Query cancelled.';
+          else {
+            error.textContent = cause instanceof Error ? cause.message : String(cause);
+            error.hidden = false;
+            status.hidden = true;
+          }
+        } finally {
+          active = null;
+          view.setExternalRunning(false);
+        }
+      })();
+    },
+    true,
+  );
 
-  cancelButton.addEventListener('click', (event) => {
-    if (active === null) return;
-    event.stopImmediatePropagation();
-    active.controller.abort();
-  }, true);
-  clearButton.addEventListener('click', (event) => {
-    // Route by the operation owner, even if script changes the disabled Coin control.
-    if (active === null && (externalCoin() === null || view.isQueryRunning())) return;
-    event.stopImmediatePropagation();
-    if (active !== null) {
-      active.cleared = true;
+  cancelButton.addEventListener(
+    'click',
+    (event) => {
+      if (active === null) return;
+      event.stopImmediatePropagation();
       active.controller.abort();
-    }
-    single.value = '';
-    batch.value = '';
-    results.hidden = true;
-    error.hidden = true;
-    status.hidden = true;
-  }, true);
+    },
+    true,
+  );
+  clearButton.addEventListener(
+    'click',
+    (event) => {
+      // Route by the operation owner, even if script changes the disabled Coin control.
+      if (active === null && (externalCoin() === null || view.isQueryRunning())) return;
+      event.stopImmediatePropagation();
+      if (active !== null) {
+        active.cleared = true;
+        active.controller.abort();
+      }
+      single.value = '';
+      batch.value = '';
+      results.hidden = true;
+      error.hidden = true;
+      status.hidden = true;
+    },
+    true,
+  );
   coin.addEventListener('change', () => queueMicrotask(configure));
   network.addEventListener('change', () => queueMicrotask(configure));
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-query-mode]')) {

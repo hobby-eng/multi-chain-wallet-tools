@@ -48,16 +48,37 @@ describe('viewer exports', () => {
       mode: 'core',
       network: 'mainnet',
       snapshot: {
-        kind: 'core', provider: 'DashScan', address: 'Xexample', network: 'mainnet',
-        balanceDuffs: 9_007_199_254_740_993n, unconfirmedDuffs: 0n,
-        totalReceivedDuffs: 9_007_199_254_740_994n, totalSentDuffs: 1n,
-        transactionCount: 1, historyLimit: 20, endpoint: 'https://example.invalid',
-        indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 4,
-        transactions: [{
-          txid: '=unsafe', type: 'CLASSIC', timestampMs: generatedAt.getTime(), blockHeight: 9,
-          confirmations: 2, instantLocked: true, chainLocked: false, receivedDuffs: 2n,
-          spentInputDuffs: 1n, netDuffs: 1n, feeDuffs: 1n, blockHash: 'ab',
-        }],
+        kind: 'core',
+        provider: 'DashScan',
+        address: 'Xexample',
+        network: 'mainnet',
+        balanceDuffs: 9_007_199_254_740_993n,
+        unconfirmedDuffs: 0n,
+        totalReceivedDuffs: 9_007_199_254_740_994n,
+        totalSentDuffs: 1n,
+        transactionCount: 1,
+        historyLimit: 20,
+        endpoint: 'https://example.invalid',
+        indexStatus: 'ok',
+        indexedHeight: 10,
+        indexedTimeMs: generatedAt.getTime(),
+        requests: 4,
+        transactions: [
+          {
+            txid: '=unsafe',
+            type: 'CLASSIC',
+            timestampMs: generatedAt.getTime(),
+            blockHeight: 9,
+            confirmations: 2,
+            instantLocked: true,
+            chainLocked: false,
+            receivedDuffs: 2n,
+            spentInputDuffs: 1n,
+            netDuffs: 1n,
+            feeDuffs: 1n,
+            blockHash: 'ab',
+          },
+        ],
       },
     };
     const result = createViewerExport(state, 'csv', generatedAt);
@@ -69,35 +90,65 @@ describe('viewer exports', () => {
 
   it('serializes bigint Platform state exactly in JSON', () => {
     const state: ViewerExportState = {
-      mode: 'platform', network: 'testnet',
+      mode: 'platform',
+      network: 'testnet',
       snapshot: {
-        kind: 'platform', address: 'tdash1kexample', network: 'testnet', exists: true,
-        balanceCredits: 9_007_199_254_740_993n, nonce: 7n, proofHeight: 12n,
-        coreChainLockedHeight: 10, protocolVersion: 1, responseTimeMs: 1n,
+        kind: 'platform',
+        address: 'tdash1kexample',
+        network: 'testnet',
+        exists: true,
+        balanceCredits: 9_007_199_254_740_993n,
+        nonce: 7n,
+        proofHeight: 12n,
+        coreChainLockedHeight: 10,
+        protocolVersion: 1,
+        responseTimeMs: 1n,
       },
       history: {
-        provider: 'Dash Platform Explorer', address: 'tdash1kexample', base58Address: null,
-        totalTransitions: 0, incomingTransitions: 0, outgoingTransitions: 0,
-        totalIncomingCredits: 0n, totalOutgoingCredits: 0n,
-        explorerBalanceCredits: 9_007_199_254_740_993n, explorerNonce: 7, transitions: [],
-        historyLimit: 20, endpoint: 'https://example.invalid', indexStatus: 'synced',
-        indexedHeight: 12, indexedTimeMs: generatedAt.getTime(), requests: 3,
+        provider: 'Dash Platform Explorer',
+        address: 'tdash1kexample',
+        base58Address: null,
+        totalTransitions: 0,
+        incomingTransitions: 0,
+        outgoingTransitions: 0,
+        totalIncomingCredits: 0n,
+        totalOutgoingCredits: 0n,
+        explorerBalanceCredits: 9_007_199_254_740_993n,
+        explorerNonce: 7,
+        transitions: [],
+        historyLimit: 20,
+        endpoint: 'https://example.invalid',
+        indexStatus: 'synced',
+        indexedHeight: 12,
+        indexedTimeMs: generatedAt.getTime(),
+        requests: 3,
       },
     };
     const result = createViewerExport(state, 'json', generatedAt);
     expect(JSON.parse(result.text)).toMatchObject({
-      schema: 'wallet-activity-viewer-export', version: 2, mode: 'platform', network: 'testnet',
+      schema: 'wallet-activity-viewer-export',
+      version: 2,
+      mode: 'platform',
+      network: 'testnet',
       data: { state: { balanceCredits: '9007199254740993', nonce: '7' } },
     });
   });
 
   it('never needs or exports the Orchard viewing-key input', () => {
     const state: ViewerExportState = {
-      mode: 'shielded', network: 'mainnet',
+      mode: 'shielded',
+      network: 'mainnet',
       snapshot: {
-        records: [], scannedNotes: 25n, proofHeight: 2n, protocolVersion: 1,
-        complete: true, keyKind: 'full', balance: 0n, receivedExternal: 0n,
-        sentExternal: 0n, selfOrChange: 0n,
+        records: [],
+        scannedNotes: 25n,
+        proofHeight: 2n,
+        protocolVersion: 1,
+        complete: true,
+        keyKind: 'full',
+        balance: 0n,
+        receivedExternal: 0n,
+        sentExternal: 0n,
+        selfOrChange: 0n,
       },
     };
     const result = createViewerExport(state, 'json', generatedAt);
@@ -119,42 +170,49 @@ describe('viewer exports', () => {
         resolvedDpnsName: null,
         resolvedDpnsDocumentId: null,
         resolvedRegistrationTransactionHash: null,
-        proofs: [{
-          height: 12n,
-          coreChainLockedHeight: 10,
-          protocolVersion: 13,
-          responseTimeMs: 1n,
-        }, {
-          height: 12n,
-          coreChainLockedHeight: 10,
-          protocolVersion: 13,
-          responseTimeMs: 1n,
-        }],
+        proofs: [
+          {
+            height: 12n,
+            coreChainLockedHeight: 10,
+            protocolVersion: 13,
+            responseTimeMs: 1n,
+          },
+          {
+            height: 12n,
+            coreChainLockedHeight: 10,
+            protocolVersion: 13,
+            responseTimeMs: 1n,
+          },
+        ],
         requests: 3,
-        identities: [{
-          identifier: identityId,
-          identifierHex: '01'.repeat(32),
-          balanceCredits: 123n,
-          revision: 2n,
-          nonce: 7n,
-          dpnsNames: ['alice.dash'],
-          publicKeys: [{
-            keyId: 1,
-            purpose: 'AUTHENTICATION',
-            purposeNumber: 0,
-            securityLevel: 'MASTER',
-            securityLevelNumber: 0,
-            keyType: 'ECDSA_SECP256K1',
-            keyTypeNumber: 0,
-            dataHex: `02${'11'.repeat(32)}`,
-            publicKeyHashHex: 'ab'.repeat(20),
-            readOnly: false,
-            isMaster: true,
-            disabledAtMs: null,
-            contractBounds: null,
-            matchesLookup: true,
-          }],
-        }],
+        identities: [
+          {
+            identifier: identityId,
+            identifierHex: '01'.repeat(32),
+            balanceCredits: 123n,
+            revision: 2n,
+            nonce: 7n,
+            dpnsNames: ['alice.dash'],
+            publicKeys: [
+              {
+                keyId: 1,
+                purpose: 'AUTHENTICATION',
+                purposeNumber: 0,
+                securityLevel: 'MASTER',
+                securityLevelNumber: 0,
+                keyType: 'ECDSA_SECP256K1',
+                keyTypeNumber: 0,
+                dataHex: `02${'11'.repeat(32)}`,
+                publicKeyHashHex: 'ab'.repeat(20),
+                readOnly: false,
+                isMaster: true,
+                disabledAtMs: null,
+                contractBounds: null,
+                matchesLookup: true,
+              },
+            ],
+          },
+        ],
       },
       histories: [{ identifier: identityId, history: null, error: 'Explorer unavailable' }],
     };
@@ -167,12 +225,14 @@ describe('viewer exports', () => {
       version: 2,
       data: {
         query: { proofs: [{ height: '12', responseCount: 2 }] },
-        identities: [{
-          identifier: identityId,
-          state: { balanceCredits: '123', revision: '2', nonce: '7' },
-          history: null,
-          historyError: 'Explorer unavailable',
-        }],
+        identities: [
+          {
+            identifier: identityId,
+            state: { balanceCredits: '123', revision: '2', nonce: '7' },
+            history: null,
+            historyError: 'Explorer unavailable',
+          },
+        ],
       },
     });
 
@@ -193,20 +253,44 @@ describe('viewer exports', () => {
       mode: 'core',
       network: 'mainnet',
       snapshot: {
-        kind: 'core', provider: 'DashScan', address: 'Xfirst', network: 'mainnet',
-        balanceDuffs: 1n, unconfirmedDuffs: 0n, totalReceivedDuffs: 1n, totalSentDuffs: 0n,
-        transactionCount: 0, transactions: [], historyLimit: 20, endpoint: 'https://example.invalid',
-        indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 2,
+        kind: 'core',
+        provider: 'DashScan',
+        address: 'Xfirst',
+        network: 'mainnet',
+        balanceDuffs: 1n,
+        unconfirmedDuffs: 0n,
+        totalReceivedDuffs: 1n,
+        totalSentDuffs: 0n,
+        transactionCount: 0,
+        transactions: [],
+        historyLimit: 20,
+        endpoint: 'https://example.invalid',
+        indexStatus: 'ok',
+        indexedHeight: 10,
+        indexedTimeMs: generatedAt.getTime(),
+        requests: 2,
       },
     };
     const second: ViewerSingleExportState = {
       mode: 'core',
       network: 'mainnet',
       snapshot: {
-        kind: 'core', provider: 'DashScan', address: 'Xsecond', network: 'mainnet',
-        balanceDuffs: 2n, unconfirmedDuffs: 0n, totalReceivedDuffs: 2n, totalSentDuffs: 0n,
-        transactionCount: 0, transactions: [], historyLimit: 20, endpoint: 'https://example.invalid',
-        indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 2,
+        kind: 'core',
+        provider: 'DashScan',
+        address: 'Xsecond',
+        network: 'mainnet',
+        balanceDuffs: 2n,
+        unconfirmedDuffs: 0n,
+        totalReceivedDuffs: 2n,
+        totalSentDuffs: 0n,
+        transactionCount: 0,
+        transactions: [],
+        historyLimit: 20,
+        endpoint: 'https://example.invalid',
+        indexStatus: 'ok',
+        indexedHeight: 10,
+        indexedTimeMs: generatedAt.getTime(),
+        requests: 2,
       },
     };
     const state: ViewerExportState = {
@@ -236,105 +320,131 @@ describe('viewer exports', () => {
       version: 2,
       data: {
         batch: { requested: 3, succeeded: 2, failed: 1 },
-        results: [{ id: 'query-1', label: '1 · Xfirst' }, { id: 'query-2', label: '2 · Xsecond' }],
+        results: [
+          { id: 'query-1', label: '1 · Xfirst' },
+          { id: 'query-2', label: '2 · Xsecond' },
+        ],
         errors: [{ id: 'query-3', message: 'Invalid address.' }],
       },
     });
   });
 
   it('exports mixed batch records with their detected modes', () => {
-      const core: ViewerSingleExportState = {
-        mode: 'core',
+    const core: ViewerSingleExportState = {
+      mode: 'core',
+      network: 'mainnet',
+      snapshot: {
+        kind: 'core',
+        provider: 'DashScan',
+        address: 'Xfirst',
         network: 'mainnet',
-        snapshot: {
-          kind: 'core', provider: 'DashScan', address: 'Xfirst', network: 'mainnet',
-          balanceDuffs: 1n, unconfirmedDuffs: 0n, totalReceivedDuffs: 1n, totalSentDuffs: 0n,
-          transactionCount: 0, transactions: [], historyLimit: 20, endpoint: 'https://example.invalid',
-          indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 2,
-        },
-      };
-      const shielded: ViewerSingleExportState = {
-        mode: 'shielded',
-        network: 'mainnet',
-        snapshot: {
-          records: [], scannedNotes: 25n, proofHeight: 12n, protocolVersion: 13,
-          complete: true, keyKind: 'full', balance: 0n, receivedExternal: 0n,
-          sentExternal: 0n, selfOrChange: 0n,
-        },
-      };
-      const state: ViewerExportState = {
-        batch: true,
-        mode: 'mixed',
-        network: 'mainnet',
-        items: [
-          { id: 'query-1', label: '1 · CORE · Xfirst', state: core },
-          { id: 'query-2', label: '2 · ORCHARD · FULL viewing key', state: shielded },
+        balanceDuffs: 1n,
+        unconfirmedDuffs: 0n,
+        totalReceivedDuffs: 1n,
+        totalSentDuffs: 0n,
+        transactionCount: 0,
+        transactions: [],
+        historyLimit: 20,
+        endpoint: 'https://example.invalid',
+        indexStatus: 'ok',
+        indexedHeight: 10,
+        indexedTimeMs: generatedAt.getTime(),
+        requests: 2,
+      },
+    };
+    const shielded: ViewerSingleExportState = {
+      mode: 'shielded',
+      network: 'mainnet',
+      snapshot: {
+        records: [],
+        scannedNotes: 25n,
+        proofHeight: 12n,
+        protocolVersion: 13,
+        complete: true,
+        keyKind: 'full',
+        balance: 0n,
+        receivedExternal: 0n,
+        sentExternal: 0n,
+        selfOrChange: 0n,
+      },
+    };
+    const state: ViewerExportState = {
+      batch: true,
+      mode: 'mixed',
+      network: 'mainnet',
+      items: [
+        { id: 'query-1', label: '1 · CORE · Xfirst', state: core },
+        { id: 'query-2', label: '2 · ORCHARD · FULL viewing key', state: shielded },
+      ],
+      errors: [],
+    };
+
+    const json = createViewerExport(state, 'json', generatedAt);
+    expect(json.filename).toContain('wallet-activity-viewer-mixed-batch-mainnet');
+    expect(JSON.parse(json.text)).toMatchObject({
+      mode: 'mixed',
+      data: {
+        results: [
+          { id: 'query-1', mode: 'core' },
+          { id: 'query-2', mode: 'shielded' },
         ],
-        errors: [],
-      };
+      },
+    });
 
-      const json = createViewerExport(state, 'json', generatedAt);
-      expect(json.filename).toContain('wallet-activity-viewer-mixed-batch-mainnet');
-      expect(JSON.parse(json.text)).toMatchObject({
-        mode: 'mixed',
-        data: {
-          results: [
-            { id: 'query-1', mode: 'core' },
-            { id: 'query-2', mode: 'shielded' },
-          ],
-        },
-      });
-
-      const csv = createViewerExport(state, 'csv', generatedAt);
-      const [header, ...rows] = parseCsv(csv.text);
-      const modeIndex = header!.indexOf('mode');
-      expect(rows.map((row) => row[modeIndex])).toEqual(['core', 'shielded']);
+    const csv = createViewerExport(state, 'csv', generatedAt);
+    const [header, ...rows] = parseCsv(csv.text);
+    const modeIndex = header!.indexOf('mode');
+    expect(rows.map((row) => row[modeIndex])).toEqual(['core', 'shielded']);
   });
 
   it('redacts failed Orchard input labels in mixed exports', () => {
-      const viewingKey = 'ab'.repeat(96);
-      const state: ViewerExportState = {
-        batch: true,
-        mode: 'mixed',
-        network: 'mainnet',
-        items: [],
-        errors: [{
+    const viewingKey = 'ab'.repeat(96);
+    const state: ViewerExportState = {
+      batch: true,
+      mode: 'mixed',
+      network: 'mainnet',
+      items: [],
+      errors: [
+        {
           id: 'query-7',
           label: `7 · ORCHARD · ${viewingKey.slice(0, 16)}…${viewingKey.slice(-16)}`,
           message: 'Invalid viewing key.',
           mode: 'shielded',
-        }],
-      };
+        },
+      ],
+    };
 
-      for (const format of ['csv', 'json'] as const) {
-        const exported = createViewerExport(state, format, generatedAt);
-        expect(exported.text).toContain('7 · ORCHARD · viewing key');
-        expect(exported.text).not.toContain(viewingKey.slice(0, 16));
-        expect(exported.text).not.toContain(viewingKey.slice(-16));
-      }
+    for (const format of ['csv', 'json'] as const) {
+      const exported = createViewerExport(state, format, generatedAt);
+      expect(exported.text).toContain('7 · ORCHARD · viewing key');
+      expect(exported.text).not.toContain(viewingKey.slice(0, 16));
+      expect(exported.text).not.toContain(viewingKey.slice(-16));
+    }
   });
 
   it('redacts unresolved automatic input labels and messages in mixed exports', () => {
-      const fragment = 'ab'.repeat(95) + 'a';
-      const state: ViewerExportState = {
-        batch: true,
-        mode: 'mixed',
-        network: 'mainnet',
-        items: [],
-        errors: [{
+    const fragment = 'ab'.repeat(95) + 'a';
+    const state: ViewerExportState = {
+      batch: true,
+      mode: 'mixed',
+      network: 'mainnet',
+      items: [],
+      errors: [
+        {
           id: 'query-8',
           label: `8 · AUTO · ${fragment.slice(0, 16)}…${fragment.slice(-16)}`,
           message: `Invalid input ${fragment}`,
-        }],
-      };
+        },
+      ],
+    };
 
-      for (const format of ['csv', 'json'] as const) {
-        const exported = createViewerExport(state, format, generatedAt);
-        expect(exported.text).toContain('8 · AUTO · invalid input');
-        expect(exported.text).toContain('Raw input is omitted from exports.');
-        expect(exported.text).not.toContain(fragment.slice(0, 16));
-        expect(exported.text).not.toContain(fragment.slice(-16));
-      }
+    for (const format of ['csv', 'json'] as const) {
+      const exported = createViewerExport(state, format, generatedAt);
+      expect(exported.text).toContain('8 · AUTO · invalid input');
+      expect(exported.text).toContain('Raw input is omitted from exports.');
+      expect(exported.text).not.toContain(fragment.slice(0, 16));
+      expect(exported.text).not.toContain(fragment.slice(-16));
+    }
   });
 
   it('exports mixed batches as separate Excel worksheets without losing exact integers', async () => {
@@ -342,11 +452,22 @@ describe('viewer exports', () => {
       mode: 'core',
       network: 'mainnet',
       snapshot: {
-        kind: 'core', provider: 'DashScan', address: '=Xunsafe', network: 'mainnet',
-        balanceDuffs: 9_007_199_254_740_993n, unconfirmedDuffs: 0n,
-        totalReceivedDuffs: 9_007_199_254_740_993n, totalSentDuffs: 0n,
-        transactionCount: 0, transactions: [], historyLimit: 20, endpoint: 'https://example.invalid',
-        indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 2,
+        kind: 'core',
+        provider: 'DashScan',
+        address: '=Xunsafe',
+        network: 'mainnet',
+        balanceDuffs: 9_007_199_254_740_993n,
+        unconfirmedDuffs: 0n,
+        totalReceivedDuffs: 9_007_199_254_740_993n,
+        totalSentDuffs: 0n,
+        transactionCount: 0,
+        transactions: [],
+        historyLimit: 20,
+        endpoint: 'https://example.invalid',
+        indexStatus: 'ok',
+        indexedHeight: 10,
+        indexedTimeMs: generatedAt.getTime(),
+        requests: 2,
       },
     };
     const identity: ViewerSingleExportState = {
@@ -371,9 +492,16 @@ describe('viewer exports', () => {
       mode: 'shielded',
       network: 'mainnet',
       snapshot: {
-        records: [], scannedNotes: 25n, proofHeight: 12n, protocolVersion: 13,
-        complete: true, keyKind: 'full', balance: 0n, receivedExternal: 0n,
-        sentExternal: 0n, selfOrChange: 0n,
+        records: [],
+        scannedNotes: 25n,
+        proofHeight: 12n,
+        protocolVersion: 13,
+        complete: true,
+        keyKind: 'full',
+        balance: 0n,
+        receivedExternal: 0n,
+        sentExternal: 0n,
+        selfOrChange: 0n,
       },
     };
     const viewingKey = 'ab'.repeat(96);
@@ -386,12 +514,14 @@ describe('viewer exports', () => {
         { id: 'query-2', label: '2 · IDENTITY · alice.dash', state: identity },
         { id: 'query-3', label: `3 · ORCHARD · ${viewingKey}`, state: shielded },
       ],
-      errors: [{
-        id: 'query-4',
-        label: `4 · ORCHARD · ${viewingKey}`,
-        message: `Invalid viewing key ${viewingKey}`,
-        mode: 'shielded',
-      }],
+      errors: [
+        {
+          id: 'query-4',
+          label: `4 · ORCHARD · ${viewingKey}`,
+          message: `Invalid viewing key ${viewingKey}`,
+          mode: 'shielded',
+        },
+      ],
     };
 
     const result = await createViewerWorkbookExport(state, generatedAt);
@@ -423,10 +553,22 @@ describe('viewer exports', () => {
       mode: 'core',
       network: 'mainnet',
       snapshot: {
-        kind: 'core', provider: 'DashScan', address: 'Xsingle', network: 'mainnet',
-        balanceDuffs: 1n, unconfirmedDuffs: 0n, totalReceivedDuffs: 1n, totalSentDuffs: 0n,
-        transactionCount: 0, transactions: [], historyLimit: 20, endpoint: 'https://example.invalid',
-        indexStatus: 'ok', indexedHeight: 10, indexedTimeMs: generatedAt.getTime(), requests: 2,
+        kind: 'core',
+        provider: 'DashScan',
+        address: 'Xsingle',
+        network: 'mainnet',
+        balanceDuffs: 1n,
+        unconfirmedDuffs: 0n,
+        totalReceivedDuffs: 1n,
+        totalSentDuffs: 0n,
+        transactionCount: 0,
+        transactions: [],
+        historyLimit: 20,
+        endpoint: 'https://example.invalid',
+        indexStatus: 'ok',
+        indexedHeight: 10,
+        indexedTimeMs: generatedAt.getTime(),
+        requests: 2,
       },
     };
 
@@ -450,11 +592,13 @@ describe('viewer exports', () => {
       mode: 'shielded',
       network: 'mainnet',
       items: [],
-      errors: [{
-        id: 'query-1',
-        label: `1 · ${viewingKey}`,
-        message: `Invalid viewing key ${viewingKey}`,
-      }],
+      errors: [
+        {
+          id: 'query-1',
+          label: `1 · ${viewingKey}`,
+          message: `Invalid viewing key ${viewingKey}`,
+        },
+      ],
     };
 
     const result = await createViewerWorkbookExport(state, generatedAt);
@@ -468,28 +612,45 @@ describe('viewer exports', () => {
   });
 });
 
-
 it('keeps created-token supply out of DASH amounts in CSV and XLSX, preserving JSON token data', async () => {
   // Deliberately non-11-decimal token: supply is not an Identity credit balance.
   const state = {
-    mode: 'identity', network: 'mainnet',
-    snapshot: { inputKind: 'identifier', inputLabel: 'id', proofs: [], identities: [
-      { identifier: 'id', dpnsNames: [], publicKeys: [], balanceCredits: 123n, revision: 1n, nonce: 0n },
-    ] },
-    histories: [{ identifier: 'id', error: null, history: {
-      registeredAtMs: null, lastWithdrawalTimestampMs: null, indexedTimeMs: null,
-      aliases: [], activity: [], documents: [], dataContracts: [], withdrawals: [],
-      tokens: [{ identifier: 'token-id', totalSupply: 100000000000n, decimals: 2, timestampMs: null }],
-    } }],
+    mode: 'identity',
+    network: 'mainnet',
+    snapshot: {
+      inputKind: 'identifier',
+      inputLabel: 'id',
+      proofs: [],
+      identities: [{ identifier: 'id', dpnsNames: [], publicKeys: [], balanceCredits: 123n, revision: 1n, nonce: 0n }],
+    },
+    histories: [
+      {
+        identifier: 'id',
+        error: null,
+        history: {
+          registeredAtMs: null,
+          lastWithdrawalTimestampMs: null,
+          indexedTimeMs: null,
+          aliases: [],
+          activity: [],
+          documents: [],
+          dataContracts: [],
+          withdrawals: [],
+          tokens: [{ identifier: 'token-id', totalSupply: 100000000000n, decimals: 2, timestampMs: null }],
+        },
+      },
+    ],
   } as unknown as ViewerExportState;
   const [header, ...rows] = parseCsv(createViewerExport(state, 'csv', generatedAt).text);
-  const row = rows.find(row => row[header!.indexOf('record_type')] === 'token')!;
+  const row = rows.find((row) => row[header!.indexOf('record_type')] === 'token')!;
   for (const name of ['amount_atomic', 'amount_unit', 'amount_dash']) expect(row[header!.indexOf(name)]).toBe('');
   expect(row[header!.indexOf('metadata')]).toContain('total_supply=100000000000');
   expect(row[header!.indexOf('metadata')]).toContain('decimals=2');
   const workbook = await createViewerWorkbookExport(state, generatedAt);
   const files = unzipSync(new Uint8Array(await workbook.blob.arrayBuffer()));
-  const xml = Object.values(files).map(value => strFromU8(value)).join('');
+  const xml = Object.values(files)
+    .map((value) => strFromU8(value))
+    .join('');
   expect(xml).toContain('supply_unit=token atomic units');
   expect(xml).toContain('total_supply=100000000000');
   const json = JSON.parse(createViewerExport(state, 'json', generatedAt).text);

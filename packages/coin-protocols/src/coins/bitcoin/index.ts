@@ -1,7 +1,13 @@
 import { assertBatch, assertIndex, requirePrivate, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { bytesToHex, encodeWif, wipe } from '@ckd/core/crypto.js';
 import { getBitcoinNetwork } from '@ckd/core/networks.js';
-import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult, type ResultField } from '@ckd/core/types.js';
+import {
+  field,
+  paymentAddressField,
+  type Bip32BatchOptions,
+  type DerivationResult,
+  type ResultField,
+} from '@ckd/core/types.js';
 import { addDescriptorChecksum } from '@ckd/export/descriptor.js';
 import { deriveLegacyAddress } from './legacy.js';
 import { deriveNativeSegwitAddress } from './native-segwit.js';
@@ -29,13 +35,14 @@ function descriptorForAccount(
   branch: number,
 ): string {
   const key = `[${fingerprint}/${purpose}h/${coinType}h/${account}h]${accountXpub}/${branch}/*`;
-  const body = mode === 'legacy'
-    ? `pkh(${key})`
-    : mode === 'nested-segwit'
-      ? `sh(wpkh(${key}))`
-      : mode === 'native-segwit'
-        ? `wpkh(${key})`
-        : `tr(${key})`;
+  const body =
+    mode === 'legacy'
+      ? `pkh(${key})`
+      : mode === 'nested-segwit'
+        ? `sh(wpkh(${key}))`
+        : mode === 'native-segwit'
+          ? `wpkh(${key})`
+          : `tr(${key})`;
   return addDescriptorChecksum(body);
 }
 
@@ -107,7 +114,11 @@ export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): De
           field('internalPublicKey', 'Internal public key (x-only)', details.internalKeyHex),
           field('tapTweak', 'TapTweak hash', details.tapTweakHex),
           field('taprootOutputPublicKey', 'Taproot output public key (x-only)', details.outputKeyHex),
-          field('taprootOutputCompressedPublicKey', 'Taproot output compressed public key', details.outputCompressedPublicKeyHex),
+          field(
+            'taprootOutputCompressedPublicKey',
+            'Taproot output compressed public key',
+            details.outputCompressedPublicKeyHex,
+          ),
           field('taprootOutputPrivateKey', 'Taproot output private key (hex)', details.outputPrivateKeyHex, true),
           field('taprootOutputPrivateKeyWif', 'Taproot output private key (WIF)', details.outputPrivateKeyWif, true),
           field('scriptPubKey', 'scriptPubKey', details.scriptPubKeyHex),
@@ -151,9 +162,12 @@ export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): De
       basicSummary: [],
       summary,
       accountDescriptors: accountDescriptorExport({
-        script: mode === 'legacy' ? 'pkh' : mode === 'nested-segwit' ? 'sh-wpkh' : mode === 'native-segwit' ? 'wpkh' : 'tr',
-        fingerprint: masterFingerprint, accountPath,
-        publicKey: account.publicExtendedKey, privateKey: account.privateExtendedKey,
+        script:
+          mode === 'legacy' ? 'pkh' : mode === 'nested-segwit' ? 'sh-wpkh' : mode === 'native-segwit' ? 'wpkh' : 'tr',
+        fingerprint: masterFingerprint,
+        accountPath,
+        publicKey: account.publicExtendedKey,
+        privateKey: account.privateExtendedKey,
         fileStem: `bitcoin-${mode}-${options.network}-account-${options.account}`,
       }),
       watchOnly: {

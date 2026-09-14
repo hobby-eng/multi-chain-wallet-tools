@@ -36,7 +36,9 @@ for (const relativeSource of artifacts) {
 
 const verificationSource = resolve(dist, 'verification-record.json');
 if (!existsSync(verificationSource)) {
-  throw new Error('Verification record is missing. Run tooling/create-verification-record.mjs after building artifacts.');
+  throw new Error(
+    'Verification record is missing. Run tooling/create-verification-record.mjs after building artifacts.',
+  );
 }
 const verificationName = 'verification-record.json';
 const verificationBytes = readFileSync(verificationSource);

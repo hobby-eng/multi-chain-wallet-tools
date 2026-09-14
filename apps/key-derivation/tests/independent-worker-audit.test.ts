@@ -7,12 +7,18 @@ class FakeWorker {
   readonly requests: WorkerRequest[] = [];
   readonly listeners = new Map<string, (event: { data?: WorkerMessage; message?: string }) => void>();
   readonly terminate = vi.fn();
-  constructor() { FakeWorker.latest = this; }
+  constructor() {
+    FakeWorker.latest = this;
+  }
   addEventListener(type: string, listener: (event: { data?: WorkerMessage; message?: string }) => void): void {
     this.listeners.set(type, listener);
   }
-  postMessage(request: WorkerRequest): void { this.requests.push(request); }
-  reply(message: WorkerMessage): void { this.listeners.get('message')!({ data: message }); }
+  postMessage(request: WorkerRequest): void {
+    this.requests.push(request);
+  }
+  reply(message: WorkerMessage): void {
+    this.listeners.get('message')!({ data: message });
+  }
 }
 
 function client(ready = true): DerivationWorkerClient {
@@ -61,12 +67,24 @@ describe('independent derivation worker lifecycle audit', () => {
     try {
       const first = worker.deriveBip85(new Uint8Array(64).fill(1), { application: 'hex', bytes: 16, index: 0 });
       const second = worker.deriveBip85(new Uint8Array(64).fill(2), { application: 'hex', bytes: 16, index: 1 });
-      const ids = FakeWorker.latest.requests.map(request => request.id);
-      FakeWorker.latest.reply({ id: ids[1]!, ok: true, type: 'bip85', result: { kind: 'hex', path: 'second', value: '02' } });
-      FakeWorker.latest.reply({ id: ids[0]!, ok: true, type: 'bip85', result: { kind: 'hex', path: 'first', value: '01' } });
+      const ids = FakeWorker.latest.requests.map((request) => request.id);
+      FakeWorker.latest.reply({
+        id: ids[1]!,
+        ok: true,
+        type: 'bip85',
+        result: { kind: 'hex', path: 'second', value: '02' },
+      });
+      FakeWorker.latest.reply({
+        id: ids[0]!,
+        ok: true,
+        type: 'bip85',
+        result: { kind: 'hex', path: 'first', value: '01' },
+      });
       await expect(first).resolves.toMatchObject({ path: 'first' });
       await expect(second).resolves.toMatchObject({ path: 'second' });
-    } finally { worker.terminate(); }
+    } finally {
+      worker.terminate();
+    }
   });
 
   it('rejects every pending request on cancellation and ignores stale success replies', async () => {

@@ -1,21 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { findDerivedAddress } from '../src/address-search.js';
+import { findDerivedAddress } from '@ckd/recovery/address-search.js';
 import { field, type DerivationResult } from '@ckd/core/types.js';
 import type { RuntimeCoinAdapter } from '@ckd/coins/runtime-registry.js';
 
 function result(start: number, count: number): DerivationResult {
   return {
-    id: 'fake', title: 'Fake', networkLabel: 'Test', pathTemplate: 'm/i',
-    basicSummary: [], summary: [], notices: [],
+    id: 'fake',
+    title: 'Fake',
+    networkLabel: 'Test',
+    pathTemplate: 'm/i',
+    basicSummary: [],
+    summary: [],
+    notices: [],
     rows: Array.from({ length: count }, (_, offset) => {
       const index = start + offset;
-      return { index, title: `#${index}`, path: `m/${index}`, basic: [field('address', 'Address', `address-${index}`)], advanced: [] };
+      return {
+        index,
+        title: `#${index}`,
+        path: `m/${index}`,
+        basic: [field('address', 'Address', `address-${index}`)],
+        advanced: [],
+      };
     }),
   };
 }
 
 const adapter: RuntimeCoinAdapter = {
-  id: 'fake', group: 'Fake', label: 'Fake', variantLabel: 'Fake', networkControl: true,
+  id: 'fake',
+  group: 'Fake',
+  label: 'Fake',
+  variantLabel: 'Fake',
+  networkControl: true,
   defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 5 },
   limits: { startMax: 100 },
   batchSize: 3,
@@ -45,17 +60,22 @@ describe('bounded address verification search', () => {
 
   it('clears temporary result strings after each batch', async () => {
     const produced: DerivationResult[] = [];
-    const instrumented = { ...adapter, derive: ({ start, count }: { start: number; count: number }) => {
-      const batch = result(start, count);
-      batch.rows[0]!.groups = [{
-        key: 'keys',
-        title: 'Keys',
-        basic: [field('privateKey', 'Private key', 'group-secret-basic')],
-        advanced: [field('wif', 'WIF', 'group-secret-advanced')],
-      }];
-      produced.push(batch);
-      return batch;
-    } } satisfies RuntimeCoinAdapter;
+    const instrumented = {
+      ...adapter,
+      derive: ({ start, count }: { start: number; count: number }) => {
+        const batch = result(start, count);
+        batch.rows[0]!.groups = [
+          {
+            key: 'keys',
+            title: 'Keys',
+            basic: [field('privateKey', 'Private key', 'group-secret-basic')],
+            advanced: [field('wif', 'WIF', 'group-secret-advanced')],
+          },
+        ];
+        produced.push(batch);
+        return batch;
+      },
+    } satisfies RuntimeCoinAdapter;
     await findDerivedAddress(
       instrumented,
       { seed: new Uint8Array(64), network: 'mainnet', account: 0, branch: 0 },
@@ -68,11 +88,14 @@ describe('bounded address verification search', () => {
   });
 
   it('uses a fresh seed copy for every batch when an adapter zeroes its input boundary', async () => {
-    const zeroing = { ...adapter, derive: ({ seed, start, count }: { seed: Uint8Array; start: number; count: number }) => {
-      if (seed[0] !== 7) throw new Error('seed copy was not refreshed');
-      seed.fill(0);
-      return result(start, count);
-    } } satisfies RuntimeCoinAdapter;
+    const zeroing = {
+      ...adapter,
+      derive: ({ seed, start, count }: { seed: Uint8Array; start: number; count: number }) => {
+        if (seed[0] !== 7) throw new Error('seed copy was not refreshed');
+        seed.fill(0);
+        return result(start, count);
+      },
+    } satisfies RuntimeCoinAdapter;
     const sourceSeed = new Uint8Array(64).fill(7);
     const match = await findDerivedAddress(
       zeroing,
@@ -84,5 +107,53 @@ describe('bounded address verification search', () => {
     expect(match?.index).toBe(4);
     expect(sourceSeed.every((byte) => byte === 7)).toBe(true);
     sourceSeed.fill(0);
+  });
+
+  it('respects an inclusive range ending exactly on a batch boundary', async () => {
+    const calls: Array<{ start: number; count: number }> = [];
+    const instrumented = {
+      ...adapter,
+      derive: ({ start, count }: { start: number; count: number }) => {
+        calls.push({ start, count });
+        return result(start, count);
+      },
+    } satisfies RuntimeCoinAdapter;
+    await expect(
+      findDerivedAddress(
+        instrumented,
+        { seed: new Uint8Array(64), network: 'mainnet', account: 0, branch: 0 },
+        'missing',
+        0,
+        6,
+      ),
+    ).resolves.toBeNull();
+    expect(calls).toEqual([
+      { start: 0, count: 3 },
+      { start: 3, count: 3 },
+    ]);
+  });
+
+  it('stops before the next batch when cancellation is requested', async () => {
+    const controller = new AbortController();
+    let calls = 0;
+    const instrumented = {
+      ...adapter,
+      derive: ({ start, count }: { start: number; count: number }) => {
+        calls += 1;
+        if (calls === 1) controller.abort();
+        return result(start, count);
+      },
+    } satisfies RuntimeCoinAdapter;
+    await expect(
+      findDerivedAddress(
+        instrumented,
+        { seed: new Uint8Array(64), network: 'mainnet', account: 0, branch: 0 },
+        'missing',
+        0,
+        8,
+        controller.signal,
+      ),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(calls).toBe(1);
   });
 });

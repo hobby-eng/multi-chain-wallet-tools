@@ -1,10 +1,5 @@
 import { DIP17_PAYMENT_CHAINS } from '../dash/platform-paths.js';
-import {
-  BIP44_ADDRESS_BRANCHES,
-  indexRange,
-  TRANSPARENT_ROLES,
-  type CoinAdapter,
-} from '../registry-base.js';
+import { BIP44_ADDRESS_BRANCHES, indexRange, TRANSPARENT_ROLES, type CoinAdapter } from '../registry-base.js';
 
 export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
   {
@@ -43,7 +38,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     addressBranches: {
       receive: 0,
       change: 1,
-      help: "Also derives the internal/change cosigner public keys in a separate result tab. These are not single-signer payment addresses; they are inputs to shared P2SH multisig scripts.",
+      help: 'Also derives the internal/change cosigner public keys in a separate result tab. These are not single-signer payment addresses; they are inputs to shared P2SH multisig scripts.',
     },
     defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: {
@@ -65,8 +60,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     addressBranches: BIP44_ADDRESS_BRANCHES,
     defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: TRANSPARENT_ROLES,
-    pathPreview: ({ account, branch, start, count }) =>
-      `m/${account}'/${branch}/${indexRange(start, count)}`,
+    pathPreview: ({ account, branch, start, count }) => `m/${account}'/${branch}/${indexRange(start, count)}`,
   },
   {
     id: 'dash-platform',

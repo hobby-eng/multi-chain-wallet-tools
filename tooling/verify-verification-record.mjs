@@ -12,7 +12,9 @@ if (record.schemaVersion !== 1 || !Array.isArray(record.artifacts) || record.art
   throw new Error('Verification record has an unsupported schema or incomplete artifact list.');
 }
 for (const entry of [...record.artifacts, ...record.wasm]) {
-  const actual = createHash('sha256').update(readFileSync(resolve(root, entry.path))).digest('hex');
+  const actual = createHash('sha256')
+    .update(readFileSync(resolve(root, entry.path)))
+    .digest('hex');
   if (actual !== entry.sha256) throw new Error(`Verification record hash mismatch: ${entry.path}`);
 }
 const recordHash = createHash('sha256').update(bytes).digest('hex');

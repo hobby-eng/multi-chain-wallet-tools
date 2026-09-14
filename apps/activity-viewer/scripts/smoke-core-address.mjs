@@ -9,9 +9,8 @@ const network = process.argv[2] ?? 'mainnet';
 if (network !== 'mainnet' && network !== 'testnet') {
   throw new Error('DashScan smoke argument must be mainnet or testnet.');
 }
-const knownAddress = network === 'mainnet'
-  ? 'XnT33zjrFKjt3ymfyQZs2FPiKNer3WVj14'
-  : 'yPJr631fij5bHLpjMZgwK5hHCsHurSMhCB';
+const knownAddress =
+  network === 'mainnet' ? 'XnT33zjrFKjt3ymfyQZs2FPiKNer3WVj14' : 'yPJr631fij5bHLpjMZgwK5hHCsHurSMhCB';
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'derivationtool-dashscan-smoke-'));
 const output = join(temporaryDirectory, 'public-address.mjs');
 
@@ -34,9 +33,9 @@ try {
     throw new Error('DashScan smoke returned incomplete tip or transaction data.');
   }
   console.log(
-    `Live DashScan ${network} smoke passed: Core height ${snapshot.indexedHeight}; `
-      + `${snapshot.transactionCount} transactions reported; ${snapshot.transactions.length} loaded; `
-      + `${snapshot.requests} requests; ${Math.round(performance.now() - startedAt)} ms.`,
+    `Live DashScan ${network} smoke passed: Core height ${snapshot.indexedHeight}; ` +
+      `${snapshot.transactionCount} transactions reported; ${snapshot.transactions.length} loaded; ` +
+      `${snapshot.requests} requests; ${Math.round(performance.now() - startedAt)} ms.`,
   );
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });

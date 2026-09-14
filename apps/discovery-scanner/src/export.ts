@@ -16,7 +16,13 @@ function safeTimestamp(date = new Date()): string {
 
 function exportHistory(value: NonNullable<RecoveryWalletResult['sections'][number]['findings'][number]['history']>) {
   const history = validateHistory(value);
-  const { firstReceived: _firstReceived, lastReceived: _lastReceived, firstSpent: _firstSpent, lastSpent: _lastSpent, ...summary } = history;
+  const {
+    firstReceived: _firstReceived,
+    lastReceived: _lastReceived,
+    firstSpent: _firstSpent,
+    lastSpent: _lastSpent,
+    ...summary
+  } = history;
   return summary;
 }
 
@@ -48,9 +54,15 @@ function exportableResults(results: RecoveryWalletResult[]): RecoveryExportResul
         subtitle: finding.subtitle,
         balanceAtomic: finding.balanceAtomic?.toString() ?? null,
         balanceLabel: finding.balanceLabel,
-        ...(finding.balanceUnit === undefined ? {} : { balanceUnit: {
-          asset: finding.balanceUnit.asset, atomicUnit: finding.balanceUnit.atomicUnit, decimals: finding.balanceUnit.decimals,
-        } }),
+        ...(finding.balanceUnit === undefined
+          ? {}
+          : {
+              balanceUnit: {
+                asset: finding.balanceUnit.asset,
+                atomicUnit: finding.balanceUnit.atomicUnit,
+                decimals: finding.balanceUnit.decimals,
+              },
+            }),
         fields: finding.fields,
         ...(finding.history === undefined ? {} : { history: exportHistory(finding.history) }),
       })),
@@ -64,18 +76,38 @@ function csvCell(value: string): string {
 
 const CSV_FIELD_COLUMNS = [
   ['Scan family', 'scan_family', ['core', 'legacyCore', 'coinjoin', 'providerCollateral']],
-  ['Derivation path', 'derivation_path', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity', 'shielded']],
+  [
+    'Derivation path',
+    'derivation_path',
+    ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity', 'shielded'],
+  ],
   ['Branch', 'branch', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform']],
   ['Address index', 'address_index', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform']],
-  ['Transactions reported', 'transactions_reported', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity']],
+  [
+    'Transactions reported',
+    'transactions_reported',
+    ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity'],
+  ],
   ['Incoming credit events', 'incoming_credit_events', ['platform', 'identity']],
   ['Outgoing credit events', 'outgoing_credit_events', ['platform', 'identity']],
-  ['Lifetime received', 'lifetime_received_dash', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity']],
-  ['Lifetime sent', 'lifetime_sent_dash', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity']],
+  [
+    'Lifetime received',
+    'lifetime_received_dash',
+    ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity'],
+  ],
+  [
+    'Lifetime sent',
+    'lifetime_sent_dash',
+    ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity'],
+  ],
   ['Lifetime fees spent', 'lifetime_fees_spent_dash', ['identity']],
   ['First seen', 'first_seen', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity']],
   ['Last seen', 'last_seen', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity']],
-  ['Public-key hash', 'public_key_hash', ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity']],
+  [
+    'Public-key hash',
+    'public_key_hash',
+    ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity'],
+  ],
   ['Pool position', 'pool_position', ['shielded']],
   ['Spent at pool position', 'spent_at_pool_position', ['shielded']],
   ['Direction', 'direction', ['shielded']],
@@ -102,17 +134,25 @@ const CSV_SECTION_METRIC_COLUMNS = [
   ['Last activity pool position', 'section_last_activity_pool_position', false, ['shielded']],
 ] as const;
 
-function appliesToIncludedSection(sectionIds: readonly RecoverySectionId[], included: ReadonlySet<RecoverySectionId>): boolean {
+function appliesToIncludedSection(
+  sectionIds: readonly RecoverySectionId[],
+  included: ReadonlySet<RecoverySectionId>,
+): boolean {
   return sectionIds.some((sectionId) => included.has(sectionId));
 }
 
 function isDedicatedFieldLabel(label: string): boolean {
-  return CSV_FIELD_COLUMNS.some(([known]) => known === label)
-    || /derivation path$/iu.test(label)
-    || /public-key hash$/iu.test(label);
+  return (
+    CSV_FIELD_COLUMNS.some(([known]) => known === label) ||
+    /derivation path$/iu.test(label) ||
+    /public-key hash$/iu.test(label)
+  );
 }
 
-function fieldValue(fields: RecoveryWalletResult['sections'][number]['findings'][number]['fields'], label: string): string {
+function fieldValue(
+  fields: RecoveryWalletResult['sections'][number]['findings'][number]['fields'],
+  label: string,
+): string {
   if (label === 'Derivation path') return fields.find((field) => /derivation path$/iu.test(field.label))?.value ?? '';
   if (label === 'Public-key hash') return fields.find((field) => /public-key hash$/iu.test(field.label))?.value ?? '';
   return fields.find((field) => field.label === label)?.value ?? '';
@@ -127,7 +167,12 @@ function csvFieldValue(
   label: string,
 ): string {
   const value = fieldValue(fields, label);
-  return label === 'Lifetime received' || label === 'Lifetime sent' || label === 'Lifetime fees spent' || label === 'Note value' ? numericDash(value) : value;
+  return label === 'Lifetime received' ||
+    label === 'Lifetime sent' ||
+    label === 'Lifetime fees spent' ||
+    label === 'Note value'
+    ? numericDash(value)
+    : value;
 }
 
 function sectionMetricValue(
@@ -140,19 +185,39 @@ function sectionMetricValue(
 }
 
 const HISTORY_COLUMNS = [
-  ['status', 'history_status'], ['source', 'history_source'], ['scope', 'history_scope'], ['note', 'history_note'],
-  ['asset', 'history_asset'], ['atomicUnit', 'history_atomic_unit'], ['decimals', 'history_decimals'],
-  ['totalReceivedAtomic', 'total_received_atomic'], ['totalSentAtomic', 'total_sent_atomic'], ['totalFeesAtomic', 'total_fees_atomic'],
-  ['firstSeen', 'history_first_seen_utc'], ['lastSeen', 'history_last_seen_utc'],
-  ['transactionCount', 'history_transaction_count'], ['pendingTransactionCount', 'pending_transaction_count'],
+  ['status', 'history_status'],
+  ['source', 'history_source'],
+  ['scope', 'history_scope'],
+  ['note', 'history_note'],
+  ['asset', 'history_asset'],
+  ['atomicUnit', 'history_atomic_unit'],
+  ['decimals', 'history_decimals'],
+  ['totalReceivedAtomic', 'total_received_atomic'],
+  ['totalSentAtomic', 'total_sent_atomic'],
+  ['totalFeesAtomic', 'total_fees_atomic'],
+  ['firstSeen', 'history_first_seen_utc'],
+  ['lastSeen', 'history_last_seen_utc'],
+  ['transactionCount', 'history_transaction_count'],
+  ['pendingTransactionCount', 'pending_transaction_count'],
 ] as const;
-const HISTORY_AMOUNT_COLUMNS = [['totalReceivedAtomic', 'total_received'], ['totalSentAtomic', 'total_sent'], ['totalFeesAtomic', 'total_fees']] as const;
+const HISTORY_AMOUNT_COLUMNS = [
+  ['totalReceivedAtomic', 'total_received'],
+  ['totalSentAtomic', 'total_sent'],
+  ['totalFeesAtomic', 'total_fees'],
+] as const;
 
 function toCsv(results: RecoveryWalletResult[]): string {
-  const includedSections = new Set<RecoverySectionId>(results.flatMap((result) =>
-    result.sections.filter((section) => section.state !== 'skipped').map((section) => section.id)));
-  const fieldColumns = CSV_FIELD_COLUMNS.filter(([, , sectionIds]) => appliesToIncludedSection(sectionIds, includedSections));
-  const sectionMetricColumns = CSV_SECTION_METRIC_COLUMNS.filter(([, , , sectionIds]) => appliesToIncludedSection(sectionIds, includedSections));
+  const includedSections = new Set<RecoverySectionId>(
+    results.flatMap((result) =>
+      result.sections.filter((section) => section.state !== 'skipped').map((section) => section.id),
+    ),
+  );
+  const fieldColumns = CSV_FIELD_COLUMNS.filter(([, , sectionIds]) =>
+    appliesToIncludedSection(sectionIds, includedSections),
+  );
+  const sectionMetricColumns = CSV_SECTION_METRIC_COLUMNS.filter(([, , , sectionIds]) =>
+    appliesToIncludedSection(sectionIds, includedSections),
+  );
   const header = [
     'wallet_label',
     'coin',
@@ -162,7 +227,9 @@ function toCsv(results: RecoveryWalletResult[]): string {
     'resource',
     'description',
     'balance_atomic',
-    'balance_asset', 'balance_atomic_unit', 'balance_decimals',
+    'balance_asset',
+    'balance_atomic_unit',
+    'balance_decimals',
     'balance_dash',
     ...HISTORY_COLUMNS.map(([, column]) => column),
     ...HISTORY_AMOUNT_COLUMNS.map(([, column]) => column),
@@ -176,25 +243,31 @@ function toCsv(results: RecoveryWalletResult[]): string {
   for (const result of results) {
     for (const section of result.sections) {
       if (section.findings.length === 0) {
-        rows.push([
-          result.label,
-          result.coinLabel,
-          result.network,
-          section.title,
-          section.state,
-          '',
-          section.description,
-          '',
-          '', '', '',
-          '',
-          ...HISTORY_COLUMNS.map(() => ''),
-          ...HISTORY_AMOUNT_COLUMNS.map(() => ''),
-          ...fieldColumns.map(() => ''),
-          ...sectionMetricColumns.map(([label, , numeric]) => sectionMetricValue(section.metrics, label, numeric)),
-          section.warning ?? '',
-          [...result.warnings, ...(section.warning ? [section.warning] : [])].join(' | '),
-          section.proof,
-        ].map(csvCell).join(','));
+        rows.push(
+          [
+            result.label,
+            result.coinLabel,
+            result.network,
+            section.title,
+            section.state,
+            '',
+            section.description,
+            '',
+            '',
+            '',
+            '',
+            '',
+            ...HISTORY_COLUMNS.map(() => ''),
+            ...HISTORY_AMOUNT_COLUMNS.map(() => ''),
+            ...fieldColumns.map(() => ''),
+            ...sectionMetricColumns.map(([label, , numeric]) => sectionMetricValue(section.metrics, label, numeric)),
+            section.warning ?? '',
+            [...result.warnings, ...(section.warning ? [section.warning] : [])].join(' | '),
+            section.proof,
+          ]
+            .map(csvCell)
+            .join(','),
+        );
         continue;
       }
       for (const finding of section.findings) {
@@ -202,25 +275,41 @@ function toCsv(results: RecoveryWalletResult[]): string {
           .filter(({ label }) => !isDedicatedFieldLabel(label))
           .map(({ label, value }) => `${label}: ${value}`)
           .join(' | ');
-        rows.push([
-          result.label,
-          result.coinLabel,
-          result.network,
-          section.title,
-          section.state,
-          finding.title,
-          finding.subtitle,
-          finding.balanceAtomic?.toString() ?? '',
-          finding.balanceUnit?.asset ?? '', finding.balanceUnit?.atomicUnit ?? '', String(finding.balanceUnit?.decimals ?? ''),
-          numericDash(finding.balanceLabel),
-          ...HISTORY_COLUMNS.map(([key]) => String(finding.history?.[key] ?? '')),
-          ...HISTORY_AMOUNT_COLUMNS.map(([key]) => finding.history?.[key] == null ? '' : historyAmount(finding.history[key]!, finding.history).split(' ')[0]!),
-          ...fieldColumns.map(([label]) => label === 'First seen' && finding.history ? finding.history.firstSeen ?? '' : label === 'Last seen' && finding.history ? finding.history.lastSeen ?? '' : csvFieldValue(finding.fields, label)),
-          ...sectionMetricColumns.map(([label, , numeric]) => sectionMetricValue(section.metrics, label, numeric)),
-          metadata,
-          [...result.warnings, ...(section.warning ? [section.warning] : [])].join(' | '),
-          section.proof,
-        ].map(csvCell).join(','));
+        rows.push(
+          [
+            result.label,
+            result.coinLabel,
+            result.network,
+            section.title,
+            section.state,
+            finding.title,
+            finding.subtitle,
+            finding.balanceAtomic?.toString() ?? '',
+            finding.balanceUnit?.asset ?? '',
+            finding.balanceUnit?.atomicUnit ?? '',
+            String(finding.balanceUnit?.decimals ?? ''),
+            numericDash(finding.balanceLabel),
+            ...HISTORY_COLUMNS.map(([key]) => String(finding.history?.[key] ?? '')),
+            ...HISTORY_AMOUNT_COLUMNS.map(([key]) =>
+              finding.history?.[key] == null
+                ? ''
+                : historyAmount(finding.history[key]!, finding.history).split(' ')[0]!,
+            ),
+            ...fieldColumns.map(([label]) =>
+              label === 'First seen' && finding.history
+                ? (finding.history.firstSeen ?? '')
+                : label === 'Last seen' && finding.history
+                  ? (finding.history.lastSeen ?? '')
+                  : csvFieldValue(finding.fields, label),
+            ),
+            ...sectionMetricColumns.map(([label, , numeric]) => sectionMetricValue(section.metrics, label, numeric)),
+            metadata,
+            [...result.warnings, ...(section.warning ? [section.warning] : [])].join(' | '),
+            section.proof,
+          ]
+            .map(csvCell)
+            .join(','),
+        );
       }
     }
   }

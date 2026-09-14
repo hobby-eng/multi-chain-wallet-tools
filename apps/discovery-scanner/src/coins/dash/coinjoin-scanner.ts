@@ -11,25 +11,35 @@ export function scanDashCoinJoin(
   onProgress: (progress: RecoveryProgress) => void,
   onFinding: (finding: RecoveryFinding) => void,
 ): Promise<RecoverySection> {
-  return scanDashTransparentFamily(inputId, seed, config, gateway, signal, {
-    id: 'coinjoin',
-    title: 'Dash Mobile CoinJoin · DIP9',
-    familyLabel: 'Dash Mobile CoinJoin · DIP9',
-    description: 'Scans the released mobile/DashSync DIP9 CoinJoin compatibility chains. Dash Core desktop CoinJoin outputs remain covered by the always-on BIP44 receive/change scan.',
-    proofLabel: 'DIP9 mobile compatibility P2PKH scan',
-    branches: [
-      {
-        key: 'external',
-        label: 'External mobile/DashSync',
-        count: config.coinJoinExternalCount,
-        pathPrefix: (coinType: number) => `m/9'/${coinType}'/4'/${config.account}'/0`,
-      },
-      {
-        key: 'internal',
-        label: 'Internal defensive compatibility',
-        count: config.coinJoinInternalCount,
-        pathPrefix: (coinType: number) => `m/9'/${coinType}'/4'/${config.account}'/1`,
-      },
-    ].filter(({ count }) => count > 0),
-  }, onProgress, onFinding);
+  return scanDashTransparentFamily(
+    inputId,
+    seed,
+    config,
+    gateway,
+    signal,
+    {
+      id: 'coinjoin',
+      title: 'Dash Mobile CoinJoin · DIP9',
+      familyLabel: 'Dash Mobile CoinJoin · DIP9',
+      description:
+        'Scans the released mobile/DashSync DIP9 CoinJoin compatibility chains. Dash Core desktop CoinJoin outputs remain covered by the always-on BIP44 receive/change scan.',
+      proofLabel: 'DIP9 mobile compatibility P2PKH scan',
+      branches: [
+        {
+          key: 'external',
+          label: 'External mobile/DashSync',
+          count: config.coinJoinExternalCount,
+          pathPrefix: (coinType: number) => `m/9'/${coinType}'/4'/${config.account}'/0`,
+        },
+        {
+          key: 'internal',
+          label: 'Internal defensive compatibility',
+          count: config.coinJoinInternalCount,
+          pathPrefix: (coinType: number) => `m/9'/${coinType}'/4'/${config.account}'/1`,
+        },
+      ].filter(({ count }) => count > 0),
+    },
+    onProgress,
+    onFinding,
+  );
 }

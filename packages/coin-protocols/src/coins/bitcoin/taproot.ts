@@ -1,13 +1,6 @@
 import { schnorr } from '@noble/curves/secp256k1.js';
 import { bech32m } from '@scure/base';
-import {
-  bytesToHex,
-  bytesToNumber,
-  concatBytes,
-  encodeWif,
-  numberTo32Bytes,
-  secp256k1,
-} from '@ckd/core/crypto.js';
+import { bytesToHex, bytesToNumber, concatBytes, encodeWif, numberTo32Bytes, secp256k1 } from '@ckd/core/crypto.js';
 import type { BitcoinNetwork } from '@ckd/core/networks.js';
 
 export interface TaprootDetails {
@@ -24,7 +17,10 @@ export interface TaprootDetails {
 export function deriveTaprootAddress(
   childPublicKey: Uint8Array,
   network: BitcoinNetwork,
-): Pick<TaprootDetails, 'address' | 'internalKeyHex' | 'tapTweakHex' | 'outputKeyHex' | 'outputCompressedPublicKeyHex' | 'scriptPubKeyHex'> {
+): Pick<
+  TaprootDetails,
+  'address' | 'internalKeyHex' | 'tapTweakHex' | 'outputKeyHex' | 'outputCompressedPublicKeyHex' | 'scriptPubKeyHex'
+> {
   if (childPublicKey.length !== 33 || (childPublicKey[0] !== 0x02 && childPublicKey[0] !== 0x03)) {
     throw new Error('Taproot address derivation requires a compressed secp256k1 public key.');
   }
@@ -34,14 +30,9 @@ export function deriveTaprootAddress(
   const order = secp256k1.Point.Fn.ORDER;
   if (tweak >= order) throw new Error('Invalid Taproot tweak: value exceeds the curve order.');
   const internalPoint = schnorr.utils.lift_x(bytesToNumber(internalKey));
-  const outputPoint = tweak === 0n
-    ? internalPoint
-    : internalPoint.add(secp256k1.Point.BASE.multiply(tweak));
+  const outputPoint = tweak === 0n ? internalPoint : internalPoint.add(secp256k1.Point.BASE.multiply(tweak));
   const outputKey = numberTo32Bytes(outputPoint.x);
-  const outputCompressed = concatBytes(
-    Uint8Array.of((outputPoint.y & 1n) === 0n ? 0x02 : 0x03),
-    outputKey,
-  );
+  const outputCompressed = concatBytes(Uint8Array.of((outputPoint.y & 1n) === 0n ? 0x02 : 0x03), outputKey);
   return {
     address: bech32m.encode(network.bech32Hrp, [1, ...bech32m.toWords(outputKey)]),
     internalKeyHex: bytesToHex(internalKey),
@@ -53,10 +44,7 @@ export function deriveTaprootAddress(
 }
 
 /** BIP341 key-path TapTweak with an empty script tree, as used by BIP86. */
-export function deriveTaprootDetails(
-  childPrivateKey: Uint8Array,
-  network: BitcoinNetwork,
-): TaprootDetails {
+export function deriveTaprootDetails(childPrivateKey: Uint8Array, network: BitcoinNetwork): TaprootDetails {
   const childPublicKey = secp256k1.getPublicKey(childPrivateKey, true);
   const publicDetails = deriveTaprootAddress(childPublicKey, network);
   const internalKey = childPublicKey.slice(1);

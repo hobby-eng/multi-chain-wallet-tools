@@ -64,18 +64,23 @@ export function deriveDashLegacyMobile(options: Bip32BatchOptions): DerivationRe
       basicSummary: [],
       summary,
       accountDescriptors: accountDescriptorExport({
-        script: 'pkh', fingerprint: masterFingerprint, accountPath,
-        publicKey: account.publicExtendedKey, privateKey: account.privateExtendedKey,
+        script: 'pkh',
+        fingerprint: masterFingerprint,
+        accountPath,
+        publicKey: account.publicExtendedKey,
+        privateKey: account.privateExtendedKey,
         fileStem: `dash-legacy-mobile-${options.network}-account-${options.account}`,
         scannerPrefix: 'dash-legacy-xpub',
       }),
       rows,
       watchOnly: {
         label: 'Copy public scan key',
-        description: 'Import this labelled public key into Discovery Scanner to scan this legacy mobile branch. It cannot spend, but exposes branch addresses and activity.',
+        description:
+          'Import this labelled public key into Discovery Scanner to scan this legacy mobile branch. It cannot spend, but exposes branch addresses and activity.',
         text: `dash-legacy-xpub:${branch.publicExtendedKey}`,
         fileName: `dash-legacy-${options.network}-account-${options.account}-branch-${options.branch}.txt`,
-        mimeType: 'text/plain', privacySensitive: true,
+        mimeType: 'text/plain',
+        privacySensitive: true,
       },
       notices: [
         "Historical Dash Wallet/DashSync mobile path m/account'/branch/index. Account 0 is the historical default. Use it only for recovery of wallets that predate the BIP44 mobile default.",

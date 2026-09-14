@@ -8,23 +8,73 @@ class Control extends EventTarget {
   checked = false;
   disabled = false;
   open = false;
-  querySelectorAll(): Control[] { return []; }
-  click(): void { this.dispatchEvent(new Event('click')); }
+  querySelectorAll(): Control[] {
+    return [];
+  }
+  click(): void {
+    this.dispatchEvent(new Event('click'));
+  }
 }
 
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 async function fixture() {
   vi.stubGlobal('window', { addEventListener: vi.fn(), setTimeout: vi.fn(() => 0), clearTimeout: vi.fn() });
-  const names = ['document', 'form', 'mnemonic', 'passphrase', 'exportFormat', 'modeBasic', 'modeAdvanced',
-    'resultReceiveTab', 'resultChangeTab', 'resultCoinJoinTab', 'resultCoinJoinExternalTab', 'resultCoinJoinInternalTab',
-    'toggleSensitiveValues', 'toggleResultSecrets', 'copyMnemonicButton', 'copyWatchOnlyButton', 'downloadWatchOnlyButton', 'cancelDerivationButton',
-    'expectedAddress', 'searchStart', 'searchCount', 'searchAddressButton', 'generate12Button', 'generate15Button', 'generate18Button', 'generate21Button', 'generate24Button',
-    'clearAllButton', 'selectAllButton', 'selectNoneButton', 'selectInvertButton', 'messageSignerDialog',
-    'messageSignerMessage', 'signMessageButton', 'closeMessageSignerButton', 'messageSignatureOutput', 'copyMessageSignature'];
+  const names = [
+    'document',
+    'form',
+    'mnemonic',
+    'passphrase',
+    'exportFormat',
+    'modeBasic',
+    'modeAdvanced',
+    'resultReceiveTab',
+    'resultChangeTab',
+    'resultCoinJoinTab',
+    'resultCoinJoinExternalTab',
+    'resultCoinJoinInternalTab',
+    'toggleSensitiveValues',
+    'toggleResultSecrets',
+    'copyMnemonicButton',
+    'copyWatchOnlyButton',
+    'downloadWatchOnlyButton',
+    'cancelDerivationButton',
+    'expectedAddress',
+    'searchStart',
+    'searchCount',
+    'searchAddressButton',
+    'generate12Button',
+    'generate15Button',
+    'generate18Button',
+    'generate21Button',
+    'generate24Button',
+    'clearAllButton',
+    'selectAllButton',
+    'selectNoneButton',
+    'selectInvertButton',
+    'messageSignerDialog',
+    'messageSignerMessage',
+    'signMessageButton',
+    'closeMessageSignerButton',
+    'messageSignatureOutput',
+    'copyMessageSignature',
+  ];
   const fields = Object.fromEntries(names.map((name) => [name, new Control()]));
-  const controls = Object.fromEntries(['coin', 'protocolTabs', 'network', 'account', 'branchInput', 'branchSelect',
-    'includeChange', 'includeCoinJoin', 'includeLegacyMobile', 'start', 'count'].map((name) => [name, new Control()]));
+  const controls = Object.fromEntries(
+    [
+      'coin',
+      'protocolTabs',
+      'network',
+      'account',
+      'branchInput',
+      'branchSelect',
+      'includeChange',
+      'includeCoinJoin',
+      'includeLegacyMobile',
+      'start',
+      'count',
+    ].map((name) => [name, new Control()]),
+  );
   controls.network!.value = 'mainnet';
   controls.account!.value = controls.start!.value = '0';
   controls.count!.value = '1';
@@ -33,26 +83,56 @@ async function fixture() {
     if (!methods.has(key)) methods.set(key, vi.fn());
     return methods.get(key)!;
   };
-  const view = new Proxy({ ...fields, controls, descriptorButtons: {} }, {
-    get(target, key: string) { return key in target ? target[key as keyof typeof target] : method(key); },
-  }) as unknown as KeyDerivationView;
+  const view = new Proxy(
+    { ...fields, controls, descriptorButtons: {} },
+    {
+      get(target, key: string) {
+        return key in target ? target[key as keyof typeof target] : method(key);
+      },
+    },
+  ) as unknown as KeyDerivationView;
   let resolve!: (value: { signature: string; format: string; verified: boolean }) => void;
   let reject!: (error: Error) => void;
-  const pending = new Promise<{ signature: string; format: string; verified: boolean }>((yes, no) => { resolve = yes; reject = no; });
+  const pending = new Promise<{ signature: string; format: string; verified: boolean }>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
   const worker = { signMessage: vi.fn(() => pending), terminate: vi.fn() };
-  const result = { id: 'bitcoin-taproot', rows: [{ index: 0, path: "m/86'/0'/0'/0/0", basic: [], advanced: [] }], summary: [], basicSummary: [], notices: [] };
+  const result = {
+    id: 'bitcoin-taproot',
+    rows: [{ index: 0, path: "m/86'/0'/0'/0/0", basic: [], advanced: [] }],
+    summary: [],
+    basicSummary: [],
+    notices: [],
+  };
   const startup = { selfTest: async () => ({ passed: true, checks: [], durationMs: 0 }), terminate: vi.fn() };
   const derive = { ready: vi.fn(async () => {}), derive: async () => result, terminate: vi.fn() };
   const createWorker = vi.fn().mockReturnValueOnce(startup).mockReturnValueOnce(derive).mockReturnValue(worker);
-  const adapter = { id: 'bitcoin-taproot', variantLabel: 'BIP86', defaults: { branch: 0 },
-    addressBranches: { receive: 0, change: 1 }, fieldRoles: { addresses: ['address'], publicKeys: [], privateKeys: [] } };
+  const adapter = {
+    id: 'bitcoin-taproot',
+    variantLabel: 'BIP86',
+    defaults: { branch: 0 },
+    addressBranches: { receive: 0, change: 1 },
+    fieldRoles: { addresses: ['address'], publicKeys: [], privateKeys: [] },
+  };
   const seeds: Uint8Array[] = [];
   const dependencies = {
-    coinFamilies: [{ id: 'bitcoin', label: 'Bitcoin' }], getAdapterFamilyId: () => 'bitcoin',
-    getCoinAdapter: () => adapter, getDefaultCoinAdapter: () => adapter, buildInfo: {},
-    generateMnemonic: vi.fn(), mnemonicToSeed: () => { const seed = new Uint8Array(64).fill(7); seeds.push(seed); return seed; },
+    coinFamilies: [{ id: 'bitcoin', label: 'Bitcoin' }],
+    getAdapterFamilyId: () => 'bitcoin',
+    getCoinAdapter: () => adapter,
+    getDefaultCoinAdapter: () => adapter,
+    buildInfo: {},
+    generateMnemonic: vi.fn(),
+    mnemonicToSeed: () => {
+      const seed = new Uint8Array(64).fill(7);
+      seeds.push(seed);
+      return seed;
+    },
     runBip39SelfTest: () => ({ passed: true, checks: [], durationMs: 0 }),
-    writeClipboard: vi.fn(), downloadBlob: vi.fn(), downloadText: vi.fn(), createWorker,
+    writeClipboard: vi.fn(),
+    downloadBlob: vi.fn(),
+    downloadText: vi.fn(),
+    createWorker,
   } as unknown as Parameters<typeof createKeyDerivationController>[1];
   createKeyDerivationController(view, dependencies).start();
   await settle();
@@ -69,7 +149,10 @@ async function fixture() {
 }
 
 describe('message signing request lifecycle', () => {
-  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it.each(['close', 'cancel', 'clear', 'replace'] as const)('discards an obsolete success after %s', async (action) => {
     const f = await fixture();

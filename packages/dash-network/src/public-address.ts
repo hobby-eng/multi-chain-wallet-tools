@@ -264,7 +264,8 @@ async function queryDashScan(
   }
 
   const summary = object(summaryValue, 'address summary');
-  if (summary.address !== address) throw new Error('Core explorer returned a summary for a different or missing address.');
+  if (summary.address !== address)
+    throw new Error('Core explorer returned a summary for a different or missing address.');
   const balanceDuffs = exactDuffs(summary.balance, 'address balance');
   const totalReceivedDuffs = exactDuffs(summary.received, 'total received');
   const totalSentDuffs = exactDuffs(summary.sent, 'total sent');
@@ -291,26 +292,34 @@ async function queryDashScan(
     const isPending = (item: unknown): boolean => {
       if (item === null || typeof item !== 'object') return false;
       const tx = item as Record<string, unknown>;
-      return tx.blockHeight === null && tx.blockHash === null && tx.timestamp === null && (tx.confirmations === null || tx.confirmations === 0);
+      return (
+        tx.blockHeight === null &&
+        tx.blockHash === null &&
+        tx.timestamp === null &&
+        (tx.confirmations === null || tx.confirmations === 0)
+      );
     };
     const pendingRows = page.resultSet.filter(isPending);
     if (pageNumber !== 1 && pendingRows.length > 0) throw new Error('Unconfirmed history changed during pagination.');
-    if (pageNumber === 1) validateAddressHistoryPage(pendingRows, pendingRows.length, pendingRows.length, 1000, pendingIds);
-    pending.push(...pendingRows.map(item => transactionView(item, address)));
-    const items: unknown = page.resultSet.filter(item => !isPending(item));
+    if (pageNumber === 1)
+      validateAddressHistoryPage(pendingRows, pendingRows.length, pendingRows.length, 1000, pendingIds);
+    pending.push(...pendingRows.map((item) => transactionView(item, address)));
+    const items: unknown = page.resultSet.filter((item) => !isPending(item));
     const pagination = object(page.pagination, 'transaction pagination');
     const pageTotal = requiredInteger(pagination.total, 'transaction pagination total');
     if (paginationPendingOffset === null) {
-      const possibleOffsets = [...new Set([0, pendingRows.length])]
-        .filter(offset => pageTotal - offset === transactionCount);
+      const possibleOffsets = [...new Set([0, pendingRows.length])].filter(
+        (offset) => pageTotal - offset === transactionCount,
+      );
       if (possibleOffsets.length !== 1) {
         throw new Error('Address history changed during pagination or disagrees with its confirmed transaction count.');
       }
       paginationPendingOffset = possibleOffsets[0]!;
     }
     validateAddressHistoryPage(items, pageTotal - paginationPendingOffset, transactionCount, limit, seen);
-    if (items.some(item => pendingIds.has(String(item.hash).toLowerCase()))) throw new Error('A pending transaction changed confirmation state during pagination.');
-    const fullPage = items.map(item => transactionView(item, address));
+    if (items.some((item) => pendingIds.has(String(item.hash).toLowerCase())))
+      throw new Error('A pending transaction changed confirmation state during pagination.');
+    const fullPage = items.map((item) => transactionView(item, address));
     target = Math.min(transactionCount, historyLimit);
     const remaining = target - transactions.length;
     const parsed = fullPage.slice(0, remaining);

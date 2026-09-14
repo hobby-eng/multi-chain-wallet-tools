@@ -15,7 +15,9 @@ import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.m
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const { chromium, firefox } = await loadPlaywright();
-const output = process.env.BROWSER_OUTPUT_DIR ?? resolve(root, 'test-results/browser-regressions', new Date().toISOString().replaceAll(':', '-'));
+const output =
+  process.env.BROWSER_OUTPUT_DIR ??
+  resolve(root, 'test-results/browser-regressions', new Date().toISOString().replaceAll(':', '-'));
 mkdirSync(output, { recursive: true });
 // Trezor's official BIP39 English zero-entropy vector. Everything below is public test data.
 const mnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -24,33 +26,60 @@ const childPassphrase = 'browser-child-only';
 const encryptionPassphrase = 'browser-bip38-only';
 const message = 'Standalone browser regression: public synthetic wallet only';
 const parent = HDKey.fromMasterSeed(mnemonicToSeedSync(mnemonic, parentPassphrase));
-const childEntropy = hmac(sha512, new TextEncoder().encode('bip-entropy-from-k'), parent.derive("m/83696968'/39'/0'/12'/0'").privateKey).slice(0, 16);
+const childEntropy = hmac(
+  sha512,
+  new TextEncoder().encode('bip-entropy-from-k'),
+  parent.derive("m/83696968'/39'/0'/12'/0'").privateKey,
+).slice(0, 16);
 const childMnemonic = entropyToMnemonic(childEntropy, wordlist);
 const childKey = HDKey.fromMasterSeed(mnemonicToSeedSync(childMnemonic, childPassphrase)).derive("m/86'/0'/0'/0/0");
 const childAddress = p2tr(childKey.publicKey.slice(1)).address;
-const report = { startedAt: new Date().toISOString(), scope: 'Fresh isolated file:// contexts; public synthetic fixtures; no live providers, broadcasts, or real wallet data.', runs: [] };
-const save = () => writeFileSync(resolve(output, process.env.BROWSER_REPORT_NAME ?? 'report.json'), JSON.stringify(report, null, 2));
+const report = {
+  startedAt: new Date().toISOString(),
+  scope:
+    'Fresh isolated file:// contexts; public synthetic fixtures; no live providers, broadcasts, or real wallet data.',
+  runs: [],
+};
+const save = () =>
+  writeFileSync(resolve(output, process.env.BROWSER_REPORT_NAME ?? 'report.json'), JSON.stringify(report, null, 2));
 const artifact = (profile, tool) => resolve(root, 'dist', getToolBuild(profile, tool).artifactRelativePath);
-const waitText = (page, selector, pattern) => page.waitForFunction(
-  ({ selector, source }) => new RegExp(source).test(document.querySelector(selector)?.textContent ?? ''),
-  { selector, source: pattern.source }, { timeout: 120000 },
-);
-const values = (page, field) => page.locator(`#address-list [data-copy-field="${field}"]`).evaluateAll(
-  buttons => buttons.map(button => button.parentElement.querySelector('.value')?.textContent
-    ?? button.closest('.row')?.querySelector('.value')?.textContent),
-);
+const waitText = (page, selector, pattern) =>
+  page.waitForFunction(
+    ({ selector, source }) => new RegExp(source).test(document.querySelector(selector)?.textContent ?? ''),
+    { selector, source: pattern.source },
+    { timeout: 120000 },
+  );
+const values = (page, field) =>
+  page
+    .locator(`#address-list [data-copy-field="${field}"]`)
+    .evaluateAll((buttons) =>
+      buttons.map(
+        (button) =>
+          button.parentElement.querySelector('.value')?.textContent ??
+          button.closest('.row')?.querySelector('.value')?.textContent,
+      ),
+    );
 
 async function storageSnapshot(scope, run) {
   const snapshot = await scope.locator('body').evaluate(async () => {
     const result = {};
     for (const name of ['localStorage', 'sessionStorage']) {
-      try { result[name] = Object.fromEntries(Object.entries(window[name])); }
-      catch (error) { result[name] = error.name; }
+      try {
+        result[name] = Object.fromEntries(Object.entries(window[name]));
+      } catch (error) {
+        result[name] = error.name;
+      }
     }
-    try { result.caches = await caches.keys(); }
-    catch (error) { result.caches = error.name; }
-    try { result.cookie = document.cookie; }
-    catch (error) { result.cookie = error.name; }
+    try {
+      result.caches = await caches.keys();
+    } catch (error) {
+      result.caches = error.name;
+    }
+    try {
+      result.cookie = document.cookie;
+    } catch (error) {
+      result.cookie = error.name;
+    }
     return result;
   });
   // Chromium emits an additional undefined pageerror for databases() denied in
@@ -58,10 +87,13 @@ async function storageSnapshot(scope, run) {
   // specific, deliberately triggered event separate from application errors.
   if (run) run.probingOpaqueIndexedDB = snapshot.localStorage === 'SecurityError';
   snapshot.indexedDB = await scope.locator('body').evaluate(async () => {
-    try { return (await indexedDB.databases()).map(({ name, version }) => ({ name, version })); }
-    catch (error) { return error.name; }
+    try {
+      return (await indexedDB.databases()).map(({ name, version }) => ({ name, version }));
+    } catch (error) {
+      return error.name;
+    }
   });
-  await scope.locator('body').evaluate(() => new Promise(resolve => setTimeout(resolve, 50)));
+  await scope.locator('body').evaluate(() => new Promise((resolve) => setTimeout(resolve, 50)));
   if (run) run.probingOpaqueIndexedDB = false;
   return snapshot;
 }
@@ -69,17 +101,18 @@ async function storageSnapshot(scope, run) {
 async function open(context, profile, tool, run) {
   const page = await context.newPage();
   page.setDefaultTimeout(30000);
-  page.on('pageerror', error => {
+  page.on('pageerror', (error) => {
     const expectedProbeError = run.probingOpaqueIndexedDB && String(error) === 'undefined';
     (expectedProbeError ? (run.indexedDBProbeErrors ??= []) : run.pageErrors).push(String(error));
   });
-  page.on('console', entry => run.console.push({ type: entry.type(), text: entry.text() }));
+  page.on('console', (entry) => run.console.push({ type: entry.type(), text: entry.text() }));
   const path = artifact(profile, tool);
   run.artifacts[path] = createHash('sha256').update(readFileSync(path)).digest('hex');
   await page.goto(pathToFileURL(path).href);
   if (tool === 'key-derivation') await page.locator('#crypto-self-test-status.passed').waitFor();
   if (tool === 'activity-viewer') await page.locator('#viewer-crypto-self-test-status.passed').waitFor();
-  if (tool === 'discovery-scanner') await page.frameLocator('#recovery-secret-vault').locator('#recovery-self-test.passed').waitFor();
+  if (tool === 'discovery-scanner')
+    await page.frameLocator('#recovery-secret-vault').locator('#recovery-self-test.passed').waitFor();
   return page;
 }
 
@@ -93,8 +126,17 @@ async function verifySignature(page, address, signature, chain) {
   await waitText(page, '#verify-validity', /^VALID/);
   await page.locator('#verify-message').fill(`${message} tampered`);
   await page.locator('#verify-message-button').click();
-  await page.waitForFunction(() => !document.querySelector('#verify-error').hidden || (!document.querySelector('#verify-results').hidden && document.querySelector('#verify-validity').textContent.startsWith('INVALID')));
-  assert.equal(await page.locator('#verify-results').isVisible() && (await page.locator('#verify-validity').innerText()).startsWith('VALID'), false);
+  await page.waitForFunction(
+    () =>
+      !document.querySelector('#verify-error').hidden ||
+      (!document.querySelector('#verify-results').hidden &&
+        document.querySelector('#verify-validity').textContent.startsWith('INVALID')),
+  );
+  assert.equal(
+    (await page.locator('#verify-results').isVisible()) &&
+      (await page.locator('#verify-validity').innerText()).startsWith('VALID'),
+    false,
+  );
 }
 
 async function sign(page, selector) {
@@ -115,10 +157,12 @@ async function descriptorFollowup(context, profile, run) {
   const page = await open(context, profile, 'psbt-inspector', run);
   await page.locator('[data-mode="script"]').click();
   const g = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
-  const u = '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8';
-  const valid = profile.id === 'multi-chain'
-    ? `tr(musig(${parent.publicExtendedKey},${parent.deriveChild(1).publicExtendedKey})/<0;1>/*)`
-    : `sh(pkh(${u}))`;
+  const u =
+    '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8';
+  const valid =
+    profile.id === 'multi-chain'
+      ? `tr(musig(${parent.publicExtendedKey},${parent.deriveChild(1).publicExtendedKey})/<0;1>/*)`
+      : `sh(pkh(${u}))`;
   await page.locator('#script-input').fill(valid);
   await page.locator('#decode-script').click();
   await page.locator('#script-results').waitFor({ state: 'visible' });
@@ -138,13 +182,16 @@ async function verifierRevision(context, profile, run) {
   await page.locator('#verify-chain').selectOption('dash');
   await page.locator('#verify-address').fill('XmN7PQYWKn5MJFna5fRYgP6mxT2F7xpekE');
   await page.locator('#verify-message').fill('Dash verifier fixture');
-  await page.locator('#verify-signature').fill('IIeeVV8PxEmSnk2FqMTPAHtJdezmn2tXQhHq8q8fhFu6IXrYcwT6yi7hS42BcpoinL8nRwFFJPqPLXF3prJLWmc=');
+  await page
+    .locator('#verify-signature')
+    .fill('IIeeVV8PxEmSnk2FqMTPAHtJdezmn2tXQhHq8q8fhFu6IXrYcwT6yi7hS42BcpoinL8nRwFFJPqPLXF3prJLWmc=');
   await page.locator('#verify-message-button').click();
   await waitText(page, '#verify-validity', /^VALID/);
   await page.evaluate(() => {
     document.querySelector('#verify-message-button').click();
     const field = document.querySelector('#verify-message');
-    field.value = 'Changed claim'; field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.value = 'Changed claim';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await page.waitForTimeout(50);
   assert.equal(await page.locator('#verify-results').isVisible(), false);
@@ -166,7 +213,9 @@ async function verifierRevision(context, profile, run) {
       assert.equal(await page.locator('#builder-error').isVisible(), true);
     }
   }
-  run.checks.push('Verification results invalidated on edit/Clear; unsafe custom Tapscript keys rejected before showing an output');
+  run.checks.push(
+    'Verification results invalidated on edit/Clear; unsafe custom Tapscript keys rejected before showing an output',
+  );
 }
 
 async function boundaries(context, profile, tool, run) {
@@ -184,23 +233,36 @@ async function boundaries(context, profile, tool, run) {
     const before = await storageSnapshot(scope, run);
     const result = await scope.locator('body').evaluate(async () => {
       const violations = [];
-      document.addEventListener('securitypolicyviolation', event => violations.push(event.effectiveDirective));
+      document.addEventListener('securitypolicyviolation', (event) => violations.push(event.effectiveDirective));
       const script = document.createElement('script');
       script.textContent = 'window.__browserRegressionInlineExecuted = true';
       document.head.append(script);
       script.remove();
       let fetchAllowed = false;
-      try { await fetch('https://browser-regression.invalid/probe'); fetchAllowed = true; } catch {}
-      await new Promise(resolve => setTimeout(resolve, 50));
+      try {
+        await fetch('https://browser-regression.invalid/probe');
+        fetchAllowed = true;
+      } catch {}
+      await new Promise((resolve) => setTimeout(resolve, 50));
       let parentBlocked = null;
       if (window !== window.parent) {
-        try { void window.parent.document.body; parentBlocked = false; } catch { parentBlocked = true; }
+        try {
+          void window.parent.document.body;
+          parentBlocked = false;
+        } catch {
+          parentBlocked = true;
+        }
       }
-      return { inlineExecuted: window.__browserRegressionInlineExecuted === true, fetchAllowed, violations, parentBlocked };
+      return {
+        inlineExecuted: window.__browserRegressionInlineExecuted === true,
+        fetchAllowed,
+        violations,
+        parentBlocked,
+      };
     });
     assert.equal(result.inlineExecuted, false, 'Unhashed injected script executed');
     assert.equal(result.fetchAllowed, networked, 'Unexpected CSP network boundary');
-    assert.ok(result.violations.some(value => value.startsWith('script-src')));
+    assert.ok(result.violations.some((value) => value.startsWith('script-src')));
     if (!networked) assert.ok(result.violations.includes('connect-src'));
     if (index === 1) assert.equal(result.parentBlocked, true);
     assert.deepEqual(await storageSnapshot(scope, run), before);
@@ -208,7 +270,7 @@ async function boundaries(context, profile, tool, run) {
   }
   await page.reload();
   assert.deepEqual(await context.cookies(), []);
-  assert.equal(run.requests.filter(request => !request.url.endsWith('/probe')).length, 0);
+  assert.equal(run.requests.filter((request) => !request.url.endsWith('/probe')).length, 0);
 }
 
 async function childWallet(context, profile, run) {
@@ -229,7 +291,11 @@ async function childWallet(context, profile, run) {
   await page.locator('#bip85-wallet-tabs button').filter({ hasText: 'BIP86' }).click();
   await page.locator('#derive-bip85-wallet').click();
   await page.locator('#bip85-wallet-results').waitFor({ state: 'visible' });
-  await page.waitForFunction(expected => document.querySelector('#bip85-wallet-list [data-sign-address]')?.getAttribute('data-sign-address') === expected, childAddress);
+  await page.waitForFunction(
+    (expected) =>
+      document.querySelector('#bip85-wallet-list [data-sign-address]')?.getAttribute('data-sign-address') === expected,
+    childAddress,
+  );
   const proof = await sign(page, '#bip85-wallet-list [data-sign-message]');
   assert.equal(proof.address, childAddress);
   assert.equal(await page.locator('#mnemonic').inputValue(), mnemonic);
@@ -248,14 +314,18 @@ async function childWallet(context, profile, run) {
   assert.equal(await page.locator('#mnemonic').inputValue(), '');
   assert.equal(await page.locator('#passphrase').inputValue(), '');
   assert.equal(run.requests.length, 0);
-  run.checks.push('Auto-derived BIP85 exact child mnemonic; independent BIP86 address with distinct child passphrase; child signature accepted, changed message rejected; Clear/reload/storage/no HTTP');
+  run.checks.push(
+    'Auto-derived BIP85 exact child mnemonic; independent BIP86 address with distinct child passphrase; child signature accepted, changed message rejected; Clear/reload/storage/no HTTP',
+  );
 }
 
 async function workerReadiness(context, profile, run) {
   for (const action of ['clear', 'cancel', 'tab-switch']) {
     const page = await open(context, profile, 'key-derivation', run);
     let crashed = false;
-    page.on('crash', () => { crashed = true; });
+    page.on('crash', () => {
+      crashed = true;
+    });
     await page.locator('#count').fill('20');
     await page.locator('#mnemonic').fill(mnemonic);
     await page.evaluate((requestedAction) => {
@@ -290,7 +360,9 @@ async function coinJoin(context, profile, run) {
   await page.locator('#protocol-tabs [data-adapter-id]').first().click();
   await page.locator('#results').waitFor({ state: 'visible' });
   assert.equal(run.requests.length, 0);
-  run.checks.push('CoinJoin tab auto-derives visible external/internal results; distinct branch addresses; standard tab restores visible results');
+  run.checks.push(
+    'CoinJoin tab auto-derives visible external/internal results; distinct branch addresses; standard tab restores visible results',
+  );
 }
 
 async function bip38(context, profile, run) {
@@ -311,7 +383,7 @@ async function bip38(context, profile, run) {
   await waitText(page, '#bulk-bip38-status', /Encrypted 2 generated private keys/);
   const encrypted = await values(page, 'bip38EncryptedKey');
   assert.equal(new Set(encrypted).size, 2);
-  assert.ok(encrypted.every(value => /^6P/.test(value)));
+  assert.ok(encrypted.every((value) => /^6P/.test(value)));
   assert.equal(await page.locator('[data-copy-field="bip38EncryptedKey"]').first().isDisabled(), true);
   await page.locator('#toggle-result-secrets').click();
   assert.equal(await page.locator('[data-copy-field="bip38EncryptedKey"]').first().isEnabled(), true);
@@ -325,12 +397,20 @@ async function bip38(context, profile, run) {
   await verifier.locator('#decrypt-bip38').click();
   await waitText(verifier, '#bip38-progress', /Finished 2 keys · 2 recovered/);
   const recovered = await verifier.locator('.bip38-result-card').allTextContents();
-  assert.ok(addresses.every(address => recovered.some(text => text.includes(address))));
+  assert.ok(addresses.every((address) => recovered.some((text) => text.includes(address))));
   assert.equal(await verifier.locator('#bip38-password').inputValue(), '');
   assert.equal(await verifier.locator('[data-bip38-secret]').count(), 4);
-  assert.ok((await verifier.locator('[data-bip38-secret]').evaluateAll(inputs => inputs.map(input => input.type))).every(type => type === 'password'));
+  assert.ok(
+    (await verifier.locator('[data-bip38-secret]').evaluateAll((inputs) => inputs.map((input) => input.type))).every(
+      (type) => type === 'password',
+    ),
+  );
   await verifier.locator('#toggle-bip38-result').click();
-  assert.ok((await verifier.locator('[data-bip38-secret]').evaluateAll(inputs => inputs.map(input => input.type))).every(type => type === 'text'));
+  assert.ok(
+    (await verifier.locator('[data-bip38-secret]').evaluateAll((inputs) => inputs.map((input) => input.type))).every(
+      (type) => type === 'text',
+    ),
+  );
   await verifier.locator('#clear-bip38').click();
   assert.equal(await verifier.locator('[data-bip38-secret]').count(), 0);
   await verifier.locator('#bip38-encrypted-key').fill(encrypted.join('\n'));
@@ -348,14 +428,16 @@ async function bip38(context, profile, run) {
   assert.equal(await page.locator('#mnemonic').inputValue(), '');
   assert.equal(await verifier.locator('#bip38-encrypted-key').inputValue(), '');
   assert.equal(run.requests.length, 0);
-  run.checks.push(`${chain}: compact message valid/tampered verification; two-key BIP38 round trip and wrong-password batch; reveal gates; clear/reload/storage/no HTTP`);
+  run.checks.push(
+    `${chain}: compact message valid/tampered verification; two-key BIP38 round trip and wrong-password batch; reveal gates; clear/reload/storage/no HTTP`,
+  );
 }
 
 for (const browserName of (process.env.BROWSER_ENGINES ?? 'chromium,firefox').split(',')) {
   let browser;
   try {
     assert.ok({ chromium, firefox }[browserName], `Unknown engine ${browserName}`);
-    browser = await ({ chromium, firefox }[browserName]).launch({
+    browser = await { chromium, firefox }[browserName].launch({
       headless: process.env.HEADED !== '1',
       executablePath: process.env[`${browserName.toUpperCase()}_EXECUTABLE_PATH`],
     });
@@ -367,19 +449,34 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? 'chromium,firefox').sp
   try {
     for (const profile of Object.values(BUILD_PROFILES)) {
       if (process.env.BROWSER_PROFILE && process.env.BROWSER_PROFILE !== profile.id) continue;
-      const cases = profileToolIds(profile).map(tool => [`${tool}-boundaries`, (context, run) => boundaries(context, profile, tool, run)]);
+      const cases = profileToolIds(profile).map((tool) => [
+        `${tool}-boundaries`,
+        (context, run) => boundaries(context, profile, tool, run),
+      ]);
       cases.push(['descriptor-followup', (context, run) => descriptorFollowup(context, profile, run)]);
       cases.push(['verifier-revision', (context, run) => verifierRevision(context, profile, run)]);
       cases.push(['worker-readiness', (context, run) => workerReadiness(context, profile, run)]);
       cases.push(['coinjoin', (context, run) => coinJoin(context, profile, run)]);
       cases.push(['bip38-message', (context, run) => bip38(context, profile, run)]);
-      if (profile.id === 'multi-chain') cases.push(['bip85-child-signer', (context, run) => childWallet(context, profile, run)]);
+      if (profile.id === 'multi-chain')
+        cases.push(['bip85-child-signer', (context, run) => childWallet(context, profile, run)]);
       for (const [name, test] of cases) {
         if (process.env.BROWSER_CASES && !process.env.BROWSER_CASES.split(',').includes(name)) continue;
-        const run = { browser: browserName, version: browser.version(), profile: profile.id, name, passed: false, artifacts: {}, checks: [], requests: [], pageErrors: [], console: [] };
+        const run = {
+          browser: browserName,
+          version: browser.version(),
+          profile: profile.id,
+          name,
+          passed: false,
+          artifacts: {},
+          checks: [],
+          requests: [],
+          pageErrors: [],
+          console: [],
+        };
         report.runs.push(run);
         const context = await browser.newContext();
-        await context.route(/^https?:\/\//, async route => {
+        await context.route(/^https?:\/\//, async (route) => {
           run.requests.push({ url: route.request().url(), body: route.request().postData() });
           if (route.request().url() === 'https://browser-regression.invalid/probe') {
             await route.fulfill({ json: {}, headers: { 'access-control-allow-origin': '*' } });
@@ -393,17 +490,26 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? 'chromium,firefox').sp
         } catch (error) {
           run.error = String(error.stack ?? error);
           for (const [index, page] of context.pages().entries()) {
-            await page.screenshot({ path: resolve(output, `${browserName}-${profile.id}-${name}-${index}.png`), fullPage: true }).catch(() => {});
+            await page
+              .screenshot({
+                path: resolve(output, `${browserName}-${profile.id}-${name}-${index}.png`),
+                fullPage: true,
+              })
+              .catch(() => {});
           }
         } finally {
           await context.close();
           save();
         }
-        console.log(`${run.passed ? 'PASS' : 'FAIL'} ${browserName} ${profile.id} ${name}${run.error ? `: ${run.error.split('\n')[0]}` : ''}`);
+        console.log(
+          `${run.passed ? 'PASS' : 'FAIL'} ${browserName} ${profile.id} ${name}${run.error ? `: ${run.error.split('\n')[0]}` : ''}`,
+        );
       }
     }
-  } finally { await browser.close(); }
+  } finally {
+    await browser.close();
+  }
 }
 save();
 console.log(`Regression report: ${output}`);
-if (report.runs.length === 0 || report.runs.some(run => !run.passed)) process.exitCode = 1;
+if (report.runs.length === 0 || report.runs.some((run) => !run.passed)) process.exitCode = 1;

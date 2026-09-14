@@ -10,7 +10,11 @@ class TestControl extends EventTarget {
   textContent = '';
   readonly listeners = new Map<string, number>();
 
-  override addEventListener(type: string, callback: EventListenerOrEventListenerObject | null, options?: AddEventListenerOptions | boolean): void {
+  override addEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    options?: AddEventListenerOptions | boolean,
+  ): void {
     this.listeners.set(type, (this.listeners.get(type) ?? 0) + 1);
     super.addEventListener(type, callback, options);
   }
@@ -91,7 +95,12 @@ describe('Key Derivation controller', () => {
       toggleSensitiveValues: new TestControl(),
       toggleResultSecrets: new TestControl(),
       copyMnemonicButton: new TestControl(),
-      descriptorButtons: Object.fromEntries(['scanner','publicCopy','publicDownload','privateCopy','privateDownload'].map(key => [key, new TestControl()])),
+      descriptorButtons: Object.fromEntries(
+        ['scanner', 'publicCopy', 'publicDownload', 'privateCopy', 'privateDownload'].map((key) => [
+          key,
+          new TestControl(),
+        ]),
+      ),
       copyWatchOnlyButton: new TestControl(),
       downloadWatchOnlyButton: new TestControl(),
       cancelDerivationButton: new TestControl(),

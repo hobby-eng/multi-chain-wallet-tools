@@ -20,7 +20,7 @@ export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult
   assertIndex(options.account, 'Account');
   assertIndex(options.branch, 'Key class');
   if (!DIP17_PAYMENT_CHAINS.some(({ keyClass }) => keyClass === options.branch)) {
-    throw new Error("DIP17 Platform payment key class must be 0 (receive) or 1 (internal/change).");
+    throw new Error('DIP17 Platform payment key class must be 0 (receive) or 1 (internal/change).');
   }
   assertBatch(options.start, options.count);
 

@@ -68,9 +68,10 @@ const {
 function transitionView(value: unknown): PlatformAddressTransition {
   const transition = object(value, 'address transition');
   const timestampMs = typeof transition.timestamp === 'string' ? Date.parse(transition.timestamp) : Number.NaN;
-  const gasUsed = transition.gasUsed === null || transition.gasUsed === undefined
-    ? null
-    : exactCredits(transition.gasUsed, 'transition gas');
+  const gasUsed =
+    transition.gasUsed === null || transition.gasUsed === undefined
+      ? null
+      : exactCredits(transition.gasUsed, 'transition gas');
   return {
     hash: typeof transition.hash === 'string' ? transition.hash : 'unknown',
     incoming: transition.incoming === true,

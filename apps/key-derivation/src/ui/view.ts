@@ -13,6 +13,7 @@ import { resultBranchGroup, type BranchResultState, type ResultBranch } from './
 import { renderResults, updateSecretVisibility, type ResultsRenderOptions } from './results.js';
 import { clearDerivationResult, clearRenderedSecrets } from './secrets.js';
 import type { MnemonicDiagnostic } from '@ckd/core/bip39.js';
+import type { AddressSearchViewElements } from './address-search-feature.js';
 
 type DocumentAction =
   | { kind: 'bulk'; button: HTMLButtonElement; action: ExportAction }
@@ -31,7 +32,11 @@ function requireElement<T extends Element>(document: Document, selector: string)
   return match;
 }
 
-export function createKeyDerivationView(document: Document, registry: CoinMetadataRegistry) {
+export function createKeyDerivationView(
+  document: Document,
+  registry: CoinMetadataRegistry,
+  addressSearch?: AddressSearchViewElements,
+) {
   const required = <T extends Element>(selector: string): T => requireElement<T>(document, selector);
   const controls: DerivationControls = {
     coin: required<HTMLSelectElement>('#coin'),
@@ -106,8 +111,8 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const descriptorDescription = required<HTMLElement>('#account-descriptor-description');
   const watchOnlyPanel = required<HTMLElement>('#watch-only-export');
   const watchOnlyDescription = required<HTMLElement>('#watch-only-description');
-  const searchAddressButton = required<HTMLButtonElement>('#search-address');
-  const addressSearchPanel = required<HTMLElement>('#address-search');
+  const searchAddressButton = addressSearch?.button ?? null;
+  const addressSearchPanel = addressSearch?.panel ?? null;
   const selfTestStatus = required<HTMLElement>('#crypto-self-test-status');
   const selfTestDetails = required<HTMLElement>('#crypto-self-test-details');
   const workerRuntime = required<HTMLElement>('#worker-runtime');
@@ -117,10 +122,10 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const generate21Button = required<HTMLButtonElement>('#generate-21');
   const generate24Button = required<HTMLButtonElement>('#generate-24');
   const cancelDerivationButton = required<HTMLButtonElement>('#cancel-derivation');
-  const expectedAddress = required<HTMLInputElement>('#expected-address');
-  const searchStart = required<HTMLInputElement>('#search-start');
-  const searchCount = required<HTMLInputElement>('#search-count');
-  const searchResult = required<HTMLElement>('#search-result');
+  const expectedAddress = addressSearch?.expectedAddress ?? null;
+  const searchStart = addressSearch?.searchStart ?? null;
+  const searchCount = addressSearch?.searchCount ?? null;
+  const searchResult = addressSearch?.result ?? null;
   const messageSignerDialog = required<HTMLDialogElement>('#message-signer-dialog');
   const messageSignerAddress = required<HTMLElement>('#message-signer-address');
   const messageSignerPath = required<HTMLElement>('#message-signer-path');
@@ -135,12 +140,13 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const copyMessageSignature = required<HTMLButtonElement>('#copy-message-signature');
   const temporaryButtonLabels = new WeakMap<HTMLButtonElement, string>();
   let cryptoControlsEnabled = false;
-  let addressSearchAvailable = true;
+  let addressSearchAvailable = searchAddressButton !== null && addressSearchPanel !== null;
 
   return {
     document,
     required,
     controls,
+    addressSearch,
     form: required<HTMLFormElement>('#derive-form'),
     mnemonic,
     passphrase,
@@ -255,9 +261,9 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     },
     configureControls(adapter: CoinAdapter, values?: DerivationControlValues): void {
       configureControls(adapter, controls, registry, values);
-      addressSearchAvailable = adapter.fieldRoles.addresses.length > 0;
-      addressSearchPanel.hidden = !addressSearchAvailable;
-      searchAddressButton.disabled = !cryptoControlsEnabled || !addressSearchAvailable;
+      addressSearchAvailable = searchAddressButton !== null && addressSearchPanel !== null;
+      if (addressSearchPanel !== null) addressSearchPanel.hidden = false;
+      if (searchAddressButton !== null) searchAddressButton.disabled = !cryptoControlsEnabled;
     },
     updatePathPreview(adapter: CoinAdapter): void {
       updatePathPreview(adapter, controls);
@@ -311,20 +317,23 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       temporaryButtonLabels.delete(button);
     },
     hideSearchResult(): void {
-      searchResult.hidden = true;
+      if (searchResult !== null) searchResult.hidden = true;
     },
     showSearchResult(message: string, matched: boolean): void {
+      if (searchResult === null) return;
       searchResult.textContent = message;
       searchResult.classList.toggle('search-match', matched);
       searchResult.hidden = false;
     },
     setSearchRunning(running: boolean): void {
       if (running) {
+        if (searchAddressButton === null) return;
         temporaryButtonLabels.set(searchAddressButton, searchAddressButton.textContent ?? '');
         searchAddressButton.disabled = true;
         searchAddressButton.textContent = 'Searching…';
         return;
       }
+      if (searchAddressButton === null) return;
       searchAddressButton.disabled = !cryptoControlsEnabled || !addressSearchAvailable;
       const previous = temporaryButtonLabels.get(searchAddressButton);
       if (previous !== undefined) searchAddressButton.textContent = previous;
@@ -338,11 +347,11 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     clearAllInputs(): void {
       mnemonic.value = '';
       passphrase.value = '';
-      expectedAddress.value = '';
-      searchStart.value = '0';
-      searchCount.value = '100';
-      searchResult.replaceChildren();
-      searchResult.hidden = true;
+      if (expectedAddress !== null) expectedAddress.value = '';
+      if (searchStart !== null) searchStart.value = '0';
+      if (searchCount !== null) searchCount.value = '100';
+      searchResult?.replaceChildren();
+      if (searchResult !== null) searchResult.hidden = true;
       mnemonic.focus();
     },
     scrollResultWindowIntoView(): void {
@@ -377,16 +386,30 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       const checks = document.createElement('div');
       checks.className = 'seed-diagnostic-checks';
       checks.append(
-        status(diagnostic.wordCountValid, `${diagnostic.wordCount} words`, `${diagnostic.wordCount} words · expected 12, 15, 18, 21, or 24`),
-        status(diagnostic.allWordsKnown, 'All words in BIP39 English list', 'One or more words are not in the BIP39 English list'),
-        status(diagnostic.checksumValid, 'Checksum valid', diagnostic.allWordsKnown && diagnostic.wordCountValid ? 'Checksum invalid' : 'Checksum cannot be checked yet'),
+        status(
+          diagnostic.wordCountValid,
+          `${diagnostic.wordCount} words`,
+          `${diagnostic.wordCount} words · expected 12, 15, 18, 21, or 24`,
+        ),
+        status(
+          diagnostic.allWordsKnown,
+          'All words in BIP39 English list',
+          'One or more words are not in the BIP39 English list',
+        ),
+        status(
+          diagnostic.checksumValid,
+          'Checksum valid',
+          diagnostic.allWordsKnown && diagnostic.wordCountValid ? 'Checksum invalid' : 'Checksum cannot be checked yet',
+        ),
         status(true, 'NFKD normalized', 'NFKD normalization unavailable'),
       );
       const metrics = document.createElement('dl');
       metrics.className = 'seed-diagnostic-metrics';
       const metric = (labelText: string, valueText: string, conceal = false): void => {
-        const term = document.createElement('dt'); term.textContent = labelText;
-        const value = document.createElement('dd'); value.textContent = conceal && !revealed ? '••••••••' : valueText;
+        const term = document.createElement('dt');
+        term.textContent = labelText;
+        const value = document.createElement('dd');
+        value.textContent = conceal && !revealed ? '••••••••' : valueText;
         metrics.append(term, value);
       };
       if (diagnostic.entropyBits !== null && diagnostic.checksumBits !== null) {
@@ -462,11 +485,14 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       const activeGroup = resultBranchGroup(activeBranch);
       coinJoinBranchTabs.hidden = !hasCoinJoin || activeGroup !== 'coinjoin';
       if (result !== null) {
-        const suffix = activeGroup === 'receive'
-          ? hasChange || hasCoinJoin ? ' · Receive addresses' : ''
-          : activeGroup === 'change'
-            ? ' · Change addresses'
-            : '';
+        const suffix =
+          activeGroup === 'receive'
+            ? hasChange || hasCoinJoin
+              ? ' · Receive addresses'
+              : ''
+            : activeGroup === 'change'
+              ? ' · Change addresses'
+              : '';
         resultTitle.textContent = `${result.title}${suffix}`;
       }
       for (const [button, branch] of [
@@ -521,11 +547,14 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
           continue;
         }
         const action = (button.dataset.bulk ?? button.dataset.download) as ExportAction;
-        const roleKeys = action === 'addresses'
-          ? adapter.fieldRoles.addresses
-          : action === 'publicKeys'
-            ? adapter.fieldRoles.publicKeys
-            : action === 'privateKeys' ? adapter.fieldRoles.privateKeys : null;
+        const roleKeys =
+          action === 'addresses'
+            ? adapter.fieldRoles.addresses
+            : action === 'publicKeys'
+              ? adapter.fieldRoles.publicKeys
+              : action === 'privateKeys'
+                ? adapter.fieldRoles.privateKeys
+                : null;
         let hasValue = false;
         let containsSecret = false;
         for (const row of result.rows) {
@@ -545,11 +574,15 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       const descriptors = result?.accountDescriptors;
       descriptorPanel.hidden = descriptors === undefined;
       if (descriptors === undefined && descriptorDialog.open) descriptorDialog.close();
-      descriptorDescription.textContent = descriptors === undefined ? '' : `${result!.title} · ${result!.networkLabel} · account ${descriptors.accountPath}`;
+      descriptorDescription.textContent =
+        descriptors === undefined
+          ? ''
+          : `${result!.title} · ${result!.networkLabel} · account ${descriptors.accountPath}`;
       for (const [action, button] of Object.entries(descriptorButtons)) {
         const privateExport = action === 'privateCopy' || action === 'privateDownload';
         button.disabled = descriptors === undefined || (privateExport && !revealed);
-        button.title = privateExport && !revealed ? 'Reveal sensitive values before exporting private descriptors.' : '';
+        button.title =
+          privateExport && !revealed ? 'Reveal sensitive values before exporting private descriptors.' : '';
       }
       const watchOnly = descriptors === undefined ? result?.watchOnly : undefined;
       watchOnlyPanel.hidden = watchOnly === undefined;
@@ -601,7 +634,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     setCryptoControlsEnabled(enabled: boolean): void {
       cryptoControlsEnabled = enabled;
       deriveButton.disabled = !enabled;
-      searchAddressButton.disabled = !enabled || !addressSearchAvailable;
+      if (searchAddressButton !== null) searchAddressButton.disabled = !enabled || !addressSearchAvailable;
       for (const button of [generate12Button, generate15Button, generate18Button, generate21Button, generate24Button]) {
         button.disabled = !enabled;
       }
@@ -625,13 +658,12 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       return target.closest<HTMLButtonElement>('[data-adapter-id]')?.dataset.adapterId;
     },
     protocolAdapterIds(): string[] {
-      return [...controls.protocolTabs.querySelectorAll<HTMLButtonElement>('[data-adapter-id]')]
-        .flatMap((button) => button.dataset.adapterId ?? []);
+      return [...controls.protocolTabs.querySelectorAll<HTMLButtonElement>('[data-adapter-id]')].flatMap(
+        (button) => button.dataset.adapterId ?? [],
+      );
     },
     focusProtocolButton(adapterId: string): void {
-      controls.protocolTabs
-        .querySelector<HTMLButtonElement>(`[data-adapter-id="${adapterId}"]`)
-        ?.focus();
+      controls.protocolTabs.querySelector<HTMLButtonElement>(`[data-adapter-id="${adapterId}"]`)?.focus();
     },
     resultBranchEnabled(branch: ResultBranch): boolean {
       return !branchTabButtons[branch].disabled;

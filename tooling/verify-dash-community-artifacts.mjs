@@ -45,13 +45,10 @@ function registeredAdapterViolations(html) {
 
 export function findDashArtifactViolations(html) {
   const protocolNeutralHtml = html.replace(/(['"`])Bitcoin seed\1/gu, '');
-  const lexicalViolations = DASH_FORBIDDEN_ARTIFACT_PATTERNS
-    .filter(([pattern]) => pattern.test(protocolNeutralHtml))
-    .map(([, label]) => label);
-  return [...new Set([
-    ...lexicalViolations,
-    ...registeredAdapterViolations(protocolNeutralHtml),
-  ])];
+  const lexicalViolations = DASH_FORBIDDEN_ARTIFACT_PATTERNS.filter(([pattern]) =>
+    pattern.test(protocolNeutralHtml),
+  ).map(([, label]) => label);
+  return [...new Set([...lexicalViolations, ...registeredAdapterViolations(protocolNeutralHtml)])];
 }
 
 const DASH_INSPECTOR_SHARED_DECODER_ALLOWLIST = [
@@ -84,7 +81,8 @@ export function findDashInspectorArtifactViolations(html) {
     [/keyAggregate/u, 'Bitcoin MuSig2 aggregation implementation'],
     [/\bethereum\b/iu, 'Ethereum code or copy'],
     [/\b(?:BIP49|BIP84|BIP86|EIP-55|P2SH-P2WPKH|Ethereum EOA)\b/u, 'non-Dash protocol implementation'],
-  ]) if (pattern.test(html)) violations.push(label);
+  ])
+    if (pattern.test(html)) violations.push(label);
   return [...new Set(violations)];
 }
 
@@ -106,9 +104,8 @@ export function verifyDashCommunityArtifacts(projectRoot = root) {
         throw new Error(`${tool.artifactName} is missing Dash Community marker: ${marker}`);
       }
     }
-    const violations = toolId === 'psbt-inspector'
-      ? findDashInspectorArtifactViolations(html)
-      : findDashArtifactViolations(html);
+    const violations =
+      toolId === 'psbt-inspector' ? findDashInspectorArtifactViolations(html) : findDashArtifactViolations(html);
     if (violations.length > 0) {
       throw new Error(
         `${tool.artifactName} contains forbidden non-Dash adapter, registration, or user-facing copy: ${violations.join(', ')}`,
@@ -123,7 +120,14 @@ export function verifyDashCommunityArtifacts(projectRoot = root) {
 
   const keyTool = getToolBuild(profile, 'key-derivation');
   const keyArtifact = readFileSync(resolve(projectRoot, 'dist', keyTool.artifactRelativePath), 'utf8');
-  for (const adapterId of ['dash-core', 'dash-legacy-mobile', 'dash-platform', 'dash-identity', 'dash-multisig-p2sh', 'dash-shielded']) {
+  for (const adapterId of [
+    'dash-core',
+    'dash-legacy-mobile',
+    'dash-platform',
+    'dash-identity',
+    'dash-multisig-p2sh',
+    'dash-shielded',
+  ]) {
     if (!keyArtifact.includes(adapterId)) {
       throw new Error(`Dash Community key derivation artifact omitted ${adapterId}.`);
     }

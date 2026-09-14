@@ -8,7 +8,7 @@ import type { ShieldedPage } from '@ckd/dash-network/types.js';
 import type { NormalizedViewingKey } from '@ckd/dash-network/viewing-key.js';
 import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import { SecretEgressGuard, disposeSecretBytes } from '../../secret-guard.js';
+import { SecretEgressGuard, disposeSecretBytes } from '@ckd/secret-boundary/secret-guard.js';
 import type {
   RecoveryFinding,
   RecoveryNetwork,
@@ -88,12 +88,15 @@ async function fetchShieldedPage(
   position: bigint,
   signal: AbortSignal,
 ): Promise<ShieldedPage> {
-  return validateShieldedPage(await gateway.runPublic(
-    { network, startPosition: position.toString(), count: PAGE_SIZE },
-    'shielded.page',
-    () => gateway.networkApi.shieldedPage(network, position.toString(), PAGE_SIZE, signal),
-    signal,
-  ), PAGE_SIZE);
+  return validateShieldedPage(
+    await gateway.runPublic(
+      { network, startPosition: position.toString(), count: PAGE_SIZE },
+      'shielded.page',
+      () => gateway.networkApi.shieldedPage(network, position.toString(), PAGE_SIZE, signal),
+      signal,
+    ),
+    PAGE_SIZE,
+  );
 }
 
 function deriveViewingKey(
@@ -178,7 +181,9 @@ async function streamPool(
             inputId: participant.inputId,
             section: 'shielded',
             message: `Verified empty Orchard page ${visit.emptyConfirmation}/${SHIELDED_EMPTY_CONFIRMATIONS} at aligned position ${visit.position}`,
-            completed: Number(visit.position > BigInt(Number.MAX_SAFE_INTEGER) ? BigInt(Number.MAX_SAFE_INTEGER) : visit.position),
+            completed: Number(
+              visit.position > BigInt(Number.MAX_SAFE_INTEGER) ? BigInt(Number.MAX_SAFE_INTEGER) : visit.position,
+            ),
             total: null,
           });
         }
@@ -204,11 +209,20 @@ export async function scanDashShielded(
   const viewingKey = deriveViewingKey(seed, config, gateway.guard, sessionSecretGuard);
   const ledger = new ShieldedActivityLedger('full');
   try {
-    onProgress({ inputId, section: 'shielded', message: 'Streaming proof-verified Orchard pages through bounded memory', completed: 0, total: null });
+    onProgress({
+      inputId,
+      section: 'shielded',
+      message: 'Streaming proof-verified Orchard pages through bounded memory',
+      completed: 0,
+      total: null,
+    });
     const outcome = await streamPool([{ inputId, viewingKey, ledger }], config.network, gateway, signal, onProgress);
     return sectionFromLedger(
       ledger,
-      { includeUsedZeroBalance: config.includeUsedZeroBalance, accountPathLabel: `m/32'/${config.network === 'mainnet' ? 5 : 1}'/${config.account}'` },
+      {
+        includeUsedZeroBalance: config.includeUsedZeroBalance,
+        accountPathLabel: `m/32'/${config.network === 'mainnet' ? 5 : 1}'/${config.account}'`,
+      },
       outcome,
       false,
       onFinding,
@@ -259,18 +273,30 @@ export async function scanDashShieldedBatch(
       }
     }
     for (const participant of participants) {
-      context.onProgress({ inputId: participant.inputId, section: 'shielded', message: 'Waiting for the shared one-pass Orchard page stream', completed: 0, total: null });
+      context.onProgress({
+        inputId: participant.inputId,
+        section: 'shielded',
+        message: 'Waiting for the shared one-pass Orchard page stream',
+        completed: 0,
+        total: null,
+      });
     }
     const outcome = await streamPool(participants, config.network, gateway, context.signal, context.onProgress);
     const results = new Map<string, RecoverySection>();
     for (const participant of participants) {
-      results.set(participant.inputId, sectionFromLedger(
-        participant.ledger,
-        { includeUsedZeroBalance: config.includeUsedZeroBalance, accountPathLabel: `m/32'/${config.network === 'mainnet' ? 5 : 1}'/${config.account}'` },
-        outcome,
-        true,
-        (finding) => context.onFinding(participant.inputId, 'shielded', finding),
-      ));
+      results.set(
+        participant.inputId,
+        sectionFromLedger(
+          participant.ledger,
+          {
+            includeUsedZeroBalance: config.includeUsedZeroBalance,
+            accountPathLabel: `m/32'/${config.network === 'mainnet' ? 5 : 1}'/${config.account}'`,
+          },
+          outcome,
+          true,
+          (finding) => context.onFinding(participant.inputId, 'shielded', finding),
+        ),
+      );
     }
     return results;
   } finally {
@@ -298,7 +324,13 @@ export async function scanDashShieldedWatchOnly(
 ): Promise<RecoverySection> {
   assertCanonicalViewingKey(viewingKey);
   const ledger = new ShieldedActivityLedger(viewingKey.kind);
-  onProgress({ inputId, section: 'shielded', message: 'Streaming proof-verified Orchard pages through bounded memory', completed: 0, total: null });
+  onProgress({
+    inputId,
+    section: 'shielded',
+    message: 'Streaming proof-verified Orchard pages through bounded memory',
+    completed: 0,
+    total: null,
+  });
   const outcome = await streamPool([{ inputId, viewingKey, ledger }], network, gateway, signal, onProgress);
   return sectionFromLedger(
     ledger,

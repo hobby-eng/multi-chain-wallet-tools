@@ -28,10 +28,7 @@ function encodeAddress(scanPublic: Uint8Array, spendPublic: Uint8Array, network:
 function labeledSpendPublic(scanPrivate: Uint8Array, spendPublic: Uint8Array, labelIndex: number): Uint8Array {
   const serialized = new Uint8Array(4);
   new DataView(serialized.buffer).setUint32(0, labelIndex, false);
-  const label = schnorr.utils.taggedHash(
-    'BIP0352/Label',
-    concatBytes(scanPrivate, serialized),
-  );
+  const label = schnorr.utils.taggedHash('BIP0352/Label', concatBytes(scanPrivate, serialized));
   try {
     if (!secp256k1.utils.isValidSecretKey(label)) throw new Error('BIP352 change label derived an invalid scalar.');
     return secp256k1.Point.fromHex(bytesToHex(spendPublic))

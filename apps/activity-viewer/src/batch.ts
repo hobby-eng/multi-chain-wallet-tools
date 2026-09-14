@@ -3,30 +3,30 @@ export interface ViewerBatchInput {
   line: number;
   value: string;
 }
+import { parseConcurrency } from '@ckd/core/validation.js';
 
 export function parseViewerBatchInputs(value: string): ViewerBatchInput[] {
   const seen = new Set<string>();
   const inputs: ViewerBatchInput[] = [];
-  value.replaceAll('\r', '').split('\n').forEach((line, lineIndex) => {
-    const trimmed = line.trim();
-    if (trimmed.length === 0 || seen.has(trimmed)) return;
-    seen.add(trimmed);
-    inputs.push({
-      id: `query-${inputs.length + 1}`,
-      line: lineIndex + 1,
-      value: trimmed,
+  value
+    .replaceAll('\r', '')
+    .split('\n')
+    .forEach((line, lineIndex) => {
+      const trimmed = line.trim();
+      if (trimmed.length === 0 || seen.has(trimmed)) return;
+      seen.add(trimmed);
+      inputs.push({
+        id: `query-${inputs.length + 1}`,
+        line: lineIndex + 1,
+        value: trimmed,
+      });
     });
-  });
   if (inputs.length === 0) throw new Error('Enter at least one lookup value in batch mode.');
   return inputs;
 }
 
 export function parseViewerConcurrency(value: string): number {
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 5) {
-    throw new Error('Batch concurrency must be an integer from 1 to 5.');
-  }
-  return parsed;
+  return parseConcurrency(value, 'Batch concurrency');
 }
 
 export async function mapViewerBatchTasks<T, R>(
@@ -55,8 +55,11 @@ export async function mapViewerBatchTasks<T, R>(
     }
   };
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
-  return results.map((result) => result ?? {
-    status: 'rejected',
-    reason: new Error('Batch query did not produce a result.'),
-  });
+  return results.map(
+    (result) =>
+      result ?? {
+        status: 'rejected',
+        reason: new Error('Batch query did not produce a result.'),
+      },
+  );
 }

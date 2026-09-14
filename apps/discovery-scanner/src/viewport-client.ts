@@ -1,13 +1,15 @@
-import { RECOVERY_VAULT_HEIGHT } from './network-protocol.js';
+import { RECOVERY_VAULT_HEIGHT } from '@ckd/network-boundary/protocol.js';
 
 export function installVaultViewportBridge(): void {
   const reportHeight = (): void => {
-    const height = Math.ceil([...document.body.children].reduce((bottom, element) => {
-      if (!(element instanceof HTMLElement) || element.getClientRects().length === 0) return bottom;
-      const position = getComputedStyle(element).position;
-      if (position === 'fixed' || position === 'absolute') return bottom;
-      return Math.max(bottom, element.getBoundingClientRect().bottom + window.scrollY);
-    }, 0));
+    const height = Math.ceil(
+      [...document.body.children].reduce((bottom, element) => {
+        if (!(element instanceof HTMLElement) || element.getClientRects().length === 0) return bottom;
+        const position = getComputedStyle(element).position;
+        if (position === 'fixed' || position === 'absolute') return bottom;
+        return Math.max(bottom, element.getBoundingClientRect().bottom + window.scrollY);
+      }, 0),
+    );
     window.parent.postMessage({ type: RECOVERY_VAULT_HEIGHT, height }, '*');
   };
 

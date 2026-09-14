@@ -27,11 +27,13 @@ describe('BIP39 Seed Diagnostic', () => {
     const diagnostic = diagnoseMnemonic(MNEMONIC.replace('abandon abandon', 'abandon abandno'));
     expect(diagnostic.allWordsKnown).toBe(false);
     expect(diagnostic.checksumValid).toBe(false);
-    expect(diagnostic.unknownWords).toEqual([expect.objectContaining({
-      index: 1,
-      word: 'abandno',
-      suggestions: expect.arrayContaining(['abandon']),
-    })]);
+    expect(diagnostic.unknownWords).toEqual([
+      expect.objectContaining({
+        index: 1,
+        word: 'abandno',
+        suggestions: expect.arrayContaining(['abandon']),
+      }),
+    ]);
   });
 
   it('rejects non-English mnemonic words without treating Unicode passphrases as mnemonic words', () => {
@@ -40,7 +42,8 @@ describe('BIP39 Seed Diagnostic', () => {
     const composed = mnemonicToSeed(MNEMONIC, 'пароль 中文 é 🔑');
     const decomposed = mnemonicToSeed(MNEMONIC, 'пароль 中文 e\u0301 🔑');
     expect(composed).toEqual(decomposed);
-    composed.fill(0); decomposed.fill(0);
+    composed.fill(0);
+    decomposed.fill(0);
   });
 
   it('normalizes case, compatible Unicode and whitespace before validation', () => {

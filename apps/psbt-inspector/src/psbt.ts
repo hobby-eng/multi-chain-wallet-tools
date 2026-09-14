@@ -74,9 +74,13 @@ class Reader {
 
   constructor(readonly bytes: Uint8Array) {}
 
-  get remaining(): number { return this.bytes.length - this.offset; }
+  get remaining(): number {
+    return this.bytes.length - this.offset;
+  }
 
-  peek(relative = 0): number | undefined { return this.bytes[this.offset + relative]; }
+  peek(relative = 0): number | undefined {
+    return this.bytes[this.offset + relative];
+  }
 
   read(length: number): Uint8Array {
     if (!Number.isSafeInteger(length) || length < 0 || length > this.remaining) {
@@ -87,7 +91,9 @@ class Reader {
     return result;
   }
 
-  u8(): number { return this.read(1)[0] ?? 0; }
+  u8(): number {
+    return this.read(1)[0] ?? 0;
+  }
 
   u16(): number {
     const value = this.read(2);
@@ -145,7 +151,8 @@ function decodeText(value: string): Uint8Array {
   if (normalized.length === 0) throw new Error('Paste a PSBT as Base64 or hexadecimal bytes.');
   if (/^[0-9a-f]+$/iu.test(normalized) && normalized.length % 2 === 0) {
     const bytes = new Uint8Array(normalized.length / 2);
-    for (let index = 0; index < bytes.length; index += 1) bytes[index] = Number.parseInt(normalized.slice(index * 2, index * 2 + 2), 16);
+    for (let index = 0; index < bytes.length; index += 1)
+      bytes[index] = Number.parseInt(normalized.slice(index * 2, index * 2 + 2), 16);
     return bytes;
   }
   try {
@@ -206,7 +213,13 @@ function readTransaction(bytes: Uint8Array, chain: PsbtChain, allowWitness = tru
     version = reader.u32();
   }
   let hasWitness = false;
-  if (allowWitness && chain === 'bitcoin' && reader.peek() === 0 && reader.peek(1) !== undefined && reader.peek(1) !== 0) {
+  if (
+    allowWitness &&
+    chain === 'bitcoin' &&
+    reader.peek() === 0 &&
+    reader.peek(1) !== undefined &&
+    reader.peek(1) !== 0
+  ) {
     reader.read(2);
     hasWitness = true;
   }
@@ -256,10 +269,13 @@ export function parsedTransactionId(transaction: ParsedTransaction): string {
     reader.read(6);
     const start = reader.offset;
     for (let n = reader.compactNumber('input count'); n > 0; n -= 1) {
-      reader.read(36); reader.varBytes('scriptSig'); reader.read(4);
+      reader.read(36);
+      reader.varBytes('scriptSig');
+      reader.read(4);
     }
     for (let n = reader.compactNumber('output count'); n > 0; n -= 1) {
-      reader.read(8); reader.varBytes('scriptPubKey');
+      reader.read(8);
+      reader.varBytes('scriptPubKey');
     }
     const end = reader.offset;
     for (const _input of transaction.inputs) {
@@ -270,19 +286,30 @@ export function parsedTransactionId(transaction: ParsedTransaction): string {
   return reverseHex(sha256(sha256(serialized)));
 }
 
-function inputUtxo(map: readonly PsbtPair[], txInput: TransactionInput | undefined, chain: PsbtChain): SuppliedUtxo | null {
+function inputUtxo(
+  map: readonly PsbtPair[],
+  txInput: TransactionInput | undefined,
+  chain: PsbtChain,
+): SuppliedUtxo | null {
   const witnessPair = pair(map, 0x01);
   const witness = chain === 'bitcoin' && witnessPair !== undefined ? readTxOut(witnessPair.value) : undefined;
   const previous = pair(map, 0x00);
   const outputIndexPair = pair(map, 0x0f);
-  const outputIndex = txInput?.vout ?? (outputIndexPair === undefined ? undefined : littleU32(outputIndexPair.value, 'PSBT v2 previous output index'));
-  if (previous === undefined) return witness === undefined ? null : { ...witness, binding: 'witness-only', previousTransaction: null };
+  const outputIndex =
+    txInput?.vout ??
+    (outputIndexPair === undefined ? undefined : littleU32(outputIndexPair.value, 'PSBT v2 previous output index'));
+  if (previous === undefined)
+    return witness === undefined ? null : { ...witness, binding: 'witness-only', previousTransaction: null };
   const transaction = readTransaction(previous.value, chain);
   const id = txInput?.txid ?? (pair(map, 0x0e) === undefined ? undefined : reverseHex(pair(map, 0x0e)!.value));
-  if (id === undefined || parsedTransactionId(transaction) !== id) throw new Error('Non-witness UTXO transaction ID does not match the referenced input.');
+  if (id === undefined || parsedTransactionId(transaction) !== id)
+    throw new Error('Non-witness UTXO transaction ID does not match the referenced input.');
   const output = outputIndex === undefined ? undefined : transaction.outputs[outputIndex];
   if (output === undefined) throw new Error('Referenced output is absent from the non-witness UTXO.');
-  if (witness !== undefined && (witness.value !== output.value || bytesToHex(witness.script) !== bytesToHex(output.script))) {
+  if (
+    witness !== undefined &&
+    (witness.value !== output.value || bytesToHex(witness.script) !== bytesToHex(output.script))
+  ) {
     throw new Error('Witness and non-witness UTXOs disagree.');
   }
   return { ...output, binding: 'non-witness', previousTransaction: transaction };
@@ -293,7 +320,8 @@ function maximumMoney(chain: PsbtChain): bigint {
 }
 
 function validateMoney(value: bigint, chain: PsbtChain, label: string): void {
-  if (value > maximumMoney(chain)) throw new Error(`${label} exceeds ${chain === 'dash' ? 'Dash' : 'Bitcoin'} MAX_MONEY.`);
+  if (value > maximumMoney(chain))
+    throw new Error(`${label} exceeds ${chain === 'dash' ? 'Dash' : 'Bitcoin'} MAX_MONEY.`);
 }
 
 function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
@@ -329,40 +357,59 @@ function scriptCommitmentFailure(map: readonly PsbtPair[], utxo: SuppliedUtxo | 
 function validatePoint(bytes: Uint8Array, xOnly = false): void {
   if (xOnly && bytes.length !== 32) throw new Error('Taproot public key must contain 32 bytes.');
   if (!xOnly && bytes.length !== 33 && bytes.length !== 65) throw new Error('Invalid PSBT public key length.');
-  try { secp256k1.Point.fromBytes(xOnly ? Uint8Array.of(2, ...bytes) : bytes); }
-  catch { throw new Error('Invalid PSBT public key point.'); }
+  try {
+    secp256k1.Point.fromBytes(xOnly ? Uint8Array.of(2, ...bytes) : bytes);
+  } catch {
+    throw new Error('Invalid PSBT public key point.');
+  }
 }
 function derivationValue(value: Uint8Array, taproot = false): void {
   const reader = new Reader(value);
   if (taproot) reader.read(reader.compactNumber('Tapleaf hashes') * 32);
   if (reader.remaining < 4 || reader.remaining % 4 !== 0) throw new Error('Invalid BIP32 fingerprint/path length.');
-  if ((reader.remaining - 4) / 4 > CONSENSUS_LIMITS.maximumBip32Depth) throw new Error('BIP32 key-origin path exceeds the 255-level depth limit.');
+  if ((reader.remaining - 4) / 4 > CONSENSUS_LIMITS.maximumBip32Depth)
+    throw new Error('BIP32 key-origin path exceeds the 255-level depth limit.');
 }
 function validateDerSignature(value: Uint8Array): void {
   // PSBT_IN_PARTIAL_SIG includes the one-byte sighash type after a strict-DER ECDSA signature.
-  if (value.length < 9 || value.length > 73) throw new Error('PSBT partial signature must contain a strict-DER ECDSA signature and one sighash byte.');
+  if (value.length < 9 || value.length > 73)
+    throw new Error('PSBT partial signature must contain a strict-DER ECDSA signature and one sighash byte.');
   const der = value.subarray(0, -1);
-  if (der[0] !== 0x30 || der[1] !== der.length - 2 || der[2] !== 0x02) throw new Error('PSBT partial signature is not strict DER.');
+  if (der[0] !== 0x30 || der[1] !== der.length - 2 || der[2] !== 0x02)
+    throw new Error('PSBT partial signature is not strict DER.');
   const rLength = der[3] ?? 0;
   const sTag = 4 + rLength;
   const sLength = der[sTag + 1] ?? 0;
-  if (rLength === 0 || sTag + 2 > der.length || der[sTag] !== 0x02 || sLength === 0 || sTag + 2 + sLength !== der.length) {
+  if (
+    rLength === 0 ||
+    sTag + 2 > der.length ||
+    der[sTag] !== 0x02 ||
+    sLength === 0 ||
+    sTag + 2 + sLength !== der.length
+  ) {
     throw new Error('PSBT partial signature is not strict DER.');
   }
   const rStart = 4;
   const sStart = sTag + 2;
-  if ((der[rStart]! & 0x80) !== 0 || (rLength > 1 && der[rStart] === 0 && (der[rStart + 1]! & 0x80) === 0)) throw new Error('PSBT partial signature has a non-canonical R integer.');
-  if ((der[sStart]! & 0x80) !== 0 || (sLength > 1 && der[sStart] === 0 && (der[sStart + 1]! & 0x80) === 0)) throw new Error('PSBT partial signature has a non-canonical S integer.');
+  if ((der[rStart]! & 0x80) !== 0 || (rLength > 1 && der[rStart] === 0 && (der[rStart + 1]! & 0x80) === 0))
+    throw new Error('PSBT partial signature has a non-canonical R integer.');
+  if ((der[sStart]! & 0x80) !== 0 || (sLength > 1 && der[sStart] === 0 && (der[sStart + 1]! & 0x80) === 0))
+    throw new Error('PSBT partial signature has a non-canonical S integer.');
 }
 
 function validateMap(map: readonly PsbtPair[], scope: 'global' | 'input' | 'output'): void {
-  const singleton = scope === 'global' ? [0, 2, 3, 4, 5, 6, 251]
-    : scope === 'input' ? [0, 1, 3, 4, 5, 7, 8, 9, 14, 15, 16, 17, 18, 19, 23, 24]
-      : [0, 1, 3, 4, 5, 6];
+  const singleton =
+    scope === 'global'
+      ? [0, 2, 3, 4, 5, 6, 251]
+      : scope === 'input'
+        ? [0, 1, 3, 4, 5, 7, 8, 9, 14, 15, 16, 17, 18, 19, 23, 24]
+        : [0, 1, 3, 4, 5, 6];
   for (const field of map) {
     const { keyData: key, value } = field;
     const type = Number(field.type);
-    const size = (n: number): void => { if (value.length !== n) throw new Error(`Invalid ${scope} field ${type} value length.`); };
+    const size = (n: number): void => {
+      if (value.length !== n) throw new Error(`Invalid ${scope} field ${type} value length.`);
+    };
     if (singleton.includes(type) && key.length !== 0) throw new Error(`Invalid ${scope} field ${type} key data.`);
     if (scope === 'global') {
       if ([2, 3, 251].includes(type)) size(4);
@@ -378,7 +425,14 @@ function validateMap(map: readonly PsbtPair[], scope: 'global' | 'input' | 'outp
     }
     const input = scope === 'input';
     if (input && type >= 10 && type <= 13) {
-      const digest = type === 10 ? ripemd160(value) : type === 11 ? sha256(value) : type === 12 ? hash160(value) : sha256(sha256(value));
+      const digest =
+        type === 10
+          ? ripemd160(value)
+          : type === 11
+            ? sha256(value)
+            : type === 12
+              ? hash160(value)
+              : sha256(sha256(value));
       if (key.length !== digest.length) throw new Error('Invalid PSBT preimage hash key length.');
       if (bytesToHex(key) !== bytesToHex(digest)) throw new Error('PSBT preimage does not match its hash commitment.');
     }
@@ -396,26 +450,47 @@ function validateMap(map: readonly PsbtPair[], scope: 'global' | 'input' | 'outp
       if (reader.remaining !== 0) throw new Error('Final witness contains trailing bytes.');
     }
     if (!input && type === 3) size(8);
-    if ((input && type === 23) || (!input && type === 5)) { size(32); validatePoint(value, true); }
-    if ((input && type === 22) || (!input && type === 7)) { validatePoint(key, true); derivationValue(value, true); }
+    if ((input && type === 23) || (!input && type === 5)) {
+      size(32);
+      validatePoint(value, true);
+    }
+    if ((input && type === 22) || (!input && type === 7)) {
+      validatePoint(key, true);
+      derivationValue(value, true);
+    }
     if (input && (type === 19 || type === 20)) {
-      if (type === 20) { if (key.length !== 64) throw new Error('Taproot script signature key must contain 64 bytes.'); validatePoint(key.slice(0, 32), true); }
+      if (type === 20) {
+        if (key.length !== 64) throw new Error('Taproot script signature key must contain 64 bytes.');
+        validatePoint(key.slice(0, 32), true);
+      }
       if (value.length !== 64 && value.length !== 65) throw new Error('Taproot signature must contain 64 or 65 bytes.');
-      if (value.length === 65 && ![1, 2, 3, 129, 130, 131].includes(value[64]!)) throw new Error('Invalid explicit Taproot sighash byte.');
+      if (value.length === 65 && ![1, 2, 3, 129, 130, 131].includes(value[64]!))
+        throw new Error('Invalid explicit Taproot sighash byte.');
     }
     if (input && type === 21) {
-      if (key.length < 33 || key.length > 33 + CONSENSUS_LIMITS.maximumTaprootTreeDepth * 32 || (key.length - 33) % 32 !== 0) throw new Error('Invalid Taproot control block length.');
+      if (
+        key.length < 33 ||
+        key.length > 33 + CONSENSUS_LIMITS.maximumTaprootTreeDepth * 32 ||
+        (key.length - 33) % 32 !== 0
+      )
+        throw new Error('Invalid Taproot control block length.');
       validatePoint(key.slice(1, 33), true);
-      if (value.length === 0 || value[value.length - 1] !== (key[0]! & 0xfe)) throw new Error('Tapleaf version disagrees with the control block.');
+      if (value.length === 0 || value[value.length - 1] !== (key[0]! & 0xfe))
+        throw new Error('Tapleaf version disagrees with the control block.');
     }
     if (!input && type === 6) {
-      const reader = new Reader(value); const depths: number[] = [];
+      const reader = new Reader(value);
+      const depths: number[] = [];
       while (reader.remaining > 0) {
-        const depth = reader.read(1)[0]!; const version = reader.read(1)[0]!;
-        if (depth > CONSENSUS_LIMITS.maximumTaprootTreeDepth || (version & 1) !== 0) throw new Error('Invalid Taproot tree depth or leaf version.');
-        reader.varBytes('Taproot leaf script'); depths.push(depth);
+        const depth = reader.read(1)[0]!;
+        const version = reader.read(1)[0]!;
+        if (depth > CONSENSUS_LIMITS.maximumTaprootTreeDepth || (version & 1) !== 0)
+          throw new Error('Invalid Taproot tree depth or leaf version.');
+        reader.varBytes('Taproot leaf script');
+        depths.push(depth);
         while (depths.length > 1 && depths.at(-1) === depths.at(-2)) {
-          const current = depths.pop()!; depths.pop();
+          const current = depths.pop()!;
+          depths.pop();
           if (current === 0) throw new Error('Taproot tree contains extra roots.');
           depths.push(current - 1);
         }
@@ -424,10 +499,20 @@ function validateMap(map: readonly PsbtPair[], scope: 'global' | 'input' | 'outp
     }
   }
 }
-function validateVersionFields(global: readonly PsbtPair[], inputs: readonly (readonly PsbtPair[])[], outputs: readonly (readonly PsbtPair[])[], version: number): boolean {
+function validateVersionFields(
+  global: readonly PsbtPair[],
+  inputs: readonly (readonly PsbtPair[])[],
+  outputs: readonly (readonly PsbtPair[])[],
+  version: number,
+): boolean {
   if (version === 0) {
-    for (const [maps, types] of [[[global], [2n, 3n, 4n, 5n, 6n]], [inputs, [14n, 15n, 16n, 17n, 18n]], [outputs, [3n, 4n]]] as const) {
-      if (maps.some(map => map.some(field => types.some(type => field.type === type)))) throw new Error('PSBT v0 contains a PSBT v2-only field.');
+    for (const [maps, types] of [
+      [[global], [2n, 3n, 4n, 5n, 6n]],
+      [inputs, [14n, 15n, 16n, 17n, 18n]],
+      [outputs, [3n, 4n]],
+    ] as const) {
+      if (maps.some((map) => map.some((field) => types.some((type) => field.type === type))))
+        throw new Error('PSBT v0 contains a PSBT v2-only field.');
     }
     return false;
   }
@@ -435,31 +520,43 @@ function validateVersionFields(global: readonly PsbtPair[], inputs: readonly (re
   let requiresTime = false;
   let requiresHeight = false;
   for (const map of inputs) {
-    if (pair(map, 14) === undefined || pair(map, 15) === undefined) throw new Error('PSBT v2 input is missing its previous transaction ID or output index.');
-    const time = pair(map, 17); const height = pair(map, 18);
+    if (pair(map, 14) === undefined || pair(map, 15) === undefined)
+      throw new Error('PSBT v2 input is missing its previous transaction ID or output index.');
+    const time = pair(map, 17);
+    const height = pair(map, 18);
     if (time !== undefined) {
-      if (littleU32(time.value, 'time lock') < CONSENSUS_LIMITS.absoluteLockTimeThreshold) throw new Error('Required time lock is below 500000000.');
+      if (littleU32(time.value, 'time lock') < CONSENSUS_LIMITS.absoluteLockTimeThreshold)
+        throw new Error('Required time lock is below 500000000.');
       requiresTime = true;
     }
     if (height !== undefined) {
       const value = littleU32(height.value, 'height lock');
-      if (value === 0 || value >= CONSENSUS_LIMITS.absoluteLockTimeThreshold) throw new Error('Required height lock is outside 1..499999999.');
+      if (value === 0 || value >= CONSENSUS_LIMITS.absoluteLockTimeThreshold)
+        throw new Error('Required height lock is outside 1..499999999.');
       requiresHeight = true;
     }
   }
   const mixedLockKinds = requiresTime && requiresHeight;
-  if (outputs.some(map => pair(map, 3) === undefined || pair(map, 4) === undefined)) throw new Error('PSBT v2 output is missing its amount or script.');
+  if (outputs.some((map) => pair(map, 3) === undefined || pair(map, 4) === undefined))
+    throw new Error('PSBT v2 output is missing its amount or script.');
   return mixedLockKinds;
 }
 
 function validateCompressedPublicKey(value: Uint8Array, label: string): void {
-  if (value.length !== 33 || (value[0] !== 0x02 && value[0] !== 0x03)) throw new Error(`${label} must be a 33-byte compressed public key.`);
-  try { secp256k1.Point.fromBytes(value); } catch { throw new Error(`${label} is not a valid secp256k1 point.`); }
+  if (value.length !== 33 || (value[0] !== 0x02 && value[0] !== 0x03))
+    throw new Error(`${label} must be a 33-byte compressed public key.`);
+  try {
+    secp256k1.Point.fromBytes(value);
+  } catch {
+    throw new Error(`${label} is not a valid secp256k1 point.`);
+  }
 }
 
 function validateMusigReferenceKey(keyData: Uint8Array, label: string): void {
   if (keyData.length !== 66 && keyData.length !== 98) {
-    throw new Error(`${label} key data must contain participant and aggregate public keys, plus an optional 32-byte Tapleaf hash.`);
+    throw new Error(
+      `${label} key data must contain participant and aggregate public keys, plus an optional 32-byte Tapleaf hash.`,
+    );
   }
   validateCompressedPublicKey(keyData.slice(0, 33), `${label} participant`);
   validateCompressedPublicKey(keyData.slice(33, 66), `${label} aggregate`);
@@ -471,7 +568,9 @@ export function validateMusigPsbtFields(map: readonly PsbtPair[], scope: 'input'
     if ((scope === 'input' && item.type === 0x1an) || (scope === 'output' && item.type === 0x08n)) {
       validateCompressedPublicKey(item.keyData, `PSBT ${scope} MuSig2 aggregate key`);
       if (item.value.length === 0 || item.value.length % 33 !== 0) {
-        throw new Error(`PSBT ${scope} MuSig2 participant list must contain one or more 33-byte compressed public keys.`);
+        throw new Error(
+          `PSBT ${scope} MuSig2 participant list must contain one or more 33-byte compressed public keys.`,
+        );
       }
       const participants: Uint8Array[] = [];
       for (let offset = 0; offset < item.value.length; offset += 33) {
@@ -480,17 +579,21 @@ export function validateMusigPsbtFields(map: readonly PsbtPair[], scope: 'input'
         participants.push(participant);
       }
       const computed = aggregateMusigParticipants(participants);
-      if (!equalBytes(computed, item.keyData)) throw new Error(`PSBT ${scope} MuSig2 aggregate key does not match KeyAgg(participants).`);
+      if (!equalBytes(computed, item.keyData))
+        throw new Error(`PSBT ${scope} MuSig2 aggregate key does not match KeyAgg(participants).`);
       participantsByAggregate.set(bytesToHex(item.keyData), new Set(participants.map(bytesToHex)));
     } else if (scope === 'input' && item.type === 0x1bn) {
       validateMusigReferenceKey(item.keyData, 'PSBT input MuSig2 public nonce');
-      if (item.value.length !== 66) throw new Error('PSBT input MuSig2 public nonce value must contain exactly 66 bytes.');
+      if (item.value.length !== 66)
+        throw new Error('PSBT input MuSig2 public nonce value must contain exactly 66 bytes.');
       validateCompressedPublicKey(item.value.slice(0, 33), 'MuSig2 nonce R1');
       validateCompressedPublicKey(item.value.slice(33), 'MuSig2 nonce R2');
     } else if (scope === 'input' && item.type === 0x1cn) {
       validateMusigReferenceKey(item.keyData, 'PSBT input MuSig2 partial signature');
-      if (item.value.length !== 32) throw new Error('PSBT input MuSig2 partial signature value must contain exactly 32 bytes.');
-      if (BigInt(`0x${bytesToHex(item.value)}`) >= secp256k1.Point.Fn.ORDER) throw new Error('MuSig2 partial signature scalar is out of range.');
+      if (item.value.length !== 32)
+        throw new Error('PSBT input MuSig2 partial signature value must contain exactly 32 bytes.');
+      if (BigInt(`0x${bytesToHex(item.value)}`) >= secp256k1.Point.Fn.ORDER)
+        throw new Error('MuSig2 partial signature scalar is out of range.');
     }
   }
   if (scope === 'input') {
@@ -500,57 +603,163 @@ export function validateMusigPsbtFields(map: readonly PsbtPair[], scope: 'input'
       const aggregate = bytesToHex(item.keyData.slice(33, 66));
       const known = participantsByAggregate.get(aggregate);
       if (known !== undefined && !known.has(participant)) {
-        throw new Error(`PSBT input MuSig2 ${item.type === 0x1bn ? 'public nonce' : 'partial signature'} participant is absent from the aggregate participant list.`);
+        throw new Error(
+          `PSBT input MuSig2 ${item.type === 0x1bn ? 'public nonce' : 'partial signature'} participant is absent from the aggregate participant list.`,
+        );
       }
     }
   }
 }
 
-function inputVerification(map: readonly PsbtPair[], utxo: SuppliedUtxo | null, chain: PsbtChain, commitmentFailure: string | null, mixedLockKinds: boolean): readonly PsbtVerificationCheck[] {
-  const checks: PsbtVerificationCheck[] = [{ relationship: 'PSBT framing and field schema', status: 'verified', detail: 'Canonical lengths, unique keys, known field encodings and amount ranges passed.' }];
-  checks.push(utxo === null
-    ? { relationship: 'UTXO binding', status: 'not-verified', detail: 'No UTXO record was supplied for this input.' }
-    : utxo.binding === 'non-witness'
-      ? { relationship: 'UTXO binding', status: 'verified', detail: 'The previous transaction ID and selected output were checked.' }
-      : { relationship: 'UTXO binding', status: 'not-verified', detail: 'A witness UTXO was supplied, but this offline file cannot prove it matches the referenced blockchain output.' });
+function inputVerification(
+  map: readonly PsbtPair[],
+  utxo: SuppliedUtxo | null,
+  chain: PsbtChain,
+  commitmentFailure: string | null,
+  mixedLockKinds: boolean,
+): readonly PsbtVerificationCheck[] {
+  const checks: PsbtVerificationCheck[] = [
+    {
+      relationship: 'PSBT framing and field schema',
+      status: 'verified',
+      detail: 'Canonical lengths, unique keys, known field encodings and amount ranges passed.',
+    },
+  ];
+  checks.push(
+    utxo === null
+      ? { relationship: 'UTXO binding', status: 'not-verified', detail: 'No UTXO record was supplied for this input.' }
+      : utxo.binding === 'non-witness'
+        ? {
+            relationship: 'UTXO binding',
+            status: 'verified',
+            detail: 'The previous transaction ID and selected output were checked.',
+          }
+        : {
+            relationship: 'UTXO binding',
+            status: 'not-verified',
+            detail:
+              'A witness UTXO was supplied, but this offline file cannot prove it matches the referenced blockchain output.',
+          },
+  );
   const hasScripts = pair(map, 0x04) !== undefined || pair(map, 0x05) !== undefined;
-  checks.push(commitmentFailure !== null
-    ? { relationship: 'Redeem/witness script commitments', status: 'failed', detail: commitmentFailure }
-    : !hasScripts
-      ? { relationship: 'Redeem/witness script commitments', status: 'not-applicable', detail: 'No redeemScript or witnessScript metadata was supplied.' }
-      : utxo === null
-        ? { relationship: 'Redeem/witness script commitments', status: 'not-verified', detail: 'Script metadata is present, but no supplied UTXO scriptPubKey anchors it.' }
-        : { relationship: 'Redeem/witness script commitments', status: 'verified', detail: 'HASH160/SHA256 commitments were matched to the supplied UTXO and nested witness program.' });
+  checks.push(
+    commitmentFailure !== null
+      ? { relationship: 'Redeem/witness script commitments', status: 'failed', detail: commitmentFailure }
+      : !hasScripts
+        ? {
+            relationship: 'Redeem/witness script commitments',
+            status: 'not-applicable',
+            detail: 'No redeemScript or witnessScript metadata was supplied.',
+          }
+        : utxo === null
+          ? {
+              relationship: 'Redeem/witness script commitments',
+              status: 'not-verified',
+              detail: 'Script metadata is present, but no supplied UTXO scriptPubKey anchors it.',
+            }
+          : {
+              relationship: 'Redeem/witness script commitments',
+              status: 'verified',
+              detail: 'HASH160/SHA256 commitments were matched to the supplied UTXO and nested witness program.',
+            },
+  );
   const preimages = map.filter(({ type }) => type >= 10n && type <= 13n).length;
-  checks.push(preimages === 0
-    ? { relationship: 'Hash preimages', status: 'not-applicable', detail: 'No hash-preimage fields were supplied.' }
-    : { relationship: 'Hash preimages', status: 'verified', detail: `${preimages} supplied preimage commitment(s) matched.` });
+  checks.push(
+    preimages === 0
+      ? { relationship: 'Hash preimages', status: 'not-applicable', detail: 'No hash-preimage fields were supplied.' }
+      : {
+          relationship: 'Hash preimages',
+          status: 'verified',
+          detail: `${preimages} supplied preimage commitment(s) matched.`,
+        },
+  );
   if (chain === 'bitcoin') {
     const participantFields = map.filter(({ type }) => type === 0x1an).length;
     const referenceFields = map.filter(({ type }) => type === 0x1bn || type === 0x1cn).length;
-    checks.push(participantFields > 0
-      ? { relationship: 'MuSig2 participant aggregation', status: 'verified', detail: `${participantFields} participant list(s) matched BIP327 KeyAgg; linked nonce/signature participants were checked where lists were supplied.` }
-      : referenceFields > 0
-        ? { relationship: 'MuSig2 participant aggregation', status: 'not-verified', detail: 'Nonce or partial-signature metadata is present without a participant list for independent KeyAgg membership checks.' }
-        : { relationship: 'MuSig2 participant aggregation', status: 'not-applicable', detail: 'No MuSig2 fields were supplied.' });
+    checks.push(
+      participantFields > 0
+        ? {
+            relationship: 'MuSig2 participant aggregation',
+            status: 'verified',
+            detail: `${participantFields} participant list(s) matched BIP327 KeyAgg; linked nonce/signature participants were checked where lists were supplied.`,
+          }
+        : referenceFields > 0
+          ? {
+              relationship: 'MuSig2 participant aggregation',
+              status: 'not-verified',
+              detail:
+                'Nonce or partial-signature metadata is present without a participant list for independent KeyAgg membership checks.',
+            }
+          : {
+              relationship: 'MuSig2 participant aggregation',
+              status: 'not-applicable',
+              detail: 'No MuSig2 fields were supplied.',
+            },
+    );
   }
   const taprootInternal = pair(map, 0x17)?.value;
   const taprootLeaves = map.filter(({ type }) => type === 0x15n);
-  const mismatchedControl = taprootInternal !== undefined && taprootLeaves.some(({ keyData }) => !equalBytes(taprootInternal, keyData.slice(1, 33)));
-  checks.push(mismatchedControl
-    ? { relationship: 'Taproot control-block internal key', status: 'failed', detail: 'A tapleaf control block contains a different internal key than PSBT_IN_TAP_INTERNAL_KEY.' }
-    : taprootLeaves.length === 0
-      ? { relationship: 'Taproot control-block internal key', status: 'not-applicable', detail: 'No Taproot leaf/control-block metadata was supplied.' }
-      : taprootInternal === undefined
-        ? { relationship: 'Taproot control-block internal key', status: 'not-verified', detail: 'Taproot leaves are present without PSBT_IN_TAP_INTERNAL_KEY for comparison.' }
-        : { relationship: 'Taproot control-block internal key', status: 'verified', detail: `${taprootLeaves.length} control block(s) match PSBT_IN_TAP_INTERNAL_KEY.` });
+  const mismatchedControl =
+    taprootInternal !== undefined &&
+    taprootLeaves.some(({ keyData }) => !equalBytes(taprootInternal, keyData.slice(1, 33)));
+  checks.push(
+    mismatchedControl
+      ? {
+          relationship: 'Taproot control-block internal key',
+          status: 'failed',
+          detail: 'A tapleaf control block contains a different internal key than PSBT_IN_TAP_INTERNAL_KEY.',
+        }
+      : taprootLeaves.length === 0
+        ? {
+            relationship: 'Taproot control-block internal key',
+            status: 'not-applicable',
+            detail: 'No Taproot leaf/control-block metadata was supplied.',
+          }
+        : taprootInternal === undefined
+          ? {
+              relationship: 'Taproot control-block internal key',
+              status: 'not-verified',
+              detail: 'Taproot leaves are present without PSBT_IN_TAP_INTERNAL_KEY for comparison.',
+            }
+          : {
+              relationship: 'Taproot control-block internal key',
+              status: 'verified',
+              detail: `${taprootLeaves.length} control block(s) match PSBT_IN_TAP_INTERNAL_KEY.`,
+            },
+  );
   const signatures = map.filter(({ type }) => [2n, 19n, 20n, 28n].includes(type)).length;
-  checks.push(signatures === 0
-    ? { relationship: 'Cryptographic signatures', status: 'not-applicable', detail: 'No signature fields were supplied.' }
-    : { relationship: 'Cryptographic signatures', status: 'not-verified', detail: `${signatures} signature field(s) are structurally valid; this inspector does not calculate sighashes or verify signatures.` });
-  if (mixedLockKinds) checks.push({ relationship: 'PSBT v2 locktime requirements', status: 'failed', detail: 'The PSBT contains both height-based and time-based requirements; one transaction nLockTime cannot satisfy both kinds.' });
-  else if (pair(map, 17) !== undefined || pair(map, 18) !== undefined) checks.push({ relationship: 'PSBT v2 locktime requirements', status: 'verified', detail: 'Required locktime values use one compatible unit.' });
-  else checks.push({ relationship: 'PSBT v2 locktime requirements', status: 'not-applicable', detail: 'No required locktime field was supplied.' });
+  checks.push(
+    signatures === 0
+      ? {
+          relationship: 'Cryptographic signatures',
+          status: 'not-applicable',
+          detail: 'No signature fields were supplied.',
+        }
+      : {
+          relationship: 'Cryptographic signatures',
+          status: 'not-verified',
+          detail: `${signatures} signature field(s) are structurally valid; this inspector does not calculate sighashes or verify signatures.`,
+        },
+  );
+  if (mixedLockKinds)
+    checks.push({
+      relationship: 'PSBT v2 locktime requirements',
+      status: 'failed',
+      detail:
+        'The PSBT contains both height-based and time-based requirements; one transaction nLockTime cannot satisfy both kinds.',
+    });
+  else if (pair(map, 17) !== undefined || pair(map, 18) !== undefined)
+    checks.push({
+      relationship: 'PSBT v2 locktime requirements',
+      status: 'verified',
+      detail: 'Required locktime values use one compatible unit.',
+    });
+  else
+    checks.push({
+      relationship: 'PSBT v2 locktime requirements',
+      status: 'not-applicable',
+      detail: 'No required locktime field was supplied.',
+    });
   return checks;
 }
 
@@ -563,7 +772,8 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
   const versionPair = pair(global, 0xfb);
   const version = versionPair === undefined ? 0 : littleU32(versionPair.value, 'PSBT version');
   if (version !== 0 && version !== 2) throw new Error(`Unsupported PSBT version ${version}.`);
-  if (chain === 'dash' && version !== 0) throw new Error('Dash Core interoperability is currently limited to PSBT version 0.');
+  if (chain === 'dash' && version !== 0)
+    throw new Error('Dash Core interoperability is currently limited to PSBT version 0.');
 
   const unsignedPair = pair(global, 0x00);
   let transaction: ParsedTransaction | null = null;
@@ -577,9 +787,13 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
       if (chain === 'bitcoin') {
         try {
           const witnessCandidate = readTransaction(unsignedPair.value, chain, true);
-          if (witnessCandidate.hasWitness) throw new Error('A PSBT v0 global unsigned transaction must use legacy serialization without witness data.');
+          if (witnessCandidate.hasWitness)
+            throw new Error(
+              'A PSBT v0 global unsigned transaction must use legacy serialization without witness data.',
+            );
         } catch (witnessError) {
-          if (witnessError instanceof Error && /legacy serialization without witness/u.test(witnessError.message)) throw witnessError;
+          if (witnessError instanceof Error && /legacy serialization without witness/u.test(witnessError.message))
+            throw witnessError;
         }
       }
       throw legacyError;
@@ -593,7 +807,8 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
     if (unsignedPair !== undefined) throw new Error('PSBT v2 must not contain a global unsigned transaction.');
     const inputCountPair = pair(global, 0x04);
     const outputCountPair = pair(global, 0x05);
-    if (inputCountPair === undefined || outputCountPair === undefined) throw new Error('PSBT v2 is missing its input or output count.');
+    if (inputCountPair === undefined || outputCountPair === undefined)
+      throw new Error('PSBT v2 is missing its input or output count.');
     inputCount = compactValue(inputCountPair.value, 'PSBT input count');
     outputCount = compactValue(outputCountPair.value, 'PSBT output count');
   }
@@ -617,13 +832,15 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
     return scriptCommitmentFailure(inputs[index]!, utxo);
   });
   const inputValues = suppliedUtxos.map((utxo) => utxo?.value ?? null);
-  const outputValues = transaction === null
-    ? outputs.map((map) => {
-        const amount = pair(map, 0x03);
-        if (amount === undefined || amount.value.length !== 8) throw new Error('PSBT v2 output is missing a valid amount.');
-        return new Reader(amount.value).u64();
-      })
-    : transaction.outputs.map((output) => output.value);
+  const outputValues =
+    transaction === null
+      ? outputs.map((map) => {
+          const amount = pair(map, 0x03);
+          if (amount === undefined || amount.value.length !== 8)
+            throw new Error('PSBT v2 output is missing a valid amount.');
+          return new Reader(amount.value).u64();
+        })
+      : transaction.outputs.map((output) => output.value);
   outputValues.forEach((value, index) => validateMoney(value, chain, `Output ${index} value`));
   const outputTotal = outputValues.reduce((total, value) => total + value, 0n);
   validateMoney(outputTotal, chain, 'Transaction output total');
@@ -633,39 +850,118 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
     : null;
   if (fee !== null && fee < 0n) throw new Error('PSBT outputs exceed the supplied input values.');
   const modifiable = pair(global, 0x06)?.value[0];
-  const globalVerification: PsbtVerificationCheck[] = [modifiable !== undefined && (modifiable & 0xf8) !== 0
-    ? { relationship: 'PSBT transaction-modifiable flags', status: 'not-verified', detail: `Undefined flag bits 0x${(modifiable & 0xf8).toString(16).padStart(2, '0')} are preserved but have no defined BIP370 meaning.` }
-    : { relationship: 'PSBT transaction-modifiable flags', status: 'verified', detail: 'All supplied transaction-modifiable bits have defined BIP370 meanings.' }];
-  const inputVerificationRows = inputs.map((map, index) => inputVerification(map, suppliedUtxos[index] ?? null, chain, commitmentFailures[index] ?? null, mixedLockKinds));
-  return { chain, version, global, inputs, outputs, transaction, inputUtxos: suppliedUtxos, inputValues, outputValues, fee, globalVerification, inputVerification: inputVerificationRows };
+  const globalVerification: PsbtVerificationCheck[] = [
+    modifiable !== undefined && (modifiable & 0xf8) !== 0
+      ? {
+          relationship: 'PSBT transaction-modifiable flags',
+          status: 'not-verified',
+          detail: `Undefined flag bits 0x${(modifiable & 0xf8).toString(16).padStart(2, '0')} are preserved but have no defined BIP370 meaning.`,
+        }
+      : {
+          relationship: 'PSBT transaction-modifiable flags',
+          status: 'verified',
+          detail: 'All supplied transaction-modifiable bits have defined BIP370 meanings.',
+        },
+  ];
+  const inputVerificationRows = inputs.map((map, index) =>
+    inputVerification(map, suppliedUtxos[index] ?? null, chain, commitmentFailures[index] ?? null, mixedLockKinds),
+  );
+  return {
+    chain,
+    version,
+    global,
+    inputs,
+    outputs,
+    transaction,
+    inputUtxos: suppliedUtxos,
+    inputValues,
+    outputValues,
+    fee,
+    globalVerification,
+    inputVerification: inputVerificationRows,
+  };
 }
 
 export function pairName(scope: 'global' | 'input' | 'output', type: bigint, chain: PsbtChain = 'bitcoin'): string {
   const names: Record<string, Record<string, string>> = {
-    global: { '0': 'Unsigned transaction', '1': 'Extended public key', '2': 'Transaction version (v2)', '3': 'Fallback locktime (v2)', '4': 'Input count (v2)', '5': 'Output count (v2)', '6': 'Transaction modifiable flags (v2)', '251': 'PSBT version', '252': 'Proprietary' },
-    input: { '0': 'Non-witness UTXO', '1': 'Witness UTXO', '2': 'Partial signature', '3': 'Sighash type', '4': 'Redeem script', '5': 'Witness script', '6': 'BIP32 derivation', '7': 'Final scriptSig', '8': 'Final script witness', '10': 'RIPEMD160 preimage', '11': 'SHA256 preimage', '12': 'HASH160 preimage', '13': 'HASH256 preimage', '14': 'Previous txid (v2)', '15': 'Output index (v2)', '16': 'Sequence (v2)', '19': 'Taproot key signature', '20': 'Taproot script signature', '21': 'Taproot leaf script', '22': 'Taproot BIP32 derivation', '23': 'Taproot internal key', '24': 'Taproot Merkle root', '26': 'MuSig2 participant public keys', '27': 'MuSig2 public nonce', '28': 'MuSig2 partial signature', '252': 'Proprietary' },
-    output: { '0': 'Redeem script', '1': 'Witness script', '2': 'BIP32 derivation', '3': 'Amount (v2)', '4': 'Script (v2)', '5': 'Taproot internal key', '6': 'Taproot tree', '7': 'Taproot BIP32 derivation', '8': 'MuSig2 participant public keys', '252': 'Proprietary' },
+    global: {
+      '0': 'Unsigned transaction',
+      '1': 'Extended public key',
+      '2': 'Transaction version (v2)',
+      '3': 'Fallback locktime (v2)',
+      '4': 'Input count (v2)',
+      '5': 'Output count (v2)',
+      '6': 'Transaction modifiable flags (v2)',
+      '251': 'PSBT version',
+      '252': 'Proprietary',
+    },
+    input: {
+      '0': 'Non-witness UTXO',
+      '1': 'Witness UTXO',
+      '2': 'Partial signature',
+      '3': 'Sighash type',
+      '4': 'Redeem script',
+      '5': 'Witness script',
+      '6': 'BIP32 derivation',
+      '7': 'Final scriptSig',
+      '8': 'Final script witness',
+      '10': 'RIPEMD160 preimage',
+      '11': 'SHA256 preimage',
+      '12': 'HASH160 preimage',
+      '13': 'HASH256 preimage',
+      '14': 'Previous txid (v2)',
+      '15': 'Output index (v2)',
+      '16': 'Sequence (v2)',
+      '19': 'Taproot key signature',
+      '20': 'Taproot script signature',
+      '21': 'Taproot leaf script',
+      '22': 'Taproot BIP32 derivation',
+      '23': 'Taproot internal key',
+      '24': 'Taproot Merkle root',
+      '26': 'MuSig2 participant public keys',
+      '27': 'MuSig2 public nonce',
+      '28': 'MuSig2 partial signature',
+      '252': 'Proprietary',
+    },
+    output: {
+      '0': 'Redeem script',
+      '1': 'Witness script',
+      '2': 'BIP32 derivation',
+      '3': 'Amount (v2)',
+      '4': 'Script (v2)',
+      '5': 'Taproot internal key',
+      '6': 'Taproot tree',
+      '7': 'Taproot BIP32 derivation',
+      '8': 'MuSig2 participant public keys',
+      '252': 'Proprietary',
+    },
   };
-  if (chain === 'dash' && (
-    (scope === 'global' && [2n, 3n, 4n, 5n, 6n].includes(type))
-    || (scope === 'input' && [1n, 5n, 8n, 14n, 15n, 16n, 19n, 20n, 21n, 22n, 23n, 24n, 26n, 27n, 28n].includes(type))
-    || (scope === 'output' && [1n, 3n, 4n, 5n, 6n, 7n, 8n].includes(type))
-  )) {
+  if (
+    chain === 'dash' &&
+    ((scope === 'global' && [2n, 3n, 4n, 5n, 6n].includes(type)) ||
+      (scope === 'input' && [1n, 5n, 8n, 14n, 15n, 16n, 19n, 20n, 21n, 22n, 23n, 24n, 26n, 27n, 28n].includes(type)) ||
+      (scope === 'output' && [1n, 3n, 4n, 5n, 6n, 7n, 8n].includes(type)))
+  ) {
     return `Unknown/unsupported Dash field ${type}`;
   }
   return names[scope]?.[type.toString()] ?? `Unknown type ${type}`;
 }
 
-export function pairSummary(scope: 'global' | 'input' | 'output', pair: PsbtPair, chain: PsbtChain = 'bitcoin'): string | null {
-  const classicDerivation = (scope === 'global' && pair.type === 0x01n)
-    || (scope === 'input' && pair.type === 0x06n)
-    || (scope === 'output' && pair.type === 0x02n);
+export function pairSummary(
+  scope: 'global' | 'input' | 'output',
+  pair: PsbtPair,
+  chain: PsbtChain = 'bitcoin',
+): string | null {
+  const classicDerivation =
+    (scope === 'global' && pair.type === 0x01n) ||
+    (scope === 'input' && pair.type === 0x06n) ||
+    (scope === 'output' && pair.type === 0x02n);
   if (classicDerivation) return derivationSummary(pair.value, 0);
-  const taprootDerivation = (scope === 'input' && pair.type === 0x16n)
-    || (scope === 'output' && pair.type === 0x07n);
+  const taprootDerivation = (scope === 'input' && pair.type === 0x16n) || (scope === 'output' && pair.type === 0x07n);
   if (taprootDerivation && pair.value.length > 0) {
     const leafHashCount = pair.value[0]!;
-    if (leafHashCount >= 0xfd) return 'Taproot key origin uses an extended CompactSize leaf-hash count; inspect the raw value.';
+    if (leafHashCount >= 0xfd)
+      return 'Taproot key origin uses an extended CompactSize leaf-hash count; inspect the raw value.';
     return derivationSummary(pair.value, 1 + leafHashCount * 32);
   }
   if (chain === 'dash') return null;
@@ -680,16 +976,17 @@ export function pairSummary(scope: 'global' | 'input' | 'output', pair: PsbtPair
 
 function derivationSummary(value: Uint8Array, offset: number): string {
   const remaining = value.length - offset;
-  if (remaining < 4 || remaining % 4 !== 0) return 'Malformed BIP32 key origin; expected a 4-byte fingerprint followed by zero or more child indexes.';
+  if (remaining < 4 || remaining % 4 !== 0)
+    return 'Malformed BIP32 key origin; expected a 4-byte fingerprint followed by zero or more child indexes.';
   const fingerprint = bytesToHex(value.slice(offset, offset + 4));
   const path: string[] = [];
   for (let position = offset + 4; position < value.length; position += 4) {
-    const child = (
-      (value[position] ?? 0)
-      | ((value[position + 1] ?? 0) << 8)
-      | ((value[position + 2] ?? 0) << 16)
-      | ((value[position + 3] ?? 0) << 24)
-    ) >>> 0;
+    const child =
+      ((value[position] ?? 0) |
+        ((value[position + 1] ?? 0) << 8) |
+        ((value[position + 2] ?? 0) << 16) |
+        ((value[position + 3] ?? 0) << 24)) >>>
+      0;
     const hardened = child >= 0x80000000;
     path.push(`${hardened ? child - 0x80000000 : child}${hardened ? "'" : ''}`);
   }
@@ -703,19 +1000,26 @@ function payloadAddress(prefix: number, payload: Uint8Array): string {
   return encodeBase58Check(prefixed);
 }
 
-export function describeScript(script: Uint8Array, chain: PsbtChain, network: PsbtNetwork): { type: string; address: string | null } {
+export function describeScript(
+  script: Uint8Array,
+  chain: PsbtChain,
+  network: PsbtNetwork,
+): { type: string; address: string | null } {
   const hex = bytesToHex(script);
   if (/^76a914[0-9a-f]{40}88ac$/u.test(hex)) {
-    const prefix = chain === 'dash' ? (network === 'mainnet' ? 0x4c : 0x8c) : (network === 'mainnet' ? 0x00 : 0x6f);
+    const prefix = chain === 'dash' ? (network === 'mainnet' ? 0x4c : 0x8c) : network === 'mainnet' ? 0x00 : 0x6f;
     return { type: 'P2PKH', address: payloadAddress(prefix, script.slice(3, 23)) };
   }
   if (/^a914[0-9a-f]{40}87$/u.test(hex)) {
-    const prefix = chain === 'dash' ? (network === 'mainnet' ? 0x10 : 0x13) : (network === 'mainnet' ? 0x05 : 0xc4);
+    const prefix = chain === 'dash' ? (network === 'mainnet' ? 0x10 : 0x13) : network === 'mainnet' ? 0x05 : 0xc4;
     return { type: 'P2SH', address: payloadAddress(prefix, script.slice(2, 22)) };
   }
   if (chain === 'bitcoin' && (/^0014[0-9a-f]{40}$/u.test(hex) || /^0020[0-9a-f]{64}$/u.test(hex))) {
     const hrp = network === 'mainnet' ? 'bc' : network === 'regtest' ? 'bcrt' : 'tb';
-    return { type: script.length === 22 ? 'P2WPKH' : 'P2WSH', address: bech32.encode(hrp, [0, ...bech32.toWords(script.slice(2))]) };
+    return {
+      type: script.length === 22 ? 'P2WPKH' : 'P2WSH',
+      address: bech32.encode(hrp, [0, ...bech32.toWords(script.slice(2))]),
+    };
   }
   if (chain === 'bitcoin' && /^5120[0-9a-f]{64}$/u.test(hex)) {
     const hrp = network === 'mainnet' ? 'bc' : network === 'regtest' ? 'bcrt' : 'tb';

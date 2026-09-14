@@ -7,11 +7,9 @@ import { parseBuildProfile } from './build-profiles.mjs';
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const cliArgs = process.argv.slice(2);
 const profile = parseBuildProfile(cliArgs);
-const signer = cliArgs.find((arg, index) => (
-  !arg.startsWith('--profile=')
-  && arg !== '--profile'
-  && cliArgs[index - 1] !== '--profile'
-));
+const signer = cliArgs.find(
+  (arg, index) => !arg.startsWith('--profile=') && arg !== '--profile' && cliArgs[index - 1] !== '--profile',
+);
 const manifest = resolve(root, profile.releaseDirectory, 'SHA256SUMS');
 const signature = resolve(root, profile.releaseDirectory, 'SHA256SUMS.asc');
 if (!existsSync(manifest)) throw new Error('Run the release manifest step before signing.');

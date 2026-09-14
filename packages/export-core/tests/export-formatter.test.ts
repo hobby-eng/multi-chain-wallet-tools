@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getCoinAdapter } from '@ckd/coins/registry.js';
 import type { DerivationResult } from '@ckd/core/types.js';
 import { field } from '@ckd/core/types.js';
-import {
-  displayedFields,
-  formatSelectedRows,
-  inspectSelectedRows,
-  iterateSelectedRows,
-} from '../src/formatter.js';
+import { displayedFields, formatSelectedRows, inspectSelectedRows, iterateSelectedRows } from '../src/formatter.js';
 
 const result: DerivationResult = {
   id: 'bitcoin-taproot',
@@ -52,12 +47,7 @@ describe('generic export formatter', () => {
     const output = formatSelectedRows(adapter, result, new Set([0, 1]), 'advanced', 'privateKeys', 'plain');
     expect(output.valueCount).toBe(4);
     expect(output.containsSecret).toBe(true);
-    expect(output.text).toBe([
-      'secret-wif-0',
-      'secret-tweaked-0',
-      'secret-wif-1',
-      'secret-tweaked-1',
-    ].join('\n'));
+    expect(output.text).toBe(['secret-wif-0', 'secret-tweaked-0', 'secret-wif-1', 'secret-tweaked-1'].join('\n'));
   });
 
   it('creates a rectangular TSV for multi-row exports', () => {
@@ -72,13 +62,15 @@ describe('generic export formatter', () => {
   it('neutralises spreadsheet formulas in TSV headers and cells', () => {
     const injected: DerivationResult = {
       ...result,
-      rows: [{
-        index: 0,
-        path: "m/86'/0'/0'/0/0",
-        title: 'Address 0',
-        basic: [field('address', '=Address', '=cmd|calc')],
-        advanced: [],
-      }],
+      rows: [
+        {
+          index: 0,
+          path: "m/86'/0'/0'/0/0",
+          title: 'Address 0',
+          basic: [field('address', '=Address', '=cmd|calc')],
+          advanced: [],
+        },
+      ],
     };
     const tsv = formatSelectedRows(adapter, injected, new Set([0]), 'basic', 'selected', 'tsv');
     const lines = tsv.text.split('\n');
@@ -103,45 +95,40 @@ describe('generic export formatter', () => {
       basicSummary: [],
       summary: [],
       notices: [],
-      rows: [{
-        index: 0,
-        path: "m/9'/5'/5'/0'/0'/0'",
-        title: 'Identity candidate #0',
-        basic: [],
-        advanced: [field('identityId', 'Identity ID', 'Not available until registration')],
-        groups: [
-          {
-            key: 'key0',
-            title: 'Key 0 · MASTER AUTHENTICATION',
-            basic: [
-              field('key0PublicKey', 'Compressed public key', 'master-public'),
-              field('key0PrivateKeyWif', 'Private key (Dash WIF)', 'master-private', true),
-            ],
-            advanced: [field('key0Path', 'DIP13 derivation path', "m/9'/5'/5'/0'/0'/0'/0'")],
-          },
-          {
-            key: 'key1',
-            title: 'Key 1 · CRITICAL AUTHENTICATION',
-            basic: [
-              field('key1PublicKey', 'Compressed public key', 'critical-public'),
-              field('key1PrivateKeyWif', 'Private key (Dash WIF)', 'critical-private', true),
-            ],
-            advanced: [field('key1Path', 'DIP13 derivation path', "m/9'/5'/5'/0'/0'/0'/1'")],
-          },
-        ],
-      }],
+      rows: [
+        {
+          index: 0,
+          path: "m/9'/5'/5'/0'/0'/0'",
+          title: 'Identity candidate #0',
+          basic: [],
+          advanced: [field('identityId', 'Identity ID', 'Not available until registration')],
+          groups: [
+            {
+              key: 'key0',
+              title: 'Key 0 · MASTER AUTHENTICATION',
+              basic: [
+                field('key0PublicKey', 'Compressed public key', 'master-public'),
+                field('key0PrivateKeyWif', 'Private key (Dash WIF)', 'master-private', true),
+              ],
+              advanced: [field('key0Path', 'DIP13 derivation path', "m/9'/5'/5'/0'/0'/0'/0'")],
+            },
+            {
+              key: 'key1',
+              title: 'Key 1 · CRITICAL AUTHENTICATION',
+              basic: [
+                field('key1PublicKey', 'Compressed public key', 'critical-public'),
+                field('key1PrivateKeyWif', 'Private key (Dash WIF)', 'critical-private', true),
+              ],
+              advanced: [field('key1Path', 'DIP13 derivation path', "m/9'/5'/5'/0'/0'/0'/1'")],
+            },
+          ],
+        },
+      ],
     };
     const identityAdapter = getCoinAdapter('dash-identity');
 
     expect(displayedFields(grouped.rows[0]!, 'basic')).toHaveLength(4);
-    const publicKeys = formatSelectedRows(
-      identityAdapter,
-      grouped,
-      new Set([0]),
-      'basic',
-      'publicKeys',
-      'plain',
-    );
+    const publicKeys = formatSelectedRows(identityAdapter, grouped, new Set([0]), 'basic', 'publicKeys', 'plain');
     expect(publicKeys.text).toBe('master-public\ncritical-public');
 
     const structured = formatSelectedRows(
@@ -153,7 +140,9 @@ describe('generic export formatter', () => {
       'structured',
     );
     expect(structured.text).toContain('Key 0 · MASTER AUTHENTICATION · Compressed public key: master-public');
-    expect(structured.text).toContain("Key 1 · CRITICAL AUTHENTICATION · DIP13 derivation path: m/9'/5'/5'/0'/0'/0'/1'");
+    expect(structured.text).toContain(
+      "Key 1 · CRITICAL AUTHENTICATION · DIP13 derivation path: m/9'/5'/5'/0'/0'/0'/1'",
+    );
     expect(structured.containsSecret).toBe(true);
   });
 

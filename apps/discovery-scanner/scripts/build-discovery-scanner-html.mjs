@@ -30,14 +30,15 @@ const shellTemplate = applyProfileTemplate(
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const recoveryCss = readFileSync(resolve(root, 'apps/discovery-scanner/src/styles.css'), 'utf8');
 const shellCss = readFileSync(resolve(root, 'packages/shared-ui/styles/tool-shell.css'), 'utf8');
-const themeCss = profile.themeStylesheet === undefined
-  ? ''
-  : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
-const css = (await transform(`${sharedCss}\n${recoveryCss}\n${shellCss}\n${themeCss}`, {
-  loader: 'css',
-  minify: true,
-  legalComments: 'inline',
-})).code;
+const themeCss =
+  profile.themeStylesheet === undefined ? '' : readFileSync(resolve(root, profile.themeStylesheet), 'utf8');
+const css = (
+  await transform(`${sharedCss}\n${recoveryCss}\n${shellCss}\n${themeCss}`, {
+    loader: 'css',
+    minify: true,
+    legalComments: 'inline',
+  })
+).code;
 const buildInfo = createBuildInfo(root, tool.checksumFile, profile);
 const scriptCsp = (javascript) => `'sha256-${createHash('sha256').update(javascript).digest('base64')}'`;
 function dynamicCodeSurface(javascript) {
@@ -76,13 +77,24 @@ const vaultInputs = Object.keys(vaultBundle.metafile.inputs);
 if (profile.id === 'dash-community') {
   assertDashOnlyGraph(vaultInputs, 'Dash Community Recovery Secret Vault');
 }
-if (vaultInputs.some((input) => input.includes('@dashevo/evo-sdk') || input.endsWith('/network-service.ts') || input.endsWith('/network-worker.ts'))) {
+if (
+  vaultInputs.some(
+    (input) =>
+      input.includes('@dashevo/evo-sdk') ||
+      input.endsWith('/network-service.ts') ||
+      input.endsWith('/network-worker.ts'),
+  )
+) {
   throw new Error('Recovery Secret Vault bundle unexpectedly contains the network SDK/service.');
 }
 if (vaultInputs.some((input) => input.endsWith('/packages/export-core/src/download.ts'))) {
   throw new Error('Recovery Secret Vault bundle unexpectedly contains direct browser download capability.');
 }
-if (!vaultTemplate.includes('/*__INLINE_CSS__*/') || !vaultTemplate.includes('/*__INLINE_JS__*/') || !vaultTemplate.includes('__VAULT_SCRIPT_CSP__')) {
+if (
+  !vaultTemplate.includes('/*__INLINE_CSS__*/') ||
+  !vaultTemplate.includes('/*__INLINE_JS__*/') ||
+  !vaultTemplate.includes('__VAULT_SCRIPT_CSP__')
+) {
   throw new Error('Recovery Secret Vault template is missing an inline build marker.');
 }
 const safeVaultJavascript = vaultJavascript.replaceAll('</script', '<\\/script');
@@ -93,9 +105,11 @@ const vaultHtml = vaultTemplate
 
 const networkBundle = await build({
   absWorkingDir: root,
-  entryPoints: [profile.id === 'dash-community'
-    ? 'apps/discovery-scanner/src/network-worker-dash-community.ts'
-    : 'apps/discovery-scanner/src/network-worker.ts'],
+  entryPoints: [
+    profile.id === 'dash-community'
+      ? 'apps/discovery-scanner/src/network-worker-dash-community.ts'
+      : 'apps/discovery-scanner/src/network-worker.ts',
+  ],
   bundle: true,
   format: 'iife',
   platform: 'browser',
@@ -140,11 +154,11 @@ for (const forbidden of [
 // cannot silently add another dynamic-code path.
 const networkDynamicCode = dynamicCodeSurface(networkJavascript);
 if (
-  networkDynamicCode.functionConstructors !== 3
-  || networkDynamicCode.newFunctionConstructors !== 2
-  || networkDynamicCode.knownDiagnosticLiterals !== 1
-  || networkDynamicCode.evalCalls !== 0
-  || !networkJavascript.includes('return import("node:zlib")')
+  networkDynamicCode.functionConstructors !== 3 ||
+  networkDynamicCode.newFunctionConstructors !== 2 ||
+  networkDynamicCode.knownDiagnosticLiterals !== 1 ||
+  networkDynamicCode.evalCalls !== 0 ||
+  !networkJavascript.includes('return import("node:zlib")')
 ) {
   throw new Error('Recovery Network Worker dynamic-code surface changed from the two reviewed SDK glue paths.');
 }
@@ -174,10 +188,16 @@ const shellJavascript = shellBundle.outputFiles[0]?.text;
 if (shellJavascript === undefined) throw new Error('esbuild did not produce the Recovery isolation shell bundle.');
 const allowedShellInputs = new Set([
   'apps/discovery-scanner/src/shell.ts',
-  'apps/discovery-scanner/src/network-protocol.ts',
+  'packages/network-boundary/src/protocol.ts',
+  'packages/network-boundary/src/data-types.ts',
+  'packages/network-boundary/src/client.ts',
+  'packages/secret-vault/src/vault-protocol.ts',
+  'packages/secret-vault/src/vault-client.ts',
+  'packages/secret-vault/src/worker-bootstrap.ts',
 ]);
-const unexpectedShellInputs = Object.keys(shellBundle.metafile.inputs)
-  .filter((input) => !allowedShellInputs.has(input));
+const unexpectedShellInputs = Object.keys(shellBundle.metafile.inputs).filter(
+  (input) => !allowedShellInputs.has(input),
+);
 if (unexpectedShellInputs.length > 0) {
   throw new Error(`Recovery shell bundle crossed its two-module boundary through: ${unexpectedShellInputs.join(', ')}`);
 }
@@ -188,7 +208,11 @@ for (const input of allowedShellInputs) {
     throw new Error(`Recovery shell source unexpectedly contains dynamic code evaluation in ${input}.`);
   }
 }
-if (!shellTemplate.includes('/*__SHELL_JS__*/') || !shellTemplate.includes('__SHELL_SCRIPT_CSP__') || !shellTemplate.includes('__VAULT_SCRIPT_CSP__')) {
+if (
+  !shellTemplate.includes('/*__SHELL_JS__*/') ||
+  !shellTemplate.includes('__SHELL_SCRIPT_CSP__') ||
+  !shellTemplate.includes('__VAULT_SCRIPT_CSP__')
+) {
   throw new Error('Recovery shell template is missing an inline build marker.');
 }
 const safeShellJavascript = shellJavascript.replaceAll('</script', '<\\/script');

@@ -1,7 +1,8 @@
 import { createHash, pbkdf2Sync } from 'node:crypto';
 import { HDNodeWallet, SigningKey } from 'ethers';
 
-export const AUDIT_MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+export const AUDIT_MNEMONIC =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 export function referenceSeed(passphrase = '', mnemonic = AUDIT_MNEMONIC): Buffer {
   return pbkdf2Sync(mnemonic.normalize('NFKD'), `mnemonic${passphrase.normalize('NFKD')}`, 2048, 64, 'sha512');
@@ -50,8 +51,12 @@ export function referenceBech32m(hrp: string, version: number, bytes: Uint8Array
     }
   }
   if (bits) words.push((accumulator << (5 - bits)) & 31);
-  const expanded = [...hrp].map(char => char.charCodeAt(0) >>> 5)
-    .concat(0, [...hrp].map(char => char.charCodeAt(0) & 31));
+  const expanded = [...hrp]
+    .map((char) => char.charCodeAt(0) >>> 5)
+    .concat(
+      0,
+      [...hrp].map((char) => char.charCodeAt(0) & 31),
+    );
   let checksum = 1;
   for (const word of [...expanded, ...words, 0, 0, 0, 0, 0, 0]) {
     const top = checksum >>> 25;
@@ -63,7 +68,7 @@ export function referenceBech32m(hrp: string, version: number, bytes: Uint8Array
   checksum ^= 0x2bc830a3;
   const alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
   const check = Array.from({ length: 6 }, (_, index) => (checksum >>> (5 * (5 - index))) & 31);
-  return `${hrp}1${[...words, ...check].map(word => alphabet[word]).join('')}`;
+  return `${hrp}1${[...words, ...check].map((word) => alphabet[word]).join('')}`;
 }
 
 export function referenceTaggedHash(tag: string, bytes: Uint8Array): Buffer {

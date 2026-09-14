@@ -4,8 +4,8 @@ import type {
   IdentityLookupView,
   PlatformAddressBatchView,
   PlatformHistorySummaryView,
-} from '../../network-protocol.js';
-import type { RecoveryNetwork } from '../../types.js';
+} from '@ckd/network-boundary/protocol.js';
+import type { RecoveryNetwork } from '@ckd/network-boundary/protocol.js';
 
 export class DashPlatformClient {
   constructor(

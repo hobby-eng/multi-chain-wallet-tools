@@ -1,7 +1,18 @@
 import type { NetworkName } from '@ckd/core/types.js';
 import type { RecoveryTaskLimiter } from './concurrency.js';
-import type { RecoveryNetworkApi } from './network-protocol.js';
-import type { SecretEgressGuard } from './secret-guard.js';
+import type { RecoveryNetworkApi } from '@ckd/network-boundary/protocol.js';
+import type { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
+import type { RecoveryInputSnapshot, DiscoveryScannerView } from './view.js';
+import type {
+  DetectedWatchOnlyMaterial,
+  RecoveryWatchOnlyInput,
+  RecoveryWatchOnlyScanConfig,
+} from '@ckd/recovery/watch-only/types.js';
+export type {
+  DetectedWatchOnlyMaterial,
+  RecoveryWatchOnlyInput,
+  RecoveryWatchOnlyScanConfig,
+} from '@ckd/recovery/watch-only/types.js';
 
 export type RecoveryNetwork = NetworkName;
 export type RecoveryInputMode = 'single' | 'batch';
@@ -14,101 +25,23 @@ export interface RecoverySeedInput {
   passphrase: string;
 }
 
-/**
- * Every supported watch-only/public-key discovery shape. Each kind maps to
- * one coin adapter after local detection. Bare SEC1 keys and shared xpub
- * versions may yield separate candidate reports for multiple adapters.
- */
-export type RecoveryWatchOnlyKind =
-  | 'bitcoin-descriptor'
-  | 'bitcoin-xpub'
-  | 'ethereum-xpub'
-  | 'dash-legacy-xpub'
-  | 'dash-core-xpub'
-  | 'dash-coinjoin-xpub'
-  | 'dash-platform-xpub'
-  | 'public-key'
-  | 'identity'
-  | 'orchard-fvk'
-  | 'orchard-ivk'
-  | 'orchard-ovk';
-
-/**
- * The result of local, offline shape detection for one pasted line. `value`
- * is always public material: a descriptor string, a base58 extended public
- * key, a lowercase hex SEC1 public key, a normalized Identity lookup value,
- * or a lowercase hex Orchard viewing key. It is never an extended or
- * viewing *private* key — those are rejected before a `DetectedWatchOnlyMaterial`
- * can be constructed.
- */
-export interface DetectedWatchOnlyMaterial {
-  coinId: string;
-  kind: RecoveryWatchOnlyKind;
-  value: string;
-  /** Human-readable result of local format detection; never a claim of ownership. */
-  detectionLabel?: string;
-  /** Public origin supplied by a validated descriptor; ancestry is descriptive, not proven. */
-  descriptorPath?: string;
-  /** Present when the serialized public material declares its own network. */
-  bundleNetwork?: 'mainnet' | 'testnet';
+export interface AddressSearchRunnerContext {
+  inputMode: RecoveryInputMode;
+  recoveryInputs: (snapshot: RecoveryInputSnapshot) => RecoverySeedInput[];
+  wipeInputObjects: (inputs: RecoverySeedInput[]) => void;
+  sessionSecretGuard: Pick<SecretEgressGuard, 'registerString' | 'registerBytes' | 'clear'>;
+  view: Pick<
+    DiscoveryScannerView,
+    'resetResults' | 'resetAddressSearch' | 'setStatus' | 'renderAddressSearch' | 'showError'
+  >;
+  resetState: () => void;
+  prepareRun: () => { controller: AbortController; generation: number };
+  isCurrentRun: (generation: number) => boolean;
+  finishRun: (generation: number) => void;
+  describeUnknownError: (cause: unknown) => string;
 }
 
-export interface RecoveryWatchOnlyInput extends DetectedWatchOnlyMaterial {
-  id: string;
-  label: string;
-}
-
-/**
- * Watch-only scans never touch a seed-derived account index or the seed-only
- * Dash coverage toggles: the account/branch context already lives inside the
- * pasted extended public key itself, and every other family below the BIP44
- * account level cannot be reached without a hardened key the vault never
- * sees.
- */
-export interface RecoveryWatchOnlyScanConfig {
-  network: RecoveryNetwork;
-  minimumCount: number;
-  includeUsedZeroBalance: boolean;
-}
-
-export interface RecoveryScanConfig {
-  network: RecoveryNetwork;
-  account: number;
-  scanCore: boolean;
-  coreReceiveCount: number;
-  coreChangeCount: number;
-  scanCustomPath?: boolean;
-  customPathTemplate?: string;
-  /** Inclusive account range endpoint; absent for a single arbitrary path. */
-  customPathRangeEnd?: string;
-  customPathFormat?: string;
-  customPathCount?: number;
-  scanLegacyCore: boolean;
-  legacyCoreCount: number;
-  /**
-   * Optional mobile/DashSync CoinJoin compatibility scan appended to the same
-   * run. Desktop Dash Core CoinJoin is already covered by the always-on BIP44
-   * receive/change scan; this family derives the separate DIP9 mobile paths.
-   */
-  scanCoinJoin: boolean;
-  coinJoinExternalCount: number;
-  coinJoinInternalCount: number;
-  scanIdentityFunding: boolean;
-  identityFundingCount: number;
-  identityTopUpIdentityCount: number;
-  identityTopUpCount: number;
-  scanProviderCollateral: boolean;
-  providerCollateralCount: number;
-  scanPlatformAddresses: boolean;
-  /** Minimum per DIP17 receive/internal hardened class, each with its own discovery gap. */
-  platformAddressCount: number;
-  scanPlatformIdentities: boolean;
-  identityStartIndex: number;
-  identityGapLimit: number;
-  identityScanLimit: number;
-  includeUsedZeroBalance: boolean;
-  scanShieldedPool: boolean;
-}
+export type AddressSearchRunner = (snapshot: RecoveryInputSnapshot, context: AddressSearchRunnerContext) => void;
 
 export type RecoverySectionId =
   | 'core'
@@ -119,6 +52,38 @@ export type RecoverySectionId =
   | 'identity'
   | 'shielded';
 export type RecoverySectionState = 'complete' | 'partial' | 'skipped' | 'failed';
+
+export interface RecoveryScanConfig {
+  network: RecoveryNetwork;
+  account: number;
+  scanCore: boolean;
+  coreReceiveCount: number;
+  coreChangeCount: number;
+  scanCustomPath?: boolean;
+  customPathTemplate?: string;
+  customPathRangeEnd?: string;
+  customPathFormat?: string;
+  customPathCount?: number;
+  scanLegacyCore: boolean;
+  legacyCoreCount: number;
+  scanCoinJoin: boolean;
+  coinJoinExternalCount: number;
+  coinJoinInternalCount: number;
+  scanIdentityFunding: boolean;
+  identityFundingCount: number;
+  identityTopUpIdentityCount: number;
+  identityTopUpCount: number;
+  scanProviderCollateral: boolean;
+  providerCollateralCount: number;
+  scanPlatformAddresses: boolean;
+  platformAddressCount: number;
+  scanPlatformIdentities: boolean;
+  identityStartIndex: number;
+  identityGapLimit: number;
+  identityScanLimit: number;
+  includeUsedZeroBalance: boolean;
+  scanShieldedPool: boolean;
+}
 
 export interface RecoveryMetric {
   label: string;
@@ -246,7 +211,11 @@ export interface RecoveryCoinAdapter {
     config: RecoveryScanConfig,
     context: Omit<RecoveryScanContext, 'preparedSections'>,
   ): Promise<ReadonlyMap<string, RecoverySection>>;
-  scan(input: RecoverySeedInput, config: RecoveryScanConfig, context: RecoveryScanContext): Promise<RecoveryWalletResult>;
+  scan(
+    input: RecoverySeedInput,
+    config: RecoveryScanConfig,
+    context: RecoveryScanContext,
+  ): Promise<RecoveryWalletResult>;
   /**
    * Local, offline shape detection for one pasted watch-only line. Throws
    * `WatchOnlyNotRecognizedError` (see `../watch-only.js`) when this coin does

@@ -26,9 +26,7 @@ export class DashPlatformAddressSource {
   async connect(): Promise<void> {
     if (this.#sdk !== undefined) return;
     const settings = { connectTimeoutMs: 10_000, timeoutMs: 30_000, retries: 3, banFailedAddress: true };
-    const sdk = this.#network === 'mainnet'
-      ? EvoSDK.mainnetTrusted({ settings })
-      : EvoSDK.testnetTrusted({ settings });
+    const sdk = this.#network === 'mainnet' ? EvoSDK.mainnetTrusted({ settings }) : EvoSDK.testnetTrusted({ settings });
     await sdk.connect();
     this.#sdk = sdk;
   }

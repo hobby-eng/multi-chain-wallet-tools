@@ -31,8 +31,10 @@ export async function signDerivedMessage(
       format === 'bitcoin-bip322-legacy'
         ? 'legacy-p2pkh'
         : format === 'bitcoin-bip322-nested'
-        ? 'nested-segwit'
-        : format === 'bitcoin-bip322-native' ? 'native-segwit' : 'taproot',
+          ? 'nested-segwit'
+          : format === 'bitcoin-bip322-native'
+            ? 'native-segwit'
+            : 'taproot',
       fields.find((field) => field.key === 'scriptPubKey')?.value ?? '',
       fields.find((field) => field.key === 'redeemScript')?.value,
       fields.find((field) => field.key === 'internalPublicKey')?.value,

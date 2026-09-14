@@ -1,7 +1,5 @@
 import { deriveDashCore } from '@ckd/coins/dash/core.js';
-import {
-  deriveDashIdentityAuthenticationKey,
-} from '@ckd/coins/dash/identity.js';
+import { deriveDashIdentityAuthenticationKey } from '@ckd/coins/dash/identity.js';
 import { deriveDashPlatform } from '@ckd/coins/dash/platform.js';
 import { requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
 import { bytesToHex, encodeP2pkh, hash160, hexToBytes, wipe } from '@ckd/core/crypto.js';
@@ -32,28 +30,48 @@ export async function runDashDerivationSelfTest(): Promise<CryptoSelfTestReport>
     {
       name: 'Dash Core / BIP44',
       result: deriveDashCore({
-        seed: seed.slice(), network: 'mainnet', account: 0, branch: 0, start: 0, count: 1,
+        seed: seed.slice(),
+        network: 'mainnet',
+        account: 0,
+        branch: 0,
+        start: 0,
+        count: 1,
       }),
       address: 'XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5',
     },
     {
       name: 'Dash Core testnet / BIP44',
       result: deriveDashCore({
-        seed: seed.slice(), network: 'testnet', account: 0, branch: 0, start: 0, count: 1,
+        seed: seed.slice(),
+        network: 'testnet',
+        account: 0,
+        branch: 0,
+        start: 0,
+        count: 1,
       }),
       address: 'yRd4FhXfVGHXpsuZXPNkMrfD9GVj46pnjt',
     },
     {
       name: 'Dash Platform / DIP17',
       result: deriveDashPlatform({
-        seed: seed.slice(), network: 'mainnet', account: 0, branch: 0, start: 0, count: 1,
+        seed: seed.slice(),
+        network: 'mainnet',
+        account: 0,
+        branch: 0,
+        start: 0,
+        count: 1,
       }),
       address: 'dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs',
     },
     {
       name: 'Dash Platform testnet / DIP17',
       result: deriveDashPlatform({
-        seed: seed.slice(), network: 'testnet', account: 0, branch: 0, start: 0, count: 1,
+        seed: seed.slice(),
+        network: 'testnet',
+        account: 0,
+        branch: 0,
+        start: 0,
+        count: 1,
       }),
       address: 'tdash1kzfj6fvrpza60u6m9u2nhzkthey68v7cqg2u9ymk',
     },
@@ -172,11 +190,23 @@ export async function runDashDerivationSelfTest(): Promise<CryptoSelfTestReport>
   const { deriveDashShielded } = await import('@ckd/coins/dash/shielded.js');
   try {
     for (const [name, network, expectedAddress] of [
-      ['Dash Orchard testnet / ZIP32', 'testnet', 'tdash1zrhflqt5ly4r7q64wrktl6tf466x7h30vjkknaudxsckc3l28rp0qzzm27yta0683nnnd2qum8gyq'],
-      ['Dash Orchard mainnet / ZIP32', 'mainnet', 'dash1zzx0rfu42k85qwywhx44023erxgcelv7xkqu3lr58t2t46arh392ch3ct0ke9qal6w57f2qlhxuxd'],
+      [
+        'Dash Orchard testnet / ZIP32',
+        'testnet',
+        'tdash1zrhflqt5ly4r7q64wrktl6tf466x7h30vjkknaudxsckc3l28rp0qzzm27yta0683nnnd2qum8gyq',
+      ],
+      [
+        'Dash Orchard mainnet / ZIP32',
+        'mainnet',
+        'dash1zzx0rfu42k85qwywhx44023erxgcelv7xkqu3lr58t2t46arh392ch3ct0ke9qal6w57f2qlhxuxd',
+      ],
     ] as const) {
       const result = deriveDashShielded({
-        seed: shieldedSeed.slice(), network, account: 0, start: 0, count: 1,
+        seed: shieldedSeed.slice(),
+        network,
+        account: 0,
+        start: 0,
+        count: 1,
       });
       try {
         expectEqual(name, resultValue(result, 'address'), expectedAddress);

@@ -59,8 +59,11 @@ export function deriveDashCore(options: Bip32BatchOptions): DerivationResult {
       basicSummary: [],
       summary,
       accountDescriptors: accountDescriptorExport({
-        script: 'pkh', fingerprint: masterFingerprint, accountPath,
-        publicKey: account.publicExtendedKey, privateKey: account.privateExtendedKey,
+        script: 'pkh',
+        fingerprint: masterFingerprint,
+        accountPath,
+        publicKey: account.publicExtendedKey,
+        privateKey: account.privateExtendedKey,
         fileStem: `dash-core-${options.network}-account-${options.account}`,
         scannerPrefix: 'dash-core-xpub',
       }),

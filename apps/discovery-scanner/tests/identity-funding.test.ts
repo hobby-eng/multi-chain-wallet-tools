@@ -6,8 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { scanDashIdentities } from '../src/coins/dash/identity-scanner.js';
 import { DashPlatformClient } from '../src/coins/dash/platform-client.js';
 import { RecoveryNetworkGateway } from '../src/network-gateway.js';
-import type { RecoveryNetworkApi } from '../src/network-protocol.js';
-import { SecretEgressGuard } from '../src/secret-guard.js';
+import type { RecoveryNetworkApi } from '@ckd/network-boundary/protocol.js';
+import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
 import type { RecoveryScanConfig } from '../src/types.js';
 
 const MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -31,7 +31,8 @@ function baseApi(): RecoveryNetworkApi {
     platformIdentityByPublicKeyHash: unavailable,
     platformIdentityHistory: unavailable,
     shieldedPage: unavailable,
-    addressHistory: unavailable, utxoAddresses: unavailable,
+    addressHistory: unavailable,
+    utxoAddresses: unavailable,
     evmAccounts: unavailable,
   };
 }
@@ -187,15 +188,17 @@ describe('Dash identity registration funding', () => {
     };
     const gateway = new RecoveryNetworkGateway(new SecretEgressGuard(), networkApi);
     try {
-      await expect(scanDashIdentities(
-        'seed-1',
-        seed,
-        { ...config, scanIdentityFunding: false, identityGapLimit: 1, identityScanLimit: 1 },
-        new DashPlatformClient('mainnet', gateway),
-        new AbortController().signal,
-        () => {},
-        () => {},
-      )).rejects.toThrow('Identity proof-query count must be one.');
+      await expect(
+        scanDashIdentities(
+          'seed-1',
+          seed,
+          { ...config, scanIdentityFunding: false, identityGapLimit: 1, identityScanLimit: 1 },
+          new DashPlatformClient('mainnet', gateway),
+          new AbortController().signal,
+          () => {},
+          () => {},
+        ),
+      ).rejects.toThrow('Identity proof-query count must be one.');
     } finally {
       wipe(seed);
     }

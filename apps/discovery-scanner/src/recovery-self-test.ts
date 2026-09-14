@@ -2,7 +2,7 @@ import { deriveDashCore } from '@ckd/coins/dash/core.js';
 import { deriveDashPlatform } from '@ckd/coins/dash/platform.js';
 import { clearDerivationResult } from '@ckd/core/secrets.js';
 import type { CryptoSelfTestReport } from '@ckd/self-test-types';
-import { SecretEgressGuard } from './secret-guard.js';
+import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
 
 export interface RecoverySelfTestReport {
   passed: true;
@@ -18,7 +18,9 @@ function firstAddress(result: ReturnType<typeof deriveDashCore>): string {
 
 function assertSecretVaultBoundary(): void {
   if (typeof window === 'undefined' || window.parent === window) {
-    throw new Error('Discovery scanning must run inside its sandboxed Secret Vault. Open the built Wallet Discovery Scanner artifact.');
+    throw new Error(
+      'Discovery scanning must run inside its sandboxed Secret Vault. Open the built Wallet Discovery Scanner artifact.',
+    );
   }
   let parentDomBlocked = false;
   try {
@@ -47,12 +49,29 @@ export function createRecoverySelfTest(
     for (let round = 0; round < 4; round += 1) {
       const seed = new Uint8Array(64);
       crypto.getRandomValues(seed);
-      const core = deriveDashCore({ seed: seed.slice(), network: round % 2 === 0 ? 'mainnet' : 'testnet', account: round, branch: 0, start: 0, count: 2 });
-      const platform = deriveDashPlatform({ seed: seed.slice(), network: round % 2 === 0 ? 'mainnet' : 'testnet', account: round, branch: 0, start: 0, count: 2 });
+      const core = deriveDashCore({
+        seed: seed.slice(),
+        network: round % 2 === 0 ? 'mainnet' : 'testnet',
+        account: round,
+        branch: 0,
+        start: 0,
+        count: 2,
+      });
+      const platform = deriveDashPlatform({
+        seed: seed.slice(),
+        network: round % 2 === 0 ? 'mainnet' : 'testnet',
+        account: round,
+        branch: 0,
+        start: 0,
+        count: 2,
+      });
       try {
-        if (firstAddress(core) === firstAddress(platform)) throw new Error('Recovery self-test found cross-domain address aliasing.');
-        if (core.rows[0]?.basic[0]?.value === core.rows[1]?.basic[0]?.value) throw new Error('Recovery self-test found duplicate Core child addresses.');
-        if (platform.rows[0]?.basic[0]?.value === platform.rows[1]?.basic[0]?.value) throw new Error('Recovery self-test found duplicate Platform child addresses.');
+        if (firstAddress(core) === firstAddress(platform))
+          throw new Error('Recovery self-test found cross-domain address aliasing.');
+        if (core.rows[0]?.basic[0]?.value === core.rows[1]?.basic[0]?.value)
+          throw new Error('Recovery self-test found duplicate Core child addresses.');
+        if (platform.rows[0]?.basic[0]?.value === platform.rows[1]?.basic[0]?.value)
+          throw new Error('Recovery self-test found duplicate Platform child addresses.');
       } finally {
         seed.fill(0);
         clearDerivationResult(core);

@@ -8,5 +8,7 @@ export function buildCustomMiniscriptPolicy(
   _context: CustomMiniscriptContext,
   _network: PsbtNetwork,
 ): CustomMiniscriptPolicy {
-  throw new Error('Custom Bitcoin P2WSH and Tapscript Miniscript construction is unavailable in the Dash Community build.');
+  throw new Error(
+    'Custom Bitcoin P2WSH and Tapscript Miniscript construction is unavailable in the Dash Community build.',
+  );
 }

@@ -54,9 +54,9 @@ function fieldsForAction(
   const keys = roleKeys(adapter, action);
   return displayedFieldEntries(row, mode)
     .filter(({ field }) => keys === null || keys.has(field.key))
-    .map(({ field, groupTitle }) => groupTitle === undefined
-      ? field
-      : { ...field, label: `${groupTitle} · ${field.label}` });
+    .map(({ field, groupTitle }) =>
+      groupTitle === undefined ? field : { ...field, label: `${groupTitle} · ${field.label}` },
+    );
 }
 
 /**

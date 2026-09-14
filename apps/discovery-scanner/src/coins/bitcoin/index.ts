@@ -6,8 +6,8 @@ import { bytesToHex, wipe } from '@ckd/core/crypto.js';
 import { getBitcoinNetwork } from '@ckd/core/networks.js';
 import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import { RECOVERY_UTXO_ADDRESS_BATCH, type UtxoAddressView } from '../../network-protocol.js';
-import { SecretEgressGuard } from '../../secret-guard.js';
+import { RECOVERY_UTXO_ADDRESS_BATCH, type UtxoAddressView } from '@ckd/network-boundary/protocol.js';
+import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
 import type {
   RecoveryCoinAdapter,
   RecoveryFinding,
@@ -19,7 +19,8 @@ import type {
 import { appendCustomPaths, customScanPaths } from '../custom-path.js';
 import { extendAddressTarget } from '../dash/util.js';
 import { addressFor, BITCOIN_MODES as MODES, formatBitcoin, type BitcoinMode } from './shared.js';
-import { detectBitcoinWatchOnly, scanBitcoinWatchOnly } from './watch-only.js';
+import { scanBitcoinWatchOnly } from './watch-only.js';
+import { detectBitcoinWatchOnly } from '@ckd/recovery/watch-only/bitcoin.js';
 
 interface BitcoinPathProfile {
   id: string;
@@ -34,33 +35,48 @@ function validatedEntries(value: UtxoAddressView[], expected: readonly string[])
     throw new Error('Bitcoin address service returned an incomplete batch.');
   }
   return value.map((entry, index) => {
-    if (entry.address !== expected[index]
-      || !PROVIDER_UNSIGNED_DECIMAL.test(entry.balance)
-      || !Number.isSafeInteger(entry.transactionCount)
-      || entry.transactionCount < 0) {
+    if (
+      entry.address !== expected[index] ||
+      !PROVIDER_UNSIGNED_DECIMAL.test(entry.balance) ||
+      !Number.isSafeInteger(entry.transactionCount) ||
+      entry.transactionCount < 0
+    ) {
       throw new Error('Bitcoin address service returned malformed data.');
     }
     return entry;
   });
 }
 
-function pathProfiles(config: RecoveryScanConfig, coinType: number): Iterable<BitcoinPathProfile> & { readonly length: number } {
-  const profiles = MODES.flatMap((family) => ([0, 1] as const).flatMap((branch) => {
-    const initialCount = branch === 0 ? config.coreReceiveCount : config.coreChangeCount;
-    return initialCount === 0 ? [] : [{
-      id: `${family.mode}:${branch}`,
-      label: `${family.label} · ${branch === 0 ? 'receive / external' : 'change / internal'}`,
-      mode: family.mode,
-      initialCount,
-      path: (index: number) => `m/${family.purpose}'/${coinType}'/${config.account}'/${branch}/${index}`,
-    }];
-  }));
+function pathProfiles(
+  config: RecoveryScanConfig,
+  coinType: number,
+): Iterable<BitcoinPathProfile> & { readonly length: number } {
+  const profiles = MODES.flatMap((family) =>
+    ([0, 1] as const).flatMap((branch) => {
+      const initialCount = branch === 0 ? config.coreReceiveCount : config.coreChangeCount;
+      return initialCount === 0
+        ? []
+        : [
+            {
+              id: `${family.mode}:${branch}`,
+              label: `${family.label} · ${branch === 0 ? 'receive / external' : 'change / internal'}`,
+              mode: family.mode,
+              initialCount,
+              path: (index: number) => `m/${family.purpose}'/${coinType}'/${config.account}'/${branch}/${index}`,
+            },
+          ];
+    }),
+  );
   const custom = customScanPaths(config);
   const selectedMode = MODES.find((entry) => entry.mode === config.customPathFormat);
-  if (custom.length > 0 && selectedMode === undefined) throw new Error('Select a valid Bitcoin address format for the custom path.');
+  if (custom.length > 0 && selectedMode === undefined)
+    throw new Error('Select a valid Bitcoin address format for the custom path.');
   return appendCustomPaths<BitcoinPathProfile>(profiles, custom, (parsed) => ({
-    id: parsed.id, label: `${parsed.label} · ${selectedMode!.label}`, mode: selectedMode!.mode,
-    initialCount: parsed.minimum, path: parsed.path,
+    id: parsed.id,
+    label: `${parsed.label} · ${selectedMode!.label}`,
+    mode: selectedMode!.mode,
+    initialCount: parsed.minimum,
+    path: parsed.path,
   }));
 }
 
@@ -70,17 +86,25 @@ async function scanBitcoin(
   context: Parameters<RecoveryCoinAdapter['scan']>[2],
 ): Promise<RecoveryWalletResult> {
   assertIndex(config.account, 'Account');
-  if (!Number.isSafeInteger(config.coreReceiveCount) || config.coreReceiveCount < 0
-    || !Number.isSafeInteger(config.coreChangeCount) || config.coreChangeCount < 0
-    || config.coreReceiveCount > MAX_BIP32_INDEX + 1
-    || config.coreChangeCount > MAX_BIP32_INDEX + 1
-    || config.coreReceiveCount + config.coreChangeCount < 1) {
-    throw new Error(`Bitcoin receive/change counts must be within 0–${MAX_BIP32_INDEX + 1}, with at least one selected.`);
+  if (
+    !Number.isSafeInteger(config.coreReceiveCount) ||
+    config.coreReceiveCount < 0 ||
+    !Number.isSafeInteger(config.coreChangeCount) ||
+    config.coreChangeCount < 0 ||
+    config.coreReceiveCount > MAX_BIP32_INDEX + 1 ||
+    config.coreChangeCount > MAX_BIP32_INDEX + 1 ||
+    config.coreReceiveCount + config.coreChangeCount < 1
+  ) {
+    throw new Error(
+      `Bitcoin receive/change counts must be within 0–${MAX_BIP32_INDEX + 1}, with at least one selected.`,
+    );
   }
-  if (config.scanCustomPath === true
-    && (!Number.isSafeInteger(config.customPathCount)
-      || (config.customPathCount ?? 0) < 1
-      || (config.customPathCount ?? 0) > MAX_BIP32_INDEX + 1)) {
+  if (
+    config.scanCustomPath === true &&
+    (!Number.isSafeInteger(config.customPathCount) ||
+      (config.customPathCount ?? 0) < 1 ||
+      (config.customPathCount ?? 0) > MAX_BIP32_INDEX + 1)
+  ) {
     throw new Error(`Custom path address minimum must be within 1–${MAX_BIP32_INDEX + 1}.`);
   }
   const network = getBitcoinNetwork(config.network);
@@ -111,7 +135,7 @@ async function scanBitcoin(
   try {
     for (const profile of profiles) {
       let target = profile.initialCount;
-      for (let offset = 0; offset < target;) {
+      for (let offset = 0; offset < target; ) {
         if (context.signal.aborted) throw new DOMException('Bitcoin scan cancelled.', 'AbortError');
         const end = Math.min(offset + RECOVERY_UTXO_ADDRESS_BATCH, target);
         const derived = Array.from({ length: end - offset }, (_, relativeIndex) => {
@@ -134,12 +158,15 @@ async function scanBitcoin(
         const missing = derived.filter(({ address }) => !addressStates.has(address));
         if (missing.length > 0) {
           const addresses = missing.map(({ address }) => address);
-          const entries = validatedEntries(await gateway.runPublic(
-            { network: config.network, addresses },
-            'utxo.addresses',
-            () => gateway.networkApi.utxoAddresses(config.network, addresses, context.signal),
-            context.signal,
-          ), addresses);
+          const entries = validatedEntries(
+            await gateway.runPublic(
+              { network: config.network, addresses },
+              'utxo.addresses',
+              () => gateway.networkApi.utxoAddresses(config.network, addresses, context.signal),
+              context.signal,
+            ),
+            addresses,
+          );
           for (const entry of entries) {
             addressStates.set(entry.address, entry);
             const balance = BigInt(entry.balance);
@@ -199,7 +226,11 @@ async function scanBitcoin(
       description: `Scans BIP44 legacy, BIP49 nested SegWit, BIP84 native SegWit, BIP86 Taproot${config.scanCustomPath === true ? ', and the selected custom path' : ''}.`,
       state: 'complete',
       metrics: [
-        { label: 'Spendable balance', value: formatBitcoin(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
+        {
+          label: 'Spendable balance',
+          value: formatBitcoin(totalBalance),
+          tone: totalBalance > 0n ? 'positive' : 'neutral',
+        },
         { label: 'Funded addresses', value: String(fundedCount) },
         { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
         { label: 'Unique addresses queried', value: String(addressStates.size) },
@@ -207,11 +238,14 @@ async function scanBitcoin(
       ],
       findings,
       scanned,
-      source: config.network === 'mainnet'
-        ? 'https://blockchain.info · fallbacks https://api.blockcypher.com, https://blockstream.info, and https://mempool.space'
-        : 'https://api.blockcypher.com · fallbacks https://blockstream.info/testnet and https://mempool.space/testnet',
-      proof: 'Indexed Bitcoin chain and mempool state · batch lookup where available · bounded retry with provider failover · 20-address post-use gap per path profile',
-      warning: 'Public Bitcoin indexes can lag or disagree. Verify every funded address in a standard Bitcoin wallet before recovery.',
+      source:
+        config.network === 'mainnet'
+          ? 'https://blockchain.info · fallbacks https://api.blockcypher.com, https://blockstream.info, and https://mempool.space'
+          : 'https://api.blockcypher.com · fallbacks https://blockstream.info/testnet and https://mempool.space/testnet',
+      proof:
+        'Indexed Bitcoin chain and mempool state · batch lookup where available · bounded retry with provider failover · 20-address post-use gap per path profile',
+      warning:
+        'Public Bitcoin indexes can lag or disagree. Verify every funded address in a standard Bitcoin wallet before recovery.',
     };
     return {
       inputId: input.id,
@@ -222,13 +256,19 @@ async function scanBitcoin(
       startedAt,
       completedAt: new Date().toISOString(),
       overview: [
-        { label: 'Total located value', value: formatBitcoin(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
+        {
+          label: 'Total located value',
+          value: formatBitcoin(totalBalance),
+          tone: totalBalance > 0n ? 'positive' : 'neutral',
+        },
         { label: 'Funded addresses', value: String(fundedCount), tone: fundedCount > 0 ? 'positive' : 'neutral' },
         { label: 'Path profiles', value: String(profiles.length) },
         { label: 'Unique addresses queried', value: String(addressStates.size) },
       ],
       sections: [section],
-      warnings: ['Restore discovered paths in a standard Bitcoin wallet and independently verify balances before moving funds.'],
+      warnings: [
+        'Restore discovered paths in a standard Bitcoin wallet and independently verify balances before moving funds.',
+      ],
     };
   } finally {
     root.wipePrivateData();

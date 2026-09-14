@@ -1,13 +1,9 @@
+import { describeUnknownError } from '@ckd/core/error-handling.js';
 import type { ShieldedActivityLedger } from '@ckd/dash-network/activity.js';
 import type { PlatformIdentityHistoryResult } from '@ckd/dash-network/platform-identity-history.js';
 import type { ViewerNetwork } from '@ckd/dash-network/types.js';
 import type { NormalizedViewingKey, ViewingKeyInputMode } from '@ckd/dash-network/viewing-key.js';
-import {
-  mapViewerBatchTasks,
-  parseViewerBatchInputs,
-  parseViewerConcurrency,
-  type ViewerBatchInput,
-} from './batch.js';
+import { mapViewerBatchTasks, parseViewerBatchInputs, parseViewerConcurrency, type ViewerBatchInput } from './batch.js';
 import type { DetectedViewerInput } from './detection.js';
 import type {
   ViewerBatchExportError,
@@ -33,8 +29,8 @@ interface ActivityViewerDependencies {
   DashPlatformIdentitySource: typeof import('@ckd/dash-network/platform-identity-source.js').DashPlatformIdentitySource;
   assertCanonicalViewingKey: typeof import('@ckd/dash-network/orchard-scanner.js').assertCanonicalViewingKey;
   assertAutoViewerBatchInput: typeof import('./detection.js').assertAutoViewerBatchInput;
-  assertPublicBatchLookupInput: typeof import('@ckd/dash-network/private-material.js').assertPublicBatchLookupInput;
-  assertPublicLookupInput: typeof import('@ckd/dash-network/private-material.js').assertPublicLookupInput;
+  assertPublicBatchLookupInput: typeof import('@ckd/public-data-providers/private-material.js').assertPublicBatchLookupInput;
+  assertPublicLookupInput: typeof import('@ckd/public-data-providers/private-material.js').assertPublicLookupInput;
   detectViewerInput: typeof import('./detection.js').detectViewerInput;
   looksLikeAutoOrchardInput: typeof import('./detection.js').looksLikeAutoOrchardInput;
   createViewerExport: typeof import('./export.js').createViewerExport;
@@ -55,10 +51,7 @@ interface ActivityViewerDependencies {
   shieldedPageSize: number;
 }
 
-export function createActivityViewerController(
-  view: ActivityViewerView,
-  dependencies: ActivityViewerDependencies,
-) {
+export function createActivityViewerController(view: ActivityViewerView, dependencies: ActivityViewerDependencies) {
   let started = false;
   let cancellationRequested = false;
   let resetRevision = 0;
@@ -102,11 +95,7 @@ export function createActivityViewerController(
     return `${value.slice(0, edge)}…${value.slice(-edge)}`;
   }
 
-  function batchResultLabel(
-    input: ViewerBatchInput,
-    state: ViewerSingleExportState,
-    index: number,
-  ): string {
+  function batchResultLabel(input: ViewerBatchInput, state: ViewerSingleExportState, index: number): string {
     const number = `${index + 1}`;
     if (state.mode === 'shielded') return `${number} · ORCHARD · ${state.snapshot.keyKind.toUpperCase()} viewing key`;
     if (state.mode === 'identity') {
@@ -135,7 +124,7 @@ export function createActivityViewerController(
   }
 
   function errorMessage(cause: unknown): string {
-    return cause instanceof Error ? cause.message : String(cause);
+    return cause instanceof Error ? cause.message : describeUnknownError(cause);
   }
 
   function isPrivateMaterialError(cause: unknown): boolean {
@@ -162,7 +151,7 @@ export function createActivityViewerController(
       dependencies.downloadText(file.text, file.filename, file.mimeType);
       view.setStatus(`Exported ${file.filename}. No private or viewing-key input is included.`);
     } catch (cause) {
-      view.showError(`Export failed: ${errorMessage(cause)}`);
+      view.showError(`Export failed: ${describeUnknownError(cause)}`);
     } finally {
       if (format === 'xlsx') {
         exportingWorkbook = false;
@@ -201,10 +190,7 @@ export function createActivityViewerController(
     value = view.viewingKeyInput.value,
     inputMode = view.keyCapabilityInput.value as ViewingKeyInputMode,
   ): Promise<void> {
-    const viewingKey: NormalizedViewingKey = dependencies.normalizeViewingKey(
-      value,
-      inputMode,
-    );
+    const viewingKey: NormalizedViewingKey = dependencies.normalizeViewingKey(value, inputMode);
     try {
       if (viewingKey.bundleNetwork !== undefined && viewingKey.bundleNetwork !== network) {
         throw new Error(`This viewing bundle is for ${viewingKey.bundleNetwork}; select that network before scanning.`);
@@ -243,7 +229,9 @@ export function createActivityViewerController(
             ledger.applyPage(visit.position, page, matches);
             view.addLocalDuration(performance.now() - scanStarted);
           } else if (visit.emptyConfirmation < dependencies.shieldedEmptyConfirmations) {
-            view.setStatus(`Confirming empty Orchard terminal page ${visit.emptyConfirmation + 1}/${dependencies.shieldedEmptyConfirmations} at aligned position ${visit.position}…`);
+            view.setStatus(
+              `Confirming empty Orchard terminal page ${visit.emptyConfirmation + 1}/${dependencies.shieldedEmptyConfirmations} at aligned position ${visit.position}…`,
+            );
           }
           renderShieldedProgress(ledger, false, network, false);
           view.updateTiming();
@@ -263,13 +251,18 @@ export function createActivityViewerController(
       checkCancellation();
       if (outcome.complete) {
         renderShieldedProgress(ledger, true, network, true);
-        view.setStatus(`Scan complete after ${dependencies.shieldedEmptyConfirmations} verified empty terminal reads. ${ledger.snapshot(true).scannedNotes} pool actions checked.`);
-        view.finishDiagnostics(`Proof verification and local Orchard recovery completed through aligned position ${outcome.terminalPosition}.`);
+        view.setStatus(
+          `Scan complete after ${dependencies.shieldedEmptyConfirmations} verified empty terminal reads. ${ledger.snapshot(true).scannedNotes} pool actions checked.`,
+        );
+        view.finishDiagnostics(
+          `Proof verification and local Orchard recovery completed through aligned position ${outcome.terminalPosition}.`,
+        );
       } else {
         renderShieldedProgress(ledger, false, network, true);
-        const message = outcome.limitReason === 'changing-tip'
-          ? 'The pool kept changing while its last partial page was being reconciled. Results are partial; retry later.'
-          : `Stopped at the ${dependencies.shieldedMaxPagesPerScan.toLocaleString()}-page safety ceiling before the pool end was confirmed. Results are partial.`;
+        const message =
+          outcome.limitReason === 'changing-tip'
+            ? 'The pool kept changing while its last partial page was being reconciled. Results are partial; retry later.'
+            : `Stopped at the ${dependencies.shieldedMaxPagesPerScan.toLocaleString()}-page safety ceiling before the pool end was confirmed. Results are partial.`;
         view.setStatus(message);
         view.failDiagnostics(message);
       }
@@ -283,24 +276,27 @@ export function createActivityViewerController(
     currentAbort = new AbortController();
     const limit = Number(view.historyLimitInput.value);
     view.setStatus(`Querying Dash Core ${network} address history…`);
-    view.setDiagnosticDetail('Validating the Base58Check address, checking DashScan synchronization, then loading exact-duff totals and history.');
-    const remoteStarted = performance.now();
-    const snapshot = await dependencies.queryCoreAddress(
-      value,
-      network,
-      limit,
-      currentAbort.signal,
+    view.setDiagnosticDetail(
+      'Validating the Base58Check address, checking DashScan synchronization, then loading exact-duff totals and history.',
     );
+    const remoteStarted = performance.now();
+    const snapshot = await dependencies.queryCoreAddress(value, network, limit, currentAbort.signal);
     view.addRemoteDuration(performance.now() - remoteStarted);
     view.setRequestCount(snapshot.requests);
     if (cancellationRequested) return;
     setExportState({ mode: 'core', network: snapshot.network, snapshot });
     view.renderCore(snapshot);
     view.setDiagnosticSource(snapshot.endpoint);
-    view.setDiagnosticProof(`DashScan ${snapshot.indexStatus} · Core height ${snapshot.indexedHeight.toLocaleString()}`);
+    view.setDiagnosticProof(
+      `DashScan ${snapshot.indexStatus} · Core height ${snapshot.indexedHeight.toLocaleString()}`,
+    );
     view.setDiagnosticRemoteTime(snapshot.indexedTimeMs);
-    view.setStatus(`Address query complete. ${snapshot.transactionCount.toLocaleString()} transactions reported; ${snapshot.transactions.length.toLocaleString()} loaded.`);
-    view.finishDiagnostics(`DashScan reported a synchronized index at Core height ${snapshot.indexedHeight.toLocaleString()}. Loaded address totals and ${snapshot.transactions.length.toLocaleString()} newest transaction record(s) in ${snapshot.requests} request(s).`);
+    view.setStatus(
+      `Address query complete. ${snapshot.transactionCount.toLocaleString()} transactions reported; ${snapshot.transactions.length.toLocaleString()} loaded.`,
+    );
+    view.finishDiagnostics(
+      `DashScan reported a synchronized index at Core height ${snapshot.indexedHeight.toLocaleString()}. Loaded address totals and ${snapshot.transactions.length.toLocaleString()} newest transaction record(s) in ${snapshot.requests} request(s).`,
+    );
   }
 
   async function runPlatform(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
@@ -321,14 +317,11 @@ export function createActivityViewerController(
     view.addRemoteDuration(performance.now() - queryStartedAt);
     if (cancellationRequested) throw new DOMException('Platform query cancelled.', 'AbortError');
     view.setStatus('Platform state verified. Checking Platform Explorer synchronization and loading address history…');
-    view.setDiagnosticDetail('DAPI proof verified. Querying the Platform Explorer address index and latest indexed height.');
-    const historyStartedAt = performance.now();
-    const history = await dependencies.queryPlatformAddressHistory(
-      value,
-      network,
-      limit,
-      currentAbort.signal,
+    view.setDiagnosticDetail(
+      'DAPI proof verified. Querying the Platform Explorer address index and latest indexed height.',
     );
+    const historyStartedAt = performance.now();
+    const history = await dependencies.queryPlatformAddressHistory(value, network, limit, currentAbort.signal);
     view.addRemoteDuration(performance.now() - historyStartedAt);
     view.setRequestCount(1 + history.requests);
     if (cancellationRequested) throw new DOMException('Platform query cancelled.', 'AbortError');
@@ -337,8 +330,12 @@ export function createActivityViewerController(
     view.setDiagnosticSource(`Proof DAPI + ${history.endpoint}`);
     view.setDiagnosticProof(`DAPI ${snapshot.proofHeight} · Explorer ${history.indexedHeight.toLocaleString()}`);
     view.setDiagnosticRemoteTime(history.indexedTimeMs);
-    view.setStatus(`Platform state verified and ${history.transitions.length.toLocaleString()} of ${history.totalTransitions.toLocaleString()} address transitions loaded.`);
-    view.finishDiagnostics(`Verified the GroveDB address-state proof and a ${history.indexStatus} Platform Explorer index. Proof values take precedence if the two sources disagree.`);
+    view.setStatus(
+      `Platform state verified and ${history.transitions.length.toLocaleString()} of ${history.totalTransitions.toLocaleString()} address transitions loaded.`,
+    );
+    view.finishDiagnostics(
+      `Verified the GroveDB address-state proof and a ${history.indexStatus} Platform Explorer index. Proof values take precedence if the two sources disagree.`,
+    );
   }
 
   async function runIdentity(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
@@ -376,7 +373,11 @@ export function createActivityViewerController(
           currentAbort.signal,
         );
         view.addRemoteDuration(performance.now() - historyStarted);
-        view.setRequestCount(snapshot.requests + histories.reduce((total, result) => total + (result.history?.requests ?? 0), 0) + history.requests);
+        view.setRequestCount(
+          snapshot.requests +
+            histories.reduce((total, result) => total + (result.history?.requests ?? 0), 0) +
+            history.requests,
+        );
         histories.push({ identifier: identity.identifier, history, error: null });
       } catch (cause) {
         view.addRemoteDuration(performance.now() - historyStarted);
@@ -393,11 +394,13 @@ export function createActivityViewerController(
     setExportState({ mode: 'identity', network, snapshot, histories });
     view.renderIdentity(snapshot, histories);
     const proofHeights = snapshot.proofs.map(({ height }) => height);
-    const highestProof = proofHeights.reduce((highest, height) => height > highest ? height : highest, 0n);
-    const explorerHeights = histories.flatMap(({ history }) => history === null ? [] : [history.indexedHeight]);
-    view.setDiagnosticSource(histories.some(({ history }) => history !== null)
-      ? 'Proof DAPI + Dash Platform Explorer'
-      : 'Dash Platform DAPI proof');
+    const highestProof = proofHeights.reduce((highest, height) => (height > highest ? height : highest), 0n);
+    const explorerHeights = histories.flatMap(({ history }) => (history === null ? [] : [history.indexedHeight]));
+    view.setDiagnosticSource(
+      histories.some(({ history }) => history !== null)
+        ? 'Proof DAPI + Dash Platform Explorer'
+        : 'Dash Platform DAPI proof',
+    );
     view.setDiagnosticProof(
       explorerHeights.length === 0
         ? `DAPI ${highestProof}`
@@ -619,14 +622,18 @@ export function createActivityViewerController(
         let firstScanFailure: unknown;
         try {
           const source = new dependencies.DashEvoShieldedSource(network);
-          view.setStatus(`Connecting once to scan Orchard for ${preparedOrchard.length.toLocaleString()} detected viewing key(s)…`);
+          view.setStatus(
+            `Connecting once to scan Orchard for ${preparedOrchard.length.toLocaleString()} detected viewing key(s)…`,
+          );
           const connectStarted = performance.now();
           await source.connect();
           checkCancellation();
           view.addRemoteDuration(performance.now() - connectStarted);
           const outcome = await dependencies.runShieldedPageStream({
             fetchPage: async (position) => {
-              view.setStatus(`Fetching shared verified Orchard page at aligned position ${position} for ${preparedOrchard.length - failed.size} active key(s)…`);
+              view.setStatus(
+                `Fetching shared verified Orchard page at aligned position ${position} for ${preparedOrchard.length - failed.size} active key(s)…`,
+              );
               const fetchStarted = performance.now();
               const page = await source.fetchPage(position, dependencies.shieldedPageSize);
               if (!cancellationRequested) {
@@ -717,7 +724,8 @@ export function createActivityViewerController(
 
       const modes = [...new Set(batchItems.map(({ state }) => state.mode))];
       const coreHeights = batchItems.flatMap(({ state }) =>
-        state.mode === 'core' ? [state.snapshot.indexedHeight] : []);
+        state.mode === 'core' ? [state.snapshot.indexedHeight] : [],
+      );
       const dapiHeights = batchItems.flatMap(({ state }) => {
         if (state.mode === 'platform') return [state.snapshot.proofHeight];
         if (state.mode === 'identity') return state.snapshot.proofs.map(({ height }) => height);
@@ -727,17 +735,19 @@ export function createActivityViewerController(
       const proofParts: string[] = [];
       if (coreHeights.length > 0) proofParts.push(`Core ${Math.max(...coreHeights).toLocaleString()}`);
       if (dapiHeights.length > 0) {
-        const dapiHeight = dapiHeights.reduce((highest, height) => height > highest ? height : highest, 0n);
+        const dapiHeight = dapiHeights.reduce((highest, height) => (height > highest ? height : highest), 0n);
         proofParts.push(`DAPI ${dapiHeight}`);
       }
-      const remoteTimes = batchItems.flatMap(({ state }) => {
-        if (state.mode === 'core') return [state.snapshot.indexedTimeMs];
-        if (state.mode === 'platform') return [state.history.indexedTimeMs];
-        if (state.mode === 'identity') {
-          return state.snapshot.proofs.map(({ responseTimeMs }) => Number(responseTimeMs));
-        }
-        return [];
-      }).filter((value) => Number.isFinite(value) && value > 0);
+      const remoteTimes = batchItems
+        .flatMap(({ state }) => {
+          if (state.mode === 'core') return [state.snapshot.indexedTimeMs];
+          if (state.mode === 'platform') return [state.history.indexedTimeMs];
+          if (state.mode === 'identity') {
+            return state.snapshot.proofs.map(({ responseTimeMs }) => Number(responseTimeMs));
+          }
+          return [];
+        })
+        .filter((value) => Number.isFinite(value) && value > 0);
       view.setDiagnosticMode(modes.length > 1 ? 'mixed' : modes[0]!, network);
       const sourceLabels: Record<ViewerMode, string> = {
         core: 'DashScan',
@@ -748,7 +758,9 @@ export function createActivityViewerController(
       view.setDiagnosticSource(modes.map((mode) => sourceLabels[mode]).join(' + '));
       view.setDiagnosticProof(proofParts.join(' · '));
       if (remoteTimes.length > 0) view.setDiagnosticRemoteTime(Math.max(...remoteTimes));
-      view.setStatus(`Mixed batch complete: ${batchItems.length.toLocaleString()} succeeded, ${batchErrors.length.toLocaleString()} failed.`);
+      view.setStatus(
+        `Mixed batch complete: ${batchItems.length.toLocaleString()} succeeded, ${batchErrors.length.toLocaleString()} failed.`,
+      );
       view.finishDiagnostics(
         `Detected ${modes.length.toLocaleString()} input type(s) locally and used bounded public-query concurrency ${concurrency}. Orchard viewing keys never left this page.`,
       );
@@ -793,17 +805,14 @@ export function createActivityViewerController(
     if (viewerMode === 'core') {
       for (const input of inputs) dependencies.assertPublicLookupInput(input.value);
       taskInputs = inputs;
-      view.setDiagnosticDetail(`Validated ${inputs.length.toLocaleString()} public Core address input(s) locally before networking.`);
+      view.setDiagnosticDetail(
+        `Validated ${inputs.length.toLocaleString()} public Core address input(s) locally before networking.`,
+      );
       settled = await mapViewerBatchTasks(inputs, concurrency, async (input) => {
         if (cancellationRequested) throw new DOMException('Core batch cancelled.', 'AbortError');
         const startedAt = performance.now();
         try {
-          const snapshot = await dependencies.queryCoreAddress(
-            input.value,
-            network,
-            limit,
-            currentAbort?.signal,
-          );
+          const snapshot = await dependencies.queryCoreAddress(input.value, network, limit, currentAbort?.signal);
           view.recordRequests(snapshot.requests);
           return { mode: 'core', network: snapshot.network, snapshot };
         } finally {
@@ -821,7 +830,9 @@ export function createActivityViewerController(
       await source.connect();
       checkCancellation();
       view.addRemoteDuration(performance.now() - connectStarted);
-      view.setDiagnosticDetail(`Validated all public inputs before opening DAPI; running up to ${concurrency} address lookup(s) at once.`);
+      view.setDiagnosticDetail(
+        `Validated all public inputs before opening DAPI; running up to ${concurrency} address lookup(s) at once.`,
+      );
       settled = await mapViewerBatchTasks(inputs, concurrency, async (input) => {
         if (cancellationRequested) throw new DOMException('Platform batch cancelled.', 'AbortError');
         const startedAt = performance.now();
@@ -860,7 +871,9 @@ export function createActivityViewerController(
         await source.connect();
         checkCancellation();
         view.addRemoteDuration(performance.now() - connectStarted);
-        view.setDiagnosticDetail(`All Identity inputs were checked locally before DAPI; running up to ${concurrency} lookup(s) at once.`);
+        view.setDiagnosticDetail(
+          `All Identity inputs were checked locally before DAPI; running up to ${concurrency} lookup(s) at once.`,
+        );
         settled = await mapViewerBatchTasks(taskInputs, concurrency, async (input) => {
           if (cancellationRequested) throw new DOMException('Identity batch cancelled.', 'AbortError');
           const startedAt = performance.now();
@@ -899,14 +912,12 @@ export function createActivityViewerController(
       }
       view.setDiagnosticSource('Proof DAPI + Dash Platform Explorer');
     } else {
-      const prepared: Array<{ input: ViewerBatchInput; key: NormalizedViewingKey; ledger: ShieldedActivityLedger }> = [];
+      const prepared: Array<{ input: ViewerBatchInput; key: NormalizedViewingKey; ledger: ShieldedActivityLedger }> =
+        [];
       for (const input of inputs) {
         let key: NormalizedViewingKey | null = null;
         try {
-          key = dependencies.normalizeViewingKey(
-            input.value,
-            view.keyCapabilityInput.value as ViewingKeyInputMode,
-          );
+          key = dependencies.normalizeViewingKey(input.value, view.keyCapabilityInput.value as ViewingKeyInputMode);
           if (key.bundleNetwork !== undefined && key.bundleNetwork !== network) {
             throw new Error(`This viewing bundle is for ${key.bundleNetwork}; select that network before scanning.`);
           }
@@ -921,17 +932,23 @@ export function createActivityViewerController(
       if (prepared.length > 0) {
         try {
           const source = new dependencies.DashEvoShieldedSource(network);
-          view.setStatus(`Connecting once to scan the Orchard pool for ${prepared.length.toLocaleString()} viewing key(s)…`);
+          view.setStatus(
+            `Connecting once to scan the Orchard pool for ${prepared.length.toLocaleString()} viewing key(s)…`,
+          );
           const connectStarted = performance.now();
           await source.connect();
           checkCancellation();
           view.addRemoteDuration(performance.now() - connectStarted);
-          view.setDiagnosticDetail('Every viewing key was validated locally. Verified encrypted pool pages are fetched once and reused across the batch.');
+          view.setDiagnosticDetail(
+            'Every viewing key was validated locally. Verified encrypted pool pages are fetched once and reused across the batch.',
+          );
           const failed = new Set<string>();
           let firstScanFailure: unknown;
           const outcome = await dependencies.runShieldedPageStream({
             fetchPage: async (position) => {
-              view.setStatus(`Fetching shared verified Orchard page at aligned position ${position} for ${prepared.length - failed.size} active key(s)…`);
+              view.setStatus(
+                `Fetching shared verified Orchard page at aligned position ${position} for ${prepared.length - failed.size} active key(s)…`,
+              );
               const fetchStarted = performance.now();
               const page = await source.fetchPage(position, dependencies.shieldedPageSize);
               if (!cancellationRequested) {
@@ -983,13 +1000,17 @@ export function createActivityViewerController(
           checkCancellation();
           settled = prepared
             .filter(({ input }) => !failed.has(input.id))
-            .map(({ ledger }): PromiseFulfilledResult<ViewerSingleExportState> => ({
-              status: 'fulfilled',
-              value: { mode: 'shielded', network, snapshot: ledger.snapshot(outcome.complete) },
-            }));
+            .map(
+              ({ ledger }): PromiseFulfilledResult<ViewerSingleExportState> => ({
+                status: 'fulfilled',
+                value: { mode: 'shielded', network, snapshot: ledger.snapshot(outcome.complete) },
+              }),
+            );
           taskInputs = prepared.filter(({ input }) => !failed.has(input.id)).map(({ input }) => input);
           completed += prepared.length - failed.size;
-          view.setStatus(`Batch ${completed.toLocaleString()}/${inputs.length.toLocaleString()} · shared Orchard scan finished`);
+          view.setStatus(
+            `Batch ${completed.toLocaleString()}/${inputs.length.toLocaleString()} · shared Orchard scan finished`,
+          );
         } finally {
           for (const { key } of prepared) key.hex = '';
         }
@@ -1034,31 +1055,39 @@ export function createActivityViewerController(
     if (first === undefined) throw new Error('Batch result selection is unavailable.');
     renderBatchSelection(first.id);
     if (viewerMode === 'core') {
-      const snapshots = batchItems.flatMap(({ state }) => state.mode === 'core' ? [state.snapshot] : []);
-      view.setDiagnosticProof(`DashScan Core height ${Math.max(...snapshots.map(({ indexedHeight }) => indexedHeight)).toLocaleString()}`);
+      const snapshots = batchItems.flatMap(({ state }) => (state.mode === 'core' ? [state.snapshot] : []));
+      view.setDiagnosticProof(
+        `DashScan Core height ${Math.max(...snapshots.map(({ indexedHeight }) => indexedHeight)).toLocaleString()}`,
+      );
       view.setDiagnosticRemoteTime(Math.max(...snapshots.map(({ indexedTimeMs }) => indexedTimeMs)));
     } else if (viewerMode === 'platform') {
-      const states = batchItems.flatMap(({ state }) => state.mode === 'platform' ? [state] : []);
-      const dapiHeight = states.reduce((highest, { snapshot }) => snapshot.proofHeight > highest ? snapshot.proofHeight : highest, 0n);
+      const states = batchItems.flatMap(({ state }) => (state.mode === 'platform' ? [state] : []));
+      const dapiHeight = states.reduce(
+        (highest, { snapshot }) => (snapshot.proofHeight > highest ? snapshot.proofHeight : highest),
+        0n,
+      );
       const explorerHeight = Math.max(...states.map(({ history }) => history.indexedHeight));
       view.setDiagnosticProof(`DAPI ${dapiHeight} · Explorer ${explorerHeight.toLocaleString()}`);
       view.setDiagnosticRemoteTime(Math.max(...states.map(({ history }) => history.indexedTimeMs)));
     } else if (viewerMode === 'identity') {
-      const states = batchItems.flatMap(({ state }) => state.mode === 'identity' ? [state] : []);
+      const states = batchItems.flatMap(({ state }) => (state.mode === 'identity' ? [state] : []));
       const dapiHeight = states
         .flatMap(({ snapshot }) => snapshot.proofs)
-        .reduce((highest, { height }) => height > highest ? height : highest, 0n);
+        .reduce((highest, { height }) => (height > highest ? height : highest), 0n);
       const explorerHeights = states.flatMap(({ histories }) =>
-        histories.flatMap(({ history }) => history === null ? [] : [history.indexedHeight]));
+        histories.flatMap(({ history }) => (history === null ? [] : [history.indexedHeight])),
+      );
       view.setDiagnosticProof(
         explorerHeights.length === 0
           ? `DAPI ${dapiHeight}`
           : `DAPI ${dapiHeight} · Explorer ${Math.max(...explorerHeights).toLocaleString()}`,
       );
       const proofTimes = states.flatMap(({ snapshot }) => snapshot.proofs.map(({ responseTimeMs }) => responseTimeMs));
-      view.setDiagnosticRemoteTime(proofTimes.reduce((latest, value) => value > latest ? value : latest, 0n));
+      view.setDiagnosticRemoteTime(proofTimes.reduce((latest, value) => (value > latest ? value : latest), 0n));
     }
-    view.setStatus(`Batch complete: ${batchItems.length.toLocaleString()} succeeded, ${batchErrors.length.toLocaleString()} failed.`);
+    view.setStatus(
+      `Batch complete: ${batchItems.length.toLocaleString()} succeeded, ${batchErrors.length.toLocaleString()} failed.`,
+    );
     view.finishDiagnostics(
       `Batch completed with bounded concurrency ${concurrency}. Results remain local until a selected export is downloaded.`,
     );
@@ -1186,9 +1215,15 @@ export function createActivityViewerController(
       view.clearButton.addEventListener('click', resetViewer);
       view.revealButton.addEventListener('click', () => view.toggleViewingKeyReveal(viewerMode));
       view.revealBatchButton.addEventListener('click', () => view.toggleViewingKeyReveal(viewerMode));
-      view.exportCsvButton.addEventListener('click', () => { void downloadExport('csv'); });
-      view.exportXlsxButton.addEventListener('click', () => { void downloadExport('xlsx'); });
-      view.exportJsonButton.addEventListener('click', () => { void downloadExport('json'); });
+      view.exportCsvButton.addEventListener('click', () => {
+        void downloadExport('csv');
+      });
+      view.exportXlsxButton.addEventListener('click', () => {
+        void downloadExport('xlsx');
+      });
+      view.exportJsonButton.addEventListener('click', () => {
+        void downloadExport('json');
+      });
       for (const button of view.modeButtons) {
         button.addEventListener('click', () => setViewerMode(button.dataset.viewerMode as ViewerMode));
       }

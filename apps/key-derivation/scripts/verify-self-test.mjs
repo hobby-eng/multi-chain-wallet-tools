@@ -53,8 +53,8 @@ try {
   }
   if (report.checks.length !== expectedChecks.length) {
     throw new Error(
-      `Startup cryptographic self-test reported ${report.checks.length} checks; expected ${expectedChecks.length}. `
-      + 'Add a new vector to the expected list deliberately.',
+      `Startup cryptographic self-test reported ${report.checks.length} checks; expected ${expectedChecks.length}. ` +
+        'Add a new vector to the expected list deliberately.',
     );
   }
   console.log(`Verified startup cryptographic self-test: ${report.checks.join(' · ')} (${report.durationMs} ms)`);

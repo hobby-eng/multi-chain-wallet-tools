@@ -32,13 +32,15 @@ describe('Platform Identity Explorer history', () => {
           txHash: hash,
           fundingCoreTx: 'B'.repeat(64),
           isSystem: false,
-          aliases: [{
-            alias: 'alice.dash',
-            status: 'ok',
-            contested: false,
-            timestamp: '2026-09-01T00:01:00.000Z',
-            txHash: 'C'.repeat(64),
-          }],
+          aliases: [
+            {
+              alias: 'alice.dash',
+              status: 'ok',
+              contested: false,
+              timestamp: '2026-09-01T00:01:00.000Z',
+              txHash: 'C'.repeat(64),
+            },
+          ],
           totalTxs: 1,
           totalTransfers: 2,
           totalDocuments: 1,
@@ -55,17 +57,19 @@ describe('Platform Identity Explorer history', () => {
       }
       if (input.includes('/transactions?')) {
         return response({
-          resultSet: [{
-            hash,
-            type: 'IDENTITY_CREDIT_TRANSFER',
-            batchType: null,
-            status: 'SUCCESS',
-            error: null,
-            timestamp: '2026-09-02T00:00:00.000Z',
-            blockHeight: 99,
-            blockHash: 'D'.repeat(64),
-            gasUsed: '40',
-          }],
+          resultSet: [
+            {
+              hash,
+              type: 'IDENTITY_CREDIT_TRANSFER',
+              batchType: null,
+              status: 'SUCCESS',
+              error: null,
+              timestamp: '2026-09-02T00:00:00.000Z',
+              blockHeight: 99,
+              blockHash: 'D'.repeat(64),
+              gasUsed: '40',
+            },
+          ],
           pagination: { page: 1, limit: 10, total: 1 },
         });
       }
@@ -98,16 +102,18 @@ describe('Platform Identity Explorer history', () => {
       }
       if (input.includes('/documents?')) {
         return response({
-          resultSet: [{
-            identifier: 'Doc11111111111111111111111111111111111111111',
-            dataContractIdentifier: 'Contract11111111111111111111111111111111111',
-            documentTypeName: 'domain',
-            revision: 1,
-            txHash: 'E'.repeat(64),
-            timestamp: '2026-09-03T00:00:00.000Z',
-            deleted: false,
-            system: false,
-          }],
+          resultSet: [
+            {
+              identifier: 'Doc11111111111111111111111111111111111111111',
+              dataContractIdentifier: 'Contract11111111111111111111111111111111111',
+              documentTypeName: 'domain',
+              revision: 1,
+              txHash: 'E'.repeat(64),
+              timestamp: '2026-09-03T00:00:00.000Z',
+              deleted: false,
+              system: false,
+            },
+          ],
           pagination: { page: 1, limit: 10, total: 1 },
         });
       }
@@ -181,19 +187,23 @@ describe('Platform Identity Explorer history', () => {
         const oldestFirst = input.includes('order=asc');
         return response({
           resultSet: oldestFirst
-            ? [{
-              hash: createHash,
-              type: 'IDENTITY_CREATE',
-              timestamp: '2025-10-27T16:08:30.236Z',
-              blockHeight: 10,
-              data: 'public-create-transition',
-            }]
-            : [{
-              hash: updateHash,
-              type: 'IDENTITY_UPDATE',
-              timestamp: '2026-09-04T00:00:00.000Z',
-              blockHeight: 99,
-            }],
+            ? [
+                {
+                  hash: createHash,
+                  type: 'IDENTITY_CREATE',
+                  timestamp: '2025-10-27T16:08:30.236Z',
+                  blockHeight: 10,
+                  data: 'public-create-transition',
+                },
+              ]
+            : [
+                {
+                  hash: updateHash,
+                  type: 'IDENTITY_UPDATE',
+                  timestamp: '2026-09-04T00:00:00.000Z',
+                  blockHeight: 99,
+                },
+              ],
           pagination: { page: 1, limit: 1, total: 2 },
         });
       }
@@ -201,10 +211,10 @@ describe('Platform Identity Explorer history', () => {
         return response({ resultSet: [], pagination: { page: null, limit: null, total: 0 } });
       }
       if (
-        input.includes('/transfers?')
-        || input.includes('/documents?')
-        || input.includes('/dataContracts?')
-        || input.includes('/tokens?')
+        input.includes('/transfers?') ||
+        input.includes('/documents?') ||
+        input.includes('/dataContracts?') ||
+        input.includes('/tokens?')
       ) {
         return response({ resultSet: [], pagination: { page: 1, limit: 10, total: 0 } });
       }

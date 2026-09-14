@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DASH_COMMUNITY_EDITION, MULTI_CHAIN_EDITION } from '../../edition-profiles/src/index.js';
 import {
   COIN_ADAPTERS,
   COIN_FAMILIES,
@@ -11,8 +12,19 @@ import {
   COIN_FAMILIES as DASH_COIN_FAMILIES,
   getCoinAdapter as getDashCoinAdapter,
 } from '../src/coins/dash-registry.js';
+import { DASH_COMMUNITY_COIN_ADAPTERS } from '../src/coins/dash-community-registry-profile.js';
+import { MULTI_CHAIN_COIN_ADAPTERS } from '../src/coins/multi-chain-registry-profile.js';
 
 describe('coin adapter extension contract', () => {
+  it('composes static adapter profiles without cross-edition leakage', () => {
+    expect(MULTI_CHAIN_COIN_ADAPTERS.map(({ id }) => id)).toEqual(COIN_ADAPTERS.map(({ id }) => id));
+    expect(DASH_COMMUNITY_COIN_ADAPTERS.map(({ id }) => id)).toEqual(DASH_COIN_ADAPTERS.map(({ id }) => id));
+    expect(DASH_COMMUNITY_COIN_ADAPTERS.every(({ group }) => group === 'Dash')).toBe(true);
+    expect(DASH_COMMUNITY_COIN_ADAPTERS.some(({ group }) => group === 'Bitcoin' || group === 'Ethereum')).toBe(false);
+    expect(MULTI_CHAIN_EDITION.capabilities.bitcoinSilentPayments).toBe(true);
+    expect(DASH_COMMUNITY_EDITION.capabilities.bitcoinSilentPayments).toBe(false);
+  });
+
   it('registers unique, complete adapters without UI-specific branching', () => {
     const ids = COIN_ADAPTERS.map((adapter) => adapter.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -74,7 +86,14 @@ describe('coin adapter extension contract', () => {
   });
 
   it('declares receive/change capability independently from protocol-specific branch controls', () => {
-    for (const id of ['bitcoin-legacy', 'bitcoin-nested-segwit', 'bitcoin-native-segwit', 'bitcoin-taproot', 'dash-core', 'dash-legacy-mobile']) {
+    for (const id of [
+      'bitcoin-legacy',
+      'bitcoin-nested-segwit',
+      'bitcoin-native-segwit',
+      'bitcoin-taproot',
+      'dash-core',
+      'dash-legacy-mobile',
+    ]) {
       expect(getCoinAdapter(id).addressBranches).toEqual({ receive: 0, change: 1 });
       expect(getCoinAdapter(id).branchControl).toBeUndefined();
     }
@@ -86,8 +105,9 @@ describe('coin adapter extension contract', () => {
     for (const network of ['mainnet', 'testnet'] as const) {
       const coinType = network === 'mainnet' ? 5 : 1;
       for (const branch of [0, 1]) {
-        expect(platform.pathPreview({ network, account: 7, branch, start: 2, count: 1 }))
-          .toBe(`m/9'/${coinType}'/17'/7'/${branch}'/2`);
+        expect(platform.pathPreview({ network, account: 7, branch, start: 2, count: 1 })).toBe(
+          `m/9'/${coinType}'/17'/7'/${branch}'/2`,
+        );
       }
     }
     expect(getCoinAdapter('dash-identity')).toMatchObject({
@@ -97,22 +117,26 @@ describe('coin adapter extension contract', () => {
         count: 'Number of Identity candidates',
       },
     });
-    expect(getCoinAdapter('dash-identity').pathPreview({
-      network: 'mainnet',
-      account: 0,
-      branch: 0,
-      start: 1,
-      count: 2,
-    })).toBe("m/9'/5'/5'/0'/0'/{1'…2'}/{0'…3'}");
+    expect(
+      getCoinAdapter('dash-identity').pathPreview({
+        network: 'mainnet',
+        account: 0,
+        branch: 0,
+        start: 1,
+        count: 2,
+      }),
+    ).toBe("m/9'/5'/5'/0'/0'/{1'…2'}/{0'…3'}");
     const dashMultisig = getCoinAdapter('dash-multisig-p2sh');
     expect(dashMultisig.addressBranches).toMatchObject({ receive: 0, change: 1 });
-    expect(dashMultisig.pathPreview({
-      network: 'mainnet',
-      account: 0,
-      branch: 0,
-      start: 0,
-      count: 1,
-    })).toBe("m/48'/5'/0'/0'/0/0");
+    expect(
+      dashMultisig.pathPreview({
+        network: 'mainnet',
+        account: 0,
+        branch: 0,
+        start: 0,
+        count: 1,
+      }),
+    ).toBe("m/48'/5'/0'/0'/0/0");
     expect(getCoinAdapter('dash-legacy-mobile').hiddenByDefault).toBe(true);
     expect(getCoinAdapter('dash-shielded').addressBranches).toBeUndefined();
   });

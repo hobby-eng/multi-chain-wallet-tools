@@ -22,10 +22,14 @@ for (const profileId of Object.keys(BUILD_PROFILES)) {
     if (result.error !== undefined) throw result.error;
     if (result.status !== 0) process.exit(result.status ?? 1);
   }
-  const manifest = spawnSync(process.execPath, [resolve(root, 'tooling/verify-release-manifest.mjs'), '--profile', profileId], {
-    cwd: root,
-    stdio: 'inherit',
-  });
+  const manifest = spawnSync(
+    process.execPath,
+    [resolve(root, 'tooling/verify-release-manifest.mjs'), '--profile', profileId],
+    {
+      cwd: root,
+      stdio: 'inherit',
+    },
+  );
   if (manifest.error !== undefined) throw manifest.error;
   if (manifest.status !== 0) process.exit(manifest.status ?? 1);
 }

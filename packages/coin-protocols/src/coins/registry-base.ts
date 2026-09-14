@@ -93,6 +93,15 @@ export interface CoinFamily {
   adapters: readonly CoinAdapter[];
 }
 
+export interface CoinRegistry {
+  readonly COIN_ADAPTERS: readonly CoinAdapter[];
+  readonly COIN_FAMILIES: readonly CoinFamily[];
+  getAdapterFamilyId(adapter: CoinAdapter): string;
+  getCoinAdapter(id: string): CoinAdapter;
+  getCoinFamily(id: string): CoinFamily;
+  getDefaultCoinAdapter(id: string): CoinAdapter;
+}
+
 export const BIP44_ADDRESS_BRANCHES: AddressBranches = { receive: 0, change: 1 };
 
 export const TRANSPARENT_ROLES: CoinFieldRoles = {
@@ -121,16 +130,18 @@ export function indexRange(start: number, count: number): string {
 }
 
 function familyId(label: string): string {
-  return label.toLowerCase().replace(/[^a-z0-9]+/gu, '-').replace(/^-|-$/gu, '');
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, '-')
+    .replace(/^-|-$/gu, '');
 }
 
-export function createCoinRegistry(coinAdapters: readonly CoinAdapter[]) {
-  const coinFamilies: readonly CoinFamily[] = [...new Set(coinAdapters.map(({ group }) => group))]
-    .map((label) => ({
-      id: familyId(label),
-      label,
-      adapters: coinAdapters.filter(({ group }) => group === label),
-    }));
+export function createCoinRegistry(coinAdapters: readonly CoinAdapter[]): CoinRegistry {
+  const coinFamilies: readonly CoinFamily[] = [...new Set(coinAdapters.map(({ group }) => group))].map((label) => ({
+    id: familyId(label),
+    label,
+    adapters: coinAdapters.filter(({ group }) => group === label),
+  }));
 
   return {
     COIN_ADAPTERS: coinAdapters,
