@@ -12,6 +12,7 @@ import {
 import { resultBranchGroup, type BranchResultState, type ResultBranch } from './result-branches.js';
 import { renderResults, updateSecretVisibility, type ResultsRenderOptions } from './results.js';
 import { clearDerivationResult, clearRenderedSecrets } from './secrets.js';
+import type { MnemonicDiagnostic } from '@ckd/core/bip39.js';
 
 type DocumentAction =
   | { kind: 'bulk'; button: HTMLButtonElement; action: ExportAction }
@@ -63,6 +64,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const mnemonic = required<HTMLTextAreaElement>('#mnemonic');
   const passphrase = required<HTMLInputElement>('#passphrase');
   const wordCount = required<HTMLElement>('#word-count');
+  const seedDiagnostic = required<HTMLElement>('#seed-diagnostic');
   const deriveButton = required<HTMLButtonElement>('#derive-button');
   const resultsRoot = required<HTMLElement>('#results');
   const resultTitle = required<HTMLElement>('#result-title');
@@ -353,6 +355,62 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       const count = mnemonic.value.trim() === '' ? 0 : mnemonic.value.trim().split(/\s+/u).length;
       wordCount.textContent = `${count} word${count === 1 ? '' : 's'}`;
       copyMnemonicButton.disabled = !revealed || mnemonic.value.trim().length === 0;
+    },
+    updateSeedDiagnostic(diagnostic: MnemonicDiagnostic, fingerprint: string | null, revealed: boolean): void {
+      const status = (passed: boolean, success: string, failure: string): HTMLDivElement => {
+        const row = document.createElement('div');
+        row.className = `seed-diagnostic-check ${passed ? 'passed' : 'failed'}`;
+        const icon = document.createElement('span');
+        icon.textContent = passed ? '✓' : '×';
+        const label = document.createElement('span');
+        label.textContent = passed ? success : failure;
+        row.append(icon, label);
+        return row;
+      };
+      if (diagnostic.wordCount === 0) {
+        const note = document.createElement('p');
+        note.className = 'field-note';
+        note.textContent = 'Enter an English BIP39 recovery phrase to check its structure.';
+        seedDiagnostic.replaceChildren(seedDiagnostic.firstElementChild!, note);
+        return;
+      }
+      const checks = document.createElement('div');
+      checks.className = 'seed-diagnostic-checks';
+      checks.append(
+        status(diagnostic.wordCountValid, `${diagnostic.wordCount} words`, `${diagnostic.wordCount} words · expected 12, 15, 18, 21, or 24`),
+        status(diagnostic.allWordsKnown, 'All words in BIP39 English list', 'One or more words are not in the BIP39 English list'),
+        status(diagnostic.checksumValid, 'Checksum valid', diagnostic.allWordsKnown && diagnostic.wordCountValid ? 'Checksum invalid' : 'Checksum cannot be checked yet'),
+        status(true, 'NFKD normalized', 'NFKD normalization unavailable'),
+      );
+      const metrics = document.createElement('dl');
+      metrics.className = 'seed-diagnostic-metrics';
+      const metric = (labelText: string, valueText: string, conceal = false): void => {
+        const term = document.createElement('dt'); term.textContent = labelText;
+        const value = document.createElement('dd'); value.textContent = conceal && !revealed ? '••••••••' : valueText;
+        metrics.append(term, value);
+      };
+      if (diagnostic.entropyBits !== null && diagnostic.checksumBits !== null) {
+        metric('Entropy', `${diagnostic.entropyBits} bits`);
+        metric('Checksum', `${diagnostic.checksumBits} bits`);
+      }
+      if (fingerprint !== null) metric('BIP32 master fingerprint', fingerprint, true);
+      const problems = document.createElement('div');
+      problems.className = 'seed-diagnostic-problems';
+      for (const unknown of diagnostic.unknownWords) {
+        const item = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = `Word ${unknown.index + 1}: ${revealed ? `“${unknown.word}”` : '“••••”'}`;
+        const explanation = document.createElement('span');
+        explanation.textContent = 'Not in the BIP39 English list.';
+        item.append(title, explanation);
+        if (unknown.suggestions.length > 0) {
+          const suggestions = document.createElement('span');
+          suggestions.textContent = `Possible words: ${revealed ? unknown.suggestions.join(', ') : 'reveal recovery source to view'}`;
+          item.append(suggestions);
+        }
+        problems.append(item);
+      }
+      seedDiagnostic.replaceChildren(seedDiagnostic.firstElementChild!, checks, metrics, problems);
     },
     clearResults(
       currentResult: DerivationResult | null,

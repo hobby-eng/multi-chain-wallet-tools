@@ -33,7 +33,7 @@ import type { MessageSigningFormat } from '../workers/protocol.js';
 declare const __DASH_COMMUNITY__: boolean;
 import type { KeyDerivationView } from './view.js';
 import { hexToBytes, wipe } from '@ckd/core/crypto.js';
-import { entropyToEnglishMnemonic } from '@ckd/core/bip39.js';
+import { diagnoseMnemonic, entropyToEnglishMnemonic, masterFingerprintFromSeed } from '@ckd/core/bip39.js';
 
 const BASIC_WINDOW_SIZE = 200;
 const ADVANCED_WINDOW_SIZE = 24;
@@ -821,8 +821,24 @@ optionalElement<HTMLInputElement>('#bip85-child-passphrase')?.addEventListener('
   scheduleBip85WalletRefresh();
 });
 
+function updateSeedDiagnostic(): void {
+  const diagnostic = diagnoseMnemonic(mnemonic.value);
+  let seed: Uint8Array | null = null;
+  let fingerprint: string | null = null;
+  if (diagnostic.checksumValid) {
+    try {
+      seed = mnemonicToSeed(mnemonic.value, passphrase.value);
+      fingerprint = masterFingerprintFromSeed(seed);
+    } finally {
+      seed?.fill(0);
+    }
+  }
+  view.updateSeedDiagnostic(diagnostic, fingerprint, recoverySourceRevealed);
+}
+
 function updateWordCount(): void {
   view.updateWordCount(recoverySourceRevealed);
+  updateSeedDiagnostic();
 }
 
 function mnemonicMayBeComplete(): boolean {
@@ -1124,6 +1140,7 @@ async function downloadSelectedRows(button: HTMLButtonElement, action: ExportAct
 function setRecoverySourceVisibility(revealed: boolean): void {
   recoverySourceRevealed = revealed;
   view.setRecoverySourceVisibility(revealed);
+  updateSeedDiagnostic();
 }
 
 function setResultSecretsVisibility(revealed: boolean): void {
@@ -1522,6 +1539,7 @@ for (const input of [mnemonic, passphrase]) {
     derivationRevision += 1;
     if (currentResult !== null) clearResults();
     if (input === mnemonic) updateWordCount();
+    else updateSeedDiagnostic();
     pendingLargeRequestFingerprint = null;
     view.resetDeriveAction();
     scheduleAutomaticDerivation();

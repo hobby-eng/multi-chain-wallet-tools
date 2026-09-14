@@ -114,6 +114,7 @@ describe('Key Derivation controller', () => {
       populateCoinSelect: vi.fn(),
       configureControls: vi.fn(),
       updateWordCount: vi.fn(),
+      updateSeedDiagnostic: vi.fn(),
       updateMode: vi.fn(),
       updateBulkActions: vi.fn(),
       populateBuildPassport: vi.fn(),

@@ -27,6 +27,7 @@ This is an independent hobby project. It is not an official Dash product or a re
 Use the Deriver on a trusted offline computer whenever real seed phrases or private keys are involved.
 
 - Derives Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot addresses; Ethereum EOAs; and supported Dash Core, Platform Payment, Identity, multisig-cosigner, and Orchard material.
+- Checks the entered phrase locally with Seed Diagnostic: word count, English BIP39 membership, checksum, NFKD normalization, entropy/checksum sizes, typo suggestions, and the passphrase-sensitive BIP32 master fingerprint.
 - Shows receive and optional change/internal results in separate tabs with paging, selection, copy, and download controls.
 - Creates QR codes locally for public payment addresses only. Secret keys, phrases, paths, and metadata never receive QR actions.
 - Includes optional local signing of any message with the derived Bitcoin or Dash key, using pinned and tested cryptographic libraries without importing the key into a wallet. Transaction signing and broadcasting are not implemented, which keeps spending operations outside the tool’s security boundary.
