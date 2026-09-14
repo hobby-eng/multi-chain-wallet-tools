@@ -1,0 +1,6 @@
+{
+  "name": "@ckd/public-data-providers",
+  "version": "0.1.4",
+  "private": true,
+  "type": "module"
+}
