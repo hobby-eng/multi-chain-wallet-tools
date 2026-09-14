@@ -43,3 +43,5 @@
 .previous-transaction-details{margin:0 14px 14px;border:1px solid #344354;border-radius:9px;background:#0a1016}.previous-transaction-details>summary{padding:12px 13px;color:var(--accent2);font-size:11px;font-weight:800}.previous-transaction-details>.psbt-detail-list{padding-inline:13px}.previous-transaction-item{margin:9px 13px;border:1px solid #26323d;border-radius:8px;overflow:hidden}.previous-transaction-item h5{margin:0;padding:10px 12px;background:#111923;font-size:11px}.previous-transaction-item .psbt-detail-list{padding-inline:12px}
 
 .signing-policy-warning{margin:12px 14px 0;padding:10px 12px;border:1px solid #75551d;border-radius:8px;background:#241b0d;color:#f0b44c;font-size:11px;font-weight:800}
+
+.referenced-output-card{margin:0 14px 14px;border:1px solid #2d624a;border-radius:9px;overflow:hidden;background:#0b1713}.referenced-output-card h5{margin:0;padding:11px 13px;background:#10251d;color:var(--ok);font-size:11px}.referenced-previous-output{border-color:#2d624a}.referenced-previous-output h5{color:var(--ok)}

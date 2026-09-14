@@ -290,13 +290,13 @@ for (const browserName of selectedBrowsers) {
             await page.locator('#psbt-input').fill(profile.id === 'dash-community' ? dashPsbt : bitcoinPsbt);
             await page.locator('#inspect-button').click();
             await page.locator('#psbt-results').waitFor({ state: 'visible' });
-            assert.match(await page.locator('#transaction-details').innerText(), /Current unsigned fee rate estimate[\s\S]*2\.57 (?:sat|duffs)\/vB[\s\S]*Transaction ID[\s\S]*Serialized size[\s\S]*Virtual size[\s\S]*Weight[\s\S]*scriptPubKey ASM/u);
+            assert.match(await page.locator('#transaction-details').innerText(), /Fee \/ current unsigned size[\s\S]*2\.57 (?:sat|duffs)\/vB[\s\S]*Transaction ID[\s\S]*Serialized size[\s\S]*Virtual size[\s\S]*Weight[\s\S]*scriptPubKey ASM/u);
             assert.match(await page.locator('#psbt-summary').innerText(), /Signing state[\s\S]*Unsigned[\s\S]*UTXO information/u);
             assert.match(await page.locator('#transaction-details').innerText(), /INTERNALLY VERIFIED/u);
             assert.match(await page.locator('#transaction-details').innerText(), /Signing commitments \/ transaction mutability[\s\S]*Signature[\s\S]*Not signed[\s\S]*Sighash[\s\S]*Not specified[\s\S]*RBF[\s\S]*(?:Not signaled|Not supported by Dash Core)[\s\S]*Locktime[\s\S]*Block height 1257139/u);
             const previousTransaction = page.locator('.previous-transaction-details');
             await previousTransaction.locator(':scope > summary').click();
-            assert.match(await previousTransaction.innerText(), /Non-witness UTXO[\s\S]*84a4992f[\s\S]*Previous transaction input 0[\s\S]*Previous transaction output 0[\s\S]*P2PKH[\s\S]*Previous transaction output 1[\s\S]*P2SH[\s\S]*Raw transaction/u);
+            assert.match(await previousTransaction.innerText(), /Referenced previous output[\s\S]*Matches current input prevout[\s\S]*Complete previous transaction[\s\S]*84a4992f[\s\S]*Previous transaction input 0[\s\S]*Previous transaction output 0[\s\S]*P2PKH[\s\S]*Previous transaction output 1[\s\S]*P2SH[\s\S]*Raw transaction/u);
             const advanced = page.locator('.psbt-advanced-details');
             assert.equal(await advanced.getAttribute('open'), null);
             await advanced.locator(':scope > summary').click();
