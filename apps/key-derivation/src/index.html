@@ -67,6 +67,10 @@
           <button class="secondary compact" id="generate-24" type="button">Generate 24 words</button>
           <button class="secret-action compact" id="copy-mnemonic" type="button" disabled>Copy recovery phrase</button>
         </div>
+        <section id="seed-diagnostic" class="seed-diagnostic" aria-labelledby="seed-diagnostic-title" aria-live="polite">
+          <div class="seed-diagnostic-head"><h3 id="seed-diagnostic-title">Seed Diagnostic</h3><span>Local · no network</span></div>
+          <p class="field-note">Enter an English BIP39 recovery phrase to check its structure.</p>
+        </section>
 
         <label for="passphrase">BIP39 passphrase <span class="optional">optional, case-sensitive</span></label>
         <input id="passphrase" type="password" autocomplete="off" placeholder="Leave blank unless your wallet uses one">
