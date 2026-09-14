@@ -80,6 +80,7 @@ for (const requiredId of [
   'derive-button',
   'cancel-derivation',
   'toggle-sensitive-values',
+  'toggle-result-secrets',
   'copy-mnemonic',
   'account-descriptor-export',
   'open-account-export',
@@ -123,7 +124,8 @@ const required = [
   "'wasm-unsafe-eval'",
   'Wallet Key Derivation Tool',
   'Recovery seed phrase',
-  'Reveal all sensitive values',
+  'Reveal recovery source',
+  'Reveal all private keys',
   'Derivation type',
   'dash-identity',
   'dash-legacy-mobile',
@@ -171,8 +173,8 @@ if (html.includes('<details class="dependency-info">')) {
 if (html.includes('Advanced cryptographic details')) {
   throw new Error('Advanced result fields are still hidden behind a redundant disclosure control.');
 }
-for (const obsoleteId of ['toggle-input-secrets', 'toggle-result-secrets']) {
-  if (ids.includes(obsoleteId)) throw new Error(`Standalone artifact still contains obsolete split reveal control #${obsoleteId}.`);
+if (ids.includes('toggle-input-secrets')) {
+  throw new Error('Standalone artifact still contains the obsolete duplicate recovery-source reveal control.');
 }
 if (html.includes('To inspect activity on a connected computer, use the separate Wallet_Activity_Viewer.html')) {
   throw new Error('Standalone artifact still contains the removed repeated Shielded viewer notice.');
