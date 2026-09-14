@@ -13,8 +13,8 @@ function fixture() {
   vi.stubGlobal('window', { addEventListener: vi.fn(), setTimeout: vi.fn(() => 0), clearTimeout: vi.fn() });
   const names = ['document', 'form', 'mnemonic', 'passphrase', 'exportFormat', 'modeBasic', 'modeAdvanced',
     'resultReceiveTab', 'resultChangeTab', 'resultCoinJoinTab', 'resultCoinJoinExternalTab', 'resultCoinJoinInternalTab',
-    'toggleSensitiveValues', 'copyMnemonicButton', 'copyWatchOnlyButton', 'downloadWatchOnlyButton', 'cancelDerivationButton',
-    'expectedAddress', 'searchStart', 'searchCount', 'searchAddressButton', 'generate12Button', 'generate24Button',
+    'toggleSensitiveValues', 'toggleResultSecrets', 'copyMnemonicButton', 'copyWatchOnlyButton', 'downloadWatchOnlyButton', 'cancelDerivationButton',
+    'expectedAddress', 'searchStart', 'searchCount', 'searchAddressButton', 'generate12Button', 'generate15Button', 'generate18Button', 'generate21Button', 'generate24Button',
     'clearAllButton', 'selectAllButton', 'selectNoneButton', 'selectInvertButton'];
   const fields = Object.fromEntries(names.map(name => [name, new Control()]));
   const controls = Object.fromEntries(['coin', 'protocolTabs', 'network', 'account', 'branchInput', 'branchSelect',
@@ -43,21 +43,33 @@ function fixture() {
     .mockImplementation(() => ({ derive: () => new Promise(() => {}), terminate: vi.fn() }));
   const adapter = { id: 'bitcoin-bip44', variantLabel: 'BIP44', defaults: { branch: 0 },
     addressBranches: { receive: 0, change: 1 }, fieldRoles: { addresses: ['address'], publicKeys: [], privateKeys: [] } };
+  const mnemonicToSeed = vi.fn().mockReturnValueOnce(seed).mockImplementation(() => new Uint8Array(64).fill(9));
   const dependencies = {
     coinFamilies: [{ id: 'bitcoin', label: 'Bitcoin' }], getAdapterFamilyId: () => 'bitcoin',
     getCoinAdapter: () => adapter, getDefaultCoinAdapter: () => adapter, buildInfo: {},
-    generateMnemonic: vi.fn(() => 'replacement phrase'), mnemonicToSeed: vi.fn().mockReturnValueOnce(seed).mockImplementation(() => new Uint8Array(64).fill(9)),
+    generateMnemonic: vi.fn(() => 'replacement phrase'), mnemonicToSeed,
     runBip39SelfTest: () => ({ passed: true, checks: [], durationMs: 0 }),
     writeClipboard: vi.fn(), downloadBlob: vi.fn(), downloadText: vi.fn(), createWorker,
   } as unknown as Parameters<typeof createKeyDerivationController>[1];
   createKeyDerivationController(view, dependencies).start();
-  return { fields, controls, method, worker, resolve, reject, seed, createWorker };
+  return { fields, controls, method, worker, resolve, reject, seed, createWorker, mnemonicToSeed };
 }
 
 describe('known-address search lifecycle', () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-  it.each(['clearAllButton', 'generate12Button', 'generate24Button', 'mnemonic', 'passphrase', 'expectedAddress',
+  it('passes the mnemonic and Unicode BIP39 passphrase to seed derivation verbatim', async () => {
+    const f = fixture();
+    await Promise.resolve(); await Promise.resolve();
+    const mnemonic = '  abandon   abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about  ';
+    const passphrase = ' кириллица 中文 "quotes" \\ \n\t 🔑 ';
+    f.fields.mnemonic!.value = mnemonic;
+    f.fields.passphrase!.value = passphrase;
+    f.fields.searchAddressButton!.click();
+    expect(f.mnemonicToSeed).toHaveBeenCalledWith(mnemonic, passphrase);
+  });
+
+  it.each(['clearAllButton', 'generate12Button', 'generate15Button', 'generate18Button', 'generate21Button', 'generate24Button', 'mnemonic', 'passphrase', 'expectedAddress',
     'searchStart', 'searchCount', 'network', 'account', 'includeChange', 'includeCoinJoin'])(
     'releases seed and rejects stale matches after %s', async name => {
       const f = fixture();

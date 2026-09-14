@@ -18,8 +18,8 @@ async function fixture() {
   vi.stubGlobal('window', { addEventListener: vi.fn(), setTimeout: vi.fn(() => 0), clearTimeout: vi.fn() });
   const names = ['document', 'form', 'mnemonic', 'passphrase', 'exportFormat', 'modeBasic', 'modeAdvanced',
     'resultReceiveTab', 'resultChangeTab', 'resultCoinJoinTab', 'resultCoinJoinExternalTab', 'resultCoinJoinInternalTab',
-    'toggleSensitiveValues', 'copyMnemonicButton', 'copyWatchOnlyButton', 'downloadWatchOnlyButton', 'cancelDerivationButton',
-    'expectedAddress', 'searchStart', 'searchCount', 'searchAddressButton', 'generate12Button', 'generate24Button',
+    'toggleSensitiveValues', 'toggleResultSecrets', 'copyMnemonicButton', 'copyWatchOnlyButton', 'downloadWatchOnlyButton', 'cancelDerivationButton',
+    'expectedAddress', 'searchStart', 'searchCount', 'searchAddressButton', 'generate12Button', 'generate15Button', 'generate18Button', 'generate21Button', 'generate24Button',
     'clearAllButton', 'selectAllButton', 'selectNoneButton', 'selectInvertButton', 'messageSignerDialog',
     'messageSignerMessage', 'signMessageButton', 'closeMessageSignerButton', 'messageSignatureOutput', 'copyMessageSignature'];
   const fields = Object.fromEntries(names.map((name) => [name, new Control()]));

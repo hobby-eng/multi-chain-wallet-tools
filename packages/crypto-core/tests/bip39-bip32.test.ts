@@ -18,9 +18,12 @@ describe('BIP39', () => {
     expect(() => assertValidMnemonic('abandon '.repeat(12))).toThrow(/checksum/u);
   });
 
-  it('generates checksum-valid 12- and 24-word phrases with the secure browser API', () => {
-    expect(assertValidMnemonic(generateMnemonic(12)).split(' ')).toHaveLength(12);
-    expect(assertValidMnemonic(generateMnemonic(24)).split(' ')).toHaveLength(24);
+  it.each([12, 15, 18, 21, 24] as const)('generates a checksum-valid %i-word phrase with the secure browser API', (wordCount) => {
+    expect(assertValidMnemonic(generateMnemonic(wordCount)).split(' ')).toHaveLength(wordCount);
+  });
+
+  it('rejects unsupported generation lengths at the runtime boundary', () => {
+    expect(() => generateMnemonic(13 as 12)).toThrow(/12, 15, 18, 21, or 24/u);
   });
 });
 

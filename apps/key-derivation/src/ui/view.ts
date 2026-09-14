@@ -12,6 +12,7 @@ import {
 import { resultBranchGroup, type BranchResultState, type ResultBranch } from './result-branches.js';
 import { renderResults, updateSecretVisibility, type ResultsRenderOptions } from './results.js';
 import { clearDerivationResult, clearRenderedSecrets } from './secrets.js';
+import type { MnemonicDiagnostic } from '@ckd/core/bip39.js';
 
 type DocumentAction =
   | { kind: 'bulk'; button: HTMLButtonElement; action: ExportAction }
@@ -63,6 +64,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const mnemonic = required<HTMLTextAreaElement>('#mnemonic');
   const passphrase = required<HTMLInputElement>('#passphrase');
   const wordCount = required<HTMLElement>('#word-count');
+  const seedDiagnostic = required<HTMLElement>('#seed-diagnostic');
   const deriveButton = required<HTMLButtonElement>('#derive-button');
   const resultsRoot = required<HTMLElement>('#results');
   const resultTitle = required<HTMLElement>('#result-title');
@@ -87,6 +89,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   };
   const branchResultContent = required<HTMLElement>('#branch-result-content');
   const toggleSensitiveValues = required<HTMLButtonElement>('#toggle-sensitive-values');
+  const toggleResultSecrets = required<HTMLButtonElement>('#toggle-result-secrets');
   const copyMnemonicButton = required<HTMLButtonElement>('#copy-mnemonic');
   const copyWatchOnlyButton = required<HTMLButtonElement>('#copy-watch-only');
   const downloadWatchOnlyButton = required<HTMLButtonElement>('#download-watch-only');
@@ -109,6 +112,9 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const selfTestDetails = required<HTMLElement>('#crypto-self-test-details');
   const workerRuntime = required<HTMLElement>('#worker-runtime');
   const generate12Button = required<HTMLButtonElement>('#generate-12');
+  const generate15Button = required<HTMLButtonElement>('#generate-15');
+  const generate18Button = required<HTMLButtonElement>('#generate-18');
+  const generate21Button = required<HTMLButtonElement>('#generate-21');
   const generate24Button = required<HTMLButtonElement>('#generate-24');
   const cancelDerivationButton = required<HTMLButtonElement>('#cancel-derivation');
   const expectedAddress = required<HTMLInputElement>('#expected-address');
@@ -160,6 +166,7 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     resultCoinJoinInternalTab,
     branchResultContent,
     toggleSensitiveValues,
+    toggleResultSecrets,
     copyMnemonicButton,
     copyWatchOnlyButton,
     downloadWatchOnlyButton,
@@ -181,6 +188,9 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     selfTestStatus,
     selfTestDetails,
     generate12Button,
+    generate15Button,
+    generate18Button,
+    generate21Button,
     generate24Button,
     clearAllButton: required<HTMLButtonElement>('#clear-all'),
     selectAllButton: required<HTMLButtonElement>('#select-all'),
@@ -346,6 +356,62 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       wordCount.textContent = `${count} word${count === 1 ? '' : 's'}`;
       copyMnemonicButton.disabled = !revealed || mnemonic.value.trim().length === 0;
     },
+    updateSeedDiagnostic(diagnostic: MnemonicDiagnostic, fingerprint: string | null, revealed: boolean): void {
+      const status = (passed: boolean, success: string, failure: string): HTMLDivElement => {
+        const row = document.createElement('div');
+        row.className = `seed-diagnostic-check ${passed ? 'passed' : 'failed'}`;
+        const icon = document.createElement('span');
+        icon.textContent = passed ? '✓' : '×';
+        const label = document.createElement('span');
+        label.textContent = passed ? success : failure;
+        row.append(icon, label);
+        return row;
+      };
+      if (diagnostic.wordCount === 0) {
+        const note = document.createElement('p');
+        note.className = 'field-note';
+        note.textContent = 'Enter an English BIP39 recovery phrase to check its structure.';
+        seedDiagnostic.replaceChildren(seedDiagnostic.firstElementChild!, note);
+        return;
+      }
+      const checks = document.createElement('div');
+      checks.className = 'seed-diagnostic-checks';
+      checks.append(
+        status(diagnostic.wordCountValid, `${diagnostic.wordCount} words`, `${diagnostic.wordCount} words · expected 12, 15, 18, 21, or 24`),
+        status(diagnostic.allWordsKnown, 'All words in BIP39 English list', 'One or more words are not in the BIP39 English list'),
+        status(diagnostic.checksumValid, 'Checksum valid', diagnostic.allWordsKnown && diagnostic.wordCountValid ? 'Checksum invalid' : 'Checksum cannot be checked yet'),
+        status(true, 'NFKD normalized', 'NFKD normalization unavailable'),
+      );
+      const metrics = document.createElement('dl');
+      metrics.className = 'seed-diagnostic-metrics';
+      const metric = (labelText: string, valueText: string, conceal = false): void => {
+        const term = document.createElement('dt'); term.textContent = labelText;
+        const value = document.createElement('dd'); value.textContent = conceal && !revealed ? '••••••••' : valueText;
+        metrics.append(term, value);
+      };
+      if (diagnostic.entropyBits !== null && diagnostic.checksumBits !== null) {
+        metric('Entropy', `${diagnostic.entropyBits} bits`);
+        metric('Checksum', `${diagnostic.checksumBits} bits`);
+      }
+      if (fingerprint !== null) metric('BIP32 master fingerprint', fingerprint, true);
+      const problems = document.createElement('div');
+      problems.className = 'seed-diagnostic-problems';
+      for (const unknown of diagnostic.unknownWords) {
+        const item = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = `Word ${unknown.index + 1}: ${revealed ? `“${unknown.word}”` : '“••••”'}`;
+        const explanation = document.createElement('span');
+        explanation.textContent = 'Not in the BIP39 English list.';
+        item.append(title, explanation);
+        if (unknown.suggestions.length > 0) {
+          const suggestions = document.createElement('span');
+          suggestions.textContent = `Possible words: ${revealed ? unknown.suggestions.join(', ') : 'reveal recovery source to view'}`;
+          item.append(suggestions);
+        }
+        problems.append(item);
+      }
+      seedDiagnostic.replaceChildren(seedDiagnostic.firstElementChild!, checks, metrics, problems);
+    },
     clearResults(
       currentResult: DerivationResult | null,
       branchStates: ReadonlyMap<ResultBranch, BranchResultState>,
@@ -502,13 +568,17 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
         ? `Download ${watchOnly.fileName}`
         : `Reveal sensitive values before downloading ${watchOnly.fileName}.`;
     },
-    setSensitiveValuesVisibility(revealed: boolean): void {
+    setRecoverySourceVisibility(revealed: boolean): void {
       mnemonic.classList.toggle('concealed', !revealed);
       passphrase.type = revealed ? 'text' : 'password';
-      updateSecretVisibility(resultsRoot, revealed);
-      toggleSensitiveValues.textContent = revealed ? 'Hide all sensitive values' : 'Reveal all sensitive values';
+      toggleSensitiveValues.textContent = revealed ? 'Hide recovery source' : 'Reveal recovery source';
       toggleSensitiveValues.setAttribute('aria-pressed', String(revealed));
       copyMnemonicButton.disabled = !revealed || mnemonic.value.trim().length === 0;
+    },
+    setResultSecretsVisibility(revealed: boolean): void {
+      updateSecretVisibility(resultsRoot, revealed);
+      toggleResultSecrets.textContent = revealed ? 'Hide all private keys' : 'Reveal all private keys';
+      toggleResultSecrets.setAttribute('aria-pressed', String(revealed));
     },
     showResults(): void {
       resultsRoot.hidden = false;
@@ -532,8 +602,9 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       cryptoControlsEnabled = enabled;
       deriveButton.disabled = !enabled;
       searchAddressButton.disabled = !enabled || !addressSearchAvailable;
-      generate12Button.disabled = !enabled;
-      generate24Button.disabled = !enabled;
+      for (const button of [generate12Button, generate15Button, generate18Button, generate21Button, generate24Button]) {
+        button.disabled = !enabled;
+      }
     },
     showCryptoSelfTestPassed(checks: readonly string[], durationMs: number): void {
       selfTestStatus.classList.remove('checking', 'failed');

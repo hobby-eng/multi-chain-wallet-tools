@@ -58,12 +58,12 @@ describe('coin adapter extension contract', () => {
       'Taproot · BIP86',
     ]);
     expect(COIN_FAMILIES.find(({ id }) => id === 'dash')?.adapters.map(({ variantLabel }) => variantLabel)).toEqual([
-      'Core · BIP44\nP2PKH',
-      'Multisig · Purpose48 P2SH',
-      'Legacy mobile Core',
-      'Platform · DIP17 / DIP18',
-      'Identity · DIP13',
-      'Shielded · Orchard / ZIP-32',
+      'Core\nBIP44 · P2PKH',
+      'Multisig\nPurpose48 · P2SH',
+      'Legacy mobile\nCore',
+      'Platform\nDIP17 / DIP18',
+      'Identity\nDIP13',
+      'Shielded\nOrchard / ZIP-32',
     ]);
     expect(getDefaultCoinAdapter('bitcoin').id).toBe('bitcoin-taproot');
     expect(getDefaultCoinAdapter('dash').id).toBe('dash-core');

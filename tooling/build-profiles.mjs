@@ -283,7 +283,7 @@ export function applyProfileTemplate(template, profile, tool) {
     : '<p class="field-note"><strong>Bitcoin descriptor coverage:</strong> common wallet descriptors, Taproot/MuSig2, and Miniscript hashlock/timelock trees receive BitcoinerLab Miniscript safety analysis. Arbitrary descriptor address expansion and private-key descriptors remain unsupported.</p>';
   const psbtMusigScope = profile.id === 'dash-community'
     ? ''
-    : '<p class="field-note"><strong>MuSig2 scope:</strong> the BIP-390 descriptor spelling is <code>musig(...)</code>, but it represents the modern BIP-327 MuSig2 protocol—not legacy MuSig1. Scure BTC Signer validates KeySort/KeyAgg and BIP-328 aggregate-key derivation, and the PSBT inspector recognizes BIP-373 fields. Signing, secret nonces, and interactive partial-signature rounds remain intentionally unavailable.</p>';
+    : '<p class="field-note"><strong>MuSig2 scope:</strong> the BIP-390 descriptor spelling is <code>musig(...)</code>, but it represents the modern BIP-327 MuSig2 protocol—not legacy MuSig1. Pinned public-key routines from <code>@scure/btc-signer</code> calculate and cross-check KeySort/KeyAgg, Taproot outputs, and BIP-328 aggregate-key derivation; the PSBT inspector structurally recognizes BIP-373 fields. The dependency package name contains “Signer”, but this utility does not expose transaction signing, secret nonces, or interactive partial-signature rounds.</p>';
   const psbtDependencyScope = profile.id === 'dash-community'
     ? 'BitcoinerLab Miniscript 2.0.0, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC.'
     : 'BitcoinerLab Miniscript 2.0.0, Scure BTC Signer 2.4.1, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC.';
