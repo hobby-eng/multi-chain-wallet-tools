@@ -112,6 +112,9 @@ export function createKeyDerivationController(
         messageSignatureOutput,
         copyMessageSignature,
         generate12Button,
+        generate15Button,
+        generate18Button,
+        generate21Button,
         generate24Button,
         clearAllButton,
         selectAllButton,
@@ -1525,7 +1528,9 @@ for (const input of [expectedAddress, searchStart, searchCount]) {
 }
 
 toggleSensitiveValues.addEventListener('click', () => setSensitiveValuesVisibility(!sensitiveValuesRevealed));
-for (const [words, generateButton] of [[12, generate12Button], [24, generate24Button]] as const) {
+for (const [words, generateButton] of [
+  [12, generate12Button], [15, generate15Button], [18, generate18Button], [21, generate21Button], [24, generate24Button],
+] as const) {
   generateButton.addEventListener('click', () => {
     cancelAutomaticDerivation();
     invalidateAddressSearch();

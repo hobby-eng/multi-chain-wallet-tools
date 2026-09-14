@@ -36,12 +36,25 @@ export function mnemonicToSeed(mnemonic: string, passphrase = ''): Uint8Array {
   return mnemonicToSeedSync(assertValidMnemonic(mnemonic), passphrase);
 }
 
-export function generateMnemonic(wordCount: 12 | 24): string {
+export const BIP39_WORD_COUNTS = [12, 15, 18, 21, 24] as const;
+export type Bip39WordCount = typeof BIP39_WORD_COUNTS[number];
+
+const BIP39_ENTROPY_BYTES: Readonly<Record<Bip39WordCount, number>> = {
+  12: 16,
+  15: 20,
+  18: 24,
+  21: 28,
+  24: 32,
+};
+
+export function generateMnemonic(wordCount: Bip39WordCount): string {
   if (globalThis.crypto?.getRandomValues === undefined) {
     throw new Error('Secure randomness is unavailable: crypto.getRandomValues is required.');
   }
+  const entropyBytes = BIP39_ENTROPY_BYTES[wordCount];
+  if (entropyBytes === undefined) throw new Error('BIP39 word count must be 12, 15, 18, 21, or 24.');
 
-  const entropy = new Uint8Array(wordCount === 12 ? 16 : 32);
+  const entropy = new Uint8Array(entropyBytes);
   globalThis.crypto.getRandomValues(entropy);
   try {
     return entropyToMnemonic(entropy, wordlist);
