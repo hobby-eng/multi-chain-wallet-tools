@@ -17,6 +17,7 @@ import { calculatePhrasePreimage, type HashlockKind } from './preimage.js';
 import { describeScript, pairName, pairSummary, parsePsbt, parsedTransactionId, transactionId, type ParsedPsbt, type PsbtChain, type PsbtNetwork } from './psbt.js';
 import { decodeScript } from './script.js';
 import { verifySignedMessage } from './message-verifier.js';
+import { analyzeInputSigning } from './signing-commitments.js';
 import { createPaymentQrAction } from '../../key-derivation/src/ui/payment-qr.js';
 
 function required<T extends HTMLElement>(id: string): T {
@@ -595,6 +596,31 @@ function render(parsed: ParsedPsbt): void {
     textElement('p', 'field-note', 'Verified means this offline inspector checked the stated relationship against data inside this PSBT. It does not prove blockchain inclusion or validate signatures.'),
     verificationMatrix('Global PSBT checks', parsed.globalVerification),
     ...parsed.inputVerification.map((checks, index) => verificationMatrix(`Input ${index} checks`, checks)),
+  );
+  cards.push(
+    textElement('h3', 'psbt-subheading', 'Signing commitments / transaction mutability'),
+    textElement('p', 'field-note', 'This explains what each input signature would commit under the requested sighash. It does not verify a signature or predict every node policy.'),
+    ...parsed.inputs.map((_map, index) => {
+      const analysis = analyzeInputSigning(parsed, index);
+      const card = document.createElement('article');
+      card.className = 'psbt-entry-card signing-commitment-card';
+      card.append(textElement('h4', '', `Input ${index}`));
+      if (analysis.sighash.unusual) card.append(textElement('p', 'signing-policy-warning', '⚠ Unusual or inconsistent signing policy'));
+      card.append(detailRows([
+        ['Signature', analysis.signature],
+        ['Signature protocol', analysis.protocol],
+        ['Sighash', analysis.sighash.label],
+        ['Current input', analysis.sighash.currentInput],
+        ['Other inputs', analysis.sighash.otherInputs],
+        ['Other input sequences', analysis.sighash.otherInputSequences],
+        ['Outputs', analysis.sighash.outputs],
+        ['Current input amount', analysis.sighash.currentInputAmount],
+        ['RBF', analysis.rbf],
+        ['Locktime', analysis.locktime],
+        ['Relative locktime', analysis.relativeLocktime],
+      ]));
+      return card;
+    }),
   );
   if (parsed.transaction !== null) {
     cards.push(textElement('h3', 'psbt-subheading', 'Unsigned transaction'));
