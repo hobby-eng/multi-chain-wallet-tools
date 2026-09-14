@@ -1,0 +1,6 @@
+{
+  "name": "@ckd/secret-vault",
+  "version": "0.1.4",
+  "private": true,
+  "type": "module"
+}
