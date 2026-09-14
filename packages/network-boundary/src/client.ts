@@ -6,6 +6,7 @@ import {
   type IdentityLookupView,
   type PlatformAddressBatchView,
   type PlatformHistorySummaryView,
+  type RecoveryHistory,
   type RecoveryNetwork,
   type RecoveryNetworkApi,
   type RecoveryNetworkRequestInput,
@@ -158,7 +159,7 @@ class NetworkBoundaryClient implements RecoveryNetworkApi {
     network: RecoveryNetwork,
     address: string,
     signal?: AbortSignal,
-  ): Promise<import('@ckd/public-data-providers/types.js').RecoveryHistory> {
+  ): Promise<RecoveryHistory> {
     return this.#request({ operation: 'address.history', payload: { coin, network, address } }, signal);
   }
   utxoAddresses(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<UtxoAddressView[]> {
@@ -205,7 +206,6 @@ export function installNetworkBoundaryListener(): void {
   });
 }
 
-installNetworkBoundaryListener();
 export function recoveryNetworkApi(): Promise<RecoveryNetworkApi> {
   return clientPromise;
 }

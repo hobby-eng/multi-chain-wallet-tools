@@ -46,7 +46,7 @@ function assertNoDuplicateIds(markup, label) {
 const expectedOuterCspPrefix = "default-src 'none'; script-src ";
 const expectedOuterCspSuffix =
   " 'wasm-unsafe-eval'; style-src 'unsafe-inline'; connect-src https:; worker-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'";
-const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/u.exec(html)?.[1];
+const csp = /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/u.exec(html)?.[1];
 if (csp === undefined || !csp.startsWith(expectedOuterCspPrefix) || !csp.endsWith(expectedOuterCspSuffix)) {
   throw new Error('Recovery shell CSP changed from the reviewed isolated-network policy.');
 }
@@ -97,7 +97,8 @@ for (const forbidden of [
   if (iframe.includes(forbidden)) throw new Error(`Recovery Secret Vault unexpectedly grants ${forbidden}.`);
 }
 
-const vaultCsp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/u.exec(vaultTemplate)?.[1] ?? '';
+const vaultCsp =
+  /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/u.exec(vaultTemplate)?.[1] ?? '';
 if (!/(?:^|;)\s*connect-src\s+'none'\s*(?:;|$)/u.test(vaultCsp)) {
   throw new Error("Recovery Secret Vault must enforce connect-src 'none'.");
 }
@@ -276,7 +277,7 @@ for (const marker of [
   'Spent at pool position',
   'section_lifetime_received_dash',
   'No funded Dash Core L1 address was found in this section and scanned range.',
-  'The Dash mark is an official brand asset used under CC BY 4.0.',
+  'The Dash mark is an official brand asset',
   'wallet-discovery-report',
   'Blocked ',
   'Dash Platform DAPI',

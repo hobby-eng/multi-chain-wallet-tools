@@ -26,23 +26,24 @@ export function createBitcoinAddressSearchRunner(
       context.inputMode === 'single' ? 1 : parseConcurrency(snapshot.batchConcurrency, 'Batch seed concurrency');
     if (count > 5000) throw new Error('Search count must be an integer from 1 to 5000.');
     let inputs = [] as ReturnType<typeof context.recoveryInputs>;
+    const seeds: RecoverySeedTarget[] = [];
     try {
       inputs = context.recoveryInputs(snapshot);
-      const seeds: RecoverySeedTarget[] = inputs.map((input) => {
+      for (const input of inputs) {
         const seed = mnemonicToSeed(input.mnemonic, input.passphrase);
         context.sessionSecretGuard.registerString('BIP39 mnemonic', input.mnemonic);
         context.sessionSecretGuard.registerString('BIP39 passphrase', input.passphrase);
         context.sessionSecretGuard.registerBytes('BIP39 seed', seed);
-        return { id: input.id, label: input.label, seed };
-      });
+        seeds.push({ id: input.id, label: input.label, seed });
+      }
       context.wipeInputObjects(inputs);
-      context.sessionSecretGuard.clear();
       context.resetState();
       const { controller: runController, generation } = context.prepareRun();
       context.view.setStatus(
         `Searching ${seeds.length} seed${seeds.length === 1 ? '' : 's'} across ${targets.length} Bitcoin address target${targets.length === 1 ? '' : 's'} locally.`,
       );
       void (async () => {
+        const partial = new Array<MultiSeedAddressResult>(seeds.length * targets.length);
         let latest: MultiSeedAddressResult[] = [];
         try {
           latest = await searchAcrossSeedsAndAddresses({
@@ -52,8 +53,15 @@ export function createBitcoinAddressSearchRunner(
             count,
             concurrency: seedConcurrency,
             signal: runController.signal,
-            onProgress: (completed, total) => {
-              if (context.isCurrentRun(generation)) context.view.renderAddressSearch(latest, completed, total);
+            onProgress: (completed, total, result, index) => {
+              partial[index] = result;
+              if (context.isCurrentRun(generation)) {
+                context.view.renderAddressSearch(
+                  partial.filter((item): item is MultiSeedAddressResult => item !== undefined),
+                  completed,
+                  total,
+                );
+              }
             },
             search: async (seed, adapterId, target, rangeStart, rangeCount, signal) => {
               const adapter = getAddressSearchAdapter(adapterId);
@@ -97,6 +105,8 @@ export function createBitcoinAddressSearchRunner(
         }
       })();
     } catch (cause) {
+      // A later mnemonic conversion may fail after earlier seeds were allocated.
+      for (const seed of seeds) seed.seed.fill(0);
       context.wipeInputObjects(inputs);
       context.sessionSecretGuard.clear();
       context.view.showError(context.describeUnknownError(cause));

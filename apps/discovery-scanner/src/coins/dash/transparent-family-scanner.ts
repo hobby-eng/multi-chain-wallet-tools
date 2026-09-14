@@ -1,9 +1,10 @@
+import { DASHSCAN_CORE_ENDPOINTS } from './endpoints.js';
 import { dashCoreHistory } from './history.js';
 import { MAX_BIP32_INDEX, rootFromSeed, requirePublic } from '@ckd/core/bip32.js';
 import { bytesToHex, encodeP2pkh, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import { RECOVERY_CORE_ADDRESS_BATCH, RECOVERY_CORE_ENDPOINTS } from '@ckd/network-boundary/protocol.js';
+import { RECOVERY_CORE_ADDRESS_BATCH } from '@ckd/network-boundary/protocol.js';
 import type {
   RecoveryFinding,
   RecoveryProgress,
@@ -58,7 +59,7 @@ export async function scanDashTransparentFamily(
   onProgress: (progress: RecoveryProgress) => void,
   onFinding: (finding: RecoveryFinding) => void,
 ): Promise<RecoverySection> {
-  const endpoint = RECOVERY_CORE_ENDPOINTS[config.network];
+  const endpoint = DASHSCAN_CORE_ENDPOINTS[config.network];
   const indexedHeight = await fetchDashScanIndexedHeight(gateway, config.network, signal);
   const network = getDashNetwork(config.network);
   const root = rootFromSeed(seed, network.versions);

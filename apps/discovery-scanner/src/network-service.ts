@@ -1,3 +1,4 @@
+import { DASHSCAN_CORE_ENDPOINTS } from './coins/dash/endpoints.js';
 import { assertPlatformExplorerNetwork } from '@ckd/dash-network/provider-json.js';
 import { readProviderJson } from '@ckd/dash-network/provider-json.js';
 import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
@@ -17,11 +18,7 @@ import type {
   ShieldedPageView,
   UtxoAddressView,
 } from '@ckd/network-boundary/protocol.js';
-import {
-  RECOVERY_CORE_ADDRESS_BATCH,
-  RECOVERY_CORE_ENDPOINTS,
-  RECOVERY_PLATFORM_ADDRESS_BATCH,
-} from '@ckd/network-boundary/protocol.js';
+import { RECOVERY_CORE_ADDRESS_BATCH, RECOVERY_PLATFORM_ADDRESS_BATCH } from '@ckd/network-boundary/protocol.js';
 import type { RecoveryNetwork } from '@ckd/network-boundary/protocol.js';
 import { describeUnknownError, freeThrownValue } from '@ckd/core/error-handling.js';
 
@@ -327,19 +324,19 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
 
   async coreStatus(network: RecoveryNetwork, signal?: AbortSignal): Promise<unknown> {
     assertNetwork(network);
-    return fetchJson(`${RECOVERY_CORE_ENDPOINTS[network]}/status`, signal);
+    return fetchJson(`${DASHSCAN_CORE_ENDPOINTS[network]}/status`, signal);
   }
 
   async coreTip(network: RecoveryNetwork, signal?: AbortSignal): Promise<unknown> {
     assertNetwork(network);
-    return fetchJson(`${RECOVERY_CORE_ENDPOINTS[network]}/blocks?page=1&limit=1&order=desc`, signal);
+    return fetchJson(`${DASHSCAN_CORE_ENDPOINTS[network]}/blocks?page=1&limit=1&order=desc`, signal);
   }
 
   async coreAddressInfo(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<unknown> {
     assertNetwork(network);
     assertAddressBatch(addresses, network, validateCoreP2pkhAddress, 'Dash Core P2PKH', RECOVERY_CORE_ADDRESS_BATCH);
     return fetchJson(
-      `${RECOVERY_CORE_ENDPOINTS[network]}/addresses/info?addresses=${addresses.map(encodeURIComponent).join(',')}`,
+      `${DASHSCAN_CORE_ENDPOINTS[network]}/addresses/info?addresses=${addresses.map(encodeURIComponent).join(',')}`,
       signal,
     );
   }
@@ -348,7 +345,7 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     assertNetwork(network);
     assertSingleAddress(address, network, validateCoreP2pkhAddress, 'Dash Core P2PKH');
     const historyValue = await fetchJson(
-      `${RECOVERY_CORE_ENDPOINTS[network]}/address/${encodeURIComponent(address)}`,
+      `${DASHSCAN_CORE_ENDPOINTS[network]}/address/${encodeURIComponent(address)}`,
       signal,
     );
     if (typeof historyValue !== 'object' || historyValue === null || Array.isArray(historyValue)) return historyValue;
@@ -365,7 +362,7 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     )
       return historyValue;
     const transactionValue = await fetchJson(
-      `${RECOVERY_CORE_ENDPOINTS[network]}/transaction/${encodeURIComponent(history.firstSeenTx)}`,
+      `${DASHSCAN_CORE_ENDPOINTS[network]}/transaction/${encodeURIComponent(history.firstSeenTx)}`,
       signal,
     );
     if (typeof transactionValue !== 'object' || transactionValue === null || Array.isArray(transactionValue))
@@ -385,7 +382,7 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     assertNetwork(network);
     assertHash(hash);
     const transaction = record(
-      await fetchJson(`${RECOVERY_CORE_ENDPOINTS[network]}/transaction/${hash}`, signal),
+      await fetchJson(`${DASHSCAN_CORE_ENDPOINTS[network]}/transaction/${hash}`, signal),
       'DashScan transaction',
     );
     if (transaction.hash !== hash) throw new Error('DashScan transaction did not match the requested hash.');

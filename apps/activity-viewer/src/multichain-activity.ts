@@ -1,7 +1,7 @@
 import { normalizeBitcoinAddress, normalizeEthereumAddress } from '@ckd/public-data-providers/address-normalization.js';
 import { PublicMultiChainDataService } from '@ckd/public-data-providers/multi-chain-service.js';
 import type { PublicDataNetwork, RecoveryHistory } from '@ckd/public-data-providers/types.js';
-import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/public-data-providers/private-material.js';
+import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/secret-boundary/public-input-guard.js';
 import type { ActivityViewerView } from './view.js';
 
 type ExternalCoin = 'bitcoin' | 'ethereum';

@@ -1,4 +1,4 @@
-import { addDescriptorChecksum } from '@ckd/export/descriptor.js';
+import { addDescriptorChecksum } from '@ckd/core/descriptor-checksum.js';
 import type { AccountDescriptorExport } from '@ckd/core/types.js';
 
 /** Account-level keys only; origin metadata is descriptive, not a second derivation. */

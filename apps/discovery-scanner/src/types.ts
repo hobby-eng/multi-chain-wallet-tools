@@ -106,23 +106,7 @@ export interface RecoveryAmountUnit {
   decimals: number;
 }
 
-export interface RecoveryHistory extends RecoveryAmountUnit {
-  status: 'complete' | 'partial' | 'unavailable' | 'unsupported';
-  source: string;
-  scope: string;
-  note: string;
-  totalReceivedAtomic: string | null;
-  totalSentAtomic: string | null;
-  totalFeesAtomic: string | null;
-  firstSeen: string | null;
-  lastSeen: string | null;
-  firstReceived: string | null;
-  lastReceived: string | null;
-  firstSpent: string | null;
-  lastSpent: string | null;
-  transactionCount: number | null;
-  pendingTransactionCount: number | null;
-}
+export type RecoveryHistory = import('@ckd/network-boundary/data-types.js').RecoveryHistory;
 
 export interface RecoveryFinding {
   id: string;

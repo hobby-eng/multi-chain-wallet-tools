@@ -7,7 +7,7 @@ import {
   assertPublicBatchLookupInput,
   assertPublicLookupInput,
   PrivateMaterialError,
-} from '@ckd/public-data-providers/private-material.js';
+} from '@ckd/secret-boundary/public-input-guard.js';
 
 describe('Platform Identity public input boundary', () => {
   it.each([

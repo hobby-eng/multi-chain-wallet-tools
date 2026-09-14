@@ -34,11 +34,11 @@ Application bootstrap code, controllers, views, export implementations, network 
 - `packages/coin-protocols`: offline derivation implementations. Profile metadata registries are main-thread-only; profile runtime registries import cryptographic implementations and are worker-only.
 - `packages/dash-network`: public Dash data providers, Platform state/history, viewing-key parsing and Orchard activity reconstruction.
 - `packages/dash-shielded-wasm`: pinned Rust source, Cargo lock and generated browser WASM for Dash Orchard/ZIP-32. There is one compiled WASM binary shared at source/build time; each standalone connected artifact embeds its own release copy because artifacts must run independently.
-- `packages/export-core`: generic formatter, clipboard boundary and Bitcoin/Dash account descriptor exports. Inspector currently duplicates checksum/parsing helpers; consolidation is tracked in the follow-up audit.
+- `packages/export-core`: generic formatter, clipboard boundary and Bitcoin/Dash account descriptor exports. BIP380 checksum logic has one implementation in `crypto-core`; the export package re-exports it for compatibility.
 - `packages/shared-ui`: common visual system, the post-application `tool-shell.css` layout/state layer shared by both editions, and the explicit `dash-community.css` palette/brand override module.
-- `packages/public-data-providers`: public address normalization, provider response validation, Bitcoin/Ethereum activity/balance services, and public-input/private-material rejection.
+- `packages/public-data-providers`: public address normalization, provider response validation, and Bitcoin/Ethereum activity/balance services.
 - `packages/wallet-recovery`: watch-only parsing/detection, checksum-aware address targets, bounded one-seed and multi-seed address search, and recovery search result types.
-- `packages/secret-boundary`: secret egress tripwire and byte-disposal helpers. It is reusable but does not open a network channel.
+- `packages/secret-boundary`: public-input rejection, the secret-egress tripwire, and byte-disposal helpers. It is reusable but does not open a network channel.
 - `packages/secret-vault`: opaque iframe/srcdoc channel bootstrap and Vault lifecycle contracts.
 - `packages/network-boundary`: typed network protocol, neutral transport DTOs, MessagePort client, cancellation and worker runtime.
 - `packages/edition-profiles`: canonical edition capability metadata consumed by build/profile tooling; static code entrypoints remain authoritative for tree-shaking.

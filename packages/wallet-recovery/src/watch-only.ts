@@ -1,7 +1,7 @@
 import { MAX_BIP32_INDEX } from '@ckd/core/bip32.js';
 import { HDKey } from '@scure/bip32';
 import { secp256k1 } from '@ckd/core/crypto.js';
-import { assertPublicBatchLookupInput } from '@ckd/public-data-providers/private-material.js';
+import { assertPublicBatchLookupInput } from '@ckd/secret-boundary/public-input-guard.js';
 import type { ResolvedWatchOnlyTarget, WatchOnlyAdapterLike } from './watch-only/types.js';
 import { DASH_WATCH_ONLY_PREFIX_COINS } from './watch-only/dash-profile.js';
 
@@ -29,9 +29,7 @@ export function assertWatchOnlyMinimum(count: number): void {
   }
 }
 
-export const WATCH_ONLY_EXPLICIT_PREFIXES: readonly string[] = [...Object.keys(WATCH_ONLY_PREFIX_COINS), 'public-key'];
-
-export interface ExplicitPrefixMatch {
+interface ExplicitPrefixMatch {
   prefix: string;
   value: string;
 }
@@ -68,11 +66,6 @@ export function looksLikeSec1PublicKey(value: string): boolean {
 }
 export function normalizedHexKey(value: string): string {
   return value.trim().toLowerCase().replace(/^0x/u, '');
-}
-
-const BITCOIN_DESCRIPTOR_SHAPE_PATTERN = /^(?:pkh\(|sh\(wpkh\(|wpkh\(|tr\()[^\s#]+\)+#[0-9a-z]{8}$/iu;
-export function looksLikeBitcoinDescriptor(value: string): boolean {
-  return BITCOIN_DESCRIPTOR_SHAPE_PATTERN.test(value.trim());
 }
 
 export function parseWatchOnlyLines(raw: string): string[] {
@@ -112,6 +105,7 @@ export function resolveWatchOnlyTargets(
   multiChain = false,
   networklessAdapterIds: readonly string[] = [],
   supportedDepths: (adapterId: string) => readonly number[] = () => [3, 4, 5],
+  singleChainCoinId = 'dash',
 ): ResolvedWatchOnlyTarget[] {
   assertWatchOnlyBatchInput(raw);
   const trimmed = raw.trim();
@@ -154,8 +148,7 @@ export function resolveWatchOnlyTargets(
     if (adapter.detectWatchOnly === undefined || (owner !== undefined && owner !== adapter.id)) continue;
     if (sharedXpub && depth !== undefined) {
       const supported = supportedDepths(adapter.id);
-      if (!supported.includes(depth) || (multiChain === false && adapter.id !== Object.values(prefixCoins)[0]))
-        continue;
+      if (!supported.includes(depth) || (multiChain === false && adapter.id !== singleChainCoinId)) continue;
       if (networklessAdapterIds.includes(adapter.id) && network === 'testnet') continue;
     }
     try {

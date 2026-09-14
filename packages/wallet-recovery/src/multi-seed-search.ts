@@ -1,3 +1,5 @@
+export const MAX_LOCAL_SEARCH_CONCURRENCY = 5;
+
 import type { AddressSearchMatch } from './address-search.js';
 import type { AddressSearchTarget } from './address-targets.js';
 
@@ -30,7 +32,7 @@ export interface MultiSeedSearchOptions {
     count: number,
     signal?: AbortSignal,
   ) => Promise<AddressSearchMatch | null>;
-  readonly onProgress?: (completed: number, total: number) => void;
+  readonly onProgress?: (completed: number, total: number, result: MultiSeedAddressResult, index: number) => void;
 }
 
 export async function searchAcrossSeedsAndAddresses(
@@ -70,12 +72,21 @@ export async function searchAcrossSeedsAndAddresses(
         ...(error === undefined ? {} : { error }),
       };
       completed += 1;
-      options.onProgress?.(completed, jobs.length);
+      options.onProgress?.(completed, jobs.length, results[index]!, index);
     }
   };
   try {
     await Promise.all(
-      Array.from({ length: Math.min(Math.max(1, options.concurrency ?? 2), Math.max(1, jobs.length)) }, () => worker()),
+      Array.from(
+        {
+          length: Math.min(
+            Math.max(1, options.concurrency ?? 2),
+            MAX_LOCAL_SEARCH_CONCURRENCY,
+            Math.max(1, jobs.length),
+          ),
+        },
+        () => worker(),
+      ),
     );
     return results;
   } finally {

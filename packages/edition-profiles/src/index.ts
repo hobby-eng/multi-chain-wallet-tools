@@ -22,12 +22,6 @@ export interface EditionProfile {
   readonly id: EditionId;
   readonly chains: readonly ('bitcoin' | 'dash' | 'ethereum')[];
   readonly capabilities: EditionCapabilities;
-  readonly tools: Readonly<
-    Record<
-      'key-derivation' | 'activity-viewer' | 'discovery-scanner' | 'psbt-inspector',
-      Pick<EditionCapabilities, 'secretBoundary' | 'publicNetwork' | 'recoveryNetwork' | 'offlineOnly'>
-    >
-  >;
 }
 
 const PROFILE_DATA = profileCapabilities as unknown as Readonly<Record<EditionId, EditionProfile>>;
@@ -35,12 +29,3 @@ const PROFILE_DATA = profileCapabilities as unknown as Readonly<Record<EditionId
 export const MULTI_CHAIN_EDITION: EditionProfile = PROFILE_DATA['multi-chain'];
 
 export const DASH_COMMUNITY_EDITION: EditionProfile = PROFILE_DATA['dash-community'];
-
-export const EDITION_PROFILES: Readonly<Record<EditionId, EditionProfile>> = {
-  'multi-chain': MULTI_CHAIN_EDITION,
-  'dash-community': DASH_COMMUNITY_EDITION,
-};
-
-export function getEditionProfile(id: EditionId): EditionProfile {
-  return EDITION_PROFILES[id];
-}

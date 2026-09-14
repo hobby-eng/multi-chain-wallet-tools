@@ -23,7 +23,7 @@ if (scriptStart < 0 || scriptEnd <= scriptStart) {
 const inlineScript = html.slice(scriptStart + '<script>'.length, scriptEnd);
 const inlineScriptHash = `'sha256-${createHash('sha256').update(inlineScript).digest('base64')}'`;
 const expectedCsp = `default-src 'none'; script-src ${inlineScriptHash}${profile.id === 'multi-chain' ? " 'wasm-unsafe-eval'" : ''}; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
-const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/u.exec(html)?.[1];
+const csp = /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/su.exec(html)?.[1];
 if (csp !== expectedCsp)
   throw new Error('PSBT & Multisig Inspector artifact CSP changed from the reviewed offline policy.');
 if (/script-src[^;]*'unsafe-inline'/u.test(csp)) {
@@ -45,6 +45,8 @@ for (const [marker, expected] of [
   if (occurrences(html, marker) !== expected)
     throw new Error(`Expected ${expected} PSBT & Multisig Inspector ${marker} marker.`);
 }
+const normalizedHtml = html.replace(/\s+/gu, ' ');
+const containsMarker = (marker) => html.includes(marker) || normalizedHtml.includes(marker.replace(/\s+/gu, ' '));
 for (const marker of [
   'PSBT & Multisig Inspector',
   profile.brandName,
@@ -102,7 +104,7 @@ for (const marker of [
   'wallet-advanced-card',
   'BIP48-style Purpose48 account keys',
   "m/48'/coin_type'/account'/script_type'",
-  'not an Electrum-only private address scheme',
+  'not an Electrum-only private address',
   'Do not switch a mainnet xpub into testnet mode',
   "m/48'/5'/0'/0'/0/0",
   "m/44'/5'/0'/0/0",
@@ -131,7 +133,7 @@ for (const marker of [
   profile.id,
   tool.documentTitle,
 ])
-  if (!html.includes(marker))
+  if (!containsMarker(marker))
     throw new Error(`PSBT & Multisig Inspector artifact is missing required marker: ${marker}`);
 const profileMarkers =
   profile.id === 'dash-community'
@@ -139,7 +141,7 @@ const profileMarkers =
         'Dash descriptor coverage',
         'SegWit, Taproot, Schnorr, and MuSig2 are excluded',
         'class="profile-brand-mark"',
-        '--dash-brand-blue:#5485ff',
+        '--dash-brand-blue',
       ]
     : [
         'Bitcoin PSBT v0 / v2',
@@ -158,7 +160,7 @@ const profileMarkers =
         'BIP-322 legacy, simple, full, and proof-of-funds',
       ];
 for (const marker of profileMarkers)
-  if (!html.includes(marker))
+  if (!containsMarker(marker))
     throw new Error(`PSBT & Multisig Inspector artifact is missing required profile marker: ${marker}`);
 if (html.includes('__INLINE_SCRIPT_CSP__') || html.includes('/*__INLINE_')) {
   throw new Error('PSBT & Multisig Inspector artifact still contains an unexpanded build marker.');

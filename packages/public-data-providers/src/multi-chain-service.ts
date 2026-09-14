@@ -1,7 +1,7 @@
 import { EVM_RPC_QUANTITY } from '@ckd/core/numeric-limits.js';
 import { normalizeBitcoinAddress, normalizeEthereumAddress } from './address-normalization.js';
 import { bitcoinAddressHistory, ethereumAddressHistory } from './history.js';
-import { decimal, fetchJson, record, unsignedInteger } from './http.js';
+import { decimal, fetchJson, publicProviderAbortError, record, unsignedInteger } from './http.js';
 import {
   RECOVERY_EVM_ACCOUNT_BATCH,
   RECOVERY_UTXO_ADDRESS_BATCH,
@@ -54,11 +54,8 @@ async function mapConcurrent<T, R>(
   );
   return results;
 }
-function abortError(): DOMException {
-  return new DOMException('Recovery network operation cancelled.', 'AbortError');
-}
 async function waitForBitcoinRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) throw abortError();
+  if (signal?.aborted) throw publicProviderAbortError();
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
       signal?.removeEventListener('abort', onAbort);
@@ -66,7 +63,7 @@ async function waitForBitcoinRetry(delayMs: number, signal?: AbortSignal): Promi
     }, delayMs);
     const onAbort = () => {
       clearTimeout(timeout);
-      reject(abortError());
+      reject(publicProviderAbortError());
     };
     signal?.addEventListener('abort', onAbort, { once: true });
     if (signal?.aborted) onAbort();

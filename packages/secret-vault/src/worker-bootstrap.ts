@@ -23,6 +23,8 @@ export function bootstrapVaultDocument(
   return {
     stop(): void {
       vault.removeEventListener('load', onLoad);
+      // If unload wins the race with iframe readiness, release the untransferred port.
+      channel.close();
     },
   };
 }
