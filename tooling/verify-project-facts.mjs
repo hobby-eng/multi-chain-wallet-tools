@@ -16,9 +16,11 @@ const integerConstant = (text, name) => {
   return Number(match[1]);
 };
 
-const protocol = read('apps/discovery-scanner/src/network-protocol.ts');
+const protocol = read('packages/network-boundary/src/protocol.ts');
 const identity = read('apps/discovery-scanner/src/coins/dash/identity-scanner.ts');
-const networkOperationCount = [...protocol.matchAll(/^\s*\| \{ operation: '[^']+';/gmu)].length;
+const requestProtocol =
+  protocol.match(/export type RecoveryNetworkRequestInput =([\s\S]*?)type WithRequestId/u)?.[1] ?? '';
+const networkOperationCount = [...requestProtocol.matchAll(/operation:\s*'[^']+'/gu)].length;
 const coreBatch = integerConstant(protocol, 'RECOVERY_CORE_ADDRESS_BATCH');
 const platformBatch = integerConstant(protocol, 'RECOVERY_PLATFORM_ADDRESS_BATCH');
 const identityConcurrency = Number(identity.match(/^const IDENTITY_QUERY_CONCURRENCY = (\d+);/mu)?.[1]);
@@ -31,7 +33,7 @@ const dashReport = read('docs/reference/DASH_IMPLEMENTATION.md');
 const scannerSecurity = read('apps/discovery-scanner/SECURITY.md');
 const scannerView = read('apps/discovery-scanner/src/view.ts');
 const scannerRegistry = read('apps/discovery-scanner/src/coins/index.ts');
-const derivationRegistry = read('packages/coin-protocols/src/coins/registry.ts');
+const multiChainDerivationRegistry = read('packages/coin-protocols/src/coins/multi-chain-registry-profile.ts');
 const buildProfiles = read('tooling/build-profiles.mjs');
 const reproducibleBuildWrapper = read('tooling/build-reproducible.sh');
 
@@ -42,18 +44,34 @@ for (const capability of PRODUCT_FACTS.dashCommunityCapabilities) {
 for (const [index, coinId] of PRODUCT_FACTS.multiChainCoinIds.entries()) {
   const adapterName = `${coinId.toUpperCase()}_RECOVERY_ADAPTER`;
   requireText(scannerRegistry, adapterName, `Multi-Chain discovery registry coin ${index + 1}`);
-  requireText(derivationRegistry, `${coinId.toUpperCase()}_COIN_ADAPTERS`, `Multi-Chain derivation registry coin ${index + 1}`);
+  requireText(
+    multiChainDerivationRegistry,
+    `${coinId.toUpperCase()}_COIN_ADAPTERS`,
+    `Multi-Chain derivation registry coin ${index + 1}`,
+  );
   requireText(buildProfiles, `<option value="${coinId}"`, `Multi-Chain Activity Viewer coin ${index + 1}`);
 }
 for (const tool of PRODUCT_FACTS.tools) requireText(audit, tool, 'Security audit tool list');
-requireText(scannerSecurity, `only ${networkOperationCount} fixed read operations`, 'Discovery network-operation count');
+requireText(
+  scannerSecurity,
+  `only ${networkOperationCount} fixed read operations`,
+  'Discovery network-operation count',
+);
 requireText(dashReport, `batches of ${coreBatch}`, 'Dash Core batch size');
 requireText(dashReport, `batches of ${platformBatch}`, 'Dash Platform batch size');
 requireText(dashReport, `At most ${identityConcurrency} Identity proof requests`, 'Identity concurrency');
-requireText(scannerView, 'about ${identities.toLocaleString()} identity proof calls per seed phrase', 'Identity request estimate');
+requireText(
+  scannerView,
+  'about ${identities.toLocaleString()} identity proof calls per seed phrase',
+  'Identity request estimate',
+);
 
 const multiChainReleaseManifest = `${BUILD_PROFILES['multi-chain'].releaseDirectory.replace(/^dist\//u, '')}/SHA256SUMS`;
-requireText(reproducibleBuildWrapper, `expected_path=\"${multiChainReleaseManifest}\"`, 'Canonical build wrapper release-manifest path');
+requireText(
+  reproducibleBuildWrapper,
+  `expected_path=\"${multiChainReleaseManifest}\"`,
+  'Canonical build wrapper release-manifest path',
+);
 
 for (const profile of Object.values(BUILD_PROFILES)) {
   for (const toolId of profileToolIds(profile)) {
@@ -99,9 +117,16 @@ for (const path of markdownFiles(root)) {
   for (const match of text.matchAll(/\[[^\]]+\]\(([^)]+)\)/gu)) {
     const target = match[1].split('#')[0];
     if (target === '' || /^[a-z]+:/iu.test(target)) continue;
-    if (!existsSync(resolve(dirname(path), target))) throw new Error(`Broken relative Markdown link in ${path}: ${target}`);
+    if (!existsSync(resolve(dirname(path), target)))
+      throw new Error(`Broken relative Markdown link in ${path}: ${target}`);
   }
 }
 
-requireText(read(`docs/releases/${release.tag}.md`), `# Multi-Chain Wallet Tools ${release.tag}`, 'Current release notes');
-console.log(`Verified current project facts for ${release.tag}: ${networkOperationCount} network operations, Core/Platform batches ${coreBatch}/${platformBatch}, Identity concurrency ${identityConcurrency}.`);
+requireText(
+  read(`docs/releases/${release.tag}.md`),
+  `# Multi-Chain Wallet Tools ${release.tag}`,
+  'Current release notes',
+);
+console.log(
+  `Verified current project facts for ${release.tag}: ${networkOperationCount} network operations, Core/Platform batches ${coreBatch}/${platformBatch}, Identity concurrency ${identityConcurrency}.`,
+);

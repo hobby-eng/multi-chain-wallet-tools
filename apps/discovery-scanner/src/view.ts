@@ -3,13 +3,10 @@ import { parseCustomAccountRange } from './coins/custom-path.js';
 import { describeCustomPath, editCustomPath } from './custom-path-editor.js';
 import { DIP17_PAYMENT_CHAINS } from '@ckd/coins/dash/platform-paths.js';
 import { historyFields } from './history.js';
-import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from './watch-only.js';
+import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from '@ckd/recovery/watch-only.js';
 import type { BUILD_INFO } from '@ckd/build-info';
 import type { RecoveryExportFormat } from './export.js';
-import {
-  RECOVERY_CORE_ADDRESS_BATCH,
-  RECOVERY_PLATFORM_ADDRESS_BATCH,
-} from './network-protocol.js';
+import { RECOVERY_CORE_ADDRESS_BATCH, RECOVERY_PLATFORM_ADDRESS_BATCH } from '@ckd/network-boundary/protocol.js';
 import type {
   RecoveryFinding,
   RecoveryCoinAdapter,
@@ -20,6 +17,7 @@ import type {
   RecoverySectionId,
   RecoveryWalletResult,
 } from './types.js';
+import type { MultiSeedAddressResult } from '@ckd/recovery/multi-seed-search.js';
 
 declare const __DASH_COMMUNITY__: boolean;
 
@@ -77,6 +75,10 @@ export interface RecoveryInputSnapshot {
   identityScanLimit: string;
   includeUsedZeroBalance: boolean;
   scanShieldedPool: boolean;
+  addressSearchEnabled?: boolean;
+  addressSearchTargets?: string;
+  addressSearchStart?: string;
+  addressSearchCount?: string;
 }
 
 const progressSectionLabels: Record<RecoveryProgress['section'], string> = {
@@ -99,7 +101,11 @@ export type RecoveryComponentGroupId = 'core' | 'platform' | 'identity' | 'shiel
  * (BIP44, legacy mobile, CoinJoin, masternode holdings) is
  * an L1 address set and therefore lives under the Core tab.
  */
-const componentGroups: ReadonlyArray<{ id: RecoveryComponentGroupId; label: string; sections: readonly RecoverySectionId[] }> = [
+const componentGroups: ReadonlyArray<{
+  id: RecoveryComponentGroupId;
+  label: string;
+  sections: readonly RecoverySectionId[];
+}> = [
   { id: 'core', label: 'Dash Core · L1', sections: ['core', 'legacyCore', 'coinjoin', 'providerCollateral'] },
   { id: 'platform', label: 'Platform addresses', sections: ['platform'] },
   { id: 'identity', label: 'Platform identities', sections: ['identity'] },
@@ -112,9 +118,16 @@ function groupSections(result: RecoveryWalletResult, group: (typeof componentGro
     .filter((section): section is RecoverySection => section !== undefined);
 }
 
-function groupSummary(sections: readonly RecoverySection[]): { label: string; tone: 'skipped' | 'failed' | 'partial' | 'complete' } {
-  if (sections.length === 0 || sections.every(({ state }) => state === 'skipped')) return { label: 'skipped', tone: 'skipped' };
-  const funded = sections.reduce((sum, section) => sum + section.findings.filter(({ balanceAtomic }) => (balanceAtomic ?? 0n) > 0n).length, 0);
+function groupSummary(sections: readonly RecoverySection[]): {
+  label: string;
+  tone: 'skipped' | 'failed' | 'partial' | 'complete';
+} {
+  if (sections.length === 0 || sections.every(({ state }) => state === 'skipped'))
+    return { label: 'skipped', tone: 'skipped' };
+  const funded = sections.reduce(
+    (sum, section) => sum + section.findings.filter(({ balanceAtomic }) => (balanceAtomic ?? 0n) > 0n).length,
+    0,
+  );
   const listed = sections.reduce((sum, section) => sum + section.findings.length, 0);
   const count = funded === listed ? `${funded} funded` : `${funded} funded · ${listed} listed`;
   if (sections.some(({ state }) => state === 'failed')) return { label: `${count} · warning`, tone: 'failed' };
@@ -183,8 +196,12 @@ export function createDiscoveryScannerView(
   const pathBranch = required<HTMLInputElement>('#custom-part-branch');
   let previousDefaultPath: string | undefined;
   let previousDefaultFinish: string | undefined;
-  pathAccount.addEventListener('input', () => { customPathTemplateInput.value = editCustomPath(customPathTemplateInput.value, 'account', pathAccount.value); });
-  pathEndAccount.addEventListener('input', () => { customRangeEndInput.value = editCustomPath(customRangeEndInput.value, 'account', pathEndAccount.value); });
+  pathAccount.addEventListener('input', () => {
+    customPathTemplateInput.value = editCustomPath(customPathTemplateInput.value, 'account', pathAccount.value);
+  });
+  pathEndAccount.addEventListener('input', () => {
+    customRangeEndInput.value = editCustomPath(customRangeEndInput.value, 'account', pathEndAccount.value);
+  });
   pathBranch.addEventListener('input', () => {
     customPathTemplateInput.value = editCustomPath(customPathTemplateInput.value, 'branch', pathBranch.value);
     customRangeEndInput.value = editCustomPath(customRangeEndInput.value, 'branch', pathBranch.value);
@@ -244,6 +261,13 @@ export function createDiscoveryScannerView(
   const requestConcurrencyInput = required<HTMLSelectElement>('#request-concurrency');
   const includeUsedZeroInput = required<HTMLInputElement>('#include-used-zero-balance');
   const scanShieldedInput = required<HTMLInputElement>('#scan-shielded');
+  const addressSearchEnabled = document.querySelector<HTMLInputElement>('#address-search-enabled');
+  const addressSearchTargets = document.querySelector<HTMLTextAreaElement>('#address-search-targets');
+  const addressSearchStart = document.querySelector<HTMLInputElement>('#address-search-start');
+  const addressSearchCount = document.querySelector<HTMLInputElement>('#address-search-count');
+  const addressSearchPanel = document.querySelector<HTMLElement>('#address-search-panel');
+  const addressSearchResults = document.querySelector<HTMLElement>('#address-search-results');
+  const addressSearchProgress = document.querySelector<HTMLElement>('#address-search-progress');
   const estimate = required<HTMLElement>('#scan-estimate');
   const startButton = required<HTMLButtonElement>('#start-recovery-scan');
   const startButtonLabel = required<HTMLElement>('#start-recovery-scan-label');
@@ -304,8 +328,14 @@ export function createDiscoveryScannerView(
     requestConcurrencyInput,
     includeUsedZeroInput,
     scanShieldedInput,
+    ...(addressSearchEnabled === null
+      ? []
+      : [addressSearchEnabled, addressSearchTargets!, addressSearchStart!, addressSearchCount!]),
   ];
-  const componentSettings: Record<'core' | 'legacyCore' | 'coinjoin' | 'identityFunding' | 'providerCollateral' | 'platform' | 'identity', HTMLElement[]> = {
+  const componentSettings: Record<
+    'core' | 'legacyCore' | 'coinjoin' | 'identityFunding' | 'providerCollateral' | 'platform' | 'identity',
+    HTMLElement[]
+  > = {
     core: [...document.querySelectorAll<HTMLElement>('[data-component-settings="core"]')],
     legacyCore: [...document.querySelectorAll<HTMLElement>('[data-component-settings="legacy-core"]')],
     coinjoin: [...document.querySelectorAll<HTMLElement>('[data-component-settings="coinjoin"]')],
@@ -316,7 +346,10 @@ export function createDiscoveryScannerView(
   };
 
   function setComponentSettings(): void {
-    const coinId = candidateMode() && candidateCoinInputs.some(input => input.checked && input.value === 'dash') ? 'dash' : coinInput?.value ?? profileCoinId ?? 'dash';
+    const coinId =
+      candidateMode() && candidateCoinInputs.some((input) => input.checked && input.value === 'dash')
+        ? 'dash'
+        : (coinInput?.value ?? profileCoinId ?? 'dash');
     if (sourceMode === 'public') return;
     const dash = coinId === 'dash';
     const customPath = candidateMode() ? undefined : coinAdapters.get(coinId)?.customPath;
@@ -332,23 +365,31 @@ export function createDiscoveryScannerView(
     customRangeEndInput.disabled = customRangeInput.disabled || !customRangeInput.checked;
     customPathField.classList.toggle('range-active', customRangeInput.checked);
     customPathLabel.textContent = customRangeInput.checked ? 'Start path' : 'Custom path template';
-    required<HTMLLabelElement>('label[for="custom-part-account"]').textContent = customRangeInput.checked ? 'Start account · hardened' : 'Account · hardened';
+    required<HTMLLabelElement>('label[for="custom-part-account"]').textContent = customRangeInput.checked
+      ? 'Start account · hardened'
+      : 'Account · hardened';
     if (customPath !== undefined) {
-      const defaultPath = customPath.defaultTemplate?.(networkInput.value === 'testnet' ? 'testnet' : 'mainnet') ?? customPath.placeholder;
-      if (previousDefaultPath === undefined || customPathTemplateInput.value === previousDefaultPath) customPathTemplateInput.value = defaultPath;
+      const defaultPath =
+        customPath.defaultTemplate?.(networkInput.value === 'testnet' ? 'testnet' : 'mainnet') ??
+        customPath.placeholder;
+      if (previousDefaultPath === undefined || customPathTemplateInput.value === previousDefaultPath)
+        customPathTemplateInput.value = defaultPath;
       previousDefaultPath = defaultPath;
       const parts = customPathTemplateInput.value.trim().split('/');
       const accountMatch = /^(0|[1-9][0-9]*)'$/u.exec(parts[3] ?? '');
       if (accountMatch !== null && Number(accountMatch[1]) < 2147483647) parts[3] = `${Number(accountMatch[1]) + 1}'`;
       const finish = parts.join('/');
-      if (previousDefaultFinish === undefined || customRangeEndInput.value === previousDefaultFinish) customRangeEndInput.value = finish;
+      if (previousDefaultFinish === undefined || customRangeEndInput.value === previousDefaultFinish)
+        customRangeEndInput.value = finish;
       previousDefaultFinish = finish;
       customRangeSummary.textContent = '';
       if (customRangeInput.checked) {
         try {
           const range = parseCustomAccountRange(customPathTemplateInput.value, customRangeEndInput.value);
           customRangeSummary.textContent = `Custom accounts ${range.first}–${range.last} (inclusive) · ${range.last - range.first + 1} paths · address minimum + 20 per account, extended after activity. Standard scans run once using the Account setting above.`;
-        } catch (cause) { customRangeSummary.textContent = cause instanceof Error ? cause.message : 'Check the Start and Finish paths.'; }
+        } catch (cause) {
+          customRangeSummary.textContent = cause instanceof Error ? cause.message : 'Check the Start and Finish paths.';
+        }
       }
       const description = describeCustomPath(customPathTemplateInput.value);
       pathParts.hidden = description === null;
@@ -366,12 +407,14 @@ export function createDiscoveryScannerView(
       customPathDescription.textContent = customPath.description;
       customPathTemplateInput.placeholder = customPath.placeholder;
       const selectedFormat = customPathFormatInput.value;
-      customPathFormatInput.replaceChildren(...customPath.formats.map((format) => {
-        const option = document.createElement('option');
-        option.value = format.id;
-        option.textContent = format.label;
-        return option;
-      }));
+      customPathFormatInput.replaceChildren(
+        ...customPath.formats.map((format) => {
+          const option = document.createElement('option');
+          option.value = format.id;
+          option.textContent = format.label;
+          return option;
+        }),
+      );
       customPathFormatInput.value = customPath.formats.some(({ id }) => id === selectedFormat)
         ? selectedFormat
         : (customPath.formats[0]?.id ?? '');
@@ -382,14 +425,17 @@ export function createDiscoveryScannerView(
       }
       receiveField.hidden = false;
       changeField.hidden = coinId === 'ethereum';
-      receiveLabel.textContent = coinId === 'bitcoin' ? 'Receive addresses per Bitcoin family' : 'Ethereum EOA address minimum';
+      receiveLabel.textContent =
+        coinId === 'bitcoin' ? 'Receive addresses per Bitcoin family' : 'Ethereum EOA address minimum';
       changeLabel.textContent = 'Change addresses per Bitcoin family';
-      scanCoverageDescription.textContent = coinId === 'bitcoin'
-        ? 'Scan the standard Bitcoin BIP44, BIP49, BIP84, and BIP86 receive/change families.'
-        : 'Scan three common Ethereum externally owned account path profiles.';
-      genericCoinScanNote.textContent = coinId === 'bitcoin'
-        ? 'Bitcoin discovery includes legacy, nested SegWit, native SegWit, and Taproot, extending every receive/change chain through a 20-address post-use gap.'
-        : 'Ethereum discovery checks Standard BIP44, Ledger Live, and Legacy Ledger paths by default, extending each through a 20-address post-use gap. Duplicate addresses are queried and counted once. ERC-20 tokens and contract wallets are outside this scan.';
+      scanCoverageDescription.textContent =
+        coinId === 'bitcoin'
+          ? 'Scan the standard Bitcoin BIP44, BIP49, BIP84, and BIP86 receive/change families.'
+          : 'Scan three common Ethereum externally owned account path profiles.';
+      genericCoinScanNote.textContent =
+        coinId === 'bitcoin'
+          ? 'Bitcoin discovery includes legacy, nested SegWit, native SegWit, and Taproot, extending every receive/change chain through a 20-address post-use gap.'
+          : 'Ethereum discovery checks Standard BIP44, Ledger Live, and Legacy Ledger paths by default, extending each through a 20-address post-use gap. Duplicate addresses are queried and counted once. ERC-20 tokens and contract wallets are outside this scan.';
       networkInput.options[0]!.textContent = 'Mainnet';
       networkInput.options[1]!.textContent = 'Testnet';
       return;
@@ -417,10 +463,14 @@ export function createDiscoveryScannerView(
     button.type = 'button';
     button.textContent = label;
     button.addEventListener('click', () => {
-      void writeClipboard(value).then(() => {
-        button.textContent = 'Copied';
-        setTimeout(() => { button.textContent = label; }, 1100);
-      }).catch((cause: unknown) => showError(cause instanceof Error ? cause.message : String(cause)));
+      void writeClipboard(value)
+        .then(() => {
+          button.textContent = 'Copied';
+          setTimeout(() => {
+            button.textContent = label;
+          }, 1100);
+        })
+        .catch((cause: unknown) => showError(cause instanceof Error ? cause.message : String(cause)));
     });
     return button;
   }
@@ -447,7 +497,16 @@ export function createDiscoveryScannerView(
     if (!compact) {
       const fields = document.createElement('dl');
       fields.className = 'finding-fields';
-      for (const field of [...finding.fields.filter(field => finding.history === undefined || !['Lifetime received', 'Lifetime sent', 'Lifetime fees spent', 'First seen', 'Last seen'].includes(field.label)), ...(finding.history ? historyFields(finding.history) : [])]) {
+      for (const field of [
+        ...finding.fields.filter(
+          (field) =>
+            finding.history === undefined ||
+            !['Lifetime received', 'Lifetime sent', 'Lifetime fees spent', 'First seen', 'Last seen'].includes(
+              field.label,
+            ),
+        ),
+        ...(finding.history ? historyFields(finding.history) : []),
+      ]) {
         const term = document.createElement('dt');
         term.textContent = field.label;
         const description = document.createElement('dd');
@@ -509,12 +568,18 @@ export function createDiscoveryScannerView(
         core: 'No funded Dash Core L1 address was found in this section and scanned range.',
         legacyCore: 'No funded legacy mobile Core address was found in this section and scanned range.',
         coinjoin: 'No funded Dash Mobile CoinJoin · DIP9 address was found in this section and scanned range.',
-        providerCollateral: 'No funded provider collateral/holdings address was found in this section and scanned range.',
+        providerCollateral:
+          'No funded provider collateral/holdings address was found in this section and scanned range.',
         platform: 'No funded Dash Platform payment address was found in this section and scanned range.',
         identity: 'No funded Dash Platform identity was found in this section and scanned range.',
         shielded: 'No spendable Dash Orchard note was found in this section of the complete pool scan.',
       };
-      empty.textContent = section.state === 'complete' ? (coinLabel === 'Dash' ? emptyMessages[section.id] : `No funded ${coinLabel} address was found in this section and scanned range.`) : 'No authoritative findings are available for this section.';
+      empty.textContent =
+        section.state === 'complete'
+          ? coinLabel === 'Dash'
+            ? emptyMessages[section.id]
+            : `No funded ${coinLabel} address was found in this section and scanned range.`
+          : 'No authoritative findings are available for this section.';
       findings.append(empty);
     } else {
       findings.append(...section.findings.map((finding) => findingCard(finding)));
@@ -614,8 +679,16 @@ export function createDiscoveryScannerView(
     button.addEventListener('keydown', (event) => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      const next = event.key === 'Home' ? sourceButtons[0] : event.key === 'End' ? sourceButtons.at(-1) : sourceButtons[(index + 1) % sourceButtons.length];
-      if (next?.disabled === false) { next.click(); next.focus(); }
+      const next =
+        event.key === 'Home'
+          ? sourceButtons[0]
+          : event.key === 'End'
+            ? sourceButtons.at(-1)
+            : sourceButtons[(index + 1) % sourceButtons.length];
+      if (next?.disabled === false) {
+        next.click();
+        next.focus();
+      }
     });
   }
   const view = {
@@ -634,7 +707,7 @@ export function createDiscoveryScannerView(
       return {
         coinId,
         automaticCandidates: candidateMode(),
-        candidateCoinIds: candidateCoinInputs.filter(input => input.checked).map(input => input.value),
+        candidateCoinIds: candidateCoinInputs.filter((input) => input.checked).map((input) => input.value),
         sourceMode,
         watchOnlyKeys: watchOnlyKeys.value,
         watchOnlyMinimumCount: watchOnlyMinimum.value,
@@ -647,7 +720,7 @@ export function createDiscoveryScannerView(
         batchConcurrency: batchConcurrencyInput.value,
         requestConcurrency: requestConcurrencyInput.value,
         clearInputOnStart: clearInputOnStart.checked,
-        scanCore: (coinId === 'dash' || candidateMode()) ? scanCoreInput.checked : true,
+        scanCore: coinId === 'dash' || candidateMode() ? scanCoreInput.checked : true,
         coreReceiveCount: coreReceiveInput.value,
         coreChangeCount: coreChangeInput.value,
         scanCustomPath: !candidateMode() && scanCustomPathInput.checked,
@@ -661,11 +734,15 @@ export function createDiscoveryScannerView(
         scanCoinJoin: (coinId === 'dash' || candidateMode()) && scanCoreInput.checked && scanCoinJoinInput.checked,
         coinJoinExternalCount: coinJoinExternalCountInput.value,
         coinJoinInternalCount: coinJoinInternalCountInput.value,
-        scanIdentityFunding: (coinId === 'dash' || candidateMode()) && scanPlatformIdentitiesInput.checked && scanIdentityFundingInput.checked,
+        scanIdentityFunding:
+          (coinId === 'dash' || candidateMode()) &&
+          scanPlatformIdentitiesInput.checked &&
+          scanIdentityFundingInput.checked,
         identityFundingCount: identityFundingCountInput.value,
         identityTopUpIdentityCount: identityTopUpIdentityCountInput.value,
         identityTopUpCount: identityTopUpCountInput.value,
-        scanProviderCollateral: (coinId === 'dash' || candidateMode()) && scanCoreInput.checked && scanProviderCollateralInput.checked,
+        scanProviderCollateral:
+          (coinId === 'dash' || candidateMode()) && scanCoreInput.checked && scanProviderCollateralInput.checked,
         providerCollateralCount: providerCollateralCountInput.value,
         scanPlatformAddresses: (coinId === 'dash' || candidateMode()) && scanPlatformAddressesInput.checked,
         platformAddressCount: platformCountInput.value,
@@ -675,6 +752,10 @@ export function createDiscoveryScannerView(
         identityScanLimit: identityLimitInput.value,
         includeUsedZeroBalance: includeUsedZeroInput.checked,
         scanShieldedPool: (coinId === 'dash' || candidateMode()) && scanShieldedInput.checked,
+        addressSearchEnabled: addressSearchEnabled?.checked ?? false,
+        addressSearchTargets: addressSearchTargets?.value ?? '',
+        addressSearchStart: addressSearchStart?.value ?? '',
+        addressSearchCount: addressSearchCount?.value ?? '',
       };
     },
     setMode(mode: RecoveryInputMode): void {
@@ -743,7 +824,17 @@ export function createDiscoveryScannerView(
       if (coinInput !== null) coinInput.parentElement!.hidden = false;
       sourceGrid.style.gridTemplateColumns = publicInput ? (coinInput === null ? '1fr' : '1.2fr 1fr') : '';
       seedCoverage.hidden = publicInput;
-      for (const input of [singleMnemonic, singlePassphrase, batchMnemonics, batchPassphrases, batchConcurrencyInput, accountInput]) input.disabled = publicInput;
+      for (const input of [
+        singleMnemonic,
+        singlePassphrase,
+        batchMnemonics,
+        batchPassphrases,
+        batchConcurrencyInput,
+        accountInput,
+      ])
+        input.disabled = publicInput;
+      if (addressSearchPanel !== null && !__DASH_COMMUNITY__)
+        addressSearchPanel.hidden = publicInput || coinInput?.value !== 'bitcoin';
       if (coinInput !== null) {
         coinInput.disabled = candidateMode();
         coinInput.parentElement!.hidden = candidateMode();
@@ -764,34 +855,45 @@ export function createDiscoveryScannerView(
         try {
           assertWatchOnlyBatchInput(watchOnlyKeys.value);
           const selectedCoin = coinInput?.value ?? profileCoinId ?? 'dash';
-          const candidateAdapters = selectedCoin === 'auto'
-            ? [...coinAdapters.values()]
-            : [coinAdapters.get(selectedCoin)!];
-          const targets = parseWatchOnlyLines(watchOnlyKeys.value).flatMap((line) => resolveWatchOnlyTargets(line, candidateAdapters));
-          const labels = [...new Set(targets.map(({ adapterId, material }) => material.detectionLabel ?? coinAdapters.get(adapterId)!.label))];
+          const candidateAdapters =
+            selectedCoin === 'auto' ? [...coinAdapters.values()] : [coinAdapters.get(selectedCoin)!];
+          const targets = parseWatchOnlyLines(watchOnlyKeys.value).flatMap((line) =>
+            resolveWatchOnlyTargets(line, candidateAdapters),
+          );
+          const labels = [
+            ...new Set(
+              targets.map(({ adapterId, material }) => material.detectionLabel ?? coinAdapters.get(adapterId)!.label),
+            ),
+          ];
           const bip32 = targets.find(({ ambiguity }) => ambiguity?.kind === 'bip32')?.ambiguity;
           const sec1 = targets.some(({ ambiguity }) => ambiguity?.kind === 'sec1');
           const needsCoin = selectedCoin === 'auto' && targets.some(({ ambiguity }) => ambiguity !== undefined);
           const formatText = needsCoin
             ? `Coin could not be determined uniquely. Select Coin before scanning. Compatible candidates: ${labels.join(' · ')}.`
             : bip32 !== undefined
-            ? `Ambiguous BIP32 xpub${bip32.depth === undefined ? '' : ` (depth ${bip32.depth})`}: coin and hardened purpose are not encoded. Compatible scan candidates: ${labels.join(' · ')}. A used address can identify a matching candidate; an unused key cannot be attributed.`
-            : sec1
-              ? `Ambiguous SEC1 public key: it contains no coin identifier. Compatible exact-address candidates: ${labels.join(' · ')}.`
-              : `${labels.join(' · ')}. Recognized encoded format.`;
+              ? `Ambiguous BIP32 xpub${bip32.depth === undefined ? '' : ` (depth ${bip32.depth})`}: coin and hardened purpose are not encoded. Compatible scan candidates: ${labels.join(' · ')}. A used address can identify a matching candidate; an unused key cannot be attributed.`
+              : sec1
+                ? `Ambiguous SEC1 public key: it contains no coin identifier. Compatible exact-address candidates: ${labels.join(' · ')}.`
+                : `${labels.join(' · ')}. Recognized encoded format.`;
           const hasEncodedNetwork = targets.some(({ network }) => network !== undefined);
           const hasSelectedNetwork = targets.some(({ network }) => network === undefined);
-          const networkText = hasEncodedNetwork && hasSelectedNetwork
-            ? 'The encoded network is used where present; other candidates use the selected network.'
-            : hasEncodedNetwork ? 'The network encoded in the key is used.' : 'Using the selected network.';
+          const networkText =
+            hasEncodedNetwork && hasSelectedNetwork
+              ? 'The encoded network is used where present; other candidates use the selected network.'
+              : hasEncodedNetwork
+                ? 'The network encoded in the key is used.'
+                : 'Using the selected network.';
           watchOnlyDetection.textContent = `${formatText} ${networkText} Only the public-key tab is scanned.`;
           estimate.textContent = needsCoin
             ? 'Select one coin to continue'
             : `${targets.length} coin scan${targets.length === 1 ? '' : 's'} · ${estimateInteger(watchOnlyMinimum.value, 1)} minimum addresses per derived branch; single public keys are checked exactly`;
         } catch (cause) {
-          watchOnlyDetection.textContent = cause instanceof Error && cause.name === 'PrivateMaterialError'
-            ? 'Private material is not accepted in the public-key field.'
-            : cause instanceof Error ? cause.message : 'Public key not recognized.';
+          watchOnlyDetection.textContent =
+            cause instanceof Error && cause.name === 'PrivateMaterialError'
+              ? 'Private material is not accepted in the public-key field.'
+              : cause instanceof Error
+                ? cause.message
+                : 'Public key not recognized.';
           estimate.textContent = 'Check the public key input';
         }
         return;
@@ -800,11 +902,13 @@ export function createDiscoveryScannerView(
         coreReceiveInput.parentElement!.hidden = false;
         coreChangeInput.parentElement!.hidden = false;
         required<HTMLElement>('label[for="core-receive-count"]').textContent = 'Receive addresses per standard family';
-        required<HTMLElement>('label[for="core-change-count"]').textContent = 'Change addresses per standard family (where supported)';
+        required<HTMLElement>('label[for="core-change-count"]').textContent =
+          'Change addresses per standard family (where supported)';
         startButtonLabel.textContent = 'Check seed candidates';
-        const selected = candidateCoinInputs.filter(input => input.checked);
-        estimate.textContent = `${selected.map(input => coinAdapters.get(input.value)?.label).join(' · ') || 'Select at least one coin'} · one candidate and one coin at a time · one network request at a time · zero-balance activity included`;
-        scanCoverageDescription.textContent = 'Candidate scan coverage · standard branches and selected Dash components';
+        const selected = candidateCoinInputs.filter((input) => input.checked);
+        estimate.textContent = `${selected.map((input) => coinAdapters.get(input.value)?.label).join(' · ') || 'Select at least one coin'} · one candidate and one coin at a time · one network request at a time · zero-balance activity included`;
+        scanCoverageDescription.textContent =
+          'Candidate scan coverage · standard branches and selected Dash components';
         return;
       }
       coinJoinPathPreview.textContent = coinJoinPathPattern(networkInput.value);
@@ -822,12 +926,20 @@ export function createDiscoveryScannerView(
           return;
         }
         startButtonLabel.textContent = 'Scan Dash holdings';
-        const core = scanCoreInput.checked ? estimateInteger(coreReceiveInput.value, 0) + estimateInteger(coreChangeInput.value, 0) : 0;
-        const legacyCore = scanCoreInput.checked && scanLegacyCoreInput.checked ? estimateInteger(legacyCoreCountInput.value, 0) * 2 : 0;
-        const coinJoin = scanCoreInput.checked && scanCoinJoinInput.checked
-          ? estimateInteger(coinJoinExternalCountInput.value, 0) + estimateInteger(coinJoinInternalCountInput.value, 0)
+        const core = scanCoreInput.checked
+          ? estimateInteger(coreReceiveInput.value, 0) + estimateInteger(coreChangeInput.value, 0)
           : 0;
-        const providerCollateral = scanCoreInput.checked && scanProviderCollateralInput.checked ? estimateInteger(providerCollateralCountInput.value, 0) : 0;
+        const legacyCore =
+          scanCoreInput.checked && scanLegacyCoreInput.checked ? estimateInteger(legacyCoreCountInput.value, 0) * 2 : 0;
+        const coinJoin =
+          scanCoreInput.checked && scanCoinJoinInput.checked
+            ? estimateInteger(coinJoinExternalCountInput.value, 0) +
+              estimateInteger(coinJoinInternalCountInput.value, 0)
+            : 0;
+        const providerCollateral =
+          scanCoreInput.checked && scanProviderCollateralInput.checked
+            ? estimateInteger(providerCollateralCountInput.value, 0)
+            : 0;
         const platform = scanPlatformAddressesInput.checked ? estimateInteger(platformCountInput.value, 0) : 0;
         const coreLike = core + legacyCore + coinJoin + providerCollateral;
         const coreBatches = Math.ceil(coreLike / RECOVERY_CORE_ADDRESS_BATCH);
@@ -851,14 +963,45 @@ export function createDiscoveryScannerView(
       startButton.disabled = value || !selfTestPassed;
       cancelButton.disabled = !value;
       clearButton.disabled = value;
-      for (const input of form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input,select,textarea')) {
+      for (const input of form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+        'input,select,textarea',
+      )) {
         input.disabled = value;
       }
       for (const button of [...modeButtons, ...sourceButtons]) button.disabled = value;
       revealButton.disabled = value;
       if (value) startButtonLabel.textContent = 'Scanning…';
-      else if (hasCompletedScan) { this.updateEstimate(); startButtonLabel.textContent = 'Run a new scan'; }
-      else this.updateEstimate();
+      else if (hasCompletedScan) {
+        this.updateEstimate();
+        startButtonLabel.textContent = 'Run a new scan';
+      } else this.updateEstimate();
+    },
+    renderAddressSearch(results: readonly MultiSeedAddressResult[], completed: number, total: number): void {
+      if (addressSearchResults === null || addressSearchProgress === null) return;
+      addressSearchResults.replaceChildren();
+      addressSearchProgress.textContent = `Completed ${completed} of ${total} target searches.`;
+      for (const result of results) {
+        const row = document.createElement('article');
+        row.className = 'finding-card';
+        const title = document.createElement('strong');
+        title.textContent = `${result.seedLabel} · ${result.target.input}`;
+        const detail = document.createElement('p');
+        detail.textContent =
+          result.error !== undefined
+            ? `Error: ${result.error}`
+            : result.match === null
+              ? 'No matching derived address in the selected range.'
+              : `Match at index ${result.match.index} · ${result.match.path} · ${result.match.address}`;
+        row.append(title, detail);
+        addressSearchResults.append(row);
+      }
+      addressSearchResults.hidden = results.length === 0;
+    },
+    resetAddressSearch(): void {
+      if (addressSearchResults === null || addressSearchProgress === null) return;
+      addressSearchResults.replaceChildren();
+      addressSearchResults.hidden = true;
+      addressSearchProgress.textContent = '';
     },
     showProgress(): void {
       progressShell.hidden = false;
@@ -872,11 +1015,12 @@ export function createDiscoveryScannerView(
         const label = document.createElement('strong');
         label.textContent = progress.label;
         const detail = document.createElement('span');
-        detail.textContent = progress.sections.size === 0
-          ? `${progress.stage} · ${progress.message}`
-          : [...progress.sections.entries()]
-            .map(([section, message]) => `${progressSectionLabels[section]}: ${message}`)
-            .join(' · ');
+        detail.textContent =
+          progress.sections.size === 0
+            ? `${progress.stage} · ${progress.message}`
+            : [...progress.sections.entries()]
+                .map(([section, message]) => `${progressSectionLabels[section]}: ${message}`)
+                .join(' · ');
         const state = document.createElement('i');
         state.textContent = progress.state;
         row.append(label, detail, state);
@@ -885,14 +1029,20 @@ export function createDiscoveryScannerView(
       }
       const total = walletProgress.size;
       progressBar.style.width = total === 0 ? '0%' : `${(completed / total) * 100}%`;
-      progressText.textContent = total === 0
-        ? 'Preparing…'
-        : `Completed ${completed} of ${total} scan${total === 1 ? '' : 's'} · every active stage is shown below.`;
+      progressText.textContent =
+        total === 0
+          ? 'Preparing…'
+          : `Completed ${completed} of ${total} scan${total === 1 ? '' : 's'} · every active stage is shown below.`;
     },
     progressSectionLabel(section: RecoveryProgress['section']): string {
       return progressSectionLabels[section];
     },
-    renderLiveFinding(inputId: string, section: RecoverySectionId, finding: RecoveryFinding, findingCount: number): void {
+    renderLiveFinding(
+      inputId: string,
+      section: RecoverySectionId,
+      finding: RecoveryFinding,
+      findingCount: number,
+    ): void {
       resultsSection.hidden = false;
       let live = resultList.querySelector<HTMLElement>('#live-recovery-findings');
       if (live === null) {
@@ -908,7 +1058,8 @@ export function createDiscoveryScannerView(
         live.append(findingCard({ ...finding, subtitle: `${inputId} · ${section} · ${finding.subtitle}` }, true));
       } else if (findingCount === 201) {
         const note = document.createElement('p');
-        note.textContent = 'More than 200 live findings: further rows are retained for the final result and export without expanding the live DOM.';
+        note.textContent =
+          'More than 200 live findings: further rows are retained for the final result and export without expanding the live DOM.';
         live.append(note);
       }
     },
@@ -920,7 +1071,7 @@ export function createDiscoveryScannerView(
     ): void {
       resultList.replaceChildren();
       resultTabs.replaceChildren();
-      const candidates = results.some(result => result.inputId.startsWith('candidate-'));
+      const candidates = results.some((result) => result.inputId.startsWith('candidate-'));
       if (candidates) {
         const summary = document.createElement('section');
         summary.className = 'candidate-summary';
@@ -964,7 +1115,9 @@ export function createDiscoveryScannerView(
         copy.append(title, subtitle);
         const state = document.createElement('span');
         state.className = 'wallet-state';
-        state.textContent = result.sections.some(({ state: sectionState }) => sectionState === 'failed' || sectionState === 'partial')
+        state.textContent = result.sections.some(
+          ({ state: sectionState }) => sectionState === 'failed' || sectionState === 'partial',
+        )
           ? 'Completed with warnings'
           : 'Scan complete';
         head.append(copy, state);
@@ -980,12 +1133,15 @@ export function createDiscoveryScannerView(
         const overviewTitle = document.createElement('strong');
         overviewTitle.textContent = 'Wallet-wide located balances';
         const overviewNote = document.createElement('p');
-        overviewNote.textContent = result.coinId === 'dash'
-          ? 'This total includes funded Core addresses, Platform payment addresses, identity credits, and spendable Orchard notes from the completed sections below.'
-          : `This total includes the ${result.coinLabel} resources found in the completed scan below.`;
+        overviewNote.textContent =
+          result.coinId === 'dash'
+            ? 'This total includes funded Core addresses, Platform payment addresses, identity credits, and spendable Orchard notes from the completed sections below.'
+            : `This total includes the ${result.coinLabel} resources found in the completed scan below.`;
         const overviewMetrics = document.createElement('div');
         overviewMetrics.className = 'section-metrics wallet-overview-metrics';
-        overviewMetrics.append(...result.overview.map((metric) => renderMetric(metric.label, metric.value, metric.tone)));
+        overviewMetrics.append(
+          ...result.overview.map((metric) => renderMetric(metric.label, metric.value, metric.tone)),
+        );
         overview.append(overviewTitle, overviewNote, overviewMetrics);
         wallet.append(overview);
         if (result.coinId === 'dash') {
@@ -1020,14 +1176,17 @@ export function createDiscoveryScannerView(
         const label = document.createElement('label');
         label.className = 'candidate-choice';
         const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox'; checkbox.value = coin.id; checkbox.checked = coin === coins[0];
+        checkbox.type = 'checkbox';
+        checkbox.value = coin.id;
+        checkbox.checked = coin === coins[0];
         checkbox.addEventListener('change', () => {
-          candidateAll.checked = candidateCoinInputs.every(input => input.checked);
-          candidateAll.indeterminate = !candidateAll.checked && candidateCoinInputs.some(input => input.checked);
+          candidateAll.checked = candidateCoinInputs.every((input) => input.checked);
+          candidateAll.indeterminate = !candidateAll.checked && candidateCoinInputs.some((input) => input.checked);
           this.updateEstimate();
         });
         label.append(checkbox, document.createTextNode(` ${coin.label}`));
-        candidateCoins.append(label); candidateCoinInputs.push(checkbox);
+        candidateCoins.append(label);
+        candidateCoinInputs.push(checkbox);
       }
       candidateAll.checked = coins.length === 1;
       candidateAll.addEventListener('change', () => {
@@ -1035,7 +1194,8 @@ export function createDiscoveryScannerView(
         this.updateEstimate();
       });
       if (coinInput === null) {
-        if (coins.length !== 1) throw new Error('A profile without a coin selector must register exactly one recovery coin.');
+        if (coins.length !== 1)
+          throw new Error('A profile without a coin selector must register exactly one recovery coin.');
         profileCoinId = coins[0]?.id ?? null;
         return;
       }
@@ -1062,7 +1222,8 @@ export function createDiscoveryScannerView(
       passportSelfTest.textContent = 'Cryptographic self-test passed';
       selfTestBadge.textContent = `${checks.length} self-tests passed · ${durationMs} ms`;
       passportSelfTestDetails.textContent = `${checks.length} startup checks passed in ${durationMs.toLocaleString()} ms: ${checks.join(' · ')}. Scanning is enabled.`;
-      recoveryRuntime.textContent = "Opaque-origin Secret Vault · connect-src/worker-src 'none' · isolated Evo Network Worker · scan-end export tripwire · secret candidates discarded before download · shell export broker · max 5 requests";
+      recoveryRuntime.textContent =
+        "Opaque-origin Secret Vault · connect-src/worker-src 'none' · isolated Evo Network Worker · scan-end export tripwire · secret candidates discarded before download · shell export broker · max 5 requests";
     },
     showSelfTestFailed(message: string): void {
       selfTestBadge.className = 'self-test-badge failed';
@@ -1080,7 +1241,8 @@ export function createDiscoveryScannerView(
       required<HTMLElement>('#recovery-build-profile').textContent = buildInfo.profile;
       required<HTMLElement>('#recovery-build-fingerprint').textContent = buildInfo.fingerprint;
       required<HTMLElement>('#recovery-artifact-checksum-file').textContent = buildInfo.checksumFile;
-      required<HTMLElement>('#recovery-build-footer').textContent = `v${buildInfo.version} · ${buildInfo.fingerprint.slice(0, 16)}…`;
+      required<HTMLElement>('#recovery-build-footer').textContent =
+        `v${buildInfo.version} · ${buildInfo.fingerprint.slice(0, 16)}…`;
     },
   };
   return view;

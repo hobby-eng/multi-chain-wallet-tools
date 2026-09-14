@@ -100,13 +100,17 @@ describe('Dash shielded viewer primitives', () => {
 
   it('accepts the strict watch-only viewing bundle and preserves its network', () => {
     const fullViewingKey = 'ab'.repeat(96);
-    expect(normalizeViewingKey(JSON.stringify({
-      format: 'dash-shielded-viewing-bundle',
-      version: 1,
-      network: 'testnet',
-      accountPath: "m/32'/1'/0'",
-      fullViewingKey,
-    }))).toEqual({ hex: fullViewingKey, kind: 'full', bundleNetwork: 'testnet' });
+    expect(
+      normalizeViewingKey(
+        JSON.stringify({
+          format: 'dash-shielded-viewing-bundle',
+          version: 1,
+          network: 'testnet',
+          accountPath: "m/32'/1'/0'",
+          fullViewingKey,
+        }),
+      ),
+    ).toEqual({ hex: fullViewingKey, kind: 'full', bundleNetwork: 'testnet' });
     expect(() => normalizeViewingKey('{"format":"wrong"}')).toThrow(/format or version/u);
   });
 
@@ -141,10 +145,7 @@ describe('Dash shielded viewer primitives', () => {
     const ledger = new ShieldedActivityLedger();
     const firstNote = wireNote(0);
     const spendOfFirst = wireNote(0xaa);
-    ledger.applyPage(0n, page([firstNote, spendOfFirst]), [
-      incoming(0n, 1, 0xaa, 500n),
-      outgoing(1n, 0xab, 300n),
-    ]);
+    ledger.applyPage(0n, page([firstNote, spendOfFirst]), [incoming(0n, 1, 0xaa, 500n), outgoing(1n, 0xab, 300n)]);
     const snapshot = ledger.snapshot(true);
     expect(snapshot.balance).toBe(0n);
     expect(snapshot.receivedExternal).toBe(500n);

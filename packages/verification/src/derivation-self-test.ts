@@ -35,30 +35,102 @@ export async function runDerivationSelfTest(): Promise<CryptoSelfTestReport> {
   const seed = hexToBytes(FIXED_SEED_HEX);
   try {
     const vectors: Array<readonly [string, DerivationResult, string]> = [
-      ['Bitcoin Taproot / BIP86', deriveBitcoin('taproot', {
-        seed: seed.slice(), network: 'mainnet', account: 0, branch: 0, start: 0, count: 1,
-      }), 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr'],
-      ['Bitcoin testnet / BIP49', deriveBitcoin('nested-segwit', {
-        seed: seed.slice(), network: 'testnet', account: 0, branch: 0, start: 0, count: 1,
-      }), '2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2'],
-      ['Bitcoin maximum child index', deriveBitcoin('legacy', {
-        seed: seed.slice(), network: 'mainnet', account: 0, branch: 0, start: 2_147_483_647, count: 1,
-      }), '12PyCxyiKLJc6WewJd173MRDVVdR6VpJ2j'],
-      ['Ethereum / EIP55', deriveEthereum({
-        seed: seed.slice(), network: 'mainnet', account: 0, branch: 0, start: 0, count: 1,
-      }), '0x9858EfFD232B4033E47d90003D41EC34EcaEda94'],
-      ['Dash Core / BIP44', deriveDashCore({
-        seed: seed.slice(), network: 'mainnet', account: 0, branch: 0, start: 0, count: 1,
-      }), 'XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5'],
-      ['Dash Core testnet / BIP44', deriveDashCore({
-        seed: seed.slice(), network: 'testnet', account: 0, branch: 0, start: 0, count: 1,
-      }), 'yRd4FhXfVGHXpsuZXPNkMrfD9GVj46pnjt'],
-      ['Dash Platform / DIP17', deriveDashPlatform({
-        seed: seed.slice(), network: 'mainnet', account: 0, branch: 0, start: 0, count: 1,
-      }), 'dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs'],
-      ['Dash Platform testnet / DIP17', deriveDashPlatform({
-        seed: seed.slice(), network: 'testnet', account: 0, branch: 0, start: 0, count: 1,
-      }), 'tdash1kzfj6fvrpza60u6m9u2nhzkthey68v7cqg2u9ymk'],
+      [
+        'Bitcoin Taproot / BIP86',
+        deriveBitcoin('taproot', {
+          seed: seed.slice(),
+          network: 'mainnet',
+          account: 0,
+          branch: 0,
+          start: 0,
+          count: 1,
+        }),
+        'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr',
+      ],
+      [
+        'Bitcoin testnet / BIP49',
+        deriveBitcoin('nested-segwit', {
+          seed: seed.slice(),
+          network: 'testnet',
+          account: 0,
+          branch: 0,
+          start: 0,
+          count: 1,
+        }),
+        '2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2',
+      ],
+      [
+        'Bitcoin maximum child index',
+        deriveBitcoin('legacy', {
+          seed: seed.slice(),
+          network: 'mainnet',
+          account: 0,
+          branch: 0,
+          start: 2_147_483_647,
+          count: 1,
+        }),
+        '12PyCxyiKLJc6WewJd173MRDVVdR6VpJ2j',
+      ],
+      [
+        'Ethereum / EIP55',
+        deriveEthereum({
+          seed: seed.slice(),
+          network: 'mainnet',
+          account: 0,
+          branch: 0,
+          start: 0,
+          count: 1,
+        }),
+        '0x9858EfFD232B4033E47d90003D41EC34EcaEda94',
+      ],
+      [
+        'Dash Core / BIP44',
+        deriveDashCore({
+          seed: seed.slice(),
+          network: 'mainnet',
+          account: 0,
+          branch: 0,
+          start: 0,
+          count: 1,
+        }),
+        'XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5',
+      ],
+      [
+        'Dash Core testnet / BIP44',
+        deriveDashCore({
+          seed: seed.slice(),
+          network: 'testnet',
+          account: 0,
+          branch: 0,
+          start: 0,
+          count: 1,
+        }),
+        'yRd4FhXfVGHXpsuZXPNkMrfD9GVj46pnjt',
+      ],
+      [
+        'Dash Platform / DIP17',
+        deriveDashPlatform({
+          seed: seed.slice(),
+          network: 'mainnet',
+          account: 0,
+          branch: 0,
+          start: 0,
+          count: 1,
+        }),
+        'dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs',
+      ],
+      [
+        'Dash Platform testnet / DIP17',
+        deriveDashPlatform({
+          seed: seed.slice(),
+          network: 'testnet',
+          account: 0,
+          branch: 0,
+          start: 0,
+          count: 1,
+        }),
+        'tdash1kzfj6fvrpza60u6m9u2nhzkthey68v7cqg2u9ymk',
+      ],
     ];
     for (const [name, result, expectedAddress] of vectors) {
       try {
@@ -162,23 +234,55 @@ export async function runDerivationSelfTest(): Promise<CryptoSelfTestReport> {
   const extendedKeyResults = [
     {
       name: 'Bitcoin BIP86',
-      result: deriveBitcoin('taproot', { seed: extendedKeySeed.slice(), network: 'mainnet', account: 0, branch: 0, start: 0, count: 1 }),
-      accountXpub: 'xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ',
+      result: deriveBitcoin('taproot', {
+        seed: extendedKeySeed.slice(),
+        network: 'mainnet',
+        account: 0,
+        branch: 0,
+        start: 0,
+        count: 1,
+      }),
+      accountXpub:
+        'xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ',
     },
     {
       name: 'Dash Core BIP44',
-      result: deriveDashCore({ seed: extendedKeySeed.slice(), network: 'mainnet', account: 0, branch: 0, start: 0, count: 1 }),
-      accountXpub: 'xpub6CYEjsU6zPM3sADS2ubu2aZeGxCm3C5KabkCpo4rkNbXGAH9M7rRUJ4E5CKiyUddmRzrSCopPzisTBrXkfCD4o577XKM9mzyZtP1Xdbizyk',
+      result: deriveDashCore({
+        seed: extendedKeySeed.slice(),
+        network: 'mainnet',
+        account: 0,
+        branch: 0,
+        start: 0,
+        count: 1,
+      }),
+      accountXpub:
+        'xpub6CYEjsU6zPM3sADS2ubu2aZeGxCm3C5KabkCpo4rkNbXGAH9M7rRUJ4E5CKiyUddmRzrSCopPzisTBrXkfCD4o577XKM9mzyZtP1Xdbizyk',
     },
     {
       name: 'Dash Platform DIP17',
-      result: deriveDashPlatform({ seed: extendedKeySeed.slice(), network: 'mainnet', account: 0, branch: 0, start: 0, count: 1 }),
-      accountXpub: 'xpub6FevKUTsHuMwZmumCETpZSSiK2bfW8gyb7kUAPs9Gep7SeskR2DPuaYoKo7vhLC99TMyfnUuyDjsWawjMvfbHvLLG6g9JLf1mjozFk9PUYz',
+      result: deriveDashPlatform({
+        seed: extendedKeySeed.slice(),
+        network: 'mainnet',
+        account: 0,
+        branch: 0,
+        start: 0,
+        count: 1,
+      }),
+      accountXpub:
+        'xpub6FevKUTsHuMwZmumCETpZSSiK2bfW8gyb7kUAPs9Gep7SeskR2DPuaYoKo7vhLC99TMyfnUuyDjsWawjMvfbHvLLG6g9JLf1mjozFk9PUYz',
     },
     {
       name: 'Ethereum BIP44',
-      result: deriveEthereum({ seed: extendedKeySeed.slice(), network: 'mainnet', account: 0, branch: 0, start: 0, count: 1 }),
-      accountXpub: 'xpub6DCoCpSuQZB2jawqnGMEPS63ePKWkwWPH4TU45Q7LPXWuNd8TMtVxRrgjtEshuqpK3mdhaWHPFsBngh5GFZaM6si3yZdUsT8ddYM3PwnATt',
+      result: deriveEthereum({
+        seed: extendedKeySeed.slice(),
+        network: 'mainnet',
+        account: 0,
+        branch: 0,
+        start: 0,
+        count: 1,
+      }),
+      accountXpub:
+        'xpub6DCoCpSuQZB2jawqnGMEPS63ePKWkwWPH4TU45Q7LPXWuNd8TMtVxRrgjtEshuqpK3mdhaWHPFsBngh5GFZaM6si3yZdUsT8ddYM3PwnATt',
     },
   ];
   try {
@@ -203,7 +307,11 @@ export async function runDerivationSelfTest(): Promise<CryptoSelfTestReport> {
       extendedKeyResults[0]!.accountXpub,
     );
     for (const vector of extendedKeyResults) {
-      expectEqual(`${vector.name} master public key`, resultValue(vector.result, 'masterPublicKey'), '03d902f35f560e0470c63313c7369168d9d7df2d49bf295fd9fb7cb109ccee0494');
+      expectEqual(
+        `${vector.name} master public key`,
+        resultValue(vector.result, 'masterPublicKey'),
+        '03d902f35f560e0470c63313c7369168d9d7df2d49bf295fd9fb7cb109ccee0494',
+      );
       expectEqual(`${vector.name} master fingerprint`, resultValue(vector.result, 'masterFingerprint'), '73c5da0a');
       expectEqual(`${vector.name} account extended key`, resultValue(vector.result, 'accountXpub'), vector.accountXpub);
     }
@@ -216,13 +324,25 @@ export async function runDerivationSelfTest(): Promise<CryptoSelfTestReport> {
   const shieldedSeed = new Uint8Array(64).fill(0x42);
   const { deriveDashShielded } = await import('@ckd/coins/dash/shielded.js');
   const shieldedVectors = [
-    ['Dash Orchard testnet / ZIP32', 'testnet', 'tdash1zrhflqt5ly4r7q64wrktl6tf466x7h30vjkknaudxsckc3l28rp0qzzm27yta0683nnnd2qum8gyq'],
-    ['Dash Orchard mainnet / ZIP32', 'mainnet', 'dash1zzx0rfu42k85qwywhx44023erxgcelv7xkqu3lr58t2t46arh392ch3ct0ke9qal6w57f2qlhxuxd'],
+    [
+      'Dash Orchard testnet / ZIP32',
+      'testnet',
+      'tdash1zrhflqt5ly4r7q64wrktl6tf466x7h30vjkknaudxsckc3l28rp0qzzm27yta0683nnnd2qum8gyq',
+    ],
+    [
+      'Dash Orchard mainnet / ZIP32',
+      'mainnet',
+      'dash1zzx0rfu42k85qwywhx44023erxgcelv7xkqu3lr58t2t46arh392ch3ct0ke9qal6w57f2qlhxuxd',
+    ],
   ] as const;
   try {
     for (const [name, network, expectedAddress] of shieldedVectors) {
       const shielded = deriveDashShielded({
-        seed: shieldedSeed.slice(), network, account: 0, start: 0, count: 1,
+        seed: shieldedSeed.slice(),
+        network,
+        account: 0,
+        start: 0,
+        count: 1,
       });
       try {
         expectEqual(name, resultValue(shielded, 'address'), expectedAddress);

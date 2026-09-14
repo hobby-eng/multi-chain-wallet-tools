@@ -80,16 +80,8 @@ export interface ShieldedBatchOptions {
   count: number;
 }
 
-export function field(
-  key: string,
-  label: string,
-  value: string,
-  secret = false,
-  description?: string,
-): ResultField {
-  return description === undefined
-    ? { key, label, value, secret }
-    : { key, label, value, secret, description };
+export function field(key: string, label: string, value: string, secret = false, description?: string): ResultField {
+  return description === undefined ? { key, label, value, secret } : { key, label, value, secret, description };
 }
 
 export function paymentAddressField(

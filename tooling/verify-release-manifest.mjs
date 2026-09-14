@@ -9,12 +9,15 @@ const dist = resolve(root, 'dist');
 const profile = parseBuildProfile();
 const manifest = readFileSync(resolve(root, profile.manifestPath), 'utf8').trim().split('\n');
 const prefix = `${profile.outputDirectory}/`;
-const expectedNames = new Set(profileArtifacts(profile).map((name) => {
-  if (!name.startsWith(prefix)) throw new Error(`Release artifact is outside ${prefix}: ${name}.`);
-  return name.slice(prefix.length);
-}));
+const expectedNames = new Set(
+  profileArtifacts(profile).map((name) => {
+    if (!name.startsWith(prefix)) throw new Error(`Release artifact is outside ${prefix}: ${name}.`);
+    return name.slice(prefix.length);
+  }),
+);
 
-if (manifest.length !== expectedNames.size) throw new Error(`SHA256SUMS must contain exactly ${expectedNames.size} release artifacts.`);
+if (manifest.length !== expectedNames.size)
+  throw new Error(`SHA256SUMS must contain exactly ${expectedNames.size} release artifacts.`);
 for (const line of manifest) {
   const match = /^([0-9a-f]{64})  ([a-z0-9-]+\/[A-Za-z0-9_.-]+)$/u.exec(line);
   if (match === null) throw new Error(`Malformed SHA256SUMS line: ${line}`);

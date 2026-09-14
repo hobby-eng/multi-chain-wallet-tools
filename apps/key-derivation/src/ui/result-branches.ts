@@ -40,12 +40,13 @@ export function planResultBranches(
   includeChange: boolean,
   includeCoinJoin = false,
 ): ResultBranchPlan[] {
-  const plans: ResultBranchPlan[] = includeChange && adapter.addressBranches !== undefined
-    ? [
-        { kind: 'receive', branch: adapter.addressBranches.receive },
-        { kind: 'change', branch: adapter.addressBranches.change },
-      ]
-    : [{ kind: 'receive', branch: selectedBranch }];
+  const plans: ResultBranchPlan[] =
+    includeChange && adapter.addressBranches !== undefined
+      ? [
+          { kind: 'receive', branch: adapter.addressBranches.receive },
+          { kind: 'change', branch: adapter.addressBranches.change },
+        ]
+      : [{ kind: 'receive', branch: selectedBranch }];
   if (includeCoinJoin && adapter.coinJoin !== undefined) {
     const { branches, workerAdapterId } = adapter.coinJoin;
     plans.push(
@@ -64,4 +65,3 @@ export function createBranchResultState(result: DerivationResult): BranchResultS
     windowStart: 0,
   };
 }
-

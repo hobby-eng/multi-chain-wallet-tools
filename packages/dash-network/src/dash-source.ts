@@ -24,9 +24,8 @@ export class DashEvoShieldedSource implements ShieldedPageSource {
     if (this.#connecting !== undefined) return this.#connecting;
     const connecting = (async (): Promise<void> => {
       const settings = { connectTimeoutMs: 10_000, timeoutMs: 30_000, retries: 3, banFailedAddress: true };
-      const sdk = this.#network === 'mainnet'
-        ? EvoSDK.mainnetTrusted({ settings })
-        : EvoSDK.testnetTrusted({ settings });
+      const sdk =
+        this.#network === 'mainnet' ? EvoSDK.mainnetTrusted({ settings }) : EvoSDK.testnetTrusted({ settings });
       await this.#run('shielded.connect', { network: this.#network }, () => sdk.connect());
       this.#sdk = sdk;
     })();

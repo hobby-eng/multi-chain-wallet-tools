@@ -14,13 +14,17 @@ function readJson(path) {
 export function verifyDashSdkBuild(root, applicationName) {
   const projectManifest = readJson(resolve(root, 'package.json'));
   const installedEvoManifest = readJson(resolve(root, 'node_modules/@dashevo/evo-sdk/package.json'));
-  const installedWasmManifest = readJson(resolve(root, 'node_modules/.pnpm/node_modules/@dashevo/wasm-sdk/package.json'));
+  const installedWasmManifest = readJson(
+    resolve(root, 'node_modules/.pnpm/node_modules/@dashevo/wasm-sdk/package.json'),
+  );
   if (
-    projectManifest.dependencies?.['@dashevo/evo-sdk'] !== DASH_SDK_VERSION
-    || installedEvoManifest.version !== DASH_SDK_VERSION
-    || installedWasmManifest.version !== DASH_SDK_VERSION
+    projectManifest.dependencies?.['@dashevo/evo-sdk'] !== DASH_SDK_VERSION ||
+    installedEvoManifest.version !== DASH_SDK_VERSION ||
+    installedWasmManifest.version !== DASH_SDK_VERSION
   ) {
-    throw new Error(`${applicationName} requires exact installed Dash Evo SDK and WASM SDK version ${DASH_SDK_VERSION}.`);
+    throw new Error(
+      `${applicationName} requires exact installed Dash Evo SDK and WASM SDK version ${DASH_SDK_VERSION}.`,
+    );
   }
 
   const lockfile = readFileSync(resolve(root, 'pnpm-lock.yaml'), 'utf8');

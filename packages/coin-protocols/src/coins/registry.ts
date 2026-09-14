@@ -1,6 +1,4 @@
-import { BITCOIN_COIN_ADAPTERS } from './adapters/bitcoin.js';
-import { DASH_COIN_ADAPTERS } from './adapters/dash.js';
-import { ETHEREUM_COIN_ADAPTERS } from './adapters/ethereum.js';
+import { MULTI_CHAIN_COIN_ADAPTERS } from './multi-chain-registry-profile.js';
 import { createCoinRegistry } from './registry-base.js';
 
 export type {
@@ -14,6 +12,7 @@ export type {
   CoinJoinPathPreview,
   CoinJoinSupport,
   CoinLimits,
+  CoinRegistry,
   ControlOption,
 } from './registry-base.js';
 
@@ -24,8 +23,4 @@ export const {
   getCoinAdapter,
   getCoinFamily,
   getDefaultCoinAdapter,
-} = createCoinRegistry([
-  ...BITCOIN_COIN_ADAPTERS,
-  ...ETHEREUM_COIN_ADAPTERS,
-  ...DASH_COIN_ADAPTERS,
-]);
+} = createCoinRegistry(MULTI_CHAIN_COIN_ADAPTERS);

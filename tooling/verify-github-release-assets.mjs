@@ -7,7 +7,9 @@ import { parseBuildProfile, profileArtifacts } from './build-profiles.mjs';
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const profile = parseBuildProfile();
 const release = resolve(root, profile.releaseDirectory);
-const expectedArtifacts = profileArtifacts(profile).map((artifact) => basename(artifact)).sort();
+const expectedArtifacts = profileArtifacts(profile)
+  .map((artifact) => basename(artifact))
+  .sort();
 const expectedFiles = new Set([
   ...expectedArtifacts,
   ...expectedArtifacts.map((name) => `${name}.sha256`),
@@ -23,7 +25,9 @@ if (actualFiles.length !== expectedFiles.size || actualFiles.some((name) => !exp
 
 const lines = readFileSync(resolve(release, 'SHA256SUMS'), 'utf8').trim().split('\n');
 if (lines.length !== expectedArtifacts.length + 2) {
-  throw new Error(`Flat SHA256SUMS must contain ${expectedArtifacts.length} standalone HTML file(s), LICENSE, and verification-record.json.`);
+  throw new Error(
+    `Flat SHA256SUMS must contain ${expectedArtifacts.length} standalone HTML file(s), LICENSE, and verification-record.json.`,
+  );
 }
 
 const remaining = new Set([...expectedArtifacts, 'LICENSE', 'verification-record.json']);
@@ -34,9 +38,15 @@ for (const line of lines) {
   if (basename(name) !== name || !remaining.delete(name)) {
     throw new Error(`Unexpected or duplicate flat release artifact: ${name}`);
   }
-  const actual = createHash('sha256').update(readFileSync(resolve(release, name))).digest('hex');
+  const actual = createHash('sha256')
+    .update(readFileSync(resolve(release, name)))
+    .digest('hex');
   if (recorded !== actual) throw new Error(`Flat release checksum mismatch for ${name}.`);
-  if (name !== 'LICENSE' && name !== 'verification-record.json' && readFileSync(resolve(release, `${name}.sha256`), 'utf8').trim() !== `${actual}  ${name}`) {
+  if (
+    name !== 'LICENSE' &&
+    name !== 'verification-record.json' &&
+    readFileSync(resolve(release, `${name}.sha256`), 'utf8').trim() !== `${actual}  ${name}`
+  ) {
     throw new Error(`Flat release sidecar mismatch for ${name}.`);
   }
 }

@@ -10,5 +10,5 @@ it('accepts the entire uint256 range and rejects overflow before formatting', ()
 it('keeps a separate bounded range for accumulated lifetime amounts', () => {
   expect(PROVIDER_UNSIGNED_DECIMAL.test('9'.repeat(100))).toBe(true);
   expect(PROVIDER_UNSIGNED_DECIMAL.test('9'.repeat(101))).toBe(false);
-  for (const value of ['-1','1.2','01','1e6','']) expect(PROVIDER_UNSIGNED_DECIMAL.test(value)).toBe(false);
+  for (const value of ['-1', '1.2', '01', '1e6', '']) expect(PROVIDER_UNSIGNED_DECIMAL.test(value)).toBe(false);
 });

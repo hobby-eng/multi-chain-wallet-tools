@@ -6,9 +6,8 @@ import { pathToFileURL } from 'node:url';
  * `default`, while ESM entry points expose named bindings.
  */
 export async function loadPlaywright(moduleOverride = process.env.PLAYWRIGHT_MODULE) {
-  const loaded = moduleOverride === undefined
-    ? await import('playwright')
-    : await import(pathToFileURL(moduleOverride).href);
+  const loaded =
+    moduleOverride === undefined ? await import('playwright') : await import(pathToFileURL(moduleOverride).href);
   const api = loaded.default ?? loaded;
   if (api.chromium === undefined || api.firefox === undefined) {
     throw new Error('The selected Playwright module does not expose Chromium and Firefox.');

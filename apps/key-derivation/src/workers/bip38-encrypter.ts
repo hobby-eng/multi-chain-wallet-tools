@@ -7,8 +7,6 @@ export function encryptDerivedP2pkhKey(
   networkName: 'mainnet' | 'testnet',
   passphrase: string,
 ) {
-  const network = adapterId.startsWith('dash-')
-    ? getDashNetwork(networkName)
-    : getBitcoinNetwork(networkName);
+  const network = adapterId.startsWith('dash-') ? getDashNetwork(networkName) : getBitcoinNetwork(networkName);
   return encryptBip38(privateKey, true, passphrase, network);
 }

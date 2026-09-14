@@ -1,4 +1,7 @@
-export interface DescriptorRow { readonly label: string; readonly value: string }
+export interface DescriptorRow {
+  readonly label: string;
+  readonly value: string;
+}
 import { CONSENSUS_LIMITS } from './consensus-limits.js';
 export interface DecodedDescriptor {
   readonly classification: string;
@@ -32,7 +35,8 @@ interface ExpressionNode {
   readonly args: readonly (ExpressionNode | string)[];
 }
 
-const INPUT_CHARSET = "0123456789()[],'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|~ijklmnopqrstuvwxyzABCDEFGH`#\"\\ ";
+const INPUT_CHARSET =
+  '0123456789()[],\'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|~ijklmnopqrstuvwxyzABCDEFGH`#"\\ ';
 const CHECKSUM_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 const GENERATORS = [0xf5dee51989n, 0xa9fdca3312n, 0x1bab10e32dn, 0x3706b1677an, 0x644d626ffdn];
 const MAX_DESCRIPTOR_PATH_CARDS = 64;
@@ -56,7 +60,8 @@ function miniscriptAnalysis(miniscript: string, tapscript = false): string | nul
 function polymod(checksum: bigint, value: number): bigint {
   const top = checksum >> 35n;
   let result = ((checksum & 0x7ffffffffn) << 5n) ^ BigInt(value);
-  for (let index = 0; index < GENERATORS.length; index += 1) if (((top >> BigInt(index)) & 1n) !== 0n) result ^= GENERATORS[index]!;
+  for (let index = 0; index < GENERATORS.length; index += 1)
+    if (((top >> BigInt(index)) & 1n) !== 0n) result ^= GENERATORS[index]!;
   return result;
 }
 
@@ -70,13 +75,18 @@ export function descriptorChecksum(payload: string): string {
     checksum = polymod(checksum, position & 31);
     group = group * 3 + (position >> 5);
     count += 1;
-    if (count === 3) { checksum = polymod(checksum, group); group = 0; count = 0; }
+    if (count === 3) {
+      checksum = polymod(checksum, group);
+      group = 0;
+      count = 0;
+    }
   }
   if (count > 0) checksum = polymod(checksum, group);
   for (let index = 0; index < 8; index += 1) checksum = polymod(checksum, 0);
   checksum ^= 1n;
   let result = '';
-  for (let index = 0; index < 8; index += 1) result += CHECKSUM_CHARSET[Number((checksum >> BigInt(5 * (7 - index))) & 31n)];
+  for (let index = 0; index < 8; index += 1)
+    result += CHECKSUM_CHARSET[Number((checksum >> BigInt(5 * (7 - index))) & 31n)];
   return result;
 }
 
@@ -84,7 +94,10 @@ function matchingClose(text: string, open: number, opening = '(', closing = ')')
   let depth = 0;
   for (let index = open; index < text.length; index += 1) {
     if (text[index] === opening) depth += 1;
-    else if (text[index] === closing) { depth -= 1; if (depth === 0) return index; }
+    else if (text[index] === closing) {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
   }
   throw new Error(`Descriptor has an unclosed ${opening}.`);
 }
@@ -103,7 +116,10 @@ function splitTopLevel(text: string): string[] {
     else if (character === ']') square -= 1;
     else if (character === '{') curly += 1;
     else if (character === '}') curly -= 1;
-    else if (character === ',' && round === 0 && square === 0 && curly === 0) { parts.push(text.slice(start, index)); start = index + 1; }
+    else if (character === ',' && round === 0 && square === 0 && curly === 0) {
+      parts.push(text.slice(start, index));
+      start = index + 1;
+    }
     if (round < 0 || square < 0 || curly < 0) throw new Error('Descriptor delimiters are unbalanced.');
   }
   if (round !== 0 || square !== 0 || curly !== 0) throw new Error('Descriptor delimiters are unbalanced.');
@@ -133,7 +149,10 @@ function expression(text: string): ExpressionNode | null {
   let body = text;
   let wrappers = '';
   const wrapper = /^([a-z]+):/u.exec(body);
-  if (wrapper !== null) { wrappers = wrapper[1]!; body = body.slice(wrapper[0].length); }
+  if (wrapper !== null) {
+    wrappers = wrapper[1]!;
+    body = body.slice(wrapper[0].length);
+  }
   if (body === '0' || body === '1') return { name: body, wrappers, args: [] };
   const match = /^([a-z0-9_]+)\(/u.exec(body);
   if (match === null) return null;
@@ -142,9 +161,16 @@ function expression(text: string): ExpressionNode | null {
   const name = match[1]!;
   const rawArguments = splitTopLevel(body.slice(open + 1, close));
   const numericFirstArgument = ['thresh', 'multi', 'sortedmulti', 'multi_a', 'sortedmulti_a'].includes(name);
-  if (close !== body.length - 1 && !(name === 'musig' && /^\/(?:[0-9]+|<[^>]+>|\*)(?:\/(?:[0-9]+|<[^>]+>|\*))*$/u.test(body.slice(close + 1)))) return null;
+  if (
+    close !== body.length - 1 &&
+    !(name === 'musig' && /^\/(?:[0-9]+|<[^>]+>|\*)(?:\/(?:[0-9]+|<[^>]+>|\*))*$/u.test(body.slice(close + 1)))
+  )
+    return null;
   const args = rawArguments.map((argument, index): ExpressionNode | string => {
-    if ((!numericFirstArgument || index !== 0) && (/^(?:[a-z]+:)?[a-z0-9_]+\(/u.test(argument) || /^(?:[a-z]+:)?[01]$/u.test(argument))) {
+    if (
+      (!numericFirstArgument || index !== 0) &&
+      (/^(?:[a-z]+:)?[a-z0-9_]+\(/u.test(argument) || /^(?:[a-z]+:)?[01]$/u.test(argument))
+    ) {
       return expression(argument) ?? argument;
     }
     return argument;
@@ -163,7 +189,8 @@ function describeTaprootKey(value: ExpressionNode | string): string {
 }
 
 function unwrapWrapper(node: ExpressionNode): ExpressionNode {
-  if (['sh', 'wsh'].includes(node.name) && node.args[0] !== undefined && typeof node.args[0] !== 'string') return unwrapWrapper(node.args[0]);
+  if (['sh', 'wsh'].includes(node.name) && node.args[0] !== undefined && typeof node.args[0] !== 'string')
+    return unwrapWrapper(node.args[0]);
   return node;
 }
 
@@ -171,7 +198,9 @@ function describeAbsolute(value: number): string {
   if (!Number.isSafeInteger(value) || value < 0) return `invalid absolute lock ${value}`;
   if (value < CONSENSUS_LIMITS.absoluteLockTimeThreshold) return `after block height ${value}`;
   const date = new Date(value * 1000);
-  return Number.isNaN(date.valueOf()) ? `after Unix time ${value}` : `after approximately ${date.toISOString()} (Unix time ${value}, enforced using median-time-past)`;
+  return Number.isNaN(date.valueOf())
+    ? `after Unix time ${value}`
+    : `after approximately ${date.toISOString()} (Unix time ${value}, enforced using median-time-past)`;
 }
 
 const WRAPPER_MEANINGS: Readonly<Record<string, string>> = {
@@ -197,25 +226,29 @@ function describeCondition(node: ExpressionNode): string {
   if (['multi', 'sortedmulti', 'multi_a', 'sortedmulti_a'].includes(node.name)) {
     const required = Number(node.args[0]);
     const keys = node.args.slice(1);
-    return `${required}-of-${keys.length} signatures (${keys.map((key) =>
-      typeof key === 'string' ? describedKey(key) : describeTaprootKey(key)
-    ).join('; ')})`;
+    return `${required}-of-${keys.length} signatures (${keys
+      .map((key) => (typeof key === 'string' ? describedKey(key) : describeTaprootKey(key)))
+      .join('; ')})`;
   }
 
   if (node.name === 'musig') {
     const keys = node.args.filter((value): value is string => typeof value === 'string');
     return `MuSig2 aggregate key from ${keys.length} participants (${keys.map(describedKey).join('; ')}); cooperative spend uses one aggregate Schnorr signature`;
   }
-  if (['pk', 'pk_k', 'pkh', 'pk_h'].includes(node.name)) return `one signature from ${describedKey(String(node.args[0] ?? 'unknown key'))}`;
-  if (node.name === 'older') return `relative timelock ${relativeLock(Number(node.args[0]))} after confirmation of the spent UTXO`;
+  if (['pk', 'pk_k', 'pkh', 'pk_h'].includes(node.name))
+    return `one signature from ${describedKey(String(node.args[0] ?? 'unknown key'))}`;
+  if (node.name === 'older')
+    return `relative timelock ${relativeLock(Number(node.args[0]))} after confirmation of the spent UTXO`;
   if (node.name === 'after') return describeAbsolute(Number(node.args[0]));
   if (['sha256', 'hash256', 'ripemd160', 'hash160'].includes(node.name)) {
     return `reveal an exact 32-byte preimage whose ${hashAlgorithm(node.name)} digest is ${String(node.args[0] ?? '')}`;
   }
   if (['and_v', 'and_b', 'and_n'].includes(node.name)) return node.args.map(nodeText).join(' AND ');
-  if (node.name === 'andor' && node.args.length === 3) return `if ${nodeText(node.args[0]!)}, then ${nodeText(node.args[1]!)}, otherwise ${nodeText(node.args[2]!)}`;
+  if (node.name === 'andor' && node.args.length === 3)
+    return `if ${nodeText(node.args[0]!)}, then ${nodeText(node.args[1]!)}, otherwise ${nodeText(node.args[2]!)}`;
   if (['or_b', 'or_c', 'or_d', 'or_i'].includes(node.name)) return node.args.map(nodeText).join(' OR ');
-  if (node.name === 'thresh') return `at least ${String(node.args[0])} of these conditions: ${node.args.slice(1).map(nodeText).join('; ')}`;
+  if (node.name === 'thresh')
+    return `at least ${String(node.args[0])} of these conditions: ${node.args.slice(1).map(nodeText).join('; ')}`;
   if (node.name === '0') return 'an impossible branch';
   if (node.name === '1') return 'no additional condition';
   return `${node.wrappers.length > 0 ? `${node.wrappers}:` : ''}${node.name}(…) — standard fragment not yet translated; inspect it manually`;
@@ -230,13 +263,16 @@ function treeLabel(node: ExpressionNode): string {
   if (['and_v', 'and_b', 'and_n'].includes(node.name)) return `${prefix}AND (${node.name})`;
   if (node.name === 'older') return `relative lock: ${relativeLock(Number(node.args[0]))}`;
   if (node.name === 'after') return `absolute lock: ${describeAbsolute(Number(node.args[0]))}`;
-  if (['sha256', 'hash256', 'ripemd160', 'hash160'].includes(node.name)) return `${prefix}hashlock: ${hashAlgorithm(node.name)} ${String(node.args[0] ?? '')}`;
-  if (['pk', 'pk_k', 'pkh', 'pk_h'].includes(node.name)) return `${prefix}${node.name}: ${shortenedKey(String(node.args[0] ?? 'unknown key'))}`;
+  if (['sha256', 'hash256', 'ripemd160', 'hash160'].includes(node.name))
+    return `${prefix}hashlock: ${hashAlgorithm(node.name)} ${String(node.args[0] ?? '')}`;
+  if (['pk', 'pk_k', 'pkh', 'pk_h'].includes(node.name))
+    return `${prefix}${node.name}: ${shortenedKey(String(node.args[0] ?? 'unknown key'))}`;
   if (node.name === 'musig') return `${prefix}musig: aggregate ${node.args.length} keys`;
   if (['multi', 'sortedmulti', 'multi_a', 'sortedmulti_a'].includes(node.name)) {
     return `${prefix}${node.name}: ${String(node.args[0])}-of-${Math.max(0, node.args.length - 1)} keys`;
   }
-  if (node.name === 'thresh') return `${prefix}threshold: ${String(node.args[0])} of ${Math.max(0, node.args.length - 1)} conditions`;
+  if (node.name === 'thresh')
+    return `${prefix}threshold: ${String(node.args[0])} of ${Math.max(0, node.args.length - 1)} conditions`;
   return `${prefix}${node.name}`;
 }
 
@@ -244,10 +280,7 @@ function policyTree(node: ExpressionNode, prefix = '', last = true): string[] {
   const line = `${prefix}${prefix.length === 0 ? '' : last ? '└─ ' : '├─ '}${treeLabel(node)}`;
   const children = node.args.filter((argument): argument is ExpressionNode => typeof argument !== 'string');
   const childPrefix = prefix.length === 0 ? '' : `${prefix}${last ? '   ' : '│  '}`;
-  return [
-    line,
-    ...children.flatMap((child, index) => policyTree(child, childPrefix, index === children.length - 1)),
-  ];
+  return [line, ...children.flatMap((child, index) => policyTree(child, childPrefix, index === children.length - 1))];
 }
 
 function collectKeys(value: ExpressionNode | string): string[] {
@@ -256,18 +289,25 @@ function collectKeys(value: ExpressionNode | string): string[] {
     ? [shortenedKey(String(value.args[0] ?? 'unknown key'))]
     : value.name === 'musig'
       ? value.args.filter((argument): argument is string => typeof argument === 'string').map(shortenedKey)
-    : ['multi', 'sortedmulti', 'multi_a', 'sortedmulti_a'].includes(value.name)
-      ? value.args.slice(1).filter((argument): argument is string => typeof argument === 'string').map(shortenedKey)
-      : [];
+      : ['multi', 'sortedmulti', 'multi_a', 'sortedmulti_a'].includes(value.name)
+        ? value.args
+            .slice(1)
+            .filter((argument): argument is string => typeof argument === 'string')
+            .map(shortenedKey)
+        : [];
   return [...direct, ...value.args.flatMap(collectKeys)];
 }
 
 function collectKeyExpressions(value: ExpressionNode | string): string[] {
   if (typeof value === 'string') return [];
   const direct = ['pk', 'pk_k', 'pkh', 'pk_h', 'wpkh', 'combo', 'rawtr'].includes(value.name)
-    ? (typeof value.args[0] === 'string' ? [value.args[0]] : [])
+    ? typeof value.args[0] === 'string'
+      ? [value.args[0]]
+      : []
     : value.name === 'tr'
-      ? (typeof value.args[0] === 'string' ? [value.args[0]] : [])
+      ? typeof value.args[0] === 'string'
+        ? [value.args[0]]
+        : []
       : value.name === 'musig'
         ? value.args.filter((argument): argument is string => typeof argument === 'string')
         : ['multi', 'sortedmulti', 'multi_a', 'sortedmulti_a'].includes(value.name)
@@ -278,14 +318,23 @@ function collectKeyExpressions(value: ExpressionNode | string): string[] {
 
 function collectLocks(value: ExpressionNode | string): string[] {
   if (typeof value === 'string') return [];
-  const direct = value.name === 'older'
-    ? [`relative ${relativeLock(Number(value.args[0]))}`]
-    : value.name === 'after' ? [describeAbsolute(Number(value.args[0]))] : [];
+  const direct =
+    value.name === 'older'
+      ? [`relative ${relativeLock(Number(value.args[0]))}`]
+      : value.name === 'after'
+        ? [describeAbsolute(Number(value.args[0]))]
+        : [];
   return [...direct, ...value.args.flatMap(collectLocks)];
 }
 
 function hashAlgorithm(name: string): string {
-  return name === 'sha256' ? 'SHA-256' : name === 'hash256' ? 'HASH256' : name === 'ripemd160' ? 'RIPEMD-160' : 'HASH160';
+  return name === 'sha256'
+    ? 'SHA-256'
+    : name === 'hash256'
+      ? 'HASH256'
+      : name === 'ripemd160'
+        ? 'RIPEMD-160'
+        : 'HASH160';
 }
 
 function collectPreimages(value: ExpressionNode | string): string[] {
@@ -305,7 +354,10 @@ function combinePaths(left: PathEnumeration, right: PathEnumeration): PathEnumer
   if (left.limited || right.limited || left.paths.length * right.paths.length > MAX_DESCRIPTOR_PATH_CARDS) {
     return { paths: [], limited: true };
   }
-  return { paths: left.paths.flatMap((leftPath) => right.paths.map((rightPath) => [...leftPath, ...rightPath])), limited: false };
+  return {
+    paths: left.paths.flatMap((leftPath) => right.paths.map((rightPath) => [...leftPath, ...rightPath])),
+    limited: false,
+  };
 }
 
 function pathAlternatives(value: ExpressionNode | string): PathEnumeration {
@@ -322,13 +374,20 @@ function pathAlternatives(value: ExpressionNode | string): PathEnumeration {
     const success = pathAlternatives(node.args[1]!);
     const fallback = pathAlternatives(node.args[2]!);
     const primary = combinePaths(condition, success);
-    if (primary.limited || fallback.limited || primary.paths.length + fallback.paths.length > MAX_DESCRIPTOR_PATH_CARDS) {
+    if (
+      primary.limited ||
+      fallback.limited ||
+      primary.paths.length + fallback.paths.length > MAX_DESCRIPTOR_PATH_CARDS
+    ) {
       return { paths: [], limited: true };
     }
     return { paths: [...primary.paths, ...fallback.paths], limited: false };
   }
   if (['and_v', 'and_b', 'and_n'].includes(node.name)) {
-    return node.args.reduce<PathEnumeration>((paths, argument) => combinePaths(paths, pathAlternatives(argument)), { paths: [[]], limited: false });
+    return node.args.reduce<PathEnumeration>((paths, argument) => combinePaths(paths, pathAlternatives(argument)), {
+      paths: [[]],
+      limited: false,
+    });
   }
   return { paths: [[node]], limited: false };
 }
@@ -336,14 +395,16 @@ function pathAlternatives(value: ExpressionNode | string): PathEnumeration {
 function descriptorPathCards(node: ExpressionNode): DescriptorPathCard[] {
   const enumerated = pathAlternatives(node);
   if (enumerated.limited) {
-    return [{
-      title: 'Path summary',
-      availability: 'Too many alternatives to enumerate safely',
-      requirement: `This descriptor has more than ${MAX_DESCRIPTOR_PATH_CARDS} possible spending-path combinations. Review the symbolic policy tree instead.`,
-      keys: [],
-      locks: [],
-      preimages: [],
-    }];
+    return [
+      {
+        title: 'Path summary',
+        availability: 'Too many alternatives to enumerate safely',
+        requirement: `This descriptor has more than ${MAX_DESCRIPTOR_PATH_CARDS} possible spending-path combinations. Review the symbolic policy tree instead.`,
+        keys: [],
+        locks: [],
+        preimages: [],
+      },
+    ];
   }
   return enumerated.paths.map((alternative, index) => {
     const locks = alternative.flatMap(collectLocks);
@@ -376,7 +437,10 @@ function calls(text: string, name: string): string[] {
     const start = text.indexOf(`${name}(`, from);
     if (start === -1) return results;
     const previous = start === 0 ? '' : text[start - 1]!;
-    if (/[a-z0-9_]/u.test(previous)) { from = start + name.length; continue; }
+    if (/[a-z0-9_]/u.test(previous)) {
+      from = start + name.length;
+      continue;
+    }
     const open = start + name.length;
     const close = matchingClose(text, open);
     results.push(text.slice(open + 1, close));
@@ -385,7 +449,8 @@ function calls(text: string, name: string): string[] {
 }
 
 function relativeLock(value: number): string {
-  if ((value & CONSENSUS_LIMITS.bip68DisableFlag) !== 0) return `${value} (disabled flag set; invalid as an active relative lock)`;
+  if ((value & CONSENSUS_LIMITS.bip68DisableFlag) !== 0)
+    return `${value} (disabled flag set; invalid as an active relative lock)`;
   const units = value & CONSENSUS_LIMITS.bip68SequenceMask;
   if ((value & CONSENSUS_LIMITS.bip68TypeFlag) !== 0) {
     const seconds = units * 512;
@@ -399,12 +464,16 @@ function relativeLock(value: number): string {
 
 function validateNodeKeys(node: ExpressionNode, network: PsbtNetwork, tapscript = false, wildcardIndex = 0): void {
   const validate = (value: ExpressionNode | string | undefined, allowXOnly = tapscript): void => {
-    if (typeof value !== 'string') throw new Error('Invalid public key: the descriptor key argument is missing or is not a key expression.');
+    if (typeof value !== 'string')
+      throw new Error('Invalid public key: the descriptor key argument is missing or is not a key expression.');
     validateDescriptorPublicKey(value, network, { allowXOnly, wildcardIndex });
   };
-  if (['pk', 'pk_k', 'pkh', 'pk_h', 'wpkh', 'combo'].includes(node.name) && typeof node.args[0] === 'string') validate(node.args[0]);
-  if (node.name === 'rawtr' && typeof node.args[0] === 'string' && !node.args[0].startsWith('musig(')) validate(node.args[0], true);
-  if (node.name === 'tr' && typeof node.args[0] === 'string' && !node.args[0].startsWith('musig(')) validate(node.args[0], true);
+  if (['pk', 'pk_k', 'pkh', 'pk_h', 'wpkh', 'combo'].includes(node.name) && typeof node.args[0] === 'string')
+    validate(node.args[0]);
+  if (node.name === 'rawtr' && typeof node.args[0] === 'string' && !node.args[0].startsWith('musig('))
+    validate(node.args[0], true);
+  if (node.name === 'tr' && typeof node.args[0] === 'string' && !node.args[0].startsWith('musig('))
+    validate(node.args[0], true);
   if (['multi', 'sortedmulti', 'multi_a', 'sortedmulti_a'].includes(node.name)) {
     node.args.slice(1).forEach((key) => {
       if (typeof key === 'string') validate(key, tapscript || node.name.endsWith('_a'));
@@ -455,12 +524,15 @@ function compiledDescriptorOutput(
 
   if (type === 'tr' || type === 'rawtr') {
     const payment = compileTaprootDescriptor(payload, network, wildcardIndex, multipathChoice);
-    return { asm: decodeScript(bytesToHex(payment.script), chain, network, 'script-pubkey').asm, rows: [
-      { label: 'scriptPubKey', value: bytesToHex(payment.script) },
-      { label: 'Address', value: payment.address },
-      { label: 'Output type', value: 'P2TR' },
-      { label: 'Witness version', value: '1' },
-    ] };
+    return {
+      asm: decodeScript(bytesToHex(payment.script), chain, network, 'script-pubkey').asm,
+      rows: [
+        { label: 'scriptPubKey', value: bytesToHex(payment.script) },
+        { label: 'Address', value: payment.address },
+        { label: 'Output type', value: 'P2TR' },
+        { label: 'Witness version', value: '1' },
+      ],
+    };
   } else if (type === 'multi' || type === 'sortedmulti') {
     const parsed = expression(payload);
     if (parsed === null) return null;
@@ -476,19 +548,34 @@ function compiledDescriptorOutput(
     if (parsed === null) return null;
     if (type === 'sh' && (parsed.name === 'wsh' || parsed.name === 'wpkh')) {
       const inner = compiledDescriptorOutput(argument, parsed.name, chain, network, multipathChoice, wildcardIndex);
-      const redeem = inner?.rows.find(row => row.label === 'scriptPubKey')?.value;
+      const redeem = inner?.rows.find((row) => row.label === 'scriptPubKey')?.value;
       if (redeem === undefined) return null;
       const script = Uint8Array.of(0xa9, 0x14, ...hash160(hexToBytes(redeem)), 0x87);
-      return { asm: inner!.asm, rows: [...inner!.rows.filter(row => !['scriptPubKey', 'Address', 'Output type'].includes(row.label)),
-        { label: 'Redeem script', value: redeem }, { label: 'scriptPubKey', value: bytesToHex(script) },
-        { label: 'Address', value: describeScript(script, chain, network).address! }, { label: 'Output type', value: 'P2SH' }] };
+      return {
+        asm: inner!.asm,
+        rows: [
+          ...inner!.rows.filter((row) => !['scriptPubKey', 'Address', 'Output type'].includes(row.label)),
+          { label: 'Redeem script', value: redeem },
+          { label: 'scriptPubKey', value: bytesToHex(script) },
+          { label: 'Address', value: describeScript(script, chain, network).address! },
+          { label: 'Output type', value: 'P2SH' },
+        ],
+      };
     }
-    if (['wpkh', 'wsh', 'sh', 'tr', 'rawtr', 'addr', 'raw'].includes(parsed.name)) throw new Error('Invalid nested output wrapper.');
+    if (['wpkh', 'wsh', 'sh', 'tr', 'rawtr', 'addr', 'raw'].includes(parsed.name))
+      throw new Error('Invalid nested output wrapper.');
     const concreteMiniscript = materializedExpression(parsed, network, multipathChoice, wildcardIndex);
-    const compiled = compilePolicyMiniscript(concreteMiniscript, { allowUncompressed: type === 'sh', context: type === 'sh' ? 'p2sh' : 'p2wsh' });
+    const compiled = compilePolicyMiniscript(concreteMiniscript, {
+      allowUncompressed: type === 'sh',
+      context: type === 'sh' ? 'p2sh' : 'p2wsh',
+    });
     spendingScript = compiled.script;
     asm = compiled.asm;
-    if (spendingScript.length > (type === 'sh' ? CONSENSUS_LIMITS.maximumScriptElementBytes : CONSENSUS_LIMITS.maximumScriptBytes)) throw new Error('Spending script exceeds the selected wrapper limit.');
+    if (
+      spendingScript.length >
+      (type === 'sh' ? CONSENSUS_LIMITS.maximumScriptElementBytes : CONSENSUS_LIMITS.maximumScriptBytes)
+    )
+      throw new Error('Spending script exceeds the selected wrapper limit.');
     if (type === 'wsh') {
       const witnessProgram = sha256(spendingScript);
       scriptPubKey = Uint8Array.of(0x00, 0x20, ...witnessProgram);
@@ -499,9 +586,10 @@ function compiledDescriptorOutput(
     }
     concretePayload = `${type}(${concreteMiniscript})`;
   } else if (['pk', 'pkh', 'wpkh', 'rawtr'].includes(type)) {
-    const concreteKey = type === 'rawtr' && /^[0-9a-fA-F]{64}$/u.test(argument)
-      ? argument.toLowerCase()
-      : materializeDescriptorKey(argument, network, multipathChoice, wildcardIndex);
+    const concreteKey =
+      type === 'rawtr' && /^[0-9a-fA-F]{64}$/u.test(argument)
+        ? argument.toLowerCase()
+        : materializeDescriptorKey(argument, network, multipathChoice, wildcardIndex);
     if (type === 'pk') {
       spendingScript = Uint8Array.of(concreteKey.length / 2, ...hexToBytes(concreteKey), 0xac);
       scriptPubKey = spendingScript;
@@ -541,14 +629,19 @@ function compiledDescriptorOutput(
 
   const description = describeScript(scriptPubKey, chain, network);
   const witnessVersion = scriptPubKey[0] === 0x00 ? '0' : scriptPubKey[0] === 0x51 ? '1' : 'Not applicable';
-  const witnessProgram = witnessVersion === '0' || witnessVersion === '1'
-    ? bytesToHex(scriptPubKey.slice(2))
-    : 'Not applicable';
+  const witnessProgram =
+    witnessVersion === '0' || witnessVersion === '1' ? bytesToHex(scriptPubKey.slice(2)) : 'Not applicable';
   return {
     asm,
     rows: [
-      { label: 'Normalized checksummed descriptor', value: `${concretePayload}#${descriptorChecksum(concretePayload)}` },
-      { label: type === 'wsh' ? 'Witness script' : type === 'sh' ? 'Redeem script' : 'Compiled script', value: bytesToHex(spendingScript) },
+      {
+        label: 'Normalized checksummed descriptor',
+        value: `${concretePayload}#${descriptorChecksum(concretePayload)}`,
+      },
+      {
+        label: type === 'wsh' ? 'Witness script' : type === 'sh' ? 'Redeem script' : 'Compiled script',
+        value: bytesToHex(spendingScript),
+      },
       { label: type === 'wsh' ? 'Witness script ASM' : 'Script ASM', value: asm },
       { label: 'scriptPubKey', value: bytesToHex(scriptPubKey) },
       { label: 'Output type', value: outputType },
@@ -566,11 +659,14 @@ function validateDescriptorMiniscript(payload: string, type: string): void {
     if (parsed === null) throw new Error('Unsupported top-level Miniscript: the fragment is not recognized.');
     if (['sortedmulti', 'sortedmulti_a'].includes(parsed.name)) {
       const threshold = Number(parsed.args[0]);
-      if (!Number.isSafeInteger(threshold) || threshold < 1 || threshold >= parsed.args.length) throw new Error('Invalid multisig threshold.');
+      if (!Number.isSafeInteger(threshold) || threshold < 1 || threshold >= parsed.args.length)
+        throw new Error('Invalid multisig threshold.');
       return;
     }
     if (['wpkh', 'wsh', 'sh', 'tr', 'rawtr', 'addr', 'raw'].includes(parsed.name)) {
-      throw new Error(`Invalid wrapper combination: ${parsed.name}() is an output descriptor, not a Miniscript fragment in this position.`);
+      throw new Error(
+        `Invalid wrapper combination: ${parsed.name}() is an output descriptor, not a Miniscript fragment in this position.`,
+      );
     }
     validatePolicyMiniscript(fragment, { tapscript });
   };
@@ -588,46 +684,84 @@ function validateDescriptorMiniscript(payload: string, type: string): void {
   if (type === 'sortedmulti') return;
 }
 
-export function decodeDescriptor(input: string, options: { readonly chain?: 'bitcoin' | 'dash'; readonly network?: PsbtNetwork; readonly multipathChoice?: 0 | 1; readonly wildcardIndex?: number } = {}): DecodedDescriptor {
+export function decodeDescriptor(
+  input: string,
+  options: {
+    readonly chain?: 'bitcoin' | 'dash';
+    readonly network?: PsbtNetwork;
+    readonly multipathChoice?: 0 | 1;
+    readonly wildcardIndex?: number;
+  } = {},
+): DecodedDescriptor {
   const normalized = input.trim().replaceAll('\\_', '_').replaceAll('\\*', '*');
   const separator = normalized.lastIndexOf('#');
   const payload = separator === -1 ? normalized : normalized.slice(0, separator);
   const supplied = separator === -1 ? null : normalized.slice(separator + 1);
   if (payload.length === 0 || payload.length > 100_000) throw new Error('Descriptor is empty or unreasonably large.');
-  if (supplied !== null && !/^[a-z0-9]{8}$/u.test(supplied)) throw new Error('Invalid descriptor checksum: the checksum must contain eight characters.');
+  if (supplied !== null && !/^[a-z0-9]{8}$/u.test(supplied))
+    throw new Error('Invalid descriptor checksum: the checksum must contain eight characters.');
   const expected = descriptorChecksum(payload);
   if (supplied !== null && supplied !== expected) {
     const restoredWildcards = payload.replaceAll(/\/(?=[,)}])/gu, '/*');
     if (restoredWildcards !== payload && descriptorChecksum(restoredWildcards) === supplied) {
-      throw new Error(`Invalid descriptor checksum: a wildcard was removed. One or more derivation paths end with "/"; restore "/*" at those positions and checksum ${supplied} is valid.`);
+      throw new Error(
+        `Invalid descriptor checksum: a wildcard was removed. One or more derivation paths end with "/"; restore "/*" at those positions and checksum ${supplied} is valid.`,
+      );
     }
-    throw new Error(`Invalid descriptor checksum: supplied ${supplied}, expected ${expected}. The checksum covers the exact descriptor text, including every derivation wildcard "*" and any spaces.`);
+    throw new Error(
+      `Invalid descriptor checksum: supplied ${supplied}, expected ${expected}. The checksum covers the exact descriptor text, including every derivation wildcard "*" and any spaces.`,
+    );
   }
-  if (/\s/u.test(payload)) throw new Error('Whitespace is not permitted inside a descriptor expression; its checksum covers the exact spaced text.');
+  if (/\s/u.test(payload))
+    throw new Error(
+      'Whitespace is not permitted inside a descriptor expression; its checksum covers the exact spaced text.',
+    );
   const type = /^([a-z0-9_]+)\(/u.exec(payload)?.[1];
   if (type === undefined) throw new Error('Input is neither Script hex nor a recognized output descriptor.');
-  if (!['tr', 'rawtr', 'sp', 'wsh', 'sh', 'pk', 'pkh', 'wpkh', 'combo', 'addr', 'raw', 'multi', 'sortedmulti'].includes(type)) throw new Error(`Unsupported top-level descriptor ${type}().`);
+  if (
+    !['tr', 'rawtr', 'sp', 'wsh', 'sh', 'pk', 'pkh', 'wpkh', 'combo', 'addr', 'raw', 'multi', 'sortedmulti'].includes(
+      type,
+    )
+  )
+    throw new Error(`Unsupported top-level descriptor ${type}().`);
   if (type === 'raw') {
     const open = payload.indexOf('(');
     const rawScript = payload.slice(open + 1, matchingClose(payload, open));
-    if (rawScript.length === 0 || !/^[0-9a-fA-F]+$/u.test(rawScript)) throw new Error('Malformed Script hex in raw(): only non-empty hexadecimal bytes are allowed.');
-    if (rawScript.length % 2 !== 0) throw new Error('Malformed Script hex in raw(): odd-length hex is missing one nibble.');
+    if (rawScript.length === 0 || !/^[0-9a-fA-F]+$/u.test(rawScript))
+      throw new Error('Malformed Script hex in raw(): only non-empty hexadecimal bytes are allowed.');
+    if (rawScript.length % 2 !== 0)
+      throw new Error('Malformed Script hex in raw(): odd-length hex is missing one nibble.');
   }
   if (options.chain === 'dash') {
-    if (!['pk', 'pkh', 'sh', 'combo', 'addr', 'raw', 'multi', 'sortedmulti'].includes(type) || /(?:^|[,(])(?:wpkh|wsh|tr|rawtr|sp|multi_a|sortedmulti_a|musig)\(/u.test(payload)) {
-      throw new Error('Dash Community descriptors are limited to legacy pk(), pkh(), sh(), multi(), sortedmulti(), addr(), raw(), and supported legacy Script/Miniscript fragments. SegWit, Taproot, and MuSig2 are unavailable on Dash.');
+    if (
+      !['pk', 'pkh', 'sh', 'combo', 'addr', 'raw', 'multi', 'sortedmulti'].includes(type) ||
+      /(?:^|[,(])(?:wpkh|wsh|tr|rawtr|sp|multi_a|sortedmulti_a|musig)\(/u.test(payload)
+    ) {
+      throw new Error(
+        'Dash Community descriptors are limited to legacy pk(), pkh(), sh(), multi(), sortedmulti(), addr(), raw(), and supported legacy Script/Miniscript fragments. SegWit, Taproot, and MuSig2 are unavailable on Dash.',
+      );
     }
   }
 
   const rows: DescriptorRow[] = [];
-  const xpubs = [...payload.matchAll(/(?:\[[0-9a-fA-F]{8}(?:\/[^\]]+)?\])?[xt]pub[1-9A-HJ-NP-Za-km-z]+(?:\/(?:[0-9]+['hH]?|<[^>]+>|\*))*/gu)].map((match) => match[0]);
-  rows.push({ label: 'Extended public keys', value: `${xpubs.length} occurrences · ${new Set(xpubs).size} distinct expressions` });
+  const xpubs = [
+    ...payload.matchAll(
+      /(?:\[[0-9a-fA-F]{8}(?:\/[^\]]+)?\])?[xt]pub[1-9A-HJ-NP-Za-km-z]+(?:\/(?:[0-9]+['hH]?|<[^>]+>|\*))*/gu,
+    ),
+  ].map((match) => match[0]);
+  rows.push({
+    label: 'Extended public keys',
+    value: `${xpubs.length} occurrences · ${new Set(xpubs).size} distinct expressions`,
+  });
   xpubs.forEach((key, index) => rows.push({ label: `Key expression ${index + 1}`, value: shortenedKey(key) }));
 
   if (type === 'tr' || type === 'rawtr') {
     const close = matchingClose(payload, payload.indexOf('('));
     const argumentsList = splitTopLevel(payload.slice(payload.indexOf('(') + 1, close));
-    rows.unshift({ label: 'Taproot key path', value: argumentsList[0] === undefined ? 'Missing' : shortenedKey(argumentsList[0]) });
+    rows.unshift({
+      label: 'Taproot key path',
+      value: argumentsList[0] === undefined ? 'Missing' : shortenedKey(argumentsList[0]),
+    });
     if (argumentsList[1] !== undefined) {
       treeLeaves(argumentsList[1]).forEach((leaf, index) => {
         const analysis = miniscriptAnalysis(leaf, true);
@@ -641,41 +775,77 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
     if (analysis !== null) rows.push({ label: 'Miniscript analysis', value: analysis });
   }
   const parsedDescriptor = expression(payload);
-  if (parsedDescriptor === null) throw new Error('Unsupported top-level Miniscript or malformed descriptor expression.');
-  if (type === 'tr' ? parsedDescriptor.args.length < 1 || parsedDescriptor.args.length > 2 : !['multi', 'sortedmulti', 'sp'].includes(type) && parsedDescriptor.args.length !== 1) throw new Error('Invalid output descriptor arity.');
-  if (type === 'combo' && typeof parsedDescriptor.args[0] !== 'string') throw new Error('combo() requires one public key expression.');
+  if (parsedDescriptor === null)
+    throw new Error('Unsupported top-level Miniscript or malformed descriptor expression.');
+  if (
+    type === 'tr'
+      ? parsedDescriptor.args.length < 1 || parsedDescriptor.args.length > 2
+      : !['multi', 'sortedmulti', 'sp'].includes(type) && parsedDescriptor.args.length !== 1
+  )
+    throw new Error('Invalid output descriptor arity.');
+  if (type === 'combo' && typeof parsedDescriptor.args[0] !== 'string')
+    throw new Error('combo() requires one public key expression.');
   if (type === 'sp') {
     if (parsedDescriptor.args.length !== 2) throw new Error('Silent Payments descriptors require scan and spend keys.');
     for (const key of parsedDescriptor.args) {
-      if (typeof key === 'string') validateDescriptorPublicKey(key, options.network ?? 'mainnet', { wildcardIndex: options.wildcardIndex ?? 0 });
+      if (typeof key === 'string')
+        validateDescriptorPublicKey(key, options.network ?? 'mainnet', { wildcardIndex: options.wildcardIndex ?? 0 });
       else if (key.name !== 'musig') throw new Error('Invalid Silent Payments key expression.');
     }
   }
   validateNodeKeys(parsedDescriptor, options.network ?? 'mainnet', type === 'tr', options.wildcardIndex ?? 0);
   validateDescriptorMiniscript(payload, type);
   const musigs = calls(payload, 'musig');
-  if (musigs.length > 0 && options.chain === 'dash') throw new Error('BIP-390 MuSig2 descriptors are supported for Bitcoin Taproot only.');
-  const musigAnalysis = analyzeMusigDescriptor(payload, options.network ?? 'mainnet', options.wildcardIndex ?? 0, options.multipathChoice ?? 0);
+  if (musigs.length > 0 && options.chain === 'dash')
+    throw new Error('BIP-390 MuSig2 descriptors are supported for Bitcoin Taproot only.');
+  const musigAnalysis = analyzeMusigDescriptor(
+    payload,
+    options.network ?? 'mainnet',
+    options.wildcardIndex ?? 0,
+    options.multipathChoice ?? 0,
+  );
   const keyExpressions = [...new Set(collectKeyExpressions(parsedDescriptor))];
   keyExpressions.forEach((key, index) => {
     const origin = /^\[([^\]]+)\]/u.exec(key)?.[1];
     const extendedKey = /([xt]pub[1-9A-HJ-NP-Za-km-z]+)/u.exec(key)?.[1];
     const bareKey = key.replace(/^\[[^\]]+\]/u, '');
-    const suffix = extendedKey === undefined ? 'fixed key' : key.slice(key.indexOf(extendedKey) + extendedKey.length) || 'none';
+    const suffix =
+      extendedKey === undefined ? 'fixed key' : key.slice(key.indexOf(extendedKey) + extendedKey.length) || 'none';
     rows.push(
       { label: `Key ${index + 1} · master fingerprint`, value: origin?.split('/')[0] ?? 'Not supplied' },
-      { label: `Key ${index + 1} · origin path`, value: origin?.includes('/') === true ? `m/${origin.split('/').slice(1).join('/')}` : 'Not supplied' },
-      { label: `Key ${index + 1} · ${extendedKey === undefined ? 'public key' : 'extended key'}`, value: extendedKey ?? bareKey },
+      {
+        label: `Key ${index + 1} · origin path`,
+        value: origin?.includes('/') === true ? `m/${origin.split('/').slice(1).join('/')}` : 'Not supplied',
+      },
+      {
+        label: `Key ${index + 1} · ${extendedKey === undefined ? 'public key' : 'extended key'}`,
+        value: extendedKey ?? bareKey,
+      },
       { label: `Key ${index + 1} · descriptor suffix`, value: suffix },
-      { label: `Key ${index + 1} · selected branch / index`, value: `${options.multipathChoice ?? 0} / ${options.wildcardIndex ?? 0}` },
-      { label: `Key ${index + 1} · derived public key`, value: /^[0-9a-fA-F]{64}$/u.test(bareKey) ? bareKey.toLowerCase() : materializeDescriptorKey(key, options.network ?? 'mainnet', options.multipathChoice ?? 0, options.wildcardIndex ?? 0) },
+      {
+        label: `Key ${index + 1} · selected branch / index`,
+        value: `${options.multipathChoice ?? 0} / ${options.wildcardIndex ?? 0}`,
+      },
+      {
+        label: `Key ${index + 1} · derived public key`,
+        value: /^[0-9a-fA-F]{64}$/u.test(bareKey)
+          ? bareKey.toLowerCase()
+          : materializeDescriptorKey(
+              key,
+              options.network ?? 'mainnet',
+              options.multipathChoice ?? 0,
+              options.wildcardIndex ?? 0,
+            ),
+      },
     );
   });
   if (parsedDescriptor !== null) {
     [...new Set(collectWrappers(parsedDescriptor))].forEach((wrapper) => {
       rows.push({
         label: `Wrapper ${wrapper}:`,
-        value: WRAPPER_MEANINGS[wrapper] ?? 'recognized wrapper; inspect the compiled operations for its exact stack transformation',
+        value:
+          WRAPPER_MEANINGS[wrapper] ??
+          'recognized wrapper; inspect the compiled operations for its exact stack transformation',
       });
     });
   }
@@ -685,14 +855,20 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
   ];
   musigAnalysis?.keys.forEach((key, index) => {
     rows.push(
-      { label: `MuSig2 aggregate ${index + 1}`, value: `${key.participantCount} participants · ${key.aggregateCompressedKey}` },
+      {
+        label: `MuSig2 aggregate ${index + 1}`,
+        value: `${key.participantCount} participants · ${key.aggregateCompressedKey}`,
+      },
       { label: `MuSig2 derivation ${index + 1}`, value: key.derivation },
       { label: `MuSig2 sorted participants ${index + 1}`, value: key.sortedParticipantKeys.join(' · ') },
     );
-    if (key.syntheticXpub !== null) rows.push({ label: `BIP-328 synthetic xpub ${index + 1}`, value: key.syntheticXpub });
+    if (key.syntheticXpub !== null)
+      rows.push({ label: `BIP-328 synthetic xpub ${index + 1}`, value: key.syntheticXpub });
   });
-  if (musigAnalysis?.outputScript !== null && musigAnalysis?.outputScript !== undefined) rows.push({ label: 'Derived output script', value: musigAnalysis.outputScript });
-  if (musigAnalysis?.address !== null && musigAnalysis?.address !== undefined) rows.push({ label: 'Derived address', value: musigAnalysis.address });
+  if (musigAnalysis?.outputScript !== null && musigAnalysis?.outputScript !== undefined)
+    rows.push({ label: 'Derived output script', value: musigAnalysis.outputScript });
+  if (musigAnalysis?.address !== null && musigAnalysis?.address !== undefined)
+    rows.push({ label: 'Derived address', value: musigAnalysis.address });
   const compiledOutput = compiledDescriptorOutput(
     payload,
     type,
@@ -708,8 +884,14 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
   classicMultisigs.forEach(({ body, sorted }, index) => {
     const argumentsList = splitTopLevel(body);
     rows.push(
-      { label: `Multisig ${index + 1} · threshold`, value: `${String(argumentsList[0])}-of-${Math.max(0, argumentsList.length - 1)}` },
-      { label: `Multisig ${index + 1} · key order`, value: sorted ? 'BIP67 lexicographic sort · sortedmulti()' : 'Supplied order preserved · multi()' },
+      {
+        label: `Multisig ${index + 1} · threshold`,
+        value: `${String(argumentsList[0])}-of-${Math.max(0, argumentsList.length - 1)}`,
+      },
+      {
+        label: `Multisig ${index + 1} · key order`,
+        value: sorted ? 'BIP67 lexicographic sort · sortedmulti()' : 'Supplied order preserved · multi()',
+      },
     );
   });
   multisigs.forEach(({ body, sorted }, index) => {
@@ -723,27 +905,43 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
   const locks = calls(payload, 'older');
   locks.forEach((body, index) => {
     const value = Number(body);
-    if (!Number.isSafeInteger(value) || value < 1 || value >= CONSENSUS_LIMITS.bip68DisableFlag) throw new Error(`older() value ${body} is invalid.`);
+    if (!Number.isSafeInteger(value) || value < 1 || value >= CONSENSUS_LIMITS.bip68DisableFlag)
+      throw new Error(`older() value ${body} is invalid.`);
     const timeBased = (value & CONSENSUS_LIMITS.bip68TypeFlag) !== 0;
     const units = value & CONSENSUS_LIMITS.bip68SequenceMask;
     const approximateSeconds = timeBased ? units * 512 : units * 600;
     rows.push(
       { label: `Relative lock ${index + 1}`, value: relativeLock(value) },
-      ...(units === 0 ? [{ label: `Timelock ${index + 1} · effective constraint`, value: 'None · BIP68 masks this value to a zero delay; reserved bits do not add a lock.' }] : []),
+      ...(units === 0
+        ? [
+            {
+              label: `Timelock ${index + 1} · effective constraint`,
+              value: 'None · BIP68 masks this value to a zero delay; reserved bits do not add a lock.',
+            },
+          ]
+        : []),
       { label: `Timelock ${index + 1} · type`, value: 'Relative' },
       { label: `Timelock ${index + 1} · opcode`, value: 'OP_CHECKSEQUENCEVERIFY' },
       { label: `Timelock ${index + 1} · BIPs`, value: 'BIP68 / BIP112' },
       { label: `Timelock ${index + 1} · value`, value: relativeLock(value) },
       { label: `Timelock ${index + 1} · starts from`, value: 'Confirmation of the spent UTXO' },
-      { label: `Timelock ${index + 1} · approximate duration`, value: `~${Math.round(approximateSeconds / 3600)} hours${timeBased ? ' (512-second units)' : ' (assuming ~10-minute blocks)'}` },
+      {
+        label: `Timelock ${index + 1} · approximate duration`,
+        value: `~${Math.round(approximateSeconds / 3600)} hours${timeBased ? ' (512-second units)' : ' (assuming ~10-minute blocks)'}`,
+      },
     );
   });
   const absoluteLocks = calls(payload, 'after');
   absoluteLocks.forEach((body, index) => {
     const value = Number(body);
-    if (!Number.isSafeInteger(value) || value < 1 || value >= CONSENSUS_LIMITS.bip68DisableFlag) throw new Error(`Invalid timelock: after() value ${body} is outside the supported nLockTime range.`);
+    if (!Number.isSafeInteger(value) || value < 1 || value >= CONSENSUS_LIMITS.bip68DisableFlag)
+      throw new Error(`Invalid timelock: after() value ${body} is outside the supported nLockTime range.`);
     rows.push(
-      { label: `Absolute timelock ${index + 1} · type`, value: value < CONSENSUS_LIMITS.absoluteLockTimeThreshold ? 'Absolute block height' : 'Absolute median-time-past' },
+      {
+        label: `Absolute timelock ${index + 1} · type`,
+        value:
+          value < CONSENSUS_LIMITS.absoluteLockTimeThreshold ? 'Absolute block height' : 'Absolute median-time-past',
+      },
       { label: `Absolute timelock ${index + 1} · opcode`, value: 'OP_CHECKLOCKTIMEVERIFY' },
       { label: `Absolute timelock ${index + 1} · BIP`, value: 'BIP65' },
       { label: `Absolute timelock ${index + 1} · value`, value: describeAbsolute(value) },
@@ -762,11 +960,22 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
       value: `${hashAlgorithm(name)} digest ${digest.toLowerCase()} · spending requires the exact 32-byte preimage`,
     });
   });
-  const summaryParts = [type === 'tr' ? 'Taproot descriptor with key-path spending' : type === 'rawtr' ? 'Raw Taproot output descriptor' : type === 'sp' ? 'Silent Payments descriptor' : `${type} output descriptor`];
-  if (multisigs.length > 0) summaryParts.push(`${multisigs.length} multi_a script-path ${multisigs.length === 1 ? 'branch' : 'branches'}`);
-  if (locks.length > 0) summaryParts.push(`${locks.length} relative timelock ${locks.length === 1 ? 'condition' : 'conditions'}`);
+  const summaryParts = [
+    type === 'tr'
+      ? 'Taproot descriptor with key-path spending'
+      : type === 'rawtr'
+        ? 'Raw Taproot output descriptor'
+        : type === 'sp'
+          ? 'Silent Payments descriptor'
+          : `${type} output descriptor`,
+  ];
+  if (multisigs.length > 0)
+    summaryParts.push(`${multisigs.length} multi_a script-path ${multisigs.length === 1 ? 'branch' : 'branches'}`);
+  if (locks.length > 0)
+    summaryParts.push(`${locks.length} relative timelock ${locks.length === 1 ? 'condition' : 'conditions'}`);
   if (musigs.length > 0) summaryParts.push(`${musigs.length} MuSig2 aggregate ${musigs.length === 1 ? 'key' : 'keys'}`);
-  if (hashlocks.length > 0) summaryParts.push(`${hashlocks.length} preimage/hashlock ${hashlocks.length === 1 ? 'condition' : 'conditions'}`);
+  if (hashlocks.length > 0)
+    summaryParts.push(`${hashlocks.length} preimage/hashlock ${hashlocks.length === 1 ? 'condition' : 'conditions'}`);
   const spendingPaths: string[] = [];
   let cards: DescriptorPathCard[] = [];
   let tree: string[] = [];
@@ -774,14 +983,19 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
     const close = matchingClose(payload, payload.indexOf('('));
     const argumentsList = splitTopLevel(payload.slice(payload.indexOf('(') + 1, close));
     if (argumentsList[0] !== undefined) {
-      spendingPaths.push(`Taproot key path: ${describeTaprootKey(argumentsList[0])}; available without a script timelock if the corresponding private key is spendable.`);
+      spendingPaths.push(
+        `Taproot key path: ${describeTaprootKey(argumentsList[0])}; available without a script timelock if the corresponding private key is spendable.`,
+      );
     }
-    if (argumentsList[1] !== undefined) treeLeaves(argumentsList[1]).forEach((leaf, index) => {
-      const parsed = expression(leaf);
-      const condition = parsed === null ? `unrecognized leaf ${leaf}` : describeCondition(parsed);
-      const hasTimelock = /(?:older|after)\(/u.test(leaf);
-      spendingPaths.push(`Tapscript path ${index + 1}: ${condition}${hasTimelock ? '.' : '; available immediately without a timelock.'}`);
-    });
+    if (argumentsList[1] !== undefined)
+      treeLeaves(argumentsList[1]).forEach((leaf, index) => {
+        const parsed = expression(leaf);
+        const condition = parsed === null ? `unrecognized leaf ${leaf}` : describeCondition(parsed);
+        const hasTimelock = /(?:older|after)\(/u.test(leaf);
+        spendingPaths.push(
+          `Tapscript path ${index + 1}: ${condition}${hasTimelock ? '.' : '; available immediately without a timelock.'}`,
+        );
+      });
     const outer = expression(payload);
     if (outer !== null) {
       cards = descriptorPathCards(outer);
@@ -794,24 +1008,39 @@ export function decodeDescriptor(input: string, options: { readonly chain?: 'bit
       cards = descriptorPathCards(outer);
       tree = policyTree(outer);
     }
-    const hasHtlcShape = cards.some((card) => card.preimages.length > 0 && card.locks.length === 0)
-      && cards.some((card) => card.preimages.length === 0 && card.locks.length > 0);
+    const hasHtlcShape =
+      cards.some((card) => card.preimages.length > 0 && card.locks.length === 0) &&
+      cards.some((card) => card.preimages.length === 0 && card.locks.length > 0);
     if (hasHtlcShape) {
       rows.push({
         label: 'HTLC-like structure',
-        value: 'One branch spends with a 32-byte hash preimage; an alternative branch spends after a timelock. Required signatures are listed separately for each path.',
+        value:
+          'One branch spends with a 32-byte hash preimage; an alternative branch spends after a timelock. Required signatures are listed separately for each path.',
       });
     }
   }
   rows.unshift(...spendingPaths.map((path, index) => ({ label: `Spending alternative ${index + 1}`, value: path })));
   return {
-    classification: type === 'tr' ? 'BIP-386 Taproot output descriptor + Tapscript Miniscript' : type === 'rawtr' ? 'Bitcoin Core raw Taproot descriptor (referenced by BIP-390)' : type === 'sp' ? 'BIP-352 Silent Payments descriptor' : `${type} output descriptor`,
-    summary: summaryParts.join(' · '), checksum: supplied === null ? `not supplied (calculated ${expected})` : `valid · ${supplied}`,
-    ranged: payload.includes('*'), spendingPaths, pathCards: cards, policyTree: tree, rows, compiledOutput,
+    classification:
+      type === 'tr'
+        ? 'BIP-386 Taproot output descriptor + Tapscript Miniscript'
+        : type === 'rawtr'
+          ? 'Bitcoin Core raw Taproot descriptor (referenced by BIP-390)'
+          : type === 'sp'
+            ? 'BIP-352 Silent Payments descriptor'
+            : `${type} output descriptor`,
+    summary: summaryParts.join(' · '),
+    checksum: supplied === null ? `not supplied (calculated ${expected})` : `valid · ${supplied}`,
+    ranged: payload.includes('*'),
+    spendingPaths,
+    pathCards: cards,
+    policyTree: tree,
+    rows,
+    compiledOutput,
   };
 }
 import { analyzeMiniscript } from '@bitcoinerlab/miniscript';
-import { materializeDescriptorKey, validateDescriptorPublicKey } from './descriptor-key.js';
+import { materializeDescriptorKey, validateDescriptorPublicKey } from '@ckd/core/descriptor-key.js';
 import { compilePolicyMiniscript, validatePolicyMiniscript } from './miniscript-engine.js';
 import { analyzeMusigDescriptor, compileTaprootDescriptor } from './musig-descriptor.js';
 import { describeScript, type PsbtNetwork } from './psbt.js';

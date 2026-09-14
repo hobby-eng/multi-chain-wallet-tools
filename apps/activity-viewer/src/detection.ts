@@ -1,17 +1,8 @@
 import { normalizeIdentityLookupInput } from '@ckd/dash-network/platform-identity-source.js';
-import {
-  assertPublicBatchLookupInput,
-  assertPublicLookupInput,
-} from '@ckd/dash-network/private-material.js';
-import {
-  validateCoreAddress,
-  validatePlatformAddress,
-} from '@ckd/dash-network/public-address.js';
+import { assertPublicBatchLookupInput, assertPublicLookupInput } from '@ckd/public-data-providers/private-material.js';
+import { validateCoreAddress, validatePlatformAddress } from '@ckd/dash-network/public-address.js';
 import type { ViewerNetwork } from '@ckd/dash-network/types.js';
-import {
-  normalizeViewingKey,
-  type ViewingKeyInputMode,
-} from '@ckd/dash-network/viewing-key.js';
+import { normalizeViewingKey, type ViewingKeyInputMode } from '@ckd/dash-network/viewing-key.js';
 import type { ViewerMode } from './view.js';
 
 export interface DetectedViewerInput {
@@ -27,11 +18,7 @@ const EXPLICIT_PREFIX = /^(core|platform|identity|orchard|orchard-fvk|orchard-iv
 const ROUTING_PREFIX = /^(core|platform|identity|orchard|orchard-fvk|orchard-ivk|orchard-ovk)\s*:\s*(.*)$/iu;
 const RAW_32_BYTE_HEX = /^(?:0x)?[0-9a-f]{64}$/iu;
 
-function validateOrchard(
-  value: string,
-  network: ViewerNetwork,
-  prefix: OrchardPrefix,
-): DetectedViewerInput {
+function validateOrchard(value: string, network: ViewerNetwork, prefix: OrchardPrefix): DetectedViewerInput {
   const viewingKeyMode: ViewingKeyInputMode = prefix === 'orchard-ovk' ? 'outgoing' : 'automatic';
   const key = normalizeViewingKey(value, viewingKeyMode);
   try {
@@ -50,11 +37,7 @@ function validateOrchard(
   }
 }
 
-function explicitInput(
-  prefix: string,
-  value: string,
-  network: ViewerNetwork,
-): DetectedViewerInput {
+function explicitInput(prefix: string, value: string, network: ViewerNetwork): DetectedViewerInput {
   if (prefix.startsWith('orchard')) {
     return validateOrchard(value, network, prefix as OrchardPrefix);
   }

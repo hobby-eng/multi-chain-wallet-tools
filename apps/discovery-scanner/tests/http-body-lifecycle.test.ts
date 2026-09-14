@@ -1,23 +1,35 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchJson } from '../src/network-service.js';
 
-afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 function stalledBody(): { headers: Promise<void>; signal: () => AbortSignal | undefined } {
   let received: () => void = () => {};
-  const headers = new Promise<void>(resolve => { received = resolve; });
+  const headers = new Promise<void>((resolve) => {
+    received = resolve;
+  });
   let signal: AbortSignal | undefined;
-  vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
-    signal = init.signal as AbortSignal;
-    const response = new Response(new ReadableStream({
-      start(controller) {
-        controller.enqueue(new TextEncoder().encode('{"incomplete":'));
-        signal!.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')), { once: true });
-      },
-    }));
-    received();
-    return response;
-  }));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (_url: string, init: RequestInit) => {
+      signal = init.signal as AbortSignal;
+      const response = new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('{"incomplete":'));
+            signal!.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')), {
+              once: true,
+            });
+          },
+        }),
+      );
+      received();
+      return response;
+    }),
+  );
   return { headers, signal: () => signal };
 }
 
@@ -49,10 +61,13 @@ describe('HTTP JSON body lifecycle', () => {
   it('releases the caller relay and timer after successful body consumption', async () => {
     vi.useFakeTimers();
     let requestSignal: AbortSignal | undefined;
-    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
-      requestSignal = init.signal as AbortSignal;
-      return new Response('{"ok":true}');
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        requestSignal = init.signal as AbortSignal;
+        return new Response('{"ok":true}');
+      }),
+    );
     const caller = new AbortController();
     await expect(fetchJson('https://example.test', caller.signal)).resolves.toEqual({ ok: true });
     caller.abort();

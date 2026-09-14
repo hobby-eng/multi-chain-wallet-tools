@@ -14,10 +14,7 @@ import {
   DashPlatformIdentitySource,
   normalizeIdentityLookupInput,
 } from '@ckd/dash-network/platform-identity-source.js';
-import {
-  assertPublicBatchLookupInput,
-  assertPublicLookupInput,
-} from '@ckd/dash-network/private-material.js';
+import { assertPublicBatchLookupInput, assertPublicLookupInput } from '@ckd/public-data-providers/private-material.js';
 import { queryCoreAddress } from '@ckd/dash-network/public-address.js';
 import {
   runShieldedPageStream,
@@ -28,11 +25,7 @@ import {
 import { normalizeViewingKey } from '@ckd/dash-network/viewing-key.js';
 import { downloadBlob, downloadText } from '@ckd/export/download.js';
 import { createActivityViewerController } from './controller.js';
-import {
-  assertAutoViewerBatchInput,
-  detectViewerInput,
-  looksLikeAutoOrchardInput,
-} from './detection.js';
+import { assertAutoViewerBatchInput, detectViewerInput, looksLikeAutoOrchardInput } from './detection.js';
 import { createViewerExport, createViewerWorkbookExport } from './export.js';
 import { createActivityViewerView, type ActivityViewerView } from './view.js';
 

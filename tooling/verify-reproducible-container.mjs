@@ -52,8 +52,16 @@ for (const expected of [
 
 for (const path of ['.github/workflows/ci.yml', '.github/workflows/full-wasm.yml', '.github/workflows/release.yml']) {
   const workflow = read(path);
-  for (const expected of ['--platform linux/amd64', '--network host', '--file Dockerfile.reproducible', '--build-arg SOURCE_COMMIT=${GITHUB_SHA}', '--build-arg SOURCE_DIRTY=false', '--target artifacts']) {
-    if (!workflow.includes(expected)) throw new Error(`${path} does not use the canonical container setting: ${expected}`);
+  for (const expected of [
+    '--platform linux/amd64',
+    '--network host',
+    '--file Dockerfile.reproducible',
+    '--build-arg SOURCE_COMMIT=${GITHUB_SHA}',
+    '--build-arg SOURCE_DIRTY=false',
+    '--target artifacts',
+  ]) {
+    if (!workflow.includes(expected))
+      throw new Error(`${path} does not use the canonical container setting: ${expected}`);
   }
 }
 

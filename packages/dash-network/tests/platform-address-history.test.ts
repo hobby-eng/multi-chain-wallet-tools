@@ -27,18 +27,20 @@ describe('Dash Platform Explorer address history', () => {
         };
       } else {
         body = {
-          resultSet: [{
-            hash: 'AB'.repeat(32),
-            blockHash: 'CD'.repeat(32),
-            blockHeight: 426_000,
-            type: 'ADDRESS_FUNDING_FROM_ASSET_LOCK',
-            batchType: null,
-            timestamp: '2026-09-01T19:03:54.205Z',
-            gasUsed: 15_000,
-            status: 'SUCCESS',
-            error: null,
-            incoming: true,
-          }],
+          resultSet: [
+            {
+              hash: 'AB'.repeat(32),
+              blockHash: 'CD'.repeat(32),
+              blockHeight: 426_000,
+              type: 'ADDRESS_FUNDING_FROM_ASSET_LOCK',
+              batchType: null,
+              timestamp: '2026-09-01T19:03:54.205Z',
+              gasUsed: 15_000,
+              status: 'SUCCESS',
+              error: null,
+              incoming: true,
+            },
+          ],
           pagination: { page: 1, limit: 1, total: 1 },
         };
       }
@@ -66,14 +68,20 @@ describe('Dash Platform Explorer address history', () => {
   });
 
   it('fails closed when Platform Explorer reports a lagging index', async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({
-      network: 'evo1',
-      indexer: { status: 'syncing' },
-      api: { block: { height: 1, timestamp: '2026-09-01T00:00:00.000Z' } },
-    }), { status: 200, headers: { 'content-type': 'application/json' } }));
-    await expect(
-      queryPlatformAddressHistory(PLATFORM_ADDRESS, 'mainnet', 20, undefined, fetcher),
-    ).rejects.toThrow(/not synchronized/u);
+    const fetcher = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            network: 'evo1',
+            indexer: { status: 'syncing' },
+            api: { block: { height: 1, timestamp: '2026-09-01T00:00:00.000Z' } },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
+    await expect(queryPlatformAddressHistory(PLATFORM_ADDRESS, 'mainnet', 20, undefined, fetcher)).rejects.toThrow(
+      /not synchronized/u,
+    );
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });

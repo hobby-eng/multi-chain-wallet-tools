@@ -20,20 +20,21 @@ import {
 import { extendAddressTarget } from '../src/coins/dash/util.js';
 import { createRecoveryExport } from '../src/export.js';
 import { RecoveryNetworkGateway } from '../src/network-gateway.js';
-import type { RecoveryNetworkApi } from '../src/network-protocol.js';
-import {
-  DirectRecoveryNetworkService,
-  executeRecoveryNetworkRequest,
-} from '../src/network-service.js';
+import type { RecoveryNetworkApi } from '@ckd/network-boundary/protocol.js';
+import { DirectRecoveryNetworkService, executeRecoveryNetworkRequest } from '../src/network-service.js';
 import { MultiChainRecoveryNetworkService } from '../src/network-service-multichain.js';
-import { describeUnknownError } from '../src/error-message.js';
-import { SecretEgressGuard } from '../src/secret-guard.js';
+import { describeUnknownError } from '@ckd/core/error-handling.js';
+import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
 import type { RecoveryScanConfig, RecoveryWalletResult } from '../src/types.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@ckd/dash-wasm/dash_shielded_wasm_bg.wasm', async () => {
   const { readFileSync } = await import('node:fs');
-  return { default: readFileSync(new URL('../../../packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm', import.meta.url)) };
+  return {
+    default: readFileSync(
+      new URL('../../../packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm', import.meta.url),
+    ),
+  };
 });
 
 const MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -44,7 +45,9 @@ afterEach(() => {
 });
 
 function mockNetwork(overrides: Partial<RecoveryNetworkApi> = {}): RecoveryNetworkApi {
-  const unavailable = async (): Promise<never> => { throw new Error('Unexpected mock network operation.'); };
+  const unavailable = async (): Promise<never> => {
+    throw new Error('Unexpected mock network operation.');
+  };
   return {
     ping: async () => 'isolated-network-worker-v1',
     coreStatus: unavailable,
@@ -57,7 +60,8 @@ function mockNetwork(overrides: Partial<RecoveryNetworkApi> = {}): RecoveryNetwo
     platformIdentityByPublicKeyHash: unavailable,
     platformIdentityHistory: unavailable,
     shieldedPage: unavailable,
-    addressHistory: unavailable, utxoAddresses: unavailable,
+    addressHistory: unavailable,
+    utxoAddresses: unavailable,
     evmAccounts: unavailable,
     ...overrides,
   };
@@ -68,37 +72,57 @@ describe('recovery secret boundary', () => {
     const service = new DirectRecoveryNetworkService();
     const multiChainService = new MultiChainRecoveryNetworkService();
     await expect(service.coreAddressInfo('mainnet', ['not-a-dash-address'])).rejects.toThrow(/invalid Dash Core/u);
-    await expect(service.coreAddressInfo('mainnet', Array(101).fill('XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5'))).rejects.toThrow(/1 to 100/u);
+    await expect(
+      service.coreAddressInfo('mainnet', Array(101).fill('XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5')),
+    ).rejects.toThrow(/1 to 100/u);
     await expect(service.platformAddresses('mainnet', ['dash1invalid'])).rejects.toThrow(/invalid Dash Platform/u);
     await expect(service.platformIdentityByPublicKeyHash('mainnet', 'AA')).rejects.toThrow(/20-byte lowercase/u);
     await expect(service.shieldedPage('mainnet', '-1', 2048)).rejects.toThrow(/pool position/u);
     await expect(service.coreTransaction('mainnet', 'not-a-transaction')).rejects.toThrow(/invalid transaction hash/u);
-    await expect(multiChainService.utxoAddresses('mainnet', ['not-a-bitcoin-address'])).rejects.toThrow(/invalid Bitcoin/iu);
-    await expect(multiChainService.utxoAddresses('mainnet', Array(101).fill('1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA'))).rejects.toThrow(/1 to 100/u);
-    await expect(multiChainService.evmAccounts('mainnet', ['0xnot-an-ethereum-address'])).rejects.toThrow(/invalid Ethereum/iu);
-    await expect(multiChainService.evmAccounts('mainnet', Array(101).fill('0x9858EfFD232B4033E47d90003D41EC34EcaEda94'))).rejects.toThrow(/1 to 100/u);
-    await expect(executeRecoveryNetworkRequest(
-      mockNetwork(),
-      { id: 'forbidden', operation: 'fetch-url', payload: { url: 'https://example.invalid' } } as never,
-    )).rejects.toThrow(/unsupported operation/u);
+    await expect(multiChainService.utxoAddresses('mainnet', ['not-a-bitcoin-address'])).rejects.toThrow(
+      /invalid Bitcoin/iu,
+    );
+    await expect(
+      multiChainService.utxoAddresses('mainnet', Array(101).fill('1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA')),
+    ).rejects.toThrow(/1 to 100/u);
+    await expect(multiChainService.evmAccounts('mainnet', ['0xnot-an-ethereum-address'])).rejects.toThrow(
+      /invalid Ethereum/iu,
+    );
+    await expect(
+      multiChainService.evmAccounts('mainnet', Array(101).fill('0x9858EfFD232B4033E47d90003D41EC34EcaEda94')),
+    ).rejects.toThrow(/1 to 100/u);
+    await expect(
+      executeRecoveryNetworkRequest(mockNetwork(), {
+        id: 'forbidden',
+        operation: 'fetch-url',
+        payload: { url: 'https://example.invalid' },
+      } as never),
+    ).rejects.toThrow(/unsupported operation/u);
   });
 
   it('retries a transient Mempool.space transport failure', async () => {
     const address = '1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA';
     let calls = 0;
     const urls: string[] = [];
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      urls.push(String(input));
-      calls += 1;
-      if (calls === 1) throw new TypeError('Failed to fetch');
-      return new Response(JSON.stringify({
-        address,
-        final_balance: 7,
-        final_n_tx: 1,
-      }), { status: 200, headers: { 'content-type': 'application/json' } });
-    }));
-    await expect(new MultiChainRecoveryNetworkService().utxoAddresses('mainnet', [address]))
-      .resolves.toEqual([{ address, balance: '7', transactionCount: 1 }]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        urls.push(String(input));
+        calls += 1;
+        if (calls === 1) throw new TypeError('Failed to fetch');
+        return new Response(
+          JSON.stringify({
+            address,
+            final_balance: 7,
+            final_n_tx: 1,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }),
+    );
+    await expect(new MultiChainRecoveryNetworkService().utxoAddresses('mainnet', [address])).resolves.toEqual([
+      { address, balance: '7', transactionCount: 1 },
+    ]);
     expect(calls).toBe(2);
     expect(urls[0]).toContain('blockchain.info/balance');
     expect(urls[1]).toContain('api.blockcypher.com');
@@ -107,34 +131,44 @@ describe('recovery secret boundary', () => {
   it('falls back when a Bitcoin provider response cannot be parsed', async () => {
     const address = '1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA';
     let calls = 0;
-    vi.stubGlobal('fetch', vi.fn(async () => {
-      calls += 1;
-      if (calls === 1) {
-        return new Response('<html>temporary proxy page</html>', {
-          status: 200,
-          headers: { 'content-type': 'text/html' },
-        });
-      }
-      return new Response(JSON.stringify({
-        address,
-        final_balance: 0,
-        final_n_tx: 0,
-      }), { status: 200, headers: { 'content-type': 'application/json' } });
-    }));
-    await expect(new MultiChainRecoveryNetworkService().utxoAddresses('mainnet', [address]))
-      .resolves.toEqual([{ address, balance: '0', transactionCount: 0 }]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        calls += 1;
+        if (calls === 1) {
+          return new Response('<html>temporary proxy page</html>', {
+            status: 200,
+            headers: { 'content-type': 'text/html' },
+          });
+        }
+        return new Response(
+          JSON.stringify({
+            address,
+            final_balance: 0,
+            final_n_tx: 0,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }),
+    );
+    await expect(new MultiChainRecoveryNetworkService().utxoAddresses('mainnet', [address])).resolves.toEqual([
+      { address, balance: '0', transactionCount: 0 },
+    ]);
     expect(calls).toBe(2);
   });
 
   it('loads a complete Bitcoin mainnet address batch in one request', async () => {
-    const addresses = [
-      '1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA',
-      'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu',
-    ];
-    const fetcher = vi.fn(async (_input: RequestInfo | URL) => new Response(JSON.stringify({
-      [addresses[1]!]: { final_balance: 9, n_tx: 2, total_received: 19 },
-      [addresses[0]!]: { final_balance: 7, n_tx: 1, total_received: 17 },
-    }), { status: 200, headers: { 'content-type': 'application/json' } }));
+    const addresses = ['1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA', 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu'];
+    const fetcher = vi.fn(
+      async (_input: RequestInfo | URL) =>
+        new Response(
+          JSON.stringify({
+            [addresses[1]!]: { final_balance: 9, n_tx: 2, total_received: 19 },
+            [addresses[0]!]: { final_balance: 7, n_tx: 1, total_received: 17 },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
     vi.stubGlobal('fetch', fetcher);
     const service = new MultiChainRecoveryNetworkService();
     const expected = [
@@ -150,18 +184,25 @@ describe('recovery secret boundary', () => {
   it('uses the independent multi-address fallback when other Bitcoin batch providers are rate-limited', async () => {
     const address = '1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA';
     const urls: string[] = [];
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      urls.push(url);
-      if (!url.includes('/multiaddr')) {
-        return new Response('rate limited', { status: 429 });
-      }
-      return new Response(JSON.stringify({
-        addresses: [{ address, final_balance: 7, n_tx: 1 }],
-      }), { status: 200, headers: { 'content-type': 'application/json' } });
-    }));
-    await expect(new MultiChainRecoveryNetworkService().utxoAddresses('mainnet', [address]))
-      .resolves.toEqual([{ address, balance: '7', transactionCount: 1 }]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        urls.push(url);
+        if (!url.includes('/multiaddr')) {
+          return new Response('rate limited', { status: 429 });
+        }
+        return new Response(
+          JSON.stringify({
+            addresses: [{ address, final_balance: 7, n_tx: 1 }],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }),
+    );
+    await expect(new MultiChainRecoveryNetworkService().utxoAddresses('mainnet', [address])).resolves.toEqual([
+      { address, balance: '7', transactionCount: 1 },
+    ]);
     expect(urls).toHaveLength(3);
     expect(urls[0]).toContain('blockchain.info/balance');
     expect(urls[1]).toContain('api.blockcypher.com');
@@ -173,12 +214,18 @@ describe('recovery secret boundary', () => {
     const addresses = Array(100).fill(address);
     const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const requests = JSON.parse(String(init?.body)) as { id: string } | Array<{ id: string }>;
-      if (!Array.isArray(requests)) return new Response(JSON.stringify({ jsonrpc: '2.0', id: requests.id, result: '0x10' }));
-      return new Response(JSON.stringify(requests.map(({ id }) => ({
-        jsonrpc: '2.0',
-        id,
-        result: id === 'block' ? '0x10' : '0x0',
-      }))), { status: 200, headers: { 'content-type': 'application/json' } });
+      if (!Array.isArray(requests))
+        return new Response(JSON.stringify({ jsonrpc: '2.0', id: requests.id, result: '0x10' }));
+      return new Response(
+        JSON.stringify(
+          requests.map(({ id }) => ({
+            jsonrpc: '2.0',
+            id,
+            result: id === 'block' ? '0x10' : '0x0',
+          })),
+        ),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
     });
     vi.stubGlobal('fetch', fetcher);
     await expect(new MultiChainRecoveryNetworkService().evmAccounts('mainnet', addresses)).resolves.toEqual({
@@ -188,7 +235,7 @@ describe('recovery secret boundary', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
     const reads = JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body)) as Array<{ params: string[] }>;
     expect(reads).toHaveLength(200);
-    expect(reads.every(read => read.params[1] === '0x10')).toBe(true);
+    expect(reads.every((read) => read.params[1] === '0x10')).toBe(true);
   });
 
   it('recovers a missing DashScan first-seen timestamp from its first transaction', async () => {
@@ -204,31 +251,52 @@ describe('recovery secret boundary', () => {
         timestamp: '2026-09-01T15:56:31.000Z',
       },
     ];
-    const fetcher = vi.fn(async (_input: RequestInfo | URL) => new Response(JSON.stringify(responses.shift()), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    }));
+    const fetcher = vi.fn(
+      async (_input: RequestInfo | URL) =>
+        new Response(JSON.stringify(responses.shift()), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
     vi.stubGlobal('fetch', fetcher);
-    const value = await new DirectRecoveryNetworkService().coreAddressHistory(
+    const value = (await new DirectRecoveryNetworkService().coreAddressHistory(
       'mainnet',
       'XoB13GVVfCpKBkRhLPLaw6P6L1jRzCo6hz',
-    ) as Record<string, unknown>;
+    )) as Record<string, unknown>;
     expect(value.firstSeenBlockTimestamp).toBe('2026-09-01T15:56:31.000Z');
     expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(fetcher.mock.calls[1]?.[0]).toContain('/transaction/89a152257dd9780823e2a544a9deceb2588db9a9a0788e6be2e0c7fab871a87a');
+    expect(fetcher.mock.calls[1]?.[0]).toContain(
+      '/transaction/89a152257dd9780823e2a544a9deceb2588db9a9a0788e6be2e0c7fab871a87a',
+    );
   });
 
   it('loads synchronized Platform address history with exact totals', async () => {
     const address = 'dash1kzqsm4rvknh475pf7nqzy8ddyd42y39t4ujjl6ee';
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      const body = url.endsWith('/status')
-        ? { network: 'evo1', indexer: { status: 'synced' }, api: { block: { height: 500_001 } } }
-        : url.endsWith('/info')
-          ? { bech32mAddress: address, balance: '1000', totalTxs: 3, incomingTxs: 2, outgoingTxs: 1, totalIncomingAmount: '2500', totalOutgoingAmount: '1500' }
-          : { resultSet: [{ timestamp: url.includes('order=asc') ? '2026-01-01T00:00:00.000Z' : '2026-01-02T00:00:00.000Z' }], pagination: { total: 3 } };
-      return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        const body = url.endsWith('/status')
+          ? { network: 'evo1', indexer: { status: 'synced' }, api: { block: { height: 500_001 } } }
+          : url.endsWith('/info')
+            ? {
+                bech32mAddress: address,
+                balance: '1000',
+                totalTxs: 3,
+                incomingTxs: 2,
+                outgoingTxs: 1,
+                totalIncomingAmount: '2500',
+                totalOutgoingAmount: '1500',
+              }
+            : {
+                resultSet: [
+                  { timestamp: url.includes('order=asc') ? '2026-01-01T00:00:00.000Z' : '2026-01-02T00:00:00.000Z' },
+                ],
+                pagination: { total: 3 },
+              };
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+      }),
+    );
     await expect(new DirectRecoveryNetworkService().platformAddressHistory('mainnet', address)).resolves.toMatchObject({
       resource: address,
       balance: '1000',
@@ -243,30 +311,39 @@ describe('recovery secret boundary', () => {
 
   it('aggregates Platform identity transfers separately from fees', async () => {
     const identifier = 'AAQQBHYeZsnZRVbNFegRSRA8dBRHiiTxN4sgCsaU9VWu';
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      let body: unknown;
-      if (url.endsWith('/status')) body = { network: 'evo1', indexer: { status: 'synced' }, api: { block: { height: 500_002 } } };
-      else if (url.includes('/transactions')) body = { resultSet: [{ timestamp: '2026-02-03T00:00:00.000Z' }], pagination: { total: 4 } };
-      else if (url.includes('/transfers')) body = {
-        resultSet: [
-          { recipient: identifier, sender: 'BBQQBHYeZsnZRVbNFegRSRA8dBRHiiTxN4sgCsaU9VWu', amount: '900' },
-          { recipient: 'CCQQBHYeZsnZRVbNFegRSRA8dBRHiiTxN4sgCsaU9VWu', sender: identifier, amount: '300' },
-        ],
-        pagination: { total: 2 },
-      };
-      else body = {
-        identifier,
-        balance: '500',
-        totalTxs: 4,
-        totalTransfers: 2,
-        totalGasSpent: '100',
-        timestamp: '2026-02-01T00:00:00.000Z',
-        fundingCoreTx: 'ad4cc9b6e395204a46f3e8df20f220f70f433c578469e5617b588d0df53d7998',
-      };
-      return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
-    }));
-    await expect(new DirectRecoveryNetworkService().platformIdentityHistory('mainnet', identifier)).resolves.toMatchObject({
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        let body: unknown;
+        if (url.endsWith('/status'))
+          body = { network: 'evo1', indexer: { status: 'synced' }, api: { block: { height: 500_002 } } };
+        else if (url.includes('/transactions'))
+          body = { resultSet: [{ timestamp: '2026-02-03T00:00:00.000Z' }], pagination: { total: 4 } };
+        else if (url.includes('/transfers'))
+          body = {
+            resultSet: [
+              { recipient: identifier, sender: 'BBQQBHYeZsnZRVbNFegRSRA8dBRHiiTxN4sgCsaU9VWu', amount: '900' },
+              { recipient: 'CCQQBHYeZsnZRVbNFegRSRA8dBRHiiTxN4sgCsaU9VWu', sender: identifier, amount: '300' },
+            ],
+            pagination: { total: 2 },
+          };
+        else
+          body = {
+            identifier,
+            balance: '500',
+            totalTxs: 4,
+            totalTransfers: 2,
+            totalGasSpent: '100',
+            timestamp: '2026-02-01T00:00:00.000Z',
+            fundingCoreTx: 'ad4cc9b6e395204a46f3e8df20f220f70f433c578469e5617b588d0df53d7998',
+          };
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+      }),
+    );
+    await expect(
+      new DirectRecoveryNetworkService().platformIdentityHistory('mainnet', identifier),
+    ).resolves.toMatchObject({
       resource: identifier,
       balance: '500',
       transactionCount: 4,
@@ -283,27 +360,41 @@ describe('recovery secret boundary', () => {
 
   it('parses Dash asset-lock credit outputs separately from ordinary L1 inputs', async () => {
     const hash = 'ad4cc9b6e395204a46f3e8df20f220f70f433c578469e5617b588d0df53d7998';
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
-      hash,
-      type: 'ASSET_LOCK',
-      timestamp: '2026-09-05T00:00:00.000Z',
-      vIn: [{ address: 'XccfCSFwiQKsP3QFp2oLwuzH8sbpj5NAni' }],
-      extraPayload: {
-        outputs: [{
-          satoshis: '150000000',
-          script: 'OP_DUP OP_HASH160 OP_PUSHBYTES_20 d034bbf25ec54f1188949539afd7f83452242c12 OP_EQUALVERIFY OP_CHECKSIG',
-        }],
-      },
-    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              hash,
+              type: 'ASSET_LOCK',
+              timestamp: '2026-09-05T00:00:00.000Z',
+              vIn: [{ address: 'XccfCSFwiQKsP3QFp2oLwuzH8sbpj5NAni' }],
+              extraPayload: {
+                outputs: [
+                  {
+                    satoshis: '150000000',
+                    script:
+                      'OP_DUP OP_HASH160 OP_PUSHBYTES_20 d034bbf25ec54f1188949539afd7f83452242c12 OP_EQUALVERIFY OP_CHECKSIG',
+                  },
+                ],
+              },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+      ),
+    );
     await expect(new DirectRecoveryNetworkService().coreTransaction('mainnet', hash)).resolves.toEqual({
       hash,
       type: 'ASSET_LOCK',
       timestamp: '2026-09-05T00:00:00.000Z',
       inputAddresses: ['XccfCSFwiQKsP3QFp2oLwuzH8sbpj5NAni'],
-      assetLockCreditOutputs: [{
-        amount: '150000000',
-        publicKeyHash: 'd034bbf25ec54f1188949539afd7f83452242c12',
-      }],
+      assetLockCreditOutputs: [
+        {
+          amount: '150000000',
+          publicKeyHash: 'd034bbf25ec54f1188949539afd7f83452242c12',
+        },
+      ],
     });
   });
 
@@ -325,10 +416,9 @@ describe('recovery secret boundary', () => {
     guard.registerBytes('seed', new Uint8Array(32).fill(0x42));
     // Each payload carries the phrase in exactly one field and one encoding, so
     // a gap in a single detection path cannot be masked by another field.
-    expect(() => guard.assertPublic(
-      { url: `https://example.invalid/?q=${encodeURIComponent(MNEMONIC)}` },
-      'query',
-    )).toThrow(/mnemonic/u);
+    expect(() =>
+      guard.assertPublic({ url: `https://example.invalid/?q=${encodeURIComponent(MNEMONIC)}` }, 'query'),
+    ).toThrow(/mnemonic/u);
     expect(() => guard.assertPublic({ body: btoa(MNEMONIC) }, 'query')).toThrow(/mnemonic/u);
     expect(() => guard.assertPublic({ body: MNEMONIC.replaceAll(' ', '-') }, 'query')).toThrow(/mnemonic/u);
     expect(() => guard.assertPublic({ body: MNEMONIC.replaceAll(' ', '\n') }, 'query')).toThrow(/mnemonic/u);
@@ -341,7 +431,9 @@ describe('recovery secret boundary', () => {
     guard.registerBytes('seed', new Uint8Array(32).fill(0x42));
     for (const payload of [
       { url: 'https://dashscan.pshenmic.dev/addresses/info?addresses=XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5' },
-      { url: 'https://platform-explorer.pshenmic.dev/platformAddress/dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs/info' },
+      {
+        url: 'https://platform-explorer.pshenmic.dev/platformAddress/dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs/info',
+      },
       { startPosition: '0', count: 2048 },
       { publicKeyHash: 'a'.repeat(40) },
     ]) {
@@ -353,9 +445,16 @@ describe('recovery secret boundary', () => {
     const guard = new SecretEgressGuard();
     guard.registerString('mnemonic', MNEMONIC);
     let calls = 0;
-    const networkApi = mockNetwork({ ping: async () => { calls += 1; return 'isolated-network-worker-v1'; } });
+    const networkApi = mockNetwork({
+      ping: async () => {
+        calls += 1;
+        return 'isolated-network-worker-v1';
+      },
+    });
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
-    await expect(gateway.runPublic({ operation: 'ping' }, 'ping', () => networkApi.ping())).resolves.toBe('isolated-network-worker-v1');
+    await expect(gateway.runPublic({ operation: 'ping' }, 'ping', () => networkApi.ping())).resolves.toBe(
+      'isolated-network-worker-v1',
+    );
     await expect(gateway.runPublic({ body: MNEMONIC }, 'leak', () => networkApi.ping())).rejects.toThrow(/Blocked/u);
     expect(calls).toBe(1);
     expect(gateway.operationStats(['ping']).count).toBe(1);
@@ -368,7 +467,6 @@ describe('recovery secret boundary', () => {
     expect('fetcher' in gateway).toBe(false);
     await expect(gateway.networkApi.ping()).resolves.toBe('isolated-network-worker-v1');
   });
-
 });
 
 describe('streamed Core recovery scan', () => {
@@ -377,28 +475,53 @@ describe('streamed Core recovery scan', () => {
     const guard = new SecretEgressGuard();
     guard.registerBytes('seed', seed);
     const requestedAddresses: string[] = [];
-    const gateway = new RecoveryNetworkGateway(guard, mockNetwork({
-      coreStatus: async () => ({ status: 'ok' }),
-      coreTip: async () => ({ resultSet: [{ height: 2_300_000 }] }),
-      coreAddressInfo: async (_network, addresses) => {
-        requestedAddresses.push(...addresses);
-        return addresses.map((address) => ({ address, balance: '0', txCount: 0 }));
-      },
-    }));
+    const gateway = new RecoveryNetworkGateway(
+      guard,
+      mockNetwork({
+        coreStatus: async () => ({ status: 'ok' }),
+        coreTip: async () => ({ resultSet: [{ height: 2_300_000 }] }),
+        coreAddressInfo: async (_network, addresses) => {
+          requestedAddresses.push(...addresses);
+          return addresses.map((address) => ({ address, balance: '0', txCount: 0 }));
+        },
+      }),
+    );
     const config: RecoveryScanConfig = {
-      network: 'mainnet', account: 1, scanCore: false,
-      scanPlatformAddresses: false, scanPlatformIdentities: false,
-      coreReceiveCount: 0, coreChangeCount: 0, platformAddressCount: 0,
-      scanLegacyCore: false, legacyCoreCount: 0,
-      scanCoinJoin: true, coinJoinExternalCount: 1, coinJoinInternalCount: 0,
-      scanIdentityFunding: false, identityFundingCount: 0,
-      identityTopUpIdentityCount: 0, identityTopUpCount: 0,
-      scanProviderCollateral: false, providerCollateralCount: 0,
-      identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
-      includeUsedZeroBalance: false, scanShieldedPool: false,
+      network: 'mainnet',
+      account: 1,
+      scanCore: false,
+      scanPlatformAddresses: false,
+      scanPlatformIdentities: false,
+      coreReceiveCount: 0,
+      coreChangeCount: 0,
+      platformAddressCount: 0,
+      scanLegacyCore: false,
+      legacyCoreCount: 0,
+      scanCoinJoin: true,
+      coinJoinExternalCount: 1,
+      coinJoinInternalCount: 0,
+      scanIdentityFunding: false,
+      identityFundingCount: 0,
+      identityTopUpIdentityCount: 0,
+      identityTopUpCount: 0,
+      scanProviderCollateral: false,
+      providerCollateralCount: 0,
+      identityStartIndex: 0,
+      identityGapLimit: 1,
+      identityScanLimit: 1,
+      includeUsedZeroBalance: false,
+      scanShieldedPool: false,
     };
     try {
-      await scanDashCoinJoin('seed-1', seed, config, gateway, new AbortController().signal, () => {}, () => {});
+      await scanDashCoinJoin(
+        'seed-1',
+        seed,
+        config,
+        gateway,
+        new AbortController().signal,
+        () => {},
+        () => {},
+      );
       expect(requestedAddresses).toEqual(['XueRMZYBUVDiqsg43YL769qepr7JmxGwhG']);
     } finally {
       seed.fill(0);
@@ -428,24 +551,43 @@ describe('streamed Core recovery scan', () => {
     });
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
     const config: RecoveryScanConfig = {
-      network: 'testnet', account: 0, scanCore: true,
-      scanPlatformAddresses: false, scanPlatformIdentities: false,
-      coreReceiveCount: 201, coreChangeCount: 101, platformAddressCount: 0,
-      scanLegacyCore: false, legacyCoreCount: 0,
-      scanCoinJoin: false, coinJoinExternalCount: 0, coinJoinInternalCount: 0,
-      scanIdentityFunding: false, identityFundingCount: 0,
-      identityTopUpIdentityCount: 0, identityTopUpCount: 0,
-      scanProviderCollateral: false, providerCollateralCount: 0,
-      identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
+      network: 'testnet',
+      account: 0,
+      scanCore: true,
+      scanPlatformAddresses: false,
+      scanPlatformIdentities: false,
+      coreReceiveCount: 201,
+      coreChangeCount: 101,
+      platformAddressCount: 0,
+      scanLegacyCore: false,
+      legacyCoreCount: 0,
+      scanCoinJoin: false,
+      coinJoinExternalCount: 0,
+      coinJoinInternalCount: 0,
+      scanIdentityFunding: false,
+      identityFundingCount: 0,
+      identityTopUpIdentityCount: 0,
+      identityTopUpCount: 0,
+      scanProviderCollateral: false,
+      providerCollateralCount: 0,
+      identityStartIndex: 0,
+      identityGapLimit: 1,
+      identityScanLimit: 1,
       includeUsedZeroBalance: false,
       scanShieldedPool: false,
     };
     const progress: number[] = [];
     const findings: string[] = [];
     try {
-      const section = await scanDashCore('seed-1', seed, config, gateway, new AbortController().signal,
+      const section = await scanDashCore(
+        'seed-1',
+        seed,
+        config,
+        gateway,
+        new AbortController().signal,
         (value) => progress.push(value.completed),
-        (finding) => findings.push(finding.title));
+        (finding) => findings.push(finding.title),
+      );
       expect(section.scanned).toBe(302);
       expect(addressBatches).toBe(5);
       expect(requestedAddresses).toHaveLength(302);
@@ -459,62 +601,113 @@ describe('streamed Core recovery scan', () => {
     }
   });
 
-  it.each([0, 7])('derives opt-in Dash transparent recovery families for account %i without transmitting secret material', async (account) => {
-    const seed = mnemonicToSeed(MNEMONIC);
-    const guard = new SecretEgressGuard();
-    guard.registerString('mnemonic', MNEMONIC);
-    guard.registerBytes('seed', seed);
-    const requestedAddresses: string[] = [];
-    const networkApi = mockNetwork({
-      coreStatus: async () => ({ status: 'ok' }),
-      coreTip: async () => ({ resultSet: [{ height: 2_300_000, timestamp: '2026-09-02T00:00:00.000Z' }] }),
-      coreAddressInfo: async (_network, addresses) => {
-        requestedAddresses.push(...addresses);
-        return addresses.map((address) => ({ address, balance: addresses.length === 1 ? '1' : '0', txCount: addresses.length === 1 ? 1 : 0 }));
-      },
-      coreAddressHistory: async (_network, address) => ({
-        address, txCount: 1, received: '1', sent: '0',
-        firstSeenBlockTimestamp: '2026-01-01T00:00:00.000Z',
-        lastSeenBlockTimestamp: '2026-01-01T00:00:00.000Z',
-      }),
-    });
-    const gateway = new RecoveryNetworkGateway(guard, networkApi);
-    const config: RecoveryScanConfig = {
-      network: 'testnet', account, scanCore: true,
-      scanPlatformAddresses: false, scanPlatformIdentities: false,
-      coreReceiveCount: 1, coreChangeCount: 0, platformAddressCount: 0,
-      scanLegacyCore: true, legacyCoreCount: 1,
-      scanCoinJoin: true, coinJoinExternalCount: 1, coinJoinInternalCount: 1,
-      scanIdentityFunding: true, identityFundingCount: 1,
-      identityTopUpIdentityCount: 1, identityTopUpCount: 1,
-      scanProviderCollateral: true, providerCollateralCount: 1,
-      identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
-      includeUsedZeroBalance: false, scanShieldedPool: false,
-    };
-    try {
-      const coinjoin = await scanDashCoinJoin('seed-1', seed, config, gateway, new AbortController().signal, () => {}, () => {});
-      const legacy = await scanDashLegacyCore('seed-1', seed, config, gateway, new AbortController().signal, () => {}, () => {});
-      const providerCollateral = await scanDashProviderCollateral('seed-1', seed, config, gateway, new AbortController().signal, () => {}, () => {});
-      const paths = [
-        ...coinjoin.findings,
-        ...legacy.findings,
-        ...providerCollateral.findings,
-      ].map((finding) => finding.fields.find(({ label }) => label === 'Derivation path')?.value);
-      expect(paths).toEqual(expect.arrayContaining([
-        `m/9'/1'/4'/${account}'/0/0`,
-        `m/9'/1'/4'/${account}'/1/0`,
-        `m/${account}'/0/0`,
-        `m/${account}'/1/0`,
-        "m/9'/1'/3'/0'/0",
-      ]));
-      expect(requestedAddresses).toHaveLength(105);
-      expect(requestedAddresses).not.toContain(MNEMONIC);
-      expect(requestedAddresses.some((value) => value.length > 0 && value !== MNEMONIC)).toBe(true);
-      expect(coinjoin.findings[0]?.fields).toContainEqual({ label: 'Scan family', value: 'Dash Mobile CoinJoin · DIP9' });
-    } finally {
-      seed.fill(0);
-    }
-  });
+  it.each([0, 7])(
+    'derives opt-in Dash transparent recovery families for account %i without transmitting secret material',
+    async (account) => {
+      const seed = mnemonicToSeed(MNEMONIC);
+      const guard = new SecretEgressGuard();
+      guard.registerString('mnemonic', MNEMONIC);
+      guard.registerBytes('seed', seed);
+      const requestedAddresses: string[] = [];
+      const networkApi = mockNetwork({
+        coreStatus: async () => ({ status: 'ok' }),
+        coreTip: async () => ({ resultSet: [{ height: 2_300_000, timestamp: '2026-09-02T00:00:00.000Z' }] }),
+        coreAddressInfo: async (_network, addresses) => {
+          requestedAddresses.push(...addresses);
+          return addresses.map((address) => ({
+            address,
+            balance: addresses.length === 1 ? '1' : '0',
+            txCount: addresses.length === 1 ? 1 : 0,
+          }));
+        },
+        coreAddressHistory: async (_network, address) => ({
+          address,
+          txCount: 1,
+          received: '1',
+          sent: '0',
+          firstSeenBlockTimestamp: '2026-01-01T00:00:00.000Z',
+          lastSeenBlockTimestamp: '2026-01-01T00:00:00.000Z',
+        }),
+      });
+      const gateway = new RecoveryNetworkGateway(guard, networkApi);
+      const config: RecoveryScanConfig = {
+        network: 'testnet',
+        account,
+        scanCore: true,
+        scanPlatformAddresses: false,
+        scanPlatformIdentities: false,
+        coreReceiveCount: 1,
+        coreChangeCount: 0,
+        platformAddressCount: 0,
+        scanLegacyCore: true,
+        legacyCoreCount: 1,
+        scanCoinJoin: true,
+        coinJoinExternalCount: 1,
+        coinJoinInternalCount: 1,
+        scanIdentityFunding: true,
+        identityFundingCount: 1,
+        identityTopUpIdentityCount: 1,
+        identityTopUpCount: 1,
+        scanProviderCollateral: true,
+        providerCollateralCount: 1,
+        identityStartIndex: 0,
+        identityGapLimit: 1,
+        identityScanLimit: 1,
+        includeUsedZeroBalance: false,
+        scanShieldedPool: false,
+      };
+      try {
+        const coinjoin = await scanDashCoinJoin(
+          'seed-1',
+          seed,
+          config,
+          gateway,
+          new AbortController().signal,
+          () => {},
+          () => {},
+        );
+        const legacy = await scanDashLegacyCore(
+          'seed-1',
+          seed,
+          config,
+          gateway,
+          new AbortController().signal,
+          () => {},
+          () => {},
+        );
+        const providerCollateral = await scanDashProviderCollateral(
+          'seed-1',
+          seed,
+          config,
+          gateway,
+          new AbortController().signal,
+          () => {},
+          () => {},
+        );
+        const paths = [...coinjoin.findings, ...legacy.findings, ...providerCollateral.findings].map(
+          (finding) => finding.fields.find(({ label }) => label === 'Derivation path')?.value,
+        );
+        expect(paths).toEqual(
+          expect.arrayContaining([
+            `m/9'/1'/4'/${account}'/0/0`,
+            `m/9'/1'/4'/${account}'/1/0`,
+            `m/${account}'/0/0`,
+            `m/${account}'/1/0`,
+            "m/9'/1'/3'/0'/0",
+          ]),
+        );
+        expect(requestedAddresses).toHaveLength(105);
+        expect(requestedAddresses).not.toContain(MNEMONIC);
+        expect(requestedAddresses.some((value) => value.length > 0 && value !== MNEMONIC)).toBe(true);
+        expect(coinjoin.findings[0]?.fields).toContainEqual({
+          label: 'Scan family',
+          value: 'Dash Mobile CoinJoin · DIP9',
+        });
+      } finally {
+        seed.fill(0);
+      }
+    },
+  );
 });
 
 describe('Orchard stream completion', () => {
@@ -527,7 +720,11 @@ describe('Orchard stream completion', () => {
     const short = advanceShieldedStream(initialShieldedStreamCursor(), 1634);
     expect(short).toMatchObject({ position: BigInt(SHIELDED_PAGE_SIZE), decision: 'continue', consecutiveEmpty: 0 });
     const emptyOnce = advanceShieldedStream(short, 0);
-    expect(emptyOnce).toMatchObject({ position: BigInt(SHIELDED_PAGE_SIZE), decision: 'continue', consecutiveEmpty: 1 });
+    expect(emptyOnce).toMatchObject({
+      position: BigInt(SHIELDED_PAGE_SIZE),
+      decision: 'continue',
+      consecutiveEmpty: 1,
+    });
     expect(advanceShieldedStream(emptyOnce, 0)).toMatchObject({ decision: 'complete', consecutiveEmpty: 2 });
   });
 
@@ -601,10 +798,18 @@ describe('Orchard stream completion', () => {
 describe('structured recovery diagnostics', () => {
   it('extracts wasm-bindgen object getters instead of rendering [object Object]', () => {
     const cause = Object.create({
-      get name() { return 'DapiClientError'; },
-      get message() { return 'grpc invalid argument'; },
-      get code() { return -1; },
-      get kind() { return 7; },
+      get name() {
+        return 'DapiClientError';
+      },
+      get message() {
+        return 'grpc invalid argument';
+      },
+      get code() {
+        return -1;
+      },
+      get kind() {
+        return 7;
+      },
     });
     expect(describeUnknownError(cause)).toBe('name: DapiClientError · grpc invalid argument · code: -1 · kind: 7');
   });
@@ -635,26 +840,52 @@ describe('dynamic recovery discovery gap and history filter', () => {
       coreAddressHistory: async (_network, address) => {
         fundedHistoryCalls += 1;
         return {
-          address, txCount: 1, received: '100000000', sent: '0',
-          firstSeenBlockTimestamp: '2025-03-01T00:00:00.000Z', lastSeenBlockTimestamp: '2025-03-01T00:00:00.000Z',
+          address,
+          txCount: 1,
+          received: '100000000',
+          sent: '0',
+          firstSeenBlockTimestamp: '2025-03-01T00:00:00.000Z',
+          lastSeenBlockTimestamp: '2025-03-01T00:00:00.000Z',
         };
       },
     });
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
     const config: RecoveryScanConfig = {
-      network: 'testnet', account: 0, scanCore: true,
-      scanPlatformAddresses: false, scanPlatformIdentities: false,
-      coreReceiveCount: 100, coreChangeCount: 0, platformAddressCount: 0,
-      scanLegacyCore: false, legacyCoreCount: 0,
-      scanCoinJoin: false, coinJoinExternalCount: 0, coinJoinInternalCount: 0,
-      scanIdentityFunding: false, identityFundingCount: 0,
-      identityTopUpIdentityCount: 0, identityTopUpCount: 0,
-      scanProviderCollateral: false, providerCollateralCount: 0,
-      identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
-      includeUsedZeroBalance: false, scanShieldedPool: false,
+      network: 'testnet',
+      account: 0,
+      scanCore: true,
+      scanPlatformAddresses: false,
+      scanPlatformIdentities: false,
+      coreReceiveCount: 100,
+      coreChangeCount: 0,
+      platformAddressCount: 0,
+      scanLegacyCore: false,
+      legacyCoreCount: 0,
+      scanCoinJoin: false,
+      coinJoinExternalCount: 0,
+      coinJoinInternalCount: 0,
+      scanIdentityFunding: false,
+      identityFundingCount: 0,
+      identityTopUpIdentityCount: 0,
+      identityTopUpCount: 0,
+      scanProviderCollateral: false,
+      providerCollateralCount: 0,
+      identityStartIndex: 0,
+      identityGapLimit: 1,
+      identityScanLimit: 1,
+      includeUsedZeroBalance: false,
+      scanShieldedPool: false,
     };
     try {
-      const section = await scanDashCore('gap', seed, config, gateway, new AbortController().signal, () => {}, () => {});
+      const section = await scanDashCore(
+        'gap',
+        seed,
+        config,
+        gateway,
+        new AbortController().signal,
+        () => {},
+        () => {},
+      );
       expect(section.scanned).toBe(140);
       expect(section.findings).toHaveLength(1);
       expect(fundedHistoryCalls).toBe(1);
@@ -686,26 +917,52 @@ describe('dynamic recovery discovery gap and history filter', () => {
       coreAddressHistory: async (_network, address) => {
         historyAddresses.push(address);
         return {
-          address, txCount: '2', received: '250000000', sent: '250000000',
-          firstSeenBlockTimestamp: '2025-01-01T00:00:00.000Z', lastSeenBlockTimestamp: '2025-02-01T00:00:00.000Z',
+          address,
+          txCount: '2',
+          received: '250000000',
+          sent: '250000000',
+          firstSeenBlockTimestamp: '2025-01-01T00:00:00.000Z',
+          lastSeenBlockTimestamp: '2025-02-01T00:00:00.000Z',
         };
       },
     });
     const gateway = new RecoveryNetworkGateway(guard, networkApi);
     const config: RecoveryScanConfig = {
-      network: 'testnet', account: 0, scanCore: true,
-      scanPlatformAddresses: false, scanPlatformIdentities: false,
-      coreReceiveCount: 2, coreChangeCount: 0, platformAddressCount: 0,
-      scanLegacyCore: false, legacyCoreCount: 0,
-      scanCoinJoin: false, coinJoinExternalCount: 0, coinJoinInternalCount: 0,
-      scanIdentityFunding: false, identityFundingCount: 0,
-      identityTopUpIdentityCount: 0, identityTopUpCount: 0,
-      scanProviderCollateral: false, providerCollateralCount: 0,
-      identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
-      includeUsedZeroBalance: true, scanShieldedPool: false,
+      network: 'testnet',
+      account: 0,
+      scanCore: true,
+      scanPlatformAddresses: false,
+      scanPlatformIdentities: false,
+      coreReceiveCount: 2,
+      coreChangeCount: 0,
+      platformAddressCount: 0,
+      scanLegacyCore: false,
+      legacyCoreCount: 0,
+      scanCoinJoin: false,
+      coinJoinExternalCount: 0,
+      coinJoinInternalCount: 0,
+      scanIdentityFunding: false,
+      identityFundingCount: 0,
+      identityTopUpIdentityCount: 0,
+      identityTopUpCount: 0,
+      scanProviderCollateral: false,
+      providerCollateralCount: 0,
+      identityStartIndex: 0,
+      identityGapLimit: 1,
+      identityScanLimit: 1,
+      includeUsedZeroBalance: true,
+      scanShieldedPool: false,
     };
     try {
-      const section = await scanDashCore('history', seed, config, gateway, new AbortController().signal, () => {}, () => {});
+      const section = await scanDashCore(
+        'history',
+        seed,
+        config,
+        gateway,
+        new AbortController().signal,
+        () => {},
+        () => {},
+      );
       expect(section.scanned).toBe(22);
       expect(section.findings).toHaveLength(2);
       expect(historyAddresses).toHaveLength(2);
@@ -729,11 +986,13 @@ describe('bounded recovery concurrency', () => {
   it('preserves result order and never exceeds the configured active limit', async () => {
     const limiter = new RecoveryConcurrencyLimiter(2);
     let maximum = 0;
-    const results = await mapRecoveryTasks([30, 5, 10, 1], 4, async (delay, index) => limiter.run(async () => {
-      maximum = Math.max(maximum, limiter.active);
-      await new Promise<void>((resolve) => setTimeout(resolve, delay));
-      return index;
-    }));
+    const results = await mapRecoveryTasks([30, 5, 10, 1], 4, async (delay, index) =>
+      limiter.run(async () => {
+        maximum = Math.max(maximum, limiter.active);
+        await new Promise<void>((resolve) => setTimeout(resolve, delay));
+        return index;
+      }),
+    );
     expect(results).toEqual([0, 1, 2, 3]);
     expect(maximum).toBe(2);
   });
@@ -741,11 +1000,18 @@ describe('bounded recovery concurrency', () => {
   it('removes an aborted queued operation without executing or leaking a slot', async () => {
     const limiter = new RecoveryConcurrencyLimiter(1);
     let releaseFirst: (() => void) | undefined;
-    const first = limiter.run(() => new Promise<void>((resolve) => { releaseFirst = resolve; }));
+    const first = limiter.run(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFirst = resolve;
+        }),
+    );
     await Promise.resolve();
     let secondExecuted = false;
     const controller = new AbortController();
-    const second = limiter.run(async () => { secondExecuted = true; }, controller.signal);
+    const second = limiter.run(async () => {
+      secondExecuted = true;
+    }, controller.signal);
     controller.abort();
     await expect(second).rejects.toMatchObject({ name: 'AbortError' });
     expect(secondExecuted).toBe(false);
@@ -755,7 +1021,6 @@ describe('bounded recovery concurrency', () => {
     await first;
     expect(limiter.active).toBe(0);
   });
-
 });
 
 describe('Orchard recovery output filter', () => {
@@ -772,13 +1037,21 @@ describe('Orchard recovery output filter', () => {
   it('shows incoming notes not known to be spent by default and all activity on opt-in', () => {
     const spendable = { ...base, direction: 'received', incoming: note, spent: false } satisfies ShieldedActivity;
     const unknown = { ...base, position: 2n, direction: 'received', incoming: note } satisfies ShieldedActivity;
-    const spent = { ...base, position: 3n, direction: 'received', incoming: note, spent: true } satisfies ShieldedActivity;
+    const spent = {
+      ...base,
+      position: 3n,
+      direction: 'received',
+      incoming: note,
+      spent: true,
+    } satisfies ShieldedActivity;
     const outgoing = { ...base, position: 4n, direction: 'sent', outgoing: note } satisfies ShieldedActivity;
     expect(shouldDisplayShieldedActivity(spendable, false)).toBe(true);
     expect(shouldDisplayShieldedActivity(unknown, false)).toBe(true);
     expect(shouldDisplayShieldedActivity(spent, false)).toBe(false);
     expect(shouldDisplayShieldedActivity(outgoing, false)).toBe(false);
-    expect([spendable, unknown, spent, outgoing].filter((record) => shouldDisplayShieldedActivity(record, true))).toHaveLength(4);
+    expect(
+      [spendable, unknown, spent, outgoing].filter((record) => shouldDisplayShieldedActivity(record, true)),
+    ).toHaveLength(4);
   });
 
   it('does not present an IVK note as unspent or as outgoing activity', () => {
@@ -803,7 +1076,6 @@ describe('Orchard recovery output filter', () => {
     });
   });
 });
-
 
 describe('proof-verified Platform recovery scan', () => {
   it('matches getManyWithProof results by the internal 00-prefixed storage payload', async () => {
@@ -836,21 +1108,40 @@ describe('proof-verified Platform recovery scan', () => {
       }),
     } as unknown as DashPlatformClient;
     const config: RecoveryScanConfig = {
-      network: 'mainnet', account: 0, scanCore: true,
-      scanPlatformAddresses: true, scanPlatformIdentities: false,
-      coreReceiveCount: 1, coreChangeCount: 0, platformAddressCount: 100,
-      scanLegacyCore: false, legacyCoreCount: 0,
-      scanCoinJoin: false, coinJoinExternalCount: 0, coinJoinInternalCount: 0,
-      scanIdentityFunding: false, identityFundingCount: 0,
-      identityTopUpIdentityCount: 0, identityTopUpCount: 0,
-      scanProviderCollateral: false, providerCollateralCount: 0,
-      identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
+      network: 'mainnet',
+      account: 0,
+      scanCore: true,
+      scanPlatformAddresses: true,
+      scanPlatformIdentities: false,
+      coreReceiveCount: 1,
+      coreChangeCount: 0,
+      platformAddressCount: 100,
+      scanLegacyCore: false,
+      legacyCoreCount: 0,
+      scanCoinJoin: false,
+      coinJoinExternalCount: 0,
+      coinJoinInternalCount: 0,
+      scanIdentityFunding: false,
+      identityFundingCount: 0,
+      identityTopUpIdentityCount: 0,
+      identityTopUpCount: 0,
+      scanProviderCollateral: false,
+      providerCollateralCount: 0,
+      identityStartIndex: 0,
+      identityGapLimit: 1,
+      identityScanLimit: 1,
       includeUsedZeroBalance: false,
       scanShieldedPool: false,
     };
     try {
       const section = await scanDashPlatformAddresses(
-        'seed-1', seed, config, client, new AbortController().signal, () => {}, () => {},
+        'seed-1',
+        seed,
+        config,
+        client,
+        new AbortController().signal,
+        () => {},
+        () => {},
       );
       expect(queried).toHaveLength(2);
       expect(queried[0]?.[0]).toBe('dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs');
@@ -868,28 +1159,47 @@ describe('proof-verified Platform recovery scan', () => {
 
 describe('recovery report export', () => {
   const result: RecoveryWalletResult = {
-    inputId: 'seed-1', label: '=wallet', coinId: 'dash', coinLabel: 'Dash', network: 'testnet',
-    startedAt: '2026-09-02T00:00:00.000Z', completedAt: '2026-09-02T00:01:00.000Z', warnings: [],
+    inputId: 'seed-1',
+    label: '=wallet',
+    coinId: 'dash',
+    coinLabel: 'Dash',
+    network: 'testnet',
+    startedAt: '2026-09-02T00:00:00.000Z',
+    completedAt: '2026-09-02T00:01:00.000Z',
+    warnings: [],
     overview: [{ label: 'Total located value', value: '1 DASH', tone: 'positive' }],
-    sections: [{
-      id: 'core', title: 'Dash Core · L1', description: 'scan', state: 'complete',
-      metrics: [{ label: 'Balance', value: '1 DASH' }], scanned: 1, source: 'DashScan', proof: 'height 1',
-      findings: [{
-        id: 'core:0:0', title: 'Xabc', subtitle: 'Receive address #0', balanceAtomic: 100_000_000n,
-        balanceLabel: '1 DASH',
-        fields: [
-          { label: 'Derivation path', value: "m/44'/1'/0'/0/0", copyable: true },
-          { label: 'Branch', value: '0 · receive' },
-          { label: 'Address index', value: '0' },
-          { label: 'Transactions reported', value: '25' },
-          { label: 'Lifetime received', value: '100.98976616 DASH' },
-          { label: 'Lifetime sent', value: '99.98976616 DASH' },
-          { label: 'First seen', value: '2024-11-02T02:27:28.000Z' },
-          { label: 'Last seen', value: '2025-01-12T01:02:29.000Z' },
-          { label: 'Public-key hash', value: 'dd8df975f14b643048b09154bf9793779027e188' },
+    sections: [
+      {
+        id: 'core',
+        title: 'Dash Core · L1',
+        description: 'scan',
+        state: 'complete',
+        metrics: [{ label: 'Balance', value: '1 DASH' }],
+        scanned: 1,
+        source: 'DashScan',
+        proof: 'height 1',
+        findings: [
+          {
+            id: 'core:0:0',
+            title: 'Xabc',
+            subtitle: 'Receive address #0',
+            balanceAtomic: 100_000_000n,
+            balanceLabel: '1 DASH',
+            fields: [
+              { label: 'Derivation path', value: "m/44'/1'/0'/0/0", copyable: true },
+              { label: 'Branch', value: '0 · receive' },
+              { label: 'Address index', value: '0' },
+              { label: 'Transactions reported', value: '25' },
+              { label: 'Lifetime received', value: '100.98976616 DASH' },
+              { label: 'Lifetime sent', value: '99.98976616 DASH' },
+              { label: 'First seen', value: '2024-11-02T02:27:28.000Z' },
+              { label: 'Last seen', value: '2025-01-12T01:02:29.000Z' },
+              { label: 'Public-key hash', value: 'dd8df975f14b643048b09154bf9793779027e188' },
+            ],
+          },
         ],
-      }],
-    }],
+      },
+    ],
   };
 
   it('exports only public recovery metadata and serializes exact integers', () => {
@@ -924,30 +1234,42 @@ describe('recovery report export', () => {
   it('exports Orchard note details and numeric section aggregates to CSV', () => {
     const orchard: RecoveryWalletResult = {
       ...result,
-      sections: [{
-        id: 'shielded', title: 'Dash Orchard · shielded pool', description: 'scan', state: 'complete',
-        scanned: 2n, source: 'DAPI', proof: 'proof height 1',
-        metrics: [
-          { label: 'Spendable balance', value: '0.25 DASH' },
-          { label: 'Lifetime received', value: '0.3 DASH' },
-          { label: 'Lifetime sent', value: '0.05 DASH' },
-          { label: 'Lifetime self/change', value: '0.01 DASH' },
-          { label: 'Incoming notes', value: '2' },
-          { label: 'First activity pool position', value: '10' },
-          { label: 'Last activity pool position', value: '20' },
-        ],
-        findings: [{
-          id: 'shielded:10', title: 'dash1ztest', subtitle: 'Received · pool position 10',
-          balanceAtomic: 25_000_000_000n, balanceLabel: '0.25 DASH',
-          fields: [
-            { label: 'Pool position', value: '10' },
-            { label: 'Direction', value: 'received' },
-            { label: 'Note value', value: '0.3 DASH' },
-            { label: 'Spend state', value: 'Spent' },
-            { label: 'Spent at pool position', value: '20' },
+      sections: [
+        {
+          id: 'shielded',
+          title: 'Dash Orchard · shielded pool',
+          description: 'scan',
+          state: 'complete',
+          scanned: 2n,
+          source: 'DAPI',
+          proof: 'proof height 1',
+          metrics: [
+            { label: 'Spendable balance', value: '0.25 DASH' },
+            { label: 'Lifetime received', value: '0.3 DASH' },
+            { label: 'Lifetime sent', value: '0.05 DASH' },
+            { label: 'Lifetime self/change', value: '0.01 DASH' },
+            { label: 'Incoming notes', value: '2' },
+            { label: 'First activity pool position', value: '10' },
+            { label: 'Last activity pool position', value: '20' },
           ],
-        }],
-      }],
+          findings: [
+            {
+              id: 'shielded:10',
+              title: 'dash1ztest',
+              subtitle: 'Received · pool position 10',
+              balanceAtomic: 25_000_000_000n,
+              balanceLabel: '0.25 DASH',
+              fields: [
+                { label: 'Pool position', value: '10' },
+                { label: 'Direction', value: 'received' },
+                { label: 'Note value', value: '0.3 DASH' },
+                { label: 'Spend state', value: 'Spent' },
+                { label: 'Spent at pool position', value: '20' },
+              ],
+            },
+          ],
+        },
+      ],
     };
     const csv = createRecoveryExport([orchard], 'csv');
     expect(csv.text).toContain('"note_value_dash"');
@@ -965,6 +1287,8 @@ describe('recovery report export', () => {
     const clean = createRecoveryExport([result], 'json');
     expect(() => guard.assertPublic(clean.text, 'recovery report export')).not.toThrow();
     const contaminated = createRecoveryExport([{ ...result, warnings: [MNEMONIC] }], 'json');
-    expect(() => guard.assertPublic(contaminated.text, 'recovery report export')).toThrow(/Blocked recovery report export/u);
+    expect(() => guard.assertPublic(contaminated.text, 'recovery report export')).toThrow(
+      /Blocked recovery report export/u,
+    );
   });
 });

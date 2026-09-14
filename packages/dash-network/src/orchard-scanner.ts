@@ -14,17 +14,13 @@ import {
 } from '@ckd/dash-wasm/dash_shielded_wasm.js';
 import { decodeDashShieldedMemo } from './memo.js';
 import type { NormalizedViewingKey } from './viewing-key.js';
-import type {
-  DecryptedNoteView,
-  ScannedMatch,
-  ShieldedEncryptedNote,
-  ViewerNetwork,
-} from './types.js';
+import type { DecryptedNoteView, ScannedMatch, ShieldedEncryptedNote, ViewerNetwork } from './types.js';
 
 const MAX_U64 = (1n << 64n) - 1n;
 let wasmInitialized = false;
 
-const SELF_TEST_INCOMING_VIEWING_KEY = 'fae18cbcf032c37f646b0e3f211bda62dc79535f5276abbf274f46ba1d28d571946102f72db50fd672aadddc8346c513221c82e3fbc0c62058a2effb9669f228';
+const SELF_TEST_INCOMING_VIEWING_KEY =
+  'fae18cbcf032c37f646b0e3f211bda62dc79535f5276abbf274f46ba1d28d571946102f72db50fd672aadddc8346c513221c82e3fbc0c62058a2effb9669f228';
 const SELF_TEST_RAW_ADDRESS = 'ee9f8174f92a3f035570ecbfe969aeb46f5e2f64ad69f78d34316c47ea38c2f0085b5788bebf478ce736a8';
 
 interface RawNoteView {
@@ -125,8 +121,9 @@ function parseResult(
     throw new Error('The official Orchard scanner returned an invalid result envelope.');
   }
   const seen = new Set<string>();
-  return ((candidate as { items: unknown[] }).items).map((item): ScannedMatch => {
-    if (typeof item !== 'object' || item === null) throw new Error('The official Orchard scanner returned an invalid match.');
+  return (candidate as { items: unknown[] }).items.map((item): ScannedMatch => {
+    if (typeof item !== 'object' || item === null)
+      throw new Error('The official Orchard scanner returned an invalid match.');
     const raw = item as Partial<RawMatch>;
     const position = parseU64(raw.position, 'note position');
     const offset = position - startPosition;
@@ -140,7 +137,8 @@ function parseResult(
     if (cmx !== bytesToHex(source.cmx) || actionNullifier !== bytesToHex(source.nullifier)) {
       throw new Error('The official Orchard scanner result does not match its DAPI input page.');
     }
-    if (seen.has(raw.position as string)) throw new Error('The official Orchard scanner returned a duplicate position.');
+    if (seen.has(raw.position as string))
+      throw new Error('The official Orchard scanner returned a duplicate position.');
     seen.add(raw.position as string);
     if (raw.incoming === undefined && raw.outgoing === undefined) {
       throw new Error('The official Orchard scanner returned an empty match.');
@@ -229,10 +227,10 @@ export function runOrchardRuntimeSelfTest(): OrchardRuntimeSelfTestReport {
       rows?: Array<{ rawAddress?: unknown }>;
     };
     if (
-      candidate.incomingViewingKey !== SELF_TEST_INCOMING_VIEWING_KEY
-      || candidate.rows?.[0]?.rawAddress !== SELF_TEST_RAW_ADDRESS
-      || typeof candidate.fullViewingKey !== 'string'
-      || !/^[0-9a-f]{192}$/u.test(candidate.fullViewingKey)
+      candidate.incomingViewingKey !== SELF_TEST_INCOMING_VIEWING_KEY ||
+      candidate.rows?.[0]?.rawAddress !== SELF_TEST_RAW_ADDRESS ||
+      typeof candidate.fullViewingKey !== 'string' ||
+      !/^[0-9a-f]{192}$/u.test(candidate.fullViewingKey)
     ) {
       throw new Error('Dash Orchard WASM does not match the fixed ZIP-32 browser vector.');
     }
@@ -241,12 +239,19 @@ export function runOrchardRuntimeSelfTest(): OrchardRuntimeSelfTestReport {
     }
     const viewingKey: NormalizedViewingKey = { kind: 'full', hex: candidate.fullViewingKey };
     assertCanonicalViewingKey(viewingKey);
-    const matches = scanEncryptedPage(viewingKey, 0n, [{
-      cmx: new Uint8Array(32),
-      nullifier: new Uint8Array(32),
-      cvNet: new Uint8Array(32),
-      encryptedNote: new Uint8Array(216),
-    }], 'testnet');
+    const matches = scanEncryptedPage(
+      viewingKey,
+      0n,
+      [
+        {
+          cmx: new Uint8Array(32),
+          nullifier: new Uint8Array(32),
+          cvNet: new Uint8Array(32),
+          encryptedNote: new Uint8Array(216),
+        },
+      ],
+      'testnet',
+    );
     if (matches.length !== 0) {
       throw new Error('Dash Orchard WASM returned a false match for the fixed empty scanner boundary.');
     }

@@ -73,8 +73,11 @@ export function deriveDashCoinJoin(options: Bip32BatchOptions): DerivationResult
       basicSummary: [],
       summary,
       accountDescriptors: accountDescriptorExport({
-        script: 'pkh', fingerprint: masterFingerprint, accountPath,
-        publicKey: account.publicExtendedKey, privateKey: account.privateExtendedKey,
+        script: 'pkh',
+        fingerprint: masterFingerprint,
+        accountPath,
+        publicKey: account.publicExtendedKey,
+        privateKey: account.privateExtendedKey,
         fileStem: `dash-coinjoin-${options.network}-account-${options.account}`,
         scannerPrefix: 'dash-coinjoin-xpub',
       }),

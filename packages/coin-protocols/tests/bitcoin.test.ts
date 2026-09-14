@@ -54,11 +54,19 @@ describe('Bitcoin official application vectors', () => {
 
   it('matches the complete BIP86 first receiving vector', () => {
     const result = derive('taproot');
-    expect(value(result.summary, 'accountXprv')).toBe('xprv9xgqHN7yz9MwCkxsBPN5qetuNdQSUttZNKw1dcYTV4mkaAFiBVGQziHs3NRSWMkCzvgjEe3n9xV8oYywvM8at9yRqyaZVz6TYYhX98VjsUk');
-    expect(rowValue(result, 'internalPublicKey')).toBe('cc8a4bc64d897bddc5fbc2f670f7a8ba0b386779106cf1223c6fc5d7cd6fc115');
+    expect(value(result.summary, 'accountXprv')).toBe(
+      'xprv9xgqHN7yz9MwCkxsBPN5qetuNdQSUttZNKw1dcYTV4mkaAFiBVGQziHs3NRSWMkCzvgjEe3n9xV8oYywvM8at9yRqyaZVz6TYYhX98VjsUk',
+    );
+    expect(rowValue(result, 'internalPublicKey')).toBe(
+      'cc8a4bc64d897bddc5fbc2f670f7a8ba0b386779106cf1223c6fc5d7cd6fc115',
+    );
     expect(rowValue(result, 'tapTweak')).toBe('2ca01ed85cf6b6526f73d39a1111cd80333bfdc00ce98992859848a90a6f0258');
-    expect(rowValue(result, 'taprootOutputPublicKey')).toBe('a60869f0dbcf1dc659c9cecbaf8050135ea9e8cdc487053f1dc6880949dc684c');
-    expect(rowValue(result, 'scriptPubKey')).toBe('5120a60869f0dbcf1dc659c9cecbaf8050135ea9e8cdc487053f1dc6880949dc684c');
+    expect(rowValue(result, 'taprootOutputPublicKey')).toBe(
+      'a60869f0dbcf1dc659c9cecbaf8050135ea9e8cdc487053f1dc6880949dc684c',
+    );
+    expect(rowValue(result, 'scriptPubKey')).toBe(
+      '5120a60869f0dbcf1dc659c9cecbaf8050135ea9e8cdc487053f1dc6880949dc684c',
+    );
     expect(rowValue(result, 'address')).toBe('bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr');
     expect(rowValue(result, 'address', 1)).toBe('bc1p4qhjn9zdvkux4e44uhx8tc55attvtyu358kutcqkudyccelu0was9fqzwh');
 

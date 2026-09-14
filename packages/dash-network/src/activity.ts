@@ -1,18 +1,12 @@
 import { bytesToHex } from '@ckd/core/crypto.js';
-import type {
-  ActivitySnapshot,
-  ScannedMatch,
-  ShieldedActivity,
-  ShieldedPage,
-  ViewerKeyKind,
-} from './types.js';
+import type { ActivitySnapshot, ScannedMatch, ShieldedActivity, ShieldedPage, ViewerKeyKind } from './types.js';
 
 function activityFromMatch(match: ScannedMatch, keyKind: ViewerKeyKind): ShieldedActivity {
   if (match.incoming !== undefined && match.outgoing !== undefined) {
     if (
-      match.incoming.value !== match.outgoing.value
-      || match.incoming.addressRaw !== match.outgoing.addressRaw
-      || match.incoming.memoHex !== match.outgoing.memoHex
+      match.incoming.value !== match.outgoing.value ||
+      match.incoming.addressRaw !== match.outgoing.addressRaw ||
+      match.incoming.memoHex !== match.outgoing.memoHex
     ) {
       throw new Error('Incoming and outgoing recovery disagree for the same Orchard note.');
     }
@@ -21,9 +15,7 @@ function activityFromMatch(match: ScannedMatch, keyKind: ViewerKeyKind): Shielde
   }
   if (match.incoming !== undefined) {
     if (keyKind === 'outgoing') throw new Error('Outgoing-only recovery cannot contain incoming notes.');
-    return keyKind === 'full'
-      ? { ...match, direction: 'received', spent: false }
-      : { ...match, direction: 'received' };
+    return keyKind === 'full' ? { ...match, direction: 'received', spent: false } : { ...match, direction: 'received' };
   }
   if (keyKind === 'incoming') throw new Error('Incoming-only recovery cannot contain outgoing outputs.');
   if (match.outgoing !== undefined) return { ...match, direction: 'sent' };

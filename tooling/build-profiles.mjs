@@ -1,3 +1,5 @@
+import profileCapabilities from '../packages/edition-profiles/profile-capabilities.json' with { type: 'json' };
+
 const toolDefinitions = {
   'key-derivation': {
     multiChain: {
@@ -7,7 +9,8 @@ const toolDefinitions = {
       entryPoint: 'apps/key-derivation/src/ui/app.ts',
       workerEntryPoint: 'apps/key-derivation/src/workers/derive-worker.ts',
       eyebrow: 'KEY DERIVATION TOOL',
-      introduction: 'Derive wallet keys from a 12-, 15-, 18-, 21-, or 24-word English BIP39 recovery phrase using the protocols available in this build.',
+      introduction:
+        'Derive wallet keys from a 12-, 15-, 18-, 21-, or 24-word English BIP39 recovery phrase using the protocols available in this build.',
       footerProtocols: 'BIP39 · BIP32 · Bitcoin · Ethereum · Dash Core · Platform · Identity · Shielded',
     },
     dashCommunity: {
@@ -17,7 +20,8 @@ const toolDefinitions = {
       entryPoint: 'apps/key-derivation/src/ui/app-dash-community.ts',
       workerEntryPoint: 'apps/key-derivation/src/workers/derive-worker-dash-community.ts',
       eyebrow: 'KEY DERIVATION TOOL',
-      introduction: 'Derive Dash Core, Platform, Identity, and Orchard wallet keys from a 12-, 15-, 18-, 21-, or 24-word English BIP39 recovery phrase.',
+      introduction:
+        'Derive Dash Core, Platform, Identity, and Orchard wallet keys from a 12-, 15-, 18-, 21-, or 24-word English BIP39 recovery phrase.',
       footerProtocols: 'BIP39 · BIP32 · Dash Core · Platform · Identity · Orchard',
     },
   },
@@ -28,7 +32,8 @@ const toolDefinitions = {
       documentTitle: 'Wallet Activity Viewer',
       entryPoint: 'apps/activity-viewer/src/app.ts',
       eyebrow: 'ACTIVITY VIEWER',
-      introduction: 'Inspect supported public addresses, identities, and privacy-preserving activity with local validation and proof-aware network queries.',
+      introduction:
+        'Inspect supported public addresses, identities, and privacy-preserving activity with local validation and proof-aware network queries.',
     },
     dashCommunity: {
       artifactDirectory: 'dash-community-edition/activity-viewer',
@@ -36,7 +41,8 @@ const toolDefinitions = {
       documentTitle: 'Dash Community Edition — Wallet Activity Viewer',
       entryPoint: 'apps/activity-viewer/src/app-dash-community.ts',
       eyebrow: 'ACTIVITY VIEWER',
-      introduction: 'Scan Orchard activity locally, inspect public Core and Platform addresses, or resolve a Dash Platform Identity with proof-verified keys and state.',
+      introduction:
+        'Scan Orchard activity locally, inspect public Core and Platform addresses, or resolve a Dash Platform Identity with proof-verified keys and state.',
     },
   },
   'discovery-scanner': {
@@ -46,7 +52,8 @@ const toolDefinitions = {
       documentTitle: 'Wallet Discovery Scanner',
       entryPoint: 'apps/discovery-scanner/src/app.ts',
       eyebrow: 'DISCOVERY SCANNER',
-      introduction: 'Search supported wallet account structures from one or several BIP39 recovery phrases, then review and export discovery findings.',
+      introduction:
+        'Search supported wallet account structures from one or several BIP39 recovery phrases, then review and export discovery findings.',
     },
     dashCommunity: {
       artifactDirectory: 'dash-community-edition/discovery-scanner',
@@ -54,7 +61,8 @@ const toolDefinitions = {
       documentTitle: 'Dash Community Edition — Wallet Discovery Scanner',
       entryPoint: 'apps/discovery-scanner/src/app-dash-community.ts',
       eyebrow: 'DISCOVERY SCANNER',
-      introduction: 'Scan Dash Core receive and change chains, Platform payment addresses, identities, and the complete Orchard pool from one or several BIP39 phrases.',
+      introduction:
+        'Scan Dash Core receive and change chains, Platform payment addresses, identities, and the complete Orchard pool from one or several BIP39 phrases.',
     },
   },
   'psbt-inspector': {
@@ -64,7 +72,8 @@ const toolDefinitions = {
       documentTitle: 'PSBT & Multisig Inspector',
       entryPoint: 'apps/psbt-inspector/src/app.ts',
       eyebrow: 'PSBT & MULTISIG INSPECTOR',
-      introduction: 'Decode PSBT and Script hex locally, then build auditable multisig or timelocked output policies without a network connection.',
+      introduction:
+        'Decode PSBT and Script hex locally, then build auditable multisig or timelocked output policies without a network connection.',
     },
     dashCommunity: {
       artifactDirectory: 'dash-community-edition/psbt-inspector',
@@ -72,7 +81,8 @@ const toolDefinitions = {
       documentTitle: 'Dash Community Edition — PSBT & Multisig Inspector',
       entryPoint: 'apps/psbt-inspector/src/app.ts',
       eyebrow: 'DASH PSBT & MULTISIG INSPECTOR',
-      introduction: 'Decode Dash Core PSBT v0 and legacy Script locally, then build Dash P2SH multisig, hashlock, and timelocked recovery policies without a network connection.',
+      introduction:
+        'Decode Dash Core PSBT v0 and legacy Script locally, then build Dash P2SH multisig, hashlock, and timelocked recovery policies without a network connection.',
     },
   },
 };
@@ -82,6 +92,7 @@ export const BUILD_PROFILES = {
     id: 'multi-chain',
     editionName: 'Multi-Chain Edition',
     brandName: 'Multi-Chain Wallet Tools',
+    capabilities: profileCapabilities['multi-chain'].capabilities,
     themeStylesheet: undefined,
     outputDirectory: 'multi-chain-edition',
     manifestPath: 'dist/multi-chain-edition/SHA256SUMS',
@@ -91,6 +102,7 @@ export const BUILD_PROFILES = {
     id: 'dash-community',
     editionName: 'Dash Community Edition',
     brandName: 'Dash Community Edition',
+    capabilities: profileCapabilities['dash-community'].capabilities,
     themeStylesheet: 'packages/shared-ui/styles/dash-community.css',
     outputDirectory: 'dash-community-edition',
     manifestPath: 'dist/dash-community-edition/SHA256SUMS',
@@ -113,7 +125,8 @@ export function getToolBuild(profile, toolId) {
   const definitions = toolDefinitions[toolId];
   if (definitions === undefined) throw new Error(`Unknown standalone tool: ${toolId}.`);
   const tool = profile.id === 'dash-community' ? definitions.dashCommunity : definitions.multiChain;
-  if (tool === undefined) throw new Error(`Standalone tool "${toolId}" is not available in the ${profile.id} build profile.`);
+  if (tool === undefined)
+    throw new Error(`Standalone tool "${toolId}" is not available in the ${profile.id} build profile.`);
   return {
     ...tool,
     artifactRelativePath: `${tool.artifactDirectory}/${tool.artifactName}`,
@@ -123,54 +136,92 @@ export function getToolBuild(profile, toolId) {
 
 export function profileToolIds(profile) {
   return Object.entries(toolDefinitions)
-    .filter(([, definitions]) => (profile.id === 'dash-community' ? definitions.dashCommunity : definitions.multiChain) !== undefined)
+    .filter(
+      ([, definitions]) =>
+        (profile.id === 'dash-community' ? definitions.dashCommunity : definitions.multiChain) !== undefined,
+    )
     .map(([toolId]) => toolId)
     .sort();
 }
 
 export function applyProfileTemplate(template, profile, tool) {
-  const dashBrandMark = profile.id === 'dash-community'
-    ? '<span class="dash-header-brand"><span class="dash-header-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle cx="471.5" cy="471.5" r="471"/><path d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span><span>Dash Community Edition</span></span>'
-    : '<span class="profile-header-brand">Multi-Chain Wallet Tools</span>';
-  const profileBrandMark = profile.id === 'dash-community'
-    ? '<span class="profile-brand-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle fill="#008de4" cx="471.5" cy="471.5" r="471"/><path fill="#fff" d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path fill="#fff" d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span>'
-    : '';
-  const recoveryCoinField = profile.id === 'dash-community'
-    ? ''
-    : '<div><label for="recovery-coin">Coin</label><select id="recovery-coin"></select></div>';
-  const recoveryPublicKeyPlaceholder = profile.id === 'dash-community'
-    ? 'Paste a public key, account xpub, or Dash Orchard viewing key. One key per line.'
-    : 'Paste a public key, account xpub, descriptor, or Dash Orchard viewing key. One key per line.';
-  const recoveryPublicKeyScope = profile.id === 'dash-community'
-    ? '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any.'
-    : '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.';
-  const activityCoinControl = profile.id === 'dash-community'
-    ? ''
-    : '<div class="viewer-coin-field"><label for="viewer-coin">Coin</label><select id="viewer-coin"><option value="bitcoin" selected>Bitcoin</option><option value="ethereum">Ethereum</option><option value="dash">Dash</option></select><p class="field-note">Choose the coin before entering a public lookup.</p></div>';
-  const psbtChainOptions = profile.id === 'dash-community'
-    ? '<option value="dash">Dash Core</option>'
-    : '<option value="bitcoin">Bitcoin</option><option value="dash">Dash Core</option>';
-  const signerFormatField = profile.id === 'dash-community' ? '' : `<div id="message-signer-format-field" hidden>
+  const dashBrandMark =
+    profile.id === 'dash-community'
+      ? '<span class="dash-header-brand"><span class="dash-header-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle cx="471.5" cy="471.5" r="471"/><path d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span><span>Dash Community Edition</span></span>'
+      : '<span class="profile-header-brand">Multi-Chain Wallet Tools</span>';
+  const profileBrandMark =
+    profile.id === 'dash-community'
+      ? '<span class="profile-brand-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle fill="#008de4" cx="471.5" cy="471.5" r="471"/><path fill="#fff" d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path fill="#fff" d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span>'
+      : '';
+  const recoveryCoinField =
+    profile.id === 'dash-community'
+      ? ''
+      : '<div><label for="recovery-coin">Coin</label><select id="recovery-coin"></select></div>';
+  const recoveryPublicKeyPlaceholder =
+    profile.id === 'dash-community'
+      ? 'Paste a public key, account xpub, or Dash Orchard viewing key. One key per line.'
+      : 'Paste a public key, account xpub, descriptor, or Dash Orchard viewing key. One key per line.';
+  const recoveryPublicKeyScope =
+    profile.id === 'dash-community'
+      ? '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any.'
+      : '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.';
+  const addressSearchPanel =
+    profile.id === 'dash-community'
+      ? ''
+      : `<section id="address-search" class="address-search recovery-only" aria-labelledby="address-search-title">
+          <div>
+            <h3 id="address-search-title">Recover by address</h3>
+            <p>Search one or many public Bitcoin addresses against the selected recovery phrase. Each address is routed to its matching address-family adapter.</p>
+          </div>
+          <div class="address-search-grid">
+            <div class="address-search-value">
+              <label for="expected-address">Bitcoin address or addresses</label>
+              <textarea id="expected-address" rows="5" autocomplete="off" autocapitalize="none" placeholder="Paste one address, or one address per line"></textarea>
+            </div>
+            <div>
+              <label for="search-start">From index</label>
+              <input id="search-start" type="number" value="0" min="0" max="2147483647" step="1">
+            </div>
+            <div>
+              <label for="search-count">Indices to scan</label>
+              <input id="search-count" type="number" value="100" min="1" max="5000" step="1">
+            </div>
+            <button class="secondary" id="search-address" type="button">Find address</button>
+          </div>
+          <div id="search-result" class="search-result" role="status" aria-live="polite" hidden></div>
+        </section>`;
+  const activityCoinControl =
+    profile.id === 'dash-community'
+      ? ''
+      : '<div class="viewer-coin-field"><label for="viewer-coin">Coin</label><select id="viewer-coin"><option value="bitcoin" selected>Bitcoin</option><option value="ethereum">Ethereum</option><option value="dash">Dash</option></select><p class="field-note">Choose the coin before entering a public lookup.</p></div>';
+  const psbtChainOptions =
+    profile.id === 'dash-community'
+      ? '<option value="dash">Dash Core</option>'
+      : '<option value="bitcoin">Bitcoin</option><option value="dash">Dash Core</option>';
+  const signerFormatField = profile.capabilities.bitcoinMessageSigning
+    ? `<div id="message-signer-format-field" hidden>
           <label for="message-signer-format-select">Signature format</label>
           <select id="message-signer-format-select">
             <option value="bitcoin-bip322-legacy">BIP-322 full · recommended</option>
             <option value="bitcoin-compact">Legacy compact · BIP137 compatibility</option>
           </select>
           <p class="field-note">BIP-322 is the current general-purpose Bitcoin message-signing standard. Use compact BIP137 only for software that does not support BIP-322.</p>
-        </div>`;
-  const psbtNetworkOptions = profile.id === 'dash-community'
-    ? '<option value="mainnet">Mainnet</option><option value="testnet">Testnet</option>'
-    : '<option value="mainnet">Mainnet</option><option value="testnet">Testnet / Signet</option><option value="regtest">Regtest</option>';
-  const silentPaymentTab = profile.id === 'dash-community'
+        </div>`
+    : '';
+  const psbtNetworkOptions =
+    profile.id === 'dash-community'
+      ? '<option value="mainnet">Mainnet</option><option value="testnet">Testnet</option>'
+      : '<option value="mainnet">Mainnet</option><option value="testnet">Testnet / Signet</option><option value="regtest">Regtest</option>';
+  const silentPaymentTab = !profile.capabilities.bitcoinSilentPayments
     ? ''
     : '<button type="button" id="silent-payment-tab" class="protocol-tab primary-mode-tab" data-feature-tab="silent-payment" role="radio" aria-checked="false" aria-controls="silent-payment-panel" tabindex="-1" hidden><span>Silent Payments</span><small>BIP352</small></button>';
-  const silentPaymentToggle = profile.id === 'dash-community'
+  const silentPaymentToggle = !profile.capabilities.bitcoinSilentPayments
     ? ''
     : `<label class="feature-tab-toggle" for="include-silent-payment" title="Give out one reusable address while each payment lands on a separate, unlinkable on-chain output.">
         <input id="include-silent-payment" type="checkbox" aria-controls="silent-payment-tab">
         <span>Show Silent Payments · BIP352</span>
       </label>`;
-  const silentPaymentPanel = profile.id === 'dash-community'
+  const silentPaymentPanel = !profile.capabilities.bitcoinSilentPayments
     ? ''
     : `<section id="silent-payment-panel" class="supplemental-derivation span-three" aria-labelledby="silent-payment-title" hidden>
           <div class="supplemental-heading"><span class="step">SP</span><h3 id="silent-payment-title">Bitcoin Silent Payments · BIP352</h3></div>
@@ -203,16 +254,16 @@ export function applyProfileTemplate(template, profile, tool) {
             <p class="field-note">There is no fixed list of on-chain receive addresses to pre-generate. Each sender derives a unique Taproot output from a reusable address and their own transaction inputs; only a BIP352-aware scanner reading chain data can detect the resulting outputs and balance.</p>
           </div>
         </section>`;
-  const bip85Tab = profile.id === 'dash-community'
+  const bip85Tab = !profile.capabilities.bip85
     ? ''
     : '<button type="button" id="bip85-tab" class="protocol-tab primary-mode-tab" data-feature-tab="bip85" role="radio" aria-checked="false" aria-controls="bip85-panel" tabindex="-1" hidden><span>Child seeds</span><small>BIP85</small></button>';
-  const bip85Toggle = profile.id === 'dash-community'
+  const bip85Toggle = !profile.capabilities.bip85
     ? ''
     : `<label class="feature-tab-toggle" for="include-bip85" title="Derive independent child seeds and application secrets from this wallet.">
         <input id="include-bip85" type="checkbox" aria-controls="bip85-tab">
         <span>Show Child seeds · BIP85</span>
       </label>`;
-  const bip85Panel = profile.id === 'dash-community'
+  const bip85Panel = !profile.capabilities.bip85
     ? ''
     : `<section class="supplemental-derivation span-three" id="bip85-panel" hidden>
         <div class="supplemental-heading"><span class="step">85</span><h3>Child seeds · BIP85</h3></div>
@@ -266,102 +317,103 @@ export function applyProfileTemplate(template, profile, tool) {
           </section>
         </div>
       </section>`;
-  const psbtBuilderWrapperOptions = profile.id === 'dash-community'
+  const psbtBuilderWrapperOptions = !profile.capabilities.advancedPsbt
     ? '<option value="p2sh">Legacy P2SH</option>'
     : '<option value="p2wsh">Native P2WSH</option><option value="p2sh">Legacy P2SH</option><option value="p2tr">Taproot P2TR · Tapscript policy</option><option value="p2tr-musig2">Taproot P2TR · MuSig2 key path</option>';
-  const psbtWalletWrapperOptions = profile.id === 'dash-community'
+  const psbtWalletWrapperOptions = !profile.capabilities.advancedPsbt
     ? '<option value="p2sh">Legacy P2SH</option>'
     : '<option value="p2sh">Legacy P2SH</option><option value="p2wsh">Bitcoin Native P2WSH</option>';
-  const psbtCapabilities = profile.id === 'dash-community'
+  const psbtCapabilities = !profile.capabilities.advancedPsbt
     ? '<div><span class="capability-check">✓</span><span>Dash Core PSBT v0</span></div>'
     : '<div><span class="capability-check">✓</span><span>Bitcoin PSBT v0 / v2</span></div><div><span class="capability-check">✓</span><span>Dash Core PSBT v0</span></div>';
-  const psbtProtocolScope = profile.id === 'dash-community'
+  const psbtProtocolScope = !profile.capabilities.advancedPsbt
     ? 'Dash Core BIP-174-compatible PSBT v0 inspection; legacy Script and descriptor decoding; P2SH multisig, hashlock, and CLTV/CSV recovery-policy construction; deterministic watch-only P2SH multisig construction. SegWit, Taproot, Schnorr, and MuSig2 are excluded.'
     : 'Bitcoin BIP-174/BIP-370/BIP-371/BIP-373 field inspection; Dash Core BIP-174-compatible v0 inspection; Script and descriptor decoding; P2SH/P2WSH multisig, hashlock, Taproot/MuSig2 inspection, and CLTV/CSV recovery-policy construction; deterministic watch-only multisig construction.';
-  const psbtDescriptorScope = profile.id === 'dash-community'
+  const psbtDescriptorScope = !profile.capabilities.advancedPsbt
     ? '<p class="field-note"><strong>Dash descriptor coverage:</strong> legacy <code>pk()</code>, <code>pkh()</code>, <code>sh()</code>, <code>multi()</code>, <code>sortedmulti()</code>, <code>addr()</code>, <code>raw()</code>, and supported legacy Miniscript/hashlock/timelock fragments, with BitcoinerLab Miniscript safety analysis. SegWit, Taproot, Schnorr, MuSig2, and their PSBT fields are rejected.</p>'
     : '<p class="field-note"><strong>Bitcoin descriptor coverage:</strong> common wallet descriptors, Taproot/MuSig2, and Miniscript hashlock/timelock trees receive BitcoinerLab Miniscript safety analysis. Arbitrary descriptor address expansion and private-key descriptors remain unsupported.</p>';
-  const psbtMusigScope = profile.id === 'dash-community'
+  const psbtMusigScope = !profile.capabilities.advancedPsbt
     ? ''
     : '<p class="field-note"><strong>MuSig2 scope:</strong> the BIP-390 descriptor spelling is <code>musig(...)</code>, but it represents the modern BIP-327 MuSig2 protocol—not legacy MuSig1. Pinned public-key routines from <code>@scure/btc-signer</code> calculate and cross-check KeySort/KeyAgg, Taproot outputs, and BIP-328 aggregate-key derivation; the PSBT inspector structurally recognizes BIP-373 fields. The dependency package name contains “Signer”, but this utility does not expose transaction signing, secret nonces, or interactive partial-signature rounds.</p>';
-  const psbtDependencyScope = profile.id === 'dash-community'
+  const psbtDependencyScope = !profile.capabilities.advancedPsbt
     ? 'BitcoinerLab Miniscript 2.0.0, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC.'
     : 'BitcoinerLab Miniscript 2.0.0, Scure BTC Signer 2.4.1, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC.';
-  const psbtDecoderIntroduction = profile.id === 'dash-community'
+  const psbtDecoderIntroduction = !profile.capabilities.advancedPsbt
     ? 'Inspect raw Dash Script hex or a supported legacy Dash output descriptor/Miniscript.'
     : 'Inspect raw Script hex or a Bitcoin output descriptor/Miniscript exported by wallets such as Nunchuk.';
-  const psbtScriptPlaceholder = profile.id === 'dash-community'
+  const psbtScriptPlaceholder = !profile.capabilities.advancedPsbt
     ? '522102...53ae or sh(sortedmulti(...))#checksum'
     : '522102...53ae or tr(xpub.../0/*,{multi_a(...)})#checksum';
-  const psbtPolicyScope = profile.id === 'dash-community'
+  const psbtPolicyScope = !profile.capabilities.advancedPsbt
     ? '<p class="field-note"><strong>Policy scope:</strong> Dash P2SH policies use legacy Script operations supported by Dash Core. Standard multisig is broadly interoperable; CLTV/CSV/hashlock branches require a separately tested custom signer and recovery procedure.</p>'
     : '<p class="field-note"><strong>Policy scope:</strong> advanced script shapes are Bitcoin-Script style policies. Dash L1 supports standard P2SH multisig and common CLTV/CSV script opcodes, but wallet auto-signing/recovery support is not guaranteed for custom branches. Hashlock/preimage scripts are contract-style policies, not normal multisig wallet recovery; OP_RETURN outputs are not spendable wallet outputs.</p>';
-  const psbtNunchukScope = profile.id === 'dash-community'
+  const psbtNunchukScope = !profile.capabilities.advancedPsbt
     ? ''
     : '<p class="field-note"><strong>Nunchuk-style templates:</strong> HODL/Zen HODL maps to M-of-N after a lock. Named presets cover common flexible, decaying, expanding, and staged recovery shapes. Use Custom Bitcoin Miniscript for another exact policy tree, then independently confirm wallet-specific descriptor and signing support before funding.</p>';
-  const psbtCustomMiniscriptOption = profile.id === 'dash-community'
+  const psbtCustomMiniscriptOption = !profile.capabilities.advancedPsbt
     ? ''
     : '<option value="custom-miniscript">Custom Bitcoin Miniscript · P2WSH or Tapscript</option>';
-  const psbtVerifyAddressPlaceholder = profile.id === 'dash-community'
-    ? 'Dash address'
-    : 'Bitcoin or Dash address';
-  const psbtVerifySignaturePlaceholder = profile.id === 'dash-community'
+  const psbtVerifyAddressPlaceholder = !profile.capabilities.advancedPsbt ? 'Dash address' : 'Bitcoin or Dash address';
+  const psbtVerifySignaturePlaceholder = !profile.capabilities.advancedPsbt
     ? 'Base64 Dash Core compact signature'
     : 'Base64 signature, prefixed with smp, ful, or pof when applicable';
-  const psbtMessageVerifyScope = profile.id === 'dash-community'
+  const psbtMessageVerifyScope = !profile.capabilities.advancedPsbt
     ? '<strong>Dash:</strong> Dash Core compact P2PKH signatures are checked with the protocol-compatible Dash signed-message domain.'
     : '<strong>Bitcoin:</strong> BIP-322 legacy, simple, full, and proof-of-funds formats are checked by the pinned btcutil verifier and Bitcoin Script engine. Unprefixed pre-finalization simple signatures remain accepted for compatibility. <strong>Dash:</strong> Dash Core compact P2PKH signatures are checked with the protocol-compatible Dash signed-message domain.';
-  const psbtFooterProtocols = profile.id === 'dash-community'
+  const psbtFooterProtocols = !profile.capabilities.advancedPsbt
     ? 'Dash Core PSBT v0 · P2SH · multisig · hashlocks · CLTV/CSV'
     : 'BIP-174 · BIP-370 · BIP-371 · BIP-373 · Dash Core PSBT · P2SH/P2WSH · Taproot · MuSig2 · CLTV/CSV';
-  const psbtChainScope = profile.id === 'dash-community' ? '' : ' · BITCOIN &amp; DASH';
+  const psbtChainScope = profile.capabilities.advancedPsbt ? ' · BITCOIN &amp; DASH' : '';
   const replacements = {
-    '__DOCUMENT_TITLE__': tool.documentTitle,
-    '__EDITION_NAME__': profile.editionName,
-    '__BUILD_PROFILE__': profile.id,
-    '__BRAND_NAME__': profile.brandName,
-    '__EDITION_EYEBROW__': tool.eyebrow,
-    '__KEY_DERIVATION_INTRODUCTION__': tool.introduction,
-    '__KEY_DERIVATION_FOOTER_PROTOCOLS__': tool.footerProtocols,
-    '__KEY_DERIVATION_SIGNER_FORMAT_FIELD__': signerFormatField,
-    '__DASH_HEADER_BRAND__': dashBrandMark,
-    '__PROFILE_BRAND_MARK__': profileBrandMark,
-    '__RECOVERY_COIN_FIELD__': recoveryCoinField,
-    '__RECOVERY_PUBLIC_KEY_PLACEHOLDER__': recoveryPublicKeyPlaceholder,
-    '__RECOVERY_PUBLIC_KEY_SCOPE__': recoveryPublicKeyScope,
-    '__ACTIVITY_COIN_CONTROL__': activityCoinControl,
-    '__TOOL_INTRODUCTION__': tool.introduction,
-    '__PSBT_CHAIN_OPTIONS__': psbtChainOptions,
-    '__PSBT_NETWORK_OPTIONS__': psbtNetworkOptions,
-    '__SILENT_PAYMENT_TAB__': silentPaymentTab,
-    '__SILENT_PAYMENT_TOGGLE__': silentPaymentToggle,
-    '__SILENT_PAYMENT_PANEL__': silentPaymentPanel,
-    '__BIP85_TAB__': bip85Tab,
-    '__BIP85_TOGGLE__': bip85Toggle,
-    '__BIP85_PANEL__': bip85Panel,
-    '__PSBT_BUILDER_WRAPPER_OPTIONS__': psbtBuilderWrapperOptions,
-    '__PSBT_WALLET_WRAPPER_OPTIONS__': psbtWalletWrapperOptions,
-    '__PSBT_CAPABILITIES__': psbtCapabilities,
-    '__PSBT_PROTOCOL_SCOPE__': psbtProtocolScope,
-    '__PSBT_DESCRIPTOR_SCOPE__': psbtDescriptorScope,
-    '__PSBT_MUSIG_SCOPE__': psbtMusigScope,
-    '__PSBT_DEPENDENCY_SCOPE__': psbtDependencyScope,
-    '__PSBT_DECODER_INTRODUCTION__': psbtDecoderIntroduction,
-    '__PSBT_SCRIPT_PLACEHOLDER__': psbtScriptPlaceholder,
-    '__PSBT_POLICY_SCOPE__': psbtPolicyScope,
-    '__PSBT_NUNCHUK_SCOPE__': psbtNunchukScope,
-    '__PSBT_CUSTOM_MINISCRIPT_OPTION__': psbtCustomMiniscriptOption,
-    '__PSBT_VERIFY_ADDRESS_PLACEHOLDER__': psbtVerifyAddressPlaceholder,
-    '__PSBT_VERIFY_SIGNATURE_PLACEHOLDER__': psbtVerifySignaturePlaceholder,
-    '__PSBT_MESSAGE_VERIFY_SCOPE__': psbtMessageVerifyScope,
-    '__PSBT_FOOTER_PROTOCOLS__': psbtFooterProtocols,
-    '__PSBT_CHAIN_SCOPE__': psbtChainScope,
+    __DOCUMENT_TITLE__: tool.documentTitle,
+    __EDITION_NAME__: profile.editionName,
+    __BUILD_PROFILE__: profile.id,
+    __BRAND_NAME__: profile.brandName,
+    __EDITION_EYEBROW__: tool.eyebrow,
+    __KEY_DERIVATION_INTRODUCTION__: tool.introduction,
+    __KEY_DERIVATION_FOOTER_PROTOCOLS__: tool.footerProtocols,
+    __KEY_DERIVATION_SIGNER_FORMAT_FIELD__: signerFormatField,
+    __DASH_HEADER_BRAND__: dashBrandMark,
+    __PROFILE_BRAND_MARK__: profileBrandMark,
+    __RECOVERY_COIN_FIELD__: recoveryCoinField,
+    __ADDRESS_SEARCH_PANEL__: addressSearchPanel,
+    __RECOVERY_PUBLIC_KEY_PLACEHOLDER__: recoveryPublicKeyPlaceholder,
+    __RECOVERY_PUBLIC_KEY_SCOPE__: recoveryPublicKeyScope,
+    __ACTIVITY_COIN_CONTROL__: activityCoinControl,
+    __TOOL_INTRODUCTION__: tool.introduction,
+    __PSBT_CHAIN_OPTIONS__: psbtChainOptions,
+    __PSBT_NETWORK_OPTIONS__: psbtNetworkOptions,
+    __SILENT_PAYMENT_TAB__: silentPaymentTab,
+    __SILENT_PAYMENT_TOGGLE__: silentPaymentToggle,
+    __SILENT_PAYMENT_PANEL__: silentPaymentPanel,
+    __BIP85_TAB__: bip85Tab,
+    __BIP85_TOGGLE__: bip85Toggle,
+    __BIP85_PANEL__: bip85Panel,
+    __PSBT_BUILDER_WRAPPER_OPTIONS__: psbtBuilderWrapperOptions,
+    __PSBT_WALLET_WRAPPER_OPTIONS__: psbtWalletWrapperOptions,
+    __PSBT_CAPABILITIES__: psbtCapabilities,
+    __PSBT_PROTOCOL_SCOPE__: psbtProtocolScope,
+    __PSBT_DESCRIPTOR_SCOPE__: psbtDescriptorScope,
+    __PSBT_MUSIG_SCOPE__: psbtMusigScope,
+    __PSBT_DEPENDENCY_SCOPE__: psbtDependencyScope,
+    __PSBT_DECODER_INTRODUCTION__: psbtDecoderIntroduction,
+    __PSBT_SCRIPT_PLACEHOLDER__: psbtScriptPlaceholder,
+    __PSBT_POLICY_SCOPE__: psbtPolicyScope,
+    __PSBT_NUNCHUK_SCOPE__: psbtNunchukScope,
+    __PSBT_CUSTOM_MINISCRIPT_OPTION__: psbtCustomMiniscriptOption,
+    __PSBT_VERIFY_ADDRESS_PLACEHOLDER__: psbtVerifyAddressPlaceholder,
+    __PSBT_VERIFY_SIGNATURE_PLACEHOLDER__: psbtVerifySignaturePlaceholder,
+    __PSBT_MESSAGE_VERIFY_SCOPE__: psbtMessageVerifyScope,
+    __PSBT_FOOTER_PROTOCOLS__: psbtFooterProtocols,
+    __PSBT_CHAIN_SCOPE__: psbtChainScope,
   };
   let rendered = template;
   for (const [marker, value] of Object.entries(replacements)) {
     if (value !== undefined) rendered = rendered.replaceAll(marker, value);
   }
-  const remaining = rendered.match(/__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_COIN_CONTROL|TOOL_INTRODUCTION|PSBT_[A-Z_]+)__/gu);
+  const remaining = rendered.match(
+    /__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|ADDRESS_SEARCH_PANEL|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_COIN_CONTROL|TOOL_INTRODUCTION|PSBT_[A-Z_]+)__/gu,
+  );
   if (remaining !== null) throw new Error(`Unexpanded build-profile marker: ${remaining.join(', ')}`);
   return rendered;
 }
@@ -373,33 +425,63 @@ export function profileArtifacts(profile) {
 }
 
 export function assertDashOnlyGraph(inputs, label) {
-  const normalized = inputs.map((input) => input.replaceAll('\\', '/'));
+  const normalized = inputs.map((input) => input.replaceAll('\\', '/').replace(/^\.\//u, ''));
   const unexpected = normalized.filter((input) => {
     const packageMarker = 'packages/coin-protocols/src/coins/';
     const packageIndex = input.indexOf(packageMarker);
     if (packageIndex >= 0) {
       const relative = input.slice(packageIndex + packageMarker.length);
       return !(
-        relative === 'registry-base.ts'
-        || relative === 'dash-registry.ts'
-        || relative === 'dash-runtime-registry.ts'
-        || relative === 'adapters/dash.ts'
-        || relative.startsWith('dash/')
+        relative === 'registry-base.ts' ||
+        relative === 'dash-registry.ts' ||
+        relative === 'dash-community-registry-profile.ts' ||
+        relative === 'dash-runtime-registry.ts' ||
+        relative === 'adapters/dash.ts' ||
+        relative.startsWith('dash/')
       );
+    }
+    const allowedSharedDashInputs = new Set([
+      'packages/public-data-providers/src/private-material.ts',
+      'packages/secret-boundary/src/secret-guard.ts',
+      'packages/network-boundary/src/protocol.ts',
+      'packages/network-boundary/src/data-types.ts',
+      'packages/network-boundary/src/client.ts',
+      'packages/network-boundary/src/worker-runtime.ts',
+      'packages/secret-vault/src/vault-protocol.ts',
+      'packages/secret-vault/src/vault-client.ts',
+      'packages/secret-vault/src/worker-bootstrap.ts',
+      'packages/wallet-recovery/src/watch-only.ts',
+      'packages/wallet-recovery/src/watch-only/types.ts',
+      'packages/wallet-recovery/src/watch-only/dash.ts',
+      'packages/wallet-recovery/src/watch-only/dash-profile.ts',
+      'packages/wallet-recovery/src/address-search.ts',
+    ]);
+    const newPackageMarkers = [
+      'packages/public-data-providers/src/',
+      'packages/secret-boundary/src/',
+      'packages/network-boundary/src/',
+      'packages/secret-vault/src/',
+      'packages/wallet-recovery/src/',
+    ];
+    for (const marker of newPackageMarkers) {
+      const markerIndex = input.indexOf(marker);
+      if (markerIndex >= 0) return !allowedSharedDashInputs.has(input.slice(markerIndex));
     }
     const appMarker = 'apps/discovery-scanner/src/coins/';
     const appIndex = input.indexOf(appMarker);
     if (appIndex >= 0) {
       const relative = input.slice(appIndex + appMarker.length);
       return !(
-        relative === 'registry.ts'
-        || relative === 'dash-community.ts'
-        || relative === 'custom-path.ts'
-        || relative.startsWith('dash/')
+        relative === 'registry.ts' ||
+        relative === 'dash-community.ts' ||
+        relative === 'custom-path.ts' ||
+        relative.startsWith('dash/')
       );
     }
-    return input.endsWith('packages/verification/src/derivation-self-test.ts')
-      || input.endsWith('apps/discovery-scanner/src/self-test.ts');
+    return (
+      input.endsWith('packages/verification/src/derivation-self-test.ts') ||
+      input.endsWith('apps/discovery-scanner/src/self-test.ts')
+    );
   });
   if (unexpected.length > 0) {
     throw new Error(`${label} graph contains inputs outside the Dash allowlist: ${unexpected.join(', ')}`);

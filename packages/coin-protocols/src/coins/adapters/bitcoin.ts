@@ -1,9 +1,4 @@
-import {
-  BIP44_ADDRESS_BRANCHES,
-  indexRange,
-  TRANSPARENT_ROLES,
-  type CoinAdapter,
-} from '../registry-base.js';
+import { BIP44_ADDRESS_BRANCHES, indexRange, TRANSPARENT_ROLES, type CoinAdapter } from '../registry-base.js';
 
 function bitcoinAdapter(
   id: string,

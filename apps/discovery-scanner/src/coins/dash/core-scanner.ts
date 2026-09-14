@@ -3,7 +3,7 @@ import { rootFromSeed, requirePublic } from '@ckd/core/bip32.js';
 import { bytesToHex, encodeP2pkh, hash160, wipe } from '@ckd/core/crypto.js';
 import { getDashNetwork } from '@ckd/core/networks.js';
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import { RECOVERY_CORE_ADDRESS_BATCH, RECOVERY_CORE_ENDPOINTS } from '../../network-protocol.js';
+import { RECOVERY_CORE_ADDRESS_BATCH, RECOVERY_CORE_ENDPOINTS } from '@ckd/network-boundary/protocol.js';
 import type { RecoveryFinding, RecoveryProgress, RecoveryScanConfig, RecoverySection } from '../../types.js';
 import { customScanPaths } from '../custom-path.js';
 import {
@@ -51,9 +51,7 @@ export async function scanDashCore(
   const root = rootFromSeed(seed, network.versions);
   const accountPath = `m/44'/${network.coinType}'/${config.account}'`;
   const account = root.derive(accountPath);
-  const branchTargets: [number, number] = config.scanCore
-    ? [config.coreReceiveCount, config.coreChangeCount]
-    : [0, 0];
+  const branchTargets: [number, number] = config.scanCore ? [config.coreReceiveCount, config.coreChangeCount] : [0, 0];
   const scannedCounts: [number, number] = [0, 0];
   let completed = 0;
   let gapTruncated = false;
@@ -61,7 +59,7 @@ export async function scanDashCore(
     for (const branch of [0, 1] as const) {
       const branchNode = account.deriveChild(branch);
       try {
-        for (let offset = 0; offset < branchTargets[branch];) {
+        for (let offset = 0; offset < branchTargets[branch]; ) {
           if (signal.aborted) throw new DOMException('Core scan cancelled.', 'AbortError');
           const chunk: DerivedCoreAddress[] = [];
           const end = Math.min(offset + ADDRESS_CHUNK, branchTargets[branch]);
@@ -89,7 +87,8 @@ export async function scanDashCore(
             signal,
           );
           const infos = validateDashScanAddressBatch(dashScanValue, addresses);
-          const displayCandidates: Array<{ derived: DerivedCoreAddress; info: { balance: bigint; txCount: number } }> = [];
+          const displayCandidates: Array<{ derived: DerivedCoreAddress; info: { balance: bigint; txCount: number } }> =
+            [];
           infos.forEach((info, index) => {
             const derived = chunk[index];
             if (derived === undefined) throw new Error('Local Core address batch changed during scanning.');
@@ -110,20 +109,22 @@ export async function scanDashCore(
           // Funded addresses are always few and recovery-relevant, so enrich
           // every displayed result. The history option only adds used empty
           // addresses, which can number in the thousands after CoinJoin.
-          await Promise.all(displayCandidates.map(async ({ derived }) => {
-            try {
-              const value = await gateway.runPublic(
-                { network: config.network, address: derived.address },
-                'core.address-history',
-                () => gateway.networkApi.coreAddressHistory(config.network, derived.address, signal),
-                signal,
-              );
-              historyByAddress.set(derived.address, validateDashScanAddressHistory(value, derived.address));
-            } catch (cause) {
-              if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
-              historyDetailFailures += 1;
-            }
-          }));
+          await Promise.all(
+            displayCandidates.map(async ({ derived }) => {
+              try {
+                const value = await gateway.runPublic(
+                  { network: config.network, address: derived.address },
+                  'core.address-history',
+                  () => gateway.networkApi.coreAddressHistory(config.network, derived.address, signal),
+                  signal,
+                );
+                historyByAddress.set(derived.address, validateDashScanAddressHistory(value, derived.address));
+              } catch (cause) {
+                if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+                historyDetailFailures += 1;
+              }
+            }),
+          );
           for (const { derived, info } of displayCandidates) {
             const history = historyByAddress.get(derived.address);
             const finding: RecoveryFinding = {
@@ -139,12 +140,14 @@ export async function scanDashCore(
                 { label: 'Branch', value: derived.branch === 0 ? '0 · receive' : '1 · change' },
                 { label: 'Address index', value: String(derived.index) },
                 { label: 'Transactions reported', value: String(history?.txCount ?? info.txCount) },
-                ...(history === undefined ? [] : [
-                  { label: 'Lifetime received', value: formatDashFromDuffs(history.received) },
-                  { label: 'Lifetime sent', value: formatDashFromDuffs(history.sent) },
-                  ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
-                  ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
-                ]),
+                ...(history === undefined
+                  ? []
+                  : [
+                      { label: 'Lifetime received', value: formatDashFromDuffs(history.received) },
+                      { label: 'Lifetime sent', value: formatDashFromDuffs(history.sent) },
+                      ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
+                      ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
+                    ]),
                 { label: 'Public-key hash', value: derived.publicKeyHash, copyable: true },
               ],
             };
@@ -171,7 +174,7 @@ export async function scanDashCore(
       if (config.customPathFormat !== 'p2pkh') throw new Error('Dash custom paths require the P2PKH address format.');
       for (const parsed of customPaths) {
         let target = parsed.minimum;
-        for (let offset = 0; offset < target;) {
+        for (let offset = 0; offset < target; ) {
           if (signal.aborted) throw new DOMException('Core scan cancelled.', 'AbortError');
           const end = Math.min(offset + ADDRESS_CHUNK, target);
           const chunk: DerivedCoreAddress[] = [];
@@ -252,12 +255,14 @@ export async function scanDashCore(
                 { label: 'Derivation path', value: derived.path, copyable: true },
                 { label: 'Profile index', value: String(derived.index) },
                 { label: 'Transactions reported', value: String(history?.txCount ?? info.txCount) },
-                ...(history === undefined ? [] : [
-                  { label: 'Lifetime received', value: formatDashFromDuffs(history.received) },
-                  { label: 'Lifetime sent', value: formatDashFromDuffs(history.sent) },
-                  ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
-                  ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
-                ]),
+                ...(history === undefined
+                  ? []
+                  : [
+                      { label: 'Lifetime received', value: formatDashFromDuffs(history.received) },
+                      { label: 'Lifetime sent', value: formatDashFromDuffs(history.sent) },
+                      ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
+                      ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
+                    ]),
                 { label: 'Public-key hash', value: derived.publicKeyHash, copyable: true },
               ],
             };
@@ -283,19 +288,34 @@ export async function scanDashCore(
   }
 
   const warningParts: string[] = [];
-  if (gapTruncated) warningParts.push('A used address was found too close to the end of the BIP32 index space to complete the 20-address safety gap.');
-  if (historyDetailFailures > 0) warningParts.push(`${historyDetailFailures} optional historical address summar${historyDetailFailures === 1 ? 'y' : 'ies'} could not be loaded; balance and transaction-count discovery remains complete.`);
-  warningParts.push('DashScan is the sole Core balance/history source in this build. Independently verify funded addresses in a standard Dash wallet before recovery.');
+  if (gapTruncated)
+    warningParts.push(
+      'A used address was found too close to the end of the BIP32 index space to complete the 20-address safety gap.',
+    );
+  if (historyDetailFailures > 0)
+    warningParts.push(
+      `${historyDetailFailures} optional historical address summar${historyDetailFailures === 1 ? 'y' : 'ies'} could not be loaded; balance and transaction-count discovery remains complete.`,
+    );
+  warningParts.push(
+    'DashScan is the sole Core balance/history source in this build. Independently verify funded addresses in a standard Dash wallet before recovery.',
+  );
   return {
     id: 'core',
     title: 'Dash Core · L1',
     description: `BIP44 receive and change branches${config.scanCustomPath === true ? ' plus the selected custom P2PKH path are' : ' are'} derived locally; only public addresses are sent in batches to DashScan.`,
     state: 'complete',
     metrics: [
-      { label: 'Spendable balance', value: formatDashFromDuffs(totalBalance), tone: totalBalance > 0n ? 'positive' : 'neutral' },
+      {
+        label: 'Spendable balance',
+        value: formatDashFromDuffs(totalBalance),
+        tone: totalBalance > 0n ? 'positive' : 'neutral',
+      },
       { label: 'Funded addresses', value: String(fundedCount) },
       { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
-      { label: 'Addresses checked', value: `R ${scannedCounts[0]} · C ${scannedCounts[1]}${config.scanCustomPath === true ? ` · custom ${completed - scannedCounts[0] - scannedCounts[1]}` : ''}` },
+      {
+        label: 'Addresses checked',
+        value: `R ${scannedCounts[0]} · C ${scannedCounts[1]}${config.scanCustomPath === true ? ` · custom ${completed - scannedCounts[0] - scannedCounts[1]}` : ''}`,
+      },
     ],
     findings,
     scanned: completed,

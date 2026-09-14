@@ -5,7 +5,10 @@ import { requireRecord } from '@ckd/core/records.js';
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 export class ProviderHttpError extends Error {
-  constructor(readonly status: number, message: string) {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
     super(message);
   }
 }

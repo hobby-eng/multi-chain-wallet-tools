@@ -13,7 +13,8 @@ const image = `multi-chain-wallet-tools-reproducible:${String(manifest.version)}
 let sourceCommit = 'unavailable';
 let sourceDirty = false;
 try {
-  sourceCommit = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim() || 'unavailable';
+  sourceCommit =
+    spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim() || 'unavailable';
   sourceDirty = spawnSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).stdout.trim() !== '';
 } catch {}
 const temporary = mkdtempSync(join(tmpdir(), 'multi-chain-wallet-tools-reproducible-'));
@@ -27,11 +28,16 @@ function run(command, args, options = {}) {
   });
   if (result.error !== undefined) {
     if (command === 'docker' && result.error.code === 'ENOENT') {
-      throw new Error('Docker was not found. Install Docker Engine or Docker Desktop and ensure the docker command is on PATH.');
+      throw new Error(
+        'Docker was not found. Install Docker Engine or Docker Desktop and ensure the docker command is on PATH.',
+      );
     }
     throw result.error;
   }
-  if (result.status !== 0) throw Object.assign(new Error(`${command} ${args[0]} failed (exit ${result.status ?? 'signal'}).`), { exitCode: result.status ?? 1 });
+  if (result.status !== 0)
+    throw Object.assign(new Error(`${command} ${args[0]} failed (exit ${result.status ?? 'signal'}).`), {
+      exitCode: result.status ?? 1,
+    });
   return options.capture === true ? result.stdout.trim() : '';
 }
 
@@ -39,13 +45,20 @@ try {
   run('docker', ['version']);
   run('docker', [
     'build',
-    '--platform', 'linux/amd64',
-    '--network', 'host',
-    '--file', 'Dockerfile.reproducible',
-    '--build-arg', `SOURCE_COMMIT=${sourceCommit}`,
-    '--build-arg', `SOURCE_DIRTY=${String(sourceDirty)}`,
-    '--target', target,
-    '--tag', image,
+    '--platform',
+    'linux/amd64',
+    '--network',
+    'host',
+    '--file',
+    'Dockerfile.reproducible',
+    '--build-arg',
+    `SOURCE_COMMIT=${sourceCommit}`,
+    '--build-arg',
+    `SOURCE_DIRTY=${String(sourceDirty)}`,
+    '--target',
+    target,
+    '--tag',
+    image,
     '.',
   ]);
   container = run('docker', ['create', image, '/bin/true'], { capture: true });
@@ -62,8 +75,8 @@ try {
     console.log('Replaced the committed generated WASM inputs with the canonical container build.');
   } else {
     const destination = resolve(root, 'dist');
-    const manifests = Object.values(BUILD_PROFILES).map(profile => `${profile.outputDirectory}/release/SHA256SUMS`);
-    if (manifests.some(path => !existsSync(resolve(temporary, path)))) {
+    const manifests = Object.values(BUILD_PROFILES).map((profile) => `${profile.outputDirectory}/release/SHA256SUMS`);
+    if (manifests.some((path) => !existsSync(resolve(temporary, path)))) {
       throw new Error('The reproducible build did not contain the verified release bundle.');
     }
     rmSync(destination, { recursive: true, force: true });

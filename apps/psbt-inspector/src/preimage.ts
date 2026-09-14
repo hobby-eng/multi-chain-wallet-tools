@@ -27,9 +27,10 @@ export function calculatePhrasePreimage(phrase: string): PreimageCalculation {
     rawUtf8Hex: bytesToHex(raw),
     rawByteLength: raw.length,
     preimageHex: bytesToHex(preimage),
-    normalization: raw.length === 32
-      ? 'The UTF-8 phrase is exactly 32 bytes and is used directly.'
-      : `The UTF-8 phrase is ${raw.length} bytes, so SHA-256(UTF-8 phrase) is used as the deterministic 32-byte Miniscript preimage.`,
+    normalization:
+      raw.length === 32
+        ? 'The UTF-8 phrase is exactly 32 bytes and is used directly.'
+        : `The UTF-8 phrase is ${raw.length} bytes, so SHA-256(UTF-8 phrase) is used as the deterministic 32-byte Miniscript preimage.`,
     commitments: {
       sha256: bytesToHex(hashlockCommitment('sha256', preimage)),
       hash256: bytesToHex(hashlockCommitment('hash256', preimage)),

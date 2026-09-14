@@ -14,7 +14,7 @@ export function runBip39SelfTest(): CryptoSelfTestReport {
       'BIP39 PBKDF2 seed',
       bytesToHex(seed),
       'c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e5349553' +
-      '1f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04',
+        '1f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04',
     );
     return { passed: true, checks: ['BIP39'], durationMs: Math.round(now() - started) };
   } finally {

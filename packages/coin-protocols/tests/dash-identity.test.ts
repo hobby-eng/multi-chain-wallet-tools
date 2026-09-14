@@ -56,7 +56,15 @@ describe('Dash Identity DIP13 authentication-key vectors', () => {
       expect(bytesToHex(keyOne.privateKey)).not.toBe(bytesToHex(keyZero.privateKey));
       expect(bytesToHex(keyOne.publicKeyHash)).not.toBe(bytesToHex(keyZero.publicKeyHash));
     } finally {
-      wipe(seed, keyZero.privateKey, keyZero.publicKey, keyZero.publicKeyHash, keyOne.privateKey, keyOne.publicKey, keyOne.publicKeyHash);
+      wipe(
+        seed,
+        keyZero.privateKey,
+        keyZero.publicKey,
+        keyZero.publicKeyHash,
+        keyOne.privateKey,
+        keyOne.publicKey,
+        keyOne.publicKeyHash,
+      );
       root.wipePrivateData();
     }
   });
@@ -86,19 +94,19 @@ describe('Dash Identity DIP13 authentication-key vectors', () => {
       'Key 2 · HIGH AUTHENTICATION',
       'Key 3 · CRITICAL TRANSFER',
     ]);
-    expect(groups?.map((group) => group.advanced.find(({ label }) => label === 'DIP13 derivation path')?.value)).toEqual([
-      "m/9'/5'/5'/0'/0'/0'/0'",
-      "m/9'/5'/5'/0'/0'/0'/1'",
-      "m/9'/5'/5'/0'/0'/0'/2'",
-      "m/9'/5'/5'/0'/0'/0'/3'",
-    ]);
-    expect(groups?.[0]?.basic.find(({ label }) => label === 'Compressed public key')?.value)
-      .toBe('03de6e4f0a455c1f089e51c53ed937b172d46e5cec4a98e2d9977ea4638129d252');
-    expect(groups?.[0]?.basic.find(({ label }) => label === 'Public-key HASH160')?.value)
-      .toBe('d0559a724d640d22df8a04665308ffd0b7fe9b77');
+    expect(
+      groups?.map((group) => group.advanced.find(({ label }) => label === 'DIP13 derivation path')?.value),
+    ).toEqual(["m/9'/5'/5'/0'/0'/0'/0'", "m/9'/5'/5'/0'/0'/0'/1'", "m/9'/5'/5'/0'/0'/0'/2'", "m/9'/5'/5'/0'/0'/0'/3'"]);
+    expect(groups?.[0]?.basic.find(({ label }) => label === 'Compressed public key')?.value).toBe(
+      '03de6e4f0a455c1f089e51c53ed937b172d46e5cec4a98e2d9977ea4638129d252',
+    );
+    expect(groups?.[0]?.basic.find(({ label }) => label === 'Public-key HASH160')?.value).toBe(
+      'd0559a724d640d22df8a04665308ffd0b7fe9b77',
+    );
     expect(groups?.[0]?.basic.find(({ label }) => label === 'Private key (Dash WIF)')?.secret).toBe(true);
-    expect(result.rows[0]?.advanced.find(({ key }) => key === 'registrationProfile')?.value)
-      .toBe(DASH_IDENTITY_STANDARD_PROFILE_NAME);
+    expect(result.rows[0]?.advanced.find(({ key }) => key === 'registrationProfile')?.value).toBe(
+      DASH_IDENTITY_STANDARD_PROFILE_NAME,
+    );
     expect(result.notices.join(' ')).toContain('roles are assigned explicitly during registration');
   });
 

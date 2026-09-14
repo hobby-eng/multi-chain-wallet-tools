@@ -52,21 +52,23 @@ describe('public Dash address viewer', () => {
         };
       } else if (url.includes('/transactions?')) {
         body = {
-          resultSet: [{
-            hash: 'ab'.repeat(32),
-            type: 'CLASSIC',
-            blockHeight: 2_531_700,
-            confirmations: 36,
-            timestamp: '2026-09-01T18:54:00.000Z',
-            instantLock: '01',
-            chainLocked: true,
-            blockHash: 'cd'.repeat(32),
-            vIn: [
-              { address: CORE_ADDRESS, amount: '200' },
-              { address: 'Xother', amount: '900' },
-            ],
-            vOut: [{ value: 1_000, address: CORE_ADDRESS, addresses: [CORE_ADDRESS] }],
-          }],
+          resultSet: [
+            {
+              hash: 'ab'.repeat(32),
+              type: 'CLASSIC',
+              blockHeight: 2_531_700,
+              confirmations: 36,
+              timestamp: '2026-09-01T18:54:00.000Z',
+              instantLock: '01',
+              chainLocked: true,
+              blockHash: 'cd'.repeat(32),
+              vIn: [
+                { address: CORE_ADDRESS, amount: '200' },
+                { address: 'Xother', amount: '900' },
+              ],
+              vOut: [{ value: 1_000, address: CORE_ADDRESS, addresses: [CORE_ADDRESS] }],
+            },
+          ],
           pagination: { page: 1, limit: 1, total: 1 },
         };
       } else {
@@ -107,11 +109,16 @@ describe('public Dash address viewer', () => {
   });
 
   it('fails closed when DashScan reports an unsynchronized index', async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({ status: 'syncing' }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    }));
-    await expect(queryCoreAddress(CORE_ADDRESS, 'mainnet', 20, undefined, fetcher)).rejects.toThrow(/not synchronized/u);
+    const fetcher = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ status: 'syncing' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+    await expect(queryCoreAddress(CORE_ADDRESS, 'mainnet', 20, undefined, fetcher)).rejects.toThrow(
+      /not synchronized/u,
+    );
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });

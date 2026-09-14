@@ -54,13 +54,13 @@ export function advanceShieldedStream(
   maximumPages = SHIELDED_MAX_PAGES_PER_SCAN,
 ): ShieldedStreamStep {
   if (
-    cursor.position < 0n
-    || cursor.position % BigInt(SHIELDED_PAGE_SIZE) !== 0n
-    || !Number.isSafeInteger(cursor.pageCount)
-    || cursor.pageCount < 0
-    || !Number.isSafeInteger(cursor.consecutiveEmpty)
-    || cursor.consecutiveEmpty < 0
-    || cursor.consecutiveEmpty >= SHIELDED_EMPTY_CONFIRMATIONS
+    cursor.position < 0n ||
+    cursor.position % BigInt(SHIELDED_PAGE_SIZE) !== 0n ||
+    !Number.isSafeInteger(cursor.pageCount) ||
+    cursor.pageCount < 0 ||
+    !Number.isSafeInteger(cursor.consecutiveEmpty) ||
+    cursor.consecutiveEmpty < 0 ||
+    cursor.consecutiveEmpty >= SHIELDED_EMPTY_CONFIRMATIONS
   ) {
     throw new Error('Orchard stream cursor is outside the reviewed state space.');
   }
@@ -138,18 +138,22 @@ export async function runShieldedPageStream<Page>(options: {
       }
       highestRevision = revision;
       const partialMatchesRevision = lastPartial === undefined || lastPartial.revision === revision;
-      const emptyConfirmation = noteCount === 0
-        ? partialMatchesRevision && terminalRevision === revision ? cursor.consecutiveEmpty + 1 : 1
-        : 0;
+      const emptyConfirmation =
+        noteCount === 0
+          ? partialMatchesRevision && terminalRevision === revision
+            ? cursor.consecutiveEmpty + 1
+            : 1
+          : 0;
       // A nonempty successor can also prove that the earlier partial chunk
       // grew. Reconcile it first, before applying later nullifiers out of order.
       if (lastPartial !== undefined && cursor.position !== lastPartial.position && !partialMatchesRevision) {
         refreshPosition = lastPartial.position;
-      } else await options.onPage(page, {
-        position: cursor.position,
-        pageNumber: cursor.pageCount + 1,
-        emptyConfirmation,
-      });
+      } else
+        await options.onPage(page, {
+          position: cursor.position,
+          pageNumber: cursor.pageCount + 1,
+          emptyConfirmation,
+        });
       checkCancellation();
     } finally {
       options.disposePage(page);
@@ -159,17 +163,19 @@ export async function runShieldedPageStream<Page>(options: {
       terminalRevision = undefined;
       reconciliations += 1;
       if (reconciliations >= maximumReconciliations || pageCount >= maximumPages) {
-        return { complete: false, pageCount, terminalPosition: refreshPosition,
-          ...(reconciliations >= maximumReconciliations ? { limitReason: 'changing-tip' as const } : {}) };
+        return {
+          complete: false,
+          pageCount,
+          terminalPosition: refreshPosition,
+          ...(reconciliations >= maximumReconciliations ? { limitReason: 'changing-tip' as const } : {}),
+        };
       }
       cursor = { position: refreshPosition, pageCount, consecutiveEmpty: 0 };
       await options.yieldTurn?.();
       continue;
     }
     if (noteCount > 0) {
-      lastPartial = noteCount < SHIELDED_PAGE_SIZE
-        ? { position: cursor.position, revision }
-        : undefined;
+      lastPartial = noteCount < SHIELDED_PAGE_SIZE ? { position: cursor.position, revision } : undefined;
       terminalRevision = undefined;
       const position = cursor.position + BigInt(SHIELDED_PAGE_SIZE);
       if (pageCount >= maximumPages) {

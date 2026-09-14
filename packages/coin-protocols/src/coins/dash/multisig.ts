@@ -46,7 +46,11 @@ export function deriveDashMultisig(options: Bip32BatchOptions): DerivationResult
           field('publicKeyHash', 'HASH160(public key)', bytesToHex(publicKeyHash)),
           field('childXprv', 'Child xprv', child.privateExtendedKey, true),
           field('childXpub', 'Child xpub', child.publicExtendedKey),
-          field('descriptorKey', 'Descriptor key expression', `${origin}${account.publicExtendedKey}/${options.branch}/${index}`),
+          field(
+            'descriptorKey',
+            'Descriptor key expression',
+            `${origin}${account.publicExtendedKey}/${options.branch}/${index}`,
+          ),
         ],
       });
       wipe(privateKey, publicKey, publicKeyHash);
@@ -58,13 +62,12 @@ export function deriveDashMultisig(options: Bip32BatchOptions): DerivationResult
       title: 'Dash multisig cosigner (Purpose48 / P2SH)',
       networkLabel: network.label,
       pathTemplate: `${branchPath}/i`,
-      basicSummary: [
-        field('descriptorAccountKey', 'Descriptor account key', `${origin}${account.publicExtendedKey}`),
-      ],
+      basicSummary: [field('descriptorAccountKey', 'Descriptor account key', `${origin}${account.publicExtendedKey}`)],
       summary,
       watchOnly: {
         label: 'Copy multisig cosigner xpub',
-        description: 'Exports the origin-tagged Purpose48 account xpub used by the Multisig wallet utility. It cannot spend by itself, but it reveals this cosigner address graph.',
+        description:
+          'Exports the origin-tagged Purpose48 account xpub used by the Multisig wallet utility. It cannot spend by itself, but it reveals this cosigner address graph.',
         text: `${origin}${account.publicExtendedKey}\n`,
         fileName: `dash-multisig-p2sh-${options.network}-account-${options.account}-cosigner-xpub.txt`,
         mimeType: 'text/plain',

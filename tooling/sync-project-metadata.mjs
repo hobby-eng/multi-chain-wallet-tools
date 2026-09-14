@@ -38,26 +38,54 @@ for (const workspaceRoot of ['apps', 'packages']) {
 }
 
 stage('packages/dash-shielded-wasm/rust/Cargo.toml', (text) =>
-  replaceRequired(text, /^(\[package\]\nname = "dash-shielded-wasm"\nversion = ")[^"]+(")/mu, `$1${release.version}$2`, 'Rust package version'));
+  replaceRequired(
+    text,
+    /^(\[package\]\nname = "dash-shielded-wasm"\nversion = ")[^"]+(")/mu,
+    `$1${release.version}$2`,
+    'Rust package version',
+  ),
+);
 stage('packages/dash-shielded-wasm/rust/Cargo.lock', (text) =>
-  replaceRequired(text, /(\[\[package\]\]\nname = "dash-shielded-wasm"\nversion = ")[^"]+(")/u, `$1${release.version}$2`, 'Rust lock version'));
+  replaceRequired(
+    text,
+    /(\[\[package\]\]\nname = "dash-shielded-wasm"\nversion = ")[^"]+(")/u,
+    `$1${release.version}$2`,
+    'Rust lock version',
+  ),
+);
 stage('THIRD_PARTY_NOTICES.md', (text) =>
-  replaceRequired(text, /^(dash-shielded-wasm\s+)[0-9]+\.[0-9]+\.[0-9]+(\s+)/mu, `$1${release.version}$2`, 'Rust notice version'));
+  replaceRequired(
+    text,
+    /^(dash-shielded-wasm\s+)[0-9]+\.[0-9]+\.[0-9]+(\s+)/mu,
+    `$1${release.version}$2`,
+    'Rust notice version',
+  ),
+);
 // Audit dates, reviewed commits and evidence records are not release metadata.
 
 const releaseNotes = `docs/releases/${release.tag}.md`;
 stage(releaseNotes, (text) => {
-  let next = replaceRequired(text, /^# Multi-Chain Wallet Tools v[0-9]+\.[0-9]+\.[0-9]+$/mu,
-    `# Multi-Chain Wallet Tools ${release.tag}`, 'release-note title');
-  next = replaceRequired(next, /carry version [0-9]+\.[0-9]+\.[0-9]+\./u,
-    `carry version ${release.version}.`, 'release-note version');
+  let next = replaceRequired(
+    text,
+    /^# Multi-Chain Wallet Tools v[0-9]+\.[0-9]+\.[0-9]+$/mu,
+    `# Multi-Chain Wallet Tools ${release.tag}`,
+    'release-note title',
+  );
+  next = replaceRequired(
+    next,
+    /carry version [0-9]+\.[0-9]+\.[0-9]+\./u,
+    `carry version ${release.version}.`,
+    'release-note version',
+  );
   return next;
 });
 
 if (changes.size === 0) {
   console.log(`Project metadata is synchronized at ${release.tag} (${release.releaseDate}).`);
 } else if (checkOnly) {
-  throw new Error(`Project metadata is out of sync with package.json: ${[...changes.keys()].join(', ')}. Run pnpm metadata:sync.`);
+  throw new Error(
+    `Project metadata is out of sync with package.json: ${[...changes.keys()].join(', ')}. Run pnpm metadata:sync.`,
+  );
 } else {
   for (const [relativePath, text] of changes) writeFileSync(resolve(root, relativePath), text);
   console.log(`Synchronized ${changes.size} file(s) to ${release.tag} (${release.releaseDate}).`);

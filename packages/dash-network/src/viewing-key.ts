@@ -17,10 +17,7 @@ const OUTGOING_VIEWING_KEY_HEX_LENGTH = 64;
  * Canonical field validation is deliberately delegated to the pinned Dash
  * Orchard WASM adapter after this presentation-layer check.
  */
-export function normalizeViewingKey(
-  value: string,
-  inputMode: ViewingKeyInputMode = 'automatic',
-): NormalizedViewingKey {
+export function normalizeViewingKey(value: string, inputMode: ViewingKeyInputMode = 'automatic'): NormalizedViewingKey {
   const trimmed = value.trim();
   let bundleNetwork: NormalizedViewingKey['bundleNetwork'];
   let keyValue = trimmed;
@@ -69,7 +66,5 @@ export function normalizeViewingKey(
       'A 32-byte OVK cannot be distinguished from a spending key by length. Select Outgoing-only mode only if you copied the field explicitly labeled Outgoing Viewing Key.',
     );
   }
-  throw new Error(
-    'Paste a raw 64-byte IVK (128 hex) or 96-byte FVK (192 hex).',
-  );
+  throw new Error('Paste a raw 64-byte IVK (128 hex) or 96-byte FVK (192 hex).');
 }

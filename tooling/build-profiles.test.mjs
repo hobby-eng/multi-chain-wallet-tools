@@ -40,16 +40,49 @@ describe('build profiles', () => {
 
   it('omits the recovery coin selector only from Dash Community HTML', () => {
     const template = '<main>__RECOVERY_COIN_FIELD__</main>';
-    const multi = applyProfileTemplate(template, BUILD_PROFILES['multi-chain'], getToolBuild(BUILD_PROFILES['multi-chain'], 'discovery-scanner'));
-    const dash = applyProfileTemplate(template, BUILD_PROFILES['dash-community'], getToolBuild(BUILD_PROFILES['dash-community'], 'discovery-scanner'));
+    const multi = applyProfileTemplate(
+      template,
+      BUILD_PROFILES['multi-chain'],
+      getToolBuild(BUILD_PROFILES['multi-chain'], 'discovery-scanner'),
+    );
+    const dash = applyProfileTemplate(
+      template,
+      BUILD_PROFILES['dash-community'],
+      getToolBuild(BUILD_PROFILES['dash-community'], 'discovery-scanner'),
+    );
     expect(multi).toContain('id="recovery-coin"');
+    expect(dash).toBe('<main></main>');
+  });
+
+  it('omits the Bitcoin address-search panel from Dash Community HTML', () => {
+    const template = '<main>__ADDRESS_SEARCH_PANEL__</main>';
+    const multi = applyProfileTemplate(
+      template,
+      BUILD_PROFILES['multi-chain'],
+      getToolBuild(BUILD_PROFILES['multi-chain'], 'discovery-scanner'),
+    );
+    const dash = applyProfileTemplate(
+      template,
+      BUILD_PROFILES['dash-community'],
+      getToolBuild(BUILD_PROFILES['dash-community'], 'discovery-scanner'),
+    );
+    expect(multi).toContain('id="address-search"');
+    expect(multi).toContain('Recover by address');
     expect(dash).toBe('<main></main>');
   });
 
   it('keeps the activity coin selector in Multi-Chain with Bitcoin selected', () => {
     const template = '<main>__ACTIVITY_COIN_CONTROL__</main>';
-    const multi = applyProfileTemplate(template, BUILD_PROFILES['multi-chain'], getToolBuild(BUILD_PROFILES['multi-chain'], 'activity-viewer'));
-    const dash = applyProfileTemplate(template, BUILD_PROFILES['dash-community'], getToolBuild(BUILD_PROFILES['dash-community'], 'activity-viewer'));
+    const multi = applyProfileTemplate(
+      template,
+      BUILD_PROFILES['multi-chain'],
+      getToolBuild(BUILD_PROFILES['multi-chain'], 'activity-viewer'),
+    );
+    const dash = applyProfileTemplate(
+      template,
+      BUILD_PROFILES['dash-community'],
+      getToolBuild(BUILD_PROFILES['dash-community'], 'activity-viewer'),
+    );
     expect(multi).toContain('id="viewer-coin"');
     expect(multi).toContain('value="bitcoin" selected');
     expect(dash).toBe('<main></main>');
@@ -57,21 +90,34 @@ describe('build profiles', () => {
 
   it('excludes the Bitcoin signature-format selector from Dash Community', () => {
     const template = '__KEY_DERIVATION_SIGNER_FORMAT_FIELD__';
-    const multi = applyProfileTemplate(template, BUILD_PROFILES['multi-chain'], getToolBuild(BUILD_PROFILES['multi-chain'], 'key-derivation'));
-    const dash = applyProfileTemplate(template, BUILD_PROFILES['dash-community'], getToolBuild(BUILD_PROFILES['dash-community'], 'key-derivation'));
+    const multi = applyProfileTemplate(
+      template,
+      BUILD_PROFILES['multi-chain'],
+      getToolBuild(BUILD_PROFILES['multi-chain'], 'key-derivation'),
+    );
+    const dash = applyProfileTemplate(
+      template,
+      BUILD_PROFILES['dash-community'],
+      getToolBuild(BUILD_PROFILES['dash-community'], 'key-derivation'),
+    );
     expect(multi).toContain('id="message-signer-format-select"');
     expect(multi).toContain('bitcoin-bip322-legacy');
     expect(dash).toBe('');
   });
 
   it('rejects current and future non-Dash modules from Dash build graphs', () => {
-    expect(() => assertDashOnlyGraph([
-      'packages/coin-protocols/src/coins/registry-base.ts',
-      'packages/coin-protocols/src/coins/adapters/dash.ts',
-      'packages/coin-protocols/src/coins/dash/core.ts',
-      'apps/discovery-scanner/src/coins/dash-community.ts',
-      'apps/discovery-scanner/src/coins/dash/platform-scanner.ts',
-    ], 'fixture')).not.toThrow();
+    expect(() =>
+      assertDashOnlyGraph(
+        [
+          'packages/coin-protocols/src/coins/registry-base.ts',
+          'packages/coin-protocols/src/coins/adapters/dash.ts',
+          'packages/coin-protocols/src/coins/dash/core.ts',
+          'apps/discovery-scanner/src/coins/dash-community.ts',
+          'apps/discovery-scanner/src/coins/dash/platform-scanner.ts',
+        ],
+        'fixture',
+      ),
+    ).not.toThrow();
     for (const input of [
       'packages/coin-protocols/src/coins/adapters/bitcoin.ts',
       'packages/coin-protocols/src/coins/adapters/future-coin.ts',

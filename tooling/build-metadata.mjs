@@ -32,7 +32,8 @@ export function createBuildInfo(root, checksumFile, profile) {
     'packages',
     'test',
     'tooling',
-  ]) collectFiles(root, path, files);
+  ])
+    collectFiles(root, path, files);
 
   const hash = createHash('sha256');
   for (const file of files.sort()) {

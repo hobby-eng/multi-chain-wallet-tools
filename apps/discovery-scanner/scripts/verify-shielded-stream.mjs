@@ -28,7 +28,11 @@ try {
     logLevel: 'silent',
   });
   const module = await import(`${pathToFileURL(output).href}?run=${Date.now()}`);
-  if (module.isTerminalShieldedPage(0) !== true || module.isTerminalShieldedPage(1) !== false || module.isTerminalShieldedPage(2047) !== false) {
+  if (
+    module.isTerminalShieldedPage(0) !== true ||
+    module.isTerminalShieldedPage(1) !== false ||
+    module.isTerminalShieldedPage(2047) !== false
+  ) {
     throw new Error('Orchard stream must require an explicit empty page after a short non-empty page.');
   }
   const positions = [];
@@ -44,14 +48,16 @@ try {
     disposePage: () => {},
   });
   if (
-    positions.map(String).join(',') !== '0,2048,4096,4096'
-    || loopOutcome.complete !== true
-    || loopOutcome.pageCount !== 4
+    positions.map(String).join(',') !== '0,2048,4096,4096' ||
+    loopOutcome.complete !== true ||
+    loopOutcome.pageCount !== 4
   ) {
     throw new Error('Orchard stream driver did not preserve aligned cursors and repeated-empty completion.');
   }
   let pageRequests = 0;
-  const unavailable = async () => { throw new Error('Unexpected network operation in Orchard stream test.'); };
+  const unavailable = async () => {
+    throw new Error('Unexpected network operation in Orchard stream test.');
+  };
   const networkApi = {
     ping: unavailable,
     coreStatus: unavailable,
@@ -79,20 +85,32 @@ try {
     mnemonic,
     passphrase: '',
   }));
-  const sections = await module.scanDashShieldedBatch(inputs, {
-    network: 'mainnet', account: 0,
-    coreReceiveCount: 1, coreChangeCount: 0, platformAddressCount: 0,
-    identityStartIndex: 0, identityGapLimit: 1, identityScanLimit: 1,
-    includeUsedZeroBalance: false, scanShieldedPool: true,
-  }, {
-    signal: new AbortController().signal,
-    networkApi,
-    networkLimiter: new module.RecoveryConcurrencyLimiter(2),
-    onProgress: () => {},
-    onFinding: () => {},
-  });
+  const sections = await module.scanDashShieldedBatch(
+    inputs,
+    {
+      network: 'mainnet',
+      account: 0,
+      coreReceiveCount: 1,
+      coreChangeCount: 0,
+      platformAddressCount: 0,
+      identityStartIndex: 0,
+      identityGapLimit: 1,
+      identityScanLimit: 1,
+      includeUsedZeroBalance: false,
+      scanShieldedPool: true,
+    },
+    {
+      signal: new AbortController().signal,
+      networkApi,
+      networkLimiter: new module.RecoveryConcurrencyLimiter(2),
+      onProgress: () => {},
+      onFinding: () => {},
+    },
+  );
   if (pageRequests !== 2 || sections.size !== inputs.length) {
-    throw new Error(`Orchard batch stream expected two matching empty proof pages and ${inputs.length} ledgers; received ${pageRequests} and ${sections.size}.`);
+    throw new Error(
+      `Orchard batch stream expected two matching empty proof pages and ${inputs.length} ledgers; received ${pageRequests} and ${sections.size}.`,
+    );
   }
   for (const input of inputs) {
     const section = sections.get(input.id);
@@ -100,7 +118,9 @@ try {
       throw new Error(`Orchard batch stream omitted a complete independent section for ${input.id}.`);
     }
   }
-  console.log('Verified one-pass bounded-memory Orchard stream, aligned chunk cursors, repeated-empty termination, and the hard page ceiling across three independent FVK ledgers.');
+  console.log(
+    'Verified one-pass bounded-memory Orchard stream, aligned chunk cursors, repeated-empty termination, and the hard page ceiling across three independent FVK ledgers.',
+  );
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });
 }

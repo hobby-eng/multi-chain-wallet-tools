@@ -2,7 +2,7 @@ import type { RuntimeCoinAdapter } from '@ckd/coins/runtime-registry.js';
 import type { CryptoSelfTestReport } from '@ckd/self-test-types';
 import { hexToBytes, wipe } from '@ckd/core/crypto.js';
 import { clearDerivationResult } from '@ckd/core/secrets.js';
-import { findDerivedAddress } from '../address-search.js';
+import { findDerivedAddress } from '@ckd/recovery/address-search.js';
 import type { WorkerMessage, WorkerRequest } from './protocol.js';
 import type { SilentPaymentResult } from './silent-payment.js';
 import type { Bip85RequestOptions, Bip85Result } from './bip85-deriver.js';
@@ -24,11 +24,13 @@ interface WorkerDependencies {
     network: 'mainnet' | 'testnet',
     format: MessageSigningFormat,
     fields: readonly ResultField[],
-  ): Promise<{ signature: string; format: string; verified: boolean }> | {
-    signature: string;
-    format: string;
-    verified: boolean;
-  };
+  ):
+    | Promise<{ signature: string; format: string; verified: boolean }>
+    | {
+        signature: string;
+        format: string;
+        verified: boolean;
+      };
   deriveSilentPayment?(
     seed: Uint8Array,
     network: 'mainnet' | 'testnet',
@@ -93,6 +95,7 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
               request.expectedAddress,
               request.start,
               request.count,
+              undefined,
             );
             workerScope.postMessage({ id: request.id, ok: true, type: 'search', result });
             return;
@@ -104,11 +107,13 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
               const row = result.rows[0];
               const derivedAddress = row?.basic.find((field) => field.key === 'address')?.value;
               const fields = row === undefined ? [] : [...row.basic, ...row.advanced];
-              const privateKeyHex = fields.find((field) =>
-                field.key === 'privateKeyHex' || field.key === 'childPrivateKey'
+              const privateKeyHex = fields.find(
+                (field) => field.key === 'privateKeyHex' || field.key === 'childPrivateKey',
               )?.value;
-              if (derivedAddress !== request.address) throw new Error('The selected address no longer matches the requested derivation path.');
-              if (privateKeyHex === undefined) throw new Error('This derivation mode does not expose a compatible private key for message signing.');
+              if (derivedAddress !== request.address)
+                throw new Error('The selected address no longer matches the requested derivation path.');
+              if (privateKeyHex === undefined)
+                throw new Error('This derivation mode does not expose a compatible private key for message signing.');
               privateKey = hexToBytes(privateKeyHex);
               if (dependencies.signDerivedMessage === undefined) {
                 throw new Error('Message signing is unavailable in this build profile.');
@@ -135,11 +140,13 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
               const row = result.rows[0];
               const derivedAddress = row?.basic.find((field) => field.key === 'address')?.value;
               const fields = row === undefined ? [] : [...row.basic, ...row.advanced];
-              const privateKeyHex = fields.find((field) =>
-                field.key === 'privateKeyHex' || field.key === 'childPrivateKey'
+              const privateKeyHex = fields.find(
+                (field) => field.key === 'privateKeyHex' || field.key === 'childPrivateKey',
               )?.value;
-              if (derivedAddress !== request.address) throw new Error('The selected address no longer matches the requested derivation path.');
-              if (privateKeyHex === undefined) throw new Error('This derivation mode does not expose a compatible private key.');
+              if (derivedAddress !== request.address)
+                throw new Error('The selected address no longer matches the requested derivation path.');
+              if (privateKeyHex === undefined)
+                throw new Error('This derivation mode does not expose a compatible private key.');
               privateKey = hexToBytes(privateKeyHex);
               if (dependencies.encryptDerivedP2pkhKey === undefined) {
                 throw new Error('Private-key encryption is unavailable in this build profile.');
