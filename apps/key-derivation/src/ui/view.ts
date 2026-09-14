@@ -109,6 +109,9 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
   const selfTestDetails = required<HTMLElement>('#crypto-self-test-details');
   const workerRuntime = required<HTMLElement>('#worker-runtime');
   const generate12Button = required<HTMLButtonElement>('#generate-12');
+  const generate15Button = required<HTMLButtonElement>('#generate-15');
+  const generate18Button = required<HTMLButtonElement>('#generate-18');
+  const generate21Button = required<HTMLButtonElement>('#generate-21');
   const generate24Button = required<HTMLButtonElement>('#generate-24');
   const cancelDerivationButton = required<HTMLButtonElement>('#cancel-derivation');
   const expectedAddress = required<HTMLInputElement>('#expected-address');
@@ -181,6 +184,9 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
     selfTestStatus,
     selfTestDetails,
     generate12Button,
+    generate15Button,
+    generate18Button,
+    generate21Button,
     generate24Button,
     clearAllButton: required<HTMLButtonElement>('#clear-all'),
     selectAllButton: required<HTMLButtonElement>('#select-all'),
@@ -532,8 +538,9 @@ export function createKeyDerivationView(document: Document, registry: CoinMetada
       cryptoControlsEnabled = enabled;
       deriveButton.disabled = !enabled;
       searchAddressButton.disabled = !enabled || !addressSearchAvailable;
-      generate12Button.disabled = !enabled;
-      generate24Button.disabled = !enabled;
+      for (const button of [generate12Button, generate15Button, generate18Button, generate21Button, generate24Button]) {
+        button.disabled = !enabled;
+      }
     },
     showCryptoSelfTestPassed(checks: readonly string[], durationMs: number): void {
       selfTestStatus.classList.remove('checking', 'failed');

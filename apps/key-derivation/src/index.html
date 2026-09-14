@@ -61,13 +61,16 @@
         <div class="input-meta"><span id="word-count">0 words</span><span>English wordlist · checksum validated</span></div>
         <div class="generate-actions" aria-label="Generate a new recovery phrase">
           <button class="secondary compact" id="generate-12" type="button">Generate 12 words</button>
+          <button class="secondary compact" id="generate-15" type="button">Generate 15 words</button>
+          <button class="secondary compact" id="generate-18" type="button">Generate 18 words</button>
+          <button class="secondary compact" id="generate-21" type="button">Generate 21 words</button>
           <button class="secondary compact" id="generate-24" type="button">Generate 24 words</button>
           <button class="secret-action compact" id="copy-mnemonic" type="button" disabled>Copy recovery phrase</button>
         </div>
 
         <label for="passphrase">BIP39 passphrase <span class="optional">optional, case-sensitive</span></label>
         <input id="passphrase" type="password" autocomplete="off" placeholder="Leave blank unless your wallet uses one">
-        <p class="field-note">A passphrase is not a PIN. Every different passphrase creates a different wallet across all selected protocols, with no error for a wrong one.</p>
+        <p class="field-note">A passphrase is not a PIN or another mnemonic word. Unicode is supported; case, spaces, and symbols are significant. Standard BIP39 NFKD normalization is applied. Every different passphrase creates a different wallet, with no error for a wrong one.</p>
       </section>
 
       <section class="panel" id="derivation-panel">
