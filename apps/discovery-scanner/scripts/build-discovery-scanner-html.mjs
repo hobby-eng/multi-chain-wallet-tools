@@ -97,11 +97,18 @@ if (
 ) {
   throw new Error('Recovery Secret Vault template is missing an inline build marker.');
 }
-const safeVaultJavascript = vaultJavascript.replaceAll('</script', '<\\/script');
-const vaultHtml = vaultTemplate
-  .replace('__VAULT_SCRIPT_CSP__', scriptCsp(safeVaultJavascript))
+const safeVaultJavascript = vaultJavascript.replaceAll('</script', '<\/script');
+let vaultHtml = vaultTemplate
+  .replace('__VAULT_SCRIPT_CSP__', '__VAULT_INLINE_SCRIPT_HASH__')
   .replace('/*__INLINE_CSS__*/', () => css)
   .replace('/*__INLINE_JS__*/', () => safeVaultJavascript);
+const vaultScriptStart = vaultHtml.indexOf('<script>');
+const vaultScriptEnd = vaultHtml.lastIndexOf('</script>');
+if (vaultScriptStart < 0 || vaultScriptEnd <= vaultScriptStart)
+  throw new Error('Recovery Secret Vault HTML did not contain the generated inline script.');
+// Hash the final embedded bytes, including whitespace introduced by the HTML template.
+const vaultInlineScript = vaultHtml.slice(vaultScriptStart + '<script>'.length, vaultScriptEnd);
+vaultHtml = vaultHtml.replace('__VAULT_INLINE_SCRIPT_HASH__', scriptCsp(vaultInlineScript));
 
 const networkBundle = await build({
   absWorkingDir: root,
@@ -215,14 +222,20 @@ if (
 ) {
   throw new Error('Recovery shell template is missing an inline build marker.');
 }
-const safeShellJavascript = shellJavascript.replaceAll('</script', '<\\/script');
-const html = shellTemplate
-  .replace('__SHELL_SCRIPT_CSP__', scriptCsp(safeShellJavascript))
+const safeShellJavascript = shellJavascript.replaceAll('</script', '<\/script');
+let html = shellTemplate
+  .replace('__SHELL_SCRIPT_CSP__', '__SHELL_INLINE_SCRIPT_HASH__')
   // A srcdoc document inherits the embedding document's CSP in addition to
   // enforcing its own. Both policies therefore authorize the exact vault
   // script hash; the vault's own connect-src remains the stricter 'none'.
-  .replace('__VAULT_SCRIPT_CSP__', scriptCsp(safeVaultJavascript))
+  .replace('__VAULT_SCRIPT_CSP__', scriptCsp(vaultInlineScript))
   .replace('/*__SHELL_JS__*/', () => safeShellJavascript);
+const shellScriptStart = html.indexOf('<script>');
+const shellScriptEnd = html.lastIndexOf('</script>');
+if (shellScriptStart < 0 || shellScriptEnd <= shellScriptStart)
+  throw new Error('Recovery shell HTML did not contain the generated inline script.');
+const shellInlineScript = html.slice(shellScriptStart + '<script>'.length, shellScriptEnd);
+html = html.replace('__SHELL_INLINE_SCRIPT_HASH__', scriptCsp(shellInlineScript));
 const dist = resolve(root, 'dist', tool.artifactDirectory);
 mkdirSync(dist, { recursive: true });
 const artifact = resolve(dist, tool.artifactName);

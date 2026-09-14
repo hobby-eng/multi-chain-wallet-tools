@@ -1,7 +1,7 @@
 import { base58 } from '@scure/base';
 import { EvoSDK, StateTransition, type Identity, type IdentityPublicKey } from '@dashevo/evo-sdk';
 import { bytesToHex, hash160, hexToBytes, secp256k1, wipe } from '@ckd/core/crypto.js';
-import { assertPublicLookupInput, PrivateMaterialError } from '@ckd/public-data-providers/private-material.js';
+import { assertPublicLookupInput, PrivateMaterialError } from '@ckd/secret-boundary/public-input-guard.js';
 import { createProviderHttp, ProviderHttpError, type FetchLike } from './provider-http.js';
 import type { ViewerNetwork } from './types.js';
 

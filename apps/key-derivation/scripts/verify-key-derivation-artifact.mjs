@@ -49,7 +49,7 @@ try {
 
 const inlineScriptHash = `'sha256-${createHash('sha256').update(inlineScript).digest('base64')}'`;
 const expectedCsp = `default-src 'none'; script-src ${inlineScriptHash} 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
-const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/u.exec(html)?.[1];
+const csp = /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/su.exec(html)?.[1];
 if (csp !== expectedCsp) throw new Error('Standalone artifact CSP changed from the reviewed offline policy.');
 if (/script-src[^;]*'unsafe-inline'/u.test(csp)) {
   throw new Error('Standalone CSP must authorize its immutable inline script by hash, not unsafe-inline.');

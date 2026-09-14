@@ -88,4 +88,32 @@ describe('multi-seed address search', () => {
     ).rejects.toMatchObject({ name: 'AbortError' });
     expect([...seeds[0]!.seed, ...seeds[1]!.seed]).toEqual([0, 0]);
   });
+  it('caps seed jobs and exposes each completed result to progress observers', async () => {
+    const seeds = Array.from({ length: 4 }, (_, index) => ({
+      id: `seed-${index}`,
+      label: String(index),
+      seed: new Uint8Array([index + 1]),
+    }));
+    let active = 0;
+    let maximum = 0;
+    const reported: string[] = [];
+    await searchAcrossSeedsAndAddresses({
+      seeds,
+      targets: [target('one'), target('two'), target('three')],
+      start: 0,
+      count: 1,
+      concurrency: Number.MAX_SAFE_INTEGER,
+      search: async () => {
+        active += 1;
+        maximum = Math.max(maximum, active);
+        await Promise.resolve();
+        active -= 1;
+        return null;
+      },
+      onProgress: (_completed, _total, result, index) =>
+        reported.push(`${index}:${result.seedId}:${result.target.input}`),
+    });
+    expect(maximum).toBe(5);
+    expect(reported).toHaveLength(12);
+  });
 });

@@ -1,8 +1,17 @@
+import { descriptorChecksum } from '@ckd/core/descriptor-checksum.js';
+import { analyzeMiniscript } from '@bitcoinerlab/miniscript';
+import { materializeDescriptorKey, validateDescriptorPublicKey } from '@ckd/core/descriptor-key.js';
+import { compilePolicyMiniscript, validatePolicyMiniscript } from './miniscript-engine.js';
+import { analyzeMusigDescriptor, compileTaprootDescriptor } from './musig-descriptor.js';
+import { describeScript, type PsbtNetwork } from './psbt.js';
+import { bytesToHex, hash160, hexToBytes, sha256 } from '@ckd/core/crypto.js';
+import { decodeScript } from './script.js';
+import { CONSENSUS_LIMITS } from './consensus-limits.js';
 export interface DescriptorRow {
   readonly label: string;
   readonly value: string;
 }
-import { CONSENSUS_LIMITS } from './consensus-limits.js';
+export { descriptorChecksum };
 export interface DecodedDescriptor {
   readonly classification: string;
   readonly summary: string;
@@ -35,10 +44,6 @@ interface ExpressionNode {
   readonly args: readonly (ExpressionNode | string)[];
 }
 
-const INPUT_CHARSET =
-  '0123456789()[],\'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|~ijklmnopqrstuvwxyzABCDEFGH`#"\\ ';
-const CHECKSUM_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-const GENERATORS = [0xf5dee51989n, 0xa9fdca3312n, 0x1bab10e32dn, 0x3706b1677an, 0x644d626ffdn];
 const MAX_DESCRIPTOR_PATH_CARDS = 64;
 
 function miniscriptAnalysis(miniscript: string, tapscript = false): string | null {
@@ -55,39 +60,6 @@ function miniscriptAnalysis(miniscript: string, tapscript = false): string | nul
   } catch {
     return null;
   }
-}
-
-function polymod(checksum: bigint, value: number): bigint {
-  const top = checksum >> 35n;
-  let result = ((checksum & 0x7ffffffffn) << 5n) ^ BigInt(value);
-  for (let index = 0; index < GENERATORS.length; index += 1)
-    if (((top >> BigInt(index)) & 1n) !== 0n) result ^= GENERATORS[index]!;
-  return result;
-}
-
-export function descriptorChecksum(payload: string): string {
-  let checksum = 1n;
-  let group = 0;
-  let count = 0;
-  for (const character of payload) {
-    const position = INPUT_CHARSET.indexOf(character);
-    if (position === -1) throw new Error(`Descriptor contains unsupported character ${JSON.stringify(character)}.`);
-    checksum = polymod(checksum, position & 31);
-    group = group * 3 + (position >> 5);
-    count += 1;
-    if (count === 3) {
-      checksum = polymod(checksum, group);
-      group = 0;
-      count = 0;
-    }
-  }
-  if (count > 0) checksum = polymod(checksum, group);
-  for (let index = 0; index < 8; index += 1) checksum = polymod(checksum, 0);
-  checksum ^= 1n;
-  let result = '';
-  for (let index = 0; index < 8; index += 1)
-    result += CHECKSUM_CHARSET[Number((checksum >> BigInt(5 * (7 - index))) & 31n)];
-  return result;
 }
 
 function matchingClose(text: string, open: number, opening = '(', closing = ')'): number {
@@ -1039,10 +1011,3 @@ export function decodeDescriptor(
     compiledOutput,
   };
 }
-import { analyzeMiniscript } from '@bitcoinerlab/miniscript';
-import { materializeDescriptorKey, validateDescriptorPublicKey } from '@ckd/core/descriptor-key.js';
-import { compilePolicyMiniscript, validatePolicyMiniscript } from './miniscript-engine.js';
-import { analyzeMusigDescriptor, compileTaprootDescriptor } from './musig-descriptor.js';
-import { describeScript, type PsbtNetwork } from './psbt.js';
-import { bytesToHex, hash160, hexToBytes, sha256 } from '@ckd/core/crypto.js';
-import { decodeScript } from './script.js';

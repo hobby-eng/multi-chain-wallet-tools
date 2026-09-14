@@ -441,7 +441,7 @@ export function assertDashOnlyGraph(inputs, label) {
       );
     }
     const allowedSharedDashInputs = new Set([
-      'packages/public-data-providers/src/private-material.ts',
+      'packages/secret-boundary/src/public-input-guard.ts',
       'packages/secret-boundary/src/secret-guard.ts',
       'packages/network-boundary/src/protocol.ts',
       'packages/network-boundary/src/data-types.ts',

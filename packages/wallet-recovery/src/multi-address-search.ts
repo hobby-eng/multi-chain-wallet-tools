@@ -1,3 +1,5 @@
+export const MAX_LOCAL_SEARCH_CONCURRENCY = 5;
+
 import type { AddressSearchMatch } from './address-search.js';
 import type { AddressSearchTarget } from './address-targets.js';
 
@@ -45,7 +47,10 @@ export async function searchAcrossAddresses(options: MultiAddressSearchOptions):
     }
   };
   await Promise.all(
-    Array.from({ length: Math.min(Math.max(1, concurrency), Math.max(1, targets.length)) }, () => worker()),
+    Array.from(
+      { length: Math.min(Math.max(1, concurrency), MAX_LOCAL_SEARCH_CONCURRENCY, Math.max(1, targets.length)) },
+      () => worker(),
+    ),
   );
   return results;
 }

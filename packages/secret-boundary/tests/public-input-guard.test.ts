@@ -3,7 +3,7 @@ import {
   assertPublicBatchLookupInput,
   assertPublicLookupInput,
   PrivateMaterialError,
-} from '../src/private-material.js';
+} from '../src/public-input-guard.js';
 
 describe('public-input private-material boundary', () => {
   it.each([

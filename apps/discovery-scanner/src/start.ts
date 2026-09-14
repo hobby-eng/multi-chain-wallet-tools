@@ -7,7 +7,7 @@ import { createDiscoveryScannerController } from './controller.js';
 import { requestRecoveryExport } from './download-client.js';
 import { describeUnknownError } from '@ckd/core/error-handling.js';
 import { createRecoveryExport } from './export.js';
-import { recoveryNetworkApi } from '@ckd/network-boundary/client.js';
+import { installNetworkBoundaryListener, recoveryNetworkApi } from '@ckd/network-boundary/client.js';
 import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
 import type { RecoverySelfTestReport } from './recovery-self-test.js';
 import type { RecoveryCoinRegistry } from './coins/registry.js';
@@ -24,8 +24,11 @@ export function startDiscoveryScanner(
     multiChain: boolean;
     networklessAdapterIds?: readonly string[];
     supportedDepths?: (adapterId: string) => readonly number[];
+    singleChainCoinId?: string;
   },
 ): void {
+  // Install explicitly so merely importing the client cannot mutate global browser state.
+  installNetworkBoundaryListener();
   const view = createDiscoveryScannerView(document, BUILD_INFO, writeClipboard);
   const controller = createDiscoveryScannerController(view, {
     RecoveryConcurrencyLimiter,
@@ -41,6 +44,7 @@ export function startDiscoveryScanner(
         watchOnlyProfile?.multiChain ?? false,
         watchOnlyProfile?.networklessAdapterIds ?? [],
         watchOnlyProfile?.supportedDepths,
+        watchOnlyProfile?.singleChainCoinId ?? 'dash',
       ),
     createRecoveryExport,
     describeUnknownError,

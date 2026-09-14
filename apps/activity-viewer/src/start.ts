@@ -14,7 +14,7 @@ import {
   DashPlatformIdentitySource,
   normalizeIdentityLookupInput,
 } from '@ckd/dash-network/platform-identity-source.js';
-import { assertPublicBatchLookupInput, assertPublicLookupInput } from '@ckd/public-data-providers/private-material.js';
+import { assertPublicBatchLookupInput, assertPublicLookupInput } from '@ckd/secret-boundary/public-input-guard.js';
 import { queryCoreAddress } from '@ckd/dash-network/public-address.js';
 import {
   runShieldedPageStream,

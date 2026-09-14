@@ -29,8 +29,8 @@ interface ActivityViewerDependencies {
   DashPlatformIdentitySource: typeof import('@ckd/dash-network/platform-identity-source.js').DashPlatformIdentitySource;
   assertCanonicalViewingKey: typeof import('@ckd/dash-network/orchard-scanner.js').assertCanonicalViewingKey;
   assertAutoViewerBatchInput: typeof import('./detection.js').assertAutoViewerBatchInput;
-  assertPublicBatchLookupInput: typeof import('@ckd/public-data-providers/private-material.js').assertPublicBatchLookupInput;
-  assertPublicLookupInput: typeof import('@ckd/public-data-providers/private-material.js').assertPublicLookupInput;
+  assertPublicBatchLookupInput: typeof import('@ckd/secret-boundary/public-input-guard.js').assertPublicBatchLookupInput;
+  assertPublicLookupInput: typeof import('@ckd/secret-boundary/public-input-guard.js').assertPublicLookupInput;
   detectViewerInput: typeof import('./detection.js').detectViewerInput;
   looksLikeAutoOrchardInput: typeof import('./detection.js').looksLikeAutoOrchardInput;
   createViewerExport: typeof import('./export.js').createViewerExport;

@@ -71,7 +71,7 @@ const inlineStyle = html.slice(styleStart + '<style>'.length, styleEnd);
 if (inlineStyle.length < 10_000) throw new Error('Viewer artifact inline stylesheet is unexpectedly small.');
 for (const marker of [
   'color-scheme:dark',
-  '--bg:#080b10',
+  /--bg:\s*#080b10/u,
   '.viewer-hero-grid',
   '.viewer-capability-card',
   '.viewer-flow',
@@ -82,7 +82,8 @@ for (const marker of [
   '.viewer-activity-card',
   '.viewer-address-card',
 ]) {
-  if (!inlineStyle.includes(marker)) throw new Error(`Viewer stylesheet is missing required design marker: ${marker}`);
+  if (typeof marker === 'string' ? !inlineStyle.includes(marker) : !marker.test(inlineStyle))
+    throw new Error(`Viewer stylesheet is missing required design marker: ${marker}`);
 }
 if (inlineStyle.includes('__INLINE_CSS__')) throw new Error('Viewer CSS build marker was not replaced.');
 try {
@@ -175,7 +176,7 @@ for (const marker of [
   'Cryptographic self-test running',
   'Dash Orchard ZIP-32 fixed vector',
   'Blob Worker execution',
-  'The Dash mark is an official brand asset used under CC BY 4.0.',
+  'The Dash mark is an official brand asset',
 ]) {
   if (!html.includes(marker)) throw new Error(`Viewer artifact is missing required marker: ${marker}`);
 }

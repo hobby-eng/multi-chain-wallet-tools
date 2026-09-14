@@ -8,7 +8,7 @@ import {
   type DerivationResult,
   type ResultField,
 } from '@ckd/core/types.js';
-import { addDescriptorChecksum } from '@ckd/export/descriptor.js';
+import { addDescriptorChecksum } from '@ckd/core/descriptor-checksum.js';
 import { deriveLegacyAddress } from './legacy.js';
 import { deriveNativeSegwitAddress } from './native-segwit.js';
 import { deriveNestedSegwitAddress } from './nested-segwit.js';

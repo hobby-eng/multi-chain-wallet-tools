@@ -67,10 +67,17 @@ if (
   throw new Error('Viewer HTML template is missing an inline build marker.');
 }
 const safeJavascript = javascript.replaceAll('</script', '<\\/script').replaceAll('<script', '\\x3cscript');
-const html = template
-  .replace('__INLINE_SCRIPT_CSP__', scriptCsp(safeJavascript))
+let html = template
+  .replace('__INLINE_SCRIPT_CSP__', '__INLINE_SCRIPT_CSP_HASH__')
   .replace('/*__INLINE_CSS__*/', () => css)
   .replace('/*__INLINE_JS__*/', () => safeJavascript);
+const scriptStart = html.indexOf('<script>');
+const scriptEnd = html.lastIndexOf('</script>');
+if (scriptStart < 0 || scriptEnd <= scriptStart)
+  throw new Error('Viewer HTML did not contain the generated inline script.');
+// The CSP hash must cover the exact bytes embedded in the final HTML, including template whitespace.
+const inlineScript = html.slice(scriptStart + '<script>'.length, scriptEnd);
+html = html.replace('__INLINE_SCRIPT_CSP_HASH__', scriptCsp(inlineScript));
 const dist = resolve(root, 'dist', tool.artifactDirectory);
 mkdirSync(dist, { recursive: true });
 const artifact = resolve(dist, tool.artifactName);
