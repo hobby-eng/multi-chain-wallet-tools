@@ -236,7 +236,7 @@ for (const browserName of selectedBrowsers) {
             for (const kind of ['public', 'private']) {
               if (kind === 'private') {
                 await page.locator('#close-account-export').click();
-                await page.locator('#toggle-sensitive-values').click();
+                await page.locator('#toggle-result-secrets').click();
                 await page.locator('#open-account-export').click();
               }
               const pending = page.waitForEvent('download');
@@ -255,7 +255,7 @@ for (const browserName of selectedBrowsers) {
               await download.delete();
             }
             await page.keyboard.press('Escape');
-            await page.locator('#toggle-sensitive-values').click();
+            await page.locator('#toggle-result-secrets').click();
             assert.equal(await page.locator('#download-private-descriptors').isDisabled(), true);
             run.checks.push('Public/private account descriptor downloads and reveal gate');
             await page.locator('#clear-all').click();

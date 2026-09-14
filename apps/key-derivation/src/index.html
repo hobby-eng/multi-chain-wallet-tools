@@ -54,7 +54,7 @@
       <section class="panel input-panel">
         <div class="section-head">
           <div><span class="step">01</span><h2>Recovery seed phrase</h2></div>
-          <button class="danger-outline" id="toggle-sensitive-values" type="button" aria-pressed="false">Reveal all sensitive values</button>
+          <button class="danger-outline" id="toggle-sensitive-values" type="button" aria-pressed="false">Reveal recovery source</button>
         </div>
         <label for="mnemonic">BIP39 recovery phrase</label>
         <textarea id="mnemonic" class="concealed" rows="4" placeholder="Enter 12, 15, 18, 21, or 24 English words separated by spaces" autocomplete="off" autocapitalize="none"></textarea>
@@ -172,6 +172,7 @@
       <div class="results-title">
         <div><span class="step">03</span><h2 id="result-title">Derived results</h2></div>
         <div class="result-controls">
+          <button class="danger-outline compact" id="toggle-result-secrets" type="button" aria-pressed="false">Reveal all private keys</button>
           <div class="mode-toggle" aria-label="Result detail mode">
             <button id="mode-basic" type="button" class="active" aria-pressed="true">Basic</button>
             <button id="mode-advanced" type="button" aria-pressed="false">Advanced</button>
