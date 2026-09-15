@@ -179,6 +179,14 @@ const clientPromise = new Promise<NetworkBoundaryClient>((resolve, reject) => {
   rejectClient = reject;
 });
 
+export function attachNetworkBoundaryPort(port: MessagePort): void {
+  if (installed) throw new Error('The network boundary channel is already attached.');
+  installed = true;
+  const client = new NetworkBoundaryClient(port);
+  activeClient = client;
+  resolveClient?.(client);
+}
+
 export function installNetworkBoundaryListener(): void {
   if (typeof window === 'undefined' || installed) return;
   setTimeout(() => {
@@ -199,10 +207,7 @@ export function installNetworkBoundaryListener(): void {
       rejectClient?.(new Error('The vault did not receive its network channel.'));
       return;
     }
-    installed = true;
-    const client = new NetworkBoundaryClient(port);
-    activeClient = client;
-    resolveClient?.(client);
+    attachNetworkBoundaryPort(port);
   });
 }
 

@@ -28,7 +28,7 @@
       "recoveryNetwork": true,
       "offlineOnly": false,
       "recoveryAddressSearch": true,
-      "bip85": false,
+      "bip85": true,
       "bitcoinSilentPayments": false,
       "bitcoinMessageSigning": false,
       "dashMessageSigning": true,

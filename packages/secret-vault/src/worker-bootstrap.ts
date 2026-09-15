@@ -1,30 +1,16 @@
-import { createVaultChannel } from './vault-client.js';
+import { bootstrapIsolatedBoundary, type IsolatedBoundaryBootstrap } from '@ckd/network-boundary/iframe-bootstrap.js';
 
-export interface VaultBootstrap {
-  stop(): void;
-}
+export type VaultBootstrap = IsolatedBoundaryBootstrap;
 
+/**
+ * Seed-capable semantic layer over the shared opaque iframe transport. Keeping
+ * this wrapper separate lets watch-only builds exclude the Secret Vault package.
+ */
 export function bootstrapVaultDocument(
   vault: HTMLIFrameElement,
   html: string,
   port: MessagePort,
   onError: (cause: unknown) => void,
 ): VaultBootstrap {
-  const channel = createVaultChannel(vault, port);
-  const onLoad = (): void => {
-    try {
-      channel.deliver();
-    } catch (cause) {
-      onError(cause);
-    }
-  };
-  vault.addEventListener('load', onLoad);
-  vault.srcdoc = html;
-  return {
-    stop(): void {
-      vault.removeEventListener('load', onLoad);
-      // If unload wins the race with iframe readiness, release the untransferred port.
-      channel.close();
-    },
-  };
+  return bootstrapIsolatedBoundary(vault, html, port, onError);
 }

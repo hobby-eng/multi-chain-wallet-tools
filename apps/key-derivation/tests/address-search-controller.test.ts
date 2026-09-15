@@ -135,6 +135,8 @@ function fixture() {
     generateMnemonic: vi.fn(() => 'replacement phrase'),
     mnemonicToSeed,
     runBip39SelfTest: () => ({ passed: true, checks: [], durationMs: 0 }),
+    runRecoveryBackupSelfTest: () => ({ passed: true, checks: [], durationMs: 0 }),
+    setRecoveryControlsEnabled: vi.fn(),
     writeClipboard: vi.fn(),
     downloadBlob: vi.fn(),
     downloadText: vi.fn(),

@@ -6,24 +6,25 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 
 ## JavaScript production dependencies
 
-| Package | Exact version | Source repository | License | Purpose |
-| --- | --- | --- | --- | --- |
-| `@bitcoinerlab/miniscript` | 2.0.0 | `bitcoinerlab/miniscript` | MIT | Local Bitcoin Miniscript parsing, safety analysis, and Script ASM compilation |
-| `bip68` | 1.0.4 | `bitcoinjs/bip68` | ISC | Relative-locktime handling used by the Miniscript analyzer |
-| `@scure/btc-signer` | 2.4.1 | `paulmillr/scure-btc-signer` | MIT | Local BIP-327 MuSig2 key aggregation, BIP-328 derivation, Taproot output construction, and BIP-373 field definitions |
-| `btcutil-js` | 0.4.1 | `guggero/btcutil-js` | MIT | Offline BIP-322 legacy/simple/full/proof-of-funds verification using a btcd-derived Bitcoin Script engine compiled to WebAssembly |
-| `micro-packed` | 0.11.1 | `paulmillr/micro-packed` | MIT | Binary codecs used by Scure BTC Signer |
-| `@noble/curves` | 2.4.0 | `paulmillr/noble-curves` | MIT | secp256k1, BIP340/Schnorr utilities |
-| `@noble/ciphers` | 2.4.0 | `paulmillr/noble-ciphers` | MIT | AES-256-ECB primitive used only for BIP38 compatibility; padding is disabled as required by BIP38 |
-| `@noble/hashes` | 2.4.0 | `paulmillr/noble-hashes` | MIT | SHA-2, RIPEMD160, Keccak, byte utilities |
-| `@scure/base` | 2.4.0 | `paulmillr/scure-base` | MIT | Base58Check, Bech32, Bech32m |
-| `@scure/bip32` | 2.4.0 | `paulmillr/scure-bip32` | MIT | BIP32 HD key derivation/serialization |
-| `@scure/bip39` | 2.4.0 | `paulmillr/scure-bip39` | MIT | BIP39 validation, PBKDF2 seed, English list |
-| `@dashevo/evo-sdk` | 4.1.1 | `dashpay/platform` (`packages/js-evo-sdk`) | MIT | Connected Viewer/Recovery facades and trusted DAPI queries |
-| `@dashevo/wasm-sdk` | 4.1.1 | `dashpay/platform` (`packages/wasm-sdk`) | MIT | Embedded proof-verifying DAPI transport for connected artifacts |
-| `write-excel-file` | 4.1.1 | `gitlab.com/catamphetamine/write-excel-file` | MIT | Local XLSX workbook generation for Activity Viewer exports |
-| `fflate` | 0.8.3 | `101arrowz/fflate` | MIT | ZIP container generation for local XLSX exports |
-| `uqr` | 0.1.3 | `unjs/uqr` | MIT | Offline QR matrix encoding for public payment addresses |
+| Package                    | Exact version | Source repository                            | License           | Purpose                                                                                                                           |
+| -------------------------- | ------------- | -------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `@bitcoinerlab/miniscript` | 2.0.0         | `bitcoinerlab/miniscript`                    | MIT               | Local Bitcoin Miniscript parsing, safety analysis, and Script ASM compilation                                                     |
+| `bip68`                    | 1.0.4         | `bitcoinjs/bip68`                            | ISC               | Relative-locktime handling used by the Miniscript analyzer                                                                        |
+| `@scure/btc-signer`        | 2.4.1         | `paulmillr/scure-btc-signer`                 | MIT               | Local BIP-327 MuSig2 key aggregation, BIP-328 derivation, Taproot output construction, and BIP-373 field definitions              |
+| `btcutil-js`               | 0.4.1         | `guggero/btcutil-js`                         | MIT               | Offline BIP-322 legacy/simple/full/proof-of-funds verification using a btcd-derived Bitcoin Script engine compiled to WebAssembly |
+| `micro-packed`             | 0.11.1        | `paulmillr/micro-packed`                     | MIT               | Binary codecs used by Scure BTC Signer                                                                                            |
+| `@noble/curves`            | 2.4.0         | `paulmillr/noble-curves`                     | MIT               | secp256k1, BIP340/Schnorr utilities                                                                                               |
+| `@noble/ciphers`           | 2.4.0         | `paulmillr/noble-ciphers`                    | MIT               | AES-256-ECB primitive used only for BIP38 compatibility; padding is disabled as required by BIP38                                 |
+| `@noble/hashes`            | 2.4.0         | `paulmillr/noble-hashes`                     | MIT               | SHA-2, RIPEMD160, Keccak, byte utilities                                                                                          |
+| `@scure/base`              | 2.4.0         | `paulmillr/scure-base`                       | MIT               | Base58Check, Bech32, Bech32m                                                                                                      |
+| `@scure/bip32`             | 2.4.0         | `paulmillr/scure-bip32`                      | MIT               | BIP32 HD key derivation/serialization                                                                                             |
+| `@scure/bip39`             | 2.4.0         | `paulmillr/scure-bip39`                      | MIT               | BIP39 validation, PBKDF2 seed, English list                                                                                       |
+| `@dashevo/evo-sdk`         | 4.1.1         | `dashpay/platform` (`packages/js-evo-sdk`)   | MIT               | Connected Viewer/Recovery facades and trusted DAPI queries                                                                        |
+| `@dashevo/wasm-sdk`        | 4.1.1         | `dashpay/platform` (`packages/wasm-sdk`)     | MIT               | Embedded proof-verifying DAPI transport for connected artifacts                                                                   |
+| `write-excel-file`         | 4.1.1         | `gitlab.com/catamphetamine/write-excel-file` | MIT               | Local XLSX workbook generation for Activity Viewer exports                                                                        |
+| `fflate`                   | 0.8.3         | `101arrowz/fflate`                           | MIT               | ZIP container generation for local XLSX exports                                                                                   |
+| `uqr`                      | 0.1.3         | `unjs/uqr`                                   | MIT               | Offline QR matrix encoding for public payment addresses                                                                           |
+| `qr`                       | 0.7.0         | `paulmillr/qr`                               | MIT OR Apache-2.0 | Offline QR image decoding for SeedQR and recovery-share imports                                                                   |
 
 The two Dash SDK packages are bundled into both editions of the Wallet Activity Viewer and scan-only Wallet Discovery Scanner, never into either Wallet Key Derivation Tool. Their pnpm integrity pins are `sha512-DsfHXlLByyhvAerDknozg0HT4KHNsYP6rEy949aj/KGLLydb9bwJBHOWyn5oDsNR016tvr3oeT/jCkjMA4qoCA==` and `sha512-/be0D7qohZc9fHgYjbtzOg8KOajarzo0NtKCNybv4Z1xeV617Wo0CusnsxCzwbV7C/jDgPJiGel0KtcSTzQcfQ==`. Copyright notices embedded by Noble/Scure identify Paul Miller and, for Scure BIP32/BIP39, Patricio Palladino. esbuild preserves inline legal comments in the standalone JavaScript.
 
@@ -37,17 +38,24 @@ The connected Multi-Chain applications use Blockchain.com, BlockCypher, Blockstr
 
 ## Rust/WASM direct and official git dependencies
 
-| Package | Exact version/revision | Source repository | License | Purpose |
-| --- | --- | --- | --- | --- |
-| `orchard` | 0.14.0, tag `dashified-0.14.1`, commit `38ac9c19a2df7bf3eeadc22ab23053e8fd538828` | `dashpay/orchard` | MIT OR Apache-2.0 | Official Dash Orchard/ZIP32 key and address logic |
-| `zcash_note_encryption` | 0.4.1, revision `9f7e93d42cef839d02b9d75918117941d453f8cb` | `dashpay/zcash_note_encryption` | MIT OR Apache-2.0 | Locked Orchard transitive dependency |
-| `wasm-bindgen` | 0.2.128 | `rustwasm/wasm-bindgen` / crates.io | MIT OR Apache-2.0 | Browser WASM ABI |
-| `zip32` | 0.2.1 | `zcash/librustzcash` / crates.io | MIT OR Apache-2.0 | ZIP32 account identifier/types |
-| `hex` | 0.4.3 | `KokaKiwi/rust-hex` / crates.io | MIT OR Apache-2.0 | Raw boundary serialization |
-| `serde` | 1.0.229 | `serde-rs/serde` / crates.io | MIT OR Apache-2.0 | Typed Rust boundary serialization |
-| `serde_json` | 1.0.151 | `serde-rs/json` / crates.io | MIT OR Apache-2.0 | Escaped JSON boundary encoding and fixture parsing |
-| `bech32` (test only) | 0.12.0 | `rust-bitcoin/rust-bech32` / crates.io | MIT | Independent Rust display-vector encoding |
-| `rand_core` (test only) | 0.6.4 | `rust-random/rand_core` / crates.io | MIT OR Apache-2.0 | Real encrypted-note scanner round-trip fixture |
+| Package                 | Exact version/revision                                                            | Source repository                      | License           | Purpose                                                                                                           |
+| ----------------------- | --------------------------------------------------------------------------------- | -------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `orchard`               | 0.14.0, tag `dashified-0.14.1`, commit `38ac9c19a2df7bf3eeadc22ab23053e8fd538828` | `dashpay/orchard`                      | MIT OR Apache-2.0 | Official Dash Orchard/ZIP32 key and address logic                                                                 |
+| `zcash_note_encryption` | 0.4.1, revision `9f7e93d42cef839d02b9d75918117941d453f8cb`                        | `dashpay/zcash_note_encryption`        | MIT OR Apache-2.0 | Locked Orchard transitive dependency                                                                              |
+| `wasm-bindgen`          | 0.2.128                                                                           | `rustwasm/wasm-bindgen` / crates.io    | MIT OR Apache-2.0 | Browser WASM ABI                                                                                                  |
+| `sharks`                | 0.5.0                                                                             | `c0dearm/sharks` / crates.io           | MIT OR Apache-2.0 | GF(256) Shamir Secret Sharing used by the CKD Raw/Words backup formats; default ambient-RNG features are disabled |
+| `codex32`               | 0.1.0                                                                             | `apoelstra/rust-codex32` / crates.io   | CC0-1.0           | BIP93 Codex32 checksum, master-seed encoding, and GF(32) share interpolation                                      |
+| `rand_chacha`           | 0.3.1                                                                             | `rust-random/rand` / crates.io         | MIT OR Apache-2.0 | Deterministic expansion of the explicit 256-bit WebCrypto seed passed to the Shamir WASM boundary                 |
+| `rand_core`             | 0.6.4                                                                             | `rust-random/rand` / crates.io         | MIT OR Apache-2.0 | RNG trait used without OS/browser entropy acquisition inside the Shamir WASM module                               |
+| `zeroize`               | 1.8.2                                                                             | `RustCrypto/utils` / crates.io         | MIT OR Apache-2.0 | Rust recovery-boundary secret-buffer clearing                                                                     |
+| `zip32`                 | 0.2.1                                                                             | `zcash/librustzcash` / crates.io       | MIT OR Apache-2.0 | ZIP32 account identifier/types                                                                                    |
+| `hex`                   | 0.4.3                                                                             | `KokaKiwi/rust-hex` / crates.io        | MIT OR Apache-2.0 | Raw boundary serialization                                                                                        |
+| `serde`                 | 1.0.229                                                                           | `serde-rs/serde` / crates.io           | MIT OR Apache-2.0 | Typed Rust boundary serialization                                                                                 |
+| `serde_json`            | 1.0.151                                                                           | `serde-rs/json` / crates.io            | MIT OR Apache-2.0 | Escaped JSON boundary encoding and fixture parsing                                                                |
+| `bech32` (test only)    | 0.12.0                                                                            | `rust-bitcoin/rust-bech32` / crates.io | MIT               | Independent Rust display-vector encoding                                                                          |
+| `rand_core` (test only) | 0.6.4                                                                             | `rust-random/rand_core` / crates.io    | MIT OR Apache-2.0 | Real encrypted-note scanner round-trip fixture                                                                    |
+
+The TypeScript SLIP-39 implementation is a project-local port of the current MIT-licensed Trezor `python-shamir-mnemonic` reference implementation and includes its official recovery vectors and 1024-word list. The Codex32 tests use vectors published in BIP93 and the CC0 Rust reference implementation. No Python interpreter or Python package is bundled into a browser artifact or required at runtime.
 
 The fixed scanner fixture is output from the MIT-licensed official stable `dashpay/platform` v4.1.1 wallet source at commit `69b85c81af8e000e8506edaa13406d1f6274af5a`; no upstream source code is copied into the fixture. The Orchard MIT notice identifies The Electric Coin Company (2020–2025) and Zcash Open Development Lab (2026). wasm-bindgen's MIT notice identifies Alex Crichton (2014). Their upstream distributions also contain Apache-2.0 texts where dual licensed.
 
@@ -55,16 +63,16 @@ The fixed scanner fixture is output from the MIT-licensed official stable `dashp
 
 These packages are not imported by production source except esbuild/TypeScript during the build.
 
-| Package | Exact version | Source repository | License | Use |
-| --- | --- | --- | --- | --- |
-| `@dashincubator/secp256k1` | 1.7.1-5 | `dashhive/secp256k1` | MIT | Dash verification dependency |
-| `dashhd` | 3.3.3 | `dashhive/dashhd.js` | MIT | Independent Dash Core cross-check |
-| `dashkeys` | 1.1.5 | `dashhive/dashkeys.js` | MIT | DashHD test closure |
-| `ethers` | 6.17.0 | `ethers-io/ethers.js` | MIT | Independent Ethereum cross-check |
-| `esbuild` | 0.28.2 | `evanw/esbuild` | MIT | Browser bundle and CSS minification |
-| `typescript` | 7.0.2 | `microsoft/TypeScript` | Apache-2.0 | Static type checking |
-| `vitest` | 5.0.0 | `vitest-dev/vitest` | MIT | JS/TS tests |
-| `playwright` | 1.62.1 | `microsoft/playwright` | Apache-2.0 | Chromium/Firefox standalone-file and browser-regression tests |
+| Package                    | Exact version | Source repository      | License    | Use                                                           |
+| -------------------------- | ------------- | ---------------------- | ---------- | ------------------------------------------------------------- |
+| `@dashincubator/secp256k1` | 1.7.1-5       | `dashhive/secp256k1`   | MIT        | Dash verification dependency                                  |
+| `dashhd`                   | 3.3.3         | `dashhive/dashhd.js`   | MIT        | Independent Dash Core cross-check                             |
+| `dashkeys`                 | 1.1.5         | `dashhive/dashkeys.js` | MIT        | DashHD test closure                                           |
+| `ethers`                   | 6.17.0        | `ethers-io/ethers.js`  | MIT        | Independent Ethereum cross-check                              |
+| `esbuild`                  | 0.28.2        | `evanw/esbuild`        | MIT        | Browser bundle and CSS minification                           |
+| `typescript`               | 7.0.2         | `microsoft/TypeScript` | Apache-2.0 | Static type checking                                          |
+| `vitest`                   | 5.0.0         | `vitest-dev/vitest`    | MIT        | JS/TS tests                                                   |
+| `playwright`               | 1.62.1        | `microsoft/playwright` | Apache-2.0 | Chromium/Firefox standalone-file and browser-regression tests |
 
 ## Complete locked Rust metadata closure
 
@@ -82,7 +90,10 @@ chacha20 0.9.1                  chacha20poly1305 0.10.1
 cipher 0.4.4                    cobs 0.3.0
 corez 0.1.1                     cpufeatures 0.2.17
 critical-section 1.2.0          crypto-common 0.1.7
-dash-shielded-wasm 0.1.4        document-features 0.2.12
+dash-shielded-wasm 0.1.4
+recovery-shamir-wasm 0.1.4
+recovery-codex32-wasm 0.1.4
+document-features 0.2.12
 either 1.18.0                   embedded-io 0.4.0
 embedded-io 0.6.1               ff 0.13.1
 fpe 0.6.1                       frost-core 3.0.0
@@ -99,10 +110,11 @@ once_cell 1.21.4                opaque-debug 0.3.1
 orchard 0.14.0                  pasta_curves 0.5.2
 pin-project-lite 0.2.17         poly1305 0.8.0
 postcard 1.1.3                  proc-macro2 1.0.107
-quote 1.0.47                    rand 0.8.8
+quote 1.0.47                    rand 0.8.8                     rand_chacha 0.3.1
 rand_core 0.6.4                 reddsa 0.5.2
 rustc_version 0.4.1             rustversion 1.0.23
 scopeguard 1.2.0                semver 1.0.28
+sharks 0.5.0
 serde 1.0.229                   serde_core 1.0.229
 serde_derive 1.0.229            serdect 0.2.0
 sinsemilla 0.1.0               stable_deref_trait 1.2.1
@@ -136,6 +148,7 @@ wyz 0.5.1                                                     MIT
 zmij 1.0.23                                                   MIT
 byteorder 1.5.0                                               Unlicense OR MIT
 memchr 2.8.3                                                  Unlicense OR MIT
+codex32 0.1.0                                                CC0-1.0
 constant_time_eq 0.4.2                                        CC0-1.0 OR MIT-0 OR Apache-2.0
 subtle 2.6.1                                                  BSD-3-Clause
 unicode-ident 1.0.24                                          (MIT OR Apache-2.0) AND Unicode-3.0
@@ -147,7 +160,9 @@ wasi 0.11.1+wasi-snapshot-preview1                           Apache-2.0 WITH LLV
 
 - `package.json` uses exact dependency versions; pnpm's lockfile pins the npm closure and integrity hashes.
 - `Cargo.toml` uses exact registry versions and one exact audited Orchard tag; `Cargo.lock` pins all transitive versions and git commits.
-- The build validates Cargo 1.98.1, wasm-bindgen-cli 0.2.128, and the Orchard lock source before compiling.
+- Every supported build validates SHA-512 integrity entries for the complete pnpm package closure, SHA-256 checksums for every crates.io package, and full commit pins for Cargo git sources before compiling.
+- Exact GitHub revisions are recorded for Orchard, note encryption, sharks, rust-codex32, the SLIP-39 reference, and SeedSigner SeedQR. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply.
+- The verification record also carries SHA-256 hashes for the local SeedQR, SLIP-39, Shamir, Codex32, QR rendering, and QR decoding sources.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.
 - `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions, mnemonic-bearing online boundary, and independent-audit warning; its current Bitcoin, Ethereum, and Dash providers are documented in its application README and the root security audit.

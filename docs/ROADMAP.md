@@ -14,6 +14,20 @@ Acceptance requires a regression fixture in which the funding resource exists wi
 
 - [ ] Consider a separate native Electrum seed-format mode with explicit seed-version detection, independent derivation vectors and clearly stated wallet/path coverage. Do not add it implicitly to BIP39 input. No native Electrum seed support is claimed today.
 
+## Modular Activity Viewer extensions
+
+These are future opt-in build modules. Single-address and batch queries remain part of the base Activity Viewer rather than separate features.
+
+- [ ] **Watch-only activity (`watch-only-activity`).** Accept an xpub or descriptor and aggregate wallet activity without accepting a seed phrase or spending key. Reuse the public-input guard and watch-only detection packages, and keep the network boundary limited to derived public addresses.
+- [ ] **Transaction details (`transaction-details`).** Expand discovered transactions into inputs, outputs, fees, confirmation state and coin-specific metadata, with exact integer amounts and links back to the queried address or wallet.
+- [ ] **Snapshot comparison (`snapshot-compare`).** Export a public, versioned activity snapshot and compare it with a later snapshot locally to show new transactions, balance changes and confirmation changes without storing secrets.
+- [ ] **Address labels (`address-labels`).** Let users attach local labels to public addresses and group results. Keep labels local to the page/export and never send them to providers.
+- [ ] **Ethereum token activity (`ethereum-tokens`).** Add ERC-20 balances and transfer history behind the Ethereum coin module, with contract-address validation, token decimals and explicit provider completeness limits.
+- [ ] **Advanced activity export (`activity-export-advanced`).** Add optional detailed CSV/JSON/ledger exports if transaction-level records outgrow the base export, preserving amount units, provenance and completeness metadata.
+- [ ] **Wallet summary (`wallet-summary`).** Combine multiple public addresses or watch-only branches into one deduplicated balance and history summary while retaining per-address evidence and avoiding double-counted transactions.
+
+Each module requires its own UI fragment, entrypoint, tests and artifact markers so an excluded module contributes no button, handler, provider code or dependency to a feature-selective HTML build. Coin selection remains independent: choosing Dash includes all currently supported Dash address and activity types in the base viewer.
+
 ## Shared address-history modules
 
 - [ ] Move the network/history modules currently imported by Multi-Chain Activity Viewer from Discovery Scanner into a shared package, preserving existing security and edition-isolation tests.

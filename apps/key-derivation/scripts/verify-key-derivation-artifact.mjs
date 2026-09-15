@@ -10,7 +10,11 @@ const profile = parseBuildProfile();
 const tool = getToolBuild(profile, 'key-derivation');
 const artifactPath = resolve(root, 'dist', tool.artifactRelativePath);
 const checksumPath = resolve(root, 'dist', tool.artifactDirectory, tool.checksumFile);
-const wasmPath = resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm');
+const wasmPaths = [
+  ['Orchard', resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm')],
+  ['Shamir', resolve(root, 'packages/recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm')],
+  ['Codex32', resolve(root, 'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm')],
+];
 const html = readFileSync(artifactPath, 'utf8');
 const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
 if (!html.includes(expectedFingerprint)) {
@@ -66,6 +70,29 @@ const ids = [...html.matchAll(/\sid="([^"]+)"/gu)].map((match) => match[1]);
 if (new Set(ids).size !== ids.length) throw new Error('Standalone artifact contains duplicate HTML IDs.');
 for (const requiredId of [
   'derive-form',
+  'recovery-workspace',
+  'wallet-matcher-panel',
+  'matcher-seeds',
+  'matcher-passphrases',
+  'matcher-addresses',
+  'run-wallet-matcher',
+  'slip39-panel',
+  'slip39-source-mnemonic',
+  'slip39-format',
+  'create-slip39-shares',
+  'slip39-shares',
+  'restore-slip39-shares',
+  'shamir-raw-panel',
+  'create-shamir-raw',
+  'restore-shamir-raw',
+  'shamir-words-panel',
+  'create-shamir-words',
+  'restore-shamir-words',
+  'codex32-panel',
+  'codex32-secret-type',
+  'codex32-restore-type',
+  'create-codex32',
+  'restore-codex32',
   'mnemonic',
   'passphrase',
   'seed-diagnostic',
@@ -95,6 +122,14 @@ for (const requiredId of [
   'download-selection',
   'watch-only-export',
   'clear-all',
+  'main-recovery-source-menu',
+  'show-mnemonic-entropy',
+  'mnemonic-entropy-value',
+  'seedqr-panel',
+  'seedqr-create-result',
+  'matcher-seed-lines',
+  'matcher-passphrase-lines',
+  'matcher-address-lines',
   'results',
   'result-branch-tabs',
   'result-receive-tab',
@@ -112,6 +147,24 @@ for (const requiredId of [
   'artifact-checksum-file',
 ]) {
   if (!ids.includes(requiredId)) throw new Error(`Standalone artifact is missing required element #${requiredId}.`);
+}
+if (profile.capabilities.bip85) {
+  for (const requiredId of [
+    'include-bip85',
+    'bip85-tab',
+    'bip85-words',
+    'bip85-wallet-toggle-secrets',
+    'bip85-wallet-export-format',
+    'bip85-wallet-account-export-dialog',
+    'bip85-recovery-source-menu',
+  ]) {
+    if (!ids.includes(requiredId)) throw new Error(`BIP85 workspace is missing required element #${requiredId}.`);
+  }
+  for (const words of [12, 15, 18, 21, 24]) {
+    if (!html.includes(`<option>${words}</option>`)) {
+      throw new Error(`BIP85 workspace is missing the ${words}-word BIP39 option.`);
+    }
+  }
 }
 for (const match of html.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
   if (!ids.includes(match[1])) throw new Error(`Label references missing control #${match[1]}.`);
@@ -156,9 +209,6 @@ const required = [
   'ACCOUNT-SCOPED MATERIAL',
   'dashified-0.14.1',
 ];
-if (profile.id !== 'dash-community') {
-  required.push('expected-address', 'search-address');
-}
 for (const marker of required) {
   if (!html.includes(marker)) throw new Error(`Standalone artifact is missing required marker: ${marker}`);
 }
@@ -168,20 +218,51 @@ for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
 if (profile.id === 'dash-community' && !html.includes('Dash master/account extended-key integrity')) {
   throw new Error('Dash Community artifact is missing its Dash-only extended-key startup vector.');
 }
+for (const marker of [
+  'Wallet Matcher / Derivation Discovery',
+  'SeedSigner SeedQR',
+  'Read share QR image(s)',
+  'qr 0.7.0',
+  'CompactSeedQR',
+  'SLIP-39 mnemonic shares',
+  'aria-label="SeedQR operation"',
+  'aria-label="SLIP-39 operation"',
+  'aria-label="Shamir Raw operation"',
+  'aria-label="Shamir Words operation"',
+  'aria-label="Codex32 operation"',
+  'Shamir Raw',
+  'Shamir Words',
+  'Codex32 · BIP93',
+  'Mnemonic construction details',
+  'seed-construction-details',
+  'seed-word-table',
+  'entropyBinary',
+  'providedChecksum',
+  'expectedChecksum',
+  'BIP39 index',
+  'Search every supported coin and derivation profile',
+  'SeedQR encode/decode',
+  'SLIP-39 official + encode/decode',
+  'Shamir ',
+  'encode/decode',
+  'Codex32 official + entropy encode/decode',
+]) {
+  if (!html.includes(marker)) throw new Error(`Standalone artifact is missing recovery workspace marker: ${marker}`);
+}
+if (occurrences(html, '<summary>What is this?</summary>') !== 6) {
+  throw new Error('Every Recovery & Backup method must include one explanatory help popover.');
+}
 if (profile.id === 'dash-community') {
   for (const marker of [
-    'Recover by address',
-    'Bitcoin address or addresses',
-    'expected-address',
-    'search-address',
-    '@ckd/recovery/address-targets',
-    '@ckd/recovery/multi-address-search',
+    'matcher-targets-multichain',
+    'bitcoin-taproot',
+    'bitcoin-native-segwit',
+    "adapterIds:['ethereum']",
   ]) {
-    if (html.includes(marker))
-      throw new Error(`Dash Community artifact contains excluded Bitcoin address-search marker: ${marker}`);
+    if (html.includes(marker)) {
+      throw new Error(`Dash Community artifact contains excluded multi-chain matcher marker: ${marker}`);
+    }
   }
-} else if (!html.includes('Recover by address')) {
-  throw new Error('Multi-Chain artifact is missing the address recovery panel.');
 }
 if (occurrences(html, 'Embedded dependency versions and licenses') !== 1) {
   throw new Error('Dependency versions must appear exactly once inside the Release passport.');
@@ -226,9 +307,11 @@ const securityScanSource = html.replaceAll('http://www.w3.org/2000/svg', '');
 for (const [pattern, label] of forbidden) {
   if (pattern.test(securityScanSource)) throw new Error(`Standalone artifact contains forbidden ${label}.`);
 }
-const expectedWasmBase64 = readFileSync(wasmPath).toString('base64');
-const wasmCopies = occurrences(html, expectedWasmBase64);
-if (wasmCopies !== 1) throw new Error(`Expected exactly one embedded Orchard WASM module; found ${wasmCopies}.`);
+for (const [label, wasmPath] of wasmPaths) {
+  const expectedWasmBase64 = readFileSync(wasmPath).toString('base64');
+  const wasmCopies = occurrences(html, expectedWasmBase64);
+  if (wasmCopies !== 1) throw new Error(`Expected exactly one embedded ${label} WASM module; found ${wasmCopies}.`);
+}
 const wordlistMarker = 'abandon\nability\nable\nabout\nabove\nabsent';
 const escapedWordlistMarker = 'abandon\\nability\\nable\\nabout\\nabove\\nabsent';
 const wordlistCopies = occurrences(html, wordlistMarker) + occurrences(html, escapedWordlistMarker);

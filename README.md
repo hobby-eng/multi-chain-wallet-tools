@@ -15,26 +15,29 @@ This is an independent hobby project. It is not an official Dash product or a re
 
 ## Choose a tool
 
-| Tool | Works | Use it to |
-| --- | --- | --- |
-| **Wallet Key Derivation Tool** | Offline | Generate or enter a 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase, then derive addresses, public keys, account descriptors, and reveal-gated private material |
-| **Wallet Activity Viewer** | Connected | Inspect public address, Identity, or Orchard viewing activity without spending authority |
-| **Wallet Discovery Scanner** | Connected, with an isolated Secret Vault | Find supported accounts and previously used addresses from BIP39 candidates or watch-only public keys/descriptors |
-| **PSBT & Multisig Inspector** | Offline | Inspect PSBTs, scripts, descriptors, and test multisig policies without signing or broadcasting |
+| Tool                           | Works                                    | Use it to                                                                                                                                                           |
+| ------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Wallet Key Derivation Tool** | Offline                                  | Generate or enter a 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase, then derive addresses, public keys, account descriptors, and reveal-gated private material |
+| **Wallet Activity Viewer**     | Connected                                | Inspect public address, Identity, or Orchard viewing activity without spending authority                                                                            |
+| **Wallet Discovery Scanner**   | Connected, with an isolated Secret Vault | Find supported accounts and previously used addresses from BIP39 candidates or watch-only public keys/descriptors                                                   |
+| **PSBT & Multisig Inspector**  | Offline                                  | Inspect PSBTs, scripts, descriptors, and test multisig policies without signing or broadcasting                                                                     |
 
 ### Wallet Key Derivation Tool
 
 Use the Deriver on a trusted offline computer whenever real seed phrases or private keys are involved.
 
 - Derives Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot addresses; Ethereum EOAs; and supported Dash Core, Platform Payment, Identity, multisig-cosigner, and Orchard material.
-- Checks the entered phrase locally with Seed Diagnostic: word count, English BIP39 membership, checksum, NFKD normalization, entropy/checksum sizes, typo suggestions, and the passphrase-sensitive BIP32 master fingerprint.
+- Checks the entered phrase locally with Seed Diagnostic: word count, English BIP39 membership, checksum, NFKD normalization, entropy/checksum sizes, typo suggestions, and the passphrase-sensitive BIP32 master fingerprint. A reveal-gated construction view, modeled after Ian Coleman BIP39, lists numbered words, decimal/hex wordlist indexes, 11-bit groups, canonical entropy in hex/binary, and checksum bits; the pinned `@scure/bip39` library performs validation and entropy conversion.
 - Shows receive and optional change/internal results in separate tabs with paging, selection, copy, and download controls.
 - Creates QR codes locally for public payment addresses only. Secret keys, phrases, paths, and metadata never receive QR actions.
 - Includes optional local signing of any message with the derived Bitcoin or Dash key, using pinned and tested cryptographic libraries without importing the key into a wallet. Transaction signing and broadcasting are not implemented, which keeps spending operations outside the tool’s security boundary.
 - Exports public or private Bitcoin/Dash Core account descriptors. Public descriptors are watch-only; private descriptors grant account spending access.
 - Offers BIP38 encryption for supported compressed Bitcoin/Dash P2PKH private keys.
-- In Multi-Chain, derives BIP85 child BIP39 phrases, WIFs, XPRVs, and hex entropy. A child phrase can be opened immediately as a temporary child-wallet context, with a visible path back to the parent, so its addresses can be reviewed without another page or window.
+- Derives coin-independent BIP85 child BIP39 phrases in both editions, with every standard 12/15/18/21/24-word length. A child phrase opens as an in-memory wallet workspace with the edition’s supported coins, full key reveal, clipboard controls, and account descriptor export. Both editions also expose XPRV and hexadecimal applications; WIF choices follow the edition (Dash only in Dash Community, Bitcoin and Dash in Multi-Chain).
 - In Multi-Chain, derives BIP352 Silent Payment addresses and their scan/spend paths. It does not scan the blockchain for Silent Payments.
+- Adds an offline **Recovery & Backup** workspace in both editions: Wallet Matcher searches many mnemonic/passphrase candidates against known addresses and bounded account/branch/index ranges; SeedSigner Standard SeedQR/CompactSeedQR, SLIP-39, CKD Shamir Raw, CKD Shamir Words, and Codex32 provide separate create/restore workflows. Every generated share or record has its own QR code with local PNG export, and every restore workflow can decode QR image files entirely offline.
+- The original or current BIP85 child phrase can be linked directly to any recovery workflow without using the clipboard or duplicating it into another input. The link expires when its source phrase or passphrase changes. An optional concealed view exposes the BIP39 entropy, excluding the separate passphrase.
+- SLIP-39 and both CKD Shamir modes preserve English BIP39 entropy and can reconstruct the original phrase. Codex32 offers either recoverable BIP39 entropy or the passphrase-sensitive BIP32 master seed; master-seed mode restores wallet seed bytes but cannot reconstruct the source words or passphrase.
 
 The input is BIP39; native Electrum seed phrases are not supported. The path follows the selected standard scheme. Account, branch, start index, and result count remain editable where that scheme defines them, while arbitrary custom path templates are deliberately excluded from the Deriver.
 
@@ -96,28 +99,29 @@ It does not sign, finalize, fund, query UTXOs, persist data, or broadcast transa
 - The Scanner is connected, but its Secret Vault cannot access the network. A compromised host or browser still remains outside this isolation boundary.
 - None of the tools restores funds, signs recovery transactions, or broadcasts them. Verify findings and imports in a standard wallet.
 - Exports containing private descriptors or private keys grant spending access. Treat them like the seed phrase.
+- Every recovery share and restored master seed is secret. The backup workspace is offline and stores nothing, but clipboard history, screenshots, browser extensions, swap, and crash dumps remain outside its boundary.
 
 The project has extensive automated checks but has not received an independent cryptography-specialist audit. See the [security model and current limitations](SECURITY_AUDIT.md).
 
-For source reviewers, the applications depend on shared packages with one-way responsibilities: `crypto-core` and `coin-protocols` own cryptographic primitives and derivation; `secret-boundary`, `secret-vault`, and `network-boundary` own the connected-tool trust boundaries; `public-data-providers` owns Bitcoin/Ethereum public reads; and `wallet-recovery` owns reusable watch-only detection and bounded recovery searches. Build checks reject cross-app imports, package-to-application imports, package dependency cycles, and non-allowlisted modules in Dash Community artifacts. See [Architecture](docs/ARCHITECTURE.md) for the complete dependency and execution model.
+For source reviewers, the applications depend on shared packages with one-way responsibilities: `crypto-core` and `coin-protocols` own cryptographic primitives and derivation; `secret-boundary`, `secret-vault`, and `network-boundary` own the connected-tool trust boundaries; `public-data-providers` owns Bitcoin/Ethereum public reads; and `wallet-recovery` owns reusable watch-only detection and bounded recovery searches. Build checks reject cross-app imports, package-to-application imports, package dependency cycles, and non-allowlisted modules in Dash Community artifacts. See [Architecture](docs/ARCHITECTURE.md) for the complete dependency and execution model. Selective standalone builds use `--coins`, `--features`, `--exclude-coins`, and `--exclude`; the exact modules and commands are documented in [Selective build modules](docs/BUILD_MODULES.md). A bounded 62-build smoke matrix covers every coin and optional feature, while the exhaustive matrix enumerates every valid interaction.
 
 ## Supported standard derivation defaults
 
 These are the main defaults, not an exhaustive list of every optional recovery family or descriptor form.
 
-| Protocol | Default receive path or model | Result |
-| --- | --- | --- |
-| Bitcoin Legacy | `m/44'/0'/account'/0/index` | P2PKH |
-| Bitcoin Nested SegWit | `m/49'/0'/account'/0/index` | P2SH-P2WPKH |
-| Bitcoin Native SegWit | `m/84'/0'/account'/0/index` | P2WPKH |
-| Bitcoin Taproot | `m/86'/0'/account'/0/index` | BIP86 P2TR |
-| Ethereum EOA | `m/44'/60'/account'/branch/index` | EIP-55 address |
-| Dash Core | `m/44'/5'/account'/0/index` | P2PKH |
-| Dash legacy mobile Core | `m/account'/0/index` | P2PKH |
-| Dash Mobile CoinJoin | `m/9'/5'/4'/0'/0/index` | DIP9 P2PKH |
-| Dash Platform Payment | `m/9'/5'/17'/account'/0'/index` | DIP17/DIP18 receive address |
-| Dash Identity candidate | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 registration key profile |
-| Dash Orchard | `m/32'/5'/account'` plus diversifier index | Shielded address and key material |
+| Protocol                | Default receive path or model              | Result                            |
+| ----------------------- | ------------------------------------------ | --------------------------------- |
+| Bitcoin Legacy          | `m/44'/0'/account'/0/index`                | P2PKH                             |
+| Bitcoin Nested SegWit   | `m/49'/0'/account'/0/index`                | P2SH-P2WPKH                       |
+| Bitcoin Native SegWit   | `m/84'/0'/account'/0/index`                | P2WPKH                            |
+| Bitcoin Taproot         | `m/86'/0'/account'/0/index`                | BIP86 P2TR                        |
+| Ethereum EOA            | `m/44'/60'/account'/branch/index`          | EIP-55 address                    |
+| Dash Core               | `m/44'/5'/account'/0/index`                | P2PKH                             |
+| Dash legacy mobile Core | `m/account'/0/index`                       | P2PKH                             |
+| Dash Mobile CoinJoin    | `m/9'/5'/4'/0'/0/index`                    | DIP9 P2PKH                        |
+| Dash Platform Payment   | `m/9'/5'/17'/account'/0'/index`            | DIP17/DIP18 receive address       |
+| Dash Identity candidate | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 registration key profile    |
+| Dash Orchard            | `m/32'/5'/account'` plus diversifier index | Shielded address and key material |
 
 For Bitcoin and Dash Core, change normally uses branch `/1`. Dash Platform's optional internal/change-like results use the separate hardened key class `1'`. Testnet changes the applicable coin type and network encoding. Advanced Dash recovery families, exact semantics, and authoritative references are documented in [How Dash support works](docs/DASH.md) and the [detailed Dash reference](docs/reference/DASH_IMPLEMENTATION.md).
 
@@ -145,7 +149,7 @@ Start with the document that matches what you need:
 - [Architecture](docs/ARCHITECTURE.md) describes application/package ownership and the Scanner's Secret Vault boundary.
 - [Account descriptor guide](docs/ACCOUNT_DESCRIPTORS.md) explains Bitcoin and Dash Core descriptor scope and import requirements.
 - [Verification map](docs/VERIFICATION.md) lists the checks run locally and in CI.
-- [Security audit](SECURITY_AUDIT.md), [audit records](docs/audits/README.md), and [roadmap](docs/ROADMAP.md) document reviewed risks, evidence, and planned work.
+- [Security audit](SECURITY_AUDIT.md), [audit records](docs/audits/README.md), [selective build modules](docs/BUILD_MODULES.md), and [roadmap](docs/ROADMAP.md) document reviewed risks, composition rules, evidence, and planned work.
 - [Third-party notices](THIRD_PARTY_NOTICES.md) and [attribution](ATTRIBUTION.md) identify dependencies and upstream work.
 - Developers can use [EXTENDING.md](EXTENDING.md) and [RELEASING.md](RELEASING.md).
 
@@ -157,12 +161,14 @@ The canonical release build uses a pinned Linux/amd64 Docker environment and run
 ./tooling/build-reproducible.sh
 ```
 
-Use `./tooling/build-reproducible.sh --wasm` only when intentionally regenerating the committed Dash Orchard browser WASM. Native development requires Node.js 24+, pnpm 11.25.0, Rust/Cargo 1.98.1 with `wasm32-unknown-unknown`, and `wasm-bindgen-cli` 0.2.128:
+Use `./tooling/build-reproducible.sh --wasm` only when intentionally regenerating all committed browser WASM modules (Dash Orchard, Shamir, and Codex32). Native development requires Node.js 24+, pnpm 11.25.0, Rust/Cargo 1.98.1 with `wasm32-unknown-unknown`, and `wasm-bindgen-cli` 0.2.128:
 
 ```bash
 pnpm install --frozen-lockfile
 RUSTUP_TOOLCHAIN=1.98.1 pnpm verify
 ```
+
+Every supported build first checks the complete pnpm and Cargo lock closures: npm archives require SHA-512 integrity values, crates.io archives require SHA-256 checksums, and git dependencies require full commits. It records SHA-256 fingerprints for the local SeedQR, SLIP-39, Shamir, Codex32, QR rendering, and QR decoding sources and checks the exact reviewed GitHub commits when upstream is reachable. A returned mismatch stops the build; an unreachable upstream produces an explicit warning while locked local hashes remain mandatory.
 
 Generated editions appear under `dist/multi-chain-edition/` and `dist/dash-community-edition/`. Exact commands, toolchain rules, release contents, and GitHub provenance steps are documented in [RELEASING.md](RELEASING.md).
 

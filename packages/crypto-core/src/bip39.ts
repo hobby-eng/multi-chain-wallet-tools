@@ -1,3 +1,4 @@
+import { secureRandomBytes } from './secure-random.js';
 import { entropyToMnemonic, mnemonicToEntropy, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { HDKey } from '@scure/bip32';
@@ -45,14 +46,10 @@ const BIP39_ENTROPY_BYTES: Readonly<Record<Bip39WordCount, number>> = {
 };
 
 export function generateMnemonic(wordCount: Bip39WordCount): string {
-  if (globalThis.crypto?.getRandomValues === undefined) {
-    throw new Error('Secure randomness is unavailable: crypto.getRandomValues is required.');
-  }
   const entropyBytes = BIP39_ENTROPY_BYTES[wordCount];
   if (entropyBytes === undefined) throw new Error('BIP39 word count must be 12, 15, 18, 21, or 24.');
 
-  const entropy = new Uint8Array(entropyBytes);
-  globalThis.crypto.getRandomValues(entropy);
+  const entropy = secureRandomBytes(entropyBytes);
   try {
     return entropyToMnemonic(entropy, wordlist);
   } finally {
@@ -64,10 +61,31 @@ export function entropyToEnglishMnemonic(entropy: Uint8Array): string {
   return entropyToMnemonic(entropy, wordlist);
 }
 
+export function englishMnemonicToEntropy(value: string): Uint8Array {
+  return mnemonicToEntropy(assertValidMnemonic(value), wordlist);
+}
+
 export interface UnknownMnemonicWord {
   readonly index: number;
   readonly word: string;
   readonly suggestions: readonly string[];
+}
+
+export interface MnemonicWordDiagnostic {
+  readonly position: number;
+  readonly word: string;
+  readonly wordlistIndex: number | null;
+  readonly indexHex: string | null;
+  readonly bits: string | null;
+}
+
+export interface MnemonicConstructionDiagnostic {
+  readonly entropyHex: string;
+  readonly entropyBinary: string;
+  readonly providedChecksum: string;
+  readonly expectedChecksum: string;
+  readonly mnemonicBinary: string;
+  readonly wordIndexes: readonly number[];
 }
 
 export interface MnemonicDiagnostic {
@@ -79,6 +97,8 @@ export interface MnemonicDiagnostic {
   readonly entropyBits: number | null;
   readonly checksumBits: number | null;
   readonly unknownWords: readonly UnknownMnemonicWord[];
+  readonly words: readonly MnemonicWordDiagnostic[];
+  readonly construction: MnemonicConstructionDiagnostic | null;
 }
 
 const BIP39_WORD_SET = new Set(wordlist);
@@ -121,6 +141,40 @@ export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
   const allWordsKnown = words.length > 0 && unknownWords.length === 0;
   const checksumValid = wordCountValid && allWordsKnown && validateMnemonic(normalized, wordlist);
   const entropyBits = wordCountValid ? (words.length / 3) * 32 : null;
+  const wordDiagnostics = words.map((word, index) => {
+    const wordlistIndex = BIP39_WORD_SET.has(word) ? wordlist.indexOf(word) : null;
+    return {
+      position: index + 1,
+      word,
+      wordlistIndex,
+      indexHex: wordlistIndex === null ? null : `0x${wordlistIndex.toString(16).padStart(3, '0')}`,
+      bits: wordlistIndex === null ? null : wordlistIndex.toString(2).padStart(11, '0'),
+    };
+  });
+  let construction: MnemonicConstructionDiagnostic | null = null;
+  if (checksumValid && entropyBits !== null) {
+    // @scure/bip39 performs the normative checksum validation and entropy recovery.
+    // The binary/index presentation mirrors Ian Coleman's Entropy Details view,
+    // while keeping cryptographic conversion in the already pinned library.
+    const entropy = mnemonicToEntropy(normalized, wordlist);
+    try {
+      const canonicalWords = entropyToMnemonic(entropy, wordlist).split(' ');
+      const canonicalIndexes = canonicalWords.map((word) => wordlist.indexOf(word));
+      const mnemonicBinary = canonicalIndexes.map((index) => index.toString(2).padStart(11, '0')).join('');
+      const entropyBinary = Array.from(entropy, (byte) => byte.toString(2).padStart(8, '0')).join('');
+      const checksum = mnemonicBinary.slice(entropyBits);
+      construction = {
+        entropyHex: bytesToHex(entropy),
+        entropyBinary,
+        providedChecksum: checksum,
+        expectedChecksum: checksum,
+        mnemonicBinary,
+        wordIndexes: canonicalIndexes,
+      };
+    } finally {
+      wipe(entropy);
+    }
+  }
   return {
     normalized,
     wordCount: words.length,
@@ -130,6 +184,8 @@ export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
     entropyBits,
     checksumBits: entropyBits === null ? null : entropyBits / 32,
     unknownWords,
+    words: wordDiagnostics,
+    construction,
   };
 }
 

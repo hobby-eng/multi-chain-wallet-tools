@@ -3,7 +3,22 @@
   "$id": "https://github.com/hobby-eng/multi-chain-wallet-tools/blob/main/docs/verification-record.schema.json",
   "title": "Multi-Chain Wallet Tools verification record",
   "type": "object",
-  "required": ["schema", "schemaVersion", "project", "version", "sourceDate", "commit", "dirty", "sourceFingerprint", "verification", "toolchain", "artifacts", "wasm", "attestation"],
+  "required": [
+    "schema",
+    "schemaVersion",
+    "project",
+    "version",
+    "sourceDate",
+    "commit",
+    "dirty",
+    "sourceFingerprint",
+    "verification",
+    "toolchain",
+    "artifacts",
+    "wasm",
+    "dependencyProvenance",
+    "attestation"
+  ],
   "properties": {
     "schema": { "type": "string" },
     "schemaVersion": { "const": 1 },
@@ -17,6 +32,7 @@
     "toolchain": { "type": "object" },
     "artifacts": { "type": "array", "minItems": 8, "maxItems": 8 },
     "wasm": { "type": "array", "minItems": 1 },
+    "dependencyProvenance": { "type": "object" },
     "attestation": { "type": "object" }
   },
   "additionalProperties": false

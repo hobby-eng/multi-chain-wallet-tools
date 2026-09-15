@@ -5,6 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { build, transform } from 'esbuild';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 import {
+  assertDiscoveryComposition,
+  createDiscoveryCompositionPlugin,
+  discoveryAppEntry,
+  discoveryNetworkWorkerEntry,
+} from '../../../tooling/discovery-composition.mjs';
+import {
+  artifactDisplayName,
+  customToolArtifact,
+  parseRequestedOutput,
+  parseToolFeatureOptions,
+} from '../../../tooling/tool-feature-options.mjs';
+import {
   applyProfileTemplate,
   assertDashOnlyGraph,
   getToolBuild,
@@ -15,18 +27,26 @@ import { verifyDashSdkBuild } from '../../../tooling/verify-dash-sdk-build.mjs';
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const profile = parseBuildProfile();
 const tool = getToolBuild(profile, 'discovery-scanner');
-verifyDashSdkBuild(root, 'The Wallet Discovery Scanner');
+const options = parseToolFeatureOptions('discovery-scanner', profile);
+const customArtifact = customToolArtifact(root, profile, 'discovery-scanner', tool, options, parseRequestedOutput());
+if (options.hasCoin('dash')) verifyDashSdkBuild(root, 'The Wallet Discovery Scanner');
 
-const vaultTemplate = applyProfileTemplate(
+let vaultTemplate = applyProfileTemplate(
   readFileSync(resolve(root, 'apps/discovery-scanner/src/index.html'), 'utf8'),
   profile,
   tool,
 );
-const shellTemplate = applyProfileTemplate(
+let shellTemplate = applyProfileTemplate(
   readFileSync(resolve(root, 'apps/discovery-scanner/src/shell.html'), 'utf8'),
   profile,
   tool,
 );
+if (!options.has('seed-discovery')) {
+  vaultTemplate = vaultTemplate
+    .replaceAll('Secret Vault', 'Public Input Boundary')
+    .replaceAll('secret candidates', 'public inputs');
+  shellTemplate = shellTemplate.replaceAll('Secret Vault', 'Public Input Boundary');
+}
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const recoveryCss = readFileSync(resolve(root, 'apps/discovery-scanner/src/styles.css'), 'utf8');
 const shellCss = readFileSync(resolve(root, 'packages/shared-ui/styles/tool-shell.css'), 'utf8');
@@ -39,7 +59,10 @@ const css = (
     legalComments: 'inline',
   })
 ).code;
-const buildInfo = createBuildInfo(root, tool.checksumFile, profile);
+const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
+  coins: options.coins,
+  features: options.selected,
+});
 const scriptCsp = (javascript) => `'sha256-${createHash('sha256').update(javascript).digest('base64')}'`;
 function dynamicCodeSurface(javascript) {
   // TypeScript 7 deliberately removed its stable in-process parser API. Use
@@ -53,9 +76,9 @@ function dynamicCodeSurface(javascript) {
     knownDiagnosticLiterals: javascript.split('Function(${o})').length - 1,
   };
 }
-const vaultBundle = await build({
+const networkBundle = await build({
   absWorkingDir: root,
-  entryPoints: [tool.entryPoint],
+  stdin: { contents: discoveryNetworkWorkerEntry(root), loader: 'ts', resolveDir: root },
   bundle: true,
   format: 'iife',
   platform: 'browser',
@@ -64,7 +87,63 @@ const vaultBundle = await build({
   minify: true,
   legalComments: 'inline',
   loader: { '.wasm': 'binary' },
+  plugins: [createDiscoveryCompositionPlugin(root, options)],
+  define: { __DASH_COMMUNITY__: JSON.stringify(profile.id === 'dash-community') },
+  metafile: true,
+  write: false,
+});
+const networkJavascript = networkBundle.outputFiles[0]?.text;
+if (networkJavascript === undefined) throw new Error('esbuild did not produce the Recovery Network Worker bundle.');
+const networkInputs = Object.keys(networkBundle.metafile.inputs);
+if (options.hasCoin('dash') && !networkInputs.some((input) => input.includes('@dashevo/evo-sdk'))) {
+  throw new Error('Recovery Network Worker bundle omitted the pinned Evo SDK.');
+}
+for (const forbidden of [
+  '/app.ts',
+  '/secret-guard.ts',
+  '/crypto-core/src/bip39.ts',
+  '/crypto-core/src/bip32.ts',
+  '/crypto-core/src/secrets.ts',
+  '/coin-protocols/src/coins/dash/shielded.ts',
+  '/orchard-scanner.ts',
+]) {
+  if (networkInputs.some((input) => input.endsWith(forbidden))) {
+    throw new Error(`Recovery Network Worker bundle crossed the secret boundary through ${forbidden}.`);
+  }
+}
+// wasm-bindgen/Evo currently contributes two dynamic-code constructors. The
+// outer CSP deliberately omits 'unsafe-eval', so these browser-inactive glue
+// paths cannot execute. Pin their exact reviewed count so a dependency update
+// cannot silently add another dynamic-code path.
+const networkDynamicCode = dynamicCodeSurface(networkJavascript);
+if (options.hasCoin('dash')) {
+  if (
+    networkDynamicCode.functionConstructors !== 3 ||
+    networkDynamicCode.newFunctionConstructors !== 2 ||
+    networkDynamicCode.knownDiagnosticLiterals !== 1 ||
+    networkDynamicCode.evalCalls !== 0 ||
+    !networkJavascript.includes('return import("node:zlib")')
+  ) {
+    throw new Error('Recovery Network Worker dynamic-code surface changed from the two reviewed SDK glue paths.');
+  }
+} else if (networkDynamicCode.functionConstructors !== 0 || networkDynamicCode.evalCalls !== 0) {
+  throw new Error('Recovery Network Worker unexpectedly contains dynamic code evaluation.');
+}
+
+const vaultBundle = await build({
+  absWorkingDir: root,
+  stdin: { contents: discoveryAppEntry(root, options), loader: 'ts', resolveDir: root },
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: ['chrome120', 'firefox120', 'safari17'],
+  treeShaking: true,
+  minify: true,
+  legalComments: 'inline',
+  loader: { '.wasm': 'binary' },
+  plugins: [createDiscoveryCompositionPlugin(root, options)],
   define: {
+    __RECOVERY_NETWORK_WORKER_JS__: JSON.stringify(networkJavascript),
     __BUILD_INFO__: JSON.stringify(buildInfo),
     __DASH_COMMUNITY__: JSON.stringify(profile.id === 'dash-community'),
   },
@@ -110,70 +189,27 @@ if (vaultScriptStart < 0 || vaultScriptEnd <= vaultScriptStart)
 const vaultInlineScript = vaultHtml.slice(vaultScriptStart + '<script>'.length, vaultScriptEnd);
 vaultHtml = vaultHtml.replace('__VAULT_INLINE_SCRIPT_HASH__', scriptCsp(vaultInlineScript));
 
-const networkBundle = await build({
-  absWorkingDir: root,
-  entryPoints: [
-    profile.id === 'dash-community'
-      ? 'apps/discovery-scanner/src/network-worker-dash-community.ts'
-      : 'apps/discovery-scanner/src/network-worker.ts',
-  ],
-  bundle: true,
-  format: 'iife',
-  platform: 'browser',
-  target: ['chrome120', 'firefox120', 'safari17'],
-  treeShaking: true,
-  minify: true,
-  legalComments: 'inline',
-  loader: { '.wasm': 'binary' },
-  define: { __DASH_COMMUNITY__: JSON.stringify(profile.id === 'dash-community') },
-  metafile: true,
-  write: false,
-});
-const networkJavascript = networkBundle.outputFiles[0]?.text;
-if (networkJavascript === undefined) throw new Error('esbuild did not produce the Recovery Network Worker bundle.');
-const networkInputs = Object.keys(networkBundle.metafile.inputs);
-if (!networkInputs.some((input) => input.includes('@dashevo/evo-sdk'))) {
-  throw new Error('Recovery Network Worker bundle omitted the pinned Evo SDK.');
-}
-const hasMultiChainNetworkService = networkInputs.some((input) => input.endsWith('/network-service-multichain.ts'));
-if (profile.id === 'dash-community' && hasMultiChainNetworkService) {
-  throw new Error('Dash Community Recovery Network Worker unexpectedly contains non-Dash providers.');
-}
-if (profile.id === 'multi-chain' && !hasMultiChainNetworkService) {
-  throw new Error('Multi-Chain Recovery Network Worker omitted its Bitcoin/Ethereum providers.');
-}
-for (const forbidden of [
-  '/app.ts',
-  '/secret-guard.ts',
-  '/crypto-core/src/bip39.ts',
-  '/crypto-core/src/bip32.ts',
-  '/crypto-core/src/secrets.ts',
-  '/coin-protocols/src/coins/dash/shielded.ts',
-  '/orchard-scanner.ts',
-]) {
-  if (networkInputs.some((input) => input.endsWith(forbidden))) {
-    throw new Error(`Recovery Network Worker bundle crossed the secret boundary through ${forbidden}.`);
-  }
-}
-// wasm-bindgen/Evo currently contributes two dynamic-code constructors. The
-// outer CSP deliberately omits 'unsafe-eval', so these browser-inactive glue
-// paths cannot execute. Pin their exact reviewed count so a dependency update
-// cannot silently add another dynamic-code path.
-const networkDynamicCode = dynamicCodeSurface(networkJavascript);
-if (
-  networkDynamicCode.functionConstructors !== 3 ||
-  networkDynamicCode.newFunctionConstructors !== 2 ||
-  networkDynamicCode.knownDiagnosticLiterals !== 1 ||
-  networkDynamicCode.evalCalls !== 0 ||
-  !networkJavascript.includes('return import("node:zlib")')
-) {
-  throw new Error('Recovery Network Worker dynamic-code surface changed from the two reviewed SDK glue paths.');
-}
 const vaultDynamicCode = dynamicCodeSurface(vaultJavascript);
 if (vaultDynamicCode.functionConstructors !== 0 || vaultDynamicCode.evalCalls !== 0) {
   throw new Error('Recovery Secret Vault bundle unexpectedly contains dynamic code evaluation.');
 }
 
+const selectedBoundaryPlugin = {
+  name: 'selected-discovery-boundary',
+  setup(buildContext) {
+    buildContext.onResolve({ filter: /selected-boundary-bootstrap\.js$/ }, () => ({
+      path: 'selected-boundary-bootstrap',
+      namespace: 'ckd-boundary-selection',
+    }));
+    buildContext.onLoad({ filter: /.*/, namespace: 'ckd-boundary-selection' }, () => ({
+      loader: 'ts',
+      resolveDir: root,
+      contents: options.has('seed-discovery')
+        ? `export { bootstrapVaultDocument as bootstrapSelectedBoundary } from ${JSON.stringify(resolve(root, 'packages/secret-vault/src/worker-bootstrap.ts'))};`
+        : `export { bootstrapIsolatedBoundary as bootstrapSelectedBoundary } from ${JSON.stringify(resolve(root, 'packages/network-boundary/src/iframe-bootstrap.ts'))};`,
+    }));
+  },
+};
 const shellBundle = await build({
   absWorkingDir: root,
   entryPoints: ['apps/discovery-scanner/src/shell.ts'],
@@ -184,6 +220,7 @@ const shellBundle = await build({
   treeShaking: true,
   minify: true,
   legalComments: 'inline',
+  plugins: [selectedBoundaryPlugin],
   define: {
     __RECOVERY_VAULT_HTML__: JSON.stringify(vaultHtml),
     __RECOVERY_NETWORK_WORKER_JS__: JSON.stringify(networkJavascript),
@@ -198,17 +235,19 @@ const allowedShellInputs = new Set([
   'packages/network-boundary/src/protocol.ts',
   'packages/network-boundary/src/data-types.ts',
   'packages/network-boundary/src/client.ts',
-  'packages/secret-vault/src/vault-protocol.ts',
-  'packages/secret-vault/src/vault-client.ts',
-  'packages/secret-vault/src/worker-bootstrap.ts',
+  'packages/network-boundary/src/iframe-bootstrap.ts',
+  'ckd-boundary-selection:selected-boundary-bootstrap',
+  ...(options.has('seed-discovery') ? ['packages/secret-vault/src/worker-bootstrap.ts'] : []),
 ]);
-const unexpectedShellInputs = Object.keys(shellBundle.metafile.inputs).filter(
-  (input) => !allowedShellInputs.has(input),
-);
+const shellInputs = Object.keys(shellBundle.metafile.inputs);
+assertDiscoveryComposition(options, [...vaultInputs, ...networkInputs, ...shellInputs]);
+const unexpectedShellInputs = shellInputs.filter((input) => !allowedShellInputs.has(input));
 if (unexpectedShellInputs.length > 0) {
   throw new Error(`Recovery shell bundle crossed its two-module boundary through: ${unexpectedShellInputs.join(', ')}`);
 }
 for (const input of allowedShellInputs) {
+  // Virtual esbuild modules are generated above from fixed source and have no filesystem path.
+  if (input.startsWith('ckd-boundary-selection:')) continue;
   const source = readFileSync(resolve(root, input), 'utf8');
   const surface = dynamicCodeSurface(source);
   if (surface.functionConstructors !== 0 || surface.evalCalls !== 0) {
@@ -236,11 +275,13 @@ if (shellScriptStart < 0 || shellScriptEnd <= shellScriptStart)
   throw new Error('Recovery shell HTML did not contain the generated inline script.');
 const shellInlineScript = html.slice(shellScriptStart + '<script>'.length, shellScriptEnd);
 html = html.replace('__SHELL_INLINE_SCRIPT_HASH__', scriptCsp(shellInlineScript));
-const dist = resolve(root, 'dist', tool.artifactDirectory);
+const artifact = customArtifact ?? resolve(root, 'dist', tool.artifactDirectory, tool.artifactName);
+const dist = resolve(artifact, '..');
 mkdirSync(dist, { recursive: true });
-const artifact = resolve(dist, tool.artifactName);
 writeFileSync(artifact, html);
 const checksum = createHash('sha256').update(html).digest('hex');
-writeFileSync(resolve(dist, tool.checksumFile), `${checksum}  ${tool.artifactName}\n`);
-console.log(`Built dist/${tool.artifactRelativePath} (${Buffer.byteLength(html).toLocaleString()} bytes)`);
+writeFileSync(`${artifact}.sha256`, `${checksum}  ${artifactDisplayName(artifact)}\n`);
+console.log(
+  `Built ${customArtifact === undefined ? `dist/${tool.artifactRelativePath}` : artifact} (${Buffer.byteLength(html).toLocaleString()} bytes)`,
+);
 console.log(`SHA-256 ${checksum}`);

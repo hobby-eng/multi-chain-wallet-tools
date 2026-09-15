@@ -87,13 +87,13 @@
           type="button"
           role="tab"
           aria-selected="false"
-          aria-controls="derive-form"
+          aria-controls="recovery-workspace"
         >
           RECOVERY &amp; BACKUP
         </button>
       </nav>
 
-      <form id="derive-form" autocomplete="off" spellcheck="false">
+      <form id="derive-form" class="derive-only" autocomplete="off" spellcheck="false">
         <section class="panel input-panel">
           <div class="section-head">
             <div>
@@ -104,6 +104,15 @@
               Reveal recovery source
             </button>
           </div>
+          <label class="feature-tab-toggle entropy-toggle" for="show-mnemonic-entropy">
+            <input id="show-mnemonic-entropy" type="checkbox" />
+            <span>Show BIP39 entropy</span>
+          </label>
+          <section id="mnemonic-entropy" class="mnemonic-entropy" hidden>
+            <div class="field-heading"><label for="mnemonic-entropy-value">BIP39 entropy · hexadecimal</label></div>
+            <textarea id="mnemonic-entropy-value" class="secret-value concealed" rows="2" readonly></textarea>
+            <p id="mnemonic-entropy-note" class="field-note"></p>
+          </section>
           <label for="mnemonic">BIP39 recovery phrase</label>
           <textarea
             id="mnemonic"
@@ -125,6 +134,21 @@
             <button class="secret-action compact" id="copy-mnemonic" type="button" disabled>
               Copy recovery phrase
             </button>
+          </div>
+          <div class="recovery-source-actions">
+            <details id="main-recovery-source-menu" class="recovery-source-menu">
+              <summary>Use in Recovery &amp; Backup</summary>
+              <div class="recovery-source-menu-items" aria-label="Recovery and backup destination">
+                <button type="button" data-recovery-source="main" data-recovery-target="matcher">Wallet Matcher</button>
+                <button type="button" data-recovery-source="main" data-recovery-target="seedqr">SeedQR</button>
+                <button type="button" data-recovery-source="main" data-recovery-target="slip39">SLIP-39 shares</button>
+                <button type="button" data-recovery-source="main" data-recovery-target="shamir-raw">Shamir Raw</button>
+                <button type="button" data-recovery-source="main" data-recovery-target="shamir-words">
+                  Shamir Words
+                </button>
+                <button type="button" data-recovery-source="main" data-recovery-target="codex32">Codex32</button>
+              </div>
+            </details>
           </div>
           <section
             id="seed-diagnostic"
@@ -159,6 +183,11 @@
               <span class="step">02</span>
               <h2>Protocol & derivation</h2>
             </div>
+            <span id="default-result-secret-control-slot" class="result-secret-control-slot">
+              <button class="danger-outline compact" id="toggle-result-secrets" type="button" aria-pressed="false">
+                Reveal all private keys
+              </button>
+            </span>
           </div>
           <div class="form-grid">
             <div class="span-two standard-derivation-content">
@@ -264,22 +293,834 @@
             automatically derives the selected result count. Remembered totals above 20 require a manual click; larger
             requests run in visible batches and can consume substantial CPU, memory, and browser time.
           </p>
-          __ADDRESS_SEARCH_PANEL__
           <div id="error" class="error" role="alert" hidden></div>
           <div id="status" class="status" role="status" aria-live="polite" hidden></div>
         </section>
       </form>
 
-      <section id="results" hidden>
+      <section id="recovery-workspace" class="recovery-workspace recovery-only" hidden>
+        <div class="section-head">
+          <div>
+            <span class="step">01</span>
+            <h2>Recovery &amp; Backup</h2>
+          </div>
+          <span class="offline-badge">Offline workspace</span>
+        </div>
+        <p class="feature-intro">
+          Match known addresses across supported wallet structures, or create and restore portable backup shares.
+          Secrets stay inside this standalone file.
+        </p>
+
+        <nav class="recovery-subtabs" role="tablist" aria-label="Recovery and backup function">
+          <button
+            class="recovery-subtab active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="wallet-matcher-panel"
+            data-recovery-tab
+          >
+            Wallet Matcher
+          </button>
+          <button
+            class="recovery-subtab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="seedqr-panel"
+            data-recovery-tab
+          >
+            SeedQR
+          </button>
+          <button
+            class="recovery-subtab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="slip39-panel"
+            data-recovery-tab
+          >
+            SLIP-39 shares
+          </button>
+          <button
+            class="recovery-subtab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="shamir-raw-panel"
+            data-recovery-tab
+          >
+            Shamir Raw
+          </button>
+          <button
+            class="recovery-subtab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="shamir-words-panel"
+            data-recovery-tab
+          >
+            Shamir Words
+          </button>
+          <button
+            class="recovery-subtab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="codex32-panel"
+            data-recovery-tab
+          >
+            Codex32
+          </button>
+        </nav>
+
+        <section id="wallet-matcher-panel" class="panel recovery-panel" role="tabpanel" data-recovery-panel>
+          <div class="section-head">
+            <div>
+              <span class="step">02</span>
+              <h2>Wallet Matcher / Derivation Discovery</h2>
+            </div>
+          </div>
+          <details class="recovery-help">
+            <summary>What is this?</summary>
+            <div class="recovery-help-popover">
+              <h3>Wallet Matcher / Derivation Discovery</h3>
+              <p>
+                Finds which candidate recovery phrase produced a known public address and reports its coin, account,
+                branch, index, and complete derivation path. All candidates are tested locally in this file.
+              </p>
+              <p>
+                <strong>Example:</strong> enter the public test phrase “abandon … about” and one address derived from
+                it. A match such as <code>m/84'/0'/0'/0/5</code> identifies the fifth Native SegWit receive address.
+              </p>
+            </div>
+          </details>
+          <p class="field-note">
+            Enter one BIP39 phrase per numbered line. The passphrase on the same numbered line belongs to that phrase;
+            leave its line empty when no passphrase was used.
+          </p>
+          <button
+            id="toggle-matcher-secrets"
+            class="danger-outline compact matcher-secret-toggle"
+            type="button"
+            aria-pressed="false"
+          >
+            Reveal seed and passphrase lists
+          </button>
+          <div class="matcher-input-grid">
+            <div>
+              <label for="matcher-seeds">BIP39 recovery phrases</label>
+              <div class="numbered-textarea">
+                <pre id="matcher-seed-lines" aria-hidden="true"></pre>
+                <textarea
+                  id="matcher-seeds"
+                  class="concealed matcher-entry-textarea"
+                  rows="8"
+                  wrap="off"
+                  autocomplete="off"
+                  autocapitalize="none"
+                  placeholder="One complete phrase per line"
+                ></textarea>
+              </div>
+            </div>
+            <div>
+              <label for="matcher-passphrases">Matching BIP39 passphrases <span class="optional">optional</span></label>
+              <div class="numbered-textarea">
+                <pre id="matcher-passphrase-lines" aria-hidden="true"></pre>
+                <textarea
+                  id="matcher-passphrases"
+                  class="concealed matcher-entry-textarea"
+                  rows="8"
+                  wrap="off"
+                  autocomplete="off"
+                  placeholder="Line 1 belongs to seed 1, and so on"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+          <label for="matcher-addresses">Known address or addresses</label>
+          <div class="numbered-textarea">
+            <pre id="matcher-address-lines" aria-hidden="true"></pre>
+            <textarea
+              id="matcher-addresses"
+              class="matcher-entry-textarea"
+              rows="4"
+              wrap="off"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              placeholder="One supported address per numbered line"
+            ></textarea>
+          </div>
+          <div class="matcher-range-grid">
+            <div>
+              <label for="matcher-network">Network</label
+              ><select id="matcher-network">
+                <option value="mainnet">Mainnet</option>
+                <option value="testnet">Testnet</option>
+              </select>
+            </div>
+            <div>
+              <label for="matcher-account-start">Account start</label
+              ><input id="matcher-account-start" type="number" value="0" min="0" max="2147483647" step="1" />
+            </div>
+            <div>
+              <label for="matcher-account-end">Account finish</label
+              ><input id="matcher-account-end" type="number" value="0" min="0" max="2147483647" step="1" />
+            </div>
+            <div>
+              <label for="matcher-index-start">Index start</label
+              ><input id="matcher-index-start" type="number" value="0" min="0" max="2147483647" step="1" />
+            </div>
+            <div>
+              <label for="matcher-index-count">Indices per branch</label
+              ><input id="matcher-index-count" type="number" value="120" min="1" max="5000" step="1" />
+            </div>
+          </div>
+          <label class="feature-tab-toggle matcher-force-all" for="matcher-force-all"
+            ><input id="matcher-force-all" type="checkbox" /><span
+              ><strong>Search every supported coin and derivation profile</strong
+              ><small
+                >Ignore automatic address-type detection and scan every coin and standard derivation path available in
+                this edition, across the account, branch, and index ranges above. This is much slower.</small
+              ></span
+            ></label
+          >
+          <div class="actions">
+            <button class="primary" id="run-wallet-matcher" type="button">Find wallet matches</button
+            ><button class="secondary" id="cancel-wallet-matcher" type="button" hidden>Cancel search</button>
+          </div>
+          <p id="wallet-matcher-status" class="status" role="status" aria-live="polite"></p>
+          <div id="wallet-matcher-results" class="matcher-results"></div>
+        </section>
+
+        <section
+          id="seedqr-panel"
+          class="panel recovery-panel backup-method"
+          role="tabpanel"
+          data-recovery-panel
+          hidden
+        >
+          <div class="section-head">
+            <div>
+              <span class="step">02</span>
+              <h2>SeedSigner SeedQR</h2>
+            </div>
+          </div>
+          <details class="recovery-help">
+            <summary>What is this?</summary>
+            <div class="recovery-help-popover">
+              <h3>SeedQR</h3>
+              <p>
+                Converts a BIP39 recovery phrase into a QR payload for offline transfer or paper backup. Standard SeedQR
+                stores four digits per word; CompactSeedQR stores the underlying entropy bytes.
+              </p>
+              <p>
+                <strong>Example:</strong> the public test phrase “abandon … about” becomes 48 decimal digits in Standard
+                mode. This is encoding, not encryption: anyone who scans the QR obtains the wallet secret.
+              </p>
+            </div>
+          </details>
+          <p class="field-note">
+            Standard SeedQR encodes four decimal digits per BIP39 English word. CompactSeedQR encodes the underlying
+            entropy bytes. Both modes accept every standard 12-, 15-, 18-, 21-, and 24-word English BIP39 phrase.
+            SeedSigner documents 12- and 24-word payloads; intermediate lengths work within this tool but may not be
+            accepted by every external SeedQR implementation.
+          </p>
+          <div class="warning-callout">
+            <strong>Secret QR.</strong> Anyone who scans this QR can recover the wallet. Do not photograph, upload, or
+            display it near cameras.
+          </div>
+          <nav class="backup-mode-tabs" role="tablist" aria-label="SeedQR operation">
+            <button
+              class="backup-mode-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="seedqr-create-panel"
+              data-operation-tab
+            >
+              Encode
+            </button>
+            <button
+              class="backup-mode-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="seedqr-restore-panel"
+              data-operation-tab
+            >
+              Decode
+            </button>
+          </nav>
+          <section id="seedqr-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
+            <div class="field-heading-row">
+              <label for="seedqr-source">BIP39 recovery phrase to encode</label>
+              <button id="toggle-seedqr-source" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal source phrase
+              </button>
+            </div>
+            <textarea
+              id="seedqr-source"
+              class="concealed"
+              rows="4"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Enter 12 or 24 English BIP39 words"
+            ></textarea>
+            <label for="seedqr-format">SeedQR format</label>
+            <select id="seedqr-format">
+              <option value="standard">Standard SeedQR · numeric</option>
+              <option value="compact">CompactSeedQR · binary</option>
+            </select>
+            <div class="actions">
+              <button class="primary" id="create-seedqr" type="button">Create SeedQR</button>
+              <button id="toggle-seedqr-created" class="danger-outline" type="button" aria-pressed="false">
+                Reveal encoded payload
+              </button>
+            </div>
+            <div id="seedqr-create-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+          <section id="seedqr-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+            <label for="seedqr-restore-format">Decoded SeedQR format</label>
+            <select id="seedqr-restore-format">
+              <option value="standard">Standard SeedQR · numeric digits</option>
+              <option value="compact">CompactSeedQR · hexadecimal bytes</option>
+            </select>
+            <label for="seedqr-payload">Decoded QR payload</label>
+            <textarea
+              id="seedqr-payload"
+              class="concealed"
+              rows="5"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Paste the numeric payload, or compact bytes as hexadecimal"
+            ></textarea>
+            <div class="actions">
+              <button id="toggle-seedqr-payload" class="danger-outline" type="button" aria-pressed="false">
+                Reveal decoded payload
+              </button>
+              <button class="primary" id="restore-seedqr" type="button">Restore BIP39 phrase</button>
+            </div>
+            <div id="seedqr-restore-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+        </section>
+
+        <section
+          id="slip39-panel"
+          class="panel recovery-panel backup-method"
+          role="tabpanel"
+          data-recovery-panel
+          hidden
+        >
+          <div class="section-head">
+            <div>
+              <span class="step">02</span>
+              <h2>SLIP-39 mnemonic shares</h2>
+            </div>
+          </div>
+          <details class="recovery-help">
+            <summary>What is this?</summary>
+            <div class="recovery-help-popover">
+              <h3>SLIP-39 mnemonic shares</h3>
+              <p>
+                Splits secret entropy into standardized mnemonic shares with a threshold. In a 2-of-3 set, any two cards
+                recover the secret while one card is insufficient. Each share uses the separate SLIP-39 wordlist.
+              </p>
+              <p>
+                <strong>Example:</strong> “abandon … about” can become three unrelated-looking SLIP-39 cards. Combining
+                card 1 with card 3 reconstructs the original BIP39 words in this workspace.
+              </p>
+            </div>
+          </details>
+          <p class="field-note">
+            SLIP-39 shares have their own 1024-word list, metadata and checksum. They are not BIP39 seed phrases.
+          </p>
+          <nav class="backup-mode-tabs" role="tablist" aria-label="SLIP-39 operation">
+            <button
+              class="backup-mode-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="slip39-create-panel"
+              data-operation-tab
+            >
+              Encode
+            </button>
+            <button
+              class="backup-mode-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="slip39-restore-panel"
+              data-operation-tab
+            >
+              Decode
+            </button>
+          </nav>
+          <section id="slip39-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
+            <div class="field-heading-row">
+              <label for="slip39-source-mnemonic">BIP39 recovery phrase to back up</label
+              ><button id="toggle-slip39-source" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal source phrase
+              </button>
+            </div>
+            <textarea
+              id="slip39-source-mnemonic"
+              class="concealed"
+              rows="4"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
+            ></textarea>
+            <div class="backup-options-grid">
+              <div>
+                <label for="slip39-threshold">Shares required</label
+                ><input id="slip39-threshold" type="number" value="2" min="1" max="16" step="1" />
+              </div>
+              <div>
+                <label for="slip39-count">Shares created</label
+                ><input id="slip39-count" type="number" value="3" min="1" max="16" step="1" />
+              </div>
+              <div>
+                <label for="slip39-create-passphrase">SLIP-39 passphrase <span class="optional">optional</span></label
+                ><input
+                  id="slip39-create-passphrase"
+                  type="password"
+                  autocomplete="off"
+                  placeholder="Printable ASCII only"
+                />
+              </div>
+            </div>
+            <label for="slip39-format">SLIP-39 format</label>
+            <select id="slip39-format">
+              <option value="extendable">Current SLIP-39 · extendable — recommended</option>
+              <option value="legacy">Legacy SLIP-39 · non-extendable — for older software</option>
+            </select>
+            <p class="field-note">
+              Use the current extendable format for new backups. Select legacy only when compatibility with older
+              SLIP-39 software requires it.
+            </p>
+            <div class="warning-callout">
+              <strong>Compatibility boundary.</strong> These shares preserve the entropy of the BIP39 phrase so this
+              tool can reconstruct the same words. A wallet that treats them as a native SLIP-39 wallet may derive a
+              different wallet.
+            </div>
+            <div class="actions">
+              <button class="primary" id="create-slip39-shares" type="button">Create SLIP-39 shares</button
+              ><button id="toggle-slip39-created" class="danger-outline" type="button" aria-pressed="false">
+                Reveal created shares
+              </button>
+            </div>
+            <div id="slip39-create-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+          <section id="slip39-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+            <div class="field-heading-row">
+              <label for="slip39-shares">SLIP-39 shares</label>
+              <button id="toggle-slip39-shares" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal entered shares
+              </button>
+            </div>
+            <textarea
+              id="slip39-shares"
+              class="concealed"
+              rows="10"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="One complete share per line"
+            ></textarea>
+            <label for="slip39-restore-passphrase"
+              >SLIP-39 passphrase <span class="optional">if used when created</span></label
+            >
+            <input
+              id="slip39-restore-passphrase"
+              type="password"
+              autocomplete="off"
+              placeholder="Printable ASCII only"
+            />
+            <button class="primary" id="restore-slip39-shares" type="button">Restore BIP39 phrase</button>
+            <div id="slip39-restore-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+        </section>
+        <section
+          id="shamir-raw-panel"
+          class="panel recovery-panel backup-method"
+          role="tabpanel"
+          data-recovery-panel
+          hidden
+        >
+          <div class="section-head">
+            <div>
+              <span class="step">02</span>
+              <h2>Shamir Raw</h2>
+            </div>
+          </div>
+          <details class="recovery-help">
+            <summary>What is this?</summary>
+            <div class="recovery-help-popover">
+              <h3>Shamir Raw</h3>
+              <p>
+                Uses the pinned Rust sharks implementation to split BIP39 entropy with Shamir Secret Sharing. Cards are
+                compact Base64URL strings protected by CKD version, set, length, and checksum metadata.
+              </p>
+              <p>
+                <strong>Example:</strong> a 2-of-3 split of “abandon … about” creates three opaque cards. Any two
+                restore the phrase here; one card reveals no usable wallet seed. This is a CKD format, not SLIP-39.
+              </p>
+            </div>
+          </details>
+          <p class="field-note">
+            Uses the pinned Rust sharks GF(256) implementation. Shares are versioned Base64URL records for files, QR
+            codes, or exact copy/paste.
+          </p>
+          <nav class="backup-mode-tabs" role="tablist" aria-label="Shamir Raw operation">
+            <button
+              class="backup-mode-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="shamir-raw-create-panel"
+              data-operation-tab
+            >
+              Encode
+            </button>
+            <button
+              class="backup-mode-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="shamir-raw-restore-panel"
+              data-operation-tab
+            >
+              Decode
+            </button>
+          </nav>
+          <section id="shamir-raw-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
+            <div class="field-heading-row">
+              <label for="shamir-raw-source">BIP39 recovery phrase to back up</label
+              ><button id="toggle-shamir-raw-source" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal source phrase
+              </button>
+            </div>
+            <textarea
+              id="shamir-raw-source"
+              class="concealed"
+              rows="4"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
+            ></textarea>
+            <div class="backup-options-grid two-options">
+              <div>
+                <label for="shamir-raw-threshold">Shares required</label
+                ><input id="shamir-raw-threshold" type="number" value="2" min="2" max="255" step="1" />
+              </div>
+              <div>
+                <label for="shamir-raw-count">Shares created</label
+                ><input id="shamir-raw-count" type="number" value="3" min="2" max="255" step="1" />
+              </div>
+            </div>
+            <div class="warning-callout">
+              <strong>Format boundary.</strong> CKD Shamir Raw is not SLIP-39 and is not a native wallet import format.
+              Keep each complete versioned record.
+            </div>
+            <div class="actions">
+              <button class="primary" id="create-shamir-raw" type="button">Create Shamir Raw shares</button
+              ><button id="toggle-shamir-raw-created" class="danger-outline" type="button" aria-pressed="false">
+                Reveal created shares
+              </button>
+            </div>
+            <div id="shamir-raw-create-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+          <section id="shamir-raw-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+            <div class="field-heading-row">
+              <label for="shamir-raw-shares">Shamir Raw shares</label
+              ><button id="toggle-shamir-raw-shares" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal entered shares
+              </button>
+            </div>
+            <textarea
+              id="shamir-raw-shares"
+              class="concealed"
+              rows="10"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="One complete share per line"
+            ></textarea>
+            <button class="primary" id="restore-shamir-raw" type="button">Restore BIP39 phrase</button>
+            <div id="shamir-raw-restore-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+        </section>
+        <section
+          id="shamir-words-panel"
+          class="panel recovery-panel backup-method"
+          role="tabpanel"
+          data-recovery-panel
+          hidden
+        >
+          <div class="section-head">
+            <div>
+              <span class="step">02</span>
+              <h2>Shamir Words</h2>
+            </div>
+          </div>
+          <details class="recovery-help">
+            <summary>What is this?</summary>
+            <div class="recovery-help-popover">
+              <h3>Shamir Words</h3>
+              <p>
+                Uses the same pinned Rust Shamir shares as Raw mode, then represents each checksummed CKD envelope with
+                familiar English BIP39 vocabulary for easier transcription.
+              </p>
+              <p>
+                <strong>Example:</strong> a 2-of-3 split of “abandon … about” produces three word cards. Any two restore
+                the original phrase here. A single card is not a valid BIP39 mnemonic and must not be imported alone.
+              </p>
+            </div>
+          </details>
+          <p class="field-note">
+            Uses the same pinned Rust sharks shares, encoded with familiar words from the BIP39 English list for
+            transcription.
+          </p>
+          <nav class="backup-mode-tabs" role="tablist" aria-label="Shamir Words operation">
+            <button
+              class="backup-mode-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="shamir-words-create-panel"
+              data-operation-tab
+            >
+              Encode
+            </button>
+            <button
+              class="backup-mode-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="shamir-words-restore-panel"
+              data-operation-tab
+            >
+              Decode
+            </button>
+          </nav>
+          <section id="shamir-words-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
+            <div class="field-heading-row">
+              <label for="shamir-words-source">BIP39 recovery phrase to back up</label
+              ><button
+                id="toggle-shamir-words-source"
+                class="danger-outline compact"
+                type="button"
+                aria-pressed="false"
+              >
+                Reveal source phrase
+              </button>
+            </div>
+            <textarea
+              id="shamir-words-source"
+              class="concealed"
+              rows="4"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
+            ></textarea>
+            <div class="backup-options-grid two-options">
+              <div>
+                <label for="shamir-words-threshold">Shares required</label
+                ><input id="shamir-words-threshold" type="number" value="2" min="2" max="255" step="1" />
+              </div>
+              <div>
+                <label for="shamir-words-count">Shares created</label
+                ><input id="shamir-words-count" type="number" value="3" min="2" max="255" step="1" />
+              </div>
+            </div>
+            <div class="warning-callout">
+              <strong>Format boundary.</strong> The words encode a CKD Shamir share; they are not valid BIP39 seed
+              phrases and are not compatible with SLIP-39.
+            </div>
+            <div class="actions">
+              <button class="primary" id="create-shamir-words" type="button">Create Shamir Words shares</button
+              ><button id="toggle-shamir-words-created" class="danger-outline" type="button" aria-pressed="false">
+                Reveal created shares
+              </button>
+            </div>
+            <div id="shamir-words-create-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+          <section id="shamir-words-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+            <div class="field-heading-row">
+              <label for="shamir-words-shares">Shamir Words shares</label
+              ><button
+                id="toggle-shamir-words-shares"
+                class="danger-outline compact"
+                type="button"
+                aria-pressed="false"
+              >
+                Reveal entered shares
+              </button>
+            </div>
+            <textarea
+              id="shamir-words-shares"
+              class="concealed"
+              rows="10"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="One complete share per line"
+            ></textarea>
+            <button class="primary" id="restore-shamir-words" type="button">Restore BIP39 phrase</button>
+            <div id="shamir-words-restore-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+        </section>
+        <section
+          id="codex32-panel"
+          class="panel recovery-panel backup-method"
+          role="tabpanel"
+          data-recovery-panel
+          hidden
+        >
+          <div class="section-head">
+            <div>
+              <span class="step">02</span>
+              <h2>Codex32 · BIP93</h2>
+            </div>
+          </div>
+          <details class="recovery-help">
+            <summary>What is this?</summary>
+            <div class="recovery-help-popover">
+              <h3>Codex32 · BIP93</h3>
+              <p>
+                Encodes secret bytes in a checksummed, error-correcting Bech32-style string and can optionally split
+                them with Codex32 native shares. This workspace supports BIP39 entropy and BIP32 master-seed modes.
+              </p>
+              <p>
+                <strong>Example:</strong> entropy mode can encode “abandon … about” and later restore its words.
+                Master-seed mode first applies the BIP39 passphrase and cannot be reversed back into the mnemonic.
+              </p>
+            </div>
+          </details>
+          <p class="field-note">
+            Encodes either recoverable BIP39 entropy or a passphrase-derived BIP32 master seed with the Codex32
+            error-correcting checksum and optional native secret sharing.
+          </p>
+          <nav class="backup-mode-tabs" role="tablist" aria-label="Codex32 operation">
+            <button
+              class="backup-mode-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="codex32-create-panel"
+              data-operation-tab
+            >
+              Encode
+            </button>
+            <button
+              class="backup-mode-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="codex32-restore-panel"
+              data-operation-tab
+            >
+              Decode
+            </button>
+          </nav>
+          <section id="codex32-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
+            <div class="field-heading-row">
+              <label for="codex32-source">BIP39 recovery phrase</label>
+              <button id="toggle-codex32-source" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal source phrase
+              </button>
+            </div>
+            <textarea
+              id="codex32-source"
+              class="concealed"
+              rows="4"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
+            ></textarea>
+            <label for="codex32-secret-type">Backup content</label>
+            <select id="codex32-secret-type">
+              <option value="bip39-entropy">BIP39 entropy · restores the recovery phrase</option>
+              <option value="bip32-seed">BIP32 master seed · includes the BIP39 passphrase</option>
+            </select>
+            <p id="codex32-secret-type-note" class="field-note"></p>
+            <label for="codex32-passphrase"
+              >BIP39 passphrase <span class="optional">optional and case-sensitive</span></label
+            >
+            <input id="codex32-passphrase" type="password" autocomplete="off" />
+            <div class="backup-options-grid">
+              <div>
+                <label for="codex32-identifier">Four-character identifier</label>
+                <input
+                  id="codex32-identifier"
+                  type="text"
+                  value="seed"
+                  maxlength="4"
+                  autocapitalize="none"
+                  autocomplete="off"
+                />
+              </div>
+              <div>
+                <label for="codex32-threshold">Shares required</label>
+                <input id="codex32-threshold" type="number" value="2" min="2" max="9" step="1" />
+              </div>
+              <div>
+                <label for="codex32-count">Shares created</label>
+                <input id="codex32-count" type="number" value="3" min="2" max="31" step="1" />
+              </div>
+            </div>
+            <label class="feature-tab-toggle" for="codex32-unsplit">
+              <input id="codex32-unsplit" type="checkbox" />
+              <strong>Create one unsplit Codex32 secret</strong>
+            </label>
+            <p class="field-note">Disables the threshold and share-count fields.</p>
+            <div id="codex32-content-warning" class="warning-callout"></div>
+            <div class="actions">
+              <button class="primary" id="create-codex32" type="button">Create Codex32 backup</button>
+              <button id="toggle-codex32-created" class="danger-outline" type="button" aria-pressed="false">
+                Reveal created records
+              </button>
+            </div>
+            <div id="codex32-create-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+          <section id="codex32-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+            <div class="field-heading-row">
+              <label for="codex32-shares">Codex32 secret or shares</label>
+              <button id="toggle-codex32-shares" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal entered records
+              </button>
+            </div>
+            <textarea
+              id="codex32-shares"
+              class="concealed"
+              rows="10"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="One complete Codex32 record per line"
+            ></textarea>
+            <label for="codex32-restore-type">Interpret decoded content as</label>
+            <select id="codex32-restore-type">
+              <option value="bip39-entropy">BIP39 entropy · restore recovery phrase</option>
+              <option value="bip32-seed">BIP32 master seed · show hexadecimal seed</option>
+            </select>
+            <p class="field-note">
+              Codex32 records do not identify the semantic meaning of their bytes. Select the same content type that was
+              used when the backup was created.
+            </p>
+            <button class="primary" id="restore-codex32" type="button">Decode Codex32</button>
+            <div id="codex32-restore-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+        </section>
+      </section>
+
+      <section id="results" class="derive-only" hidden>
         <div class="results-title">
           <div>
             <span class="step">03</span>
             <h2 id="result-title">Derived results</h2>
           </div>
           <div class="result-controls">
-            <button class="danger-outline compact" id="toggle-result-secrets" type="button" aria-pressed="false">
-              Reveal all private keys
-            </button>
+            <span id="main-result-secret-control-slot" class="result-secret-control-slot"></span>
             <div class="mode-toggle" aria-label="Result detail mode">
               <button id="mode-basic" type="button" class="active" aria-pressed="true">Basic</button>
               <button id="mode-advanced" type="button" aria-pressed="false">Advanced</button>
@@ -377,8 +1218,18 @@
             <div id="bulk-bip38-error" class="error" role="alert" hidden></div>
           </section>
           <section class="panel bulk-panel" aria-label="Selection and clipboard export">
-            <div class="bulk-row">
-              <strong><span id="selected-count">0</span> selected</strong>
+            <div class="bulk-row bulk-toolbar-row">
+              <div class="bulk-format-control">
+                <div class="bulk-format-heading">
+                  <label for="export-format">Clipboard format</label>
+                  <span class="selection-count"><span id="selected-count">0</span> selected</span>
+                </div>
+                <select id="export-format">
+                  <option value="structured">Human-readable structured text</option>
+                  <option value="plain">Plain values</option>
+                  <option value="tsv">TSV for spreadsheets</option>
+                </select>
+              </div>
               <div class="mini-actions">
                 <div id="account-descriptor-export" hidden>
                   <button class="secondary compact" id="open-account-export" type="button" aria-haspopup="dialog">
@@ -445,14 +1296,6 @@
               </div>
             </div>
             <div class="bulk-row export-row">
-              <div>
-                <label for="export-format">Clipboard format</label>
-                <select id="export-format">
-                  <option value="structured">Human-readable structured text</option>
-                  <option value="plain">Plain values</option>
-                  <option value="tsv">TSV for spreadsheets</option>
-                </select>
-              </div>
               <div class="bulk-actions">
                 <button class="secondary compact" data-bulk="addresses" type="button">Copy addresses</button>
                 <button class="secondary compact" data-bulk="publicKeys" type="button">Copy public keys</button>
@@ -545,6 +1388,8 @@
         <div><span>Edition</span><code id="build-edition">__EDITION_NAME__</code></div>
         <div><span>Build profile</span><code id="build-profile">__BUILD_PROFILE__</code></div>
         <div><span>Derivation runtime</span><code id="worker-runtime">Dedicated Web Worker</code></div>
+        <div><span>Included coins</span><code id="build-coins">—</code></div>
+        <div><span>Included features</span><code id="build-features">—</code></div>
         <div class="build-fingerprint">
           <span>Source/build fingerprint · SHA-256 (not the HTML checksum)</span><code id="build-fingerprint">—</code>
         </div>
@@ -554,9 +1399,9 @@
       </p>
       <p class="field-note passport-dependencies">
         <strong>Embedded dependency versions and licenses:</strong> Noble Curves/Hashes 2.4.0 and Scure Base/BIP32/BIP39
-        2.4.0 — MIT. Dash Orchard 0.14.0, official dashified-0.14.1 commit 38ac9c19a2df7bf3eeadc22ab23053e8fd538828;
-        wasm-bindgen 0.2.128; ZIP32 0.2.1 — MIT or Apache-2.0. Full notices and the complete locked closure are in the
-        source distribution.
+        2.4.0 — MIT; uqr 0.1.3 — MIT; qr 0.7.0 — MIT OR Apache-2.0. Dash Orchard 0.14.0, official dashified-0.14.1
+        commit 38ac9c19a2df7bf3eeadc22ab23053e8fd538828; wasm-bindgen 0.2.128; ZIP32 0.2.1 — MIT or Apache-2.0. Full
+        notices and the complete locked closure are in the source distribution.
       </p>
       <p class="field-note">
         <strong>Upstream attribution:</strong> Dash Shielded support uses the open-source Dash Platform Orchard fork and

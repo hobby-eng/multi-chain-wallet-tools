@@ -35,13 +35,19 @@ for (const profile of Object.values(BUILD_PROFILES)) {
     });
   }
 }
-const generatedDirectory = resolve(root, 'packages/dash-shielded-wasm/generated');
-const wasm = readdirSync(generatedDirectory)
-  .sort()
-  .map((name) => {
-    const path = `packages/dash-shielded-wasm/generated/${name}`;
-    return { path, bytes: readFileSync(resolve(root, path)).byteLength, sha256: digest(path) };
-  });
+const generatedDirectories = [
+  'packages/dash-shielded-wasm/generated',
+  'packages/recovery-shamir-wasm/generated',
+  'packages/recovery-codex32-wasm/generated',
+];
+const wasm = generatedDirectories.flatMap((directory) =>
+  readdirSync(resolve(root, directory))
+    .sort()
+    .map((name) => {
+      const path = `${directory}/${name}`;
+      return { path, bytes: readFileSync(resolve(root, path)).byteLength, sha256: digest(path) };
+    }),
+);
 let commit = process.env.VERIFICATION_COMMIT;
 let dirty = process.env.VERIFICATION_DIRTY === 'true';
 if (commit === undefined) {
@@ -55,6 +61,17 @@ if (commit === undefined) {
 if (commit !== 'unavailable' && !/^[0-9a-f]{40}$/u.test(commit))
   throw new Error('VERIFICATION_COMMIT must be a full lowercase Git commit.');
 const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
+const provenanceReport = JSON.parse(readFileSync(resolve(root, 'dist/dependency-provenance.json'), 'utf8'));
+const dependencyProvenance = {
+  lockedDependencies: provenanceReport.lockedDependencies,
+  github: provenanceReport.github.map(({ id, repository, reference, commit }) => ({
+    id,
+    repository,
+    reference,
+    commit,
+  })),
+  localSources: provenanceReport.localSources,
+};
 const dockerfile = readFileSync(resolve(root, 'Dockerfile.reproducible'), 'utf8');
 const pin = (pattern, label) => {
   const value = pattern.exec(dockerfile)?.[1];
@@ -83,6 +100,7 @@ const record = {
         : [
             'metadata-and-project-facts',
             'typescript',
+            'dependency-provenance',
             'vitest',
             'dip13-differential',
             'orchard-stream-and-wasm',
@@ -104,6 +122,7 @@ const record = {
   },
   artifacts,
   wasm,
+  dependencyProvenance,
   attestation: {
     localSignature: false,
     releaseMechanism: 'GitHub Actions build-provenance attestation (OIDC) over published release assets',

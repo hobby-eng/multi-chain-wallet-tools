@@ -273,6 +273,122 @@ async function boundaries(context, profile, tool, run) {
   assert.equal(run.requests.filter((request) => !request.url.endsWith('/probe')).length, 0);
 }
 
+async function recoveryBackupRoundTrips(context, profile, run) {
+  const page = await open(context, profile, 'key-derivation', run);
+  const before = await storageSnapshot(page);
+  await page.locator('#recovery-backup-mode').click();
+  assert.equal(await page.locator('.recovery-help').count(), 6);
+  const firstHelp = page.locator('.recovery-help').first();
+  await firstHelp.locator('summary').click();
+  assert.match(await firstHelp.locator('.recovery-help-popover').innerText(), /Example:/);
+  await firstHelp.locator('summary').click();
+
+  const methods = [
+    {
+      panel: 'seedqr-panel',
+      source: '#seedqr-source',
+      create: '#create-seedqr',
+      createResult: '#seedqr-create-result',
+      revealCreated: '#toggle-seedqr-created',
+      restorePanel: 'seedqr-restore-panel',
+      shares: '#seedqr-payload',
+      restore: '#restore-seedqr',
+      restoreResult: '#seedqr-restore-result',
+      needed: 1,
+    },
+    {
+      panel: 'slip39-panel',
+      source: '#slip39-source-mnemonic',
+      create: '#create-slip39-shares',
+      createResult: '#slip39-create-result',
+      revealCreated: '#toggle-slip39-created',
+      restorePanel: 'slip39-restore-panel',
+      shares: '#slip39-shares',
+      restore: '#restore-slip39-shares',
+      restoreResult: '#slip39-restore-result',
+      needed: 2,
+    },
+    {
+      panel: 'shamir-raw-panel',
+      source: '#shamir-raw-source',
+      create: '#create-shamir-raw',
+      createResult: '#shamir-raw-create-result',
+      revealCreated: '#toggle-shamir-raw-created',
+      restorePanel: 'shamir-raw-restore-panel',
+      shares: '#shamir-raw-shares',
+      restore: '#restore-shamir-raw',
+      restoreResult: '#shamir-raw-restore-result',
+      needed: 2,
+    },
+    {
+      panel: 'shamir-words-panel',
+      source: '#shamir-words-source',
+      create: '#create-shamir-words',
+      createResult: '#shamir-words-create-result',
+      revealCreated: '#toggle-shamir-words-created',
+      restorePanel: 'shamir-words-restore-panel',
+      shares: '#shamir-words-shares',
+      restore: '#restore-shamir-words',
+      restoreResult: '#shamir-words-restore-result',
+      needed: 2,
+    },
+    {
+      panel: 'codex32-panel',
+      source: '#codex32-source',
+      create: '#create-codex32',
+      createResult: '#codex32-create-result',
+      revealCreated: '#toggle-codex32-created',
+      restorePanel: 'codex32-restore-panel',
+      shares: '#codex32-shares',
+      restore: '#restore-codex32',
+      restoreResult: '#codex32-restore-result',
+      needed: 2,
+    },
+  ];
+
+  for (const method of methods) {
+    await page.locator(`[data-recovery-tab][aria-controls="${method.panel}"]`).click();
+    await page.locator(method.source).fill(mnemonic);
+    await page.locator(method.create).click();
+    const created = page.locator(`${method.createResult} .share-secret`);
+    await created.nth(method.needed - 1).waitFor();
+    const qrActions = page.locator(`${method.createResult} .share-qr-action`);
+    assert.ok((await qrActions.count()) >= method.needed);
+    const copyActions = page.locator(`${method.createResult} .secret-copy-action`);
+    if ((await copyActions.count()) > 0) {
+      assert.ok((await copyActions.evaluateAll((buttons) => buttons.map((button) => button.disabled))).every(Boolean));
+    }
+    const payloads = await created.allTextContents();
+    await page.locator(method.revealCreated).click();
+    if ((await copyActions.count()) > 0) {
+      assert.ok(
+        (await copyActions.evaluateAll((buttons) => buttons.map((button) => button.disabled))).every(
+          (disabled) => !disabled,
+        ),
+      );
+    }
+    await page.locator(`[aria-controls="${method.restorePanel}"][data-operation-tab]`).click();
+    await page.locator(method.shares).fill(payloads.slice(0, method.needed).join('\n'));
+    await page.locator(method.restore).click();
+    const recovered = page.locator(`${method.restoreResult} textarea`);
+    await recovered.waitFor();
+    assert.equal(await recovered.inputValue(), mnemonic);
+    const recoveredCopy = page.locator(`${method.restoreResult} .secret-action`);
+    assert.equal(await recoveredCopy.isDisabled(), true);
+    await page.locator(`${method.restoreResult} button`).filter({ hasText: 'Reveal recovered phrase' }).click();
+    assert.equal(await recoveredCopy.isEnabled(), true);
+  }
+
+  await page.locator('#codex32-restore-result button').filter({ hasText: 'Use in Derive & Generate' }).click();
+  assert.equal(await page.locator('#mnemonic').inputValue(), mnemonic);
+  assert.equal(await page.locator('#derive-form').isVisible(), true);
+  assert.deepEqual(await storageSnapshot(page), before);
+  assert.equal(run.requests.length, 0);
+  run.checks.push(
+    'Six help popovers; SeedQR, SLIP-39, Shamir Raw, Shamir Words, and Codex32 exact browser round trips; QR actions; reveal-gated copy; in-memory return to Derive; storage/no HTTP',
+  );
+}
+
 async function childWallet(context, profile, run) {
   const page = await open(context, profile, 'key-derivation', run);
   const before = await storageSnapshot(page);
@@ -458,6 +574,7 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? 'chromium,firefox').sp
       cases.push(['worker-readiness', (context, run) => workerReadiness(context, profile, run)]);
       cases.push(['coinjoin', (context, run) => coinJoin(context, profile, run)]);
       cases.push(['bip38-message', (context, run) => bip38(context, profile, run)]);
+      cases.push(['recovery-backup-roundtrips', (context, run) => recoveryBackupRoundTrips(context, profile, run)]);
       if (profile.id === 'multi-chain')
         cases.push(['bip85-child-signer', (context, run) => childWallet(context, profile, run)]);
       for (const [name, test] of cases) {

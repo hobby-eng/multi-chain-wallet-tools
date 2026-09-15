@@ -3,7 +3,7 @@ import { bytesToHex } from '@ckd/core/crypto.js';
 import { getBitcoinNetwork, getDashNetwork, type Bip32Versions } from '@ckd/core/networks.js';
 import type { NetworkName } from '@ckd/core/types.js';
 import { buildDashCoreImport } from './dash-import.js';
-import { descriptorChecksum } from './descriptor.js';
+import { descriptorChecksum } from '@ckd/core/descriptor-checksum.js';
 import { buildPolicy, policyHex } from './policy.js';
 import type { PsbtChain, PsbtNetwork } from './psbt.js';
 

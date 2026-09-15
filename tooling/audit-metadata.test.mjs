@@ -13,6 +13,10 @@ it('updates release metadata without rewriting audit dates, commits or evidence'
       'tooling/project-metadata.mjs',
       'packages/dash-shielded-wasm/rust/Cargo.toml',
       'packages/dash-shielded-wasm/rust/Cargo.lock',
+      'packages/recovery-shamir-wasm/rust/Cargo.toml',
+      'packages/recovery-shamir-wasm/rust/Cargo.lock',
+      'packages/recovery-codex32-wasm/rust/Cargo.toml',
+      'packages/recovery-codex32-wasm/rust/Cargo.lock',
       'THIRD_PARTY_NOTICES.md',
       'SECURITY_AUDIT.md',
       'docs/reference/DASH_IMPLEMENTATION.md',
@@ -40,9 +44,11 @@ it('updates release metadata without rewriting audit dates, commits or evidence'
     ]) {
       expect(readFileSync(resolve(root, path), 'utf8')).toBe(readFileSync(resolve(source, path), 'utf8'));
     }
-    expect(readFileSync(resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.toml'), 'utf8')).toContain(
-      'version = "9.9.9"',
-    );
+    for (const rustPackage of ['dash-shielded-wasm', 'recovery-shamir-wasm', 'recovery-codex32-wasm']) {
+      expect(readFileSync(resolve(root, `packages/${rustPackage}/rust/Cargo.toml`), 'utf8')).toContain(
+        'version = "9.9.9"',
+      );
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

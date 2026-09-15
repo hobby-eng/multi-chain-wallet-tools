@@ -152,6 +152,8 @@ describe('Key Derivation controller', () => {
       generateMnemonic: vi.fn(),
       mnemonicToSeed: vi.fn(),
       runBip39SelfTest: () => ({ passed: true, checks: ['fixture'], durationMs: 1 }),
+      runRecoveryBackupSelfTest: vi.fn(() => ({ passed: true, checks: [], durationMs: 0 })),
+      setRecoveryControlsEnabled: vi.fn(),
       writeClipboard: vi.fn(),
       downloadBlob: vi.fn(),
       downloadText: vi.fn(),
@@ -169,6 +171,9 @@ describe('Key Derivation controller', () => {
     resolveWorkerSelfTest({ passed: true, checks: ['worker fixture'], durationMs: 1 });
     await settle();
     expect(view.setCryptoControlsEnabled).toHaveBeenLastCalledWith(true);
+    expect(dependencies.runRecoveryBackupSelfTest).toHaveBeenCalledOnce();
+    expect(dependencies.setRecoveryControlsEnabled).toHaveBeenNthCalledWith(1, false);
+    expect(dependencies.setRecoveryControlsEnabled).toHaveBeenLastCalledWith(true);
 
     view.toggleSensitiveValues.click();
     expect(view.setRecoverySourceVisibility).toHaveBeenCalledWith(true);

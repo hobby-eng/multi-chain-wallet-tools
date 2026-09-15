@@ -37,30 +37,36 @@ for (const workspaceRoot of ['apps', 'packages']) {
   }
 }
 
-stage('packages/dash-shielded-wasm/rust/Cargo.toml', (text) =>
-  replaceRequired(
-    text,
-    /^(\[package\]\nname = "dash-shielded-wasm"\nversion = ")[^"]+(")/mu,
-    `$1${release.version}$2`,
-    'Rust package version',
-  ),
-);
-stage('packages/dash-shielded-wasm/rust/Cargo.lock', (text) =>
-  replaceRequired(
-    text,
-    /(\[\[package\]\]\nname = "dash-shielded-wasm"\nversion = ")[^"]+(")/u,
-    `$1${release.version}$2`,
-    'Rust lock version',
-  ),
-);
-stage('THIRD_PARTY_NOTICES.md', (text) =>
-  replaceRequired(
-    text,
-    /^(dash-shielded-wasm\s+)[0-9]+\.[0-9]+\.[0-9]+(\s+)/mu,
-    `$1${release.version}$2`,
-    'Rust notice version',
-  ),
-);
+for (const rustPackage of ['dash-shielded-wasm', 'recovery-shamir-wasm', 'recovery-codex32-wasm']) {
+  stage(`packages/${rustPackage}/rust/Cargo.toml`, (text) =>
+    replaceRequired(
+      text,
+      new RegExp(`^(\\[package\\]\\nname = "${rustPackage}"\\nversion = ")[^"]+(")`, 'mu'),
+      `$1${release.version}$2`,
+      `${rustPackage} Rust package version`,
+    ),
+  );
+  stage(`packages/${rustPackage}/rust/Cargo.lock`, (text) =>
+    replaceRequired(
+      text,
+      new RegExp(`(\\[\\[package\\]\\]\\nname = "${rustPackage}"\\nversion = ")[^"]+(")`, 'u'),
+      `$1${release.version}$2`,
+      `${rustPackage} Rust lock version`,
+    ),
+  );
+}
+stage('THIRD_PARTY_NOTICES.md', (text) => {
+  let next = text;
+  for (const rustPackage of ['dash-shielded-wasm', 'recovery-shamir-wasm', 'recovery-codex32-wasm']) {
+    next = replaceRequired(
+      next,
+      new RegExp(`^(${rustPackage}\\s+)[0-9]+\\.[0-9]+\\.[0-9]+(\\s+)`, 'mu'),
+      `$1${release.version}$2`,
+      `${rustPackage} notice version`,
+    );
+  }
+  return next;
+});
 // Audit dates, reviewed commits and evidence records are not release metadata.
 
 const releaseNotes = `docs/releases/${release.tag}.md`;

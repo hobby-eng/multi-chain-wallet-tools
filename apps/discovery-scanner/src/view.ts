@@ -1,9 +1,4 @@
-import { candidateSummary } from './candidate-scan.js';
-import { parseCustomAccountRange } from './coins/custom-path.js';
-import { describeCustomPath, editCustomPath } from './custom-path-editor.js';
-import { DIP17_PAYMENT_CHAINS } from '@ckd/coins/dash/platform-paths.js';
 import { historyFields } from './history.js';
-import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from '@ckd/recovery/watch-only.js';
 import type { BUILD_INFO } from '@ckd/build-info';
 import type { RecoveryExportFormat } from './export.js';
 import { RECOVERY_CORE_ADDRESS_BATCH, RECOVERY_PLATFORM_ADDRESS_BATCH } from '@ckd/network-boundary/protocol.js';
@@ -18,6 +13,7 @@ import type {
   RecoveryWalletResult,
 } from './types.js';
 import type { MultiSeedAddressResult } from '@ckd/recovery/multi-seed-search.js';
+import type { DiscoveryFeatureRuntime } from './feature-selection.js';
 
 declare const __DASH_COMMUNITY__: boolean;
 
@@ -164,8 +160,13 @@ export function createDiscoveryScannerView(
   document: Document,
   buildInfo: typeof BUILD_INFO,
   writeClipboard: typeof import('@ckd/export/clipboard.js').writeClipboard,
+  features: DiscoveryFeatureRuntime,
 ) {
   const required = <T extends HTMLElement>(selector: string): T => requireElement<T>(document, selector);
+  document.body.dataset.seedDiscovery = String(features.seedDiscovery);
+  document.body.dataset.watchOnlyDiscovery = String(features.watchOnlyDiscovery);
+  document.body.dataset.walletMatcher = String(features.walletMatcher);
+  document.body.dataset.customPaths = String(features.customPaths);
   const form = required<HTMLFormElement>('#recovery-form');
   const coinInput = document.querySelector<HTMLSelectElement>('#recovery-coin');
   let profileCoinId: string | null = null;
@@ -197,14 +198,18 @@ export function createDiscoveryScannerView(
   let previousDefaultPath: string | undefined;
   let previousDefaultFinish: string | undefined;
   pathAccount.addEventListener('input', () => {
-    customPathTemplateInput.value = editCustomPath(customPathTemplateInput.value, 'account', pathAccount.value);
+    customPathTemplateInput.value = features.editCustomPath!(
+      customPathTemplateInput.value,
+      'account',
+      pathAccount.value,
+    );
   });
   pathEndAccount.addEventListener('input', () => {
-    customRangeEndInput.value = editCustomPath(customRangeEndInput.value, 'account', pathEndAccount.value);
+    customRangeEndInput.value = features.editCustomPath!(customRangeEndInput.value, 'account', pathEndAccount.value);
   });
   pathBranch.addEventListener('input', () => {
-    customPathTemplateInput.value = editCustomPath(customPathTemplateInput.value, 'branch', pathBranch.value);
-    customRangeEndInput.value = editCustomPath(customRangeEndInput.value, 'branch', pathBranch.value);
+    customPathTemplateInput.value = features.editCustomPath!(customPathTemplateInput.value, 'branch', pathBranch.value);
+    customRangeEndInput.value = features.editCustomPath!(customRangeEndInput.value, 'branch', pathBranch.value);
   });
   const customPathFormatInput = required<HTMLSelectElement>('#custom-path-format');
   const customPathCountInput = required<HTMLInputElement>('#custom-path-count');
@@ -212,9 +217,13 @@ export function createDiscoveryScannerView(
   const dashCoverage = [...document.querySelectorAll<HTMLElement>('[data-dash-coverage]')];
   const accountInput = required<HTMLInputElement>('#recovery-account');
   const sourceGrid = required<HTMLElement>('.recovery-source-grid');
-  let sourceMode: RecoverySourceMode = 'seed';
+  let sourceMode: RecoverySourceMode = features.seedDiscovery ? 'seed' : 'public';
   let seedMode: RecoveryInputMode = 'single';
   const sourceButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-source-mode]')];
+  for (const button of sourceButtons) {
+    const mode = button.dataset.sourceMode;
+    button.hidden = (mode === 'seed' && !features.seedDiscovery) || (mode === 'public' && !features.watchOnlyDiscovery);
+  }
   const publicPanel = required<HTMLElement>('#public-input');
   const seedModeTabs = required<HTMLElement>('#seed-mode-tabs');
   const watchOnlyKeys = required<HTMLTextAreaElement>('#watch-only-keys');
@@ -229,6 +238,10 @@ export function createDiscoveryScannerView(
   const candidateAll = required<HTMLInputElement>('#candidate-all-coins');
   const candidateCoinInputs: HTMLInputElement[] = [];
   const candidateMode = (): boolean => sourceMode === 'seed' && seedMode === 'batch' && automaticCandidates.checked;
+  automaticCandidates.closest<HTMLElement>('.candidate-choice')!.hidden = !features.seedDiscovery;
+  customPathOptions.dataset.featureEnabled = String(features.customPaths);
+  const addressSearchPanel = document.querySelector<HTMLElement>('#address-search-panel');
+  if (addressSearchPanel !== null) addressSearchPanel.hidden = !features.walletMatcher;
 
   const singleMnemonic = required<HTMLTextAreaElement>('#single-mnemonic');
   const singlePassphrase = required<HTMLInputElement>('#single-passphrase');
@@ -265,7 +278,6 @@ export function createDiscoveryScannerView(
   const addressSearchTargets = document.querySelector<HTMLTextAreaElement>('#address-search-targets');
   const addressSearchStart = document.querySelector<HTMLInputElement>('#address-search-start');
   const addressSearchCount = document.querySelector<HTMLInputElement>('#address-search-count');
-  const addressSearchPanel = document.querySelector<HTMLElement>('#address-search-panel');
   const addressSearchResults = document.querySelector<HTMLElement>('#address-search-results');
   const addressSearchProgress = document.querySelector<HTMLElement>('#address-search-progress');
   const estimate = required<HTMLElement>('#scan-estimate');
@@ -385,20 +397,20 @@ export function createDiscoveryScannerView(
       customRangeSummary.textContent = '';
       if (customRangeInput.checked) {
         try {
-          const range = parseCustomAccountRange(customPathTemplateInput.value, customRangeEndInput.value);
+          const range = features.parseCustomAccountRange!(customPathTemplateInput.value, customRangeEndInput.value);
           customRangeSummary.textContent = `Custom accounts ${range.first}–${range.last} (inclusive) · ${range.last - range.first + 1} paths · address minimum + 20 per account, extended after activity. Standard scans run once using the Account setting above.`;
         } catch (cause) {
           customRangeSummary.textContent = cause instanceof Error ? cause.message : 'Check the Start and Finish paths.';
         }
       }
-      const description = describeCustomPath(customPathTemplateInput.value);
+      const description = features.describeCustomPath!(customPathTemplateInput.value);
       pathParts.hidden = description === null;
       if (description !== null) {
         pathPurpose.value = `${description.purpose}'`;
         pathCoin.value = `${description.coin}'`;
         if (document.activeElement !== pathAccount) pathAccount.value = String(description.account);
         if (document.activeElement !== pathBranch) pathBranch.value = String(description.branch);
-        const end = describeCustomPath(customRangeEndInput.value);
+        const end = features.describeCustomPath!(customRangeEndInput.value);
         if (document.activeElement !== pathEndAccount) pathEndAccount.value = end === null ? '' : String(end.account);
       }
       pathEndAccount.parentElement!.hidden = !customRangeInput.checked;
@@ -853,12 +865,12 @@ export function createDiscoveryScannerView(
         networkInput.options[1]!.textContent = 'Testnet';
         scanCoverageDescription.textContent = 'Public-key discovery · detected coins and supported address types';
         try {
-          assertWatchOnlyBatchInput(watchOnlyKeys.value);
+          features.assertWatchOnlyBatchInput!(watchOnlyKeys.value);
           const selectedCoin = coinInput?.value ?? profileCoinId ?? 'dash';
           const candidateAdapters =
             selectedCoin === 'auto' ? [...coinAdapters.values()] : [coinAdapters.get(selectedCoin)!];
-          const targets = parseWatchOnlyLines(watchOnlyKeys.value).flatMap((line) =>
-            resolveWatchOnlyTargets(line, candidateAdapters),
+          const targets = features.parseWatchOnlyLines!(watchOnlyKeys.value).flatMap((line) =>
+            features.resolveWatchOnlyTargets!(line, candidateAdapters),
           );
           const labels = [
             ...new Set(
@@ -943,7 +955,7 @@ export function createDiscoveryScannerView(
         const platform = scanPlatformAddressesInput.checked ? estimateInteger(platformCountInput.value, 0) : 0;
         const coreLike = core + legacyCore + coinJoin + providerCollateral;
         const coreBatches = Math.ceil(coreLike / RECOVERY_CORE_ADDRESS_BATCH);
-        const platformBatches = DIP17_PAYMENT_CHAINS.length * Math.ceil(platform / RECOVERY_PLATFORM_ADDRESS_BATCH);
+        const platformBatches = 2 * Math.ceil(platform / RECOVERY_PLATFORM_ADDRESS_BATCH);
         const identities = scanPlatformIdentitiesInput.checked ? estimateInteger(identityLimitInput.value, 1) : 0;
         const requests = estimateConcurrency(requestConcurrencyInput.value);
         const totalBatches = coreBatches + platformBatches;
@@ -1082,7 +1094,7 @@ export function createDiscoveryScannerView(
           const row = document.createElement('button');
           row.type = 'button';
           row.className = 'candidate-outcome';
-          row.textContent = `${report.label} — ${candidateSummary(report)}`;
+          row.textContent = `${report.label} — ${features.candidateSummary?.(report) ?? 'Candidate result'}`;
           row.setAttribute('aria-pressed', String(report.inputId === activeResultId));
           row.addEventListener('click', () => selectResult(report.inputId));
           summary.append(row);

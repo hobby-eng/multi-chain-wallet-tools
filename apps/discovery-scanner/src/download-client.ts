@@ -42,6 +42,8 @@ export function requestRecoveryExport(text: string, format: RecoveryExportBroker
   if (typeof text !== 'string' || (format !== 'csv' && format !== 'json')) {
     return Promise.reject(new Error('Invalid recovery export request.'));
   }
+  if (window.parent === window)
+    return Promise.reject(new Error('Recovery exports require the isolated top-level download broker.'));
   const id = `export-${++sequence}`;
   return new Promise<string>((resolve, reject) => {
     const timer = setTimeout(() => {

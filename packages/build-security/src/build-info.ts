@@ -5,6 +5,8 @@ export interface BuildInfo {
   checksumFile: string;
   profile: 'multi-chain' | 'dash-community';
   edition: 'Multi-Chain Edition' | 'Dash Community Edition';
+  coins?: readonly string[];
+  features?: readonly string[];
 }
 
 declare const __BUILD_INFO__: BuildInfo;

@@ -1,0 +1,7 @@
+{
+  "name": "@ckd/recovery-backup",
+  "version": "0.1.4",
+  "private": true,
+  "type": "module",
+  "license": "MIT"
+}

@@ -126,18 +126,6 @@ export function createKeyDerivationView(
   const searchStart = addressSearch?.searchStart ?? null;
   const searchCount = addressSearch?.searchCount ?? null;
   const searchResult = addressSearch?.result ?? null;
-  const messageSignerDialog = required<HTMLDialogElement>('#message-signer-dialog');
-  const messageSignerAddress = required<HTMLElement>('#message-signer-address');
-  const messageSignerPath = required<HTMLElement>('#message-signer-path');
-  const messageSignerFormat = required<HTMLElement>('#message-signer-format');
-  const messageSignerMessage = required<HTMLTextAreaElement>('#message-signer-message');
-  const signMessageButton = required<HTMLButtonElement>('#sign-message-button');
-  const closeMessageSignerButton = required<HTMLButtonElement>('#close-message-signer');
-  const messageSignerError = required<HTMLElement>('#message-signer-error');
-  const messageSignatureResult = required<HTMLElement>('#message-signature-result');
-  const messageSignatureOutput = required<HTMLTextAreaElement>('#message-signature-output');
-  const messageSignatureVerification = required<HTMLElement>('#message-signature-verification');
-  const copyMessageSignature = required<HTMLButtonElement>('#copy-message-signature');
   const temporaryButtonLabels = new WeakMap<HTMLButtonElement, string>();
   let cryptoControlsEnabled = false;
   let addressSearchAvailable = searchAddressButton !== null && addressSearchPanel !== null;
@@ -185,12 +173,6 @@ export function createKeyDerivationView(
     searchCount,
     searchAddressButton,
     searchResult,
-    messageSignerDialog,
-    messageSignerMessage,
-    signMessageButton,
-    closeMessageSignerButton,
-    messageSignatureOutput,
-    copyMessageSignature,
     selfTestStatus,
     selfTestDetails,
     generate12Button,
@@ -203,43 +185,6 @@ export function createKeyDerivationView(
     selectNoneButton: required<HTMLButtonElement>('#select-none'),
     selectInvertButton: required<HTMLButtonElement>('#select-invert'),
     downloadSelectionButton: required<HTMLButtonElement>('#download-selection'),
-    openMessageSigner(address: string, path: string, format: string): void {
-      messageSignerAddress.textContent = address;
-      messageSignerPath.textContent = path;
-      messageSignerFormat.textContent = format;
-      messageSignerMessage.value = '';
-      messageSignatureOutput.value = '';
-      messageSignerError.textContent = '';
-      messageSignerError.hidden = true;
-      messageSignatureResult.hidden = true;
-      signMessageButton.disabled = false;
-      signMessageButton.textContent = 'Sign message';
-      messageSignerDialog.showModal();
-      messageSignerMessage.focus();
-    },
-    closeMessageSigner(): void {
-      messageSignerMessage.value = '';
-      messageSignatureOutput.value = '';
-      messageSignerError.textContent = '';
-      messageSignerError.hidden = true;
-      messageSignatureResult.hidden = true;
-      messageSignerDialog.close();
-    },
-    showMessageSigning(running: boolean): void {
-      signMessageButton.disabled = running;
-      signMessageButton.textContent = running ? 'Signing…' : 'Sign message';
-    },
-    showMessageSignature(signature: string, format: string): void {
-      messageSignerError.hidden = true;
-      messageSignatureOutput.value = signature;
-      messageSignatureResult.hidden = false;
-      messageSignatureVerification.textContent = `Verified locally against the selected address · ${format}`;
-    },
-    showMessageSignerError(message: string): void {
-      messageSignatureResult.hidden = true;
-      messageSignerError.textContent = message;
-      messageSignerError.hidden = false;
-    },
     showError(message: string): void {
       statusRoot.hidden = true;
       errorRoot.textContent = message;
@@ -433,7 +378,84 @@ export function createKeyDerivationView(
         }
         problems.append(item);
       }
-      seedDiagnostic.replaceChildren(seedDiagnostic.firstElementChild!, checks, metrics, problems);
+      const constructionDetails = document.createElement('details');
+      constructionDetails.className = 'seed-construction-details';
+      constructionDetails.open =
+        seedDiagnostic.querySelector<HTMLDetailsElement>('.seed-construction-details')?.open ?? false;
+      const constructionSummary = document.createElement('summary');
+      constructionSummary.textContent = 'Mnemonic construction details';
+      constructionDetails.append(constructionSummary);
+      if (!revealed) {
+        const concealedNote = document.createElement('p');
+        concealedNote.className = 'field-note';
+        concealedNote.textContent = 'Reveal recovery source to view words, indexes, entropy, and checksum bits.';
+        constructionDetails.append(concealedNote);
+      } else {
+        const construction = diagnostic.construction;
+        if (construction !== null) {
+          const values = document.createElement('dl');
+          values.className = 'seed-construction-values';
+          const value = (labelText: string, valueText: string): void => {
+            const term = document.createElement('dt');
+            term.textContent = labelText;
+            const description = document.createElement('dd');
+            const code = document.createElement('code');
+            code.textContent = valueText;
+            description.append(code);
+            values.append(term, description);
+          };
+          value('Entropy · hexadecimal', construction.entropyHex);
+          value('Entropy · binary', construction.entropyBinary);
+          value('Checksum · supplied', construction.providedChecksum);
+          value('Checksum · expected', construction.expectedChecksum);
+          value('Entropy + checksum', construction.mnemonicBinary);
+          value('Word indexes · 0–2047', construction.wordIndexes.join(', '));
+          constructionDetails.append(values);
+        } else {
+          const unavailable = document.createElement('p');
+          unavailable.className = 'field-note';
+          unavailable.textContent = 'A checksum-valid BIP39 phrase is required for entropy and checksum details.';
+          constructionDetails.append(unavailable);
+        }
+        const tableWrap = document.createElement('div');
+        tableWrap.className = 'seed-word-table-wrap';
+        const table = document.createElement('table');
+        table.className = 'seed-word-table';
+        const header = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        for (const labelText of ['#', 'Word', 'BIP39 index', 'Hex index', '11-bit group', 'Bit role']) {
+          const heading = document.createElement('th');
+          heading.scope = 'col';
+          heading.textContent = labelText;
+          headerRow.append(heading);
+        }
+        header.append(headerRow);
+        const body = document.createElement('tbody');
+        for (const word of diagnostic.words) {
+          const row = document.createElement('tr');
+          for (const valueText of [
+            String(word.position),
+            word.word,
+            word.wordlistIndex === null ? 'Unknown' : String(word.wordlistIndex),
+            word.indexHex ?? '—',
+            word.bits ?? '—',
+            diagnostic.checksumBits !== null && word.position === diagnostic.wordCount
+              ? `${11 - diagnostic.checksumBits} entropy + ${diagnostic.checksumBits} checksum`
+              : word.wordlistIndex === null
+                ? 'Unknown'
+                : '11 entropy bits',
+          ]) {
+            const cell = document.createElement('td');
+            cell.textContent = valueText;
+            row.append(cell);
+          }
+          body.append(row);
+        }
+        table.append(header, body);
+        tableWrap.append(table);
+        constructionDetails.append(tableWrap);
+      }
+      seedDiagnostic.replaceChildren(seedDiagnostic.firstElementChild!, checks, metrics, problems, constructionDetails);
     },
     clearResults(
       currentResult: DerivationResult | null,
@@ -623,11 +645,15 @@ export function createKeyDerivationView(
       checksumFile: string;
       profile: string;
       edition: string;
+      coins?: readonly string[];
+      features?: readonly string[];
     }): void {
       required<HTMLElement>('#build-version').textContent = info.version;
       required<HTMLElement>('#build-date').textContent = info.releaseDate;
       required<HTMLElement>('#build-edition').textContent = info.edition;
       required<HTMLElement>('#build-profile').textContent = info.profile;
+      required<HTMLElement>('#build-coins').textContent = info.coins?.join(', ') ?? 'profile default';
+      required<HTMLElement>('#build-features').textContent = info.features?.join(', ') ?? 'profile default';
       required<HTMLElement>('#build-fingerprint').textContent = info.fingerprint;
       required<HTMLElement>('#artifact-checksum-file').textContent = info.checksumFile;
     },

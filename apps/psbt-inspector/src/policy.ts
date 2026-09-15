@@ -1,6 +1,6 @@
 import { bech32 } from '@scure/base';
 import { bytesToHex, encodeBase58Check, hash160, hexToBytes, secp256k1, sha256 } from '@ckd/core/crypto.js';
-import { descriptorChecksum } from './descriptor.js';
+import { descriptorChecksum } from '@ckd/core/descriptor-checksum.js';
 import { materializeDescriptorKey } from '@ckd/core/descriptor-key.js';
 import { buildCustomMiniscriptPolicy, type CustomMiniscriptContext } from './custom-miniscript.js';
 import { compilePolicyMiniscript } from './miniscript-engine.js';

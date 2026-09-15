@@ -1,6 +1,5 @@
 import { PROVIDER_UNSIGNED_DECIMAL, MAX_PROVIDER_INTEGER } from '@ckd/core/numeric-limits.js';
 import type { RecoveryMetric, RecoveryNetwork, RecoverySection, RecoverySectionId } from '../../types.js';
-import { MAX_BIP32_INDEX } from '@ckd/core/bip32.js';
 import { requireRecord } from '@ckd/core/records.js';
 import { describeUnknownError } from '@ckd/core/error-handling.js';
 import type { RecoveryNetworkGateway } from '../../network-gateway.js';
@@ -9,16 +8,7 @@ export {
   formatDashCredits as formatDashFromCredits,
   formatDashDuffs as formatDashFromDuffs,
 } from '@ckd/core/dash-units.js';
-export const ADDRESS_DISCOVERY_GAP = 20;
-
-export function extendAddressTarget(currentTarget: number, usedIndex: number): { target: number; truncated: boolean } {
-  const maximumCount = MAX_BIP32_INDEX + 1;
-  const desired = usedIndex + 1 + ADDRESS_DISCOVERY_GAP;
-  return {
-    target: Math.max(currentTarget, Math.min(maximumCount, desired)),
-    truncated: desired > maximumCount,
-  };
-}
+export { ADDRESS_DISCOVERY_GAP, extendAddressTarget } from '../../address-gap.js';
 
 export function object(value: unknown, context: string): Record<string, unknown> {
   return requireRecord(value, `${context} returned malformed data.`);

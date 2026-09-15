@@ -5,6 +5,10 @@ import type { ViewerNetwork } from '@ckd/dash-network/types.js';
 import type { NormalizedViewingKey, ViewingKeyInputMode } from '@ckd/dash-network/viewing-key.js';
 import { mapViewerBatchTasks, parseViewerBatchInputs, parseViewerConcurrency, type ViewerBatchInput } from './batch.js';
 import type { DetectedViewerInput } from './detection.js';
+import { runDashCoreActivity } from './dash-core-activity.js';
+import { runDashPlatformActivity } from './dash-platform-activity.js';
+import { runDashIdentityActivity } from './dash-identity-activity.js';
+import { runDashOrchardActivity } from './dash-orchard-activity.js';
 import type {
   ViewerBatchExportError,
   ViewerBatchExportItem,
@@ -19,8 +23,6 @@ import type {
   ViewerMode,
   ViewerQueryMode,
 } from './view.js';
-
-const SHIELDED_PAINT_INTERVAL_MS = 500;
 
 interface ActivityViewerDependencies {
   ShieldedActivityLedger: typeof import('@ckd/dash-network/activity.js').ShieldedActivityLedger;
@@ -65,7 +67,6 @@ export function createActivityViewerController(view: ActivityViewerView, depende
   let batchErrors: ViewerBatchExportError[] = [];
   let activeBatchResultId: string | null = null;
   let viewerSelfTestPassed = false;
-  let lastShieldedPaintAt = 0;
   let exportingWorkbook = false;
 
   function checkCancellation(): void {
@@ -171,252 +172,82 @@ export function createActivityViewerController(view: ActivityViewerView, depende
     });
   }
 
-  function renderShieldedProgress(
-    ledger: ShieldedActivityLedger,
-    complete: boolean,
-    network: ViewerNetwork,
-    force: boolean,
-  ): void {
-    const now = performance.now();
-    if (!force && now - lastShieldedPaintAt < SHIELDED_PAINT_INTERVAL_MS) return;
-    lastShieldedPaintAt = now;
-    const snapshot = ledger.snapshot(complete);
-    setExportState({ mode: 'shielded', network, snapshot });
-    view.renderShielded(snapshot);
-  }
-
   async function runShielded(
     network: ViewerNetwork,
     value = view.viewingKeyInput.value,
     inputMode = view.keyCapabilityInput.value as ViewingKeyInputMode,
   ): Promise<void> {
-    const viewingKey: NormalizedViewingKey = dependencies.normalizeViewingKey(value, inputMode);
-    try {
-      if (viewingKey.bundleNetwork !== undefined && viewingKey.bundleNetwork !== network) {
-        throw new Error(`This viewing bundle is for ${viewingKey.bundleNetwork}; select that network before scanning.`);
-      }
-      dependencies.assertCanonicalViewingKey(viewingKey);
-      view.setDiagnosticDetail(`Validated canonical ${viewingKey.kind} viewing capability locally.`);
-      const ledger = new dependencies.ShieldedActivityLedger(viewingKey.kind);
-      lastShieldedPaintAt = 0;
-      const source = new dependencies.DashEvoShieldedSource(network);
-      view.setStatus(`Connecting to Dash Platform ${network} with trusted proof verification…`);
-      const connectStarted = performance.now();
-      await source.connect();
-      checkCancellation();
-      view.addRemoteDuration(performance.now() - connectStarted);
-      view.setDiagnosticDetail('Connected through trusted quorum discovery. Fetching proof-verified encrypted notes.');
-      const outcome = await dependencies.runShieldedPageStream({
-        fetchPage: async (position) => {
-          view.setStatus(`Fetching and verifying pool actions from aligned position ${position}…`);
-          const fetchStarted = performance.now();
-          const page = await source.fetchPage(position, dependencies.shieldedPageSize);
-          if (!cancellationRequested) {
-            view.addRemoteDuration(performance.now() - fetchStarted);
-            view.recordRequest();
-          }
-          return page;
-        },
-        noteCount: (page) => page.notes.length,
-        revision: (page) => page.proofHeight,
-        onPage: (page, visit) => {
-          checkCancellation();
-          view.setDiagnosticProof(`${page.proofHeight} · protocol ${page.protocolVersion}`);
-          view.setDiagnosticRemoteTime(page.timeMs);
-          if (page.notes.length > 0) {
-            const scanStarted = performance.now();
-            const matches = dependencies.scanEncryptedPage(viewingKey, visit.position, page.notes, network);
-            ledger.applyPage(visit.position, page, matches);
-            view.addLocalDuration(performance.now() - scanStarted);
-          } else if (visit.emptyConfirmation < dependencies.shieldedEmptyConfirmations) {
-            view.setStatus(
-              `Confirming empty Orchard terminal page ${visit.emptyConfirmation + 1}/${dependencies.shieldedEmptyConfirmations} at aligned position ${visit.position}…`,
-            );
-          }
-          renderShieldedProgress(ledger, false, network, false);
-          view.updateTiming();
-        },
-        disposePage: (page) => {
-          for (const note of page.notes) {
-            note.cmx.fill(0);
-            note.nullifier.fill(0);
-            note.cvNet.fill(0);
-            note.encryptedNote.fill(0);
-          }
-          page.notes.length = 0;
-        },
-        isCancelled: () => cancellationRequested,
+    await runDashOrchardActivity(
+      {
+        view,
+        ShieldedActivityLedger: dependencies.ShieldedActivityLedger,
+        Source: dependencies.DashEvoShieldedSource,
+        assertCanonicalViewingKey: dependencies.assertCanonicalViewingKey,
+        normalizeViewingKey: dependencies.normalizeViewingKey,
+        runPageStream: dependencies.runShieldedPageStream,
+        scanEncryptedPage: dependencies.scanEncryptedPage,
+        emptyConfirmations: dependencies.shieldedEmptyConfirmations,
+        maxPagesPerScan: dependencies.shieldedMaxPagesPerScan,
+        pageSize: dependencies.shieldedPageSize,
+        cancelled: () => cancellationRequested,
+        checkCancellation,
+        setExportState,
         yieldTurn: yieldToBrowser,
-      });
-      checkCancellation();
-      if (outcome.complete) {
-        renderShieldedProgress(ledger, true, network, true);
-        view.setStatus(
-          `Scan complete after ${dependencies.shieldedEmptyConfirmations} verified empty terminal reads. ${ledger.snapshot(true).scannedNotes} pool actions checked.`,
-        );
-        view.finishDiagnostics(
-          `Proof verification and local Orchard recovery completed through aligned position ${outcome.terminalPosition}.`,
-        );
-      } else {
-        renderShieldedProgress(ledger, false, network, true);
-        const message =
-          outcome.limitReason === 'changing-tip'
-            ? 'The pool kept changing while its last partial page was being reconciled. Results are partial; retry later.'
-            : `Stopped at the ${dependencies.shieldedMaxPagesPerScan.toLocaleString()}-page safety ceiling before the pool end was confirmed. Results are partial.`;
-        view.setStatus(message);
-        view.failDiagnostics(message);
-      }
-    } finally {
-      viewingKey.hex = '';
-    }
+      },
+      network,
+      value,
+      inputMode,
+    );
   }
 
   async function runCore(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
-    dependencies.assertPublicLookupInput(value);
     currentAbort = new AbortController();
-    const limit = Number(view.historyLimitInput.value);
-    view.setStatus(`Querying Dash Core ${network} address history…`);
-    view.setDiagnosticDetail(
-      'Validating the Base58Check address, checking DashScan synchronization, then loading exact-duff totals and history.',
+    const state = await runDashCoreActivity(
+      {
+        view,
+        assertPublicLookupInput: dependencies.assertPublicLookupInput,
+        queryCoreAddress: dependencies.queryCoreAddress,
+        cancelled: () => cancellationRequested,
+      },
+      network,
+      value,
+      currentAbort.signal,
     );
-    const remoteStarted = performance.now();
-    const snapshot = await dependencies.queryCoreAddress(value, network, limit, currentAbort.signal);
-    view.addRemoteDuration(performance.now() - remoteStarted);
-    view.setRequestCount(snapshot.requests);
-    if (cancellationRequested) return;
-    setExportState({ mode: 'core', network: snapshot.network, snapshot });
-    view.renderCore(snapshot);
-    view.setDiagnosticSource(snapshot.endpoint);
-    view.setDiagnosticProof(
-      `DashScan ${snapshot.indexStatus} · Core height ${snapshot.indexedHeight.toLocaleString()}`,
-    );
-    view.setDiagnosticRemoteTime(snapshot.indexedTimeMs);
-    view.setStatus(
-      `Address query complete. ${snapshot.transactionCount.toLocaleString()} transactions reported; ${snapshot.transactions.length.toLocaleString()} loaded.`,
-    );
-    view.finishDiagnostics(
-      `DashScan reported a synchronized index at Core height ${snapshot.indexedHeight.toLocaleString()}. Loaded address totals and ${snapshot.transactions.length.toLocaleString()} newest transaction record(s) in ${snapshot.requests} request(s).`,
-    );
+    if (!cancellationRequested) setExportState(state);
   }
 
   async function runPlatform(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
-    dependencies.assertPublicLookupInput(value);
     currentAbort = new AbortController();
-    const source = new dependencies.DashPlatformAddressSource(network);
-    const limit = Number(view.historyLimitInput.value);
-    view.setStatus(`Connecting to Dash Platform ${network} with trusted proof verification…`);
-    view.setDiagnosticDetail('Validating the DIP18 address and establishing a trusted DAPI context.');
-    const connectStarted = performance.now();
-    await source.connect();
-    checkCancellation();
-    view.addRemoteDuration(performance.now() - connectStarted);
-    if (cancellationRequested) throw new DOMException('Platform query cancelled.', 'AbortError');
-    view.setRequestCount(1);
-    const queryStartedAt = performance.now();
-    const snapshot = await source.query(value);
-    view.addRemoteDuration(performance.now() - queryStartedAt);
-    if (cancellationRequested) throw new DOMException('Platform query cancelled.', 'AbortError');
-    view.setStatus('Platform state verified. Checking Platform Explorer synchronization and loading address history…');
-    view.setDiagnosticDetail(
-      'DAPI proof verified. Querying the Platform Explorer address index and latest indexed height.',
+    const state = await runDashPlatformActivity(
+      {
+        view,
+        AddressSource: dependencies.DashPlatformAddressSource,
+        assertPublicLookupInput: dependencies.assertPublicLookupInput,
+        queryHistory: dependencies.queryPlatformAddressHistory,
+        checkCancellation,
+      },
+      network,
+      value,
+      currentAbort.signal,
     );
-    const historyStartedAt = performance.now();
-    const history = await dependencies.queryPlatformAddressHistory(value, network, limit, currentAbort.signal);
-    view.addRemoteDuration(performance.now() - historyStartedAt);
-    view.setRequestCount(1 + history.requests);
-    if (cancellationRequested) throw new DOMException('Platform query cancelled.', 'AbortError');
-    setExportState({ mode: 'platform', network: snapshot.network, snapshot, history });
-    view.renderPlatform(snapshot, history);
-    view.setDiagnosticSource(`Proof DAPI + ${history.endpoint}`);
-    view.setDiagnosticProof(`DAPI ${snapshot.proofHeight} · Explorer ${history.indexedHeight.toLocaleString()}`);
-    view.setDiagnosticRemoteTime(history.indexedTimeMs);
-    view.setStatus(
-      `Platform state verified and ${history.transitions.length.toLocaleString()} of ${history.totalTransitions.toLocaleString()} address transitions loaded.`,
-    );
-    view.finishDiagnostics(
-      `Verified the GroveDB address-state proof and a ${history.indexStatus} Platform Explorer index. Proof values take precedence if the two sources disagree.`,
-    );
+    setExportState(state);
   }
 
   async function runIdentity(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
-    const input = dependencies.normalizeIdentityLookupInput(value);
     currentAbort = new AbortController();
-    const source = new dependencies.DashPlatformIdentitySource(network);
-    const limit = Number(view.historyLimitInput.value);
-    view.setStatus(`Connecting to Dash Platform ${network} with trusted proof verification…`);
-    view.setDiagnosticDetail(`Validated ${input.label} locally. No private material was sent to the network.`);
-    const connectStarted = performance.now();
-    await source.connect();
-    checkCancellation();
-    view.addRemoteDuration(performance.now() - connectStarted);
-    if (cancellationRequested) throw new DOMException('Identity query cancelled.', 'AbortError');
-    const lookupStarted = performance.now();
-    const snapshot = await source.query(input);
-    view.addRemoteDuration(performance.now() - lookupStarted);
-    view.setRequestCount(snapshot.requests);
-    if (cancellationRequested) throw new DOMException('Identity query cancelled.', 'AbortError');
-
-    view.setStatus(
-      snapshot.identities.length === 0
-        ? 'Identity lookup proof verified. No matching Identity was found.'
-        : `Verified ${snapshot.identities.length.toLocaleString()} Identity result(s). Loading synchronized indexed activity…`,
+    const state = await runDashIdentityActivity(
+      {
+        view,
+        IdentitySource: dependencies.DashPlatformIdentitySource,
+        normalizeInput: dependencies.normalizeIdentityLookupInput,
+        queryHistory: dependencies.queryPlatformIdentityHistory,
+        checkCancellation,
+      },
+      network,
+      value,
+      currentAbort.signal,
     );
-    const histories: PlatformIdentityHistoryResult[] = [];
-    for (const identity of snapshot.identities) {
-      if (cancellationRequested) throw new DOMException('Identity query cancelled.', 'AbortError');
-      const historyStarted = performance.now();
-      try {
-        const history = await dependencies.queryPlatformIdentityHistory(
-          identity.identifier,
-          network,
-          limit,
-          currentAbort.signal,
-        );
-        view.addRemoteDuration(performance.now() - historyStarted);
-        view.setRequestCount(
-          snapshot.requests +
-            histories.reduce((total, result) => total + (result.history?.requests ?? 0), 0) +
-            history.requests,
-        );
-        histories.push({ identifier: identity.identifier, history, error: null });
-      } catch (cause) {
-        view.addRemoteDuration(performance.now() - historyStarted);
-        if (cancellationRequested) throw cause;
-        histories.push({
-          identifier: identity.identifier,
-          history: null,
-          error: cause instanceof Error ? cause.message : String(cause),
-        });
-      }
-    }
-    const historyRequests = histories.reduce((total, result) => total + (result.history?.requests ?? 0), 0);
-    view.setRequestCount(snapshot.requests + historyRequests);
-    setExportState({ mode: 'identity', network, snapshot, histories });
-    view.renderIdentity(snapshot, histories);
-    const proofHeights = snapshot.proofs.map(({ height }) => height);
-    const highestProof = proofHeights.reduce((highest, height) => (height > highest ? height : highest), 0n);
-    const explorerHeights = histories.flatMap(({ history }) => (history === null ? [] : [history.indexedHeight]));
-    view.setDiagnosticSource(
-      histories.some(({ history }) => history !== null)
-        ? 'Proof DAPI + Dash Platform Explorer'
-        : 'Dash Platform DAPI proof',
-    );
-    view.setDiagnosticProof(
-      explorerHeights.length === 0
-        ? `DAPI ${highestProof}`
-        : `DAPI ${highestProof} · Explorer ${Math.max(...explorerHeights).toLocaleString()}`,
-    );
-    const latestProofTime = snapshot.proofs.at(-1)?.responseTimeMs ?? null;
-    view.setDiagnosticRemoteTime(latestProofTime);
-    const historyFailures = histories.filter(({ error }) => error !== null).length;
-    view.setStatus(
-      snapshot.identities.length === 0
-        ? 'Proof-verified lookup complete. No matching registered Identity exists.'
-        : `Loaded ${snapshot.identities.length.toLocaleString()} proof-verified Identity result(s)${historyFailures === 0 ? ' with synchronized indexed activity' : `; indexed history failed for ${historyFailures.toLocaleString()}`}.`,
-    );
-    view.finishDiagnostics(
-      `Verified ${snapshot.proofs.length.toLocaleString()} DAPI proof response(s). Explorer history is auxiliary; proof-verified Identity state remains authoritative.`,
-    );
+    setExportState(state);
   }
 
   async function runAutoSingle(network: ViewerNetwork): Promise<void> {

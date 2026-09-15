@@ -4,8 +4,11 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const localCargoHome = resolve(root, '.tools/cargo');
-const localRustupHome = resolve(root, '.tools/rustup');
+const localTools = resolve(root, '.tools');
+const sharedTools = resolve(root, '..', '.tools');
+const tools = existsSync(resolve(localTools, 'cargo/bin/cargo')) ? localTools : sharedTools;
+const localCargoHome = resolve(tools, 'cargo');
+const localRustupHome = resolve(tools, 'rustup');
 const fallbackHome = process.env.HOME;
 const effectiveCargoHome = existsSync(localCargoHome)
   ? localCargoHome

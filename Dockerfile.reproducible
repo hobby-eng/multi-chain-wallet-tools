@@ -42,7 +42,10 @@ WORKDIR /workspace
 COPY . .
 RUN pnpm install --frozen-lockfile \
     && for attempt in 1 2 3 4 5; do \
-         cargo fetch --manifest-path packages/dash-shielded-wasm/rust/Cargo.toml --locked && break; \
+         cargo fetch --manifest-path packages/dash-shielded-wasm/rust/Cargo.toml --locked \
+           && cargo fetch --manifest-path packages/recovery-shamir-wasm/rust/Cargo.toml --locked \
+           && cargo fetch --manifest-path packages/recovery-codex32-wasm/rust/Cargo.toml --locked \
+           && break; \
          if [ "$attempt" = 5 ]; then exit 1; fi; \
          echo "Cargo fetch attempt ${attempt} failed; retrying in $((attempt * 5)) seconds." >&2; \
          rm -rf \
@@ -52,7 +55,10 @@ RUN pnpm install --frozen-lockfile \
            "${CARGO_HOME}/git/checkouts/zcash_note_encryption-"*; \
          sleep "$((attempt * 5))"; \
        done
-RUN cp -a packages/dash-shielded-wasm/generated /tmp/committed-generated
+RUN mkdir -p /tmp/committed-generated/dash /tmp/committed-generated/shamir /tmp/committed-generated/codex32 \
+    && cp -a packages/dash-shielded-wasm/generated/. /tmp/committed-generated/dash/ \
+    && cp -a packages/recovery-shamir-wasm/generated/. /tmp/committed-generated/shamir/ \
+    && cp -a packages/recovery-codex32-wasm/generated/. /tmp/committed-generated/codex32/
 
 FROM dependencies AS built
 ARG SOURCE_COMMIT=unavailable
@@ -62,10 +68,14 @@ ENV VERIFICATION_COMMIT=${SOURCE_COMMIT} \
 RUN --network=none pnpm verify
 
 FROM built AS verified
-RUN diff --recursive --brief /tmp/committed-generated packages/dash-shielded-wasm/generated
+RUN diff --recursive --brief /tmp/committed-generated/dash packages/dash-shielded-wasm/generated \
+    && diff --recursive --brief /tmp/committed-generated/shamir packages/recovery-shamir-wasm/generated \
+    && diff --recursive --brief /tmp/committed-generated/codex32 packages/recovery-codex32-wasm/generated
 
 FROM scratch AS artifacts
 COPY --from=verified /workspace/dist /dist
 
 FROM scratch AS wasm-artifacts
-COPY --from=built /workspace/packages/dash-shielded-wasm/generated /generated
+COPY --from=built /workspace/packages/dash-shielded-wasm/generated /generated/dash
+COPY --from=built /workspace/packages/recovery-shamir-wasm/generated /generated/shamir
+COPY --from=built /workspace/packages/recovery-codex32-wasm/generated /generated/codex32

@@ -11,6 +11,17 @@ const record = JSON.parse(bytes);
 if (record.schemaVersion !== 1 || !Array.isArray(record.artifacts) || record.artifacts.length !== 8) {
   throw new Error('Verification record has an unsupported schema or incomplete artifact list.');
 }
+if (record.dependencyProvenance?.lockedDependencies === undefined) {
+  throw new Error('Verification record omits dependency provenance.');
+}
+for (const source of record.dependencyProvenance.localSources ?? []) {
+  for (const entry of source.files ?? []) {
+    const actual = createHash('sha256')
+      .update(readFileSync(resolve(root, entry.path)))
+      .digest('hex');
+    if (actual !== entry.sha256) throw new Error(`Dependency source hash mismatch: ${entry.path}`);
+  }
+}
 for (const entry of [...record.artifacts, ...record.wasm]) {
   const actual = createHash('sha256')
     .update(readFileSync(resolve(root, entry.path)))

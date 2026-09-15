@@ -49,3 +49,5 @@ wallet.dat
 # - pnpm-lock.yaml
 # - packages/dash-shielded-wasm/generated/
 # - packages/dash-shielded-wasm/rust/Cargo.lock
+# - packages/recovery-shamir-wasm/generated/ and rust/Cargo.lock
+# - packages/recovery-codex32-wasm/generated/ and rust/Cargo.lock

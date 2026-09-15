@@ -7,7 +7,7 @@ export interface Bip85RequestOptions {
   index: number;
   words?: 12 | 15 | 18 | 21 | 24;
   bytes?: number;
-  wifEncoding?: 'bitcoin-mainnet' | 'bitcoin-testnet' | 'dash-mainnet' | 'dash-testnet';
+  wifVersion?: number;
 }
 
 export interface Bip85Result {
@@ -23,12 +23,10 @@ export function deriveBip85(seed: Uint8Array, options: Bip85RequestOptions): Bip
     return { path: result.path, value: result.entropyHex, entropyHex: result.entropyHex, kind: 'bip39' };
   }
   if (options.application === 'wif') {
-    const wifVersion = {
-      'bitcoin-mainnet': 0x80,
-      'bitcoin-testnet': 0xef,
-      'dash-mainnet': 0xcc,
-      'dash-testnet': 0xef,
-    }[options.wifEncoding ?? 'bitcoin-mainnet'];
+    const wifVersion = options.wifVersion ?? 0x80;
+    if (!Number.isInteger(wifVersion) || wifVersion < 0 || wifVersion > 0xff) {
+      throw new Error('BIP85 WIF version must be one byte.');
+    }
     const result = deriveBip85Wif(seed, options.index, wifVersion);
     return { path: result.path, value: result.wif, kind: 'wif' };
   }
