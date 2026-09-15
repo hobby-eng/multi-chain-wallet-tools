@@ -20,7 +20,7 @@ it('updates release metadata without rewriting audit dates, commits or evidence'
       'THIRD_PARTY_NOTICES.md',
       'SECURITY_AUDIT.md',
       'docs/reference/DASH_IMPLEMENTATION.md',
-      'docs/audits/2026-09-08-baseline.json',
+      'docs/audits/audit-01-2026-09-08.json',
     ];
     for (const path of paths) {
       mkdirSync(dirname(resolve(root, path)), { recursive: true });
@@ -40,7 +40,7 @@ it('updates release metadata without rewriting audit dates, commits or evidence'
     for (const path of [
       'SECURITY_AUDIT.md',
       'docs/reference/DASH_IMPLEMENTATION.md',
-      'docs/audits/2026-09-08-baseline.json',
+      'docs/audits/audit-01-2026-09-08.json',
     ]) {
       expect(readFileSync(resolve(root, path), 'utf8')).toBe(readFileSync(resolve(source, path), 'utf8'));
     }

@@ -5,7 +5,7 @@
   "timeUtc": "13:29-13:58",
   "commitReviewed": "cae5fab94a66d7840c39d2a5d522b70395117fed",
   "artifactCommit": "233742deb01d22a9c3b002f0c904a2fbf397bdb3",
-  "previousReport": "2026-09-12-04-independent-audit.md",
+  "previousReport": "audit-07-2026-09-12.md",
   "branch": "hobby-eng-psbt-inspector-v4",
   "treeClean": true,
   "toolchain": {
@@ -86,7 +86,7 @@
       5
     ],
     "historicalSnapshotOnly": [
-      "docs/audits/2026-09-12-03-followup-audit.md still says 'intermittent'"
+      "docs/audits/audit-06-2026-09-12.md still says 'intermittent'"
     ]
   },
   "maintainability": {

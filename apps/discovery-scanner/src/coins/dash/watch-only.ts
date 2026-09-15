@@ -19,7 +19,7 @@ import { summarizeDashSections } from './summary.js';
 import { validateIdentityLookup } from './identity-scanner.js';
 import { DashPlatformClient } from './platform-client.js';
 import { validatePlatformAddressBatch } from './platform-scanner.js';
-import { scanDashShieldedWatchOnly } from './shielded-scanner.js';
+import { scanDashShieldedWatchOnly } from './shielded-watch-only.js';
 import {
   ADDRESS_DISCOVERY_GAP,
   failedSection,

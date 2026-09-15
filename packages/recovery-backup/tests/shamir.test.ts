@@ -1,4 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { base64urlnopad } from '@scure/base';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { concatBytes } from '@noble/hashes/utils.js';
+import { validateMnemonic } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { describe, expect, it, vi } from 'vitest';
 import { createShamirShares, recoverShamirShares } from '../src/shamir.js';
 
@@ -30,6 +35,26 @@ describe('CKD Shamir backup formats', () => {
     }
   });
 
+  it('never presents Shamir Words cards as valid BIP39 recovery phrases', () => {
+    const created = createShamirShares(new Uint8Array(16).fill(3), 2, 3, 'words');
+    expect(created.shares.every((share) => !validateMnemonic(share, wordlist))).toBe(true);
+  });
+
+  it('continues to restore version-1 raw cards created before the set digest was added', () => {
+    const secret = new Uint8Array(16).fill(5);
+    const current = createShamirShares(secret, 2, 3, 'raw');
+    const legacy = current.shares.slice(0, 2).map((share) => {
+      const bytes = base64urlnopad.decode(share);
+      const body = concatBytes(bytes.slice(0, 16), bytes.slice(32, -4));
+      body[4] = 1;
+      const encoded = base64urlnopad.encode(concatBytes(body, sha256(body).slice(0, 4)));
+      bytes.fill(0);
+      body.fill(0);
+      return `ckd-shamir-v1:${encoded}`;
+    });
+    expect(recoverShamirShares(legacy, 'raw')).toEqual(secret);
+  });
+
   it('recovers from unordered threshold subsets without mutating the input secret', () => {
     const secret = Uint8Array.from({ length: 32 }, (_, index) => index);
     const original = secret.slice();
@@ -51,6 +76,16 @@ describe('CKD Shamir backup formats', () => {
     expect(() => recoverShamirShares(raw.shares, 'words')).toThrow();
     const words = createShamirShares(new Uint8Array(16), 2, 2, 'words');
     expect(() => recoverShamirShares(words.shares, 'raw')).toThrow();
+  });
+
+  it('rejects a checksum-repaired share that reconstructs a different secret', () => {
+    const created = createShamirShares(new Uint8Array(16).fill(7), 2, 3, 'raw');
+    const bytes = base64urlnopad.decode(created.shares[0]!);
+    bytes[33] = bytes[33]! ^ 0x40;
+    bytes.set(sha256(bytes.slice(0, -4)).slice(0, 4), bytes.length - 4);
+    const altered = base64urlnopad.encode(bytes);
+    bytes.fill(0);
+    expect(() => recoverShamirShares([altered, created.shares[1]!], 'raw')).toThrow(/share-set digest/u);
   });
 
   it('rejects insufficient, duplicate, mixed-set, and checksum-damaged shares', () => {

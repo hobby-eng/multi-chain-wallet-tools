@@ -36,6 +36,7 @@ for (const expected of [
   'VERIFICATION_COMMIT=${SOURCE_COMMIT}',
   'VERIFICATION_DIRTY=${SOURCE_DIRTY}',
   'RUN --network=none pnpm verify',
+  'RUN --network=none pnpm build:matrix:smoke',
   'diff --recursive --brief /tmp/committed-generated/dash packages/dash-shielded-wasm/generated',
   'diff --recursive --brief /tmp/committed-generated/shamir packages/recovery-shamir-wasm/generated',
   'diff --recursive --brief /tmp/committed-generated/codex32 packages/recovery-codex32-wasm/generated',
@@ -80,6 +81,7 @@ for (const path of ['.github/workflows/ci.yml', '.github/workflows/release.yml']
     'playwright install --with-deps chromium firefox',
     'pnpm test:browser:files',
     'pnpm test:browser:regressions',
+    'pnpm test:browser:selective',
   ]) {
     if (!workflow.includes(expected)) throw new Error(`${path} is missing the browser release gate: ${expected}`);
   }

@@ -663,5 +663,3 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     }
   }
 }
-
-export { executeRecoveryNetworkRequest } from './network-executor.js';

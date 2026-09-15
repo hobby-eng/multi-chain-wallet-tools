@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { describe, expect, it, vi } from 'vitest';
 import { createCodex32Backup, recoverCodex32Seed } from '../src/codex32.js';
+import officialVectors from './fixtures/bip93-vectors.json';
 
 vi.mock('@ckd/recovery-codex32-wasm/recovery_codex32_wasm_bg.wasm', async () => ({
   default: readFileSync(
@@ -10,6 +11,33 @@ vi.mock('@ckd/recovery-codex32-wasm/recovery_codex32_wasm_bg.wasm', async () => 
 }));
 
 describe('Codex32 BIP93 backup', () => {
+  it('decodes every official unshared BIP93 vector, including alternate padding and long Codex32', () => {
+    for (const vector of officialVectors.unshared) {
+      for (const record of vector.records) {
+        expect(Buffer.from(recoverCodex32Seed([record])).toString('hex')).toBe(vector.seed);
+      }
+    }
+  });
+
+  it('recovers every threshold subset from the official shared BIP93 vectors', () => {
+    for (const vector of officialVectors.shared) {
+      const combinations = <T>(items: readonly T[], count: number): T[][] =>
+        count === 0
+          ? [[]]
+          : items.flatMap((item, index) =>
+              combinations(items.slice(index + 1), count - 1).map((tail) => [item, ...tail]),
+            );
+      for (const shares of combinations(vector.shares, vector.threshold)) {
+        expect(Buffer.from(recoverCodex32Seed(shares)).toString('hex')).toBe(vector.seed);
+      }
+    }
+  });
+
+  it('rejects every official invalid BIP93 record', () => {
+    expect(officialVectors.invalid).toHaveLength(55);
+    for (const record of officialVectors.invalid) expect(() => recoverCodex32Seed([record])).toThrow();
+  });
+
   it('matches the official 256-bit unsplit vector', () => {
     const seed = hexToBytes('ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100');
     const backup = createCodex32Backup(seed, 'leet', 0, 1);
@@ -46,10 +74,19 @@ describe('Codex32 BIP93 backup', () => {
     const seed = new Uint8Array(16).fill(9);
     const first = createCodex32Backup(seed, 'seed', 3, 4);
     const second = createCodex32Backup(seed, 'cash', 3, 4);
-    expect(() => recoverCodex32Seed(first.shares.slice(0, 2))).toThrow(/ThresholdNotPassed/u);
-    expect(() => recoverCodex32Seed([first.shares[0]!, first.shares[0]!, first.shares[1]!])).toThrow(/RepeatedIndex/u);
-    expect(() => recoverCodex32Seed([first.shares[0]!, first.shares[1]!, second.shares[2]!])).toThrow(/MismatchedId/u);
+    expect(() => recoverCodex32Seed(first.shares.slice(0, 2))).toThrow(
+      /3 distinct compatible shares are required; 2 were supplied/u,
+    );
+    expect(() => recoverCodex32Seed([first.shares[0]!, first.shares[0]!, first.shares[1]!])).toThrow(
+      /same Codex32 share index/u,
+    );
+    expect(() => recoverCodex32Seed([first.shares[0]!, first.shares[1]!, second.shares[2]!])).toThrow(
+      /different identifiers/u,
+    );
+    expect(() => recoverCodex32Seed([first.shares[0]!.toUpperCase(), first.shares[1]!, first.shares[2]!])).toThrow(
+      /incompatible prefixes/u,
+    );
     const damaged = `${first.shares[0]!.slice(0, -1)}${first.shares[0]!.endsWith('q') ? 'p' : 'q'}`;
-    expect(() => recoverCodex32Seed([damaged, first.shares[1]!, first.shares[2]!])).toThrow(/InvalidChecksum/u);
+    expect(() => recoverCodex32Seed([damaged, first.shares[1]!, first.shares[2]!])).toThrow(/invalid checksum/u);
   });
 });

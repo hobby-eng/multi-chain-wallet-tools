@@ -10,7 +10,6 @@ Dash multisig address tests include Dash Core dev-branch BIP67 `sh(sortedmulti(.
 
 Message verification consumes only a claimed address, exact message, and public signature. It never requests a private key. Bitcoin BIP-322 verification delegates consensus Script evaluation to the embedded btcd-derived engine; Dash compact-message verification recovers a public key and compares its P2PKH address. A successful message proof establishes control of the relevant spending condition for that exact message, not identity, authorization for another action, or transaction validity.
 
-
 ## September 2026 local audit corrections
 
 Custom Tapscript compilation now validates literal x-only curve points before
@@ -19,5 +18,5 @@ input revision and discarded after edits or Clear. Descriptor expansion checks
 context, arity, origins and multipath bounds before constructing output scripts.
 PSBT known-field schemas, UTXO outpoint binding, nonce point shapes and partial
 scalar ranges are validated; structural decoding is not a signature check or a
-proof of blockchain inclusion. See `../../docs/audits/2026-09-12-02-remediation-audit.md`
+proof of blockchain inclusion. See `../../docs/audits/audit-05-2026-09-12.md`
 for the tested snapshot and remaining boundaries.

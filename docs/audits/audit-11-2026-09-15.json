@@ -1,0 +1,86 @@
+{
+  "schema": "independent-audit-report/1",
+  "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
+  "date": "2026-09-15",
+  "timeUtc": "19:02-19:20",
+  "commit": "cdce70cb531f4da5d46c6ac321ff7de9dd8e12a9",
+  "treeClean": false,
+  "uncommitted": {
+    "modified": 28,
+    "untracked": 5
+  },
+  "previousFindings": {
+    "F-01": "fixed (rust-toolchain.mjs + test; container verify layer passes)",
+    "F-02": "fixed (balanced element replacement; selective smoke 4/4)",
+    "F-03": "fixed (assertSafeCustomOutput + test)",
+    "F-04": "fixed (codex32Failure mapping)",
+    "F-05": "fixed (Shamir v2 secret digest; v1 readable)",
+    "F-06": "fixed (seed controls removed; residual copy)",
+    "F-07": "mitigated (autocomplete off, explicit default; 16/16 x2)",
+    "F-08": "fixed (docs updated)"
+  },
+  "newFindings": [
+    {
+      "id": "N-01",
+      "severity": "High",
+      "title": "Committed WASM not canonical: producers '0.2.128 (92201b377)' vs container '0.2.128'; uncached Docker build fails at WASM diff",
+      "files": [
+        "packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm",
+        "packages/recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm",
+        "packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm"
+      ],
+      "introducedBy": "f064ce3",
+      "containerHashes": {
+        "orchard": "defbee287212",
+        "shamir": "3fe873ac9531",
+        "codex32": "afeb2474c3f3"
+      },
+      "headHashes": {
+        "orchard": "5e435465830f",
+        "shamir": "76b37c44f3d0",
+        "codex32": "c4918fc37401"
+      }
+    },
+    {
+      "id": "N-02",
+      "severity": "Informational",
+      "title": "CI does not run test:browser:selective"
+    },
+    {
+      "id": "N-03",
+      "severity": "Informational",
+      "title": "Fixes uncommitted; verification record dirty"
+    },
+    {
+      "id": "N-04",
+      "severity": "Informational",
+      "title": "Residual seed wording in watch-only scanner copy"
+    }
+  ],
+  "checks": {
+    "tsc": "pass",
+    "vitest": {
+      "files": 113,
+      "tests": 1227,
+      "failed": 0
+    },
+    "format": "pass",
+    "localVerify": "pass (dirty)",
+    "pnpmAudit": "clean",
+    "dockerCached": "pass (not authoritative)",
+    "dockerNoCache": "FAIL at WASM diff (N-01); verify+matrix smoke+record layers pass",
+    "browserFiles": "16/16",
+    "browserRegressions": "42/42",
+    "browserSelective": "4/4",
+    "probes": "15/15",
+    "selectiveBuilds": "CSP pinned, seed markup removed, output guard enforced"
+  },
+  "docConformance": "BUILD_MODULES, SECURITY_AUDIT, BROWSER_ACCEPTANCE claims verified against code/artifacts",
+  "recommendations": [
+    "regenerate canonical WASM via build-reproducible.sh --wasm and commit; add producers check",
+    "commit fixes and regenerate release evidence",
+    "wire test:browser:selective into CI",
+    "Firefox flake root cause",
+    "trim residual seed copy"
+  ]
+}

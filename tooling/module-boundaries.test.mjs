@@ -88,11 +88,21 @@ describe('module boundaries', () => {
     for (const node of graph.keys()) visit(node, []);
   });
 
-  it('keeps network-boundary independent of provider implementations', () => {
+  it('keeps public-address Activity hosts independent of Dash runtimes', () => {
+    const offenders = [
+      'apps/activity-viewer/src/public-address-view.ts',
+      'apps/activity-viewer/src/external-activity.ts',
+    ].filter((path) => imports(readFileSync(join(root, path), 'utf8')).some((value) => value.includes('dash-network')));
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps network-boundary independent of provider and secret implementations', () => {
     const offenders = files
       .filter((file) => relative(root, file).replaceAll('\\', '/').startsWith('packages/network-boundary/'))
       .filter((file) =>
-        imports(readFileSync(file, 'utf8')).some((value) => value.startsWith('@ckd/public-data-providers')),
+        imports(readFileSync(file, 'utf8')).some(
+          (value) => value.startsWith('@ckd/public-data-providers') || value.startsWith('@ckd/secret-boundary'),
+        ),
       );
     expect(offenders.map((file) => relative(root, file))).toEqual([]);
   });

@@ -11,9 +11,12 @@ import {
 import shamirWasmBytes from '@ckd/recovery-shamir-wasm/recovery_shamir_wasm_bg.wasm';
 
 const MAGIC = Uint8Array.of(0x43, 0x4b, 0x44, 0x53);
-const VERSION = 1;
+const VERSION = 2;
+const LEGACY_VERSION = 1;
 const SET_ID_BYTES = 8;
-const HEADER_BYTES = MAGIC.length + 4 + SET_ID_BYTES;
+const SECRET_DIGEST_BYTES = 16;
+const BASE_HEADER_BYTES = MAGIC.length + 4 + SET_ID_BYTES;
+const HEADER_BYTES = BASE_HEADER_BYTES + SECRET_DIGEST_BYTES;
 const CHECKSUM_BYTES = 4;
 const LEGACY_RAW_PREFIX = 'ckd-shamir-v1:';
 const LEGACY_WORD_PREFIX = 'ckd-shamir-words-v1:';
@@ -29,10 +32,12 @@ export interface ShamirShareSet {
 }
 
 interface DecodedShare {
+  readonly version: number;
   readonly threshold: number;
   readonly count: number;
   readonly secretLength: number;
   readonly setId: Uint8Array;
+  readonly secretDigest?: Uint8Array;
   readonly serialized: Uint8Array;
 }
 
@@ -61,8 +66,15 @@ function envelope(
   count: number,
   secretLength: number,
   setId: Uint8Array,
+  secretDigest: Uint8Array,
 ): Uint8Array {
-  const body = concatBytes(MAGIC, Uint8Array.of(VERSION, threshold, count, secretLength), setId, serialized);
+  const body = concatBytes(
+    MAGIC,
+    Uint8Array.of(VERSION, threshold, count, secretLength),
+    setId,
+    secretDigest,
+    serialized,
+  );
   const digest = sha256(body).slice(0, CHECKSUM_BYTES);
   try {
     return concatBytes(body, digest);
@@ -118,17 +130,19 @@ function wordsToBytes(value: string): Uint8Array {
 }
 
 function parseEnvelope(bytes: Uint8Array): DecodedShare {
-  if (bytes.length < HEADER_BYTES + 17 + CHECKSUM_BYTES) throw new Error('Shamir share is too short.');
-  if (!equalBytes(bytes.slice(0, MAGIC.length), MAGIC) || bytes[MAGIC.length] !== VERSION) {
+  if (bytes.length < BASE_HEADER_BYTES + 17 + CHECKSUM_BYTES) throw new Error('Shamir share is too short.');
+  const version = bytes[MAGIC.length]!;
+  if (!equalBytes(bytes.slice(0, MAGIC.length), MAGIC) || (version !== LEGACY_VERSION && version !== VERSION)) {
     throw new Error('Unsupported Shamir share format or version.');
   }
+  const headerBytes = version === VERSION ? HEADER_BYTES : BASE_HEADER_BYTES;
   const threshold = bytes[5]!;
   const count = bytes[6]!;
   const secretLength = bytes[7]!;
   assertByteInteger(threshold, 'Share threshold', 2, 255);
   assertByteInteger(count, 'Share count', threshold, 255);
   if (![16, 20, 24, 28, 32].includes(secretLength)) throw new Error('Shamir share declares an invalid secret length.');
-  const expectedLength = HEADER_BYTES + secretLength + 1 + CHECKSUM_BYTES;
+  const expectedLength = headerBytes + secretLength + 1 + CHECKSUM_BYTES;
   if (bytes.length < expectedLength) throw new Error('Shamir share is truncated.');
   if (bytes.length > expectedLength && bytes.slice(expectedLength).some((byte) => byte !== 0)) {
     throw new Error('Shamir share contains unexpected trailing data.');
@@ -143,11 +157,15 @@ function parseEnvelope(bytes: Uint8Array): DecodedShare {
     expected.fill(0);
   }
   return {
+    version,
     threshold,
     count,
     secretLength,
     setId: exact.slice(8, 8 + SET_ID_BYTES),
-    serialized: exact.slice(HEADER_BYTES, -CHECKSUM_BYTES),
+    ...(version === VERSION
+      ? { secretDigest: exact.slice(BASE_HEADER_BYTES, BASE_HEADER_BYTES + SECRET_DIGEST_BYTES) }
+      : {}),
+    serialized: exact.slice(headerBytes, -CHECKSUM_BYTES),
   };
 }
 
@@ -184,6 +202,7 @@ export function createShamirShares(
   if (![16, 20, 24, 28, 32].includes(secret.length)) throw new Error('Enter a valid BIP39 recovery phrase.');
   const randomSeed = secureRandomBytes(32);
   const setId = secureRandomBytes(SET_ID_BYTES);
+  const secretDigest = sha256(secret).slice(0, SECRET_DIGEST_BYTES);
   initialize();
   const packed = splitShamirWasm(secret, threshold, count, randomSeed);
   randomSeed.fill(0);
@@ -196,6 +215,7 @@ export function createShamirShares(
         count,
         secret.length,
         setId,
+        secretDigest,
       );
       try {
         return encodeShare(wrapped, format);
@@ -207,6 +227,7 @@ export function createShamirShares(
   } finally {
     packed.fill(0);
     setId.fill(0);
+    secretDigest.fill(0);
   }
 }
 
@@ -217,10 +238,13 @@ export function recoverShamirShares(values: readonly string[], format: ShamirSha
     const first = shares[0]!;
     for (const share of shares.slice(1)) {
       if (
+        share.version !== first.version ||
         share.threshold !== first.threshold ||
         share.count !== first.count ||
         share.secretLength !== first.secretLength ||
-        !equalBytes(share.setId, first.setId)
+        !equalBytes(share.setId, first.setId) ||
+        (first.secretDigest !== undefined &&
+          (share.secretDigest === undefined || !equalBytes(share.secretDigest, first.secretDigest)))
       ) {
         throw new Error('The supplied Shamir shares belong to different sets.');
       }
@@ -232,13 +256,32 @@ export function recoverShamirShares(values: readonly string[], format: ShamirSha
     const packed = concatBytes(...shares.map((share) => share.serialized));
     initialize();
     try {
-      return recoverShamirWasm(packed, first.secretLength + 1, first.threshold);
+      let recovered: Uint8Array;
+      try {
+        recovered = recoverShamirWasm(packed, first.secretLength + 1, first.threshold);
+      } catch (cause) {
+        const detail = cause instanceof Error ? cause.message : String(cause);
+        throw new Error(`Shamir restoration failed: ${detail}`);
+      }
+      if (first.secretDigest !== undefined) {
+        const digest = sha256(recovered).slice(0, SECRET_DIGEST_BYTES);
+        try {
+          if (!equalBytes(digest, first.secretDigest)) {
+            recovered.fill(0);
+            throw new Error('Recovered Shamir secret does not match the share-set digest.');
+          }
+        } finally {
+          digest.fill(0);
+        }
+      }
+      return recovered;
     } finally {
       packed.fill(0);
     }
   } finally {
     for (const share of shares) {
       share.setId.fill(0);
+      share.secretDigest?.fill(0);
       share.serialized.fill(0);
     }
   }

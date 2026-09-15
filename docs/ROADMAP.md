@@ -41,7 +41,7 @@ References: [Dash Core releases](https://github.com/dashpay/dash/releases), [DIP
 
 ## September 2026 audit follow-up
 
-See [the detailed review](audits/2026-09-12-03-followup-audit.md) for public reproductions and priorities.
+See [the detailed review](audits/audit-06-2026-09-12.md) for public reproductions and priorities.
 
 - [x] Fix MuSig descriptor multipath validation before branch substitution, preserving original grammar and origins through script-tree parsing. Add valid aggregate and invalid participant/aggregate combinations.
 - [x] Validate BIP174 hash-preimage field widths and commitments; define which remaining known fields are structurally or semantically verified.

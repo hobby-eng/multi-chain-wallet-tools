@@ -9,9 +9,10 @@ Standalone HTML builds have independent coin and feature selections. With no sel
 - Mnemonics, seeds, xprvs and private keys never cross a network boundary.
 - Xpubs and descriptors are privacy-sensitive public material. Networked tools derive addresses locally and send providers only the concrete addresses or identifiers required for the current bounded request.
 - Orchard viewing material remains local; network workers receive only public chain-query parameters and return public chain data.
-- Network protocols use discriminated request allowlists, reject secret/private-material field names and arbitrary URLs, and minimize every request payload.
+- Connected builds without Dash pin every fixed Bitcoin/Ethereum provider origin in CSP. Dash Platform discovers quorum endpoints at runtime, so a build containing Dash retains an HTTPS-scheme connection boundary while application code and request protocols still expose no arbitrary URL input.
+- Network protocols use discriminated request allowlists, reject secret/private-material field names and arbitrary URLs, and minimize every request payload. The build generates an operation allowlist and dispatcher from the selected coins. The Worker validates exact envelope and payload keys, network names, public-token shape, request IDs and per-operation batch/range ceilings before dispatch; operations for excluded coins are absent from its code and rejected by construction.
 - PSBT Inspector and Key Derivation remain offline regardless of selected features.
-
+- Generated Rust modules must report the exact crates.io `wasm-bindgen 0.2.128` producer. Source-built CLIs that append Git metadata are rejected before generation, and committed WASM metadata is checked independently before verification.
 
 ## Coin bundles and application modules
 
@@ -19,12 +20,12 @@ Standalone HTML builds have independent coin and feature selections. With no sel
 
 Dash is one shared protocol stack, not four copied implementations. Shared address, derivation, Platform, Identity, Orchard and network primitives live in `packages/coin-protocols`, `packages/dash-network` and `packages/dash-shielded-wasm`. Each application adds only its own orchestration and presentation:
 
-| Application | Dash modules included by `--coins dash` |
-| --- | --- |
-| Key Derivation | Core, Purpose48 multisig, legacy mobile, CoinJoin, Platform payments, Identity and Orchard derivation adapters |
-| Activity Viewer | Core address activity plus separate Platform address, Identity and Orchard query runtimes |
-| Discovery Scanner | Seed/watch adapters for the enabled source modes and the complete supported Core, Platform, Identity and Orchard discovery scopes |
-| PSBT Inspector | Dash Core parsing/formatting within every selected Inspector workflow that supports Dash; Platform and Orchard are not PSBT protocols |
+| Application       | Dash modules included by `--coins dash`                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Key Derivation    | Core, Purpose48 multisig, legacy mobile, CoinJoin, Platform payments, Identity and Orchard derivation adapters                        |
+| Activity Viewer   | Core address activity plus separate Platform address, Identity and Orchard query runtimes                                             |
+| Discovery Scanner | Seed/watch adapters for the enabled source modes and the complete supported Core, Platform, Identity and Orchard discovery scopes     |
+| PSBT Inspector    | Dash Core parsing/formatting within every selected Inspector workflow that supports Dash; Platform and Orchard are not PSBT protocols |
 
 Bitcoin and Ethereum follow the same rule. Optional workflows remain controlled by `--features`/`--exclude`; removing one deletes its marked HTML fragment and prevents its UI, worker and WASM entrypoints from entering the bundle graph.
 
@@ -42,7 +43,7 @@ Coins: `bitcoin`, `dash`, `ethereum`. Selecting Dash includes every supported Da
 | `wallet-matcher`  | Match known addresses against candidate mnemonics, accounts, branches and indices.       | Any selected coin |
 | `seedqr`          | Encode/decode Standard SeedQR and CompactSeedQR, including QR image import/export.       | Coin-independent  |
 | `slip39`          | Create and restore SLIP-39 mnemonic shares.                                              | Coin-independent  |
-| `shamir`          | Create and restore CKD Shamir Raw and Shamir Words shares.                               | Coin-independent  |
+| `shamir`          | Create and restore versioned CKD Shamir Raw and Words shares with a share-set digest.    | Coin-independent  |
 | `codex32`         | Encode and decode Codex32 BIP39-entropy or BIP32-seed records.                           | Coin-independent  |
 
 ## Activity Viewer
@@ -99,7 +100,7 @@ pnpm build:html -- --profile multi-chain --tool psbt-inspector \
   --coins bitcoin --features psbt-decoder,descriptor-decoder
 ```
 
-Selective artifacts are written below `dist/custom-builds/` unless `--output path/to/file.html` is supplied. Canonical release filenames are reserved for complete edition builds. Invalid combinations fail before bundling; for example, `wallet-matcher` requires `seed-discovery`, and an Inspector build requires at least one workflow.
+Selective artifacts are written below `dist/custom-builds/` unless `--output path/to/file.html` is supplied. `--output` rejects every path inside either canonical edition directory; canonical release artifacts can only be written by complete profile builds. Invalid combinations fail before bundling; for example, `wallet-matcher` requires `seed-discovery`, and an Inspector build requires at least one workflow.
 
 ## Exhaustive build matrix
 
@@ -120,6 +121,6 @@ pnpm build:matrix:check
 pnpm build:matrix
 ```
 
-The smoke matrix covers every canonical full build, every supported coin alone and every optional feature in a minimal valid composition. It is a fast regression gate, not proof of every feature interaction.
+The smoke matrix covers every canonical full build, every supported coin alone and every optional feature in a minimal valid composition. It is a fast regression gate, not proof of every feature interaction. The reproducible Docker build runs this bounded matrix after the canonical verification cycle, without retaining its temporary artifacts.
 
 Saved variants use `dist/build-matrix/<profile>/<tool>/<coins>/<features>.html`. The generated `matrix-index.json` records each composition, path, byte size and SHA-256 digest. `--profile` and `--tool` may constrain any matrix command. Exhaustive mode is intentionally expensive because all optional-feature subsets are distinct builds.

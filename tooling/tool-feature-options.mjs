@@ -1,4 +1,4 @@
-import { basename, resolve } from 'node:path';
+import { basename, isAbsolute, relative, resolve } from 'node:path';
 
 export const TOOL_FEATURE_DEFINITIONS = Object.freeze({
   'activity-viewer': {
@@ -82,11 +82,54 @@ export function parseToolFeatureOptions(toolId, profile, args = process.argv.sli
   });
 }
 
+const FIXED_PROVIDER_ORIGINS = Object.freeze({
+  bitcoin: [
+    'https://blockstream.info',
+    'https://mempool.space',
+    'https://blockchain.info',
+    'https://api.blockcypher.com',
+  ],
+  ethereum: [
+    'https://ethereum-rpc.publicnode.com',
+    'https://ethereum-sepolia-rpc.publicnode.com',
+    'https://eth.blockscout.com',
+    'https://eth-sepolia.blockscout.com',
+  ],
+});
+
+export function applySelectedNetworkCsp(template, options) {
+  // Dash Platform discovers quorum endpoints at runtime, so Dash builds retain
+  // the HTTPS scheme boundary. Fixed-provider Bitcoin/Ethereum builds can pin
+  // every permitted origin directly in CSP.
+  if (options.hasCoin('dash')) return template;
+  const origins = [...new Set(options.coins.flatMap((coin) => FIXED_PROVIDER_ORIGINS[coin] ?? []))];
+  if (origins.length === 0) throw new Error('No fixed CSP provider origins exist for the selected coins.');
+  const marker = 'connect-src https:';
+  if (!template.includes(marker)) throw new Error('Connected-tool template is missing its connect-src marker.');
+  return template.replace(marker, `connect-src ${origins.join(' ')}`);
+}
+
+export function assertSafeCustomOutput(root, output) {
+  for (const directory of ['multi-chain-edition', 'dash-community-edition']) {
+    const canonicalRoot = resolve(root, 'dist', directory);
+    const pathFromCanonicalRoot = relative(canonicalRoot, output);
+    if (
+      pathFromCanonicalRoot === '' ||
+      (!pathFromCanonicalRoot.startsWith('..') && !isAbsolute(pathFromCanonicalRoot))
+    ) {
+      throw new Error(
+        `--output cannot write inside ${relative(root, canonicalRoot)}. Canonical release artifacts are reserved for full profile builds.`,
+      );
+    }
+  }
+}
+
 export function customToolArtifact(root, profile, toolId, tool, options, requestedOutput) {
   if (!options.custom && requestedOutput === undefined) return undefined;
   if (requestedOutput !== undefined) {
     const output = resolve(root, requestedOutput);
     if (!output.endsWith('.html')) throw new Error('--output must name an .html file.');
+    assertSafeCustomOutput(root, output);
     return output;
   }
   const featureSlug = options.selected.length === 0 ? 'base' : options.selected.join('_');
