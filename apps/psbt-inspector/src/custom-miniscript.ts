@@ -1,7 +1,7 @@
 import { NETWORK, TEST_NETWORK, p2tr, taprootNumsKey } from '@scure/btc-signer';
 import { bech32 } from '@scure/base';
 import { bytesToHex, sha256 } from '@ckd/core/crypto.js';
-import { descriptorChecksum } from './descriptor.js';
+import { descriptorChecksum } from '@ckd/core/descriptor-checksum.js';
 import { compilePolicyMiniscript } from './miniscript-engine.js';
 import type { PsbtNetwork } from './psbt.js';
 import { CONSENSUS_LIMITS } from './consensus-limits.js';

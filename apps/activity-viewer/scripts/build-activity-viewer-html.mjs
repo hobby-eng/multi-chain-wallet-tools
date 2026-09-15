@@ -11,6 +11,7 @@ import {
   createActivityViewerCompositionPlugin,
 } from '../../../tooling/activity-viewer-composition.mjs';
 import {
+  applySelectedNetworkCsp,
   artifactDisplayName,
   customToolArtifact,
   parseRequestedOutput,
@@ -31,10 +32,11 @@ const options = parseToolFeatureOptions('activity-viewer', profile);
 const customArtifact = customToolArtifact(root, profile, 'activity-viewer', tool, options, parseRequestedOutput());
 const scriptCsp = (javascript) => `'sha256-${createHash('sha256').update(javascript).digest('base64')}'`;
 if (options.hasCoin('dash')) verifyDashSdkBuild(root, 'The viewer');
-const template = applyActivityCoinTemplate(
+let template = applyActivityCoinTemplate(
   applyProfileTemplate(readFileSync(resolve(root, 'apps/activity-viewer/src/index.html'), 'utf8'), profile, tool),
   options,
 );
+template = applySelectedNetworkCsp(template, options);
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const viewerCss = readFileSync(resolve(root, 'apps/activity-viewer/src/styles.css'), 'utf8');
 const shellCss = readFileSync(resolve(root, 'packages/shared-ui/styles/tool-shell.css'), 'utf8');

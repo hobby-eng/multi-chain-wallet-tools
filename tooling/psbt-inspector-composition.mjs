@@ -117,7 +117,8 @@ export function createPsbtCompositionPlugin(root, options, basePlugin) {
           filter:
             /^\.\/(?:bip38-decryptor|descriptor|multisig-wallet|policy|preimage|psbt|script|message-verifier|signing-commitments|transaction-display|dash-import)\.js$/,
         },
-        ({ path }) => {
+        ({ path, importer }) => {
+          if (!importer.replaceAll('\\', '/').includes('/apps/psbt-inspector/src/')) return undefined;
           const selected = aliases.get(path);
           if (selected === undefined) return undefined;
           return typeof selected === 'string' && selected.startsWith('/')

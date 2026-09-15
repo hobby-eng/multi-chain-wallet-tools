@@ -201,12 +201,12 @@ export function selectedWorkerEntry(root, profile, features) {
     [
       'bip38-encrypt',
       'encryptDerivedP2pkhKey',
-      profile.id === 'dash-community' ? 'bip38-encrypter-dash.ts' : 'bip38-encrypter.ts',
+      features.hasCoin('bitcoin') ? 'bip38-encrypter.ts' : 'bip38-encrypter-dash.ts',
     ],
     [
       'message-signing',
       'signDerivedMessage',
-      profile.id === 'dash-community' ? 'message-signer-dash.ts' : 'message-signer.ts',
+      features.hasCoin('bitcoin') ? 'message-signer.ts' : 'message-signer-dash.ts',
     ],
   ];
   for (const [feature, symbol, file] of optional) {

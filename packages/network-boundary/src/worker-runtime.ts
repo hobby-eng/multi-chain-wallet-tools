@@ -7,15 +7,18 @@ import {
   type RecoveryNetworkResponse,
 } from './protocol.js';
 
-export type NetworkRequestExecutor = (
-  service: RecoveryNetworkApi,
+export type NetworkRequestExecutor<Service = RecoveryNetworkApi> = (
+  service: Service,
   request: RecoveryNetworkRequest,
   signal: AbortSignal,
 ) => Promise<unknown>;
 
-export function startNetworkBoundaryWorker(
-  service: RecoveryNetworkApi,
-  execute: NetworkRequestExecutor,
+export type NetworkRequestValidator = (value: unknown) => RecoveryNetworkRequest;
+
+export function startNetworkBoundaryWorker<Service>(
+  service: Service,
+  execute: NetworkRequestExecutor<Service>,
+  validate: NetworkRequestValidator,
   formatError: (cause: unknown) => string = (cause) => (cause instanceof Error ? cause.message : String(cause)),
 ): void {
   const controllers = new Map<string, AbortController>();
@@ -31,8 +34,21 @@ export function startNetworkBoundaryWorker(
         if (typeof message.id === 'string') controllers.get(message.id)?.abort();
         return;
       }
-      const request = message.request as Partial<RecoveryNetworkRequest> | null;
-      if (typeof request !== 'object' || request === null || typeof request.id !== 'string') return;
+      const candidate = message.request as { id?: unknown } | null;
+      const candidateId = typeof candidate?.id === 'string' ? candidate.id : undefined;
+      let request: RecoveryNetworkRequest;
+      try {
+        request = validate(message.request);
+      } catch (cause) {
+        if (candidateId !== undefined) {
+          port.postMessage({
+            id: candidateId,
+            ok: false,
+            error: formatError(cause),
+          } satisfies RecoveryNetworkResponse);
+        }
+        return;
+      }
       const requestId = request.id;
       if (controllers.has(requestId)) {
         port.postMessage({

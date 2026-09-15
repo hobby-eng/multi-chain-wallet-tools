@@ -90,6 +90,7 @@ function fixtureRoot() {
     'packages/recovery-codex32-wasm/rust/src/lib.rs',
     'packages/recovery-backup/src/codex32.ts',
     'packages/recovery-backup/tests/codex32.test.ts',
+    'packages/recovery-backup/tests/fixtures/bip93-vectors.json',
     'packages/shared-ui/src/payment-qr.ts',
     'packages/shared-ui/src/qr-image-import.ts',
     'packages/shared-ui/src/qr-image-import.test.ts',

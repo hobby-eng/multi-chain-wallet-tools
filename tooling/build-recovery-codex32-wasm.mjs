@@ -1,32 +1,18 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { assertExactToolVersion, resolveRustToolchain } from './rust-toolchain.mjs';
+import { assertCanonicalWasmBindgenProducer } from './verify-wasm-producers.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const sharedTools = resolve(root, '..', '.tools');
-const localTools = resolve(root, '.tools');
-const tools = existsSync(resolve(localTools, 'cargo/bin/cargo')) ? localTools : sharedTools;
-const cargoHome = resolve(tools, 'cargo');
-const rustupHome = resolve(tools, 'rustup');
-const cargo = resolve(cargoHome, 'bin/cargo');
-const wasmBindgen = resolve(cargoHome, 'bin/wasm-bindgen');
+const { cargo, wasmBindgen, environment } = resolveRustToolchain(root);
 const manifest = resolve(root, 'packages/recovery-codex32-wasm/rust/Cargo.toml');
 const compiled = resolve(
   root,
   'packages/recovery-codex32-wasm/rust/target/wasm32-unknown-unknown/release/recovery_codex32_wasm.wasm',
 );
 const generated = resolve(root, 'packages/recovery-codex32-wasm/generated');
-const environment = {
-  ...process.env,
-  CARGO_HOME: cargoHome,
-  RUSTUP_HOME: rustupHome,
-  CARGO_ENCODED_RUSTFLAGS: [
-    `--remap-path-prefix=${cargoHome}=/cargo`,
-    `--remap-path-prefix=${rustupHome}=/rustup`,
-    `--remap-path-prefix=${root}=/workspace`,
-  ].join('\u001f'),
-};
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, env: environment, stdio: 'inherit' });
@@ -34,9 +20,11 @@ function run(command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+assertExactToolVersion(wasmBindgen, 'wasm-bindgen 0.2.128', { cwd: root, env: environment });
 run(cargo, ['build', '--manifest-path', manifest, '--target', 'wasm32-unknown-unknown', '--release', '--locked']);
 mkdirSync(generated, { recursive: true });
 run(wasmBindgen, [compiled, '--target', 'web', '--out-dir', generated]);
+assertCanonicalWasmBindgenProducer(readFileSync(resolve(generated, 'recovery_codex32_wasm_bg.wasm')), 'Codex32 WASM');
 const gluePath = resolve(generated, 'recovery_codex32_wasm.js');
 const fullGlue = readFileSync(gluePath, 'utf8');
 function removeSection(source, startMarker, endMarker) {

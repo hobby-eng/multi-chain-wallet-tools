@@ -76,6 +76,7 @@ const LOCAL_IMPLEMENTATIONS = [
       'packages/recovery-codex32-wasm/rust/src/lib.rs',
       'packages/recovery-backup/src/codex32.ts',
       'packages/recovery-backup/tests/codex32.test.ts',
+      'packages/recovery-backup/tests/fixtures/bip93-vectors.json',
     ],
   },
   {
