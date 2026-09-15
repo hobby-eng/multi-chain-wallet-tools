@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createKeyDerivationController } from '../src/ui/controller.js';
+import { createMessageSigningInstaller } from '../src/ui/message-signing-feature.js';
+import { BITCOIN_MESSAGE_SIGNING_POLICY } from '../src/ui/message-signing-policy-bitcoin.js';
 import type { KeyDerivationView } from '../src/ui/view.js';
 import type { ResultsRenderOptions } from '../src/ui/results.js';
 
@@ -7,10 +9,19 @@ class Control extends EventTarget {
   value = '';
   checked = false;
   disabled = false;
+  hidden = false;
   open = false;
+  textContent = '';
   querySelectorAll(): Control[] {
     return [];
   }
+  showModal(): void {
+    this.open = true;
+  }
+  close(): void {
+    this.open = false;
+  }
+  focus(): void {}
   click(): void {
     this.dispatchEvent(new Event('click'));
   }
@@ -53,13 +64,40 @@ async function fixture() {
     'selectNoneButton',
     'selectInvertButton',
     'messageSignerDialog',
+    'messageSignerFormatField',
+    'messageSignerFormatSelect',
+    'messageSignerFormat',
+    'messageSignerAddress',
+    'messageSignerPath',
     'messageSignerMessage',
     'signMessageButton',
     'closeMessageSignerButton',
+    'messageSignerError',
+    'messageSignatureResult',
     'messageSignatureOutput',
+    'messageSignatureVerification',
     'copyMessageSignature',
   ];
   const fields = Object.fromEntries(names.map((name) => [name, new Control()]));
+  const bySelector = new Map(
+    Object.entries({
+      '#message-signer-dialog': fields.messageSignerDialog,
+      '#message-signer-format-field': fields.messageSignerFormatField,
+      '#message-signer-format-select': fields.messageSignerFormatSelect,
+      '#message-signer-format': fields.messageSignerFormat,
+      '#message-signer-address': fields.messageSignerAddress,
+      '#message-signer-path': fields.messageSignerPath,
+      '#message-signer-message': fields.messageSignerMessage,
+      '#sign-message-button': fields.signMessageButton,
+      '#close-message-signer': fields.closeMessageSignerButton,
+      '#message-signer-error': fields.messageSignerError,
+      '#message-signature-result': fields.messageSignatureResult,
+      '#message-signature-output': fields.messageSignatureOutput,
+      '#message-signature-verification': fields.messageSignatureVerification,
+      '#copy-message-signature': fields.copyMessageSignature,
+    }),
+  );
+  Object.assign(fields.document!, { querySelector: (selector: string) => bySelector.get(selector) ?? null });
   const controls = Object.fromEntries(
     [
       'coin',
@@ -129,10 +167,13 @@ async function fixture() {
       return seed;
     },
     runBip39SelfTest: () => ({ passed: true, checks: [], durationMs: 0 }),
+    runRecoveryBackupSelfTest: () => ({ passed: true, checks: [], durationMs: 0 }),
+    setRecoveryControlsEnabled: vi.fn(),
     writeClipboard: vi.fn(),
     downloadBlob: vi.fn(),
     downloadText: vi.fn(),
     createWorker,
+    installMessageSigningFeature: createMessageSigningInstaller(BITCOIN_MESSAGE_SIGNING_POLICY),
   } as unknown as Parameters<typeof createKeyDerivationController>[1];
   createKeyDerivationController(view, dependencies).start();
   await settle();
@@ -173,14 +214,17 @@ describe('message signing request lifecycle', () => {
     f.options.onSignMessage(0, 'another-public-test-address');
     f.reject(new Error('Obsolete worker error'));
     await settle();
-    expect(f.method('showMessageSignerError')).not.toHaveBeenCalled();
+    expect(f.fields.messageSignerError!.hidden).toBe(true);
+    expect(f.fields.messageSignerError!.textContent).not.toBe('Obsolete worker error');
   });
 
   it('shows a verified signature for the current request', async () => {
     const f = await fixture();
     f.resolve({ signature: 'current-signature', format: 'BIP-322', verified: true });
     await settle();
-    expect(f.method('showMessageSignature')).toHaveBeenCalledWith('current-signature', 'BIP-322');
+    expect(f.fields.messageSignatureOutput!.value).toBe('current-signature');
+    expect(f.fields.messageSignatureResult!.hidden).toBe(false);
+    expect(f.fields.messageSignatureVerification!.textContent).toContain('BIP-322');
     expect(f.seeds.every((seed) => seed.every((byte) => byte === 0))).toBe(true);
   });
 });

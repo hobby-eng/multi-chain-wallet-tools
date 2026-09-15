@@ -18,3 +18,11 @@ Dash Platform and Dash Orchard functionality relies on open-source work authored
 This repository's code integrates those components for key derivation, activity inspection, wallet discovery, and offline PSBT, Script, descriptor, and multisig-policy inspection. Upstream names identify technical provenance; they do not transfer authorship of upstream code to this project.
 
 Exact pinned versions, commits, package integrity values, transitive dependencies, copyright notices and license identifiers are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [Dash implementation reference](docs/reference/DASH_IMPLEMENTATION.md), the lockfiles and the Release passport embedded in each standalone artifact.
+
+- **SLIP-39 reference implementation and wordlist** — recovery encoding logic and official vectors adapted from Trezor's MIT-licensed [`python-shamir-mnemonic`](https://github.com/trezor/python-shamir-mnemonic).
+- **Shamir Secret Sharing** — the CKD Raw/Words formats use the pinned MIT OR Apache-2.0 [`sharks`](https://github.com/c0dearm/sharks) Rust implementation.
+- **Codex32 / BIP93** — checksum and GF(32) interpolation use Andrew Poelstra's CC0 [`rust-codex32`](https://github.com/apoelstra/rust-codex32) reference implementation and official BIP93 vectors.
+
+- **Ian Coleman BIP39** — the Seed Diagnostic entropy-detail presentation (word indexes, binary groups, and checksum breakdown) is adapted conceptually from the MIT-licensed [`iancoleman/bip39`](https://github.com/iancoleman/bip39); all BIP39 validation and entropy conversion remain delegated to the pinned `@scure/bip39` implementation.
+- **SeedSigner SeedQR** — Standard SeedQR and CompactSeedQR formats and public test vectors: [github.com/SeedSigner/seedsigner](https://github.com/SeedSigner/seedsigner), MIT licensed.
+- **Paul Miller QR** — zero-dependency offline QR image decoder used for local recovery imports: [github.com/paulmillr/qr](https://github.com/paulmillr/qr), MIT OR Apache-2.0 licensed.

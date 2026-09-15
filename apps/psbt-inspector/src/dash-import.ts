@@ -1,4 +1,4 @@
-import { descriptorChecksum } from './descriptor.js';
+import { descriptorChecksum } from '@ckd/core/descriptor-checksum.js';
 
 export interface DashCoreImportArtifacts {
   readonly legacyCommand: string;

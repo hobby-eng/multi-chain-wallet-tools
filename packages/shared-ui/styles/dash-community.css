@@ -643,3 +643,12 @@ footer {
     background-attachment: scroll;
   }
 }
+
+/* The global Derive/Recovery switch belongs to the Dash blue hierarchy. */
+.top-mode-tab.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #315fbf, #214b9d);
+  box-shadow:
+    inset 0 1px rgba(206, 225, 255, 0.22),
+    0 7px 18px rgba(16, 55, 141, 0.18);
+}

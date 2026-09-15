@@ -25,7 +25,7 @@ import {
   WatchOnlyNotRecognizedError,
 } from '@ckd/recovery/watch-only.js';
 import { MULTI_CHAIN_WATCH_ONLY_PREFIX_COINS } from '@ckd/recovery/watch-only/multi-chain-profile.js';
-import { extendAddressTarget } from '../dash/util.js';
+import { extendAddressTarget } from '../../address-gap.js';
 import { ETHEREUM_VERSIONS, formatEther } from './shared.js';
 
 export function detectEthereumWatchOnly(raw: string, mode: { auto: boolean }): DetectedWatchOnlyMaterial {

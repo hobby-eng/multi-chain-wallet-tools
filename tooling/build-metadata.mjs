@@ -17,7 +17,7 @@ function collectFiles(root, relativePath, output) {
   }
 }
 
-export function createBuildInfo(root, checksumFile, profile) {
+export function createBuildInfo(root, checksumFile, profile, composition = {}) {
   const release = readReleaseMetadata(root);
   const files = [];
   for (const path of [
@@ -50,5 +50,6 @@ export function createBuildInfo(root, checksumFile, profile) {
     checksumFile,
     profile: profile.id,
     edition: profile.editionName,
+    ...composition,
   };
 }

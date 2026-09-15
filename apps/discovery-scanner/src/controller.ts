@@ -1,37 +1,36 @@
-import { scanCandidates } from './candidate-scan.js';
-import { customScanPaths } from './coins/custom-path.js';
-import {
-  assertWatchOnlyBatchInput,
-  assertWatchOnlyMinimum,
-  parseWatchOnlyLines,
-  resolveWatchOnlyTargets,
-} from '@ckd/recovery/watch-only.js';
 import { enrichRecoveryHistory } from './history.js';
 import type { RecoveryExportFile, RecoveryExportFormat } from './export.js';
 import type { RecoveryCoinRegistry } from './coins/registry.js';
 import type { RecoverySelfTestReport } from './recovery-self-test.js';
 import type { DiscoveryScannerView, RecoveryInputSnapshot, WalletProgressView } from './view.js';
 import type {
-  RecoveryCoinAdapter,
   RecoveryFinding,
   RecoveryInputMode,
   RecoveryProgress,
-  RecoveryScanConfig,
   RecoverySectionId,
   RecoverySeedInput,
   RecoveryWalletResult,
-  RecoveryWatchOnlyInput,
-  RecoveryWatchOnlyScanConfig,
 } from './types.js';
-import { parseInteger, parseConcurrency } from '@ckd/core/validation.js';
+import { parseConcurrency } from '@ckd/core/validation.js';
+import { wipeRecoveryInputSnapshot } from './input-snapshot.js';
+import type { WatchOnlyTarget } from './watch-only-input.js';
 
 interface DiscoveryScannerDependencies {
   RecoveryConcurrencyLimiter: typeof import('./concurrency.js').RecoveryConcurrencyLimiter;
   SecretEgressGuard: typeof import('@ckd/secret-boundary/secret-guard.js').SecretEgressGuard;
   assertValidMnemonic: typeof import('@ckd/core/bip39.js').assertValidMnemonic;
-  assertWatchOnlyBatchInput: typeof assertWatchOnlyBatchInput;
-  parseWatchOnlyLines: typeof parseWatchOnlyLines;
-  resolveWatchOnlyTargets: typeof resolveWatchOnlyTargets;
+  assertWatchOnlyBatchInput?: typeof import('@ckd/recovery/watch-only.js').assertWatchOnlyBatchInput;
+  assertWatchOnlyMinimum?: typeof import('@ckd/recovery/watch-only.js').assertWatchOnlyMinimum;
+  parseWatchOnlyLines?: typeof import('@ckd/recovery/watch-only.js').parseWatchOnlyLines;
+  resolveWatchOnlyTargets?: typeof import('@ckd/recovery/watch-only.js').resolveWatchOnlyTargets;
+  scanCandidates?: typeof import('./candidate-scan.js').scanCandidates;
+  createRecoverySeedInputs?: typeof import('./seed-scan-input.js').createRecoverySeedInputs;
+  recoveryScanConfig?: typeof import('./seed-scan-input.js').recoveryScanConfig;
+  wipeRecoverySeedInputs?: typeof import('./seed-scan-input.js').wipeRecoverySeedInputs;
+  resolveWatchOnlyScanTargets?: typeof import('./watch-only-input.js').resolveWatchOnlyScanTargets;
+  watchOnlyScanConfig?: typeof import('./watch-only-input.js').watchOnlyScanConfig;
+  wipeWatchOnlyTargets?: typeof import('./watch-only-input.js').wipeWatchOnlyTargets;
+  customScanPaths?: typeof import('./coins/custom-path.js').customScanPaths;
   createRecoveryExport: typeof import('./export.js').createRecoveryExport;
   describeUnknownError: typeof import('@ckd/core/error-handling.js').describeUnknownError;
   getRecoveryCoin: RecoveryCoinRegistry['getRecoveryCoin'];
@@ -47,58 +46,6 @@ const exportTripwireContext: Record<RecoveryExportFormat, string> = {
   csv: 'recovery CSV report export',
   json: 'recovery JSON report export',
 };
-
-function scanConfig(snapshot: RecoveryInputSnapshot): RecoveryScanConfig {
-  return {
-    network: snapshot.network === 'testnet' ? 'testnet' : 'mainnet',
-    account: parseInteger(snapshot.account, 'Account', 0),
-    scanCore: snapshot.scanCore,
-    coreReceiveCount: parseInteger(snapshot.coreReceiveCount, 'Core receive count', 0),
-    coreChangeCount: parseInteger(snapshot.coreChangeCount, 'Core change count', 0),
-    scanCustomPath: snapshot.scanCustomPath,
-    customPathTemplate: snapshot.customPathTemplate.trim(),
-    ...(snapshot.scanCustomPath && snapshot.scanCustomRange
-      ? { customPathRangeEnd: snapshot.customPathRangeEnd.trim() }
-      : {}),
-    customPathFormat: snapshot.customPathFormat,
-    customPathCount: parseInteger(snapshot.customPathCount, 'Custom path address count', 1),
-    scanLegacyCore: snapshot.scanLegacyCore,
-    legacyCoreCount: parseInteger(snapshot.legacyCoreCount, 'Legacy Core address count', 0),
-    scanCoinJoin: snapshot.scanCoinJoin,
-    coinJoinExternalCount: parseInteger(
-      snapshot.coinJoinExternalCount,
-      'Dash Mobile CoinJoin · DIP9 external address count',
-      0,
-    ),
-    coinJoinInternalCount: parseInteger(
-      snapshot.coinJoinInternalCount,
-      'Dash Mobile CoinJoin · DIP9 internal address count',
-      0,
-    ),
-    scanIdentityFunding: snapshot.scanIdentityFunding,
-    identityFundingCount: parseInteger(snapshot.identityFundingCount, 'Registration funding keys to compare', 0),
-    identityTopUpIdentityCount: parseInteger(
-      snapshot.identityTopUpIdentityCount,
-      'Identity-bound top-up identity count',
-      0,
-    ),
-    identityTopUpCount: parseInteger(snapshot.identityTopUpCount, 'Identity-bound top-ups per identity', 0),
-    scanProviderCollateral: snapshot.scanProviderCollateral,
-    providerCollateralCount: parseInteger(
-      snapshot.providerCollateralCount,
-      'Provider collateral/holdings address count',
-      0,
-    ),
-    scanPlatformAddresses: snapshot.scanPlatformAddresses,
-    platformAddressCount: parseInteger(snapshot.platformAddressCount, 'Platform address count', 0),
-    scanPlatformIdentities: snapshot.scanPlatformIdentities,
-    identityStartIndex: parseInteger(snapshot.identityStartIndex, 'Identity start index', 0),
-    identityGapLimit: parseInteger(snapshot.identityGapLimit, 'Identity gap limit', 1),
-    identityScanLimit: parseInteger(snapshot.identityScanLimit, 'Identity scan limit', 1),
-    includeUsedZeroBalance: snapshot.includeUsedZeroBalance,
-    scanShieldedPool: snapshot.scanShieldedPool,
-  };
-}
 
 export function createDiscoveryScannerController(
   view: DiscoveryScannerView,
@@ -142,110 +89,13 @@ export function createDiscoveryScannerController(
     setRevealed(false);
   }
 
-  function recoveryInputs(snapshot: RecoveryInputSnapshot): RecoverySeedInput[] {
-    if (inputMode === 'single') {
-      return [
-        {
-          id: 'seed-1',
-          label: 'Seed phrase #1',
-          mnemonic: dependencies.assertValidMnemonic(snapshot.singleMnemonic),
-          passphrase: snapshot.singlePassphrase,
-        },
-      ];
-    }
-    const mnemonicLines = snapshot.batchMnemonics.replaceAll('\r', '').split('\n');
-    const passphraseLines = snapshot.batchPassphrases.replaceAll('\r', '').split('\n');
-    const inputs: RecoverySeedInput[] = [];
-    mnemonicLines.forEach((mnemonic, lineIndex) => {
-      if (mnemonic.trim().length === 0) return;
-      const number = inputs.length + 1;
-      inputs.push({
-        id: `seed-${number}`,
-        label: `Seed phrase #${number} · source line ${lineIndex + 1}`,
-        mnemonic: dependencies.assertValidMnemonic(mnemonic),
-        passphrase: passphraseLines[lineIndex] ?? '',
-      });
-    });
-    if (inputs.length === 0) throw new Error('Enter at least one BIP39 seed phrase in batch mode.');
-    return inputs;
-  }
-
-  function wipeInputObjects(inputs: RecoverySeedInput[]): void {
-    for (const input of inputs) {
-      input.mnemonic = '';
-      input.passphrase = '';
-    }
-  }
-
-  function wipeInputSnapshot(snapshot: RecoveryInputSnapshot): void {
-    snapshot.singleMnemonic = '';
-    snapshot.singlePassphrase = '';
-    snapshot.batchMnemonics = '';
-    snapshot.batchPassphrases = '';
-    snapshot.watchOnlyKeys = '';
-  }
-
-  interface WatchOnlyTarget {
-    input: RecoveryWatchOnlyInput;
-    adapter: RecoveryCoinAdapter;
-    network?: 'mainnet' | 'testnet';
-    ambiguous: boolean;
-  }
-
-  function watchOnlyScanConfig(snapshot: RecoveryInputSnapshot): RecoveryWatchOnlyScanConfig {
-    const minimumCount = parseInteger(snapshot.watchOnlyMinimumCount, 'Watch-only address minimum', 1);
-    assertWatchOnlyMinimum(minimumCount);
-    return {
-      network: snapshot.network === 'testnet' ? 'testnet' : 'mainnet',
-      minimumCount,
-      includeUsedZeroBalance: snapshot.includeUsedZeroBalance,
-    };
-  }
-
-  function watchOnlyTargets(snapshot: RecoveryInputSnapshot): WatchOnlyTarget[] {
-    dependencies.assertWatchOnlyBatchInput(snapshot.watchOnlyKeys);
-    const lines = dependencies.parseWatchOnlyLines(snapshot.watchOnlyKeys);
-    if (lines.length === 0) {
-      throw new Error(
-        'Enter at least one public key, extended public key, descriptor, Identity value, or Orchard viewing key.',
-      );
-    }
-    const adapters =
-      snapshot.coinId === 'auto' ? dependencies.listRecoveryCoins() : [dependencies.getRecoveryCoin(snapshot.coinId)];
-    return lines.flatMap((line, index) => {
-      const resolved = dependencies.resolveWatchOnlyTargets(line, adapters);
-      if (snapshot.coinId === 'auto' && resolved.some(({ ambiguity }) => ambiguity !== undefined)) {
-        const labels = [
-          ...new Set(
-            resolved.map(
-              ({ material, adapterId }) => material.detectionLabel ?? dependencies.getRecoveryCoin(adapterId).label,
-            ),
-          ),
-        ];
-        throw new Error(
-          `This public key does not identify one coin. Select Coin before scanning. A Dash xpub may also require an explicit Core, CoinJoin, or Platform prefix. Compatible candidates: ${labels.join(' · ')}.`,
-        );
-      }
-      return resolved.map((target) => {
-        const adapter = dependencies.getRecoveryCoin(target.adapterId);
-        const number = index + 1;
-        return {
-          adapter,
-          ...(target.network === undefined ? {} : { network: target.network }),
-          ambiguous: resolved.length > 1,
-          input: {
-            id: `watch-${number}-${adapter.id}`,
-            label: `Public key #${number} · ${target.material.detectionLabel ?? adapter.label}${resolved.length > 1 ? ' · candidate' : ''}`,
-            ...target.material,
-          },
-        };
-      });
-    });
-  }
-
-  function wipeWatchOnlyTargets(targets: readonly WatchOnlyTarget[]): void {
-    for (const { input } of targets) input.value = '';
-  }
+  const recoveryInputs = (snapshot: RecoveryInputSnapshot) => {
+    if (dependencies.createRecoverySeedInputs === undefined)
+      throw new Error('Seed discovery is not included in this build.');
+    return dependencies.createRecoverySeedInputs(snapshot, inputMode, dependencies.assertValidMnemonic);
+  };
+  const wipeInputObjects = (inputs: RecoverySeedInput[]) => dependencies.wipeRecoverySeedInputs?.(inputs);
+  const wipeInputSnapshot = wipeRecoveryInputSnapshot;
 
   function renderResults(): void {
     if (!resultTabTouched || !currentResults.some(({ inputId }) => inputId === activeResultId)) {
@@ -389,7 +239,8 @@ export function createDiscoveryScannerController(
   }
 
   function startCandidateScan(snapshot: RecoveryInputSnapshot): void {
-    const config = scanConfig(snapshot);
+    if (dependencies.recoveryScanConfig === undefined) throw new Error('Seed discovery is not included in this build.');
+    const config = dependencies.recoveryScanConfig(snapshot);
     const adapters = [...new Set(snapshot.candidateCoinIds ?? [])].map((id) => dependencies.getRecoveryCoin(id));
     if (adapters.length === 0) {
       wipeInputSnapshot(snapshot);
@@ -441,7 +292,9 @@ export function createDiscoveryScannerController(
     void (async () => {
       try {
         const networkApi = await dependencies.recoveryNetworkApi();
-        await scanCandidates(
+        if (dependencies.scanCandidates === undefined)
+          throw new Error('Seed candidate discovery is not included in this build.');
+        await dependencies.scanCandidates(
           inputs,
           adapters,
           config,
@@ -540,8 +393,12 @@ export function createDiscoveryScannerController(
         // the raw form snapshot must not survive into the asynchronous scan.
         wipeInputSnapshot(snapshot);
       }
-      const config = scanConfig(snapshot);
-      customScanPaths(config); // Validate both endpoints before starting scan queries.
+      if (dependencies.recoveryScanConfig === undefined)
+        throw new Error('Seed discovery is not included in this build.');
+      const config = dependencies.recoveryScanConfig(snapshot);
+      if (config.scanCustomPath && dependencies.customScanPaths === undefined)
+        throw new Error('Custom paths are not included in this build.');
+      dependencies.customScanPaths?.(config); // Validate both endpoints before starting scan queries.
       const seedConcurrency =
         inputMode === 'single' ? 1 : parseConcurrency(snapshot.batchConcurrency, 'Batch seed concurrency');
       const requestConcurrency = parseConcurrency(snapshot.requestConcurrency, 'Network concurrency');
@@ -677,13 +534,17 @@ export function createDiscoveryScannerController(
     let targets: WatchOnlyTarget[] = [];
     try {
       try {
-        targets = watchOnlyTargets(snapshot);
+        if (dependencies.resolveWatchOnlyScanTargets === undefined)
+          throw new Error('Watch-only discovery is not included in this build.');
+        targets = dependencies.resolveWatchOnlyScanTargets(snapshot, dependencies);
       } finally {
         // The raw pasted field must not survive into the asynchronous scan;
         // the resolved public material already lives in `targets`.
         wipeInputSnapshot(snapshot);
       }
-      const config = watchOnlyScanConfig(snapshot);
+      if (dependencies.watchOnlyScanConfig === undefined)
+        throw new Error('Watch-only discovery is not included in this build.');
+      const config = dependencies.watchOnlyScanConfig(snapshot, dependencies);
       const requestConcurrency = parseConcurrency(snapshot.requestConcurrency, 'Network concurrency');
       for (const { adapter, network } of targets) {
         if (!adapter.networks.includes(network ?? config.network))
@@ -802,7 +663,7 @@ export function createDiscoveryScannerController(
             }
           }
         } finally {
-          wipeWatchOnlyTargets(targets);
+          dependencies.wipeWatchOnlyTargets?.(targets);
           sessionSecretGuard.clear();
           currentAbort = null;
           setRunning(false);
@@ -811,7 +672,7 @@ export function createDiscoveryScannerController(
       void run();
     } catch (cause) {
       if (cause instanceof Error && cause.name === 'PrivateMaterialError') clearVisibleSecrets();
-      wipeWatchOnlyTargets(targets);
+      dependencies.wipeWatchOnlyTargets?.(targets);
       sessionSecretGuard.clear();
       view.showError(dependencies.describeUnknownError(cause));
     }

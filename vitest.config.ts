@@ -22,6 +22,12 @@ export default defineConfig({
       { find: /^@ckd\/ui\/(.+)\.js$/u, replacement: `${root}packages/shared-ui/src/$1.ts` },
       { find: /^@ckd\/secret-vault\/(.+)\.js$/u, replacement: `${root}packages/secret-vault/src/$1.ts` },
       { find: /^@ckd\/recovery\/(.+)\.js$/u, replacement: `${root}packages/wallet-recovery/src/$1.ts` },
+      { find: /^@ckd\/recovery-backup\/(.+)\.js$/u, replacement: `${root}packages/recovery-backup/src/$1.ts` },
+      { find: /^@ckd\/recovery-shamir-wasm\/(.+)$/u, replacement: `${root}packages/recovery-shamir-wasm/generated/$1` },
+      {
+        find: /^@ckd\/recovery-codex32-wasm\/(.+)$/u,
+        replacement: `${root}packages/recovery-codex32-wasm/generated/$1`,
+      },
       { find: /^@ckd\/dash-wasm\/(.+)$/u, replacement: `${root}packages/dash-shielded-wasm/generated/$1` },
       { find: /^@ckd\/test-support\/(.+)\.js$/u, replacement: `${root}test/support/$1.ts` },
       { find: '@ckd/build-info', replacement: `${root}packages/build-security/src/build-info.ts` },

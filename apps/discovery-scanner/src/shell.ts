@@ -9,7 +9,7 @@ import {
   type RecoveryExportBrokerResult,
   type RecoveryVaultHeight,
 } from '@ckd/network-boundary/protocol.js';
-import { bootstrapVaultDocument } from '@ckd/secret-vault/worker-bootstrap.js';
+import { bootstrapSelectedBoundary } from './selected-boundary-bootstrap.js';
 
 declare const __RECOVERY_VAULT_HTML__: string;
 declare const __RECOVERY_NETWORK_WORKER_JS__: string;
@@ -25,7 +25,7 @@ const errorBox = required<HTMLElement>('#recovery-shell-error');
 const workerUrl = URL.createObjectURL(new Blob([__RECOVERY_NETWORK_WORKER_JS__], { type: 'text/javascript' }));
 const networkWorker = new Worker(workerUrl, { name: 'wallet-discovery-public-network' });
 const networkChannel = new MessageChannel();
-const vaultBootstrap = bootstrapVaultDocument(vault, __RECOVERY_VAULT_HTML__, networkChannel.port2, (cause) => {
+const vaultBootstrap = bootstrapSelectedBoundary(vault, __RECOVERY_VAULT_HTML__, networkChannel.port2, (cause) => {
   fatal(cause instanceof Error ? cause.message : String(cause));
 });
 let workerReady = false;

@@ -15,6 +15,29 @@ describe('BIP39 Seed Diagnostic', () => {
       checksumBits: 4,
       unknownWords: [],
     });
+    expect(diagnostic.words).toHaveLength(12);
+    expect(diagnostic.words[0]).toEqual({
+      position: 1,
+      word: 'abandon',
+      wordlistIndex: 0,
+      indexHex: '0x000',
+      bits: '00000000000',
+    });
+    expect(diagnostic.words[11]).toEqual({
+      position: 12,
+      word: 'about',
+      wordlistIndex: 3,
+      indexHex: '0x003',
+      bits: '00000000011',
+    });
+    expect(diagnostic.construction).toEqual({
+      entropyHex: '00000000000000000000000000000000',
+      entropyBinary: '0'.repeat(128),
+      providedChecksum: '0011',
+      expectedChecksum: '0011',
+      mnemonicBinary: `${'0'.repeat(128)}0011`,
+      wordIndexes: [...Array(11).fill(0), 3],
+    });
     const seed = mnemonicToSeed(MNEMONIC);
     try {
       expect(masterFingerprintFromSeed(seed)).toBe('73c5da0a');
@@ -23,10 +46,34 @@ describe('BIP39 Seed Diagnostic', () => {
     }
   });
 
+  it.each([
+    [12, 'about', 128, '0011'],
+    [15, 'address', 160, '11011'],
+    [18, 'agent', 192, '100111'],
+    [21, 'admit', 224, '0011101'],
+    [24, 'art', 256, '01100110'],
+  ] as const)(
+    'matches the official all-zero %i-word construction vector',
+    (wordCount, finalWord, entropyBits, checksum) => {
+      const phrase = [...Array(wordCount - 1).fill('abandon'), finalWord].join(' ');
+      const diagnostic = diagnoseMnemonic(phrase);
+      expect(diagnostic.checksumValid).toBe(true);
+      expect(diagnostic.construction).toMatchObject({
+        entropyHex: '0'.repeat(entropyBits / 4),
+        entropyBinary: '0'.repeat(entropyBits),
+        providedChecksum: checksum,
+        expectedChecksum: checksum,
+      });
+      expect(diagnostic.construction?.mnemonicBinary).toBe(`${'0'.repeat(entropyBits)}${checksum}`);
+      expect(diagnostic.words.at(-1)?.word).toBe(finalWord);
+    },
+  );
+
   it('identifies an unknown word by position and suggests abandon for a transposition', () => {
     const diagnostic = diagnoseMnemonic(MNEMONIC.replace('abandon abandon', 'abandon abandno'));
     expect(diagnostic.allWordsKnown).toBe(false);
     expect(diagnostic.checksumValid).toBe(false);
+    expect(diagnostic.construction).toBeNull();
     expect(diagnostic.unknownWords).toEqual([
       expect.objectContaining({
         index: 1,
