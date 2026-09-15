@@ -6,6 +6,10 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const dockerfile = read('Dockerfile.reproducible');
 const shellWrapper = read('tooling/build-reproducible.sh');
+const manifest = JSON.parse(read('package.json'));
+if (!String(manifest.scripts.verify).includes('node tooling/verify-dependency-provenance.mjs')) {
+  throw new Error('The canonical pnpm verify command must enforce dependency provenance.');
+}
 
 function requireMatch(text, pattern, message) {
   if (!pattern.test(text)) throw new Error(message);
@@ -32,7 +36,12 @@ for (const expected of [
   'VERIFICATION_COMMIT=${SOURCE_COMMIT}',
   'VERIFICATION_DIRTY=${SOURCE_DIRTY}',
   'RUN --network=none pnpm verify',
-  'diff --recursive --brief /tmp/committed-generated packages/dash-shielded-wasm/generated',
+  'diff --recursive --brief /tmp/committed-generated/dash packages/dash-shielded-wasm/generated',
+  'diff --recursive --brief /tmp/committed-generated/shamir packages/recovery-shamir-wasm/generated',
+  'diff --recursive --brief /tmp/committed-generated/codex32 packages/recovery-codex32-wasm/generated',
+  'COPY --from=built /workspace/packages/dash-shielded-wasm/generated /generated/dash',
+  'COPY --from=built /workspace/packages/recovery-shamir-wasm/generated /generated/shamir',
+  'COPY --from=built /workspace/packages/recovery-codex32-wasm/generated /generated/codex32',
   'FROM scratch AS artifacts',
   'FROM scratch AS wasm-artifacts',
 ]) {

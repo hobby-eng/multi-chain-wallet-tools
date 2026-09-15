@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RecoveryConcurrencyLimiter, mapRecoveryTasks } from '../src/concurrency.js';
 import { createDiscoveryScannerController } from '../src/controller.js';
+import { ALL_DISCOVERY_FEATURES } from '../src/feature-selection.js';
 import { createBitcoinAddressSearchRunner } from '../src/address-search-feature.js';
+import { scanCandidates } from '../src/candidate-scan.js';
+import { customScanPaths } from '../src/coins/custom-path.js';
 import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
 import type { RecoveryInputSnapshot, DiscoveryScannerView } from '../src/view.js';
 import type { RecoveryWalletResult } from '../src/types.js';
@@ -167,9 +170,11 @@ describe('Discovery Scanner controller', () => {
     vi.mocked(view.readInputs).mockImplementation(() => ({ ...state }));
     const calls: string[] = [];
     const dependencies = {
+      ...ALL_DISCOVERY_FEATURES,
       RecoveryConcurrencyLimiter,
       SecretEgressGuard,
       mapRecoveryTasks,
+      scanCandidates,
       assertValidMnemonic: (text: string) => {
         if (text === 'invalid phrase') throw new Error(text);
         return text;
@@ -226,6 +231,7 @@ describe('Discovery Scanner controller', () => {
     });
     const requestRecoveryExport = vi.fn(async (_text: string, _format: 'csv' | 'json') => 'report.csv');
     const dependencies = {
+      ...ALL_DISCOVERY_FEATURES,
       RecoveryConcurrencyLimiter,
       SecretEgressGuard,
       assertValidMnemonic: (value: string) => value.trim(),
@@ -279,6 +285,7 @@ describe('Discovery Scanner controller', () => {
     const scan = vi.fn(async () => result());
     const runRecoverySelfTest = vi.fn(() => selfTest.promise);
     const dependencies = {
+      ...ALL_DISCOVERY_FEATURES,
       RecoveryConcurrencyLimiter,
       SecretEgressGuard,
       assertValidMnemonic: (value: string) => value.trim(),
@@ -338,6 +345,7 @@ describe('Discovery Scanner controller', () => {
       return result();
     });
     const dependencies = {
+      ...ALL_DISCOVERY_FEATURES,
       RecoveryConcurrencyLimiter,
       SecretEgressGuard,
       assertValidMnemonic: (value: string) => value.trim(),
@@ -432,6 +440,7 @@ describe('Discovery Scanner controller', () => {
           : [],
     }));
     const dependencies = {
+      ...ALL_DISCOVERY_FEATURES,
       RecoveryConcurrencyLimiter,
       SecretEgressGuard,
       mapRecoveryTasks,
@@ -472,7 +481,12 @@ describe('Discovery Scanner controller', () => {
 });
 
 // The selected source determines the scan; hidden field contents never override it.
-import { assertWatchOnlyBatchInput, parseWatchOnlyLines, resolveWatchOnlyTargets } from '@ckd/recovery/watch-only.js';
+import {
+  assertWatchOnlyBatchInput,
+  assertWatchOnlyMinimum,
+  parseWatchOnlyLines,
+  resolveWatchOnlyTargets,
+} from '@ckd/recovery/watch-only.js';
 import type {
   RecoveryCoinAdapter,
   RecoveryWatchOnlyInput,
@@ -536,10 +550,12 @@ function publicHarness(
     requestConcurrency: '1',
   }));
   const controller = createDiscoveryScannerController(view, {
+    ...ALL_DISCOVERY_FEATURES,
     RecoveryConcurrencyLimiter,
     SecretEgressGuard,
     assertValidMnemonic,
     assertWatchOnlyBatchInput,
+    assertWatchOnlyMinimum,
     parseWatchOnlyLines,
     resolveWatchOnlyTargets,
     createRecoveryExport,
@@ -547,6 +563,7 @@ function publicHarness(
     getRecoveryCoin,
     listRecoveryCoins: () => adapters,
     mapRecoveryTasks,
+    customScanPaths,
     recoveryNetworkApi,
     requestRecoveryExport,
     runRecoverySelfTest: async () => ({ passed: true, checks: [], durationMs: 0 }),

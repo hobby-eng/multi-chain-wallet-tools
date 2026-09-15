@@ -41,6 +41,9 @@ importers:
       fflate:
         specifier: 0.8.3
         version: 0.8.3
+      qr:
+        specifier: 0.7.0
+        version: 0.7.0
       uqr:
         specifier: 0.1.3
         version: 0.1.3
@@ -102,11 +105,21 @@ importers:
 
   packages/public-data-providers: {}
 
+  packages/recovery-backup: {}
+
+  packages/recovery-codex32-wasm: {}
+
+  packages/recovery-shamir-wasm: {}
+
   packages/secret-boundary: {}
 
   packages/secret-vault: {}
 
-  packages/shared-ui: {}
+  packages/shared-ui:
+    dependencies:
+      qr:
+        specifier: 0.7.0
+        version: 0.7.0
 
   packages/verification: {}
 
@@ -761,6 +774,10 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
 
+  qr@0.7.0:
+    resolution: {integrity: sha512-/VrrACmOAwZVipuRITwfEwOL5oAMEHH5PTmBWaGtlTom2Thxaa+rhmna4zU9PRN2uLw2wdccbkHOLGZb1Q9SdA==}
+    engines: {node: '>= 20.19.0'}
+
   rolldown@1.2.6:
     resolution: {integrity: sha512-vMM4q3aixf46GiF1Kok8jDPFsEpXgFWGjUHXNkNHNm+Y2adXAG2dbX91jkti3i0ZRsOlcmbuzAz1poObSHCmUA==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -1337,6 +1354,8 @@ snapshots:
       source-map-js: 1.2.1
 
   prettier@3.6.2: {}
+
+  qr@0.7.0: {}
 
   rolldown@1.2.6:
     dependencies:

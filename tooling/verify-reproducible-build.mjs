@@ -6,7 +6,11 @@ import { fileURLToPath } from 'node:url';
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const wasm = resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm');
+const wasmFiles = [
+  'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm',
+  'packages/recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm',
+  'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm',
+].map((path) => resolve(root, path));
 const reuseGeneratedWasm = process.argv.includes('--reuse-generated-wasm');
 
 function digest(path) {
@@ -34,8 +38,8 @@ if (missingArtifacts.length > 0) {
   throw new Error(`Build both profiles before checking determinism. Missing: ${missingArtifacts.join(', ')}`);
 }
 const firstArtifacts = new Map(artifacts.map(({ label, path }) => [label, digest(path)]));
-const firstWasm = digest(wasm);
-if (!reuseGeneratedWasm) run('tooling/build-shielded-wasm.mjs');
+const firstWasm = wasmFiles.map(digest);
+if (!reuseGeneratedWasm) run('tooling/build-all-wasm.mjs');
 for (const profile of Object.values(BUILD_PROFILES)) {
   for (const toolId of profileToolIds(profile)) {
     const script = {
@@ -48,9 +52,11 @@ for (const profile of Object.values(BUILD_PROFILES)) {
     run(script, ['--profile', profile.id]);
   }
 }
-const secondWasm = digest(wasm);
+const secondWasm = wasmFiles.map(digest);
 
-if (firstWasm !== secondWasm) throw new Error('Two consecutive pinned builds produced different WASM bytes.');
+if (firstWasm.some((value, index) => value !== secondWasm[index])) {
+  throw new Error('Two consecutive pinned builds produced different WASM bytes.');
+}
 for (const { label, path } of artifacts) {
   if (firstArtifacts.get(label) !== digest(path)) {
     throw new Error(`Two consecutive pinned builds produced different ${label} HTML bytes.`);

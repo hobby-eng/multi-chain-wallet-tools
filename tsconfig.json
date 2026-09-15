@@ -17,13 +17,16 @@
       "@ckd/ui/*": ["./packages/shared-ui/src/*"],
       "@ckd/secret-vault/*": ["./packages/secret-vault/src/*"],
       "@ckd/recovery/*": ["./packages/wallet-recovery/src/*"],
+      "@ckd/recovery-backup/*": ["./packages/recovery-backup/src/*"],
+      "@ckd/recovery-shamir-wasm/*": ["./packages/recovery-shamir-wasm/generated/*"],
       "@ckd/build-info": ["./packages/build-security/src/build-info.ts"],
       "@ckd/self-test": ["./packages/verification/src/self-test.ts"],
       "@ckd/self-test-types": ["./packages/verification/src/types.ts"],
       "@ckd/bip39-self-test": ["./packages/verification/src/bip39-self-test.ts"],
       "@ckd/derivation-self-test": ["./packages/verification/src/derivation-self-test.ts"],
       "@ckd/dash-derivation-self-test": ["./packages/verification/src/derivation-self-test-dash.ts"],
-      "@ckd/test-support/*": ["./test/support/*"]
+      "@ckd/test-support/*": ["./test/support/*"],
+      "@ckd/recovery-codex32-wasm/*": ["./packages/recovery-codex32-wasm/generated/*"]
     },
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true,

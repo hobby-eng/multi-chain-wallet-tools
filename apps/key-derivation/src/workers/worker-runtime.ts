@@ -2,7 +2,7 @@ import type { RuntimeCoinAdapter } from '@ckd/coins/runtime-registry.js';
 import type { CryptoSelfTestReport } from '@ckd/self-test-types';
 import { hexToBytes, wipe } from '@ckd/core/crypto.js';
 import { clearDerivationResult } from '@ckd/core/secrets.js';
-import { findDerivedAddress } from '@ckd/recovery/address-search.js';
+import { findDerivedAddress, findDerivedAddresses } from '@ckd/recovery/address-search.js';
 import type { WorkerMessage, WorkerRequest } from './protocol.js';
 import type { SilentPaymentResult } from './silent-payment.js';
 import type { Bip85RequestOptions, Bip85Result } from './bip85-deriver.js';
@@ -98,6 +98,18 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
               undefined,
             );
             workerScope.postMessage({ id: request.id, ok: true, type: 'search', result });
+            return;
+          }
+          if (request.type === 'search-many') {
+            const result = await findDerivedAddresses(
+              adapter,
+              request.input,
+              request.requests,
+              request.start,
+              request.count,
+              undefined,
+            );
+            workerScope.postMessage({ id: request.id, ok: true, type: 'search-many', result });
             return;
           }
           if (request.type === 'sign-message') {

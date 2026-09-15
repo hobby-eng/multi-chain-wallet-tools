@@ -16,7 +16,7 @@ import type {
   RecoveryWatchOnlyInput,
   RecoveryWatchOnlyScanConfig,
 } from '../../types.js';
-import { extendAddressTarget } from '../dash/util.js';
+import { extendAddressTarget } from '../../address-gap.js';
 import { addressFor, BITCOIN_MODES, formatBitcoin, type BitcoinMode } from './shared.js';
 
 const DESCRIPTOR_PATTERNS: ReadonlyArray<{ mode: BitcoinMode; wrappers: number; pattern: RegExp }> = [

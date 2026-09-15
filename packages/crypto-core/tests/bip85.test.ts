@@ -18,6 +18,14 @@ describe('BIP85 official application vectors', () => {
     );
   });
 
+  it.each([12, 15, 18, 21, 24] as const)('supports the standard %i-word BIP39 application', (words) => {
+    const result = deriveBip85Bip39(ROOT, words, 7);
+    const entropy = hexToBytes(result.entropyHex);
+    expect(result.path).toBe(`m/83696968'/39'/0'/${words}'/7'`);
+    expect(entropy).toHaveLength((words / 3) * 4);
+    expect(entropyToEnglishMnemonic(entropy).trim().split(/\s+/u)).toHaveLength(words);
+  });
+
   it('derives the WIF application', () => {
     expect(deriveBip85Wif(ROOT, 0)).toEqual({
       path: "m/83696968'/2'/0'",

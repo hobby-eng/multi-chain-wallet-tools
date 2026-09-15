@@ -16,6 +16,14 @@ export interface AddressSearchMatch {
   address: string;
 }
 
+export interface AddressSearchRequest {
+  id: string;
+  address: string;
+}
+export interface AddressSearchResult extends AddressSearchMatch {
+  id: string;
+}
+
 export type MessageSigningFormat =
   | 'bitcoin-compact'
   | 'dash-compact'
@@ -32,6 +40,15 @@ export type WorkerRequest =
       adapterId: string;
       input: Omit<CoinDerivationInput, 'start' | 'count'>;
       expectedAddress: string;
+      start: number;
+      count: number;
+    }
+  | {
+      id: number;
+      type: 'search-many';
+      adapterId: string;
+      input: Omit<CoinDerivationInput, 'start' | 'count'>;
+      requests: readonly AddressSearchRequest[];
       start: number;
       count: number;
     }
@@ -66,6 +83,7 @@ export type WorkerRequest =
 export type WorkerSuccess =
   | { id: number; ok: true; type: 'derive'; result: DerivationResult }
   | { id: number; ok: true; type: 'search'; result: AddressSearchMatch | null }
+  | { id: number; ok: true; type: 'search-many'; result: AddressSearchResult[] }
   | { id: number; ok: true; type: 'sign-message'; result: CompactMessageSignature }
   | { id: number; ok: true; type: 'silent-payment'; result: SilentPaymentResult }
   | { id: number; ok: true; type: 'bip85'; result: Bip85Result }

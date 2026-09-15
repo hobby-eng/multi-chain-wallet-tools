@@ -1,7 +1,14 @@
 import type { CoinDerivationInput } from '@ckd/coins/registry.js';
 import type { CryptoSelfTestReport } from '@ckd/self-test-types';
 import type { DerivationResult } from '@ckd/core/types.js';
-import type { AddressSearchMatch, MessageSigningFormat, WorkerMessage, WorkerRequest } from './protocol.js';
+import type {
+  AddressSearchMatch,
+  AddressSearchRequest,
+  AddressSearchResult,
+  MessageSigningFormat,
+  WorkerMessage,
+  WorkerRequest,
+} from './protocol.js';
 import type { CompactMessageSignature } from '@ckd/core/compact-message.js';
 import type { SilentPaymentResult } from './silent-payment.js';
 import type { Bip85RequestOptions, Bip85Result } from './bip85-deriver.js';
@@ -15,6 +22,7 @@ interface PendingRequest {
       | DerivationResult
       | CryptoSelfTestReport
       | AddressSearchMatch
+      | AddressSearchResult[]
       | CompactMessageSignature
       | SilentPaymentResult
       | Bip85Result
@@ -141,6 +149,20 @@ export class DerivationWorkerClient {
     );
   }
 
+  async searchMany(
+    adapterId: string,
+    input: Omit<CoinDerivationInput, 'start' | 'count'>,
+    requests: readonly AddressSearchRequest[],
+    start: number,
+    count: number,
+  ): Promise<AddressSearchResult[]> {
+    const seed = input.seed.slice();
+    return this.#request<AddressSearchResult[]>(
+      { id: this.#nextId, type: 'search-many', adapterId, input: { ...input, seed }, requests, start, count },
+      [seed.buffer],
+    );
+  }
+
   async signMessage(
     adapterId: string,
     input: CoinDerivationInput,
@@ -243,6 +265,7 @@ export class DerivationWorkerClient {
       | DerivationResult
       | CryptoSelfTestReport
       | AddressSearchMatch
+      | AddressSearchResult[]
       | CompactMessageSignature
       | SilentPaymentResult
       | Bip85Result

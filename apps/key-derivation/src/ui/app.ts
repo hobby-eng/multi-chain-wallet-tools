@@ -1,5 +1,5 @@
 import * as registry from '@ckd/coins/registry.js';
+import { detectMultiChainMatcherTargets } from '@ckd/recovery/matcher-targets-multichain.js';
 import { startKeyDerivationApp } from './app-bootstrap.js';
-import { createBitcoinAddressSearchRunner } from './address-search-feature.js';
 
-startKeyDerivationApp(registry, createBitcoinAddressSearchRunner());
+startKeyDerivationApp(registry, detectMultiChainMatcherTargets);

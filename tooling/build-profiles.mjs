@@ -165,31 +165,6 @@ export function applyProfileTemplate(template, profile, tool) {
     profile.id === 'dash-community'
       ? '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any.'
       : '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.';
-  const addressSearchPanel =
-    profile.id === 'dash-community'
-      ? ''
-      : `<section id="address-search" class="address-search recovery-only" aria-labelledby="address-search-title">
-          <div>
-            <h3 id="address-search-title">Recover by address</h3>
-            <p>Search one or many public Bitcoin addresses against the selected recovery phrase. Each address is routed to its matching address-family adapter.</p>
-          </div>
-          <div class="address-search-grid">
-            <div class="address-search-value">
-              <label for="expected-address">Bitcoin address or addresses</label>
-              <textarea id="expected-address" rows="5" autocomplete="off" autocapitalize="none" placeholder="Paste one address, or one address per line"></textarea>
-            </div>
-            <div>
-              <label for="search-start">From index</label>
-              <input id="search-start" type="number" value="0" min="0" max="2147483647" step="1">
-            </div>
-            <div>
-              <label for="search-count">Indices to scan</label>
-              <input id="search-count" type="number" value="100" min="1" max="5000" step="1">
-            </div>
-            <button class="secondary" id="search-address" type="button">Find address</button>
-          </div>
-          <div id="search-result" class="search-result" role="status" aria-live="polite" hidden></div>
-        </section>`;
   const activityCoinControl =
     profile.id === 'dash-community'
       ? ''
@@ -224,7 +199,7 @@ export function applyProfileTemplate(template, profile, tool) {
   const silentPaymentPanel = !profile.capabilities.bitcoinSilentPayments
     ? ''
     : `<section id="silent-payment-panel" class="supplemental-derivation span-three" aria-labelledby="silent-payment-title" hidden>
-          <div class="supplemental-heading"><span class="step">SP</span><h3 id="silent-payment-title">Bitcoin Silent Payments · BIP352</h3></div>
+          <div class="supplemental-heading"><span class="step">SP</span><h3 id="silent-payment-title">Bitcoin Silent Payments · BIP352</h3><span id="silent-payment-secret-control-slot" class="result-secret-control-slot"></span></div>
           <p class="feature-intro">Optional BIP352 address you can give out once and reuse. Everyone pays the same address, but each payment still lands on its own private, unlinkable output on-chain — nobody can tell they came from the same address. Discovering the unique outputs actually paid to this wallet requires scanning eligible transaction inputs and outputs; this offline file does not scan the blockchain.</p>
           <div class="form-grid">
           <div><label for="silent-payment-network">Network</label><select id="silent-payment-network"><option value="mainnet">Mainnet</option><option value="testnet">Testnet / Signet</option></select></div>
@@ -269,10 +244,10 @@ export function applyProfileTemplate(template, profile, tool) {
         <div class="supplemental-heading"><span class="step">85</span><h3>Child seeds · BIP85</h3></div>
         <p class="feature-intro">First level: the original mnemonic and its BIP39 passphrase above form the parent seed; BIP85 derives the child mnemonic or secret from it. Changing either parent field or the BIP85 index changes this result.</p>
         <div class="form-grid">
-          <div><label for="bip85-application">Application</label><select id="bip85-application"><option value="bip39">BIP39 mnemonic</option><option value="wif">WIF private key · Bitcoin / Dash</option><option value="xprv">Root XPRV</option><option value="hex">Hex entropy</option></select></div>
+          <div><label for="bip85-application">Application</label><select id="bip85-application"><option value="bip39">BIP39 mnemonic</option>${profile.id === 'dash-community' ? '<option value="wif">WIF private key · Dash</option>' : '<option value="wif">WIF private key · Bitcoin / Dash</option>'}<option value="xprv">Root XPRV</option><option value="hex">Hex entropy</option></select></div>
           <div><label for="bip85-index">Index</label><input id="bip85-index" type="number" min="0" max="2147483647" value="0"></div>
-          <div id="bip85-words-field"><label for="bip85-words">Mnemonic words</label><select id="bip85-words"><option>12</option><option>24</option></select></div>
-          <div id="bip85-wif-field" hidden><label for="bip85-wif-encoding">WIF encoding</label><select id="bip85-wif-encoding"><option value="bitcoin-mainnet">Bitcoin mainnet · 0x80</option><option value="bitcoin-testnet">Bitcoin testnet · 0xEF</option><option value="dash-mainnet">Dash mainnet · 0xCC</option><option value="dash-testnet">Dash testnet · 0xEF</option></select><p class="field-note">The BIP85 path and 32-byte private key stay the same; this choice changes only the network prefix of the WIF transport string. Ethereum does not use WIF: derive a BIP39 child mnemonic, open its derived-wallet workspace, and select Ethereum to obtain standard Ethereum addresses and hexadecimal private keys.</p></div>
+          <div id="bip85-words-field"><label for="bip85-words">Mnemonic words</label><select id="bip85-words"><option>12</option><option>15</option><option>18</option><option>21</option><option>24</option></select></div>
+          <div id="bip85-wif-field" hidden><label for="bip85-wif-encoding">WIF encoding</label><select id="bip85-wif-encoding">${profile.id === 'dash-community' ? '<option data-coin="dash" value="204">Dash mainnet · 0xCC</option><option data-coin="dash" value="239">Dash testnet · 0xEF</option>' : '<option data-coin="bitcoin" value="128">Bitcoin mainnet · 0x80</option><option data-coin="bitcoin" value="239">Bitcoin testnet · 0xEF</option><option data-coin="dash" value="204">Dash mainnet · 0xCC</option><option data-coin="dash" value="239">Dash testnet · 0xEF</option>'}</select><p class="field-note">The BIP85 path and 32-byte private key stay the same; this choice changes only the network prefix of the WIF transport string.</p></div>
           <div id="bip85-bytes-field" hidden><label for="bip85-bytes">Entropy bytes</label><input id="bip85-bytes" type="number" min="16" max="64" value="32"></div>
         </div>
         <div class="actions"><button id="derive-bip85" class="primary" type="button">Derive child secret</button></div>
@@ -282,7 +257,7 @@ export function applyProfileTemplate(template, profile, tool) {
           <div class="field-heading"><label for="bip85-output">Derived secret</label><button id="toggle-bip85-secret" class="secondary compact" type="button" aria-pressed="false">Reveal</button></div>
           <textarea id="bip85-output" class="secret-value concealed" rows="3" readonly></textarea>
           <p class="field-note">This result is a new wallet secret. Reveal it only when needed. For a BIP39 result, “Open derived wallet” creates a separate workspace below without replacing the original recovery phrase above.</p>
-          <div class="actions"><button id="open-bip85-wallet" class="secondary" type="button" aria-expanded="false" hidden>Show derived wallet</button></div>
+          <div class="actions"><button id="open-bip85-wallet" class="secondary" type="button" aria-expanded="false" hidden>Show derived wallet</button><details id="bip85-recovery-source-menu" class="recovery-source-menu" hidden><summary>Use in Recovery &amp; Backup</summary><div class="recovery-source-menu-items" aria-label="Recovery and backup destination"><button type="button" data-recovery-source="bip85" data-recovery-target="matcher">Wallet Matcher</button><button type="button" data-recovery-source="bip85" data-recovery-target="seedqr">SeedQR</button><button type="button" data-recovery-source="bip85" data-recovery-target="slip39">SLIP-39 shares</button><button type="button" data-recovery-source="bip85" data-recovery-target="shamir-raw">Shamir Raw</button><button type="button" data-recovery-source="bip85" data-recovery-target="shamir-words">Shamir Words</button><button type="button" data-recovery-source="bip85" data-recovery-target="codex32">Codex32</button></div></details></div>
           <section id="bip85-wallet-workspace" class="nested-wallet-workspace" hidden>
             <div class="supplemental-heading"><span class="step">↳</span><h3>Derived wallet workspace</h3></div>
             <p class="feature-intro">Uses the child mnemonic above without replacing the original recovery phrase. All derivation stays in memory in this tab.</p>
@@ -308,8 +283,47 @@ export function applyProfileTemplate(template, profile, tool) {
             <div id="bip85-wallet-error" class="error" role="alert" hidden></div>
             <div id="bip85-wallet-status" class="status" role="status" hidden></div>
             <section id="bip85-wallet-results" hidden>
-              <div class="result-controls"><div class="mode-toggle"><button id="bip85-wallet-basic" class="active" type="button">Basic</button><button id="bip85-wallet-advanced" type="button">Advanced</button></div></div>
+              <div class="results-title nested-results-title">
+                <span id="bip85-wallet-result-title">Child wallet results</span>
+                <div class="result-controls">
+                  <button class="danger-outline compact" id="bip85-wallet-toggle-secrets" type="button" aria-pressed="false">Reveal all private keys</button>
+                  <div class="mode-toggle"><button id="bip85-wallet-basic" class="active" type="button">Basic</button><button id="bip85-wallet-advanced" type="button">Advanced</button></div>
+                </div>
+              </div>
               <div id="bip85-wallet-branch-tabs" class="result-branch-tabs" hidden></div>
+              <section class="panel bulk-panel nested-bulk-panel" aria-label="Child wallet selection and export">
+                <div class="bulk-row bulk-toolbar-row">
+                  <div class="bulk-format-control">
+                    <div class="bulk-format-heading"><label for="bip85-wallet-export-format">Clipboard format</label><span class="selection-count"><span id="bip85-wallet-selected-count">0</span> selected</span></div>
+                    <select id="bip85-wallet-export-format"><option value="structured">Human-readable structured text</option><option value="plain">Plain values</option><option value="tsv">TSV for spreadsheets</option></select>
+                  </div>
+                  <div class="mini-actions">
+                    <div id="bip85-wallet-account-export" hidden><button class="secondary compact" id="bip85-wallet-open-account-export" type="button" aria-haspopup="dialog">Account export</button></div>
+                    <button class="secondary compact" id="bip85-wallet-select-all" type="button">Select all</button>
+                    <button class="secondary compact" id="bip85-wallet-select-none" type="button">Select none</button>
+                    <button class="secondary compact" id="bip85-wallet-select-invert" type="button">Invert selection</button>
+                  </div>
+                </div>
+                <div class="bulk-row export-row"><div class="bulk-actions">
+                  <button class="secondary compact" data-bip85-bulk="addresses" type="button">Copy addresses</button>
+                  <button class="secondary compact" data-bip85-bulk="publicKeys" type="button">Copy public keys</button>
+                  <button class="secret-action compact" data-bip85-bulk="privateKeys" type="button">Copy private keys</button>
+                  <button class="secret-action compact" data-bip85-bulk="selected" type="button">Copy selected</button>
+                  <button class="secret-action compact" data-bip85-bulk="allDisplayed" type="button">Copy all displayed fields</button>
+                  <button class="secondary compact" data-bip85-download="allDisplayed" type="button">Download selected</button>
+                </div></div>
+                <p class="field-note">Exports use selected child-wallet rows. Account export includes receive and change descriptors for this child account. Sensitive exports remain disabled until private keys are revealed.</p>
+              </section>
+              <dialog id="bip85-wallet-account-export-dialog" aria-labelledby="bip85-wallet-account-export-title">
+                <div class="account-export-heading"><h3 id="bip85-wallet-account-export-title">Child wallet account export</h3><button class="secondary compact" id="bip85-wallet-close-account-export" type="button">Close</button></div>
+                <p id="bip85-wallet-account-export-description"></p>
+                <label for="bip85-wallet-account-export-format">Export format</label>
+                <select id="bip85-wallet-account-export-format"><option value="core">Core wallet console command</option><option value="raw">Raw descriptors · Scanner / other wallets</option></select>
+                <h4>Public descriptors</h4><p>Watch-only account data; cannot spend funds.</p>
+                <div class="watch-only-actions"><button class="secondary" data-bip85-descriptor="publicCopy" type="button">Copy public descriptors</button><button class="secondary" data-bip85-descriptor="publicDownload" type="button">Download public descriptors</button></div>
+                <h4>Private descriptors</h4><p>Unencrypted keys allow spending. Reveal private keys before export.</p>
+                <div class="watch-only-actions"><button class="secondary" data-bip85-descriptor="privateCopy" type="button">Copy private descriptors</button><button class="secondary" data-bip85-descriptor="privateDownload" type="button">Download private descriptors</button></div>
+              </dialog>
               <div id="bip85-wallet-summary"></div>
               <div id="bip85-wallet-notices"></div>
               <div id="bip85-wallet-list"></div>
@@ -376,7 +390,6 @@ export function applyProfileTemplate(template, profile, tool) {
     __DASH_HEADER_BRAND__: dashBrandMark,
     __PROFILE_BRAND_MARK__: profileBrandMark,
     __RECOVERY_COIN_FIELD__: recoveryCoinField,
-    __ADDRESS_SEARCH_PANEL__: addressSearchPanel,
     __RECOVERY_PUBLIC_KEY_PLACEHOLDER__: recoveryPublicKeyPlaceholder,
     __RECOVERY_PUBLIC_KEY_SCOPE__: recoveryPublicKeyScope,
     __ACTIVITY_COIN_CONTROL__: activityCoinControl,
@@ -412,7 +425,7 @@ export function applyProfileTemplate(template, profile, tool) {
     if (value !== undefined) rendered = rendered.replaceAll(marker, value);
   }
   const remaining = rendered.match(
-    /__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|ADDRESS_SEARCH_PANEL|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_COIN_CONTROL|TOOL_INTRODUCTION|PSBT_[A-Z_]+)__/gu,
+    /__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_COIN_CONTROL|TOOL_INTRODUCTION|PSBT_[A-Z_]+)__/gu,
   );
   if (remaining !== null) throw new Error(`Unexpanded build-profile marker: ${remaining.join(', ')}`);
   return rendered;
@@ -455,6 +468,24 @@ export function assertDashOnlyGraph(inputs, label) {
       'packages/wallet-recovery/src/watch-only/dash.ts',
       'packages/wallet-recovery/src/watch-only/dash-profile.ts',
       'packages/wallet-recovery/src/address-search.ts',
+      'packages/wallet-recovery/src/matcher-types.ts',
+      'packages/wallet-recovery/src/matcher-targets-dash.ts',
+      'packages/recovery-backup/src/slip39.ts',
+      'packages/recovery-backup/src/slip39-wordlist.ts',
+      'packages/recovery-backup/src/shamir.ts',
+      'packages/recovery-backup/src/codex32.ts',
+      'packages/recovery-backup/src/seedqr.ts',
+      'packages/recovery-backup/src/mnemonic-entries.ts',
+      'packages/recovery-backup/src/self-test.ts',
+      'packages/recovery-backup/src/self-test-helpers.ts',
+      'packages/recovery-backup/src/self-test-seedqr.ts',
+      'packages/recovery-backup/src/self-test-slip39.ts',
+      'packages/recovery-backup/src/self-test-shamir.ts',
+      'packages/recovery-backup/src/self-test-codex32.ts',
+      'packages/recovery-shamir-wasm/generated/recovery_shamir_wasm.js',
+      'packages/recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm',
+      'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm.js',
+      'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm',
     ]);
     const newPackageMarkers = [
       'packages/public-data-providers/src/',
@@ -462,6 +493,9 @@ export function assertDashOnlyGraph(inputs, label) {
       'packages/network-boundary/src/',
       'packages/secret-vault/src/',
       'packages/wallet-recovery/src/',
+      'packages/recovery-backup/src/',
+      'packages/recovery-shamir-wasm/generated/',
+      'packages/recovery-codex32-wasm/generated/',
     ];
     for (const marker of newPackageMarkers) {
       const markerIndex = input.indexOf(marker);

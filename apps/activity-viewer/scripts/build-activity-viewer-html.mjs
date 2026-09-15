@@ -5,6 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { build, transform } from 'esbuild';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 import {
+  activityViewerEntry,
+  applyActivityCoinTemplate,
+  assertActivityViewerComposition,
+  createActivityViewerCompositionPlugin,
+} from '../../../tooling/activity-viewer-composition.mjs';
+import {
+  artifactDisplayName,
+  customToolArtifact,
+  parseRequestedOutput,
+  parseToolFeatureOptions,
+} from '../../../tooling/tool-feature-options.mjs';
+import {
   applyProfileTemplate,
   assertDashOnlyGraph,
   getToolBuild,
@@ -15,12 +27,13 @@ import { verifyDashSdkBuild } from '../../../tooling/verify-dash-sdk-build.mjs';
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const profile = parseBuildProfile();
 const tool = getToolBuild(profile, 'activity-viewer');
+const options = parseToolFeatureOptions('activity-viewer', profile);
+const customArtifact = customToolArtifact(root, profile, 'activity-viewer', tool, options, parseRequestedOutput());
 const scriptCsp = (javascript) => `'sha256-${createHash('sha256').update(javascript).digest('base64')}'`;
-verifyDashSdkBuild(root, 'The viewer');
-const template = applyProfileTemplate(
-  readFileSync(resolve(root, 'apps/activity-viewer/src/index.html'), 'utf8'),
-  profile,
-  tool,
+if (options.hasCoin('dash')) verifyDashSdkBuild(root, 'The viewer');
+const template = applyActivityCoinTemplate(
+  applyProfileTemplate(readFileSync(resolve(root, 'apps/activity-viewer/src/index.html'), 'utf8'), profile, tool),
+  options,
 );
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const viewerCss = readFileSync(resolve(root, 'apps/activity-viewer/src/styles.css'), 'utf8');
@@ -38,10 +51,13 @@ const css = (
     legalComments: 'inline',
   })
 ).code;
-const buildInfo = createBuildInfo(root, tool.checksumFile, profile);
+const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
+  coins: options.coins,
+  features: options.selected,
+});
 const bundled = await build({
   absWorkingDir: root,
-  entryPoints: [tool.entryPoint],
+  stdin: { contents: activityViewerEntry(root, options), loader: 'ts', resolveDir: root },
   bundle: true,
   format: 'iife',
   platform: 'browser',
@@ -50,12 +66,14 @@ const bundled = await build({
   minify: true,
   legalComments: 'inline',
   loader: { '.wasm': 'binary' },
+  plugins: [createActivityViewerCompositionPlugin(root, options)],
   metafile: true,
   define: { __BUILD_INFO__: JSON.stringify(buildInfo) },
   write: false,
 });
 const javascript = bundled.outputFiles[0]?.text;
 if (javascript === undefined) throw new Error('esbuild did not produce the viewer JavaScript bundle.');
+assertActivityViewerComposition(options, Object.keys(bundled.metafile.inputs));
 if (profile.id === 'dash-community') {
   assertDashOnlyGraph(Object.keys(bundled.metafile.inputs), 'Dash Community activity viewer');
 }
@@ -78,11 +96,13 @@ if (scriptStart < 0 || scriptEnd <= scriptStart)
 // The CSP hash must cover the exact bytes embedded in the final HTML, including template whitespace.
 const inlineScript = html.slice(scriptStart + '<script>'.length, scriptEnd);
 html = html.replace('__INLINE_SCRIPT_CSP_HASH__', scriptCsp(inlineScript));
-const dist = resolve(root, 'dist', tool.artifactDirectory);
+const artifact = customArtifact ?? resolve(root, 'dist', tool.artifactDirectory, tool.artifactName);
+const dist = resolve(artifact, '..');
 mkdirSync(dist, { recursive: true });
-const artifact = resolve(dist, tool.artifactName);
 writeFileSync(artifact, html);
 const checksum = createHash('sha256').update(html).digest('hex');
-writeFileSync(resolve(dist, tool.checksumFile), `${checksum}  ${tool.artifactName}\n`);
-console.log(`Built dist/${tool.artifactRelativePath} (${Buffer.byteLength(html).toLocaleString()} bytes)`);
+writeFileSync(`${artifact}.sha256`, `${checksum}  ${artifactDisplayName(artifact)}\n`);
+console.log(
+  `Built ${customArtifact === undefined ? `dist/${tool.artifactRelativePath}` : artifact} (${Buffer.byteLength(html).toLocaleString()} bytes)`,
+);
 console.log(`SHA-256 ${checksum}`);

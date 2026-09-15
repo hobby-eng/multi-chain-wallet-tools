@@ -1,4 +1,4 @@
-import { ADDRESS_DISCOVERY_GAP } from './dash/util.js';
+import { ADDRESS_DISCOVERY_GAP } from '../address-gap.js';
 import { MAX_BIP32_INDEX } from '@ckd/core/bip32.js';
 
 const MAX_CUSTOM_PATH_DEPTH = 10;

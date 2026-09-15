@@ -178,6 +178,13 @@ footer {
 .qr-trigger {
   min-width: 35px;
 }
+.share-qr-action .qr-trigger {
+  min-width: 54px;
+  min-height: 34px;
+  padding: 8px 11px;
+  font-size: 11px;
+  font-weight: 750;
+}
 .payment-qr-popover {
   position: absolute;
   z-index: 40;
@@ -224,9 +231,10 @@ footer {
   overflow-wrap: anywhere;
   user-select: text;
 }
+.payment-qr-save,
 .payment-qr-close {
-  display: block;
-  margin: 10px 0 0 auto;
+  display: inline-block;
+  margin: 10px 0 0 6px;
   padding: 6px 10px;
   border: 1px solid #465464;
   border-radius: 7px;
@@ -234,6 +242,7 @@ footer {
   background: #1b2733;
   cursor: pointer;
 }
+.payment-qr-save:focus-visible,
 .payment-qr-close:focus-visible,
 .qr-trigger:focus-visible {
   outline: 2px solid var(--accent);
@@ -792,6 +801,11 @@ textarea.concealed {
   gap: 10px;
   margin-bottom: 9px;
 }
+.result-secret-control-slot {
+  display: inline-flex;
+  margin-left: auto;
+}
+
 .supplemental-heading h3 {
   margin: 0;
   color: #dce4eb;
@@ -1003,10 +1017,13 @@ button:disabled {
   overflow: hidden;
 }
 .mode-toggle button {
+  flex: 1 1 0;
+  min-width: 76px;
   border-radius: 0;
   padding: 9px 12px;
   background: #151d27;
   color: #98a6b5;
+  text-align: center;
 }
 .mode-toggle button.active {
   background: #3d311b;
@@ -1544,11 +1561,45 @@ details[open] summary::before {
   flex-wrap: wrap;
   gap: 7px;
 }
-.export-row {
+.bulk-toolbar-row {
   align-items: flex-end;
 }
-.export-row > div:first-child {
+.bulk-format-control {
+  flex: 0 1 310px;
   min-width: 245px;
+}
+.bulk-format-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bulk-format-heading label {
+  margin-bottom: 6px;
+}
+.selection-count {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.bulk-toolbar-row .mini-actions,
+.bulk-actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+.export-row {
+  justify-content: flex-end;
+}
+.bulk-actions {
+  width: 100%;
+}
+.bulk-panel .mini-actions .compact,
+.bulk-actions .compact {
+  min-width: 0;
+  padding: 7px clamp(6px, 0.75vw, 10px);
+  font-size: 10.5px;
+  white-space: nowrap;
 }
 .watch-only-panel {
   display: flex;
@@ -1722,6 +1773,15 @@ footer p {
     align-items: stretch;
   }
   .result-controls {
+    justify-content: flex-start;
+  }
+  .bulk-format-control {
+    width: 100%;
+    max-width: none;
+  }
+  .bulk-toolbar-row .mini-actions,
+  .bulk-actions {
+    flex-wrap: wrap;
     justify-content: flex-start;
   }
   .card-right {
@@ -1933,4 +1993,532 @@ footer p {
   #account-descriptor-export {
     display: none !important;
   }
+}
+
+/* Recovery & Backup uses shared geometry in both editions. Each backup method
+   reuses the same operation-tab pattern for Create and Restore. */
+.recovery-workspace {
+  display: grid;
+  gap: 1rem;
+}
+
+.recovery-panel {
+  position: relative;
+}
+
+.recovery-help {
+  position: absolute;
+  z-index: 12;
+  top: 1rem;
+  right: 1rem;
+  border: 0;
+}
+
+.recovery-help summary {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent2);
+  background: var(--panel2);
+  font-size: 11px;
+  line-height: 1;
+  list-style: none;
+}
+
+.recovery-help summary::before {
+  display: none;
+  content: none;
+}
+
+.recovery-help-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: none;
+  width: min(430px, calc(100vw - 56px));
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--panel2);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.48);
+}
+
+.recovery-help:hover .recovery-help-popover,
+.recovery-help:focus-within .recovery-help-popover,
+.recovery-help[open] .recovery-help-popover {
+  display: block;
+}
+
+.recovery-help-popover h3 {
+  margin: 0 0 8px;
+  color: var(--accent2);
+  font-size: 14px;
+}
+
+.recovery-help-popover p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.recovery-help-popover code {
+  color: var(--text);
+}
+
+@media (max-width: 700px) {
+  .recovery-help {
+    position: static;
+    justify-self: start;
+  }
+
+  .recovery-help-popover {
+    right: auto;
+    left: 0;
+  }
+}
+
+.recovery-subtabs,
+.backup-mode-tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.recovery-subtab,
+.backup-mode-tab {
+  min-width: 0;
+  min-height: 2.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--panel2);
+  color: var(--muted);
+  font-weight: 700;
+  text-align: center;
+}
+
+.recovery-subtab.active,
+.backup-mode-tab.active {
+  border-color: var(--accent);
+  color: var(--accent2);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.recovery-panel,
+.backup-operation {
+  display: grid;
+  gap: 1rem;
+}
+
+.matcher-input-grid,
+.backup-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.backup-options-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.matcher-range-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.numbered-textarea {
+  display: grid;
+  grid-template-columns: 2.35rem minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--panel2);
+}
+
+.numbered-textarea:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.22);
+}
+
+.numbered-textarea pre {
+  height: 100%;
+  margin: 0;
+  padding: 13px 8px;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 20px;
+  text-align: right;
+  user-select: none;
+}
+
+.numbered-textarea textarea {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 13px 14px;
+  font-size: 14px;
+  line-height: 20px;
+  resize: vertical;
+}
+
+.matcher-results {
+  overflow-x: auto;
+}
+
+.matcher-results table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.matcher-results th,
+.matcher-results td {
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.share-results {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.share-results article,
+.warning-callout {
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--panel2);
+}
+
+.share-results article p {
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+}
+
+.warning-callout {
+  border-color: #79591f;
+  color: var(--accent2);
+}
+
+@media (max-width: 880px) {
+  .matcher-input-grid,
+  .backup-options-grid,
+  .matcher-range-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.backup-options-grid.two-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.field-heading-row label {
+  margin: 0;
+}
+
+.matcher-secret-toggle {
+  justify-self: start;
+}
+
+/* Secret-source links keep the value in its original controller and expose only
+   an expiring in-memory capability to Recovery & Backup. */
+.recovery-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.recovery-source-menu {
+  position: relative;
+}
+
+.recovery-source-menu > summary {
+  min-height: 2.5rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--panel2);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.recovery-source-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.recovery-source-menu[open] > summary {
+  border-color: var(--accent);
+  color: var(--accent2);
+}
+
+.recovery-source-menu-items {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  display: grid;
+  min-width: 15rem;
+  padding: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--panel);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.36);
+}
+
+.recovery-source-menu-items button {
+  min-height: 2.35rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.recovery-source-menu-items button:hover,
+.recovery-source-menu-items button:focus-visible {
+  background: var(--panel2);
+  color: var(--accent2);
+}
+
+.mnemonic-entropy {
+  margin: 0.75rem 0 1rem;
+}
+
+.linked-recovery-source {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.65rem;
+  background: var(--panel2);
+}
+
+.linked-recovery-source div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.linked-recovery-source span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+/* Separate the child result heading and controls from the status banner above. */
+.nested-results-title {
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .recovery-source-menu-items {
+    position: static;
+    margin-top: 0.4rem;
+  }
+
+  .linked-recovery-source {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+.qr-image-import {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin-top: 0.5rem;
+  cursor: pointer;
+}
+
+.matcher-entry-textarea {
+  overflow-x: auto;
+  white-space: pre;
+}
+
+#mnemonic-entropy.revealed .secret-value {
+  filter: none;
+  user-select: text;
+}
+
+.seed-construction-details {
+  margin-top: 12px;
+  border-top: 1px solid #26313c;
+  padding-top: 10px;
+}
+
+.seed-construction-details > summary {
+  width: fit-content;
+  color: var(--accent2);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.seed-construction-values {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 7px 14px;
+  margin: 12px 0;
+  font-size: 11px;
+}
+
+.seed-construction-values dt {
+  color: var(--muted);
+}
+
+.seed-construction-values dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.seed-construction-values code {
+  color: #dce5ed;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.seed-word-table-wrap {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.seed-word-table {
+  width: 100%;
+  min-width: 690px;
+  border-collapse: collapse;
+  font: 11px/1.4 var(--mono);
+}
+
+.seed-word-table th,
+.seed-word-table td {
+  padding: 7px 9px;
+  border: 1px solid #26313c;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.seed-word-table th {
+  background: var(--panel2);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.seed-word-table td:nth-child(2),
+.seed-word-table td:nth-child(5) {
+  color: var(--accent2);
+}
+
+.matcher-force-all > span {
+  display: grid;
+  gap: 3px;
+}
+
+.matcher-force-all small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.matcher-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.matcher-results-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.matcher-results-table {
+  width: max-content !important;
+  min-width: 100%;
+}
+
+.matcher-results-table th,
+.matcher-results-table td {
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+
+.matcher-private-fields {
+  min-width: 25rem;
+}
+
+.matcher-private-fields > div {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.matcher-private-fields > div:last-child {
+  margin-bottom: 0;
+}
+
+.matcher-private-fields strong {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.matcher-private-fields code {
+  color: var(--accent2);
+  font: 11px/1.45 var(--mono);
+  user-select: text;
+}
+
+.matcher-results.revealed .secret-value {
+  filter: none;
+  user-select: text;
+}
+
+.recovered-secret-actions {
+  align-items: center;
+  margin-top: 10px;
+}
+
+.recovered-secret-actions > button {
+  width: auto;
+  min-width: 0;
+}
+
+/* Option explanations always occupy their own line below the action label. */
+.feature-tab-toggle > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.feature-tab-toggle > span > strong,
+.feature-tab-toggle > span > small {
+  display: block;
+}
+
+.feature-tab-toggle > span > small {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 400;
+  line-height: 1.45;
 }

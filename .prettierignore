@@ -4,6 +4,8 @@ node_modules/
 target/
 test-results/
 packages/dash-shielded-wasm/generated/
+packages/recovery-codex32-wasm/generated/
+packages/recovery-shamir-wasm/generated/
 .git/
 .github/
 docs/audits/archive/

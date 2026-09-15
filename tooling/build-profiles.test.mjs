@@ -54,23 +54,6 @@ describe('build profiles', () => {
     expect(dash).toBe('<main></main>');
   });
 
-  it('omits the Bitcoin address-search panel from Dash Community HTML', () => {
-    const template = '<main>__ADDRESS_SEARCH_PANEL__</main>';
-    const multi = applyProfileTemplate(
-      template,
-      BUILD_PROFILES['multi-chain'],
-      getToolBuild(BUILD_PROFILES['multi-chain'], 'discovery-scanner'),
-    );
-    const dash = applyProfileTemplate(
-      template,
-      BUILD_PROFILES['dash-community'],
-      getToolBuild(BUILD_PROFILES['dash-community'], 'discovery-scanner'),
-    );
-    expect(multi).toContain('id="address-search"');
-    expect(multi).toContain('Recover by address');
-    expect(dash).toBe('<main></main>');
-  });
-
   it('keeps the activity coin selector in Multi-Chain with Bitcoin selected', () => {
     const template = '<main>__ACTIVITY_COIN_CONTROL__</main>';
     const multi = applyProfileTemplate(
