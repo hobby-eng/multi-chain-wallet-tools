@@ -66,6 +66,8 @@ ARG SOURCE_DIRTY=false
 ENV VERIFICATION_COMMIT=${SOURCE_COMMIT} \
     VERIFICATION_DIRTY=${SOURCE_DIRTY}
 RUN --network=none pnpm verify
+# Compile a bounded matrix that exercises every selectable coin and feature at least once.
+RUN --network=none pnpm build:matrix:smoke
 
 FROM built AS verified
 RUN diff --recursive --brief /tmp/committed-generated/dash packages/dash-shielded-wasm/generated \

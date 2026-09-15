@@ -71,3 +71,6 @@ jobs:
 
       - name: Run extended browser regressions
         run: pnpm test:browser:regressions
+
+      - name: Run selective-build browser smoke
+        run: pnpm test:browser:selective

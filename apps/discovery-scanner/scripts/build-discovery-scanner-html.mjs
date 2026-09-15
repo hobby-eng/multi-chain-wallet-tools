@@ -5,12 +5,14 @@ import { fileURLToPath } from 'node:url';
 import { build, transform } from 'esbuild';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 import {
+  applyDiscoveryFeatureTemplate,
   assertDiscoveryComposition,
   createDiscoveryCompositionPlugin,
   discoveryAppEntry,
   discoveryNetworkWorkerEntry,
 } from '../../../tooling/discovery-composition.mjs';
 import {
+  applySelectedNetworkCsp,
   artifactDisplayName,
   customToolArtifact,
   parseRequestedOutput,
@@ -41,12 +43,9 @@ let shellTemplate = applyProfileTemplate(
   profile,
   tool,
 );
-if (!options.has('seed-discovery')) {
-  vaultTemplate = vaultTemplate
-    .replaceAll('Secret Vault', 'Public Input Boundary')
-    .replaceAll('secret candidates', 'public inputs');
-  shellTemplate = shellTemplate.replaceAll('Secret Vault', 'Public Input Boundary');
-}
+vaultTemplate = applyDiscoveryFeatureTemplate(vaultTemplate, options);
+shellTemplate = applySelectedNetworkCsp(shellTemplate, options);
+if (!options.has('seed-discovery')) shellTemplate = shellTemplate.replaceAll('Secret Vault', 'Public Input Boundary');
 const sharedCss = readFileSync(resolve(root, 'packages/shared-ui/styles/main.css'), 'utf8');
 const recoveryCss = readFileSync(resolve(root, 'apps/discovery-scanner/src/styles.css'), 'utf8');
 const shellCss = readFileSync(resolve(root, 'packages/shared-ui/styles/tool-shell.css'), 'utf8');

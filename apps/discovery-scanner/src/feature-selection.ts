@@ -15,6 +15,7 @@ export interface DiscoveryFeatureRuntime {
   readonly watchOnlyDiscovery: boolean;
   readonly walletMatcher: boolean;
   readonly customPaths: boolean;
+  readonly boundaryDescription: string;
   readonly scanCandidates?: typeof scanCandidates;
   readonly createRecoverySeedInputs?: typeof createRecoverySeedInputs;
   readonly recoveryScanConfig?: typeof recoveryScanConfig;
@@ -38,6 +39,8 @@ export const ALL_DISCOVERY_FEATURES: DiscoveryFeatureRuntime = {
   watchOnlyDiscovery: true,
   walletMatcher: true,
   customPaths: true,
+  boundaryDescription:
+    "Opaque-origin Secret Vault · connect-src/worker-src 'none' · isolated network worker · scan-end export tripwire · secret candidates discarded before download · shell export broker · max 5 requests",
   scanCandidates,
   candidateSummary,
   createRecoverySeedInputs,

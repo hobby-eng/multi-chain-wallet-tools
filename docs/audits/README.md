@@ -1,22 +1,17 @@
 # Audit records
 
-Audit numbers preserve chronological order. The five current review records remain in this directory; older records are retained under `archive/` so findings and remediation evidence are not lost.
+Audit files use one global chronological sequence. Markdown and JSON files with the same number belong to the same review.
 
-## Current sequence
+1. [Audit 01](audit-01-2026-09-08.json)  2026-09-08
+2. [Audit 02](audit-02-2026-09-08.md)  2026-09-08
+3. [Audit 03](audit-03-2026-09-09.md)  2026-09-09
+4. [Audit 04](audit-04-2026-09-12.md)  2026-09-12
+5. [Audit 05](audit-05-2026-09-12.md)  2026-09-12
+6. [Audit 06](audit-06-2026-09-12.md)  2026-09-12
+7. [Audit 07](audit-07-2026-09-12.md)  2026-09-12
+8. [Audit 08](audit-08-2026-09-12.md)  2026-09-12
+9. [Audit 09](audit-09-2026-09-12.md)  2026-09-12
+10. [Audit 10](audit-10-2026-09-15.md)  2026-09-15
+11. [Audit 11](audit-11-2026-09-15.md)  2026-09-15
 
-1. [02 — remediation audit](2026-09-12-02-remediation-audit.md)
-2. [03 — follow-up audit](2026-09-12-03-followup-audit.md)
-3. [04 — independent audit](2026-09-12-04-independent-audit.md)
-4. [05 — remediation verification](2026-09-12-05-remediation-verification.md)
-5. [06 — independent re-verification](2026-09-12-06-independent-reverification.md)
-
-The machine-readable JSON twin beside each applicable report belongs to the same point-in-time review.
-
-## Foundational and archived records
-
-- [2026-09-08 immutable baseline metadata](2026-09-08-baseline.json) remains at this path because repository metadata tests address it directly.
-- [2026-09-08 remediation](archive/2026-09-08-remediation.md)
-- [2026-09-09 remediation](archive/2026-09-09-remediation.md)
-- [01 — initial independent audit](archive/2026-09-12-01-initial-audit.md)
-
-Historical findings are not current acceptance evidence. Use the latest report and the `dist/verification-record.json` emitted for the build being evaluated.
+Historical findings describe only the reviewed snapshot. Use the latest audit and the `dist/verification-record.json` emitted for the build being evaluated.

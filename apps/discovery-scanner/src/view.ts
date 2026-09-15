@@ -225,17 +225,33 @@ export function createDiscoveryScannerView(
     button.hidden = (mode === 'seed' && !features.seedDiscovery) || (mode === 'public' && !features.watchOnlyDiscovery);
   }
   const publicPanel = required<HTMLElement>('#public-input');
-  const seedModeTabs = required<HTMLElement>('#seed-mode-tabs');
+  const seedElement = <T extends HTMLElement>(selector: string, tag: keyof HTMLElementTagNameMap): T => {
+    if (features.seedDiscovery) return required<T>(selector);
+    return document.createElement(tag) as T;
+  };
+  const wrappedSeedInput = (selector: string, wrapperClass: string): HTMLInputElement => {
+    if (features.seedDiscovery) return required<HTMLInputElement>(selector);
+    const wrapper = document.createElement('div');
+    wrapper.className = wrapperClass;
+    const input = document.createElement('input');
+    wrapper.append(input);
+    return input;
+  };
+  // Watch-only artifacts physically omit the seed controls. Detached inert
+  // elements keep the shared public-results view small without weakening the
+  // build-time guarantee that BIP39 inputs are absent from the HTML artifact.
+  const seedSourcePanel = seedElement<HTMLElement>('#seed-source-panel', 'div');
+  const seedModeTabs = seedElement<HTMLElement>('#seed-mode-tabs', 'div');
   const watchOnlyKeys = required<HTMLTextAreaElement>('#watch-only-keys');
   const watchOnlyMinimum = required<HTMLInputElement>('#watch-only-minimum');
   const watchOnlyDetection = required<HTMLElement>('#watch-only-detection');
   const seedCoverage = required<HTMLElement>('#seed-coverage');
-  const singlePanel = required<HTMLElement>('#single-input');
-  const batchPanel = required<HTMLElement>('#batch-input');
-  const automaticCandidates = required<HTMLInputElement>('#automatic-candidates');
-  const candidateOptions = required<HTMLElement>('#candidate-options');
-  const candidateCoins = required<HTMLElement>('#candidate-coins');
-  const candidateAll = required<HTMLInputElement>('#candidate-all-coins');
+  const singlePanel = seedElement<HTMLElement>('#single-input', 'div');
+  const batchPanel = seedElement<HTMLElement>('#batch-input', 'div');
+  const automaticCandidates = wrappedSeedInput('#automatic-candidates', 'candidate-choice');
+  const candidateOptions = seedElement<HTMLElement>('#candidate-options', 'div');
+  const candidateCoins = seedElement<HTMLElement>('#candidate-coins', 'div');
+  const candidateAll = seedElement<HTMLInputElement>('#candidate-all-coins', 'input');
   const candidateCoinInputs: HTMLInputElement[] = [];
   const candidateMode = (): boolean => sourceMode === 'seed' && seedMode === 'batch' && automaticCandidates.checked;
   automaticCandidates.closest<HTMLElement>('.candidate-choice')!.hidden = !features.seedDiscovery;
@@ -243,13 +259,21 @@ export function createDiscoveryScannerView(
   const addressSearchPanel = document.querySelector<HTMLElement>('#address-search-panel');
   if (addressSearchPanel !== null) addressSearchPanel.hidden = !features.walletMatcher;
 
-  const singleMnemonic = required<HTMLTextAreaElement>('#single-mnemonic');
-  const singlePassphrase = required<HTMLInputElement>('#single-passphrase');
-  const batchMnemonics = required<HTMLTextAreaElement>('#batch-mnemonics');
-  const batchPassphrases = required<HTMLTextAreaElement>('#batch-passphrases');
-  const batchConcurrencyInput = required<HTMLSelectElement>('#batch-concurrency');
-  const revealButton = required<HTMLButtonElement>('#reveal-recovery-input');
-  const clearInputOnStart = required<HTMLInputElement>('#clear-input-on-start');
+  const singleMnemonic = seedElement<HTMLTextAreaElement>('#single-mnemonic', 'textarea');
+  const singlePassphrase = seedElement<HTMLInputElement>('#single-passphrase', 'input');
+  const batchMnemonics = seedElement<HTMLTextAreaElement>('#batch-mnemonics', 'textarea');
+  const batchPassphrases = seedElement<HTMLTextAreaElement>('#batch-passphrases', 'textarea');
+  const batchConcurrencyInput = features.seedDiscovery
+    ? required<HTMLSelectElement>('#batch-concurrency')
+    : (() => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'batch-concurrency-row';
+        const select = document.createElement('select');
+        wrapper.append(select);
+        return select;
+      })();
+  const revealButton = seedElement<HTMLButtonElement>('#reveal-recovery-input', 'button');
+  const clearInputOnStart = seedElement<HTMLInputElement>('#clear-input-on-start', 'input');
   const scanCoreInput = required<HTMLInputElement>('#scan-core');
   const scanLegacyCoreInput = required<HTMLInputElement>('#scan-legacy-core');
   const legacyCoreCountInput = required<HTMLInputElement>('#legacy-core-count');
@@ -821,7 +845,7 @@ export function createDiscoveryScannerView(
       }
       setComponentSettings();
       publicPanel.hidden = !publicInput;
-      required<HTMLElement>('#seed-source-panel').hidden = publicInput;
+      seedSourcePanel.hidden = publicInput;
       seedModeTabs.hidden = publicInput;
       singlePanel.hidden = publicInput || seedMode !== 'single';
       batchPanel.hidden = publicInput || seedMode !== 'batch';
@@ -1234,8 +1258,7 @@ export function createDiscoveryScannerView(
       passportSelfTest.textContent = 'Cryptographic self-test passed';
       selfTestBadge.textContent = `${checks.length} self-tests passed · ${durationMs} ms`;
       passportSelfTestDetails.textContent = `${checks.length} startup checks passed in ${durationMs.toLocaleString()} ms: ${checks.join(' · ')}. Scanning is enabled.`;
-      recoveryRuntime.textContent =
-        "Opaque-origin Secret Vault · connect-src/worker-src 'none' · isolated Evo Network Worker · scan-end export tripwire · secret candidates discarded before download · shell export broker · max 5 requests";
+      recoveryRuntime.textContent = features.boundaryDescription;
     },
     showSelfTestFailed(message: string): void {
       selfTestBadge.className = 'self-test-badge failed';

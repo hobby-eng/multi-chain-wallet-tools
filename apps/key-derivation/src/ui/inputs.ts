@@ -55,6 +55,10 @@ export function populateCoinSelect(select: HTMLSelectElement, registry: CoinMeta
     option.textContent = family.label;
     select.append(option);
   }
+  // Firefox can restore an earlier select value while opening a local HTML
+  // file. The build's ordered registry defines the deterministic default.
+  select.selectedIndex = 0;
+  select.value = registry.COIN_FAMILIES[0]?.id ?? '';
 }
 
 function renderProtocolTabs(adapter: CoinAdapter, controls: DerivationControls, registry: CoinMetadataRegistry): void {

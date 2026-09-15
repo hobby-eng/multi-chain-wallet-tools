@@ -1,0 +1,152 @@
+{
+  "schema": "independent-audit-report/1",
+  "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
+  "date": "2026-09-15",
+  "timeUtc": "17:08-17:50",
+  "commit": "cdce70cb531f4da5d46c6ac321ff7de9dd8e12a9",
+  "branch": "main",
+  "treeClean": true,
+  "toolchain": {
+    "node": "24.19.0",
+    "pnpmLocal": "11.19.0",
+    "pnpmPinned": "11.25.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0",
+    "prettier": "3.6.2",
+    "playwright": "1.62.1",
+    "chromium": "151.0.7922.34",
+    "firefox": "153.0",
+    "docker": "29.8.0",
+    "rust": "1.98.1",
+    "wasmBindgen": "0.2.128",
+    "btcutilJs": "0.4.1"
+  },
+  "findings": [
+    {
+      "id": "F-01",
+      "severity": "High",
+      "title": "Canonical Docker build fails: WASM build scripts hard-code .tools cargo path",
+      "files": [
+        "tooling/build-recovery-shamir-wasm.mjs",
+        "tooling/build-recovery-codex32-wasm.mjs"
+      ],
+      "evidence": "docker build target artifacts fails at Dockerfile.reproducible:68 (pnpm verify) with spawnSync /.tools/cargo/bin/cargo ENOENT; local pnpm verify passes only because ../.tools exists",
+      "impact": "CI, release workflow and build-reproducible.sh cannot produce canonical artifacts from HEAD"
+    },
+    {
+      "id": "F-02",
+      "severity": "Medium",
+      "title": "Selective Activity Viewer builds without Dash throw at startup (#viewer-build-fingerprint missing)",
+      "files": [
+        "apps/activity-viewer/src/public-address-view.ts",
+        "apps/activity-viewer/src/index.html"
+      ],
+      "evidence": "--coins bitcoin and --coins ethereum builds raise 'Required Activity Viewer element is missing' in Chromium; dash-containing variants start"
+    },
+    {
+      "id": "F-03",
+      "severity": "Medium",
+      "title": "--output can overwrite canonical release artifacts with a selective build",
+      "files": [
+        "tooling/tool-feature-options.mjs",
+        "tooling/key-derivation-features.mjs",
+        "tooling/build-html-profiles.mjs"
+      ],
+      "evidence": "Dash-only Deriver written to dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html (c9194584 -> d309be5e); contradicts docs/BUILD_MODULES.md"
+    },
+    {
+      "id": "F-04",
+      "severity": "Low",
+      "title": "WASM bridge errors are primitive strings; Recovery UI shows generic messages",
+      "evidence": "ThresholdNotPassed { threshold: 3, n_shares: 2 } and MismatchedHrp thrown as strings; UI uses cause instanceof Error"
+    },
+    {
+      "id": "F-05",
+      "severity": "Low",
+      "title": "CKD Shamir format has no secret digest; consistent tampered share recovers a different valid-looking phrase silently"
+    },
+    {
+      "id": "F-06",
+      "severity": "Low",
+      "title": "Watch-only-only scanner build retains hidden seed-mode markup/copy although seed modules are excluded"
+    },
+    {
+      "id": "F-07",
+      "severity": "Low",
+      "title": "Flaky Firefox acceptance: Multi-Chain Deriver #coin 'dash' !== 'bitcoin' once in four runs"
+    },
+    {
+      "id": "F-08",
+      "severity": "Informational",
+      "title": "Documentation drift: BROWSER_ACCEPTANCE 38 vs 42 cases; SECURITY_AUDIT latest review predates modular work; connect-src https:; upstream /home/runner string"
+    }
+  ],
+  "checks": {
+    "tsc": "pass",
+    "vitest": {
+      "files": 112,
+      "tests": 1215,
+      "failed": 0
+    },
+    "format": "pass",
+    "rust": {
+      "orchard": "12 passed, 1 ignored",
+      "shamir": "1 passed",
+      "codex32": "2 passed"
+    },
+    "buildHtml": "pass",
+    "verifiers": "all pass",
+    "provenance": {
+      "pnpm": 143,
+      "cargo": 148,
+      "githubCommits": "6/6"
+    },
+    "reproducibleBuildSameMachine": "pass",
+    "pnpmAudit": "clean",
+    "browserFiles": [
+      "15/16 (Firefox flake)",
+      "16/16",
+      "16/16"
+    ],
+    "browserRegressions": "42/42",
+    "dockerCanonical": "FAIL (F-01)",
+    "localVerify": "pass",
+    "matrixPlan": {
+      "total": 3476,
+      "smoke": 62
+    },
+    "selectiveBuilds": {
+      "built": 8,
+      "invalidRejected": 6
+    },
+    "probes": {
+      "codex32Vectors": "1,3,3alt,4,5,6,7,8 + derived d/e/f + 51 invalid",
+      "seedqrVectors": "1-5",
+      "slip39": "2-group round trip",
+      "shamir": "round trips + tamper",
+      "descriptorPsbtDash": "re-verified"
+    }
+  },
+  "testsToAdd": [
+    "matrix browser smoke",
+    "rust toolchain resolution unit test",
+    "--output guard",
+    "BIP93 vectors 1,3,5,6-8 + invalid",
+    "SeedQR vectors 1-3,5",
+    "Shamir tamper/threshold+/legacy",
+    "SLIP-39 multi-group",
+    "worker allowlist runtime rejection",
+    "watch-only scanner markup absence",
+    "recovery self-test fail-closed",
+    "Firefox default coin",
+    "property round trips"
+  ],
+  "notPerformed": [
+    "live providers",
+    "headed Firefox",
+    "exhaustive matrix",
+    "WASM regeneration",
+    "Core RPC round trips"
+  ],
+  "pathHygiene": "no real home path in report; logs rewritten to /home/user"
+}

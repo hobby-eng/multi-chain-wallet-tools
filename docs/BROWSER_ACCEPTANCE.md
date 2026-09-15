@@ -8,6 +8,7 @@ Playwright is a pinned development dependency, not a runtime dependency of the H
 pnpm exec playwright install chromium firefox
 pnpm test:browser:files
 pnpm test:browser:regressions
+pnpm test:browser:selective
 ```
 
 `PLAYWRIGHT_MODULE` can override module resolution for a separately installed matching copy. `HEADED=1` shows the browsers. `BROWSER_ENGINES=chromium` selects a single engine for diagnosis; it is not evidence that Firefox passed.
@@ -29,7 +30,8 @@ This is bounded UI acceptance, not a full end-to-end wallet-discovery or network
 
 The user-run report `test-results/browser-files/2026-09-08T21-41-48.962Z/report.json` records **12/12 passing cases** for clean commit `94eb3374cc6d3e67a578d459891d0f1e7d65ecab`, using Chromium 151.0.7922.34 and Firefox 153.0. Its recorded hashes matched that revision's six HTML artifacts. This is historical acceptance evidence: later changes require a new build and browser run. Fixture or browser-environment failures must be inspected rather than treated as application success or automatically waived.
 
+The selective smoke runner is `pnpm test:browser:selective`. It builds Bitcoin-only and Ethereum-only Activity Viewers into a temporary directory, opens both in Chromium and Firefox, and rejects startup errors or a missing release fingerprint.
 
-The extended regression runner is `pnpm test:browser:regressions`. Its current 38-case matrix covers all four tools in both editions and both engines, including verification revision binding, unsafe custom Tapscript rejection, CoinJoin visibility, BIP38 round trips, BIP85 child wallets, and commands issued immediately while the derivation Worker is booting. The Worker case confirms that Clear, Cancel, and protocol-tab changes neither expose inputs nor terminate the Blob Worker before its shared `ready` handshake. Run it after functional changes. A failed case can be repeated with
+The extended regression runner is `pnpm test:browser:regressions`. Its current 42-case matrix covers all four tools in both editions and both engines, including verification revision binding, unsafe custom Tapscript rejection, CoinJoin visibility, BIP38 round trips, BIP85 child wallets, and commands issued immediately while the derivation Worker is booting. The Worker case confirms that Clear, Cancel, and protocol-tab changes neither expose inputs nor terminate the Blob Worker before its shared `ready` handshake. Run it after functional changes. A failed case can be repeated with
 `BROWSER_CASES`, `BROWSER_ENGINES`, and `BROWSER_PROFILE` rather than repeating the
 entire matrix. Deliberately injected CSP violations are retained in console/probe records. Chromium’s extra undefined pageerror from an explicitly denied opaque-frame IndexedDB probe is recorded separately; other application errors still fail the run. The script-execution/network/storage assertions remain enforced.

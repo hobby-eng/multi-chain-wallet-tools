@@ -1,4 +1,5 @@
 import { basename, resolve } from 'node:path';
+import { assertSafeCustomOutput } from './tool-feature-options.mjs';
 
 export const KEY_DERIVATION_COINS = Object.freeze(['bitcoin', 'dash', 'ethereum']);
 
@@ -100,6 +101,7 @@ export function customKeyDerivationArtifact(root, profile, features, requestedOu
   if (requestedOutput !== undefined) {
     const output = resolve(root, requestedOutput);
     if (!output.endsWith('.html')) throw new Error('--output must name an .html file.');
+    assertSafeCustomOutput(root, output);
     return output;
   }
   const slug = `${features.coins.join('-')}__${features.selected.join('_')}`;
@@ -174,19 +176,7 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
 }
 
 export function featureDefines(features) {
-  const value = (feature) => (features.has(feature) ? 'true' : 'false');
-  return {
-    __CKD_FEATURE_BIP85__: value('bip85'),
-    __CKD_FEATURE_BIP38_ENCRYPT__: value('bip38-encrypt'),
-    __CKD_FEATURE_MESSAGE_SIGNING__: value('message-signing'),
-    __CKD_FEATURE_SILENT_PAYMENTS__: value('silent-payments'),
-    __CKD_FEATURE_WALLET_MATCHER__: value('wallet-matcher'),
-    __CKD_FEATURE_SEEDQR__: value('seedqr'),
-    __CKD_FEATURE_SLIP39__: value('slip39'),
-    __CKD_FEATURE_SHAMIR__: value('shamir'),
-    __CKD_FEATURE_CODEX32__: value('codex32'),
-    __CKD_HAS_RECOVERY__: features.hasRecovery ? 'true' : 'false',
-  };
+  return { __CKD_HAS_RECOVERY__: features.hasRecovery ? 'true' : 'false' };
 }
 
 export function describeCustomArtifact(path) {

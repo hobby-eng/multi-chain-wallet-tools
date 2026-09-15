@@ -1,41 +1,24 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { assertExactToolVersion, resolveRustToolchain } from './rust-toolchain.mjs';
+import { assertCanonicalWasmBindgenProducer } from './verify-wasm-producers.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const localTools = resolve(root, '.tools');
-const sharedTools = resolve(root, '..', '.tools');
-const tools = existsSync(resolve(localTools, 'cargo/bin/cargo')) ? localTools : sharedTools;
-const localCargoHome = resolve(tools, 'cargo');
-const localRustupHome = resolve(tools, 'rustup');
-const fallbackHome = process.env.HOME;
-const effectiveCargoHome = existsSync(localCargoHome)
-  ? localCargoHome
-  : (process.env.CARGO_HOME ?? (fallbackHome === undefined ? undefined : resolve(fallbackHome, '.cargo')));
-const effectiveRustupHome = existsSync(localRustupHome)
-  ? localRustupHome
-  : (process.env.RUSTUP_HOME ?? (fallbackHome === undefined ? undefined : resolve(fallbackHome, '.rustup')));
-const cargo = existsSync(resolve(localCargoHome, 'bin/cargo')) ? resolve(localCargoHome, 'bin/cargo') : 'cargo';
-const wasmBindgen = existsSync(resolve(localCargoHome, 'bin/wasm-bindgen'))
-  ? resolve(localCargoHome, 'bin/wasm-bindgen')
-  : 'wasm-bindgen';
+const {
+  cargo,
+  wasmBindgen,
+  cargoHome: effectiveCargoHome,
+  rustupHome: effectiveRustupHome,
+  environment,
+} = resolveRustToolchain(root);
 const manifest = resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.toml');
 const compiled = resolve(
   root,
   'packages/dash-shielded-wasm/rust/target/wasm32-unknown-unknown/release/dash_shielded_wasm.wasm',
 );
 const generated = resolve(root, 'packages/dash-shielded-wasm/generated');
-const environment = {
-  ...process.env,
-  ...(existsSync(localCargoHome) ? { CARGO_HOME: localCargoHome } : {}),
-  ...(existsSync(localRustupHome) ? { RUSTUP_HOME: localRustupHome } : {}),
-  CARGO_ENCODED_RUSTFLAGS: [
-    ...(effectiveCargoHome === undefined ? [] : [`--remap-path-prefix=${effectiveCargoHome}=/cargo`]),
-    ...(effectiveRustupHome === undefined ? [] : [`--remap-path-prefix=${effectiveRustupHome}=/rustup`]),
-    `--remap-path-prefix=${root}=/workspace`,
-  ].join('\u001f'),
-};
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, env: environment, stdio: 'inherit' });
@@ -60,12 +43,13 @@ if (!lockfile.includes(expectedOrchard)) {
 }
 
 version(cargo, 'cargo 1.98.1');
-version(wasmBindgen, 'wasm-bindgen 0.2.128');
+assertExactToolVersion(wasmBindgen, 'wasm-bindgen 0.2.128', { cwd: root, env: environment });
 run(cargo, ['build', '--manifest-path', manifest, '--target', 'wasm32-unknown-unknown', '--release', '--locked']);
 mkdirSync(generated, { recursive: true });
 run(wasmBindgen, [compiled, '--target', 'web', '--out-dir', generated]);
 const generatedWasmPath = resolve(generated, 'dash_shielded_wasm_bg.wasm');
 const generatedWasm = readFileSync(generatedWasmPath);
+assertCanonicalWasmBindgenProducer(generatedWasm, 'Dash Orchard WASM');
 for (const privatePrefix of [root, effectiveCargoHome, effectiveRustupHome].filter(Boolean)) {
   if (generatedWasm.includes(Buffer.from(privatePrefix))) {
     throw new Error(`Generated Orchard WASM still exposes a private build path: ${privatePrefix}`);
