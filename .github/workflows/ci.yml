@@ -51,7 +51,7 @@ jobs:
           persist-credentials: false
 
       - name: Install the pinned Node and pnpm runtimes
-        uses: pnpm/setup@d36251dc5e9235e7dae772d97bccdad4fb6271b9 # v2.0.1
+        uses: pnpm/setup@4700d737c3d7a2e7199f3d42a920f0bf7f34e411 # v2.0.1
         with:
           version: 11.25.0
           runtime: node@24.20.0
