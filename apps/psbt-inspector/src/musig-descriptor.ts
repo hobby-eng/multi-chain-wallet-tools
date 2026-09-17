@@ -1,13 +1,14 @@
 import { findMatchingClose, splitTopLevelArguments } from './balanced-syntax.js';
-import type { TaprootScriptTree } from '@scure/btc-signer/payment.js';
+import { tapLeafHash } from '@scure/btc-signer/payment.js';
 import { materializeDescriptorKey, validateDescriptorPublicKey } from '@ckd/core/descriptor-key.js';
 import { compilePolicyMiniscript } from './miniscript-engine.js';
 import { CONSENSUS_LIMITS } from './consensus-limits.js';
 import { HDKey, type Versions } from '@scure/bip32';
 import { bech32m } from '@scure/base';
 import { NETWORK, TEST_NETWORK, p2tr } from '@scure/btc-signer';
+import { taprootTweakPubkey } from '@scure/btc-signer/utils.js';
 import { keyAggregate, sortKeys } from '@scure/btc-signer/musig2.js';
-import { bytesToHex, hexToBytes, secp256k1 } from '@ckd/core/crypto.js';
+import { bytesToHex, hexToBytes, secp256k1, sha256 } from '@ckd/core/crypto.js';
 import type { PsbtNetwork } from './psbt.js';
 
 interface MusigKeyAnalysis {
@@ -199,15 +200,20 @@ export function compileTaprootDescriptor(
     } else args = args.map(fragment);
     return `${match[1] ?? ''}${name === 'sortedmulti_a' ? 'multi_a' : name}(${args.join(',')})`;
   }
-  function tree(text: string, depth = 0): TaprootScriptTree {
+  const tapBranchHash = (left: Uint8Array, right: Uint8Array): Uint8Array => {
+    const [first, second] = bytesToHex(left) < bytesToHex(right) ? [left, right] : [right, left];
+    const tag = sha256(new TextEncoder().encode('TapBranch'));
+    return sha256(Uint8Array.of(...tag, ...tag, ...first, ...second));
+  };
+  function treeHash(text: string, depth = 0): Uint8Array {
     if (depth > CONSENSUS_LIMITS.maximumTaprootTreeDepth) throw new Error('Taproot tree exceeds 128 levels.');
     if (text.startsWith('{')) {
       if (!text.endsWith('}')) throw new Error('Unclosed Taproot tree.');
       const nodes = splitTopLevel(text.slice(1, -1));
       if (nodes.length !== 2) throw new Error('Taproot tree branches must have exactly two children.');
-      return [tree(nodes[0]!, depth + 1), tree(nodes[1]!, depth + 1)];
+      return tapBranchHash(treeHash(nodes[0]!, depth + 1), treeHash(nodes[1]!, depth + 1));
     }
-    return { script: compilePolicyMiniscript(fragment(text), { tapscript: true, context: 'tapscript' }).script };
+    return tapLeafHash(compilePolicyMiniscript(fragment(text), { tapscript: true, context: 'tapscript' }).script);
   }
   const type = payload.startsWith('rawtr(') ? 'rawtr' : 'tr';
   const open = payload.indexOf('(');
@@ -225,6 +231,16 @@ export function compileTaprootDescriptor(
     };
   const net =
     network === 'mainnet' ? NETWORK : network === 'regtest' ? { ...TEST_NETWORK, bech32: 'bcrt' } : TEST_NETWORK;
-  const payment = args[1] === undefined ? p2tr(internal, undefined, net) : p2tr(internal, tree(args[1]), net, true);
-  return { script: payment.script, address: payment.address };
+  if (args[1] === undefined) {
+    const payment = p2tr(internal, undefined, net);
+    return { script: payment.script, address: payment.address };
+  }
+  // Compute the BIP341 commitment directly. The dependency's p2tr() helper
+  // intentionally rejects recognized legacy scripts such as pkh() as leaves,
+  // although BIP341 permits any consensus-valid Tapscript leaf.
+  const outputKey = taprootTweakPubkey(internal, treeHash(args[1]))[0];
+  return {
+    script: Uint8Array.of(0x51, 0x20, ...outputKey),
+    address: bech32m.encode(net.bech32, [1, ...bech32m.toWords(outputKey)]),
+  };
 }

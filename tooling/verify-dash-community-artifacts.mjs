@@ -23,6 +23,7 @@ const DASH_DERIVATION_ADAPTER_IDS = new Set([
   'dash-platform',
   'dash-identity',
   'dash-multisig-p2sh',
+  'dash-multisig-core-pkh',
   'dash-shielded',
 ]);
 const DASH_RECOVERY_ADAPTER_IDS = new Set(['dash']);
@@ -126,6 +127,7 @@ function verifyDashCommunityArtifacts(projectRoot = root) {
     'dash-platform',
     'dash-identity',
     'dash-multisig-p2sh',
+    'dash-multisig-core-pkh',
     'dash-shielded',
   ]) {
     if (!keyArtifact.includes(adapterId)) {

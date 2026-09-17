@@ -38,7 +38,7 @@ if (bitcoinMode !== undefined) return { ...metadata, derive: (input) => deriveBi
       ['deriveDashCore', 'core'],
       ['deriveDashLegacyMobile', 'legacy-mobile'],
       ['deriveDashIdentity', 'identity'],
-      ['deriveDashMultisig', 'multisig'],
+      ['deriveDashMultisig, deriveDashCoreMultisig', 'multisig'],
       ['deriveDashPlatform', 'platform'],
     ])
       imports.push(
@@ -50,6 +50,7 @@ if (id === 'dash-legacy-mobile') return { ...metadata, derive: deriveDashLegacyM
 if (id === 'dash-platform') return { ...metadata, derive: deriveDashPlatform };
 if (id === 'dash-identity') return { ...metadata, derive: deriveDashIdentity };
 if (id === 'dash-multisig-p2sh') return { ...metadata, derive: deriveDashMultisig };
+if (id === 'dash-multisig-core-pkh') return { ...metadata, derive: deriveDashCoreMultisig };
 if (id === 'dash-shielded') return { ...metadata, derive: async (input) => {
   const { deriveDashShielded } = await import(${JSON.stringify(resolve(root, 'packages/coin-protocols/src/coins/dash/shielded.ts'))});
   return deriveDashShielded(input);

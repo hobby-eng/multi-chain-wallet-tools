@@ -20,6 +20,12 @@ interface ParsedAccountXpub {
   readonly node: HDKey;
 }
 
+function cliNetworkFlag(network: PsbtNetwork): string {
+  if (network === 'mainnet') return '';
+  if (network === 'regtest') return ' -regtest';
+  return ' -testnet';
+}
+
 interface RangedWalletRequest {
   readonly chain: PsbtChain;
   readonly network: PsbtNetwork;
@@ -127,8 +133,9 @@ export interface ConcreteMultisigWallet {
 }
 
 function assertConcreteRequest(request: ConcreteMultisigRequest): void {
-  if (request.publicKeys.length < 1 || request.publicKeys.length > 16)
-    throw new Error('Enter from 1 to 16 compressed child public keys or account xpubs.');
+  const maximum = normalizedWrapper(request.chain, request.wrapper) === 'p2sh' ? 15 : 20;
+  if (request.publicKeys.length < 1 || request.publicKeys.length > maximum)
+    throw new Error(`Enter from 1 to ${maximum} compressed child public keys or account xpubs.`);
   if (!Number.isSafeInteger(request.required) || request.required < 1 || request.required > request.publicKeys.length) {
     throw new Error(`Required signatures must be from 1 to ${request.publicKeys.length}.`);
   }
@@ -153,14 +160,17 @@ function concreteImportPayload(
     return {
       text:
         dashImport.fullPolicyGuiCommand === null
-          ? dashImport.legacyCommand
-          : `dash-cli ${dashImport.fullPolicyGuiCommand}`,
+          ? dashImport.legacyCommand.replace(/^dash-cli/u, `dash-cli${cliNetworkFlag(request.network)}`)
+          : `dash-cli${cliNetworkFlag(request.network)} ${dashImport.fullPolicyGuiCommand}`,
       json: dashImport.rpcJson,
     };
   }
   const payload = [{ desc: descriptor, timestamp: 'now', active: false, internal: false }];
   const json = `${JSON.stringify(payload, null, 2)}\n`;
-  return { json, text: `bitcoin-cli importdescriptors '${JSON.stringify(payload)}'` };
+  return {
+    json,
+    text: `bitcoin-cli${cliNetworkFlag(request.network)} importdescriptors '${JSON.stringify(payload)}'`,
+  };
 }
 
 function parseConcreteKeyInput(
@@ -247,7 +257,18 @@ export function buildConcreteMultisigWallet(request: ConcreteMultisigRequest): C
 }
 
 function parseAccountXpub(line: string, chain: PsbtChain, network: PsbtNetwork, index: number): ParsedAccountXpub {
-  const value = line.trim();
+  let value = line.trim();
+  if (value.startsWith('pkh(')) {
+    const [body, checksum, extra] = value.split('#');
+    if (body === undefined || checksum === undefined || extra !== undefined || descriptorChecksum(body) !== checksum)
+      throw new Error('Signer pkh descriptor must have a valid descriptor checksum.');
+    const signer = /^pkh\((.+)\/[01]\/\*\)$/u.exec(body);
+    if (signer?.[1] === undefined)
+      throw new Error(
+        'Use a signer pkh descriptor ending in /0/* or /1/*; hardened and multipath suffixes are unsupported.',
+      );
+    value = signer[1];
+  }
   const match = /^\[([0-9a-fA-F]{8})((?:\/[0-9]+['hH]?)+)\]([A-Za-z0-9]+)$/u.exec(value);
   const xpub = match?.[3] ?? value;
   if (!/^[xt]pub[1-9A-HJ-NP-Za-km-z]+$/u.test(xpub)) {
@@ -285,8 +306,9 @@ function validateRange(startIndex: number, endIndex: number): void {
 }
 
 function assertRequest(request: RangedWalletRequest): void {
-  if (request.accountXpubs.length < 1 || request.accountXpubs.length > 16)
-    throw new Error('Enter from 1 to 16 account public keys.');
+  const maximum = normalizedWrapper(request.chain, request.wrapper) === 'p2sh' ? 15 : 20;
+  if (request.accountXpubs.length < 1 || request.accountXpubs.length > maximum)
+    throw new Error(`Enter from 1 to ${maximum} account public keys.`);
   if (
     !Number.isSafeInteger(request.required) ||
     request.required < 1 ||
@@ -296,15 +318,6 @@ function assertRequest(request: RangedWalletRequest): void {
   }
   if (request.branches.length === 0) throw new Error('Select at least one branch.');
   validateRange(request.startIndex, request.endIndex);
-}
-
-function assertConsistentOrigins(accounts: readonly ParsedAccountXpub[]): void {
-  const paths = new Set(accounts.map((account) => account.originPath).filter((path) => path !== 'not supplied'));
-  if (paths.size > 1) {
-    throw new Error(
-      `Account public keys use mixed derivation paths (${[...paths].join(', ')}). Recreate/export every cosigner with the same multisig script type and account path, for example all Dash Purpose48 P2SH keys at m/48h/5h/0h/0h. Mixing legacy m/45h/0 with Purpose48 changes the multisig script and address.`,
-    );
-  }
 }
 
 function branchDescriptor(
@@ -358,24 +371,31 @@ function importPayload(
     const payload = descriptors.map((descriptor) => ({
       desc: descriptor.descriptor,
       timestamp: 'now',
-      active: false,
+      active: true,
       internal: descriptor.branch === 1,
       range: [request.startIndex, request.endIndex],
+      next_index: request.startIndex,
     }));
     const json = `${JSON.stringify(payload, null, 2)}\n`;
-    return { json, text: `bitcoin-cli importdescriptors '${JSON.stringify(payload)}'` };
+    const flag = cliNetworkFlag(request.network);
+    return {
+      json,
+      text: `# Create a separate blank watch-only descriptor wallet; choose a unique wallet name.\nbitcoin-cli${flag} -named createwallet wallet_name=multisig-watch-only disable_private_keys=true blank=true descriptors=true load_on_startup=true\nbitcoin-cli${flag} -rpcwallet=multisig-watch-only importdescriptors '${JSON.stringify(payload)}'\n# Verify the same receive/change addresses with every cosigner before funding.\n# For an existing wallet, replace timestamp now with its earliest possible use time and rescan.`,
+    };
   }
   const payload = descriptors.map((descriptor) => ({
     desc: descriptor.descriptor,
     timestamp: 'now',
-    active: false,
+    active: true,
     internal: descriptor.branch === 1,
     range: [request.startIndex, request.endIndex],
     next_index: request.startIndex,
-    label: `Multisig ${descriptor.label}`,
   }));
   const json = `${JSON.stringify({ jsonrpc: '1.0', id: 'multisig-wallet', method: 'importdescriptors', params: [payload] }, null, 2)}\n`;
-  return { json, text: `dash-cli importdescriptors '${JSON.stringify(payload)}'` };
+  return {
+    json,
+    text: `# Create a separate blank watch-only descriptor wallet; choose a unique wallet name.\ndash-cli${cliNetworkFlag(request.network)} -named createwallet wallet_name=multisig-watch-only disable_private_keys=true blank=true descriptors=true load_on_startup=true\ndash-cli${cliNetworkFlag(request.network)} -rpcwallet=multisig-watch-only importdescriptors '${JSON.stringify(payload)}'\n# Verify the same receive/change addresses with every cosigner before funding.\n# For an existing wallet, replace timestamp now with its earliest possible use time and rescan.`,
+  };
 }
 
 export function buildRangedWallet(request: RangedWalletRequest): RangedWallet {
@@ -383,7 +403,6 @@ export function buildRangedWallet(request: RangedWalletRequest): RangedWallet {
   const accounts = request.accountXpubs.map((line, index) =>
     parseAccountXpub(line, request.chain, request.network, index),
   );
-  assertConsistentOrigins(accounts);
   const descriptors = request.branches.map((branch) => ({
     branch,
     label: `${branchLabel(branch)} /${branch}/*`,
@@ -407,7 +426,7 @@ export function buildRangedWallet(request: RangedWalletRequest): RangedWallet {
       `Network: ${request.chain === 'dash' ? 'Dash Core' : 'Bitcoin'} ${request.network}`,
       `Branches: ${request.branches.map((branch) => `${branchLabel(branch)} /${branch}`).join(', ')}`,
       `Index range: ${request.startIndex}-${request.endIndex}`,
-      'All cosigner account public keys must come from the same multisig derivation family; mixed m/45 and Purpose48 keys intentionally produce different addresses.',
+      'Each origin path identifies that cosigner key independently. Preserve every origin and have all cosigners verify the final descriptors and addresses before funding.',
       ...accounts.map(
         (account) => `${account.label}: ${account.originPath} · fingerprint ${account.fingerprint} · ${account.xpub}`,
       ),

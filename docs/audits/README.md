@@ -16,5 +16,7 @@ Audit files use one global chronological sequence. Markdown and JSON files with 
 12. [Audit 12](audit-12-2026-09-17.md) — 2026-09-17
 13. [Audit 13](audit-13-2026-09-17.md) — 2026-09-17
 14. [Audit 14](audit-14-2026-09-17.md) — 2026-09-17
+15. [Audit 15](audit-15-2026-09-17.md) — 2026-09-17
+16. [Audit 16](audit-16-2026-09-17.md) — 2026-09-17
 
 Historical findings describe only the reviewed snapshot. Use the latest audit and the `dist/verification-record.json` emitted for the build being evaluated.

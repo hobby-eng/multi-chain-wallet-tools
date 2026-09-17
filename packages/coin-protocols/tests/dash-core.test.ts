@@ -2,7 +2,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import DashHd from 'dashhd';
 import { describe, expect, it } from 'vitest';
 import { deriveDashCore } from '../src/coins/dash/core.js';
-import { deriveDashMultisig } from '../src/coins/dash/multisig.js';
+import { deriveDashCoreMultisig, deriveDashMultisig } from '../src/coins/dash/multisig.js';
 import { mnemonicToSeed } from '@ckd/core/bip39.js';
 import { rowValue, TEST_MNEMONIC, value } from '@ckd/test-support/helpers.js';
 
@@ -61,7 +61,7 @@ describe('Dash Core', () => {
 });
 
 describe('Dash Purpose48 multisig cosigner', () => {
-  it('exports the standard Dash mainnet P2SH multisig cosigner account xpub and child public keys', () => {
+  it('exports the wallet-specific Dash mainnet Purpose48 account xpub and child cosigner keys', () => {
     const seed = mnemonicToSeed(TEST_MNEMONIC);
     try {
       const result = deriveDashMultisig({ seed, network: 'mainnet', account: 0, branch: 0, start: 0, count: 2 });
@@ -74,7 +74,7 @@ describe('Dash Purpose48 multisig cosigner', () => {
       expect(rowValue(result, 'publicKey')).toMatch(/^(02|03)[0-9a-f]{64}$/u);
       expect(rowValue(result, 'descriptorKey')).toMatch(/^\[[0-9a-f]{8}\/48h\/5h\/0h\/0h\]xpub.+\/0\/0$/u);
       expect(result.watchOnly?.text).toBe(`${value(result.basicSummary, 'descriptorAccountKey')}\n`);
-      expect(result.notices.join('\n')).toContain("Do not mix it with BIP44 m/44'/5'/account'");
+      expect(result.notices.join('\n')).toContain('do not mix it with Dash Core pkh signer');
     } finally {
       seed.fill(0);
     }
@@ -89,6 +89,47 @@ describe('Dash Purpose48 multisig cosigner', () => {
       expect(value(result.summary, 'accountPath')).toBe("m/48'/1'/3'/0'");
       expect(value(result.basicSummary, 'descriptorAccountKey')).toMatch(/^\[[0-9a-f]{8}\/48h\/1h\/3h\/0h\]tpub/u);
       expect(rowValue(result, 'privateKey')).toMatch(/^c/u);
+    } finally {
+      seed.fill(0);
+    }
+  });
+});
+
+describe('Dash Core pkh multisig cosigner', () => {
+  it('exports the BIP44 account xpub, public signer descriptors and child cosigner keys', () => {
+    const seed = mnemonicToSeed(TEST_MNEMONIC);
+    try {
+      const result = deriveDashCoreMultisig({
+        seed,
+        network: 'mainnet',
+        account: 0,
+        branch: 0,
+        start: 0,
+        count: 2,
+      });
+      expect(result.id).toBe('dash-multisig-core-pkh');
+      expect(result.title).toBe('Dash multisig cosigner (Dash Core pkh signer)');
+      expect(result.pathTemplate).toBe("m/44'/5'/0'/0/i");
+      expect(value(result.summary, 'accountPath')).toBe("m/44'/5'/0'");
+      expect(value(result.basicSummary, 'descriptorAccountKey')).toMatch(/^\[[0-9a-f]{8}\/44h\/5h\/0h\]xpub/u);
+      expect(value(result.basicSummary, 'receivePkhDescriptor')).toMatch(/^pkh\(.+\/0\/\*\)#[a-z0-9]{8}$/u);
+      expect(value(result.basicSummary, 'changePkhDescriptor')).toMatch(/^pkh\(.+\/1\/\*\)#[a-z0-9]{8}$/u);
+      expect(rowValue(result, 'publicKey')).toMatch(/^(02|03)[0-9a-f]{64}$/u);
+      expect(result.rows.map(({ path }) => path)).toEqual(["m/44'/5'/0'/0/0", "m/44'/5'/0'/0/1"]);
+      expect(result.rows[0]?.basic.some(({ key }) => key === 'address')).toBe(false);
+      expect(result.notices.join('\n')).toContain('not a shared multisig address');
+    } finally {
+      seed.fill(0);
+    }
+  });
+
+  it('labels nonzero BIP44 accounts as custom signer material', () => {
+    const seed = mnemonicToSeed(TEST_MNEMONIC);
+    try {
+      const result = deriveDashCoreMultisig({ seed, network: 'mainnet', account: 1, branch: 0, start: 0, count: 1 });
+      expect(result.title).toBe('Dash multisig cosigner (custom BIP44 pkh account)');
+      expect(result.notices.join('\n')).toContain('default Dash Core signer workflow uses account 0');
+      expect(result.pathTemplate).toBe("m/44'/5'/1'/0/i");
     } finally {
       seed.fill(0);
     }
