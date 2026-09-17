@@ -9,6 +9,31 @@ import { decodeScript } from './script.js';
 import { expression, matchingClose, splitTopLevel, treeLeaves, type ExpressionNode } from './descriptor-policy.js';
 import type { DescriptorCompiledOutput } from './descriptor-types.js';
 import type { PsbtNetwork } from './psbt-types.js';
+import { bech32, bech32m, createBase58check } from '@scure/base';
+
+const base58check = createBase58check(sha256);
+
+function selectedAddressScript(address: string, network: PsbtNetwork): Uint8Array {
+  if (/^(?:bc|tb|bcrt)1/iu.test(address)) {
+    const expectedPrefix = network === 'mainnet' ? 'bc' : network === 'regtest' ? 'bcrt' : 'tb';
+    const tentative = bech32.decode(address as `${string}1${string}`, 1000);
+    const version = tentative.words[0];
+    if (version === undefined || version > 16) throw new Error('Invalid witness address version.');
+    const decoded = version === 0 ? tentative : bech32m.decode(address as `${string}1${string}`, 1000);
+    if (decoded.prefix !== expectedPrefix) throw new Error(`Address does not belong to ${network}.`);
+    const program = (version === 0 ? bech32 : bech32m).fromWords(decoded.words.slice(1));
+    if (program.length < 2 || program.length > 40 || (version === 0 && ![20, 32].includes(program.length)))
+      throw new Error('Invalid witness program length.');
+    return Uint8Array.of(version === 0 ? 0 : 0x50 + version, program.length, ...program);
+  }
+  const payload = base58check.decode(address);
+  if (payload.length !== 21) throw new Error('Invalid Base58 address payload.');
+  const p2pkh = network === 'mainnet' ? 0x00 : 0x6f;
+  const p2sh = network === 'mainnet' ? 0x05 : 0xc4;
+  if (payload[0] === p2pkh) return Uint8Array.of(0x76, 0xa9, 0x14, ...payload.slice(1), 0x88, 0xac);
+  if (payload[0] === p2sh) return Uint8Array.of(0xa9, 0x14, ...payload.slice(1), 0x87);
+  throw new Error(`Address does not belong to ${network}.`);
+}
 
 export function validateNodeKeys(
   node: ExpressionNode,
@@ -169,6 +194,12 @@ export function compiledDescriptorOutput(
       outputType = 'P2TR';
     }
     concretePayload = `${type}(${concreteKey})`;
+  } else if (type === 'addr' && chain === 'bitcoin') {
+    scriptPubKey = selectedAddressScript(argument, network);
+    spendingScript = scriptPubKey;
+    asm = decodeScript(bytesToHex(scriptPubKey), chain, network, 'script-pubkey').asm;
+    concretePayload = `addr(${argument})`;
+    outputType = describeScript(scriptPubKey, chain, network).type;
   } else if (type === 'raw' && /^(?:[0-9a-fA-F]{2})+$/u.test(argument)) {
     scriptPubKey = hexToBytes(argument);
     const decoded = decodeScript(argument, 'bitcoin', network, 'script-pubkey');
@@ -210,11 +241,17 @@ export function validateDescriptorMiniscript(payload: string, type: string): voi
   const validateFragment = (fragment: string, tapscript: boolean): void => {
     const parsed = expression(fragment);
     if (parsed === null) throw new Error('Unsupported top-level Miniscript: the fragment is not recognized.');
-    if (['sortedmulti', 'sortedmulti_a'].includes(parsed.name)) {
-      const threshold = Number(parsed.args[0]);
-      if (!Number.isSafeInteger(threshold) || threshold < 1 || threshold >= parsed.args.length)
+    if (['multi', 'sortedmulti', 'multi_a', 'sortedmulti_a'].includes(parsed.name)) {
+      const thresholdText = parsed.args[0];
+      const threshold = typeof thresholdText === 'string' ? Number(thresholdText) : Number.NaN;
+      if (
+        typeof thresholdText !== 'string' ||
+        !/^[1-9][0-9]*$/u.test(thresholdText) ||
+        !Number.isSafeInteger(threshold) ||
+        threshold >= parsed.args.length
+      )
         throw new Error('Invalid multisig threshold.');
-      return;
+      if (parsed.name === 'sortedmulti' || parsed.name === 'sortedmulti_a') return;
     }
     if (['wpkh', 'wsh', 'sh', 'tr', 'rawtr', 'addr', 'raw'].includes(parsed.name)) {
       throw new Error(
@@ -223,9 +260,12 @@ export function validateDescriptorMiniscript(payload: string, type: string): voi
     }
     validatePolicyMiniscript(fragment, { tapscript });
   };
-  if (type === 'wsh') {
+  if (type === 'wsh' || type === 'sh') {
     const open = payload.indexOf('(');
-    validateFragment(payload.slice(open + 1, matchingClose(payload, open)), false);
+    const fragment = payload.slice(open + 1, matchingClose(payload, open));
+    const parsed = expression(fragment);
+    if (type === 'sh' && parsed !== null && (parsed.name === 'wpkh' || parsed.name === 'wsh')) return;
+    validateFragment(fragment, false);
   }
   if (type === 'tr') {
     // Concrete Tapscript validation and compilation are performed together.
@@ -233,6 +273,5 @@ export function validateDescriptorMiniscript(payload: string, type: string): voi
     const args = splitTopLevel(payload.slice(open + 1, matchingClose(payload, open)));
     if (args[1] !== undefined) treeLeaves(args[1]);
   }
-  if (type === 'multi') validateFragment(payload, false);
-  if (type === 'sortedmulti') return;
+  if (type === 'multi' || type === 'sortedmulti') validateFragment(payload, false);
 }

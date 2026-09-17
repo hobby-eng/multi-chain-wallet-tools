@@ -43,7 +43,7 @@ describe('human-readable signing commitments', () => {
   it('makes the missing SIGHASH_SINGLE output edge case explicit', () => {
     expect(analyzeSighash(0x03, 'legacy', false)).toMatchObject({
       unusual: true,
-      outputs: 'No corresponding output · legacy SIGHASH_SINGLE edge case',
+      outputs: 'No corresponding output · legacy SIGHASH_SINGLE returns the constant hash 1',
     });
     expect(analyzeSighash(0x03, 'taproot', false)).toMatchObject({
       unusual: true,
@@ -54,7 +54,7 @@ describe('human-readable signing commitments', () => {
   it('does not invent SIGHASH_ALL when an unsigned PSBT omits the field', () => {
     const bitcoin = analyzeInputSigning(parsePsbt(BITCOIN_WITNESS_PREVIOUS_TX_PSBT, 'bitcoin'), 0);
     expect(bitcoin).toMatchObject({
-      signature: 'Not signed',
+      signature: 'No signature or final-script fields supplied',
       sighash: { label: 'Not specified · signer decides according to wallet policy', known: false },
       rbf: 'Not signaled',
       locktime: 'Block height 1257139',

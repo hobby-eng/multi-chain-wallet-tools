@@ -191,7 +191,8 @@ export function installPsbtDecoderFeature(): void {
     section.append(textElement('h3', '', title));
     maps.forEach((map, index) => {
       const details = document.createElement('details');
-      if (maps.length === 1) details.open = true;
+      const containsPassthrough = map.some((item) => pairName(scope, item.type, chain).startsWith('Unknown'));
+      if (maps.length === 1 || containsPassthrough) details.open = true;
       const heading = document.createElement('summary');
       heading.textContent =
         scope === 'global'
@@ -290,6 +291,16 @@ export function installPsbtDecoderFeature(): void {
       : `BIP32 key origins supplied for ${origins}/${parsed.inputs.length} inputs`;
   }
 
+  function passthroughFieldCount(parsed: ParsedPsbt): number {
+    const count = (scope: 'global' | 'input' | 'output', maps: readonly (readonly import('./psbt.js').PsbtPair[])[]) =>
+      maps.reduce(
+        (total, map) =>
+          total + map.filter((item) => pairName(scope, item.type, parsed.chain).startsWith('Unknown')).length,
+        0,
+      );
+    return count('global', [parsed.global]) + count('input', parsed.inputs) + count('output', parsed.outputs);
+  }
+
   function outputAsm(script: Uint8Array, chain: PsbtChain, network: PsbtNetwork): string {
     try {
       return decodeScript(bytesToHex(script), chain, network, 'script-pubkey').asm;
@@ -301,6 +312,7 @@ export function installPsbtDecoderFeature(): void {
   function render(parsed: ParsedPsbt): void {
     const selectedNetwork = network();
     const knownInputCount = parsed.inputValues.filter((value) => value !== null).length;
+    const passthroughFields = passthroughFieldCount(parsed);
     results.hidden = false;
     summary.replaceChildren(
       stat('Chain parser', parsed.chain === 'dash' ? 'Dash Core' : 'Bitcoin'),
@@ -311,6 +323,12 @@ export function installPsbtDecoderFeature(): void {
       stat('Signing state', signingState(parsed)),
       stat('UTXO information', utxoState(parsed)),
       stat('Signer metadata', signerMetadata(parsed)),
+      stat(
+        'Unknown / passthrough fields',
+        passthroughFields === 0
+          ? 'None'
+          : `${passthroughFields} record(s) preserved in the decoded maps · expand Raw / advanced PSBT maps`,
+      ),
     );
     const cards: HTMLElement[] = [];
     cards.push(
@@ -464,6 +482,8 @@ export function installPsbtDecoderFeature(): void {
       renderMaps('Input maps', 'input', parsed.inputs, parsed.chain, selectedNetwork),
       renderMaps('Output maps', 'output', parsed.outputs, parsed.chain, selectedNetwork),
     );
+    const advancedMaps = mapDetails.closest<HTMLDetailsElement>('details');
+    if (advancedMaps !== null) advancedMaps.open = passthroughFields > 0;
   }
 
   function inspect(): void {

@@ -1,0 +1,97 @@
+{
+  "source": "https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/test/descriptor_tests.cpp",
+  "taprootPkh": [
+    {
+      "descriptor": "tr(a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd,pkh(30a6069f344fb784a2b4c99540a91ee727c91e3a25ef6aae867d9c65b5f23529))",
+      "script": "51201e9875f690f5847404e4c5951e2f029887df0525691ee11a682afd37b608aad4"
+    },
+    {
+      "descriptor": "tr(a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd,{{pkh(1c9bc926084382e76da33b5a52d17b1fa153c072aae5fb5228ecc2ccf89d79d5),pk(0dd6b52b192ab195558d22dd8437a9ec4519ee5ded496c0d55bc9b1a8b0e8c2b)},thresh(1,pk(30a6069f344fb784a2b4c99540a91ee727c91e3a25ef6aae867d9c65b5f23529),s:pk(9918d400c1b8c3c478340a40117ced4054b6b58f48cdb3c89b836bdfee1f5766))})",
+      "script": "5120d8ea39b29de2b550b68bd2ada8b075c888c2b2df3290c7a35856482747848934"
+    }
+  ],
+  "invalidDescriptors": [
+    "multi(+1,03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd,04a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd5b8dec5235a0fa8722476c7709c02559e3aa73aa03918ba2d492eea75abea235)",
+    "sh(03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd)",
+    "addr(asdf)"
+  ],
+  "proprietary": [
+    {
+      "name": "proprietary_global_fc",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAH8Aqq7AAAA",
+      "valid": false
+    },
+    {
+      "name": "proprietary_global_fc00",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAL8AAKquwAAAA==",
+      "valid": false
+    },
+    {
+      "name": "proprietary_global_fc036162",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAT8A2FiAqq7AAAA",
+      "valid": false
+    },
+    {
+      "name": "proprietary_global_fc016100",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAT8AWEAAqq7AAAA",
+      "valid": true
+    },
+    {
+      "name": "proprietary_global_fcfd01006100",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAb8/QEAYQACqrsAAAA=",
+      "valid": false
+    },
+    {
+      "name": "proprietary_input_fc",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAAB/AKquwAA",
+      "valid": false
+    },
+    {
+      "name": "proprietary_input_fc00",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAAC/AACqrsAAA==",
+      "valid": false
+    },
+    {
+      "name": "proprietary_input_fc036162",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAAE/ANhYgKquwAA",
+      "valid": false
+    },
+    {
+      "name": "proprietary_input_fc016100",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAAE/AFhAAKquwAA",
+      "valid": true
+    },
+    {
+      "name": "proprietary_input_fcfd01006100",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAAG/P0BAGEAAqq7AAA=",
+      "valid": false
+    },
+    {
+      "name": "proprietary_output_fc",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAAAAfwCqrsA",
+      "valid": false
+    },
+    {
+      "name": "proprietary_output_fc00",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAAAAvwAAqq7AA==",
+      "valid": false
+    },
+    {
+      "name": "proprietary_output_fc036162",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAAABPwDYWICqrsA",
+      "valid": false
+    },
+    {
+      "name": "proprietary_output_fc016100",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAAABPwBYQACqrsA",
+      "valid": true
+    },
+    {
+      "name": "proprietary_output_fcfd01006100",
+      "psbt": "cHNidP8BAD4CAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAAABvz9AQBhAAKquwA=",
+      "valid": false
+    }
+  ],
+  "legacyWithTaprootMetadata": "cHNidP8BAD4CAAAAAUDbfSTE44MU7qLofM/CVqhEa6ZHIRUgPqXySRqdA/QdAAAAAAD+////AQAAAAAAAAAAAmoAAAAAAAABAFUCAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD+////ARAnAAAAAAAAGXapFAICAgICAgICAgICAgICAgICAgICiKwAAAAAAQMEAQAAAAEXIJgiYizzMLmOUuc1cTW8k+HlYGpXqYGUCHNFmP5Wd7E0AAA=",
+  "dualLocktime": "cHNidP8B+wQCAAAAAQIEAgAAAAEEAQEBBQEBAAEOIAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ8EAAAAAAEQBP7///8BEQQA8VNlARIEADUMAAABAwgAAAAAAAAAAAEEAmoAAA=="
+}

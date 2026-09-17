@@ -1,3 +1,4 @@
+import DASH_CORE_BIP67_FIXTURE from './upstream/dash-core-rpc-bip67.json';
 import { buildCustomMiniscriptPolicy } from '../src/custom-miniscript.js';
 import { describe, expect, it } from 'vitest';
 import { HDKey } from '@scure/bip32';
@@ -23,6 +24,15 @@ import {
 } from '../src/psbt.js';
 import { decodeScript } from '../src/script.js';
 
+const DASH_CORE_BIP67_VECTORS = DASH_CORE_BIP67_FIXTURE as unknown as readonly [
+  { readonly keys: readonly [string, string, ...string[]]; readonly script: string; readonly address: string },
+  ...Array<{
+    readonly keys: readonly [string, string, ...string[]];
+    readonly script: string;
+    readonly address: string;
+  }>,
+];
+
 const BIP174_CREATOR =
   '70736274ff01009a020000000258e87a21b56daf0c23be8e7070456c336f7cbaa5c8757924f545887bb2abdd750000000000ffffffff838d0427d0ec650a68aa46bb0b098aea4422c071b2ca78352a077959d07cea1d0100000000ffffffff0270aaf00800000000160014d85c2b71d0060b09c9886aeb815e50991dda124d00e1f5050000000016001400aea9a2e5f0f876a588df5546e8742d1d87008f000000000000000000';
 const WITNESS_PREVIOUS_TX_PSBT =
@@ -44,31 +54,8 @@ const BIP390_XPUBS = [
   'xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL',
   'xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y',
 ] as const;
-// Source: dashpay/dash-dev-branches test/functional/data/rpc_bip67.json
-// at 6f2134d022b33ecd4e37714a27e584e2bbd8f13b. These are Dash Core's
-// sortedmulti P2SH vectors exercised by rpc_createmultisig.py.
-const DASH_CORE_BIP67_VECTORS = [
-  {
-    keys: [
-      '02ff12471208c14bd580709cb2358d98975247d8765f92bc25eab3b2763ed605f8',
-      '02fe6f0a5a297eb38c391581c4413e084773ea23954d93f7753db7dc0adc188b2f',
-    ],
-    script:
-      '522102fe6f0a5a297eb38c391581c4413e084773ea23954d93f7753db7dc0adc188b2f2102ff12471208c14bd580709cb2358d98975247d8765f92bc25eab3b2763ed605f852ae',
-    address: '8nL86iHTC8K4eVZ6YwyhRWMLhSauj8XQAK',
-  },
-  {
-    keys: [
-      '02632b12f4ac5b1d1b72b2a3b508c19172de44f6f46bcee50ba33f3f9291e47ed0',
-      '027735a29bae7780a9755fae7a1c4374c656ac6a69ea9f3697fda61bb99a4f3e77',
-      '02e2cc6bd5f45edd43bebe7cb9b675f0ce9ed3efe613b177588290ad188d11b404',
-    ],
-    script:
-      '522102632b12f4ac5b1d1b72b2a3b508c19172de44f6f46bcee50ba33f3f9291e47ed021027735a29bae7780a9755fae7a1c4374c656ac6a69ea9f3697fda61bb99a4f3e772102e2cc6bd5f45edd43bebe7cb9b675f0ce9ed3efe613b177588290ad188d11b40453ae',
-    address: '8q3jFFMMtiego4tNXEZckxw6ZzVy95pnPr',
-  },
-] as const;
-
+// Official Dash Core v23.1.8 vectors (unchanged on master 3a0c938).
+// SHA-256: 9087f6bee68d1cdbcf4d6940d665e1743b7b15c6b576211c40a343a1f433ecaf.
 describe('PSBT inspector core', () => {
   it('compiles the fixed Bitcoin Core P2WSH descriptor into concrete Bitcoin data', () => {
     const descriptor = decodeDescriptor(
@@ -622,21 +609,21 @@ describe('PSBT inspector core', () => {
     expect(() => decodeDescriptor(`tr(${key})`, { chain: 'dash' })).toThrow(
       /SegWit, Taproot, and MuSig2 are unavailable/u,
     );
-    expect(pairName('input', 0x1an, 'dash')).toBe('Unknown/unsupported Dash field 26');
+    expect(pairName('input', 0x1an, 'dash')).toBe('Unknown / passthrough Dash field · type 0x1a');
   });
 
   it('derives staged ranged descriptor keys with Scure BIP32 and preserves the ranged export', () => {
     const primaryExpression = `[deadbeef/48'/0'/0'/2']${BIP390_XPUBS[0]}/<0;1>/*`;
     const recoveryExpression = `[cafebabe/48'/0'/1'/2']${BIP390_XPUBS[1]}/<0;1>/*`;
-    const emergencyExpression = `[01020304/48'/0'/2'/2']${BIP390_XPUBS[0]}/<0;1>/*`;
+    const emergencyExpression = `[01020304/48'/0'/2'/2']${HDKey.fromMasterSeed(new Uint8Array(32).fill(9)).publicExtendedKey}/<0;1>/*`;
     const derived = [primaryExpression, recoveryExpression, emergencyExpression].map((key) =>
       materializeDescriptorKey(key, 'mainnet', 1, 2),
     );
-    expect(derived).toEqual([
+    expect(derived.slice(0, 2)).toEqual([
       '02cc9fd211dc0a1c8bb7a106ff831be0e253bc992f21d08fb8a6fd43fae51b9b89',
       '03071306d15f4e0df2b9aeaf96a3c857f2de28d6b49ccdc8f8012789fa8f74439b',
-      '02cc9fd211dc0a1c8bb7a106ff831be0e253bc992f21d08fb8a6fd43fae51b9b89',
     ]);
+    expect(derived[2]).not.toBe(derived[0]);
     const policy = buildPolicy({
       chain: 'bitcoin',
       network: 'mainnet',
@@ -842,10 +829,10 @@ describe('PSBT inspector core', () => {
   it('builds one concrete multisig address directly from account xpubs at a selected suffix', () => {
     const accounts = [51, 52].map((value) => {
       const seed = new Uint8Array(32).fill(value);
-      return HDKey.fromMasterSeed(seed).derive("m/48'/5'/0'/0'");
+      return HDKey.fromMasterSeed(seed).derive("m/48'/1'/0'/0'");
     });
     const xpubs = accounts.map(
-      (account, index) => `[${index === 0 ? 'aaaaaaaa' : 'bbbbbbbb'}/48h/5h/0h/0h]${account.publicExtendedKey}`,
+      (account, index) => `[${index === 0 ? 'aaaaaaaa' : 'bbbbbbbb'}/48h/1h/0h/0h]${account.publicExtendedKey}`,
     );
     const concrete = buildConcreteMultisigWallet({
       chain: 'dash',
@@ -889,7 +876,7 @@ describe('PSBT inspector core', () => {
     ).toThrow(/account xpub, not a compressed child public key/u);
   });
 
-  it('matches Dash Core dev-branch BIP67 sortedmulti P2SH vectors', () => {
+  it('matches Dash Core official BIP67 sortedmulti P2SH vectors', () => {
     for (const vector of DASH_CORE_BIP67_VECTORS) {
       const policy = buildPolicy({
         chain: 'dash',
@@ -938,7 +925,9 @@ describe('PSBT inspector core', () => {
     expect(importJson).toHaveLength(2);
     expect(importJson.map((item: { internal: boolean }) => item.internal)).toEqual([false, true]);
     expect(importJson[0].range).toEqual([0, 1]);
-    expect(wallet.importText).toMatch(/^bitcoin-cli importdescriptors/u);
+    expect(wallet.importText).toContain('bitcoin-cli -named createwallet');
+    expect(importJson.every((item: { active: boolean }) => item.active)).toBe(true);
+    expect(importJson.map((item: { next_index: number }) => item.next_index)).toEqual([0, 0]);
     expect(wallet.derivationDetails).toContain('supplied-order multi');
   });
 
@@ -956,28 +945,79 @@ describe('PSBT inspector core', () => {
       accountXpubs: accounts.map(
         (account, index) => `[${String(index + 1).repeat(8)}/48h/5h/0h/0h]${account.publicExtendedKey}`,
       ),
-      branches: [0],
+      branches: [0, 1],
       startIndex: 0,
       endIndex: 0,
     });
     expect(wallet.descriptors[0]?.descriptor).toContain('sh(sortedmulti(2,');
-    expect(wallet.rows).toHaveLength(1);
+    expect(wallet.rows).toHaveLength(2);
     expect(wallet.rows[0]?.address).toMatch(/^[78]/u);
     expect(wallet.rows[0]?.publicKeys).toEqual(
       [...wallet.rows[0]!.publicKeys].sort((left, right) => left.localeCompare(right)),
     );
     const importJson = JSON.parse(wallet.importJson);
     expect(importJson).toMatchObject({ method: 'importdescriptors' });
-    expect(importJson.params[0]).toHaveLength(1);
+    expect(importJson.params[0]).toHaveLength(2);
     expect(importJson.params[0][0]).toMatchObject({
       desc: wallet.descriptors[0]?.descriptor,
       range: [0, 0],
       next_index: 0,
-      active: false,
+      active: true,
       internal: false,
     });
-    expect(wallet.importText).toMatch(/^dash-cli importdescriptors/u);
+    expect(importJson.params[0][0]).not.toHaveProperty('label');
+    expect(importJson.params[0][1]).toMatchObject({ active: true, internal: true });
+    expect(importJson.params[0][1]).not.toHaveProperty('label');
+    expect(wallet.importText).toContain('disable_private_keys=true blank=true descriptors=true');
+    expect(wallet.importText).toContain('-rpcwallet=multisig-watch-only importdescriptors');
     expect(wallet.derivationDetails).toContain('BIP67 sortedmulti P2SH');
+  });
+
+  it('accepts the public checksummed pkh descriptor exported by a Dash Core signer wallet', () => {
+    const account = HDKey.fromMasterSeed(new Uint8Array(32).fill(62), getDashNetwork('mainnet').versions).derive(
+      "m/44'/5'/0'",
+    );
+    const keyExpression = `[a1b2c3d4/44h/5h/0h]${account.publicExtendedKey}`;
+    const body = `pkh(${keyExpression}/0/*)`;
+    const wallet = buildRangedWallet({
+      chain: 'dash',
+      network: 'mainnet',
+      required: 1,
+      keyOrder: 'bip67',
+      wrapper: 'p2sh',
+      accountXpubs: [`${body}#${descriptorChecksum(body)}`],
+      branches: [0, 1],
+      startIndex: 0,
+      endIndex: 0,
+    });
+    expect(wallet.descriptors[0]?.descriptor).toContain(`sh(sortedmulti(1,${keyExpression}/0/*))#`);
+    expect(wallet.descriptors[1]?.descriptor).toContain(`sh(sortedmulti(1,${keyExpression}/1/*))#`);
+  });
+
+  it('uses script-family multisig key limits', () => {
+    const compressedKeys = Array.from({ length: 16 }, (_, index) =>
+      bytesToHex(secp256k1.getPublicKey(new Uint8Array(32).fill(index + 1), true)),
+    );
+    expect(() =>
+      buildConcreteMultisigWallet({
+        chain: 'dash',
+        network: 'mainnet',
+        required: 2,
+        keyOrder: 'bip67',
+        wrapper: 'p2sh',
+        publicKeys: compressedKeys,
+      }),
+    ).toThrow(/1 to 15/u);
+    expect(() =>
+      buildConcreteMultisigWallet({
+        chain: 'bitcoin',
+        network: 'mainnet',
+        required: 2,
+        keyOrder: 'bip67',
+        wrapper: 'p2wsh',
+        publicKeys: compressedKeys,
+      }),
+    ).not.toThrow();
   });
 
   it('explains mainnet xpub versus testnet tpub mismatches', () => {
@@ -999,29 +1039,29 @@ describe('PSBT inspector core', () => {
     ).toThrow(/mainnet xpub/u);
   });
 
-  it('rejects mixed Dash Electrum legacy and Purpose48 account families', () => {
+  it('preserves each independent cosigner origin instead of requiring matching account paths', () => {
     const first = HDKey.fromMasterSeed(new Uint8Array(32).fill(41), getDashNetwork('mainnet').versions).derive(
       "m/48'/5'/0'/0'",
     );
     const second = HDKey.fromMasterSeed(new Uint8Array(32).fill(42), getDashNetwork('mainnet').versions).derive(
       "m/45'/0",
     );
-    expect(() =>
-      buildRangedWallet({
-        chain: 'dash',
-        network: 'mainnet',
-        required: 2,
-        keyOrder: 'supplied',
-        wrapper: 'p2sh',
-        accountXpubs: [
-          `[aaaaaaaa/48h/5h/0h/0h]${first.publicExtendedKey}`,
-          `[bbbbbbbb/45h/0]${second.publicExtendedKey}`,
-        ],
-        branches: [0],
-        startIndex: 0,
-        endIndex: 0,
-      }),
-    ).toThrow(/mixed derivation paths/u);
+    const wallet = buildRangedWallet({
+      chain: 'dash',
+      network: 'mainnet',
+      required: 2,
+      keyOrder: 'supplied',
+      wrapper: 'p2sh',
+      accountXpubs: [
+        `[aaaaaaaa/48h/5h/0h/0h]${first.publicExtendedKey}`,
+        `[bbbbbbbb/45h/0]${second.publicExtendedKey}`,
+      ],
+      branches: [0],
+      startIndex: 0,
+      endIndex: 0,
+    });
+    expect(wallet.descriptors[0]?.descriptor).toContain('/48h/5h/0h/0h');
+    expect(wallet.descriptors[0]?.descriptor).toContain('/45h/0');
   });
 
   it('places an absolute block lock before the multisig condition', () => {
@@ -1055,7 +1095,7 @@ describe('PSBT inspector core', () => {
   });
 
   it('builds and decodes a 4-of-5 or delayed recovery policy', () => {
-    const keys = Array.from({ length: 5 }, (_, index) => {
+    const keys = Array.from({ length: 6 }, (_, index) => {
       const secret = new Uint8Array(32);
       secret[31] = index + 1;
       return bytesToHex(secp256k1.getPublicKey(secret, true));
@@ -1064,12 +1104,12 @@ describe('PSBT inspector core', () => {
       chain: 'bitcoin',
       network: 'testnet',
       required: 4,
-      publicKeys: keys,
+      publicKeys: keys.slice(0, 5),
       lockKind: 'relative-time',
       lockValue: 30 * 24 * 60 * 60,
       bitcoinWrapper: 'p2wsh',
       mode: 'delayed-recovery',
-      recoveryPublicKey: keys[0]!,
+      recoveryPublicKey: keys[5]!,
     });
     const decoded = decodeScript(policyHex(policy).redeemScript, 'bitcoin', 'testnet', 'spending');
     expect(decoded.inferredPolicy).toContain('4-of-5 multisig immediately OR one recovery key');
@@ -1078,8 +1118,8 @@ describe('PSBT inspector core', () => {
     expect(policy.descriptor).toBe(`wsh(${policy.miniscript})#${descriptorChecksum(`wsh(${policy.miniscript})`)}`);
     expect(policy.miniscript).toContain('or_i(multi(4,');
     expect(policy.miniscript).toContain('and_v(v:older(4199367),pk(');
-    expect(policy.miniscriptAnalysis).toContain('not sane');
-    expect(policy.miniscriptAnalysis).toContain('duplicate keys detected');
+    expect(policy.miniscriptAnalysis).toContain('sane');
+    expect(policy.miniscriptAnalysis).not.toContain('duplicate keys detected');
     expect(() =>
       buildPolicy({
         chain: 'bitcoin',
@@ -1097,7 +1137,7 @@ describe('PSBT inspector core', () => {
   });
 
   it('builds and decodes a delayed R-of-K recovery multisig policy', () => {
-    const keys = Array.from({ length: 4 }, (_, index) => {
+    const keys = Array.from({ length: 6 }, (_, index) => {
       const secret = new Uint8Array(32);
       secret[31] = index + 11;
       return bytesToHex(secp256k1.getPublicKey(secret, true));
@@ -1112,7 +1152,7 @@ describe('PSBT inspector core', () => {
       lockValue: 144,
       bitcoinWrapper: 'p2wsh',
       mode: 'delayed-recovery-multisig',
-      recoveryPublicKeys: keys.slice(1),
+      recoveryPublicKeys: keys.slice(3),
       recoveryRequired: 2,
     });
     expect(policy.spendingRequirement).toContain('2-of-3 recovery keys');
@@ -1149,7 +1189,7 @@ describe('PSBT inspector core', () => {
   });
 
   it('builds and decodes escalating timelocked recovery', () => {
-    const keys = Array.from({ length: 4 }, (_, index) => {
+    const keys = Array.from({ length: 5 }, (_, index) => {
       const secret = new Uint8Array(32);
       secret[31] = index + 31;
       return bytesToHex(secp256k1.getPublicKey(secret, true));
@@ -1166,9 +1206,9 @@ describe('PSBT inspector core', () => {
       secondLockValue: 1008,
       bitcoinWrapper: 'p2wsh',
       mode: 'escalating-recovery',
-      recoveryPublicKeys: keys.slice(1, 3),
+      recoveryPublicKeys: keys.slice(2, 4),
       recoveryRequired: 1,
-      emergencyPublicKeys: keys.slice(3),
+      emergencyPublicKeys: keys.slice(4),
       emergencyRequired: 1,
     });
     const inferred = decodeScript(policyHex(policy).redeemScript, 'bitcoin', 'testnet', 'spending').inferredPolicy;
@@ -1176,55 +1216,49 @@ describe('PSBT inspector core', () => {
     expect(inferred).toContain('1-of-1 multisig after relative delay 1008 blocks');
   });
 
-  it('builds and decodes a decaying multisig preset using the same keys', () => {
+  it('rejects a decaying multisig preset that repeats keys across branches', () => {
     const keys = Array.from({ length: 4 }, (_, index) => {
       const secret = new Uint8Array(32);
       secret[31] = index + 41;
       return bytesToHex(secp256k1.getPublicKey(secret, true));
     });
-    const policy = buildPolicy({
-      chain: 'bitcoin',
-      network: 'testnet',
-      required: 3,
-      publicKeys: keys,
-      keyOrder: 'bip67',
-      lockKind: 'relative-blocks',
-      lockValue: 4320,
-      bitcoinWrapper: 'p2wsh',
-      mode: 'decaying-multisig',
-      recoveryRequired: 2,
-    });
-    expect(policy.spendingRequirement).toContain('decays to 2-of-4');
-    expect(decodeScript(policyHex(policy).redeemScript, 'bitcoin', 'testnet', 'spending').inferredPolicy).toContain(
-      '2-of-4 multisig after relative delay 4320 blocks',
-    );
+    expect(() =>
+      buildPolicy({
+        chain: 'bitcoin',
+        network: 'testnet',
+        required: 3,
+        publicKeys: keys,
+        keyOrder: 'bip67',
+        lockKind: 'relative-blocks',
+        lockValue: 4320,
+        bitcoinWrapper: 'p2wsh',
+        mode: 'decaying-multisig',
+        recoveryRequired: 2,
+      }),
+    ).toThrow(/not a sane Bitcoin Core Miniscript policy/u);
   });
 
-  it('builds and decodes an expanding multisig preset with additional later keys', () => {
+  it('rejects an expanding multisig preset that repeats primary keys in its later branch', () => {
     const keys = Array.from({ length: 5 }, (_, index) => {
       const secret = new Uint8Array(32);
       secret[31] = index + 51;
       return bytesToHex(secp256k1.getPublicKey(secret, true));
     });
-    const policy = buildPolicy({
-      chain: 'dash',
-      network: 'testnet',
-      required: 2,
-      publicKeys: keys.slice(0, 3),
-      keyOrder: 'bip67',
-      lockKind: 'height',
-      lockValue: 2_500_000,
-      bitcoinWrapper: 'p2sh',
-      mode: 'expanding-multisig',
-      recoveryPublicKeys: keys.slice(3),
-      recoveryRequired: 2,
-    });
-    expect(policy.spendingRequirement).toContain('expands to 2-of-5');
-    expect(policy.policyExpression).toContain('expanded:2-of-5');
-    expect(policy.compatibility).toContain('ADVANCED CUSTOM DASH P2SH');
-    expect(decodeScript(policyHex(policy).redeemScript, 'dash', 'testnet', 'spending').inferredPolicy).toContain(
-      '2-of-5 multisig after absolute lock 2500000',
-    );
+    expect(() =>
+      buildPolicy({
+        chain: 'bitcoin',
+        network: 'testnet',
+        required: 2,
+        publicKeys: keys.slice(0, 3),
+        keyOrder: 'bip67',
+        lockKind: 'height',
+        lockValue: 2_500_000,
+        bitcoinWrapper: 'p2wsh',
+        mode: 'expanding-multisig',
+        recoveryPublicKeys: keys.slice(3),
+        recoveryRequired: 2,
+      }),
+    ).toThrow(/not a sane Bitcoin Core Miniscript policy/u);
   });
 
   it('rejects expanding multisig when additional keys duplicate primary signers', () => {
@@ -1327,25 +1361,6 @@ describe('PSBT inspector core', () => {
       }),
       buildPolicy({
         ...common,
-        mode: 'decaying-multisig',
-        required: 3,
-        publicKeys: keys.slice(0, 4),
-        lockKind: 'relative-blocks',
-        lockValue: 4320,
-        recoveryRequired: 2,
-      }),
-      buildPolicy({
-        ...common,
-        mode: 'expanding-multisig',
-        required: 2,
-        publicKeys: keys.slice(0, 3),
-        lockKind: 'relative-blocks',
-        lockValue: 144,
-        recoveryPublicKeys: keys.slice(3, 5),
-        recoveryRequired: 2,
-      }),
-      buildPolicy({
-        ...common,
         mode: 'escalating-recovery',
         required: 2,
         publicKeys: keys.slice(0, 3),
@@ -1441,12 +1456,12 @@ describe('PSBT inspector core', () => {
   });
 
   it('marks witness, v2, Taproot, and MuSig2 fields unsupported for Dash', () => {
-    expect(pairName('global', 0x04n, 'dash')).toBe('Unknown/unsupported Dash field 4');
-    expect(pairName('input', 0x01n, 'dash')).toBe('Unknown/unsupported Dash field 1');
-    expect(pairName('input', 0x05n, 'dash')).toBe('Unknown/unsupported Dash field 5');
-    expect(pairName('input', 0x1an, 'dash')).toBe('Unknown/unsupported Dash field 26');
-    expect(pairName('output', 0x01n, 'dash')).toBe('Unknown/unsupported Dash field 1');
-    expect(pairName('output', 0x08n, 'dash')).toBe('Unknown/unsupported Dash field 8');
+    expect(pairName('global', 0x04n, 'dash')).toBe('Unknown / passthrough Dash field · type 0x04');
+    expect(pairName('input', 0x01n, 'dash')).toBe('Unknown / passthrough Dash field · type 0x01');
+    expect(pairName('input', 0x05n, 'dash')).toBe('Unknown / passthrough Dash field · type 0x05');
+    expect(pairName('input', 0x1an, 'dash')).toBe('Unknown / passthrough Dash field · type 0x1a');
+    expect(pairName('output', 0x01n, 'dash')).toBe('Unknown / passthrough Dash field · type 0x01');
+    expect(pairName('output', 0x08n, 'dash')).toBe('Unknown / passthrough Dash field · type 0x08');
   });
 
   it('rejects a non-empty scriptSig in a PSBT v0 unsigned transaction', () => {

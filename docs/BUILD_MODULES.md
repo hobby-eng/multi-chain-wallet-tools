@@ -22,7 +22,7 @@ Dash is one shared protocol stack, not four copied implementations. Shared addre
 
 | Application       | Dash modules included by `--coins dash`                                                                                               |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Key Derivation    | Core, Purpose48 multisig, legacy mobile, CoinJoin, Platform payments, Identity and Orchard derivation adapters                        |
+| Key Derivation    | Core, Purpose48 and Core-pkh multisig cosigners, legacy mobile, CoinJoin, Platform payments, Identity and Orchard derivation adapters |
 | Activity Viewer   | Core address activity plus separate Platform address, Identity and Orchard query runtimes                                             |
 | Discovery Scanner | Seed/watch adapters for the enabled source modes and the complete supported Core, Platform, Identity and Orchard discovery scopes     |
 | PSBT Inspector    | Dash Core parsing/formatting within every selected Inspector workflow that supports Dash; Platform and Orchard are not PSBT protocols |
@@ -31,7 +31,7 @@ Bitcoin and Ethereum follow the same rule. Optional workflows remain controlled 
 
 ## Key Derivation
 
-Coins: `bitcoin`, `dash`, `ethereum`. Selecting Dash includes every supported Dash derivation family: Core, Purpose48 multisig, legacy mobile, CoinJoin, Platform payments, Identity and Orchard.
+Coins: `bitcoin`, `dash`, `ethereum`. Selecting Dash includes every supported Dash derivation family: Core, Purpose48 and Core-pkh multisig cosigners, legacy mobile, CoinJoin, Platform payments, Identity and Orchard.
 
 | Feature            | Purpose                                                                                                                                            | Coin dependency   |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |

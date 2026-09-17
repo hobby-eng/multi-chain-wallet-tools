@@ -50,6 +50,34 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
       `m/48'/${network === 'mainnet' ? 5 : 1}'/${account}'/0'/${branch}/${indexRange(start, count)}`,
   },
   {
+    id: 'dash-multisig-core-pkh',
+    fixedPathLabels: ['Purpose', 'Coin type'],
+    group: 'Dash',
+    label: 'Dash multisig cosigner · Core pkh signer',
+    variantLabel: 'Multisig\nCore pkh signer',
+    networkControl: true,
+    addressBranches: {
+      receive: 0,
+      change: 1,
+      help: 'Derives public cosigner keys from the ordinary Dash Core account. The keys participate in shared P2SH multisig scripts; the single-signer P2PKH addresses are not the shared wallet.',
+    },
+    defaults: { network: 'mainnet', account: 0, branch: 0, start: 0, count: 20 },
+    fieldRoles: {
+      addresses: [],
+      publicKeys: [
+        'publicKey',
+        'childXpub',
+        'descriptorKey',
+        'descriptorAccountKey',
+        'receivePkhDescriptor',
+        'changePkhDescriptor',
+      ],
+      privateKeys: ['privateKey', 'privateKeyHex', 'childXprv'],
+    },
+    pathPreview: ({ network, account, branch, start, count }) =>
+      `m/44'/${network === 'mainnet' ? 5 : 1}'/${account}'/${branch}/${indexRange(start, count)}`,
+  },
+  {
     id: 'dash-legacy-mobile',
     fixedPathLabels: [],
     group: 'Dash',
