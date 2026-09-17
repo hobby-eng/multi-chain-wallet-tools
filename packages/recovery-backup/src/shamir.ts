@@ -197,6 +197,8 @@ export function createCkdShamirShares(
   count: number,
   format: CkdShamirShareFormat,
 ): CkdShamirShareSet {
+  if (format !== 'raw' && format !== 'words')
+    throw new Error(`Unsupported CKD Shamir share format: ${String(format)}.`);
   assertByteInteger(threshold, 'Share threshold', 2, 255);
   assertByteInteger(count, 'Share count', threshold, 255);
   if (![16, 20, 24, 28, 32].includes(secret.length)) throw new Error('Enter a valid BIP39 recovery phrase.');
@@ -243,6 +245,8 @@ export function recoverCkdShamirSharesDetailed(
   values: readonly string[],
   format: CkdShamirShareFormat,
 ): CkdShamirRecovery {
+  if (format !== 'raw' && format !== 'words')
+    throw new Error(`Unsupported CKD Shamir share format: ${String(format)}.`);
   if (values.length === 0) throw new Error('Enter at least one Shamir share.');
   const shares: DecodedShare[] = [];
   try {

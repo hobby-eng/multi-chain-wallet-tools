@@ -162,6 +162,22 @@ function numericDash(value: string): string {
   return /^(\d+(?:\.\d+)?) DASH(?:\b|$)/u.exec(value)?.[1] ?? '';
 }
 
+function decimalAtomic(atomic: bigint, decimals: number): string {
+  if (decimals === 0) return atomic.toString();
+  const negative = atomic < 0n;
+  const digits = (negative ? -atomic : atomic).toString().padStart(decimals + 1, '0');
+  const whole = digits.slice(0, -decimals);
+  const fraction = digits.slice(-decimals).replace(/0+$/u, '');
+  return `${negative ? '-' : ''}${whole}${fraction ? `.${fraction}` : ''}`;
+}
+
+function findingBalanceDisplay(finding: RecoveryWalletResult['sections'][number]['findings'][number]): string {
+  if (finding.balanceAtomic != null && finding.balanceUnit !== undefined) {
+    return decimalAtomic(finding.balanceAtomic, finding.balanceUnit.decimals);
+  }
+  return numericDash(finding.balanceLabel);
+}
+
 function csvFieldValue(
   fields: RecoveryWalletResult['sections'][number]['findings'][number]['fields'],
   label: string,
@@ -261,7 +277,7 @@ function toCsv(results: RecoveryWalletResult[]): string {
             ...HISTORY_AMOUNT_COLUMNS.map(() => ''),
             ...fieldColumns.map(() => ''),
             ...sectionMetricColumns.map(([label, , numeric]) => sectionMetricValue(section.metrics, label, numeric)),
-            section.warning ?? '',
+            '',
             [...result.warnings, ...(section.warning ? [section.warning] : [])].join(' | '),
             section.proof,
           ]
@@ -288,7 +304,7 @@ function toCsv(results: RecoveryWalletResult[]): string {
             finding.balanceUnit?.asset ?? '',
             finding.balanceUnit?.atomicUnit ?? '',
             String(finding.balanceUnit?.decimals ?? ''),
-            numericDash(finding.balanceLabel),
+            findingBalanceDisplay(finding),
             ...HISTORY_COLUMNS.map(([key]) => String(finding.history?.[key] ?? '')),
             ...HISTORY_AMOUNT_COLUMNS.map(([key]) =>
               finding.history?.[key] == null

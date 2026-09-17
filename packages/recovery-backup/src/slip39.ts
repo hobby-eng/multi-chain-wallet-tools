@@ -366,7 +366,14 @@ export function createSlip39Shares(masterSecret: Uint8Array, options: Slip39Gene
   const iterationExponent = options.iterationExponent ?? 1;
   assertSmallInteger(iterationExponent, 'Iteration exponent', 0, 15);
   const extendable = options.extendable ?? true;
-  const randomBytes = options.randomBytes ?? defaultRandomBytes;
+  const suppliedRandomBytes = options.randomBytes ?? defaultRandomBytes;
+  const randomBytes = (length: number): Uint8Array => {
+    const bytes = suppliedRandomBytes(length);
+    if (!(bytes instanceof Uint8Array) || bytes.length !== length) {
+      throw new Error(`Random-byte source returned ${String(bytes?.length)} bytes; expected ${length}.`);
+    }
+    return bytes;
+  };
   const identifierBytes = randomBytes(2);
   const identifier = (((identifierBytes[0]! << 8) | identifierBytes[1]!) & ((1 << ID_LENGTH_BITS) - 1)) >>> 0;
   identifierBytes.fill(0);

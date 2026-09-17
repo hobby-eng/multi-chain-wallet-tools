@@ -82,6 +82,8 @@ describe('CKD Shamir backup formats', () => {
     expect(() => recoverCkdShamirShares(raw.shares, 'words')).toThrow();
     const words = createCkdShamirShares(new Uint8Array(16), 2, 2, 'words');
     expect(() => recoverCkdShamirShares(words.shares, 'raw')).toThrow();
+    expect(() => createCkdShamirShares(new Uint8Array(16), 2, 2, 'future' as never)).toThrow(/Unsupported CKD/u);
+    expect(() => recoverCkdShamirShares(raw.shares, 'future' as never)).toThrow(/Unsupported CKD/u);
   });
 
   it('rejects a checksum-repaired share that reconstructs a different secret', () => {

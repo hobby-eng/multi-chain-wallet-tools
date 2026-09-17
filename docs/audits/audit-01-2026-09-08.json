@@ -1,4 +1,7 @@
 {
+  "model": null,
+  "reasoningEffort": null,
+  "reasoningEffortNote": "Model and effort were not recorded in the retained audit materials.",
   "reviewedAt": "2026-09-08",
   "reviewedCommit": "0b2466324e55c49331c778f9b4c291081a9aac2c",
   "releaseAtReview": "0.1.3",

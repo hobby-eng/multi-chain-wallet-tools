@@ -1,5 +1,8 @@
 {
   "date": "2026-09-17",
+  "model": null,
+  "reasoningEffort": null,
+  "reasoningEffortNote": "Model and effort were not recorded in the retained audit materials.",
   "projectHead": "202ff459e085190988692e604af6a20453411669",
   "target": "working tree plus existing HTML; source and Git unchanged",
   "coreMaster": "a604a7647588500354d4772e60620ea36b129d05",
