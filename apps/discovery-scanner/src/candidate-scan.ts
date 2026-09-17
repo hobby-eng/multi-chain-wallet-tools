@@ -73,7 +73,7 @@ export async function scanCandidates(
         }
         context.sessionSecretGuard?.registerString('Candidate mnemonic', candidate.mnemonic);
         context.sessionSecretGuard?.registerString('Candidate passphrase', candidate.passphrase);
-        for (const adapter of adapters) {
+        const coinChecks = adapters.map(async (adapter) => {
           if (context.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
           const input = {
             ...candidate,
@@ -83,7 +83,7 @@ export async function scanCandidates(
           const coinConfig = {
             ...config,
             scanCustomPath: false,
-            includeUsedZeroBalance: true,
+            includeUsedZeroBalance: config.includeUsedZeroBalance,
             scanCore: adapter.id === 'dash' ? config.scanCore : true,
           };
           try {
@@ -97,7 +97,7 @@ export async function scanCandidates(
                   'Selected network is not supported by this coin adapter.',
                 ),
               );
-              continue;
+              return;
             }
             const result = await adapter.scan(input, coinConfig, context);
             await enrichRecoveryHistory(adapter, result, context);
@@ -121,7 +121,11 @@ export async function scanCandidates(
             input.mnemonic = '';
             input.passphrase = '';
           }
-        }
+        });
+        // Await every coin before releasing the shared candidate or export guard.
+        const settled = await Promise.allSettled(coinChecks);
+        const failure = settled.find((result) => result.status === 'rejected');
+        if (failure?.status === 'rejected') throw failure.reason;
       } finally {
         candidate.mnemonic = '';
         candidate.passphrase = '';

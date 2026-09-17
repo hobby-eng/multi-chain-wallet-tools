@@ -1,3 +1,4 @@
+import { equalBytes } from '@ckd/core/bytes.js';
 import { secureRandomBytes } from '@ckd/core/secure-random.js';
 // Ported from Trezor's MIT-licensed python-shamir-mnemonic reference implementation.
 // SLIP-0039 metadata layout and word order are interoperability-critical.
@@ -246,26 +247,26 @@ function splitSecret(
   assertSmallInteger(threshold, 'Threshold', 1, MAX_SHARE_COUNT);
   assertSmallInteger(shareCount, 'Share count', threshold, MAX_SHARE_COUNT);
   if (threshold === 1) return Array.from({ length: shareCount }, (_, x) => ({ x, data: secret.slice() }));
-  const shares = Array.from({ length: threshold - 2 }, (_, x) => ({ x, data: randomBytes(secret.length) }));
-  const randomPart = randomBytes(secret.length - DIGEST_LENGTH_BYTES);
-  const digest = createDigest(randomPart, secret);
-  const digestShare = concatBytes(digest, randomPart);
-  digest.fill(0);
-  const baseShares = [...shares, { x: DIGEST_INDEX, data: digestShare }, { x: SECRET_INDEX, data: secret }];
+  const shares: RawShare[] = [];
+  let randomPart: Uint8Array | undefined;
+  let digest: Uint8Array | undefined;
+  let digestShare: Uint8Array | undefined;
+  let completed = false;
   try {
+    for (let x = 0; x < threshold - 2; x += 1) shares.push({ x, data: randomBytes(secret.length) });
+    randomPart = randomBytes(secret.length - DIGEST_LENGTH_BYTES);
+    digest = createDigest(randomPart, secret);
+    digestShare = concatBytes(digest, randomPart);
+    const baseShares = [...shares, { x: DIGEST_INDEX, data: digestShare }, { x: SECRET_INDEX, data: secret }];
     for (let x = threshold - 2; x < shareCount; x += 1) shares.push({ x, data: interpolate(baseShares, x) });
+    completed = true;
     return shares;
   } finally {
-    randomPart.fill(0);
-    digestShare.fill(0);
+    randomPart?.fill(0);
+    digest?.fill(0);
+    digestShare?.fill(0);
+    if (!completed) for (const share of shares) share.data.fill(0);
   }
-}
-
-function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
-  if (left.length !== right.length) return false;
-  let difference = 0;
-  for (let index = 0; index < left.length; index += 1) difference |= left[index]! ^ right[index]!;
-  return difference === 0;
 }
 
 function recoverSecret(threshold: number, shares: readonly RawShare[]): Uint8Array {
@@ -322,18 +323,22 @@ function crypt(
     for (const round of rounds) {
       const password = concatBytes(Uint8Array.of(round), passphrase);
       const roundInput = concatBytes(roundSalt, right);
-      const derived = pbkdf2(sha256, password, roundInput, {
-        c: (BASE_ITERATION_COUNT << iterationExponent) / ROUND_COUNT,
-        dkLen: right.length,
-      });
-      password.fill(0);
-      roundInput.fill(0);
-      const previousLeft = left;
-      const next = xor(previousLeft, derived);
-      derived.fill(0);
-      left = right;
-      right = next;
-      previousLeft.fill(0);
+      let derived: Uint8Array | undefined;
+      try {
+        derived = pbkdf2(sha256, password, roundInput, {
+          c: (BASE_ITERATION_COUNT << iterationExponent) / ROUND_COUNT,
+          dkLen: right.length,
+        });
+        const previousLeft = left;
+        const next = xor(previousLeft, derived);
+        left = right;
+        right = next;
+        previousLeft.fill(0);
+      } finally {
+        password.fill(0);
+        roundInput.fill(0);
+        derived?.fill(0);
+      }
     }
     return concatBytes(right, left);
   } finally {
@@ -343,7 +348,7 @@ function crypt(
   }
 }
 
-export function generateSlip39Mnemonics(masterSecret: Uint8Array, options: Slip39GenerateOptions): string[][] {
+export function createSlip39Shares(masterSecret: Uint8Array, options: Slip39GenerateOptions): string[][] {
   if (masterSecret.length * 8 < MIN_STRENGTH_BITS || masterSecret.length % 2 !== 0) {
     fail('SLIP-39 master secret must contain at least 128 bits and an even number of bytes.');
   }
@@ -366,10 +371,11 @@ export function generateSlip39Mnemonics(masterSecret: Uint8Array, options: Slip3
   const identifier = (((identifierBytes[0]! << 8) | identifierBytes[1]!) & ((1 << ID_LENGTH_BITS) - 1)) >>> 0;
   identifierBytes.fill(0);
   const passphrase = validatePassphrase(options.passphrase ?? '');
-  const encrypted = crypt(masterSecret, passphrase, iterationExponent, identifier, extendable, false);
-  passphrase.fill(0);
+  let encrypted: Uint8Array | undefined;
+  let groupShares: RawShare[] = [];
   try {
-    const groupShares = splitSecret(options.groupThreshold, options.groups.length, encrypted, randomBytes);
+    encrypted = crypt(masterSecret, passphrase, iterationExponent, identifier, extendable, false);
+    groupShares = splitSecret(options.groupThreshold, options.groups.length, encrypted, randomBytes);
     try {
       return options.groups.map((group, groupIndex) => {
         const memberShares = splitSecret(
@@ -400,7 +406,8 @@ export function generateSlip39Mnemonics(masterSecret: Uint8Array, options: Slip3
       for (const share of groupShares) share.data.fill(0);
     }
   } finally {
-    encrypted.fill(0);
+    passphrase.fill(0);
+    encrypted?.fill(0);
   }
 }
 
@@ -414,10 +421,11 @@ function commonKey(share: Slip39ShareInfo): string {
   ].join(':');
 }
 
-export function combineSlip39Mnemonics(mnemonics: readonly string[], passphraseInput = ''): Uint8Array {
+export function recoverSlip39Shares(mnemonics: readonly string[], passphraseInput = ''): Uint8Array {
   if (mnemonics.length === 0) fail('Enter at least one SLIP-39 share.');
-  const parsed = mnemonics.map(parseSlip39Share);
+  const parsed: Slip39ShareInfo[] = [];
   try {
+    for (const mnemonic of mnemonics) parsed.push(parseSlip39Share(mnemonic));
     if (new Set(parsed.map(commonKey)).size !== 1) fail('The supplied SLIP-39 shares belong to different sets.');
     const first = parsed[0]!;
     const groups = new Map<number, Slip39ShareInfo[]>();
@@ -434,21 +442,26 @@ export function combineSlip39Mnemonics(mnemonics: readonly string[], passphraseI
     if (completeGroups.length < first.groupThreshold) {
       fail(`At least ${first.groupThreshold} complete SLIP-39 groups are required.`);
     }
-    const groupShares = completeGroups.slice(0, first.groupThreshold).map(([x, group]) => ({
-      x,
-      data: recoverSecret(
-        group[0]!.memberThreshold,
-        group.map((share) => ({ x: share.memberIndex, data: share.value })),
-      ),
-    }));
-    const encrypted = recoverSecret(first.groupThreshold, groupShares);
-    for (const group of groupShares) group.data.fill(0);
-    const passphrase = validatePassphrase(passphraseInput);
+    const groupShares: RawShare[] = [];
+    let encrypted: Uint8Array | undefined;
+    let passphrase: Uint8Array | undefined;
     try {
+      for (const [x, group] of completeGroups.slice(0, first.groupThreshold)) {
+        groupShares.push({
+          x,
+          data: recoverSecret(
+            group[0]!.memberThreshold,
+            group.map((share) => ({ x: share.memberIndex, data: share.value })),
+          ),
+        });
+      }
+      encrypted = recoverSecret(first.groupThreshold, groupShares);
+      passphrase = validatePassphrase(passphraseInput);
       return crypt(encrypted, passphrase, first.iterationExponent, first.identifier, first.extendable, true);
     } finally {
-      encrypted.fill(0);
-      passphrase.fill(0);
+      for (const group of groupShares) group.data.fill(0);
+      encrypted?.fill(0);
+      passphrase?.fill(0);
     }
   } finally {
     for (const share of parsed) share.value.fill(0);

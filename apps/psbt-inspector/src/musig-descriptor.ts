@@ -1,3 +1,4 @@
+import { findMatchingClose, splitTopLevelArguments } from './balanced-syntax.js';
 import type { TaprootScriptTree } from '@scure/btc-signer/payment.js';
 import { materializeDescriptorKey, validateDescriptorPublicKey } from '@ckd/core/descriptor-key.js';
 import { compilePolicyMiniscript } from './miniscript-engine.js';
@@ -9,7 +10,7 @@ import { keyAggregate, sortKeys } from '@scure/btc-signer/musig2.js';
 import { bytesToHex, hexToBytes, secp256k1 } from '@ckd/core/crypto.js';
 import type { PsbtNetwork } from './psbt.js';
 
-export interface MusigKeyAnalysis {
+interface MusigKeyAnalysis {
   readonly participantCount: number;
   readonly sortedParticipantKeys: readonly string[];
   readonly aggregateCompressedKey: string;
@@ -28,43 +29,10 @@ const SYNTHETIC_CHAIN_CODE = hexToBytes('868087ca02a6f974c4598924c36b57762d32cb4
 const MAINNET_VERSIONS: Versions = { private: 0x0488ade4, public: 0x0488b21e };
 const TESTNET_VERSIONS: Versions = { private: 0x04358394, public: 0x043587cf };
 
-function matchingClose(text: string, open: number): number {
-  let depth = 0;
-  for (let index = open; index < text.length; index += 1) {
-    if (text[index] === '(') depth += 1;
-    else if (text[index] === ')') {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-  throw new Error('MuSig2 expression has an unclosed parenthesis.');
-}
-
-function splitTopLevel(text: string): string[] {
-  const result: string[] = [];
-  let start = 0;
-  let round = 0;
-  let square = 0;
-  let angle = 0;
-  let curly = 0;
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index];
-    if (character === '(') round += 1;
-    else if (character === ')') round -= 1;
-    else if (character === '[') square += 1;
-    else if (character === ']') square -= 1;
-    else if (character === '{') curly += 1;
-    else if (character === '}') curly -= 1;
-    else if (character === '<') angle += 1;
-    else if (character === '>') angle -= 1;
-    else if (character === ',' && round === 0 && square === 0 && angle === 0 && curly === 0) {
-      result.push(text.slice(start, index));
-      start = index + 1;
-    }
-  }
-  result.push(text.slice(start));
-  return result;
-}
+const matchingClose = (text: string, open: number): number =>
+  findMatchingClose(text, open, '(', ')', 'MuSig2 expression');
+const splitTopLevel = (text: string): string[] =>
+  splitTopLevelArguments(text, { context: 'MuSig2 expression', includeAngles: true });
 
 function parseParticipant(
   expression: string,

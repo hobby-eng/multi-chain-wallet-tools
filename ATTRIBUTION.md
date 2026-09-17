@@ -22,6 +22,9 @@ Exact pinned versions, commits, package integrity values, transitive dependencie
 - **SLIP-39 reference implementation and wordlist** — recovery encoding logic and official vectors adapted from Trezor's MIT-licensed [`python-shamir-mnemonic`](https://github.com/trezor/python-shamir-mnemonic).
 - **Shamir Secret Sharing** — the CKD Raw/Words formats use the pinned MIT OR Apache-2.0 [`sharks`](https://github.com/c0dearm/sharks) Rust implementation.
 - **Codex32 / BIP93** — checksum and GF(32) interpolation use Andrew Poelstra's CC0 [`rust-codex32`](https://github.com/apoelstra/rust-codex32) reference implementation and official BIP93 vectors.
+- **Blockchain Commons SSKR** — grouped secret-sharing and Bytewords/UR transport use the BSD-2-Clause-Patent [`bc-sskr-rust`](https://github.com/BlockchainCommons/bc-sskr-rust) implementation.
+- **Gordian Seed Envelope** — typed envelope encoding, encryption, password/recipient permits, and SSKR permits use the BSD-2-Clause-Patent [`bc-envelope-rust`](https://github.com/BlockchainCommons/bc-envelope-rust) and [`bc-components-rust`](https://github.com/BlockchainCommons/bc-components-rust) modules.
+- **uqr** — offline QR matrix encoding uses the MIT-licensed [`unjs/uqr`](https://github.com/unjs/uqr) module.
 
 - **Ian Coleman BIP39** — the Seed Diagnostic entropy-detail presentation (word indexes, binary groups, and checksum breakdown) is adapted conceptually from the MIT-licensed [`iancoleman/bip39`](https://github.com/iancoleman/bip39); all BIP39 validation and entropy conversion remain delegated to the pinned `@scure/bip39` implementation.
 - **SeedSigner SeedQR** — Standard SeedQR and CompactSeedQR formats and public test vectors: [github.com/SeedSigner/seedsigner](https://github.com/SeedSigner/seedsigner), MIT licensed.

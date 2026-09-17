@@ -5,7 +5,7 @@ import { hexToBytes, wipe } from '@ckd/core/crypto.js';
 import type { NetworkName } from '@ckd/core/types.js';
 import type { CompactMessageSignature } from '@ckd/core/compact-message.js';
 
-export type Bip322SigningMode = 'legacy-p2pkh' | 'nested-segwit' | 'native-segwit' | 'taproot';
+type Bip322SigningMode = 'legacy-p2pkh' | 'nested-segwit' | 'native-segwit' | 'taproot';
 
 let initialization: ReturnType<typeof init> | null = null;
 

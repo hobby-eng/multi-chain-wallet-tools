@@ -10,7 +10,7 @@ import type { PsbtChain, PsbtNetwork } from './psbt.js';
 import { CONSENSUS_LIMITS } from './consensus-limits.js';
 
 export type LockKind = 'none' | 'height' | 'time' | 'relative-blocks' | 'relative-time';
-export type PolicyMode =
+type PolicyMode =
   | 'locked-multisig'
   | 'delayed-recovery'
   | 'delayed-recovery-multisig'
@@ -22,7 +22,7 @@ export type PolicyMode =
   | 'htlc'
   | 'custom-miniscript';
 
-export interface PolicyRequest {
+interface PolicyRequest {
   readonly chain: PsbtChain;
   readonly network: PsbtNetwork;
   readonly required: number;
@@ -50,7 +50,7 @@ export interface PolicyRequest {
   readonly customContext?: CustomMiniscriptContext;
 }
 
-export interface BuiltPolicy {
+interface BuiltPolicy {
   readonly redeemScript: Uint8Array;
   readonly scriptPubKey: Uint8Array;
   readonly address: string;

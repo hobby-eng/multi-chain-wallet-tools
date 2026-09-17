@@ -123,21 +123,18 @@
             <div><span class="capability-check">✓</span><span>Core receive + change</span></div>
             <div><span class="capability-check">✓</span><span>Platform addresses + identities</span></div>
             <div><span class="capability-check">✓</span><span>Orchard account pool</span></div>
-            <div class="capability-caution"><span>!</span><span>Independent audit still required</span></div>
           </div>
         </aside>
       </div>
     </header>
 
     <main>
-      <section class="warning danger-warning" aria-label="Critical audit warning">
+      <section class="warning trusted-computer-warning" aria-label="Recovery safety notice">
         <div class="warning-icon">!</div>
         <div>
-          <strong>This utility has not been independently audited by a cryptography specialist.</strong> It uses pinned,
-          ready-made cryptographic dependencies, but that does not audit their integration. If funds are found, the
-          safest option is to copy the address, derivation path, branch/index and balance into the recovery report, then
-          restore the phrase with a standard Dash wallet on a trusted device. Never use a mnemonic that still protects
-          valuable funds on an untrusted computer.
+          <strong>Use a trusted computer.</strong> Recovery phrases and private keys control your funds. For wallets
+          containing valuable funds, verify discovered addresses and derivation paths, then complete recovery with a
+          trusted standard wallet.
         </div>
       </section>
 
@@ -229,6 +226,29 @@
                 <button class="seed-mode-tab" data-input-mode="batch" type="button" aria-pressed="false">Batch</button>
               </div>
             </div>
+            <label class="candidate-choice"
+              ><input id="automatic-candidates" type="checkbox" /> Search this phrase or batch across selected
+              coins</label
+            >
+            <div id="candidate-options" hidden>
+              <p class="field-note">
+                Ready BIP39 phrases only. Selected coins are checked in parallel. Invalid candidates and failed coin
+                checks do not stop the others. No missing-word generation.
+              </p>
+              <fieldset class="candidate-coin-picker">
+                <legend>Coins to check</legend>
+                <label class="candidate-choice"
+                  ><input id="candidate-all-coins" type="checkbox" /> All supported coins</label
+                >
+                <div id="candidate-coins" class="section-metrics"></div>
+              </fieldset>
+              <p class="field-note">
+                The selected network and account apply to every coin. Address minimums apply per supported standard
+                branch; Dash component settings below apply only to Dash. Zero-balance activity is included. Custom
+                paths are disabled in this mode. Network concurrency is shared across all coins. An empty result covers
+                only the configured paths and ranges.
+              </p>
+            </div>
             <div id="single-input" class="secret-source-panel">
               <label for="single-mnemonic">Recovery seed phrase</label>
               <textarea
@@ -251,51 +271,36 @@
             </div>
 
             <div id="batch-input" class="secret-source-panel" hidden>
-              <label class="candidate-choice"
-                ><input id="automatic-candidates" type="checkbox" /> Automatically check candidates across selected
-                coins</label
-              >
-              <div id="candidate-options" hidden>
-                <p class="field-note">
-                  Ready BIP39 phrases only, one per line. Checks run sequentially. Invalid candidates and failed coin
-                  checks do not stop the others. No missing-word generation.
-                </p>
-                <fieldset class="candidate-coin-picker">
-                  <legend>Coins to check</legend>
-                  <label class="candidate-choice"
-                    ><input id="candidate-all-coins" type="checkbox" /> All supported coins</label
-                  >
-                  <div id="candidate-coins" class="section-metrics"></div>
-                </fieldset>
-                <p class="field-note">
-                  The selected network and account apply to every coin. Address minimums apply per supported standard
-                  branch; Dash component settings below apply only to Dash. Zero-balance activity is included. Custom
-                  paths and parallel scanning are disabled in this mode. An empty result covers only the configured
-                  paths and ranges.
-                </p>
-              </div>
               <div class="batch-grid">
                 <div>
-                  <label for="batch-mnemonics">One seed phrase per line</label
-                  ><textarea
-                    id="batch-mnemonics"
-                    class="concealed"
-                    rows="8"
-                    autocomplete="off"
-                    autocapitalize="none"
-                    placeholder="Phrase 1&#10;Phrase 2&#10;Phrase 3"
-                  ></textarea>
+                  <label for="batch-mnemonics">One seed phrase per line</label>
+                  <div class="numbered-textarea">
+                    <pre id="batch-mnemonic-lines" aria-hidden="true"></pre>
+                    <textarea
+                      id="batch-mnemonics"
+                      class="concealed"
+                      rows="8"
+                      wrap="off"
+                      autocomplete="off"
+                      autocapitalize="none"
+                      placeholder="Phrase 1&#10;Phrase 2&#10;Phrase 3"
+                    ></textarea>
+                  </div>
                 </div>
                 <div>
-                  <label for="batch-passphrases">Matching passphrase per line</label
-                  ><textarea
-                    id="batch-passphrases"
-                    class="concealed"
-                    rows="8"
-                    autocomplete="off"
-                    autocapitalize="none"
-                    placeholder="Blank line = no passphrase"
-                  ></textarea>
+                  <label for="batch-passphrases">Matching passphrase per line</label>
+                  <div class="numbered-textarea">
+                    <pre id="batch-passphrase-lines" aria-hidden="true"></pre>
+                    <textarea
+                      id="batch-passphrases"
+                      class="concealed"
+                      rows="8"
+                      wrap="off"
+                      autocomplete="off"
+                      autocapitalize="none"
+                      placeholder="Blank line = no passphrase"
+                    ></textarea>
+                  </div>
                 </div>
               </div>
               <div class="batch-concurrency-row">
@@ -584,15 +589,12 @@
             ><input id="include-used-zero-balance" type="checkbox" /><span
               ><strong>Show spent or previously used resources with zero balance</strong
               ><small
-                >Off by default. Displayed resources include history details when supported by the coin adapter and
-                provider. Enabling this option additionally includes Core/Platform empty history and already-spent or
-                outgoing-only Orchard notes in the page and CSV/JSON. On a CoinJoin-heavy wallet the extra Core requests
-                can make the scan much slower; the default hides known-spent notes; an incoming-only viewing key cannot
-                determine whether a note is spent.</small
+                >Off by default. Enable to include previously used, spent, outgoing-only, or zero-balance resources when
+                the selected coin and data provider can identify them. This may increase scan time and export
+                size.</small
               ></span
             ></label
           >
-          __ADDRESS_SEARCH_PANEL__
           <div id="dash-scale-warning" class="scale-warning" data-dash-coverage>
             <strong>Large scans are allowed and the counts above are minimums.</strong> Every Core and Platform branch
             continues until 20 addresses after the last used address, so a minimum of 100 can automatically become 120,
@@ -633,14 +635,15 @@
             <div>
               <h2>Discovery map</h2>
               <p>
-                By default, funded Core/Platform resources and Orchard notes not known to be spent are listed.
-                Incoming-only viewing keys cannot prove a spendable balance; zero-balance history is optional.
+                Results show balances and activity supported by each selected coin and data provider. Previously used or
+                zero-balance resources are optional; review any incomplete checks before drawing conclusions.
               </p>
             </div>
           </div>
           <div class="recovery-export-actions">
             <span>ALL RESULTS · STANDARD-WALLET HANDOFF</span
             ><button id="export-recovery-csv" class="secondary" type="button">CSV · all</button
+            ><button id="export-recovery-xlsx" class="secondary" type="button">XLSX · all</button
             ><button id="export-recovery-json" class="secondary" type="button">JSON · all</button>
           </div>
         </div>

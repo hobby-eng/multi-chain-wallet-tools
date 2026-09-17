@@ -43,7 +43,7 @@ export interface CoreAddressSnapshot {
   requests: number;
 }
 
-export interface CoreAddressProvider {
+interface CoreAddressProvider {
   readonly id: string;
   readonly displayName: string;
   endpoint(network: ViewerNetwork): string;
@@ -354,7 +354,7 @@ async function queryDashScan(
   };
 }
 
-export const DASHSCAN_CORE_PROVIDER: CoreAddressProvider = {
+const DASHSCAN_CORE_PROVIDER: CoreAddressProvider = {
   id: 'dashscan',
   displayName: 'DashScan',
   endpoint(network) {

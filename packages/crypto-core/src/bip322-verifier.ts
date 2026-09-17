@@ -1,8 +1,8 @@
 import { init, type Network, type TimeConstraints } from 'btcutil-js';
 import wasm from 'btcutil-js-wasm';
 
-export type Bip322Network = 'mainnet' | 'testnet' | 'regtest';
-export interface Bip322Verification {
+type Bip322Network = 'mainnet' | 'testnet' | 'regtest';
+interface Bip322Verification {
   readonly valid: boolean;
   readonly timeConstraints?: TimeConstraints;
 }

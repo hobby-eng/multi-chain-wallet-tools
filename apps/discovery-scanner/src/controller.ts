@@ -1,12 +1,11 @@
 import { enrichRecoveryHistory } from './history.js';
-import type { RecoveryExportFile, RecoveryExportFormat } from './export.js';
+import type { RecoveryExportBrokerFormat } from '@ckd/network-boundary/protocol.js';
 import type { RecoveryCoinRegistry } from './coins/registry.js';
 import type { RecoverySelfTestReport } from './recovery-self-test.js';
-import type { DiscoveryScannerView, RecoveryInputSnapshot, WalletProgressView } from './view.js';
+import type { DiscoveryScannerView, RecoveryInputSnapshot } from './view.js';
 import type {
   RecoveryFinding,
   RecoveryInputMode,
-  RecoveryProgress,
   RecoverySectionId,
   RecoverySeedInput,
   RecoveryWalletResult,
@@ -14,6 +13,8 @@ import type {
 import { parseConcurrency } from '@ckd/core/validation.js';
 import { wipeRecoveryInputSnapshot } from './input-snapshot.js';
 import type { WatchOnlyTarget } from './watch-only-input.js';
+import { WalletProgressTracker } from './wallet-progress.js';
+import { ValidatedRecoveryExports } from './validated-exports.js';
 
 interface DiscoveryScannerDependencies {
   RecoveryConcurrencyLimiter: typeof import('./concurrency.js').RecoveryConcurrencyLimiter;
@@ -42,11 +43,6 @@ interface DiscoveryScannerDependencies {
   addressSearchRunner?: import('./types.js').AddressSearchRunner;
 }
 
-const exportTripwireContext: Record<RecoveryExportFormat, string> = {
-  csv: 'recovery CSV report export',
-  json: 'recovery JSON report export',
-};
-
 export function createDiscoveryScannerController(
   view: DiscoveryScannerView,
   dependencies: DiscoveryScannerDependencies,
@@ -60,12 +56,12 @@ export function createDiscoveryScannerController(
   let currentResults: RecoveryWalletResult[] = [];
   let liveFindingCount = 0;
   let selfTestPassed = false;
-  let activeResultId: string | null = null;
+  let activeResultCoinId: string | null = null;
   let resultTabTouched = false;
   let scanCompleted = false;
   const sessionSecretGuard = new dependencies.SecretEgressGuard();
-  const validatedExports = new Map<RecoveryExportFormat, RecoveryExportFile>();
-  const walletProgress = new Map<string, WalletProgressView>();
+  const validatedExports = new ValidatedRecoveryExports(dependencies.createRecoveryExport, sessionSecretGuard);
+  const walletProgress = new WalletProgressTracker(view);
 
   function setRunning(value: boolean): void {
     running = value;
@@ -98,53 +94,17 @@ export function createDiscoveryScannerController(
   const wipeInputSnapshot = wipeRecoveryInputSnapshot;
 
   function renderResults(): void {
-    if (!resultTabTouched || !currentResults.some(({ inputId }) => inputId === activeResultId)) {
-      activeResultId = currentResults[0]?.inputId ?? null;
+    if (!resultTabTouched || !currentResults.some(({ coinId }) => coinId === activeResultCoinId)) {
+      activeResultCoinId =
+        dependencies.listRecoveryCoins().find((coin) => currentResults.some(({ coinId }) => coinId === coin.id))?.id ??
+        currentResults[0]?.coinId ??
+        null;
     }
-    view.renderResults(currentResults, activeResultId, new Set(validatedExports.keys()), (inputId) => {
-      activeResultId = inputId;
+    view.renderResults(currentResults, activeResultCoinId, validatedExports.formats(), (coinId) => {
+      activeResultCoinId = coinId;
       resultTabTouched = true;
       renderResults();
     });
-  }
-
-  function initializeWalletProgress(inputs: readonly Pick<RecoverySeedInput, 'id' | 'label'>[]): void {
-    walletProgress.clear();
-    for (const input of inputs) {
-      walletProgress.set(input.id, {
-        label: input.label,
-        state: 'queued',
-        stage: 'Queued',
-        message: 'Waiting for a scan slot',
-        sections: new Map(),
-      });
-    }
-    view.renderWalletProgress(walletProgress);
-  }
-
-  function finishWalletProgress(inputId: string, failed = false): void {
-    const progress = walletProgress.get(inputId);
-    if (progress === undefined) return;
-    progress.state = failed ? 'failed' : 'complete';
-    progress.stage = failed ? 'Stopped' : 'Complete';
-    progress.message = failed
-      ? 'This wallet did not produce a complete report'
-      : 'All requested scan sections finished';
-    if (!failed) (progress.sections as Map<RecoveryProgress['section'], string>).clear();
-    view.renderWalletProgress(walletProgress);
-  }
-
-  function updateProgress(progress: RecoveryProgress): void {
-    view.showProgress();
-    const wallet = walletProgress.get(progress.inputId);
-    if (wallet !== undefined) {
-      wallet.state = 'running';
-      wallet.stage = view.progressSectionLabel(progress.section);
-      wallet.message = progress.message;
-      (wallet.sections as Map<RecoveryProgress['section'], string>).set(progress.section, progress.message);
-    }
-    view.renderWalletProgress(walletProgress);
-    view.setStatus(`${wallet?.label ?? progress.inputId}: ${progress.message}`);
   }
 
   function renderLiveFinding(inputId: string, section: RecoverySectionId, finding: RecoveryFinding): void {
@@ -153,26 +113,12 @@ export function createDiscoveryScannerController(
   }
 
   function stageValidatedExports(): void {
-    validatedExports.clear();
-    try {
-      if (currentResults.length === 0) return;
-      const date = new Date();
-      for (const format of ['csv', 'json'] as const) {
-        const file = dependencies.createRecoveryExport(currentResults, format, date);
-        sessionSecretGuard.assertPublic(file.text, exportTripwireContext[format]);
-        validatedExports.set(format, file);
-      }
-    } catch (cause) {
-      validatedExports.clear();
-      throw cause;
-    } finally {
-      sessionSecretGuard.clear();
-    }
+    validatedExports.stage(currentResults);
   }
 
-  async function downloadExport(format: RecoveryExportFormat): Promise<void> {
+  async function downloadExport(format: RecoveryExportBrokerFormat): Promise<void> {
     try {
-      const file = validatedExports.get(format);
+      const file = validatedExports.get(format === 'xlsx' ? 'json' : format);
       if (file === undefined) throw new Error('Run and complete a fresh recovery scan before exporting.');
       const filename = await dependencies.requestRecoveryExport(file.text, format);
       view.setStatus(`Exported ${filename}. No recovery phrase or private/viewing/spending key is included.`);
@@ -194,7 +140,7 @@ export function createDiscoveryScannerController(
     sessionSecretGuard.clear();
     validatedExports.clear();
     currentResults = [];
-    activeResultId = null;
+    activeResultCoinId = null;
     resultTabTouched = false;
     scanCompleted = false;
     liveFindingCount = 0;
@@ -246,8 +192,11 @@ export function createDiscoveryScannerController(
       wipeInputSnapshot(snapshot);
       throw new Error('Select at least one coin for candidate scanning.');
     }
-    const phrases = snapshot.batchMnemonics.replaceAll('\r', '').split('\n');
-    const passwords = snapshot.batchPassphrases.replaceAll('\r', '').split('\n');
+    const phrases = (inputMode === 'single' ? snapshot.singleMnemonic : snapshot.batchMnemonics)
+      .replaceAll('\r', '')
+      .split('\n');
+    const passwords =
+      inputMode === 'single' ? [snapshot.singlePassphrase] : snapshot.batchPassphrases.replaceAll('\r', '').split('\n');
     const inputs = phrases.flatMap((mnemonic, line) =>
       mnemonic.trim()
         ? [
@@ -268,15 +217,17 @@ export function createDiscoveryScannerController(
     validatedExports.clear();
     if (snapshot.clearInputOnStart) clearVisibleSecrets();
     currentResults = [];
-    activeResultId = null;
+    activeResultCoinId = null;
     resultTabTouched = false;
     scanCompleted = false;
     liveFindingCount = 0;
     renderResults();
     currentAbort = new AbortController();
     const runController = currentAbort;
-    const networkLimiter = new dependencies.RecoveryConcurrencyLimiter(1);
-    initializeWalletProgress(
+    const networkLimiter = new dependencies.RecoveryConcurrencyLimiter(
+      parseConcurrency(snapshot.requestConcurrency, 'Network concurrency'),
+    );
+    walletProgress.initialize(
       inputs.flatMap((input) =>
         adapters.map((adapter) => ({
           id: `${input.id}-${adapter.id}`,
@@ -287,7 +238,7 @@ export function createDiscoveryScannerController(
     setRunning(true);
     view.showProgress();
     view.setStatus(
-      `Checking ${inputs.length} candidates across ${adapters.length} selected coins, sequentially. Only configured coverage is checked.`,
+      `Checking ${inputs.length} candidates across ${adapters.length} selected coins in parallel. Only configured coverage is checked.`,
     );
     void (async () => {
       try {
@@ -303,16 +254,16 @@ export function createDiscoveryScannerController(
             networkApi,
             networkLimiter,
             sessionSecretGuard,
-            onProgress: updateProgress,
+            onProgress: (progress) => walletProgress.update(progress),
             onFinding: renderLiveFinding,
           },
           dependencies.assertValidMnemonic,
           (result) => {
             currentResults.push(result);
             if (result.coinId === 'input') {
-              for (const adapter of adapters) finishWalletProgress(`${result.inputId}-${adapter.id}`, true);
+              for (const adapter of adapters) walletProgress.finish(`${result.inputId}-${adapter.id}`, true);
             } else
-              finishWalletProgress(
+              walletProgress.finish(
                 result.inputId,
                 result.sections.some((section) => section.state === 'failed' || section.state === 'partial'),
               );
@@ -334,14 +285,7 @@ export function createDiscoveryScannerController(
             : 'Candidate scan could not finish. Remaining checks were not performed.',
         );
       } finally {
-        for (const progress of walletProgress.values()) {
-          if (progress.state === 'queued' || progress.state === 'running') {
-            progress.state = 'failed';
-            progress.stage = 'Not completed';
-            progress.message = 'No conclusion about balance or activity';
-          }
-        }
-        view.renderWalletProgress(walletProgress);
+        walletProgress.failPending('Not completed', 'No conclusion about balance or activity');
         wipeInputObjects(inputs);
         try {
           stageValidatedExports();
@@ -378,7 +322,7 @@ export function createDiscoveryScannerController(
         startWatchOnlyScan(snapshot);
         return;
       }
-      if (inputMode === 'batch' && snapshot.automaticCandidates) {
+      if (snapshot.automaticCandidates) {
         try {
           startCandidateScan(snapshot);
         } finally {
@@ -409,7 +353,7 @@ export function createDiscoveryScannerController(
       validatedExports.clear();
       if (snapshot.clearInputOnStart) clearVisibleSecrets();
       currentResults = [];
-      activeResultId = null;
+      activeResultCoinId = null;
       resultTabTouched = false;
       scanCompleted = false;
       liveFindingCount = 0;
@@ -419,7 +363,7 @@ export function createDiscoveryScannerController(
       const networkLimiter = new dependencies.RecoveryConcurrencyLimiter(requestConcurrency);
       setRunning(true);
       view.showProgress();
-      initializeWalletProgress(inputs);
+      walletProgress.initialize(inputs);
       const run = async (): Promise<void> => {
         let exportStagingAttempted = false;
         try {
@@ -432,7 +376,7 @@ export function createDiscoveryScannerController(
                   networkApi,
                   networkLimiter,
                   sessionSecretGuard,
-                  onProgress: updateProgress,
+                  onProgress: (progress) => walletProgress.update(progress),
                   onFinding: renderLiveFinding,
                 })
               : undefined;
@@ -447,7 +391,7 @@ export function createDiscoveryScannerController(
                 networkLimiter,
                 sessionSecretGuard,
                 ...(preparedSections === undefined ? {} : { preparedSections }),
-                onProgress: updateProgress,
+                onProgress: (progress) => walletProgress.update(progress),
                 onFinding: renderLiveFinding,
               });
               await enrichRecoveryHistory(adapter, result, {
@@ -455,7 +399,7 @@ export function createDiscoveryScannerController(
                 networkApi,
                 networkLimiter,
                 sessionSecretGuard,
-                onProgress: updateProgress,
+                onProgress: (progress) => walletProgress.update(progress),
                 onFinding: renderLiveFinding,
               });
               orderedResults[index] = result;
@@ -466,10 +410,10 @@ export function createDiscoveryScannerController(
               const incomplete = result.sections.some(({ state }) => state === 'failed' || state === 'partial');
               if (incomplete)
                 result.warnings.push('Scan incomplete: some sections were not fully checked; see section warnings.');
-              finishWalletProgress(input.id, incomplete);
+              walletProgress.finish(input.id, incomplete);
               return result;
             } catch (cause) {
-              finishWalletProgress(input.id, true);
+              walletProgress.finish(input.id, true);
               runController.abort();
               throw cause;
             } finally {
@@ -477,7 +421,7 @@ export function createDiscoveryScannerController(
               input.passphrase = '';
             }
           });
-          view.renderWalletProgress(walletProgress);
+          walletProgress.render();
           exportStagingAttempted = true;
           stageValidatedExports();
           renderResults();
@@ -490,13 +434,7 @@ export function createDiscoveryScannerController(
               : 'Recovery scan incomplete. Available reports remain exportable; review section warnings and unknown balances.',
           );
         } catch (cause) {
-          for (const progress of walletProgress.values()) {
-            if (progress.state === 'complete' || progress.state === 'failed') continue;
-            progress.state = 'failed';
-            progress.stage = 'Stopped';
-            progress.message = 'This wallet did not produce a complete report';
-          }
-          view.renderWalletProgress(walletProgress);
+          walletProgress.failPending('Stopped', 'This wallet did not produce a complete report');
           if (cause instanceof DOMException && cause.name === 'AbortError') {
             view.setStatus(
               'Scan cancelled between bounded operations. Completed wallet reports remain exportable; the active wallet is incomplete and was not added.',
@@ -554,7 +492,7 @@ export function createDiscoveryScannerController(
       validatedExports.clear();
       if (snapshot.clearInputOnStart) clearVisibleSecrets();
       currentResults = [];
-      activeResultId = null;
+      activeResultCoinId = null;
       resultTabTouched = false;
       scanCompleted = false;
       liveFindingCount = 0;
@@ -564,7 +502,7 @@ export function createDiscoveryScannerController(
       const networkLimiter = new dependencies.RecoveryConcurrencyLimiter(requestConcurrency);
       setRunning(true);
       view.showProgress();
-      initializeWalletProgress(targets.map(({ input }) => input));
+      walletProgress.initialize(targets.map(({ input }) => input));
       const run = async (): Promise<void> => {
         let exportStagingAttempted = false;
         try {
@@ -587,7 +525,7 @@ export function createDiscoveryScannerController(
                   networkApi,
                   networkLimiter,
                   sessionSecretGuard,
-                  onProgress: updateProgress,
+                  onProgress: (progress) => walletProgress.update(progress),
                   onFinding: renderLiveFinding,
                 },
               );
@@ -596,7 +534,7 @@ export function createDiscoveryScannerController(
                 networkApi,
                 networkLimiter,
                 sessionSecretGuard,
-                onProgress: updateProgress,
+                onProgress: (progress) => walletProgress.update(progress),
                 onFinding: renderLiveFinding,
               });
               if (target.ambiguous)
@@ -611,10 +549,10 @@ export function createDiscoveryScannerController(
               const incomplete = result.sections.some(({ state }) => state === 'failed' || state === 'partial');
               if (incomplete)
                 failures.push(`${target.adapter.label}: some sections were not fully checked; see the report.`);
-              finishWalletProgress(target.input.id, incomplete);
+              walletProgress.finish(target.input.id, incomplete);
               return result;
             } catch (cause) {
-              finishWalletProgress(target.input.id, true);
+              walletProgress.finish(target.input.id, true);
               if (runController.signal.aborted) throw cause;
               failures.push(`${target.adapter.label}: ${dependencies.describeUnknownError(cause)}`);
               return undefined;
@@ -622,7 +560,7 @@ export function createDiscoveryScannerController(
               target.input.value = '';
             }
           });
-          view.renderWalletProgress(walletProgress);
+          walletProgress.render();
           for (const report of currentResults) {
             for (const failure of failures) report.warnings.push(`Scan incomplete: ${failure}`);
           }
@@ -638,13 +576,7 @@ export function createDiscoveryScannerController(
           if (failures.length > 0) view.showError(failures.join('\n'));
           scanCompleted = failures.length === 0;
         } catch (cause) {
-          for (const progress of walletProgress.values()) {
-            if (progress.state === 'complete' || progress.state === 'failed') continue;
-            progress.state = 'failed';
-            progress.stage = 'Stopped';
-            progress.message = 'This watch-only key did not produce a complete report';
-          }
-          view.renderWalletProgress(walletProgress);
+          walletProgress.failPending('Stopped', 'This watch-only key did not produce a complete report');
           if (cause instanceof DOMException && cause.name === 'AbortError') {
             view.setStatus(
               'Scan cancelled between bounded operations. Completed reports remain exportable; the active key is incomplete and was not added.',
@@ -715,6 +647,7 @@ export function createDiscoveryScannerController(
       view.exportCsvButton.addEventListener('click', () => {
         void downloadExport('csv');
       });
+      view.exportXlsxButton.addEventListener('click', () => void downloadExport('xlsx'));
       view.exportJsonButton.addEventListener('click', () => {
         void downloadExport('json');
       });

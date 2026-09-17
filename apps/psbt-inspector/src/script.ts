@@ -2,19 +2,19 @@ import { bytesToHex, hash160, hexToBytes, sha256 } from '@ckd/core/crypto.js';
 import { describeScript, type PsbtChain, type PsbtNetwork } from './psbt.js';
 import { CONSENSUS_LIMITS } from './consensus-limits.js';
 
-export interface ScriptOperation {
+interface ScriptOperation {
   readonly offset: number;
   readonly opcode: number;
   readonly name: string;
   readonly data: string | null;
   readonly meaning: string;
 }
-export interface ScriptWrapper {
+interface ScriptWrapper {
   readonly label: string;
   readonly address: string;
   readonly scriptPubKey: string;
 }
-export interface DecodedScript {
+interface DecodedScript {
   readonly hex: string;
   readonly byteLength: number;
   readonly asm: string;

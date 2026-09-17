@@ -38,7 +38,7 @@ export interface ScannedMatch {
   outgoing?: DecryptedNoteView;
 }
 
-export type ActivityDirection = 'received' | 'sent' | 'self';
+type ActivityDirection = 'received' | 'sent' | 'self';
 
 export interface ShieldedActivity {
   position: bigint;

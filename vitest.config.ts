@@ -23,6 +23,11 @@ export default defineConfig({
       { find: /^@ckd\/secret-vault\/(.+)\.js$/u, replacement: `${root}packages/secret-vault/src/$1.ts` },
       { find: /^@ckd\/recovery\/(.+)\.js$/u, replacement: `${root}packages/wallet-recovery/src/$1.ts` },
       { find: /^@ckd\/recovery-backup\/(.+)\.js$/u, replacement: `${root}packages/recovery-backup/src/$1.ts` },
+      { find: /^@ckd\/recovery-sskr-wasm\/(.+)$/u, replacement: `${root}packages/recovery-sskr-wasm/generated/$1` },
+      {
+        find: /^@ckd\/recovery-envelope-wasm\/(.+)$/u,
+        replacement: `${root}packages/recovery-envelope-wasm/generated/$1`,
+      },
       { find: /^@ckd\/recovery-shamir-wasm\/(.+)$/u, replacement: `${root}packages/recovery-shamir-wasm/generated/$1` },
       {
         find: /^@ckd\/recovery-codex32-wasm\/(.+)$/u,

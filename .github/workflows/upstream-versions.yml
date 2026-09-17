@@ -22,7 +22,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Compare pinned toolchains and Dash dependencies with upstream
+      - name: Compare all monitored pins with upstream
         id: versions
         run: |
           set +e

@@ -1,13 +1,10 @@
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { WASM_MODULES } from './wasm-modules.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-for (const script of [
-  'tooling/build-shielded-wasm.mjs',
-  'tooling/build-recovery-shamir-wasm.mjs',
-  'tooling/build-recovery-codex32-wasm.mjs',
-]) {
+for (const { buildScript: script } of WASM_MODULES) {
   const result = spawnSync(process.execPath, [resolve(root, script)], {
     cwd: root,
     env: process.env,

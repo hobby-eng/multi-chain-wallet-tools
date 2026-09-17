@@ -3,7 +3,7 @@ import { getDashNetwork } from '@ckd/core/networks.js';
 import { field, paymentAddressField, type DerivationResult, type ShieldedBatchOptions } from '@ckd/core/types.js';
 import { encodeDashShieldedAddress, ORCHARD_ADDRESS_TYPE } from './shielded-address.js';
 
-export const DASH_ORCHARD_RELEASE = 'Dash Platform v4.1.1 / dashpay/orchard dashified-0.14.1';
+const DASH_ORCHARD_RELEASE = 'Dash Platform v4.1.1 / dashpay/orchard dashified-0.14.1';
 
 interface RawShieldedRow {
   index: number;

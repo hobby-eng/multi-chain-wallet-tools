@@ -29,7 +29,7 @@ export interface DerivedRow {
   groups?: ResultFieldGroup[];
 }
 
-export interface WatchOnlyExport {
+interface WatchOnlyExport {
   label: string;
   description: string;
   text: string;

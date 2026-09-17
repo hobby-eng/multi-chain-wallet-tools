@@ -169,7 +169,6 @@ for (const marker of [
   'Export loaded data',
   'write-excel-file 4.1.1',
   'fflate 0.8.3',
-  'Core, Platform, Identity &amp; Orchard network reads',
   'wallet-activity-viewer-export',
   'Release passport',
   'Embedded dependency versions and licenses:',
@@ -180,6 +179,10 @@ for (const marker of [
 ]) {
   if (!html.includes(marker)) throw new Error(`Viewer artifact is missing required marker: ${marker}`);
 }
+const runtimeMarker =
+  profile.id === 'dash-community' ? 'Dash Core, Platform, Identity and Orchard reads' : 'Selected-coin public reads';
+if (!html.includes(runtimeMarker))
+  throw new Error(`Viewer artifact is missing profile runtime marker: ${runtimeMarker}`);
 if (profile.id === 'dash-community' && !html.includes('class="profile-brand-mark"')) {
   throw new Error('Dash Community viewer is missing the official Dash brand mark.');
 }

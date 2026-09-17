@@ -3,7 +3,7 @@ import decodeQr from 'qr/decode.js';
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_DECODE_DIMENSION = 4096;
 
-export interface DecodedQrImage {
+interface DecodedQrImage {
   readonly text: string;
   /** Present when the QR contains one byte-mode segment, including embedded NUL/CR/LF bytes. */
   readonly binaryData?: Uint8Array;
@@ -26,7 +26,7 @@ export function decodeQrPixels(
   return { text };
 }
 
-export async function decodeQrImage(file: File): Promise<DecodedQrImage> {
+async function decodeQrImage(file: File): Promise<DecodedQrImage> {
   if (!file.type.startsWith('image/')) throw new Error('Choose a PNG, JPEG, WebP, or other browser-readable image.');
   if (file.size === 0 || file.size > MAX_IMAGE_BYTES) throw new Error('QR image must be between 1 byte and 20 MiB.');
 

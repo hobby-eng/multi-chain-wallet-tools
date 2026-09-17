@@ -47,4 +47,8 @@ describe('network-boundary untrusted request validation', () => {
   ])('rejects malformed, oversized, secret-shaped, extended, or disabled DTOs before dispatch', (value) => {
     expect(() => validateNetworkRequest(value, validators)).toThrow();
   });
+
+  it.each(['toString', 'constructor', '__proto__'])('rejects inherited object keys as operations: %s', (operation) => {
+    expect(() => validateNetworkRequest(request(operation, {}), validators)).toThrow('not supported by this build');
+  });
 });

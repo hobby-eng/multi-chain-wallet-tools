@@ -3,7 +3,7 @@ import { bytesToHex, concatBytes, encodeBase58Check, wipe } from '@ckd/core/cryp
 import { getBitcoinNetwork, getDashNetwork } from '@ckd/core/networks.js';
 import type { PsbtChain } from './psbt.js';
 
-export interface Bip38Decryption {
+interface Bip38Decryption {
   readonly address: string;
   readonly privateKeyHex: string;
   readonly wif: string;

@@ -12,6 +12,7 @@ import type { WalletMatcherTargetDetector } from '@ckd/recovery/matcher-types.js
 import { installRecoveryWorkspace } from './recovery-workspace.js';
 import { runRecoveryBackupSelfTest } from '@ckd/recovery-backup/self-test.js';
 import * as derivationFeatures from './derivation-feature-selection.js';
+import { installTopLevelModes } from './top-level-modes.js';
 
 export function startKeyDerivationApp(registry: CoinRegistry, detectTargets: WalletMatcherTargetDetector): void {
   if (BUILD_INFO.profile !== 'multi-chain' && BUILD_INFO.profile !== 'dash-community') {
@@ -29,7 +30,7 @@ export function startKeyDerivationApp(registry: CoinRegistry, detectTargets: Wal
         detectTargets,
         mnemonicToSeed,
         writeClipboard,
-        useMnemonicInDeriver(mnemonic) {
+        useMnemonicInDeriver(mnemonic, passphrase = '') {
           const mnemonicInput = document.querySelector<HTMLTextAreaElement>('#mnemonic');
           const passphraseInput = document.querySelector<HTMLInputElement>('#passphrase');
           if (mnemonicInput === null || passphraseInput === null) {
@@ -37,7 +38,7 @@ export function startKeyDerivationApp(registry: CoinRegistry, detectTargets: Wal
           }
           modes.setMode('derive');
           mnemonicInput.value = mnemonic;
-          passphraseInput.value = '';
+          passphraseInput.value = passphrase;
           mnemonicInput.dispatchEvent(new Event('input', { bubbles: true }));
           passphraseInput.dispatchEvent(new Event('input', { bubbles: true }));
           mnemonicInput.focus({ preventScroll: true });
@@ -46,7 +47,7 @@ export function startKeyDerivationApp(registry: CoinRegistry, detectTargets: Wal
       })
     : {
         useSource() {
-          throw new Error('Recovery & Backup is not included in this build.');
+          throw new Error('Recover & Back Up is not included in this build.');
         },
         setCryptoEnabled() {},
       };
@@ -73,35 +74,4 @@ export function startKeyDerivationApp(registry: CoinRegistry, detectTargets: Wal
   });
 
   controller.start();
-}
-
-function installTopLevelModes(): Readonly<{ setMode(mode: 'derive' | 'recovery'): void }> {
-  const deriveTab = document.querySelector<HTMLButtonElement>('#derive-generate-mode');
-  const recoveryTab = document.querySelector<HTMLButtonElement>('#recovery-backup-mode');
-  const derivePanels = [...document.querySelectorAll<HTMLElement>('.derive-only')];
-  const recoveryPanels = [...document.querySelectorAll<HTMLElement>('.recovery-only')];
-  if (deriveTab === null || (__CKD_HAS_RECOVERY__ && recoveryTab === null))
-    throw new Error('Key Derivation mode tabs are missing.');
-  const setMode = (mode: 'derive' | 'recovery'): void => {
-    const recovery = mode === 'recovery';
-    deriveTab.classList.toggle('active', !recovery);
-    recoveryTab?.classList.toggle('active', recovery);
-    deriveTab.setAttribute('aria-selected', String(!recovery));
-    recoveryTab?.setAttribute('aria-selected', String(recovery));
-    for (const element of derivePanels) {
-      if (recovery) {
-        element.dataset.hiddenBeforeRecovery = String(element.hidden);
-        element.hidden = true;
-      } else if (element.dataset.hiddenBeforeRecovery !== undefined) {
-        element.hidden = element.dataset.hiddenBeforeRecovery === 'true';
-        delete element.dataset.hiddenBeforeRecovery;
-      }
-    }
-    for (const element of recoveryPanels) element.hidden = !recovery;
-    document.body.dataset.walletMode = mode;
-  };
-  setMode('derive');
-  deriveTab.addEventListener('click', () => setMode('derive'));
-  recoveryTab?.addEventListener('click', () => setMode('recovery'));
-  return { setMode };
 }

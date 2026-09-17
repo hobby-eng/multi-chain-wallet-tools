@@ -36,7 +36,7 @@ function adapter(id: string): RecoveryCoinAdapter {
 }
 
 describe('automatic ready-candidate scanning', () => {
-  it('visits each candidate then each coin, preserves the phrase until all coins finish, and forces standard coverage with history', async () => {
+  it('visits each candidate then each coin, preserves the phrase until all coins finish and respects configured result visibility', async () => {
     const candidates = inputs();
     const order: string[] = [];
     const coins = ['bitcoin', 'dash'].map((id) => {
@@ -47,7 +47,7 @@ describe('automatic ready-candidate scanning', () => {
         expect(input.passphrase).toBe(input.mnemonic.replace('phrase', 'password'));
         expect(cfg.account).toBe(7);
         expect(cfg.scanCustomPath).toBe(false);
-        expect(cfg.includeUsedZeroBalance).toBe(true);
+        expect(cfg.includeUsedZeroBalance).toBe(false);
         expect(cfg.scanCore).toBe(id !== 'dash');
         await Promise.resolve();
         return original(input, cfg, ctx);

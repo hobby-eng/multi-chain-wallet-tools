@@ -36,12 +36,12 @@ export function exactSafeInteger(value: unknown, context: string): number {
  * derived P2PKH addresses; only the derivation path differs. Reusing these
  * validators avoids a second, independently-risky parse of network responses.
  */
-export interface DashScanAddressInfo {
+interface DashScanAddressInfo {
   balance: bigint;
   txCount: number;
 }
 
-export interface DashScanHistorySummary {
+interface DashScanHistorySummary {
   txCount: number;
   received: bigint;
   sent: bigint;

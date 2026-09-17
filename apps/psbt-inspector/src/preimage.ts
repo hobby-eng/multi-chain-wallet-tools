@@ -3,7 +3,7 @@ import { bytesToHex, hash160, sha256 } from '@ckd/core/crypto.js';
 
 export type HashlockKind = 'sha256' | 'hash256' | 'ripemd160' | 'hash160';
 
-export interface PreimageCalculation {
+interface PreimageCalculation {
   readonly rawUtf8Hex: string;
   readonly rawByteLength: number;
   readonly preimageHex: string;
@@ -11,7 +11,7 @@ export interface PreimageCalculation {
   readonly commitments: Readonly<Record<HashlockKind, string>>;
 }
 
-export function hashlockCommitment(kind: HashlockKind, preimage: Uint8Array): Uint8Array {
+function hashlockCommitment(kind: HashlockKind, preimage: Uint8Array): Uint8Array {
   if (preimage.length !== 32) throw new Error('Miniscript hashlocks require an exact 32-byte preimage.');
   if (kind === 'sha256') return sha256(preimage);
   if (kind === 'hash256') return sha256(sha256(preimage));

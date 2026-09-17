@@ -16,13 +16,16 @@ const integerConstant = (text, name) => {
   return Number(match[1]);
 };
 
-const protocol = read('packages/network-boundary/src/protocol.ts');
+const dashProtocol = read('packages/network-boundary/src/dash-recovery-protocol.ts');
+const publicProtocol = read('packages/network-boundary/src/public-recovery-protocol.ts');
+const recoveryProtocol = read('packages/network-boundary/src/recovery-protocol.ts');
 const identity = read('apps/discovery-scanner/src/coins/dash/identity-scanner.ts');
-const requestProtocol =
-  protocol.match(/export type RecoveryNetworkRequestInput =([\s\S]*?)type WithRequestId/u)?.[1] ?? '';
-const networkOperationCount = [...requestProtocol.matchAll(/operation:\s*'[^']+'/gu)].length;
-const coreBatch = integerConstant(protocol, 'RECOVERY_CORE_ADDRESS_BATCH');
-const platformBatch = integerConstant(protocol, 'RECOVERY_PLATFORM_ADDRESS_BATCH');
+const requestProtocols = `${recoveryProtocol}\n${dashProtocol}\n${publicProtocol}`;
+const networkOperationCount = new Set(
+  [...requestProtocols.matchAll(/operation:\s*'([^']+)'/gu)].map((match) => match[1]),
+).size;
+const coreBatch = integerConstant(dashProtocol, 'RECOVERY_CORE_ADDRESS_BATCH');
+const platformBatch = integerConstant(dashProtocol, 'RECOVERY_PLATFORM_ADDRESS_BATCH');
 const identityConcurrency = Number(identity.match(/^const IDENTITY_QUERY_CONCURRENCY = (\d+);/mu)?.[1]);
 if (!Number.isSafeInteger(identityConcurrency)) throw new Error('Missing canonical Identity concurrency.');
 
@@ -31,10 +34,10 @@ const audit = read('SECURITY_AUDIT.md');
 const architecture = read('docs/ARCHITECTURE.md');
 const dashReport = read('docs/reference/DASH_IMPLEMENTATION.md');
 const scannerSecurity = read('apps/discovery-scanner/SECURITY.md');
-const scannerView = read('apps/discovery-scanner/src/view.ts');
+const scannerEstimate = read('apps/discovery-scanner/src/scan-estimate.ts');
 const scannerRegistry = read('apps/discovery-scanner/src/coins/index.ts');
 const multiChainDerivationRegistry = read('packages/coin-protocols/src/coins/multi-chain-registry-profile.ts');
-const buildProfiles = read('tooling/build-profiles.mjs');
+const buildProfiles = `${read('tooling/build-profiles.mjs')}\n${read('tooling/profile-template.mjs')}`;
 const reproducibleBuildWrapper = read('tooling/build-reproducible.sh');
 
 requireText(rootReadme, formatEnglishList(PRODUCT_FACTS.multiChainCoins), 'README Multi-Chain coin list');
@@ -61,7 +64,7 @@ requireText(dashReport, `batches of ${coreBatch}`, 'Dash Core batch size');
 requireText(dashReport, `batches of ${platformBatch}`, 'Dash Platform batch size');
 requireText(dashReport, `At most ${identityConcurrency} Identity proof requests`, 'Identity concurrency');
 requireText(
-  scannerView,
+  scannerEstimate,
   'about ${identities.toLocaleString()} identity proof calls per seed phrase',
   'Identity request estimate',
 );

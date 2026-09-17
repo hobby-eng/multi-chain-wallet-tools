@@ -21,7 +21,7 @@ export class WatchOnlyNeedsFamilyError extends Error {
   }
 }
 
-export const WATCH_ONLY_PREFIX_COINS = DASH_WATCH_ONLY_PREFIX_COINS;
+const WATCH_ONLY_PREFIX_COINS = DASH_WATCH_ONLY_PREFIX_COINS;
 
 export function assertWatchOnlyMinimum(count: number): void {
   if (!Number.isSafeInteger(count) || count < 1 || count > MAX_BIP32_INDEX + 1) {

@@ -103,6 +103,7 @@ function testView() {
   const clearButton = new TestControl();
   const exportCsvButton = new TestControl();
   const exportJsonButton = new TestControl();
+  const exportXlsxButton = new TestControl();
   const estimateInput = new TestControl();
   const view = {
     startButton,
@@ -112,6 +113,7 @@ function testView() {
     clearButton,
     exportCsvButton,
     exportJsonButton,
+    exportXlsxButton,
     estimateInputs: [estimateInput],
     readInputs: vi.fn(snapshot),
     populateCoins: vi.fn(),
@@ -188,7 +190,7 @@ describe('Discovery Scanner controller', () => {
           return { ...result(), inputId: input.id, label: input.label, coinId: id, coinLabel: id };
         },
       }),
-      listRecoveryCoins: () => [],
+      listRecoveryCoins: () => [{ id: 'bitcoin' }, { id: 'dash' }],
       recoveryNetworkApi: async () => ({ ping: async () => 'isolated-network-worker-v1' }),
       createRecoveryExport: (_results: RecoveryWalletResult[], format: string) => ({
         filename: `report.${format}`,
@@ -209,7 +211,11 @@ describe('Discovery Scanner controller', () => {
       'candidate-2-bitcoin:valid candidate:optional password',
       'candidate-2-dash:valid candidate:optional password',
     ]);
-    const reports = vi.mocked(view.renderResults).mock.calls.at(-1)![0];
+    const lastRender = vi.mocked(view.renderResults).mock.calls.at(-1)!;
+    const reports = lastRender[0];
+    expect(lastRender[1]).toBe('bitcoin');
+    lastRender[3]('dash');
+    expect(vi.mocked(view.renderResults).mock.calls.at(-1)![1]).toBe('dash');
     expect(reports).toHaveLength(3);
     expect(reports[0]!.coinId).toBe('input');
     expect(JSON.stringify(reports)).not.toContain('invalid phrase');
@@ -229,7 +235,7 @@ describe('Discovery Scanner controller', () => {
       ordering.push(`tripwire:${context}`);
       originalAssertPublic.call(this, value, context);
     });
-    const requestRecoveryExport = vi.fn(async (_text: string, _format: 'csv' | 'json') => 'report.csv');
+    const requestRecoveryExport = vi.fn(async (_text: string, _format: 'csv' | 'json' | 'xlsx') => 'report.csv');
     const dependencies = {
       ...ALL_DISCOVERY_FEATURES,
       RecoveryConcurrencyLimiter,
@@ -538,7 +544,7 @@ function publicHarness(
   }));
   const getRecoveryCoin = (id: string) => adapters.find((adapter) => adapter.id === id)!;
   const assertValidMnemonic = vi.fn((value: string) => value);
-  const requestRecoveryExport = vi.fn(async (_text: string, _format: 'csv' | 'json') => 'report.csv');
+  const requestRecoveryExport = vi.fn(async (_text: string, _format: 'csv' | 'json' | 'xlsx') => 'report.csv');
   const recoveryNetworkApi = vi.fn(
     async () => ({ ping: async () => 'isolated-network-worker-v1' as const }) as RecoveryScanContext['networkApi'],
   );

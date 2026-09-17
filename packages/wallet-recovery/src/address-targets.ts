@@ -1,11 +1,7 @@
 import type { NetworkName } from '@ckd/core/types.js';
 import { normalizeBitcoinAddress } from '@ckd/public-data-providers/address-normalization.js';
 
-export type BitcoinAddressAdapterId =
-  | 'bitcoin-legacy'
-  | 'bitcoin-nested-segwit'
-  | 'bitcoin-native-segwit'
-  | 'bitcoin-taproot';
+type BitcoinAddressAdapterId = 'bitcoin-legacy' | 'bitcoin-nested-segwit' | 'bitcoin-native-segwit' | 'bitcoin-taproot';
 
 export interface AddressSearchTarget {
   readonly input: string;

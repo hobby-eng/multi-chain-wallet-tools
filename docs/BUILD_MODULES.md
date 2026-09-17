@@ -12,7 +12,7 @@ Standalone HTML builds have independent coin and feature selections. With no sel
 - Connected builds without Dash pin every fixed Bitcoin/Ethereum provider origin in CSP. Dash Platform discovers quorum endpoints at runtime, so a build containing Dash retains an HTTPS-scheme connection boundary while application code and request protocols still expose no arbitrary URL input.
 - Network protocols use discriminated request allowlists, reject secret/private-material field names and arbitrary URLs, and minimize every request payload. The build generates an operation allowlist and dispatcher from the selected coins. The Worker validates exact envelope and payload keys, network names, public-token shape, request IDs and per-operation batch/range ceilings before dispatch; operations for excluded coins are absent from its code and rejected by construction.
 - PSBT Inspector and Key Derivation remain offline regardless of selected features.
-- Generated Rust modules must report the exact crates.io `wasm-bindgen 0.2.128` producer. Source-built CLIs that append Git metadata are rejected before generation, and committed WASM metadata is checked independently before verification.
+- Generated Rust modules must report the exact crates.io `wasm-bindgen 0.2.128` producer. Source-built CLIs that append Git metadata are rejected before generation. The canonical manifest also checks every generated-file hash and a digest of each module's Rust and build inputs, so a host rebuild or stale source fails local verification before packaging.
 
 ## Coin bundles and application modules
 
@@ -33,18 +33,20 @@ Bitcoin and Ethereum follow the same rule. Optional workflows remain controlled 
 
 Coins: `bitcoin`, `dash`, `ethereum`. Selecting Dash includes every supported Dash derivation family: Core, Purpose48 multisig, legacy mobile, CoinJoin, Platform payments, Identity and Orchard.
 
-| Feature           | Purpose                                                                                  | Coin dependency   |
-| ----------------- | ---------------------------------------------------------------------------------------- | ----------------- |
-| `derive`          | Generate addresses, public keys and private keys for selected coins. Required.           | Any selected coin |
-| `bip85`           | Derive child mnemonics/application secrets and open a child-wallet derivation workspace. | Any selected coin |
-| `silent-payments` | Derive Bitcoin BIP352 reusable addresses and scan/spend material.                        | Bitcoin           |
-| `bip38-encrypt`   | Password-encrypt compatible derived P2PKH private keys.                                  | Bitcoin or Dash   |
-| `message-signing` | Sign messages using formats supported by the selected coin and address type.             | Bitcoin or Dash   |
-| `wallet-matcher`  | Match known addresses against candidate mnemonics, accounts, branches and indices.       | Any selected coin |
-| `seedqr`          | Encode/decode Standard SeedQR and CompactSeedQR, including QR image import/export.       | Coin-independent  |
-| `slip39`          | Create and restore SLIP-39 mnemonic shares.                                              | Coin-independent  |
-| `shamir`          | Create and restore versioned CKD Shamir Raw and Words shares with a share-set digest.    | Coin-independent  |
-| `codex32`         | Encode and decode Codex32 BIP39-entropy or BIP32-seed records.                           | Coin-independent  |
+| Feature            | Purpose                                                                                                                                            | Coin dependency   |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `derive`           | Generate addresses, public keys and private keys for selected coins. Required.                                                                     | Any selected coin |
+| `bip85`            | Derive child mnemonics/application secrets and open a child-wallet derivation workspace.                                                           | Any selected coin |
+| `silent-payments`  | Derive Bitcoin BIP352 reusable addresses and scan/spend material.                                                                                  | Bitcoin           |
+| `bip38-encrypt`    | Password-encrypt compatible derived P2PKH private keys.                                                                                            | Bitcoin or Dash   |
+| `message-signing`  | Sign messages using formats supported by the selected coin and address type.                                                                       | Bitcoin or Dash   |
+| `wallet-matcher`   | Match known addresses against candidate mnemonics, accounts, branches and indices.                                                                 | Any selected coin |
+| `seedqr`           | Encode/decode Standard SeedQR and CompactSeedQR, including QR image import/export.                                                                 | Coin-independent  |
+| `slip39`           | Create and restore SLIP-39 mnemonic shares.                                                                                                        | Coin-independent  |
+| `shamir`           | Create and restore versioned CKD Shamir Raw and Words shares with a share-set digest; see [the custom format specification](CKD_SHAMIR_FORMAT.md). | Coin-independent  |
+| `codex32`          | Encode and decode Codex32 BIP39-entropy or BIP32-seed records.                                                                                     | Coin-independent  |
+| `sskr`             | Create and restore interoperable Blockchain Commons grouped SSKR shares with `ur:sskr` transport.                                                  | Coin-independent  |
+| `gordian-envelope` | Create and open typed Gordian Seed Envelopes with optional password, X25519 recipient, and SSKR quorum permits.                                    | Coin-independent  |
 
 ## Activity Viewer
 
@@ -83,13 +85,19 @@ The current policy builder does not create a PSBT. A future real PSBT constructo
 
 With no selection flags, the canonical build contains every module allowed by its edition. `--features` and `--coins` form an inclusion list; `--exclude` and `--exclude-coins` remove items from the default or from that inclusion list. The two forms may be combined.
 
+These flags select product capabilities and coin suites. Internal files such as PSBT validation/presentation, Deriver state and scheduling, Discovery progress/result views, or Activity format writers are implementation boundaries inside their owning capability; they do not create extra command-line flags or alter the visible module list. Selecting a coin includes its complete supported protocol suite for that utility.
+
 ```sh
 # Complete canonical builds for both editions
 pnpm build:html
 
 # General-design Deriver with Bitcoin and Dash, without backup codecs
 pnpm build:html -- --profile multi-chain --tool key-derivation \
-  --coins bitcoin,dash --exclude seedqr,slip39,shamir,codex32
+  --coins bitcoin,dash --exclude seedqr,slip39,shamir,codex32,sskr,gordian-envelope
+
+# Bitcoin Deriver with only derivation, SSKR, and Gordian Seed Envelope
+pnpm build:html -- --profile multi-chain --tool key-derivation \
+  --coins bitcoin --features derive,sskr,gordian-envelope
 
 # Watch-only Bitcoin/Ethereum Discovery, with no mnemonic or seed modules
 pnpm build:html -- --profile multi-chain --tool discovery-scanner \

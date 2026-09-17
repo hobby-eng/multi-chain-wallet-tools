@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createActivityViewerView } from '../src/view.js';
-import { installMultiChainActivity } from '../src/multichain-activity.js';
+import { createBitcoinActivityAdapter } from '../src/activity-bitcoin.js';
+import { createEthereumActivityAdapter } from '../src/activity-ethereum.js';
+import { installExternalActivity } from '../src/external-activity.js';
 import { emptyPublicHistory as emptyHistory } from '@ckd/public-data-providers/history.js';
 
 const network = vi.hoisted(() => ({ addressHistory: vi.fn(), utxoAddresses: vi.fn(), evmAccounts: vi.fn() }));
@@ -50,7 +52,10 @@ function fixture(batchMode = false) {
   const view = createActivityViewerView(document, { fingerprint: 'test' } as Parameters<
     typeof createActivityViewerView
   >[1]);
-  installMultiChainActivity(document, view);
+  installExternalActivity(document, view, [
+    createBitcoinActivityAdapter({ addressHistory: network.addressHistory, utxoAddresses: network.utxoAddresses }),
+    createEthereumActivityAdapter({ addressHistory: network.addressHistory, evmAccounts: network.evmAccounts }),
+  ]);
   view.setRunning(false, true, 'core');
   return { element, view };
 }
@@ -103,7 +108,7 @@ describe('shared Activity Viewer query ownership', () => {
       ]) {
         expect(element(id).disabled).toBe(true);
       }
-      const signal = network.addressHistory.mock.calls[0]![3] as AbortSignal;
+      const signal = network.addressHistory.mock.calls[0]![2] as AbortSignal;
       // Even a programmatic coin change must not redirect cancellation to Dash.
       element('viewer-coin').value = 'dash';
       element(action).click();

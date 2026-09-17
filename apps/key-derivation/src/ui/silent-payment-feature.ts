@@ -1,6 +1,6 @@
 import type { DerivationWorkerClient } from '../workers/derive-client.js';
 
-export interface SilentPaymentFeatureOptions {
+interface SilentPaymentFeatureOptions {
   document: Document;
   mnemonic(): string;
   passphrase(): string;

@@ -25,7 +25,7 @@ export interface RecoverySeedInput {
   passphrase: string;
 }
 
-export interface AddressSearchRunnerContext {
+interface AddressSearchRunnerContext {
   inputMode: RecoveryInputMode;
   recoveryInputs: (snapshot: RecoveryInputSnapshot) => RecoverySeedInput[];
   wipeInputObjects: (inputs: RecoverySeedInput[]) => void;
@@ -51,7 +51,7 @@ export type RecoverySectionId =
   | 'platform'
   | 'identity'
   | 'shielded';
-export type RecoverySectionState = 'complete' | 'partial' | 'skipped' | 'failed';
+type RecoverySectionState = 'complete' | 'partial' | 'skipped' | 'failed';
 
 export interface RecoveryScanConfig {
   network: RecoveryNetwork;
@@ -225,7 +225,7 @@ export interface RecoveryCoinAdapter {
  * contract: anything absent here cannot reach a file without a deliberate
  * type change. Exact integers cross as decimal strings.
  */
-export interface RecoveryExportFinding {
+interface RecoveryExportFinding {
   id: string;
   title: string;
   subtitle: string;
@@ -236,7 +236,7 @@ export interface RecoveryExportFinding {
   history?: Omit<RecoveryHistory, 'firstReceived' | 'lastReceived' | 'firstSpent' | 'lastSpent'>;
 }
 
-export interface RecoveryExportSection {
+interface RecoveryExportSection {
   id: RecoverySectionId;
   title: string;
   description: string;

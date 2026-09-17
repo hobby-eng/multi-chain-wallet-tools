@@ -1,24 +1,15 @@
 import profileCapabilities from '../profile-capabilities.json';
 
-export type EditionId = 'multi-chain' | 'dash-community';
+type EditionId = 'multi-chain' | 'dash-community';
 
-export interface EditionCapabilities {
-  readonly derivation: boolean;
-  readonly secretBoundary: boolean;
-  readonly publicNetwork: boolean;
-  readonly recoveryNetwork: boolean;
-  readonly offlineOnly: boolean;
-  readonly recoveryAddressSearch: boolean;
+interface EditionCapabilities {
   readonly bip85: boolean;
   readonly bitcoinSilentPayments: boolean;
   readonly bitcoinMessageSigning: boolean;
-  readonly dashMessageSigning: boolean;
-  readonly publicActivity: boolean;
-  readonly discoveryScanner: boolean;
   readonly advancedPsbt: boolean;
 }
 
-export interface EditionProfile {
+interface EditionProfile {
   readonly id: EditionId;
   readonly chains: readonly ('bitcoin' | 'dash' | 'ethereum')[];
   readonly capabilities: EditionCapabilities;

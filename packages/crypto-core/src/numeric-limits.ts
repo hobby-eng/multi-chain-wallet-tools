@@ -1,5 +1,5 @@
 /** Bounds apply before parsing or formatting untrusted provider amounts. */
-export const MAX_PROVIDER_DECIMAL_DIGITS = 100;
+const MAX_PROVIDER_DECIMAL_DIGITS = 100;
 export const PROVIDER_UNSIGNED_DECIMAL = new RegExp(`^(?:0|[1-9][0-9]{0,${MAX_PROVIDER_DECIMAL_DIGITS - 1}})$`, 'u');
 export const PROVIDER_SIGNED_DECIMAL = new RegExp(`^-?[0-9]{1,${MAX_PROVIDER_DECIMAL_DIGITS}}$`, 'u');
 export const MAX_PROVIDER_INTEGER = 10n ** BigInt(MAX_PROVIDER_DECIMAL_DIGITS) - 1n;

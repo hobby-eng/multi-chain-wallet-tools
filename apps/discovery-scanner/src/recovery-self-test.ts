@@ -7,10 +7,10 @@ export interface RecoverySelfTestReport {
   durationMs: number;
 }
 
-function assertSecretVaultBoundary(): void {
+function assertIsolatedBoundary(label: string): void {
   if (typeof window === 'undefined' || window.parent === window) {
     throw new Error(
-      'Discovery scanning must run inside its sandboxed Secret Vault. Open the built Wallet Discovery Scanner artifact.',
+      `Discovery scanning must run inside its sandboxed ${label}. Open the built Wallet Discovery Scanner artifact.`,
     );
   }
   let parentDomBlocked = false;
@@ -19,13 +19,13 @@ function assertSecretVaultBoundary(): void {
   } catch {
     parentDomBlocked = true;
   }
-  if (!parentDomBlocked) throw new Error('Recovery Secret Vault does not have an opaque origin.');
+  if (!parentDomBlocked) throw new Error(`${label} does not have an opaque origin.`);
   const csp = document.querySelector<HTMLMetaElement>('meta[http-equiv="Content-Security-Policy"]')?.content ?? '';
   if (!/(?:^|;)\s*connect-src\s+'none'\s*(?:;|$)/u.test(csp)) {
-    throw new Error("Recovery Secret Vault CSP does not enforce connect-src 'none'.");
+    throw new Error(`${label} CSP does not enforce connect-src 'none'.`);
   }
   if (!/(?:^|;)\s*worker-src\s+'none'\s*(?:;|$)/u.test(csp)) {
-    throw new Error("Recovery Secret Vault CSP does not enforce worker-src 'none'.");
+    throw new Error(`${label} CSP does not enforce worker-src 'none'.`);
   }
 }
 
@@ -34,7 +34,7 @@ export function createRecoverySelfTest(
 ): () => Promise<RecoverySelfTestReport> {
   return async () => {
     const started = performance.now();
-    assertSecretVaultBoundary();
+    assertIsolatedBoundary('Secret Vault');
     const base = await runBaseSelfTest();
     const checks = ['Opaque-origin Secret Vault and network-denied CSP', ...base.checks];
     const guard = new SecretEgressGuard();
@@ -63,5 +63,17 @@ export function createRecoverySelfTest(
     }
     checks.push(`${canaries.length} secret-egress canaries (raw, percent, base64, separator, byte)`);
     return { passed: true, checks, durationMs: Math.round(performance.now() - started) };
+  };
+}
+
+export function createPublicInputBoundarySelfTest(): () => Promise<RecoverySelfTestReport> {
+  return async () => {
+    const started = performance.now();
+    assertIsolatedBoundary('Public Input Boundary');
+    return {
+      passed: true,
+      checks: ['Opaque-origin Public Input Boundary and network-denied CSP'],
+      durationMs: Math.round(performance.now() - started),
+    };
   };
 }

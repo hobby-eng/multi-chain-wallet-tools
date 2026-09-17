@@ -1,15 +1,22 @@
-FROM buildpack-deps:noble@sha256:64ae509ccf40ede042d2cdd30d7149450e73ebd4c5362a36768ac727326dafb6 AS toolchain
+FROM buildpack-deps:noble@sha256:c2881ab5b526bc3b377a9501a89fec7a82c84f57e89d6cfd2fb9b5cbff75ef7f AS toolchain
 
 ARG NODE_VERSION=24.20.0
 ARG NODE_ARCHIVE_SHA256=2f2c0da162318f0de47665410c7c8c2ed3d36c8f3105de4bbc61176c70a7cbf2
 ARG RUSTUP_VERSION=1.29.1
 ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71
+ARG CLANG_VERSION=1:18.0-59~exp2
+ARG WASI_LIBC_VERSION=0.0~git20230113.4362b18-3
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends "clang=${CLANG_VERSION}" "wasi-libc=${WASI_LIBC_VERSION}" \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV CARGO_HOME=/root/.cargo \
     RUSTUP_HOME=/root/.rustup \
     CARGO_NET_GIT_FETCH_WITH_CLI=true \
     PATH=/root/.cargo/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin \
-    CI=true
+    CI=true \
+    CFLAGS_wasm32_unknown_unknown="-I/usr/include/wasm32-wasi -include /usr/include/wasm32-wasi/string.h"
 
 RUN curl --fail --silent --show-error --location \
       "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
@@ -45,6 +52,8 @@ RUN pnpm install --frozen-lockfile \
          cargo fetch --manifest-path packages/dash-shielded-wasm/rust/Cargo.toml --locked \
            && cargo fetch --manifest-path packages/recovery-shamir-wasm/rust/Cargo.toml --locked \
            && cargo fetch --manifest-path packages/recovery-codex32-wasm/rust/Cargo.toml --locked \
+           && cargo fetch --manifest-path packages/recovery-sskr-wasm/rust/Cargo.toml --locked \
+           && cargo fetch --manifest-path packages/recovery-envelope-wasm/rust/Cargo.toml --locked \
            && break; \
          if [ "$attempt" = 5 ]; then exit 1; fi; \
          echo "Cargo fetch attempt ${attempt} failed; retrying in $((attempt * 5)) seconds." >&2; \
@@ -55,16 +64,21 @@ RUN pnpm install --frozen-lockfile \
            "${CARGO_HOME}/git/checkouts/zcash_note_encryption-"*; \
          sleep "$((attempt * 5))"; \
        done
-RUN mkdir -p /tmp/committed-generated/dash /tmp/committed-generated/shamir /tmp/committed-generated/codex32 \
+RUN mkdir -p /tmp/committed-generated/dash /tmp/committed-generated/shamir /tmp/committed-generated/codex32 /tmp/committed-generated/sskr /tmp/committed-generated/envelope \
     && cp -a packages/dash-shielded-wasm/generated/. /tmp/committed-generated/dash/ \
     && cp -a packages/recovery-shamir-wasm/generated/. /tmp/committed-generated/shamir/ \
-    && cp -a packages/recovery-codex32-wasm/generated/. /tmp/committed-generated/codex32/
+    && cp -a packages/recovery-codex32-wasm/generated/. /tmp/committed-generated/codex32/ \
+    && cp -a packages/recovery-sskr-wasm/generated/. /tmp/committed-generated/sskr/ \
+    && cp -a packages/recovery-envelope-wasm/generated/. /tmp/committed-generated/envelope/ \
+    && cp tooling/wasm-canonical-manifest.json /tmp/committed-generated/wasm-canonical-manifest.json
 
 FROM dependencies AS built
 ARG SOURCE_COMMIT=unavailable
 ARG SOURCE_DIRTY=false
 ENV VERIFICATION_COMMIT=${SOURCE_COMMIT} \
     VERIFICATION_DIRTY=${SOURCE_DIRTY}
+RUN --network=none node tooling/build-all-wasm.mjs \
+    && node tooling/verify-wasm-integrity.mjs --write
 RUN --network=none pnpm verify
 # Compile a bounded matrix that exercises every selectable coin and feature at least once.
 RUN --network=none pnpm build:matrix:smoke
@@ -72,7 +86,10 @@ RUN --network=none pnpm build:matrix:smoke
 FROM built AS verified
 RUN diff --recursive --brief /tmp/committed-generated/dash packages/dash-shielded-wasm/generated \
     && diff --recursive --brief /tmp/committed-generated/shamir packages/recovery-shamir-wasm/generated \
-    && diff --recursive --brief /tmp/committed-generated/codex32 packages/recovery-codex32-wasm/generated
+    && diff --recursive --brief /tmp/committed-generated/codex32 packages/recovery-codex32-wasm/generated \
+    && diff --recursive --brief /tmp/committed-generated/sskr packages/recovery-sskr-wasm/generated \
+    && diff --recursive --brief /tmp/committed-generated/envelope packages/recovery-envelope-wasm/generated \
+    && diff --brief /tmp/committed-generated/wasm-canonical-manifest.json tooling/wasm-canonical-manifest.json
 
 FROM scratch AS artifacts
 COPY --from=verified /workspace/dist /dist
@@ -81,3 +98,6 @@ FROM scratch AS wasm-artifacts
 COPY --from=built /workspace/packages/dash-shielded-wasm/generated /generated/dash
 COPY --from=built /workspace/packages/recovery-shamir-wasm/generated /generated/shamir
 COPY --from=built /workspace/packages/recovery-codex32-wasm/generated /generated/codex32
+COPY --from=built /workspace/packages/recovery-sskr-wasm/generated /generated/sskr
+COPY --from=built /workspace/packages/recovery-envelope-wasm/generated /generated/envelope
+COPY --from=built /workspace/tooling/wasm-canonical-manifest.json /generated/wasm-canonical-manifest.json

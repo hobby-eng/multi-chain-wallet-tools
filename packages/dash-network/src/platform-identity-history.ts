@@ -13,7 +13,7 @@ const IDENTITY_CREATION_TYPES = new Set([
   'IDENTITY_CREATE_FROM_SHIELDED_POOL',
 ]);
 
-export interface IdentityAliasHistory {
+interface IdentityAliasHistory {
   name: string;
   status: string;
   contested: boolean;
@@ -37,7 +37,7 @@ export interface IdentityActivityEvent {
   transfers: IdentityTransferMovement[];
 }
 
-export interface IdentityTransferMovement {
+interface IdentityTransferMovement {
   direction: 'incoming' | 'outgoing' | 'self' | 'related';
   amountCredits: bigint;
   sender: string | null;
@@ -94,7 +94,7 @@ export interface IdentityTokenHistory {
   timestampMs: number | null;
 }
 
-export interface PlatformIdentityHistorySnapshot {
+interface PlatformIdentityHistorySnapshot {
   provider: string;
   identifier: string;
   owner: string | null;
@@ -152,13 +152,13 @@ interface PlatformIdentityHistoryProvider {
   endpoint(network: ViewerNetwork): string;
 }
 
-export interface ClassicIdentityFunding {
+interface ClassicIdentityFunding {
   coreTransactionHash: string;
   outputIndex: number;
   lockType: 'instant' | 'chain';
 }
 
-export type ClassicIdentityFundingDecoder = (base64: string) => ClassicIdentityFunding;
+type ClassicIdentityFundingDecoder = (base64: string) => ClassicIdentityFunding;
 
 const PLATFORM_EXPLORER_ENDPOINTS: Record<ViewerNetwork, string> = {
   mainnet: 'https://platform-explorer.pshenmic.dev',

@@ -10,7 +10,7 @@ export interface WatchOnlyTarget {
   ambiguous: boolean;
 }
 
-export interface WatchOnlyInputDependencies {
+interface WatchOnlyInputDependencies {
   assertWatchOnlyBatchInput?: typeof import('@ckd/recovery/watch-only.js').assertWatchOnlyBatchInput;
   assertWatchOnlyMinimum?: typeof import('@ckd/recovery/watch-only.js').assertWatchOnlyMinimum;
   parseWatchOnlyLines?: typeof import('@ckd/recovery/watch-only.js').parseWatchOnlyLines;

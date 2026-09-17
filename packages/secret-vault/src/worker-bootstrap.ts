@@ -1,6 +1,6 @@
 import { bootstrapIsolatedBoundary, type IsolatedBoundaryBootstrap } from '@ckd/network-boundary/iframe-bootstrap.js';
 
-export type VaultBootstrap = IsolatedBoundaryBootstrap;
+type VaultBootstrap = IsolatedBoundaryBootstrap;
 
 /**
  * Seed-capable semantic layer over the shared opaque iframe transport. Keeping

@@ -27,7 +27,7 @@ const MAX_NON_UNIQUE_IDENTITIES = 100;
 const MAX_DPNS_NAMES = 100;
 const IDENTITY_NONCE_VALUE_FILTER = 0xffffffffffn;
 
-export type IdentityLookupKind =
+type IdentityLookupKind =
   | 'identity-id'
   | 'identity-id-hex'
   | 'registration-transaction'
@@ -36,7 +36,7 @@ export type IdentityLookupKind =
   | 'bls-public-key'
   | 'dpns-name';
 
-export interface NormalizedIdentityLookup {
+interface NormalizedIdentityLookup {
   kind: IdentityLookupKind;
   label: string;
   identityId?: string;
@@ -46,14 +46,14 @@ export interface NormalizedIdentityLookup {
   registrationTransactionHash?: string;
 }
 
-export interface IdentityProofMetadata {
+interface IdentityProofMetadata {
   height: bigint;
   coreChainLockedHeight: number;
   protocolVersion: number;
   responseTimeMs: bigint;
 }
 
-export interface IdentityContractBoundsSnapshot {
+interface IdentityContractBoundsSnapshot {
   type: string;
   identifier: string;
   documentTypeName: string | null;
@@ -108,7 +108,7 @@ interface MetadataLike {
   free(): void;
 }
 
-export type RegistrationTransactionDecoder = (encodedTransition: string, expectedHash: string) => string;
+type RegistrationTransactionDecoder = (encodedTransition: string, expectedHash: string) => string;
 
 const PLATFORM_EXPLORER_ENDPOINTS: Record<ViewerNetwork, string> = {
   mainnet: 'https://platform-explorer.pshenmic.dev',

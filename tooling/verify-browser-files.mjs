@@ -195,13 +195,23 @@ for (const browserName of selectedBrowsers) {
             if (profile.id === 'multi-chain')
               assert.equal(await scope.locator('#recovery-coin').inputValue(), 'bitcoin');
             await scope.locator('[data-input-mode="batch"]').click();
-            await scope.locator('#automatic-candidates').check();
-            assert.equal(await scope.locator('#candidate-options').isVisible(), true);
-            assert.equal(await scope.locator('#candidate-coins input').count(), profile.id === 'multi-chain' ? 3 : 1);
-            await scope.locator('#candidate-all-coins').check();
-            assert.equal(await scope.locator('#custom-path-options').isVisible(), false);
-            await scope.locator('#automatic-candidates').uncheck();
-            run.checks.push('Automatic candidate coin selection and custom-path isolation');
+            if (profile.id === 'multi-chain') {
+              await scope.locator('#automatic-candidates').check();
+              assert.equal(await scope.locator('#candidate-options').isVisible(), true);
+              assert.equal(await scope.locator('#candidate-coins input').count(), 3);
+              await scope.locator('#candidate-all-coins').check();
+              assert.equal(await scope.locator('#custom-path-options').isVisible(), false);
+              assert.equal(await scope.locator('#include-used-zero-balance').isVisible(), true);
+              assert.equal(await scope.locator('#include-used-zero-balance').isEnabled(), true);
+              await scope.locator('#include-used-zero-balance').check();
+              await scope.locator('#automatic-candidates').uncheck();
+              assert.equal(await scope.locator('#include-used-zero-balance').isChecked(), true);
+              await scope.locator('#include-used-zero-balance').uncheck();
+              run.checks.push('Automatic multi-coin selection and custom-path isolation');
+            } else {
+              assert.equal(await scope.locator('#automatic-candidates').isHidden(), true);
+              run.checks.push('Single-coin Dash build omits redundant multi-coin control');
+            }
             await scope.locator('#batch-mnemonics').fill(`${phrase}\n${phrase}`);
             await scope.locator('#scan-custom-path').check();
             const initialPath = await scope.locator('#custom-path-template').inputValue();
@@ -283,6 +293,8 @@ for (const browserName of selectedBrowsers) {
             await scope.locator('#start-recovery-scan').click();
             await scope.locator('#start-recovery-scan:enabled').waitFor();
             assert.equal(await scope.locator('#recovery-results').isVisible(), true);
+            assert.equal(await scope.locator('#include-used-zero-balance').isVisible(), true);
+            assert.equal(await scope.locator('#include-used-zero-balance').isEnabled(), true);
             const batchDownload = page.waitForEvent('download');
             await scope.locator('#export-recovery-json').click();
             const batchExported = await batchDownload;

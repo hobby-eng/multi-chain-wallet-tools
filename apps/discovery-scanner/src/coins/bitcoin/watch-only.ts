@@ -3,7 +3,7 @@ import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
 import { HDKey } from '@scure/bip32';
 import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
 import { getBitcoinNetwork } from '@ckd/core/networks.js';
-import { descriptorChecksum } from '@ckd/export/descriptor.js';
+import { parseBitcoinSlip132, parseBitcoinWatchDescriptor } from '@ckd/recovery/watch-only/bitcoin-formats.js';
 import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
 import { RecoveryNetworkGateway } from '../../network-gateway.js';
 import { RECOVERY_UTXO_ADDRESS_BATCH, type UtxoAddressView } from '@ckd/network-boundary/protocol.js';
@@ -18,92 +18,6 @@ import type {
 } from '../../types.js';
 import { extendAddressTarget } from '../../address-gap.js';
 import { addressFor, BITCOIN_MODES, formatBitcoin, type BitcoinMode } from './shared.js';
-
-const DESCRIPTOR_PATTERNS: ReadonlyArray<{ mode: BitcoinMode; wrappers: number; pattern: RegExp }> = [
-  {
-    mode: 'legacy',
-    wrappers: 1,
-    pattern: /^pkh\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu,
-  },
-  {
-    mode: 'nested-segwit',
-    wrappers: 2,
-    pattern:
-      /^sh\(wpkh\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)\)#([0-9a-z]{8})$/iu,
-  },
-  {
-    mode: 'native-segwit',
-    wrappers: 1,
-    pattern: /^wpkh\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu,
-  },
-  {
-    mode: 'taproot',
-    wrappers: 1,
-    pattern: /^tr\(\[([0-9a-f]{8})((?:\/\d+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)\/(\d+)\/\*\)#([0-9a-z]{8})$/iu,
-  },
-];
-
-const SLIP132_PUBLIC_VERSIONS: ReadonlyArray<{
-  prefix: 'ypub' | 'zpub' | 'upub' | 'vpub';
-  public: number;
-  private: number;
-  network: 'mainnet' | 'testnet';
-  mode: 'nested-segwit' | 'native-segwit';
-  label: string;
-}> = [
-  {
-    prefix: 'ypub',
-    public: 0x049d7cb2,
-    private: 0x049d7878,
-    network: 'mainnet',
-    mode: 'nested-segwit',
-    label: 'Bitcoin Nested SegWit · SLIP-132 ypub',
-  },
-  {
-    prefix: 'zpub',
-    public: 0x04b24746,
-    private: 0x04b2430c,
-    network: 'mainnet',
-    mode: 'native-segwit',
-    label: 'Bitcoin Native SegWit · SLIP-132 zpub',
-  },
-  {
-    prefix: 'upub',
-    public: 0x044a5262,
-    private: 0x044a4e28,
-    network: 'testnet',
-    mode: 'nested-segwit',
-    label: 'Bitcoin Nested SegWit testnet · SLIP-132 upub',
-  },
-  {
-    prefix: 'vpub',
-    public: 0x045f1cf6,
-    private: 0x045f18bc,
-    network: 'testnet',
-    mode: 'native-segwit',
-    label: 'Bitcoin Native SegWit testnet · SLIP-132 vpub',
-  },
-];
-
-function parseSlip132(
-  value: string,
-): { node: HDKey; network: 'mainnet' | 'testnet'; mode: BitcoinMode; label: string } | null {
-  const version = SLIP132_PUBLIC_VERSIONS.find(({ prefix }) => value.startsWith(prefix));
-  if (version === undefined) return null;
-  if (!/^[1-9A-HJ-NP-Za-km-z]{100,120}$/u.test(value)) {
-    throw new Error(`This ${version.prefix} extended public key is malformed.`);
-  }
-  try {
-    return {
-      node: HDKey.fromExtendedKey(value, { private: version.private, public: version.public }),
-      network: version.network,
-      mode: version.mode,
-      label: version.label,
-    };
-  } catch {
-    throw new Error(`This ${version.prefix} extended public key is malformed or has an invalid checksum.`);
-  }
-}
 
 interface CandidateProfile {
   id: string;
@@ -130,20 +44,12 @@ function parseDescriptor(
   account: HDKey;
   originPath: string;
 } {
-  for (const { mode, pattern } of DESCRIPTOR_PATTERNS) {
-    const match = pattern.exec(value);
-    if (match === null) continue;
-    const [fingerprint, originSuffix, xpub, branchText, checksum] = match.slice(1);
-    const withoutChecksum = value.slice(0, value.length - 9); // strip "#checksum" (1 + 8 chars)
-    const expected = descriptorChecksum(withoutChecksum);
-    if (expected !== checksum) {
-      throw new Error(
-        "This descriptor's BIP380 checksum does not match its content; it may have been altered or mistyped.",
-      );
-    }
+  const parsed = parseBitcoinWatchDescriptor(value);
+  if (parsed !== null) {
+    const { mode, fingerprint, originSuffix, xpub, branch } = parsed;
     let account: HDKey;
     try {
-      account = HDKey.fromExtendedKey(xpub!, network.versions);
+      account = HDKey.fromExtendedKey(xpub, network.versions);
     } catch {
       throw new Error(
         `The descriptor's xpub does not match the selected ${network.label} version bytes. Select the matching network.`,
@@ -154,9 +60,7 @@ function parseDescriptor(
         `The descriptor's embedded xpub has depth ${account.depth}, but a standard account xpub has depth 3.`,
       );
     }
-    const branch = Number(branchText);
-    if (branch !== 0 && branch !== 1) throw new Error('The descriptor branch must be 0 (receive) or 1 (change).');
-    return { mode, fingerprint: fingerprint!, branch, account, originPath: `[${fingerprint}${originSuffix}]` };
+    return { mode, fingerprint, branch, account, originPath: `[${fingerprint}${originSuffix}]` };
   }
   throw new Error(
     'This descriptor did not match a supported pkh(), sh(wpkh()), wpkh(), or tr() shape with a checksummed [fingerprint/path]xpub/branch/* body.',
@@ -167,7 +71,7 @@ function parseBareXpub(
   value: string,
   network: ReturnType<typeof getBitcoinNetwork>,
 ): { node: HDKey; encodedMode: BitcoinMode | null } {
-  const slip132 = parseSlip132(value);
+  const slip132 = parseBitcoinSlip132(value);
   if (slip132 !== null) {
     if (slip132.network !== network.name) {
       throw new Error(`This ${value.slice(0, 4)} key encodes ${slip132.network}, but ${network.name} is selected.`);

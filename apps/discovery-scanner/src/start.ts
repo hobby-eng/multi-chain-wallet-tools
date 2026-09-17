@@ -13,6 +13,7 @@ import { createDiscoveryScannerView } from './view.js';
 import type { AddressSearchRunner } from './types.js';
 import type { WatchOnlyAdapterLike } from '@ckd/recovery/watch-only/types.js';
 import type { DiscoveryFeatureRuntime } from './feature-selection.js';
+import { assertDiscoveryFeatureRuntime } from './feature-runtime-validation.js';
 
 export function startDiscoveryScanner(
   registry: RecoveryCoinRegistry,
@@ -28,6 +29,7 @@ export function startDiscoveryScanner(
     singleChainCoinId?: string;
   },
 ): void {
+  assertDiscoveryFeatureRuntime(features);
   // Install explicitly so merely importing the client cannot mutate global browser state.
   installNetworkBoundaryListener();
   const view = createDiscoveryScannerView(document, BUILD_INFO, writeClipboard, features);
@@ -59,16 +61,18 @@ export function startDiscoveryScanner(
     ...(features.resolveWatchOnlyTargets === undefined
       ? {}
       : {
-          resolveWatchOnlyTargets: (raw: string, adapters: readonly WatchOnlyAdapterLike[]) =>
-            features.resolveWatchOnlyTargets!(
-              raw,
-              adapters,
-              watchOnlyProfile?.prefixCoins,
-              watchOnlyProfile?.multiChain ?? false,
-              watchOnlyProfile?.networklessAdapterIds ?? [],
-              watchOnlyProfile?.supportedDepths,
-              watchOnlyProfile?.singleChainCoinId ?? 'dash',
-            ),
+          resolveWatchOnlyTargets: (
+            (resolveTargets) => (raw: string, adapters: readonly WatchOnlyAdapterLike[]) =>
+              resolveTargets(
+                raw,
+                adapters,
+                watchOnlyProfile?.prefixCoins,
+                watchOnlyProfile?.multiChain ?? false,
+                watchOnlyProfile?.networklessAdapterIds ?? [],
+                watchOnlyProfile?.supportedDepths,
+                watchOnlyProfile?.singleChainCoinId ?? 'dash',
+              )
+          )(features.resolveWatchOnlyTargets),
         }),
     createRecoveryExport,
     describeUnknownError,

@@ -1,0 +1,763 @@
+{
+  "schema": "independent-audit-report/1",
+  "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
+  "date": "2026-09-17",
+  "timeUtc": "10:39-11:15",
+  "commit": "6bbff3c",
+  "treeClean": true,
+  "findings": [
+    {
+      "id": "H-01",
+      "severity": "High",
+      "title": "Deriver artifact verifier lists UI labels as required element ids; pnpm verify and Docker fail",
+      "file": "apps/key-derivation/scripts/verify-key-derivation-artifact.mjs",
+      "lines": "134-135"
+    },
+    {
+      "id": "M-01",
+      "severity": "Medium",
+      "title": "Discovery Scanner builds with seed-discovery but without custom-paths crash at startup (features.describeCustomPath!)",
+      "file": "apps/discovery-scanner/src/view.ts",
+      "lines": "378-385"
+    },
+    {
+      "id": "M-02",
+      "severity": "Medium",
+      "title": "Dead entrypoints kept by allow-list strings: network-worker.ts, network-worker-dash-community.ts, secret-vault/vault-protocol.ts"
+    },
+    {
+      "id": "L-01",
+      "severity": "Low",
+      "title": "37 exported functions/constants and 127 exported types without external consumers",
+      "unusedExports": [
+        {
+          "file": "apps/discovery-scanner/src/coins/custom-path.ts",
+          "name": "CustomScanPath"
+        },
+        {
+          "file": "apps/discovery-scanner/src/coins/custom-path.ts",
+          "name": "ParsedCustomPath"
+        },
+        {
+          "file": "apps/discovery-scanner/src/coins/dash/platform-history.ts",
+          "name": "ValidatedPlatformHistory"
+        },
+        {
+          "file": "apps/discovery-scanner/src/coins/dash/platform-scanner.ts",
+          "name": "PlatformInfo"
+        },
+        {
+          "file": "apps/discovery-scanner/src/coins/dash/transparent-family-scanner.ts",
+          "name": "TransparentBranchSpec"
+        },
+        {
+          "file": "apps/discovery-scanner/src/coins/dash/transparent-family-scanner.ts",
+          "name": "TransparentFamilySpec"
+        },
+        {
+          "file": "apps/discovery-scanner/src/coins/dash/util.ts",
+          "name": "DashScanAddressInfo"
+        },
+        {
+          "file": "apps/discovery-scanner/src/coins/dash/util.ts",
+          "name": "DashScanHistorySummary"
+        },
+        {
+          "file": "apps/discovery-scanner/src/discovery-renderers.ts",
+          "name": "RecoveryComponentGroupId"
+        },
+        {
+          "file": "apps/discovery-scanner/src/network-gateway.ts",
+          "name": "RecoveryOperationStats"
+        },
+        {
+          "file": "apps/discovery-scanner/src/network-validation.ts",
+          "name": "PUBLIC_KEY_HASH_PATTERN"
+        },
+        {
+          "file": "apps/discovery-scanner/src/scan-estimate.ts",
+          "name": "DashScanEstimateInput"
+        },
+        {
+          "file": "apps/discovery-scanner/src/scan-estimate.ts",
+          "name": "estimateConcurrency"
+        },
+        {
+          "file": "apps/discovery-scanner/src/types.ts",
+          "name": "AddressSearchRunnerContext"
+        },
+        {
+          "file": "apps/discovery-scanner/src/types.ts",
+          "name": "RecoveryExportFinding"
+        },
+        {
+          "file": "apps/discovery-scanner/src/types.ts",
+          "name": "RecoveryExportSection"
+        },
+        {
+          "file": "apps/discovery-scanner/src/types.ts",
+          "name": "RecoverySectionState"
+        },
+        {
+          "file": "apps/discovery-scanner/src/view.ts",
+          "name": "WalletProgressState"
+        },
+        {
+          "file": "apps/discovery-scanner/src/watch-only-input.ts",
+          "name": "WatchOnlyInputDependencies"
+        },
+        {
+          "file": "apps/key-derivation/src/ui/bip85-feature.ts",
+          "name": "Bip85FeatureOptions"
+        },
+        {
+          "file": "apps/key-derivation/src/ui/message-signing-feature.ts",
+          "name": "MessageSigningInstallerOptions"
+        },
+        {
+          "file": "apps/key-derivation/src/ui/recovery-source-link.ts",
+          "name": "RecoverySourceValue"
+        },
+        {
+          "file": "apps/key-derivation/src/ui/recovery-workspace-shared.ts",
+          "name": "ThresholdGroupEditor"
+        },
+        {
+          "file": "apps/key-derivation/src/ui/recovery-workspace-shared.ts",
+          "name": "ThresholdGroupSpec"
+        },
+        {
+          "file": "apps/key-derivation/src/ui/result-branches.ts",
+          "name": "ResultBranchGroup"
+        },
+        {
+          "file": "apps/key-derivation/src/ui/results.ts",
+          "name": "ResultWindow"
+        },
+        {
+          "file": "apps/key-derivation/src/ui/silent-payment-feature.ts",
+          "name": "SilentPaymentFeatureOptions"
+        },
+        {
+          "file": "apps/key-derivation/src/ui/startup-self-test.ts",
+          "name": "StartupSelfTestReport"
+        },
+        {
+          "file": "apps/key-derivation/src/ui/streamed-derivation.ts",
+          "name": "StreamedDerivationOutcome"
+        },
+        {
+          "file": "apps/key-derivation/src/workers/bip322-signer.ts",
+          "name": "Bip322SigningMode"
+        },
+        {
+          "file": "apps/key-derivation/src/workers/bip85-deriver.ts",
+          "name": "Bip85Application"
+        },
+        {
+          "file": "apps/key-derivation/src/workers/protocol.ts",
+          "name": "WorkerFailure"
+        },
+        {
+          "file": "apps/key-derivation/src/workers/protocol.ts",
+          "name": "WorkerReady"
+        },
+        {
+          "file": "apps/key-derivation/src/workers/protocol.ts",
+          "name": "WorkerResponse"
+        },
+        {
+          "file": "apps/key-derivation/src/workers/protocol.ts",
+          "name": "WorkerSuccess"
+        },
+        {
+          "file": "apps/psbt-inspector/src/balanced-syntax.ts",
+          "name": "BalancedSyntaxOptions"
+        },
+        {
+          "file": "apps/psbt-inspector/src/bip38-decryptor.ts",
+          "name": "Bip38Decryption"
+        },
+        {
+          "file": "apps/psbt-inspector/src/descriptor-policy.ts",
+          "name": "collectKeys"
+        },
+        {
+          "file": "apps/psbt-inspector/src/descriptor-policy.ts",
+          "name": "collectLocks"
+        },
+        {
+          "file": "apps/psbt-inspector/src/descriptor-policy.ts",
+          "name": "collectPreimages"
+        },
+        {
+          "file": "apps/psbt-inspector/src/descriptor-policy.ts",
+          "name": "combinePaths"
+        },
+        {
+          "file": "apps/psbt-inspector/src/descriptor-policy.ts",
+          "name": "describedKey"
+        },
+        {
+          "file": "apps/psbt-inspector/src/descriptor-policy.ts",
+          "name": "nodeText"
+        },
+        {
+          "file": "apps/psbt-inspector/src/descriptor-policy.ts",
+          "name": "pathAlternatives"
+        },
+        {
+          "file": "apps/psbt-inspector/src/descriptor-policy.ts",
+          "name": "treeLabel"
+        },
+        {
+          "file": "apps/psbt-inspector/src/descriptor-policy.ts",
+          "name": "unwrapWrapper"
+        },
+        {
+          "file": "apps/psbt-inspector/src/miniscript-engine.ts",
+          "name": "CompiledMiniscript"
+        },
+        {
+          "file": "apps/psbt-inspector/src/miniscript-engine.ts",
+          "name": "MiniscriptContextOptions"
+        },
+        {
+          "file": "apps/psbt-inspector/src/miniscript-engine.ts",
+          "name": "ValidatedMiniscript"
+        },
+        {
+          "file": "apps/psbt-inspector/src/multisig-wallet.ts",
+          "name": "ConcreteMultisigRequest"
+        },
+        {
+          "file": "apps/psbt-inspector/src/multisig-wallet.ts",
+          "name": "DescriptorRecord"
+        },
+        {
+          "file": "apps/psbt-inspector/src/multisig-wallet.ts",
+          "name": "MultisigKeyOrder"
+        },
+        {
+          "file": "apps/psbt-inspector/src/multisig-wallet.ts",
+          "name": "MultisigWrapper"
+        },
+        {
+          "file": "apps/psbt-inspector/src/multisig-wallet.ts",
+          "name": "ParsedAccountXpub"
+        },
+        {
+          "file": "apps/psbt-inspector/src/multisig-wallet.ts",
+          "name": "RangedAddressRow"
+        },
+        {
+          "file": "apps/psbt-inspector/src/multisig-wallet.ts",
+          "name": "RangedWalletRequest"
+        },
+        {
+          "file": "apps/psbt-inspector/src/multisig-wallet.ts",
+          "name": "descriptorWithChecksum"
+        },
+        {
+          "file": "apps/psbt-inspector/src/multisig-wallet.ts",
+          "name": "parseAccountXpub"
+        },
+        {
+          "file": "apps/psbt-inspector/src/musig-descriptor.ts",
+          "name": "MusigKeyAnalysis"
+        },
+        {
+          "file": "apps/psbt-inspector/src/policy.ts",
+          "name": "BuiltPolicy"
+        },
+        {
+          "file": "apps/psbt-inspector/src/policy.ts",
+          "name": "PolicyMode"
+        },
+        {
+          "file": "apps/psbt-inspector/src/policy.ts",
+          "name": "PolicyRequest"
+        },
+        {
+          "file": "apps/psbt-inspector/src/preimage.ts",
+          "name": "PreimageCalculation"
+        },
+        {
+          "file": "apps/psbt-inspector/src/preimage.ts",
+          "name": "hashlockCommitment"
+        },
+        {
+          "file": "apps/psbt-inspector/src/psbt-binary.ts",
+          "name": "decodeType"
+        },
+        {
+          "file": "apps/psbt-inspector/src/script.ts",
+          "name": "DecodedScript"
+        },
+        {
+          "file": "apps/psbt-inspector/src/script.ts",
+          "name": "ScriptOperation"
+        },
+        {
+          "file": "apps/psbt-inspector/src/script.ts",
+          "name": "ScriptWrapper"
+        },
+        {
+          "file": "apps/psbt-inspector/src/signing-commitments.ts",
+          "name": "InputSigningAnalysis"
+        },
+        {
+          "file": "apps/psbt-inspector/src/signing-commitments.ts",
+          "name": "SighashCommitments"
+        },
+        {
+          "file": "apps/psbt-inspector/src/signing-commitments.ts",
+          "name": "SighashProtocol"
+        },
+        {
+          "file": "apps/psbt-inspector/src/transaction-display.ts",
+          "name": "OpReturnDetails"
+        },
+        {
+          "file": "apps/psbt-inspector/src/transaction-display.ts",
+          "name": "PreviousScriptSigDetails"
+        },
+        {
+          "file": "apps/psbt-inspector/src/transaction.ts",
+          "name": "TransactionChain"
+        },
+        {
+          "file": "packages/build-security/src/build-info.ts",
+          "name": "BuildInfo"
+        },
+        {
+          "file": "packages/coin-protocols/src/bip32-summary.ts",
+          "name": "Bip32SummaryLabels"
+        },
+        {
+          "file": "packages/coin-protocols/src/coins/bitcoin/taproot.ts",
+          "name": "TaprootDetails"
+        },
+        {
+          "file": "packages/coin-protocols/src/coins/dash/identity.ts",
+          "name": "DashIdentityAuthenticationKey"
+        },
+        {
+          "file": "packages/coin-protocols/src/coins/dash/identity.ts",
+          "name": "DashIdentityKey"
+        },
+        {
+          "file": "packages/coin-protocols/src/coins/dash/identity.ts",
+          "name": "DashIdentityStandardKey"
+        },
+        {
+          "file": "packages/coin-protocols/src/coins/dash/identity.ts",
+          "name": "deriveDashIdentityKey"
+        },
+        {
+          "file": "packages/coin-protocols/src/coins/dash/platform.ts",
+          "name": "PLATFORM_P2PKH_TYPE"
+        },
+        {
+          "file": "packages/coin-protocols/src/coins/dash/shielded-result.ts",
+          "name": "DASH_ORCHARD_RELEASE"
+        },
+        {
+          "file": "packages/crypto-core/src/bip322-verifier.ts",
+          "name": "Bip322Network"
+        },
+        {
+          "file": "packages/crypto-core/src/bip322-verifier.ts",
+          "name": "Bip322Verification"
+        },
+        {
+          "file": "packages/crypto-core/src/bip38.ts",
+          "name": "Bip38Network"
+        },
+        {
+          "file": "packages/crypto-core/src/bip39.ts",
+          "name": "BIP39_WORD_COUNTS"
+        },
+        {
+          "file": "packages/crypto-core/src/bip39.ts",
+          "name": "Bip39WordCount"
+        },
+        {
+          "file": "packages/crypto-core/src/bip39.ts",
+          "name": "MnemonicConstructionDiagnostic"
+        },
+        {
+          "file": "packages/crypto-core/src/bip39.ts",
+          "name": "MnemonicWordDiagnostic"
+        },
+        {
+          "file": "packages/crypto-core/src/bip39.ts",
+          "name": "UnknownMnemonicWord"
+        },
+        {
+          "file": "packages/crypto-core/src/bip39.ts",
+          "name": "normalizeMnemonic"
+        },
+        {
+          "file": "packages/crypto-core/src/compact-message-internal.ts",
+          "name": "RecoveredCompactPublicKey"
+        },
+        {
+          "file": "packages/crypto-core/src/compact-message.ts",
+          "name": "CompactMessageChain"
+        },
+        {
+          "file": "packages/crypto-core/src/descriptor-key.ts",
+          "name": "DescriptorNetwork"
+        },
+        {
+          "file": "packages/crypto-core/src/networks.ts",
+          "name": "BITCOIN_NETWORKS"
+        },
+        {
+          "file": "packages/crypto-core/src/networks.ts",
+          "name": "DASH_NETWORKS"
+        },
+        {
+          "file": "packages/crypto-core/src/networks.ts",
+          "name": "DashNetwork"
+        },
+        {
+          "file": "packages/crypto-core/src/numeric-limits.ts",
+          "name": "MAX_PROVIDER_DECIMAL_DIGITS"
+        },
+        {
+          "file": "packages/crypto-core/src/types.ts",
+          "name": "WatchOnlyExport"
+        },
+        {
+          "file": "packages/dash-network/src/dash-source.ts",
+          "name": "DashEvoOperationRunner"
+        },
+        {
+          "file": "packages/dash-network/src/evo-shielded-note.ts",
+          "name": "EvoShieldedNoteLike"
+        },
+        {
+          "file": "packages/dash-network/src/orchard-scanner.ts",
+          "name": "OrchardRuntimeSelfTestReport"
+        },
+        {
+          "file": "packages/dash-network/src/platform-address-history.ts",
+          "name": "PLATFORM_EXPLORER_PROVIDER"
+        },
+        {
+          "file": "packages/dash-network/src/platform-address-history.ts",
+          "name": "PlatformHistoryProvider"
+        },
+        {
+          "file": "packages/dash-network/src/platform-identity-history.ts",
+          "name": "ClassicIdentityFunding"
+        },
+        {
+          "file": "packages/dash-network/src/platform-identity-history.ts",
+          "name": "ClassicIdentityFundingDecoder"
+        },
+        {
+          "file": "packages/dash-network/src/platform-identity-history.ts",
+          "name": "IdentityAliasHistory"
+        },
+        {
+          "file": "packages/dash-network/src/platform-identity-history.ts",
+          "name": "IdentityTransferMovement"
+        },
+        {
+          "file": "packages/dash-network/src/platform-identity-history.ts",
+          "name": "PlatformIdentityHistorySnapshot"
+        },
+        {
+          "file": "packages/dash-network/src/platform-identity-source.ts",
+          "name": "IdentityContractBoundsSnapshot"
+        },
+        {
+          "file": "packages/dash-network/src/platform-identity-source.ts",
+          "name": "IdentityLookupKind"
+        },
+        {
+          "file": "packages/dash-network/src/platform-identity-source.ts",
+          "name": "IdentityProofMetadata"
+        },
+        {
+          "file": "packages/dash-network/src/platform-identity-source.ts",
+          "name": "NormalizedIdentityLookup"
+        },
+        {
+          "file": "packages/dash-network/src/platform-identity-source.ts",
+          "name": "RegistrationTransactionDecoder"
+        },
+        {
+          "file": "packages/dash-network/src/provider-json.ts",
+          "name": "MAX_PROVIDER_JSON_BYTES"
+        },
+        {
+          "file": "packages/dash-network/src/public-address.ts",
+          "name": "CoreAddressProvider"
+        },
+        {
+          "file": "packages/dash-network/src/public-address.ts",
+          "name": "DASHSCAN_CORE_PROVIDER"
+        },
+        {
+          "file": "packages/dash-network/src/shielded-stream-policy.ts",
+          "name": "SHIELDED_MAX_RECONCILIATIONS"
+        },
+        {
+          "file": "packages/dash-network/src/shielded-stream-policy.ts",
+          "name": "ShieldedPageVisit"
+        },
+        {
+          "file": "packages/dash-network/src/shielded-stream-policy.ts",
+          "name": "ShieldedStreamCursor"
+        },
+        {
+          "file": "packages/dash-network/src/shielded-stream-policy.ts",
+          "name": "ShieldedStreamStep"
+        },
+        {
+          "file": "packages/dash-network/src/types.ts",
+          "name": "ActivityDirection"
+        },
+        {
+          "file": "packages/dash-network/src/viewing-key.ts",
+          "name": "ViewingKeyKind"
+        },
+        {
+          "file": "packages/edition-profiles/src/index.ts",
+          "name": "EditionCapabilities"
+        },
+        {
+          "file": "packages/edition-profiles/src/index.ts",
+          "name": "EditionId"
+        },
+        {
+          "file": "packages/edition-profiles/src/index.ts",
+          "name": "EditionProfile"
+        },
+        {
+          "file": "packages/export-core/src/csv.ts",
+          "name": "CsvEncodingOptions"
+        },
+        {
+          "file": "packages/export-core/src/formatter.ts",
+          "name": "ExportInspection"
+        },
+        {
+          "file": "packages/export-core/src/formatter.ts",
+          "name": "FormattedExport"
+        },
+        {
+          "file": "packages/network-boundary/src/bounded-fetch.ts",
+          "name": "BoundedFetchOptions"
+        },
+        {
+          "file": "packages/network-boundary/src/client.ts",
+          "name": "attachNetworkBoundaryPort"
+        },
+        {
+          "file": "packages/network-boundary/src/dash-recovery-protocol.ts",
+          "name": "PlatformAddressInfoView"
+        },
+        {
+          "file": "packages/network-boundary/src/dash-recovery-protocol.ts",
+          "name": "ShieldedNoteView"
+        },
+        {
+          "file": "packages/network-boundary/src/request-validation.ts",
+          "name": "NetworkPayloadValidator"
+        },
+        {
+          "file": "packages/network-boundary/src/transport-protocol.ts",
+          "name": "NetworkBoundaryCancel"
+        },
+        {
+          "file": "packages/network-boundary/src/transport-protocol.ts",
+          "name": "NetworkBoundaryInvoke"
+        },
+        {
+          "file": "packages/network-boundary/src/worker-runtime.ts",
+          "name": "NetworkRequestExecutor"
+        },
+        {
+          "file": "packages/network-boundary/src/worker-runtime.ts",
+          "name": "NetworkRequestValidator"
+        },
+        {
+          "file": "packages/recovery-backup/src/codex32.ts",
+          "name": "Codex32ShareSet"
+        },
+        {
+          "file": "packages/recovery-backup/src/gordian-envelope.ts",
+          "name": "GordianProtection"
+        },
+        {
+          "file": "packages/recovery-backup/src/gordian-envelope.ts",
+          "name": "GordianRecipientKeys"
+        },
+        {
+          "file": "packages/recovery-backup/src/gordian-envelope.ts",
+          "name": "RecoveredGordianSeedBundle"
+        },
+        {
+          "file": "packages/secret-vault/src/vault-protocol.ts",
+          "name": "DEFAULT_VAULT_RUNTIME_OPTIONS"
+        },
+        {
+          "file": "packages/secret-vault/src/vault-protocol.ts",
+          "name": "VaultChannelDelivery"
+        },
+        {
+          "file": "packages/secret-vault/src/vault-protocol.ts",
+          "name": "VaultRuntimeOptions"
+        },
+        {
+          "file": "packages/secret-vault/src/worker-bootstrap.ts",
+          "name": "VaultBootstrap"
+        },
+        {
+          "file": "packages/shared-ui/src/payment-qr.ts",
+          "name": "QrPayload"
+        },
+        {
+          "file": "packages/shared-ui/src/qr-image-import.ts",
+          "name": "DecodedQrImage"
+        },
+        {
+          "file": "packages/shared-ui/src/qr-image-import.ts",
+          "name": "decodeQrImage"
+        },
+        {
+          "file": "packages/wallet-recovery/src/address-targets.ts",
+          "name": "BitcoinAddressAdapterId"
+        },
+        {
+          "file": "packages/wallet-recovery/src/multi-address-search.ts",
+          "name": "MultiAddressSearchOptions"
+        },
+        {
+          "file": "packages/wallet-recovery/src/multi-address-search.ts",
+          "name": "MultiAddressSearchResult"
+        },
+        {
+          "file": "packages/wallet-recovery/src/multi-seed-search.ts",
+          "name": "MultiSeedSearchOptions"
+        },
+        {
+          "file": "packages/wallet-recovery/src/watch-only.ts",
+          "name": "WATCH_ONLY_PREFIX_COINS"
+        },
+        {
+          "file": "packages/wallet-recovery/src/watch-only/types.ts",
+          "name": "RecoveryWatchOnlyKind"
+        },
+        {
+          "file": "tooling/build-shielded-wasm.mjs",
+          "name": "InitOutput"
+        },
+        {
+          "file": "tooling/build-shielded-wasm.mjs",
+          "name": "SyncInitInput"
+        },
+        {
+          "file": "tooling/discovery-composition.mjs",
+          "name": "executeSelectedRecoveryNetworkRequest"
+        },
+        {
+          "file": "tooling/discovery-composition.mjs",
+          "name": "validateSelectedRecoveryNetworkRequest"
+        },
+        {
+          "file": "tooling/key-derivation-composition.mjs",
+          "name": "detectSelectedMatcherTargets"
+        },
+        {
+          "file": "tooling/upstream-version-check.mjs",
+          "name": "collectUpstreamVersionChecks"
+        },
+        {
+          "file": "tooling/verify-dash-community-artifacts.mjs",
+          "name": "DASH_FORBIDDEN_ARTIFACT_PATTERNS"
+        },
+        {
+          "file": "tooling/verify-dash-community-artifacts.mjs",
+          "name": "verifyDashCommunityArtifacts"
+        }
+      ]
+    },
+    {
+      "id": "L-02",
+      "severity": "Low",
+      "title": "module-boundaries test alias map omits recovery-backup, wasm, self-test and build-info aliases"
+    },
+    {
+      "id": "L-03",
+      "severity": "Low",
+      "title": "sskr.ts and gordian-envelope.ts initialise WASM at import time (inconsistent with lazy init elsewhere)"
+    },
+    {
+      "id": "L-04",
+      "severity": "Low",
+      "title": "Docs: audits README separator; Argon2id defaults undocumented; ambient getrandom in new crates; RELEASING lacks new gates"
+    }
+  ],
+  "checks": {
+    "tsc": "pass",
+    "tscUnused": "0 errors",
+    "vitest": {
+      "files": 127,
+      "tests": 1267,
+      "failed": 0
+    },
+    "format": "pass",
+    "pnpmAudit": "clean",
+    "localVerify": "FAIL (H-01)",
+    "dockerNoCache": "FAIL at pnpm verify (H-01)",
+    "browserFiles": "16/16",
+    "browserRegressions": "42/42",
+    "browserSelective": "4/4",
+    "probes": {
+      "sskrBcr2020011": "pass",
+      "gordianEnvelope": "pass",
+      "descriptorPsbtRegressions": "pass"
+    },
+    "selectiveBuilds": {
+      "built": 13,
+      "brokenAtRuntime": [
+        "scanner seed-discovery without custom-paths (3 variants)"
+      ]
+    },
+    "matrix": {
+      "total": 12116,
+      "smoke": 66
+    }
+  },
+  "audit12Status": "F-01..F-06 fixed; unused helpers removed; duplicates consolidated",
+  "decompositionRecommendations": [
+    "Scanner: installer-per-feature instead of optional-function bag",
+    "split 3 large closures into session/state/panel modules aligned with feature flags",
+    "single feature manifest per tool feeding builder, allow-list, verifier, smoke, docs",
+    "migrate or drop the unused network-boundary protocol split",
+    "shared export writers in export-core",
+    "split dash-network identity transport/decoder/reconstruction"
+  ],
+  "testsToAdd": [
+    "verifier id-shape self-check",
+    "scanner/deriver selective browser smoke per feature",
+    "allow-list path existence",
+    "aliases derived from tsconfig",
+    "SSKR/Bytewords official vectors + negatives",
+    "Envelope negative cases",
+    "unused-export lint"
+  ],
+  "notPerformed": [
+    "live providers",
+    "headed browsers",
+    "exhaustive matrix",
+    "WASM regeneration",
+    "Core RPC round trips"
+  ]
+}

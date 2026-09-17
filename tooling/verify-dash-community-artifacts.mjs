@@ -6,7 +6,7 @@ import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.m
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const profile = BUILD_PROFILES['dash-community'];
-export const DASH_FORBIDDEN_ARTIFACT_PATTERNS = [
+const DASH_FORBIDDEN_ARTIFACT_PATTERNS = [
   [/\bbitcoin(?:\s+cash)?\b/iu, 'Bitcoin'],
   [/\blitecoin\b/iu, 'Litecoin'],
   [/\bdogecoin\b/iu, 'Dogecoin'],
@@ -86,7 +86,7 @@ export function findDashInspectorArtifactViolations(html) {
   return [...new Set(violations)];
 }
 
-export function verifyDashCommunityArtifacts(projectRoot = root) {
+function verifyDashCommunityArtifacts(projectRoot = root) {
   for (const toolId of profileToolIds(profile)) {
     const tool = getToolBuild(profile, toolId);
     const path = resolve(projectRoot, 'dist', tool.artifactRelativePath);

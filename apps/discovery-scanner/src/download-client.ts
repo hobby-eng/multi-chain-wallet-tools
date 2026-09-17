@@ -39,7 +39,7 @@ if (typeof window !== 'undefined') {
  * allow-downloads and its CSP denies every network connection.
  */
 export function requestRecoveryExport(text: string, format: RecoveryExportBrokerFormat): Promise<string> {
-  if (typeof text !== 'string' || (format !== 'csv' && format !== 'json')) {
+  if (typeof text !== 'string' || (format !== 'csv' && format !== 'json' && format !== 'xlsx')) {
     return Promise.reject(new Error('Invalid recovery export request.'));
   }
   if (window.parent === window)

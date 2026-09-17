@@ -14,6 +14,8 @@ const expectedFiles = new Set([
   ...expectedArtifacts,
   ...expectedArtifacts.map((name) => `${name}.sha256`),
   'LICENSE',
+  'ATTRIBUTION.md',
+  'THIRD_PARTY_NOTICES.md',
   'verification-record.json',
   'SHA256SUMS',
 ]);
@@ -24,13 +26,19 @@ if (actualFiles.length !== expectedFiles.size || actualFiles.some((name) => !exp
 }
 
 const lines = readFileSync(resolve(release, 'SHA256SUMS'), 'utf8').trim().split('\n');
-if (lines.length !== expectedArtifacts.length + 2) {
+if (lines.length !== expectedArtifacts.length + 4) {
   throw new Error(
-    `Flat SHA256SUMS must contain ${expectedArtifacts.length} standalone HTML file(s), LICENSE, and verification-record.json.`,
+    `Flat SHA256SUMS must contain ${expectedArtifacts.length} standalone HTML file(s), LICENSE, ATTRIBUTION.md, THIRD_PARTY_NOTICES.md, and verification-record.json.`,
   );
 }
 
-const remaining = new Set([...expectedArtifacts, 'LICENSE', 'verification-record.json']);
+const remaining = new Set([
+  ...expectedArtifacts,
+  'LICENSE',
+  'ATTRIBUTION.md',
+  'THIRD_PARTY_NOTICES.md',
+  'verification-record.json',
+]);
 for (const line of lines) {
   const match = /^([0-9a-f]{64})  ([A-Za-z0-9_.-]+)$/u.exec(line);
   if (match === null) throw new Error(`Malformed flat SHA256SUMS line: ${line}`);
@@ -43,15 +51,16 @@ for (const line of lines) {
     .digest('hex');
   if (recorded !== actual) throw new Error(`Flat release checksum mismatch for ${name}.`);
   if (
-    name !== 'LICENSE' &&
-    name !== 'verification-record.json' &&
+    !['LICENSE', 'ATTRIBUTION.md', 'THIRD_PARTY_NOTICES.md', 'verification-record.json'].includes(name) &&
     readFileSync(resolve(release, `${name}.sha256`), 'utf8').trim() !== `${actual}  ${name}`
   ) {
     throw new Error(`Flat release sidecar mismatch for ${name}.`);
   }
 }
 if (remaining.size !== 0) throw new Error(`Flat release manifest is missing: ${[...remaining].join(', ')}`);
-if (readFileSync(resolve(release, 'LICENSE'), 'utf8') !== readFileSync(resolve(root, 'LICENSE'), 'utf8')) {
-  throw new Error('Flat release LICENSE differs from the root project license.');
+for (const legalName of ['LICENSE', 'ATTRIBUTION.md', 'THIRD_PARTY_NOTICES.md']) {
+  if (readFileSync(resolve(release, legalName), 'utf8') !== readFileSync(resolve(root, legalName), 'utf8')) {
+    throw new Error(`Flat release ${legalName} differs from the root legal document.`);
+  }
 }
 console.log(`Verified the exact flat ${profile.editionName} release asset set and all checksums.`);

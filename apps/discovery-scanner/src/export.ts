@@ -1,5 +1,5 @@
 import { validateHistory, historyAmount } from './history.js';
-import { neutralizeSpreadsheetFormula } from '@ckd/export/csv.js';
+import { encodeCsvCell } from '@ckd/export/csv.js';
 import type { RecoveryExportEnvelope, RecoveryExportResult, RecoverySectionId, RecoveryWalletResult } from './types.js';
 
 export type RecoveryExportFormat = 'json' | 'csv';
@@ -71,7 +71,7 @@ function exportableResults(results: RecoveryWalletResult[]): RecoveryExportResul
 }
 
 function csvCell(value: string): string {
-  return `"${neutralizeSpreadsheetFormula(value).replaceAll('"', '""')}"`;
+  return encodeCsvCell(value, true);
 }
 
 const CSV_FIELD_COLUMNS = [
@@ -92,12 +92,12 @@ const CSV_FIELD_COLUMNS = [
   ['Outgoing credit events', 'outgoing_credit_events', ['platform', 'identity']],
   [
     'Lifetime received',
-    'lifetime_received_dash',
+    'lifetime_received_display',
     ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity'],
   ],
   [
     'Lifetime sent',
-    'lifetime_sent_dash',
+    'lifetime_sent_display',
     ['core', 'legacyCore', 'coinjoin', 'providerCollateral', 'platform', 'identity'],
   ],
   ['Lifetime fees spent', 'lifetime_fees_spent_dash', ['identity']],
@@ -230,7 +230,7 @@ function toCsv(results: RecoveryWalletResult[]): string {
     'balance_asset',
     'balance_atomic_unit',
     'balance_decimals',
-    'balance_dash',
+    'balance_display',
     ...HISTORY_COLUMNS.map(([, column]) => column),
     ...HISTORY_AMOUNT_COLUMNS.map(([, column]) => column),
     ...fieldColumns.map(([, column]) => column),

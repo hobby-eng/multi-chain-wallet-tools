@@ -1,3 +1,4 @@
+import { equalBytes } from '@ckd/core/bytes.js';
 import { secureRandomBytes } from '@ckd/core/secure-random.js';
 import { base64urlnopad } from '@scure/base';
 import { sha256 } from '@noble/hashes/sha2.js';
@@ -22,13 +23,19 @@ const LEGACY_RAW_PREFIX = 'ckd-shamir-v1:';
 const LEGACY_WORD_PREFIX = 'ckd-shamir-words-v1:';
 let initialized = false;
 
-export type ShamirShareFormat = 'raw' | 'words';
+export type CkdShamirShareFormat = 'raw' | 'words';
 
-export interface ShamirShareSet {
+export interface CkdShamirShareSet {
   readonly threshold: number;
   readonly count: number;
   readonly secretLength: number;
   readonly shares: readonly string[];
+}
+
+export interface CkdShamirRecovery {
+  readonly secret: Uint8Array;
+  readonly version: 1 | 2;
+  readonly integrity: 'legacy-checksum-only' | 'share-set-digest';
 }
 
 interface DecodedShare {
@@ -51,13 +58,6 @@ function assertByteInteger(value: number, label: string, minimum: number, maximu
   if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
     throw new Error(`${label} must be an integer from ${minimum} to ${maximum}.`);
   }
-}
-
-function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
-  if (left.length !== right.length) return false;
-  let difference = 0;
-  for (let index = 0; index < left.length; index += 1) difference |= left[index]! ^ right[index]!;
-  return difference === 0;
 }
 
 function envelope(
@@ -169,7 +169,7 @@ function parseEnvelope(bytes: Uint8Array): DecodedShare {
   };
 }
 
-function decodeShare(value: string, format: ShamirShareFormat): DecodedShare {
+function decodeShare(value: string, format: CkdShamirShareFormat): DecodedShare {
   const normalized = value.trim();
   const bytes =
     format === 'raw'
@@ -187,35 +187,42 @@ function decodeShare(value: string, format: ShamirShareFormat): DecodedShare {
   }
 }
 
-function encodeShare(bytes: Uint8Array, format: ShamirShareFormat): string {
+function encodeShare(bytes: Uint8Array, format: CkdShamirShareFormat): string {
   return format === 'raw' ? base64urlnopad.encode(bytes) : bytesToWords(bytes);
 }
 
-export function createShamirShares(
+export function createCkdShamirShares(
   secret: Uint8Array,
   threshold: number,
   count: number,
-  format: ShamirShareFormat,
-): ShamirShareSet {
+  format: CkdShamirShareFormat,
+): CkdShamirShareSet {
   assertByteInteger(threshold, 'Share threshold', 2, 255);
   assertByteInteger(count, 'Share count', threshold, 255);
   if (![16, 20, 24, 28, 32].includes(secret.length)) throw new Error('Enter a valid BIP39 recovery phrase.');
   const randomSeed = secureRandomBytes(32);
-  const setId = secureRandomBytes(SET_ID_BYTES);
-  const secretDigest = sha256(secret).slice(0, SECRET_DIGEST_BYTES);
-  initialize();
-  const packed = splitShamirWasm(secret, threshold, count, randomSeed);
-  randomSeed.fill(0);
-  const shareLength = secret.length + 1;
+  let setId: Uint8Array | undefined;
+  let secretDigest: Uint8Array | undefined;
+  let packed: Uint8Array | undefined;
   try {
+    // Begin the cleanup scope immediately after the first secret-adjacent
+    // allocation. Later randomness, hashing, WASM initialization and splitting
+    // may all throw independently and must not bypass wiping earlier buffers.
+    const createdSetId = secureRandomBytes(SET_ID_BYTES);
+    setId = createdSetId;
+    const createdSecretDigest = sha256(secret).slice(0, SECRET_DIGEST_BYTES);
+    secretDigest = createdSecretDigest;
+    initialize();
+    packed = splitShamirWasm(secret, threshold, count, randomSeed);
+    const shareLength = secret.length + 1;
     const shares = Array.from({ length: count }, (_, index) => {
       const wrapped = envelope(
-        packed.slice(index * shareLength, (index + 1) * shareLength),
+        packed!.slice(index * shareLength, (index + 1) * shareLength),
         threshold,
         count,
         secret.length,
-        setId,
-        secretDigest,
+        createdSetId,
+        createdSecretDigest,
       );
       try {
         return encodeShare(wrapped, format);
@@ -225,16 +232,21 @@ export function createShamirShares(
     });
     return { threshold, count, secretLength: secret.length, shares };
   } finally {
-    packed.fill(0);
-    setId.fill(0);
-    secretDigest.fill(0);
+    randomSeed.fill(0);
+    packed?.fill(0);
+    setId?.fill(0);
+    secretDigest?.fill(0);
   }
 }
 
-export function recoverShamirShares(values: readonly string[], format: ShamirShareFormat): Uint8Array {
+export function recoverCkdShamirSharesDetailed(
+  values: readonly string[],
+  format: CkdShamirShareFormat,
+): CkdShamirRecovery {
   if (values.length === 0) throw new Error('Enter at least one Shamir share.');
-  const shares = values.map((value) => decodeShare(value, format));
+  const shares: DecodedShare[] = [];
   try {
+    for (const value of values) shares.push(decodeShare(value, format));
     const first = shares[0]!;
     for (const share of shares.slice(1)) {
       if (
@@ -254,8 +266,8 @@ export function recoverShamirShares(values: readonly string[], format: ShamirSha
     if (shares.length < first.threshold)
       throw new Error(`At least ${first.threshold} shares from this set are required.`);
     const packed = concatBytes(...shares.map((share) => share.serialized));
-    initialize();
     try {
+      initialize();
       let recovered: Uint8Array;
       try {
         recovered = recoverShamirWasm(packed, first.secretLength + 1, first.threshold);
@@ -274,7 +286,11 @@ export function recoverShamirShares(values: readonly string[], format: ShamirSha
           digest.fill(0);
         }
       }
-      return recovered;
+      return {
+        secret: recovered,
+        version: first.version as 1 | 2,
+        integrity: first.secretDigest === undefined ? 'legacy-checksum-only' : 'share-set-digest',
+      };
     } finally {
       packed.fill(0);
     }
@@ -285,4 +301,8 @@ export function recoverShamirShares(values: readonly string[], format: ShamirSha
       share.serialized.fill(0);
     }
   }
+}
+
+export function recoverCkdShamirShares(values: readonly string[], format: CkdShamirShareFormat): Uint8Array {
+  return recoverCkdShamirSharesDetailed(values, format).secret;
 }

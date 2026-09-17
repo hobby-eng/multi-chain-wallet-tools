@@ -3,7 +3,7 @@ import { MAX_BIP32_INDEX } from '@ckd/core/bip32.js';
 
 const MAX_CUSTOM_PATH_DEPTH = 10;
 
-export interface ParsedCustomPath {
+interface ParsedCustomPath {
   readonly template: string;
   path(index: number): string;
 }
@@ -73,7 +73,7 @@ export function parseCustomAccountRange(startValue: string, finishValue: string)
   };
 }
 
-export interface CustomScanPath extends ParsedCustomPath {
+interface CustomScanPath extends ParsedCustomPath {
   readonly id: string;
   readonly label: string;
   readonly minimum: number;

@@ -1,3 +1,4 @@
+import { requireQueryElement } from '@ckd/ui/dom.js';
 import type { CoinAdapter } from '@ckd/coins/registry.js';
 import type { DerivationResult, DisplayMode } from '@ckd/core/types.js';
 import { displayedFields, type ExportAction } from '@ckd/export/formatter.js';
@@ -26,18 +27,13 @@ type DocumentAction =
       rowIndex?: number;
     };
 
-function requireElement<T extends Element>(document: Document, selector: string): T {
-  const match = document.querySelector<T>(selector);
-  if (match === null) throw new Error(`Application template is missing ${selector}.`);
-  return match;
-}
-
 export function createKeyDerivationView(
   document: Document,
   registry: CoinMetadataRegistry,
   addressSearch?: AddressSearchViewElements,
 ) {
-  const required = <T extends Element>(selector: string): T => requireElement<T>(document, selector);
+  const required = <T extends Element>(selector: string): T =>
+    requireQueryElement<T>(document, selector, 'Application template');
   const controls: DerivationControls = {
     coin: required<HTMLSelectElement>('#coin'),
     protocolTabs: required<HTMLElement>('#protocol-tabs'),
@@ -404,8 +400,8 @@ export function createKeyDerivationView(
             description.append(code);
             values.append(term, description);
           };
-          value('Entropy · hexadecimal', construction.entropyHex);
-          value('Entropy · binary', construction.entropyBinary);
+          value('BIP39 entropy · hexadecimal', construction.entropyHex);
+          value('BIP39 entropy · binary', construction.entropyBinary);
           value('Checksum · supplied', construction.providedChecksum);
           value('Checksum · expected', construction.expectedChecksum);
           value('Entropy + checksum', construction.mnemonicBinary);

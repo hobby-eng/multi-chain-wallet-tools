@@ -40,6 +40,18 @@ const scripts = {
   'psbt-inspector': 'apps/psbt-inspector/scripts/build-psbt-inspector-html.mjs',
 };
 
+if (process.argv.some((argument) => argument === '--tool' || argument.startsWith('--tool='))) {
+  if (requestedTool === undefined || requestedTool.trim() === '' || !Object.hasOwn(scripts, requestedTool)) {
+    throw new Error(
+      `Unknown or missing --tool value "${requestedTool ?? ''}". Expected: ${Object.keys(scripts).join(', ')}.`,
+    );
+  }
+}
+const hasOutput = featureArgs.some((argument) => argument === '--output' || argument.startsWith('--output='));
+if (hasOutput && requested === undefined) {
+  throw new Error('--output requires an explicit --profile so one path cannot be reused by both editions.');
+}
+
 function runBuild(script, args) {
   const result = spawnSync(process.execPath, [resolve(root, script), ...args], { cwd: root, stdio: 'inherit' });
   if (result.error !== undefined) throw result.error;

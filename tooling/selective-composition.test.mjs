@@ -1,3 +1,5 @@
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { applyActivityCoinTemplate, assertActivityViewerComposition } from './activity-viewer-composition.mjs';
 import {
@@ -5,9 +7,19 @@ import {
   assertDiscoveryComposition,
   discoveryNetworkRuntimeSource,
 } from './discovery-composition.mjs';
-import { applySelectedNetworkCsp, assertSafeCustomOutput } from './tool-feature-options.mjs';
+import {
+  applySelectedNetworkCsp,
+  assertSafeCustomOutput,
+  parseRequestedOutput,
+  parseToolFeatureOptions,
+} from './tool-feature-options.mjs';
 import { resolve } from 'node:path';
 import { assertKeyDerivationComposition, selectedWorkerEntry } from './key-derivation-composition.mjs';
+import {
+  applyKeyDerivationFeatureTemplate,
+  parseKeyDerivationFeatures,
+  parseOutputPath,
+} from './key-derivation-features.mjs';
 import { assertPsbtComposition } from './psbt-inspector-composition.mjs';
 
 const options = (coins, features = []) => ({
@@ -23,6 +35,30 @@ describe('selective bundle graph guards', () => {
     expect(rendered).toContain('https://ethereum-rpc.publicnode.com');
     expect(rendered).not.toContain('connect-src https:;');
     expect(applySelectedNetworkCsp('connect-src https:;', options(['dash']))).toBe('connect-src https:;');
+  });
+
+  it('rejects empty selective option values and missing output paths', () => {
+    const profile = { id: 'multi-chain', capabilities: { bitcoinSilentPayments: true } };
+    expect(() => parseToolFeatureOptions('discovery-scanner', profile, ['--features='])).toThrow('--features requires');
+    expect(() => parseKeyDerivationFeatures(profile, ['--coins='])).toThrow('--coins requires');
+    expect(() => parseToolFeatureOptions('discovery-scanner', profile, ['--features=,'])).toThrow(
+      '--features requires',
+    );
+    expect(() => parseRequestedOutput(['--output'])).toThrow('--output requires');
+    expect(() => parseOutputPath(['--output='])).toThrow('--output requires');
+  });
+
+  it('rejects unknown tools and a shared output path without an explicit profile before building', () => {
+    for (const args of [
+      ['--tool', 'unknown-tool'],
+      ['--tool', 'constructor'],
+      ['--tool', 'activity-viewer', '--output', '/tmp/ckd-unused-output.html'],
+    ]) {
+      const result = spawnSync(process.execPath, [resolve('tooling/build-html-profiles.mjs'), ...args], {
+        encoding: 'utf8',
+      });
+      expect(result.status).not.toBe(0);
+    }
   });
 
   it('reserves canonical release directories from selective --output paths', () => {
@@ -90,6 +126,54 @@ describe('selective bundle graph guards', () => {
     expect(dashWorker).not.toContain('message-signer.ts');
     const bitcoinWorker = selectedWorkerEntry('/workspace', profile, options(['bitcoin'], ['message-signing']));
     expect(bitcoinWorker).toContain('message-signer.ts');
+  });
+
+  it('keeps recovery destination menus ordered like their tabs', () => {
+    const expected = ['matcher', 'seedqr', 'slip39', 'shamir', 'sskr', 'gordian-envelope', 'codex32'];
+    for (const file of ['apps/key-derivation/src/index.html', 'tooling/profile-template.mjs']) {
+      const source = readFileSync(file, 'utf8');
+      const targets = [...source.matchAll(/data-recovery-target="([^"]+)"/gu)].map((match) => match[1]);
+      expect(targets).toEqual(expected);
+    }
+  });
+
+  it('removes every excluded recovery module from both source menus', () => {
+    const targetByFeature = {
+      'wallet-matcher': 'matcher',
+      seedqr: 'seedqr',
+      slip39: 'slip39',
+      shamir: 'shamir',
+      sskr: 'sskr',
+      'gordian-envelope': 'gordian-envelope',
+      codex32: 'codex32',
+    };
+    const panelByFeature = Object.fromEntries(
+      Object.keys(targetByFeature).map((feature) => [
+        feature,
+        `${feature === 'wallet-matcher' ? feature : feature}-panel`,
+      ]),
+    );
+    const allFeatures = Object.keys(targetByFeature);
+    const template = `${allFeatures
+      .map((feature) => `<section id="${panelByFeature[feature]}"></section>`)
+      .join('')}<div>${Object.values(targetByFeature)
+      .flatMap((target) => [
+        `<button data-recovery-source="main" data-recovery-target="${target}">${target}</button>`,
+        `<button data-recovery-source="bip85" data-recovery-target="${target}">${target}</button>`,
+      ])
+      .join('')}</div>`;
+
+    for (const excluded of allFeatures) {
+      const selected = allFeatures.filter((feature) => feature !== excluded);
+      const rendered = applyKeyDerivationFeatureTemplate(template, {
+        ...options(['bitcoin'], selected),
+        hasRecovery: true,
+      });
+      expect(rendered).not.toContain(`data-recovery-target="${targetByFeature[excluded]}"`);
+      for (const retained of selected) {
+        expect(rendered.match(new RegExp(`data-recovery-target="${targetByFeature[retained]}"`, 'gu'))).toHaveLength(2);
+      }
+    }
   });
 
   it('requires BIP85 UI, child wallet and worker together', () => {
