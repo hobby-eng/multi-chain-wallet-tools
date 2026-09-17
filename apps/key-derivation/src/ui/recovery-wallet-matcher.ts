@@ -1,3 +1,5 @@
+import { matcherPrivateTsv } from './matcher-private-export.js';
+import { matcherSearchBranches, matcherSearchTargets } from './matcher-search-scope.js';
 import { downloadText } from '@ckd/export/download.js';
 import type { CoinAdapter } from '@ckd/coins/registry-base.js';
 import type { NetworkName, ResultField } from '@ckd/core/types.js';
@@ -19,18 +21,13 @@ interface MatchFinding {
   readonly addressNumber: number;
   readonly address: string;
   readonly normalizedAddress: string;
+  readonly fieldKeys?: readonly string[];
   readonly adapterId: string;
   readonly adapter: string;
   readonly account: number;
   readonly branch: number;
   readonly index: number;
   readonly path: string;
-}
-function adapterBranches(adapter: CoinAdapter): readonly number[] {
-  if (adapter.id === 'dash-core-coinjoin') return [0, 1];
-  if (adapter.addressBranches !== undefined) return [adapter.addressBranches.receive, adapter.addressBranches.change];
-  if (adapter.branchControl?.options !== undefined) return adapter.branchControl.options.map(({ value }) => value);
-  return [adapter.defaults.branch];
 }
 function adapterMetadata(context: RecoveryFeatureContext, id: string): CoinAdapter {
   if (id === 'dash-core-coinjoin')
@@ -44,6 +41,29 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
     'Reveal seed and passphrase lists',
     'Hide seed and passphrase lists',
   );
+  const coinSelect = required<HTMLSelectElement>('#matcher-coin');
+  for (const family of context.registry.COIN_FAMILIES) {
+    const option = document.createElement('option');
+    option.value = family.id;
+    option.textContent = family.label;
+    coinSelect.append(option);
+  }
+  const mainCoin = document.querySelector<HTMLSelectElement>('#coin')?.value;
+  if (mainCoin !== undefined && context.registry.COIN_FAMILIES.some(({ id }) => id === mainCoin))
+    coinSelect.value = mainCoin;
+  const forceAll = required<HTMLInputElement>('#matcher-force-all');
+  const searchChange = required<HTMLInputElement>('#matcher-search-change');
+  let changePreference = searchChange.checked;
+  searchChange.addEventListener('change', () => {
+    changePreference = searchChange.checked;
+  });
+  const synchronizeCoin = (): void => {
+    coinSelect.disabled = forceAll.checked || context.registry.COIN_FAMILIES.length < 2;
+    searchChange.checked = forceAll.checked || changePreference;
+    searchChange.disabled = forceAll.checked;
+  };
+  forceAll.addEventListener('change', synchronizeCoin);
+  synchronizeCoin();
   const seedInput = required<HTMLTextAreaElement>('#matcher-seeds');
   const passphraseInput = required<HTMLTextAreaElement>('#matcher-passphrases');
   const addressInput = required<HTMLTextAreaElement>('#matcher-addresses');
@@ -95,10 +115,13 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
           throw new Error('A passphrase line has no matching seed phrase line.');
         }
         const network = required<HTMLSelectElement>('#matcher-network').value as NetworkName;
-        const targets = context.detectTargets(
-          required<HTMLTextAreaElement>('#matcher-addresses').value,
+        const targets = matcherSearchTargets(
+          addressInput.value,
           network,
-          required<HTMLInputElement>('#matcher-force-all').checked,
+          context.detectTargets,
+          context.registry,
+          coinSelect.value,
+          forceAll.checked,
         );
         const accountStart = integer(
           required<HTMLInputElement>('#matcher-account-start'),
@@ -135,7 +158,13 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
                 ? [adapter.defaults.account]
                 : Array.from({ length: accountEnd - accountStart + 1 }, (_, offset) => accountStart + offset);
             return accounts.flatMap((account) =>
-              adapterBranches(adapter).map((branch) => ({ seedIndex, adapter, compatibleTargets, account, branch })),
+              matcherSearchBranches(adapter, searchChange.checked, forceAll.checked).map((branch) => ({
+                seedIndex,
+                adapter,
+                compatibleTargets,
+                account,
+                branch,
+              })),
             );
           });
         });
@@ -146,7 +175,11 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
           const results = await activeWorker.searchMany(
             job.adapter.id,
             { seed: seeds[job.seedIndex]!, network, account: job.account, branch: job.branch },
-            job.compatibleTargets.map((target) => ({ id: target.id, address: target.normalized })),
+            job.compatibleTargets.map((target) => ({
+              id: target.id,
+              address: target.normalized,
+              ...(target.fieldKeys === undefined ? {} : { fieldKeys: target.fieldKeys }),
+            })),
             indexStart,
             indexCount,
           );
@@ -157,6 +190,7 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
               addressNumber: Number(target.id.slice('address-'.length)),
               address: target.input,
               normalizedAddress: target.normalized,
+              ...(target.fieldKeys === undefined ? {} : { fieldKeys: target.fieldKeys }),
               adapterId: job.adapter.id,
               adapter: job.adapter.label,
               account: job.account,
@@ -194,7 +228,7 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
           table.className = 'matcher-results-table';
           const head = document.createElement('thead');
           const headerRow = document.createElement('tr');
-          for (const label of ['Seed', 'Known address', 'Wallet structure', 'Path']) {
+          for (const label of ['Seed', 'Known target', 'Wallet structure', 'Path']) {
             const cell = document.createElement('th');
             cell.textContent = label;
             headerRow.append(cell);
@@ -223,7 +257,7 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
           matcherResults.append(toolbar, tableWrap);
 
           const publicTsv = [
-            ['Seed', 'Known address', 'Wallet structure', 'Path'],
+            ['Seed', 'Known target', 'Wallet structure', 'Path'],
             ...findings.map((finding) => [String(finding.seedNumber), finding.address, finding.adapter, finding.path]),
           ]
             .map((row) => row.join('\t'))
@@ -276,6 +310,7 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
                     start: finding.index,
                     count: 1,
                   });
+                  if (revision !== matcherRevision) return;
                   const row = derived.rows.find(({ index }) => index === finding.index);
                   if (row === undefined) throw new Error(`Could not reproduce matched path ${finding.path}.`);
                   const fields = [
@@ -283,28 +318,24 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
                     ...row.advanced,
                     ...(row.groups ?? []).flatMap((group) => [...group.basic, ...group.advanced]),
                   ];
-                  const addressMatches = fields.some(
-                    (field) =>
-                      field.role === 'paymentAddress' &&
-                      field.value.toLowerCase() === finding.normalizedAddress.toLowerCase(),
-                  );
+                  const addressMatches = fields.some((field) => {
+                    const eligible =
+                      finding.fieldKeys === undefined
+                        ? field.role === 'paymentAddress'
+                        : finding.fieldKeys.includes(field.key);
+                    return eligible && field.value.toLowerCase() === finding.normalizedAddress.toLowerCase();
+                  });
                   if (!addressMatches) {
                     throw new Error(
                       'Recovery inputs or search settings changed. Run Wallet Matcher again before reveal.',
                     );
                   }
                   const secrets = [
-                    ...new Map(fields.filter(({ secret }) => secret).map((field) => [field.value, field])).values(),
+                    ...new Map(fields.filter(({ secret }) => secret).map((field) => [field.key, field])).values(),
                   ];
                   if (secrets.length === 0) throw new Error(`No private key field is available for ${finding.path}.`);
                   privateFieldSets.push(secrets);
-                  privateRows.push([
-                    String(finding.seedNumber),
-                    finding.address,
-                    finding.adapter,
-                    finding.path,
-                    secrets.map((field) => `${field.label}: ${field.value}`).join(' | '),
-                  ]);
+                  privateRows.push([String(finding.seedNumber), finding.address, finding.adapter, finding.path]);
                 }
                 const privateHeader = document.createElement('th');
                 privateHeader.textContent = 'Matched private keys';
@@ -323,9 +354,7 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
                   }
                   renderedRows[findingIndex]!.append(privateCell);
                 }
-                privateTsv = [['Seed', 'Known address', 'Wallet structure', 'Path', 'PRIVATE MATERIAL'], ...privateRows]
-                  .map((row) => row.join('\t'))
-                  .join('\n');
+                privateTsv = matcherPrivateTsv(privateRows, privateFieldSets);
                 copyPrivateButton = document.createElement('button');
                 copyPrivateButton.type = 'button';
                 copyPrivateButton.className = 'secret-action compact';

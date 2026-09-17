@@ -1,6 +1,6 @@
 import type { NetworkName } from '@ckd/core/types.js';
 
-export type RecoveryWatchOnlyKind =
+type RecoveryWatchOnlyKind =
   | 'bitcoin-descriptor'
   | 'bitcoin-xpub'
   | 'ethereum-xpub'

@@ -4,14 +4,17 @@ import { installCodex32 } from './recovery-codex32.js';
 import { installSeedQr } from './recovery-seedqr.js';
 import { installShamir } from './recovery-shamir.js';
 import { installSlip39 } from './recovery-slip39.js';
+import { installSskr } from './recovery-sskr.js';
+import { installGordianEnvelope } from './recovery-gordian-envelope.js';
 import { installWalletMatcher } from './recovery-wallet-matcher.js';
 export const selectedRecoveryTargets: ReadonlySet<RecoverySourceTarget> = new Set([
   'matcher',
   'seedqr',
   'slip39',
-  'shamir-raw',
-  'shamir-words',
+  'shamir',
   'codex32',
+  'sskr',
+  'gordian-envelope',
 ]);
 export function installSelectedRecoveryFeatures(context: RecoveryFeatureContext): void {
   installWalletMatcher(context);
@@ -19,4 +22,6 @@ export function installSelectedRecoveryFeatures(context: RecoveryFeatureContext)
   installSlip39(context);
   installShamir(context);
   installCodex32(context);
+  installSskr(context);
+  installGordianEnvelope(context);
 }

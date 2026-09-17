@@ -1,3 +1,4 @@
+import { emptyRecoveryHistory } from '@ckd/network-boundary/recovery-history.js';
 import { decimal, fetchJson, record, unsignedInteger } from './http.js';
 import type { PublicDataNetwork, RecoveryHistory } from './types.js';
 
@@ -6,32 +7,8 @@ const HISTORY_TIMEOUT_MS = 15_000;
 
 // A bounded history is reported as partial and date coverage is cleared; a
 // truncated page must never masquerade as a complete lifetime history.
-function emptyHistory(asset: string, atomicUnit: string, decimals: number): RecoveryHistory {
-  return {
-    status: 'unavailable',
-    source: '',
-    scope: '',
-    note: '',
-    asset,
-    atomicUnit,
-    decimals,
-    totalReceivedAtomic: null,
-    totalSentAtomic: null,
-    totalFeesAtomic: null,
-    firstSeen: null,
-    lastSeen: null,
-    firstReceived: null,
-    lastReceived: null,
-    firstSpent: null,
-    lastSpent: null,
-    transactionCount: null,
-    pendingTransactionCount: null,
-  };
-}
+export const emptyPublicHistory = emptyRecoveryHistory;
 
-export function emptyPublicHistory(asset = '', atomicUnit = '', decimals = 0): RecoveryHistory {
-  return emptyHistory(asset, atomicUnit, decimals);
-}
 function array(value: unknown, limit: number): unknown[] {
   if (!Array.isArray(value) || value.length > limit) throw new Error('Malformed history page.');
   return value;
@@ -84,7 +61,7 @@ export async function bitcoinAddressHistory(
     try {
       const url = `${endpoint.url}/address/${address}`;
       const stats = btcStats(await fetchJson(url, signal, {}, HISTORY_TIMEOUT_MS), address);
-      const h = emptyHistory('BTC', 'satoshis', 8);
+      const h = emptyRecoveryHistory('BTC', 'satoshis', 8);
       h.source = endpoint.label;
       h.scope = 'Confirmed address transactions';
       h.note =
@@ -213,7 +190,7 @@ export async function ethereumAddressHistory(
 ): Promise<RecoveryHistory> {
   const url = `${ETHEREUM_HISTORY_ENDPOINTS[network]}/addresses/${address.toLowerCase()}`;
   const target = address.toLowerCase();
-  const h = emptyHistory('ETH', 'wei', 18);
+  const h = emptyRecoveryHistory('ETH', 'wei', 18);
   h.source = 'Blockscout';
   h.scope = 'Confirmed native ETH transactions and internal value transfers';
   h.note =

@@ -54,7 +54,7 @@ export function detectMultiChainMatcherTargets(
     return {
       ...detected,
       id: `address-${index + 1}`,
-      adapterIds: forceAllProfiles ? ALL_ADDRESS_ADAPTERS : detected.adapterIds,
+      adapterIds: forceAllProfiles && detected.fieldKeys === undefined ? ALL_ADDRESS_ADAPTERS : detected.adapterIds,
     };
   });
 }

@@ -2,7 +2,7 @@ import { decodeScript } from './script.js';
 import { analyzeSighash } from './signing-commitments.js';
 import type { PsbtChain, PsbtNetwork } from './psbt.js';
 
-export interface PreviousScriptSigDetails {
+interface PreviousScriptSigDetails {
   readonly signature: string | null;
   readonly signatureHash: string | null;
   readonly publicKey: string | null;
@@ -11,7 +11,7 @@ export interface PreviousScriptSigDetails {
   readonly raw: string;
 }
 
-export interface OpReturnDetails {
+interface OpReturnDetails {
   readonly payloadHex: string;
   readonly payloadSize: number;
   readonly pushCount: number;

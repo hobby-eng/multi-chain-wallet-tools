@@ -14,6 +14,15 @@ Acceptance requires a regression fixture in which the funding resource exists wi
 
 - [ ] Consider a separate native Electrum seed-format mode with explicit seed-version detection, independent derivation vectors and clearly stated wallet/path coverage. Do not add it implicitly to BIP39 input. No native Electrum seed support is claimed today.
 
+## Palette backup and recovery pipeline
+
+- [ ] Add an optional, removable palette-backup module inspired by the open-source BIP39 Colors project. Preserve an explicitly labelled upstream-compatible BIP39 Colors mode, and define any broader CKD format separately rather than presenting an extension as the upstream format.
+- [ ] Accept typed inputs from BIP39 mnemonics, raw BIP39 entropy, word-encoded entropy, SLIP-39, CKD Shamir, SSKR, Codex32 and Gordian Envelope. Preserve the exact source-format identifier, version, checksum and share boundaries so decoding can return the original records without ambiguity.
+- [ ] Offer an optional password-protection stage before palette encoding. Treat encryption and palette representation as separate pipeline stages, use a reviewed authenticated-encryption container with a memory-hard KDF, and retain an unencrypted compatibility mode.
+- [ ] Export exact textual `#RRGGBB` records as the authoritative recovery data, with colors as a visual representation rather than the sole copy. Provide several inconspicuous printable designs resembling interior, paint, textile or brand palettes, plus an optional QR representation and a plain emergency export.
+- [ ] Add a one-button typed pipeline builder and reversible recipes such as `BIP39 -> encrypted container -> palette` and `secret -> SLIP-39/Codex32/SSKR -> generic palette transport`. Reject incompatible stage combinations instead of coercing unrelated formats.
+- [ ] Document that palette output is obfuscation, not encryption; password protection is a distinct layer. Add deterministic upstream vectors, CKD format vectors, tamper and wrong-password rejection, print/transcription tests, complete encode/decode round trips for every accepted input type, dependency provenance and CC BY attribution where upstream BIP39 Colors material is used.
+
 ## Modular Activity Viewer extensions
 
 These are future opt-in build modules. Single-address and batch queries remain part of the base Activity Viewer rather than separate features.
@@ -30,7 +39,7 @@ Each module requires its own UI fragment, entrypoint, tests and artifact markers
 
 ## Shared address-history modules
 
-- [ ] Move the network/history modules currently imported by Multi-Chain Activity Viewer from Discovery Scanner into a shared package, preserving existing security and edition-isolation tests.
+- [x] Public Bitcoin/Ethereum history providers now live in `packages/public-data-providers`; Activity Viewer no longer imports Discovery Scanner application code.
 
 ## Dash address and descriptor evolution
 
@@ -48,4 +57,4 @@ See [the detailed review](audits/audit-06-2026-09-12.md) for public reproduction
 - [x] Cover valid legacy uncompressed `sh(pkh(KEY))` compilation and distinguish recognized-only descriptor forms from validated forms.
 - [x] Recover missing earlier pagination/network/copy-out regression cases against current modules; add Docker failure-cleanup simulation without invoking Docker.
 - [x] Replace the premature Blob Worker teardown with one shared readiness contract, keep controls in an explicit cryptography-initialisation state, and cover immediate Clear, Cancel, and protocol changes in Chromium and Firefox. Keep the Inspector badge explicitly limited to parser boundary checks rather than implying a cryptographic startup self-test.
-- [ ] Consolidate descriptor checksum and grammar helpers, then split Inspector workflows and Deriver BIP85/BIP38/signing controllers along their existing state boundaries. Preserve compile-time edition isolation.
+- [x] Consolidate descriptor checksum and balanced grammar helpers; split Inspector workflows and Deriver BIP85/BIP38/signing, streamed derivation, large-request policy, and export controllers along their state boundaries while preserving compile-time edition isolation.

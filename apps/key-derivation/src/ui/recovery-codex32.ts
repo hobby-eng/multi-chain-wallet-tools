@@ -1,5 +1,5 @@
 import { englishMnemonicToEntropy, entropyToEnglishMnemonic } from '@ckd/core/bip39.js';
-import { createCodex32Backup, recoverCodex32Seed } from '@ckd/recovery-backup/codex32.js';
+import { createCodex32Shares, recoverCodex32Shares } from '@ckd/recovery-backup/codex32.js';
 import { installQrImageImport } from '@ckd/ui/qr-image-import.js';
 import {
   installSecretToggle,
@@ -54,6 +54,20 @@ export function installCodex32(context: RecoveryFeatureContext): void {
   codex32SecretType.addEventListener('change', synchronizeCodex32SecretType);
   synchronizeCodex32SecretType();
 
+  const codex32Identifier = required<HTMLInputElement>('#codex32-identifier');
+  const codex32IdentifierPattern = /^[023456789acdefghjklmnpqrstuvwxyz]{4}$/u;
+  const synchronizeIdentifier = (): void => {
+    const lowercase = codex32Identifier.value.toLowerCase();
+    if (lowercase !== codex32Identifier.value) codex32Identifier.value = lowercase;
+    const valid = codex32IdentifierPattern.test(lowercase);
+    codex32Identifier.setCustomValidity(
+      valid ? '' : 'Use exactly four Bech32 characters. The characters b, i, o, and 1 are not available.',
+    );
+    codex32Identifier.setAttribute('aria-invalid', String(!valid));
+  };
+  codex32Identifier.addEventListener('input', synchronizeIdentifier);
+  synchronizeIdentifier();
+
   const codex32Threshold = required<HTMLInputElement>('#codex32-threshold');
   const codex32Count = required<HTMLInputElement>('#codex32-count');
   const codex32Unsplit = required<HTMLInputElement>('#codex32-unsplit');
@@ -75,14 +89,16 @@ export function installCodex32(context: RecoveryFeatureContext): void {
         entropy.fill(0);
         secretData = context.mnemonicToSeed(mnemonic, linked?.passphrase ?? codex32Passphrase.value);
       }
+      synchronizeIdentifier();
+      if (!codex32Identifier.checkValidity()) {
+        codex32Identifier.reportValidity();
+        codex32Identifier.focus();
+        codex32CreateResult.textContent = codex32Identifier.validationMessage;
+        return;
+      }
       const threshold = codex32Unsplit.checked ? 0 : integer(codex32Threshold, 'Codex32 threshold', 2, 9);
       const count = codex32Unsplit.checked ? 1 : integer(codex32Count, 'Codex32 share count', threshold, 31);
-      const created = createCodex32Backup(
-        secretData,
-        required<HTMLInputElement>('#codex32-identifier').value,
-        threshold,
-        count,
-      );
+      const created = createCodex32Shares(secretData, codex32Identifier.value, threshold, count);
       const heading = document.createElement('p');
       const contentLabel = codex32SecretType.value === 'bip39-entropy' ? 'BIP39-entropy' : 'BIP32-master-seed';
       heading.textContent =
@@ -108,7 +124,7 @@ export function installCodex32(context: RecoveryFeatureContext): void {
     codex32RestoreResult.replaceChildren();
     let seed: Uint8Array | undefined;
     try {
-      seed = recoverCodex32Seed(lines(required<HTMLTextAreaElement>('#codex32-shares').value));
+      seed = recoverCodex32Shares(lines(required<HTMLTextAreaElement>('#codex32-shares').value));
       if (codex32RestoreType.value === 'bip39-entropy') {
         if (![16, 20, 24, 28, 32].includes(seed.length)) {
           throw new Error('BIP39 entropy must contain exactly 16, 20, 24, 28, or 32 bytes.');

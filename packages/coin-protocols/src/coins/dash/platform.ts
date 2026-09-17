@@ -6,7 +6,7 @@ import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResu
 import { bip32SummaryFields } from '../../bip32-summary.js';
 import { DIP17_PAYMENT_CHAINS } from './platform-paths.js';
 
-export const PLATFORM_P2PKH_TYPE = 0xb0;
+const PLATFORM_P2PKH_TYPE = 0xb0;
 
 export function encodePlatformP2pkh(publicKeyHash: Uint8Array, hrp: string): string {
   if (publicKeyHash.length !== 20) throw new Error('Platform P2PKH hash must be 20 bytes.');

@@ -37,7 +37,13 @@ for (const workspaceRoot of ['apps', 'packages']) {
   }
 }
 
-for (const rustPackage of ['dash-shielded-wasm', 'recovery-shamir-wasm', 'recovery-codex32-wasm']) {
+for (const rustPackage of [
+  'dash-shielded-wasm',
+  'recovery-shamir-wasm',
+  'recovery-codex32-wasm',
+  'recovery-sskr-wasm',
+  'recovery-envelope-wasm',
+]) {
   stage(`packages/${rustPackage}/rust/Cargo.toml`, (text) =>
     replaceRequired(
       text,
@@ -57,7 +63,13 @@ for (const rustPackage of ['dash-shielded-wasm', 'recovery-shamir-wasm', 'recove
 }
 stage('THIRD_PARTY_NOTICES.md', (text) => {
   let next = text;
-  for (const rustPackage of ['dash-shielded-wasm', 'recovery-shamir-wasm', 'recovery-codex32-wasm']) {
+  for (const rustPackage of [
+    'dash-shielded-wasm',
+    'recovery-shamir-wasm',
+    'recovery-codex32-wasm',
+    'recovery-sskr-wasm',
+    'recovery-envelope-wasm',
+  ]) {
     next = replaceRequired(
       next,
       new RegExp(`^(${rustPackage}\\s+)[0-9]+\\.[0-9]+\\.[0-9]+(\\s+)`, 'mu'),

@@ -58,6 +58,19 @@ export function detectDashMatcherTargets(
   if (values.length === 0) throw new Error('Enter at least one known address.');
   const seen = new Set<string>();
   return values.map((value, index) => {
+    if (/^[0-9a-f]{40}$/iu.test(value)) {
+      const normalized = value.toLowerCase();
+      if (seen.has(normalized)) throw new Error(`Target ${index + 1} duplicates an earlier target.`);
+      seen.add(normalized);
+      return {
+        id: `address-${index + 1}`,
+        input: value,
+        normalized,
+        network,
+        adapterIds: ['dash-identity'],
+        fieldKeys: ['key0PublicKeyHash'],
+      };
+    }
     const detected = detectDashAddress(value, network);
     if (detected === null)
       throw new Error(`Address ${index + 1} is not a valid Dash address for the selected network.`);

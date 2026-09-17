@@ -7,11 +7,11 @@ import { descriptorChecksum } from '@ckd/core/descriptor-checksum.js';
 import { buildPolicy, policyHex } from './policy.js';
 import type { PsbtChain, PsbtNetwork } from './psbt.js';
 
-export type MultisigKeyOrder = 'supplied' | 'bip67';
-export type MultisigWrapper = 'p2sh' | 'p2wsh';
+type MultisigKeyOrder = 'supplied' | 'bip67';
+type MultisigWrapper = 'p2sh' | 'p2wsh';
 export type MultisigBranch = 0 | 1;
 
-export interface ParsedAccountXpub {
+interface ParsedAccountXpub {
   readonly label: string;
   readonly origin: string;
   readonly fingerprint: string;
@@ -20,7 +20,7 @@ export interface ParsedAccountXpub {
   readonly node: HDKey;
 }
 
-export interface RangedWalletRequest {
+interface RangedWalletRequest {
   readonly chain: PsbtChain;
   readonly network: PsbtNetwork;
   readonly required: number;
@@ -32,7 +32,7 @@ export interface RangedWalletRequest {
   readonly endIndex: number;
 }
 
-export interface RangedAddressRow {
+interface RangedAddressRow {
   readonly branch: MultisigBranch;
   readonly index: number;
   readonly pathSuffix: string;
@@ -42,7 +42,7 @@ export interface RangedAddressRow {
   readonly address: string;
 }
 
-export interface DescriptorRecord {
+interface DescriptorRecord {
   readonly branch: MultisigBranch;
   readonly label: string;
   readonly descriptor: string;
@@ -84,7 +84,7 @@ function descriptorFunction(order: MultisigKeyOrder): 'multi' | 'sortedmulti' {
   return order === 'bip67' ? 'sortedmulti' : 'multi';
 }
 
-export function descriptorWithChecksum(payload: string): string {
+function descriptorWithChecksum(payload: string): string {
   return `${payload}#${descriptorChecksum(payload)}`;
 }
 
@@ -102,7 +102,7 @@ export function concreteDescriptor(
   return descriptorWithChecksum(payload);
 }
 
-export interface ConcreteMultisigRequest {
+interface ConcreteMultisigRequest {
   readonly chain: PsbtChain;
   readonly network: PsbtNetwork;
   readonly required: number;
@@ -246,12 +246,7 @@ export function buildConcreteMultisigWallet(request: ConcreteMultisigRequest): C
   };
 }
 
-export function parseAccountXpub(
-  line: string,
-  chain: PsbtChain,
-  network: PsbtNetwork,
-  index: number,
-): ParsedAccountXpub {
+function parseAccountXpub(line: string, chain: PsbtChain, network: PsbtNetwork, index: number): ParsedAccountXpub {
   const value = line.trim();
   const match = /^\[([0-9a-fA-F]{8})((?:\/[0-9]+['hH]?)+)\]([A-Za-z0-9]+)$/u.exec(value);
   const xpub = match?.[3] ?? value;

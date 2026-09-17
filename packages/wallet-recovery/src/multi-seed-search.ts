@@ -17,7 +17,7 @@ export interface MultiSeedAddressResult {
   readonly error?: string;
 }
 
-export interface MultiSeedSearchOptions {
+interface MultiSeedSearchOptions {
   readonly seeds: readonly RecoverySeedTarget[];
   readonly targets: readonly AddressSearchTarget[];
   readonly start: number;

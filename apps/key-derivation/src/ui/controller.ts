@@ -1,39 +1,27 @@
-import { coreImportCommand } from './descriptor-export.js';
 import type { CoinAdapter } from '@ckd/coins/registry.js';
 import type { DerivationResult, DisplayMode, ResultField } from '@ckd/core/types.js';
-import {
-  displayedFields,
-  formatSelectedRows,
-  inspectSelectedRows,
-  iterateSelectedRows,
-  type ExportAction,
-  type ExportFormat,
-} from '@ckd/export/formatter.js';
-import { readControls, type DerivationControlValues } from './inputs.js';
-import {
-  createBranchResultState,
-  planResultBranches,
-  type BranchResultState,
-  type ResultBranch,
-} from './result-branches.js';
-import { clearDerivationResult } from './secrets.js';
+import { displayedFields, type ExportAction, type ExportFormat } from '@ckd/export/formatter.js';
+import { applySharedDerivationControls, readControls, type DerivationControlValues } from './inputs.js';
+import { createBranchResultState, type BranchResultState, type ResultBranch } from './result-branches.js';
+import { runStreamedDerivation } from './streamed-derivation.js';
 import { invertSelection, selectAll, selectNone } from './selection.js';
 import { DerivationCancelledError, DerivationWorkerClient } from '../workers/derive-client.js';
 
 import type { KeyDerivationView } from './view.js';
-import { englishMnemonicToEntropy } from '@ckd/core/bip39.js';
 import type { AddressSearchRunner } from './address-search-feature.js';
 import type { RecoverySourceReference, RecoverySourceTarget } from './recovery-source-link.js';
 import { installMnemonicDiagnosticFeature } from './mnemonic-diagnostic-feature.js';
+import { createResultExportController } from './result-export-controller.js';
+import { installAccountExportController } from './account-export-controller.js';
+import { createLargeRequestPolicy } from './large-request-policy.js';
+import { installRecoverySourceController } from './recovery-source-controller.js';
+import { AdapterSettingsStore } from './adapter-settings.js';
+import { AutomaticDerivationScheduler } from './automatic-derivation.js';
+import { runStartupSelfTests } from './startup-self-test.js';
+import { installResultTabNavigation, type TopLevelResultTab } from './result-tab-navigation.js';
 
 const BASIC_WINDOW_SIZE = 200;
 const ADVANCED_WINDOW_SIZE = 24;
-const LARGE_REQUEST_CONFIRM_THRESHOLD = 10_000;
-// The download path streams row-sized chunks, but the clipboard needs one
-// contiguous string. Refuse past the point where building it would risk the tab
-// rather than letting the copy fail as an out-of-memory crash.
-const CLIPBOARD_VALUE_LIMIT = 200_000;
-
 interface KeyDerivationDependencies {
   coinFamilies: typeof import('@ckd/coins/registry.js').COIN_FAMILIES;
   getAdapterFamilyId: typeof import('@ckd/coins/registry.js').getAdapterFamilyId;
@@ -145,12 +133,8 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
       let mainRecoverySourceRevision = 0;
       let activeFeatureTab: 'silent-payment' | 'bip85' | 'coinjoin' | null = null;
       let cryptoReady = false;
-      let pendingLargeRequestFingerprint: string | null = null;
-      let pendingAutomaticDerivation: number | null = null;
-      const lastVariantByCoin = new Map<string, string>();
-      const settingsByAdapter = new Map<string, DerivationControlValues>();
-      const includeChangeByCoin = new Map<string, boolean>();
-      const includeCoinJoinByCoin = new Map<string, boolean>();
+      const adapterSettings = new AdapterSettingsStore(getAdapterFamilyId);
+      const automaticDerivation = new AutomaticDerivationScheduler(window);
       /** Remembers which CoinJoin sub-branch was last shown, so re-activating the Dash Mobile CoinJoin · DIP9 tab returns to it. */
       let activeCoinJoinBranch: 'coinjoin-external' | 'coinjoin-internal' = 'coinjoin-external';
 
@@ -167,6 +151,17 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
       const coinJoinTab = optionalElement<HTMLButtonElement>('#coinjoin-tab');
       const derivationPanel = optionalElement<HTMLElement>('#derivation-panel');
       const mainResults = optionalElement<HTMLElement>('#results');
+
+      const resultExport = createResultExportController({
+        secretsRevealed: () => resultSecretsRevealed,
+        writeClipboard,
+        downloadBlob,
+        flashCopied: (button) => view.flashCopied(button),
+        setDownloadPreparing: (button, preparing) => view.setDownloadPreparing(button, preparing),
+        showError,
+        showStatus,
+      });
+      const copyText = resultExport.copyText;
 
       const bip38Feature = installBip38EncryptionFeature?.({
         document,
@@ -192,7 +187,6 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         mnemonicToSeed,
       });
       const updateWordCount = mnemonicDiagnostic.update;
-      const updateMnemonicEntropy = mnemonicDiagnostic.updateEntropy;
       const mnemonicMayBeComplete = mnemonicDiagnostic.mayBeComplete;
 
       let bip85Feature: ReturnType<typeof import('./bip85-feature.js').installBip85Feature> | null = null;
@@ -225,12 +219,19 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
           createWorker,
           ...(messageSigning === undefined ? {} : { messageSigning }),
           copyText,
-          copyBulkFrom,
-          downloadRowsFrom,
+          copyBulkFrom: resultExport.copyRows,
+          downloadRowsFrom: resultExport.downloadRows,
           downloadText,
           showError,
           showStatus,
         }) ?? null;
+
+      const largeRequestPolicy = createLargeRequestPolicy({
+        adapter: () => adapter,
+        activeFeatureTab: () => activeFeatureTab,
+        showConfirmation: () => view.showLargeRequestConfirmation(),
+        showStatus,
+      });
 
       function placeResultSecretsToggle(): void {
         // The child-wallet result has its own nearby synchronized control. Keeping
@@ -285,7 +286,13 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         feature: 'silent-payment' | 'bip85' | 'coinjoin',
       ): void {
         if (checkbox === null || tab === null) return;
-        tab.hidden = !checkbox.checked;
+        if (feature === 'silent-payment') {
+          const available = installSilentPaymentFeature !== undefined;
+          checkbox.closest<HTMLElement>('label')!.hidden = !available;
+          checkbox.disabled = !available;
+          if (!available) checkbox.checked = false;
+        }
+        tab.hidden = checkbox.disabled || !checkbox.checked;
         if (!checkbox.checked && activeFeatureTab === feature) {
           setFeatureTab(null);
           scheduleAutomaticDerivation();
@@ -300,6 +307,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         syncFeatureToggle(controls.includeCoinJoin, coinJoinTab, 'coinjoin'),
       );
       silentPaymentTab?.addEventListener('click', () => {
+        if (installSilentPaymentFeature === undefined) return;
         cancelAutomaticDerivation();
         stopActiveDerivation('Derivation mode changed to Silent Payments.');
         derivationRevision += 1;
@@ -322,7 +330,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         invalidateAddressSearch();
         derivationRevision += 1;
         clearResults();
-        pendingLargeRequestFingerprint = null;
+        largeRequestPolicy.clear();
         view.resetDeriveAction();
         setFeatureTab('coinjoin');
         if (mnemonicMayBeComplete()) void deriveCurrent(true);
@@ -479,120 +487,9 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         return row === undefined ? undefined : displayedFields(row, 'advanced').find((field) => field.key === fieldKey);
       }
 
-      async function copyText(button: HTMLButtonElement, text: string, containsSecret: boolean): Promise<void> {
-        if (containsSecret && !resultSecretsRevealed) {
-          showError('Reveal private and privacy-sensitive values before copying them.');
-          return;
-        }
-        let temporary = text;
-        try {
-          await writeClipboard(temporary);
-          view.flashCopied(button);
-          showStatus(
-            containsSecret ? 'Sensitive values copied. Clear your clipboard when finished.' : 'Copied to clipboard.',
-          );
-        } catch (cause) {
-          showError(cause instanceof Error ? cause.message : 'Clipboard access failed.');
-        } finally {
-          temporary = '';
-        }
-      }
-
-      interface ResultExportContext {
-        adapter: CoinAdapter;
-        result: DerivationResult;
-        selected: ReadonlySet<number>;
-        mode: DisplayMode;
-        format: ExportFormat;
-      }
-
-      async function copyBulkFrom(
-        button: HTMLButtonElement,
-        action: ExportAction,
-        context: ResultExportContext,
-      ): Promise<void> {
-        if (context.selected.size === 0) {
-          showError('Select at least one result first.');
-          return;
-        }
-        const inspection = inspectSelectedRows(context.adapter, context.result, context.selected, context.mode, action);
-        if (inspection.valueCount === 0) {
-          showError('That field type does not apply to the selected protocol and display mode.');
-          return;
-        }
-        if (inspection.valueCount > CLIPBOARD_VALUE_LIMIT) {
-          showError(
-            `That selection holds ${inspection.valueCount.toLocaleString()} values, more than the clipboard can assemble safely. ` +
-              'Use Download selected instead: it streams the same rows to a file.',
-          );
-          return;
-        }
-        const output = formatSelectedRows(
-          context.adapter,
-          context.result,
-          context.selected,
-          context.mode,
-          action,
-          context.format,
-        );
-        await copyText(button, output.text, output.containsSecret);
-      }
-
-      async function downloadRowsFrom(
-        button: HTMLButtonElement,
-        action: ExportAction,
-        context: ResultExportContext,
-        onFinished: () => void,
-      ): Promise<void> {
-        if (context.selected.size === 0) {
-          showError('Select at least one result first.');
-          return;
-        }
-        const inspection = inspectSelectedRows(context.adapter, context.result, context.selected, context.mode, action);
-        if (inspection.valueCount === 0) {
-          showError('That field type does not apply to the selected protocol and display mode.');
-          return;
-        }
-        if (inspection.containsSecret && !resultSecretsRevealed) {
-          showError('Reveal private and privacy-sensitive values before exporting them.');
-          return;
-        }
-
-        view.setDownloadPreparing(button, true);
-        try {
-          const chunks = iterateSelectedRows(
-            context.adapter,
-            context.result,
-            context.selected,
-            context.mode,
-            action,
-            context.format,
-          );
-          const encoder = new TextEncoder();
-          const stream = new ReadableStream<Uint8Array>({
-            pull(controller) {
-              const next = chunks.next();
-              if (next.done) controller.close();
-              else controller.enqueue(encoder.encode(next.value));
-            },
-          });
-          const mime = context.format === 'tsv' ? 'text/tab-separated-values' : 'text/plain';
-          const blob = await new Response(stream, { headers: { 'Content-Type': `${mime};charset=utf-8` } }).blob();
-          const extension = context.format === 'tsv' ? 'tsv' : 'txt';
-          const fileName = `${context.result.id}-${context.mode}-${inspection.rowCount}-rows.${extension}`;
-          downloadBlob(blob, fileName);
-          showStatus(`Streamed ${inspection.rowCount.toLocaleString()} selected rows into ${fileName}.`);
-        } catch (cause) {
-          showError(cause instanceof Error ? cause.message : 'Export download failed.');
-        } finally {
-          view.setDownloadPreparing(button, false);
-          onFinished();
-        }
-      }
-
       async function copyBulk(button: HTMLButtonElement, action: ExportAction): Promise<void> {
         if (currentResult === null) return;
-        await copyBulkFrom(button, action, {
+        await resultExport.copyRows(button, action, {
           adapter,
           result: currentResult,
           selected,
@@ -603,7 +500,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
 
       async function downloadSelectedRows(button: HTMLButtonElement, action: ExportAction): Promise<void> {
         if (currentResult === null) return;
-        await downloadRowsFrom(
+        await resultExport.downloadRows(
           button,
           action,
           {
@@ -621,7 +518,6 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         recoverySourceRevealed = revealed;
         view.setRecoverySourceVisibility(revealed);
         updateWordCount();
-        updateMnemonicEntropy();
       }
 
       function setResultSecretsVisibility(revealed: boolean): void {
@@ -633,39 +529,27 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
       }
 
       function cancelAutomaticDerivation(): void {
-        if (pendingAutomaticDerivation === null) return;
-        window.clearTimeout(pendingAutomaticDerivation);
-        pendingAutomaticDerivation = null;
+        automaticDerivation.cancel();
       }
 
       function scheduleAutomaticDerivation(): void {
-        cancelAutomaticDerivation();
-        if (!cryptoReady || !mnemonicMayBeComplete()) return;
-        pendingAutomaticDerivation = window.setTimeout(() => {
-          pendingAutomaticDerivation = null;
-          if (!cryptoReady || !mnemonicMayBeComplete()) return;
-          if (activeFeatureTab === 'silent-payment') {
-            silentPaymentFeature?.derive();
-            return;
-          }
-          if (activeFeatureTab === 'bip85') {
-            void bip85Feature?.derive();
-            return;
-          }
-          void deriveCurrent(true);
-        }, 350);
+        automaticDerivation.schedule(
+          () => cryptoReady && mnemonicMayBeComplete(),
+          () => {
+            if (activeFeatureTab === 'silent-payment') {
+              silentPaymentFeature?.derive();
+            } else if (activeFeatureTab === 'bip85') {
+              void bip85Feature?.derive();
+            } else {
+              void deriveCurrent(true);
+            }
+          },
+        );
       }
 
       function rememberCurrentSettings(): void {
         try {
-          const values = readControls(adapter, controls);
-          settingsByAdapter.set(adapter.id, values);
-          if (adapter.addressBranches !== undefined) {
-            includeChangeByCoin.set(getAdapterFamilyId(adapter), values.includeChange);
-          }
-          if (adapter.coinJoin !== undefined) {
-            includeCoinJoinByCoin.set(getAdapterFamilyId(adapter), values.includeCoinJoin);
-          }
+          adapterSettings.remember(adapter, readControls(adapter, controls));
         } catch {
           // Invalid partially edited controls are not persisted across variants.
         }
@@ -679,25 +563,13 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         derivationRevision += 1;
         clearResults();
         activeCoinJoinBranch = 'coinjoin-external';
-        pendingLargeRequestFingerprint = null;
+        largeRequestPolicy.clear();
         view.resetDeriveAction();
         adapter = next;
-        lastVariantByCoin.set(getAdapterFamilyId(adapter), adapter.id);
-        const remembered = settingsByAdapter.get(adapter.id);
-        const includeChange =
-          adapter.addressBranches === undefined
-            ? false
-            : (includeChangeByCoin.get(getAdapterFamilyId(adapter)) ?? remembered?.includeChange ?? false);
-        const includeCoinJoin =
-          adapter.coinJoin === undefined
-            ? false
-            : (includeCoinJoinByCoin.get(getAdapterFamilyId(adapter)) ?? remembered?.includeCoinJoin ?? false);
-        view.configureControls(
-          adapter,
-          remembered === undefined
-            ? { ...adapter.defaults, includeChange, includeCoinJoin }
-            : { ...remembered, includeChange, includeCoinJoin },
-        );
+        adapterSettings.selectVariant(adapter);
+        const remembered = adapterSettings.controlsFor(adapter);
+        view.configureControls(adapter, applySharedDerivationControls(adapter, remembered.values, remembered.shared));
+        syncFeatureToggle(includeSilentPayment, silentPaymentTab, 'silent-payment');
         syncFeatureToggle(controls.includeCoinJoin, coinJoinTab, 'coinjoin');
         clearMessages();
         view.hideSearchResult();
@@ -707,7 +579,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
       view.populateCoinSelect();
       const initialCoinFamily = coinFamilies[0]!;
       adapter = getDefaultCoinAdapter(initialCoinFamily.id);
-      lastVariantByCoin.set(initialCoinFamily.id, adapter.id);
+      adapterSettings.selectVariant(adapter);
       view.configureControls(adapter);
       syncFeatureToggle(controls.includeCoinJoin, coinJoinTab, 'coinjoin');
       updateWordCount();
@@ -725,15 +597,11 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
 
       async function initializeCryptoRuntime(): Promise<void> {
         setCryptoControlsEnabled(false);
-        const worker = createWorker();
         try {
-          const bip39Report = runBip39SelfTest();
-          const recoveryReport = runRecoveryBackupSelfTest();
-          const workerReport = await worker.selfTest();
-          const checks = [...bip39Report.checks, ...recoveryReport.checks, ...workerReport.checks];
-          const durationMs = bip39Report.durationMs + recoveryReport.durationMs + workerReport.durationMs;
-          cryptoReady = bip39Report.passed && recoveryReport.passed && workerReport.passed;
-          view.showCryptoSelfTestPassed(checks, durationMs);
+          const report = await runStartupSelfTests({ runBip39SelfTest, runRecoveryBackupSelfTest, createWorker });
+          cryptoReady = report.passed;
+          if (!report.passed) throw new Error('A cryptographic startup check returned a failed result.');
+          view.showCryptoSelfTestPassed(report.checks, report.durationMs);
           setCryptoControlsEnabled(true);
           scheduleAutomaticDerivation();
         } catch (cause) {
@@ -741,8 +609,6 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
           view.showCryptoSelfTestFailed(cause);
           setCryptoControlsEnabled(false);
           showError('Cryptographic self-test failed. This build will not derive wallet keys.');
-        } finally {
-          worker.terminate(new DerivationCancelledError('Startup self-test worker released.'));
         }
       }
 
@@ -776,64 +642,6 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         renderCurrent();
       }
 
-      function largeRequestFingerprint(input: DerivationControlValues): string {
-        return [
-          adapter.id,
-          activeFeatureTab,
-          input.network,
-          input.account,
-          input.branch,
-          input.start,
-          input.count,
-          input.includeChange,
-          input.includeCoinJoin,
-        ].join(':');
-      }
-
-      function plannedMainResultBranches(input: DerivationControlValues) {
-        if (activeFeatureTab === 'coinjoin' && adapter.coinJoin !== undefined) {
-          return planResultBranches(adapter, input.branch, false, true).filter(
-            ({ kind }) => kind === 'coinjoin-external' || kind === 'coinjoin-internal',
-          );
-        }
-        return planResultBranches(adapter, input.branch, input.includeChange, false);
-      }
-
-      function approximateMemoryRange(count: number): string {
-        const lowMiB = Math.ceil((count * 4) / 1024);
-        const highMiB = Math.ceil((count * 12) / 1024);
-        return `roughly ${lowMiB.toLocaleString()}–${highMiB.toLocaleString()} MiB of result memory`;
-      }
-
-      function authorizeRequestedCount(input: DerivationControlValues, automatic: boolean): boolean {
-        if (automatic && input.count > 20) {
-          pendingLargeRequestFingerprint = null;
-          showStatus(
-            `Automatic generation was skipped because this tab remembers ${input.count.toLocaleString()} results. Click Derive manually to run the large request.`,
-          );
-          return false;
-        }
-        const branchCount = plannedMainResultBranches(input).length;
-        const totalCount = input.count * branchCount;
-        if (automatic || totalCount < LARGE_REQUEST_CONFIRM_THRESHOLD) {
-          pendingLargeRequestFingerprint = null;
-          return true;
-        }
-        const fingerprint = largeRequestFingerprint(input);
-        if (pendingLargeRequestFingerprint === fingerprint) {
-          pendingLargeRequestFingerprint = null;
-          return true;
-        }
-        pendingLargeRequestFingerprint = fingerprint;
-        const batches = Math.ceil(input.count / (adapter.batchSize ?? 50)) * branchCount;
-        view.showLargeRequestConfirmation();
-        showStatus(
-          `Large request confirmation: ${totalCount.toLocaleString()} results across ${branchCount} address branch${branchCount === 1 ? '' : 'es'} in ${batches.toLocaleString()} visible batches; ${approximateMemoryRange(totalCount)}. ` +
-            'Keep the tab open and click “Confirm large request” to proceed. You can cancel at any time.',
-        );
-        return false;
-      }
-
       async function deriveCurrent(automatic = false): Promise<void> {
         cancelAutomaticDerivation();
         if (!cryptoReady) {
@@ -847,7 +655,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
           showError(cause instanceof Error ? cause.message : 'Invalid derivation controls.');
           return;
         }
-        if (!authorizeRequestedCount(input, automatic)) return;
+        if (!largeRequestPolicy.authorize(input, automatic)) return;
         clearMessages();
         clearResults();
         cancellationRequested = false;
@@ -865,83 +673,52 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
           showStatus('Initialising cryptography locally…');
           await worker.ready();
           if (revision !== derivationRevision || requestedAdapter !== adapter) return;
-          settingsByAdapter.set(adapter.id, input);
+          adapterSettings.remember(requestedAdapter, input);
           seed = mnemonicToSeed(mnemonic.value, passphrase.value);
-          const baseInput = {
-            network: input.network,
-            account: input.account,
-            branch: input.branch,
-            start: input.start,
-            count: input.count,
-          };
-          const resultBranches = plannedMainResultBranches(input);
+          const resultBranches = largeRequestPolicy.plannedBranches(input);
           const totalRequested = input.count * resultBranches.length;
-          const batchSize = requestedAdapter.batchSize ?? 50;
-          if (!Number.isSafeInteger(batchSize) || batchSize < 1) {
-            throw new Error(`Adapter ${requestedAdapter.id} declares an invalid internal batch size.`);
-          }
           if (totalRequested > 1000) {
             showStatus(
               `Large request: ${totalRequested.toLocaleString()} results will be generated and displayed in batches. Keep this tab open; you can cancel immediately.`,
             );
           }
-          let generatedTotal = 0;
-          branchLoop: for (const { kind: resultBranch, branch, workerAdapterId } of resultBranches) {
-            let destination: DerivationResult | null = null;
-            let generated = 0;
-            while (generated < input.count) {
-              if (revision !== derivationRevision || requestedAdapter !== adapter) return;
-              if (cancellationRequested) break branchLoop;
-              const count = Math.min(batchSize, input.count - generated);
-              const batch = await worker.derive(workerAdapterId ?? requestedAdapter.id, {
-                ...baseInput,
-                branch,
-                seed,
-                start: input.start + generated,
-                count,
-              });
-              if (revision !== derivationRevision || requestedAdapter !== adapter) {
-                clearDerivationResult(batch);
-                return;
-              }
-              if (destination === null) {
-                destination = batch;
-                const state = createBranchResultState(destination);
-                branchResultStates.set(resultBranch, state);
-                view.showResults();
-                if (activeFeatureTab !== null && activeFeatureTab !== 'coinjoin' && mainResults !== null)
-                  mainResults.hidden = true;
-                if (currentResult === null) activateResultBranch(resultBranch, false);
-                updateResultBranchTabs();
-                if (activeResultBranch === resultBranch) renderStreamingProgress(true);
-              } else {
-                if (batch.id !== destination.id || batch.rows.length !== count) {
-                  clearDerivationResult(batch);
-                  throw new Error('The derivation adapter returned an inconsistent streamed batch.');
-                }
-                const appended = batch.rows.splice(0);
-                destination.rows.push(...appended);
-                const state = branchResultStates.get(resultBranch);
-                if (state === undefined) {
-                  clearDerivationResult(batch);
-                  throw new Error('The result branch state was lost during streamed derivation.');
-                }
-                for (const row of appended) state.selected.add(row.index);
-                clearDerivationResult(batch);
-                if (activeResultBranch === resultBranch) renderStreamingProgress(false);
-              }
-              generated += count;
-              generatedTotal += count;
+          const outcome = await runStreamedDerivation({
+            worker,
+            adapter: requestedAdapter,
+            input,
+            branches: resultBranches,
+            seed,
+            isStale: () => revision !== derivationRevision || requestedAdapter !== adapter,
+            isCancelled: () => cancellationRequested,
+            onInitialBatch: (resultBranch, result) => {
+              const state = createBranchResultState(result);
+              branchResultStates.set(resultBranch, state);
+              view.showResults();
+              if (activeFeatureTab !== null && activeFeatureTab !== 'coinjoin' && mainResults !== null)
+                mainResults.hidden = true;
+              if (currentResult === null) activateResultBranch(resultBranch, false);
+              updateResultBranchTabs();
+              if (activeResultBranch === resultBranch) renderStreamingProgress(true);
+            },
+            onAppendedBatch: (resultBranch, rows) => {
+              const state = branchResultStates.get(resultBranch);
+              if (state === undefined) throw new Error('The result branch state was lost during streamed derivation.');
+              for (const row of rows) state.selected.add(row.index);
+              if (activeResultBranch === resultBranch) renderStreamingProgress(false);
+            },
+            onProgress: (resultBranch, branchCount, totalCount) => {
               const branchProgress =
                 requestedAdapter.addressBranches === undefined
                   ? ''
-                  : ` ${resultBranch} branch ${generated.toLocaleString()} of ${input.count.toLocaleString()};`;
+                  : ` ${resultBranch} branch ${branchCount.toLocaleString()} of ${input.count.toLocaleString()};`;
               showStatus(
-                `Derived${branchProgress} ${generatedTotal.toLocaleString()} of ${totalRequested.toLocaleString()} total results for ${derivationLabel}.`,
+                `Derived${branchProgress} ${totalCount.toLocaleString()} of ${totalRequested.toLocaleString()} total results for ${derivationLabel}.`,
               );
-              if (generated < input.count) await yieldToBrowser();
-            }
-          }
+            },
+            yieldTurn: yieldToBrowser,
+          });
+          if (outcome.stale) return;
+          const generatedTotal = outcome.generated;
           if (currentResult !== null) renderStreamingProgress(true);
           updateBulkActions();
           if (cancellationRequested) {
@@ -991,7 +768,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
 
       controls.coin.addEventListener('change', () => {
         setFeatureTab(null);
-        const remembered = lastVariantByCoin.get(controls.coin.value);
+        const remembered = adapterSettings.variantForFamily(controls.coin.value);
         resetForAdapter(
           remembered === undefined ? getDefaultCoinAdapter(controls.coin.value) : getCoinAdapter(remembered),
         );
@@ -1013,7 +790,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
           invalidateAddressSearch();
           derivationRevision += 1;
           clearResults();
-          pendingLargeRequestFingerprint = null;
+          largeRequestPolicy.clear();
           view.resetDeriveAction();
           if (mnemonicMayBeComplete()) void deriveCurrent(true);
           return;
@@ -1038,50 +815,24 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         resetForAdapter(getCoinAdapter(id));
         view.focusProtocolButton(id);
       });
-      const recoverySourceTargets = new Set<RecoverySourceTarget>([
-        'matcher',
-        'seedqr',
-        'slip39',
-        'shamir-raw',
-        'shamir-words',
-        'codex32',
-      ]);
-      document.addEventListener('click', (event) => {
-        const button =
-          event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-recovery-source]') : null;
-        if (button === null || openRecoverySource === undefined) return;
-        const target = button.dataset.recoveryTarget as RecoverySourceTarget | undefined;
-        if (target === undefined || !recoverySourceTargets.has(target)) return;
-        let reference: RecoverySourceReference;
-        if (button.dataset.recoverySource === 'bip85') {
-          const childReference = bip85Feature?.sourceReference() ?? null;
-          if (childReference === null) {
-            showError('Derive a BIP39 child phrase before sending it to Recovery & Backup.');
-            return;
-          }
-          reference = childReference;
-        } else {
-          let entropy: Uint8Array | null = null;
-          try {
-            entropy = englishMnemonicToEntropy(mnemonic.value);
-          } catch {
-            showError('Enter a checksum-valid English BIP39 recovery phrase first.');
-            return;
-          } finally {
-            entropy?.fill(0);
-          }
-          const revision = mainRecoverySourceRevision;
-          reference = {
-            label: 'Original recovery phrase',
-            read: () =>
-              revision === mainRecoverySourceRevision
-                ? { mnemonic: mnemonic.value, passphrase: passphrase.value }
-                : null,
-          };
-        }
-        openRecoverySource(reference, target);
-        button.closest('details')?.removeAttribute('open');
-      });
+      if (openRecoverySource !== undefined) {
+        installRecoverySourceController({
+          document,
+          open: openRecoverySource,
+          childReference: () => bip85Feature?.sourceReference() ?? null,
+          originalReference: () => {
+            const revision = mainRecoverySourceRevision;
+            return {
+              label: 'Original recovery phrase',
+              read: () =>
+                revision === mainRecoverySourceRevision
+                  ? { mnemonic: mnemonic.value, passphrase: passphrase.value }
+                  : null,
+            };
+          },
+          showError,
+        });
+      }
 
       for (const control of [
         controls.network,
@@ -1100,7 +851,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
           if (currentResult !== null) clearResults();
           updateActivePathPreview();
           rememberCurrentSettings();
-          pendingLargeRequestFingerprint = null;
+          largeRequestPolicy.clear();
           view.resetDeriveAction();
           scheduleAutomaticDerivation();
         };
@@ -1114,9 +865,8 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
           invalidateAddressSearch();
           derivationRevision += 1;
           if (currentResult !== null) clearResults();
-          if (input === mnemonic) updateWordCount();
-          else updateWordCount();
-          pendingLargeRequestFingerprint = null;
+          updateWordCount();
+          largeRequestPolicy.clear();
           view.resetDeriveAction();
           scheduleAutomaticDerivation();
         });
@@ -1162,13 +912,11 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         stopActiveDerivation('Derivation cleared by the user.');
         invalidateAddressSearch();
         derivationRevision += 1;
-        pendingLargeRequestFingerprint = null;
+        largeRequestPolicy.clear();
         // Browser strings are immutable, so this only releases DOM references; mutable seed bytes are zeroed separately.
         clearResults();
         activeCoinJoinBranch = 'coinjoin-external';
-        settingsByAdapter.clear();
-        includeChangeByCoin.clear();
-        includeCoinJoinByCoin.clear();
+        adapterSettings.clear();
         view.configureControls(adapter);
         setRecoverySourceVisibility(false);
         setResultSecretsVisibility(false);
@@ -1217,53 +965,25 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         renderCurrent();
       });
 
-      type TopLevelResultTab = 'receive' | 'change' | 'coinjoin';
       const topLevelTabButtons: ReadonlyArray<readonly [HTMLButtonElement, TopLevelResultTab]> = [
         [resultReceiveTab, 'receive'],
         [resultChangeTab, 'change'],
         [resultCoinJoinTab, 'coinjoin'],
       ];
-
-      function activateTopLevelTab(tab: TopLevelResultTab): void {
-        if (tab === 'coinjoin') activateCoinJoinTab();
-        else activateResultBranch(tab);
-      }
-
-      for (const [button, tab] of topLevelTabButtons) {
-        button.addEventListener('click', () => activateTopLevelTab(tab));
-        button.addEventListener('keydown', (event) => {
-          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-          event.preventDefault();
-          const visible = topLevelTabButtons.filter(([candidate]) => !candidate.hidden);
-          if (visible.length === 0) return;
-          const currentIndex = visible.findIndex(([candidate]) => candidate === button);
-          const nextIndex =
-            event.key === 'Home'
-              ? 0
-              : event.key === 'End'
-                ? visible.length - 1
-                : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + visible.length) % visible.length;
-          const next = visible[nextIndex];
-          if (next === undefined || next[0].disabled) return;
-          activateTopLevelTab(next[1]);
-          next[0].focus();
-        });
-      }
-
-      for (const [button, branch] of [
-        [resultCoinJoinExternalTab, 'coinjoin-external'],
-        [resultCoinJoinInternalTab, 'coinjoin-internal'],
-      ] as const) {
-        button.addEventListener('click', () => activateResultBranch(branch));
-        button.addEventListener('keydown', (event) => {
-          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-          event.preventDefault();
-          const next = event.key === 'ArrowLeft' || event.key === 'Home' ? 'coinjoin-external' : 'coinjoin-internal';
-          if (!view.resultBranchEnabled(next)) return;
-          activateResultBranch(next);
-          view.focusResultBranch(next);
-        });
-      }
+      installResultTabNavigation({
+        topLevel: topLevelTabButtons,
+        coinJoinBranches: [
+          [resultCoinJoinExternalTab, 'coinjoin-external'],
+          [resultCoinJoinInternalTab, 'coinjoin-internal'],
+        ],
+        activateTopLevel(tab) {
+          if (tab === 'coinjoin') activateCoinJoinTab();
+          else activateResultBranch(tab);
+        },
+        activateBranch: activateResultBranch,
+        branchEnabled: view.resultBranchEnabled,
+        focusBranch: view.focusResultBranch,
+      });
 
       selectAllButton.addEventListener('click', () => {
         if (currentResult === null) return;
@@ -1306,37 +1026,16 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         })();
       });
 
-      for (const [action, button] of Object.entries(descriptorButtons)) {
-        button.addEventListener('click', () => {
-          const bundle = currentResult?.accountDescriptors;
-          if (bundle === undefined) return;
-          const privateExport = action === 'privateCopy' || action === 'privateDownload';
-          if (privateExport && !resultSecretsRevealed) {
-            showError('Reveal sensitive values before exporting private descriptors.');
-            return;
-          }
-          const descriptors = privateExport ? bundle.privateText : bundle.publicText;
-          const coreFormat = document.querySelector<HTMLSelectElement>('#account-export-format')!.value === 'core';
-          let text = descriptors;
-          try {
-            if (coreFormat) text = coreImportCommand(descriptors);
-          } catch (cause) {
-            showError(cause instanceof Error ? cause.message : 'Unable to prepare account export.');
-            return;
-          }
-          if (action === 'publicDownload' || action === 'privateDownload') {
-            const filename = `${bundle.fileStem}.${privateExport ? 'PRIVATE' : 'public'}.${coreFormat ? 'core-import' : 'descriptors'}.txt`;
-            downloadText(text, filename, 'text/plain');
-            showStatus(
-              privateExport
-                ? `Created ${filename}. Contains unencrypted account private keys.`
-                : `Created ${filename}. Public account data; cannot spend.`,
-            );
-          } else {
-            void copyText(button, text, privateExport);
-          }
-        });
-      }
+      installAccountExportController({
+        document,
+        buttons: descriptorButtons,
+        result: () => currentResult,
+        secretsRevealed: () => resultSecretsRevealed,
+        copyText,
+        downloadText,
+        showError,
+        showStatus,
+      });
 
       copyWatchOnlyButton.addEventListener('click', () => {
         const watchOnly = currentResult?.watchOnly;

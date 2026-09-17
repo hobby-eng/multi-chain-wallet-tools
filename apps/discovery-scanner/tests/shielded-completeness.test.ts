@@ -72,7 +72,7 @@ it('withholds an incomplete balance in presentation, aggregate, JSON and CSV, re
   const row = cells(csv[1]!);
   for (const column of [
     'balance_atomic',
-    'balance_dash',
+    'balance_display',
     'section_spendable_balance_dash',
     'section_lifetime_received_dash',
   ]) {

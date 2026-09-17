@@ -5,19 +5,14 @@ import { describe, expect, it } from 'vitest';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const productionRoots = ['apps', 'packages', 'tooling'];
-const aliasOwners = new Map([
-  ['core', 'crypto-core'],
-  ['coins', 'coin-protocols'],
-  ['export', 'export-core'],
-  ['dash-network', 'dash-network'],
-  ['editions', 'edition-profiles'],
-  ['public-data-providers', 'public-data-providers'],
-  ['secret-boundary', 'secret-boundary'],
-  ['network-boundary', 'network-boundary'],
-  ['ui', 'shared-ui'],
-  ['secret-vault', 'secret-vault'],
-  ['recovery', 'wallet-recovery'],
-]);
+const tsconfig = JSON.parse(readFileSync(join(root, 'tsconfig.json'), 'utf8'));
+const aliasOwners = new Map(
+  Object.entries(tsconfig.compilerOptions.paths).flatMap(([alias, targets]) => {
+    const aliasName = /^@ckd\/([^/*]+)/u.exec(alias)?.[1];
+    const owner = /(?:^|\/)packages\/([^/]+)\//u.exec(targets[0])?.[1];
+    return aliasName === undefined || owner === undefined ? [] : [[aliasName, owner]];
+  }),
+);
 
 function sourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -49,12 +44,12 @@ describe('module boundaries', () => {
     for (const file of files) {
       const rel = relative(root, file).replaceAll('\\', '/');
       for (const specifier of imports(readFileSync(file, 'utf8'))) {
-        if (rel.startsWith('packages/') && specifier.includes('/apps/')) violations.push(rel + ' -> ' + specifier);
+        const target = specifier.startsWith('.') ? resolve(dirname(file), specifier) : undefined;
+        const targetRel = target === undefined ? '' : relative(root, target).replaceAll('\\', '/');
+        if (rel.startsWith('packages/') && targetRel.startsWith('apps/')) violations.push(rel + ' -> ' + specifier);
         if (rel.startsWith('apps/')) {
           const owner = rel.split('/')[1];
-          const target = resolve(dirname(file), specifier);
-          const targetRel = relative(root, target).replaceAll('\\', '/');
-          if (specifier.startsWith('.') && targetRel.startsWith('apps/') && targetRel.split('/')[1] !== owner)
+          if (targetRel.startsWith('apps/') && targetRel.split('/')[1] !== owner)
             violations.push(rel + ' -> ' + specifier);
         }
       }
@@ -70,7 +65,12 @@ describe('module boundaries', () => {
       const edges = graph.get(owner) ?? new Set();
       for (const specifier of imports(readFileSync(file, 'utf8'))) {
         const alias = /^@ckd\/([^/]+)/u.exec(specifier)?.[1];
-        const target = alias === undefined ? undefined : aliasOwners.get(alias);
+        const aliasTarget = alias === undefined ? undefined : aliasOwners.get(alias);
+        const relativeTarget = specifier.startsWith('.') ? packageOwner(resolve(dirname(file), specifier)) : undefined;
+        const target = aliasTarget ?? relativeTarget;
+        if (alias !== undefined && aliasTarget === undefined) {
+          throw new Error(`Unknown @ckd alias in module-boundary graph: ${specifier}`);
+        }
         if (target !== undefined && target !== owner) edges.add(target);
       }
       graph.set(owner, edges);

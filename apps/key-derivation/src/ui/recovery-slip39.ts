@@ -1,5 +1,5 @@
 import { englishMnemonicToEntropy, entropyToEnglishMnemonic } from '@ckd/core/bip39.js';
-import { combineSlip39Mnemonics, generateSlip39Mnemonics, parseSlip39Share } from '@ckd/recovery-backup/slip39.js';
+import { recoverSlip39Shares, createSlip39Shares, parseSlip39Share } from '@ckd/recovery-backup/slip39.js';
 import { installQrImageImport } from '@ckd/ui/qr-image-import.js';
 import {
   installSecretToggle,
@@ -36,7 +36,7 @@ export function installSlip39(context: RecoveryFeatureContext): void {
       try {
         const threshold = integer(required<HTMLInputElement>('#slip39-threshold'), 'Share threshold', 1, 16);
         const count = integer(required<HTMLInputElement>('#slip39-count'), 'Share count', threshold, 16);
-        const shares = generateSlip39Mnemonics(entropy, {
+        const shares = createSlip39Shares(entropy, {
           groupThreshold: 1,
           groups: [{ memberThreshold: threshold, memberCount: count }],
           passphrase: required<HTMLInputElement>('#slip39-create-passphrase').value,
@@ -63,7 +63,7 @@ export function installSlip39(context: RecoveryFeatureContext): void {
     try {
       const shares = lines(required<HTMLTextAreaElement>('#slip39-shares').value);
       for (const share of shares) parseSlip39Share(share);
-      const secret = combineSlip39Mnemonics(shares, required<HTMLInputElement>('#slip39-restore-passphrase').value);
+      const secret = recoverSlip39Shares(shares, required<HTMLInputElement>('#slip39-restore-passphrase').value);
       try {
         restoredMnemonic = entropyToEnglishMnemonic(secret);
       } finally {

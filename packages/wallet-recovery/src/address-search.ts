@@ -51,6 +51,8 @@ export async function findDerivedAddress(
 export interface AddressSearchRequest {
   readonly id: string;
   readonly address: string;
+  /** Compare named public result fields instead of the payment-address field. */
+  readonly fieldKeys?: readonly string[];
 }
 
 export interface AddressSearchResult extends AddressSearchMatch {
@@ -84,11 +86,23 @@ export async function findDerivedAddresses(
       result = await adapter.derive({ ...baseInput, seed: batchSeed, start: start + offset, count: batchCount });
       signal?.throwIfAborted();
       for (const row of result.rows) {
-        const address = row.basic.find(({ key }) => key === 'address')?.value;
-        if (address === undefined) continue;
+        const fields = [
+          ...row.basic,
+          ...row.advanced,
+          ...(row.groups ?? []).flatMap((group) => [...group.basic, ...group.advanced]),
+        ];
         for (const [id, request] of remaining) {
-          if (adapter.addressesEqual?.(address, request.address) ?? address === request.address) {
-            matches.push({ id, index: row.index, path: row.path, address });
+          const candidates =
+            request.fieldKeys === undefined
+              ? fields.filter(({ role }) => role === 'paymentAddress')
+              : fields.filter(({ key }) => request.fieldKeys!.includes(key));
+          const matched = candidates.find(({ value }) =>
+            request.fieldKeys === undefined
+              ? (adapter.addressesEqual?.(value, request.address) ?? value === request.address)
+              : value.toLowerCase() === request.address.toLowerCase(),
+          );
+          if (matched !== undefined) {
+            matches.push({ id, index: row.index, path: row.path, address: matched.value });
             remaining.delete(id);
           }
         }

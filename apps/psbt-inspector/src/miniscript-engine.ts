@@ -2,7 +2,7 @@ import { analyzeMiniscript, compileMiniscript } from '@bitcoinerlab/miniscript';
 import { hash160, hexToBytes, secp256k1 } from '@ckd/core/crypto.js';
 import { validateMultisigConsensusLimits, type ScriptPolicyContext } from './consensus-limits.js';
 
-export interface CompiledMiniscript {
+interface CompiledMiniscript {
   readonly script: Uint8Array;
   readonly asm: string;
   readonly analysis: string;
@@ -10,7 +10,7 @@ export interface CompiledMiniscript {
   readonly needsSignature: boolean;
 }
 
-export interface ValidatedMiniscript {
+interface ValidatedMiniscript {
   readonly analysis: ReturnType<typeof analyzeMiniscript>;
 }
 
@@ -27,7 +27,7 @@ function invalidMiniscript(error: string): Error {
   return new Error(`Invalid Miniscript type: ${error}.`);
 }
 
-export interface MiniscriptContextOptions {
+interface MiniscriptContextOptions {
   readonly tapscript?: boolean;
   readonly allowUncompressed?: boolean;
   readonly context?: ScriptPolicyContext;

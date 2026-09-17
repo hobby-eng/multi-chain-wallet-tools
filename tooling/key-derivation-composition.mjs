@@ -131,7 +131,7 @@ export function detectSelectedMatcherTargets(input, network, forceAllProfiles) {
     try { detected = detectOne(value, network); } catch { throw new Error('Address ' + (index + 1) + ' is not recognized for the selected network and coin modules.'); }
     if (seen.has(detected.normalized)) throw new Error('Address ' + (index + 1) + ' duplicates an earlier address.');
     seen.add(detected.normalized);
-    return { ...detected, id: 'address-' + (index + 1), adapterIds: forceAllProfiles ? ALL_ADAPTERS : detected.adapterIds };
+    return { ...detected, id: 'address-' + (index + 1), adapterIds: forceAllProfiles && detected.fieldKeys === undefined ? ALL_ADAPTERS : detected.adapterIds };
   });
 }`;
 }
@@ -142,6 +142,8 @@ function selectedRecoverySelfTestSource(root, features) {
     ['slip39', 'runSlip39SelfTest', 'self-test-slip39.ts'],
     ['shamir', 'runShamirSelfTest', 'self-test-shamir.ts'],
     ['codex32', 'runCodex32SelfTest', 'self-test-codex32.ts'],
+    ['sskr', 'runSskrSelfTest', 'self-test-sskr.ts'],
+    ['gordian-envelope', 'runGordianEnvelopeSelfTest', 'self-test-gordian-envelope.ts'],
   ].filter(([feature]) => features.has(feature));
   const imports = definitions.map(
     ([, symbol, file]) =>
@@ -241,6 +243,13 @@ const featureSourceMarkers = {
   seedqr: ['/recovery-seedqr.ts', '/recovery-backup/src/seedqr.ts', '/self-test-seedqr.ts'],
   slip39: ['/recovery-slip39.ts', '/recovery-backup/src/slip39.ts', '/slip39-wordlist.ts', '/self-test-slip39.ts'],
   shamir: ['/recovery-shamir.ts', '/recovery-backup/src/shamir.ts', '/recovery-shamir-wasm/', '/self-test-shamir.ts'],
+  sskr: ['/recovery-sskr.ts', '/recovery-backup/src/sskr.ts', '/recovery-sskr-wasm/', '/self-test-sskr.ts'],
+  'gordian-envelope': [
+    '/recovery-gordian-envelope.ts',
+    '/recovery-backup/src/gordian-envelope.ts',
+    '/recovery-envelope-wasm/',
+    '/self-test-gordian-envelope.ts',
+  ],
   codex32: [
     '/recovery-codex32.ts',
     '/recovery-backup/src/codex32.ts',

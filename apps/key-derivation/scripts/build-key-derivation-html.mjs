@@ -185,8 +185,10 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
             ['wallet-matcher', 'matcher', 'recovery-wallet-matcher.ts', 'installWalletMatcher'],
             ['seedqr', 'seedqr', 'recovery-seedqr.ts', 'installSeedQr'],
             ['slip39', 'slip39', 'recovery-slip39.ts', 'installSlip39'],
-            ['shamir', 'shamir-raw,shamir-words', 'recovery-shamir.ts', 'installShamir'],
+            ['shamir', 'shamir', 'recovery-shamir.ts', 'installShamir'],
             ['codex32', 'codex32', 'recovery-codex32.ts', 'installCodex32'],
+            ['sskr', 'sskr', 'recovery-sskr.ts', 'installSskr'],
+            ['gordian-envelope', 'gordian-envelope', 'recovery-gordian-envelope.ts', 'installGordianEnvelope'],
           ].filter(([feature]) => features.has(feature));
           const imports = definitions
             .map(

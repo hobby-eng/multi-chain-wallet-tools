@@ -3,7 +3,7 @@ import { bech32m } from '@scure/base';
 import { bytesToHex, bytesToNumber, concatBytes, encodeWif, numberTo32Bytes, secp256k1 } from '@ckd/core/crypto.js';
 import type { BitcoinNetwork } from '@ckd/core/networks.js';
 
-export interface TaprootDetails {
+interface TaprootDetails {
   address: string;
   internalKeyHex: string;
   tapTweakHex: string;

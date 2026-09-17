@@ -110,25 +110,10 @@
           <div class="eyebrow">__EDITION_EYEBROW__</div>
           <h1>Wallet activity, made visible.</h1>
           <p>__TOOL_INTRODUCTION__</p>
-          <div class="viewer-trust-row" aria-label="Security properties">
-            <span>Proof-verified Platform DAPI</span>
-            <span>Local note recovery</span>
-            <span>Public L1 history</span>
-          </div>
+          <div class="viewer-trust-row" aria-label="Security properties">__ACTIVITY_TRUST_ITEMS__</div>
         </div>
 
-        <aside class="viewer-capability-card" aria-label="Viewer capabilities">
-          <div class="capability-orbit" aria-hidden="true"><span></span></div>
-          <div class="capability-kicker">FOUR RESOURCE TYPES</div>
-          <h2>Verify with confidence</h2>
-          <div class="capability-list">
-            <div><span class="capability-check">✓</span><span>FVK: complete activity view</span></div>
-            <div><span class="capability-check">✓</span><span>Core: transactions and totals</span></div>
-            <div><span class="capability-check">✓</span><span>Platform: verified state + history</span></div>
-            <div><span class="capability-check">✓</span><span>Identity: keys, names + activity</span></div>
-            <div class="capability-safe"><span>✓</span><span>Read-only by design</span></div>
-          </div>
-        </aside>
+        __ACTIVITY_CAPABILITY_CARD__
       </div>
     </header>
 
@@ -398,13 +383,7 @@
         <div><span>Release date</span><code id="viewer-build-date">—</code></div>
         <div><span>Edition</span><code id="viewer-build-edition">__EDITION_NAME__</code></div>
         <div><span>Build profile</span><code id="viewer-build-profile">__BUILD_PROFILE__</code></div>
-        <div>
-          <span>Viewer runtime</span
-          ><code id="viewer-runtime"
-            >Core, Platform, Identity &amp; Orchard network reads · Orchard key processing local · Blob Worker check
-            pending</code
-          >
-        </div>
+        <div><span>Viewer runtime</span><code id="viewer-runtime">__ACTIVITY_RUNTIME_DESCRIPTION__</code></div>
         <div class="build-fingerprint">
           <span>Source/build fingerprint · SHA-256 (not the HTML checksum)</span
           ><code id="viewer-build-fingerprint">—</code>
@@ -440,10 +419,7 @@
 
     <footer>
       <div class="footer-main">
-        <p>
-          Dash Evo SDK 4.1.1 · proof-verified DAPI queries · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash
-          Platform Explorer
-        </p>
+        <p>__ACTIVITY_FOOTER_PROTOCOLS__</p>
         <p>
           No spending capability is accepted or required; private-key-like public lookup input is blocked locally.
           <span id="viewer-build-footer">Build —</span>

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { WASM_MODULES } from './wasm-modules.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
@@ -20,11 +21,10 @@ try {
 const temporary = mkdtempSync(join(tmpdir(), 'multi-chain-wallet-tools-reproducible-'));
 let container;
 
-function run(command, args, options = {}) {
+function run(command, args) {
   const result = spawnSync(command, args, {
     cwd: root,
-    encoding: options.capture === true ? 'utf8' : undefined,
-    stdio: options.capture === true ? ['ignore', 'pipe', 'inherit'] : 'inherit',
+    stdio: 'inherit',
   });
   if (result.error !== undefined) {
     if (command === 'docker' && result.error.code === 'ENOENT') {
@@ -38,7 +38,6 @@ function run(command, args, options = {}) {
     throw Object.assign(new Error(`${command} ${args[0]} failed (exit ${result.status ?? 'signal'}).`), {
       exitCode: result.status ?? 1,
     });
-  return options.capture === true ? result.stdout.trim() : '';
 }
 
 try {
@@ -61,17 +60,23 @@ try {
     image,
     '.',
   ]);
-  container = run('docker', ['create', image, '/bin/true'], { capture: true });
+  const containerIdFile = resolve(temporary, 'container-id');
+  run('docker', ['create', '--cidfile', containerIdFile, image, '/bin/true']);
+  container = readFileSync(containerIdFile, 'utf8').trim();
+  if (container.length === 0) throw new Error('Docker did not record the temporary container ID.');
   const source = wasmOnly ? '/generated/.' : '/dist/.';
   run('docker', ['cp', `${container}:${source}`, temporary]);
 
   if (wasmOnly) {
-    const destination = resolve(root, 'packages/dash-shielded-wasm/generated');
-    if (!existsSync(resolve(temporary, 'dash_shielded_wasm_bg.wasm'))) {
+    if (!existsSync(resolve(temporary, 'dash', 'dash_shielded_wasm_bg.wasm'))) {
       throw new Error('The reproducible WASM image did not contain the expected generated module.');
     }
-    rmSync(destination, { recursive: true, force: true });
-    cpSync(temporary, destination, { recursive: true });
+    for (const module of WASM_MODULES) {
+      const destination = resolve(root, 'packages', module.packageDirectory, 'generated');
+      rmSync(destination, { recursive: true, force: true });
+      cpSync(resolve(temporary, module.archiveDirectory), destination, { recursive: true });
+    }
+    cpSync(resolve(temporary, 'wasm-canonical-manifest.json'), resolve(root, 'tooling/wasm-canonical-manifest.json'));
     console.log('Replaced the committed generated WASM inputs with the canonical container build.');
   } else {
     const destination = resolve(root, 'dist');

@@ -14,11 +14,15 @@ export async function writeClipboard(value: string): Promise<void> {
     temporary.style.inset = '0 auto auto -9999px';
     temporary.style.opacity = '0';
     document.body.append(temporary);
-    temporary.select();
-    const copied = document.execCommand('copy');
-    // JavaScript strings are immutable; clearing only releases this DOM reference.
-    temporary.value = '';
-    temporary.remove();
+    let copied = false;
+    try {
+      temporary.select();
+      copied = document.execCommand('copy');
+    } finally {
+      // JavaScript strings are immutable; clearing only releases this DOM reference.
+      temporary.value = '';
+      temporary.remove();
+    }
     if (!copied) throw new Error('Clipboard access was denied by this browser.');
   }
 }

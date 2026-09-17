@@ -79,7 +79,7 @@
           aria-selected="true"
           aria-controls="derive-form"
         >
-          DERIVE &amp; GENERATE
+          GENERATE &amp; DERIVE
         </button>
         <button
           id="recovery-backup-mode"
@@ -89,7 +89,7 @@
           aria-selected="false"
           aria-controls="recovery-workspace"
         >
-          RECOVERY &amp; BACKUP
+          RECOVER &amp; BACK UP
         </button>
       </nav>
 
@@ -100,19 +100,30 @@
               <span class="step">01</span>
               <h2>Recovery seed phrase</h2>
             </div>
-            <button class="danger-outline" id="toggle-sensitive-values" type="button" aria-pressed="false">
-              Reveal recovery source
-            </button>
+            <div class="section-head-actions">
+              <details id="main-recovery-source-menu" class="recovery-source-menu">
+                <summary>Use in Recover &amp; Back Up</summary>
+                <div class="recovery-source-menu-items" aria-label="Recover and back up destination">
+                  <button type="button" data-recovery-source="main" data-recovery-target="matcher">
+                    Wallet Matcher
+                  </button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="seedqr">SeedQR</button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="slip39">
+                    SLIP-39 shares
+                  </button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="shamir">CKD Shamir</button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="sskr">SSKR</button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="gordian-envelope">
+                    Seed Envelope
+                  </button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="codex32">Codex32</button>
+                </div>
+              </details>
+              <button class="danger-outline" id="toggle-sensitive-values" type="button" aria-pressed="false">
+                Reveal recovery source
+              </button>
+            </div>
           </div>
-          <label class="feature-tab-toggle entropy-toggle" for="show-mnemonic-entropy">
-            <input id="show-mnemonic-entropy" type="checkbox" />
-            <span>Show BIP39 entropy</span>
-          </label>
-          <section id="mnemonic-entropy" class="mnemonic-entropy" hidden>
-            <div class="field-heading"><label for="mnemonic-entropy-value">BIP39 entropy · hexadecimal</label></div>
-            <textarea id="mnemonic-entropy-value" class="secret-value concealed" rows="2" readonly></textarea>
-            <p id="mnemonic-entropy-note" class="field-note"></p>
-          </section>
           <label for="mnemonic">BIP39 recovery phrase</label>
           <textarea
             id="mnemonic"
@@ -134,21 +145,6 @@
             <button class="secret-action compact" id="copy-mnemonic" type="button" disabled>
               Copy recovery phrase
             </button>
-          </div>
-          <div class="recovery-source-actions">
-            <details id="main-recovery-source-menu" class="recovery-source-menu">
-              <summary>Use in Recovery &amp; Backup</summary>
-              <div class="recovery-source-menu-items" aria-label="Recovery and backup destination">
-                <button type="button" data-recovery-source="main" data-recovery-target="matcher">Wallet Matcher</button>
-                <button type="button" data-recovery-source="main" data-recovery-target="seedqr">SeedQR</button>
-                <button type="button" data-recovery-source="main" data-recovery-target="slip39">SLIP-39 shares</button>
-                <button type="button" data-recovery-source="main" data-recovery-target="shamir-raw">Shamir Raw</button>
-                <button type="button" data-recovery-source="main" data-recovery-target="shamir-words">
-                  Shamir Words
-                </button>
-                <button type="button" data-recovery-source="main" data-recovery-target="codex32">Codex32</button>
-              </div>
-            </details>
           </div>
           <section
             id="seed-diagnostic"
@@ -302,16 +298,11 @@
         <div class="section-head">
           <div>
             <span class="step">01</span>
-            <h2>Recovery &amp; Backup</h2>
+            <h2>Recover &amp; Back Up</h2>
           </div>
           <span class="offline-badge">Offline workspace</span>
         </div>
-        <p class="feature-intro">
-          Match known addresses across supported wallet structures, or create and restore portable backup shares.
-          Secrets stay inside this standalone file.
-        </p>
-
-        <nav class="recovery-subtabs" role="tablist" aria-label="Recovery and backup function">
+        <nav class="recovery-subtabs" role="tablist" aria-label="Recover and back up function">
           <button
             class="recovery-subtab active"
             type="button"
@@ -347,20 +338,30 @@
             type="button"
             role="tab"
             aria-selected="false"
-            aria-controls="shamir-raw-panel"
+            aria-controls="shamir-panel"
             data-recovery-tab
           >
-            Shamir Raw
+            CKD Shamir
           </button>
           <button
             class="recovery-subtab"
             type="button"
             role="tab"
             aria-selected="false"
-            aria-controls="shamir-words-panel"
+            aria-controls="sskr-panel"
             data-recovery-tab
           >
-            Shamir Words
+            SSKR
+          </button>
+          <button
+            class="recovery-subtab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="gordian-envelope-panel"
+            data-recovery-tab
+          >
+            Seed Envelope
           </button>
           <button
             class="recovery-subtab"
@@ -388,10 +389,6 @@
               <p>
                 Finds which candidate recovery phrase produced a known public address and reports its coin, account,
                 branch, index, and complete derivation path. All candidates are tested locally in this file.
-              </p>
-              <p>
-                <strong>Example:</strong> enter the public test phrase “abandon … about” and one address derived from
-                it. A match such as <code>m/84'/0'/0'/0/5</code> identifies the fifth Native SegWit receive address.
               </p>
             </div>
           </details>
@@ -438,7 +435,7 @@
               </div>
             </div>
           </div>
-          <label for="matcher-addresses">Known address or addresses</label>
+          <label for="matcher-addresses">Known payment address or Dash Identity MASTER-key HASH160</label>
           <div class="numbered-textarea">
             <pre id="matcher-address-lines" aria-hidden="true"></pre>
             <textarea
@@ -449,10 +446,14 @@
               autocomplete="off"
               autocapitalize="none"
               spellcheck="false"
-              placeholder="One supported address per numbered line"
+              placeholder="One payment address or Dash Identity MASTER-key HASH160 per numbered line"
             ></textarea>
           </div>
           <div class="matcher-range-grid">
+            <div>
+              <label for="matcher-coin">Coin</label>
+              <select id="matcher-coin" aria-label="Coin to search"></select>
+            </div>
             <div>
               <label for="matcher-network">Network</label
               ><select id="matcher-network">
@@ -477,15 +478,31 @@
               ><input id="matcher-index-count" type="number" value="120" min="1" max="5000" step="1" />
             </div>
           </div>
+          <label class="feature-tab-toggle" for="matcher-search-change">
+            <input id="matcher-search-change" type="checkbox" />
+            <span>
+              <strong>Search change addresses</strong>
+              <small
+                >Also search the selected coin's internal/change branches, including Dash Core, CoinJoin, and Platform
+                where supported.</small
+              >
+            </span>
+          </label>
           <label class="feature-tab-toggle matcher-force-all" for="matcher-force-all"
             ><input id="matcher-force-all" type="checkbox" /><span
               ><strong>Search every supported coin and derivation profile</strong
               ><small
-                >Ignore automatic address-type detection and scan every coin and standard derivation path available in
-                this edition, across the account, branch, and index ranges above. This is much slower.</small
+                >By default, search all compatible paths of the selected coin. Enable this to search every coin included
+                in this build, including receive and change branches wherever supported, across the ranges above. This
+                is much slower.</small
               ></span
             ></label
           >
+          <p class="field-note">
+            Payment addresses are matched locally across the selected coin's compatible paths. For Dash Identity, enter
+            the 40-character HASH160 of the MASTER authentication public key. Finding an Identity from its Identity ID
+            or DPNS name requires the proof-verified Discovery Scanner.
+          </p>
           <div class="actions">
             <button class="primary" id="run-wallet-matcher" type="button">Find wallet matches</button
             ><button class="secondary" id="cancel-wallet-matcher" type="button" hidden>Cancel search</button>
@@ -513,19 +530,28 @@
               <h3>SeedQR</h3>
               <p>
                 Converts a BIP39 recovery phrase into a QR payload for offline transfer or paper backup. Standard SeedQR
-                stores four digits per word; CompactSeedQR stores the underlying entropy bytes.
+                stores four digits per word; CompactSeedQR stores the underlying entropy bytes. SeedSigner documents 12-
+                and 24-word payloads; 15-, 18-, and 21-word payloads work here but may not be accepted by external
+                readers.
               </p>
-              <p>
-                <strong>Example:</strong> the public test phrase “abandon … about” becomes 48 decimal digits in Standard
-                mode. This is encoding, not encryption: anyone who scans the QR obtains the wallet secret.
+              <p class="upstream-links">
+                Open-source specifications and modules are used. Source code is available from
+                <a
+                  href="https://github.com/SeedSigner/seedsigner/tree/dev/docs/seed_qr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >SeedSigner SeedQR</a
+                >, <a href="https://github.com/unjs/uqr" target="_blank" rel="noopener noreferrer">uqr</a> for QR
+                encoding, and
+                <a href="https://github.com/paulmillr/qr" target="_blank" rel="noopener noreferrer">paulmillr/qr</a> for
+                QR decoding. Every build verifies locked dependency checksums. When GitHub is available, it also
+                verifies the exact pinned upstream commits; a mismatch stops the build.
               </p>
             </div>
           </details>
           <p class="field-note">
-            Standard SeedQR encodes four decimal digits per BIP39 English word. CompactSeedQR encodes the underlying
-            entropy bytes. Both modes accept every standard 12-, 15-, 18-, 21-, and 24-word English BIP39 phrase.
-            SeedSigner documents 12- and 24-word payloads; intermediate lengths work within this tool but may not be
-            accepted by every external SeedQR implementation.
+            Encode or decode 12-, 15-, 18-, 21-, or 24-word English BIP39 phrases. Check external-reader compatibility
+            in “What is this?”.
           </p>
           <div class="warning-callout">
             <strong>Secret QR.</strong> Anyone who scans this QR can recover the wallet. Do not photograph, upload, or
@@ -627,9 +653,12 @@
                 Splits secret entropy into standardized mnemonic shares with a threshold. In a 2-of-3 set, any two cards
                 recover the secret while one card is insufficient. Each share uses the separate SLIP-39 wordlist.
               </p>
-              <p>
-                <strong>Example:</strong> “abandon … about” can become three unrelated-looking SLIP-39 cards. Combining
-                card 1 with card 3 reconstructs the original BIP39 words in this workspace.
+              <p class="upstream-links">
+                An open-source reference implementation and its official vectors are used. Source code is available from
+                <a href="https://github.com/trezor/python-shamir-mnemonic" target="_blank" rel="noopener noreferrer"
+                  >Trezor python-shamir-mnemonic</a
+                >. The browser port is maintained by this project. Every build verifies locked dependency checksums.
+                When GitHub is available, it also verifies the exact pinned upstream commit; a mismatch stops the build.
               </p>
             </div>
           </details>
@@ -743,7 +772,7 @@
           </section>
         </section>
         <section
-          id="shamir-raw-panel"
+          id="shamir-panel"
           class="panel recovery-panel backup-method"
           role="tabpanel"
           data-recovery-panel
@@ -752,34 +781,34 @@
           <div class="section-head">
             <div>
               <span class="step">02</span>
-              <h2>Shamir Raw</h2>
+              <h2>CKD Shamir</h2>
             </div>
           </div>
           <details class="recovery-help">
             <summary>What is this?</summary>
             <div class="recovery-help-popover">
-              <h3>Shamir Raw</h3>
+              <h3>CKD Shamir</h3>
               <p>
-                Uses the pinned Rust sharks implementation to split BIP39 entropy with Shamir Secret Sharing. Cards are
-                compact Base64URL strings protected by CKD version, set, length, and checksum metadata.
+                Splits BIP39 entropy with Shamir Secret Sharing. Raw uses compact Base64URL records; Words encodes the
+                same records with the BIP39 English list. Both are versioned custom CKD formats, not wallet mnemonics.
               </p>
-              <p>
-                <strong>Example:</strong> a 2-of-3 split of “abandon … about” creates three opaque cards. Any two
-                restore the phrase here; one card reveals no usable wallet seed. This is a CKD format, not SLIP-39.
+              <p class="upstream-links">
+                An open-source module is used for GF(256) Shamir arithmetic. Source code is available from
+                <a href="https://github.com/c0dearm/sharks" target="_blank" rel="noopener noreferrer">sharks</a>. The
+                versioned CKD envelope and both display encodings are maintained by this project. Every build verifies
+                locked dependency checksums. When GitHub is available, it also verifies the exact pinned upstream
+                commit; a mismatch stops the build.
               </p>
             </div>
           </details>
-          <p class="field-note">
-            Uses the pinned Rust sharks GF(256) implementation. Shares are versioned Base64URL records for files, QR
-            codes, or exact copy/paste.
-          </p>
-          <nav class="backup-mode-tabs" role="tablist" aria-label="Shamir Raw operation">
+          <p class="field-note">Choose the representation independently when creating or restoring cards.</p>
+          <nav class="backup-mode-tabs" role="tablist" aria-label="CKD Shamir operation">
             <button
               class="backup-mode-tab active"
               type="button"
               role="tab"
               aria-selected="true"
-              aria-controls="shamir-raw-create-panel"
+              aria-controls="shamir-create-panel"
               data-operation-tab
             >
               Encode
@@ -789,70 +818,184 @@
               type="button"
               role="tab"
               aria-selected="false"
-              aria-controls="shamir-raw-restore-panel"
+              aria-controls="shamir-restore-panel"
               data-operation-tab
             >
               Decode
             </button>
           </nav>
-          <section id="shamir-raw-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
+          <section id="shamir-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
             <div class="field-heading-row">
-              <label for="shamir-raw-source">BIP39 recovery phrase to back up</label
-              ><button id="toggle-shamir-raw-source" class="danger-outline compact" type="button" aria-pressed="false">
+              <label for="shamir-source">BIP39 recovery phrase to back up</label>
+              <button id="toggle-shamir-source" class="danger-outline compact" type="button" aria-pressed="false">
                 Reveal source phrase
               </button>
             </div>
             <textarea
-              id="shamir-raw-source"
+              id="shamir-source"
               class="concealed"
               rows="4"
               autocomplete="off"
               autocapitalize="none"
               placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
             ></textarea>
+            <div>
+              <label for="shamir-create-format">Share encoding</label>
+              <select id="shamir-create-format">
+                <option value="raw">Raw · compact Base64URL</option>
+                <option value="words">Words · BIP39 English word encoding</option>
+              </select>
+            </div>
             <div class="backup-options-grid two-options">
               <div>
-                <label for="shamir-raw-threshold">Shares required</label
-                ><input id="shamir-raw-threshold" type="number" value="2" min="2" max="255" step="1" />
+                <label for="shamir-threshold">Shares required</label>
+                <input id="shamir-threshold" type="number" value="2" min="2" max="255" step="1" />
               </div>
               <div>
-                <label for="shamir-raw-count">Shares created</label
-                ><input id="shamir-raw-count" type="number" value="3" min="2" max="255" step="1" />
+                <label for="shamir-count">Shares created</label>
+                <input id="shamir-count" type="number" value="3" min="2" max="255" step="1" />
               </div>
             </div>
             <div class="warning-callout">
-              <strong>Format boundary.</strong> CKD Shamir Raw is not SLIP-39 and is not a native wallet import format.
-              Keep each complete versioned record.
+              <strong>Custom CKD format.</strong> Raw and Words represent custom CKD Shamir cards. They cannot be
+              restored by SLIP-39, SSKR, Codex32, or ordinary wallet software. Preserve every selected card in full.
             </div>
             <div class="actions">
-              <button class="primary" id="create-shamir-raw" type="button">Create Shamir Raw shares</button
-              ><button id="toggle-shamir-raw-created" class="danger-outline" type="button" aria-pressed="false">
+              <button class="primary" id="create-shamir" type="button">Create CKD Shamir shares</button>
+              <button id="toggle-shamir-created" class="danger-outline" type="button" aria-pressed="false">
                 Reveal created shares
               </button>
             </div>
-            <div id="shamir-raw-create-result" class="share-results" role="status" aria-live="polite"></div>
+            <div id="shamir-create-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
-          <section id="shamir-raw-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+          <section id="shamir-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+            <div>
+              <label for="shamir-restore-format">Share encoding</label>
+              <select id="shamir-restore-format">
+                <option value="raw">Raw · compact Base64URL</option>
+                <option value="words">Words · BIP39 English word encoding</option>
+              </select>
+            </div>
             <div class="field-heading-row">
-              <label for="shamir-raw-shares">Shamir Raw shares</label
-              ><button id="toggle-shamir-raw-shares" class="danger-outline compact" type="button" aria-pressed="false">
+              <label for="shamir-shares">CKD Shamir shares</label>
+              <button id="toggle-shamir-shares" class="danger-outline compact" type="button" aria-pressed="false">
                 Reveal entered shares
               </button>
             </div>
             <textarea
-              id="shamir-raw-shares"
+              id="shamir-shares"
               class="concealed"
               rows="10"
               autocomplete="off"
               autocapitalize="none"
               placeholder="One complete share per line"
             ></textarea>
-            <button class="primary" id="restore-shamir-raw" type="button">Restore BIP39 phrase</button>
-            <div id="shamir-raw-restore-result" class="share-results" role="status" aria-live="polite"></div>
+            <button class="primary" id="restore-shamir" type="button">Restore BIP39 phrase</button>
+            <div id="shamir-restore-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+        </section>
+        <section id="sskr-panel" class="panel recovery-panel backup-method" role="tabpanel" data-recovery-panel hidden>
+          <div class="section-head">
+            <div>
+              <span class="step">02</span>
+              <h2>SSKR · Blockchain Commons</h2>
+            </div>
+          </div>
+          <details class="recovery-help">
+            <summary>What is this?</summary>
+            <div class="recovery-help-popover">
+              <h3>SSKR</h3>
+              <p>
+                Interoperable Sharded Secret Key Reconstruction with share thresholds inside groups and a threshold
+                across groups. Encode and Decode support Compact UR and full Bytewords representations of the same
+                standard SSKR share.
+              </p>
+              <p>
+                SSKR splits a secret; it does not encrypt one. To protect mnemonic entropy together with its BIP39
+                passphrase, use Seed Envelope with an SSKR permit.
+              </p>
+              <p class="upstream-links">
+                An open-source module is used for standard SSKR and Bytewords support. Source code is available from
+                <a href="https://github.com/BlockchainCommons/bc-sskr-rust" target="_blank" rel="noopener noreferrer"
+                  >Blockchain Commons bc-sskr-rust</a
+                >. Every build verifies locked dependency checksums. When GitHub is available, it also verifies the
+                exact pinned upstream commit; a mismatch stops the build.
+              </p>
+            </div>
+          </details>
+          <p class="field-note">
+            Splits BIP39 entropy with the Blockchain Commons SSKR format. It is separate from CKD Shamir and SLIP-39.
+          </p>
+          <nav class="backup-mode-tabs" role="tablist" aria-label="SSKR operation">
+            <button
+              class="backup-mode-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="sskr-create-panel"
+              data-operation-tab
+            >
+              Encode</button
+            ><button
+              class="backup-mode-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="sskr-restore-panel"
+              data-operation-tab
+            >
+              Decode
+            </button>
+          </nav>
+          <section id="sskr-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
+            <label for="sskr-source">BIP39 recovery phrase</label
+            ><textarea id="sskr-source" class="concealed" rows="4"></textarea
+            ><button id="toggle-sskr-source" class="danger-outline compact" type="button">Reveal source phrase</button>
+            <div>
+              <label for="sskr-create-encoding">Share encoding</label>
+              <select id="sskr-create-encoding">
+                <option value="compact-ur">Compact UR · best for QR</option>
+                <option value="bytewords">Bytewords · full words</option>
+              </select>
+              <p class="field-note">Both choices carry the same standard SSKR share data.</p>
+            </div>
+            <div class="form-grid">
+              <div>
+                <label for="sskr-group-threshold">Groups required</label
+                ><input id="sskr-group-threshold" type="number" min="1" max="16" value="1" />
+              </div>
+              <div>
+                <span class="field-label">Share groups</span>
+                <div id="sskr-groups" class="threshold-group-editor"></div>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="create-sskr" class="primary" type="button">Create SSKR shares</button
+              ><button id="toggle-sskr-created" class="danger-outline compact" type="button">
+                Reveal created shares
+              </button>
+            </div>
+            <div id="sskr-create-result" class="share-results"></div>
+          </section>
+          <section id="sskr-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+            <div>
+              <label for="sskr-restore-encoding">Share encoding</label>
+              <select id="sskr-restore-encoding">
+                <option value="compact-ur">Compact UR</option>
+                <option value="bytewords">Bytewords · full words</option>
+              </select>
+            </div>
+            <label for="sskr-shares">SSKR shares</label
+            ><textarea id="sskr-shares" class="concealed" rows="7"></textarea>
+            <div class="actions">
+              <button id="toggle-sskr-shares" class="danger-outline compact" type="button">Reveal entered shares</button
+              ><button id="restore-sskr" class="primary" type="button">Restore SSKR secret</button>
+            </div>
+            <div id="sskr-restore-result"></div>
           </section>
         </section>
         <section
-          id="shamir-words-panel"
+          id="gordian-envelope-panel"
           class="panel recovery-panel backup-method"
           role="tabpanel"
           data-recovery-panel
@@ -861,115 +1004,169 @@
           <div class="section-head">
             <div>
               <span class="step">02</span>
-              <h2>Shamir Words</h2>
+              <h2>Gordian Seed Envelope</h2>
             </div>
           </div>
           <details class="recovery-help">
             <summary>What is this?</summary>
             <div class="recovery-help-popover">
-              <h3>Shamir Words</h3>
+              <h3>Gordian Seed Envelope</h3>
               <p>
-                Uses the same pinned Rust Shamir shares as Raw mode, then represents each checksummed CKD envelope with
-                familiar English BIP39 vocabulary for easier transcription.
+                Stores BIP39 entropy in a typed Gordian Envelope. One encrypted container can be opened by a password,
+                recipient private keys, or an SSKR quorum. Password permits use the pinned Blockchain Commons Argon2id
+                profile: 19 MiB memory, 2 iterations, 1 lane, a random per-permit salt, and a 32-byte derived key.
               </p>
-              <p>
-                <strong>Example:</strong> a 2-of-3 split of “abandon … about” produces three word cards. Any two restore
-                the original phrase here. A single card is not a valid BIP39 mnemonic and must not be imported alone.
+              <p class="upstream-links">
+                Open-source modules are used. Source code is available from
+                <a
+                  href="https://github.com/BlockchainCommons/bc-envelope-rust"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >bc-envelope-rust</a
+                >
+                and
+                <a
+                  href="https://github.com/BlockchainCommons/bc-components-rust"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >bc-components-rust</a
+                >. Every build verifies locked dependency checksums. When GitHub is available, it also verifies the
+                exact pinned upstream commits; a mismatch stops the build.
               </p>
             </div>
           </details>
           <p class="field-note">
-            Uses the same pinned Rust sharks shares, encoded with familiar words from the BIP39 English list for
-            transcription.
+            Uses the Blockchain Commons Seed Envelope profile, deterministic CBOR and UR transport. Recipient keys use
+            X25519.
           </p>
-          <nav class="backup-mode-tabs" role="tablist" aria-label="Shamir Words operation">
+          <nav class="backup-mode-tabs" role="tablist" aria-label="Seed Envelope operation">
             <button
               class="backup-mode-tab active"
               type="button"
               role="tab"
               aria-selected="true"
-              aria-controls="shamir-words-create-panel"
+              aria-controls="gordian-envelope-create-panel"
               data-operation-tab
             >
-              Encode
-            </button>
-            <button
+              Encode</button
+            ><button
               class="backup-mode-tab"
               type="button"
               role="tab"
               aria-selected="false"
-              aria-controls="shamir-words-restore-panel"
+              aria-controls="gordian-envelope-restore-panel"
               data-operation-tab
             >
               Decode
             </button>
           </nav>
-          <section id="shamir-words-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
-            <div class="field-heading-row">
-              <label for="shamir-words-source">BIP39 recovery phrase to back up</label
-              ><button
-                id="toggle-shamir-words-source"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
-                Reveal source phrase
+          <section id="gordian-envelope-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
+            <label for="envelope-source">BIP39 recovery phrase</label
+            ><textarea id="envelope-source" class="concealed" rows="4"></textarea
+            ><button id="toggle-envelope-source" class="danger-outline compact" type="button">
+              Reveal source phrase
+            </button>
+            <div class="form-grid">
+              <div><label for="envelope-name">Name · optional</label><input id="envelope-name" type="text" /></div>
+              <div><label for="envelope-note">Note · optional</label><input id="envelope-note" type="text" /></div>
+              <div>
+                <label for="envelope-password">Container password · optional</label
+                ><input id="envelope-password" type="password" autocomplete="new-password" />
+              </div>
+              <div>
+                <label for="envelope-public-keys">Recipient public keys · optional, one UR per line</label
+                ><textarea id="envelope-public-keys" rows="3"></textarea>
+              </div>
+              <div>
+                <label for="envelope-group-threshold">SSKR groups required</label
+                ><input id="envelope-group-threshold" type="number" min="1" max="16" value="1" />
+              </div>
+              <div>
+                <span class="field-label">SSKR permit groups · optional</span>
+                <div id="envelope-sskr-groups" class="threshold-group-editor"></div>
+              </div>
+            </div>
+            <details>
+              <summary>Derive recipient key pair</summary>
+              <label for="envelope-recipient-source">Key source</label>
+              <select id="envelope-recipient-source">
+                <option value="current">Current or linked wallet</option>
+                <option value="manual">Manually entered BIP39 phrase</option>
+              </select>
+              <div id="envelope-current-recipient-source">
+                <label for="envelope-bip39-passphrase">BIP39 passphrase</label>
+                <input id="envelope-bip39-passphrase" type="password" autocomplete="off" />
+              </div>
+              <div id="envelope-manual-recipient-source" hidden>
+                <label for="envelope-recipient-mnemonic">BIP39 recovery phrase</label>
+                <textarea id="envelope-recipient-mnemonic" class="concealed" rows="4" autocomplete="off"></textarea>
+                <button id="toggle-envelope-recipient-mnemonic" class="danger-outline compact" type="button">
+                  Reveal recipient source phrase
+                </button>
+                <label for="envelope-recipient-manual-passphrase">BIP39 passphrase</label>
+                <input id="envelope-recipient-manual-passphrase" type="password" autocomplete="off" />
+              </div>
+              <p class="field-note">
+                Uses the complete 64-byte BIP39 seed and the official Blockchain Commons X25519 derivation. A key
+                derived from the protected wallet is convenient access control, but it is not an independent backup.
+              </p>
+              <button id="derive-envelope-recipient" class="danger-outline compact" type="button">
+                Derive recipient key pair
               </button>
-            </div>
-            <textarea
-              id="shamir-words-source"
-              class="concealed"
-              rows="4"
-              autocomplete="off"
-              autocapitalize="none"
-              placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
-            ></textarea>
-            <div class="backup-options-grid two-options">
-              <div>
-                <label for="shamir-words-threshold">Shares required</label
-                ><input id="shamir-words-threshold" type="number" value="2" min="2" max="255" step="1" />
-              </div>
-              <div>
-                <label for="shamir-words-count">Shares created</label
-                ><input id="shamir-words-count" type="number" value="3" min="2" max="255" step="1" />
-              </div>
-            </div>
+            </details>
             <div class="warning-callout">
-              <strong>Format boundary.</strong> The words encode a CKD Shamir share; they are not valid BIP39 seed
-              phrases and are not compatible with SLIP-39.
+              <label class="feature-tab-toggle" for="envelope-include-passphrase">
+                <input id="envelope-include-passphrase" type="checkbox" />
+                <span>
+                  <strong>Include the BIP39 passphrase in encrypted content</strong>
+                  <small
+                    >Anyone who satisfies any password, recipient, or SSKR permit obtains both recovery factors. This
+                    CKD assertion is not interpreted by ordinary wallet software.</small
+                  >
+                </span>
+              </label>
+              <div id="envelope-included-passphrase-field" hidden>
+                <label for="envelope-included-passphrase">BIP39 passphrase to protect</label>
+                <input id="envelope-included-passphrase" type="password" autocomplete="off" />
+              </div>
             </div>
             <div class="actions">
-              <button class="primary" id="create-shamir-words" type="button">Create Shamir Words shares</button
-              ><button id="toggle-shamir-words-created" class="danger-outline" type="button" aria-pressed="false">
-                Reveal created shares
+              <button id="create-envelope" class="primary" type="button">Create Seed Envelope</button
+              ><button id="toggle-envelope-created" class="danger-outline compact" type="button">
+                Reveal created records
               </button>
             </div>
-            <div id="shamir-words-create-result" class="share-results" role="status" aria-live="polite"></div>
+            <div id="envelope-create-result" class="share-results"></div>
           </section>
-          <section id="shamir-words-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
-            <div class="field-heading-row">
-              <label for="shamir-words-shares">Shamir Words shares</label
-              ><button
-                id="toggle-shamir-words-shares"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
-                Reveal entered shares
-              </button>
-            </div>
-            <textarea
-              id="shamir-words-shares"
+          <section
+            id="gordian-envelope-restore-panel"
+            class="backup-operation"
+            role="tabpanel"
+            data-operation-panel
+            hidden
+          >
+            <label for="envelope-records">Envelope or SSKR Envelope records</label
+            ><textarea id="envelope-records" class="concealed" rows="7"></textarea
+            ><button id="toggle-envelope-records" class="danger-outline compact" type="button">
+              Reveal entered secrets
+            </button>
+            <label for="envelope-unlock-password">Password · optional</label
+            ><input id="envelope-unlock-password" type="password" /><label for="envelope-private-key"
+              >Recipient private key · optional</label
+            ><textarea
+              id="envelope-private-key"
               class="concealed"
-              rows="10"
+              rows="3"
               autocomplete="off"
-              autocapitalize="none"
-              placeholder="One complete share per line"
+              spellcheck="false"
             ></textarea>
-            <button class="primary" id="restore-shamir-words" type="button">Restore BIP39 phrase</button>
-            <div id="shamir-words-restore-result" class="share-results" role="status" aria-live="polite"></div>
+            <div class="actions">
+              <button id="restore-envelope" class="primary" type="button">Open Seed Envelope</button>
+            </div>
+            <div id="envelope-restore-result"></div>
           </section>
         </section>
+
         <section
           id="codex32-panel"
           class="panel recovery-panel backup-method"
@@ -991,9 +1188,12 @@
                 Encodes secret bytes in a checksummed, error-correcting Bech32-style string and can optionally split
                 them with Codex32 native shares. This workspace supports BIP39 entropy and BIP32 master-seed modes.
               </p>
-              <p>
-                <strong>Example:</strong> entropy mode can encode “abandon … about” and later restore its words.
-                Master-seed mode first applies the BIP39 passphrase and cannot be reversed back into the mnemonic.
+              <p class="upstream-links">
+                An open-source Rust module and its BIP93 vectors are used. Source code is available from
+                <a href="https://github.com/apoelstra/rust-codex32" target="_blank" rel="noopener noreferrer"
+                  >apoelstra/rust-codex32</a
+                >. Every build verifies locked dependency checksums. When GitHub is available, it also verifies the
+                exact pinned upstream commit; a mismatch stops the build.
               </p>
             </div>
           </details>
@@ -1054,11 +1254,19 @@
                 <input
                   id="codex32-identifier"
                   type="text"
-                  value="seed"
+                  value="safe"
                   maxlength="4"
+                  minlength="4"
+                  pattern="[023456789acdefghjklmnpqrstuvwxyz]{4}"
                   autocapitalize="none"
                   autocomplete="off"
+                  spellcheck="false"
+                  aria-describedby="codex32-identifier-help"
                 />
+                <p id="codex32-identifier-help" class="field-note">
+                  Public label that keeps records from different sets together. Use four Bech32 characters; b, i, o, and
+                  1 are unavailable. Examples: safe, fund, cash, 2026.
+                </p>
               </div>
               <div>
                 <label for="codex32-threshold">Shares required</label>
@@ -1400,8 +1608,9 @@
       <p class="field-note passport-dependencies">
         <strong>Embedded dependency versions and licenses:</strong> Noble Curves/Hashes 2.4.0 and Scure Base/BIP32/BIP39
         2.4.0 — MIT; uqr 0.1.3 — MIT; qr 0.7.0 — MIT OR Apache-2.0. Dash Orchard 0.14.0, official dashified-0.14.1
-        commit 38ac9c19a2df7bf3eeadc22ab23053e8fd538828; wasm-bindgen 0.2.128; ZIP32 0.2.1 — MIT or Apache-2.0. Full
-        notices and the complete locked closure are in the source distribution.
+        commit 38ac9c19a2df7bf3eeadc22ab23053e8fd538828; Blockchain Commons sskr 0.12.0, bc-envelope 0.43.0, and
+        bc-components 0.31.1 — BSD-2-Clause-Patent; wasm-bindgen 0.2.128; ZIP32 0.2.1 — MIT or Apache-2.0. Full notices
+        and the complete locked closure are in the source distribution.
       </p>
       <p class="field-note">
         <strong>Upstream attribution:</strong> Dash Shielded support uses the open-source Dash Platform Orchard fork and

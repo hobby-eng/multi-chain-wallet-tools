@@ -39,7 +39,7 @@ export interface PlatformAddressHistorySnapshot {
   requests: number;
 }
 
-export interface PlatformHistoryProvider {
+interface PlatformHistoryProvider {
   readonly id: string;
   readonly displayName: string;
   endpoint(network: ViewerNetwork): string;
@@ -192,7 +192,7 @@ async function queryPlatformExplorer(
   };
 }
 
-export const PLATFORM_EXPLORER_PROVIDER: PlatformHistoryProvider = {
+const PLATFORM_EXPLORER_PROVIDER: PlatformHistoryProvider = {
   id: 'platform-explorer',
   displayName: 'Dash Platform Explorer',
   endpoint(network) {

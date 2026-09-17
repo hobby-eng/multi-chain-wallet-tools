@@ -11,7 +11,7 @@ const SHARE_INDICES = 'acdefghjklmnpqrtuvwxyz023456789'.split('');
 const IDENTIFIER = /^[023456789acdefghjklmnpqrstuvwxyz]{4}$/u;
 let initialized = false;
 
-export interface Codex32Backup {
+interface Codex32ShareSet {
   readonly identifier: string;
   readonly threshold: number;
   readonly shares: readonly string[];
@@ -32,7 +32,9 @@ function validateSeedLength(seed: Uint8Array): void {
 function validateIdentifier(value: string): string {
   const identifier = value.trim().toLowerCase();
   if (!IDENTIFIER.test(identifier)) {
-    throw new Error('Codex32 identifier must contain exactly four lowercase Bech32 characters.');
+    throw new Error(
+      'Codex32 identifier must contain exactly four Bech32 characters; b, i, o, and 1 are not available.',
+    );
   }
   return identifier;
 }
@@ -66,12 +68,12 @@ function callCodex32<T>(action: string, operation: () => T): T {
   }
 }
 
-export function createCodex32Backup(
+export function createCodex32Shares(
   masterSeed: Uint8Array,
   identifierInput: string,
   threshold: number,
   count: number,
-): Codex32Backup {
+): Codex32ShareSet {
   validateSeedLength(masterSeed);
   const identifier = validateIdentifier(identifierInput);
   initialize();
@@ -109,7 +111,7 @@ export function createCodex32Backup(
   }
 }
 
-export function recoverCodex32Seed(values: readonly string[]): Uint8Array {
+export function recoverCodex32Shares(values: readonly string[]): Uint8Array {
   const shares = values.map((value) => value.trim()).filter(Boolean);
   if (shares.length === 0) throw new Error('Enter at least one Codex32 secret or share.');
   initialize();

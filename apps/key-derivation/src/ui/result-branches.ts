@@ -5,7 +5,7 @@ import { selectAll } from './selection.js';
 export type ResultBranch = 'receive' | 'change' | 'coinjoin-external' | 'coinjoin-internal';
 
 /** Top-level result tab a branch belongs to. CoinJoin's two branches share one tab. */
-export type ResultBranchGroup = 'receive' | 'change' | 'coinjoin';
+type ResultBranchGroup = 'receive' | 'change' | 'coinjoin';
 
 export interface ResultBranchPlan {
   kind: ResultBranch;
@@ -27,10 +27,6 @@ export interface BranchResultState {
 
 export function resultBranchGroup(branch: ResultBranch): ResultBranchGroup {
   return branch === 'coinjoin-external' || branch === 'coinjoin-internal' ? 'coinjoin' : branch;
-}
-
-export function isCoinJoinResultBranch(branch: ResultBranch): boolean {
-  return resultBranchGroup(branch) === 'coinjoin';
 }
 
 /** Protocol-neutral branch plan driven only by adapter metadata. */

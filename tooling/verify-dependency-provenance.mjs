@@ -42,6 +42,24 @@ const GITHUB_SOURCES = [
     reference: 'SeedQR documentation revision',
     commit: '85cd9a0211eeb22962a5e65ba349ef6efa91bb57',
   },
+  {
+    id: 'sskr-0.12.0',
+    repository: 'BlockchainCommons/bc-sskr-rust',
+    reference: 'crates.io 0.12.0 VCS revision',
+    commit: '177cd9305c152b6cc1b9768651e65e7d563b4e8e',
+  },
+  {
+    id: 'bc-envelope-0.43.0',
+    repository: 'BlockchainCommons/bc-envelope-rust',
+    reference: 'crates.io 0.43.0 VCS revision',
+    commit: 'bae6880035bcd14c0d149d4eb42082b0069edb83',
+  },
+  {
+    id: 'bc-components-0.31.1',
+    repository: 'BlockchainCommons/bc-components-rust',
+    reference: 'crates.io 0.31.1 VCS revision',
+    commit: 'd843f5d8f66330eaa4471662d57f5c1bebfd0c7c',
+  },
 ];
 
 const LOCAL_IMPLEMENTATIONS = [
@@ -77,6 +95,24 @@ const LOCAL_IMPLEMENTATIONS = [
       'packages/recovery-backup/src/codex32.ts',
       'packages/recovery-backup/tests/codex32.test.ts',
       'packages/recovery-backup/tests/fixtures/bip93-vectors.json',
+    ],
+  },
+  {
+    id: 'sskr-codec',
+    upstream: 'sskr-0.12.0',
+    files: [
+      'packages/recovery-sskr-wasm/rust/src/lib.rs',
+      'packages/recovery-backup/src/sskr.ts',
+      'packages/recovery-backup/src/self-test-sskr.ts',
+    ],
+  },
+  {
+    id: 'gordian-seed-envelope',
+    upstream: 'bc-envelope-0.43.0',
+    files: [
+      'packages/recovery-envelope-wasm/rust/src/lib.rs',
+      'packages/recovery-backup/src/gordian-envelope.ts',
+      'packages/recovery-backup/src/self-test-gordian-envelope.ts',
     ],
   },
   {
@@ -176,6 +212,8 @@ export async function verifyDependencyProvenance({
     'packages/dash-shielded-wasm/rust/Cargo.lock',
     'packages/recovery-shamir-wasm/rust/Cargo.lock',
     'packages/recovery-codex32-wasm/rust/Cargo.lock',
+    'packages/recovery-sskr-wasm/rust/Cargo.lock',
+    'packages/recovery-envelope-wasm/rust/Cargo.lock',
   ];
   const cargoPackages = cargoLockPaths.reduce(
     (count, path) => count + verifyCargoLock(readFileSync(resolve(root, path), 'utf8'), path),
@@ -189,13 +227,13 @@ export async function verifyDependencyProvenance({
   for (const result of github) {
     if (result.status === 'unavailable') {
       logger.warn(
-        'WARNING: upstream hash verification was unavailable for ' +
+        'WARNING: upstream commit availability verification was unavailable for ' +
           result.id +
           ' (' +
           result.commit +
           '): ' +
           result.detail +
-          '. Locked local checksums remain mandatory.',
+          '. Package-manager integrity pins remain mandatory, and local source hashes are recorded in the verification evidence.',
       );
     }
   }
@@ -216,7 +254,7 @@ export async function verifyDependencyProvenance({
     writeFileSync(target, JSON.stringify(report, null, 2) + '\n');
   }
   logger.log(
-    'Verified locked dependency hashes for ' +
+    'Validated package-manager integrity pins for ' +
       pnpmPackages +
       ' pnpm packages and ' +
       cargoPackages +

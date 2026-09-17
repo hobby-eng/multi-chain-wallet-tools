@@ -1,5 +1,5 @@
 /** Applies to first-party HTTP JSON adapters, not the SDK's proof transport. */
-export const MAX_PROVIDER_JSON_BYTES = 8 * 1024 * 1024;
+const MAX_PROVIDER_JSON_BYTES = 8 * 1024 * 1024;
 
 export async function readProviderJson(
   response: Response,

@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifyWasmIntegrityManifest } from './verify-wasm-integrity.mjs';
+import { WASM_MODULES } from './wasm-modules.mjs';
 
 export const CANONICAL_WASM_BINDGEN_VERSION = '0.2.128';
 
@@ -59,15 +61,25 @@ export function assertCanonicalWasmBindgenProducer(bytes, label = 'WASM module')
 }
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const modules = [
-  ['Dash Orchard WASM', 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm'],
-  ['Shamir WASM', 'packages/recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm'],
-  ['Codex32 WASM', 'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm'],
-];
-
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  for (const [label, relativePath] of modules) {
-    assertCanonicalWasmBindgenProducer(readFileSync(resolve(root, relativePath)), label);
+  verifyWasmIntegrityManifest();
+  for (const module of WASM_MODULES) {
+    const relativePath = `packages/${module.packageDirectory}/generated/${module.stem}_bg.wasm`;
+    assertCanonicalWasmBindgenProducer(readFileSync(resolve(root, relativePath)), module.label);
   }
-  console.log(`Verified canonical wasm-bindgen producer metadata for ${modules.length} WASM modules.`);
+  for (const stem of [
+    'recovery-shamir-wasm/generated/recovery_shamir_wasm',
+    'recovery-codex32-wasm/generated/recovery_codex32_wasm',
+    'recovery-sskr-wasm/generated/recovery_sskr_wasm',
+    'recovery-envelope-wasm/generated/recovery_envelope_wasm',
+  ]) {
+    const declaration = readFileSync(resolve(root, 'packages', `${stem}.d.ts`), 'utf8');
+    const glue = readFileSync(resolve(root, 'packages', `${stem}.js`), 'utf8');
+    if (/__wbg_init|export\s+default/u.test(declaration) || /__wbg_init|export\s+default/u.test(glue)) {
+      throw new Error(`${stem} advertises an unavailable async or default WASM initializer.`);
+    }
+  }
+  console.log(
+    `Verified canonical wasm-bindgen producer metadata for ${WASM_MODULES.length} WASM modules and offline-only recovery declarations.`,
+  );
 }

@@ -7,7 +7,7 @@ import { concatBytes, encodeP2pkh, hash160, secp256k1, wipe } from './crypto.js'
 const base58check = createBase58check(sha256);
 const SCRYPT_OPTIONS = { N: 16384, r: 8, p: 8, dkLen: 64 } as const;
 
-export interface Bip38Network {
+interface Bip38Network {
   p2pkh: number;
 }
 

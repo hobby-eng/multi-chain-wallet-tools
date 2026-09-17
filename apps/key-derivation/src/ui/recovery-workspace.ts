@@ -8,7 +8,7 @@ interface RecoveryWorkspaceOptions {
   readonly detectTargets: WalletMatcherTargetDetector;
   readonly mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array;
   readonly writeClipboard: (value: string) => Promise<void>;
-  readonly useMnemonicInDeriver: (mnemonic: string) => void;
+  readonly useMnemonicInDeriver: (mnemonic: string, passphrase?: string) => void;
 }
 export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): RecoverySourceReceiver {
   const cryptoActions = [...document.querySelectorAll<HTMLButtonElement>('#recovery-workspace button.primary')];
@@ -17,6 +17,22 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
   };
   setCryptoEnabled(false);
   installTabs(document, '[data-recovery-tab]', '[data-recovery-panel]');
+  document.addEventListener('pointerdown', (event) => {
+    if (!(event.target instanceof Node)) return;
+    for (const help of document.querySelectorAll<HTMLDetailsElement>(
+      '.recovery-help[open], .linked-source-help[open], .threshold-group-help[open]',
+    )) {
+      if (!help.contains(event.target)) help.open = false;
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      for (const help of document.querySelectorAll<HTMLDetailsElement>(
+        '.recovery-help[open], .linked-source-help[open], .threshold-group-help[open]',
+      ))
+        help.open = false;
+    }
+  });
   for (const method of document.querySelectorAll<HTMLElement>('.backup-method')) {
     installTabs(method, '[data-operation-tab]', '[data-operation-panel]');
   }
@@ -26,16 +42,18 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     matcher: 'wallet-matcher-panel',
     seedqr: 'seedqr-panel',
     slip39: 'slip39-panel',
-    'shamir-raw': 'shamir-raw-panel',
-    'shamir-words': 'shamir-words-panel',
+    shamir: 'shamir-panel',
     codex32: 'codex32-panel',
+    sskr: 'sskr-panel',
+    'gordian-envelope': 'gordian-envelope-panel',
   };
   const sourceSelectors: Readonly<Record<Exclude<RecoverySourceTarget, 'matcher'>, string>> = {
     seedqr: '#seedqr-source',
     slip39: '#slip39-source-mnemonic',
-    'shamir-raw': '#shamir-raw-source',
-    'shamir-words': '#shamir-words-source',
+    shamir: '#shamir-source',
     codex32: '#codex32-source',
+    sskr: '#sskr-source',
+    'gordian-envelope': '#envelope-source',
   };
 
   function manualSourceElements(target: RecoverySourceTarget): HTMLElement[] {
@@ -46,9 +64,10 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     const input = required<HTMLTextAreaElement>(sourceSelectors[target]);
     const heading = input.previousElementSibling instanceof HTMLElement ? input.previousElementSibling : null;
     const elements = heading === null ? [input] : [heading, input];
-    if (target === 'codex32') {
-      const passphrase = required<HTMLInputElement>('#codex32-passphrase');
-      const label = document.querySelector<HTMLElement>('label[for="codex32-passphrase"]');
+    if (target === 'codex32' || target === 'gordian-envelope') {
+      const passphraseSelector = target === 'codex32' ? '#codex32-passphrase' : '#envelope-bip39-passphrase';
+      const passphrase = required<HTMLInputElement>(passphraseSelector);
+      const label = document.querySelector<HTMLElement>(`label[for="${passphrase.id}"]`);
       if (label !== null) elements.push(label);
       elements.push(passphrase);
     }
@@ -73,26 +92,48 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     } else {
       required<HTMLTextAreaElement>(sourceSelectors[target]).value = '';
       if (target === 'codex32') required<HTMLInputElement>('#codex32-passphrase').value = '';
+      if (target === 'gordian-envelope') required<HTMLInputElement>('#envelope-bip39-passphrase').value = '';
     }
     linkedSources.set(target, reference);
     const badge = document.createElement('div');
     badge.className = 'linked-recovery-source';
     badge.dataset.linkedSourceFor = target;
     const description = document.createElement('div');
+    description.className = 'linked-source-description';
+    const heading = document.createElement('div');
+    heading.className = 'linked-source-heading';
     const title = document.createElement('strong');
-    title.textContent = `Linked source: ${reference.label}`;
+    const sourceLabel = `${reference.label.slice(0, 1).toLowerCase()}${reference.label.slice(1)}`;
+    title.textContent = `Using ${sourceLabel}`;
+    const help = document.createElement('details');
+    help.className = 'linked-source-help';
+    const helpSummary = document.createElement('summary');
+    helpSummary.textContent = '?';
+    helpSummary.setAttribute('aria-label', 'How the linked phrase is protected');
+    const helpPopover = document.createElement('div');
+    helpPopover.className = 'linked-source-help-popover';
+    const helpTitle = document.createElement('strong');
+    helpTitle.textContent = 'Kept inside this offline workspace';
+    const helpText = document.createElement('p');
+    helpText.textContent =
+      'This tab receives only a temporary in-memory reference. The recovery phrase and passphrase remain inside this offline page and are read only when this operation starts. They are not copied to the OS clipboard or sent over the network.';
+    helpPopover.append(helpTitle, helpText);
+    help.append(helpSummary, helpPopover);
+    heading.append(title, help);
+    const origin = document.createElement('span');
+    origin.textContent = 'Selected in Generate & Derive.';
     const note = document.createElement('span');
     note.textContent =
       target === 'codex32'
-        ? 'The mnemonic will be read only when Codex32 creation starts. Its BIP39 passphrase is used only in BIP32 master-seed mode.'
+        ? 'The BIP39 passphrase is included only in BIP32 master-seed mode.'
         : target === 'matcher'
-          ? 'The mnemonic and its matching BIP39 passphrase will be read only when the search starts.'
-          : 'Only BIP39 mnemonic entropy is backed up here; its separate BIP39 passphrase is not included.';
-    description.append(title, note);
+          ? 'The matching BIP39 passphrase will be used when the search starts.'
+          : 'Only mnemonic entropy is backed up; the separate BIP39 passphrase is not included.';
+    description.append(heading, origin, note);
     const unlink = document.createElement('button');
     unlink.type = 'button';
     unlink.className = 'secondary compact';
-    unlink.textContent = 'Use manual input';
+    unlink.textContent = 'Enter another phrase';
     unlink.addEventListener('click', () => unlinkSource(target));
     badge.append(description, unlink);
     const panel = required<HTMLElement>(`#${targetPanels[target]}`);
@@ -114,7 +155,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     if (reference === undefined) return null;
     const value = reference.read();
     if (value === null)
-      throw new Error('The linked source changed or was cleared. Choose it again from Derive & Generate.');
+      throw new Error('The linked source changed or was cleared. Choose it again from Generate & Derive.');
     return value;
   }
 

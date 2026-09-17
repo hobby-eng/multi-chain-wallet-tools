@@ -1,27 +1,8 @@
 import { basename, isAbsolute, relative, resolve } from 'node:path';
 
-export const TOOL_FEATURE_DEFINITIONS = Object.freeze({
-  'activity-viewer': {
-    coins: ['bitcoin', 'dash', 'ethereum'],
-    features: [],
-  },
-  'discovery-scanner': {
-    coins: ['bitcoin', 'dash', 'ethereum'],
-    features: ['seed-discovery', 'watch-only-discovery', 'wallet-matcher', 'custom-paths'],
-  },
-  'psbt-inspector': {
-    coins: ['bitcoin', 'dash'],
-    features: [
-      'psbt-decoder',
-      'script-decoder',
-      'descriptor-decoder',
-      'policy-builder',
-      'multisig-wallet',
-      'message-verification',
-      'bip38-decrypt',
-    ],
-  },
-});
+import { TOOL_MANIFESTS } from './tool-manifests.mjs';
+
+export const TOOL_FEATURE_DEFINITIONS = TOOL_MANIFESTS;
 
 function values(args, name) {
   const found = [];
@@ -29,9 +10,15 @@ function values(args, name) {
     const argument = args[index];
     if (argument === name) {
       const value = args[++index];
-      if (value === undefined || value.startsWith('--')) throw new Error(`${name} requires a comma-separated value.`);
+      if (value === undefined || value.startsWith('--') || value.split(',').some((entry) => entry.trim() === ''))
+        throw new Error(`${name} requires a comma-separated value.`);
       found.push(value);
-    } else if (argument.startsWith(`${name}=`)) found.push(argument.slice(name.length + 1));
+    } else if (argument.startsWith(`${name}=`)) {
+      const value = argument.slice(name.length + 1);
+      if (value.split(',').some((entry) => entry.trim() === ''))
+        throw new Error(`${name} requires a comma-separated value.`);
+      found.push(value);
+    }
   }
   return found
     .flatMap((value) => value.split(','))
@@ -145,7 +132,14 @@ export function customToolArtifact(root, profile, toolId, tool, options, request
 export function parseRequestedOutput(args = process.argv.slice(2)) {
   const inline = args.find((argument) => argument.startsWith('--output='));
   const index = args.indexOf('--output');
-  return inline?.slice('--output='.length) ?? (index >= 0 ? args[index + 1] : undefined);
+  const output = inline?.slice('--output='.length) ?? (index >= 0 ? args[index + 1] : undefined);
+  if (
+    (inline !== undefined || index >= 0) &&
+    (output === undefined || output.trim() === '' || output.startsWith('--'))
+  ) {
+    throw new Error('--output requires an .html path.');
+  }
+  return output;
 }
 
 export function artifactDisplayName(path) {

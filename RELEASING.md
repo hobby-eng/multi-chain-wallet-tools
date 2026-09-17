@@ -12,7 +12,10 @@ Commit the application, package, test, tooling and documentation sources togethe
 - `packages/dash-shielded-wasm/generated/` (the audited browser WASM and offline-only glue);
 - `packages/dash-shielded-wasm/rust/Cargo.lock` (including the exact Dash Orchard revision).
 - `packages/recovery-shamir-wasm/generated/` and `packages/recovery-shamir-wasm/rust/Cargo.lock`;
-- `packages/recovery-codex32-wasm/generated/` and `packages/recovery-codex32-wasm/rust/Cargo.lock`.
+- `packages/recovery-codex32-wasm/generated/` and `packages/recovery-codex32-wasm/rust/Cargo.lock`;
+- `packages/recovery-sskr-wasm/generated/` and `packages/recovery-sskr-wasm/rust/Cargo.lock`;
+- `packages/recovery-envelope-wasm/generated/` and `packages/recovery-envelope-wasm/rust/Cargo.lock`;
+- `tooling/wasm-canonical-manifest.json`, which binds every generated WASM/glue file to its reviewed source and build inputs.
 
 Do not commit installed packages, local toolchains, compiler targets, coverage, logs, editor state, wallet material, or `dist/`. The root `.gitignore` excludes them. GitHub automatically provides source `.zip` and `.tar.gz` archives for every tag; the release workflow independently rebuilds the downloadable HTML from that tagged source.
 
@@ -28,14 +31,14 @@ Use a clean checkout of the intended canonical source commit/tag. Confirm that l
 
 The checked-in workflows pin every referenced GitHub-maintained action to a full commit SHA. Compilation itself runs through the repository's canonical Dockerfile:
 
-- `.github/workflows/ci.yml` runs on every push to `main`, pull request and manual invocation. It builds the canonical container, runs the complete verification suite for both profiles, rebuilds all three browser WASM modules, rejects any generated-byte difference and creates both local flat bundles.
+- `.github/workflows/ci.yml` runs on every push to `main`, pull request and manual invocation. It builds the canonical container, runs the complete verification suite for both profiles, rebuilds all five browser WASM modules, rejects any generated-byte difference, compiles the bounded selective-build matrix, creates both local flat bundles, and runs the full plus selective Chromium/Firefox browser gates.
 - `.github/workflows/full-wasm.yml` runs monthly or manually as a fresh scheduled repetition of the same complete, pinned Rust/WASM build gate.
 - `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version and a matching curated `docs/releases/<tag>.md`, creates GitHub provenance attestations, and publishes a Multi-Chain release containing the four standalone HTML files, their sidecars, the MIT `LICENSE`, and a flat `SHA256SUMS`. It intentionally does not publish the Dash Community bundle.
 - `.github/dependabot.yml` proposes pinned npm, Cargo, GitHub Actions and Docker updates weekly. `.github/workflows/upstream-versions.yml` separately compares the pinned Node LTS, pnpm, stable Rust, rustup, Evo SDK, wasm-bindgen and Dash Orchard tag/commit with their upstream releases; it opens or refreshes one review issue instead of modifying release inputs. Never merge a cryptographic/dependency update only because CI is green; inspect its changelog, lockfile diff and vectors.
 
-Before every supported build, `pnpm verify:provenance` requires SHA-512 integrity entries for the complete pnpm closure, SHA-256 checksums for every crates.io package, and full commits for every Cargo git source. It records SHA-256 hashes for the local SeedQR, SLIP-39, Shamir, Codex32, QR rendering, and QR decoding sources. When GitHub is reachable, each reviewed upstream commit must resolve exactly; a mismatch aborts the build. If an upstream repository is unavailable, the command prints an explicit warning and continues only because the mandatory local/package-manager hashes still match. Stable provenance pins and local source hashes are embedded in `verification-record.json`; transient network availability is kept out so identical source builds remain reproducible.
+Before every supported build, `pnpm verify:provenance` requires SHA-512 integrity entries for the complete pnpm closure, SHA-256 checksums for every crates.io package, and full commits for every Cargo git source. It records SHA-256 hashes for the local SeedQR, SLIP-39, Shamir, Codex32, SSKR, Gordian Envelope, QR rendering, and QR decoding sources. When GitHub is reachable, each reviewed upstream commit must resolve exactly; a mismatch aborts the build. If an upstream repository is unavailable, the command prints an explicit warning and continues because package-manager integrity pins remain mandatory and the exact local source hashes are recorded in the verification evidence. Stable provenance pins and local source hashes are embedded in `verification-record.json`; transient network availability is kept out so identical source builds remain reproducible.
 
-`Dockerfile.reproducible` pins the Ubuntu 24.04-based base image by immutable digest and pins Node.js 24.20.0, pnpm 11.25.0, Rust/Cargo 1.98.1 and wasm-bindgen 0.2.128. Downloaded Node/rustup installers are checksum-verified. Dependency fetching happens before the final `pnpm verify` layer; that complete verification/build layer runs with `--network=none`. Every generated Orchard, Shamir, and Codex32 WASM/glue file is compared byte for byte with its committed reviewed input before any release artifact can leave the image.
+`Dockerfile.reproducible` pins the Ubuntu 24.04-based base image by immutable digest and pins Node.js 24.20.0, pnpm 11.25.0, Rust/Cargo 1.98.1 and wasm-bindgen 0.2.128. Downloaded Node/rustup installers are checksum-verified. Dependency fetching happens before the final `pnpm verify` layer; that complete verification/build layer runs with `--network=none`. Every generated Orchard, CKD Shamir, Codex32, SSKR, and Gordian Envelope WASM/glue file and the canonical source/output integrity manifest are compared byte for byte with their committed reviewed inputs before any release artifact can leave the image. Use `pnpm build:wasm` to regenerate those committed inputs in the canonical container; `pnpm build:wasm:local` is for development experiments and cannot satisfy the canonical integrity gate.
 
 The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checksum)` value is a digest of the source tree and embedded build inputs, including the canonical Docker definition and generated WASM; it is not the byte-for-byte HTML checksum. The latter exists only in the external per-file `.sha256` sidecar and flat `SHA256SUMS`. A native build on another host may be functionally correct but byte-different. `./tooling/build-reproducible.sh` is the supported Docker-only way to reproduce the official release bytes locally; `pnpm build:reproducible` is an equivalent convenience command.
 
@@ -74,7 +77,7 @@ Run `pnpm test:activity-viewer:network`, both `test:activity-viewer:core-*` comm
 
 Temporarily block optional lookup providers where applicable and confirm the primary finding remains visible with a warning. A changing provider must never turn a valid primary result into a false zero. Inspect request payloads in browser developer tools: only validated public addresses, public-key hashes and Orchard pool ranges may leave the isolated Discovery Scanner vault.
 
-Open all standalone files directly with `file://` in each supported browser. Check the release passports/self-tests and narrow/mobile layout. In the Wallet Key Derivation Tool verify auto-generation and the reveal gate; run the Recovery & Backup browser round trip for SeedQR, SLIP-39, Shamir Raw, Shamir Words, and Codex32 in both editions; then enable change generation for every Bitcoin variant and Dash Core: confirm `/0` Receive and `/1` Change paths, independent selection/paging/export state, branch-specific descriptors, a known-address match on the change branch, and that Ethereum, Platform and Orchard do not show the two-branch checkbox. Check Activity Viewer Single/Batch, Auto/Advanced, mixed-result selection, clearing, and CSV/XLSX/JSON export; check Discovery Scanner single/batch progress, cancellation, isolation diagnostics, and secret-free CSV/JSON export; check PSBT & Multisig Inspector offline PSBT/script decoding, policy construction, and multisig wallet construction. Complete one full Orchard cold scan separately before release.
+Open all standalone files directly with `file://` in each supported browser. Check the release passports/self-tests and narrow/mobile layout. In the Wallet Key Derivation Tool verify auto-generation and the reveal gate; run the Recover & Back Up browser round trip for SeedQR, SLIP-39, CKD Shamir Raw, CKD Shamir Words, Codex32, SSKR, and Gordian Seed Envelope in both editions; then enable change generation for every Bitcoin variant and Dash Core: confirm `/0` Receive and `/1` Change paths, independent selection/paging/export state, branch-specific descriptors, a known-address match on the change branch, and that Ethereum, Platform and Orchard do not show the two-branch checkbox. Check Activity Viewer Single/Batch, Auto/Advanced, mixed-result selection, clearing, and CSV/XLSX/JSON export; check Discovery Scanner single/batch progress, cancellation, isolation diagnostics, and secret-free CSV/JSON export; check PSBT & Multisig Inspector offline PSBT/script decoding, policy construction, and multisig wallet construction. Complete one full Orchard cold scan separately before release.
 
 ## What GitHub publishes
 
@@ -91,6 +94,8 @@ dist/multi-chain-edition/release/PSBT_Multisig_Inspector.html
 dist/multi-chain-edition/release/PSBT_Multisig_Inspector.html.sha256
 dist/multi-chain-edition/release/verification-record.json
 dist/multi-chain-edition/release/LICENSE
+dist/multi-chain-edition/release/ATTRIBUTION.md
+dist/multi-chain-edition/release/THIRD_PARTY_NOTICES.md
 dist/multi-chain-edition/release/SHA256SUMS
 ```
 
@@ -107,6 +112,8 @@ dist/dash-community-edition/release/Dash_Community_PSBT_Multisig_Inspector.html
 dist/dash-community-edition/release/Dash_Community_PSBT_Multisig_Inspector.html.sha256
 dist/dash-community-edition/release/verification-record.json
 dist/dash-community-edition/release/LICENSE
+dist/dash-community-edition/release/ATTRIBUTION.md
+dist/dash-community-edition/release/THIRD_PARTY_NOTICES.md
 dist/dash-community-edition/release/SHA256SUMS
 ```
 
@@ -123,6 +130,6 @@ gh attestation verify PSBT_Multisig_Inspector.html -R hobby-eng/multi-chain-wall
 gh attestation verify verification-record.json -R hobby-eng/multi-chain-wallet-tools
 ```
 
-The manifest also covers the released `LICENSE`. The attestation commands require an online GitHub CLI; checksum verification works offline. Only when a release includes the optional `SHA256SUMS.asc`, verify it separately with `gpg --verify SHA256SUMS.asc SHA256SUMS` and a public key obtained through an independent trusted channel.
+The manifest also covers the released `LICENSE`, `ATTRIBUTION.md`, and `THIRD_PARTY_NOTICES.md`. The attestation commands require an online GitHub CLI; checksum verification works offline. Only when a release includes the optional `SHA256SUMS.asc`, verify it separately with `gpg --verify SHA256SUMS.asc SHA256SUMS` and a public key obtained through an independent trusted channel.
 
 If an artifact is served as a web page instead of a downloadable `file://` tool, configure the host to send `Content-Security-Policy: frame-ancestors 'none'` and preferably `X-Frame-Options: DENY`. Browsers ignore `frame-ancestors` inside an HTML `<meta>` CSP, so the build cannot supply this hosting-only clickjacking control.

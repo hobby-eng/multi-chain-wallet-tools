@@ -4,6 +4,13 @@ import { resolve } from 'node:path';
 export const WASM_BINDGEN_CRATE_URL = 'https://crates.io/api/v1/crates/wasm-bindgen';
 const NOTE_ENCRYPTION_REPOSITORY_URL = 'https://api.github.com/repos/dashpay/zcash_note_encryption';
 const NOTE_ENCRYPTION_REVIEWED_PATHS = ['src/', 'Cargo.toml', 'Cargo.lock', 'build.rs'];
+const CRATES_API = 'https://crates.io/api/v1/crates';
+const NPM_REGISTRY = 'https://registry.npmjs.org';
+
+const SOURCE_REPOSITORIES = {
+  slip39: 'trezor/python-shamir-mnemonic',
+  seedqr: 'SeedSigner/seedsigner',
+};
 
 function capture(text, pattern, label) {
   const value = pattern.exec(text)?.[1];
@@ -52,6 +59,36 @@ function requiredString(value, label) {
   return value;
 }
 
+async function fetchCrateVersion(fetchImpl, crate) {
+  const metadata = await fetchJson(fetchImpl, `${CRATES_API}/${encodeURIComponent(crate)}`);
+  return requiredString(metadata?.crate?.max_stable_version, `latest ${crate} max_stable_version`);
+}
+
+async function fetchNpmVersion(fetchImpl, packageName) {
+  const metadata = await fetchJson(fetchImpl, `${NPM_REGISTRY}/${encodeURIComponent(packageName)}/latest`);
+  return requiredString(metadata?.version, `latest ${packageName} version`);
+}
+
+async function fetchRepositoryHead(fetchImpl, repository) {
+  const base = `https://api.github.com/repos/${repository}`;
+  const metadata = await fetchJson(fetchImpl, base);
+  const branch = requiredString(metadata?.default_branch, `${repository} default branch`);
+  const commit = await fetchJson(fetchImpl, `${base}/commits/${encodeURIComponent(branch)}`);
+  return {
+    branch,
+    revision: requiredString(commit?.sha, `${repository} ${branch} head`),
+  };
+}
+
+function pinnedSourceCommit(provenanceSource, id) {
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return capture(
+    provenanceSource,
+    new RegExp(`id: '${escaped}'[\\s\\S]*?commit: '([a-f0-9]{40})'`, 'u'),
+    `${id} source commit`,
+  );
+}
+
 export async function fetchWasmBindgenMaxStableVersion(fetchImpl) {
   const metadata = await fetchJson(fetchImpl, WASM_BINDGEN_CRATE_URL);
   return requiredString(metadata?.crate?.max_stable_version, 'latest wasm-bindgen max_stable_version');
@@ -98,11 +135,16 @@ function assertSynchronized(label, left, right) {
   if (left !== right) throw new Error(`${label} pins disagree: ${left} != ${right}.`);
 }
 
-export async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
+async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
   const dockerfile = readFileSync(resolve(root, 'Dockerfile.reproducible'), 'utf8');
   const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
   const cargoManifest = readFileSync(resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.toml'), 'utf8');
   const cargoLock = readFileSync(resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.lock'), 'utf8');
+  const shamirManifest = readFileSync(resolve(root, 'packages/recovery-shamir-wasm/rust/Cargo.toml'), 'utf8');
+  const codex32Manifest = readFileSync(resolve(root, 'packages/recovery-codex32-wasm/rust/Cargo.toml'), 'utf8');
+  const sskrManifest = readFileSync(resolve(root, 'packages/recovery-sskr-wasm/rust/Cargo.toml'), 'utf8');
+  const envelopeManifest = readFileSync(resolve(root, 'packages/recovery-envelope-wasm/rust/Cargo.toml'), 'utf8');
+  const provenanceSource = readFileSync(resolve(root, 'tooling/verify-dependency-provenance.mjs'), 'utf8');
 
   const node = capture(dockerfile, /^ARG NODE_VERSION=(\S+)$/mu, 'Node version');
   const pnpm = capture(String(manifest.packageManager), /^pnpm@(.+)$/u, 'pnpm version');
@@ -122,6 +164,24 @@ export async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     'Dash note-encryption commit',
   );
   const wasmBindgen = capture(cargoManifest, /wasm-bindgen = "=(\d+\.\d+\.\d+)"/u, 'wasm-bindgen version');
+  const sharks = capture(shamirManifest, /sharks = \{ version = "=(\d+\.\d+\.\d+)"/u, 'sharks version');
+  const codex32 = capture(codex32Manifest, /codex32 = "=(\d+\.\d+\.\d+)"/u, 'Codex32 version');
+  const sskr = capture(sskrManifest, /sskr = "=(\d+\.\d+\.\d+)"/u, 'SSKR version');
+  const envelope = capture(
+    envelopeManifest,
+    /bc-envelope = \{ version = "=(\d+\.\d+\.\d+)"/u,
+    'Gordian Envelope version',
+  );
+  const components = capture(
+    envelopeManifest,
+    /bc-components = \{ version = "=(\d+\.\d+\.\d+)"/u,
+    'Blockchain Commons components version',
+  );
+  const qr = requiredString(manifest.dependencies?.qr, 'pinned qr version');
+  const uqr = requiredString(manifest.dependencies?.uqr, 'pinned uqr version');
+  const playwright = requiredString(manifest.devDependencies?.playwright, 'pinned Playwright version');
+  const slip39Commit = pinnedSourceCommit(provenanceSource, 'slip39-reference');
+  const seedqrCommit = pinnedSourceCommit(provenanceSource, 'seedsigner-seedqr');
   const dockerWasmBindgen = capture(
     dockerfile,
     /cargo install wasm-bindgen-cli --version (\S+)/u,
@@ -140,6 +200,16 @@ export async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     orchardTags,
     latestWasmBindgen,
     noteEncryption,
+    latestSharks,
+    latestCodex32,
+    latestSskr,
+    latestEnvelope,
+    latestComponents,
+    latestQr,
+    latestUqr,
+    latestPlaywright,
+    slip39Head,
+    seedqrHead,
   ] = await Promise.all([
     fetchJson(fetchImpl, 'https://nodejs.org/dist/index.json'),
     fetchJson(fetchImpl, 'https://registry.npmjs.org/pnpm/latest'),
@@ -149,6 +219,16 @@ export async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     fetchJson(fetchImpl, 'https://api.github.com/repos/dashpay/orchard/tags?per_page=100'),
     fetchWasmBindgenMaxStableVersion(fetchImpl),
     inspectNoteEncryption(fetchImpl, noteEncryptionCommit),
+    fetchCrateVersion(fetchImpl, 'sharks'),
+    fetchCrateVersion(fetchImpl, 'codex32'),
+    fetchCrateVersion(fetchImpl, 'sskr'),
+    fetchCrateVersion(fetchImpl, 'bc-envelope'),
+    fetchCrateVersion(fetchImpl, 'bc-components'),
+    fetchNpmVersion(fetchImpl, 'qr'),
+    fetchNpmVersion(fetchImpl, 'uqr'),
+    fetchNpmVersion(fetchImpl, 'playwright'),
+    fetchRepositoryHead(fetchImpl, SOURCE_REPOSITORIES.slip39),
+    fetchRepositoryHead(fetchImpl, SOURCE_REPOSITORIES.seedqr),
   ]);
 
   const latestNode = nodeReleases.find((release) => release.lts !== false)?.version?.replace(/^v/u, '');
@@ -193,6 +273,68 @@ export async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
       matches: noteEncryption.current,
       detail: noteEncryption.detail,
     },
+    {
+      label: '[sharks](https://github.com/c0dearm/sharks)',
+      current: sharks,
+      latest: latestSharks,
+      matches: sharks === latestSharks,
+    },
+    {
+      label: '[Codex32](https://github.com/apoelstra/rust-codex32)',
+      current: codex32,
+      latest: latestCodex32,
+      matches: codex32 === latestCodex32,
+    },
+    {
+      label: '[SSKR](https://github.com/BlockchainCommons/bc-sskr-rust)',
+      current: sskr,
+      latest: latestSskr,
+      matches: sskr === latestSskr,
+    },
+    {
+      label: '[Gordian Envelope](https://github.com/BlockchainCommons/bc-envelope-rust)',
+      current: envelope,
+      latest: latestEnvelope,
+      matches: envelope === latestEnvelope,
+    },
+    {
+      label: '[Blockchain Commons components](https://github.com/BlockchainCommons/bc-components-rust)',
+      current: components,
+      latest: latestComponents,
+      matches: components === latestComponents,
+    },
+    {
+      label: '[qr](https://github.com/paulmillr/qr)',
+      current: qr,
+      latest: latestQr,
+      matches: qr === latestQr,
+    },
+    {
+      label: '[uqr](https://github.com/unjs/uqr)',
+      current: uqr,
+      latest: latestUqr,
+      matches: uqr === latestUqr,
+    },
+    {
+      label: '[Playwright](https://github.com/microsoft/playwright)',
+      current: playwright,
+      latest: latestPlaywright,
+      matches: playwright === latestPlaywright,
+    },
+    {
+      label: '[SLIP-39 reference source](https://github.com/trezor/python-shamir-mnemonic)',
+      current: slip39Commit,
+      latest: slip39Head.revision,
+      matches: slip39Commit === slip39Head.revision,
+      detail: `${slip39Head.branch} head`,
+    },
+    {
+      label: '[SeedSigner SeedQR source](https://github.com/SeedSigner/seedsigner)',
+      current: seedqrCommit,
+      latest: seedqrHead.revision,
+      matches: seedqrCommit === seedqrHead.revision,
+      detail: `${seedqrHead.branch} head`,
+    },
   ];
 }
 
@@ -207,6 +349,8 @@ export function renderUpstreamVersionReport(checks) {
       ({ label, current, latest, matches }) =>
         `| ${label} | \`${current}\` | \`${latest}\` | ${matches ? 'current' : '**review required**'} |`,
     ),
+    '',
+    'Package rows compare exact local pins with their registries; source rows compare the reviewed commit with the repository default-branch head.',
     '',
     'The `dashpay/zcash_note_encryption` row compares the pinned revision with the dedicated repository default-branch head. ' +
       'A differing head triggers review only when the GitHub compare includes `src/`, `Cargo.toml`, `Cargo.lock`, or `build.rs`; ' +

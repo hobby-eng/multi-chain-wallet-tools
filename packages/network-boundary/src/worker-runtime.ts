@@ -7,13 +7,13 @@ import {
   type RecoveryNetworkResponse,
 } from './protocol.js';
 
-export type NetworkRequestExecutor<Service = RecoveryNetworkApi> = (
+type NetworkRequestExecutor<Service = RecoveryNetworkApi> = (
   service: Service,
   request: RecoveryNetworkRequest,
   signal: AbortSignal,
 ) => Promise<unknown>;
 
-export type NetworkRequestValidator = (value: unknown) => RecoveryNetworkRequest;
+type NetworkRequestValidator = (value: unknown) => RecoveryNetworkRequest;
 
 export function startNetworkBoundaryWorker<Service>(
   service: Service,

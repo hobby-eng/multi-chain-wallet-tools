@@ -70,6 +70,8 @@ function fixtureRoot() {
     'packages/dash-shielded-wasm/rust/Cargo.lock',
     'packages/recovery-shamir-wasm/rust/Cargo.lock',
     'packages/recovery-codex32-wasm/rust/Cargo.lock',
+    'packages/recovery-sskr-wasm/rust/Cargo.lock',
+    'packages/recovery-envelope-wasm/rust/Cargo.lock',
   ]) {
     mkdirSync(join(root, path, '..'), { recursive: true });
     writeFileSync(
@@ -91,6 +93,12 @@ function fixtureRoot() {
     'packages/recovery-backup/src/codex32.ts',
     'packages/recovery-backup/tests/codex32.test.ts',
     'packages/recovery-backup/tests/fixtures/bip93-vectors.json',
+    'packages/recovery-sskr-wasm/rust/src/lib.rs',
+    'packages/recovery-backup/src/sskr.ts',
+    'packages/recovery-backup/src/self-test-sskr.ts',
+    'packages/recovery-envelope-wasm/rust/src/lib.rs',
+    'packages/recovery-backup/src/gordian-envelope.ts',
+    'packages/recovery-backup/src/self-test-gordian-envelope.ts',
     'packages/shared-ui/src/payment-qr.ts',
     'packages/shared-ui/src/qr-image-import.ts',
     'packages/shared-ui/src/qr-image-import.test.ts',

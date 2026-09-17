@@ -5,6 +5,7 @@ import { detectMultiChainMatcherTargets } from '../src/matcher-targets-multichai
 const DASH_CORE = 'XdTw4G5AWW4cogGd7ayybyBNDbuB45UpgH';
 const DASH_PLATFORM = 'dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs';
 const DASH_ORCHARD_TESTNET = 'tdash1zrhflqt5ly4r7q64wrktl6tf466x7h30vjkknaudxsckc3l28rp0qzzm27yta0683nnnd2qum8gyq';
+const DASH_IDENTITY_MASTER_HASH = '00112233445566778899aabbccddeeff00112233';
 
 describe('wallet matcher target detection', () => {
   it('routes Dash encodings only to compatible profiles', () => {
@@ -18,6 +19,14 @@ describe('wallet matcher target detection', () => {
       adapterIds: ['dash-platform'],
     });
     expect(detectDashMatcherTargets(DASH_ORCHARD_TESTNET, 'testnet', false)[0]?.adapterIds).toEqual(['dash-shielded']);
+  });
+
+  it('routes a Dash Identity MASTER public-key HASH160 to the DIP13 profile', () => {
+    expect(detectDashMatcherTargets(DASH_IDENTITY_MASTER_HASH.toUpperCase(), 'mainnet', true)[0]).toMatchObject({
+      normalized: DASH_IDENTITY_MASTER_HASH,
+      adapterIds: ['dash-identity'],
+      fieldKeys: ['key0PublicKeyHash'],
+    });
   });
 
   it('rejects cross-network and duplicate addresses without case-folding Base58', () => {

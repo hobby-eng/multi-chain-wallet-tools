@@ -19,6 +19,8 @@ for (const manifest of [
   'packages/dash-shielded-wasm/rust/Cargo.toml',
   'packages/recovery-shamir-wasm/rust/Cargo.toml',
   'packages/recovery-codex32-wasm/rust/Cargo.toml',
+  'packages/recovery-sskr-wasm/rust/Cargo.toml',
+  'packages/recovery-envelope-wasm/rust/Cargo.toml',
 ]) {
   const result = spawnSync(cargo, ['test', '--manifest-path', resolve(root, manifest), '--locked'], {
     cwd: root,
