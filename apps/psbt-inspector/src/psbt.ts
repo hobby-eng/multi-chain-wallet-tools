@@ -25,7 +25,7 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
   const magic = reader.read(5);
   if (bytesToHex(magic) !== '70736274ff') throw new Error('Missing PSBT magic bytes 70736274ff.');
   const global = readMap(reader);
-  validateMap(global, 'global');
+  validateMap(global, 'global', chain);
   const versionPair = pair(global, 0xfb);
   const version = versionPair === undefined ? 0 : littleU32(versionPair.value, 'PSBT version');
   if (version !== 0 && version !== 2) throw new Error(`Unsupported PSBT version ${version}.`);
@@ -78,18 +78,18 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
   }
   const inputs = Array.from({ length: inputCount }, () => {
     const map = readMap(reader);
-    validateMap(map, 'input');
+    validateMap(map, 'input', chain);
     if (chain === 'bitcoin') validateMusigPsbtFields(map, 'input');
     return map;
   });
   const outputs = Array.from({ length: outputCount }, () => {
     const map = readMap(reader);
-    validateMap(map, 'output');
+    validateMap(map, 'output', chain);
     if (chain === 'bitcoin') validateMusigPsbtFields(map, 'output');
     return map;
   });
   if (reader.remaining !== 0) throw new Error('PSBT contains trailing data after its maps.');
-  const mixedLockKinds = validateVersionFields(global, inputs, outputs, version);
+  const mixedLockKinds = validateVersionFields(global, inputs, outputs, version, chain);
   const suppliedUtxos = inputs.map((map, index) => inputUtxo(map, transaction?.inputs[index], chain));
   const commitmentFailures = suppliedUtxos.map((utxo, index) => {
     if (utxo !== null) validateMoney(utxo.value, chain, `Input ${index} value`);
@@ -115,17 +115,23 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
   if (fee !== null && fee < 0n) throw new Error('PSBT outputs exceed the supplied input values.');
   const modifiable = pair(global, 0x06)?.value[0];
   const globalVerification: PsbtVerificationCheck[] = [
-    modifiable !== undefined && (modifiable & 0xf8) !== 0
+    modifiable === undefined
       ? {
           relationship: 'PSBT transaction-modifiable flags',
-          status: 'not-verified',
-          detail: `Undefined flag bits 0x${(modifiable & 0xf8).toString(16).padStart(2, '0')} are preserved but have no defined BIP370 meaning.`,
+          status: 'not-applicable',
+          detail: 'No transaction-modifiable field was supplied.',
         }
-      : {
-          relationship: 'PSBT transaction-modifiable flags',
-          status: 'verified',
-          detail: 'All supplied transaction-modifiable bits have defined BIP370 meanings.',
-        },
+      : (modifiable & 0xf8) !== 0
+        ? {
+            relationship: 'PSBT transaction-modifiable flags',
+            status: 'not-verified',
+            detail: `Undefined flag bits 0x${(modifiable & 0xf8).toString(16).padStart(2, '0')} are preserved but have no defined BIP370 meaning.`,
+          }
+        : {
+            relationship: 'PSBT transaction-modifiable flags',
+            status: 'verified',
+            detail: 'All supplied transaction-modifiable bits have defined BIP370 meanings.',
+          },
   ];
   const inputVerificationRows = inputs.map((map, index) =>
     inputVerification(map, suppliedUtxos[index] ?? null, chain, commitmentFailures[index] ?? null, mixedLockKinds),

@@ -62,6 +62,7 @@ export function installMultisigWalletFeature(): void {
   function syncWalletControls(): void {
     walletWrapper.disabled = walletChain.value === 'dash';
     if (walletChain.value === 'dash') walletWrapper.value = 'p2sh';
+    walletRequired.max = walletWrapper.value === 'p2sh' ? '15' : '20';
   }
 
   function isCompressedPublicKey(value: string): boolean {
@@ -69,6 +70,7 @@ export function installMultisigWalletFeature(): void {
   }
 
   function isAccountXpub(value: string): boolean {
+    if (value.trim().startsWith('pkh(')) return true;
     return /^(?:\[[0-9a-fA-F]{8}(?:\/[0-9]+['hH]?)+\])?[xt]pub[1-9A-HJ-NP-Za-km-z]+$/u.test(value.trim());
   }
 
@@ -357,6 +359,7 @@ export function installMultisigWalletFeature(): void {
   }
 
   walletChain.addEventListener('change', syncWalletControls);
+  walletWrapper.addEventListener('change', syncWalletControls);
   walletChain.addEventListener('change', () => syncNetworkChoice(walletChain, walletNetwork));
   syncNetworkChoice(walletChain, walletNetwork);
   buildWalletButton.addEventListener('click', buildWallet);

@@ -402,7 +402,7 @@ for (const browserName of selectedBrowsers) {
             assert.match(await page.locator('#transaction-details').innerText(), /INTERNALLY VERIFIED/u);
             assert.match(
               await page.locator('#transaction-details').innerText(),
-              /Signing commitments \/ transaction mutability[\s\S]*Signature[\s\S]*Not signed[\s\S]*Sighash[\s\S]*Not specified[\s\S]*RBF[\s\S]*(?:Not signaled|Not supported by Dash Core)[\s\S]*Locktime[\s\S]*Block height 1257139/u,
+              /Signing commitments \/ transaction mutability[\s\S]*Signature[\s\S]*No signature or final-script fields supplied[\s\S]*Sighash[\s\S]*Not specified[\s\S]*RBF[\s\S]*(?:Not signaled|Not supported by Dash Core)[\s\S]*Locktime[\s\S]*Block height 1257139/u,
             );
             assert.match(
               await page.locator('#transaction-details').innerText(),

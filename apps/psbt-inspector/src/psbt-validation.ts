@@ -4,6 +4,8 @@ import { ripemd160 } from '@noble/hashes/legacy.js';
 import { aggregateMusigParticipants } from './musig-psbt.js';
 import { CONSENSUS_LIMITS } from './consensus-limits.js';
 import { Reader, compactValue, littleU32, type PsbtPair, pair } from './psbt-binary.js';
+import { isUnsupportedField, type PsbtMapScope } from './psbt-field-registry.js';
+import type { PsbtChain } from './psbt-types.js';
 import { readTxOut } from './transaction.js';
 
 function validatePoint(bytes: Uint8Array, xOnly = false): void {
@@ -49,7 +51,15 @@ function validateDerSignature(value: Uint8Array): void {
     throw new Error('PSBT partial signature has a non-canonical S integer.');
 }
 
-export function validateMap(map: readonly PsbtPair[], scope: 'global' | 'input' | 'output'): void {
+function validateProprietaryKey(keyData: Uint8Array, scope: PsbtMapScope): void {
+  const reader = new Reader(keyData);
+  reader.varBytes(`${scope} proprietary identifier`, reader.remaining);
+  if (reader.remaining === 0) throw new Error(`Invalid ${scope} proprietary key: subtype is missing.`);
+  reader.compact();
+  // The remaining bytes are application-defined proprietary key data.
+}
+
+export function validateMap(map: readonly PsbtPair[], scope: PsbtMapScope, chain: PsbtChain = 'bitcoin'): void {
   const singleton =
     scope === 'global'
       ? [0, 2, 3, 4, 5, 6, 251]
@@ -59,6 +69,10 @@ export function validateMap(map: readonly PsbtPair[], scope: 'global' | 'input' 
   for (const field of map) {
     const { keyData: key, value } = field;
     const type = Number(field.type);
+    // Dash Core v0 passes fields that it does not implement through as unknown,
+    // even when the same type byte is assigned by a newer Bitcoin PSBT spec.
+    if (isUnsupportedField(chain, scope, field.type)) continue;
+    if (type === 0xfc) validateProprietaryKey(key, scope);
     const size = (n: number): void => {
       if (value.length !== n) throw new Error(`Invalid ${scope} field ${type} value length.`);
     };
@@ -156,21 +170,23 @@ export function validateVersionFields(
   inputs: readonly (readonly PsbtPair[])[],
   outputs: readonly (readonly PsbtPair[])[],
   version: number,
+  chain: PsbtChain = 'bitcoin',
 ): boolean {
+  if (chain === 'dash') return false;
   if (version === 0) {
     for (const [maps, types] of [
-      [[global], [2n, 3n, 4n, 5n, 6n]],
-      [inputs, [14n, 15n, 16n, 17n, 18n]],
-      [outputs, [3n, 4n]],
+      [[global], [2, 3, 4, 5, 6]],
+      [inputs, [14, 15, 16, 17, 18]],
+      [outputs, [3, 4]],
     ] as const) {
-      if (maps.some((map) => map.some((field) => types.some((type) => field.type === type))))
+      if (maps.some((map) => types.some((type) => pair(map, type) !== undefined)))
         throw new Error('PSBT v0 contains a PSBT v2-only field.');
     }
     return false;
   }
   if (pair(global, 2) === undefined) throw new Error('PSBT v2 is missing its transaction version.');
-  let requiresTime = false;
-  let requiresHeight = false;
+  let timeLockPossible = true;
+  let heightLockPossible = true;
   for (const map of inputs) {
     if (pair(map, 14) === undefined || pair(map, 15) === undefined)
       throw new Error('PSBT v2 input is missing its previous transaction ID or output index.');
@@ -179,16 +195,16 @@ export function validateVersionFields(
     if (time !== undefined) {
       if (littleU32(time.value, 'time lock') < CONSENSUS_LIMITS.absoluteLockTimeThreshold)
         throw new Error('Required time lock is below 500000000.');
-      requiresTime = true;
     }
     if (height !== undefined) {
       const value = littleU32(height.value, 'height lock');
       if (value === 0 || value >= CONSENSUS_LIMITS.absoluteLockTimeThreshold)
         throw new Error('Required height lock is outside 1..499999999.');
-      requiresHeight = true;
     }
+    if (time !== undefined && height === undefined) heightLockPossible = false;
+    if (time === undefined && height !== undefined) timeLockPossible = false;
   }
-  const mixedLockKinds = requiresTime && requiresHeight;
+  const mixedLockKinds = !timeLockPossible && !heightLockPossible;
   if (outputs.some((map) => pair(map, 3) === undefined || pair(map, 4) === undefined))
     throw new Error('PSBT v2 output is missing its amount or script.');
   return mixedLockKinds;

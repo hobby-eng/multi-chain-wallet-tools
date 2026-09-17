@@ -4,7 +4,7 @@ import { deriveDashCoinJoin } from './dash/coinjoin.js';
 import { deriveDashCore } from './dash/core.js';
 import { deriveDashLegacyMobile } from './dash/legacy-mobile.js';
 import { deriveDashIdentity } from './dash/identity.js';
-import { deriveDashMultisig } from './dash/multisig.js';
+import { deriveDashCoreMultisig, deriveDashMultisig } from './dash/multisig.js';
 import { deriveDashPlatform } from './dash/platform.js';
 import { deriveEthereum } from './ethereum/index.js';
 import { getCoinAdapter, type CoinAdapter, type CoinDerivationInput } from './registry.js';
@@ -31,6 +31,7 @@ function deriveForAdapter(
   if (adapterId === 'dash-platform') return deriveDashPlatform;
   if (adapterId === 'dash-identity') return deriveDashIdentity;
   if (adapterId === 'dash-multisig-p2sh') return deriveDashMultisig;
+  if (adapterId === 'dash-multisig-core-pkh') return deriveDashCoreMultisig;
   if (adapterId === 'dash-shielded') {
     return async (input) => {
       const { deriveDashShielded } = await import('./dash/shielded.js');

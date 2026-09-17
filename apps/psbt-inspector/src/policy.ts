@@ -65,7 +65,7 @@ interface BuiltPolicy {
 }
 
 function validatePublicKeys(values: readonly string[]): Uint8Array[] {
-  if (values.length < 1 || values.length > 16) throw new Error('Enter from 1 to 16 compressed public keys.');
+  if (values.length < 1 || values.length > 20) throw new Error('Enter from 1 to 20 compressed public keys.');
   const seen = new Set<string>();
   return values.map((value, index) => {
     const normalized = value.trim().toLowerCase();
@@ -160,6 +160,10 @@ function base58Address(prefix: number, hash: Uint8Array): string {
   payload[0] = prefix;
   payload.set(hash, 1);
   return encodeBase58Check(payload);
+}
+
+function taprootNumsKey(): Uint8Array {
+  return sha256(secp256k1.Point.BASE.toBytes(false));
 }
 
 export function buildPolicy(request: PolicyRequest): BuiltPolicy {
@@ -354,6 +358,11 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
     tapscript,
     context: tapscript ? 'tapscript' : request.bitcoinWrapper === 'p2wsh' ? 'p2wsh' : 'p2sh',
   });
+  if (!compiled.sane && request.chain === 'bitcoin' && request.bitcoinWrapper !== 'p2sh') {
+    throw new Error(
+      `The selected preset is not a sane Bitcoin Core Miniscript policy (${compiled.analysis}). Use distinct keys for every branch, or the advanced custom Miniscript mode only after independently reviewing the policy and signer support.`,
+    );
+  }
   const redeemScript = compiled.script;
   if (
     (request.chain === 'dash' || request.bitcoinWrapper === 'p2sh') &&
@@ -404,12 +413,15 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
       ? `${keyOrder === 'bip67' ? 'sortedmulti' : 'multi'}(${request.required},${keys.map(bytesToHex).join(',')})`
       : miniscript);
   const descriptor =
-    taprootDescriptor ??
-    (request.chain === 'dash' && !standardMultisig
-      ? checksummedDescriptor(`raw(${bytesToHex(scriptPubKey)})`)
-      : checksummedDescriptor(
-          `${request.chain === 'bitcoin' && request.bitcoinWrapper === 'p2wsh' ? 'wsh' : 'sh'}(${descriptorBody})`,
-        ));
+    request.chain === 'bitcoin' && request.bitcoinWrapper === 'p2tr' && portableDescriptorBody !== null
+      ? checksummedDescriptor(`tr(${bytesToHex(taprootNumsKey())},${portableDescriptorBody})`)
+      : (taprootDescriptor ??
+        ((request.chain === 'dash' || (request.chain === 'bitcoin' && request.bitcoinWrapper === 'p2sh')) &&
+        !standardMultisig
+          ? checksummedDescriptor(`raw(${bytesToHex(scriptPubKey)})`)
+          : checksummedDescriptor(
+              `${request.chain === 'bitcoin' && request.bitcoinWrapper === 'p2wsh' ? 'wsh' : 'sh'}(${descriptorBody})`,
+            )));
   const keyOrderDescription = tapscript
     ? keyOrder === 'bip67'
       ? 'lexicographically sorted x-only keys committed to multi_a()'
@@ -429,9 +441,11 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
           : 'ADVANCED CUSTOM DASH P2SH: the exported raw() descriptor identifies the P2SH scriptPubKey for watch-only use, but is not solvable and does not carry the redeemScript policy. Dash Core does not accept Miniscript policy expressions as descriptors and its standard wallet signer does not automatically satisfy custom conditional, hashlock, CLTV, or CSV branches. Preserve the separately displayed redeemScript and do not fund this address without a tested custom signer and recovery procedure.'
         : tapscript
           ? 'Bitcoin Taproot script-path output with a standard unspendable NUMS internal key, so the displayed Tapscript policy cannot be bypassed by a key-path signature. Every signer must support this exact Tapscript Miniscript leaf.'
-          : (request.mode ?? 'locked-multisig') === 'locked-multisig' && request.lockKind === 'none'
-            ? 'Standard Bitcoin multisig script. Wallet support still depends on the selected P2SH/P2WSH wrapper and imported policy metadata.'
-            : 'Advanced Bitcoin script policy. Confirm Miniscript/descriptor support in every intended wallet and signer before funding.',
+          : request.bitcoinWrapper === 'p2sh' && !standardMultisig
+            ? 'ADVANCED CUSTOM BITCOIN P2SH: the exported raw() descriptor identifies the watch-only scriptPubKey but does not carry the redeemScript policy or provide automatic Core signing. Preserve the displayed redeemScript and use a separately tested signer and recovery procedure.'
+            : (request.mode ?? 'locked-multisig') === 'locked-multisig' && request.lockKind === 'none'
+              ? 'Standard Bitcoin multisig script. Wallet support still depends on the selected P2SH/P2WSH wrapper and imported policy metadata.'
+              : 'Advanced Bitcoin script policy. Confirm Miniscript/descriptor support in every intended wallet and signer before funding.',
     keyOrder,
     policyExpression,
     descriptor,

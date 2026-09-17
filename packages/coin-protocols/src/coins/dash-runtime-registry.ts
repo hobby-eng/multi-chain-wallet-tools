@@ -3,7 +3,7 @@ import { deriveDashCoinJoin } from './dash/coinjoin.js';
 import { deriveDashCore } from './dash/core.js';
 import { deriveDashLegacyMobile } from './dash/legacy-mobile.js';
 import { deriveDashIdentity } from './dash/identity.js';
-import { deriveDashMultisig } from './dash/multisig.js';
+import { deriveDashCoreMultisig, deriveDashMultisig } from './dash/multisig.js';
 import { deriveDashPlatform } from './dash/platform.js';
 import { getCoinAdapter, type CoinAdapter, type CoinDerivationInput } from './dash-registry.js';
 
@@ -22,6 +22,7 @@ export function getRuntimeCoinAdapter(id: string): RuntimeCoinAdapter {
   if (id === 'dash-platform') return { ...metadata, derive: deriveDashPlatform };
   if (id === 'dash-identity') return { ...metadata, derive: deriveDashIdentity };
   if (id === 'dash-multisig-p2sh') return { ...metadata, derive: deriveDashMultisig };
+  if (id === 'dash-multisig-core-pkh') return { ...metadata, derive: deriveDashCoreMultisig };
   if (id === 'dash-shielded') {
     return {
       ...metadata,

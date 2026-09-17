@@ -1,0 +1,143 @@
+{
+  "date": "2026-09-17",
+  "projectHead": "6756193fc579a9ab530678f8169f4ca9b8adbeb2",
+  "target": "working tree plus existing HTML; source and Git unchanged",
+  "coreMaster": "a604a7647588500354d4772e60620ea36b129d05",
+  "coreRelease": "v31.1",
+  "findings": [
+    {
+      "id": "B-01",
+      "priority": "P1",
+      "title": "Legacy SIGHASH_SINGLE ошибочно помечает входы защищёнными",
+      "detail": "[signing-commitments.ts:108](../../apps/psbt-inspector/src/signing-commitments.ts:108).\n\nПри двух входах и одном выходе для второго Legacy-входа с `SIGHASH_SINGLE` интерфейс пишет `Current input: Committed` и `Other inputs: Committed`. Предупреждение об unusual policy присутствует, но эти два утверждения неверны. В этом историческом случае Legacy signature hash — константа ONE, не зависящая от полей транзакции. SegWit v0 ведёт себя иначе; Taproot без соответствующего выхода отвергает подпись.\n\nЭталон: [SignatureHash](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/interpreter.cpp#L1615). Проба: `additional-results.json`, `legacy_single_missing_output`; браузеры подтвердили текст.\n\nИсправление: отдельные ветки для трёх протоколов; для Legacy не показывать защиту входов и явно описывать константный digest. Добавить тесты SINGLE/ANYONECANPAY и отсутствующего выхода."
+    },
+    {
+      "id": "B-02",
+      "priority": "P1",
+      "title": "Необязательные метаданные подменяют определение протокола подписи",
+      "detail": "[signing-commitments.ts:35](../../apps/psbt-inspector/src/signing-commitments.ts:35).\n\nК настоящему P2PKH-входу с проверенным non-witness UTXO достаточно добавить валидный `PSBT_IN_TAP_INTERNAL_KEY`. Приоритет метаданных над scriptPubKey заставляет наш интерфейс писать `Taproot / BIP341` и `Current input amount: Committed`; для Legacy сумма в signature hash не входит. Core декодирует дополнительные метаданные, но они не превращают P2PKH в Taproot.\n\nЭталон: выбор SigVersion по spending script и [SignatureHash](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/interpreter.cpp). Проба: `legacy_input_with_taproot_metadata` в `additional-results.json`, оба браузера.\n\nИсправление: определять протокол по привязанному UTXO и проверенной цепочке redeem/witness scripts. Противоречивые метаданные отмечать отдельно. При недостатке данных выводить неопределённость вместо уверенного утверждения. Это общий модуль; проверить также Dash, где эти поля вообще могут быть unknown."
+    },
+    {
+      "id": "B-03",
+      "priority": "P2",
+      "title": "Структура proprietary PSBT keys не проверяется",
+      "detail": "[psbt-validation.ts:54](../../apps/psbt-inspector/src/psbt-validation.ts:54).\n\nКлючи `fc`, `fc00`, `fc036162` и ключ с неканонической длиной identifier принимаются в global/input/output maps. Core отклоняет их из-за отсутствующего identifier/subtype либо неканонического CompactSize. Всего 12 отрицательных проб дали расхождение, 3 корректных контрольных примера приняли обе реализации. У нас при этом отображается успешная проверка framing/field schema.\n\nЭталон: [PSBT_IN_PROPRIETARY](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/psbt.h#L900) и аналогичные global/output ветви. Доказательство: `additional-results.json`.\n\nИсправление: разбирать структурную часть proprietary key через ограниченный Reader, проверять канонические длины и наличие subtype, сохраняя непрозрачные остаток key и value. Не запрещать корректные unknown-поля: они отличаются от повреждённого известного proprietary envelope."
+    },
+    {
+      "id": "B-04",
+      "priority": "P2",
+      "title": "Неправильная совместимость locktime в PSBTv2",
+      "detail": "[psbt-validation.ts:179](../../apps/psbt-inspector/src/psbt-validation.ts:179), [signing-commitments.ts:152](../../apps/psbt-inspector/src/signing-commitments.ts:152).\n\nВход с обоими полями `height=800000` и `time=1700000000` получает FAILED как несовместимый. BIP370 допускает оба вида как альтернативы. Когда допустимы оба, выбирается высота; смешение несовместимо лишь при требованиях, исключающих общий вариант. Кроме того, у нас отображается time вместо эффективной высоты.\n\nЭталон: [ComputeTimeLock](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/psbt.cpp#L86), [официальный тест с двумя альтернативами](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/test/psbt_tests.cpp#L105), [BIP370](https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki#determining-lock-time). Доказательство: `edge-results.json`, оба браузера.\n\nИсправление: единый расчёт эффективного nLockTime по всей транзакции; отдельные tests для dual/height-only/time-only, максимума и fallback. Core 31.1 этой пробой не подтверждался: он вообще не поддерживает v2."
+    },
+    {
+      "id": "B-05",
+      "priority": "P2",
+      "title": "Расширенные P2SH-пресеты экспортируют неподдерживаемые Core дескрипторы",
+      "detail": "[policy.ts:406](../../apps/psbt-inspector/src/policy.ts:406).\n\nВсе 9 проверенных расширенных P2SH-пресетов возвращают `sh(Miniscript...)`, названный в UI portable descriptor. Core принимает обычные P2SH `multi()/sortedmulti()`, но Miniscript внутри sh не поддерживает. Все 9 экспорта отклонены живым getdescriptorinfo. Это несовместимость экспортируемого формата и wallet workflow; само получение scriptPubKey/P2SH-адреса из такого скрипта не доказывает ошибку консенсуса.\n\nЭталон: [грамматика ParseScript](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/descriptor.cpp#L2723). Доказательство: `policy-matrix-results.json`.\n\nИсправление: для переносимых Core-политик предлагать P2WSH/P2TR; для custom P2SH отделить raw watch-only descriptor, обязательный redeemScript и необходимость собственного проверенного signer. Не называть такой sh-экспорт импортируемым дескриптором Core."
+    },
+    {
+      "id": "B-06",
+      "priority": "P2",
+      "title": "Decaying / expanding пресеты также не импортируются в Core",
+      "detail": "[policy.ts:276](../../apps/psbt-inspector/src/policy.ts:276).\n\nВ этих пресетах одни и те же ключи повторяются в разных ветвях. Для P2WSH и P2TR Core отклоняет Miniscript как `not sane: contains duplicate public keys`. Локальный compiler тоже сообщает `not sane`, но builder всё равно создаёт funding address и portable descriptor. Поэтому простой переход с P2SH на P2WSH эти два пресета не чинит.\n\nЭталон: [IsSane / CheckDuplicateKey](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/descriptor.cpp#L2727). Четыре RPC-подтверждения: `policy-matrix-results.json`.\n\nИсправление: либо совместимая с Core форма политики без запрещённых повторов с отдельной проверкой эквивалентности, либо явно отдельный advanced custom mode без обещания импорта. Нельзя просто выключить safety-анализ и считать совместимость восстановленной. Повтор ключей сам по себе здесь не доказательство возможности украсть средства."
+    },
+    {
+      "id": "B-07",
+      "priority": "P2",
+      "title": "Bitcoin ranged import не создаёт рабочий active multisig wallet",
+      "detail": "[multisig-wallet.ts:370](../../apps/psbt-inspector/src/multisig-wallet.ts:370).\n\nЭкспорт ставит `active:false`, не указывает next_index и не создаёт отдельный blank watch-only wallet. В чистом кошельке импорт проходит, но getnewaddress/getrawchangeaddress возвращают `This wallet has no available keys`. В ранее существующем кошельке остаются его старые active descriptors. Следовательно, пользователь может продолжить получать адреса другого типа кошелька.\n\nПассивный импорт для наблюдения сам по себе валиден; проблема в несоответствии полному сценарию создания ranged multisig. Эталон: [Core multisig workflow](https://github.com/bitcoin/bitcoin/blob/9be056a8a72b624dae9623b2f7bded92c2a21c91/test/functional/wallet_multisig_descriptor_psbt.py). Доказательства: `rpc-results.json`, успешный workflow после коррекции только scratch-import — `workflow-results.json`.\n\nИсправление: разделить пассивный watch-only import и создание нового multisig wallet. Для второго — отдельный blank wallet, active receive/change descriptors, правильный next_index и выбор wrapper/change type. Для конкретного нерейнджевого адреса active:false остаётся корректным."
+    },
+    {
+      "id": "B-08",
+      "priority": "P2",
+      "title": "Корректные Taproot pkh-листья отвергаются",
+      "detail": "[musig-descriptor.ts:228](../../apps/psbt-inspector/src/musig-descriptor.ts:228).\n\nДва официальных положительных примера с `tr(...,pkh(...))` дают `P2TR: invalid leaf script=pkh`. Core 31.1 принимает оба и выдаёт адреса. Причина — ограничение классификатора leaf script в Scure; существующий allowUnknownOutputs не помогает для уже распознанного типа pkh.\n\nЭталон: [descriptor_tests.cpp:1157](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/test/descriptor_tests.cpp#L1157), также строка 1159. Доказательства: `descriptor-results.json`, `additional-results.json`, оба браузера.\n\nИсправление: интегрировать корректно проверенные Tapscript leaves без смешения классификатора обычного output script с консенсусом Tapscript; проверить дерево/хеш/адрес по этим двум векторным результатам. Не отключать все проверки скриптов без замены."
+    },
+    {
+      "id": "B-09",
+      "priority": "P2",
+      "title": "Декодер принимает синтаксически неправильные descriptors",
+      "detail": "[descriptor.ts:74](../../apps/psbt-inspector/src/descriptor.ts:74), [descriptor-compiler.ts:110](../../apps/psbt-inspector/src/descriptor-compiler.ts:110).\n\nОфициальные отрицательные примеры `addr(asdf)`, `sh(<pubkey>)`, `multi(+1,...)` принимаются. Первые два заканчиваются без compiledOutput, а не понятной ошибкой; третий реально компилируется благодаря числовому приведению. Core отвергает все три. `addr(asdf)` подтверждён в двух браузерах.\n\nЭталон: [descriptor_tests.cpp](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/test/descriptor_tests.cpp#L1018), строки 1018/1029/1053. Исправление: строгая грамматика и проверка адреса выбранной сети; отделять «известный формат, но не реализовано представление» от «синтаксически недопустимо». Доказательства: `descriptor-results.json`, `rpc-results.json`."
+    },
+    {
+      "id": "B-10",
+      "priority": "P2",
+      "title": "Staged recovery P2TR теряет ranged xpub при экспорте",
+      "detail": "[policy.ts:371](../../apps/psbt-inspector/src/policy.ts:371), [policy.ts:407](../../apps/psbt-inspector/src/policy.ts:407).\n\nПри входных `xpub/<0;1>/*` строится portableDescriptorBody, но для P2TR его заменяет готовый конкретный taprootDescriptor. Core сообщает `isrange:false`; изменение индекса меняет сам descriptor. Для тех же исходных данных в P2WSH descriptor остаётся ranged. Это расходится с README о сохранении ranged export.\n\nДоказательство: `final-results.json`, `staged`: P2WSH индексы 0/1 → isrange=true; P2TR индексы 0/1 → false. Адрес текущего конкретного индекса при этом корректен.\n\nИсправление: сохранять исходные key expressions и binary tree в Taproot export, отдельно показывая материализованный текущий адрес; проверить receive/change и несколько индексов через deriveaddresses."
+    },
+    {
+      "id": "B-11",
+      "priority": "P2",
+      "title": "Разные origin paths ошибочно запрещены",
+      "detail": "[multisig-wallet.ts:314](../../apps/psbt-inspector/src/multisig-wallet.ts:314).\n\nДва cosigner xpub с origin `m/48h/1h/0h/2h` и `m/48h/1h/1h/2h` отвергаются. Core принимает их вместе и выводит общий multisig. Origins описывают происхождение каждого ключа; совпадение account path у всех участников не является правилом Bitcoin multisig. Текст ошибки дополнительно содержит Dash-only пример для Bitcoin.\n\nДоказательство: `additional-results.json`, `mixed_account_origins`. Исправление: валидировать каждое origin отдельно; при необычной комбинации давать предупреждение, сохраняя обязательную сверку descriptor/адресов всеми участниками. Не запрещать допустимую комбинацию автоматически."
+    },
+    {
+      "id": "B-12",
+      "priority": "P2",
+      "title": "Обещанный P2WSH с 17–20 ключами не работает",
+      "detail": "[policy.ts:67](../../apps/psbt-inspector/src/policy.ts:67).\n\nВерхний уровень и README допускают до 20 ключей, но общий validatePublicKeys ограничивает 16. Пробы 15/16 проходят, 17/20 завершаются ошибкой. Core принимает P2WSH sortedmulti с 16, 17 и 20 ключами.\n\nДоказательства: `edge-results.json`, `policy-matrix-results.json`. Исправление: ограничения по wrapper/context плюс script-number encoding выше OP_16; сохранить P2SH-предел 520 байт и 15 compressed keys. Одного изменения числа в проверке недостаточно без векторов для скомпилированного скрипта."
+    },
+    {
+      "id": "B-13",
+      "priority": "P3",
+      "title": "CLI-экспорт не включает выбранную сеть",
+      "detail": "[multisig-wallet.ts:164](../../apps/psbt-inspector/src/multisig-wallet.ts:164), [multisig-wallet.ts:379](../../apps/psbt-inspector/src/multisig-wallet.ts:379).\n\nПри testnet/regtest генерируется `bitcoin-cli importdescriptors ...` без сетевого флага. Команда использует сеть конфигурации CLI, обычно mainnet. С literal pubkey descriptor сеть нельзя распознать из текста, поэтому такой импорт способен успешно попасть в другую сеть. На xpub неверной сети чаще получится явная ошибка, но это не делает экспорт самодостаточным.\n\nДоказательство: `edge-results.json`, network_mainnet/testnet/regtest. Исправление: корректные сетевые флаги или явное требование выбора CLI chain. Testnet и signet используют одинаковые адресные версии, поэтому текущая объединённая UI-модель не позволяет автоматически угадать нужный флаг; это нужно решить явно."
+    }
+  ],
+  "evidenceSha256": {
+    "release-wallet-multisig-descriptor-psbt.py": "5b600a757b1031bdc69f3d646959a892fef14d47d264c99e579e9892a06a5e0f",
+    "final-results.json": "e2cde65f966547553e58fe4dc6b232bb10d8c5a3b898d8a2cc0ac5c4a5b50203",
+    "final-probes.mjs": "50aca60ca8ce461cf6aa4c0e4609c03ddb77947be5aadcd5c55c9296f053ae14",
+    "browser-results.json": "683f9a258562c8c86115aed0f5edfb79f2f69669c454038abb68a1f3851ae7fc",
+    "browser-probes.mjs": "0dadfc370e7869edddc0a1d27b46f8628025dfcce33b68b57b42a96ccde3a65e",
+    "policy-matrix-results.json": "1c1b7aa7c957f6de86aba621299d025437213e7f653776becbc6f366736a04c0",
+    "workflow-results.json": "de94d59798a21356939936091eb1d49a7829cd970e143d2db6b35a78a501be3c",
+    "workflow-p2wsh-psbts.json": "d1803724c83c9d984e3cb7f1bdcb6beac50d2ee3389af73c1d071e7f3e1e990d",
+    "workflow-p2sh-psbts.json": "0759bf21ea7b4aaeb4aad65ee3cb22d1152a485c5faefcd8ec687155ced05ff4",
+    "policy-matrix.mjs": "e905aaa2d6ecabbb45ec3bfcf714796356592d0dbd8253dabe3214c841206fdc",
+    "multisig-workflow.mjs": "1fbb191b560b17e44ca559d982ad9c43ca64e97986ebd9a26617f0b5bc00c7f9",
+    "additional-results.json": "c05c76ee2063efb01e64a88934fdead742fb1b9cd34217a95fb5b0244d55e4b1",
+    "additional-probes.mjs": "ab333b1a116ff493ae5392c582d4eb17543132a3bdab6c1f02594294994b2e2a",
+    "rpc-results.json": "fed451876f83571f6053dbe58fb96386692ac5d3c9c819fdd8299c8ff46d1113",
+    "rpc-probes.mjs": "c290f80c6203bd75431978c57845b1546b3f5f89f0f046c005ae8f0c29c66061",
+    "rpc.mjs": "9cb4627b8155b7b1c83cc6fe685a6eff36af526cf56e95cd16eee3c14457c784",
+    "descriptor-results.json": "6def8aafe9da4a6bef6470002254c20324e0475201b3c3b03dabfa6809497196",
+    "descriptor-summary.json": "5b3489cd18c5319e24b6a43e2825a5643fd296b0494a81a811f108c95f3ca8ea",
+    "descriptor-corpus.mjs": "05d886a6a60b83d5b8af2f3f4eccafd4486f008343f7d7fdf85f823e1fd446ba",
+    "descriptor-vectors.json": "8ede0f2665effef24460bb7d8cfd792208b10e73290d81633820af289410275b",
+    "extract-descriptors.py": "978f814e075233d5b423ad12601d8b8d8efe96fbebc6b41f2273a7321d5b930f",
+    "edge-results.json": "baaebafb466678c6cc97b6ee3f4216e63af23405d0ec821bee12067cc41457ed",
+    "edge-probes.mjs": "67e44827fa65d006a0281d5db951caf99ad49c99b42dbdf06be51ff1e304e1ac",
+    "release-rpc-psbt.json": "1779e2a9a07476d72411d38a48986585e600915d8a3148b9becf8a985f781b87",
+    "corpus-results.json": "35a8e8eb262d02eac8c29858ce4b4a0e98d165331c193a3509d66dddd7fff4d3",
+    "corpus.mjs": "a0b9bedbc6f0ed939ff245f993e6531d655d0d8e9e763c0d59786179b1b40209",
+    "api.mjs": "c0331b0c58d31b4ff7e7728b1b6db1d5b7dcf5a9679873513648809d818ceedd"
+  },
+  "checks": {
+    "localTests": 623,
+    "masterPsbtCases": 134,
+    "releasePsbtCases": 95,
+    "releaseValidTransactionDetails": 34,
+    "bip67Vectors": 4,
+    "descriptorCases": 186,
+    "policyCombinations": 27,
+    "liveWorkflowWrappers": [
+      "p2sh",
+      "p2wsh"
+    ],
+    "liveWorkflowPsbtStages": 10,
+    "liveWorkflowAddressComparisons": 12,
+    "browserCases": 12
+  },
+  "title": "Independent source and interoperability audit",
+  "remediation": {
+    "status": "fixed",
+    "verification": [
+      "pnpm verify",
+      "browser file suite 16/16",
+      "browser regression suite 42/42",
+      "selective browser smoke 10/10"
+    ],
+    "regressionFixture": "../../apps/psbt-inspector/tests/upstream/bitcoin-core-audit-regressions.json"
+  }
+}

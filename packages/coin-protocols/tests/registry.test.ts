@@ -36,6 +36,7 @@ describe('coin adapter extension contract', () => {
       'ethereum',
       'dash-core',
       'dash-multisig-p2sh',
+      'dash-multisig-core-pkh',
       'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',
@@ -45,7 +46,11 @@ describe('coin adapter extension contract', () => {
       expect(adapter.label.length).toBeGreaterThan(0);
       expect(adapter.variantLabel.length).toBeGreaterThan(0);
       expect(adapter.group.length).toBeGreaterThan(0);
-      if (adapter.id === 'dash-identity' || adapter.id === 'dash-multisig-p2sh') {
+      if (
+        adapter.id === 'dash-identity' ||
+        adapter.id === 'dash-multisig-p2sh' ||
+        adapter.id === 'dash-multisig-core-pkh'
+      ) {
         expect(adapter.fieldRoles.addresses).toEqual([]);
         expect(adapter.defaults.count).toBe(adapter.id === 'dash-identity' ? 5 : 20);
       } else {
@@ -72,6 +77,7 @@ describe('coin adapter extension contract', () => {
     expect(COIN_FAMILIES.find(({ id }) => id === 'dash')?.adapters.map(({ variantLabel }) => variantLabel)).toEqual([
       'Core\nBIP44 · P2PKH',
       'Multisig\nPurpose48 · P2SH',
+      'Multisig\nCore pkh signer',
       'Legacy mobile\nCore',
       'Platform\nDIP17 / DIP18',
       'Identity\nDIP13',
@@ -138,6 +144,15 @@ describe('coin adapter extension contract', () => {
       }),
     ).toBe("m/48'/5'/0'/0'/0/0");
     expect(getCoinAdapter('dash-legacy-mobile').hiddenByDefault).toBe(true);
+    expect(
+      getCoinAdapter('dash-multisig-core-pkh').pathPreview({
+        network: 'mainnet',
+        account: 0,
+        branch: 1,
+        start: 0,
+        count: 1,
+      }),
+    ).toBe("m/44'/5'/0'/1/0");
     expect(getCoinAdapter('dash-shielded').addressBranches).toBeUndefined();
   });
 
@@ -145,6 +160,7 @@ describe('coin adapter extension contract', () => {
     expect(DASH_COIN_ADAPTERS.map(({ id }) => id)).toEqual([
       'dash-core',
       'dash-multisig-p2sh',
+      'dash-multisig-core-pkh',
       'dash-legacy-mobile',
       'dash-platform',
       'dash-identity',

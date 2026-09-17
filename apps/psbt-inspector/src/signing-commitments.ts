@@ -34,13 +34,14 @@ function u32(bytes: Uint8Array): number {
 
 function inputProtocol(parsed: ParsedPsbt, index: number): SighashProtocol {
   const map = parsed.inputs[index] ?? [];
-  if (map.some(({ type }) => type >= 0x13n && type <= 0x1cn)) return 'taproot';
   const script = parsed.inputUtxos[index]?.script;
   const scriptHex = script === undefined ? '' : bytesToHex(script);
   if (/^5120[0-9a-f]{64}$/u.test(scriptHex)) return 'taproot';
   if (/^00(?:14[0-9a-f]{40}|20[0-9a-f]{64})$/u.test(scriptHex)) return 'segwit-v0';
   const redeem = field(map, 0x04n)?.value;
   if (redeem !== undefined && /^00(?:14[0-9a-f]{40}|20[0-9a-f]{64})$/u.test(bytesToHex(redeem))) return 'segwit-v0';
+  if (script !== undefined) return 'legacy';
+  if (map.some(({ type }) => type >= 0x13n && type <= 0x1cn)) return 'taproot';
   return 'legacy';
 }
 
@@ -95,15 +96,37 @@ export function analyzeSighash(
           ? 'SIGHASH_NONE'
           : 'SIGHASH_SINGLE';
   const missingSingleOutput = effectiveBase === 3 && !correspondingOutput;
+  if (missingSingleOutput && protocol === 'legacy') {
+    return {
+      label: `${baseName}${anyoneCanPay ? ' | ANYONECANPAY' : ''}`,
+      known: true,
+      unusual: true,
+      currentInput: 'Not committed · legacy bug returns the constant hash 1',
+      otherInputs: 'Not committed · legacy bug returns the constant hash 1',
+      otherInputSequences: 'Not committed · legacy bug returns the constant hash 1',
+      outputs: 'No corresponding output · legacy SIGHASH_SINGLE returns the constant hash 1',
+      currentInputAmount: 'Not committed by legacy sighash',
+    };
+  }
+  if (missingSingleOutput && protocol === 'taproot') {
+    return {
+      label: `${baseName}${anyoneCanPay ? ' | ANYONECANPAY' : ''}`,
+      known: false,
+      unusual: true,
+      currentInput: 'Invalid · no corresponding output',
+      otherInputs: 'Invalid · no corresponding output',
+      otherInputSequences: 'Invalid · no corresponding output',
+      outputs: 'Invalid · SIGHASH_SINGLE has no corresponding output',
+      currentInputAmount: 'Invalid · no corresponding output',
+    };
+  }
   const outputs =
     effectiveBase === 1
       ? 'All outputs and their amounts are committed'
       : effectiveBase === 2
         ? 'No outputs are committed'
         : missingSingleOutput
-          ? protocol === 'taproot'
-            ? 'Invalid · SIGHASH_SINGLE has no corresponding output'
-            : 'No corresponding output · legacy SIGHASH_SINGLE edge case'
+          ? 'No corresponding output is committed'
           : 'Only the output with the same index is committed';
   return {
     label: `${baseName}${anyoneCanPay ? ' | ANYONECANPAY' : ''}`,
@@ -122,7 +145,9 @@ function signatureState(map: readonly PsbtPair[]): string {
   if (field(map, 0x07n) !== undefined || field(map, 0x08n) !== undefined)
     return 'Final script supplied · signatures are not cryptographically verified here';
   const count = map.filter(({ type }) => [0x02n, 0x13n, 0x14n, 0x1cn].includes(type)).length;
-  return count === 0 ? 'Not signed' : `${count} signature field(s) supplied · not cryptographically verified here`;
+  return count === 0
+    ? 'No signature or final-script fields supplied'
+    : `${count} signature field(s) supplied · not cryptographically verified here`;
 }
 
 function signatureSighashes(map: readonly PsbtPair[]): number[] {
@@ -148,6 +173,22 @@ function transactionVersion(parsed: ParsedPsbt): number {
 }
 
 function describeAbsoluteLocktime(parsed: ParsedPsbt, index: number): string {
+  if (parsed.version === 2) {
+    let timePossible = true;
+    let heightPossible = true;
+    let maximumTime = 0;
+    let maximumHeight = 0;
+    for (const input of parsed.inputs) {
+      const time = field(input, 0x11n)?.value;
+      const height = field(input, 0x12n)?.value;
+      if (time !== undefined) maximumTime = Math.max(maximumTime, u32(time));
+      if (height !== undefined) maximumHeight = Math.max(maximumHeight, u32(height));
+      if (time !== undefined && height === undefined) heightPossible = false;
+      if (time === undefined && height !== undefined) timePossible = false;
+    }
+    if (heightPossible && maximumHeight > 0) return `Effective transaction lock: block height ${maximumHeight}`;
+    if (timePossible && maximumTime > 0) return `Effective transaction lock: Unix time ${maximumTime}`;
+  }
   const map = parsed.inputs[index] ?? [];
   const requiredTime = field(map, 0x11n)?.value;
   const requiredHeight = field(map, 0x12n)?.value;

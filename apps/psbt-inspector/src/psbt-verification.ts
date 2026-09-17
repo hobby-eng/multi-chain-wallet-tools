@@ -143,7 +143,10 @@ export function inputVerification(
     checks.push({
       relationship: 'PSBT v2 locktime requirements',
       status: 'verified',
-      detail: 'Required locktime values use one compatible unit.',
+      detail:
+        pair(map, 17) !== undefined && pair(map, 18) !== undefined
+          ? 'This input supplies alternative time and height requirements; the transaction-wide BIP370 calculation selects a compatible unit.'
+          : 'Required locktime values are compatible with the transaction-wide BIP370 calculation.',
     });
   else
     checks.push({

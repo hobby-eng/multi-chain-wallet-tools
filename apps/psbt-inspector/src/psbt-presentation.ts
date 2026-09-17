@@ -1,9 +1,10 @@
 import { bech32, bech32m } from '@scure/base';
 import { bytesToHex, encodeBase58Check, sha256 } from '@ckd/core/crypto.js';
 import { reverseHex, type PsbtPair } from './psbt-binary.js';
+import { isUnsupportedField, type PsbtMapScope } from './psbt-field-registry.js';
 import type { PsbtChain, PsbtNetwork } from './psbt-types.js';
 
-export function pairName(scope: 'global' | 'input' | 'output', type: bigint, chain: PsbtChain = 'bitcoin'): string {
+export function pairName(scope: PsbtMapScope, type: bigint, chain: PsbtChain = 'bitcoin'): string {
   const names: Record<string, Record<string, string>> = {
     global: {
       '0': 'Unsigned transaction',
@@ -26,6 +27,7 @@ export function pairName(scope: 'global' | 'input' | 'output', type: bigint, cha
       '6': 'BIP32 derivation',
       '7': 'Final scriptSig',
       '8': 'Final script witness',
+      '9': 'Proof-of-reserves commitment',
       '10': 'RIPEMD160 preimage',
       '11': 'SHA256 preimage',
       '12': 'HASH160 preimage',
@@ -33,6 +35,8 @@ export function pairName(scope: 'global' | 'input' | 'output', type: bigint, cha
       '14': 'Previous txid (v2)',
       '15': 'Output index (v2)',
       '16': 'Sequence (v2)',
+      '17': 'Required time lock (v2)',
+      '18': 'Required height lock (v2)',
       '19': 'Taproot key signature',
       '20': 'Taproot script signature',
       '21': 'Taproot leaf script',
@@ -57,13 +61,8 @@ export function pairName(scope: 'global' | 'input' | 'output', type: bigint, cha
       '252': 'Proprietary',
     },
   };
-  if (
-    chain === 'dash' &&
-    ((scope === 'global' && [2n, 3n, 4n, 5n, 6n].includes(type)) ||
-      (scope === 'input' && [1n, 5n, 8n, 14n, 15n, 16n, 19n, 20n, 21n, 22n, 23n, 24n, 26n, 27n, 28n].includes(type)) ||
-      (scope === 'output' && [1n, 3n, 4n, 5n, 6n, 7n, 8n].includes(type)))
-  ) {
-    return `Unknown/unsupported Dash field ${type}`;
+  if (isUnsupportedField(chain, scope, type)) {
+    return `Unknown / passthrough Dash field · type 0x${type.toString(16).padStart(2, '0')}`;
   }
   return names[scope]?.[type.toString()] ?? `Unknown type ${type}`;
 }

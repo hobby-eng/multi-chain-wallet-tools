@@ -1,0 +1,25 @@
+{
+  "audit": 15,
+  "date": "2026-09-17",
+  "title": "Independent source and interoperability audit",
+  "scope": ["Dash Core PSBT", "descriptor multisig", "cosigner derivation", "build profiles"],
+  "upstream": {
+    "repository": "https://github.com/dashpay/dash",
+    "commit": "3a0c9383525ab16f12309989458deff9f533c8d9"
+  },
+  "findings": [
+    {"id":"D-01","status":"fixed","summary":"PSBTv0 unknown key 0x0f is preserved using version context."},
+    {"id":"D-02","status":"verified","summary":"All four official Dash BIP67 vectors match."},
+    {"id":"D-03","status":"fixed","summary":"Independent cosigner origin paths are preserved."},
+    {"id":"D-04","status":"fixed","summary":"Nonzero BIP44 accounts are labeled custom and require matching signer material."},
+    {"id":"D-05","status":"documented","summary":"Purpose48 remains a wallet-specific convention, not a Dash Core standard."},
+    {"id":"D-06","status":"fixed","summary":"CLI exports include network flags and complete active ranged-wallet setup."},
+    {"id":"D-07","status":"verified","summary":"Dash P2SH and Bitcoin P2WSH use wrapper-specific signer-count limits."}
+  ],
+  "retainedEvidence": [
+    "../../apps/psbt-inspector/tests/upstream/dash-core-rpc-psbt.json",
+    "../../apps/psbt-inspector/tests/upstream/dash-core-rpc-bip67.json",
+    "../../apps/psbt-inspector/tests/dash-core-psbt-vectors.test.ts",
+    "../../packages/coin-protocols/tests/dash-core.test.ts"
+  ]
+}

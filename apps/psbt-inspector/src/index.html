@@ -865,7 +865,7 @@
             </div>
             <div>
               <label for="wallet-required">Required signatures</label
-              ><input id="wallet-required" type="number" value="2" min="1" max="16" />
+              ><input id="wallet-required" type="number" value="2" min="1" max="15" />
             </div>
             <div class="span-three wallet-mode-fields">
               <div class="builder-grid nested-builder-grid">
@@ -890,7 +890,7 @@
                 autocomplete="off"
                 autocapitalize="none"
                 spellcheck="false"
-                placeholder="02...&#10;03...&#10;or account xpubs:&#10;[d34db33f/48h/5h/0h/0h]xpub...&#10;xpub..."
+                placeholder="02...&#10;03...&#10;or account xpubs / public signer descriptors:&#10;[d34db33f/48h/5h/0h/0h]xpub...&#10;pkh([d34db33f/44h/5h/0h]xpub.../0/*)#checksum"
               ></textarea>
               <p class="field-note">
                 Input is detected automatically. If every line is a compressed child public key, the utility builds one
@@ -910,25 +910,22 @@
             branches, or index range.
           </p>
           <p class="field-note">
-            <strong>Standard Dash P2SH multisig path:</strong> use BIP48-style Purpose48 account keys at
-            <code>m/48'/5'/account'/0'</code> for Dash mainnet legacy P2SH multisig. This is the standard HD multisig
-            separation pattern <code>m/48'/coin_type'/account'/script_type'</code>, not an Electrum-only private address
-            scheme. Do not mix it with legacy multisig keys from <code>m/45'/0</code> or regular Dash Core BIP44 account
-            xpubs at <code>m/44'/5'/account'</code>; those are different HD branches and intentionally produce different
-            multisig scripts and addresses.
+            <strong>Dash Purpose48 option:</strong> use <code>m/48'/5'/account'/0'</code> on mainnet or
+            <code>m/48'/1'/account'/0'</code> on testnet when every cosigner wallet supports this wallet-specific P2SH
+            convention. It is not a mandatory Dash Core derivation path. Keep the same agreed derivation family for all
+            cosigners.
           </p>
           <p class="field-note">
-            <strong>Mainnet/testnet xpubs differ:</strong> Dash mainnet Purpose48 uses
-            <code>m/48'/5'/account'/0'</code> and exports <code>xpub...</code>; Dash testnet uses
-            <code>m/48'/1'/account'/0'</code> and exports <code>tpub...</code>. Do not switch a mainnet xpub into
-            testnet mode.
+            <strong>Dash Core signer option:</strong> obtain each signer's public <code>pkh(.../0/*)</code> descriptor
+            from <code>listdescriptors</code> in a dedicated signer wallet. Paste the complete checksummed descriptor
+            here, or its origin-tagged account xpub. The builder uses the account xpubs with <code>/0/*</code> for
+            receive and <code>/1/*</code> for change in <code>sh(sortedmulti(...))</code>. Never export private
+            descriptors. Ordinary signer account xpubs are supported by this official workflow.
           </p>
           <p class="field-note">
-            <strong>Concrete Dash multisig keys:</strong> when manually building one standard P2SH multisig address, use
-            one child public key from each cosigner's Purpose48 branch at the same suffix, for example
-            <code>m/48'/5'/0'/0'/0/0</code>. If you paste xpubs instead, the first row is receive <code>/0/0</code>. Do
-            not use ordinary single-sig BIP44 child keys such as <code>m/44'/5'/0'/0/0</code> unless you intentionally
-            want a nonstandard wallet policy that may be harder to restore.
+            <strong>Concrete keys and networks:</strong> use one child public key from each signer at the same agreed
+            branch/index. Purpose48 and Dash Core signer paths produce different addresses; preserve the selected policy
+            and all key origins. Mainnet requires <code>xpub...</code>, testnet requires <code>tpub...</code>.
           </p>
           <p class="field-note">
             <strong>What P2SH uses:</strong> individual single-signer receive addresses are not part of the multisig
