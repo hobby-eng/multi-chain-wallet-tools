@@ -37,6 +37,16 @@ describe('SLIP-39', () => {
     }
   });
 
+  it('rejects a random-byte source that returns the wrong length', () => {
+    expect(() =>
+      createSlip39Shares(new Uint8Array(16), {
+        groupThreshold: 1,
+        groups: [{ memberThreshold: 1, memberCount: 1 }],
+        randomBytes: () => new Uint8Array(0),
+      }),
+    ).toThrow(/expected 2/u);
+  });
+
   it('round-trips every BIP39 entropy size in current and legacy formats', () => {
     for (const length of [16, 20, 24, 28, 32]) {
       for (const extendable of [false, true]) {

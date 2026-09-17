@@ -1,6 +1,6 @@
 # Audit records
 
-Audit files use one global chronological sequence. Markdown and JSON files with the same number belong to the same review.
+Audit files use one global chronological sequence. Markdown and JSON files with the same number belong to the same review. New reports record the reviewer model and reasoning-effort level. Historical reports retain only metadata that was actually recorded; an unknown model or effort is marked as unknown rather than inferred.
 
 1. [Audit 01](audit-01-2026-09-08.json) — 2026-09-08
 2. [Audit 02](audit-02-2026-09-08.md) — 2026-09-08
@@ -18,5 +18,6 @@ Audit files use one global chronological sequence. Markdown and JSON files with 
 14. [Audit 14](audit-14-2026-09-17.md) — 2026-09-17
 15. [Audit 15](audit-15-2026-09-17.md) — 2026-09-17
 16. [Audit 16](audit-16-2026-09-17.md) — 2026-09-17
+17. [Audit 17](audit-17-2026-09-17.md) — 2026-09-17
 
 Historical findings describe only the reviewed snapshot. Use the latest audit and the `dist/verification-record.json` emitted for the build being evaluated.

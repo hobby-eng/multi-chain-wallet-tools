@@ -1,6 +1,9 @@
 {
   "reviewedAt": "2026-09-12T03:59:22.574429Z",
   "reviewer": "OpenAI Codex (GPT-6 family; exact service snapshot not exposed)",
+  "model": "gpt-6-family",
+  "reasoningEffort": null,
+  "reasoningEffortNote": "Not recorded by the reviewing client.",
   "baseCommit": "f16a0987c903f83ef9428aefcb8fac9227fcc7f0",
   "source": "<worktree> plus uncommitted changes",
   "version": "0.1.4",

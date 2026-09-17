@@ -44,7 +44,7 @@ export function installBip85Feature(options: Bip85FeatureOptions) {
     optionalElement<HTMLElement>('#bip85-result')?.classList.toggle('revealed', revealed);
     optionalElement<HTMLTextAreaElement>('#bip85-output')?.classList.toggle('concealed', !revealed);
     if (toggleSecretButton !== null) {
-      toggleSecretButton.textContent = revealed ? 'Hide' : 'Reveal';
+      toggleSecretButton.textContent = revealed ? 'Hide recovery source' : 'Reveal recovery source';
       toggleSecretButton.setAttribute('aria-pressed', String(revealed));
     }
   }

@@ -20,6 +20,12 @@ const SSKR_ENCODING: Readonly<Record<SskrShareEncoding, number>> = {
   bytewords: 1,
 };
 
+function encodingCode(encoding: SskrShareEncoding): number {
+  const code = SSKR_ENCODING[encoding];
+  if (code === undefined) throw new Error(`Unsupported SSKR share encoding: ${String(encoding)}.`);
+  return code;
+}
+
 export type { SskrGroupSpec } from './sskr-groups.js';
 export function createSskrShares(
   secret: Uint8Array,
@@ -31,7 +37,7 @@ export function createSskrShares(
   const packedGroups = validateSskrGroups(groupThreshold, groups, { label: 'SSKR', allowEmpty: false });
   const random = secureRandomBytes(32);
   try {
-    return create_sskr_shares_formatted(secret, groupThreshold, packedGroups, random, SSKR_ENCODING[encoding]).split(
+    return create_sskr_shares_formatted(secret, groupThreshold, packedGroups, random, encodingCode(encoding)).split(
       '\n',
     );
   } finally {
@@ -40,5 +46,5 @@ export function createSskrShares(
 }
 export function recoverSskrShares(shares: readonly string[], encoding: SskrShareEncoding = 'compact-ur'): Uint8Array {
   initializeSskrWasm();
-  return recover_sskr_shares_formatted(shares.join('\n'), SSKR_ENCODING[encoding]);
+  return recover_sskr_shares_formatted(shares.join('\n'), encodingCode(encoding));
 }

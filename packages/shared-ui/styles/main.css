@@ -736,6 +736,21 @@ textarea.concealed {
 .field-heading label {
   margin: 0;
 }
+.bip85-secret-heading {
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+.bip85-secret-heading .section-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+.bip85-secret-heading .recovery-source-menu > summary,
+.bip85-secret-heading #toggle-bip85-secret {
+  min-height: 2.5rem;
+}
 .secret-input-wrap {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2421,6 +2436,13 @@ footer p {
 }
 
 @media (max-width: 640px) {
+  .bip85-secret-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .bip85-secret-heading .section-head-actions {
+    justify-content: flex-start;
+  }
   .recovery-source-menu-items {
     position: static;
     margin-top: 0.4rem;

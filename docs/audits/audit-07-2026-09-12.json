@@ -6,6 +6,9 @@
     "vendor": "Anthropic",
     "harness": "Claude Code (Claude desktop app)"
   },
+  "model": "claude-fable-5-1",
+  "reasoningEffort": null,
+  "reasoningEffortNote": "Not recorded by the reviewing client.",
   "dateUtc": "2026-09-12",
   "windowUtc": {
     "start": "2026-09-12T11:10:22Z",
