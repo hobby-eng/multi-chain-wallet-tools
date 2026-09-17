@@ -1,6 +1,9 @@
 {
   "report": "docs/audits/audit-07-2026-09-12.md",
   "reviewer": { "model": "Claude Fable 5.1", "modelId": "claude-fable-5-1", "vendor": "Anthropic", "harness": "Claude Code (Claude desktop app)" },
+  "model": "claude-fable-5-1",
+  "reasoningEffort": null,
+  "reasoningEffortNote": "Not recorded by the reviewing client.",
   "dateUtc": "2026-09-12",
   "windowUtc": { "start": "2026-09-12T11:10:22Z", "end": "2026-09-12T12:07:00Z" },
   "host": { "os": "Ubuntu 26.04.1 LTS", "kernel": "Linux 7.0.0-31-generic x86_64", "cpuThreads": 16, "memoryGiB": 14 },

@@ -833,7 +833,7 @@ dependencies = [
 
 [[package]]
 name = "recovery-sskr-wasm"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "bc-rand",
  "bc-tags",

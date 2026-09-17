@@ -319,6 +319,14 @@
   margin: 0 0 14px;
   font-size: 15px;
 }
+#transaction-details > .psbt-subheading:not(:first-child),
+.descriptor-visualization > .psbt-subheading:not(:first-child) {
+  margin-top: 28px;
+}
+#map-details > .psbt-map-section + .psbt-map-section,
+#script-operations:not(:empty) {
+  margin-top: 28px;
+}
 .psbt-entry-card {
   margin-top: 11px;
   border: 1px solid #293540;

@@ -61,7 +61,7 @@ A compromised browser, extension, operating system, firmware, build host, or alr
 - A full Dash public key is converted to its lookup HASH160 locally when that is the required identifier. Dash Orchard viewing keys remain local; network requests contain public aligned pool ranges. A viewing key cannot spend funds but can reveal sensitive wallet activity.
 - Raw 32-byte Orchard material is accepted as an OVK only through the explicit advanced type because its length alone cannot distinguish it from spending material. Versioned bundles must match the selected network.
 - Viewer controls stay disabled until the embedded Orchard runtime passes fixed public tests and the same-document Evo Blob Worker completes its startup handshake.
-- Dash CSV/XLSX/JSON exports are generated locally from the loaded result snapshot and exclude Orchard viewing keys. They can still contain privacy-sensitive addresses, identities, transactions, notes, memos, commitments, nullifiers, and activity patterns. Bitcoin and Ethereum results are displayed without export controls in this release.
+- CSV/XLSX/JSON exports for all included coin adapters are generated locally from the loaded Single or Batch result snapshot and exclude Orchard viewing keys and private input material. They can still contain privacy-sensitive addresses, identities, transactions, notes, memos, commitments, nullifiers, and activity patterns.
 
 ### Shared boundary ownership
 

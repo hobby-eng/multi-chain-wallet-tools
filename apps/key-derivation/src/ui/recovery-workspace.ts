@@ -11,26 +11,67 @@ interface RecoveryWorkspaceOptions {
   readonly useMnemonicInDeriver: (mnemonic: string, passphrase?: string) => void;
 }
 export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): RecoverySourceReceiver {
+  const helpSelector = '.recovery-help, .linked-source-help, .threshold-group-help';
+  const pinnedHelp = new WeakSet<HTMLDetailsElement>();
+  const suppressedUntilPointerLeaves = new WeakSet<HTMLDetailsElement>();
+  const helpFromEvent = (event: Event): HTMLDetailsElement | null =>
+    event.target instanceof Element ? event.target.closest<HTMLDetailsElement>(helpSelector) : null;
   const cryptoActions = [...document.querySelectorAll<HTMLButtonElement>('#recovery-workspace button.primary')];
   const setCryptoEnabled = (enabled: boolean): void => {
     for (const action of cryptoActions) action.disabled = !enabled;
   };
   setCryptoEnabled(false);
   installTabs(document, '[data-recovery-tab]', '[data-recovery-panel]');
+  document.addEventListener('pointerover', (event) => {
+    if (event.pointerType === 'touch') return;
+    const help = helpFromEvent(event);
+    if (help === null || (event.relatedTarget instanceof Node && help.contains(event.relatedTarget))) return;
+    if (!suppressedUntilPointerLeaves.has(help)) help.open = true;
+  });
+  document.addEventListener('pointerout', (event) => {
+    if (event.pointerType === 'touch') return;
+    const help = helpFromEvent(event);
+    if (help === null || (event.relatedTarget instanceof Node && help.contains(event.relatedTarget))) return;
+    suppressedUntilPointerLeaves.delete(help);
+    if (!pinnedHelp.has(help)) help.open = false;
+  });
+  document.addEventListener('click', (event) => {
+    const summary = event.target instanceof Element ? event.target.closest<HTMLElement>('summary') : null;
+    if (summary === null) return;
+    const help = summary.parentElement;
+    if (!(help instanceof HTMLDetailsElement) || !help.matches(helpSelector)) return;
+    event.preventDefault();
+    if (pinnedHelp.has(help)) {
+      pinnedHelp.delete(help);
+      suppressedUntilPointerLeaves.add(help);
+      help.open = false;
+    } else {
+      pinnedHelp.add(help);
+      suppressedUntilPointerLeaves.delete(help);
+      help.open = true;
+    }
+  });
   document.addEventListener('pointerdown', (event) => {
     if (!(event.target instanceof Node)) return;
     for (const help of document.querySelectorAll<HTMLDetailsElement>(
       '.recovery-help[open], .linked-source-help[open], .threshold-group-help[open]',
     )) {
-      if (!help.contains(event.target)) help.open = false;
+      if (!help.contains(event.target)) {
+        pinnedHelp.delete(help);
+        suppressedUntilPointerLeaves.delete(help);
+        help.open = false;
+      }
     }
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       for (const help of document.querySelectorAll<HTMLDetailsElement>(
         '.recovery-help[open], .linked-source-help[open], .threshold-group-help[open]',
-      ))
+      )) {
+        pinnedHelp.delete(help);
+        suppressedUntilPointerLeaves.delete(help);
         help.open = false;
+      }
     }
   });
   for (const method of document.querySelectorAll<HTMLElement>('.backup-method')) {

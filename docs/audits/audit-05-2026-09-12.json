@@ -1,6 +1,9 @@
 {
   "reviewedAt": "2026-09-12T03:59:22.574429+00:00",
   "reviewer": "OpenAI Codex (GPT-6 family; exact service snapshot not exposed)",
+  "model": "gpt-6-family",
+  "reasoningEffort": null,
+  "reasoningEffortNote": "Not recorded by the reviewing client.",
   "baseCommit": "ea5d4215ccbf355dd86f1c9928e213df1e23d186",
   "source": "hobby-eng-studious-tribble plus uncommitted changes",
   "version": "0.1.4",

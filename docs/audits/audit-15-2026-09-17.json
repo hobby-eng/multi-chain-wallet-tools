@@ -2,6 +2,9 @@
   "audit": 15,
   "date": "2026-09-17",
   "title": "Independent source and interoperability audit",
+  "model": "gpt-6-astra",
+  "reasoningEffort": null,
+  "reasoningEffortNote": "The effort setting was not retained and is not inferred.",
   "scope": ["Dash Core PSBT", "descriptor multisig", "cosigner derivation", "build profiles"],
   "upstream": {
     "repository": "https://github.com/dashpay/dash",

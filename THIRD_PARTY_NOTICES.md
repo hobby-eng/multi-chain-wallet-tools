@@ -93,11 +93,11 @@ chacha20 0.9.1                  chacha20poly1305 0.10.1
 cipher 0.4.4                    cobs 0.3.0
 corez 0.1.1                     cpufeatures 0.2.17
 critical-section 1.2.0          crypto-common 0.1.7
-dash-shielded-wasm 0.1.4
-recovery-shamir-wasm 0.1.4
-recovery-codex32-wasm 0.1.4
-recovery-sskr-wasm 0.1.4
-recovery-envelope-wasm 0.1.4
+dash-shielded-wasm 0.1.5
+recovery-shamir-wasm 0.1.5
+recovery-codex32-wasm 0.1.5
+recovery-sskr-wasm 0.1.5
+recovery-envelope-wasm 0.1.5
 document-features 0.2.12
 either 1.18.0                   embedded-io 0.4.0
 embedded-io 0.6.1               ff 0.13.1
@@ -405,6 +405,6 @@ SOFTWARE.
 - The verification record also carries SHA-256 hashes for the local SeedQR, SLIP-39, CKD Shamir, Codex32, SSKR, Gordian Seed Envelope, QR rendering, and QR decoding sources.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.
-- `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions, mnemonic-bearing online boundary, and independent-audit warning; its current Bitcoin, Ethereum, and Dash providers are documented in its application README and the root security audit.
+- `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions and mnemonic-bearing online boundary; its current Bitcoin, Ethereum, and Dash providers are documented in its application README and the root security audit.
 - `apps/psbt-inspector/src/index.html` identifies its embedded BitcoinerLab Miniscript compiler/analyzer and Scure BTC Signer MuSig2 inspection dependency. The pinned dependency remains unmodified; the standalone esbuild bundle may tree-shake signing APIs that this inspect/derive-only application does not import.
 - Original project code is licensed under MIT as declared in the root `LICENSE` and `package.json`. Third-party components retain the licenses and notices listed above.

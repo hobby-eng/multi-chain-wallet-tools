@@ -62,7 +62,7 @@ Public-history services remain outside the UI. Bitcoin and Ethereum implement th
 
 When an index exposes synchronization and tip metadata, require and display it rather than assuming freshness. Keep consensus-backed state separate from indexed history. The Platform adapter supplies history and aggregates, while current balance/nonce continue to come from Evo SDK `getWithProof`; the viewer compares them and gives the proof-verified values precedence.
 
-When adding a viewer mode or changing its result schema, extend the `ViewerExportState` discriminated union, CSV/JSON mappings, and XLSX worksheet routing. Add exact-integer, empty-result, filename, worksheet-grouping, and spreadsheet-formula-injection tests. Never pass the raw input control or a viewing/private key into export state.
+New public-address adapters use the normalized `PublicActivityExport` contract in `apps/activity-viewer/src/export-public.ts`. When changing detailed Dash result schemas, extend the `ViewerExportState` discriminated union, CSV/JSON mappings, and XLSX worksheet routing. Add exact-integer, empty-result, filename, worksheet-grouping, and spreadsheet-formula-injection tests. Never pass the raw input control or a viewing/private key into export state.
 
 ## Discovery scanner coin adapters
 
@@ -71,7 +71,7 @@ The connected Wallet Discovery Scanner has a separate extension boundary from of
 For a new recovery coin:
 
 1. Derive all keys only inside the network-denied Secret Vault. Do not import a network SDK, `fetch`, XMLHttpRequest or WebSocket into a coin adapter or any file reachable from the vault bundle.
-2. Add each required public read to the discriminated allowlist in `network-protocol.ts`, implement it in `network-service.ts`, and call it through `RecoveryScanContext.networkApi` plus `RecoveryNetworkGateway`. Never add a generic URL, HTTP body, SDK-method name, executable callback or proxy-style operation to the protocol. Keep the Network Worker free of BIP39, seed and private/viewing/spending-key modules.
+2. Add each required public read to the discriminated allowlist in `packages/network-boundary/src/protocol.ts` and its protocol modules, implement it in `apps/discovery-scanner/src/network-service.ts`, and call it through `RecoveryScanContext.networkApi` plus `RecoveryNetworkGateway`. Never add a generic URL, HTTP body, SDK-method name, executable callback or proxy-style operation to the protocol. Keep the Network Worker free of BIP39, seed and private/viewing/spending-key modules.
 3. Register the mnemonic, BIP39 passphrase, seed bytes, extended private keys, private/spending keys, and privacy-sensitive viewing keys with `SecretEgressGuard`. Assert the minimum public RPC payload—individual addresses, public-key hashes/descriptors or public pool ranges—immediately before port transfer. The guard is defense in depth; opaque-origin sandboxing and `connect-src 'none'` are the primary barrier.
 4. Do not impose a convenience maximum on address counts. Validate against the protocol's actual index space, derive in bounded batches, emit progress/findings after each batch, and check cancellation while queued and between batches. Keep batch size and user total separate concepts. For HD account discovery, treat the configured count as a minimum and document/test the protocol's post-use gap rule; output filtering must never change discovery state.
 5. Preserve atomic values as `bigint`; never parse cryptocurrency amounts through floating-point numbers.

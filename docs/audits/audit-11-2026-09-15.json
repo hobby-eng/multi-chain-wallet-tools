@@ -1,6 +1,9 @@
 {
   "schema": "independent-audit-report/1",
   "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
+  "model": "claude-fable-5-1",
+  "reasoningEffort": null,
+  "reasoningEffortNote": "Not recorded by the reviewing client.",
   "date": "2026-09-15",
   "timeUtc": "19:02-19:20",
   "commit": "cdce70cb531f4da5d46c6ac321ff7de9dd8e12a9",

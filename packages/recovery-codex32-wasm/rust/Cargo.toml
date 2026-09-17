@@ -1,6 +1,6 @@
 [package]
 name = "recovery-codex32-wasm"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 rust-version = "1.85.1"
 license = "CC0-1.0"

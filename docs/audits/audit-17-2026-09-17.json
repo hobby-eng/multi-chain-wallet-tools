@@ -1,0 +1,81 @@
+{
+  "audit": 17,
+  "date": "2026-09-17",
+  "completedAt": "2026-09-17T15:08:00Z",
+  "title": "API, data-flow and export audit",
+  "model": "gpt-5.6-sol",
+  "reasoningEffort": "xhigh",
+  "reasoningEffortLabel": "Extra High",
+  "projectHead": "64868886fe8aaf0121e62e57da065913a1afef76",
+  "productionCodeChanged": false,
+  "scope": [
+    "Bitcoin derivation and exports",
+    "Ethereum derivation and exports",
+    "Dash Core L1, CoinJoin, Platform, Identity, Orchard and multisig cosigner derivation",
+    "14-operation isolated network boundary",
+    "SeedQR, SLIP-39, CKD Shamir, SSKR, Codex32 and Gordian Envelope",
+    "Discovery Scanner and Activity Viewer CSV, JSON and XLSX",
+    "Deriver plain, structured and TSV exports",
+    "security and edge cases"
+  ],
+  "assessment": {
+    "critical": 0,
+    "high": 0,
+    "medium": 1,
+    "low": 3,
+    "summary": "Supported typed UI flows produced correct keys, addresses, recovery secrets, network dispatch and exact exports. Four runtime/API/export edge defects remain."
+  },
+  "findings": [
+    {
+      "id": "M-01",
+      "severity": "medium",
+      "title": "Invalid SSKR and CKD Shamir format values silently select another format",
+      "files": [
+        "../../packages/recovery-backup/src/sskr.ts",
+        "../../packages/recovery-backup/src/shamir.ts"
+      ],
+      "normalUiAffected": false,
+      "recommendedFix": "Validate public runtime discriminants before dispatching to WASM or choosing a decoder."
+    },
+    {
+      "id": "L-01",
+      "severity": "low",
+      "title": "Discovery CSV balance_display is empty for non-Dash coins",
+      "files": ["../../apps/discovery-scanner/src/export.ts"],
+      "exactAtomicValuePreserved": true,
+      "recommendedFix": "Format from balanceAtomic/decimals or parse using the declared asset."
+    },
+    {
+      "id": "L-02",
+      "severity": "low",
+      "title": "Empty-section warning is written into metadata and duplicated in warnings",
+      "files": ["../../apps/discovery-scanner/src/export.ts"],
+      "recommendedFix": "Emit empty metadata and keep the warning only in warnings."
+    },
+    {
+      "id": "L-03",
+      "severity": "low",
+      "title": "Injectable SLIP-39 random source is not checked for requested byte length",
+      "files": ["../../packages/recovery-backup/src/slip39.ts"],
+      "normalUiAffected": false,
+      "recommendedFix": "Require a Uint8Array of exactly the requested length for each callback result."
+    }
+  ],
+  "checks": {
+    "typeAndMetadata": "pass",
+    "vitest": { "files": 129, "tests": 1350, "failed": 0 },
+    "focusedApiSuite": { "files": 45, "tests": 306, "failed": 0 },
+    "activityViewerSuite": { "files": 6, "tests": 58, "failed": 0 },
+    "nativeRecoveryRust": { "tests": 10, "failed": 0 },
+    "pnpmVerify": "pass",
+    "browserFiles": { "passed": 16, "total": 16 },
+    "browserRegressions": { "passed": 42, "total": 42 },
+    "browserSelective": { "passed": 10, "total": 10 },
+    "format": "pass",
+    "pnpmAudit": "unavailable: EAI_AGAIN",
+    "dependencyPins": { "pnpmPackages": 142, "cargoPackages": 460, "upstreamAvailability": "0/9 due unavailable network" },
+    "uncachedDocker": "not run",
+    "liveProviders": "not run"
+  },
+  "temporaryProbeFilesRetained": false
+}

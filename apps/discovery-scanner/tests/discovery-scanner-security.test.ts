@@ -1232,6 +1232,15 @@ describe('recovery report export', () => {
     expect(csv.text).toContain('"dd8df975f14b643048b09154bf9793779027e188"');
   });
 
+  it('derives the display amount from exact unit metadata for every coin', () => {
+    const future = structuredClone(result);
+    const finding = future.sections[0]!.findings[0]!;
+    finding.balanceAtomic = 12345n;
+    finding.balanceLabel = 'provider-specific text';
+    finding.balanceUnit = { asset: 'FUT', atomicUnit: 'atoms', decimals: 3 };
+    expect(createRecoveryExport([future], 'csv').text).toContain('"12.345"');
+  });
+
   it('exports Orchard note details and numeric section aggregates to CSV', () => {
     const orchard: RecoveryWalletResult = {
       ...result,

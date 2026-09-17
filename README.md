@@ -2,7 +2,7 @@
 
 [![Source and artifact checks](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml)
 
-This documentation describes **v0.1.4**, released on 2026-09-13. Both editions are built from the same tagged source revision.
+This documentation describes **v0.1.5**, released on 2026-09-17. Both editions are built from the same tagged source revision.
 
 Multi-Chain Wallet Tools is a set of four portable wallet utilities delivered as standalone HTML files. Download the tool you need, verify its checksum, and open it in a current browser. No installation or server is required.
 
@@ -29,7 +29,7 @@ Use the Deriver on a trusted offline computer whenever real seed phrases or priv
 - Derives Bitcoin Legacy, Nested SegWit, Native SegWit and Taproot addresses; Ethereum EOAs; and supported Dash Core, Platform Payment, Identity, multisig-cosigner, and Orchard material.
 - Checks the entered phrase locally with Seed Diagnostic: word count, English BIP39 membership, checksum, NFKD normalization, entropy/checksum sizes, typo suggestions, and the passphrase-sensitive BIP32 master fingerprint. A reveal-gated construction view, modeled after Ian Coleman BIP39, lists numbered words, decimal/hex wordlist indexes, 11-bit groups, canonical entropy in hex/binary, and checksum bits; the pinned `@scure/bip39` library performs validation and entropy conversion.
 - Shows receive and optional change/internal results in separate tabs with paging, selection, copy, and download controls.
-- Creates QR codes locally for public payment addresses only. Secret keys, phrases, paths, and metadata never receive QR actions.
+- Derivation-result QR actions encode public payment addresses only. Secret backup records receive separate, explicitly labeled QR actions inside Recover & Back Up.
 - Includes optional local signing of any message with the derived Bitcoin or Dash key, using pinned and tested cryptographic libraries without importing the key into a wallet. Transaction signing and broadcasting are not implemented, which keeps spending operations outside the tool’s security boundary.
 - Exports public or private Bitcoin/Dash Core account descriptors. Public descriptors are watch-only; private descriptors grant account spending access.
 - Offers BIP38 encryption for supported compressed Bitcoin/Dash P2PKH private keys.
@@ -53,7 +53,7 @@ The Viewer accepts public or watch-only input and retrieves fresh public state w
 - Dash Auto mode recognizes unambiguous Core, Platform, Identity, and Orchard formats; Advanced mode lets the user specify the record type.
 - Identity results organize proof-verified state, names, registered keys and their actual roles, activity, documents, contracts, withdrawals, and tokens.
 - Orchard FVK, IVK, and OVK modes decrypt the corresponding view of proof-verified encrypted-note pages locally. Viewing keys remain privacy-sensitive even though they cannot spend.
-- Dash reports export to CSV, XLSX, or structured JSON without the supplied Orchard viewing key. Exact large integer amounts remain text-safe.
+- Single and Batch results for every included coin adapter export to CSV, XLSX, or structured JSON without supplied Orchard viewing keys or other private input material. Exact large integer amounts remain text-safe.
 - Incomplete histories and provider disagreements stay visible; the application does not turn a failed lookup into a zero balance.
 
 Public lookups reveal the queried identifier and source IP to the selected provider. The Viewer rejects mnemonic, WIF, extended-private-key, raw-private-key, and structured private-material patterns before opening a request.
@@ -65,7 +65,7 @@ Public lookups reveal the queried identifier and source IP to the selected provi
 The Scanner searches supported standard wallet paths from one or many BIP39 candidates, public keys, or descriptors.
 
 - Scans Bitcoin Legacy, Nested SegWit, Native SegWit, and Taproot receive/change chains; three common Ethereum EOA layouts; and independently selected Dash Core, Platform Payment, Identity, and Orchard families.
-- Includes previously used addresses whose current balance is zero and continues through the configured post-use gap.
+- Can optionally include previously used, spent, outgoing-only, or zero-balance resources when the selected coin adapter and provider can identify them. The option is off by default because it may increase scan time and export size.
 - Provides Single and Batch modes for both seed phrases and public keys. It refuses to guess the coin when extended-key encodings are shared.
 - The multi-coin workflow checks either one BIP39 phrase or a prepared batch across selected coins in parallel, with one shared network-concurrency limit and summarizes which candidate/coin combinations contain funds or prior activity.
 - An optional custom-path editor supports a fully editable path and inclusive account range for advanced recovery cases.
@@ -152,6 +152,7 @@ Start with the document that matches what you need:
 - [Verification map](docs/VERIFICATION.md) lists the checks run locally and in CI.
 - [Security audit](SECURITY_AUDIT.md), [audit records](docs/audits/README.md), [selective build modules](docs/BUILD_MODULES.md), and [roadmap](docs/ROADMAP.md) document reviewed risks, composition rules, evidence, and planned work.
 - [Third-party notices](THIRD_PARTY_NOTICES.md) and [attribution](ATTRIBUTION.md) identify dependencies and upstream work.
+- [v0.1.5 Multi-Chain notes](docs/releases/v0.1.5.md) and [v0.1.5 Dash Community notes](docs/releases/v0.1.5-dash-community.md) list the current release changes.
 - Developers can use [EXTENDING.md](EXTENDING.md) and [RELEASING.md](RELEASING.md).
 
 ## Build from source

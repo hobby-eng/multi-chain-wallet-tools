@@ -279,6 +279,10 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   await page.locator('#recovery-backup-mode').click();
   assert.equal(await page.locator('.recovery-help').count(), 7);
   const firstHelp = page.locator('.recovery-help').first();
+  await firstHelp.locator('summary').hover();
+  await page.waitForFunction(() => document.querySelector('.recovery-help')?.hasAttribute('open'));
+  await page.locator('#recovery-workspace > .section-head').hover();
+  await page.waitForFunction(() => !document.querySelector('.recovery-help')?.hasAttribute('open'));
   await firstHelp.locator('summary').click();
   assert.doesNotMatch(await firstHelp.locator('.recovery-help-popover').innerText(), /Example:/);
   await page.locator('#recovery-workspace > .section-head').click();
@@ -451,6 +455,19 @@ async function childWallet(context, profile, run) {
   assert.equal(await page.locator('#bip85-output').inputValue(), childMnemonic);
   const verifier = await open(context, profile, 'psbt-inspector', run);
   await verifySignature(verifier, proof.address, proof.signature, 'bitcoin');
+  assert.equal(await page.locator('#toggle-bip85-secret').innerText(), 'Reveal recovery source');
+  const recoveryMenu = page.locator('#bip85-recovery-source-menu');
+  const menuBox = await recoveryMenu.boundingBox();
+  const revealBox = await page.locator('#toggle-bip85-secret').boundingBox();
+  assert.ok(menuBox && revealBox && menuBox.x + menuBox.width <= revealBox.x);
+  await recoveryMenu.locator('summary').click();
+  await recoveryMenu.locator('[data-recovery-target="sskr"]').click();
+  const linkedHelp = page.locator('#sskr-panel .linked-source-help');
+  await linkedHelp.locator('summary').hover();
+  await page.waitForFunction(() => document.querySelector('#sskr-panel .linked-source-help')?.hasAttribute('open'));
+  await page.locator('[data-recovery-tab][aria-controls="sskr-panel"]').hover();
+  await page.waitForFunction(() => !document.querySelector('#sskr-panel .linked-source-help')?.hasAttribute('open'));
+  await page.locator('#derive-generate-mode').click();
   await page.locator('#protocol-tabs [data-adapter-id]').first().click();
   await page.locator('#clear-all').click();
   assert.equal(await page.locator('#bip85-child-passphrase').inputValue(), '');
@@ -463,7 +480,7 @@ async function childWallet(context, profile, run) {
   assert.equal(await page.locator('#passphrase').inputValue(), '');
   assert.equal(run.requests.length, 0);
   run.checks.push(
-    'Auto-derived BIP85 exact child mnemonic; independent BIP86 address with distinct child passphrase; child signature accepted, changed message rejected; Clear/reload/storage/no HTTP',
+    'Auto-derived BIP85 exact child mnemonic; aligned recovery-source controls; dynamic linked-source hover help; independent BIP86 address with distinct child passphrase; child signature accepted, changed message rejected; Clear/reload/storage/no HTTP',
   );
 }
 

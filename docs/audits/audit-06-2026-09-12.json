@@ -1,6 +1,9 @@
 {
   "date": "2026-09-12",
   "reviewer": "OpenAI Codex, GPT-6 family; exact service snapshot unavailable",
+  "model": "gpt-6-family",
+  "reasoningEffort": null,
+  "reasoningEffortNote": "Not recorded by the reviewing client.",
   "head": "ea5d4215ccbf355dd86f1c9928e213df1e23d186",
   "workingTree": "Substantial uncommitted changes; HEAD alone is not the reviewed snapshot",
   "descriptorProbes": [

@@ -63,6 +63,13 @@ describe('Blockchain Commons SSKR backup', () => {
     expect(() => createSskrShares(new Uint8Array(16), 1, [{ threshold: 3, count: 2 }])).toThrow();
   });
 
+  it('rejects an unsupported runtime encoding instead of selecting a default', () => {
+    expect(() => createSskrShares(new Uint8Array(16), 1, [{ threshold: 1, count: 1 }], 'future' as never)).toThrow(
+      /Unsupported SSKR/u,
+    );
+    expect(() => recoverSskrShares(officialUrShares, 'future' as never)).toThrow(/Unsupported SSKR/u);
+  });
+
   it('round-trips the standard full Bytewords representation', () => {
     const secret = Uint8Array.from({ length: 16 }, (_, index) => index);
     const shares = createSskrShares(secret, 1, [{ threshold: 2, count: 3 }], 'bytewords');
