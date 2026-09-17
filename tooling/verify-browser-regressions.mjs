@@ -285,7 +285,7 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   await page.waitForFunction(() => !document.querySelector('.recovery-help')?.hasAttribute('open'));
   await firstHelp.locator('summary').click();
   assert.doesNotMatch(await firstHelp.locator('.recovery-help-popover').innerText(), /Example:/);
-  await page.locator('#recovery-workspace > .section-head').click();
+  await page.mouse.click(1, 1);
   assert.equal(await firstHelp.getAttribute('open'), null);
 
   const methods = [
