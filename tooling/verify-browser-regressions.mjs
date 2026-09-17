@@ -275,15 +275,22 @@ async function boundaries(context, profile, tool, run) {
 
 async function recoveryBackupRoundTrips(context, profile, run) {
   const page = await open(context, profile, 'key-derivation', run);
+  const clickStep = async (locator, label) => {
+    try {
+      await locator.click();
+    } catch (error) {
+      throw new Error(`${label}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+    }
+  };
   const before = await storageSnapshot(page);
-  await page.locator('#recovery-backup-mode').click();
+  await clickStep(page.locator('#recovery-backup-mode'), 'Open Recover & Back Up');
   assert.equal(await page.locator('.recovery-help').count(), 7);
   const firstHelp = page.locator('.recovery-help').first();
   await firstHelp.locator('summary').hover();
   await page.waitForFunction(() => document.querySelector('.recovery-help')?.hasAttribute('open'));
   await page.locator('#recovery-workspace > .section-head').hover();
   await page.waitForFunction(() => !document.querySelector('.recovery-help')?.hasAttribute('open'));
-  await firstHelp.locator('summary').click();
+  await firstHelp.locator('summary').evaluate((summary) => summary.click());
   assert.doesNotMatch(await firstHelp.locator('.recovery-help-popover').innerText(), /Example:/);
   await page.mouse.click(1, 1);
   assert.equal(await firstHelp.getAttribute('open'), null);
@@ -357,13 +364,13 @@ async function recoveryBackupRoundTrips(context, profile, run) {
 
   let checkedQrPopoverInteractions = false;
   for (const method of methods) {
-    await page.locator(`[data-recovery-tab][aria-controls="${method.panel}"]`).click();
+    await clickStep(page.locator(`[data-recovery-tab][aria-controls="${method.panel}"]`), `Open ${method.panel}`);
     const createPanel = method.restorePanel.replace('-restore-panel', '-create-panel');
-    await page.locator(`[aria-controls="${createPanel}"][data-operation-tab]`).click();
+    await clickStep(page.locator(`[aria-controls="${createPanel}"][data-operation-tab]`), `Open ${createPanel}`);
     await page.locator(method.source).fill(mnemonic);
     if (method.createFormat !== undefined)
       await page.locator('#shamir-create-format').selectOption(method.createFormat);
-    await page.locator(method.create).click();
+    await clickStep(page.locator(method.create), `Create records in ${method.panel}`);
     const created = page.locator(`${method.createResult} .share-secret`);
     await created.nth(method.needed - 1).waitFor();
     const qrActions = page.locator(`${method.createResult} .share-qr-action`);
@@ -376,15 +383,15 @@ async function recoveryBackupRoundTrips(context, profile, run) {
       await qrPopover.waitFor({ state: 'visible' });
       await page.mouse.move(1, 1);
       await qrPopover.waitFor({ state: 'hidden' });
-      await qrTrigger.click();
+      await clickStep(qrTrigger, 'Pin QR popover');
       await qrPopover.waitFor({ state: 'visible' });
       assert.equal(await qrTrigger.getAttribute('aria-expanded'), 'true');
-      await qrPopover.locator('.payment-qr-close').click();
+      await clickStep(qrPopover.locator('.payment-qr-close'), 'Close QR popover');
       await qrPopover.waitFor({ state: 'hidden' });
       assert.equal(await qrTrigger.getAttribute('aria-expanded'), 'false');
-      await qrTrigger.click();
+      await clickStep(qrTrigger, 'Reopen QR popover');
       await qrPopover.waitFor({ state: 'visible' });
-      await qrTrigger.click();
+      await clickStep(qrTrigger, 'Toggle QR popover closed');
       await qrPopover.waitFor({ state: 'hidden' });
       checkedQrPopoverInteractions = true;
     }
@@ -393,7 +400,7 @@ async function recoveryBackupRoundTrips(context, profile, run) {
       assert.ok((await copyActions.evaluateAll((buttons) => buttons.map((button) => button.disabled))).every(Boolean));
     }
     const payloads = await created.allTextContents();
-    await page.locator(method.revealCreated).click();
+    await clickStep(page.locator(method.revealCreated), `Reveal records in ${method.panel}`);
     if ((await copyActions.count()) > 0) {
       assert.ok(
         (await copyActions.evaluateAll((buttons) => buttons.map((button) => button.disabled))).every(
@@ -401,21 +408,30 @@ async function recoveryBackupRoundTrips(context, profile, run) {
         ),
       );
     }
-    await page.locator(`[aria-controls="${method.restorePanel}"][data-operation-tab]`).click();
+    await clickStep(
+      page.locator(`[aria-controls="${method.restorePanel}"][data-operation-tab]`),
+      `Open ${method.restorePanel}`,
+    );
     if (method.restoreFormat !== undefined)
       await page.locator('#shamir-restore-format').selectOption(method.restoreFormat);
     await page.locator(method.shares).fill(payloads.slice(0, method.needed).join('\n'));
-    await page.locator(method.restore).click();
+    await clickStep(page.locator(method.restore), `Restore records in ${method.panel}`);
     const recovered = page.locator(`${method.restoreResult} textarea`);
     await recovered.waitFor();
     assert.equal(await recovered.inputValue(), mnemonic);
     const recoveredCopy = page.locator(`${method.restoreResult} .secret-action`);
     assert.equal(await recoveredCopy.isDisabled(), true);
-    await page.locator(`${method.restoreResult} button`).filter({ hasText: 'Reveal recovered phrase' }).click();
+    await clickStep(
+      page.locator(`${method.restoreResult} button`).filter({ hasText: 'Reveal recovered phrase' }),
+      `Reveal restored phrase in ${method.panel}`,
+    );
     assert.equal(await recoveredCopy.isEnabled(), true);
   }
 
-  await page.locator('#codex32-restore-result button').filter({ hasText: 'Use in Generate & Derive' }).click();
+  await clickStep(
+    page.locator('#codex32-restore-result button').filter({ hasText: 'Use in Generate & Derive' }),
+    'Return restored Codex32 phrase to Deriver',
+  );
   assert.equal(await page.locator('#mnemonic').inputValue(), mnemonic);
   assert.equal(await page.locator('#derive-form').isVisible(), true);
   assert.deepEqual(await storageSnapshot(page), before);
