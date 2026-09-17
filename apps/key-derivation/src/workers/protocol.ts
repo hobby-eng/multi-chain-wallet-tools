@@ -19,6 +19,7 @@ export interface AddressSearchMatch {
 export interface AddressSearchRequest {
   id: string;
   address: string;
+  fieldKeys?: readonly string[];
 }
 export interface AddressSearchResult extends AddressSearchMatch {
   id: string;
@@ -80,7 +81,7 @@ export type WorkerRequest =
     }
   | { id: number; type: 'self-test' };
 
-export type WorkerSuccess =
+type WorkerSuccess =
   | { id: number; ok: true; type: 'derive'; result: DerivationResult }
   | { id: number; ok: true; type: 'search'; result: AddressSearchMatch | null }
   | { id: number; ok: true; type: 'search-many'; result: AddressSearchResult[] }
@@ -90,15 +91,15 @@ export type WorkerSuccess =
   | { id: number; ok: true; type: 'bip38-encrypt'; result: Bip38EncryptionResult }
   | { id: number; ok: true; type: 'self-test'; result: CryptoSelfTestReport };
 
-export interface WorkerFailure {
+interface WorkerFailure {
   id: number;
   ok: false;
   error: string;
 }
 
-export interface WorkerReady {
+interface WorkerReady {
   type: 'ready';
 }
 
-export type WorkerResponse = WorkerSuccess | WorkerFailure;
+type WorkerResponse = WorkerSuccess | WorkerFailure;
 export type WorkerMessage = WorkerReady | WorkerResponse;

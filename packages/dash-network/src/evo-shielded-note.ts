@@ -1,4 +1,4 @@
-export interface EvoShieldedNoteLike {
+interface EvoShieldedNoteLike {
   readonly cmx: Uint8Array;
   readonly nullifier: Uint8Array;
   readonly cvNet: Uint8Array;

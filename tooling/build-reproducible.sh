@@ -6,12 +6,13 @@ target="artifacts"
 source_path="/dist/."
 destination="$root/dist"
 expected_path="multi-chain-edition/release/SHA256SUMS"
+wasm_mode=false
 
 if [[ "${1:-}" == "--wasm" ]]; then
   target="wasm-artifacts"
   source_path="/generated/."
-  destination="$root/packages/dash-shielded-wasm/generated"
-  expected_path="dash_shielded_wasm_bg.wasm"
+  expected_path="dash/dash_shielded_wasm_bg.wasm"
+  wasm_mode=true
   shift
 fi
 if (( $# != 0 )); then
@@ -55,13 +56,25 @@ if [[ ! -f "$temporary/$expected_path" ]]; then
   exit 1
 fi
 
-rm -rf -- "$destination"
-mkdir -p -- "$destination"
-cp -a -- "$temporary/." "$destination/"
-
-if [[ "$target" == "wasm-artifacts" ]]; then
-  echo "Replaced the committed generated WASM inputs with the canonical container build."
+if [[ "$wasm_mode" == true ]]; then
+  while IFS=: read -r source package; do
+    destination="$root/packages/$package/generated"
+    rm -rf -- "$destination"
+    mkdir -p -- "$destination"
+    cp -a -- "$temporary/$source/." "$destination/"
+  done <<'WASM_MODULES'
+dash:dash-shielded-wasm
+shamir:recovery-shamir-wasm
+codex32:recovery-codex32-wasm
+sskr:recovery-sskr-wasm
+envelope:recovery-envelope-wasm
+WASM_MODULES
+  cp -- "$temporary/wasm-canonical-manifest.json" "$root/tooling/wasm-canonical-manifest.json"
+  echo "Replaced all committed generated WASM inputs with the canonical container build."
 else
+  rm -rf -- "$destination"
+  mkdir -p -- "$destination"
+  cp -a -- "$temporary/." "$destination/"
   cat "$destination/$expected_path"
   echo "Copied the canonical container build to dist/."
 fi

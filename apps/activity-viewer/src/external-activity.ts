@@ -1,3 +1,5 @@
+import { downloadBlob } from '@ckd/export/download.js';
+import { createPublicActivityExport, type PublicActivityExport } from './export-public.js';
 import type { PublicDataNetwork, RecoveryHistory } from '@ckd/public-data-providers/types.js';
 import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/secret-boundary/public-input-guard.js';
 
@@ -148,6 +150,46 @@ export function installExternalActivity(
   const diagnosticRequests = required<HTMLElement>(document, '#diagnostic-requests');
   const diagnosticProof = required<HTMLElement>(document, '#diagnostic-proof');
   const diagnosticDetail = required<HTMLElement>(document, '#diagnostic-detail');
+  let exportState: PublicActivityExport | null = null;
+  let exporting = false;
+  const exportButtons = (['csv', 'xlsx', 'json'] as const).map((format) => ({
+    format,
+    button: required<HTMLButtonElement>(document, `#viewer-export-${format}`),
+  }));
+  const setExportState = (state: PublicActivityExport | null): void => {
+    exportState = state;
+    exportActions.hidden = state === null;
+    for (const { button } of exportButtons) button.disabled = state === null || exporting;
+  };
+  for (const { format, button } of exportButtons) {
+    button.addEventListener(
+      'click',
+      (event) => {
+        if (externalCoin() === null) return;
+        event.stopImmediatePropagation();
+        const state = exportState;
+        if (state === null || exporting) return;
+        exporting = true;
+        setExportState(state);
+        void createPublicActivityExport(state, format)
+          .then((file) => {
+            if (exportState !== state) return;
+            downloadBlob(file.blob, file.filename);
+            status.textContent = `Exported ${file.filename}. Only loaded public data is included.`;
+            status.hidden = false;
+          })
+          .catch((cause) => {
+            error.textContent = `Export failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+            error.hidden = false;
+          })
+          .finally(() => {
+            exporting = false;
+            if (externalCoin() !== null) setExportState(exportState);
+          });
+      },
+      true,
+    );
+  }
   let active: { controller: AbortController; cleared: boolean } | null = null;
 
   const externalCoin = (): ExternalActivityAdapter | null => adapterById.get(coin.value) ?? null;
@@ -168,7 +210,7 @@ export function installExternalActivity(
     detectionTabs.hidden = true;
     advancedModes.hidden = true;
     capability.hidden = true;
-    exportActions.hidden = true;
+    setExportState(null);
     network.previousElementSibling!.textContent = 'Network';
     network.options[0]!.textContent = 'Mainnet';
     network.options[1]!.textContent = 'Testnet';
@@ -195,6 +237,7 @@ export function installExternalActivity(
       void (async () => {
         error.hidden = true;
         results.hidden = true;
+        setExportState(null);
         const selectedNetwork = network.value as PublicDataNetwork;
         let values: string[];
         try {
@@ -280,6 +323,14 @@ export function installExternalActivity(
                   .filter((height, index, all) => all.indexOf(height) === index)
                   .join(', ')}`;
           status.textContent = `${metadata.label} activity loaded for ${loaded.length.toLocaleString()} address${loaded.length === 1 ? '' : 'es'}.`;
+          setExportState({
+            coin: selected.id,
+            asset: selected.asset,
+            decimals: selected.decimals,
+            network: selectedNetwork,
+            mode: queryMode(),
+            results: loaded,
+          });
           results.hidden = false;
         } catch (cause) {
           if (operation.cleared) return;
@@ -319,6 +370,7 @@ export function installExternalActivity(
       }
       single.value = '';
       batch.value = '';
+      setExportState(null);
       results.hidden = true;
       error.hidden = true;
       status.hidden = true;

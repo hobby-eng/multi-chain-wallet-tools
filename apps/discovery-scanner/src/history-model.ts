@@ -1,28 +1,8 @@
 import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
+import { emptyRecoveryHistory } from '@ckd/network-boundary/recovery-history.js';
 import type { RecoveryField, RecoveryHistory } from './types.js';
 
-export function emptyHistory(asset = '', atomicUnit = '', decimals = 0): RecoveryHistory {
-  return {
-    status: 'unavailable',
-    source: '',
-    scope: '',
-    note: '',
-    asset,
-    atomicUnit,
-    decimals,
-    totalReceivedAtomic: null,
-    totalSentAtomic: null,
-    totalFeesAtomic: null,
-    firstSeen: null,
-    lastSeen: null,
-    firstReceived: null,
-    lastReceived: null,
-    firstSpent: null,
-    lastSpent: null,
-    transactionCount: null,
-    pendingTransactionCount: null,
-  };
-}
+export const emptyHistory = emptyRecoveryHistory;
 
 /** Validate and project the worker response; no unrecognized network fields reach exports. */
 export function validateHistory(value: RecoveryHistory): RecoveryHistory {

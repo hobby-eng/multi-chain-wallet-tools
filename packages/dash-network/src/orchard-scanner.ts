@@ -204,7 +204,7 @@ export function assertCanonicalViewingKey(normalizedKey: NormalizedViewingKey): 
   }
 }
 
-export interface OrchardRuntimeSelfTestReport {
+interface OrchardRuntimeSelfTestReport {
   passed: true;
   checks: string[];
   durationMs: number;

@@ -29,8 +29,3 @@ export function addressFor(
   if (mode === 'native-segwit') return deriveNativeSegwitAddress(publicKey, network).address;
   return deriveTaprootAddress(publicKey, network).address;
 }
-
-/** Taproot requires a compressed point; the other three families hash160 whatever point they are given. */
-export function isCompressedSec1(publicKey: Uint8Array): boolean {
-  return publicKey.length === 33 && (publicKey[0] === 0x02 || publicKey[0] === 0x03);
-}

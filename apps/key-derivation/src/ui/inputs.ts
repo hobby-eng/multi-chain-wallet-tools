@@ -38,7 +38,29 @@ export type DerivationControlValues = Omit<CoinDerivationInput, 'seed'> & {
   includeCoinJoin: boolean;
 };
 
+export type SharedDerivationControlValues = Pick<DerivationControlValues, 'network' | 'account' | 'start' | 'count'>;
+
 const DEFAULT_INDEX_MAX = 2_147_483_647;
+
+export function applySharedDerivationControls(
+  adapter: CoinAdapter,
+  base: DerivationControlValues,
+  shared: SharedDerivationControlValues | undefined,
+): DerivationControlValues {
+  const startMax = adapter.limits?.startMax ?? DEFAULT_INDEX_MAX;
+  const accountMax = adapter.limits?.accountMax ?? DEFAULT_INDEX_MAX;
+  const start = Math.min(shared?.start ?? base.start, startMax);
+  return {
+    ...base,
+    network: adapter.networkControl ? (shared?.network ?? base.network) : adapter.defaults.network,
+    account:
+      adapter.accountControl === false
+        ? adapter.defaults.account
+        : Math.min(shared?.account ?? base.account, accountMax),
+    start,
+    count: Math.min(shared?.count ?? base.count, startMax - start + 1),
+  };
+}
 
 function setNumeric(input: HTMLInputElement, value: number, max = 2_147_483_647): void {
   input.value = String(value);

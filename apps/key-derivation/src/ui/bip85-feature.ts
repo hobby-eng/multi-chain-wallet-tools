@@ -6,7 +6,7 @@ import type { DerivationWorkerClient } from '../workers/derive-client.js';
 
 type ChildMessageSigning = NonNullable<Bip85ChildWalletOptions['messageSigning']>;
 
-export interface Bip85FeatureOptions extends Omit<Bip85ChildWalletOptions, 'mnemonic' | 'messageSigning'> {
+interface Bip85FeatureOptions extends Omit<Bip85ChildWalletOptions, 'mnemonic' | 'messageSigning'> {
   parentMnemonic(): string;
   parentPassphrase(): string;
   isActive(): boolean;

@@ -1,4 +1,4 @@
-export type ViewingKeyKind = 'full' | 'incoming' | 'outgoing';
+type ViewingKeyKind = 'full' | 'incoming' | 'outgoing';
 
 export interface NormalizedViewingKey {
   hex: string;

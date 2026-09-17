@@ -108,8 +108,9 @@ if (!/(?:^|;)\s*worker-src\s+'none'\s*(?:;|$)/u.test(vaultCsp)) {
 if (!/script-src __VAULT_SCRIPT_CSP__ 'wasm-unsafe-eval'/u.test(vaultCsp)) {
   throw new Error('Recovery Secret Vault script policy no longer uses a build-time SHA-256 placeholder.');
 }
-if (html.includes('__VAULT_SCRIPT_CSP__') || html.includes('__SHELL_SCRIPT_CSP__') || html.includes('/*__INLINE_')) {
-  throw new Error('Discovery Scanner artifact still contains an unexpanded build marker.');
+const unexpandedMarker = /__[A-Z][A-Z0-9_]+__|\/\*__INLINE_/u.exec(html)?.[0];
+if (unexpandedMarker !== undefined) {
+  throw new Error(`Discovery Scanner artifact still contains unexpanded build marker ${unexpandedMarker}.`);
 }
 if (!html.includes("connect-src 'none'"))
   throw new Error('Embedded Recovery Secret Vault CSP is missing from the artifact.');
@@ -169,6 +170,7 @@ for (const requiredId of [
   'recovery-result-list',
   'export-recovery-csv',
   'export-recovery-json',
+  'export-recovery-xlsx',
   'recovery-self-test',
   'recovery-build-footer',
   'recovery-crypto-self-test-status',
@@ -227,7 +229,7 @@ for (const marker of [
   'Wallet Discovery Scanner',
   'Opaque-origin Secret Vault',
   'Vault network disabled by CSP',
-  'This utility has not been independently audited by a cryptography specialist.',
+  'Use a trusted computer.',
   'Select the Dash components and address ranges you want to check.',
   'Core receive minimum',
   'Core change minimum',
@@ -284,6 +286,7 @@ for (const marker of [
   'DashScan',
   'recovery CSV report export',
   'recovery JSON report export',
+  'xlsx',
   'isolated-network-worker-v1',
   'core.address-info',
   'core.transaction',
@@ -359,7 +362,12 @@ if (occurrences(html, expectedOrchardWasm) !== 1) {
 
 const allRecoverySources = sourceFiles(sourceRoot);
 const vaultSources = allRecoverySources
-  .filter(({ path }) => !/(?:network-service|network-worker|shell)\.ts$/u.test(path))
+  .filter(
+    ({ path }) =>
+      !/(?:network-service|network-worker|recovery-http|platform-explorer-values|network-validation|dash-core-network|dash-platform-network|shell)\.ts$/u.test(
+        path,
+      ),
+  )
   .map(({ text }) => text)
   .join('\n');
 for (const [pattern, label] of [
@@ -375,10 +383,21 @@ for (const [pattern, label] of [
   if (pattern.test(vaultSources)) throw new Error(`Recovery Secret Vault source contains forbidden ${label}.`);
 }
 
+const reviewedProtocolPaths = [
+  resolve(root, 'packages/network-boundary/src/recovery-protocol.ts'),
+  resolve(root, 'packages/network-boundary/src/dash-recovery-protocol.ts'),
+  resolve(root, 'packages/network-boundary/src/public-recovery-protocol.ts'),
+];
 const networkSources = [
-  resolve(root, 'packages/network-boundary/src/protocol.ts'),
+  ...reviewedProtocolPaths,
   resolve(sourceRoot, 'network-service.ts'),
-  resolve(sourceRoot, 'network-worker.ts'),
+  resolve(sourceRoot, 'network-validation.ts'),
+  resolve(sourceRoot, 'dash-core-network.ts'),
+  resolve(sourceRoot, 'dash-platform-network.ts'),
+  resolve(sourceRoot, 'recovery-http.ts'),
+  resolve(sourceRoot, 'platform-explorer-values.ts'),
+  resolve(root, 'packages/network-boundary/src/request-validation.ts'),
+  resolve(root, 'packages/network-boundary/src/worker-runtime.ts'),
 ]
   .map((path) => readFileSync(path, 'utf8'))
   .join('\n');
@@ -389,7 +408,10 @@ for (const [pattern, label] of [
 ]) {
   if (pattern.test(networkSources)) throw new Error(`Recovery Network Worker source contains forbidden ${label}.`);
 }
-const protocolSource = readFileSync(resolve(root, 'packages/network-boundary/src/protocol.ts'), 'utf8');
+// The compatibility facade only re-exports these focused contracts. Inspect the
+// contracts themselves so moving an operation out of the former monolith cannot
+// silently weaken the reviewed-operation allowlist.
+const protocolSource = reviewedProtocolPaths.map((path) => readFileSync(path, 'utf8')).join('\n');
 if (/\burl\s*:/iu.test(protocolSource)) throw new Error('Recovery Network RPC must not accept an arbitrary URL.');
 for (const operation of [
   'ping',

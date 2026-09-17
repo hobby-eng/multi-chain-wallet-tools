@@ -1,0 +1,75 @@
+{
+  "schema": "independent-audit-report/1",
+  "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
+  "date": "2026-09-17",
+  "timeUtc": "12:00-12:20",
+  "commit": "e6a6d6b",
+  "treeClean": true,
+  "audit13Status": {
+    "H-01": "fixed",
+    "M-01": "fixed",
+    "M-02": "fixed",
+    "L-01": "fixed (9 justified exports remain)",
+    "L-02": "fixed",
+    "L-03": "fixed",
+    "L-04": "fixed"
+  },
+  "findings": [
+    {
+      "id": "H-01",
+      "severity": "High",
+      "title": "Committed SSKR and Envelope WASM not canonical; uncached Docker build fails at WASM diff",
+      "containerHashes": {
+        "sskr": "0d6f8e75f352 394954B",
+        "envelope": "817a2291163b 846163B"
+      },
+      "committedHashes": {
+        "sskr": "30e314a4cfd2 389084B",
+        "envelope": "c02e931cbb3f 840314B"
+      },
+      "cause": "both crates changed and were regenerated on the developer host; host bytes differ from container bytes although producers, Cargo.lock and rustc commit are identical"
+    },
+    {
+      "id": "L-01",
+      "severity": "Low",
+      "title": "Firefox 153 crashes on bip85-child-signer reload (41/42); Firefox 155 pinned passes 42/42"
+    }
+  ],
+  "checks": {
+    "tscUnused": "0",
+    "vitest": {
+      "files": 127,
+      "tests": 1275,
+      "failed": 0
+    },
+    "format": "pass",
+    "pnpmAudit": "clean",
+    "localVerify": "pass",
+    "dockerNoCache": "FAIL at WASM diff (H-01)",
+    "browserFiles": "16/16",
+    "browserRegressions": {
+      "chromium153_firefox155": "42/42",
+      "chromium151_firefox153": "41/42"
+    },
+    "browserSelective": "10/10",
+    "reviewerSmoke": "16/16 variants",
+    "probes": "pass",
+    "deadCode": {
+      "unusedExports": 9,
+      "orphans": 0
+    }
+  },
+  "docConformance": "consistent",
+  "recommendations": [
+    "regenerate WASM via build-reproducible.sh --wasm and add local freshness gate",
+    "document minimum Firefox 155",
+    "test or merge secret-vault"
+  ],
+  "notPerformed": [
+    "live providers",
+    "headed browsers",
+    "exhaustive matrix",
+    "WASM regeneration",
+    "Core RPC"
+  ]
+}

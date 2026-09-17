@@ -4,7 +4,7 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { HDKey } from '@scure/bip32';
 import { bytesToHex, hash160, wipe } from './crypto.js';
 
-export function normalizeMnemonic(value: string): string {
+function normalizeMnemonic(value: string): string {
   return value.normalize('NFKD').trim().toLowerCase().split(/\s+/u).filter(Boolean).join(' ');
 }
 
@@ -34,8 +34,8 @@ export function mnemonicToSeed(mnemonic: string, passphrase = ''): Uint8Array {
   return mnemonicToSeedSync(assertValidMnemonic(mnemonic), passphrase);
 }
 
-export const BIP39_WORD_COUNTS = [12, 15, 18, 21, 24] as const;
-export type Bip39WordCount = (typeof BIP39_WORD_COUNTS)[number];
+const BIP39_WORD_COUNTS = [12, 15, 18, 21, 24] as const;
+type Bip39WordCount = (typeof BIP39_WORD_COUNTS)[number];
 
 const BIP39_ENTROPY_BYTES: Readonly<Record<Bip39WordCount, number>> = {
   12: 16,
@@ -65,13 +65,13 @@ export function englishMnemonicToEntropy(value: string): Uint8Array {
   return mnemonicToEntropy(assertValidMnemonic(value), wordlist);
 }
 
-export interface UnknownMnemonicWord {
+interface UnknownMnemonicWord {
   readonly index: number;
   readonly word: string;
   readonly suggestions: readonly string[];
 }
 
-export interface MnemonicWordDiagnostic {
+interface MnemonicWordDiagnostic {
   readonly position: number;
   readonly word: string;
   readonly wordlistIndex: number | null;
@@ -79,7 +79,7 @@ export interface MnemonicWordDiagnostic {
   readonly bits: string | null;
 }
 
-export interface MnemonicConstructionDiagnostic {
+interface MnemonicConstructionDiagnostic {
   readonly entropyHex: string;
   readonly entropyBinary: string;
   readonly providedChecksum: string;

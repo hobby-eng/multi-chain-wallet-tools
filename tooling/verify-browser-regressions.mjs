@@ -277,11 +277,12 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   const page = await open(context, profile, 'key-derivation', run);
   const before = await storageSnapshot(page);
   await page.locator('#recovery-backup-mode').click();
-  assert.equal(await page.locator('.recovery-help').count(), 6);
+  assert.equal(await page.locator('.recovery-help').count(), 7);
   const firstHelp = page.locator('.recovery-help').first();
   await firstHelp.locator('summary').click();
-  assert.match(await firstHelp.locator('.recovery-help-popover').innerText(), /Example:/);
-  await firstHelp.locator('summary').click();
+  assert.doesNotMatch(await firstHelp.locator('.recovery-help-popover').innerText(), /Example:/);
+  await page.locator('#recovery-workspace > .section-head').click();
+  assert.equal(await firstHelp.getAttribute('open'), null);
 
   const methods = [
     {
@@ -309,27 +310,31 @@ async function recoveryBackupRoundTrips(context, profile, run) {
       needed: 2,
     },
     {
-      panel: 'shamir-raw-panel',
-      source: '#shamir-raw-source',
-      create: '#create-shamir-raw',
-      createResult: '#shamir-raw-create-result',
-      revealCreated: '#toggle-shamir-raw-created',
-      restorePanel: 'shamir-raw-restore-panel',
-      shares: '#shamir-raw-shares',
-      restore: '#restore-shamir-raw',
-      restoreResult: '#shamir-raw-restore-result',
+      panel: 'shamir-panel',
+      source: '#shamir-source',
+      create: '#create-shamir',
+      createResult: '#shamir-create-result',
+      revealCreated: '#toggle-shamir-created',
+      restorePanel: 'shamir-restore-panel',
+      shares: '#shamir-shares',
+      restore: '#restore-shamir',
+      restoreResult: '#shamir-restore-result',
+      createFormat: 'raw',
+      restoreFormat: 'raw',
       needed: 2,
     },
     {
-      panel: 'shamir-words-panel',
-      source: '#shamir-words-source',
-      create: '#create-shamir-words',
-      createResult: '#shamir-words-create-result',
-      revealCreated: '#toggle-shamir-words-created',
-      restorePanel: 'shamir-words-restore-panel',
-      shares: '#shamir-words-shares',
-      restore: '#restore-shamir-words',
-      restoreResult: '#shamir-words-restore-result',
+      panel: 'shamir-panel',
+      source: '#shamir-source',
+      create: '#create-shamir',
+      createResult: '#shamir-create-result',
+      revealCreated: '#toggle-shamir-created',
+      restorePanel: 'shamir-restore-panel',
+      shares: '#shamir-shares',
+      restore: '#restore-shamir',
+      restoreResult: '#shamir-restore-result',
+      createFormat: 'words',
+      restoreFormat: 'words',
       needed: 2,
     },
     {
@@ -346,14 +351,39 @@ async function recoveryBackupRoundTrips(context, profile, run) {
     },
   ];
 
+  let checkedQrPopoverInteractions = false;
   for (const method of methods) {
     await page.locator(`[data-recovery-tab][aria-controls="${method.panel}"]`).click();
+    const createPanel = method.restorePanel.replace('-restore-panel', '-create-panel');
+    await page.locator(`[aria-controls="${createPanel}"][data-operation-tab]`).click();
     await page.locator(method.source).fill(mnemonic);
+    if (method.createFormat !== undefined)
+      await page.locator('#shamir-create-format').selectOption(method.createFormat);
     await page.locator(method.create).click();
     const created = page.locator(`${method.createResult} .share-secret`);
     await created.nth(method.needed - 1).waitFor();
     const qrActions = page.locator(`${method.createResult} .share-qr-action`);
     assert.ok((await qrActions.count()) >= method.needed);
+    if (!checkedQrPopoverInteractions) {
+      const qrAction = qrActions.first();
+      const qrTrigger = qrAction.locator('.qr-trigger');
+      const qrPopover = qrAction.locator('.payment-qr-popover');
+      await qrTrigger.hover();
+      await qrPopover.waitFor({ state: 'visible' });
+      await page.mouse.move(1, 1);
+      await qrPopover.waitFor({ state: 'hidden' });
+      await qrTrigger.click();
+      await qrPopover.waitFor({ state: 'visible' });
+      assert.equal(await qrTrigger.getAttribute('aria-expanded'), 'true');
+      await qrPopover.locator('.payment-qr-close').click();
+      await qrPopover.waitFor({ state: 'hidden' });
+      assert.equal(await qrTrigger.getAttribute('aria-expanded'), 'false');
+      await qrTrigger.click();
+      await qrPopover.waitFor({ state: 'visible' });
+      await qrTrigger.click();
+      await qrPopover.waitFor({ state: 'hidden' });
+      checkedQrPopoverInteractions = true;
+    }
     const copyActions = page.locator(`${method.createResult} .secret-copy-action`);
     if ((await copyActions.count()) > 0) {
       assert.ok((await copyActions.evaluateAll((buttons) => buttons.map((button) => button.disabled))).every(Boolean));
@@ -368,6 +398,8 @@ async function recoveryBackupRoundTrips(context, profile, run) {
       );
     }
     await page.locator(`[aria-controls="${method.restorePanel}"][data-operation-tab]`).click();
+    if (method.restoreFormat !== undefined)
+      await page.locator('#shamir-restore-format').selectOption(method.restoreFormat);
     await page.locator(method.shares).fill(payloads.slice(0, method.needed).join('\n'));
     await page.locator(method.restore).click();
     const recovered = page.locator(`${method.restoreResult} textarea`);
@@ -379,13 +411,13 @@ async function recoveryBackupRoundTrips(context, profile, run) {
     assert.equal(await recoveredCopy.isEnabled(), true);
   }
 
-  await page.locator('#codex32-restore-result button').filter({ hasText: 'Use in Derive & Generate' }).click();
+  await page.locator('#codex32-restore-result button').filter({ hasText: 'Use in Generate & Derive' }).click();
   assert.equal(await page.locator('#mnemonic').inputValue(), mnemonic);
   assert.equal(await page.locator('#derive-form').isVisible(), true);
   assert.deepEqual(await storageSnapshot(page), before);
   assert.equal(run.requests.length, 0);
   run.checks.push(
-    'Six help popovers; SeedQR, SLIP-39, Shamir Raw, Shamir Words, and Codex32 exact browser round trips; QR actions; reveal-gated copy; in-memory return to Derive; storage/no HTTP',
+    'Recovery help popovers; SeedQR, SLIP-39, both CKD Shamir encodings, and Codex32 exact browser round trips; QR actions; reveal-gated copy; in-memory return to Derive; storage/no HTTP',
   );
 }
 

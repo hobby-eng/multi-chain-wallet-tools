@@ -3,13 +3,13 @@ export const MAX_LOCAL_SEARCH_CONCURRENCY = 5;
 import type { AddressSearchMatch } from './address-search.js';
 import type { AddressSearchTarget } from './address-targets.js';
 
-export interface MultiAddressSearchResult {
+interface MultiAddressSearchResult {
   readonly target: AddressSearchTarget;
   readonly match: AddressSearchMatch | null;
   readonly error?: string;
 }
 
-export interface MultiAddressSearchOptions {
+interface MultiAddressSearchOptions {
   readonly targets: readonly AddressSearchTarget[];
   readonly start: number;
   readonly count: number;

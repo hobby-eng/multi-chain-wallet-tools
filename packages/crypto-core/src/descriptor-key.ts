@@ -1,7 +1,7 @@
 import { HDKey, HARDENED_OFFSET, type Versions } from '@scure/bip32';
 import { bytesToHex, hexToBytes, secp256k1 } from './crypto.js';
 
-export type DescriptorNetwork = 'mainnet' | 'testnet' | 'regtest';
+type DescriptorNetwork = 'mainnet' | 'testnet' | 'regtest';
 const MAINNET_VERSIONS: Versions = { private: 0x0488ade4, public: 0x0488b21e };
 const TESTNET_VERSIONS: Versions = { private: 0x04358394, public: 0x043587cf };
 

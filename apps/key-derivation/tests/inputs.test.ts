@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getCoinAdapter } from '@ckd/coins/registry.js';
-import { readControls, type DerivationControls } from '../src/ui/inputs.js';
+import { applySharedDerivationControls, readControls, type DerivationControls } from '../src/ui/inputs.js';
 
 function controls(count: string, start = '0', includeChange = false, branch = '0'): DerivationControls {
   return {
@@ -51,5 +51,33 @@ describe('user-visible derivation count', () => {
     expect(input).toMatchObject({ account: 7, start: 2, count: 3, includeChange: true });
     expect(adapter.pathPreview(input)).toBe("m/7'/0/2…4");
     expect(adapter.pathPreview({ ...input, branch: 1 })).toBe("m/7'/1/2…4");
+  });
+});
+
+describe('shared controls across address profiles', () => {
+  it('keeps the user-entered account and range while preserving the target profile branch', () => {
+    const target = getCoinAdapter('bitcoin-taproot');
+    const values = applySharedDerivationControls(
+      target,
+      { ...target.defaults, includeChange: false, includeCoinJoin: false },
+      { network: 'mainnet', account: 7, start: 900, count: 1000 },
+    );
+
+    expect(values).toMatchObject({ account: 7, start: 900, count: 1000 });
+    expect(values.branch).toBe(target.defaults.branch);
+  });
+
+  it('clamps a remembered range to a target profile index limit', () => {
+    const target = {
+      ...getCoinAdapter('bitcoin-taproot'),
+      limits: { accountMax: 3, startMax: 999 },
+    };
+    const values = applySharedDerivationControls(
+      target,
+      { ...target.defaults, includeChange: false, includeCoinJoin: false },
+      { network: 'mainnet', account: 7, start: 900, count: 1000 },
+    );
+
+    expect(values).toMatchObject({ account: 3, start: 900, count: 100 });
   });
 });

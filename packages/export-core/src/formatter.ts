@@ -5,13 +5,13 @@ import { neutralizeSpreadsheetFormula } from './csv.js';
 export type ExportFormat = 'plain' | 'structured' | 'tsv';
 export type ExportAction = 'addresses' | 'publicKeys' | 'privateKeys' | 'selected' | 'allDisplayed';
 
-export interface FormattedExport {
+interface FormattedExport {
   text: string;
   containsSecret: boolean;
   valueCount: number;
 }
 
-export interface ExportInspection {
+interface ExportInspection {
   containsSecret: boolean;
   valueCount: number;
   rowCount: number;

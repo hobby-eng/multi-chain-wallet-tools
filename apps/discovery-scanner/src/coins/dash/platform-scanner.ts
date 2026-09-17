@@ -28,7 +28,7 @@ interface DerivedPlatformAddress {
   storageKey: string;
 }
 
-export interface PlatformInfo {
+interface PlatformInfo {
   balance: bigint;
   nonce: bigint;
 }

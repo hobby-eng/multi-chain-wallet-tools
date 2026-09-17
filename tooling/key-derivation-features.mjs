@@ -1,22 +1,19 @@
 import { basename, resolve } from 'node:path';
 import { assertSafeCustomOutput } from './tool-feature-options.mjs';
+import { TOOL_MANIFESTS } from './tool-manifests.mjs';
 
-export const KEY_DERIVATION_COINS = Object.freeze(['bitcoin', 'dash', 'ethereum']);
+export const KEY_DERIVATION_COINS = TOOL_MANIFESTS['key-derivation'].coins;
+export const KEY_DERIVATION_FEATURES = TOOL_MANIFESTS['key-derivation'].features;
 
-export const KEY_DERIVATION_FEATURES = Object.freeze([
-  'derive',
-  'bip85',
-  'silent-payments',
-  'bip38-encrypt',
-  'message-signing',
+const RECOVERY_FEATURES = Object.freeze([
   'wallet-matcher',
   'seedqr',
   'slip39',
   'shamir',
   'codex32',
+  'sskr',
+  'gordian-envelope',
 ]);
-
-const RECOVERY_FEATURES = Object.freeze(['wallet-matcher', 'seedqr', 'slip39', 'shamir', 'codex32']);
 const ALIASES = Object.freeze({ matcher: 'wallet-matcher', silent: 'silent-payments' });
 
 function optionValues(args, name) {
@@ -25,11 +22,15 @@ function optionValues(args, name) {
     const argument = args[index];
     if (argument === name) {
       const value = args[index + 1];
-      if (value === undefined || value.startsWith('--')) throw new Error(`${name} requires a comma-separated value.`);
+      if (value === undefined || value.startsWith('--') || value.split(',').some((entry) => entry.trim() === ''))
+        throw new Error(`${name} requires a comma-separated value.`);
       values.push(value);
       index += 1;
     } else if (argument.startsWith(`${name}=`)) {
-      values.push(argument.slice(name.length + 1));
+      const value = argument.slice(name.length + 1);
+      if (value.split(',').some((entry) => entry.trim() === ''))
+        throw new Error(`${name} requires a comma-separated value.`);
+      values.push(value);
     }
   }
   return values
@@ -111,7 +112,14 @@ export function customKeyDerivationArtifact(root, profile, features, requestedOu
 export function parseOutputPath(args = process.argv.slice(2)) {
   const inline = args.find((arg) => arg.startsWith('--output='));
   const index = args.indexOf('--output');
-  return inline?.slice('--output='.length) ?? (index >= 0 ? args[index + 1] : undefined);
+  const output = inline?.slice('--output='.length) ?? (index >= 0 ? args[index + 1] : undefined);
+  if (
+    (inline !== undefined || index >= 0) &&
+    (output === undefined || output.trim() === '' || output.startsWith('--'))
+  ) {
+    throw new Error('--output requires an .html path.');
+  }
+  return output;
 }
 
 function removeBalancedElement(source, id) {
@@ -150,8 +158,10 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     'wallet-matcher': 'wallet-matcher-panel',
     seedqr: 'seedqr-panel',
     slip39: 'slip39-panel',
-    shamir: ['shamir-raw-panel', 'shamir-words-panel'],
+    shamir: 'shamir-panel',
     codex32: 'codex32-panel',
+    sskr: 'sskr-panel',
+    'gordian-envelope': 'gordian-envelope-panel',
   };
   for (const [feature, ids] of Object.entries(panels)) {
     if (features.has(feature)) continue;
@@ -159,8 +169,8 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
       rendered = removeBalancedElement(rendered, id);
       rendered = removeButtons(rendered, 'aria-controls', id);
     }
-    const targets = feature === 'shamir' ? ['shamir-raw', 'shamir-words'] : [feature];
-    for (const target of targets) rendered = removeButtons(rendered, 'data-recovery-target', target);
+    const menuTarget = feature === 'wallet-matcher' ? 'matcher' : feature;
+    rendered = removeButtons(rendered, 'data-recovery-target', menuTarget);
   }
   if (!features.has('bip38-encrypt')) rendered = removeBalancedElement(rendered, 'bulk-bip38-panel');
   if (!features.has('message-signing')) rendered = removeBalancedElement(rendered, 'message-signer-dialog');

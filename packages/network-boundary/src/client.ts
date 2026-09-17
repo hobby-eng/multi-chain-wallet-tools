@@ -179,7 +179,7 @@ const clientPromise = new Promise<NetworkBoundaryClient>((resolve, reject) => {
   rejectClient = reject;
 });
 
-export function attachNetworkBoundaryPort(port: MessagePort): void {
+function attachNetworkBoundaryPort(port: MessagePort): void {
   if (installed) throw new Error('The network boundary channel is already attached.');
   installed = true;
   const client = new NetworkBoundaryClient(port);

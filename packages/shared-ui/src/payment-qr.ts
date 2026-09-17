@@ -7,16 +7,11 @@ export function paymentQrPayload(field: ResultField): string | undefined {
   return field.paymentUriScheme === undefined ? field.value : `${field.paymentUriScheme}:${field.value}`;
 }
 
-export type QrPayload = string | Readonly<Array<number>>;
+type QrPayload = string | Readonly<Array<number>>;
 
 export function qrMatrix(payload: QrPayload, ecc: 'L' | 'M' | 'Q' | 'H' = 'M'): boolean[][] {
   if (payload.length === 0 || payload.length > 4096) throw new Error('QR payload length is invalid.');
   return encode(payload, { ecc, border: 4 }).data;
-}
-
-export function paymentQrMatrix(payload: string): boolean[][] {
-  if (payload.length > 512) throw new Error('QR payment payload length is invalid.');
-  return qrMatrix(payload, 'M');
 }
 
 function qrFileStem(label: string): string {
@@ -109,13 +104,18 @@ export function createQrAction(
   popover.setAttribute('aria-label', `${label} QR code`);
   let rendered = false;
   let pinned = false;
+  let suppressFocusPreview = false;
   const hide = (restoreFocus = false): void => {
     pinned = false;
     popover.hidden = true;
     button.setAttribute('aria-expanded', 'false');
     document.removeEventListener('keydown', onKeyDown);
     document.removeEventListener('pointerdown', onOutsidePointer);
-    if (restoreFocus) button.focus();
+    if (restoreFocus) {
+      suppressFocusPreview = true;
+      button.focus();
+      suppressFocusPreview = false;
+    }
   };
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
@@ -190,9 +190,15 @@ export function createQrAction(
   };
   button.addEventListener('mouseenter', () => show(false));
   button.addEventListener('mouseleave', previewEnd);
-  button.addEventListener('focus', () => show(false));
+  button.addEventListener('focus', () => {
+    if (!suppressFocusPreview) show(false);
+  });
   button.addEventListener('blur', () => queueMicrotask(previewEnd));
   button.addEventListener('click', () => {
+    if (pinned) {
+      hide(true);
+      return;
+    }
     show(true);
     popover.querySelector<HTMLButtonElement>('.payment-qr-close')?.focus();
   });
@@ -202,6 +208,7 @@ export function createQrAction(
 }
 
 export function createPaymentQrAction(document: Document, payload: string, label: string): HTMLElement {
+  if (payload.length > 512) throw new Error('QR payment payload length is invalid.');
   return createQrAction(document, payload, label, payload, {
     heading: 'Payment QR',
     description: 'Encoded payload:',

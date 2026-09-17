@@ -1219,8 +1219,8 @@ describe('recovery report export', () => {
     expect(csv.text).toContain('"\'=wallet"');
     expect(csv.text).toContain('"100000000"');
     expect(csv.text).toContain('"transactions_reported"');
-    expect(csv.text).toContain('"balance_dash"');
-    expect(csv.text).toContain('"lifetime_received_dash"');
+    expect(csv.text).toContain('"balance_display"');
+    expect(csv.text).toContain('"lifetime_received_display"');
     expect(csv.text).toContain('"first_seen"');
     expect(csv.text).toContain('"public_key_hash"');
     expect(csv.text).not.toContain('"incoming_credit_events"');

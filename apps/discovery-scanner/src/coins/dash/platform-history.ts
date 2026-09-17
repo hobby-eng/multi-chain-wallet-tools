@@ -1,7 +1,7 @@
 import type { PlatformHistorySummaryView } from '@ckd/network-boundary/protocol.js';
 import { exactSafeInteger, exactUnsigned, object } from './util.js';
 
-export interface ValidatedPlatformHistory {
+interface ValidatedPlatformHistory {
   transactionCount: number;
   incomingCount: number;
   outgoingCount: number;

@@ -2,7 +2,7 @@ import type { RecoveryNetwork, RecoveryNetworkRequest } from './protocol.js';
 
 const REQUEST_ID = /^[A-Za-z0-9._:-]{1,128}$/u;
 
-export type NetworkPayloadValidator = (value: unknown) => void;
+type NetworkPayloadValidator = (value: unknown) => void;
 export type NetworkOperationValidators = Readonly<Record<string, NetworkPayloadValidator>>;
 
 function record(value: unknown, label: string): Record<string, unknown> {
@@ -71,6 +71,9 @@ export function validateNetworkRequest(value: unknown, validators: NetworkOperat
   exactKeys(request, ['id', 'operation', 'payload'], 'Network request');
   if (typeof request.id !== 'string' || !REQUEST_ID.test(request.id)) throw new Error('Network request id is invalid.');
   if (typeof request.operation !== 'string') throw new Error('Network request operation is invalid.');
+  if (!Object.hasOwn(validators, request.operation)) {
+    throw new Error('Network request operation is not supported by this build.');
+  }
   const validatePayload = validators[request.operation];
   if (validatePayload === undefined) throw new Error('Network request operation is not supported by this build.');
   validatePayload(request.payload);

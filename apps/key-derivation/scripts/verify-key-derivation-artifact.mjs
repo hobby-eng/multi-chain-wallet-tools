@@ -14,6 +14,8 @@ const wasmPaths = [
   ['Orchard', resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm')],
   ['Shamir', resolve(root, 'packages/recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm')],
   ['Codex32', resolve(root, 'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm')],
+  ['SSKR', resolve(root, 'packages/recovery-sskr-wasm/generated/recovery_sskr_wasm_bg.wasm')],
+  ['Gordian Envelope', resolve(root, 'packages/recovery-envelope-wasm/generated/recovery_envelope_wasm_bg.wasm')],
 ];
 const html = readFileSync(artifactPath, 'utf8');
 const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
@@ -68,7 +70,7 @@ if (html.includes('__INLINE_SCRIPT_CSP__') || html.includes('/*__INLINE_')) {
 
 const ids = [...html.matchAll(/\sid="([^"]+)"/gu)].map((match) => match[1]);
 if (new Set(ids).size !== ids.length) throw new Error('Standalone artifact contains duplicate HTML IDs.');
-for (const requiredId of [
+const requiredIds = [
   'derive-form',
   'recovery-workspace',
   'wallet-matcher-panel',
@@ -82,17 +84,23 @@ for (const requiredId of [
   'create-slip39-shares',
   'slip39-shares',
   'restore-slip39-shares',
-  'shamir-raw-panel',
-  'create-shamir-raw',
-  'restore-shamir-raw',
-  'shamir-words-panel',
-  'create-shamir-words',
-  'restore-shamir-words',
+  'shamir-panel',
+  'shamir-create-format',
+  'shamir-restore-format',
+  'create-shamir',
+  'restore-shamir',
   'codex32-panel',
   'codex32-secret-type',
   'codex32-restore-type',
   'create-codex32',
   'restore-codex32',
+  'sskr-panel',
+  'create-sskr',
+  'restore-sskr',
+  'gordian-envelope-panel',
+  'create-envelope',
+  'restore-envelope',
+  'derive-envelope-recipient',
   'mnemonic',
   'passphrase',
   'seed-diagnostic',
@@ -123,8 +131,6 @@ for (const requiredId of [
   'watch-only-export',
   'clear-all',
   'main-recovery-source-menu',
-  'show-mnemonic-entropy',
-  'mnemonic-entropy-value',
   'seedqr-panel',
   'seedqr-create-result',
   'matcher-seed-lines',
@@ -145,7 +151,11 @@ for (const requiredId of [
   'crypto-self-test-status',
   'crypto-self-test-details',
   'artifact-checksum-file',
-]) {
+];
+if (new Set(requiredIds).size !== requiredIds.length || requiredIds.some((id) => !/^[A-Za-z][\w:.-]*$/u.test(id))) {
+  throw new Error('Key Derivation verifier contains an invalid or duplicate required element id.');
+}
+for (const requiredId of requiredIds) {
   if (!ids.includes(requiredId)) throw new Error(`Standalone artifact is missing required element #${requiredId}.`);
 }
 if (profile.capabilities.bip85) {
@@ -227,12 +237,15 @@ for (const marker of [
   'SLIP-39 mnemonic shares',
   'aria-label="SeedQR operation"',
   'aria-label="SLIP-39 operation"',
-  'aria-label="Shamir Raw operation"',
-  'aria-label="Shamir Words operation"',
+  'aria-label="CKD Shamir operation"',
   'aria-label="Codex32 operation"',
-  'Shamir Raw',
-  'Shamir Words',
+  'aria-label="SSKR operation"',
+  'aria-label="Seed Envelope operation"',
+  'Raw · compact Base64URL',
+  'Words · BIP39 English word encoding',
   'Codex32 · BIP93',
+  'SSKR · Blockchain Commons',
+  'Gordian Seed Envelope',
   'Mnemonic construction details',
   'seed-construction-details',
   'seed-word-table',
@@ -246,11 +259,14 @@ for (const marker of [
   'Shamir ',
   'encode/decode',
   'Codex32 official + entropy encode/decode',
+  'SSKR Compact UR encode/decode',
+  'SSKR Bytewords encode/decode',
+  'Gordian Seed Envelope encrypted entropy/passphrase encode/decode',
 ]) {
   if (!html.includes(marker)) throw new Error(`Standalone artifact is missing recovery workspace marker: ${marker}`);
 }
-if (occurrences(html, '<summary>What is this?</summary>') !== 6) {
-  throw new Error('Every Recovery & Backup method must include one explanatory help popover.');
+if (occurrences(html, '<summary>What is this?</summary>') !== 7) {
+  throw new Error('Every Recover & Back Up method must include one explanatory help popover.');
 }
 if (profile.id === 'dash-community') {
   for (const marker of [
@@ -303,7 +319,25 @@ const forbidden = [
   [/https?:\/\//iu, 'HTTP URL'],
   [/(?:src|href)\s*=\s*["'](?:https?:|\/\/|\.\/|\.\.\/|file:)/iu, 'external or sibling resource'],
 ];
-const securityScanSource = html.replaceAll('http://www.w3.org/2000/svg', '');
+const allowedOpenSourceLinks = [
+  'https://github.com/SeedSigner/seedsigner/tree/dev/docs/seed_qr',
+  'https://github.com/unjs/uqr',
+  'https://github.com/paulmillr/qr',
+  'https://github.com/trezor/python-shamir-mnemonic',
+  'https://github.com/c0dearm/sharks',
+  'https://github.com/BlockchainCommons/bc-sskr-rust',
+  'https://github.com/BlockchainCommons/bc-envelope-rust',
+  'https://github.com/BlockchainCommons/bc-components-rust',
+  'https://github.com/apoelstra/rust-codex32',
+];
+let securityScanSource = html.replaceAll('http://www.w3.org/2000/svg', '');
+for (const link of allowedOpenSourceLinks) {
+  const marker = `href="${link}"`;
+  if (occurrences(securityScanSource, marker) !== 1) {
+    throw new Error(`Expected exactly one reviewed open-source documentation link: ${link}`);
+  }
+  securityScanSource = securityScanSource.replace(marker, 'href="#reviewed-open-source-source"');
+}
 for (const [pattern, label] of forbidden) {
   if (pattern.test(securityScanSource)) throw new Error(`Standalone artifact contains forbidden ${label}.`);
 }

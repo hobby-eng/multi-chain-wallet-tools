@@ -23,7 +23,7 @@ import {
 
 const ADDRESS_CHUNK = RECOVERY_CORE_ADDRESS_BATCH;
 
-export interface TransparentBranchSpec {
+interface TransparentBranchSpec {
   key: string;
   label: string;
   pathPrefix(coinType: number): string;
@@ -31,7 +31,7 @@ export interface TransparentBranchSpec {
   hardenedIndex?: boolean;
 }
 
-export interface TransparentFamilySpec {
+interface TransparentFamilySpec {
   id: RecoverySectionId;
   title: string;
   description: string;

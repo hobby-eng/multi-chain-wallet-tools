@@ -15,7 +15,7 @@ export interface ResultsRenderOptions {
   rowLimit?: number;
 }
 
-export interface ResultWindow {
+interface ResultWindow {
   start: number;
   end: number;
   size: number;
@@ -165,7 +165,10 @@ function appendBasicRows(
         options.onSelectionChange(derived.index, checked);
       }),
     );
-    row.append(selectionCell, element('td', 'path-column value', derived.path));
+    const pathCell = element('td', 'path-column value', derived.path);
+    pathCell.title = derived.path;
+    pathCell.setAttribute('aria-label', `Derivation path ${derived.path}`);
+    row.append(selectionCell, pathCell);
     for (const key of fieldKeys) {
       row.append(
         basicFieldCell(

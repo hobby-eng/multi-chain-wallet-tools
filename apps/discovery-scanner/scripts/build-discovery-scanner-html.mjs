@@ -160,7 +160,9 @@ if (
     (input) =>
       input.includes('@dashevo/evo-sdk') ||
       input.endsWith('/network-service.ts') ||
-      input.endsWith('/network-worker.ts'),
+      input.endsWith('/network-validation.ts') ||
+      input.endsWith('/dash-core-network.ts') ||
+      input.endsWith('/dash-platform-network.ts'),
   )
 ) {
   throw new Error('Recovery Secret Vault bundle unexpectedly contains the network SDK/service.');
@@ -231,7 +233,13 @@ const shellJavascript = shellBundle.outputFiles[0]?.text;
 if (shellJavascript === undefined) throw new Error('esbuild did not produce the Recovery isolation shell bundle.');
 const allowedShellInputs = new Set([
   'apps/discovery-scanner/src/shell.ts',
+  'apps/discovery-scanner/src/report-workbook.ts',
   'packages/network-boundary/src/protocol.ts',
+  'packages/network-boundary/src/transport-protocol.ts',
+  'packages/network-boundary/src/iframe-protocol.ts',
+  'packages/network-boundary/src/dash-recovery-protocol.ts',
+  'packages/network-boundary/src/public-recovery-protocol.ts',
+  'packages/network-boundary/src/recovery-protocol.ts',
   'packages/network-boundary/src/data-types.ts',
   'packages/network-boundary/src/client.ts',
   'packages/network-boundary/src/iframe-bootstrap.ts',
@@ -240,9 +248,13 @@ const allowedShellInputs = new Set([
 ]);
 const shellInputs = Object.keys(shellBundle.metafile.inputs);
 assertDiscoveryComposition(options, [...vaultInputs, ...networkInputs, ...shellInputs]);
-const unexpectedShellInputs = shellInputs.filter((input) => !allowedShellInputs.has(input));
+const publicWorkbookDependency = (input) =>
+  /(?:^|\/)node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?(?:write-excel-file|fflate)\//u.test(input);
+const unexpectedShellInputs = shellInputs.filter(
+  (input) => !allowedShellInputs.has(input) && !publicWorkbookDependency(input),
+);
 if (unexpectedShellInputs.length > 0) {
-  throw new Error(`Recovery shell bundle crossed its two-module boundary through: ${unexpectedShellInputs.join(', ')}`);
+  throw new Error(`Recovery shell bundle crossed its reviewed boundary through: ${unexpectedShellInputs.join(', ')}`);
 }
 for (const input of allowedShellInputs) {
   // Virtual esbuild modules are generated above from fixed source and have no filesystem path.
@@ -274,6 +286,9 @@ if (shellScriptStart < 0 || shellScriptEnd <= shellScriptStart)
   throw new Error('Recovery shell HTML did not contain the generated inline script.');
 const shellInlineScript = html.slice(shellScriptStart + '<script>'.length, shellScriptEnd);
 html = html.replace('__SHELL_INLINE_SCRIPT_HASH__', scriptCsp(shellInlineScript));
+const unexpandedMarker = /__[A-Z][A-Z0-9_]+__/u.exec(html)?.[0];
+if (unexpandedMarker !== undefined)
+  throw new Error(`Discovery Scanner artifact still contains unexpanded build marker ${unexpandedMarker}.`);
 const artifact = customArtifact ?? resolve(root, 'dist', tool.artifactDirectory, tool.artifactName);
 const dist = resolve(artifact, '..');
 mkdirSync(dist, { recursive: true });

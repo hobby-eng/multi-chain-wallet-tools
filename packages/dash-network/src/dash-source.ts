@@ -2,11 +2,7 @@ import { EvoSDK, type ShieldedEncryptedNote as EvoShieldedEncryptedNote } from '
 import { copyAndFreeEvoShieldedNote } from './evo-shielded-note.js';
 import type { ShieldedPage, ShieldedPageSource, ViewerNetwork } from './types.js';
 
-export type DashEvoOperationRunner = <T>(
-  operation: string,
-  publicArguments: unknown,
-  task: () => Promise<T>,
-) => Promise<T>;
+type DashEvoOperationRunner = <T>(operation: string, publicArguments: unknown, task: () => Promise<T>) => Promise<T>;
 
 export class DashEvoShieldedSource implements ShieldedPageSource {
   readonly #network: ViewerNetwork;

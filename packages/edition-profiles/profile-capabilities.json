@@ -3,18 +3,9 @@
     "id": "multi-chain",
     "chains": ["bitcoin", "dash", "ethereum"],
     "capabilities": {
-      "derivation": true,
-      "secretBoundary": true,
-      "publicNetwork": true,
-      "recoveryNetwork": true,
-      "offlineOnly": false,
-      "recoveryAddressSearch": true,
       "bip85": true,
       "bitcoinSilentPayments": true,
       "bitcoinMessageSigning": true,
-      "dashMessageSigning": true,
-      "publicActivity": true,
-      "discoveryScanner": true,
       "advancedPsbt": true
     }
   },
@@ -22,18 +13,9 @@
     "id": "dash-community",
     "chains": ["dash"],
     "capabilities": {
-      "derivation": true,
-      "secretBoundary": true,
-      "publicNetwork": true,
-      "recoveryNetwork": true,
-      "offlineOnly": false,
-      "recoveryAddressSearch": true,
       "bip85": true,
       "bitcoinSilentPayments": false,
       "bitcoinMessageSigning": false,
-      "dashMessageSigning": true,
-      "publicActivity": true,
-      "discoveryScanner": true,
       "advancedPsbt": false
     }
   }

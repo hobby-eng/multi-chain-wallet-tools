@@ -3,7 +3,7 @@ import { requirePrivate, requirePublic } from '@ckd/core/bip32.js';
 import { bytesToHex, hash160, wipe } from '@ckd/core/crypto.js';
 import { field, type ResultField } from '@ckd/core/types.js';
 
-export interface Bip32SummaryLabels {
+interface Bip32SummaryLabels {
   accountPath: string;
   accountXprv: string;
   accountXpub: string;

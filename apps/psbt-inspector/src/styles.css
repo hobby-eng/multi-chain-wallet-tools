@@ -234,10 +234,10 @@
   background: #17212c;
 }
 .psbt-mode-tab.active {
-  color: var(--accent2);
-  border-color: #765623;
-  background: linear-gradient(180deg, #2f2515, #1d1a12);
-  box-shadow: inset 0 0 0 1px rgba(245, 166, 35, 0.08);
+  color: var(--selection-text);
+  border-color: var(--selection-border);
+  background: linear-gradient(180deg, var(--selection-bg-start), var(--selection-bg-end));
+  box-shadow: inset 0 0 0 1px rgba(110, 157, 206, 0.08);
 }
 .psbt-control-panel {
   position: relative;
@@ -491,12 +491,12 @@
   background: #17202b;
 }
 .psbt-mode-tabs .psbt-mode-tab.primary-mode-tab.active {
-  color: var(--accent2);
-  border-color: #76551e;
-  background: linear-gradient(180deg, #2a2113, #1b1811);
+  color: var(--selection-text);
+  border-color: var(--selection-border);
+  background: linear-gradient(180deg, var(--selection-bg-start), var(--selection-bg-end));
   box-shadow:
-    inset 0 1px rgba(255, 211, 122, 0.08),
-    0 0 0 1px rgba(245, 166, 35, 0.06);
+    inset 0 1px rgba(215, 233, 255, 0.12),
+    0 0 0 1px rgba(110, 157, 206, 0.08);
 }
 .policy-row code {
   white-space: pre-wrap;
@@ -753,9 +753,9 @@
   font-weight: 800;
 }
 .result-branch-tab.active {
-  color: var(--accent2);
-  border-color: #654a1e;
-  background: #191711;
+  color: var(--selection-text);
+  border-color: var(--selection-border);
+  background: linear-gradient(180deg, var(--selection-bg-start), var(--selection-bg-end));
 }
 .wallet-export-panel {
   margin: 0 0 18px;

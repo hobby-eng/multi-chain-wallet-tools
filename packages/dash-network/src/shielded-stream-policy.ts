@@ -1,9 +1,9 @@
 export const SHIELDED_PAGE_SIZE = 2048;
 export const SHIELDED_EMPTY_CONFIRMATIONS = 2;
 export const SHIELDED_MAX_PAGES_PER_SCAN = 4096;
-export const SHIELDED_MAX_RECONCILIATIONS = 16;
+const SHIELDED_MAX_RECONCILIATIONS = 16;
 
-export interface ShieldedStreamCursor {
+interface ShieldedStreamCursor {
   /** Chunk-aligned DAPI start index for the next request. */
   position: bigint;
   /** Includes non-empty and empty proof responses. */
@@ -11,7 +11,7 @@ export interface ShieldedStreamCursor {
   consecutiveEmpty: number;
 }
 
-export interface ShieldedStreamStep extends ShieldedStreamCursor {
+interface ShieldedStreamStep extends ShieldedStreamCursor {
   decision: 'continue' | 'complete' | 'limit';
 }
 
@@ -22,7 +22,7 @@ export interface ShieldedStreamOutcome {
   limitReason?: 'changing-tip';
 }
 
-export interface ShieldedPageVisit {
+interface ShieldedPageVisit {
   position: bigint;
   pageNumber: number;
   emptyConfirmation: number;
@@ -174,31 +174,28 @@ export async function runShieldedPageStream<Page>(options: {
       await options.yieldTurn?.();
       continue;
     }
+    const transition = advanceShieldedStream(
+      {
+        ...cursor,
+        consecutiveEmpty: noteCount === 0 && terminalRevision !== revision ? 0 : cursor.consecutiveEmpty,
+      },
+      noteCount,
+      maximumPages,
+    );
     if (noteCount > 0) {
       lastPartial = noteCount < SHIELDED_PAGE_SIZE ? { position: cursor.position, revision } : undefined;
       terminalRevision = undefined;
-      const position = cursor.position + BigInt(SHIELDED_PAGE_SIZE);
-      if (pageCount >= maximumPages) {
-        return { complete: false, pageCount, terminalPosition: position };
-      }
-      cursor = { position, pageCount, consecutiveEmpty: 0 };
-      await options.yieldTurn?.();
-      continue;
+    } else {
+      terminalRevision = revision;
     }
-
-    const consecutiveEmpty = terminalRevision === revision ? cursor.consecutiveEmpty + 1 : 1;
-    terminalRevision = revision;
-    if (consecutiveEmpty >= SHIELDED_EMPTY_CONFIRMATIONS) {
+    if (transition.decision !== 'continue') {
       return {
-        complete: true,
-        pageCount,
-        terminalPosition: cursor.position,
+        complete: transition.decision === 'complete',
+        pageCount: transition.pageCount,
+        terminalPosition: transition.position,
       };
     }
-    if (pageCount >= maximumPages) {
-      return { complete: false, pageCount, terminalPosition: cursor.position };
-    }
-    cursor = { position: cursor.position, pageCount, consecutiveEmpty };
+    cursor = transition;
     await options.yieldTurn?.();
   }
 }

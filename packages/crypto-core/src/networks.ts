@@ -16,7 +16,7 @@ export interface BitcoinNetwork {
   versions: Bip32Versions;
 }
 
-export interface DashNetwork {
+interface DashNetwork {
   name: NetworkName;
   label: string;
   coinType: number;
@@ -30,7 +30,7 @@ export interface DashNetwork {
 const MAIN_VERSIONS = { private: 0x0488ade4, public: 0x0488b21e } as const;
 const TEST_VERSIONS = { private: 0x04358394, public: 0x043587cf } as const;
 
-export const BITCOIN_NETWORKS: Record<NetworkName, BitcoinNetwork> = {
+const BITCOIN_NETWORKS: Record<NetworkName, BitcoinNetwork> = {
   mainnet: {
     name: 'mainnet',
     label: 'Bitcoin mainnet',
@@ -55,7 +55,7 @@ export const BITCOIN_NETWORKS: Record<NetworkName, BitcoinNetwork> = {
 
 // Verified against Dash Core chainparams.cpp (current master, 2026-09-01).
 // Dash Core now deliberately uses Bitcoin's xpub/xprv version bytes on mainnet.
-export const DASH_NETWORKS: Record<NetworkName, DashNetwork> = {
+const DASH_NETWORKS: Record<NetworkName, DashNetwork> = {
   mainnet: {
     name: 'mainnet',
     label: 'Dash mainnet',

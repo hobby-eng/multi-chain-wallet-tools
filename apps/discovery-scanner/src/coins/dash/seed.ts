@@ -297,8 +297,7 @@ export const DASH_SEED_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
         overview: summarizeDashSections(sections),
         sections,
         warnings: [
-          'This utility has not received an independent cryptography-specialist audit. Pinned cryptographic dependencies do not replace an audit of their integration.',
-          'For found funds, the safest recovery is to copy the public address, derivation path, branch/index and balance into the recovery report, then restore the mnemonic in a standard Dash wallet on a trusted device.',
+          'For found funds, verify the public address, derivation path, branch/index and balance in the recovery report, then restore the mnemonic in a standard Dash wallet on a trusted device.',
         ],
       };
     } finally {

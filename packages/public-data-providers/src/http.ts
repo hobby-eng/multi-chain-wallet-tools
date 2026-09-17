@@ -1,4 +1,5 @@
 import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
+import { boundedFetch } from '@ckd/network-boundary/bounded-fetch.js';
 
 const DECIMAL_PATTERN = PROVIDER_UNSIGNED_DECIMAL;
 
@@ -47,34 +48,17 @@ export function unsignedInteger(value: unknown, context: string): number {
   return numeric;
 }
 
-export async function fetchJson(
+export function fetchJson(
   url: string,
   signal?: AbortSignal,
   init: RequestInit = {},
   timeoutMs = 30_000,
 ): Promise<unknown> {
-  if (signal?.aborted) throw publicProviderAbortError();
-  const requestController = new AbortController();
-  let timedOut = false;
-  const abortFromCaller = (): void => requestController.abort();
-  signal?.addEventListener('abort', abortFromCaller, { once: true });
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    requestController.abort();
-  }, timeoutMs);
-  try {
-    const response = await globalThis.fetch(url, { ...init, cache: 'no-store', signal: requestController.signal });
-    if (!response.ok) {
-      void response.body?.cancel().catch(() => {});
-      throw new Error(`Network request failed with HTTP ${response.status}.`);
-    }
-    return await readProviderJson(response, requestController.signal);
-  } catch (cause) {
-    if (signal?.aborted) throw publicProviderAbortError();
-    if (timedOut) throw new Error(`Network request timed out after ${Math.ceil(timeoutMs / 1_000)} seconds.`);
-    throw cause;
-  } finally {
-    clearTimeout(timeout);
-    signal?.removeEventListener('abort', abortFromCaller);
-  }
+  return boundedFetch(url, {
+    signal,
+    init,
+    timeoutMs,
+    abortError: publicProviderAbortError,
+    read: readProviderJson,
+  });
 }

@@ -1,3 +1,4 @@
+import { replaceBalancedElement as replaceHtmlElement } from './html-elements.mjs';
 import { resolve } from 'node:path';
 
 export function activityViewerEntry(root, options) {
@@ -51,21 +52,8 @@ export function createActivityViewerCompositionPlugin(root, options) {
   };
 }
 
-function replaceBalancedElement(source, openingPattern, replacement) {
-  const opening = openingPattern.exec(source);
-  if (opening === null) return source;
-  const tag = /^<([a-z][a-z0-9-]*)\b/iu.exec(opening[0])?.[1];
-  if (tag === undefined) throw new Error('Activity Viewer template selector did not start at an HTML element.');
-  const token = new RegExp(`<\\/?${tag}\\b[^>]*>`, 'giu');
-  token.lastIndex = opening.index;
-  let depth = 0;
-  for (let match = token.exec(source); match !== null; match = token.exec(source)) {
-    if (match[0].startsWith('</')) depth -= 1;
-    else depth += 1;
-    if (depth === 0) return source.slice(0, opening.index) + replacement + source.slice(token.lastIndex);
-  }
-  throw new Error(`Activity Viewer template is missing the closing <${tag}> element.`);
-}
+const replaceBalancedElement = (source, openingPattern, replacement = '') =>
+  replaceHtmlElement(source, openingPattern, replacement, 'Activity Viewer template');
 
 export function applyActivityCoinTemplate(template, options) {
   let rendered = template;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { field, paymentAddressField } from '@ckd/core/types.js';
-import { paymentQrMatrix, paymentQrPayload } from '@ckd/ui/payment-qr.js';
+import { paymentQrPayload, qrMatrix } from '@ckd/ui/payment-qr.js';
 
 describe('payment QR payloads', () => {
   it.each([
@@ -23,7 +23,7 @@ describe('payment QR payloads', () => {
   });
 
   it('produces a stable square boolean matrix with a quiet zone', () => {
-    const matrix = paymentQrMatrix('dash:Xaddress');
+    const matrix = qrMatrix('dash:Xaddress', 'M');
     expect(matrix).toHaveLength(29);
     expect(matrix.every((row) => row.length === matrix.length)).toBe(true);
     expect(matrix.flat().every((module) => typeof module === 'boolean')).toBe(true);

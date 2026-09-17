@@ -1,4 +1,10 @@
+import { replaceBalancedElement as replaceHtmlElement } from './html-elements.mjs';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+
+const WATCH_ONLY_PREFIX_COINS = JSON.parse(
+  readFileSync(new URL('../packages/wallet-recovery/src/watch-only/prefix-coins.json', import.meta.url), 'utf8'),
+);
 
 function selectedAdapter(coin, options) {
   const upper = coin.toUpperCase();
@@ -157,23 +163,22 @@ export function discoveryAppEntry(root, options) {
   const lines = [
     `import * as registry from 'ckd:selected-discovery-registry';`,
     `import { startDiscoveryScanner } from ${JSON.stringify(resolve(root, 'apps/discovery-scanner/src/start.ts'))};`,
+    `import { installVaultViewportBridge } from ${JSON.stringify(resolve(root, 'apps/discovery-scanner/src/viewport-client.ts'))};`,
   ];
+  lines.push('installVaultViewportBridge();');
   if (options.has('seed-discovery')) {
     lines.push(
       `import { assertValidMnemonic } from ${JSON.stringify(resolve(root, 'packages/crypto-core/src/bip39.ts'))};`,
     );
     lines.push(`import { runRecoverySelfTest } from 'ckd:selected-discovery-self-test';`);
-    lines.push(
-      `import { installVaultViewportBridge } from ${JSON.stringify(resolve(root, 'apps/discovery-scanner/src/viewport-client.ts'))};`,
-    );
-    lines.push('installVaultViewportBridge();');
   } else {
     lines.push(
       "const assertValidMnemonic = () => { throw new Error('Seed discovery is not included in this build.'); };",
     );
     lines.push(
-      "const runRecoverySelfTest = async () => ({ passed: true, checks: ['Watch-only public-input boundary'], durationMs: 0 });",
+      `import { createPublicInputBoundarySelfTest } from ${JSON.stringify(resolve(root, 'apps/discovery-scanner/src/recovery-self-test.ts'))};`,
     );
+    lines.push('const runRecoverySelfTest = createPublicInputBoundarySelfTest();');
   }
   if (options.has('wallet-matcher') && options.hasCoin('bitcoin') && options.has('seed-discovery')) {
     lines.push(
@@ -209,22 +214,16 @@ export const runRecoverySelfTest = createRecoverySelfTest(async () => { const re
 
 function watchOnlyProfileSource(root, options) {
   if (!options.has('watch-only-discovery')) return 'export const SELECTED_WATCH_ONLY_PROFILE = undefined;';
-  const prefixes = {};
-  if (options.hasCoin('bitcoin'))
-    Object.assign(prefixes, { 'bitcoin-xpub': 'bitcoin', 'bitcoin-descriptor': 'bitcoin' });
-  if (options.hasCoin('dash'))
-    Object.assign(prefixes, {
-      'dash-xpub': 'dash',
-      'dash-descriptor': 'dash',
-      'dash-legacy-xpub': 'dash',
-      'dash-orchard': 'dash',
-    });
-  if (options.hasCoin('ethereum')) Object.assign(prefixes, { 'ethereum-xpub': 'ethereum' });
+  const selectedCoins = new Set(options.coins);
+  const prefixCoins = Object.fromEntries(
+    Object.entries(WATCH_ONLY_PREFIX_COINS).filter(([, coin]) => selectedCoins.has(coin)),
+  );
   const depthCases = [];
   if (options.hasCoin('bitcoin')) depthCases.push("if (adapterId === 'bitcoin') return [3, 4];");
   if (options.hasCoin('dash')) depthCases.push("if (adapterId === 'dash') return [3, 4, 5];");
   if (options.hasCoin('ethereum')) depthCases.push("if (adapterId === 'ethereum') return [3, 4, 5];");
-  return `export const SELECTED_WATCH_ONLY_PROFILE = { prefixCoins: ${JSON.stringify(prefixes)}, multiChain: ${options.coins.length > 1}, networklessAdapterIds: ${JSON.stringify(options.hasCoin('ethereum') ? ['ethereum'] : [])}, supportedDepths: (adapterId) => { ${depthCases.join(' ')} throw new Error('Unsupported watch-only adapter.'); }, singleChainCoinId: ${JSON.stringify(options.coins[0])} };`;
+  return `const prefixCoins = ${JSON.stringify(prefixCoins)};
+export const SELECTED_WATCH_ONLY_PROFILE = { prefixCoins, multiChain: ${options.coins.length > 1}, networklessAdapterIds: ${JSON.stringify(options.hasCoin('ethereum') ? ['ethereum'] : [])}, supportedDepths: (adapterId) => { ${depthCases.join(' ')} throw new Error('Unsupported watch-only adapter.'); }, singleChainCoinId: ${JSON.stringify(options.coins[0])} };`;
 }
 
 function featureRuntimeSource(root, options) {
@@ -280,21 +279,8 @@ function featureRuntimeSource(root, options) {
   return `${imports.join('\n')}\nexport const SELECTED_DISCOVERY_FEATURES = { ${fields.join(', ')} };`;
 }
 
-function replaceBalancedElement(source, openingPattern, replacement = '') {
-  const opening = openingPattern.exec(source);
-  if (opening === null) return source;
-  const tag = /^<([a-z][a-z0-9-]*)\b/iu.exec(opening[0])?.[1];
-  if (tag === undefined) throw new Error('Discovery template selector did not start at an HTML element.');
-  const token = new RegExp(`<\\/?${tag}\\b[^>]*>`, 'giu');
-  token.lastIndex = opening.index;
-  let depth = 0;
-  for (let match = token.exec(source); match !== null; match = token.exec(source)) {
-    if (match[0].startsWith('</')) depth -= 1;
-    else depth += 1;
-    if (depth === 0) return source.slice(0, opening.index) + replacement + source.slice(token.lastIndex);
-  }
-  throw new Error(`Discovery template is missing the closing <${tag}> element.`);
-}
+const replaceBalancedElement = (source, openingPattern, replacement = '') =>
+  replaceHtmlElement(source, openingPattern, replacement, 'Discovery template');
 
 export function applyDiscoveryFeatureTemplate(template, options) {
   if (options.has('seed-discovery')) return template;
@@ -318,6 +304,14 @@ export function applyDiscoveryFeatureTemplate(template, options) {
     .replace(
       /use your original recovery phrase or wallet backup,[\s\S]*?viewing key\./u,
       'use your original wallet backup, confirm the listed derivation paths, and move funds to a newly generated wallet. The export contains public recovery metadata only; no private or spending material is included.',
+    )
+    .replace(
+      /For the broadest search across supported(?: Dash)? wallet schemes, use your seed phrase and original BIP39 passphrase, if any\.(?: Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts\.)?/u,
+      'This watch-only build cannot search separate hardened accounts that are not reachable from the entered public key.',
+    )
+    .replace(
+      /No persistence, analytics, cookies, external scripts, or secret-bearing network requests\. Mnemonic, seed and Orchard FVK remain inside a CSP network-denied (?:Secret Vault|Public Input Boundary); Evo SDK runs in a separate Worker\./u,
+      'No persistence, analytics, cookies, external scripts, or private-key input. Entered public keys remain inside a CSP network-denied Public Input Boundary; only derived public requests cross into the Network Worker.',
     )
     .replaceAll('Secret Vault', 'Public Input Boundary')
     .replaceAll('secret candidates', 'public inputs');
@@ -374,7 +368,15 @@ export function assertDiscoveryComposition(options, inputs) {
   const normalized = inputs.map((input) => input.replaceAll('\\', '/'));
   const markers = {
     bitcoin: ['/coins/bitcoin/', '/bitcoin-service.ts', '/bitcoin-address-search-runtime.ts'],
-    dash: ['/coins/dash/', '/network-service.ts', '/dash-network/', '/@dashevo/evo-sdk/'],
+    dash: [
+      '/coins/dash/',
+      '/network-service.ts',
+      '/network-validation.ts',
+      '/dash-core-network.ts',
+      '/dash-platform-network.ts',
+      '/dash-network/',
+      '/@dashevo/evo-sdk/',
+    ],
     ethereum: ['/coins/ethereum/', '/ethereum-service.ts'],
   };
   for (const [coin, values] of Object.entries(markers)) {

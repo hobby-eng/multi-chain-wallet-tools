@@ -10,16 +10,16 @@ import {
   type ResultFieldGroup,
 } from '@ckd/core/types.js';
 
-export interface DashIdentityKey {
+interface DashIdentityKey {
   path: string;
   privateKey: Uint8Array;
   publicKey: Uint8Array;
   publicKeyHash: Uint8Array;
 }
 
-export type DashIdentityAuthenticationKey = DashIdentityKey;
+type DashIdentityAuthenticationKey = DashIdentityKey;
 
-export interface DashIdentityStandardKey {
+interface DashIdentityStandardKey {
   keyId: 0 | 1 | 2 | 3;
   purpose: 'AUTHENTICATION' | 'TRANSFER';
   purposeValue: 0 | 3;
@@ -77,7 +77,7 @@ export const DASH_IDENTITY_STANDARD_KEYS: readonly DashIdentityStandardKey[] = [
  * final two hardened levels to the identity index and identity key index:
  * m/9'/coin_type'/5'/0'/0'/identity_index'/key_index'.
  */
-export function deriveDashIdentityKey(
+function deriveDashIdentityKey(
   root: HDKey,
   networkName: NetworkName,
   identityIndex: number,

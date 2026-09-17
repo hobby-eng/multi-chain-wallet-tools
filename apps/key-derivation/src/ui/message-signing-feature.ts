@@ -13,7 +13,7 @@ interface WalletSource {
   passphrase: string;
 }
 
-export interface MessageSigningInstallerOptions {
+interface MessageSigningInstallerOptions {
   document: Document;
   mainSource(): WalletSource;
   bip85Source(): WalletSource;

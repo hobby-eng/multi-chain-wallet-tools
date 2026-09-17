@@ -1,3 +1,4 @@
+import { createRecoveryWorkbook } from './report-workbook.js';
 import {
   RECOVERY_EXPORT_REQUEST,
   RECOVERY_EXPORT_RESULT,
@@ -71,6 +72,10 @@ function exportResult(target: Window, result: RecoveryExportBrokerResult): void 
 }
 
 window.addEventListener('message', (event: MessageEvent<unknown>) => {
+  void handleVaultMessage(event);
+});
+
+async function handleVaultMessage(event: MessageEvent<unknown>): Promise<void> {
   if (event.source !== vault.contentWindow || typeof event.data !== 'object' || event.data === null) return;
   const viewport = event.data as Partial<RecoveryVaultHeight>;
   if (viewport.type === RECOVERY_VAULT_HEIGHT) {
@@ -87,7 +92,10 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
   const request = event.data as Partial<RecoveryExportBrokerRequest>;
   if (request.type !== RECOVERY_EXPORT_REQUEST || typeof request.id !== 'string') return;
   const target = event.source as Window;
-  if ((request.format !== 'csv' && request.format !== 'json') || typeof request.text !== 'string') {
+  if (
+    (request.format !== 'csv' && request.format !== 'json' && request.format !== 'xlsx') ||
+    typeof request.text !== 'string'
+  ) {
     exportResult(target, {
       type: RECOVERY_EXPORT_RESULT,
       id: request.id,
@@ -109,8 +117,11 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
     });
     return;
   }
-  const url = URL.createObjectURL(blob);
+  let url: string | null = null;
   try {
+    const download = request.format === 'xlsx' ? await createRecoveryWorkbook(request.text) : blob;
+    if (download.size > MAX_EXPORT_BYTES) throw new Error('The export exceeds the 256 MiB safety ceiling.');
+    url = URL.createObjectURL(download);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = filename;
@@ -127,9 +138,10 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
       error: cause instanceof Error ? cause.message : String(cause),
     });
   } finally {
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    const downloadUrl = url;
+    if (downloadUrl !== null) setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
   }
-});
+}
 
 window.addEventListener('beforeunload', () => {
   clearTimeout(workerReadyTimeout);

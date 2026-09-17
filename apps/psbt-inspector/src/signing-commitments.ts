@@ -1,9 +1,9 @@
 import { bytesToHex } from '@ckd/core/crypto.js';
 import type { ParsedPsbt, PsbtPair } from './psbt.js';
 
-export type SighashProtocol = 'legacy' | 'segwit-v0' | 'taproot';
+type SighashProtocol = 'legacy' | 'segwit-v0' | 'taproot';
 
-export interface SighashCommitments {
+interface SighashCommitments {
   readonly label: string;
   readonly known: boolean;
   readonly unusual: boolean;
@@ -14,7 +14,7 @@ export interface SighashCommitments {
   readonly currentInputAmount: string;
 }
 
-export interface InputSigningAnalysis {
+interface InputSigningAnalysis {
   readonly signature: string;
   readonly protocol: string;
   readonly sighash: SighashCommitments;

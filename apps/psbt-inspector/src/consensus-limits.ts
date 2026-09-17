@@ -1,3 +1,5 @@
+import { findMatchingClose, splitTopLevelArguments } from './balanced-syntax.js';
+
 export const CONSENSUS_LIMITS = Object.freeze({
   absoluteLockTimeThreshold: 500_000_000,
   bip68SequenceMask: 0x0000ffff,
@@ -16,42 +18,9 @@ export const CONSENSUS_LIMITS = Object.freeze({
 
 export type ScriptPolicyContext = 'bare' | 'p2sh' | 'p2wsh' | 'tapscript';
 
-function matchingClose(text: string, open: number): number {
-  let depth = 0;
-  for (let index = open; index < text.length; index += 1) {
-    if (text[index] === '(') depth += 1;
-    else if (text[index] === ')') {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-  throw new Error('Miniscript expression contains an unclosed parenthesis.');
-}
-
-function splitTopLevel(text: string): string[] {
-  const result: string[] = [];
-  let start = 0;
-  let round = 0;
-  let square = 0;
-  let curly = 0;
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index];
-    if (character === '(') round += 1;
-    else if (character === ')') round -= 1;
-    else if (character === '[') square += 1;
-    else if (character === ']') square -= 1;
-    else if (character === '{') curly += 1;
-    else if (character === '}') curly -= 1;
-    else if (character === ',' && round === 0 && square === 0 && curly === 0) {
-      result.push(text.slice(start, index));
-      start = index + 1;
-    }
-    if (round < 0 || square < 0 || curly < 0) throw new Error('Miniscript expression has unbalanced delimiters.');
-  }
-  if (round !== 0 || square !== 0 || curly !== 0) throw new Error('Miniscript expression has unbalanced delimiters.');
-  result.push(text.slice(start));
-  return result;
-}
+const matchingClose = (text: string, open: number): number =>
+  findMatchingClose(text, open, '(', ')', 'Miniscript expression');
+const splitTopLevel = (text: string): string[] => splitTopLevelArguments(text, { context: 'Miniscript expression' });
 
 function fragmentBodies(text: string, name: string): string[] {
   const results: string[] = [];
