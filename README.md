@@ -4,6 +4,10 @@
 
 This documentation describes **v0.1.5**, released on 2026-09-17. Both editions are built from the same tagged source revision.
 
+**Version 0.1.5 includes a major refactoring of the codebase.** The applications now organize their functionality into separate modules with defined responsibilities and shared core packages. Optional features have independent modules that can be included or left out when building the standalone HTML files.
+
+**Build only what you need:** use `--features` to select features, `--exclude` to remove features, `--coins` to select supported coins, and `--exclude-coins` to remove coins. You can build a tool with just the optional modules and coin support you want, leaving the other modules and their dependencies out of the resulting HTML. With no selection flags, each edition includes all of its available modules. See [Selective build modules](docs/BUILD_MODULES.md) for the available choices and example commands, and [Architecture](docs/ARCHITECTURE.md) for the code structure.
+
 Multi-Chain Wallet Tools is a set of four portable wallet utilities delivered as standalone HTML files. Download the tool you need, verify its checksum, and open it in a current browser. No installation or server is required.
 
 The same source tree produces two editions:
