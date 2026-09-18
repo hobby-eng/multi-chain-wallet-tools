@@ -2,7 +2,7 @@
 
 This is a template, not an executed audit. Replace placeholders and remove this sentence before publishing.
 
-## Reviewer and snapshot
+## Record metadata
 
 - **Audit number:** N.
 - **Completed (UTC):** YYYY-MM-DD.
@@ -13,19 +13,27 @@ This is a template, not an executed audit. Replace placeholders and remove this 
 - **Working tree:** Clean, or describe pre-existing changes and retained diff evidence.
 - **Artifacts:** Fingerprints and source/build relationship, or not reviewed.
 
-## Scope and methodology
+## Finding register
+
+| Finding / record ID | Category | Kind    | Severity | Recorded status | Title                 |
+| ------------------- | -------- | ------- | -------- | --------------- | --------------------- |
+| AUD-NNN-API001      | API      | finding | medium   | open            | Concrete defect title |
+
+## Review evidence
+
+### Scope and methodology
 
 Describe supported tools, coins, feature combinations, dependencies, upstream revisions, environment, methods, and exclusions. See [AUDIT_STANDARD.md](AUDIT_STANDARD.md) for the required conventions.
 
-## Checks
+### Checks
 
 | Check / command              | Outcome                             | Counts / environment | Evidence                    |
 | ---------------------------- | ----------------------------------- | -------------------- | --------------------------- |
 | Actual command or inspection | Passed / failed / skipped / not run | Actual values        | Retained evidence or reason |
 
-## Findings
+### Findings
 
-### AUD-NNN-API001 — Medium — Concrete defect title
+#### AUD-NNN-API001 — Medium — Concrete defect title
 
 - **Category:** API.
 - **Severity:** medium.
@@ -40,7 +48,7 @@ Describe supported tools, coins, feature combinations, dependencies, upstream re
 - **Recommended fix:** Proposed correction.
 - **Required verification:** Relevant regression and acceptance checks.
 
-## Remediation and follow-up
+### Remediation and follow-up
 
 | Finding ID     | Status | Fix commit | Verification commit | Evidence              |
 | -------------- | ------ | ---------- | ------------------- | --------------------- |
@@ -48,10 +56,10 @@ Describe supported tools, coins, feature combinations, dependencies, upstream re
 
 Record follow-up dates separately; preserve the original reviewed snapshot and finding IDs.
 
-## Informational observations and recommendations
+### Informational observations and recommendations
 
 Keep general advice separate from confirmed defects. Reference existing finding IDs where relevant.
 
-## Assessment and limitations
+### Assessment and limitations
 
 Summarize what the recorded evidence demonstrates, what remains unresolved, and what was not tested. Do not imply independent certification or proof that all defects are absent.
