@@ -99,21 +99,47 @@ export function createQrAction(
   button.setAttribute('aria-expanded', 'false');
   const popover = document.createElement('span');
   popover.className = 'payment-qr-popover';
+  popover.setAttribute('popover', 'manual');
   popover.hidden = true;
   popover.setAttribute('role', 'dialog');
   popover.setAttribute('aria-label', `${label} QR code`);
   let rendered = false;
   let pinned = false;
   let suppressFocusPreview = false;
+  const positionPopover = (): void => {
+    const viewport = document.defaultView;
+    if (viewport === null || popover.hidden) return;
+    const margin = 16;
+    popover.style.maxHeight = `${Math.max(0, viewport.innerHeight - margin * 2)}px`;
+    const anchor = button.getBoundingClientRect();
+    const bounds = popover.getBoundingClientRect();
+    const mobile = viewport.innerWidth <= 640;
+    const left = mobile ? (viewport.innerWidth - bounds.width) / 2 : anchor.right - bounds.width;
+    const below = anchor.bottom + 8;
+    const top = mobile
+      ? (viewport.innerHeight - bounds.height) / 2
+      : below + bounds.height <= viewport.innerHeight - margin
+        ? below
+        : anchor.top - bounds.height - 8;
+    popover.style.left = `${Math.max(margin, Math.min(left, viewport.innerWidth - bounds.width - margin))}px`;
+    popover.style.top = `${Math.max(margin, Math.min(top, viewport.innerHeight - bounds.height - margin))}px`;
+  };
+  const onScroll = (event: Event): void => {
+    if (event.target instanceof Node && popover.contains(event.target)) return;
+    positionPopover();
+  };
   const hide = (restoreFocus = false): void => {
     pinned = false;
+    if (popover.matches(':popover-open')) popover.hidePopover();
     popover.hidden = true;
     button.setAttribute('aria-expanded', 'false');
     document.removeEventListener('keydown', onKeyDown);
     document.removeEventListener('pointerdown', onOutsidePointer);
+    document.removeEventListener('scroll', onScroll, true);
+    document.defaultView?.removeEventListener('resize', positionPopover);
     if (restoreFocus) {
       suppressFocusPreview = true;
-      button.focus();
+      button.focus({ preventScroll: true });
       suppressFocusPreview = false;
     }
   };
@@ -183,6 +209,10 @@ export function createQrAction(
       rendered = true;
     }
     popover.hidden = false;
+    if (!popover.matches(':popover-open')) popover.showPopover();
+    positionPopover();
+    document.addEventListener('scroll', onScroll, true);
+    document.defaultView?.addEventListener('resize', positionPopover);
     button.setAttribute('aria-expanded', 'true');
   };
   const previewEnd = (): void => {
@@ -200,7 +230,7 @@ export function createQrAction(
       return;
     }
     show(true);
-    popover.querySelector<HTMLButtonElement>('.payment-qr-close')?.focus();
+    popover.querySelector<HTMLButtonElement>('.payment-qr-close')?.focus({ preventScroll: true });
   });
   root.addEventListener('mouseleave', previewEnd);
   root.append(button, popover);
