@@ -2,6 +2,8 @@
 
 This standard applies to new audits and follow-up records. Reports and structured records are written in English. Historical reports were normalized in a documentation-only migration on 2026-09-18. Their canonical IDs follow this standard; original aliases are retained in [LEGACY_FINDING_IDS.md](LEGACY_FINDING_IDS.md), its JSON twin, and `legacyId` metadata. Existing report filenames and dates remain unchanged. Do not infer a historical finding's severity from its former prefix.
 
+The execution procedure and coverage requirements are defined in [FULL_AUDIT_GUIDE.md](FULL_AUDIT_GUIDE.md). Its `CHECK-SEC-001` task IDs are checklist references, distinct from report finding IDs. Group findings by category and subsystem; retain IDs when reordering.
+
 ## Report numbering
 
 Use one repository-wide sequence, independent of tool, reviewer, model, severity, or date. Assign the next unused number after the highest existing audit number; never reuse an assigned number or renumber published reports. Coordinate reservations when reviews run concurrently.
