@@ -2,7 +2,7 @@
 
 This guide defines a comprehensive first-party audit of this repository: source, dependency integration, build composition, standalone HTML, browser behavior, exports, documentation, and release evidence. It is a procedure, not a completed audit or a cryptographic certification. Writing or updating this guide does not establish that the checks below have been performed.
 
-Use it together with [AUDIT_STANDARD.md](AUDIT_STANDARD.md), [AUDIT_TEMPLATE.md](AUDIT_TEMPLATE.md), [the JSON record schema](audit-report.schema.json), [the security model](../../SECURITY_AUDIT.md), [verification commands](../VERIFICATION.md), [browser acceptance](../BROWSER_ACCEPTANCE.md), [build modules](../BUILD_MODULES.md), and [architecture](../ARCHITECTURE.md). Actual source, manifests, lockfiles, and workflow definitions take precedence over stale documentation. Report a mismatch rather than silently assuming either side is correct.
+Use it together with [AUDIT_STANDARD.md](audits/AUDIT_STANDARD.md), [AUDIT_TEMPLATE.md](audits/AUDIT_TEMPLATE.md), [the JSON record schema](audits/audit-report.schema.json), [the security model](../SECURITY_AUDIT.md), [verification commands](VERIFICATION.md), [browser acceptance](BROWSER_ACCEPTANCE.md), [build modules](BUILD_MODULES.md), and [architecture](ARCHITECTURE.md). Actual source, manifests, lockfiles, and workflow definitions take precedence over stale documentation. Report a mismatch rather than silently assuming either side is correct.
 
 ## Contents
 
