@@ -389,6 +389,21 @@ async function recoveryBackupRoundTrips(context, profile, run) {
       await clickStep(qrPopover.locator('.payment-qr-close'), 'Close QR popover');
       await qrPopover.waitFor({ state: 'hidden' });
       assert.equal(await qrTrigger.getAttribute('aria-expanded'), 'false');
+      const originalViewport = page.viewportSize();
+      for (const viewport of [
+        { width: 1024, height: 720 },
+        { width: 390, height: 480 },
+      ]) {
+        await page.setViewportSize(viewport);
+        await clickStep(qrTrigger, `Open QR at ${viewport.width}px`);
+        const bounds = await qrPopover.boundingBox();
+        assert.ok(bounds !== null);
+        assert.ok(bounds.x >= 0 && bounds.y >= 0, 'QR popover must not extend beyond the top or left edge');
+        assert.ok(bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height);
+        await clickStep(qrPopover.locator('.payment-qr-close'), `Close QR at ${viewport.width}px`);
+        await qrPopover.waitFor({ state: 'hidden' });
+      }
+      await page.setViewportSize(originalViewport);
       await clickStep(qrTrigger, 'Reopen QR popover');
       await qrPopover.waitFor({ state: 'visible' });
       await clickStep(qrTrigger, 'Toggle QR popover closed');
