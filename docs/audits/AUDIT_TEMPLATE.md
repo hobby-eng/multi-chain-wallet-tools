@@ -28,7 +28,7 @@ Describe supported tools, coins, feature combinations, dependencies, upstream re
 
 ### Coverage ledger
 
-Use [FULL_AUDIT_GUIDE.md](FULL_AUDIT_GUIDE.md) to cover all categories, applicable tools, profiles, feature combinations, and edge cases. Record exclusions and reasons; a task ID is not a finding ID.
+Use [FULL_AUDIT_GUIDE.md](../FULL_AUDIT_GUIDE.md) to cover all categories, applicable tools, profiles, feature combinations, and edge cases. Record exclusions and reasons; a task ID is not a finding ID.
 
 | Check ID      | Category / logical group | Tool / build scope | Method                         | Outcome | Evidence / gap reason  |
 | ------------- | ------------------------ | ------------------ | ------------------------------ | ------- | ---------------------- |
