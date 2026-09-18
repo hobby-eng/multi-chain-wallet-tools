@@ -202,10 +202,14 @@ footer {
   height: 100%;
 }
 .payment-qr-popover {
-  position: absolute;
+  position: fixed;
   z-index: 40;
-  top: calc(100% + 8px);
-  right: 0;
+  top: 16px;
+  left: 16px;
+  right: auto;
+  bottom: auto;
+  margin: 0;
+  overflow-y: auto;
   width: min(290px, calc(100vw - 32px));
   padding: 14px;
   border: 1px solid #42505f;
@@ -1906,13 +1910,6 @@ footer p {
   .field-actions {
     grid-column: 2;
     grid-row: 2;
-  }
-  .payment-qr-popover {
-    position: fixed;
-    top: 50%;
-    right: auto;
-    left: 50%;
-    transform: translate(-50%, -50%);
   }
   .card-head {
     flex-direction: column;
