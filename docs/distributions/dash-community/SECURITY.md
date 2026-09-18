@@ -13,6 +13,18 @@ Report vulnerabilities privately through this repository's GitHub security-advis
 
 None of the tools broadcasts recovery transactions. Independently verify public addresses, derivation paths, and provider balances in a maintained Dash wallet before recovering funds. The project has extensive automated checks but has not received an independent cryptography-specialist audit.
 
+## Secret isolation and network access
+
+The seed-capable Discovery Scanner keeps mnemonic, BIP39 passphrase, seed, and private/spending/viewing keys inside a **Secret Vault**: an embedded iframe with `sandbox="allow-scripts"`, without `allow-same-origin`. Its opaque origin prevents the surrounding network-capable page from directly reading its DOM or secret fields. Derivation and private Orchard scanning run inside this vault.
+
+The vault's Content Security Policy sets `default-src 'none'` and **`connect-src 'none'`**. It also denies images, nested frames, workers, and form submissions. These browser-enforced restrictions block network connections from the secret-bearing document. Build checks reject network SDK/service imports in the vault and secret-derivation imports in the separate Network Worker; artifact and browser checks verify the resulting isolation.
+
+When a scan needs provider data, a fixed, validated message protocol passes only public query data, such as addresses, public-key hashes, network identifiers, or public pool positions, to the Network Worker. Mnemonics, passphrases, seed bytes, and private/spending/viewing keys are not network request inputs. Secret-pattern checks add a tripwire against accidental leakage. Public provider responses return to the vault for local processing; exported reports contain only the approved public-data projection. Providers can still observe the public queries and their timing.
+
+The **Key Derivation Tool and PSBT & Multisig Inspector** instead prohibit network connections for the whole offline application with `connect-src 'none'`; they do not use the Scanner's iframe vault. In-memory recovery-source links in the Deriver do not copy the linked phrase or passphrase to the OS clipboard or send them over the network. Explicitly revealed secret exports and copy actions remain the user's responsibility.
+
+These controls isolate trusted secret-processing code from the network-capable realm. They cannot guarantee protection from a compromised browser/OS or deliberately malicious code inside the vault, and cannot guarantee erasure of JavaScript strings or browser memory copies.
+
 Checksums detect altered downloads; they do not prove cryptographic correctness. Clipboard history, screenshots, browser extensions, swap, and crash dumps remain outside the tools' isolation boundaries. See the [canonical security model](https://github.com/hobby-eng/multi-chain-wallet-tools/blob/{{SOURCE_SHA}}/SECURITY_AUDIT.md).
 
 This file is generated from canonical documentation source [{{SOURCE_SHA}}](https://github.com/hobby-eng/multi-chain-wallet-tools/blob/{{SOURCE_SHA}}). Update its template in the canonical repository.
