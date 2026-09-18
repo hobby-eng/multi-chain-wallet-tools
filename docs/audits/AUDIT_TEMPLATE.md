@@ -9,6 +9,7 @@ This is a template, not an executed audit. Replace placeholders and remove this 
 - **Reviewer:** Name or review agent.
 - **Model:** Exact identifier, or unknown.
 - **Reasoning effort:** Actual setting, or unknown.
+- **Reviewer phases:** Model/effort and assigned scope for each phase if settings changed.
 - **Reviewed commit:** Full commit hash.
 - **Working tree:** Clean, or describe pre-existing changes and retained diff evidence.
 - **Artifacts:** Fingerprints and source/build relationship, or not reviewed.
@@ -25,6 +26,14 @@ This is a template, not an executed audit. Replace placeholders and remove this 
 
 Describe supported tools, coins, feature combinations, dependencies, upstream revisions, environment, methods, and exclusions. See [AUDIT_STANDARD.md](AUDIT_STANDARD.md) for the required conventions.
 
+### Coverage ledger
+
+Use [FULL_AUDIT_GUIDE.md](FULL_AUDIT_GUIDE.md) to cover all categories, applicable tools, profiles, feature combinations, and edge cases. Record exclusions and reasons; a task ID is not a finding ID.
+
+| Check ID      | Category / logical group | Tool / build scope | Method                         | Outcome | Evidence / gap reason  |
+| ------------- | ------------------------ | ------------------ | ------------------------------ | ------- | ---------------------- |
+| CHECK-SEC-001 | SEC / Secret ownership   | Applicable tools   | Source trace and runtime probe | Not run | Explain remaining work |
+
 ### Checks
 
 | Check / command              | Outcome                             | Counts / environment | Evidence                    |
@@ -32,6 +41,8 @@ Describe supported tools, coins, feature combinations, dependencies, upstream re
 | Actual command or inspection | Passed / failed / skipped / not run | Actual values        | Retained evidence or reason |
 
 ### Findings
+
+Group by category and subsystem, keeping independent root causes separate and repeated variants under their original finding ID. The heading depth can follow the report hierarchy.
 
 #### AUD-NNN-API001 — Medium — Concrete defect title
 
