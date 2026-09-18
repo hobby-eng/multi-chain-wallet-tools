@@ -1,156 +1,26 @@
 {
-  "schema": "independent-audit-report/1",
-  "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
-  "model": "claude-fable-5-1",
-  "reasoningEffort": null,
-  "reasoningEffortNote": "Not recorded by the reviewing client.",
+  "schemaVersion": 1,
+  "auditId": "AUD-009",
+  "auditNumber": 9,
   "date": "2026-09-12",
-  "timeUtc": "13:29-13:58",
-  "commitReviewed": "d978dd4de68e6b51743d8ce0f01fcd6128d88553",
-  "artifactCommit": "0b747882a5a43aa362ba6bf0d03b63bc02c0dd7c",
-  "previousReport": "audit-07-2026-09-12.md",
-  "branch": "hobby-eng-psbt-inspector-v4",
-  "treeClean": true,
-  "toolchain": {
-    "node": "24.19.0",
-    "pnpmLocal": "11.19.0",
-    "pnpmPinned": "11.25.0",
-    "typescript": "7.0.2",
-    "vitest": "5.0.0",
-    "playwright": "1.62.1",
-    "chromium": "151.0.7922.34",
-    "firefox": "153.0",
-    "docker": "29.8.0",
-    "rust": "1.98.1",
-    "wasmBindgenLocal": "0.2.128 (unused)",
-    "btcutilJs": "0.4.1"
+  "title": "Independent re-verification audit — 2026-09-12 (third pass, commit d978dd4d)",
+  "reviewer": {
+    "name": "Claude Fable 5.1 (claude-fable-5-1)",
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "metadataNote": "Not recorded by the reviewing client."
   },
-  "previousFindings": [
-    {
-      "id": "IA-01",
-      "severity": "High",
-      "status": "fixed",
-      "evidence": "probe R1: 21-key multi/sortedmulti rejected (p2wsh 20), bare 4 rejected (3), multi_a 1000 rejected (999); consensus-limits.ts + tests"
-    },
-    {
-      "id": "IA-02",
-      "severity": "Medium",
-      "status": "fixed-behaviourally",
-      "evidence": "24 Firefox + 2 Chromium harness runs, 0 crashes (previously 12/12 crashed); worker-readiness browser case 38/38"
-    },
-    {
-      "id": "IA-03",
-      "severity": "Low",
-      "status": "fixed",
-      "evidence": "exact multisig rows for multi/sortedmulti/multi_a/sortedmulti_a"
-    },
-    {
-      "id": "IA-04",
-      "severity": "Low",
-      "status": "fixed",
-      "evidence": "KeyAgg mismatch, foreign nonce participant, non-DER sig, depth 300, MAX_MONEY rejected; commitments/control block/v2 locks flagged in verification matrix"
-    },
-    {
-      "id": "IA-05",
-      "severity": "Low",
-      "status": "mitigated-documented-exception",
-      "evidence": "gate iterates profileToolIds, counted allowlist + forbidden markers; shared Bitcoin decoder code still bundled"
-    },
-    {
-      "id": "IA-06",
-      "severity": "Medium (test credibility)",
-      "status": "fixed",
-      "evidence": "119 Core contexts compiled, 0 flag mismatches; expectedPsbtError per vector; BIP341 vectors 5/6"
-    },
-    {
-      "id": "static-dashscan-pending",
-      "status": "fixed-mocked",
-      "evidence": "pending-only pages with total 1/0 accepted; off-by-2 and changing totals still rejected"
-    },
-    {
-      "id": "static-whitespace",
-      "status": "fixed"
-    },
-    {
-      "id": "static-older-65536",
-      "status": "fixed"
-    },
-    {
-      "id": "static-dip17-keyclass",
-      "status": "fixed"
-    }
-  ],
-  "docDrift": {
-    "fixed": [
-      1,
-      2,
-      3,
-      4,
-      5
-    ],
-    "historicalSnapshotOnly": [
-      "docs/audits/audit-06-2026-09-12.md still says 'intermittent'"
-    ]
+  "snapshot": {
+    "commit": "d978dd4de68e6b51743d8ce0f01fcd6128d88553",
+    "commitComplete": true,
+    "workingTree": "clean",
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
   },
-  "maintainability": {
-    "1-calls-substring": "mitigated",
-    "2-grammar-layers": "open-roadmap",
-    "3-imports-polymod": "open-roadmap",
-    "4-controller": "partial (lifecycle explicit; 2056 lines)",
-    "5-psbt-relationships": "addressed",
-    "6-tool-list": "fixed",
-    "7-conformance": "fixed"
+  "scope": {
+    "recordedIn": "Markdown evidence sections",
+    "note": "Original scope and exclusions are preserved; no additional review coverage is claimed."
   },
-  "testsToAdd": {
-    "1": "added",
-    "2": "added",
-    "3": "added",
-    "4": "added",
-    "5": "added",
-    "6": "partial (no Dash-prefix BIP38 round trip)",
-    "7": "added",
-    "8": "added",
-    "9": "added",
-    "10": "not done"
-  },
-  "recommendations": {
-    "releaseGating": "done",
-    "consensusLimitTable": "done",
-    "verificationMatrixUI": "done",
-    "workerReadiness": "done",
-    "verificationRecord": "done (unsigned)",
-    "features1to5": "not implemented (optional)"
-  },
-  "newFindings": [
-    {
-      "id": "NF-01",
-      "severity": "Low",
-      "summary": "RELEASING.md 'What GitHub publishes' lists omit verification-record.json for both bundles",
-      "file": "RELEASING.md",
-      "lines": "72-101"
-    },
-    {
-      "id": "NF-02",
-      "severity": "Informational",
-      "summary": "THIRD_PARTY_NOTICES.md omits playwright@1.62.1 devDependency",
-      "file": "THIRD_PARTY_NOTICES.md"
-    },
-    {
-      "id": "NF-03",
-      "severity": "Informational",
-      "summary": "Dash Community Inspector bundles shared Bitcoin decoder vocabulary under a counted allowlist (documented exception)"
-    },
-    {
-      "id": "NF-04",
-      "severity": "Informational",
-      "summary": "consensus-limits.ts uses identical MAX_MONEY for Bitcoin and Dash (correct; source comment suggested)"
-    },
-    {
-      "id": "NF-05",
-      "severity": "Informational",
-      "summary": "musig(999)+1024-leaf tree probe 4.2 s, no regression"
-    }
-  ],
   "checks": {
     "vitest": {
       "files": 84,
@@ -186,21 +56,312 @@
       "crashes": 0
     }
   },
-  "notPerformed": [
+  "findings": [
+    {
+      "id": "AUD-009-DOC001",
+      "severity": "low",
+      "summary": "RELEASING.md 'What GitHub publishes' lists omit verification-record.json for both bundles",
+      "file": "RELEASING.md",
+      "lines": "72-101",
+      "legacyId": "NF-01",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "RELEASING.md 'What GitHub publishes' lists omit verification-record.json for both bundles",
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-09-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
+  ],
+  "observations": [
+    {
+      "id": "AUD-009-DOC002",
+      "severity": "info",
+      "summary": "THIRD_PARTY_NOTICES.md omits playwright@1.62.1 devDependency",
+      "file": "THIRD_PARTY_NOTICES.md",
+      "legacyId": "NF-02",
+      "category": "DOC",
+      "kind": "observation",
+      "title": "THIRD_PARTY_NOTICES.md omits playwright@1.62.1 devDependency",
+      "status": null,
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-09-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-009-BLD001",
+      "severity": "info",
+      "summary": "Dash Community Inspector bundles shared Bitcoin decoder vocabulary under a counted allowlist (documented exception)",
+      "legacyId": "NF-03",
+      "category": "BLD",
+      "kind": "observation",
+      "title": "Dash Community Inspector bundles shared Bitcoin decoder vocabulary under a counted allowlist (documented exception)",
+      "status": null,
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-09-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-009-DOC003",
+      "severity": "info",
+      "summary": "consensus-limits.ts uses identical MAX_MONEY for Bitcoin and Dash (correct; source comment suggested)",
+      "legacyId": "NF-04",
+      "category": "DOC",
+      "kind": "observation",
+      "title": "consensus-limits.ts uses identical MAX_MONEY for Bitcoin and Dash (correct; source comment suggested)",
+      "status": null,
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-09-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-009-FUN001",
+      "severity": "info",
+      "summary": "musig(999)+1024-leaf tree probe 4.2 s, no regression",
+      "legacyId": "NF-05",
+      "category": "FUN",
+      "kind": "observation",
+      "title": "musig(999)+1024-leaf tree probe 4.2 s, no regression",
+      "status": null,
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-09-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
+  ],
+  "remediation": [
+    {
+      "id": "AUD-007-SEC001",
+      "status": "fixed",
+      "recordedDisposition": {
+        "id": "AUD-007-SEC001",
+        "severity": "High",
+        "status": "fixed",
+        "evidence": "probe R1: 21-key multi/sortedmulti rejected (p2wsh 20), bare 4 rejected (3), multi_a 1000 rejected (999); consensus-limits.ts + tests"
+      },
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-09-2026-09-12.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-007-FUN001",
+      "status": "fixed",
+      "recordedDisposition": {
+        "id": "AUD-007-FUN001",
+        "severity": "Medium",
+        "status": "fixed-behaviourally",
+        "evidence": "24 Firefox + 2 Chromium harness runs, 0 crashes (previously 12/12 crashed); worker-readiness browser case 38/38"
+      },
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-09-2026-09-12.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-007-UI001",
+      "status": "fixed",
+      "recordedDisposition": {
+        "id": "AUD-007-UI001",
+        "severity": "Low",
+        "status": "fixed",
+        "evidence": "exact multisig rows for multi/sortedmulti/multi_a/sortedmulti_a"
+      },
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-09-2026-09-12.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-007-FUN002",
+      "status": "fixed",
+      "recordedDisposition": {
+        "id": "AUD-007-FUN002",
+        "severity": "Low",
+        "status": "fixed",
+        "evidence": "KeyAgg mismatch, foreign nonce participant, non-DER sig, depth 300, MAX_MONEY rejected; commitments/control block/v2 locks flagged in verification matrix"
+      },
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-09-2026-09-12.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-007-BLD001",
+      "status": "open",
+      "recordedDisposition": {
+        "id": "AUD-007-BLD001",
+        "severity": "Low",
+        "status": "mitigated-documented-exception",
+        "evidence": "gate iterates profileToolIds, counted allowlist + forbidden markers; shared Bitcoin decoder code still bundled"
+      },
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-09-2026-09-12.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-007-BLD002",
+      "status": "fixed",
+      "recordedDisposition": {
+        "id": "AUD-007-BLD002",
+        "severity": "Medium (test credibility)",
+        "status": "fixed",
+        "evidence": "119 Core contexts compiled, 0 flag mismatches; expectedPsbtError per vector; BIP341 vectors 5/6"
+      },
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-09-2026-09-12.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    }
+  ],
+  "limitations": [
     "live-provider smoke (not repeated)",
     "local WASM rebuild",
     "headed browser/crash dump",
     "frozen-lockfile with pnpm 11.25.0 outside Docker",
     "Core RPC import / PSBT signing round trips"
   ],
-  "remainingOpen": [
-    "NF-01",
-    "NF-02",
-    "maintainability 1-4 (roadmap)",
-    "BIP38 Dash-prefix round-trip test",
-    "live DashScan pending-only fixture",
-    "IA-05 documented exception",
-    "feature suggestions 1-5"
-  ],
-  "pathHygiene": "no /home/<user> real path in tracked files; ignored test-results reports and reviewer logs rewritten to /home/user; one Playwright-managed .links symlink left untouched"
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "reasoningEffortNote": "Not recorded by the reviewing client.",
+    "date": "2026-09-12",
+    "timeUtc": "13:29-13:58",
+    "commitReviewed": "d978dd4de68e6b51743d8ce0f01fcd6128d88553",
+    "artifactCommit": "0b747882a5a43aa362ba6bf0d03b63bc02c0dd7c",
+    "previousReport": "audit-07-2026-09-12.md",
+    "branch": "hobby-eng-psbt-inspector-v4",
+    "treeClean": true,
+    "toolchain": {
+      "node": "24.19.0",
+      "pnpmLocal": "11.19.0",
+      "pnpmPinned": "11.25.0",
+      "typescript": "7.0.2",
+      "vitest": "5.0.0",
+      "playwright": "1.62.1",
+      "chromium": "151.0.7922.34",
+      "firefox": "153.0",
+      "docker": "29.8.0",
+      "rust": "1.98.1",
+      "wasmBindgenLocal": "0.2.128 (unused)",
+      "btcutilJs": "0.4.1"
+    },
+    "docDrift": {
+      "fixed": [1, 2, 3, 4, 5],
+      "historicalSnapshotOnly": ["docs/audits/audit-06-2026-09-12.md still says 'intermittent'"]
+    },
+    "maintainability": {
+      "1-calls-substring": "mitigated",
+      "2-grammar-layers": "open-roadmap",
+      "3-imports-polymod": "open-roadmap",
+      "4-controller": "partial (lifecycle explicit; 2056 lines)",
+      "5-psbt-relationships": "addressed",
+      "6-tool-list": "fixed",
+      "7-conformance": "fixed"
+    },
+    "testsToAdd": {
+      "1": "added",
+      "2": "added",
+      "3": "added",
+      "4": "added",
+      "5": "added",
+      "6": "partial (no Dash-prefix BIP38 round trip)",
+      "7": "added",
+      "8": "added",
+      "9": "added",
+      "10": "not done"
+    },
+    "recommendations": {
+      "releaseGating": "done",
+      "consensusLimitTable": "done",
+      "verificationMatrixUI": "done",
+      "workerReadiness": "done",
+      "verificationRecord": "done (unsigned)",
+      "features1to5": "not implemented (optional)"
+    },
+    "notPerformed": [
+      "live-provider smoke (not repeated)",
+      "local WASM rebuild",
+      "headed browser/crash dump",
+      "frozen-lockfile with pnpm 11.25.0 outside Docker",
+      "Core RPC import / PSBT signing round trips"
+    ],
+    "remainingOpen": [
+      "AUD-009-DOC001",
+      "AUD-009-DOC002",
+      "maintainability 1-4 (roadmap)",
+      "BIP38 Dash-prefix round-trip test",
+      "live DashScan pending-only fixture",
+      "AUD-007-BLD001 documented exception",
+      "feature suggestions 1-5"
+    ],
+    "pathHygiene": "no /home/<user> real path in tracked files; ignored test-results reports and reviewer logs rewritten to /home/user; one Playwright-managed .links symlink left untouched",
+    "originalSchema": "independent-audit-report/1",
+    "unnumberedFollowUp": [
+      {
+        "id": "static-dashscan-pending",
+        "status": "fixed-mocked",
+        "evidence": "pending-only pages with total 1/0 accepted; off-by-2 and changing totals still rejected"
+      },
+      {
+        "id": "static-whitespace",
+        "status": "fixed"
+      },
+      {
+        "id": "static-older-65536",
+        "status": "fixed"
+      },
+      {
+        "id": "static-dip17-keyclass",
+        "status": "fixed"
+      }
+    ]
+  }
 }

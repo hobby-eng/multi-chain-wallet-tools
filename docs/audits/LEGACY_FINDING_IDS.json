@@ -1,0 +1,636 @@
+{
+  "schemaVersion": 1,
+  "migrationDate": "2026-09-18",
+  "entries": [
+    {
+      "auditId": "AUD-001",
+      "legacyId": "A01",
+      "id": "AUD-001-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "A02",
+      "id": "AUD-001-API001",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "A03",
+      "id": "AUD-001-FUN002",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "A04",
+      "id": "AUD-001-FUN003",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "A05",
+      "id": "AUD-001-UI001",
+      "category": "UI"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "A06",
+      "id": "AUD-001-API002",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "A07",
+      "id": "AUD-001-FUN004",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "A08",
+      "id": "AUD-001-API003",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "A09",
+      "id": "AUD-001-API004",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "DOC01",
+      "id": "AUD-001-DOC001",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "DOC02",
+      "id": "AUD-001-DOC002",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "DOC03",
+      "id": "AUD-001-DOC003",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-001",
+      "legacyId": "T01",
+      "id": "AUD-001-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-002",
+      "legacyId": "additional-ethereum-state",
+      "id": "AUD-002-API001",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-003",
+      "legacyId": "R01",
+      "id": "AUD-003-API001",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-003",
+      "legacyId": "R02",
+      "id": "AUD-003-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-003",
+      "legacyId": "R03",
+      "id": "AUD-003-API002",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-003",
+      "legacyId": "R04",
+      "id": "AUD-003-FUN002",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-003",
+      "legacyId": "R05",
+      "id": "AUD-003-FUN003",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-003",
+      "legacyId": "R06",
+      "id": "AUD-003-API003",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-003",
+      "legacyId": "D01",
+      "id": "AUD-003-DOC001",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-003",
+      "legacyId": "D02",
+      "id": "AUD-003-DOC002",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F01",
+      "id": "AUD-004-SEC001",
+      "category": "SEC"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F02",
+      "id": "AUD-004-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F03",
+      "id": "AUD-004-FUN002",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F04",
+      "id": "AUD-004-FUN003",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F05",
+      "id": "AUD-004-FUN004",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F06",
+      "id": "AUD-004-FUN005",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F07",
+      "id": "AUD-004-FUN006",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F08",
+      "id": "AUD-004-API001",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F09",
+      "id": "AUD-004-API002",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F10",
+      "id": "AUD-004-FUN007",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F11",
+      "id": "AUD-004-UI001",
+      "category": "UI"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F12",
+      "id": "AUD-004-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F13",
+      "id": "AUD-004-BLD002",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F14",
+      "id": "AUD-004-FUN008",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-004",
+      "legacyId": "F15",
+      "id": "AUD-004-DOC001",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-006",
+      "legacyId": "C01",
+      "id": "AUD-006-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-006",
+      "legacyId": "C02",
+      "id": "AUD-006-FUN002",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-006",
+      "legacyId": "C03",
+      "id": "AUD-006-FUN003",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-006",
+      "legacyId": "C04",
+      "id": "AUD-006-FUN004",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-006",
+      "legacyId": "C05",
+      "id": "AUD-006-FUN005",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-006",
+      "legacyId": "C06",
+      "id": "AUD-006-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-007",
+      "legacyId": "IA-01",
+      "id": "AUD-007-SEC001",
+      "category": "SEC"
+    },
+    {
+      "auditId": "AUD-007",
+      "legacyId": "IA-02",
+      "id": "AUD-007-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-007",
+      "legacyId": "IA-03",
+      "id": "AUD-007-UI001",
+      "category": "UI"
+    },
+    {
+      "auditId": "AUD-007",
+      "legacyId": "IA-04",
+      "id": "AUD-007-FUN002",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-007",
+      "legacyId": "IA-05",
+      "id": "AUD-007-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-007",
+      "legacyId": "IA-06",
+      "id": "AUD-007-BLD002",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-009",
+      "legacyId": "NF-01",
+      "id": "AUD-009-DOC001",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-009",
+      "legacyId": "NF-02",
+      "id": "AUD-009-DOC002",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-009",
+      "legacyId": "NF-03",
+      "id": "AUD-009-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-009",
+      "legacyId": "NF-04",
+      "id": "AUD-009-DOC003",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-009",
+      "legacyId": "NF-05",
+      "id": "AUD-009-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-010",
+      "legacyId": "F-01",
+      "id": "AUD-010-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-010",
+      "legacyId": "F-02",
+      "id": "AUD-010-BLD002",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-010",
+      "legacyId": "F-03",
+      "id": "AUD-010-BLD003",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-010",
+      "legacyId": "F-04",
+      "id": "AUD-010-API001",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-010",
+      "legacyId": "F-05",
+      "id": "AUD-010-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-010",
+      "legacyId": "F-06",
+      "id": "AUD-010-BLD004",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-010",
+      "legacyId": "F-07",
+      "id": "AUD-010-UI001",
+      "category": "UI"
+    },
+    {
+      "auditId": "AUD-010",
+      "legacyId": "F-08",
+      "id": "AUD-010-DOC001",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-011",
+      "legacyId": "N-01",
+      "id": "AUD-011-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-011",
+      "legacyId": "N-02",
+      "id": "AUD-011-BLD002",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-011",
+      "legacyId": "N-03",
+      "id": "AUD-011-BLD003",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-011",
+      "legacyId": "N-04",
+      "id": "AUD-011-DOC001",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-012",
+      "legacyId": "F-01",
+      "id": "AUD-012-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-012",
+      "legacyId": "F-02",
+      "id": "AUD-012-API001",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-012",
+      "legacyId": "F-03",
+      "id": "AUD-012-FUN002",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-012",
+      "legacyId": "F-04",
+      "id": "AUD-012-SEC001",
+      "category": "SEC"
+    },
+    {
+      "auditId": "AUD-012",
+      "legacyId": "F-05",
+      "id": "AUD-012-SEC002",
+      "category": "SEC"
+    },
+    {
+      "auditId": "AUD-012",
+      "legacyId": "F-06",
+      "id": "AUD-012-DOC001",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-013",
+      "legacyId": "H-01",
+      "id": "AUD-013-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-013",
+      "legacyId": "M-01",
+      "id": "AUD-013-BLD002",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-013",
+      "legacyId": "M-02",
+      "id": "AUD-013-ARC001",
+      "category": "ARC"
+    },
+    {
+      "auditId": "AUD-013",
+      "legacyId": "L-01",
+      "id": "AUD-013-ARC002",
+      "category": "ARC"
+    },
+    {
+      "auditId": "AUD-013",
+      "legacyId": "L-02",
+      "id": "AUD-013-BLD003",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-013",
+      "legacyId": "L-03",
+      "id": "AUD-013-ARC003",
+      "category": "ARC"
+    },
+    {
+      "auditId": "AUD-013",
+      "legacyId": "L-04",
+      "id": "AUD-013-DOC001",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-014",
+      "legacyId": "H-01",
+      "id": "AUD-014-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-014",
+      "legacyId": "L-01",
+      "id": "AUD-014-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-015",
+      "legacyId": "D-01",
+      "id": "AUD-015-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-015",
+      "legacyId": "D-02",
+      "id": "AUD-015-FUN002",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-015",
+      "legacyId": "D-03",
+      "id": "AUD-015-FUN003",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-015",
+      "legacyId": "D-04",
+      "id": "AUD-015-DOC001",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-015",
+      "legacyId": "D-05",
+      "id": "AUD-015-DOC002",
+      "category": "DOC"
+    },
+    {
+      "auditId": "AUD-015",
+      "legacyId": "D-06",
+      "id": "AUD-015-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-015",
+      "legacyId": "D-07",
+      "id": "AUD-015-FUN004",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-01",
+      "id": "AUD-016-FUN001",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-02",
+      "id": "AUD-016-FUN002",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-03",
+      "id": "AUD-016-FUN003",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-04",
+      "id": "AUD-016-FUN004",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-05",
+      "id": "AUD-016-API001",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-06",
+      "id": "AUD-016-API002",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-07",
+      "id": "AUD-016-BLD001",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-08",
+      "id": "AUD-016-FUN005",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-09",
+      "id": "AUD-016-FUN006",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-10",
+      "id": "AUD-016-API003",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-11",
+      "id": "AUD-016-FUN007",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-12",
+      "id": "AUD-016-FUN008",
+      "category": "FUN"
+    },
+    {
+      "auditId": "AUD-016",
+      "legacyId": "B-13",
+      "id": "AUD-016-BLD002",
+      "category": "BLD"
+    },
+    {
+      "auditId": "AUD-017",
+      "legacyId": "M-01",
+      "id": "AUD-017-API001",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-017",
+      "legacyId": "L-01",
+      "id": "AUD-017-API002",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-017",
+      "legacyId": "L-02",
+      "id": "AUD-017-API003",
+      "category": "API"
+    },
+    {
+      "auditId": "AUD-017",
+      "legacyId": "L-03",
+      "id": "AUD-017-API004",
+      "category": "API"
+    }
+  ]
+}

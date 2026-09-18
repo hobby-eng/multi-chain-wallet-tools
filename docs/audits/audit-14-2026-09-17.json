@@ -1,43 +1,26 @@
 {
-  "schema": "independent-audit-report/1",
-  "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
-  "model": "claude-fable-5-1",
-  "reasoningEffort": null,
-  "reasoningEffortNote": "Not recorded by the reviewing client.",
+  "schemaVersion": 1,
+  "auditId": "AUD-014",
+  "auditNumber": 14,
   "date": "2026-09-17",
-  "timeUtc": "12:00-12:20",
-  "commit": "e6a6d6b",
-  "treeClean": true,
-  "audit13Status": {
-    "H-01": "fixed",
-    "M-01": "fixed",
-    "M-02": "fixed",
-    "L-01": "fixed (9 justified exports remain)",
-    "L-02": "fixed",
-    "L-03": "fixed",
-    "L-04": "fixed"
+  "title": "Audit 14 — 2026-09-17 (independent re-verification of commit e6a6d6b)",
+  "reviewer": {
+    "name": "Claude Fable 5.1 (claude-fable-5-1)",
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "metadataNote": "Not recorded by the reviewing client."
   },
-  "findings": [
-    {
-      "id": "H-01",
-      "severity": "High",
-      "title": "Committed SSKR and Envelope WASM not canonical; uncached Docker build fails at WASM diff",
-      "containerHashes": {
-        "sskr": "0d6f8e75f352 394954B",
-        "envelope": "817a2291163b 846163B"
-      },
-      "committedHashes": {
-        "sskr": "30e314a4cfd2 389084B",
-        "envelope": "c02e931cbb3f 840314B"
-      },
-      "cause": "both crates changed and were regenerated on the developer host; host bytes differ from container bytes although producers, Cargo.lock and rustc commit are identical"
-    },
-    {
-      "id": "L-01",
-      "severity": "Low",
-      "title": "Firefox 153 crashes on bip85-child-signer reload (41/42); Firefox 155 pinned passes 42/42"
-    }
-  ],
+  "snapshot": {
+    "commit": "e6a6d6b",
+    "commitComplete": false,
+    "workingTree": "clean",
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
+  },
+  "scope": {
+    "recordedIn": "Markdown evidence sections",
+    "note": "Original scope and exclusions are preserved; no additional review coverage is claimed."
+  },
   "checks": {
     "tscUnused": "0",
     "vitest": {
@@ -48,7 +31,7 @@
     "format": "pass",
     "pnpmAudit": "clean",
     "localVerify": "pass",
-    "dockerNoCache": "FAIL at WASM diff (H-01)",
+    "dockerNoCache": "FAIL at WASM diff (AUD-014-BLD001)",
     "browserFiles": "16/16",
     "browserRegressions": {
       "chromium153_firefox155": "42/42",
@@ -62,17 +45,148 @@
       "orphans": 0
     }
   },
-  "docConformance": "consistent",
-  "recommendations": [
-    "regenerate WASM via build-reproducible.sh --wasm and add local freshness gate",
-    "document minimum Firefox 155",
-    "test or merge secret-vault"
+  "findings": [
+    {
+      "id": "AUD-014-BLD001",
+      "severity": "high",
+      "title": "Committed SSKR and Envelope WASM not canonical; uncached Docker build fails at WASM diff",
+      "containerHashes": {
+        "sskr": "0d6f8e75f352 394954B",
+        "envelope": "817a2291163b 846163B"
+      },
+      "committedHashes": {
+        "sskr": "30e314a4cfd2 389084B",
+        "envelope": "c02e931cbb3f 840314B"
+      },
+      "cause": "both crates changed and were regenerated on the developer host; host bytes differ from container bytes although producers, Cargo.lock and rustc commit are identical",
+      "legacyId": "H-01",
+      "category": "BLD",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **Observed:** `docker build --no-cache … --target artifacts` for `e6a6d6b` passes `pnpm verify` and the matrix smoke, then fails at `Dockerfile.reproducible` `diff --recursive --brief …` with `Files /tmp/committed-generated/sskr/recovery_sskr_wasm_bg.wasm and packages/recovery-sskr-wasm/generated/recovery_sskr_wasm_bg.wasm differ` (12:09 UTC). Extracting the `built` stage: SSKR container 394 954 B (`0d6f8e75…`) vs committed 389 084 B (`30e314a4…`); Envelope container 846 163 B (`817a2291…`) vs committed 840 314 B (`c02e931c…`). Glue `.js`/`.d.ts` files are identical; producer strings are `0.2.128` on both sides; `Cargo.lock` is identical; embedded `rustc` commit is the same (`48a229ce…`, 1.98.1). The difference is in code, not metadata.\n- **Cause:** both crates' `lib.rs` changed in this commit and both generated modules were regenerated on the developer host (SSKR 387 393 → 389 084 B, Envelope 841 797 → 840 314 B; local `target/` timestamp 14:28, commit 14:53). Those bytes do not match the container's, so the host build environment differs from the canonical one in something the producer check does not see (candidates: `CARGO_ENCODED_RUSTFLAGS`/cfg differences such as the `getrandom_backend` cfg, or a differently built `wasm-bindgen`/LLVM). Orchard, Shamir and Codex32, which were not touched, still match.\n- **Impact:** CI, release workflow and `./tooling/build-reproducible.sh` fail on this commit; no canonical artifacts or attestations can be produced. Functionally the modules are equivalent (all tests and the browser matrices pass with the committed bytes).\n- **Correction:** regenerate all five modules through `./tooling/build-reproducible.sh --wasm` and commit the result. Strengthen the gate: `verify-wasm-producers` cannot detect this; add to `pnpm verify` a check that each committed `.wasm` hash equals the hash recorded in the last successful container run (or make `verify:ci` diff against the container output, which is what the Dockerfile already does — but locally `pnpm verify` should refuse to succeed when `packages/*/rust/src` is newer than `generated/`).",
+      "evidence": {
+        "recordedIn": "audit-14-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-014-FUN001",
+      "severity": "low",
+      "title": "Firefox 153 crashes on bip85-child-signer reload (41/42); Firefox 155 pinned passes 42/42",
+      "legacyId": "L-01",
+      "category": "FUN",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "With the previous browser revisions (Firefox 153.0, used once because the reviewer's environment overrode the loader), `verify-browser-regressions` failed `firefox multi-chain bip85-child-signer: page.reload: Page crashed` (41/42). With the pinned Firefox 155.0 the same suite is 42/42. The repository now pins the newer revision, so CI is unaffected, but the crash class first seen in audit 07 (AUD-007-FUN001) is not gone on Firefox 153; users on older Firefox may still hit it. Record as a known limitation in `BROWSER_ACCEPTANCE.md` (minimum Firefox 155).\n\n### Informational\n\n- `packages/secret-vault` now contains a single file and an empty `tests/` directory; consider folding `worker-bootstrap.ts` into `network-boundary/iframe-bootstrap.ts` or giving the package a test.\n- Watch-only-only Scanner builds still contain a few \"seed phrase\" sentences in shared copy (no controls, no code); cosmetic.\n- Rust tests: Orchard 12+1 ignored, Shamir 1, Codex32 2, SSKR 1, Envelope 5.",
+      "evidence": {
+        "recordedIn": "audit-14-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
   ],
-  "notPerformed": [
-    "live providers",
-    "headed browsers",
-    "exhaustive matrix",
-    "WASM regeneration",
-    "Core RPC"
-  ]
+  "observations": [],
+  "remediation": [
+    {
+      "id": "AUD-013-BLD001",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-14-2026-09-17.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-013-BLD002",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-14-2026-09-17.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-013-ARC001",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-14-2026-09-17.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-013-ARC002",
+      "status": "fixed",
+      "recordedDisposition": "fixed (9 justified exports remain)",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-14-2026-09-17.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-013-BLD003",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-14-2026-09-17.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-013-ARC003",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-14-2026-09-17.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-013-DOC001",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-14-2026-09-17.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    }
+  ],
+  "limitations": ["live providers", "headed browsers", "exhaustive matrix", "WASM regeneration", "Core RPC"],
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "reasoningEffortNote": "Not recorded by the reviewing client.",
+    "date": "2026-09-17",
+    "timeUtc": "12:00-12:20",
+    "commit": "e6a6d6b",
+    "treeClean": true,
+    "docConformance": "consistent",
+    "recommendations": [
+      "regenerate WASM via build-reproducible.sh --wasm and add local freshness gate",
+      "document minimum Firefox 155",
+      "test or merge secret-vault"
+    ],
+    "notPerformed": ["live providers", "headed browsers", "exhaustive matrix", "WASM regeneration", "Core RPC"],
+    "originalSchema": "independent-audit-report/1"
+  }
 }

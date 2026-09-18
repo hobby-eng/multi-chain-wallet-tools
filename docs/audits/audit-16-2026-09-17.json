@@ -1,120 +1,25 @@
 {
+  "schemaVersion": 1,
+  "auditId": "AUD-016",
+  "auditNumber": 16,
   "date": "2026-09-17",
-  "model": null,
-  "reasoningEffort": null,
-  "reasoningEffortNote": "Model and effort were not recorded in the retained audit materials.",
-  "projectHead": "6756193fc579a9ab530678f8169f4ca9b8adbeb2",
-  "target": "working tree plus existing HTML; source and Git unchanged",
-  "coreMaster": "a604a7647588500354d4772e60620ea36b129d05",
-  "coreRelease": "v31.1",
-  "findings": [
-    {
-      "id": "B-01",
-      "priority": "P1",
-      "title": "Legacy SIGHASH_SINGLE incorrectly labels inputs as committed",
-      "detail": "[signing-commitments.ts:108](../../apps/psbt-inspector/src/signing-commitments.ts:108).\n\nWith two inputs and one output, the UI reports `Current input: Committed` and `Other inputs: Committed` for the second Legacy input using `SIGHASH_SINGLE`. An unusual-policy warning is present, but these two claims are incorrect. In this historical case, the Legacy signature hash is the constant ONE, independent of transaction fields. SegWit v0 behaves differently; Taproot rejects a signature without the corresponding output.\n\nReference: [SignatureHash](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/interpreter.cpp#L1615). Probe: `additional-results.json`, `legacy_single_missing_output`; browsers confirmed the text.\n\nFix: separate branches for the three protocols; do not claim input commitments for Legacy and explicitly describe the constant digest. Add tests for SINGLE/ANYONECANPAY and a missing output."
-    },
-    {
-      "id": "B-02",
-      "priority": "P1",
-      "title": "Optional metadata overrides signing-protocol detection",
-      "detail": "[signing-commitments.ts:35](../../apps/psbt-inspector/src/signing-commitments.ts:35).\n\nAdding a valid `PSBT_IN_TAP_INTERNAL_KEY` to a genuine P2PKH input with a verified non-witness UTXO is sufficient to trigger this issue. Metadata taking precedence over scriptPubKey makes the UI report `Taproot / BIP341` and `Current input amount: Committed`; Legacy does not include the amount in its signature hash. Core decodes the additional metadata, but it does not turn P2PKH into Taproot.\n\nReference: SigVersion selection from the spending script and [SignatureHash](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/interpreter.cpp). Probe: `legacy_input_with_taproot_metadata` in `additional-results.json`, both browsers.\n\nFix: determine the protocol from the bound UTXO and verified redeem/witness script chain. Flag conflicting metadata separately. When data is insufficient, report uncertainty rather than a confident claim. This is a shared module; also check Dash, where these fields may be unknown."
-    },
-    {
-      "id": "B-03",
-      "priority": "P2",
-      "title": "Proprietary PSBT key structure is not validated",
-      "detail": "[psbt-validation.ts:54](../../apps/psbt-inspector/src/psbt-validation.ts:54).\n\nKeys `fc`, `fc00`, `fc036162`, and a key with a noncanonical identifier length are accepted in global/input/output maps. Core rejects them because the identifier/subtype is missing or CompactSize is noncanonical. In total, 12 negative probes produced a mismatch; both implementations accepted 3 valid control examples. The UI nevertheless reports successful framing/field-schema verification.\n\nReference: [PSBT_IN_PROPRIETARY](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/psbt.h#L900) and corresponding global/output branches. Evidence: `additional-results.json`.\n\nFix: parse the structural part of a proprietary key with a bounded Reader, validate canonical lengths and the presence of a subtype, and preserve the opaque remaining key data and value. Do not reject valid unknown fields: they differ from a malformed known proprietary envelope."
-    },
-    {
-      "id": "B-04",
-      "priority": "P2",
-      "title": "Incorrect PSBTv2 locktime compatibility",
-      "detail": "[psbt-validation.ts:179](../../apps/psbt-inspector/src/psbt-validation.ts:179), [signing-commitments.ts:152](../../apps/psbt-inspector/src/signing-commitments.ts:152).\n\nAn input with both `height=800000` and `time=1700000000` is marked FAILED as incompatible. BIP370 permits both types as alternatives. When both are allowed, height is selected; a combination is incompatible only when requirements exclude a common alternative. The UI also displays time instead of the effective height.\n\nReference: [ComputeTimeLock](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/psbt.cpp#L86), [official test with two alternatives](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/test/psbt_tests.cpp#L105), [BIP370](https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki#determining-lock-time). Evidence: `edge-results.json`, both browsers.\n\nFix: compute the effective nLockTime consistently across the transaction; add separate tests for dual/height-only/time-only requirements, the maximum, and fallback. Core 31.1 did not validate this probe: it does not support v2 at all."
-    },
-    {
-      "id": "B-05",
-      "priority": "P2",
-      "title": "Advanced P2SH presets export descriptors unsupported by Core",
-      "detail": "[policy.ts:406](../../apps/psbt-inspector/src/policy.ts:406).\n\nAll 9 tested advanced P2SH presets return `sh(Miniscript...)`, described in the UI as a portable descriptor. Core accepts conventional P2SH `multi()/sortedmulti()`, but does not support Miniscript inside sh. Live getdescriptorinfo rejected all 9 exports. This is an incompatibility of the exported format and wallet workflow; deriving scriptPubKey/a P2SH address from such a script does not itself demonstrate a consensus defect.\n\nReference: [ParseScript grammar](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/descriptor.cpp#L2723). Evidence: `policy-matrix-results.json`.\n\nFix: offer P2WSH/P2TR for portable Core policies; for custom P2SH, distinguish the raw watch-only descriptor, required redeemScript, and need for a custom verified signer. Do not describe such an sh export as a Core-importable descriptor."
-    },
-    {
-      "id": "B-06",
-      "priority": "P2",
-      "title": "Decaying / expanding presets also cannot be imported into Core",
-      "detail": "[policy.ts:276](../../apps/psbt-inspector/src/policy.ts:276).\n\nThese presets repeat the same keys in different branches. For P2WSH and P2TR, Core rejects the Miniscript as `not sane: contains duplicate public keys`. The local compiler also reports `not sane`, but the builder still creates a funding address and portable descriptor. Simply switching from P2SH to P2WSH therefore does not fix these two presets.\n\nReference: [IsSane / CheckDuplicateKey](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/descriptor.cpp#L2727). Four RPC confirmations: `policy-matrix-results.json`.\n\nFix: either use a Core-compatible policy form without prohibited repetitions, with a separate equivalence check, or provide an explicitly separate advanced custom mode without promising import compatibility. Disabling safety analysis alone does not restore compatibility. Repeated keys are not, by themselves, evidence that funds can be stolen in this case."
-    },
-    {
-      "id": "B-07",
-      "priority": "P2",
-      "title": "Bitcoin ranged import does not create a working active multisig wallet",
-      "detail": "[multisig-wallet.ts:370](../../apps/psbt-inspector/src/multisig-wallet.ts:370).\n\nThe export sets `active:false`, omits next_index, and does not create a separate blank watch-only wallet. Import succeeds in an empty wallet, but getnewaddress/getrawchangeaddress return `This wallet has no available keys`. A pre-existing wallet retains its old active descriptors. Consequently, the user may continue receiving addresses belonging to a different wallet type.\n\nPassive watch-only import is valid by itself; the problem is failure to implement the complete ranged-multisig creation workflow. Reference: [Core multisig workflow](https://github.com/bitcoin/bitcoin/blob/9be056a8a72b624dae9623b2f7bded92c2a21c91/test/functional/wallet_multisig_descriptor_psbt.py). Evidence: `rpc-results.json`; successful workflow after correcting only the scratch import — `workflow-results.json`.\n\nFix: separate passive watch-only import from creation of a new multisig wallet. The latter needs a separate blank wallet, active receive/change descriptors, the correct next_index, and wrapper/change-type selection. For a specific non-ranged address, active:false remains correct."
-    },
-    {
-      "id": "B-08",
-      "priority": "P2",
-      "title": "Valid Taproot pkh leaves are rejected",
-      "detail": "[musig-descriptor.ts:228](../../apps/psbt-inspector/src/musig-descriptor.ts:228).\n\nTwo official positive examples using `tr(...,pkh(...))` produce `P2TR: invalid leaf script=pkh`. Core 31.1 accepts both and returns addresses. The cause is a leaf-script classifier restriction in Scure; the existing allowUnknownOutputs does not help with the already recognized pkh type.\n\nReference: [descriptor_tests.cpp:1157](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/test/descriptor_tests.cpp#L1157), also line 1159. Evidence: `descriptor-results.json`, `additional-results.json`, both browsers.\n\nFix: integrate correctly validated Tapscript leaves without conflating ordinary output-script classification with Tapscript consensus rules; check the tree/hash/address against these two vector results. Do not disable all script checks without a replacement."
-    },
-    {
-      "id": "B-09",
-      "priority": "P2",
-      "title": "The decoder accepts syntactically invalid descriptors",
-      "detail": "[descriptor.ts:74](../../apps/psbt-inspector/src/descriptor.ts:74), [descriptor-compiler.ts:110](../../apps/psbt-inspector/src/descriptor-compiler.ts:110).\n\nOfficial negative examples `addr(asdf)`, `sh(<pubkey>)`, and `multi(+1,...)` are accepted. The first two finish without compiledOutput instead of a clear error; the third actually compiles because of numeric coercion. Core rejects all three. `addr(asdf)` was confirmed in both browsers.\n\nReference: [descriptor_tests.cpp](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/test/descriptor_tests.cpp#L1018), lines 1018/1029/1053. Fix: strict grammar and address validation for the selected network; distinguish “known format with unimplemented presentation” from “syntactically invalid.” Evidence: `descriptor-results.json`, `rpc-results.json`."
-    },
-    {
-      "id": "B-10",
-      "priority": "P2",
-      "title": "Staged recovery P2TR loses ranged xpub expressions during export",
-      "detail": "[policy.ts:371](../../apps/psbt-inspector/src/policy.ts:371), [policy.ts:407](../../apps/psbt-inspector/src/policy.ts:407).\n\nFor `xpub/<0;1>/*` inputs, portableDescriptorBody is constructed, but for P2TR it is replaced by the materialized, index-specific taprootDescriptor. Core reports `isrange:false`; changing the index changes the descriptor itself. For the same inputs, the P2WSH descriptor remains ranged. This contradicts the README claim that ranged exports are preserved.\n\nEvidence: `final-results.json`, `staged`: P2WSH indices 0/1 → isrange=true; P2TR indices 0/1 → false. The address for the current specific index is nevertheless correct.\n\nFix: preserve the original key expressions and binary tree in Taproot exports, displaying the materialized current address separately; check receive/change branches and multiple indices through deriveaddresses."
-    },
-    {
-      "id": "B-11",
-      "priority": "P2",
-      "title": "Different origin paths are incorrectly prohibited",
-      "detail": "[multisig-wallet.ts:314](../../apps/psbt-inspector/src/multisig-wallet.ts:314).\n\nTwo cosigner xpubs with origins `m/48h/1h/0h/2h` and `m/48h/1h/1h/2h` are rejected. Core accepts them together and derives the combined multisig. Origins describe each key's provenance; matching account paths for all participants are not a Bitcoin multisig rule. The error text additionally contains a Dash-only example for Bitcoin.\n\nEvidence: `additional-results.json`, `mixed_account_origins`. Fix: validate each origin separately; warn about unusual combinations while retaining mandatory descriptor/address verification by all participants. Do not automatically reject a valid combination."
-    },
-    {
-      "id": "B-12",
-      "priority": "P2",
-      "title": "Advertised P2WSH support for 17–20 keys does not work",
-      "detail": "[policy.ts:67](../../apps/psbt-inspector/src/policy.ts:67).\n\nThe top level and README allow up to 20 keys, but the shared validatePublicKeys limits them to 16. Probes with 15/16 succeed; 17/20 fail. Core accepts P2WSH sortedmulti with 16, 17, and 20 keys.\n\nEvidence: `edge-results.json`, `policy-matrix-results.json`. Fix: wrapper/context-specific limits and script-number encoding above OP_16; retain the P2SH limit of 520 bytes and 15 compressed keys. Changing only the validation number is insufficient without compiled-script vectors."
-    },
-    {
-      "id": "B-13",
-      "priority": "P3",
-      "title": "CLI export omits the selected network",
-      "detail": "[multisig-wallet.ts:164](../../apps/psbt-inspector/src/multisig-wallet.ts:164), [multisig-wallet.ts:379](../../apps/psbt-inspector/src/multisig-wallet.ts:379).\n\nFor testnet/regtest, `bitcoin-cli importdescriptors ...` is generated without a network flag. The command uses the CLI configuration's network, usually mainnet. The network cannot be inferred from a literal pubkey descriptor, so such an import can successfully land on the wrong network. An xpub for the wrong network will more often produce an explicit error, but that does not make the export self-contained.\n\nEvidence: `edge-results.json`, network_mainnet/testnet/regtest. Fix: correct network flags or an explicit requirement to select the CLI chain. Testnet and signet use the same address versions, so the current combined UI model cannot automatically infer the required flag; this must be resolved explicitly."
-    }
-  ],
-  "evidenceSha256": {
-    "release-wallet-multisig-descriptor-psbt.py": "5b600a757b1031bdc69f3d646959a892fef14d47d264c99e579e9892a06a5e0f",
-    "final-results.json": "e2cde65f966547553e58fe4dc6b232bb10d8c5a3b898d8a2cc0ac5c4a5b50203",
-    "final-probes.mjs": "50aca60ca8ce461cf6aa4c0e4609c03ddb77947be5aadcd5c55c9296f053ae14",
-    "browser-results.json": "683f9a258562c8c86115aed0f5edfb79f2f69669c454038abb68a1f3851ae7fc",
-    "browser-probes.mjs": "0dadfc370e7869edddc0a1d27b46f8628025dfcce33b68b57b42a96ccde3a65e",
-    "policy-matrix-results.json": "1c1b7aa7c957f6de86aba621299d025437213e7f653776becbc6f366736a04c0",
-    "workflow-results.json": "de94d59798a21356939936091eb1d49a7829cd970e143d2db6b35a78a501be3c",
-    "workflow-p2wsh-psbts.json": "d1803724c83c9d984e3cb7f1bdcb6beac50d2ee3389af73c1d071e7f3e1e990d",
-    "workflow-p2sh-psbts.json": "0759bf21ea7b4aaeb4aad65ee3cb22d1152a485c5faefcd8ec687155ced05ff4",
-    "policy-matrix.mjs": "e905aaa2d6ecabbb45ec3bfcf714796356592d0dbd8253dabe3214c841206fdc",
-    "multisig-workflow.mjs": "1fbb191b560b17e44ca559d982ad9c43ca64e97986ebd9a26617f0b5bc00c7f9",
-    "additional-results.json": "c05c76ee2063efb01e64a88934fdead742fb1b9cd34217a95fb5b0244d55e4b1",
-    "additional-probes.mjs": "ab333b1a116ff493ae5392c582d4eb17543132a3bdab6c1f02594294994b2e2a",
-    "rpc-results.json": "fed451876f83571f6053dbe58fb96386692ac5d3c9c819fdd8299c8ff46d1113",
-    "rpc-probes.mjs": "c290f80c6203bd75431978c57845b1546b3f5f89f0f046c005ae8f0c29c66061",
-    "rpc.mjs": "9cb4627b8155b7b1c83cc6fe685a6eff36af526cf56e95cd16eee3c14457c784",
-    "descriptor-results.json": "6def8aafe9da4a6bef6470002254c20324e0475201b3c3b03dabfa6809497196",
-    "descriptor-summary.json": "5b3489cd18c5319e24b6a43e2825a5643fd296b0494a81a811f108c95f3ca8ea",
-    "descriptor-corpus.mjs": "05d886a6a60b83d5b8af2f3f4eccafd4486f008343f7d7fdf85f823e1fd446ba",
-    "descriptor-vectors.json": "8ede0f2665effef24460bb7d8cfd792208b10e73290d81633820af289410275b",
-    "extract-descriptors.py": "978f814e075233d5b423ad12601d8b8d8efe96fbebc6b41f2273a7321d5b930f",
-    "edge-results.json": "baaebafb466678c6cc97b6ee3f4216e63af23405d0ec821bee12067cc41457ed",
-    "edge-probes.mjs": "67e44827fa65d006a0281d5db951caf99ad49c99b42dbdf06be51ff1e304e1ac",
-    "release-rpc-psbt.json": "1779e2a9a07476d72411d38a48986585e600915d8a3148b9becf8a985f781b87",
-    "corpus-results.json": "35a8e8eb262d02eac8c29858ce4b4a0e98d165331c193a3509d66dddd7fff4d3",
-    "corpus.mjs": "a0b9bedbc6f0ed939ff245f993e6531d655d0d8e9e763c0d59786179b1b40209",
-    "api.mjs": "c0331b0c58d31b4ff7e7728b1b6db1d5b7dcf5a9679873513648809d818ceedd"
+  "title": "Independent source and interoperability audit",
+  "reviewer": {
+    "name": null,
+    "model": null,
+    "reasoningEffort": null,
+    "metadataNote": "Model and effort were not recorded in the retained audit materials."
+  },
+  "snapshot": {
+    "commit": "6756193fc579a9ab530678f8169f4ca9b8adbeb2",
+    "commitComplete": true,
+    "workingTree": "Working tree plus pre-existing uncommitted changes and existing HTML.",
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
+  },
+  "scope": {
+    "recordedIn": "Markdown evidence sections",
+    "note": "Original scope and exclusions are preserved; no additional review coverage is claimed."
   },
   "checks": {
     "localTests": 623,
@@ -129,15 +34,368 @@
     "liveWorkflowAddressComparisons": 12,
     "browserCases": 12
   },
-  "title": "Independent source and interoperability audit",
-  "remediation": {
-    "status": "fixed",
-    "verification": [
-      "pnpm verify",
-      "browser file suite 16/16",
-      "browser regression suite 42/42",
-      "selective browser smoke 10/10"
-    ],
-    "regressionFixture": "../../apps/psbt-inspector/tests/upstream/bitcoin-core-audit-regressions.json"
+  "findings": [
+    {
+      "id": "AUD-016-FUN001",
+      "title": "Legacy SIGHASH_SINGLE incorrectly labels inputs as committed",
+      "detail": "[signing-commitments.ts:108](../../apps/psbt-inspector/src/signing-commitments.ts:108).\n\nWith two inputs and one output, the UI reports `Current input: Committed` and `Other inputs: Committed` for the second Legacy input using `SIGHASH_SINGLE`. An unusual-policy warning is present, but these two claims are incorrect. In this historical case, the Legacy signature hash is the constant ONE, independent of transaction fields. SegWit v0 behaves differently; Taproot rejects a signature without the corresponding output.\n\nReference: [SignatureHash](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/interpreter.cpp#L1615). Probe: `additional-results.json`, `legacy_single_missing_output`; browsers confirmed the text.\n\nFix: separate branches for the three protocols; do not claim input commitments for Legacy and explicitly describe the constant digest. Add tests for SINGLE/ANYONECANPAY and a missing output.",
+      "legacyId": "B-01",
+      "category": "FUN",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P1",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-FUN002",
+      "title": "Optional metadata overrides signing-protocol detection",
+      "detail": "[signing-commitments.ts:35](../../apps/psbt-inspector/src/signing-commitments.ts:35).\n\nAdding a valid `PSBT_IN_TAP_INTERNAL_KEY` to a genuine P2PKH input with a verified non-witness UTXO is sufficient to trigger this issue. Metadata taking precedence over scriptPubKey makes the UI report `Taproot / BIP341` and `Current input amount: Committed`; Legacy does not include the amount in its signature hash. Core decodes the additional metadata, but it does not turn P2PKH into Taproot.\n\nReference: SigVersion selection from the spending script and [SignatureHash](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/interpreter.cpp). Probe: `legacy_input_with_taproot_metadata` in `additional-results.json`, both browsers.\n\nFix: determine the protocol from the bound UTXO and verified redeem/witness script chain. Flag conflicting metadata separately. When data is insufficient, report uncertainty rather than a confident claim. This is a shared module; also check Dash, where these fields may be unknown.",
+      "legacyId": "B-02",
+      "category": "FUN",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P1",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-FUN003",
+      "title": "Proprietary PSBT key structure is not validated",
+      "detail": "[psbt-validation.ts:54](../../apps/psbt-inspector/src/psbt-validation.ts:54).\n\nKeys `fc`, `fc00`, `fc036162`, and a key with a noncanonical identifier length are accepted in global/input/output maps. Core rejects them because the identifier/subtype is missing or CompactSize is noncanonical. In total, 12 negative probes produced a mismatch; both implementations accepted 3 valid control examples. The UI nevertheless reports successful framing/field-schema verification.\n\nReference: [PSBT_IN_PROPRIETARY](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/psbt.h#L900) and corresponding global/output branches. Evidence: `additional-results.json`.\n\nFix: parse the structural part of a proprietary key with a bounded Reader, validate canonical lengths and the presence of a subtype, and preserve the opaque remaining key data and value. Do not reject valid unknown fields: they differ from a malformed known proprietary envelope.",
+      "legacyId": "B-03",
+      "category": "FUN",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-FUN004",
+      "title": "Incorrect PSBTv2 locktime compatibility",
+      "detail": "[psbt-validation.ts:179](../../apps/psbt-inspector/src/psbt-validation.ts:179), [signing-commitments.ts:152](../../apps/psbt-inspector/src/signing-commitments.ts:152).\n\nAn input with both `height=800000` and `time=1700000000` is marked FAILED as incompatible. BIP370 permits both types as alternatives. When both are allowed, height is selected; a combination is incompatible only when requirements exclude a common alternative. The UI also displays time instead of the effective height.\n\nReference: [ComputeTimeLock](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/psbt.cpp#L86), [official test with two alternatives](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/test/psbt_tests.cpp#L105), [BIP370](https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki#determining-lock-time). Evidence: `edge-results.json`, both browsers.\n\nFix: compute the effective nLockTime consistently across the transaction; add separate tests for dual/height-only/time-only requirements, the maximum, and fallback. Core 31.1 did not validate this probe: it does not support v2 at all.",
+      "legacyId": "B-04",
+      "category": "FUN",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-API001",
+      "title": "Advanced P2SH presets export descriptors unsupported by Core",
+      "detail": "[policy.ts:406](../../apps/psbt-inspector/src/policy.ts:406).\n\nAll 9 tested advanced P2SH presets return `sh(Miniscript...)`, described in the UI as a portable descriptor. Core accepts conventional P2SH `multi()/sortedmulti()`, but does not support Miniscript inside sh. Live getdescriptorinfo rejected all 9 exports. This is an incompatibility of the exported format and wallet workflow; deriving scriptPubKey/a P2SH address from such a script does not itself demonstrate a consensus defect.\n\nReference: [ParseScript grammar](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/descriptor.cpp#L2723). Evidence: `policy-matrix-results.json`.\n\nFix: offer P2WSH/P2TR for portable Core policies; for custom P2SH, distinguish the raw watch-only descriptor, required redeemScript, and need for a custom verified signer. Do not describe such an sh export as a Core-importable descriptor.",
+      "legacyId": "B-05",
+      "category": "API",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-API002",
+      "title": "Decaying / expanding presets also cannot be imported into Core",
+      "detail": "[policy.ts:276](../../apps/psbt-inspector/src/policy.ts:276).\n\nThese presets repeat the same keys in different branches. For P2WSH and P2TR, Core rejects the Miniscript as `not sane: contains duplicate public keys`. The local compiler also reports `not sane`, but the builder still creates a funding address and portable descriptor. Simply switching from P2SH to P2WSH therefore does not fix these two presets.\n\nReference: [IsSane / CheckDuplicateKey](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/script/descriptor.cpp#L2727). Four RPC confirmations: `policy-matrix-results.json`.\n\nFix: either use a Core-compatible policy form without prohibited repetitions, with a separate equivalence check, or provide an explicitly separate advanced custom mode without promising import compatibility. Disabling safety analysis alone does not restore compatibility. Repeated keys are not, by themselves, evidence that funds can be stolen in this case.",
+      "legacyId": "B-06",
+      "category": "API",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-BLD001",
+      "title": "Bitcoin ranged import does not create a working active multisig wallet",
+      "detail": "[multisig-wallet.ts:370](../../apps/psbt-inspector/src/multisig-wallet.ts:370).\n\nThe export sets `active:false`, omits next_index, and does not create a separate blank watch-only wallet. Import succeeds in an empty wallet, but getnewaddress/getrawchangeaddress return `This wallet has no available keys`. A pre-existing wallet retains its old active descriptors. Consequently, the user may continue receiving addresses belonging to a different wallet type.\n\nPassive watch-only import is valid by itself; the problem is failure to implement the complete ranged-multisig creation workflow. Reference: [Core multisig workflow](https://github.com/bitcoin/bitcoin/blob/9be056a8a72b624dae9623b2f7bded92c2a21c91/test/functional/wallet_multisig_descriptor_psbt.py). Evidence: `rpc-results.json`; successful workflow after correcting only the scratch import — `workflow-results.json`.\n\nFix: separate passive watch-only import from creation of a new multisig wallet. The latter needs a separate blank wallet, active receive/change descriptors, the correct next_index, and wrapper/change-type selection. For a specific non-ranged address, active:false remains correct.",
+      "legacyId": "B-07",
+      "category": "BLD",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-FUN005",
+      "title": "Valid Taproot pkh leaves are rejected",
+      "detail": "[musig-descriptor.ts:228](../../apps/psbt-inspector/src/musig-descriptor.ts:228).\n\nTwo official positive examples using `tr(...,pkh(...))` produce `P2TR: invalid leaf script=pkh`. Core 31.1 accepts both and returns addresses. The cause is a leaf-script classifier restriction in Scure; the existing allowUnknownOutputs does not help with the already recognized pkh type.\n\nReference: [descriptor_tests.cpp:1157](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/test/descriptor_tests.cpp#L1157), also line 1159. Evidence: `descriptor-results.json`, `additional-results.json`, both browsers.\n\nFix: integrate correctly validated Tapscript leaves without conflating ordinary output-script classification with Tapscript consensus rules; check the tree/hash/address against these two vector results. Do not disable all script checks without a replacement.",
+      "legacyId": "B-08",
+      "category": "FUN",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-FUN006",
+      "title": "The decoder accepts syntactically invalid descriptors",
+      "detail": "[descriptor.ts:74](../../apps/psbt-inspector/src/descriptor.ts:74), [descriptor-compiler.ts:110](../../apps/psbt-inspector/src/descriptor-compiler.ts:110).\n\nOfficial negative examples `addr(asdf)`, `sh(<pubkey>)`, and `multi(+1,...)` are accepted. The first two finish without compiledOutput instead of a clear error; the third actually compiles because of numeric coercion. Core rejects all three. `addr(asdf)` was confirmed in both browsers.\n\nReference: [descriptor_tests.cpp](https://github.com/bitcoin/bitcoin/blob/a604a7647588500354d4772e60620ea36b129d05/src/test/descriptor_tests.cpp#L1018), lines 1018/1029/1053. Fix: strict grammar and address validation for the selected network; distinguish “known format with unimplemented presentation” from “syntactically invalid.” Evidence: `descriptor-results.json`, `rpc-results.json`.",
+      "legacyId": "B-09",
+      "category": "FUN",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-API003",
+      "title": "Staged recovery P2TR loses ranged xpub expressions during export",
+      "detail": "[policy.ts:371](../../apps/psbt-inspector/src/policy.ts:371), [policy.ts:407](../../apps/psbt-inspector/src/policy.ts:407).\n\nFor `xpub/<0;1>/*` inputs, portableDescriptorBody is constructed, but for P2TR it is replaced by the materialized, index-specific taprootDescriptor. Core reports `isrange:false`; changing the index changes the descriptor itself. For the same inputs, the P2WSH descriptor remains ranged. This contradicts the README claim that ranged exports are preserved.\n\nEvidence: `final-results.json`, `staged`: P2WSH indices 0/1 → isrange=true; P2TR indices 0/1 → false. The address for the current specific index is nevertheless correct.\n\nFix: preserve the original key expressions and binary tree in Taproot exports, displaying the materialized current address separately; check receive/change branches and multiple indices through deriveaddresses.",
+      "legacyId": "B-10",
+      "category": "API",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-FUN007",
+      "title": "Different origin paths are incorrectly prohibited",
+      "detail": "[multisig-wallet.ts:314](../../apps/psbt-inspector/src/multisig-wallet.ts:314).\n\nTwo cosigner xpubs with origins `m/48h/1h/0h/2h` and `m/48h/1h/1h/2h` are rejected. Core accepts them together and derives the combined multisig. Origins describe each key's provenance; matching account paths for all participants are not a Bitcoin multisig rule. The error text additionally contains a Dash-only example for Bitcoin.\n\nEvidence: `additional-results.json`, `mixed_account_origins`. Fix: validate each origin separately; warn about unusual combinations while retaining mandatory descriptor/address verification by all participants. Do not automatically reject a valid combination.",
+      "legacyId": "B-11",
+      "category": "FUN",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-FUN008",
+      "title": "Advertised P2WSH support for 17–20 keys does not work",
+      "detail": "[policy.ts:67](../../apps/psbt-inspector/src/policy.ts:67).\n\nThe top level and README allow up to 20 keys, but the shared validatePublicKeys limits them to 16. Probes with 15/16 succeed; 17/20 fail. Core accepts P2WSH sortedmulti with 16, 17, and 20 keys.\n\nEvidence: `edge-results.json`, `policy-matrix-results.json`. Fix: wrapper/context-specific limits and script-number encoding above OP_16; retain the P2SH limit of 520 bytes and 15 compressed keys. Changing only the validation number is insufficient without compiled-script vectors.",
+      "legacyId": "B-12",
+      "category": "FUN",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-016-BLD002",
+      "title": "CLI export omits the selected network",
+      "detail": "[multisig-wallet.ts:164](../../apps/psbt-inspector/src/multisig-wallet.ts:164), [multisig-wallet.ts:379](../../apps/psbt-inspector/src/multisig-wallet.ts:379).\n\nFor testnet/regtest, `bitcoin-cli importdescriptors ...` is generated without a network flag. The command uses the CLI configuration's network, usually mainnet. The network cannot be inferred from a literal pubkey descriptor, so such an import can successfully land on the wrong network. An xpub for the wrong network will more often produce an explicit error, but that does not make the export self-contained.\n\nEvidence: `edge-results.json`, network_mainnet/testnet/regtest. Fix: correct network flags or an explicit requirement to select the CLI chain. Testnet and signet use the same address versions, so the current combined UI model cannot automatically infer the required flag; this must be resolved explicitly.",
+      "legacyId": "B-13",
+      "category": "BLD",
+      "kind": "finding",
+      "severity": null,
+      "status": "verified",
+      "releaseBlocking": null,
+      "legacyPriority": "P3",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "evidence": {
+        "recordedIn": "audit-16-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
+  ],
+  "observations": [],
+  "remediation": [],
+  "limitations": {
+    "recordedIn": "audit-16-2026-09-17.md",
+    "note": "Unknown execution details are not supplied by normalization."
+  },
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {
+    "date": "2026-09-17",
+    "model": null,
+    "reasoningEffort": null,
+    "reasoningEffortNote": "Model and effort were not recorded in the retained audit materials.",
+    "projectHead": "6756193fc579a9ab530678f8169f4ca9b8adbeb2",
+    "target": "working tree plus existing HTML; source and Git unchanged",
+    "coreMaster": "a604a7647588500354d4772e60620ea36b129d05",
+    "coreRelease": "v31.1",
+    "evidenceSha256": {
+      "release-wallet-multisig-descriptor-psbt.py": "5b600a757b1031bdc69f3d646959a892fef14d47d264c99e579e9892a06a5e0f",
+      "final-results.json": "e2cde65f966547553e58fe4dc6b232bb10d8c5a3b898d8a2cc0ac5c4a5b50203",
+      "final-probes.mjs": "50aca60ca8ce461cf6aa4c0e4609c03ddb77947be5aadcd5c55c9296f053ae14",
+      "browser-results.json": "683f9a258562c8c86115aed0f5edfb79f2f69669c454038abb68a1f3851ae7fc",
+      "browser-probes.mjs": "0dadfc370e7869edddc0a1d27b46f8628025dfcce33b68b57b42a96ccde3a65e",
+      "policy-matrix-results.json": "1c1b7aa7c957f6de86aba621299d025437213e7f653776becbc6f366736a04c0",
+      "workflow-results.json": "de94d59798a21356939936091eb1d49a7829cd970e143d2db6b35a78a501be3c",
+      "workflow-p2wsh-psbts.json": "d1803724c83c9d984e3cb7f1bdcb6beac50d2ee3389af73c1d071e7f3e1e990d",
+      "workflow-p2sh-psbts.json": "0759bf21ea7b4aaeb4aad65ee3cb22d1152a485c5faefcd8ec687155ced05ff4",
+      "policy-matrix.mjs": "e905aaa2d6ecabbb45ec3bfcf714796356592d0dbd8253dabe3214c841206fdc",
+      "multisig-workflow.mjs": "1fbb191b560b17e44ca559d982ad9c43ca64e97986ebd9a26617f0b5bc00c7f9",
+      "additional-results.json": "c05c76ee2063efb01e64a88934fdead742fb1b9cd34217a95fb5b0244d55e4b1",
+      "additional-probes.mjs": "ab333b1a116ff493ae5392c582d4eb17543132a3bdab6c1f02594294994b2e2a",
+      "rpc-results.json": "fed451876f83571f6053dbe58fb96386692ac5d3c9c819fdd8299c8ff46d1113",
+      "rpc-probes.mjs": "c290f80c6203bd75431978c57845b1546b3f5f89f0f046c005ae8f0c29c66061",
+      "rpc.mjs": "9cb4627b8155b7b1c83cc6fe685a6eff36af526cf56e95cd16eee3c14457c784",
+      "descriptor-results.json": "6def8aafe9da4a6bef6470002254c20324e0475201b3c3b03dabfa6809497196",
+      "descriptor-summary.json": "5b3489cd18c5319e24b6a43e2825a5643fd296b0494a81a811f108c95f3ca8ea",
+      "descriptor-corpus.mjs": "05d886a6a60b83d5b8af2f3f4eccafd4486f008343f7d7fdf85f823e1fd446ba",
+      "descriptor-vectors.json": "8ede0f2665effef24460bb7d8cfd792208b10e73290d81633820af289410275b",
+      "extract-descriptors.py": "978f814e075233d5b423ad12601d8b8d8efe96fbebc6b41f2273a7321d5b930f",
+      "edge-results.json": "baaebafb466678c6cc97b6ee3f4216e63af23405d0ec821bee12067cc41457ed",
+      "edge-probes.mjs": "67e44827fa65d006a0281d5db951caf99ad49c99b42dbdf06be51ff1e304e1ac",
+      "release-rpc-psbt.json": "1779e2a9a07476d72411d38a48986585e600915d8a3148b9becf8a985f781b87",
+      "corpus-results.json": "35a8e8eb262d02eac8c29858ce4b4a0e98d165331c193a3509d66dddd7fff4d3",
+      "corpus.mjs": "a0b9bedbc6f0ed939ff245f993e6531d655d0d8e9e763c0d59786179b1b40209",
+      "api.mjs": "c0331b0c58d31b4ff7e7728b1b6db1d5b7dcf5a9679873513648809d818ceedd"
+    },
+    "title": "Independent source and interoperability audit",
+    "remediation": {
+      "status": "fixed",
+      "verification": [
+        "pnpm verify",
+        "browser file suite 16/16",
+        "browser regression suite 42/42",
+        "selective browser smoke 10/10"
+      ],
+      "regressionFixture": "../../apps/psbt-inspector/tests/upstream/bitcoin-core-audit-regressions.json"
+    }
   }
 }

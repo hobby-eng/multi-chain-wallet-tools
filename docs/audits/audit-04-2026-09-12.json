@@ -1,0 +1,358 @@
+{
+  "schemaVersion": 1,
+  "auditId": "AUD-004",
+  "auditNumber": 4,
+  "date": "2026-09-12",
+  "title": "Independent audit of the local wallet tools — 2026-09-12",
+  "reviewer": {
+    "name": "OpenAI Codex",
+    "model": "gpt-6-family",
+    "reasoningEffort": null,
+    "metadataNote": "Only reviewer metadata actually retained in the original report is used."
+  },
+  "snapshot": {
+    "commit": "ea5d4215ccbf355dd86f1c9928e213df1e23d186",
+    "commitComplete": true,
+    "workingTree": "Dirty working tree: 46 modified tracked files and 55 untracked files.",
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
+  },
+  "scope": {
+    "recordedIn": "Markdown evidence sections",
+    "note": "Original scope and exclusions are preserved; no additional review coverage is claimed."
+  },
+  "checks": {
+    "recordedIn": "Markdown evidence sections"
+  },
+  "findings": [
+    {
+      "id": "AUD-004-SEC001",
+      "legacyId": "F01",
+      "category": "SEC",
+      "kind": "finding",
+      "title": "custom Tapscript accepts the wrong public-key type and reports a signature requirement it does not enforce",
+      "severity": "high",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Locations:** [custom-miniscript.ts:34](../../apps/psbt-inspector/src/custom-miniscript.ts#L34), [custom-miniscript.ts:61](../../apps/psbt-inspector/src/custom-miniscript.ts#L61), [miniscript-engine.ts:131](../../apps/psbt-inspector/src/miniscript-engine.ts#L131).\n\nThe application trusts Miniscript analysis without first enforcing the cryptographic key type for the selected context. A compressed 33-byte SEC key is accepted inside Tapscript `multi_a`, compiled literally, and shown as sane and requiring a signature.\n\nPublic deterministic reproduction, using the secp256k1 generator:\n\n```text\nmulti_a(1,0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)\n```\n\nActual leaf bytes:\n\n```text\n210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ac519c\n```\n\nActual output:\n\n```text\naddress: bc1p0exkm5mzk55f545s5pfdk0z9aw62kwa92k0e55zm2s7t4dkyg2zqt8der5\nscriptPubKey: 51207e4d6dd362b5289a5690a052db3c45ebb4ab3ba5559f9a505b543cbab6c44284\n```\n\nThe leaf pushes **33 bytes**, then `OP_CHECKSIG 1 OP_NUMEQUAL`. Under current BIP342 consensus rules, a nonempty public key with a length other than 32 uses the unknown-key-type semantics: a nonempty signature satisfies the signature opcode without Schnorr verification. A nonempty placeholder witness can therefore satisfy this leaf's signature check. Ordinary relay policy can discourage this key type; relay policy is **not** a cryptographic ownership requirement. [BIP342](https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0342.mediawiki).\n\nA second input, `multi_a(1,` followed by 32 bytes of `ff` and `)`, is also labelled sane and emits an address, although that x-only value is not a valid curve point. This is the opposite failure mode: an unusable signature path, with a deliberately unspendable NUMS internal key.\n\n**Evidence:** `evidence/independent-probes.json`, `browser-independent.json`, and both `*-custom-tapscript.png` screenshots. Reproduced in Chromium and Firefox. This audit did not fund or broadcast a spend; consensus interpretation is derived from the exact emitted bytes and the pinned BIP/Core interpreter rules.\n\n**Recommendation:** validate every substituted key after derivation, in its exact script context, before compilation and before any “sane/signature required” result. Require valid 32-byte x-only points for these Tapscript fragments. Do not treat compiler type analysis alone as cryptographic key validation. Add both unsafe-key and invalid-point regressions.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-FUN001",
+      "legacyId": "F02",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "Inspector displays a verification result for an obsolete message, including after Clear",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Locations:** [app.ts:575](../../apps/psbt-inspector/src/app.ts#L575), [app.ts:1292](../../apps/psbt-inspector/src/app.ts#L1292).\n\n`verifyMessageSignature()` awaits asynchronous verification and then renders unconditionally. Input edits and Clear do not invalidate the operation. A valid public fixture is submitted; before the promise resolves, the message is changed. The visible form contains the new message while the verdict says “VALID … exact message” for the old one. Clear can also be followed by the old result reappearing.\n\n**Reproduction:** `node harness/browser-probes.mjs`. It submits a public Dash message/signature fixture and dispatches an input change or Clear in the same browser turn. All four browser/edition combinations reproduce it.\n\n**Impact:** misleading proof-of-control/message verification. This does not show that the underlying cryptographic verifier accepts the changed message; it shows that the UI binds a correct old verdict to the wrong visible input.\n\n**Recommendation:** capture an immutable request plus revision; invalidate on every relevant edit, network/chain switch, and Clear; render only if the captured revision remains current. Keep this separate from the already-fixed Deriver signer race.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-FUN002",
+      "legacyId": "F03",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "PSBT parsing is substantially more permissive than the advertised versions' field schemas",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Locations:** [psbt.ts:143](../../apps/psbt-inspector/src/psbt.ts#L143), [psbt.ts:273](../../apps/psbt-inspector/src/psbt.ts#L273).\n\nThe generic map reader correctly rejects duplicate raw keys and several framing errors. However, most recognized field types are not validated for key-data size, value shape, applicability to PSBT version, or required combinations.\n\nReproduced examples:\n\n- PSBTv0 with a v2-only global field is accepted.\n- PSBTv2 without transaction version, previous transaction ID/output index, and output script can be accepted if counts and output amount are supplied.\n- A 31-byte Taproot internal key, a 63-byte Taproot signature, and a one-byte control-block key are accepted as supplied map fields.\n- Known fields with malformed key data can bypass `pair()` lookup and remain uninterpreted.\n- An official valid zero-input unsigned-transaction vector is rejected because transaction parsing mistakes its count bytes for a witness marker.\n\nFresh official valid/invalid PSBT corpora produced 12 BIP174, 19 BIP370, and 11 BIP371 classification mismatches. These are **42 vector mismatches, not 42 distinct vulnerabilities**. Some are permissive decoding, one is valid-data rejection, and they must be corrected against each vector's stated requirement. [BIP174](https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0174.mediawiki), [BIP370](https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0370.mediawiki), [BIP371](https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0371.mediawiki).\n\n**Evidence:** full public Base64 reproductions in `independent-probes.json`; named upstream cases in `official-matrix.json` and the archived BIP files.\n\n**Recommendation:** separate tolerant raw inspection from validated PSBT status. Apply per-version/per-scope field schemas, preserve unknown/proprietary data without calling it validated, and identify invalid known fields explicitly. Decoding alone must never imply safe signing or successful Core import.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-FUN003",
+      "legacyId": "F04",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "displayed PSBT fee is calculated from unbound or conflicting UTXO claims",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Locations:** [psbt.ts:229](../../apps/psbt-inspector/src/psbt.ts#L229), [psbt.ts:312](../../apps/psbt-inspector/src/psbt.ts#L312), [app.ts:492](../../apps/psbt-inspector/src/app.ts#L492).\n\nThe non-witness previous transaction is read without checking that its hash equals the input's referenced transaction ID. If witness and non-witness UTXOs conflict, the witness value takes precedence without a consistency error.\n\nSynthetic examples produce a known fee of 100 from an unrelated previous transaction, or 1,100 after adding a conflicting witness value of 2,000 to an input whose supplied previous transaction output is 1,000 and spending output is 900. All values are atomic units, using public constructed transactions.\n\n**Impact:** a malicious/inconsistent PSBT can influence a seemingly authoritative fee display. No signing or broadcasting occurs in this Inspector, which limits impact.\n\n**Evidence:** `unbound-previous-transaction-fee` and `conflicting-witness-and-nonwitness` in `independent-probes.json`.\n\n**Recommendation:** bind non-witness transaction hash and output index, compare both UTXO forms when present, validate relevant script commitments, and label unverified witness-only values and derived fees as supplied claims.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-FUN004",
+      "legacyId": "F05",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "descriptor validation permits invalid contexts and malformed tree/multipath syntax",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Locations at audit time:** `apps/psbt-inspector/src/descriptor-key.ts:24,69` (later moved to [the shared helper](../../packages/crypto-core/src/descriptor-key.ts)), [descriptor.ts:350](../../apps/psbt-inspector/src/descriptor.ts#L350), [descriptor.ts:483](../../apps/psbt-inspector/src/descriptor.ts#L483).\n\nConfirmed examples include:\n\n- `wpkh()` with a valid **uncompressed** 65-byte point produces an address, whereas the independent Go descriptor implementation rejects it; BIP382 requires compressed keys.\n- `rawtr()` with that point produces `OP_1 PUSH32` followed by 65 key bytes, an incorrectly constructed P2TR script. The UI does not produce a valid address for those bytes, but the compiled script itself should have been rejected.\n- `tr()` trees with one or three children are accepted; an extra top-level third argument can be ignored in interpretation.\n- Two multipath steps, such as `xpub/<0;1>/<0;1>/*`, are accepted despite BIP389's single-tuple restriction. The public BIP32 vector xpub is supplied by the reproduction harness.\n- The descriptor/raw-script decoding paths can construct a P2SH address for a redeem script exceeding the 520-byte pushed-element limit. The separate policy builder correctly rejects the oversized case; do not confuse the two entry points.\n\n**Evidence:** `independent-probes.json`, `size-probes.json`; malformed-threshold/context cases also appear in the existing oracle suite after its setup workaround. [BIP382](https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0382.mediawiki), [BIP386](https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0386.mediawiki), [BIP389](https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0389.mediawiki).\n\n**Recommendation:** use one context-aware parsed representation for validation, expansion, compilation, and interpretation. Reject invalid arity/key forms before output construction. Make “structurally decoded” distinct from “compiled and spendable under this wrapper”.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-FUN005",
+      "legacyId": "F06",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "mixed-case Dash Platform addresses are normalized before checksum validation",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Location:** [public-address.ts:127](../../packages/dash-network/src/public-address.ts#L127).\n\nThe decoder lowercases before Bech32m decoding. Public synthetic input `daSh1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs` is accepted as the lowercase address. Mixed case is invalid, even when the all-lowercase spelling has a valid checksum. This weakens validation of copied/malformed payment addresses.\n\n**Evidence:** `dash-probes.json`, case `platform-case`. Lowercase and all-uppercase valid forms were tested separately.\n\n**Recommendation:** reject mixed case before normalization. This prior audit fix is not present in the current source.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-FUN006",
+      "legacyId": "F07",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "the Dash discovery overview double-counts an address found in overlapping L1 families",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Location:** [summary.ts:5](../../apps/discovery-scanner/src/coins/dash/summary.ts#L5), especially line 29.\n\nEach section is summed independently, then Core/Legacy/CoinJoin/provider holdings are added. A synthetic address with 100,000,000 duffs appearing in both Core and Legacy yields **2 DASH**, not 1. The funded-resource count is also inflated.\n\nThis is **not a credits-versus-duffs conversion error**: the conversion constants and separation of Platform/Orchard credits from Core duffs are correct in this path. The defect is resource identity/deduplication across overlapping scan families.\n\n**Evidence:** `dash-overlap` in `independent-probes.json`.\n\n**Recommendation:** deduplicate L1 resources by chain/network/canonical address before aggregate totals, while preserving per-path findings. Do not collapse distinct Platform, Identity, and Orchard resources merely because their displayed labels resemble each other.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-API001",
+      "legacyId": "F08",
+      "category": "API",
+      "kind": "finding",
+      "title": "Dash Core history pagination can skip confirmed records and accepts incomplete page validation",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Location:** [public-address.ts:265](../../packages/dash-network/src/public-address.ts#L265), particularly lines 285–300.\n\nOnly `items.slice(0, remaining)` is parsed/validated. Missing total metadata is tolerated. Oversized confirmed pages and malformed records beyond the retained prefix can therefore escape validation. When pending rows are prepended to a page-number API's confirmed rows, truncation to the display limit can discard a confirmed record; the next page advances past it.\n\nA deterministic 150-record probe returned 150 displayed IDs including a pending item while omitting a confirmed ID at the page boundary. Other probes demonstrate acceptance of missing totals, an oversized confirmed page, and a malformed suffix.\n\n**Evidence:** `dash-probes.json`, IDs `missing-total`, `oversized-confirmed-page`, `garbage-after-display-prefix`, and `pending-offset`; complete mock responses are in `harness/dash-probes.mjs`.\n\n**Recommendation:** validate every returned item and mandatory pagination metadata; model the provider's confirmed/pending pagination contract explicitly; apply display limits after that validation/normalization. Do not infer completeness from displayed item count alone.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-API002",
+      "legacyId": "F09",
+      "category": "API",
+      "kind": "finding",
+      "title": "some Dash explorer responses are not strictly bound to the requested resource/network",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Locations:** [public-address.ts:265](../../packages/dash-network/src/public-address.ts#L265), [platform-address-history.ts:100](../../packages/dash-network/src/platform-address-history.ts#L100), [platform-identity-history.ts:527](../../packages/dash-network/src/platform-identity-history.ts#L527), [network-service.ts:250](../../apps/discovery-scanner/src/network-service.ts#L250).\n\nThe Core summary's returned address is not compared with the requested address. A fixture carrying another address is accepted and displayed under the requested one. Several Platform status checks treat “does not contain testnet” as sufficient proof of mainnet; missing or unknown network identifiers can pass that check.\n\n**Impact:** provider mistakes or malicious responses can be attributed to the wrong resource/network. Passing live happy-path smoke tests cannot establish rejection of these adversarial responses. This finding concerns explorer metadata validation, not a demonstrated bypass of Orchard proof verification.\n\n**Evidence:** `wrong-summary-address` and unknown-network cases in `dash-probes.json`; exact branching in the cited files.\n\n**Recommendation:** require an explicit recognized network identity and bind returned resource identifiers wherever the response schema exposes them. Fail closed on missing/unknown identity metadata.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-FUN007",
+      "legacyId": "F10",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "an absolute “block height” can compile as a timestamp lock",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Location:** [policy.ts:107](../../apps/psbt-inspector/src/policy.ts#L107).\n\n`lockKind: 'height'` accepts 500,000,000 and 1,700,000,000 and describes them as block heights. CLTV interprets values at or above 500,000,000 as time-based locks. The program can therefore describe a substantially different spending condition from the script it emits.\n\n**Evidence:** `lock-height` in `independent-probes.json`. 499,999,999 was also tested as the boundary below the threshold.\n\n**Recommendation:** enforce the height/time discriminator in both form and core validation. Relative-block range and rounding relative seconds to 512-second units behaved correctly in the reviewed path. [BIP112](https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0112.mediawiki).",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-UI001",
+      "legacyId": "F11",
+      "category": "UI",
+      "kind": "finding",
+      "title": "two Deriver UI regressions hide or interrupt successfully requested operations",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**CoinJoin:** [controller.ts:1371](../../apps/key-derivation/src/ui/controller.ts#L1371) hides the main result section whenever any feature tab is active, including CoinJoin, which needs that section. Both browsers and both editions contain generated rows and a successful derivation status while the result section remains hidden.\n\n**BIP38:** [controller.ts:1727](../../apps/key-derivation/src/ui/controller.ts#L1727), [controller.ts:1819](../../apps/key-derivation/src/ui/controller.ts#L1819). Entering the password and pressing Enter in Chromium triggers the reproducible error “Superseded by a new BIP38 encryption request.” No encrypted rows remain visible. The change and Enter handlers share a reentrant start path, and the start routine disables the focused input before establishing the worker lifecycle. The same small two-key operation completes in Firefox. The event ordering is the likely mechanism; the browser-specific failure itself is confirmed.\n\n**Evidence:** `deriver-browser.json`, screenshots, and the existing browser regression log. Public test seed/password only.\n\n**Recommendation:** keep CoinJoin result rendering in the ordinary result path; guard/deduplicate an active BIP38 operation and test Enter/change/focus transitions. These observations do not establish a cryptographic BIP38 algorithm failure.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-BLD001",
+      "legacyId": "F12",
+      "category": "BLD",
+      "kind": "finding",
+      "title": "reproducible Docker wrapper checks an obsolete output path",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Location:** [build-reproducible.mjs:56](../../tooling/build-reproducible.mjs#L56), also line 61.\n\nThe full-build copy-out wrapper expects `release/SHA256SUMS` under the extracted dist directory. Current release assets are generated under `multi-chain-edition/release/` and `dash-community-edition/release/`. The wrapper will reject a correctly generated edition layout before replacing local dist.\n\n**Evidence:** static control-flow/path comparison, current generated bundle layout, and successful local edition-specific bundle verification. This is **not** a claim that a complete fresh Docker build was executed during this audit.\n\n**Recommendation:** derive copy-out validation from the same edition manifest used to create bundles. Existing container-configuration checks do not catch this mismatch.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-BLD002",
+      "legacyId": "F13",
+      "category": "BLD",
+      "kind": "finding",
+      "title": "the uncommitted audit suite and canonical check are not runnable as delivered",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Location:** [crypto-conformance.test.ts:4](../../apps/psbt-inspector/tests/independent-audit/crypto-conformance.test.ts#L4), lines 18–19 and 110.\n\nThe test imports a non-exported root type, passes an incompatible WASM buffer type, and uses a Taproot result overload lacking the accessed property. TypeScript reports three errors. Its WASM relative path resolves to `node_modules` **above** the repository, so its `beforeAll` fails and 327 cases do not run.\n\nA harness-only parent `node_modules` symlink allowed those tests to execute without source changes: **267 passed, 60 failed**. Failures combine real parser issues, explicitly unsupported compilation paths, and unreliable expectations. For example, one test assumes the Go oracle rejects an oversized origin step, but that oracle accepts it. Neither an AI-written test nor a second library is automatically correct.\n\nThe simple file browser suite also waits for a removed `#standard-path-details` control in the Deriver, causing four false failures. Independent basic derivation succeeds. The fuller browser suite reveals genuine CoinJoin/BIP38 failures but also has narrower verdict/error expectations and Chromium page-error issues described in the test section.\n\n**Recommendation:** fix the harness and explicitly classify unsupported functionality before using a green test count as release evidence. Keep invalid-input tests anchored to normative source text, not merely another parser's behavior.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-FUN008",
+      "legacyId": "F14",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "several valid descriptor/Miniscript paths remain inspection-only or unsupported",
+      "severity": "low",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Locations:** [descriptor.ts:483](../../apps/psbt-inspector/src/descriptor.ts#L483), [musig-descriptor.ts:180](../../apps/psbt-inspector/src/musig-descriptor.ts#L180), [miniscript-engine.ts:127](../../apps/psbt-inspector/src/miniscript-engine.ts#L127).\n\nOrdinary `tr()` script trees and MuSig descriptors with script branches are not fully compiled into output scripts by these entry points. Six fresh official BIP390 script-path expectations return no output script. The UI explicitly identifies compilation as unimplemented in relevant paths, so this is **not** evidence of an incorrectly computed Merkle root or tweak there.\n\nSeven valid Bitcoin Core Tapscript Miniscript compilation cases fail in the application ASM serializer because `<HASH160(32-byte-key)>` is unsupported; its special case only accepts 66 hex characters. Validity/type analysis may succeed before serialization fails.\n\n**Recommendation:** publish a precise supported-path matrix and implement missing output construction only with complete script/tree/control-block vectors. Keep unsupported output visibly unavailable.",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-004-DOC001",
+      "legacyId": "F15",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "a BIP45 documentation shortcut omits a meaningful derivation level",
+      "severity": "low",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "**Location:** [Inspector README:11](../../apps/psbt-inspector/README.md#L11).\n\n“Legacy multisig commonly uses m/45'/0” is too abbreviated as user guidance. BIP45 has purpose, cosigner index, change, and address index; it does not use the BIP44 account layout. Explain the complete hierarchy and what the shown zero means. Also distinguish wallet-specific legacy Purpose-48 variants from universal BIP48 interoperability. [BIP45](https://github.com/bitcoin/bips/blob/bfc142f2b580a314c846dbce3c15c659c2b1d32d/bip-0045.mediawiki).",
+      "evidence": {
+        "recordedIn": "audit-04-2026-09-12.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
+  ],
+  "observations": [],
+  "remediation": [],
+  "limitations": {
+    "recordedIn": "audit-04-2026-09-12.md",
+    "note": "Unknown execution details are not supplied by normalization."
+  },
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {}
+}

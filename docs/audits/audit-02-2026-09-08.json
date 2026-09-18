@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 1,
+  "auditId": "AUD-002",
+  "auditNumber": 2,
+  "date": "2026-09-08",
+  "title": "Expanded audit remediation — 2026-09-08",
+  "reviewer": {
+    "name": null,
+    "model": null,
+    "reasoningEffort": null,
+    "metadataNote": "Only reviewer metadata actually retained in the original report is used."
+  },
+  "snapshot": {
+    "commit": "6462c67d677ab73bea49051c3e3d866fcd157894",
+    "commitComplete": true,
+    "workingTree": "Remediation; final tested tree and commits are recorded in the original evidence.",
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
+  },
+  "scope": {
+    "recordedIn": "Markdown evidence sections",
+    "note": "Original scope and exclusions are preserved; no additional review coverage is claimed."
+  },
+  "checks": {
+    "recordedIn": "Markdown evidence sections"
+  },
+  "findings": [
+    {
+      "id": "AUD-002-API001",
+      "legacyId": "additional-ethereum-state",
+      "category": "API",
+      "kind": "finding",
+      "title": "Ethereum queries do not share an explicitly attributed block height",
+      "severity": null,
+      "status": "fixed",
+      "releaseBlocking": null,
+      "detail": "Fetch a head first, query each account batch at that explicit height, reject duplicate RPC IDs, and disclose multiple query heights rather than implying one wallet-wide snapshot. Remediation commit: bc22b91.",
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
+  ],
+  "observations": [],
+  "remediation": [
+    {
+      "id": "AUD-001-FUN001",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "59da4d9",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-API001",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "9390882",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-FUN002",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "cffd9e6",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-FUN003",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "b17b0a0",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-UI001",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "6ba2f47",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-API002",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "7d5abc0",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-FUN004",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "5a19749",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-API003",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "2eac901",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-API004",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "7750671",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-DOC001",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "98210ad",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-DOC002",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "4d75f95",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-DOC003",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "89b1563",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-001-BLD001",
+      "status": "fixed",
+      "recordedDisposition": "fixed",
+      "fixCommit": "e15bf15",
+      "verificationCommit": null,
+      "evidence": "audit-02-2026-09-08.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    }
+  ],
+  "limitations": {
+    "recordedIn": "audit-02-2026-09-08.md",
+    "note": "Unknown execution details are not supplied by normalization."
+  },
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {}
+}

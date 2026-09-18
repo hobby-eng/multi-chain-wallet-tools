@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 1,
+  "auditId": "AUD-012",
+  "auditNumber": 12,
+  "date": "2026-09-17",
+  "title": "Audit 12 — 2026-09-17",
+  "reviewer": {
+    "name": null,
+    "model": null,
+    "reasoningEffort": null,
+    "metadataNote": "Only reviewer metadata actually retained in the original report is used."
+  },
+  "snapshot": {
+    "commit": "6a8cf81",
+    "commitComplete": false,
+    "workingTree": "Dirty working tree, including pre-existing refactoring and UI changes.",
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
+  },
+  "scope": {
+    "recordedIn": "Markdown evidence sections",
+    "note": "Original scope and exclusions are preserved; no additional review coverage is claimed."
+  },
+  "checks": {
+    "recordedIn": "Markdown evidence sections"
+  },
+  "findings": [
+    {
+      "id": "AUD-012-FUN001",
+      "legacyId": "F-01",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "large witness transaction txid calculation throws",
+      "severity": null,
+      "status": "fixed",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "detail": "Location: `apps/psbt-inspector/src/transaction.ts:108`.\n\n`parsedTransactionId` constructs the non-witness serialization with `Uint8Array.of(...bytes)`. This expands the transaction into function arguments and hits the engine's argument limit well below the input-size ceiling.\n\nProbe: parse a synthetic witness transaction with 4,000 distinct inputs, empty scriptSigs, one output and a one-byte witness item per input; parsing succeeds, then txid calculation throws `RangeError: Maximum call stack size exceeded`. This demonstrates a parser/txid robustness failure, not that the synthetic transaction has valid spend signatures.\n\nFix: preallocate and use `set`, use a byte-concatenation helper, or hash the three serialization segments incrementally. Test against an independently constructed non-witness serialization.",
+      "evidence": {
+        "recordedIn": "audit-12-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-012-API001",
+      "legacyId": "F-02",
+      "category": "API",
+      "kind": "finding",
+      "title": "decoded PSBT size ceiling is not enforced for Base64",
+      "severity": null,
+      "status": "fixed",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "detail": "Location: `apps/psbt-inspector/src/psbt-binary.ts:88`.\n\nThe 32,000,000-character check approximates a hexadecimal limit but is also applied to Base64. Base64 can decode to almost 24 MB before this check rejects it. The message promises a 16 MiB decoded ceiling, and even the hexadecimal branch uses decimal MB instead of MiB.\n\nProbe: Base64 encoding of 17 × 1024 × 1024 zero bytes is accepted by `decodeText`, returning **17,825,792 bytes**. This tests the decoder's limit; it does not claim the zero buffer is a valid PSBT.\n\nFix: define one explicit byte limit, check each encoding's maximum input length before allocation, and enforce the decoded byte length in both branches.",
+      "evidence": {
+        "recordedIn": "audit-12-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-012-FUN002",
+      "legacyId": "F-03",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "witness flags are accepted without interpreting supported bits",
+      "severity": null,
+      "status": "fixed",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "detail": "Location: `apps/psbt-inspector/src/transaction.ts:39`.\n\nAny nonzero flag after the marker is treated as the ordinary witness flag. A synthetic flag-`0x02` transaction is accepted with `hasWitness: true`. The parser should reject unknown optional-data bits. It also does not retain whether all witness stacks were empty, which is needed to reject a superfluous witness serialization.\n\nReference: [Bitcoin Core transaction deserializer](https://github.com/bitcoin/bitcoin/blob/master/src/primitives/transaction.h) rejects remaining unknown flags and superfluous witness records; [BIP144](https://github.com/bitcoin/bips/blob/master/bip-0144.mediawiki) describes the flag bitvector and the empty-witness rule. The flag-`0x02` path was probed; the all-empty-stack path was identified by source inspection.\n\nFix: parse supported bits explicitly, reject remaining bits, track whether a witness stack is nonempty, and add positive/negative serialization cases.",
+      "evidence": {
+        "recordedIn": "audit-12-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-012-SEC001",
+      "legacyId": "F-04",
+      "category": "SEC",
+      "kind": "finding",
+      "title": "clipboard fallback leaves its temporary textarea after an exception",
+      "severity": null,
+      "status": "fixed",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "detail": "Location: `packages/export-core/src/clipboard.ts:15`.\n\nCleanup follows `temporary.select()` and `document.execCommand('copy')` without a `finally`. If either throws, the attached hidden textarea retains the copied text, potentially a mnemonic or private key.\n\nProbe with a minimal fake DOM and throwing `execCommand`: `removed: false`, `retainedValue: true`. This is an exceptional-path lifecycle issue, not evidence of network exfiltration.\n\nFix: place selection/copy in `try/finally`, clear the textarea value and remove the element in the cleanup path. Do not claim clearing a DOM reference wipes immutable JavaScript strings.",
+      "evidence": {
+        "recordedIn": "audit-12-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-012-SEC002",
+      "legacyId": "F-05",
+      "category": "SEC",
+      "kind": "finding",
+      "title": "backup cleanup still has exceptional-path gaps",
+      "severity": null,
+      "status": "fixed",
+      "releaseBlocking": null,
+      "legacyPriority": "P2",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "detail": "Locations:\n\n- `packages/recovery-backup/src/shamir.ts:253`: decoding all shares with `map` happens before the cleanup scope. If a later share fails to decode, earlier decoded shares do not reach explicit wiping.\n- `packages/recovery-backup/src/shamir.ts:274`: initialization occurs after allocating packed share bytes but before the packed-buffer `try/finally`.\n- `packages/recovery-backup/src/slip39.ts:323`: a throwing PBKDF2 call bypasses cleanup of its password and round-input buffers.\n- `packages/recovery-backup/src/slip39.ts:369`: a throwing `crypt` call bypasses the passphrase wipe.\n- `packages/recovery-backup/src/slip39.ts:248`: partial splitting/allocation failures also need an ownership-aware cleanup scope.\n\nThe earlier Shamir split-randomness fix is present and its test passes. These are additional paths, not a claim that the earlier fix was absent.\n\nProbe: replace only PBKDF2 at the in-memory bundling boundary with a throwing stub that retains its supplied password buffer. After `createSlip39Shares` fails, `passwordBufferWiped: false`. Other listed paths were confirmed by control-flow inspection.\n\nFix: begin cleanup scopes immediately after owning each allocation, decode incrementally inside the protected scope, and clean up partially created shares on failure. Preserve returned successful buffers and caller-owned inputs.",
+      "evidence": {
+        "recordedIn": "audit-12-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-012-DOC001",
+      "legacyId": "F-06",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "linked-source wording overstates isolation in Key Deriver",
+      "severity": null,
+      "status": "fixed",
+      "releaseBlocking": null,
+      "legacyPriority": "P3",
+      "classificationNote": "Historical priority is preserved separately; a severity grade is not invented where the original report recorded only priority.",
+      "detail": "Location: `apps/key-derivation/src/ui/recovery-workspace.ts:119`.\n\nThe tooltip says the source remains inside an “isolated vault.” In this tool, `app-bootstrap.ts` installs Derive and Recovery into the same document and transfers a callable `RecoverySourceReference.read()`. The key-derivation build embeds an offline document plus a derivation worker; it does not construct Discovery Scanner's separate sandboxed iframe.\n\nThe no-clipboard handoff is real, and the offline CSP is a separate protection. The text should accurately describe an in-memory reference inside the offline workspace unless a separate compartment is deliberately implemented. This is a misleading security description, not a demonstrated leak.",
+      "evidence": {
+        "recordedIn": "audit-12-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
+  ],
+  "observations": [],
+  "remediation": [],
+  "limitations": {
+    "recordedIn": "audit-12-2026-09-17.md",
+    "note": "Unknown execution details are not supplied by normalization."
+  },
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {}
+}

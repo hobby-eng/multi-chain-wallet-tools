@@ -1,15 +1,340 @@
 {
-  "model": null,
-  "reasoningEffort": null,
-  "reasoningEffortNote": "Model and effort were not recorded in the retained audit materials.",
-  "reviewedAt": "2026-09-08",
-  "reviewedCommit": "6462c67d677ab73bea49051c3e3d866fcd157894",
-  "releaseAtReview": "0.1.3",
+  "schemaVersion": 1,
+  "auditId": "AUD-001",
+  "auditNumber": 1,
+  "date": "2026-09-08",
+  "title": "Security and implementation audit baseline",
+  "reviewer": {
+    "name": null,
+    "model": null,
+    "reasoningEffort": null,
+    "metadataNote": "Model and effort were not recorded in the retained audit materials."
+  },
+  "snapshot": {
+    "commit": "6462c67d677ab73bea49051c3e3d866fcd157894",
+    "commitComplete": true,
+    "workingTree": null,
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
+  },
   "scope": "First-party application, integration, build and documentation code in both editions; mainnet and testnet paths.",
-  "excluded": [
+  "checks": {
+    "recordedIn": "No executed check details were retained in this record."
+  },
+  "findings": [
+    {
+      "id": "AUD-001-FUN001",
+      "legacyId": "A01",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "regressing Orchard proof heights",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "59da4d9",
+        "correctionAndRegressionEvidence": "Reject a page below the highest previously observed proof height, including empty pages, before applying it. Regression cases cover older partial, empty and final pages; monotonic tail refresh remains accepted.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-API001",
+      "legacyId": "A02",
+      "category": "API",
+      "kind": "finding",
+      "title": "explorer page offsets",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "9390882",
+        "correctionAndRegressionEvidence": "Keep page size constant for Core, Platform address and Identity history; reject inconsistent totals, premature short pages and repeated pages/transaction IDs as applicable. Offset-based fake providers return all 150 unique records with display limits 150 and 200.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-FUN002",
+      "legacyId": "A03",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "stale known-address search",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "cffd9e6",
+        "correctionAndRegressionEvidence": "Search owns its Worker, seed and revision. Relevant edits/Clear terminate the Worker, wipe the retained seed and suppress late matches/errors. Startup gating remains enforced.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-FUN003",
+      "legacyId": "A04",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "cancelled Orchard completion",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "b17b0a0",
+        "correctionAndRegressionEvidence": "Check cancellation after awaited page fetch/application and before completion. Always dispose late pages. Viewer reset revisions suppress old results, errors and completion messages after Clear.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-UI001",
+      "legacyId": "A05",
+      "category": "UI",
+      "kind": "finding",
+      "title": "Viewer operation ownership",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "6ba2f47",
+        "correctionAndRegressionEvidence": "Share query busy/readiness state between Dash and external-coin UI paths. Lock Coin and other query controls; route Clear/Cancel to the active operation; discard late external replies. Regression uses the real view and external controller, including startup failure gating.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-API002",
+      "legacyId": "A06",
+      "category": "API",
+      "kind": "finding",
+      "title": "timeout ends at headers",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "7d5abc0",
+        "correctionAndRegressionEvidence": "Await JSON parsing inside the HTTP cleanup boundary. Tests use stalled response streams to check caller cancellation and timeout after headers, plus cleanup after success.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-FUN004",
+      "legacyId": "A07",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "Ethereum contract deployment",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "5a19749",
+        "correctionAndRegressionEvidence": "Use `created_contract` when the normal recipient is null. Test exact value, duplicate root exclusion, sender fees, failed deployment and unrelated-address rejection.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-API003",
+      "legacyId": "A08",
+      "category": "API",
+      "kind": "finding",
+      "title": "descriptor path corruption",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "2eac901",
+        "correctionAndRegressionEvidence": "Replace only the trailing `/i` index placeholder. Tests cover four Bitcoin script formats, both branches, index 17 and exported relative paths.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-API004",
+      "legacyId": "A09",
+      "category": "API",
+      "kind": "finding",
+      "title": "prefixed SLIP-132 metadata",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "7750671",
+        "correctionAndRegressionEvidence": "Preserve inferred network and format for explicitly prefixed ypub/zpub/upub/vpub. Compare bare/prefixed scans and network routing.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-DOC001",
+      "legacyId": "DOC01",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "unsupported feature promises",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "98210ad",
+        "correctionAndRegressionEvidence": "Correct offline Ethereum derivation coverage, Identity funding scope and IVK spendability wording.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-DOC002",
+      "legacyId": "DOC02",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "automatically renewed audit date",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "4d75f95",
+        "correctionAndRegressionEvidence": "Separate immutable reviewed commit/date from release metadata. A simulated release bump must leave audit evidence unchanged. Withdraw unpinned historical test counts as current-status evidence.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-DOC003",
+      "legacyId": "DOC03",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "stale descriptions",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "89b1563",
+        "correctionAndRegressionEvidence": "Correct release-only Dash distribution, actual cross-application imports, batch-size text, selected-coin behavior, scope handling and known seed/key limitations.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-001-BLD001",
+      "legacyId": "T01",
+      "category": "BLD",
+      "kind": "finding",
+      "title": "compiled WASM positive fixtures",
+      "severity": null,
+      "status": "open",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-02-2026-09-08.md",
+        "remediationCommit": "e15bf15",
+        "correctionAndRegressionEvidence": "Require real External/Internal ciphertext recovery through generated WASM; exact value/address/memo, exact Internal nullifier, IVK/OVK restrictions, wrong-key rejection, key-buffer clearing and ledger spend reconstruction. Strengthen the native Internal test.",
+        "note": "Details retained by the subsequent remediation record; original baseline only lists identifiers."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
+  ],
+  "observations": [],
+  "remediation": [],
+  "limitations": [
     "Third-party dependency source audit",
     "Independent cryptographic proof",
     "Real-browser file URL acceptance (pending)"
   ],
-  "outcome": "Findings A01-A09, DOC01-DOC03 and test gap T01 recorded; this baseline is not a clean bill of health or approval of later commits."
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {
+    "model": null,
+    "reasoningEffort": null,
+    "reasoningEffortNote": "Model and effort were not recorded in the retained audit materials.",
+    "reviewedAt": "2026-09-08",
+    "reviewedCommit": "6462c67d677ab73bea49051c3e3d866fcd157894",
+    "releaseAtReview": "0.1.3",
+    "excluded": [
+      "Third-party dependency source audit",
+      "Independent cryptographic proof",
+      "Real-browser file URL acceptance (pending)"
+    ],
+    "outcome": "Findings AUD-001-FUN001, AUD-001-API001, AUD-001-FUN002, AUD-001-FUN003, AUD-001-UI001, AUD-001-API002, AUD-001-FUN004, AUD-001-API003, AUD-001-API004, AUD-001-DOC001, AUD-001-DOC002, AUD-001-DOC003 and test gap AUD-001-BLD001 recorded; this baseline is not a clean bill of health or approval of later commits."
+  }
 }

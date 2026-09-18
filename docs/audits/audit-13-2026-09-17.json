@@ -1,36 +1,126 @@
 {
-  "schema": "independent-audit-report/1",
-  "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
-  "model": "claude-fable-5-1",
-  "reasoningEffort": null,
-  "reasoningEffortNote": "Not recorded by the reviewing client.",
+  "schemaVersion": 1,
+  "auditId": "AUD-013",
+  "auditNumber": 13,
   "date": "2026-09-17",
-  "timeUtc": "10:39-11:15",
-  "commit": "6bbff3c",
-  "treeClean": true,
+  "title": "Audit 13 — 2026-09-17 (independent review of commit 6bbff3c)",
+  "reviewer": {
+    "name": "Claude Fable 5.1 (claude-fable-5-1)",
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "metadataNote": "Not recorded by the reviewing client."
+  },
+  "snapshot": {
+    "commit": "6bbff3c",
+    "commitComplete": false,
+    "workingTree": "clean",
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
+  },
+  "scope": {
+    "recordedIn": "Markdown evidence sections",
+    "note": "Original scope and exclusions are preserved; no additional review coverage is claimed."
+  },
+  "checks": {
+    "tsc": "pass",
+    "tscUnused": "0 errors",
+    "vitest": {
+      "files": 127,
+      "tests": 1267,
+      "failed": 0
+    },
+    "format": "pass",
+    "pnpmAudit": "clean",
+    "localVerify": "FAIL (AUD-013-BLD001)",
+    "dockerNoCache": "FAIL at pnpm verify (AUD-013-BLD001)",
+    "browserFiles": "16/16",
+    "browserRegressions": "42/42",
+    "browserSelective": "4/4",
+    "probes": {
+      "sskrBcr2020011": "pass",
+      "gordianEnvelope": "pass",
+      "descriptorPsbtRegressions": "pass"
+    },
+    "selectiveBuilds": {
+      "built": 13,
+      "brokenAtRuntime": ["scanner seed-discovery without custom-paths (3 variants)"]
+    },
+    "matrix": {
+      "total": 12116,
+      "smoke": 66
+    }
+  },
   "findings": [
     {
-      "id": "H-01",
-      "severity": "High",
+      "id": "AUD-013-BLD001",
+      "severity": "high",
       "title": "Deriver artifact verifier lists UI labels as required element ids; pnpm verify and Docker fail",
       "file": "apps/key-derivation/scripts/verify-key-derivation-artifact.mjs",
-      "lines": "134-135"
+      "lines": "134-135",
+      "legacyId": "H-01",
+      "category": "BLD",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **File:** [apps/key-derivation/scripts/verify-key-derivation-artifact.mjs:134-135](../../apps/key-derivation/scripts/verify-key-derivation-artifact.mjs#L134) — the required-id list contains `'Mnemonic construction details'` and `'BIP39 entropy · hexadecimal'`. Both are UI strings (`view.ts:382` sets them as `<summary>` text at runtime); the same strings correctly appear in the *required text* list at lines 247–248.\n- **Observed:** local `VERIFICATION_DIRTY=false pnpm verify` → `Error: Standalone artifact is missing required element #Mnemonic construction details.` (exit 1, after all builds succeeded). Uncached `docker build --target artifacts` for `6bbff3c` fails at `Dockerfile.reproducible` `RUN --network=none pnpm verify` with the same message (10:46 UTC).\n- **Impact:** no canonical artifacts, `verification-record.json`, CI green, or release from this commit. The artifacts themselves are fine (16/16 and 42/42 browser cases pass on them).\n- **Fix:** remove the two strings from the id list (they remain in the text list); add a unit test that every entry of the id list matches `/^[a-z0-9-]+$/`.",
+      "evidence": {
+        "recordedIn": "audit-13-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
     },
     {
-      "id": "M-01",
-      "severity": "Medium",
+      "id": "AUD-013-BLD002",
+      "severity": "medium",
       "title": "Discovery Scanner builds with seed-discovery but without custom-paths crash at startup (features.describeCustomPath!)",
       "file": "apps/discovery-scanner/src/view.ts",
-      "lines": "378-385"
+      "lines": "378-385",
+      "legacyId": "M-01",
+      "category": "BLD",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **Files:** [apps/discovery-scanner/src/view.ts:378-385](../../apps/discovery-scanner/src/view.ts#L378) (`features.describeCustomPath!(…)` inside the path-refresh routine executed during view initialisation), [apps/discovery-scanner/src/feature-selection.ts](../../apps/discovery-scanner/src/feature-selection.ts) (optional-function bag), [tooling/discovery-composition.mjs:257-264](../../tooling/discovery-composition.mjs#L257) (omits the functions when the feature is excluded).\n- **Observed:** `--tool discovery-scanner --coins dash --features seed-discovery`, `--coins bitcoin,dash,ethereum --features seed-discovery` and `--coins dash --features seed-discovery,watch-only-discovery` all build, but Chromium raises `TypeError: n.describeCustomPath is not a function` and the vault self-test never passes. Adding `custom-paths` or building watch-only-only works.\n- **Why tests missed it:** the 66-variant smoke matrix compiles without loading; `verify-selective-browser-smoke.mjs` loads only Activity Viewer variants. `docs/BUILD_MODULES.md` lists `custom-paths` as an independent optional feature, so this composition is documented as valid.\n- **Fix:** guard the custom-path refresh with `features.customPaths` (or move the custom-path controls into their own installer, see §5), and extend the selective browser smoke to one Scanner variant per feature subset and one Deriver variant per feature.",
+      "evidence": {
+        "recordedIn": "audit-13-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
     },
     {
-      "id": "M-02",
-      "severity": "Medium",
-      "title": "Dead entrypoints kept by allow-list strings: network-worker.ts, network-worker-dash-community.ts, secret-vault/vault-protocol.ts"
+      "id": "AUD-013-ARC001",
+      "severity": "medium",
+      "title": "Dead entrypoints kept by allow-list strings: network-worker.ts, network-worker-dash-community.ts, secret-vault/vault-protocol.ts",
+      "legacyId": "M-02",
+      "category": "ARC",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- `apps/discovery-scanner/src/network-worker.ts` and `apps/discovery-scanner/src/network-worker-dash-community.ts`: since `f064ce3` the Network Worker source is generated in memory (`discoveryNetworkWorkerEntry`, esbuild `stdin`), so neither file is imported or bundled. They are referenced only by `build-discovery-scanner-html.mjs:166` (`input.endsWith('/network-worker.ts')`) and `verify-discovery-scanner-artifact.mjs:399`, i.e. the graph allow-list names inputs that can never occur. The Dash file still hard-wires `DirectRecoveryNetworkService` with the full 14-operation validator, contradicting the generated-allowlist design if anyone ever wired it back.\n- `packages/secret-vault/src/vault-protocol.ts`: `DEFAULT_VAULT_RUNTIME_OPTIONS` has no consumer; the file is referenced only as a string in `build-profiles.mjs`. The package's `tests/` directory is empty after `createVaultChannel` was removed.\n- **Fix:** delete the three files, drop the corresponding allow-list entries, and make the graph allow-lists fail if an entry names a file that does not exist.",
+      "evidence": {
+        "recordedIn": "audit-13-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
     },
     {
-      "id": "L-01",
-      "severity": "Low",
+      "id": "AUD-013-ARC002",
+      "severity": "low",
       "title": "37 exported functions/constants and 127 exported types without external consumers",
       "unusedExports": [
         {
@@ -689,78 +779,137 @@
           "file": "tooling/verify-dash-community-artifacts.mjs",
           "name": "verifyDashCommunityArtifacts"
         }
-      ]
+      ],
+      "legacyId": "L-01",
+      "category": "ARC",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "Static scan (whole-word references across `apps`, `packages`, `tooling`, tests, HTML and generated-source templates): 37 exported functions/constants and 127 exported types have no consumer outside their own file. Representative functions: `descriptor-policy.ts` exports 22 helpers of which `collectKeys`, `collectLocks`, `collectPreimages`, `combinePaths`, `describedKey`, `nodeText`, `pathAlternatives`, `treeLabel`, `unwrapWrapper` are internal-only; `multisig-wallet.ts` `parseAccountXpub`, `descriptorWithChecksum`; `psbt-binary.ts` `decodeType`; `preimage.ts` `hashlockCommitment`; `crypto-core/bip39.ts` `normalizeMnemonic`, `BIP39_WORD_COUNTS`; `dash/identity.ts` `deriveDashIdentityKey`; `network-boundary/client.ts` `attachNetworkBoundaryPort`; `shared-ui/qr-image-import.ts` `decodeQrImage`; `wallet-recovery/watch-only.ts` `WATCH_ONLY_PREFIX_COINS`; `scan-estimate.ts` `estimateConcurrency`. All are used internally, so nothing is unreachable; `noUnusedLocals` cannot see this. Exports in `tooling/*-composition.mjs` that look unused are consumed by generated source strings and are not in this list. Full list in the JSON twin.",
+      "evidence": {
+        "recordedIn": "audit-13-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
     },
     {
-      "id": "L-02",
-      "severity": "Low",
-      "title": "module-boundaries test alias map omits recovery-backup, wasm, self-test and build-info aliases"
+      "id": "AUD-013-BLD003",
+      "severity": "low",
+      "title": "module-boundaries test alias map omits recovery-backup, wasm, self-test and build-info aliases",
+      "legacyId": "L-02",
+      "category": "BLD",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "[tooling/module-boundaries.test.mjs](../../tooling/module-boundaries.test.mjs) maps 11 aliases; `@ckd/recovery-backup`, `@ckd/recovery-{shamir,codex32,sskr,envelope}-wasm`, `@ckd/self-test*` and `@ckd/build-info` are absent, so edges through them (e.g. `recovery-backup → verification` via `@ckd/self-test-types`) are invisible to the cycle check. No cycle exists today (graph verified manually: `recovery-backup → core, verification, 4×wasm`).",
+      "evidence": {
+        "recordedIn": "audit-13-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
     },
     {
-      "id": "L-03",
-      "severity": "Low",
-      "title": "sskr.ts and gordian-envelope.ts initialise WASM at import time (inconsistent with lazy init elsewhere)"
+      "id": "AUD-013-ARC003",
+      "severity": "low",
+      "title": "sskr.ts and gordian-envelope.ts initialise WASM at import time (inconsistent with lazy init elsewhere)",
+      "legacyId": "L-03",
+      "category": "ARC",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "Both call `initSync({ module })` at module load, unlike `shamir.ts`/`codex32.ts` (lazy `initialize()`). In a Deriver that includes these features the two modules are instantiated during page startup whether or not the user opens the workspace; it also makes the modules unmockable without `vi.mock` of the `.wasm` import. Harmless functionally; inconsistent.",
+      "evidence": {
+        "recordedIn": "audit-13-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
     },
     {
-      "id": "L-04",
-      "severity": "Low",
-      "title": "Docs: audits README separator; Argon2id defaults undocumented; ambient getrandom in new crates; RELEASING lacks new gates"
+      "id": "AUD-013-DOC001",
+      "severity": "low",
+      "title": "Docs: audits README separator; Argon2id defaults undocumented; ambient getrandom in new crates; RELEASING lacks new gates",
+      "legacyId": "L-04",
+      "category": "DOC",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "1. `docs/audits/README.md` lists entry 12 with a different separator than entries 1–11 (cosmetic).\n2. `SECURITY_AUDIT.md:51` describes the Gordian password permit as Argon2id but not its strength: the pinned `bc-components` `Argon2idParams` stores only a 16-byte random salt and uses the `argon2` crate defaults (19 MiB memory, 2 iterations, 1 lane). This is the Blockchain Commons interoperability default and cannot be raised without breaking `ur:envelope` compatibility; users should be told that the container password must carry the entropy.\n3. `docs/ARCHITECTURE.md:42-45`: the Shamir entry says the module \"never selects an ambient RNG\"; the two new crates enable `getrandom` with browser features because `bc-envelope` draws salts/content keys itself (from WebCrypto). Accurate for Shamir, but the difference should be stated once.\n4. `RELEASING.md` does not mention `verify:wasm-producers` or `test:browser:selective` although both are now release gates in CI.\n\n### Informational\n\n- The in-commit `docs/audits/audit-12-2026-09-17.md` findings AUD-012-FUN001…AUD-012-DOC001 were verified as fixed: txid uses `concatBytes`; hex and Base64 both enforce the 16 MiB ceiling (probe: 17 MiB Base64 rejected); witness flag `0x02` rejected; clipboard fallback clears in `finally`; Shamir/SLIP-39 cleanup scopes present; recovery-workspace copy corrected. The two unused helpers and `createVaultChannel` are gone; `emptyHistory`/CSV/CompactSize duplicates are consolidated.\n- Committed WASM producers are the canonical `0.2.128` string for all five modules; `verify-wasm-producers` is in the verify chain.\n- Security greps over sources and all eight canonical artifacts: no `localStorage`/`sessionStorage`/`indexedDB`/cookies/`eval`/`new Function`/`innerHTML`/`XMLHttpRequest`/`WebSocket`/`EventSource`; one `fetch` site (`network-boundary/bounded-fetch.ts`); CSPs unchanged from audit 11 (offline tools `connect-src 'none'`, scanner vault `worker-src 'none'`, `sandbox=\"allow-scripts\"`), non-Dash connected builds pin provider origins.",
+      "evidence": {
+        "recordedIn": "audit-13-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
     }
   ],
-  "checks": {
-    "tsc": "pass",
-    "tscUnused": "0 errors",
-    "vitest": {
-      "files": 127,
-      "tests": 1267,
-      "failed": 0
-    },
-    "format": "pass",
-    "pnpmAudit": "clean",
-    "localVerify": "FAIL (H-01)",
-    "dockerNoCache": "FAIL at pnpm verify (H-01)",
-    "browserFiles": "16/16",
-    "browserRegressions": "42/42",
-    "browserSelective": "4/4",
-    "probes": {
-      "sskrBcr2020011": "pass",
-      "gordianEnvelope": "pass",
-      "descriptorPsbtRegressions": "pass"
-    },
-    "selectiveBuilds": {
-      "built": 13,
-      "brokenAtRuntime": [
-        "scanner seed-discovery without custom-paths (3 variants)"
-      ]
-    },
-    "matrix": {
-      "total": 12116,
-      "smoke": 66
-    }
-  },
-  "audit12Status": "F-01..F-06 fixed; unused helpers removed; duplicates consolidated",
-  "decompositionRecommendations": [
-    "Scanner: installer-per-feature instead of optional-function bag",
-    "split 3 large closures into session/state/panel modules aligned with feature flags",
-    "single feature manifest per tool feeding builder, allow-list, verifier, smoke, docs",
-    "migrate or drop the unused network-boundary protocol split",
-    "shared export writers in export-core",
-    "split dash-network identity transport/decoder/reconstruction"
-  ],
-  "testsToAdd": [
-    "verifier id-shape self-check",
-    "scanner/deriver selective browser smoke per feature",
-    "allow-list path existence",
-    "aliases derived from tsconfig",
-    "SSKR/Bytewords official vectors + negatives",
-    "Envelope negative cases",
-    "unused-export lint"
-  ],
-  "notPerformed": [
+  "observations": [],
+  "remediation": [],
+  "limitations": [
     "live providers",
     "headed browsers",
     "exhaustive matrix",
     "WASM regeneration",
     "Core RPC round trips"
-  ]
+  ],
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "reasoningEffortNote": "Not recorded by the reviewing client.",
+    "date": "2026-09-17",
+    "timeUtc": "10:39-11:15",
+    "commit": "6bbff3c",
+    "treeClean": true,
+    "audit12Status": "AUD-012-FUN001, AUD-012-API001, AUD-012-FUN002, AUD-012-SEC001, AUD-012-SEC002, AUD-012-DOC001 fixed; unused helpers removed; duplicates consolidated",
+    "decompositionRecommendations": [
+      "Scanner: installer-per-feature instead of optional-function bag",
+      "split 3 large closures into session/state/panel modules aligned with feature flags",
+      "single feature manifest per tool feeding builder, allow-list, verifier, smoke, docs",
+      "migrate or drop the unused network-boundary protocol split",
+      "shared export writers in export-core",
+      "split dash-network identity transport/decoder/reconstruction"
+    ],
+    "testsToAdd": [
+      "verifier id-shape self-check",
+      "scanner/deriver selective browser smoke per feature",
+      "allow-list path existence",
+      "aliases derived from tsconfig",
+      "SSKR/Bytewords official vectors + negatives",
+      "Envelope negative cases",
+      "unused-export lint"
+    ],
+    "notPerformed": [
+      "live providers",
+      "headed browsers",
+      "exhaustive matrix",
+      "WASM regeneration",
+      "Core RPC round trips"
+    ],
+    "originalSchema": "independent-audit-report/1"
+  }
 }

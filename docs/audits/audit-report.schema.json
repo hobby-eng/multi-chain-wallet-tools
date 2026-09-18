@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hobby-eng/multi-chain-wallet-tools/blob/main/docs/audits/audit-report.schema.json",
+  "title": "Canonical audit record",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "auditId",
+    "auditNumber",
+    "date",
+    "title",
+    "reviewer",
+    "snapshot",
+    "scope",
+    "checks",
+    "findings",
+    "observations",
+    "remediation",
+    "limitations"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "auditId": { "type": "string", "pattern": "^AUD-[0-9]{3,}$" },
+    "auditNumber": { "type": "integer", "minimum": 1 },
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "title": { "type": "string", "minLength": 1 },
+    "reviewer": {
+      "type": "object",
+      "required": ["name", "model", "reasoningEffort"],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "model": { "type": ["string", "null"] },
+        "reasoningEffort": { "type": ["string", "null"] }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "required": ["commit", "workingTree"],
+      "properties": {
+        "commit": { "type": ["string", "null"], "pattern": "^[0-9a-f]{7,40}$" },
+        "commitComplete": { "type": "boolean" },
+        "workingTree": { "type": ["string", "object", "array", "null"] },
+        "sourceFingerprint": { "type": ["string", "null"] }
+      }
+    },
+    "scope": { "type": ["string", "array", "object"] },
+    "checks": { "type": ["array", "object"] },
+    "findings": {
+      "type": "array",
+      "items": { "allOf": [{ "$ref": "#/$defs/record" }, { "properties": { "kind": { "const": "finding" } } }] }
+    },
+    "observations": {
+      "type": "array",
+      "items": { "allOf": [{ "$ref": "#/$defs/record" }, { "properties": { "kind": { "const": "observation" } } }] }
+    },
+    "remediation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "fixCommit", "verificationCommit", "evidence"],
+        "properties": {
+          "id": { "$ref": "#/$defs/findingId" },
+          "status": { "$ref": "#/$defs/status" },
+          "fixCommit": { "type": ["string", "null"] },
+          "verificationCommit": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "limitations": { "type": ["string", "array", "object"] },
+    "normalization": { "type": "object" },
+    "historicalEvidence": { "type": "object" }
+  },
+  "$defs": {
+    "findingId": { "type": "string", "pattern": "^AUD-[0-9]{3,}-(SEC|FUN|API|BLD|DOC|UI|ARC)[0-9]{3,}$" },
+    "status": {
+      "enum": ["open", "fixed", "verified", "deferred", "accepted", "not-reproduced", "withdrawn", "duplicate", null]
+    },
+    "record": {
+      "type": "object",
+      "required": [
+        "id",
+        "category",
+        "kind",
+        "title",
+        "severity",
+        "status",
+        "releaseBlocking",
+        "evidence",
+        "reproduction",
+        "expected",
+        "observed",
+        "impact",
+        "recommendedFix",
+        "requiredVerification"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/findingId" },
+        "category": { "enum": ["SEC", "FUN", "API", "BLD", "DOC", "UI", "ARC"] },
+        "kind": { "enum": ["finding", "observation"] },
+        "title": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["critical", "high", "medium", "low", "info", null] },
+        "status": { "$ref": "#/$defs/status" },
+        "releaseBlocking": { "type": ["boolean", "null"] },
+        "legacyId": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,31 +1,48 @@
 {
-  "schema": "independent-audit-report/1",
-  "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
-  "model": "claude-fable-5-1",
-  "reasoningEffort": null,
-  "reasoningEffortNote": "Not recorded by the reviewing client.",
+  "schemaVersion": 1,
+  "auditId": "AUD-011",
+  "auditNumber": 11,
   "date": "2026-09-15",
-  "timeUtc": "19:02-19:20",
-  "commit": "cdce70cb531f4da5d46c6ac321ff7de9dd8e12a9",
-  "treeClean": false,
-  "uncommitted": {
-    "modified": 28,
-    "untracked": 5
+  "title": "Independent fix verification — 2026-09-15 (uncommitted fixes on top of cdce70cb)",
+  "reviewer": {
+    "name": "Claude Fable 5.1 (claude-fable-5-1)",
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "metadataNote": "Not recorded by the reviewing client."
   },
-  "previousFindings": {
-    "F-01": "fixed (rust-toolchain.mjs + test; container verify layer passes)",
-    "F-02": "fixed (balanced element replacement; selective smoke 4/4)",
-    "F-03": "fixed (assertSafeCustomOutput + test)",
-    "F-04": "fixed (codex32Failure mapping)",
-    "F-05": "fixed (Shamir v2 secret digest; v1 readable)",
-    "F-06": "fixed (seed controls removed; residual copy)",
-    "F-07": "mitigated (autocomplete off, explicit default; 16/16 x2)",
-    "F-08": "fixed (docs updated)"
+  "snapshot": {
+    "commit": "cdce70cb531f4da5d46c6ac321ff7de9dd8e12a9",
+    "commitComplete": true,
+    "workingTree": "dirty; original evidence retained below",
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
   },
-  "newFindings": [
+  "scope": {
+    "recordedIn": "Markdown evidence sections",
+    "note": "Original scope and exclusions are preserved; no additional review coverage is claimed."
+  },
+  "checks": {
+    "tsc": "pass",
+    "vitest": {
+      "files": 113,
+      "tests": 1227,
+      "failed": 0
+    },
+    "format": "pass",
+    "localVerify": "pass (dirty)",
+    "pnpmAudit": "clean",
+    "dockerCached": "pass (not authoritative)",
+    "dockerNoCache": "FAIL at WASM diff (AUD-011-BLD001); verify+matrix smoke+record layers pass",
+    "browserFiles": "16/16",
+    "browserRegressions": "42/42",
+    "browserSelective": "4/4",
+    "probes": "15/15",
+    "selectiveBuilds": "CSP pinned, seed markup removed, output guard enforced"
+  },
+  "findings": [
     {
-      "id": "N-01",
-      "severity": "High",
+      "id": "AUD-011-BLD001",
+      "severity": "high",
       "title": "Committed WASM not canonical: producers '0.2.128 (92201b377)' vs container '0.2.128'; uncached Docker build fails at WASM diff",
       "files": [
         "packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm",
@@ -42,48 +59,195 @@
         "orchard": "5e435465830f",
         "shamir": "76b37c44f3d0",
         "codex32": "c4918fc37401"
-      }
-    },
-    {
-      "id": "N-02",
-      "severity": "Informational",
-      "title": "CI does not run test:browser:selective"
-    },
-    {
-      "id": "N-03",
-      "severity": "Informational",
-      "title": "Fixes uncommitted; verification record dirty"
-    },
-    {
-      "id": "N-04",
-      "severity": "Informational",
-      "title": "Residual seed wording in watch-only scanner copy"
+      },
+      "legacyId": "N-01",
+      "category": "BLD",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **Files:** `packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm`, `packages/recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm`, `packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm` (all last changed in commit `f064ce3`, \"feat: modularize selectable wallet tool builds\").\n- **Observed:** `docker build --no-cache … --target artifacts` (19:06–19:12 UTC) passes every verification layer and then fails at `Dockerfile.reproducible:73` (`diff --recursive --brief /tmp/committed-generated/dash …`): `Files … dash_shielded_wasm_bg.wasm differ`. Extracting the container's regenerated files (`--target built`) shows all three `.wasm` differ from HEAD by 12 bytes each while every `.js`/`.d.ts` file is identical. The only differing content is the WebAssembly `producers` section: HEAD carries `0.2.128 (92201b377)` (a wasm-bindgen CLI built from a Git checkout), the container carries `0.2.128` (the crates.io CLI installed by the Dockerfile). At the previously audited commit `d978dd4d` the Orchard binary was `defbee28…` with producer `0.2.128`, i.e. canonical; commit `c46b179` (\"Match crates.io CLI producer metadata in committed WASM\") had already fixed this exact issue once, and `f064ce3` reintroduced it for Orchard and shipped the two new modules the same way.\n- **Impact:** CI, the release workflow and `./tooling/build-reproducible.sh` fail on this tree; no canonical artifacts or attestations can be produced. Functionally the binaries are equivalent (same code sections; local and container builds pass all tests), so this is a provenance/reproducibility defect, not a behavioural one.\n- **Note on the earlier cached build:** a cached `docker build` at 19:02 UTC reported success because BuildKit reused a `verified` layer produced from a context that contained the container-matching binaries; that run is not evidence for the current tree.\n- **Correction:** regenerate the three modules through the canonical path (`./tooling/build-reproducible.sh --wasm`) and commit those bytes (they equal the `defbee28…`/`3fe873ac…`/`afeb2474…` files seen in the working tree at 19:02 UTC), then re-run the uncached Docker build. Add a check to `verify-shielded-wasm`/artifact verification that the `producers` section of every committed `.wasm` equals the pinned CLI string, so a locally regenerated binary fails fast without Docker.",
+      "evidence": {
+        "recordedIn": "audit-11-2026-09-15.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
     }
   ],
-  "checks": {
-    "tsc": "pass",
-    "vitest": {
-      "files": 113,
-      "tests": 1227,
-      "failed": 0
+  "observations": [
+    {
+      "id": "AUD-011-BLD002",
+      "severity": "info",
+      "title": "CI does not run test:browser:selective",
+      "legacyId": "N-02",
+      "category": "BLD",
+      "kind": "observation",
+      "status": null,
+      "releaseBlocking": null,
+      "detail": "`.github/workflows/ci.yml` and `release.yml` run `test:browser:files` and `test:browser:regressions` only; `pnpm test:browser:selective` (the guard for AUD-010-BLD002) is documented but not wired into CI. The Docker layer runs `build:matrix:smoke`, which compiles but does not open artifacts.",
+      "evidence": {
+        "recordedIn": "audit-11-2026-09-15.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
     },
-    "format": "pass",
-    "localVerify": "pass (dirty)",
-    "pnpmAudit": "clean",
-    "dockerCached": "pass (not authoritative)",
-    "dockerNoCache": "FAIL at WASM diff (N-01); verify+matrix smoke+record layers pass",
-    "browserFiles": "16/16",
-    "browserRegressions": "42/42",
-    "browserSelective": "4/4",
-    "probes": "15/15",
-    "selectiveBuilds": "CSP pinned, seed markup removed, output guard enforced"
+    {
+      "id": "AUD-011-BLD003",
+      "severity": "info",
+      "title": "Fixes uncommitted; verification record dirty",
+      "legacyId": "N-03",
+      "category": "BLD",
+      "kind": "observation",
+      "status": null,
+      "releaseBlocking": null,
+      "detail": "All fixes exist only in the working tree (28 modified, 5 untracked files). Any verification record produced now is `dirty: true` and cannot serve as release evidence until the changes are committed and the Docker build passes.",
+      "evidence": {
+        "recordedIn": "audit-11-2026-09-15.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-011-DOC001",
+      "severity": "info",
+      "title": "Residual seed wording in watch-only scanner copy",
+      "legacyId": "N-04",
+      "category": "DOC",
+      "kind": "observation",
+      "status": null,
+      "releaseBlocking": null,
+      "detail": "The watch-only-only scanner still contains explanatory copy such as \"use your seed phrase and original BIP39 passphrase\" and the BIP39 validation routine used by the public-input guard (no wordlist, no seed derivation). Harmless; tidy the copy when convenient.",
+      "evidence": {
+        "recordedIn": "audit-11-2026-09-15.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
+  ],
+  "remediation": [
+    {
+      "id": "AUD-010-BLD001",
+      "status": "fixed",
+      "recordedDisposition": "fixed (rust-toolchain.mjs + test; container verify layer passes)",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-11-2026-09-15.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-010-BLD002",
+      "status": "fixed",
+      "recordedDisposition": "fixed (balanced element replacement; selective smoke 4/4)",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-11-2026-09-15.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-010-BLD003",
+      "status": "fixed",
+      "recordedDisposition": "fixed (assertSafeCustomOutput + test)",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-11-2026-09-15.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-010-API001",
+      "status": "fixed",
+      "recordedDisposition": "fixed (codex32Failure mapping)",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-11-2026-09-15.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-010-FUN001",
+      "status": "fixed",
+      "recordedDisposition": "fixed (Shamir v2 secret digest; v1 readable)",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-11-2026-09-15.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-010-BLD004",
+      "status": "fixed",
+      "recordedDisposition": "fixed (seed controls removed; residual copy)",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-11-2026-09-15.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-010-UI001",
+      "status": "open",
+      "recordedDisposition": "mitigated (autocomplete off, explicit default; 16/16 x2)",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-11-2026-09-15.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    },
+    {
+      "id": "AUD-010-DOC001",
+      "status": "fixed",
+      "recordedDisposition": "fixed (docs updated)",
+      "fixCommit": null,
+      "verificationCommit": null,
+      "evidence": "audit-11-2026-09-15.md",
+      "note": "Disposition in this historical follow-up, not a claim about the current code; partial mitigation remains open."
+    }
+  ],
+  "limitations": {
+    "recordedIn": "audit-11-2026-09-15.md",
+    "note": "Unknown execution details are not supplied by normalization."
   },
-  "docConformance": "BUILD_MODULES, SECURITY_AUDIT, BROWSER_ACCEPTANCE claims verified against code/artifacts",
-  "recommendations": [
-    "regenerate canonical WASM via build-reproducible.sh --wasm and commit; add producers check",
-    "commit fixes and regenerate release evidence",
-    "wire test:browser:selective into CI",
-    "Firefox flake root cause",
-    "trim residual seed copy"
-  ]
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "reasoningEffortNote": "Not recorded by the reviewing client.",
+    "date": "2026-09-15",
+    "timeUtc": "19:02-19:20",
+    "commit": "cdce70cb531f4da5d46c6ac321ff7de9dd8e12a9",
+    "treeClean": false,
+    "uncommitted": {
+      "modified": 28,
+      "untracked": 5
+    },
+    "docConformance": "BUILD_MODULES, SECURITY_AUDIT, BROWSER_ACCEPTANCE claims verified against code/artifacts",
+    "recommendations": [
+      "regenerate canonical WASM via build-reproducible.sh --wasm and commit; add producers check",
+      "commit fixes and regenerate release evidence",
+      "wire test:browser:selective into CI",
+      "Firefox flake root cause",
+      "trim residual seed copy"
+    ],
+    "originalSchema": "independent-audit-report/1"
+  }
 }

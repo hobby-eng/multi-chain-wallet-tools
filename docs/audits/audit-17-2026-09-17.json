@@ -1,13 +1,22 @@
 {
-  "audit": 17,
+  "schemaVersion": 1,
+  "auditId": "AUD-017",
+  "auditNumber": 17,
   "date": "2026-09-17",
-  "completedAt": "2026-09-17T15:08:00Z",
   "title": "API, data-flow and export audit",
-  "model": "gpt-5.6-sol",
-  "reasoningEffort": "xhigh",
-  "reasoningEffortLabel": "Extra High",
-  "projectHead": "64868886fe8aaf0121e62e57da065913a1afef76",
-  "productionCodeChanged": false,
+  "reviewer": {
+    "name": "OpenAI Codex",
+    "model": "gpt-5.6-sol",
+    "reasoningEffort": "xhigh",
+    "metadataNote": "Only reviewer metadata actually retained in the original report is used."
+  },
+  "snapshot": {
+    "commit": "64868886fe8aaf0121e62e57da065913a1afef76",
+    "commitComplete": true,
+    "workingTree": "Clean before report edits.",
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
+  },
   "scope": [
     "Bitcoin derivation and exports",
     "Ethereum derivation and exports",
@@ -18,64 +27,173 @@
     "Deriver plain, structured and TSV exports",
     "security and edge cases"
   ],
-  "assessment": {
-    "critical": 0,
-    "high": 0,
-    "medium": 1,
-    "low": 3,
-    "summary": "Supported typed UI flows produced correct keys, addresses, recovery secrets, network dispatch and exact exports. Four runtime/API/export edge defects remain."
+  "checks": {
+    "typeAndMetadata": "pass",
+    "vitest": {
+      "files": 129,
+      "tests": 1350,
+      "failed": 0
+    },
+    "focusedApiSuite": {
+      "files": 45,
+      "tests": 306,
+      "failed": 0
+    },
+    "activityViewerSuite": {
+      "files": 6,
+      "tests": 58,
+      "failed": 0
+    },
+    "nativeRecoveryRust": {
+      "tests": 10,
+      "failed": 0
+    },
+    "pnpmVerify": "pass",
+    "browserFiles": {
+      "passed": 16,
+      "total": 16
+    },
+    "browserRegressions": {
+      "passed": 42,
+      "total": 42
+    },
+    "browserSelective": {
+      "passed": 10,
+      "total": 10
+    },
+    "format": "pass",
+    "pnpmAudit": "unavailable: EAI_AGAIN",
+    "dependencyPins": {
+      "pnpmPackages": 142,
+      "cargoPackages": 460,
+      "upstreamAvailability": "0/9 due unavailable network"
+    },
+    "uncachedDocker": "not run",
+    "liveProviders": "not run"
   },
   "findings": [
     {
-      "id": "M-01",
+      "id": "AUD-017-API001",
       "severity": "medium",
       "title": "Invalid SSKR and CKD Shamir format values silently select another format",
-      "files": [
-        "../../packages/recovery-backup/src/sskr.ts",
-        "../../packages/recovery-backup/src/shamir.ts"
-      ],
+      "files": ["../../packages/recovery-backup/src/sskr.ts", "../../packages/recovery-backup/src/shamir.ts"],
       "normalUiAffected": false,
-      "recommendedFix": "Validate public runtime discriminants before dispatching to WASM or choosing a decoder."
+      "recommendedFix": "Validate public runtime discriminants before dispatching to WASM or choosing a decoder.",
+      "legacyId": "M-01",
+      "category": "API",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **Files:** [packages/recovery-backup/src/sskr.ts:18](../../packages/recovery-backup/src/sskr.ts#L18), [packages/recovery-backup/src/shamir.ts:172](../../packages/recovery-backup/src/shamir.ts#L172).\n- `SSKR_ENCODING[encoding]` is passed directly to wasm-bindgen. An unknown JavaScript value yields `undefined`, which is converted to numeric zero and therefore selects Compact UR. Both creation and recovery were reproduced with an invalid runtime encoding and completed without an error.\n- CKD Shamir uses `format === 'raw' ? raw : words`; every value other than the exact string `raw` selects Words. Creation was reproduced; decoding has the same branch.\n- The current UI is protected because `selectedEncoding()` and `selectedFormat()` validate the `<select>` value before calling these APIs. Direct JavaScript callers, generated compositions and future UI code do not receive the same protection.\n- **Impact:** a caller can request one representation and receive or interpret another valid representation without being told. The cryptographic secret is not changed, but backup format is part of the recovery contract and must not be guessed.\n- **Recommended fix:** validate the discriminant at the public API boundary before WASM initialization or decoding. Add runtime-negative tests for both create and recover paths.",
+      "evidence": {
+        "recordedIn": "audit-17-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "requiredVerification": null
     },
     {
-      "id": "L-01",
+      "id": "AUD-017-API002",
       "severity": "low",
       "title": "Discovery CSV balance_display is empty for non-Dash coins",
       "files": ["../../apps/discovery-scanner/src/export.ts"],
       "exactAtomicValuePreserved": true,
-      "recommendedFix": "Format from balanceAtomic/decimals or parse using the declared asset."
+      "recommendedFix": "Format from balanceAtomic/decimals or parse using the declared asset.",
+      "legacyId": "L-01",
+      "category": "API",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **File:** [apps/discovery-scanner/src/export.ts:161](../../apps/discovery-scanner/src/export.ts#L161), used at [line 291](../../apps/discovery-scanner/src/export.ts#L291).\n- The supposedly generic `balance_display` column calls `numericDash()`, which recognizes only `... DASH`. Reproduced Bitcoin `0.12345678 BTC` and Ethereum `1.25 ETH` findings produced an empty `balance_display` cell.\n- `balance_atomic`, `balance_asset`, `balance_atomic_unit` and `balance_decimals` remain correct, so the exact monetary value is not lost. JSON and XLSX also preserve `balanceLabel`.\n- **Recommended fix:** derive the decimal display from the exact atomic value plus the declared decimals, or parse against the finding's declared asset instead of the Dash ticker. Retain a future-adapter regression in addition to Bitcoin/Ethereum cases.",
+      "evidence": {
+        "recordedIn": "audit-17-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "requiredVerification": null
     },
     {
-      "id": "L-02",
+      "id": "AUD-017-API003",
       "severity": "low",
       "title": "Empty-section warning is written into metadata and duplicated in warnings",
       "files": ["../../apps/discovery-scanner/src/export.ts"],
-      "recommendedFix": "Emit empty metadata and keep the warning only in warnings."
+      "recommendedFix": "Emit empty metadata and keep the warning only in warnings.",
+      "legacyId": "L-02",
+      "category": "API",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **File:** [apps/discovery-scanner/src/export.ts:245](../../apps/discovery-scanner/src/export.ts#L245).\n- In the no-findings row, `section.warning` occupies the `metadata` position and the next expression includes the same warning again in `warnings`.\n- **Impact:** the CSV remains rectangular, but consumers see a provider/scan warning under the wrong schema field and then see it twice.\n- **Recommended fix:** emit an empty metadata cell for section-only rows and retain the warning only in the warnings column.",
+      "evidence": {
+        "recordedIn": "audit-17-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "requiredVerification": null
     },
     {
-      "id": "L-03",
+      "id": "AUD-017-API004",
       "severity": "low",
       "title": "Injectable SLIP-39 random source is not checked for requested byte length",
       "files": ["../../packages/recovery-backup/src/slip39.ts"],
       "normalUiAffected": false,
-      "recommendedFix": "Require a Uint8Array of exactly the requested length for each callback result."
+      "recommendedFix": "Require a Uint8Array of exactly the requested length for each callback result.",
+      "legacyId": "L-03",
+      "category": "API",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **File:** [packages/recovery-backup/src/slip39.ts:369](../../packages/recovery-backup/src/slip39.ts#L369).\n- `Slip39GenerateOptions.randomBytes` is public and is used for deterministic integrations/tests. A probe returning a zero-length array for every request still generated a valid 1-group/1-member share. The two missing identifier bytes are coerced through bitwise operators and produce identifier zero.\n- The shipped UI never injects this callback and uses `secureRandomBytes`, so normal production generation is unaffected. A caller supplying a broken custom source can silently lose the expected identifier entropy; higher thresholds usually fail later from inconsistent byte lengths, which is an inconsistent contract.\n- **Recommended fix:** wrap the callback and require a `Uint8Array` of exactly the requested length on every call, wiping and rejecting mismatched results.",
+      "evidence": {
+        "recordedIn": "audit-17-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "requiredVerification": null
     }
   ],
-  "checks": {
-    "typeAndMetadata": "pass",
-    "vitest": { "files": 129, "tests": 1350, "failed": 0 },
-    "focusedApiSuite": { "files": 45, "tests": 306, "failed": 0 },
-    "activityViewerSuite": { "files": 6, "tests": 58, "failed": 0 },
-    "nativeRecoveryRust": { "tests": 10, "failed": 0 },
-    "pnpmVerify": "pass",
-    "browserFiles": { "passed": 16, "total": 16 },
-    "browserRegressions": { "passed": 42, "total": 42 },
-    "browserSelective": { "passed": 10, "total": 10 },
-    "format": "pass",
-    "pnpmAudit": "unavailable: EAI_AGAIN",
-    "dependencyPins": { "pnpmPackages": 142, "cargoPackages": 460, "upstreamAvailability": "0/9 due unavailable network" },
-    "uncachedDocker": "not run",
-    "liveProviders": "not run"
+  "observations": [],
+  "remediation": [],
+  "limitations": {
+    "recordedIn": "audit-17-2026-09-17.md",
+    "note": "Unknown execution details are not supplied by normalization."
   },
-  "temporaryProbeFilesRetained": false
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {
+    "audit": 17,
+    "date": "2026-09-17",
+    "completedAt": "2026-09-17T15:08:00Z",
+    "title": "API, data-flow and export audit",
+    "model": "gpt-5.6-sol",
+    "reasoningEffort": "xhigh",
+    "reasoningEffortLabel": "Extra High",
+    "projectHead": "64868886fe8aaf0121e62e57da065913a1afef76",
+    "productionCodeChanged": false,
+    "assessment": {
+      "critical": 0,
+      "high": 0,
+      "medium": 1,
+      "low": 3,
+      "summary": "Supported typed UI flows produced correct keys, addresses, recovery secrets, network dispatch and exact exports. Four runtime/API/export edge defects remain."
+    },
+    "temporaryProbeFilesRetained": false
+  }
 }
