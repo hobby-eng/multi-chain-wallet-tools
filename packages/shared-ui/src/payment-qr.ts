@@ -208,6 +208,7 @@ export function createQrAction(
       );
       rendered = true;
     }
+    popover.style.pointerEvents = pinned ? 'auto' : 'none';
     popover.hidden = false;
     if (!popover.matches(':popover-open')) popover.showPopover();
     positionPopover();
