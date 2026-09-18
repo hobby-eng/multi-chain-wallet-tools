@@ -67,7 +67,7 @@ The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checks
    The `.asc` file can instead be uploaded through the GitHub release web form. Skip this optional signing step when no GPG key is configured.
 
 7. Review the published notes, artifact list, provenance attestations, and checksums. If any release gate or post-publication comparison is wrong, remove the release and tag rather than replacing assets silently.
-8. After the canonical release succeeds, run [Build and publish Dash Community release](https://github.com/hobby-eng/dash-wallet-tools/actions/workflows/release.yml) with both `source_ref` and `release_tag` set to that exact tag. Wait for its canonical rebuild, Dash-only asset check, checksums, attestations, and publication to succeed; then verify its release separately in `hobby-eng/dash-wallet-tools`.
+8. After the stable canonical release is published, the [Build and publish Dash Community release](https://github.com/hobby-eng/dash-wallet-tools/actions/workflows/release.yml) workflow detects it on its 15-minute schedule and publishes the same tag if it is not already present. GitHub scheduling may add delay. For immediate manual execution, set both `source_ref` and `release_tag` to that exact tag. Wait for its canonical rebuild, Dash-only asset check, checksums, attestations, and publication to succeed; then verify the Dash release separately.
 
 A GPG key is optional for this project. GitHub's artifact attestation links CI-built bytes to the tagged repository, workflow and commit and is the normal reproducible provenance path. A sidecar checksum detects corruption but authenticates nothing by itself. If OpenPGP signing is used later, its private key must never be stored in the repository, GitHub Actions secrets, browser storage, or release bundle; the detached signature means only that its owner personally approved the exact flat manifest. Neither attestation nor signature proves cryptographic correctness.
 
@@ -117,7 +117,7 @@ dist/dash-community-edition/release/THIRD_PARTY_NOTICES.md
 dist/dash-community-edition/release/SHA256SUMS
 ```
 
-The separate `hobby-eng/dash-wallet-tools` repository contains a manual **Build and publish Dash Community release** workflow. After the canonical tag workflow succeeds, run that workflow with `source_ref` and `release_tag` both set to the same canonical tag. It checks out that immutable tag, requires it to match `package.json`, repeats the canonical pinned build, verifies the exact Dash-only bundle and `SHA256SUMS`, creates attestations in the Dash release repository, and publishes the curated Dash Community notes from this source tree. It never copies application source into the distribution repository.
+The separate `hobby-eng/dash-wallet-tools` repository contains the **Build and publish Dash Community release** workflow. It automatically checks for a published stable canonical release every 15 minutes, skips tags already present in the distribution repository, and supports manual execution with `source_ref` and `release_tag` both set to the same canonical tag. It checks out that immutable tag, requires it to match `package.json`, repeats the canonical pinned build, verifies the exact Dash-only bundle and `SHA256SUMS`, creates attestations in the Dash release repository, and publishes the curated Dash Community notes from this source tree. It never copies application source into the distribution repository.
 
 The manifest uses plain filenames, not subdirectories, so a user can download all release assets into one directory and immediately run:
 
@@ -133,3 +133,15 @@ gh attestation verify verification-record.json -R hobby-eng/multi-chain-wallet-t
 The manifest also covers the released `LICENSE`, `ATTRIBUTION.md`, and `THIRD_PARTY_NOTICES.md`. The attestation commands require an online GitHub CLI; checksum verification works offline. Only when a release includes the optional `SHA256SUMS.asc`, verify it separately with `gpg --verify SHA256SUMS.asc SHA256SUMS` and a public key obtained through an independent trusted channel.
 
 If an artifact is served as a web page instead of a downloadable `file://` tool, configure the host to send `Content-Security-Policy: frame-ancestors 'none'` and preferably `X-Frame-Options: DENY`. Browsers ignore `frame-ancestors` inside an HTML `<meta>` CSP, so the build cannot supply this hosting-only clickjacking control.
+
+## Dash distribution documentation
+
+The Dash distribution README and SECURITY templates live in `docs/distributions/dash-community/` in this canonical repository. `tooling/sync-dash-distribution-docs.mjs` renders them using the canonical package version and actual Dash build modules, copies LICENSE/ATTRIBUTION/THIRD_PARTY_NOTICES with canonical source links, and writes `documentation-source.json` with the source commit and document hashes.
+
+The **Sync canonical documentation** workflow in `hobby-eng/dash-wallet-tools` runs hourly or manually. It reads canonical `main` and commits only changed generated documents using that repository's own `GITHUB_TOKEN`; no cross-repository write credential is needed. Update feature descriptions in the canonical templates alongside code changes. Do not edit the generated distribution copies. Documentation follows current source code and clearly distinguishes its version from the latest published HTML release. This workflow does not publish releases.
+
+To preview locally:
+
+```sh
+node tooling/sync-dash-distribution-docs.mjs --output /tmp/dash-distribution-docs
+```

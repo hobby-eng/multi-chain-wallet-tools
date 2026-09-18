@@ -3,9 +3,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.mjs';
 import { formatEnglishList, PRODUCT_FACTS, readReleaseMetadata } from './project-metadata.mjs';
+import { renderDashDistributionDocs } from './sync-dash-distribution-docs.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const release = readReleaseMetadata(root);
+renderDashDistributionDocs(root, '0'.repeat(40));
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const requireText = (text, expected, label) => {
   if (!text.includes(expected)) throw new Error(`${label} is out of sync; expected: ${expected}`);
