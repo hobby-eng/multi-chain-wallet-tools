@@ -1,89 +1,26 @@
 {
-  "schema": "independent-audit-report/1",
-  "reviewer": "Claude Fable 5.1 (claude-fable-5-1)",
-  "model": "claude-fable-5-1",
-  "reasoningEffort": null,
-  "reasoningEffortNote": "Not recorded by the reviewing client.",
+  "schemaVersion": 1,
+  "auditId": "AUD-010",
+  "auditNumber": 10,
   "date": "2026-09-15",
-  "timeUtc": "17:08-17:50",
-  "commit": "cdce70cb531f4da5d46c6ac321ff7de9dd8e12a9",
-  "branch": "main",
-  "treeClean": true,
-  "toolchain": {
-    "node": "24.19.0",
-    "pnpmLocal": "11.19.0",
-    "pnpmPinned": "11.25.0",
-    "typescript": "7.0.2",
-    "vitest": "5.0.0",
-    "prettier": "3.6.2",
-    "playwright": "1.62.1",
-    "chromium": "151.0.7922.34",
-    "firefox": "153.0",
-    "docker": "29.8.0",
-    "rust": "1.98.1",
-    "wasmBindgen": "0.2.128",
-    "btcutilJs": "0.4.1"
+  "title": "Independent audit — 2026-09-15 (modular build, commit cdce70cb)",
+  "reviewer": {
+    "name": "Claude Fable 5.1 (claude-fable-5-1)",
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "metadataNote": "Not recorded by the reviewing client."
   },
-  "findings": [
-    {
-      "id": "F-01",
-      "severity": "High",
-      "title": "Canonical Docker build fails: WASM build scripts hard-code .tools cargo path",
-      "files": [
-        "tooling/build-recovery-shamir-wasm.mjs",
-        "tooling/build-recovery-codex32-wasm.mjs"
-      ],
-      "evidence": "docker build target artifacts fails at Dockerfile.reproducible:68 (pnpm verify) with spawnSync /.tools/cargo/bin/cargo ENOENT; local pnpm verify passes only because ../.tools exists",
-      "impact": "CI, release workflow and build-reproducible.sh cannot produce canonical artifacts from HEAD"
-    },
-    {
-      "id": "F-02",
-      "severity": "Medium",
-      "title": "Selective Activity Viewer builds without Dash throw at startup (#viewer-build-fingerprint missing)",
-      "files": [
-        "apps/activity-viewer/src/public-address-view.ts",
-        "apps/activity-viewer/src/index.html"
-      ],
-      "evidence": "--coins bitcoin and --coins ethereum builds raise 'Required Activity Viewer element is missing' in Chromium; dash-containing variants start"
-    },
-    {
-      "id": "F-03",
-      "severity": "Medium",
-      "title": "--output can overwrite canonical release artifacts with a selective build",
-      "files": [
-        "tooling/tool-feature-options.mjs",
-        "tooling/key-derivation-features.mjs",
-        "tooling/build-html-profiles.mjs"
-      ],
-      "evidence": "Dash-only Deriver written to dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html (c9194584 -> d309be5e); contradicts docs/BUILD_MODULES.md"
-    },
-    {
-      "id": "F-04",
-      "severity": "Low",
-      "title": "WASM bridge errors are primitive strings; Recovery UI shows generic messages",
-      "evidence": "ThresholdNotPassed { threshold: 3, n_shares: 2 } and MismatchedHrp thrown as strings; UI uses cause instanceof Error"
-    },
-    {
-      "id": "F-05",
-      "severity": "Low",
-      "title": "CKD Shamir format has no secret digest; consistent tampered share recovers a different valid-looking phrase silently"
-    },
-    {
-      "id": "F-06",
-      "severity": "Low",
-      "title": "Watch-only-only scanner build retains hidden seed-mode markup/copy although seed modules are excluded"
-    },
-    {
-      "id": "F-07",
-      "severity": "Low",
-      "title": "Flaky Firefox acceptance: Multi-Chain Deriver #coin 'dash' !== 'bitcoin' once in four runs"
-    },
-    {
-      "id": "F-08",
-      "severity": "Informational",
-      "title": "Documentation drift: BROWSER_ACCEPTANCE 38 vs 42 cases; SECURITY_AUDIT latest review predates modular work; connect-src https:; upstream /home/runner string"
-    }
-  ],
+  "snapshot": {
+    "commit": "cdce70cb531f4da5d46c6ac321ff7de9dd8e12a9",
+    "commitComplete": true,
+    "workingTree": "clean",
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
+  },
+  "scope": {
+    "recordedIn": "Markdown evidence sections",
+    "note": "Original scope and exclusions are preserved; no additional review coverage is claimed."
+  },
   "checks": {
     "tsc": "pass",
     "vitest": {
@@ -106,13 +43,9 @@
     },
     "reproducibleBuildSameMachine": "pass",
     "pnpmAudit": "clean",
-    "browserFiles": [
-      "15/16 (Firefox flake)",
-      "16/16",
-      "16/16"
-    ],
+    "browserFiles": ["15/16 (Firefox flake)", "16/16", "16/16"],
     "browserRegressions": "42/42",
-    "dockerCanonical": "FAIL (F-01)",
+    "dockerCanonical": "FAIL (AUD-010-BLD001)",
     "localVerify": "pass",
     "matrixPlan": {
       "total": 3476,
@@ -130,26 +63,228 @@
       "descriptorPsbtDash": "re-verified"
     }
   },
-  "testsToAdd": [
-    "matrix browser smoke",
-    "rust toolchain resolution unit test",
-    "--output guard",
-    "BIP93 vectors 1,3,5,6-8 + invalid",
-    "SeedQR vectors 1-3,5",
-    "Shamir tamper/threshold+/legacy",
-    "SLIP-39 multi-group",
-    "worker allowlist runtime rejection",
-    "watch-only scanner markup absence",
-    "recovery self-test fail-closed",
-    "Firefox default coin",
-    "property round trips"
+  "findings": [
+    {
+      "id": "AUD-010-BLD001",
+      "severity": "high",
+      "title": "Canonical Docker build fails: WASM build scripts hard-code .tools cargo path",
+      "files": ["tooling/build-recovery-shamir-wasm.mjs", "tooling/build-recovery-codex32-wasm.mjs"],
+      "evidence": "docker build target artifacts fails at Dockerfile.reproducible:68 (pnpm verify) with spawnSync /.tools/cargo/bin/cargo ENOENT; local pnpm verify passes only because ../.tools exists",
+      "impact": "CI, release workflow and build-reproducible.sh cannot produce canonical artifacts from HEAD",
+      "legacyId": "F-01",
+      "category": "BLD",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **Files:** [tooling/build-recovery-shamir-wasm.mjs:7-13](../../tooling/build-recovery-shamir-wasm.mjs#L7), [tooling/build-recovery-codex32-wasm.mjs:7-13](../../tooling/build-recovery-codex32-wasm.mjs#L7); compare [tooling/build-shielded-wasm.mjs:7-22](../../tooling/build-shielded-wasm.mjs#L7).\n- **Observed:** `docker build --platform linux/amd64 --network host -f Dockerfile.reproducible --build-arg SOURCE_COMMIT=cdce70cb… --build-arg SOURCE_DIRTY=false --target artifacts .` fails at `Dockerfile.reproducible:68` (`RUN --network=none pnpm verify`) with `Error: spawnSync /.tools/cargo/bin/cargo ENOENT` raised by `build-recovery-shamir-wasm.mjs` right after \"Generated pinned Dash Orchard browser WASM.\" (log `audit3/docker-full.log`, exit 1 after 62 s of the verify layer). Two attempts, same result.\n- **Cause:** both new scripts compute `tools = <repo>/.tools` or `<repo>/../.tools` and then `cargo = resolve(tools, 'cargo/bin/cargo')` unconditionally. The Orchard script uses the same lookup but falls back to `CARGO_HOME`/`PATH` (`'cargo'`, `'wasm-bindgen'`) when the local toolchain directory is absent. In the container the toolchain lives at `/root/.cargo/bin` and `.tools` is excluded by `.dockerignore`, so `/.tools/cargo/bin/cargo` does not exist. Locally the same command succeeds only because `../.tools/cargo/bin/cargo` exists on this host (`pnpm verify` exit 0, 17:19 UTC).\n- **Impact:** `.github/workflows/ci.yml`, `full-wasm.yml`, `release.yml` and `./tooling/build-reproducible.sh` all run this Dockerfile; none can succeed on this commit, so no canonical artifacts, `verification-record.json`, attestations or release can be produced. The `docs/ARCHITECTURE.md` and `SECURITY_AUDIT.md` statements that the Docker path defines release bytes are correct in design but not currently achievable.\n- **Correction:** adopt the Orchard script's resolution (local `.tools` → `CARGO_HOME` → `PATH`), or factor one shared `resolveRustToolchain()` used by all three scripts. Add a unit test that runs the resolver with a fake root lacking `.tools` and asserts it yields `cargo`/`wasm-bindgen` from `PATH`. The bounded matrix smoke in the same Dockerfile never ran because the earlier layer failed.",
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-010-BLD002",
+      "severity": "medium",
+      "title": "Selective Activity Viewer builds without Dash throw at startup (#viewer-build-fingerprint missing)",
+      "files": ["apps/activity-viewer/src/public-address-view.ts", "apps/activity-viewer/src/index.html"],
+      "evidence": "--coins bitcoin and --coins ethereum builds raise 'Required Activity Viewer element is missing' in Chromium; dash-containing variants start",
+      "legacyId": "F-02",
+      "category": "BLD",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **Files:** [apps/activity-viewer/src/public-address-view.ts:46](../../apps/activity-viewer/src/public-address-view.ts#L46) (`required(document, '#viewer-build-fingerprint')`), [apps/activity-viewer/src/index.html:400-412](../../apps/activity-viewer/src/index.html#L400) (the fingerprint `<code>` lives inside the Dash \"Viewer runtime\" passport block), the Dash-fragment removal in the viewer build.\n- **Observed:** `pnpm build:html -- --profile multi-chain --tool activity-viewer --coins ethereum` (and `--coins bitcoin`) builds successfully, but loading the artifact in Chromium raises `Error: Required Activity Viewer element is missing: #viewer-build-fingerprint.` before the controller starts; the coin selector shows only the selected coin and nothing else works. `--coins dash`, `--coins bitcoin,dash` and `--coins bitcoin,dash,ethereum` start normally (element count 2 vs 1 in the failing builds; the remaining occurrence is the JavaScript selector).\n- **Impact:** the \"Bitcoin-only\" and \"Ethereum-only\" viewer compositions advertised by `docs/BUILD_MODULES.md` (\"every supported coin alone\" is part of the smoke matrix) ship as broken pages. The smoke matrix compiles them but never loads them.\n- **Correction:** move the fingerprint element (and any other element that `required()` demands) out of the Dash-conditional fragment, or make the removal keep shared passport rows. Add a matrix smoke that opens at least one artifact per coin in a browser and asserts no page error (see §8).",
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-010-BLD003",
+      "severity": "medium",
+      "title": "--output can overwrite canonical release artifacts with a selective build",
+      "files": [
+        "tooling/tool-feature-options.mjs",
+        "tooling/key-derivation-features.mjs",
+        "tooling/build-html-profiles.mjs"
+      ],
+      "evidence": "Dash-only Deriver written to dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html (c9194584 -> d309be5e); contradicts docs/BUILD_MODULES.md",
+      "legacyId": "F-03",
+      "category": "BLD",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **Files:** [tooling/tool-feature-options.mjs:103-105](../../tooling/tool-feature-options.mjs#L103), [tooling/key-derivation-features.mjs:110-112](../../tooling/key-derivation-features.mjs#L110), [tooling/build-html-profiles.mjs:26-29](../../tooling/build-html-profiles.mjs#L26).\n- **Observed:** `node tooling/build-html-profiles.mjs --profile multi-chain --tool key-derivation --coins dash --output dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html` succeeded and replaced the canonical artifact (SHA-256 `c9194584…` → `d309be5e…`) while `dist/multi-chain-edition/SHA256SUMS` still listed the old digest. The reviewer rebuilt the canonical set afterwards (`pnpm build:html`), and the later Docker/local verify results refer to the restored bytes.\n- **Doc conflict:** `docs/BUILD_MODULES.md` states \"Custom builds are written below `dist/custom-builds/` and never replace canonical release artifacts\" and \"Canonical release filenames are reserved for complete edition builds\". The reservation is only applied to the default path; an explicit `--output` bypasses it.\n- **Correction:** when the composition is custom, reject `--output` paths inside `dist/<edition>/` or whose basename equals a canonical artifact name, or embed a \"custom\" marker in the artifact and make `verify-artifact-profiles` reject it under canonical names. Add a test.",
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-010-API001",
+      "severity": "low",
+      "title": "WASM bridge errors are primitive strings; Recovery UI shows generic messages",
+      "evidence": "ThresholdNotPassed { threshold: 3, n_shares: 2 } and MismatchedHrp thrown as strings; UI uses cause instanceof Error",
+      "legacyId": "F-04",
+      "category": "API",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **Files:** [packages/recovery-codex32-wasm/rust/src/lib.rs](../../packages/recovery-codex32-wasm/rust/src/lib.rs) and [packages/recovery-shamir-wasm/rust/src/lib.rs](../../packages/recovery-shamir-wasm/rust/src/lib.rs) (`JsValue::from_str`), [apps/key-derivation/src/ui/recovery-codex32.ts:99-126](../../apps/key-derivation/src/ui/recovery-codex32.ts#L99), [apps/key-derivation/src/ui/recovery-shamir.ts:45-60](../../apps/key-derivation/src/ui/recovery-shamir.ts#L45).\n- **Observed (probe R4):** recovering BIP93 vector 3 with two of three shares throws the primitive string `Codex32 interpolation failed: ThresholdNotPassed { threshold: 3, n_shares: 2 }`; mixing an upper-case and lower-case share throws `… MismatchedHrp(\"ms\", \"MS\")`. The UI catch blocks use `cause instanceof Error ? cause.message : 'Codex32 restoration failed.'`, so users see only the generic sentence. The Rust `{error:?}` Debug formatting is also not user-facing text.\n- **Correction:** wrap bridge failures in `Error` inside `codex32.ts`/`shamir.ts` (or use `describeUnknownError`, which already handles strings) and map the known variants to plain sentences (\"2 of 3 required shares were entered\"). Add tests for the three cases above.",
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-010-FUN001",
+      "severity": "low",
+      "title": "CKD Shamir format has no secret digest; consistent tampered share recovers a different valid-looking phrase silently",
+      "legacyId": "F-05",
+      "category": "FUN",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **File:** [packages/recovery-backup/src/shamir.ts](../../packages/recovery-backup/src/shamir.ts).\n- **Observed (probe R7):** a raw share whose payload byte was flipped and whose 4-byte SHA-256 trailer was recomputed recovers a *different* 32-byte secret without any error, and that entropy always converts to a valid-looking BIP39 phrase. The per-share checksum protects against accidental corruption only; nothing binds the shares to the secret (SLIP-39 uses a digest share for this; BIP93 has the same limitation by design).\n- **Assessment:** not a vulnerability (an adversary who can alter a share can also withhold it), but a recovery-safety gap for the stated audience: a wrong-but-consistent set silently produces a plausible phrase. The documentation calls the format \"checksummed\" without stating this.\n- **Correction:** in a versioned format update include a truncated digest of the secret (SLIP-39 style) or an HMAC share; until then document the limitation next to the \"verify with a standard wallet\" advice. Keep the positive property found here: word shares are 27–39 words and never validate as BIP39 mnemonics (`validateMnemonic` false), so they cannot be confused with a seed phrase.",
+      "evidence": {
+        "recordedIn": "audit-10-2026-09-15.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-010-BLD004",
+      "severity": "low",
+      "title": "Watch-only-only scanner build retains hidden seed-mode markup/copy although seed modules are excluded",
+      "legacyId": "F-06",
+      "category": "BLD",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **Observed:** `--tool discovery-scanner --coins bitcoin,ethereum --features watch-only-discovery` excludes the seed code (no BIP39 wordlist, no `mnemonicToSeed`, no Dash provider URLs; the generated Worker allowlist and dispatcher contain exactly `ping`, `utxo.addresses`, `evm.accounts`, `address.history`; the Public Input Boundary label is present) — but the iframe still contains the hidden `#seed-source-tab`, the `#single-mnemonic`, `#batch-mnemonics` and `#batch-passphrases` textareas and \"Secret Vault\"/\"mnemonic\" copy. `docs/BUILD_MODULES.md` says removing a feature \"deletes its marked HTML fragment\".\n- **Correction:** strip the seed-mode fragment as done for the Deriver panels, and add an artifact check that a watch-only-only build contains no `mnemonic` control ids.",
+      "evidence": {
+        "recordedIn": "audit-10-2026-09-15.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-010-UI001",
+      "severity": "low",
+      "title": "Flaky Firefox acceptance: Multi-Chain Deriver #coin 'dash' !== 'bitcoin' once in four runs",
+      "legacyId": "F-07",
+      "category": "UI",
+      "kind": "finding",
+      "status": "open",
+      "releaseBlocking": null,
+      "detail": "- **Observed:** in the first full `verify-browser-files.mjs` run (17:10 UTC) the Firefox 153 `multi-chain/key-derivation` case failed with `'dash' !== 'bitcoin'` at [tooling/verify-browser-files.mjs:307](../../tooling/verify-browser-files.mjs#L307), immediately after `#crypto-self-test-status.passed`. Two further full runs and the other agent's earlier runs on previous commits passed (16/16). Chromium never failed.\n- **Assessment:** intermittent; root cause not established (candidates: Firefox restoring a `<select>` state, or the assertion racing the `populateCoinSelect`/default-adapter initialisation in [apps/key-derivation/src/ui/inputs.ts:50](../../apps/key-derivation/src/ui/inputs.ts#L50), which appends options without setting `select.value`). Record it as a flake; set the default explicitly after populating and make the runner wait for it.",
+      "evidence": {
+        "recordedIn": "audit-10-2026-09-15.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
   ],
-  "notPerformed": [
-    "live providers",
-    "headed Firefox",
-    "exhaustive matrix",
-    "WASM regeneration",
-    "Core RPC round trips"
+  "observations": [
+    {
+      "id": "AUD-010-DOC001",
+      "severity": "info",
+      "title": "Documentation drift: BROWSER_ACCEPTANCE 38 vs 42 cases; SECURITY_AUDIT latest review predates modular work; connect-src https:; upstream /home/runner string",
+      "legacyId": "F-08",
+      "category": "DOC",
+      "kind": "observation",
+      "status": null,
+      "releaseBlocking": null,
+      "detail": "1. `docs/BROWSER_ACCEPTANCE.md:33` still says \"38-case matrix\"; the runner now produces 42 runs across 11 case families (`recovery-backup-roundtrips` was added).\n2. `SECURITY_AUDIT.md` names the 2026-09-12 re-verification of `d978dd4d` as the latest review; the six commits that introduced shared packages, selective builds and the recovery codecs were unreviewed until this report.\n3. `docs/BUILD_MODULES.md` \"operations for excluded coins are absent from its code\" holds for the Worker allowlist/dispatcher; the vault-side `NetworkBoundaryClient` still carries all 14 operation names (harmless: the Worker rejects them).\n4. `docs/ARCHITECTURE.md` describes the connected tools as \"HTTPS enabled\"; their CSP is `connect-src https:` (any host) while providers are fixed in code. Not a contradiction, but see §7 recommendation on host pinning.\n5. The `/home/runner/work/platform/...` string inside the Viewer/Scanner artifacts comes from the upstream Dash `wasm-sdk` glue (`file:///home/runner/...` fallback URL), not from this host; `example.invalid` is a placeholder host. Neither is a path leak of this repository.",
+      "evidence": {
+        "recordedIn": "audit-10-2026-09-15.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
   ],
-  "pathHygiene": "no real home path in report; logs rewritten to /home/user"
+  "remediation": [],
+  "limitations": ["live providers", "headed Firefox", "exhaustive matrix", "WASM regeneration", "Core RPC round trips"],
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "reasoningEffortNote": "Not recorded by the reviewing client.",
+    "date": "2026-09-15",
+    "timeUtc": "17:08-17:50",
+    "commit": "cdce70cb531f4da5d46c6ac321ff7de9dd8e12a9",
+    "branch": "main",
+    "treeClean": true,
+    "toolchain": {
+      "node": "24.19.0",
+      "pnpmLocal": "11.19.0",
+      "pnpmPinned": "11.25.0",
+      "typescript": "7.0.2",
+      "vitest": "5.0.0",
+      "prettier": "3.6.2",
+      "playwright": "1.62.1",
+      "chromium": "151.0.7922.34",
+      "firefox": "153.0",
+      "docker": "29.8.0",
+      "rust": "1.98.1",
+      "wasmBindgen": "0.2.128",
+      "btcutilJs": "0.4.1"
+    },
+    "testsToAdd": [
+      "matrix browser smoke",
+      "rust toolchain resolution unit test",
+      "--output guard",
+      "BIP93 vectors 1,3,5,6-8 + invalid",
+      "SeedQR vectors 1-3,5",
+      "Shamir tamper/threshold+/legacy",
+      "SLIP-39 multi-group",
+      "worker allowlist runtime rejection",
+      "watch-only scanner markup absence",
+      "recovery self-test fail-closed",
+      "Firefox default coin",
+      "property round trips"
+    ],
+    "notPerformed": [
+      "live providers",
+      "headed Firefox",
+      "exhaustive matrix",
+      "WASM regeneration",
+      "Core RPC round trips"
+    ],
+    "pathHygiene": "no real home path in report; logs rewritten to /home/user",
+    "originalSchema": "independent-audit-report/1"
+  }
 }

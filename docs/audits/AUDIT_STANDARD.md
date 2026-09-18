@@ -1,6 +1,6 @@
 # Audit report standard
 
-This standard applies to new audits and follow-up records. Reports and structured records are written in English. Historical reports retain their original identifiers so existing references remain valid; cite them with their audit number, for example `Audit 16 / B-01`. Do not infer a historical finding's severity from its prefix.
+This standard applies to new audits and follow-up records. Reports and structured records are written in English. Historical reports were normalized in a documentation-only migration on 2026-09-18. Their canonical IDs follow this standard; original aliases are retained in [LEGACY_FINDING_IDS.md](LEGACY_FINDING_IDS.md), its JSON twin, and `legacyId` metadata. Existing report filenames and dates remain unchanged. Do not infer a historical finding's severity from its former prefix.
 
 ## Report numbering
 
@@ -80,6 +80,16 @@ Remediation and verification tables use `Finding ID`, `Status`, `Fix commit`, `V
 5. Each finding: ID, title, severity, status, affected files/builds, reproduction, expected and observed behavior, impact and prerequisites, supporting evidence, recommended fix, and verification requirements. Unsupported claims remain hypotheses, not confirmed findings.
 6. Remediation evidence, remaining limitations, and an assessment that distinguishes tested coverage from a security certification.
 
-Use [AUDIT_TEMPLATE.md](AUDIT_TEMPLATE.md) for new Markdown reports. The template is not a completed audit and must not receive an audit number in the index. JSON reports use `schemaVersion: 1`, `auditId`, `auditNumber`, `date`, `reviewer`, `snapshot`, `scope`, `checks`, `findings`, and `limitations`; additional evidence fields are allowed. Each finding must have `id`, `category`, `title`, `severity`, `status`, `releaseBlocking`, and the substantive fields described above. Historical JSON records are not retroactively required to use this schema.
+Use [AUDIT_TEMPLATE.md](AUDIT_TEMPLATE.md) for new Markdown reports. The template is not a completed audit and must not receive an audit number in the index. JSON reports use `schemaVersion: 1`, `auditId`, `auditNumber`, `date`, `reviewer`, `snapshot`, `scope`, `checks`, `findings`, `observations`, `remediation`, and `limitations`; additional evidence fields are allowed. Each finding must have `id`, `category`, `title`, `severity`, `status`, `releaseBlocking`, and the substantive fields described above. All retained historical records now have this shared envelope. Original fields that do not fit the envelope are retained under `historicalEvidence`; executed checks remain under `checks`. Existing finding details are retained, not replaced with a fresh audit assessment. The [JSON schema](audit-report.schema.json) describes the shared envelope.
 
 Before publishing, verify that all report text is English, IDs are unique, paired records agree, evidence links resolve where retained, and dates, commit hashes, check counts, and reviewer metadata are accurate. Report documentation edits as documentation edits, not a new audit execution.
+
+## Historical normalization
+
+The migration adds a Markdown/JSON pair for every numbered report, including companions reconstructed from retained material where only one format existed. Such companions explicitly state their origin; they are not newly executed audits. A common `Record metadata`, `Finding register`, and `Review evidence` presentation surrounds the original review, reproduction, checks, and limitations. Original review sections remain because restructuring must not discard technical evidence.
+
+`findings` contains defects, `observations` contains informational or conformance records, and `remediation` contains dispositions referencing original finding IDs from earlier reports. Informational records that already had IDs retain canonical IDs with `kind: "observation"`; they are not newly classified defects. New untracked informational observations normally need no IDs.
+
+Historical `severity`, `status`, `releaseBlocking`, snapshot, or detailed reproduction fields can be null when the retained evidence does not establish them. Null means **not recorded**, never passed, harmless, accepted, or resolved. P1/P2/P3 historical scheduling priorities are retained as `legacyPriority`; they are not automatically converted to severity. A mitigation remains open unless the recorded evidence supports closure. Status refers to that historical report and its explicit addenda; a later follow-up records its own disposition without silently changing the earlier snapshot.
+
+Original hashes, upstream pins, environment versions, counts, failed checks, skipped checks, reviewer metadata, and reproduction values must remain unchanged. Migration notes distinguish documentation edits from new verification work. Old heading anchors are retained as compatibility aliases where finding headings change.

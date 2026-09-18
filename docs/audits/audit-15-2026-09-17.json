@@ -1,28 +1,206 @@
 {
-  "audit": 15,
+  "schemaVersion": 1,
+  "auditId": "AUD-015",
+  "auditNumber": 15,
   "date": "2026-09-17",
   "title": "Independent source and interoperability audit",
-  "model": "gpt-6-astra",
-  "reasoningEffort": null,
-  "reasoningEffortNote": "The effort setting was not retained and is not inferred.",
+  "reviewer": {
+    "name": "OpenAI Codex",
+    "model": "gpt-6-astra",
+    "reasoningEffort": null,
+    "metadataNote": "The effort setting was not retained and is not inferred."
+  },
+  "snapshot": {
+    "commit": null,
+    "commitComplete": false,
+    "workingTree": null,
+    "sourceFingerprint": null,
+    "note": "Original snapshot metadata; normalization does not constitute a new review. Unknown or abbreviated values are not reconstructed."
+  },
   "scope": ["Dash Core PSBT", "descriptor multisig", "cosigner derivation", "build profiles"],
-  "upstream": {
-    "repository": "https://github.com/dashpay/dash",
-    "commit": "3a0c9383525ab16f12309989458deff9f533c8d9"
+  "checks": {
+    "recordedIn": "Markdown evidence sections"
   },
   "findings": [
-    {"id":"D-01","status":"fixed","summary":"PSBTv0 unknown key 0x0f is preserved using version context."},
-    {"id":"D-02","status":"verified","summary":"All four official Dash BIP67 vectors match."},
-    {"id":"D-03","status":"fixed","summary":"Independent cosigner origin paths are preserved."},
-    {"id":"D-04","status":"fixed","summary":"Nonzero BIP44 accounts are labeled custom and require matching signer material."},
-    {"id":"D-05","status":"documented","summary":"Purpose48 remains a wallet-specific convention, not a Dash Core standard."},
-    {"id":"D-06","status":"fixed","summary":"CLI exports include network flags and complete active ranged-wallet setup."},
-    {"id":"D-07","status":"verified","summary":"Dash P2SH and Bitcoin P2WSH use wrapper-specific signer-count limits."}
+    {
+      "id": "AUD-015-FUN001",
+      "status": "fixed",
+      "summary": "PSBTv0 unknown key 0x0f is preserved using version context.",
+      "legacyId": "D-01",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "PSBTv0 unknown key 0x0f is preserved using version context.",
+      "severity": null,
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-15-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-015-FUN003",
+      "status": "fixed",
+      "summary": "Independent cosigner origin paths are preserved.",
+      "legacyId": "D-03",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "Independent cosigner origin paths are preserved.",
+      "severity": null,
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-15-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-015-DOC001",
+      "status": "fixed",
+      "summary": "Nonzero BIP44 accounts are labeled custom and require matching signer material.",
+      "legacyId": "D-04",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "Nonzero BIP44 accounts are labeled custom and require matching signer material.",
+      "severity": null,
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-15-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-015-BLD001",
+      "status": "fixed",
+      "summary": "CLI exports include network flags and complete active ranged-wallet setup.",
+      "legacyId": "D-06",
+      "category": "BLD",
+      "kind": "finding",
+      "title": "CLI exports include network flags and complete active ranged-wallet setup.",
+      "severity": null,
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-15-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
   ],
-  "retainedEvidence": [
-    "../../apps/psbt-inspector/tests/upstream/dash-core-rpc-psbt.json",
-    "../../apps/psbt-inspector/tests/upstream/dash-core-rpc-bip67.json",
-    "../../apps/psbt-inspector/tests/dash-core-psbt-vectors.test.ts",
-    "../../packages/coin-protocols/tests/dash-core.test.ts"
-  ]
+  "observations": [
+    {
+      "id": "AUD-015-FUN002",
+      "status": "verified",
+      "summary": "All four official Dash BIP67 vectors match.",
+      "legacyId": "D-02",
+      "category": "FUN",
+      "kind": "observation",
+      "title": "All four official Dash BIP67 vectors match.",
+      "severity": "info",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-15-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-015-DOC002",
+      "status": null,
+      "summary": "Purpose48 remains a wallet-specific convention, not a Dash Core standard.",
+      "recordedStatus": "documented",
+      "legacyId": "D-05",
+      "category": "DOC",
+      "kind": "observation",
+      "title": "Purpose48 remains a wallet-specific convention, not a Dash Core standard.",
+      "severity": "info",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-15-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    },
+    {
+      "id": "AUD-015-FUN004",
+      "status": "verified",
+      "summary": "Dash P2SH and Bitcoin P2WSH use wrapper-specific signer-count limits.",
+      "legacyId": "D-07",
+      "category": "FUN",
+      "kind": "observation",
+      "title": "Dash P2SH and Bitcoin P2WSH use wrapper-specific signer-count limits.",
+      "severity": "info",
+      "releaseBlocking": null,
+      "evidence": {
+        "recordedIn": "audit-15-2026-09-17.md",
+        "note": "See preserved reproduction and verification sections; no new checks were executed during normalization."
+      },
+      "reproduction": null,
+      "expected": null,
+      "observed": null,
+      "impact": null,
+      "recommendedFix": null,
+      "requiredVerification": null
+    }
+  ],
+  "remediation": [],
+  "limitations": {
+    "recordedIn": "audit-15-2026-09-17.md",
+    "note": "Unknown execution details are not supplied by normalization."
+  },
+  "normalization": {
+    "date": "2026-09-18",
+    "kind": "documentation-only",
+    "standard": "AUDIT_STANDARD.md",
+    "legacyMapping": "LEGACY_FINDING_IDS.json",
+    "note": "Original results, dates, snapshots and evidence are retained. Null fields mean not recorded, not passed or resolved. No audit commands were re-executed as part of this migration."
+  },
+  "historicalEvidence": {
+    "audit": 15,
+    "date": "2026-09-17",
+    "title": "Independent source and interoperability audit",
+    "model": "gpt-6-astra",
+    "reasoningEffort": null,
+    "reasoningEffortNote": "The effort setting was not retained and is not inferred.",
+    "upstream": {
+      "repository": "https://github.com/dashpay/dash",
+      "commit": "3a0c9383525ab16f12309989458deff9f533c8d9"
+    },
+    "retainedEvidence": [
+      "../../apps/psbt-inspector/tests/upstream/dash-core-rpc-psbt.json",
+      "../../apps/psbt-inspector/tests/upstream/dash-core-rpc-bip67.json",
+      "../../apps/psbt-inspector/tests/dash-core-psbt-vectors.test.ts",
+      "../../packages/coin-protocols/tests/dash-core.test.ts"
+    ]
+  }
 }
