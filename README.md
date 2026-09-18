@@ -13,7 +13,7 @@ Multi-Chain Wallet Tools is a set of four portable wallet utilities delivered as
 The same source tree produces two editions:
 
 - **Multi-Chain Edition** is the universal and extensible edition. It currently supports Bitcoin, Ethereum, and Dash.
-- **Dash Community Edition** contains only Dash Core, Platform Payments, Identity, and Orchard features. Its visual design follows the official Dash BrandBook and Brand Guidelines.
+- **Dash Community Edition** contains only Dash Core, Platform Payments, Identity, and Orchard features. Its visual design follows the official Dash BrandBook and Brand Guidelines. Its distribution documentation is generated from this repository and synchronized automatically; [details](RELEASING.md#dash-distribution-documentation).
 
 This is an independent hobby project. It is not an official Dash product or a replacement for a hardware or standard wallet.
 
