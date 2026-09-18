@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/hobby-eng/multi-chain-wallet-tools/blob/main/docs/audits/audit-report.schema.json",
+  "$id": "https://github.com/hobby-eng/multi-chain-wallet-tools/blob/main/docs/audit-report.schema.json",
   "title": "Canonical audit record",
   "type": "object",
   "required": [
