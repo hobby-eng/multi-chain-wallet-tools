@@ -392,6 +392,8 @@ async function recoveryBackupRoundTrips(context, profile, run) {
       const originalViewport = page.viewportSize();
       for (const viewport of [
         { width: 1024, height: 720 },
+        { width: 800, height: 720 },
+        { width: 390, height: 720 },
         { width: 390, height: 480 },
       ]) {
         await page.setViewportSize(viewport);
