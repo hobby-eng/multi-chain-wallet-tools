@@ -1,5 +1,7 @@
 # Security and implementation audit
 
+For private vulnerability reporting and a concise overview of the security boundaries, see [SECURITY.md](SECURITY.md). This document records the detailed implementation threat model and audit context.
+
 Audit baseline: [2026-09-08 review record](docs/audits/audit-01-2026-09-08.json), commit `6462c67d677ab73bea49051c3e3d866fcd157894`, release 0.1.3 at review. This date and commit are immutable review metadata; a release bump does not refresh them. The review found defects and test gaps. Later corrections require their own verification evidence.
 
 Latest completed review: [2026-09-15 independent modular audit](docs/audits/audit-10-2026-09-15.md), covering commit `cdce70cb531f4da5d46c6ac321ff7de9dd8e12a9`. It confirmed the module boundaries and codec vectors, and reported three release/feature defects plus lower-severity hardening items. The fixes after that snapshot require a fresh verification record and browser run before release. The earlier [2026-09-12 independent re-verification](docs/audits/audit-09-2026-09-12.md) covers commit `d978dd4de68e6b51743d8ce0f01fcd6128d88553`. The [Codex remediation verification](docs/audits/audit-08-2026-09-12.md) records that earlier canonical artifact build and browser matrices. Earlier [initial](docs/audits/audit-04-2026-09-12.md), [remediation](docs/audits/audit-05-2026-09-12.md), [follow-up](docs/audits/audit-06-2026-09-12.md), and [independent](docs/audits/audit-07-2026-09-12.md) records preserve their point-in-time results.
