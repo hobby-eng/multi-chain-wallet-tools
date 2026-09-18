@@ -1,5 +1,7 @@
 # Verification map
 
+For a full audit rather than a check-only run, follow [the full audit execution guide](audits/FULL_AUDIT_GUIDE.md) and record coverage, edge cases, model/effort, snapshots, and limitations using [the audit report standard](audits/AUDIT_STANDARD.md).
+
 These commands describe the current source tree. A command being available is not evidence that it passed for a particular commit. Record command, source revision plus local changes, runtime, date and outcome in an audit report.
 
 ## What runs where
