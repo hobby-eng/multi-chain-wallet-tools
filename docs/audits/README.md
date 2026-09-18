@@ -2,6 +2,8 @@
 
 Audit files use one global chronological sequence. Markdown and JSON files with the same number belong to the same review. New reports record the reviewer model and reasoning-effort level. Historical reports retain only metadata that was actually recorded; an unknown model or effort is marked as unknown rather than inferred.
 
+New audits must follow [the audit report standard](AUDIT_STANDARD.md) and [the report template](AUDIT_TEMPLATE.md). Finding IDs include a category, for example `AUD-018-DOC001` or `AUD-018-SEC001`; severity and remediation status are separate fields. Historical labels remain unchanged and must be cited with their audit number.
+
 1. [Audit 01](audit-01-2026-09-08.json) — 2026-09-08
 2. [Audit 02](audit-02-2026-09-08.md) — 2026-09-08
 3. [Audit 03](audit-03-2026-09-09.md) — 2026-09-09
