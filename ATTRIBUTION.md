@@ -20,7 +20,7 @@ This repository's code integrates those components for key derivation, activity 
 Exact pinned versions, commits, package integrity values, transitive dependencies, copyright notices and license identifiers are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [Dash implementation reference](docs/reference/DASH_IMPLEMENTATION.md), the lockfiles and the Release passport embedded in each standalone artifact.
 
 - **SLIP-39 reference implementation and wordlist** — recovery encoding logic and official vectors adapted from Trezor's MIT-licensed [`python-shamir-mnemonic`](https://github.com/trezor/python-shamir-mnemonic).
-- **Shamir Secret Sharing** — the CKD Raw/Words formats use the pinned MIT OR Apache-2.0 [`sharks`](https://github.com/c0dearm/sharks) Rust implementation.
+- **Shamir Secret Sharing** — the CKD Raw/Words formats use the pinned MIT-licensed [`blahaj`](https://git.distrust.co/public/blahaj) Rust implementation, which fixes the coefficient bias reported against its `sharks` predecessor.
 - **Codex32 / BIP93** — checksum and GF(32) interpolation use Andrew Poelstra's CC0 [`rust-codex32`](https://github.com/apoelstra/rust-codex32) reference implementation and official BIP93 vectors.
 - **Blockchain Commons SSKR** — grouped secret-sharing and Bytewords/UR transport use the BSD-2-Clause-Patent [`bc-sskr-rust`](https://github.com/BlockchainCommons/bc-sskr-rust) implementation.
 - **Gordian Seed Envelope** — typed envelope encoding, encryption, password/recipient permits, and SSKR permits use the BSD-2-Clause-Patent [`bc-envelope-rust`](https://github.com/BlockchainCommons/bc-envelope-rust) and [`bc-components-rust`](https://github.com/BlockchainCommons/bc-components-rust) modules.

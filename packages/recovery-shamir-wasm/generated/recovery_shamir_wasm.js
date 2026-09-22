@@ -28,7 +28,7 @@ export function recover_shamir_secret(serialized, share_length, threshold) {
 }
 
 /**
- * Returns `count` concatenated `sharks::Share` byte strings. Each serialized
+ * Returns `count` concatenated `blahaj::Share` byte strings. Each serialized
  * share is exactly `secret.len() + 1` bytes, with the x-coordinate included.
  * @param {Uint8Array} secret
  * @param {number} threshold

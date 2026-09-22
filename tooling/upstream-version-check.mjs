@@ -164,7 +164,11 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     'Dash note-encryption commit',
   );
   const wasmBindgen = capture(cargoManifest, /wasm-bindgen = "=(\d+\.\d+\.\d+)"/u, 'wasm-bindgen version');
-  const sharks = capture(shamirManifest, /sharks = \{ version = "=(\d+\.\d+\.\d+)"/u, 'sharks version');
+  const blahaj = capture(
+    shamirManifest,
+    /sharks = \{ package = "blahaj", version = "=(\d+\.\d+\.\d+)"/u,
+    'blahaj version',
+  );
   const codex32 = capture(codex32Manifest, /codex32 = "=(\d+\.\d+\.\d+)"/u, 'Codex32 version');
   const sskr = capture(sskrManifest, /sskr = "=(\d+\.\d+\.\d+)"/u, 'SSKR version');
   const envelope = capture(
@@ -200,7 +204,7 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     orchardTags,
     latestWasmBindgen,
     noteEncryption,
-    latestSharks,
+    latestBlahaj,
     latestCodex32,
     latestSskr,
     latestEnvelope,
@@ -219,7 +223,7 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     fetchJson(fetchImpl, 'https://api.github.com/repos/dashpay/orchard/tags?per_page=100'),
     fetchWasmBindgenMaxStableVersion(fetchImpl),
     inspectNoteEncryption(fetchImpl, noteEncryptionCommit),
-    fetchCrateVersion(fetchImpl, 'sharks'),
+    fetchCrateVersion(fetchImpl, 'blahaj'),
     fetchCrateVersion(fetchImpl, 'codex32'),
     fetchCrateVersion(fetchImpl, 'sskr'),
     fetchCrateVersion(fetchImpl, 'bc-envelope'),
@@ -274,10 +278,10 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
       detail: noteEncryption.detail,
     },
     {
-      label: '[sharks](https://github.com/c0dearm/sharks)',
-      current: sharks,
-      latest: latestSharks,
-      matches: sharks === latestSharks,
+      label: '[blahaj](https://git.distrust.co/public/blahaj)',
+      current: blahaj,
+      latest: latestBlahaj,
+      matches: blahaj === latestBlahaj,
     },
     {
       label: '[Codex32](https://github.com/apoelstra/rust-codex32)',
