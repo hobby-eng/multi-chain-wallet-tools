@@ -1,0 +1,53 @@
+name: RustSec audit
+
+on:
+  push:
+    paths:
+      - 'packages/**/rust/Cargo.toml'
+      - 'packages/**/rust/Cargo.lock'
+      - '.github/workflows/audit.yml'
+  pull_request:
+    paths:
+      - 'packages/**/rust/Cargo.toml'
+      - 'packages/**/rust/Cargo.lock'
+      - '.github/workflows/audit.yml'
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rustsec-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: ${{ matrix.crate }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - crate: Dash shielded
+            lockfile: packages/dash-shielded-wasm/rust/Cargo.lock
+          - crate: Codex32 recovery
+            lockfile: packages/recovery-codex32-wasm/rust/Cargo.lock
+          - crate: Gordian Envelope recovery
+            lockfile: packages/recovery-envelope-wasm/rust/Cargo.lock
+          - crate: CKD Shamir recovery
+            lockfile: packages/recovery-shamir-wasm/rust/Cargo.lock
+          - crate: SSKR recovery
+            lockfile: packages/recovery-sskr-wasm/rust/Cargo.lock
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Audit ${{ matrix.lockfile }} against RustSec
+        uses: actions-rust-lang/audit@72c09e02f132669d52284a3323acdb503cfc1a24 # v1
+        with:
+          createIssues: false
+          file: ${{ matrix.lockfile }}
