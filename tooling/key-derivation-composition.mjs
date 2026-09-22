@@ -242,6 +242,7 @@ const featureSourceMarkers = {
   'message-signing': ['/message-signing-feature.ts', '/message-signer.ts', '/message-signer-dash.ts'],
   'wallet-matcher': ['/recovery-wallet-matcher.ts'],
   seedqr: ['/recovery-seedqr.ts', '/recovery-backup/src/seedqr.ts', '/self-test-seedqr.ts'],
+  mhfe: ['/recovery-mhfe.ts', '/mhfe-backup-worker.ts', '/recovery-mhfe-wasm/'],
   slip39: ['/recovery-slip39.ts', '/recovery-backup/src/slip39.ts', '/slip39-wordlist.ts', '/self-test-slip39.ts'],
   shamir: ['/recovery-shamir.ts', '/recovery-backup/src/shamir.ts', '/recovery-shamir-wasm/', '/self-test-shamir.ts'],
   sskr: ['/recovery-sskr.ts', '/recovery-backup/src/sskr.ts', '/recovery-sskr-wasm/', '/self-test-sskr.ts'],

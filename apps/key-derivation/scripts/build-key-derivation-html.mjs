@@ -104,6 +104,27 @@ if (workerSource === undefined) throw new Error('esbuild did not produce a deriv
 if (!/postMessage\(\{type:"ready"\}\)/u.test(workerSource)) {
   throw new Error('Derivation worker bundle is missing its explicit ready handshake.');
 }
+const mhfeWorkerBuild = features.has('mhfe')
+  ? await build({
+      absWorkingDir: root,
+      entryPoints: [resolve(root, 'apps/key-derivation/src/workers/mhfe-backup-worker.ts')],
+      bundle: true,
+      format: 'iife',
+      platform: 'browser',
+      target: ['chrome120', 'firefox120', 'safari17'],
+      treeShaking: true,
+      minify: true,
+      legalComments: 'inline',
+      logOverride: { 'empty-import-meta': 'silent' },
+      loader: { '.wasm': 'binary' },
+      metafile: true,
+      write: false,
+    })
+  : undefined;
+const mhfeWorkerSource = mhfeWorkerBuild?.outputFiles[0]?.text ?? '';
+if (features.has('mhfe') && !mhfeWorkerSource.includes('initializationError')) {
+  throw new Error('MHFE worker bundle is missing its reviewed error and status text.');
+}
 const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
   coins: features.coins,
   features: features.selected,
@@ -184,6 +205,7 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
           const definitions = [
             ['wallet-matcher', 'matcher', 'recovery-wallet-matcher.ts', 'installWalletMatcher'],
             ['seedqr', 'seedqr', 'recovery-seedqr.ts', 'installSeedQr'],
+            ['mhfe', 'mhfe', 'recovery-mhfe.ts', 'installMhfe'],
             ['slip39', 'slip39', 'recovery-slip39.ts', 'installSlip39'],
             ['shamir', 'shamir', 'recovery-shamir.ts', 'installShamir'],
             ['codex32', 'codex32', 'recovery-codex32.ts', 'installCodex32'],
@@ -211,19 +233,25 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
     ...featureDefines(features),
     __BUILD_INFO__: JSON.stringify(buildInfo),
     __DERIVATION_WORKER_SOURCE__: JSON.stringify(workerSource),
+    __MHFE_WORKER_SOURCE__: JSON.stringify(mhfeWorkerSource),
     __DASH_COMMUNITY__: profile.id === 'dash-community' ? 'true' : 'false',
   },
   write: false,
 });
 assertKeyDerivationComposition(features, [
   ...Object.keys(workerBuild.metafile.inputs),
+  ...Object.keys(mhfeWorkerBuild?.metafile.inputs ?? {}),
   ...Object.keys(bundled.metafile.inputs),
 ]);
 const javascript = bundled.outputFiles[0]?.text;
 if (javascript === undefined) throw new Error('esbuild did not produce a JavaScript bundle.');
 if (profile.id === 'dash-community') {
   assertDashOnlyGraph(
-    [...Object.keys(workerBuild.metafile.inputs), ...Object.keys(bundled.metafile.inputs)],
+    [
+      ...Object.keys(workerBuild.metafile.inputs),
+      ...Object.keys(mhfeWorkerBuild?.metafile.inputs ?? {}),
+      ...Object.keys(bundled.metafile.inputs),
+    ],
     'Dash Community key derivation',
   );
 }
