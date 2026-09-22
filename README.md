@@ -1,6 +1,8 @@
 # Multi-Chain Wallet Tools
 
-[![Source and artifact checks](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml)
+[![CI](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml)
+[![Published vectors](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/vectors.yml/badge.svg?branch=main)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/vectors.yml)
+[![RustSec audit](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/audit.yml)
 
 This documentation describes **v0.1.5**, released on 2026-09-17. Both editions are built from the same tagged source revision.
 

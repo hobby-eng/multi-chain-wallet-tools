@@ -1,0 +1,52 @@
+name: Published vectors
+
+on:
+  push:
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'tooling/verify-dip13-vectors.mjs'
+      - 'tooling/verify-mhfe-vector.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/vectors.yml'
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'tooling/verify-dip13-vectors.mjs'
+      - 'tooling/verify-mhfe-vector.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/vectors.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vectors-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Node and pnpm runtimes
+        uses: pnpm/setup@4700d737c3d7a2e7199f3d42a920f0bf7f34e411 # v2.0.1
+        with:
+          version: 12.5.1
+          runtime: node@24.21.0
+          cache: true
+
+      - name: Install locked JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Replay published and embedded vectors
+        run: pnpm test:vectors
