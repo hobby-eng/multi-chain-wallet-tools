@@ -12,11 +12,11 @@
       }
     },
     "recovery-shamir-wasm": {
-      "sourceSha256": "9e743c6b65e9c521509a711a8673a378c02f2db0581d253b153636bc8ef3b591",
+      "sourceSha256": "66425ea9a6925c90c970e23ee1156b2812ff5a40539aefa2a7d17b79b0aa1d7e",
       "generated": {
-        "recovery_shamir_wasm.d.ts": "acbf9aef9e7fd182aa15005889f155d5474e203dac37b486b76bd2c86d268ec9",
-        "recovery_shamir_wasm.js": "dcb48579d5c912c8eba886ef90b79bcd223e20f8b75f46a65b4be8c62a55fda9",
-        "recovery_shamir_wasm_bg.wasm": "308da33f41268b9cea204f608799c80eea81324861c10cc05d03cc7065019d32",
+        "recovery_shamir_wasm.d.ts": "a886032ac73c19448d6412e7441d7681ecd227989c39f8fbe2eaadb13e99867b",
+        "recovery_shamir_wasm.js": "9e2b61196bfe9e3b3c04f8aa18ad09768743603188f11eb61112760091e48671",
+        "recovery_shamir_wasm_bg.wasm": "6c1e3a68688dd7de3a55cc6e8ce3121877d2b5a858f3f20835453967dae8beaf",
         "recovery_shamir_wasm_bg.wasm.d.ts": "4a381e6cb34269f1b12ec956c61707e696cc9aa77bf3e0c6705978aff5ae3adb"
       }
     },

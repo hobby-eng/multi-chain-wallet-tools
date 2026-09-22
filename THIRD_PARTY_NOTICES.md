@@ -43,7 +43,7 @@ The connected Multi-Chain applications use Blockchain.com, BlockCypher, Blockstr
 | `orchard`               | 0.14.0, tag `dashified-0.14.1`, commit `38ac9c19a2df7bf3eeadc22ab23053e8fd538828` | `dashpay/orchard`                      | MIT OR Apache-2.0   | Official Dash Orchard/ZIP32 key and address logic                                                                 |
 | `zcash_note_encryption` | 0.4.1, revision `9f7e93d42cef839d02b9d75918117941d453f8cb`                        | `dashpay/zcash_note_encryption`        | MIT OR Apache-2.0   | Locked Orchard transitive dependency                                                                              |
 | `wasm-bindgen`          | 0.2.128                                                                           | `rustwasm/wasm-bindgen` / crates.io    | MIT OR Apache-2.0   | Browser WASM ABI                                                                                                  |
-| `sharks`                | 0.5.0                                                                             | `c0dearm/sharks` / crates.io           | MIT OR Apache-2.0   | GF(256) Shamir Secret Sharing used by the CKD Raw/Words backup formats; default ambient-RNG features are disabled |
+| `blahaj`                | 0.6.0                                                                             | `distrust.co/blahaj` / crates.io       | MIT                 | GF(256) Shamir Secret Sharing used by the CKD Raw/Words backup formats; default ambient-RNG features are disabled |
 | `codex32`               | 0.1.0                                                                             | `apoelstra/rust-codex32` / crates.io   | CC0-1.0             | BIP93 Codex32 checksum, master-seed encoding, and GF(32) share interpolation                                      |
 | `sskr`                  | 0.12.0                                                                            | `BlockchainCommons/bc-sskr-rust`       | BSD-2-Clause-Patent | Standard grouped SSKR share creation and recovery with `ur:sskr` transport                                        |
 | `bc-envelope`           | 0.43.0                                                                            | `BlockchainCommons/bc-envelope-rust`   | BSD-2-Clause-Patent | Gordian Seed Envelope encoding, encryption, password/recipient permits, and SSKR permits                          |
@@ -84,6 +84,7 @@ The following is the complete Cargo metadata package set. Registry packages come
 ### MIT OR Apache-2.0 family
 
 ```text
+allocator-api2 0.2.21           equivalent 1.0.2
 aead 0.5.2                      aes 0.8.4
 arrayvec 0.7.8                  atomic-polyfill 1.0.3
 autocfg 1.5.1                   base16ct 0.2.0
@@ -104,6 +105,7 @@ embedded-io 0.6.1               ff 0.13.1
 fpe 0.6.1                       frost-core 3.0.0
 frost-rerandomized 3.0.0        group 0.13.0
 halo2_poseidon 0.1.0            hash32 0.2.1
+hashbrown 0.15.5
 heapless 0.7.17                 hex 0.4.3
 incrementalmerkletree 0.8.2     inout 0.1.4
 itertools 0.14.0                jubjub 0.10.0
@@ -119,12 +121,11 @@ quote 1.0.47                    rand 0.8.8                     rand_chacha 0.3.1
 rand_core 0.6.4                 reddsa 0.5.2
 rustc_version 0.4.1             rustversion 1.0.23
 scopeguard 1.2.0                semver 1.0.28
-sharks 0.5.0
 serde 1.0.229                   serde_core 1.0.229
 serde_derive 1.0.229            serdect 0.2.0
 sinsemilla 0.1.0               stable_deref_trait 1.2.1
 static_assertions 1.1.0         syn 2.0.119
-syn 3.0.4                       thiserror 2.0.20
+syn 3.0.4 / 3.0.6               thiserror 2.0.20
 thiserror-impl 2.0.20           typenum 1.20.1
 universal-hash 0.5.1            version_check 0.9.5
 wasm-bindgen 0.2.128            wasm-bindgen-macro 0.2.128
@@ -140,6 +141,7 @@ itoa 1.0.18                     serde_json 1.0.151
 ### MIT and other permissive licenses
 
 ```text
+blahaj 0.6.0                                                   MIT
 bech32 0.11.1 / 0.12.0          bitvec 1.1.1                  MIT
 blake2b_simd 1.0.5             const-crc32-nostd 1.3.1      MIT
 derive-getters 0.5.0           funty 2.0.0                   MIT
@@ -155,6 +157,7 @@ byteorder 1.5.0                                               Unlicense OR MIT
 memchr 2.8.3                                                  Unlicense OR MIT
 codex32 0.1.0                                                CC0-1.0
 constant_time_eq 0.4.2                                        CC0-1.0 OR MIT-0 OR Apache-2.0
+foldhash 0.1.5                                                 Zlib
 subtle 2.6.1                                                  BSD-3-Clause
 unicode-ident 1.0.24                                          (MIT OR Apache-2.0) AND Unicode-3.0
 visibility 0.1.1                                             Zlib OR MIT OR Apache-2.0
@@ -366,8 +369,8 @@ SeedSigner — SeedQR specification and vectors
 Copyright (c) 2026 Sergei Semenov
 MHFE v0.3.0 — browser WebAssembly implementation
 
-Copyright (c) 2020 Aitor Ruano Miralles
-sharks — GF(256) Shamir implementation
+Copyrights are retained by the Blahaj project contributors
+blahaj — GF(256) Shamir implementation
 
 Copyright (c) Project Nayuki
 Copyright (c) 2023 Anthony Fu <https://github.com/antfu>
@@ -404,7 +407,7 @@ SOFTWARE.
 - `package.json` uses exact dependency versions; pnpm's lockfile pins the npm closure and integrity hashes.
 - `Cargo.toml` uses exact registry versions and one exact audited Orchard tag; `Cargo.lock` pins all transitive versions and git commits.
 - Every supported build validates SHA-512 integrity entries for the complete pnpm package closure, SHA-256 checksums for every crates.io package, and full commit pins for Cargo git sources before compiling.
-- Exact GitHub revisions are recorded for Orchard, note encryption, sharks, rust-codex32, the SLIP-39 reference, SeedSigner SeedQR, MHFE v0.3.0, Blockchain Commons SSKR, Gordian Envelope, and bc-components. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply.
+- Exact GitHub revisions are recorded for Orchard, note encryption, rust-codex32, the SLIP-39 reference, SeedSigner SeedQR, MHFE v0.3.0, Blockchain Commons SSKR, Gordian Envelope, and bc-components. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply. The registry-published `blahaj` source is bound by its Cargo SHA-256 checksum.
 - The verification record also carries SHA-256 hashes for the local SeedQR, MHFE, SLIP-39, CKD Shamir, Codex32, SSKR, Gordian Seed Envelope, QR rendering, and QR decoding sources. The four embedded MHFE release files are additionally checked against fixed published SHA-256 values before every supported build.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.

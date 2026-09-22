@@ -54,7 +54,7 @@ try {
   copyFileSync(stagedWasm, resolve(generated, 'recovery_shamir_wasm_bg.wasm'));
   await writeOfflineWasmDeclarations(staging, generated, 'recovery_shamir_wasm', 'Shamir WASM');
   writeFileSync(resolve(generated, 'recovery_shamir_wasm.js'), normalized);
-  console.log('Generated pinned sharks browser WASM.');
+  console.log('Generated pinned blahaj browser WASM.');
 } finally {
   rmSync(staging, { recursive: true, force: true });
 }

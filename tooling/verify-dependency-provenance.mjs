@@ -19,12 +19,6 @@ const GITHUB_SOURCES = [
     commit: '9f7e93d42cef839d02b9d75918117941d453f8cb',
   },
   {
-    id: 'sharks-0.5.0',
-    repository: 'c0dearm/sharks',
-    reference: 'crates.io 0.5.0 VCS revision',
-    commit: 'e7e23ba899c2a80d622f57f96c61e814325f8e20',
-  },
-  {
     id: 'rust-codex32-0.1.0',
     repository: 'apoelstra/rust-codex32',
     reference: 'crates.io 0.1.0 VCS revision',
@@ -98,7 +92,7 @@ const LOCAL_IMPLEMENTATIONS = [
   },
   {
     id: 'shamir-codec',
-    upstream: 'sharks-0.5.0',
+    upstream: 'blahaj-0.6.0',
     files: [
       'packages/recovery-shamir-wasm/rust/src/lib.rs',
       'packages/recovery-backup/src/shamir.ts',

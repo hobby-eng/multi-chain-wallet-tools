@@ -39,7 +39,7 @@ Application bootstrap code, shared views, export implementations, network bounda
 - `packages/public-data-providers`: public address normalization, provider response validation, and Bitcoin/Ethereum activity/balance services.
 - `packages/wallet-recovery`: watch-only parsing/detection, checksum-aware address targets, bounded one-seed and multi-seed address search, and recovery search result types.
 - `packages/recovery-backup`: shared SeedSigner SeedQR codecs, SLIP-39, versioned CKD Shamir encodings, Blockchain Commons SSKR and Gordian Seed Envelope bridges, and Codex32 create/restore orchestration used unchanged by both Deriver editions.
-- `packages/recovery-shamir-wasm`: pinned `sharks` GF(256) bridge. The browser supplies a WebCrypto seed; the Rust module expands it with ChaCha20Rng and never selects an ambient RNG.
+- `packages/recovery-shamir-wasm`: pinned `blahaj` GF(256) bridge. The browser supplies a WebCrypto seed; the Rust module expands it with ChaCha20Rng and never selects an ambient RNG.
 - `packages/recovery-codex32-wasm`: pinned `rust-codex32` BIP93 reference bridge for seed encoding, checksum validation, GF(32) interpolation, and recovery.
 - `packages/recovery-sskr-wasm`: pinned Blockchain Commons `sskr` bridge for grouped thresholds and standard Compact UR or full Bytewords representation. Browser WebCrypto supplies its explicit RNG seed.
 - `packages/recovery-envelope-wasm`: pinned `bc-envelope`/`bc-components` bridge for typed Seed Envelopes, Argon2id password permits, X25519 recipient permits, SSKR permits, and the official recipient-key derivation from a 64-byte BIP39 seed.
