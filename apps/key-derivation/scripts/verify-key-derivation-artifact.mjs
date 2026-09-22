@@ -16,6 +16,7 @@ const wasmPaths = [
   ['Codex32', resolve(root, 'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm')],
   ['SSKR', resolve(root, 'packages/recovery-sskr-wasm/generated/recovery_sskr_wasm_bg.wasm')],
   ['Gordian Envelope', resolve(root, 'packages/recovery-envelope-wasm/generated/recovery_envelope_wasm_bg.wasm')],
+  ['MHFE', resolve(root, 'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm')],
 ];
 const html = readFileSync(artifactPath, 'utf8');
 const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
@@ -133,6 +134,11 @@ const requiredIds = [
   'main-recovery-source-menu',
   'seedqr-panel',
   'seedqr-create-result',
+  'mhfe-panel',
+  'mhfe-source',
+  'mhfe-container',
+  'mhfe-encrypt',
+  'mhfe-decrypt',
   'matcher-seed-lines',
   'matcher-passphrase-lines',
   'matcher-address-lines',
@@ -231,6 +237,9 @@ if (profile.id === 'dash-community' && !html.includes('Dash master/account exten
 for (const marker of [
   'Wallet Matcher / Derivation Discovery',
   'SeedSigner SeedQR',
+  'MHFE encrypted BIP39 backup',
+  'MHFE specification',
+  'aria-label="MHFE operation"',
   'Read share QR image(s)',
   'qr 0.7.0',
   'CompactSeedQR',
@@ -265,7 +274,7 @@ for (const marker of [
 ]) {
   if (!html.includes(marker)) throw new Error(`Standalone artifact is missing recovery workspace marker: ${marker}`);
 }
-if (occurrences(html, '<summary>What is this?</summary>') !== 7) {
+if (occurrences(html, '<summary>What is this?</summary>') !== 8) {
   throw new Error('Every Recover & Back Up method must include one explanatory help popover.');
 }
 if (profile.id === 'dash-community') {
@@ -329,6 +338,8 @@ const allowedOpenSourceLinks = [
   'https://github.com/BlockchainCommons/bc-envelope-rust',
   'https://github.com/BlockchainCommons/bc-components-rust',
   'https://github.com/apoelstra/rust-codex32',
+  'https://github.com/hobby-eng/mhfe-spec',
+  'https://github.com/hobby-eng/mhfe',
 ];
 let securityScanSource = html.replaceAll('http://www.w3.org/2000/svg', '');
 for (const link of allowedOpenSourceLinks) {

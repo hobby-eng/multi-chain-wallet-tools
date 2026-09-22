@@ -41,6 +41,7 @@ const generatedDirectories = [
   'packages/recovery-codex32-wasm/generated',
   'packages/recovery-sskr-wasm/generated',
   'packages/recovery-envelope-wasm/generated',
+  'packages/recovery-mhfe-wasm/generated',
 ];
 const wasm = generatedDirectories.flatMap((directory) =>
   readdirSync(resolve(root, directory))

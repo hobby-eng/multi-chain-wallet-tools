@@ -43,6 +43,12 @@ const GITHUB_SOURCES = [
     commit: 'b225ae77e9251a813cf2bd61e7874629d6f3cb10',
   },
   {
+    id: 'mhfe-v0.3.0',
+    repository: 'hobby-eng/mhfe',
+    reference: 'v0.3.0 browser WASM release',
+    commit: '1f18322dbc23df54b10719efb0113fcd4ba88242',
+  },
+  {
     id: 'sskr-0.12.0',
     repository: 'BlockchainCommons/bc-sskr-rust',
     reference: 'crates.io 0.12.0 VCS revision',
@@ -67,6 +73,18 @@ const LOCAL_IMPLEMENTATIONS = [
     id: 'seedqr-codec',
     upstream: 'seedsigner-seedqr',
     files: ['packages/recovery-backup/src/seedqr.ts', 'packages/recovery-backup/tests/seedqr.test.ts'],
+  },
+  {
+    id: 'mhfe-browser-module',
+    upstream: 'mhfe-v0.3.0',
+    files: [
+      'packages/recovery-mhfe-wasm/generated/mhfe.js',
+      'packages/recovery-mhfe-wasm/generated/mhfe.d.ts',
+      'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm',
+      'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm.d.ts',
+      'apps/key-derivation/src/workers/mhfe-backup-worker.ts',
+      'apps/key-derivation/src/ui/recovery-mhfe.ts',
+    ],
   },
   {
     id: 'slip39-codec',
@@ -125,6 +143,15 @@ const LOCAL_IMPLEMENTATIONS = [
     ],
   },
 ];
+
+const FIXED_SOURCE_HASHES = Object.freeze({
+  'packages/recovery-mhfe-wasm/generated/mhfe.js': 'cc143c9dd6800897c0787244742d5d2e258a4f3e762bcbd811d35238a2159a15',
+  'packages/recovery-mhfe-wasm/generated/mhfe.d.ts': '5596d9dc69475b040e66780753233b7b8bcf82886225d69f5b68e57f76cf23d7',
+  'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm':
+    'a076b25606e524cb1d5ccbb4a885485018308232639b24626138346bd462b159',
+  'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm.d.ts':
+    '557cfac8501b02c7f72c937fd0f7afe6d32f1f4af209e89503e9721301ebe326',
+});
 
 function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
@@ -205,8 +232,16 @@ export async function verifyDependencyProvenance({
   fetchImpl = fetch,
   timeoutMs = 5000,
   writeReport = true,
+  verifyFixedSources = true,
   logger = console,
 } = {}) {
+  if (verifyFixedSources) {
+    for (const [path, expected] of Object.entries(FIXED_SOURCE_HASHES)) {
+      const actual = sha256(readFileSync(resolve(root, path)));
+      if (actual !== expected)
+        throw new Error(`Pinned source checksum mismatch for ${path}: expected ${expected}, got ${actual}.`);
+    }
+  }
   const pnpmPackages = verifyPnpmLock(readFileSync(resolve(root, 'pnpm-lock.yaml'), 'utf8'));
   const cargoLockPaths = [
     'packages/dash-shielded-wasm/rust/Cargo.lock',

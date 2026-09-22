@@ -22,6 +22,7 @@ The Deriver's **Recover & Back Up** tab lets you prepare backups offline:
 - **Gordian Seed Envelope** encrypts a backup container. Configure alternative access through a password, recipient private key, or enough SSKR cards. You can also include the BIP39 passphrase, placing both wallet secrets in one backup. A key derived from the same phrase cannot recover the backup if that phrase is lost.
 - **Codex32** stores a checksummed phrase backup or a BIP32 master-seed backup, optionally split into shares. Master-seed mode cannot restore the original words or passphrase. Encoding alone is not encryption.
 - **SeedQR** encodes the phrase as a QR code for offline transfer or printing. It does not encrypt the secret.
+- **MHFE** converts a standard English BIP39 phrase into an experimental memory-hard encrypted 24-word container. It supports optional PIM, QR transfer, cancellation, and recovery-verifier reporting. Read the [MHFE specification](https://github.com/hobby-eng/mhfe-spec) before use.
 
 Each backup card or record can have a QR code saved as PNG. Restore tabs read QR image files offline, avoiding manual transcription. Treat each QR image like the secret it contains. SLIP-39, CKD Shamir, and standalone SSKR preserve phrase entropy; keep its separate BIP39 passphrase safe too.
 

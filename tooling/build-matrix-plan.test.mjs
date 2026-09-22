@@ -5,7 +5,7 @@ describe('exhaustive standalone build matrix', () => {
   const plan = createBuildMatrixPlan();
 
   it('enumerates every reviewed valid composition exactly once', () => {
-    expect(plan).toHaveLength(12116);
+    expect(plan).toHaveLength(23636);
     expect(new Set(plan.map(({ relativePath }) => relativePath)).size).toBe(plan.length);
   });
 
@@ -41,7 +41,7 @@ describe('bounded standalone build smoke matrix', () => {
   );
 
   it('selects a stable unique subset of valid builds', () => {
-    expect(smoke).toHaveLength(66);
+    expect(smoke).toHaveLength(68);
     expect(new Set(smoke.map(({ relativePath }) => relativePath)).size).toBe(smoke.length);
     for (const job of smoke) {
       expect(

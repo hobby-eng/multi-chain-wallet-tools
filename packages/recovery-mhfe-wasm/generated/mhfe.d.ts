@@ -1,0 +1,76 @@
+/* tslint:disable */
+/* eslint-disable */
+
+/**
+ * Browser-facing MHFE engine.
+ *
+ * Construct and call this object inside a dedicated Web Worker. Each instance
+ * owns and reuses one 512 MiB Argon2 work area. Dropping/freeing the object
+ * zeroizes that reachable work area. Terminating the Worker is the supported
+ * cancellation mechanism for an active synchronous operation.
+ */
+export class MhfeEngine {
+    free(): void;
+    [Symbol.dispose](): void;
+    clearPassword(): void;
+    decryptAutoJson(container: string): string;
+    decryptJson(container: string, source_words: number): string;
+    encryptJson(mnemonic: string): string;
+    constructor(pim: number);
+    /**
+     * Load an ASCII password. ASCII is unchanged by Unicode 18 NPSS-NFKD.
+     */
+    setAsciiPassword(password: string): void;
+    /**
+     * Load already-normalized Unicode 18 NPSS-NFKD UTF-8 bytes. Ownership is
+     * moved into a zeroizing Rust object without retaining another Rust copy.
+     */
+    setPreNormalizedPassword(password_utf8: Uint8Array): void;
+    readonly effectivePasses: number;
+    readonly pim: number;
+}
+
+export function suiteParametersJson(): string;
+
+export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
+
+export interface InitOutput {
+    readonly memory: WebAssembly.Memory;
+    readonly __wbg_mhfeengine_free: (a: number, b: number) => void;
+    readonly mhfeengine_clearPassword: (a: number) => void;
+    readonly mhfeengine_decryptAutoJson: (a: number, b: number, c: number, d: number) => void;
+    readonly mhfeengine_decryptJson: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly mhfeengine_effectivePasses: (a: number) => number;
+    readonly mhfeengine_encryptJson: (a: number, b: number, c: number, d: number) => void;
+    readonly mhfeengine_new: (a: number, b: number) => void;
+    readonly mhfeengine_pim: (a: number) => number;
+    readonly mhfeengine_setAsciiPassword: (a: number, b: number, c: number, d: number) => void;
+    readonly mhfeengine_setPreNormalizedPassword: (a: number, b: number, c: number, d: number) => void;
+    readonly suiteParametersJson: (a: number) => void;
+    readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
+    readonly __wbindgen_export: (a: number, b: number) => number;
+    readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
+    readonly __wbindgen_export3: (a: number, b: number, c: number) => void;
+}
+
+export type SyncInitInput = BufferSource | WebAssembly.Module;
+
+/**
+ * Instantiates the given `module`, which can either be bytes or
+ * a precompiled `WebAssembly.Module`.
+ *
+ * @param {{ module: SyncInitInput }} module - Passing `SyncInitInput` directly is deprecated.
+ *
+ * @returns {InitOutput}
+ */
+export function initSync(module: { module: SyncInitInput } | SyncInitInput): InitOutput;
+
+/**
+ * If `module_or_path` is {RequestInfo} or {URL}, makes a request and
+ * for everything else, calls `WebAssembly.instantiate` directly.
+ *
+ * @param {{ module_or_path: InitInput | Promise<InitInput> }} module_or_path - Passing `InitInput` directly is deprecated.
+ *
+ * @returns {Promise<InitOutput>}
+ */
+export default function __wbg_init (module_or_path?: { module_or_path: InitInput | Promise<InitInput> } | InitInput | Promise<InitInput>): Promise<InitOutput>;

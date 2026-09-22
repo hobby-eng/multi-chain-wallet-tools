@@ -284,7 +284,7 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   };
   const before = await storageSnapshot(page);
   await clickStep(page.locator('#recovery-backup-mode'), 'Open Recover & Back Up');
-  assert.equal(await page.locator('.recovery-help').count(), 7);
+  assert.equal(await page.locator('.recovery-help').count(), 8);
   const firstHelp = page.locator('.recovery-help').first();
   await firstHelp.locator('summary').hover();
   await page.waitForFunction(() => document.querySelector('.recovery-help')?.hasAttribute('open'));
@@ -294,6 +294,19 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   assert.doesNotMatch(await firstHelp.locator('.recovery-help-popover').innerText(), /Example:/);
   await page.mouse.click(1, 1);
   assert.equal(await firstHelp.getAttribute('open'), null);
+
+  await clickStep(page.locator('[data-recovery-tab][aria-controls="mhfe-panel"]'), 'Open MHFE');
+  await page.locator('#mhfe-source').fill(mnemonic);
+  await page.locator('#mhfe-encrypt-password').fill('public browser test password');
+  await page.locator('#mhfe-encrypt-password-confirm').fill('public browser test password');
+  await page.locator('#mhfe-encrypt-use-pim').check();
+  assert.equal(await page.locator('#mhfe-encrypt-pim-field').isVisible(), true);
+  await page.locator('#mhfe-encrypt-use-pim').uncheck();
+  await clickStep(page.locator('#mhfe-encrypt'), 'Start MHFE worker');
+  await waitText(page, '#mhfe-encrypt-status', /Running 12 memory-hard/u);
+  assert.equal(await page.locator('#mhfe-encrypt-password').inputValue(), '');
+  await clickStep(page.locator('#mhfe-encrypt-stop'), 'Stop MHFE worker');
+  await waitText(page, '#mhfe-encrypt-status', /worker and Argon2 memory were discarded/u);
 
   const methods = [
     {
@@ -454,7 +467,7 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   assert.deepEqual(await storageSnapshot(page), before);
   assert.equal(run.requests.length, 0);
   run.checks.push(
-    'Recovery help popovers; SeedQR, SLIP-39, both CKD Shamir encodings, and Codex32 exact browser round trips; QR actions; reveal-gated copy; in-memory return to Derive; storage/no HTTP',
+    'Recovery help popovers; MHFE Worker initialization/PIM/Stop; SeedQR, SLIP-39, both CKD Shamir encodings, and Codex32 exact browser round trips; QR actions; reveal-gated copy; in-memory return to Derive; storage/no HTTP',
   );
 }
 

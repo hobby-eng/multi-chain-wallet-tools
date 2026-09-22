@@ -82,6 +82,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
   const targetPanels: Readonly<Record<RecoverySourceTarget, string>> = {
     matcher: 'wallet-matcher-panel',
     seedqr: 'seedqr-panel',
+    mhfe: 'mhfe-panel',
     slip39: 'slip39-panel',
     shamir: 'shamir-panel',
     codex32: 'codex32-panel',
@@ -90,6 +91,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
   };
   const sourceSelectors: Readonly<Record<Exclude<RecoverySourceTarget, 'matcher'>, string>> = {
     seedqr: '#seedqr-source',
+    mhfe: '#mhfe-source',
     slip39: '#slip39-source-mnemonic',
     shamir: '#shamir-source',
     codex32: '#codex32-source',

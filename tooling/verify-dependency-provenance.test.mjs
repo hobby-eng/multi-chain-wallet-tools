@@ -38,6 +38,7 @@ describe('dependency provenance verifier', () => {
       verifyDependencyProvenance({
         root,
         writeReport: false,
+        verifyFixedSources: false,
         fetchImpl: vi.fn(async () => ({ ok: true, json: async () => ({ sha: '0'.repeat(40) }) })),
         logger: { log: vi.fn(), warn: vi.fn() },
       }),
@@ -50,6 +51,7 @@ describe('dependency provenance verifier', () => {
     const report = await verifyDependencyProvenance({
       root,
       writeReport: false,
+      verifyFixedSources: false,
       fetchImpl: vi.fn(async () => {
         throw new Error('offline');
       }),
@@ -82,6 +84,12 @@ function fixtureRoot() {
   const sourceFiles = [
     'packages/recovery-backup/src/seedqr.ts',
     'packages/recovery-backup/tests/seedqr.test.ts',
+    'packages/recovery-mhfe-wasm/generated/mhfe.js',
+    'packages/recovery-mhfe-wasm/generated/mhfe.d.ts',
+    'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm',
+    'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm.d.ts',
+    'apps/key-derivation/src/workers/mhfe-backup-worker.ts',
+    'apps/key-derivation/src/ui/recovery-mhfe.ts',
     'packages/recovery-backup/src/slip39.ts',
     'packages/recovery-backup/src/slip39-wordlist.ts',
     'packages/recovery-backup/tests/slip39-official-vectors.json',

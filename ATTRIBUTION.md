@@ -28,4 +28,5 @@ Exact pinned versions, commits, package integrity values, transitive dependencie
 
 - **Ian Coleman BIP39** — the Seed Diagnostic entropy-detail presentation (word indexes, binary groups, and checksum breakdown) is adapted conceptually from the MIT-licensed [`iancoleman/bip39`](https://github.com/iancoleman/bip39); all BIP39 validation and entropy conversion remain delegated to the pinned `@scure/bip39` implementation.
 - **SeedSigner SeedQR** — Standard SeedQR and CompactSeedQR formats and public test vectors: [github.com/SeedSigner/seedsigner](https://github.com/SeedSigner/seedsigner), MIT licensed.
+- **MHFE** — the experimental Memory-Hard Feistel Encryption specification and browser WASM implementation are maintained by this project's author in [`hobby-eng/mhfe-spec`](https://github.com/hobby-eng/mhfe-spec) and [`hobby-eng/mhfe`](https://github.com/hobby-eng/mhfe). The embedded v0.3.0 module is MIT licensed and pinned by release and file SHA-256.
 - **Paul Miller QR** — zero-dependency offline QR image decoder used for local recovery imports: [github.com/paulmillr/qr](https://github.com/paulmillr/qr), MIT OR Apache-2.0 licensed.
