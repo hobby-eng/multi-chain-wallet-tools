@@ -1,4 +1,12 @@
-export type RecoverySourceTarget = 'matcher' | 'seedqr' | 'slip39' | 'shamir' | 'codex32' | 'sskr' | 'gordian-envelope';
+export type RecoverySourceTarget =
+  | 'matcher'
+  | 'seedqr'
+  | 'mhfe'
+  | 'slip39'
+  | 'shamir'
+  | 'codex32'
+  | 'sskr'
+  | 'gordian-envelope';
 
 interface RecoverySourceValue {
   readonly mnemonic: string;

@@ -106,6 +106,8 @@ export function assertDashOnlyGraph(inputs, label) {
       'packages/recovery-sskr-wasm/generated/recovery_sskr_wasm_bg.wasm',
       'packages/recovery-envelope-wasm/generated/recovery_envelope_wasm.js',
       'packages/recovery-envelope-wasm/generated/recovery_envelope_wasm_bg.wasm',
+      'packages/recovery-mhfe-wasm/generated/mhfe.js',
+      'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm',
     ]);
     const newPackageMarkers = [
       'packages/public-data-providers/src/',
@@ -118,6 +120,7 @@ export function assertDashOnlyGraph(inputs, label) {
       'packages/recovery-codex32-wasm/generated/',
       'packages/recovery-sskr-wasm/generated/',
       'packages/recovery-envelope-wasm/generated/',
+      'packages/recovery-mhfe-wasm/generated/',
     ];
     for (const marker of newPackageMarkers) {
       const markerIndex = input.indexOf(marker);

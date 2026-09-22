@@ -14,6 +14,8 @@ This independent tool uses the official open-source Dash Orchard fork and Dash P
 
 Original project code is released under the repository's [MIT License](../../LICENSE); embedded dependencies retain their separately listed licenses.
 
+MHFE embeds the verified v0.3.0 browser module in a disposable Worker and provides 12/15/18/21/24-word encryption, automatic short-source recovery, an explicit 24-word override, optional PIM, stop/status controls, QR transfer, and recovery-verifier reporting. See the [MHFE specification](https://github.com/hobby-eng/mhfe-spec) and [reference implementation](https://github.com/hobby-eng/mhfe).
+
 Recovery-source visibility and derived-secret visibility use independent controls: revealing the mnemonic/passphrase does not reveal private result fields, and revealing result keys does not expose the recovery source. The BIP39 passphrase field accepts Unicode and preserves the entered case, spaces, line breaks, symbols, and other characters verbatim before the BIP39 library applies its required NFKD normalization. The mnemonic itself remains restricted to the English BIP39 wordlist.
 
 The main UI loads protocol metadata only. All runtime key derivation and the Orchard WASM instance execute in a disposable Blob worker. The offline Recover & Back Up workspace uses separate embedded CKD Shamir, Codex32, SSKR, and Gordian Envelope WASM modules on the main thread because it does not share derivation-worker state. Message signing, BIP38 encryption, BIP85 child-secret derivation, and BIP352 scan/spend-key derivation use the same disposable-worker boundary. The final HTML has `connect-src 'none'`, no external assets, no storage APIs and no runtime install requirement.

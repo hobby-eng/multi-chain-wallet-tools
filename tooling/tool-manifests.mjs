@@ -17,6 +17,7 @@ export const TOOL_MANIFESTS = Object.freeze({
       'message-signing',
       'wallet-matcher',
       'seedqr',
+      'mhfe',
       'slip39',
       'shamir',
       'codex32',

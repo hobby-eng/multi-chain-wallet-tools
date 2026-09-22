@@ -129,7 +129,7 @@ describe('selective bundle graph guards', () => {
   });
 
   it('keeps recovery destination menus ordered like their tabs', () => {
-    const expected = ['matcher', 'seedqr', 'slip39', 'shamir', 'sskr', 'gordian-envelope', 'codex32'];
+    const expected = ['matcher', 'seedqr', 'mhfe', 'slip39', 'shamir', 'sskr', 'gordian-envelope', 'codex32'];
     for (const file of ['apps/key-derivation/src/index.html', 'tooling/profile-template.mjs']) {
       const source = readFileSync(file, 'utf8');
       const targets = [...source.matchAll(/data-recovery-target="([^"]+)"/gu)].map((match) => match[1]);
@@ -141,6 +141,7 @@ describe('selective bundle graph guards', () => {
     const targetByFeature = {
       'wallet-matcher': 'matcher',
       seedqr: 'seedqr',
+      mhfe: 'mhfe',
       slip39: 'slip39',
       shamir: 'shamir',
       sskr: 'sskr',

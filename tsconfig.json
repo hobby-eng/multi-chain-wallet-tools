@@ -20,6 +20,7 @@
       "@ckd/recovery-backup/*": ["./packages/recovery-backup/src/*"],
       "@ckd/recovery-sskr-wasm/*": ["./packages/recovery-sskr-wasm/generated/*"],
       "@ckd/recovery-envelope-wasm/*": ["./packages/recovery-envelope-wasm/generated/*"],
+      "@ckd/recovery-mhfe-wasm/*": ["./packages/recovery-mhfe-wasm/generated/*"],
       "@ckd/recovery-shamir-wasm/*": ["./packages/recovery-shamir-wasm/generated/*"],
       "@ckd/build-info": ["./packages/build-security/src/build-info.ts"],
       "@ckd/self-test": ["./packages/verification/src/self-test.ts"],

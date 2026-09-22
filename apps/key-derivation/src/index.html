@@ -108,6 +108,7 @@
                     Wallet Matcher
                   </button>
                   <button type="button" data-recovery-source="main" data-recovery-target="seedqr">SeedQR</button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="mhfe">MHFE</button>
                   <button type="button" data-recovery-source="main" data-recovery-target="slip39">
                     SLIP-39 shares
                   </button>
@@ -322,6 +323,16 @@
             data-recovery-tab
           >
             SeedQR
+          </button>
+          <button
+            class="recovery-subtab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="mhfe-panel"
+            data-recovery-tab
+          >
+            MHFE
           </button>
           <button
             class="recovery-subtab"
@@ -629,6 +640,160 @@
               <button class="primary" id="restore-seedqr" type="button">Restore BIP39 phrase</button>
             </div>
             <div id="seedqr-restore-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+        </section>
+
+        <section id="mhfe-panel" class="panel recovery-panel backup-method" role="tabpanel" data-recovery-panel hidden>
+          <div class="section-head">
+            <div>
+              <span class="step">02</span>
+              <h2>MHFE encrypted BIP39 backup</h2>
+            </div>
+          </div>
+          <details class="recovery-help">
+            <summary>What is this?</summary>
+            <div class="recovery-help-popover">
+              <h3>Memory-Hard Feistel Encryption</h3>
+              <p>
+                MHFE is an experimental encryption construction designed by this project's author. It converts a
+                checksum-valid 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase into one checksum-valid 24-word BIP39
+                container without storing a separate salt, nonce, or tag. It runs twelve 512 MiB Argon2id-backed Feistel
+                rounds and can therefore take several minutes on slower computers.
+              </p>
+              <p>
+                Short source phrases carry a recovery fingerprint whose first bits are their ordinary BIP39 checksum. A
+                24-word source fills the whole state and cannot carry that fingerprint, so its recovered checksum does
+                not prove that the password was correct.
+              </p>
+              <p class="upstream-links">
+                Read the
+                <a href="https://github.com/hobby-eng/mhfe-spec" target="_blank" rel="noopener noreferrer"
+                  >MHFE specification</a
+                >
+                and inspect the
+                <a href="https://github.com/hobby-eng/mhfe" target="_blank" rel="noopener noreferrer"
+                  >reference implementation</a
+                >. This page embeds the verified browser module from the published v0.3.0 release.
+              </p>
+            </div>
+          </details>
+          <div class="warning-callout">
+            <strong>Experimental construction.</strong> MHFE has not received enough independent cryptographic review
+            for protecting real funds. Losing the password or a deliberately selected non-zero PIM makes recovery
+            impossible.
+          </div>
+          <nav class="backup-mode-tabs" role="tablist" aria-label="MHFE operation">
+            <button
+              class="backup-mode-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="mhfe-create-panel"
+              data-operation-tab
+            >
+              Encrypt
+            </button>
+            <button
+              class="backup-mode-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="mhfe-restore-panel"
+              data-operation-tab
+            >
+              Recover
+            </button>
+          </nav>
+          <section id="mhfe-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
+            <div class="field-heading-row">
+              <label for="mhfe-source">BIP39 phrase to encrypt</label>
+              <button id="toggle-mhfe-source" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal source phrase
+              </button>
+            </div>
+            <textarea
+              id="mhfe-source"
+              class="concealed"
+              rows="4"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
+            ></textarea>
+            <div class="backup-options-grid mhfe-password-grid">
+              <label for="mhfe-encrypt-password"
+                >MHFE password
+                <input id="mhfe-encrypt-password" type="password" autocomplete="new-password" maxlength="1024" />
+              </label>
+              <label for="mhfe-encrypt-password-confirm"
+                >Confirm password
+                <input
+                  id="mhfe-encrypt-password-confirm"
+                  type="password"
+                  autocomplete="new-password"
+                  maxlength="1024"
+                />
+              </label>
+            </div>
+            <label class="checkbox-row" for="mhfe-encrypt-use-pim">
+              <input id="mhfe-encrypt-use-pim" type="checkbox" />
+              Use a non-zero PIM work factor
+            </label>
+            <label id="mhfe-encrypt-pim-field" for="mhfe-encrypt-pim" hidden
+              >PIM (1–31)
+              <input id="mhfe-encrypt-pim" type="number" min="1" max="31" step="1" value="1" />
+            </label>
+            <p class="field-note">
+              With the checkbox off, PIM is 0 and does not need to be recorded. This browser module accepts printable
+              ASCII passwords so its normalization is exact and reproducible.
+            </p>
+            <div class="actions">
+              <button class="primary" id="mhfe-encrypt" type="button">Encrypt to 24 words</button>
+              <button class="secondary" id="mhfe-encrypt-stop" type="button" hidden>Stop</button>
+            </div>
+            <p id="mhfe-encrypt-status" class="status" role="status" aria-live="polite"></p>
+            <div id="mhfe-encrypt-result" class="share-results" aria-live="polite"></div>
+          </section>
+          <section id="mhfe-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+            <div class="field-heading-row">
+              <label for="mhfe-container">Encrypted 24-word MHFE container</label>
+              <button id="toggle-mhfe-container" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal encrypted container
+              </button>
+            </div>
+            <textarea
+              id="mhfe-container"
+              class="concealed"
+              rows="4"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Paste or scan the encrypted 24-word BIP39 container"
+            ></textarea>
+            <label for="mhfe-decrypt-password"
+              >MHFE password
+              <input id="mhfe-decrypt-password" type="password" autocomplete="current-password" maxlength="1024" />
+            </label>
+            <label class="checkbox-row" for="mhfe-decrypt-use-pim">
+              <input id="mhfe-decrypt-use-pim" type="checkbox" />
+              Use the recorded non-zero PIM
+            </label>
+            <label id="mhfe-decrypt-pim-field" for="mhfe-decrypt-pim" hidden
+              >PIM (1–31)
+              <input id="mhfe-decrypt-pim" type="number" min="1" max="31" step="1" value="1" />
+            </label>
+            <label class="checkbox-row" for="mhfe-source-was-24">
+              <input id="mhfe-source-was-24" type="checkbox" />
+              The original phrase had 24 words
+            </label>
+            <p class="field-note">
+              Leave the 24-word option off for automatic 12-, 15-, 18-, or 21-word detection. Select it when recovering
+              a known 24-word source; that format has no internal recovery fingerprint.
+            </p>
+            <div class="actions">
+              <button class="primary" id="mhfe-decrypt" type="button">Recover phrase</button>
+              <button class="secondary" id="mhfe-decrypt-stop" type="button" hidden>Stop</button>
+            </div>
+            <p id="mhfe-decrypt-status" class="status" role="status" aria-live="polite"></p>
+            <div id="mhfe-decrypt-result" class="share-results" aria-live="polite"></div>
           </section>
         </section>
 

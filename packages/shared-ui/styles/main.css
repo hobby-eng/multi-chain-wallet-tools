@@ -2257,6 +2257,36 @@ footer p {
   color: var(--accent2);
 }
 
+.success-callout {
+  padding: 0.9rem;
+  border: 1px solid rgba(80, 200, 120, 0.48);
+  border-radius: 0.65rem;
+  color: var(--text);
+  background: rgba(80, 200, 120, 0.09);
+  line-height: 1.5;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.checkbox-row input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+}
+
+.mhfe-password-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 700px) {
+  .mhfe-password-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 880px) {
   .matcher-input-grid,
   .backup-options-grid,
