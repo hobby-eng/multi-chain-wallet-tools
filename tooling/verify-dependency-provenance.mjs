@@ -40,7 +40,7 @@ const GITHUB_SOURCES = [
     id: 'seedsigner-seedqr',
     repository: 'SeedSigner/seedsigner',
     reference: 'SeedQR documentation revision',
-    commit: '85cd9a0211eeb22962a5e65ba349ef6efa91bb57',
+    commit: 'b225ae77e9251a813cf2bd61e7874629d6f3cb10',
   },
   {
     id: 'sskr-0.12.0',
