@@ -21,8 +21,8 @@ requireMatch(
   'The canonical base image must be pinned by an immutable SHA-256 digest.',
 );
 for (const expected of [
-  'ARG NODE_VERSION=24.20.0',
-  'ARG NODE_ARCHIVE_SHA256=2f2c0da162318f0de47665410c7c8c2ed3d36c8f3105de4bbc61176c70a7cbf2',
+  'ARG NODE_VERSION=24.21.0',
+  'ARG NODE_ARCHIVE_SHA256=fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6',
   'ARG RUSTUP_VERSION=1.29.1',
   'ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71',
   'ARG CLANG_VERSION=1:18.0-59~exp2',
@@ -31,7 +31,7 @@ for (const expected of [
   'apt-get install --yes --no-install-recommends \"clang=${CLANG_VERSION}\" \"wasi-libc=${WASI_LIBC_VERSION}\"',
   'CFLAGS_wasm32_unknown_unknown="-I/usr/include/wasm32-wasi -include /usr/include/wasm32-wasi/string.h"',
   'git config --system http.version HTTP/1.1',
-  'npm install --global pnpm@11.25.0',
+  'npm install --global pnpm@12.5.1',
   'cargo install wasm-bindgen-cli --version 0.2.128 --locked',
   'for attempt in 1 2 3 4 5',
   'Cargo fetch attempt ${attempt} failed',
