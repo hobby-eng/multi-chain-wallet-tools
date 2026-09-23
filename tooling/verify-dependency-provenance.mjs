@@ -37,10 +37,10 @@ const GITHUB_SOURCES = [
     commit: 'b225ae77e9251a813cf2bd61e7874629d6f3cb10',
   },
   {
-    id: 'mhfe-v0.3.0',
+    id: 'mhfe-v0.3.1',
     repository: 'hobby-eng/mhfe',
-    reference: 'v0.3.0 browser WASM release',
-    commit: '1f18322dbc23df54b10719efb0113fcd4ba88242',
+    reference: 'v0.3.1 browser WASM source revision',
+    commit: '26ec19419bddf0d68dcbb94e5ac713a9104fbab7',
   },
   {
     id: 'sskr-0.12.0',
@@ -70,7 +70,7 @@ const LOCAL_IMPLEMENTATIONS = [
   },
   {
     id: 'mhfe-browser-module',
-    upstream: 'mhfe-v0.3.0',
+    upstream: 'mhfe-v0.3.1',
     files: [
       'packages/recovery-mhfe-wasm/generated/mhfe.js',
       'packages/recovery-mhfe-wasm/generated/mhfe.d.ts',
@@ -139,12 +139,12 @@ const LOCAL_IMPLEMENTATIONS = [
 ];
 
 const FIXED_SOURCE_HASHES = Object.freeze({
-  'packages/recovery-mhfe-wasm/generated/mhfe.js': 'cc143c9dd6800897c0787244742d5d2e258a4f3e762bcbd811d35238a2159a15',
-  'packages/recovery-mhfe-wasm/generated/mhfe.d.ts': '5596d9dc69475b040e66780753233b7b8bcf82886225d69f5b68e57f76cf23d7',
+  'packages/recovery-mhfe-wasm/generated/mhfe.js': '89c03e218fdbf8a5e75aeb823bda3ffdda54f51a55aba5ac788b1944fc95149b',
+  'packages/recovery-mhfe-wasm/generated/mhfe.d.ts': '1775abebd385685edd79ae6fea0da72d412384fba3987c64a3f0b58bed85b2db',
   'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm':
-    'a076b25606e524cb1d5ccbb4a885485018308232639b24626138346bd462b159',
+    '09fc20c960ad7ed5745d7414f0f64f293bbfef7b9ab6e0846c194255ce403909',
   'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm.d.ts':
-    '557cfac8501b02c7f72c937fd0f7afe6d32f1f4af209e89503e9721301ebe326',
+    'a943919741a49f42a006f847e8cc0e668c5b6c1e145eca59ebc0d4978ea1bfdf',
 });
 
 function sha256(bytes) {

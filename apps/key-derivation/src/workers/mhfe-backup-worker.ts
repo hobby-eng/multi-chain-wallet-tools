@@ -3,7 +3,7 @@ import mhfeWasmBytes from '@ckd/recovery-mhfe-wasm/mhfe_bg.wasm';
 
 interface Request {
   readonly id: number;
-  readonly type: 'encrypt' | 'decryptAuto' | 'decrypt24';
+  readonly type: 'encrypt' | 'encryptPreservingFinalWord' | 'decryptAuto' | 'decrypt24' | 'decryptPreservingFinalWord';
   readonly pim: number;
   readonly passwordAscii: string;
   readonly mnemonic?: string;
@@ -34,12 +34,20 @@ scope.addEventListener('message', (event: MessageEvent<Request>) => {
   try {
     engine = new MhfeEngine(request.pim);
     engine.setAsciiPassword(request.passwordAscii);
+    const reportProgress = (progressJson: string): boolean => {
+      scope.postMessage({ id: request.id, type: 'progress', progress: JSON.parse(progressJson) });
+      return true;
+    };
     const result = JSON.parse(
       request.type === 'encrypt'
         ? engine.encryptJson(request.mnemonic ?? '')
-        : request.type === 'decrypt24'
-          ? engine.decryptJson(request.container ?? '', 24)
-          : engine.decryptAutoJson(request.container ?? ''),
+        : request.type === 'encryptPreservingFinalWord'
+          ? engine.encryptPreservingFinalWordJson(request.mnemonic ?? '', reportProgress)
+          : request.type === 'decryptPreservingFinalWord'
+            ? engine.decryptPreservingFinalWordJson(request.container ?? '', reportProgress)
+            : request.type === 'decrypt24'
+              ? engine.decryptJson(request.container ?? '', 24)
+              : engine.decryptAutoJson(request.container ?? ''),
     ) as unknown;
     scope.postMessage({ id: request.id, ok: true, result });
   } catch (cause) {

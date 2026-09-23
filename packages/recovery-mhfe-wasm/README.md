@@ -1,14 +1,14 @@
 # MHFE browser module
 
-This directory contains the browser WASM module from the published
-[`hobby-eng/mhfe` v0.3.0 release](https://github.com/hobby-eng/mhfe/releases/tag/v0.3.0).
+This directory contains the browser WASM module built from the reviewed
+[`hobby-eng/mhfe` v0.3.1 source](https://github.com/hobby-eng/mhfe/tree/26ec19419bddf0d68dcbb94e5ac713a9104fbab7).
 The Key Derivation Tool embeds it in a dedicated Web Worker and terminates that
 worker to cancel an active operation.
 
-- Source commit: `1f18322dbc23df54b10719efb0113fcd4ba88242`
-- Release archive: `mhfe-v0.3.0-browser-wasm.tar.gz`
-- Archive SHA-256: `330ef261f5cd5838c6eb2f4a478c79d6f7ddb57aed471d1532955d11cd4fd851`
-- `generated/mhfe.js`: `cc143c9dd6800897c0787244742d5d2e258a4f3e762bcbd811d35238a2159a15`
-- `generated/mhfe_bg.wasm`: `a076b25606e524cb1d5ccbb4a885485018308232639b24626138346bd462b159`
+- Source commit: `26ec19419bddf0d68dcbb94e5ac713a9104fbab7`
+- `generated/mhfe.js`: `89c03e218fdbf8a5e75aeb823bda3ffdda54f51a55aba5ac788b1944fc95149b`
+- `generated/mhfe.d.ts`: `1775abebd385685edd79ae6fea0da72d412384fba3987c64a3f0b58bed85b2db`
+- `generated/mhfe_bg.wasm`: `09fc20c960ad7ed5745d7414f0f64f293bbfef7b9ab6e0846c194255ce403909`
+- `generated/mhfe_bg.wasm.d.ts`: `a943919741a49f42a006f847e8cc0e668c5b6c1e145eca59ebc0d4978ea1bfdf`
 
 The module is MIT licensed. See `LICENSE-MHFE`.
