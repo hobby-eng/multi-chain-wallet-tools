@@ -232,15 +232,15 @@ function renderEncryptedContainer(
   container.replaceChildren(card);
 }
 
-function verifierText(result: DecryptionResult): string {
+function recoverySummary(result: DecryptionResult): string {
   if (result.profileId !== undefined) {
-    return `Final word preserved: “${result.preservedFinalWord}” after ${result.iterations?.toLocaleString('en-US')} inverse permutations. This visible word identifies the selected class but does not confirm the password or PIM. The recovered BIP39 checksum is valid because it was recomputed.`;
+    return `Phrase recovered · 24 words · final word “${result.preservedFinalWord}” preserved · BIP39 checksum valid. The visible word does not confirm the password or PIM.`;
   }
   if (result.recoveryVerifier === 'unavailable') {
-    return 'Recovery fingerprint: unavailable for a 24-word source. BIP39 checksum: valid because it was recomputed; this does not confirm the password or PIM.';
+    return 'Phrase recovered · 24 words · BIP39 checksum valid · no internal recovery fingerprint.';
   }
   const verifierBits = 256 - ({ 12: 128, 15: 160, 18: 192, 21: 224 }[result.sourceWords] ?? 256);
-  return `Recovery fingerprint: matched (${verifierBits} bits). Embedded BIP39 checksum prefix: matched. Recovered BIP39 phrase checksum: valid.`;
+  return `Phrase recovered · recovery fingerprint matched (${verifierBits} bits) · BIP39 checksum valid · ${result.sourceWords} words.`;
 }
 
 export function installMhfe(context: RecoveryFeatureContext): void {
@@ -378,16 +378,17 @@ export function installMhfe(context: RecoveryFeatureContext): void {
             const heading = document.createElement('h3');
             heading.textContent = `${result.sourceWords}-word candidate`;
             decryptResult.append(heading);
+            const verification = document.createElement('div');
+            verification.className = 'success-callout';
+            verification.textContent = recoverySummary(result);
+            decryptResult.append(verification);
           }
-          const verification = document.createElement('div');
-          verification.className = result.recoveryVerifier === 'matched' ? 'success-callout' : 'warning-callout';
-          verification.textContent = verifierText(result);
-          decryptResult.append(verification);
           renderRecoveredMnemonic(
             decryptResult,
             result.recoveredMnemonic,
             context.writeClipboard,
             context.useMnemonicInDeriver,
+            context.mnemonicToSeed,
           );
         }
         const first = results[0];
@@ -395,7 +396,8 @@ export function installMhfe(context: RecoveryFeatureContext): void {
         decryptStatus.textContent =
           results.length > 1
             ? `Recovery found an extremely rare verifier collision. All matching candidates are shown: ${results.map((result) => result.sourceWords).join(', ')} words.`
-            : `Recovery complete · ${first.sourceWords} words · PIM ${first.pim} · ${first.effectivePasses} Argon2id passes per round.${first.iterations === undefined ? '' : ` ${first.iterations.toLocaleString('en-US')} inverse permutations.`}`;
+            : `${recoverySummary(first)} PIM ${first.pim} · ${first.effectivePasses} Argon2id passes per round.${first.iterations === undefined ? '' : ` ${first.iterations.toLocaleString('en-US')} inverse permutations.`}`;
+        decryptStatus.classList.toggle('warning', results.length > 1);
       } catch (cause) {
         if (decryptStatus.textContent?.startsWith('MHFE operation stopped')) return;
         decryptStatus.classList.add('warning');
