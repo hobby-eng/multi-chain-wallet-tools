@@ -242,6 +242,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
   const encryptResult = required<HTMLElement>('#mhfe-encrypt-result');
   encryptAction.addEventListener('click', () => {
     encryptResult.replaceChildren();
+    encryptStatus.classList.remove('warning');
     void (async () => {
       try {
         const password = asciiPassword('encrypt');
@@ -276,6 +277,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
         renderEncryptedContainer(encryptResult, result, context.writeClipboard);
       } catch (cause) {
         if (encryptStatus.textContent?.startsWith('MHFE operation stopped')) return;
+        encryptStatus.classList.add('warning');
         encryptStatus.textContent = cause instanceof Error ? cause.message : 'MHFE encryption failed.';
       }
     })();
@@ -287,6 +289,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
   const decryptResult = required<HTMLElement>('#mhfe-decrypt-result');
   decryptAction.addEventListener('click', () => {
     decryptResult.replaceChildren();
+    decryptStatus.classList.remove('warning');
     void (async () => {
       let entropy: Uint8Array | undefined;
       try {
@@ -326,6 +329,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
         decryptStatus.textContent = `Recovery complete · ${result.sourceWords} words · PIM ${result.pim} · ${result.effectivePasses} Argon2id passes per round.${result.iterations === undefined ? '' : ` ${result.iterations.toLocaleString('en-US')} inverse permutations.`}`;
       } catch (cause) {
         if (decryptStatus.textContent?.startsWith('MHFE operation stopped')) return;
+        decryptStatus.classList.add('warning');
         decryptStatus.textContent = cause instanceof Error ? cause.message : 'MHFE recovery failed.';
       } finally {
         entropy?.fill(0);
