@@ -837,19 +837,26 @@
               >PIM (1–31)
               <input id="mhfe-decrypt-pim" type="number" min="1" max="31" step="1" value="1" />
             </label>
-            <label class="checkbox-row" for="mhfe-source-was-24">
-              <input id="mhfe-source-was-24" type="checkbox" />
-              The original phrase had 24 words
+            <label for="mhfe-decrypt-source-words">
+              Original phrase length
+              <select id="mhfe-decrypt-source-words">
+                <option value="auto" selected>Auto-detect</option>
+                <option value="12">12 words</option>
+                <option value="15">15 words</option>
+                <option value="18">18 words</option>
+                <option value="21">21 words</option>
+                <option value="24">24 words</option>
+              </select>
             </label>
             <label class="checkbox-row" for="mhfe-decrypt-preserve-final-word">
               <input id="mhfe-decrypt-preserve-final-word" type="checkbox" />
               The final-word-preserving mode was used
             </label>
             <p class="field-note">
-              Leave the 24-word option off for automatic 12-, 15-, 18-, or 21-word detection. Select it when recovering
-              a known 24-word source; that format has no internal recovery fingerprint. Select the final-word mode only
-              when it was chosen during encryption. Recovery repeats the same potentially multi-hour search, shows
-              progress, and preserves the visible final word without using it as a password check.
+              Auto checks the recovery fingerprints for 12, 15, 18, and 21 words; if none matches, it returns the
+              24-word interpretation. Use an exact length only as an override. In the extremely unlikely event that
+              several short lengths match, every matching phrase is shown. Select the final-word mode only when it was
+              used during encryption; it forces 24 words and repeats the same potentially multi-hour search.
             </p>
             <div class="actions">
               <button class="primary" id="mhfe-decrypt" type="button">Recover phrase</button>
