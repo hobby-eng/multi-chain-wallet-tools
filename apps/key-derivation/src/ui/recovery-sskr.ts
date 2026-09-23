@@ -4,6 +4,7 @@ import { createSskrShares, recoverSskrShares, type SskrShareEncoding } from '@ck
 import { installQrImageImport } from '@ckd/ui/qr-image-import.js';
 import {
   installSecretToggle,
+  installMnemonicSourceDiagnostic,
   lines,
   installThresholdGroupEditor,
   renderRecoveredMnemonic,
@@ -31,6 +32,7 @@ export function installSskr(context: RecoveryFeatureContext): void {
     help: 'Each group creates a separate set of shares. First satisfy Shares required inside a group; then satisfy Groups required with that many completed groups. With Groups required set to 1, any one completed group can restore the secret.',
   });
   installSecretToggle('#toggle-sskr-source', '#sskr-source', 'Reveal source phrase', 'Hide source phrase');
+  installMnemonicSourceDiagnostic(context, 'sskr', '#sskr-source', '#toggle-sskr-source');
   installSecretToggle('#toggle-sskr-shares', '#sskr-shares', 'Reveal entered shares', 'Hide entered shares');
   installSecretToggle(
     '#toggle-sskr-created',

@@ -7,6 +7,7 @@ import {
 import { installQrImageImport } from '@ckd/ui/qr-image-import.js';
 import {
   installSecretToggle,
+  installMnemonicSourceDiagnostic,
   integer,
   lines,
   renderRecoveredMnemonic,
@@ -23,6 +24,7 @@ function selectedFormat(selector: string): CkdShamirShareFormat {
 
 export function installShamir(context: RecoveryFeatureContext): void {
   installSecretToggle('#toggle-shamir-source', '#shamir-source', 'Reveal source phrase', 'Hide source phrase');
+  installMnemonicSourceDiagnostic(context, 'shamir', '#shamir-source', '#toggle-shamir-source');
   installSecretToggle('#toggle-shamir-shares', '#shamir-shares', 'Reveal entered shares', 'Hide entered shares');
   installSecretToggle(
     '#toggle-shamir-created',
