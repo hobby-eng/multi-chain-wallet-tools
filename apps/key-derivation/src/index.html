@@ -668,8 +668,8 @@
               <p>
                 An optional 24-word mode can preserve the source's complete final word by repeatedly running the full
                 encryption until that word matches. The word is then visible in the encrypted container. This search
-                averages about 2,048 complete encryptions, can take many hours or days depending on the computer, and
-                may finish much sooner or later. It does not verify the password.
+                averages about 2,048 complete encryptions, can take many hours depending on the computer, and may finish
+                much sooner or later. It is unnecessary for exact recovery and does not verify the password.
               </p>
               <p class="upstream-links">
                 Read the
@@ -726,19 +726,34 @@
               placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
             ></textarea>
             <div class="backup-options-grid mhfe-password-grid">
-              <label for="mhfe-encrypt-password"
-                >MHFE password
+              <div class="mhfe-password-field">
+                <div class="field-heading-row">
+                  <label for="mhfe-encrypt-password">MHFE password</label>
+                  <button id="toggle-mhfe-encrypt-password" class="secondary compact" type="button" aria-pressed="false">
+                    Show
+                  </button>
+                </div>
                 <input id="mhfe-encrypt-password" type="password" autocomplete="new-password" maxlength="1024" />
-              </label>
-              <label for="mhfe-encrypt-password-confirm"
-                >Confirm password
+              </div>
+              <div class="mhfe-password-field">
+                <div class="field-heading-row">
+                  <label for="mhfe-encrypt-password-confirm">Confirm password</label>
+                  <button
+                    id="toggle-mhfe-encrypt-password-confirm"
+                    class="secondary compact"
+                    type="button"
+                    aria-pressed="false"
+                  >
+                    Show
+                  </button>
+                </div>
                 <input
                   id="mhfe-encrypt-password-confirm"
                   type="password"
                   autocomplete="new-password"
                   maxlength="1024"
                 />
-              </label>
+              </div>
             </div>
             <label class="checkbox-row" for="mhfe-encrypt-use-pim">
               <input id="mhfe-encrypt-use-pim" type="checkbox" />
@@ -748,7 +763,7 @@
               >PIM (1–31)
               <input id="mhfe-encrypt-pim" type="number" min="1" max="31" step="1" value="1" />
             </label>
-            <p class="field-note">
+            <p class="field-note mhfe-pim-note">
               With the checkbox off, PIM is 0 and does not need to be recorded. This browser module accepts printable
               ASCII passwords so its normalization is exact and reproducible.
             </p>
@@ -756,12 +771,33 @@
               <input id="mhfe-encrypt-preserve-final-word" type="checkbox" />
               Preserve the final word of a 24-word source (very slow)
             </label>
-            <p class="field-note">
-              This optional mode repeatedly performs the complete memory-hard encryption until the container ends in the
-              same word. The search averages about 2,048 attempts and can take many hours. Progress and a
-              device-based estimate appear below, and Stop safely discards the unfinished search. The preserved word is
-              visible to anyone who sees the container and does not confirm the password.
-            </p>
+            <div class="mhfe-option-explainer">
+              <p class="field-note">
+                Keeps the original final word as a visible check word. It is not required to recover the original phrase.
+              </p>
+              <details class="recovery-help mhfe-option-help">
+                <summary>More details</summary>
+                <div class="recovery-help-popover">
+                  <h3>Why preserve the final word?</h3>
+                  <p>
+                    A 24-word source uses the entire 256-bit plaintext state, leaving no room for the internal recovery
+                    fingerprint carried by shorter sources. Its encrypted container still has a valid BIP39 checksum,
+                    but its final word is normally unrelated to the source's final word.
+                  </p>
+                  <p>
+                    This mode repeats the complete memory-hard encryption until the container has exactly the same final
+                    word, including its checksum bits. It is useful only when you want that recognizable word to remain
+                    visible in the container. Standard mode still recovers the original phrase exactly when the correct
+                    password and recorded PIM, if any, are supplied.
+                  </p>
+                  <p>
+                    The search averages about 2,048 attempts and can take many hours. Progress and a device-based
+                    estimate appear below. Stop safely discards the unfinished search. Because every result from this
+                    mode preserves the word, it does not confirm that the password is correct.
+                  </p>
+                </div>
+              </details>
+            </div>
             <div class="actions">
               <button class="primary" id="mhfe-encrypt" type="button">Encrypt to 24 words</button>
               <button class="secondary" id="mhfe-encrypt-stop" type="button" hidden>Stop</button>
@@ -784,10 +820,15 @@
               autocapitalize="none"
               placeholder="Paste or scan the encrypted 24-word BIP39 container"
             ></textarea>
-            <label for="mhfe-decrypt-password"
-              >MHFE password
+            <div class="mhfe-password-field">
+              <div class="field-heading-row">
+                <label for="mhfe-decrypt-password">MHFE password</label>
+                <button id="toggle-mhfe-decrypt-password" class="secondary compact" type="button" aria-pressed="false">
+                  Show
+                </button>
+              </div>
               <input id="mhfe-decrypt-password" type="password" autocomplete="current-password" maxlength="1024" />
-            </label>
+            </div>
             <label class="checkbox-row" for="mhfe-decrypt-use-pim">
               <input id="mhfe-decrypt-use-pim" type="checkbox" />
               Use the recorded non-zero PIM
