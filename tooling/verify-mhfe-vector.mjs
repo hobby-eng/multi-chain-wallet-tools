@@ -12,12 +12,16 @@ const container =
 initSync({ module: wasm });
 const engine = new MhfeEngine(0);
 try {
+  if (typeof engine.encryptPreservingFinalWordJson !== 'function')
+    throw new Error('Embedded MHFE WASM is missing final-word-preserving encryption.');
+  if (typeof engine.decryptPreservingFinalWordJson !== 'function')
+    throw new Error('Embedded MHFE WASM is missing final-word-preserving recovery.');
   engine.setAsciiPassword('public test password');
   const result = JSON.parse(engine.decryptAutoJson(container));
   if (result.recoveredMnemonic !== source) throw new Error('MHFE published vector recovered the wrong mnemonic.');
   if (result.sourceWords !== 12) throw new Error('MHFE published vector recovered the wrong source length.');
   if (result.recoveryVerifier !== 'matched') throw new Error('MHFE published vector verifier did not match.');
-  console.log('Verified the embedded MHFE v0.3.0 WASM against its published 12-word vector.');
+  console.log('Verified the embedded MHFE v0.3.1 WASM against its published 12-word suite-2 vector.');
 } finally {
   engine.clearPassword();
   engine.free();

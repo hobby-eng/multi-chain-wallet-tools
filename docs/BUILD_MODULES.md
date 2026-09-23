@@ -42,7 +42,7 @@ Coins: `bitcoin`, `dash`, `ethereum`. Selecting Dash includes every supported Da
 | `message-signing`  | Sign messages using formats supported by the selected coin and address type.                                                                       | Bitcoin or Dash   |
 | `wallet-matcher`   | Match known addresses against candidate mnemonics, accounts, branches and indices.                                                                 | Any selected coin |
 | `seedqr`           | Encode/decode Standard SeedQR and CompactSeedQR, including QR image import/export.                                                                 | Coin-independent  |
-| `mhfe`             | Encrypt/recover BIP39 phrases with the pinned MHFE v0.3.0 Worker/WASM module, optional PIM, QR transfer, cancellation, and verifier reporting.     | Coin-independent  |
+| `mhfe`             | Encrypt/recover BIP39 phrases with the pinned MHFE v0.3.1 Worker/WASM module, optional PIM, final-word cycle walking, QR transfer, cancellation, progress, and verifier reporting. | Coin-independent |
 | `slip39`           | Create and restore SLIP-39 mnemonic shares.                                                                                                        | Coin-independent  |
 | `shamir`           | Create and restore versioned CKD Shamir Raw and Words shares with a share-set digest; see [the custom format specification](CKD_SHAMIR_FORMAT.md). | Coin-independent  |
 | `codex32`          | Encode and decode Codex32 BIP39-entropy or BIP32-seed records.                                                                                     | Coin-independent  |

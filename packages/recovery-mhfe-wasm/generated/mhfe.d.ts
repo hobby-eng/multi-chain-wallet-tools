@@ -15,7 +15,9 @@ export class MhfeEngine {
     clearPassword(): void;
     decryptAutoJson(container: string): string;
     decryptJson(container: string, source_words: number): string;
+    decryptPreservingFinalWordJson(container: string, progress_callback: Function): string;
     encryptJson(mnemonic: string): string;
+    encryptPreservingFinalWordJson(mnemonic: string, progress_callback: Function): string;
     constructor(pim: number);
     /**
      * Load an ASCII password. ASCII is unchanged by Unicode 18 NPSS-NFKD.
@@ -40,17 +42,20 @@ export interface InitOutput {
     readonly mhfeengine_clearPassword: (a: number) => void;
     readonly mhfeengine_decryptAutoJson: (a: number, b: number, c: number, d: number) => void;
     readonly mhfeengine_decryptJson: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly mhfeengine_decryptPreservingFinalWordJson: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly mhfeengine_effectivePasses: (a: number) => number;
     readonly mhfeengine_encryptJson: (a: number, b: number, c: number, d: number) => void;
+    readonly mhfeengine_encryptPreservingFinalWordJson: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly mhfeengine_new: (a: number, b: number) => void;
     readonly mhfeengine_pim: (a: number) => number;
     readonly mhfeengine_setAsciiPassword: (a: number, b: number, c: number, d: number) => void;
     readonly mhfeengine_setPreNormalizedPassword: (a: number, b: number, c: number, d: number) => void;
     readonly suiteParametersJson: (a: number) => void;
-    readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
-    readonly __wbindgen_export3: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_export3: (a: number) => void;
+    readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
+    readonly __wbindgen_export4: (a: number, b: number, c: number) => void;
 }
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;
