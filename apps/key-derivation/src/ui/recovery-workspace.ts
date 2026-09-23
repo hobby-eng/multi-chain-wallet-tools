@@ -121,6 +121,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     linkedSources.delete(target);
     document.querySelector<HTMLElement>(`[data-linked-source-for="${target}"]`)?.remove();
     for (const element of manualSourceElements(target)) element.hidden = false;
+    document.dispatchEvent(new CustomEvent('recovery-source-change', { detail: target }));
   }
 
   function useSource(reference: RecoverySourceReference, target: RecoverySourceTarget): void {
@@ -138,6 +139,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
       if (target === 'gordian-envelope') required<HTMLInputElement>('#envelope-bip39-passphrase').value = '';
     }
     linkedSources.set(target, reference);
+    document.dispatchEvent(new CustomEvent('recovery-source-change', { detail: target }));
     const badge = document.createElement('div');
     badge.className = 'linked-recovery-source';
     badge.dataset.linkedSourceFor = target;

@@ -3,6 +3,7 @@ import { recoverSlip39Shares, createSlip39Shares, parseSlip39Share } from '@ckd/
 import { installQrImageImport } from '@ckd/ui/qr-image-import.js';
 import {
   installSecretToggle,
+  installMnemonicSourceDiagnostic,
   integer,
   lines,
   renderRecoveredMnemonic,
@@ -12,6 +13,7 @@ import {
 } from './recovery-workspace-shared.js';
 export function installSlip39(context: RecoveryFeatureContext): void {
   installSecretToggle('#toggle-slip39-source', '#slip39-source-mnemonic', 'Reveal source phrase', 'Hide source phrase');
+  installMnemonicSourceDiagnostic(context, 'slip39', '#slip39-source-mnemonic', '#toggle-slip39-source');
   installSecretToggle('#toggle-slip39-shares', '#slip39-shares', 'Reveal entered shares', 'Hide entered shares');
   installSecretToggle(
     '#toggle-slip39-created',

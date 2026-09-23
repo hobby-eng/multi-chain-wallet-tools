@@ -3,6 +3,7 @@ import { createQrAction } from '@ckd/ui/payment-qr.js';
 import { installQrImageImport } from '@ckd/ui/qr-image-import.js';
 import {
   installSecretToggle,
+  installMnemonicSourceDiagnostic,
   renderRecoveredMnemonic,
   required,
   type RecoveryFeatureContext,
@@ -245,6 +246,7 @@ function recoverySummary(result: DecryptionResult): string {
 
 export function installMhfe(context: RecoveryFeatureContext): void {
   installSecretToggle('#toggle-mhfe-source', '#mhfe-source', 'Reveal source phrase', 'Hide source phrase');
+  installMnemonicSourceDiagnostic(context, 'mhfe', '#mhfe-source', '#toggle-mhfe-source');
   installSecretToggle(
     '#toggle-mhfe-container',
     '#mhfe-container',

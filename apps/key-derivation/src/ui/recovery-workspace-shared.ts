@@ -219,6 +219,72 @@ export function installSecretToggle(
   synchronize();
 }
 
+function createSeedDiagnosticElement(): HTMLElement {
+  const diagnostic = document.createElement('section');
+  diagnostic.className = 'seed-diagnostic recovered-seed-diagnostic';
+  const diagnosticHead = document.createElement('div');
+  diagnosticHead.className = 'seed-diagnostic-head';
+  const diagnosticTitle = document.createElement('h3');
+  diagnosticTitle.textContent = 'Seed Diagnostic';
+  const diagnosticScope = document.createElement('span');
+  diagnosticScope.textContent = 'Local · no network';
+  diagnosticHead.append(diagnosticTitle, diagnosticScope);
+  diagnostic.append(diagnosticHead);
+  return diagnostic;
+}
+
+function updateMnemonicDiagnostic(
+  diagnostic: HTMLElement,
+  mnemonic: string,
+  passphrase: string,
+  revealed: boolean,
+  mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array,
+): void {
+  const report = diagnoseMnemonic(mnemonic);
+  let seed: Uint8Array | null = null;
+  let fingerprint: string | null = null;
+  if (report.checksumValid) {
+    try {
+      seed = mnemonicToSeed(mnemonic, passphrase);
+      fingerprint = masterFingerprintFromSeed(seed);
+    } finally {
+      seed?.fill(0);
+    }
+  }
+  renderSeedDiagnostic(document, diagnostic, report, fingerprint, revealed);
+}
+
+export function installMnemonicSourceDiagnostic(
+  context: RecoveryFeatureContext,
+  target: Exclude<RecoverySourceTarget, 'matcher'>,
+  inputSelector: string,
+  revealButtonSelector: string,
+  passphraseSelector?: string,
+): void {
+  const input = required<HTMLTextAreaElement>(inputSelector);
+  const reveal = required<HTMLButtonElement>(revealButtonSelector);
+  const passphrase = passphraseSelector === undefined ? null : required<HTMLInputElement>(passphraseSelector);
+  const diagnostic = createSeedDiagnosticElement();
+  input.after(diagnostic);
+  const update = (): void => {
+    const linked = context.linkedValue(target);
+    updateMnemonicDiagnostic(
+      diagnostic,
+      linked?.mnemonic ?? input.value,
+      linked?.passphrase ?? passphrase?.value ?? '',
+      !input.classList.contains('concealed'),
+      context.mnemonicToSeed,
+    );
+  };
+  input.addEventListener('input', update);
+  passphrase?.addEventListener('input', update);
+  reveal.addEventListener('click', () => queueMicrotask(update));
+  document.addEventListener('recovery-source-change', (event) => {
+    if (event instanceof CustomEvent && event.detail === target) update();
+  });
+  update();
+}
+
 export function renderSensitiveShares(
   container: HTMLElement,
   shares: readonly string[],
@@ -269,35 +335,16 @@ export function renderRecoveredMnemonic(
   mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array,
   diagnosticPassphrase = '',
 ): void {
-  const diagnostic = document.createElement('section');
-  diagnostic.className = 'seed-diagnostic recovered-seed-diagnostic';
+  const diagnostic = createSeedDiagnosticElement();
   diagnostic.hidden = true;
-  const diagnosticHead = document.createElement('div');
-  diagnosticHead.className = 'seed-diagnostic-head';
-  const diagnosticTitle = document.createElement('h3');
-  diagnosticTitle.textContent = 'Seed Diagnostic';
-  const diagnosticScope = document.createElement('span');
-  diagnosticScope.textContent = 'Local · no network';
-  diagnosticHead.append(diagnosticTitle, diagnosticScope);
-  diagnostic.append(diagnosticHead);
+  const diagnosticHead = diagnostic.firstElementChild!;
   const updateDiagnostic = (revealed: boolean): void => {
     if (!revealed) {
       diagnostic.hidden = true;
       diagnostic.replaceChildren(diagnosticHead);
       return;
     }
-    const report = diagnoseMnemonic(mnemonic);
-    let seed: Uint8Array | null = null;
-    let fingerprint: string | null = null;
-    if (report.checksumValid) {
-      try {
-        seed = mnemonicToSeed(mnemonic, diagnosticPassphrase);
-        fingerprint = masterFingerprintFromSeed(seed);
-      } finally {
-        seed?.fill(0);
-      }
-    }
-    renderSeedDiagnostic(document, diagnostic, report, fingerprint, true);
+    updateMnemonicDiagnostic(diagnostic, mnemonic, diagnosticPassphrase, true, mnemonicToSeed);
     diagnostic.hidden = false;
   };
   renderRecoveredSecret(

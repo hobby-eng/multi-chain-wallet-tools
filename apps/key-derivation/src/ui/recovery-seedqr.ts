@@ -9,12 +9,14 @@ import { createQrAction } from '@ckd/ui/payment-qr.js';
 import { installQrImageImport } from '@ckd/ui/qr-image-import.js';
 import {
   installSecretToggle,
+  installMnemonicSourceDiagnostic,
   renderRecoveredMnemonic,
   required,
   type RecoveryFeatureContext,
 } from './recovery-workspace-shared.js';
 export function installSeedQr(context: RecoveryFeatureContext): void {
   installSecretToggle('#toggle-seedqr-source', '#seedqr-source', 'Reveal source phrase', 'Hide source phrase');
+  installMnemonicSourceDiagnostic(context, 'seedqr', '#seedqr-source', '#toggle-seedqr-source');
   installSecretToggle(
     '#toggle-seedqr-created',
     '#seedqr-create-result .share-secret',
