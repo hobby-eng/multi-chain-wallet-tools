@@ -3,6 +3,7 @@ import { createCodex32Shares, recoverCodex32Shares } from '@ckd/recovery-backup/
 import { installQrImageImport } from '@ckd/ui/qr-image-import.js';
 import {
   installSecretToggle,
+  installMnemonicSourceDiagnostic,
   integer,
   lines,
   renderRecoveredMnemonic,
@@ -13,6 +14,13 @@ import {
 } from './recovery-workspace-shared.js';
 export function installCodex32(context: RecoveryFeatureContext): void {
   installSecretToggle('#toggle-codex32-source', '#codex32-source', 'Reveal source phrase', 'Hide source phrase');
+  installMnemonicSourceDiagnostic(
+    context,
+    'codex32',
+    '#codex32-source',
+    '#toggle-codex32-source',
+    '#codex32-passphrase',
+  );
   installSecretToggle('#toggle-codex32-shares', '#codex32-shares', 'Reveal entered records', 'Hide entered records');
   installSecretToggle(
     '#toggle-codex32-created',

@@ -8,6 +8,7 @@ import {
 import { installQrImageImport } from '@ckd/ui/qr-image-import.js';
 import {
   installSecretToggle,
+  installMnemonicSourceDiagnostic,
   lines,
   installThresholdGroupEditor,
   renderRecoveredMnemonicBundle,
@@ -50,6 +51,13 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
     help: 'Each permit group creates a separate set of SSKR shares. First satisfy Shares required inside a group; then satisfy the Envelope group threshold with that many completed groups.',
   });
   installSecretToggle('#toggle-envelope-source', '#envelope-source', 'Reveal source phrase', 'Hide source phrase');
+  installMnemonicSourceDiagnostic(
+    context,
+    'gordian-envelope',
+    '#envelope-source',
+    '#toggle-envelope-source',
+    '#envelope-bip39-passphrase',
+  );
   installSecretToggle(
     '#toggle-envelope-records',
     '#envelope-records, #envelope-private-key',
