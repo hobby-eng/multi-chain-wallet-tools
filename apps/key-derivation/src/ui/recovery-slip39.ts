@@ -69,7 +69,13 @@ export function installSlip39(context: RecoveryFeatureContext): void {
       } finally {
         secret.fill(0);
       }
-      renderRecoveredMnemonic(restoreResult, restoredMnemonic, context.writeClipboard, context.useMnemonicInDeriver);
+      renderRecoveredMnemonic(
+        restoreResult,
+        restoredMnemonic,
+        context.writeClipboard,
+        context.useMnemonicInDeriver,
+        context.mnemonicToSeed,
+      );
     } catch (cause) {
       restoreResult.textContent = cause instanceof Error ? cause.message : 'SLIP-39 restoration failed.';
     }
