@@ -31,6 +31,10 @@ interface DecryptionResult {
   readonly preservedFinalWord?: string;
 }
 
+interface AmbiguousDecryptionResult {
+  readonly ambiguousCandidates: readonly DecryptionResult[];
+}
+
 interface CycleWalkProgress {
   readonly iterations: number;
   readonly matched: boolean;
@@ -86,6 +90,18 @@ function installPasswordToggle(buttonSelector: string, inputSelector: string, la
     synchronize();
   });
   synchronize();
+}
+
+function selectedSourceWords(): number | undefined {
+  const selected = required<HTMLSelectElement>('#mhfe-decrypt-source-words').value;
+  if (selected === 'auto') return undefined;
+  const sourceWords = Number(selected);
+  if (![12, 15, 18, 21, 24].includes(sourceWords)) throw new Error('Select a valid original phrase length.');
+  return sourceWords;
+}
+
+function isAmbiguousDecryption(result: DecryptionResult | AmbiguousDecryptionResult): result is AmbiguousDecryptionResult {
+  return 'ambiguousCandidates' in result;
 }
 
 function formatElapsed(milliseconds: number): string {
@@ -245,11 +261,20 @@ export function installMhfe(context: RecoveryFeatureContext): void {
   );
   installPasswordToggle('#toggle-mhfe-decrypt-password', '#mhfe-decrypt-password', 'MHFE password');
   const preserveOnRecovery = required<HTMLInputElement>('#mhfe-decrypt-preserve-final-word');
-  const sourceWas24 = required<HTMLInputElement>('#mhfe-source-was-24');
-  preserveOnRecovery.addEventListener('change', () => {
-    if (preserveOnRecovery.checked) sourceWas24.checked = true;
-    sourceWas24.disabled = preserveOnRecovery.checked;
-  });
+  const sourceWordsOverride = required<HTMLSelectElement>('#mhfe-decrypt-source-words');
+  let selectionBeforeFinalWordMode = sourceWordsOverride.value;
+  const synchronizeFinalWordMode = (): void => {
+    if (preserveOnRecovery.checked) {
+      selectionBeforeFinalWordMode = sourceWordsOverride.value;
+      sourceWordsOverride.value = '24';
+      sourceWordsOverride.disabled = true;
+      return;
+    }
+    sourceWordsOverride.disabled = false;
+    sourceWordsOverride.value = selectionBeforeFinalWordMode;
+  };
+  preserveOnRecovery.addEventListener('change', synchronizeFinalWordMode);
+  synchronizeFinalWordMode();
   const encryptedInput = required<HTMLTextAreaElement>('#mhfe-container');
   installQrImageImport(document, encryptedInput, {
     label: 'Read encrypted-container QR image',
@@ -314,15 +339,21 @@ export function installMhfe(context: RecoveryFeatureContext): void {
     decryptResult.replaceChildren();
     decryptStatus.classList.remove('warning');
     void (async () => {
-      let entropy: Uint8Array | undefined;
+      const entropyBuffers: Uint8Array[] = [];
       try {
         const preserveFinalWord = preserveOnRecovery.checked;
-        const pending = runWorker<DecryptionResult>(
+        const sourceWords = selectedSourceWords();
+        const pending = runWorker<DecryptionResult | AmbiguousDecryptionResult>(
           {
-            type: preserveFinalWord ? 'decryptPreservingFinalWord' : sourceWas24.checked ? 'decrypt24' : 'decryptAuto',
+            type: preserveFinalWord
+              ? 'decryptPreservingFinalWord'
+              : sourceWords === undefined
+                ? 'decryptAuto'
+                : 'decryptExplicit',
             pim: selectedPim('decrypt'),
             passwordAscii: asciiPassword('decrypt'),
             container: encryptedInput.value.trim(),
+            sourceWords,
           },
           decryptStatus,
           decryptStop,
@@ -337,25 +368,40 @@ export function installMhfe(context: RecoveryFeatureContext): void {
             : undefined,
         );
         required<HTMLInputElement>('#mhfe-decrypt-password').value = '';
-        const result = await pending;
-        entropy = englishMnemonicToEntropy(result.recoveredMnemonic);
-        const verification = document.createElement('div');
-        verification.className = result.recoveryVerifier === 'matched' ? 'success-callout' : 'warning-callout';
-        verification.textContent = verifierText(result);
-        decryptResult.append(verification);
-        renderRecoveredMnemonic(
-          decryptResult,
-          result.recoveredMnemonic,
-          context.writeClipboard,
-          context.useMnemonicInDeriver,
-        );
-        decryptStatus.textContent = `Recovery complete · ${result.sourceWords} words · PIM ${result.pim} · ${result.effectivePasses} Argon2id passes per round.${result.iterations === undefined ? '' : ` ${result.iterations.toLocaleString('en-US')} inverse permutations.`}`;
+        const workerResult = await pending;
+        const results = isAmbiguousDecryption(workerResult)
+          ? workerResult.ambiguousCandidates
+          : [workerResult];
+        for (const result of results) {
+          entropyBuffers.push(englishMnemonicToEntropy(result.recoveredMnemonic));
+          if (results.length > 1) {
+            const heading = document.createElement('h3');
+            heading.textContent = `${result.sourceWords}-word candidate`;
+            decryptResult.append(heading);
+          }
+          const verification = document.createElement('div');
+          verification.className = result.recoveryVerifier === 'matched' ? 'success-callout' : 'warning-callout';
+          verification.textContent = verifierText(result);
+          decryptResult.append(verification);
+          renderRecoveredMnemonic(
+            decryptResult,
+            result.recoveredMnemonic,
+            context.writeClipboard,
+            context.useMnemonicInDeriver,
+          );
+        }
+        const first = results[0];
+        if (first === undefined) throw new Error('MHFE recovery returned no candidates.');
+        decryptStatus.textContent =
+          results.length > 1
+            ? `Recovery found an extremely rare verifier collision. All matching candidates are shown: ${results.map((result) => result.sourceWords).join(', ')} words.`
+            : `Recovery complete · ${first.sourceWords} words · PIM ${first.pim} · ${first.effectivePasses} Argon2id passes per round.${first.iterations === undefined ? '' : ` ${first.iterations.toLocaleString('en-US')} inverse permutations.`}`;
       } catch (cause) {
         if (decryptStatus.textContent?.startsWith('MHFE operation stopped')) return;
         decryptStatus.classList.add('warning');
         decryptStatus.textContent = cause instanceof Error ? cause.message : 'MHFE recovery failed.';
       } finally {
-        entropy?.fill(0);
+        for (const entropy of entropyBuffers) entropy.fill(0);
       }
     })();
   });
