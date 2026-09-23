@@ -68,6 +68,7 @@ export function installSskr(context: RecoveryFeatureContext): void {
         entropyToEnglishMnemonic(secret),
         context.writeClipboard,
         context.useMnemonicInDeriver,
+        context.mnemonicToSeed,
       );
     } catch (e) {
       restored.textContent = displayFailure(e, 'SSKR restoration failed.');

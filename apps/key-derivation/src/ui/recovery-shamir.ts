@@ -65,6 +65,7 @@ export function installShamir(context: RecoveryFeatureContext): void {
           entropyToEnglishMnemonic(recovered.secret),
           context.writeClipboard,
           context.useMnemonicInDeriver,
+          context.mnemonicToSeed,
         );
         if (recovered.integrity === 'legacy-checksum-only') {
           const warning = document.createElement('p');

@@ -134,6 +134,7 @@ export function installCodex32(context: RecoveryFeatureContext): void {
           entropyToEnglishMnemonic(seed),
           context.writeClipboard,
           context.useMnemonicInDeriver,
+          context.mnemonicToSeed,
         );
       } else {
         renderRecoveredSeed(codex32RestoreResult, seed, context.writeClipboard);

@@ -81,7 +81,13 @@ export function installSeedQr(context: RecoveryFeatureContext): void {
       const payload = required<HTMLTextAreaElement>('#seedqr-payload').value.trim();
       const mnemonic =
         format === 'compact' ? decodeCompactSeedQr((compact = hexToBytes(payload))) : decodeStandardSeedQr(payload);
-      renderRecoveredMnemonic(seedQrRestoreResult, mnemonic, context.writeClipboard, context.useMnemonicInDeriver);
+      renderRecoveredMnemonic(
+        seedQrRestoreResult,
+        mnemonic,
+        context.writeClipboard,
+        context.useMnemonicInDeriver,
+        context.mnemonicToSeed,
+      );
     } catch (cause) {
       seedQrRestoreResult.textContent = cause instanceof Error ? cause.message : 'SeedQR restoration failed.';
     } finally {

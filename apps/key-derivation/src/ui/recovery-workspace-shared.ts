@@ -3,6 +3,8 @@ import type { WalletMatcherTargetDetector } from '@ckd/recovery/matcher-types.js
 import type { RecoverySourceTarget } from './recovery-source-link.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { createQrAction } from '@ckd/ui/payment-qr.js';
+import { diagnoseMnemonic, masterFingerprintFromSeed } from '@ckd/core/bip39.js';
+import { renderSeedDiagnostic } from './seed-diagnostic-view.js';
 
 export interface RecoveryFeatureContext {
   readonly registry: CoinRegistry;
@@ -264,7 +266,40 @@ export function renderRecoveredMnemonic(
   mnemonic: string,
   copy: (value: string) => Promise<void>,
   useInDeriver: (mnemonic: string) => void,
+  mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array,
+  diagnosticPassphrase = '',
 ): void {
+  const diagnostic = document.createElement('section');
+  diagnostic.className = 'seed-diagnostic recovered-seed-diagnostic';
+  diagnostic.hidden = true;
+  const diagnosticHead = document.createElement('div');
+  diagnosticHead.className = 'seed-diagnostic-head';
+  const diagnosticTitle = document.createElement('h3');
+  diagnosticTitle.textContent = 'Seed Diagnostic';
+  const diagnosticScope = document.createElement('span');
+  diagnosticScope.textContent = 'Local · no network';
+  diagnosticHead.append(diagnosticTitle, diagnosticScope);
+  diagnostic.append(diagnosticHead);
+  const updateDiagnostic = (revealed: boolean): void => {
+    if (!revealed) {
+      diagnostic.hidden = true;
+      diagnostic.replaceChildren(diagnosticHead);
+      return;
+    }
+    const report = diagnoseMnemonic(mnemonic);
+    let seed: Uint8Array | null = null;
+    let fingerprint: string | null = null;
+    if (report.checksumValid) {
+      try {
+        seed = mnemonicToSeed(mnemonic, diagnosticPassphrase);
+        fingerprint = masterFingerprintFromSeed(seed);
+      } finally {
+        seed?.fill(0);
+      }
+    }
+    renderSeedDiagnostic(document, diagnostic, report, fingerprint, true);
+    diagnostic.hidden = false;
+  };
   renderRecoveredSecret(
     container,
     mnemonic,
@@ -272,7 +307,9 @@ export function renderRecoveredMnemonic(
     copy,
     undefined,
     () => useInDeriver(mnemonic),
+    updateDiagnostic,
   );
+  container.append(diagnostic);
 }
 
 export function renderRecoveredMnemonicBundle(
@@ -281,14 +318,15 @@ export function renderRecoveredMnemonicBundle(
   bip39Passphrase: string | undefined,
   copy: (value: string) => Promise<void>,
   useInDeriver: (mnemonic: string, passphrase?: string) => void,
+  mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array,
 ): void {
-  renderRecoveredSecret(
+  renderRecoveredMnemonic(
     container,
     mnemonic,
-    { reveal: 'Reveal recovered phrase', hide: 'Hide recovered phrase', copy: 'Copy recovered phrase' },
     copy,
-    undefined,
-    () => useInDeriver(mnemonic, bip39Passphrase),
+    (value) => useInDeriver(value, bip39Passphrase),
+    mnemonicToSeed,
+    bip39Passphrase ?? '',
   );
   if (bip39Passphrase !== undefined) {
     renderRecoveredSecret(
@@ -326,6 +364,7 @@ function renderRecoveredSecret(
   copy: (value: string) => Promise<void>,
   note?: string,
   useInDeriver?: () => void,
+  onVisibilityChange?: (revealed: boolean) => void,
 ): void {
   const output = document.createElement('textarea');
   output.rows = 4;
@@ -358,6 +397,7 @@ function renderRecoveredSecret(
     reveal.textContent = visible ? labels.hide : labels.reveal;
     reveal.setAttribute('aria-pressed', String(visible));
     copyButton.disabled = !visible;
+    onVisibilityChange?.(visible);
   });
   copyButton.addEventListener('click', () => void copy(value));
   container.append(output, actions);

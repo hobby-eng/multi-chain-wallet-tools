@@ -144,6 +144,7 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
         bundle.bip39Passphrase,
         context.writeClipboard,
         context.useMnemonicInDeriver,
+        context.mnemonicToSeed,
       );
     } catch (e) {
       restored.textContent = displayFailure(e, 'Envelope restoration failed.');
