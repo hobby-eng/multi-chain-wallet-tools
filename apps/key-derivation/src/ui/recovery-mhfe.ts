@@ -15,6 +15,9 @@ interface EncryptionResult {
   readonly sourceWords: number;
   readonly pim: number;
   readonly effectivePasses: number;
+  readonly profileId?: string;
+  readonly iterations?: number;
+  readonly preservedFinalWord?: string;
 }
 
 interface DecryptionResult {
@@ -22,7 +25,15 @@ interface DecryptionResult {
   readonly sourceWords: number;
   readonly pim: number;
   readonly effectivePasses: number;
-  readonly recoveryVerifier: 'matched' | 'unavailable';
+  readonly recoveryVerifier?: 'matched' | 'unavailable';
+  readonly profileId?: string;
+  readonly iterations?: number;
+  readonly preservedFinalWord?: string;
+}
+
+interface CycleWalkProgress {
+  readonly iterations: number;
+  readonly matched: boolean;
 }
 
 interface ActiveOperation {
@@ -45,7 +56,7 @@ function asciiPassword(prefix: 'encrypt' | 'decrypt'): string {
   if (password.length > 1024) throw new Error('The password may contain at most 1024 ASCII bytes.');
   if (!/^[\x20-\x7e]+$/u.test(password)) {
     throw new Error(
-      'This embedded MHFE v0.3.0 module accepts ASCII passwords. Unicode passwords require an exact Unicode 18 NPSS-NFKD implementation.',
+      'This embedded MHFE v0.3.1 module accepts ASCII passwords. Unicode passwords require an exact Unicode 18 NPSS-NFKD implementation.',
     );
   }
   return password;
@@ -67,27 +78,38 @@ function formatElapsed(milliseconds: number): string {
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
+function formatDuration(milliseconds: number): string {
+  const minutes = Math.max(1, Math.round(milliseconds / 60_000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder === 0 ? `${hours} h` : `${hours} h ${remainder} min`;
+}
+
 function runWorker<T>(
   request: Record<string, unknown>,
   status: HTMLElement,
   stop: HTMLButtonElement,
   actions: readonly HTMLButtonElement[],
+  onProgress?: (progress: CycleWalkProgress, elapsedMilliseconds: number) => void,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const workerUrl = URL.createObjectURL(new Blob([__MHFE_WORKER_SOURCE__], { type: 'text/javascript' }));
     const worker = new Worker(workerUrl);
     URL.revokeObjectURL(workerUrl);
     const started = performance.now();
+    let receivedProgress = false;
     for (const action of actions) action.disabled = true;
     stop.hidden = false;
     const operation: ActiveOperation = {
       worker,
       stopped: false,
       timer: window.setInterval(() => {
+        if (receivedProgress) return;
         status.textContent = `MHFE is running in an isolated worker · ${formatElapsed(performance.now() - started)} elapsed. The 512 MiB Argon2 work area can make this take a while.`;
       }, 1000),
     };
-    status.textContent = 'Loading the verified MHFE v0.3.0 module…';
+    status.textContent = 'Loading the verified MHFE v0.3.1 module…';
     const cleanup = (): void => {
       window.clearInterval(operation.timer);
       worker.terminate();
@@ -116,6 +138,11 @@ function runWorker<T>(
         return;
       }
       if (event.data.id !== 1) return;
+      if (event.data.type === 'progress') {
+        receivedProgress = true;
+        onProgress?.(event.data.progress as unknown as CycleWalkProgress, performance.now() - started);
+        return;
+      }
       cleanup();
       if (operation.stopped) return;
       if (event.data.ok === true) resolve(event.data.result as T);
@@ -164,12 +191,19 @@ function renderEncryptedContainer(
   actions.append(reveal, copyButton, qr);
   const metadata = document.createElement('p');
   metadata.className = 'field-note';
-  metadata.textContent = `Source: ${result.sourceWords} words · PIM ${result.pim} · ${result.effectivePasses} Argon2id passes per round.`;
+  metadata.textContent = `Source: ${result.sourceWords} words · PIM ${result.pim} · ${result.effectivePasses} Argon2id passes per round.${
+    result.iterations === undefined
+      ? ''
+      : ` Final word preserved after ${result.iterations.toLocaleString('en-US')} complete permutations; “${result.preservedFinalWord}” is visible in both phrases.`
+  }`;
   card.append(title, output, actions, metadata);
   container.replaceChildren(card);
 }
 
 function verifierText(result: DecryptionResult): string {
+  if (result.profileId !== undefined) {
+    return `Final word preserved: “${result.preservedFinalWord}” after ${result.iterations?.toLocaleString('en-US')} inverse permutations. This visible word identifies the selected class but does not confirm the password or PIM. The recovered BIP39 checksum is valid because it was recomputed.`;
+  }
   if (result.recoveryVerifier === 'unavailable') {
     return 'Recovery fingerprint: unavailable for a 24-word source. BIP39 checksum: valid because it was recomputed; this does not confirm the password or PIM.';
   }
@@ -187,6 +221,12 @@ export function installMhfe(context: RecoveryFeatureContext): void {
   );
   installPimToggle('encrypt');
   installPimToggle('decrypt');
+  const preserveOnRecovery = required<HTMLInputElement>('#mhfe-decrypt-preserve-final-word');
+  const sourceWas24 = required<HTMLInputElement>('#mhfe-source-was-24');
+  preserveOnRecovery.addEventListener('change', () => {
+    if (preserveOnRecovery.checked) sourceWas24.checked = true;
+    sourceWas24.disabled = preserveOnRecovery.checked;
+  });
   const encryptedInput = required<HTMLTextAreaElement>('#mhfe-container');
   installQrImageImport(document, encryptedInput, {
     label: 'Read encrypted-container QR image',
@@ -207,9 +247,10 @@ export function installMhfe(context: RecoveryFeatureContext): void {
         const password = asciiPassword('encrypt');
         if (password !== required<HTMLInputElement>('#mhfe-encrypt-password-confirm').value)
           throw new Error('Password confirmation does not match.');
+        const preserveFinalWord = required<HTMLInputElement>('#mhfe-encrypt-preserve-final-word').checked;
         const pending = runWorker<EncryptionResult>(
           {
-            type: 'encrypt',
+            type: preserveFinalWord ? 'encryptPreservingFinalWord' : 'encrypt',
             pim: selectedPim('encrypt'),
             passwordAscii: password,
             mnemonic: context.readMnemonic('mhfe', '#mhfe-source').trim(),
@@ -217,11 +258,21 @@ export function installMhfe(context: RecoveryFeatureContext): void {
           encryptStatus,
           encryptStop,
           [encryptAction, decryptAction],
+          preserveFinalWord
+            ? (progress, elapsed) => {
+                const average = elapsed / progress.iterations;
+                encryptStatus.textContent = progress.matched
+                  ? `Final word matched after ${progress.iterations.toLocaleString('en-US')} complete permutations.`
+                  : `Final-word search · ${progress.iterations.toLocaleString('en-US')} complete permutations · ${formatElapsed(elapsed)} elapsed · this-device estimate: median ${formatDuration(average * 1420)}, mean ${formatDuration(average * 2048)} remaining. Stop is safe; a stopped search must be restarted.`;
+              }
+            : undefined,
         );
         required<HTMLInputElement>('#mhfe-encrypt-password').value = '';
         required<HTMLInputElement>('#mhfe-encrypt-password-confirm').value = '';
         const result = await pending;
-        encryptStatus.textContent = 'Encryption complete. Record the password and any non-zero PIM separately.';
+        encryptStatus.textContent = preserveFinalWord
+          ? `Encryption complete after ${result.iterations?.toLocaleString('en-US')} permutations. The final word “${result.preservedFinalWord}” is intentionally visible.`
+          : 'Encryption complete. Record the password and any non-zero PIM separately.';
         renderEncryptedContainer(encryptResult, result, context.writeClipboard);
       } catch (cause) {
         if (encryptStatus.textContent?.startsWith('MHFE operation stopped')) return;
@@ -239,9 +290,10 @@ export function installMhfe(context: RecoveryFeatureContext): void {
     void (async () => {
       let entropy: Uint8Array | undefined;
       try {
+        const preserveFinalWord = preserveOnRecovery.checked;
         const pending = runWorker<DecryptionResult>(
           {
-            type: required<HTMLInputElement>('#mhfe-source-was-24').checked ? 'decrypt24' : 'decryptAuto',
+            type: preserveFinalWord ? 'decryptPreservingFinalWord' : sourceWas24.checked ? 'decrypt24' : 'decryptAuto',
             pim: selectedPim('decrypt'),
             passwordAscii: asciiPassword('decrypt'),
             container: encryptedInput.value.trim(),
@@ -249,6 +301,14 @@ export function installMhfe(context: RecoveryFeatureContext): void {
           decryptStatus,
           decryptStop,
           [encryptAction, decryptAction],
+          preserveFinalWord
+            ? (progress, elapsed) => {
+                const average = elapsed / progress.iterations;
+                decryptStatus.textContent = progress.matched
+                  ? `Final word matched after ${progress.iterations.toLocaleString('en-US')} inverse permutations.`
+                  : `Final-word recovery · ${progress.iterations.toLocaleString('en-US')} complete inverse permutations · ${formatElapsed(elapsed)} elapsed · this-device estimate: median ${formatDuration(average * 1420)}, mean ${formatDuration(average * 2048)} remaining. Stop is safe; recovery can be restarted later.`;
+              }
+            : undefined,
         );
         required<HTMLInputElement>('#mhfe-decrypt-password').value = '';
         const result = await pending;
@@ -263,7 +323,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
           context.writeClipboard,
           context.useMnemonicInDeriver,
         );
-        decryptStatus.textContent = `Recovery complete · ${result.sourceWords} words · PIM ${result.pim} · ${result.effectivePasses} Argon2id passes per round.`;
+        decryptStatus.textContent = `Recovery complete · ${result.sourceWords} words · PIM ${result.pim} · ${result.effectivePasses} Argon2id passes per round.${result.iterations === undefined ? '' : ` ${result.iterations.toLocaleString('en-US')} inverse permutations.`}`;
       } catch (cause) {
         if (decryptStatus.textContent?.startsWith('MHFE operation stopped')) return;
         decryptStatus.textContent = cause instanceof Error ? cause.message : 'MHFE recovery failed.';

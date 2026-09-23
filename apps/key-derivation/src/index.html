@@ -665,6 +665,12 @@
                 24-word source fills the whole state and cannot carry that fingerprint, so its recovered checksum does
                 not prove that the password was correct.
               </p>
+              <p>
+                An optional 24-word mode can preserve the source's complete final word by repeatedly running the full
+                encryption until that word matches. The word is then visible in the encrypted container. This search
+                averages about 2,048 complete encryptions, can take many hours or days depending on the computer, and
+                may finish much sooner or later. It does not verify the password.
+              </p>
               <p class="upstream-links">
                 Read the
                 <a href="https://github.com/hobby-eng/mhfe-spec" target="_blank" rel="noopener noreferrer"
@@ -673,7 +679,7 @@
                 and inspect the
                 <a href="https://github.com/hobby-eng/mhfe" target="_blank" rel="noopener noreferrer"
                   >reference implementation</a
-                >. This page embeds the verified browser module from the published v0.3.0 release.
+                >. This page embeds the verified v0.3.1 browser module.
               </p>
             </div>
           </details>
@@ -746,6 +752,16 @@
               With the checkbox off, PIM is 0 and does not need to be recorded. This browser module accepts printable
               ASCII passwords so its normalization is exact and reproducible.
             </p>
+            <label class="checkbox-row" for="mhfe-encrypt-preserve-final-word">
+              <input id="mhfe-encrypt-preserve-final-word" type="checkbox" />
+              Preserve the final word of a 24-word source (very slow)
+            </label>
+            <p class="field-note">
+              This optional mode repeatedly performs the complete memory-hard encryption until the container ends in the
+              same word. The search averages about 2,048 attempts and can take many hours or days. Progress and a
+              device-based estimate appear below, and Stop safely discards the unfinished search. The preserved word is
+              visible to anyone who sees the container and does not confirm the password.
+            </p>
             <div class="actions">
               <button class="primary" id="mhfe-encrypt" type="button">Encrypt to 24 words</button>
               <button class="secondary" id="mhfe-encrypt-stop" type="button" hidden>Stop</button>
@@ -784,9 +800,15 @@
               <input id="mhfe-source-was-24" type="checkbox" />
               The original phrase had 24 words
             </label>
+            <label class="checkbox-row" for="mhfe-decrypt-preserve-final-word">
+              <input id="mhfe-decrypt-preserve-final-word" type="checkbox" />
+              The final-word-preserving mode was used
+            </label>
             <p class="field-note">
               Leave the 24-word option off for automatic 12-, 15-, 18-, or 21-word detection. Select it when recovering
-              a known 24-word source; that format has no internal recovery fingerprint.
+              a known 24-word source; that format has no internal recovery fingerprint. Select the final-word mode only
+              when it was chosen during encryption. Recovery repeats the same potentially multi-hour search, shows
+              progress, and preserves the visible final word without using it as a password check.
             </p>
             <div class="actions">
               <button class="primary" id="mhfe-decrypt" type="button">Recover phrase</button>
