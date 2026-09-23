@@ -72,6 +72,22 @@ function installPimToggle(prefix: 'encrypt' | 'decrypt'): void {
   synchronize();
 }
 
+function installPasswordToggle(buttonSelector: string, inputSelector: string, label: string): void {
+  const button = required<HTMLButtonElement>(buttonSelector);
+  const input = required<HTMLInputElement>(inputSelector);
+  const synchronize = (): void => {
+    const revealed = input.type === 'text';
+    button.textContent = revealed ? 'Hide' : 'Show';
+    button.setAttribute('aria-pressed', String(revealed));
+    button.setAttribute('aria-label', `${revealed ? 'Hide' : 'Show'} ${label}`);
+  };
+  button.addEventListener('click', () => {
+    input.type = input.type === 'password' ? 'text' : 'password';
+    synchronize();
+  });
+  synchronize();
+}
+
 function formatElapsed(milliseconds: number): string {
   const seconds = Math.floor(milliseconds / 1000);
   if (seconds < 60) return `${seconds}s`;
@@ -221,6 +237,13 @@ export function installMhfe(context: RecoveryFeatureContext): void {
   );
   installPimToggle('encrypt');
   installPimToggle('decrypt');
+  installPasswordToggle('#toggle-mhfe-encrypt-password', '#mhfe-encrypt-password', 'MHFE password');
+  installPasswordToggle(
+    '#toggle-mhfe-encrypt-password-confirm',
+    '#mhfe-encrypt-password-confirm',
+    'password confirmation',
+  );
+  installPasswordToggle('#toggle-mhfe-decrypt-password', '#mhfe-decrypt-password', 'MHFE password');
   const preserveOnRecovery = required<HTMLInputElement>('#mhfe-decrypt-preserve-final-word');
   const sourceWas24 = required<HTMLInputElement>('#mhfe-source-was-24');
   preserveOnRecovery.addEventListener('change', () => {
