@@ -2286,13 +2286,48 @@ footer p {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-#mhfe-panel .checkbox-row + .field-note {
-  margin-top: -0.65rem;
+#mhfe-panel .mhfe-password-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+#mhfe-panel .mhfe-password-field input {
+  width: 100%;
+}
+
+#mhfe-panel .mhfe-pim-note {
+  margin-top: -0.75rem;
+}
+
+#mhfe-panel .mhfe-option-explainer {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  margin-top: -0.75rem;
+}
+
+#mhfe-panel .mhfe-option-explainer > .field-note {
+  margin: 0;
+}
+
+#mhfe-panel .mhfe-option-help {
+  position: relative;
+  top: auto;
+  right: auto;
+  flex: 0 0 auto;
+}
+
+#mhfe-panel .mhfe-option-help .recovery-help-popover {
+  right: 0;
 }
 
 @media (max-width: 700px) {
   .mhfe-password-grid {
     grid-template-columns: 1fr;
+  }
+
+  #mhfe-panel .mhfe-option-explainer {
+    align-items: flex-start;
   }
 }
 
