@@ -2,6 +2,16 @@
 
 This file tracks planned capabilities and upstream changes that require follow-up before support can be claimed.
 
+## Next after MnemoCode: BIP39 generation with one chosen word
+
+Requested on 2026-09-23. Queue this immediately after the current MnemoCode work is finished; record the request now, without implementing the generator yet.
+
+- [ ] Add an optional mnemonic-generation mode accepting a supported BIP39 word count, one word from the English BIP39 list, and its one-based position. Only one word/position constraint is in scope; other occurrences of that word need not be excluded.
+- [ ] Generate fresh entropy with the platform cryptographic random-number generator, produce a checksum-valid BIP39 mnemonic using the existing shared implementation, and accept it only when the requested position matches. Never edit an existing recovery phrase or silently repair it into a different wallet.
+- [ ] Keep generation local; provide cancellation and attempt progress if needed, without logging discarded candidates. Use the resulting phrase in the existing generation/diagnostic flow rather than duplicating BIP39 code.
+- [ ] Explain the entropy tradeoff: fixing a non-final word removes exactly 11 random entropy bits; constraining the final word has approximately the same reduction under the usual SHA-256 checksum model. A 12-word phrase then has about 117 bits of entropy and a 24-word phrase about 245 bits. Do not describe this as unchanged security or imply a categorical safety threshold between one and two fixed words.
+- [ ] Verify membership, position bounds, supported lengths, checksum validity and the final-word case with fast tests. Straight rejection sampling requires about 2,048 candidate mnemonics on average for one specified word at one position; wallet derivation and memory-hard encryption are not part of this search.
+
 ## Dash Platform asset-lock funding
 
 - [ ] Add independent discovery of unused Identity registration/top-up asset-lock credits when Dash Platform and Evo SDK expose a proof-verifiable query for locating the relevant asset-lock outputs and determining their consumed state.
