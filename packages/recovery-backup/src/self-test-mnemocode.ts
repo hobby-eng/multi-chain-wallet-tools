@@ -37,7 +37,9 @@ export function runMnemoCodeSelfTest(): CryptoSelfTestReport {
     expectText(`MnemoCode ${format} round trip`, decoded.mnemonic ?? '', PUBLIC_MNEMONIC);
   }
   const candidates = recoverMnemoCodeWord(PUBLIC_MNEMONIC.replace(/about$/u, '?'));
-  if (candidates.length !== 128) throw new Error('MnemoCode word recovery candidate count mismatch.');
+  if (candidates.length !== 128) {
+    throw new Error('MnemoCode final-word recovery candidate count mismatch.');
+  }
   const recoveredAbout = candidates.find((candidate) => candidate.word === 'about');
   expectText('MnemoCode word recovery vector', recoveredAbout?.mnemonic ?? '', PUBLIC_MNEMONIC);
   expectText('MnemoCode word recovery index', String(recoveredAbout?.wordIndex), '4');
