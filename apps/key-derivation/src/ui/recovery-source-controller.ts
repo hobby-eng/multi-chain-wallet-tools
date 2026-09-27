@@ -12,6 +12,7 @@ interface RecoverySourceControllerOptions {
 const RECOVERY_SOURCE_TARGETS = new Set<RecoverySourceTarget>([
   'matcher',
   'seedqr',
+  'mnemocode',
   'mhfe',
   'slip39',
   'shamir',

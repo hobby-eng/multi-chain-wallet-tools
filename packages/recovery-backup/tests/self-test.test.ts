@@ -29,6 +29,7 @@ describe('embedded recovery startup self-test', () => {
     expect(report.passed).toBe(true);
     expect(report.checks).toEqual([
       'SeedQR encode/decode',
+      'MnemoCode v0.1.0 vectors, word recovery, and all representation round trips',
       'SLIP-39 official + encode/decode',
       'Shamir raw encode/decode',
       'Shamir words encode/decode',

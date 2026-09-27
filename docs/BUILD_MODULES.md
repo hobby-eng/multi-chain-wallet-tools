@@ -33,21 +33,22 @@ Bitcoin and Ethereum follow the same rule. Optional workflows remain controlled 
 
 Coins: `bitcoin`, `dash`, `ethereum`. Selecting Dash includes every supported Dash derivation family: Core, Purpose48 and Core-pkh multisig cosigners, legacy mobile, CoinJoin, Platform payments, Identity and Orchard.
 
-| Feature            | Purpose                                                                                                                                            | Coin dependency   |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| `derive`           | Generate addresses, public keys and private keys for selected coins. Required.                                                                     | Any selected coin |
-| `bip85`            | Derive child mnemonics/application secrets and open a child-wallet derivation workspace.                                                           | Any selected coin |
-| `silent-payments`  | Derive Bitcoin BIP352 reusable addresses and scan/spend material.                                                                                  | Bitcoin           |
-| `bip38-encrypt`    | Password-encrypt compatible derived P2PKH private keys.                                                                                            | Bitcoin or Dash   |
-| `message-signing`  | Sign messages using formats supported by the selected coin and address type.                                                                       | Bitcoin or Dash   |
-| `wallet-matcher`   | Match known addresses against candidate mnemonics, accounts, branches and indices.                                                                 | Any selected coin |
-| `seedqr`           | Encode/decode Standard SeedQR and CompactSeedQR, including QR image import/export.                                                                 | Coin-independent  |
-| `mhfe`             | Encrypt/recover BIP39 phrases with the pinned MHFE v0.3.1 Worker/WASM module, optional PIM, final-word cycle walking, QR transfer, cancellation, progress, and verifier reporting. | Coin-independent |
-| `slip39`           | Create and restore SLIP-39 mnemonic shares.                                                                                                        | Coin-independent  |
-| `shamir`           | Create and restore versioned CKD Shamir Raw and Words shares with a share-set digest; see [the custom format specification](CKD_SHAMIR_FORMAT.md). | Coin-independent  |
-| `codex32`          | Encode and decode Codex32 BIP39-entropy or BIP32-seed records.                                                                                     | Coin-independent  |
-| `sskr`             | Create and restore interoperable Blockchain Commons grouped SSKR shares with `ur:sskr` transport.                                                  | Coin-independent  |
-| `gordian-envelope` | Create and open typed Gordian Seed Envelopes with optional password, X25519 recipient, and SSKR quorum permits.                                    | Coin-independent  |
+| Feature            | Purpose                                                                                                                                                                                               | Coin dependency   |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `derive`           | Generate addresses, public keys and private keys for selected coins. Required.                                                                                                                        | Any selected coin |
+| `bip85`            | Derive child mnemonics/application secrets and open a child-wallet derivation workspace.                                                                                                              | Any selected coin |
+| `silent-payments`  | Derive Bitcoin BIP352 reusable addresses and scan/spend material.                                                                                                                                     | Bitcoin           |
+| `bip38-encrypt`    | Password-encrypt compatible derived P2PKH private keys.                                                                                                                                               | Bitcoin or Dash   |
+| `message-signing`  | Sign messages using formats supported by the selected coin and address type.                                                                                                                          | Bitcoin or Dash   |
+| `wallet-matcher`   | Match known addresses against candidate mnemonics, accounts, branches and indices.                                                                                                                    | Any selected coin |
+| `seedqr`           | Encode/decode Standard SeedQR and CompactSeedQR, including QR image import/export.                                                                                                                    | Coin-independent  |
+| `mnemocode`        | Encode/decode MnemoCode 0.1.0 Direct and Seedshift modes in all five text representations, including MNC1, QR transfer, ordinary one-word recovery, and exact-legacy final-word replacement recovery. | Coin-independent  |
+| `mhfe`             | Encrypt/recover BIP39 phrases with the pinned MHFE v0.3.1 Worker/WASM module, optional PIM, final-word cycle walking, QR transfer, cancellation, progress, and verifier reporting.                    | Coin-independent  |
+| `slip39`           | Create and restore SLIP-39 mnemonic shares.                                                                                                                                                           | Coin-independent  |
+| `shamir`           | Create and restore versioned CKD Shamir Raw and Words shares with a share-set digest; see [the custom format specification](CKD_SHAMIR_FORMAT.md).                                                    | Coin-independent  |
+| `codex32`          | Encode and decode Codex32 BIP39-entropy or BIP32-seed records.                                                                                                                                        | Coin-independent  |
+| `sskr`             | Create and restore interoperable Blockchain Commons grouped SSKR shares with `ur:sskr` transport.                                                                                                     | Coin-independent  |
+| `gordian-envelope` | Create and open typed Gordian Seed Envelopes with optional password, X25519 recipient, and SSKR quorum permits.                                                                                       | Coin-independent  |
 
 ## Activity Viewer
 
