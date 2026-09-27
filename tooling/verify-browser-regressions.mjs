@@ -580,6 +580,7 @@ async function mnemocodeRoundTrip(context, profile, run) {
   await page.locator('#encode-mnemocode').click();
   await page.locator('#mnemocode-encode-result article .share-secret').waitFor();
 
+  await page.locator('[data-operation-tab][aria-controls="mnemocode-decode-panel"]').click();
   await page.locator('#mnemocode-missing-word-input').fill(mnemonic.replace(/about$/u, '?'));
   await page.locator('#recover-mnemocode-word').click();
   const wordOptions = page.locator('#mnemocode-missing-word-result .mnemocode-word-options');
@@ -611,6 +612,18 @@ async function mnemocodeRoundTrip(context, profile, run) {
     await page.locator('#mnemocode-missing-word-result .warning-callout').innerText(),
     /128 checksum-valid final-word replacements/u,
   );
+
+  const impossibleWords = Array(24).fill('abandon');
+  impossibleWords[4] = '?';
+  impossibleWords[23] = 'sure';
+  await page.locator('#mnemocode-legacy-last-word').uncheck();
+  await page.locator('#mnemocode-missing-word-input').fill(impossibleWords.join(' '));
+  await page.locator('#recover-mnemocode-word').click();
+  assert.match(
+    await page.locator('#mnemocode-missing-word-result .warning-callout').innerText(),
+    /No checksum-valid BIP39 phrase matches/u,
+  );
+  assert.equal(await page.locator('#mnemocode-missing-word-result textarea').count(), 0);
 
   assert.deepEqual(await storageSnapshot(page), before);
   assert.equal(run.requests.length, 0);

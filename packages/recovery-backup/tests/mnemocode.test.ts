@@ -1,4 +1,4 @@
-import { entropyToMnemonic } from '@scure/bip39';
+import { entropyToMnemonic, validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { describe, expect, it } from 'vitest';
 import {
@@ -114,21 +114,46 @@ describe('MnemoCode 0.1.0 compatibility', () => {
     expect(() => encodeMnemoCode(zeroMnemonic, 'seedshift', 'english')).toThrow(/at least one date/u);
   });
 
+  it.each([16, 20, 24, 28, 32])(
+    'recovers the original at every missing position for %i entropy bytes',
+    (size) => {
+      const mnemonic = entropyToMnemonic(
+        Uint8Array.from({ length: size }, (_, index) => index),
+        wordlist,
+      );
+      const sourceWords = mnemonic.split(' ');
+      const checksumLength = sourceWords.length / 3;
+
+      for (const missingIndex of sourceWords.keys()) {
+        const incomplete = [...sourceWords];
+        incomplete[missingIndex] = '?';
+        const candidates = recoverMnemoCodeWord(incomplete.join(' '));
+
+        expect(candidates.map((candidate) => candidate.mnemonic)).toContain(mnemonic);
+        expect(new Set(candidates.map((candidate) => candidate.word)).size).toBe(candidates.length);
+        for (const candidate of candidates) {
+          expect(candidate.position).toBe(missingIndex + 1);
+          expect(candidate.wordIndex).toBe(wordlist.indexOf(candidate.word) + 1);
+          expect(candidate.mnemonic.split(' ')[missingIndex]).toBe(candidate.word);
+          expect(validateMnemonic(candidate.mnemonic, wordlist)).toBe(true);
+          expect(candidate.checksumBits).toMatch(new RegExp(`^[01]{${checksumLength}}$`, 'u'));
+        }
+      }
+    },
+    60_000,
+  );
+
   it.each([
     [16, 128],
     [20, 64],
     [24, 32],
     [28, 16],
     [32, 8],
-  ])('recovers every checksum-valid forgotten-word candidate for %i entropy bytes', (size, count) => {
+  ])('has the exact BIP39 candidate count when the final word is missing at %i bytes', (size, count) => {
     const mnemonic = entropyToMnemonic(new Uint8Array(size), wordlist);
     const words = mnemonic.split(' ');
-    words[4] = '?';
-    const candidates = recoverMnemoCodeWord(words.join(' '));
-    expect(candidates).toHaveLength(count);
-    expect(candidates.map((candidate) => candidate.mnemonic)).toContain(mnemonic);
-    expect(candidates.every((candidate) => candidate.position === 5)).toBe(true);
-    expect(candidates.every((candidate) => candidate.checksumBits.length === words.length / 3)).toBe(true);
+    words[words.length - 1] = '?';
+    expect(recoverMnemoCodeWord(words.join(' '))).toHaveLength(count);
   });
 
   it('exposes the word index and exact checksum bits to the browser API', () => {
@@ -157,5 +182,12 @@ describe('MnemoCode 0.1.0 compatibility', () => {
     expect(() => recoverMnemoCodeWord(zeroMnemonic.replace('abandon', 'notaword').replace('about', '?'))).toThrow(
       /position 1/u,
     );
+  });
+
+  it('returns an empty set when the known words admit no checksum-valid completion', () => {
+    const words = Array<string>(24).fill('abandon');
+    words[4] = '?';
+    words[23] = 'sure';
+    expect(recoverMnemoCodeWord(words.join(' '))).toEqual([]);
   });
 });
