@@ -160,6 +160,12 @@ function renderMissingWordCandidates(
 ): void {
   const summary = document.createElement('div');
   summary.className = 'warning-callout';
+  if (candidates.length === 0) {
+    summary.textContent =
+      'No checksum-valid BIP39 phrase matches the supplied known words. Check the other words, their order, and the placeholder position.';
+    container.append(summary);
+    return;
+  }
   summary.textContent = legacyReplacement
     ? `${candidates.length} checksum-valid final-word replacements were found. The row marked preserved retains the entropy-bearing bits of the supplied old final word. These are replacement containers, not proof of the original wallet.`
     : `${candidates.length} checksum-valid replacements were found for word ${candidates[0]!.position}. A valid checksum does not identify the intended wallet; verify it with independent public wallet evidence.`;
