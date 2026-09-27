@@ -1029,10 +1029,10 @@
               </p>
               <p class="upstream-links">
                 An open-source module is used for GF(256) Shamir arithmetic. Source code is available from
-                <a href="https://github.com/c0dearm/sharks" target="_blank" rel="noopener noreferrer">sharks</a>. The
-                versioned CKD envelope and both display encodings are maintained by this project. Every build verifies
-                locked dependency checksums. When GitHub is available, it also verifies the exact pinned upstream
-                commit; a mismatch stops the build.
+                <a href="https://git.distrust.co/public/blahaj" target="_blank" rel="noopener noreferrer">blahaj</a>
+                0.6.0 (MIT), the corrected fork that replaced sharks 0.5.0. Existing CKD shares remain recoverable.
+                The versioned CKD envelope and both display encodings are maintained by this project. Builds verify
+                the locked crates.io package checksums and record the local integration source hashes.
               </p>
             </div>
           </details>
@@ -1842,7 +1842,9 @@
       </p>
       <p class="field-note passport-dependencies">
         <strong>Embedded dependency versions and licenses:</strong> Noble Curves/Hashes 2.4.0 and Scure Base/BIP32/BIP39
-        2.4.0 — MIT; uqr 0.1.3 — MIT; qr 0.7.0 — MIT OR Apache-2.0. Dash Orchard 0.14.0, official dashified-0.14.1
+        2.4.0 — MIT; uqr 0.1.3 — MIT; qr 0.7.0 — MIT OR Apache-2.0.
+        <span id="passport-shamir-dependency">CKD Shamir: blahaj 0.6.0 — MIT (replaces sharks 0.5.0).</span>
+        Dash Orchard 0.14.0, official dashified-0.14.1
         commit 38ac9c19a2df7bf3eeadc22ab23053e8fd538828; Blockchain Commons sskr 0.12.0, bc-envelope 0.43.0, and
         bc-components 0.31.1 — BSD-2-Clause-Patent; wasm-bindgen 0.2.128; ZIP32 0.2.1 — MIT or Apache-2.0. Full notices
         and the complete locked closure are in the source distribution.

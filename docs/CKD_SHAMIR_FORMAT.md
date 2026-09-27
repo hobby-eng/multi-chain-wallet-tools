@@ -4,6 +4,8 @@ CKD Shamir Raw and CKD Shamir Words are versioned application formats around GF(
 
 `blahaj` preserves the share serialization and recovery algorithm used by the previously pinned `sharks` implementation. Existing CKD Shamir cards remain recoverable; newly created cards use `blahaj`'s unbiased coefficient sampling.
 
+The replacement from `sharks 0.5.0` to `blahaj 0.6.0` was committed on 2026-09-23 (`1108c8a`) to address [RUSTSEC-2024-0398](https://rustsec.org/advisories/RUSTSEC-2024-0398.html). It does not modify existing shares or the separate SSKR implementation. See [the changelog](../CHANGELOG.md). In Cargo, `sharks = { package = "blahaj", ... }` retains the old import alias; the installed package is `blahaj`. The upstream `Sharks` type name is also retained.
+
 This specification is developer documentation. Generated cards intentionally contain no visible `ckd-*` prefix. Removing a visible label is a presentation choice, not steganography: the decoded binary envelope remains identifiable by its magic and structure.
 
 ## Version 2 envelope
