@@ -145,6 +145,7 @@ function removeButtons(source, attribute, value) {
 
 export function applyKeyDerivationFeatureTemplate(template, features) {
   let rendered = template;
+  if (!features.has('shamir')) rendered = removeBalancedElement(rendered, 'passport-shamir-dependency');
   for (const coin of ['bitcoin', 'dash']) {
     if (features.hasCoin(coin)) continue;
     rendered = rendered.replace(

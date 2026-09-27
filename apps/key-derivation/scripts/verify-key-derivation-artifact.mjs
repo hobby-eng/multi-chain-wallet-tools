@@ -333,7 +333,7 @@ const allowedOpenSourceLinks = [
   'https://github.com/unjs/uqr',
   'https://github.com/paulmillr/qr',
   'https://github.com/trezor/python-shamir-mnemonic',
-  'https://github.com/c0dearm/sharks',
+  'https://git.distrust.co/public/blahaj',
   'https://github.com/BlockchainCommons/bc-sskr-rust',
   'https://github.com/BlockchainCommons/bc-envelope-rust',
   'https://github.com/BlockchainCommons/bc-components-rust',
