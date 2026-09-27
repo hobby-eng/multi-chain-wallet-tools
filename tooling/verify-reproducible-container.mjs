@@ -7,6 +7,15 @@ const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const dockerfile = read('Dockerfile.reproducible');
 const shellWrapper = read('tooling/build-reproducible.sh');
 const manifest = JSON.parse(read('package.json'));
+const nodeVersion = read('.node-version').trim();
+const packageManager = manifest.packageManager;
+const expectedNodeEngine = `>=${nodeVersion}`;
+if (manifest.engines?.node !== expectedNodeEngine) {
+  throw new Error(`package.json engines.node must be ${expectedNodeEngine}.`);
+}
+if (!/^pnpm@\d+\.\d+\.\d+$/u.test(packageManager ?? '')) {
+  throw new Error('package.json packageManager must pin an exact pnpm version.');
+}
 if (!String(manifest.scripts.verify).includes('node tooling/verify-dependency-provenance.mjs')) {
   throw new Error('The canonical pnpm verify command must enforce dependency provenance.');
 }
@@ -21,8 +30,8 @@ requireMatch(
   'The canonical base image must be pinned by an immutable SHA-256 digest.',
 );
 for (const expected of [
-  'ARG NODE_VERSION=24.21.0',
-  'ARG NODE_ARCHIVE_SHA256=fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6',
+  `ARG NODE_VERSION=${nodeVersion}`,
+  'ARG NODE_ARCHIVE_SHA256=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022',
   'ARG RUSTUP_VERSION=1.29.1',
   'ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71',
   'ARG CLANG_VERSION=1:18.0-59~exp2',
@@ -31,7 +40,7 @@ for (const expected of [
   'apt-get install --yes --no-install-recommends \"clang=${CLANG_VERSION}\" \"wasi-libc=${WASI_LIBC_VERSION}\"',
   'CFLAGS_wasm32_unknown_unknown="-I/usr/include/wasm32-wasi -include /usr/include/wasm32-wasi/string.h"',
   'git config --system http.version HTTP/1.1',
-  'npm install --global pnpm@12.5.1',
+  `npm install --global ${packageManager}`,
   'cargo install wasm-bindgen-cli --version 0.2.128 --locked',
   'for attempt in 1 2 3 4 5',
   'Cargo fetch attempt ${attempt} failed',
@@ -92,6 +101,16 @@ for (const path of ['.github/workflows/ci.yml', '.github/workflows/release.yml']
     'pnpm test:browser:selective',
   ]) {
     if (!workflow.includes(expected)) throw new Error(`${path} is missing the browser release gate: ${expected}`);
+  }
+}
+
+for (const path of ['.github/workflows/ci.yml', '.github/workflows/release.yml', '.github/workflows/vectors.yml']) {
+  const workflow = read(path);
+  if (!workflow.includes('node-version-file: .node-version')) {
+    throw new Error(`${path} must read Node.js from .node-version.`);
+  }
+  if (/\n\s+version:\s+\d+\.\d+\.\d+\s*$/mu.test(workflow)) {
+    throw new Error(`${path} must read pnpm from package.json packageManager.`);
   }
 }
 if (!read('.github/workflows/release.yml').includes('needs: browser')) {
