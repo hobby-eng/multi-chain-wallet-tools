@@ -108,6 +108,7 @@
                     Wallet Matcher
                   </button>
                   <button type="button" data-recovery-source="main" data-recovery-target="seedqr">SeedQR</button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="mnemocode">MnemoCode</button>
                   <button type="button" data-recovery-source="main" data-recovery-target="mhfe">MHFE</button>
                   <button type="button" data-recovery-source="main" data-recovery-target="slip39">
                     SLIP-39 shares
@@ -323,6 +324,16 @@
             data-recovery-tab
           >
             SeedQR
+          </button>
+          <button
+            class="recovery-subtab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="mnemocode-panel"
+            data-recovery-tab
+          >
+            MnemoCode
           </button>
           <button
             class="recovery-subtab"
@@ -640,6 +651,211 @@
               <button class="primary" id="restore-seedqr" type="button">Restore BIP39 phrase</button>
             </div>
             <div id="seedqr-restore-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+        </section>
+
+        <section
+          id="mnemocode-panel"
+          class="panel recovery-panel backup-method"
+          role="tabpanel"
+          data-recovery-panel
+          hidden
+        >
+          <div class="section-head">
+            <div>
+              <span class="step">02</span>
+              <h2>MnemoCode 0.1.0</h2>
+            </div>
+          </div>
+          <details class="recovery-help">
+            <summary>What is this?</summary>
+            <div class="recovery-help-popover">
+              <h3>MnemoCode</h3>
+              <p>
+                MnemoCode is an original development by this project's author, based on ideas from Seedshift and
+                BIP39Colors but extended with checksum-valid transformations, five reversible representations, versioned
+                text records, QR transfer, recovery helpers, and printable recovery material. Direct mode only changes
+                the representation; Seedshift modes apply reversible date-derived shifts.
+              </p>
+              <p>
+                These representations and date shifts are obfuscation, not encryption. MNC1 records contain the mode and
+                format, but never contain the dates. Preserve every date separately and in exact DD-MM-YYYY form.
+              </p>
+              <p class="upstream-links">
+                This module is compatible with
+                <a href="https://github.com/hobby-eng/mnemocode" target="_blank" rel="noopener noreferrer"
+                  >MnemoCode 0.1.0</a
+                >. It reuses the Deriver's pinned BIP39 and QR dependencies and adds no network behavior.
+              </p>
+            </div>
+          </details>
+          <div class="warning-callout">
+            <strong>Recovery material.</strong> MnemoCode output can reveal or reconstruct the wallet. It is not
+            authenticated encryption, and a wrong date in checksum-valid Seedshift can produce a different valid phrase.
+          </div>
+          <nav class="backup-mode-tabs" role="tablist" aria-label="MnemoCode operation">
+            <button
+              class="backup-mode-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="mnemocode-create-panel"
+              data-operation-tab
+            >
+              Encode
+            </button>
+            <button
+              class="backup-mode-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="mnemocode-decode-panel"
+              data-operation-tab
+            >
+              Decode
+            </button>
+          </nav>
+          <section id="mnemocode-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
+            <div class="field-heading-row">
+              <label for="mnemocode-source">BIP39 recovery phrase to encode</label>
+              <button id="toggle-mnemocode-source" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal source phrase
+              </button>
+            </div>
+            <textarea
+              id="mnemocode-source"
+              class="concealed"
+              rows="4"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
+            ></textarea>
+            <div class="backup-options-grid two-options">
+              <div>
+                <label for="mnemocode-encode-mode">Transformation mode</label>
+                <select id="mnemocode-encode-mode">
+                  <option value="direct">Direct · representation only</option>
+                  <option value="seedshift">Seedshift · checksum-valid</option>
+                  <option value="seedshift-legacy">Legacy Seedshift · exact historical output</option>
+                  <option value="seedshift-legacy-valid">Legacy Seedshift · checksum-valid final word</option>
+                </select>
+              </div>
+              <div>
+                <label for="mnemocode-encode-format">Representation</label>
+                <select id="mnemocode-encode-format">
+                  <option value="english">1 · English BIP39 words</option>
+                  <option value="indexes">2 · BIP39 word numbers (1–2048)</option>
+                  <option value="unicode">3 · mapped Unicode code points</option>
+                  <option value="colors">5 · #RRGGBB colors</option>
+                  <option value="colors-unicode">6 · color Unicode code points</option>
+                </select>
+              </div>
+            </div>
+            <div id="mnemocode-encode-dates-field">
+              <label for="mnemocode-encode-dates">Seedshift dates</label>
+              <textarea
+                id="mnemocode-encode-dates"
+                rows="2"
+                autocomplete="off"
+                placeholder="23-09-2026 · separate multiple dates with spaces or new lines"
+              ></textarea>
+            </div>
+            <div class="actions">
+              <button id="encode-mnemocode" class="primary" type="button">Encode MnemoCode record</button>
+              <button id="toggle-mnemocode-created" class="danger-outline" type="button" aria-pressed="false">
+                Reveal encoded records
+              </button>
+            </div>
+            <div id="mnemocode-encode-result" class="share-results" role="status" aria-live="polite"></div>
+          </section>
+          <section id="mnemocode-decode-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+            <div class="backup-options-grid two-options">
+              <div>
+                <label for="mnemocode-decode-mode">Transformation mode for raw input</label>
+                <select id="mnemocode-decode-mode">
+                  <option value="direct">Direct · representation only</option>
+                  <option value="seedshift">Seedshift · checksum-valid</option>
+                  <option value="seedshift-legacy">Legacy Seedshift · exact historical output</option>
+                  <option value="seedshift-legacy-valid">Legacy valid-word recovery candidates</option>
+                </select>
+              </div>
+              <div>
+                <label for="mnemocode-decode-format">Representation for raw input</label>
+                <select id="mnemocode-decode-format">
+                  <option value="auto">Auto-detect</option>
+                  <option value="english">1 · English BIP39 words</option>
+                  <option value="indexes">2 · BIP39 word numbers (1–2048)</option>
+                  <option value="unicode">3 · mapped Unicode code points</option>
+                  <option value="colors">5 · #RRGGBB colors</option>
+                  <option value="colors-unicode">6 · color Unicode code points</option>
+                </select>
+              </div>
+            </div>
+            <div id="mnemocode-decode-dates-field">
+              <label for="mnemocode-decode-dates">Seedshift dates</label>
+              <textarea
+                id="mnemocode-decode-dates"
+                rows="2"
+                autocomplete="off"
+                placeholder="Dates are required for every Seedshift mode"
+              ></textarea>
+            </div>
+            <div class="field-heading-row">
+              <label for="mnemocode-input">MNC1 record or raw representation</label>
+              <button id="toggle-mnemocode-input" class="danger-outline compact" type="button" aria-pressed="false">
+                Reveal encoded input
+              </button>
+            </div>
+            <textarea
+              id="mnemocode-input"
+              class="concealed"
+              rows="7"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Paste an MNC1 record or raw representation, or import a local QR image"
+            ></textarea>
+            <p class="field-note">
+              An MNC1 record overrides the mode and representation selectors. Dates remain external and must be entered
+              above.
+            </p>
+            <button id="decode-mnemocode" class="primary" type="button">Decode MnemoCode record</button>
+            <div id="mnemocode-decode-result" class="share-results" role="status" aria-live="polite"></div>
+            <hr />
+            <h3>Recover one forgotten BIP39 word</h3>
+            <p class="field-note">
+              Replace the forgotten word with exactly one <code>?</code>. Recovery checks all 2,048 English BIP39 words
+              locally. Every replacement, word index, and checksum appears immediately; complete recovered phrases
+              remain concealed until you choose to reveal them.
+            </p>
+            <label class="checkbox-row" for="mnemocode-legacy-last-word">
+              <input id="mnemocode-legacy-last-word" type="checkbox" />
+              <span>
+                Old exact Legacy Seedshift phrase: use its existing final word to enumerate checksum-valid replacements.
+                No <code>?</code> placeholder is used; the entropy-preserving replacement is marked separately.
+              </span>
+            </label>
+            <div class="field-heading-row">
+              <label for="mnemocode-missing-word-input">BIP39 phrase for word recovery</label>
+              <button
+                id="toggle-mnemocode-missing-word-input"
+                class="danger-outline compact"
+                type="button"
+                aria-pressed="false"
+              >
+                Reveal recovery phrase
+              </button>
+            </div>
+            <textarea
+              id="mnemocode-missing-word-input"
+              class="concealed"
+              rows="4"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              placeholder="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon ?"
+            ></textarea>
+            <button id="recover-mnemocode-word" class="primary" type="button">Find checksum-valid words</button>
+            <div id="mnemocode-missing-word-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
         </section>
 

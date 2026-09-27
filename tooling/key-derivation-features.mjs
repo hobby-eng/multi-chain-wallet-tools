@@ -8,6 +8,7 @@ export const KEY_DERIVATION_FEATURES = TOOL_MANIFESTS['key-derivation'].features
 const RECOVERY_FEATURES = Object.freeze([
   'wallet-matcher',
   'seedqr',
+  'mnemocode',
   'mhfe',
   'slip39',
   'shamir',
@@ -159,6 +160,7 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
   const panels = {
     'wallet-matcher': 'wallet-matcher-panel',
     seedqr: 'seedqr-panel',
+    mnemocode: 'mnemocode-panel',
     mhfe: 'mhfe-panel',
     slip39: 'slip39-panel',
     shamir: 'shamir-panel',

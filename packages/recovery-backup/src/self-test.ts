@@ -5,11 +5,13 @@ import { runShamirSelfTest } from './self-test-shamir.js';
 import { runSskrSelfTest } from './self-test-sskr.js';
 import { runGordianEnvelopeSelfTest } from './self-test-gordian-envelope.js';
 import { runSlip39SelfTest } from './self-test-slip39.js';
+import { runMnemoCodeSelfTest } from './self-test-mnemocode.js';
 
 /** Exercises every recovery codec in the complete build. */
 export function runRecoveryBackupSelfTest(): CryptoSelfTestReport {
   const reports = [
     runSeedQrSelfTest(),
+    runMnemoCodeSelfTest(),
     runSlip39SelfTest(),
     runShamirSelfTest(),
     runCodex32SelfTest(),

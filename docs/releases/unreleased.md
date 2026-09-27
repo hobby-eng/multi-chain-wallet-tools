@@ -2,6 +2,10 @@
 
 No new version or release date has been assigned. Include the following security notice in the next Multi-Chain and Dash Community release notes before publishing either edition.
 
+## MnemoCode module
+
+Added MnemoCode 0.1.0 to the Deriver's offline **Recover & Back Up** workspace. The optional `mnemocode` build feature supports Encode and Decode for Direct, checksum-valid Seedshift, exact legacy Seedshift, and legacy valid-final-word recovery across all five MnemoCode representations and every standard BIP39 word count. Decode also includes bounded word recovery: one `?` placeholder returns every checksum-valid replacement with its BIP39 word number and exact checksum bits. A separate exact-legacy option accepts the complete old shifted phrase even when its checksum is invalid, enumerates every checksum-valid final-word replacement, and marks the one that preserves the old word's entropy-bearing bits. Color Unicode now uses visible four-digit code-point text while retaining support for earlier literal Private Use symbols. MNC1 records download as reveal-gated local text files instead of duplicating the raw payload on screen. The module reuses existing BIP39, QR, and download support; no npm package, Rust crate, storage API, or network behavior was added.
+
 ## JavaScript toolchain
 
 Updated the supported and reproducible JavaScript toolchain to Node.js 26.10.0 and Vitest 5.0.2. CI, the canonical container and the lockfile use the same versions.

@@ -2,6 +2,7 @@ import type { RecoverySourceTarget } from './recovery-source-link.js';
 import type { RecoveryFeatureContext } from './recovery-workspace-shared.js';
 import { installCodex32 } from './recovery-codex32.js';
 import { installSeedQr } from './recovery-seedqr.js';
+import { installMnemoCode } from './recovery-mnemocode.js';
 import { installMhfe } from './recovery-mhfe.js';
 import { installShamir } from './recovery-shamir.js';
 import { installSlip39 } from './recovery-slip39.js';
@@ -11,6 +12,7 @@ import { installWalletMatcher } from './recovery-wallet-matcher.js';
 export const selectedRecoveryTargets: ReadonlySet<RecoverySourceTarget> = new Set([
   'matcher',
   'seedqr',
+  'mnemocode',
   'mhfe',
   'slip39',
   'shamir',
@@ -21,6 +23,7 @@ export const selectedRecoveryTargets: ReadonlySet<RecoverySourceTarget> = new Se
 export function installSelectedRecoveryFeatures(context: RecoveryFeatureContext): void {
   installWalletMatcher(context);
   installSeedQr(context);
+  installMnemoCode(context);
   installMhfe(context);
   installSlip39(context);
   installShamir(context);
