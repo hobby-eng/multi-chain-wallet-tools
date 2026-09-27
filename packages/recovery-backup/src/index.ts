@@ -19,4 +19,5 @@ export * from './seedqr.js';
 export * from './sskr.js';
 export * from './gordian-envelope.js';
 export * from './mnemonic-entries.js';
+export * from './mnemocode.js';
 export * from './self-test.js';

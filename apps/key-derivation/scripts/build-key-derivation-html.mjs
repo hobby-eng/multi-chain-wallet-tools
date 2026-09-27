@@ -205,6 +205,7 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
           const definitions = [
             ['wallet-matcher', 'matcher', 'recovery-wallet-matcher.ts', 'installWalletMatcher'],
             ['seedqr', 'seedqr', 'recovery-seedqr.ts', 'installSeedQr'],
+            ['mnemocode', 'mnemocode', 'recovery-mnemocode.ts', 'installMnemoCode'],
             ['mhfe', 'mhfe', 'recovery-mhfe.ts', 'installMhfe'],
             ['slip39', 'slip39', 'recovery-slip39.ts', 'installSlip39'],
             ['shamir', 'shamir', 'recovery-shamir.ts', 'installShamir'],

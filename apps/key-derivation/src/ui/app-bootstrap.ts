@@ -30,6 +30,7 @@ export function startKeyDerivationApp(registry: CoinRegistry, detectTargets: Wal
         detectTargets,
         mnemonicToSeed,
         writeClipboard,
+        downloadText,
         useMnemonicInDeriver(mnemonic, passphrase = '') {
           const mnemonicInput = document.querySelector<HTMLTextAreaElement>('#mnemonic');
           const passphraseInput = document.querySelector<HTMLInputElement>('#passphrase');

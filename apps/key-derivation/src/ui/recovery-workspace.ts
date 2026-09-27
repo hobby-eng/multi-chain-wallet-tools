@@ -8,6 +8,7 @@ interface RecoveryWorkspaceOptions {
   readonly detectTargets: WalletMatcherTargetDetector;
   readonly mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array;
   readonly writeClipboard: (value: string) => Promise<void>;
+  readonly downloadText: (text: string, fileName: string, mimeType: string) => void;
   readonly useMnemonicInDeriver: (mnemonic: string, passphrase?: string) => void;
 }
 export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): RecoverySourceReceiver {
@@ -82,6 +83,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
   const targetPanels: Readonly<Record<RecoverySourceTarget, string>> = {
     matcher: 'wallet-matcher-panel',
     seedqr: 'seedqr-panel',
+    mnemocode: 'mnemocode-panel',
     mhfe: 'mhfe-panel',
     slip39: 'slip39-panel',
     shamir: 'shamir-panel',
@@ -91,6 +93,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
   };
   const sourceSelectors: Readonly<Record<Exclude<RecoverySourceTarget, 'matcher'>, string>> = {
     seedqr: '#seedqr-source',
+    mnemocode: '#mnemocode-source',
     mhfe: '#mhfe-source',
     slip39: '#slip39-source-mnemonic',
     shamir: '#shamir-source',

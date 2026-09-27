@@ -37,6 +37,12 @@ const GITHUB_SOURCES = [
     commit: 'b225ae77e9251a813cf2bd61e7874629d6f3cb10',
   },
   {
+    id: 'mnemocode-v0.1.0',
+    repository: 'hobby-eng/mnemocode',
+    reference: '0.1.0 integration source revision',
+    commit: '180ad364182443cf25b9c8609ed16e612b3c66af',
+  },
+  {
     id: 'mhfe-v0.3.1',
     repository: 'hobby-eng/mhfe',
     reference: 'v0.3.1 browser WASM source revision',
@@ -67,6 +73,16 @@ const LOCAL_IMPLEMENTATIONS = [
     id: 'seedqr-codec',
     upstream: 'seedsigner-seedqr',
     files: ['packages/recovery-backup/src/seedqr.ts', 'packages/recovery-backup/tests/seedqr.test.ts'],
+  },
+  {
+    id: 'mnemocode-codec',
+    upstream: 'mnemocode-v0.1.0',
+    files: [
+      'packages/recovery-backup/src/mnemocode.ts',
+      'packages/recovery-backup/src/self-test-mnemocode.ts',
+      'packages/recovery-backup/tests/mnemocode.test.ts',
+      'apps/key-derivation/src/ui/recovery-mnemocode.ts',
+    ],
   },
   {
     id: 'mhfe-browser-module',

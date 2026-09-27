@@ -84,6 +84,10 @@ function fixtureRoot() {
   const sourceFiles = [
     'packages/recovery-backup/src/seedqr.ts',
     'packages/recovery-backup/tests/seedqr.test.ts',
+    'packages/recovery-backup/src/mnemocode.ts',
+    'packages/recovery-backup/src/self-test-mnemocode.ts',
+    'packages/recovery-backup/tests/mnemocode.test.ts',
+    'apps/key-derivation/src/ui/recovery-mnemocode.ts',
     'packages/recovery-mhfe-wasm/generated/mhfe.js',
     'packages/recovery-mhfe-wasm/generated/mhfe.d.ts',
     'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm',

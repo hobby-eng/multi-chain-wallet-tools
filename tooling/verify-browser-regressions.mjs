@@ -284,7 +284,7 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   };
   const before = await storageSnapshot(page);
   await clickStep(page.locator('#recovery-backup-mode'), 'Open Recover & Back Up');
-  assert.equal(await page.locator('.recovery-help').count(), 8);
+  assert.equal(await page.locator('.recovery-help').count(), 10);
   const firstHelp = page.locator('.recovery-help').first();
   await firstHelp.locator('summary').hover();
   await page.waitForFunction(() => document.querySelector('.recovery-help')?.hasAttribute('open'));
@@ -332,6 +332,19 @@ async function recoveryBackupRoundTrips(context, profile, run) {
       shares: '#seedqr-payload',
       restore: '#restore-seedqr',
       restoreResult: '#seedqr-restore-result',
+      needed: 1,
+    },
+    {
+      panel: 'mnemocode-panel',
+      source: '#mnemocode-source',
+      create: '#encode-mnemocode',
+      createResult: '#mnemocode-encode-result',
+      revealCreated: '#toggle-mnemocode-created',
+      createPanel: 'mnemocode-create-panel',
+      restorePanel: 'mnemocode-decode-panel',
+      shares: '#mnemocode-input',
+      restore: '#decode-mnemocode',
+      restoreResult: '#mnemocode-decode-result',
       needed: 1,
     },
     {
@@ -391,7 +404,7 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   let checkedQrPopoverInteractions = false;
   for (const method of methods) {
     await clickStep(page.locator(`[data-recovery-tab][aria-controls="${method.panel}"]`), `Open ${method.panel}`);
-    const createPanel = method.restorePanel.replace('-restore-panel', '-create-panel');
+    const createPanel = method.createPanel ?? method.restorePanel.replace('-restore-panel', '-create-panel');
     await clickStep(page.locator(`[aria-controls="${createPanel}"][data-operation-tab]`), `Open ${createPanel}`);
     await page.locator(method.source).fill(mnemonic);
     if (method.createFormat !== undefined)
@@ -480,7 +493,129 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   assert.deepEqual(await storageSnapshot(page), before);
   assert.equal(run.requests.length, 0);
   run.checks.push(
-    'Recovery help popovers; MHFE Worker initialization/PIM/Stop; SeedQR, SLIP-39, both CKD Shamir encodings, and Codex32 exact browser round trips; QR actions; reveal-gated copy; in-memory return to Derive; storage/no HTTP',
+    'Recovery help popovers; MHFE Worker initialization/PIM/Stop; SeedQR, MnemoCode, SLIP-39, both CKD Shamir encodings, and Codex32 exact browser round trips; QR actions; reveal-gated copy; in-memory return to Derive; storage/no HTTP',
+  );
+}
+
+async function mnemocodeRoundTrip(context, profile, run) {
+  const page = await open(context, profile, 'key-derivation', run);
+  const before = await storageSnapshot(page);
+  await page.locator('#mnemonic').fill(mnemonic);
+  await page.locator('#main-recovery-source-menu summary').click();
+  await page.locator('#main-recovery-source-menu [data-recovery-target="mnemocode"]').click();
+  assert.equal(await page.locator('#recovery-workspace').isVisible(), true);
+  assert.equal(await page.locator('#mnemocode-panel').isVisible(), true);
+  assert.match(await page.locator('#mnemocode-panel .linked-recovery-source').innerText(), /Generate & Derive/u);
+
+  const encode = async (mode, format) => {
+    await page.locator('[data-operation-tab][aria-controls="mnemocode-create-panel"]').click();
+    await page.locator('#mnemocode-encode-mode').selectOption(mode);
+    await page.locator('#mnemocode-encode-format').selectOption(format);
+    if (mode === 'direct') {
+      await page.locator('#mnemocode-encode-dates').evaluate((input) => {
+        input.value = '';
+      });
+    } else {
+      await page.locator('#mnemocode-encode-dates').fill('23-09-2026');
+    }
+    await page.locator('#encode-mnemocode').click();
+    const payload = page.locator('#mnemocode-encode-result article .share-secret').first();
+    await payload.waitFor();
+    const value = (await payload.textContent()) ?? '';
+    assert.doesNotMatch(value, /^MNC1:/u);
+    assert.equal(await page.locator('#mnemocode-encode-result article').count(), 1);
+    assert.equal(await page.locator('#mnemocode-encode-result .share-qr-action').count(), 1);
+    assert.equal(
+      await page.locator('#mnemocode-encode-result .mnemocode-palette').count(),
+      format === 'colors' || format === 'colors-unicode' ? 1 : 0,
+    );
+    assert.equal(
+      await page.locator('#mnemocode-encode-result button').filter({ hasText: 'Save MNC1 record' }).isDisabled(),
+      true,
+    );
+    return value;
+  };
+
+  const decode = async (record, mode, expectCandidates = false) => {
+    await page.locator('[data-operation-tab][aria-controls="mnemocode-decode-panel"]').click();
+    await page.locator('#mnemocode-decode-mode').selectOption(mode);
+    if (mode === 'direct') {
+      await page.locator('#mnemocode-decode-dates').evaluate((input) => {
+        input.value = '';
+      });
+    } else {
+      await page.locator('#mnemocode-decode-dates').fill('23-09-2026');
+    }
+    await page.locator('#mnemocode-input').fill(record);
+    await page.locator('#decode-mnemocode').click();
+    const output = page.locator('#mnemocode-decode-result textarea');
+    await output.waitFor();
+    if (expectCandidates) {
+      assert.match(await output.inputValue(), new RegExp(mnemonic, 'u'));
+      assert.match(await page.locator('#mnemocode-decode-result .warning-callout').innerText(), /128/u);
+    } else {
+      assert.equal(await output.inputValue(), mnemonic);
+    }
+  };
+
+  for (const format of ['english', 'indexes', 'unicode', 'colors', 'colors-unicode']) {
+    await decode(await encode('direct', format), 'direct');
+  }
+  for (const mode of ['seedshift', 'seedshift-legacy']) {
+    await decode(await encode(mode, 'english'), mode);
+  }
+  await decode(await encode('seedshift-legacy-valid', 'english'), 'seedshift-legacy-valid', true);
+
+  await page.locator('[data-operation-tab][aria-controls="mnemocode-create-panel"]').click();
+  await page.locator('#mnemocode-encode-mode').selectOption('seedshift');
+  await page.locator('#mnemocode-encode-format').selectOption('english');
+  await page.locator('#mnemocode-encode-dates').fill('23-13-1999');
+  await page.locator('#encode-mnemocode').click();
+  assert.match(
+    await page.locator('#mnemocode-encode-result').innerText(),
+    /month must be an integer from 1 through 12/u,
+  );
+  await page.locator('#mnemocode-encode-dates').fill('23-12-1999');
+  assert.equal(await page.locator('#mnemocode-encode-result').innerText(), '');
+  await page.locator('#encode-mnemocode').click();
+  await page.locator('#mnemocode-encode-result article .share-secret').waitFor();
+
+  await page.locator('#mnemocode-missing-word-input').fill(mnemonic.replace(/about$/u, '?'));
+  await page.locator('#recover-mnemocode-word').click();
+  const wordOptions = page.locator('#mnemocode-missing-word-result .mnemocode-word-options');
+  const wordPhrases = page.locator('#mnemocode-missing-word-result .mnemocode-word-phrases');
+  await wordOptions.waitFor();
+  assert.match(await wordOptions.inputValue(), /word-index\tchecksum-bits/u);
+  assert.match(await wordOptions.inputValue(), /\tabout\t4\t0011/u);
+  assert.match(await wordPhrases.inputValue(), /word-index\tchecksum-bits\tmnemonic/u);
+  assert.match(await wordPhrases.inputValue(), /\tabout\t4\t0011\t/u);
+  assert.match(await page.locator('#mnemocode-missing-word-result .warning-callout').innerText(), /128/u);
+  assert.equal(await wordOptions.evaluate((output) => output.classList.contains('concealed')), false);
+  assert.equal(await wordPhrases.evaluate((output) => output.classList.contains('concealed')), true);
+  const copyCandidates = page
+    .locator('#mnemocode-missing-word-result button')
+    .filter({ hasText: 'Copy all candidates' });
+  assert.equal(await copyCandidates.isDisabled(), true);
+  await page.locator('#mnemocode-missing-word-result button').filter({ hasText: 'Reveal recovered phrases' }).click();
+  assert.equal(await copyCandidates.isEnabled(), true);
+
+  await page.locator('#mnemocode-legacy-last-word').check();
+  await page
+    .locator('#mnemocode-missing-word-input')
+    .fill('mosquito dust hotel maximum rich kitten hair mother salute dream flush hospital');
+  await page.locator('#recover-mnemocode-word').click();
+  await wordOptions.waitFor();
+  assert.match(await wordOptions.inputValue(), /checksum-bits\tlegacy-tail/u);
+  assert.equal((await wordOptions.inputValue()).split('\n').filter((line) => line.includes('\tpreserved')).length, 1);
+  assert.match(
+    await page.locator('#mnemocode-missing-word-result .warning-callout').innerText(),
+    /128 checksum-valid final-word replacements/u,
+  );
+
+  assert.deepEqual(await storageSnapshot(page), before);
+  assert.equal(run.requests.length, 0);
+  run.checks.push(
+    'MnemoCode Encode/Decode UI: all five representations; Direct, Seedshift, legacy and legacy-valid modes; ordinary and exact-legacy final-word recovery with checksum metadata; MNC1/QR; storage/no HTTP',
   );
 }
 
@@ -683,6 +818,7 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? 'chromium,firefox').sp
       cases.push(['coinjoin', (context, run) => coinJoin(context, profile, run)]);
       cases.push(['bip38-message', (context, run) => bip38(context, profile, run)]);
       cases.push(['recovery-backup-roundtrips', (context, run) => recoveryBackupRoundTrips(context, profile, run)]);
+      cases.push(['mnemocode-roundtrip', (context, run) => mnemocodeRoundTrip(context, profile, run)]);
       if (profile.id === 'multi-chain')
         cases.push(['bip85-child-signer', (context, run) => childWallet(context, profile, run)]);
       for (const [name, test] of cases) {

@@ -2140,6 +2140,11 @@ footer p {
   gap: 0.5rem;
 }
 
+.recovery-subtabs {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+}
+
 .recovery-subtab,
 .backup-mode-tab {
   min-width: 0;
@@ -2255,6 +2260,33 @@ footer p {
 .share-results article p {
   overflow-wrap: anywhere;
   font-family: var(--mono);
+}
+
+.mnemocode-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 0.65rem;
+}
+
+.mnemocode-swatch {
+  min-height: 4.5rem;
+  display: grid;
+  place-items: end center;
+  padding: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--mnemocode-color);
+}
+
+.mnemocode-swatch code {
+  padding: 0.2rem 0.35rem;
+  border-radius: 0.3rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.mnemocode-palette.concealed .mnemocode-swatch {
+  background: var(--panel2);
 }
 
 .warning-callout {

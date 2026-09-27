@@ -11,6 +11,7 @@ export interface RecoveryFeatureContext {
   readonly detectTargets: WalletMatcherTargetDetector;
   readonly mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array;
   readonly writeClipboard: (value: string) => Promise<void>;
+  readonly downloadText: (text: string, fileName: string, mimeType: string) => void;
   readonly useMnemonicInDeriver: (mnemonic: string, passphrase?: string) => void;
   readonly readMnemonic: (target: RecoverySourceTarget, selector: string) => string;
   readonly linkedValue: (target: RecoverySourceTarget) => { mnemonic: string; passphrase: string } | null;
