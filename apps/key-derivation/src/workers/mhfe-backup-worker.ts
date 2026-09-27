@@ -55,30 +55,31 @@ scope.addEventListener('message', (event: MessageEvent<Request>) => {
     return;
   let engine: MhfeEngine | undefined;
   try {
-    engine = new MhfeEngine(request.pim);
-    engine.setAsciiPassword(request.passwordAscii);
+    const activeEngine = new MhfeEngine(request.pim);
+    engine = activeEngine;
+    activeEngine.setAsciiPassword(request.passwordAscii);
     const reportProgress = (progressJson: string): boolean => {
       scope.postMessage({ id: request.id, type: 'progress', progress: JSON.parse(progressJson) });
       return true;
     };
     let result: unknown;
     if (request.type === 'encrypt') {
-      result = JSON.parse(engine.encryptJson(request.mnemonic ?? '')) as unknown;
+      result = JSON.parse(activeEngine.encryptJson(request.mnemonic ?? '')) as unknown;
     } else if (request.type === 'encryptPreservingFinalWord') {
-      result = JSON.parse(engine.encryptPreservingFinalWordJson(request.mnemonic ?? '', reportProgress)) as unknown;
+      result = JSON.parse(activeEngine.encryptPreservingFinalWordJson(request.mnemonic ?? '', reportProgress)) as unknown;
     } else if (request.type === 'decryptPreservingFinalWord') {
-      result = JSON.parse(engine.decryptPreservingFinalWordJson(request.container ?? '', reportProgress)) as unknown;
+      result = JSON.parse(activeEngine.decryptPreservingFinalWordJson(request.container ?? '', reportProgress)) as unknown;
     } else if (request.type === 'decryptExplicit') {
-      result = JSON.parse(engine.decryptJson(request.container ?? '', request.sourceWords ?? 0)) as unknown;
+      result = JSON.parse(activeEngine.decryptJson(request.container ?? '', request.sourceWords ?? 0)) as unknown;
     } else {
       try {
-        result = JSON.parse(engine.decryptAutoJson(request.container ?? '')) as unknown;
+        result = JSON.parse(activeEngine.decryptAutoJson(request.container ?? '')) as unknown;
       } catch (cause) {
         const matchingWords = ambiguousSourceWords(cause);
         if (matchingWords === undefined) throw cause;
         result = {
           ambiguousCandidates: matchingWords.map((sourceWords) =>
-            JSON.parse(engine.decryptJson(request.container ?? '', sourceWords)),
+            JSON.parse(activeEngine.decryptJson(request.container ?? '', sourceWords)),
           ),
         };
       }
