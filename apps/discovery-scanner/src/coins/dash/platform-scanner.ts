@@ -112,7 +112,7 @@ export async function scanDashPlatformAddresses(
       const accountPath = `m/9'/${network.coinType}'/17'/${config.account}'/${keyClass}'`;
       const account = root.derive(accountPath);
       try {
-        for (let offset = 0; offset < target; ) {
+        for (let offset = 0; offset < target;) {
           if (signal.aborted) throw new DOMException('Platform address scan cancelled.', 'AbortError');
           const chunk: DerivedPlatformAddress[] = [];
           const end = Math.min(offset + DAPI_BATCH, target);

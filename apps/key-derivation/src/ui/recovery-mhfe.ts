@@ -101,7 +101,9 @@ function selectedSourceWords(): number | undefined {
   return sourceWords;
 }
 
-function isAmbiguousDecryption(result: DecryptionResult | AmbiguousDecryptionResult): result is AmbiguousDecryptionResult {
+function isAmbiguousDecryption(
+  result: DecryptionResult | AmbiguousDecryptionResult,
+): result is AmbiguousDecryptionResult {
   return 'ambiguousCandidates' in result;
 }
 
@@ -371,9 +373,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
         );
         required<HTMLInputElement>('#mhfe-decrypt-password').value = '';
         const workerResult = await pending;
-        const results = isAmbiguousDecryption(workerResult)
-          ? workerResult.ambiguousCandidates
-          : [workerResult];
+        const results = isAmbiguousDecryption(workerResult) ? workerResult.ambiguousCandidates : [workerResult];
         for (const result of results) {
           entropyBuffers.push(englishMnemonicToEntropy(result.recoveredMnemonic));
           if (results.length > 1) {

@@ -3,7 +3,7 @@
   "generator": "Dockerfile.reproducible wasm-artifacts",
   "modules": {
     "dash-shielded-wasm": {
-      "sourceSha256": "88d8036e0ec29c517d26103c4eebffa8a83aaeb32ce7296750e6a154ee7912cb",
+      "sourceSha256": "bca9579bae48c737f68881e93621bfb494038063dfe8901ebca269ac077f564c",
       "generated": {
         "dash_shielded_wasm.d.ts": "e38d08ed2d86940ba89f2c53ffc36cb5cf1b83c5a2603b8749e9d859d87b0153",
         "dash_shielded_wasm.js": "b14b79c953221b022dd589c09f8e5b95b9a8699fa703788e185a1320f2faa56d",
@@ -12,7 +12,7 @@
       }
     },
     "recovery-shamir-wasm": {
-      "sourceSha256": "66425ea9a6925c90c970e23ee1156b2812ff5a40539aefa2a7d17b79b0aa1d7e",
+      "sourceSha256": "148e076d1e46c6890b1630d7cf76e8fc1c4e6d95a924d96cd8e7f0d79437a29c",
       "generated": {
         "recovery_shamir_wasm.d.ts": "a886032ac73c19448d6412e7441d7681ecd227989c39f8fbe2eaadb13e99867b",
         "recovery_shamir_wasm.js": "9e2b61196bfe9e3b3c04f8aa18ad09768743603188f11eb61112760091e48671",
@@ -21,7 +21,7 @@
       }
     },
     "recovery-codex32-wasm": {
-      "sourceSha256": "6c7d51a5f92872a3b4dc421fc914410905f3b6730bda2095fd72427e7f7f9426",
+      "sourceSha256": "3e273ec0498999ef9308d8311ac0e997258f2c133547debb412647c6731f134e",
       "generated": {
         "recovery_codex32_wasm.d.ts": "214b7809d5a25e54cd716d2ee002e9364e0c5da25ad91115e9d94c105f488259",
         "recovery_codex32_wasm.js": "eb73dadcc434411431ae7312dcc90be3daf710dd9cc4f0a9a2f18cfa265b4fde",
@@ -30,7 +30,7 @@
       }
     },
     "recovery-sskr-wasm": {
-      "sourceSha256": "a81d4dadcfa1cd750453347c0a635d3253eeb95e3b73a3b2da92508831674c97",
+      "sourceSha256": "7c500f612c6825dc6abd263f982a4729880dd902c33fc5dbc7d2a9698aa8641d",
       "generated": {
         "recovery_sskr_wasm.d.ts": "d42b75d874a5974b79e8460ef72a7b1461f191df4530f5993696ff89747cab40",
         "recovery_sskr_wasm.js": "d8e1a56795e40df65db0ef655ad7c128e56d72dd24877887a1a56ec47aecc0e8",
@@ -39,7 +39,7 @@
       }
     },
     "recovery-envelope-wasm": {
-      "sourceSha256": "98b1be9557065c57b0f89120c51475c7fc1c18031035fe8e0259388a0347340b",
+      "sourceSha256": "9dc61a5abddbcb6a281fdba23c23fa7cb3da971d4395fb01d602a4607a690bd2",
       "generated": {
         "recovery_envelope_wasm.d.ts": "cf11b9ff3071e59622584256b141c173e2636e746cd27354d3543c09f04935fe",
         "recovery_envelope_wasm.js": "cbf5bc314167fb856012d1c75457a1c4ab094a954f55cf918bbd25a9172a0173",

@@ -573,12 +573,10 @@ export function createActivityBatchController(
           checkCancellation();
           settled = prepared
             .filter(({ input }) => !failed.has(input.id))
-            .map(
-              ({ ledger }): PromiseFulfilledResult<ViewerSingleExportState> => ({
-                status: 'fulfilled',
-                value: { mode: 'shielded', network, snapshot: ledger.snapshot(outcome.complete) },
-              }),
-            );
+            .map(({ ledger }): PromiseFulfilledResult<ViewerSingleExportState> => ({
+              status: 'fulfilled',
+              value: { mode: 'shielded', network, snapshot: ledger.snapshot(outcome.complete) },
+            }));
           taskInputs = prepared.filter(({ input }) => !failed.has(input.id)).map(({ input }) => input);
           completed += prepared.length - failed.size;
           view.setStatus(
