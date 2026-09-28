@@ -63,6 +63,8 @@
     "test:browser:files": "node tooling/verify-browser-files.mjs",
     "test:browser:regressions": "node tooling/verify-browser-regressions.mjs",
     "test:browser:selective": "node tooling/verify-selective-browser-smoke.mjs",
+    "sync:mnemocode": "node tooling/sync-mnemocode-source.mjs",
+    "verify:mnemocode": "node tooling/sync-mnemocode-source.mjs --check",
     "verify:provenance": "node tooling/verify-dependency-provenance.mjs",
     "build:key-derivation": "node tooling/verify-dependency-provenance.mjs && node apps/key-derivation/scripts/build-key-derivation-html.mjs"
   },

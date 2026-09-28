@@ -1,0 +1,17 @@
+MnemoCode includes an independently written, compatibility-oriented implementation
+of the public date-shift transformation described by Seedshift.
+
+Seedshift
+Copyright (c) mifunetoshiro
+https://github.com/mifunetoshiro/Seedshift
+License: MIT
+
+MnemoCode also includes an independently written, compatibility-oriented implementation
+of the BIP39Colors color-code format described by EnteroPositivo.
+
+BIP39Colors
+Copyright (c) EnteroPositivo
+https://github.com/EnteroPositivo/bip39colors
+License: CC BY 4.0
+
+MnemoCode is not affiliated with, endorsed by, or an official fork of Seedshift or BIP39Colors.
