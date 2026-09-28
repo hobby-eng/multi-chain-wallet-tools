@@ -2,10 +2,25 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  MNEMOCODE_FILES,
+  MNEMOCODE_MANIFEST,
+  MNEMOCODE_SOURCE_DIRECTORY,
+  verifyMnemoCodeSource,
+} from './sync-mnemocode-source.mjs';
 
 const defaultRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
+// The MnemoCode pin is written by tooling/sync-mnemocode-source.mjs together with the vendored files.
+const mnemocodeManifest = JSON.parse(readFileSync(resolve(defaultRoot, MNEMOCODE_MANIFEST), 'utf8'));
+
 const GITHUB_SOURCES = [
+  {
+    id: 'mnemocode-core',
+    repository: mnemocodeManifest.repository,
+    reference: `${mnemocodeManifest.version} core, ${mnemocodeManifest.reference}`,
+    commit: mnemocodeManifest.commit,
+  },
   {
     id: 'dash-orchard',
     repository: 'dashpay/orchard',
@@ -35,12 +50,6 @@ const GITHUB_SOURCES = [
     repository: 'SeedSigner/seedsigner',
     reference: 'SeedQR documentation revision',
     commit: 'b225ae77e9251a813cf2bd61e7874629d6f3cb10',
-  },
-  {
-    id: 'mnemocode-v0.1.0',
-    repository: 'hobby-eng/mnemocode',
-    reference: '0.1.0 integration source revision',
-    commit: '180ad364182443cf25b9c8609ed16e612b3c66af',
   },
   {
     id: 'mhfe-v0.3.1',
@@ -76,8 +85,10 @@ const LOCAL_IMPLEMENTATIONS = [
   },
   {
     id: 'mnemocode-codec',
-    upstream: 'mnemocode-v0.1.0',
+    upstream: 'mnemocode-core',
     files: [
+      MNEMOCODE_MANIFEST,
+      ...Object.values(MNEMOCODE_FILES).map((path) => `${MNEMOCODE_SOURCE_DIRECTORY}/${path}`),
       'packages/recovery-backup/src/mnemocode.ts',
       'packages/recovery-backup/src/self-test-mnemocode.ts',
       'packages/recovery-backup/tests/mnemocode.test.ts',
@@ -246,6 +257,7 @@ export async function verifyDependencyProvenance({
   logger = console,
 } = {}) {
   if (verifyFixedSources) {
+    verifyMnemoCodeSource({ root });
     for (const [path, expected] of Object.entries(FIXED_SOURCE_HASHES)) {
       const actual = sha256(readFileSync(resolve(root, path)));
       if (actual !== expected)

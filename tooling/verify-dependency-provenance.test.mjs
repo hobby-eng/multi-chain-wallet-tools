@@ -2,6 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+import { MNEMOCODE_FILES, MNEMOCODE_MANIFEST, MNEMOCODE_SOURCE_DIRECTORY } from './sync-mnemocode-source.mjs';
 import { verifyCargoLock, verifyDependencyProvenance, verifyPnpmLock } from './verify-dependency-provenance.mjs';
 
 describe('dependency provenance verifier', () => {
@@ -84,6 +85,8 @@ function fixtureRoot() {
   const sourceFiles = [
     'packages/recovery-backup/src/seedqr.ts',
     'packages/recovery-backup/tests/seedqr.test.ts',
+    MNEMOCODE_MANIFEST,
+    ...Object.values(MNEMOCODE_FILES).map((path) => `${MNEMOCODE_SOURCE_DIRECTORY}/${path}`),
     'packages/recovery-backup/src/mnemocode.ts',
     'packages/recovery-backup/src/self-test-mnemocode.ts',
     'packages/recovery-backup/tests/mnemocode.test.ts',
