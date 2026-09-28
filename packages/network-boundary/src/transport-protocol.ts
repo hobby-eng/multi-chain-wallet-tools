@@ -3,8 +3,7 @@ export const RECOVERY_NETWORK_READY = 'ckd-recovery-network-ready-v1';
 export const RECOVERY_NETWORK_FATAL = 'ckd-recovery-network-fatal-v1';
 
 export type NetworkBoundaryResponse<Value = unknown> =
-  | { id: string; ok: true; value: Value }
-  | { id: string; ok: false; error: string };
+  { id: string; ok: true; value: Value } | { id: string; ok: false; error: string };
 
 interface NetworkBoundaryCancel {
   readonly type: 'cancel';

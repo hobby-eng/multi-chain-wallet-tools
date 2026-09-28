@@ -83,7 +83,7 @@ async function scanTransparentXpub(
       : [{ branch: null, node }];
   for (const { branch, node: branchNode } of branches) {
     let target = config.minimumCount;
-    for (let offset = 0; offset < target; ) {
+    for (let offset = 0; offset < target;) {
       if (context.signal.aborted) throw new DOMException('Dash Core watch-only scan cancelled.', 'AbortError');
       const end = Math.min(offset + 100, target);
       const derived: Array<{ address: string; index: number; path: string; publicKeyHash: string }> = [];
@@ -245,7 +245,7 @@ async function scanPlatformXpub(
   let protocolVersion = 0;
   let gapTruncated = false;
   const startedAt = new Date().toISOString();
-  for (let offset = 0; offset < target; ) {
+  for (let offset = 0; offset < target;) {
     if (context.signal.aborted) throw new DOMException('Dash Platform watch-only scan cancelled.', 'AbortError');
     const end = Math.min(offset + 100, target);
     const derived: Array<{ address: string; index: number; path: string; publicKeyHash: string; storageKey: string }> =

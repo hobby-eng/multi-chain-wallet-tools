@@ -380,7 +380,7 @@ export async function scanBitcoinWatchOnly(
     let gapTruncated = false;
     for (const profile of profiles) {
       let target = config.minimumCount;
-      for (let offset = 0; offset < target; ) {
+      for (let offset = 0; offset < target;) {
         if (context.signal.aborted) throw new DOMException('Bitcoin watch-only scan cancelled.', 'AbortError');
         const end = Math.min(offset + RECOVERY_UTXO_ADDRESS_BATCH, target);
         const derived: DerivedCandidate[] = [];

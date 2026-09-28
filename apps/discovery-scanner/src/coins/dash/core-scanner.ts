@@ -60,7 +60,7 @@ export async function scanDashCore(
     for (const branch of [0, 1] as const) {
       const branchNode = account.deriveChild(branch);
       try {
-        for (let offset = 0; offset < branchTargets[branch]; ) {
+        for (let offset = 0; offset < branchTargets[branch];) {
           if (signal.aborted) throw new DOMException('Core scan cancelled.', 'AbortError');
           const chunk: DerivedCoreAddress[] = [];
           const end = Math.min(offset + ADDRESS_CHUNK, branchTargets[branch]);
@@ -175,7 +175,7 @@ export async function scanDashCore(
       if (config.customPathFormat !== 'p2pkh') throw new Error('Dash custom paths require the P2PKH address format.');
       for (const parsed of customPaths) {
         let target = parsed.minimum;
-        for (let offset = 0; offset < target; ) {
+        for (let offset = 0; offset < target;) {
           if (signal.aborted) throw new DOMException('Core scan cancelled.', 'AbortError');
           const end = Math.min(offset + ADDRESS_CHUNK, target);
           const chunk: DerivedCoreAddress[] = [];
