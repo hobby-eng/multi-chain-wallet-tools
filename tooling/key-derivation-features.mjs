@@ -11,7 +11,6 @@ const RECOVERY_FEATURES = Object.freeze([
   'mnemocode',
   'mhfe',
   'slip39',
-  'shamir',
   'codex32',
   'sskr',
   'gordian-envelope',
@@ -75,6 +74,12 @@ export function parseKeyDerivationFeatures(profile, args = process.argv.slice(2)
   });
   const selected = new Set(included.length > 0 ? included : profileDefaults);
   for (const feature of excluded) selected.delete(feature);
+  // Card export prints the output of the MnemoCode module and cannot exist without it.
+  if (!selected.has('mnemocode')) {
+    if (included.includes('mnemocode-cards'))
+      throw new Error('The "mnemocode-cards" feature requires the "mnemocode" feature.');
+    selected.delete('mnemocode-cards');
+  }
   if (!selected.has('derive')) {
     throw new Error('The base "derive" feature is required by the Key Derivation Tool and cannot be excluded.');
   }
@@ -146,7 +151,6 @@ function removeButtons(source, attribute, value) {
 
 export function applyKeyDerivationFeatureTemplate(template, features) {
   let rendered = template;
-  if (!features.has('shamir')) rendered = removeBalancedElement(rendered, 'passport-shamir-dependency');
   for (const coin of ['bitcoin', 'dash']) {
     if (features.hasCoin(coin)) continue;
     rendered = rendered.replace(
@@ -163,7 +167,6 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     mnemocode: 'mnemocode-panel',
     mhfe: 'mhfe-panel',
     slip39: 'slip39-panel',
-    shamir: 'shamir-panel',
     codex32: 'codex32-panel',
     sskr: 'sskr-panel',
     'gordian-envelope': 'gordian-envelope-panel',
@@ -176,6 +179,11 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     }
     const menuTarget = feature === 'wallet-matcher' ? 'matcher' : feature;
     rendered = removeButtons(rendered, 'data-recovery-target', menuTarget);
+  }
+  if (!features.has('mnemocode-cards')) {
+    rendered = removeBalancedElement(rendered, 'mnemocode-cards-section');
+    // The passport names only what this build contains.
+    rendered = removeBalancedElement(rendered, 'passport-mnemocode-cards-dependency');
   }
   if (!features.has('bip38-encrypt')) rendered = removeBalancedElement(rendered, 'bulk-bip38-panel');
   if (!features.has('message-signing')) rendered = removeBalancedElement(rendered, 'message-signer-dialog');

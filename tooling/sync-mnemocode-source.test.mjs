@@ -7,6 +7,8 @@ import {
   MNEMOCODE_MANIFEST,
   MNEMOCODE_SOURCE_DIRECTORY,
   assertAllowedImports,
+  assertCommitOnMain,
+  referencedCommits,
   importedSpecifiers,
   selectReleaseTag,
   verifyMnemoCodeSource,
@@ -29,7 +31,37 @@ describe('MnemoCode core vendoring', () => {
     expect(selectReleaseTag('')).toBeUndefined();
   });
 
-  it('allows only the shared BIP39 package and files inside the vendored core', () => {
+  it('takes the commit behind an annotated tag, not the tag itself', () => {
+    const listing = [
+      `${commit('1')}\trefs/tags/v0.2.0`,
+      `${commit('2')}\trefs/tags/v0.2.0^{}`,
+      `${commit('3')}\trefs/tags/v0.1.0`,
+      `${commit('4')}\trefs/heads/main`,
+    ].join('\n');
+    expect(referencedCommits(listing).get('refs/tags/v0.2.0')).toBe(commit('2'));
+    expect(referencedCommits(listing).get('refs/tags/v0.1.0')).toBe(commit('3'));
+    expect(selectReleaseTag(listing)).toMatchObject({ reference: 'v0.2.0', commit: commit('2') });
+  });
+
+  it('accepts a full commit only when the main branch contains it', async () => {
+    const answer =
+      (status, ok = true) =>
+      async () => ({ ok, status: ok ? 200 : 404, json: async () => ({ status }) });
+    await expect(assertCommitOnMain(commit('a'), answer('ahead'))).resolves.toBeUndefined();
+    await expect(assertCommitOnMain(commit('a'), answer('identical'))).resolves.toBeUndefined();
+    // A commit that exists only in a fork has diverged from main.
+    await expect(assertCommitOnMain(commit('a'), answer('diverged'))).rejects.toThrow('not part of the main branch');
+    await expect(assertCommitOnMain(commit('a'), answer('behind'))).rejects.toThrow('not part of the main branch');
+    await expect(assertCommitOnMain(commit('a'), answer('', false))).rejects.toThrow('HTTP 404');
+  });
+
+  it('allows only the shared packages and files inside the vendored set', () => {
+    expect(() =>
+      assertAllowedImports(
+        'export/render.ts',
+        "import { PDFDocument } from 'pdf-lib';\nimport fontkit from '@pdf-lib/fontkit';\n",
+      ),
+    ).not.toThrow();
     expect(() =>
       assertAllowedImports(
         'core/words.ts',
@@ -39,7 +71,8 @@ describe('MnemoCode core vendoring', () => {
     for (const specifier of [
       'node:fs',
       'qrcode',
-      'pdf-lib',
+      'pngjs',
+      'node:crypto',
       '@scure/bip32',
       '../sskr/shares.js',
       '../../vendor/x.js',
@@ -59,7 +92,8 @@ describe('MnemoCode core vendoring', () => {
     expect(manifest.commit).toMatch(/^[0-9a-f]{40}$/u);
     expect(Object.keys(manifest.files).sort()).toEqual(Object.values(MNEMOCODE_FILES).sort());
     const project = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
-    expect(manifest.sharedDependencies['@scure/bip39']).toBe(project.dependencies['@scure/bip39']);
+    for (const name of ['@scure/bip39', 'pdf-lib', '@pdf-lib/fontkit'])
+      expect(manifest.sharedDependencies[name], name).toBe(project.dependencies[name]);
   });
 
   it('keeps the adapter version equal to the vendored core version', () => {

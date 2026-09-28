@@ -140,7 +140,6 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
   const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
   const cargoManifest = readFileSync(resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.toml'), 'utf8');
   const cargoLock = readFileSync(resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.lock'), 'utf8');
-  const shamirManifest = readFileSync(resolve(root, 'packages/recovery-shamir-wasm/rust/Cargo.toml'), 'utf8');
   const codex32Manifest = readFileSync(resolve(root, 'packages/recovery-codex32-wasm/rust/Cargo.toml'), 'utf8');
   const sskrManifest = readFileSync(resolve(root, 'packages/recovery-sskr-wasm/rust/Cargo.toml'), 'utf8');
   const envelopeManifest = readFileSync(resolve(root, 'packages/recovery-envelope-wasm/rust/Cargo.toml'), 'utf8');
@@ -164,11 +163,6 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     'Dash note-encryption commit',
   );
   const wasmBindgen = capture(cargoManifest, /wasm-bindgen = "=(\d+\.\d+\.\d+)"/u, 'wasm-bindgen version');
-  const blahaj = capture(
-    shamirManifest,
-    /sharks = \{ package = "blahaj", version = "=(\d+\.\d+\.\d+)"/u,
-    'blahaj version',
-  );
   const codex32 = capture(codex32Manifest, /codex32 = "=(\d+\.\d+\.\d+)"/u, 'Codex32 version');
   const sskr = capture(sskrManifest, /sskr = "=(\d+\.\d+\.\d+)"/u, 'SSKR version');
   const envelope = capture(
@@ -204,7 +198,6 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     orchardTags,
     latestWasmBindgen,
     noteEncryption,
-    latestBlahaj,
     latestCodex32,
     latestSskr,
     latestEnvelope,
@@ -223,7 +216,6 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     fetchJson(fetchImpl, 'https://api.github.com/repos/dashpay/orchard/tags?per_page=100'),
     fetchWasmBindgenMaxStableVersion(fetchImpl),
     inspectNoteEncryption(fetchImpl, noteEncryptionCommit),
-    fetchCrateVersion(fetchImpl, 'blahaj'),
     fetchCrateVersion(fetchImpl, 'codex32'),
     fetchCrateVersion(fetchImpl, 'sskr'),
     fetchCrateVersion(fetchImpl, 'bc-envelope'),
@@ -276,12 +268,6 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
       latest: noteEncryption.headRevision,
       matches: noteEncryption.current,
       detail: noteEncryption.detail,
-    },
-    {
-      label: '[blahaj](https://git.distrust.co/public/blahaj)',
-      current: blahaj,
-      latest: latestBlahaj,
-      matches: blahaj === latestBlahaj,
     },
     {
       label: '[Codex32](https://github.com/apoelstra/rust-codex32)',

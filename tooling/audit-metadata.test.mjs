@@ -13,8 +13,6 @@ it('updates release metadata without rewriting audit dates, commits or evidence'
       'tooling/project-metadata.mjs',
       'packages/dash-shielded-wasm/rust/Cargo.toml',
       'packages/dash-shielded-wasm/rust/Cargo.lock',
-      'packages/recovery-shamir-wasm/rust/Cargo.toml',
-      'packages/recovery-shamir-wasm/rust/Cargo.lock',
       'packages/recovery-codex32-wasm/rust/Cargo.toml',
       'packages/recovery-codex32-wasm/rust/Cargo.lock',
       'packages/recovery-sskr-wasm/rust/Cargo.toml',
@@ -50,7 +48,6 @@ it('updates release metadata without rewriting audit dates, commits or evidence'
     }
     for (const rustPackage of [
       'dash-shielded-wasm',
-      'recovery-shamir-wasm',
       'recovery-codex32-wasm',
       'recovery-sskr-wasm',
       'recovery-envelope-wasm',

@@ -190,4 +190,12 @@ describe('MnemoCode 0.1.0 compatibility', () => {
     words[23] = 'sure';
     expect(recoverMnemoCodeWord(words.join(' '))).toEqual([]);
   });
+
+  it('needs a four-digit year and ignores dates for a Direct record', () => {
+    expect(() => parseMnemoCodeDates('23-09-26')).toThrow('four-digit year');
+    expect(parseMnemoCodeDates('23-09-0026')).toEqual([{ year: 26, month: 9, day: 23 }]);
+    const record = encodeMnemoCode(zeroMnemonic, 'direct', 'indexes').record;
+    // The form can still hold dates from an earlier Seedshift input.
+    expect(decodeMnemoCode(record, { mode: 'seedshift', format: 'auto', dates }).mnemonic).toBe(zeroMnemonic);
+  });
 });

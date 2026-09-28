@@ -12,7 +12,6 @@ const artifactPath = resolve(root, 'dist', tool.artifactRelativePath);
 const checksumPath = resolve(root, 'dist', tool.artifactDirectory, tool.checksumFile);
 const wasmPaths = [
   ['Orchard', resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm')],
-  ['Shamir', resolve(root, 'packages/recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm')],
   ['Codex32', resolve(root, 'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm')],
   ['SSKR', resolve(root, 'packages/recovery-sskr-wasm/generated/recovery_sskr_wasm_bg.wasm')],
   ['Gordian Envelope', resolve(root, 'packages/recovery-envelope-wasm/generated/recovery_envelope_wasm_bg.wasm')],
@@ -85,11 +84,6 @@ const requiredIds = [
   'create-slip39-shares',
   'slip39-shares',
   'restore-slip39-shares',
-  'shamir-panel',
-  'shamir-create-format',
-  'shamir-restore-format',
-  'create-shamir',
-  'restore-shamir',
   'codex32-panel',
   'codex32-secret-type',
   'codex32-restore-type',
@@ -141,6 +135,9 @@ const requiredIds = [
   'decode-mnemocode',
   'mnemocode-missing-word-input',
   'recover-mnemocode-word',
+  'mnemocode-cards-section',
+  'mnemocode-card-template',
+  'export-mnemocode-cards',
   'mhfe-panel',
   'mhfe-source',
   'mhfe-container',
@@ -221,6 +218,7 @@ const required = [
   'Download selected',
   'Release passport',
   'Embedded dependency versions and licenses:',
+  'passport-mnemocode-cards-dependency',
   'Cryptographic self-test running',
   'Dedicated Web Worker',
   'wallet-key-derivation',
@@ -254,12 +252,9 @@ for (const marker of [
   'SLIP-39 mnemonic shares',
   'aria-label="SeedQR operation"',
   'aria-label="SLIP-39 operation"',
-  'aria-label="CKD Shamir operation"',
   'aria-label="Codex32 operation"',
   'aria-label="SSKR operation"',
   'aria-label="Seed Envelope operation"',
-  'Raw · compact Base64URL',
-  'Words · BIP39 English word encoding',
   'Codex32 · BIP93',
   'SSKR · Blockchain Commons',
   'Gordian Seed Envelope',
@@ -273,7 +268,6 @@ for (const marker of [
   'Search every supported coin and derivation profile',
   'SeedQR encode/decode',
   'SLIP-39 official + encode/decode',
-  'Shamir ',
   'encode/decode',
   'Codex32 official + entropy encode/decode',
   'SSKR Compact UR encode/decode',
@@ -282,7 +276,8 @@ for (const marker of [
 ]) {
   if (!html.includes(marker)) throw new Error(`Standalone artifact is missing recovery workspace marker: ${marker}`);
 }
-if (occurrences(html, '<summary>What is this?</summary>') !== 9) {
+// One popover per method: eight methods remain in Recover & Back Up.
+if (occurrences(html, '<summary>What is this?</summary>') !== 8) {
   throw new Error('Every Recover & Back Up method must include one explanatory help popover.');
 }
 if (profile.id === 'dash-community') {
@@ -342,7 +337,6 @@ const allowedOpenSourceLinks = [
   'https://github.com/paulmillr/qr',
   'https://github.com/hobby-eng/mnemocode',
   'https://github.com/trezor/python-shamir-mnemonic',
-  'https://git.distrust.co/public/blahaj',
   'https://github.com/BlockchainCommons/bc-sskr-rust',
   'https://github.com/BlockchainCommons/bc-envelope-rust',
   'https://github.com/BlockchainCommons/bc-components-rust',
