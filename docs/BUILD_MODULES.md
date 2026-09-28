@@ -134,3 +134,5 @@ pnpm build:matrix
 The smoke matrix covers every canonical full build, every supported coin alone and every optional feature in a minimal valid composition. It is a fast regression gate, not proof of every feature interaction. The reproducible Docker build runs this bounded matrix after the canonical verification cycle, without retaining its temporary artifacts.
 
 Saved variants use `dist/build-matrix/<profile>/<tool>/<coins>/<features>.html`. The generated `matrix-index.json` records each composition, path, byte size and SHA-256 digest. `--profile` and `--tool` may constrain any matrix command. Exhaustive mode is intentionally expensive because all optional-feature subsets are distinct builds.
+
+The `mnemocode` feature compiles the unmodified upstream core vendored from GitHub; see [MnemoCode core source](MNEMOCODE_SOURCE.md).
