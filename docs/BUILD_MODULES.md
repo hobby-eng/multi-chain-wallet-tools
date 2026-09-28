@@ -43,9 +43,9 @@ Coins: `bitcoin`, `dash`, `ethereum`. Selecting Dash includes every supported Da
 | `wallet-matcher`   | Match known addresses against candidate mnemonics, accounts, branches and indices.                                                                                                                    | Any selected coin |
 | `seedqr`           | Encode/decode Standard SeedQR and CompactSeedQR, including QR image import/export.                                                                                                                    | Coin-independent  |
 | `mnemocode`        | Encode/decode MnemoCode 0.1.0 Direct and Seedshift modes in all five text representations, including MNC1, QR transfer, ordinary one-word recovery, and exact-legacy final-word replacement recovery. | Coin-independent  |
+| `mnemocode-cards`  | Print the color codes of a MnemoCode phrase as cards: one sheet as PDF, or separate cards as a ZIP of PDF files. Requires `mnemocode`.                                                                | Coin-independent  |
 | `mhfe`             | Encrypt/recover BIP39 phrases with the pinned MHFE v0.3.1 Worker/WASM module, optional PIM, final-word cycle walking, QR transfer, cancellation, progress, and verifier reporting.                    | Coin-independent  |
 | `slip39`           | Create and restore SLIP-39 mnemonic shares.                                                                                                                                                           | Coin-independent  |
-| `shamir`           | Create and restore versioned CKD Shamir Raw and Words shares with a share-set digest; see [the custom format specification](CKD_SHAMIR_FORMAT.md).                                                    | Coin-independent  |
 | `codex32`          | Encode and decode Codex32 BIP39-entropy or BIP32-seed records.                                                                                                                                        | Coin-independent  |
 | `sskr`             | Create and restore interoperable Blockchain Commons grouped SSKR shares with `ur:sskr` transport.                                                                                                     | Coin-independent  |
 | `gordian-envelope` | Create and open typed Gordian Seed Envelopes with optional password, X25519 recipient, and SSKR quorum permits.                                                                                       | Coin-independent  |
@@ -95,7 +95,7 @@ pnpm build:html
 
 # General-design Deriver with Bitcoin and Dash, without backup codecs
 pnpm build:html -- --profile multi-chain --tool key-derivation \
-  --coins bitcoin,dash --exclude seedqr,slip39,shamir,codex32,sskr,gordian-envelope
+  --coins bitcoin,dash --exclude seedqr,slip39,codex32,sskr,gordian-envelope
 
 # Bitcoin Deriver with only derivation, SSKR, and Gordian Seed Envelope
 pnpm build:html -- --profile multi-chain --tool key-derivation \
@@ -135,4 +135,4 @@ The smoke matrix covers every canonical full build, every supported coin alone a
 
 Saved variants use `dist/build-matrix/<profile>/<tool>/<coins>/<features>.html`. The generated `matrix-index.json` records each composition, path, byte size and SHA-256 digest. `--profile` and `--tool` may constrain any matrix command. Exhaustive mode is intentionally expensive because all optional-feature subsets are distinct builds.
 
-The `mnemocode` feature compiles the unmodified upstream core vendored from GitHub; see [MnemoCode core source](MNEMOCODE_SOURCE.md).
+The `mnemocode` and `mnemocode-cards` features compile unmodified MnemoCode sources vendored from GitHub; see [MnemoCode source](MNEMOCODE_SOURCE.md).

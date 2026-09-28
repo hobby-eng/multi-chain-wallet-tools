@@ -1,10 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@ckd/recovery-shamir-wasm/recovery_shamir_wasm_bg.wasm', async () => ({
-  default: readFileSync(new URL('../../recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm', import.meta.url)),
-}));
-
 vi.mock('@ckd/recovery-codex32-wasm/recovery_codex32_wasm_bg.wasm', async () => ({
   default: readFileSync(
     new URL('../../recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm', import.meta.url),
@@ -31,8 +27,6 @@ describe('embedded recovery startup self-test', () => {
       'SeedQR encode/decode',
       'MnemoCode v0.1.0 vectors, word recovery, and all representation round trips',
       'SLIP-39 official + encode/decode',
-      'Shamir raw encode/decode',
-      'Shamir words encode/decode',
       'Codex32 official + entropy encode/decode',
       'SSKR Compact UR encode/decode',
       'SSKR Bytewords encode/decode',

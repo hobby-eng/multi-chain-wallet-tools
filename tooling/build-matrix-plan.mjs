@@ -18,7 +18,12 @@ function featureSets(toolId, coins) {
         return coins.includes('bitcoin') || coins.includes('dash');
       return true;
     });
-    return [[], ...nonemptySubsets(optional)].map((features) => ['derive', ...features]);
+    return (
+      [[], ...nonemptySubsets(optional)]
+        // Card export prints MnemoCode output, so it is valid only together with that module.
+        .filter((features) => !features.includes('mnemocode-cards') || features.includes('mnemocode'))
+        .map((features) => ['derive', ...features])
+    );
   }
   const features = TOOL_FEATURE_DEFINITIONS[toolId].features;
   return nonemptySubsets(features).filter((selected) => {

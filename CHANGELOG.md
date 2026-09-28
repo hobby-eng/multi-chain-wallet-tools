@@ -6,9 +6,10 @@
 
 - Updated the JavaScript toolchain to Node.js 26.10.0 and Vitest 5.0.2. The canonical container, browser CI jobs, release workflow, vector workflow and lockfile now use the same reviewed toolchain.
 
-- **CKD Shamir: replaced `sharks 0.5.0` with `blahaj 0.6.0`.** The implementation change was committed on 2026-09-23 in [`1108c8a`](https://github.com/hobby-eng/multi-chain-wallet-tools/commit/1108c8a6b0b85fb7033d4a28c82ca28d72da2e53). It fixes the biased polynomial coefficient sampling described in [RUSTSEC-2024-0398](https://rustsec.org/advisories/RUSTSEC-2024-0398.html): coefficients must include zero, using the full range 0–255. The advisory identifies `blahaj` as the corrected fork of `sharks`.
-- The replacement applies to **CKD Shamir Raw and Words in both Deriver editions**. Existing CKD share serialization and recovery remain compatible; new shares use the corrected sampling. Reopening an old share does not change how it was originally generated. SSKR, SLIP-39 and Codex32 are separate implementations and were not replaced by this change.
-- Corrected the CKD Shamir help link and Deriver documentation, and added `blahaj 0.6.0 — MIT` to the release passport when CKD Shamir is included. The Cargo dependency key and upstream type remain named `sharks` / `Sharks`; Cargo explicitly resolves that key to the `blahaj` package, not the old `sharks` crate.
+- **Removed CKD Shamir.** The custom Raw and Words share formats duplicated what the standard Shamir shares of SSKR already provide, and only this project could read them. The module, its WASM build and its `blahaj` dependency are gone, and `shamir` is no longer a build feature. Use **Shamir shares (SSKR)** or SLIP-39 for new backups. Cards created with CKD Shamir can still be restored with release v0.1.5 or earlier; restore them there and create a new backup.
+
+- **MnemoCode cards.** The MnemoCode panel saves the color codes of a phrase as printable cards: one A6 or A4 sheet, or separate numbered cards. See [the release draft](docs/releases/unreleased.md).
+- A MnemoCode date needs a four-digit year. An error about an unknown BIP39 word names its position, not the word.
 
 These entries describe changes after v0.1.5, not an already published release. Carry them into the next release notes for both editions; see [the release draft](docs/releases/unreleased.md) and [the release procedure](RELEASING.md).
 

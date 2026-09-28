@@ -68,7 +68,6 @@ if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(
     assertCanonicalWasmBindgenProducer(readFileSync(resolve(root, relativePath)), module.label);
   }
   for (const stem of [
-    'recovery-shamir-wasm/generated/recovery_shamir_wasm',
     'recovery-codex32-wasm/generated/recovery_codex32_wasm',
     'recovery-sskr-wasm/generated/recovery_sskr_wasm',
     'recovery-envelope-wasm/generated/recovery_envelope_wasm',

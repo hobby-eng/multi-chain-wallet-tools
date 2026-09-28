@@ -1,7 +1,6 @@
 import type { CryptoSelfTestReport } from '@ckd/self-test-types';
 import { runCodex32SelfTest } from './self-test-codex32.js';
 import { runSeedQrSelfTest } from './self-test-seedqr.js';
-import { runShamirSelfTest } from './self-test-shamir.js';
 import { runSskrSelfTest } from './self-test-sskr.js';
 import { runGordianEnvelopeSelfTest } from './self-test-gordian-envelope.js';
 import { runSlip39SelfTest } from './self-test-slip39.js';
@@ -13,7 +12,6 @@ export function runRecoveryBackupSelfTest(): CryptoSelfTestReport {
     runSeedQrSelfTest(),
     runMnemoCodeSelfTest(),
     runSlip39SelfTest(),
-    runShamirSelfTest(),
     runCodex32SelfTest(),
     runSskrSelfTest(),
     runGordianEnvelopeSelfTest(),

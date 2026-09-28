@@ -26,7 +26,7 @@ function run(command, args) {
 
 assertExactToolVersion(wasmBindgen, 'wasm-bindgen 0.2.128', { cwd: root, env: environment });
 run(cargo, ['build', '--manifest-path', manifest, '--target', 'wasm32-unknown-unknown', '--release', '--locked']);
-const staging = mkdtempSync(join(tmpdir(), 'ckd-shamir-wasm-'));
+const staging = mkdtempSync(join(tmpdir(), 'ckd-sskr-wasm-'));
 try {
   run(wasmBindgen, [compiled, '--target', 'web', '--out-dir', staging]);
   const stagedWasm = resolve(staging, 'recovery_sskr_wasm_bg.wasm');

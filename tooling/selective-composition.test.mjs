@@ -129,22 +129,25 @@ describe('selective bundle graph guards', () => {
   });
 
   it('keeps recovery destination menus ordered like their tabs', () => {
-    const expected = [
-      'matcher',
-      'seedqr',
-      'mnemocode',
-      'mhfe',
-      'slip39',
-      'shamir',
-      'sskr',
-      'gordian-envelope',
-      'codex32',
-    ];
+    const expected = ['matcher', 'seedqr', 'mhfe', 'slip39', 'sskr', 'gordian-envelope', 'codex32', 'mnemocode'];
     for (const file of ['apps/key-derivation/src/index.html', 'tooling/profile-template.mjs']) {
       const source = readFileSync(file, 'utf8');
       const targets = [...source.matchAll(/data-recovery-target="([^"]+)"/gu)].map((match) => match[1]);
       expect(targets).toEqual(expected);
     }
+  });
+
+  it('keeps every recovery tab at the same position as its panel', () => {
+    // Tabs and panels are paired by position, so their order in the page must match.
+    const source = readFileSync('apps/key-derivation/src/index.html', 'utf8');
+    const tabs = [...source.matchAll(/<button\b[^>]*\bdata-recovery-tab\b[^>]*>/gu)].map(
+      (match) => /aria-controls="([^"]+)"/u.exec(match[0])?.[1],
+    );
+    const panels = [...source.matchAll(/<section\b[^>]*\bdata-recovery-panel\b[^>]*>/gu)].map(
+      (match) => /\bid="([^"]+)"/u.exec(match[0])?.[1],
+    );
+    expect(tabs.length).toBeGreaterThan(0);
+    expect(tabs).toEqual(panels);
   });
 
   it('removes every excluded recovery module from both source menus', () => {
@@ -154,7 +157,6 @@ describe('selective bundle graph guards', () => {
       mnemocode: 'mnemocode',
       mhfe: 'mhfe',
       slip39: 'slip39',
-      shamir: 'shamir',
       sskr: 'sskr',
       'gordian-envelope': 'gordian-envelope',
       codex32: 'codex32',

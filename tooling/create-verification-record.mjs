@@ -37,7 +37,6 @@ for (const profile of Object.values(BUILD_PROFILES)) {
 }
 const generatedDirectories = [
   'packages/dash-shielded-wasm/generated',
-  'packages/recovery-shamir-wasm/generated',
   'packages/recovery-codex32-wasm/generated',
   'packages/recovery-sskr-wasm/generated',
   'packages/recovery-envelope-wasm/generated',

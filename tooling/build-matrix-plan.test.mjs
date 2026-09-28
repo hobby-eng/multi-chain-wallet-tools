@@ -5,7 +5,7 @@ describe('exhaustive standalone build matrix', () => {
   const plan = createBuildMatrixPlan();
 
   it('enumerates every reviewed valid composition exactly once', () => {
-    expect(plan).toHaveLength(46676);
+    expect(plan).toHaveLength(35156);
     expect(new Set(plan.map(({ relativePath }) => relativePath)).size).toBe(plan.length);
   });
 
@@ -14,6 +14,7 @@ describe('exhaustive standalone build matrix', () => {
       expect(job.coins.length).toBeGreaterThan(0);
       if (job.profileId === 'dash-community') expect(job.coins).toEqual(['dash']);
       if (job.toolId === 'key-derivation') expect(job.features).toContain('derive');
+      if (job.features.includes('mnemocode-cards')) expect(job.features).toContain('mnemocode');
       if (job.toolId === 'psbt-inspector') expect(job.features.length).toBeGreaterThan(0);
       if (job.toolId === 'discovery-scanner') {
         expect(job.features.some((feature) => feature === 'seed-discovery' || feature === 'watch-only-discovery')).toBe(

@@ -8,7 +8,6 @@ import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.m
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const wasmFiles = [
   'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm',
-  'packages/recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm',
   'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm',
   'packages/recovery-sskr-wasm/generated/recovery_sskr_wasm_bg.wasm',
   'packages/recovery-envelope-wasm/generated/recovery_envelope_wasm_bg.wasm',

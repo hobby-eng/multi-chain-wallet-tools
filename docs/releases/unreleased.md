@@ -10,12 +10,12 @@ Added MnemoCode 0.1.0 to the Deriver's offline **Recover & Back Up** workspace. 
 
 Updated the supported and reproducible JavaScript toolchain to Node.js 26.10.0 and Vitest 5.0.2. CI, the canonical container and the lockfile use the same versions.
 
-## CKD Shamir dependency replacement
+## CKD Shamir removed
 
-Replaced **`sharks 0.5.0` with `blahaj 0.6.0`** in CKD Shamir Raw and Words. This fixes biased random polynomial coefficients ([RUSTSEC-2024-0398](https://rustsec.org/advisories/RUSTSEC-2024-0398.html)), which could leak information when the same secret was repeatedly split into fresh share sets. The corrected implementation samples coefficients from the full 0–255 range, including zero.
+Removed the CKD Shamir module and the `shamir` build feature. Its custom Raw and Words share formats duplicated the standard Shamir shares of SSKR and could be read only by this project. The SSKR tab is now named **Shamir shares (SSKR)**. Cards created with CKD Shamir can still be restored with release v0.1.5 or earlier.
 
-Existing CKD shares remain recoverable without format conversion. The fix changes creation of new shares; it does not retroactively change existing shares. SSKR, SLIP-39 and Codex32 are unaffected by this library replacement. Both Deriver editions use the same corrected CKD module.
+The MnemoCode module now compiles the unmodified upstream core, vendored from its Git repository at a pinned commit with per-file SHA-256 values, instead of a separate port. See [MnemoCode source](../MNEMOCODE_SOURCE.md).
 
-The replacement was implemented on 2026-09-23 in commit [`1108c8a`](https://github.com/hobby-eng/multi-chain-wallet-tools/commit/1108c8a6b0b85fb7033d4a28c82ca28d72da2e53), after v0.1.5. Its documentation follow-up makes the replacement explicit in the changelog, CKD help, attribution and release passport. See [CHANGELOG.md](../../CHANGELOG.md).
+Added the optional `mnemocode-cards` feature: the MnemoCode panel can save the color codes of a phrase as printable cards, with a choice of template, page size, orientation and optional QR code. It uses the MnemoCode renderers themselves and adds `pdf-lib`, `@pdf-lib/fontkit` and `@pdf-lib/upng` at the versions pinned by MnemoCode.
 
-The MnemoCode module now compiles the unmodified upstream core, vendored from its Git repository at a pinned commit with per-file SHA-256 values, instead of a separate port. No dependency was added; see [MnemoCode core source](../MNEMOCODE_SOURCE.md).
+A MnemoCode date needs a four-digit year: `23-09-26` was read as the year 23 and is now an error. Dates are ignored in Direct mode. An error about an unknown BIP39 word names its position, not the word.

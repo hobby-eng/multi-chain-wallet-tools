@@ -32,9 +32,10 @@ function assertCalendarDate(date: DateShiftDate): void {
 export function parseDate(value: string): DateShiftDate {
   const text = value.trim();
   const dayMonthYear = /^(\d{2})-(\d{2})-(\d{4})$/u.exec(text);
-  const yearMonthDay = /^(\d{1,4})-(\d{2})-(\d{2})$/u.exec(text);
+  // A year always has four digits, so 23-09-26 is an error and never the year 23.
+  const yearMonthDay = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(text);
   if (dayMonthYear === null && yearMonthDay === null) {
-    throw new Error('Invalid date. Use DD-MM-YYYY.');
+    throw new Error('Invalid date. Use DD-MM-YYYY with a four-digit year, for example 23-09-2026.');
   }
   const match = dayMonthYear ?? yearMonthDay!;
   const date =

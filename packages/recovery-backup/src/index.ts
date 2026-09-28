@@ -6,14 +6,6 @@ export {
   type Slip39GroupSpec,
   type Slip39ShareInfo,
 } from './slip39.js';
-export {
-  createCkdShamirShares,
-  recoverCkdShamirShares,
-  recoverCkdShamirSharesDetailed,
-  type CkdShamirShareFormat,
-  type CkdShamirRecovery,
-  type CkdShamirShareSet,
-} from './shamir.js';
 export * from './codex32.js';
 export * from './seedqr.js';
 export * from './sskr.js';

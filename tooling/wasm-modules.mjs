@@ -7,13 +7,6 @@ export const WASM_MODULES = Object.freeze([
     buildScript: 'tooling/build-shielded-wasm.mjs',
   }),
   Object.freeze({
-    label: 'Shamir WASM',
-    archiveDirectory: 'shamir',
-    packageDirectory: 'recovery-shamir-wasm',
-    stem: 'recovery_shamir_wasm',
-    buildScript: 'tooling/build-recovery-shamir-wasm.mjs',
-  }),
-  Object.freeze({
     label: 'Codex32 WASM',
     archiveDirectory: 'codex32',
     packageDirectory: 'recovery-codex32-wasm',

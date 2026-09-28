@@ -21,6 +21,7 @@ describe('Docker copy-out and failure cleanup without a Docker daemon', () => {
         'build-reproducible.mjs',
         'build-profiles.mjs',
         'build-profile-definitions.mjs',
+        'sync-mnemocode-source.mjs',
         'profile-template.mjs',
         'wasm-modules.mjs',
       ])
@@ -84,6 +85,7 @@ if(a[0]==='cp') {
       'build-reproducible.mjs',
       'build-profiles.mjs',
       'build-profile-definitions.mjs',
+      'sync-mnemocode-source.mjs',
       'profile-template.mjs',
       'wasm-modules.mjs',
     ])
@@ -100,10 +102,9 @@ import path from 'node:path';
 const a=process.argv.slice(2);
 if(a[0]==='create') fs.writeFileSync(a[a.indexOf('--cidfile')+1],'fixture-container\\n');
 if(a[0]==='cp') {
- for(const name of ['dash','shamir','codex32','sskr','envelope']) {
+ for(const name of ['dash','codex32','sskr','envelope']) {
   const p=path.join(a[2],name); fs.mkdirSync(p,{recursive:true});
   fs.writeFileSync(path.join(p,name==='dash'?'dash_shielded_wasm_bg.wasm':
-    name==='shamir'?'recovery_shamir_wasm_bg.wasm':
     name==='codex32'?'recovery_codex32_wasm_bg.wasm':
     name==='sskr'?'recovery_sskr_wasm_bg.wasm':'recovery_envelope_wasm_bg.wasm'),name);
  }
@@ -123,7 +124,6 @@ if(a[0]==='cp') {
     expect(result.status, result.stderr).toBe(0);
     const expected = [
       ['dash-shielded-wasm', 'dash_shielded_wasm_bg.wasm', 'dash'],
-      ['recovery-shamir-wasm', 'recovery_shamir_wasm_bg.wasm', 'shamir'],
       ['recovery-codex32-wasm', 'recovery_codex32_wasm_bg.wasm', 'codex32'],
       ['recovery-sskr-wasm', 'recovery_sskr_wasm_bg.wasm', 'sskr'],
       ['recovery-envelope-wasm', 'recovery_envelope_wasm_bg.wasm', 'envelope'],

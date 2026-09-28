@@ -93,6 +93,11 @@ const LOCAL_IMPLEMENTATIONS = [
       'packages/recovery-backup/src/self-test-mnemocode.ts',
       'packages/recovery-backup/tests/mnemocode.test.ts',
       'apps/key-derivation/src/ui/recovery-mnemocode.ts',
+      'apps/key-derivation/src/ui/recovery-mnemocode-help.ts',
+      'packages/recovery-backup/src/mnemocode-cards.ts',
+      'packages/recovery-backup/src/mnemocode-card-assets.ts',
+      'packages/recovery-backup/tests/mnemocode-cards.test.ts',
+      'apps/key-derivation/src/ui/recovery-mnemocode-cards.ts',
     ],
   },
   {
@@ -115,15 +120,6 @@ const LOCAL_IMPLEMENTATIONS = [
       'packages/recovery-backup/src/slip39-wordlist.ts',
       'packages/recovery-backup/tests/slip39-official-vectors.json',
       'packages/recovery-backup/tests/slip39.test.ts',
-    ],
-  },
-  {
-    id: 'shamir-codec',
-    upstream: 'blahaj-0.6.0',
-    files: [
-      'packages/recovery-shamir-wasm/rust/src/lib.rs',
-      'packages/recovery-backup/src/shamir.ts',
-      'packages/recovery-backup/tests/shamir.test.ts',
     ],
   },
   {
@@ -267,7 +263,6 @@ export async function verifyDependencyProvenance({
   const pnpmPackages = verifyPnpmLock(readFileSync(resolve(root, 'pnpm-lock.yaml'), 'utf8'));
   const cargoLockPaths = [
     'packages/dash-shielded-wasm/rust/Cargo.lock',
-    'packages/recovery-shamir-wasm/rust/Cargo.lock',
     'packages/recovery-codex32-wasm/rust/Cargo.lock',
     'packages/recovery-sskr-wasm/rust/Cargo.lock',
     'packages/recovery-envelope-wasm/rust/Cargo.lock',
