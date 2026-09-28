@@ -17,3 +17,5 @@ Replaced **`sharks 0.5.0` with `blahaj 0.6.0`** in CKD Shamir Raw and Words. Thi
 Existing CKD shares remain recoverable without format conversion. The fix changes creation of new shares; it does not retroactively change existing shares. SSKR, SLIP-39 and Codex32 are unaffected by this library replacement. Both Deriver editions use the same corrected CKD module.
 
 The replacement was implemented on 2026-09-23 in commit [`1108c8a`](https://github.com/hobby-eng/multi-chain-wallet-tools/commit/1108c8a6b0b85fb7033d4a28c82ca28d72da2e53), after v0.1.5. Its documentation follow-up makes the replacement explicit in the changelog, CKD help, attribution and release passport. See [CHANGELOG.md](../../CHANGELOG.md).
+
+The MnemoCode module now compiles the unmodified upstream core, vendored from its Git repository at a pinned commit with per-file SHA-256 values, instead of a separate port. No dependency was added; see [MnemoCode core source](../MNEMOCODE_SOURCE.md).
