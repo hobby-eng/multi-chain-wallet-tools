@@ -39,7 +39,6 @@ for (const workspaceRoot of ['apps', 'packages']) {
 
 for (const rustPackage of [
   'dash-shielded-wasm',
-  'recovery-shamir-wasm',
   'recovery-codex32-wasm',
   'recovery-sskr-wasm',
   'recovery-envelope-wasm',
@@ -65,7 +64,6 @@ stage('THIRD_PARTY_NOTICES.md', (text) => {
   let next = text;
   for (const rustPackage of [
     'dash-shielded-wasm',
-    'recovery-shamir-wasm',
     'recovery-codex32-wasm',
     'recovery-sskr-wasm',
     'recovery-envelope-wasm',

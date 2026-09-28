@@ -115,6 +115,7 @@ export function parseMnemoCodeDate(value: string): MnemoCodeDate {
 }
 
 export function parseMnemoCodeDates(value: string): MnemoCodeDate[] {
+  if (value.length > MAX_INPUT_LENGTH) throw new Error('Date input exceeds the 64 KiB safety limit.');
   return value
     .trim()
     .split(/[\s,;]+/u)
@@ -188,6 +189,7 @@ export function encodeMnemoCode(
 ): MnemoCodeEncodeResult {
   assertMode(mode);
   assertFormat(format);
+  assertMnemonicLength(mnemonic);
   const canonical = assertValidMnemonic(mnemonic);
   const enteredDates = datesForMode(mode, dates);
   const result = transform(canonical, mode, enteredDates);
@@ -233,7 +235,8 @@ export function decodeMnemoCode(
     }
   }
   const indexes = parseMnemoCode(raw, format);
-  const dates = datesForMode(mode, options.dates ?? []);
+  // A record names its own mode. Dates left in the form are no reason to refuse a Direct record.
+  const dates = mode === 'direct' ? [] : datesForMode(mode, options.dates ?? []);
   if (mode === 'direct') {
     const mnemonic = englishFromIndexes(indexes);
     return { mode, format, mnemonic, checksumValid: validateMnemonic(mnemonic, englishWordlist) };

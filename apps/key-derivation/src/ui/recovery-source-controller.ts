@@ -15,7 +15,6 @@ const RECOVERY_SOURCE_TARGETS = new Set<RecoverySourceTarget>([
   'mnemocode',
   'mhfe',
   'slip39',
-  'shamir',
   'codex32',
   'sskr',
   'gordian-envelope',

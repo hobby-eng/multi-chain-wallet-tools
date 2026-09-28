@@ -1,12 +1,17 @@
-# MnemoCode core source
+# MnemoCode source
 
-The `mnemocode` build feature does not contain a separate implementation of MnemoCode. Its transformations, representations and MNC1 record format are the unmodified upstream sources from [hobby-eng/mnemocode](https://github.com/hobby-eng/mnemocode), stored in `packages/recovery-mnemocode/source/`. `packages/recovery-backup/src/mnemocode.ts` is a thin browser adapter that adds this project's input limits, BIP39 validation and result shapes.
+The `mnemocode` and `mnemocode-cards` build features contain no separate implementation of MnemoCode. They compile the unmodified sources of [hobby-eng/mnemocode](https://github.com/hobby-eng/mnemocode), stored in `packages/recovery-mnemocode/source/`.
 
-## What is imported
+| Feature           | Imported from MnemoCode                                     | Added by this project                                    |
+| ----------------- | ----------------------------------------------------------- | -------------------------------------------------------- |
+| `mnemocode`       | Transformations, representations and the MNC1 record format | Input limits, BIP39 validation and result shapes         |
+| `mnemocode-cards` | Card templates and renderers with their font and artwork    | Random source, QR matrix, PNG coding, ZIP file, the form |
 
-Only the dependency-free core: `src/core.ts`, the seven modules in `src/core/`, `src/record.ts`, and the upstream `LICENSE` and `NOTICE`. The command-line program, SSKR bridge and WASM, QR reader and writer, PDF and image export, fonts and artwork are never imported, because this project already has its own SSKR, QR and BIP39 components.
+The command-line program, file output, the share engine with its WASM, and the QR and PNG libraries of MnemoCode are never imported. The renderers ask their host for those services, and this project supplies them from components it already has.
 
-The core imports a single package, `@scure/bip39`, which resolves to the copy already pinned by this project. The synchronization command refuses any other import and refuses an upstream revision whose `@scure/bip39` version differs from the local pin, so no dependency is added or duplicated.
+## Shared packages
+
+The imported files use three packages, each resolved to the version pinned by this project: `@scure/bip39`, `pdf-lib` and `@pdf-lib/fontkit`. The synchronization command refuses any other import and refuses a MnemoCode revision that pins a different version of these packages.
 
 ## Updating
 
@@ -16,10 +21,16 @@ pnpm sync:mnemocode -- --ref v0.2.0 # a specific tag, branch or full commit
 pnpm verify:mnemocode               # offline check of the committed files
 ```
 
-The command resolves the reference to a full commit, downloads the listed files at that exact commit, checks their imports, and writes `packages/recovery-mnemocode/source.json` with the repository, reference, commit, version and SHA-256 of every file. Published release archives are not used. Review and commit the result together with any adapter change.
+A signed or annotated tag is resolved to the commit behind it. A full commit is accepted only when the `main` branch of MnemoCode contains it, because GitHub also serves commits that exist only in a fork.
+
+The command resolves the reference to a full commit, downloads the listed files at that commit, checks their imports, and writes `packages/recovery-mnemocode/source.json` with the repository, reference, commit, version and SHA-256 of every file. Review and commit the result together with any adapter change.
 
 ## Builds stay offline
 
-Synchronization is a deliberate developer action. Ordinary and reproducible builds never contact GitHub for MnemoCode: they compile the committed files, and `pnpm verify:provenance` fails if a vendored file differs from its pinned hash, if the file set changes, or if the shared dependency version drifts. When GitHub is reachable, the pinned commit is also confirmed to exist upstream.
+Synchronization is a deliberate developer action. Builds never contact GitHub for MnemoCode: they compile the committed files, and `pnpm verify:provenance` fails if a file differs from its pinned hash, if the file set changes, or if a shared package version drifts.
 
-`--exclude mnemocode` removes the adapter and the vendored core from the bundle; the composition gate checks that no module under `packages/recovery-mnemocode/source/` remains.
+`--exclude mnemocode-cards` removes card export, the PDF libraries, the font and the artwork. `--exclude mnemocode` removes both features. The composition gate checks that nothing of an excluded feature remains in the bundle.
+
+## Build-time adjustments for the PDF libraries
+
+The artifact gate rejects the non-cryptographic random function and any web address outside the reviewed links. The PDF libraries contain one such call in a font-program interpreter that the bundled font never uses, and three web addresses in message text. The build redirects the call to the system random source and replaces the three strings; see `tooling/bundled-library-text.mjs`. The gate itself is unchanged.

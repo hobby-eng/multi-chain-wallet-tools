@@ -1,0 +1,9 @@
+ne_110m_land.geojson
+
+Land polygons at 1:110 million scale from Natural Earth, https://www.naturalearthdata.com/.
+Natural Earth map data is in the public domain. No permission is needed to use it.
+
+Source file: geojson/ne_110m_land.geojson in the repository nvkelso/natural-earth-vector.
+SHA-256: 9e0729ee253ca7d7a5c4ae9395fb1902264c5377c52e224d13dd85010e2835d9
+
+scripts/build-world-map.mjs turns this file into src/export/world-map-data.ts.

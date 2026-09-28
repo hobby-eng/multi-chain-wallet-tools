@@ -1,4 +1,5 @@
 import { BUILD_PROFILES, TOOL_DEFINITIONS } from './build-profile-definitions.mjs';
+import { MNEMOCODE_FILES, MNEMOCODE_MANIFEST, MNEMOCODE_SOURCE_DIRECTORY } from './sync-mnemocode-source.mjs';
 export { BUILD_PROFILES } from './build-profile-definitions.mjs';
 
 export function parseBuildProfile(args = process.argv.slice(2)) {
@@ -83,35 +84,28 @@ export function assertDashOnlyGraph(inputs, label) {
       'packages/wallet-recovery/src/matcher-targets-dash.ts',
       'packages/recovery-backup/src/slip39.ts',
       'packages/recovery-backup/src/slip39-wordlist.ts',
-      'packages/recovery-backup/src/shamir.ts',
       'packages/recovery-backup/src/codex32.ts',
       'packages/recovery-backup/src/sskr.ts',
       'packages/recovery-backup/src/sskr-groups.ts',
       'packages/recovery-backup/src/gordian-envelope.ts',
       'packages/recovery-backup/src/seedqr.ts',
       'packages/recovery-backup/src/mnemocode.ts',
-      'packages/recovery-mnemocode/source.json',
-      'packages/recovery-mnemocode/source/core.ts',
-      'packages/recovery-mnemocode/source/core/bits.ts',
-      'packages/recovery-mnemocode/source/core/colors.ts',
-      'packages/recovery-mnemocode/source/core/dates.ts',
-      'packages/recovery-mnemocode/source/core/representations.ts',
-      'packages/recovery-mnemocode/source/core/seedshift.ts',
-      'packages/recovery-mnemocode/source/core/types.ts',
-      'packages/recovery-mnemocode/source/core/words.ts',
-      'packages/recovery-mnemocode/source/record.ts',
+      'packages/recovery-backup/src/mnemocode-cards.ts',
+      'packages/recovery-backup/src/mnemocode-card-assets.ts',
+      MNEMOCODE_MANIFEST,
+      ...Object.values(MNEMOCODE_FILES)
+        .filter((path) => path !== 'LICENSE' && path !== 'NOTICE')
+        .map((path) => `${MNEMOCODE_SOURCE_DIRECTORY}/${path}`)
+        .sort(),
       'packages/recovery-backup/src/mnemonic-entries.ts',
       'packages/recovery-backup/src/self-test.ts',
       'packages/recovery-backup/src/self-test-helpers.ts',
       'packages/recovery-backup/src/self-test-seedqr.ts',
       'packages/recovery-backup/src/self-test-mnemocode.ts',
       'packages/recovery-backup/src/self-test-slip39.ts',
-      'packages/recovery-backup/src/self-test-shamir.ts',
       'packages/recovery-backup/src/self-test-codex32.ts',
       'packages/recovery-backup/src/self-test-sskr.ts',
       'packages/recovery-backup/src/self-test-gordian-envelope.ts',
-      'packages/recovery-shamir-wasm/generated/recovery_shamir_wasm.js',
-      'packages/recovery-shamir-wasm/generated/recovery_shamir_wasm_bg.wasm',
       'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm.js',
       'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm',
       'packages/recovery-sskr-wasm/generated/recovery_sskr_wasm.js',
@@ -128,7 +122,6 @@ export function assertDashOnlyGraph(inputs, label) {
       'packages/secret-vault/src/',
       'packages/wallet-recovery/src/',
       'packages/recovery-backup/src/',
-      'packages/recovery-shamir-wasm/generated/',
       'packages/recovery-codex32-wasm/generated/',
       'packages/recovery-sskr-wasm/generated/',
       'packages/recovery-envelope-wasm/generated/',

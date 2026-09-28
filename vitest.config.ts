@@ -28,7 +28,6 @@ export default defineConfig({
         find: /^@ckd\/recovery-envelope-wasm\/(.+)$/u,
         replacement: `${root}packages/recovery-envelope-wasm/generated/$1`,
       },
-      { find: /^@ckd\/recovery-shamir-wasm\/(.+)$/u, replacement: `${root}packages/recovery-shamir-wasm/generated/$1` },
       {
         find: /^@ckd\/recovery-codex32-wasm\/(.+)$/u,
         replacement: `${root}packages/recovery-codex32-wasm/generated/$1`,

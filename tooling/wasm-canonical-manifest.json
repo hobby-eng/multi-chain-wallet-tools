@@ -3,7 +3,7 @@
   "generator": "Dockerfile.reproducible wasm-artifacts",
   "modules": {
     "dash-shielded-wasm": {
-      "sourceSha256": "bca9579bae48c737f68881e93621bfb494038063dfe8901ebca269ac077f564c",
+      "sourceSha256": "4130f95ce2feaff14a986ebf433ddf26607ac0e3bc92ed43573b22784e8e81df",
       "generated": {
         "dash_shielded_wasm.d.ts": "e38d08ed2d86940ba89f2c53ffc36cb5cf1b83c5a2603b8749e9d859d87b0153",
         "dash_shielded_wasm.js": "b14b79c953221b022dd589c09f8e5b95b9a8699fa703788e185a1320f2faa56d",
@@ -11,17 +11,8 @@
         "dash_shielded_wasm_bg.wasm.d.ts": "9b3908298e96d3ef185465eff22748cffe84316e388ede0a055fccc9e631d8bb"
       }
     },
-    "recovery-shamir-wasm": {
-      "sourceSha256": "148e076d1e46c6890b1630d7cf76e8fc1c4e6d95a924d96cd8e7f0d79437a29c",
-      "generated": {
-        "recovery_shamir_wasm.d.ts": "a886032ac73c19448d6412e7441d7681ecd227989c39f8fbe2eaadb13e99867b",
-        "recovery_shamir_wasm.js": "9e2b61196bfe9e3b3c04f8aa18ad09768743603188f11eb61112760091e48671",
-        "recovery_shamir_wasm_bg.wasm": "6c1e3a68688dd7de3a55cc6e8ce3121877d2b5a858f3f20835453967dae8beaf",
-        "recovery_shamir_wasm_bg.wasm.d.ts": "4a381e6cb34269f1b12ec956c61707e696cc9aa77bf3e0c6705978aff5ae3adb"
-      }
-    },
     "recovery-codex32-wasm": {
-      "sourceSha256": "3e273ec0498999ef9308d8311ac0e997258f2c133547debb412647c6731f134e",
+      "sourceSha256": "ba477dd847fdd293d8f8efd75f76e0c17711527b47908b24dd69d0abbd7a291d",
       "generated": {
         "recovery_codex32_wasm.d.ts": "214b7809d5a25e54cd716d2ee002e9364e0c5da25ad91115e9d94c105f488259",
         "recovery_codex32_wasm.js": "eb73dadcc434411431ae7312dcc90be3daf710dd9cc4f0a9a2f18cfa265b4fde",
@@ -30,7 +21,7 @@
       }
     },
     "recovery-sskr-wasm": {
-      "sourceSha256": "7c500f612c6825dc6abd263f982a4729880dd902c33fc5dbc7d2a9698aa8641d",
+      "sourceSha256": "da6ca8b2c1ca25eac6de40247238439f22575815ad9539d11ec02b2f53bdbae1",
       "generated": {
         "recovery_sskr_wasm.d.ts": "d42b75d874a5974b79e8460ef72a7b1461f191df4530f5993696ff89747cab40",
         "recovery_sskr_wasm.js": "d8e1a56795e40df65db0ef655ad7c128e56d72dd24877887a1a56ec47aecc0e8",
@@ -39,7 +30,7 @@
       }
     },
     "recovery-envelope-wasm": {
-      "sourceSha256": "9dc61a5abddbcb6a281fdba23c23fa7cb3da971d4395fb01d602a4607a690bd2",
+      "sourceSha256": "944a3ff46eb5f0d949e192ef5bae7463a9f94348e9308f046a206dfe4fbb13a4",
       "generated": {
         "recovery_envelope_wasm.d.ts": "cf11b9ff3071e59622584256b141c173e2636e746cd27354d3543c09f04935fe",
         "recovery_envelope_wasm.js": "cbf5bc314167fb856012d1c75457a1c4ab094a954f55cf918bbd25a9172a0173",

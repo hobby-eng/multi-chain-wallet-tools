@@ -64,7 +64,6 @@ if [[ "$wasm_mode" == true ]]; then
     cp -a -- "$temporary/$source/." "$destination/"
   done <<'WASM_MODULES'
 dash:dash-shielded-wasm
-shamir:recovery-shamir-wasm
 codex32:recovery-codex32-wasm
 sskr:recovery-sskr-wasm
 envelope:recovery-envelope-wasm

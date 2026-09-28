@@ -4,7 +4,6 @@ import { installCodex32 } from './recovery-codex32.js';
 import { installSeedQr } from './recovery-seedqr.js';
 import { installMnemoCode } from './recovery-mnemocode.js';
 import { installMhfe } from './recovery-mhfe.js';
-import { installShamir } from './recovery-shamir.js';
 import { installSlip39 } from './recovery-slip39.js';
 import { installSskr } from './recovery-sskr.js';
 import { installGordianEnvelope } from './recovery-gordian-envelope.js';
@@ -15,7 +14,6 @@ export const selectedRecoveryTargets: ReadonlySet<RecoverySourceTarget> = new Se
   'mnemocode',
   'mhfe',
   'slip39',
-  'shamir',
   'codex32',
   'sskr',
   'gordian-envelope',
@@ -26,7 +24,6 @@ export function installSelectedRecoveryFeatures(context: RecoveryFeatureContext)
   installMnemoCode(context);
   installMhfe(context);
   installSlip39(context);
-  installShamir(context);
   installCodex32(context);
   installSskr(context);
   installGordianEnvelope(context);

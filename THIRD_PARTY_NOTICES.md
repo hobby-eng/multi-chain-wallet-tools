@@ -23,6 +23,12 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 | `@dashevo/wasm-sdk`        | 4.1.1         | `dashpay/platform` (`packages/wasm-sdk`)     | MIT               | Embedded proof-verifying DAPI transport for connected artifacts                                                                   |
 | `write-excel-file`         | 4.1.1         | `gitlab.com/catamphetamine/write-excel-file` | MIT               | Local XLSX workbook generation for Activity Viewer exports                                                                        |
 | `fflate`                   | 0.8.3         | `101arrowz/fflate`                           | MIT               | ZIP container generation for local XLSX exports                                                                                   |
+| `pdf-lib`                  | 1.17.1        | `Hopding/pdf-lib`                            | MIT               | PDF creation for MnemoCode card export in the Key Derivation Tool                                                                 |
+| `@pdf-lib/fontkit`         | 1.1.1         | `Hopding/fontkit`                            | MIT               | Font embedding for MnemoCode card export                                                                                          |
+| `@pdf-lib/upng`            | 1.0.1         | `Hopding/upng`                               | MIT               | PNG coding for MnemoCode card artwork; also a dependency of `pdf-lib`                                                             |
+| `@pdf-lib/standard-fonts`  | 1.0.0         | `Hopding/standard-fonts`                     | MIT               | Dependency of `pdf-lib`                                                                                                           |
+| `pako`                     | 1.0.11        | `nodeca/pako`                                | MIT AND Zlib      | Compression used by the PDF libraries                                                                                             |
+| `tslib`                    | 1.14.1        | `microsoft/tslib`                            | 0BSD              | Runtime helpers used by `pdf-lib`                                                                                                 |
 | `uqr`                      | 0.1.3         | `unjs/uqr`                                   | MIT               | Offline QR matrix encoding for public payment addresses                                                                           |
 | `qr`                       | 0.7.0         | `paulmillr/qr`                               | MIT OR Apache-2.0 | Offline QR image decoding for SeedQR and recovery-share imports                                                                   |
 
@@ -38,25 +44,22 @@ The connected Multi-Chain applications use Blockchain.com, BlockCypher, Blockstr
 
 ## Rust/WASM direct and official git dependencies
 
-| Package                 | Exact version/revision                                                            | Source repository                      | License             | Purpose                                                                                                           |
-| ----------------------- | --------------------------------------------------------------------------------- | -------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `orchard`               | 0.14.0, tag `dashified-0.14.1`, commit `38ac9c19a2df7bf3eeadc22ab23053e8fd538828` | `dashpay/orchard`                      | MIT OR Apache-2.0   | Official Dash Orchard/ZIP32 key and address logic                                                                 |
-| `zcash_note_encryption` | 0.4.1, revision `9f7e93d42cef839d02b9d75918117941d453f8cb`                        | `dashpay/zcash_note_encryption`        | MIT OR Apache-2.0   | Locked Orchard transitive dependency                                                                              |
-| `wasm-bindgen`          | 0.2.128                                                                           | `rustwasm/wasm-bindgen` / crates.io    | MIT OR Apache-2.0   | Browser WASM ABI                                                                                                  |
-| `blahaj`                | 0.6.0                                                                             | `distrust.co/blahaj` / crates.io       | MIT                 | GF(256) Shamir Secret Sharing used by the CKD Raw/Words backup formats; default ambient-RNG features are disabled |
-| `codex32`               | 0.1.0                                                                             | `apoelstra/rust-codex32` / crates.io   | CC0-1.0             | BIP93 Codex32 checksum, master-seed encoding, and GF(32) share interpolation                                      |
-| `sskr`                  | 0.12.0                                                                            | `BlockchainCommons/bc-sskr-rust`       | BSD-2-Clause-Patent | Standard grouped SSKR share creation and recovery with `ur:sskr` transport                                        |
-| `bc-envelope`           | 0.43.0                                                                            | `BlockchainCommons/bc-envelope-rust`   | BSD-2-Clause-Patent | Gordian Seed Envelope encoding, encryption, password/recipient permits, and SSKR permits                          |
-| `bc-components`         | 0.31.1                                                                            | `BlockchainCommons/bc-components-rust` | BSD-2-Clause-Patent | X25519 recipient keys, symmetric content keys, SSKR specs, and standard Blockchain Commons key derivation         |
-| `rand_chacha`           | 0.3.1                                                                             | `rust-random/rand` / crates.io         | MIT OR Apache-2.0   | Deterministic expansion of the explicit 256-bit WebCrypto seed passed to the Shamir WASM boundary                 |
-| `rand_core`             | 0.6.4                                                                             | `rust-random/rand` / crates.io         | MIT OR Apache-2.0   | RNG trait used without OS/browser entropy acquisition inside the Shamir WASM module                               |
-| `zeroize`               | 1.8.2                                                                             | `RustCrypto/utils` / crates.io         | MIT OR Apache-2.0   | Rust recovery-boundary secret-buffer clearing                                                                     |
-| `zip32`                 | 0.2.1                                                                             | `zcash/librustzcash` / crates.io       | MIT OR Apache-2.0   | ZIP32 account identifier/types                                                                                    |
-| `hex`                   | 0.4.3                                                                             | `KokaKiwi/rust-hex` / crates.io        | MIT OR Apache-2.0   | Raw boundary serialization                                                                                        |
-| `serde`                 | 1.0.229                                                                           | `serde-rs/serde` / crates.io           | MIT OR Apache-2.0   | Typed Rust boundary serialization                                                                                 |
-| `serde_json`            | 1.0.151                                                                           | `serde-rs/json` / crates.io            | MIT OR Apache-2.0   | Escaped JSON boundary encoding and fixture parsing                                                                |
-| `bech32` (test only)    | 0.12.0                                                                            | `rust-bitcoin/rust-bech32` / crates.io | MIT                 | Independent Rust display-vector encoding                                                                          |
-| `rand_core` (test only) | 0.6.4                                                                             | `rust-random/rand_core` / crates.io    | MIT OR Apache-2.0   | Real encrypted-note scanner round-trip fixture                                                                    |
+| Package                 | Exact version/revision                                                            | Source repository                      | License             | Purpose                                                                                                   |
+| ----------------------- | --------------------------------------------------------------------------------- | -------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------- |
+| `orchard`               | 0.14.0, tag `dashified-0.14.1`, commit `38ac9c19a2df7bf3eeadc22ab23053e8fd538828` | `dashpay/orchard`                      | MIT OR Apache-2.0   | Official Dash Orchard/ZIP32 key and address logic                                                         |
+| `zcash_note_encryption` | 0.4.1, revision `9f7e93d42cef839d02b9d75918117941d453f8cb`                        | `dashpay/zcash_note_encryption`        | MIT OR Apache-2.0   | Locked Orchard transitive dependency                                                                      |
+| `wasm-bindgen`          | 0.2.128                                                                           | `rustwasm/wasm-bindgen` / crates.io    | MIT OR Apache-2.0   | Browser WASM ABI                                                                                          |
+| `codex32`               | 0.1.0                                                                             | `apoelstra/rust-codex32` / crates.io   | CC0-1.0             | BIP93 Codex32 checksum, master-seed encoding, and GF(32) share interpolation                              |
+| `sskr`                  | 0.12.0                                                                            | `BlockchainCommons/bc-sskr-rust`       | BSD-2-Clause-Patent | Standard grouped SSKR share creation and recovery with `ur:sskr` transport                                |
+| `bc-envelope`           | 0.43.0                                                                            | `BlockchainCommons/bc-envelope-rust`   | BSD-2-Clause-Patent | Gordian Seed Envelope encoding, encryption, password/recipient permits, and SSKR permits                  |
+| `bc-components`         | 0.31.1                                                                            | `BlockchainCommons/bc-components-rust` | BSD-2-Clause-Patent | X25519 recipient keys, symmetric content keys, SSKR specs, and standard Blockchain Commons key derivation |
+| `zeroize`               | 1.8.2                                                                             | `RustCrypto/utils` / crates.io         | MIT OR Apache-2.0   | Rust recovery-boundary secret-buffer clearing                                                             |
+| `zip32`                 | 0.2.1                                                                             | `zcash/librustzcash` / crates.io       | MIT OR Apache-2.0   | ZIP32 account identifier/types                                                                            |
+| `hex`                   | 0.4.3                                                                             | `KokaKiwi/rust-hex` / crates.io        | MIT OR Apache-2.0   | Raw boundary serialization                                                                                |
+| `serde`                 | 1.0.229                                                                           | `serde-rs/serde` / crates.io           | MIT OR Apache-2.0   | Typed Rust boundary serialization                                                                         |
+| `serde_json`            | 1.0.151                                                                           | `serde-rs/json` / crates.io            | MIT OR Apache-2.0   | Escaped JSON boundary encoding and fixture parsing                                                        |
+| `bech32` (test only)    | 0.12.0                                                                            | `rust-bitcoin/rust-bech32` / crates.io | MIT                 | Independent Rust display-vector encoding                                                                  |
+| `rand_core` (test only) | 0.6.4                                                                             | `rust-random/rand_core` / crates.io    | MIT OR Apache-2.0   | Real encrypted-note scanner round-trip fixture                                                            |
 
 The TypeScript SLIP-39 implementation is a project-local port of the current MIT-licensed Trezor `python-shamir-mnemonic` reference implementation and includes its official recovery vectors and 1024-word list. The Codex32 tests use vectors published in BIP93 and the CC0 Rust reference implementation. No Python interpreter or Python package is bundled into a browser artifact or required at runtime.
 
@@ -95,7 +98,6 @@ cipher 0.4.4                    cobs 0.3.0
 corez 0.1.1                     cpufeatures 0.2.17
 critical-section 1.2.0          crypto-common 0.1.7
 dash-shielded-wasm 0.1.5
-recovery-shamir-wasm 0.1.5
 recovery-codex32-wasm 0.1.5
 recovery-sskr-wasm 0.1.5
 recovery-envelope-wasm 0.1.5
@@ -141,7 +143,6 @@ itoa 1.0.18                     serde_json 1.0.151
 ### MIT and other permissive licenses
 
 ```text
-blahaj 0.6.0                                                   MIT
 bech32 0.11.1 / 0.12.0          bitvec 1.1.1                  MIT
 blake2b_simd 1.0.5             const-crc32-nostd 1.3.1      MIT
 derive-getters 0.5.0           funty 2.0.0                   MIT
@@ -369,9 +370,6 @@ SeedSigner — SeedQR specification and vectors
 Copyright (c) 2026 Sergei Semenov
 MHFE v0.3.0 — browser WebAssembly implementation
 
-Copyrights are retained by the Blahaj project contributors
-blahaj — GF(256) Shamir implementation
-
 Copyright (c) Project Nayuki
 Copyright (c) 2023 Anthony Fu <https://github.com/antfu>
 uqr — QR encoder
@@ -408,9 +406,13 @@ SOFTWARE.
 - `Cargo.toml` uses exact registry versions and one exact audited Orchard tag; `Cargo.lock` pins all transitive versions and git commits.
 - Every supported build validates SHA-512 integrity entries for the complete pnpm package closure, SHA-256 checksums for every crates.io package, and full commit pins for Cargo git sources before compiling.
 - Exact GitHub revisions are recorded for Orchard, note encryption, rust-codex32, the SLIP-39 reference, SeedSigner SeedQR, MHFE v0.3.0, Blockchain Commons SSKR, Gordian Envelope, and bc-components. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply. The registry-published `blahaj` source is bound by its Cargo SHA-256 checksum.
-- The verification record also carries SHA-256 hashes for the local SeedQR, MHFE, SLIP-39, CKD Shamir, Codex32, SSKR, Gordian Seed Envelope, QR rendering, and QR decoding sources. The four embedded MHFE release files are additionally checked against fixed published SHA-256 values before every supported build.
+- The verification record also carries SHA-256 hashes for the local SeedQR, MHFE, SLIP-39, Codex32, SSKR, Gordian Seed Envelope, QR rendering, and QR decoding sources. The four embedded MHFE release files are additionally checked against fixed published SHA-256 values before every supported build.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.
 - `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions and mnemonic-bearing online boundary; its current Bitcoin, Ethereum, and Dash providers are documented in its application README and the root security audit.
 - `apps/psbt-inspector/src/index.html` identifies its embedded BitcoinerLab Miniscript compiler/analyzer and Scure BTC Signer MuSig2 inspection dependency. The pinned dependency remains unmodified; the standalone esbuild bundle may tree-shake signing APIs that this inspect/derive-only application does not import.
 - Original project code is licensed under MIT as declared in the root `LICENSE` and `package.json`. Third-party components retain the licenses and notices listed above.
+
+## MnemoCode card font and artwork
+
+The `mnemocode-cards` feature embeds the DejaVu Sans font and the card artwork from MnemoCode, vendored under `packages/recovery-mnemocode/source/assets/`. The font notice is `assets/fonts/DejaVuSans-NOTICE`; the MnemoCode `LICENSE` and `NOTICE` are stored next to the sources. The world map on collection sheets is drawn from public-domain Natural Earth land polygons; its notice is `assets/maps/NOTICE`.

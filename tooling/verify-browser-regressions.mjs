@@ -284,7 +284,7 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   };
   const before = await storageSnapshot(page);
   await clickStep(page.locator('#recovery-backup-mode'), 'Open Recover & Back Up');
-  assert.equal(await page.locator('.recovery-help').count(), 10);
+  assert.equal(await page.locator('.recovery-help').count(), 14);
   const firstHelp = page.locator('.recovery-help').first();
   await firstHelp.locator('summary').hover();
   await page.waitForFunction(() => document.querySelector('.recovery-help')?.hasAttribute('open'));
@@ -362,34 +362,6 @@ async function recoveryBackupRoundTrips(context, profile, run) {
       needed: 2,
     },
     {
-      panel: 'shamir-panel',
-      source: '#shamir-source',
-      create: '#create-shamir',
-      createResult: '#shamir-create-result',
-      revealCreated: '#toggle-shamir-created',
-      restorePanel: 'shamir-restore-panel',
-      shares: '#shamir-shares',
-      restore: '#restore-shamir',
-      restoreResult: '#shamir-restore-result',
-      createFormat: 'raw',
-      restoreFormat: 'raw',
-      needed: 2,
-    },
-    {
-      panel: 'shamir-panel',
-      source: '#shamir-source',
-      create: '#create-shamir',
-      createResult: '#shamir-create-result',
-      revealCreated: '#toggle-shamir-created',
-      restorePanel: 'shamir-restore-panel',
-      shares: '#shamir-shares',
-      restore: '#restore-shamir',
-      restoreResult: '#shamir-restore-result',
-      createFormat: 'words',
-      restoreFormat: 'words',
-      needed: 2,
-    },
-    {
       panel: 'codex32-panel',
       source: '#codex32-source',
       create: '#create-codex32',
@@ -409,8 +381,6 @@ async function recoveryBackupRoundTrips(context, profile, run) {
     const createPanel = method.createPanel ?? method.restorePanel.replace('-restore-panel', '-create-panel');
     await clickStep(page.locator(`[aria-controls="${createPanel}"][data-operation-tab]`), `Open ${createPanel}`);
     await page.locator(method.source).fill(mnemonic);
-    if (method.createFormat !== undefined)
-      await page.locator('#shamir-create-format').selectOption(method.createFormat);
     await clickStep(page.locator(method.create), `Create records in ${method.panel}`);
     const created = page.locator(`${method.createResult} .share-secret`);
     await created.nth(method.needed - 1).waitFor();
@@ -470,8 +440,6 @@ async function recoveryBackupRoundTrips(context, profile, run) {
       page.locator(`[aria-controls="${method.restorePanel}"][data-operation-tab]`),
       `Open ${method.restorePanel}`,
     );
-    if (method.restoreFormat !== undefined)
-      await page.locator('#shamir-restore-format').selectOption(method.restoreFormat);
     await page.locator(method.shares).fill(payloads.slice(0, method.needed).join('\n'));
     await clickStep(page.locator(method.restore), `Restore records in ${method.panel}`);
     const recovered = page.locator(`${method.restoreResult} textarea`);
@@ -495,8 +463,132 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   assert.deepEqual(await storageSnapshot(page), before);
   assert.equal(run.requests.length, 0);
   run.checks.push(
-    'Recovery help popovers; MHFE Worker initialization/PIM/Stop; SeedQR, MnemoCode, SLIP-39, both CKD Shamir encodings, and Codex32 exact browser round trips; QR actions; reveal-gated copy; in-memory return to Derive; storage/no HTTP',
+    'Recovery help popovers; MHFE Worker initialization/PIM/Stop; SeedQR, MnemoCode, SLIP-39, and Codex32 exact browser round trips; QR actions; reveal-gated copy; in-memory return to Derive; storage/no HTTP',
   );
+}
+
+async function mnemocodeCards(context, profile, run) {
+  const page = await open(context, profile, 'key-derivation', run);
+  const before = await storageSnapshot(page);
+  await page.locator('#mnemonic').fill(mnemonic);
+  await page.locator('#main-recovery-source-menu summary').click();
+  await page.locator('#main-recovery-source-menu [data-recovery-target="mnemocode"]').click();
+  await page.locator('[data-operation-tab][aria-controls="mnemocode-create-panel"]').click();
+  await page.locator('#mnemocode-encode-mode').selectOption('seedshift');
+  await page.locator('#mnemocode-encode-dates').fill('23-09-2026');
+
+  // "How it works" follows the selected option, opens on hover and stays open after a click.
+  const formatHelp = page.locator('#mnemocode-format-help');
+  await page.locator('#mnemocode-encode-format').selectOption('unicode');
+  await formatHelp.locator('summary').hover();
+  await page.waitForFunction(() => document.querySelector('#mnemocode-format-help')?.hasAttribute('open'));
+  assert.match(await formatHelp.locator('.recovery-help-popover').innerText(), /Traditional Chinese BIP39 list/u);
+  await formatHelp.locator('summary').click();
+  await page.locator('#mnemocode-panel h2').hover();
+  assert.equal(await formatHelp.getAttribute('open'), '');
+  await page.locator('#mnemocode-encode-format').selectOption('indexes');
+  assert.match(await formatHelp.locator('.recovery-help-popover').innerText(), /from 1 to 2048/u);
+  await page.keyboard.press('Escape');
+  assert.equal(await formatHelp.getAttribute('open'), null);
+  // The mode popover is closed here, so its text is read without requiring it to be visible.
+  assert.match(
+    (await page.locator('#mnemocode-mode-help .recovery-help-popover').textContent()) ?? '',
+    /sorted from the oldest/u,
+  );
+
+  // Cards print color codes, so the section exists only for the color representations.
+  for (const format of ['english', 'indexes', 'unicode']) {
+    await page.locator('#mnemocode-encode-format').selectOption(format);
+    assert.equal(await page.locator('#mnemocode-cards-section').isVisible(), false);
+  }
+  await page.locator('#mnemocode-encode-format').selectOption('colors-unicode');
+  assert.equal(await page.locator('#mnemocode-cards-section').isVisible(), true);
+  await page.locator('#mnemocode-encode-format').selectOption('colors');
+  await page.locator('#mnemocode-cards-section > summary').click();
+
+  // The list comes from the embedded MnemoCode registry.
+  assert.equal(await page.locator('#mnemocode-card-template option').count(), 16);
+  assert.deepEqual(
+    await page.locator('#mnemocode-card-page-size option').evaluateAll((options) => options.map((o) => o.value)),
+    ['a6', 'a4', 'wallet', 'business'],
+  );
+
+  const save = async () => {
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 120_000 }),
+      page.locator('#export-mnemocode-cards').click(),
+    ]);
+    const bytes = readFileSync(await download.path());
+    await waitText(page, '#mnemocode-cards-status', /^Saved /u);
+    return { name: download.suggestedFilename(), bytes };
+  };
+
+  await page.locator('#mnemocode-card-template').selectOption({ index: 1 });
+  await page.locator('#mnemocode-card-page-size').selectOption('a4');
+  await page.locator('#mnemocode-card-qr').check();
+  // Without own details the invented person stays the same for every size of this phrase.
+  const printedFor = async () =>
+    /Printed for ([^.]+)\./u.exec(await page.locator('#mnemocode-cards-status').innerText())?.[1];
+  assert.equal(await page.locator('#mnemocode-card-profile').isVisible(), false);
+  await save();
+  const invented = await printedFor();
+  assert.ok(invented !== undefined && invented.length > 3);
+  await page.locator('#mnemocode-card-page-size').selectOption('a6');
+  await save();
+  assert.equal(await printedFor(), invented);
+  await page.locator('#mnemocode-card-page-size').selectOption('a4');
+
+  // Own details replace the invented ones; empty fields keep their invented value.
+  await page.locator('#mnemocode-card-own-details').check();
+  assert.equal(await page.locator('#mnemocode-card-profile').isVisible(), true);
+  await page.locator('#mnemocode-card-name').fill('John Smith');
+  const sheet = await save();
+  assert.equal(await printedFor(), `John Smith, ${invented.split(', ')[1]}`);
+  assert.equal(sheet.name, 'cards-a4.pdf');
+  assert.equal(sheet.bytes.subarray(0, 5).toString('latin1'), '%PDF-');
+  assert.ok(sheet.bytes.length > 50_000, 'The sheet must contain the embedded artwork.');
+
+  // A card size means separate cards: no QR option, one numbered PDF per card.
+  assert.equal(await page.locator('#mnemocode-card-output').count(), 0);
+  await page.locator('#mnemocode-card-page-size').selectOption('business');
+  assert.equal(await page.locator('#mnemocode-card-qr-row').isVisible(), false);
+  assert.equal(await page.locator('#mnemocode-card-qr').isChecked(), false);
+  assert.match(await page.locator('#mnemocode-card-output-note').innerText(), /own numbered PDF/u);
+  const archive = await save();
+  assert.equal(archive.name, 'cards-business.zip');
+  await page.locator('#mnemocode-card-page-size').selectOption('a6');
+  assert.equal(await page.locator('#mnemocode-card-qr-row').isVisible(), true);
+  await page.locator('#mnemocode-card-page-size').selectOption('business');
+  assert.equal(archive.bytes.subarray(0, 2).toString('latin1'), 'PK');
+  assert.match(await page.locator('#mnemocode-cards-status').innerText(), /with 8 cards/u);
+
+  await page.locator('#mnemocode-card-name').fill('1234');
+  await page.locator('#export-mnemocode-cards').click();
+  await waitText(page, '#mnemocode-cards-status', /Latin letters/u);
+  assert.equal(await page.locator('#export-mnemocode-cards').isDisabled(), false);
+  // Unticking the box ignores the fields and returns to the invented person.
+  await page.locator('#mnemocode-card-own-details').uncheck();
+  await save();
+  assert.equal(await printedFor(), invented);
+
+  await page.locator('#mnemocode-encode-format').selectOption('english');
+  assert.equal(await page.locator('#mnemocode-cards-section').isVisible(), false);
+  assert.equal(await page.locator('#export-mnemocode-cards').isVisible(), false);
+
+  // The Decode tab explains its options in the same way.
+  const helpText = async (id) => (await page.locator(`#${id} .recovery-help-popover`).textContent()) ?? '';
+  await page.locator('[data-operation-tab][aria-controls="mnemocode-decode-panel"]').click();
+  assert.match(await helpText('mnemocode-decode-format-help'), /never guesses/u);
+  await page.locator('#mnemocode-decode-format').selectOption('colors');
+  assert.match(await helpText('mnemocode-decode-format-help'), /packed into colors/u);
+  await page.locator('#mnemocode-decode-mode').selectOption('seedshift');
+  assert.match(await helpText('mnemocode-decode-mode-help'), /move every word back/u);
+  assert.match(await helpText('mnemocode-word-help'), /question mark in place/u);
+  await page.locator('#mnemocode-legacy-last-word').check();
+  assert.match(await helpText('mnemocode-word-help'), /marked as preserved/u);
+
+  assert.deepEqual(await storageSnapshot(page), before);
+  assert.deepEqual(run.requests, []);
 }
 
 async function mnemocodeRoundTrip(context, profile, run) {
@@ -834,6 +926,7 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? 'chromium,firefox').sp
       cases.push(['bip38-message', (context, run) => bip38(context, profile, run)]);
       cases.push(['recovery-backup-roundtrips', (context, run) => recoveryBackupRoundTrips(context, profile, run)]);
       cases.push(['mnemocode-roundtrip', (context, run) => mnemocodeRoundTrip(context, profile, run)]);
+      cases.push(['mnemocode-cards', (context, run) => mnemocodeCards(context, profile, run)]);
       if (profile.id === 'multi-chain')
         cases.push(['bip85-child-signer', (context, run) => childWallet(context, profile, run)]);
       for (const [name, test] of cases) {

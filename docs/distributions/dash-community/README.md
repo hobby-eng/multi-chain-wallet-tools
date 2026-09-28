@@ -17,7 +17,6 @@ The Deriver's **Recover & Back Up** tab lets you prepare backups offline:
 
 - **Wallet Matcher** checks the phrase/passphrase candidates you provide against known addresses and selected search ranges.
 - **SLIP-39** creates word cards so, for example, any two of three cards can restore the original BIP39 phrase in this tool. Importing those cards directly into a native SLIP-39 wallet may derive a different wallet.
-- **CKD Shamir** splits the phrase into custom cards shown as words or compact text. Use a compatible CKD decoder to restore them; they are not ordinary wallet phrases or standard SLIP-39 cards.
 - **SSKR** uses Blockchain Commons' standard secret-sharing format, including groups with separate card thresholds. Choose compact UR text for QR transfer or full Bytewords for transcription.
 - **Gordian Seed Envelope** encrypts a backup container. Configure alternative access through a password, recipient private key, or enough SSKR cards. You can also include the BIP39 passphrase, placing both wallet secrets in one backup. A key derived from the same phrase cannot recover the backup if that phrase is lost.
 - **Codex32** stores a checksummed phrase backup or a BIP32 master-seed backup, optionally split into shares. Master-seed mode cannot restore the original words or passphrase. Encoding alone is not encryption.
@@ -25,7 +24,7 @@ The Deriver's **Recover & Back Up** tab lets you prepare backups offline:
 - **MnemoCode 0.1.0** converts the phrase between words, indexes, mapped Unicode and color representations, with Direct and Seedshift compatibility modes. Dates are not stored in MNC1 records, and the output is not encryption.
 - **MHFE** converts a standard English BIP39 phrase into an experimental memory-hard encrypted 24-word container. It supports optional PIM, QR transfer, cancellation, and recovery-verifier reporting. Read the [MHFE specification](https://github.com/hobby-eng/mhfe-spec) before use.
 
-Each backup card or record can have a QR code saved as PNG. Restore tabs read QR image files offline, avoiding manual transcription. Treat each QR image like the secret it contains. SLIP-39, CKD Shamir, and standalone SSKR preserve phrase entropy; keep its separate BIP39 passphrase safe too.
+Each backup card or record can have a QR code saved as PNG. Restore tabs read QR image files offline, avoiding manual transcription. Treat each QR image like the secret it contains. SLIP-39 and standalone SSKR preserve phrase entropy; keep its separate BIP39 passphrase safe too.
 
 The original phrase or a BIP85 child phrase can be used directly in the backup tabs without copying it to the clipboard.
 

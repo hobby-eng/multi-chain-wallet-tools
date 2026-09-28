@@ -36,8 +36,6 @@ jobs:
             lockfile: packages/recovery-codex32-wasm/rust/Cargo.lock
           - crate: Gordian Envelope recovery
             lockfile: packages/recovery-envelope-wasm/rust/Cargo.lock
-          - crate: CKD Shamir recovery
-            lockfile: packages/recovery-shamir-wasm/rust/Cargo.lock
           - crate: SSKR recovery
             lockfile: packages/recovery-sskr-wasm/rust/Cargo.lock
     steps:

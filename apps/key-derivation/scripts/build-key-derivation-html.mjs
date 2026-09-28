@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, transform } from 'esbuild';
+import { createBundledLibraryTextPlugin } from '../../../tooling/bundled-library-text.mjs';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 import {
   assertKeyDerivationComposition,
@@ -139,10 +140,11 @@ const bundled = await build({
   treeShaking: true,
   minify: true,
   legalComments: 'inline',
-  loader: { '.wasm': 'binary' },
+  loader: { '.wasm': 'binary', '.ttf': 'binary', '.png': 'binary', '.jpg': 'binary' },
   metafile: true,
   plugins: [
     createKeyDerivationCompositionPlugin(root, features),
+    createBundledLibraryTextPlugin(),
     {
       name: 'selected-recovery-features',
       setup(buildContext) {
@@ -206,9 +208,9 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
             ['wallet-matcher', 'matcher', 'recovery-wallet-matcher.ts', 'installWalletMatcher'],
             ['seedqr', 'seedqr', 'recovery-seedqr.ts', 'installSeedQr'],
             ['mnemocode', 'mnemocode', 'recovery-mnemocode.ts', 'installMnemoCode'],
+            ['mnemocode-cards', '', 'recovery-mnemocode-cards.ts', 'installMnemoCodeCards'],
             ['mhfe', 'mhfe', 'recovery-mhfe.ts', 'installMhfe'],
             ['slip39', 'slip39', 'recovery-slip39.ts', 'installSlip39'],
-            ['shamir', 'shamir', 'recovery-shamir.ts', 'installShamir'],
             ['codex32', 'codex32', 'recovery-codex32.ts', 'installCodex32'],
             ['sskr', 'sskr', 'recovery-sskr.ts', 'installSskr'],
             ['gordian-envelope', 'gordian-envelope', 'recovery-gordian-envelope.ts', 'installGordianEnvelope'],
@@ -219,7 +221,7 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
                 `import { ${symbol} as install${index} } from ${JSON.stringify(resolve(root, 'apps/key-derivation/src/ui', file))};`,
             )
             .join('\n');
-          const targets = definitions.flatMap(([, values]) => values.split(','));
+          const targets = definitions.flatMap(([, values]) => values.split(',')).filter((value) => value !== '');
           const calls = definitions.map((_, index) => `install${index}(context);`).join('\n');
           return {
             loader: 'ts',
@@ -230,8 +232,12 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
       },
     },
   ],
+  // Card export bundles a font library whose unused font-program interpreter calls the
+  // non-cryptographic random function. Every such call is redirected to the system source.
+  inject: features.has('mnemocode-cards') ? [resolve(root, 'packages/build-security/src/random-fraction.ts')] : [],
   define: {
     ...featureDefines(features),
+    ...(features.has('mnemocode-cards') ? { 'Math.random': 'ckdRandomFraction' } : {}),
     __BUILD_INFO__: JSON.stringify(buildInfo),
     __DERIVATION_WORKER_SOURCE__: JSON.stringify(workerSource),
     __MHFE_WORKER_SOURCE__: JSON.stringify(mhfeWorkerSource),
