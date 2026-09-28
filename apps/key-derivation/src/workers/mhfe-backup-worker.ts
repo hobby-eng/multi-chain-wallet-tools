@@ -4,11 +4,7 @@ import mhfeWasmBytes from '@ckd/recovery-mhfe-wasm/mhfe_bg.wasm';
 interface Request {
   readonly id: number;
   readonly type:
-    | 'encrypt'
-    | 'encryptPreservingFinalWord'
-    | 'decryptAuto'
-    | 'decryptExplicit'
-    | 'decryptPreservingFinalWord';
+    'encrypt' | 'encryptPreservingFinalWord' | 'decryptAuto' | 'decryptExplicit' | 'decryptPreservingFinalWord';
   readonly pim: number;
   readonly passwordAscii: string;
   readonly mnemonic?: string;
@@ -66,9 +62,13 @@ scope.addEventListener('message', (event: MessageEvent<Request>) => {
     if (request.type === 'encrypt') {
       result = JSON.parse(activeEngine.encryptJson(request.mnemonic ?? '')) as unknown;
     } else if (request.type === 'encryptPreservingFinalWord') {
-      result = JSON.parse(activeEngine.encryptPreservingFinalWordJson(request.mnemonic ?? '', reportProgress)) as unknown;
+      result = JSON.parse(
+        activeEngine.encryptPreservingFinalWordJson(request.mnemonic ?? '', reportProgress),
+      ) as unknown;
     } else if (request.type === 'decryptPreservingFinalWord') {
-      result = JSON.parse(activeEngine.decryptPreservingFinalWordJson(request.container ?? '', reportProgress)) as unknown;
+      result = JSON.parse(
+        activeEngine.decryptPreservingFinalWordJson(request.container ?? '', reportProgress),
+      ) as unknown;
     } else if (request.type === 'decryptExplicit') {
       result = JSON.parse(activeEngine.decryptJson(request.container ?? '', request.sourceWords ?? 0)) as unknown;
     } else {

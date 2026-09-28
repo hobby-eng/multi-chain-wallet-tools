@@ -229,7 +229,7 @@ export async function scanEthereumWatchOnly(
             ];
       for (const profile of profiles) {
         let target = config.minimumCount;
-        for (let offset = 0; offset < target; ) {
+        for (let offset = 0; offset < target;) {
           if (context.signal.aborted) throw new DOMException('Ethereum watch-only scan cancelled.', 'AbortError');
           const end = Math.min(offset + RECOVERY_EVM_ACCOUNT_BATCH, target);
           const derived = Array.from({ length: end - offset }, (_, relativeIndex) => {

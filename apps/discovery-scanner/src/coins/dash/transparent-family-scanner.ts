@@ -80,7 +80,7 @@ export async function scanDashTransparentFamily(
       const branchPath = branch.pathPrefix(network.coinType);
       const branchNode = root.derive(branchPath);
       try {
-        for (let offset = 0; offset < target; ) {
+        for (let offset = 0; offset < target;) {
           if (signal.aborted) throw new DOMException(`${spec.title} scan cancelled.`, 'AbortError');
           const chunk: DerivedTransparentAddress[] = [];
           const end = Math.min(offset + ADDRESS_CHUNK, target);

@@ -55,9 +55,7 @@ export interface RecoveryNetworkApi {
 }
 
 export type RecoveryNetworkRequestInput =
-  | { operation: 'ping'; payload: Record<string, never> }
-  | DashRecoveryRequestInput
-  | PublicRecoveryRequestInput;
+  { operation: 'ping'; payload: Record<string, never> } | DashRecoveryRequestInput | PublicRecoveryRequestInput;
 
 type WithRequestId<T> = T extends RecoveryNetworkRequestInput ? T & { id: string } : never;
 export type RecoveryNetworkRequest = WithRequestId<RecoveryNetworkRequestInput>;

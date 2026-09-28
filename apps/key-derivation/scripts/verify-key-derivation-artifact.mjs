@@ -134,6 +134,13 @@ const requiredIds = [
   'main-recovery-source-menu',
   'seedqr-panel',
   'seedqr-create-result',
+  'mnemocode-panel',
+  'mnemocode-source',
+  'encode-mnemocode',
+  'mnemocode-input',
+  'decode-mnemocode',
+  'mnemocode-missing-word-input',
+  'recover-mnemocode-word',
   'mhfe-panel',
   'mhfe-source',
   'mhfe-container',
@@ -237,6 +244,7 @@ if (profile.id === 'dash-community' && !html.includes('Dash master/account exten
 for (const marker of [
   'Wallet Matcher / Derivation Discovery',
   'SeedSigner SeedQR',
+  'MnemoCode 0.1.0',
   'MHFE encrypted BIP39 backup',
   'MHFE specification',
   'aria-label="MHFE operation"',
@@ -274,7 +282,7 @@ for (const marker of [
 ]) {
   if (!html.includes(marker)) throw new Error(`Standalone artifact is missing recovery workspace marker: ${marker}`);
 }
-if (occurrences(html, '<summary>What is this?</summary>') !== 8) {
+if (occurrences(html, '<summary>What is this?</summary>') !== 9) {
   throw new Error('Every Recover & Back Up method must include one explanatory help popover.');
 }
 if (profile.id === 'dash-community') {
@@ -332,6 +340,7 @@ const allowedOpenSourceLinks = [
   'https://github.com/SeedSigner/seedsigner/tree/dev/docs/seed_qr',
   'https://github.com/unjs/uqr',
   'https://github.com/paulmillr/qr',
+  'https://github.com/hobby-eng/mnemocode',
   'https://github.com/trezor/python-shamir-mnemonic',
   'https://git.distrust.co/public/blahaj',
   'https://github.com/BlockchainCommons/bc-sskr-rust',

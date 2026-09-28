@@ -133,7 +133,7 @@ async function scanBitcoin(
   try {
     for (const profile of profiles) {
       let target = profile.initialCount;
-      for (let offset = 0; offset < target; ) {
+      for (let offset = 0; offset < target;) {
         if (context.signal.aborted) throw new DOMException('Bitcoin scan cancelled.', 'AbortError');
         const end = Math.min(offset + RECOVERY_UTXO_ADDRESS_BATCH, target);
         const derived = Array.from({ length: end - offset }, (_, relativeIndex) => {

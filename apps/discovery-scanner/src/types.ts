@@ -44,13 +44,7 @@ interface AddressSearchRunnerContext {
 export type AddressSearchRunner = (snapshot: RecoveryInputSnapshot, context: AddressSearchRunnerContext) => void;
 
 export type RecoverySectionId =
-  | 'core'
-  | 'legacyCore'
-  | 'coinjoin'
-  | 'providerCollateral'
-  | 'platform'
-  | 'identity'
-  | 'shielded';
+  'core' | 'legacyCore' | 'coinjoin' | 'providerCollateral' | 'platform' | 'identity' | 'shielded';
 type RecoverySectionState = 'complete' | 'partial' | 'skipped' | 'failed';
 
 export interface RecoveryScanConfig {
