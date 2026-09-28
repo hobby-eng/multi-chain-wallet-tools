@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "repository": "hobby-eng/mnemocode",
+  "reference": "main",
+  "commit": "3b81bbd1a7218d682798d98d1d44aefb8d035a4b",
+  "version": "0.1.0",
+  "sharedDependencies": {
+    "@scure/bip39": "2.4.0"
+  },
+  "excluded": "CLI, SSKR bridge and WASM, QR reader and writer, PDF and image export, fonts and artwork",
+  "files": {
+    "core.ts": "716896c3bea9acebeb1d651e83e9cc3d8b7ea0cfaaf687e94c12caedc563db70",
+    "core/bits.ts": "53fc990f06845f77e3849c0293ec69ad2ebf6e0b35fc431fa9972149133498fa",
+    "core/colors.ts": "17a697ea1d823dfbeffb5f9b6029e34f354cc7d6fb08fc30347a9498d8cf2d6a",
+    "core/dates.ts": "c0ebe0546cb39d0a88b115e0214b2348e1e72a5d3aaa26f4fd429ce08395d459",
+    "core/representations.ts": "095dd80ea8b54c37b18268df0c9c8849ec02b8fed4880a1dc697ec875a82f990",
+    "core/seedshift.ts": "35f3d5450bb655694ee9a06a491d34b9d00578839ac7892903eeb58ee69e9c08",
+    "core/types.ts": "a221d05c596bc59f63956bce8266f3df32a9ed22ae5a5143b5059c2637b9f74d",
+    "core/words.ts": "d921a6d14dba8e18bfa0c3186361edaf9cb353e5442f101c5dbd0ff0aa43a4cf",
+    "LICENSE": "9c44407fa4ecf62d982f0244a4a3afbc3d5d74afbd93d6bc4bba3d1d5c3e5044",
+    "NOTICE": "58cbf585ef5a6e71719923d66f3e26785b764f76700cf30110956b92268ae8a1",
+    "record.ts": "7ea28cdd19e9af7753515f74cd2694322489bcc40cba9bbb5b40e74229705139"
+  }
+}
