@@ -308,9 +308,11 @@ async function recoveryBackupRoundTrips(context, profile, run) {
     'Open MHFE recovery',
   );
   await page.locator('#mhfe-decrypt-preserve-final-word').check();
-  assert.equal(await page.locator('#mhfe-source-was-24').isChecked(), true);
-  assert.equal(await page.locator('#mhfe-source-was-24').isDisabled(), true);
+  assert.equal(await page.locator('#mhfe-decrypt-source-words').inputValue(), '24');
+  assert.equal(await page.locator('#mhfe-decrypt-source-words').isDisabled(), true);
   await page.locator('#mhfe-decrypt-preserve-final-word').uncheck();
+  assert.equal(await page.locator('#mhfe-decrypt-source-words').inputValue(), 'auto');
+  assert.equal(await page.locator('#mhfe-decrypt-source-words').isDisabled(), false);
   await clickStep(
     page.locator('#mhfe-panel [data-operation-tab][aria-controls="mhfe-create-panel"]'),
     'Open MHFE encryption',
