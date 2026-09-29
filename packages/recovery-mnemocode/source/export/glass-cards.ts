@@ -30,9 +30,9 @@ const COMPACT_REFERENCES = {
   left: 3,
   columnPitch: 29,
   businessTop: 30,
-  walletTop: 31,
+  sheetTop: 31,
   businessRowPitch: 4.8,
-  walletRowPitch: 5.3,
+  sheetRowPitch: 5.3,
   swatchSize: 2.3,
   textOffset: 3.3,
   fontSize: 6.6,
@@ -208,9 +208,8 @@ function drawCompactLabels(
   label(profile.email, right, 10.2, fit(font, profile.email, 5.2, right - 6));
   label(profile.phone, 3, 10.4, fit(font, profile.phone, 5.2, right - 6));
   const rowGap =
-    cardHeight === 50 ? COMPACT_REFERENCES.businessRowPitch : COMPACT_REFERENCES.walletRowPitch;
-  const firstRow =
-    cardHeight === 50 ? COMPACT_REFERENCES.businessTop : COMPACT_REFERENCES.walletTop;
+    cardHeight === 50 ? COMPACT_REFERENCES.businessRowPitch : COMPACT_REFERENCES.sheetRowPitch;
+  const firstRow = cardHeight === 50 ? COMPACT_REFERENCES.businessTop : COMPACT_REFERENCES.sheetTop;
   for (const [offset, ref] of refs.entries()) {
     const dx = COMPACT_REFERENCES.left + (offset % 2) * COMPACT_REFERENCES.columnPitch;
     const dy = firstRow + Math.floor(offset / 2) * rowGap;
@@ -243,8 +242,12 @@ export async function renderGlassCards(
   const wholeShareQr = content.kind === 'sskr' && content.qrCard === true;
   if (![4, 6, 8].includes(referencesPerCard)) throw new Error('Glass capacity must be 4, 6 or 8.');
   const count = glassCardCount(content.colors.length, referencesPerCard);
-  const cardWidth = referencesPerCard === 4 || content.pageSize === 'business' ? 90 : 85.6;
-  const cardHeight = referencesPerCard === 4 || content.pageSize === 'business' ? 50 : 54;
+  // A separate card always has the business size; only a sheet shows the photographs of the
+  // 6 and 8 reference cards in their own proportions of 85.6 x 54.
+  const businessShape =
+    referencesPerCard === 4 || content.pageSize === 'business' || individualIndex !== undefined;
+  const cardWidth = businessShape ? 90 : 85.6;
+  const cardHeight = businessShape ? 50 : 54;
   if (
     individualIndex !== undefined &&
     (!Number.isInteger(individualIndex) || individualIndex < 0 || individualIndex >= count)

@@ -163,13 +163,30 @@ function knownSector(profile: CardProfile): CompanySector | undefined {
  */
 const INVENTED_DOMAIN_ENDING = '.example';
 
-function contactDomain(company: string): string {
-  const label = company
+/**
+ * Longest company part of an invented address. With more letters the email no longer fits
+ * the narrowest email line of the cards at a legible size; test/card-identities.test.ts
+ * checks this for every built-in employer.
+ */
+const LONGEST_DOMAIN_LABEL = 18;
+
+/** Letters and digits of one word, as they can appear in a domain name. */
+function domainLetters(word: string): string {
+  return word
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]/gu, '')
-    .slice(0, 63);
+    .replace(/[^a-z0-9]/gu, '');
+}
+
+function contactDomain(company: string): string {
+  // A long company name keeps its first words only, the way companies shorten their domains.
+  let label = '';
+  for (const word of company.split(/\s+/u).map(domainLetters)) {
+    if (label !== '' && label.length + word.length > LONGEST_DOMAIN_LABEL) break;
+    label += word;
+  }
+  label = label.slice(0, LONGEST_DOMAIN_LABEL);
   return `${label || 'company'}${INVENTED_DOMAIN_ENDING}`;
 }
 

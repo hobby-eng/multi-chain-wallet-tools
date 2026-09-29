@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { decodeMnemoCode, encodeMnemoCode, parseMnemoCodeDates } from '../src/mnemocode.js';
 import {
   MNEMOCODE_CARD_ASSETS,
+  MNEMOCODE_CARD_FILE_FORMATS,
   MNEMOCODE_CARD_PAGE_SIZES,
   MNEMOCODE_CARD_TEMPLATES,
   createMnemoCodeCardExporter,
@@ -57,16 +58,16 @@ describe('MnemoCode card export', () => {
   it('offers the template list of the vendored MnemoCode registry', () => {
     expect(MNEMOCODE_CARD_TEMPLATES).toHaveLength(16);
     expect(new Set(MNEMOCODE_CARD_TEMPLATES.map((template) => template.id)).size).toBe(16);
-    expect(MNEMOCODE_CARD_PAGE_SIZES.map((size) => size.id)).toEqual(['a6', 'a4', 'wallet', 'business']);
-    // Sheet sizes hold the collection; card sizes mean separate cards.
-    expect(['', undefined, 'a6', 'a4', 'wallet', 'business'].map((size) => mnemoCodeCardOutput(size))).toEqual([
+    expect(MNEMOCODE_CARD_PAGE_SIZES.map((size) => size.id)).toEqual(['a6', 'a4', 'business']);
+    // Sheet sizes hold the collection; the card size means separate cards.
+    expect(['', undefined, 'a6', 'a4', 'business'].map((size) => mnemoCodeCardOutput(size))).toEqual([
       'collection',
       'collection',
       'collection',
       'collection',
-      'individual',
       'individual',
     ]);
+    expect(MNEMOCODE_CARD_FILE_FORMATS.map((format) => format.id)).toEqual(['pdf', 'png']);
   });
 
   it('decodes the bundled PNG artwork to the same pixels as MnemoCode and encodes without loss', () => {
@@ -158,7 +159,7 @@ describe('MnemoCode card export', () => {
     const { profile: _, ...invented } = request;
     const first = (await own.render({ ...invented, pageSize: 'a6' })).printed;
     expect(first.name.length).toBeGreaterThan(3);
-    for (const size of ['a4', 'business', 'wallet'] as const)
+    for (const size of ['a4', 'business'] as const)
       expect((await own.render({ ...invented, pageSize: size })).printed, size).toEqual(first);
     // Own details win, and the remaining fields keep their invented values.
     const mixed = await own.render({ ...invented, profile: { name: 'John Smith' }, studioName: 'AURORA STUDIO' });
@@ -212,9 +213,41 @@ describe('MnemoCode card export', () => {
     for (const bytes of files) expect(Buffer.from(bytes.subarray(0, 5)).toString('latin1')).toBe('%PDF-');
   }, 120_000);
 
+  it('saves images through the image maker of the page and clears the documents it drew from', async () => {
+    // A stand-in for the canvas of a browser: it answers with the first bytes of the PDF it was given.
+    const received: Uint8Array[] = [];
+    const images = createMnemoCodeCardExporter(readAsset, async (pdf) => {
+      received.push(pdf);
+      return [Uint8Array.from([0x89, 0x50, 0x4e, 0x47, ...pdf.subarray(0, 5)])];
+    });
+    const sheet = await images.render({ ...request, fileFormat: 'png' });
+    expect([sheet.fileName, sheet.mimeType, sheet.cards]).toEqual(['cards-a6.png', 'image/png', 1]);
+    expect(Buffer.from(sheet.bytes).toString('latin1')).toBe('\x89PNG%PDF-');
+
+    const colors = encodeMnemoCode(MNEMONIC, request.mode, 'colors', request.dates).colors;
+    const archive = await images.render({ ...request, pageSize: 'business', fileFormat: 'png' });
+    expect([archive.fileName, archive.mimeType, archive.cards]).toEqual([
+      'cards-business.zip',
+      'application/zip',
+      colors.length,
+    ]);
+    expect(Object.keys(unzipSync(archive.bytes))).toEqual(
+      colors.map((color, index) => `${String(index + 1).padStart(2, '0')}-${color.slice(1).toUpperCase()}.png`),
+    );
+    // Every PDF was recovery material and is filled with zeros after its image exists.
+    expect(received).toHaveLength(1 + colors.length);
+    for (const pdf of received) expect(pdf.every((byte) => byte === 0)).toBe(true);
+
+    await expect(exporter.render({ ...request, fileFormat: 'png' })).rejects.toThrow('Image export is unavailable');
+    await expect(exporter.render({ ...request, fileFormat: 'jpg' })).rejects.toThrow('Select PDF or PNG');
+    const twoPages = createMnemoCodeCardExporter(readAsset, async () => [new Uint8Array(1), new Uint8Array(1)]);
+    await expect(twoPages.render({ ...request, fileFormat: 'png' })).rejects.toThrow('exactly one page');
+  }, 120_000);
+
   it('rejects invalid requests before rendering', async () => {
     await expect(exporter.render({ ...request, template: 'unknown' })).rejects.toThrow('Select a card template.');
     await expect(exporter.render({ ...request, pageSize: 'a3' })).rejects.toThrow();
+    await expect(exporter.render({ ...request, pageSize: 'wallet' })).rejects.toThrow('a6, a4 or business');
     await expect(exporter.render({ ...request, orientation: 'diagonal' })).rejects.toThrow();
     await expect(exporter.render({ ...request, mnemonic: 'abandon abandon' })).rejects.toThrow();
     await expect(exporter.render({ ...request, profile: { name: '1234' } })).rejects.toThrow();

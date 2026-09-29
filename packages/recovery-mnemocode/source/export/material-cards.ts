@@ -33,7 +33,7 @@ import {
   type MaterialFinish,
   type MaterialStyle,
 } from './material-artwork.js';
-export type MaterialPageSize = 'wallet' | 'business' | 'a6' | 'a4';
+export type MaterialPageSize = 'business' | 'a6' | 'a4';
 export interface MaterialCardOptions {
   readonly pageSize?: MaterialPageSize;
   readonly individualIndex?: number;
@@ -116,9 +116,9 @@ async function createRenderContext(
   }
   if (content.colors.length < 1 || content.colors.length > 16)
     throw new Error('Material cards support at most 16 references.');
-  const size = options.pageSize ?? content.pageSize ?? 'wallet';
-  if (!['wallet', 'business', 'a6', 'a4'].includes(size))
-    throw new Error('Material page size must be wallet, business, a6 or a4.');
+  const size = options.pageSize ?? content.pageSize ?? 'business';
+  if (!['business', 'a6', 'a4'].includes(size))
+    throw new Error('Material page size must be business, a6 or a4.');
   const individual = options.individualIndex;
   if (
     individual !== undefined &&
@@ -288,7 +288,7 @@ function drawMaterialFront(context: MaterialRenderContext): void {
 function drawMaterialStudy(context: MaterialRenderContext): void {
   const { doc, font, content, size, style, image, presentation, profile, includeQr } = context;
   const payload = includeQr ? content.payload : undefined;
-  const compact = size === 'wallet' || size === 'business';
+  const compact = size === 'business';
   // Compact studies prioritize exact recovery references over decorative finish names.
   const captions = content.colors.map((code, index) => [
     `${String(index + 1).padStart(2, '0')}  ${code.slice(1).toUpperCase()}`,

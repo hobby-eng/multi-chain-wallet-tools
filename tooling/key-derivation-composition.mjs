@@ -251,7 +251,9 @@ const featureSourceMarkers = {
   ],
   'mnemocode-cards': [
     '/recovery-mnemocode-cards.ts',
+    '/recovery-mnemocode-card-images.ts',
     '/recovery-backup/src/mnemocode-cards.ts',
+    '/recovery-backup/src/mnemocode-card-drawing.ts',
     '/recovery-backup/src/mnemocode-card-assets.ts',
     '/recovery-mnemocode/source/cards.ts',
     '/recovery-mnemocode/source/export/',

@@ -95,9 +95,12 @@ const LOCAL_IMPLEMENTATIONS = [
       'apps/key-derivation/src/ui/recovery-mnemocode.ts',
       'apps/key-derivation/src/ui/recovery-mnemocode-help.ts',
       'packages/recovery-backup/src/mnemocode-cards.ts',
+      'packages/recovery-backup/src/mnemocode-card-drawing.ts',
       'packages/recovery-backup/src/mnemocode-card-assets.ts',
       'packages/recovery-backup/tests/mnemocode-cards.test.ts',
+      'packages/recovery-backup/tests/mnemocode-card-drawing.test.ts',
       'apps/key-derivation/src/ui/recovery-mnemocode-cards.ts',
+      'apps/key-derivation/src/ui/recovery-mnemocode-card-images.ts',
     ],
   },
   {

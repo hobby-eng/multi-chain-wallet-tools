@@ -14,11 +14,11 @@ export function resolveSskrLayout(
   const cards = isCardPageSize(pageSize);
   if (requested === 'collection' && cards)
     throw new Error(
-      'A wallet or business page size gives separate cards. Choose the A6 or A4 size for a collection sheet.',
+      'The business page size gives separate cards. Choose the A6 or A4 size for a collection sheet.',
     );
   if (requested === 'individual' && pageSize !== undefined && !cards)
     throw new Error(
-      'Separate cards need a card size. Choose the wallet or business size, or leave the size out.',
+      'Separate cards have the business size. Choose the business size, or leave the size out.',
     );
   return requested ?? (cards ? 'individual' : 'collection');
 }

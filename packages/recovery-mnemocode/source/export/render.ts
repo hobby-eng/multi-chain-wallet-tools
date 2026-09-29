@@ -74,7 +74,7 @@ export async function renderIndividualCards(
   if (!content.colors.length) throw new Error('The card collection is empty.');
   if (content.pageSize !== undefined && !isCardPageSize(content.pageSize))
     throw new Error(
-      'Separate cards need a card size. Choose the wallet or business size, or leave the size out.',
+      'Separate cards have the business size. Choose the business size, or leave the size out.',
     );
   const resolvedContent: CardContent = {
     ...content,
