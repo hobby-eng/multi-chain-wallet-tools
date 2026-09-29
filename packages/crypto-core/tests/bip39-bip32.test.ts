@@ -18,6 +18,21 @@ describe('BIP39', () => {
     expect(() => assertValidMnemonic('abandon '.repeat(12))).toThrow(/checksum/u);
   });
 
+  it('names the position of an unknown word and never the word', () => {
+    // A mistyped word is close to a secret one, and the message is shown openly.
+    const mistyped = `abandon abandon abandom ${'abandon '.repeat(8)}about`;
+    const message = (() => {
+      try {
+        assertValidMnemonic(mistyped);
+        return '';
+      } catch (error) {
+        return (error as Error).message;
+      }
+    })();
+    expect(message).toBe('Invalid BIP39 mnemonic: word 3 is not an English BIP39 word.');
+    expect(message).not.toContain('abandom');
+  });
+
   it.each([12, 15, 18, 21, 24] as const)(
     'generates a checksum-valid %i-word phrase with the secure browser API',
     (wordCount) => {
