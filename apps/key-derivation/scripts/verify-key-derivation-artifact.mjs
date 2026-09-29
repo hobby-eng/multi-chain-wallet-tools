@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 import { getToolBuild, parseBuildProfile } from '../../../tooling/build-profiles.mjs';
+import { vendoredMnemoCodeVersion } from '../../../tooling/key-derivation-features.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const profile = parseBuildProfile();
@@ -242,7 +243,7 @@ if (profile.id === 'dash-community' && !html.includes('Dash master/account exten
 for (const marker of [
   'Wallet Matcher / Derivation Discovery',
   'SeedSigner SeedQR',
-  'MnemoCode 0.1.0',
+  `MnemoCode ${vendoredMnemoCodeVersion()}`,
   'MHFE encrypted BIP39 backup',
   'MHFE specification',
   'aria-label="MHFE operation"',

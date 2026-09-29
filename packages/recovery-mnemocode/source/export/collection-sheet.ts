@@ -52,6 +52,8 @@ export function collectionSheetLayout(
   )
     throw new Error('Orientation must be portrait or landscape.');
   const [width, height] = pageDimensions(size, settings.orientation);
+  // Ordinary cards of the business size are separate cards and never come here. The compact
+  // sheet exists for the QR card of one Shamir share, which is offered in every size.
   const compact = size === 'business';
   const large = size === 'a4';
   const margin = compact ? 3 : large ? 10 : 5;
