@@ -1,0 +1,721 @@
+{
+  "schemaVersion": 1,
+  "auditId": "AUD-018",
+  "auditNumber": 18,
+  "date": "2026-09-29",
+  "title": "Targeted review of MnemoCode card export, its source synchronization and documentation",
+  "reviewer": {
+    "name": "Claude Code (Anthropic)",
+    "model": "claude-fable-5-1",
+    "reasoningEffort": null,
+    "note": "One reviewer, no delegated review. The reviewer also wrote the fixes."
+  },
+  "snapshot": {
+    "commit": "5a967fae136c218f05c2cdf2a93ac7f2ac9bc8cf",
+    "commitComplete": true,
+    "commitSubject": "feat: MnemoCode card export and help; remove CKD Shamir",
+    "commitNote": "The fixes were added to this commit by amending it, so the reviewed commit is not on main and cannot be opened on GitHub.",
+    "parentOnMain": "a35edd88ba735059995c1abd6e7a9f16fb84b4b9",
+    "workingTree": "Clean.",
+    "sourceFingerprint": "git tree cb96d000bec5aaaabe0ded2a8ac54ab1d8c1f857"
+  },
+  "procedure": {
+    "note": "The review followed the wallet-security-review checklist; this record was written afterwards in the layout of the standard.",
+    "sha256": {
+      "docs/FULL_AUDIT_GUIDE.md": "30fa6a1675892e2a3059bdbd6e97737f2959a74aca98a0a90e4f655ae12854a6",
+      "docs/audits/AUDIT_STANDARD.md": "9128a5e243ec5de86b58bde7b84f7d3bf6b9174346c056a34c5425957b27dc1f",
+      "docs/audits/AUDIT_TEMPLATE.md": "8122777f8093b04119633459b9b2cc50bc6ca9258bfc6184b52136d3b8172210",
+      "docs/audit-report.schema.json": "d47df01252ad6fb11d8cad00b7d9e6dde62b3ee3331c3bfbef9a7b99adda30f7"
+    }
+  },
+  "scope": {
+    "kind": "targeted review",
+    "included": [
+      "MnemoCode adapter and card adapter with its browser platform",
+      "MnemoCode panel and card form of the Key Derivation Tool, both editions",
+      "Transfer of a phrase from Generate & Derive to the panel",
+      "tooling/sync-mnemocode-source.mjs",
+      "Mnemonic validation messages shown by the panel",
+      "Documents and release passport that describe these parts"
+    ],
+    "excluded": [
+      "Every other tool and recovery format",
+      "Coin derivation, PSBT inspection and public-data tools",
+      "WASM modules and the reproducible Docker build",
+      "Release workflow"
+    ],
+    "upstream": "MnemoCode 0.1.0, hobby-eng/mnemocode; its own findings are recorded there as AUD-003",
+    "testData": "Public test vectors only"
+  },
+  "environment": {
+    "os": "Linux 7.0.0 x64",
+    "node": "26.10.0",
+    "pnpm": "12.5.1",
+    "poppler": "26.01.0",
+    "browsers": "Chromium and Firefox of the pinned Playwright"
+  },
+  "checks": {
+    "coverageLedger": [
+      {
+        "checkId": "CHECK-SEC-001",
+        "group": "SEC / Secret ownership",
+        "scope": "Key Derivation, MnemoCode",
+        "method": "Source trace from the linked phrase to the card file",
+        "outcome": "Performed in part",
+        "evidence": "The phrase is read when the operation starts and is not stored; AUD-018-SEC002"
+      },
+      {
+        "checkId": "CHECK-SEC-002",
+        "group": "SEC / Vault, CSP, transport",
+        "scope": "Key Derivation",
+        "method": "Content Security Policy of the page read",
+        "outcome": "Performed in part",
+        "evidence": "`connect-src 'none'`, `img-src 'none'`; no runtime probe of the vault"
+      },
+      {
+        "checkId": "CHECK-SEC-003",
+        "group": "SEC / Network egress",
+        "scope": "MnemoCode card export",
+        "method": "Source trace; artifact gate after the fixes",
+        "outcome": "Performed in part",
+        "evidence": "No request and no storage call in card export"
+      },
+      {
+        "checkId": "CHECK-SEC-004",
+        "group": "SEC / Randomness",
+        "scope": "MnemoCode card export",
+        "method": "Source trace of `uniformInteger`",
+        "outcome": "Performed in part",
+        "evidence": "`crypto.getRandomValues` with rejection of biased values"
+      },
+      {
+        "checkId": "CHECK-SEC-005",
+        "group": "SEC / Secret lifecycle",
+        "scope": "MnemoCode, mnemonic validation",
+        "method": "Error messages and buffers inspected",
+        "outcome": "Performed",
+        "evidence": "AUD-018-SEC001, AUD-018-SEC002"
+      },
+      {
+        "checkId": "CHECK-SEC-006",
+        "group": "SEC / Browser injection",
+        "scope": "MnemoCode card form",
+        "method": "Probe with markup in a text field",
+        "outcome": "Performed in part",
+        "evidence": "The text is drawn into the PDF and never into the page"
+      },
+      {
+        "checkId": "CHECK-SEC-007",
+        "group": "SEC / Availability bounds",
+        "scope": "MnemoCode adapter",
+        "method": "Probe with a 5 MB phrase; limits read in code",
+        "outcome": "Performed",
+        "evidence": "Refused in 118 ms; AUD-018-API001"
+      },
+      {
+        "checkId": "CHECK-FUN-001",
+        "group": "FUN / BIP39 and entropy",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-FUN-002",
+        "group": "FUN / HD derivation",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-FUN-003",
+        "group": "FUN / BIP85, BIP38, messages",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-FUN-004",
+        "group": "FUN / Scripts and multisig",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-FUN-005",
+        "group": "FUN / Transactions and PSBT",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-FUN-006",
+        "group": "FUN / Recovery and backup",
+        "scope": "MnemoCode only",
+        "method": "Encoding and decoding probes",
+        "outcome": "Performed in part",
+        "evidence": "The date defect is recorded upstream as AUD-003-FUN001; other formats not run"
+      },
+      {
+        "checkId": "CHECK-FUN-007",
+        "group": "FUN / Discovery and providers",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-API-001",
+        "group": "API / Call contracts",
+        "scope": "MnemoCode adapter",
+        "method": "24 edge-case probes against the vendored sources",
+        "outcome": "Performed",
+        "evidence": "AUD-018-API001, AUD-018-API002, AUD-018-UI001, AUD-018-UI002"
+      },
+      {
+        "checkId": "CHECK-API-002",
+        "group": "API / Async state",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-API-003",
+        "group": "API / Export schema",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-API-004",
+        "group": "API / Encoding interoperability",
+        "scope": "MnemoCode record",
+        "method": "Conflicts between a record and the form",
+        "outcome": "Performed in part",
+        "evidence": "The record decides the format; AUD-018-UI001 for the mode"
+      },
+      {
+        "checkId": "CHECK-BLD-001",
+        "group": "BLD / Feature composition",
+        "scope": "`mnemocode-cards`",
+        "method": "Build without the feature after the fixes",
+        "outcome": "Performed in part",
+        "evidence": "The passport line is removed with the feature; the full matrix was not run"
+      },
+      {
+        "checkId": "CHECK-BLD-002",
+        "group": "BLD / Matrix depth",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-BLD-003",
+        "group": "BLD / Lockfiles and provenance",
+        "scope": "MnemoCode synchronization",
+        "method": "Source reading; release dates and advisories of PDF libraries",
+        "outcome": "Performed in part",
+        "evidence": "AUD-018-BLD001, AUD-018-BLD002; see observations"
+      },
+      {
+        "checkId": "CHECK-BLD-004",
+        "group": "BLD / Canonical WASM",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope; CI rebuilt and compared the modules"
+      },
+      {
+        "checkId": "CHECK-BLD-005",
+        "group": "BLD / Artifacts and CI",
+        "scope": "Both editions",
+        "method": "Artifact gate and CI result after the fixes",
+        "outcome": "Performed in part",
+        "evidence": "Passed; release workflow not reviewed"
+      },
+      {
+        "checkId": "CHECK-UI-001",
+        "group": "UI / Real files and viewports",
+        "scope": "Both editions",
+        "method": "Browser scenarios after the fixes",
+        "outcome": "Performed in part",
+        "evidence": "Chromium and Firefox, desktop viewport only"
+      },
+      {
+        "checkId": "CHECK-UI-002",
+        "group": "UI / Navigation and state",
+        "scope": "MnemoCode panel",
+        "method": "Source reading of the form state",
+        "outcome": "Performed in part",
+        "evidence": "AUD-018-UI001"
+      },
+      {
+        "checkId": "CHECK-UI-003",
+        "group": "UI / Help and accessibility",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-ARC-001",
+        "group": "ARC / Ownership and imports",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      },
+      {
+        "checkId": "CHECK-ARC-002",
+        "group": "ARC / Dead code and duplication",
+        "scope": "MnemoCode panel",
+        "method": "Function lengths and repeated blocks scanned",
+        "outcome": "Performed in part",
+        "evidence": "AUD-018-ARC002, AUD-018-ARC003"
+      },
+      {
+        "checkId": "CHECK-ARC-003",
+        "group": "ARC / Comments and tests",
+        "scope": "MnemoCode tests",
+        "method": "Tests read against what they claim to prove",
+        "outcome": "Performed in part",
+        "evidence": "AUD-018-ARC001"
+      },
+      {
+        "checkId": "CHECK-DOC-001",
+        "group": "DOC / Capability descriptions",
+        "scope": "README, passport",
+        "method": "Documents compared with the features of the build",
+        "outcome": "Performed in part",
+        "evidence": "AUD-018-DOC001, AUD-018-DOC002"
+      },
+      {
+        "checkId": "CHECK-DOC-002",
+        "group": "DOC / Commands and metadata",
+        "scope": "`docs/MNEMOCODE_SOURCE.md`",
+        "method": "Commands compared with the synchronization code",
+        "outcome": "Performed in part",
+        "evidence": "Agrees after the fixes"
+      },
+      {
+        "checkId": "CHECK-DOC-003",
+        "group": "DOC / Audit records",
+        "scope": "—",
+        "method": "—",
+        "outcome": "Not run",
+        "evidence": "Out of scope"
+      }
+    ],
+    "commands": [
+      {
+        "check": "Edge-case probes of the adapter and the card exporter",
+        "outcome": "Failed",
+        "counts": "24 probes; 8 showed defects recorded here or upstream",
+        "evidence": "Temporary test file, removed; findings below"
+      },
+      {
+        "check": "`pnpm audit`",
+        "outcome": "Passed",
+        "counts": "No known vulnerabilities",
+        "evidence": "See observations"
+      },
+      {
+        "check": "`vitest run` of the MnemoCode adapter tests, the BIP39 tests and `tooling` after the fixes",
+        "outcome": "Passed",
+        "counts": "21 files, 140 tests",
+        "evidence": "Regression tests named in the findings"
+      },
+      {
+        "check": "`node tooling/sync-project-metadata.mjs --check`, `verify-project-facts.mjs`, `verify-dependency-provenance.mjs`",
+        "outcome": "Passed",
+        "counts": "—",
+        "evidence": "—"
+      },
+      {
+        "check": "Build of both editions and `verify-key-derivation-artifact.mjs`",
+        "outcome": "Passed",
+        "counts": "Multi-Chain and Dash Community",
+        "evidence": "The gate accepts no network call and no unreviewed address"
+      },
+      {
+        "check": "`node tooling/verify-browser-regressions.mjs` for `recovery-backup-roundtrips`, `mnemocode-roundtrip` and `mnemocode-cards`",
+        "outcome": "Passed",
+        "counts": "12 runs: Chromium and Firefox, both editions",
+        "evidence": "—"
+      },
+      {
+        "check": "`vitest run` of `tooling`, the MnemoCode adapter, card and BIP39 tests at the verification commit",
+        "outcome": "Passed",
+        "counts": "21 files, 136 tests",
+        "evidence": "Includes the regression test of AUD-018-SEC001"
+      },
+      {
+        "check": "Build of both editions, artifact gate, and the three browser scenarios named above at the verification commit",
+        "outcome": "Passed",
+        "counts": "12 runs: Chromium and Firefox, both editions",
+        "evidence": "The local page also had one uncommitted change of option labels, which is not part of the commit; CI checked the commit itself"
+      },
+      {
+        "check": "GitHub CI and Published vectors at the verification commit",
+        "outcome": "Passed",
+        "counts": "Commit `690df4f04aeceb966dc525137cfb347e977009bc`",
+        "evidence": "The full local `pnpm verify` was not run"
+      },
+      {
+        "check": "Build of both editions, artifact gate, `vitest run tooling` and the MnemoCode browser scenarios after the fix of AUD-018-ARC003",
+        "outcome": "Passed",
+        "counts": "17 files, 81 tests; 8 browser runs",
+        "evidence": "GitHub CI passed for the commit that follows `bab094614627ea77c73e7bec644f5c74f76f78c5` and adds only this record"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "AUD-018-SEC001",
+      "category": "SEC",
+      "kind": "finding",
+      "title": "An error about an unknown BIP39 word shows the word",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`packages/crypto-core/src/bip39.ts`; every tool that validates a phrase.",
+      "reproduction": "enter a phrase in which one word is mistyped.",
+      "expected": "the message names the position of the word, as MnemoCode itself does.",
+      "observed": "the message contained the word: `Unknown word: …`.",
+      "impact": "a mistyped word is close to a secret one and appeared in open text on the screen. It left the page only if the person copied the message. The behaviour is older than the reviewed change.",
+      "evidence": "source inspection; `packages/crypto-core/tests/bip39-bip32.test.ts`, \"names the position of an unknown word and never the word\".",
+      "recommendedFix": "name the position.",
+      "requiredVerification": "the message contains the position and not the word."
+    },
+    {
+      "id": "AUD-018-SEC002",
+      "category": "SEC",
+      "kind": "finding",
+      "title": "Card documents stay in memory after the download",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`packages/recovery-backup/src/mnemocode-cards.ts`, `apps/key-derivation/src/ui/recovery-mnemocode-cards.ts`.",
+      "reproduction": "export cards and follow the byte arrays after the download starts.",
+      "expected": "buffers that hold recovery material are cleared after use, as the neighbouring modules do.",
+      "observed": "the PDF, the ZIP file and the separate documents were left to the garbage collector.",
+      "impact": "recovery material stayed in page memory longer than needed. A browser gives no guarantee that memory is erased, so clearing reduces the time and does not remove the risk.",
+      "evidence": "source inspection; `packages/recovery-backup/tests/mnemocode-cards.test.ts`, \"clears the separate documents after they are packed\".",
+      "recommendedFix": "fill the arrays with zeros once the file is handed to the browser.",
+      "requiredVerification": "the archive still holds valid documents after the working copies are cleared."
+    },
+    {
+      "id": "AUD-018-API001",
+      "category": "API",
+      "kind": "finding",
+      "title": "The 64 KiB input limit is not applied to encoding and card export",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`packages/recovery-backup/src/mnemocode.ts`.",
+      "reproduction": "call `encodeMnemoCode` or the card exporter with a phrase, or dates, longer than 64 KiB.",
+      "expected": "the limit stated in the comment of the module applies to every input.",
+      "observed": "only decoding applied it. A phrase of 5 MB was still refused in 118 ms by the word count check.",
+      "impact": "none observed; the comment promised more than the code did.",
+      "evidence": "the probe output; `mnemocode-cards.test.ts`, \"applies the input limit before any work starts\".",
+      "recommendedFix": "apply the limit in `encodeMnemoCode` and `parseMnemoCodeDate`.",
+      "requiredVerification": "each call fails with the limit message before any work starts."
+    },
+    {
+      "id": "AUD-018-API002",
+      "category": "API",
+      "kind": "finding",
+      "title": "A card request can ask for a sheet size and separate cards at once",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`packages/recovery-backup/src/mnemocode-cards.ts`.",
+      "reproduction": "request `pageSize: 'a6'` with `output: 'individual'`, or a card size with `output: 'collection'`.",
+      "expected": "the page size alone decides between one sheet and separate cards.",
+      "observed": "the first request gave eight cards of A6 size in a ZIP file, the second a PDF of eight pages.",
+      "impact": "the form could not send such a request, but the interface allowed it.",
+      "evidence": "the probe output; `mnemocode-cards.test.ts`.",
+      "recommendedFix": "remove `output` from the request and derive it from the page size.",
+      "requiredVerification": "the request type has no `output`; the tests pass without it."
+    },
+    {
+      "id": "AUD-018-BLD001",
+      "category": "BLD",
+      "kind": "finding",
+      "title": "Synchronization takes the identifier of an annotated tag, not its commit",
+      "severity": "medium",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`tooling/sync-mnemocode-source.mjs`.",
+      "reproduction": "give the tag selection a `git ls-remote` listing with an annotated tag.",
+      "expected": "the commit behind the tag, which the listing shows on the line ending in `^{}`.",
+      "observed": "the identifier of the tag object was used as the commit.",
+      "impact": "the first signed or annotated release tag of MnemoCode would have stopped the synchronization, or pinned an identifier that is not a commit. No such tag exists yet.",
+      "evidence": "source inspection; `tooling/sync-mnemocode-source.test.mjs`, \"takes the commit behind an annotated tag, not the tag itself\".",
+      "recommendedFix": "prefer the peeled line.",
+      "requiredVerification": "the test with both lines selects the commit."
+    },
+    {
+      "id": "AUD-018-BLD002",
+      "category": "BLD",
+      "kind": "finding",
+      "title": "A full commit is not checked to be part of the MnemoCode main branch",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`tooling/sync-mnemocode-source.mjs`.",
+      "reproduction": "run the synchronization with `--ref` and the full identifier of a commit that exists only in a fork.",
+      "expected": "only commits of the MnemoCode repository are accepted.",
+      "observed": "GitHub serves the files of any commit in the network of a repository, and the command accepted them.",
+      "impact": "a developer who is given a wrong identifier could vendor code from a fork. The developer still reviews and commits the result.",
+      "evidence": "source inspection; `sync-mnemocode-source.test.mjs`, \"accepts a full commit only when the main branch contains it\".",
+      "recommendedFix": "ask GitHub to compare the commit with `main` and accept only `ahead` or `identical`.",
+      "requiredVerification": "`diverged`, `behind` and a missing commit are refused."
+    },
+    {
+      "id": "AUD-018-UI001",
+      "category": "UI",
+      "kind": "finding",
+      "title": "Dates left in the hidden field block Direct mode",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`packages/recovery-backup/src/mnemocode.ts`, `apps/key-derivation/src/ui/recovery-mnemocode-cards.ts`.",
+      "reproduction": "type dates in a Seedshift mode, switch to Direct, then encode; or decode a Direct record while the form still holds dates.",
+      "expected": "Direct mode ignores dates.",
+      "observed": "the error \"Direct mode does not use dates.\" appeared, although the date field is hidden in Direct mode.",
+      "impact": "the person sees an error without a visible cause.",
+      "evidence": "the probe output; `packages/recovery-backup/tests/mnemocode.test.ts`, \"needs a four-digit year and ignores dates for a Direct record\".",
+      "recommendedFix": "pass no dates in Direct mode.",
+      "requiredVerification": "a Direct record decodes while the form holds dates."
+    },
+    {
+      "id": "AUD-018-UI002",
+      "category": "UI",
+      "kind": "finding",
+      "title": "Card errors name command-line options",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`packages/recovery-mnemocode/source/export/render.ts`, `sskr-content.ts`, `collection-sheet.ts`.",
+      "reproduction": "ask for a QR code on separate cards; or enter a name of 100 characters.",
+      "expected": "a message that fits a form and names the text which does not fit.",
+      "observed": "the page showed advice about `--page-size` and `--card-qr`, and called a long name a \"Study heading\".",
+      "impact": "confusing messages. The cause is in MnemoCode, where it is recorded as AUD-003-API002.",
+      "evidence": "the probe output.",
+      "recommendedFix": "fix upstream and synchronize.",
+      "requiredVerification": "the vendored messages contain no option name.",
+      "relatedFindings": [
+        "hobby-eng/mnemocode AUD-003-API002"
+      ]
+    },
+    {
+      "id": "AUD-018-DOC001",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "The release passport omits the libraries of card export",
+      "severity": "medium",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`apps/key-derivation/src/index.html`; builds with the `mnemocode-cards` feature.",
+      "reproduction": "compare the list of bundled components in the passport with the bundle.",
+      "expected": "the passport names every bundled library with its license.",
+      "observed": "pdf-lib, @pdf-lib/fontkit, @pdf-lib/upng, pako, fflate, the DejaVu Sans font and the Natural Earth map data were missing.",
+      "impact": "the page stated its contents incompletely. `THIRD_PARTY_NOTICES.md` was complete.",
+      "evidence": "comparison; the artifact gate now requires `passport-mnemocode-cards-dependency`.",
+      "recommendedFix": "add the line, and remove it from builds without the feature.",
+      "requiredVerification": "the line is present with the feature and absent without it."
+    },
+    {
+      "id": "AUD-018-DOC002",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "The README names the share tab by its old name and omits MnemoCode cards",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`README.md`.",
+      "reproduction": "compare the README with the tabs of Recover & Back Up.",
+      "expected": "the README uses the names shown in the page.",
+      "observed": "the tab \"Shamir shares (SSKR)\" was called SSKR, and printable cards were not mentioned.",
+      "impact": "a reader does not find the described function under its name.",
+      "evidence": "comparison.",
+      "recommendedFix": "update both paragraphs.",
+      "requiredVerification": "inspection."
+    },
+    {
+      "id": "AUD-018-ARC001",
+      "category": "ARC",
+      "kind": "finding",
+      "title": "The browser check for words of the phrase in a PDF cannot fail",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`tooling/verify-browser-regressions.mjs`.",
+      "reproduction": "read the assertion that the bytes of the PDF do not contain the first word of the phrase.",
+      "expected": "a check that would fail if a word were printed.",
+      "observed": "a PDF stores its text compressed and as glyph numbers, so the bytes never contain a word.",
+      "impact": "the test gave assurance that it could not give.",
+      "evidence": "source inspection; `mnemocode-cards.test.ts`, \"prints the color codes and nothing of the phrase\".",
+      "recommendedFix": "read the text of the PDF with `pdftotext` and compare words.",
+      "requiredVerification": "the new test passes where Poppler is installed. It is skipped, and reported as skipped, where Poppler is missing, as on the CI runner."
+    },
+    {
+      "id": "AUD-018-ARC002",
+      "category": "ARC",
+      "kind": "finding",
+      "title": "The reveal and copy block exists three times in the MnemoCode panel",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`apps/key-derivation/src/ui/recovery-mnemocode.ts`.",
+      "reproduction": "read the three result blocks of the panel.",
+      "expected": "one helper.",
+      "observed": "three nearly equal blocks.",
+      "impact": "a change of the reveal behaviour must be repeated three times.",
+      "evidence": "source inspection; the browser scenario `mnemocode-roundtrip`.",
+      "recommendedFix": "one helper, `concealedText`.",
+      "requiredVerification": "the browser scenario passes."
+    },
+    {
+      "id": "AUD-018-ARC003",
+      "category": "ARC",
+      "kind": "finding",
+      "title": "The MnemoCode version is written as text in the page",
+      "severity": "low",
+      "status": "verified",
+      "releaseBlocking": false,
+      "affected": "`apps/key-derivation/src/index.html`.",
+      "reproduction": "search the page for `MnemoCode 0.1.0`.",
+      "expected": "the version comes from `MNEMOCODE_VERSION`, which a test compares with the vendored source.",
+      "observed": "the text `MnemoCode 0.1.0` stood in four places of the scripts and in two places of the page, and the artifact gate expected the same text. The first fix moved the scripts to the constant; the page and the gate kept the text.",
+      "impact": "after an update of MnemoCode the page can show the old version.",
+      "evidence": "search result; `tooling/sync-mnemocode-source.test.mjs`, \"shows the vendored version on the page and in the documents\".",
+      "recommendedFix": "fill the two places at build time, or add them to the project facts gate.",
+      "requiredVerification": "a changed version in `source.json` changes the page or fails a gate."
+    }
+  ],
+  "observations": [],
+  "informationalNotes": [
+    "The PDF libraries `pdf-lib`, `@pdf-lib/fontkit` and `@pdf-lib/upng` had their last release in 2022. `pnpm audit` knows no advisory, and they only process files that the tool itself creates. Watch for advisories.",
+    "The function that installs the Wallet Matcher has 365 lines. Splitting it would make it easier to read; no defect follows from its length.",
+    "Card export makes no request and does not touch browser storage."
+  ],
+  "remediation": [
+    {
+      "id": "AUD-018-SEC001",
+      "status": "verified",
+      "fixCommit": "ceba2f75b99b73bfb592e9bb9d98f662831bd257",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "`bip39-bip32.test.ts`; CI"
+    },
+    {
+      "id": "AUD-018-SEC002",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "`mnemocode-cards.test.ts`; CI"
+    },
+    {
+      "id": "AUD-018-API001",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "`mnemocode-cards.test.ts`; CI"
+    },
+    {
+      "id": "AUD-018-API002",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "`mnemocode-cards.test.ts`; type check; CI"
+    },
+    {
+      "id": "AUD-018-BLD001",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "`sync-mnemocode-source.test.mjs`; CI"
+    },
+    {
+      "id": "AUD-018-BLD002",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "`sync-mnemocode-source.test.mjs`; the synchronizations of 2026-09-29"
+    },
+    {
+      "id": "AUD-018-UI001",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "`mnemocode.test.ts`; browser scenario `mnemocode-cards`"
+    },
+    {
+      "id": "AUD-018-UI002",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "Vendored sources of the pinned MnemoCode commit"
+    },
+    {
+      "id": "AUD-018-DOC001",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "Artifact gate; build without `mnemocode-cards`"
+    },
+    {
+      "id": "AUD-018-DOC002",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "Inspection of `README.md`"
+    },
+    {
+      "id": "AUD-018-ARC001",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "`mnemocode-cards.test.ts`, run locally with Poppler 26.01.0"
+    },
+    {
+      "id": "AUD-018-ARC002",
+      "status": "verified",
+      "fixCommit": "54f089713814fa93c02117bb6bdcada7ebfe609a",
+      "fixCommitNote": null,
+      "verificationCommit": "690df4f04aeceb966dc525137cfb347e977009bc",
+      "evidence": "Browser scenario `mnemocode-roundtrip`"
+    },
+    {
+      "id": "AUD-018-ARC003",
+      "status": "verified",
+      "fixCommit": "bab094614627ea77c73e7bec644f5c74f76f78c5",
+      "fixCommitNote": null,
+      "verificationCommit": "bab094614627ea77c73e7bec644f5c74f76f78c5",
+      "evidence": "`sync-mnemocode-source.test.mjs`; artifact gate; CI"
+    }
+  ],
+  "limitations": [
+    "In the reviewed parts no secret leaves the page, none is written to browser storage, and random choices come from the system source. The defects were an error message that repeated a mistyped word, buffers that were not cleared, a synchronization command that would have failed on the first annotated tag, and documents that lagged behind the code.",
+    "This record covers the MnemoCode part only. Everything listed as not run in the coverage ledger remains unreviewed by this audit. The probe file was temporary and is not retained, so the probes can be repeated only through the regression tests named above. The reviewer also wrote the fixes; no second reviewer checked them. The full local `pnpm verify` and the reproducible build were not run; CI ran its own checks. This is not a security certification."
+  ]
+}
