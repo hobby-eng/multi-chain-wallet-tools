@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { applyKeyDerivationFeatureTemplate, vendoredMnemoCodeVersion } from './key-derivation-features.mjs';
 import {
   MNEMOCODE_FILES,
   MNEMOCODE_MANIFEST,
@@ -102,5 +103,23 @@ describe('MnemoCode core vendoring', () => {
     expect(adapter).toContain(`export const MNEMOCODE_VERSION = '${manifest.version}';`);
     expect(adapter).toContain('../../recovery-mnemocode/source/core.js');
     expect(MNEMOCODE_SOURCE_DIRECTORY).toBe('packages/recovery-mnemocode/source');
+  });
+
+  it('shows the vendored version on the page and in the documents', () => {
+    const { version } = JSON.parse(readFileSync(resolve(root, MNEMOCODE_MANIFEST), 'utf8'));
+    expect(vendoredMnemoCodeVersion()).toBe(version);
+    const page = readFileSync(resolve(root, 'apps/key-derivation/src/index.html'), 'utf8');
+    // The page has a marker that the build fills; a number typed into the page would go stale.
+    expect(page).not.toMatch(/MnemoCode \d+\.\d+/u);
+    expect(page.match(/MnemoCode __MNEMOCODE_VERSION__/gu)).toHaveLength(2);
+    const everything = { has: () => true, hasCoin: () => true, hasRecovery: true };
+    const rendered = applyKeyDerivationFeatureTemplate(page, everything);
+    expect(rendered).not.toContain('__MNEMOCODE_VERSION__');
+    expect(rendered.split(`MnemoCode ${version}<`)).toHaveLength(3);
+    for (const document of ['README.md', 'docs/BUILD_MODULES.md']) {
+      const named = readFileSync(resolve(root, document), 'utf8').match(/MnemoCode \d+\.\d+\.\d+/gu) ?? [];
+      expect(named.length, document).toBeGreaterThan(0);
+      for (const name of named) expect(name, document).toBe(`MnemoCode ${version}`);
+    }
   });
 });
