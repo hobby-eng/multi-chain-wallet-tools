@@ -30,7 +30,7 @@ export interface StudyLayout {
   readonly qr?: { readonly x: number; readonly y: number; readonly size: number };
 }
 
-export type StudyTheme = 'cool' | 'warm' | 'noir';
+export type StudyTheme = 'cool' | 'warm' | 'noir' | 'mist';
 
 const COLLECTION_QR_MODULE_MM = 0.3;
 
@@ -140,22 +140,88 @@ export function collectionSheetLayout(
   };
 }
 
-/** Colours of the sheet. The page and the map are the same for every theme; only the ink differs. */
-const SHEET = {
+type Color = ReturnType<typeof rgb>;
+
+/** Colours of one sheet. */
+interface SheetPalette {
+  readonly background: Color;
+  readonly land: Color;
+  readonly coast: Color;
+  /** The plate behind the QR code and its border. */
+  readonly plate: Color;
+  readonly plateBorder: Color;
+  /** The heading, and the quieter lines around it. */
+  readonly ink: Color;
+  readonly muted: Color;
+  /** The first line under a card, and the lines below it. */
+  readonly caption: Color;
+  readonly captionMuted: Color;
+  /** The thin edge around a card and the darkness of its shadow. */
+  readonly cardEdge: Color;
+  readonly shadowOpacity: number;
+}
+
+const GRID = {
+  color: rgb(0.5, 0.53, 0.58),
+  /** The grid is meant to be felt rather than seen. */
+  opacity: 0.07,
+} as const;
+
+/** The dark page with the grey map, shared by the dark themes; only their ink differs. */
+const DARK_PAGE = {
   background: rgb(0.043, 0.047, 0.059),
   land: rgb(0.155, 0.165, 0.19),
   coast: rgb(0.22, 0.235, 0.265),
-  grid: rgb(0.5, 0.53, 0.58),
-  /** The grid is meant to be felt rather than seen. */
-  gridOpacity: 0.07,
   plate: rgb(0.075, 0.082, 0.1),
   plateBorder: rgb(0.3, 0.33, 0.38),
 } as const;
+
+const COOL: SheetPalette = {
+  ...DARK_PAGE,
+  ink: rgb(0.93, 0.95, 0.97),
+  muted: rgb(0.56, 0.61, 0.67),
+  caption: rgb(0.88, 0.91, 0.94),
+  captionMuted: rgb(0.55, 0.61, 0.67),
+  cardEdge: rgb(0.24, 0.28, 0.31),
+  shadowOpacity: 0.42,
+};
+
+const PALETTES: Readonly<Record<StudyTheme, SheetPalette>> = {
+  cool: COOL,
+  warm: {
+    ...COOL,
+    ink: rgb(0.95, 0.91, 0.84),
+    muted: rgb(0.66, 0.6, 0.52),
+    caption: rgb(0.93, 0.88, 0.8),
+    captionMuted: rgb(0.63, 0.55, 0.46),
+  },
+  noir: { ...COOL, cardEdge: rgb(0.18, 0.22, 0.26), shadowOpacity: 0.5 },
+  // A light page for the light glass cards, which a dark page made look cut out.
+  mist: {
+    background: rgb(0.78, 0.81, 0.85),
+    land: rgb(0.7, 0.74, 0.78),
+    coast: rgb(0.63, 0.67, 0.71),
+    plate: rgb(0.91, 0.93, 0.95),
+    plateBorder: rgb(0.48, 0.52, 0.57),
+    ink: rgb(0.13, 0.15, 0.18),
+    muted: rgb(0.34, 0.38, 0.43),
+    caption: rgb(0.13, 0.15, 0.18),
+    captionMuted: rgb(0.34, 0.38, 0.43),
+    cardEdge: rgb(0.57, 0.61, 0.65),
+    shadowOpacity: 0.22,
+  },
+};
 const GRATICULE_STEP_DEGREES = 30;
 const GRATICULE = graticule(GRATICULE_STEP_DEGREES);
 
 /** Draws the grey world map, as wide as the page allows and centred a little below the middle. */
-function drawWorldMap(page: PDFPage, width: number, height: number, margin: number): void {
+function drawWorldMap(
+  page: PDFPage,
+  palette: SheetPalette,
+  width: number,
+  height: number,
+  margin: number,
+): void {
   const mapWidth = (width - margin) * MM;
   const scale = mapWidth / WORLD_MAP_WIDTH;
   const mapHeight = WORLD_MAP_HEIGHT * scale;
@@ -167,17 +233,17 @@ function drawWorldMap(page: PDFPage, width: number, height: number, margin: numb
       x,
       y,
       scale,
-      borderColor: SHEET.grid,
+      borderColor: GRID.color,
       borderWidth: 0.35,
-      borderOpacity: SHEET.gridOpacity,
+      borderOpacity: GRID.opacity,
     });
   for (const path of WORLD_MAP_LAND)
     page.drawSvgPath(path, {
       x,
       y,
       scale,
-      color: SHEET.land,
-      borderColor: SHEET.coast,
+      color: palette.land,
+      borderColor: palette.coast,
       borderWidth: 0.3,
     });
 }
@@ -195,17 +261,17 @@ export function drawStudyFrame(
   theme: StudyTheme = 'cool',
 ): void {
   const { width, height, margin, compact, fontSize } = layout;
-  const warm = theme === 'warm';
-  const frameInk = warm ? rgb(0.95, 0.91, 0.84) : rgb(0.93, 0.95, 0.97);
-  const frameMuted = warm ? rgb(0.66, 0.6, 0.52) : rgb(0.56, 0.61, 0.67);
+  const palette = PALETTES[theme];
+  const frameInk = palette.ink;
+  const frameMuted = palette.muted;
   page.drawRectangle({
     x: 0,
     y: 0,
     width: page.getWidth(),
     height: page.getHeight(),
-    color: SHEET.background,
+    color: palette.background,
   });
-  drawWorldMap(page, width, height, margin);
+  drawWorldMap(page, palette, width, height, margin);
 
   // A QR code occupies the top right corner. On a sheet the heading stays centred on the page
   // and clear of the code on both sides; a card-sized page only has room beside the code.
@@ -284,8 +350,8 @@ export function drawStudyFrame(
       y: (height - y - size - 0.6) * MM,
       width: (size + 1.2) * MM,
       height: (size + 1.2) * MM,
-      color: SHEET.plate,
-      borderColor: SHEET.plateBorder,
+      color: palette.plate,
+      borderColor: palette.plateBorder,
       borderWidth: 0.4,
       opacity: 0.94,
       borderOpacity: 0.62,
@@ -306,21 +372,21 @@ export function drawStudyFrame(
 }
 
 export function drawStudyShadow(page: PDFPage, box: CardBox, theme: StudyTheme = 'cool'): void {
-  const noir = theme === 'noir';
+  const palette = PALETTES[theme];
   page.drawRectangle({
     x: (box.x + 0.45) * MM,
     y: page.getHeight() - (box.y + box.height + 0.7) * MM,
     width: box.width * MM,
     height: box.height * MM,
     color: rgb(0, 0, 0),
-    opacity: noir ? 0.5 : 0.42,
+    opacity: palette.shadowOpacity,
   });
   page.drawRectangle({
     x: (box.x - 0.3) * MM,
     y: page.getHeight() - (box.y + box.height + 0.3) * MM,
     width: (box.width + 0.6) * MM,
     height: (box.height + 0.6) * MM,
-    color: noir ? rgb(0.18, 0.22, 0.26) : rgb(0.24, 0.28, 0.31),
+    color: palette.cardEdge,
     opacity: 0.88,
   });
 }
@@ -333,7 +399,7 @@ export function drawStudyCaption(
   lines: readonly string[],
   theme: StudyTheme = 'cool',
 ): void {
-  const warm = theme === 'warm';
+  const palette = PALETTES[theme];
   for (const [i, value] of lines.entries()) {
     const fs = fit(font, value, layout.fontSize, 4, box.captionWidth * MM, 'Study reference');
     text(
@@ -343,13 +409,7 @@ export function drawStudyCaption(
       box.captionX + (box.captionWidth - font.widthOfTextAtSize(value, fs) / MM) / 2,
       box.captionTop + i * layout.lineHeight,
       fs,
-      i === 0
-        ? warm
-          ? rgb(0.93, 0.88, 0.8)
-          : rgb(0.88, 0.91, 0.94)
-        : warm
-          ? rgb(0.63, 0.55, 0.46)
-          : rgb(0.55, 0.61, 0.67),
+      i === 0 ? palette.caption : palette.captionMuted,
     );
   }
 }

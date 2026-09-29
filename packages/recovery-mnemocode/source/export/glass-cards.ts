@@ -4,11 +4,19 @@ import {
   GLASS_SHEET as SHEET,
   type GlassPageLayout,
 } from './glass-layout.js';
-import { MM } from './business-layout.js';
+import { MM, type CardBox } from './business-layout.js';
+import { clipCard } from './business-render-primitives.js';
 import { resolveIdentityFor } from './card-identities.js';
 import { readRenderAsset } from './platform.js';
 import fontkit from '@pdf-lib/fontkit';
-import { PDFDocument, rgb, type PDFPage, type PDFFont } from 'pdf-lib';
+import {
+  PDFDocument,
+  popGraphicsState,
+  rgb,
+  type PDFFont,
+  type PDFImage,
+  type PDFPage,
+} from 'pdf-lib';
 import { colorsToIndexes, unicodeToColors } from '../core.js';
 import { colorsToShare } from '../sskr/transport.js';
 import { resolvePresentationFor } from './card-copy.js';
@@ -129,6 +137,31 @@ function drawSheetIdentity(context: RenderContext, page: PDFPage, layout: GlassP
   }
 }
 
+// Glass cards are light, so their sheet is light as well.
+const SHEET_THEME = 'mist';
+
+// Share of the width of a photograph that lies outside the rim of the plate, on each side.
+// Measured in the three photographs: 2 to 4 of about 1000 pixels.
+const BACKGROUND_BESIDE_PLATE = 0.004;
+
+/**
+ * The photographs show a glass plate with rounded corners on a light background. A card is
+ * cut along the plate, not along the photograph: the corners are clipped to the rounded
+ * shape of every card, and the photograph is drawn a little wider, so that the rim of the
+ * plate meets the edge of the card and none of the background is left.
+ */
+function drawGlassPlate(page: PDFPage, artwork: PDFImage, box: CardBox): void {
+  const width = box.width / (1 - 2 * BACKGROUND_BESIDE_PLATE);
+  clipCard(page, box);
+  page.drawImage(artwork, {
+    x: (box.x - (width - box.width) / 2) * MM,
+    y: page.getHeight() - (box.y + box.height) * MM,
+    width: width * MM,
+    height: box.height * MM,
+  });
+  page.pushOperators(popGraphicsState());
+}
+
 async function drawCard(
   context: RenderContext,
   page: PDFPage,
@@ -141,11 +174,12 @@ async function drawCard(
   const refs = referencesFor(content, index, referencesPerCard);
   const bytes = await glassArtwork(refs, referencesPerCard);
   const artwork = referencesPerCard === 4 ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
-  page.drawImage(artwork, {
-    x: x * MM,
-    y: page.getHeight() - (top + cardHeight * scale) * MM,
-    width: cardWidth * scale * MM,
-    height: cardHeight * scale * MM,
+  drawGlassPlate(page, artwork, {
+    x,
+    y: top,
+    width: cardWidth * scale,
+    height: cardHeight * scale,
+    index,
   });
   if (referencesPerCard !== 4) {
     drawCompactLabels(context, page, index, refs, x, top, scale);
@@ -333,20 +367,16 @@ async function drawGlassStudy(context: RenderContext): Promise<void> {
     content.kind === 'sskr' ? content.collectionReference : '01',
     profile.name,
     payload,
+    SHEET_THEME,
   );
   for (const box of layout.cards) {
-    drawStudyShadow(page, box);
+    drawStudyShadow(page, box, SHEET_THEME);
     // The photograph is a design sketch; exact ordered references remain independent vector text.
     const refs = referencesFor(content, box.index, referencesPerCard);
     const bytes = await glassArtwork(refs, referencesPerCard);
     const artwork = referencesPerCard === 4 ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
-    page.drawImage(artwork, {
-      x: box.x * MM,
-      y: page.getHeight() - (box.y + box.height) * MM,
-      width: box.width * MM,
-      height: box.height * MM,
-    });
-    drawStudyCaption(page, font, layout, box, captions[box.index]!);
+    drawGlassPlate(page, artwork, box);
+    drawStudyCaption(page, font, layout, box, captions[box.index]!, SHEET_THEME);
   }
 }
 
