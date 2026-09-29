@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { MNEMOCODE_MANIFEST } from './sync-mnemocode-source.mjs';
 import { assertSafeCustomOutput } from './tool-feature-options.mjs';
 import { TOOL_MANIFESTS } from './tool-manifests.mjs';
 
@@ -16,6 +19,20 @@ const RECOVERY_FEATURES = Object.freeze([
   'gordian-envelope',
 ]);
 const ALIASES = Object.freeze({ matcher: 'wallet-matcher', silent: 'silent-payments' });
+
+const PROJECT_ROOT = fileURLToPath(new URL('..', import.meta.url));
+const MNEMOCODE_VERSION_MARKER = '__MNEMOCODE_VERSION__';
+
+/**
+ * Version of the vendored MnemoCode sources. The page shows this value and has no version
+ * text of its own, so an update of MnemoCode cannot leave an old number on the page.
+ */
+export function vendoredMnemoCodeVersion() {
+  const { version } = JSON.parse(readFileSync(resolve(PROJECT_ROOT, MNEMOCODE_MANIFEST), 'utf8'));
+  if (typeof version !== 'string' || !/^\d+\.\d+\.\d+$/u.test(version))
+    throw new Error(`${MNEMOCODE_MANIFEST} has no usable version.`);
+  return version;
+}
 
 function optionValues(args, name) {
   const values = [];
@@ -150,7 +167,7 @@ function removeButtons(source, attribute, value) {
 }
 
 export function applyKeyDerivationFeatureTemplate(template, features) {
-  let rendered = template;
+  let rendered = template.replaceAll(MNEMOCODE_VERSION_MARKER, vendoredMnemoCodeVersion());
   for (const coin of ['bitcoin', 'dash']) {
     if (features.hasCoin(coin)) continue;
     rendered = rendered.replace(
