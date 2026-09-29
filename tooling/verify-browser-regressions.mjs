@@ -1,8 +1,10 @@
 // Synthetic, direct-file integration tests. Never point this at a live browser profile.
 import assert from 'node:assert/strict';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { HDKey } from '@scure/bip32';
 import { entropyToMnemonic, mnemonicToSeedSync } from '@scure/bip39';
@@ -10,6 +12,9 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { hmac } from '@noble/hashes/hmac.js';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { p2tr } from '@scure/btc-signer';
+import upngModule from '@pdf-lib/upng';
+import { unzipSync } from 'fflate';
+import decodeQr from 'qr/decode.js';
 import { loadPlaywright } from './playwright-loader.mjs';
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.mjs';
 
@@ -467,6 +472,118 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   );
 }
 
+// Poppler draws the same PDF for comparison; without it the comparison is skipped, not faked.
+const hasPoppler = spawnSync('pdftocairo', ['-v']).error === undefined;
+const CARD_IMAGE_DPI = 300;
+// Two programs smooth edges and scale photographs differently. Measured on 2026-09-29 in
+// Chromium and Firefox: an average difference of 0.4 to 1.1 of 255, and 0.003% of the pixels
+// with a strong difference. One missing line of text is a strong difference in about 0.4%.
+const LARGEST_AVERAGE_DIFFERENCE = 2;
+const STRONG_DIFFERENCE = 96;
+const LARGEST_SHARE_OF_STRONG_DIFFERENCES = 0.0005;
+
+function pngPixels(bytes) {
+  const upng = upngModule.default ?? upngModule;
+  const image = upng.decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  return { width: image.width, height: image.height, data: new Uint8Array(upng.toRGBA8(image)[0]) };
+}
+
+function popplerPixels(pdf, width, height) {
+  const directory = mkdtempSync(join(tmpdir(), 'card-image-'));
+  try {
+    writeFileSync(join(directory, 'card.pdf'), pdf);
+    execFileSync('pdftocairo', [
+      ...['-png', '-transp', '-singlefile', '-r', String(CARD_IMAGE_DPI)],
+      ...['-x', '0', '-y', '0', '-W', String(width), '-H', String(height)],
+      join(directory, 'card.pdf'),
+      join(directory, 'card'),
+    ]);
+    return pngPixels(readFileSync(join(directory, 'card.png')));
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+/** Fails when the image of the page differs from the image that Poppler makes of the PDF. */
+function assertSamePicture(image, expected, label) {
+  assert.deepEqual([image.width, image.height], [expected.width, expected.height], label);
+  let sum = 0;
+  let strong = 0;
+  for (let pixel = 0; pixel < image.data.length; pixel += 4) {
+    let largest = 0;
+    // Red, green, blue and opacity.
+    for (let channel = 0; channel < 4; channel += 1) {
+      const difference = Math.abs(image.data[pixel + channel] - expected.data[pixel + channel]);
+      sum += difference;
+      largest = Math.max(largest, difference);
+    }
+    if (largest > STRONG_DIFFERENCE) strong += 1;
+  }
+  const average = sum / image.data.length;
+  const share = strong / (image.data.length / 4);
+  assert.ok(average < LARGEST_AVERAGE_DIFFERENCE, `${label} differs from the PDF by ${average.toFixed(2)} on average`);
+  assert.ok(
+    share < LARGEST_SHARE_OF_STRONG_DIFFERENCES,
+    `${label} differs strongly from the PDF in ${(share * 100).toFixed(3)}% of its pixels`,
+  );
+}
+
+function alphaAt(image, x, y) {
+  return image.data[(y * image.width + x) * 4 + 3];
+}
+
+async function mnemocodeCardImages(page, save, pdfArchive) {
+  await page.locator('#mnemocode-card-file-format').selectOption('png');
+  assert.match(await page.locator('#mnemocode-card-output-note').innerText(), /own numbered PNG image/u);
+  const archive = await save();
+  assert.equal(archive.name, 'cards-business.zip');
+  const documents = unzipSync(new Uint8Array(pdfArchive));
+  const images = unzipSync(new Uint8Array(archive.bytes));
+  assert.deepEqual(
+    Object.keys(images),
+    Object.keys(documents).map((name) => name.replace(/\.pdf$/u, '.png')),
+  );
+  for (const [name, bytes] of Object.entries(images)) {
+    const card = pngPixels(bytes);
+    // 90 x 50 mm at 300 dpi, in whole pixels.
+    assert.deepEqual([card.width, card.height], [1062, 590], name);
+    // The corners outside the rounded edge are transparent, the card itself is not.
+    for (const [x, y] of [
+      [0, 0],
+      [card.width - 1, 0],
+      [0, card.height - 1],
+      [card.width - 1, card.height - 1],
+    ])
+      assert.equal(alphaAt(card, x, y), 0, `${name} corner`);
+    assert.equal(alphaAt(card, card.width >> 1, card.height >> 1), 255, `${name} centre`);
+    assert.equal(alphaAt(card, card.width >> 1, 0), 255, `${name} top edge`);
+    if (hasPoppler) {
+      const expected = popplerPixels(documents[name.replace(/\.png$/u, '.pdf')], card.width, card.height);
+      assertSamePicture(card, expected, name);
+    }
+  }
+
+  // A sheet with a QR code: the code in the image must read like the code in the PDF.
+  await page.locator('#mnemocode-card-page-size').selectOption('a6');
+  await page.locator('#mnemocode-card-qr').check();
+  const sheet = await save();
+  assert.equal(sheet.name, 'cards-a6.png');
+  const pixels = pngPixels(sheet.bytes);
+  assert.deepEqual([pixels.width, pixels.height], [1748, 1240]);
+  const data = decodeQr(pixels);
+  assert.match(data, /^#[0-9A-F]{6}( #[0-9A-F]{6})+$/u);
+  if (hasPoppler) {
+    await page.locator('#mnemocode-card-file-format').selectOption('pdf');
+    const expected = popplerPixels((await save()).bytes, pixels.width, pixels.height);
+    assert.equal(decodeQr(expected), data);
+    assertSamePicture(pixels, expected, 'The sheet');
+  }
+  // The scenario continues with separate PDF cards.
+  await page.locator('#mnemocode-card-qr').uncheck();
+  await page.locator('#mnemocode-card-file-format').selectOption('pdf');
+  await page.locator('#mnemocode-card-page-size').selectOption('business');
+}
+
 async function mnemocodeCards(context, profile, run) {
   const page = await open(context, profile, 'key-derivation', run);
   const before = await storageSnapshot(page);
@@ -510,7 +627,11 @@ async function mnemocodeCards(context, profile, run) {
   assert.equal(await page.locator('#mnemocode-card-template option').count(), 16);
   assert.deepEqual(
     await page.locator('#mnemocode-card-page-size option').evaluateAll((options) => options.map((o) => o.value)),
-    ['a6', 'a4', 'wallet', 'business'],
+    ['a6', 'a4', 'business'],
+  );
+  assert.deepEqual(
+    await page.locator('#mnemocode-card-file-format option').evaluateAll((options) => options.map((o) => o.value)),
+    ['pdf', 'png'],
   );
 
   const save = async () => {
@@ -561,6 +682,7 @@ async function mnemocodeCards(context, profile, run) {
   await page.locator('#mnemocode-card-page-size').selectOption('business');
   assert.equal(archive.bytes.subarray(0, 2).toString('latin1'), 'PK');
   assert.match(await page.locator('#mnemocode-cards-status').innerText(), /with 8 cards/u);
+  await mnemocodeCardImages(page, save, archive.bytes);
 
   await page.locator('#mnemocode-card-name').fill('1234');
   await page.locator('#export-mnemocode-cards').click();

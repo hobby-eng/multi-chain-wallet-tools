@@ -2,12 +2,12 @@
 
 The `mnemocode` and `mnemocode-cards` build features contain no separate implementation of MnemoCode. They compile the unmodified sources of [hobby-eng/mnemocode](https://github.com/hobby-eng/mnemocode), stored in `packages/recovery-mnemocode/source/`.
 
-| Feature           | Imported from MnemoCode                                     | Added by this project                                    |
-| ----------------- | ----------------------------------------------------------- | -------------------------------------------------------- |
-| `mnemocode`       | Transformations, representations and the MNC1 record format | Input limits, BIP39 validation and result shapes         |
-| `mnemocode-cards` | Card templates and renderers with their font and artwork    | Random source, QR matrix, PNG coding, ZIP file, the form |
+| Feature           | Imported from MnemoCode                                     | Added by this project                                                             |
+| ----------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `mnemocode`       | Transformations, representations and the MNC1 record format | Input limits, BIP39 validation and result shapes                                  |
+| `mnemocode-cards` | Card templates and renderers with their font and artwork    | Random source, QR matrix, PNG coding, ZIP file, PNG images of the cards, the form |
 
-The command-line program, file output, the share engine with its WASM, and the QR and PNG libraries of MnemoCode are never imported. The renderers ask their host for those services, and this project supplies them from components it already has.
+The command-line program, file output, the share engine with its WASM, and the QR and PNG libraries of MnemoCode are never imported. MnemoCode makes images with a separate program that a browser does not have, so this project draws the finished PDF page on a canvas; see `packages/recovery-backup/src/mnemocode-card-drawing.ts`. The renderers ask their host for those services, and this project supplies them from components it already has.
 
 ## Shared packages
 

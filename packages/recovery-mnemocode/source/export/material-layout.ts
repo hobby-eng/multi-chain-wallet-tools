@@ -1,6 +1,7 @@
 import { pageDimensions, type CardPageSize, type CardOrientation } from './card-settings.js';
 
-const WALLET = { width: 85.6, height: 54 } as const;
+// The material layout was drawn for a card of 85.6 x 54 mm and is scaled to the page.
+const DRAWN_FOR = { width: 85.6, height: 54 } as const;
 const GRID = {
   portraitColumns: 3,
   landscapeColumns: 4,
@@ -18,8 +19,8 @@ export function materialPageLayout(size: CardPageSize, orientation?: CardOrienta
   const [width, height] = pageDimensions(size, orientation ?? 'landscape');
   const portrait = height > width;
   const scale = portrait
-    ? Math.min(width / WALLET.height, height / WALLET.width)
-    : Math.min(width / WALLET.width, height / WALLET.height);
+    ? Math.min(width / DRAWN_FOR.height, height / DRAWN_FOR.width)
+    : Math.min(width / DRAWN_FOR.width, height / DRAWN_FOR.height);
   return { width, height, portrait, scale };
 }
 

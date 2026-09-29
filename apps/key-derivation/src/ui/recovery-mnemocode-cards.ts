@@ -2,12 +2,14 @@ import { downloadBlob } from '@ckd/export/download.js';
 import { readMnemoCodeCardAsset } from '@ckd/recovery-backup/mnemocode-card-assets.js';
 import {
   createMnemoCodeCardExporter,
+  MNEMOCODE_CARD_FILE_FORMATS,
   MNEMOCODE_CARD_PAGE_SIZES,
   MNEMOCODE_CARD_TEMPLATES,
   mnemoCodeCardOutput,
   type MnemoCodeCardProfile,
 } from '@ckd/recovery-backup/mnemocode-cards.js';
 import { parseMnemoCodeDates, type MnemoCodeMode } from '@ckd/recovery-backup/mnemocode.js';
+import { cardPagesAsPng } from './recovery-mnemocode-card-images.js';
 import { required, type RecoveryFeatureContext } from './recovery-workspace-shared.js';
 
 const PROFILE_FIELDS = ['name', 'company', 'role', 'email', 'phone', 'website', 'location'] as const;
@@ -44,7 +46,7 @@ function nextFrame(): Promise<void> {
 }
 
 export function installMnemoCodeCards(context: RecoveryFeatureContext): void {
-  const exporter = createMnemoCodeCardExporter(readMnemoCodeCardAsset);
+  const exporter = createMnemoCodeCardExporter(readMnemoCodeCardAsset, cardPagesAsPng);
   const section = required<HTMLDetailsElement>('#mnemocode-cards-section');
   const representation = required<HTMLSelectElement>('#mnemocode-encode-format');
   const synchronizeVisibility = (): void => {
@@ -62,6 +64,8 @@ export function installMnemoCodeCards(context: RecoveryFeatureContext): void {
   );
   const pageSize = required<HTMLSelectElement>('#mnemocode-card-page-size');
   fillSelect(pageSize, MNEMOCODE_CARD_PAGE_SIZES);
+  const fileFormat = required<HTMLSelectElement>('#mnemocode-card-file-format');
+  fillSelect(fileFormat, MNEMOCODE_CARD_FILE_FORMATS);
   const qr = required<HTMLInputElement>('#mnemocode-card-qr');
   const qrRow = required<HTMLElement>('#mnemocode-card-qr-row');
   const outputNote = required<HTMLElement>('#mnemocode-card-output-note');
@@ -70,11 +74,16 @@ export function installMnemoCodeCards(context: RecoveryFeatureContext): void {
     // A QR code belongs to a sheet only; a separate card never carries one.
     qrRow.hidden = separate;
     if (separate) qr.checked = false;
+    const image = fileFormat.value === 'png';
+    const file = image ? 'PNG image' : 'PDF';
     outputNote.textContent = separate
-      ? 'Every card is saved as its own numbered PDF, all in one ZIP file.'
-      : 'All cards are placed on one sheet, saved as one PDF.';
+      ? `Every card is saved as its own numbered ${file}, all in one ZIP file.${
+          image ? ' The corners outside the rounded edge of a card are transparent.' : ''
+        }`
+      : `All cards are placed on one sheet, saved as one ${file}.`;
   };
   pageSize.addEventListener('change', synchronizeOutput);
+  fileFormat.addEventListener('change', synchronizeOutput);
   synchronizeOutput();
 
   const ownDetails = required<HTMLInputElement>('#mnemocode-card-own-details');
@@ -114,6 +123,7 @@ export function installMnemoCodeCards(context: RecoveryFeatureContext): void {
           pageSize: pageSize.value,
           orientation: required<HTMLSelectElement>('#mnemocode-card-orientation').value,
           qr: qr.checked,
+          fileFormat: fileFormat.value,
           // Hidden fields are ignored, so unticking the box returns to the invented details.
           profile: ownDetails.checked ? profile() : {},
           studioName: ownDetails.checked ? required<HTMLInputElement>('#mnemocode-card-studio').value : '',
@@ -125,7 +135,7 @@ export function installMnemoCodeCards(context: RecoveryFeatureContext): void {
         file.bytes.fill(0);
         const printed = `Printed for ${file.printed.name}, ${file.printed.company}.`;
         status.textContent =
-          file.mimeType === 'application/pdf'
+          file.mimeType !== 'application/zip'
             ? `Saved ${file.fileName}. ${printed} Print it at 100% size. The printed codes can restore the wallet; keep the file and the prints private.`
             : `Saved ${file.fileName} with ${file.cards} cards. ${printed} Every card is needed for recovery; keep the file and the prints private.`;
       } catch (cause) {

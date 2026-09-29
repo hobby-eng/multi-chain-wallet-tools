@@ -52,7 +52,7 @@ export function collectionSheetLayout(
   )
     throw new Error('Orientation must be portrait or landscape.');
   const [width, height] = pageDimensions(size, settings.orientation);
-  const compact = size === 'wallet' || size === 'business';
+  const compact = size === 'business';
   const large = size === 'a4';
   const margin = compact ? 3 : large ? 10 : 5;
   const header = compact ? 11 : large ? 33 : 23;
