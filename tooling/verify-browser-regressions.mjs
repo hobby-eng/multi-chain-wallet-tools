@@ -578,8 +578,22 @@ async function mnemocodeCardImages(page, save, pdfArchive) {
     assert.equal(decodeQr(expected), data);
     assertSamePicture(pixels, expected, 'The sheet');
   }
-  // The scenario continues with separate PDF cards.
   await page.locator('#mnemocode-card-qr').uncheck();
+
+  // The glass and material templates use photographs stored as JPEG, which the browser decodes.
+  const template = page.locator('#mnemocode-card-template');
+  const chosen = await template.inputValue();
+  await template.selectOption('business-glass-6in1');
+  await page.locator('#mnemocode-card-file-format').selectOption('png');
+  const glass = pngPixels((await save()).bytes);
+  assert.deepEqual([glass.width, glass.height], [1748, 1240]);
+  if (hasPoppler) {
+    await page.locator('#mnemocode-card-file-format').selectOption('pdf');
+    assertSamePicture(glass, popplerPixels((await save()).bytes, glass.width, glass.height), 'The glass sheet');
+  }
+  await template.selectOption(chosen);
+
+  // The scenario continues with separate PDF cards.
   await page.locator('#mnemocode-card-file-format').selectOption('pdf');
   await page.locator('#mnemocode-card-page-size').selectOption('business');
 }
