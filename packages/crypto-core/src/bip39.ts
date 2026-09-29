@@ -15,15 +15,12 @@ export function assertValidMnemonic(value: string): string {
     throw new Error('Enter exactly 12, 15, 18, 21, or 24 BIP39 English words.');
   }
   if (!validateMnemonic(mnemonic, wordlist)) {
-    // Preserve a concise diagnostic for local input validation. The candidate-scan
+    // The message names the position of an unknown word, never the word itself: a mistyped
+    // word is close to a secret one, and this text is shown openly. The candidate-scan
     // export boundary replaces this error with fixed text before reporting it.
-    try {
-      mnemonicToEntropy(mnemonic, wordlist);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      if (message.startsWith('Unknown word:')) {
-        throw new Error(`Invalid BIP39 mnemonic: ${message}.`);
-      }
+    const unknown = words.findIndex((word) => !wordlist.includes(word));
+    if (unknown >= 0) {
+      throw new Error(`Invalid BIP39 mnemonic: word ${unknown + 1} is not an English BIP39 word.`);
     }
     throw new Error('Invalid BIP39 mnemonic: check the word order and checksum.');
   }
