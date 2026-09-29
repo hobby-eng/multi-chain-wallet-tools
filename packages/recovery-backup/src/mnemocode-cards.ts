@@ -127,9 +127,24 @@ export const MNEMOCODE_CARD_TEMPLATES: readonly MnemoCodeCardTemplate[] = cardTe
 export const MNEMOCODE_CARD_PAGE_SIZES = [
   { id: 'a6', label: 'A6 sheet · 148 × 105 mm' },
   { id: 'a4', label: 'A4 sheet · 210 × 297 mm' },
-  { id: 'wallet', label: 'Separate wallet cards · 85.6 × 54 mm' },
   { id: 'business', label: 'Separate business cards · 90 × 50 mm' },
 ] as const satisfies readonly { readonly id: CardPageSize; readonly label: string }[];
+
+/** Images have the resolution that MnemoCode itself uses for its image export. */
+export const MNEMOCODE_CARD_IMAGE_DPI = 300;
+
+/** The first entry is the default. */
+export const MNEMOCODE_CARD_FILE_FORMATS = [
+  { id: 'pdf', label: 'PDF document' },
+  { id: 'png', label: `PNG image · ${MNEMOCODE_CARD_IMAGE_DPI} dpi` },
+] as const;
+export type MnemoCodeCardFileFormat = (typeof MNEMOCODE_CARD_FILE_FORMATS)[number]['id'];
+
+/**
+ * Turns every page of a card PDF into a PNG image. Only a browser can do this, so the
+ * page supplies it; see `mnemocode-card-drawing.ts` for how a page is read.
+ */
+export type MnemoCodeCardRasterizer = (pdf: Uint8Array) => Promise<Uint8Array[]>;
 
 /**
  * MnemoCode decides what a page size means: a sheet size holds the whole collection on
@@ -157,6 +172,8 @@ export interface MnemoCodeCardRequest {
   readonly orientation?: string | undefined;
   /** One QR code with the complete data; only a sheet can carry it. */
   readonly qr: boolean;
+  /** Empty or undefined means PDF. */
+  readonly fileFormat?: string | undefined;
   /** The user's own details. Whatever is left out is invented and kept for the session. */
   readonly profile?: MnemoCodeCardProfile | undefined;
   /** The user's own name for the studio on a sheet. */
@@ -165,7 +182,7 @@ export interface MnemoCodeCardRequest {
 
 export interface MnemoCodeCardFile {
   readonly fileName: string;
-  readonly mimeType: 'application/pdf' | 'application/zip';
+  readonly mimeType: 'application/pdf' | 'image/png' | 'application/zip';
   readonly bytes: Uint8Array;
   readonly cards: number;
   /** What is printed, so that the page can show it. None of it depends on the phrase. */
@@ -210,8 +227,30 @@ export interface MnemoCodeCardExporter {
   readonly forgetDetails: () => void;
 }
 
-export function createMnemoCodeCardExporter(readAsset: MnemoCodeCardAssetReader): MnemoCodeCardExporter {
+function fileFormat(request: MnemoCodeCardRequest): MnemoCodeCardFileFormat {
+  const format = request.fileFormat === undefined || request.fileFormat === '' ? 'pdf' : request.fileFormat;
+  if (format !== 'pdf' && format !== 'png') throw new Error('Select PDF or PNG as the file format.');
+  return format;
+}
+
+export function createMnemoCodeCardExporter(
+  readAsset: MnemoCodeCardAssetReader,
+  rasterize?: MnemoCodeCardRasterizer,
+): MnemoCodeCardExporter {
   const platform = createMnemoCodeCardPlatform(readAsset);
+  /** The card in the chosen file format. The PDF is recovery material and is cleared once it is drawn. */
+  const inFormat = async (pdf: Uint8Array, format: MnemoCodeCardFileFormat): Promise<Uint8Array> => {
+    if (format === 'pdf') return pdf;
+    if (rasterize === undefined) throw new Error('Image export is unavailable in this build.');
+    try {
+      const images = await rasterize(pdf);
+      const [image] = images;
+      if (image === undefined || images.length !== 1) throw new Error('A card must have exactly one page.');
+      return image;
+    } finally {
+      pdf.fill(0);
+    }
+  };
   // One session for every export until the page forgets it: every size shows the same details.
   let session: CardSession | undefined;
   return {
@@ -225,6 +264,7 @@ export function createMnemoCodeCardExporter(readAsset: MnemoCodeCardAssetReader)
       // The session draws its random choices from the platform, so the platform comes first.
       configureRenderPlatform(platform);
       session ??= createCardSession();
+      const format = fileFormat(request);
       const content = cardContent(request, session);
       const size = parsePageSize(pageSize(request));
       const printed = {
@@ -233,16 +273,17 @@ export function createMnemoCodeCardExporter(readAsset: MnemoCodeCardAssetReader)
         studio: content.presentation?.studioName ?? '',
       };
       if (mnemoCodeCardOutput(pageSize(request)) === 'collection') {
-        const bytes = await renderCards([{ template, content }]);
-        return { fileName: `cards-${size}.pdf`, mimeType: 'application/pdf', bytes, cards: 1, printed };
+        const bytes = await inFormat(await renderCards([{ template, content }]), format);
+        const mimeType = format === 'pdf' ? 'application/pdf' : 'image/png';
+        return { fileName: `cards-${size}.${format}`, mimeType, bytes, cards: 1, printed };
       }
       const cards = await renderIndividualCards(template, content);
       const entries: Record<string, Uint8Array> = {};
-      for (const card of cards) entries[`${card.name}.pdf`] = card.bytes;
+      for (const card of cards) entries[`${card.name}.${format}`] = await inFormat(card.bytes, format);
       // A fixed timestamp keeps the export time out of the archive.
       const bytes = zipSync(entries, { level: 0, mtime: new Date(1980, 0, 1, 0, 0, 0) });
-      // The archive holds its own copy; the separate documents are recovery material and are cleared.
-      for (const card of cards) card.bytes.fill(0);
+      // The archive holds its own copy; the separate files are recovery material and are cleared.
+      for (const entry of Object.values(entries)) entry.fill(0);
       return { fileName: `cards-${size}.zip`, mimeType: 'application/zip', bytes, cards: cards.length, printed };
     },
   };

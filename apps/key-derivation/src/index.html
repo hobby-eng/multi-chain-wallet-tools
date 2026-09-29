@@ -1566,7 +1566,7 @@
             </div>
             <div id="mnemocode-encode-result" class="share-results" role="status" aria-live="polite"></div>
             <details id="mnemocode-cards-section" class="mnemocode-cards" hidden>
-              <summary>Printable cards (PDF)</summary>
+              <summary>Printable cards (PDF or PNG)</summary>
               <p class="field-note">
                 Prints the color codes of the phrase above as cards that look like design samples. The printed codes are
                 the recovery data; names, companies and pictures are decoration. The selected transformation mode and
@@ -1588,6 +1588,10 @@
                     <option value="portrait">Portrait</option>
                     <option value="landscape">Landscape</option>
                   </select>
+                </div>
+                <div>
+                  <label for="mnemocode-card-file-format">File format</label>
+                  <select id="mnemocode-card-file-format"></select>
                 </div>
               </div>
               <p id="mnemocode-card-output-note" class="field-note"></p>

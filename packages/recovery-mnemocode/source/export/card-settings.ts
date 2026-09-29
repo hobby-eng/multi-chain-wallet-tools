@@ -1,5 +1,5 @@
 /** Print layout is independent of the visual template and the encoded format. */
-export type CardPageSize = 'a6' | 'a4' | 'wallet' | 'business';
+export type CardPageSize = 'a6' | 'a4' | 'business';
 export type CardOrientation = 'portrait' | 'landscape';
 export interface CardProfile {
   readonly name?: string;
@@ -38,8 +38,8 @@ export type BusinessStyle =
 
 export function parsePageSize(value: string | undefined): CardPageSize {
   if (value === undefined) return 'a6';
-  if (!['a6', 'a4', 'wallet', 'business'].includes(value))
-    throw new Error('Page size must be a6, a4, wallet, or business.');
+  if (!['a6', 'a4', 'business'].includes(value))
+    throw new Error('Page size must be a6, a4 or business.');
   return value as CardPageSize;
 }
 
@@ -47,7 +47,6 @@ export function parsePageSize(value: string | undefined): CardPageSize {
 const PAGE_DIMENSIONS: Readonly<Record<CardPageSize, readonly [number, number]>> = {
   a4: [210, 297],
   a6: [148, 105],
-  wallet: [85.6, 54],
   business: [90, 50],
 };
 
@@ -64,11 +63,11 @@ export function pageDimensions(
 }
 
 /**
- * Wallet and business sizes are the sizes of real cards, so every card becomes its own
- * numbered page. A6 and A4 are sheets that hold the whole collection on one page.
+ * The business size is the size of a real card, so every card becomes its own numbered
+ * page. A6 and A4 are sheets that hold the whole collection on one page.
  */
-export function isCardPageSize(size: CardPageSize | undefined): size is 'wallet' | 'business' {
-  return size === 'wallet' || size === 'business';
+export function isCardPageSize(size: CardPageSize | undefined): size is 'business' {
+  return size === 'business';
 }
 
 export function parseOrientation(value: string | undefined): CardOrientation | undefined {

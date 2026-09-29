@@ -20,12 +20,10 @@ export function glassPageLayout(
   cardHeight: number,
   count: number,
 ): GlassPageLayout {
-  const size = parsePageSize(
-    content.pageSize ?? (individual ? (cardWidth === 85.6 ? 'wallet' : 'business') : 'a6'),
-  );
+  const size = parsePageSize(content.pageSize ?? (individual ? 'business' : 'a6'));
 
   const [width, height] = pageDimensions(size, content.orientation);
-  const small = size === 'wallet' || size === 'business';
+  const small = size === 'business';
   const studioSheet = !individual && !small;
   const columns =
     individual || small

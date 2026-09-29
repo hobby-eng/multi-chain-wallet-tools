@@ -91,6 +91,7 @@ export function assertDashOnlyGraph(inputs, label) {
       'packages/recovery-backup/src/seedqr.ts',
       'packages/recovery-backup/src/mnemocode.ts',
       'packages/recovery-backup/src/mnemocode-cards.ts',
+      'packages/recovery-backup/src/mnemocode-card-drawing.ts',
       'packages/recovery-backup/src/mnemocode-card-assets.ts',
       MNEMOCODE_MANIFEST,
       ...Object.values(MNEMOCODE_FILES)
