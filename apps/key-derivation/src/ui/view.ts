@@ -467,7 +467,9 @@ export function createKeyDerivationView(
         return;
       }
       watchOnlyDescription.textContent = watchOnly.description;
-      copyWatchOnlyButton.textContent = watchOnly.label;
+      // The panel heading already says "Watch-only export"; the full action name stays in the accessible label.
+      copyWatchOnlyButton.setAttribute('aria-label', watchOnly.label);
+      downloadWatchOnlyButton.setAttribute('aria-label', `Save ${watchOnly.fileName}`);
       copyWatchOnlyButton.title = revealed
         ? watchOnly.description
         : `Show sensitive values first. ${watchOnly.description}`;
@@ -478,7 +480,7 @@ export function createKeyDerivationView(
     setRecoverySourceVisibility(revealed: boolean): void {
       mnemonic.classList.toggle('concealed', !revealed);
       passphrase.type = revealed ? 'text' : 'password';
-      toggleSensitiveValues.textContent = revealed ? 'Hide source' : 'Show source';
+      toggleSensitiveValues.textContent = revealed ? 'Hide phrase' : 'Show phrase';
       toggleSensitiveValues.setAttribute('aria-pressed', String(revealed));
       copyMnemonicButton.disabled = !revealed || mnemonic.value.trim().length === 0;
     },

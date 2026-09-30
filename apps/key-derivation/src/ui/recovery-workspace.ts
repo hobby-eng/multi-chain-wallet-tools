@@ -80,6 +80,8 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
   }
 
   const linkedSources = new Map<RecoverySourceTarget, RecoverySourceReference>();
+  /** Linked phrases the user chose to show; hidden phrases are not kept in the DOM. */
+  const revealedLinkedSources = new Map<RecoverySourceTarget, () => void>();
   const targetPanels: Readonly<Record<RecoverySourceTarget, string>> = {
     matcher: 'wallet-matcher-panel',
     seedqr: 'seedqr-panel',
@@ -120,6 +122,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
 
   function unlinkSource(target: RecoverySourceTarget): void {
     linkedSources.delete(target);
+    revealedLinkedSources.delete(target);
     document.querySelector<HTMLElement>(`[data-linked-source-for="${target}"]`)?.remove();
     for (const element of manualSourceElements(target)) element.hidden = false;
     document.dispatchEvent(new CustomEvent('recovery-source-change', { detail: target }));
@@ -181,7 +184,14 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     unlink.className = 'secondary compact';
     unlink.textContent = 'Enter another phrase';
     unlink.addEventListener('click', () => unlinkSource(target));
-    badge.append(description, unlink);
+    const summary = document.createElement('div');
+    summary.className = 'linked-source-summary';
+    const actions = document.createElement('div');
+    actions.className = 'linked-source-actions';
+    const phraseView = createLinkedPhraseView(target, reference);
+    actions.append(phraseView.toggle, unlink);
+    summary.append(description, actions);
+    badge.append(summary, phraseView.phrase, phraseView.problem);
     const panel = required<HTMLElement>(`#${targetPanels[target]}`);
     const anchor = manualElements[0] ?? panel.firstElementChild;
     if (anchor === null) panel.append(badge);
@@ -196,6 +206,69 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     }
   }
 
+  /**
+   * Show/Hide for the linked phrase. Showing reads the in-memory reference and places the words in a read-only
+   * field inside the card; hiding removes them from the DOM again. Like the phrase field in Generate & Derive,
+   * the words are hidden again when the window loses focus or the user leaves Recover & Back Up.
+   */
+  function createLinkedPhraseView(
+    target: RecoverySourceTarget,
+    reference: RecoverySourceReference,
+  ): { toggle: HTMLButtonElement; phrase: HTMLTextAreaElement; problem: HTMLElement } {
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'danger-outline compact';
+    const phrase = document.createElement('textarea');
+    phrase.className = 'linked-source-phrase';
+    phrase.rows = 3;
+    phrase.readOnly = true;
+    phrase.setAttribute('aria-label', `${reference.label} (read-only)`);
+    const problem = document.createElement('p');
+    problem.className = 'error';
+    problem.setAttribute('role', 'alert');
+    const render = (revealed: boolean): void => {
+      toggle.textContent = revealed ? 'Hide phrase' : 'Show phrase';
+      toggle.setAttribute('aria-pressed', String(revealed));
+      phrase.hidden = !revealed;
+      if (!revealed) phrase.value = '';
+    };
+    const conceal = (): void => {
+      if (!revealedLinkedSources.has(target)) return;
+      revealedLinkedSources.delete(target);
+      render(false);
+      document.dispatchEvent(new CustomEvent('recovery-source-visibility', { detail: target }));
+    };
+    toggle.addEventListener('click', () => {
+      problem.hidden = true;
+      if (revealedLinkedSources.has(target)) {
+        conceal();
+        return;
+      }
+      const value = reference.read();
+      if (value === null) {
+        problem.textContent = 'The linked source changed or was cleared. Choose it again from Generate & Derive.';
+        problem.hidden = false;
+        return;
+      }
+      phrase.value = value.mnemonic;
+      revealedLinkedSources.set(target, conceal);
+      render(true);
+      document.dispatchEvent(new CustomEvent('recovery-source-visibility', { detail: target }));
+    });
+    problem.hidden = true;
+    render(false);
+    return { toggle, phrase, problem };
+  }
+
+  const concealLinkedSources = (): void => {
+    for (const conceal of [...revealedLinkedSources.values()]) conceal();
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') concealLinkedSources();
+  });
+  window.addEventListener('blur', concealLinkedSources);
+  document.querySelector('#derive-generate-mode')?.addEventListener('click', concealLinkedSources);
+
   function linkedValue(target: RecoverySourceTarget): { mnemonic: string; passphrase: string } | null {
     const reference = linkedSources.get(target);
     if (reference === undefined) return null;
@@ -208,6 +281,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
   function readMnemonic(target: RecoverySourceTarget, selector: string): string {
     return linkedValue(target)?.mnemonic ?? required<HTMLTextAreaElement>(selector).value;
   }
-  installSelectedRecoveryFeatures({ ...options, readMnemonic, linkedValue });
+  const linkedSourceRevealed = (target: RecoverySourceTarget): boolean => revealedLinkedSources.has(target);
+  installSelectedRecoveryFeatures({ ...options, readMnemonic, linkedValue, linkedSourceRevealed });
   return { useSource, setCryptoEnabled };
 }

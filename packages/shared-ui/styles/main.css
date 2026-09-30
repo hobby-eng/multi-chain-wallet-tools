@@ -743,6 +743,11 @@ textarea.concealed {
 .feature-tab-active .standard-derivation-content {
   display: none !important;
 }
+/* The derived child wallet has its own feature tab (Silent Payments). It cannot reuse the class above:
+   the child workspace sits inside the original wallet's active Child seeds tab. */
+.nested-feature-active .nested-standard-content {
+  display: none !important;
+}
 .field-heading {
   display: flex;
   align-items: center;
@@ -889,7 +894,8 @@ textarea.concealed {
   font-weight: 750;
   margin-bottom: 8px;
 }
-.silent-payment-reserved code {
+/* Only the reserved address itself is a block; inline code in the note stays in its sentence. */
+.silent-payment-reserved > code {
   display: block;
   color: #f1c5aa;
   font: 11.5px/1.55 var(--mono);
@@ -1183,7 +1189,7 @@ button:disabled {
   filter: none;
   user-select: text;
 }
-#silent-payment-result.revealed .secret-value {
+.silent-payment-result.revealed .secret-value {
   filter: none;
   user-select: text;
 }
@@ -2559,19 +2565,41 @@ footer p {
 }
 
 .linked-recovery-source {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  display: grid;
+  gap: 12px;
   padding: 0.8rem 0.9rem;
   border: 1px solid var(--accent);
   border-radius: 0.65rem;
   background: var(--panel2);
 }
 
+.linked-source-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .linked-source-description {
   display: grid;
   gap: 0.25rem;
+}
+
+.linked-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* The linked phrase is short and read-only; it does not need the tall default textarea. */
+.linked-source-phrase {
+  min-height: 0;
+  resize: none;
+}
+
+.linked-recovery-source .error {
+  margin: 0;
 }
 
 .linked-recovery-source span {
@@ -2656,9 +2684,13 @@ footer p {
     margin-top: 0.4rem;
   }
 
-  .linked-recovery-source {
+  .linked-source-summary {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .linked-source-actions {
+    justify-content: flex-start;
   }
 }
 
@@ -2839,22 +2871,72 @@ footer p {
   line-height: 1.45;
 }
 
+/* SSKR group settings: the heading with its help, "Groups required", then one aligned table of groups
+   and a normal-width "Add group" button. Parts sit 16px apart; the heading labels the block 8px above it. */
+.threshold-settings {
+  display: grid;
+  gap: 16px;
+}
+
+.threshold-settings-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: -8px;
+}
+
+.threshold-settings-heading .field-label {
+  margin: 0;
+}
+
 .threshold-group-editor {
   display: grid;
-  gap: 0.65rem;
-  margin-top: 0.35rem;
+  justify-items: start;
+  gap: 12px;
 }
 
-.threshold-group-rows {
+/* The header and every row share one grid, so the columns line up; a row only groups its cells. */
+.threshold-group-table {
   display: grid;
-  gap: 0.55rem;
+  grid-template-columns: max-content minmax(5.5rem, 10rem) minmax(5.5rem, 10rem) max-content;
+  align-items: center;
+  gap: 8px 12px;
 }
 
-.threshold-group-add-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.55rem;
-  align-items: stretch;
+.threshold-groups-required,
+.threshold-group-header,
+.threshold-group-rows,
+.threshold-group-row {
+  display: contents;
+}
+
+.threshold-groups-required label {
+  margin: 0;
+}
+
+/* Every row starts in the first column; the "Groups required" input fills only the second. */
+.threshold-groups-required > label,
+.threshold-group-header > :first-child,
+.threshold-group-row > :first-child {
+  grid-column: 1;
+}
+
+/* A little more room between "Groups required" and the group table below it. */
+.threshold-groups-required + .threshold-group-header > span {
+  margin-top: 8px;
+}
+
+.threshold-group-header span {
+  align-self: end;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.threshold-group-name {
+  color: #d9e0e7;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .threshold-group-help {
@@ -2865,15 +2947,15 @@ footer p {
 .threshold-group-help summary {
   display: grid;
   place-items: center;
-  width: 2.5rem;
-  height: 100%;
-  min-height: 2.4rem;
+  width: 1.35rem;
+  height: 1.35rem;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: 0.55rem;
+  border-radius: 50%;
   color: var(--accent2);
-  background: var(--panel2);
-  font-weight: 800;
+  background: #111821;
+  font-size: 0.72rem;
+  line-height: 1;
   cursor: help;
   list-style: none;
 }
@@ -2886,8 +2968,8 @@ footer p {
 
 .threshold-group-help-popover {
   position: absolute;
-  right: 0;
-  bottom: calc(100% + 0.45rem);
+  top: calc(100% + 0.45rem);
+  left: 0;
   display: none;
   width: min(420px, calc(100vw - 72px));
   padding: 0.85rem;
@@ -2914,29 +2996,55 @@ footer p {
   display: block;
 }
 
-.threshold-group-row {
+/* The compact group editor of Gordian Envelope: one row of two labelled fields per group, in one cell
+   of the form grid, with "Add group" and the help below. */
+.threshold-inline-editor {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.threshold-inline-rows {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.threshold-inline-rows:empty {
+  display: none;
+}
+
+.threshold-inline-row {
   display: grid;
   grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) auto;
   gap: 0.55rem;
   align-items: end;
 }
 
-.threshold-group-row label {
+.threshold-inline-row label {
   margin: 0;
 }
 
-.threshold-group-row > button {
-  min-height: 2.85rem;
+.threshold-inline-add-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
 }
 
 @media (max-width: 700px) {
-  .threshold-group-row {
+  .threshold-inline-row {
     grid-template-columns: 1fr 1fr;
   }
 
-  .threshold-group-row > button {
+  .threshold-inline-row > button {
     grid-column: 1 / -1;
     justify-self: start;
+  }
+}
+
+@media (max-width: 520px) {
+  .threshold-group-table {
+    grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr) max-content;
+    column-gap: 8px;
   }
 }
 

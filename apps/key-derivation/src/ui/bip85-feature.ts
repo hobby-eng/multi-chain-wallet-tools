@@ -44,7 +44,7 @@ export function installBip85Feature(options: Bip85FeatureOptions) {
     optionalElement<HTMLElement>('#bip85-result')?.classList.toggle('revealed', revealed);
     optionalElement<HTMLTextAreaElement>('#bip85-output')?.classList.toggle('concealed', !revealed);
     if (toggleSecretButton !== null) {
-      toggleSecretButton.textContent = revealed ? 'Hide source' : 'Show source';
+      toggleSecretButton.textContent = revealed ? 'Hide secret' : 'Show secret';
       toggleSecretButton.setAttribute('aria-pressed', String(revealed));
     }
   }
@@ -219,6 +219,7 @@ export function installBip85Feature(options: Bip85FeatureOptions) {
       pendingRefresh = null;
       childWallet.cancelScheduledRefresh();
       clearDerivedWallet();
+      childWallet.resetFeatures();
       const output = optionalElement<HTMLTextAreaElement>('#bip85-output');
       if (output !== null) output.value = '';
       const passphrase = optionalElement<HTMLInputElement>('#bip85-child-passphrase');

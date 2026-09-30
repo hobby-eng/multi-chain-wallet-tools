@@ -69,7 +69,7 @@ export function renderSeedDiagnostic(
     item.append(title, explanation);
     if (unknown.suggestions.length > 0) {
       const suggestions = document.createElement('span');
-      suggestions.textContent = `Possible words: ${revealed ? unknown.suggestions.join(', ') : 'reveal recovery source to view'}`;
+      suggestions.textContent = `Possible words: ${revealed ? unknown.suggestions.join(', ') : 'show the phrase to view them'}`;
       item.append(suggestions);
     }
     problems.append(item);
@@ -84,7 +84,7 @@ export function renderSeedDiagnostic(
   if (!revealed) {
     const concealedNote = document.createElement('p');
     concealedNote.className = 'field-note';
-    concealedNote.textContent = 'Show source to view words, indexes, entropy, and checksum bits.';
+    concealedNote.textContent = 'Show the phrase to view words, indexes, entropy, and checksum bits.';
     constructionDetails.append(concealedNote);
   } else {
     const construction = diagnostic.construction;

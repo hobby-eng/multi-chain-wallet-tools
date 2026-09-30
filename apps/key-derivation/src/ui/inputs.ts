@@ -106,6 +106,24 @@ function renderProtocolTabs(adapter: CoinAdapter, controls: DerivationControls, 
   controls.protocolTabs.append(...featureTabs);
 }
 
+/** An optional feature tab (Silent Payments, Child seeds, CoinJoin) is shown only while its checkbox is ticked. */
+export function syncFeatureTabVisibility(checkbox: HTMLInputElement, tab: HTMLButtonElement): void {
+  tab.hidden = checkbox.disabled || !checkbox.checked;
+}
+
+/**
+ * Marks the selected entry of a "Derivation type" tab list: the tab of the active feature, or the
+ * adapter tab when no feature is active. The original and the derived child wallet both use it.
+ */
+export function markSelectedProtocolTab(protocolTabs: HTMLElement, adapterId: string, feature: string | null): void {
+  for (const button of protocolTabs.querySelectorAll<HTMLButtonElement>('.protocol-tab')) {
+    const selected = feature === null ? button.dataset.adapterId === adapterId : button.dataset.featureTab === feature;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-checked', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  }
+}
+
 export function configureControls(
   adapter: CoinAdapter,
   controls: DerivationControls,
