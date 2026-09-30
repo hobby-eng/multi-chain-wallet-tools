@@ -54,7 +54,7 @@ jobs:
 
       - name: Preserve browser failure diagnostics
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-failure-diagnostics
           path: test-results/
@@ -104,7 +104,7 @@ jobs:
         run: node tooling/build-launchers-reproducible.mjs
 
       - name: Keep the canonical build for the macOS and publishing jobs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: canonical-dist
           path: dist/
@@ -148,7 +148,7 @@ jobs:
             --platforms macos-aarch64,macos-x86_64
 
       - name: Keep the macOS executables for publishing
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: macos-launchers
           path: dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool-macos-*
