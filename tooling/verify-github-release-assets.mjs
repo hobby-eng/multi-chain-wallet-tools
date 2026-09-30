@@ -3,7 +3,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseBuildProfile, profileArtifacts } from './build-profiles.mjs';
-import { FAST_MODE_CHECKSUM, FAST_MODE_LAUNCHER, pageNamedByChecksumFile } from './mhfe-fast-mode-files.mjs';
+import { getToolBuild } from './build-profiles.mjs';
+import { assertLauncherFileEmbedsPage, LAUNCHER_PLATFORMS, launcherName } from './key-derivation-launchers.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const profile = parseBuildProfile();
@@ -12,12 +13,20 @@ const expectedArtifacts = profileArtifacts(profile)
   .map((artifact) => basename(artifact))
   .sort();
 const actualFiles = readdirSync(release).sort();
-// A release whose deriver includes MHFE also carries the fast-mode launcher and its checksum file.
-const fastModeFiles = actualFiles.includes(FAST_MODE_CHECKSUM) ? [FAST_MODE_CHECKSUM, FAST_MODE_LAUNCHER] : [];
+// The executable Key Derivation Tool for each platform it was built for. --all-launchers, used by
+// the release workflow, requires every platform.
+const deriverPage = basename(getToolBuild(profile, 'key-derivation').artifactRelativePath);
+const allLaunchers = Object.keys(LAUNCHER_PLATFORMS).map((platform) => launcherName(deriverPage, platform));
+const launchers = allLaunchers.filter((name) => actualFiles.includes(name));
+if (process.argv.includes('--all-launchers') && launchers.length !== allLaunchers.length) {
+  const missing = allLaunchers.filter((name) => !launchers.includes(name));
+  throw new Error(`The release lacks executable versions: ${missing.join(', ')}`);
+}
 const expectedFiles = new Set([
   ...expectedArtifacts,
   ...expectedArtifacts.map((name) => `${name}.sha256`),
-  ...fastModeFiles,
+  ...launchers,
+  ...launchers.map((name) => `${name}.sha256`),
   'LICENSE',
   'ATTRIBUTION.md',
   'THIRD_PARTY_NOTICES.md',
@@ -30,15 +39,15 @@ if (actualFiles.length !== expectedFiles.size || actualFiles.some((name) => !exp
 }
 
 const lines = readFileSync(resolve(release, 'SHA256SUMS'), 'utf8').trim().split('\n');
-if (lines.length !== expectedArtifacts.length + fastModeFiles.length + 4) {
+if (lines.length !== expectedArtifacts.length + launchers.length + 4) {
   throw new Error(
-    `Flat SHA256SUMS must contain ${expectedArtifacts.length} standalone HTML file(s), LICENSE, ATTRIBUTION.md, THIRD_PARTY_NOTICES.md, and verification-record.json.`,
+    `Flat SHA256SUMS must contain ${expectedArtifacts.length} standalone HTML file(s), ${launchers.length} executable(s), LICENSE, ATTRIBUTION.md, THIRD_PARTY_NOTICES.md, and verification-record.json.`,
   );
 }
 
 const remaining = new Set([
   ...expectedArtifacts,
-  ...fastModeFiles,
+  ...launchers,
   'LICENSE',
   'ATTRIBUTION.md',
   'THIRD_PARTY_NOTICES.md',
@@ -56,26 +65,15 @@ for (const line of lines) {
     .digest('hex');
   if (recorded !== actual) throw new Error(`Flat release checksum mismatch for ${name}.`);
   if (
-    !['LICENSE', 'ATTRIBUTION.md', 'THIRD_PARTY_NOTICES.md', 'verification-record.json', ...fastModeFiles].includes(
-      name,
-    ) &&
+    !['LICENSE', 'ATTRIBUTION.md', 'THIRD_PARTY_NOTICES.md', 'verification-record.json'].includes(name) &&
     readFileSync(resolve(release, `${name}.sha256`), 'utf8').trim() !== `${actual}  ${name}`
   ) {
     throw new Error(`Flat release sidecar mismatch for ${name}.`);
   }
 }
 if (remaining.size !== 0) throw new Error(`Flat release manifest is missing: ${[...remaining].join(', ')}`);
-if (fastModeFiles.length > 0) {
-  const { digest, page } = pageNamedByChecksumFile(
-    readFileSync(resolve(release, FAST_MODE_CHECKSUM), 'utf8'),
-    FAST_MODE_CHECKSUM,
-  );
-  const pageDigest = createHash('sha256')
-    .update(readFileSync(resolve(release, page)))
-    .digest('hex');
-  if (!expectedArtifacts.includes(page) || digest !== pageDigest) {
-    throw new Error(`${FAST_MODE_CHECKSUM} does not name a release page with its SHA-256.`);
-  }
+for (const name of launchers) {
+  assertLauncherFileEmbedsPage(resolve(release, name), resolve(release, deriverPage));
 }
 for (const legalName of ['LICENSE', 'ATTRIBUTION.md', 'THIRD_PARTY_NOTICES.md']) {
   if (readFileSync(resolve(release, legalName), 'utf8') !== readFileSync(resolve(root, legalName), 'utf8')) {

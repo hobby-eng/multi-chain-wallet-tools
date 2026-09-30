@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
 import { getToolBuild, parseBuildProfile } from '../../../tooling/build-profiles.mjs';
@@ -360,22 +360,6 @@ for (const [label, wasmPath] of wasmPaths) {
   const expectedWasmBase64 = readFileSync(wasmPath).toString('base64');
   const wasmCopies = occurrences(html, expectedWasmBase64);
   if (wasmCopies !== 1) throw new Error(`Expected exactly one embedded ${label} WASM module; found ${wasmCopies}.`);
-}
-// A page with MHFE carries the fast-mode launcher and its checksum file next to it: the launcher
-// serves the page only when mhfe-fast-mode.sha256 names it with its exact SHA-256.
-{
-  const folder = resolve(artifactPath, '..');
-  const checksumFile = resolve(folder, 'mhfe-fast-mode.sha256');
-  const launcher = resolve(folder, 'mhfe-fast-mode.py');
-  const pageDigest = createHash('sha256').update(readFileSync(artifactPath)).digest('hex');
-  const expectedLine = `${pageDigest}  ${basename(artifactPath)}\n`;
-  if (readFileSync(checksumFile, 'utf8') !== expectedLine) {
-    throw new Error('mhfe-fast-mode.sha256 next to the page does not name it with its SHA-256.');
-  }
-  const vendoredLauncher = resolve(root, 'packages/recovery-mhfe-wasm/generated/mhfe-fast-mode.py');
-  if (!readFileSync(launcher).equals(readFileSync(vendoredLauncher))) {
-    throw new Error('mhfe-fast-mode.py next to the page is not the vendored MHFE launcher.');
-  }
 }
 const wordlistMarker = 'abandon\nability\nable\nabout\nabove\nabsent';
 const escapedWordlistMarker = 'abandon\\nability\\nable\\nabout\\nabove\\nabsent';

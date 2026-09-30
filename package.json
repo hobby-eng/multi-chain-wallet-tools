@@ -13,6 +13,7 @@
     "build": "node tooling/verify-dependency-provenance.mjs && node tooling/verify-wasm-producers.mjs && node tooling/build-html-profiles.mjs",
     "build:reproducible": "node tooling/build-reproducible.mjs",
     "build:reproducible:wasm": "node tooling/build-reproducible.mjs --wasm",
+    "build:reproducible:launchers": "node tooling/build-launchers-reproducible.mjs",
     "build:html": "node tooling/verify-dependency-provenance.mjs && node tooling/build-html-profiles.mjs",
     "build:matrix": "node tooling/verify-dependency-provenance.mjs && node tooling/build-html-profiles.mjs --matrix",
     "build:matrix:plan": "node tooling/build-html-profiles.mjs --matrix --plan",

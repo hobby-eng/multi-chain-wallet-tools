@@ -110,6 +110,8 @@ pnpm build:html -- --profile multi-chain --tool psbt-inspector \
   --coins bitcoin --features psbt-decoder,descriptor-decoder
 ```
 
+The executable Deriver is built from a canonical Deriver page after the HTML build: `node tooling/build-key-derivation-launchers.mjs [--profile dash-community] [--platforms host|container|<list>]`. Selective builds have no executable version.
+
 Selective artifacts are written below `dist/custom-builds/` unless `--output path/to/file.html` is supplied. `--output` rejects every path inside either canonical edition directory; canonical release artifacts can only be written by complete profile builds. Invalid combinations fail before bundling; for example, `wallet-matcher` requires `seed-discovery`, and an Inspector build requires at least one workflow.
 
 ## Exhaustive build matrix

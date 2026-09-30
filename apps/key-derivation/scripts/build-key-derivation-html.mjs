@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, transform } from 'esbuild';
@@ -19,6 +19,7 @@ import {
   parseKeyDerivationFeatures,
   parseOutputPath,
 } from '../../../tooling/key-derivation-features.mjs';
+import { LAUNCHER_PLATFORMS, launcherName } from '../../../tooling/key-derivation-launchers.mjs';
 import {
   applyProfileTemplate,
   assertDashOnlyGraph,
@@ -290,33 +291,21 @@ mkdirSync(dist, { recursive: true });
 writeFileSync(artifact, html);
 const checksum = createHash('sha256').update(html).digest('hex');
 writeFileSync(`${artifact}.sha256`, `${checksum}  ${describeCustomArtifact(artifact)}\n`);
-if (features.has('mhfe')) writeFastModeLauncher(artifact, checksum);
+removeStaleLaunchers(artifact);
 console.log(
   `Built ${customArtifact === undefined ? `dist/${tool.artifactRelativePath}` : artifact} (${Buffer.byteLength(html).toLocaleString()} bytes)`,
 );
 console.log(`SHA-256 ${checksum}`);
 
 /**
- * Puts the MHFE fast-mode launcher next to the page. Opened as a file, the page runs Argon2 on one
- * thread; `mhfe-fast-mode.py` serves it from 127.0.0.1 with the headers that allow four threads,
- * but only when `mhfe-fast-mode.sha256` next to it names the page with its exact SHA-256. That
- * file always has this one name, so the launcher finds it without being told. A folder can hold
- * the launcher for one page only: a second MHFE page built into the same folder is reported and
- * left without it instead of taking the first page's place.
+ * Removes the executable versions of an earlier build of this page from its folder. Each one
+ * embeds the page it was built with, so after a new build they would serve the old page; they are
+ * built again with tooling/build-key-derivation-launchers.mjs.
  */
-function writeFastModeLauncher(page, pageChecksum) {
-  const folder = resolve(page, '..');
-  const checksumFile = resolve(folder, 'mhfe-fast-mode.sha256');
-  const line = `${pageChecksum}  ${basename(page)}\n`;
-  if (existsSync(checksumFile)) {
-    const listed = readFileSync(checksumFile, 'utf8').trim().split(/\s+/u)[1];
-    if (listed !== basename(page)) {
-      console.warn(
-        `Kept the fast-mode launcher of ${listed} in this folder; ${basename(page)} gets none. Build it into a folder of its own for fast mode.`,
-      );
-      return;
-    }
+function removeStaleLaunchers(page) {
+  for (const platform of Object.keys(LAUNCHER_PLATFORMS)) {
+    rmSync(resolve(page, '..', launcherName(basename(page), platform)), { force: true });
   }
-  writeFileSync(checksumFile, line);
-  copyFileSync(resolve(mhfeDirectory, 'mhfe-fast-mode.py'), resolve(folder, 'mhfe-fast-mode.py'));
+  // The Python fast-mode launcher that earlier builds put next to the page is replaced by them.
+  for (const name of ['mhfe-fast-mode.py', 'mhfe-fast-mode.sha256']) rmSync(resolve(page, '..', name), { force: true });
 }
