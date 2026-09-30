@@ -887,7 +887,7 @@ async function childWallet(context, profile, run) {
   assert.equal(await page.locator('#bip85-output').inputValue(), childMnemonic);
   const verifier = await open(context, profile, 'psbt-inspector', run);
   await verifySignature(verifier, proof.address, proof.signature, 'bitcoin');
-  assert.equal(await page.locator('#toggle-bip85-secret').innerText(), 'Show source');
+  assert.equal(await page.locator('#toggle-bip85-secret').innerText(), 'Show secret');
   const recoveryMenu = page.locator('#bip85-recovery-source-menu');
   const menuBox = await recoveryMenu.boundingBox();
   const revealBox = await page.locator('#toggle-bip85-secret').boundingBox();

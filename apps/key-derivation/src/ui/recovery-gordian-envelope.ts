@@ -47,7 +47,7 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
   const groupEditor = installThresholdGroupEditor('#envelope-sskr-groups', {
     initial: [],
     minimumRows: 0,
-    addLabel: 'Add SSKR permit group',
+    layout: 'inline',
     help: 'Each permit group creates a separate set of SSKR shares. First satisfy Shares required inside a group; then satisfy the Envelope group threshold with that many completed groups.',
   });
   installSecretToggle('#toggle-envelope-source', '#envelope-source', 'Show phrase', 'Hide phrase');

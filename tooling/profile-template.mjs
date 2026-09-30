@@ -1,3 +1,51 @@
+/** ID prefix of every control in the derived (BIP85 child) wallet workspace. */
+const CHILD_WALLET_ID_PREFIX = 'bip85-wallet-';
+
+/**
+ * Silent Payments tab, checkbox and panel. The original wallet uses an empty prefix; the derived child wallet
+ * uses CHILD_WALLET_ID_PREFIX, so both workspaces share one markup and one runtime (silent-payment-feature.ts).
+ */
+function silentPaymentMarkup(idPrefix) {
+  return {
+    tab: `<button type="button" id="${idPrefix}silent-payment-tab" class="protocol-tab primary-mode-tab" data-feature-tab="silent-payment" role="radio" aria-checked="false" aria-controls="${idPrefix}silent-payment-panel" tabindex="-1" hidden><span>Silent Payments</span><small>BIP352</small></button>`,
+    toggle: `<label class="feature-tab-toggle" for="${idPrefix}include-silent-payment" title="Give out one reusable address while each payment lands on a separate, unlinkable on-chain output.">
+        <input id="${idPrefix}include-silent-payment" type="checkbox" aria-controls="${idPrefix}silent-payment-tab">
+        <span>Show Silent Payments · BIP352</span>
+      </label>`,
+    panel: `<section id="${idPrefix}silent-payment-panel" class="supplemental-derivation span-three" aria-labelledby="${idPrefix}silent-payment-title" hidden>
+          <div class="supplemental-heading"><span class="step">SP</span><h3 id="${idPrefix}silent-payment-title">Bitcoin Silent Payments · BIP352</h3><span id="${idPrefix}silent-payment-secret-control-slot" class="result-secret-control-slot"></span></div>
+          <p class="feature-intro">Optional BIP352 address you can give out once and reuse. Everyone pays the same address, but each payment still lands on its own private, unlinkable output on-chain — nobody can tell they came from the same address. Discovering the unique outputs actually paid to this wallet requires scanning eligible transaction inputs and outputs; this offline file does not scan the blockchain.</p>
+          <div class="form-grid">
+          <div><label for="${idPrefix}silent-payment-network">Network</label><select id="${idPrefix}silent-payment-network"><option value="mainnet">Mainnet</option><option value="testnet">Testnet / Signet</option></select></div>
+          <div><label for="${idPrefix}silent-payment-account">Account</label><input id="${idPrefix}silent-payment-account" type="number" min="0" max="2147483647" value="0"></div>
+          <div><label for="${idPrefix}silent-payment-labels">Receive labels <span class="optional">optional</span></label><input id="${idPrefix}silent-payment-labels" type="text" placeholder="e.g. 1, 2, 3" autocomplete="off"><p class="field-note">Comma-separated label numbers from 1 upward, such as those you use to tell payers apart (“1 → Alice”, “2 → webshop”). Leave blank for just the base reusable address. Label <code>0</code> is reserved for change and is always shown separately below.</p></div>
+          </div>
+          <div class="actions"><button id="${idPrefix}derive-silent-payment" class="primary" type="button">Derive Silent Payment info</button></div>
+          <div id="${idPrefix}silent-payment-error" class="error" role="alert" hidden></div>
+          <div id="${idPrefix}silent-payment-result" class="silent-payment-result" hidden>
+            <div class="key-card root-material-card silent-payment-addresses">
+              <div class="root-card-kicker">REUSABLE ADDRESSES</div>
+              <div class="row"><span class="row-label">Base address</span><code class="value" id="${idPrefix}silent-payment-address"></code></div>
+              <div id="${idPrefix}silent-payment-labeled-list"></div>
+            </div>
+            <div class="silent-payment-reserved">
+              <div class="reserved-label-heading">⚠ Reserved change label (m=0) · internal use only — do not publish</div>
+              <p class="field-note">BIP352 reserves label <code>m=0</code> exclusively for this wallet's own change outputs. Do not hand this value to anyone as a receiving address.</p>
+              <code class="value" id="${idPrefix}silent-payment-change-address"></code>
+            </div>
+            <div class="signer-context silent-payment-technical">
+              <div><span>Scan key path</span><code id="${idPrefix}silent-payment-scan-path"></code></div>
+              <div><span>Scan public key</span><code id="${idPrefix}silent-payment-scan-key"></code></div>
+              <div><span>Spend key path</span><code id="${idPrefix}silent-payment-spend-path"></code></div>
+              <div><span>Spend public key</span><code class="secret-value" id="${idPrefix}silent-payment-spend-key"></code></div>
+            </div>
+            <p class="field-note">The reusable addresses above (<code>sp1…</code>) are what you share to be paid. Scan/spend public keys are wallet components, not addresses: pasting either into a typical block explorer will not find this wallet's Silent Payment outputs or balance.</p>
+            <p class="field-note">There is no fixed list of on-chain receive addresses to pre-generate. Each sender derives a unique Taproot output from a reusable address and their own transaction inputs; only a BIP352-aware scanner reading chain data can detect the resulting outputs and balance.</p>
+          </div>
+        </section>`,
+  };
+}
+
 export function applyProfileTemplate(template, profile, tool) {
   const dashBrandMark =
     profile.id === 'dash-community'
@@ -41,48 +89,18 @@ export function applyProfileTemplate(template, profile, tool) {
     profile.id === 'dash-community'
       ? '<option value="mainnet">Mainnet</option><option value="testnet">Testnet</option>'
       : '<option value="mainnet">Mainnet</option><option value="testnet">Testnet / Signet</option><option value="regtest">Regtest</option>';
-  const silentPaymentTab = !profile.capabilities.bitcoinSilentPayments
-    ? ''
-    : '<button type="button" id="silent-payment-tab" class="protocol-tab primary-mode-tab" data-feature-tab="silent-payment" role="radio" aria-checked="false" aria-controls="silent-payment-panel" tabindex="-1" hidden><span>Silent Payments</span><small>BIP352</small></button>';
-  const silentPaymentToggle = !profile.capabilities.bitcoinSilentPayments
-    ? ''
-    : `<label class="feature-tab-toggle" for="include-silent-payment" title="Give out one reusable address while each payment lands on a separate, unlinkable on-chain output.">
-        <input id="include-silent-payment" type="checkbox" aria-controls="silent-payment-tab">
-        <span>Show Silent Payments · BIP352</span>
-      </label>`;
-  const silentPaymentPanel = !profile.capabilities.bitcoinSilentPayments
-    ? ''
-    : `<section id="silent-payment-panel" class="supplemental-derivation span-three" aria-labelledby="silent-payment-title" hidden>
-          <div class="supplemental-heading"><span class="step">SP</span><h3 id="silent-payment-title">Bitcoin Silent Payments · BIP352</h3><span id="silent-payment-secret-control-slot" class="result-secret-control-slot"></span></div>
-          <p class="feature-intro">Optional BIP352 address you can give out once and reuse. Everyone pays the same address, but each payment still lands on its own private, unlinkable output on-chain — nobody can tell they came from the same address. Discovering the unique outputs actually paid to this wallet requires scanning eligible transaction inputs and outputs; this offline file does not scan the blockchain.</p>
-          <div class="form-grid">
-          <div><label for="silent-payment-network">Network</label><select id="silent-payment-network"><option value="mainnet">Mainnet</option><option value="testnet">Testnet / Signet</option></select></div>
-          <div><label for="silent-payment-account">Account</label><input id="silent-payment-account" type="number" min="0" max="2147483647" value="0"></div>
-          <div><label for="silent-payment-labels">Receive labels <span class="optional">optional</span></label><input id="silent-payment-labels" type="text" placeholder="e.g. 1, 2, 3" autocomplete="off"><p class="field-note">Comma-separated label numbers from 1 upward, such as those you use to tell payers apart (“1 → Alice”, “2 → webshop”). Leave blank for just the base reusable address. Label <code>0</code> is reserved for change and is always shown separately below.</p></div>
-          </div>
-          <div class="actions"><button id="derive-silent-payment" class="primary" type="button">Derive Silent Payment info</button></div>
-          <div id="silent-payment-error" class="error" role="alert" hidden></div>
-          <div id="silent-payment-result" hidden>
-            <div class="key-card root-material-card silent-payment-addresses">
-              <div class="root-card-kicker">REUSABLE ADDRESSES</div>
-              <div class="row"><span class="row-label">Base address</span><code class="value" id="silent-payment-address"></code></div>
-              <div id="silent-payment-labeled-list"></div>
-            </div>
-            <div class="silent-payment-reserved">
-              <div class="reserved-label-heading">⚠ Reserved change label (m=0) · internal use only — do not publish</div>
-              <p class="field-note">BIP352 reserves label <code>m=0</code> exclusively for this wallet's own change outputs. Do not hand this value to anyone as a receiving address.</p>
-              <code class="value" id="silent-payment-change-address"></code>
-            </div>
-            <div class="signer-context silent-payment-technical">
-              <div><span>Scan key path</span><code id="silent-payment-scan-path"></code></div>
-              <div><span>Scan public key</span><code id="silent-payment-scan-key"></code></div>
-              <div><span>Spend key path</span><code id="silent-payment-spend-path"></code></div>
-              <div><span>Spend public key</span><code class="secret-value" id="silent-payment-spend-key"></code></div>
-            </div>
-            <p class="field-note">The reusable addresses above (<code>sp1…</code>) are what you share to be paid. Scan/spend public keys are wallet components, not addresses: pasting either into a typical block explorer will not find this wallet's Silent Payment outputs or balance.</p>
-            <p class="field-note">There is no fixed list of on-chain receive addresses to pre-generate. Each sender derives a unique Taproot output from a reusable address and their own transaction inputs; only a BIP352-aware scanner reading chain data can detect the resulting outputs and balance.</p>
-          </div>
-        </section>`;
+  const silentPayment = profile.capabilities.bitcoinSilentPayments
+    ? silentPaymentMarkup('')
+    : { tab: '', toggle: '', panel: '' };
+  const silentPaymentTab = silentPayment.tab;
+  const silentPaymentToggle = silentPayment.toggle;
+  const silentPaymentPanel = silentPayment.panel;
+  // The derived child wallet offers Silent Payments with the same markup under its own ID prefix.
+  // Child seeds are deliberately not offered there: a child of a child would nest without end.
+  const childSilentPayment =
+    profile.capabilities.bitcoinSilentPayments && profile.capabilities.bip85
+      ? silentPaymentMarkup(CHILD_WALLET_ID_PREFIX)
+      : { tab: '', toggle: '', panel: '' };
   const bip85Tab = !profile.capabilities.bip85
     ? ''
     : '<button type="button" id="bip85-tab" class="protocol-tab primary-mode-tab" data-feature-tab="bip85" role="radio" aria-checked="false" aria-controls="bip85-panel" tabindex="-1" hidden><span>Child seeds</span><small>BIP85</small></button>';
@@ -108,7 +126,7 @@ export function applyProfileTemplate(template, profile, tool) {
         <div id="bip85-error" class="error" role="alert" hidden></div>
         <div id="bip85-result" hidden>
           <div class="signer-context"><div><span>Application path</span><code id="bip85-path"></code></div></div>
-          <div class="field-heading bip85-secret-heading"><label for="bip85-output">Derived secret</label><div class="section-head-actions"><details id="bip85-recovery-source-menu" class="recovery-source-menu" hidden><summary>Use in Recover &amp; Back Up</summary><div class="recovery-source-menu-items" aria-label="Recover and back up destination"><button type="button" data-recovery-source="bip85" data-recovery-target="matcher">Wallet Matcher</button><button type="button" data-recovery-source="bip85" data-recovery-target="seedqr">SeedQR</button><button type="button" data-recovery-source="bip85" data-recovery-target="mhfe">MHFE</button><button type="button" data-recovery-source="bip85" data-recovery-target="slip39">SLIP-39 shares</button><button type="button" data-recovery-source="bip85" data-recovery-target="sskr">Shamir shares (SSKR)</button><button type="button" data-recovery-source="bip85" data-recovery-target="gordian-envelope">Seed Envelope</button><button type="button" data-recovery-source="bip85" data-recovery-target="codex32">Codex32</button><button type="button" data-recovery-source="bip85" data-recovery-target="mnemocode">MnemoCode</button></div></details><button id="toggle-bip85-secret" class="secondary compact" type="button" aria-pressed="false">Show source</button></div></div>
+          <div class="field-heading bip85-secret-heading"><label for="bip85-output">Derived secret</label><div class="section-head-actions"><details id="bip85-recovery-source-menu" class="recovery-source-menu" hidden><summary>Use in Recover &amp; Back Up</summary><div class="recovery-source-menu-items" aria-label="Recover and back up destination"><button type="button" data-recovery-source="bip85" data-recovery-target="matcher">Wallet Matcher</button><button type="button" data-recovery-source="bip85" data-recovery-target="seedqr">SeedQR</button><button type="button" data-recovery-source="bip85" data-recovery-target="mhfe">MHFE</button><button type="button" data-recovery-source="bip85" data-recovery-target="slip39">SLIP-39 shares</button><button type="button" data-recovery-source="bip85" data-recovery-target="sskr">Shamir shares (SSKR)</button><button type="button" data-recovery-source="bip85" data-recovery-target="gordian-envelope">Seed Envelope</button><button type="button" data-recovery-source="bip85" data-recovery-target="codex32">Codex32</button><button type="button" data-recovery-source="bip85" data-recovery-target="mnemocode">MnemoCode</button></div></details><button id="toggle-bip85-secret" class="secondary compact" type="button" aria-pressed="false">Show secret</button></div></div>
           <textarea id="bip85-output" class="secret-value concealed" rows="3" readonly></textarea>
           <p class="field-note">This result is a new wallet secret. Reveal it only when needed. For a BIP39 result, “Show derived wallet” creates a separate workspace below without replacing the original recovery phrase above.</p>
           <div class="actions"><button id="open-bip85-wallet" class="secondary" type="button" aria-expanded="false" hidden>Show derived wallet</button></div>
@@ -122,21 +140,21 @@ export function applyProfileTemplate(template, profile, tool) {
             </div>
             <div class="form-grid">
               <div class="span-two"><label for="bip85-wallet-coin">Coin</label><select id="bip85-wallet-coin"></select></div>
-              <div id="bip85-wallet-network-field"><label for="bip85-wallet-network">Network</label><select id="bip85-wallet-network"></select></div>
-              <div class="protocol-tabs-field span-three"><label id="bip85-wallet-tabs-label">Derivation type</label><div id="bip85-wallet-tabs" class="protocol-tabs primary-mode-tabs" role="radiogroup" aria-labelledby="bip85-wallet-tabs-label"></div></div>
+              <div id="bip85-wallet-network-field" class="nested-standard-content"><label for="bip85-wallet-network">Network</label><select id="bip85-wallet-network"></select></div>
+              <div class="protocol-tabs-field span-three"><label id="bip85-wallet-tabs-label">Derivation type</label><div id="bip85-wallet-tabs" class="protocol-tabs primary-mode-tabs" role="radiogroup" aria-labelledby="bip85-wallet-tabs-label">${childSilentPayment.tab}</div></div>${childSilentPayment.toggle === '' ? '' : `<div class="feature-tab-options span-three">${childSilentPayment.toggle}</div>`}${childSilentPayment.panel}
               <div id="bip85-wallet-legacy-field" hidden><input id="bip85-wallet-legacy-toggle" type="checkbox" hidden></div>
-              <div id="bip85-wallet-account-field"><label id="bip85-wallet-account-label" for="bip85-wallet-account">Account</label><input id="bip85-wallet-account" type="number" value="0" min="0" max="2147483647"></div>
-              <div id="bip85-wallet-branch-field"><label id="bip85-wallet-branch-label" for="bip85-wallet-branch-input">Branch</label><input id="bip85-wallet-branch-input" type="number" value="0" min="0" max="2147483647"><select id="bip85-wallet-branch-select" hidden></select></div>
-              <div><label id="bip85-wallet-start-label" for="bip85-wallet-start">Start index</label><input id="bip85-wallet-start" type="number" value="0" min="0" max="2147483647"></div>
-              <div><label id="bip85-wallet-count-label" for="bip85-wallet-count">Number of results</label><input id="bip85-wallet-count" type="number" value="20" min="1" max="200"></div>
-              <div class="path-preview span-three"><label>Standard derivation path · read-only</label><code id="bip85-wallet-path"></code></div>
-              <div id="bip85-wallet-change-field" class="change-addresses-option span-three" hidden><label for="bip85-wallet-include-change"><input id="bip85-wallet-include-change" type="checkbox"><span><strong>Also generate change addresses</strong><small id="bip85-wallet-change-help"></small></span></label></div>
-              <div id="bip85-wallet-coinjoin-field" class="change-addresses-option span-three" hidden><label for="bip85-wallet-include-coinjoin"><input id="bip85-wallet-include-coinjoin" type="checkbox"><span><strong>Show CoinJoin addresses</strong><small><code id="bip85-wallet-coinjoin-help"></code></small></span></label></div>
+              <div id="bip85-wallet-account-field" class="nested-standard-content"><label id="bip85-wallet-account-label" for="bip85-wallet-account">Account</label><input id="bip85-wallet-account" type="number" value="0" min="0" max="2147483647"></div>
+              <div id="bip85-wallet-branch-field" class="nested-standard-content"><label id="bip85-wallet-branch-label" for="bip85-wallet-branch-input">Branch</label><input id="bip85-wallet-branch-input" type="number" value="0" min="0" max="2147483647"><select id="bip85-wallet-branch-select" hidden></select></div>
+              <div class="nested-standard-content"><label id="bip85-wallet-start-label" for="bip85-wallet-start">Start index</label><input id="bip85-wallet-start" type="number" value="0" min="0" max="2147483647"></div>
+              <div class="nested-standard-content"><label id="bip85-wallet-count-label" for="bip85-wallet-count">Number of results</label><input id="bip85-wallet-count" type="number" value="20" min="1" max="200"></div>
+              <div class="path-preview span-three nested-standard-content"><label>Standard derivation path · read-only</label><code id="bip85-wallet-path"></code></div>
+              <div id="bip85-wallet-change-field" class="change-addresses-option span-three nested-standard-content" hidden><label for="bip85-wallet-include-change"><input id="bip85-wallet-include-change" type="checkbox"><span><strong>Also generate change addresses</strong><small id="bip85-wallet-change-help"></small></span></label></div>
+              <div id="bip85-wallet-coinjoin-field" class="change-addresses-option span-three nested-standard-content" hidden><label for="bip85-wallet-include-coinjoin"><input id="bip85-wallet-include-coinjoin" type="checkbox"><span><strong>Show CoinJoin addresses</strong><small><code id="bip85-wallet-coinjoin-help"></code></small></span></label></div>
             </div>
-            <div class="actions"><button id="derive-bip85-wallet" class="primary" type="button">Derive child wallet addresses</button></div>
-            <div id="bip85-wallet-error" class="error" role="alert" hidden></div>
-            <div id="bip85-wallet-status" class="status" role="status" hidden></div>
-            <section id="bip85-wallet-results" hidden>
+            <div class="actions nested-standard-content"><button id="derive-bip85-wallet" class="primary" type="button">Derive child wallet addresses</button></div>
+            <div id="bip85-wallet-error" class="error nested-standard-content" role="alert" hidden></div>
+            <div id="bip85-wallet-status" class="status nested-standard-content" role="status" hidden></div>
+            <section id="bip85-wallet-results" class="nested-standard-content" hidden>
               <div class="results-title nested-results-title">
                 <span id="bip85-wallet-result-title">Child wallet results</span>
                 <div class="result-controls">
@@ -169,7 +187,7 @@ export function applyProfileTemplate(template, profile, tool) {
                 <p class="field-note">Exports use selected child-wallet rows. Account export includes receive and change descriptors for this child account. Sensitive exports remain disabled until private keys are revealed.</p>
               </section>
               <dialog id="bip85-wallet-account-export-dialog" aria-labelledby="bip85-wallet-account-export-title">
-                <div class="account-export-heading"><h3 id="bip85-wallet-account-export-title">Child wallet account export</h3><button class="secondary compact" id="bip85-wallet-close-account-export" type="button">Close</button></div>
+                <div class="account-export-heading"><h3 id="bip85-wallet-account-export-title">Child wallet account export</h3><button class="secondary compact" id="bip85-wallet-close-account-export" type="button" aria-label="Close account export">Close</button></div>
                 <p id="bip85-wallet-account-export-description"></p>
                 <label for="bip85-wallet-account-export-format">Export format</label>
                 <select id="bip85-wallet-account-export-format"><option value="core">Core wallet console command</option><option value="raw">Raw descriptors · Scanner / other wallets</option></select>

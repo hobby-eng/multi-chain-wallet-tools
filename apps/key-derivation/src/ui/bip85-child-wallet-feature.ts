@@ -4,8 +4,10 @@ import type { DerivationResult, DisplayMode, ResultField } from '@ckd/core/types
 import { displayedFields, inspectSelectedRows, type ExportAction, type ExportFormat } from '@ckd/export/formatter.js';
 import {
   configureControls,
+  markSelectedProtocolTab,
   populateCoinSelect,
   readControls,
+  syncFeatureTabVisibility,
   updatePathPreview,
   type CoinMetadataRegistry,
   type DerivationControlValues,
@@ -19,6 +21,8 @@ import { DerivationCancelledError, type DerivationWorkerClient } from '../worker
 
 const BASIC_WINDOW_SIZE = 200;
 const ADVANCED_WINDOW_SIZE = 24;
+/** Element ID prefix of the child workspace (see CHILD_WALLET_ID_PREFIX in tooling/profile-template.mjs). */
+const CHILD_WALLET_ID_PREFIX = 'bip85-wallet-';
 
 interface ResultExportContext {
   adapter: CoinAdapter;
@@ -48,6 +52,8 @@ export interface Bip85ChildWalletOptions {
   mnemonicToSeed: typeof import('@ckd/core/bip39.js').mnemonicToSeed;
   createWorker(): DerivationWorkerClient;
   messageSigning?: ChildMessageSigning;
+  /** Present when the build includes Silent Payments; the child reuses the original wallet's feature module. */
+  installSilentPaymentFeature?: typeof import('./silent-payment-feature.js').installSilentPaymentFeature;
   copyText(button: HTMLButtonElement, text: string, containsSecret: boolean): Promise<void>;
   copyBulkFrom(button: HTMLButtonElement, action: ExportAction, context: ResultExportContext): Promise<void>;
   downloadRowsFrom(
@@ -111,6 +117,32 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
   let bip85WalletRevision = 0;
   let activeBip85WalletWorker: DerivationWorkerClient | null = null;
 
+  // The child wallet offers the same optional Silent Payments tab as the original wallet, derived from
+  // the child phrase and the child passphrase. Child seeds (BIP85) are deliberately not offered here,
+  // so a derived wallet cannot derive further nested wallets.
+  const includeSilentPayment = optionalElement<HTMLInputElement>(`#${CHILD_WALLET_ID_PREFIX}include-silent-payment`);
+  const silentPaymentTab = optionalElement<HTMLButtonElement>(`#${CHILD_WALLET_ID_PREFIX}silent-payment-tab`);
+  const silentPaymentPanel = optionalElement<HTMLElement>(`#${CHILD_WALLET_ID_PREFIX}silent-payment-panel`);
+  const silentPaymentSecretSlot = optionalElement<HTMLElement>(
+    `#${CHILD_WALLET_ID_PREFIX}silent-payment-secret-control-slot`,
+  );
+  const secretsToggleHome = bip85WalletToggleSecrets?.parentElement ?? null;
+  const childPassphrase = (): string => optionalElement<HTMLInputElement>('#bip85-child-passphrase')?.value ?? '';
+  let silentPaymentActive = false;
+  const silentPayment =
+    includeSilentPayment === null
+      ? undefined
+      : options.installSilentPaymentFeature?.({
+          document,
+          idPrefix: CHILD_WALLET_ID_PREFIX,
+          mnemonic: () => options.mnemonic() ?? '',
+          passphrase: childPassphrase,
+          mnemonicToSeed,
+          createWorker,
+          isActive: () => silentPaymentActive && bip85WalletWorkspace?.hidden === false,
+          mnemonicMayBeComplete: () => options.mnemonic() !== null,
+        });
+
   function createBip85WalletControls(): DerivationControls | null {
     const required = <T extends Element>(selector: string): T | null => optionalElement<T>(selector);
     const nested = {
@@ -170,7 +202,42 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     bip85WalletNotices?.replaceChildren();
     bip85WalletList?.replaceChildren();
     bip85WalletBranchTabs?.replaceChildren();
+    silentPayment?.clear();
     updateBip85WalletActions();
+  }
+
+  /** Switches the child workspace between its address derivation and its Silent Payments panel. */
+  function setSilentPaymentActive(active: boolean): void {
+    silentPaymentActive = active && silentPayment !== undefined;
+    bip85WalletWorkspace?.classList.toggle('nested-feature-active', silentPaymentActive);
+    if (silentPaymentPanel !== null) silentPaymentPanel.hidden = !silentPaymentActive;
+    if (bip85WalletControls !== null && bip85WalletAdapter !== null) {
+      markSelectedProtocolTab(
+        bip85WalletControls.protocolTabs,
+        bip85WalletAdapter.id,
+        silentPaymentActive ? 'silent-payment' : null,
+      );
+    }
+    // Like the original wallet, keep "Show private keys" next to the panel that is in view.
+    if (bip85WalletToggleSecrets !== null) {
+      if (silentPaymentActive) silentPaymentSecretSlot?.append(bip85WalletToggleSecrets);
+      else secretsToggleHome?.prepend(bip85WalletToggleSecrets);
+    }
+  }
+
+  function syncSilentPaymentToggle(): void {
+    if (includeSilentPayment === null || silentPaymentTab === null) return;
+    if (silentPayment === undefined) {
+      includeSilentPayment.checked = false;
+      includeSilentPayment.disabled = true;
+      const label = includeSilentPayment.closest<HTMLElement>('label');
+      if (label !== null) label.hidden = true;
+    }
+    syncFeatureTabVisibility(includeSilentPayment, silentPaymentTab);
+    if (!includeSilentPayment.checked && silentPaymentActive) {
+      setSilentPaymentActive(false);
+      scheduleBip85WalletRefresh();
+    }
   }
 
   function nestedWalletField(
@@ -285,6 +352,11 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
   }
 
   function scheduleBip85WalletRefresh(): void {
+    if (silentPaymentActive) {
+      silentPayment?.clear();
+      silentPayment?.scheduleRefresh();
+      return;
+    }
     if (bip85WalletWorkspace?.hidden !== false || options.mnemonic() === null) return;
     if (pendingBip85WalletRefresh !== null) window.clearTimeout(pendingBip85WalletRefresh);
     pendingBip85WalletRefresh = window.setTimeout(() => {
@@ -311,12 +383,14 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     configureBip85Wallet(getDefaultCoinAdapter(initialFamily.id));
     bip85WalletControls.coin.addEventListener('change', () => {
       if (bip85WalletControls === null) return;
+      setSilentPaymentActive(false);
       configureBip85Wallet(getDefaultCoinAdapter(bip85WalletControls.coin.value));
     });
     bip85WalletControls.protocolTabs.addEventListener('click', (event) => {
       if (!(event.target instanceof Element)) return;
       const id = event.target.closest<HTMLButtonElement>('[data-adapter-id]')?.dataset.adapterId;
       if (id === undefined) return;
+      setSilentPaymentActive(false);
       if (id !== bip85WalletAdapter?.id) configureBip85Wallet(getCoinAdapter(id));
       else scheduleBip85WalletRefresh();
     });
@@ -426,6 +500,24 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
       if (activeBip85WalletWorker === null) deriveBip85WalletButton.disabled = false;
     }
   }
+
+  /** Derives whatever the child workspace shows: its addresses or its Silent Payments panel. */
+  async function deriveActiveChildView(): Promise<void> {
+    if (silentPaymentActive) {
+      if (options.mnemonic() !== null) silentPayment?.derive();
+      return;
+    }
+    await deriveBip85Wallet();
+  }
+
+  includeSilentPayment?.addEventListener('change', syncSilentPaymentToggle);
+  silentPaymentTab?.addEventListener('click', () => {
+    if (silentPayment === undefined) return;
+    clearBip85WalletResults();
+    setSilentPaymentActive(true);
+    if (options.mnemonic() !== null) silentPayment.derive();
+  });
+  syncSilentPaymentToggle();
 
   deriveBip85WalletButton?.addEventListener('click', () => void deriveBip85Wallet());
   bip85WalletBasicButton?.addEventListener('click', () => {
@@ -555,12 +647,13 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     openButton: optionalElement<HTMLButtonElement>('#open-bip85-wallet'),
     clear: clearBip85WalletResults,
     initialize: initializeBip85Wallet,
-    derive: deriveBip85Wallet,
+    derive: deriveActiveChildView,
     scheduleRefresh: scheduleBip85WalletRefresh,
     hasResults: () => bip85WalletBranchResults.size > 0,
     render: renderBip85Wallet,
     setSecretsVisible(revealed: boolean) {
       if (bip85WalletResults !== null) updateSecretVisibility(bip85WalletResults, revealed);
+      silentPayment?.setSecretsVisible(revealed);
       if (bip85WalletToggleSecrets !== null) {
         bip85WalletToggleSecrets.textContent = revealed ? 'Hide private keys' : 'Show private keys';
         bip85WalletToggleSecrets.setAttribute('aria-pressed', String(revealed));
@@ -570,6 +663,14 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     cancelScheduledRefresh() {
       if (pendingBip85WalletRefresh !== null) window.clearTimeout(pendingBip85WalletRefresh);
       pendingBip85WalletRefresh = null;
+      silentPayment?.cancelScheduledRefresh();
+    },
+    /** Returns the optional Silent Payments tab to its initial, unticked state. */
+    resetFeatures() {
+      if (includeSilentPayment !== null) includeSilentPayment.checked = false;
+      setSilentPaymentActive(false);
+      syncSilentPaymentToggle();
+      silentPayment?.reset();
     },
   };
 }
