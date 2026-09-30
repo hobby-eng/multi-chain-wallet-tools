@@ -31,7 +31,7 @@ interface ResultExportDependencies {
 export function createResultExportController(dependencies: ResultExportDependencies) {
   async function copyText(button: HTMLButtonElement, text: string, containsSecret: boolean): Promise<void> {
     if (containsSecret && !dependencies.secretsRevealed()) {
-      dependencies.showError('Reveal private and privacy-sensitive values before copying them.');
+      dependencies.showError('Show private and privacy-sensitive values before copying them.');
       return;
     }
     let temporary = text;
@@ -65,7 +65,7 @@ export function createResultExportController(dependencies: ResultExportDependenc
     if (inspection.valueCount > CLIPBOARD_VALUE_LIMIT) {
       dependencies.showError(
         `That selection holds ${inspection.valueCount.toLocaleString()} values, more than the clipboard can assemble safely. ` +
-          'Use Download selected instead: it streams the same rows to a file.',
+          'Use Save selected instead: it streams the same rows to a file.',
       );
       return;
     }
@@ -96,7 +96,7 @@ export function createResultExportController(dependencies: ResultExportDependenc
       return;
     }
     if (inspection.containsSecret && !dependencies.secretsRevealed()) {
-      dependencies.showError('Reveal private and privacy-sensitive values before exporting them.');
+      dependencies.showError('Show private and privacy-sensitive values before exporting them.');
       return;
     }
 

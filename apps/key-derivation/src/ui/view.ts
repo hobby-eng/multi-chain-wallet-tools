@@ -456,8 +456,7 @@ export function createKeyDerivationView(
       for (const [action, button] of Object.entries(descriptorButtons)) {
         const privateExport = action === 'privateCopy' || action === 'privateDownload';
         button.disabled = descriptors === undefined || (privateExport && !revealed);
-        button.title =
-          privateExport && !revealed ? 'Reveal sensitive values before exporting private descriptors.' : '';
+        button.title = privateExport && !revealed ? 'Show sensitive values before exporting private descriptors.' : '';
       }
       const watchOnly = descriptors === undefined ? result?.watchOnly : undefined;
       watchOnlyPanel.hidden = watchOnly === undefined;
@@ -471,21 +470,21 @@ export function createKeyDerivationView(
       copyWatchOnlyButton.textContent = watchOnly.label;
       copyWatchOnlyButton.title = revealed
         ? watchOnly.description
-        : `Reveal sensitive values first. ${watchOnly.description}`;
+        : `Show sensitive values first. ${watchOnly.description}`;
       downloadWatchOnlyButton.title = revealed
-        ? `Download ${watchOnly.fileName}`
-        : `Reveal sensitive values before downloading ${watchOnly.fileName}.`;
+        ? `Save ${watchOnly.fileName}`
+        : `Show sensitive values before saving ${watchOnly.fileName}.`;
     },
     setRecoverySourceVisibility(revealed: boolean): void {
       mnemonic.classList.toggle('concealed', !revealed);
       passphrase.type = revealed ? 'text' : 'password';
-      toggleSensitiveValues.textContent = revealed ? 'Hide recovery source' : 'Reveal recovery source';
+      toggleSensitiveValues.textContent = revealed ? 'Hide source' : 'Show source';
       toggleSensitiveValues.setAttribute('aria-pressed', String(revealed));
       copyMnemonicButton.disabled = !revealed || mnemonic.value.trim().length === 0;
     },
     setResultSecretsVisibility(revealed: boolean): void {
       updateSecretVisibility(resultsRoot, revealed);
-      toggleResultSecrets.textContent = revealed ? 'Hide all private keys' : 'Reveal all private keys';
+      toggleResultSecrets.textContent = revealed ? 'Hide private keys' : 'Show private keys';
       toggleResultSecrets.setAttribute('aria-pressed', String(revealed));
     },
     showResults(): void {

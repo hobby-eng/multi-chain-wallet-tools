@@ -124,20 +124,16 @@
     <main>
       <section class="warning danger-warning">
         <div class="warning-icon">!</div>
-        <div>
-          <strong>Decode before signing.</strong> A PSBT can request an unexpectedly high fee, hide change among
-          ordinary outputs, or contain misleading key paths. This utility inspects PSBTs, constructs public policies,
-          verifies message proofs, and decrypts BIP38 keys locally; it does not sign or broadcast transactions.
-        </div>
-      </section>
-      <section class="warning danger-warning">
-        <div class="warning-icon">!</div>
-        <div>
-          <strong>Experimental utility — do not use with real funds yet.</strong> This fourth HTML tool is an early
-          review build for offline inspection and watch-only multisig construction. Test only with valueless examples or
-          testnet funds until the scripts, descriptors, imports, wallet compatibility and recovery procedure have been
-          independently verified.
-        </div>
+        <ul class="callout-points">
+          <li>
+            <strong>Experimental utility — do not use with real funds yet.</strong> Test only with valueless examples or
+            testnet funds until its scripts, descriptors, imports and recovery procedure are independently verified.
+          </li>
+          <li>
+            <strong>Decode before signing.</strong> A PSBT can hide a high fee, disguised change or misleading key
+            paths. This tool inspects and builds locally; it never signs or broadcasts.
+          </li>
+        </ul>
       </section>
       <nav class="psbt-mode-tabs primary-mode-tabs" aria-label="PSBT workflow">
         <button class="psbt-mode-tab primary-mode-tab active" data-mode="inspector" type="button" aria-pressed="true">
@@ -446,7 +442,7 @@
               <h2>Recovered keys</h2>
             </div>
             <button id="toggle-bip38-result" class="secondary compact" type="button" aria-pressed="false" disabled>
-              Reveal private keys
+              Show private keys
             </button>
           </div>
           <div id="bip38-result-list" class="bip38-result-list"></div>
@@ -790,7 +786,7 @@
             <span>Full policy descriptor · Dash Core v21+</span><code id="dash-gui-command"></code>
             <div class="export-actions">
               <button class="secondary compact" data-copy="dash-gui-command" type="button">Copy GUI command</button
-              ><button id="download-dash-json" class="secondary compact" type="button">Download RPC JSON</button>
+              ><button id="download-dash-json" class="secondary compact" type="button">Save RPC JSON</button>
             </div>
           </div>
           <div id="dash-import-row" class="policy-row" hidden>
@@ -968,7 +964,7 @@
               <button id="wallet-copy-all-displayed" class="secondary compact" type="button">
                 Copy all displayed fields
               </button>
-              <button id="wallet-download-selected" class="secondary compact" type="button">Download selected</button>
+              <button id="wallet-download-selected" class="secondary compact" type="button">Save selected</button>
             </div>
           </section>
           <div class="wallet-result-controls">

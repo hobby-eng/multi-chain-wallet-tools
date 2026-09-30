@@ -585,7 +585,7 @@ export function createDiscoveryScannerView(
       for (const element of [singleMnemonic, singlePassphrase, batchMnemonics, batchPassphrases]) {
         element.classList.toggle('concealed', !value);
       }
-      revealButton.textContent = value ? 'Conceal sensitive input' : 'Reveal sensitive input';
+      revealButton.textContent = value ? 'Hide input' : 'Show input';
       revealButton.setAttribute('aria-pressed', String(value));
     },
     clearVisibleSecrets(): void {

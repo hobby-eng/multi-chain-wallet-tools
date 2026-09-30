@@ -26,8 +26,8 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
   installSecretToggle(
     '#toggle-envelope-recipient-mnemonic',
     '#envelope-recipient-mnemonic',
-    'Reveal recipient source phrase',
-    'Hide recipient source phrase',
+    'Show phrase',
+    'Hide phrase',
   );
   const recipientSource = required<HTMLSelectElement>('#envelope-recipient-source');
   const synchronizeRecipientSource = (): void => {
@@ -50,7 +50,7 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
     addLabel: 'Add SSKR permit group',
     help: 'Each permit group creates a separate set of SSKR shares. First satisfy Shares required inside a group; then satisfy the Envelope group threshold with that many completed groups.',
   });
-  installSecretToggle('#toggle-envelope-source', '#envelope-source', 'Reveal source phrase', 'Hide source phrase');
+  installSecretToggle('#toggle-envelope-source', '#envelope-source', 'Show phrase', 'Hide phrase');
   installMnemonicSourceDiagnostic(
     context,
     'gordian-envelope',
@@ -61,14 +61,14 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
   installSecretToggle(
     '#toggle-envelope-records',
     '#envelope-records, #envelope-private-key',
-    'Reveal entered secrets',
-    'Hide entered secrets',
+    'Show records',
+    'Hide records',
   );
   installSecretToggle(
     '#toggle-envelope-created',
     '#envelope-create-result .share-secret',
-    'Reveal created records',
-    'Hide created records',
+    'Show records',
+    'Hide records',
   );
   const result = required<HTMLElement>('#envelope-create-result');
   required<HTMLButtonElement>('#create-envelope').addEventListener('click', () => {
@@ -161,7 +161,7 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
     }
   });
   installQrImageImport(document, required<HTMLTextAreaElement>('#envelope-records'), {
-    label: 'Read Envelope QR image(s)',
+    label: 'Import QR images',
     multiple: true,
     onDecoded: ({ text }) => text.trim(),
     onError: (m) => {

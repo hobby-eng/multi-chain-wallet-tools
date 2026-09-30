@@ -470,6 +470,10 @@ label {
   font-weight: 700;
   margin: 0 0 8px;
 }
+/* A control inside its label gets the same 8px under the label text as a control that follows it. */
+label > :is(input:not([type='checkbox'], [type='radio'], [type='file']), select, textarea) {
+  margin-top: 8px;
+}
 .optional {
   color: var(--muted);
   font-weight: 500;
@@ -628,6 +632,15 @@ textarea.concealed {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 18px 14px;
+}
+/* Fields stacked outside a form grid: the grid's 18px between groups, and 10px between a field
+   or note and the button that acts on it. */
+.stacked-fields > :is(select, div) + div,
+.stacked-fields :is(textarea, input, button) + label {
+  margin-top: 18px;
+}
+.stacked-fields :is(textarea, .field-note) + button {
+  margin-top: 10px;
 }
 .span-two {
   grid-column: span 2;
@@ -959,6 +972,10 @@ button:disabled {
   border: 1px solid #29483a;
   background: #102019;
   color: #bce8d1;
+}
+/* An empty status line would show as a blank coloured bar before the first operation. */
+.status:empty {
+  display: none;
 }
 .status.warning {
   border-color: #79591f;
@@ -2170,6 +2187,27 @@ footer p {
   gap: 1rem;
 }
 
+/* The grid gap separates the parts of a form. A label belongs to the control below it and a note
+   to the field above it, so both sit 8px from it instead of adding their own margins to the gap;
+   the actions keep a little more room than the gap. */
+.backup-operation > label:not(:has(input, select, textarea)) {
+  margin-bottom: -8px;
+}
+.backup-operation > label:has(input, select, textarea) {
+  margin-bottom: 0;
+}
+.backup-operation > .field-note {
+  margin-top: -8px;
+}
+.backup-operation > .actions {
+  margin-top: 8px;
+}
+/* The diagnostic's own bottom margin serves the Generate & Derive page; in a form grid it would add
+   to the gap. */
+.backup-operation > .seed-diagnostic {
+  margin-bottom: 0;
+}
+
 .matcher-input-grid,
 .backup-options-grid {
   display: grid;
@@ -2312,6 +2350,8 @@ footer p {
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem;
+  /* The same 8px between the heading and its control as between a label and its control. */
+  margin-bottom: 8px;
 }
 
 /* The shared help button is pinned to a panel corner; here it sits next to its label. */
@@ -2377,11 +2417,6 @@ footer p {
 
 #mhfe-panel .mhfe-pim-note {
   margin-top: -0.75rem;
-}
-
-/* An empty status line would show as a blank coloured bar before the first operation. */
-#mhfe-panel .status:empty {
-  display: none;
 }
 
 /* An MHFE result card stacks a status callout, the words, the buttons and a note; give them room. */
@@ -2890,10 +2925,6 @@ footer p {
   margin: 0;
 }
 
-.threshold-group-row input {
-  margin-top: 0.3rem;
-}
-
 .threshold-group-row > button {
   min-height: 2.85rem;
 }
@@ -2926,4 +2957,86 @@ footer p {
   color: var(--accent2);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* One look for the shared building blocks of every tool. These rules come last on purpose: each
+   earlier rule tuned one place, and together they had drifted to several button sizes, checkbox
+   layouts and text sizes. Tabs and mode switches keep their own design. */
+
+/* Buttons: one height, padding, corner radius and text size. */
+:is(.primary, .secondary, .danger-outline, .secret-action, label.qr-image-import, .share-qr-action .qr-trigger) {
+  min-height: 40px;
+  padding: 10px 16px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+/* A button in a form grid keeps its own width instead of stretching across the form. */
+:is(.backup-operation, .share-results) > :is(button, label.qr-image-import, label.secondary) {
+  justify-self: start;
+}
+/* Buttons that act on a share or container sit side by side with room between them. */
+.share-secret-actions {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.share-secret-actions .qr-trigger {
+  height: auto;
+}
+
+/* Checkboxes: the box lines up with the first line of its label; a hint sits below in smaller text. */
+label:has(> input[type='checkbox']) {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #d9e0e7;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+label:has(> input[type='checkbox']) > input[type='checkbox'] {
+  flex: none;
+  width: auto;
+  /* Centres the 13px box on the first 17.5px line of the label text. */
+  margin: 2px 0 0;
+}
+label:has(> input[type='checkbox']) > span {
+  display: grid;
+  gap: 2px;
+}
+label:has(> input[type='checkbox']) :is(strong, b) {
+  font-size: 13px;
+  font-weight: 700;
+}
+label:has(> input[type='checkbox']) small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+/* Hints under fields: one size. */
+.field-note {
+  font-size: 12px;
+}
+
+/* Callouts: text at the size of the form around them, and several points as a short list. */
+:is(.warning-callout, .success-callout) {
+  font-size: 13px;
+  line-height: 1.5;
+}
+:is(.warning-callout, .success-callout) > p {
+  margin: 0;
+}
+:is(.warning-callout, .success-callout) > * + * {
+  margin-top: 6px;
+}
+.callout-points {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 1.1em;
 }
