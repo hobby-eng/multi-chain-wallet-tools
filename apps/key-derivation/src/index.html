@@ -657,21 +657,21 @@
             <div class="recovery-help-popover">
               <h3>Memory-Hard Feistel Encryption</h3>
               <p>
-                MHFE is an experimental encryption construction designed by this project's author. It converts a
-                checksum-valid 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase into one checksum-valid 24-word BIP39
-                container without storing a separate salt, nonce, or tag. It runs twelve 512 MiB Argon2id-backed Feistel
-                rounds and can therefore take several minutes on slower computers.
+                MHFE is an experimental encryption construction designed by this project's author. It turns a
+                checksum-valid 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase into a password-protected 24-word
+                container that is itself a checksum-valid BIP39 phrase, without storing a salt, nonce, or tag. It runs
+                twelve Feistel rounds, each with Argon2id over 2 GiB of memory, so every recovery deliberately takes
+                minutes; an encryption decrypts its result once more to check it and takes twice as long.
               </p>
               <p>
-                Short source phrases carry a recovery fingerprint whose first bits are their ordinary BIP39 checksum. A
-                24-word source fills the whole state and cannot carry that fingerprint, so its recovered checksum does
-                not prove that the password was correct.
+                Short source phrases carry a built-in check that confirms the password and finds the length. A 24-word
+                source fills the whole state and has none, so a wrong password gives another valid phrase; compare the
+                result with your wallet.
               </p>
               <p>
-                An optional 24-word mode can preserve the source's complete final word by repeatedly running the full
-                encryption until that word matches. The word is then visible in the encrypted container. This search
-                averages about 2,048 complete encryptions, can take many hours depending on the computer, and may finish
-                much sooner or later. It is unnecessary for exact recovery and does not verify the password.
+                Opened as a file, this page runs Argon2 on one thread. The launcher mhfe-fast-mode.py next to this file
+                serves the page from this computer so that the browser allows four threads, about three times faster.
+                The browser supports memory level 0 (2 GiB); higher levels need the mhfe command-line tool.
               </p>
               <p class="upstream-links">
                 Read the
@@ -681,7 +681,7 @@
                 and inspect the
                 <a href="https://github.com/hobby-eng/mhfe" target="_blank" rel="noopener noreferrer"
                   >reference implementation</a
-                >. This page embeds the verified v0.3.1 browser module.
+                >. This page embeds the MHFE 0.4.0 browser package, suite MHFE-BIP39-256-EXPERIMENTAL-3.
               </p>
             </div>
           </details>
@@ -690,6 +690,7 @@
             for protecting real funds. Losing the password or a deliberately selected non-zero PIM makes recovery
             impossible.
           </div>
+          <div id="mhfe-mode" role="note" aria-live="polite"></div>
           <nav class="backup-mode-tabs" role="tablist" aria-label="MHFE operation">
             <button
               class="backup-mode-tab active"
@@ -767,45 +768,15 @@
               Use a non-zero PIM work factor
             </label>
             <label id="mhfe-encrypt-pim-field" for="mhfe-encrypt-pim" hidden
-              >PIM (1–31)
-              <input id="mhfe-encrypt-pim" type="number" min="1" max="31" step="1" value="1" />
+              >PIM (1–1023)
+              <input id="mhfe-encrypt-pim" type="number" min="1" max="1023" step="1" value="1" />
             </label>
             <p class="field-note mhfe-pim-note">
-              With the checkbox off, PIM is 0 and does not need to be recorded. This browser module accepts printable
-              ASCII passwords so its normalization is exact and reproducible.
+              With the checkbox off, PIM is 0 and does not need to be recorded. Each PIM step adds the default time
+              again: PIM 1 doubles it, and recovery needs the same value. Memory level: 0 (2 GiB), the only level a
+              browser supports. A password of four or better five words chosen with dice is strong. It is ordinary text
+              on one line in any language; tabs, line breaks and other invisible control characters are refused.
             </p>
-            <label class="checkbox-row" for="mhfe-encrypt-preserve-final-word">
-              <input id="mhfe-encrypt-preserve-final-word" type="checkbox" />
-              Preserve the final word of a 24-word source (very slow)
-            </label>
-            <div class="mhfe-option-explainer">
-              <p class="field-note">
-                Keeps the original final word as a visible check word. It is not required to recover the original
-                phrase.
-              </p>
-              <details class="recovery-help mhfe-option-help">
-                <summary>More details</summary>
-                <div class="recovery-help-popover">
-                  <h3>Why preserve the final word?</h3>
-                  <p>
-                    A 24-word source uses the entire 256-bit plaintext state, leaving no room for the internal recovery
-                    fingerprint carried by shorter sources. Its encrypted container still has a valid BIP39 checksum,
-                    but its final word is normally unrelated to the source's final word.
-                  </p>
-                  <p>
-                    This mode repeats the complete memory-hard encryption until the container has exactly the same final
-                    word, including its checksum bits. It is useful only when you want that recognizable word to remain
-                    visible in the container. Standard mode still recovers the original phrase exactly when the correct
-                    password and recorded PIM, if any, are supplied.
-                  </p>
-                  <p>
-                    The search averages about 2,048 attempts and can take many hours. Progress and a device-based
-                    estimate appear below. Stop safely discards the unfinished search. Because every result from this
-                    mode preserves the word, it does not confirm that the password is correct.
-                  </p>
-                </div>
-              </details>
-            </div>
             <div class="actions">
               <button class="primary" id="mhfe-encrypt" type="button">Encrypt to 24 words</button>
               <button class="secondary" id="mhfe-encrypt-stop" type="button" hidden>Stop</button>
@@ -842,8 +813,8 @@
               Use the recorded non-zero PIM
             </label>
             <label id="mhfe-decrypt-pim-field" for="mhfe-decrypt-pim" hidden
-              >PIM (1–31)
-              <input id="mhfe-decrypt-pim" type="number" min="1" max="31" step="1" value="1" />
+              >PIM (1–1023)
+              <input id="mhfe-decrypt-pim" type="number" min="1" max="1023" step="1" value="1" />
             </label>
             <label for="mhfe-decrypt-source-words">
               Original phrase length
@@ -856,15 +827,10 @@
                 <option value="24">24 words</option>
               </select>
             </label>
-            <label class="checkbox-row" for="mhfe-decrypt-preserve-final-word">
-              <input id="mhfe-decrypt-preserve-final-word" type="checkbox" />
-              The final-word-preserving mode was used
-            </label>
             <p class="field-note">
-              Auto checks the recovery fingerprints for 12, 15, 18, and 21 words; if none matches, it returns the
-              24-word interpretation. Use an exact length only as an override. In the extremely unlikely event that
-              several short lengths match, every matching phrase is shown. Select the final-word mode only when it was
-              used during encryption; it forces 24 words and repeats the same potentially multi-hour search.
+              Auto checks the built-in checks of 12, 15, 18, and 21 words; if none passes, it returns the 24-word
+              reading. Select the length yourself for a 24-word original, or when encryption told you to. In the
+              extremely unlikely event that several lengths pass, every candidate is shown.
             </p>
             <div class="actions">
               <button class="primary" id="mhfe-decrypt" type="button">Recover phrase</button>

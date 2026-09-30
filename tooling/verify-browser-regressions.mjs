@@ -307,26 +307,23 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   await page.locator('#mhfe-encrypt-use-pim').check();
   assert.equal(await page.locator('#mhfe-encrypt-pim-field').isVisible(), true);
   await page.locator('#mhfe-encrypt-use-pim').uncheck();
-  assert.equal(await page.locator('#mhfe-encrypt-preserve-final-word').count(), 1);
+  // The final-word mode of the old module is gone, and the page says which speed it runs at.
+  assert.equal(await page.locator('#mhfe-encrypt-preserve-final-word').count(), 0);
+  await waitText(page, '#mhfe-mode', /Slow mode|Fast mode/u);
   await clickStep(
     page.locator('#mhfe-panel [data-operation-tab][aria-controls="mhfe-restore-panel"]'),
     'Open MHFE recovery',
   );
-  await page.locator('#mhfe-decrypt-preserve-final-word').check();
-  assert.equal(await page.locator('#mhfe-decrypt-source-words').inputValue(), '24');
-  assert.equal(await page.locator('#mhfe-decrypt-source-words').isDisabled(), true);
-  await page.locator('#mhfe-decrypt-preserve-final-word').uncheck();
   assert.equal(await page.locator('#mhfe-decrypt-source-words').inputValue(), 'auto');
-  assert.equal(await page.locator('#mhfe-decrypt-source-words').isDisabled(), false);
   await clickStep(
     page.locator('#mhfe-panel [data-operation-tab][aria-controls="mhfe-create-panel"]'),
     'Open MHFE encryption',
   );
   await clickStep(page.locator('#mhfe-encrypt'), 'Start MHFE worker');
-  await waitText(page, '#mhfe-encrypt-status', /Running 12 memory-hard/u);
+  await waitText(page, '#mhfe-encrypt-status', /Encrypting · round 1 of 12/u);
   assert.equal(await page.locator('#mhfe-encrypt-password').inputValue(), '');
   await clickStep(page.locator('#mhfe-encrypt-stop'), 'Stop MHFE worker');
-  await waitText(page, '#mhfe-encrypt-status', /worker and Argon2 memory were discarded/u);
+  await waitText(page, '#mhfe-encrypt-status', /worker and its memory were discarded/u);
 
   const methods = [
     {

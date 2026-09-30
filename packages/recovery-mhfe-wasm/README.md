@@ -1,14 +1,34 @@
-# MHFE browser module
+# MHFE browser package
 
-This directory contains the browser WASM module built from the reviewed
-[`hobby-eng/mhfe` v0.3.1 source](https://github.com/hobby-eng/mhfe/tree/26ec19419bddf0d68dcbb94e5ac713a9104fbab7).
-The Key Derivation Tool embeds it in a dedicated Web Worker and terminates that
-worker to cancel an active operation.
+This directory holds the MHFE 0.4.0 browser package (suite `MHFE-BIP39-256-EXPERIMENTAL-3`) from
+[`hobby-eng/mhfe`](https://github.com/hobby-eng/mhfe), unchanged. MHFE 0.4.0 is not released yet:
+the files are those of `mhfe-v0.4.0-browser.tar.gz` from the reproducible Docker build
+(`scripts/build-reproducible.sh`) of commit
+[`5dd7a71`](https://github.com/hobby-eng/mhfe/commit/5dd7a7168aed51bb478f031dc934d07e04078a42) of the
+`suite-3-c-engine` branch, recorded in `tooling/verify-dependency-provenance.mjs`, and must be
+replaced by the release build before a release of these tools.
 
-- Source commit: `26ec19419bddf0d68dcbb94e5ac713a9104fbab7`
-- `generated/mhfe.js`: `89c03e218fdbf8a5e75aeb823bda3ffdda54f51a55aba5ac788b1944fc95149b`
-- `generated/mhfe.d.ts`: `1775abebd385685edd79ae6fea0da72d412384fba3987c64a3f0b58bed85b2db`
-- `generated/mhfe_bg.wasm`: `bb6f8c46a5751ccb1d86675ef6c9a4b3af06e38a10e112d97017c09f70877133`
-- `generated/mhfe_bg.wasm.d.ts`: `a943919741a49f42a006f847e8cc0e668c5b6c1e145eca59ebc0d4978ea1bfdf`
+The Key Derivation Tool embeds the worker and both Argon2 builds as text and the core as bytes, and
+runs every operation in a disposable Worker through `client.js`. `mhfe-fast-mode.py` is copied next
+to every built page that includes MHFE, together with `mhfe-fast-mode.sha256`.
 
-The module is MIT licensed. See `LICENSE-MHFE`.
+| File                           | What it is                                                                                |
+| ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `client.js`, `client.d.ts`     | The page-side client and its types                                                        |
+| `mhfe-worker.js`               | The worker: the Rust core's glue, the Argon2 bridge and the worker logic                  |
+| `mhfe_core_bg.wasm`            | The Rust core: all MHFE logic except Argon2                                               |
+| `argon2-mt.js`, `argon2-st.js` | The reference Argon2 C code compiled with Emscripten 6.0.10, threaded and single-threaded |
+| `mhfe-fast-mode.py`            | The fast-mode launcher for computers with Python 3.8 or later                             |
+
+SHA-256 of the vendored files:
+
+- `generated/client.js`: `9586fb55165731c08fc92595e3e048c6fd8f4d1a0ecf51725062b68b549aec56`
+- `generated/client.d.ts`: `ec8df6e43eff62987f2c893960175296165e85cf84636efb5df2cab6aaff4a6c`
+- `generated/mhfe-worker.js`: `0ef6562d98cd33e99df8a13955b1f970c9772420b4b0d0b96b2e3ea0b95cc2b9`
+- `generated/mhfe_core_bg.wasm`: `d293c4297f3df368e0fc2e1bfa96e9c8317f6ff8411edb25140e741bda23fd02`
+- `generated/argon2-mt.js`: `f98906c851a986df514d22536bb48a09724a0fa0b49079860b9a0ef00806f521`
+- `generated/argon2-st.js`: `63ece7b314daf8a06ebadb0ff7acdf8be886ddfc9660b5ad13577536c4a3f6da`
+- `generated/mhfe-fast-mode.py`: `fb9ba8bc863b3310cb80b37383a5ac260e2b3ae20601ffce5bfc3e0ba8906788`
+
+MHFE is MIT licensed (`LICENSE-MHFE`). The Argon2 builds contain the reference C implementation of
+Argon2, used under Apache-2.0 (`LICENSE-ARGON2`).

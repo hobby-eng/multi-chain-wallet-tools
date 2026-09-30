@@ -52,10 +52,13 @@ const GITHUB_SOURCES = [
     commit: 'b225ae77e9251a813cf2bd61e7874629d6f3cb10',
   },
   {
-    id: 'mhfe-v0.3.1',
+    // MHFE 0.4.0 is not released yet. The browser package is taken from the reproducible Docker
+    // build (scripts/build-reproducible.sh) of this exact commit of the suite-3-c-engine branch.
+    // Replace it with the release tag once 0.4.0 is published.
+    id: 'mhfe-v0.4.0-draft',
     repository: 'hobby-eng/mhfe',
-    reference: 'v0.3.1 browser WASM source revision',
-    commit: '26ec19419bddf0d68dcbb94e5ac713a9104fbab7',
+    reference: 'suite-3-c-engine draft of version 0.4.0, browser package (unreleased)',
+    commit: '5dd7a7168aed51bb478f031dc934d07e04078a42',
   },
   {
     id: 'sskr-0.12.0',
@@ -105,13 +108,15 @@ const LOCAL_IMPLEMENTATIONS = [
   },
   {
     id: 'mhfe-browser-module',
-    upstream: 'mhfe-v0.3.1',
+    upstream: 'mhfe-v0.4.0-draft',
     files: [
-      'packages/recovery-mhfe-wasm/generated/mhfe.js',
-      'packages/recovery-mhfe-wasm/generated/mhfe.d.ts',
-      'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm',
-      'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm.d.ts',
-      'apps/key-derivation/src/workers/mhfe-backup-worker.ts',
+      'packages/recovery-mhfe-wasm/generated/client.js',
+      'packages/recovery-mhfe-wasm/generated/client.d.ts',
+      'packages/recovery-mhfe-wasm/generated/mhfe-worker.js',
+      'packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm',
+      'packages/recovery-mhfe-wasm/generated/argon2-mt.js',
+      'packages/recovery-mhfe-wasm/generated/argon2-st.js',
+      'packages/recovery-mhfe-wasm/generated/mhfe-fast-mode.py',
       'apps/key-derivation/src/ui/recovery-mhfe.ts',
     ],
   },
@@ -165,12 +170,19 @@ const LOCAL_IMPLEMENTATIONS = [
 ];
 
 const FIXED_SOURCE_HASHES = Object.freeze({
-  'packages/recovery-mhfe-wasm/generated/mhfe.js': '89c03e218fdbf8a5e75aeb823bda3ffdda54f51a55aba5ac788b1944fc95149b',
-  'packages/recovery-mhfe-wasm/generated/mhfe.d.ts': '1775abebd385685edd79ae6fea0da72d412384fba3987c64a3f0b58bed85b2db',
-  'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm':
-    'bb6f8c46a5751ccb1d86675ef6c9a4b3af06e38a10e112d97017c09f70877133',
-  'packages/recovery-mhfe-wasm/generated/mhfe_bg.wasm.d.ts':
-    'a943919741a49f42a006f847e8cc0e668c5b6c1e145eca59ebc0d4978ea1bfdf',
+  'packages/recovery-mhfe-wasm/generated/client.js': '9586fb55165731c08fc92595e3e048c6fd8f4d1a0ecf51725062b68b549aec56',
+  'packages/recovery-mhfe-wasm/generated/client.d.ts':
+    'ec8df6e43eff62987f2c893960175296165e85cf84636efb5df2cab6aaff4a6c',
+  'packages/recovery-mhfe-wasm/generated/mhfe-worker.js':
+    '0ef6562d98cd33e99df8a13955b1f970c9772420b4b0d0b96b2e3ea0b95cc2b9',
+  'packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm':
+    'd293c4297f3df368e0fc2e1bfa96e9c8317f6ff8411edb25140e741bda23fd02',
+  'packages/recovery-mhfe-wasm/generated/argon2-mt.js':
+    'f98906c851a986df514d22536bb48a09724a0fa0b49079860b9a0ef00806f521',
+  'packages/recovery-mhfe-wasm/generated/argon2-st.js':
+    '63ece7b314daf8a06ebadb0ff7acdf8be886ddfc9660b5ad13577536c4a3f6da',
+  'packages/recovery-mhfe-wasm/generated/mhfe-fast-mode.py':
+    'fb9ba8bc863b3310cb80b37383a5ac260e2b3ae20601ffce5bfc3e0ba8906788',
 });
 
 function sha256(bytes) {
