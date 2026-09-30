@@ -35,12 +35,7 @@ function adapterMetadata(context: RecoveryFeatureContext, id: string): CoinAdapt
   return context.registry.getCoinAdapter(id);
 }
 export function installWalletMatcher(context: RecoveryFeatureContext): void {
-  installSecretToggle(
-    '#toggle-matcher-secrets',
-    '#matcher-seeds, #matcher-passphrases',
-    'Reveal seed and passphrase lists',
-    'Hide seed and passphrase lists',
-  );
+  installSecretToggle('#toggle-matcher-secrets', '#matcher-seeds, #matcher-passphrases', 'Show lists', 'Hide lists');
   const coinSelect = required<HTMLSelectElement>('#matcher-coin');
   for (const family of context.registry.COIN_FAMILIES) {
     const option = document.createElement('option');
@@ -215,11 +210,11 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
           const exportPublic = document.createElement('button');
           exportPublic.type = 'button';
           exportPublic.className = 'secondary compact';
-          exportPublic.textContent = 'Download public matches';
+          exportPublic.textContent = 'Save public matches';
           const revealPrivate = document.createElement('button');
           revealPrivate.type = 'button';
           revealPrivate.className = 'danger-outline compact';
-          revealPrivate.textContent = 'Reveal matched private keys';
+          revealPrivate.textContent = 'Show private keys';
           toolbar.append(copyPublic, exportPublic, revealPrivate);
 
           const tableWrap = document.createElement('div');
@@ -275,7 +270,7 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
             if (privateTsv !== null) {
               privateVisible = !privateVisible;
               matcherResults.classList.toggle('revealed', privateVisible);
-              revealPrivate.textContent = privateVisible ? 'Hide matched private keys' : 'Reveal matched private keys';
+              revealPrivate.textContent = privateVisible ? 'Hide private keys' : 'Show private keys';
               if (copyPrivateButton !== null) copyPrivateButton.disabled = !privateVisible;
               if (exportPrivateButton !== null) exportPrivateButton.disabled = !privateVisible;
               return;
@@ -363,18 +358,18 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
                 exportPrivateButton = document.createElement('button');
                 exportPrivateButton.type = 'button';
                 exportPrivateButton.className = 'secret-action compact';
-                exportPrivateButton.textContent = 'Download private matches';
+                exportPrivateButton.textContent = 'Save private matches';
                 exportPrivateButton.addEventListener('click', () =>
                   downloadText(privateTsv!, 'wallet-matcher-PRIVATE-results.tsv', 'text/tab-separated-values'),
                 );
                 toolbar.append(copyPrivateButton, exportPrivateButton);
                 privateVisible = true;
                 matcherResults.classList.add('revealed');
-                revealPrivate.textContent = 'Hide matched private keys';
+                revealPrivate.textContent = 'Hide private keys';
               } catch (cause) {
                 matcherStatus.textContent =
                   cause instanceof Error ? cause.message : 'Matched private-key derivation failed.';
-                revealPrivate.textContent = 'Reveal matched private keys';
+                revealPrivate.textContent = 'Show private keys';
               } finally {
                 privateWorker.terminate();
                 for (const seed of privateSeeds) seed.fill(0);

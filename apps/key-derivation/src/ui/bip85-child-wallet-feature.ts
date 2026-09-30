@@ -525,7 +525,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
       if (bundle === undefined || action === undefined) return;
       const privateExport = action.startsWith('private');
       if (privateExport && !options.secretsRevealed()) {
-        showError('Reveal private keys before exporting private descriptors.');
+        showError('Show private keys before exporting private descriptors.');
         return;
       }
       const coreFormat = bip85WalletAccountExportFormat?.value === 'core';
@@ -562,7 +562,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     setSecretsVisible(revealed: boolean) {
       if (bip85WalletResults !== null) updateSecretVisibility(bip85WalletResults, revealed);
       if (bip85WalletToggleSecrets !== null) {
-        bip85WalletToggleSecrets.textContent = revealed ? 'Hide all private keys' : 'Reveal all private keys';
+        bip85WalletToggleSecrets.textContent = revealed ? 'Hide private keys' : 'Show private keys';
         bip85WalletToggleSecrets.setAttribute('aria-pressed', String(revealed));
       }
       updateBip85WalletActions();

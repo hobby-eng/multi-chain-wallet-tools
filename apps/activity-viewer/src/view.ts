@@ -161,9 +161,9 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       batchInput.value = '';
       viewingKeyInput.type = 'text';
       batchInput.classList.remove('concealed');
-      revealButton.textContent = 'Reveal key';
+      revealButton.textContent = 'Show key';
       revealButton.setAttribute('aria-pressed', 'false');
-      revealBatchButton.textContent = 'Reveal keys';
+      revealBatchButton.textContent = 'Show keys';
       revealBatchButton.setAttribute('aria-pressed', 'false');
     },
     renderBatchResults(
@@ -315,12 +315,12 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       if (queryMode === 'batch') {
         const revealing = batchInput.classList.contains('concealed');
         batchInput.classList.toggle('concealed', !revealing);
-        revealBatchButton.textContent = revealing ? 'Hide keys' : 'Reveal keys';
+        revealBatchButton.textContent = revealing ? 'Hide keys' : 'Show keys';
         revealBatchButton.setAttribute('aria-pressed', String(revealing));
       } else {
         const revealing = viewingKeyInput.type === 'password';
         viewingKeyInput.type = revealing ? 'text' : 'password';
-        revealButton.textContent = revealing ? 'Hide key' : 'Reveal key';
+        revealButton.textContent = revealing ? 'Hide key' : 'Show key';
         revealButton.setAttribute('aria-pressed', String(revealing));
       }
     },
@@ -329,9 +329,9 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       batchInput.value = '';
       viewingKeyInput.type = detectionMode === 'advanced' && mode === 'shielded' ? 'password' : 'text';
       batchInput.classList.toggle('concealed', detectionMode === 'advanced' && mode === 'shielded');
-      revealButton.textContent = 'Reveal key';
+      revealButton.textContent = 'Show key';
       revealButton.setAttribute('aria-pressed', 'false');
-      revealBatchButton.textContent = 'Reveal keys';
+      revealBatchButton.textContent = 'Show keys';
       revealBatchButton.setAttribute('aria-pressed', 'false');
       summary.replaceChildren();
       activityList.replaceChildren();
@@ -431,7 +431,7 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
       }
       if (mode !== 'shielded') {
         batchInput.classList.remove('concealed');
-        revealBatchButton.textContent = 'Reveal keys';
+        revealBatchButton.textContent = 'Show keys';
         revealBatchButton.setAttribute('aria-pressed', 'false');
       }
       if (mode === 'shielded') {

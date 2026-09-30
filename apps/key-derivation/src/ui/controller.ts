@@ -1009,7 +1009,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
 
       copyMnemonicButton.addEventListener('click', () => {
         if (!recoverySourceRevealed || mnemonic.value.trim().length === 0) {
-          showError('Reveal the recovery phrase before copying it.');
+          showError('Show the recovery phrase before copying it.');
           return;
         }
         let temporary = mnemonic.value.trim();
@@ -1047,7 +1047,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         const watchOnly = currentResult?.watchOnly;
         if (watchOnly === undefined) return;
         if (!resultSecretsRevealed) {
-          showError('Reveal privacy-sensitive values before downloading a watch-only export.');
+          showError('Show privacy-sensitive values before downloading a watch-only export.');
           return;
         }
         downloadText(watchOnly.text, watchOnly.fileName, watchOnly.mimeType);

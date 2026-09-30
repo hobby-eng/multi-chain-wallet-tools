@@ -108,7 +108,7 @@ export function applyProfileTemplate(template, profile, tool) {
         <div id="bip85-error" class="error" role="alert" hidden></div>
         <div id="bip85-result" hidden>
           <div class="signer-context"><div><span>Application path</span><code id="bip85-path"></code></div></div>
-          <div class="field-heading bip85-secret-heading"><label for="bip85-output">Derived secret</label><div class="section-head-actions"><details id="bip85-recovery-source-menu" class="recovery-source-menu" hidden><summary>Use in Recover &amp; Back Up</summary><div class="recovery-source-menu-items" aria-label="Recover and back up destination"><button type="button" data-recovery-source="bip85" data-recovery-target="matcher">Wallet Matcher</button><button type="button" data-recovery-source="bip85" data-recovery-target="seedqr">SeedQR</button><button type="button" data-recovery-source="bip85" data-recovery-target="mhfe">MHFE</button><button type="button" data-recovery-source="bip85" data-recovery-target="slip39">SLIP-39 shares</button><button type="button" data-recovery-source="bip85" data-recovery-target="sskr">Shamir shares (SSKR)</button><button type="button" data-recovery-source="bip85" data-recovery-target="gordian-envelope">Seed Envelope</button><button type="button" data-recovery-source="bip85" data-recovery-target="codex32">Codex32</button><button type="button" data-recovery-source="bip85" data-recovery-target="mnemocode">MnemoCode</button></div></details><button id="toggle-bip85-secret" class="secondary compact" type="button" aria-pressed="false">Reveal recovery source</button></div></div>
+          <div class="field-heading bip85-secret-heading"><label for="bip85-output">Derived secret</label><div class="section-head-actions"><details id="bip85-recovery-source-menu" class="recovery-source-menu" hidden><summary>Use in Recover &amp; Back Up</summary><div class="recovery-source-menu-items" aria-label="Recover and back up destination"><button type="button" data-recovery-source="bip85" data-recovery-target="matcher">Wallet Matcher</button><button type="button" data-recovery-source="bip85" data-recovery-target="seedqr">SeedQR</button><button type="button" data-recovery-source="bip85" data-recovery-target="mhfe">MHFE</button><button type="button" data-recovery-source="bip85" data-recovery-target="slip39">SLIP-39 shares</button><button type="button" data-recovery-source="bip85" data-recovery-target="sskr">Shamir shares (SSKR)</button><button type="button" data-recovery-source="bip85" data-recovery-target="gordian-envelope">Seed Envelope</button><button type="button" data-recovery-source="bip85" data-recovery-target="codex32">Codex32</button><button type="button" data-recovery-source="bip85" data-recovery-target="mnemocode">MnemoCode</button></div></details><button id="toggle-bip85-secret" class="secondary compact" type="button" aria-pressed="false">Show source</button></div></div>
           <textarea id="bip85-output" class="secret-value concealed" rows="3" readonly></textarea>
           <p class="field-note">This result is a new wallet secret. Reveal it only when needed. For a BIP39 result, “Show derived wallet” creates a separate workspace below without replacing the original recovery phrase above.</p>
           <div class="actions"><button id="open-bip85-wallet" class="secondary" type="button" aria-expanded="false" hidden>Show derived wallet</button></div>
@@ -140,7 +140,7 @@ export function applyProfileTemplate(template, profile, tool) {
               <div class="results-title nested-results-title">
                 <span id="bip85-wallet-result-title">Child wallet results</span>
                 <div class="result-controls">
-                  <button class="danger-outline compact" id="bip85-wallet-toggle-secrets" type="button" aria-pressed="false">Reveal all private keys</button>
+                  <button class="danger-outline compact" id="bip85-wallet-toggle-secrets" type="button" aria-pressed="false">Show private keys</button>
                   <div class="mode-toggle"><button id="bip85-wallet-basic" class="active" type="button">Basic</button><button id="bip85-wallet-advanced" type="button">Advanced</button></div>
                 </div>
               </div>
@@ -164,7 +164,7 @@ export function applyProfileTemplate(template, profile, tool) {
                   <button class="secret-action compact" data-bip85-bulk="privateKeys" type="button">Copy private keys</button>
                   <button class="secret-action compact" data-bip85-bulk="selected" type="button">Copy selected</button>
                   <button class="secret-action compact" data-bip85-bulk="allDisplayed" type="button">Copy all displayed fields</button>
-                  <button class="secondary compact" data-bip85-download="allDisplayed" type="button">Download selected</button>
+                  <button class="secondary compact" data-bip85-download="allDisplayed" type="button">Save selected</button>
                 </div></div>
                 <p class="field-note">Exports use selected child-wallet rows. Account export includes receive and change descriptors for this child account. Sensitive exports remain disabled until private keys are revealed.</p>
               </section>
@@ -174,9 +174,9 @@ export function applyProfileTemplate(template, profile, tool) {
                 <label for="bip85-wallet-account-export-format">Export format</label>
                 <select id="bip85-wallet-account-export-format"><option value="core">Core wallet console command</option><option value="raw">Raw descriptors · Scanner / other wallets</option></select>
                 <h4>Public descriptors</h4><p>Watch-only account data; cannot spend funds.</p>
-                <div class="watch-only-actions"><button class="secondary" data-bip85-descriptor="publicCopy" type="button">Copy public descriptors</button><button class="secondary" data-bip85-descriptor="publicDownload" type="button">Download public descriptors</button></div>
-                <h4>Private descriptors</h4><p>Unencrypted keys allow spending. Reveal private keys before export.</p>
-                <div class="watch-only-actions"><button class="secondary" data-bip85-descriptor="privateCopy" type="button">Copy private descriptors</button><button class="secondary" data-bip85-descriptor="privateDownload" type="button">Download private descriptors</button></div>
+                <div class="watch-only-actions"><button class="secondary" data-bip85-descriptor="publicCopy" type="button">Copy public descriptors</button><button class="secondary" data-bip85-descriptor="publicDownload" type="button">Save public descriptors</button></div>
+                <h4>Private descriptors</h4><p>Unencrypted keys allow spending. Show private keys before export.</p>
+                <div class="watch-only-actions"><button class="secondary" data-bip85-descriptor="privateCopy" type="button">Copy private descriptors</button><button class="secondary" data-bip85-descriptor="privateDownload" type="button">Save private descriptors</button></div>
               </dialog>
               <div id="bip85-wallet-summary"></div>
               <div id="bip85-wallet-notices"></div>

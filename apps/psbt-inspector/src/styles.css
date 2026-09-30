@@ -975,3 +975,8 @@
 .referenced-previous-output h5 {
   color: var(--ok);
 }
+
+/* Fields stacked without a wrapper: the next field's label keeps room from the control above. */
+#verify-panel :is(input, select, textarea) + label {
+  margin-top: 16px;
+}

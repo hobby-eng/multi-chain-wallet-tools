@@ -98,7 +98,7 @@ for (const marker of [
   'scroll-code',
   'Copy addresses',
   'Copy public keys',
-  'Download selected',
+  'Save selected',
   'wallet-basic-table',
   'wallet-inline-actions',
   'wallet-advanced-card',

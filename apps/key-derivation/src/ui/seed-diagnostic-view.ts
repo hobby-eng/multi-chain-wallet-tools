@@ -84,7 +84,7 @@ export function renderSeedDiagnostic(
   if (!revealed) {
     const concealedNote = document.createElement('p');
     concealedNote.className = 'field-note';
-    concealedNote.textContent = 'Reveal recovery source to view words, indexes, entropy, and checksum bits.';
+    concealedNote.textContent = 'Show source to view words, indexes, entropy, and checksum bits.';
     constructionDetails.append(concealedNote);
   } else {
     const construction = diagnostic.construction;

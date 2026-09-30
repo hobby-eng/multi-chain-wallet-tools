@@ -31,15 +31,10 @@ export function installSskr(context: RecoveryFeatureContext): void {
     addLabel: 'Add SSKR group',
     help: 'Each group creates a separate set of shares. First satisfy Shares required inside a group; then satisfy Groups required with that many completed groups. With Groups required set to 1, any one completed group can restore the secret.',
   });
-  installSecretToggle('#toggle-sskr-source', '#sskr-source', 'Reveal source phrase', 'Hide source phrase');
+  installSecretToggle('#toggle-sskr-source', '#sskr-source', 'Show phrase', 'Hide phrase');
   installMnemonicSourceDiagnostic(context, 'sskr', '#sskr-source', '#toggle-sskr-source');
-  installSecretToggle('#toggle-sskr-shares', '#sskr-shares', 'Reveal entered shares', 'Hide entered shares');
-  installSecretToggle(
-    '#toggle-sskr-created',
-    '#sskr-create-result .share-secret',
-    'Reveal created shares',
-    'Hide created shares',
-  );
+  installSecretToggle('#toggle-sskr-shares', '#sskr-shares', 'Show shares', 'Hide shares');
+  installSecretToggle('#toggle-sskr-created', '#sskr-create-result .share-secret', 'Show shares', 'Hide shares');
   const created = required<HTMLElement>('#sskr-create-result');
   required<HTMLButtonElement>('#create-sskr').addEventListener('click', () => {
     created.replaceChildren();
@@ -79,7 +74,7 @@ export function installSskr(context: RecoveryFeatureContext): void {
     }
   });
   installQrImageImport(document, required<HTMLTextAreaElement>('#sskr-shares'), {
-    label: 'Read SSKR QR image(s)',
+    label: 'Import QR images',
     multiple: true,
     onDecoded: ({ text }) => text.trim(),
     onError: (m) => {

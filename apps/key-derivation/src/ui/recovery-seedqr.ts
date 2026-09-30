@@ -15,15 +15,10 @@ import {
   type RecoveryFeatureContext,
 } from './recovery-workspace-shared.js';
 export function installSeedQr(context: RecoveryFeatureContext): void {
-  installSecretToggle('#toggle-seedqr-source', '#seedqr-source', 'Reveal source phrase', 'Hide source phrase');
+  installSecretToggle('#toggle-seedqr-source', '#seedqr-source', 'Show phrase', 'Hide phrase');
   installMnemonicSourceDiagnostic(context, 'seedqr', '#seedqr-source', '#toggle-seedqr-source');
-  installSecretToggle(
-    '#toggle-seedqr-created',
-    '#seedqr-create-result .share-secret',
-    'Reveal encoded payload',
-    'Hide encoded payload',
-  );
-  installSecretToggle('#toggle-seedqr-payload', '#seedqr-payload', 'Reveal decoded payload', 'Hide decoded payload');
+  installSecretToggle('#toggle-seedqr-created', '#seedqr-create-result .share-secret', 'Show payload', 'Hide payload');
+  installSecretToggle('#toggle-seedqr-payload', '#seedqr-payload', 'Show payload', 'Hide payload');
   installQrImageImport(document, required<HTMLTextAreaElement>('#seedqr-payload'), {
     onDecoded(decoded) {
       const compact = decoded.binaryData;
