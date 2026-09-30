@@ -10,6 +10,7 @@
 
 - **MnemoCode cards.** The MnemoCode panel saves the color codes of a phrase as printable cards: one A6 or A4 sheet, or separate numbered business cards, as PDF or as PNG images. See [the release draft](docs/releases/unreleased.md).
 - A MnemoCode date needs a four-digit year. An error about an unknown BIP39 word names its position, not the word.
+- **MHFE 0.4.0.** The MHFE panel now uses suite `MHFE-BIP39-256-EXPERIMENTAL-3` (2 GiB of Argon2id, PIM 0–1023, Unicode passwords) instead of suite 2. Every new container is decrypted again and marked verified before it is relied on. The final-word mode of suite 2 is gone. A page opened as a file explains why it is slow and how to speed it up with `mhfe-fast-mode.py`, which ships next to the Deriver with its checksum file `mhfe-fast-mode.sha256` and serves only that page, only to this computer. Containers made with suite 2 need release v0.1.5 or earlier. See [the release draft](docs/releases/unreleased.md).
 
 These entries describe changes after v0.1.5, not an already published release. Carry them into the next release notes for both editions; see [the release draft](docs/releases/unreleased.md) and [the release procedure](RELEASING.md).
 

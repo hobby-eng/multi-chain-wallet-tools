@@ -262,7 +262,7 @@ const featureSourceMarkers = {
     '/node_modules/pdf-lib/',
     '/node_modules/@pdf-lib/',
   ],
-  mhfe: ['/recovery-mhfe.ts', '/mhfe-backup-worker.ts', '/recovery-mhfe-wasm/'],
+  mhfe: ['/recovery-mhfe.ts', '/recovery-mhfe-wasm/'],
   slip39: ['/recovery-slip39.ts', '/recovery-backup/src/slip39.ts', '/slip39-wordlist.ts', '/self-test-slip39.ts'],
   sskr: ['/recovery-sskr.ts', '/recovery-backup/src/sskr.ts', '/recovery-sskr-wasm/', '/self-test-sskr.ts'],
   'gordian-envelope': [

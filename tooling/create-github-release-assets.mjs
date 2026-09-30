@@ -3,6 +3,12 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSyn
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseBuildProfile, profileArtifacts } from './build-profiles.mjs';
+import {
+  FAST_MODE_CHECKSUM,
+  FAST_MODE_LAUNCHER,
+  findFastModeFiles,
+  pageNamedByChecksumFile,
+} from './mhfe-fast-mode-files.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const dist = resolve(root, 'dist');
@@ -32,6 +38,24 @@ for (const relativeSource of artifacts) {
   copyFileSync(source, resolve(release, name));
   writeFileSync(resolve(release, `${name}.sha256`), `${expectedSidecar}\n`);
   manifest.push(`${digest}  ${name}`);
+}
+
+// The MHFE fast-mode launcher and its checksum file go next to the page they serve.
+const fastMode = findFastModeFiles(dist, artifacts);
+if (fastMode !== undefined) {
+  const checksumText = readFileSync(resolve(fastMode.folder, FAST_MODE_CHECKSUM), 'utf8');
+  const { digest } = pageNamedByChecksumFile(checksumText, FAST_MODE_CHECKSUM);
+  const pageDigest = createHash('sha256')
+    .update(readFileSync(resolve(release, fastMode.page)))
+    .digest('hex');
+  if (digest !== pageDigest) throw new Error(`${FAST_MODE_CHECKSUM} does not match ${fastMode.page}.`);
+  for (const name of [FAST_MODE_CHECKSUM, FAST_MODE_LAUNCHER]) {
+    copyFileSync(resolve(fastMode.folder, name), resolve(release, name));
+    const fileDigest = createHash('sha256')
+      .update(readFileSync(resolve(release, name)))
+      .digest('hex');
+    manifest.push(`${fileDigest}  ${name}`);
+  }
 }
 
 const verificationSource = resolve(dist, 'verification-record.json');
