@@ -1390,3 +1390,8 @@ label.candidate-choice input[type='checkbox'] {
   flex-wrap: wrap;
   gap: 8px 24px;
 }
+
+/* The opened batch options keep room from the phrase panel below them. */
+#candidate-options:not([hidden]) {
+  margin-bottom: 16px;
+}

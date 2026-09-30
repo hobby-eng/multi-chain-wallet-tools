@@ -123,7 +123,7 @@
                 </div>
               </details>
               <button class="danger-outline" id="toggle-sensitive-values" type="button" aria-pressed="false">
-                Reveal recovery source
+                Show source
               </button>
             </div>
           </div>
@@ -184,7 +184,7 @@
             </div>
             <span id="default-result-secret-control-slot" class="result-secret-control-slot">
               <button class="danger-outline compact" id="toggle-result-secrets" type="button" aria-pressed="false">
-                Reveal all private keys
+                Show private keys
               </button>
             </span>
           </div>
@@ -284,8 +284,8 @@
           </div>
           <div class="actions standard-derivation-content">
             <button class="primary" id="derive-button" type="submit">Derive selected results</button>
-            <button class="secondary" id="cancel-derivation" type="button" hidden>Cancel generation</button>
-            <button class="secondary" id="clear-all" type="button">Clear everything</button>
+            <button class="secondary" id="cancel-derivation" type="button" hidden>Cancel</button>
+            <button class="secondary" id="clear-all" type="button">Clear</button>
           </div>
           <p class="field-note auto-derive-note standard-derivation-content">
             Generating or pasting a complete phrase, changing its BIP39 passphrase, coin, or derivation tab
@@ -415,7 +415,7 @@
             type="button"
             aria-pressed="false"
           >
-            Reveal seed and passphrase lists
+            Show lists
           </button>
           <div class="matcher-input-grid">
             <div>
@@ -518,7 +518,7 @@
           </p>
           <div class="actions">
             <button class="primary" id="run-wallet-matcher" type="button">Find wallet matches</button
-            ><button class="secondary" id="cancel-wallet-matcher" type="button" hidden>Cancel search</button>
+            ><button class="secondary" id="cancel-wallet-matcher" type="button" hidden>Cancel</button>
           </div>
           <p id="wallet-matcher-status" class="status" role="status" aria-live="polite"></p>
           <div id="wallet-matcher-results" class="matcher-results"></div>
@@ -596,7 +596,7 @@
             <div class="field-heading-row">
               <label for="seedqr-source">BIP39 recovery phrase to encode</label>
               <button id="toggle-seedqr-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Reveal source phrase
+                Show phrase
               </button>
             </div>
             <textarea
@@ -615,7 +615,7 @@
             <div class="actions">
               <button class="primary" id="create-seedqr" type="button">Create SeedQR</button>
               <button id="toggle-seedqr-created" class="danger-outline" type="button" aria-pressed="false">
-                Reveal encoded payload
+                Show payload
               </button>
             </div>
             <div id="seedqr-create-result" class="share-results" role="status" aria-live="polite"></div>
@@ -637,9 +637,9 @@
             ></textarea>
             <div class="actions">
               <button id="toggle-seedqr-payload" class="danger-outline" type="button" aria-pressed="false">
-                Reveal decoded payload
+                Show payload
               </button>
-              <button class="primary" id="restore-seedqr" type="button">Restore BIP39 phrase</button>
+              <button class="primary" id="restore-seedqr" type="button">Restore phrase</button>
             </div>
             <div id="seedqr-restore-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
@@ -669,9 +669,9 @@
                 result with your wallet.
               </p>
               <p>
-                Opened as a file, this page runs Argon2 on one thread. The launcher mhfe-fast-mode.py next to this file
-                serves the page from this computer so that the browser allows four threads, about three times faster.
-                The browser supports memory level 0 (2 GiB); higher levels need the mhfe command-line tool.
+                In this HTML version the browser runs Argon2 on one thread. The executable version of this tool opens
+                the same page with four threads, about three times faster. The browser supports memory level 0 (2 GiB);
+                higher levels need the mhfe command-line tool.
               </p>
               <p class="upstream-links">
                 Read the
@@ -685,12 +685,7 @@
               </p>
             </div>
           </details>
-          <div class="warning-callout">
-            <strong>Experimental construction.</strong> MHFE has not received enough independent cryptographic review
-            for protecting real funds. Losing the password or a deliberately selected non-zero PIM makes recovery
-            impossible.
-          </div>
-          <div id="mhfe-mode" role="note" aria-live="polite"></div>
+          <div id="mhfe-mode" class="warning-callout" role="note" aria-live="polite"></div>
           <nav class="backup-mode-tabs" role="tablist" aria-label="MHFE operation">
             <button
               class="backup-mode-tab active"
@@ -717,7 +712,7 @@
             <div class="field-heading-row">
               <label for="mhfe-source">BIP39 phrase to encrypt</label>
               <button id="toggle-mhfe-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Reveal source phrase
+                Show phrase
               </button>
             </div>
             <textarea
@@ -765,7 +760,7 @@
             </div>
             <label class="checkbox-row" for="mhfe-encrypt-use-pim">
               <input id="mhfe-encrypt-use-pim" type="checkbox" />
-              Use a non-zero PIM work factor
+              Use a custom PIM
             </label>
             <label id="mhfe-encrypt-pim-field" for="mhfe-encrypt-pim" hidden
               >PIM (1–1023)
@@ -778,8 +773,8 @@
               on one line in any language; tabs, line breaks and other invisible control characters are refused.
             </p>
             <div class="actions">
-              <button class="primary" id="mhfe-encrypt" type="button">Encrypt to 24 words</button>
-              <button class="secondary" id="mhfe-encrypt-stop" type="button" hidden>Stop</button>
+              <button class="primary" id="mhfe-encrypt" type="button">Encrypt</button>
+              <button class="secondary" id="mhfe-encrypt-stop" type="button" hidden>Cancel</button>
             </div>
             <p id="mhfe-encrypt-status" class="status" role="status" aria-live="polite"></p>
             <div id="mhfe-encrypt-result" class="share-results" aria-live="polite"></div>
@@ -788,7 +783,7 @@
             <div class="field-heading-row">
               <label for="mhfe-container">Encrypted 24-word MHFE container</label>
               <button id="toggle-mhfe-container" class="danger-outline compact" type="button" aria-pressed="false">
-                Reveal encrypted container
+                Show container
               </button>
             </div>
             <textarea
@@ -810,7 +805,7 @@
             </div>
             <label class="checkbox-row" for="mhfe-decrypt-use-pim">
               <input id="mhfe-decrypt-use-pim" type="checkbox" />
-              Use the recorded non-zero PIM
+              Use a custom PIM
             </label>
             <label id="mhfe-decrypt-pim-field" for="mhfe-decrypt-pim" hidden
               >PIM (1–1023)
@@ -833,8 +828,8 @@
               extremely unlikely event that several lengths pass, every candidate is shown.
             </p>
             <div class="actions">
-              <button class="primary" id="mhfe-decrypt" type="button">Recover phrase</button>
-              <button class="secondary" id="mhfe-decrypt-stop" type="button" hidden>Stop</button>
+              <button class="primary" id="mhfe-decrypt" type="button">Restore phrase</button>
+              <button class="secondary" id="mhfe-decrypt-stop" type="button" hidden>Cancel</button>
             </div>
             <p id="mhfe-decrypt-status" class="status" role="status" aria-live="polite"></p>
             <div id="mhfe-decrypt-result" class="share-results" aria-live="polite"></div>
@@ -900,7 +895,7 @@
             <div class="field-heading-row">
               <label for="slip39-source-mnemonic">BIP39 recovery phrase to back up</label
               ><button id="toggle-slip39-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Reveal source phrase
+                Show phrase
               </button>
             </div>
             <textarea
@@ -945,9 +940,9 @@
               different wallet.
             </div>
             <div class="actions">
-              <button class="primary" id="create-slip39-shares" type="button">Create SLIP-39 shares</button
+              <button class="primary" id="create-slip39-shares" type="button">Create shares</button
               ><button id="toggle-slip39-created" class="danger-outline" type="button" aria-pressed="false">
-                Reveal created shares
+                Show shares
               </button>
             </div>
             <div id="slip39-create-result" class="share-results" role="status" aria-live="polite"></div>
@@ -956,7 +951,7 @@
             <div class="field-heading-row">
               <label for="slip39-shares">SLIP-39 shares</label>
               <button id="toggle-slip39-shares" class="danger-outline compact" type="button" aria-pressed="false">
-                Reveal entered shares
+                Show shares
               </button>
             </div>
             <textarea
@@ -976,7 +971,7 @@
               autocomplete="off"
               placeholder="Printable ASCII only"
             />
-            <button class="primary" id="restore-slip39-shares" type="button">Restore BIP39 phrase</button>
+            <button class="primary" id="restore-slip39-shares" type="button">Restore phrase</button>
             <div id="slip39-restore-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
         </section>
@@ -1034,9 +1029,13 @@
             </button>
           </nav>
           <section id="sskr-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
-            <label for="sskr-source">BIP39 recovery phrase</label
-            ><textarea id="sskr-source" class="concealed" rows="4"></textarea
-            ><button id="toggle-sskr-source" class="danger-outline compact" type="button">Reveal source phrase</button>
+            <div class="field-heading-row">
+              <label for="sskr-source">BIP39 recovery phrase</label>
+              <button id="toggle-sskr-source" class="danger-outline compact" type="button" aria-pressed="false">
+                Show phrase
+              </button>
+            </div>
+            <textarea id="sskr-source" class="concealed" rows="4"></textarea>
             <div>
               <label for="sskr-create-encoding">Share encoding</label>
               <select id="sskr-create-encoding">
@@ -1056,10 +1055,8 @@
               </div>
             </div>
             <div class="actions">
-              <button id="create-sskr" class="primary" type="button">Create SSKR shares</button
-              ><button id="toggle-sskr-created" class="danger-outline compact" type="button">
-                Reveal created shares
-              </button>
+              <button id="create-sskr" class="primary" type="button">Create shares</button
+              ><button id="toggle-sskr-created" class="danger-outline compact" type="button">Show shares</button>
             </div>
             <div id="sskr-create-result" class="share-results"></div>
           </section>
@@ -1074,8 +1071,8 @@
             <label for="sskr-shares">SSKR shares</label
             ><textarea id="sskr-shares" class="concealed" rows="7"></textarea>
             <div class="actions">
-              <button id="toggle-sskr-shares" class="danger-outline compact" type="button">Reveal entered shares</button
-              ><button id="restore-sskr" class="primary" type="button">Restore SSKR secret</button>
+              <button id="toggle-sskr-shares" class="danger-outline compact" type="button">Show shares</button
+              ><button id="restore-sskr" class="primary" type="button">Restore phrase</button>
             </div>
             <div id="sskr-restore-result"></div>
           </section>
@@ -1147,11 +1144,13 @@
             </button>
           </nav>
           <section id="gordian-envelope-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
-            <label for="envelope-source">BIP39 recovery phrase</label
-            ><textarea id="envelope-source" class="concealed" rows="4"></textarea
-            ><button id="toggle-envelope-source" class="danger-outline compact" type="button">
-              Reveal source phrase
-            </button>
+            <div class="field-heading-row">
+              <label for="envelope-source">BIP39 recovery phrase</label>
+              <button id="toggle-envelope-source" class="danger-outline compact" type="button" aria-pressed="false">
+                Show phrase
+              </button>
+            </div>
+            <textarea id="envelope-source" class="concealed" rows="4"></textarea>
             <div class="form-grid">
               <div><label for="envelope-name">Name · optional</label><input id="envelope-name" type="text" /></div>
               <div><label for="envelope-note">Note · optional</label><input id="envelope-note" type="text" /></div>
@@ -1172,7 +1171,7 @@
                 <div id="envelope-sskr-groups" class="threshold-group-editor"></div>
               </div>
             </div>
-            <details>
+            <details class="stacked-fields">
               <summary>Derive recipient key pair</summary>
               <label for="envelope-recipient-source">Key source</label>
               <select id="envelope-recipient-source">
@@ -1187,7 +1186,7 @@
                 <label for="envelope-recipient-mnemonic">BIP39 recovery phrase</label>
                 <textarea id="envelope-recipient-mnemonic" class="concealed" rows="4" autocomplete="off"></textarea>
                 <button id="toggle-envelope-recipient-mnemonic" class="danger-outline compact" type="button">
-                  Reveal recipient source phrase
+                  Show phrase
                 </button>
                 <label for="envelope-recipient-manual-passphrase">BIP39 passphrase</label>
                 <input id="envelope-recipient-manual-passphrase" type="password" autocomplete="off" />
@@ -1217,10 +1216,8 @@
               </div>
             </div>
             <div class="actions">
-              <button id="create-envelope" class="primary" type="button">Create Seed Envelope</button
-              ><button id="toggle-envelope-created" class="danger-outline compact" type="button">
-                Reveal created records
-              </button>
+              <button id="create-envelope" class="primary" type="button">Create envelope</button
+              ><button id="toggle-envelope-created" class="danger-outline compact" type="button">Show records</button>
             </div>
             <div id="envelope-create-result" class="share-results"></div>
           </section>
@@ -1233,9 +1230,7 @@
           >
             <label for="envelope-records">Envelope or SSKR Envelope records</label
             ><textarea id="envelope-records" class="concealed" rows="7"></textarea
-            ><button id="toggle-envelope-records" class="danger-outline compact" type="button">
-              Reveal entered secrets
-            </button>
+            ><button id="toggle-envelope-records" class="danger-outline compact" type="button">Show records</button>
             <label for="envelope-unlock-password">Password · optional</label
             ><input id="envelope-unlock-password" type="password" /><label for="envelope-private-key"
               >Recipient private key · optional</label
@@ -1247,7 +1242,7 @@
               spellcheck="false"
             ></textarea>
             <div class="actions">
-              <button id="restore-envelope" class="primary" type="button">Open Seed Envelope</button>
+              <button id="restore-envelope" class="primary" type="button">Restore phrase</button>
             </div>
             <div id="envelope-restore-result"></div>
           </section>
@@ -1313,7 +1308,7 @@
             <div class="field-heading-row">
               <label for="codex32-source">BIP39 recovery phrase</label>
               <button id="toggle-codex32-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Reveal source phrase
+                Show phrase
               </button>
             </div>
             <textarea
@@ -1370,9 +1365,9 @@
             <p class="field-note">Disables the threshold and share-count fields.</p>
             <div id="codex32-content-warning" class="warning-callout"></div>
             <div class="actions">
-              <button class="primary" id="create-codex32" type="button">Create Codex32 backup</button>
+              <button class="primary" id="create-codex32" type="button">Create records</button>
               <button id="toggle-codex32-created" class="danger-outline" type="button" aria-pressed="false">
-                Reveal created records
+                Show records
               </button>
             </div>
             <div id="codex32-create-result" class="share-results" role="status" aria-live="polite"></div>
@@ -1381,7 +1376,7 @@
             <div class="field-heading-row">
               <label for="codex32-shares">Codex32 secret or shares</label>
               <button id="toggle-codex32-shares" class="danger-outline compact" type="button" aria-pressed="false">
-                Reveal entered records
+                Show records
               </button>
             </div>
             <textarea
@@ -1401,7 +1396,7 @@
               Codex32 records do not identify the semantic meaning of their bytes. Select the same content type that was
               used when the backup was created.
             </p>
-            <button class="primary" id="restore-codex32" type="button">Decode Codex32</button>
+            <button class="primary" id="restore-codex32" type="button">Restore phrase</button>
             <div id="codex32-restore-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
         </section>
@@ -1471,7 +1466,7 @@
             <div class="field-heading-row">
               <label for="mnemocode-source">BIP39 recovery phrase to encode</label>
               <button id="toggle-mnemocode-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Reveal source phrase
+                Show phrase
               </button>
             </div>
             <textarea
@@ -1525,9 +1520,9 @@
               ></textarea>
             </div>
             <div class="actions">
-              <button id="encode-mnemocode" class="primary" type="button">Encode MnemoCode record</button>
+              <button id="encode-mnemocode" class="primary" type="button">Create record</button>
               <button id="toggle-mnemocode-created" class="danger-outline" type="button" aria-pressed="false">
-                Reveal encoded records
+                Show records
               </button>
             </div>
             <div id="mnemocode-encode-result" class="share-results" role="status" aria-live="polite"></div>
@@ -1663,7 +1658,7 @@
             <div class="field-heading-row">
               <label for="mnemocode-input">MNC1 record or raw representation</label>
               <button id="toggle-mnemocode-input" class="danger-outline compact" type="button" aria-pressed="false">
-                Reveal encoded input
+                Show input
               </button>
             </div>
             <textarea
@@ -1678,7 +1673,7 @@
               An MNC1 record overrides the mode and representation selectors. Dates remain external and must be entered
               above.
             </p>
-            <button id="decode-mnemocode" class="primary" type="button">Decode MnemoCode record</button>
+            <button id="decode-mnemocode" class="primary" type="button">Restore phrase</button>
             <div id="mnemocode-decode-result" class="share-results" role="status" aria-live="polite"></div>
             <hr />
             <div class="mnemocode-option-heading">
@@ -1708,7 +1703,7 @@
                 type="button"
                 aria-pressed="false"
               >
-                Reveal recovery phrase
+                Show phrase
               </button>
             </div>
             <textarea
@@ -1882,7 +1877,7 @@
                         Copy public descriptors
                       </button>
                       <button class="secondary" id="download-public-descriptors" type="button">
-                        Download public descriptors
+                        Save public descriptors
                       </button>
                     </div>
                     <h4>Private descriptors</h4>
@@ -1895,7 +1890,7 @@
                         Copy private descriptors
                       </button>
                       <button class="secondary" id="download-private-descriptors" type="button">
-                        Download private descriptors
+                        Save private descriptors
                       </button>
                     </div>
                     <p class="field-note">
@@ -1918,7 +1913,7 @@
                   Copy all displayed fields
                 </button>
                 <button class="secondary compact" id="download-selection" data-download="allDisplayed" type="button">
-                  Download selected
+                  Save selected
                 </button>
               </div>
             </div>
@@ -1937,7 +1932,7 @@
             </div>
             <div class="watch-only-actions">
               <button class="secondary" id="copy-watch-only" type="button">Copy watch-only</button>
-              <button class="secondary" id="download-watch-only" type="button">Download file</button>
+              <button class="secondary" id="download-watch-only" type="button">Save file</button>
             </div>
           </section>
 

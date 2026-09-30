@@ -171,7 +171,7 @@ export function createQrAction(
       const save = document.createElement('button');
       save.type = 'button';
       save.className = 'payment-qr-save';
-      save.textContent = 'Save QR as PNG';
+      save.textContent = 'Save as PNG';
       save.setAttribute('aria-label', `Save ${label} QR code as PNG`);
       save.addEventListener('click', () => {
         void (async () => {
@@ -187,7 +187,7 @@ export function createQrAction(
           } finally {
             globalThis.setTimeout(() => {
               save.disabled = false;
-              save.textContent = 'Save QR as PNG';
+              save.textContent = 'Save as PNG';
             }, 1400);
           }
         })();

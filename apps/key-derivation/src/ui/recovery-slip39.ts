@@ -12,17 +12,12 @@ import {
   type RecoveryFeatureContext,
 } from './recovery-workspace-shared.js';
 export function installSlip39(context: RecoveryFeatureContext): void {
-  installSecretToggle('#toggle-slip39-source', '#slip39-source-mnemonic', 'Reveal source phrase', 'Hide source phrase');
+  installSecretToggle('#toggle-slip39-source', '#slip39-source-mnemonic', 'Show phrase', 'Hide phrase');
   installMnemonicSourceDiagnostic(context, 'slip39', '#slip39-source-mnemonic', '#toggle-slip39-source');
-  installSecretToggle('#toggle-slip39-shares', '#slip39-shares', 'Reveal entered shares', 'Hide entered shares');
-  installSecretToggle(
-    '#toggle-slip39-created',
-    '#slip39-create-result .share-secret',
-    'Reveal created shares',
-    'Hide created shares',
-  );
+  installSecretToggle('#toggle-slip39-shares', '#slip39-shares', 'Show shares', 'Hide shares');
+  installSecretToggle('#toggle-slip39-created', '#slip39-create-result .share-secret', 'Show shares', 'Hide shares');
   installQrImageImport(document, required<HTMLTextAreaElement>('#slip39-shares'), {
-    label: 'Read share QR image(s)',
+    label: 'Import QR images',
     multiple: true,
     onDecoded: ({ text }) => text.trim(),
     onError(message) {

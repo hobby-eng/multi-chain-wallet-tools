@@ -68,7 +68,7 @@ function copyButton(
   if (locator.row !== undefined) copy.dataset.copyRow = String(locator.row);
   copy.dataset.secret = String(field.secret);
   copy.disabled = field.secret && !secretsRevealed;
-  copy.title = copy.disabled ? 'Reveal private and privacy-sensitive values before copying.' : `Copy ${field.label}`;
+  copy.title = copy.disabled ? 'Show private and privacy-sensitive values before copying.' : `Copy ${field.label}`;
   return copy;
 }
 
@@ -455,6 +455,6 @@ export function updateSecretVisibility(results: HTMLElement, revealed: boolean):
     button.disabled = !revealed;
     button.title = revealed
       ? 'Copy this sensitive value.'
-      : 'Reveal private and privacy-sensitive values before copying.';
+      : 'Show private and privacy-sensitive values before copying.';
   }
 }

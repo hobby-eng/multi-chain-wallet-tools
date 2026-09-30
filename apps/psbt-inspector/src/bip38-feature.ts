@@ -23,7 +23,7 @@ export function installBip38Feature(): void {
       input.type = value ? 'text' : 'password';
     for (const button of resultList.querySelectorAll<HTMLButtonElement>('[data-copy-bip38-secret]'))
       button.disabled = !value;
-    toggleResult.textContent = value ? 'Hide private keys' : 'Reveal private keys';
+    toggleResult.textContent = value ? 'Hide private keys' : 'Show private keys';
     toggleResult.setAttribute('aria-pressed', String(value));
   };
 

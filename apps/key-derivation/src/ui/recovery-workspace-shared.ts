@@ -303,7 +303,8 @@ export function renderSensitiveShares(
     const copyButton = document.createElement('button');
     copyButton.type = 'button';
     copyButton.className = 'secret-action compact secret-copy-action';
-    copyButton.textContent = `Copy ${label.toLowerCase()}`;
+    copyButton.textContent = 'Copy';
+    copyButton.setAttribute('aria-label', `Copy ${label.toLowerCase()}`);
     copyButton.disabled = true;
     copyButton.addEventListener('click', () => void copy(share));
     const qr = createQrAction(document, share, label.toLowerCase(), share, {
@@ -321,7 +322,8 @@ export function renderSensitiveShares(
   const copyAll = document.createElement('button');
   copyAll.type = 'button';
   copyAll.className = 'secret-action compact secret-copy-action';
-  copyAll.textContent = labels.length > 0 ? 'Copy all records' : 'Copy all shares';
+  copyAll.textContent = 'Copy all';
+  copyAll.setAttribute('aria-label', labels.length > 0 ? 'Copy all records' : 'Copy all shares');
   copyAll.disabled = true;
   copyAll.addEventListener('click', () => void copy(shares.join('\n')));
   container.append(copyAll);
@@ -351,7 +353,7 @@ export function renderRecoveredMnemonic(
   renderRecoveredSecret(
     container,
     mnemonic,
-    { reveal: 'Reveal recovered phrase', hide: 'Hide recovered phrase', copy: 'Copy recovered phrase' },
+    { reveal: 'Show phrase', hide: 'Hide phrase', copy: 'Copy phrase' },
     copy,
     undefined,
     () => useInDeriver(mnemonic),
@@ -381,9 +383,9 @@ export function renderRecoveredMnemonicBundle(
       container,
       bip39Passphrase,
       {
-        reveal: 'Reveal recovered BIP39 passphrase',
-        hide: 'Hide recovered BIP39 passphrase',
-        copy: 'Copy recovered BIP39 passphrase',
+        reveal: 'Show passphrase',
+        hide: 'Hide passphrase',
+        copy: 'Copy passphrase',
       },
       copy,
       'This passphrase was stored inside the encrypted Seed Envelope content.',
@@ -399,7 +401,7 @@ export function renderRecoveredSeed(
   renderRecoveredSecret(
     container,
     bytesToHex(seed),
-    { reveal: 'Reveal master seed', hide: 'Hide master seed', copy: 'Copy master seed' },
+    { reveal: 'Show seed', hide: 'Hide seed', copy: 'Copy seed' },
     copy,
     'Raw BIP32 master seed in hexadecimal. This is not the original BIP39 phrase.',
   );

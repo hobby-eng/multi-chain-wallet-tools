@@ -60,7 +60,7 @@ export function installQrImageImport(
 ): void {
   const label = document.createElement('label');
   label.className = 'secondary compact qr-image-import';
-  label.textContent = options.label ?? 'Read QR image';
+  label.textContent = options.label ?? 'Import QR image';
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/png,image/jpeg,image/webp,image/gif,image/bmp';

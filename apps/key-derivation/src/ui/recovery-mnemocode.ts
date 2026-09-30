@@ -111,7 +111,7 @@ function appendPalette(container: HTMLElement, colors: readonly string[]): void 
 interface ConcealedText {
   readonly value: string;
   readonly rows: number;
-  /** What the text is, for the button labels: "Reveal <subject>" and "Hide <subject>". */
+  /** What the text is, for the button labels: "Show <subject>" and "Hide <subject>". */
   readonly subject: string;
   readonly copyLabel: string;
   readonly extraClass?: string;
@@ -128,7 +128,7 @@ function concealedText({ value, rows, subject, copyLabel, extraClass, copy }: Co
   const reveal = document.createElement('button');
   reveal.type = 'button';
   reveal.className = 'danger-outline compact';
-  reveal.textContent = `Reveal ${subject}`;
+  reveal.textContent = `Show ${subject}`;
   const copyButton = document.createElement('button');
   copyButton.type = 'button';
   copyButton.className = 'secret-action compact';
@@ -137,7 +137,7 @@ function concealedText({ value, rows, subject, copyLabel, extraClass, copy }: Co
   reveal.addEventListener('click', () => {
     const visible = output.classList.contains('concealed');
     output.classList.toggle('concealed', !visible);
-    reveal.textContent = visible ? `Hide ${subject}` : `Reveal ${subject}`;
+    reveal.textContent = visible ? `Hide ${subject}` : `Show ${subject}`;
     reveal.setAttribute('aria-pressed', String(visible));
     copyButton.disabled = !visible;
   });
@@ -158,8 +158,8 @@ function renderInvalidMnemonic(container: HTMLElement, mnemonic: string, copy: (
     ...concealedText({
       value: mnemonic,
       rows: 4,
-      subject: 'recovered phrase',
-      copyLabel: 'Copy recovered phrase',
+      subject: 'phrase',
+      copyLabel: 'Copy phrase',
       copy,
     }),
   );
@@ -181,7 +181,7 @@ function renderCandidates(
       value: candidates.map((candidate, index) => `${index + 1}\t${candidate}`).join('\n'),
       rows: Math.min(12, Math.max(5, candidates.length)),
       subject: 'candidates',
-      copyLabel: 'Copy all candidates',
+      copyLabel: 'Copy all',
       copy,
     }),
   );
@@ -232,8 +232,8 @@ function renderMissingWordCandidates(
         ),
       ].join('\n'),
       rows: Math.min(14, Math.max(5, candidates.length)),
-      subject: 'recovered phrases',
-      copyLabel: 'Copy all candidates',
+      subject: 'phrases',
+      copyLabel: 'Copy all',
       extraClass: 'mnemocode-word-phrases',
       copy,
     }),
@@ -241,20 +241,20 @@ function renderMissingWordCandidates(
 }
 
 export function installMnemoCode(context: RecoveryFeatureContext): void {
-  installSecretToggle('#toggle-mnemocode-source', '#mnemocode-source', 'Reveal source phrase', 'Hide source phrase');
+  installSecretToggle('#toggle-mnemocode-source', '#mnemocode-source', 'Show phrase', 'Hide phrase');
   installMnemonicSourceDiagnostic(context, 'mnemocode', '#mnemocode-source', '#toggle-mnemocode-source');
   installSecretToggle(
     '#toggle-mnemocode-created',
     '#mnemocode-encode-result .share-secret',
-    'Reveal encoded records',
-    'Hide encoded records',
+    'Show records',
+    'Hide records',
   );
-  installSecretToggle('#toggle-mnemocode-input', '#mnemocode-input', 'Reveal encoded input', 'Hide encoded input');
+  installSecretToggle('#toggle-mnemocode-input', '#mnemocode-input', 'Show input', 'Hide input');
   installSecretToggle(
     '#toggle-mnemocode-missing-word-input',
     '#mnemocode-missing-word-input',
-    'Reveal recovery phrase',
-    'Hide recovery phrase',
+    'Show phrase',
+    'Hide phrase',
   );
 
   const encodeMode = required<HTMLSelectElement>('#mnemocode-encode-mode');
@@ -328,7 +328,7 @@ export function installMnemoCode(context: RecoveryFeatureContext): void {
       const save = document.createElement('button');
       save.type = 'button';
       save.className = 'secret-action compact secret-copy-action';
-      save.textContent = 'Save MNC1 record (.mnc)';
+      save.textContent = 'Save record';
       save.disabled = true;
       save.addEventListener('click', () => {
         context.downloadText(result.record, mncFileName(result.mode, result.format), 'text/plain');

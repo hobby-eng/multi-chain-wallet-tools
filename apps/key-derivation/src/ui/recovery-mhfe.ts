@@ -33,8 +33,6 @@ const MAX_PIM = 1023;
 const MEMORY_LEVEL = 0;
 /** Rounds of one pass through the cipher; an encryption runs a second pass as its check. */
 const ROUNDS_PER_STAGE = 12;
-const CHECKSUM_FILE = 'mhfe-fast-mode.sha256';
-const LAUNCHER = 'mhfe-fast-mode.py';
 
 let client: MhfeClient | undefined;
 
@@ -60,61 +58,35 @@ function paragraph(text: string, className?: string): HTMLParagraphElement {
   return element;
 }
 
+/** A text with a bold lead-in, such as "Slow mode: ...". */
+function leadParagraph(lead: string, text: string): HTMLParagraphElement {
+  const strong = document.createElement('strong');
+  strong.textContent = lead;
+  const element = document.createElement('p');
+  element.append(strong, ` ${text}`);
+  return element;
+}
+
 /**
- * Explains the current speed. Opened as a file the page cannot use several threads, so it shows
- * why and how to switch to fast mode with the launcher next to the page.
+ * The one warning of the MHFE panel: what MHFE is, what recovery needs, and how fast this page runs.
+ * Opened as a file, the page cannot be cross-origin isolated, so the browser gives Argon2 one thread;
+ * the executable version of the tool serves the same page with the headers four threads need.
  */
 function renderSpeedNotice(): void {
   const notice = required<HTMLElement>('#mhfe-mode');
-  if (isFastMode()) {
-    notice.className = 'success-callout';
-    notice.replaceChildren(
-      paragraph(
-        'Fast mode: this page is served from this computer, so Argon2 runs its four lanes in parallel. ' +
-          'A recovery takes about one to two minutes, an encryption about twice as long.',
-      ),
-    );
-    return;
-  }
-  notice.className = 'warning-callout';
-  const heading = document.createElement('strong');
-  heading.textContent = 'Slow mode: about three times slower than it could be.';
-  const why = paragraph(
-    'Argon2 can use four threads only on a page the browser treats as cross-origin isolated. That needs two ' +
-      'HTTP headers, which a page opened as a file cannot have, so the browser forbids the shared memory the ' +
-      'threads need. Argon2 then runs its four lanes one after another: a recovery takes about four to seven ' +
-      'minutes, an encryption about twice as long. The results are exactly the same.',
+  const experimental = leadParagraph(
+    'Experimental.',
+    'MHFE has not had enough independent review to protect real funds. Recovery needs the password, and the ' +
+      'PIM or memory level if you changed them.',
   );
-  const speedUp = document.createElement('button');
-  speedUp.type = 'button';
-  speedUp.className = 'secondary compact';
-  speedUp.id = 'mhfe-speed-up';
-  speedUp.textContent = 'Speed up';
-  const steps = document.createElement('ol');
-  steps.id = 'mhfe-speed-up-steps';
-  steps.hidden = true;
-  for (const text of [
-    `In the folder of this HTML file, double-click ${LAUNCHER}, or run "python3 ${LAUNCHER}" in a terminal there. It needs Python 3.8 or later; on Windows, install it from python.org.`,
-    `The launcher checks this file against ${CHECKSUM_FILE} next to it and opens the tool in a new browser tab in fast mode. If the file was changed or the checksum file is missing, it refuses and says why.`,
-    'Close this tab and continue in the new one. Nothing typed here is carried over. Keep the launcher window open while you work and close it when you are done.',
-  ]) {
-    const item = document.createElement('li');
-    item.textContent = text;
-    steps.append(item);
-  }
-  const privacy = paragraph(
-    'The launcher only serves this page to this computer (127.0.0.1); it never sees what you type.',
-    'field-note',
-  );
-  privacy.hidden = true;
-  speedUp.addEventListener('click', () => {
-    steps.hidden = !steps.hidden;
-    privacy.hidden = steps.hidden;
-    speedUp.setAttribute('aria-expanded', String(!steps.hidden));
-  });
-  speedUp.setAttribute('aria-expanded', 'false');
-  speedUp.setAttribute('aria-controls', 'mhfe-speed-up-steps');
-  notice.replaceChildren(heading, why, speedUp, steps, privacy);
+  const speed = isFastMode()
+    ? leadParagraph('Fast mode:', 'all four processor cores are in use; a recovery takes about one to two minutes.')
+    : leadParagraph(
+        'Slow mode:',
+        'in this HTML version the browser lets MHFE use one processor core, so a recovery takes about four to ' +
+          'seven minutes. For one to two minutes, use the executable version of this tool.',
+      );
+  notice.replaceChildren(experimental, speed);
 }
 
 function selectedPim(prefix: 'encrypt' | 'decrypt'): number {
@@ -237,16 +209,17 @@ function renderContainer(
   const reveal = document.createElement('button');
   reveal.type = 'button';
   reveal.className = 'danger-outline compact';
-  reveal.textContent = 'Reveal encrypted container';
+  reveal.textContent = 'Show container';
   const copyButton = document.createElement('button');
   copyButton.type = 'button';
   copyButton.className = 'secret-action compact';
-  copyButton.textContent = 'Copy encrypted container';
+  copyButton.textContent = 'Copy';
+  copyButton.setAttribute('aria-label', 'Copy encrypted container');
   copyButton.disabled = true;
   reveal.addEventListener('click', () => {
     const visible = output.classList.contains('concealed');
     output.classList.toggle('concealed', !visible);
-    reveal.textContent = visible ? 'Hide encrypted container' : 'Reveal encrypted container';
+    reveal.textContent = visible ? 'Hide container' : 'Show container';
     reveal.setAttribute('aria-pressed', String(visible));
     copyButton.disabled = !visible;
   });
@@ -312,14 +285,9 @@ function recoverySummary(candidate: MhfeCandidate, selectedWords: number): strin
 
 export function installMhfe(context: RecoveryFeatureContext): void {
   renderSpeedNotice();
-  installSecretToggle('#toggle-mhfe-source', '#mhfe-source', 'Reveal source phrase', 'Hide source phrase');
+  installSecretToggle('#toggle-mhfe-source', '#mhfe-source', 'Show phrase', 'Hide phrase');
   installMnemonicSourceDiagnostic(context, 'mhfe', '#mhfe-source', '#toggle-mhfe-source');
-  installSecretToggle(
-    '#toggle-mhfe-container',
-    '#mhfe-container',
-    'Reveal encrypted container',
-    'Hide encrypted container',
-  );
+  installSecretToggle('#toggle-mhfe-container', '#mhfe-container', 'Show container', 'Hide container');
   installPimToggle('encrypt');
   installPimToggle('decrypt');
   installPasswordToggle('#toggle-mhfe-encrypt-password', '#mhfe-encrypt-password', 'MHFE password');
@@ -331,7 +299,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
   installPasswordToggle('#toggle-mhfe-decrypt-password', '#mhfe-decrypt-password', 'MHFE password');
   const encryptedInput = required<HTMLTextAreaElement>('#mhfe-container');
   installQrImageImport(document, encryptedInput, {
-    label: 'Read encrypted-container QR image',
+    label: 'Import QR image',
     onDecoded: (decoded) => decoded.text.trim(),
     onError: (message) => {
       required<HTMLElement>('#mhfe-decrypt-status').textContent = message;

@@ -19,7 +19,7 @@ export function installAccountExportController(dependencies: AccountExportDepend
       if (bundle === undefined) return;
       const privateExport = action === 'privateCopy' || action === 'privateDownload';
       if (privateExport && !dependencies.secretsRevealed()) {
-        dependencies.showError('Reveal sensitive values before exporting private descriptors.');
+        dependencies.showError('Show sensitive values before exporting private descriptors.');
         return;
       }
       const descriptors = privateExport ? bundle.privateText : bundle.publicText;

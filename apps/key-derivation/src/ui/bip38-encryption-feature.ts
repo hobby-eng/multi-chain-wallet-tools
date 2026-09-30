@@ -122,7 +122,7 @@ function installBip38EncryptionFeature(options: Bip38FeatureOptions, supportedRe
           if (options.branch() === branch && options.result() === result) options.render();
         }
         if (requestRevision !== revision) return;
-        status.textContent = `Encrypted ${encrypted.size} generated private keys. Reveal sensitive values to view or copy them.`;
+        status.textContent = `Encrypted ${encrypted.size} generated private keys. Show sensitive values to view or copy them.`;
         if (options.branch() === branch && options.result() === result) options.render();
       } catch (cause) {
         if (requestRevision !== revision) return;

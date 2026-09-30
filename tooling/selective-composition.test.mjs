@@ -100,7 +100,7 @@ describe('selective bundle graph guards', () => {
       <input placeholder="Core, Platform, Identity, or Orchard viewing key">
       <textarea placeholder="One Core, Platform, Identity, or Orchard input per line"></textarea>
       <p id="viewer-input-help" class="field-note">Mixed batches may contain Dash and Orchard.</p>
-      <button id="reveal-viewing-key">Reveal key</button><button id="reveal-batch-input">Reveal keys</button>
+      <button id="reveal-viewing-key">Show key</button><button id="reveal-batch-input">Show keys</button>
       <code id="viewer-runtime">Core, Platform, Identity &amp; Orchard network reads</code
       >
       <span id="viewer-crypto-self-test-status">Cryptographic self-test running…</span
@@ -217,7 +217,7 @@ describe('selective bundle graph guards', () => {
   it('physically removes seed controls from watch-only Discovery HTML', () => {
     const template = `<div><button id="seed-source-tab">Seed phrase</button><button id="public-source-tab" class="recovery-mode-tab primary-mode-tab" aria-selected="false" tabindex="-1">Public keys</button></div>
       <div id="seed-source-panel"><textarea id="single-mnemonic"></textarea><input id="single-passphrase"><textarea id="batch-mnemonics"></textarea><textarea id="batch-passphrases"></textarea></div>
-      <div class="secret-actions"><button id="reveal-recovery-input">Reveal sensitive input</button></div>
+      <div class="secret-actions"><button id="reveal-recovery-input">Show input</button></div>
       <p>Secret Vault</p>
       <p>If funds are found, copy the address, then restore the phrase with a standard wallet. Never use a mnemonic that still protects valuable funds on an untrusted computer.</p>
       <p>use your original recovery phrase or wallet backup, confirm paths. The export intentionally contains no mnemonic, passphrase, seed, private key, spending key, or viewing key.</p>`;

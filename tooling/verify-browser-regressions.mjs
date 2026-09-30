@@ -450,7 +450,7 @@ async function recoveryBackupRoundTrips(context, profile, run) {
     const recoveredCopy = page.locator(`${method.restoreResult} .secret-action`);
     assert.equal(await recoveredCopy.isDisabled(), true);
     await clickStep(
-      page.locator(`${method.restoreResult} button`).filter({ hasText: 'Reveal recovered phrase' }),
+      page.locator(`${method.restoreResult} button`).filter({ hasText: 'Show phrase' }),
       `Reveal restored phrase in ${method.panel}`,
     );
     assert.equal(await recoveredCopy.isEnabled(), true);
@@ -757,7 +757,7 @@ async function mnemocodeRoundTrip(context, profile, run) {
       format === 'colors' || format === 'colors-unicode' ? 1 : 0,
     );
     assert.equal(
-      await page.locator('#mnemocode-encode-result button').filter({ hasText: 'Save MNC1 record' }).isDisabled(),
+      await page.locator('#mnemocode-encode-result button').filter({ hasText: 'Save record' }).isDisabled(),
       true,
     );
     return value;
@@ -820,11 +820,9 @@ async function mnemocodeRoundTrip(context, profile, run) {
   assert.match(await page.locator('#mnemocode-missing-word-result .warning-callout').innerText(), /128/u);
   assert.equal(await wordOptions.evaluate((output) => output.classList.contains('concealed')), false);
   assert.equal(await wordPhrases.evaluate((output) => output.classList.contains('concealed')), true);
-  const copyCandidates = page
-    .locator('#mnemocode-missing-word-result button')
-    .filter({ hasText: 'Copy all candidates' });
+  const copyCandidates = page.locator('#mnemocode-missing-word-result button').filter({ hasText: 'Copy all' });
   assert.equal(await copyCandidates.isDisabled(), true);
-  await page.locator('#mnemocode-missing-word-result button').filter({ hasText: 'Reveal recovered phrases' }).click();
+  await page.locator('#mnemocode-missing-word-result button').filter({ hasText: 'Show phrases' }).click();
   assert.equal(await copyCandidates.isEnabled(), true);
 
   await page.locator('#mnemocode-legacy-last-word').check();
@@ -889,7 +887,7 @@ async function childWallet(context, profile, run) {
   assert.equal(await page.locator('#bip85-output').inputValue(), childMnemonic);
   const verifier = await open(context, profile, 'psbt-inspector', run);
   await verifySignature(verifier, proof.address, proof.signature, 'bitcoin');
-  assert.equal(await page.locator('#toggle-bip85-secret').innerText(), 'Reveal recovery source');
+  assert.equal(await page.locator('#toggle-bip85-secret').innerText(), 'Show source');
   const recoveryMenu = page.locator('#bip85-recovery-source-menu');
   const menuBox = await recoveryMenu.boundingBox();
   const revealBox = await page.locator('#toggle-bip85-secret').boundingBox();
