@@ -15,6 +15,8 @@ export interface RecoveryFeatureContext {
   readonly useMnemonicInDeriver: (mnemonic: string, passphrase?: string) => void;
   readonly readMnemonic: (target: RecoverySourceTarget, selector: string) => string;
   readonly linkedValue: (target: RecoverySourceTarget) => { mnemonic: string; passphrase: string } | null;
+  /** True while the phrase linked from Generate & Derive is shown in its card. */
+  readonly linkedSourceRevealed: (target: RecoverySourceTarget) => boolean;
 }
 
 export function required<T extends Element>(selector: string): T {
@@ -45,68 +47,22 @@ interface ThresholdGroupEditor {
   read(): ThresholdGroupSpec[];
 }
 
-export function installThresholdGroupEditor(
-  selector: string,
-  options: Readonly<{
-    initial: readonly ThresholdGroupSpec[];
-    minimumRows: 0 | 1;
-    addLabel: string;
-    help: string;
-  }>,
-): ThresholdGroupEditor {
-  const container = required<HTMLElement>(selector);
-  const rows = document.createElement('div');
-  rows.className = 'threshold-group-rows';
-  const add = document.createElement('button');
-  add.type = 'button';
-  add.className = 'secondary compact';
-  add.textContent = options.addLabel;
+/** SSKR allows at most 16 groups and at most 16 shares in one group. */
+const MAX_SSKR_GROUP_VALUE = 16;
+/** Values of a newly added group: a common 2-of-3 split. */
+const NEW_GROUP_SPEC: ThresholdGroupSpec = { threshold: 2, count: 3 };
 
-  const synchronizeRemoveButtons = (): void => {
-    const buttons = [...rows.querySelectorAll<HTMLButtonElement>('[data-remove-threshold-group]')];
-    for (const button of buttons) button.disabled = buttons.length <= options.minimumRows;
-  };
-  const appendRow = (spec: ThresholdGroupSpec): void => {
-    const row = document.createElement('div');
-    row.className = 'threshold-group-row';
-    row.dataset.thresholdGroupRow = '';
-    const ordinal = rows.childElementCount + 1;
-    const requiredLabel = document.createElement('label');
-    requiredLabel.textContent = 'Shares required';
-    const threshold = document.createElement('input');
-    threshold.type = 'number';
-    threshold.min = '1';
-    threshold.max = '16';
-    threshold.value = String(spec.threshold);
-    threshold.dataset.groupThreshold = '';
-    threshold.setAttribute('aria-label', `Group ${ordinal} shares required`);
-    requiredLabel.append(threshold);
-    const createdLabel = document.createElement('label');
-    createdLabel.textContent = 'Shares created';
-    const count = document.createElement('input');
-    count.type = 'number';
-    count.min = '1';
-    count.max = '16';
-    count.value = String(spec.count);
-    count.dataset.groupCount = '';
-    count.setAttribute('aria-label', `Group ${ordinal} shares created`);
-    createdLabel.append(count);
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'secondary compact';
-    remove.dataset.removeThresholdGroup = '';
-    remove.textContent = 'Remove group';
-    remove.addEventListener('click', () => {
-      row.remove();
-      synchronizeRemoveButtons();
-    });
-    row.append(requiredLabel, createdLabel, remove);
-    rows.append(row);
-    synchronizeRemoveButtons();
-  };
+function groupNumberInput(value: number, dataName: 'groupThreshold' | 'groupCount'): HTMLInputElement {
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '1';
+  input.max = String(MAX_SSKR_GROUP_VALUE);
+  input.value = String(value);
+  input.dataset[dataName] = '';
+  return input;
+}
 
-  const addRow = document.createElement('div');
-  addRow.className = 'threshold-group-add-row';
+function createThresholdGroupHelp(helpText: string): HTMLDetailsElement {
   const help = document.createElement('details');
   help.className = 'threshold-group-help';
   const helpSummary = document.createElement('summary');
@@ -116,20 +72,33 @@ export function installThresholdGroupEditor(
   helpPopover.className = 'threshold-group-help-popover';
   const helpTitle = document.createElement('strong');
   helpTitle.textContent = 'How SSKR groups work';
-  const helpText = document.createElement('p');
-  helpText.textContent = options.help;
+  const text = document.createElement('p');
+  text.textContent = helpText;
   const warning = document.createElement('p');
   warning.className = 'threshold-group-help-warning';
   warning.textContent =
     "Shares from different groups cannot be combined to satisfy one group's Shares required threshold.";
-  helpPopover.append(helpTitle, helpText, warning);
+  helpPopover.append(helpTitle, text, warning);
   help.append(helpSummary, helpPopover);
-  addRow.append(add, help);
+  return help;
+}
 
-  add.addEventListener('click', () => appendRow({ threshold: 2, count: 3 }));
-  container.replaceChildren(rows, addRow);
-  for (const spec of options.initial) appendRow(spec);
+type ThresholdGroupOptions = Readonly<{
+  initial: readonly ThresholdGroupSpec[];
+  minimumRows: 0 | 1;
+  help: string;
+  /**
+   * "table" (SSKR): "Groups required" and one aligned table of groups under the section heading.
+   * "inline" (Gordian Envelope): each group is a row of two labelled fields, compact enough for one
+   * cell of the form grid next to the other Envelope fields.
+   */
+  layout: 'table' | 'inline';
+}>;
 
+export function installThresholdGroupEditor(selector: string, options: ThresholdGroupOptions): ThresholdGroupEditor {
+  const container = required<HTMLElement>(selector);
+  const rows =
+    options.layout === 'inline' ? installInlineGroupRows(container, options) : installGroupTable(container, options);
   return {
     read: () =>
       [...rows.querySelectorAll<HTMLElement>('[data-threshold-group-row]')].map((row, index) => ({
@@ -137,16 +106,166 @@ export function installThresholdGroupEditor(
           requiredWithin<HTMLInputElement>(row, '[data-group-threshold]'),
           `Group ${index + 1} shares required`,
           1,
-          16,
+          MAX_SSKR_GROUP_VALUE,
         ),
         count: integer(
           requiredWithin<HTMLInputElement>(row, '[data-group-count]'),
           `Group ${index + 1} shares created`,
           1,
-          16,
+          MAX_SSKR_GROUP_VALUE,
         ),
       })),
   };
+}
+
+/**
+ * Renders the group settings as one aligned table: the "Groups required" field written in the editor's
+ * HTML comes first, then a header row names the columns once, and each group row holds "Group N", its two
+ * numbers and a Remove button. The help sits next to the section heading (the `.threshold-settings-heading`
+ * around the editor), and "Add group" follows the table. Returns the element that holds the group rows.
+ */
+function installGroupTable(container: HTMLElement, options: ThresholdGroupOptions): HTMLElement {
+  const groupsRequired = container.querySelector<HTMLElement>('.threshold-groups-required');
+  const table = document.createElement('div');
+  table.className = 'threshold-group-table';
+  const header = document.createElement('div');
+  header.className = 'threshold-group-header';
+  // Every input carries its own aria-label, so the visual column header is hidden from screen readers.
+  header.setAttribute('aria-hidden', 'true');
+  for (const text of ['Group', 'Shares required', 'Shares created', '']) {
+    const cell = document.createElement('span');
+    cell.textContent = text;
+    header.append(cell);
+  }
+  const rows = document.createElement('div');
+  rows.className = 'threshold-group-rows';
+  if (groupsRequired !== null) table.append(groupsRequired);
+  table.append(header, rows);
+
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'secondary compact threshold-group-add';
+  add.textContent = 'Add group';
+
+  const synchronizeRows = (): void => {
+    const groupRows = [...rows.querySelectorAll<HTMLElement>('[data-threshold-group-row]')];
+    header.hidden = groupRows.length === 0;
+    add.disabled = groupRows.length >= MAX_SSKR_GROUP_VALUE;
+    groupRows.forEach((row, index) => {
+      const ordinal = index + 1;
+      requiredWithin<HTMLElement>(row, '[data-group-name]').textContent = `Group ${ordinal}`;
+      requiredWithin<HTMLInputElement>(row, '[data-group-threshold]').setAttribute(
+        'aria-label',
+        `Group ${ordinal} shares required`,
+      );
+      requiredWithin<HTMLInputElement>(row, '[data-group-count]').setAttribute(
+        'aria-label',
+        `Group ${ordinal} shares created`,
+      );
+      const remove = requiredWithin<HTMLButtonElement>(row, '[data-remove-threshold-group]');
+      remove.setAttribute('aria-label', `Remove group ${ordinal}`);
+      remove.disabled = groupRows.length <= options.minimumRows;
+    });
+  };
+  const appendRow = (spec: ThresholdGroupSpec): void => {
+    const row = document.createElement('div');
+    row.className = 'threshold-group-row';
+    row.dataset.thresholdGroupRow = '';
+    const name = document.createElement('span');
+    name.className = 'threshold-group-name';
+    name.dataset.groupName = '';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'secondary compact';
+    remove.dataset.removeThresholdGroup = '';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', () => {
+      row.remove();
+      synchronizeRows();
+    });
+    row.append(
+      name,
+      groupNumberInput(spec.threshold, 'groupThreshold'),
+      groupNumberInput(spec.count, 'groupCount'),
+      remove,
+    );
+    rows.append(row);
+    synchronizeRows();
+  };
+
+  const heading = container.closest('.threshold-settings')?.querySelector('.threshold-settings-heading');
+  (heading ?? container).append(createThresholdGroupHelp(options.help));
+  add.addEventListener('click', () => appendRow(NEW_GROUP_SPEC));
+  container.replaceChildren(table, add);
+  for (const spec of options.initial) appendRow(spec);
+  synchronizeRows();
+  return rows;
+}
+
+/** A number field with its label around it, as the inline layout shows it. */
+function labelledGroupInput(
+  text: string,
+  value: number,
+  dataName: 'groupThreshold' | 'groupCount',
+  ariaLabel: string,
+): HTMLLabelElement {
+  const label = document.createElement('label');
+  label.textContent = text;
+  const input = groupNumberInput(value, dataName);
+  input.setAttribute('aria-label', ariaLabel);
+  label.append(input);
+  return label;
+}
+
+/**
+ * Builds the inline layout in `container`: one row per group with its two labelled fields and Remove,
+ * then "Add group" with the help next to it. Returns the element that holds the group rows.
+ */
+function installInlineGroupRows(container: HTMLElement, options: ThresholdGroupOptions): HTMLElement {
+  const rows = document.createElement('div');
+  rows.className = 'threshold-inline-rows';
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'secondary compact';
+  add.textContent = 'Add group';
+
+  const synchronizeRemoveButtons = (): void => {
+    const buttons = [...rows.querySelectorAll<HTMLButtonElement>('[data-remove-threshold-group]')];
+    for (const button of buttons) button.disabled = buttons.length <= options.minimumRows;
+    add.disabled = buttons.length >= MAX_SSKR_GROUP_VALUE;
+  };
+  const appendRow = (spec: ThresholdGroupSpec): void => {
+    const row = document.createElement('div');
+    row.className = 'threshold-inline-row';
+    row.dataset.thresholdGroupRow = '';
+    const ordinal = rows.childElementCount + 1;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'secondary compact';
+    remove.dataset.removeThresholdGroup = '';
+    remove.textContent = 'Remove';
+    remove.setAttribute('aria-label', `Remove group ${ordinal}`);
+    remove.addEventListener('click', () => {
+      row.remove();
+      synchronizeRemoveButtons();
+    });
+    row.append(
+      labelledGroupInput('Shares required', spec.threshold, 'groupThreshold', `Group ${ordinal} shares required`),
+      labelledGroupInput('Shares created', spec.count, 'groupCount', `Group ${ordinal} shares created`),
+      remove,
+    );
+    rows.append(row);
+    synchronizeRemoveButtons();
+  };
+
+  const addRow = document.createElement('div');
+  addRow.className = 'threshold-inline-add-row';
+  addRow.append(add, createThresholdGroupHelp(options.help));
+  add.addEventListener('click', () => appendRow(NEW_GROUP_SPEC));
+  container.replaceChildren(rows, addRow);
+  for (const spec of options.initial) appendRow(spec);
+  synchronizeRemoveButtons();
+  return rows;
 }
 
 function requiredWithin<T extends Element>(root: ParentNode, selector: string): T {
@@ -269,29 +388,40 @@ export function installMnemonicSourceDiagnostic(
   input.after(diagnostic);
   const update = (): void => {
     const linked = context.linkedValue(target);
+    // A linked phrase is shown by the toggle in its card; the hidden manual field says nothing about it.
+    const revealed = linked === null ? !input.classList.contains('concealed') : context.linkedSourceRevealed(target);
     updateMnemonicDiagnostic(
       diagnostic,
       linked?.mnemonic ?? input.value,
       linked?.passphrase ?? passphrase?.value ?? '',
-      !input.classList.contains('concealed'),
+      revealed,
       context.mnemonicToSeed,
     );
   };
   input.addEventListener('input', update);
   passphrase?.addEventListener('input', update);
   reveal.addEventListener('click', () => queueMicrotask(update));
-  document.addEventListener('recovery-source-change', (event) => {
-    if (event instanceof CustomEvent && event.detail === target) update();
-  });
+  for (const type of ['recovery-source-change', 'recovery-source-visibility']) {
+    document.addEventListener(type, (event) => {
+      if (event instanceof CustomEvent && event.detail === target) update();
+    });
+  }
   update();
 }
 
+/**
+ * Shows each share or record as a concealed card with Copy and QR. Returns the row of buttons that
+ * follows the cards, so that a caller can add its own button there instead of on a line of its own:
+ * with several cards it is a row holding "Copy all"; with one card, whose Copy already copies
+ * everything, it is that card's own row.
+ */
 export function renderSensitiveShares(
   container: HTMLElement,
   shares: readonly string[],
   copy: (value: string) => Promise<void>,
   labels: readonly string[] = [],
-): void {
+): HTMLElement {
+  let lastActions: HTMLElement | undefined;
   shares.forEach((share, index) => {
     const card = document.createElement('article');
     const title = document.createElement('strong');
@@ -318,7 +448,15 @@ export function renderSensitiveShares(
     actions.append(copyButton, qr);
     card.append(title, text, actions);
     container.append(card);
+    lastActions = actions;
   });
+  const reset = (): void => {
+    container.closest<HTMLElement>('.backup-operation')?.dispatchEvent(new CustomEvent('secret-content-reset'));
+  };
+  if (shares.length === 1 && lastActions !== undefined) {
+    reset();
+    return lastActions;
+  }
   const copyAll = document.createElement('button');
   copyAll.type = 'button';
   copyAll.className = 'secret-action compact secret-copy-action';
@@ -326,8 +464,12 @@ export function renderSensitiveShares(
   copyAll.setAttribute('aria-label', labels.length > 0 ? 'Copy all records' : 'Copy all shares');
   copyAll.disabled = true;
   copyAll.addEventListener('click', () => void copy(shares.join('\n')));
-  container.append(copyAll);
-  container.closest<HTMLElement>('.backup-operation')?.dispatchEvent(new CustomEvent('secret-content-reset'));
+  const footer = document.createElement('div');
+  footer.className = 'share-secret-actions';
+  footer.append(copyAll);
+  container.append(footer);
+  reset();
+  return footer;
 }
 
 export function renderRecoveredMnemonic(
@@ -428,7 +570,8 @@ function renderRecoveredSecret(
   const copyButton = document.createElement('button');
   copyButton.type = 'button';
   copyButton.className = 'secret-action compact';
-  copyButton.textContent = labels.copy;
+  copyButton.textContent = 'Copy';
+  copyButton.setAttribute('aria-label', labels.copy);
   copyButton.disabled = true;
   const actions = document.createElement('div');
   actions.className = 'actions recovered-secret-actions';

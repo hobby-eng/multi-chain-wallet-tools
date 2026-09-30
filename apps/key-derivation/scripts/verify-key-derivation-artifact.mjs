@@ -200,7 +200,7 @@ const required = [
   'Recovery seed phrase',
   'Seed Diagnostic',
   'BIP32 master fingerprint',
-  'Show source',
+  'Show phrase',
   'Show private keys',
   'Derivation type',
   'dash-identity',

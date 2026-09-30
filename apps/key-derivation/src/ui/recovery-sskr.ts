@@ -28,7 +28,7 @@ export function installSskr(context: RecoveryFeatureContext): void {
   const groupEditor = installThresholdGroupEditor('#sskr-groups', {
     initial: [{ threshold: 2, count: 3 }],
     minimumRows: 1,
-    addLabel: 'Add SSKR group',
+    layout: 'table',
     help: 'Each group creates a separate set of shares. First satisfy Shares required inside a group; then satisfy Groups required with that many completed groups. With Groups required set to 1, any one completed group can restore the secret.',
   });
   installSecretToggle('#toggle-sskr-source', '#sskr-source', 'Show phrase', 'Hide phrase');

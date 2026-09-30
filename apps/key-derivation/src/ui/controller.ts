@@ -1,7 +1,13 @@
 import type { CoinAdapter } from '@ckd/coins/registry.js';
 import type { DerivationResult, DisplayMode, ResultField } from '@ckd/core/types.js';
 import { displayedFields, type ExportAction, type ExportFormat } from '@ckd/export/formatter.js';
-import { applySharedDerivationControls, readControls, type DerivationControlValues } from './inputs.js';
+import {
+  applySharedDerivationControls,
+  markSelectedProtocolTab,
+  readControls,
+  syncFeatureTabVisibility,
+  type DerivationControlValues,
+} from './inputs.js';
 import { createBranchResultState, type BranchResultState, type ResultBranch } from './result-branches.js';
 import { runStreamedDerivation } from './streamed-derivation.js';
 import { invertSelection, selectAll, selectNone } from './selection.js';
@@ -218,6 +224,8 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
           mnemonicToSeed,
           createWorker,
           ...(messageSigning === undefined ? {} : { messageSigning }),
+          // The derived child wallet offers Silent Payments through the same feature module.
+          ...(installSilentPaymentFeature === undefined ? {} : { installSilentPaymentFeature }),
           copyText,
           copyBulkFrom: resultExport.copyRows,
           downloadRowsFrom: resultExport.downloadRows,
@@ -257,12 +265,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         derivationPanel?.classList.toggle('feature-tab-active', supplemental);
         if (silentPaymentPanel !== null) silentPaymentPanel.hidden = next !== 'silent-payment';
         if (bip85Panel !== null) bip85Panel.hidden = next !== 'bip85';
-        for (const button of controls.protocolTabs.querySelectorAll<HTMLButtonElement>('.protocol-tab')) {
-          const selected = next === null ? button.dataset.adapterId === adapter.id : button.dataset.featureTab === next;
-          button.classList.toggle('active', selected);
-          button.setAttribute('aria-checked', String(selected));
-          button.tabIndex = selected ? 0 : -1;
-        }
+        markSelectedProtocolTab(controls.protocolTabs, adapter.id, next);
         if (mainResults !== null) mainResults.hidden = supplemental || currentResult === null;
         placeResultSecretsToggle();
         updateActivePathPreview();
@@ -292,7 +295,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
           checkbox.disabled = !available;
           if (!available) checkbox.checked = false;
         }
-        tab.hidden = checkbox.disabled || !checkbox.checked;
+        syncFeatureTabVisibility(checkbox, tab);
         if (!checkbox.checked && activeFeatureTab === feature) {
           setFeatureTab(null);
           scheduleAutomaticDerivation();
@@ -524,7 +527,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         resultSecretsRevealed = revealed;
         view.setResultSecretsVisibility(revealed);
         bip85Feature?.setSecretsVisible(revealed);
-        optionalElement<HTMLElement>('#silent-payment-result')?.classList.toggle('revealed', revealed);
+        silentPaymentFeature?.setSecretsVisible(revealed);
         updateBulkActions();
       }
 
@@ -925,7 +928,6 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         if (messageSigning?.isOpen() === true) messageSigning.close();
         bip38Feature?.reset();
         bip85Feature?.reset();
-        silentPaymentFeature?.cancelScheduledRefresh();
         if (includeSilentPayment !== null) {
           includeSilentPayment.checked = false;
         }
@@ -933,11 +935,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         syncFeatureToggle(includeSilentPayment, silentPaymentTab, 'silent-payment');
         syncFeatureToggle(includeBip85, bip85Tab, 'bip85');
         setFeatureTab(null);
-        const silentPaymentLabelsField = optionalElement<HTMLInputElement>('#silent-payment-labels');
-        if (silentPaymentLabelsField !== null) silentPaymentLabelsField.value = '';
-        optionalElement<HTMLElement>('#silent-payment-result')?.setAttribute('hidden', '');
-        optionalElement<HTMLElement>('#silent-payment-error')?.setAttribute('hidden', '');
-        optionalElement<HTMLElement>('#silent-payment-labeled-list')?.replaceChildren();
+        silentPaymentFeature?.reset();
         view.clearAllInputs();
         mnemonicDiagnostic.reset();
       });

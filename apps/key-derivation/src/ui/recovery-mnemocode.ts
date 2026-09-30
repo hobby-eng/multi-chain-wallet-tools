@@ -133,6 +133,7 @@ function concealedText({ value, rows, subject, copyLabel, extraClass, copy }: Co
   copyButton.type = 'button';
   copyButton.className = 'secret-action compact';
   copyButton.textContent = copyLabel;
+  copyButton.setAttribute('aria-label', `${copyLabel} ${subject}`);
   copyButton.disabled = true;
   reveal.addEventListener('click', () => {
     const visible = output.classList.contains('concealed');
@@ -159,7 +160,7 @@ function renderInvalidMnemonic(container: HTMLElement, mnemonic: string, copy: (
       value: mnemonic,
       rows: 4,
       subject: 'phrase',
-      copyLabel: 'Copy phrase',
+      copyLabel: 'Copy',
       copy,
     }),
   );
@@ -324,7 +325,9 @@ export function installMnemoCode(context: RecoveryFeatureContext): void {
           'Legacy Seedshift can produce a representation whose English form has an invalid BIP39 checksum.';
         encodeResult.append(warning);
       }
-      renderSensitiveShares(encodeResult, [result.payload], context.writeClipboard, [formatLabel(result.format)]);
+      const recordActions = renderSensitiveShares(encodeResult, [result.payload], context.writeClipboard, [
+        formatLabel(result.format),
+      ]);
       const save = document.createElement('button');
       save.type = 'button';
       save.className = 'secret-action compact secret-copy-action';
@@ -337,7 +340,8 @@ export function installMnemoCode(context: RecoveryFeatureContext): void {
       saveNote.className = 'field-note';
       saveNote.textContent =
         'The saved text record includes the mode, representation, and payload. Dates are not saved.';
-      encodeResult.append(save, saveNote);
+      recordActions.append(save);
+      encodeResult.append(saveNote);
       if (result.format === 'colors' || result.format === 'colors-unicode') {
         appendPalette(encodeResult, result.colors);
       }
