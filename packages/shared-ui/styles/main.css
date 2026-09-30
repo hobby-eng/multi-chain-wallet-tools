@@ -2379,6 +2379,28 @@ footer p {
   margin-top: -0.75rem;
 }
 
+/* An empty status line would show as a blank coloured bar before the first operation. */
+#mhfe-panel .status:empty {
+  display: none;
+}
+
+/* An MHFE result card stacks a status callout, the words, the buttons and a note; give them room. */
+#mhfe-panel .share-results article {
+  display: grid;
+  gap: 0.75rem;
+}
+
+#mhfe-panel .share-results article > .share-secret-actions {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* The note is prose, not a secret: keep the body font that share cards replace with monospace. */
+#mhfe-panel .share-results article > p.field-note {
+  margin: 0;
+  font-family: inherit;
+}
+
 #mhfe-panel .mhfe-option-explainer {
   display: flex;
   align-items: baseline;

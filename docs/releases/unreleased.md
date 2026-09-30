@@ -19,3 +19,11 @@ The MnemoCode module now compiles the unmodified upstream core, vendored from it
 Added the optional `mnemocode-cards` feature: the MnemoCode panel can save the color codes of a phrase as printable cards, with a choice of template, page size, orientation, file format and optional QR code. PDF is the default. PNG images are drawn by the page itself at 300 dpi; the corners outside the rounded edge of a separate card are transparent. It uses the MnemoCode renderers themselves and adds `pdf-lib`, `@pdf-lib/fontkit` and `@pdf-lib/upng` at the versions pinned by MnemoCode.
 
 A MnemoCode date needs a four-digit year: `23-09-26` was read as the year 23 and is now an error. Dates are ignored in Direct mode. An error about an unknown BIP39 word names its position, not the word.
+
+## MHFE 0.4.0 and fast mode
+
+The MHFE panel embeds the MHFE 0.4.0 browser package, suite `MHFE-BIP39-256-EXPERIMENTAL-3`: twelve rounds of Argon2id with 2 GiB each, PIM 0–1023, and passwords in any Unicode text except line breaks. Suite 2 containers are not readable with this version; recover them with release v0.1.5 or earlier and encrypt the phrase again. The final-word mode of suite 2 is removed.
+
+Every encryption decrypts the new container once more. The container appears after the first twelve rounds, clearly marked as not yet verified, and is marked verified only when it turns back into the original phrase; a failed check says the container must not be used. Before encrypting, the page warns in the rare case (about one phrase in four billion) that automatic length detection would not give the phrase back on its own.
+
+Opened as a file, the page runs Argon2 on one thread, because browsers allow shared memory between threads only on cross-origin isolated pages, which a file cannot be. The panel explains this and offers **Speed up**: double-click `mhfe-fast-mode.py` next to the HTML file (Python 3.8 or later). It checks the page against `mhfe-fast-mode.sha256`, which always has this name and lies next to the page, and opens it in a new tab in fast mode, about three times faster. If the page was changed or the checksum file is missing, it refuses and says why. It serves only that page, only to this computer, and never sees what is typed. Both files are listed in the release `SHA256SUMS`.

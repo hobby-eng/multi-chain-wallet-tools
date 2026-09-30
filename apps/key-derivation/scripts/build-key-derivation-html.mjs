@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, transform } from 'esbuild';
 import { createBundledLibraryTextPlugin } from '../../../tooling/bundled-library-text.mjs';
@@ -105,26 +105,23 @@ if (workerSource === undefined) throw new Error('esbuild did not produce a deriv
 if (!/postMessage\(\{type:"ready"\}\)/u.test(workerSource)) {
   throw new Error('Derivation worker bundle is missing its explicit ready handshake.');
 }
-const mhfeWorkerBuild = features.has('mhfe')
-  ? await build({
-      absWorkingDir: root,
-      entryPoints: [resolve(root, 'apps/key-derivation/src/workers/mhfe-backup-worker.ts')],
-      bundle: true,
-      format: 'iife',
-      platform: 'browser',
-      target: ['chrome120', 'firefox120', 'safari17'],
-      treeShaking: true,
-      minify: true,
-      legalComments: 'inline',
-      logOverride: { 'empty-import-meta': 'silent' },
-      loader: { '.wasm': 'binary' },
-      metafile: true,
-      write: false,
-    })
-  : undefined;
-const mhfeWorkerSource = mhfeWorkerBuild?.outputFiles[0]?.text ?? '';
-if (features.has('mhfe') && !mhfeWorkerSource.includes('initializationError')) {
-  throw new Error('MHFE worker bundle is missing its reviewed error and status text.');
+// The MHFE browser package ships its worker and both Argon2 builds as finished classic scripts.
+// The page passes them to the MHFE client as text, because under the page's Content-Security-Policy
+// a worker may run only from a Blob built in the page; they are embedded unchanged.
+const mhfeDirectory = resolve(root, 'packages/recovery-mhfe-wasm/generated');
+const readMhfeScript = (name) => (features.has('mhfe') ? readFileSync(resolve(mhfeDirectory, name), 'utf8') : '');
+const mhfeSources = {
+  worker: readMhfeScript('mhfe-worker.js'),
+  argon2Threaded: readMhfeScript('argon2-mt.js'),
+  argon2SingleThreaded: readMhfeScript('argon2-st.js'),
+};
+if (
+  features.has('mhfe') &&
+  (!mhfeSources.worker.includes('self.onmessage') ||
+    !mhfeSources.argon2Threaded.includes('createArgon2Mt') ||
+    !mhfeSources.argon2SingleThreaded.includes('createArgon2St'))
+) {
+  throw new Error('The embedded MHFE browser package is incomplete.');
 }
 const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
   coins: features.coins,
@@ -240,25 +237,22 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
     ...(features.has('mnemocode-cards') ? { 'Math.random': 'ckdRandomFraction' } : {}),
     __BUILD_INFO__: JSON.stringify(buildInfo),
     __DERIVATION_WORKER_SOURCE__: JSON.stringify(workerSource),
-    __MHFE_WORKER_SOURCE__: JSON.stringify(mhfeWorkerSource),
+    __MHFE_WORKER_SOURCE__: JSON.stringify(mhfeSources.worker),
+    __MHFE_ARGON2_THREADED_SOURCE__: JSON.stringify(mhfeSources.argon2Threaded),
+    __MHFE_ARGON2_SINGLE_THREADED_SOURCE__: JSON.stringify(mhfeSources.argon2SingleThreaded),
     __DASH_COMMUNITY__: profile.id === 'dash-community' ? 'true' : 'false',
   },
   write: false,
 });
 assertKeyDerivationComposition(features, [
   ...Object.keys(workerBuild.metafile.inputs),
-  ...Object.keys(mhfeWorkerBuild?.metafile.inputs ?? {}),
   ...Object.keys(bundled.metafile.inputs),
 ]);
 const javascript = bundled.outputFiles[0]?.text;
 if (javascript === undefined) throw new Error('esbuild did not produce a JavaScript bundle.');
 if (profile.id === 'dash-community') {
   assertDashOnlyGraph(
-    [
-      ...Object.keys(workerBuild.metafile.inputs),
-      ...Object.keys(mhfeWorkerBuild?.metafile.inputs ?? {}),
-      ...Object.keys(bundled.metafile.inputs),
-    ],
+    [...Object.keys(workerBuild.metafile.inputs), ...Object.keys(bundled.metafile.inputs)],
     'Dash Community key derivation',
   );
 }
@@ -296,7 +290,33 @@ mkdirSync(dist, { recursive: true });
 writeFileSync(artifact, html);
 const checksum = createHash('sha256').update(html).digest('hex');
 writeFileSync(`${artifact}.sha256`, `${checksum}  ${describeCustomArtifact(artifact)}\n`);
+if (features.has('mhfe')) writeFastModeLauncher(artifact, checksum);
 console.log(
   `Built ${customArtifact === undefined ? `dist/${tool.artifactRelativePath}` : artifact} (${Buffer.byteLength(html).toLocaleString()} bytes)`,
 );
 console.log(`SHA-256 ${checksum}`);
+
+/**
+ * Puts the MHFE fast-mode launcher next to the page. Opened as a file, the page runs Argon2 on one
+ * thread; `mhfe-fast-mode.py` serves it from 127.0.0.1 with the headers that allow four threads,
+ * but only when `mhfe-fast-mode.sha256` next to it names the page with its exact SHA-256. That
+ * file always has this one name, so the launcher finds it without being told. A folder can hold
+ * the launcher for one page only: a second MHFE page built into the same folder is reported and
+ * left without it instead of taking the first page's place.
+ */
+function writeFastModeLauncher(page, pageChecksum) {
+  const folder = resolve(page, '..');
+  const checksumFile = resolve(folder, 'mhfe-fast-mode.sha256');
+  const line = `${pageChecksum}  ${basename(page)}\n`;
+  if (existsSync(checksumFile)) {
+    const listed = readFileSync(checksumFile, 'utf8').trim().split(/\s+/u)[1];
+    if (listed !== basename(page)) {
+      console.warn(
+        `Kept the fast-mode launcher of ${listed} in this folder; ${basename(page)} gets none. Build it into a folder of its own for fast mode.`,
+      );
+      return;
+    }
+  }
+  writeFileSync(checksumFile, line);
+  copyFileSync(resolve(mhfeDirectory, 'mhfe-fast-mode.py'), resolve(folder, 'mhfe-fast-mode.py'));
+}
