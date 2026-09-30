@@ -289,7 +289,8 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   };
   const before = await storageSnapshot(page);
   await clickStep(page.locator('#recovery-backup-mode'), 'Open Recover & Back Up');
-  assert.equal(await page.locator('.recovery-help').count(), 14);
+  // One help per recovery panel plus the option helps; MHFE 0.4.0 removed the final-word option and its help.
+  assert.equal(await page.locator('.recovery-help').count(), 13);
   const firstHelp = page.locator('.recovery-help').first();
   await firstHelp.locator('summary').hover();
   await page.waitForFunction(() => document.querySelector('.recovery-help')?.hasAttribute('open'));
