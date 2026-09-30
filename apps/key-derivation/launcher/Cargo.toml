@@ -1,0 +1,23 @@
+[package]
+name = "key-derivation-launcher"
+version = "0.1.5"
+edition = "2021"
+rust-version = "1.85.1"
+license = "MIT"
+publish = false
+description = "Serves the embedded Key Derivation Tool page to this computer, so that MHFE runs in fast mode"
+
+# One dependency, RustCrypto's SHA-256, pinned by Cargo.lock and compiled in: the program needs
+# nothing else at run time. The build script checks the page with it too.
+[dependencies]
+sha2 = { version = "=0.10.9", default-features = false }
+
+[build-dependencies]
+sha2 = { version = "=0.10.9", default-features = false }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

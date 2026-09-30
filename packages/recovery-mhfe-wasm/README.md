@@ -9,8 +9,9 @@ the files are those of `mhfe-v0.4.0-browser.tar.gz` from the reproducible Docker
 replaced by the release build before a release of these tools.
 
 The Key Derivation Tool embeds the worker and both Argon2 builds as text and the core as bytes, and
-runs every operation in a disposable Worker through `client.js`. `mhfe-fast-mode.py` is copied next
-to every built page that includes MHFE, together with `mhfe-fast-mode.sha256`.
+runs every operation in a disposable Worker through `client.js`. `mhfe-fast-mode.py` stays in the
+unchanged package but is not shipped: the executable Key Derivation Tool
+(`apps/key-derivation/launcher`) replaces it.
 
 | File                           | What it is                                                                                |
 | ------------------------------ | ----------------------------------------------------------------------------------------- |
@@ -18,7 +19,7 @@ to every built page that includes MHFE, together with `mhfe-fast-mode.sha256`.
 | `mhfe-worker.js`               | The worker: the Rust core's glue, the Argon2 bridge and the worker logic                  |
 | `mhfe_core_bg.wasm`            | The Rust core: all MHFE logic except Argon2                                               |
 | `argon2-mt.js`, `argon2-st.js` | The reference Argon2 C code compiled with Emscripten 6.0.10, threaded and single-threaded |
-| `mhfe-fast-mode.py`            | The fast-mode launcher for computers with Python 3.8 or later                             |
+| `mhfe-fast-mode.py`            | MHFE's Python fast-mode launcher; vendored with the package, not shipped                  |
 
 SHA-256 of the vendored files:
 

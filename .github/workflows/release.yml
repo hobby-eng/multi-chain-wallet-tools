@@ -61,6 +61,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # Everything except the macOS executables, built and verified in the pinned containers.
   release:
     needs: browser
     runs-on: ubuntu-24.04
@@ -92,6 +93,99 @@ jobs:
           container_id=$(docker create multi-chain-wallet-tools-release:${GITHUB_SHA} /bin/true)
           trap 'docker rm --force "${container_id}" >/dev/null 2>&1 || true' EXIT
           docker cp "${container_id}:/dist/." dist
+          cat dist/multi-chain-edition/release/SHA256SUMS
+
+      - name: Install the pinned Node runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
+      - name: Build the Linux and Windows executables around the canonical pages
+        run: node tooling/build-launchers-reproducible.mjs
+
+      - name: Keep the canonical build for the macOS and publishing jobs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: canonical-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  # The executable Key Derivation Tool for macOS needs Apple's SDK, so a macOS runner builds it from
+  # the page of the canonical build. It is covered by the SHA256SUMS and attestations below.
+  macos:
+    needs: release
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      RUSTUP_TOOLCHAIN: 1.98.1
+    steps:
+      - name: Check out the tagged revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Node runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
+      - name: Install the pinned Rust toolchain and the macOS targets
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal \
+            --target aarch64-apple-darwin --target x86_64-apple-darwin
+          cargo fetch --locked --manifest-path apps/key-derivation/launcher/Cargo.toml
+
+      - name: Take the canonical build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: canonical-dist
+          path: dist
+
+      - name: Build the macOS executables around the canonical page
+        run: |
+          node tooling/build-key-derivation-launchers.mjs --profile multi-chain \
+            --platforms macos-aarch64,macos-x86_64
+
+      - name: Keep the macOS executables for publishing
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macos-launchers
+          path: dist/multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool-macos-*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [release, macos]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the tagged revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Node runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
+      - name: Take the canonical build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: canonical-dist
+          path: dist
+
+      - name: Take the macOS executables
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: macos-launchers
+          path: dist/multi-chain-edition/key-derivation
+
+      - name: Make the release assets again with every executable
+        run: |
+          node tooling/create-github-release-assets.mjs
+          node tooling/verify-github-release-assets.mjs --all-launchers
           cat dist/multi-chain-edition/release/SHA256SUMS
 
       - name: Generate GitHub build-provenance attestations

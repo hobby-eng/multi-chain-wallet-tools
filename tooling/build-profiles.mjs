@@ -116,7 +116,6 @@ export function assertDashOnlyGraph(inputs, label) {
       'packages/recovery-mhfe-wasm/generated/argon2-mt.js',
       'packages/recovery-mhfe-wasm/generated/argon2-st.js',
       'packages/recovery-mhfe-wasm/generated/client.js',
-      'packages/recovery-mhfe-wasm/generated/mhfe-fast-mode.py',
       'packages/recovery-mhfe-wasm/generated/mhfe-worker.js',
       'packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm',
     ]);

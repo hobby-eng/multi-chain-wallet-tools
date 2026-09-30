@@ -93,12 +93,16 @@ dist/multi-chain-edition/release/Wallet_Discovery_Scanner.html
 dist/multi-chain-edition/release/Wallet_Discovery_Scanner.html.sha256
 dist/multi-chain-edition/release/PSBT_Multisig_Inspector.html
 dist/multi-chain-edition/release/PSBT_Multisig_Inspector.html.sha256
+dist/multi-chain-edition/release/Wallet_Key_Derivation_Tool-<platform>          (each executable built next to the page)
+dist/multi-chain-edition/release/Wallet_Key_Derivation_Tool-<platform>.sha256
 dist/multi-chain-edition/release/verification-record.json
 dist/multi-chain-edition/release/LICENSE
 dist/multi-chain-edition/release/ATTRIBUTION.md
 dist/multi-chain-edition/release/THIRD_PARTY_NOTICES.md
 dist/multi-chain-edition/release/SHA256SUMS
 ```
+
+`<platform>` is `linux-x86_64`, `linux-aarch64`, `windows-x86_64.exe`, `macos-aarch64` or `macos-x86_64`: the executable versions of the Deriver, built with `node tooling/build-key-derivation-launchers.mjs` after the HTML. Each embeds the page of the same bundle, which the bundle scripts check byte for byte; one left from an older build of the page stops them. `pnpm build:reproducible:launchers` builds the Linux and Windows versions in `Dockerfile.launchers` around the pages of `pnpm build:reproducible` and makes both bundles again with them; it is separate from `Dockerfile.reproducible`, whose bytes are part of the committed WASM record. The tag workflow then builds the macOS versions from the container's page on a macOS runner, makes the release assets again with all five, and requires all five (`verify-github-release-assets.mjs --all-launchers`) before it attests and publishes.
 
 It remains the only bundle published by this repository's tag workflow. `pnpm release:bundle:dash-community` prepares the following separately named bundle for the verified Dash Community distribution workflow:
 
@@ -111,6 +115,8 @@ dist/dash-community-edition/release/Dash_Community_Discovery_Scanner.html
 dist/dash-community-edition/release/Dash_Community_Discovery_Scanner.html.sha256
 dist/dash-community-edition/release/Dash_Community_PSBT_Multisig_Inspector.html
 dist/dash-community-edition/release/Dash_Community_PSBT_Multisig_Inspector.html.sha256
+dist/dash-community-edition/release/Dash_Community_Key_Derivation_Tool-<platform>
+dist/dash-community-edition/release/Dash_Community_Key_Derivation_Tool-<platform>.sha256
 dist/dash-community-edition/release/verification-record.json
 dist/dash-community-edition/release/LICENSE
 dist/dash-community-edition/release/ATTRIBUTION.md
@@ -118,7 +124,7 @@ dist/dash-community-edition/release/THIRD_PARTY_NOTICES.md
 dist/dash-community-edition/release/SHA256SUMS
 ```
 
-The separate `hobby-eng/dash-wallet-tools` repository contains the **Build and publish Dash Community release** workflow. It automatically checks for a published stable canonical release every 15 minutes, skips tags already present in the distribution repository, and supports manual execution with `source_ref` and `release_tag` both set to the same canonical tag. It checks out that immutable tag, requires it to match `package.json`, repeats the canonical pinned build, verifies the exact Dash-only bundle and `SHA256SUMS`, creates attestations in the Dash release repository, and publishes the curated Dash Community notes from this source tree. It never copies application source into the distribution repository.
+The separate `hobby-eng/dash-wallet-tools` repository contains the **Build and publish Dash Community release** workflow. It automatically checks for a published stable canonical release every 15 minutes, skips tags already present in the distribution repository, and supports manual execution with `source_ref` and `release_tag` both set to the same canonical tag. It checks out that immutable tag, requires it to match `package.json`, repeats the canonical pinned build, builds the executable Key Derivation Tool the same way as the tag workflow here (Linux and Windows in `Dockerfile.launchers`, macOS on a macOS runner) when the tagged source has it, verifies the exact Dash-only bundle and `SHA256SUMS`, creates attestations in the Dash release repository, and publishes the curated Dash Community notes from this source tree. It never copies application source into the distribution repository.
 
 The manifest uses plain filenames, not subdirectories, so a user can download all release assets into one directory and immediately run:
 
@@ -128,6 +134,7 @@ gh attestation verify Wallet_Key_Derivation_Tool.html -R hobby-eng/multi-chain-w
 gh attestation verify Wallet_Activity_Viewer.html -R hobby-eng/multi-chain-wallet-tools
 gh attestation verify Wallet_Discovery_Scanner.html -R hobby-eng/multi-chain-wallet-tools
 gh attestation verify PSBT_Multisig_Inspector.html -R hobby-eng/multi-chain-wallet-tools
+gh attestation verify Wallet_Key_Derivation_Tool-linux-x86_64 -R hobby-eng/multi-chain-wallet-tools
 gh attestation verify verification-record.json -R hobby-eng/multi-chain-wallet-tools
 ```
 
