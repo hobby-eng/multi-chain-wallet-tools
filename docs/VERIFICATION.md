@@ -30,6 +30,8 @@ These commands describe the current source tree. A command being available is no
 
 The current GitHub `ci.yml` has two mandatory jobs. `verify` builds `Dockerfile.reproducible`, which rebuilds all five WASM modules, records their source/output hashes, runs **`pnpm verify`**, and then compares every rebuilt file and the integrity manifest with the committed copies. Local `pnpm verify` consumes those recorded bytes and fails if a local rebuild, source edit, or stale manifest changed them. `browser` installs the pinned Playwright package and matching Chromium/Firefox binaries, builds all eight standalone HTML files from committed WASM, and runs direct-file acceptance, extended regressions, and selective-profile browser smoke directly over `file://`. Neither job contacts mutable wallet-data providers.
 
+The separate `launchers.yml` workflow checks the executable Deriver whenever its sources change. It builds the Deriver pages, the Linux and Windows executables in `Dockerfile.launchers` and the macOS executable on a macOS runner, then runs each on its own system (Ubuntu, Windows, macOS) with `tooling/verify-key-derivation-launcher.mjs`: served page and headers, refused hosts, paths and methods, cross-origin isolation, fast mode and an MHFE worker in Chromium, and no requests or storage. The full-cost MHFE vector (`--full`) is run locally only.
+
 Some verifiers are imported modules rather than standalone executable tests: `verify-dash-sdk-build.mjs` checks installed SDK versions/integrities when Viewer/Scanner build; `verify-evo-read-only.mjs` and Dash graph gates are used by artifact/build checks. Their presence in `tooling/` does not mean they need another identical CLI invocation.
 
 ## Efficient local sequence
