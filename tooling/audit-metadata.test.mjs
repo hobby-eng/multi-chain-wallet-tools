@@ -19,6 +19,8 @@ it('updates release metadata without rewriting audit dates, commits or evidence'
       'packages/recovery-sskr-wasm/rust/Cargo.lock',
       'packages/recovery-envelope-wasm/rust/Cargo.toml',
       'packages/recovery-envelope-wasm/rust/Cargo.lock',
+      'apps/key-derivation/launcher/Cargo.toml',
+      'apps/key-derivation/launcher/Cargo.lock',
       'THIRD_PARTY_NOTICES.md',
       'SECURITY_AUDIT.md',
       'docs/reference/DASH_IMPLEMENTATION.md',
@@ -28,7 +30,7 @@ it('updates release metadata without rewriting audit dates, commits or evidence'
       mkdirSync(dirname(resolve(root, path)), { recursive: true });
       cpSync(resolve(source, path), resolve(root, path));
     }
-    mkdirSync(resolve(root, 'apps'));
+    mkdirSync(resolve(root, 'apps'), { recursive: true });
     const manifest = JSON.parse(readFileSync(resolve(source, 'package.json'), 'utf8'));
     manifest.version = '9.9.9';
     manifest.releaseDate = '2030-01-01';

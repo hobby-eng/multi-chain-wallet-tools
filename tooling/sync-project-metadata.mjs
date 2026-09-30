@@ -60,6 +60,23 @@ for (const rustPackage of [
     ),
   );
 }
+// The executable Key Derivation Tool carries the release version too.
+stage('apps/key-derivation/launcher/Cargo.toml', (text) =>
+  replaceRequired(
+    text,
+    /^(\[package\]\nname = "key-derivation-launcher"\nversion = ")[^"]+(")/mu,
+    `$1${release.version}$2`,
+    'key-derivation-launcher package version',
+  ),
+);
+stage('apps/key-derivation/launcher/Cargo.lock', (text) =>
+  replaceRequired(
+    text,
+    /(\[\[package\]\]\nname = "key-derivation-launcher"\nversion = ")[^"]+(")/u,
+    `$1${release.version}$2`,
+    'key-derivation-launcher lock version',
+  ),
+);
 stage('THIRD_PARTY_NOTICES.md', (text) => {
   let next = text;
   for (const rustPackage of [

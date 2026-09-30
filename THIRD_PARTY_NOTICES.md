@@ -60,6 +60,7 @@ The connected Multi-Chain applications use Blockchain.com, BlockCypher, Blockstr
 | `serde_json`            | 1.0.151                                                                           | `serde-rs/json` / crates.io            | MIT OR Apache-2.0   | Escaped JSON boundary encoding and fixture parsing                                                        |
 | `bech32` (test only)    | 0.12.0                                                                            | `rust-bitcoin/rust-bech32` / crates.io | MIT                 | Independent Rust display-vector encoding                                                                  |
 | `rand_core` (test only) | 0.6.4                                                                             | `rust-random/rand_core` / crates.io    | MIT OR Apache-2.0   | Real encrypted-note scanner round-trip fixture                                                            |
+| `sha2` (executable)     | 0.10.9                                                                            | `RustCrypto/hashes` / crates.io        | MIT OR Apache-2.0   | SHA-256 check of the page embedded in the executable Key Derivation Tool                                  |
 
 The TypeScript SLIP-39 implementation is a project-local port of the current MIT-licensed Trezor `python-shamir-mnemonic` reference implementation and includes its official recovery vectors and 1024-word list. The Codex32 tests use vectors published in BIP93 and the CC0 Rust reference implementation. No Python interpreter or Python package is bundled into a browser artifact or required at runtime.
 
@@ -368,7 +369,7 @@ Copyright (c) 2021 SeedSigner
 SeedSigner — SeedQR specification and vectors
 
 Copyright (c) 2026 Sergei Semenov
-MHFE 0.4.0 — browser package (client, worker, Rust core WebAssembly, fast-mode launcher)
+MHFE 0.4.0 — browser package (client, worker, Rust core WebAssembly)
 
 Copyright (c) Project Nayuki
 Copyright (c) 2023 Anthony Fu <https://github.com/antfu>

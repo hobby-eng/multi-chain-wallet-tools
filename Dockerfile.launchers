@@ -1,0 +1,75 @@
+# Reproducible build of the executable Key Derivation Tool for Linux (x86-64, ARM64) and Windows
+# (x86-64), around the Deriver pages of a canonical build (Dockerfile.reproducible). It is separate
+# from Dockerfile.reproducible, whose bytes are an input of the committed WASM record. Run it with
+# `node tooling/build-launchers-reproducible.mjs`, which passes the canonical dist/ as the build
+# context "dist". macOS versions need Apple's SDK and are built by the release workflow on macOS
+# runners.
+#
+# Every tool is pinned: the base image by digest, downloads by SHA-256, Ubuntu packages by an
+# archive snapshot date, Rust crates by Cargo.lock.
+
+FROM buildpack-deps:noble@sha256:c2881ab5b526bc3b377a9501a89fec7a82c84f57e89d6cfd2fb9b5cbff75ef7f AS toolchain
+
+ARG NODE_VERSION=26.10.0
+ARG NODE_ARCHIVE_SHA256=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022
+ARG RUSTUP_VERSION=1.29.1
+ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71
+# Ubuntu archive snapshot for the cross compilers, so that their versions never change.
+ARG UBUNTU_SNAPSHOT=20260929T000000Z
+
+ENV CARGO_HOME=/root/.cargo \
+    RUSTUP_HOME=/root/.rustup \
+    PATH=/root/.cargo/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin \
+    CI=true
+
+# C cross compilers (their linkers) for ARM64 Linux and for Windows (MinGW-w64). The update and
+# security suites of the same snapshot are needed too: the base image already carries updated
+# packages, such as binutils-common, that the cross binutils must match.
+RUN for suite in noble noble-updates noble-security; do \
+      printf 'deb [check-valid-until=no] https://snapshot.ubuntu.com/ubuntu/%s %s main universe\n' \
+        "${UBUNTU_SNAPSHOT}" "${suite}"; \
+    done > /etc/apt/sources.list.d/snapshot.list \
+    && rm -f /etc/apt/sources.list.d/ubuntu.sources \
+    && apt-get update \
+    && apt-get install --yes --no-install-recommends \
+         gcc-aarch64-linux-gnu libc6-dev-arm64-cross gcc-mingw-w64-x86-64 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --fail --silent --show-error --location \
+      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+      --output /tmp/node.tar.xz \
+    && echo "${NODE_ARCHIVE_SHA256}  /tmp/node.tar.xz" | sha256sum --check --strict \
+    && tar --extract --xz --file /tmp/node.tar.xz --directory /usr/local --strip-components=1 \
+    && rm /tmp/node.tar.xz \
+    && test "$(node --version)" = "v${NODE_VERSION}"
+
+RUN curl --fail --silent --show-error --location \
+      "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init" \
+      --output /tmp/rustup-init \
+    && echo "${RUSTUP_INIT_SHA256}  /tmp/rustup-init" | sha256sum --check --strict \
+    && chmod 0755 /tmp/rustup-init \
+    && /tmp/rustup-init -y --profile minimal --default-toolchain 1.98.1 \
+         --target aarch64-unknown-linux-gnu --target x86_64-pc-windows-gnu \
+    && rm /tmp/rustup-init \
+    && test "$(rustc --version | cut -d ' ' -f 1-2)" = "rustc 1.98.1"
+
+# The MinGW linker writes the build time into every Windows executable's header, and the header
+# checksum with it; --no-insert-timestamp writes zero instead, so that two builds give the same bytes.
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+    CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc \
+    CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUSTFLAGS="-C link-arg=-Wl,--no-insert-timestamp"
+
+FROM toolchain AS built
+WORKDIR /workspace
+COPY . .
+RUN cargo fetch --locked --manifest-path apps/key-derivation/launcher/Cargo.toml
+# The Deriver pages and their .sha256 files of the canonical build, and nothing else from it.
+COPY --from=dist multi-chain-edition/key-derivation/*.html multi-chain-edition/key-derivation/*.html.sha256 dist/multi-chain-edition/key-derivation/
+COPY --from=dist dash-community-edition/key-derivation/*.html dash-community-edition/key-derivation/*.html.sha256 dist/dash-community-edition/key-derivation/
+RUN --network=none for profile in multi-chain dash-community; do \
+      node tooling/build-key-derivation-launchers.mjs --profile "$profile" --platforms container \
+        || exit 1; \
+    done
+
+FROM scratch AS launchers
+COPY --from=built /workspace/dist /dist

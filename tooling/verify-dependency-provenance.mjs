@@ -281,6 +281,7 @@ export async function verifyDependencyProvenance({
     'packages/recovery-codex32-wasm/rust/Cargo.lock',
     'packages/recovery-sskr-wasm/rust/Cargo.lock',
     'packages/recovery-envelope-wasm/rust/Cargo.lock',
+    'apps/key-derivation/launcher/Cargo.lock',
   ];
   const cargoPackages = cargoLockPaths.reduce(
     (count, path) => count + verifyCargoLock(readFileSync(resolve(root, path), 'utf8'), path),

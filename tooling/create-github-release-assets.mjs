@@ -3,12 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSyn
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseBuildProfile, profileArtifacts } from './build-profiles.mjs';
-import {
-  FAST_MODE_CHECKSUM,
-  FAST_MODE_LAUNCHER,
-  findFastModeFiles,
-  pageNamedByChecksumFile,
-} from './mhfe-fast-mode-files.mjs';
+import { assertLauncherFileEmbedsPage, findLaunchers } from './key-derivation-launchers.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const dist = resolve(root, 'dist');
@@ -40,22 +35,16 @@ for (const relativeSource of artifacts) {
   manifest.push(`${digest}  ${name}`);
 }
 
-// The MHFE fast-mode launcher and its checksum file go next to the page they serve.
-const fastMode = findFastModeFiles(dist, artifacts);
-if (fastMode !== undefined) {
-  const checksumText = readFileSync(resolve(fastMode.folder, FAST_MODE_CHECKSUM), 'utf8');
-  const { digest } = pageNamedByChecksumFile(checksumText, FAST_MODE_CHECKSUM);
-  const pageDigest = createHash('sha256')
-    .update(readFileSync(resolve(release, fastMode.page)))
-    .digest('hex');
-  if (digest !== pageDigest) throw new Error(`${FAST_MODE_CHECKSUM} does not match ${fastMode.page}.`);
-  for (const name of [FAST_MODE_CHECKSUM, FAST_MODE_LAUNCHER]) {
-    copyFileSync(resolve(fastMode.folder, name), resolve(release, name));
-    const fileDigest = createHash('sha256')
-      .update(readFileSync(resolve(release, name)))
-      .digest('hex');
-    manifest.push(`${fileDigest}  ${name}`);
-  }
+// The executable versions of the Key Derivation Tool that were built next to its page. Each must
+// embed exactly the page of this release; one left over from an older build stops the release.
+const { page: deriverPage, launchers } = findLaunchers(dist, profile);
+for (const { path } of launchers) {
+  assertLauncherFileEmbedsPage(path, deriverPage);
+  const name = basename(path);
+  const digest = createHash('sha256').update(readFileSync(path)).digest('hex');
+  copyFileSync(path, resolve(release, name));
+  writeFileSync(resolve(release, `${name}.sha256`), `${digest}  ${name}\n`);
+  manifest.push(`${digest}  ${name}`);
 }
 
 const verificationSource = resolve(dist, 'verification-record.json');
