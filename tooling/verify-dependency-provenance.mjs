@@ -60,7 +60,7 @@ export const GITHUB_SOURCES = [
     id: "mhfe-v0.4.0",
     repository: "hobby-eng/mhfe",
     reference: "release v0.4.0, browser package",
-    commit: "df70ca5411b84858058bc016385cf4b0001bd570",
+    commit: "70dddd069b3e3bb6553a3a41c42713d1e09f2d87",
   },
   {
     id: "sskr-0.12.0",
@@ -175,13 +175,13 @@ const LOCAL_IMPLEMENTATIONS = [
 
 const FIXED_SOURCE_HASHES = Object.freeze({
   "packages/recovery-mhfe-wasm/generated/client.js":
-    "9586fb55165731c08fc92595e3e048c6fd8f4d1a0ecf51725062b68b549aec56",
+    "4758cb17b1a2ba50255e2254bdc9209ee24779e5150a236e5bfadeb872480494",
   "packages/recovery-mhfe-wasm/generated/client.d.ts":
-    "ec8df6e43eff62987f2c893960175296165e85cf84636efb5df2cab6aaff4a6c",
+    "385a4cc0bebdcd18ffb295151da99618aa05c439fa8bb7afda97b7c5f41778b6",
   "packages/recovery-mhfe-wasm/generated/mhfe-worker.js":
-    "f2525c0533fe0f8594af4452b92e1e3e1fc54069a8c302bad931d369dcac2a9b",
+    "f6bbf93e71df765723493b4d94c27afb181ebd91fded2844e0df71252137f5db",
   "packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm":
-    "9e3997bc9cd432d91ea90fc628b6591724c1814f0cc1b8f8844891c647d453ec",
+    "1a0899e69de6f1a1059970675197a8700dd2e9014bf4a63e3ebce472f397a438",
   "packages/recovery-mhfe-wasm/generated/argon2-mt.js":
     "f98906c851a986df514d22536bb48a09724a0fa0b49079860b9a0ef00806f521",
   "packages/recovery-mhfe-wasm/generated/argon2-st.js":
