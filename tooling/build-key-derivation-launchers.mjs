@@ -8,6 +8,7 @@ import {
   assertLauncherFileEmbedsPage,
   CONTAINER_PLATFORMS,
   findLaunchers,
+  hostPlatform,
   LAUNCHER_PLATFORMS,
   launcherName,
 } from "./key-derivation-launchers.mjs";
@@ -40,18 +41,6 @@ function requestedPlatforms() {
   }
   if (platforms.length === 0) throw new Error("--platforms needs at least one platform.");
   return platforms;
-}
-
-function hostPlatform() {
-  const system = { linux: "linux", win32: "windows", darwin: "macos" }[process.platform];
-  const machine = { x64: "x86_64", arm64: "aarch64" }[process.arch];
-  const platform = `${system}-${machine}`;
-  if (!Object.hasOwn(LAUNCHER_PLATFORMS, platform)) {
-    throw new Error(
-      `No launcher is defined for this computer (${process.platform} ${process.arch}).`,
-    );
-  }
-  return platform;
 }
 
 /** The page's SHA-256, after checking it against the sidecar the HTML build wrote. */

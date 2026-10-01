@@ -24,6 +24,19 @@ export const CONTAINER_PLATFORMS = Object.freeze([
   "windows-x86_64",
 ]);
 
+/**
+ * The launcher platform of the computer this runs on, such as linux-x86_64. The build and the
+ * verification of the executables both use it, so that they always mean the same file.
+ */
+export function hostPlatform(system = process.platform, machine = process.arch) {
+  const systemName = { linux: "linux", win32: "windows", darwin: "macos" }[system];
+  const machineName = { x64: "x86_64", arm64: "aarch64" }[machine];
+  const platform = `${systemName}-${machineName}`;
+  if (!Object.hasOwn(LAUNCHER_PLATFORMS, platform))
+    throw new Error(`No launcher is defined for this computer (${system} ${machine}).`);
+  return platform;
+}
+
 /** The file name of the launcher for `platform` that embeds the page `pageName`. */
 export function launcherName(pageName, platform) {
   const entry = LAUNCHER_PLATFORMS[platform];
