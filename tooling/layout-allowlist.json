@@ -1,0 +1,21 @@
+{
+  "description": "Deliberate exceptions to tooling/check-layout.mjs. A finding is skipped when its element is inside an element that one of the entry's selectors matches. Every entry says why the layout is intended.",
+  "buttonFontSizes": ["12px"],
+  "entries": [
+    {
+      "check": "buttons-touching",
+      "within": [".mode-toggle", "#seed-mode-tabs"],
+      "reason": "Segmented controls: the two halves of one switch are drawn joined on purpose."
+    },
+    {
+      "check": "button-font-size",
+      "within": [".table-value-wrap"],
+      "reason": "Compact actions inside a cell of the results table, sized to the table text."
+    },
+    {
+      "check": "controls-overlap",
+      "within": [".secret-field"],
+      "reason": "A password field with its Show button drawn inside the field at the right end, on purpose."
+    }
+  ]
+}
