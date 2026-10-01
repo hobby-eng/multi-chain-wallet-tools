@@ -16,7 +16,7 @@ const mnemocodeManifest = JSON.parse(
   readFileSync(resolve(defaultRoot, MNEMOCODE_MANIFEST), "utf8"),
 );
 
-const GITHUB_SOURCES = [
+export const GITHUB_SOURCES = [
   {
     id: "mnemocode-core",
     repository: mnemocodeManifest.repository,

@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
+import { GITHUB_SOURCES } from "./verify-dependency-provenance.mjs";
 import {
   fetchWasmBindgenMaxStableVersion,
   latestNodeInLine,
   noteEncryptionChangeRequiresReview,
+  readPinnedVersions,
   renderUpstreamVersionReport,
   runUpstreamVersionCheck,
   WASM_BINDGEN_CRATE_URL,
@@ -39,6 +42,21 @@ describe("upstream version checker", () => {
         "Infrastructure/parser failure — this is not an update-available signal.",
       ),
     );
+    // It must fail for the malformed response, not earlier while reading the local pins.
+    expect(output.write).toHaveBeenCalledWith(
+      expect.stringContaining("Cannot parse upstream JSON"),
+    );
+  });
+
+  it("reads every pin from this repository without a network request (AUD-019-BLD001)", () => {
+    const pins = readPinnedVersions(".");
+    const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+    expect(pins.pnpm).toBe(manifest.packageManager.replace(/^pnpm@/u, ""));
+    expect(pins.playwright).toBe(manifest.devDependencies.playwright);
+    const commitOf = (id) => GITHUB_SOURCES.find((source) => source.id === id)?.commit;
+    expect(pins.slip39Commit).toBe(commitOf("slip39-reference"));
+    expect(pins.seedqrCommit).toBe(commitOf("seedsigner-seedqr"));
+    for (const value of Object.values(pins)) expect(value).toMatch(/^\S+$/u);
   });
 
   it("compares Node.js with the newest release of the pinned major line, not the LTS line", () => {
