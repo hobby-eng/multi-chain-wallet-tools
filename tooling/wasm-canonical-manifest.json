@@ -32,7 +32,7 @@
     "recovery-envelope-wasm": {
       "sourceSha256": "72e2994873a2f31c71cafac6c829c117a73eade1668de8820231e88f185d4f45",
       "generated": {
-        "recovery_envelope_wasm.d.ts": "5515455fff896d6a26a790ab44801e4910fc333dcbd291672240823987b57f49",
+        "recovery_envelope_wasm.d.ts": "cf11b9ff3071e59622584256b141c173e2636e746cd27354d3543c09f04935fe",
         "recovery_envelope_wasm.js": "9d8dd967797774751b5352a35b8d3b59687074e62687361956fd5a76b6b18b82",
         "recovery_envelope_wasm_bg.wasm": "135cf8dc4df4f17a4cb4c0f4d3cc01e23a042d659e64b7185dafdd6ddf148b04",
         "recovery_envelope_wasm_bg.wasm.d.ts": "8c0071f36cef2e7465b137dae65f8de629f48eae090b4f37cc02493589e5e1ed"
