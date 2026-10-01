@@ -624,6 +624,13 @@ footer {
   color: #d1dcff;
 }
 @media (max-width: 560px) {
+  /* Rows of tabs on a phone, as in the shared style; one squeezed row cut the words. */
+  .form-grid .protocol-tabs {
+    flex-wrap: wrap;
+  }
+  .form-grid .protocol-tab {
+    flex: 1 1 100px;
+  }
   .hero::after {
     width: 440px;
     height: 290px;

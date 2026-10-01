@@ -628,9 +628,11 @@ textarea.concealed {
   color: #ffbdc2;
 }
 
+/* minmax(0, 1fr): a column never grows to fit wide content such as a results table or a row of
+   tabs; that content scrolls in its own box instead of widening the whole page on a phone. */
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px 14px;
 }
 /* Fields stacked outside a form grid: the grid's 18px between groups, and 10px between a field
@@ -745,6 +747,12 @@ textarea.concealed {
 }
 /* The derived child wallet has its own feature tab (Silent Payments). It cannot reuse the class above:
    the child workspace sits inside the original wallet's active Child seeds tab. */
+/* The child wallet has no legacy mobile switch; this holder exists only for the shared form setup,
+   which shows it for Dash. Shown, the empty holder took the first cell of the form grid. */
+#bip85-wallet-legacy-field {
+  display: none;
+}
+
 .nested-feature-active .nested-standard-content {
   display: none !important;
 }
@@ -1092,8 +1100,11 @@ button:disabled {
 .mode-toggle button {
   flex: 1 1 0;
   min-width: 76px;
+  /* The height it gets beside a 40px button, also when it stands alone in its row on a phone. */
+  min-height: 38px;
   border-radius: 0;
   padding: 9px 12px;
+  font-size: 12px;
   background: #151d27;
   color: #98a6b5;
   text-align: center;
@@ -1666,8 +1677,6 @@ details[open] summary::before {
 .bulk-panel .mini-actions .compact,
 .bulk-actions .compact {
   min-width: 0;
-  padding: 7px clamp(6px, 0.75vw, 10px);
-  font-size: 10.5px;
   white-space: nowrap;
 }
 .watch-only-panel {
@@ -1725,6 +1734,10 @@ footer p {
 .dependency-info p {
   line-height: 1.55;
   max-width: 940px;
+}
+/* Hashes and other long strings in the passport break anywhere rather than run past its edge. */
+.build-passport .field-note {
+  overflow-wrap: anywhere;
 }
 .build-passport {
   width: min(1120px, calc(100% - 36px));
@@ -1824,7 +1837,7 @@ footer p {
     font-size: clamp(31px, 6vw, 45px);
   }
   .form-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .span-two {
     grid-column: span 1;
@@ -1845,6 +1858,8 @@ footer p {
     justify-content: flex-start;
   }
   .bulk-format-control {
+    /* In a column the 310px basis would become a height and leave an empty band below the select. */
+    flex: none;
     width: 100%;
     max-width: none;
   }
@@ -1907,14 +1922,19 @@ footer p {
     padding: 18px;
   }
   .form-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .span-three {
     grid-column: 1;
   }
+  /* On a phone the tabs wrap into rows of about three instead of squeezing into one row, where
+     words were cut; the text keeps the 12px of every other button. */
+  .primary-mode-tabs {
+    flex-wrap: wrap;
+  }
   .primary-mode-tab {
+    flex: 1 1 100px;
     padding-inline: 9px;
-    font-size: 11px;
   }
   .actions,
   .generate-actions,
@@ -2227,6 +2247,10 @@ footer p {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.backup-options-grid.two-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .matcher-range-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -2479,13 +2503,10 @@ footer p {
 @media (max-width: 880px) {
   .matcher-input-grid,
   .backup-options-grid,
+  .backup-options-grid.two-options,
   .matcher-range-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
-}
-
-.backup-options-grid.two-options {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .field-heading-row {
@@ -2703,6 +2724,15 @@ footer p {
   .recovery-source-menu-items {
     position: static;
     margin-top: 0.4rem;
+  }
+  /* The menu opens in the page flow here, so its row of buttons needs the full width under the
+     heading; beside the heading the open menu reached past the right edge. */
+  .section-head {
+    flex-wrap: wrap;
+  }
+  .section-head > .section-head-actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
   }
 
   .linked-source-summary {
