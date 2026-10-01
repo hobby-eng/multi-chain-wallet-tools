@@ -507,7 +507,12 @@ async function selfTest() {
     );
     for (const [check, element] of missing) console.error(`missed: ${check} ${element}`);
     for (const f of unexpected) console.error(`false alarm: ${f.check} ${f.element}`);
-    if (missing.length || unexpected.length) process.exit(1);
+    // An exit code instead of process.exit(), which would skip the cleanup below and leave the
+    // self-test page in the temporary directory (AUD-019-ARC002).
+    if (missing.length || unexpected.length) {
+      process.exitCode = 1;
+      return;
+    }
     console.log(
       `Self-test passed: all ${SELF_TEST_EXPECTED.length} known defects found, no false alarms.`,
     );
