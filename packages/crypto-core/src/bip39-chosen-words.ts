@@ -178,6 +178,22 @@ export interface ChosenWordsOptions {
   readonly randomBytes?: (length: number) => Uint8Array;
 }
 
+/**
+ * Bytes from the random source, which must return a Uint8Array of exactly the requested length. A
+ * shorter array would leave the last draw of a batch short, and its phrase would carry a checksum
+ * calculated over the wrong bytes (AUD-019-API001).
+ */
+function checkedRandomBytes(
+  randomBytes: (length: number) => Uint8Array,
+  length: number,
+): Uint8Array {
+  const bytes: unknown = randomBytes(length);
+  if (bytes instanceof Uint8Array && bytes.length === length) return bytes;
+  if (bytes instanceof Uint8Array) bytes.fill(0);
+  const returned = bytes instanceof Uint8Array ? `${bytes.length} bytes` : "no Uint8Array";
+  throw new Error(`Random-byte source returned ${returned}; expected ${length} bytes.`);
+}
+
 /** Draws between two pauses that let the page handle input: about 50 ms of work. */
 const DRAWS_PER_STEP = 10_000;
 
@@ -217,7 +233,7 @@ function* search(
       const slot = draw % DRAWS_PER_BATCH;
       if (slot === 0) {
         batch.fill(0);
-        batch = randomBytes(entropyBytes * DRAWS_PER_BATCH);
+        batch = checkedRandomBytes(randomBytes, entropyBytes * DRAWS_PER_BATCH);
       }
       const entropy = batch.subarray(slot * entropyBytes, (slot + 1) * entropyBytes);
       for (const [position, index] of p.fixed) {
