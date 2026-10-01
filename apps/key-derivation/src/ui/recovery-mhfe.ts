@@ -285,9 +285,9 @@ function recoverySummary(candidate: MhfeCandidate, selectedWords: number): strin
 
 export function installMhfe(context: RecoveryFeatureContext): void {
   renderSpeedNotice();
-  installSecretToggle('#toggle-mhfe-source', '#mhfe-source', 'Show phrase', 'Hide phrase');
+  installSecretToggle('#toggle-mhfe-source', '#mhfe-source', 'Show', 'Hide', 'recovery phrase');
   installMnemonicSourceDiagnostic(context, 'mhfe', '#mhfe-source', '#toggle-mhfe-source');
-  installSecretToggle('#toggle-mhfe-container', '#mhfe-container', 'Show container', 'Hide container');
+  installSecretToggle('#toggle-mhfe-container', '#mhfe-container', 'Show', 'Hide', 'container');
   installPimToggle('encrypt');
   installPimToggle('decrypt');
   installPasswordToggle('#toggle-mhfe-encrypt-password', '#mhfe-encrypt-password', 'MHFE password');

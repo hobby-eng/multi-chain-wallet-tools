@@ -31,9 +31,9 @@ export function installSskr(context: RecoveryFeatureContext): void {
     layout: 'table',
     help: 'Each group creates a separate set of shares. First satisfy Shares required inside a group; then satisfy Groups required with that many completed groups. With Groups required set to 1, any one completed group can restore the secret.',
   });
-  installSecretToggle('#toggle-sskr-source', '#sskr-source', 'Show phrase', 'Hide phrase');
+  installSecretToggle('#toggle-sskr-source', '#sskr-source', 'Show', 'Hide', 'recovery phrase');
   installMnemonicSourceDiagnostic(context, 'sskr', '#sskr-source', '#toggle-sskr-source');
-  installSecretToggle('#toggle-sskr-shares', '#sskr-shares', 'Show shares', 'Hide shares');
+  installSecretToggle('#toggle-sskr-shares', '#sskr-shares', 'Show', 'Hide', 'shares');
   installSecretToggle('#toggle-sskr-created', '#sskr-create-result .share-secret', 'Show shares', 'Hide shares');
   const created = required<HTMLElement>('#sskr-create-result');
   required<HTMLButtonElement>('#create-sskr').addEventListener('click', () => {

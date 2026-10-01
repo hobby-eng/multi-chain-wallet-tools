@@ -2567,6 +2567,24 @@ footer p {
   color: var(--accent2);
 }
 
+/* The offer of the phrase from Generate & Derive on a backup tab whose phrase field is still empty. */
+.recovery-source-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.recovery-source-offer[hidden] {
+  display: none;
+}
+
 .linked-recovery-source {
   display: grid;
   gap: 12px;

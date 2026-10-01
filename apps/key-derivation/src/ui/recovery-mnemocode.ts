@@ -242,7 +242,7 @@ function renderMissingWordCandidates(
 }
 
 export function installMnemoCode(context: RecoveryFeatureContext): void {
-  installSecretToggle('#toggle-mnemocode-source', '#mnemocode-source', 'Show phrase', 'Hide phrase');
+  installSecretToggle('#toggle-mnemocode-source', '#mnemocode-source', 'Show', 'Hide', 'recovery phrase');
   installMnemonicSourceDiagnostic(context, 'mnemocode', '#mnemocode-source', '#toggle-mnemocode-source');
   installSecretToggle(
     '#toggle-mnemocode-created',
@@ -250,12 +250,13 @@ export function installMnemoCode(context: RecoveryFeatureContext): void {
     'Show records',
     'Hide records',
   );
-  installSecretToggle('#toggle-mnemocode-input', '#mnemocode-input', 'Show input', 'Hide input');
+  installSecretToggle('#toggle-mnemocode-input', '#mnemocode-input', 'Show', 'Hide', 'input');
   installSecretToggle(
     '#toggle-mnemocode-missing-word-input',
     '#mnemocode-missing-word-input',
-    'Show phrase',
-    'Hide phrase',
+    'Show',
+    'Hide',
+    'recovery phrase',
   );
 
   const encodeMode = required<HTMLSelectElement>('#mnemocode-encode-mode');

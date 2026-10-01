@@ -50,6 +50,7 @@ export function startKeyDerivationApp(registry: CoinRegistry, detectTargets: Wal
         useSource() {
           throw new Error('Recover & Back Up is not included in this build.');
         },
+        offerSource() {},
         setCryptoEnabled() {},
       };
   const controller = createKeyDerivationController(view, {
@@ -71,6 +72,9 @@ export function startKeyDerivationApp(registry: CoinRegistry, detectTargets: Wal
     openRecoverySource(reference, target) {
       modes.setMode('recovery');
       recovery.useSource(reference, target);
+    },
+    offerRecoverySource(reference) {
+      recovery.offerSource(reference);
     },
   });
 
