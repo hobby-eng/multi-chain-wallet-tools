@@ -23,6 +23,8 @@ When a scan needs provider data, a fixed, validated message protocol passes only
 
 The **Key Derivation Tool and PSBT & Multisig Inspector** instead prohibit network connections for the whole offline application with `connect-src 'none'`; they do not use the Scanner's iframe vault. In-memory recovery-source links in the Deriver do not copy the linked phrase or passphrase to the OS clipboard or send them over the network. Explicitly revealed secret exports and copy actions remain the user's responsibility.
 
+The **executable Key Derivation Tool** carries the same Deriver page inside a small native program, so that MHFE can use four threads. It checks the page's SHA-256 when it starts and serves only that page, only to this computer (`127.0.0.1`), with cross-origin isolation and anti-framing headers. It logs nothing and never receives what is typed into the page, which keeps `connect-src 'none'`. Closing the program does not close the page: close its browser tab as well.
+
 These controls isolate trusted secret-processing code from the network-capable realm. They cannot guarantee protection from a compromised browser/OS or deliberately malicious code inside the vault, and cannot guarantee erasure of JavaScript strings or browser memory copies.
 
 Checksums detect altered downloads; they do not prove cryptographic correctness. Clipboard history, screenshots, browser extensions, swap, and crash dumps remain outside the tools' isolation boundaries. See the [canonical security model](https://github.com/hobby-eng/multi-chain-wallet-tools/blob/{{SOURCE_SHA}}/SECURITY_AUDIT.md).
