@@ -22,7 +22,7 @@ The Deriver's **Recover & Back Up** tab lets you prepare backups offline:
 - **Codex32** stores a checksummed phrase backup or a BIP32 master-seed backup, optionally split into shares. Master-seed mode cannot restore the original words or passphrase. Encoding alone is not encryption.
 - **SeedQR** encodes the phrase as a QR code for offline transfer or printing. It does not encrypt the secret.
 - **MnemoCode 0.1.0** converts the phrase between words, indexes, mapped Unicode and color representations, with Direct and Seedshift compatibility modes. Dates are not stored in MNC1 records, and the output is not encryption.
-- **MHFE** converts a standard English BIP39 phrase into an experimental memory-hard encrypted 24-word container. It supports optional PIM, a check of every new container, QR transfer, cancellation, and recovery-verifier reporting. `mhfe-fast-mode.py` next to the HTML file runs it about three times faster; see the tool's MHFE panel. Read the [MHFE specification](https://github.com/hobby-eng/mhfe-spec) before use.
+- **MHFE** converts a standard English BIP39 phrase into an experimental memory-hard encrypted 24-word container. It supports optional PIM, a check of every new container, QR transfer, cancellation, and recovery-verifier reporting. Opened as a file, the page runs MHFE on one thread; the tool's MHFE panel shows the mode and how long an operation takes. Read the [MHFE specification](https://github.com/hobby-eng/mhfe-spec) before use.
 
 Each backup card or record can have a QR code saved as PNG. Restore tabs read QR image files offline, avoiding manual transcription. Treat each QR image like the secret it contains. SLIP-39 and standalone SSKR preserve phrase entropy; keep its separate BIP39 passphrase safe too.
 

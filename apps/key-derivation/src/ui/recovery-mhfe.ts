@@ -80,11 +80,11 @@ function renderSpeedNotice(): void {
       'PIM or memory level if you changed them.',
   );
   const speed = isFastMode()
-    ? leadParagraph('Fast mode:', 'all four processor cores are in use; a recovery takes about one to two minutes.')
+    ? leadParagraph('Fast mode:', 'all four processor cores are in use; a recovery takes about one and a half minutes.')
     : leadParagraph(
         'Slow mode:',
         'in this HTML version the browser lets MHFE use one processor core, so a recovery takes about four to ' +
-          'seven minutes. For one to two minutes, use the executable version of this tool.',
+          'seven minutes. For about one and a half minutes, use the executable version of this tool.',
       );
   notice.replaceChildren(experimental, speed);
 }
