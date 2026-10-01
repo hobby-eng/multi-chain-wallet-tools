@@ -5,6 +5,8 @@ target/
 test-results/
 packages/dash-shielded-wasm/generated/
 packages/recovery-codex32-wasm/generated/
+packages/recovery-envelope-wasm/generated/
+packages/recovery-sskr-wasm/generated/
 packages/recovery-mhfe-wasm/generated/
 packages/recovery-mnemocode/source/
 .git/
