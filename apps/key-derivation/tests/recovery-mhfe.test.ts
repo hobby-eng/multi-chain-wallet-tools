@@ -17,7 +17,7 @@ group("MHFE panel", () => {
 
   it("says that an error in the page stopped the operation", () => {
     const cause = new Error("progress element missing");
-    // The error as MHFE 0.5.0 gives it: its constructor stores the page's error as `cause`.
+    // The error as the MHFE 0.4.0 client gives it: its constructor stores the page's error as `cause`.
     const error = Object.defineProperty(
       new MhfeError("CALLBACK_FAILED", "callback failed"),
       "cause",
