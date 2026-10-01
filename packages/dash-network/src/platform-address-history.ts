@@ -154,10 +154,12 @@ async function queryPlatformExplorer(
   const seen = new Set<string>();
   for (let pageNumber = 1; transitions.length < target; pageNumber += 1) {
     requests += 1;
+    // Platform Explorer serves an address's history at /transitions; the former /transactions
+    // route now answers 404 (AUD-019-API003). Identities keep their /transactions route.
     const page = object(
       await fetchJson(
         fetcher,
-        `${endpoint}/platformAddress/${encodeURIComponent(address)}/transactions?page=${pageNumber}&limit=${limit}&order=desc`,
+        `${endpoint}/platformAddress/${encodeURIComponent(address)}/transitions?page=${pageNumber}&limit=${limit}&order=desc`,
         signal,
       ),
       "address-transition page",

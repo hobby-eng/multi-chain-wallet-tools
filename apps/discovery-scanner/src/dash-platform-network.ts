@@ -248,16 +248,18 @@ export class DashPlatformNetworkService {
     if (info.bech32mAddress !== address)
       throw new Error("Platform Explorer address info did not match the requested address.");
     const transactionCount = platformUnsignedInteger(info.totalTxs, "address transaction count");
+    // Platform Explorer serves an address's history at /transitions; the former /transactions
+    // route now answers 404 (AUD-019-API003). Identities keep their /transactions route.
     const [firstSeen, lastSeen] =
       transactionCount === 0
         ? [null, null]
         : await Promise.all([
             fetchRecoveryJson(
-              `${endpoint}/platformAddress/${encodeURIComponent(address)}/transactions?page=1&limit=1&order=asc`,
+              `${endpoint}/platformAddress/${encodeURIComponent(address)}/transitions?page=1&limit=1&order=asc`,
               signal,
             ).then((value) => platformPageTimestamp(value, "first address transition")),
             fetchRecoveryJson(
-              `${endpoint}/platformAddress/${encodeURIComponent(address)}/transactions?page=1&limit=1&order=desc`,
+              `${endpoint}/platformAddress/${encodeURIComponent(address)}/transitions?page=1&limit=1&order=desc`,
               signal,
             ).then((value) => platformPageTimestamp(value, "last address transition")),
           ]);

@@ -8,6 +8,12 @@ const platform = "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs";
 const identity = "HhNWsiTQfpJwnqenTFVUG8JqNwAeccWmAYW2vjEvNNXY";
 const timestamp = "2026-09-01T00:00:00.000Z";
 const hash = (i: number): string => i.toString(16).padStart(64, "0");
+// The history route of each explorer resource, as the providers serve it.
+const HISTORY_ROUTE = {
+  core: `/address/${core}/transactions`,
+  platform: `/platformAddress/${platform}/transitions`,
+  identity: `/identity/${identity}/transactions`,
+} as const;
 
 describe("page-number explorer histories", () => {
   for (const kind of ["core", "platform", "identity"] as const) {
@@ -36,7 +42,7 @@ describe("page-number explorer histories", () => {
                   };
           else if (url.pathname.endsWith("/blocks"))
             value = { resultSet: [{ height: 100, timestamp }] };
-          else if (url.pathname.endsWith("/transactions")) {
+          else if (url.pathname === HISTORY_ROUTE[kind]) {
             const limit = Number(url.searchParams.get("limit"));
             const page = Number(url.searchParams.get("page"));
             limits.push(limit);

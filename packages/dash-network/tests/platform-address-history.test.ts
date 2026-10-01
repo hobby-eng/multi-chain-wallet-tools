@@ -25,7 +25,7 @@ describe("Dash Platform Explorer address history", () => {
           totalIncomingAmount: "1000",
           totalOutgoingAmount: null,
         };
-      } else {
+      } else if (url.includes(`/platformAddress/${PLATFORM_ADDRESS}/transitions?`)) {
         body = {
           resultSet: [
             {
@@ -43,6 +43,9 @@ describe("Dash Platform Explorer address history", () => {
           ],
           pagination: { page: 1, limit: 1, total: 1 },
         };
+      } else {
+        // Any other route is unknown to the provider, as the former /transactions route is now.
+        return new Response("{}", { status: 404 });
       }
       return new Response(JSON.stringify(body), {
         status: 200,

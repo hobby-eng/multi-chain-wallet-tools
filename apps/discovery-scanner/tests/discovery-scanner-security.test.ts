@@ -304,6 +304,10 @@ describe("recovery secret boundary", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
+        // Only the routes Platform Explorer serves; the former /transactions route is now 404.
+        const isHistory = url.includes(`/platformAddress/${address}/transitions?`);
+        if (!url.endsWith("/status") && !url.endsWith("/info") && !isHistory)
+          return new Response("{}", { status: 404 });
         const body = url.endsWith("/status")
           ? { network: "evo1", indexer: { status: "synced" }, api: { block: { height: 500_001 } } }
           : url.endsWith("/info")
