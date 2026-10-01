@@ -22,7 +22,7 @@ import { connect } from "node:net";
 import { basename, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseBuildProfile } from "./build-profiles.mjs";
-import { findLaunchers, LAUNCHER_PLATFORMS, launcherName } from "./key-derivation-launchers.mjs";
+import { findLaunchers, hostPlatform, launcherName } from "./key-derivation-launchers.mjs";
 import { loadPlaywright } from "./playwright-loader.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -46,14 +46,6 @@ const FULL_TIMEOUT_MS = 30 * 60 * 1000;
 function launcherArgument() {
   const index = process.argv.indexOf("--launcher");
   return index >= 0 ? resolve(process.argv[index + 1]) : undefined;
-}
-
-function hostPlatform() {
-  const system = { linux: "linux", win32: "windows", darwin: "macos" }[process.platform];
-  const machine = { x64: "x86_64", arm64: "aarch64" }[process.arch];
-  const platform = `${system}-${machine}`;
-  if (!Object.hasOwn(LAUNCHER_PLATFORMS, platform)) throw new Error(`No launcher for ${platform}.`);
-  return platform;
 }
 
 /** Starts the launcher and resolves with its port once it prints the address. */
