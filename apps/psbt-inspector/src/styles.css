@@ -482,7 +482,8 @@
 }
 .psbt-mode-tabs .psbt-mode-tab.primary-mode-tab {
   flex: 1 1 0;
-  min-width: 0;
+  /* As in the shared style: never narrower than the longest word; the row wraps instead. */
+  min-width: min-content;
   min-height: 48px;
   padding: 11px 12px;
   border: 1px solid #303a46;
