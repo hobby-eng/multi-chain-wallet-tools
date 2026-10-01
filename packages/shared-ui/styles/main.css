@@ -2555,6 +2555,10 @@ footer p {
 #mhfe-panel .mhfe-pim-note {
   margin-top: -0.75rem;
 }
+/* Why the browser offers no memory-level setting: shown as a warning. */
+#mhfe-panel .mhfe-memory-note {
+  color: var(--accent2);
+}
 
 /* An MHFE result card stacks a status callout, the words, the buttons and a note; give them room. */
 #mhfe-panel .share-results article {
