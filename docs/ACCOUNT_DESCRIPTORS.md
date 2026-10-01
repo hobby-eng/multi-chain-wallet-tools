@@ -2,15 +2,15 @@
 
 The Key Derivation Tool's **Account export** panel exports the selected account and address profile. It is not a complete seed backup. The xprv is the account key, not the master key. The origin `[fingerprint/path]` describes where that key came from; it must not be applied again to the account key.
 
-| Profile | Descriptor expression | Account origin on mainnet |
-| --- | --- | --- |
-| Bitcoin Legacy | `pkh(KEY)` | `m/44'/0'/account'` |
-| Bitcoin Nested SegWit | `sh(wpkh(KEY))` | `m/49'/0'/account'` |
-| Bitcoin Native SegWit | `wpkh(KEY)` | `m/84'/0'/account'` |
-| Bitcoin Taproot | `tr(KEY)` | `m/86'/0'/account'` |
-| Dash Core | `pkh(KEY)` | `m/44'/5'/account'` |
-| Dash legacy mobile | `pkh(KEY)` | `m/account'` |
-| Dash Mobile CoinJoin | `pkh(KEY)` | `m/9'/5'/4'/account'` |
+| Profile               | Descriptor expression | Account origin on mainnet |
+| --------------------- | --------------------- | ------------------------- |
+| Bitcoin Legacy        | `pkh(KEY)`            | `m/44'/0'/account'`       |
+| Bitcoin Nested SegWit | `sh(wpkh(KEY))`       | `m/49'/0'/account'`       |
+| Bitcoin Native SegWit | `wpkh(KEY)`           | `m/84'/0'/account'`       |
+| Bitcoin Taproot       | `tr(KEY)`             | `m/86'/0'/account'`       |
+| Dash Core             | `pkh(KEY)`            | `m/44'/5'/account'`       |
+| Dash legacy mobile    | `pkh(KEY)`            | `m/account'`              |
+| Dash Mobile CoinJoin  | `pkh(KEY)`            | `m/9'/5'/4'/account'`     |
 
 Testnet uses coin type `1'` where a coin-type segment exists and tpub/tprv version bytes. Legacy mobile has no coin-type segment. Taproot exports the untweaked BIP32 account key; `tr()` applies the required output-key construction. Dash exports do not describe Platform, Identity or Orchard resources.
 
