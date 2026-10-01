@@ -36,6 +36,7 @@ interface KeyDerivationDependencies {
   getDefaultCoinAdapter: typeof import('@ckd/coins/registry.js').getDefaultCoinAdapter;
   buildInfo: typeof import('@ckd/build-info').BUILD_INFO;
   generateMnemonic: typeof import('@ckd/core/bip39.js').generateMnemonic;
+  chosenWords?: import('./chosen-words-feature.js').ChosenWordsFeature;
   mnemonicToSeed: typeof import('@ckd/core/bip39.js').mnemonicToSeed;
   runBip39SelfTest: typeof import('@ckd/bip39-self-test').runBip39SelfTest;
   runRecoveryBackupSelfTest: typeof import('@ckd/recovery-backup/self-test.js').runRecoveryBackupSelfTest;
@@ -70,6 +71,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         getDefaultCoinAdapter,
         buildInfo,
         generateMnemonic,
+        chosenWords,
         mnemonicToSeed,
         runBip39SelfTest,
         runRecoveryBackupSelfTest,
@@ -523,6 +525,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
       function setRecoverySourceVisibility(revealed: boolean): void {
         recoverySourceRevealed = revealed;
         view.setRecoverySourceVisibility(revealed);
+        chosenWords?.setRevealed(revealed);
         updateWordCount();
       }
 
@@ -905,26 +908,43 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         [21, generate21Button],
         [24, generate24Button],
       ] as const) {
-        generateButton.addEventListener('click', () => {
-          mainRecoverySourceRevision += 1;
-          queueMicrotask(offerMainRecoverySource);
-          cancelAutomaticDerivation();
-          invalidateAddressSearch();
-          derivationRevision += 1;
-          clearResults();
-          clearMessages();
-          try {
-            view.setGeneratedMnemonic(generateMnemonic(words), adapter.defaults.count);
-            rememberCurrentSettings();
-            updateWordCount();
-            showStatus(
-              `Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues(). Deriving ${adapter.defaults.count} results…`,
-            );
-            void deriveCurrent(true);
-          } catch (cause) {
-            showError(cause instanceof Error ? cause.message : 'Secure phrase generation failed.');
+        generateButton.addEventListener('click', () => void generatePhrase(words));
+      }
+
+      /** Puts a new phrase in the field: an ordinary one, or one that meets the chosen words. */
+      async function generatePhrase(words: 12 | 15 | 18 | 21 | 24): Promise<void> {
+        mainRecoverySourceRevision += 1;
+        queueMicrotask(offerMainRecoverySource);
+        cancelAutomaticDerivation();
+        invalidateAddressSearch();
+        derivationRevision += 1;
+        clearResults();
+        clearMessages();
+        const revision = derivationRevision;
+        const wishes = chosenWords?.active() === true ? chosenWords : null;
+        try {
+          let phrase: string;
+          if (wishes === null) {
+            phrase = generateMnemonic(words);
+          } else {
+            showStatus(`Looking for a random ${words}-word phrase that meets your chosen words…`);
+            phrase = await wishes.generate(words);
+            // Another Generate, Clear all or a typed phrase during the search wins.
+            if (revision !== derivationRevision) return;
           }
-        });
+          view.setGeneratedMnemonic(phrase, adapter.defaults.count);
+          rememberCurrentSettings();
+          updateWordCount();
+          showStatus(
+            `Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues()${wishes === null ? '' : ', with your chosen words'}. Deriving ${adapter.defaults.count} results…`,
+          );
+          void deriveCurrent(true);
+        } catch (cause) {
+          // A cancelled search was replaced by a newer action, which reports for itself. A wish that
+          // cannot be met is reported as an error; no ordinary phrase is put in its place.
+          if ((cause instanceof DOMException && cause.name === 'AbortError') || revision !== derivationRevision) return;
+          showError(cause instanceof Error ? cause.message : 'Secure phrase generation failed.');
+        }
       }
 
       clearAllButton.addEventListener('click', () => {
@@ -957,6 +977,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         setFeatureTab(null);
         silentPaymentFeature?.reset();
         view.clearAllInputs();
+        chosenWords?.clear();
         mnemonicDiagnostic.reset();
       });
 

@@ -28,6 +28,7 @@ try {
   // dropped or renamed vector fails the release, and the failure says which.
   const expectedChecks = [
     'BIP39',
+    'BIP39 chosen words',
     'Bitcoin Taproot / BIP86',
     'Bitcoin testnet / BIP49',
     'Bitcoin maximum child index',

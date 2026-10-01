@@ -155,6 +155,72 @@
               Copy
             </button>
           </div>
+          <label class="feature-tab-toggle chosen-words-toggle" for="chosen-words-enabled">
+            <input id="chosen-words-enabled" type="checkbox" />
+            <span
+              ><strong>Generate with chosen words</strong
+              ><small
+                >Not recommended. The Generate buttons above then make a random phrase that also meets the wishes
+                below.</small
+              ></span
+            >
+          </label>
+          <div id="chosen-words-panel" class="chosen-words-panel" hidden>
+            <p class="field-note chosen-words-warning">
+              <strong>We strongly recommend not using this feature.</strong> A phrase from the ordinary Generate buttons
+              is the strongest. Every wish weakens the phrase: it lowers its cryptographic strength by the random bits
+              it takes away. A word at a position takes about 11 bits, a word anywhere about 7. Someone who knows or
+              guesses your wishes has that much less to search, so never write them down next to the phrase.
+            </p>
+            <div class="chosen-words-head">Words the phrase must contain <span class="optional">up to two</span></div>
+            <div class="chosen-words-row" id="chosen-word-1-row">
+              <select id="chosen-word-1-position" aria-label="Where chosen word 1 goes"></select>
+              <input
+                id="chosen-word-1"
+                list="chosen-words-list"
+                placeholder="English BIP39 word"
+                aria-label="Chosen word 1"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+              />
+              <button class="secondary compact" id="chosen-word-1-clear" type="button">Clear</button>
+            </div>
+            <div class="chosen-words-row" id="chosen-word-2-row" hidden>
+              <select id="chosen-word-2-position" aria-label="Where chosen word 2 goes"></select>
+              <input
+                id="chosen-word-2"
+                list="chosen-words-list"
+                placeholder="English BIP39 word"
+                aria-label="Chosen word 2"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+              />
+              <button class="secondary compact" id="chosen-word-2-remove" type="button">Remove</button>
+            </div>
+            <button class="secondary compact" id="chosen-words-add" type="button">Add a word</button>
+            <label for="chosen-words-never"
+              >Never use <span class="optional">English BIP39 words separated by spaces</span></label
+            >
+            <input
+              id="chosen-words-never"
+              placeholder="for example: abandon zoo"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+            />
+            <datalist id="chosen-words-list"></datalist>
+            <div class="chosen-words-strength" aria-live="polite">
+              <div class="chosen-words-bar" aria-hidden="true"><span id="chosen-words-bar-fill"></span></div>
+              <div id="chosen-words-bits" class="chosen-words-bits" aria-label="Random bits left"></div>
+              <p id="chosen-words-verdict" class="field-note"></p>
+            </div>
+            <p class="field-note">
+              The phrase is still drawn with crypto.getRandomValues(), evenly among all phrases that meet the wishes;
+              the checksum is calculated, never chosen. Below 112 random bits the page warns, below 96 it refuses.
+            </p>
+          </div>
           <section
             id="seed-diagnostic"
             class="seed-diagnostic"

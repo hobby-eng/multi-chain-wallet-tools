@@ -549,6 +549,111 @@ textarea.concealed {
   gap: 8px;
   margin: 0 0 12px;
 }
+/* Generate with chosen words, under the Generate buttons of Generate & Derive. */
+.chosen-words-toggle {
+  margin: 0 0 10px;
+}
+.chosen-words-panel {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel2);
+}
+.chosen-words-panel .field-note,
+.chosen-words-panel label {
+  margin: 0;
+}
+.chosen-words-head {
+  font-weight: 600;
+  font-size: 13px;
+}
+.chosen-words-row {
+  display: grid;
+  /* One width for Clear and Remove, so that both word fields end at the same place. */
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) 6.5rem;
+  gap: 8px;
+  align-items: center;
+}
+.chosen-words-row button {
+  width: 100%;
+}
+.chosen-words-row[hidden],
+.chosen-words-panel[hidden] {
+  display: none;
+}
+#chosen-words-add {
+  justify-self: start;
+}
+.chosen-words-panel input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.chosen-words-warning,
+.chosen-words-panel .chosen-words-alert {
+  color: var(--accent2);
+}
+.chosen-words-strength {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chosen-words-strength p {
+  margin: 0;
+}
+.chosen-words-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--line);
+}
+.chosen-words-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.chosen-words-bits {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.chosen-words-bits span {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.chosen-words-bits small {
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+}
+.chosen-words-bits .chosen-words-alert {
+  color: var(--accent2);
+}
+@media (max-width: 640px) {
+  .chosen-words-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .chosen-words-row button {
+    grid-column: 1 / -1;
+    justify-self: start;
+    width: auto;
+  }
+  /* One length per line: "12 words" and its bits side by side. */
+  .chosen-words-bits {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chosen-words-bits span {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+}
 .seed-diagnostic {
   margin: 0 0 20px;
   padding: 14px 16px;
