@@ -83,7 +83,7 @@ These packages are not imported by production source except esbuild/TypeScript d
 
 ## Complete locked Rust metadata closure
 
-The following is the complete Cargo metadata package set. Registry packages come from crates.io; the two non-registry git sources are pinned above. Duplicate names represent simultaneously locked major versions.
+The following is the complete Cargo metadata package set of the WASM modules; the executable Deriver's crates follow in their own section below. Registry packages come from crates.io; the two non-registry git sources are pinned above. Duplicate names represent simultaneously locked major versions.
 
 ### MIT OR Apache-2.0 family
 
@@ -299,6 +299,18 @@ zerovec 0.11.8                                   Unicode-3.0
 zerovec-derive 0.11.6                            Unicode-3.0
 ```
 
+### Executable Key Derivation Tool
+
+The executable versions of the Deriver compile exactly the crates of `apps/key-derivation/launcher/Cargo.lock`, all licensed MIT OR Apache-2.0:
+
+```text
+block-buffer 0.12.1             cfg-if 1.0.4                  cpufeatures 0.3.1
+crypto-common 0.2.2             digest 0.11.3                 hybrid-array 0.4.15
+libc 0.2.189                    sha2 0.11.0                   typenum 1.20.1
+```
+
+Each executable also contains the standard library of Rust 1.98.1, licensed MIT OR Apache-2.0. The Linux and Windows executables are linked in `Dockerfile.launchers` with the GNU toolchains of its pinned Ubuntu snapshot (`gcc-aarch64-linux-gnu`, MinGW-w64 `gcc-mingw-w64-x86-64`), the macOS executables with Apple's toolchain on the release runner.
+
 ## Reproduced notices for Recovery and QR components
 
 These notices accompany the standalone binary HTML distributions. The release bundler copies this file and `ATTRIBUTION.md` beside every artifact and includes both files in `SHA256SUMS`.
@@ -409,7 +421,7 @@ SOFTWARE.
 - `Cargo.toml` uses exact registry versions and one exact audited Orchard tag; `Cargo.lock` pins all transitive versions and git commits.
 - Every supported build validates SHA-512 integrity entries for the complete pnpm package closure, SHA-256 checksums for every crates.io package, and full commit pins for Cargo git sources before compiling.
 - Exact GitHub revisions are recorded for Orchard, note encryption, rust-codex32, the SLIP-39 reference, SeedSigner SeedQR, MHFE 0.4.0, Blockchain Commons SSKR, Gordian Envelope, and bc-components. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply. The registry-published `blahaj` source is bound by its Cargo SHA-256 checksum.
-- The verification record also carries SHA-256 hashes for the local SeedQR, MHFE, SLIP-39, Codex32, SSKR, Gordian Seed Envelope, QR rendering, and QR decoding sources. The seven embedded MHFE package files are additionally checked against fixed SHA-256 values before every supported build. The package's Argon2 builds contain the reference C implementation of Argon2 (`P-H-C/phc-winner-argon2`, commit `f57e61e19229e23c4445b85494dbf7c07de721cb`), which is dual licensed CC0-1.0 or Apache-2.0; MHFE uses it under Apache-2.0, whose text is in `packages/recovery-mhfe-wasm/LICENSE-ARGON2`.
+- The verification record also carries SHA-256 hashes for the local SeedQR, MnemoCode, MHFE, SLIP-39, Codex32, SSKR, Gordian Seed Envelope, QR rendering, and QR decoding sources. The six vendored MHFE package files are additionally checked against fixed SHA-256 values before every supported build. The package's Argon2 builds contain the reference C implementation of Argon2 (`P-H-C/phc-winner-argon2`, commit `f57e61e19229e23c4445b85494dbf7c07de721cb`), which is dual licensed CC0-1.0 or Apache-2.0; MHFE uses it under Apache-2.0, whose text is in `packages/recovery-mhfe-wasm/LICENSE-ARGON2`.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.
 - `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions and mnemonic-bearing online boundary; its current Bitcoin, Ethereum, and Dash providers are documented in its application README and the root security audit.
