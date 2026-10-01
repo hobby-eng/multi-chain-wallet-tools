@@ -266,7 +266,12 @@ function rememberNote(words: number, lengthMustBeChosen: boolean, pim: number): 
         'Compare a known address of the wallet to confirm it.',
     );
   }
-  return `Suite ${SUITE_ID}. ${notes.join(' ')} Use a different password for each container.`;
+  return (
+    `Suite ${SUITE_ID}. ${notes.join(' ')} Use a different password for each phrase you encrypt, and ` +
+    'nowhere else; to make another copy, copy these 24 words exactly. Before relying on the container, ' +
+    'rehearse the recovery in Decode with the words typed from the plate or paper you wrote, not from the ' +
+    'screen, and compare the result with your wallet: a wrongly copied word can still pass the BIP39 checksum.'
+  );
 }
 
 function recoverySummary(candidate: MhfeCandidate, selectedWords: number): string {
