@@ -24,5 +24,6 @@ New audits must follow [the audit report standard](AUDIT_STANDARD.md) and [the r
 16. [AUD-016](audit-16-2026-09-17.md) · [JSON](audit-16-2026-09-17.json) — 2026-09-17
 17. [AUD-017](audit-17-2026-09-17.md) · [JSON](audit-17-2026-09-17.json) — 2026-09-17
 18. [AUD-018](audit-18-2026-09-29.md) · [JSON](audit-18-2026-09-29.json) — 2026-09-29
+19. [AUD-019](audit-19-2026-10-01.md) · [JSON](audit-19-2026-10-01.json) — 2026-10-01
 
 Historical findings describe only the reviewed snapshot. Use the latest audit and the `dist/verification-record.json` emitted for the build being evaluated.
