@@ -5,10 +5,11 @@ on:
     tags:
       - 'v*'
 
+# Read-only by default. Only the publish job, which runs no dependency code, may write the release,
+# request an OIDC token and store attestations: a step that installs or runs dependencies (the
+# browser suites, the builds) must not be able to sign or publish under this workflow's identity.
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -159,6 +160,10 @@ jobs:
     needs: [release, macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - name: Check out the tagged revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
