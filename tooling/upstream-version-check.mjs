@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { GITHUB_SOURCES } from "./verify-dependency-provenance.mjs";
 
 export const WASM_BINDGEN_CRATE_URL = "https://crates.io/api/v1/crates/wasm-bindgen";
 const NOTE_ENCRYPTION_REPOSITORY_URL = "https://api.github.com/repos/dashpay/zcash_note_encryption";
@@ -83,13 +84,16 @@ async function fetchRepositoryHead(fetchImpl, repository) {
   };
 }
 
-function pinnedSourceCommit(provenanceSource, id) {
-  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return capture(
-    provenanceSource,
-    new RegExp(`id: '${escaped}'[\\s\\S]*?commit: '([a-f0-9]{40})'`, "u"),
-    `${id} source commit`,
-  );
+/**
+ * The reviewed commit of a source pinned in tooling/verify-dependency-provenance.mjs. The list is
+ * imported, not read as text: a text pattern broke when the file changed from single to double
+ * quotes (AUD-019-BLD001).
+ */
+function pinnedSourceCommit(id) {
+  const commit = GITHUB_SOURCES.find((source) => source.id === id)?.commit;
+  if (typeof commit !== "string" || !/^[a-f0-9]{40}$/u.test(commit))
+    throw new Error(`Cannot read the pinned ${id} source commit.`);
+  return commit;
 }
 
 export async function fetchWasmBindgenMaxStableVersion(fetchImpl) {
@@ -144,7 +148,11 @@ function assertSynchronized(label, left, right) {
   if (left !== right) throw new Error(`${label} pins disagree: ${left} != ${right}.`);
 }
 
-async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
+/**
+ * Every pin the check compares, read from this repository without any network request, so that a
+ * change in the files' form shows up in a test instead of in the weekly run.
+ */
+export function readPinnedVersions(root) {
   const dockerfile = readFileSync(resolve(root, "Dockerfile.reproducible"), "utf8");
   const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
   const cargoManifest = readFileSync(
@@ -165,10 +173,6 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
   );
   const envelopeManifest = readFileSync(
     resolve(root, "packages/recovery-envelope-wasm/rust/Cargo.toml"),
-    "utf8",
-  );
-  const provenanceSource = readFileSync(
-    resolve(root, "tooling/verify-dependency-provenance.mjs"),
     "utf8",
   );
 
@@ -212,8 +216,8 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     manifest.devDependencies?.playwright,
     "pinned Playwright version",
   );
-  const slip39Commit = pinnedSourceCommit(provenanceSource, "slip39-reference");
-  const seedqrCommit = pinnedSourceCommit(provenanceSource, "seedsigner-seedqr");
+  const slip39Commit = pinnedSourceCommit("slip39-reference");
+  const seedqrCommit = pinnedSourceCommit("seedsigner-seedqr");
   const dockerWasmBindgen = capture(
     dockerfile,
     /cargo install wasm-bindgen-cli --version (\S+)/u,
@@ -222,6 +226,49 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
 
   assertSynchronized("pnpm", pnpm, dockerPnpm);
   assertSynchronized("wasm-bindgen/wasm-bindgen-cli", wasmBindgen, dockerWasmBindgen);
+  return {
+    node,
+    pnpm,
+    rust,
+    rustup,
+    evo,
+    orchard,
+    orchardCommit,
+    noteEncryptionCommit,
+    wasmBindgen,
+    codex32,
+    sskr,
+    envelope,
+    components,
+    qr,
+    uqr,
+    playwright,
+    slip39Commit,
+    seedqrCommit,
+  };
+}
+
+async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
+  const {
+    node,
+    pnpm,
+    rust,
+    rustup,
+    evo,
+    orchard,
+    orchardCommit,
+    noteEncryptionCommit,
+    wasmBindgen,
+    codex32,
+    sskr,
+    envelope,
+    components,
+    qr,
+    uqr,
+    playwright,
+    slip39Commit,
+    seedqrCommit,
+  } = readPinnedVersions(root);
 
   const [
     nodeReleases,
