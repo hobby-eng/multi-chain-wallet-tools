@@ -76,7 +76,8 @@ jobs:
       - name: Require the tag to match package.json
         run: |
           EXPECTED_TAG="v$(jq --raw-output '.version' package.json)"
-          if [ "$GITHUB_REF_NAME" != "$EXPECTED_TAG" ]; then
+          # A release candidate of the version, such as v0.1.5-rc.1, is published as a pre-release.
+          if [ "$GITHUB_REF_NAME" != "$EXPECTED_TAG" ] && [[ ! "$GITHUB_REF_NAME" =~ ^${EXPECTED_TAG//./\\.}-rc\.[0-9]+$ ]]; then
             echo "Tag $GITHUB_REF_NAME does not match package version $EXPECTED_TAG" >&2
             exit 1
           fi
@@ -253,7 +254,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          NOTES_FILE="docs/releases/$GITHUB_REF_NAME.md"
+          # A release candidate uses the notes of its version and stays a pre-release, so it is
+          # never marked Latest and the Dash Community workflow, which takes only final releases,
+          # ignores it.
+          RELEASE_KIND=(--latest)
+          TITLE="$GITHUB_REF_NAME"
+          BASE_TAG="$GITHUB_REF_NAME"
+          if [[ "$GITHUB_REF_NAME" =~ -rc\.[0-9]+$ ]]; then
+            BASE_TAG="${GITHUB_REF_NAME%-rc.*}"
+            RELEASE_KIND=(--prerelease --latest=false)
+            TITLE="$GITHUB_REF_NAME (release candidate)"
+          fi
+          NOTES_FILE="docs/releases/$BASE_TAG.md"
           if [ ! -f "$NOTES_FILE" ]; then
             echo "Missing curated release notes: $NOTES_FILE" >&2
             exit 1
@@ -262,5 +274,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --notes-file "$NOTES_FILE" \
-            --latest \
-            --title "$GITHUB_REF_NAME"
+            "${RELEASE_KIND[@]}" \
+            --title "$TITLE"
