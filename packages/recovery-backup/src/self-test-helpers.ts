@@ -1,11 +1,11 @@
-import { bytesToHex } from '@noble/hashes/utils.js';
+import { bytesToHex } from "@noble/hashes/utils.js";
 
 export function now(): number {
-  return typeof performance === 'undefined' ? Date.now() : performance.now();
+  return typeof performance === "undefined" ? Date.now() : performance.now();
 }
 
 export function expectText(label: string, actual: string, expected: string): void {
-  if (actual !== expected) throw new Error('Recovery self-test failed: ' + label + '.');
+  if (actual !== expected) throw new Error("Recovery self-test failed: " + label + ".");
 }
 
 export function expectBytes(label: string, actual: Uint8Array, expected: Uint8Array): void {

@@ -4,8 +4,8 @@ import {
   type CardPageDrawing,
   type DrawingStep,
   type PathSegment,
-} from '@ckd/recovery-backup/mnemocode-card-drawing.js';
-import { MNEMOCODE_CARD_IMAGE_DPI } from '@ckd/recovery-backup/mnemocode-cards.js';
+} from "@ckd/recovery-backup/mnemocode-card-drawing.js";
+import { MNEMOCODE_CARD_IMAGE_DPI } from "@ckd/recovery-backup/mnemocode-cards.js";
 
 /**
  * Draws the pages of a card PDF on a canvas and saves each one as a PNG image.
@@ -23,11 +23,11 @@ type Context = CanvasRenderingContext2D;
 type Picture = HTMLCanvasElement | ImageBitmap;
 
 function newCanvas(width: number, height: number): { canvas: HTMLCanvasElement; context: Context } {
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
-  const context = canvas.getContext('2d');
-  if (context === null) throw new Error('This browser cannot draw images. Save the cards as PDF.');
+  const context = canvas.getContext("2d");
+  if (context === null) throw new Error("This browser cannot draw images. Save the cards as PDF.");
   return { canvas, context };
 }
 
@@ -59,7 +59,7 @@ function assertCanvasReadsBack(): void {
     const expected = READ_BACK_COLORS.flatMap((color) => [...color, 255]);
     if (expected.some((value, index) => pixels[index] !== value))
       throw new Error(
-        'This browser changes the pixels of saved images, which is a privacy setting against fingerprinting. Save the cards as PDF, or allow this page to read canvas images.',
+        "This browser changes the pixels of saved images, which is a privacy setting against fingerprinting. Save the cards as PDF, or allow this page to read canvas images.",
       );
   } finally {
     discard(canvas);
@@ -80,9 +80,9 @@ function rgbPicture(image: CardImage): HTMLCanvasElement {
 }
 
 async function picture(image: CardImage): Promise<Picture> {
-  if (image.format === 'rgb') return rgbPicture(image);
+  if (image.format === "rgb") return rgbPicture(image);
   // The browser decodes the photograph from memory; nothing is loaded from an address.
-  return createImageBitmap(new Blob([new Uint8Array(image.data)], { type: 'image/jpeg' }));
+  return createImageBitmap(new Blob([new Uint8Array(image.data)], { type: "image/jpeg" }));
 }
 
 function release(source: Picture): void {
@@ -94,26 +94,26 @@ function trace(context: Context, segments: readonly PathSegment[]): void {
   context.beginPath();
   for (const segment of segments) {
     switch (segment.to) {
-      case 'move':
+      case "move":
         context.moveTo(segment.x, segment.y);
         break;
-      case 'line':
+      case "line":
         context.lineTo(segment.x, segment.y);
         break;
-      case 'curve':
+      case "curve":
         context.bezierCurveTo(segment.x1, segment.y1, segment.x2, segment.y2, segment.x, segment.y);
         break;
-      case 'quadratic':
+      case "quadratic":
         context.quadraticCurveTo(segment.x1, segment.y1, segment.x, segment.y);
         break;
-      case 'close':
+      case "close":
         context.closePath();
         break;
     }
   }
 }
 
-function color(step: Extract<DrawingStep, { do: 'fillColor' | 'strokeColor' }>): string {
+function color(step: Extract<DrawingStep, { do: "fillColor" | "strokeColor" }>): string {
   const byte = (share: number) => Math.round(Math.min(1, Math.max(0, share)) * 255);
   return `rgb(${byte(step.red)}, ${byte(step.green)}, ${byte(step.blue)})`;
 }
@@ -124,64 +124,75 @@ interface Opacity {
   stroke: number;
 }
 
-async function paint(context: Context, page: CardPageDrawing, pictures: Map<CardImage, Picture>): Promise<void> {
+async function paint(
+  context: Context,
+  page: CardPageDrawing,
+  pictures: Map<CardImage, Picture>,
+): Promise<void> {
   // A PDF measures from the bottom left corner and upwards, a canvas from the top left and downwards.
-  context.setTransform(PIXELS_PER_POINT, 0, 0, -PIXELS_PER_POINT, 0, page.height * PIXELS_PER_POINT);
+  context.setTransform(
+    PIXELS_PER_POINT,
+    0,
+    0,
+    -PIXELS_PER_POINT,
+    0,
+    page.height * PIXELS_PER_POINT,
+  );
   context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = 'high';
+  context.imageSmoothingQuality = "high";
   let opacity: Opacity = { fill: 1, stroke: 1 };
   const saved: Opacity[] = [];
   for (const step of page.steps) {
     switch (step.do) {
-      case 'save':
+      case "save":
         context.save();
         saved.push({ ...opacity });
         break;
-      case 'restore':
+      case "restore":
         context.restore();
         opacity = saved.pop() ?? { fill: 1, stroke: 1 };
         break;
-      case 'transform':
+      case "transform":
         context.transform(...step.matrix);
         break;
-      case 'fillColor':
+      case "fillColor":
         context.fillStyle = color(step);
         break;
-      case 'strokeColor':
+      case "strokeColor":
         context.strokeStyle = color(step);
         break;
-      case 'opacity':
+      case "opacity":
         opacity = { fill: step.fill ?? opacity.fill, stroke: step.stroke ?? opacity.stroke };
         break;
-      case 'lineWidth':
+      case "lineWidth":
         context.lineWidth = step.width > 0 ? step.width : THINNEST_LINE;
         break;
-      case 'dash':
+      case "dash":
         context.setLineDash([...step.pattern]);
         context.lineDashOffset = step.phase;
         break;
-      case 'path':
+      case "path":
         trace(context, step.segments);
         if (step.fill) {
           context.globalAlpha = opacity.fill;
-          context.fill('nonzero');
+          context.fill("nonzero");
         }
         if (step.stroke) {
           context.globalAlpha = opacity.stroke;
           context.stroke();
         }
         // A PDF paints a path first and limits the following drawing to it afterwards.
-        if (step.clip) context.clip('nonzero');
+        if (step.clip) context.clip("nonzero");
         break;
-      case 'text':
+      case "text":
         context.save();
         context.transform(...step.matrix);
         trace(context, step.segments);
         context.globalAlpha = opacity.fill;
-        context.fill('nonzero');
+        context.fill("nonzero");
         context.restore();
         break;
-      case 'image': {
+      case "image": {
         let source = pictures.get(step.image);
         if (source === undefined) {
           source = await picture(step.image);
@@ -202,9 +213,10 @@ async function paint(context: Context, page: CardPageDrawing, pictures: Map<Card
 function pngBytes(canvas: HTMLCanvasElement): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
-      if (blob === null) reject(new Error('The browser could not write the image. Save the cards as PDF.'));
+      if (blob === null)
+        reject(new Error("The browser could not write the image. Save the cards as PDF."));
       else blob.arrayBuffer().then((buffer) => resolve(new Uint8Array(buffer)), reject);
-    }, 'image/png');
+    }, "image/png");
   });
 }
 

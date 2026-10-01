@@ -1,4 +1,4 @@
-import { englishMnemonicToEntropy } from '@ckd/core/bip39.js';
+import { englishMnemonicToEntropy } from "@ckd/core/bip39.js";
 
 const BIP39_ENTRY_WORD_COUNTS = [24, 21, 18, 15, 12] as const;
 
@@ -21,8 +21,8 @@ function isValidMnemonic(value: string): boolean {
  */
 export function parseMnemonicEntries(value: string): string[] {
   const explicit = value
-    .replaceAll('\r', '')
-    .split('\n')
+    .replaceAll("\r", "")
+    .split("\n")
     .map((entry) => entry.trim())
     .filter(Boolean);
   if (explicit.length === 0 || explicit.every(isValidMnemonic)) return explicit;
@@ -34,7 +34,7 @@ export function parseMnemonicEntries(value: string): string[] {
     if (memo.has(offset)) return memo.get(offset) ?? null;
     for (const count of BIP39_ENTRY_WORD_COUNTS) {
       if (offset + count > words.length) continue;
-      const candidate = words.slice(offset, offset + count).join(' ');
+      const candidate = words.slice(offset, offset + count).join(" ");
       if (!isValidMnemonic(candidate)) continue;
       const remaining = splitAt(offset + count);
       if (remaining !== null) {

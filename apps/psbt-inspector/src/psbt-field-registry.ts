@@ -1,6 +1,6 @@
-import type { PsbtChain } from './psbt-types.js';
+import type { PsbtChain } from "./psbt-types.js";
 
-export type PsbtMapScope = 'global' | 'input' | 'output';
+export type PsbtMapScope = "global" | "input" | "output";
 
 const DASH_UNSUPPORTED_TYPES: Readonly<Record<PsbtMapScope, readonly bigint[]>> = {
   global: [2n, 3n, 4n, 5n, 6n],
@@ -9,5 +9,5 @@ const DASH_UNSUPPORTED_TYPES: Readonly<Record<PsbtMapScope, readonly bigint[]>> 
 };
 
 export function isUnsupportedField(chain: PsbtChain, scope: PsbtMapScope, type: bigint): boolean {
-  return chain === 'dash' && DASH_UNSUPPORTED_TYPES[scope].includes(type);
+  return chain === "dash" && DASH_UNSUPPORTED_TYPES[scope].includes(type);
 }

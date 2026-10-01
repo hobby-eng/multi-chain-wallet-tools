@@ -1,9 +1,9 @@
-import type { CoinAdapter } from '@ckd/coins/registry.js';
-import type { DerivationResult } from '@ckd/core/types.js';
-import type { DerivationControlValues } from './inputs.js';
-import type { ResultBranch, ResultBranchPlan } from './result-branches.js';
-import { clearDerivationResult } from './secrets.js';
-import type { DerivationWorkerClient } from '../workers/derive-client.js';
+import type { CoinAdapter } from "@ckd/coins/registry.js";
+import type { DerivationResult } from "@ckd/core/types.js";
+import type { DerivationControlValues } from "./inputs.js";
+import type { ResultBranch, ResultBranchPlan } from "./result-branches.js";
+import { clearDerivationResult } from "./secrets.js";
+import type { DerivationWorkerClient } from "../workers/derive-client.js";
 
 interface StreamedDerivationOptions {
   worker: DerivationWorkerClient;
@@ -14,7 +14,7 @@ interface StreamedDerivationOptions {
   isStale: () => boolean;
   isCancelled: () => boolean;
   onInitialBatch: (branch: ResultBranch, result: DerivationResult) => void;
-  onAppendedBatch: (branch: ResultBranch, rows: DerivationResult['rows']) => void;
+  onAppendedBatch: (branch: ResultBranch, rows: DerivationResult["rows"]) => void;
   onProgress: (branch: ResultBranch, branchCount: number, totalCount: number) => void;
   yieldTurn: () => Promise<void>;
 }
@@ -29,7 +29,9 @@ interface StreamedDerivationOutcome {
  * Runs bounded worker batches and owns the append/cleanup invariants. UI state
  * stays outside this module and is updated only through explicit callbacks.
  */
-export async function runStreamedDerivation(options: StreamedDerivationOptions): Promise<StreamedDerivationOutcome> {
+export async function runStreamedDerivation(
+  options: StreamedDerivationOptions,
+): Promise<StreamedDerivationOutcome> {
   const { worker, adapter, input, branches, seed } = options;
   const batchSize = adapter.batchSize ?? 50;
   if (!Number.isSafeInteger(batchSize) || batchSize < 1) {
@@ -48,7 +50,8 @@ export async function runStreamedDerivation(options: StreamedDerivationOptions):
     let generated = 0;
     while (generated < input.count) {
       if (options.isStale()) return { generated: generatedTotal, stale: true, cancelled: false };
-      if (options.isCancelled()) return { generated: generatedTotal, stale: false, cancelled: true };
+      if (options.isCancelled())
+        return { generated: generatedTotal, stale: false, cancelled: true };
       const count = Math.min(batchSize, input.count - generated);
       const batch = await worker.derive(workerAdapterId ?? adapter.id, {
         ...baseInput,
@@ -67,7 +70,7 @@ export async function runStreamedDerivation(options: StreamedDerivationOptions):
       } else {
         if (batch.id !== destination.id || batch.rows.length !== count) {
           clearDerivationResult(batch);
-          throw new Error('The derivation adapter returned an inconsistent streamed batch.');
+          throw new Error("The derivation adapter returned an inconsistent streamed batch.");
         }
         const appended = batch.rows.splice(0);
         destination.rows.push(...appended);

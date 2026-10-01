@@ -1,15 +1,26 @@
-import { bech32m } from '@scure/base';
-import { assertBatch, assertIndex, requirePrivate, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
-import { bytesToHex, concatBytes, encodeWif, hash160, wipe } from '@ckd/core/crypto.js';
-import { getDashNetwork } from '@ckd/core/networks.js';
-import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
-import { bip32SummaryFields } from '../../bip32-summary.js';
-import { DIP17_PAYMENT_CHAINS } from './platform-paths.js';
+import { bech32m } from "@scure/base";
+import {
+  assertBatch,
+  assertIndex,
+  requirePrivate,
+  requirePublic,
+  rootFromSeed,
+} from "@ckd/core/bip32.js";
+import { bytesToHex, concatBytes, encodeWif, hash160, wipe } from "@ckd/core/crypto.js";
+import { getDashNetwork } from "@ckd/core/networks.js";
+import {
+  field,
+  paymentAddressField,
+  type Bip32BatchOptions,
+  type DerivationResult,
+} from "@ckd/core/types.js";
+import { bip32SummaryFields } from "../../bip32-summary.js";
+import { DIP17_PAYMENT_CHAINS } from "./platform-paths.js";
 
 const PLATFORM_P2PKH_TYPE = 0xb0;
 
 export function encodePlatformP2pkh(publicKeyHash: Uint8Array, hrp: string): string {
-  if (publicKeyHash.length !== 20) throw new Error('Platform P2PKH hash must be 20 bytes.');
+  if (publicKeyHash.length !== 20) throw new Error("Platform P2PKH hash must be 20 bytes.");
   const payload = concatBytes(Uint8Array.of(PLATFORM_P2PKH_TYPE), publicKeyHash);
   return bech32m.encode(hrp, bech32m.toWords(payload));
 }
@@ -17,10 +28,10 @@ export function encodePlatformP2pkh(publicKeyHash: Uint8Array, hrp: string): str
 /** Dash Platform payment keys and addresses per DIP17 + DIP18. */
 export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult {
   const network = getDashNetwork(options.network);
-  assertIndex(options.account, 'Account');
-  assertIndex(options.branch, 'Key class');
+  assertIndex(options.account, "Account");
+  assertIndex(options.branch, "Key class");
   if (!DIP17_PAYMENT_CHAINS.some(({ keyClass }) => keyClass === options.branch)) {
-    throw new Error('DIP17 Platform payment key class must be 0 (receive) or 1 (internal/change).');
+    throw new Error("DIP17 Platform payment key class must be 0 (receive) or 1 (internal/change).");
   }
   assertBatch(options.start, options.count);
 
@@ -28,9 +39,9 @@ export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult
   const keyClassPath = `m/9'/${network.coinType}'/17'/${options.account}'/${options.branch}'`;
   const keyClass = root.derive(keyClassPath);
   const { fields: summary } = bip32SummaryFields(root, keyClass, keyClassPath, {
-    accountPath: 'DIP17 account path',
-    accountXprv: 'DIP17 key-class xprv',
-    accountXpub: 'DIP17 key-class xpub',
+    accountPath: "DIP17 account path",
+    accountXprv: "DIP17 key-class xprv",
+    accountXpub: "DIP17 key-class xpub",
   });
   const rows = [];
 
@@ -51,33 +62,33 @@ export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult
         path,
         title: `Platform address #${index}`,
         basic: [
-          paymentAddressField('address', 'Dash Platform address', address),
-          field('publicKey', 'Compressed secp256k1 public key', bytesToHex(publicKey)),
+          paymentAddressField("address", "Dash Platform address", address),
+          field("publicKey", "Compressed secp256k1 public key", bytesToHex(publicKey)),
           field(
-            'privateKey',
-            'Private key (raw 32-byte hex)',
+            "privateKey",
+            "Private key (raw 32-byte hex)",
             bytesToHex(privateKey),
             true,
-            'DIP17 specifies the raw child private key and does not define a Platform-specific WIF format.',
+            "DIP17 specifies the raw child private key and does not define a Platform-specific WIF format.",
           ),
         ],
         advanced: [
-          field('path', 'DIP17 derivation path', path),
-          field('privateKeyHex', 'Private key (hex)', bytesToHex(privateKey), true),
+          field("path", "DIP17 derivation path", path),
+          field("privateKeyHex", "Private key (hex)", bytesToHex(privateKey), true),
           field(
-            'privateKeyWif',
-            'Dash-compatible WIF transport encoding',
+            "privateKeyWif",
+            "Dash-compatible WIF transport encoding",
             encodeWif(privateKey, network.wif),
             true,
-            'This losslessly encodes the secp256k1 secret but does not identify a Platform address or derivation path.',
+            "This losslessly encodes the secp256k1 secret but does not identify a Platform address or derivation path.",
           ),
-          field('publicKeyHash', 'HASH160(public key)', bytesToHex(publicKeyHash)),
-          field('addressType', 'DIP18 display type byte', '0xb0 (P2PKH)'),
-          field('displayPayload', 'DIP18 display payload', bytesToHex(displayPayload)),
-          field('storagePayload', 'DPP storage payload', bytesToHex(storagePayload)),
-          field('humanReadablePart', 'Bech32m HRP', network.platformHrp),
-          field('childXprv', 'Child xprv', child.privateExtendedKey, true),
-          field('childXpub', 'Child xpub', child.publicExtendedKey),
+          field("publicKeyHash", "HASH160(public key)", bytesToHex(publicKeyHash)),
+          field("addressType", "DIP18 display type byte", "0xb0 (P2PKH)"),
+          field("displayPayload", "DIP18 display payload", bytesToHex(displayPayload)),
+          field("storagePayload", "DPP storage payload", bytesToHex(storagePayload)),
+          field("humanReadablePart", "Bech32m HRP", network.platformHrp),
+          field("childXprv", "Child xprv", child.privateExtendedKey, true),
+          field("childXpub", "Child xpub", child.publicExtendedKey),
         ],
       });
       wipe(privateKey, publicKey, publicKeyHash, storagePayload, displayPayload);
@@ -85,8 +96,8 @@ export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult
     }
 
     return {
-      id: 'dash-platform',
-      title: 'Dash Platform payments (DIP17 / DIP18)',
+      id: "dash-platform",
+      title: "Dash Platform payments (DIP17 / DIP18)",
       networkLabel: `${network.label} Platform`,
       pathTemplate: `${keyClassPath}/i`,
       basicSummary: [],

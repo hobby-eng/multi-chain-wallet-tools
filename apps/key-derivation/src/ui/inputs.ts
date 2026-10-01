@@ -1,4 +1,4 @@
-import type { CoinAdapter, CoinDerivationInput, CoinFamily } from '@ckd/coins/registry-base.js';
+import type { CoinAdapter, CoinDerivationInput, CoinFamily } from "@ckd/coins/registry-base.js";
 
 export interface CoinMetadataRegistry {
   COIN_FAMILIES: readonly CoinFamily[];
@@ -33,12 +33,15 @@ export interface DerivationControls {
   preview: HTMLElement;
 }
 
-export type DerivationControlValues = Omit<CoinDerivationInput, 'seed'> & {
+export type DerivationControlValues = Omit<CoinDerivationInput, "seed"> & {
   includeChange: boolean;
   includeCoinJoin: boolean;
 };
 
-export type SharedDerivationControlValues = Pick<DerivationControlValues, 'network' | 'account' | 'start' | 'count'>;
+export type SharedDerivationControlValues = Pick<
+  DerivationControlValues,
+  "network" | "account" | "start" | "count"
+>;
 
 const DEFAULT_INDEX_MAX = 2_147_483_647;
 
@@ -64,15 +67,18 @@ export function applySharedDerivationControls(
 
 function setNumeric(input: HTMLInputElement, value: number, max = 2_147_483_647): void {
   input.value = String(value);
-  input.min = '0';
+  input.min = "0";
   input.max = String(max);
-  input.step = '1';
+  input.step = "1";
 }
 
-export function populateCoinSelect(select: HTMLSelectElement, registry: CoinMetadataRegistry): void {
+export function populateCoinSelect(
+  select: HTMLSelectElement,
+  registry: CoinMetadataRegistry,
+): void {
   select.replaceChildren();
   for (const family of registry.COIN_FAMILIES) {
-    const option = document.createElement('option');
+    const option = document.createElement("option");
     option.value = family.id;
     option.textContent = family.label;
     select.append(option);
@@ -80,26 +86,32 @@ export function populateCoinSelect(select: HTMLSelectElement, registry: CoinMeta
   // Firefox can restore an earlier select value while opening a local HTML
   // file. The build's ordered registry defines the deterministic default.
   select.selectedIndex = 0;
-  select.value = registry.COIN_FAMILIES[0]?.id ?? '';
+  select.value = registry.COIN_FAMILIES[0]?.id ?? "";
 }
 
-function renderProtocolTabs(adapter: CoinAdapter, controls: DerivationControls, registry: CoinMetadataRegistry): void {
-  const featureTabs = [...controls.protocolTabs.querySelectorAll<HTMLButtonElement>('[data-feature-tab]')];
+function renderProtocolTabs(
+  adapter: CoinAdapter,
+  controls: DerivationControls,
+  registry: CoinMetadataRegistry,
+): void {
+  const featureTabs = [
+    ...controls.protocolTabs.querySelectorAll<HTMLButtonElement>("[data-feature-tab]"),
+  ];
   controls.protocolTabs.replaceChildren();
   const family = registry.getCoinFamily(registry.getAdapterFamilyId(adapter));
   const showHidden = controls.includeLegacyMobile.checked;
   for (const variant of family.adapters.filter(
     (candidate) => !candidate.hiddenByDefault || showHidden || candidate.id === adapter.id,
   )) {
-    const button = document.createElement('button');
+    const button = document.createElement("button");
     const selected = variant.id === adapter.id;
-    button.type = 'button';
-    button.className = `protocol-tab primary-mode-tab${selected ? ' active' : ''}`;
+    button.type = "button";
+    button.className = `protocol-tab primary-mode-tab${selected ? " active" : ""}`;
     button.dataset.adapterId = variant.id;
-    button.setAttribute('role', 'radio');
-    button.setAttribute('aria-checked', String(selected));
+    button.setAttribute("role", "radio");
+    button.setAttribute("aria-checked", String(selected));
     button.tabIndex = selected ? 0 : -1;
-    button.style.whiteSpace = 'pre-line';
+    button.style.whiteSpace = "pre-line";
     button.textContent = variant.variantLabel;
     controls.protocolTabs.append(button);
   }
@@ -115,11 +127,18 @@ export function syncFeatureTabVisibility(checkbox: HTMLInputElement, tab: HTMLBu
  * Marks the selected entry of a "Derivation type" tab list: the tab of the active feature, or the
  * adapter tab when no feature is active. The original and the derived child wallet both use it.
  */
-export function markSelectedProtocolTab(protocolTabs: HTMLElement, adapterId: string, feature: string | null): void {
-  for (const button of protocolTabs.querySelectorAll<HTMLButtonElement>('.protocol-tab')) {
-    const selected = feature === null ? button.dataset.adapterId === adapterId : button.dataset.featureTab === feature;
-    button.classList.toggle('active', selected);
-    button.setAttribute('aria-checked', String(selected));
+export function markSelectedProtocolTab(
+  protocolTabs: HTMLElement,
+  adapterId: string,
+  feature: string | null,
+): void {
+  for (const button of protocolTabs.querySelectorAll<HTMLButtonElement>(".protocol-tab")) {
+    const selected =
+      feature === null
+        ? button.dataset.adapterId === adapterId
+        : button.dataset.featureTab === feature;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-checked", String(selected));
     button.tabIndex = selected ? 0 : -1;
   }
 }
@@ -131,27 +150,33 @@ export function configureControls(
   remembered?: DerivationControlValues,
 ): void {
   const defaults = adapter.defaults;
-  const values: DerivationControlValues = remembered ?? { ...defaults, includeChange: false, includeCoinJoin: false };
+  const values: DerivationControlValues = remembered ?? {
+    ...defaults,
+    includeChange: false,
+    includeCoinJoin: false,
+  };
   controls.coin.value = registry.getAdapterFamilyId(adapter);
   const family = registry.getCoinFamily(registry.getAdapterFamilyId(adapter));
-  controls.legacyMobileField.hidden = !family.adapters.some(({ id }) => id === 'dash-legacy-mobile');
-  if (adapter.id === 'dash-legacy-mobile') controls.includeLegacyMobile.checked = true;
+  controls.legacyMobileField.hidden = !family.adapters.some(
+    ({ id }) => id === "dash-legacy-mobile",
+  );
+  if (adapter.id === "dash-legacy-mobile") controls.includeLegacyMobile.checked = true;
   renderProtocolTabs(adapter, controls, registry);
   controls.network.replaceChildren();
-  for (const network of ['mainnet', 'testnet'] as const) {
-    const option = document.createElement('option');
+  for (const network of ["mainnet", "testnet"] as const) {
+    const option = document.createElement("option");
     option.value = network;
-    option.textContent = network === 'mainnet' ? 'Mainnet' : 'Testnet';
+    option.textContent = network === "mainnet" ? "Mainnet" : "Testnet";
     controls.network.append(option);
   }
   controls.network.value = values.network;
   controls.network.disabled = !adapter.networkControl;
-  controls.networkField.classList.toggle('control-disabled', !adapter.networkControl);
+  controls.networkField.classList.toggle("control-disabled", !adapter.networkControl);
   controls.accountField.hidden = adapter.accountControl === false;
   controls.account.disabled = adapter.accountControl === false;
-  controls.accountLabel.textContent = adapter.controlLabels?.account ?? 'Account';
-  controls.startLabel.textContent = adapter.controlLabels?.start ?? 'Start index';
-  controls.countLabel.textContent = adapter.controlLabels?.count ?? 'Number of results';
+  controls.accountLabel.textContent = adapter.controlLabels?.account ?? "Account";
+  controls.startLabel.textContent = adapter.controlLabels?.start ?? "Start index";
+  controls.countLabel.textContent = adapter.controlLabels?.count ?? "Number of results";
   setNumeric(controls.account, values.account, adapter.limits?.accountMax ?? DEFAULT_INDEX_MAX);
   setNumeric(controls.start, values.start, adapter.limits?.startMax ?? DEFAULT_INDEX_MAX);
   setNumeric(controls.count, values.count, (adapter.limits?.startMax ?? DEFAULT_INDEX_MAX) + 1);
@@ -171,7 +196,7 @@ export function configureControls(
       controls.branchLabel.htmlFor = controls.branchSelect.id;
       controls.branchSelect.replaceChildren();
       for (const item of branch.options) {
-        const option = document.createElement('option');
+        const option = document.createElement("option");
         option.value = String(item.value);
         option.textContent = item.label;
         controls.branchSelect.append(option);
@@ -181,7 +206,8 @@ export function configureControls(
   }
   controls.changeField.hidden = adapter.addressBranches === undefined;
   controls.changeHelp.textContent =
-    adapter.addressBranches?.help ?? 'Uses the standard internal branch /1 and shows it in a separate result tab.';
+    adapter.addressBranches?.help ??
+    "Uses the standard internal branch /1 and shows it in a separate result tab.";
   controls.includeChange.checked = adapter.addressBranches !== undefined && values.includeChange;
   controls.coinJoinField.hidden = adapter.coinJoin === undefined;
   controls.includeCoinJoin.checked = adapter.coinJoin !== undefined && values.includeCoinJoin;
@@ -201,7 +227,10 @@ function numericValue(
   return value;
 }
 
-export function readControls(adapter: CoinAdapter, controls: DerivationControls): DerivationControlValues {
+export function readControls(
+  adapter: CoinAdapter,
+  controls: DerivationControls,
+): DerivationControlValues {
   const accountMax = adapter.limits?.accountMax ?? DEFAULT_INDEX_MAX;
   const startMax = adapter.limits?.startMax ?? DEFAULT_INDEX_MAX;
   const branch =
@@ -209,26 +238,28 @@ export function readControls(adapter: CoinAdapter, controls: DerivationControls)
     (adapter.branchControl === undefined
       ? adapter.defaults.branch
       : numericValue(
-          adapter.branchControl.options === undefined ? controls.branchInput : controls.branchSelect,
+          adapter.branchControl.options === undefined
+            ? controls.branchInput
+            : controls.branchSelect,
           adapter.branchControl.label,
           0,
           adapter.branchControl.max,
         ));
-  const start = numericValue(controls.start, 'Start index', 0, startMax);
-  const count = numericValue(controls.count, 'Number of results', 1, startMax + 1);
+  const start = numericValue(controls.start, "Start index", 0, startMax);
+  const count = numericValue(controls.count, "Number of results", 1, startMax + 1);
   if (start + count - 1 > startMax) {
     throw new Error(`The requested index range exceeds ${startMax}.`);
   }
   const network = controls.network.value;
-  if (network !== 'mainnet' && network !== 'testnet') {
-    throw new Error(`Unsupported network: ${network || '(empty)'}.`);
+  if (network !== "mainnet" && network !== "testnet") {
+    throw new Error(`Unsupported network: ${network || "(empty)"}.`);
   }
   return {
     network,
     account:
       adapter.accountControl === false
         ? adapter.defaults.account
-        : numericValue(controls.account, 'Account', 0, accountMax),
+        : numericValue(controls.account, "Account", 0, accountMax),
     branch,
     start,
     count,
@@ -253,10 +284,10 @@ export function updatePathPreview(adapter: CoinAdapter, controls: DerivationCont
       controls.coinJoinHelp.textContent = `${external} · ${internal}`;
     }
   } catch {
-    controls.preview.textContent = 'Enter valid integer controls to preview the path.';
+    controls.preview.textContent = "Enter valid integer controls to preview the path.";
     if (adapter.coinJoin !== undefined) {
       controls.coinJoinHelp.textContent =
-        'Enter valid integer controls to preview the Dash Mobile CoinJoin · DIP9 paths.';
+        "Enter valid integer controls to preview the Dash Mobile CoinJoin · DIP9 paths.";
     }
   }
 }

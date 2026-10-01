@@ -12,7 +12,7 @@ export async function boundedFetch<T>(url: string, options: BoundedFetchOptions<
   const requestController = new AbortController();
   let timedOut = false;
   const abortFromCaller = (): void => requestController.abort();
-  options.signal?.addEventListener('abort', abortFromCaller, { once: true });
+  options.signal?.addEventListener("abort", abortFromCaller, { once: true });
   const timeout = setTimeout(() => {
     timedOut = true;
     requestController.abort();
@@ -20,7 +20,7 @@ export async function boundedFetch<T>(url: string, options: BoundedFetchOptions<
   try {
     const response = await globalThis.fetch(url, {
       ...(options.init ?? {}),
-      cache: 'no-store',
+      cache: "no-store",
       signal: requestController.signal,
     });
     if (!response.ok) {
@@ -30,10 +30,13 @@ export async function boundedFetch<T>(url: string, options: BoundedFetchOptions<
     return await options.read(response, requestController.signal);
   } catch (cause) {
     if (options.signal?.aborted) throw options.abortError();
-    if (timedOut) throw new Error(`Network request timed out after ${Math.ceil(options.timeoutMs / 1_000)} seconds.`);
+    if (timedOut)
+      throw new Error(
+        `Network request timed out after ${Math.ceil(options.timeoutMs / 1_000)} seconds.`,
+      );
     throw cause;
   } finally {
     clearTimeout(timeout);
-    options.signal?.removeEventListener('abort', abortFromCaller);
+    options.signal?.removeEventListener("abort", abortFromCaller);
   }
 }

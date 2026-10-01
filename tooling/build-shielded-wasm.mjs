@@ -1,12 +1,12 @@
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { assertExactToolVersion, resolveRustToolchain } from './rust-toolchain.mjs';
-import { assertCanonicalWasmBindgenProducer } from './verify-wasm-producers.mjs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { assertExactToolVersion, resolveRustToolchain } from "./rust-toolchain.mjs";
+import { assertCanonicalWasmBindgenProducer } from "./verify-wasm-producers.mjs";
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const {
   cargo,
   wasmBindgen,
@@ -14,51 +14,65 @@ const {
   rustupHome: effectiveRustupHome,
   environment,
 } = resolveRustToolchain(root);
-const manifest = resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.toml');
+const manifest = resolve(root, "packages/dash-shielded-wasm/rust/Cargo.toml");
 const compiled = resolve(
   root,
-  'packages/dash-shielded-wasm/rust/target/wasm32-unknown-unknown/release/dash_shielded_wasm.wasm',
+  "packages/dash-shielded-wasm/rust/target/wasm32-unknown-unknown/release/dash_shielded_wasm.wasm",
 );
-const generated = resolve(root, 'packages/dash-shielded-wasm/generated');
+const generated = resolve(root, "packages/dash-shielded-wasm/generated");
 
 function run(command, args) {
-  const result = spawnSync(command, args, { cwd: root, env: environment, stdio: 'inherit' });
+  const result = spawnSync(command, args, { cwd: root, env: environment, stdio: "inherit" });
   if (result.error !== undefined) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
 function version(command, expected) {
-  const result = spawnSync(command, ['--version'], { cwd: root, env: environment, encoding: 'utf8' });
+  const result = spawnSync(command, ["--version"], {
+    cwd: root,
+    env: environment,
+    encoding: "utf8",
+  });
   if (result.error !== undefined) throw result.error;
   const actual = result.stdout.trim();
   if (result.status !== 0 || (actual !== expected && !actual.startsWith(`${expected} `))) {
-    throw new Error(`Expected ${expected}; received ${actual || 'no version output'}.`);
+    throw new Error(`Expected ${expected}; received ${actual || "no version output"}.`);
   }
 }
 
-const lockfile = readFileSync(resolve(root, 'packages/dash-shielded-wasm/rust/Cargo.lock'), 'utf8');
+const lockfile = readFileSync(resolve(root, "packages/dash-shielded-wasm/rust/Cargo.lock"), "utf8");
 const expectedOrchard =
-  'git+https://github.com/dashpay/orchard.git?tag=dashified-0.14.1#38ac9c19a2df7bf3eeadc22ab23053e8fd538828';
+  "git+https://github.com/dashpay/orchard.git?tag=dashified-0.14.1#38ac9c19a2df7bf3eeadc22ab23053e8fd538828";
 if (!lockfile.includes(expectedOrchard)) {
-  throw new Error('Cargo.lock does not contain the audited Dash Orchard release and commit.');
+  throw new Error("Cargo.lock does not contain the audited Dash Orchard release and commit.");
 }
 
-version(cargo, 'cargo 1.98.1');
-assertExactToolVersion(wasmBindgen, 'wasm-bindgen 0.2.129', { cwd: root, env: environment });
-run(cargo, ['build', '--manifest-path', manifest, '--target', 'wasm32-unknown-unknown', '--release', '--locked']);
-const staging = mkdtempSync(join(tmpdir(), 'ckd-orchard-wasm-'));
+version(cargo, "cargo 1.98.1");
+assertExactToolVersion(wasmBindgen, "wasm-bindgen 0.2.129", { cwd: root, env: environment });
+run(cargo, [
+  "build",
+  "--manifest-path",
+  manifest,
+  "--target",
+  "wasm32-unknown-unknown",
+  "--release",
+  "--locked",
+]);
+const staging = mkdtempSync(join(tmpdir(), "ckd-orchard-wasm-"));
 try {
-  run(wasmBindgen, [compiled, '--target', 'web', '--out-dir', staging]);
-  const generatedWasmPath = resolve(staging, 'dash_shielded_wasm_bg.wasm');
+  run(wasmBindgen, [compiled, "--target", "web", "--out-dir", staging]);
+  const generatedWasmPath = resolve(staging, "dash_shielded_wasm_bg.wasm");
   const generatedWasm = readFileSync(generatedWasmPath);
-  assertCanonicalWasmBindgenProducer(generatedWasm, 'Dash Orchard WASM');
+  assertCanonicalWasmBindgenProducer(generatedWasm, "Dash Orchard WASM");
   for (const privatePrefix of [root, effectiveCargoHome, effectiveRustupHome].filter(Boolean)) {
     if (generatedWasm.includes(Buffer.from(privatePrefix))) {
-      throw new Error(`Generated Orchard WASM still exposes a private build path: ${privatePrefix}`);
+      throw new Error(
+        `Generated Orchard WASM still exposes a private build path: ${privatePrefix}`,
+      );
     }
   }
-  const gluePath = resolve(staging, 'dash_shielded_wasm.js');
-  const fullGlue = readFileSync(gluePath, 'utf8');
+  const gluePath = resolve(staging, "dash_shielded_wasm.js");
+  const fullGlue = readFileSync(gluePath, "utf8");
   function removeGeneratedSection(source, startMarker, endMarker) {
     const start = source.indexOf(startMarker);
     const end = source.indexOf(endMarker, start + startMarker.length);
@@ -67,21 +81,29 @@ try {
     }
     return source.slice(0, start) + source.slice(end);
   }
-  const asyncExport = '\nexport { initSync, __wbg_init as default };';
-  const withoutLoader = removeGeneratedSection(fullGlue, '\nasync function __wbg_load', '\nfunction initSync');
-  const offlineGlue = removeGeneratedSection(withoutLoader, '\nasync function __wbg_init', asyncExport).replace(
+  const asyncExport = "\nexport { initSync, __wbg_init as default };";
+  const withoutLoader = removeGeneratedSection(
+    fullGlue,
+    "\nasync function __wbg_load",
+    "\nfunction initSync",
+  );
+  const offlineGlue = removeGeneratedSection(
+    withoutLoader,
+    "\nasync function __wbg_init",
     asyncExport,
-    '\nexport { initSync };',
-  );
+  ).replace(asyncExport, "\nexport { initSync };");
   const normalizedGlue = offlineGlue.replace(
-    '__wbg_init.__wbindgen_wasm_module = module;',
-    'initSync.__wbindgen_wasm_module = module;',
+    "__wbg_init.__wbindgen_wasm_module = module;",
+    "initSync.__wbindgen_wasm_module = module;",
   );
-  if (normalizedGlue === fullGlue || /\bfetch\s*\(|import\.meta|__wbg_load|\b__wbg_init\b/u.test(normalizedGlue)) {
-    throw new Error('Failed to reduce wasm-bindgen glue to its synchronous offline-only API.');
+  if (
+    normalizedGlue === fullGlue ||
+    /\bfetch\s*\(|import\.meta|__wbg_load|\b__wbg_init\b/u.test(normalizedGlue)
+  ) {
+    throw new Error("Failed to reduce wasm-bindgen glue to its synchronous offline-only API.");
   }
   writeFileSync(gluePath, normalizedGlue);
-  const declarationsPath = resolve(staging, 'dash_shielded_wasm.d.ts');
+  const declarationsPath = resolve(staging, "dash_shielded_wasm.d.ts");
   writeFileSync(
     declarationsPath,
     `/* Generated offline-only wasm-bindgen declarations. */
@@ -143,10 +165,14 @@ export function initSync(module: { module: SyncInitInput } | SyncInitInput): Ini
 `,
   );
   mkdirSync(generated, { recursive: true });
-  for (const file of ['dash_shielded_wasm_bg.wasm', 'dash_shielded_wasm.js', 'dash_shielded_wasm.d.ts']) {
+  for (const file of [
+    "dash_shielded_wasm_bg.wasm",
+    "dash_shielded_wasm.js",
+    "dash_shielded_wasm.d.ts",
+  ]) {
     copyFileSync(resolve(staging, file), resolve(generated, file));
   }
-  console.log('Generated pinned Dash Orchard browser WASM.');
+  console.log("Generated pinned Dash Orchard browser WASM.");
 } finally {
   rmSync(staging, { recursive: true, force: true });
 }

@@ -108,7 +108,7 @@
   font-weight: 700;
 }
 .viewer-trust-row span::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 10px;
   top: 50%;
@@ -132,7 +132,7 @@
     inset 0 1px rgba(255, 255, 255, 0.04);
 }
 .viewer-capability-card::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -149,7 +149,7 @@
 }
 .capability-orbit::before,
 .capability-orbit::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 19px;
   border: 1px solid rgba(245, 166, 35, 0.13);
@@ -225,7 +225,7 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
 }
 .danger-warning::after {
-  content: 'PRIVACY BOUNDARY';
+  content: "PRIVACY BOUNDARY";
   position: absolute;
   right: 17px;
   top: 9px;
@@ -259,7 +259,7 @@
   border-left: 1px solid #28333f;
 }
 .viewer-flow article + article::before {
-  content: '';
+  content: "";
   position: absolute;
   width: 7px;
   height: 7px;
@@ -304,7 +304,7 @@
   box-shadow: 0 22px 65px rgba(0, 0, 0, 0.24);
 }
 .viewer-control-panel::before {
-  content: '';
+  content: "";
   position: absolute;
   width: 270px;
   height: 270px;
@@ -563,7 +563,7 @@
   position: relative;
 }
 .viewer-scan-icon::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 5px;
   height: 2px;
@@ -596,7 +596,7 @@
   padding-left: 39px;
 }
 .viewer-is-scanning .status::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 16px;
   top: 50%;
@@ -707,7 +707,7 @@
   padding: 16px;
 }
 .viewer-stat::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 70px;
   height: 70px;
@@ -765,7 +765,7 @@
   line-height: 1.5;
 }
 .viewer-completeness::before {
-  content: '✓';
+  content: "✓";
   position: absolute;
   left: 12px;
   top: 10px;
@@ -778,7 +778,7 @@
   background: #21180e;
 }
 .viewer-completeness-warning::before {
-  content: '!';
+  content: "!";
   color: var(--accent2);
 }
 .viewer-ledger-head {
@@ -794,7 +794,7 @@
   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
 }
 .viewer-activity-card::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -830,7 +830,7 @@
   font-size: 13px;
 }
 .viewer-direction::before {
-  content: '';
+  content: "";
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -889,7 +889,7 @@
   background: rgba(11, 17, 24, 0.55);
 }
 .viewer-empty::before {
-  content: '◇';
+  content: "◇";
   position: absolute;
   top: 22px;
   left: 50%;
@@ -1115,7 +1115,7 @@
   background: linear-gradient(110deg, #171d23, #10161d);
 }
 .viewer-identity-result-heading::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;

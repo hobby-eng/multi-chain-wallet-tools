@@ -1,7 +1,12 @@
-import { coreImportCommand } from './descriptor-export.js';
-import type { CoinAdapter } from '@ckd/coins/registry.js';
-import type { DerivationResult, DisplayMode, ResultField } from '@ckd/core/types.js';
-import { displayedFields, inspectSelectedRows, type ExportAction, type ExportFormat } from '@ckd/export/formatter.js';
+import { coreImportCommand } from "./descriptor-export.js";
+import type { CoinAdapter } from "@ckd/coins/registry.js";
+import type { DerivationResult, DisplayMode, ResultField } from "@ckd/core/types.js";
+import {
+  displayedFields,
+  inspectSelectedRows,
+  type ExportAction,
+  type ExportFormat,
+} from "@ckd/export/formatter.js";
 import {
   configureControls,
   markSelectedProtocolTab,
@@ -12,17 +17,17 @@ import {
   type CoinMetadataRegistry,
   type DerivationControlValues,
   type DerivationControls,
-} from './inputs.js';
-import { planResultBranches, type ResultBranch } from './result-branches.js';
-import { clearDerivationResult } from './secrets.js';
-import { renderResults, updateSecretVisibility } from './results.js';
-import { invertSelection, selectAll, selectNone } from './selection.js';
-import { DerivationCancelledError, type DerivationWorkerClient } from '../workers/derive-client.js';
+} from "./inputs.js";
+import { planResultBranches, type ResultBranch } from "./result-branches.js";
+import { clearDerivationResult } from "./secrets.js";
+import { renderResults, updateSecretVisibility } from "./results.js";
+import { invertSelection, selectAll, selectNone } from "./selection.js";
+import { DerivationCancelledError, type DerivationWorkerClient } from "../workers/derive-client.js";
 
 const BASIC_WINDOW_SIZE = 200;
 const ADVANCED_WINDOW_SIZE = 24;
 /** Element ID prefix of the child workspace (see CHILD_WALLET_ID_PREFIX in tooling/profile-template.mjs). */
-const CHILD_WALLET_ID_PREFIX = 'bip85-wallet-';
+const CHILD_WALLET_ID_PREFIX = "bip85-wallet-";
 
 interface ResultExportContext {
   adapter: CoinAdapter;
@@ -33,29 +38,39 @@ interface ResultExportContext {
 }
 
 interface ChildMessageSigning {
-  activeSource(): 'main' | 'bip85' | null;
+  activeSource(): "main" | "bip85" | null;
   close(): void;
-  format(resultId: string): import('../workers/protocol.js').MessageSigningFormat | null;
-  open(result: DerivationResult, branch: ResultBranch, source: 'bip85', index: number, address: string): void;
+  format(resultId: string): import("../workers/protocol.js").MessageSigningFormat | null;
+  open(
+    result: DerivationResult,
+    branch: ResultBranch,
+    source: "bip85",
+    index: number,
+    address: string,
+  ): void;
 }
 
 export interface Bip85ChildWalletOptions {
   document: Document;
-  coinFamilies: typeof import('@ckd/coins/registry.js').COIN_FAMILIES;
-  getAdapterFamilyId: typeof import('@ckd/coins/registry.js').getAdapterFamilyId;
-  getCoinAdapter: typeof import('@ckd/coins/registry.js').getCoinAdapter;
-  getDefaultCoinAdapter: typeof import('@ckd/coins/registry.js').getDefaultCoinAdapter;
+  coinFamilies: typeof import("@ckd/coins/registry.js").COIN_FAMILIES;
+  getAdapterFamilyId: typeof import("@ckd/coins/registry.js").getAdapterFamilyId;
+  getCoinAdapter: typeof import("@ckd/coins/registry.js").getCoinAdapter;
+  getDefaultCoinAdapter: typeof import("@ckd/coins/registry.js").getDefaultCoinAdapter;
   mnemonic(): string | null;
   cryptoReady(): boolean;
   secretsRevealed(): boolean;
   setSecretsRevealed(revealed: boolean): void;
-  mnemonicToSeed: typeof import('@ckd/core/bip39.js').mnemonicToSeed;
+  mnemonicToSeed: typeof import("@ckd/core/bip39.js").mnemonicToSeed;
   createWorker(): DerivationWorkerClient;
   messageSigning?: ChildMessageSigning;
   /** Present when the build includes Silent Payments; the child reuses the original wallet's feature module. */
-  installSilentPaymentFeature?: typeof import('./silent-payment-feature.js').installSilentPaymentFeature;
+  installSilentPaymentFeature?: typeof import("./silent-payment-feature.js").installSilentPaymentFeature;
   copyText(button: HTMLButtonElement, text: string, containsSecret: boolean): Promise<void>;
-  copyBulkFrom(button: HTMLButtonElement, action: ExportAction, context: ResultExportContext): Promise<void>;
+  copyBulkFrom(
+    button: HTMLButtonElement,
+    action: ExportAction,
+    context: ResultExportContext,
+  ): Promise<void>;
   downloadRowsFrom(
     button: HTMLButtonElement,
     action: ExportAction,
@@ -84,35 +99,44 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     showError,
     showStatus,
   } = options;
-  const optionalElement = <T extends Element>(selector: string): T | null => document.querySelector<T>(selector);
+  const optionalElement = <T extends Element>(selector: string): T | null =>
+    document.querySelector<T>(selector);
   let pendingBip85WalletRefresh: number | null = null;
-  const bip85WalletWorkspace = optionalElement<HTMLElement>('#bip85-wallet-workspace');
-  const bip85WalletResults = optionalElement<HTMLElement>('#bip85-wallet-results');
-  const bip85WalletSummary = optionalElement<HTMLElement>('#bip85-wallet-summary');
-  const bip85WalletNotices = optionalElement<HTMLElement>('#bip85-wallet-notices');
-  const bip85WalletList = optionalElement<HTMLElement>('#bip85-wallet-list');
-  const bip85WalletBranchTabs = optionalElement<HTMLElement>('#bip85-wallet-branch-tabs');
-  const bip85WalletError = optionalElement<HTMLElement>('#bip85-wallet-error');
-  const bip85WalletStatus = optionalElement<HTMLElement>('#bip85-wallet-status');
-  const deriveBip85WalletButton = optionalElement<HTMLButtonElement>('#derive-bip85-wallet');
-  const bip85WalletBasicButton = optionalElement<HTMLButtonElement>('#bip85-wallet-basic');
-  const bip85WalletAdvancedButton = optionalElement<HTMLButtonElement>('#bip85-wallet-advanced');
-  const bip85WalletToggleSecrets = optionalElement<HTMLButtonElement>('#bip85-wallet-toggle-secrets');
-  const bip85WalletSelectedCount = optionalElement<HTMLElement>('#bip85-wallet-selected-count');
-  const bip85WalletExportFormat = optionalElement<HTMLSelectElement>('#bip85-wallet-export-format');
-  const bip85WalletSelectAll = optionalElement<HTMLButtonElement>('#bip85-wallet-select-all');
-  const bip85WalletSelectNone = optionalElement<HTMLButtonElement>('#bip85-wallet-select-none');
-  const bip85WalletSelectInvert = optionalElement<HTMLButtonElement>('#bip85-wallet-select-invert');
-  const bip85WalletAccountExport = optionalElement<HTMLElement>('#bip85-wallet-account-export');
-  const bip85WalletAccountExportDialog = optionalElement<HTMLDialogElement>('#bip85-wallet-account-export-dialog');
-  const bip85WalletAccountExportDescription = optionalElement<HTMLElement>('#bip85-wallet-account-export-description');
-  const bip85WalletAccountExportFormat = optionalElement<HTMLSelectElement>('#bip85-wallet-account-export-format');
+  const bip85WalletWorkspace = optionalElement<HTMLElement>("#bip85-wallet-workspace");
+  const bip85WalletResults = optionalElement<HTMLElement>("#bip85-wallet-results");
+  const bip85WalletSummary = optionalElement<HTMLElement>("#bip85-wallet-summary");
+  const bip85WalletNotices = optionalElement<HTMLElement>("#bip85-wallet-notices");
+  const bip85WalletList = optionalElement<HTMLElement>("#bip85-wallet-list");
+  const bip85WalletBranchTabs = optionalElement<HTMLElement>("#bip85-wallet-branch-tabs");
+  const bip85WalletError = optionalElement<HTMLElement>("#bip85-wallet-error");
+  const bip85WalletStatus = optionalElement<HTMLElement>("#bip85-wallet-status");
+  const deriveBip85WalletButton = optionalElement<HTMLButtonElement>("#derive-bip85-wallet");
+  const bip85WalletBasicButton = optionalElement<HTMLButtonElement>("#bip85-wallet-basic");
+  const bip85WalletAdvancedButton = optionalElement<HTMLButtonElement>("#bip85-wallet-advanced");
+  const bip85WalletToggleSecrets = optionalElement<HTMLButtonElement>(
+    "#bip85-wallet-toggle-secrets",
+  );
+  const bip85WalletSelectedCount = optionalElement<HTMLElement>("#bip85-wallet-selected-count");
+  const bip85WalletExportFormat = optionalElement<HTMLSelectElement>("#bip85-wallet-export-format");
+  const bip85WalletSelectAll = optionalElement<HTMLButtonElement>("#bip85-wallet-select-all");
+  const bip85WalletSelectNone = optionalElement<HTMLButtonElement>("#bip85-wallet-select-none");
+  const bip85WalletSelectInvert = optionalElement<HTMLButtonElement>("#bip85-wallet-select-invert");
+  const bip85WalletAccountExport = optionalElement<HTMLElement>("#bip85-wallet-account-export");
+  const bip85WalletAccountExportDialog = optionalElement<HTMLDialogElement>(
+    "#bip85-wallet-account-export-dialog",
+  );
+  const bip85WalletAccountExportDescription = optionalElement<HTMLElement>(
+    "#bip85-wallet-account-export-description",
+  );
+  const bip85WalletAccountExportFormat = optionalElement<HTMLSelectElement>(
+    "#bip85-wallet-account-export-format",
+  );
   let bip85WalletAdapter: CoinAdapter | null = null;
   let bip85WalletControls: DerivationControls | null = null;
-  let bip85WalletMode: DisplayMode = 'basic';
+  let bip85WalletMode: DisplayMode = "basic";
   let bip85WalletWindowStart = 0;
   let bip85WalletSelected = new Set<number>();
-  let bip85WalletActiveBranch: ResultBranch = 'receive';
+  let bip85WalletActiveBranch: ResultBranch = "receive";
   const bip85WalletBranchResults = new Map<ResultBranch, DerivationResult>();
   let bip85WalletRevision = 0;
   let activeBip85WalletWorker: DerivationWorkerClient | null = null;
@@ -120,14 +144,21 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
   // The child wallet offers the same optional Silent Payments tab as the original wallet, derived from
   // the child phrase and the child passphrase. Child seeds (BIP85) are deliberately not offered here,
   // so a derived wallet cannot derive further nested wallets.
-  const includeSilentPayment = optionalElement<HTMLInputElement>(`#${CHILD_WALLET_ID_PREFIX}include-silent-payment`);
-  const silentPaymentTab = optionalElement<HTMLButtonElement>(`#${CHILD_WALLET_ID_PREFIX}silent-payment-tab`);
-  const silentPaymentPanel = optionalElement<HTMLElement>(`#${CHILD_WALLET_ID_PREFIX}silent-payment-panel`);
+  const includeSilentPayment = optionalElement<HTMLInputElement>(
+    `#${CHILD_WALLET_ID_PREFIX}include-silent-payment`,
+  );
+  const silentPaymentTab = optionalElement<HTMLButtonElement>(
+    `#${CHILD_WALLET_ID_PREFIX}silent-payment-tab`,
+  );
+  const silentPaymentPanel = optionalElement<HTMLElement>(
+    `#${CHILD_WALLET_ID_PREFIX}silent-payment-panel`,
+  );
   const silentPaymentSecretSlot = optionalElement<HTMLElement>(
     `#${CHILD_WALLET_ID_PREFIX}silent-payment-secret-control-slot`,
   );
   const secretsToggleHome = bip85WalletToggleSecrets?.parentElement ?? null;
-  const childPassphrase = (): string => optionalElement<HTMLInputElement>('#bip85-child-passphrase')?.value ?? '';
+  const childPassphrase = (): string =>
+    optionalElement<HTMLInputElement>("#bip85-child-passphrase")?.value ?? "";
   let silentPaymentActive = false;
   const silentPayment =
     includeSilentPayment === null
@@ -135,7 +166,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
       : options.installSilentPaymentFeature?.({
           document,
           idPrefix: CHILD_WALLET_ID_PREFIX,
-          mnemonic: () => options.mnemonic() ?? '',
+          mnemonic: () => options.mnemonic() ?? "",
           passphrase: childPassphrase,
           mnemonicToSeed,
           createWorker,
@@ -144,34 +175,37 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
         });
 
   function createBip85WalletControls(): DerivationControls | null {
-    const required = <T extends Element>(selector: string): T | null => optionalElement<T>(selector);
+    const required = <T extends Element>(selector: string): T | null =>
+      optionalElement<T>(selector);
     const nested = {
-      coin: required<HTMLSelectElement>('#bip85-wallet-coin'),
-      protocolTabs: required<HTMLElement>('#bip85-wallet-tabs'),
-      legacyMobileField: required<HTMLElement>('#bip85-wallet-legacy-field'),
-      includeLegacyMobile: required<HTMLInputElement>('#bip85-wallet-legacy-toggle'),
-      network: required<HTMLSelectElement>('#bip85-wallet-network'),
-      networkField: required<HTMLElement>('#bip85-wallet-network-field'),
-      accountField: required<HTMLElement>('#bip85-wallet-account-field'),
-      accountLabel: required<HTMLLabelElement>('#bip85-wallet-account-label'),
-      account: required<HTMLInputElement>('#bip85-wallet-account'),
-      branchField: required<HTMLElement>('#bip85-wallet-branch-field'),
-      branchLabel: required<HTMLLabelElement>('#bip85-wallet-branch-label'),
-      branchInput: required<HTMLInputElement>('#bip85-wallet-branch-input'),
-      branchSelect: required<HTMLSelectElement>('#bip85-wallet-branch-select'),
-      changeField: required<HTMLElement>('#bip85-wallet-change-field'),
-      changeHelp: required<HTMLElement>('#bip85-wallet-change-help'),
-      includeChange: required<HTMLInputElement>('#bip85-wallet-include-change'),
-      coinJoinField: required<HTMLElement>('#bip85-wallet-coinjoin-field'),
-      includeCoinJoin: required<HTMLInputElement>('#bip85-wallet-include-coinjoin'),
-      coinJoinHelp: required<HTMLElement>('#bip85-wallet-coinjoin-help'),
-      startLabel: required<HTMLLabelElement>('#bip85-wallet-start-label'),
-      start: required<HTMLInputElement>('#bip85-wallet-start'),
-      countLabel: required<HTMLLabelElement>('#bip85-wallet-count-label'),
-      count: required<HTMLInputElement>('#bip85-wallet-count'),
-      preview: required<HTMLElement>('#bip85-wallet-path'),
+      coin: required<HTMLSelectElement>("#bip85-wallet-coin"),
+      protocolTabs: required<HTMLElement>("#bip85-wallet-tabs"),
+      legacyMobileField: required<HTMLElement>("#bip85-wallet-legacy-field"),
+      includeLegacyMobile: required<HTMLInputElement>("#bip85-wallet-legacy-toggle"),
+      network: required<HTMLSelectElement>("#bip85-wallet-network"),
+      networkField: required<HTMLElement>("#bip85-wallet-network-field"),
+      accountField: required<HTMLElement>("#bip85-wallet-account-field"),
+      accountLabel: required<HTMLLabelElement>("#bip85-wallet-account-label"),
+      account: required<HTMLInputElement>("#bip85-wallet-account"),
+      branchField: required<HTMLElement>("#bip85-wallet-branch-field"),
+      branchLabel: required<HTMLLabelElement>("#bip85-wallet-branch-label"),
+      branchInput: required<HTMLInputElement>("#bip85-wallet-branch-input"),
+      branchSelect: required<HTMLSelectElement>("#bip85-wallet-branch-select"),
+      changeField: required<HTMLElement>("#bip85-wallet-change-field"),
+      changeHelp: required<HTMLElement>("#bip85-wallet-change-help"),
+      includeChange: required<HTMLInputElement>("#bip85-wallet-include-change"),
+      coinJoinField: required<HTMLElement>("#bip85-wallet-coinjoin-field"),
+      includeCoinJoin: required<HTMLInputElement>("#bip85-wallet-include-coinjoin"),
+      coinJoinHelp: required<HTMLElement>("#bip85-wallet-coinjoin-help"),
+      startLabel: required<HTMLLabelElement>("#bip85-wallet-start-label"),
+      start: required<HTMLInputElement>("#bip85-wallet-start"),
+      countLabel: required<HTMLLabelElement>("#bip85-wallet-count-label"),
+      count: required<HTMLInputElement>("#bip85-wallet-count"),
+      preview: required<HTMLElement>("#bip85-wallet-path"),
     };
-    return Object.values(nested).some((element) => element === null) ? null : (nested as unknown as DerivationControls);
+    return Object.values(nested).some((element) => element === null)
+      ? null
+      : (nested as unknown as DerivationControls);
   }
 
   const bip85WalletRegistry: CoinMetadataRegistry = {
@@ -187,11 +221,13 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
   function clearBip85WalletResults(): void {
     if (pendingBip85WalletRefresh !== null) window.clearTimeout(pendingBip85WalletRefresh);
     pendingBip85WalletRefresh = null;
-    if (messageSigning?.activeSource() === 'bip85') {
+    if (messageSigning?.activeSource() === "bip85") {
       messageSigning?.close();
     }
     bip85WalletRevision += 1;
-    activeBip85WalletWorker?.terminate(new DerivationCancelledError('Child-wallet derivation superseded.'));
+    activeBip85WalletWorker?.terminate(
+      new DerivationCancelledError("Child-wallet derivation superseded."),
+    );
     activeBip85WalletWorker = null;
     for (const result of bip85WalletBranchResults.values()) clearDerivationResult(result);
     bip85WalletBranchResults.clear();
@@ -209,13 +245,13 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
   /** Switches the child workspace between its address derivation and its Silent Payments panel. */
   function setSilentPaymentActive(active: boolean): void {
     silentPaymentActive = active && silentPayment !== undefined;
-    bip85WalletWorkspace?.classList.toggle('nested-feature-active', silentPaymentActive);
+    bip85WalletWorkspace?.classList.toggle("nested-feature-active", silentPaymentActive);
     if (silentPaymentPanel !== null) silentPaymentPanel.hidden = !silentPaymentActive;
     if (bip85WalletControls !== null && bip85WalletAdapter !== null) {
       markSelectedProtocolTab(
         bip85WalletControls.protocolTabs,
         bip85WalletAdapter.id,
-        silentPaymentActive ? 'silent-payment' : null,
+        silentPaymentActive ? "silent-payment" : null,
       );
     }
     // Like the original wallet, keep "Show private keys" next to the panel that is in view.
@@ -230,7 +266,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     if (silentPayment === undefined) {
       includeSilentPayment.checked = false;
       includeSilentPayment.disabled = true;
-      const label = includeSilentPayment.closest<HTMLElement>('label');
+      const label = includeSilentPayment.closest<HTMLElement>("label");
       if (label !== null) label.hidden = true;
     }
     syncFeatureTabVisibility(includeSilentPayment, silentPaymentTab);
@@ -242,46 +278,60 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
 
   function nestedWalletField(
     result: DerivationResult,
-    scope: 'summary' | 'row',
+    scope: "summary" | "row",
     fieldKey: string,
     rowIndex?: number,
   ): ResultField | undefined {
-    if (scope === 'summary') return [...result.basicSummary, ...result.summary].find(({ key }) => key === fieldKey);
+    if (scope === "summary")
+      return [...result.basicSummary, ...result.summary].find(({ key }) => key === fieldKey);
     const row = result.rows.find(({ index }) => index === rowIndex);
-    return row === undefined ? undefined : displayedFields(row, 'advanced').find(({ key }) => key === fieldKey);
+    return row === undefined
+      ? undefined
+      : displayedFields(row, "advanced").find(({ key }) => key === fieldKey);
   }
 
   function updateBip85WalletActions(): void {
     const result = bip85WalletBranchResults.get(bip85WalletActiveBranch);
     const adapter = bip85WalletAdapter;
-    if (bip85WalletSelectedCount !== null) bip85WalletSelectedCount.textContent = String(bip85WalletSelected.size);
-    const buttons = bip85WalletResults?.querySelectorAll<HTMLButtonElement>('[data-bip85-bulk],[data-bip85-download]');
+    if (bip85WalletSelectedCount !== null)
+      bip85WalletSelectedCount.textContent = String(bip85WalletSelected.size);
+    const buttons = bip85WalletResults?.querySelectorAll<HTMLButtonElement>(
+      "[data-bip85-bulk],[data-bip85-download]",
+    );
     for (const button of buttons ?? []) {
       const action = (button.dataset.bip85Bulk ?? button.dataset.bip85Download) as ExportAction;
       if (result === undefined || adapter === null || bip85WalletSelected.size === 0) {
         button.disabled = true;
         continue;
       }
-      const inspection = inspectSelectedRows(adapter, result, bip85WalletSelected, bip85WalletMode, action);
-      button.disabled = inspection.valueCount === 0 || (inspection.containsSecret && !options.secretsRevealed());
+      const inspection = inspectSelectedRows(
+        adapter,
+        result,
+        bip85WalletSelected,
+        bip85WalletMode,
+        action,
+      );
+      button.disabled =
+        inspection.valueCount === 0 || (inspection.containsSecret && !options.secretsRevealed());
     }
     if (bip85WalletSelectAll !== null) bip85WalletSelectAll.disabled = result === undefined;
     if (bip85WalletSelectNone !== null)
       bip85WalletSelectNone.disabled = result === undefined || bip85WalletSelected.size === 0;
     if (bip85WalletSelectInvert !== null) bip85WalletSelectInvert.disabled = result === undefined;
     const descriptors = result?.accountDescriptors;
-    if (bip85WalletAccountExport !== null) bip85WalletAccountExport.hidden = descriptors === undefined;
+    if (bip85WalletAccountExport !== null)
+      bip85WalletAccountExport.hidden = descriptors === undefined;
     if (descriptors === undefined && bip85WalletAccountExportDialog?.open === true)
       bip85WalletAccountExportDialog.close();
     if (bip85WalletAccountExportDescription !== null)
       bip85WalletAccountExportDescription.textContent =
         descriptors === undefined
-          ? ''
+          ? ""
           : `${result!.title} · ${result!.networkLabel} · account ${descriptors.accountPath}`;
     for (const button of bip85WalletAccountExportDialog?.querySelectorAll<HTMLButtonElement>(
-      '[data-bip85-descriptor]',
+      "[data-bip85-descriptor]",
     ) ?? []) {
-      const privateExport = button.dataset.bip85Descriptor?.startsWith('private') === true;
+      const privateExport = button.dataset.bip85Descriptor?.startsWith("private") === true;
       button.disabled = descriptors === undefined || (privateExport && !options.secretsRevealed());
     }
   }
@@ -302,7 +352,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
       selected: bip85WalletSelected,
       secretsRevealed: options.secretsRevealed(),
       windowStart: bip85WalletWindowStart,
-      windowSize: bip85WalletMode === 'basic' ? BASIC_WINDOW_SIZE : ADVANCED_WINDOW_SIZE,
+      windowSize: bip85WalletMode === "basic" ? BASIC_WINDOW_SIZE : ADVANCED_WINDOW_SIZE,
       onWindowChange(start) {
         bip85WalletWindowStart = start;
         renderBip85Wallet();
@@ -314,7 +364,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
       },
       canSignMessages: signingFormat !== null,
       onSignMessage(index, address) {
-        messageSigning?.open(result, bip85WalletActiveBranch, 'bip85', index, address);
+        messageSigning?.open(result, bip85WalletActiveBranch, "bip85", index, address);
       },
       encryptedBip38: new Map(),
     });
@@ -329,18 +379,18 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     bip85WalletBranchTabs.hidden = entries.length < 2;
     bip85WalletBranchTabs.replaceChildren(
       ...entries.map((branch) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `result-branch-tab${branch === bip85WalletActiveBranch ? ' active' : ''}`;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `result-branch-tab${branch === bip85WalletActiveBranch ? " active" : ""}`;
         button.textContent =
-          branch === 'receive'
-            ? 'Receive'
-            : branch === 'change'
-              ? 'Change'
-              : branch === 'coinjoin-external'
-                ? 'CoinJoin · External'
-                : 'CoinJoin · Internal';
-        button.addEventListener('click', () => {
+          branch === "receive"
+            ? "Receive"
+            : branch === "change"
+              ? "Change"
+              : branch === "coinjoin-external"
+                ? "CoinJoin · External"
+                : "CoinJoin · Internal";
+        button.addEventListener("click", () => {
           bip85WalletActiveBranch = branch;
           bip85WalletWindowStart = 0;
           renderBip85WalletBranches();
@@ -381,14 +431,14 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     const initialFamily = coinFamilies[0];
     if (initialFamily === undefined) return;
     configureBip85Wallet(getDefaultCoinAdapter(initialFamily.id));
-    bip85WalletControls.coin.addEventListener('change', () => {
+    bip85WalletControls.coin.addEventListener("change", () => {
       if (bip85WalletControls === null) return;
       setSilentPaymentActive(false);
       configureBip85Wallet(getDefaultCoinAdapter(bip85WalletControls.coin.value));
     });
-    bip85WalletControls.protocolTabs.addEventListener('click', (event) => {
+    bip85WalletControls.protocolTabs.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
-      const id = event.target.closest<HTMLButtonElement>('[data-adapter-id]')?.dataset.adapterId;
+      const id = event.target.closest<HTMLButtonElement>("[data-adapter-id]")?.dataset.adapterId;
       if (id === undefined) return;
       setSilentPaymentActive(false);
       if (id !== bip85WalletAdapter?.id) configureBip85Wallet(getCoinAdapter(id));
@@ -410,10 +460,10 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
         updatePathPreview(bip85WalletAdapter, bip85WalletControls);
         scheduleBip85WalletRefresh();
       };
-      control.addEventListener('input', refresh);
+      control.addEventListener("input", refresh);
       // Some browsers only emit change for selects and checkboxes. Debouncing keeps
       // the input/change pair to one derivation while covering both event models.
-      control.addEventListener('change', refresh);
+      control.addEventListener("change", refresh);
     }
   }
 
@@ -430,7 +480,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     const requestedControls = bip85WalletControls;
     if (!options.cryptoReady()) {
       if (bip85WalletError !== null) {
-        bip85WalletError.textContent = 'Cryptographic self-test has not completed successfully.';
+        bip85WalletError.textContent = "Cryptographic self-test has not completed successfully.";
         bip85WalletError.hidden = false;
       }
       return;
@@ -438,7 +488,8 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     let input: DerivationControlValues;
     try {
       input = readControls(requestedAdapter, requestedControls);
-      if (input.count > 200) throw new Error('The embedded child-wallet view is limited to 200 results per branch.');
+      if (input.count > 200)
+        throw new Error("The embedded child-wallet view is limited to 200 results per branch.");
     } catch (cause) {
       if (bip85WalletError !== null) {
         bip85WalletError.textContent = cause instanceof Error ? cause.message : String(cause);
@@ -450,7 +501,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     const revision = bip85WalletRevision;
     if (bip85WalletError !== null) bip85WalletError.hidden = true;
     if (bip85WalletStatus !== null) {
-      bip85WalletStatus.textContent = 'Deriving child wallet results locally…';
+      bip85WalletStatus.textContent = "Deriving child wallet results locally…";
       bip85WalletStatus.hidden = false;
     }
     deriveBip85WalletButton.disabled = true;
@@ -458,10 +509,16 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     const worker = createWorker();
     activeBip85WalletWorker = worker;
     try {
-      const childPassphrase = optionalElement<HTMLInputElement>('#bip85-child-passphrase')?.value ?? '';
+      const childPassphrase =
+        optionalElement<HTMLInputElement>("#bip85-child-passphrase")?.value ?? "";
       seed = mnemonicToSeed(requestedMnemonic, childPassphrase);
       const { includeChange, includeCoinJoin, ...baseInput } = input;
-      const branches = planResultBranches(requestedAdapter, baseInput.branch, includeChange, includeCoinJoin);
+      const branches = planResultBranches(
+        requestedAdapter,
+        baseInput.branch,
+        includeChange,
+        includeCoinJoin,
+      );
       const nextResults = new Map<ResultBranch, DerivationResult>();
       for (const { kind, branch, workerAdapterId } of branches) {
         const result = await worker.derive(workerAdapterId ?? requestedAdapter.id, {
@@ -479,11 +536,11 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
         bip85WalletBranchResults.set(kind, result);
         for (const row of result.rows) bip85WalletSelected.add(row.index);
       }
-      bip85WalletActiveBranch = branches[0]?.kind ?? 'receive';
+      bip85WalletActiveBranch = branches[0]?.kind ?? "receive";
       renderBip85WalletBranches();
       renderBip85Wallet();
       if (bip85WalletStatus !== null) {
-        bip85WalletStatus.textContent = `Derived ${input.count.toLocaleString()} result${input.count === 1 ? '' : 's'} per selected branch from the child seed.`;
+        bip85WalletStatus.textContent = `Derived ${input.count.toLocaleString()} result${input.count === 1 ? "" : "s"} per selected branch from the child seed.`;
       }
     } catch (cause) {
       if (revision !== bip85WalletRevision) return;
@@ -496,7 +553,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     } finally {
       seed?.fill(0);
       if (activeBip85WalletWorker === worker) activeBip85WalletWorker = null;
-      worker.terminate(new DerivationCancelledError('Child-wallet worker released.'));
+      worker.terminate(new DerivationCancelledError("Child-wallet worker released."));
       if (activeBip85WalletWorker === null) deriveBip85WalletButton.disabled = false;
     }
   }
@@ -510,8 +567,8 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     await deriveBip85Wallet();
   }
 
-  includeSilentPayment?.addEventListener('change', syncSilentPaymentToggle);
-  silentPaymentTab?.addEventListener('click', () => {
+  includeSilentPayment?.addEventListener("change", syncSilentPaymentToggle);
+  silentPaymentTab?.addEventListener("click", () => {
     if (silentPayment === undefined) return;
     clearBip85WalletResults();
     setSilentPaymentActive(true);
@@ -519,33 +576,34 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
   });
   syncSilentPaymentToggle();
 
-  deriveBip85WalletButton?.addEventListener('click', () => void deriveBip85Wallet());
-  bip85WalletBasicButton?.addEventListener('click', () => {
-    bip85WalletMode = 'basic';
-    bip85WalletBasicButton?.classList.add('active');
-    bip85WalletAdvancedButton?.classList.remove('active');
+  deriveBip85WalletButton?.addEventListener("click", () => void deriveBip85Wallet());
+  bip85WalletBasicButton?.addEventListener("click", () => {
+    bip85WalletMode = "basic";
+    bip85WalletBasicButton?.classList.add("active");
+    bip85WalletAdvancedButton?.classList.remove("active");
     bip85WalletWindowStart = 0;
     renderBip85Wallet();
   });
-  bip85WalletAdvancedButton?.addEventListener('click', () => {
-    bip85WalletMode = 'advanced';
-    bip85WalletAdvancedButton?.classList.add('active');
-    bip85WalletBasicButton?.classList.remove('active');
+  bip85WalletAdvancedButton?.addEventListener("click", () => {
+    bip85WalletMode = "advanced";
+    bip85WalletAdvancedButton?.classList.add("active");
+    bip85WalletBasicButton?.classList.remove("active");
     bip85WalletWindowStart = 0;
     renderBip85Wallet();
   });
   bip85WalletResults?.addEventListener(
-    'click',
+    "click",
     (event) => {
       if (!(event.target instanceof Element)) return;
-      const button = event.target.closest<HTMLButtonElement>('[data-copy-field]');
+      const button = event.target.closest<HTMLButtonElement>("[data-copy-field]");
       const result = bip85WalletBranchResults.get(bip85WalletActiveBranch);
       if (button === null || result === undefined) return;
       event.stopPropagation();
       const scope = button.dataset.copyScope;
       const fieldKey = button.dataset.copyField;
-      if ((scope !== 'summary' && scope !== 'row') || fieldKey === undefined) return;
-      const rowIndex = button.dataset.copyRow === undefined ? undefined : Number(button.dataset.copyRow);
+      if ((scope !== "summary" && scope !== "row") || fieldKey === undefined) return;
+      const rowIndex =
+        button.dataset.copyRow === undefined ? undefined : Number(button.dataset.copyRow);
       const field = nestedWalletField(result, scope, fieldKey, rowIndex);
       if (field !== undefined) void copyText(button, field.value, field.secret);
     },
@@ -554,7 +612,8 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
 
   function currentBip85ExportContext(): ResultExportContext | null {
     const result = bip85WalletBranchResults.get(bip85WalletActiveBranch);
-    if (result === undefined || bip85WalletAdapter === null || bip85WalletExportFormat === null) return null;
+    if (result === undefined || bip85WalletAdapter === null || bip85WalletExportFormat === null)
+      return null;
     return {
       adapter: bip85WalletAdapter,
       result,
@@ -564,18 +623,20 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     };
   }
 
-  bip85WalletToggleSecrets?.addEventListener('click', () => options.setSecretsRevealed(!options.secretsRevealed()));
-  bip85WalletSelectAll?.addEventListener('click', () => {
+  bip85WalletToggleSecrets?.addEventListener("click", () =>
+    options.setSecretsRevealed(!options.secretsRevealed()),
+  );
+  bip85WalletSelectAll?.addEventListener("click", () => {
     const result = bip85WalletBranchResults.get(bip85WalletActiveBranch);
     if (result === undefined) return;
     bip85WalletSelected = selectAll(result.rows.map((row) => row.index));
     renderBip85Wallet();
   });
-  bip85WalletSelectNone?.addEventListener('click', () => {
+  bip85WalletSelectNone?.addEventListener("click", () => {
     bip85WalletSelected = selectNone();
     renderBip85Wallet();
   });
-  bip85WalletSelectInvert?.addEventListener('click', () => {
+  bip85WalletSelectInvert?.addEventListener("click", () => {
     const result = bip85WalletBranchResults.get(bip85WalletActiveBranch);
     if (result === undefined) return;
     bip85WalletSelected = invertSelection(
@@ -584,11 +645,11 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     );
     renderBip85Wallet();
   });
-  bip85WalletExportFormat?.addEventListener('change', updateBip85WalletActions);
-  bip85WalletResults?.addEventListener('click', (event) => {
+  bip85WalletExportFormat?.addEventListener("change", updateBip85WalletActions);
+  bip85WalletResults?.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
-    const bulkButton = event.target.closest<HTMLButtonElement>('[data-bip85-bulk]');
-    const downloadButton = event.target.closest<HTMLButtonElement>('[data-bip85-download]');
+    const bulkButton = event.target.closest<HTMLButtonElement>("[data-bip85-bulk]");
+    const downloadButton = event.target.closest<HTMLButtonElement>("[data-bip85-download]");
     const context = currentBip85ExportContext();
     if (context === null) return;
     if (bulkButton?.dataset.bip85Bulk !== undefined) {
@@ -602,37 +663,42 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
       );
     }
   });
-  optionalElement<HTMLButtonElement>('#bip85-wallet-open-account-export')?.addEventListener('click', () =>
-    bip85WalletAccountExportDialog?.showModal(),
+  optionalElement<HTMLButtonElement>("#bip85-wallet-open-account-export")?.addEventListener(
+    "click",
+    () => bip85WalletAccountExportDialog?.showModal(),
   );
-  optionalElement<HTMLButtonElement>('#bip85-wallet-close-account-export')?.addEventListener('click', () =>
-    bip85WalletAccountExportDialog?.close(),
+  optionalElement<HTMLButtonElement>("#bip85-wallet-close-account-export")?.addEventListener(
+    "click",
+    () => bip85WalletAccountExportDialog?.close(),
   );
-  for (const button of bip85WalletAccountExportDialog?.querySelectorAll<HTMLButtonElement>('[data-bip85-descriptor]') ??
-    []) {
-    button.addEventListener('click', () => {
+  for (const button of bip85WalletAccountExportDialog?.querySelectorAll<HTMLButtonElement>(
+    "[data-bip85-descriptor]",
+  ) ?? []) {
+    button.addEventListener("click", () => {
       const result = bip85WalletBranchResults.get(bip85WalletActiveBranch);
       const bundle = result?.accountDescriptors;
       const action = button.dataset.bip85Descriptor;
       if (bundle === undefined || action === undefined) return;
-      const privateExport = action.startsWith('private');
+      const privateExport = action.startsWith("private");
       if (privateExport && !options.secretsRevealed()) {
-        showError('Show private keys before exporting private descriptors.');
+        showError("Show private keys before exporting private descriptors.");
         return;
       }
-      const coreFormat = bip85WalletAccountExportFormat?.value === 'core';
+      const coreFormat = bip85WalletAccountExportFormat?.value === "core";
       let text = privateExport ? bundle.privateText : bundle.publicText;
       try {
         if (coreFormat) text = coreImportCommand(text);
       } catch (cause) {
-        showError(cause instanceof Error ? cause.message : 'Unable to prepare child account export.');
+        showError(
+          cause instanceof Error ? cause.message : "Unable to prepare child account export.",
+        );
         return;
       }
-      if (action.endsWith('Download')) {
-        const filename = `${bundle.fileStem}.${privateExport ? 'PRIVATE' : 'public'}.${
-          coreFormat ? 'core-import' : 'descriptors'
+      if (action.endsWith("Download")) {
+        const filename = `${bundle.fileStem}.${privateExport ? "PRIVATE" : "public"}.${
+          coreFormat ? "core-import" : "descriptors"
         }.txt`;
-        downloadText(text, filename, 'text/plain');
+        downloadText(text, filename, "text/plain");
         showStatus(`Created ${filename}.`);
       } else {
         void copyText(button, text, privateExport);
@@ -644,7 +710,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     adapter: () => bip85WalletAdapter,
     controls: () => bip85WalletControls,
     workspace: bip85WalletWorkspace,
-    openButton: optionalElement<HTMLButtonElement>('#open-bip85-wallet'),
+    openButton: optionalElement<HTMLButtonElement>("#open-bip85-wallet"),
     clear: clearBip85WalletResults,
     initialize: initializeBip85Wallet,
     derive: deriveActiveChildView,
@@ -655,8 +721,8 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
       if (bip85WalletResults !== null) updateSecretVisibility(bip85WalletResults, revealed);
       silentPayment?.setSecretsVisible(revealed);
       if (bip85WalletToggleSecrets !== null) {
-        bip85WalletToggleSecrets.textContent = revealed ? 'Hide private keys' : 'Show private keys';
-        bip85WalletToggleSecrets.setAttribute('aria-pressed', String(revealed));
+        bip85WalletToggleSecrets.textContent = revealed ? "Hide private keys" : "Show private keys";
+        bip85WalletToggleSecrets.setAttribute("aria-pressed", String(revealed));
       }
       updateBip85WalletActions();
     },

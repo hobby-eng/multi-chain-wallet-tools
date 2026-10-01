@@ -1,9 +1,9 @@
-import { encode } from 'uqr';
-import { describe, expect, it } from 'vitest';
-import { decodeQrPixels } from './qr-image-import.js';
+import { encode } from "uqr";
+import { describe, expect, it } from "vitest";
+import { decodeQrPixels } from "./qr-image-import.js";
 
 function rasterize(payload: string | readonly number[]) {
-  const matrix = encode(payload, { ecc: 'L', border: 4 }).data;
+  const matrix = encode(payload, { ecc: "L", border: 4 }).data;
   const scale = 5;
   const width = matrix.length * scale;
   const data = new Uint8ClampedArray(width * width * 4);
@@ -21,14 +21,16 @@ function rasterize(payload: string | readonly number[]) {
   return { width, height: width, data };
 }
 
-describe('offline QR image decoder', () => {
-  it('decodes a textual recovery share', () => {
-    const payload = 'academic acid acrobat romp romp boring voting';
+describe("offline QR image decoder", () => {
+  it("decodes a textual recovery share", () => {
+    const payload = "academic acid acrobat romp romp boring voting";
     expect(decodeQrPixels(rasterize(payload)).text).toBe(payload);
   });
 
-  it('preserves CompactSeedQR bytes containing NUL and line-break values', () => {
-    const payload = Array.from(Buffer.from('0e59dde276009317f1275f1389888078c99368d1e82489b5f629531fc5b6a56e', 'hex'));
+  it("preserves CompactSeedQR bytes containing NUL and line-break values", () => {
+    const payload = Array.from(
+      Buffer.from("0e59dde276009317f1275f1389888078c99368d1e82489b5f629531fc5b6a56e", "hex"),
+    );
     expect(Array.from(decodeQrPixels(rasterize(payload)).binaryData ?? [])).toEqual(payload);
   });
 });

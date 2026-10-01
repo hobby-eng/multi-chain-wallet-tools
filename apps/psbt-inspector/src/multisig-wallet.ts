@@ -1,14 +1,14 @@
-import { HDKey } from '@scure/bip32';
-import { bytesToHex } from '@ckd/core/crypto.js';
-import { getBitcoinNetwork, getDashNetwork, type Bip32Versions } from '@ckd/core/networks.js';
-import type { NetworkName } from '@ckd/core/types.js';
-import { buildDashCoreImport } from './dash-import.js';
-import { descriptorChecksum } from '@ckd/core/descriptor-checksum.js';
-import { buildPolicy, policyHex } from './policy.js';
-import type { PsbtChain, PsbtNetwork } from './psbt.js';
+import { HDKey } from "@scure/bip32";
+import { bytesToHex } from "@ckd/core/crypto.js";
+import { getBitcoinNetwork, getDashNetwork, type Bip32Versions } from "@ckd/core/networks.js";
+import type { NetworkName } from "@ckd/core/types.js";
+import { buildDashCoreImport } from "./dash-import.js";
+import { descriptorChecksum } from "@ckd/core/descriptor-checksum.js";
+import { buildPolicy, policyHex } from "./policy.js";
+import type { PsbtChain, PsbtNetwork } from "./psbt.js";
 
-type MultisigKeyOrder = 'supplied' | 'bip67';
-type MultisigWrapper = 'p2sh' | 'p2wsh';
+type MultisigKeyOrder = "supplied" | "bip67";
+type MultisigWrapper = "p2sh" | "p2wsh";
 export type MultisigBranch = 0 | 1;
 
 interface ParsedAccountXpub {
@@ -21,9 +21,9 @@ interface ParsedAccountXpub {
 }
 
 function cliNetworkFlag(network: PsbtNetwork): string {
-  if (network === 'mainnet') return '';
-  if (network === 'regtest') return ' -regtest';
-  return ' -testnet';
+  if (network === "mainnet") return "";
+  if (network === "regtest") return " -regtest";
+  return " -testnet";
 }
 
 interface RangedWalletRequest {
@@ -64,30 +64,30 @@ export interface RangedWallet {
 }
 
 function versions(chain: PsbtChain, network: PsbtNetwork): Bip32Versions {
-  const name: NetworkName = network === 'mainnet' ? 'mainnet' : 'testnet';
-  return chain === 'dash' ? getDashNetwork(name).versions : getBitcoinNetwork(name).versions;
+  const name: NetworkName = network === "mainnet" ? "mainnet" : "testnet";
+  return chain === "dash" ? getDashNetwork(name).versions : getBitcoinNetwork(name).versions;
 }
 
 function xpubNetworkHint(value: string, expectedNetwork: PsbtNetwork): string {
-  if (value.startsWith('xpub') && expectedNetwork !== 'mainnet') {
-    return ' This looks like a mainnet xpub. Select mainnet, or export testnet cosigner keys as tpub from the deriver.';
+  if (value.startsWith("xpub") && expectedNetwork !== "mainnet") {
+    return " This looks like a mainnet xpub. Select mainnet, or export testnet cosigner keys as tpub from the deriver.";
   }
-  if (value.startsWith('tpub') && expectedNetwork === 'mainnet') {
-    return ' This looks like a testnet tpub. Select testnet, or export mainnet cosigner keys as xpub from the deriver.';
+  if (value.startsWith("tpub") && expectedNetwork === "mainnet") {
+    return " This looks like a testnet tpub. Select testnet, or export mainnet cosigner keys as xpub from the deriver.";
   }
-  return '';
+  return "";
 }
 
 export function branchLabel(branch: MultisigBranch): string {
-  return branch === 0 ? 'receive' : 'change';
+  return branch === 0 ? "receive" : "change";
 }
 
 function normalizedWrapper(chain: PsbtChain, wrapper: MultisigWrapper): MultisigWrapper {
-  return chain === 'dash' ? 'p2sh' : wrapper;
+  return chain === "dash" ? "p2sh" : wrapper;
 }
 
-function descriptorFunction(order: MultisigKeyOrder): 'multi' | 'sortedmulti' {
-  return order === 'bip67' ? 'sortedmulti' : 'multi';
+function descriptorFunction(order: MultisigKeyOrder): "multi" | "sortedmulti" {
+  return order === "bip67" ? "sortedmulti" : "multi";
 }
 
 function descriptorWithChecksum(payload: string): string {
@@ -103,8 +103,10 @@ export function concreteDescriptor(
 ): string {
   const selectedWrapper = normalizedWrapper(chain, wrapper);
   const keys =
-    keyOrder === 'bip67' ? [...publicKeys].sort((left, right) => left.localeCompare(right)) : [...publicKeys];
-  const payload = `${selectedWrapper === 'p2wsh' ? 'wsh' : 'sh'}(${descriptorFunction(keyOrder)}(${required},${keys.join(',')}))`;
+    keyOrder === "bip67"
+      ? [...publicKeys].sort((left, right) => left.localeCompare(right))
+      : [...publicKeys];
+  const payload = `${selectedWrapper === "p2wsh" ? "wsh" : "sh"}(${descriptorFunction(keyOrder)}(${required},${keys.join(",")}))`;
   return descriptorWithChecksum(payload);
 }
 
@@ -133,19 +135,23 @@ export interface ConcreteMultisigWallet {
 }
 
 function assertConcreteRequest(request: ConcreteMultisigRequest): void {
-  const maximum = normalizedWrapper(request.chain, request.wrapper) === 'p2sh' ? 15 : 20;
+  const maximum = normalizedWrapper(request.chain, request.wrapper) === "p2sh" ? 15 : 20;
   if (request.publicKeys.length < 1 || request.publicKeys.length > maximum)
     throw new Error(`Enter from 1 to ${maximum} compressed child public keys or account xpubs.`);
-  if (!Number.isSafeInteger(request.required) || request.required < 1 || request.required > request.publicKeys.length) {
+  if (
+    !Number.isSafeInteger(request.required) ||
+    request.required < 1 ||
+    request.required > request.publicKeys.length
+  ) {
     throw new Error(`Required signatures must be from 1 to ${request.publicKeys.length}.`);
   }
   if (request.branch !== undefined && request.branch !== 0 && request.branch !== 1)
-    throw new Error('Concrete xpub branch must be 0 (receive) or 1 (change).');
+    throw new Error("Concrete xpub branch must be 0 (receive) or 1 (change).");
   if (
     request.index !== undefined &&
     (!Number.isSafeInteger(request.index) || request.index < 0 || request.index > 0x7fff_ffff)
   ) {
-    throw new Error('Concrete xpub index must be a non-negative non-hardened integer.');
+    throw new Error("Concrete xpub index must be a non-negative non-hardened integer.");
   }
 }
 
@@ -155,17 +161,20 @@ function concreteImportPayload(
   redeemScript: string,
   descriptor: string,
 ): { text: string; json: string } {
-  if (request.chain === 'dash') {
+  if (request.chain === "dash") {
     const dashImport = buildDashCoreImport(address, redeemScript, descriptor);
     return {
       text:
         dashImport.fullPolicyGuiCommand === null
-          ? dashImport.legacyCommand.replace(/^dash-cli/u, `dash-cli${cliNetworkFlag(request.network)}`)
+          ? dashImport.legacyCommand.replace(
+              /^dash-cli/u,
+              `dash-cli${cliNetworkFlag(request.network)}`,
+            )
           : `dash-cli${cliNetworkFlag(request.network)} ${dashImport.fullPolicyGuiCommand}`,
       json: dashImport.rpcJson,
     };
   }
-  const payload = [{ desc: descriptor, timestamp: 'now', active: false, internal: false }];
+  const payload = [{ desc: descriptor, timestamp: "now", active: false, internal: false }];
   const json = `${JSON.stringify(payload, null, 2)}\n`;
   return {
     json,
@@ -185,7 +194,9 @@ function parseConcreteKeyInput(
   const originMatch = /^\[([0-9a-fA-F]{8}(?:\/[0-9]+['hH]?)+)\]([A-Za-z0-9]+)$/u.exec(value.trim());
   const bare = originMatch?.[2] ?? value.trim();
   if (!/^[xt]pub[1-9A-HJ-NP-Za-km-z]+$/u.test(bare)) {
-    throw new Error(`Key input ${position} must be a compressed 33-byte public key or an account xpub.`);
+    throw new Error(
+      `Key input ${position} must be a compressed 33-byte public key or an account xpub.`,
+    );
   }
   const branch = request.branch ?? 0;
   const index = request.index ?? 0;
@@ -200,8 +211,10 @@ function parseConcreteKeyInput(
   const child = node.deriveChild(branch).deriveChild(index);
   const publicKey = child.publicKey;
   if (publicKey === null)
-    throw new Error(`Account xpub ${position} did not derive a child public key at /${branch}/${index}.`);
-  const origin = originMatch?.[1]?.replaceAll("'", 'h').toLowerCase();
+    throw new Error(
+      `Account xpub ${position} did not derive a child public key at /${branch}/${index}.`,
+    );
+  const origin = originMatch?.[1]?.replaceAll("'", "h").toLowerCase();
   child.wipePrivateData();
   node.wipePrivateData();
   return {
@@ -214,10 +227,14 @@ function parseConcreteKeyInput(
 }
 
 /** Builds one concrete m-of-n multisig address/script from child public keys or account xpubs derived at one branch/index. */
-export function buildConcreteMultisigWallet(request: ConcreteMultisigRequest): ConcreteMultisigWallet {
+export function buildConcreteMultisigWallet(
+  request: ConcreteMultisigRequest,
+): ConcreteMultisigWallet {
   assertConcreteRequest(request);
   const wrapper = normalizedWrapper(request.chain, request.wrapper);
-  const concreteInputs = request.publicKeys.map((value, index) => parseConcreteKeyInput(value, request, index + 1));
+  const concreteInputs = request.publicKeys.map((value, index) =>
+    parseConcreteKeyInput(value, request, index + 1),
+  );
   const publicKeys = concreteInputs.map(({ publicKey }) => publicKey);
   const policy = buildPolicy({
     chain: request.chain,
@@ -225,14 +242,22 @@ export function buildConcreteMultisigWallet(request: ConcreteMultisigRequest): C
     required: request.required,
     publicKeys,
     keyOrder: request.keyOrder,
-    lockKind: 'none',
+    lockKind: "none",
     lockValue: 0,
     bitcoinWrapper: wrapper,
   });
   const hex = policyHex(policy);
-  const descriptor = concreteDescriptor(request.chain, request.wrapper, request.required, publicKeys, request.keyOrder);
+  const descriptor = concreteDescriptor(
+    request.chain,
+    request.wrapper,
+    request.required,
+    publicKeys,
+    request.keyOrder,
+  );
   const orderedPublicKeys =
-    request.keyOrder === 'bip67' ? [...publicKeys].sort((left, right) => left.localeCompare(right)) : publicKeys;
+    request.keyOrder === "bip67"
+      ? [...publicKeys].sort((left, right) => left.localeCompare(right))
+      : publicKeys;
   const importData = concreteImportPayload(request, policy.address, hex.redeemScript, descriptor);
   return {
     address: policy.address,
@@ -245,27 +270,37 @@ export function buildConcreteMultisigWallet(request: ConcreteMultisigRequest): C
     importText: importData.text,
     importJson: importData.json,
     derivationDetails: [
-      `${request.required}-of-${request.publicKeys.length} ${request.keyOrder === 'bip67' ? 'BIP67 sortedmulti' : 'supplied-order multi'} ${wrapper.toUpperCase()}`,
-      `Network: ${request.chain === 'dash' ? 'Dash Core' : 'Bitcoin'} ${request.network}`,
+      `${request.required}-of-${request.publicKeys.length} ${request.keyOrder === "bip67" ? "BIP67 sortedmulti" : "supplied-order multi"} ${wrapper.toUpperCase()}`,
+      `Network: ${request.chain === "dash" ? "Dash Core" : "Bitcoin"} ${request.network}`,
       `Concrete inputs resolved at xpub suffix /${request.branch ?? 0}/${request.index ?? 0} when an input is an account xpub`,
-      `Public keys (${request.keyOrder === 'bip67' ? 'BIP67 lexicographic order' : 'exactly as supplied'}):`,
+      `Public keys (${request.keyOrder === "bip67" ? "BIP67 lexicographic order" : "exactly as supplied"}):`,
       ...orderedPublicKeys.map((key, index) => `${index + 1}. ${key}`),
-      'Input resolution:',
+      "Input resolution:",
       ...concreteInputs.map(({ detail }) => detail),
-    ].join('\n'),
+    ].join("\n"),
   };
 }
 
-function parseAccountXpub(line: string, chain: PsbtChain, network: PsbtNetwork, index: number): ParsedAccountXpub {
+function parseAccountXpub(
+  line: string,
+  chain: PsbtChain,
+  network: PsbtNetwork,
+  index: number,
+): ParsedAccountXpub {
   let value = line.trim();
-  if (value.startsWith('pkh(')) {
-    const [body, checksum, extra] = value.split('#');
-    if (body === undefined || checksum === undefined || extra !== undefined || descriptorChecksum(body) !== checksum)
-      throw new Error('Signer pkh descriptor must have a valid descriptor checksum.');
+  if (value.startsWith("pkh(")) {
+    const [body, checksum, extra] = value.split("#");
+    if (
+      body === undefined ||
+      checksum === undefined ||
+      extra !== undefined ||
+      descriptorChecksum(body) !== checksum
+    )
+      throw new Error("Signer pkh descriptor must have a valid descriptor checksum.");
     const signer = /^pkh\((.+)\/[01]\/\*\)$/u.exec(body);
     if (signer?.[1] === undefined)
       throw new Error(
-        'Use a signer pkh descriptor ending in /0/* or /1/*; hardened and multipath suffixes are unsupported.',
+        "Use a signer pkh descriptor ending in /0/* or /1/*; hardened and multipath suffixes are unsupported.",
       );
     value = signer[1];
   }
@@ -284,14 +319,15 @@ function parseAccountXpub(line: string, chain: PsbtChain, network: PsbtNetwork, 
       `Account public key ${index + 1} is not valid for the selected network: ${String(cause)}.${xpubNetworkHint(xpub, network)}`,
     );
   }
-  if (node.publicKey === null) throw new Error(`Account public key ${index + 1} does not contain public key material.`);
-  const fingerprint = match?.[1]?.toLowerCase() ?? 'not supplied';
-  const path = match?.[2]?.replaceAll("'", 'h').toLowerCase() ?? '';
+  if (node.publicKey === null)
+    throw new Error(`Account public key ${index + 1} does not contain public key material.`);
+  const fingerprint = match?.[1]?.toLowerCase() ?? "not supplied";
+  const path = match?.[2]?.replaceAll("'", "h").toLowerCase() ?? "";
   return {
     label: `Cosigner ${index + 1}`,
-    origin: match === null ? '' : `[${fingerprint}${path}]`,
+    origin: match === null ? "" : `[${fingerprint}${path}]`,
     fingerprint,
-    originPath: path.length === 0 ? 'not supplied' : `m${path}`,
+    originPath: path.length === 0 ? "not supplied" : `m${path}`,
     xpub: node.publicExtendedKey,
     node,
   };
@@ -299,14 +335,15 @@ function parseAccountXpub(line: string, chain: PsbtChain, network: PsbtNetwork, 
 
 function validateRange(startIndex: number, endIndex: number): void {
   if (!Number.isSafeInteger(startIndex) || startIndex < 0)
-    throw new Error('Start index must be a non-negative integer.');
+    throw new Error("Start index must be a non-negative integer.");
   if (!Number.isSafeInteger(endIndex) || endIndex < startIndex)
-    throw new Error('End index must be greater than or equal to the start index.');
-  if (endIndex - startIndex + 1 > 200) throw new Error('Build at most 200 addresses per branch at once.');
+    throw new Error("End index must be greater than or equal to the start index.");
+  if (endIndex - startIndex + 1 > 200)
+    throw new Error("Build at most 200 addresses per branch at once.");
 }
 
 function assertRequest(request: RangedWalletRequest): void {
-  const maximum = normalizedWrapper(request.chain, request.wrapper) === 'p2sh' ? 15 : 20;
+  const maximum = normalizedWrapper(request.chain, request.wrapper) === "p2sh" ? 15 : 20;
   if (request.accountXpubs.length < 1 || request.accountXpubs.length > maximum)
     throw new Error(`Enter from 1 to ${maximum} account public keys.`);
   if (
@@ -316,7 +353,7 @@ function assertRequest(request: RangedWalletRequest): void {
   ) {
     throw new Error(`Required signatures must be from 1 to ${request.accountXpubs.length}.`);
   }
-  if (request.branches.length === 0) throw new Error('Select at least one branch.');
+  if (request.branches.length === 0) throw new Error("Select at least one branch.");
   validateRange(request.startIndex, request.endIndex);
 }
 
@@ -326,7 +363,7 @@ function branchDescriptor(
   branch: MultisigBranch,
 ): string {
   const wrapper = normalizedWrapper(request.chain, request.wrapper);
-  const payload = `${wrapper === 'p2wsh' ? 'wsh' : 'sh'}(${descriptorFunction(request.keyOrder)}(${request.required},${accounts.map((account) => `${account.origin}${account.xpub}/${branch}/*`).join(',')}))`;
+  const payload = `${wrapper === "p2wsh" ? "wsh" : "sh"}(${descriptorFunction(request.keyOrder)}(${request.required},${accounts.map((account) => `${account.origin}${account.xpub}/${branch}/*`).join(",")}))`;
   return descriptorWithChecksum(payload);
 }
 
@@ -338,7 +375,8 @@ function deriveRow(
 ): RangedAddressRow {
   const publicKeys = accounts.map((account) => {
     const key = account.node.deriveChild(branch).deriveChild(index).publicKey;
-    if (key === null) throw new Error(`${account.label} did not derive public key /${branch}/${index}.`);
+    if (key === null)
+      throw new Error(`${account.label} did not derive public key /${branch}/${index}.`);
     return bytesToHex(key);
   });
   const policy = buildPolicy({
@@ -347,7 +385,7 @@ function deriveRow(
     required: request.required,
     publicKeys,
     keyOrder: request.keyOrder,
-    lockKind: 'none',
+    lockKind: "none",
     lockValue: 0,
     bitcoinWrapper: normalizedWrapper(request.chain, request.wrapper),
   });
@@ -356,7 +394,9 @@ function deriveRow(
     index,
     pathSuffix: `/${branch}/${index}`,
     publicKeys:
-      request.keyOrder === 'bip67' ? [...publicKeys].sort((left, right) => left.localeCompare(right)) : publicKeys,
+      request.keyOrder === "bip67"
+        ? [...publicKeys].sort((left, right) => left.localeCompare(right))
+        : publicKeys,
     redeemScript: policyHex(policy).redeemScript,
     scriptPubKey: policyHex(policy).scriptPubKey,
     address: policy.address,
@@ -367,10 +407,10 @@ function importPayload(
   request: RangedWalletRequest,
   descriptors: readonly DescriptorRecord[],
 ): { text: string; json: string } {
-  if (request.chain === 'bitcoin') {
+  if (request.chain === "bitcoin") {
     const payload = descriptors.map((descriptor) => ({
       desc: descriptor.descriptor,
-      timestamp: 'now',
+      timestamp: "now",
       active: true,
       internal: descriptor.branch === 1,
       range: [request.startIndex, request.endIndex],
@@ -385,13 +425,13 @@ function importPayload(
   }
   const payload = descriptors.map((descriptor) => ({
     desc: descriptor.descriptor,
-    timestamp: 'now',
+    timestamp: "now",
     active: true,
     internal: descriptor.branch === 1,
     range: [request.startIndex, request.endIndex],
     next_index: request.startIndex,
   }));
-  const json = `${JSON.stringify({ jsonrpc: '1.0', id: 'multisig-wallet', method: 'importdescriptors', params: [payload] }, null, 2)}\n`;
+  const json = `${JSON.stringify({ jsonrpc: "1.0", id: "multisig-wallet", method: "importdescriptors", params: [payload] }, null, 2)}\n`;
   return {
     json,
     text: `# Create a separate blank watch-only descriptor wallet; choose a unique wallet name.\ndash-cli${cliNetworkFlag(request.network)} -named createwallet wallet_name=multisig-watch-only disable_private_keys=true blank=true descriptors=true load_on_startup=true\ndash-cli${cliNetworkFlag(request.network)} -rpcwallet=multisig-watch-only importdescriptors '${JSON.stringify(payload)}'\n# Verify the same receive/change addresses with every cosigner before funding.\n# For an existing wallet, replace timestamp now with its earliest possible use time and rescan.`,
@@ -422,14 +462,15 @@ export function buildRangedWallet(request: RangedWalletRequest): RangedWallet {
     importText: importData.text,
     importJson: importData.json,
     derivationDetails: [
-      `${request.required}-of-${accounts.length} ${request.keyOrder === 'bip67' ? 'BIP67 sortedmulti' : 'supplied-order multi'} ${normalizedWrapper(request.chain, request.wrapper).toUpperCase()}`,
-      `Network: ${request.chain === 'dash' ? 'Dash Core' : 'Bitcoin'} ${request.network}`,
-      `Branches: ${request.branches.map((branch) => `${branchLabel(branch)} /${branch}`).join(', ')}`,
+      `${request.required}-of-${accounts.length} ${request.keyOrder === "bip67" ? "BIP67 sortedmulti" : "supplied-order multi"} ${normalizedWrapper(request.chain, request.wrapper).toUpperCase()}`,
+      `Network: ${request.chain === "dash" ? "Dash Core" : "Bitcoin"} ${request.network}`,
+      `Branches: ${request.branches.map((branch) => `${branchLabel(branch)} /${branch}`).join(", ")}`,
       `Index range: ${request.startIndex}-${request.endIndex}`,
-      'Each origin path identifies that cosigner key independently. Preserve every origin and have all cosigners verify the final descriptors and addresses before funding.',
+      "Each origin path identifies that cosigner key independently. Preserve every origin and have all cosigners verify the final descriptors and addresses before funding.",
       ...accounts.map(
-        (account) => `${account.label}: ${account.originPath} · fingerprint ${account.fingerprint} · ${account.xpub}`,
+        (account) =>
+          `${account.label}: ${account.originPath} · fingerprint ${account.fingerprint} · ${account.xpub}`,
       ),
-    ].join('\n'),
+    ].join("\n"),
   };
 }

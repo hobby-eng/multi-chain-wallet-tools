@@ -3,7 +3,7 @@ export class AutomaticDerivationScheduler {
   #pending: number | null = null;
 
   constructor(
-    private readonly timers: Pick<Window, 'setTimeout' | 'clearTimeout'>,
+    private readonly timers: Pick<Window, "setTimeout" | "clearTimeout">,
     private readonly delayMs = 350,
   ) {}
 

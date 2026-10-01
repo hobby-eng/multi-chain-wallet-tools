@@ -1,25 +1,25 @@
-import type { ShieldedActivityLedger } from '@ckd/dash-network/activity.js';
-import type { ViewerNetwork } from '@ckd/dash-network/types.js';
-import type { ViewingKeyInputMode } from '@ckd/dash-network/viewing-key.js';
-import type { ViewerSingleExportState } from './export.js';
-import type { ActivityViewerView } from './view.js';
+import type { ShieldedActivityLedger } from "@ckd/dash-network/activity.js";
+import type { ViewerNetwork } from "@ckd/dash-network/types.js";
+import type { ViewingKeyInputMode } from "@ckd/dash-network/viewing-key.js";
+import type { ViewerSingleExportState } from "./export.js";
+import type { ActivityViewerView } from "./view.js";
 
 const PAINT_INTERVAL_MS = 500;
 
 interface DashOrchardActivityOptions {
   view: ActivityViewerView;
-  ShieldedActivityLedger: typeof import('@ckd/dash-network/activity.js').ShieldedActivityLedger;
-  Source: typeof import('@ckd/dash-network/dash-source.js').DashEvoShieldedSource;
-  assertCanonicalViewingKey: typeof import('@ckd/dash-network/orchard-scanner.js').assertCanonicalViewingKey;
-  normalizeViewingKey: typeof import('@ckd/dash-network/viewing-key.js').normalizeViewingKey;
-  runPageStream: typeof import('@ckd/dash-network/shielded-stream-policy.js').runShieldedPageStream;
-  scanEncryptedPage: typeof import('@ckd/dash-network/orchard-scanner.js').scanEncryptedPage;
+  ShieldedActivityLedger: typeof import("@ckd/dash-network/activity.js").ShieldedActivityLedger;
+  Source: typeof import("@ckd/dash-network/dash-source.js").DashEvoShieldedSource;
+  assertCanonicalViewingKey: typeof import("@ckd/dash-network/orchard-scanner.js").assertCanonicalViewingKey;
+  normalizeViewingKey: typeof import("@ckd/dash-network/viewing-key.js").normalizeViewingKey;
+  runPageStream: typeof import("@ckd/dash-network/shielded-stream-policy.js").runShieldedPageStream;
+  scanEncryptedPage: typeof import("@ckd/dash-network/orchard-scanner.js").scanEncryptedPage;
   emptyConfirmations: number;
   maxPagesPerScan: number;
   pageSize: number;
   cancelled(): boolean;
   checkCancellation(): void;
-  setExportState(state: Extract<ViewerSingleExportState, { mode: 'shielded' }>): void;
+  setExportState(state: Extract<ViewerSingleExportState, { mode: "shielded" }>): void;
   yieldTurn(): Promise<void>;
 }
 
@@ -32,33 +32,45 @@ export async function runDashOrchardActivity(
 ): Promise<void> {
   const viewingKey = options.normalizeViewingKey(value, inputMode);
   let lastPaintAt = 0;
-  const renderProgress = (ledger: ShieldedActivityLedger, complete: boolean, force: boolean): void => {
+  const renderProgress = (
+    ledger: ShieldedActivityLedger,
+    complete: boolean,
+    force: boolean,
+  ): void => {
     const now = performance.now();
     if (!force && now - lastPaintAt < PAINT_INTERVAL_MS) return;
     lastPaintAt = now;
     const snapshot = ledger.snapshot(complete);
-    options.setExportState({ mode: 'shielded', network, snapshot });
+    options.setExportState({ mode: "shielded", network, snapshot });
     options.view.renderShielded(snapshot);
   };
   try {
     if (viewingKey.bundleNetwork !== undefined && viewingKey.bundleNetwork !== network) {
-      throw new Error(`This viewing bundle is for ${viewingKey.bundleNetwork}; select that network before scanning.`);
+      throw new Error(
+        `This viewing bundle is for ${viewingKey.bundleNetwork}; select that network before scanning.`,
+      );
     }
     options.assertCanonicalViewingKey(viewingKey);
-    options.view.setDiagnosticDetail(`Validated canonical ${viewingKey.kind} viewing capability locally.`);
+    options.view.setDiagnosticDetail(
+      `Validated canonical ${viewingKey.kind} viewing capability locally.`,
+    );
     const ledger = new options.ShieldedActivityLedger(viewingKey.kind);
     const source = new options.Source(network);
-    options.view.setStatus(`Connecting to Dash Platform ${network} with trusted proof verification…`);
+    options.view.setStatus(
+      `Connecting to Dash Platform ${network} with trusted proof verification…`,
+    );
     const connectStarted = performance.now();
     await source.connect();
     options.checkCancellation();
     options.view.addRemoteDuration(performance.now() - connectStarted);
     options.view.setDiagnosticDetail(
-      'Connected through trusted quorum discovery. Fetching proof-verified encrypted notes.',
+      "Connected through trusted quorum discovery. Fetching proof-verified encrypted notes.",
     );
     const outcome = await options.runPageStream({
       fetchPage: async (position) => {
-        options.view.setStatus(`Fetching and verifying pool actions from aligned position ${position}…`);
+        options.view.setStatus(
+          `Fetching and verifying pool actions from aligned position ${position}…`,
+        );
         const fetchStarted = performance.now();
         const page = await source.fetchPage(position, options.pageSize);
         if (!options.cancelled()) {
@@ -75,7 +87,12 @@ export async function runDashOrchardActivity(
         options.view.setDiagnosticRemoteTime(page.timeMs);
         if (page.notes.length > 0) {
           const scanStarted = performance.now();
-          const matches = options.scanEncryptedPage(viewingKey, visit.position, page.notes, network);
+          const matches = options.scanEncryptedPage(
+            viewingKey,
+            visit.position,
+            page.notes,
+            network,
+          );
           ledger.applyPage(visit.position, page, matches);
           options.view.addLocalDuration(performance.now() - scanStarted);
         } else if (visit.emptyConfirmation < options.emptyConfirmations) {
@@ -110,13 +127,13 @@ export async function runDashOrchardActivity(
     } else {
       renderProgress(ledger, false, true);
       const message =
-        outcome.limitReason === 'changing-tip'
-          ? 'The pool kept changing while its last partial page was being reconciled. Results are partial; retry later.'
+        outcome.limitReason === "changing-tip"
+          ? "The pool kept changing while its last partial page was being reconciled. Results are partial; retry later."
           : `Stopped at the ${options.maxPagesPerScan.toLocaleString()}-page safety ceiling before the pool end was confirmed. Results are partial.`;
       options.view.setStatus(message);
       options.view.failDiagnostics(message);
     }
   } finally {
-    viewingKey.hex = '';
+    viewingKey.hex = "";
   }
 }

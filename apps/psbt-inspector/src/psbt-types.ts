@@ -1,17 +1,17 @@
-import type { PsbtPair } from './psbt-binary.js';
-import type { ParsedTransaction } from './transaction.js';
+import type { PsbtPair } from "./psbt-binary.js";
+import type { ParsedTransaction } from "./transaction.js";
 
-export type PsbtChain = 'bitcoin' | 'dash';
-export type PsbtNetwork = 'mainnet' | 'testnet' | 'regtest';
+export type PsbtChain = "bitcoin" | "dash";
+export type PsbtNetwork = "mainnet" | "testnet" | "regtest";
 
 export interface SuppliedUtxo {
   readonly value: bigint;
   readonly script: Uint8Array;
-  readonly binding: 'non-witness' | 'witness-only';
+  readonly binding: "non-witness" | "witness-only";
   readonly previousTransaction: ParsedTransaction | null;
 }
 
-export type VerificationStatus = 'verified' | 'failed' | 'not-verified' | 'not-applicable';
+export type VerificationStatus = "verified" | "failed" | "not-verified" | "not-applicable";
 
 export interface PsbtVerificationCheck {
   readonly relationship: string;

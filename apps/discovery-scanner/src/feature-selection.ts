@@ -1,14 +1,22 @@
-import { scanCandidates, candidateSummary } from './candidate-scan.js';
-import { createRecoverySeedInputs, recoveryScanConfig, wipeRecoverySeedInputs } from './seed-scan-input.js';
-import { resolveWatchOnlyScanTargets, watchOnlyScanConfig, wipeWatchOnlyTargets } from './watch-only-input.js';
-import { customScanPaths, parseCustomAccountRange } from './coins/custom-path.js';
-import { describeCustomPath, editCustomPath } from './custom-path-editor.js';
+import { scanCandidates, candidateSummary } from "./candidate-scan.js";
+import {
+  createRecoverySeedInputs,
+  recoveryScanConfig,
+  wipeRecoverySeedInputs,
+} from "./seed-scan-input.js";
+import {
+  resolveWatchOnlyScanTargets,
+  watchOnlyScanConfig,
+  wipeWatchOnlyTargets,
+} from "./watch-only-input.js";
+import { customScanPaths, parseCustomAccountRange } from "./coins/custom-path.js";
+import { describeCustomPath, editCustomPath } from "./custom-path-editor.js";
 import {
   assertWatchOnlyBatchInput,
   assertWatchOnlyMinimum,
   parseWatchOnlyLines,
   resolveWatchOnlyTargets,
-} from '@ckd/recovery/watch-only.js';
+} from "@ckd/recovery/watch-only.js";
 
 export interface DiscoveryFeatureRuntime {
   readonly seedDiscovery: boolean;

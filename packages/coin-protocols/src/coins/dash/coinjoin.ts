@@ -1,9 +1,20 @@
-import { assertBatch, assertIndex, requirePrivate, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
-import { bytesToHex, encodeP2pkh, encodeWif, hash160, wipe } from '@ckd/core/crypto.js';
-import { getDashNetwork } from '@ckd/core/networks.js';
-import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
-import { accountDescriptorExport } from '../../account-descriptors.js';
-import { bip32SummaryFields } from '../../bip32-summary.js';
+import {
+  assertBatch,
+  assertIndex,
+  requirePrivate,
+  requirePublic,
+  rootFromSeed,
+} from "@ckd/core/bip32.js";
+import { bytesToHex, encodeP2pkh, encodeWif, hash160, wipe } from "@ckd/core/crypto.js";
+import { getDashNetwork } from "@ckd/core/networks.js";
+import {
+  field,
+  paymentAddressField,
+  type Bip32BatchOptions,
+  type DerivationResult,
+} from "@ckd/core/types.js";
+import { accountDescriptorExport } from "../../account-descriptors.js";
+import { bip32SummaryFields } from "../../bip32-summary.js";
 
 /**
  * DIP-0009 CoinJoin chain: m/9'/coin_type'/4'/account'/branch/index. Purpose,
@@ -16,8 +27,8 @@ import { bip32SummaryFields } from '../../bip32-summary.js';
  */
 export function deriveDashCoinJoin(options: Bip32BatchOptions): DerivationResult {
   const network = getDashNetwork(options.network);
-  assertIndex(options.account, 'Account');
-  assertIndex(options.branch, 'Branch', 1);
+  assertIndex(options.account, "Account");
+  assertIndex(options.branch, "Branch", 1);
   assertBatch(options.start, options.count);
 
   const root = rootFromSeed(options.seed, network.versions);
@@ -26,12 +37,12 @@ export function deriveDashCoinJoin(options: Bip32BatchOptions): DerivationResult
   const account = root.derive(accountPath);
   const branch = root.derive(branchPath);
   const { fields: summary, masterFingerprint } = bip32SummaryFields(root, account, accountPath, {
-    accountPath: 'DIP9 account path',
-    accountXprv: 'DIP9 account xprv',
-    accountXpub: 'DIP9 account xpub',
+    accountPath: "DIP9 account path",
+    accountXprv: "DIP9 account xprv",
+    accountXpub: "DIP9 account xpub",
   });
   const rows = [];
-  const chainLabel = options.branch === 0 ? 'External' : 'Internal';
+  const chainLabel = options.branch === 0 ? "External" : "Internal";
 
   try {
     for (let offset = 0; offset < options.count; offset += 1) {
@@ -48,17 +59,17 @@ export function deriveDashCoinJoin(options: Bip32BatchOptions): DerivationResult
         path,
         title: `Address #${index}`,
         basic: [
-          paymentAddressField('address', 'Dash CoinJoin address', address, 'dash'),
-          field('publicKey', 'Compressed public key', bytesToHex(publicKey)),
-          field('privateKey', 'Private key (WIF)', encodeWif(privateKey, network.wif), true),
+          paymentAddressField("address", "Dash CoinJoin address", address, "dash"),
+          field("publicKey", "Compressed public key", bytesToHex(publicKey)),
+          field("privateKey", "Private key (WIF)", encodeWif(privateKey, network.wif), true),
         ],
         advanced: [
-          field('path', 'Derivation path', path),
-          field('privateKeyHex', 'Private key (hex)', bytesToHex(privateKey), true),
-          field('publicKeyHash', 'HASH160(public key)', bytesToHex(publicKeyHash)),
-          field('scriptPubKey', 'scriptPubKey', `76a914${bytesToHex(publicKeyHash)}88ac`),
-          field('childXprv', 'Child xprv', child.privateExtendedKey, true),
-          field('childXpub', 'Child xpub', child.publicExtendedKey),
+          field("path", "Derivation path", path),
+          field("privateKeyHex", "Private key (hex)", bytesToHex(privateKey), true),
+          field("publicKeyHash", "HASH160(public key)", bytesToHex(publicKeyHash)),
+          field("scriptPubKey", "scriptPubKey", `76a914${bytesToHex(publicKeyHash)}88ac`),
+          field("childXprv", "Child xprv", child.privateExtendedKey, true),
+          field("childXpub", "Child xpub", child.publicExtendedKey),
         ],
       });
       wipe(privateKey, publicKey, publicKeyHash);
@@ -66,24 +77,24 @@ export function deriveDashCoinJoin(options: Bip32BatchOptions): DerivationResult
     }
 
     return {
-      id: 'dash-core-coinjoin',
+      id: "dash-core-coinjoin",
       title: `Dash Mobile CoinJoin · DIP9 · ${chainLabel} chain`,
       networkLabel: network.label,
       pathTemplate: `${branchPath}/i`,
       basicSummary: [],
       summary,
       accountDescriptors: accountDescriptorExport({
-        script: 'pkh',
+        script: "pkh",
         fingerprint: masterFingerprint,
         accountPath,
         publicKey: account.publicExtendedKey,
         privateKey: account.privateExtendedKey,
         fileStem: `dash-coinjoin-${options.network}-account-${options.account}`,
-        scannerPrefix: 'dash-coinjoin-xpub',
+        scannerPrefix: "dash-coinjoin-xpub",
       }),
       rows,
       notices: [
-        'DIP-0009 CoinJoin chain, separate from the standard BIP44 receive/change branches used by Dash Core. Legacy compressed-key P2PKH addresses only.',
+        "DIP-0009 CoinJoin chain, separate from the standard BIP44 receive/change branches used by Dash Core. Legacy compressed-key P2PKH addresses only.",
       ],
     };
   } finally {

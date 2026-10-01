@@ -1,10 +1,15 @@
-import { ShieldedActivityLedger } from '@ckd/dash-network/activity.js';
-import { assertCanonicalViewingKey } from '@ckd/dash-network/orchard-scanner.js';
-import type { NormalizedViewingKey } from '@ckd/dash-network/viewing-key.js';
-import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import type { RecoveryFinding, RecoveryNetwork, RecoveryProgress, RecoverySection } from '../../types.js';
-import { sectionFromLedger } from './shielded-section.js';
-import { streamShieldedPool } from './shielded-stream.js';
+import { ShieldedActivityLedger } from "@ckd/dash-network/activity.js";
+import { assertCanonicalViewingKey } from "@ckd/dash-network/orchard-scanner.js";
+import type { NormalizedViewingKey } from "@ckd/dash-network/viewing-key.js";
+import { RecoveryNetworkGateway } from "../../network-gateway.js";
+import type {
+  RecoveryFinding,
+  RecoveryNetwork,
+  RecoveryProgress,
+  RecoverySection,
+} from "../../types.js";
+import { sectionFromLedger } from "./shielded-section.js";
+import { streamShieldedPool } from "./shielded-stream.js";
 
 /**
  * Scans a pasted FVK/IVK/OVK without importing mnemonic or seed derivation.
@@ -24,15 +29,24 @@ export async function scanDashShieldedWatchOnly(
   const ledger = new ShieldedActivityLedger(viewingKey.kind);
   onProgress({
     inputId,
-    section: 'shielded',
-    message: 'Streaming proof-verified Orchard pages through bounded memory',
+    section: "shielded",
+    message: "Streaming proof-verified Orchard pages through bounded memory",
     completed: 0,
     total: null,
   });
-  const outcome = await streamShieldedPool([{ inputId, viewingKey, ledger }], network, gateway, signal, onProgress);
+  const outcome = await streamShieldedPool(
+    [{ inputId, viewingKey, ledger }],
+    network,
+    gateway,
+    signal,
+    onProgress,
+  );
   return sectionFromLedger(
     ledger,
-    { includeUsedZeroBalance, accountPathLabel: 'Pasted watch-only Orchard viewing key (no BIP32 account path)' },
+    {
+      includeUsedZeroBalance,
+      accountPathLabel: "Pasted watch-only Orchard viewing key (no BIP32 account path)",
+    },
     outcome,
     false,
     onFinding,

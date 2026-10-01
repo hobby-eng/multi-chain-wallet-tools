@@ -3,8 +3,8 @@ interface BuildInfo {
   releaseDate: string;
   fingerprint: string;
   checksumFile: string;
-  profile: 'multi-chain' | 'dash-community';
-  edition: 'Multi-Chain Edition' | 'Dash Community Edition';
+  profile: "multi-chain" | "dash-community";
+  edition: "Multi-Chain Edition" | "Dash Community Edition";
   coins?: readonly string[];
   features?: readonly string[];
 }

@@ -1,9 +1,9 @@
-import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { readReleaseMetadata } from './project-metadata.mjs';
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { readReleaseMetadata } from "./project-metadata.mjs";
 
-const ignoredDirectoryNames = new Set(['.git', '.pnpm-store', 'node_modules', 'target']);
+const ignoredDirectoryNames = new Set([".git", ".pnpm-store", "node_modules", "target"]);
 
 function collectFiles(root, relativePath, output) {
   const absolute = resolve(root, relativePath);
@@ -21,32 +21,32 @@ export function createBuildInfo(root, checksumFile, profile, composition = {}) {
   const release = readReleaseMetadata(root);
   const files = [];
   for (const path of [
-    '.dockerignore',
-    'Dockerfile.reproducible',
-    'package.json',
-    'pnpm-lock.yaml',
-    'pnpm-workspace.yaml',
-    'tsconfig.json',
-    'vitest.config.ts',
-    'apps',
-    'packages',
-    'test',
-    'tooling',
+    ".dockerignore",
+    "Dockerfile.reproducible",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "tsconfig.json",
+    "vitest.config.ts",
+    "apps",
+    "packages",
+    "test",
+    "tooling",
   ])
     collectFiles(root, path, files);
 
-  const hash = createHash('sha256');
+  const hash = createHash("sha256");
   for (const file of files.sort()) {
-    const normalized = file.replaceAll('\\', '/');
+    const normalized = file.replaceAll("\\", "/");
     hash.update(normalized);
-    hash.update('\0');
+    hash.update("\0");
     hash.update(readFileSync(resolve(root, file)));
-    hash.update('\0');
+    hash.update("\0");
   }
   return {
     version: release.version,
     releaseDate: release.releaseDate,
-    fingerprint: hash.digest('hex'),
+    fingerprint: hash.digest("hex"),
     checksumFile,
     profile: profile.id,
     edition: profile.editionName,

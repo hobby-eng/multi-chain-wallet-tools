@@ -192,7 +192,7 @@ body::before {
   border-color: rgba(202, 219, 255, 0.28);
 }
 .viewer-control-panel::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0 0 auto;
   height: 1px;

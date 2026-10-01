@@ -1,6 +1,6 @@
-import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { sha256 } from './crypto.js';
-import { secureRandomBytes } from './secure-random.js';
+import { wordlist } from "@scure/bip39/wordlists/english.js";
+import { sha256 } from "./crypto.js";
+import { secureRandomBytes } from "./secure-random.js";
 
 /**
  * A random BIP39 phrase that also meets a person's wishes: up to two chosen words, each at a
@@ -19,7 +19,7 @@ export type ChosenWordCount = 12 | 15 | 18 | 21 | 24;
 /** A word the phrase must contain, at a 1-based position or anywhere. */
 export interface ChosenWord {
   readonly word: string;
-  readonly position: number | 'anywhere';
+  readonly position: number | "anywhere";
 }
 
 export interface ChosenWordsRequest {
@@ -72,19 +72,22 @@ interface Plan {
 
 function plan(request: ChosenWordsRequest): Plan {
   const { wordCount, chosen } = request;
-  if (![12, 15, 18, 21, 24].includes(wordCount)) throw new Error('BIP39 word count must be 12, 15, 18, 21, or 24.');
-  if (chosen.length > MAX_CHOSEN_WORDS) throw new Error('Choose at most two words.');
-  const neverUse = new Set(request.neverUse.map((word, index) => wordIndex(word, `Never-use word ${index + 1}`)));
+  if (![12, 15, 18, 21, 24].includes(wordCount))
+    throw new Error("BIP39 word count must be 12, 15, 18, 21, or 24.");
+  if (chosen.length > MAX_CHOSEN_WORDS) throw new Error("Choose at most two words.");
+  const neverUse = new Set(
+    request.neverUse.map((word, index) => wordIndex(word, `Never-use word ${index + 1}`)),
+  );
   const fixed = new Map<number, number>();
   const anywhere: number[] = [];
   const seen = new Set<number>();
   chosen.forEach((item, index) => {
     const label = `Chosen word ${index + 1}`;
     const value = wordIndex(item.word, label);
-    if (seen.has(value)) throw new Error('Choose two different words.');
+    if (seen.has(value)) throw new Error("Choose two different words.");
     seen.add(value);
     if (neverUse.has(value)) throw new Error(`${label} is also in the never-use list.`);
-    if (item.position === 'anywhere') {
+    if (item.position === "anywhere") {
       anywhere.push(value);
       return;
     }
@@ -115,7 +118,8 @@ function odds(p: Plan): { readonly remainingBits: number; readonly expectedDraws
       : p.anywhere.length === 1
         ? avoid(0) - avoid(1)
         : avoid(0) - 2 * avoid(1) + avoid(2);
-  const remainingBits = entropyBits(p.wordCount) - BITS_PER_WORD * p.fixed.size + Math.log2(freeOdds);
+  const remainingBits =
+    entropyBits(p.wordCount) - BITS_PER_WORD * p.fixed.size + Math.log2(freeOdds);
   // A fixed last word sets only its entropy bits; its checksum bits must also match.
   const checksumOdds = lastFixed ? 2 ** -checksumBits(p.wordCount) : 1;
   return { remainingBits, expectedDraws: 1 / (freeOdds * checksumOdds) };
@@ -186,7 +190,10 @@ function pause(): Promise<void> {
  * The search itself: draws until a phrase meets the wishes. It yields every DRAWS_PER_STEP draws,
  * where the caller may pause, and returns the phrase or throws when it runs out.
  */
-function* search(request: ChosenWordsRequest, randomBytes: (length: number) => Uint8Array): Generator<void, string> {
+function* search(
+  request: ChosenWordsRequest,
+  randomBytes: (length: number) => Uint8Array,
+): Generator<void, string> {
   const p = plan(request);
   const { remainingBits, expectedDraws } = odds(p);
   if (remainingBits < CHOSEN_WORDS_MINIMUM_BITS)
@@ -194,7 +201,9 @@ function* search(request: ChosenWordsRequest, randomBytes: (length: number) => U
       `These wishes leave about ${Math.floor(remainingBits)} random bits; at least ${CHOSEN_WORDS_MINIMUM_BITS} are required.`,
     );
   if (expectedDraws > MAX_EXPECTED_DRAWS)
-    throw new Error('These wishes are too rare to meet in reasonable time. Choose fewer or more common ones.');
+    throw new Error(
+      "These wishes are too rare to meet in reasonable time. Choose fewer or more common ones.",
+    );
 
   const count = p.wordCount;
   const entropyBytes = entropyBits(count) / 8;
@@ -212,17 +221,19 @@ function* search(request: ChosenWordsRequest, randomBytes: (length: number) => U
       }
       const entropy = batch.subarray(slot * entropyBytes, (slot + 1) * entropyBytes);
       for (const [position, index] of p.fixed) {
-        if (position < count - 1) writeBits(entropy, position * BITS_PER_WORD, BITS_PER_WORD, index);
+        if (position < count - 1)
+          writeBits(entropy, position * BITS_PER_WORD, BITS_PER_WORD, index);
         // The last word carries the entropy's tail; its checksum bits are checked, not set.
-        else writeBits(entropy, position * BITS_PER_WORD, BITS_PER_WORD - checksum, index >> checksum);
+        else
+          writeBits(entropy, position * BITS_PER_WORD, BITS_PER_WORD - checksum, index >> checksum);
       }
       const indexes = phraseIndexes(entropy, p);
-      if (indexes !== null) return indexes.map((index) => wordlist[index]!).join(' ');
+      if (indexes !== null) return indexes.map((index) => wordlist[index]!).join(" ");
     }
   } finally {
     batch.fill(0);
   }
-  throw new Error('No phrase met these wishes in time. Generate again or choose fewer wishes.');
+  throw new Error("No phrase met these wishes in time. Generate again or choose fewer wishes.");
 }
 
 /**
@@ -244,7 +255,7 @@ export async function generateMnemonicWithChosenWords(
       signal?.throwIfAborted();
     }
   } finally {
-    steps.return('');
+    steps.return("");
   }
 }
 
@@ -252,10 +263,10 @@ export async function generateMnemonicWithChosenWords(
 const SELF_TEST_REQUEST: ChosenWordsRequest = {
   wordCount: 12,
   chosen: [
-    { word: 'happy', position: 1 },
-    { word: 'zoo', position: 12 },
+    { word: "happy", position: 1 },
+    { word: "zoo", position: 12 },
   ],
-  neverUse: ['abandon'],
+  neverUse: ["abandon"],
 };
 
 /** Start value of the self-test's byte stream; any fixed non-zero value works. */

@@ -1,14 +1,20 @@
-import type { HDKey } from '@scure/bip32';
-import { assertBatch, assertIndex, requirePrivate, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
-import { bytesToHex, encodeWif, hash160, wipe } from '@ckd/core/crypto.js';
-import { getDashNetwork } from '@ckd/core/networks.js';
+import type { HDKey } from "@scure/bip32";
+import {
+  assertBatch,
+  assertIndex,
+  requirePrivate,
+  requirePublic,
+  rootFromSeed,
+} from "@ckd/core/bip32.js";
+import { bytesToHex, encodeWif, hash160, wipe } from "@ckd/core/crypto.js";
+import { getDashNetwork } from "@ckd/core/networks.js";
 import {
   field,
   type Bip32BatchOptions,
   type DerivationResult,
   type NetworkName,
   type ResultFieldGroup,
-} from '@ckd/core/types.js';
+} from "@ckd/core/types.js";
 
 interface DashIdentityKey {
   path: string;
@@ -21,14 +27,14 @@ type DashIdentityAuthenticationKey = DashIdentityKey;
 
 interface DashIdentityStandardKey {
   keyId: 0 | 1 | 2 | 3;
-  purpose: 'AUTHENTICATION' | 'TRANSFER';
+  purpose: "AUTHENTICATION" | "TRANSFER";
   purposeValue: 0 | 3;
-  securityLevel: 'MASTER' | 'CRITICAL' | 'HIGH';
+  securityLevel: "MASTER" | "CRITICAL" | "HIGH";
   securityLevelValue: 0 | 1 | 2;
   use: string;
 }
 
-export const DASH_IDENTITY_STANDARD_PROFILE_NAME = 'Official Platform Wallet v4.1.1 · 4 ECDSA keys';
+export const DASH_IDENTITY_STANDARD_PROFILE_NAME = "Official Platform Wallet v4.1.1 · 4 ECDSA keys";
 
 /**
  * The default registration profile is wallet policy, not a DIP13 path rule.
@@ -38,35 +44,35 @@ export const DASH_IDENTITY_STANDARD_PROFILE_NAME = 'Official Platform Wallet v4.
 export const DASH_IDENTITY_STANDARD_KEYS: readonly DashIdentityStandardKey[] = [
   {
     keyId: 0,
-    purpose: 'AUTHENTICATION',
+    purpose: "AUTHENTICATION",
     purposeValue: 0,
-    securityLevel: 'MASTER',
+    securityLevel: "MASTER",
     securityLevelValue: 0,
-    use: 'Master-level identity authentication and later identity-key management.',
+    use: "Master-level identity authentication and later identity-key management.",
   },
   {
     keyId: 1,
-    purpose: 'AUTHENTICATION',
+    purpose: "AUTHENTICATION",
     purposeValue: 0,
-    securityLevel: 'CRITICAL',
+    securityLevel: "CRITICAL",
     securityLevelValue: 1,
-    use: 'Critical authentication operations, including sensitive token operations.',
+    use: "Critical authentication operations, including sensitive token operations.",
   },
   {
     keyId: 2,
-    purpose: 'AUTHENTICATION',
+    purpose: "AUTHENTICATION",
     purposeValue: 0,
-    securityLevel: 'HIGH',
+    securityLevel: "HIGH",
     securityLevelValue: 2,
-    use: 'Routine document and application state transitions.',
+    use: "Routine document and application state transitions.",
   },
   {
     keyId: 3,
-    purpose: 'TRANSFER',
+    purpose: "TRANSFER",
     purposeValue: 3,
-    securityLevel: 'CRITICAL',
+    securityLevel: "CRITICAL",
     securityLevelValue: 1,
-    use: 'Identity credit transfers and withdrawals.',
+    use: "Identity credit transfers and withdrawals.",
   },
 ] as const;
 
@@ -83,8 +89,8 @@ function deriveDashIdentityKey(
   identityIndex: number,
   keyIndex = 0,
 ): DashIdentityKey {
-  assertIndex(identityIndex, 'Identity index');
-  assertIndex(keyIndex, 'Identity key index');
+  assertIndex(identityIndex, "Identity index");
+  assertIndex(keyIndex, "Identity key index");
   const network = getDashNetwork(networkName);
   const path = `m/9'/${network.coinType}'/5'/0'/0'/${identityIndex}'/${keyIndex}'`;
   const node = root.derive(path);
@@ -114,7 +120,7 @@ function keyFieldKey(keyId: number, name: string): string {
 
 function standardKeyGroup(
   root: HDKey,
-  networkName: Bip32BatchOptions['network'],
+  networkName: Bip32BatchOptions["network"],
   key: DashIdentityStandardKey,
   identityIndex: number,
   wifPrefix: number,
@@ -128,49 +134,61 @@ function standardKeyGroup(
       description: `${key.use} This role is assigned by the official wallet's registration profile; it is not encoded in the derived key or path.`,
       basic: [
         field(
-          keyFieldKey(key.keyId, 'PublicKeyHash'),
-          'Public-key HASH160',
+          keyFieldKey(key.keyId, "PublicKeyHash"),
+          "Public-key HASH160",
           bytesToHex(derived.publicKeyHash),
           false,
-          'Public lookup fingerprint used by proof-verified Identity discovery. It is not an address or an Identity ID.',
+          "Public lookup fingerprint used by proof-verified Identity discovery. It is not an address or an Identity ID.",
         ),
-        field(keyFieldKey(key.keyId, 'PublicKey'), 'Compressed public key', bytesToHex(derived.publicKey)),
         field(
-          keyFieldKey(key.keyId, 'PrivateKeyWif'),
-          'Private key (Dash WIF)',
+          keyFieldKey(key.keyId, "PublicKey"),
+          "Compressed public key",
+          bytesToHex(derived.publicKey),
+        ),
+        field(
+          keyFieldKey(key.keyId, "PrivateKeyWif"),
+          "Private key (Dash WIF)",
           encodeWif(derived.privateKey, wifPrefix),
           true,
-          'Transport encoding of the 32-byte secp256k1 secret. WIF does not retain the DIP13 path or registration metadata.',
+          "Transport encoding of the 32-byte secp256k1 secret. WIF does not retain the DIP13 path or registration metadata.",
         ),
       ],
       advanced: [
-        field(keyFieldKey(key.keyId, 'KeyId'), 'Key ID', String(key.keyId)),
+        field(keyFieldKey(key.keyId, "KeyId"), "Key ID", String(key.keyId)),
         field(
-          keyFieldKey(key.keyId, 'Purpose'),
-          'Official default purpose',
+          keyFieldKey(key.keyId, "Purpose"),
+          "Official default purpose",
           `${key.purpose} (${key.purposeValue})`,
           false,
-          'Registration metadata selected by the wallet, not a property derived from key ID.',
+          "Registration metadata selected by the wallet, not a property derived from key ID.",
         ),
         field(
-          keyFieldKey(key.keyId, 'SecurityLevel'),
-          'Official default security level',
+          keyFieldKey(key.keyId, "SecurityLevel"),
+          "Official default security level",
           `${key.securityLevel} (${key.securityLevelValue})`,
           false,
-          'Registration metadata selected by the wallet, not a property derived from key ID.',
+          "Registration metadata selected by the wallet, not a property derived from key ID.",
         ),
-        field(keyFieldKey(key.keyId, 'KeyType'), 'Key type', 'ECDSA_SECP256K1 (0)'),
-        field(keyFieldKey(key.keyId, 'Path'), 'DIP13 derivation path', derived.path),
+        field(keyFieldKey(key.keyId, "KeyType"), "Key type", "ECDSA_SECP256K1 (0)"),
+        field(keyFieldKey(key.keyId, "Path"), "DIP13 derivation path", derived.path),
         field(
-          keyFieldKey(key.keyId, 'PrivateKeyHex'),
-          'Private key (raw 32-byte hex)',
+          keyFieldKey(key.keyId, "PrivateKeyHex"),
+          "Private key (raw 32-byte hex)",
           bytesToHex(derived.privateKey),
           true,
         ),
-        field(keyFieldKey(key.keyId, 'PublicKeySize'), 'Public-key size', '33 bytes · compressed secp256k1'),
-        field(keyFieldKey(key.keyId, 'DerivationMode'), 'Derivation mode', 'All seven path levels hardened'),
-        field(keyFieldKey(key.keyId, 'ReadOnly'), 'Official default readOnly', 'false'),
-        field(keyFieldKey(key.keyId, 'ContractBounds'), 'Official default contract bounds', 'None'),
+        field(
+          keyFieldKey(key.keyId, "PublicKeySize"),
+          "Public-key size",
+          "33 bytes · compressed secp256k1",
+        ),
+        field(
+          keyFieldKey(key.keyId, "DerivationMode"),
+          "Derivation mode",
+          "All seven path levels hardened",
+        ),
+        field(keyFieldKey(key.keyId, "ReadOnly"), "Official default readOnly", "false"),
+        field(keyFieldKey(key.keyId, "ContractBounds"), "Official default contract bounds", "None"),
       ],
     };
   } finally {
@@ -196,11 +214,11 @@ export function deriveDashIdentity(options: Bip32BatchOptions): DerivationResult
         title: `Identity candidate #${identityIndex}`,
         basic: [],
         advanced: [
-          field('identityIndex', 'Identity index', String(identityIndex)),
-          field('identityId', 'Identity ID', 'Not available until registration'),
-          field('registrationProfile', 'Registration profile', DASH_IDENTITY_STANDARD_PROFILE_NAME),
-          field('identityPathPrefix', 'Identity path prefix', identityPath),
-          field('registrationState', 'Registration state', 'Candidate keys only · not registered'),
+          field("identityIndex", "Identity index", String(identityIndex)),
+          field("identityId", "Identity ID", "Not available until registration"),
+          field("registrationProfile", "Registration profile", DASH_IDENTITY_STANDARD_PROFILE_NAME),
+          field("identityPathPrefix", "Identity path prefix", identityPath),
+          field("registrationState", "Registration state", "Candidate keys only · not registered"),
         ],
         groups: DASH_IDENTITY_STANDARD_KEYS.map((key) =>
           standardKeyGroup(root, options.network, key, identityIndex, network.wif),
@@ -209,8 +227,8 @@ export function deriveDashIdentity(options: Bip32BatchOptions): DerivationResult
     }
 
     return {
-      id: 'dash-identity',
-      title: 'Dash Platform Identity keys (DIP13)',
+      id: "dash-identity",
+      title: "Dash Platform Identity keys (DIP13)",
       networkLabel: `${network.label} Platform`,
       pathTemplate: `${profilePath}/identity_index'/key_id'`,
       basicSummary: [],
@@ -218,8 +236,8 @@ export function deriveDashIdentity(options: Bip32BatchOptions): DerivationResult
       rows,
       notices: [
         `Each Identity candidate contains the ${DASH_IDENTITY_STANDARD_PROFILE_NAME} registration set. Key IDs do not cryptographically determine purpose or security level; those roles are assigned explicitly during registration.`,
-        'These are candidate keys, not registered identities. An Identity ID depends on the registration funding input and cannot be derived from the recovery phrase alone.',
-        'Public-key HASH160 values are discovery fingerprints, not payment addresses. The proof-verified Discovery Scanner can use the MASTER key hash to locate an already registered Identity.',
+        "These are candidate keys, not registered identities. An Identity ID depends on the registration funding input and cannot be derived from the recovery phrase alone.",
+        "Public-key HASH160 values are discovery fingerprints, not payment addresses. The proof-verified Discovery Scanner can use the MASTER key hash to locate an already registered Identity.",
       ],
     };
   } finally {

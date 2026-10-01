@@ -1,37 +1,48 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 const temporary = [];
 afterEach(() => {
   for (const path of temporary.splice(0)) rmSync(path, { recursive: true, force: true });
 });
-describe('Docker copy-out and failure cleanup without a Docker daemon', () => {
-  for (const mode of ['complete', 'incomplete', 'copy-failure', 'build-failure'])
+describe("Docker copy-out and failure cleanup without a Docker daemon", () => {
+  for (const mode of ["complete", "incomplete", "copy-failure", "build-failure"])
     it(mode, () => {
-      const root = mkdtempSync(join(tmpdir(), 'wallet-build-regression-'));
+      const root = mkdtempSync(join(tmpdir(), "wallet-build-regression-"));
       temporary.push(root);
-      for (const dir of ['tooling', 'bin', 'dist', 'tmp', 'packages/edition-profiles'])
+      for (const dir of ["tooling", "bin", "dist", "tmp", "packages/edition-profiles"])
         mkdirSync(join(root, dir), { recursive: true });
-      writeFileSync(join(root, 'dist/keep.txt'), 'previous output');
-      writeFileSync(join(root, 'package.json'), '{"type":"module","version":"1.2.3"}');
+      writeFileSync(join(root, "dist/keep.txt"), "previous output");
+      writeFileSync(join(root, "package.json"), '{"type":"module","version":"1.2.3"}');
       for (const file of [
-        'build-reproducible.mjs',
-        'build-profiles.mjs',
-        'build-profile-definitions.mjs',
-        'sync-mnemocode-source.mjs',
-        'profile-template.mjs',
-        'wasm-modules.mjs',
+        "build-reproducible.mjs",
+        "build-profiles.mjs",
+        "build-profile-definitions.mjs",
+        "sync-mnemocode-source.mjs",
+        "profile-template.mjs",
+        "wasm-modules.mjs",
       ])
-        cpSync(fileURLToPath(new URL(file, import.meta.url)), join(root, 'tooling', file));
+        cpSync(fileURLToPath(new URL(file, import.meta.url)), join(root, "tooling", file));
       cpSync(
-        fileURLToPath(new URL('../packages/edition-profiles/profile-capabilities.json', import.meta.url)),
-        join(root, 'packages/edition-profiles/profile-capabilities.json'),
+        fileURLToPath(
+          new URL("../packages/edition-profiles/profile-capabilities.json", import.meta.url),
+        ),
+        join(root, "packages/edition-profiles/profile-capabilities.json"),
       );
       writeFileSync(
-        join(root, 'bin/docker'),
+        join(root, "bin/docker"),
         `#!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
@@ -48,54 +59,58 @@ if(a[0]==='cp') {
 `,
         { mode: 0o755 },
       );
-      const log = join(root, 'calls.jsonl');
-      const r = spawnSync(process.execPath, [join(root, 'tooling/build-reproducible.mjs')], {
-        encoding: 'utf8',
+      const log = join(root, "calls.jsonl");
+      const r = spawnSync(process.execPath, [join(root, "tooling/build-reproducible.mjs")], {
+        encoding: "utf8",
         env: {
           ...process.env,
-          PATH: `${join(root, 'bin')}:${dirname(process.execPath)}:${process.env.PATH}`,
-          TMPDIR: join(root, 'tmp'),
+          PATH: `${join(root, "bin")}:${dirname(process.execPath)}:${process.env.PATH}`,
+          TMPDIR: join(root, "tmp"),
           FIXTURE_MODE: mode,
           FIXTURE_LOG: log,
         },
       });
       expect(r.status, r.stderr).toBe(
-        mode === 'complete' ? 0 : mode === 'copy-failure' ? 9 : mode === 'build-failure' ? 7 : 1,
+        mode === "complete" ? 0 : mode === "copy-failure" ? 9 : mode === "build-failure" ? 7 : 1,
       );
-      const calls = readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse);
+      const calls = readFileSync(log, "utf8").trim().split("\n").map(JSON.parse);
       expect(
-        calls.some((a) => a[0] === 'rm' && a[1] === '--force' && a[2] === 'fixture-container'),
+        calls.some((a) => a[0] === "rm" && a[1] === "--force" && a[2] === "fixture-container"),
         JSON.stringify(calls),
-      ).toBe(mode !== 'build-failure');
-      expect(readdirSync(join(root, 'tmp'))).toEqual([]);
-      if (mode === 'complete') {
-        expect(existsSync(join(root, 'dist/keep.txt'))).toBe(false);
-        for (const edition of ['multi-chain-edition', 'dash-community-edition'])
-          expect(readFileSync(join(root, 'dist', edition, 'release/SHA256SUMS'), 'utf8')).toBe('fixture\n');
-      } else expect(readFileSync(join(root, 'dist/keep.txt'), 'utf8')).toBe('previous output');
+      ).toBe(mode !== "build-failure");
+      expect(readdirSync(join(root, "tmp"))).toEqual([]);
+      if (mode === "complete") {
+        expect(existsSync(join(root, "dist/keep.txt"))).toBe(false);
+        for (const edition of ["multi-chain-edition", "dash-community-edition"])
+          expect(readFileSync(join(root, "dist", edition, "release/SHA256SUMS"), "utf8")).toBe(
+            "fixture\n",
+          );
+      } else expect(readFileSync(join(root, "dist/keep.txt"), "utf8")).toBe("previous output");
     });
 
-  it('copies every canonical WASM module to its owning package', () => {
-    const root = mkdtempSync(join(tmpdir(), 'wallet-wasm-copy-regression-'));
+  it("copies every canonical WASM module to its owning package", () => {
+    const root = mkdtempSync(join(tmpdir(), "wallet-wasm-copy-regression-"));
     temporary.push(root);
-    for (const dir of ['tooling', 'bin', 'tmp', 'packages/edition-profiles'])
+    for (const dir of ["tooling", "bin", "tmp", "packages/edition-profiles"])
       mkdirSync(join(root, dir), { recursive: true });
-    writeFileSync(join(root, 'package.json'), '{"type":"module","version":"1.2.3"}');
+    writeFileSync(join(root, "package.json"), '{"type":"module","version":"1.2.3"}');
     for (const file of [
-      'build-reproducible.mjs',
-      'build-profiles.mjs',
-      'build-profile-definitions.mjs',
-      'sync-mnemocode-source.mjs',
-      'profile-template.mjs',
-      'wasm-modules.mjs',
+      "build-reproducible.mjs",
+      "build-profiles.mjs",
+      "build-profile-definitions.mjs",
+      "sync-mnemocode-source.mjs",
+      "profile-template.mjs",
+      "wasm-modules.mjs",
     ])
-      cpSync(fileURLToPath(new URL(file, import.meta.url)), join(root, 'tooling', file));
+      cpSync(fileURLToPath(new URL(file, import.meta.url)), join(root, "tooling", file));
     cpSync(
-      fileURLToPath(new URL('../packages/edition-profiles/profile-capabilities.json', import.meta.url)),
-      join(root, 'packages/edition-profiles/profile-capabilities.json'),
+      fileURLToPath(
+        new URL("../packages/edition-profiles/profile-capabilities.json", import.meta.url),
+      ),
+      join(root, "packages/edition-profiles/profile-capabilities.json"),
     );
     writeFileSync(
-      join(root, 'bin/docker'),
+      join(root, "bin/docker"),
       `#!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
@@ -113,24 +128,30 @@ if(a[0]==='cp') {
 `,
       { mode: 0o755 },
     );
-    const result = spawnSync(process.execPath, [join(root, 'tooling/build-reproducible.mjs'), '--wasm'], {
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        PATH: `${join(root, 'bin')}:${dirname(process.execPath)}:${process.env.PATH}`,
-        TMPDIR: join(root, 'tmp'),
+    const result = spawnSync(
+      process.execPath,
+      [join(root, "tooling/build-reproducible.mjs"), "--wasm"],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${join(root, "bin")}:${dirname(process.execPath)}:${process.env.PATH}`,
+          TMPDIR: join(root, "tmp"),
+        },
       },
-    });
+    );
     expect(result.status, result.stderr).toBe(0);
     const expected = [
-      ['dash-shielded-wasm', 'dash_shielded_wasm_bg.wasm', 'dash'],
-      ['recovery-codex32-wasm', 'recovery_codex32_wasm_bg.wasm', 'codex32'],
-      ['recovery-sskr-wasm', 'recovery_sskr_wasm_bg.wasm', 'sskr'],
-      ['recovery-envelope-wasm', 'recovery_envelope_wasm_bg.wasm', 'envelope'],
+      ["dash-shielded-wasm", "dash_shielded_wasm_bg.wasm", "dash"],
+      ["recovery-codex32-wasm", "recovery_codex32_wasm_bg.wasm", "codex32"],
+      ["recovery-sskr-wasm", "recovery_sskr_wasm_bg.wasm", "sskr"],
+      ["recovery-envelope-wasm", "recovery_envelope_wasm_bg.wasm", "envelope"],
     ];
     for (const [packageDirectory, file, contents] of expected) {
-      expect(readFileSync(join(root, 'packages', packageDirectory, 'generated', file), 'utf8')).toBe(contents);
+      expect(
+        readFileSync(join(root, "packages", packageDirectory, "generated", file), "utf8"),
+      ).toBe(contents);
     }
-    expect(readFileSync(join(root, 'tooling/wasm-canonical-manifest.json'), 'utf8')).toBe('{}\n');
+    expect(readFileSync(join(root, "tooling/wasm-canonical-manifest.json"), "utf8")).toBe("{}\n");
   });
 });

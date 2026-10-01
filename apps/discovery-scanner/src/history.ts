@@ -1,9 +1,14 @@
-import { RecoveryNetworkGateway } from './network-gateway.js';
-import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
-import type { RecoveryCoinAdapter, RecoveryHistory, RecoveryScanContext, RecoveryWalletResult } from './types.js';
+import { RecoveryNetworkGateway } from "./network-gateway.js";
+import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
+import type {
+  RecoveryCoinAdapter,
+  RecoveryHistory,
+  RecoveryScanContext,
+  RecoveryWalletResult,
+} from "./types.js";
 
-export { emptyHistory, validateHistory, historyAmount, historyFields } from './history-model.js';
-import { emptyHistory, validateHistory } from './history-model.js';
+export { emptyHistory, validateHistory, historyAmount, historyFields } from "./history-model.js";
+import { emptyHistory, validateHistory } from "./history-model.js";
 
 export function historyGateway(context: RecoveryScanContext): RecoveryNetworkGateway {
   return new RecoveryNetworkGateway(
@@ -19,7 +24,9 @@ export async function enrichRecoveryHistory(
   context: RecoveryScanContext,
 ): Promise<void> {
   const cache = new Map<string, RecoveryHistory>();
-  const findings = result.sections.flatMap((section) => section.findings.map((finding) => ({ section, finding })));
+  const findings = result.sections.flatMap((section) =>
+    section.findings.map((finding) => ({ section, finding })),
+  );
   for (const [index, { section, finding }] of findings.entries()) {
     context.signal.throwIfAborted();
     context.onProgress({
@@ -40,21 +47,25 @@ export async function enrichRecoveryHistory(
           adapter.getHistory === undefined
             ? ({
                 ...unavailable,
-                status: 'unsupported',
-                note: 'This adapter does not provide historical data.',
+                status: "unsupported",
+                note: "This adapter does not provide historical data.",
               } satisfies RecoveryHistory)
-            : validateHistory(await adapter.getHistory(finding, section.id, result.network, context));
+            : validateHistory(
+                await adapter.getHistory(finding, section.id, result.network, context),
+              );
         if (
           unit !== undefined &&
-          (h.asset !== unit.asset || h.atomicUnit !== unit.atomicUnit || h.decimals !== unit.decimals)
+          (h.asset !== unit.asset ||
+            h.atomicUnit !== unit.atomicUnit ||
+            h.decimals !== unit.decimals)
         ) {
-          throw new Error('History units differ from the adapter balance units.');
+          throw new Error("History units differ from the adapter balance units.");
         }
       } catch {
         context.signal.throwIfAborted();
         h = {
           ...unavailable,
-          note: 'The history provider is unavailable or returned inconsistent data. The discovered balance is preserved; retry the scan to refresh history.',
+          note: "The history provider is unavailable or returned inconsistent data. The discovered balance is preserved; retry the scan to refresh history.",
         };
       }
       cache.set(key, h);

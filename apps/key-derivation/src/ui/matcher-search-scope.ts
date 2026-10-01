@@ -1,6 +1,9 @@
-import type { CoinAdapter, CoinRegistry } from '@ckd/coins/registry-base.js';
-import type { NetworkName } from '@ckd/core/types.js';
-import type { WalletMatcherTarget, WalletMatcherTargetDetector } from '@ckd/recovery/matcher-types.js';
+import type { CoinAdapter, CoinRegistry } from "@ckd/coins/registry-base.js";
+import type { NetworkName } from "@ckd/core/types.js";
+import type {
+  WalletMatcherTarget,
+  WalletMatcherTargetDetector,
+} from "@ckd/recovery/matcher-types.js";
 
 /** Scope the detector's build-compatible address profiles to the selected coin. */
 export function matcherSearchTargets(
@@ -12,7 +15,7 @@ export function matcherSearchTargets(
   allCoins: boolean,
 ): WalletMatcherTarget[] {
   const familyFor = (adapterId: string): string | undefined => {
-    const id = adapterId === 'dash-core-coinjoin' ? 'dash-core' : adapterId;
+    const id = adapterId === "dash-core-coinjoin" ? "dash-core" : adapterId;
     const adapter = registry.COIN_ADAPTERS.find((candidate) => candidate.id === id);
     return adapter === undefined ? undefined : registry.getAdapterFamilyId(adapter);
   };
@@ -21,7 +24,7 @@ export function matcherSearchTargets(
     for (const target of detector(input, network, false)) {
       if (!target.adapterIds.some((id) => familyFor(id) === coinId)) {
         throw new Error(
-          `Target ${target.id.replace('address-', '')} does not belong to ${family.label}. Select its coin or enable searching every supported coin.`,
+          `Target ${target.id.replace("address-", "")} does not belong to ${family.label}. Select its coin or enable searching every supported coin.`,
         );
       }
     }
@@ -31,7 +34,8 @@ export function matcherSearchTargets(
       const family = familyFor(id);
       return family !== undefined && (allCoins || family === coinId);
     });
-    if (adapterIds.length === 0) throw new Error('No compatible search profiles are available for the selected coin.');
+    if (adapterIds.length === 0)
+      throw new Error("No compatible search profiles are available for the selected coin.");
     return { ...target, adapterIds };
   });
 }
@@ -45,7 +49,7 @@ export function matcherSearchBranches(
   allCoins = false,
 ): readonly number[] {
   const searchChange = includeChange || allCoins;
-  if (adapter.id === 'dash-core-coinjoin' && adapter.coinJoin !== undefined) {
+  if (adapter.id === "dash-core-coinjoin" && adapter.coinJoin !== undefined) {
     const { external, internal } = adapter.coinJoin.branches;
     return searchChange ? [external, internal] : [external];
   }
@@ -53,6 +57,7 @@ export function matcherSearchBranches(
     const { receive, change } = adapter.addressBranches;
     return searchChange ? [receive, change] : [receive];
   }
-  if (adapter.branchControl?.options !== undefined) return adapter.branchControl.options.map(({ value }) => value);
+  if (adapter.branchControl?.options !== undefined)
+    return adapter.branchControl.options.map(({ value }) => value);
   return [adapter.defaults.branch];
 }

@@ -107,7 +107,7 @@
   font-weight: 700;
 }
 .recovery-trust-row span::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 10px;
   top: 50%;
@@ -131,7 +131,7 @@
     inset 0 1px rgba(255, 255, 255, 0.04);
 }
 .recovery-capability-card::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -148,7 +148,7 @@
 }
 .capability-orbit::before,
 .capability-orbit::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 19px;
   border: 1px solid rgba(245, 166, 35, 0.13);
@@ -527,7 +527,7 @@
   width: 100%;
   margin-top: 7px;
 }
-.custom-path-field input[type='text'] {
+.custom-path-field input[type="text"] {
   font-family: var(--mono);
 }
 .custom-path-field small {
@@ -604,7 +604,7 @@
 }
 .coinjoin-path-note code,
 code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   background: #0e1a15;
   color: #ffd16b;
   padding: 1px 6px;
@@ -780,7 +780,10 @@ code {
 }
 .recovery-result-tabs {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--coin-result-tab-min-width, 96px)), 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--coin-result-tab-min-width, 96px)), 1fr)
+  );
   gap: 8px;
   width: 100%;
   margin: 0 0 13px;
@@ -862,7 +865,7 @@ code {
     transform 0.16s ease;
 }
 .component-result-tab::after {
-  content: 'Open';
+  content: "Open";
   position: absolute;
   top: 11px;
   right: 12px;
@@ -914,7 +917,7 @@ code {
   transform: none;
 }
 .component-result-tab.active::after {
-  content: 'Selected';
+  content: "Selected";
   color: var(--selection-muted);
 }
 .component-result-panel {
@@ -1324,7 +1327,7 @@ footer p {
   align-items: center;
   gap: 10px;
 }
-.custom-range-toggle input[type='checkbox'] {
+.custom-range-toggle input[type="checkbox"] {
   width: auto;
   margin: 0;
 }
@@ -1371,7 +1374,7 @@ label.candidate-choice {
   gap: 10px;
   margin: 8px 0;
 }
-label.candidate-choice input[type='checkbox'] {
+label.candidate-choice input[type="checkbox"] {
   width: 16px;
   height: 16px;
   margin: 0;

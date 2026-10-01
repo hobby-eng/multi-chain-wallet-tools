@@ -1,27 +1,35 @@
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
-import { getToolBuild, parseBuildProfile } from '../../../tooling/build-profiles.mjs';
-import { vendoredMnemoCodeVersion } from '../../../tooling/key-derivation-features.mjs';
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
+import { getToolBuild, parseBuildProfile } from "../../../tooling/build-profiles.mjs";
+import { vendoredMnemoCodeVersion } from "../../../tooling/key-derivation-features.mjs";
 
-const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
-const tool = getToolBuild(profile, 'key-derivation');
-const artifactPath = resolve(root, 'dist', tool.artifactRelativePath);
-const checksumPath = resolve(root, 'dist', tool.artifactDirectory, tool.checksumFile);
+const tool = getToolBuild(profile, "key-derivation");
+const artifactPath = resolve(root, "dist", tool.artifactRelativePath);
+const checksumPath = resolve(root, "dist", tool.artifactDirectory, tool.checksumFile);
 const wasmPaths = [
-  ['Orchard', resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm')],
-  ['Codex32', resolve(root, 'packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm')],
-  ['SSKR', resolve(root, 'packages/recovery-sskr-wasm/generated/recovery_sskr_wasm_bg.wasm')],
-  ['Gordian Envelope', resolve(root, 'packages/recovery-envelope-wasm/generated/recovery_envelope_wasm_bg.wasm')],
-  ['MHFE', resolve(root, 'packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm')],
+  ["Orchard", resolve(root, "packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm")],
+  [
+    "Codex32",
+    resolve(root, "packages/recovery-codex32-wasm/generated/recovery_codex32_wasm_bg.wasm"),
+  ],
+  ["SSKR", resolve(root, "packages/recovery-sskr-wasm/generated/recovery_sskr_wasm_bg.wasm")],
+  [
+    "Gordian Envelope",
+    resolve(root, "packages/recovery-envelope-wasm/generated/recovery_envelope_wasm_bg.wasm"),
+  ],
+  ["MHFE", resolve(root, "packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm")],
 ];
-const html = readFileSync(artifactPath, 'utf8');
+const html = readFileSync(artifactPath, "utf8");
 const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
 if (!html.includes(expectedFingerprint)) {
-  throw new Error('Standalone artifact does not contain the fingerprint of the current source tree.');
+  throw new Error(
+    "Standalone artifact does not contain the fingerprint of the current source tree.",
+  );
 }
 
 function occurrences(value, marker) {
@@ -29,24 +37,25 @@ function occurrences(value, marker) {
 }
 
 for (const [marker, expected] of [
-  ['<!doctype html>', 1],
+  ["<!doctype html>", 1],
   ['<html lang="en">', 1],
-  ['</html>', 1],
-  ['<style>', 1],
-  ['</style>', 1],
-  ['<script>', 1],
-  ['</script>', 1],
+  ["</html>", 1],
+  ["<style>", 1],
+  ["</style>", 1],
+  ["<script>", 1],
+  ["</script>", 1],
 ]) {
   const actual = occurrences(html, marker);
-  if (actual !== expected) throw new Error(`Expected ${expected} ${marker} marker; found ${actual}.`);
+  if (actual !== expected)
+    throw new Error(`Expected ${expected} ${marker} marker; found ${actual}.`);
 }
 
-const scriptStart = html.indexOf('<script>');
-const scriptEnd = html.lastIndexOf('</script>');
+const scriptStart = html.indexOf("<script>");
+const scriptEnd = html.lastIndexOf("</script>");
 if (scriptStart === -1 || scriptEnd <= scriptStart) {
-  throw new Error('Standalone artifact has no inline application script.');
+  throw new Error("Standalone artifact has no inline application script.");
 }
-const inlineScript = html.slice(scriptStart + '<script>'.length, scriptEnd);
+const inlineScript = html.slice(scriptStart + "<script>".length, scriptEnd);
 try {
   // Parse without executing browser or cryptographic code.
   Function(inlineScript);
@@ -54,132 +63,144 @@ try {
   throw new Error(`Standalone application JavaScript is syntactically invalid: ${String(cause)}`);
 }
 
-const inlineScriptHash = `'sha256-${createHash('sha256').update(inlineScript).digest('base64')}'`;
+const inlineScriptHash = `'sha256-${createHash("sha256").update(inlineScript).digest("base64")}'`;
 const expectedCsp = `default-src 'none'; script-src ${inlineScriptHash} 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; worker-src blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
-const csp = /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/su.exec(html)?.[1];
-if (csp !== expectedCsp) throw new Error('Standalone artifact CSP changed from the reviewed offline policy.');
+const csp = /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/su.exec(
+  html,
+)?.[1];
+if (csp !== expectedCsp)
+  throw new Error("Standalone artifact CSP changed from the reviewed offline policy.");
 if (/script-src[^;]*'unsafe-inline'/u.test(csp)) {
-  throw new Error('Standalone CSP must authorize its immutable inline script by hash, not unsafe-inline.');
+  throw new Error(
+    "Standalone CSP must authorize its immutable inline script by hash, not unsafe-inline.",
+  );
 }
 // 'wasm-unsafe-eval' only compiles the embedded module; the separate
 // 'unsafe-eval' keyword would additionally enable the Function constructor.
 // The quotes matter: they are what distinguishes the two tokens.
-if (csp.includes("'unsafe-eval'")) throw new Error("Standalone CSP must never grant 'unsafe-eval'.");
-if (html.includes('__INLINE_SCRIPT_CSP__') || html.includes('/*__INLINE_')) {
-  throw new Error('Standalone artifact still contains an unexpanded build marker.');
+if (csp.includes("'unsafe-eval'"))
+  throw new Error("Standalone CSP must never grant 'unsafe-eval'.");
+if (html.includes("__INLINE_SCRIPT_CSP__") || html.includes("/*__INLINE_")) {
+  throw new Error("Standalone artifact still contains an unexpanded build marker.");
 }
 
 const ids = [...html.matchAll(/\sid="([^"]+)"/gu)].map((match) => match[1]);
-if (new Set(ids).size !== ids.length) throw new Error('Standalone artifact contains duplicate HTML IDs.');
+if (new Set(ids).size !== ids.length)
+  throw new Error("Standalone artifact contains duplicate HTML IDs.");
 const requiredIds = [
-  'derive-form',
-  'recovery-workspace',
-  'wallet-matcher-panel',
-  'matcher-seeds',
-  'matcher-passphrases',
-  'matcher-addresses',
-  'run-wallet-matcher',
-  'slip39-panel',
-  'slip39-source-mnemonic',
-  'slip39-format',
-  'create-slip39-shares',
-  'slip39-shares',
-  'restore-slip39-shares',
-  'codex32-panel',
-  'codex32-secret-type',
-  'codex32-restore-type',
-  'create-codex32',
-  'restore-codex32',
-  'sskr-panel',
-  'create-sskr',
-  'restore-sskr',
-  'gordian-envelope-panel',
-  'create-envelope',
-  'restore-envelope',
-  'derive-envelope-recipient',
-  'mnemonic',
-  'passphrase',
-  'seed-diagnostic',
-  'seed-diagnostic-title',
-  'generate-12',
-  'generate-15',
-  'generate-18',
-  'generate-21',
-  'generate-24',
-  'coin',
-  'protocol-tabs',
-  'network',
-  'include-change-addresses',
-  'derive-button',
-  'cancel-derivation',
-  'toggle-sensitive-values',
-  'toggle-result-secrets',
-  'copy-mnemonic',
-  'account-descriptor-export',
-  'open-account-export',
-  'account-export-dialog',
-  'close-account-export',
-  'download-public-descriptors',
-  'download-private-descriptors',
-  'copy-watch-only',
-  'download-watch-only',
-  'download-selection',
-  'watch-only-export',
-  'clear-all',
-  'main-recovery-source-menu',
-  'seedqr-panel',
-  'seedqr-create-result',
-  'mnemocode-panel',
-  'mnemocode-source',
-  'encode-mnemocode',
-  'mnemocode-input',
-  'decode-mnemocode',
-  'mnemocode-missing-word-input',
-  'recover-mnemocode-word',
-  'mnemocode-cards-section',
-  'mnemocode-card-template',
-  'export-mnemocode-cards',
-  'mhfe-panel',
-  'mhfe-source',
-  'mhfe-container',
-  'mhfe-encrypt',
-  'mhfe-decrypt',
-  'matcher-seed-lines',
-  'matcher-passphrase-lines',
-  'matcher-address-lines',
-  'results',
-  'result-branch-tabs',
-  'result-receive-tab',
-  'result-change-tab',
-  'branch-result-content',
-  'address-list',
-  'build-version',
-  'build-date',
-  'build-edition',
-  'build-profile',
-  'worker-runtime',
-  'build-fingerprint',
-  'crypto-self-test-status',
-  'crypto-self-test-details',
-  'artifact-checksum-file',
+  "derive-form",
+  "recovery-workspace",
+  "wallet-matcher-panel",
+  "matcher-seeds",
+  "matcher-passphrases",
+  "matcher-addresses",
+  "run-wallet-matcher",
+  "slip39-panel",
+  "slip39-source-mnemonic",
+  "slip39-format",
+  "create-slip39-shares",
+  "slip39-shares",
+  "restore-slip39-shares",
+  "codex32-panel",
+  "codex32-secret-type",
+  "codex32-restore-type",
+  "create-codex32",
+  "restore-codex32",
+  "sskr-panel",
+  "create-sskr",
+  "restore-sskr",
+  "gordian-envelope-panel",
+  "create-envelope",
+  "restore-envelope",
+  "derive-envelope-recipient",
+  "mnemonic",
+  "passphrase",
+  "seed-diagnostic",
+  "seed-diagnostic-title",
+  "generate-12",
+  "generate-15",
+  "generate-18",
+  "generate-21",
+  "generate-24",
+  "coin",
+  "protocol-tabs",
+  "network",
+  "include-change-addresses",
+  "derive-button",
+  "cancel-derivation",
+  "toggle-sensitive-values",
+  "toggle-result-secrets",
+  "copy-mnemonic",
+  "account-descriptor-export",
+  "open-account-export",
+  "account-export-dialog",
+  "close-account-export",
+  "download-public-descriptors",
+  "download-private-descriptors",
+  "copy-watch-only",
+  "download-watch-only",
+  "download-selection",
+  "watch-only-export",
+  "clear-all",
+  "main-recovery-source-menu",
+  "seedqr-panel",
+  "seedqr-create-result",
+  "mnemocode-panel",
+  "mnemocode-source",
+  "encode-mnemocode",
+  "mnemocode-input",
+  "decode-mnemocode",
+  "mnemocode-missing-word-input",
+  "recover-mnemocode-word",
+  "mnemocode-cards-section",
+  "mnemocode-card-template",
+  "export-mnemocode-cards",
+  "mhfe-panel",
+  "mhfe-source",
+  "mhfe-container",
+  "mhfe-encrypt",
+  "mhfe-decrypt",
+  "matcher-seed-lines",
+  "matcher-passphrase-lines",
+  "matcher-address-lines",
+  "results",
+  "result-branch-tabs",
+  "result-receive-tab",
+  "result-change-tab",
+  "branch-result-content",
+  "address-list",
+  "build-version",
+  "build-date",
+  "build-edition",
+  "build-profile",
+  "worker-runtime",
+  "build-fingerprint",
+  "crypto-self-test-status",
+  "crypto-self-test-details",
+  "artifact-checksum-file",
 ];
-if (new Set(requiredIds).size !== requiredIds.length || requiredIds.some((id) => !/^[A-Za-z][\w:.-]*$/u.test(id))) {
-  throw new Error('Key Derivation verifier contains an invalid or duplicate required element id.');
+if (
+  new Set(requiredIds).size !== requiredIds.length ||
+  requiredIds.some((id) => !/^[A-Za-z][\w:.-]*$/u.test(id))
+) {
+  throw new Error("Key Derivation verifier contains an invalid or duplicate required element id.");
 }
 for (const requiredId of requiredIds) {
-  if (!ids.includes(requiredId)) throw new Error(`Standalone artifact is missing required element #${requiredId}.`);
+  if (!ids.includes(requiredId))
+    throw new Error(`Standalone artifact is missing required element #${requiredId}.`);
 }
 if (profile.capabilities.bip85) {
   for (const requiredId of [
-    'include-bip85',
-    'bip85-tab',
-    'bip85-words',
-    'bip85-wallet-toggle-secrets',
-    'bip85-wallet-export-format',
-    'bip85-wallet-account-export-dialog',
-    'bip85-recovery-source-menu',
+    "include-bip85",
+    "bip85-tab",
+    "bip85-words",
+    "bip85-wallet-toggle-secrets",
+    "bip85-wallet-export-format",
+    "bip85-wallet-account-export-dialog",
+    "bip85-recovery-source-menu",
   ]) {
-    if (!ids.includes(requiredId)) throw new Error(`BIP85 workspace is missing required element #${requiredId}.`);
+    if (!ids.includes(requiredId))
+      throw new Error(`BIP85 workspace is missing required element #${requiredId}.`);
   }
   for (const words of [12, 15, 18, 21, 24]) {
     if (!html.includes(`<option>${words}</option>`)) {
@@ -192,160 +213,178 @@ for (const match of html.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
 }
 
 const required = [
-  '<!doctype html>',
+  "<!doctype html>",
   "connect-src 'none'",
-  'worker-src blob:',
+  "worker-src blob:",
   "'wasm-unsafe-eval'",
-  'Wallet Key Derivation Tool',
-  'Recovery seed phrase',
-  'Seed Diagnostic',
-  'BIP32 master fingerprint',
-  'Show phrase',
-  'Show private keys',
-  'Derivation type',
-  'dash-identity',
-  'dash-legacy-mobile',
-  'DIP13',
-  'Official Platform Wallet v4.1.1',
-  'Identity ID',
-  'Also generate change addresses',
-  'Receive addresses',
-  'Change addresses',
-  'Payment QR',
-  'Encoded payload:',
-  'aria-haspopup',
-  'Watch-only export',
-  'Cancel',
-  'Save selected',
-  'Release passport',
-  'Embedded dependency versions and licenses:',
-  'passport-mnemocode-cards-dependency',
-  'Cryptographic self-test running',
-  'Dedicated Web Worker',
-  'wallet-key-derivation',
+  "Wallet Key Derivation Tool",
+  "Recovery seed phrase",
+  "Seed Diagnostic",
+  "BIP32 master fingerprint",
+  "Show phrase",
+  "Show private keys",
+  "Derivation type",
+  "dash-identity",
+  "dash-legacy-mobile",
+  "DIP13",
+  "Official Platform Wallet v4.1.1",
+  "Identity ID",
+  "Also generate change addresses",
+  "Receive addresses",
+  "Change addresses",
+  "Payment QR",
+  "Encoded payload:",
+  "aria-haspopup",
+  "Watch-only export",
+  "Cancel",
+  "Save selected",
+  "Release passport",
+  "Embedded dependency versions and licenses:",
+  "passport-mnemocode-cards-dependency",
+  "Cryptographic self-test running",
+  "Dedicated Web Worker",
+  "wallet-key-derivation",
   'type:"ready"',
-  'The derivation worker stopped unexpectedly.',
-  'Only this visible window is kept in the page DOM.',
-  'Confirm large request',
-  'visibilitychange',
-  'ACCOUNT-SCOPED MATERIAL',
-  'dashified-0.14.1',
+  "The derivation worker stopped unexpectedly.",
+  "Only this visible window is kept in the page DOM.",
+  "Confirm large request",
+  "visibilitychange",
+  "ACCOUNT-SCOPED MATERIAL",
+  "dashified-0.14.1",
 ];
 for (const marker of required) {
-  if (!html.includes(marker)) throw new Error(`Standalone artifact is missing required marker: ${marker}`);
+  if (!html.includes(marker))
+    throw new Error(`Standalone artifact is missing required marker: ${marker}`);
 }
 for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
-  if (!html.includes(marker)) throw new Error(`Standalone artifact is missing profile marker: ${marker}`);
+  if (!html.includes(marker))
+    throw new Error(`Standalone artifact is missing profile marker: ${marker}`);
 }
-if (profile.id === 'dash-community' && !html.includes('Dash master/account extended-key integrity')) {
-  throw new Error('Dash Community artifact is missing its Dash-only extended-key startup vector.');
+if (
+  profile.id === "dash-community" &&
+  !html.includes("Dash master/account extended-key integrity")
+) {
+  throw new Error("Dash Community artifact is missing its Dash-only extended-key startup vector.");
 }
 for (const marker of [
-  'Wallet Matcher / Derivation Discovery',
-  'SeedSigner SeedQR',
+  "Wallet Matcher / Derivation Discovery",
+  "SeedSigner SeedQR",
   `MnemoCode ${vendoredMnemoCodeVersion()}`,
-  'MHFE encrypted BIP39 backup',
-  'MHFE specification',
+  "MHFE encrypted BIP39 backup",
+  "MHFE specification",
   'aria-label="MHFE operation"',
-  'Import QR images',
-  'qr 0.7.0',
-  'CompactSeedQR',
-  'SLIP-39 mnemonic shares',
+  "Import QR images",
+  "qr 0.7.0",
+  "CompactSeedQR",
+  "SLIP-39 mnemonic shares",
   'aria-label="SeedQR operation"',
   'aria-label="SLIP-39 operation"',
   'aria-label="Codex32 operation"',
   'aria-label="SSKR operation"',
   'aria-label="Seed Envelope operation"',
-  'Codex32 · BIP93',
-  'SSKR · Blockchain Commons',
-  'Gordian Seed Envelope',
-  'Mnemonic construction details',
-  'seed-construction-details',
-  'seed-word-table',
-  'entropyBinary',
-  'providedChecksum',
-  'expectedChecksum',
-  'BIP39 index',
-  'Search every supported coin and derivation profile',
-  'SeedQR encode/decode',
-  'SLIP-39 official + encode/decode',
-  'encode/decode',
-  'Codex32 official + entropy encode/decode',
-  'SSKR Compact UR encode/decode',
-  'SSKR Bytewords encode/decode',
-  'Gordian Seed Envelope encrypted entropy/passphrase encode/decode',
+  "Codex32 · BIP93",
+  "SSKR · Blockchain Commons",
+  "Gordian Seed Envelope",
+  "Mnemonic construction details",
+  "seed-construction-details",
+  "seed-word-table",
+  "entropyBinary",
+  "providedChecksum",
+  "expectedChecksum",
+  "BIP39 index",
+  "Search every supported coin and derivation profile",
+  "SeedQR encode/decode",
+  "SLIP-39 official + encode/decode",
+  "encode/decode",
+  "Codex32 official + entropy encode/decode",
+  "SSKR Compact UR encode/decode",
+  "SSKR Bytewords encode/decode",
+  "Gordian Seed Envelope encrypted entropy/passphrase encode/decode",
 ]) {
-  if (!html.includes(marker)) throw new Error(`Standalone artifact is missing recovery workspace marker: ${marker}`);
+  if (!html.includes(marker))
+    throw new Error(`Standalone artifact is missing recovery workspace marker: ${marker}`);
 }
 // One popover per method: eight methods remain in Recover & Back Up.
-if (occurrences(html, '<summary>What is this?</summary>') !== 8) {
-  throw new Error('Every Recover & Back Up method must include one explanatory help popover.');
+if (occurrences(html, "<summary>What is this?</summary>") !== 8) {
+  throw new Error("Every Recover & Back Up method must include one explanatory help popover.");
 }
-if (profile.id === 'dash-community') {
+if (profile.id === "dash-community") {
   for (const marker of [
-    'matcher-targets-multichain',
-    'bitcoin-taproot',
-    'bitcoin-native-segwit',
+    "matcher-targets-multichain",
+    "bitcoin-taproot",
+    "bitcoin-native-segwit",
     "adapterIds:['ethereum']",
   ]) {
     if (html.includes(marker)) {
-      throw new Error(`Dash Community artifact contains excluded multi-chain matcher marker: ${marker}`);
+      throw new Error(
+        `Dash Community artifact contains excluded multi-chain matcher marker: ${marker}`,
+      );
     }
   }
 }
-if (occurrences(html, 'Embedded dependency versions and licenses') !== 1) {
-  throw new Error('Dependency versions must appear exactly once inside the Release passport.');
+if (occurrences(html, "Embedded dependency versions and licenses") !== 1) {
+  throw new Error("Dependency versions must appear exactly once inside the Release passport.");
 }
 if (html.includes('<details class="dependency-info">')) {
-  throw new Error('The obsolete duplicated dependency disclosure remains outside the Release passport.');
+  throw new Error(
+    "The obsolete duplicated dependency disclosure remains outside the Release passport.",
+  );
 }
-if (html.includes('Advanced cryptographic details')) {
-  throw new Error('Advanced result fields are still hidden behind a redundant disclosure control.');
+if (html.includes("Advanced cryptographic details")) {
+  throw new Error("Advanced result fields are still hidden behind a redundant disclosure control.");
 }
-if (ids.includes('toggle-input-secrets')) {
-  throw new Error('Standalone artifact still contains the obsolete duplicate recovery-source reveal control.');
+if (ids.includes("toggle-input-secrets")) {
+  throw new Error(
+    "Standalone artifact still contains the obsolete duplicate recovery-source reveal control.",
+  );
 }
-if (html.includes('To inspect activity on a connected computer, use the separate Wallet_Activity_Viewer.html')) {
-  throw new Error('Standalone artifact still contains the removed repeated Shielded viewer notice.');
+if (
+  html.includes(
+    "To inspect activity on a connected computer, use the separate Wallet_Activity_Viewer.html",
+  )
+) {
+  throw new Error(
+    "Standalone artifact still contains the removed repeated Shielded viewer notice.",
+  );
 }
 
 const forbidden = [
-  [/\bfetch\s*\(/u, 'fetch'],
-  [/\bXMLHttpRequest\b/u, 'XMLHttpRequest'],
-  [/\bWebSocket\b/u, 'WebSocket'],
-  [/\bEventSource\b/u, 'EventSource'],
-  [/\bRTCPeerConnection\b/u, 'WebRTC'],
-  [/\bWebTransport\b/u, 'WebTransport'],
-  [/\bsendBeacon\b/u, 'sendBeacon'],
-  [/\blocalStorage\b/u, 'localStorage'],
-  [/\bsessionStorage\b/u, 'sessionStorage'],
-  [/\bindexedDB\b/u, 'IndexedDB'],
-  [/\bMath\.random\b/u, 'Math.random'],
-  [/\binnerHTML\b/u, 'innerHTML'],
-  [/\bouterHTML\b/u, 'outerHTML'],
-  [/\binsertAdjacentHTML\b/u, 'insertAdjacentHTML'],
-  [/\bdocument\.cookie\b/u, 'cookie access'],
-  [/\beval\s*\(/u, 'JavaScript eval'],
-  [/\bnew\s+Function\b/u, 'Function constructor'],
-  [/\bdata-(?:copy-value|value)\s*=/iu, 'secret-bearing data attribute'],
-  [/sourceMappingURL/u, 'source map reference'],
-  [/https?:\/\//iu, 'HTTP URL'],
-  [/(?:src|href)\s*=\s*["'](?:https?:|\/\/|\.\/|\.\.\/|file:)/iu, 'external or sibling resource'],
+  [/\bfetch\s*\(/u, "fetch"],
+  [/\bXMLHttpRequest\b/u, "XMLHttpRequest"],
+  [/\bWebSocket\b/u, "WebSocket"],
+  [/\bEventSource\b/u, "EventSource"],
+  [/\bRTCPeerConnection\b/u, "WebRTC"],
+  [/\bWebTransport\b/u, "WebTransport"],
+  [/\bsendBeacon\b/u, "sendBeacon"],
+  [/\blocalStorage\b/u, "localStorage"],
+  [/\bsessionStorage\b/u, "sessionStorage"],
+  [/\bindexedDB\b/u, "IndexedDB"],
+  [/\bMath\.random\b/u, "Math.random"],
+  [/\binnerHTML\b/u, "innerHTML"],
+  [/\bouterHTML\b/u, "outerHTML"],
+  [/\binsertAdjacentHTML\b/u, "insertAdjacentHTML"],
+  [/\bdocument\.cookie\b/u, "cookie access"],
+  [/\beval\s*\(/u, "JavaScript eval"],
+  [/\bnew\s+Function\b/u, "Function constructor"],
+  [/\bdata-(?:copy-value|value)\s*=/iu, "secret-bearing data attribute"],
+  [/sourceMappingURL/u, "source map reference"],
+  [/https?:\/\//iu, "HTTP URL"],
+  [/(?:src|href)\s*=\s*["'](?:https?:|\/\/|\.\/|\.\.\/|file:)/iu, "external or sibling resource"],
 ];
 const allowedOpenSourceLinks = [
-  'https://github.com/SeedSigner/seedsigner/tree/dev/docs/seed_qr',
-  'https://github.com/unjs/uqr',
-  'https://github.com/paulmillr/qr',
-  'https://github.com/hobby-eng/mnemocode',
-  'https://github.com/trezor/python-shamir-mnemonic',
-  'https://github.com/BlockchainCommons/bc-sskr-rust',
-  'https://github.com/BlockchainCommons/bc-envelope-rust',
-  'https://github.com/BlockchainCommons/bc-components-rust',
-  'https://github.com/apoelstra/rust-codex32',
-  'https://github.com/hobby-eng/mhfe-spec',
-  'https://github.com/hobby-eng/mhfe',
+  "https://github.com/SeedSigner/seedsigner/tree/dev/docs/seed_qr",
+  "https://github.com/unjs/uqr",
+  "https://github.com/paulmillr/qr",
+  "https://github.com/hobby-eng/mnemocode",
+  "https://github.com/trezor/python-shamir-mnemonic",
+  "https://github.com/BlockchainCommons/bc-sskr-rust",
+  "https://github.com/BlockchainCommons/bc-envelope-rust",
+  "https://github.com/BlockchainCommons/bc-components-rust",
+  "https://github.com/apoelstra/rust-codex32",
+  "https://github.com/hobby-eng/mhfe-spec",
+  "https://github.com/hobby-eng/mhfe",
 ];
-let securityScanSource = html.replaceAll('http://www.w3.org/2000/svg', '');
+let securityScanSource = html.replaceAll("http://www.w3.org/2000/svg", "");
 for (const link of allowedOpenSourceLinks) {
   const marker = `href="${link}"`;
   if (occurrences(securityScanSource, marker) !== 1) {
@@ -354,24 +393,26 @@ for (const link of allowedOpenSourceLinks) {
   securityScanSource = securityScanSource.replace(marker, 'href="#reviewed-open-source-source"');
 }
 for (const [pattern, label] of forbidden) {
-  if (pattern.test(securityScanSource)) throw new Error(`Standalone artifact contains forbidden ${label}.`);
+  if (pattern.test(securityScanSource))
+    throw new Error(`Standalone artifact contains forbidden ${label}.`);
 }
 for (const [label, wasmPath] of wasmPaths) {
-  const expectedWasmBase64 = readFileSync(wasmPath).toString('base64');
+  const expectedWasmBase64 = readFileSync(wasmPath).toString("base64");
   const wasmCopies = occurrences(html, expectedWasmBase64);
-  if (wasmCopies !== 1) throw new Error(`Expected exactly one embedded ${label} WASM module; found ${wasmCopies}.`);
+  if (wasmCopies !== 1)
+    throw new Error(`Expected exactly one embedded ${label} WASM module; found ${wasmCopies}.`);
 }
-const wordlistMarker = 'abandon\nability\nable\nabout\nabove\nabsent';
-const escapedWordlistMarker = 'abandon\\nability\\nable\\nabout\\nabove\\nabsent';
+const wordlistMarker = "abandon\nability\nable\nabout\nabove\nabsent";
+const escapedWordlistMarker = "abandon\\nability\\nable\\nabout\\nabove\\nabsent";
 const wordlistCopies = occurrences(html, wordlistMarker) + occurrences(html, escapedWordlistMarker);
 if (wordlistCopies !== 1)
   throw new Error(`Expected exactly one embedded BIP39 English wordlist; found ${wordlistCopies}.`);
-for (const deceptiveWipe of ['.repeat(mnemonicLength)', '.repeat(passphraseLength)']) {
+for (const deceptiveWipe of [".repeat(mnemonicLength)", ".repeat(passphraseLength)"]) {
   if (html.includes(deceptiveWipe))
-    throw new Error('Artifact contains a misleading JavaScript string-overwrite pattern.');
+    throw new Error("Artifact contains a misleading JavaScript string-overwrite pattern.");
 }
 
-const actual = createHash('sha256').update(html).digest('hex');
-const recorded = readFileSync(checksumPath, 'utf8').trim().split(/\s+/u)[0];
-if (actual !== recorded) throw new Error('Recorded SHA-256 checksum does not match the HTML.');
+const actual = createHash("sha256").update(html).digest("hex");
+const recorded = readFileSync(checksumPath, "utf8").trim().split(/\s+/u)[0];
+if (actual !== recorded) throw new Error("Recorded SHA-256 checksum does not match the HTML.");
 console.log(`Verified standalone offline artifact: ${actual}`);

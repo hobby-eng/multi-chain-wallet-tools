@@ -1,5 +1,5 @@
 /** ID prefix of every control in the derived (BIP85 child) wallet workspace. */
-const CHILD_WALLET_ID_PREFIX = 'bip85-wallet-';
+const CHILD_WALLET_ID_PREFIX = "bip85-wallet-";
 
 /**
  * Silent Payments tab, checkbox and panel. The original wallet uses an empty prefix; the derived child wallet
@@ -48,31 +48,31 @@ function silentPaymentMarkup(idPrefix) {
 
 export function applyProfileTemplate(template, profile, tool) {
   const dashBrandMark =
-    profile.id === 'dash-community'
+    profile.id === "dash-community"
       ? '<span class="dash-header-brand"><span class="dash-header-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle cx="471.5" cy="471.5" r="471"/><path d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span><span>Dash Community Edition</span></span>'
       : '<span class="profile-header-brand">Multi-Chain Wallet Tools</span>';
   const profileBrandMark =
-    profile.id === 'dash-community'
+    profile.id === "dash-community"
       ? '<span class="profile-brand-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle fill="#008de4" cx="471.5" cy="471.5" r="471"/><path fill="#fff" d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path fill="#fff" d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span>'
-      : '';
+      : "";
   const recoveryCoinField =
-    profile.id === 'dash-community'
-      ? ''
+    profile.id === "dash-community"
+      ? ""
       : '<div><label for="recovery-coin">Coin</label><select id="recovery-coin"></select></div>';
   const recoveryPublicKeyPlaceholder =
-    profile.id === 'dash-community'
-      ? 'Paste a public key, account xpub, or Dash Orchard viewing key. One key per line.'
-      : 'Paste a public key, account xpub, descriptor, or Dash Orchard viewing key. One key per line.';
+    profile.id === "dash-community"
+      ? "Paste a public key, account xpub, or Dash Orchard viewing key. One key per line."
+      : "Paste a public key, account xpub, descriptor, or Dash Orchard viewing key. One key per line.";
   const recoveryPublicKeyScope =
-    profile.id === 'dash-community'
-      ? '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any.'
-      : '<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.';
+    profile.id === "dash-community"
+      ? "<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any."
+      : "<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.";
   const activityCoinControl =
-    profile.id === 'dash-community'
-      ? ''
+    profile.id === "dash-community"
+      ? ""
       : '<div class="viewer-coin-field"><label for="viewer-coin">Coin</label><select id="viewer-coin"><option value="bitcoin" selected>Bitcoin</option><option value="ethereum">Ethereum</option><option value="dash">Dash</option></select><p class="field-note">Choose the coin before entering a public lookup.</p></div>';
   const psbtChainOptions =
-    profile.id === 'dash-community'
+    profile.id === "dash-community"
       ? '<option value="dash">Dash Core</option>'
       : '<option value="bitcoin">Bitcoin</option><option value="dash">Dash Core</option>';
   const signerFormatField = profile.capabilities.bitcoinMessageSigning
@@ -84,14 +84,14 @@ export function applyProfileTemplate(template, profile, tool) {
           </select>
           <p class="field-note">BIP-322 is the current general-purpose Bitcoin message-signing standard. Use compact BIP137 only for software that does not support BIP-322.</p>
         </div>`
-    : '';
+    : "";
   const psbtNetworkOptions =
-    profile.id === 'dash-community'
+    profile.id === "dash-community"
       ? '<option value="mainnet">Mainnet</option><option value="testnet">Testnet</option>'
       : '<option value="mainnet">Mainnet</option><option value="testnet">Testnet / Signet</option><option value="regtest">Regtest</option>';
   const silentPayment = profile.capabilities.bitcoinSilentPayments
-    ? silentPaymentMarkup('')
-    : { tab: '', toggle: '', panel: '' };
+    ? silentPaymentMarkup("")
+    : { tab: "", toggle: "", panel: "" };
   const silentPaymentTab = silentPayment.tab;
   const silentPaymentToggle = silentPayment.toggle;
   const silentPaymentPanel = silentPayment.panel;
@@ -100,26 +100,26 @@ export function applyProfileTemplate(template, profile, tool) {
   const childSilentPayment =
     profile.capabilities.bitcoinSilentPayments && profile.capabilities.bip85
       ? silentPaymentMarkup(CHILD_WALLET_ID_PREFIX)
-      : { tab: '', toggle: '', panel: '' };
+      : { tab: "", toggle: "", panel: "" };
   const bip85Tab = !profile.capabilities.bip85
-    ? ''
+    ? ""
     : '<button type="button" id="bip85-tab" class="protocol-tab primary-mode-tab" data-feature-tab="bip85" role="radio" aria-checked="false" aria-controls="bip85-panel" tabindex="-1" hidden><span>Child seeds</span><small>BIP85</small></button>';
   const bip85Toggle = !profile.capabilities.bip85
-    ? ''
+    ? ""
     : `<label class="feature-tab-toggle" for="include-bip85" title="Derive independent child seeds and application secrets from this wallet.">
         <input id="include-bip85" type="checkbox" aria-controls="bip85-tab">
         <span>Show Child seeds · BIP85</span>
       </label>`;
   const bip85Panel = !profile.capabilities.bip85
-    ? ''
+    ? ""
     : `<section class="supplemental-derivation span-three" id="bip85-panel" hidden>
         <div class="supplemental-heading"><span class="step">85</span><h3>Child seeds · BIP85</h3></div>
         <p class="feature-intro">First level: the original mnemonic and its BIP39 passphrase above form the parent seed; BIP85 derives the child mnemonic or secret from it. Changing either parent field or the BIP85 index changes this result.</p>
         <div class="form-grid">
-          <div><label for="bip85-application">Application</label><select id="bip85-application"><option value="bip39">BIP39 mnemonic</option>${profile.id === 'dash-community' ? '<option value="wif">WIF private key · Dash</option>' : '<option value="wif">WIF private key · Bitcoin / Dash</option>'}<option value="xprv">Root XPRV</option><option value="hex">Hex entropy</option></select></div>
+          <div><label for="bip85-application">Application</label><select id="bip85-application"><option value="bip39">BIP39 mnemonic</option>${profile.id === "dash-community" ? '<option value="wif">WIF private key · Dash</option>' : '<option value="wif">WIF private key · Bitcoin / Dash</option>'}<option value="xprv">Root XPRV</option><option value="hex">Hex entropy</option></select></div>
           <div><label for="bip85-index">Index</label><input id="bip85-index" type="number" min="0" max="2147483647" value="0"></div>
           <div id="bip85-words-field"><label for="bip85-words">Mnemonic words</label><select id="bip85-words"><option>12</option><option>15</option><option>18</option><option>21</option><option>24</option></select></div>
-          <div id="bip85-wif-field" hidden><label for="bip85-wif-encoding">WIF encoding</label><select id="bip85-wif-encoding">${profile.id === 'dash-community' ? '<option data-coin="dash" value="204">Dash mainnet · 0xCC</option><option data-coin="dash" value="239">Dash testnet · 0xEF</option>' : '<option data-coin="bitcoin" value="128">Bitcoin mainnet · 0x80</option><option data-coin="bitcoin" value="239">Bitcoin testnet · 0xEF</option><option data-coin="dash" value="204">Dash mainnet · 0xCC</option><option data-coin="dash" value="239">Dash testnet · 0xEF</option>'}</select><p class="field-note">The BIP85 path and 32-byte private key stay the same; this choice changes only the network prefix of the WIF transport string.</p></div>
+          <div id="bip85-wif-field" hidden><label for="bip85-wif-encoding">WIF encoding</label><select id="bip85-wif-encoding">${profile.id === "dash-community" ? '<option data-coin="dash" value="204">Dash mainnet · 0xCC</option><option data-coin="dash" value="239">Dash testnet · 0xEF</option>' : '<option data-coin="bitcoin" value="128">Bitcoin mainnet · 0x80</option><option data-coin="bitcoin" value="239">Bitcoin testnet · 0xEF</option><option data-coin="dash" value="204">Dash mainnet · 0xCC</option><option data-coin="dash" value="239">Dash testnet · 0xEF</option>'}</select><p class="field-note">The BIP85 path and 32-byte private key stay the same; this choice changes only the network prefix of the WIF transport string.</p></div>
           <div id="bip85-bytes-field" hidden><label for="bip85-bytes">Entropy bytes</label><input id="bip85-bytes" type="number" min="16" max="64" value="32"></div>
         </div>
         <div class="actions"><button id="derive-bip85" class="primary" type="button">Derive child secret</button></div>
@@ -141,7 +141,7 @@ export function applyProfileTemplate(template, profile, tool) {
             <div class="form-grid">
               <div class="span-two"><label for="bip85-wallet-coin">Coin</label><select id="bip85-wallet-coin"></select></div>
               <div id="bip85-wallet-network-field" class="nested-standard-content"><label for="bip85-wallet-network">Network</label><select id="bip85-wallet-network"></select></div>
-              <div class="protocol-tabs-field span-three"><label id="bip85-wallet-tabs-label">Derivation type</label><div id="bip85-wallet-tabs" class="protocol-tabs primary-mode-tabs" role="radiogroup" aria-labelledby="bip85-wallet-tabs-label">${childSilentPayment.tab}</div></div>${childSilentPayment.toggle === '' ? '' : `<div class="feature-tab-options span-three">${childSilentPayment.toggle}</div>`}${childSilentPayment.panel}
+              <div class="protocol-tabs-field span-three"><label id="bip85-wallet-tabs-label">Derivation type</label><div id="bip85-wallet-tabs" class="protocol-tabs primary-mode-tabs" role="radiogroup" aria-labelledby="bip85-wallet-tabs-label">${childSilentPayment.tab}</div></div>${childSilentPayment.toggle === "" ? "" : `<div class="feature-tab-options span-three">${childSilentPayment.toggle}</div>`}${childSilentPayment.panel}
               <div id="bip85-wallet-legacy-field" hidden><input id="bip85-wallet-legacy-toggle" type="checkbox" hidden></div>
               <div id="bip85-wallet-account-field" class="nested-standard-content"><label id="bip85-wallet-account-label" for="bip85-wallet-account">Account</label><input id="bip85-wallet-account" type="number" value="0" min="0" max="2147483647"></div>
               <div id="bip85-wallet-branch-field" class="nested-standard-content"><label id="bip85-wallet-branch-label" for="bip85-wallet-branch-input">Branch</label><input id="bip85-wallet-branch-input" type="number" value="0" min="0" max="2147483647"><select id="bip85-wallet-branch-select" hidden></select></div>
@@ -213,59 +213,61 @@ export function applyProfileTemplate(template, profile, tool) {
     ? '<div><span class="capability-check">✓</span><span>Dash Core PSBT v0</span></div>'
     : '<div><span class="capability-check">✓</span><span>Bitcoin PSBT v0 / v2</span></div><div><span class="capability-check">✓</span><span>Dash Core PSBT v0</span></div>';
   const psbtProtocolScope = !profile.capabilities.advancedPsbt
-    ? 'Dash Core BIP-174-compatible PSBT v0 inspection; legacy Script and descriptor decoding; P2SH multisig, hashlock, and CLTV/CSV recovery-policy construction; deterministic watch-only P2SH multisig construction. SegWit, Taproot, Schnorr, and MuSig2 are excluded.'
-    : 'Bitcoin BIP-174/BIP-370/BIP-371/BIP-373 field inspection; Dash Core BIP-174-compatible v0 inspection; Script and descriptor decoding; P2SH/P2WSH multisig, hashlock, Taproot/MuSig2 inspection, and CLTV/CSV recovery-policy construction; deterministic watch-only multisig construction.';
+    ? "Dash Core BIP-174-compatible PSBT v0 inspection; legacy Script and descriptor decoding; P2SH multisig, hashlock, and CLTV/CSV recovery-policy construction; deterministic watch-only P2SH multisig construction. SegWit, Taproot, Schnorr, and MuSig2 are excluded."
+    : "Bitcoin BIP-174/BIP-370/BIP-371/BIP-373 field inspection; Dash Core BIP-174-compatible v0 inspection; Script and descriptor decoding; P2SH/P2WSH multisig, hashlock, Taproot/MuSig2 inspection, and CLTV/CSV recovery-policy construction; deterministic watch-only multisig construction.";
   const psbtDescriptorScope = !profile.capabilities.advancedPsbt
     ? '<p class="field-note"><strong>Dash descriptor coverage:</strong> legacy <code>pk()</code>, <code>pkh()</code>, <code>sh()</code>, <code>multi()</code>, <code>sortedmulti()</code>, <code>addr()</code>, <code>raw()</code>, and supported legacy Miniscript/hashlock/timelock fragments, with BitcoinerLab Miniscript safety analysis. SegWit, Taproot, Schnorr, MuSig2, and their PSBT fields are rejected.</p>'
     : '<p class="field-note"><strong>Bitcoin descriptor coverage:</strong> common wallet descriptors, Taproot/MuSig2, and Miniscript hashlock/timelock trees receive BitcoinerLab Miniscript safety analysis. Arbitrary descriptor address expansion and private-key descriptors remain unsupported.</p>';
   const psbtMusigScope = !profile.capabilities.advancedPsbt
-    ? ''
+    ? ""
     : '<p class="field-note"><strong>MuSig2 scope:</strong> the BIP-390 descriptor spelling is <code>musig(...)</code>, but it represents the modern BIP-327 MuSig2 protocol—not legacy MuSig1. Pinned public-key routines from <code>@scure/btc-signer</code> calculate and cross-check KeySort/KeyAgg, Taproot outputs, and BIP-328 aggregate-key derivation; the PSBT inspector structurally recognizes BIP-373 fields. The dependency package name contains “Signer”, but this utility does not expose transaction signing, secret nonces, or interactive partial-signature rounds.</p>';
   const psbtDependencyScope = !profile.capabilities.advancedPsbt
-    ? 'BitcoinerLab Miniscript 2.0.0, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC.'
-    : 'BitcoinerLab Miniscript 2.0.0, Scure BTC Signer 2.4.1, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC.';
+    ? "BitcoinerLab Miniscript 2.0.0, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC."
+    : "BitcoinerLab Miniscript 2.0.0, Scure BTC Signer 2.4.1, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC.";
   const psbtDecoderIntroduction = !profile.capabilities.advancedPsbt
-    ? 'Inspect raw Dash Script hex or a supported legacy Dash output descriptor/Miniscript.'
-    : 'Inspect raw Script hex or a Bitcoin output descriptor/Miniscript exported by wallets such as Nunchuk.';
+    ? "Inspect raw Dash Script hex or a supported legacy Dash output descriptor/Miniscript."
+    : "Inspect raw Script hex or a Bitcoin output descriptor/Miniscript exported by wallets such as Nunchuk.";
   const activityTrustItems =
-    profile.id === 'dash-community'
-      ? '<span>Proof-verified Platform DAPI</span><span>Local Orchard note recovery</span><span>Public Dash L1 history</span>'
-      : '<span>Validated public inputs</span><span>Bounded provider requests</span><span>Local sensitive-key processing</span>';
+    profile.id === "dash-community"
+      ? "<span>Proof-verified Platform DAPI</span><span>Local Orchard note recovery</span><span>Public Dash L1 history</span>"
+      : "<span>Validated public inputs</span><span>Bounded provider requests</span><span>Local sensitive-key processing</span>";
   const activityCapabilityCard =
-    profile.id === 'dash-community'
+    profile.id === "dash-community"
       ? '<aside class="viewer-capability-card" aria-label="Viewer capabilities"><div class="capability-orbit" aria-hidden="true"><span></span></div><div class="capability-kicker">DASH RESOURCE TYPES</div><h2>Verify with confidence</h2><div class="capability-list"><div><span class="capability-check">✓</span><span>Core address activity</span></div><div><span class="capability-check">✓</span><span>Platform and Identity state</span></div><div><span class="capability-check">✓</span><span>Local Orchard note recovery</span></div><div class="capability-safe"><span>✓</span><span>Read-only by design</span></div></div></aside>'
       : '<aside class="viewer-capability-card" aria-label="Viewer capabilities"><div class="capability-orbit" aria-hidden="true"><span></span></div><div class="capability-kicker">SUPPORTED PUBLIC WORKFLOWS</div><h2>Inspect with confidence</h2><div class="capability-list"><div><span class="capability-check">✓</span><span>Bitcoin address history</span></div><div><span class="capability-check">✓</span><span>Ethereum account activity</span></div><div><span class="capability-check">✓</span><span>Dash Core, Platform, Identity and Orchard</span></div><div class="capability-safe"><span>✓</span><span>Read-only by design</span></div></div></aside>';
   const activityRuntimeDescription =
-    profile.id === 'dash-community'
-      ? 'Dash Core, Platform, Identity and Orchard reads · Orchard processing local · Blob Worker check pending'
-      : 'Selected-coin public reads · local sensitive-key processing where required · Blob Worker check pending';
+    profile.id === "dash-community"
+      ? "Dash Core, Platform, Identity and Orchard reads · Orchard processing local · Blob Worker check pending"
+      : "Selected-coin public reads · local sensitive-key processing where required · Blob Worker check pending";
   const activityFooterProtocols =
-    profile.id === 'dash-community'
-      ? 'Dash Evo SDK 4.1.1 · proof-verified DAPI queries · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer'
-      : 'Bitcoin public history · Ethereum account activity · Dash Evo SDK 4.1.1 · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer';
+    profile.id === "dash-community"
+      ? "Dash Evo SDK 4.1.1 · proof-verified DAPI queries · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer"
+      : "Bitcoin public history · Ethereum account activity · Dash Evo SDK 4.1.1 · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer";
   const psbtScriptPlaceholder = !profile.capabilities.advancedPsbt
-    ? '522102...53ae or sh(sortedmulti(...))#checksum'
-    : '522102...53ae or tr(xpub.../0/*,{multi_a(...)})#checksum';
+    ? "522102...53ae or sh(sortedmulti(...))#checksum"
+    : "522102...53ae or tr(xpub.../0/*,{multi_a(...)})#checksum";
   const psbtPolicyScope = !profile.capabilities.advancedPsbt
     ? '<p class="field-note"><strong>Policy scope:</strong> Dash P2SH policies use legacy Script operations supported by Dash Core. Standard multisig is broadly interoperable; CLTV/CSV/hashlock branches require a separately tested custom signer and recovery procedure.</p>'
     : '<p class="field-note"><strong>Policy scope:</strong> advanced script shapes are Bitcoin-Script style policies. Dash L1 supports standard P2SH multisig and common CLTV/CSV script opcodes, but wallet auto-signing/recovery support is not guaranteed for custom branches. Hashlock/preimage scripts are contract-style policies, not normal multisig wallet recovery; OP_RETURN outputs are not spendable wallet outputs.</p>';
   const psbtNunchukScope = !profile.capabilities.advancedPsbt
-    ? ''
+    ? ""
     : '<p class="field-note"><strong>Nunchuk-style templates:</strong> HODL/Zen HODL maps to M-of-N after a lock. Named presets cover common flexible, decaying, expanding, and staged recovery shapes. Use Custom Bitcoin Miniscript for another exact policy tree, then independently confirm wallet-specific descriptor and signing support before funding.</p>';
   const psbtCustomMiniscriptOption = !profile.capabilities.advancedPsbt
-    ? ''
+    ? ""
     : '<option value="custom-miniscript">Custom Bitcoin Miniscript · P2WSH or Tapscript</option>';
-  const psbtVerifyAddressPlaceholder = !profile.capabilities.advancedPsbt ? 'Dash address' : 'Bitcoin or Dash address';
+  const psbtVerifyAddressPlaceholder = !profile.capabilities.advancedPsbt
+    ? "Dash address"
+    : "Bitcoin or Dash address";
   const psbtVerifySignaturePlaceholder = !profile.capabilities.advancedPsbt
-    ? 'Base64 Dash Core compact signature'
-    : 'Base64 signature, prefixed with smp, ful, or pof when applicable';
+    ? "Base64 Dash Core compact signature"
+    : "Base64 signature, prefixed with smp, ful, or pof when applicable";
   const psbtMessageVerifyScope = !profile.capabilities.advancedPsbt
-    ? '<strong>Dash:</strong> Dash Core compact P2PKH signatures are checked with the protocol-compatible Dash signed-message domain.'
-    : '<strong>Bitcoin:</strong> BIP-322 legacy, simple, full, and proof-of-funds formats are checked by the pinned btcutil verifier and Bitcoin Script engine. Unprefixed pre-finalization simple signatures remain accepted for compatibility. <strong>Dash:</strong> Dash Core compact P2PKH signatures are checked with the protocol-compatible Dash signed-message domain.';
+    ? "<strong>Dash:</strong> Dash Core compact P2PKH signatures are checked with the protocol-compatible Dash signed-message domain."
+    : "<strong>Bitcoin:</strong> BIP-322 legacy, simple, full, and proof-of-funds formats are checked by the pinned btcutil verifier and Bitcoin Script engine. Unprefixed pre-finalization simple signatures remain accepted for compatibility. <strong>Dash:</strong> Dash Core compact P2PKH signatures are checked with the protocol-compatible Dash signed-message domain.";
   const psbtFooterProtocols = !profile.capabilities.advancedPsbt
-    ? 'Dash Core PSBT v0 · P2SH · multisig · hashlocks · CLTV/CSV'
-    : 'BIP-174 · BIP-370 · BIP-371 · BIP-373 · Dash Core PSBT · P2SH/P2WSH · Taproot · MuSig2 · CLTV/CSV';
-  const psbtChainScope = profile.capabilities.advancedPsbt ? ' · BITCOIN &amp; DASH' : '';
+    ? "Dash Core PSBT v0 · P2SH · multisig · hashlocks · CLTV/CSV"
+    : "BIP-174 · BIP-370 · BIP-371 · BIP-373 · Dash Core PSBT · P2SH/P2WSH · Taproot · MuSig2 · CLTV/CSV";
+  const psbtChainScope = profile.capabilities.advancedPsbt ? " · BITCOIN &amp; DASH" : "";
   const replacements = {
     __DOCUMENT_TITLE__: tool.documentTitle,
     __EDITION_NAME__: profile.editionName,
@@ -319,6 +321,7 @@ export function applyProfileTemplate(template, profile, tool) {
   const remaining = rendered.match(
     /__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_[A-Z_]+|TOOL_INTRODUCTION|PSBT_[A-Z_]+)__/gu,
   );
-  if (remaining !== null) throw new Error(`Unexpanded build-profile marker: ${remaining.join(', ')}`);
+  if (remaining !== null)
+    throw new Error(`Unexpanded build-profile marker: ${remaining.join(", ")}`);
   return rendered;
 }

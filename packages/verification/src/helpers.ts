@@ -1,4 +1,4 @@
-import type { DerivationResult, ResultField } from '@ckd/core/types.js';
+import type { DerivationResult, ResultField } from "@ckd/core/types.js";
 
 export function resultValue(result: DerivationResult, key: string): string {
   const fields: ResultField[] = [
@@ -16,5 +16,5 @@ export function expectEqual(check: string, actual: string, expected: string): vo
 }
 
 export function now(): number {
-  return typeof performance === 'undefined' ? Date.now() : performance.now();
+  return typeof performance === "undefined" ? Date.now() : performance.now();
 }

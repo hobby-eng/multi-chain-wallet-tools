@@ -1,4 +1,7 @@
-import { bootstrapIsolatedBoundary, type IsolatedBoundaryBootstrap } from '@ckd/network-boundary/iframe-bootstrap.js';
+import {
+  bootstrapIsolatedBoundary,
+  type IsolatedBoundaryBootstrap,
+} from "@ckd/network-boundary/iframe-bootstrap.js";
 
 type VaultBootstrap = IsolatedBoundaryBootstrap;
 

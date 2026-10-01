@@ -1,4 +1,4 @@
-import type { MessageSigningFormat } from '../workers/protocol.js';
+import type { MessageSigningFormat } from "../workers/protocol.js";
 
 export interface MessageSigningPolicy {
   format(resultId: string): MessageSigningFormat | null;
@@ -6,7 +6,9 @@ export interface MessageSigningPolicy {
   allowsLegacyChoice(resultId: string): boolean;
 }
 
-export function combineMessageSigningPolicies(...policies: readonly MessageSigningPolicy[]): MessageSigningPolicy {
+export function combineMessageSigningPolicies(
+  ...policies: readonly MessageSigningPolicy[]
+): MessageSigningPolicy {
   return {
     format(resultId) {
       for (const policy of policies) {
@@ -16,7 +18,7 @@ export function combineMessageSigningPolicies(...policies: readonly MessageSigni
       return null;
     },
     label(format) {
-      const owner = policies.find((policy) => policy.label(format) !== '');
+      const owner = policies.find((policy) => policy.label(format) !== "");
       if (owner === undefined) throw new Error(`Unsupported message-signing format: ${format}.`);
       return owner.label(format);
     },

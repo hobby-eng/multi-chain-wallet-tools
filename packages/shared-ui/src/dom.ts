@@ -1,7 +1,7 @@
 export function requireQueryElement<T extends Element>(
   document: Document,
   selector: string,
-  context = 'Application template',
+  context = "Application template",
 ): T {
   const element = document.querySelector<T>(selector);
   if (element === null) throw new Error(`${context} is missing ${selector}.`);
@@ -11,7 +11,7 @@ export function requireQueryElement<T extends Element>(
 export function requireIdElement<T extends HTMLElement>(
   document: Document,
   id: string,
-  context = 'Application template',
+  context = "Application template",
 ): T {
   const element = document.getElementById(id);
   if (element === null) throw new Error(`${context} is missing #${id}.`);
@@ -27,8 +27,10 @@ export function installSynchronizedNumberedInputs(
     synchronizing = true;
     try {
       for (const { textarea, gutter } of inputs) {
-        const count = Math.max(1, textarea.value.replaceAll('\r', '').split('\n').length);
-        gutter.textContent = Array.from({ length: count }, (_, index) => String(index + 1)).join('\n');
+        const count = Math.max(1, textarea.value.replaceAll("\r", "").split("\n").length);
+        gutter.textContent = Array.from({ length: count }, (_, index) => String(index + 1)).join(
+          "\n",
+        );
         if (source !== undefined && textarea !== source) textarea.scrollTop = source.scrollTop;
         gutter.scrollTop = textarea.scrollTop;
       }
@@ -37,8 +39,8 @@ export function installSynchronizedNumberedInputs(
     }
   };
   for (const { textarea } of inputs) {
-    textarea.addEventListener('input', () => update());
-    textarea.addEventListener('scroll', () => update(textarea));
+    textarea.addEventListener("input", () => update());
+    textarea.addEventListener("scroll", () => update(textarea));
   }
   update();
 }

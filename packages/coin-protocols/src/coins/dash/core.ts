@@ -1,14 +1,25 @@
-import { assertBatch, assertIndex, requirePrivate, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
-import { bytesToHex, encodeP2pkh, encodeWif, hash160, wipe } from '@ckd/core/crypto.js';
-import { getDashNetwork } from '@ckd/core/networks.js';
-import { field, paymentAddressField, type Bip32BatchOptions, type DerivationResult } from '@ckd/core/types.js';
-import { accountDescriptorExport } from '../../account-descriptors.js';
-import { bip32SummaryFields } from '../../bip32-summary.js';
+import {
+  assertBatch,
+  assertIndex,
+  requirePrivate,
+  requirePublic,
+  rootFromSeed,
+} from "@ckd/core/bip32.js";
+import { bytesToHex, encodeP2pkh, encodeWif, hash160, wipe } from "@ckd/core/crypto.js";
+import { getDashNetwork } from "@ckd/core/networks.js";
+import {
+  field,
+  paymentAddressField,
+  type Bip32BatchOptions,
+  type DerivationResult,
+} from "@ckd/core/types.js";
+import { accountDescriptorExport } from "../../account-descriptors.js";
+import { bip32SummaryFields } from "../../bip32-summary.js";
 
 export function deriveDashCore(options: Bip32BatchOptions): DerivationResult {
   const network = getDashNetwork(options.network);
-  assertIndex(options.account, 'Account');
-  assertIndex(options.branch, 'Branch', 1);
+  assertIndex(options.account, "Account");
+  assertIndex(options.branch, "Branch", 1);
   assertBatch(options.start, options.count);
 
   const root = rootFromSeed(options.seed, network.versions);
@@ -34,17 +45,17 @@ export function deriveDashCore(options: Bip32BatchOptions): DerivationResult {
         path,
         title: `Address #${index}`,
         basic: [
-          paymentAddressField('address', 'Dash Core address', address, 'dash'),
-          field('publicKey', 'Compressed public key', bytesToHex(publicKey)),
-          field('privateKey', 'Private key (WIF)', encodeWif(privateKey, network.wif), true),
+          paymentAddressField("address", "Dash Core address", address, "dash"),
+          field("publicKey", "Compressed public key", bytesToHex(publicKey)),
+          field("privateKey", "Private key (WIF)", encodeWif(privateKey, network.wif), true),
         ],
         advanced: [
-          field('path', 'Derivation path', path),
-          field('privateKeyHex', 'Private key (hex)', bytesToHex(privateKey), true),
-          field('publicKeyHash', 'HASH160(public key)', bytesToHex(publicKeyHash)),
-          field('scriptPubKey', 'scriptPubKey', `76a914${bytesToHex(publicKeyHash)}88ac`),
-          field('childXprv', 'Child xprv', child.privateExtendedKey, true),
-          field('childXpub', 'Child xpub', child.publicExtendedKey),
+          field("path", "Derivation path", path),
+          field("privateKeyHex", "Private key (hex)", bytesToHex(privateKey), true),
+          field("publicKeyHash", "HASH160(public key)", bytesToHex(publicKeyHash)),
+          field("scriptPubKey", "scriptPubKey", `76a914${bytesToHex(publicKeyHash)}88ac`),
+          field("childXprv", "Child xprv", child.privateExtendedKey, true),
+          field("childXpub", "Child xpub", child.publicExtendedKey),
         ],
       });
       wipe(privateKey, publicKey, publicKeyHash);
@@ -52,20 +63,20 @@ export function deriveDashCore(options: Bip32BatchOptions): DerivationResult {
     }
 
     return {
-      id: 'dash-core',
-      title: 'Dash Core (BIP44 / P2PKH)',
+      id: "dash-core",
+      title: "Dash Core (BIP44 / P2PKH)",
       networkLabel: network.label,
       pathTemplate: `${branchPath}/i`,
       basicSummary: [],
       summary,
       accountDescriptors: accountDescriptorExport({
-        script: 'pkh',
+        script: "pkh",
         fingerprint: masterFingerprint,
         accountPath,
         publicKey: account.publicExtendedKey,
         privateKey: account.privateExtendedKey,
         fileStem: `dash-core-${options.network}-account-${options.account}`,
-        scannerPrefix: 'dash-core-xpub',
+        scannerPrefix: "dash-core-xpub",
       }),
       rows,
       notices: [],

@@ -1,4 +1,4 @@
-import { bytesToHex } from '@ckd/core/crypto.js';
+import { bytesToHex } from "@ckd/core/crypto.js";
 
 const MAX_COLLECTION_SIZE = 10_000;
 const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
@@ -25,7 +25,7 @@ export class Reader {
 
   read(length: number): Uint8Array {
     if (!Number.isSafeInteger(length) || length < 0 || length > this.remaining) {
-      throw new Error('Unexpected end of PSBT data.');
+      throw new Error("Unexpected end of PSBT data.");
     }
     const result = this.bytes.slice(this.offset, this.offset + length);
     this.offset += length;
@@ -43,7 +43,13 @@ export class Reader {
 
   u32(): number {
     const value = this.read(4);
-    return ((value[0] ?? 0) | ((value[1] ?? 0) << 8) | ((value[2] ?? 0) << 16) | ((value[3] ?? 0) << 24)) >>> 0;
+    return (
+      ((value[0] ?? 0) |
+        ((value[1] ?? 0) << 8) |
+        ((value[2] ?? 0) << 16) |
+        ((value[3] ?? 0) << 24)) >>>
+      0
+    );
   }
 
   u64(): bigint {
@@ -58,22 +64,23 @@ export class Reader {
     if (prefix < 0xfd) return BigInt(prefix);
     if (prefix === 0xfd) {
       const value = BigInt(this.u16());
-      if (value < 0xfdn) throw new Error('Non-minimal CompactSize integer.');
+      if (value < 0xfdn) throw new Error("Non-minimal CompactSize integer.");
       return value;
     }
     if (prefix === 0xfe) {
       const value = BigInt(this.u32());
-      if (value <= 0xffffn) throw new Error('Non-minimal CompactSize integer.');
+      if (value <= 0xffffn) throw new Error("Non-minimal CompactSize integer.");
       return value;
     }
     const value = this.u64();
-    if (value <= 0xffffffffn) throw new Error('Non-minimal CompactSize integer.');
+    if (value <= 0xffffffffn) throw new Error("Non-minimal CompactSize integer.");
     return value;
   }
 
   compactNumber(label: string, maximum = MAX_COLLECTION_SIZE): number {
     const value = this.compact();
-    if (value > MAX_SAFE_BIGINT || value > BigInt(maximum)) throw new Error(`${label} is unreasonably large.`);
+    if (value > MAX_SAFE_BIGINT || value > BigInt(maximum))
+      throw new Error(`${label} is unreasonably large.`);
     return Number(value);
   }
 
@@ -87,10 +94,11 @@ export function reverseHex(bytes: Uint8Array): string {
 }
 
 export function decodeText(value: string): Uint8Array {
-  const normalized = value.trim().replaceAll(/\s+/gu, '');
-  if (normalized.length === 0) throw new Error('Paste a PSBT as Base64 or hexadecimal bytes.');
+  const normalized = value.trim().replaceAll(/\s+/gu, "");
+  if (normalized.length === 0) throw new Error("Paste a PSBT as Base64 or hexadecimal bytes.");
   if (/^[0-9a-f]+$/iu.test(normalized) && normalized.length % 2 === 0) {
-    if (normalized.length / 2 > MAX_PSBT_BYTES) throw new Error('PSBT input exceeds the 16 MiB decoded size ceiling.');
+    if (normalized.length / 2 > MAX_PSBT_BYTES)
+      throw new Error("PSBT input exceeds the 16 MiB decoded size ceiling.");
     const bytes = new Uint8Array(normalized.length / 2);
     for (let index = 0; index < bytes.length; index += 1)
       bytes[index] = Number.parseInt(normalized.slice(index * 2, index * 2 + 2), 16);
@@ -98,14 +106,15 @@ export function decodeText(value: string): Uint8Array {
   }
   try {
     if (normalized.length > 4 * Math.ceil(MAX_PSBT_BYTES / 3)) {
-      throw new Error('PSBT input exceeds the 16 MiB decoded size ceiling.');
+      throw new Error("PSBT input exceeds the 16 MiB decoded size ceiling.");
     }
     const decoded = atob(normalized);
-    if (decoded.length > MAX_PSBT_BYTES) throw new Error('PSBT input exceeds the 16 MiB decoded size ceiling.');
+    if (decoded.length > MAX_PSBT_BYTES)
+      throw new Error("PSBT input exceeds the 16 MiB decoded size ceiling.");
     return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
   } catch (cause) {
-    if (cause instanceof Error && cause.message.includes('16 MiB')) throw cause;
-    throw new Error('The input is neither valid Base64 nor hexadecimal data.');
+    if (cause instanceof Error && cause.message.includes("16 MiB")) throw cause;
+    throw new Error("The input is neither valid Base64 nor hexadecimal data.");
   }
 }
 
@@ -119,15 +128,15 @@ export function readMap(reader: Reader): PsbtPair[] {
   const pairs: PsbtPair[] = [];
   const keys = new Set<string>();
   while (true) {
-    const keyLength = reader.compactNumber('PSBT key length', reader.remaining);
+    const keyLength = reader.compactNumber("PSBT key length", reader.remaining);
     if (keyLength === 0) return pairs;
     const rawKey = reader.read(keyLength);
     const keyHex = bytesToHex(rawKey);
     if (keys.has(keyHex)) throw new Error(`Duplicate PSBT key ${keyHex}.`);
     keys.add(keyHex);
     const { type, keyData } = decodeType(rawKey);
-    const value = reader.varBytes('PSBT value length', reader.remaining);
-    if (pairs.length >= MAX_COLLECTION_SIZE) throw new Error('Too many PSBT map entries.');
+    const value = reader.varBytes("PSBT value length", reader.remaining);
+    if (pairs.length >= MAX_COLLECTION_SIZE) throw new Error("Too many PSBT map entries.");
     pairs.push({ type, keyData, value });
   }
 }

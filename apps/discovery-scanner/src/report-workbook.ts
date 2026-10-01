@@ -1,16 +1,16 @@
-import writeExcelFile, { type SheetData } from 'write-excel-file/universal';
-import type { RecoveryExportEnvelope } from './types.js';
+import writeExcelFile, { type SheetData } from "write-excel-file/universal";
+import type { RecoveryExportEnvelope } from "./types.js";
 
 /** Only the public JSON report that passed the vault's export tripwire enters this converter. */
 export function recoveryWorkbookRows(text: string): { summary: string[][]; resources: string[][] } {
   const report = JSON.parse(text) as RecoveryExportEnvelope;
   if (
-    report.format !== 'wallet-discovery-report' ||
+    report.format !== "wallet-discovery-report" ||
     report.version !== 1 ||
     report.containsSecrets !== false ||
     !Array.isArray(report.results)
   )
-    throw new Error('Unsupported public recovery report.');
+    throw new Error("Unsupported public recovery report.");
   const fields = [
     ...new Set(
       report.results.flatMap((result) =>
@@ -20,26 +20,28 @@ export function recoveryWorkbookRows(text: string): { summary: string[][]; resou
       ),
     ),
   ];
-  const summary = [['source', 'coin', 'network', 'section', 'status', 'scanned', 'provider', 'proof', 'warnings']];
+  const summary = [
+    ["source", "coin", "network", "section", "status", "scanned", "provider", "proof", "warnings"],
+  ];
   const resources = [
     [
-      'source',
-      'coin',
-      'network',
-      'section',
-      'resource',
-      'balance_atomic',
-      'balance',
-      'asset',
-      'atomic_unit',
-      'decimals',
-      'history_status',
-      'transactions',
-      'received_atomic',
-      'sent_atomic',
-      'fees_atomic',
-      'first_seen',
-      'last_seen',
+      "source",
+      "coin",
+      "network",
+      "section",
+      "resource",
+      "balance_atomic",
+      "balance",
+      "asset",
+      "atomic_unit",
+      "decimals",
+      "history_status",
+      "transactions",
+      "received_atomic",
+      "sent_atomic",
+      "fees_atomic",
+      "first_seen",
+      "last_seen",
       ...fields,
     ],
   ];
@@ -54,7 +56,7 @@ export function recoveryWorkbookRows(text: string): { summary: string[][]; resou
         section.scanned,
         section.source,
         section.proof,
-        [...result.warnings, section.warning ?? ''].filter(Boolean).join(' | '),
+        [...result.warnings, section.warning ?? ""].filter(Boolean).join(" | "),
       ]);
       for (const finding of section.findings) {
         const history = finding.history;
@@ -64,19 +66,21 @@ export function recoveryWorkbookRows(text: string): { summary: string[][]; resou
           result.network,
           section.title,
           finding.title,
-          finding.balanceAtomic ?? '',
+          finding.balanceAtomic ?? "",
           finding.balanceLabel,
-          finding.balanceUnit?.asset ?? '',
-          finding.balanceUnit?.atomicUnit ?? '',
-          finding.balanceUnit?.decimals?.toString() ?? '',
-          history?.status ?? '',
-          history?.transactionCount?.toString() ?? '',
-          history?.totalReceivedAtomic ?? '',
-          history?.totalSentAtomic ?? '',
-          history?.totalFeesAtomic ?? '',
-          history?.firstSeen ?? '',
-          history?.lastSeen ?? '',
-          ...fields.map((label) => finding.fields.find((field) => field.label === label)?.value ?? ''),
+          finding.balanceUnit?.asset ?? "",
+          finding.balanceUnit?.atomicUnit ?? "",
+          finding.balanceUnit?.decimals?.toString() ?? "",
+          history?.status ?? "",
+          history?.transactionCount?.toString() ?? "",
+          history?.totalReceivedAtomic ?? "",
+          history?.totalSentAtomic ?? "",
+          history?.totalFeesAtomic ?? "",
+          history?.firstSeen ?? "",
+          history?.lastSeen ?? "",
+          ...fields.map(
+            (label) => finding.fields.find((field) => field.label === label)?.value ?? "",
+          ),
         ]);
       }
     }
@@ -88,13 +92,17 @@ export async function createRecoveryWorkbook(text: string): Promise<Blob> {
   const rows = recoveryWorkbookRows(text);
   const data = (rows: string[][]): SheetData =>
     rows.map((row, index) =>
-      row.map((value) => ({ value, type: String, ...(index === 0 ? { fontWeight: 'bold' as const } : {}) })),
+      row.map((value) => ({
+        value,
+        type: String,
+        ...(index === 0 ? { fontWeight: "bold" as const } : {}),
+      })),
     );
   return writeExcelFile(
     [
-      { sheet: 'Summary', data: data(rows.summary), stickyRowsCount: 1 },
-      { sheet: 'Resources', data: data(rows.resources), stickyRowsCount: 1 },
+      { sheet: "Summary", data: data(rows.summary), stickyRowsCount: 1 },
+      { sheet: "Resources", data: data(rows.resources), stickyRowsCount: 1 },
     ],
-    { fontFamily: 'Arial', fontSize: 10 },
+    { fontFamily: "Arial", fontSize: 10 },
   ).toBlob();
 }

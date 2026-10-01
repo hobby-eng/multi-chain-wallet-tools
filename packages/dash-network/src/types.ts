@@ -1,5 +1,5 @@
-export type ViewerNetwork = 'mainnet' | 'testnet';
-export type ViewerKeyKind = 'full' | 'incoming' | 'outgoing';
+export type ViewerNetwork = "mainnet" | "testnet";
+export type ViewerKeyKind = "full" | "incoming" | "outgoing";
 
 export interface ShieldedEncryptedNote {
   cmx: Uint8Array;
@@ -38,7 +38,7 @@ export interface ScannedMatch {
   outgoing?: DecryptedNoteView;
 }
 
-type ActivityDirection = 'received' | 'sent' | 'self';
+type ActivityDirection = "received" | "sent" | "self";
 
 export interface ShieldedActivity {
   position: bigint;

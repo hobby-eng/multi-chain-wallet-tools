@@ -8,21 +8,21 @@ import type {
   RecoveryNetworkApi,
   ShieldedPageView,
   UtxoAddressView,
-} from '@ckd/network-boundary/protocol.js';
-import { DashCoreNetworkService } from './dash-core-network.js';
+} from "@ckd/network-boundary/protocol.js";
+import { DashCoreNetworkService } from "./dash-core-network.js";
 import {
   DashPlatformNetworkService,
   PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS,
   PLATFORM_IDENTITY_HISTORY_TIMEOUT_MS,
-} from './dash-platform-network.js';
+} from "./dash-platform-network.js";
 
-export { fetchRecoveryJson as fetchJson } from './recovery-http.js';
+export { fetchRecoveryJson as fetchJson } from "./recovery-http.js";
 export {
   platformDecimal as decimal,
   platformRecord as record,
   platformUnsignedInteger as unsignedInteger,
-} from './platform-explorer-values.js';
-export { assertNetwork } from './network-validation.js';
+} from "./platform-explorer-values.js";
+export { assertNetwork } from "./network-validation.js";
 export { PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS, PLATFORM_IDENTITY_HISTORY_TIMEOUT_MS };
 
 export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
@@ -31,7 +31,7 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
 
   async ping(signal?: AbortSignal): Promise<string> {
     signal?.throwIfAborted();
-    return 'isolated-network-worker-v1';
+    return "isolated-network-worker-v1";
   }
 
   coreStatus(network: RecoveryNetwork, signal?: AbortSignal): Promise<unknown> {
@@ -40,23 +40,35 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
   coreTip(network: RecoveryNetwork, signal?: AbortSignal): Promise<unknown> {
     return this.#core.coreTip(network, signal);
   }
-  coreAddressInfo(network: RecoveryNetwork, addresses: string[], signal?: AbortSignal): Promise<unknown> {
+  coreAddressInfo(
+    network: RecoveryNetwork,
+    addresses: string[],
+    signal?: AbortSignal,
+  ): Promise<unknown> {
     return this.#core.coreAddressInfo(network, addresses, signal);
   }
-  coreAddressHistory(network: RecoveryNetwork, address: string, signal?: AbortSignal): Promise<unknown> {
+  coreAddressHistory(
+    network: RecoveryNetwork,
+    address: string,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
     return this.#core.coreAddressHistory(network, address, signal);
   }
-  coreTransaction(network: RecoveryNetwork, hash: string, signal?: AbortSignal): Promise<DashCoreTransactionView> {
+  coreTransaction(
+    network: RecoveryNetwork,
+    hash: string,
+    signal?: AbortSignal,
+  ): Promise<DashCoreTransactionView> {
     return this.#core.coreTransaction(network, hash, signal);
   }
 
   async addressHistory(
-    _coin: 'bitcoin' | 'ethereum',
+    _coin: "bitcoin" | "ethereum",
     _network: RecoveryNetwork,
     _address: string,
     _signal?: AbortSignal,
-  ): Promise<import('./types.js').RecoveryHistory> {
-    throw new Error('This build rejected an unsupported network operation.');
+  ): Promise<import("./types.js").RecoveryHistory> {
+    throw new Error("This build rejected an unsupported network operation.");
   }
 
   async utxoAddresses(
@@ -64,7 +76,7 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     _addresses: string[],
     _signal?: AbortSignal,
   ): Promise<UtxoAddressView[]> {
-    throw new Error('This build rejected an unsupported network operation.');
+    throw new Error("This build rejected an unsupported network operation.");
   }
 
   async evmAccounts(
@@ -72,7 +84,7 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
     _addresses: string[],
     _signal?: AbortSignal,
   ): Promise<EvmAccountBatchView> {
-    throw new Error('This build rejected an unsupported network operation.');
+    throw new Error("This build rejected an unsupported network operation.");
   }
 
   platformAddresses(

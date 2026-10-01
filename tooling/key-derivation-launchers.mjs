@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
-import { getToolBuild } from './build-profiles.mjs';
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
+import { getToolBuild } from "./build-profiles.mjs";
 
 // The executable version of the Key Derivation Tool (apps/key-derivation/launcher) carries the
 // tool's page inside it. Each one is built next to the page it embeds, in dist/, and named after it:
@@ -9,29 +9,36 @@ import { getToolBuild } from './build-profiles.mjs';
 
 /** Every platform a launcher is built for, with its Rust target. */
 export const LAUNCHER_PLATFORMS = Object.freeze({
-  'linux-x86_64': { target: 'x86_64-unknown-linux-gnu', extension: '' },
-  'linux-aarch64': { target: 'aarch64-unknown-linux-gnu', extension: '' },
-  'windows-x86_64': { target: 'x86_64-pc-windows-gnu', extension: '.exe' },
+  "linux-x86_64": { target: "x86_64-unknown-linux-gnu", extension: "" },
+  "linux-aarch64": { target: "aarch64-unknown-linux-gnu", extension: "" },
+  "windows-x86_64": { target: "x86_64-pc-windows-gnu", extension: ".exe" },
   // Built on a macOS runner by the release workflow: Apple's SDK is not in the Linux container.
-  'macos-aarch64': { target: 'aarch64-apple-darwin', extension: '' },
-  'macos-x86_64': { target: 'x86_64-apple-darwin', extension: '' },
+  "macos-aarch64": { target: "aarch64-apple-darwin", extension: "" },
+  "macos-x86_64": { target: "x86_64-apple-darwin", extension: "" },
 });
 
 /** The platforms Dockerfile.launchers builds. */
-export const CONTAINER_PLATFORMS = Object.freeze(['linux-x86_64', 'linux-aarch64', 'windows-x86_64']);
+export const CONTAINER_PLATFORMS = Object.freeze([
+  "linux-x86_64",
+  "linux-aarch64",
+  "windows-x86_64",
+]);
 
 /** The file name of the launcher for `platform` that embeds the page `pageName`. */
 export function launcherName(pageName, platform) {
   const entry = LAUNCHER_PLATFORMS[platform];
   if (entry === undefined) throw new Error(`Unknown launcher platform: ${platform}.`);
-  return `${pageName.replace(/\.html$/u, '')}-${platform}${entry.extension}`;
+  return `${pageName.replace(/\.html$/u, "")}-${platform}${entry.extension}`;
 }
 
 /** The deriver page of `profile` in dist/, and the launchers for it that exist next to it. */
 export function findLaunchers(dist, profile) {
-  const page = resolve(dist, getToolBuild(profile, 'key-derivation').artifactRelativePath);
+  const page = resolve(dist, getToolBuild(profile, "key-derivation").artifactRelativePath);
   const launchers = Object.keys(LAUNCHER_PLATFORMS)
-    .map((platform) => ({ platform, path: resolve(page, '..', launcherName(basename(page), platform)) }))
+    .map((platform) => ({
+      platform,
+      path: resolve(page, "..", launcherName(basename(page), platform)),
+    }))
     .filter(({ path }) => existsSync(path));
   return { page, launchers };
 }
@@ -41,13 +48,19 @@ export function findLaunchers(dist, profile) {
  * again when it starts. A launcher left over from an older build of the page fails here.
  */
 export function assertLauncherEmbedsPage(launcherBytes, pageBytes, label) {
-  const digest = createHash('sha256').update(pageBytes).digest('hex');
+  const digest = createHash("sha256").update(pageBytes).digest("hex");
   if (launcherBytes.indexOf(pageBytes) < 0 || launcherBytes.indexOf(Buffer.from(digest)) < 0) {
-    throw new Error(`${label} does not embed the current page (SHA-256 ${digest}); build the launchers again.`);
+    throw new Error(
+      `${label} does not embed the current page (SHA-256 ${digest}); build the launchers again.`,
+    );
   }
 }
 
 /** Reads both files and applies assertLauncherEmbedsPage. */
 export function assertLauncherFileEmbedsPage(launcherPath, pagePath) {
-  assertLauncherEmbedsPage(readFileSync(launcherPath), readFileSync(pagePath), basename(launcherPath));
+  assertLauncherEmbedsPage(
+    readFileSync(launcherPath),
+    readFileSync(pagePath),
+    basename(launcherPath),
+  );
 }

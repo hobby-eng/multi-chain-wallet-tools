@@ -25,14 +25,14 @@
 // skipped when its element is inside an element that an entry's selector matches. The exit status
 // is 1 when anything else is found. --self-test checks the checks themselves on a small page with
 // known defects and known correct parts.
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { BUILD_PROFILES, getToolBuild, profileToolIds } from './build-profiles.mjs';
-import { loadPlaywright } from './playwright-loader.mjs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
+import { loadPlaywright } from "./playwright-loader.mjs";
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const PHONE_WIDTH = 390;
 /** Between the 880px and 720px breakpoints of the shared style, where the layout changes again. */
 const TABLET_WIDTH = 768;
@@ -42,14 +42,14 @@ const TAB_DEPTH = 2;
 /** Time for a page to settle after a click; the tools render synchronously or within a frame. */
 const SETTLE_MS = 150;
 const TAB_SELECTOR = [
-  '[role=tab]',
-  '[data-recovery-tab]',
-  '[data-operation-tab]',
-  '.protocol-tab',
-  '.primary-mode-tab',
-  '[data-mode]',
-  '.result-branch-tabs button',
-].join(', ');
+  "[role=tab]",
+  "[data-recovery-tab]",
+  "[data-operation-tab]",
+  ".protocol-tab",
+  ".primary-mode-tab",
+  "[data-mode]",
+  ".result-branch-tabs button",
+].join(", ");
 
 function option(name) {
   const index = process.argv.indexOf(name);
@@ -66,43 +66,59 @@ function inspectPage({ allowlist, buttonFontSizes }) {
   const width = document.documentElement.clientWidth;
   const visible = (el) => {
     // The content of a closed <details> still has a box in Chromium, but it is not shown.
-    if (el.closest('details:not([open])') && !el.matches('details, summary') && !el.closest('summary')) return false;
-    if (el.closest('dialog:not([open])')) return false;
+    if (
+      el.closest("details:not([open])") &&
+      !el.matches("details, summary") &&
+      !el.closest("summary")
+    )
+      return false;
+    if (el.closest("dialog:not([open])")) return false;
     const style = getComputedStyle(el);
-    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
+    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0)
+      return false;
     const box = el.getBoundingClientRect();
     return box.width > 0 && box.height > 0;
   };
-  const STATE_CLASSES = new Set(['active', 'selected', 'is-active', 'open']);
+  const STATE_CLASSES = new Set(["active", "selected", "is-active", "open"]);
   const kindOf = (button) => {
     const classes = [...button.classList].filter((name) => !STATE_CLASSES.has(name)).sort();
-    if (classes.length > 0) return `button.${classes.join('.')}`;
+    if (classes.length > 0) return `button.${classes.join(".")}`;
     const row = button.parentElement;
-    return `${row.id ? `#${row.id}` : `.${[...row.classList].sort().join('.')}`} > button`;
+    return `${row.id ? `#${row.id}` : `.${[...row.classList].sort().join(".")}`} > button`;
   };
   const describe = (el) => {
     const parts = [];
-    for (let node = el; node && node !== document.body && parts.length < 4; node = node.parentElement) {
-      const classes = [...node.classList].slice(0, 2).join('.');
-      parts.unshift(node.id ? `#${node.id}` : `${node.tagName.toLowerCase()}${classes ? `.${classes}` : ''}`);
+    for (
+      let node = el;
+      node && node !== document.body && parts.length < 4;
+      node = node.parentElement
+    ) {
+      const classes = [...node.classList].slice(0, 2).join(".");
+      parts.unshift(
+        node.id ? `#${node.id}` : `${node.tagName.toLowerCase()}${classes ? `.${classes}` : ""}`,
+      );
     }
-    return parts.join(' > ');
+    return parts.join(" > ");
   };
   const allowed = (check, el) =>
-    allowlist.some((entry) => entry.check === check && entry.within.some((selector) => el.closest(selector)));
-  const report = (check, el, detail = '') => {
+    allowlist.some(
+      (entry) => entry.check === check && entry.within.some((selector) => el.closest(selector)),
+    );
+  const report = (check, el, detail = "") => {
     if (!allowed(check, el)) findings.push({ check, element: describe(el), detail });
   };
   const ownText = (el) =>
     [...el.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
   const isContent = (el) =>
     el.matches(
-      'input:not([type=hidden]), select, textarea, button, img, canvas, svg, video, hr, code, pre, progress, meter',
+      "input:not([type=hidden]), select, textarea, button, img, canvas, svg, video, hr, code, pre, progress, meter",
     ) || ownText(el);
   const hasVisibleContent = (el) =>
-    isContent(el) || [...el.querySelectorAll('*')].some((child) => visible(child) && isContent(child));
+    isContent(el) ||
+    [...el.querySelectorAll("*")].some((child) => visible(child) && isContent(child));
   const decorative = (el) => el.closest('[aria-hidden="true"]') !== null;
-  const scrollsOrClips = (el) => ['auto', 'scroll', 'hidden', 'clip'].includes(getComputedStyle(el).overflowX);
+  const scrollsOrClips = (el) =>
+    ["auto", "scroll", "hidden", "clip"].includes(getComputedStyle(el).overflowX);
   /** True when a box around the element scrolls or clips sideways and itself fits the window. */
   const heldBySideScroller = (el) => {
     for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
@@ -112,60 +128,69 @@ function inspectPage({ allowlist, buttonFontSizes }) {
   };
 
   if (document.documentElement.scrollWidth > width + 1) {
-    report('page-sideways', document.body, `${document.documentElement.scrollWidth}px in a ${width}px window`);
+    report(
+      "page-sideways",
+      document.body,
+      `${document.documentElement.scrollWidth}px in a ${width}px window`,
+    );
   }
-  for (const grid of document.querySelectorAll('body *')) {
-    if (!visible(grid) || !getComputedStyle(grid).display.includes('grid')) continue;
+  for (const grid of document.querySelectorAll("body *")) {
+    if (!visible(grid) || !getComputedStyle(grid).display.includes("grid")) continue;
     for (const cell of grid.children) {
-      if (!visible(cell) || getComputedStyle(cell).display === 'contents') continue;
-      if (!hasVisibleContent(cell)) report('empty-grid-cell', cell);
+      if (!visible(cell) || getComputedStyle(cell).display === "contents") continue;
+      if (!hasVisibleContent(cell)) report("empty-grid-cell", cell);
     }
   }
-  for (const el of document.querySelectorAll('body *')) {
+  for (const el of document.querySelectorAll("body *")) {
     if (!visible(el) || decorative(el)) continue;
     const box = el.getBoundingClientRect();
     // Report only the outermost element past the edge, not each of its children again.
     const parent = el.parentElement;
-    const parentPast = parent && parent !== document.body && parent.getBoundingClientRect().right > width + 1;
+    const parentPast =
+      parent && parent !== document.body && parent.getBoundingClientRect().right > width + 1;
     if (box.right > width + 1 && !parentPast && !heldBySideScroller(el)) {
-      report('past-right-edge', el, `ends at ${Math.round(box.right)}px`);
+      report("past-right-edge", el, `ends at ${Math.round(box.right)}px`);
     }
   }
   // Content that spills out of a box that neither scrolls nor ends it with an ellipsis: text that
   // runs past the box, or a child control or text block that ends past it. Decoration is ignored.
-  for (const el of document.querySelectorAll('body *')) {
-    if (!visible(el) || decorative(el) || el.matches('input, select, textarea, table, svg, svg *')) continue;
+  for (const el of document.querySelectorAll("body *")) {
+    if (!visible(el) || decorative(el) || el.matches("input, select, textarea, table, svg, svg *"))
+      continue;
     const style = getComputedStyle(el);
-    if (['auto', 'scroll'].includes(style.overflowX) || style.textOverflow === 'ellipsis') continue;
+    if (["auto", "scroll"].includes(style.overflowX) || style.textOverflow === "ellipsis") continue;
     const box = el.getBoundingClientRect();
     const textSpills = ownText(el) && el.scrollWidth > el.clientWidth + 2 && el.clientWidth > 0;
     const childSpills = [...el.children].some((child) => {
-      if (!visible(child) || decorative(child) || getComputedStyle(child).position === 'absolute') return false;
+      if (!visible(child) || decorative(child) || getComputedStyle(child).position === "absolute")
+        return false;
       return child.getBoundingClientRect().right > box.right + 2 && hasVisibleContent(child);
     });
     if (textSpills || childSpills)
-      report('content-overflow', el, `${el.scrollWidth}px of content in ${el.clientWidth}px`);
+      report("content-overflow", el, `${el.scrollWidth}px of content in ${el.clientWidth}px`);
   }
-  const buttons = [...document.querySelectorAll('button')].filter(visible);
+  const buttons = [...document.querySelectorAll("button")].filter(visible);
   for (const button of buttons) {
     // Icon buttons carry no text to size; their size is the icon's.
-    if (!button.textContent.trim() || button.querySelector('svg')) continue;
+    if (!button.textContent.trim() || button.querySelector("svg")) continue;
     const size = getComputedStyle(button).fontSize;
-    if (!buttonFontSizes.includes(size)) report('button-font-size', button, size);
+    if (!buttonFontSizes.includes(size)) report("button-font-size", button, size);
   }
   for (const button of buttons) {
     const next = button.nextElementSibling;
-    if (!next || !visible(next) || !next.matches('button, label.secondary, .payment-qr-action')) continue;
+    if (!next || !visible(next) || !next.matches("button, label.secondary, .payment-qr-action"))
+      continue;
     const a = button.getBoundingClientRect();
     const b = next.getBoundingClientRect();
     const sameRow = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 4;
     // Touching means a gap of at most 4px; buttons drawn over each other are controls-overlap.
     const gap = b.left - a.right;
-    if (sameRow && gap > -2 && gap < 4) report('buttons-touching', button, `next: ${describe(next)}`);
+    if (sameRow && gap > -2 && gap < 4)
+      report("buttons-touching", button, `next: ${describe(next)}`);
   }
-  const controls = [...document.querySelectorAll('button, input:not([type=hidden]), select, textarea, a[href]')].filter(
-    visible,
-  );
+  const controls = [
+    ...document.querySelectorAll("button, input:not([type=hidden]), select, textarea, a[href]"),
+  ].filter(visible);
   for (let i = 0; i < controls.length; i += 1) {
     const a = controls[i].getBoundingClientRect();
     for (let j = i + 1; j < controls.length; j += 1) {
@@ -173,22 +198,24 @@ function inspectPage({ allowlist, buttonFontSizes }) {
       const b = controls[j].getBoundingClientRect();
       const across = Math.min(a.right, b.right) - Math.max(a.left, b.left);
       const down = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-      if (across > 1 && down > 1) report('controls-overlap', controls[i], `over ${describe(controls[j])}`);
+      if (across > 1 && down > 1)
+        report("controls-overlap", controls[i], `over ${describe(controls[j])}`);
     }
   }
   // Buttons of one kind side by side in one row must be equally tall.
   for (const button of buttons) {
     const next = button.nextElementSibling;
-    if (!next || !visible(next) || next.tagName !== 'BUTTON' || kindOf(next) !== kindOf(button)) continue;
+    if (!next || !visible(next) || next.tagName !== "BUTTON" || kindOf(next) !== kindOf(button))
+      continue;
     const a = button.getBoundingClientRect();
     const b = next.getBoundingClientRect();
     if (Math.abs(a.top - b.top) < 4 && Math.abs(a.height - b.height) > 1) {
-      report('uneven-row', button, `${Math.round(a.height)}px next to ${Math.round(b.height)}px`);
+      report("uneven-row", button, `${Math.round(a.height)}px next to ${Math.round(b.height)}px`);
     }
   }
   const samples = [];
   for (const button of buttons) {
-    if (!button.textContent.trim() || button.querySelector('svg')) continue;
+    if (!button.textContent.trim() || button.querySelector("svg")) continue;
     const style = getComputedStyle(button);
     const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3;
     const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
@@ -201,10 +228,12 @@ function inspectPage({ allowlist, buttonFontSizes }) {
         `weight ${style.fontWeight}`,
         `radius ${style.borderTopLeftRadius}`,
         `padding ${style.paddingTop} ${style.paddingRight}`,
-        oneLine ? `height ${Math.round(button.getBoundingClientRect().height)}px` : 'height (wraps)',
+        oneLine
+          ? `height ${Math.round(button.getBoundingClientRect().height)}px`
+          : "height (wraps)",
       ],
       allowed: allowlist.some(
-        (entry) => entry.check === 'style-variant' && entry.within.some((s) => button.closest(s)),
+        (entry) => entry.check === "style-variant" && entry.within.some((s) => button.closest(s)),
       ),
     });
   }
@@ -232,7 +261,7 @@ class Recorder {
       const kind = `${sample.kind} @${this.width}`;
       if (!this.looks.has(kind)) this.looks.set(kind, new Map());
       for (const part of sample.look) {
-        const [property] = part.split(' ');
+        const [property] = part.split(" ");
         const key = `${property}\u0000${part}`;
         const variants = this.looks.get(kind);
         if (!variants.has(key)) variants.set(key, new Set());
@@ -243,7 +272,8 @@ class Recorder {
       const key = `${finding.check}  ${finding.element}`;
       if (!this.findings.has(key)) this.findings.set(key, { ...finding, states: [] });
       const entry = this.findings.get(key);
-      if (entry.states.length < 5) entry.states.push(`${state}${finding.detail ? ` (${finding.detail})` : ''}`);
+      if (entry.states.length < 5)
+        entry.states.push(`${state}${finding.detail ? ` (${finding.detail})` : ""}`);
     }
   }
 }
@@ -254,8 +284,8 @@ function styleVariants(recorder) {
   for (const [kind, variants] of recorder.looks) {
     const byProperty = new Map();
     for (const [key, examples] of variants) {
-      const [property, value] = key.split('\u0000');
-      if (value === 'height (wraps)') continue;
+      const [property, value] = key.split("\u0000");
+      if (value === "height (wraps)") continue;
       if (!byProperty.has(property)) byProperty.set(property, []);
       byProperty.get(property).push({ value, examples: [...examples] });
     }
@@ -264,7 +294,7 @@ function styleVariants(recorder) {
       values.sort((a, b) => b.examples.length - a.examples.length);
       for (const rare of values.slice(1)) {
         findings.push({
-          check: 'style-variant',
+          check: "style-variant",
           element: `${kind}: ${rare.value} where most have ${values[0].value}`,
           states: rare.examples,
         });
@@ -284,16 +314,23 @@ async function walkTabs(page, scope, recorder, state, depth, seen = new Set()) {
   for (let index = 0; index < count; index += 1) {
     const tab = scope.locator(TAB_SELECTOR).nth(index);
     if (!(await tab.isVisible().catch(() => false))) continue;
-    const label = ((await tab.textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    const label = ((await tab.textContent().catch(() => "")) ?? "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 40);
     // Tabs are told apart by their place in the page: "Encode" exists in every backup panel.
     const key = await tab
       .evaluate((el) => {
         const steps = [];
         for (let node = el; node && node !== document.body; node = node.parentElement) {
-          steps.unshift(node.id ? `#${node.id}` : `${node.tagName}:${[...node.parentElement.children].indexOf(node)}`);
+          steps.unshift(
+            node.id
+              ? `#${node.id}`
+              : `${node.tagName}:${[...node.parentElement.children].indexOf(node)}`,
+          );
           if (node.id) break;
         }
-        return steps.join('>');
+        return steps.join(">");
       })
       .catch(() => label);
     if (seen.has(key)) continue;
@@ -326,27 +363,27 @@ async function eachCoin(page, selector, recorder, state) {
  * phrase, every coin and a BIP85 child wallet.
  */
 async function deriverStates(page, recorder, state) {
-  if ((await page.locator('#generate-12').count()) === 0) return;
-  if ((await page.locator('#chosen-words-enabled').count()) > 0) {
-    await page.locator('#chosen-words-enabled').check();
-    await page.locator('#chosen-words-add').click();
+  if ((await page.locator("#generate-12").count()) === 0) return;
+  if ((await page.locator("#chosen-words-enabled").count()) > 0) {
+    await page.locator("#chosen-words-enabled").check();
+    await page.locator("#chosen-words-add").click();
     await recorder.record(page, `${state} chosen words`);
-    await page.locator('#chosen-words-enabled').uncheck();
+    await page.locator("#chosen-words-enabled").uncheck();
   }
-  await page.locator('#generate-12').click();
+  await page.locator("#generate-12").click();
   await page.waitForTimeout(1500);
   await recorder.record(page, `${state} generated`);
-  await eachCoin(page, '#coin', recorder, state);
-  if ((await page.locator('#include-bip85').count()) === 0) return;
-  await page.locator('#include-bip85').check();
-  await page.locator('#bip85-tab').click();
-  await page.locator('#derive-bip85').click();
+  await eachCoin(page, "#coin", recorder, state);
+  if ((await page.locator("#include-bip85").count()) === 0) return;
+  await page.locator("#include-bip85").check();
+  await page.locator("#bip85-tab").click();
+  await page.locator("#derive-bip85").click();
   await page.waitForTimeout(1500);
   await recorder.record(page, `${state} BIP85`);
-  await page.locator('#open-bip85-wallet').click();
+  await page.locator("#open-bip85-wallet").click();
   await settle(page);
   await recorder.record(page, `${state} child wallet`);
-  await eachCoin(page, '#bip85-wallet-coin', recorder, `${state} child`);
+  await eachCoin(page, "#bip85-wallet-coin", recorder, `${state} child`);
 }
 
 async function checkPage(browser, path, width, recorder) {
@@ -355,9 +392,12 @@ async function checkPage(browser, path, width, recorder) {
   page.setDefaultTimeout(10000);
   await page.goto(pathToFileURL(path).href);
   // Wait for the start-up self-tests of the tools, which change the page when they finish.
-  await page.locator('#crypto-self-test-status.passed, #viewer-crypto-self-test-status.passed, body').first().waitFor();
+  await page
+    .locator("#crypto-self-test-status.passed, #viewer-crypto-self-test-status.passed, body")
+    .first()
+    .waitFor();
   await page.waitForTimeout(2500);
-  const state = `${path.split('/').pop()} @${width}`;
+  const state = `${path.split("/").pop()} @${width}`;
   await recorder.record(page, state);
   await deriverStates(page, recorder, state);
   await walkTabs(page, page, recorder, state, TAB_DEPTH);
@@ -369,22 +409,23 @@ async function checkPage(browser, path, width, recorder) {
 }
 
 function builtPages() {
-  const requested = option('--profile') ?? 'all';
-  const profiles = requested === 'all' ? Object.values(BUILD_PROFILES) : [BUILD_PROFILES[requested]];
+  const requested = option("--profile") ?? "all";
+  const profiles =
+    requested === "all" ? Object.values(BUILD_PROFILES) : [BUILD_PROFILES[requested]];
   if (profiles.includes(undefined)) throw new Error(`Unknown profile "${requested}".`);
-  const tool = option('--tool');
+  const tool = option("--tool");
   return profiles.flatMap((profile) =>
     profileToolIds(profile)
       .filter((id) => tool === undefined || id === tool)
-      .map((id) => resolve(root, 'dist', getToolBuild(profile, id).artifactRelativePath)),
+      .map((id) => resolve(root, "dist", getToolBuild(profile, id).artifactRelativePath)),
   );
 }
 
 function pageArguments() {
-  const valued = new Set(['--profile', '--tool', '--widths', '--json']);
+  const valued = new Set(["--profile", "--tool", "--widths", "--json"]);
   return process.argv
     .slice(2)
-    .filter((argument, index, all) => !argument.startsWith('--') && !valued.has(all[index - 1]));
+    .filter((argument, index, all) => !argument.startsWith("--") && !valued.has(all[index - 1]));
 }
 
 async function run(paths, widths, allowlist) {
@@ -392,7 +433,8 @@ async function run(paths, widths, allowlist) {
   const browser = await chromium.launch();
   const recorder = new Recorder({ allowlist, buttonFontSizes: allowlist.buttonFontSizes });
   try {
-    for (const path of paths) for (const width of widths) await checkPage(browser, path, width, recorder);
+    for (const path of paths)
+      for (const width of widths) await checkPage(browser, path, width, recorder);
   } finally {
     await browser.close();
   }
@@ -402,7 +444,7 @@ async function run(paths, widths, allowlist) {
 }
 
 function readAllowlist() {
-  const file = JSON.parse(readFileSync(resolve(root, 'tooling/layout-allowlist.json'), 'utf8'));
+  const file = JSON.parse(readFileSync(resolve(root, "tooling/layout-allowlist.json"), "utf8"));
   const entries = file.entries;
   entries.buttonFontSizes = file.buttonFontSizes;
   return entries;
@@ -435,54 +477,62 @@ const SELF_TEST_PAGE = `<!doctype html><html><head><style>
 </body></html>`;
 
 const SELF_TEST_EXPECTED = [
-  ['empty-grid-cell', '#empty-cell'],
-  ['page-sideways', ''],
-  ['past-right-edge', '#too-wide'],
-  ['buttons-touching', '#touching'],
-  ['button-font-size', '#big-text'],
-  ['content-overflow', '#spill'],
-  ['controls-overlap', '#under'],
-  ['style-variant', 'radius 2px'],
-  ['uneven-row', '#short'],
+  ["empty-grid-cell", "#empty-cell"],
+  ["page-sideways", ""],
+  ["past-right-edge", "#too-wide"],
+  ["buttons-touching", "#touching"],
+  ["button-font-size", "#big-text"],
+  ["content-overflow", "#spill"],
+  ["controls-overlap", "#under"],
+  ["style-variant", "radius 2px"],
+  ["uneven-row", "#short"],
 ];
 
 async function selfTest() {
-  const directory = mkdtempSync(join(tmpdir(), 'check-layout-'));
+  const directory = mkdtempSync(join(tmpdir(), "check-layout-"));
   try {
-    const page = join(directory, 'self-test.html');
+    const page = join(directory, "self-test.html");
     writeFileSync(page, SELF_TEST_PAGE);
     const allowlist = [];
-    allowlist.buttonFontSizes = ['12px'];
+    allowlist.buttonFontSizes = ["12px"];
     const findings = await run([page], [DESKTOP_WIDTH], allowlist);
     const missing = SELF_TEST_EXPECTED.filter(
       ([check, element]) => !findings.some((f) => f.check === check && f.element.includes(element)),
     );
     const unexpected = findings.filter(
-      (f) => !SELF_TEST_EXPECTED.some(([check, element]) => f.check === check && f.element.includes(element)),
+      (f) =>
+        !SELF_TEST_EXPECTED.some(
+          ([check, element]) => f.check === check && f.element.includes(element),
+        ),
     );
     for (const [check, element] of missing) console.error(`missed: ${check} ${element}`);
     for (const f of unexpected) console.error(`false alarm: ${f.check} ${f.element}`);
     if (missing.length || unexpected.length) process.exit(1);
-    console.log(`Self-test passed: all ${SELF_TEST_EXPECTED.length} known defects found, no false alarms.`);
+    console.log(
+      `Self-test passed: all ${SELF_TEST_EXPECTED.length} known defects found, no false alarms.`,
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 }
 
-if (process.argv.includes('--self-test')) {
+if (process.argv.includes("--self-test")) {
   await selfTest();
 } else {
-  const paths = pageArguments().length > 0 ? pageArguments().map((path) => resolve(path)) : builtPages();
-  const widths = (option('--widths') ?? `${DESKTOP_WIDTH},${TABLET_WIDTH},${PHONE_WIDTH}`).split(',').map(Number);
+  const paths =
+    pageArguments().length > 0 ? pageArguments().map((path) => resolve(path)) : builtPages();
+  const widths = (option("--widths") ?? `${DESKTOP_WIDTH},${TABLET_WIDTH},${PHONE_WIDTH}`)
+    .split(",")
+    .map(Number);
   const findings = await run(paths, widths, readAllowlist());
   for (const finding of findings) {
-    console.log(`${finding.check}: ${finding.element}\n    ${finding.states.join('\n    ')}`);
+    console.log(`${finding.check}: ${finding.element}\n    ${finding.states.join("\n    ")}`);
   }
-  const json = option('--json');
+  const json = option("--json");
   if (json !== undefined) writeFileSync(resolve(json), `${JSON.stringify(findings, null, 2)}\n`);
   console.log(
     findings.length === 0
-      ? `No layout findings in ${paths.length} page(s) at ${widths.join(' and ')}px.`
+      ? `No layout findings in ${paths.length} page(s) at ${widths.join(" and ")}px.`
       : `${findings.length} layout finding(s) in ${paths.length} page(s).`,
   );
   process.exitCode = findings.length === 0 ? 0 : 1;

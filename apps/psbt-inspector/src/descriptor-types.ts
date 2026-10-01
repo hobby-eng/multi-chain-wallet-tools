@@ -1,4 +1,4 @@
-import type { DescriptorPathCard } from './descriptor-policy.js';
+import type { DescriptorPathCard } from "./descriptor-policy.js";
 
 export interface DescriptorRow {
   readonly label: string;
