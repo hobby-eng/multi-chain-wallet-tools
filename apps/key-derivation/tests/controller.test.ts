@@ -263,4 +263,36 @@ describe("Key Derivation controller", () => {
     expect(dependencies.generateMnemonic).toHaveBeenCalledWith(24);
     expect(chosenWords.generate).toHaveBeenCalledOnce();
   });
+
+  it("offers a phrase made with chosen words to the backup tabs (AUD-019-UI001)", async () => {
+    const PHRASE =
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    const chosenWords = {
+      active: vi.fn(() => true),
+      generate: vi.fn(() => Promise.resolve(PHRASE)),
+      setRevealed: vi.fn(),
+      clear: vi.fn(),
+    };
+    const offerRecoverySource = vi.fn();
+    const { controller, view, resolveWorkerSelfTest } = controllerHarness({
+      chosenWords,
+      offerRecoverySource,
+      openRecoverySource: vi.fn(),
+    });
+    vi.mocked(view.setGeneratedMnemonic).mockImplementation((phrase: string) => {
+      (view.mnemonic as unknown as TestControl).value = phrase;
+    });
+    controller.start();
+    resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
+    await settle();
+    // The field starts empty, so nothing is offered.
+    expect(offerRecoverySource).toHaveBeenLastCalledWith(null);
+
+    (view.generate12Button as unknown as TestControl).click();
+    await settle();
+    expect(view.setGeneratedMnemonic).toHaveBeenCalledWith(PHRASE, undefined);
+    const offered = offerRecoverySource.mock.lastCall?.[0];
+    expect(offered).not.toBeNull();
+    expect(offered?.read()).toEqual({ mnemonic: PHRASE, passphrase: "" });
+  });
 });
