@@ -1,0 +1,5 @@
+# Commits that only reformat code. `git config blame.ignoreRevsFile .git-blame-ignore-revs`
+# makes git blame skip them; GitHub reads this file by itself.
+
+# Prettier: the workspace style, double quotes and 100 columns
+50d30405f97d80d9d7e1b32cbebe9e89037998b1
