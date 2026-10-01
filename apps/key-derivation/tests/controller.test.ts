@@ -34,6 +34,134 @@ async function settle(): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
+/** A started controller with fake view controls; `extra` adds or replaces dependencies. */
+function controllerHarness(extra: Record<string, unknown> = {}) {
+  const windowEvents = new TestControl();
+  vi.stubGlobal('window', {
+    addEventListener: windowEvents.addEventListener.bind(windowEvents),
+    setTimeout(callback: () => void): number {
+      return globalThis.setTimeout(callback, 0) as unknown as number;
+    },
+    clearTimeout(id: number): void {
+      globalThis.clearTimeout(id);
+    },
+  });
+  const document = new TestControl();
+  const form = new TestForm();
+  const controls = {
+    coin: new TestControl(),
+    protocolTabs: new TestControl(),
+    network: new TestControl(),
+    account: new TestControl(),
+    branchInput: new TestControl(),
+    branchSelect: new TestControl(),
+    includeChange: new TestControl(),
+    includeCoinJoin: new TestControl(),
+    includeLegacyMobile: new TestControl(),
+    start: new TestControl(),
+    count: new TestControl(),
+  };
+  const modeBasic = new TestControl();
+  const modeAdvanced = new TestControl();
+  let resolveWorkerSelfTest!: (value: { passed: boolean; checks: string[]; durationMs: number }) => void;
+  const workerSelfTest = new Promise<{ passed: boolean; checks: string[]; durationMs: number }>((resolve) => {
+    resolveWorkerSelfTest = resolve;
+  });
+  const startupWorker = {
+    selfTest: vi.fn(() => workerSelfTest),
+    terminate: vi.fn(),
+  };
+  const view = {
+    document,
+    controls,
+    form,
+    mnemonic: new TestControl(),
+    passphrase: new TestControl(),
+    exportFormat: new TestControl(),
+    modeBasic,
+    modeAdvanced,
+    resultBranchTabs: new TestControl(),
+    resultReceiveTab: new TestControl(),
+    resultChangeTab: new TestControl(),
+    resultCoinJoinTab: new TestControl(),
+    coinJoinBranchTabs: new TestControl(),
+    resultCoinJoinExternalTab: new TestControl(),
+    resultCoinJoinInternalTab: new TestControl(),
+    toggleSensitiveValues: new TestControl(),
+    toggleResultSecrets: new TestControl(),
+    copyMnemonicButton: new TestControl(),
+    descriptorButtons: Object.fromEntries(
+      ['scanner', 'publicCopy', 'publicDownload', 'privateCopy', 'privateDownload'].map((key) => [
+        key,
+        new TestControl(),
+      ]),
+    ),
+    copyWatchOnlyButton: new TestControl(),
+    downloadWatchOnlyButton: new TestControl(),
+    cancelDerivationButton: new TestControl(),
+    expectedAddress: new TestControl(),
+    searchStart: new TestControl(),
+    searchCount: new TestControl(),
+    searchAddressButton: new TestControl(),
+    generate12Button: new TestControl(),
+    generate15Button: new TestControl(),
+    generate18Button: new TestControl(),
+    generate21Button: new TestControl(),
+    generate24Button: new TestControl(),
+    clearAllButton: new TestControl(),
+    selectAllButton: new TestControl(),
+    selectNoneButton: new TestControl(),
+    selectInvertButton: new TestControl(),
+    showError: vi.fn(),
+    showStatus: vi.fn(),
+    clearMessages: vi.fn(),
+    populateCoinSelect: vi.fn(),
+    configureControls: vi.fn(),
+    updateWordCount: vi.fn(),
+    updateSeedDiagnostic: vi.fn(),
+    updateMode: vi.fn(),
+    updateBulkActions: vi.fn(),
+    populateBuildPassport: vi.fn(),
+    setCryptoControlsEnabled: vi.fn(),
+    showCryptoSelfTestPassed: vi.fn(),
+    showCryptoSelfTestFailed: vi.fn(),
+    setRecoverySourceVisibility: vi.fn(),
+    setResultSecretsVisibility: vi.fn(),
+    resetDeriveAction: vi.fn(),
+    hideSearchResult: vi.fn(),
+    documentActionFrom: vi.fn(() => null),
+    clearResults: vi.fn(),
+    setGeneratedMnemonic: vi.fn(),
+    clearAllInputs: vi.fn(),
+  } as unknown as KeyDerivationView;
+  const adapter = {
+    id: 'bitcoin-bip44',
+    label: 'Bitcoin',
+    variantLabel: 'BIP44',
+    defaults: {},
+  };
+  const createWorker = vi.fn(() => startupWorker);
+  const dependencies = {
+    coinFamilies: [{ id: 'bitcoin', label: 'Bitcoin' }],
+    getAdapterFamilyId: () => 'bitcoin',
+    getCoinAdapter: () => adapter,
+    getDefaultCoinAdapter: () => adapter,
+    buildInfo: {},
+    generateMnemonic: vi.fn(),
+    mnemonicToSeed: vi.fn(),
+    runBip39SelfTest: () => ({ passed: true, checks: ['fixture'], durationMs: 1 }),
+    runRecoveryBackupSelfTest: vi.fn(() => ({ passed: true, checks: [], durationMs: 0 })),
+    setRecoveryControlsEnabled: vi.fn(),
+    writeClipboard: vi.fn(),
+    downloadBlob: vi.fn(),
+    downloadText: vi.fn(),
+    createWorker,
+    ...extra,
+  } as unknown as Parameters<typeof createKeyDerivationController>[1];
+  const controller = createKeyDerivationController(view, dependencies);
+  return { controller, view, dependencies, form, createWorker, modeBasic, modeAdvanced, resolveWorkerSelfTest };
+}
+
 describe('Key Derivation controller', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -41,125 +169,9 @@ describe('Key Derivation controller', () => {
   });
 
   it('registers once, gates derivation on startup self-test, and handles mode transitions', async () => {
-    const windowEvents = new TestControl();
-    vi.stubGlobal('window', {
-      addEventListener: windowEvents.addEventListener.bind(windowEvents),
-      setTimeout(callback: () => void): number {
-        return globalThis.setTimeout(callback, 0) as unknown as number;
-      },
-      clearTimeout(id: number): void {
-        globalThis.clearTimeout(id);
-      },
-    });
-    const document = new TestControl();
-    const form = new TestForm();
-    const controls = {
-      coin: new TestControl(),
-      protocolTabs: new TestControl(),
-      network: new TestControl(),
-      account: new TestControl(),
-      branchInput: new TestControl(),
-      branchSelect: new TestControl(),
-      includeChange: new TestControl(),
-      includeCoinJoin: new TestControl(),
-      includeLegacyMobile: new TestControl(),
-      start: new TestControl(),
-      count: new TestControl(),
-    };
-    const modeBasic = new TestControl();
-    const modeAdvanced = new TestControl();
-    let resolveWorkerSelfTest!: (value: { passed: boolean; checks: string[]; durationMs: number }) => void;
-    const workerSelfTest = new Promise<{ passed: boolean; checks: string[]; durationMs: number }>((resolve) => {
-      resolveWorkerSelfTest = resolve;
-    });
-    const startupWorker = {
-      selfTest: vi.fn(() => workerSelfTest),
-      terminate: vi.fn(),
-    };
-    const view = {
-      document,
-      controls,
-      form,
-      mnemonic: new TestControl(),
-      passphrase: new TestControl(),
-      exportFormat: new TestControl(),
-      modeBasic,
-      modeAdvanced,
-      resultBranchTabs: new TestControl(),
-      resultReceiveTab: new TestControl(),
-      resultChangeTab: new TestControl(),
-      resultCoinJoinTab: new TestControl(),
-      coinJoinBranchTabs: new TestControl(),
-      resultCoinJoinExternalTab: new TestControl(),
-      resultCoinJoinInternalTab: new TestControl(),
-      toggleSensitiveValues: new TestControl(),
-      toggleResultSecrets: new TestControl(),
-      copyMnemonicButton: new TestControl(),
-      descriptorButtons: Object.fromEntries(
-        ['scanner', 'publicCopy', 'publicDownload', 'privateCopy', 'privateDownload'].map((key) => [
-          key,
-          new TestControl(),
-        ]),
-      ),
-      copyWatchOnlyButton: new TestControl(),
-      downloadWatchOnlyButton: new TestControl(),
-      cancelDerivationButton: new TestControl(),
-      expectedAddress: new TestControl(),
-      searchStart: new TestControl(),
-      searchCount: new TestControl(),
-      searchAddressButton: new TestControl(),
-      generate12Button: new TestControl(),
-      generate15Button: new TestControl(),
-      generate18Button: new TestControl(),
-      generate21Button: new TestControl(),
-      generate24Button: new TestControl(),
-      clearAllButton: new TestControl(),
-      selectAllButton: new TestControl(),
-      selectNoneButton: new TestControl(),
-      selectInvertButton: new TestControl(),
-      showError: vi.fn(),
-      showStatus: vi.fn(),
-      clearMessages: vi.fn(),
-      populateCoinSelect: vi.fn(),
-      configureControls: vi.fn(),
-      updateWordCount: vi.fn(),
-      updateSeedDiagnostic: vi.fn(),
-      updateMode: vi.fn(),
-      updateBulkActions: vi.fn(),
-      populateBuildPassport: vi.fn(),
-      setCryptoControlsEnabled: vi.fn(),
-      showCryptoSelfTestPassed: vi.fn(),
-      showCryptoSelfTestFailed: vi.fn(),
-      setRecoverySourceVisibility: vi.fn(),
-      setResultSecretsVisibility: vi.fn(),
-      resetDeriveAction: vi.fn(),
-      hideSearchResult: vi.fn(),
-      documentActionFrom: vi.fn(() => null),
-    } as unknown as KeyDerivationView;
-    const adapter = {
-      id: 'bitcoin-bip44',
-      label: 'Bitcoin',
-      variantLabel: 'BIP44',
-      defaults: {},
-    };
-    const createWorker = vi.fn(() => startupWorker);
-    const dependencies = {
-      coinFamilies: [{ id: 'bitcoin', label: 'Bitcoin' }],
-      getAdapterFamilyId: () => 'bitcoin',
-      getCoinAdapter: () => adapter,
-      getDefaultCoinAdapter: () => adapter,
-      buildInfo: {},
-      generateMnemonic: vi.fn(),
-      mnemonicToSeed: vi.fn(),
-      runBip39SelfTest: () => ({ passed: true, checks: ['fixture'], durationMs: 1 }),
-      runRecoveryBackupSelfTest: vi.fn(() => ({ passed: true, checks: [], durationMs: 0 })),
-      setRecoveryControlsEnabled: vi.fn(),
-      writeClipboard: vi.fn(),
-      downloadBlob: vi.fn(),
-      downloadText: vi.fn(),
-      createWorker,
-    } as unknown as Parameters<typeof createKeyDerivationController>[1];
-    const controller = createKeyDerivationController(view, dependencies);
+    const chosenWords = { active: vi.fn(() => false), generate: vi.fn(), setRevealed: vi.fn(), clear: vi.fn() };
+    const { controller, view, dependencies, form, createWorker, modeBasic, modeAdvanced, resolveWorkerSelfTest } =
+      controllerHarness({ chosenWords });
 
     controller.start();
     controller.start();
@@ -185,5 +197,36 @@ describe('Key Derivation controller', () => {
     modeBasic.click();
     expect(view.updateMode).toHaveBeenNthCalledWith(2, 'advanced');
     expect(view.updateMode).toHaveBeenNthCalledWith(3, 'basic');
+    // The chosen words are part of the phrase and are shown and hidden with it.
+    expect(chosenWords.setRevealed).toHaveBeenCalledWith(true);
+  });
+
+  it('generates with chosen words only when they are active, and never falls back', async () => {
+    const chosenWords = {
+      active: vi.fn(() => true),
+      generate: vi.fn(() => Promise.reject(new Error('Chosen word 1 is not an English BIP39 word.'))),
+      setRevealed: vi.fn(),
+      clear: vi.fn(),
+    };
+    const { controller, view, dependencies, resolveWorkerSelfTest } = controllerHarness({ chosenWords });
+    controller.start();
+    resolveWorkerSelfTest({ passed: true, checks: ['worker fixture'], durationMs: 1 });
+    await settle();
+
+    (view.generate12Button as unknown as TestControl).click();
+    await settle();
+    expect(chosenWords.generate).toHaveBeenCalledWith(12);
+    expect(view.showError).toHaveBeenLastCalledWith('Chosen word 1 is not an English BIP39 word.');
+    // A wish that cannot be met is an error, never an ordinary phrase in its place.
+    expect(dependencies.generateMnemonic).not.toHaveBeenCalled();
+
+    chosenWords.active.mockReturnValue(false);
+    vi.mocked(dependencies.generateMnemonic).mockImplementation(() => {
+      throw new Error('ordinary generation fixture');
+    });
+    (view.generate24Button as unknown as TestControl).click();
+    await settle();
+    expect(dependencies.generateMnemonic).toHaveBeenCalledWith(24);
+    expect(chosenWords.generate).toHaveBeenCalledOnce();
   });
 });

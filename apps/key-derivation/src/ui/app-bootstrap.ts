@@ -8,6 +8,7 @@ import { downloadBlob, downloadText } from '@ckd/export/download.js';
 import { DerivationWorkerClient } from '../workers/derive-client.js';
 import { createKeyDerivationController } from './controller.js';
 import { createKeyDerivationView } from './view.js';
+import { installChosenWordsFeature } from './chosen-words-feature.js';
 import type { WalletMatcherTargetDetector } from '@ckd/recovery/matcher-types.js';
 import { installRecoveryWorkspace } from './recovery-workspace.js';
 import { runRecoveryBackupSelfTest } from '@ckd/recovery-backup/self-test.js';
@@ -60,6 +61,7 @@ export function startKeyDerivationApp(registry: CoinRegistry, detectTargets: Wal
     getDefaultCoinAdapter: registry.getDefaultCoinAdapter,
     buildInfo: BUILD_INFO,
     generateMnemonic,
+    chosenWords: installChosenWordsFeature(),
     mnemonicToSeed,
     runBip39SelfTest,
     runRecoveryBackupSelfTest,
