@@ -4,6 +4,8 @@
 - Verify its checksum externally, disconnect all networking, and disable untrusted browser extensions before entering valuable-wallet material.
 - Startup is fail-closed: the applicable BIP39, cross-protocol derivation, extended-key and Orchard self-test groups must pass before generation/derivation is enabled.
 - CSP, artifact verification and source separation prohibit network APIs; an already modified HTML file or compromised browser/OS remains out of scope.
+- The executable version serves this same page only to this computer (`127.0.0.1`) so that MHFE runs in fast mode. It checks the page's SHA-256 when it starts, answers nothing but the page, logs nothing and never receives what is typed into the page. Closing it does not close the page: close the browser tab too.
+- "Generate with chosen words" is not recommended: every chosen word takes random bits away. The page shows how many remain, warns below 112 bits and refuses below 96; the phrase is still drawn with `crypto.getRandomValues`.
 - Secret text is concealed by default and automatically reconcealed on window blur or tab hiding. This is visual protection only.
 - Mutable byte arrays are cleared where supported. JavaScript strings, the DOM, garbage-collected copies, clipboard history, swap and crash dumps cannot be guaranteed erased.
 - A request of 10,000 or more results requires explicit confirmation. This availability guard is not a protocol maximum.
