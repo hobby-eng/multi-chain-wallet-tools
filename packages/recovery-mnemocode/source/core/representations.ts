@@ -57,7 +57,7 @@ export function parseInput(value: string, format: Exclude<OutputFormat, 'json'>)
       const compact = value.replace(/\s+/gu, '').toUpperCase();
       if (!/^[0-9A-F]+$/u.test(compact) || compact.length % 4 !== 0) {
         throw new Error(
-          'Unicode input must be one continuous stream of four-digit hexadecimal code points.',
+          'Unicode input must be four-digit hexadecimal code points, separated by spaces or joined.',
         );
       }
       return Array.from({ length: compact.length / 4 }, (_, index) =>

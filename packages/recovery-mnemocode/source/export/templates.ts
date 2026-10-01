@@ -110,7 +110,7 @@ export function selectTemplate(id?: string, kind?: CardKind): CardTemplate {
   const available = cardTemplates.filter((item) => kind === undefined || item.kind === kind);
   if (available.length === 0) {
     throw new Error(
-      'No approved card templates are installed yet. PDF export and preview remain available; add an individually approved design first.',
+      'No installed card template supports this kind of card. Dated Unicode cards (format 3) have no template yet; use format 4 or 5.',
     );
   }
   let selected = id === undefined ? available[0] : available.find((item) => item.id === id);
