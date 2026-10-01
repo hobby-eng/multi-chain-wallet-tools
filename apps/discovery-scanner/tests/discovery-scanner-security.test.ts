@@ -1402,6 +1402,22 @@ describe("recovery report export", () => {
     expect(createRecoveryExport([future], "csv").text).toContain('"12.345"');
   });
 
+  it("names a section warning once and leaves metadata empty in a row without findings", () => {
+    // AUD-017-API003: the warning stood in the metadata column and again under warnings.
+    const WARNING = "Provider page limit reached";
+    const empty = structuredClone(result);
+    empty.sections[0] = { ...empty.sections[0]!, findings: [], warning: WARNING };
+    const [header, row] = createRecoveryExport([empty], "csv").text.trim().split("\n");
+    const cells = (line: string) =>
+      [...line.matchAll(/"((?:[^"]|"")*)"/gu)].map((match) => match[1]!.replaceAll('""', '"'));
+    const columns = cells(header!);
+    const values = cells(row!);
+    expect(values).toHaveLength(columns.length);
+    expect(values[columns.indexOf("metadata")]).toBe("");
+    expect(values[columns.indexOf("warnings")]).toBe(WARNING);
+    expect(values.filter((value) => value.includes(WARNING))).toHaveLength(1);
+  });
+
   it("exports Orchard note details and numeric section aggregates to CSV", () => {
     const orchard: RecoveryWalletResult = {
       ...result,
