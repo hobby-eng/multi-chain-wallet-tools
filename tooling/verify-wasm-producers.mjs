@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { verifyWasmIntegrityManifest } from './verify-wasm-integrity.mjs';
 import { WASM_MODULES } from './wasm-modules.mjs';
 
-export const CANONICAL_WASM_BINDGEN_VERSION = '0.2.128';
+export const CANONICAL_WASM_BINDGEN_VERSION = '0.2.129';
 
 function readUleb(bytes, state) {
   let value = 0;

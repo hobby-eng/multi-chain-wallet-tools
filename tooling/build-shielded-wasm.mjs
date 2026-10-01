@@ -44,7 +44,7 @@ if (!lockfile.includes(expectedOrchard)) {
 }
 
 version(cargo, 'cargo 1.98.1');
-assertExactToolVersion(wasmBindgen, 'wasm-bindgen 0.2.128', { cwd: root, env: environment });
+assertExactToolVersion(wasmBindgen, 'wasm-bindgen 0.2.129', { cwd: root, env: environment });
 run(cargo, ['build', '--manifest-path', manifest, '--target', 'wasm32-unknown-unknown', '--release', '--locked']);
 const staging = mkdtempSync(join(tmpdir(), 'ckd-orchard-wasm-'));
 try {

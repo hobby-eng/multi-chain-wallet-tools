@@ -16,9 +16,9 @@ bc-tags = "=0.12.0"
 dcbor = "=0.25.2"
 sskr = "=0.12.0"
 rand_chacha = "=0.9.0"
-rand_core = "=0.9.3"
-wasm-bindgen = "=0.2.128"
-zeroize = "=1.8.2"
+rand_core = "=0.9.5"
+wasm-bindgen = "=0.2.129"
+zeroize = "=1.9.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom02 = { package = "getrandom", version = "=0.2.17", features = ["js"] }
