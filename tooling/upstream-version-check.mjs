@@ -227,7 +227,7 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     fetchRepositoryHead(fetchImpl, SOURCE_REPOSITORIES.seedqr),
   ]);
 
-  const latestNode = nodeReleases.find((release) => release.lts !== false)?.version?.replace(/^v/u, '');
+  const latestNode = latestNodeInLine(nodeReleases, node);
   const latestRust = capture(rustChannel, /\[pkg\.rust\]\s+version = "(\d+\.\d+\.\d+)/u, 'stable Rust version');
   const latestRustup = rustupTags
     .filter((tag) => /^\d+\.\d+\.\d+$/u.test(tag.name))
@@ -236,7 +236,7 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
     .filter((tag) => /^dashified-\d+\.\d+\.\d+$/u.test(tag.name))
     .sort((left, right) => compareVersions(right.name, left.name))[0];
 
-  const latestNodeVersion = requiredString(latestNode, 'latest Node LTS');
+  const latestNodeVersion = requiredString(latestNode, `latest Node.js ${nodeMajor(node)}.x`);
   const latestPnpm = requiredString(pnpmMetadata.version, 'latest pnpm');
   const latestRustupName = requiredString(latestRustup?.name, 'latest rustup');
   const latestEvo = requiredString(evoMetadata.version, 'latest Evo SDK');
@@ -244,7 +244,12 @@ async function collectUpstreamVersionChecks(root, fetchImpl = fetch) {
   const latestOrchardCommit = requiredString(latestOrchard?.commit?.sha, 'latest Dash Orchard commit');
 
   return [
-    { label: 'Node LTS', current: node, latest: latestNodeVersion, matches: node === latestNodeVersion },
+    {
+      label: `Node.js ${nodeMajor(node)}.x`,
+      current: node,
+      latest: latestNodeVersion,
+      matches: node === latestNodeVersion,
+    },
     { label: 'pnpm', current: pnpm, latest: latestPnpm, matches: pnpm === latestPnpm },
     { label: 'Rust stable', current: rust, latest: latestRust, matches: rust === latestRust },
     { label: 'rustup', current: rustup, latest: latestRustupName, matches: rustup === latestRustupName },
@@ -351,6 +356,20 @@ export function renderUpstreamVersionReport(checks) {
   if (noteDetail !== undefined) lines.push('', `Note-encryption comparison: ${noteDetail}.`);
   if (updateRequired) lines.push('', 'Pinned upstream changes require a reviewed dependency pull request.');
   return { updateRequired, report: `${lines.join('\n')}\n` };
+}
+
+function nodeMajor(version) {
+  return version.split('.')[0];
+}
+
+/**
+ * The newest release of the Node.js major line the project pins, from nodejs.org/dist/index.json
+ * (newest first). The pinned line can be newer than the latest LTS line (Node.js 26 before it
+ * becomes LTS), so a comparison with the LTS line would report a difference that is no update.
+ */
+export function latestNodeInLine(releases, pinned) {
+  const prefix = `v${nodeMajor(pinned)}.`;
+  return releases.find((release) => release.version?.startsWith(prefix))?.version?.replace(/^v/u, '');
 }
 
 export async function runUpstreamVersionCheck(root, fetchImpl = fetch, output = process.stdout) {

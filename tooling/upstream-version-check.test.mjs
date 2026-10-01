@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   fetchWasmBindgenMaxStableVersion,
+  latestNodeInLine,
   noteEncryptionChangeRequiresReview,
   renderUpstreamVersionReport,
   runUpstreamVersionCheck,
@@ -36,6 +37,18 @@ describe('upstream version checker', () => {
     expect(output.write).toHaveBeenCalledWith(
       expect.stringContaining('Infrastructure/parser failure — this is not an update-available signal.'),
     );
+  });
+
+  it('compares Node.js with the newest release of the pinned major line, not the LTS line', () => {
+    const releases = [
+      { version: 'v26.10.0', lts: false },
+      { version: 'v26.9.0', lts: false },
+      { version: 'v24.21.0', lts: 'Krypton' },
+    ];
+    expect(latestNodeInLine(releases, '26.10.0')).toBe('26.10.0');
+    expect(latestNodeInLine(releases, '26.9.0')).toBe('26.10.0');
+    expect(latestNodeInLine(releases, '24.20.0')).toBe('24.21.0');
+    expect(latestNodeInLine(releases, '28.0.0')).toBeUndefined();
   });
 
   it('renders update-required and current outcomes distinctly', () => {

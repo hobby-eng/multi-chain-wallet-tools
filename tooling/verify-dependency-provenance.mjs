@@ -49,17 +49,16 @@ const GITHUB_SOURCES = [
     id: 'seedsigner-seedqr',
     repository: 'SeedSigner/seedsigner',
     reference: 'SeedQR documentation revision',
-    commit: 'b225ae77e9251a813cf2bd61e7874629d6f3cb10',
+    commit: 'cfaf443a5f19e3a3e2b2c7be7572ae3924142c0e',
   },
   {
-    // MHFE 0.4.0 is not released yet. The browser package is taken from the reproducible Docker
-    // build (scripts/build-reproducible.sh) of this exact commit of main. The Python fast-mode
-    // launcher of the package is not vendored: the executable Deriver replaces it.
-    // Replace it with the release tag once 0.4.0 is published.
-    id: 'mhfe-v0.4.0-draft',
+    // The browser package of the MHFE 0.4.0 release: mhfe-v0.4.0-browser.tar.gz, checked against
+    // the release's SHA256SUMS, from tag v0.4.0. The Python fast-mode launcher of the package is
+    // not vendored: the executable Deriver replaces it.
+    id: 'mhfe-v0.4.0',
     repository: 'hobby-eng/mhfe',
-    reference: 'main draft of version 0.4.0, browser package (unreleased)',
-    commit: 'e5a6494c3be8eac75cc38e67dbe23f8920b0ad20',
+    reference: 'release v0.4.0, browser package',
+    commit: 'df70ca5411b84858058bc016385cf4b0001bd570',
   },
   {
     id: 'sskr-0.12.0',
@@ -109,7 +108,7 @@ const LOCAL_IMPLEMENTATIONS = [
   },
   {
     id: 'mhfe-browser-module',
-    upstream: 'mhfe-v0.4.0-draft',
+    upstream: 'mhfe-v0.4.0',
     files: [
       'packages/recovery-mhfe-wasm/generated/client.js',
       'packages/recovery-mhfe-wasm/generated/client.d.ts',
@@ -174,9 +173,9 @@ const FIXED_SOURCE_HASHES = Object.freeze({
   'packages/recovery-mhfe-wasm/generated/client.d.ts':
     'ec8df6e43eff62987f2c893960175296165e85cf84636efb5df2cab6aaff4a6c',
   'packages/recovery-mhfe-wasm/generated/mhfe-worker.js':
-    '0ef6562d98cd33e99df8a13955b1f970c9772420b4b0d0b96b2e3ea0b95cc2b9',
+    'f2525c0533fe0f8594af4452b92e1e3e1fc54069a8c302bad931d369dcac2a9b',
   'packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm':
-    'ae72d87eb6f9db07871a3d33fab3b8eab835d4a83feed32e59acad1255a49fb2',
+    '9e3997bc9cd432d91ea90fc628b6591724c1814f0cc1b8f8844891c647d453ec',
   'packages/recovery-mhfe-wasm/generated/argon2-mt.js':
     'f98906c851a986df514d22536bb48a09724a0fa0b49079860b9a0ef00806f521',
   'packages/recovery-mhfe-wasm/generated/argon2-st.js':

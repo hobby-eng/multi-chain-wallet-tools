@@ -38,9 +38,9 @@ RUN curl --fail --silent --show-error --location \
     && rustc --version
 
 RUN git config --system http.version HTTP/1.1 \
-    && npm install --global pnpm@12.5.1 \
+    && npm install --global pnpm@12.8.1 \
     && cargo install wasm-bindgen-cli --version 0.2.129 --locked \
-    && test "$(pnpm --version)" = '12.5.1' \
+    && test "$(pnpm --version)" = '12.8.1' \
     && test "$(cargo --version | cut -d ' ' -f 1-2)" = 'cargo 1.98.1' \
     && test "$(wasm-bindgen --version | cut -d ' ' -f 1-2)" = 'wasm-bindgen 0.2.129'
 
