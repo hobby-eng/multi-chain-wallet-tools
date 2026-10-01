@@ -1,11 +1,12 @@
 # MHFE browser package
 
-This directory holds the MHFE 0.4.0 browser package (suite `MHFE-BIP39-256-EXPERIMENTAL-3`) from
-[`hobby-eng/mhfe`](https://github.com/hobby-eng/mhfe), unchanged. MHFE 0.4.0 is not released yet:
-the files are those of `mhfe-v0.4.0-browser.tar.gz` from the reproducible Docker build
-(`scripts/build-reproducible.sh`) of commit
-[`e5a6494`](https://github.com/hobby-eng/mhfe/commit/e5a6494c3be8eac75cc38e67dbe23f8920b0ad20) of `main`, recorded in `tooling/verify-dependency-provenance.mjs`, and must be
-replaced by the release build before a release of these tools.
+This directory holds the browser package of the MHFE 0.4.0 release (suite
+`MHFE-BIP39-256-EXPERIMENTAL-3`) from [`hobby-eng/mhfe`](https://github.com/hobby-eng/mhfe),
+unchanged: the files of `mhfe-v0.4.0-browser.tar.gz` from the
+[v0.4.0 release](https://github.com/hobby-eng/mhfe/releases/tag/v0.4.0), checked against its
+`SHA256SUMS` and built from tag `v0.4.0`
+([`df70ca5`](https://github.com/hobby-eng/mhfe/commit/df70ca5411b84858058bc016385cf4b0001bd570)),
+which is recorded in `tooling/verify-dependency-provenance.mjs`.
 
 The Key Derivation Tool embeds the worker and both Argon2 builds as text and the core as bytes, and
 runs every operation in a disposable Worker through `client.js`. Only the six files below are
@@ -23,10 +24,13 @@ SHA-256 of the vendored files:
 
 - `generated/client.js`: `9586fb55165731c08fc92595e3e048c6fd8f4d1a0ecf51725062b68b549aec56`
 - `generated/client.d.ts`: `ec8df6e43eff62987f2c893960175296165e85cf84636efb5df2cab6aaff4a6c`
-- `generated/mhfe-worker.js`: `0ef6562d98cd33e99df8a13955b1f970c9772420b4b0d0b96b2e3ea0b95cc2b9`
-- `generated/mhfe_core_bg.wasm`: `ae72d87eb6f9db07871a3d33fab3b8eab835d4a83feed32e59acad1255a49fb2`
+- `generated/mhfe-worker.js`: `f2525c0533fe0f8594af4452b92e1e3e1fc54069a8c302bad931d369dcac2a9b`
+- `generated/mhfe_core_bg.wasm`: `9e3997bc9cd432d91ea90fc628b6591724c1814f0cc1b8f8844891c647d453ec`
 - `generated/argon2-mt.js`: `f98906c851a986df514d22536bb48a09724a0fa0b49079860b9a0ef00806f521`
 - `generated/argon2-st.js`: `63ece7b314daf8a06ebadb0ff7acdf8be886ddfc9660b5ad13577536c4a3f6da`
 
 MHFE is MIT licensed (`LICENSE-MHFE`). The Argon2 builds contain the reference C implementation of
 Argon2, used under Apache-2.0 (`LICENSE-ARGON2`).
+The package's own notices come with it unchanged: `THIRD_PARTY_LICENSES-MHFE.md` holds the licence
+of every Rust crate compiled into the MHFE core, and `THIRD_PARTY_NOTICES-MHFE.md` the Emscripten
+runtime, musl and the wasm-bindgen JavaScript glue in the worker and the Argon2 builds.

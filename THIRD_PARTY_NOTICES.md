@@ -370,6 +370,8 @@ SeedSigner — SeedQR specification and vectors
 
 Copyright (c) 2026 Sergei Semenov
 MHFE 0.4.0 — browser package (client, worker, Rust core WebAssembly)
+(the licences of the Rust crates in its core, and its Emscripten, musl and wasm-bindgen notices, are in
+`packages/recovery-mhfe-wasm/THIRD_PARTY_LICENSES-MHFE.md` and `THIRD_PARTY_NOTICES-MHFE.md`)
 
 Copyright (c) Project Nayuki
 Copyright (c) 2023 Anthony Fu <https://github.com/antfu>
