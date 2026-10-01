@@ -10,10 +10,10 @@ description = "Serves the embedded Key Derivation Tool page to this computer, so
 # One dependency, RustCrypto's SHA-256, pinned by Cargo.lock and compiled in: the program needs
 # nothing else at run time. The build script checks the page with it too.
 [dependencies]
-sha2 = { version = "=0.10.9", default-features = false }
+sha2 = { version = "=0.11.0", default-features = false }
 
 [build-dependencies]
-sha2 = { version = "=0.10.9", default-features = false }
+sha2 = { version = "=0.11.0", default-features = false }
 
 [profile.release]
 codegen-units = 1

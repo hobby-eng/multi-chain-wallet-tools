@@ -30,13 +30,13 @@ function moduleWithProducer(version) {
 describe('canonical WASM producer metadata', () => {
   it('accepts the exact crates.io wasm-bindgen release', () => {
     const bytes = moduleWithProducer(CANONICAL_WASM_BINDGEN_VERSION);
-    expect(readWasmProducers(bytes).get('processed-by')?.get('wasm-bindgen')).toBe('0.2.128');
+    expect(readWasmProducers(bytes).get('processed-by')?.get('wasm-bindgen')).toBe('0.2.129');
     expect(() => assertCanonicalWasmBindgenProducer(bytes)).not.toThrow();
   });
 
   it('rejects a source-built CLI carrying Git metadata', () => {
-    expect(() => assertCanonicalWasmBindgenProducer(moduleWithProducer('0.2.128 (92201b377)'))).toThrow(
-      /crates\.io wasm-bindgen 0\.2\.128/u,
+    expect(() => assertCanonicalWasmBindgenProducer(moduleWithProducer('0.2.129 (92201b377)'))).toThrow(
+      /crates\.io wasm-bindgen 0\.2\.129/u,
     );
   });
 

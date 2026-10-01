@@ -21,12 +21,12 @@ describe('Rust toolchain resolution', () => {
   });
 
   it('requires the exact crates.io CLI version string', () => {
-    const canonical = () => ({ status: 0, stdout: 'wasm-bindgen 0.2.128\n' });
-    expect(() => assertExactToolVersion('wasm-bindgen', 'wasm-bindgen 0.2.128', {}, canonical)).not.toThrow();
+    const canonical = () => ({ status: 0, stdout: 'wasm-bindgen 0.2.129\n' });
+    expect(() => assertExactToolVersion('wasm-bindgen', 'wasm-bindgen 0.2.129', {}, canonical)).not.toThrow();
 
-    const sourceBuild = () => ({ status: 0, stdout: 'wasm-bindgen 0.2.128 (92201b377)\n' });
-    expect(() => assertExactToolVersion('wasm-bindgen', 'wasm-bindgen 0.2.128', {}, sourceBuild)).toThrow(
-      /Expected exactly wasm-bindgen 0\.2\.128/u,
+    const sourceBuild = () => ({ status: 0, stdout: 'wasm-bindgen 0.2.129 (92201b377)\n' });
+    expect(() => assertExactToolVersion('wasm-bindgen', 'wasm-bindgen 0.2.129', {}, sourceBuild)).toThrow(
+      /Expected exactly wasm-bindgen 0\.2\.129/u,
     );
   });
 });

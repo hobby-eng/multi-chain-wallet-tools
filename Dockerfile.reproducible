@@ -39,10 +39,10 @@ RUN curl --fail --silent --show-error --location \
 
 RUN git config --system http.version HTTP/1.1 \
     && npm install --global pnpm@12.5.1 \
-    && cargo install wasm-bindgen-cli --version 0.2.128 --locked \
+    && cargo install wasm-bindgen-cli --version 0.2.129 --locked \
     && test "$(pnpm --version)" = '12.5.1' \
     && test "$(cargo --version | cut -d ' ' -f 1-2)" = 'cargo 1.98.1' \
-    && test "$(wasm-bindgen --version | cut -d ' ' -f 1-2)" = 'wasm-bindgen 0.2.128'
+    && test "$(wasm-bindgen --version | cut -d ' ' -f 1-2)" = 'wasm-bindgen 0.2.129'
 
 FROM toolchain AS dependencies
 WORKDIR /workspace
@@ -53,6 +53,7 @@ RUN pnpm install --frozen-lockfile \
            && cargo fetch --manifest-path packages/recovery-codex32-wasm/rust/Cargo.toml --locked \
            && cargo fetch --manifest-path packages/recovery-sskr-wasm/rust/Cargo.toml --locked \
            && cargo fetch --manifest-path packages/recovery-envelope-wasm/rust/Cargo.toml --locked \
+           && cargo fetch --manifest-path apps/key-derivation/launcher/Cargo.toml --locked \
            && break; \
          if [ "$attempt" = 5 ]; then exit 1; fi; \
          echo "Cargo fetch attempt ${attempt} failed; retrying in $((attempt * 5)) seconds." >&2; \

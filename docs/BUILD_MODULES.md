@@ -12,7 +12,7 @@ Standalone HTML builds have independent coin and feature selections. With no sel
 - Connected builds without Dash pin every fixed Bitcoin/Ethereum provider origin in CSP. Dash Platform discovers quorum endpoints at runtime, so a build containing Dash retains an HTTPS-scheme connection boundary while application code and request protocols still expose no arbitrary URL input.
 - Network protocols use discriminated request allowlists, reject secret/private-material field names and arbitrary URLs, and minimize every request payload. The build generates an operation allowlist and dispatcher from the selected coins. The Worker validates exact envelope and payload keys, network names, public-token shape, request IDs and per-operation batch/range ceilings before dispatch; operations for excluded coins are absent from its code and rejected by construction.
 - PSBT Inspector and Key Derivation remain offline regardless of selected features.
-- Generated Rust modules must report the exact crates.io `wasm-bindgen 0.2.128` producer. Source-built CLIs that append Git metadata are rejected before generation. The canonical manifest also checks every generated-file hash and a digest of each module's Rust and build inputs, so a host rebuild or stale source fails local verification before packaging.
+- Generated Rust modules must report the exact crates.io `wasm-bindgen 0.2.129` producer. Source-built CLIs that append Git metadata are rejected before generation. The canonical manifest also checks every generated-file hash and a digest of each module's Rust and build inputs, so a host rebuild or stale source fails local verification before packaging.
 
 ## Coin bundles and application modules
 
