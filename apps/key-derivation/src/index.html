@@ -49,31 +49,24 @@
       <section class="warning" aria-label="Security warning">
         <div class="warning-icon">!</div>
         <div>
-          <strong>Use an offline, trusted computer.</strong> Anyone who sees your recovery phrase or
-          private keys can control those funds. Test with an empty wallet first. This app does not
-          save or send your input, but a compromised browser or operating system can still steal
-          secrets.
+          <strong>Use an offline, trusted computer.</strong> Anyone who sees your recovery phrase or private keys can
+          control those funds. Test with an empty wallet first. This app does not save or send your input, but a
+          compromised browser or operating system can still steal secrets.
         </div>
       </section>
 
       <section class="deriver-flow" aria-label="Key derivation workflow">
         <article>
           <span>01</span>
-          <div>
-            <strong>Enter recovery source</strong><small>Validated locally in this file</small>
-          </div>
+          <div><strong>Enter recovery source</strong><small>Validated locally in this file</small></div>
         </article>
         <article>
           <span>02</span>
-          <div>
-            <strong>Choose derivation</strong><small>Select protocol, account and range</small>
-          </div>
+          <div><strong>Choose derivation</strong><small>Select protocol, account and range</small></div>
         </article>
         <article>
           <span>03</span>
-          <div>
-            <strong>Review and export</strong><small>Inspect keys before wallet recovery</small>
-          </div>
+          <div><strong>Review and export</strong><small>Inspect keys before wallet recovery</small></div>
         </article>
       </section>
 
@@ -110,50 +103,26 @@
             <div class="section-head-actions">
               <details id="main-recovery-source-menu" class="recovery-source-menu">
                 <summary>Use in Recover &amp; Back Up</summary>
-                <div
-                  class="recovery-source-menu-items"
-                  aria-label="Recover and back up destination"
-                >
+                <div class="recovery-source-menu-items" aria-label="Recover and back up destination">
                   <button type="button" data-recovery-source="main" data-recovery-target="matcher">
                     Wallet Matcher
                   </button>
-                  <button type="button" data-recovery-source="main" data-recovery-target="seedqr">
-                    SeedQR
-                  </button>
-                  <button type="button" data-recovery-source="main" data-recovery-target="mhfe">
-                    MHFE
-                  </button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="seedqr">SeedQR</button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="mhfe">MHFE</button>
                   <button type="button" data-recovery-source="main" data-recovery-target="slip39">
                     SLIP-39 shares
                   </button>
                   <button type="button" data-recovery-source="main" data-recovery-target="sskr">
                     Shamir shares (SSKR)
                   </button>
-                  <button
-                    type="button"
-                    data-recovery-source="main"
-                    data-recovery-target="gordian-envelope"
-                  >
+                  <button type="button" data-recovery-source="main" data-recovery-target="gordian-envelope">
                     Seed Envelope
                   </button>
-                  <button type="button" data-recovery-source="main" data-recovery-target="codex32">
-                    Codex32
-                  </button>
-                  <button
-                    type="button"
-                    data-recovery-source="main"
-                    data-recovery-target="mnemocode"
-                  >
-                    MnemoCode
-                  </button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="codex32">Codex32</button>
+                  <button type="button" data-recovery-source="main" data-recovery-target="mnemocode">MnemoCode</button>
                 </div>
               </details>
-              <button
-                class="danger-outline"
-                id="toggle-sensitive-values"
-                type="button"
-                aria-pressed="false"
-              >
+              <button class="danger-outline" id="toggle-sensitive-values" type="button" aria-pressed="false">
                 Show phrase
               </button>
             </div>
@@ -171,21 +140,11 @@
             <span id="word-count">0 words</span><span>English wordlist · checksum validated</span>
           </div>
           <div class="generate-actions" aria-label="Generate a new recovery phrase">
-            <button class="secondary compact" id="generate-12" type="button">
-              Generate 12 words
-            </button>
-            <button class="secondary compact" id="generate-15" type="button">
-              Generate 15 words
-            </button>
-            <button class="secondary compact" id="generate-18" type="button">
-              Generate 18 words
-            </button>
-            <button class="secondary compact" id="generate-21" type="button">
-              Generate 21 words
-            </button>
-            <button class="secondary compact" id="generate-24" type="button">
-              Generate 24 words
-            </button>
+            <button class="secondary compact" id="generate-12" type="button">Generate 12 words</button>
+            <button class="secondary compact" id="generate-15" type="button">Generate 15 words</button>
+            <button class="secondary compact" id="generate-18" type="button">Generate 18 words</button>
+            <button class="secondary compact" id="generate-21" type="button">Generate 21 words</button>
+            <button class="secondary compact" id="generate-24" type="button">Generate 24 words</button>
             <button
               class="secret-action compact"
               id="copy-mnemonic"
@@ -201,22 +160,19 @@
             <span
               ><strong>Generate with chosen words</strong
               ><small
-                >Not recommended. The Generate buttons above then make a random phrase that also
-                meets the wishes below.</small
+                >Not recommended. The Generate buttons above then make a random phrase that also meets the wishes
+                below.</small
               ></span
             >
           </label>
           <div id="chosen-words-panel" class="chosen-words-panel" hidden>
             <p class="field-note chosen-words-warning">
-              <strong>We strongly recommend not using this feature.</strong> A phrase from the
-              ordinary Generate buttons is the strongest. Every wish weakens the phrase: it lowers
-              its cryptographic strength by the random bits it takes away. A word at a position
-              takes about 11 bits, a word anywhere about 7. Someone who knows or guesses your wishes
-              has that much less to search, so never write them down next to the phrase.
+              <strong>We strongly recommend not using this feature.</strong> A phrase from the ordinary Generate buttons
+              is the strongest. Every wish weakens the phrase: it lowers its cryptographic strength by the random bits
+              it takes away. A word at a position takes about 11 bits, a word anywhere about 7. Someone who knows or
+              guesses your wishes has that much less to search, so never write them down next to the phrase.
             </p>
-            <div class="chosen-words-head">
-              Words the phrase must contain <span class="optional">up to two</span>
-            </div>
+            <div class="chosen-words-head">Words the phrase must contain <span class="optional">up to two</span></div>
             <div class="chosen-words-row" id="chosen-word-1-row">
               <select id="chosen-word-1-position" aria-label="Where chosen word 1 goes"></select>
               <input
@@ -228,9 +184,7 @@
                 autocapitalize="none"
                 spellcheck="false"
               />
-              <button class="secondary compact" id="chosen-word-1-clear" type="button">
-                Clear
-              </button>
+              <button class="secondary compact" id="chosen-word-1-clear" type="button">Clear</button>
             </div>
             <div class="chosen-words-row" id="chosen-word-2-row" hidden>
               <select id="chosen-word-2-position" aria-label="Where chosen word 2 goes"></select>
@@ -243,16 +197,11 @@
                 autocapitalize="none"
                 spellcheck="false"
               />
-              <button class="secondary compact" id="chosen-word-2-remove" type="button">
-                Remove
-              </button>
+              <button class="secondary compact" id="chosen-word-2-remove" type="button">Remove</button>
             </div>
-            <button class="secondary compact" id="chosen-words-add" type="button">
-              Add a word
-            </button>
+            <button class="secondary compact" id="chosen-words-add" type="button">Add a word</button>
             <label for="chosen-words-never"
-              >Never use
-              <span class="optional">English BIP39 words separated by spaces</span></label
+              >Never use <span class="optional">English BIP39 words separated by spaces</span></label
             >
             <input
               id="chosen-words-never"
@@ -263,20 +212,13 @@
             />
             <datalist id="chosen-words-list"></datalist>
             <div class="chosen-words-strength" aria-live="polite">
-              <div class="chosen-words-bar" aria-hidden="true">
-                <span id="chosen-words-bar-fill"></span>
-              </div>
-              <div
-                id="chosen-words-bits"
-                class="chosen-words-bits"
-                aria-label="Random bits left"
-              ></div>
+              <div class="chosen-words-bar" aria-hidden="true"><span id="chosen-words-bar-fill"></span></div>
+              <div id="chosen-words-bits" class="chosen-words-bits" aria-label="Random bits left"></div>
               <p id="chosen-words-verdict" class="field-note"></p>
             </div>
             <p class="field-note">
-              The phrase is still drawn with crypto.getRandomValues(), evenly among all phrases that
-              meet the wishes; the checksum is calculated, never chosen. Below 112 random bits the
-              page warns, below 96 it refuses.
+              The phrase is still drawn with crypto.getRandomValues(), evenly among all phrases that meet the wishes;
+              the checksum is calculated, never chosen. Below 112 random bits the page warns, below 96 it refuses.
             </p>
           </div>
           <section
@@ -292,9 +234,7 @@
             <p class="field-note">Enter an English BIP39 recovery phrase to check its structure.</p>
           </section>
 
-          <label for="passphrase"
-            >BIP39 passphrase <span class="optional">optional, case-sensitive</span></label
-          >
+          <label for="passphrase">BIP39 passphrase <span class="optional">optional, case-sensitive</span></label>
           <input
             id="passphrase"
             type="password"
@@ -302,9 +242,9 @@
             placeholder="Leave blank unless your wallet uses one"
           />
           <p class="field-note">
-            A passphrase is not a PIN or another mnemonic word. Unicode is supported; case, spaces,
-            and symbols are significant. Standard BIP39 NFKD normalization is applied. Every
-            different passphrase creates a different wallet, with no error for a wrong one.
+            A passphrase is not a PIN or another mnemonic word. Unicode is supported; case, spaces, and symbols are
+            significant. Standard BIP39 NFKD normalization is applied. Every different passphrase creates a different
+            wallet, with no error for a wrong one.
           </p>
         </section>
 
@@ -315,12 +255,7 @@
               <h2>Protocol & derivation</h2>
             </div>
             <span id="default-result-secret-control-slot" class="result-secret-control-slot">
-              <button
-                class="danger-outline compact"
-                id="toggle-result-secrets"
-                type="button"
-                aria-pressed="false"
-              >
+              <button class="danger-outline compact" id="toggle-result-secrets" type="button" aria-pressed="false">
                 Show private keys
               </button>
             </span>
@@ -413,25 +348,21 @@
                 <span
                   ><strong>Also generate change addresses</strong
                   ><small id="change-addresses-help"
-                    >Uses the standard internal branch <code>/1</code> and shows it in a separate
-                    result tab.</small
+                    >Uses the standard internal branch <code>/1</code> and shows it in a separate result tab.</small
                   ></span
                 >
               </label>
             </div>
           </div>
           <div class="actions standard-derivation-content">
-            <button class="primary" id="derive-button" type="submit">
-              Derive selected results
-            </button>
+            <button class="primary" id="derive-button" type="submit">Derive selected results</button>
             <button class="secondary" id="cancel-derivation" type="button" hidden>Cancel</button>
             <button class="secondary" id="clear-all" type="button">Clear</button>
           </div>
           <p class="field-note auto-derive-note standard-derivation-content">
-            Generating or pasting a complete phrase, changing its BIP39 passphrase, coin, or
-            derivation tab automatically derives the selected result count. Remembered totals above
-            20 require a manual click; larger requests run in visible batches and can consume
-            substantial CPU, memory, and browser time.
+            Generating or pasting a complete phrase, changing its BIP39 passphrase, coin, or derivation tab
+            automatically derives the selected result count. Remembered totals above 20 require a manual click; larger
+            requests run in visible batches and can consume substantial CPU, memory, and browser time.
           </p>
           <div id="error" class="error" role="alert" hidden></div>
           <div id="status" class="status" role="status" aria-live="polite" hidden></div>
@@ -529,12 +460,7 @@
           </button>
         </nav>
 
-        <section
-          id="wallet-matcher-panel"
-          class="panel recovery-panel"
-          role="tabpanel"
-          data-recovery-panel
-        >
+        <section id="wallet-matcher-panel" class="panel recovery-panel" role="tabpanel" data-recovery-panel>
           <div class="section-head">
             <div>
               <span class="step">02</span>
@@ -546,15 +472,14 @@
             <div class="recovery-help-popover">
               <h3>Wallet Matcher / Derivation Discovery</h3>
               <p>
-                Finds which candidate recovery phrase produced a known public address and reports
-                its coin, account, branch, index, and complete derivation path. All candidates are
-                tested locally in this file.
+                Finds which candidate recovery phrase produced a known public address and reports its coin, account,
+                branch, index, and complete derivation path. All candidates are tested locally in this file.
               </p>
             </div>
           </details>
           <p class="field-note">
-            Enter one BIP39 phrase per numbered line. The passphrase on the same numbered line
-            belongs to that phrase; leave its line empty when no passphrase was used.
+            Enter one BIP39 phrase per numbered line. The passphrase on the same numbered line belongs to that phrase;
+            leave its line empty when no passphrase was used.
           </p>
           <button
             id="toggle-matcher-secrets"
@@ -581,9 +506,7 @@
               </div>
             </div>
             <div>
-              <label for="matcher-passphrases"
-                >Matching BIP39 passphrases <span class="optional">optional</span></label
-              >
+              <label for="matcher-passphrases">Matching BIP39 passphrases <span class="optional">optional</span></label>
               <div class="numbered-textarea">
                 <pre id="matcher-passphrase-lines" aria-hidden="true"></pre>
                 <textarea
@@ -597,9 +520,7 @@
               </div>
             </div>
           </div>
-          <label for="matcher-addresses"
-            >Known payment address or Dash Identity MASTER-key HASH160</label
-          >
+          <label for="matcher-addresses">Known payment address or Dash Identity MASTER-key HASH160</label>
           <div class="numbered-textarea">
             <pre id="matcher-address-lines" aria-hidden="true"></pre>
             <textarea
@@ -627,47 +548,19 @@
             </div>
             <div>
               <label for="matcher-account-start">Account start</label
-              ><input
-                id="matcher-account-start"
-                type="number"
-                value="0"
-                min="0"
-                max="2147483647"
-                step="1"
-              />
+              ><input id="matcher-account-start" type="number" value="0" min="0" max="2147483647" step="1" />
             </div>
             <div>
               <label for="matcher-account-end">Account finish</label
-              ><input
-                id="matcher-account-end"
-                type="number"
-                value="0"
-                min="0"
-                max="2147483647"
-                step="1"
-              />
+              ><input id="matcher-account-end" type="number" value="0" min="0" max="2147483647" step="1" />
             </div>
             <div>
               <label for="matcher-index-start">Index start</label
-              ><input
-                id="matcher-index-start"
-                type="number"
-                value="0"
-                min="0"
-                max="2147483647"
-                step="1"
-              />
+              ><input id="matcher-index-start" type="number" value="0" min="0" max="2147483647" step="1" />
             </div>
             <div>
               <label for="matcher-index-count">Indices per branch</label
-              ><input
-                id="matcher-index-count"
-                type="number"
-                value="120"
-                min="1"
-                max="5000"
-                step="1"
-              />
+              ><input id="matcher-index-count" type="number" value="120" min="1" max="5000" step="1" />
             </div>
           </div>
           <label class="feature-tab-toggle" for="matcher-search-change">
@@ -675,8 +568,8 @@
             <span>
               <strong>Search change addresses</strong>
               <small
-                >Also search the selected coin's internal/change branches, including Dash Core,
-                CoinJoin, and Platform where supported.</small
+                >Also search the selected coin's internal/change branches, including Dash Core, CoinJoin, and Platform
+                where supported.</small
               >
             </span>
           </label>
@@ -684,24 +577,20 @@
             ><input id="matcher-force-all" type="checkbox" /><span
               ><strong>Search every supported coin and derivation profile</strong
               ><small
-                >By default, search all compatible paths of the selected coin. Enable this to search
-                every coin included in this build, including receive and change branches wherever
-                supported, across the ranges above. This is much slower.</small
+                >By default, search all compatible paths of the selected coin. Enable this to search every coin included
+                in this build, including receive and change branches wherever supported, across the ranges above. This
+                is much slower.</small
               ></span
             ></label
           >
           <p class="field-note">
-            Payment addresses are matched locally across the selected coin's compatible paths. For
-            Dash Identity, enter the 40-character HASH160 of the MASTER authentication public key.
-            Finding an Identity from its Identity ID or DPNS name requires the proof-verified
-            Discovery Scanner.
+            Payment addresses are matched locally across the selected coin's compatible paths. For Dash Identity, enter
+            the 40-character HASH160 of the MASTER authentication public key. Finding an Identity from its Identity ID
+            or DPNS name requires the proof-verified Discovery Scanner.
           </p>
           <div class="actions">
-            <button class="primary" id="run-wallet-matcher" type="button">
-              Find wallet matches</button
-            ><button class="secondary" id="cancel-wallet-matcher" type="button" hidden>
-              Cancel
-            </button>
+            <button class="primary" id="run-wallet-matcher" type="button">Find wallet matches</button
+            ><button class="secondary" id="cancel-wallet-matcher" type="button" hidden>Cancel</button>
           </div>
           <p id="wallet-matcher-status" class="status" role="status" aria-live="polite"></p>
           <div id="wallet-matcher-results" class="matcher-results"></div>
@@ -725,10 +614,10 @@
             <div class="recovery-help-popover">
               <h3>SeedQR</h3>
               <p>
-                Converts a BIP39 recovery phrase into a QR payload for offline transfer or paper
-                backup. Standard SeedQR stores four digits per word; CompactSeedQR stores the
-                underlying entropy bytes. SeedSigner documents 12- and 24-word payloads; 15-, 18-,
-                and 21-word payloads work here but may not be accepted by external readers.
+                Converts a BIP39 recovery phrase into a QR payload for offline transfer or paper backup. Standard SeedQR
+                stores four digits per word; CompactSeedQR stores the underlying entropy bytes. SeedSigner documents 12-
+                and 24-word payloads; 15-, 18-, and 21-word payloads work here but may not be accepted by external
+                readers.
               </p>
               <p class="upstream-links">
                 Open-source specifications and modules are used. Source code is available from
@@ -737,27 +626,21 @@
                   target="_blank"
                   rel="noopener noreferrer"
                   >SeedSigner SeedQR</a
-                >,
-                <a href="https://github.com/unjs/uqr" target="_blank" rel="noopener noreferrer"
-                  >uqr</a
-                >
-                for QR encoding, and
-                <a href="https://github.com/paulmillr/qr" target="_blank" rel="noopener noreferrer"
-                  >paulmillr/qr</a
-                >
-                for QR decoding. Every build verifies locked dependency checksums. When GitHub is
-                available, it also verifies the exact pinned upstream commits; a mismatch stops the
-                build.
+                >, <a href="https://github.com/unjs/uqr" target="_blank" rel="noopener noreferrer">uqr</a> for QR
+                encoding, and
+                <a href="https://github.com/paulmillr/qr" target="_blank" rel="noopener noreferrer">paulmillr/qr</a> for
+                QR decoding. Every build verifies locked dependency checksums. When GitHub is available, it also
+                verifies the exact pinned upstream commits; a mismatch stops the build.
               </p>
             </div>
           </details>
           <p class="field-note">
-            Encode or decode 12-, 15-, 18-, 21-, or 24-word English BIP39 phrases. Check
-            external-reader compatibility in “What is this?”.
+            Encode or decode 12-, 15-, 18-, 21-, or 24-word English BIP39 phrases. Check external-reader compatibility
+            in “What is this?”.
           </p>
           <div class="warning-callout">
-            <strong>Secret QR.</strong> Anyone who scans this QR can recover the wallet. Do not
-            photograph, upload, or display it near cameras.
+            <strong>Secret QR.</strong> Anyone who scans this QR can recover the wallet. Do not photograph, upload, or
+            display it near cameras.
           </div>
           <nav class="backup-mode-tabs" role="tablist" aria-label="SeedQR operation">
             <button
@@ -781,20 +664,10 @@
               Decode
             </button>
           </nav>
-          <section
-            id="seedqr-create-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-          >
+          <section id="seedqr-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
             <div class="field-heading-row">
               <label for="seedqr-source">BIP39 recovery phrase to encode</label>
-              <button
-                id="toggle-seedqr-source"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-seedqr-source" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -813,29 +686,13 @@
             </select>
             <div class="actions">
               <button class="primary" id="create-seedqr" type="button">Create SeedQR</button>
-              <button
-                id="toggle-seedqr-created"
-                class="danger-outline"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-seedqr-created" class="danger-outline" type="button" aria-pressed="false">
                 Show payload
               </button>
             </div>
-            <div
-              id="seedqr-create-result"
-              class="share-results"
-              role="status"
-              aria-live="polite"
-            ></div>
+            <div id="seedqr-create-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
-          <section
-            id="seedqr-restore-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-            hidden
-          >
+          <section id="seedqr-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
             <label for="seedqr-restore-format">Decoded SeedQR format</label>
             <select id="seedqr-restore-format">
               <option value="standard">Standard SeedQR · numeric digits</option>
@@ -843,12 +700,7 @@
             </select>
             <div class="field-heading-row">
               <label for="seedqr-payload">Decoded QR payload</label>
-              <button
-                id="toggle-seedqr-payload"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-seedqr-payload" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -863,22 +715,11 @@
             <div class="actions">
               <button class="primary" id="restore-seedqr" type="button">Restore phrase</button>
             </div>
-            <div
-              id="seedqr-restore-result"
-              class="share-results"
-              role="status"
-              aria-live="polite"
-            ></div>
+            <div id="seedqr-restore-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
         </section>
 
-        <section
-          id="mhfe-panel"
-          class="panel recovery-panel backup-method"
-          role="tabpanel"
-          data-recovery-panel
-          hidden
-        >
+        <section id="mhfe-panel" class="panel recovery-panel backup-method" role="tabpanel" data-recovery-panel hidden>
           <div class="section-head">
             <div>
               <span class="step">02</span>
@@ -890,40 +731,31 @@
             <div class="recovery-help-popover">
               <h3>Memory-Hard Feistel Encryption</h3>
               <p>
-                MHFE is an experimental encryption construction designed by this project's author.
-                It turns a checksum-valid 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase into a
-                password-protected 24-word container that is itself a checksum-valid BIP39 phrase,
-                without storing a salt, nonce, or tag. It runs twelve Feistel rounds, each with
-                Argon2id over 2 GiB of memory, so every recovery deliberately takes minutes; an
-                encryption decrypts its result once more to check it and takes twice as long.
+                MHFE is an experimental encryption construction designed by this project's author. It turns a
+                checksum-valid 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase into a password-protected 24-word
+                container that is itself a checksum-valid BIP39 phrase, without storing a salt, nonce, or tag. It runs
+                twelve Feistel rounds, each with Argon2id over 2 GiB of memory, so every recovery deliberately takes
+                minutes; an encryption decrypts its result once more to check it and takes twice as long.
               </p>
               <p>
-                Short source phrases carry a built-in check that confirms the password and finds the
-                length. A 24-word source fills the whole state and has none, so a wrong password
-                gives another valid phrase; compare the result with your wallet.
+                Short source phrases carry a built-in check that confirms the password and finds the length. A 24-word
+                source fills the whole state and has none, so a wrong password gives another valid phrase; compare the
+                result with your wallet.
               </p>
               <p>
-                In this HTML version the browser runs Argon2 on one thread. The executable version
-                of this tool opens the same page with four threads, about two and a half to three
-                times faster. The browser supports memory level 0 (2 GiB); higher levels need the
-                mhfe command-line tool.
+                In this HTML version the browser runs Argon2 on one thread. The executable version of this tool opens
+                the same page with four threads, about two and a half to three times faster. The browser supports memory
+                level 0 (2 GiB); higher levels need the mhfe command-line tool.
               </p>
               <p class="upstream-links">
                 Read the
-                <a
-                  href="https://github.com/hobby-eng/mhfe-spec"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <a href="https://github.com/hobby-eng/mhfe-spec" target="_blank" rel="noopener noreferrer"
                   >MHFE specification</a
                 >
                 and inspect the
-                <a
-                  href="https://github.com/hobby-eng/mhfe"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <a href="https://github.com/hobby-eng/mhfe" target="_blank" rel="noopener noreferrer"
                   >reference implementation</a
-                >. This page embeds the MHFE 0.4.0 browser package, suite
-                MHFE-BIP39-256-EXPERIMENTAL-3.
+                >. This page embeds the MHFE 0.4.0 browser package, suite MHFE-BIP39-256-EXPERIMENTAL-3.
               </p>
             </div>
           </details>
@@ -950,20 +782,10 @@
               Decode
             </button>
           </nav>
-          <section
-            id="mhfe-create-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-          >
+          <section id="mhfe-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
             <div class="field-heading-row">
               <label for="mhfe-source">BIP39 phrase to encrypt</label>
-              <button
-                id="toggle-mhfe-source"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-mhfe-source" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -988,12 +810,7 @@
                     Show
                   </button>
                 </div>
-                <input
-                  id="mhfe-encrypt-password"
-                  type="password"
-                  autocomplete="new-password"
-                  maxlength="1024"
-                />
+                <input id="mhfe-encrypt-password" type="password" autocomplete="new-password" maxlength="1024" />
               </div>
               <div class="mhfe-password-field">
                 <div class="field-heading-row">
@@ -1024,18 +841,17 @@
               <input id="mhfe-encrypt-pim" type="number" min="1" max="1023" step="1" value="1" />
             </label>
             <p class="field-note mhfe-pim-note">
-              With the checkbox off, PIM is 0 and does not need to be recorded. Each PIM step adds
-              the default time again: PIM 1 doubles it, and recovery needs the same value. A
-              password of four or better five words chosen with dice is strong. It is ordinary text
-              on one line in any language; tabs, line breaks and other invisible control characters
-              are refused. Letter case and spaces count: lowercase words with single spaces are the
-              easiest to type again years later.
+              With the checkbox off, PIM is 0 and does not need to be recorded. Each PIM step adds the default time
+              again: PIM 1 doubles it, and recovery needs the same value. A password of four or better five words chosen
+              with dice is strong. It is ordinary text on one line in any language; tabs, line breaks and other
+              invisible control characters are refused. Letter case and spaces count: lowercase words with single spaces
+              are the easiest to type again years later.
             </p>
             <p class="field-note mhfe-memory-note">
-              Memory level is always 0 (2 GiB) here. A browser gives WebAssembly at most 4 GiB, and
-              the Argon2 code allows at most 2 GiB in such 32-bit builds, so a browser cannot run a
-              higher level and this page does not offer the setting. To choose a higher memory
-              level, or to open a container made with one, use the mhfe command-line program.
+              Memory level is always 0 (2 GiB) here. A browser gives WebAssembly at most 4 GiB, and the Argon2 code
+              allows at most 2 GiB in such 32-bit builds, so a browser cannot run a higher level and this page does not
+              offer the setting. To choose a higher memory level, or to open a container made with one, use the mhfe
+              command-line program.
             </p>
             <div class="actions">
               <button class="primary" id="mhfe-encrypt" type="button">Encrypt</button>
@@ -1044,21 +860,10 @@
             <p id="mhfe-encrypt-status" class="status" role="status" aria-live="polite"></p>
             <div id="mhfe-encrypt-result" class="share-results" aria-live="polite"></div>
           </section>
-          <section
-            id="mhfe-restore-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-            hidden
-          >
+          <section id="mhfe-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
             <div class="field-heading-row">
               <label for="mhfe-container">Encrypted 24-word MHFE container</label>
-              <button
-                id="toggle-mhfe-container"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-mhfe-container" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -1073,21 +878,11 @@
             <div class="mhfe-password-field">
               <div class="field-heading-row">
                 <label for="mhfe-decrypt-password">MHFE password</label>
-                <button
-                  id="toggle-mhfe-decrypt-password"
-                  class="secondary compact"
-                  type="button"
-                  aria-pressed="false"
-                >
+                <button id="toggle-mhfe-decrypt-password" class="secondary compact" type="button" aria-pressed="false">
                   Show
                 </button>
               </div>
-              <input
-                id="mhfe-decrypt-password"
-                type="password"
-                autocomplete="current-password"
-                maxlength="1024"
-              />
+              <input id="mhfe-decrypt-password" type="password" autocomplete="current-password" maxlength="1024" />
             </div>
             <label class="checkbox-row" for="mhfe-decrypt-use-pim">
               <input id="mhfe-decrypt-use-pim" type="checkbox" />
@@ -1098,10 +893,10 @@
               <input id="mhfe-decrypt-pim" type="number" min="1" max="1023" step="1" value="1" />
             </label>
             <p class="field-note mhfe-memory-note">
-              Memory level is always 0 (2 GiB) here. A browser gives WebAssembly at most 4 GiB, and
-              the Argon2 code allows at most 2 GiB in such 32-bit builds, so a browser cannot run a
-              higher level and this page does not offer the setting. To choose a higher memory
-              level, or to open a container made with one, use the mhfe command-line program.
+              Memory level is always 0 (2 GiB) here. A browser gives WebAssembly at most 4 GiB, and the Argon2 code
+              allows at most 2 GiB in such 32-bit builds, so a browser cannot run a higher level and this page does not
+              offer the setting. To choose a higher memory level, or to open a container made with one, use the mhfe
+              command-line program.
             </p>
             <label for="mhfe-decrypt-source-words">
               Original phrase length
@@ -1115,10 +910,9 @@
               </select>
             </label>
             <p class="field-note">
-              Auto checks the built-in checks of 12, 15, 18, and 21 words; if none passes, it
-              returns the 24-word reading. Select the length yourself for a 24-word original, or
-              when encryption told you to. In the extremely unlikely event that several lengths
-              pass, every candidate is shown.
+              Auto checks the built-in checks of 12, 15, 18, and 21 words; if none passes, it returns the 24-word
+              reading. Select the length yourself for a 24-word original, or when encryption told you to. In the
+              extremely unlikely event that several lengths pass, every candidate is shown.
             </p>
             <div class="actions">
               <button class="primary" id="mhfe-decrypt" type="button">Restore phrase</button>
@@ -1147,27 +941,20 @@
             <div class="recovery-help-popover">
               <h3>SLIP-39 mnemonic shares</h3>
               <p>
-                Splits secret entropy into standardized mnemonic shares with a threshold. In a
-                2-of-3 set, any two cards recover the secret while one card is insufficient. Each
-                share uses the separate SLIP-39 wordlist.
+                Splits secret entropy into standardized mnemonic shares with a threshold. In a 2-of-3 set, any two cards
+                recover the secret while one card is insufficient. Each share uses the separate SLIP-39 wordlist.
               </p>
               <p class="upstream-links">
-                An open-source reference implementation and its official vectors are used. Source
-                code is available from
-                <a
-                  href="https://github.com/trezor/python-shamir-mnemonic"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                An open-source reference implementation and its official vectors are used. Source code is available from
+                <a href="https://github.com/trezor/python-shamir-mnemonic" target="_blank" rel="noopener noreferrer"
                   >Trezor python-shamir-mnemonic</a
-                >. The browser port is maintained by this project. Every build verifies locked
-                dependency checksums. When GitHub is available, it also verifies the exact pinned
-                upstream commit; a mismatch stops the build.
+                >. The browser port is maintained by this project. Every build verifies locked dependency checksums.
+                When GitHub is available, it also verifies the exact pinned upstream commit; a mismatch stops the build.
               </p>
             </div>
           </details>
           <p class="field-note">
-            SLIP-39 shares have their own 1024-word list, metadata and checksum. They are not BIP39
-            seed phrases.
+            SLIP-39 shares have their own 1024-word list, metadata and checksum. They are not BIP39 seed phrases.
           </p>
           <nav class="backup-mode-tabs" role="tablist" aria-label="SLIP-39 operation">
             <button
@@ -1191,20 +978,10 @@
               Decode
             </button>
           </nav>
-          <section
-            id="slip39-create-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-          >
+          <section id="slip39-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
             <div class="field-heading-row">
               <label for="slip39-source-mnemonic">BIP39 recovery phrase to back up</label
-              ><button
-                id="toggle-slip39-source"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              ><button id="toggle-slip39-source" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -1226,8 +1003,7 @@
                 ><input id="slip39-count" type="number" value="3" min="1" max="16" step="1" />
               </div>
               <div>
-                <label for="slip39-create-passphrase"
-                  >SLIP-39 passphrase <span class="optional">optional</span></label
+                <label for="slip39-create-passphrase">SLIP-39 passphrase <span class="optional">optional</span></label
                 ><input
                   id="slip39-create-passphrase"
                   type="password"
@@ -1242,47 +1018,26 @@
               <option value="legacy">Legacy SLIP-39 · non-extendable — for older software</option>
             </select>
             <p class="field-note">
-              Use the current extendable format for new backups. Select legacy only when
-              compatibility with older SLIP-39 software requires it.
+              Use the current extendable format for new backups. Select legacy only when compatibility with older
+              SLIP-39 software requires it.
             </p>
             <div class="warning-callout">
-              <strong>Compatibility boundary.</strong> These shares preserve the entropy of the
-              BIP39 phrase so this tool can reconstruct the same words. A wallet that treats them as
-              a native SLIP-39 wallet may derive a different wallet.
+              <strong>Compatibility boundary.</strong> These shares preserve the entropy of the BIP39 phrase so this
+              tool can reconstruct the same words. A wallet that treats them as a native SLIP-39 wallet may derive a
+              different wallet.
             </div>
             <div class="actions">
               <button class="primary" id="create-slip39-shares" type="button">Create shares</button
-              ><button
-                id="toggle-slip39-created"
-                class="danger-outline"
-                type="button"
-                aria-pressed="false"
-              >
+              ><button id="toggle-slip39-created" class="danger-outline" type="button" aria-pressed="false">
                 Show shares
               </button>
             </div>
-            <div
-              id="slip39-create-result"
-              class="share-results"
-              role="status"
-              aria-live="polite"
-            ></div>
+            <div id="slip39-create-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
-          <section
-            id="slip39-restore-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-            hidden
-          >
+          <section id="slip39-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
             <div class="field-heading-row">
               <label for="slip39-shares">SLIP-39 shares</label>
-              <button
-                id="toggle-slip39-shares"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-slip39-shares" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -1304,21 +1059,10 @@
               placeholder="Printable ASCII only"
             />
             <button class="primary" id="restore-slip39-shares" type="button">Restore phrase</button>
-            <div
-              id="slip39-restore-result"
-              class="share-results"
-              role="status"
-              aria-live="polite"
-            ></div>
+            <div id="slip39-restore-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
         </section>
-        <section
-          id="sskr-panel"
-          class="panel recovery-panel backup-method"
-          role="tabpanel"
-          data-recovery-panel
-          hidden
-        >
+        <section id="sskr-panel" class="panel recovery-panel backup-method" role="tabpanel" data-recovery-panel hidden>
           <div class="section-head">
             <div>
               <span class="step">02</span>
@@ -1330,30 +1074,25 @@
             <div class="recovery-help-popover">
               <h3>SSKR</h3>
               <p>
-                Interoperable Sharded Secret Key Reconstruction with share thresholds inside groups
-                and a threshold across groups. Encode and Decode support Compact UR and full
-                Bytewords representations of the same standard SSKR share.
+                Interoperable Sharded Secret Key Reconstruction with share thresholds inside groups and a threshold
+                across groups. Encode and Decode support Compact UR and full Bytewords representations of the same
+                standard SSKR share.
               </p>
               <p>
-                SSKR splits a secret; it does not encrypt one. To protect mnemonic entropy together
-                with its BIP39 passphrase, use Seed Envelope with an SSKR permit.
+                SSKR splits a secret; it does not encrypt one. To protect mnemonic entropy together with its BIP39
+                passphrase, use Seed Envelope with an SSKR permit.
               </p>
               <p class="upstream-links">
-                An open-source module is used for standard SSKR and Bytewords support. Source code
-                is available from
-                <a
-                  href="https://github.com/BlockchainCommons/bc-sskr-rust"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                An open-source module is used for standard SSKR and Bytewords support. Source code is available from
+                <a href="https://github.com/BlockchainCommons/bc-sskr-rust" target="_blank" rel="noopener noreferrer"
                   >Blockchain Commons bc-sskr-rust</a
-                >. Every build verifies locked dependency checksums. When GitHub is available, it
-                also verifies the exact pinned upstream commit; a mismatch stops the build.
+                >. Every build verifies locked dependency checksums. When GitHub is available, it also verifies the
+                exact pinned upstream commit; a mismatch stops the build.
               </p>
             </div>
           </details>
           <p class="field-note">
-            Splits BIP39 entropy into Shamir shares in the Blockchain Commons SSKR format. It is
-            separate from SLIP-39.
+            Splits BIP39 entropy into Shamir shares in the Blockchain Commons SSKR format. It is separate from SLIP-39.
           </p>
           <nav class="backup-mode-tabs" role="tablist" aria-label="SSKR operation">
             <button
@@ -1376,20 +1115,10 @@
               Decode
             </button>
           </nav>
-          <section
-            id="sskr-create-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-          >
+          <section id="sskr-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
             <div class="field-heading-row">
               <label for="sskr-source">BIP39 recovery phrase</label>
-              <button
-                id="toggle-sskr-source"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-sskr-source" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -1403,9 +1132,7 @@
               <p class="field-note">Both choices carry the same standard SSKR share data.</p>
             </div>
             <div class="threshold-settings">
-              <div class="threshold-settings-heading">
-                <span class="field-label">Share groups</span>
-              </div>
+              <div class="threshold-settings-heading"><span class="field-label">Share groups</span></div>
               <div id="sskr-groups" class="threshold-group-editor">
                 <div class="threshold-groups-required">
                   <label for="sskr-group-threshold">Groups required</label
@@ -1415,19 +1142,11 @@
             </div>
             <div class="actions">
               <button id="create-sskr" class="primary" type="button">Create shares</button
-              ><button id="toggle-sskr-created" class="danger-outline compact" type="button">
-                Show shares
-              </button>
+              ><button id="toggle-sskr-created" class="danger-outline compact" type="button">Show shares</button>
             </div>
             <div id="sskr-create-result" class="share-results"></div>
           </section>
-          <section
-            id="sskr-restore-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-            hidden
-          >
+          <section id="sskr-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
             <div>
               <label for="sskr-restore-encoding">Share encoding</label>
               <select id="sskr-restore-encoding">
@@ -1437,12 +1156,7 @@
             </div>
             <div class="field-heading-row">
               <label for="sskr-shares">SSKR shares</label>
-              <button
-                id="toggle-sskr-shares"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-sskr-shares" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -1471,10 +1185,9 @@
             <div class="recovery-help-popover">
               <h3>Gordian Seed Envelope</h3>
               <p>
-                Stores BIP39 entropy in a typed Gordian Envelope. One encrypted container can be
-                opened by a password, recipient private keys, or an SSKR quorum. Password permits
-                use the pinned Blockchain Commons Argon2id profile: 19 MiB memory, 2 iterations, 1
-                lane, a random per-permit salt, and a 32-byte derived key.
+                Stores BIP39 entropy in a typed Gordian Envelope. One encrypted container can be opened by a password,
+                recipient private keys, or an SSKR quorum. Password permits use the pinned Blockchain Commons Argon2id
+                profile: 19 MiB memory, 2 iterations, 1 lane, a random per-permit salt, and a 32-byte derived key.
               </p>
               <p class="upstream-links">
                 Open-source modules are used. Source code is available from
@@ -1490,14 +1203,14 @@
                   target="_blank"
                   rel="noopener noreferrer"
                   >bc-components-rust</a
-                >. Every build verifies locked dependency checksums. When GitHub is available, it
-                also verifies the exact pinned upstream commits; a mismatch stops the build.
+                >. Every build verifies locked dependency checksums. When GitHub is available, it also verifies the
+                exact pinned upstream commits; a mismatch stops the build.
               </p>
             </div>
           </details>
           <p class="field-note">
-            Uses the Blockchain Commons Seed Envelope profile, deterministic CBOR and UR transport.
-            Recipient keys use X25519.
+            Uses the Blockchain Commons Seed Envelope profile, deterministic CBOR and UR transport. Recipient keys use
+            X25519.
           </p>
           <nav class="backup-mode-tabs" role="tablist" aria-label="Seed Envelope operation">
             <button
@@ -1520,40 +1233,23 @@
               Decode
             </button>
           </nav>
-          <section
-            id="gordian-envelope-create-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-          >
+          <section id="gordian-envelope-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
             <div class="field-heading-row">
               <label for="envelope-source">BIP39 recovery phrase</label>
-              <button
-                id="toggle-envelope-source"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-envelope-source" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
             <textarea id="envelope-source" class="concealed" rows="4"></textarea>
             <div class="form-grid">
-              <div>
-                <label for="envelope-name">Name · optional</label
-                ><input id="envelope-name" type="text" />
-              </div>
-              <div>
-                <label for="envelope-note">Note · optional</label
-                ><input id="envelope-note" type="text" />
-              </div>
+              <div><label for="envelope-name">Name · optional</label><input id="envelope-name" type="text" /></div>
+              <div><label for="envelope-note">Note · optional</label><input id="envelope-note" type="text" /></div>
               <div>
                 <label for="envelope-password">Container password · optional</label
                 ><input id="envelope-password" type="password" autocomplete="new-password" />
               </div>
               <div>
-                <label for="envelope-public-keys"
-                  >Recipient public keys · optional, one UR per line</label
+                <label for="envelope-public-keys">Recipient public keys · optional, one UR per line</label
                 ><textarea id="envelope-public-keys" rows="3"></textarea>
               </div>
               <div>
@@ -1588,23 +1284,13 @@
                     Show
                   </button>
                 </div>
-                <textarea
-                  id="envelope-recipient-mnemonic"
-                  class="concealed"
-                  rows="4"
-                  autocomplete="off"
-                ></textarea>
+                <textarea id="envelope-recipient-mnemonic" class="concealed" rows="4" autocomplete="off"></textarea>
                 <label for="envelope-recipient-manual-passphrase">BIP39 passphrase</label>
-                <input
-                  id="envelope-recipient-manual-passphrase"
-                  type="password"
-                  autocomplete="off"
-                />
+                <input id="envelope-recipient-manual-passphrase" type="password" autocomplete="off" />
               </div>
               <p class="field-note">
-                Uses the complete 64-byte BIP39 seed and the official Blockchain Commons X25519
-                derivation. A key derived from the protected wallet is convenient access control,
-                but it is not an independent backup.
+                Uses the complete 64-byte BIP39 seed and the official Blockchain Commons X25519 derivation. A key
+                derived from the protected wallet is convenient access control, but it is not an independent backup.
               </p>
               <button id="derive-envelope-recipient" class="danger-outline compact" type="button">
                 Derive recipient key pair
@@ -1616,9 +1302,8 @@
                 <span>
                   <strong>Include the BIP39 passphrase in encrypted content</strong>
                   <small
-                    >Anyone who satisfies any password, recipient, or SSKR permit obtains both
-                    recovery factors. This CKD assertion is not interpreted by ordinary wallet
-                    software.</small
+                    >Anyone who satisfies any password, recipient, or SSKR permit obtains both recovery factors. This
+                    CKD assertion is not interpreted by ordinary wallet software.</small
                   >
                 </span>
               </label>
@@ -1629,9 +1314,7 @@
             </div>
             <div class="actions">
               <button id="create-envelope" class="primary" type="button">Create envelope</button
-              ><button id="toggle-envelope-created" class="danger-outline compact" type="button">
-                Show records
-              </button>
+              ><button id="toggle-envelope-created" class="danger-outline compact" type="button">Show records</button>
             </div>
             <div id="envelope-create-result" class="share-results"></div>
           </section>
@@ -1644,19 +1327,13 @@
           >
             <div class="field-heading-row">
               <label for="envelope-records">Envelope or SSKR Envelope records</label>
-              <button
-                id="toggle-envelope-records"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-envelope-records" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
             <textarea id="envelope-records" class="concealed" rows="7"></textarea>
             <label for="envelope-unlock-password">Password · optional</label
-            ><input id="envelope-unlock-password" type="password" /><label
-              for="envelope-private-key"
+            ><input id="envelope-unlock-password" type="password" /><label for="envelope-private-key"
               >Recipient private key · optional</label
             ><textarea
               id="envelope-private-key"
@@ -1690,26 +1367,21 @@
             <div class="recovery-help-popover">
               <h3>Codex32 · BIP93</h3>
               <p>
-                Encodes secret bytes in a checksummed, error-correcting Bech32-style string and can
-                optionally split them with Codex32 native shares. This workspace supports BIP39
-                entropy and BIP32 master-seed modes.
+                Encodes secret bytes in a checksummed, error-correcting Bech32-style string and can optionally split
+                them with Codex32 native shares. This workspace supports BIP39 entropy and BIP32 master-seed modes.
               </p>
               <p class="upstream-links">
-                An open-source Rust module and its BIP93 vectors are used. Source code is available
-                from
-                <a
-                  href="https://github.com/apoelstra/rust-codex32"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                An open-source Rust module and its BIP93 vectors are used. Source code is available from
+                <a href="https://github.com/apoelstra/rust-codex32" target="_blank" rel="noopener noreferrer"
                   >apoelstra/rust-codex32</a
-                >. Every build verifies locked dependency checksums. When GitHub is available, it
-                also verifies the exact pinned upstream commit; a mismatch stops the build.
+                >. Every build verifies locked dependency checksums. When GitHub is available, it also verifies the
+                exact pinned upstream commit; a mismatch stops the build.
               </p>
             </div>
           </details>
           <p class="field-note">
-            Encodes either recoverable BIP39 entropy or a passphrase-derived BIP32 master seed with
-            the Codex32 error-correcting checksum and optional native secret sharing.
+            Encodes either recoverable BIP39 entropy or a passphrase-derived BIP32 master seed with the Codex32
+            error-correcting checksum and optional native secret sharing.
           </p>
           <nav class="backup-mode-tabs" role="tablist" aria-label="Codex32 operation">
             <button
@@ -1733,20 +1405,10 @@
               Decode
             </button>
           </nav>
-          <section
-            id="codex32-create-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-          >
+          <section id="codex32-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
             <div class="field-heading-row">
               <label for="codex32-source">BIP39 recovery phrase</label>
-              <button
-                id="toggle-codex32-source"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-codex32-source" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -1784,8 +1446,8 @@
                   aria-describedby="codex32-identifier-help"
                 />
                 <p id="codex32-identifier-help" class="field-note">
-                  Public label that keeps records from different sets together. Use four Bech32
-                  characters; b, i, o, and 1 are unavailable. Examples: safe, fund, cash, 2026.
+                  Public label that keeps records from different sets together. Use four Bech32 characters; b, i, o, and
+                  1 are unavailable. Examples: safe, fund, cash, 2026.
                 </p>
               </div>
               <div>
@@ -1805,37 +1467,16 @@
             <div id="codex32-content-warning" class="warning-callout"></div>
             <div class="actions">
               <button class="primary" id="create-codex32" type="button">Create records</button>
-              <button
-                id="toggle-codex32-created"
-                class="danger-outline"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-codex32-created" class="danger-outline" type="button" aria-pressed="false">
                 Show records
               </button>
             </div>
-            <div
-              id="codex32-create-result"
-              class="share-results"
-              role="status"
-              aria-live="polite"
-            ></div>
+            <div id="codex32-create-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
-          <section
-            id="codex32-restore-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-            hidden
-          >
+          <section id="codex32-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
             <div class="field-heading-row">
               <label for="codex32-shares">Codex32 secret or shares</label>
-              <button
-                id="toggle-codex32-shares"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-codex32-shares" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -1853,16 +1494,11 @@
               <option value="bip32-seed">BIP32 master seed · show hexadecimal seed</option>
             </select>
             <p class="field-note">
-              Codex32 records do not identify the semantic meaning of their bytes. Select the same
-              content type that was used when the backup was created.
+              Codex32 records do not identify the semantic meaning of their bytes. Select the same content type that was
+              used when the backup was created.
             </p>
             <button class="primary" id="restore-codex32" type="button">Restore phrase</button>
-            <div
-              id="codex32-restore-result"
-              class="share-results"
-              role="status"
-              aria-live="polite"
-            ></div>
+            <div id="codex32-restore-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
         </section>
         <section
@@ -1883,34 +1519,27 @@
             <div class="recovery-help-popover">
               <h3>MnemoCode</h3>
               <p>
-                MnemoCode is an original development by this project's author, based on ideas from
-                Seedshift and BIP39Colors but extended with checksum-valid transformations, five
-                reversible representations, versioned text records, QR transfer, recovery helpers,
-                and printable recovery material. Direct mode only changes the representation;
-                Seedshift modes apply reversible date-derived shifts.
+                MnemoCode is an original development by this project's author, based on ideas from Seedshift and
+                BIP39Colors but extended with checksum-valid transformations, five reversible representations, versioned
+                text records, QR transfer, recovery helpers, and printable recovery material. Direct mode only changes
+                the representation; Seedshift modes apply reversible date-derived shifts.
               </p>
               <p>
-                These representations and date shifts are obfuscation, not encryption. MNC1 records
-                contain the mode and format, but never contain the dates. Preserve every date
-                separately and in exact DD-MM-YYYY form.
+                These representations and date shifts are obfuscation, not encryption. MNC1 records contain the mode and
+                format, but never contain the dates. Preserve every date separately and in exact DD-MM-YYYY form.
               </p>
               <p class="upstream-links">
                 This module is compatible with
-                <a
-                  href="https://github.com/hobby-eng/mnemocode"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <a href="https://github.com/hobby-eng/mnemocode" target="_blank" rel="noopener noreferrer"
                   >MnemoCode __MNEMOCODE_VERSION__</a
-                >. It reuses the Deriver's pinned BIP39 and QR dependencies and adds no network
-                behavior. Printable cards are drawn by MnemoCode's own renderers with the PDF
-                library named in the release passport.
+                >. It reuses the Deriver's pinned BIP39 and QR dependencies and adds no network behavior. Printable
+                cards are drawn by MnemoCode's own renderers with the PDF library named in the release passport.
               </p>
             </div>
           </details>
           <div class="warning-callout">
-            <strong>Recovery material.</strong> MnemoCode output can reveal or reconstruct the
-            wallet. It is not authenticated encryption, and a wrong date in checksum-valid Seedshift
-            can produce a different valid phrase.
+            <strong>Recovery material.</strong> MnemoCode output can reveal or reconstruct the wallet. It is not
+            authenticated encryption, and a wrong date in checksum-valid Seedshift can produce a different valid phrase.
           </div>
           <nav class="backup-mode-tabs" role="tablist" aria-label="MnemoCode operation">
             <button
@@ -1934,20 +1563,10 @@
               Decode
             </button>
           </nav>
-          <section
-            id="mnemocode-create-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-          >
+          <section id="mnemocode-create-panel" class="backup-operation" role="tabpanel" data-operation-panel>
             <div class="field-heading-row">
               <label for="mnemocode-source">BIP39 recovery phrase to encode</label>
-              <button
-                id="toggle-mnemocode-source"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-mnemocode-source" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -1971,12 +1590,8 @@
                 <select id="mnemocode-encode-mode">
                   <option value="direct">Direct · representation only</option>
                   <option value="seedshift">Seedshift · checksum-valid</option>
-                  <option value="seedshift-legacy">
-                    Legacy Seedshift · exact historical output
-                  </option>
-                  <option value="seedshift-legacy-valid">
-                    Legacy Seedshift · checksum-valid final word
-                  </option>
+                  <option value="seedshift-legacy">Legacy Seedshift · exact historical output</option>
+                  <option value="seedshift-legacy-valid">Legacy Seedshift · checksum-valid final word</option>
                 </select>
               </div>
               <div>
@@ -2007,27 +1622,17 @@
             </div>
             <div class="actions">
               <button id="encode-mnemocode" class="primary" type="button">Create record</button>
-              <button
-                id="toggle-mnemocode-created"
-                class="danger-outline"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-mnemocode-created" class="danger-outline" type="button" aria-pressed="false">
                 Show records
               </button>
             </div>
-            <div
-              id="mnemocode-encode-result"
-              class="share-results"
-              role="status"
-              aria-live="polite"
-            ></div>
+            <div id="mnemocode-encode-result" class="share-results" role="status" aria-live="polite"></div>
             <details id="mnemocode-cards-section" class="mnemocode-cards" hidden>
               <summary>Printable cards (PDF or PNG)</summary>
               <p class="field-note">
-                Prints the color codes of the phrase above as cards that look like design samples.
-                The printed codes are the recovery data; names, companies and pictures are
-                decoration. The selected transformation mode and dates are used.
+                Prints the color codes of the phrase above as cards that look like design samples. The printed codes are
+                the recovery data; names, companies and pictures are decoration. The selected transformation mode and
+                dates are used.
               </p>
               <div class="backup-options-grid two-options">
                 <div>
@@ -2061,117 +1666,58 @@
                 Print my own details
               </label>
               <p class="field-note">
-                Without your own details the cards show an invented person and company. They stay
-                the same for every size and template until the phrase changes or the page is
-                reloaded.
+                Without your own details the cards show an invented person and company. They stay the same for every
+                size and template until the phrase changes or the page is reloaded.
               </p>
               <div id="mnemocode-card-profile" class="mnemocode-card-profile" hidden>
-                <p class="field-note">
-                  Fill in what you want to print. Every empty field keeps its invented value.
-                </p>
+                <p class="field-note">Fill in what you want to print. Every empty field keeps its invented value.</p>
                 <div class="backup-options-grid two-options">
                   <div>
                     <label for="mnemocode-card-name">Name</label>
-                    <input
-                      id="mnemocode-card-name"
-                      type="text"
-                      autocomplete="off"
-                      maxlength="100"
-                    />
+                    <input id="mnemocode-card-name" type="text" autocomplete="off" maxlength="100" />
                   </div>
                   <div>
                     <label for="mnemocode-card-company">Company</label>
-                    <input
-                      id="mnemocode-card-company"
-                      type="text"
-                      autocomplete="off"
-                      maxlength="100"
-                    />
+                    <input id="mnemocode-card-company" type="text" autocomplete="off" maxlength="100" />
                   </div>
                   <div>
                     <label for="mnemocode-card-role">Role</label>
-                    <input
-                      id="mnemocode-card-role"
-                      type="text"
-                      autocomplete="off"
-                      maxlength="100"
-                    />
+                    <input id="mnemocode-card-role" type="text" autocomplete="off" maxlength="100" />
                   </div>
                   <div>
                     <label for="mnemocode-card-email">Email</label>
-                    <input
-                      id="mnemocode-card-email"
-                      type="text"
-                      autocomplete="off"
-                      maxlength="100"
-                    />
+                    <input id="mnemocode-card-email" type="text" autocomplete="off" maxlength="100" />
                   </div>
                   <div>
                     <label for="mnemocode-card-phone">Phone</label>
-                    <input
-                      id="mnemocode-card-phone"
-                      type="text"
-                      autocomplete="off"
-                      maxlength="100"
-                    />
+                    <input id="mnemocode-card-phone" type="text" autocomplete="off" maxlength="100" />
                   </div>
                   <div>
                     <label for="mnemocode-card-website">Website</label>
-                    <input
-                      id="mnemocode-card-website"
-                      type="text"
-                      autocomplete="off"
-                      maxlength="100"
-                    />
+                    <input id="mnemocode-card-website" type="text" autocomplete="off" maxlength="100" />
                   </div>
                   <div>
                     <label for="mnemocode-card-studio">Studio named on a sheet</label>
-                    <input
-                      id="mnemocode-card-studio"
-                      type="text"
-                      autocomplete="off"
-                      maxlength="100"
-                    />
+                    <input id="mnemocode-card-studio" type="text" autocomplete="off" maxlength="100" />
                   </div>
                   <div>
                     <label for="mnemocode-card-location">Location</label>
-                    <input
-                      id="mnemocode-card-location"
-                      type="text"
-                      autocomplete="off"
-                      maxlength="100"
-                    />
+                    <input id="mnemocode-card-location" type="text" autocomplete="off" maxlength="100" />
                   </div>
                 </div>
               </div>
               <div class="actions">
-                <button id="export-mnemocode-cards" class="primary" type="button">
-                  Save cards
-                </button>
+                <button id="export-mnemocode-cards" class="primary" type="button">Save cards</button>
               </div>
-              <div
-                id="mnemocode-cards-status"
-                class="field-note"
-                role="status"
-                aria-live="polite"
-              ></div>
+              <div id="mnemocode-cards-status" class="field-note" role="status" aria-live="polite"></div>
             </details>
           </section>
-          <section
-            id="mnemocode-decode-panel"
-            class="backup-operation"
-            role="tabpanel"
-            data-operation-panel
-            hidden
-          >
+          <section id="mnemocode-decode-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
             <div class="backup-options-grid two-options">
               <div>
                 <div class="mnemocode-option-heading">
                   <label for="mnemocode-decode-mode">Transformation mode for raw input</label>
-                  <details
-                    id="mnemocode-decode-mode-help"
-                    class="recovery-help mnemocode-option-help"
-                  >
+                  <details id="mnemocode-decode-mode-help" class="recovery-help mnemocode-option-help">
                     <summary>How it works</summary>
                     <div class="recovery-help-popover"></div>
                   </details>
@@ -2179,21 +1725,14 @@
                 <select id="mnemocode-decode-mode">
                   <option value="direct">Direct · representation only</option>
                   <option value="seedshift">Seedshift · checksum-valid</option>
-                  <option value="seedshift-legacy">
-                    Legacy Seedshift · exact historical output
-                  </option>
-                  <option value="seedshift-legacy-valid">
-                    Legacy valid-word recovery candidates
-                  </option>
+                  <option value="seedshift-legacy">Legacy Seedshift · exact historical output</option>
+                  <option value="seedshift-legacy-valid">Legacy valid-word recovery candidates</option>
                 </select>
               </div>
               <div>
                 <div class="mnemocode-option-heading">
                   <label for="mnemocode-decode-format">Representation for raw input</label>
-                  <details
-                    id="mnemocode-decode-format-help"
-                    class="recovery-help mnemocode-option-help"
-                  >
+                  <details id="mnemocode-decode-format-help" class="recovery-help mnemocode-option-help">
                     <summary>How it works</summary>
                     <div class="recovery-help-popover"></div>
                   </details>
@@ -2219,12 +1758,7 @@
             </div>
             <div class="field-heading-row">
               <label for="mnemocode-input">MNC1 record or raw representation</label>
-              <button
-                id="toggle-mnemocode-input"
-                class="danger-outline compact"
-                type="button"
-                aria-pressed="false"
-              >
+              <button id="toggle-mnemocode-input" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
             </div>
@@ -2237,16 +1771,11 @@
               placeholder="Paste an MNC1 record or raw representation, or import a local QR image"
             ></textarea>
             <p class="field-note">
-              An MNC1 record overrides the mode and representation selectors. Dates remain external
-              and must be entered above.
+              An MNC1 record overrides the mode and representation selectors. Dates remain external and must be entered
+              above.
             </p>
             <button id="decode-mnemocode" class="primary" type="button">Restore phrase</button>
-            <div
-              id="mnemocode-decode-result"
-              class="share-results"
-              role="status"
-              aria-live="polite"
-            ></div>
+            <div id="mnemocode-decode-result" class="share-results" role="status" aria-live="polite"></div>
             <hr />
             <div class="mnemocode-option-heading">
               <h3>Recover one forgotten BIP39 word</h3>
@@ -2256,17 +1785,15 @@
               </details>
             </div>
             <p class="field-note">
-              Replace the forgotten word with exactly one <code>?</code>. Recovery checks all 2,048
-              English BIP39 words locally. Every replacement, word index, and checksum appears
-              immediately; complete recovered phrases remain concealed until you choose to reveal
-              them.
+              Replace the forgotten word with exactly one <code>?</code>. Recovery checks all 2,048 English BIP39 words
+              locally. Every replacement, word index, and checksum appears immediately; complete recovered phrases
+              remain concealed until you choose to reveal them.
             </p>
             <label class="checkbox-row" for="mnemocode-legacy-last-word">
               <input id="mnemocode-legacy-last-word" type="checkbox" />
               <span>
-                Old exact Legacy Seedshift phrase: use its existing final word to enumerate
-                checksum-valid replacements. No <code>?</code> placeholder is used; the
-                entropy-preserving replacement is marked separately.
+                Old exact Legacy Seedshift phrase: use its existing final word to enumerate checksum-valid replacements.
+                No <code>?</code> placeholder is used; the entropy-preserving replacement is marked separately.
               </span>
             </label>
             <div class="field-heading-row">
@@ -2289,15 +1816,8 @@
               spellcheck="false"
               placeholder="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon ?"
             ></textarea>
-            <button id="recover-mnemocode-word" class="primary" type="button">
-              Find checksum-valid words
-            </button>
-            <div
-              id="mnemocode-missing-word-result"
-              class="share-results"
-              role="status"
-              aria-live="polite"
-            ></div>
+            <button id="recover-mnemocode-word" class="primary" type="button">Find checksum-valid words</button>
+            <div id="mnemocode-missing-word-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
         </section>
       </section>
@@ -2311,21 +1831,13 @@
           <div class="result-controls">
             <span id="main-result-secret-control-slot" class="result-secret-control-slot"></span>
             <div class="mode-toggle" aria-label="Result detail mode">
-              <button id="mode-basic" type="button" class="active" aria-pressed="true">
-                Basic
-              </button>
+              <button id="mode-basic" type="button" class="active" aria-pressed="true">Basic</button>
               <button id="mode-advanced" type="button" aria-pressed="false">Advanced</button>
             </div>
           </div>
         </div>
 
-        <div
-          id="result-branch-tabs"
-          class="result-branch-tabs"
-          role="tablist"
-          aria-label="Address branch"
-          hidden
-        >
+        <div id="result-branch-tabs" class="result-branch-tabs" role="tablist" aria-label="Address branch" hidden>
           <button
             id="result-receive-tab"
             class="result-branch-tab active"
@@ -2388,12 +1900,7 @@
         </div>
 
         <div id="branch-result-content" role="tabpanel" aria-live="polite">
-          <section
-            id="bulk-bip38-panel"
-            class="bulk-bip38-control"
-            aria-labelledby="bulk-bip38-title"
-            hidden
-          >
+          <section id="bulk-bip38-panel" class="bulk-bip38-control" aria-labelledby="bulk-bip38-title" hidden>
             <label class="feature-tab-toggle" for="enable-bulk-bip38">
               <input id="enable-bulk-bip38" type="checkbox" />
               <span id="bulk-bip38-title">Encrypt private keys using BIP38 and this password</span>
@@ -2406,20 +1913,14 @@
                 autocomplete="new-password"
                 placeholder="BIP38 password"
               />
-              <button
-                class="secondary compact"
-                id="toggle-bulk-bip38-passphrase"
-                type="button"
-                aria-pressed="false"
-              >
+              <button class="secondary compact" id="toggle-bulk-bip38-passphrase" type="button" aria-pressed="false">
                 Show
               </button>
               <span class="field-note"
-                >Encryption starts after leaving the password field or pressing Enter. This tool
-                keeps standard compressed public keys; Ian Coleman's BIP39 Tool may show different
-                Legacy P2PKH addresses when its BIP38 mode switches to uncompressed keys. Standard
-                BIP38 scrypt parameters are unchanged. Work runs asynchronously in a dedicated
-                worker, so the page stays responsive and completion time may differ.</span
+                >Encryption starts after leaving the password field or pressing Enter. This tool keeps standard
+                compressed public keys; Ian Coleman's BIP39 Tool may show different Legacy P2PKH addresses when its
+                BIP38 mode switches to uncompressed keys. Standard BIP38 scrypt parameters are unchanged. Work runs
+                asynchronously in a dedicated worker, so the page stays responsive and completion time may differ.</span
               >
             </div>
             <div id="bulk-bip38-status" class="field-note" role="status" aria-live="polite"></div>
@@ -2440,12 +1941,7 @@
               </div>
               <div class="mini-actions">
                 <div id="account-descriptor-export" hidden>
-                  <button
-                    class="secondary compact"
-                    id="open-account-export"
-                    type="button"
-                    aria-haspopup="dialog"
-                  >
+                  <button class="secondary compact" id="open-account-export" type="button" aria-haspopup="dialog">
                     Account export
                   </button>
                   <dialog id="account-export-dialog" aria-labelledby="account-export-title">
@@ -2462,8 +1958,8 @@
                     </div>
                     <p id="account-descriptor-description"></p>
                     <p>
-                      Includes receive and change addresses for this account and address type. A
-                      non-default account may require this descriptor to be found by another wallet.
+                      Includes receive and change addresses for this account and address type. A non-default account may
+                      require this descriptor to be found by another wallet.
                     </p>
                     <label for="account-export-format">Export format</label>
                     <select id="account-export-format">
@@ -2471,15 +1967,12 @@
                       <option value="raw">Raw descriptors · Scanner / other wallets</option>
                     </select>
                     <p class="field-note">
-                      Imports this account for receiving and change, using Core’s automatic address
-                      pool. Makes it active for this address type; use a separate wallet to keep an
-                      existing account active. Historical scanning may take over an hour.
+                      Imports this account for receiving and change, using Core’s automatic address pool. Makes it
+                      active for this address type; use a separate wallet to keep an existing account active. Historical
+                      scanning may take over an hour.
                     </p>
                     <h4>Public descriptors</h4>
-                    <p>
-                      Requires a descriptor wallet with private keys disabled (watch-only). Cannot
-                      spend funds.
-                    </p>
+                    <p>Requires a descriptor wallet with private keys disabled (watch-only). Cannot spend funds.</p>
                     <div class="watch-only-actions">
                       <button class="secondary" id="copy-public-descriptors" type="button">
                         Copy public descriptors
@@ -2490,8 +1983,8 @@
                     </div>
                     <h4>Private descriptors</h4>
                     <p>
-                      For a descriptor wallet with private keys enabled. Unencrypted keys allow
-                      spending. Reveal sensitive values before export.
+                      For a descriptor wallet with private keys enabled. Unencrypted keys allow spending. Reveal
+                      sensitive values before export.
                     </p>
                     <div class="watch-only-actions">
                       <button class="secondary" id="copy-private-descriptors" type="button">
@@ -2502,61 +1995,37 @@
                       </button>
                     </div>
                     <p class="field-note">
-                      For wallet descriptor import, not PSBT transaction import. This is not a
-                      complete seed backup.
+                      For wallet descriptor import, not PSBT transaction import. This is not a complete seed backup.
                     </p>
                   </dialog>
                 </div>
                 <button class="secondary compact" id="select-all" type="button">Select all</button>
-                <button class="secondary compact" id="select-none" type="button">
-                  Select none
-                </button>
-                <button class="secondary compact" id="select-invert" type="button">
-                  Invert selection
-                </button>
+                <button class="secondary compact" id="select-none" type="button">Select none</button>
+                <button class="secondary compact" id="select-invert" type="button">Invert selection</button>
               </div>
             </div>
             <div class="bulk-row export-row">
               <div class="bulk-actions">
-                <button class="secondary compact" data-bulk="addresses" type="button">
-                  Copy addresses
-                </button>
-                <button class="secondary compact" data-bulk="publicKeys" type="button">
-                  Copy public keys
-                </button>
-                <button class="secret-action compact" data-bulk="privateKeys" type="button">
-                  Copy private keys
-                </button>
-                <button class="secret-action compact" data-bulk="selected" type="button">
-                  Copy selected
-                </button>
+                <button class="secondary compact" data-bulk="addresses" type="button">Copy addresses</button>
+                <button class="secondary compact" data-bulk="publicKeys" type="button">Copy public keys</button>
+                <button class="secret-action compact" data-bulk="privateKeys" type="button">Copy private keys</button>
+                <button class="secret-action compact" data-bulk="selected" type="button">Copy selected</button>
                 <button class="secret-action compact" data-bulk="allDisplayed" type="button">
                   Copy all displayed fields
                 </button>
-                <button
-                  class="secondary compact"
-                  id="download-selection"
-                  data-download="allDisplayed"
-                  type="button"
-                >
+                <button class="secondary compact" id="download-selection" data-download="allDisplayed" type="button">
                   Save selected
                 </button>
               </div>
             </div>
             <p class="field-note">
-              Row exports use selected rows only. Account export includes both account branches
-              regardless of selection. Basic mode exports only basic fields; Advanced mode includes
-              the row’s advanced fields. Sensitive exports remain disabled until values are
-              revealed.
+              Row exports use selected rows only. Account export includes both account branches regardless of selection.
+              Basic mode exports only basic fields; Advanced mode includes the row’s advanced fields. Sensitive exports
+              remain disabled until values are revealed.
             </p>
           </section>
 
-          <section
-            id="watch-only-export"
-            class="panel watch-only-panel"
-            aria-labelledby="watch-only-title"
-            hidden
-          >
+          <section id="watch-only-export" class="panel watch-only-panel" aria-labelledby="watch-only-title" hidden>
             <div>
               <div class="watch-only-kicker">PRIVACY-SENSITIVE · CANNOT SPEND</div>
               <h3 id="watch-only-title">Watch-only export</h3>
@@ -2580,18 +2049,12 @@
             <span class="step">SIGN</span>
             <h2 id="message-signer-title">Sign message</h2>
           </div>
-          <button
-            class="secondary compact"
-            id="close-message-signer"
-            type="button"
-            aria-label="Close message signer"
-          >
+          <button class="secondary compact" id="close-message-signer" type="button" aria-label="Close message signer">
             Close
           </button>
         </div>
         <p class="field-note">
-          The private key remains in the local derivation worker. Only the signature is returned to
-          this dialog.
+          The private key remains in the local derivation worker. Only the signature is returned to this dialog.
         </p>
         <div class="signer-context">
           <div><span>Address</span><code id="message-signer-address"></code></div>
@@ -2615,12 +2078,7 @@
           <label for="message-signature-output">Base64 signature</label>
           <textarea id="message-signature-output" rows="4" readonly></textarea>
           <div class="actions">
-            <button
-              class="secondary compact"
-              id="copy-message-signature"
-              type="button"
-              aria-label="Copy signature"
-            >
+            <button class="secondary compact" id="copy-message-signature" type="button" aria-label="Copy signature">
               Copy
             </button>
           </div>
@@ -2635,69 +2093,56 @@
           <span class="step">BUILD</span>
           <h2 id="build-passport-title">Release passport</h2>
         </div>
-        <span id="crypto-self-test-status" class="self-test-badge checking"
-          >Cryptographic self-test running…</span
-        >
+        <span id="crypto-self-test-status" class="self-test-badge checking">Cryptographic self-test running…</span>
       </div>
       <div class="build-passport-grid">
         <div><span>Version</span><code id="build-version">—</code></div>
         <div><span>Release date</span><code id="build-date">—</code></div>
         <div><span>Edition</span><code id="build-edition">__EDITION_NAME__</code></div>
         <div><span>Build profile</span><code id="build-profile">__BUILD_PROFILE__</code></div>
-        <div>
-          <span>Derivation runtime</span><code id="worker-runtime">Dedicated Web Worker</code>
-        </div>
+        <div><span>Derivation runtime</span><code id="worker-runtime">Dedicated Web Worker</code></div>
         <div><span>Included coins</span><code id="build-coins">—</code></div>
         <div><span>Included features</span><code id="build-features">—</code></div>
         <div class="build-fingerprint">
-          <span>Source/build fingerprint · SHA-256 (not the HTML checksum)</span
-          ><code id="build-fingerprint">—</code>
+          <span>Source/build fingerprint · SHA-256 (not the HTML checksum)</span><code id="build-fingerprint">—</code>
         </div>
       </div>
       <p id="crypto-self-test-details" class="field-note">
         Generation remains disabled until deterministic public vectors pass.
       </p>
       <p class="field-note passport-dependencies">
-        <strong>Embedded dependency versions and licenses:</strong> Noble Curves/Hashes 2.4.0 and
-        Scure Base/BIP32/BIP39 2.4.0 — MIT; uqr 0.1.3 — MIT; qr 0.7.0 — MIT OR Apache-2.0.
+        <strong>Embedded dependency versions and licenses:</strong> Noble Curves/Hashes 2.4.0 and Scure Base/BIP32/BIP39
+        2.4.0 — MIT; uqr 0.1.3 — MIT; qr 0.7.0 — MIT OR Apache-2.0.
         <span id="passport-mnemocode-cards-dependency"
-          >MnemoCode cards: pdf-lib 1.17.1, @pdf-lib/fontkit 1.1.1, @pdf-lib/upng 1.0.1 and fflate
-          0.8.3 — MIT; pako 1.0.11 — MIT and Zlib; DejaVu Sans font — Bitstream Vera license;
-          Natural Earth map data — public domain.</span
+          >MnemoCode cards: pdf-lib 1.17.1, @pdf-lib/fontkit 1.1.1, @pdf-lib/upng 1.0.1 and fflate 0.8.3 — MIT; pako
+          1.0.11 — MIT and Zlib; DejaVu Sans font — Bitstream Vera license; Natural Earth map data — public
+          domain.</span
         >
-        Dash Orchard 0.14.0, official dashified-0.14.1 commit
-        38ac9c19a2df7bf3eeadc22ab23053e8fd538828; Blockchain Commons sskr 0.12.0, bc-envelope
-        0.43.0, and bc-components 0.31.1 — BSD-2-Clause-Patent; wasm-bindgen 0.2.128; ZIP32 0.2.1 —
-        MIT or Apache-2.0. Full notices and the complete locked closure are in the source
-        distribution.
+        Dash Orchard 0.14.0, official dashified-0.14.1 commit 38ac9c19a2df7bf3eeadc22ab23053e8fd538828; Blockchain
+        Commons sskr 0.12.0, bc-envelope 0.43.0, and bc-components 0.31.1 — BSD-2-Clause-Patent; wasm-bindgen 0.2.128;
+        ZIP32 0.2.1 — MIT or Apache-2.0. Full notices and the complete locked closure are in the source distribution.
       </p>
       <p class="field-note">
-        <strong>Upstream attribution:</strong> Dash Shielded support uses the open-source Dash
-        Platform Orchard fork and Dash Platform specifications created by their respective
-        contributors. This independent tool is not an official Dash product and no endorsement is
-        implied. Source: github.com/dashpay/orchard · github.com/dashpay/platform. Exact versions
-        and licenses are retained in this passport and in ATTRIBUTION.md / THIRD_PARTY_NOTICES.md.
+        <strong>Upstream attribution:</strong> Dash Shielded support uses the open-source Dash Platform Orchard fork and
+        Dash Platform specifications created by their respective contributors. This independent tool is not an official
+        Dash product and no endorsement is implied. Source: github.com/dashpay/orchard · github.com/dashpay/platform.
+        Exact versions and licenses are retained in this passport and in ATTRIBUTION.md / THIRD_PARTY_NOTICES.md.
       </p>
       <p class="field-note">
-        <strong>Project license:</strong> Original project code is MIT licensed, copyright (c) 2026
-        hobby-eng. Third-party components retain the licenses listed above and in the source
-        distribution.
+        <strong>Project license:</strong> Original project code is MIT licensed, copyright (c) 2026 hobby-eng.
+        Third-party components retain the licenses listed above and in the source distribution.
       </p>
       <p class="field-note">
-        The byte-for-byte HTML checksum is written beside this file as
-        <code id="artifact-checksum-file">—</code> and detects transfer corruption only. GitHub
-        build-provenance attestations link release bytes to tagged source. A detached OpenPGP
-        signature, when supplied, additionally records publisher approval; it is optional.
+        The byte-for-byte HTML checksum is written beside this file as <code id="artifact-checksum-file">—</code> and
+        detects transfer corruption only. GitHub build-provenance attestations link release bytes to tagged source. A
+        detached OpenPGP signature, when supplied, additionally records publisher approval; it is optional.
       </p>
     </section>
 
     <footer>
       <div class="footer-main">
         <p>__KEY_DERIVATION_FOOTER_PROTOCOLS__</p>
-        <p>
-          No warranty. Verify valuable-wallet results with a second independent offline
-          implementation.
-        </p>
+        <p>No warranty. Verify valuable-wallet results with a second independent offline implementation.</p>
       </div>
     </footer>
     <script>

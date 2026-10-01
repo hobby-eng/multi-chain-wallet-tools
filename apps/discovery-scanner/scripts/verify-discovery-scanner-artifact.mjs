@@ -495,7 +495,12 @@ for (const operation of [
   "platform.identity-history",
   "shielded.page",
 ]) {
-  if (!protocolSource.includes(`operation: '${operation}'`))
+  // Either quote: the check reads source code, whose formatting may change.
+  if (
+    ![`operation: "${operation}"`, `operation: '${operation}'`].some((form) =>
+      protocolSource.includes(form),
+    )
+  )
     throw new Error(`Recovery RPC is missing reviewed operation ${operation}.`);
 }
 

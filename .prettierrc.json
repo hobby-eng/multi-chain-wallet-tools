@@ -1,4 +1,10 @@
 {
   "printWidth": 100,
-  "proseWrap": "preserve"
+  "proseWrap": "preserve",
+  "overrides": [
+    {
+      "files": "*.html",
+      "options": { "printWidth": 120 }
+    }
+  ]
 }
