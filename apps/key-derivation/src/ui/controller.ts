@@ -1009,6 +1009,9 @@ export function createKeyDerivationController(
             if (revision !== derivationRevision) return;
           }
           view.setGeneratedMnemonic(phrase, adapter.defaults.count);
+          // The offer queued above ran during the search, while the field still held the old
+          // phrase; offer the new one to the backup tabs now (AUD-019-UI001).
+          if (wishes !== null) offerMainRecoverySource();
           rememberCurrentSettings();
           updateWordCount();
           showStatus(
