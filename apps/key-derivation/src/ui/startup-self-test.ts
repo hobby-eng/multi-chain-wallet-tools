@@ -1,8 +1,8 @@
-import { DerivationCancelledError, type DerivationWorkerClient } from '../workers/derive-client.js';
+import { DerivationCancelledError, type DerivationWorkerClient } from "../workers/derive-client.js";
 
 interface StartupSelfTestDependencies {
-  readonly runBip39SelfTest: typeof import('@ckd/bip39-self-test').runBip39SelfTest;
-  readonly runRecoveryBackupSelfTest: typeof import('@ckd/recovery-backup/self-test.js').runRecoveryBackupSelfTest;
+  readonly runBip39SelfTest: typeof import("@ckd/bip39-self-test").runBip39SelfTest;
+  readonly runRecoveryBackupSelfTest: typeof import("@ckd/recovery-backup/self-test.js").runRecoveryBackupSelfTest;
   readonly createWorker: () => DerivationWorkerClient;
 }
 
@@ -13,7 +13,9 @@ interface StartupSelfTestReport {
 }
 
 /** Runs every cryptographic startup check and always releases its worker. */
-export async function runStartupSelfTests(dependencies: StartupSelfTestDependencies): Promise<StartupSelfTestReport> {
+export async function runStartupSelfTests(
+  dependencies: StartupSelfTestDependencies,
+): Promise<StartupSelfTestReport> {
   const worker = dependencies.createWorker();
   try {
     const bip39 = dependencies.runBip39SelfTest();
@@ -25,6 +27,6 @@ export async function runStartupSelfTests(dependencies: StartupSelfTestDependenc
       durationMs: bip39.durationMs + recovery.durationMs + derivation.durationMs,
     };
   } finally {
-    worker.terminate(new DerivationCancelledError('Startup self-test worker released.'));
+    worker.terminate(new DerivationCancelledError("Startup self-test worker released."));
   }
 }

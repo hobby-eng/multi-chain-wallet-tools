@@ -1,18 +1,23 @@
-import { secureRandomBytes } from './secure-random.js';
-import { entropyToMnemonic, mnemonicToEntropy, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { HDKey } from '@scure/bip32';
-import { bytesToHex, hash160, wipe } from './crypto.js';
+import { secureRandomBytes } from "./secure-random.js";
+import {
+  entropyToMnemonic,
+  mnemonicToEntropy,
+  mnemonicToSeedSync,
+  validateMnemonic,
+} from "@scure/bip39";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
+import { HDKey } from "@scure/bip32";
+import { bytesToHex, hash160, wipe } from "./crypto.js";
 
 function normalizeMnemonic(value: string): string {
-  return value.normalize('NFKD').trim().toLowerCase().split(/\s+/u).filter(Boolean).join(' ');
+  return value.normalize("NFKD").trim().toLowerCase().split(/\s+/u).filter(Boolean).join(" ");
 }
 
 export function assertValidMnemonic(value: string): string {
   const mnemonic = normalizeMnemonic(value);
-  const words = mnemonic.length === 0 ? [] : mnemonic.split(' ');
+  const words = mnemonic.length === 0 ? [] : mnemonic.split(" ");
   if (![12, 15, 18, 21, 24].includes(words.length)) {
-    throw new Error('Enter exactly 12, 15, 18, 21, or 24 BIP39 English words.');
+    throw new Error("Enter exactly 12, 15, 18, 21, or 24 BIP39 English words.");
   }
   if (!validateMnemonic(mnemonic, wordlist)) {
     // The message names the position of an unknown word, never the word itself: a mistyped
@@ -22,12 +27,12 @@ export function assertValidMnemonic(value: string): string {
     if (unknown >= 0) {
       throw new Error(`Invalid BIP39 mnemonic: word ${unknown + 1} is not an English BIP39 word.`);
     }
-    throw new Error('Invalid BIP39 mnemonic: check the word order and checksum.');
+    throw new Error("Invalid BIP39 mnemonic: check the word order and checksum.");
   }
   return mnemonic;
 }
 
-export function mnemonicToSeed(mnemonic: string, passphrase = ''): Uint8Array {
+export function mnemonicToSeed(mnemonic: string, passphrase = ""): Uint8Array {
   return mnemonicToSeedSync(assertValidMnemonic(mnemonic), passphrase);
 }
 
@@ -44,7 +49,8 @@ const BIP39_ENTROPY_BYTES: Readonly<Record<Bip39WordCount, number>> = {
 
 export function generateMnemonic(wordCount: Bip39WordCount): string {
   const entropyBytes = BIP39_ENTROPY_BYTES[wordCount];
-  if (entropyBytes === undefined) throw new Error('BIP39 word count must be 12, 15, 18, 21, or 24.');
+  if (entropyBytes === undefined)
+    throw new Error("BIP39 word count must be 12, 15, 18, 21, or 24.");
 
   const entropy = secureRandomBytes(entropyBytes);
   try {
@@ -123,14 +129,17 @@ function nearbyWords(value: string): readonly string[] {
   return wordlist
     .map((candidate) => ({ candidate, distance: editDistance(value, candidate) }))
     .filter(({ distance }) => distance <= 2)
-    .sort((left, right) => left.distance - right.distance || left.candidate.localeCompare(right.candidate))
+    .sort(
+      (left, right) =>
+        left.distance - right.distance || left.candidate.localeCompare(right.candidate),
+    )
     .slice(0, 5)
     .map(({ candidate }) => candidate);
 }
 
 export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
   const normalized = normalizeMnemonic(value);
-  const words = normalized === '' ? [] : normalized.split(' ');
+  const words = normalized === "" ? [] : normalized.split(" ");
   const wordCountValid = BIP39_WORD_COUNTS.includes(words.length as Bip39WordCount);
   const unknownWords = words.flatMap((word, index) =>
     BIP39_WORD_SET.has(word) ? [] : [{ index, word, suggestions: nearbyWords(word) }],
@@ -144,8 +153,8 @@ export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
       position: index + 1,
       word,
       wordlistIndex,
-      indexHex: wordlistIndex === null ? null : `0x${wordlistIndex.toString(16).padStart(3, '0')}`,
-      bits: wordlistIndex === null ? null : wordlistIndex.toString(2).padStart(11, '0'),
+      indexHex: wordlistIndex === null ? null : `0x${wordlistIndex.toString(16).padStart(3, "0")}`,
+      bits: wordlistIndex === null ? null : wordlistIndex.toString(2).padStart(11, "0"),
     };
   });
   let construction: MnemonicConstructionDiagnostic | null = null;
@@ -155,10 +164,14 @@ export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
     // while keeping cryptographic conversion in the already pinned library.
     const entropy = mnemonicToEntropy(normalized, wordlist);
     try {
-      const canonicalWords = entropyToMnemonic(entropy, wordlist).split(' ');
+      const canonicalWords = entropyToMnemonic(entropy, wordlist).split(" ");
       const canonicalIndexes = canonicalWords.map((word) => wordlist.indexOf(word));
-      const mnemonicBinary = canonicalIndexes.map((index) => index.toString(2).padStart(11, '0')).join('');
-      const entropyBinary = Array.from(entropy, (byte) => byte.toString(2).padStart(8, '0')).join('');
+      const mnemonicBinary = canonicalIndexes
+        .map((index) => index.toString(2).padStart(11, "0"))
+        .join("");
+      const entropyBinary = Array.from(entropy, (byte) => byte.toString(2).padStart(8, "0")).join(
+        "",
+      );
       const checksum = mnemonicBinary.slice(entropyBits);
       construction = {
         entropyHex: bytesToHex(entropy),
@@ -189,7 +202,7 @@ export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
 export function masterFingerprintFromSeed(seed: Uint8Array): string {
   const root = HDKey.fromMasterSeed(seed);
   const publicKey = root.publicKey;
-  if (publicKey === null) throw new Error('BIP32 master public key is unavailable.');
+  if (publicKey === null) throw new Error("BIP32 master public key is unavailable.");
   const fingerprint = hash160(publicKey).slice(0, 4);
   try {
     return bytesToHex(fingerprint);

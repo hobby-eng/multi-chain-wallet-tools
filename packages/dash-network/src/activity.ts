@@ -1,5 +1,11 @@
-import { bytesToHex } from '@ckd/core/crypto.js';
-import type { ActivitySnapshot, ScannedMatch, ShieldedActivity, ShieldedPage, ViewerKeyKind } from './types.js';
+import { bytesToHex } from "@ckd/core/crypto.js";
+import type {
+  ActivitySnapshot,
+  ScannedMatch,
+  ShieldedActivity,
+  ShieldedPage,
+  ViewerKeyKind,
+} from "./types.js";
 
 function activityFromMatch(match: ScannedMatch, keyKind: ViewerKeyKind): ShieldedActivity {
   if (match.incoming !== undefined && match.outgoing !== undefined) {
@@ -8,18 +14,23 @@ function activityFromMatch(match: ScannedMatch, keyKind: ViewerKeyKind): Shielde
       match.incoming.addressRaw !== match.outgoing.addressRaw ||
       match.incoming.memoHex !== match.outgoing.memoHex
     ) {
-      throw new Error('Incoming and outgoing recovery disagree for the same Orchard note.');
+      throw new Error("Incoming and outgoing recovery disagree for the same Orchard note.");
     }
-    if (keyKind !== 'full') throw new Error('Incoming-only recovery cannot classify self/change outputs.');
-    return { ...match, direction: 'self', spent: false };
+    if (keyKind !== "full")
+      throw new Error("Incoming-only recovery cannot classify self/change outputs.");
+    return { ...match, direction: "self", spent: false };
   }
   if (match.incoming !== undefined) {
-    if (keyKind === 'outgoing') throw new Error('Outgoing-only recovery cannot contain incoming notes.');
-    return keyKind === 'full' ? { ...match, direction: 'received', spent: false } : { ...match, direction: 'received' };
+    if (keyKind === "outgoing")
+      throw new Error("Outgoing-only recovery cannot contain incoming notes.");
+    return keyKind === "full"
+      ? { ...match, direction: "received", spent: false }
+      : { ...match, direction: "received" };
   }
-  if (keyKind === 'incoming') throw new Error('Incoming-only recovery cannot contain outgoing outputs.');
-  if (match.outgoing !== undefined) return { ...match, direction: 'sent' };
-  throw new Error('A scan match must contain incoming or outgoing viewing data.');
+  if (keyKind === "incoming")
+    throw new Error("Incoming-only recovery cannot contain outgoing outputs.");
+  if (match.outgoing !== undefined) return { ...match, direction: "sent" };
+  throw new Error("A scan match must contain incoming or outgoing viewing data.");
 }
 
 export class ShieldedActivityLedger {
@@ -30,7 +41,7 @@ export class ShieldedActivityLedger {
   #protocolVersion = 0;
   readonly #keyKind: ViewerKeyKind;
 
-  constructor(keyKind: ViewerKeyKind = 'full') {
+  constructor(keyKind: ViewerKeyKind = "full") {
     this.#keyKind = keyKind;
   }
 
@@ -39,10 +50,10 @@ export class ShieldedActivityLedger {
     const matchesByPosition = new Map<bigint, ScannedMatch>();
     for (const match of matches) {
       if (match.position < pageStart || match.position >= pageEnd) {
-        throw new Error('The Orchard scanner returned a position outside the DAPI page.');
+        throw new Error("The Orchard scanner returned a position outside the DAPI page.");
       }
       if (matchesByPosition.has(match.position)) {
-        throw new Error('The Orchard scanner returned a duplicate note position.');
+        throw new Error("The Orchard scanner returned a duplicate note position.");
       }
       matchesByPosition.set(match.position, match);
     }
@@ -58,12 +69,15 @@ export class ShieldedActivityLedger {
       }
 
       const wireNote = page.notes[index];
-      if (wireNote === undefined) throw new Error('DAPI page changed while it was being processed.');
+      if (wireNote === undefined)
+        throw new Error("DAPI page changed while it was being processed.");
       const actionNullifier = bytesToHex(wireNote.nullifier);
       const spent = this.#incomingByNullifier.get(actionNullifier);
       if (spent !== undefined) {
         if (spent.spentAtPosition !== undefined && spent.spentAtPosition !== position) {
-          throw new Error('The Orchard stream attempted to spend one recovered note at two positions.');
+          throw new Error(
+            "The Orchard stream attempted to spend one recovered note at two positions.",
+          );
         }
         spent.spent = true;
         spent.spentAtPosition = position;
@@ -85,9 +99,9 @@ export class ShieldedActivityLedger {
     let selfOrChange = 0n;
     for (const record of records) {
       if (record.incoming !== undefined && record.spent === false) balance += record.incoming.value;
-      if (record.direction === 'received') receivedExternal += record.incoming?.value ?? 0n;
-      if (record.direction === 'sent') sentExternal += record.outgoing?.value ?? 0n;
-      if (record.direction === 'self') selfOrChange += record.incoming?.value ?? 0n;
+      if (record.direction === "received") receivedExternal += record.incoming?.value ?? 0n;
+      if (record.direction === "sent") sentExternal += record.outgoing?.value ?? 0n;
+      if (record.direction === "self") selfOrChange += record.incoming?.value ?? 0n;
     }
     return {
       records,
@@ -96,10 +110,10 @@ export class ShieldedActivityLedger {
       protocolVersion: this.#protocolVersion,
       complete,
       keyKind: this.#keyKind,
-      balance: this.#keyKind === 'full' ? balance : null,
-      receivedExternal: this.#keyKind === 'outgoing' ? null : receivedExternal,
-      sentExternal: this.#keyKind === 'incoming' ? null : sentExternal,
-      selfOrChange: this.#keyKind === 'full' ? selfOrChange : null,
+      balance: this.#keyKind === "full" ? balance : null,
+      receivedExternal: this.#keyKind === "outgoing" ? null : receivedExternal,
+      sentExternal: this.#keyKind === "incoming" ? null : sentExternal,
+      selfOrChange: this.#keyKind === "full" ? selfOrChange : null,
     };
   }
 }

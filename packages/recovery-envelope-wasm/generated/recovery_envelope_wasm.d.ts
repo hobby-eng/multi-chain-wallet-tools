@@ -1,7 +1,12 @@
 /* tslint:disable */
 /* eslint-disable */
 
-export function create_seed_envelope(entropy: Uint8Array, name: string, note: string, password: string): string;
+export function create_seed_envelope(
+  entropy: Uint8Array,
+  name: string,
+  note: string,
+  password: string,
+): string;
 
 export function create_seed_envelope_advanced(
   entropy: Uint8Array,

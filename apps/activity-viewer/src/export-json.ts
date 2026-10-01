@@ -1,10 +1,18 @@
-import type { PlatformIdentityLookupSnapshot } from '@ckd/dash-network/platform-identity-source.js';
-import type { ViewerSingleExportState } from './export-model.js';
+import type { PlatformIdentityLookupSnapshot } from "@ckd/dash-network/platform-identity-source.js";
+import type { ViewerSingleExportState } from "./export-model.js";
 
 function groupedIdentityProofs(snapshot: PlatformIdentityLookupSnapshot): unknown[] {
-  const grouped = new Map<string, { proof: PlatformIdentityLookupSnapshot['proofs'][number]; responseCount: number }>();
+  const grouped = new Map<
+    string,
+    { proof: PlatformIdentityLookupSnapshot["proofs"][number]; responseCount: number }
+  >();
   for (const proof of snapshot.proofs) {
-    const key = [proof.height, proof.coreChainLockedHeight, proof.protocolVersion, proof.responseTimeMs].join(':');
+    const key = [
+      proof.height,
+      proof.coreChainLockedHeight,
+      proof.protocolVersion,
+      proof.responseTimeMs,
+    ].join(":");
     const existing = grouped.get(key);
     if (existing === undefined) grouped.set(key, { proof, responseCount: 1 });
     else existing.responseCount += 1;
@@ -12,7 +20,7 @@ function groupedIdentityProofs(snapshot: PlatformIdentityLookupSnapshot): unknow
   return [...grouped.values()].map(({ proof, responseCount }) => ({ ...proof, responseCount }));
 }
 
-function identityJsonData(state: Extract<ViewerSingleExportState, { mode: 'identity' }>): unknown {
+function identityJsonData(state: Extract<ViewerSingleExportState, { mode: "identity" }>): unknown {
   const { snapshot } = state;
   return {
     query: {
@@ -107,8 +115,8 @@ function identityJsonData(state: Extract<ViewerSingleExportState, { mode: 'ident
 }
 
 export function viewerJsonData(state: ViewerSingleExportState): unknown {
-  if (state.mode === 'identity') return identityJsonData(state);
-  if (state.mode === 'platform') {
+  if (state.mode === "identity") return identityJsonData(state);
+  if (state.mode === "platform") {
     const { snapshot, history } = state;
     return {
       address: snapshot.address,
@@ -145,7 +153,7 @@ export function viewerJsonData(state: ViewerSingleExportState): unknown {
       },
     };
   }
-  if (state.mode === 'core') {
+  if (state.mode === "core") {
     const { snapshot } = state;
     return {
       address: snapshot.address,

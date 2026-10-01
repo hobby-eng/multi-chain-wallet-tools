@@ -1,9 +1,9 @@
-import type { CoinAdapter } from '@ckd/coins/registry.js';
-import type { DerivationResult, DisplayMode, DerivedRow, ResultField } from '@ckd/core/types.js';
-import { neutralizeSpreadsheetFormula } from './csv.js';
+import type { CoinAdapter } from "@ckd/coins/registry.js";
+import type { DerivationResult, DisplayMode, DerivedRow, ResultField } from "@ckd/core/types.js";
+import { neutralizeSpreadsheetFormula } from "./csv.js";
 
-export type ExportFormat = 'plain' | 'structured' | 'tsv';
-export type ExportAction = 'addresses' | 'publicKeys' | 'privateKeys' | 'selected' | 'allDisplayed';
+export type ExportFormat = "plain" | "structured" | "tsv";
+export type ExportAction = "addresses" | "publicKeys" | "privateKeys" | "selected" | "allDisplayed";
 
 interface FormattedExport {
   text: string;
@@ -24,10 +24,10 @@ interface DisplayedFieldEntry {
 
 function displayedFieldEntries(row: DerivedRow, mode: DisplayMode): DisplayedFieldEntry[] {
   const entries: DisplayedFieldEntry[] = row.basic.map((field) => ({ field }));
-  if (mode === 'advanced') entries.push(...row.advanced.map((field) => ({ field })));
+  if (mode === "advanced") entries.push(...row.advanced.map((field) => ({ field })));
   for (const group of row.groups ?? []) {
     entries.push(...group.basic.map((field) => ({ field, groupTitle: group.title })));
-    if (mode === 'advanced') {
+    if (mode === "advanced") {
       entries.push(...group.advanced.map((field) => ({ field, groupTitle: group.title })));
     }
   }
@@ -39,9 +39,9 @@ export function displayedFields(row: DerivedRow, mode: DisplayMode): ResultField
 }
 
 function roleKeys(adapter: CoinAdapter, action: ExportAction): Set<string> | null {
-  if (action === 'addresses') return new Set(adapter.fieldRoles.addresses);
-  if (action === 'publicKeys') return new Set(adapter.fieldRoles.publicKeys);
-  if (action === 'privateKeys') return new Set(adapter.fieldRoles.privateKeys);
+  if (action === "addresses") return new Set(adapter.fieldRoles.addresses);
+  if (action === "publicKeys") return new Set(adapter.fieldRoles.publicKeys);
+  if (action === "privateKeys") return new Set(adapter.fieldRoles.privateKeys);
   return null;
 }
 
@@ -66,7 +66,7 @@ function fieldsForAction(
  * a label containing a tab cannot shift the whole column layout.
  */
 function cleanTsv(value: string): string {
-  return neutralizeSpreadsheetFormula(value.replace(/[\t\r\n]+/gu, ' '));
+  return neutralizeSpreadsheetFormula(value.replace(/[\t\r\n]+/gu, " "));
 }
 
 function* selectedRowItems(
@@ -114,26 +114,26 @@ export function* iterateSelectedRows(
   action: ExportAction,
   format: ExportFormat,
 ): Generator<string> {
-  if (format === 'plain') {
+  if (format === "plain") {
     const targeted = roleKeys(adapter, action) !== null;
     let emitted = false;
     for (const item of selectedRowItems(adapter, result, selected, mode, action)) {
-      if (emitted) yield targeted ? '\n' : '\n\n';
-      yield item.fields.map((field) => field.value).join('\n');
+      if (emitted) yield targeted ? "\n" : "\n\n";
+      yield item.fields.map((field) => field.value).join("\n");
       emitted = true;
     }
     return;
   }
 
-  if (format === 'structured') {
+  if (format === "structured") {
     let emitted = false;
     for (const { row, fields } of selectedRowItems(adapter, result, selected, mode, action)) {
-      if (emitted) yield '\n\n';
+      if (emitted) yield "\n\n";
       yield [
         `Index: ${row.index}`,
         `Path: ${row.path}`,
         ...fields.map((field) => `${field.label}: ${field.value}`),
-      ].join('\n');
+      ].join("\n");
       emitted = true;
     }
     return;
@@ -150,13 +150,13 @@ export function* iterateSelectedRows(
     }
   }
   if (headers.length === 0) return;
-  yield ['Index', 'Path', ...headers.map((field) => field.label)].map(cleanTsv).join('\t');
+  yield ["Index", "Path", ...headers.map((field) => field.label)].map(cleanTsv).join("\t");
   for (const { row, fields } of selectedRowItems(adapter, result, selected, mode, action)) {
     const values = new Map(fields.map((field) => [field.key, field.value]));
-    yield '\n';
-    yield [String(row.index), row.path, ...headers.map((field) => values.get(field.key) ?? '')]
+    yield "\n";
+    yield [String(row.index), row.path, ...headers.map((field) => values.get(field.key) ?? "")]
       .map(cleanTsv)
-      .join('\t');
+      .join("\t");
   }
 }
 
@@ -168,10 +168,16 @@ export function formatSelectedRows(
   action: ExportAction,
   format: ExportFormat,
 ): FormattedExport {
-  const { valueCount, containsSecret } = inspectSelectedRows(adapter, result, selected, mode, action);
-  if (valueCount === 0) return { text: '', containsSecret, valueCount };
+  const { valueCount, containsSecret } = inspectSelectedRows(
+    adapter,
+    result,
+    selected,
+    mode,
+    action,
+  );
+  if (valueCount === 0) return { text: "", containsSecret, valueCount };
   return {
-    text: [...iterateSelectedRows(adapter, result, selected, mode, action, format)].join(''),
+    text: [...iterateSelectedRows(adapter, result, selected, mode, action, format)].join(""),
     containsSecret,
     valueCount,
   };

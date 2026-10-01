@@ -156,7 +156,7 @@
 }
 .capability-orbit::before,
 .capability-orbit::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 19px;
   border: 1px solid rgba(245, 166, 35, 0.13);

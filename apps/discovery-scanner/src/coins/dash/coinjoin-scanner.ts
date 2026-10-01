@@ -1,6 +1,11 @@
-import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import type { RecoveryFinding, RecoveryProgress, RecoveryScanConfig, RecoverySection } from '../../types.js';
-import { scanDashTransparentFamily } from './transparent-family-scanner.js';
+import { RecoveryNetworkGateway } from "../../network-gateway.js";
+import type {
+  RecoveryFinding,
+  RecoveryProgress,
+  RecoveryScanConfig,
+  RecoverySection,
+} from "../../types.js";
+import { scanDashTransparentFamily } from "./transparent-family-scanner.js";
 
 export function scanDashCoinJoin(
   inputId: string,
@@ -18,22 +23,22 @@ export function scanDashCoinJoin(
     gateway,
     signal,
     {
-      id: 'coinjoin',
-      title: 'Dash Mobile CoinJoin · DIP9',
-      familyLabel: 'Dash Mobile CoinJoin · DIP9',
+      id: "coinjoin",
+      title: "Dash Mobile CoinJoin · DIP9",
+      familyLabel: "Dash Mobile CoinJoin · DIP9",
       description:
-        'Scans the released mobile/DashSync DIP9 CoinJoin compatibility chains. Dash Core desktop CoinJoin outputs remain covered by the always-on BIP44 receive/change scan.',
-      proofLabel: 'DIP9 mobile compatibility P2PKH scan',
+        "Scans the released mobile/DashSync DIP9 CoinJoin compatibility chains. Dash Core desktop CoinJoin outputs remain covered by the always-on BIP44 receive/change scan.",
+      proofLabel: "DIP9 mobile compatibility P2PKH scan",
       branches: [
         {
-          key: 'external',
-          label: 'External mobile/DashSync',
+          key: "external",
+          label: "External mobile/DashSync",
           count: config.coinJoinExternalCount,
           pathPrefix: (coinType: number) => `m/9'/${coinType}'/4'/${config.account}'/0`,
         },
         {
-          key: 'internal',
-          label: 'Internal defensive compatibility',
+          key: "internal",
+          label: "Internal defensive compatibility",
           count: config.coinJoinInternalCount,
           pathPrefix: (coinType: number) => `m/9'/${coinType}'/4'/${config.account}'/1`,
         },

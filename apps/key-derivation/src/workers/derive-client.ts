@@ -1,6 +1,6 @@
-import type { CoinDerivationInput } from '@ckd/coins/registry.js';
-import type { CryptoSelfTestReport } from '@ckd/self-test-types';
-import type { DerivationResult } from '@ckd/core/types.js';
+import type { CoinDerivationInput } from "@ckd/coins/registry.js";
+import type { CryptoSelfTestReport } from "@ckd/self-test-types";
+import type { DerivationResult } from "@ckd/core/types.js";
 import type {
   AddressSearchMatch,
   AddressSearchRequest,
@@ -8,11 +8,11 @@ import type {
   MessageSigningFormat,
   WorkerMessage,
   WorkerRequest,
-} from './protocol.js';
-import type { CompactMessageSignature } from '@ckd/core/compact-message.js';
-import type { SilentPaymentResult } from './silent-payment.js';
-import type { Bip85RequestOptions, Bip85Result } from './bip85-deriver.js';
-import type { Bip38EncryptionResult } from './protocol.js';
+} from "./protocol.js";
+import type { CompactMessageSignature } from "@ckd/core/compact-message.js";
+import type { SilentPaymentResult } from "./silent-payment.js";
+import type { Bip85RequestOptions, Bip85Result } from "./bip85-deriver.js";
+import type { Bip38EncryptionResult } from "./protocol.js";
 
 declare const __DERIVATION_WORKER_SOURCE__: string;
 
@@ -42,12 +42,12 @@ interface ReadyWaiter {
   reject(reason: Error): void;
 }
 
-type WorkerLifecycle = 'booting' | 'ready' | 'terminated';
+type WorkerLifecycle = "booting" | "ready" | "terminated";
 
 export class DerivationCancelledError extends Error {
-  constructor(message = 'Derivation cancelled.') {
+  constructor(message = "Derivation cancelled.") {
     super(message);
-    this.name = 'DerivationCancelledError';
+    this.name = "DerivationCancelledError";
   }
 }
 
@@ -57,31 +57,32 @@ export class DerivationWorkerClient {
   readonly #queued = new Map<number, QueuedRequest>();
   readonly #readyWaiters = new Set<ReadyWaiter>();
   #nextId = 1;
-  #lifecycle: WorkerLifecycle = 'booting';
+  #lifecycle: WorkerLifecycle = "booting";
   #workerUrl: string | null;
   #workerUrlTimer: ReturnType<typeof globalThis.setTimeout> | null;
 
   constructor() {
-    if (typeof Worker === 'undefined') throw new Error('This browser does not support Web Workers.');
-    const blob = new Blob([__DERIVATION_WORKER_SOURCE__], { type: 'text/javascript' });
+    if (typeof Worker === "undefined")
+      throw new Error("This browser does not support Web Workers.");
+    const blob = new Blob([__DERIVATION_WORKER_SOURCE__], { type: "text/javascript" });
     const url = URL.createObjectURL(blob);
     this.#workerUrl = url;
-    this.#worker = new Worker(url, { name: 'wallet-key-derivation' });
+    this.#worker = new Worker(url, { name: "wallet-key-derivation" });
     // Revocation is safe only after the worker confirms its script loaded.
     // The timeout is a leak-prevention fallback for a browser that never emits
     // either ready or error; it is deliberately not the normal path.
     this.#workerUrlTimer = globalThis.setTimeout(() => this.#revokeWorkerUrl(), 15_000);
-    this.#worker.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
+    this.#worker.addEventListener("message", (event: MessageEvent<WorkerMessage>) => {
       const response = event.data;
-      if (!('id' in response)) {
-        if (this.#lifecycle === 'booting') {
+      if (!("id" in response)) {
+        if (this.#lifecycle === "booting") {
           this.#revokeWorkerUrl();
-          this.#lifecycle = 'ready';
+          this.#lifecycle = "ready";
           for (const waiter of this.#readyWaiters) waiter.resolve();
           this.#readyWaiters.clear();
           for (const queued of this.#queued.values()) this.#post(queued);
           this.#queued.clear();
-        } else if (this.#lifecycle === 'terminated') {
+        } else if (this.#lifecycle === "terminated") {
           this.#worker.terminate();
           this.#revokeWorkerUrl();
         }
@@ -93,12 +94,12 @@ export class DerivationWorkerClient {
       if (response.ok) pending.resolve(response.result);
       else pending.reject(new Error(response.error));
     });
-    this.#worker.addEventListener('error', (event) => {
+    this.#worker.addEventListener("error", (event) => {
       // The worker is gone: without marking the client terminated, a later
       // request would post to a dead worker and never settle, leaving the UI
       // stuck on "Deriving…" with no timeout to release it.
-      const failure = new Error(event.message || 'The derivation worker stopped unexpectedly.');
-      this.#lifecycle = 'terminated';
+      const failure = new Error(event.message || "The derivation worker stopped unexpectedly.");
+      this.#lifecycle = "terminated";
       this.#wipeQueued();
       this.#revokeWorkerUrl();
       this.#rejectAll(failure);
@@ -108,9 +109,9 @@ export class DerivationWorkerClient {
   }
 
   ready(): Promise<void> {
-    if (this.#lifecycle === 'ready') return Promise.resolve();
-    if (this.#lifecycle === 'terminated')
-      return Promise.reject(new Error('The derivation worker is no longer available.'));
+    if (this.#lifecycle === "ready") return Promise.resolve();
+    if (this.#lifecycle === "terminated")
+      return Promise.reject(new Error("The derivation worker is no longer available."));
     return new Promise<void>((resolve, reject) => {
       this.#readyWaiters.add({ resolve, reject });
     });
@@ -118,18 +119,19 @@ export class DerivationWorkerClient {
 
   async derive(adapterId: string, input: CoinDerivationInput): Promise<DerivationResult> {
     const seed = input.seed.slice();
-    return this.#request<DerivationResult>({ id: this.#nextId, type: 'derive', adapterId, input: { ...input, seed } }, [
-      seed.buffer,
-    ]);
+    return this.#request<DerivationResult>(
+      { id: this.#nextId, type: "derive", adapterId, input: { ...input, seed } },
+      [seed.buffer],
+    );
   }
 
   async selfTest(): Promise<CryptoSelfTestReport> {
-    return this.#request<CryptoSelfTestReport>({ id: this.#nextId, type: 'self-test' });
+    return this.#request<CryptoSelfTestReport>({ id: this.#nextId, type: "self-test" });
   }
 
   async search(
     adapterId: string,
-    input: Omit<CoinDerivationInput, 'start' | 'count'>,
+    input: Omit<CoinDerivationInput, "start" | "count">,
     expectedAddress: string,
     start: number,
     count: number,
@@ -138,7 +140,7 @@ export class DerivationWorkerClient {
     return this.#request<AddressSearchMatch | null>(
       {
         id: this.#nextId,
-        type: 'search',
+        type: "search",
         adapterId,
         input: { ...input, seed },
         expectedAddress,
@@ -151,14 +153,22 @@ export class DerivationWorkerClient {
 
   async searchMany(
     adapterId: string,
-    input: Omit<CoinDerivationInput, 'start' | 'count'>,
+    input: Omit<CoinDerivationInput, "start" | "count">,
     requests: readonly AddressSearchRequest[],
     start: number,
     count: number,
   ): Promise<AddressSearchResult[]> {
     const seed = input.seed.slice();
     return this.#request<AddressSearchResult[]>(
-      { id: this.#nextId, type: 'search-many', adapterId, input: { ...input, seed }, requests, start, count },
+      {
+        id: this.#nextId,
+        type: "search-many",
+        adapterId,
+        input: { ...input, seed },
+        requests,
+        start,
+        count,
+      },
       [seed.buffer],
     );
   }
@@ -174,7 +184,7 @@ export class DerivationWorkerClient {
     return this.#request<CompactMessageSignature>(
       {
         id: this.#nextId,
-        type: 'sign-message',
+        type: "sign-message",
         adapterId,
         input: { ...input, seed },
         address,
@@ -187,7 +197,7 @@ export class DerivationWorkerClient {
 
   async deriveSilentPayment(
     seedInput: Uint8Array,
-    network: 'mainnet' | 'testnet',
+    network: "mainnet" | "testnet",
     account: number,
     labelIndexes?: readonly number[],
   ): Promise<SilentPaymentResult> {
@@ -195,7 +205,7 @@ export class DerivationWorkerClient {
     return this.#request<SilentPaymentResult>(
       {
         id: this.#nextId,
-        type: 'silent-payment',
+        type: "silent-payment",
         seed,
         network,
         account,
@@ -210,7 +220,7 @@ export class DerivationWorkerClient {
     return this.#request<Bip85Result>(
       {
         id: this.#nextId,
-        type: 'bip85',
+        type: "bip85",
         seed,
         options,
       },
@@ -228,7 +238,7 @@ export class DerivationWorkerClient {
     return this.#request<Bip38EncryptionResult>(
       {
         id: this.#nextId,
-        type: 'bip38-encrypt',
+        type: "bip38-encrypt",
         adapterId,
         input: { ...input, seed },
         address,
@@ -239,9 +249,9 @@ export class DerivationWorkerClient {
   }
 
   terminate(reason = new DerivationCancelledError()): void {
-    if (this.#lifecycle === 'terminated') return;
-    const ready = this.#lifecycle === 'ready';
-    this.#lifecycle = 'terminated';
+    if (this.#lifecycle === "terminated") return;
+    const ready = this.#lifecycle === "ready";
+    this.#lifecycle = "terminated";
     this.#wipeQueued();
     this.#rejectAll(reason);
     for (const waiter of this.#readyWaiters) waiter.reject(reason);
@@ -272,9 +282,9 @@ export class DerivationWorkerClient {
       | Bip38EncryptionResult
       | null,
   >(request: WorkerRequest, transfer: Transferable[] = []): Promise<T> {
-    if (this.#lifecycle === 'terminated') {
+    if (this.#lifecycle === "terminated") {
       this.#wipeRequest(request);
-      return Promise.reject(new Error('The derivation worker is no longer available.'));
+      return Promise.reject(new Error("The derivation worker is no longer available."));
     }
     this.#nextId += 1;
     return new Promise<T>((resolve, reject) => {
@@ -283,7 +293,7 @@ export class DerivationWorkerClient {
         reject,
       });
       const queued = { request, transfer };
-      if (this.#lifecycle === 'ready') this.#post(queued);
+      if (this.#lifecycle === "ready") this.#post(queued);
       else this.#queued.set(request.id, queued);
     });
   }
@@ -300,8 +310,8 @@ export class DerivationWorkerClient {
   }
 
   #wipeRequest(request: WorkerRequest): void {
-    if ('seed' in request) request.seed.fill(0);
-    if ('input' in request) request.input.seed.fill(0);
+    if ("seed" in request) request.seed.fill(0);
+    if ("input" in request) request.input.seed.fill(0);
   }
 
   #wipeQueued(): void {

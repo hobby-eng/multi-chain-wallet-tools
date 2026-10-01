@@ -1,17 +1,17 @@
-import { isUint256Decimal } from '@ckd/core/numeric-limits.js';
-import { getEthereumHistory } from './history.js';
-import { MAX_BIP32_INDEX, assertIndex, requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
-import { assertValidMnemonic, mnemonicToSeed } from '@ckd/core/bip39.js';
-import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
-import { ethereumAddressFromPublicKey } from '@ckd/coins/ethereum/index.js';
-import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
-import { RecoveryNetworkGateway } from '../../network-gateway.js';
+import { isUint256Decimal } from "@ckd/core/numeric-limits.js";
+import { getEthereumHistory } from "./history.js";
+import { MAX_BIP32_INDEX, assertIndex, requirePublic, rootFromSeed } from "@ckd/core/bip32.js";
+import { assertValidMnemonic, mnemonicToSeed } from "@ckd/core/bip39.js";
+import { bytesToHex, secp256k1, wipe } from "@ckd/core/crypto.js";
+import { ethereumAddressFromPublicKey } from "@ckd/coins/ethereum/index.js";
+import { RecoveryConcurrencyLimiter } from "../../concurrency.js";
+import { RecoveryNetworkGateway } from "../../network-gateway.js";
 import {
   RECOVERY_EVM_ACCOUNT_BATCH,
   type EvmAccountBatchView,
   type EvmAccountView,
-} from '@ckd/network-boundary/protocol.js';
-import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
+} from "@ckd/network-boundary/protocol.js";
+import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
 import type {
   RecoveryCoinAdapter,
   RecoveryFinding,
@@ -19,10 +19,10 @@ import type {
   RecoverySection,
   RecoverySeedInput,
   RecoveryWalletResult,
-} from '../../types.js';
-import { appendCustomPaths, customScanPaths } from '../custom-path.js';
-import { extendAddressTarget } from '../../address-gap.js';
-import { ETHEREUM_VERSIONS, formatEther } from './shared.js';
+} from "../../types.js";
+import { appendCustomPaths, customScanPaths } from "../custom-path.js";
+import { extendAddressTarget } from "../../address-gap.js";
+import { ETHEREUM_VERSIONS, formatEther } from "./shared.js";
 
 interface EthereumPathProfile {
   id: string;
@@ -32,51 +32,60 @@ interface EthereumPathProfile {
   initialCount: number;
 }
 
-function validateBatch(value: EvmAccountBatchView, expected: readonly string[]): EvmAccountBatchView {
+function validateBatch(
+  value: EvmAccountBatchView,
+  expected: readonly string[],
+): EvmAccountBatchView {
   if (
     !isUint256Decimal(value.blockNumber) ||
     !Array.isArray(value.entries) ||
     value.entries.length !== expected.length
   ) {
-    throw new Error('Ethereum RPC returned an incomplete account batch.');
+    throw new Error("Ethereum RPC returned an incomplete account batch.");
   }
   value.entries.forEach((entry, index) => {
-    if (entry.address !== expected[index] || !isUint256Decimal(entry.balance) || !isUint256Decimal(entry.nonce)) {
-      throw new Error('Ethereum RPC returned malformed account data.');
+    if (
+      entry.address !== expected[index] ||
+      !isUint256Decimal(entry.balance) ||
+      !isUint256Decimal(entry.nonce)
+    ) {
+      throw new Error("Ethereum RPC returned malformed account data.");
     }
   });
   return value;
 }
 
-function pathProfiles(config: RecoveryScanConfig): Iterable<EthereumPathProfile> & { readonly length: number } {
+function pathProfiles(
+  config: RecoveryScanConfig,
+): Iterable<EthereumPathProfile> & { readonly length: number } {
   const profiles: EthereumPathProfile[] = [
     {
-      id: 'standard',
-      label: 'Standard BIP44 · MetaMask / Trezor',
+      id: "standard",
+      label: "Standard BIP44 · MetaMask / Trezor",
       path: (index) => `m/44'/60'/${config.account}'/0/${index}`,
       initialCount: config.coreReceiveCount,
       maximumCount: MAX_BIP32_INDEX + 1,
     },
     {
-      id: 'ledger-live',
-      label: 'Ledger Live accounts',
+      id: "ledger-live",
+      label: "Ledger Live accounts",
       path: (index) => `m/44'/60'/${config.account + index}'/0/0`,
       initialCount: config.coreReceiveCount,
       maximumCount: MAX_BIP32_INDEX - config.account + 1,
     },
     {
-      id: 'ledger-legacy',
-      label: 'Legacy Ledger / MEW',
+      id: "ledger-legacy",
+      label: "Legacy Ledger / MEW",
       path: (index) => `m/44'/60'/0'/${index}`,
       initialCount: config.coreReceiveCount,
       maximumCount: MAX_BIP32_INDEX + 1,
     },
   ];
   if (profiles.some((profile) => profile.initialCount > profile.maximumCount))
-    throw new Error('The requested Ethereum scan range exceeds the BIP32 index space.');
+    throw new Error("The requested Ethereum scan range exceeds the BIP32 index space.");
   const custom = customScanPaths(config);
-  if (custom.length > 0 && config.customPathFormat !== 'eoa')
-    throw new Error('Ethereum custom paths require the EOA address format.');
+  if (custom.length > 0 && config.customPathFormat !== "eoa")
+    throw new Error("Ethereum custom paths require the EOA address format.");
   return appendCustomPaths<EthereumPathProfile>(profiles, custom, (path) => ({
     id: path.id,
     label: `${path.label} · EVM`,
@@ -101,9 +110,9 @@ function deriveAddress(root: ReturnType<typeof rootFromSeed>, path: string): str
 async function scanEthereum(
   input: RecoverySeedInput,
   config: RecoveryScanConfig,
-  context: Parameters<RecoveryCoinAdapter['scan']>[2],
+  context: Parameters<RecoveryCoinAdapter["scan"]>[2],
 ): Promise<RecoveryWalletResult> {
-  assertIndex(config.account, 'Account');
+  assertIndex(config.account, "Account");
   if (
     !Number.isSafeInteger(config.coreReceiveCount) ||
     config.coreReceiveCount < 1 ||
@@ -115,18 +124,18 @@ async function scanEthereum(
     config.scanCustomPath === true &&
     (!Number.isSafeInteger(config.customPathCount) || (config.customPathCount ?? 0) < 1)
   ) {
-    throw new Error('Custom path address minimum must be at least 1.');
+    throw new Error("Custom path address minimum must be at least 1.");
   }
   const profiles = pathProfiles(config);
   const mnemonic = assertValidMnemonic(input.mnemonic);
   const seed = mnemonicToSeed(mnemonic, input.passphrase);
   const guard = new SecretEgressGuard();
-  guard.registerString('BIP39 mnemonic', mnemonic);
-  guard.registerString('BIP39 passphrase', input.passphrase);
-  guard.registerBytes('BIP39 seed', seed);
-  context.sessionSecretGuard?.registerString('BIP39 mnemonic', mnemonic);
-  context.sessionSecretGuard?.registerString('BIP39 passphrase', input.passphrase);
-  context.sessionSecretGuard?.registerBytes('BIP39 seed', seed);
+  guard.registerString("BIP39 mnemonic", mnemonic);
+  guard.registerString("BIP39 passphrase", input.passphrase);
+  guard.registerBytes("BIP39 seed", seed);
+  context.sessionSecretGuard?.registerString("BIP39 mnemonic", mnemonic);
+  context.sessionSecretGuard?.registerString("BIP39 passphrase", input.passphrase);
+  context.sessionSecretGuard?.registerBytes("BIP39 seed", seed);
   const gateway = new RecoveryNetworkGateway(
     guard,
     context.networkApi,
@@ -147,7 +156,8 @@ async function scanEthereum(
     for (const profile of profiles) {
       let target = profile.initialCount;
       for (let offset = 0; offset < target;) {
-        if (context.signal.aborted) throw new DOMException('Ethereum scan cancelled.', 'AbortError');
+        if (context.signal.aborted)
+          throw new DOMException("Ethereum scan cancelled.", "AbortError");
         const end = Math.min(offset + RECOVERY_EVM_ACCOUNT_BATCH, target);
         const derived = Array.from({ length: end - offset }, (_, relativeIndex) => {
           const index = offset + relativeIndex;
@@ -160,7 +170,7 @@ async function scanEthereum(
           const response = validateBatch(
             await gateway.runPublic(
               { network: config.network, addresses },
-              'evm.accounts',
+              "evm.accounts",
               () => gateway.networkApi.evmAccounts(config.network, addresses, context.signal),
               context.signal,
             ),
@@ -181,7 +191,8 @@ async function scanEthereum(
         }
         for (const item of derived) {
           const entry = accountStates.get(item.address.toLowerCase());
-          if (entry === undefined) throw new Error('Ethereum account state cache omitted a derived address.');
+          if (entry === undefined)
+            throw new Error("Ethereum account state cache omitted a derived address.");
           const balance = BigInt(entry.balance);
           const nonce = BigInt(entry.nonce);
           const used = balance > 0n || nonce > 0n;
@@ -192,7 +203,11 @@ async function scanEthereum(
             const existing = findingsByAddress.get(item.address.toLowerCase());
             if (existing !== undefined) {
               if (!existing.fields.some(({ value }) => value === item.path)) {
-                existing.fields.push({ label: 'Alternate derivation path', value: item.path, copyable: true });
+                existing.fields.push({
+                  label: "Alternate derivation path",
+                  value: item.path,
+                  copyable: true,
+                });
               }
               continue;
             }
@@ -203,22 +218,22 @@ async function scanEthereum(
               balanceAtomic: balance,
               balanceLabel: formatEther(balance),
               fields: [
-                { label: 'Scan profile', value: profile.label },
-                { label: 'Derivation path', value: item.path, copyable: true },
-                { label: 'Profile index', value: String(item.index) },
-                { label: 'Transactions sent / nonce', value: nonce.toString() },
+                { label: "Scan profile", value: profile.label },
+                { label: "Derivation path", value: item.path, copyable: true },
+                { label: "Profile index", value: String(item.index) },
+                { label: "Transactions sent / nonce", value: nonce.toString() },
               ],
             };
             findingsByAddress.set(item.address.toLowerCase(), finding);
             findings.push(finding);
-            context.onFinding(input.id, 'core', finding);
+            context.onFinding(input.id, "core", finding);
           }
         }
         scanned += derived.length;
         offset = end;
         context.onProgress({
           inputId: input.id,
-          section: 'core',
+          section: "core",
           message: `${profile.label}: checked ${offset} of ${target} derivation candidates`,
           completed: scanned,
           total: null,
@@ -226,53 +241,57 @@ async function scanEthereum(
       }
     }
     const section: RecoverySection = {
-      id: 'core',
-      title: 'Ethereum EOA addresses',
-      description: `Scans three standard EOA profiles${config.scanCustomPath ? ' and the selected custom paths' : ''} through independent 20-address post-use gaps.`,
-      state: 'complete',
+      id: "core",
+      title: "Ethereum EOA addresses",
+      description: `Scans three standard EOA profiles${config.scanCustomPath ? " and the selected custom paths" : ""} through independent 20-address post-use gaps.`,
+      state: "complete",
       metrics: [
         {
-          label: 'Spendable balance',
+          label: "Spendable balance",
           value: formatEther(totalBalance),
-          tone: totalBalance > 0n ? 'positive' : 'neutral',
+          tone: totalBalance > 0n ? "positive" : "neutral",
         },
-        { label: 'Funded addresses', value: String(fundedCount) },
-        { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
-        { label: 'Unique addresses queried', value: String(accountStates.size) },
-        { label: 'Derivation candidates', value: String(scanned) },
+        { label: "Funded addresses", value: String(fundedCount) },
+        { label: "Previously used · empty", value: String(usedCount - fundedCount) },
+        { label: "Unique addresses queried", value: String(accountStates.size) },
+        { label: "Derivation candidates", value: String(scanned) },
       ],
       findings,
       scanned,
       source:
-        config.network === 'mainnet'
-          ? 'https://ethereum-rpc.publicnode.com'
-          : 'https://ethereum-sepolia-rpc.publicnode.com',
-      proof: `${config.network === 'mainnet' ? 'Ethereum mainnet' : 'Sepolia testnet'} JSON-RPC account batches at heights ${firstBlock ?? 'unavailable'}–${lastBlock ?? 'unavailable'} · independent 20-address post-use gaps`,
+        config.network === "mainnet"
+          ? "https://ethereum-rpc.publicnode.com"
+          : "https://ethereum-sepolia-rpc.publicnode.com",
+      proof: `${config.network === "mainnet" ? "Ethereum mainnet" : "Sepolia testnet"} JSON-RPC account batches at heights ${firstBlock ?? "unavailable"}–${lastBlock ?? "unavailable"} · independent 20-address post-use gaps`,
       warning:
-        'Each account batch uses an explicit block height; different batches may use different heights. This is a single-source public RPC view, without a block-hash snapshot across reorganizations. ERC-20 token balances and contract-wallet ownership are not scanned.',
+        "Each account batch uses an explicit block height; different batches may use different heights. This is a single-source public RPC view, without a block-hash snapshot across reorganizations. ERC-20 token balances and contract-wallet ownership are not scanned.",
     };
     return {
       inputId: input.id,
       label: input.label,
-      coinId: 'ethereum',
-      coinLabel: 'Ethereum',
+      coinId: "ethereum",
+      coinLabel: "Ethereum",
       network: config.network,
       startedAt,
       completedAt: new Date().toISOString(),
       overview: [
         {
-          label: 'Total located value',
+          label: "Total located value",
           value: formatEther(totalBalance),
-          tone: totalBalance > 0n ? 'positive' : 'neutral',
+          tone: totalBalance > 0n ? "positive" : "neutral",
         },
-        { label: 'Funded accounts', value: String(fundedCount), tone: fundedCount > 0 ? 'positive' : 'neutral' },
-        { label: 'Used accounts', value: String(usedCount) },
-        { label: 'Path profiles', value: String(profiles.length) },
-        { label: 'Unique addresses queried', value: String(accountStates.size) },
+        {
+          label: "Funded accounts",
+          value: String(fundedCount),
+          tone: fundedCount > 0 ? "positive" : "neutral",
+        },
+        { label: "Used accounts", value: String(usedCount) },
+        { label: "Path profiles", value: String(profiles.length) },
+        { label: "Unique addresses queried", value: String(accountStates.size) },
       ],
       sections: [section],
       warnings: [
-        'Only native ETH in mnemonic-derived EOAs is scanned; tokens and smart-contract wallets require separate recovery tooling.',
+        "Only native ETH in mnemonic-derived EOAs is scanned; tokens and smart-contract wallets require separate recovery tooling.",
       ],
     };
   } finally {
@@ -283,16 +302,16 @@ async function scanEthereum(
 }
 
 export const ETHEREUM_SEED_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
-  id: 'ethereum',
-  amountUnit: () => ({ asset: 'ETH', atomicUnit: 'wei', decimals: 18 }),
+  id: "ethereum",
+  amountUnit: () => ({ asset: "ETH", atomicUnit: "wei", decimals: 18 }),
   getHistory: getEthereumHistory,
-  label: 'Ethereum',
-  networks: ['mainnet', 'testnet'],
+  label: "Ethereum",
+  networks: ["mainnet", "testnet"],
   customPath: {
-    description: 'Optional; three standard profiles stay enabled.',
+    description: "Optional; three standard profiles stay enabled.",
     placeholder: "m/44'/60'/0'/0/{index}",
     defaultTemplate: () => "m/44'/60'/0'/0/{index}",
-    formats: [{ id: 'eoa', label: 'Ethereum EOA · EIP-55' }],
+    formats: [{ id: "eoa", label: "Ethereum EOA · EIP-55" }],
   },
   scan: scanEthereum,
 };

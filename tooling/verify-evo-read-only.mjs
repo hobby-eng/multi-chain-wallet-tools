@@ -1,57 +1,67 @@
-import { API } from 'typescript/unstable/sync';
-import * as ts from 'typescript/unstable/ast';
+import { API } from "typescript/unstable/sync";
+import * as ts from "typescript/unstable/ast";
 
 const LOW_LEVEL_WRITE_METHODS = new Set([
-  'addressFundsTransfer',
-  'addressFundsWithdraw',
-  'addressFundingFromAssetLock',
-  'identityCreditWithdrawal',
-  'identityTopUpFromAddresses',
-  'identityTransferToAddresses',
-  'broadcastStateTransition',
-  'broadcastAndWait',
-  'broadcastAndWaitForAffectedState',
+  "addressFundsTransfer",
+  "addressFundsWithdraw",
+  "addressFundingFromAssetLock",
+  "identityCreditWithdrawal",
+  "identityTopUpFromAddresses",
+  "identityTransferToAddresses",
+  "broadcastStateTransition",
+  "broadcastAndWait",
+  "broadcastAndWaitForAffectedState",
 ]);
 
 const FACADE_WRITE_METHODS = new Map([
   [
-    'addresses',
-    new Set(['transfer', 'withdraw', 'topUpIdentity', 'transferFromIdentity', 'fundFromAssetLock', 'createIdentity']),
-  ],
-  ['identities', new Set(['create', 'creditTransfer', 'creditWithdrawal', 'topUp', 'update'])],
-  ['documents', new Set(['create', 'replace', 'delete', 'transfer', 'purchase', 'setPrice'])],
-  ['contracts', new Set(['publish', 'update'])],
-  [
-    'tokens',
+    "addresses",
     new Set([
-      'mint',
-      'burn',
-      'transfer',
-      'freeze',
-      'unfreeze',
-      'destroyFrozen',
-      'emergencyAction',
-      'setPrice',
-      'directPurchase',
-      'claim',
-      'configUpdate',
+      "transfer",
+      "withdraw",
+      "topUpIdentity",
+      "transferFromIdentity",
+      "fundFromAssetLock",
+      "createIdentity",
     ]),
   ],
-  ['dpns', new Set(['registerName'])],
-  ['voting', new Set(['masternodeVote'])],
-  ['stateTransitions', new Set(['broadcastStateTransition', 'broadcastAndWait', 'broadcastAndWaitForAffectedState'])],
+  ["identities", new Set(["create", "creditTransfer", "creditWithdrawal", "topUp", "update"])],
+  ["documents", new Set(["create", "replace", "delete", "transfer", "purchase", "setPrice"])],
+  ["contracts", new Set(["publish", "update"])],
+  [
+    "tokens",
+    new Set([
+      "mint",
+      "burn",
+      "transfer",
+      "freeze",
+      "unfreeze",
+      "destroyFrozen",
+      "emergencyAction",
+      "setPrice",
+      "directPurchase",
+      "claim",
+      "configUpdate",
+    ]),
+  ],
+  ["dpns", new Set(["registerName"])],
+  ["voting", new Set(["masternodeVote"])],
+  [
+    "stateTransitions",
+    new Set(["broadcastStateTransition", "broadcastAndWait", "broadcastAndWaitForAffectedState"]),
+  ],
 ]);
 
 const SECRET_CAPABLE_WALLET_METHODS = new Set([
-  'generateMnemonic',
-  'mnemonicToSeed',
-  'deriveKeyFromSeedPhrase',
-  'validateMnemonic',
+  "generateMnemonic",
+  "mnemonicToSeed",
+  "deriveKeyFromSeedPhrase",
+  "validateMnemonic",
 ]);
 
 function isEvoModuleSpecifier(node) {
   if (!ts.isStringLiteral(node)) return false;
-  return node.text === '@dashevo/evo-sdk' || node.text.startsWith('@dashevo/evo-sdk/');
+  return node.text === "@dashevo/evo-sdk" || node.text.startsWith("@dashevo/evo-sdk/");
 }
 
 function staticString(node, strings) {
@@ -71,7 +81,10 @@ function expressionPath(node, aliases, strings) {
   }
   if (ts.isElementAccessExpression(node)) {
     const base = expressionPath(node.expression, aliases, strings);
-    const property = node.argumentExpression === undefined ? undefined : staticString(node.argumentExpression, strings);
+    const property =
+      node.argumentExpression === undefined
+        ? undefined
+        : staticString(node.argumentExpression, strings);
     return base === undefined || property === undefined ? undefined : [...base, property];
   }
   return undefined;
@@ -84,7 +97,11 @@ function recordBinding(binding, path, aliases) {
   }
   for (const element of binding.elements) {
     // The pinned TS native API represents array holes as nameless BindingElements.
-    if (ts.isOmittedExpression(element) || (ts.isArrayBindingPattern(binding) && element.name === undefined)) continue;
+    if (
+      ts.isOmittedExpression(element) ||
+      (ts.isArrayBindingPattern(binding) && element.name === undefined)
+    )
+      continue;
     if (element.dotDotDotToken !== undefined) continue;
     const property =
       element.propertyName === undefined
@@ -104,7 +121,7 @@ function describeWrite(path) {
   const method = path.at(-1);
   if (method === undefined) return undefined;
   const facade = path.at(-2);
-  if (facade === 'wallet' && SECRET_CAPABLE_WALLET_METHODS.has(method)) {
+  if (facade === "wallet" && SECRET_CAPABLE_WALLET_METHODS.has(method)) {
     return `secret-capable wallet.${method} SDK method`;
   }
   if (LOW_LEVEL_WRITE_METHODS.has(method)) return `low-level state-transition method ${method}`;
@@ -130,22 +147,22 @@ function findInSourceFile(sourceFile) {
           path: sourceFile.fileName,
           line: location.line + 1,
           column: location.character + 1,
-          description: 'combined Evo SDK namespace import exposing the secret-capable wallet API',
+          description: "combined Evo SDK namespace import exposing the secret-capable wallet API",
         });
       } else if (bindings !== undefined && ts.isNamedImports(bindings)) {
         for (const element of bindings.elements) {
           const imported = element.propertyName?.text ?? element.name.text;
-          if (imported === 'wallet') {
-            aliases.set(element.name.text, ['wallet']);
+          if (imported === "wallet") {
+            aliases.set(element.name.text, ["wallet"]);
             const location = sourceFile.getLineAndCharacterOfPosition(element.getStart(sourceFile));
             findings.push({
               path: sourceFile.fileName,
               line: location.line + 1,
               column: location.character + 1,
-              description: 'secret-capable Evo SDK wallet API import',
+              description: "secret-capable Evo SDK wallet API import",
             });
           } else if (SECRET_CAPABLE_WALLET_METHODS.has(imported)) {
-            aliases.set(element.name.text, ['wallet', imported]);
+            aliases.set(element.name.text, ["wallet", imported]);
             const location = sourceFile.getLineAndCharacterOfPosition(element.getStart(sourceFile));
             findings.push({
               path: sourceFile.fileName,
@@ -169,7 +186,9 @@ function findInSourceFile(sourceFile) {
       const path = expressionPath(node.expression, aliases, strings);
       const description = path === undefined ? undefined : describeWrite(path);
       if (description !== undefined) {
-        const location = sourceFile.getLineAndCharacterOfPosition(node.expression.getStart(sourceFile));
+        const location = sourceFile.getLineAndCharacterOfPosition(
+          node.expression.getStart(sourceFile),
+        );
         findings.push({
           path: sourceFile.fileName,
           line: location.line + 1,
@@ -193,7 +212,8 @@ export function findEvoWriteCalls(paths, cwd = process.cwd()) {
       return paths.flatMap((path) => {
         const project = snapshot.getDefaultProjectForFile(path);
         const sourceFile = project?.program.getSourceFile(path);
-        if (sourceFile === undefined) throw new Error(`TypeScript could not parse reviewed source ${path}.`);
+        if (sourceFile === undefined)
+          throw new Error(`TypeScript could not parse reviewed source ${path}.`);
         return findInSourceFile(sourceFile);
       });
     } finally {

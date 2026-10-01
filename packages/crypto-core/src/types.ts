@@ -1,13 +1,13 @@
-export type NetworkName = 'mainnet' | 'testnet';
-export type DisplayMode = 'basic' | 'advanced';
+export type NetworkName = "mainnet" | "testnet";
+export type DisplayMode = "basic" | "advanced";
 
 export interface ResultField {
   key: string;
   label: string;
   value: string;
   secret: boolean;
-  role?: 'paymentAddress';
-  paymentUriScheme?: 'bitcoin' | 'ethereum' | 'dash';
+  role?: "paymentAddress";
+  paymentUriScheme?: "bitcoin" | "ethereum" | "dash";
   description?: string;
 }
 
@@ -34,7 +34,7 @@ interface WatchOnlyExport {
   description: string;
   text: string;
   fileName: string;
-  mimeType: 'text/plain' | 'application/json';
+  mimeType: "text/plain" | "application/json";
   /** Watch-only material cannot spend, but exposes the wallet's address graph or activity. */
   privacySensitive: true;
 }
@@ -80,17 +80,25 @@ export interface ShieldedBatchOptions {
   count: number;
 }
 
-export function field(key: string, label: string, value: string, secret = false, description?: string): ResultField {
-  return description === undefined ? { key, label, value, secret } : { key, label, value, secret, description };
+export function field(
+  key: string,
+  label: string,
+  value: string,
+  secret = false,
+  description?: string,
+): ResultField {
+  return description === undefined
+    ? { key, label, value, secret }
+    : { key, label, value, secret, description };
 }
 
 export function paymentAddressField(
   key: string,
   label: string,
   value: string,
-  paymentUriScheme?: ResultField['paymentUriScheme'],
+  paymentUriScheme?: ResultField["paymentUriScheme"],
 ): ResultField {
   return paymentUriScheme === undefined
-    ? { key, label, value, secret: false, role: 'paymentAddress' }
-    : { key, label, value, secret: false, role: 'paymentAddress', paymentUriScheme };
+    ? { key, label, value, secret: false, role: "paymentAddress" }
+    : { key, label, value, secret: false, role: "paymentAddress", paymentUriScheme };
 }

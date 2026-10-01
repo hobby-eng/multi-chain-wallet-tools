@@ -1,5 +1,5 @@
-import { diagnoseMnemonic, masterFingerprintFromSeed } from '@ckd/core/bip39.js';
-import type { KeyDerivationView } from './view.js';
+import { diagnoseMnemonic, masterFingerprintFromSeed } from "@ckd/core/bip39.js";
+import type { KeyDerivationView } from "./view.js";
 
 interface MnemonicDiagnosticOptions {
   document: Document;
@@ -7,7 +7,7 @@ interface MnemonicDiagnosticOptions {
   mnemonic: HTMLTextAreaElement;
   passphrase: HTMLInputElement;
   sourceRevealed(): boolean;
-  mnemonicToSeed: typeof import('@ckd/core/bip39.js').mnemonicToSeed;
+  mnemonicToSeed: typeof import("@ckd/core/bip39.js").mnemonicToSeed;
 }
 
 export function installMnemonicDiagnosticFeature(options: MnemonicDiagnosticOptions) {
@@ -27,7 +27,8 @@ export function installMnemonicDiagnosticFeature(options: MnemonicDiagnosticOpti
     options.view.updateSeedDiagnostic(diagnostic, fingerprint, options.sourceRevealed());
   };
   const mayBeComplete = (): boolean => {
-    const count = options.mnemonic.value.trim() === '' ? 0 : options.mnemonic.value.trim().split(/\s+/u).length;
+    const count =
+      options.mnemonic.value.trim() === "" ? 0 : options.mnemonic.value.trim().split(/\s+/u).length;
     return count === 12 || count === 15 || count === 18 || count === 21 || count === 24;
   };
   const reset = (): void => update();

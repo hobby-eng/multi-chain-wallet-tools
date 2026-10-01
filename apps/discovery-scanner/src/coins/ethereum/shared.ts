@@ -9,6 +9,6 @@ export const ETHEREUM_VERSIONS = { private: 0x0488ade4, public: 0x0488b21e } as 
 export function formatEther(wei: bigint): string {
   const unit = 1_000_000_000_000_000_000n;
   const whole = wei / unit;
-  const fraction = (wei % unit).toString().padStart(18, '0').replace(/0+$/u, '');
-  return `${whole.toLocaleString('en-US')}${fraction.length > 0 ? `.${fraction}` : ''} ETH`;
+  const fraction = (wei % unit).toString().padStart(18, "0").replace(/0+$/u, "");
+  return `${whole.toLocaleString("en-US")}${fraction.length > 0 ? `.${fraction}` : ""} ETH`;
 }

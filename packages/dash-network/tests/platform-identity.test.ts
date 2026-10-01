@@ -1,66 +1,69 @@
-import { base58 } from '@scure/base';
-import type { EvoSDK } from '@dashevo/evo-sdk';
-import { describe, expect, it, vi } from 'vitest';
-import { bytesToHex, encodeWif, hash160, secp256k1 } from '@ckd/core/crypto.js';
-import { DashPlatformIdentitySource, normalizeIdentityLookupInput } from '../src/platform-identity-source.js';
+import { base58 } from "@scure/base";
+import type { EvoSDK } from "@dashevo/evo-sdk";
+import { describe, expect, it, vi } from "vitest";
+import { bytesToHex, encodeWif, hash160, secp256k1 } from "@ckd/core/crypto.js";
+import {
+  DashPlatformIdentitySource,
+  normalizeIdentityLookupInput,
+} from "../src/platform-identity-source.js";
 import {
   assertPublicBatchLookupInput,
   assertPublicLookupInput,
   PrivateMaterialError,
-} from '@ckd/secret-boundary/public-input-guard.js';
+} from "@ckd/secret-boundary/public-input-guard.js";
 
-describe('Platform Identity public input boundary', () => {
+describe("Platform Identity public input boundary", () => {
   it.each([
-    'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
-    'xprv9s21ZrQH143K3example',
-    '11'.repeat(32),
-    JSON.stringify({ privateKey: 'secret' }),
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    "xprv9s21ZrQH143K3example",
+    "11".repeat(32),
+    JSON.stringify({ privateKey: "secret" }),
     encodeWif(
       Uint8Array.from({ length: 32 }, (_, index) => index + 1),
       0xcc,
     ),
-  ])('rejects private-key-like input before lookup', (value) => {
+  ])("rejects private-key-like input before lookup", (value) => {
     expect(() => assertPublicLookupInput(value)).toThrow(PrivateMaterialError);
   });
 
-  it('rejects a multiline mnemonic embedded beside public batch input', () => {
+  it("rejects a multiline mnemonic embedded beside public batch input", () => {
     const value = [
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'about',
-      'alice.dash',
-    ].join('\n');
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "about",
+      "alice.dash",
+    ].join("\n");
     expect(() => assertPublicBatchLookupInput(value)).toThrow(PrivateMaterialError);
   });
 
-  it('allows a public batch of twelve alphabetic DPNS names', () => {
+  it("allows a public batch of twelve alphabetic DPNS names", () => {
     const value = [
-      'alice',
-      'bravo',
-      'charlie',
-      'delta',
-      'echo',
-      'foxtrot',
-      'golf',
-      'hotel',
-      'india',
-      'juliet',
-      'kilo',
-      'lima',
-    ].join('\n');
+      "alice",
+      "bravo",
+      "charlie",
+      "delta",
+      "echo",
+      "foxtrot",
+      "golf",
+      "hotel",
+      "india",
+      "juliet",
+      "kilo",
+      "lima",
+    ].join("\n");
     expect(() => assertPublicBatchLookupInput(value)).not.toThrow();
   });
 
-  it('normalizes public identity identifiers and key material', () => {
+  it("normalizes public identity identifiers and key material", () => {
     const identifierBytes = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
     const identifier = base58.encode(identifierBytes);
     const identifierHex = bytesToHex(identifierBytes);
@@ -69,59 +72,59 @@ describe('Platform Identity public input boundary', () => {
     const publicKeyHex = bytesToHex(publicKey);
 
     expect(normalizeIdentityLookupInput(identifier)).toMatchObject({
-      kind: 'identity-id',
+      kind: "identity-id",
       identityId: identifier,
     });
     expect(normalizeIdentityLookupInput(`idhex:${identifierHex}`)).toMatchObject({
-      kind: 'identity-id-hex',
+      kind: "identity-id-hex",
       identityId: identifier,
     });
-    expect(normalizeIdentityLookupInput(`tx:${'cd'.repeat(32)}`)).toMatchObject({
-      kind: 'registration-transaction',
-      registrationTransactionHash: 'CD'.repeat(32),
+    expect(normalizeIdentityLookupInput(`tx:${"cd".repeat(32)}`)).toMatchObject({
+      kind: "registration-transaction",
+      registrationTransactionHash: "CD".repeat(32),
     });
-    expect(normalizeIdentityLookupInput('ab'.repeat(20))).toMatchObject({
-      kind: 'public-key-hash',
-      publicKeyHashHex: 'ab'.repeat(20),
+    expect(normalizeIdentityLookupInput("ab".repeat(20))).toMatchObject({
+      kind: "public-key-hash",
+      publicKeyHashHex: "ab".repeat(20),
     });
     expect(normalizeIdentityLookupInput(publicKeyHex)).toMatchObject({
-      kind: 'ecdsa-public-key',
+      kind: "ecdsa-public-key",
       publicKeyHashHex: bytesToHex(hash160(publicKey)),
       publicKeyHex,
     });
-    expect(normalizeIdentityLookupInput('alice.dash')).toMatchObject({
-      kind: 'dpns-name',
-      dpnsName: 'alice.dash',
+    expect(normalizeIdentityLookupInput("alice.dash")).toMatchObject({
+      kind: "dpns-name",
+      dpnsName: "alice.dash",
     });
-    expect(normalizeIdentityLookupInput('Alice')).toMatchObject({
-      kind: 'dpns-name',
-      dpnsName: 'alice.dash',
+    expect(normalizeIdentityLookupInput("Alice")).toMatchObject({
+      kind: "dpns-name",
+      dpnsName: "alice.dash",
     });
   });
 
-  it('rejects ambiguous bare 64-hex input with safe explicit-prefix guidance', () => {
-    expect(() => normalizeIdentityLookupInput('11'.repeat(32))).toThrow('idhex:<hex>');
-    expect(() => normalizeIdentityLookupInput('11'.repeat(32))).toThrow(PrivateMaterialError);
+  it("rejects ambiguous bare 64-hex input with safe explicit-prefix guidance", () => {
+    expect(() => normalizeIdentityLookupInput("11".repeat(32))).toThrow("idhex:<hex>");
+    expect(() => normalizeIdentityLookupInput("11".repeat(32))).toThrow(PrivateMaterialError);
   });
 
-  it('requires an explicit prefix for ambiguous 96-hex BLS public keys', () => {
-    const publicKeyHex = '12'.repeat(48);
-    expect(() => normalizeIdentityLookupInput(publicKeyHex)).toThrow('bls:<hex>');
+  it("requires an explicit prefix for ambiguous 96-hex BLS public keys", () => {
+    const publicKeyHex = "12".repeat(48);
+    expect(() => normalizeIdentityLookupInput(publicKeyHex)).toThrow("bls:<hex>");
     expect(() => normalizeIdentityLookupInput(publicKeyHex)).toThrow(PrivateMaterialError);
     expect(normalizeIdentityLookupInput(`bls:${publicKeyHex}`)).toMatchObject({
-      kind: 'bls-public-key',
+      kind: "bls-public-key",
       publicKeyHex,
       publicKeyHashHex: bytesToHex(hash160(Uint8Array.from({ length: 48 }, () => 0x12))),
     });
   });
 
-  it('does not reinterpret a malformed public key as another input type', () => {
-    expect(() => normalizeIdentityLookupInput(`02${'00'.repeat(32)}`)).toThrow(
-      'compressed secp256k1 public key is invalid',
+  it("does not reinterpret a malformed public key as another input type", () => {
+    expect(() => normalizeIdentityLookupInput(`02${"00".repeat(32)}`)).toThrow(
+      "compressed secp256k1 public key is invalid",
     );
   });
 
-  it('resolves a DPNS name and reverse-confirms it with proof-verified usernames', async () => {
+  it("resolves a DPNS name and reverse-confirms it with proof-verified usernames", async () => {
     const identifier = base58.encode(Uint8Array.from({ length: 32 }, (_, index) => index + 1));
     const metadata = () => ({
       height: 8n,
@@ -139,7 +142,7 @@ describe('Platform Identity public input boundary', () => {
       get id() {
         return {
           toBase58: () => identifier,
-          toHex: () => '01'.repeat(32),
+          toHex: () => "01".repeat(32),
           free: vi.fn(),
         };
       },
@@ -156,27 +159,27 @@ describe('Platform Identity public input boundary', () => {
       },
       dpns: {
         resolveName: vi.fn(async () => identifier),
-        usernamesWithProof: vi.fn(async () => proof(['alice.dash'])),
+        usernamesWithProof: vi.fn(async () => proof(["alice.dash"])),
       },
     } as unknown as EvoSDK;
-    const source = new DashPlatformIdentitySource('mainnet', () => fakeSdk);
+    const source = new DashPlatformIdentitySource("mainnet", () => fakeSdk);
 
     await source.connect();
-    const result = await source.query(normalizeIdentityLookupInput('Alice'));
+    const result = await source.query(normalizeIdentityLookupInput("Alice"));
 
     expect(result).toMatchObject({
-      resolvedDpnsName: 'alice.dash',
+      resolvedDpnsName: "alice.dash",
       resolvedDpnsDocumentId: null,
       requests: 4,
-      identities: [{ identifier, nonce: 4n, dpnsNames: ['alice.dash'] }],
+      identities: [{ identifier, nonce: 4n, dpnsNames: ["alice.dash"] }],
     });
-    expect(fakeSdk.dpns.resolveName).toHaveBeenCalledWith('alice.dash');
+    expect(fakeSdk.dpns.resolveName).toHaveBeenCalledWith("alice.dash");
     expect(result.proofs).toHaveLength(3);
   });
 
-  it('resolves a verified registration transition owner before loading Identity proofs', async () => {
+  it("resolves a verified registration transition owner before loading Identity proofs", async () => {
     const identifier = base58.encode(Uint8Array.from({ length: 32 }, (_, index) => index + 1));
-    const transactionHash = 'AB'.repeat(32);
+    const transactionHash = "AB".repeat(32);
     const metadata = () => ({
       height: 8n,
       coreChainLockedHeight: 50,
@@ -193,7 +196,7 @@ describe('Platform Identity public input boundary', () => {
       get id() {
         return {
           toBase58: () => identifier,
-          toHex: () => '01'.repeat(32),
+          toHex: () => "01".repeat(32),
           free: vi.fn(),
         };
       },
@@ -209,7 +212,7 @@ describe('Platform Identity public input boundary', () => {
         nonceWithProof: vi.fn(async () => proof(4n)),
       },
       dpns: {
-        usernamesWithProof: vi.fn(async () => proof(['alice.dash'])),
+        usernamesWithProof: vi.fn(async () => proof(["alice.dash"])),
       },
     } as unknown as EvoSDK;
     const fetcher = vi.fn(
@@ -217,33 +220,36 @@ describe('Platform Identity public input boundary', () => {
         new Response(
           JSON.stringify({
             hash: transactionHash,
-            type: 'IDENTITY_CREATE',
-            data: 'encoded-registration-transition',
+            type: "IDENTITY_CREATE",
+            data: "encoded-registration-transition",
             owner: { identifier },
           }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
+          { status: 200, headers: { "content-type": "application/json" } },
         ),
     );
     const decoder = vi.fn(() => identifier);
-    const source = new DashPlatformIdentitySource('mainnet', () => fakeSdk, fetcher, decoder);
+    const source = new DashPlatformIdentitySource("mainnet", () => fakeSdk, fetcher, decoder);
 
     await source.connect();
     const result = await source.query(normalizeIdentityLookupInput(`tx:${transactionHash}`));
 
     expect(result).toMatchObject({
-      inputKind: 'registration-transaction',
+      inputKind: "registration-transaction",
       resolvedRegistrationTransactionHash: transactionHash,
       requests: 4,
-      identities: [{ identifier, nonce: 4n, dpnsNames: ['alice.dash'] }],
+      identities: [{ identifier, nonce: 4n, dpnsNames: ["alice.dash"] }],
     });
-    expect(fetcher).toHaveBeenCalledWith(`https://platform-explorer.pshenmic.dev/transaction/${transactionHash}`, {
-      cache: 'no-store',
-    });
-    expect(decoder).toHaveBeenCalledWith('encoded-registration-transition', transactionHash);
+    expect(fetcher).toHaveBeenCalledWith(
+      `https://platform-explorer.pshenmic.dev/transaction/${transactionHash}`,
+      {
+        cache: "no-store",
+      },
+    );
+    expect(decoder).toHaveBeenCalledWith("encoded-registration-transition", transactionHash);
   });
 
-  it('paginates non-unique HASH160 matches and enriches every Identity with proof data', async () => {
-    const hash = 'ab'.repeat(20);
+  it("paginates non-unique HASH160 matches and enriches every Identity with proof data", async () => {
+    const hash = "ab".repeat(20);
     const ids = [
       base58.encode(Uint8Array.from({ length: 32 }, (_, index) => index + 1)),
       base58.encode(Uint8Array.from({ length: 32 }, (_, index) => index + 2)),
@@ -264,7 +270,7 @@ describe('Platform Identity public input boundary', () => {
       get id() {
         return {
           toBase58: () => identifier,
-          toHex: () => '01'.repeat(32),
+          toHex: () => "01".repeat(32),
           free: vi.fn(),
         };
       },
@@ -274,11 +280,11 @@ describe('Platform Identity public input boundary', () => {
         return [
           {
             keyId: 7,
-            purpose: 'AUTHENTICATION',
+            purpose: "AUTHENTICATION",
             purposeNumber: 0,
-            securityLevel: 'MASTER',
+            securityLevel: "MASTER",
             securityLevelNumber: 0,
-            keyType: 'ECDSA_HASH160',
+            keyType: "ECDSA_HASH160",
             keyTypeNumber: 2,
             data: hash,
             isReadOnly: false,
@@ -296,14 +302,19 @@ describe('Platform Identity public input boundary', () => {
     const byNonUnique = vi.fn(async (_publicKeyHash: Uint8Array, _startAfter?: string) => {
       const page = nonUniquePage;
       nonUniquePage += 1;
-      return proof(page < ids.length ? [identity(ids[page]!, BigInt(page + 1))] : [], BigInt(page + 2));
+      return proof(
+        page < ids.length ? [identity(ids[page]!, BigInt(page + 1))] : [],
+        BigInt(page + 2),
+      );
     });
     const fakeSdk = {
       connect: vi.fn(async () => undefined),
       identities: {
         byPublicKeyHashWithProof: vi.fn(async () => proof(undefined, 1n)),
         byNonUniquePublicKeyHashWithProof: byNonUnique,
-        nonceWithProof: vi.fn(async (identifier: string) => proof(BigInt(ids.indexOf(identifier) + 10), 8n)),
+        nonceWithProof: vi.fn(async (identifier: string) =>
+          proof(BigInt(ids.indexOf(identifier) + 10), 8n),
+        ),
       },
       dpns: {
         usernamesWithProof: vi.fn(async ({ identityId }: { identityId: string }) =>
@@ -311,7 +322,7 @@ describe('Platform Identity public input boundary', () => {
         ),
       },
     } as unknown as EvoSDK;
-    const source = new DashPlatformIdentitySource('mainnet', () => fakeSdk);
+    const source = new DashPlatformIdentitySource("mainnet", () => fakeSdk);
 
     await source.connect();
     const result = await source.query(normalizeIdentityLookupInput(hash));
@@ -320,7 +331,7 @@ describe('Platform Identity public input boundary', () => {
     expect(result.identities[0]).toMatchObject({
       balanceCredits: 1n,
       nonce: 10n,
-      dpnsNames: ['name-0.dash'],
+      dpnsNames: ["name-0.dash"],
       publicKeys: [{ keyId: 7, matchesLookup: true }],
     });
     expect(result.requests).toBe(8);

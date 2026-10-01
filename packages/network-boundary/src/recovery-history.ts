@@ -1,12 +1,12 @@
-import type { RecoveryHistory } from './data-types.js';
+import type { RecoveryHistory } from "./data-types.js";
 
 /** Creates a neutral history result before a coin provider fills reviewed fields. */
-export function emptyRecoveryHistory(asset = '', atomicUnit = '', decimals = 0): RecoveryHistory {
+export function emptyRecoveryHistory(asset = "", atomicUnit = "", decimals = 0): RecoveryHistory {
   return {
-    status: 'unavailable',
-    source: '',
-    scope: '',
-    note: '',
+    status: "unavailable",
+    source: "",
+    scope: "",
+    note: "",
     asset,
     atomicUnit,
     decimals,

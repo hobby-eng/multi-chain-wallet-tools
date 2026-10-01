@@ -1,19 +1,25 @@
-import { dashPlatformHistory } from './history.js';
-import { requirePublic, rootFromSeed } from '@ckd/core/bip32.js';
-import { bytesToHex, encodeP2pkh, hash160, wipe } from '@ckd/core/crypto.js';
-import { getDashNetwork } from '@ckd/core/networks.js';
-import { deriveDashIdentityAuthenticationKey } from '@ckd/coins/dash/identity.js';
-import type { DashCoreTransactionView } from '@ckd/network-boundary/protocol.js';
+import { dashPlatformHistory } from "./history.js";
+import { requirePublic, rootFromSeed } from "@ckd/core/bip32.js";
+import { bytesToHex, encodeP2pkh, hash160, wipe } from "@ckd/core/crypto.js";
+import { getDashNetwork } from "@ckd/core/networks.js";
+import { deriveDashIdentityAuthenticationKey } from "@ckd/coins/dash/identity.js";
+import type { DashCoreTransactionView } from "@ckd/network-boundary/protocol.js";
 import type {
   RecoveryField,
   RecoveryFinding,
   RecoveryProgress,
   RecoveryScanConfig,
   RecoverySection,
-} from '../../types.js';
-import { DashPlatformClient } from './platform-client.js';
-import { validatePlatformHistory } from './platform-history.js';
-import { exactSafeInteger, exactUnsigned, formatDashFromCredits, formatDashFromDuffs, object } from './util.js';
+} from "../../types.js";
+import { DashPlatformClient } from "./platform-client.js";
+import { validatePlatformHistory } from "./platform-history.js";
+import {
+  exactSafeInteger,
+  exactUnsigned,
+  formatDashFromCredits,
+  formatDashFromDuffs,
+  object,
+} from "./util.js";
 
 // The current Evo SDK exposes only one proof lookup per unique ECDSA key hash.
 // Two concurrent calls avoid overloading one shared DAPI connection while
@@ -44,11 +50,11 @@ function identityFundingFields(
   count: number,
   transaction: DashCoreTransactionView,
 ): RecoveryField[] {
-  if (transaction.type !== 'ASSET_LOCK' || transaction.assetLockCreditOutputs.length === 0) {
-    throw new Error('The linked Core transaction is not a supported asset-lock transaction.');
+  if (transaction.type !== "ASSET_LOCK" || transaction.assetLockCreditOutputs.length === 0) {
+    throw new Error("The linked Core transaction is not a supported asset-lock transaction.");
   }
   const output = transaction.assetLockCreditOutputs[0];
-  if (output === undefined) throw new Error('The linked asset lock has no credit output.');
+  if (output === undefined) throw new Error("The linked asset lock has no credit output.");
   let matchingPath: string | null = null;
   let matchingAddress: string | null = null;
   const branchPath = `m/9'/${network.coinType}'/5'/1'`;
@@ -71,20 +77,27 @@ function identityFundingFields(
     branch.wipePrivateData();
   }
   return [
-    { label: 'L1 funding transaction', value: transaction.hash, copyable: true },
-    { label: 'L1 funding inputs', value: transaction.inputAddresses.join(' · ') || 'Not reported by DashScan' },
-    { label: 'Asset-lock amount (Core L1)', value: formatDashFromDuffs(BigInt(output.amount)) },
-    { label: 'Asset-lock credit key hash', value: output.publicKeyHash, copyable: true },
+    { label: "L1 funding transaction", value: transaction.hash, copyable: true },
+    {
+      label: "L1 funding inputs",
+      value: transaction.inputAddresses.join(" · ") || "Not reported by DashScan",
+    },
+    { label: "Asset-lock amount (Core L1)", value: formatDashFromDuffs(BigInt(output.amount)) },
+    { label: "Asset-lock credit key hash", value: output.publicKeyHash, copyable: true },
     ...(matchingPath === null
       ? [
           {
-            label: 'Registration funding key',
+            label: "Registration funding key",
             value: `No match in indexes 0–${Math.max(count - 1, 0)}; increase the funding-key range`,
           },
         ]
       : [
-          { label: 'Registration funding key path', value: matchingPath, copyable: true },
-          { label: 'Registration funding key address', value: matchingAddress as string, copyable: true },
+          { label: "Registration funding key path", value: matchingPath, copyable: true },
+          {
+            label: "Registration funding key address",
+            value: matchingAddress as string,
+            copyable: true,
+          },
         ]),
   ];
 }
@@ -100,10 +113,12 @@ async function awaitIdentityBatch(
   onProgress: (progress: RecoveryProgress) => void,
 ): Promise<IdentityIndexResult[]> {
   const heartbeat = setInterval(() => {
-    const completedLookups = client.gateway.operationStats(['platform.identity-by-public-key-hash']).count;
+    const completedLookups = client.gateway.operationStats([
+      "platform.identity-by-public-key-hash",
+    ]).count;
     onProgress({
       inputId,
-      section: 'identity',
+      section: "identity",
       message: `Waiting for the current ${batchSize}-index DAPI proof batch · ${completedLookups} isolated lookup responses completed · ${((Date.now() - scanStartedAt) / 1_000).toFixed(1)} s elapsed · SDK timeout/retry active`,
       completed: scanned,
       total,
@@ -117,42 +132,52 @@ async function awaitIdentityBatch(
 }
 
 export function validateIdentityLookup(
-  value: Awaited<ReturnType<DashPlatformClient['identity']>>,
-): Omit<IdentityIndexResult, 'identityIndex' | 'path' | 'publicKeyHashHex'> {
-  const response = object(value, 'Isolated identity response');
+  value: Awaited<ReturnType<DashPlatformClient["identity"]>>,
+): Omit<IdentityIndexResult, "identityIndex" | "path" | "publicKeyHashHex"> {
+  const response = object(value, "Isolated identity response");
   if (!Array.isArray(response.identities) || response.identities.length > 1_000) {
-    throw new Error('Isolated identity response contained an invalid identity list.');
+    throw new Error("Isolated identity response contained an invalid identity list.");
   }
   const identities: IdentityView[] = response.identities.map((raw) => {
-    const identity = object(raw, 'Isolated identity item');
+    const identity = object(raw, "Isolated identity item");
     if (
-      typeof identity.identifier !== 'string' ||
-      !/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{20,64}$/u.test(identity.identifier)
+      typeof identity.identifier !== "string" ||
+      !/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{20,64}$/u.test(
+        identity.identifier,
+      )
     ) {
-      throw new Error('Isolated identity response contained an invalid identifier.');
+      throw new Error("Isolated identity response contained an invalid identifier.");
     }
     return {
       identifier: identity.identifier,
-      balance: exactUnsigned(identity.balance, 'Identity balance'),
-      revision: exactUnsigned(identity.revision, 'Identity revision'),
+      balance: exactUnsigned(identity.balance, "Identity balance"),
+      revision: exactUnsigned(identity.revision, "Identity revision"),
     };
   });
-  const metadata = object(response.metadata, 'Isolated identity proof metadata');
-  const proofQueries = exactSafeInteger(response.proofQueries, 'Identity proof-query count');
-  if (proofQueries !== 1) throw new Error('Identity proof-query count must be one.');
-  if (!Array.isArray(response.dapiDurationsMs) || response.dapiDurationsMs.length !== proofQueries) {
-    throw new Error('Isolated identity response returned inconsistent timing information.');
+  const metadata = object(response.metadata, "Isolated identity proof metadata");
+  const proofQueries = exactSafeInteger(response.proofQueries, "Identity proof-query count");
+  if (proofQueries !== 1) throw new Error("Identity proof-query count must be one.");
+  if (
+    !Array.isArray(response.dapiDurationsMs) ||
+    response.dapiDurationsMs.length !== proofQueries
+  ) {
+    throw new Error("Isolated identity response returned inconsistent timing information.");
   }
   const dapiDurationsMs = response.dapiDurationsMs.map((duration) => {
-    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration < 0 || duration > 300_000) {
-      throw new Error('Isolated identity response contained an invalid DAPI duration.');
+    if (
+      typeof duration !== "number" ||
+      !Number.isFinite(duration) ||
+      duration < 0 ||
+      duration > 300_000
+    ) {
+      throw new Error("Isolated identity response contained an invalid DAPI duration.");
     }
     return duration;
   });
   return {
     identities,
-    proofHeight: exactUnsigned(metadata.height, 'Identity proof height'),
-    protocolVersion: exactSafeInteger(metadata.protocolVersion, 'Identity protocol version'),
+    proofHeight: exactUnsigned(metadata.height, "Identity proof height"),
+    protocolVersion: exactSafeInteger(metadata.protocolVersion, "Identity protocol version"),
     proofQueries,
     dapiDurationsMs,
   };
@@ -161,11 +186,11 @@ export function validateIdentityLookup(
 async function queryIdentityIndex(
   root: ReturnType<typeof rootFromSeed>,
   client: DashPlatformClient,
-  networkName: RecoveryScanConfig['network'],
+  networkName: RecoveryScanConfig["network"],
   identityIndex: number,
   signal: AbortSignal,
 ): Promise<IdentityIndexResult> {
-  if (signal.aborted) throw new DOMException('Identity scan cancelled.', 'AbortError');
+  if (signal.aborted) throw new DOMException("Identity scan cancelled.", "AbortError");
   const derived = deriveDashIdentityAuthenticationKey(root, networkName, identityIndex);
   try {
     const publicKeyHashHex = bytesToHex(derived.publicKeyHash);
@@ -208,7 +233,7 @@ export async function scanDashIdentities(
   const scanStartedAt = Date.now();
   try {
     while (scanned < config.identityScanLimit && consecutiveEmpty < config.identityGapLimit) {
-      if (signal.aborted) throw new DOMException('Identity scan cancelled.', 'AbortError');
+      if (signal.aborted) throw new DOMException("Identity scan cancelled.", "AbortError");
       const batchSize = Math.min(
         IDENTITY_QUERY_CONCURRENCY,
         config.identityScanLimit - scanned,
@@ -217,7 +242,13 @@ export async function scanDashIdentities(
       const batch = await awaitIdentityBatch(
         Promise.all(
           Array.from({ length: batchSize }, (_, offset) =>
-            queryIdentityIndex(root, client, config.network, config.identityStartIndex + scanned + offset, signal),
+            queryIdentityIndex(
+              root,
+              client,
+              config.network,
+              config.identityStartIndex + scanned + offset,
+              signal,
+            ),
           ),
         ),
         inputId,
@@ -228,7 +259,7 @@ export async function scanDashIdentities(
         scanStartedAt,
         onProgress,
       );
-      if (signal.aborted) throw new DOMException('Identity scan cancelled.', 'AbortError');
+      if (signal.aborted) throw new DOMException("Identity scan cancelled.", "AbortError");
       for (const result of batch) {
         proofQueries += result.proofQueries;
         dapiDurationsMs.push(...result.dapiDurationsMs);
@@ -273,23 +304,39 @@ export async function scanDashIdentities(
               balanceLabel: formatDashFromCredits(identity.balance),
               ...(history === null ? {} : { history: dashPlatformHistory(history) }),
               fields: [
-                { label: 'Identity derivation path', value: result.path, copyable: true },
-                { label: 'Identity index', value: String(result.identityIndex) },
-                { label: 'Matched public-key hash', value: result.publicKeyHashHex, copyable: true },
-                { label: 'Identity revision', value: identity.revision.toString() },
+                { label: "Identity derivation path", value: result.path, copyable: true },
+                { label: "Identity index", value: String(result.identityIndex) },
+                {
+                  label: "Matched public-key hash",
+                  value: result.publicKeyHashHex,
+                  copyable: true,
+                },
+                { label: "Identity revision", value: identity.revision.toString() },
                 ...(history === null
                   ? []
                   : [
-                      { label: 'Transactions reported', value: String(history.transactionCount) },
-                      { label: 'Incoming credit events', value: String(history.incomingCount) },
-                      { label: 'Outgoing credit events', value: String(history.outgoingCount) },
-                      { label: 'Lifetime received', value: formatDashFromCredits(history.totalReceived) },
-                      { label: 'Lifetime sent', value: formatDashFromCredits(history.totalSent) },
+                      { label: "Transactions reported", value: String(history.transactionCount) },
+                      { label: "Incoming credit events", value: String(history.incomingCount) },
+                      { label: "Outgoing credit events", value: String(history.outgoingCount) },
+                      {
+                        label: "Lifetime received",
+                        value: formatDashFromCredits(history.totalReceived),
+                      },
+                      { label: "Lifetime sent", value: formatDashFromCredits(history.totalSent) },
                       ...(history.totalFees === null
                         ? []
-                        : [{ label: 'Lifetime fees spent', value: formatDashFromCredits(history.totalFees) }]),
-                      ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
-                      ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
+                        : [
+                            {
+                              label: "Lifetime fees spent",
+                              value: formatDashFromCredits(history.totalFees),
+                            },
+                          ]),
+                      ...(history.firstSeen === null
+                        ? []
+                        : [{ label: "First seen", value: history.firstSeen }]),
+                      ...(history.lastSeen === null
+                        ? []
+                        : [{ label: "Last seen", value: history.lastSeen }]),
                     ]),
                 ...fundingFields,
               ],
@@ -301,8 +348,8 @@ export async function scanDashIdentities(
         scanned += 1;
         onProgress({
           inputId,
-          section: 'identity',
-          message: `Checked ${scanned} identity index${scanned === 1 ? '' : 'es'} · ${proofQueries} proof queries · empty gap ${consecutiveEmpty}/${config.identityGapLimit} · ${((Date.now() - scanStartedAt) / 1_000).toFixed(1)} s elapsed`,
+          section: "identity",
+          message: `Checked ${scanned} identity index${scanned === 1 ? "" : "es"} · ${proofQueries} proof queries · empty gap ${consecutiveEmpty}/${config.identityGapLimit} · ${((Date.now() - scanStartedAt) / 1_000).toFixed(1)} s elapsed`,
           completed: scanned,
           total: config.identityScanLimit,
         });
@@ -315,49 +362,54 @@ export async function scanDashIdentities(
   const endedByGap = consecutiveEmpty >= config.identityGapLimit;
   const elapsedMs = Date.now() - scanStartedAt;
   const providerTotalMs = dapiDurationsMs.reduce((sum, duration) => sum + duration, 0);
-  const providerAverageMs = dapiDurationsMs.length === 0 ? 0 : providerTotalMs / dapiDurationsMs.length;
+  const providerAverageMs =
+    dapiDurationsMs.length === 0 ? 0 : providerTotalMs / dapiDurationsMs.length;
   const providerMaxMs = dapiDurationsMs.length === 0 ? 0 : Math.max(...dapiDurationsMs);
   return {
-    id: 'identity',
-    title: 'Dash Platform identities',
+    id: "identity",
+    title: "Dash Platform identities",
     description:
-      'DIP13 identity authentication keys are derived locally; only public-key hashes are queried through proof-verified DAPI.',
-    state: endedByGap ? 'complete' : 'partial',
+      "DIP13 identity authentication keys are derived locally; only public-key hashes are queried through proof-verified DAPI.",
+    state: endedByGap ? "complete" : "partial",
     metrics: [
       {
-        label: 'Identity balance',
+        label: "Identity balance",
         value: formatDashFromCredits(totalBalance),
-        tone: totalBalance > 0n ? 'positive' : 'neutral',
+        tone: totalBalance > 0n ? "positive" : "neutral",
       },
-      { label: 'Identities found', value: String(findings.length) },
-      { label: 'Indexes checked', value: String(scanned) },
-      { label: 'Final empty gap', value: `${consecutiveEmpty}/${config.identityGapLimit}` },
-      { label: 'Proof queries', value: String(proofQueries) },
-      { label: 'Identity scan time', value: `${(elapsedMs / 1_000).toFixed(1)} s` },
-      { label: 'DAPI average / max', value: `${providerAverageMs.toFixed(0)} / ${providerMaxMs.toFixed(0)} ms` },
-      { label: 'History details', value: `${historyDetails}/${findings.length} enriched` },
+      { label: "Identities found", value: String(findings.length) },
+      { label: "Indexes checked", value: String(scanned) },
+      { label: "Final empty gap", value: `${consecutiveEmpty}/${config.identityGapLimit}` },
+      { label: "Proof queries", value: String(proofQueries) },
+      { label: "Identity scan time", value: `${(elapsedMs / 1_000).toFixed(1)} s` },
+      {
+        label: "DAPI average / max",
+        value: `${providerAverageMs.toFixed(0)} / ${providerMaxMs.toFixed(0)} ms`,
+      },
+      { label: "History details", value: `${historyDetails}/${findings.length} enriched` },
       ...(config.scanIdentityFunding
-        ? [{ label: 'L1 funding details', value: `${fundingDetails}/${findings.length} linked` }]
+        ? [{ label: "L1 funding details", value: `${fundingDetails}/${findings.length} linked` }]
         : []),
     ],
     findings,
     scanned,
-    source: 'Dash Platform DAPI · trusted quorum discovery; synchronized Platform Explorer · auxiliary history',
-    proof: `Balance proof verified at Platform height ${proofHeight} · protocol ${protocolVersion} · ${proofQueries} logical proof queries · DAPI average ${providerAverageMs.toFixed(0)} ms, max ${providerMaxMs.toFixed(0)} ms · concurrency ${IDENTITY_QUERY_CONCURRENCY}${historyIndexedHeight > 0 ? ` · history indexed through height ${historyIndexedHeight}` : ''}`,
+    source:
+      "Dash Platform DAPI · trusted quorum discovery; synchronized Platform Explorer · auxiliary history",
+    proof: `Balance proof verified at Platform height ${proofHeight} · protocol ${protocolVersion} · ${proofQueries} logical proof queries · DAPI average ${providerAverageMs.toFixed(0)} ms, max ${providerMaxMs.toFixed(0)} ms · concurrency ${IDENTITY_QUERY_CONCURRENCY}${historyIndexedHeight > 0 ? ` · history indexed through height ${historyIndexedHeight}` : ""}`,
     ...(!endedByGap || historyDetailFailures > 0
       ? {
           warning: [
             ...(!endedByGap
               ? [
-                  'The configured scan limit was reached before the identity gap limit. Increase the scan limit for an authoritative result.',
+                  "The configured scan limit was reached before the identity gap limit. Increase the scan limit for an authoritative result.",
                 ]
               : []),
             ...(historyDetailFailures > 0
               ? [
-                  `Historical details were unavailable or failed the DAPI balance cross-check for ${historyDetailFailures} identit${historyDetailFailures === 1 ? 'y' : 'ies'}; proof-verified balances remain valid.`,
+                  `Historical details were unavailable or failed the DAPI balance cross-check for ${historyDetailFailures} identit${historyDetailFailures === 1 ? "y" : "ies"}; proof-verified balances remain valid.`,
                 ]
               : []),
-          ].join(' '),
+          ].join(" "),
         }
       : {}),
   };

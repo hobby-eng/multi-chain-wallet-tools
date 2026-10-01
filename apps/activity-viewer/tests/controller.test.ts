@@ -1,25 +1,28 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createActivityViewerController } from '../src/controller.js';
-import type { ActivityViewerView } from '../src/view.js';
-import type { NormalizedViewingKey } from '@ckd/dash-network/viewing-key.js';
-import { assertPublicBatchLookupInput, PrivateMaterialError } from '@ckd/secret-boundary/public-input-guard.js';
-import { assertAutoViewerBatchInput, detectViewerInput } from '../src/detection.js';
-import { runShieldedPageStream } from '@ckd/dash-network/shielded-stream-policy.js';
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createActivityViewerController } from "../src/controller.js";
+import type { ActivityViewerView } from "../src/view.js";
+import type { NormalizedViewingKey } from "@ckd/dash-network/viewing-key.js";
+import {
+  assertPublicBatchLookupInput,
+  PrivateMaterialError,
+} from "@ckd/secret-boundary/public-input-guard.js";
+import { assertAutoViewerBatchInput, detectViewerInput } from "../src/detection.js";
+import { runShieldedPageStream } from "@ckd/dash-network/shielded-stream-policy.js";
 
 class TestControl extends EventTarget {
   disabled = false;
   hidden = false;
-  value = '';
+  value = "";
   dataset: Record<string, string> = {};
 
   click(): void {
-    this.dispatchEvent(new Event('click'));
+    this.dispatchEvent(new Event("click"));
   }
 }
 
 class TestForm extends TestControl {
   submit(): void {
-    this.dispatchEvent(new Event('submit', { cancelable: true }));
+    this.dispatchEvent(new Event("submit", { cancelable: true }));
   }
 }
 
@@ -46,30 +49,30 @@ function testView() {
   const exportXlsxButton = new TestControl();
   const exportJsonButton = new TestControl();
   const coreMode = new TestControl();
-  coreMode.dataset.viewerMode = 'core';
+  coreMode.dataset.viewerMode = "core";
   const shieldedMode = new TestControl();
-  shieldedMode.dataset.viewerMode = 'shielded';
+  shieldedMode.dataset.viewerMode = "shielded";
   const identityMode = new TestControl();
-  identityMode.dataset.viewerMode = 'identity';
+  identityMode.dataset.viewerMode = "identity";
   const singleQueryMode = new TestControl();
-  singleQueryMode.dataset.queryMode = 'single';
+  singleQueryMode.dataset.queryMode = "single";
   const batchQueryMode = new TestControl();
-  batchQueryMode.dataset.queryMode = 'batch';
+  batchQueryMode.dataset.queryMode = "batch";
   const autoDetectionMode = new TestControl();
-  autoDetectionMode.dataset.detectionMode = 'auto';
+  autoDetectionMode.dataset.detectionMode = "auto";
   const advancedDetectionMode = new TestControl();
-  advancedDetectionMode.dataset.detectionMode = 'advanced';
+  advancedDetectionMode.dataset.detectionMode = "advanced";
   const viewingKeyInput = new TestControl();
-  viewingKeyInput.value = 'viewing-key';
+  viewingKeyInput.value = "viewing-key";
   const batchInput = new TestControl();
   const batchConcurrencyInput = new TestControl();
-  batchConcurrencyInput.value = '2';
+  batchConcurrencyInput.value = "2";
   const keyCapabilityInput = new TestControl();
-  keyCapabilityInput.value = 'full';
+  keyCapabilityInput.value = "full";
   const networkInput = new TestControl();
-  networkInput.value = 'mainnet';
+  networkInput.value = "mainnet";
   const historyLimitInput = new TestControl();
-  historyLimitInput.value = '10';
+  historyLimitInput.value = "10";
   const view = {
     form,
     cancelButton,
@@ -125,7 +128,7 @@ function testView() {
     toggleViewingKeyReveal: vi.fn(),
     updateInputMode: vi.fn(),
     clearQueryInput: vi.fn(() => {
-      viewingKeyInput.value = '';
+      viewingKeyInput.value = "";
     }),
   } as unknown as ActivityViewerView;
   return {
@@ -149,14 +152,16 @@ function testView() {
 
 function testDependencies(
   viewingKey: NormalizedViewingKey,
-  stream: (options: { isCancelled(): boolean }) => Promise<{ complete: boolean; terminalPosition: bigint }>,
+  stream: (options: {
+    isCancelled(): boolean;
+  }) => Promise<{ complete: boolean; terminalPosition: bigint }>,
   connect: () => Promise<void> = async () => {},
   overrides: Record<string, unknown> = {},
 ) {
   class Ledger {
-    readonly #kind: NormalizedViewingKey['kind'];
+    readonly #kind: NormalizedViewingKey["kind"];
 
-    constructor(kind: NormalizedViewingKey['kind']) {
+    constructor(kind: NormalizedViewingKey["kind"]) {
       this.#kind = kind;
     }
 
@@ -182,7 +187,7 @@ function testDependencies(
       await connect();
     }
     async fetchPage(): Promise<never> {
-      throw new Error('not used');
+      throw new Error("not used");
     }
   }
   return {
@@ -197,9 +202,9 @@ function testDependencies(
     createViewerExport: vi.fn(),
     createViewerWorkbookExport: vi.fn(),
     detectViewerInput: vi.fn((value) => ({
-      mode: 'core',
+      mode: "core",
       value,
-      viewingKeyMode: 'automatic',
+      viewingKeyMode: "automatic",
       explicit: false,
     })),
     looksLikeAutoOrchardInput: vi.fn(() => false),
@@ -211,7 +216,7 @@ function testDependencies(
     queryPlatformAddressHistory: vi.fn(),
     queryPlatformIdentityHistory: vi.fn(),
     runBlobWorkerSelfTest: vi.fn(async () => 1),
-    runOrchardRuntimeSelfTest: vi.fn(() => ({ passed: true, checks: ['fixture'], durationMs: 1 })),
+    runOrchardRuntimeSelfTest: vi.fn(() => ({ passed: true, checks: ["fixture"], durationMs: 1 })),
     runShieldedPageStream: vi.fn(stream),
     scanEncryptedPage: vi.fn(),
     shieldedEmptyConfirmations: 2,
@@ -221,55 +226,63 @@ function testDependencies(
   } as unknown as Parameters<typeof createActivityViewerController>[1];
 }
 
-describe('Activity Viewer controller', () => {
+describe("Activity Viewer controller", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
-  it.each(['clear', 'cancel'] as const)('does not restore a late terminal Orchard result after %s', async (action) => {
-    vi.stubGlobal('window', testWindow());
-    const { view, controls } = testView();
-    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
-    const page = () => ({ notes: [], proofHeight: 100n, protocolVersion: 1, timeMs: 0n });
-    let release!: (value: ReturnType<typeof page>) => void;
-    const terminal = new Promise<ReturnType<typeof page>>((resolve) => {
-      release = resolve;
-    });
-    const fetchPage = vi
-      .fn()
-      .mockImplementationOnce(async () => page())
-      .mockImplementationOnce(() => terminal);
-    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }), undefined, {
-      runShieldedPageStream,
-      DashEvoShieldedSource: class {
-        async connect() {}
-        fetchPage = fetchPage;
-      },
-    });
-    createActivityViewerController(view, dependencies).start();
-    await settle();
-    controls.shieldedMode.click();
-    controls.form.submit();
-    await vi.waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2));
-    if (action === 'clear') controls.clearButton.click();
-    else controls.cancelButton.click();
-    vi.mocked(view.renderShielded).mockClear();
-    vi.mocked(view.setExportAvailable).mockClear();
-    vi.mocked(view.setStatus).mockClear();
-    release(page());
-    await vi.waitFor(() => expect(key.hex).toBe(''));
-    expect(view.renderShielded).not.toHaveBeenCalled();
-    expect(view.setExportAvailable).not.toHaveBeenCalledWith(true);
-    expect(view.setStatus).not.toHaveBeenCalledWith(expect.stringContaining('Scan complete'));
-    if (action === 'clear') expect(view.setStatus).not.toHaveBeenCalled();
-    else expect(view.setStatus).toHaveBeenCalledWith('Query cancelled.');
-  });
+  it.each(["clear", "cancel"] as const)(
+    "does not restore a late terminal Orchard result after %s",
+    async (action) => {
+      vi.stubGlobal("window", testWindow());
+      const { view, controls } = testView();
+      const key: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
+      const page = () => ({ notes: [], proofHeight: 100n, protocolVersion: 1, timeMs: 0n });
+      let release!: (value: ReturnType<typeof page>) => void;
+      const terminal = new Promise<ReturnType<typeof page>>((resolve) => {
+        release = resolve;
+      });
+      const fetchPage = vi
+        .fn()
+        .mockImplementationOnce(async () => page())
+        .mockImplementationOnce(() => terminal);
+      const dependencies = testDependencies(
+        key,
+        async () => ({ complete: true, terminalPosition: 0n }),
+        undefined,
+        {
+          runShieldedPageStream,
+          DashEvoShieldedSource: class {
+            async connect() {}
+            fetchPage = fetchPage;
+          },
+        },
+      );
+      createActivityViewerController(view, dependencies).start();
+      await settle();
+      controls.shieldedMode.click();
+      controls.form.submit();
+      await vi.waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2));
+      if (action === "clear") controls.clearButton.click();
+      else controls.cancelButton.click();
+      vi.mocked(view.renderShielded).mockClear();
+      vi.mocked(view.setExportAvailable).mockClear();
+      vi.mocked(view.setStatus).mockClear();
+      release(page());
+      await vi.waitFor(() => expect(key.hex).toBe(""));
+      expect(view.renderShielded).not.toHaveBeenCalled();
+      expect(view.setExportAvailable).not.toHaveBeenCalledWith(true);
+      expect(view.setStatus).not.toHaveBeenCalledWith(expect.stringContaining("Scan complete"));
+      if (action === "clear") expect(view.setStatus).not.toHaveBeenCalled();
+      else expect(view.setStatus).toHaveBeenCalledWith("Query cancelled.");
+    },
+  );
 
-  it('rejects a completion from a stream implementation that ignores cancellation', async () => {
-    vi.stubGlobal('window', testWindow());
+  it("rejects a completion from a stream implementation that ignores cancellation", async () => {
+    vi.stubGlobal("window", testWindow());
     const { view, controls } = testView();
-    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
+    const key: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
     const dependencies = testDependencies(key, async () => {
       controls.clearButton.click();
       return { complete: true, terminalPosition: 0n };
@@ -278,20 +291,23 @@ describe('Activity Viewer controller', () => {
     await settle();
     controls.shieldedMode.click();
     controls.form.submit();
-    await vi.waitFor(() => expect(key.hex).toBe(''));
+    await vi.waitFor(() => expect(key.hex).toBe(""));
     expect(view.renderShielded).not.toHaveBeenCalled();
     expect(view.setExportAvailable).not.toHaveBeenCalledWith(true);
   });
 
-  it('gates queries until startup checks pass and registers listeners only once', async () => {
-    vi.stubGlobal('window', testWindow());
+  it("gates queries until startup checks pass and registers listeners only once", async () => {
+    vi.stubGlobal("window", testWindow());
     const { view, controls } = testView();
     let releaseSelfTest!: () => void;
     const selfTest = new Promise<void>((resolve) => {
       releaseSelfTest = resolve;
     });
-    const key: NormalizedViewingKey = { kind: 'full', hex: 'aa'.repeat(96) };
-    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
+    const key: NormalizedViewingKey = { kind: "full", hex: "aa".repeat(96) };
+    const dependencies = testDependencies(key, async () => ({
+      complete: true,
+      terminalPosition: 0n,
+    }));
     vi.mocked(dependencies.runBlobWorkerSelfTest).mockImplementation(async () => {
       await selfTest;
       return 1;
@@ -302,7 +318,9 @@ describe('Activity Viewer controller', () => {
     controller.start();
     await settle();
     controls.form.submit();
-    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('self-test has not passed'));
+    expect(view.showError).toHaveBeenCalledWith(
+      expect.stringContaining("self-test has not passed"),
+    );
     expect(dependencies.runBlobWorkerSelfTest).toHaveBeenCalledOnce();
 
     releaseSelfTest();
@@ -312,19 +330,19 @@ describe('Activity Viewer controller', () => {
     await vi.waitFor(() => expect(dependencies.runShieldedPageStream).toHaveBeenCalledOnce());
   });
 
-  it.each(['success', 'failure', 'cancel'] as const)(
-    'drops the normalized viewing-key reference after shielded %s',
+  it.each(["success", "failure", "cancel"] as const)(
+    "drops the normalized viewing-key reference after shielded %s",
     async (outcome) => {
-      vi.stubGlobal('window', testWindow());
+      vi.stubGlobal("window", testWindow());
       const { view, controls } = testView();
-      const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
+      const key: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
       const dependencies = testDependencies(key, async ({ isCancelled }) => {
-        if (outcome === 'cancel') {
+        if (outcome === "cancel") {
           controls.cancelButton.click();
           expect(isCancelled()).toBe(true);
-          throw new DOMException('cancelled', 'AbortError');
+          throw new DOMException("cancelled", "AbortError");
         }
-        if (outcome === 'failure') throw new Error('fixture scan failure');
+        if (outcome === "failure") throw new Error("fixture scan failure");
         return { complete: true, terminalPosition: 0n };
       });
       const controller = createActivityViewerController(view, dependencies);
@@ -333,21 +351,24 @@ describe('Activity Viewer controller', () => {
       controls.shieldedMode.click();
       controls.form.submit();
 
-      await vi.waitFor(() => expect(key.hex).toBe(''));
-      if (outcome === 'failure') {
-        expect(view.showError).toHaveBeenCalledWith('fixture scan failure');
+      await vi.waitFor(() => expect(key.hex).toBe(""));
+      if (outcome === "failure") {
+        expect(view.showError).toHaveBeenCalledWith("fixture scan failure");
       }
-      if (outcome === 'cancel') {
-        expect(view.setStatus).toHaveBeenCalledWith('Query cancelled.');
+      if (outcome === "cancel") {
+        expect(view.setStatus).toHaveBeenCalledWith("Query cancelled.");
       }
     },
   );
 
-  it('erases private-key-like Identity input before making a network request', async () => {
-    vi.stubGlobal('window', testWindow());
+  it("erases private-key-like Identity input before making a network request", async () => {
+    vi.stubGlobal("window", testWindow());
     const { view, controls } = testView();
-    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
-    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
+    const key: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
+    const dependencies = testDependencies(key, async () => ({
+      complete: true,
+      terminalPosition: 0n,
+    }));
     vi.mocked(dependencies.normalizeIdentityLookupInput).mockImplementation(() => {
       throw new PrivateMaterialError();
     });
@@ -355,27 +376,32 @@ describe('Activity Viewer controller', () => {
     controller.start();
     await settle();
     controls.identityMode.click();
-    controls.viewingKeyInput.value = '11'.repeat(32);
+    controls.viewingKeyInput.value = "11".repeat(32);
     controls.form.submit();
 
     await vi.waitFor(() => expect(view.clearQueryInput).toHaveBeenCalledOnce());
-    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('No network request was made'));
+    expect(view.showError).toHaveBeenCalledWith(
+      expect.stringContaining("No network request was made"),
+    );
     expect(dependencies.queryPlatformIdentityHistory).not.toHaveBeenCalled();
   });
 
-  it('keeps successful Core batch results when another input fails', async () => {
-    vi.stubGlobal('window', testWindow());
+  it("keeps successful Core batch results when another input fails", async () => {
+    vi.stubGlobal("window", testWindow());
     const { view, controls } = testView();
-    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
-    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
-    view.networkInput.value = 'testnet';
+    const key: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
+    const dependencies = testDependencies(key, async () => ({
+      complete: true,
+      terminalPosition: 0n,
+    }));
+    view.networkInput.value = "testnet";
     vi.mocked(dependencies.queryCoreAddress).mockImplementation(async (address) => {
-      if (address === 'Xbad') throw new Error('Invalid fixture address.');
+      if (address === "Xbad") throw new Error("Invalid fixture address.");
       return {
-        kind: 'core',
-        provider: 'DashScan',
+        kind: "core",
+        provider: "DashScan",
         address,
-        network: 'testnet',
+        network: "testnet",
         balanceDuffs: 1n,
         unconfirmedDuffs: 0n,
         totalReceivedDuffs: 1n,
@@ -383,8 +409,8 @@ describe('Activity Viewer controller', () => {
         transactionCount: 0,
         transactions: [],
         historyLimit: 10,
-        endpoint: 'https://example.invalid',
-        indexStatus: 'ok',
+        endpoint: "https://example.invalid",
+        indexStatus: "ok",
         indexedHeight: 1,
         indexedTimeMs: 1,
         requests: 2,
@@ -394,66 +420,85 @@ describe('Activity Viewer controller', () => {
     controller.start();
     await settle();
     controls.batchQueryMode.click();
-    controls.batchInput.value = 'Xgood\nXbad';
+    controls.batchInput.value = "Xgood\nXbad";
     controls.form.submit();
 
     await vi.waitFor(() => expect(view.renderBatchResults).toHaveBeenCalled());
     expect(dependencies.queryCoreAddress).toHaveBeenCalledTimes(2);
-    expect(dependencies.queryCoreAddress).toHaveBeenCalledWith('Xgood', 'testnet', 10, expect.any(AbortSignal));
+    expect(dependencies.queryCoreAddress).toHaveBeenCalledWith(
+      "Xgood",
+      "testnet",
+      10,
+      expect.any(AbortSignal),
+    );
     expect(view.renderCore).toHaveBeenCalledOnce();
     expect(view.renderBatchResults).toHaveBeenLastCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'query-1', status: 'complete' }),
-        expect.objectContaining({ id: 'query-2', status: 'failed', error: 'Invalid fixture address.' }),
+        expect.objectContaining({ id: "query-1", status: "complete" }),
+        expect.objectContaining({
+          id: "query-2",
+          status: "failed",
+          error: "Invalid fixture address.",
+        }),
       ]),
-      'query-1',
+      "query-1",
       expect.any(Function),
     );
   });
 
-  it('blocks an entire public batch before networking when any line contains private material', async () => {
-    vi.stubGlobal('window', testWindow());
+  it("blocks an entire public batch before networking when any line contains private material", async () => {
+    vi.stubGlobal("window", testWindow());
     const { view, controls } = testView();
-    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
-    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
+    const key: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
+    const dependencies = testDependencies(key, async () => ({
+      complete: true,
+      terminalPosition: 0n,
+    }));
     vi.mocked(dependencies.normalizeIdentityLookupInput).mockImplementation((value) => {
-      if (value === 'secret') throw new PrivateMaterialError();
-      return { kind: 'dpns-name', label: 'DPNS name', dpnsName: value };
+      if (value === "secret") throw new PrivateMaterialError();
+      return { kind: "dpns-name", label: "DPNS name", dpnsName: value };
     });
     const controller = createActivityViewerController(view, dependencies);
     controller.start();
     await settle();
     controls.identityMode.click();
     controls.batchQueryMode.click();
-    controls.batchInput.value = 'alice.dash\nsecret';
+    controls.batchInput.value = "alice.dash\nsecret";
     controls.form.submit();
 
     await vi.waitFor(() => expect(view.clearQueryInput).toHaveBeenCalledOnce());
-    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('No network request was made'));
+    expect(view.showError).toHaveBeenCalledWith(
+      expect.stringContaining("No network request was made"),
+    );
     expect(dependencies.queryPlatformIdentityHistory).not.toHaveBeenCalled();
   });
 
-  it('blocks an embedded multiline mnemonic before parsing or networking a public batch', async () => {
-    vi.stubGlobal('window', testWindow());
+  it("blocks an embedded multiline mnemonic before parsing or networking a public batch", async () => {
+    vi.stubGlobal("window", testWindow());
     const { view, controls } = testView();
-    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
-    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
-    vi.mocked(dependencies.assertPublicBatchLookupInput).mockImplementation(assertPublicBatchLookupInput);
+    const key: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
+    const dependencies = testDependencies(key, async () => ({
+      complete: true,
+      terminalPosition: 0n,
+    }));
+    vi.mocked(dependencies.assertPublicBatchLookupInput).mockImplementation(
+      assertPublicBatchLookupInput,
+    );
     const mnemonic = [
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'abandon',
-      'about',
-      'alice.dash',
-    ].join('\n');
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "abandon",
+      "about",
+      "alice.dash",
+    ].join("\n");
     const controller = createActivityViewerController(view, dependencies);
     controller.start();
     await settle();
@@ -467,24 +512,31 @@ describe('Activity Viewer controller', () => {
     expect(dependencies.assertPublicBatchLookupInput).toHaveBeenCalledWith(mnemonic);
     expect(dependencies.normalizeIdentityLookupInput).not.toHaveBeenCalled();
     expect(dependencies.queryPlatformIdentityHistory).not.toHaveBeenCalled();
-    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('No network request was made'));
+    expect(view.showError).toHaveBeenCalledWith(
+      expect.stringContaining("No network request was made"),
+    );
   });
 
-  it.each(['identity', 'orchard'])(
-    'blocks a multiline mnemonic with a prefixed first word before Auto batch networking: %s',
+  it.each(["identity", "orchard"])(
+    "blocks a multiline mnemonic with a prefixed first word before Auto batch networking: %s",
     async (prefix) => {
-      vi.stubGlobal('window', testWindow());
+      vi.stubGlobal("window", testWindow());
       const { view, controls } = testView();
-      const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
-      const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
-      vi.mocked(dependencies.assertAutoViewerBatchInput).mockImplementation(assertAutoViewerBatchInput);
+      const key: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
+      const dependencies = testDependencies(key, async () => ({
+        complete: true,
+        terminalPosition: 0n,
+      }));
+      vi.mocked(dependencies.assertAutoViewerBatchInput).mockImplementation(
+        assertAutoViewerBatchInput,
+      );
       vi.mocked(dependencies.detectViewerInput).mockImplementation(detectViewerInput);
       const mnemonic = [
         `${prefix}:abandon`,
-        ...Array.from({ length: 10 }, () => 'abandon'),
-        'about',
-        'alice.dash',
-      ].join('\n');
+        ...Array.from({ length: 10 }, () => "abandon"),
+        "about",
+        "alice.dash",
+      ].join("\n");
       const controller = createActivityViewerController(view, dependencies);
       controller.start();
       await settle();
@@ -495,26 +547,28 @@ describe('Activity Viewer controller', () => {
       await vi.waitFor(() => expect(view.clearQueryInput).toHaveBeenCalledOnce());
       expect(dependencies.detectViewerInput).not.toHaveBeenCalled();
       expect(dependencies.queryPlatformIdentityHistory).not.toHaveBeenCalled();
-      expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('No network request was made'));
+      expect(view.showError).toHaveBeenCalledWith(
+        expect.stringContaining("No network request was made"),
+      );
     },
   );
 
-  it.each(['canonical validation', 'source connection'] as const)(
-    'erases normalized Orchard keys after a %s failure',
+  it.each(["canonical validation", "source connection"] as const)(
+    "erases normalized Orchard keys after a %s failure",
     async (failureStage) => {
-      vi.stubGlobal('window', testWindow());
+      vi.stubGlobal("window", testWindow());
       const { view, controls } = testView();
-      const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
+      const key: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
       const dependencies = testDependencies(
         key,
         async () => ({ complete: true, terminalPosition: 0n }),
         async () => {
-          if (failureStage === 'source connection') throw new Error('fixture connection failure');
+          if (failureStage === "source connection") throw new Error("fixture connection failure");
         },
       );
-      if (failureStage === 'canonical validation') {
+      if (failureStage === "canonical validation") {
         vi.mocked(dependencies.assertCanonicalViewingKey).mockImplementation(() => {
-          throw new Error('fixture canonical validation failure');
+          throw new Error("fixture canonical validation failure");
         });
       }
       const controller = createActivityViewerController(view, dependencies);
@@ -522,45 +576,50 @@ describe('Activity Viewer controller', () => {
       await settle();
       controls.shieldedMode.click();
       controls.batchQueryMode.click();
-      controls.batchInput.value = 'viewing-key';
+      controls.batchInput.value = "viewing-key";
       controls.form.submit();
 
-      await vi.waitFor(() => expect(key.hex).toBe(''));
+      await vi.waitFor(() => expect(key.hex).toBe(""));
       expect(dependencies.runShieldedPageStream).not.toHaveBeenCalled();
     },
   );
 
-  it('reuses one shielded page stream across an Orchard viewing-key batch', async () => {
-    vi.stubGlobal('window', testWindow());
+  it("reuses one shielded page stream across an Orchard viewing-key batch", async () => {
+    vi.stubGlobal("window", testWindow());
     const { view, controls } = testView();
-    const firstKey: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
-    const secondKey: NormalizedViewingKey = { kind: 'incoming', hex: 'cd'.repeat(64) };
-    const dependencies = testDependencies(firstKey, async () => ({ complete: true, terminalPosition: 0n }));
-    vi.mocked(dependencies.normalizeViewingKey).mockReturnValueOnce(firstKey).mockReturnValueOnce(secondKey);
+    const firstKey: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
+    const secondKey: NormalizedViewingKey = { kind: "incoming", hex: "cd".repeat(64) };
+    const dependencies = testDependencies(firstKey, async () => ({
+      complete: true,
+      terminalPosition: 0n,
+    }));
+    vi.mocked(dependencies.normalizeViewingKey)
+      .mockReturnValueOnce(firstKey)
+      .mockReturnValueOnce(secondKey);
     const controller = createActivityViewerController(view, dependencies);
     controller.start();
     await settle();
     controls.shieldedMode.click();
     controls.batchQueryMode.click();
-    controls.batchInput.value = 'first-viewing-key\nsecond-viewing-key';
+    controls.batchInput.value = "first-viewing-key\nsecond-viewing-key";
     controls.form.submit();
 
     await vi.waitFor(() => expect(view.renderBatchResults).toHaveBeenCalled());
     expect(dependencies.normalizeViewingKey).toHaveBeenCalledTimes(2);
     expect(dependencies.runShieldedPageStream).toHaveBeenCalledOnce();
     expect(view.renderShielded).toHaveBeenCalledOnce();
-    expect(firstKey.hex).toBe('');
-    expect(secondKey.hex).toBe('');
+    expect(firstKey.hex).toBe("");
+    expect(secondKey.hex).toBe("");
   });
 
-  it('auto-detects and executes a mixed batch across all four viewer types', async () => {
-    vi.stubGlobal('window', testWindow());
+  it("auto-detects and executes a mixed batch across all four viewer types", async () => {
+    vi.stubGlobal("window", testWindow());
     const { view, controls } = testView();
-    const key: NormalizedViewingKey = { kind: 'full', hex: 'ab'.repeat(96) };
+    const key: NormalizedViewingKey = { kind: "full", hex: "ab".repeat(96) };
     const platformQuery = vi.fn(async () => ({
-      kind: 'platform' as const,
-      address: 'platform-value',
-      network: 'testnet' as const,
+      kind: "platform" as const,
+      address: "platform-value",
+      network: "testnet" as const,
       exists: true,
       balanceCredits: 1n,
       nonce: 0n,
@@ -570,12 +629,12 @@ describe('Activity Viewer controller', () => {
       responseTimeMs: 1n,
     }));
     const identityQuery = vi.fn(async () => ({
-      kind: 'identity' as const,
-      network: 'testnet' as const,
-      inputKind: 'dpns-name' as const,
-      inputLabel: 'DPNS name',
+      kind: "identity" as const,
+      network: "testnet" as const,
+      inputKind: "dpns-name" as const,
+      inputLabel: "DPNS name",
       publicKeyHashHex: null,
-      resolvedDpnsName: 'alice.dash',
+      resolvedDpnsName: "alice.dash",
       resolvedDpnsDocumentId: null,
       resolvedRegistrationTransactionHash: null,
       proofs: [{ height: 12n, coreChainLockedHeight: 10, protocolVersion: 13, responseTimeMs: 1n }],
@@ -598,21 +657,21 @@ describe('Activity Viewer controller', () => {
       },
     );
     vi.mocked(dependencies.detectViewerInput).mockImplementation((value) => ({
-      mode: value.replace('-value', '') as 'core' | 'platform' | 'identity' | 'shielded',
+      mode: value.replace("-value", "") as "core" | "platform" | "identity" | "shielded",
       value,
-      viewingKeyMode: 'automatic',
+      viewingKeyMode: "automatic",
       explicit: false,
     }));
     vi.mocked(dependencies.normalizeIdentityLookupInput).mockReturnValue({
-      kind: 'dpns-name',
-      label: 'DPNS name',
-      dpnsName: 'alice.dash',
+      kind: "dpns-name",
+      label: "DPNS name",
+      dpnsName: "alice.dash",
     });
     vi.mocked(dependencies.queryCoreAddress).mockResolvedValue({
-      kind: 'core',
-      provider: 'DashScan',
-      address: 'core-value',
-      network: 'testnet',
+      kind: "core",
+      provider: "DashScan",
+      address: "core-value",
+      network: "testnet",
       balanceDuffs: 1n,
       unconfirmedDuffs: 0n,
       totalReceivedDuffs: 1n,
@@ -620,15 +679,15 @@ describe('Activity Viewer controller', () => {
       transactionCount: 0,
       transactions: [],
       historyLimit: 10,
-      endpoint: 'https://example.invalid',
-      indexStatus: 'ok',
+      endpoint: "https://example.invalid",
+      indexStatus: "ok",
       indexedHeight: 11,
       indexedTimeMs: 1,
       requests: 2,
     });
     vi.mocked(dependencies.queryPlatformAddressHistory).mockResolvedValue({
-      provider: 'Dash Platform Explorer',
-      address: 'platform-value',
+      provider: "Dash Platform Explorer",
+      address: "platform-value",
       base58Address: null,
       totalTransitions: 0,
       incomingTransitions: 0,
@@ -639,8 +698,8 @@ describe('Activity Viewer controller', () => {
       explorerNonce: 0,
       transitions: [],
       historyLimit: 10,
-      endpoint: 'https://example.invalid',
-      indexStatus: 'synced',
+      endpoint: "https://example.invalid",
+      indexStatus: "synced",
       indexedHeight: 12,
       indexedTimeMs: 1,
       requests: 3,
@@ -650,7 +709,7 @@ describe('Activity Viewer controller', () => {
     controller.start();
     await settle();
     controls.batchQueryMode.click();
-    controls.batchInput.value = 'core-value\nplatform-value\nidentity-value\nshielded-value';
+    controls.batchInput.value = "core-value\nplatform-value\nidentity-value\nshielded-value";
     controls.form.submit();
 
     await vi.waitFor(() => expect(view.renderBatchResults).toHaveBeenCalled());
@@ -660,38 +719,43 @@ describe('Activity Viewer controller', () => {
     expect(dependencies.runShieldedPageStream).toHaveBeenCalledOnce();
     expect(view.renderBatchResults).toHaveBeenLastCalledWith(
       [
-        expect.objectContaining({ id: 'query-1', status: 'complete' }),
-        expect.objectContaining({ id: 'query-2', status: 'complete' }),
-        expect.objectContaining({ id: 'query-3', status: 'complete' }),
-        expect.objectContaining({ id: 'query-4', status: 'complete' }),
+        expect.objectContaining({ id: "query-1", status: "complete" }),
+        expect.objectContaining({ id: "query-2", status: "complete" }),
+        expect.objectContaining({ id: "query-3", status: "complete" }),
+        expect.objectContaining({ id: "query-4", status: "complete" }),
       ],
-      'query-1',
+      "query-1",
       expect.any(Function),
     );
-    expect(key.hex).toBe('');
+    expect(key.hex).toBe("");
   });
 
-  it('redacts a failed Orchard key throughout mixed batch state', async () => {
-    vi.stubGlobal('window', testWindow());
+  it("redacts a failed Orchard key throughout mixed batch state", async () => {
+    vi.stubGlobal("window", testWindow());
     const { view, controls } = testView();
-    const viewingKeyValue = 'ab'.repeat(96);
-    const key: NormalizedViewingKey = { kind: 'full', hex: viewingKeyValue };
-    const dependencies = testDependencies(key, async () => ({ complete: true, terminalPosition: 0n }));
+    const viewingKeyValue = "ab".repeat(96);
+    const key: NormalizedViewingKey = { kind: "full", hex: viewingKeyValue };
+    const dependencies = testDependencies(key, async () => ({
+      complete: true,
+      terminalPosition: 0n,
+    }));
     vi.mocked(dependencies.detectViewerInput).mockImplementation((value) => ({
-      mode: value === viewingKeyValue ? 'shielded' : 'core',
+      mode: value === viewingKeyValue ? "shielded" : "core",
       value,
-      viewingKeyMode: 'automatic',
+      viewingKeyMode: "automatic",
       explicit: false,
     }));
-    vi.mocked(dependencies.looksLikeAutoOrchardInput).mockImplementation((value) => value === viewingKeyValue);
+    vi.mocked(dependencies.looksLikeAutoOrchardInput).mockImplementation(
+      (value) => value === viewingKeyValue,
+    );
     vi.mocked(dependencies.assertCanonicalViewingKey).mockImplementation(() => {
-      throw new Error('fixture canonical validation failure');
+      throw new Error("fixture canonical validation failure");
     });
     vi.mocked(dependencies.queryCoreAddress).mockResolvedValue({
-      kind: 'core',
-      provider: 'DashScan',
-      address: 'core-value',
-      network: 'mainnet',
+      kind: "core",
+      provider: "DashScan",
+      address: "core-value",
+      network: "mainnet",
       balanceDuffs: 1n,
       unconfirmedDuffs: 0n,
       totalReceivedDuffs: 1n,
@@ -699,21 +763,21 @@ describe('Activity Viewer controller', () => {
       transactionCount: 0,
       transactions: [],
       historyLimit: 10,
-      endpoint: 'https://example.invalid',
-      indexStatus: 'ok',
+      endpoint: "https://example.invalid",
+      indexStatus: "ok",
       indexedHeight: 11,
       indexedTimeMs: 1,
       requests: 2,
     });
     vi.mocked(dependencies.createViewerExport).mockReturnValue({
-      filename: 'fixture.json',
-      mimeType: 'application/json',
-      text: '{}',
+      filename: "fixture.json",
+      mimeType: "application/json",
+      text: "{}",
     });
     vi.mocked(dependencies.createViewerWorkbookExport).mockResolvedValue({
-      filename: 'fixture.xlsx',
-      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      blob: new Blob(['fixture']),
+      filename: "fixture.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      blob: new Blob(["fixture"]),
     });
     const controller = createActivityViewerController(view, dependencies);
     controller.start();
@@ -727,29 +791,31 @@ describe('Activity Viewer controller', () => {
     expect(view.renderBatchResults).toHaveBeenLastCalledWith(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 'query-2',
-          label: '2 · ORCHARD · viewing key',
-          status: 'failed',
+          id: "query-2",
+          label: "2 · ORCHARD · viewing key",
+          status: "failed",
         }),
       ]),
-      'query-1',
+      "query-1",
       expect.any(Function),
     );
     expect(dependencies.createViewerExport).toHaveBeenCalledWith(
       expect.objectContaining({
-        mode: 'mixed',
+        mode: "mixed",
         errors: [
           expect.objectContaining({
-            id: 'query-2',
-            label: '2 · ORCHARD · viewing key',
-            mode: 'shielded',
+            id: "query-2",
+            label: "2 · ORCHARD · viewing key",
+            mode: "shielded",
           }),
         ],
       }),
-      'json',
+      "json",
     );
     controls.exportXlsxButton.click();
-    await vi.waitFor(() => expect(dependencies.downloadBlob).toHaveBeenCalledWith(expect.any(Blob), 'fixture.xlsx'));
-    expect(key.hex).toBe('');
+    await vi.waitFor(() =>
+      expect(dependencies.downloadBlob).toHaveBeenCalledWith(expect.any(Blob), "fixture.xlsx"),
+    );
+    expect(key.hex).toBe("");
   });
 });

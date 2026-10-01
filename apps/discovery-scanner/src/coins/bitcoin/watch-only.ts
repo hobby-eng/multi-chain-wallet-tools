@@ -1,13 +1,19 @@
-import { assertWatchOnlyMinimum } from '@ckd/recovery/watch-only.js';
-import { PROVIDER_UNSIGNED_DECIMAL } from '@ckd/core/numeric-limits.js';
-import { HDKey } from '@scure/bip32';
-import { bytesToHex, secp256k1, wipe } from '@ckd/core/crypto.js';
-import { getBitcoinNetwork } from '@ckd/core/networks.js';
-import { parseBitcoinSlip132, parseBitcoinWatchDescriptor } from '@ckd/recovery/watch-only/bitcoin-formats.js';
-import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
-import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import { RECOVERY_UTXO_ADDRESS_BATCH, type UtxoAddressView } from '@ckd/network-boundary/protocol.js';
-import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
+import { assertWatchOnlyMinimum } from "@ckd/recovery/watch-only.js";
+import { PROVIDER_UNSIGNED_DECIMAL } from "@ckd/core/numeric-limits.js";
+import { HDKey } from "@scure/bip32";
+import { bytesToHex, secp256k1, wipe } from "@ckd/core/crypto.js";
+import { getBitcoinNetwork } from "@ckd/core/networks.js";
+import {
+  parseBitcoinSlip132,
+  parseBitcoinWatchDescriptor,
+} from "@ckd/recovery/watch-only/bitcoin-formats.js";
+import { RecoveryConcurrencyLimiter } from "../../concurrency.js";
+import { RecoveryNetworkGateway } from "../../network-gateway.js";
+import {
+  RECOVERY_UTXO_ADDRESS_BATCH,
+  type UtxoAddressView,
+} from "@ckd/network-boundary/protocol.js";
+import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
 import type {
   RecoveryFinding,
   RecoveryScanContext,
@@ -15,9 +21,9 @@ import type {
   RecoveryWalletResult,
   RecoveryWatchOnlyInput,
   RecoveryWatchOnlyScanConfig,
-} from '../../types.js';
-import { extendAddressTarget } from '../../address-gap.js';
-import { addressFor, BITCOIN_MODES, formatBitcoin, type BitcoinMode } from './shared.js';
+} from "../../types.js";
+import { extendAddressTarget } from "../../address-gap.js";
+import { addressFor, BITCOIN_MODES, formatBitcoin, type BitcoinMode } from "./shared.js";
 
 interface CandidateProfile {
   id: string;
@@ -63,7 +69,7 @@ function parseDescriptor(
     return { mode, fingerprint, branch, account, originPath: `[${fingerprint}${originSuffix}]` };
   }
   throw new Error(
-    'This descriptor did not match a supported pkh(), sh(wpkh()), wpkh(), or tr() shape with a checksummed [fingerprint/path]xpub/branch/* body.',
+    "This descriptor did not match a supported pkh(), sh(wpkh()), wpkh(), or tr() shape with a checksummed [fingerprint/path]xpub/branch/* body.",
   );
 }
 
@@ -74,10 +80,14 @@ function parseBareXpub(
   const slip132 = parseBitcoinSlip132(value);
   if (slip132 !== null) {
     if (slip132.network !== network.name) {
-      throw new Error(`This ${value.slice(0, 4)} key encodes ${slip132.network}, but ${network.name} is selected.`);
+      throw new Error(
+        `This ${value.slice(0, 4)} key encodes ${slip132.network}, but ${network.name} is selected.`,
+      );
     }
     if (slip132.node.depth === 0) {
-      throw new Error('This is a root/master extended public key and cannot derive a standard wallet account.');
+      throw new Error(
+        "This is a root/master extended public key and cannot derive a standard wallet account.",
+      );
     }
     if (slip132.node.depth !== 3 && slip132.node.depth !== 4) {
       throw new Error(
@@ -96,7 +106,7 @@ function parseBareXpub(
   }
   if (node.depth === 0) {
     throw new Error(
-      'This is the root/master extended public key. It sits above every hardened BIP44/49/84/86 account level and cannot derive standard wallet addresses. Copy the Account xpub for the address format you want to scan instead.',
+      "This is the root/master extended public key. It sits above every hardened BIP44/49/84/86 account level and cannot derive standard wallet addresses. Copy the Account xpub for the address format you want to scan instead.",
     );
   }
   if (node.depth !== 3 && node.depth !== 4) {
@@ -107,21 +117,25 @@ function parseBareXpub(
   return { node, encodedMode: null };
 }
 
-function candidateProfiles(node: HDKey, encodedMode: BitcoinMode | null = null): CandidateProfile[] {
-  const modes = encodedMode === null ? BITCOIN_MODES : BITCOIN_MODES.filter(({ mode }) => mode === encodedMode);
+function candidateProfiles(
+  node: HDKey,
+  encodedMode: BitcoinMode | null = null,
+): CandidateProfile[] {
+  const modes =
+    encodedMode === null ? BITCOIN_MODES : BITCOIN_MODES.filter(({ mode }) => mode === encodedMode);
   if (node.depth === 4) {
     return modes.map(({ mode, label }) => ({
       id: `${mode}:branch`,
-      label: `${label}${encodedMode === null ? ' · candidate format' : ' · encoded format'}`,
+      label: `${label}${encodedMode === null ? " · candidate format" : " · encoded format"}`,
       mode,
-      path: '<branch xpub>/i',
+      path: "<branch xpub>/i",
       deriveChild: (index: number) => node.deriveChild(index),
     }));
   }
   return modes.flatMap(({ mode, label }) =>
     ([0, 1] as const).map((branch) => ({
       id: `${mode}:${branch}`,
-      label: `${label} · ${encodedMode === null ? 'candidate' : 'encoded'} format · ${branch === 0 ? 'receive/external' : 'change/internal'}`,
+      label: `${label} · ${encodedMode === null ? "candidate" : "encoded"} format · ${branch === 0 ? "receive/external" : "change/internal"}`,
       mode,
       path: `<account xpub>/${branch}/i`,
       deriveChild: (index: number) => node.deriveChild(branch).deriveChild(index),
@@ -131,19 +145,19 @@ function candidateProfiles(node: HDKey, encodedMode: BitcoinMode | null = null):
 
 async function queryAddresses(
   gateway: RecoveryNetworkGateway,
-  networkName: RecoveryWatchOnlyScanConfig['network'],
+  networkName: RecoveryWatchOnlyScanConfig["network"],
   addresses: readonly string[],
   signal: AbortSignal,
 ): Promise<UtxoAddressView[]> {
   if (addresses.length === 0) return [];
   const value = await gateway.runPublic(
     { network: networkName, addresses },
-    'utxo.addresses',
+    "utxo.addresses",
     () => gateway.networkApi.utxoAddresses(networkName, [...addresses], signal),
     signal,
   );
   if (!Array.isArray(value) || value.length !== addresses.length) {
-    throw new Error('Bitcoin address service returned an incomplete batch.');
+    throw new Error("Bitcoin address service returned an incomplete batch.");
   }
   return value.map((entry, index) => {
     if (
@@ -152,7 +166,7 @@ async function queryAddresses(
       !Number.isSafeInteger(entry.transactionCount) ||
       entry.transactionCount < 0
     ) {
-      throw new Error('Bitcoin address service returned malformed data.');
+      throw new Error("Bitcoin address service returned malformed data.");
     }
     return entry;
   });
@@ -178,51 +192,55 @@ function buildResult(
     if (balance > 0n || entry.transactionCount > 0) usedCount += 1;
   }
   const section: RecoverySection = {
-    id: 'core',
-    title: 'Bitcoin watch-only addresses',
+    id: "core",
+    title: "Bitcoin watch-only addresses",
     description,
-    state: 'complete',
+    state: "complete",
     metrics: [
       {
-        label: 'Spendable balance',
+        label: "Spendable balance",
         value: formatBitcoin(totalBalance),
-        tone: totalBalance > 0n ? 'positive' : 'neutral',
+        tone: totalBalance > 0n ? "positive" : "neutral",
       },
-      { label: 'Funded addresses', value: String(fundedCount) },
-      { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
-      { label: 'Unique addresses queried', value: String(addressStates.size) },
-      { label: 'Derivation candidates', value: String(scanned) },
+      { label: "Funded addresses", value: String(fundedCount) },
+      { label: "Previously used · empty", value: String(usedCount - fundedCount) },
+      { label: "Unique addresses queried", value: String(addressStates.size) },
+      { label: "Derivation candidates", value: String(scanned) },
     ],
     findings,
     scanned,
     source:
-      config.network === 'mainnet'
-        ? 'https://blockchain.info · fallbacks https://api.blockcypher.com, https://blockstream.info, and https://mempool.space'
-        : 'https://api.blockcypher.com · fallbacks https://blockstream.info/testnet and https://mempool.space/testnet',
+      config.network === "mainnet"
+        ? "https://blockchain.info · fallbacks https://api.blockcypher.com, https://blockstream.info, and https://mempool.space"
+        : "https://api.blockcypher.com · fallbacks https://blockstream.info/testnet and https://mempool.space/testnet",
     proof:
-      'Indexed Bitcoin chain and mempool state · batch lookup where available · bounded retry with provider failover',
+      "Indexed Bitcoin chain and mempool state · batch lookup where available · bounded retry with provider failover",
     ...(warning === undefined ? {} : { warning }),
   };
   return {
     inputId: input.id,
     label: input.label,
-    coinId: 'bitcoin',
-    coinLabel: 'Bitcoin',
+    coinId: "bitcoin",
+    coinLabel: "Bitcoin",
     network: config.network,
     startedAt,
     completedAt: new Date().toISOString(),
     overview: [
       {
-        label: 'Total located value',
+        label: "Total located value",
         value: formatBitcoin(totalBalance),
-        tone: totalBalance > 0n ? 'positive' : 'neutral',
+        tone: totalBalance > 0n ? "positive" : "neutral",
       },
-      { label: 'Funded addresses', value: String(fundedCount), tone: fundedCount > 0 ? 'positive' : 'neutral' },
-      { label: 'Unique addresses queried', value: String(addressStates.size) },
+      {
+        label: "Funded addresses",
+        value: String(fundedCount),
+        tone: fundedCount > 0 ? "positive" : "neutral",
+      },
+      { label: "Unique addresses queried", value: String(addressStates.size) },
     ],
     sections: [section],
     warnings: [
-      'Independently verify every funded address in a standard Bitcoin wallet before treating a balance as spendable.',
+      "Independently verify every funded address in a standard Bitcoin wallet before treating a balance as spendable.",
     ],
   };
 }
@@ -234,9 +252,9 @@ export async function scanBitcoinWatchOnly(
 ): Promise<RecoveryWalletResult> {
   assertWatchOnlyMinimum(config.minimumCount);
   const guard = new SecretEgressGuard();
-  if (input.kind !== 'public-key' && input.kind !== 'identity') {
-    guard.registerString('Bitcoin watch-only input', input.value);
-    context.sessionSecretGuard?.registerString('Bitcoin watch-only input', input.value);
+  if (input.kind !== "public-key" && input.kind !== "identity") {
+    guard.registerString("Bitcoin watch-only input", input.value);
+    context.sessionSecretGuard?.registerString("Bitcoin watch-only input", input.value);
   }
   const gateway = new RecoveryNetworkGateway(
     guard,
@@ -246,12 +264,12 @@ export async function scanBitcoinWatchOnly(
   const network = getBitcoinNetwork(config.network);
   const startedAt = new Date().toISOString();
 
-  if (input.kind === 'public-key') {
+  if (input.kind === "public-key") {
     let point: ReturnType<typeof secp256k1.Point.fromHex>;
     try {
       point = secp256k1.Point.fromHex(input.value);
     } catch {
-      throw new Error('This public key is not a valid point on the secp256k1 curve.');
+      throw new Error("This public key is not a valid point on the secp256k1 curve.");
     }
     const compressed = point.toBytes(true);
     const uncompressed = point.toBytes(false);
@@ -264,28 +282,37 @@ export async function scanBitcoinWatchOnly(
         fields: Array<{ label: string; value: string; copyable?: boolean }>;
       }> = [];
       candidates.push({
-        address: addressFor('legacy', compressed, network),
-        label: 'Legacy P2PKH · compressed key',
-        fields: [{ label: 'Public key', value: bytesToHex(compressed), copyable: true }],
+        address: addressFor("legacy", compressed, network),
+        label: "Legacy P2PKH · compressed key",
+        fields: [{ label: "Public key", value: bytesToHex(compressed), copyable: true }],
       });
       candidates.push({
-        address: addressFor('legacy', uncompressed, network),
-        label: 'Legacy P2PKH · uncompressed key',
-        fields: [{ label: 'Public key', value: bytesToHex(uncompressed), copyable: true }],
+        address: addressFor("legacy", uncompressed, network),
+        label: "Legacy P2PKH · uncompressed key",
+        fields: [{ label: "Public key", value: bytesToHex(uncompressed), copyable: true }],
       });
       candidates.push({
-        address: addressFor('nested-segwit', compressed, network),
-        label: 'Nested SegWit · P2SH-P2WPKH',
+        address: addressFor("nested-segwit", compressed, network),
+        label: "Nested SegWit · P2SH-P2WPKH",
         fields: [],
       });
       candidates.push({
-        address: addressFor('native-segwit', compressed, network),
-        label: 'Native SegWit · P2WPKH',
+        address: addressFor("native-segwit", compressed, network),
+        label: "Native SegWit · P2WPKH",
         fields: [],
       });
-      candidates.push({ address: addressFor('taproot', compressed, network), label: 'Taproot · P2TR', fields: [] });
+      candidates.push({
+        address: addressFor("taproot", compressed, network),
+        label: "Taproot · P2TR",
+        fields: [],
+      });
       const uniqueAddresses = [...new Set(candidates.map((candidate) => candidate.address))];
-      const entries = await queryAddresses(gateway, config.network, uniqueAddresses, context.signal);
+      const entries = await queryAddresses(
+        gateway,
+        config.network,
+        uniqueAddresses,
+        context.signal,
+      );
       for (const entry of entries) addressStates.set(entry.address, entry);
       const seenAddress = new Set<string>();
       for (const candidate of candidates) {
@@ -303,17 +330,17 @@ export async function scanBitcoinWatchOnly(
           balanceAtomic: balance,
           balanceLabel: formatBitcoin(balance),
           fields: [
-            { label: 'Address type', value: candidate.label },
+            { label: "Address type", value: candidate.label },
             ...candidate.fields,
-            { label: 'Transactions reported', value: String(entry.transactionCount) },
+            { label: "Transactions reported", value: String(entry.transactionCount) },
           ],
         };
         findings.push(finding);
-        context.onFinding(input.id, 'core', finding);
+        context.onFinding(input.id, "core", finding);
       }
       return buildResult(
         input,
-        'A single public key can only be checked exactly, at every address encoding it maps to; it cannot derive descendant addresses.',
+        "A single public key can only be checked exactly, at every address encoding it maps to; it cannot derive descendant addresses.",
         findings,
         addressStates,
         candidates.length,
@@ -333,7 +360,7 @@ export async function scanBitcoinWatchOnly(
     node,
     description,
   } = (() => {
-    if (input.kind === 'bitcoin-descriptor') {
+    if (input.kind === "bitcoin-descriptor") {
       const parsed = parseDescriptor(input.value, network);
       return {
         account: parsed.account,
@@ -347,7 +374,8 @@ export async function scanBitcoinWatchOnly(
     const encodedLabel =
       parsed.encodedMode === null
         ? null
-        : (BITCOIN_MODES.find(({ mode }) => mode === parsed.encodedMode)?.label ?? parsed.encodedMode);
+        : (BITCOIN_MODES.find(({ mode }) => mode === parsed.encodedMode)?.label ??
+          parsed.encodedMode);
     return {
       account: parsed.node,
       branch: null,
@@ -355,15 +383,15 @@ export async function scanBitcoinWatchOnly(
       node: parsed.node,
       description:
         encodedLabel !== null
-          ? `${input.value.slice(0, 4)} encodes the ${encodedLabel} script family; only that family is scanned${parsed.node.depth === 3 ? ' on receive and change branches' : ' on this branch'}.`
+          ? `${input.value.slice(0, 4)} encodes the ${encodedLabel} script family; only that family is scanned${parsed.node.depth === 3 ? " on receive and change branches" : " on this branch"}.`
           : parsed.node.depth === 4
-            ? 'Bare branch (depth-4) extended public key: no purpose metadata is present, so every standard script-type candidate is scanned at each index and clearly labeled as a candidate, not a confirmed format.'
-            : 'Bare account (depth-3) extended public key: no purpose metadata is present, so every standard script-type candidate is scanned on both branches and clearly labeled as a candidate, not a confirmed format.',
+            ? "Bare branch (depth-4) extended public key: no purpose metadata is present, so every standard script-type candidate is scanned at each index and clearly labeled as a candidate, not a confirmed format."
+            : "Bare account (depth-3) extended public key: no purpose metadata is present, so every standard script-type candidate is scanned on both branches and clearly labeled as a candidate, not a confirmed format.",
     };
   })();
   try {
     const profiles =
-      input.kind === 'bitcoin-descriptor'
+      input.kind === "bitcoin-descriptor"
         ? [
             {
               id: `${descriptorMode}:${branch}`,
@@ -381,13 +409,15 @@ export async function scanBitcoinWatchOnly(
     for (const profile of profiles) {
       let target = config.minimumCount;
       for (let offset = 0; offset < target;) {
-        if (context.signal.aborted) throw new DOMException('Bitcoin watch-only scan cancelled.', 'AbortError');
+        if (context.signal.aborted)
+          throw new DOMException("Bitcoin watch-only scan cancelled.", "AbortError");
         const end = Math.min(offset + RECOVERY_UTXO_ADDRESS_BATCH, target);
         const derived: DerivedCandidate[] = [];
         for (let index = offset; index < end; index += 1) {
           const child = profile.deriveChild(index);
           const publicKey = child.publicKey;
-          if (publicKey === null) throw new Error('Watch-only derivation unexpectedly produced no public key.');
+          if (publicKey === null)
+            throw new Error("Watch-only derivation unexpectedly produced no public key.");
           derived.push({
             address: addressFor(profile.mode, publicKey, network),
             path: profile.path.replace(/\/i$/u, `/${index}`),
@@ -407,7 +437,8 @@ export async function scanBitcoinWatchOnly(
         }
         for (const item of derived) {
           const entry = addressStates.get(item.address);
-          if (entry === undefined) throw new Error('Bitcoin watch-only address cache omitted a derived address.');
+          if (entry === undefined)
+            throw new Error("Bitcoin watch-only address cache omitted a derived address.");
           const balance = BigInt(entry.balance);
           const used = balance > 0n || entry.transactionCount > 0;
           if (used) {
@@ -423,19 +454,19 @@ export async function scanBitcoinWatchOnly(
             balanceAtomic: balance,
             balanceLabel: formatBitcoin(balance),
             fields: [
-              { label: 'Scan family', value: item.profile.label },
-              { label: 'Relative derivation path', value: item.path, copyable: true },
-              { label: 'Transactions reported', value: String(entry.transactionCount) },
+              { label: "Scan family", value: item.profile.label },
+              { label: "Relative derivation path", value: item.path, copyable: true },
+              { label: "Transactions reported", value: String(entry.transactionCount) },
             ],
           };
           findings.push(finding);
-          context.onFinding(input.id, 'core', finding);
+          context.onFinding(input.id, "core", finding);
         }
         scanned += derived.length;
         offset = end;
         context.onProgress({
           inputId: input.id,
-          section: 'core',
+          section: "core",
           message: `${profile.label}: checked ${offset} of ${target}`,
           completed: scanned,
           total: null,
@@ -450,7 +481,7 @@ export async function scanBitcoinWatchOnly(
       scanned,
       config,
       gapTruncated
-        ? 'A used address was found too close to the end of the BIP32 index space to complete the post-use gap.'
+        ? "A used address was found too close to the end of the BIP32 index space to complete the post-use gap."
         : undefined,
       startedAt,
     );

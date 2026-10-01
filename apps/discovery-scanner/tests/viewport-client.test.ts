@@ -1,10 +1,10 @@
-import { afterEach, expect, it, vi } from 'vitest';
-import { installVaultViewportBridge } from '../src/viewport-client.js';
+import { afterEach, expect, it, vi } from "vitest";
+import { installVaultViewportBridge } from "../src/viewport-client.js";
 
 class Box {
   children: Box[] = [];
   visible = true;
-  position = 'static';
+  position = "static";
   constructor(public bottom: number) {}
   getClientRects(): object[] {
     return this.visible ? [{}] : [];
@@ -16,25 +16,25 @@ class Box {
 
 afterEach(() => vi.unstubAllGlobals());
 
-it('reports shrinking content even when the iframe keeps body height unchanged', () => {
+it("reports shrinking content even when the iframe keeps body height unchanged", () => {
   const body = new Box(1800),
     main = new Box(1500),
     footer = new Box(1800);
   const decoration = new Box(5000);
-  decoration.position = 'absolute';
+  decoration.position = "absolute";
   const hidden = new Box(9000);
   hidden.visible = false;
   body.children = [decoration, main, footer, hidden];
   const observed = new Set<Box>();
   let resized: () => void = () => {};
-  vi.stubGlobal('HTMLElement', Box);
-  vi.stubGlobal('getComputedStyle', (box: Box) => ({ position: box.position }));
-  vi.stubGlobal('document', { body });
+  vi.stubGlobal("HTMLElement", Box);
+  vi.stubGlobal("getComputedStyle", (box: Box) => ({ position: box.position }));
+  vi.stubGlobal("document", { body });
   const postMessage = vi.fn();
   const window = Object.assign(new EventTarget(), { scrollY: 0, parent: { postMessage } });
-  vi.stubGlobal('window', window);
+  vi.stubGlobal("window", window);
   vi.stubGlobal(
-    'ResizeObserver',
+    "ResizeObserver",
     class {
       constructor(callback: () => void) {
         resized = callback;
@@ -58,6 +58,6 @@ it('reports shrinking content even when the iframe keeps body height unchanged',
   if (observed.has(main)) resized();
   expect(postMessage.mock.lastCall?.[0].height).toBe(2300);
   window.scrollY = 50;
-  window.dispatchEvent(new Event('resize'));
+  window.dispatchEvent(new Event("resize"));
   expect(postMessage.mock.lastCall?.[0].height).toBe(2350);
 });

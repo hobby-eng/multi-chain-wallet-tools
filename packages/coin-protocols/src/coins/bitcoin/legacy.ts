@@ -1,5 +1,5 @@
-import { bytesToHex, encodeP2pkh, hash160 } from '@ckd/core/crypto.js';
-import type { BitcoinNetwork } from '@ckd/core/networks.js';
+import { bytesToHex, encodeP2pkh, hash160 } from "@ckd/core/crypto.js";
+import type { BitcoinNetwork } from "@ckd/core/networks.js";
 
 export function deriveLegacyAddress(publicKey: Uint8Array, network: BitcoinNetwork) {
   const publicKeyHash = hash160(publicKey);

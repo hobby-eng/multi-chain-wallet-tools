@@ -1,7 +1,7 @@
 export const MAX_LOCAL_SEARCH_CONCURRENCY = 5;
 
-import type { AddressSearchMatch } from './address-search.js';
-import type { AddressSearchTarget } from './address-targets.js';
+import type { AddressSearchMatch } from "./address-search.js";
+import type { AddressSearchTarget } from "./address-targets.js";
 
 export interface RecoverySeedTarget {
   readonly id: string;
@@ -26,13 +26,18 @@ interface MultiSeedSearchOptions {
   readonly signal?: AbortSignal;
   readonly search: (
     seed: Uint8Array,
-    adapterId: AddressSearchTarget['adapterId'],
+    adapterId: AddressSearchTarget["adapterId"],
     target: AddressSearchTarget,
     start: number,
     count: number,
     signal?: AbortSignal,
   ) => Promise<AddressSearchMatch | null>;
-  readonly onProgress?: (completed: number, total: number, result: MultiSeedAddressResult, index: number) => void;
+  readonly onProgress?: (
+    completed: number,
+    total: number,
+    result: MultiSeedAddressResult,
+    index: number,
+  ) => void;
 }
 
 export async function searchAcrossSeedsAndAddresses(

@@ -1,22 +1,22 @@
-import type { NetworkName } from '@ckd/core/types.js';
-import type { RecoveryTaskLimiter } from './concurrency.js';
-import type { RecoveryNetworkApi } from '@ckd/network-boundary/protocol.js';
-import type { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
-import type { RecoveryInputSnapshot, DiscoveryScannerView } from './view.js';
+import type { NetworkName } from "@ckd/core/types.js";
+import type { RecoveryTaskLimiter } from "./concurrency.js";
+import type { RecoveryNetworkApi } from "@ckd/network-boundary/protocol.js";
+import type { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
+import type { RecoveryInputSnapshot, DiscoveryScannerView } from "./view.js";
 import type {
   DetectedWatchOnlyMaterial,
   RecoveryWatchOnlyInput,
   RecoveryWatchOnlyScanConfig,
-} from '@ckd/recovery/watch-only/types.js';
+} from "@ckd/recovery/watch-only/types.js";
 export type {
   DetectedWatchOnlyMaterial,
   RecoveryWatchOnlyInput,
   RecoveryWatchOnlyScanConfig,
-} from '@ckd/recovery/watch-only/types.js';
+} from "@ckd/recovery/watch-only/types.js";
 
 export type RecoveryNetwork = NetworkName;
-export type RecoveryInputMode = 'single' | 'batch';
-export type RecoverySourceMode = 'seed' | 'public';
+export type RecoveryInputMode = "single" | "batch";
+export type RecoverySourceMode = "seed" | "public";
 
 export interface RecoverySeedInput {
   id: string;
@@ -29,10 +29,10 @@ interface AddressSearchRunnerContext {
   inputMode: RecoveryInputMode;
   recoveryInputs: (snapshot: RecoveryInputSnapshot) => RecoverySeedInput[];
   wipeInputObjects: (inputs: RecoverySeedInput[]) => void;
-  sessionSecretGuard: Pick<SecretEgressGuard, 'registerString' | 'registerBytes' | 'clear'>;
+  sessionSecretGuard: Pick<SecretEgressGuard, "registerString" | "registerBytes" | "clear">;
   view: Pick<
     DiscoveryScannerView,
-    'resetResults' | 'resetAddressSearch' | 'setStatus' | 'renderAddressSearch' | 'showError'
+    "resetResults" | "resetAddressSearch" | "setStatus" | "renderAddressSearch" | "showError"
   >;
   resetState: () => void;
   prepareRun: () => { controller: AbortController; generation: number };
@@ -41,11 +41,14 @@ interface AddressSearchRunnerContext {
   describeUnknownError: (cause: unknown) => string;
 }
 
-export type AddressSearchRunner = (snapshot: RecoveryInputSnapshot, context: AddressSearchRunnerContext) => void;
+export type AddressSearchRunner = (
+  snapshot: RecoveryInputSnapshot,
+  context: AddressSearchRunnerContext,
+) => void;
 
 export type RecoverySectionId =
-  'core' | 'legacyCore' | 'coinjoin' | 'providerCollateral' | 'platform' | 'identity' | 'shielded';
-type RecoverySectionState = 'complete' | 'partial' | 'skipped' | 'failed';
+  "core" | "legacyCore" | "coinjoin" | "providerCollateral" | "platform" | "identity" | "shielded";
+type RecoverySectionState = "complete" | "partial" | "skipped" | "failed";
 
 export interface RecoveryScanConfig {
   network: RecoveryNetwork;
@@ -82,7 +85,7 @@ export interface RecoveryScanConfig {
 export interface RecoveryMetric {
   label: string;
   value: string;
-  tone?: 'neutral' | 'positive' | 'warning';
+  tone?: "neutral" | "positive" | "warning";
 }
 
 export interface RecoveryField {
@@ -100,7 +103,7 @@ export interface RecoveryAmountUnit {
   decimals: number;
 }
 
-export type RecoveryHistory = import('@ckd/network-boundary/data-types.js').RecoveryHistory;
+export type RecoveryHistory = import("@ckd/network-boundary/data-types.js").RecoveryHistory;
 
 export interface RecoveryFinding {
   id: string;
@@ -144,7 +147,7 @@ export interface RecoveryWalletResult {
 
 export interface RecoveryProgress {
   inputId: string;
-  section: RecoverySectionId | 'prepare';
+  section: RecoverySectionId | "prepare";
   message: string;
   completed: number;
   total: number | null;
@@ -187,7 +190,7 @@ export interface RecoveryCoinAdapter {
   prepareBatch?(
     inputs: readonly RecoverySeedInput[],
     config: RecoveryScanConfig,
-    context: Omit<RecoveryScanContext, 'preparedSections'>,
+    context: Omit<RecoveryScanContext, "preparedSections">,
   ): Promise<ReadonlyMap<string, RecoverySection>>;
   scan(
     input: RecoverySeedInput,
@@ -227,7 +230,7 @@ interface RecoveryExportFinding {
   balanceLabel: string;
   balanceUnit?: RecoveryAmountUnit;
   fields: RecoveryField[];
-  history?: Omit<RecoveryHistory, 'firstReceived' | 'lastReceived' | 'firstSpent' | 'lastSpent'>;
+  history?: Omit<RecoveryHistory, "firstReceived" | "lastReceived" | "firstSpent" | "lastSpent">;
 }
 
 interface RecoveryExportSection {
@@ -258,7 +261,7 @@ export interface RecoveryExportResult {
 }
 
 export interface RecoveryExportEnvelope {
-  format: 'wallet-discovery-report';
+  format: "wallet-discovery-report";
   version: 1;
   createdAt: string;
   containsSecrets: false;

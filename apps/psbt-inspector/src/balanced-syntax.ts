@@ -6,9 +6,9 @@ interface BalancedSyntaxOptions {
 export function findMatchingClose(
   text: string,
   open: number,
-  opening = '(',
-  closing = ')',
-  context = 'Expression',
+  opening = "(",
+  closing = ")",
+  context = "Expression",
 ): number {
   let depth = 0;
   for (let index = open; index < text.length; index += 1) {
@@ -31,15 +31,15 @@ export function splitTopLevelArguments(text: string, options: BalancedSyntaxOpti
   let angle = 0;
   for (let index = 0; index < text.length; index += 1) {
     const character = text[index];
-    if (character === '(') round += 1;
-    else if (character === ')') round -= 1;
-    else if (character === '[') square += 1;
-    else if (character === ']') square -= 1;
-    else if (character === '{') curly += 1;
-    else if (character === '}') curly -= 1;
-    else if (options.includeAngles && character === '<') angle += 1;
-    else if (options.includeAngles && character === '>') angle -= 1;
-    else if (character === ',' && round === 0 && square === 0 && curly === 0 && angle === 0) {
+    if (character === "(") round += 1;
+    else if (character === ")") round -= 1;
+    else if (character === "[") square += 1;
+    else if (character === "]") square -= 1;
+    else if (character === "{") curly += 1;
+    else if (character === "}") curly -= 1;
+    else if (options.includeAngles && character === "<") angle += 1;
+    else if (options.includeAngles && character === ">") angle -= 1;
+    else if (character === "," && round === 0 && square === 0 && curly === 0 && angle === 0) {
       result.push(text.slice(start, index));
       start = index + 1;
     }

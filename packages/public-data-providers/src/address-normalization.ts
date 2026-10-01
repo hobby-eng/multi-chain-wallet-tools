@@ -1,14 +1,14 @@
-import { bech32, bech32m, createBase58check } from '@scure/base';
-import { sha256 } from '@noble/hashes/sha2.js';
-import { keccak_256 } from '@noble/hashes/sha3.js';
-import { bytesToHex } from '@noble/hashes/utils.js';
-import type { NetworkName } from '@ckd/core/types.js';
+import { bech32, bech32m, createBase58check } from "@scure/base";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { keccak_256 } from "@noble/hashes/sha3.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
+import type { NetworkName } from "@ckd/core/types.js";
 
 const base58check = createBase58check(sha256);
 
 export function normalizeBitcoinAddress(value: unknown, network: NetworkName): string {
   const invalid = () => new Error(`Invalid Bitcoin ${network} address or checksum.`);
-  if (typeof value !== 'string') throw invalid();
+  if (typeof value !== "string") throw invalid();
   try {
     if (/^(?:bc|tb)1/iu.test(value)) {
       const lower = value.toLowerCase();
@@ -19,7 +19,11 @@ export function normalizeBitcoinAddress(value: unknown, network: NetworkName): s
         decoded = bech32m.decode(value as `${string}1${string}`);
       }
       const version = decoded.words[0];
-      if (version === undefined || version > 16 || decoded.prefix !== (network === 'mainnet' ? 'bc' : 'tb'))
+      if (
+        version === undefined ||
+        version > 16 ||
+        decoded.prefix !== (network === "mainnet" ? "bc" : "tb")
+      )
         throw invalid();
       const encoding = version === 0 ? bech32 : bech32m;
       const checked = encoding.decode(value as `${string}1${string}`);
@@ -33,7 +37,7 @@ export function normalizeBitcoinAddress(value: unknown, network: NetworkName): s
       return lower;
     }
     const payload = base58check.decode(value);
-    const versions = network === 'mainnet' ? [0, 5] : [111, 196];
+    const versions = network === "mainnet" ? [0, 5] : [111, 196];
     if (payload.length !== 21 || !versions.includes(payload[0]!)) throw invalid();
     return value;
   } catch {
@@ -42,14 +46,17 @@ export function normalizeBitcoinAddress(value: unknown, network: NetworkName): s
 }
 
 export function normalizeEthereumAddress(value: unknown): string {
-  if (typeof value !== 'string' || !/^0x[0-9a-fA-F]{40}$/u.test(value)) throw new Error('Invalid Ethereum address.');
+  if (typeof value !== "string" || !/^0x[0-9a-fA-F]{40}$/u.test(value))
+    throw new Error("Invalid Ethereum address.");
   const body = value.slice(2);
   const lower = body.toLowerCase();
   const hash = bytesToHex(keccak_256(new TextEncoder().encode(lower)));
   const checksum = [...lower]
-    .map((character, index) => (parseInt(hash[index]!, 16) >= 8 ? character.toUpperCase() : character))
-    .join('');
+    .map((character, index) =>
+      parseInt(hash[index]!, 16) >= 8 ? character.toUpperCase() : character,
+    )
+    .join("");
   if (body !== lower && body !== body.toUpperCase() && body !== checksum)
-    throw new Error('Invalid Ethereum address checksum.');
+    throw new Error("Invalid Ethereum address checksum.");
   return `0x${checksum}`;
 }

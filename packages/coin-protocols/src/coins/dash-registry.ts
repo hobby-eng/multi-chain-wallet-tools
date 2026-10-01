@@ -1,5 +1,5 @@
-import { DASH_COMMUNITY_COIN_ADAPTERS } from './dash-community-registry-profile.js';
-import { createCoinRegistry } from './registry-base.js';
+import { DASH_COMMUNITY_COIN_ADAPTERS } from "./dash-community-registry-profile.js";
+import { createCoinRegistry } from "./registry-base.js";
 
 export type {
   AddressBranches,
@@ -14,7 +14,7 @@ export type {
   CoinLimits,
   CoinRegistry,
   ControlOption,
-} from './registry-base.js';
+} from "./registry-base.js";
 
 export const {
   COIN_ADAPTERS,

@@ -1,4 +1,4 @@
-import { descriptorChecksum } from '@ckd/core/descriptor-checksum.js';
+import { descriptorChecksum } from "@ckd/core/descriptor-checksum.js";
 
 export interface DashCoreImportArtifacts {
   readonly legacyCommand: string;
@@ -12,14 +12,16 @@ export function buildDashCoreImport(
   redeemScript: string,
   portableDescriptor: string,
 ): DashCoreImportArtifacts {
-  if (!/^[1-9A-HJ-NP-Za-km-z]{25,40}$/u.test(address)) throw new Error('Dash P2SH address is invalid.');
-  if (!/^(?:[0-9a-f]{2})+$/u.test(redeemScript)) throw new Error('Dash redeemScript must be hexadecimal.');
+  if (!/^[1-9A-HJ-NP-Za-km-z]{25,40}$/u.test(address))
+    throw new Error("Dash P2SH address is invalid.");
+  if (!/^(?:[0-9a-f]{2})+$/u.test(redeemScript))
+    throw new Error("Dash redeemScript must be hexadecimal.");
   const request = {
     scriptPubKey: { address },
-    timestamp: 'now',
+    timestamp: "now",
     redeemscript: redeemScript,
     watchonly: true,
-    label: 'PSBT & Multisig Inspector policy',
+    label: "PSBT & Multisig Inspector policy",
   } as const;
   const requests = JSON.stringify([request]);
   const options = JSON.stringify({ rescan: false });
@@ -28,13 +30,13 @@ export function buildDashCoreImport(
   const addressDescriptorRequests = JSON.stringify([
     {
       desc: addressDescriptor,
-      timestamp: 'now',
+      timestamp: "now",
       active: false,
       internal: false,
-      label: 'PSBT & Multisig Inspector policy',
+      label: "PSBT & Multisig Inspector policy",
     },
   ]);
-  const [descriptorPayload, suppliedChecksum, ...extra] = portableDescriptor.split('#');
+  const [descriptorPayload, suppliedChecksum, ...extra] = portableDescriptor.split("#");
   const fullPolicySupported =
     extra.length === 0 &&
     descriptorPayload !== undefined &&
@@ -44,25 +46,32 @@ export function buildDashCoreImport(
     ? JSON.stringify([
         {
           desc: portableDescriptor,
-          timestamp: 'now',
+          timestamp: "now",
           active: false,
           internal: false,
-          label: 'PSBT & Multisig Inspector policy',
+          label: "PSBT & Multisig Inspector policy",
         },
       ])
     : null;
   return {
     legacyCommand: `dash-cli importmulti \\\n  '${requests}' \\\n  '${options}'`,
     fullPolicyGuiCommand:
-      fullPolicyRequests === null ? null : `importdescriptors ${JSON.stringify(fullPolicyRequests)}`,
+      fullPolicyRequests === null
+        ? null
+        : `importdescriptors ${JSON.stringify(fullPolicyRequests)}`,
     addressFallbackGuiCommand: `importdescriptors ${JSON.stringify(addressDescriptorRequests)}`,
     rpcJson: `${JSON.stringify(
       fullPolicyRequests === null
-        ? { jsonrpc: '1.0', id: 'psbt-inspector', method: 'importmulti', params: [[request], { rescan: false }] }
+        ? {
+            jsonrpc: "1.0",
+            id: "psbt-inspector",
+            method: "importmulti",
+            params: [[request], { rescan: false }],
+          }
         : {
-            jsonrpc: '1.0',
-            id: 'psbt-inspector',
-            method: 'importdescriptors',
+            jsonrpc: "1.0",
+            id: "psbt-inspector",
+            method: "importdescriptors",
             params: [JSON.parse(fullPolicyRequests)],
           },
       null,

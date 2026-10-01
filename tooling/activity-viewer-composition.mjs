@@ -1,72 +1,77 @@
-import { replaceBalancedElement as replaceHtmlElement } from './html-elements.mjs';
-import { resolve } from 'node:path';
+import { replaceBalancedElement as replaceHtmlElement } from "./html-elements.mjs";
+import { resolve } from "node:path";
 
 export function activityViewerEntry(root, options) {
   const lines = [];
-  if (options.hasCoin('dash')) {
+  if (options.hasCoin("dash")) {
     lines.push(
-      `import { startActivityViewer } from ${JSON.stringify(resolve(root, 'apps/activity-viewer/src/start.ts'))};`,
+      `import { startActivityViewer } from ${JSON.stringify(resolve(root, "apps/activity-viewer/src/start.ts"))};`,
     );
-    lines.push('const view = startActivityViewer();');
+    lines.push("const view = startActivityViewer();");
   } else {
     lines.push(
-      `import { BUILD_INFO } from ${JSON.stringify(resolve(root, 'packages/build-security/src/build-info.ts'))};`,
+      `import { BUILD_INFO } from ${JSON.stringify(resolve(root, "packages/build-security/src/build-info.ts"))};`,
     );
     lines.push(
-      `import { createPublicAddressActivityView } from ${JSON.stringify(resolve(root, 'apps/activity-viewer/src/public-address-view.ts'))};`,
+      `import { createPublicAddressActivityView } from ${JSON.stringify(resolve(root, "apps/activity-viewer/src/public-address-view.ts"))};`,
     );
-    lines.push('const view = createPublicAddressActivityView(document, BUILD_INFO);');
+    lines.push("const view = createPublicAddressActivityView(document, BUILD_INFO);");
   }
-  if (options.hasCoin('bitcoin') || options.hasCoin('ethereum')) {
+  if (options.hasCoin("bitcoin") || options.hasCoin("ethereum")) {
     lines.push(
-      `import { installExternalActivity } from ${JSON.stringify(resolve(root, 'apps/activity-viewer/src/external-activity.ts'))};`,
+      `import { installExternalActivity } from ${JSON.stringify(resolve(root, "apps/activity-viewer/src/external-activity.ts"))};`,
     );
-    lines.push("import { SELECTED_EXTERNAL_ACTIVITY_ADAPTERS } from 'ckd:selected-activity-adapters';");
-    lines.push('installExternalActivity(document, view, SELECTED_EXTERNAL_ACTIVITY_ADAPTERS);');
+    lines.push(
+      "import { SELECTED_EXTERNAL_ACTIVITY_ADAPTERS } from 'ckd:selected-activity-adapters';",
+    );
+    lines.push("installExternalActivity(document, view, SELECTED_EXTERNAL_ACTIVITY_ADAPTERS);");
   }
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 export function createActivityViewerCompositionPlugin(root, options) {
   const definitions = [
-    ['bitcoin', 'BITCOIN_ACTIVITY_ADAPTER', 'apps/activity-viewer/src/activity-bitcoin.ts'],
-    ['ethereum', 'ETHEREUM_ACTIVITY_ADAPTER', 'apps/activity-viewer/src/activity-ethereum.ts'],
+    ["bitcoin", "BITCOIN_ACTIVITY_ADAPTER", "apps/activity-viewer/src/activity-bitcoin.ts"],
+    ["ethereum", "ETHEREUM_ACTIVITY_ADAPTER", "apps/activity-viewer/src/activity-ethereum.ts"],
   ].filter(([coin]) => options.hasCoin(coin));
   const imports = definitions.map(
     ([, symbol, file]) => `import { ${symbol} } from ${JSON.stringify(resolve(root, file))};`,
   );
-  const source = `${imports.join('\n')}\nexport const SELECTED_EXTERNAL_ACTIVITY_ADAPTERS = [${definitions.map(([, symbol]) => symbol).join(', ')}];`;
+  const source = `${imports.join("\n")}\nexport const SELECTED_EXTERNAL_ACTIVITY_ADAPTERS = [${definitions.map(([, symbol]) => symbol).join(", ")}];`;
   return {
-    name: 'activity-viewer-composition',
+    name: "activity-viewer-composition",
     setup(build) {
       build.onResolve({ filter: /^ckd:selected-activity-adapters$/ }, () => ({
-        path: 'selection',
-        namespace: 'ckd-activity-selection',
+        path: "selection",
+        namespace: "ckd-activity-selection",
       }));
-      build.onLoad({ filter: /.*/, namespace: 'ckd-activity-selection' }, () => ({
+      build.onLoad({ filter: /.*/, namespace: "ckd-activity-selection" }, () => ({
         contents: source,
-        loader: 'ts',
+        loader: "ts",
         resolveDir: root,
       }));
     },
   };
 }
 
-const replaceBalancedElement = (source, openingPattern, replacement = '') =>
-  replaceHtmlElement(source, openingPattern, replacement, 'Activity Viewer template');
+const replaceBalancedElement = (source, openingPattern, replacement = "") =>
+  replaceHtmlElement(source, openingPattern, replacement, "Activity Viewer template");
 
 export function applyActivityCoinTemplate(template, options) {
   let rendered = template;
-  for (const coin of ['bitcoin', 'dash', 'ethereum']) {
+  for (const coin of ["bitcoin", "dash", "ethereum"]) {
     if (!options.hasCoin(coin))
-      rendered = rendered.replace(new RegExp(`<option value=["']${coin}["'][^>]*>[^<]*<\\/option>`, 'giu'), '');
+      rendered = rendered.replace(
+        new RegExp(`<option value=["']${coin}["'][^>]*>[^<]*<\\/option>`, "giu"),
+        "",
+      );
   }
-  if (!options.hasCoin('dash')) {
-    const labels = options.coins.map((coin) => (coin === 'bitcoin' ? 'Bitcoin' : 'Ethereum'));
+  if (!options.hasCoin("dash")) {
+    const labels = options.coins.map((coin) => (coin === "bitcoin" ? "Bitcoin" : "Ethereum"));
     const providerSummary = [
-      ...(options.hasCoin('bitcoin') ? ['Bitcoin: Blockstream Esplora'] : []),
-      ...(options.hasCoin('ethereum') ? ['Ethereum: PublicNode'] : []),
-    ].join(' · ');
+      ...(options.hasCoin("bitcoin") ? ["Bitcoin: Blockstream Esplora"] : []),
+      ...(options.hasCoin("ethereum") ? ["Ethereum: PublicNode"] : []),
+    ].join(" · ");
     rendered = replaceBalancedElement(
       rendered,
       /<div\b[^>]*class=["'][^"']*\bviewer-detection-tabs\b[^"']*["'][^>]*>/iu,
@@ -87,32 +92,56 @@ export function applyActivityCoinTemplate(template, options) {
       /<div\b[^>]*id=["']viewer-history-field["'][^>]*>/iu,
       '<div id="viewer-history-field" hidden></div>',
     );
-    rendered = replaceBalancedElement(rendered, /<div\b[^>]*id=["']viewer-batch-controls["'][^>]*>/iu, '');
+    rendered = replaceBalancedElement(
+      rendered,
+      /<div\b[^>]*id=["']viewer-batch-controls["'][^>]*>/iu,
+      "",
+    );
     rendered = replaceBalancedElement(
       rendered,
       /<label\b[^>]*id=["']viewer-input-label["'][^>]*>/iu,
       '<label id="viewer-input-label" for="full-viewing-key">Public address</label>',
     );
-    rendered = replaceBalancedElement(rendered, /<button\b[^>]*id=["']reveal-viewing-key["'][^>]*>/iu, '');
-    rendered = replaceBalancedElement(rendered, /<button\b[^>]*id=["']reveal-batch-input["'][^>]*>/iu, '');
+    rendered = replaceBalancedElement(
+      rendered,
+      /<button\b[^>]*id=["']reveal-viewing-key["'][^>]*>/iu,
+      "",
+    );
+    rendered = replaceBalancedElement(
+      rendered,
+      /<button\b[^>]*id=["']reveal-batch-input["'][^>]*>/iu,
+      "",
+    );
     rendered = rendered
-      .replace("script-src __INLINE_SCRIPT_CSP__ 'wasm-unsafe-eval'", 'script-src __INLINE_SCRIPT_CSP__')
-      .replace('worker-src blob:', "worker-src 'none'")
-      .replace('FOUR RESOURCE TYPES', `${labels.length} PUBLIC ${labels.length === 1 ? 'NETWORK' : 'NETWORKS'}`)
-      .replace('Verify with confidence', 'Inspect public activity')
+      .replace(
+        "script-src __INLINE_SCRIPT_CSP__ 'wasm-unsafe-eval'",
+        "script-src __INLINE_SCRIPT_CSP__",
+      )
+      .replace("worker-src blob:", "worker-src 'none'")
+      .replace(
+        "FOUR RESOURCE TYPES",
+        `${labels.length} PUBLIC ${labels.length === 1 ? "NETWORK" : "NETWORKS"}`,
+      )
+      .replace("Verify with confidence", "Inspect public activity")
       .replace(
         /<div class="capability-list">[\s\S]*?<\/div>\s*<\/aside>/u,
-        `<div class="capability-list">${labels.map((label) => `<div><span class="capability-check">✓</span><span>${label} address activity</span></div>`).join('')}<div class="capability-safe"><span>✓</span><span>Public-address input only</span></div></div></aside>`,
+        `<div class="capability-list">${labels.map((label) => `<div><span class="capability-check">✓</span><span>${label} address activity</span></div>`).join("")}<div class="capability-safe"><span>✓</span><span>Public-address input only</span></div></div></aside>`,
       )
-      .replace('Proof-verified Platform DAPI', 'Validated public providers')
-      .replace('Local note recovery', 'Local address validation')
-      .replace('Public L1 history', 'Confirmed public history')
+      .replace("Proof-verified Platform DAPI", "Validated public providers")
+      .replace("Local note recovery", "Local address validation")
+      .replace("Public L1 history", "Confirmed public history")
       .replace(
         /<strong>Viewing keys and public lookups are privacy-sensitive\.<\/strong>[\s\S]*?private-key-like input is erased before any request\./u,
-        '<strong>Public addresses remain privacy-sensitive.</strong> This viewer sends each locally validated public address only to the fixed provider for its selected network. Mnemonics, passphrases, private keys, WIF, xprv, descriptors, and extended public keys are rejected.',
+        "<strong>Public addresses remain privacy-sensitive.</strong> This viewer sends each locally validated public address only to the fixed provider for its selected network. Mnemonics, passphrases, private keys, WIF, xprv, descriptors, and extended public keys are rejected.",
       )
-      .replace(/<div class="viewer-control-heading">\s*<strong>Input type<\/strong>[\s\S]*?<\/div>/u, '')
-      .replace('<label for="viewer-network">Dash network</label>', '<label for="viewer-network">Network</label>')
+      .replace(
+        /<div class="viewer-control-heading">\s*<strong>Input type<\/strong>[\s\S]*?<\/div>/u,
+        "",
+      )
+      .replace(
+        '<label for="viewer-network">Dash network</label>',
+        '<label for="viewer-network">Network</label>',
+      )
       .replace(
         '<p class="field-note">Choose the network containing the address, Identity, or Orchard activity.</p>',
         '<p class="field-note">Choose the network containing the public address.</p>',
@@ -121,7 +150,10 @@ export function applyActivityCoinTemplate(template, options) {
         /<label id="viewer-input-label"[\s\S]*?<\/label>/u,
         '<label id="viewer-input-label" for="full-viewing-key">Public address</label>',
       )
-      .replace('placeholder="Core, Platform, Identity, or Orchard viewing key"', 'placeholder="Paste a public address"')
+      .replace(
+        'placeholder="Core, Platform, Identity, or Orchard viewing key"',
+        'placeholder="Paste a public address"',
+      )
       .replace(
         'placeholder="One Core, Platform, Identity, or Orchard input per line"',
         'placeholder="One public address per line"',
@@ -134,11 +166,11 @@ export function applyActivityCoinTemplate(template, options) {
         '<p class="viewer-action-note">Proof verification and complete indexed lookups may take a moment.</p>',
         '<p class="viewer-action-note">Complete indexed address-history lookups may take a moment.</p>',
       )
-      .replace('Height / protocol', 'Height / provider')
-      .replace('Recovered shielded activity', 'Public address activity')
+      .replace("Height / protocol", "Height / provider")
+      .replace("Recovered shielded activity", "Public address activity")
       .replace(
-        'A local view reconstructed from the encrypted pool.',
-        'A validated view returned by the selected public provider.',
+        "A local view reconstructed from the encrypted pool.",
+        "A validated view returned by the selected public provider.",
       )
       .replace(
         /<p id="viewer-crypto-self-test-details" class="field-note">[\s\S]*?<\/p>/u,
@@ -169,7 +201,7 @@ export function applyActivityCoinTemplate(template, options) {
     const residualDashCopy = rendered.match(/.{0,80}\b(?:Dash|Orchard)\b.{0,120}/gu);
     if (residualDashCopy !== null) {
       throw new Error(
-        `Activity Viewer build without Dash retained Dash-only HTML copy:\n${residualDashCopy.join('\n')}`,
+        `Activity Viewer build without Dash retained Dash-only HTML copy:\n${residualDashCopy.join("\n")}`,
       );
     }
   }
@@ -177,39 +209,43 @@ export function applyActivityCoinTemplate(template, options) {
 }
 
 export function assertActivityViewerComposition(options, inputs) {
-  const normalized = inputs.map((input) => input.replaceAll('\\', '/'));
+  const normalized = inputs.map((input) => input.replaceAll("\\", "/"));
   const markers = {
-    bitcoin: ['/activity-bitcoin.ts', '/bitcoin-service.ts'],
-    ethereum: ['/activity-ethereum.ts', '/ethereum-service.ts'],
+    bitcoin: ["/activity-bitcoin.ts", "/bitcoin-service.ts"],
+    ethereum: ["/activity-ethereum.ts", "/ethereum-service.ts"],
     dash: [
-      '/dash-network/',
-      '/activity-viewer/src/start.ts',
-      '/activity-viewer/src/view.ts',
-      '/dash-core-activity.ts',
-      '/dash-platform-activity.ts',
-      '/dash-identity-activity.ts',
-      '/dash-orchard-activity.ts',
+      "/dash-network/",
+      "/activity-viewer/src/start.ts",
+      "/activity-viewer/src/view.ts",
+      "/dash-core-activity.ts",
+      "/dash-platform-activity.ts",
+      "/dash-identity-activity.ts",
+      "/dash-orchard-activity.ts",
     ],
   };
   for (const [coin, forbidden] of Object.entries(markers)) {
     if (options.hasCoin(coin)) continue;
     const leaked = normalized.filter((input) => forbidden.some((marker) => input.includes(marker)));
     if (leaked.length > 0)
-      throw new Error(`Activity Viewer excluded ${coin}, but its modules remain:\n${leaked.join('\n')}`);
+      throw new Error(
+        `Activity Viewer excluded ${coin}, but its modules remain:\n${leaked.join("\n")}`,
+      );
   }
   const requireInput = (label, marker) => {
     if (!normalized.some((input) => input.includes(marker)))
-      throw new Error(`Activity Viewer selected ${label}, but ${marker} is absent from the bundle graph.`);
+      throw new Error(
+        `Activity Viewer selected ${label}, but ${marker} is absent from the bundle graph.`,
+      );
   };
-  if (options.hasCoin('bitcoin')) requireInput('Bitcoin', '/activity-bitcoin.ts');
-  if (options.hasCoin('ethereum')) requireInput('Ethereum', '/activity-ethereum.ts');
-  if (options.hasCoin('dash')) {
+  if (options.hasCoin("bitcoin")) requireInput("Bitcoin", "/activity-bitcoin.ts");
+  if (options.hasCoin("ethereum")) requireInput("Ethereum", "/activity-ethereum.ts");
+  if (options.hasCoin("dash")) {
     for (const marker of [
-      '/dash-core-activity.ts',
-      '/dash-platform-activity.ts',
-      '/dash-identity-activity.ts',
-      '/dash-orchard-activity.ts',
+      "/dash-core-activity.ts",
+      "/dash-platform-activity.ts",
+      "/dash-identity-activity.ts",
+      "/dash-orchard-activity.ts",
     ])
-      requireInput('the complete Dash activity suite', marker);
+      requireInput("the complete Dash activity suite", marker);
   }
 }

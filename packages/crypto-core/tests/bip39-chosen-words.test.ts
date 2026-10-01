@@ -1,15 +1,15 @@
-import { entropyToMnemonic, validateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { sha256 } from '@noble/hashes/sha2.js';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { entropyToMnemonic, validateMnemonic } from "@scure/bip39";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   chosenWordsRemainingBits,
   chosenWordsSelfTestPhrase,
   generateMnemonicWithChosenWords,
   type ChosenWordCount,
   type ChosenWordsRequest,
-} from '../src/bip39-chosen-words.js';
-import { hasUnknownWords } from '../../../apps/key-derivation/src/ui/chosen-words-feature.js';
+} from "../src/bip39-chosen-words.js";
+import { hasUnknownWords } from "../../../apps/key-derivation/src/ui/chosen-words-feature.js";
 
 const WORD_COUNTS: readonly ChosenWordCount[] = [12, 15, 18, 21, 24];
 /** Entropy bits of each length: 11 per word minus one checksum bit for every three words. */
@@ -18,11 +18,11 @@ const ENTROPY_BITS = { 12: 128, 15: 160, 18: 192, 21: 224, 24: 256 } as const;
 const DRAWS_PER_BATCH = 256;
 
 function meetsWishes(phrase: string, request: ChosenWordsRequest): boolean {
-  const words = phrase.split(' ');
+  const words = phrase.split(" ");
   if (words.length !== request.wordCount || !validateMnemonic(phrase, wordlist)) return false;
   if (request.neverUse.some((word) => words.includes(word))) return false;
   return request.chosen.every(({ word, position }) =>
-    position === 'anywhere' ? words.includes(word) : words[position - 1] === word,
+    position === "anywhere" ? words.includes(word) : words[position - 1] === word,
   );
 }
 
@@ -34,7 +34,13 @@ function seededSource(seed: number) {
     const bytes = new Uint8Array(length);
     for (let offset = 0; offset < length; offset += 32) {
       const block = sha256(
-        new Uint8Array([seed, counter >>> 24, (counter >>> 16) & 255, (counter >>> 8) & 255, counter & 255]),
+        new Uint8Array([
+          seed,
+          counter >>> 24,
+          (counter >>> 16) & 255,
+          (counter >>> 8) & 255,
+          counter & 255,
+        ]),
       );
       counter += 1;
       bytes.set(block.subarray(0, Math.min(32, length - offset)), offset);
@@ -57,11 +63,11 @@ function referenceSearch(request: ChosenWordsRequest, bytes: Uint8Array[], limit
     const batch = bytes[Math.floor(draw / DRAWS_PER_BATCH)]!;
     const start = (draw % DRAWS_PER_BATCH) * entropyBytes;
     let bits = [...batch.subarray(start, start + entropyBytes)]
-      .map((byte) => byte.toString(2).padStart(8, '0'))
-      .join('');
+      .map((byte) => byte.toString(2).padStart(8, "0"))
+      .join("");
     for (const { word, position } of request.chosen) {
-      if (position === 'anywhere') continue;
-      const index = wordlist.indexOf(word).toString(2).padStart(11, '0');
+      if (position === "anywhere") continue;
+      const index = wordlist.indexOf(word).toString(2).padStart(11, "0");
       const from = (position - 1) * 11;
       const width = position === request.wordCount ? 11 - checksumBits : 11;
       bits = bits.slice(0, from) + index.slice(0, width) + bits.slice(from + width);
@@ -73,53 +79,61 @@ function referenceSearch(request: ChosenWordsRequest, bytes: Uint8Array[], limit
   return null;
 }
 
-describe('BIP39 phrase with chosen words', () => {
+describe("BIP39 phrase with chosen words", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('meets every kind of wish with a valid checksum, at every length', async () => {
+  it("meets every kind of wish with a valid checksum, at every length", async () => {
     for (const wordCount of WORD_COUNTS) {
       const requests: ChosenWordsRequest[] = [
         { wordCount, chosen: [], neverUse: [] },
-        { wordCount, chosen: [{ word: 'happy', position: 1 }], neverUse: [] },
-        { wordCount, chosen: [{ word: 'happy', position: wordCount }], neverUse: [] },
-        { wordCount, chosen: [{ word: 'river', position: 'anywhere' }], neverUse: ['zoo', 'abandon'] },
+        { wordCount, chosen: [{ word: "happy", position: 1 }], neverUse: [] },
+        { wordCount, chosen: [{ word: "happy", position: wordCount }], neverUse: [] },
+        {
+          wordCount,
+          chosen: [{ word: "river", position: "anywhere" }],
+          neverUse: ["zoo", "abandon"],
+        },
         {
           wordCount,
           chosen: [
-            { word: 'happy', position: 2 },
-            { word: 'zebra', position: wordCount },
+            { word: "happy", position: 2 },
+            { word: "zebra", position: wordCount },
           ],
           neverUse: [],
         },
         {
           wordCount,
           chosen: [
-            { word: 'happy', position: 'anywhere' },
-            { word: 'river', position: 'anywhere' },
+            { word: "happy", position: "anywhere" },
+            { word: "river", position: "anywhere" },
           ],
-          neverUse: ['zoo'],
+          neverUse: ["zoo"],
         },
       ];
       for (const request of requests)
         for (let round = 0; round < 3; round += 1)
-          expect(meetsWishes(await generateMnemonicWithChosenWords(request), request), JSON.stringify(request)).toBe(
-            true,
-          );
+          expect(
+            meetsWishes(await generateMnemonicWithChosenWords(request), request),
+            JSON.stringify(request),
+          ).toBe(true);
     }
   });
 
-  it('gives the same phrase as an independent reading of the rules, draw by draw', async () => {
+  it("gives the same phrase as an independent reading of the rules, draw by draw", async () => {
     const cases: { request: ChosenWordsRequest; atLeastDraw: number; seed?: number }[] = [
       // A fixed last word must wait for its checksum: the first draws are rejected.
-      { request: { wordCount: 12, chosen: [{ word: 'zoo', position: 12 }], neverUse: [] }, atLeastDraw: 1 },
+      {
+        request: { wordCount: 12, chosen: [{ word: "zoo", position: 12 }], neverUse: [] },
+        atLeastDraw: 1,
+      },
       {
         request: {
           wordCount: 24,
           chosen: [
-            { word: 'happy', position: 3 },
-            { word: 'zebra', position: 24 },
+            { word: "happy", position: 3 },
+            { word: "zebra", position: 24 },
           ],
-          neverUse: ['abandon'],
+          neverUse: ["abandon"],
         },
         atLeastDraw: 1,
       },
@@ -127,7 +141,7 @@ describe('BIP39 phrase with chosen words', () => {
       // the source: the search crosses a batch boundary. (Two words anywhere would too, but need
       // about 29,000 draws, which makes the slow reference reading too slow for a unit test.)
       {
-        request: { wordCount: 12, chosen: [{ word: 'happy', position: 'anywhere' }], neverUse: [] },
+        request: { wordCount: 12, chosen: [{ word: "happy", position: "anywhere" }], neverUse: [] },
         atLeastDraw: DRAWS_PER_BATCH,
         seed: 13,
       },
@@ -148,7 +162,7 @@ describe('BIP39 phrase with chosen words', () => {
     }
   });
 
-  it('finds the self-test phrase that the independent reading finds', () => {
+  it("finds the self-test phrase that the independent reading finds", () => {
     // The self-test's xorshift32 stream from its seed 0x2545f491, read in batches of 256 draws.
     let state = 0x2545f491;
     const stream = (length: number) =>
@@ -162,25 +176,27 @@ describe('BIP39 phrase with chosen words', () => {
     const request: ChosenWordsRequest = {
       wordCount: 12,
       chosen: [
-        { word: 'happy', position: 1 },
-        { word: 'zoo', position: 12 },
+        { word: "happy", position: 1 },
+        { word: "zoo", position: 12 },
       ],
-      neverUse: ['abandon'],
+      neverUse: ["abandon"],
     };
     const batches = Array.from({ length: 4 }, () => stream(16 * DRAWS_PER_BATCH));
     const expected = referenceSearch(request, batches, batches.length * DRAWS_PER_BATCH);
     expect(chosenWordsSelfTestPhrase()).toBe(expected!.phrase);
-    expect(expected!.phrase).toBe('happy model cupboard shell brush radar pipe spoil market video flee zoo');
+    expect(expected!.phrase).toBe(
+      "happy model cupboard shell brush radar pipe spoil market video flee zoo",
+    );
   });
 
-  it('wipes every batch of random bytes, when it finds a phrase and when it gives up', async () => {
+  it("wipes every batch of random bytes, when it finds a phrase and when it gives up", async () => {
     const found = seededSource(7);
     await generateMnemonicWithChosenWords(
       {
         wordCount: 12,
         chosen: [
-          { word: 'happy', position: 'anywhere' },
-          { word: 'river', position: 'anywhere' },
+          { word: "happy", position: "anywhere" },
+          { word: "river", position: "anywhere" },
         ],
         neverUse: [],
       },
@@ -203,24 +219,24 @@ describe('BIP39 phrase with chosen words', () => {
     };
     await expect(
       generateMnemonicWithChosenWords(
-        { wordCount: 12, chosen: [{ word: 'happy', position: 'anywhere' }], neverUse: ['abandon'] },
+        { wordCount: 12, chosen: [{ word: "happy", position: "anywhere" }], neverUse: ["abandon"] },
         { randomBytes: neverMatches },
       ),
-    ).rejects.toThrow('No phrase met these wishes in time');
+    ).rejects.toThrow("No phrase met these wishes in time");
     expect(handedOut.length).toBeGreaterThan(1);
     for (const batch of handedOut) expect(batch.every((byte) => byte === 0)).toBe(true);
   });
 
-  it('stops when cancelled and wipes what it drew', async () => {
+  it("stops when cancelled and wipes what it drew", async () => {
     const { source, handedOut } = seededSource(3);
     const control = new AbortController();
     control.abort();
     await expect(
       generateMnemonicWithChosenWords(
-        { wordCount: 12, chosen: [{ word: 'happy', position: 1 }], neverUse: [] },
+        { wordCount: 12, chosen: [{ word: "happy", position: 1 }], neverUse: [] },
         { signal: control.signal, randomBytes: source },
       ),
-    ).rejects.toMatchObject({ name: 'AbortError' });
+    ).rejects.toMatchObject({ name: "AbortError" });
     expect(handedOut).toHaveLength(0);
 
     // Cancelled during the search: it stops at its next pause, after 10,000 draws. Two words
@@ -236,59 +252,67 @@ describe('BIP39 phrase with chosen words', () => {
       {
         wordCount: 12,
         chosen: [
-          { word: 'happy', position: 'anywhere' },
-          { word: 'river', position: 'anywhere' },
+          { word: "happy", position: "anywhere" },
+          { word: "river", position: "anywhere" },
         ],
         neverUse: [],
       },
       { signal: later.signal, randomBytes: neverHappy },
     );
     later.abort();
-    await expect(search).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(search).rejects.toMatchObject({ name: "AbortError" });
     for (const batch of zeros) expect(batch.every((byte) => byte === 0)).toBe(true);
   });
 
-  it('fails without Web Crypto instead of using another source', async () => {
-    vi.stubGlobal('crypto', undefined);
+  it("fails without Web Crypto instead of using another source", async () => {
+    vi.stubGlobal("crypto", undefined);
     await expect(
-      generateMnemonicWithChosenWords({ wordCount: 12, chosen: [{ word: 'happy', position: 1 }], neverUse: [] }),
-    ).rejects.toThrow('Secure randomness is unavailable');
+      generateMnemonicWithChosenWords({
+        wordCount: 12,
+        chosen: [{ word: "happy", position: 1 }],
+        neverUse: [],
+      }),
+    ).rejects.toThrow("Secure randomness is unavailable");
   });
 
-  it('accepts words in any letter case and with spaces around them', async () => {
+  it("accepts words in any letter case and with spaces around them", async () => {
     const phrase = await generateMnemonicWithChosenWords({
       wordCount: 12,
-      chosen: [{ word: ' Happy ', position: 3 }],
-      neverUse: [' ZOO'],
+      chosen: [{ word: " Happy ", position: 3 }],
+      neverUse: [" ZOO"],
     });
-    expect(phrase.split(' ')[2]).toBe('happy');
+    expect(phrase.split(" ")[2]).toBe("happy");
   });
 
-  it('counts the random bits that remain', () => {
+  it("counts the random bits that remain", () => {
     for (const wordCount of WORD_COUNTS) {
       const full = ENTROPY_BITS[wordCount];
       expect(chosenWordsRemainingBits({ wordCount, chosen: [], neverUse: [] })).toBe(full);
       // A fixed word, also the last one, takes exactly 11 bits.
       for (const position of [1, wordCount])
-        expect(chosenWordsRemainingBits({ wordCount, chosen: [{ word: 'happy', position }], neverUse: [] })).toBe(
-          full - 11,
-        );
+        expect(
+          chosenWordsRemainingBits({
+            wordCount,
+            chosen: [{ word: "happy", position }],
+            neverUse: [],
+          }),
+        ).toBe(full - 11);
       // A word anywhere: -log2 of the chance that it is among the words, 1 - (2047/2048)^n.
       const anywhere = chosenWordsRemainingBits({
         wordCount,
-        chosen: [{ word: 'happy', position: 'anywhere' }],
+        chosen: [{ word: "happy", position: "anywhere" }],
         neverUse: [],
       });
       expect(anywhere).toBeCloseTo(full + Math.log2(1 - (2047 / 2048) ** wordCount), 9);
     }
     // One never-use word in 12 positions: 12 * log2(2048 / 2047).
-    expect(chosenWordsRemainingBits({ wordCount: 12, chosen: [], neverUse: ['zoo'] })).toBeCloseTo(
+    expect(chosenWordsRemainingBits({ wordCount: 12, chosen: [], neverUse: ["zoo"] })).toBeCloseTo(
       128 - 12 * Math.log2(2048 / 2047),
       9,
     );
   });
 
-  it('refuses wishes it cannot keep, without repeating a chosen word', async () => {
+  it("refuses wishes it cannot keep, without repeating a chosen word", async () => {
     const refused = async (request: ChosenWordsRequest, message: string) => {
       const error = await generateMnemonicWithChosenWords(request).then(
         () => null,
@@ -296,56 +320,60 @@ describe('BIP39 phrase with chosen words', () => {
       );
       expect(error).toBeInstanceOf(Error);
       expect((error as Error).message).toContain(message);
-      for (const { word } of request.chosen) expect((error as Error).message).not.toContain(word.trim());
+      for (const { word } of request.chosen)
+        expect((error as Error).message).not.toContain(word.trim());
     };
     await refused(
-      { wordCount: 12, chosen: [{ word: 'hapy', position: 1 }], neverUse: [] },
-      'Chosen word 1 is not an English BIP39 word',
+      { wordCount: 12, chosen: [{ word: "hapy", position: 1 }], neverUse: [] },
+      "Chosen word 1 is not an English BIP39 word",
     );
     // Two words typed into the field of one word are not one BIP39 word.
     await refused(
-      { wordCount: 12, chosen: [{ word: 'happy river', position: 1 }], neverUse: [] },
-      'Chosen word 1 is not an English BIP39 word',
+      { wordCount: 12, chosen: [{ word: "happy river", position: 1 }], neverUse: [] },
+      "Chosen word 1 is not an English BIP39 word",
     );
-    await refused({ wordCount: 12, chosen: [], neverUse: ['zooo'] }, 'Never-use word 1 is not');
+    await refused({ wordCount: 12, chosen: [], neverUse: ["zooo"] }, "Never-use word 1 is not");
     await refused(
       {
         wordCount: 12,
         chosen: [
-          { word: 'happy', position: 1 },
-          { word: 'river', position: 2 },
-          { word: 'zebra', position: 3 },
+          { word: "happy", position: 1 },
+          { word: "river", position: 2 },
+          { word: "zebra", position: 3 },
         ],
         neverUse: [],
       },
-      'at most two words',
-    );
-    await refused(
-      {
-        wordCount: 12,
-        chosen: [
-          { word: 'happy', position: 1 },
-          { word: 'happy', position: 2 },
-        ],
-        neverUse: [],
-      },
-      'two different words',
+      "at most two words",
     );
     await refused(
       {
         wordCount: 12,
         chosen: [
-          { word: 'happy', position: 4 },
-          { word: 'river', position: 4 },
+          { word: "happy", position: 1 },
+          { word: "happy", position: 2 },
         ],
         neverUse: [],
       },
-      'position 4',
+      "two different words",
     );
-    await refused({ wordCount: 12, chosen: [{ word: 'happy', position: 13 }], neverUse: [] }, 'position from 1 to 12');
     await refused(
-      { wordCount: 12, chosen: [{ word: 'happy', position: 1 }], neverUse: ['happy'] },
-      'also in the never-use list',
+      {
+        wordCount: 12,
+        chosen: [
+          { word: "happy", position: 4 },
+          { word: "river", position: 4 },
+        ],
+        neverUse: [],
+      },
+      "position 4",
+    );
+    await refused(
+      { wordCount: 12, chosen: [{ word: "happy", position: 13 }], neverUse: [] },
+      "position from 1 to 12",
+    );
+    await refused(
+      { wordCount: 12, chosen: [{ word: "happy", position: 1 }], neverUse: ["happy"] },
+      "also in the never-use list",
     );
     // Excluding 1,099 words costs about 1.1 bits for each of the ten free positions; with two
     // fixed words that leaves fewer than 96 bits.
@@ -353,22 +381,22 @@ describe('BIP39 phrase with chosen words', () => {
       {
         wordCount: 12,
         chosen: [
-          { word: 'happy', position: 1 },
-          { word: 'river', position: 2 },
+          { word: "happy", position: 1 },
+          { word: "river", position: 2 },
         ],
-        neverUse: wordlist.slice(0, 1100).filter((word) => word !== 'happy' && word !== 'river'),
+        neverUse: wordlist.slice(0, 1100).filter((word) => word !== "happy" && word !== "river"),
       },
-      'at least 96 are required',
+      "at least 96 are required",
     );
   });
 
-  it('marks a field the way the generator reads it', () => {
-    expect(hasUnknownWords('', true)).toBe(false);
-    expect(hasUnknownWords(' Happy ', true)).toBe(false);
-    expect(hasUnknownWords('hapy', true)).toBe(true);
+  it("marks a field the way the generator reads it", () => {
+    expect(hasUnknownWords("", true)).toBe(false);
+    expect(hasUnknownWords(" Happy ", true)).toBe(false);
+    expect(hasUnknownWords("hapy", true)).toBe(true);
     // The field of one word holds one word.
-    expect(hasUnknownWords('happy river', true)).toBe(true);
-    expect(hasUnknownWords('zoo abandon', false)).toBe(false);
-    expect(hasUnknownWords('zoo qwerty', false)).toBe(true);
+    expect(hasUnknownWords("happy river", true)).toBe(true);
+    expect(hasUnknownWords("zoo abandon", false)).toBe(false);
+    expect(hasUnknownWords("zoo qwerty", false)).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 export type RecoverySourceTarget =
-  'matcher' | 'seedqr' | 'mnemocode' | 'mhfe' | 'slip39' | 'codex32' | 'sskr' | 'gordian-envelope';
+  "matcher" | "seedqr" | "mnemocode" | "mhfe" | "slip39" | "codex32" | "sskr" | "gordian-envelope";
 
 interface RecoverySourceValue {
   readonly mnemonic: string;

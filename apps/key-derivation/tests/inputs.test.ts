@@ -1,11 +1,20 @@
-import { describe, expect, it } from 'vitest';
-import { getCoinAdapter } from '@ckd/coins/registry.js';
-import { applySharedDerivationControls, readControls, type DerivationControls } from '../src/ui/inputs.js';
+import { describe, expect, it } from "vitest";
+import { getCoinAdapter } from "@ckd/coins/registry.js";
+import {
+  applySharedDerivationControls,
+  readControls,
+  type DerivationControls,
+} from "../src/ui/inputs.js";
 
-function controls(count: string, start = '0', includeChange = false, branch = '0'): DerivationControls {
+function controls(
+  count: string,
+  start = "0",
+  includeChange = false,
+  branch = "0",
+): DerivationControls {
   return {
-    network: { value: 'mainnet' },
-    account: { value: '0' },
+    network: { value: "mainnet" },
+    account: { value: "0" },
     branchInput: { value: branch },
     branchSelect: { value: branch },
     includeChange: { checked: includeChange },
@@ -15,38 +24,38 @@ function controls(count: string, start = '0', includeChange = false, branch = '0
   } as unknown as DerivationControls;
 }
 
-describe('user-visible derivation count', () => {
-  it('accepts 10,000 results and leaves batching to the adapter orchestrator', () => {
-    const input = readControls(getCoinAdapter('bitcoin-native-segwit'), controls('10000'));
+describe("user-visible derivation count", () => {
+  it("accepts 10,000 results and leaves batching to the adapter orchestrator", () => {
+    const input = readControls(getCoinAdapter("bitcoin-native-segwit"), controls("10000"));
     expect(input.count).toBe(10_000);
     expect(input.includeChange).toBe(false);
   });
 
-  it('retains only protocol index-space bounds, not the former 50-result limit', () => {
-    expect(() => readControls(getCoinAdapter('bitcoin-native-segwit'), controls('2147483649'))).toThrow(
-      /1 to 2147483648/u,
-    );
-    expect(() => readControls(getCoinAdapter('bitcoin-native-segwit'), controls('2', '2147483647'))).toThrow(
-      /range exceeds/u,
-    );
+  it("retains only protocol index-space bounds, not the former 50-result limit", () => {
+    expect(() =>
+      readControls(getCoinAdapter("bitcoin-native-segwit"), controls("2147483649")),
+    ).toThrow(/1 to 2147483648/u);
+    expect(() =>
+      readControls(getCoinAdapter("bitcoin-native-segwit"), controls("2", "2147483647")),
+    ).toThrow(/range exceeds/u);
   });
 
-  it('exposes the optional change branch only for adapters that declare it', () => {
-    const bitcoin = readControls(getCoinAdapter('bitcoin-taproot'), controls('20', '0', true));
-    const dash = readControls(getCoinAdapter('dash-core'), controls('20', '0', true));
-    const platform = readControls(getCoinAdapter('dash-platform'), controls('20', '0', true, '7'));
-    const ethereum = readControls(getCoinAdapter('ethereum'), controls('20', '0', true, '1'));
+  it("exposes the optional change branch only for adapters that declare it", () => {
+    const bitcoin = readControls(getCoinAdapter("bitcoin-taproot"), controls("20", "0", true));
+    const dash = readControls(getCoinAdapter("dash-core"), controls("20", "0", true));
+    const platform = readControls(getCoinAdapter("dash-platform"), controls("20", "0", true, "7"));
+    const ethereum = readControls(getCoinAdapter("ethereum"), controls("20", "0", true, "1"));
 
     expect(bitcoin).toMatchObject({ branch: 0, includeChange: true });
     expect(dash).toMatchObject({ branch: 0, includeChange: true });
     expect(platform).toMatchObject({ branch: 0, includeChange: true });
-    expect(getCoinAdapter('dash-platform').branchControl).toBeUndefined();
+    expect(getCoinAdapter("dash-platform").branchControl).toBeUndefined();
     expect(ethereum).toMatchObject({ branch: 1, includeChange: false });
   });
-  it('reads a legacy account and keeps receive/change controls available', () => {
-    const form = controls('3', '2', true);
-    form.account.value = '7';
-    const adapter = getCoinAdapter('dash-legacy-mobile');
+  it("reads a legacy account and keeps receive/change controls available", () => {
+    const form = controls("3", "2", true);
+    form.account.value = "7";
+    const adapter = getCoinAdapter("dash-legacy-mobile");
     const input = readControls(adapter, form);
     expect(input).toMatchObject({ account: 7, start: 2, count: 3, includeChange: true });
     expect(adapter.pathPreview(input)).toBe("m/7'/0/2…4");
@@ -54,28 +63,28 @@ describe('user-visible derivation count', () => {
   });
 });
 
-describe('shared controls across address profiles', () => {
-  it('keeps the user-entered account and range while preserving the target profile branch', () => {
-    const target = getCoinAdapter('bitcoin-taproot');
+describe("shared controls across address profiles", () => {
+  it("keeps the user-entered account and range while preserving the target profile branch", () => {
+    const target = getCoinAdapter("bitcoin-taproot");
     const values = applySharedDerivationControls(
       target,
       { ...target.defaults, includeChange: false, includeCoinJoin: false },
-      { network: 'mainnet', account: 7, start: 900, count: 1000 },
+      { network: "mainnet", account: 7, start: 900, count: 1000 },
     );
 
     expect(values).toMatchObject({ account: 7, start: 900, count: 1000 });
     expect(values.branch).toBe(target.defaults.branch);
   });
 
-  it('clamps a remembered range to a target profile index limit', () => {
+  it("clamps a remembered range to a target profile index limit", () => {
     const target = {
-      ...getCoinAdapter('bitcoin-taproot'),
+      ...getCoinAdapter("bitcoin-taproot"),
       limits: { accountMax: 3, startMax: 999 },
     };
     const values = applySharedDerivationControls(
       target,
       { ...target.defaults, includeChange: false, includeCoinJoin: false },
-      { network: 'mainnet', account: 7, start: 900, count: 1000 },
+      { network: "mainnet", account: 7, start: 900, count: 1000 },
     );
 
     expect(values).toMatchObject({ account: 3, start: 900, count: 100 });

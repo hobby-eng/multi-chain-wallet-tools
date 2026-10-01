@@ -1,17 +1,18 @@
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { parseBuildProfile, profileArtifacts } from './build-profiles.mjs';
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseBuildProfile, profileArtifacts } from "./build-profiles.mjs";
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const dist = resolve(root, 'dist');
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const dist = resolve(root, "dist");
 const profile = parseBuildProfile();
-const manifest = readFileSync(resolve(root, profile.manifestPath), 'utf8').trim().split('\n');
+const manifest = readFileSync(resolve(root, profile.manifestPath), "utf8").trim().split("\n");
 const prefix = `${profile.outputDirectory}/`;
 const expectedNames = new Set(
   profileArtifacts(profile).map((name) => {
-    if (!name.startsWith(prefix)) throw new Error(`Release artifact is outside ${prefix}: ${name}.`);
+    if (!name.startsWith(prefix))
+      throw new Error(`Release artifact is outside ${prefix}: ${name}.`);
     return name.slice(prefix.length);
   }),
 );
@@ -22,12 +23,15 @@ for (const line of manifest) {
   const match = /^([0-9a-f]{64})  ([a-z0-9-]+\/[A-Za-z0-9_.-]+)$/u.exec(line);
   if (match === null) throw new Error(`Malformed SHA256SUMS line: ${line}`);
   const [, recorded, name] = match;
-  if (!expectedNames.delete(name)) throw new Error(`Unexpected or duplicate release artifact: ${name}`);
+  if (!expectedNames.delete(name))
+    throw new Error(`Unexpected or duplicate release artifact: ${name}`);
   const artifactName = `${prefix}${name}`;
   const path = resolve(dist, artifactName);
-  if (relative(dist, path) !== artifactName) throw new Error(`Unsafe release artifact name: ${name}`);
-  const actual = createHash('sha256').update(readFileSync(path)).digest('hex');
+  if (relative(dist, path) !== artifactName)
+    throw new Error(`Unsafe release artifact name: ${name}`);
+  const actual = createHash("sha256").update(readFileSync(path)).digest("hex");
   if (recorded !== actual) throw new Error(`Release manifest checksum mismatch for ${name}.`);
 }
-if (expectedNames.size !== 0) throw new Error(`Release manifest is missing: ${[...expectedNames].join(', ')}`);
+if (expectedNames.size !== 0)
+  throw new Error(`Release manifest is missing: ${[...expectedNames].join(", ")}`);
 console.log(`Verified ${profile.manifestPath} for ${profile.editionName} artifacts.`);

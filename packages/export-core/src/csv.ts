@@ -22,18 +22,21 @@ interface CsvEncodingOptions {
 
 /** Encodes one spreadsheet-safe RFC 4180-style CSV cell. */
 export function encodeCsvCell(value: CsvValue, alwaysQuote = false): string {
-  if (value === null) return alwaysQuote ? '""' : '';
+  if (value === null) return alwaysQuote ? '""' : "";
   // Exact numeric values remain numeric; only user-controlled text receives the
   // formula guard because a legitimate negative number must keep its type.
-  const text = typeof value === 'string' ? neutralizeSpreadsheetFormula(value) : String(value);
+  const text = typeof value === "string" ? neutralizeSpreadsheetFormula(value) : String(value);
   const escaped = text.replaceAll('"', '""');
   return alwaysQuote || /[",\r\n]/u.test(text) ? `"${escaped}"` : escaped;
 }
 
 /** Encodes rows consistently across every CSV export surface. */
-export function encodeCsv(rows: ReadonlyArray<ReadonlyArray<CsvValue>>, options: CsvEncodingOptions = {}): string {
+export function encodeCsv(
+  rows: ReadonlyArray<ReadonlyArray<CsvValue>>,
+  options: CsvEncodingOptions = {},
+): string {
   const body = rows
-    .map((row) => row.map((value) => encodeCsvCell(value, options.alwaysQuote ?? false)).join(','))
-    .join('\r\n');
-  return `${options.byteOrderMark === false ? '' : '\uFEFF'}${body}${options.finalNewline === false ? '' : '\r\n'}`;
+    .map((row) => row.map((value) => encodeCsvCell(value, options.alwaysQuote ?? false)).join(","))
+    .join("\r\n");
+  return `${options.byteOrderMark === false ? "" : "\uFEFF"}${body}${options.finalNewline === false ? "" : "\r\n"}`;
 }

@@ -1,4 +1,4 @@
-import { createRecoveryWorkbook } from './report-workbook.js';
+import { createRecoveryWorkbook } from "./report-workbook.js";
 import {
   RECOVERY_EXPORT_REQUEST,
   RECOVERY_EXPORT_RESULT,
@@ -9,8 +9,8 @@ import {
   type RecoveryExportBrokerRequest,
   type RecoveryExportBrokerResult,
   type RecoveryVaultHeight,
-} from '@ckd/network-boundary/protocol.js';
-import { bootstrapSelectedBoundary } from './selected-boundary-bootstrap.js';
+} from "@ckd/network-boundary/protocol.js";
+import { bootstrapSelectedBoundary } from "./selected-boundary-bootstrap.js";
 
 declare const __RECOVERY_VAULT_HTML__: string;
 declare const __RECOVERY_NETWORK_WORKER_JS__: string;
@@ -21,20 +21,27 @@ function required<T extends Element>(selector: string): T {
   return element;
 }
 
-const vault = required<HTMLIFrameElement>('#recovery-secret-vault');
-const errorBox = required<HTMLElement>('#recovery-shell-error');
-const workerUrl = URL.createObjectURL(new Blob([__RECOVERY_NETWORK_WORKER_JS__], { type: 'text/javascript' }));
-const networkWorker = new Worker(workerUrl, { name: 'wallet-discovery-public-network' });
+const vault = required<HTMLIFrameElement>("#recovery-secret-vault");
+const errorBox = required<HTMLElement>("#recovery-shell-error");
+const workerUrl = URL.createObjectURL(
+  new Blob([__RECOVERY_NETWORK_WORKER_JS__], { type: "text/javascript" }),
+);
+const networkWorker = new Worker(workerUrl, { name: "wallet-discovery-public-network" });
 const networkChannel = new MessageChannel();
-const vaultBootstrap = bootstrapSelectedBoundary(vault, __RECOVERY_VAULT_HTML__, networkChannel.port2, (cause) => {
-  fatal(cause instanceof Error ? cause.message : String(cause));
-});
+const vaultBootstrap = bootstrapSelectedBoundary(
+  vault,
+  __RECOVERY_VAULT_HTML__,
+  networkChannel.port2,
+  (cause) => {
+    fatal(cause instanceof Error ? cause.message : String(cause));
+  },
+);
 let workerReady = false;
 let workerUrlRevoked = false;
 const workerReadyTimeout = setTimeout(() => {
   if (workerReady) return;
   revokeWorkerUrl();
-  fatal('The isolated Recovery Network Worker did not complete its startup handshake.');
+  fatal("The isolated Recovery Network Worker did not complete its startup handshake.");
 }, 15_000);
 
 function revokeWorkerUrl(): void {
@@ -46,41 +53,42 @@ function revokeWorkerUrl(): void {
 function fatal(message: string): void {
   errorBox.textContent = message;
   errorBox.hidden = false;
-  vault.contentWindow?.postMessage({ type: RECOVERY_NETWORK_FATAL, message }, '*');
+  vault.contentWindow?.postMessage({ type: RECOVERY_NETWORK_FATAL, message }, "*");
 }
 
-networkWorker.addEventListener('error', (event) => {
+networkWorker.addEventListener("error", (event) => {
   revokeWorkerUrl();
-  fatal(`The isolated Recovery Network Worker failed: ${event.message || 'unknown worker error'}`);
+  fatal(`The isolated Recovery Network Worker failed: ${event.message || "unknown worker error"}`);
 });
-networkWorker.addEventListener('message', (event: MessageEvent<unknown>) => {
-  if (typeof event.data !== 'object' || event.data === null) return;
+networkWorker.addEventListener("message", (event: MessageEvent<unknown>) => {
+  if (typeof event.data !== "object" || event.data === null) return;
   if ((event.data as { type?: unknown }).type !== RECOVERY_NETWORK_READY || workerReady) return;
   workerReady = true;
   clearTimeout(workerReadyTimeout);
   revokeWorkerUrl();
 });
-networkWorker.addEventListener('messageerror', () => {
-  fatal('The isolated Recovery Network Worker emitted an unreadable message.');
+networkWorker.addEventListener("messageerror", () => {
+  fatal("The isolated Recovery Network Worker emitted an unreadable message.");
 });
 networkWorker.postMessage({ type: RECOVERY_NETWORK_ATTACH }, [networkChannel.port1]);
 
 const MAX_EXPORT_BYTES = 268_435_456;
 
 function exportResult(target: Window, result: RecoveryExportBrokerResult): void {
-  target.postMessage(result, '*');
+  target.postMessage(result, "*");
 }
 
-window.addEventListener('message', (event: MessageEvent<unknown>) => {
+window.addEventListener("message", (event: MessageEvent<unknown>) => {
   void handleVaultMessage(event);
 });
 
 async function handleVaultMessage(event: MessageEvent<unknown>): Promise<void> {
-  if (event.source !== vault.contentWindow || typeof event.data !== 'object' || event.data === null) return;
+  if (event.source !== vault.contentWindow || typeof event.data !== "object" || event.data === null)
+    return;
   const viewport = event.data as Partial<RecoveryVaultHeight>;
   if (viewport.type === RECOVERY_VAULT_HEIGHT) {
     if (
-      typeof viewport.height === 'number' &&
+      typeof viewport.height === "number" &&
       Number.isSafeInteger(viewport.height) &&
       viewport.height > 0 &&
       viewport.height <= 10_000_000
@@ -90,42 +98,43 @@ async function handleVaultMessage(event: MessageEvent<unknown>): Promise<void> {
     return;
   }
   const request = event.data as Partial<RecoveryExportBrokerRequest>;
-  if (request.type !== RECOVERY_EXPORT_REQUEST || typeof request.id !== 'string') return;
+  if (request.type !== RECOVERY_EXPORT_REQUEST || typeof request.id !== "string") return;
   const target = event.source as Window;
   if (
-    (request.format !== 'csv' && request.format !== 'json' && request.format !== 'xlsx') ||
-    typeof request.text !== 'string'
+    (request.format !== "csv" && request.format !== "json" && request.format !== "xlsx") ||
+    typeof request.text !== "string"
   ) {
     exportResult(target, {
       type: RECOVERY_EXPORT_RESULT,
       id: request.id,
       ok: false,
-      error: 'Malformed export request.',
+      error: "Malformed export request.",
     });
     return;
   }
-  const suffix = new Date().toISOString().replace(/[:.]/gu, '-');
+  const suffix = new Date().toISOString().replace(/[:.]/gu, "-");
   const filename = `wallet-discovery-report-${suffix}.${request.format}`;
-  const mimeType = request.format === 'json' ? 'application/json' : 'text/csv';
+  const mimeType = request.format === "json" ? "application/json" : "text/csv";
   const blob = new Blob([request.text], { type: `${mimeType};charset=utf-8` });
   if (blob.size > MAX_EXPORT_BYTES) {
     exportResult(target, {
       type: RECOVERY_EXPORT_RESULT,
       id: request.id,
       ok: false,
-      error: 'The export exceeds the 256 MiB safety ceiling.',
+      error: "The export exceeds the 256 MiB safety ceiling.",
     });
     return;
   }
   let url: string | null = null;
   try {
-    const download = request.format === 'xlsx' ? await createRecoveryWorkbook(request.text) : blob;
-    if (download.size > MAX_EXPORT_BYTES) throw new Error('The export exceeds the 256 MiB safety ceiling.');
+    const download = request.format === "xlsx" ? await createRecoveryWorkbook(request.text) : blob;
+    if (download.size > MAX_EXPORT_BYTES)
+      throw new Error("The export exceeds the 256 MiB safety ceiling.");
     url = URL.createObjectURL(download);
-    const anchor = document.createElement('a');
+    const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = filename;
-    anchor.rel = 'noopener';
+    anchor.rel = "noopener";
     document.body.append(anchor);
     anchor.click();
     anchor.remove();
@@ -143,7 +152,7 @@ async function handleVaultMessage(event: MessageEvent<unknown>): Promise<void> {
   }
 }
 
-window.addEventListener('beforeunload', () => {
+window.addEventListener("beforeunload", () => {
   clearTimeout(workerReadyTimeout);
   revokeWorkerUrl();
   networkWorker.terminate();

@@ -1,14 +1,14 @@
-import { hexToBytes } from '@noble/hashes/utils.js';
-import type { CryptoSelfTestReport } from '@ckd/self-test-types';
-import { createSskrShares, recoverSskrShares } from './sskr.js';
-import { expectBytes, now } from './self-test-helpers.js';
+import { hexToBytes } from "@noble/hashes/utils.js";
+import type { CryptoSelfTestReport } from "@ckd/self-test-types";
+import { createSskrShares, recoverSskrShares } from "./sskr.js";
+import { expectBytes, now } from "./self-test-helpers.js";
 
 export function runSskrSelfTest(): CryptoSelfTestReport {
   const started = now();
-  const secret = hexToBytes('000102030405060708090a0b0c0d0e0f');
+  const secret = hexToBytes("000102030405060708090a0b0c0d0e0f");
   const vectors = [
-    ['compact-ur', 'SSKR Compact UR encode/decode'],
-    ['bytewords', 'SSKR Bytewords encode/decode'],
+    ["compact-ur", "SSKR Compact UR encode/decode"],
+    ["bytewords", "SSKR Bytewords encode/decode"],
   ] as const;
   const checks = vectors.map(([, label]) => label);
   try {

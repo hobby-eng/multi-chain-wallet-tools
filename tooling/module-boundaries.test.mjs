@@ -1,11 +1,11 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const productionRoots = ['apps', 'packages', 'tooling'];
-const tsconfig = JSON.parse(readFileSync(join(root, 'tsconfig.json'), 'utf8'));
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const productionRoots = ["apps", "packages", "tooling"];
+const tsconfig = JSON.parse(readFileSync(join(root, "tsconfig.json"), "utf8"));
 const aliasOwners = new Map(
   Object.entries(tsconfig.compilerOptions.paths).flatMap(([alias, targets]) => {
     const aliasName = /^@ckd\/([^/*]+)/u.exec(alias)?.[1];
@@ -17,8 +17,11 @@ const aliasOwners = new Map(
 function sourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
-    if (entry.isDirectory() && !['node_modules', 'dist', 'test-results'].includes(entry.name)) return sourceFiles(path);
-    return entry.isFile() && /\.(?:ts|mjs)$/u.test(entry.name) && !/\.test\.(?:ts|mjs)$/u.test(entry.name)
+    if (entry.isDirectory() && !["node_modules", "dist", "test-results"].includes(entry.name))
+      return sourceFiles(path);
+    return entry.isFile() &&
+      /\.(?:ts|mjs)$/u.test(entry.name) &&
+      !/\.test\.(?:ts|mjs)$/u.test(entry.name)
       ? [path]
       : [];
   });
@@ -36,37 +39,40 @@ function packageOwner(path) {
   return match?.[1];
 }
 
-describe('module boundaries', () => {
+describe("module boundaries", () => {
   const files = productionRoots.flatMap((directory) => sourceFiles(join(root, directory)));
 
-  it('keeps applications and packages pointing inward', () => {
+  it("keeps applications and packages pointing inward", () => {
     const violations = [];
     for (const file of files) {
-      const rel = relative(root, file).replaceAll('\\', '/');
-      for (const specifier of imports(readFileSync(file, 'utf8'))) {
-        const target = specifier.startsWith('.') ? resolve(dirname(file), specifier) : undefined;
-        const targetRel = target === undefined ? '' : relative(root, target).replaceAll('\\', '/');
-        if (rel.startsWith('packages/') && targetRel.startsWith('apps/')) violations.push(rel + ' -> ' + specifier);
-        if (rel.startsWith('apps/')) {
-          const owner = rel.split('/')[1];
-          if (targetRel.startsWith('apps/') && targetRel.split('/')[1] !== owner)
-            violations.push(rel + ' -> ' + specifier);
+      const rel = relative(root, file).replaceAll("\\", "/");
+      for (const specifier of imports(readFileSync(file, "utf8"))) {
+        const target = specifier.startsWith(".") ? resolve(dirname(file), specifier) : undefined;
+        const targetRel = target === undefined ? "" : relative(root, target).replaceAll("\\", "/");
+        if (rel.startsWith("packages/") && targetRel.startsWith("apps/"))
+          violations.push(rel + " -> " + specifier);
+        if (rel.startsWith("apps/")) {
+          const owner = rel.split("/")[1];
+          if (targetRel.startsWith("apps/") && targetRel.split("/")[1] !== owner)
+            violations.push(rel + " -> " + specifier);
         }
       }
     }
     expect(violations).toEqual([]);
   });
 
-  it('keeps shared-package aliases acyclic', () => {
+  it("keeps shared-package aliases acyclic", () => {
     const graph = new Map();
     for (const file of files) {
       const owner = packageOwner(file);
       if (owner === undefined) continue;
       const edges = graph.get(owner) ?? new Set();
-      for (const specifier of imports(readFileSync(file, 'utf8'))) {
+      for (const specifier of imports(readFileSync(file, "utf8"))) {
         const alias = /^@ckd\/([^/]+)/u.exec(specifier)?.[1];
         const aliasTarget = alias === undefined ? undefined : aliasOwners.get(alias);
-        const relativeTarget = specifier.startsWith('.') ? packageOwner(resolve(dirname(file), specifier)) : undefined;
+        const relativeTarget = specifier.startsWith(".")
+          ? packageOwner(resolve(dirname(file), specifier))
+          : undefined;
         const target = aliasTarget ?? relativeTarget;
         if (alias !== undefined && aliasTarget === undefined) {
           throw new Error(`Unknown @ckd alias in module-boundary graph: ${specifier}`);
@@ -78,7 +84,7 @@ describe('module boundaries', () => {
     const visiting = new Set();
     const visited = new Set();
     const visit = (node, path) => {
-      if (visiting.has(node)) throw new Error('Package cycle: ' + [...path, node].join(' -> '));
+      if (visiting.has(node)) throw new Error("Package cycle: " + [...path, node].join(" -> "));
       if (visited.has(node)) return;
       visiting.add(node);
       for (const next of graph.get(node) ?? []) visit(next, [...path, node]);
@@ -88,20 +94,28 @@ describe('module boundaries', () => {
     for (const node of graph.keys()) visit(node, []);
   });
 
-  it('keeps public-address Activity hosts independent of Dash runtimes', () => {
+  it("keeps public-address Activity hosts independent of Dash runtimes", () => {
     const offenders = [
-      'apps/activity-viewer/src/public-address-view.ts',
-      'apps/activity-viewer/src/external-activity.ts',
-    ].filter((path) => imports(readFileSync(join(root, path), 'utf8')).some((value) => value.includes('dash-network')));
+      "apps/activity-viewer/src/public-address-view.ts",
+      "apps/activity-viewer/src/external-activity.ts",
+    ].filter((path) =>
+      imports(readFileSync(join(root, path), "utf8")).some((value) =>
+        value.includes("dash-network"),
+      ),
+    );
     expect(offenders).toEqual([]);
   });
 
-  it('keeps network-boundary independent of provider and secret implementations', () => {
+  it("keeps network-boundary independent of provider and secret implementations", () => {
     const offenders = files
-      .filter((file) => relative(root, file).replaceAll('\\', '/').startsWith('packages/network-boundary/'))
       .filter((file) =>
-        imports(readFileSync(file, 'utf8')).some(
-          (value) => value.startsWith('@ckd/public-data-providers') || value.startsWith('@ckd/secret-boundary'),
+        relative(root, file).replaceAll("\\", "/").startsWith("packages/network-boundary/"),
+      )
+      .filter((file) =>
+        imports(readFileSync(file, "utf8")).some(
+          (value) =>
+            value.startsWith("@ckd/public-data-providers") ||
+            value.startsWith("@ckd/secret-boundary"),
         ),
       );
     expect(offenders.map((file) => relative(root, file))).toEqual([]);

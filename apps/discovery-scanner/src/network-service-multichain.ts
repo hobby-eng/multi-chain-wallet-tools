@@ -1,13 +1,17 @@
-import { PublicMultiChainDataService } from '@ckd/public-data-providers/multi-chain-service.js';
-import type { EvmAccountBatchView, RecoveryHistory, UtxoAddressView } from '@ckd/public-data-providers/types.js';
-import { DirectRecoveryNetworkService } from './network-service.js';
-import type { RecoveryNetwork } from '@ckd/network-boundary/protocol.js';
+import { PublicMultiChainDataService } from "@ckd/public-data-providers/multi-chain-service.js";
+import type {
+  EvmAccountBatchView,
+  RecoveryHistory,
+  UtxoAddressView,
+} from "@ckd/public-data-providers/types.js";
+import { DirectRecoveryNetworkService } from "./network-service.js";
+import type { RecoveryNetwork } from "@ckd/network-boundary/protocol.js";
 
 export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkService {
   readonly #public = new PublicMultiChainDataService();
 
   override addressHistory(
-    coin: 'bitcoin' | 'ethereum',
+    coin: "bitcoin" | "ethereum",
     network: RecoveryNetwork,
     address: string,
     signal?: AbortSignal,

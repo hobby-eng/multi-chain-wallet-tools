@@ -1,4 +1,4 @@
-import { wordlist } from '@scure/bip39/wordlists/english.js';
+import { wordlist } from "@scure/bip39/wordlists/english.js";
 import {
   CHOSEN_WORDS_MINIMUM_BITS,
   CHOSEN_WORDS_WARNING_BITS,
@@ -7,8 +7,8 @@ import {
   type ChosenWord,
   type ChosenWordCount,
   type ChosenWordsRequest,
-} from '@ckd/core/bip39-chosen-words.js';
-import { requireQueryElement } from '@ckd/ui/dom.js';
+} from "@ckd/core/bip39-chosen-words.js";
+import { requireQueryElement } from "@ckd/ui/dom.js";
 
 /**
  * "Generate with chosen words" in Generate & Derive: up to two words, each anywhere or at a
@@ -49,38 +49,42 @@ export function hasUnknownWords(value: string, single: boolean): boolean {
 
 export function installChosenWordsFeature(page: Document = document): ChosenWordsFeature {
   const required = <T extends Element>(selector: string) => requireQueryElement<T>(page, selector);
-  const enabled = required<HTMLInputElement>('#chosen-words-enabled');
-  const panel = required<HTMLElement>('#chosen-words-panel');
+  const enabled = required<HTMLInputElement>("#chosen-words-enabled");
+  const panel = required<HTMLElement>("#chosen-words-panel");
   const rows = [1, 2].map((number) => ({
     row: required<HTMLElement>(`#chosen-word-${number}-row`),
     position: required<HTMLSelectElement>(`#chosen-word-${number}-position`),
     word: required<HTMLInputElement>(`#chosen-word-${number}`),
   }));
-  const addButton = required<HTMLButtonElement>('#chosen-words-add');
-  const removeButton = required<HTMLButtonElement>('#chosen-word-2-remove');
-  const clearButton = required<HTMLButtonElement>('#chosen-word-1-clear');
-  const neverUse = required<HTMLInputElement>('#chosen-words-never');
-  const list = required<HTMLDataListElement>('#chosen-words-list');
-  const barFill = required<HTMLElement>('#chosen-words-bar-fill');
-  const bits = required<HTMLElement>('#chosen-words-bits');
-  const verdict = required<HTMLElement>('#chosen-words-verdict');
+  const addButton = required<HTMLButtonElement>("#chosen-words-add");
+  const removeButton = required<HTMLButtonElement>("#chosen-word-2-remove");
+  const clearButton = required<HTMLButtonElement>("#chosen-word-1-clear");
+  const neverUse = required<HTMLInputElement>("#chosen-words-never");
+  const list = required<HTMLDataListElement>("#chosen-words-list");
+  const barFill = required<HTMLElement>("#chosen-words-bar-fill");
+  const bits = required<HTMLElement>("#chosen-words-bits");
+  const verdict = required<HTMLElement>("#chosen-words-verdict");
 
   // Filled here rather than written into the page: 2,048 options would add 40 KB to the HTML.
   list.replaceChildren(...wordlist.map((word) => new Option(word)));
   for (const { position } of rows) {
-    position.append(new Option('Anywhere', 'anywhere'), new Option('First word', '1'));
+    position.append(new Option("Anywhere", "anywhere"), new Option("First word", "1"));
     for (let number = 2; number <= LONGEST_NUMBERED_POSITION; number += 1)
       position.append(new Option(`Word ${number}`, String(number)));
-    position.append(new Option('Last word', 'last'));
+    position.append(new Option("Last word", "last"));
   }
 
   function chosenWords(wordCount: ChosenWordCount): ChosenWord[] {
     return rows
-      .filter(({ row, word }) => !row.hidden && word.value.trim() !== '')
+      .filter(({ row, word }) => !row.hidden && word.value.trim() !== "")
       .map(({ position, word }) => ({
         word: word.value,
         position:
-          position.value === 'anywhere' ? 'anywhere' : position.value === 'last' ? wordCount : Number(position.value),
+          position.value === "anywhere"
+            ? "anywhere"
+            : position.value === "last"
+              ? wordCount
+              : Number(position.value),
       }));
   }
 
@@ -97,71 +101,82 @@ export function installChosenWordsFeature(page: Document = document): ChosenWord
     try {
       return chosenWordsRemainingBits(request(wordCount));
     } catch (cause) {
-      return cause instanceof Error ? cause.message : 'These wishes cannot be met.';
+      return cause instanceof Error ? cause.message : "These wishes cannot be met.";
     }
   }
 
   function update(): void {
     panel.hidden = !enabled.checked;
-    for (const { word } of rows) word.setAttribute('aria-invalid', String(hasUnknownWords(word.value, true)));
-    neverUse.setAttribute('aria-invalid', String(hasUnknownWords(neverUse.value, false)));
+    for (const { word } of rows)
+      word.setAttribute("aria-invalid", String(hasUnknownWords(word.value, true)));
+    neverUse.setAttribute("aria-invalid", String(hasUnknownWords(neverUse.value, false)));
     const second = rows[1]!;
     addButton.hidden = !second.row.hidden;
     const results = WORD_COUNTS.map((wordCount) => ({ wordCount, result: remaining(wordCount) }));
     const shortest = results[0]!.result;
-    const fraction = typeof shortest === 'number' ? Math.max(0, shortest) / 128 : 0;
+    const fraction = typeof shortest === "number" ? Math.max(0, shortest) / 128 : 0;
     barFill.style.width = `${(fraction * 100).toFixed(1)}%`;
     // One cell per length: "12 words" over "≈ 109 / 128 bits", or a dash when it cannot be met.
     bits.replaceChildren(
       ...results.map(({ wordCount, result }) => {
-        const cell = document.createElement('span');
-        const length = document.createElement('small');
+        const cell = document.createElement("span");
+        const length = document.createElement("small");
         length.textContent = `${wordCount} words`;
         // Tenths, rounded down: a never-use word costs a few thousandths of a bit, and the shown
         // value never reaches a threshold that the exact value is below.
         const value =
-          typeof result === 'number'
+          typeof result === "number"
             ? `≈ ${(Math.floor(result * 10) / 10).toFixed(1)} / ${(wordCount * 32) / 3} bits`
-            : '—';
-        cell.classList.toggle('chosen-words-alert', typeof result !== 'number' || result < CHOSEN_WORDS_WARNING_BITS);
+            : "—";
+        cell.classList.toggle(
+          "chosen-words-alert",
+          typeof result !== "number" || result < CHOSEN_WORDS_WARNING_BITS,
+        );
         cell.append(length, value);
         return cell;
       }),
     );
-    const problem = results.find(({ result }) => typeof result === 'string');
-    const lowest = Math.min(...results.map(({ result }) => (typeof result === 'number' ? result : Infinity)));
-    verdict.classList.toggle('chosen-words-alert', problem !== undefined || lowest < CHOSEN_WORDS_WARNING_BITS);
+    const problem = results.find(({ result }) => typeof result === "string");
+    const lowest = Math.min(
+      ...results.map(({ result }) => (typeof result === "number" ? result : Infinity)),
+    );
+    verdict.classList.toggle(
+      "chosen-words-alert",
+      problem !== undefined || lowest < CHOSEN_WORDS_WARNING_BITS,
+    );
     // A mistake in a word fails every length alike; only a position depends on the length.
     const sameEverywhere = results.every(({ result }) => result === problem?.result);
-    if (problem !== undefined && typeof problem.result === 'string')
-      verdict.textContent = sameEverywhere ? problem.result : `${problem.wordCount} words: ${problem.result}`;
+    if (problem !== undefined && typeof problem.result === "string")
+      verdict.textContent = sameEverywhere
+        ? problem.result
+        : `${problem.wordCount} words: ${problem.result}`;
     else if (lowest < CHOSEN_WORDS_MINIMUM_BITS)
       verdict.textContent = `Below ${CHOSEN_WORDS_MINIMUM_BITS} bits the phrase is refused. Remove a wish or choose a longer phrase.`;
     else if (lowest < CHOSEN_WORDS_WARNING_BITS)
       verdict.textContent = `Below ${CHOSEN_WORDS_WARNING_BITS} bits: still far beyond guessing, but noticeably weaker. A longer phrase keeps more.`;
-    else verdict.textContent = 'Enough random bits remain at every length.';
+    else verdict.textContent = "Enough random bits remain at every length.";
   }
 
-  enabled.addEventListener('change', update);
+  enabled.addEventListener("change", update);
   for (const { position, word } of rows) {
-    position.addEventListener('change', update);
-    word.addEventListener('input', update);
+    position.addEventListener("change", update);
+    word.addEventListener("input", update);
   }
-  neverUse.addEventListener('input', update);
-  addButton.addEventListener('click', () => {
+  neverUse.addEventListener("input", update);
+  addButton.addEventListener("click", () => {
     rows[1]!.row.hidden = false;
     update();
     rows[1]!.word.focus();
   });
-  clearButton.addEventListener('click', () => {
-    rows[0]!.word.value = '';
-    rows[0]!.position.value = 'anywhere';
+  clearButton.addEventListener("click", () => {
+    rows[0]!.word.value = "";
+    rows[0]!.position.value = "anywhere";
     update();
     rows[0]!.word.focus();
   });
-  removeButton.addEventListener('click', () => {
+  removeButton.addEventListener("click", () => {
     rows[1]!.row.hidden = true;
-    rows[1]!.word.value = '';
+    rows[1]!.word.value = "";
     update();
     addButton.focus();
   });
@@ -169,8 +184,8 @@ export function installChosenWordsFeature(page: Document = document): ChosenWord
   const secretFields = [...rows.map(({ word }) => word), neverUse];
   function setRevealed(revealed: boolean): void {
     for (const field of secretFields) {
-      field.type = revealed ? 'text' : 'password';
-      field.classList.toggle('concealed', !revealed);
+      field.type = revealed ? "text" : "password";
+      field.classList.toggle("concealed", !revealed);
     }
   }
   setRevealed(false);
@@ -185,14 +200,19 @@ export function installChosenWordsFeature(page: Document = document): ChosenWord
   return {
     active() {
       if (!enabled.checked) return false;
-      return rows.some(({ row, word }) => !row.hidden && word.value.trim() !== '') || neverUse.value.trim() !== '';
+      return (
+        rows.some(({ row, word }) => !row.hidden && word.value.trim() !== "") ||
+        neverUse.value.trim() !== ""
+      );
     },
     async generate(wordCount) {
       cancelSearch();
       const current = new AbortController();
       search = current;
       try {
-        return await generateMnemonicWithChosenWords(request(wordCount), { signal: current.signal });
+        return await generateMnemonicWithChosenWords(request(wordCount), {
+          signal: current.signal,
+        });
       } finally {
         if (search === current) search = null;
       }
@@ -201,11 +221,11 @@ export function installChosenWordsFeature(page: Document = document): ChosenWord
     clear() {
       cancelSearch();
       for (const { word, position } of rows) {
-        word.value = '';
-        position.value = 'anywhere';
+        word.value = "";
+        position.value = "anywhere";
       }
       rows[1]!.row.hidden = true;
-      neverUse.value = '';
+      neverUse.value = "";
       update();
     },
   };

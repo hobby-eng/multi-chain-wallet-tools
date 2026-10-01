@@ -1,5 +1,5 @@
-import { HDKey, HARDENED_OFFSET } from '@scure/bip32';
-import type { Bip32Versions } from './networks.js';
+import { HDKey, HARDENED_OFFSET } from "@scure/bip32";
+import type { Bip32Versions } from "./networks.js";
 
 export const MAX_BIP32_INDEX = HARDENED_OFFSET - 1;
 export const MAX_BATCH_SIZE = 50;
@@ -12,12 +12,12 @@ export function assertIndex(value: number, name: string, max = MAX_BIP32_INDEX):
 }
 
 export function assertBatch(start: number, count: number): void {
-  assertIndex(start, 'Start index');
+  assertIndex(start, "Start index");
   if (!Number.isSafeInteger(count) || count < 1 || count > MAX_BATCH_SIZE) {
     throw new Error(`Number of results must be an integer from 1 to ${MAX_BATCH_SIZE}.`);
   }
   if (start + count - 1 > MAX_BIP32_INDEX) {
-    throw new Error('The requested index range exceeds the valid non-hardened range.');
+    throw new Error("The requested index range exceeds the valid non-hardened range.");
   }
 }
 

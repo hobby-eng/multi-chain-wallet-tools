@@ -1,12 +1,12 @@
-import { assertWatchOnlyMinimum } from '@ckd/recovery/watch-only.js';
-import { HDKey } from '@scure/bip32';
-import { bytesToHex, encodeP2pkh, hash160, secp256k1, wipe } from '@ckd/core/crypto.js';
-import { getDashNetwork } from '@ckd/core/networks.js';
-import { encodePlatformP2pkh } from '@ckd/coins/dash/platform.js';
-import { type NormalizedViewingKey } from '@ckd/dash-network/viewing-key.js';
-import { RecoveryConcurrencyLimiter } from '../../concurrency.js';
-import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
+import { assertWatchOnlyMinimum } from "@ckd/recovery/watch-only.js";
+import { HDKey } from "@scure/bip32";
+import { bytesToHex, encodeP2pkh, hash160, secp256k1, wipe } from "@ckd/core/crypto.js";
+import { getDashNetwork } from "@ckd/core/networks.js";
+import { encodePlatformP2pkh } from "@ckd/coins/dash/platform.js";
+import { type NormalizedViewingKey } from "@ckd/dash-network/viewing-key.js";
+import { RecoveryConcurrencyLimiter } from "../../concurrency.js";
+import { RecoveryNetworkGateway } from "../../network-gateway.js";
+import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
 import type {
   RecoveryFinding,
   RecoveryScanContext,
@@ -14,12 +14,12 @@ import type {
   RecoveryWalletResult,
   RecoveryWatchOnlyInput,
   RecoveryWatchOnlyScanConfig,
-} from '../../types.js';
-import { summarizeDashSections } from './summary.js';
-import { validateIdentityLookup } from './identity-scanner.js';
-import { DashPlatformClient } from './platform-client.js';
-import { validatePlatformAddressBatch } from './platform-scanner.js';
-import { scanDashShieldedWatchOnly } from './shielded-watch-only.js';
+} from "../../types.js";
+import { summarizeDashSections } from "./summary.js";
+import { validateIdentityLookup } from "./identity-scanner.js";
+import { DashPlatformClient } from "./platform-client.js";
+import { validatePlatformAddressBatch } from "./platform-scanner.js";
+import { scanDashShieldedWatchOnly } from "./shielded-watch-only.js";
 import {
   ADDRESS_DISCOVERY_GAP,
   failedSection,
@@ -28,7 +28,7 @@ import {
   formatDashFromCredits,
   formatDashFromDuffs,
   validateDashScanAddressBatch,
-} from './util.js';
+} from "./util.js";
 
 const ECDSA_PUBLIC_KEY_PATTERN = /^(?:0x)?(?:02|03)[0-9a-f]{64}$/iu;
 
@@ -46,16 +46,20 @@ async function scanTransparentXpub(
   context: RecoveryScanContext,
   gateway: RecoveryNetworkGateway,
 ): Promise<RecoveryWalletResult> {
-  const coinjoin = input.kind === 'dash-coinjoin-xpub';
-  const legacy = input.kind === 'dash-legacy-xpub';
+  const coinjoin = input.kind === "dash-coinjoin-xpub";
+  const legacy = input.kind === "dash-legacy-xpub";
   const accountDepth = legacy ? 1 : coinjoin ? 4 : 3;
   const branchDepth = accountDepth + 1;
   const familyLabel = legacy
-    ? 'Dash Core · legacy mobile'
+    ? "Dash Core · legacy mobile"
     : coinjoin
-      ? 'Dash Mobile CoinJoin · DIP9'
-      : 'Dash Core · BIP44';
-  const sectionId = legacy ? ('legacyCore' as const) : coinjoin ? ('coinjoin' as const) : ('core' as const);
+      ? "Dash Mobile CoinJoin · DIP9"
+      : "Dash Core · BIP44";
+  const sectionId = legacy
+    ? ("legacyCore" as const)
+    : coinjoin
+      ? ("coinjoin" as const)
+      : ("core" as const);
   const network = getDashNetwork(config.network);
   let node: HDKey;
   try {
@@ -84,13 +88,20 @@ async function scanTransparentXpub(
   for (const { branch, node: branchNode } of branches) {
     let target = config.minimumCount;
     for (let offset = 0; offset < target;) {
-      if (context.signal.aborted) throw new DOMException('Dash Core watch-only scan cancelled.', 'AbortError');
+      if (context.signal.aborted)
+        throw new DOMException("Dash Core watch-only scan cancelled.", "AbortError");
       const end = Math.min(offset + 100, target);
-      const derived: Array<{ address: string; index: number; path: string; publicKeyHash: string }> = [];
+      const derived: Array<{
+        address: string;
+        index: number;
+        path: string;
+        publicKeyHash: string;
+      }> = [];
       for (let index = offset; index < end; index += 1) {
         const child = branchNode.deriveChild(index);
         const publicKey = child.publicKey;
-        if (publicKey === null) throw new Error('Watch-only derivation unexpectedly produced no public key.');
+        if (publicKey === null)
+          throw new Error("Watch-only derivation unexpectedly produced no public key.");
         const publicKeyHash = hash160(publicKey);
         derived.push({
           address: encodeP2pkh(publicKeyHash, network.p2pkh),
@@ -103,7 +114,7 @@ async function scanTransparentXpub(
       const infos = validateDashScanAddressBatch(
         await gateway.runPublic(
           { network: config.network, addresses },
-          'core.address-info',
+          "core.address-info",
           () => gateway.networkApi.coreAddressInfo(config.network, addresses, context.signal),
           context.signal,
         ),
@@ -111,7 +122,8 @@ async function scanTransparentXpub(
       );
       infos.forEach((info, position) => {
         const derivedItem = derived[position];
-        if (derivedItem === undefined) throw new Error('Dash Core watch-only batch changed during scanning.');
+        if (derivedItem === undefined)
+          throw new Error("Dash Core watch-only batch changed during scanning.");
         addressStates.set(derivedItem.address, info);
         const used = info.txCount > 0 || info.balance > 0n;
         if (used) {
@@ -121,24 +133,24 @@ async function scanTransparentXpub(
         }
         if (info.balance === 0n && !(config.includeUsedZeroBalance && used)) return;
         const finding: RecoveryFinding = {
-          id: `${input.kind}:${branch ?? 'branch'}:${derivedItem.index}`,
+          id: `${input.kind}:${branch ?? "branch"}:${derivedItem.index}`,
           title: derivedItem.address,
-          subtitle: `${branch === 0 ? 'External' : branch === 1 ? 'Internal' : 'Branch'} address #${derivedItem.index}`,
+          subtitle: `${branch === 0 ? "External" : branch === 1 ? "Internal" : "Branch"} address #${derivedItem.index}`,
           balanceAtomic: info.balance,
           balanceLabel: formatDashFromDuffs(info.balance),
           fields: [
-            { label: 'Relative derivation path', value: derivedItem.path, copyable: true },
+            { label: "Relative derivation path", value: derivedItem.path, copyable: true },
             ...(input.descriptorPath === undefined
               ? []
               : [
                   {
-                    label: 'Descriptor derivation path',
+                    label: "Descriptor derivation path",
                     value: `${input.descriptorPath}/${derivedItem.index}`,
                     copyable: true,
                   },
                 ]),
-            { label: 'Transactions reported', value: String(info.txCount) },
-            { label: 'Public-key hash', value: derivedItem.publicKeyHash, copyable: true },
+            { label: "Transactions reported", value: String(info.txCount) },
+            { label: "Public-key hash", value: derivedItem.publicKeyHash, copyable: true },
           ],
         };
         findings.push(finding);
@@ -149,7 +161,7 @@ async function scanTransparentXpub(
       context.onProgress({
         inputId: input.id,
         section: sectionId,
-        message: `${branch === 0 ? 'External' : branch === 1 ? 'Internal' : 'Branch'}: checked ${offset} of ${target}`,
+        message: `${branch === 0 ? "External" : branch === 1 ? "Internal" : "Branch"}: checked ${offset} of ${target}`,
         completed: scanned,
         total: null,
       });
@@ -170,48 +182,55 @@ async function scanTransparentXpub(
       node.depth === accountDepth
         ? `The account xpub at depth ${accountDepth} derives its external (/0/i) and internal (/1/i) branches without a seed.`
         : `The branch xpub at depth ${branchDepth} derives its relative /i address indices without a seed. The xpub does not reveal whether this is the external or internal branch.`,
-    state: 'complete',
+    state: "complete",
     metrics: [
       {
-        label: 'Spendable balance',
+        label: "Spendable balance",
         value: formatDashFromDuffs(totalBalance),
-        tone: totalBalance > 0n ? 'positive' : 'neutral',
+        tone: totalBalance > 0n ? "positive" : "neutral",
       },
-      { label: 'Funded addresses', value: String(fundedCount) },
-      { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
-      { label: 'Unique addresses queried', value: String(addressStates.size) },
+      { label: "Funded addresses", value: String(fundedCount) },
+      { label: "Previously used · empty", value: String(usedCount - fundedCount) },
+      { label: "Unique addresses queried", value: String(addressStates.size) },
     ],
     findings,
     scanned,
-    source: config.network === 'mainnet' ? 'https://dashscan.pshenmic.dev' : 'https://testnet.dashscan.pshenmic.dev',
+    source:
+      config.network === "mainnet"
+        ? "https://dashscan.pshenmic.dev"
+        : "https://testnet.dashscan.pshenmic.dev",
     proof: `DashScan synchronized · indexed Core height ${indexedHeight} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap`,
     ...(gapTruncated
       ? {
           warning:
-            'A used address was found too close to the end of the BIP32 index space to complete the post-use gap.',
+            "A used address was found too close to the end of the BIP32 index space to complete the post-use gap.",
         }
       : {}),
   };
   return {
     inputId: input.id,
     label: input.label,
-    coinId: 'dash',
-    coinLabel: 'Dash',
+    coinId: "dash",
+    coinLabel: "Dash",
     network: config.network,
     startedAt,
     completedAt: new Date().toISOString(),
     overview: [
       {
-        label: 'Total located value',
+        label: "Total located value",
         value: formatDashFromDuffs(totalBalance),
-        tone: totalBalance > 0n ? 'positive' : 'neutral',
+        tone: totalBalance > 0n ? "positive" : "neutral",
       },
-      { label: 'Funded addresses', value: String(fundedCount), tone: fundedCount > 0 ? 'positive' : 'neutral' },
-      { label: 'Unique addresses queried', value: String(addressStates.size) },
+      {
+        label: "Funded addresses",
+        value: String(fundedCount),
+        tone: fundedCount > 0 ? "positive" : "neutral",
+      },
+      { label: "Unique addresses queried", value: String(addressStates.size) },
     ],
     sections: [section],
     warnings: [
-      'Independently verify every funded address in a standard Dash wallet before treating a balance as spendable.',
+      "Independently verify every funded address in a standard Dash wallet before treating a balance as spendable.",
     ],
   };
 }
@@ -231,7 +250,7 @@ async function scanPlatformXpub(
       `This extended public key does not match the selected ${network.label} version bytes, or is malformed.`,
     );
   }
-  rejectMasterXpub(node, 'DIP17 Platform payment addresses');
+  rejectMasterXpub(node, "DIP17 Platform payment addresses");
   if (node.depth !== 5) {
     throw new Error(
       `A DIP17 key-class xpub has depth 5; this key has depth ${node.depth} and cannot be scanned for descendant addresses.`,
@@ -246,14 +265,21 @@ async function scanPlatformXpub(
   let gapTruncated = false;
   const startedAt = new Date().toISOString();
   for (let offset = 0; offset < target;) {
-    if (context.signal.aborted) throw new DOMException('Dash Platform watch-only scan cancelled.', 'AbortError');
+    if (context.signal.aborted)
+      throw new DOMException("Dash Platform watch-only scan cancelled.", "AbortError");
     const end = Math.min(offset + 100, target);
-    const derived: Array<{ address: string; index: number; path: string; publicKeyHash: string; storageKey: string }> =
-      [];
+    const derived: Array<{
+      address: string;
+      index: number;
+      path: string;
+      publicKeyHash: string;
+      storageKey: string;
+    }> = [];
     for (let index = offset; index < end; index += 1) {
       const child = node.deriveChild(index);
       const publicKey = child.publicKey;
-      if (publicKey === null) throw new Error('Watch-only derivation unexpectedly produced no public key.');
+      if (publicKey === null)
+        throw new Error("Watch-only derivation unexpectedly produced no public key.");
       const publicKeyHash = hash160(publicKey);
       const publicKeyHashHex = bytesToHex(publicKeyHash);
       derived.push({
@@ -290,19 +316,19 @@ async function scanPlatformXpub(
         balanceAtomic: info.balance,
         balanceLabel: formatDashFromCredits(info.balance),
         fields: [
-          { label: 'Relative derivation path', value: item.path, copyable: true },
-          { label: 'Outgoing nonce', value: info.nonce.toString() },
-          { label: 'Public-key hash', value: item.publicKeyHash, copyable: true },
+          { label: "Relative derivation path", value: item.path, copyable: true },
+          { label: "Outgoing nonce", value: info.nonce.toString() },
+          { label: "Public-key hash", value: item.publicKeyHash, copyable: true },
         ],
       };
       findings.push(finding);
-      context.onFinding(input.id, 'platform', finding);
+      context.onFinding(input.id, "platform", finding);
     }
     scanned += derived.length;
     offset = end;
     context.onProgress({
       inputId: input.id,
-      section: 'platform',
+      section: "platform",
       message: `Proof-checked ${scanned} of ${target} Platform addresses`,
       completed: scanned,
       total: target,
@@ -315,50 +341,54 @@ async function scanPlatformXpub(
     if (info.balance > 0n) fundedCount += 1;
   }
   const section: RecoverySection = {
-    id: 'platform',
-    title: 'Dash Platform watch-only addresses',
+    id: "platform",
+    title: "Dash Platform watch-only addresses",
     description:
-      'A DIP17 key-class xpub (depth 5, hardened through the key-class level) can derive its non-hardened leaf indices without a seed.',
-    state: 'complete',
+      "A DIP17 key-class xpub (depth 5, hardened through the key-class level) can derive its non-hardened leaf indices without a seed.",
+    state: "complete",
     metrics: [
       {
-        label: 'Address balance',
+        label: "Address balance",
         value: formatDashFromCredits(totalBalance),
-        tone: totalBalance > 0n ? 'positive' : 'neutral',
+        tone: totalBalance > 0n ? "positive" : "neutral",
       },
-      { label: 'Funded addresses', value: String(fundedCount) },
-      { label: 'Addresses checked', value: `${scanned} · minimum ${config.minimumCount}` },
+      { label: "Funded addresses", value: String(fundedCount) },
+      { label: "Addresses checked", value: `${scanned} · minimum ${config.minimumCount}` },
     ],
     findings,
     scanned,
-    source: 'Dash Platform DAPI · trusted quorum discovery',
+    source: "Dash Platform DAPI · trusted quorum discovery",
     proof: `Balance proof verified at Platform height ${proofHeight} · protocol ${protocolVersion} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap`,
     ...(gapTruncated
       ? {
           warning:
-            'A used address was found too close to the end of the BIP32 index space to complete the post-use gap.',
+            "A used address was found too close to the end of the BIP32 index space to complete the post-use gap.",
         }
       : {}),
   };
   return {
     inputId: input.id,
     label: input.label,
-    coinId: 'dash',
-    coinLabel: 'Dash',
+    coinId: "dash",
+    coinLabel: "Dash",
     network: config.network,
     startedAt,
     completedAt: new Date().toISOString(),
     overview: [
       {
-        label: 'Total located value',
+        label: "Total located value",
         value: formatDashFromCredits(totalBalance),
-        tone: totalBalance > 0n ? 'positive' : 'neutral',
+        tone: totalBalance > 0n ? "positive" : "neutral",
       },
-      { label: 'Funded addresses', value: String(fundedCount), tone: fundedCount > 0 ? 'positive' : 'neutral' },
+      {
+        label: "Funded addresses",
+        value: String(fundedCount),
+        tone: fundedCount > 0 ? "positive" : "neutral",
+      },
     ],
     sections: [section],
     warnings: [
-      'Independently verify every funded address in a standard Dash wallet before treating a balance as spendable.',
+      "Independently verify every funded address in a standard Dash wallet before treating a balance as spendable.",
     ],
   };
 }
@@ -375,26 +405,32 @@ async function scanExactPublicKey(
   try {
     point = secp256k1.Point.fromHex(input.value);
   } catch {
-    throw new Error('This public key is not a valid point on the secp256k1 curve.');
+    throw new Error("This public key is not a valid point on the secp256k1 curve.");
   }
   const compressed = point.toBytes(true);
   const uncompressed = point.toBytes(false);
   const startedAt = new Date().toISOString();
   const sections: RecoverySection[] = [];
   async function check(
-    id: RecoverySection['id'],
+    id: RecoverySection["id"],
     title: string,
     action: () => Promise<RecoverySection>,
   ): Promise<void> {
-    if (context.signal.aborted) throw new DOMException('Public-key scan cancelled.', 'AbortError');
-    context.onProgress({ inputId: input.id, section: id, message: title, completed: 0, total: null });
+    if (context.signal.aborted) throw new DOMException("Public-key scan cancelled.", "AbortError");
+    context.onProgress({
+      inputId: input.id,
+      section: id,
+      message: title,
+      completed: 0,
+      total: null,
+    });
     try {
       const section = await action();
       sections.push(section);
       for (const finding of section.findings) context.onFinding(input.id, id, finding);
     } catch (cause) {
       if (context.signal.aborted) throw cause;
-      sections.push(failedSection(id, title, 'Exact public-key lookup', cause));
+      sections.push(failedSection(id, title, "Exact public-key lookup", cause));
     }
   }
   try {
@@ -404,11 +440,11 @@ async function scanExactPublicKey(
       encodeP2pkh(hash160(uncompressed), network.p2pkh),
     ];
     const platformAddress = encodePlatformP2pkh(hash160(compressed), network.platformHrp);
-    await check('core', 'Dash Core · exact public key', async () => {
+    await check("core", "Dash Core · exact public key", async () => {
       const infos = validateDashScanAddressBatch(
         await gateway.runPublic(
           { network: config.network, addresses: coreAddresses },
-          'core.address-info',
+          "core.address-info",
           () => gateway.networkApi.coreAddressInfo(config.network, coreAddresses, context.signal),
           context.signal,
         ),
@@ -420,28 +456,35 @@ async function scanExactPublicKey(
           {
             id: `dash-public-key:core:${coreAddresses[index]}`,
             title: coreAddresses[index]!,
-            subtitle: index === 0 ? 'Exact Core P2PKH · compressed key' : 'Exact Core P2PKH · uncompressed key',
+            subtitle:
+              index === 0
+                ? "Exact Core P2PKH · compressed key"
+                : "Exact Core P2PKH · uncompressed key",
             balanceAtomic: info.balance,
             balanceLabel: formatDashFromDuffs(info.balance),
-            fields: [{ label: 'Transactions reported', value: String(info.txCount) }],
+            fields: [{ label: "Transactions reported", value: String(info.txCount) }],
           },
         ];
       });
       return {
-        id: 'core',
-        title: 'Dash Core · exact public key',
-        description: 'Check the compressed and uncompressed P2PKH addresses of this exact key.',
-        state: 'complete',
-        metrics: [{ label: 'Addresses checked', value: '2' }],
+        id: "core",
+        title: "Dash Core · exact public key",
+        description: "Check the compressed and uncompressed P2PKH addresses of this exact key.",
+        state: "complete",
+        metrics: [{ label: "Addresses checked", value: "2" }],
         findings,
         scanned: 2,
         source:
-          config.network === 'mainnet' ? 'https://dashscan.pshenmic.dev' : 'https://testnet.dashscan.pshenmic.dev',
-        proof: 'DashScan indexed Core state · single exact-key lookup',
+          config.network === "mainnet"
+            ? "https://dashscan.pshenmic.dev"
+            : "https://testnet.dashscan.pshenmic.dev",
+        proof: "DashScan indexed Core state · single exact-key lookup",
       };
     });
-    await check('platform', 'Dash Platform · exact public key', async () => {
-      const response = validatePlatformAddressBatch(await client.addresses([platformAddress], context.signal));
+    await check("platform", "Dash Platform · exact public key", async () => {
+      const response = validatePlatformAddressBatch(
+        await client.addresses([platformAddress], context.signal),
+      );
       const info = response.data.get(`00${compressedHashHex}`);
       const findings: RecoveryFinding[] =
         info != null && (info.balance > 0n || (config.includeUsedZeroBalance && info.nonce > 0n))
@@ -449,64 +492,66 @@ async function scanExactPublicKey(
               {
                 id: `dash-public-key:platform:${platformAddress}`,
                 title: platformAddress,
-                subtitle: 'Exact Platform P2PKH · compressed key',
+                subtitle: "Exact Platform P2PKH · compressed key",
                 balanceAtomic: info.balance,
                 balanceLabel: formatDashFromCredits(info.balance),
-                fields: [{ label: 'Outgoing nonce', value: info.nonce.toString() }],
+                fields: [{ label: "Outgoing nonce", value: info.nonce.toString() }],
               },
             ]
           : [];
       return {
-        id: 'platform',
-        title: 'Dash Platform · exact public key',
-        description: 'Check the compressed-key Platform P2PKH address.',
-        state: 'complete',
-        metrics: [{ label: 'Addresses checked', value: '1' }],
+        id: "platform",
+        title: "Dash Platform · exact public key",
+        description: "Check the compressed-key Platform P2PKH address.",
+        state: "complete",
+        metrics: [{ label: "Addresses checked", value: "1" }],
         findings,
         scanned: 1,
-        source: 'Dash Platform DAPI · trusted quorum discovery',
+        source: "Dash Platform DAPI · trusted quorum discovery",
         proof: `Balance proof verified at Platform height ${response.height} · protocol ${response.protocolVersion}`,
       };
     });
-    await check('identity', 'Dash Platform · exact identity lookup', async () => {
-      const response = validateIdentityLookup(await client.identity(compressedHashHex, context.signal));
+    await check("identity", "Dash Platform · exact identity lookup", async () => {
+      const response = validateIdentityLookup(
+        await client.identity(compressedHashHex, context.signal),
+      );
       const findings: RecoveryFinding[] = response.identities.map((identity) => ({
         id: `dash-public-key:identity:${identity.identifier}`,
         title: identity.identifier,
-        subtitle: 'Identity matched by unique compressed-key HASH160',
+        subtitle: "Identity matched by unique compressed-key HASH160",
         balanceAtomic: identity.balance,
         balanceLabel: formatDashFromCredits(identity.balance),
         fields: [
-          { label: 'Public-key hash', value: compressedHashHex, copyable: true },
-          { label: 'Identity revision', value: identity.revision.toString() },
+          { label: "Public-key hash", value: compressedHashHex, copyable: true },
+          { label: "Identity revision", value: identity.revision.toString() },
         ],
       }));
       return {
-        id: 'identity',
-        title: 'Dash Platform · exact identity lookup',
-        description: 'Proof-verified lookup by the compressed public key hash.',
-        state: 'complete',
-        metrics: [{ label: 'Identities found', value: String(findings.length) }],
+        id: "identity",
+        title: "Dash Platform · exact identity lookup",
+        description: "Proof-verified lookup by the compressed public key hash.",
+        state: "complete",
+        metrics: [{ label: "Identities found", value: String(findings.length) }],
         findings,
         scanned: 1,
-        source: 'Dash Platform DAPI · trusted quorum discovery',
+        source: "Dash Platform DAPI · trusted quorum discovery",
         proof: `Balance proof verified at Platform height ${response.proofHeight} · protocol ${response.protocolVersion}`,
       };
     });
     return {
       inputId: input.id,
       label: input.label,
-      coinId: 'dash',
-      coinLabel: 'Dash',
+      coinId: "dash",
+      coinLabel: "Dash",
       network: config.network,
       startedAt,
       completedAt: new Date().toISOString(),
       overview: summarizeDashSections(sections),
       sections,
       warnings: [
-        'A single public key is checked exactly; it does not derive standard wallet descendants.',
+        "A single public key is checked exactly; it does not derive standard wallet descendants.",
         ...sections
-          .filter(({ state }) => state === 'failed')
+          .filter(({ state }) => state === "failed")
           .map(({ title, warning }) => `${title} was not checked: ${warning}`),
       ],
     };
@@ -525,61 +570,63 @@ async function scanIdentityLookup(
   const publicKeyHashHex = ECDSA_PUBLIC_KEY_PATTERN.test(input.value)
     ? bytesToHex(hash160(hexToBytes(input.value)))
     : input.value;
-  const identityResult = validateIdentityLookup(await client.identity(publicKeyHashHex, context.signal));
+  const identityResult = validateIdentityLookup(
+    await client.identity(publicKeyHashHex, context.signal),
+  );
   const findings: RecoveryFinding[] = identityResult.identities.map((identity) => {
     const finding: RecoveryFinding = {
       id: `identity:${identity.identifier}`,
       title: identity.identifier,
-      subtitle: 'Identity matched by unique public-key hash',
+      subtitle: "Identity matched by unique public-key hash",
       balanceAtomic: identity.balance,
       balanceLabel: formatDashFromCredits(identity.balance),
       fields: [
-        { label: 'Public-key hash', value: publicKeyHashHex, copyable: true },
-        { label: 'Identity revision', value: identity.revision.toString() },
+        { label: "Public-key hash", value: publicKeyHashHex, copyable: true },
+        { label: "Identity revision", value: identity.revision.toString() },
       ],
     };
-    context.onFinding(input.id, 'identity', finding);
+    context.onFinding(input.id, "identity", finding);
     return finding;
   });
   if (identityResult.identities.length > 1) {
     findings.forEach((finding) => {
       finding.fields.push({
-        label: 'Note',
-        value: 'More than one identity matched this key hash; each is listed independently.',
+        label: "Note",
+        value: "More than one identity matched this key hash; each is listed independently.",
       });
     });
   }
   const totalBalance = findings.reduce((sum, finding) => sum + (finding.balanceAtomic ?? 0n), 0n);
   const section: RecoverySection = {
-    id: 'identity',
-    title: 'Dash Platform identity lookup',
+    id: "identity",
+    title: "Dash Platform identity lookup",
     description:
-      'A single proof-verified lookup by unique public-key hash. This scanner performs an exact lookup, not a derived-index scan.',
-    state: 'complete',
-    metrics: [{ label: 'Identities found', value: String(identityResult.identities.length) }],
+      "A single proof-verified lookup by unique public-key hash. This scanner performs an exact lookup, not a derived-index scan.",
+    state: "complete",
+    metrics: [{ label: "Identities found", value: String(identityResult.identities.length) }],
     findings,
     scanned: 1,
-    source: 'Dash Platform DAPI · trusted quorum discovery',
+    source: "Dash Platform DAPI · trusted quorum discovery",
     proof: `Balance proof verified at Platform height ${identityResult.proofHeight} · protocol ${identityResult.protocolVersion}`,
   };
   return {
     inputId: input.id,
     label: input.label,
-    coinId: 'dash',
-    coinLabel: 'Dash',
+    coinId: "dash",
+    coinLabel: "Dash",
     network: config.network,
     startedAt,
     completedAt: new Date().toISOString(),
     overview: [
       {
-        label: 'Total located value',
+        label: "Total located value",
         value: formatDashFromCredits(totalBalance),
-        tone: totalBalance > 0n ? 'positive' : 'neutral',
+        tone: totalBalance > 0n ? "positive" : "neutral",
       },
-      { label: 'Identities found', value: String(identityResult.identities.length) },
+      { label: "Identities found", value: String(identityResult.identities.length) },
     ],
     sections: [section],
-    warnings: ['Independently verify identity ownership before treating a balance as spendable.'],
+    warnings: ["Independently verify identity ownership before treating a balance as spendable."],
   };
 }
 
@@ -597,9 +644,12 @@ async function scanOrchard(
   gateway: RecoveryNetworkGateway,
 ): Promise<RecoveryWalletResult> {
   if (input.bundleNetwork !== undefined && input.bundleNetwork !== config.network) {
-    throw new Error(`This viewing bundle is for ${input.bundleNetwork}; select that network before scanning.`);
+    throw new Error(
+      `This viewing bundle is for ${input.bundleNetwork}; select that network before scanning.`,
+    );
   }
-  const kind = input.kind === 'orchard-fvk' ? 'full' : input.kind === 'orchard-ivk' ? 'incoming' : 'outgoing';
+  const kind =
+    input.kind === "orchard-fvk" ? "full" : input.kind === "orchard-ivk" ? "incoming" : "outgoing";
   const viewingKey: NormalizedViewingKey = { kind, hex: input.value };
   const startedAt = new Date().toISOString();
   try {
@@ -611,39 +661,39 @@ async function scanOrchard(
       gateway,
       context.signal,
       context.onProgress,
-      (finding) => context.onFinding(input.id, 'shielded', finding),
+      (finding) => context.onFinding(input.id, "shielded", finding),
     );
-    const balanceMetric = section.metrics.find((metric) => metric.label === 'Spendable balance');
+    const balanceMetric = section.metrics.find((metric) => metric.label === "Spendable balance");
     return {
       inputId: input.id,
       label: input.label,
-      coinId: 'dash',
-      coinLabel: 'Dash',
+      coinId: "dash",
+      coinLabel: "Dash",
       network: config.network,
       startedAt,
       completedAt: new Date().toISOString(),
       overview: [
-        balanceMetric ?? { label: 'Spendable balance', value: 'Not available', tone: 'neutral' },
+        balanceMetric ?? { label: "Spendable balance", value: "Not available", tone: "neutral" },
         {
-          label: 'Viewing key capability',
+          label: "Viewing key capability",
           value:
-            kind === 'full'
-              ? 'Full (incoming + outgoing + spend state)'
-              : kind === 'incoming'
-                ? 'Incoming only'
-                : 'Outgoing only',
+            kind === "full"
+              ? "Full (incoming + outgoing + spend state)"
+              : kind === "incoming"
+                ? "Incoming only"
+                : "Outgoing only",
         },
       ],
       sections: [section],
       warnings:
-        kind === 'full'
-          ? ['Independently verify every note before treating a balance as spendable.']
+        kind === "full"
+          ? ["Independently verify every note before treating a balance as spendable."]
           : [
-              'This viewing key cannot see the full picture of this account; it does not have an authoritative current balance.',
+              "This viewing key cannot see the full picture of this account; it does not have an authoritative current balance.",
             ],
     };
   } finally {
-    viewingKey.hex = '';
+    viewingKey.hex = "";
   }
 }
 
@@ -654,9 +704,9 @@ export async function scanDashWatchOnly(
 ): Promise<RecoveryWalletResult> {
   assertWatchOnlyMinimum(config.minimumCount);
   const guard = new SecretEgressGuard();
-  if (input.kind !== 'public-key' && input.kind !== 'identity') {
-    guard.registerString('Dash watch-only input', input.value);
-    context.sessionSecretGuard?.registerString('Dash watch-only input', input.value);
+  if (input.kind !== "public-key" && input.kind !== "identity") {
+    guard.registerString("Dash watch-only input", input.value);
+    context.sessionSecretGuard?.registerString("Dash watch-only input", input.value);
   }
   const gateway = new RecoveryNetworkGateway(
     guard,
@@ -665,19 +715,19 @@ export async function scanDashWatchOnly(
   );
   const client = new DashPlatformClient(config.network, gateway);
   switch (input.kind) {
-    case 'dash-legacy-xpub':
-    case 'dash-core-xpub':
-    case 'dash-coinjoin-xpub':
+    case "dash-legacy-xpub":
+    case "dash-core-xpub":
+    case "dash-coinjoin-xpub":
       return scanTransparentXpub(input, config, context, gateway);
-    case 'dash-platform-xpub':
+    case "dash-platform-xpub":
       return scanPlatformXpub(input, config, context, client);
-    case 'public-key':
+    case "public-key":
       return scanExactPublicKey(input, config, context, gateway, client);
-    case 'identity':
+    case "identity":
       return scanIdentityLookup(input, config, context, client);
-    case 'orchard-fvk':
-    case 'orchard-ivk':
-    case 'orchard-ovk':
+    case "orchard-fvk":
+    case "orchard-ivk":
+    case "orchard-ovk":
       return scanOrchard(input, config, context, gateway);
     default:
       throw new Error(`Dash watch-only scanning does not support ${input.kind}.`);

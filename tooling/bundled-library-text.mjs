@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync } from "node:fs";
 
 /**
  * Removes web addresses from message strings of bundled libraries.
@@ -18,12 +18,12 @@ export const BUNDLED_LIBRARY_TEXT = Object.freeze([
     file: /[\\/]node_modules[\\/]@pdf-lib[\\/]fontkit[\\/]dist[\\/]fontkit\.es\.js$/,
     replacements: [
       [
-        'See more info at https://github.com/ashtuchkin/iconv-lite/wiki/Node-v4-compatibility',
-        'See the iconv-lite documentation on Node v4 compatibility',
+        "See more info at https://github.com/ashtuchkin/iconv-lite/wiki/Node-v4-compatibility",
+        "See the iconv-lite documentation on Node v4 compatibility",
       ],
       [
-        'Refer to https://github.com/ashtuchkin/iconv-lite/wiki/Use-Buffers-when-decoding',
-        'Refer to the iconv-lite documentation on decoding buffers',
+        "Refer to https://github.com/ashtuchkin/iconv-lite/wiki/Use-Buffers-when-decoding",
+        "Refer to the iconv-lite documentation on decoding buffers",
       ],
     ],
   },
@@ -36,7 +36,9 @@ export function rewriteBundledLibraryText(path, source) {
   for (const [from, to] of rule.replacements) {
     const parts = text.split(from);
     if (parts.length !== 2)
-      throw new Error(`Expected exactly one occurrence of reviewed library text in ${path}: ${from}`);
+      throw new Error(
+        `Expected exactly one occurrence of reviewed library text in ${path}: ${from}`,
+      );
     text = parts.join(to);
   }
   return text;
@@ -44,12 +46,12 @@ export function rewriteBundledLibraryText(path, source) {
 
 export function createBundledLibraryTextPlugin() {
   return {
-    name: 'bundled-library-text',
+    name: "bundled-library-text",
     setup(build) {
       for (const { file } of BUNDLED_LIBRARY_TEXT) {
         build.onLoad({ filter: file }, ({ path }) => ({
-          contents: rewriteBundledLibraryText(path, readFileSync(path, 'utf8')),
-          loader: 'js',
+          contents: rewriteBundledLibraryText(path, readFileSync(path, "utf8")),
+          loader: "js",
         }));
       }
     },

@@ -5,7 +5,7 @@ export class IdentityPageIntegrity {
   #loaded = 0;
   constructor(
     readonly context: string,
-    readonly kind: 'transactions' | 'transfers' | 'resources',
+    readonly kind: "transactions" | "transfers" | "resources",
     expected: number | null,
   ) {
     this.#total = expected;
@@ -18,8 +18,14 @@ export class IdentityPageIntegrity {
     return this.#loaded;
   }
 
-  accept(items: Record<string, unknown>[], total: number | null, limit: number, displayLimit: number): void {
-    if (items.length > limit) throw new Error(`Platform Explorer ${this.context} exceeded its page size.`);
+  accept(
+    items: Record<string, unknown>[],
+    total: number | null,
+    limit: number,
+    displayLimit: number,
+  ): void {
+    if (items.length > limit)
+      throw new Error(`Platform Explorer ${this.context} exceeded its page size.`);
     if (total !== null) {
       if (this.#total !== null && this.#total !== total)
         throw new Error(
@@ -33,7 +39,7 @@ export class IdentityPageIntegrity {
       // movement across pages, never just its transaction hash. Identical legs in
       // one page are retained; indistinguishable legs across pages are ambiguous.
       const key =
-        this.kind === 'transfers'
+        this.kind === "transfers"
           ? JSON.stringify([
               item.txHash,
               item.sender,
@@ -43,13 +49,13 @@ export class IdentityPageIntegrity {
               item.timestamp,
               item.blockHash,
             ])
-          : this.kind === 'transactions'
+          : this.kind === "transactions"
             ? item.hash
             : item.identifier;
-      if (typeof key !== 'string' || key.length === 0)
+      if (typeof key !== "string" || key.length === 0)
         throw new Error(`Platform Explorer ${this.context} omitted a record identifier.`);
-      const identity = this.kind === 'transactions' ? key.toLowerCase() : key;
-      if (this.#seen.has(identity) || (this.kind !== 'transfers' && current.has(identity))) {
+      const identity = this.kind === "transactions" ? key.toLowerCase() : key;
+      if (this.#seen.has(identity) || (this.kind !== "transfers" && current.has(identity))) {
         throw new Error(`Platform Explorer ${this.context} repeated a record across its history.`);
       }
       current.add(identity);
@@ -58,7 +64,11 @@ export class IdentityPageIntegrity {
     this.#loaded += items.length;
     if (this.#total !== null && this.#loaded > this.#total)
       throw new Error(`Platform Explorer ${this.context} exceeded its reported count.`);
-    if (items.length < limit && this.#total !== null && this.#loaded < Math.min(this.#total, displayLimit)) {
+    if (
+      items.length < limit &&
+      this.#total !== null &&
+      this.#loaded < Math.min(this.#total, displayLimit)
+    ) {
       throw new Error(`Platform Explorer ${this.context} ended before its reported count.`);
     }
   }

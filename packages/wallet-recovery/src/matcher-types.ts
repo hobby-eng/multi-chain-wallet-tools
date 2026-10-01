@@ -1,4 +1,4 @@
-import type { NetworkName } from '@ckd/core/types.js';
+import type { NetworkName } from "@ckd/core/types.js";
 
 export interface WalletMatcherTarget {
   readonly id: string;

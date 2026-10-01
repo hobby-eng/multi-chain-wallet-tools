@@ -1,5 +1,5 @@
-import type { DerivationResult, DerivedRow, DisplayMode, ResultField } from '@ckd/core/types.js';
-import { createPaymentQrAction, paymentQrPayload } from '@ckd/ui/payment-qr.js';
+import type { DerivationResult, DerivedRow, DisplayMode, ResultField } from "@ckd/core/types.js";
+import { createPaymentQrAction, paymentQrPayload } from "@ckd/ui/payment-qr.js";
 
 export interface ResultsRenderOptions {
   mode: DisplayMode;
@@ -21,7 +21,11 @@ interface ResultWindow {
   size: number;
 }
 
-export function normalizeResultWindow(total: number, requestedStart: number, requestedSize: number): ResultWindow {
+export function normalizeResultWindow(
+  total: number,
+  requestedStart: number,
+  requestedSize: number,
+): ResultWindow {
   const size = Number.isSafeInteger(requestedSize) && requestedSize > 0 ? requestedSize : 1;
   if (total <= 0) return { start: 0, end: 0, size };
   const lastPageStart = Math.floor((total - 1) / size) * size;
@@ -41,17 +45,17 @@ function element<K extends keyof HTMLElementTagNameMap>(
 }
 
 function iconButton(label: string, pathData: string): HTMLButtonElement {
-  const button = element('button', 'copy icon-action');
-  button.type = 'button';
+  const button = element("button", "copy icon-action");
+  button.type = "button";
   button.title = label;
-  button.setAttribute('aria-label', label);
-  button.dataset.iconButton = 'true';
-  const namespace = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(namespace, 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS(namespace, 'path');
-  path.setAttribute('d', pathData);
+  button.setAttribute("aria-label", label);
+  button.dataset.iconButton = "true";
+  const namespace = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(namespace, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS(namespace, "path");
+  path.setAttribute("d", pathData);
   svg.append(path);
   button.append(svg);
   return button;
@@ -59,16 +63,21 @@ function iconButton(label: string, pathData: string): HTMLButtonElement {
 
 function copyButton(
   field: ResultField,
-  locator: { scope: 'summary' | 'row'; row?: number },
+  locator: { scope: "summary" | "row"; row?: number },
   secretsRevealed: boolean,
 ): HTMLButtonElement {
-  const copy = iconButton(`Copy ${field.label}`, 'M8 7V3h13v13h-4v5H3V7h5zm2 0h7v7h2V5h-9v2zm5 2H5v10h10V9z');
+  const copy = iconButton(
+    `Copy ${field.label}`,
+    "M8 7V3h13v13h-4v5H3V7h5zm2 0h7v7h2V5h-9v2zm5 2H5v10h10V9z",
+  );
   copy.dataset.copyScope = locator.scope;
   copy.dataset.copyField = field.key;
   if (locator.row !== undefined) copy.dataset.copyRow = String(locator.row);
   copy.dataset.secret = String(field.secret);
   copy.disabled = field.secret && !secretsRevealed;
-  copy.title = copy.disabled ? 'Show private and privacy-sensitive values before copying.' : `Copy ${field.label}`;
+  copy.title = copy.disabled
+    ? "Show private and privacy-sensitive values before copying."
+    : `Copy ${field.label}`;
   return copy;
 }
 
@@ -78,33 +87,34 @@ function signButton(
   onSign: (index: number, address: string) => void,
 ): HTMLButtonElement {
   const sign = iconButton(
-    'Sign a message with this address',
-    'M4 20h4l11-11-4-4L4 16v4zm12-16 4 4 1-1a1.4 1.4 0 0 0 0-2l-2-2a1.4 1.4 0 0 0-2 0l-1 1z',
+    "Sign a message with this address",
+    "M4 20h4l11-11-4-4L4 16v4zm12-16 4 4 1-1a1.4 1.4 0 0 0 0-2l-2-2a1.4 1.4 0 0 0-2 0l-1 1z",
   );
   sign.dataset.signMessage = String(index);
   sign.dataset.signAddress = address;
-  sign.addEventListener('click', () => onSign(index, address));
+  sign.addEventListener("click", () => onSign(index, address));
   return sign;
 }
 
 function fieldRow(
   field: ResultField,
-  locator: { scope: 'summary' | 'row'; row?: number },
+  locator: { scope: "summary" | "row"; row?: number },
   options: ResultsRenderOptions,
 ): HTMLElement {
-  const row = element('div', 'row');
-  const label = element('div', 'row-label', field.label);
+  const row = element("div", "row");
+  const label = element("div", "row-label", field.label);
   if (field.description !== undefined) {
     label.title = field.description;
-    label.classList.add('has-description');
+    label.classList.add("has-description");
   }
-  const value = element('div', `value${field.secret ? ' secret-value' : ''}`, field.value);
+  const value = element("div", `value${field.secret ? " secret-value" : ""}`, field.value);
   const copy = copyButton(field, locator, options.secretsRevealed);
-  const actions = element('div', 'field-actions');
+  const actions = element("div", "field-actions");
   actions.append(copy);
   const qrPayload = paymentQrPayload(field);
-  if (qrPayload !== undefined) actions.append(createPaymentQrAction(document, qrPayload, field.label));
-  if (field.role === 'paymentAddress' && locator.row !== undefined && options.canSignMessages) {
+  if (qrPayload !== undefined)
+    actions.append(createPaymentQrAction(document, qrPayload, field.label));
+  if (field.role === "paymentAddress" && locator.row !== undefined && options.canSignMessages) {
     actions.append(signButton(locator.row, field.value, options.onSignMessage));
   }
   row.append(label, value, actions);
@@ -116,19 +126,20 @@ function basicFieldCell(
   rowIndex: number,
   options: ResultsRenderOptions,
 ): HTMLTableCellElement {
-  const highlight = field?.key === 'address' || field?.key.endsWith('PublicKeyHash') === true;
-  const cell = element('td', highlight ? 'basic-address-cell' : undefined);
+  const highlight = field?.key === "address" || field?.key.endsWith("PublicKeyHash") === true;
+  const cell = element("td", highlight ? "basic-address-cell" : undefined);
   if (field === undefined) {
-    cell.append(element('span', 'table-empty', '—'));
+    cell.append(element("span", "table-empty", "—"));
     return cell;
   }
-  const content = element('div', 'table-value-wrap');
-  const value = element('span', `value${field.secret ? ' secret-value' : ''}`, field.value);
-  const copy = copyButton(field, { scope: 'row', row: rowIndex }, options.secretsRevealed);
+  const content = element("div", "table-value-wrap");
+  const value = element("span", `value${field.secret ? " secret-value" : ""}`, field.value);
+  const copy = copyButton(field, { scope: "row", row: rowIndex }, options.secretsRevealed);
   content.append(value, copy);
   const qrPayload = paymentQrPayload(field);
-  if (qrPayload !== undefined) content.append(createPaymentQrAction(document, qrPayload, field.label));
-  if (field.role === 'paymentAddress' && options.canSignMessages) {
+  if (qrPayload !== undefined)
+    content.append(createPaymentQrAction(document, qrPayload, field.label));
+  if (field.role === "paymentAddress" && options.canSignMessages) {
     content.append(signButton(rowIndex, field.value, options.onSignMessage));
   }
   cell.append(content);
@@ -141,12 +152,12 @@ function selectionCheckbox(
   onChange: (checked: boolean) => void,
   label = `Select result ${derivedIndex}`,
 ): HTMLInputElement {
-  const checkbox = element('input');
-  checkbox.type = 'checkbox';
+  const checkbox = element("input");
+  checkbox.type = "checkbox";
   checkbox.checked = checked;
   checkbox.dataset.selectRow = String(derivedIndex);
-  checkbox.setAttribute('aria-label', label);
-  checkbox.addEventListener('change', () => onChange(checkbox.checked));
+  checkbox.setAttribute("aria-label", label);
+  checkbox.addEventListener("change", () => onChange(checkbox.checked));
   return checkbox;
 }
 
@@ -158,16 +169,16 @@ function appendBasicRows(
 ): void {
   const fragment = document.createDocumentFragment();
   for (const derived of rows) {
-    const row = element('tr');
-    const selectionCell = element('td', 'select-column');
+    const row = element("tr");
+    const selectionCell = element("td", "select-column");
     selectionCell.append(
       selectionCheckbox(derived.index, options.selected.has(derived.index), (checked) => {
         options.onSelectionChange(derived.index, checked);
       }),
     );
-    const pathCell = element('td', 'path-column value', derived.path);
+    const pathCell = element("td", "path-column value", derived.path);
     pathCell.title = derived.path;
-    pathCell.setAttribute('aria-label', `Derivation path ${derived.path}`);
+    pathCell.setAttribute("aria-label", `Derivation path ${derived.path}`);
     row.append(selectionCell, pathCell);
     for (const key of fieldKeys) {
       row.append(
@@ -177,15 +188,15 @@ function appendBasicRows(
           options,
         ),
       );
-      if (key === 'address' && options.encryptedBip38.size > 0) {
+      if (key === "address" && options.encryptedBip38.size > 0) {
         const encryptedKey = options.encryptedBip38.get(derived.index);
         row.append(
           basicFieldCell(
             encryptedKey === undefined
               ? undefined
               : {
-                  key: 'bip38EncryptedKey',
-                  label: 'Encrypted private key · BIP38',
+                  key: "bip38EncryptedKey",
+                  label: "Encrypted private key · BIP38",
                   value: encryptedKey,
                   secret: true,
                 },
@@ -201,53 +212,58 @@ function appendBasicRows(
 }
 
 function groupedBasicCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLElement {
-  const card = element('article', 'address-card grouped-result-card');
-  const head = element('div', 'card-head');
-  const identity = element('div');
-  identity.append(element('h3', undefined, derived.title), element('div', 'card-index', derived.path));
-  const right = element('div', 'card-right');
-  right.append(element('div', 'identity-profile-badge', `${derived.groups?.length ?? 0}-key standard profile`));
-  const selectionLabel = element('label', 'row-selection');
+  const card = element("article", "address-card grouped-result-card");
+  const head = element("div", "card-head");
+  const identity = element("div");
+  identity.append(
+    element("h3", undefined, derived.title),
+    element("div", "card-index", derived.path),
+  );
+  const right = element("div", "card-right");
+  right.append(
+    element("div", "identity-profile-badge", `${derived.groups?.length ?? 0}-key standard profile`),
+  );
+  const selectionLabel = element("label", "row-selection");
   const checkbox = selectionCheckbox(
     derived.index,
     options.selected.has(derived.index),
     (checked) => options.onSelectionChange(derived.index, checked),
     `Select ${derived.title} and all of its key slots`,
   );
-  selectionLabel.append(checkbox, document.createTextNode(' Select this Identity candidate'));
+  selectionLabel.append(checkbox, document.createTextNode(" Select this Identity candidate"));
   right.append(selectionLabel);
   head.append(identity, right);
 
-  const body = element('div', 'grouped-basic-body');
+  const body = element("div", "grouped-basic-body");
   for (const field of derived.basic) {
-    body.append(fieldRow(field, { scope: 'row', row: derived.index }, options));
+    body.append(fieldRow(field, { scope: "row", row: derived.index }, options));
   }
 
   const groups = derived.groups ?? [];
   if (groups.length > 0) {
-    const wrapper = element('div', 'identity-key-table-wrap');
-    const table = element('table', 'identity-key-table');
-    const tableHead = element('thead');
-    const headerRow = element('tr');
-    headerRow.append(element('th', 'identity-key-role-column', 'Key slot · official default role'));
+    const wrapper = element("div", "identity-key-table-wrap");
+    const table = element("table", "identity-key-table");
+    const tableHead = element("thead");
+    const headerRow = element("tr");
+    headerRow.append(element("th", "identity-key-role-column", "Key slot · official default role"));
     for (const field of groups[0]?.basic ?? []) {
-      const header = element('th', undefined, field.label);
+      const header = element("th", undefined, field.label);
       if (field.description !== undefined) {
         header.title = field.description;
-        header.classList.add('has-description');
+        header.classList.add("has-description");
       }
       headerRow.append(header);
     }
     tableHead.append(headerRow);
 
-    const tableBody = element('tbody');
+    const tableBody = element("tbody");
     for (const group of groups) {
-      const row = element('tr');
-      const role = element('td', 'identity-key-role-column');
-      const title = element('strong', undefined, group.title);
+      const row = element("tr");
+      const role = element("td", "identity-key-role-column");
+      const title = element("strong", undefined, group.title);
       if (group.description !== undefined) {
         title.title = group.description;
-        title.classList.add('has-description');
+        title.classList.add("has-description");
       }
       role.append(title);
       row.append(role);
@@ -266,11 +282,17 @@ function groupedBasicCard(derived: DerivedRow, options: ResultsRenderOptions): H
 }
 
 function advancedCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLElement {
-  const card = element('article', `address-card${derived.groups === undefined ? '' : ' grouped-result-card'}`);
-  const head = element('div', 'card-head');
-  const identity = element('div');
-  identity.append(element('h3', undefined, derived.title), element('div', 'card-index', derived.path));
-  const selectionLabel = element('label', 'row-selection');
+  const card = element(
+    "article",
+    `address-card${derived.groups === undefined ? "" : " grouped-result-card"}`,
+  );
+  const head = element("div", "card-head");
+  const identity = element("div");
+  identity.append(
+    element("h3", undefined, derived.title),
+    element("div", "card-index", derived.path),
+  );
+  const selectionLabel = element("label", "row-selection");
   const grouped = derived.groups !== undefined;
   const checkbox = selectionCheckbox(
     derived.index,
@@ -280,56 +302,58 @@ function advancedCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLE
   );
   selectionLabel.append(
     checkbox,
-    document.createTextNode(grouped ? ' Select this Identity candidate' : ' Select this result'),
+    document.createTextNode(grouped ? " Select this Identity candidate" : " Select this result"),
   );
-  const address = derived.basic.find((field) => field.key === 'address');
-  const right = element('div', 'card-right');
-  if (address !== undefined) right.append(element('div', 'address', address.value));
+  const address = derived.basic.find((field) => field.key === "address");
+  const right = element("div", "card-right");
+  if (address !== undefined) right.append(element("div", "address", address.value));
   if (derived.groups !== undefined) {
-    right.append(element('div', 'identity-profile-badge', `${derived.groups.length}-key standard profile`));
+    right.append(
+      element("div", "identity-profile-badge", `${derived.groups.length}-key standard profile`),
+    );
   }
   right.append(selectionLabel);
   head.append(identity, right);
 
-  const body = element('div', 'address-body');
+  const body = element("div", "address-body");
   for (const field of derived.basic) {
-    body.append(fieldRow(field, { scope: 'row', row: derived.index }, options));
+    body.append(fieldRow(field, { scope: "row", row: derived.index }, options));
   }
   const encryptedKey = options.encryptedBip38.get(derived.index);
   if (encryptedKey !== undefined) {
     body.append(
       fieldRow(
         {
-          key: 'bip38EncryptedKey',
-          label: 'Encrypted private key · BIP38',
+          key: "bip38EncryptedKey",
+          label: "Encrypted private key · BIP38",
           value: encryptedKey,
           secret: true,
         },
-        { scope: 'row', row: derived.index },
+        { scope: "row", row: derived.index },
         options,
       ),
     );
   }
   if (derived.advanced.length > 0) {
-    const detailRows = element('div', 'advanced-field-rows');
+    const detailRows = element("div", "advanced-field-rows");
     for (const field of derived.advanced) {
-      detailRows.append(fieldRow(field, { scope: 'row', row: derived.index }, options));
+      detailRows.append(fieldRow(field, { scope: "row", row: derived.index }, options));
     }
     body.append(detailRows);
   }
   if (derived.groups !== undefined) {
-    const groups = element('div', 'field-groups');
+    const groups = element("div", "field-groups");
     for (const group of derived.groups) {
-      const section = element('section', 'field-group');
-      const groupHead = element('div', 'field-group-head');
-      groupHead.append(element('h4', undefined, group.title));
+      const section = element("section", "field-group");
+      const groupHead = element("div", "field-group-head");
+      groupHead.append(element("h4", undefined, group.title));
       if (group.description !== undefined) {
-        groupHead.append(element('p', undefined, group.description));
+        groupHead.append(element("p", undefined, group.description));
       }
       section.append(groupHead);
-      const fields = element('div', 'field-group-rows');
+      const fields = element("div", "field-group-rows");
       for (const field of [...group.basic, ...group.advanced]) {
-        fields.append(fieldRow(field, { scope: 'row', row: derived.index }, options));
+        fields.append(fieldRow(field, { scope: "row", row: derived.index }, options));
       }
       section.append(fields);
       groups.append(section);
@@ -340,31 +364,41 @@ function advancedCard(derived: DerivedRow, options: ResultsRenderOptions): HTMLE
   return card;
 }
 
-function resultWindowControls(total: number, window: ResultWindow, options: ResultsRenderOptions): HTMLElement {
-  const navigation = element('nav', 'result-window-controls');
-  navigation.setAttribute('aria-label', 'Displayed result window');
+function resultWindowControls(
+  total: number,
+  window: ResultWindow,
+  options: ResultsRenderOptions,
+): HTMLElement {
+  const navigation = element("nav", "result-window-controls");
+  navigation.setAttribute("aria-label", "Displayed result window");
   const page = total === 0 ? 0 : Math.floor(window.start / window.size) + 1;
   const pages = total === 0 ? 0 : Math.ceil(total / window.size);
   const range = element(
-    'span',
-    'result-window-range',
+    "span",
+    "result-window-range",
     total === 0
-      ? 'No generated results'
+      ? "No generated results"
       : `Showing ${window.start + 1}–${window.end} of ${total.toLocaleString()} · page ${page} of ${pages}`,
   );
-  const note = element('small', 'result-window-note', 'Only this visible window is kept in the page DOM.');
-  const copy = element('div', 'result-window-copy');
+  const note = element(
+    "small",
+    "result-window-note",
+    "Only this visible window is kept in the page DOM.",
+  );
+  const copy = element("div", "result-window-copy");
   copy.append(range, note);
 
-  const actions = element('div', 'mini-actions');
-  const previous = element('button', 'secondary compact', 'Previous');
-  const next = element('button', 'secondary compact', 'Next');
-  previous.type = 'button';
-  next.type = 'button';
+  const actions = element("div", "mini-actions");
+  const previous = element("button", "secondary compact", "Previous");
+  const next = element("button", "secondary compact", "Next");
+  previous.type = "button";
+  next.type = "button";
   previous.disabled = window.start === 0;
   next.disabled = window.end >= total;
-  previous.addEventListener('click', () => options.onWindowChange(Math.max(0, window.start - window.size)));
-  next.addEventListener('click', () => options.onWindowChange(window.start + window.size));
+  previous.addEventListener("click", () =>
+    options.onWindowChange(Math.max(0, window.start - window.size)),
+  );
+  next.addEventListener("click", () => options.onWindowChange(window.start + window.size));
   actions.append(previous, next);
   navigation.append(copy, actions);
   return navigation;
@@ -381,62 +415,68 @@ export function renderResults(
   listRoot.replaceChildren();
   noticesRoot.replaceChildren();
 
-  const accountFields = options.mode === 'advanced' ? [...result.basicSummary, ...result.summary] : result.basicSummary;
-  if (accountFields.length > 0 || (options.mode === 'advanced' && result.summary.length > 0)) {
-    const card = element('article', 'key-card summary-card root-material-card');
+  const accountFields =
+    options.mode === "advanced" ? [...result.basicSummary, ...result.summary] : result.basicSummary;
+  if (accountFields.length > 0 || (options.mode === "advanced" && result.summary.length > 0)) {
+    const card = element("article", "key-card summary-card root-material-card");
     card.append(
-      element('div', 'root-card-kicker', 'ACCOUNT-SCOPED MATERIAL'),
-      element('h3', undefined, 'Account / root details — source of all results below'),
-      element('div', 'path', `${result.pathTemplate} · ${result.networkLabel}`),
+      element("div", "root-card-kicker", "ACCOUNT-SCOPED MATERIAL"),
+      element("h3", undefined, "Account / root details — source of all results below"),
+      element("div", "path", `${result.pathTemplate} · ${result.networkLabel}`),
       element(
-        'div',
-        'root-warning',
-        'Critical: revealing or copying root/account secrets can compromise every address derived from this account, not only one row.',
+        "div",
+        "root-warning",
+        "Critical: revealing or copying root/account secrets can compromise every address derived from this account, not only one row.",
       ),
     );
     for (const field of accountFields) {
-      card.append(fieldRow(field, { scope: 'summary' }, options));
+      card.append(fieldRow(field, { scope: "summary" }, options));
     }
     summaryRoot.append(card);
   }
 
   for (const notice of result.notices) {
-    noticesRoot.append(element('div', 'result-help', notice));
+    noticesRoot.append(element("div", "result-help", notice));
   }
 
-  const renderedRows = options.rowLimit === undefined ? result.rows : result.rows.slice(0, options.rowLimit);
-  const window = normalizeResultWindow(renderedRows.length, options.windowStart, options.windowSize);
+  const renderedRows =
+    options.rowLimit === undefined ? result.rows : result.rows.slice(0, options.rowLimit);
+  const window = normalizeResultWindow(
+    renderedRows.length,
+    options.windowStart,
+    options.windowSize,
+  );
   const visibleRows = renderedRows.slice(window.start, window.end);
   listRoot.append(resultWindowControls(renderedRows.length, window, options));
 
-  if (options.mode === 'basic') {
+  if (options.mode === "basic") {
     if ((result.rows[0]?.groups?.length ?? 0) > 0) {
-      const groupedResults = element('div', 'grouped-basic-results');
+      const groupedResults = element("div", "grouped-basic-results");
       for (const derived of visibleRows) groupedResults.append(groupedBasicCard(derived, options));
       listRoot.append(groupedResults);
       return;
     }
     const fieldDefinitions = new Map<string, ResultField>();
     for (const field of result.rows[0]?.basic ?? []) fieldDefinitions.set(field.key, field);
-    const wrapper = element('div', 'basic-table-wrap');
-    const table = element('table', 'basic-results-table');
-    const head = element('thead');
-    const headerRow = element('tr');
-    headerRow.append(element('th', 'select-column', 'Use'), element('th', 'path-column', 'Path'));
+    const wrapper = element("div", "basic-table-wrap");
+    const table = element("table", "basic-results-table");
+    const head = element("thead");
+    const headerRow = element("tr");
+    headerRow.append(element("th", "select-column", "Use"), element("th", "path-column", "Path"));
     for (const field of fieldDefinitions.values()) {
-      const header = element('th', undefined, field.label);
+      const header = element("th", undefined, field.label);
       header.dataset.fieldKey = field.key;
       if (field.description !== undefined) {
         header.title = field.description;
-        header.classList.add('has-description');
+        header.classList.add("has-description");
       }
       headerRow.append(header);
-      if (field.key === 'address' && options.encryptedBip38.size > 0) {
-        headerRow.append(element('th', undefined, 'Encrypted private key · BIP38'));
+      if (field.key === "address" && options.encryptedBip38.size > 0) {
+        headerRow.append(element("th", undefined, "Encrypted private key · BIP38"));
       }
     }
     head.append(headerRow);
-    const body = element('tbody');
+    const body = element("tbody");
     appendBasicRows(body, visibleRows, [...fieldDefinitions.keys()], options);
     table.append(head, body);
     wrapper.append(table);
@@ -450,11 +490,11 @@ export function renderResults(
 }
 
 export function updateSecretVisibility(results: HTMLElement, revealed: boolean): void {
-  results.classList.toggle('revealed', revealed);
+  results.classList.toggle("revealed", revealed);
   for (const button of results.querySelectorAll<HTMLButtonElement>('[data-secret="true"]')) {
     button.disabled = !revealed;
     button.title = revealed
-      ? 'Copy this sensitive value.'
-      : 'Show private and privacy-sensitive values before copying.';
+      ? "Copy this sensitive value."
+      : "Show private and privacy-sensitive values before copying.";
   }
 }

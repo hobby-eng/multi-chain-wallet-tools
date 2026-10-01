@@ -1,14 +1,14 @@
-import { enrichRecoveryHistory } from './history.js';
+import { enrichRecoveryHistory } from "./history.js";
 import type {
   RecoveryCoinAdapter,
   RecoveryScanConfig,
   RecoveryScanContext,
   RecoverySeedInput,
   RecoveryWalletResult,
-} from './types.js';
+} from "./types.js";
 
 export function candidateFailure(
-  input: Pick<RecoverySeedInput, 'id' | 'label'>,
+  input: Pick<RecoverySeedInput, "id" | "label">,
   config: RecoveryScanConfig,
   coinId: string,
   coinLabel: string,
@@ -27,16 +27,16 @@ export function candidateFailure(
     warnings: [message],
     sections: [
       {
-        id: 'core',
-        title: 'Check incomplete',
+        id: "core",
+        title: "Check incomplete",
         description: message,
-        state: 'failed',
+        state: "failed",
         balanceAvailable: false,
         metrics: [],
         findings: [],
         scanned: 0,
-        source: 'Not established',
-        proof: 'Not established',
+        source: "Not established",
+        proof: "Not established",
         warning: message,
       },
     ],
@@ -54,7 +54,7 @@ export async function scanCandidates(
 ): Promise<void> {
   try {
     for (const candidate of inputs) {
-      if (context.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+      if (context.signal.aborted) throw new DOMException("Cancelled", "AbortError");
       try {
         try {
           candidate.mnemonic = validate(candidate.mnemonic);
@@ -64,17 +64,17 @@ export async function scanCandidates(
             candidateFailure(
               candidate,
               config,
-              'input',
-              'Input validation',
-              'Invalid BIP39 candidate: check word list, word count and checksum. No coins were checked.',
+              "input",
+              "Input validation",
+              "Invalid BIP39 candidate: check word list, word count and checksum. No coins were checked.",
             ),
           );
           continue;
         }
-        context.sessionSecretGuard?.registerString('Candidate mnemonic', candidate.mnemonic);
-        context.sessionSecretGuard?.registerString('Candidate passphrase', candidate.passphrase);
+        context.sessionSecretGuard?.registerString("Candidate mnemonic", candidate.mnemonic);
+        context.sessionSecretGuard?.registerString("Candidate passphrase", candidate.passphrase);
         const coinChecks = adapters.map(async (adapter) => {
-          if (context.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+          if (context.signal.aborted) throw new DOMException("Cancelled", "AbortError");
           const input = {
             ...candidate,
             id: `${candidate.id}-${adapter.id}`,
@@ -84,7 +84,7 @@ export async function scanCandidates(
             ...config,
             scanCustomPath: false,
             includeUsedZeroBalance: config.includeUsedZeroBalance,
-            scanCore: adapter.id === 'dash' ? config.scanCore : true,
+            scanCore: adapter.id === "dash" ? config.scanCore : true,
           };
           try {
             if (!adapter.networks.includes(config.network)) {
@@ -94,14 +94,14 @@ export async function scanCandidates(
                   config,
                   adapter.id,
                   adapter.label,
-                  'Selected network is not supported by this coin adapter.',
+                  "Selected network is not supported by this coin adapter.",
                 ),
               );
               return;
             }
             const result = await adapter.scan(input, coinConfig, context);
             await enrichRecoveryHistory(adapter, result, context);
-            if (context.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+            if (context.signal.aborted) throw new DOMException("Cancelled", "AbortError");
             onResult(result);
           } catch {
             const cancelled = context.signal.aborted;
@@ -112,49 +112,53 @@ export async function scanCandidates(
                 adapter.id,
                 adapter.label,
                 cancelled
-                  ? 'Cancelled: this coin check is incomplete.'
-                  : 'Coin check failed. Balance and activity are unknown; retry this coin separately.',
+                  ? "Cancelled: this coin check is incomplete."
+                  : "Coin check failed. Balance and activity are unknown; retry this coin separately.",
               ),
             );
-            if (cancelled) throw new DOMException('Cancelled', 'AbortError');
+            if (cancelled) throw new DOMException("Cancelled", "AbortError");
           } finally {
-            input.mnemonic = '';
-            input.passphrase = '';
+            input.mnemonic = "";
+            input.passphrase = "";
           }
         });
         // Await every coin before releasing the shared candidate or export guard.
         const settled = await Promise.allSettled(coinChecks);
-        const failure = settled.find((result) => result.status === 'rejected');
-        if (failure?.status === 'rejected') throw failure.reason;
+        const failure = settled.find((result) => result.status === "rejected");
+        if (failure?.status === "rejected") throw failure.reason;
       } finally {
-        candidate.mnemonic = '';
-        candidate.passphrase = '';
+        candidate.mnemonic = "";
+        candidate.passphrase = "";
       }
     }
   } finally {
     for (const input of inputs) {
-      input.mnemonic = '';
-      input.passphrase = '';
+      input.mnemonic = "";
+      input.passphrase = "";
     }
   }
 }
 
 export function candidateSummary(result: RecoveryWalletResult): string {
-  if (result.coinId === 'input') return 'Invalid BIP39 candidate · no coins checked';
-  const sections = result.sections.filter((section) => section.state !== 'skipped');
+  if (result.coinId === "input") return "Invalid BIP39 candidate · no coins checked";
+  const sections = result.sections.filter((section) => section.state !== "skipped");
   const findings = sections.flatMap((section) => section.findings);
-  const funded = findings.filter((finding) => finding.balanceAtomic !== null && finding.balanceAtomic > 0n).length;
+  const funded = findings.filter(
+    (finding) => finding.balanceAtomic !== null && finding.balanceAtomic > 0n,
+  ).length;
   const incomplete =
     sections.length === 0 ||
-    sections.some((section) => section.state !== 'complete' || section.balanceAvailable === false) ||
+    sections.some(
+      (section) => section.state !== "complete" || section.balanceAvailable === false,
+    ) ||
     findings.some((finding) => finding.balanceAtomic === null);
   const outcome =
     funded > 0
-      ? `${funded} funded resource${funded === 1 ? '' : 's'} found`
+      ? `${funded} funded resource${funded === 1 ? "" : "s"} found`
       : findings.length > 0
-        ? 'Resources / activity found; no confirmed positive balance'
+        ? "Resources / activity found; no confirmed positive balance"
         : incomplete
-          ? 'Balance / activity unknown'
-          : 'No activity found within scanned coverage';
-  return `${outcome}${incomplete ? ' · incomplete check' : ''}`;
+          ? "Balance / activity unknown"
+          : "No activity found within scanned coverage";
+  return `${outcome}${incomplete ? " · incomplete check" : ""}`;
 }

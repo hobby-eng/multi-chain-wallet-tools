@@ -1,6 +1,11 @@
-import { deriveBip85Bip39, deriveBip85Hex, deriveBip85Wif, deriveBip85Xprv } from '@ckd/core/bip85.js';
+import {
+  deriveBip85Bip39,
+  deriveBip85Hex,
+  deriveBip85Wif,
+  deriveBip85Xprv,
+} from "@ckd/core/bip85.js";
 
-type Bip85Application = 'bip39' | 'wif' | 'xprv' | 'hex';
+type Bip85Application = "bip39" | "wif" | "xprv" | "hex";
 
 export interface Bip85RequestOptions {
   application: Bip85Application;
@@ -18,22 +23,27 @@ export interface Bip85Result {
 }
 
 export function deriveBip85(seed: Uint8Array, options: Bip85RequestOptions): Bip85Result {
-  if (options.application === 'bip39') {
+  if (options.application === "bip39") {
     const result = deriveBip85Bip39(seed, options.words ?? 12, options.index);
-    return { path: result.path, value: result.entropyHex, entropyHex: result.entropyHex, kind: 'bip39' };
+    return {
+      path: result.path,
+      value: result.entropyHex,
+      entropyHex: result.entropyHex,
+      kind: "bip39",
+    };
   }
-  if (options.application === 'wif') {
+  if (options.application === "wif") {
     const wifVersion = options.wifVersion ?? 0x80;
     if (!Number.isInteger(wifVersion) || wifVersion < 0 || wifVersion > 0xff) {
-      throw new Error('BIP85 WIF version must be one byte.');
+      throw new Error("BIP85 WIF version must be one byte.");
     }
     const result = deriveBip85Wif(seed, options.index, wifVersion);
-    return { path: result.path, value: result.wif, kind: 'wif' };
+    return { path: result.path, value: result.wif, kind: "wif" };
   }
-  if (options.application === 'xprv') {
+  if (options.application === "xprv") {
     const result = deriveBip85Xprv(seed, options.index);
-    return { path: result.path, value: result.xprv, kind: 'xprv' };
+    return { path: result.path, value: result.xprv, kind: "xprv" };
   }
   const result = deriveBip85Hex(seed, options.bytes ?? 32, options.index);
-  return { path: result.path, value: result.entropyHex, kind: 'hex' };
+  return { path: result.path, value: result.entropyHex, kind: "hex" };
 }
