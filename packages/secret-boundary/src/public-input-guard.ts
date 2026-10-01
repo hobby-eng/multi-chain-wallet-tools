@@ -1,5 +1,4 @@
 import { createBase58check } from "@scure/base";
-import { validateMnemonic } from "@scure/bip39";
 import { wordlist as czechWordlist } from "@scure/bip39/wordlists/czech.js";
 import { wordlist as englishWordlist } from "@scure/bip39/wordlists/english.js";
 import { wordlist as frenchWordlist } from "@scure/bip39/wordlists/french.js";
@@ -20,6 +19,16 @@ const PRIVATE_LABEL_PATTERN =
   /(?:^|[{"'\s])(?:private[\s_-]*key|spending[\s_-]*key|mnemonic|seed[\s_-]*phrase|recovery[\s_-]*phrase|xprv)["']?\s*[:=]/iu;
 const WIF_VERSIONS = new Set([0x80, 0xcc, 0xef]);
 const MNEMONIC_WORD_COUNTS = [12, 15, 18, 21, 24] as const;
+const SHORTEST_PHRASE_WORDS = 12;
+const LONGEST_PHRASE_WORDS = 24;
+/** Every word has at least one letter (the Chinese lists use single characters). */
+const SHORTEST_PHRASE_LETTERS = SHORTEST_PHRASE_WORDS;
+/**
+ * Characters a person may put between the words of a phrase instead of spaces. Joined with one of
+ * them, or with nothing at all, a phrase can pass as a DPNS name, which an Identity lookup sends to
+ * the provider (AUD-019-SEC001).
+ */
+const WORD_SEPARATORS = /[\s,;:._\-/\\|+]+/gu;
 const BIP39_WORDLISTS = [
   czechWordlist,
   englishWordlist,
@@ -50,14 +59,81 @@ function looksLikeMnemonic(value: string): boolean {
   );
 }
 
-function containsValidMnemonic(value: string): boolean {
-  const words = value.normalize("NFKD").trim().toLowerCase().split(/\s+/u);
-  for (const length of MNEMONIC_WORD_COUNTS)
-    for (let start = 0; start + length <= words.length; start += 1) {
-      const candidate = words.slice(start, start + length).join(" ");
-      if (BIP39_WORDLISTS.some((wordlist) => validateMnemonic(candidate, wordlist))) return true;
-    }
+/** Each wordlist as a set, with the length of its longest word, for the joined-phrase checks. */
+const BIP39_WORD_SETS = BIP39_WORDLISTS.map((wordlist) => {
+  const words = wordlist.map((word) => word.normalize("NFKD"));
+  return {
+    words: new Set(words),
+    longestWord: Math.max(...words.map((word) => word.length)),
+  };
+});
+
+function isPhraseLength(count: number): boolean {
+  return MNEMONIC_WORD_COUNTS.includes(count as (typeof MNEMONIC_WORD_COUNTS)[number]);
+}
+
+/**
+ * A phrase whose words are joined by punctuation instead of spaces, such as
+ * "zoo-zoo-…-wrong": the separated parts are a phrase's number of words from one BIP39 list.
+ */
+function looksLikeSeparatedPhrase(value: string): boolean {
+  const parts = value.normalize("NFKD").toLowerCase().split(WORD_SEPARATORS).filter(Boolean);
+  if (!isPhraseLength(parts.length)) return false;
+  return BIP39_WORD_SETS.some(({ words }) => parts.every((part) => words.has(part)));
+}
+
+/**
+ * Whether `text` can be cut into a phrase's number of words from one list, from `start` on.
+ * `failed` remembers the positions and word counts already known to lead nowhere, so that the
+ * search stays small even where words are prefixes of other words ("act", "action").
+ */
+function splitsIntoPhrase(
+  text: string,
+  { words, longestWord }: (typeof BIP39_WORD_SETS)[number],
+  start = 0,
+  count = 0,
+  failed = new Set<string>(),
+): boolean {
+  if (start === text.length) return isPhraseLength(count);
+  if (count === LONGEST_PHRASE_WORDS || failed.has(`${start}:${count}`)) return false;
+  for (let end = start + 1; end <= Math.min(text.length, start + longestWord); end += 1) {
+    if (
+      words.has(text.slice(start, end)) &&
+      splitsIntoPhrase(text, { words, longestWord }, end, count + 1, failed)
+    )
+      return true;
+  }
+  failed.add(`${start}:${count}`);
   return false;
+}
+
+/**
+ * Twelve or more words of one BIP39 list in a row, across lines and separators: a phrase pasted
+ * into a batch, one word per line or several per line. No checksum is required, because a phrase
+ * with a typo is just as secret, and a single word on its own line would pass as a DPNS name.
+ */
+function containsPhraseRun(value: string): boolean {
+  const tokens = value.normalize("NFKD").toLowerCase().split(WORD_SEPARATORS).filter(Boolean);
+  return BIP39_WORD_SETS.some(({ words }) => {
+    let run = 0;
+    for (const token of tokens) {
+      run = words.has(token) ? run + 1 : 0;
+      if (run >= SHORTEST_PHRASE_WORDS) return true;
+    }
+    return false;
+  });
+}
+
+/** A phrase written without any separator, such as "zoozoo…wrong". */
+function looksLikeUnseparatedPhrase(value: string): boolean {
+  const text = value.normalize("NFKD").toLowerCase();
+  if (!/^\p{L}+$/u.test(text)) return false;
+  return BIP39_WORD_SETS.some(
+    (list) =>
+      text.length >= SHORTEST_PHRASE_LETTERS &&
+      text.length <= LONGEST_PHRASE_WORDS * list.longestWord &&
+      splitsIntoPhrase(text, list),
+  );
 }
 
 function looksLikeWif(value: string): boolean {
@@ -83,6 +159,8 @@ export function assertPublicLookupInput(value: string): void {
     PRIVATE_LABEL_PATTERN.test(input) ||
     /-----BEGIN [^-]*PRIVATE KEY-----/iu.test(input) ||
     looksLikeMnemonic(input) ||
+    looksLikeSeparatedPhrase(input) ||
+    looksLikeUnseparatedPhrase(input) ||
     looksLikeWif(input)
   )
     throw new PrivateMaterialError();
@@ -95,5 +173,5 @@ export function assertPublicBatchLookupInput(value: string): void {
     .map((line) => line.trim())
     .filter(Boolean);
   for (const line of lines) assertPublicLookupInput(line);
-  if (containsValidMnemonic(value)) throw new PrivateMaterialError();
+  if (containsPhraseRun(value)) throw new PrivateMaterialError();
 }
