@@ -105,7 +105,6 @@ function fixtureRoot() {
     'packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm',
     'packages/recovery-mhfe-wasm/generated/argon2-mt.js',
     'packages/recovery-mhfe-wasm/generated/argon2-st.js',
-    'packages/recovery-mhfe-wasm/generated/mhfe-fast-mode.py',
     'apps/key-derivation/src/ui/recovery-mhfe.ts',
     'packages/recovery-backup/src/slip39.ts',
     'packages/recovery-backup/src/slip39-wordlist.ts',

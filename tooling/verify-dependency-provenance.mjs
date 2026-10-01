@@ -53,12 +53,13 @@ const GITHUB_SOURCES = [
   },
   {
     // MHFE 0.4.0 is not released yet. The browser package is taken from the reproducible Docker
-    // build (scripts/build-reproducible.sh) of this exact commit of the suite-3-c-engine branch.
+    // build (scripts/build-reproducible.sh) of this exact commit of main. The Python fast-mode
+    // launcher of the package is not vendored: the executable Deriver replaces it.
     // Replace it with the release tag once 0.4.0 is published.
     id: 'mhfe-v0.4.0-draft',
     repository: 'hobby-eng/mhfe',
-    reference: 'suite-3-c-engine draft of version 0.4.0, browser package (unreleased)',
-    commit: '5dd7a7168aed51bb478f031dc934d07e04078a42',
+    reference: 'main draft of version 0.4.0, browser package (unreleased)',
+    commit: 'e5a6494c3be8eac75cc38e67dbe23f8920b0ad20',
   },
   {
     id: 'sskr-0.12.0',
@@ -116,7 +117,6 @@ const LOCAL_IMPLEMENTATIONS = [
       'packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm',
       'packages/recovery-mhfe-wasm/generated/argon2-mt.js',
       'packages/recovery-mhfe-wasm/generated/argon2-st.js',
-      'packages/recovery-mhfe-wasm/generated/mhfe-fast-mode.py',
       'apps/key-derivation/src/ui/recovery-mhfe.ts',
     ],
   },
@@ -176,13 +176,11 @@ const FIXED_SOURCE_HASHES = Object.freeze({
   'packages/recovery-mhfe-wasm/generated/mhfe-worker.js':
     '0ef6562d98cd33e99df8a13955b1f970c9772420b4b0d0b96b2e3ea0b95cc2b9',
   'packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm':
-    'd293c4297f3df368e0fc2e1bfa96e9c8317f6ff8411edb25140e741bda23fd02',
+    'ae72d87eb6f9db07871a3d33fab3b8eab835d4a83feed32e59acad1255a49fb2',
   'packages/recovery-mhfe-wasm/generated/argon2-mt.js':
     'f98906c851a986df514d22536bb48a09724a0fa0b49079860b9a0ef00806f521',
   'packages/recovery-mhfe-wasm/generated/argon2-st.js':
     '63ece7b314daf8a06ebadb0ff7acdf8be886ddfc9660b5ad13577536c4a3f6da',
-  'packages/recovery-mhfe-wasm/generated/mhfe-fast-mode.py':
-    'fb9ba8bc863b3310cb80b37383a5ac260e2b3ae20601ffce5bfc3e0ba8906788',
 });
 
 function sha256(bytes) {
