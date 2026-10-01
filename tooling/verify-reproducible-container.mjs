@@ -41,7 +41,7 @@ for (const expected of [
   'CFLAGS_wasm32_unknown_unknown="-I/usr/include/wasm32-wasi -include /usr/include/wasm32-wasi/string.h"',
   'git config --system http.version HTTP/1.1',
   `npm install --global ${packageManager}`,
-  'cargo install wasm-bindgen-cli --version 0.2.128 --locked',
+  'cargo install wasm-bindgen-cli --version 0.2.129 --locked',
   'for attempt in 1 2 3 4 5',
   'Cargo fetch attempt ${attempt} failed',
   'ARG SOURCE_COMMIT=unavailable',

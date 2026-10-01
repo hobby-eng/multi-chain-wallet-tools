@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "qr": "0.7.0"
+    "qr": "0.7.2"
   }
 }
