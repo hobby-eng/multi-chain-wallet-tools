@@ -33,6 +33,7 @@ export default defineConfig({
         replacement: `${root}packages/recovery-codex32-wasm/generated/$1`,
       },
       { find: /^@ckd\/dash-wasm\/(.+)$/u, replacement: `${root}packages/dash-shielded-wasm/generated/$1` },
+      { find: /^@ckd\/recovery-mhfe-wasm\/(.+)$/u, replacement: `${root}packages/recovery-mhfe-wasm/generated/$1` },
       { find: /^@ckd\/test-support\/(.+)\.js$/u, replacement: `${root}test/support/$1.ts` },
       { find: '@ckd/build-info', replacement: `${root}packages/build-security/src/build-info.ts` },
       { find: '@ckd/self-test', replacement: `${root}packages/verification/src/self-test.ts` },

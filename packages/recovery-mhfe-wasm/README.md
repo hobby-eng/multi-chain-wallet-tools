@@ -31,6 +31,7 @@ SHA-256 of the vendored files:
 
 MHFE is MIT licensed (`LICENSE-MHFE`). The Argon2 builds contain the reference C implementation of
 Argon2, used under Apache-2.0 (`LICENSE-ARGON2`).
-The package's own notices come with it unchanged: `THIRD_PARTY_LICENSES-MHFE.md` holds the licence
-of every Rust crate compiled into the MHFE core, and `THIRD_PARTY_NOTICES-MHFE.md` the Emscripten
-runtime, musl and the wasm-bindgen JavaScript glue in the worker and the Argon2 builds.
+The package's own notices come with it unchanged, under their own names, in `notices/`:
+`THIRD_PARTY_LICENSES.md` holds the licence of every Rust crate compiled into the MHFE core, and
+`THIRD_PARTY_NOTICES.md` the Emscripten runtime, musl and the wasm-bindgen JavaScript glue in the
+worker and the Argon2 builds.
