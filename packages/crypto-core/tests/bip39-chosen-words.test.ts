@@ -109,7 +109,7 @@ describe('BIP39 phrase with chosen words', () => {
   });
 
   it('gives the same phrase as an independent reading of the rules, draw by draw', async () => {
-    const cases: { request: ChosenWordsRequest; atLeastDraw: number }[] = [
+    const cases: { request: ChosenWordsRequest; atLeastDraw: number; seed?: number }[] = [
       // A fixed last word must wait for its checksum: the first draws are rejected.
       { request: { wordCount: 12, chosen: [{ word: 'zoo', position: 12 }], neverUse: [] }, atLeastDraw: 1 },
       {
@@ -123,20 +123,16 @@ describe('BIP39 phrase with chosen words', () => {
         },
         atLeastDraw: 1,
       },
-      // Two words anywhere need far more draws than one call of the source gives.
+      // With seed 13 the first phrase that contains "happy" is draw 301, in the second call of
+      // the source: the search crosses a batch boundary. (Two words anywhere would too, but need
+      // about 29,000 draws, which makes the slow reference reading too slow for a unit test.)
       {
-        request: {
-          wordCount: 12,
-          chosen: [
-            { word: 'happy', position: 'anywhere' },
-            { word: 'river', position: 'anywhere' },
-          ],
-          neverUse: [],
-        },
+        request: { wordCount: 12, chosen: [{ word: 'happy', position: 'anywhere' }], neverUse: [] },
         atLeastDraw: DRAWS_PER_BATCH,
+        seed: 13,
       },
     ];
-    for (const [seed, { request, atLeastDraw }] of cases.entries()) {
+    for (const [index, { request, atLeastDraw, seed = index }] of cases.entries()) {
       const { source, handedOut } = seededSource(seed);
       const phrase = await generateMnemonicWithChosenWords(request, { randomBytes: source });
       // The generator wipes its batches, so the reference reads the same stream again.
