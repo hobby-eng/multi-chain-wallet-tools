@@ -1,5 +1,5 @@
-import { MULTI_CHAIN_COIN_ADAPTERS } from './multi-chain-registry-profile.js';
-import { createCoinRegistry } from './registry-base.js';
+import { MULTI_CHAIN_COIN_ADAPTERS } from "./multi-chain-registry-profile.js";
+import { createCoinRegistry } from "./registry-base.js";
 
 export type {
   AddressBranches,
@@ -14,7 +14,7 @@ export type {
   CoinLimits,
   CoinRegistry,
   ControlOption,
-} from './registry-base.js';
+} from "./registry-base.js";
 
 export const {
   COIN_ADAPTERS,

@@ -1,6 +1,6 @@
-import { entropyToMnemonic, validateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { describe, expect, it } from 'vitest';
+import { entropyToMnemonic, validateMnemonic } from "@scure/bip39";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
+import { describe, expect, it } from "vitest";
 import {
   decodeMnemoCode,
   detectMnemoCodeFormats,
@@ -12,64 +12,76 @@ import {
   parseMnemoCodeDates,
   recoverMnemoCodeLegacyLastWords,
   recoverMnemoCodeWord,
-} from '../src/mnemocode.js';
+} from "../src/mnemocode.js";
 
-const zeroMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-const dates = parseMnemoCodeDates('23-09-2026');
+const zeroMnemonic =
+  "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+const dates = parseMnemoCodeDates("23-09-2026");
 
-describe('MnemoCode 0.1.0 compatibility', () => {
-  it('pins the version and published direct vectors', () => {
-    expect(MNEMOCODE_VERSION).toBe('0.1.0');
-    expect(encodeMnemoCode(zeroMnemonic, 'direct', 'indexes').payload).toBe('1 1 1 1 1 1 1 1 1 1 1 4');
-    expect(encodeMnemoCode(zeroMnemonic, 'direct', 'unicode').payload).toBe(
-      '768476847684768476847684768476847684768476845728',
+describe("MnemoCode 0.1.0 compatibility", () => {
+  it("pins the version and published direct vectors", () => {
+    expect(MNEMOCODE_VERSION).toBe("0.1.0");
+    expect(encodeMnemoCode(zeroMnemonic, "direct", "indexes").payload).toBe(
+      "1 1 1 1 1 1 1 1 1 1 1 4",
     );
-    expect(encodeMnemoCode(zeroMnemonic, 'direct', 'colors').payload).toBe(
-      '#000064 #1EAB91 #3D0964 #5BB491 #7A1264 #98BD91 #B71B64 #D5C694',
+    expect(encodeMnemoCode(zeroMnemonic, "direct", "unicode").payload).toBe(
+      "768476847684768476847684768476847684768476845728",
+    );
+    expect(encodeMnemoCode(zeroMnemonic, "direct", "colors").payload).toBe(
+      "#000064 #1EAB91 #3D0964 #5BB491 #7A1264 #98BD91 #B71B64 #D5C694",
     );
   });
 
-  it('prints portable color Unicode code points and reads legacy Private Use symbols', () => {
-    const encoded = encodeMnemoCode(zeroMnemonic, 'direct', 'colors-unicode');
+  it("prints portable color Unicode code points and reads legacy Private Use symbols", () => {
+    const encoded = encodeMnemoCode(zeroMnemonic, "direct", "colors-unicode");
     expect(encoded.payload).toMatch(/^(?:[0-9A-F]{4})+$/u);
     const legacySymbols = encoded.payload
       .match(/.{4}/gu)!
       .map((point) => String.fromCodePoint(Number.parseInt(point, 16)))
-      .join('');
-    expect(decodeMnemoCode(legacySymbols, { mode: 'direct', format: 'colors-unicode' }).mnemonic).toBe(zeroMnemonic);
+      .join("");
+    expect(
+      decodeMnemoCode(legacySymbols, { mode: "direct", format: "colors-unicode" }).mnemonic,
+    ).toBe(zeroMnemonic);
   });
 
-  it('matches the published checksum-valid Seedshift vector', () => {
-    const encoded = encodeMnemoCode(zeroMnemonic, 'seedshift', 'english', dates);
-    expect(encoded.payload).toBe('wool abuse actual wool abuse actual wool abuse actual wool abuse congress');
-    expect(decodeMnemoCode(encoded.record, { mode: 'direct', format: 'auto', dates }).mnemonic).toBe(zeroMnemonic);
-  });
-
-  it('matches the documented legacy Seedshift vector', () => {
-    const source = 'oppose duck hello neglect reveal key humor mosquito road evoke flock hedgehog';
-    const legacyDates = parseMnemoCodeDates('10-07-1963 27-04-1956 31-01-1994');
-    const encoded = encodeMnemoCode(source, 'seedshift-legacy', 'english', legacyDates);
-    expect(encoded.payload).toBe('mosquito dust hotel maximum rich kitten hair mother salute dream flush hospital');
-    expect(decodeMnemoCode(encoded.record, { mode: 'direct', format: 'auto', dates: legacyDates }).mnemonic).toBe(
-      source,
+  it("matches the published checksum-valid Seedshift vector", () => {
+    const encoded = encodeMnemoCode(zeroMnemonic, "seedshift", "english", dates);
+    expect(encoded.payload).toBe(
+      "wool abuse actual wool abuse actual wool abuse actual wool abuse congress",
     );
+    expect(
+      decodeMnemoCode(encoded.record, { mode: "direct", format: "auto", dates }).mnemonic,
+    ).toBe(zeroMnemonic);
+  });
+
+  it("matches the documented legacy Seedshift vector", () => {
+    const source = "oppose duck hello neglect reveal key humor mosquito road evoke flock hedgehog";
+    const legacyDates = parseMnemoCodeDates("10-07-1963 27-04-1956 31-01-1994");
+    const encoded = encodeMnemoCode(source, "seedshift-legacy", "english", legacyDates);
+    expect(encoded.payload).toBe(
+      "mosquito dust hotel maximum rich kitten hair mother salute dream flush hospital",
+    );
+    expect(
+      decodeMnemoCode(encoded.record, { mode: "direct", format: "auto", dates: legacyDates })
+        .mnemonic,
+    ).toBe(source);
   });
 
   it.each([16, 20, 24, 28, 32])(
-    'round-trips every representation at %i entropy bytes in direct and Seedshift modes',
+    "round-trips every representation at %i entropy bytes in direct and Seedshift modes",
     (size) => {
       const mnemonic = entropyToMnemonic(
         Uint8Array.from({ length: size }, (_, index) => index),
         wordlist,
       );
       for (const format of MNEMOCODE_FORMATS) {
-        for (const mode of ['direct', 'seedshift', 'seedshift-legacy'] as const) {
-          const encoded = encodeMnemoCode(mnemonic, mode, format, mode === 'direct' ? [] : dates);
+        for (const mode of ["direct", "seedshift", "seedshift-legacy"] as const) {
+          const encoded = encodeMnemoCode(mnemonic, mode, format, mode === "direct" ? [] : dates);
           expect(
             decodeMnemoCode(encoded.record, {
-              mode: 'direct',
-              format: 'auto',
-              dates: mode === 'direct' ? [] : dates,
+              mode: "direct",
+              format: "auto",
+              dates: mode === "direct" ? [] : dates,
             }).mnemonic,
           ).toBe(mnemonic);
         }
@@ -83,60 +95,64 @@ describe('MnemoCode 0.1.0 compatibility', () => {
     [24, 32],
     [28, 16],
     [32, 8],
-  ])('enumerates the bounded legacy valid-last-word set for %i entropy bytes', (size, count) => {
+  ])("enumerates the bounded legacy valid-last-word set for %i entropy bytes", (size, count) => {
     const mnemonic = entropyToMnemonic(
       Uint8Array.from({ length: size }, (_, index) => index),
       wordlist,
     );
-    const encoded = encodeMnemoCode(mnemonic, 'seedshift-legacy-valid', 'colors', dates);
-    const decoded = decodeMnemoCode(encoded.record, { mode: 'direct', format: 'auto', dates });
-    expect(decoded.mode).toBe('seedshift-legacy-valid');
+    const encoded = encodeMnemoCode(mnemonic, "seedshift-legacy-valid", "colors", dates);
+    const decoded = decodeMnemoCode(encoded.record, { mode: "direct", format: "auto", dates });
+    expect(decoded.mode).toBe("seedshift-legacy-valid");
     expect(decoded.candidates).toHaveLength(count);
     expect(decoded.candidates).toContain(mnemonic);
   });
 
-  it('detects strict raw formats without guessing ambiguous input', () => {
+  it("detects strict raw formats without guessing ambiguous input", () => {
     for (const format of MNEMOCODE_FORMATS) {
-      const payload = encodeMnemoCode(zeroMnemonic, 'direct', format).payload;
+      const payload = encodeMnemoCode(zeroMnemonic, "direct", format).payload;
       expect(detectMnemoCodeFormats(payload)).toEqual([format]);
     }
-    const ambiguous = '76 84 57 28 90 19 59 27 62 11 89 81 66 42 75 28 50 11 52 30 57 30 62 10';
-    expect(detectMnemoCodeFormats(ambiguous)).toEqual(['indexes', 'unicode']);
-    expect(() => decodeMnemoCode(ambiguous, { mode: 'direct', format: 'auto' })).toThrow(/ambiguous/u);
+    const ambiguous = "76 84 57 28 90 19 59 27 62 11 89 81 66 42 75 28 50 11 52 30 57 30 62 10";
+    expect(detectMnemoCodeFormats(ambiguous)).toEqual(["indexes", "unicode"]);
+    expect(() => decodeMnemoCode(ambiguous, { mode: "direct", format: "auto" })).toThrow(
+      /ambiguous/u,
+    );
   });
 
-  it('rejects malformed dates, indexes, oversized input and missing Seedshift dates', () => {
-    for (const value of ['29-02-1900', '31-04-2026', '01-01-0000', '01-13-2026']) {
+  it("rejects malformed dates, indexes, oversized input and missing Seedshift dates", () => {
+    for (const value of ["29-02-1900", "31-04-2026", "01-01-0000", "01-13-2026"]) {
       expect(() => parseMnemoCodeDate(value)).toThrow();
     }
-    expect(() => parseMnemoCode('1e3 1 1 1 1 1 1 1 1 1 1 1', 'indexes')).toThrow(/decimal/u);
-    expect(() => parseMnemoCode('a'.repeat(64 * 1024 + 1), 'english')).toThrow(/64 KiB/u);
-    expect(() => encodeMnemoCode(zeroMnemonic, 'seedshift', 'english')).toThrow(/at least one date/u);
+    expect(() => parseMnemoCode("1e3 1 1 1 1 1 1 1 1 1 1 1", "indexes")).toThrow(/decimal/u);
+    expect(() => parseMnemoCode("a".repeat(64 * 1024 + 1), "english")).toThrow(/64 KiB/u);
+    expect(() => encodeMnemoCode(zeroMnemonic, "seedshift", "english")).toThrow(
+      /at least one date/u,
+    );
   });
 
   it.each([16, 20, 24, 28, 32])(
-    'recovers the original at every missing position for %i entropy bytes',
+    "recovers the original at every missing position for %i entropy bytes",
     (size) => {
       const mnemonic = entropyToMnemonic(
         Uint8Array.from({ length: size }, (_, index) => index),
         wordlist,
       );
-      const sourceWords = mnemonic.split(' ');
+      const sourceWords = mnemonic.split(" ");
       const checksumLength = sourceWords.length / 3;
 
       for (const missingIndex of sourceWords.keys()) {
         const incomplete = [...sourceWords];
-        incomplete[missingIndex] = '?';
-        const candidates = recoverMnemoCodeWord(incomplete.join(' '));
+        incomplete[missingIndex] = "?";
+        const candidates = recoverMnemoCodeWord(incomplete.join(" "));
 
         expect(candidates.map((candidate) => candidate.mnemonic)).toContain(mnemonic);
         expect(new Set(candidates.map((candidate) => candidate.word)).size).toBe(candidates.length);
         for (const candidate of candidates) {
           expect(candidate.position).toBe(missingIndex + 1);
           expect(candidate.wordIndex).toBe(wordlist.indexOf(candidate.word) + 1);
-          expect(candidate.mnemonic.split(' ')[missingIndex]).toBe(candidate.word);
+          expect(candidate.mnemonic.split(" ")[missingIndex]).toBe(candidate.word);
           expect(validateMnemonic(candidate.mnemonic, wordlist)).toBe(true);
-          expect(candidate.checksumBits).toMatch(new RegExp(`^[01]{${checksumLength}}$`, 'u'));
+          expect(candidate.checksumBits).toMatch(new RegExp(`^[01]{${checksumLength}}$`, "u"));
         }
       }
     },
@@ -149,53 +165,65 @@ describe('MnemoCode 0.1.0 compatibility', () => {
     [24, 32],
     [28, 16],
     [32, 8],
-  ])('has the exact BIP39 candidate count when the final word is missing at %i bytes', (size, count) => {
-    const mnemonic = entropyToMnemonic(new Uint8Array(size), wordlist);
-    const words = mnemonic.split(' ');
-    words[words.length - 1] = '?';
-    expect(recoverMnemoCodeWord(words.join(' '))).toHaveLength(count);
-  });
+  ])(
+    "has the exact BIP39 candidate count when the final word is missing at %i bytes",
+    (size, count) => {
+      const mnemonic = entropyToMnemonic(new Uint8Array(size), wordlist);
+      const words = mnemonic.split(" ");
+      words[words.length - 1] = "?";
+      expect(recoverMnemoCodeWord(words.join(" "))).toHaveLength(count);
+    },
+  );
 
-  it('exposes the word index and exact checksum bits to the browser API', () => {
-    expect(recoverMnemoCodeWord(zeroMnemonic.replace(/about$/u, '?'))).toContainEqual({
+  it("exposes the word index and exact checksum bits to the browser API", () => {
+    expect(recoverMnemoCodeWord(zeroMnemonic.replace(/about$/u, "?"))).toContainEqual({
       position: 12,
-      word: 'about',
+      word: "about",
       wordIndex: 4,
       mnemonic: zeroMnemonic,
-      checksumBits: '0011',
+      checksumBits: "0011",
     });
   });
 
-  it('enumerates valid replacements for an exact legacy final word', () => {
-    const legacy = 'mosquito dust hotel maximum rich kitten hair mother salute dream flush hospital';
-    const prefix = legacy.split(' ').slice(0, -1).join(' ');
+  it("enumerates valid replacements for an exact legacy final word", () => {
+    const legacy =
+      "mosquito dust hotel maximum rich kitten hair mother salute dream flush hospital";
+    const prefix = legacy.split(" ").slice(0, -1).join(" ");
     const candidates = recoverMnemoCodeLegacyLastWords(legacy);
     expect(candidates).toHaveLength(128);
     expect(candidates.every((candidate) => candidate.position === 12)).toBe(true);
     expect(candidates.filter((candidate) => candidate.preservesLegacyEntropy)).toHaveLength(1);
-    expect(candidates.every((candidate) => candidate.mnemonic.split(' ').slice(0, -1).join(' ') === prefix)).toBe(true);
+    expect(
+      candidates.every(
+        (candidate) => candidate.mnemonic.split(" ").slice(0, -1).join(" ") === prefix,
+      ),
+    ).toBe(true);
   });
 
-  it('rejects missing, repeated, and malformed forgotten-word placeholders', () => {
+  it("rejects missing, repeated, and malformed forgotten-word placeholders", () => {
     expect(() => recoverMnemoCodeWord(zeroMnemonic)).toThrow(/exactly one/u);
-    expect(() => recoverMnemoCodeWord(zeroMnemonic.replaceAll('abandon', '?'))).toThrow(/exactly one/u);
-    expect(() => recoverMnemoCodeWord(zeroMnemonic.replace('abandon', 'notaword').replace('about', '?'))).toThrow(
-      /position 1/u,
+    expect(() => recoverMnemoCodeWord(zeroMnemonic.replaceAll("abandon", "?"))).toThrow(
+      /exactly one/u,
     );
+    expect(() =>
+      recoverMnemoCodeWord(zeroMnemonic.replace("abandon", "notaword").replace("about", "?")),
+    ).toThrow(/position 1/u);
   });
 
-  it('returns an empty set when the known words admit no checksum-valid completion', () => {
-    const words = Array<string>(24).fill('abandon');
-    words[4] = '?';
-    words[23] = 'sure';
-    expect(recoverMnemoCodeWord(words.join(' '))).toEqual([]);
+  it("returns an empty set when the known words admit no checksum-valid completion", () => {
+    const words = Array<string>(24).fill("abandon");
+    words[4] = "?";
+    words[23] = "sure";
+    expect(recoverMnemoCodeWord(words.join(" "))).toEqual([]);
   });
 
-  it('needs a four-digit year and ignores dates for a Direct record', () => {
-    expect(() => parseMnemoCodeDates('23-09-26')).toThrow('four-digit year');
-    expect(parseMnemoCodeDates('23-09-0026')).toEqual([{ year: 26, month: 9, day: 23 }]);
-    const record = encodeMnemoCode(zeroMnemonic, 'direct', 'indexes').record;
+  it("needs a four-digit year and ignores dates for a Direct record", () => {
+    expect(() => parseMnemoCodeDates("23-09-26")).toThrow("four-digit year");
+    expect(parseMnemoCodeDates("23-09-0026")).toEqual([{ year: 26, month: 9, day: 23 }]);
+    const record = encodeMnemoCode(zeroMnemonic, "direct", "indexes").record;
     // The form can still hold dates from an earlier Seedshift input.
-    expect(decodeMnemoCode(record, { mode: 'seedshift', format: 'auto', dates }).mnemonic).toBe(zeroMnemonic);
+    expect(decodeMnemoCode(record, { mode: "seedshift", format: "auto", dates }).mnemonic).toBe(
+      zeroMnemonic,
+    );
   });
 });

@@ -2,13 +2,21 @@ export const DUFFS_PER_DASH = 100_000_000n;
 export const CREDITS_PER_DASH = 100_000_000_000n;
 export const CREDITS_PER_DUFF = CREDITS_PER_DASH / DUFFS_PER_DASH;
 
-function formatDashAtomic(value: bigint, divisor: bigint, fractionDigits: number, signed: boolean): string {
+function formatDashAtomic(
+  value: bigint,
+  divisor: bigint,
+  fractionDigits: number,
+  signed: boolean,
+): string {
   const negative = value < 0n;
   const absolute = negative ? -value : value;
   const whole = absolute / divisor;
-  const fraction = (absolute % divisor).toString().padStart(fractionDigits, '0').replace(/0+$/u, '');
+  const fraction = (absolute % divisor)
+    .toString()
+    .padStart(fractionDigits, "0")
+    .replace(/0+$/u, "");
   const amount = fraction.length === 0 ? `${whole}` : `${whole}.${fraction}`;
-  const sign = negative ? '-' : signed && value > 0n ? '+' : '';
+  const sign = negative ? "-" : signed && value > 0n ? "+" : "";
   return `${sign}${amount} DASH`;
 }
 

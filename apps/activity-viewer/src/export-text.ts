@@ -1,7 +1,11 @@
-import type { ViewerExportFile, ViewerExportState, ViewerTextExportFormat } from './export-model.js';
-import { exactJson, exportError, fileStamp, isBatchExportState } from './export-common.js';
-import { createViewerCsvText } from './export-csv.js';
-import { viewerJsonData } from './export-json.js';
+import type {
+  ViewerExportFile,
+  ViewerExportState,
+  ViewerTextExportFormat,
+} from "./export-model.js";
+import { exactJson, exportError, fileStamp, isBatchExportState } from "./export-common.js";
+import { createViewerCsvText } from "./export-csv.js";
+import { viewerJsonData } from "./export-json.js";
 
 export function createViewerExport(
   state: ViewerExportState,
@@ -10,8 +14,8 @@ export function createViewerExport(
 ): ViewerExportFile {
   const generatedAtIso = generatedAt.toISOString();
   const batch = isBatchExportState(state);
-  const filename = `wallet-activity-viewer-${state.mode}${batch ? '-batch' : ''}-${state.network}-${fileStamp(generatedAt)}.${format}`;
-  if (format === 'json') {
+  const filename = `wallet-activity-viewer-${state.mode}${batch ? "-batch" : ""}-${state.network}-${fileStamp(generatedAt)}.${format}`;
+  if (format === "json") {
     const data = batch
       ? {
           batch: {
@@ -30,10 +34,10 @@ export function createViewerExport(
       : viewerJsonData(state);
     return {
       filename,
-      mimeType: 'application/json',
+      mimeType: "application/json",
       text: `${JSON.stringify(
         {
-          schema: 'wallet-activity-viewer-export',
+          schema: "wallet-activity-viewer-export",
           version: 2,
           generatedAt: generatedAtIso,
           mode: state.mode,
@@ -46,5 +50,5 @@ export function createViewerExport(
 `,
     };
   }
-  return { filename, mimeType: 'text/csv', text: createViewerCsvText(state, generatedAtIso) };
+  return { filename, mimeType: "text/csv", text: createViewerCsvText(state, generatedAtIso) };
 }

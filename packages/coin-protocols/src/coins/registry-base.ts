@@ -1,4 +1,4 @@
-import type { NetworkName } from '@ckd/core/types.js';
+import type { NetworkName } from "@ckd/core/types.js";
 
 export interface CoinDerivationInput {
   seed: Uint8Array;
@@ -41,7 +41,12 @@ export interface CoinJoinSupport {
   branches: CoinJoinBranches;
   /** Worker-dispatch id for this chain's derive() function; distinct from the adapter id because the path template differs from the adapter's own protocol. */
   workerAdapterId: string;
-  pathPreview(input: { network: NetworkName; account: number; start: number; count: number }): CoinJoinPathPreview;
+  pathPreview(input: {
+    network: NetworkName;
+    account: number;
+    start: number;
+    count: number;
+  }): CoinJoinPathPreview;
 }
 
 export interface CoinLimits {
@@ -84,7 +89,7 @@ export interface CoinAdapter {
   fieldRoles: CoinFieldRoles;
   /** Optional protocol-specific equality (for example EVM hexadecimal address case). */
   addressesEqual?(derived: string, expected: string): boolean;
-  pathPreview(input: Omit<CoinDerivationInput, 'seed'>): string;
+  pathPreview(input: Omit<CoinDerivationInput, "seed">): string;
 }
 
 export interface CoinFamily {
@@ -105,23 +110,23 @@ export interface CoinRegistry {
 export const BIP44_ADDRESS_BRANCHES: AddressBranches = { receive: 0, change: 1 };
 
 export const TRANSPARENT_ROLES: CoinFieldRoles = {
-  addresses: ['address'],
+  addresses: ["address"],
   publicKeys: [
-    'publicKey',
-    'compressedPublicKey',
-    'internalPublicKey',
-    'taprootOutputPublicKey',
-    'taprootOutputCompressedPublicKey',
-    'childXpub',
+    "publicKey",
+    "compressedPublicKey",
+    "internalPublicKey",
+    "taprootOutputPublicKey",
+    "taprootOutputCompressedPublicKey",
+    "childXpub",
   ],
   privateKeys: [
-    'privateKey',
-    'privateKeyHex',
-    'privateKeyWif',
-    'childPrivateKey',
-    'taprootOutputPrivateKey',
-    'taprootOutputPrivateKeyWif',
-    'childXprv',
+    "privateKey",
+    "privateKeyHex",
+    "privateKeyWif",
+    "childPrivateKey",
+    "taprootOutputPrivateKey",
+    "taprootOutputPrivateKeyWif",
+    "childXprv",
   ],
 };
 
@@ -132,12 +137,14 @@ export function indexRange(start: number, count: number): string {
 function familyId(label: string): string {
   return label
     .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, '-')
-    .replace(/^-|-$/gu, '');
+    .replace(/[^a-z0-9]+/gu, "-")
+    .replace(/^-|-$/gu, "");
 }
 
 export function createCoinRegistry(coinAdapters: readonly CoinAdapter[]): CoinRegistry {
-  const coinFamilies: readonly CoinFamily[] = [...new Set(coinAdapters.map(({ group }) => group))].map((label) => ({
+  const coinFamilies: readonly CoinFamily[] = [
+    ...new Set(coinAdapters.map(({ group }) => group)),
+  ].map((label) => ({
     id: familyId(label),
     label,
     adapters: coinAdapters.filter(({ group }) => group === label),
@@ -156,7 +163,9 @@ export function createCoinRegistry(coinAdapters: readonly CoinAdapter[]): CoinRe
       if (family === undefined) throw new Error(`Unsupported coin family: ${id}.`);
       const defaults = family.adapters.filter(({ defaultVariant }) => defaultVariant === true);
       if (defaults.length > 1) {
-        throw new Error(`Coin family ${family.label} declares more than one default derivation variant.`);
+        throw new Error(
+          `Coin family ${family.label} declares more than one default derivation variant.`,
+        );
       }
       return defaults[0] ?? family.adapters[0]!;
     },

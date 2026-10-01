@@ -1,11 +1,17 @@
-import { createHash, pbkdf2Sync } from 'node:crypto';
-import { HDNodeWallet, SigningKey } from 'ethers';
+import { createHash, pbkdf2Sync } from "node:crypto";
+import { HDNodeWallet, SigningKey } from "ethers";
 
 export const AUDIT_MNEMONIC =
-  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+  "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
-export function referenceSeed(passphrase = '', mnemonic = AUDIT_MNEMONIC): Buffer {
-  return pbkdf2Sync(mnemonic.normalize('NFKD'), `mnemonic${passphrase.normalize('NFKD')}`, 2048, 64, 'sha512');
+export function referenceSeed(passphrase = "", mnemonic = AUDIT_MNEMONIC): Buffer {
+  return pbkdf2Sync(
+    mnemonic.normalize("NFKD"),
+    `mnemonic${passphrase.normalize("NFKD")}`,
+    2048,
+    64,
+    "sha512",
+  );
 }
 
 export function digest(algorithm: string, bytes: Uint8Array): Buffer {
@@ -17,23 +23,26 @@ export function referencePublicKey(seed: Uint8Array, path: string): string {
 }
 
 export function referenceBase58Check(payload: Uint8Array): string {
-  const bytes = Buffer.concat([payload, digest('sha256', digest('sha256', payload)).subarray(0, 4)]);
-  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  let number = BigInt(`0x${bytes.toString('hex')}`);
-  let encoded = '';
+  const bytes = Buffer.concat([
+    payload,
+    digest("sha256", digest("sha256", payload)).subarray(0, 4),
+  ]);
+  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let number = BigInt(`0x${bytes.toString("hex")}`);
+  let encoded = "";
   while (number > 0n) {
     encoded = alphabet[Number(number % 58n)]! + encoded;
     number /= 58n;
   }
   for (const byte of bytes) {
     if (byte !== 0) break;
-    encoded = '1' + encoded;
+    encoded = "1" + encoded;
   }
   return encoded;
 }
 
 export function referenceP2pkh(publicKey: string, version = 0): string {
-  const keyHash = digest('ripemd160', digest('sha256', Buffer.from(publicKey, 'hex')));
+  const keyHash = digest("ripemd160", digest("sha256", Buffer.from(publicKey, "hex")));
   return referenceBase58Check(Buffer.concat([Buffer.from([version]), keyHash]));
 }
 
@@ -66,19 +75,30 @@ export function referenceBech32m(hrp: string, version: number, bytes: Uint8Array
     });
   }
   checksum ^= 0x2bc830a3;
-  const alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+  const alphabet = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
   const check = Array.from({ length: 6 }, (_, index) => (checksum >>> (5 * (5 - index))) & 31);
-  return `${hrp}1${[...words, ...check].map((word) => alphabet[word]).join('')}`;
+  return `${hrp}1${[...words, ...check].map((word) => alphabet[word]).join("")}`;
 }
 
 export function referenceTaggedHash(tag: string, bytes: Uint8Array): Buffer {
-  const hashedTag = digest('sha256', Buffer.from(tag));
-  return digest('sha256', Buffer.concat([hashedTag, hashedTag, bytes]));
+  const hashedTag = digest("sha256", Buffer.from(tag));
+  return digest("sha256", Buffer.concat([hashedTag, hashedTag, bytes]));
 }
 
-export function referenceLabeledSpend(scanPrivate: string, spendPublic: string, label: number): string {
+export function referenceLabeledSpend(
+  scanPrivate: string,
+  spendPublic: string,
+  label: number,
+): string {
   const serialized = Buffer.alloc(4);
   serialized.writeUInt32BE(label);
-  const tweak = referenceTaggedHash('BIP0352/Label', Buffer.concat([Buffer.from(scanPrivate, 'hex'), serialized]));
-  return SigningKey.addPoints(`0x${spendPublic}`, SigningKey.computePublicKey(tweak, true), true).slice(2);
+  const tweak = referenceTaggedHash(
+    "BIP0352/Label",
+    Buffer.concat([Buffer.from(scanPrivate, "hex"), serialized]),
+  );
+  return SigningKey.addPoints(
+    `0x${spendPublic}`,
+    SigningKey.computePublicKey(tweak, true),
+    true,
+  ).slice(2);
 }

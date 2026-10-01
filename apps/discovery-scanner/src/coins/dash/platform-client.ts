@@ -1,11 +1,11 @@
-import { RecoveryNetworkGateway } from '../../network-gateway.js';
+import { RecoveryNetworkGateway } from "../../network-gateway.js";
 import type {
   DashCoreTransactionView,
   IdentityLookupView,
   PlatformAddressBatchView,
   PlatformHistorySummaryView,
-} from '@ckd/network-boundary/protocol.js';
-import type { RecoveryNetwork } from '@ckd/network-boundary/protocol.js';
+} from "@ckd/network-boundary/protocol.js";
+import type { RecoveryNetwork } from "@ckd/network-boundary/protocol.js";
 
 export class DashPlatformClient {
   constructor(
@@ -16,7 +16,7 @@ export class DashPlatformClient {
   addresses(addresses: string[], signal?: AbortSignal): Promise<PlatformAddressBatchView> {
     return this.gateway.runPublic(
       { network: this.network, addresses },
-      'platform.addresses',
+      "platform.addresses",
       () => this.gateway.networkApi.platformAddresses(this.network, addresses, signal),
       signal,
     );
@@ -25,7 +25,7 @@ export class DashPlatformClient {
   addressHistory(address: string, signal?: AbortSignal): Promise<PlatformHistorySummaryView> {
     return this.gateway.runPublic(
       { network: this.network, address },
-      'platform.address-history',
+      "platform.address-history",
       () => this.gateway.networkApi.platformAddressHistory(this.network, address, signal),
       signal,
     );
@@ -34,8 +34,13 @@ export class DashPlatformClient {
   identity(publicKeyHashHex: string, signal?: AbortSignal): Promise<IdentityLookupView> {
     return this.gateway.runPublic(
       { network: this.network, publicKeyHashHex },
-      'platform.identity-by-public-key-hash',
-      () => this.gateway.networkApi.platformIdentityByPublicKeyHash(this.network, publicKeyHashHex, signal),
+      "platform.identity-by-public-key-hash",
+      () =>
+        this.gateway.networkApi.platformIdentityByPublicKeyHash(
+          this.network,
+          publicKeyHashHex,
+          signal,
+        ),
       signal,
     );
   }
@@ -43,7 +48,7 @@ export class DashPlatformClient {
   identityHistory(identifier: string, signal?: AbortSignal): Promise<PlatformHistorySummaryView> {
     return this.gateway.runPublic(
       { network: this.network, identifier },
-      'platform.identity-history',
+      "platform.identity-history",
       () => this.gateway.networkApi.platformIdentityHistory(this.network, identifier, signal),
       signal,
     );
@@ -52,7 +57,7 @@ export class DashPlatformClient {
   coreTransaction(hash: string, signal?: AbortSignal): Promise<DashCoreTransactionView> {
     return this.gateway.runPublic(
       { network: this.network, hash },
-      'core.transaction',
+      "core.transaction",
       () => this.gateway.networkApi.coreTransaction(this.network, hash, signal),
       signal,
     );

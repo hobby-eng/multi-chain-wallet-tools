@@ -1,21 +1,21 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { RecoveryConcurrencyLimiter, mapRecoveryTasks } from '../src/concurrency.js';
-import { createDiscoveryScannerController } from '../src/controller.js';
-import { ALL_DISCOVERY_FEATURES } from '../src/feature-selection.js';
-import { createBitcoinAddressSearchRunner } from '../src/address-search-feature.js';
-import { scanCandidates } from '../src/candidate-scan.js';
-import { customScanPaths } from '../src/coins/custom-path.js';
-import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
-import type { RecoveryInputSnapshot, DiscoveryScannerView } from '../src/view.js';
-import type { RecoveryWalletResult } from '../src/types.js';
-import type { RuntimeCoinAdapter } from '@ckd/coins/runtime-registry.js';
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { RecoveryConcurrencyLimiter, mapRecoveryTasks } from "../src/concurrency.js";
+import { createDiscoveryScannerController } from "../src/controller.js";
+import { ALL_DISCOVERY_FEATURES } from "../src/feature-selection.js";
+import { createBitcoinAddressSearchRunner } from "../src/address-search-feature.js";
+import { scanCandidates } from "../src/candidate-scan.js";
+import { customScanPaths } from "../src/coins/custom-path.js";
+import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
+import type { RecoveryInputSnapshot, DiscoveryScannerView } from "../src/view.js";
+import type { RecoveryWalletResult } from "../src/types.js";
+import type { RuntimeCoinAdapter } from "@ckd/coins/runtime-registry.js";
 
 class TestControl extends EventTarget {
   disabled = false;
   dataset: Record<string, string> = {};
 
   click(): void {
-    this.dispatchEvent(new Event('click'));
+    this.dispatchEvent(new Event("click"));
   }
 }
 
@@ -33,45 +33,45 @@ async function settle(): Promise<void> {
 
 function snapshot(): RecoveryInputSnapshot {
   return {
-    coinId: 'dash',
-    sourceMode: 'seed',
-    watchOnlyKeys: '',
-    watchOnlyMinimumCount: '100',
-    network: 'mainnet',
-    account: '0',
-    singleMnemonic: 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu',
-    singlePassphrase: 'registered passphrase',
-    batchMnemonics: '',
-    batchPassphrases: '',
-    batchConcurrency: '1',
-    requestConcurrency: '1',
+    coinId: "dash",
+    sourceMode: "seed",
+    watchOnlyKeys: "",
+    watchOnlyMinimumCount: "100",
+    network: "mainnet",
+    account: "0",
+    singleMnemonic: "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu",
+    singlePassphrase: "registered passphrase",
+    batchMnemonics: "",
+    batchPassphrases: "",
+    batchConcurrency: "1",
+    requestConcurrency: "1",
     clearInputOnStart: false,
     scanCore: true,
-    coreReceiveCount: '1',
-    coreChangeCount: '1',
+    coreReceiveCount: "1",
+    coreChangeCount: "1",
     scanCustomPath: false,
-    customPathTemplate: '',
+    customPathTemplate: "",
     scanCustomRange: false,
-    customPathRangeEnd: '',
-    customPathFormat: '',
-    customPathCount: '100',
+    customPathRangeEnd: "",
+    customPathFormat: "",
+    customPathCount: "100",
     scanLegacyCore: false,
-    legacyCoreCount: '0',
+    legacyCoreCount: "0",
     scanCoinJoin: false,
-    coinJoinExternalCount: '0',
-    coinJoinInternalCount: '0',
+    coinJoinExternalCount: "0",
+    coinJoinInternalCount: "0",
     scanIdentityFunding: false,
-    identityFundingCount: '0',
-    identityTopUpIdentityCount: '0',
-    identityTopUpCount: '0',
+    identityFundingCount: "0",
+    identityTopUpIdentityCount: "0",
+    identityTopUpCount: "0",
     scanProviderCollateral: false,
-    providerCollateralCount: '0',
+    providerCollateralCount: "0",
     scanPlatformAddresses: false,
-    platformAddressCount: '0',
+    platformAddressCount: "0",
     scanPlatformIdentities: false,
-    identityStartIndex: '0',
-    identityGapLimit: '1',
-    identityScanLimit: '1',
+    identityStartIndex: "0",
+    identityGapLimit: "1",
+    identityScanLimit: "1",
     includeUsedZeroBalance: false,
     scanShieldedPool: false,
   };
@@ -79,13 +79,13 @@ function snapshot(): RecoveryInputSnapshot {
 
 function result(): RecoveryWalletResult {
   return {
-    inputId: 'seed-1',
-    label: 'Seed phrase #1',
-    coinId: 'dash',
-    coinLabel: 'Dash',
-    network: 'mainnet',
-    startedAt: '2026-09-05T00:00:00.000Z',
-    completedAt: '2026-09-05T00:00:01.000Z',
+    inputId: "seed-1",
+    label: "Seed phrase #1",
+    coinId: "dash",
+    coinLabel: "Dash",
+    network: "mainnet",
+    startedAt: "2026-09-05T00:00:00.000Z",
+    completedAt: "2026-09-05T00:00:01.000Z",
     overview: [],
     sections: [],
     warnings: [],
@@ -95,9 +95,9 @@ function result(): RecoveryWalletResult {
 function testView() {
   const startButton = new TestControl();
   const singleMode = new TestControl();
-  singleMode.dataset.inputMode = 'single';
+  singleMode.dataset.inputMode = "single";
   const batchMode = new TestControl();
-  batchMode.dataset.inputMode = 'batch';
+  batchMode.dataset.inputMode = "batch";
   const revealButton = new TestControl();
   const cancelButton = new TestControl();
   const clearButton = new TestControl();
@@ -130,7 +130,7 @@ function testView() {
     setStatus: vi.fn(),
     showProgress: vi.fn(),
     renderWalletProgress: vi.fn(),
-    progressSectionLabel: vi.fn(() => 'Preparing'),
+    progressSectionLabel: vi.fn(() => "Preparing"),
     renderLiveFinding: vi.fn(),
     renderResults: vi.fn(),
     renderAddressSearch: vi.fn(),
@@ -153,21 +153,21 @@ function testView() {
   };
 }
 
-describe('Discovery Scanner controller', () => {
+describe("Discovery Scanner controller", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
-  it('routes automatic Batch through selected coins and keeps invalid candidates in the public report', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("routes automatic Batch through selected coins and keeps invalid candidates in the public report", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const { view, controls } = testView();
     const state = {
       ...snapshot(),
       automaticCandidates: true,
-      candidateCoinIds: ['bitcoin', 'dash'],
-      batchMnemonics: 'invalid phrase\nvalid candidate',
-      batchPassphrases: '\noptional password',
+      candidateCoinIds: ["bitcoin", "dash"],
+      batchMnemonics: "invalid phrase\nvalid candidate",
+      batchPassphrases: "\noptional password",
     };
     vi.mocked(view.readInputs).mockImplementation(() => ({ ...state }));
     const calls: string[] = [];
@@ -178,24 +178,24 @@ describe('Discovery Scanner controller', () => {
       mapRecoveryTasks,
       scanCandidates,
       assertValidMnemonic: (text: string) => {
-        if (text === 'invalid phrase') throw new Error(text);
+        if (text === "invalid phrase") throw new Error(text);
         return text;
       },
       getRecoveryCoin: (id: string) => ({
         id,
         label: id,
-        networks: ['mainnet'],
-        scan: async (input: import('../src/types.js').RecoverySeedInput) => {
+        networks: ["mainnet"],
+        scan: async (input: import("../src/types.js").RecoverySeedInput) => {
           calls.push(`${input.id}:${input.mnemonic}:${input.passphrase}`);
           return { ...result(), inputId: input.id, label: input.label, coinId: id, coinLabel: id };
         },
       }),
-      listRecoveryCoins: () => [{ id: 'bitcoin' }, { id: 'dash' }],
-      recoveryNetworkApi: async () => ({ ping: async () => 'isolated-network-worker-v1' }),
+      listRecoveryCoins: () => [{ id: "bitcoin" }, { id: "dash" }],
+      recoveryNetworkApi: async () => ({ ping: async () => "isolated-network-worker-v1" }),
       createRecoveryExport: (_results: RecoveryWalletResult[], format: string) => ({
         filename: `report.${format}`,
-        mimeType: 'text/csv',
-        text: 'public report',
+        mimeType: "text/csv",
+        text: "public report",
       }),
       runRecoverySelfTest: async () => ({ checks: [], durationMs: 1 }),
       describeUnknownError: String,
@@ -205,29 +205,31 @@ describe('Discovery Scanner controller', () => {
     controls.batchMode.click();
     controls.startButton.click();
     await vi.waitFor(() =>
-      expect(view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Candidate pass finished')),
+      expect(view.setStatus).toHaveBeenCalledWith(
+        expect.stringContaining("Candidate pass finished"),
+      ),
     );
     expect(calls).toEqual([
-      'candidate-2-bitcoin:valid candidate:optional password',
-      'candidate-2-dash:valid candidate:optional password',
+      "candidate-2-bitcoin:valid candidate:optional password",
+      "candidate-2-dash:valid candidate:optional password",
     ]);
     const lastRender = vi.mocked(view.renderResults).mock.calls.at(-1)!;
     const reports = lastRender[0];
-    expect(lastRender[1]).toBe('bitcoin');
-    lastRender[3]('dash');
-    expect(vi.mocked(view.renderResults).mock.calls.at(-1)![1]).toBe('dash');
+    expect(lastRender[1]).toBe("bitcoin");
+    lastRender[3]("dash");
+    expect(vi.mocked(view.renderResults).mock.calls.at(-1)![1]).toBe("dash");
     expect(reports).toHaveLength(3);
-    expect(reports[0]!.coinId).toBe('input');
-    expect(JSON.stringify(reports)).not.toContain('invalid phrase');
+    expect(reports[0]!.coinId).toBe("input");
+    expect(JSON.stringify(reports)).not.toContain("invalid phrase");
     expect(view.showError).not.toHaveBeenCalled();
   });
 
-  it('blocks a registered mnemonic before export and never calls the shell export broker', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("blocks a registered mnemonic before export and never calls the shell export broker", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const { view, controls } = testView();
     const ordering: string[] = [];
     const originalAssertPublic = SecretEgressGuard.prototype.assertPublic;
-    vi.spyOn(SecretEgressGuard.prototype, 'assertPublic').mockImplementation(function (
+    vi.spyOn(SecretEgressGuard.prototype, "assertPublic").mockImplementation(function (
       this: SecretEgressGuard,
       value,
       context,
@@ -235,35 +237,38 @@ describe('Discovery Scanner controller', () => {
       ordering.push(`tripwire:${context}`);
       originalAssertPublic.call(this, value, context);
     });
-    const requestRecoveryExport = vi.fn(async (_text: string, _format: 'csv' | 'json' | 'xlsx') => 'report.csv');
+    const requestRecoveryExport = vi.fn(
+      async (_text: string, _format: "csv" | "json" | "xlsx") => "report.csv",
+    );
     const dependencies = {
       ...ALL_DISCOVERY_FEATURES,
       RecoveryConcurrencyLimiter,
       SecretEgressGuard,
       assertValidMnemonic: (value: string) => value.trim(),
-      createRecoveryExport: vi.fn((_results, format: 'csv' | 'json') => {
+      createRecoveryExport: vi.fn((_results, format: "csv" | "json") => {
         ordering.push(`create:${format}`);
         return {
           filename: `report.${format}`,
-          mimeType: format === 'csv' ? ('text/csv' as const) : ('application/json' as const),
+          mimeType: format === "csv" ? ("text/csv" as const) : ("application/json" as const),
           text: `public heading,alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu`,
         };
       }),
-      describeUnknownError: (cause: unknown) => (cause instanceof Error ? cause.message : String(cause)),
+      describeUnknownError: (cause: unknown) =>
+        cause instanceof Error ? cause.message : String(cause),
       getRecoveryCoin: () => ({
-        id: 'dash',
-        label: 'Dash',
-        networks: ['mainnet', 'testnet'] as const,
+        id: "dash",
+        label: "Dash",
+        networks: ["mainnet", "testnet"] as const,
         scan: vi.fn(async (input, _config, context) => {
-          context.sessionSecretGuard?.registerString('BIP39 mnemonic', input.mnemonic);
+          context.sessionSecretGuard?.registerString("BIP39 mnemonic", input.mnemonic);
           return result();
         }),
       }),
       listRecoveryCoins: () => [],
       mapRecoveryTasks,
-      recoveryNetworkApi: async () => ({ ping: async () => 'isolated-network-worker-v1' }),
+      recoveryNetworkApi: async () => ({ ping: async () => "isolated-network-worker-v1" }),
       requestRecoveryExport,
-      runRecoverySelfTest: async () => ({ checks: ['fixture'], durationMs: 1 }),
+      runRecoverySelfTest: async () => ({ checks: ["fixture"], durationMs: 1 }),
     } as unknown as Parameters<typeof createDiscoveryScannerController>[1];
 
     const controller = createDiscoveryScannerController(view, dependencies);
@@ -271,21 +276,25 @@ describe('Discovery Scanner controller', () => {
     await settle();
     controls.startButton.click();
     await vi.waitFor(() => {
-      expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('Blocked recovery CSV report export'));
+      expect(view.showError).toHaveBeenCalledWith(
+        expect.stringContaining("Blocked recovery CSV report export"),
+      );
     });
 
-    expect(ordering).toEqual(['create:csv', 'tripwire:recovery CSV report export']);
+    expect(ordering).toEqual(["create:csv", "tripwire:recovery CSV report export"]);
     const lastRender = vi.mocked(view.renderResults).mock.calls.at(-1);
     expect(lastRender?.[2]).toEqual(new Set());
 
     controls.exportCsvButton.click();
     await settle();
     expect(requestRecoveryExport).not.toHaveBeenCalled();
-    expect(view.showError).toHaveBeenCalledWith('Run and complete a fresh recovery scan before exporting.');
+    expect(view.showError).toHaveBeenCalledWith(
+      "Run and complete a fresh recovery scan before exporting.",
+    );
   });
 
-  it('gates startup, resets reveal state on mode changes, and registers listeners once', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("gates startup, resets reveal state on mode changes, and registers listeners once", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const { view, controls } = testView();
     const selfTest = deferred<{ checks: string[]; durationMs: number }>();
     const scan = vi.fn(async () => result());
@@ -295,22 +304,23 @@ describe('Discovery Scanner controller', () => {
       RecoveryConcurrencyLimiter,
       SecretEgressGuard,
       assertValidMnemonic: (value: string) => value.trim(),
-      createRecoveryExport: (_results: RecoveryWalletResult[], format: 'csv' | 'json') => ({
+      createRecoveryExport: (_results: RecoveryWalletResult[], format: "csv" | "json") => ({
         filename: `report.${format}`,
-        mimeType: format === 'csv' ? ('text/csv' as const) : ('application/json' as const),
-        text: 'public report',
+        mimeType: format === "csv" ? ("text/csv" as const) : ("application/json" as const),
+        text: "public report",
       }),
-      describeUnknownError: (cause: unknown) => (cause instanceof Error ? cause.message : String(cause)),
+      describeUnknownError: (cause: unknown) =>
+        cause instanceof Error ? cause.message : String(cause),
       getRecoveryCoin: () => ({
-        id: 'dash',
-        label: 'Dash',
-        networks: ['mainnet', 'testnet'] as const,
+        id: "dash",
+        label: "Dash",
+        networks: ["mainnet", "testnet"] as const,
         scan,
       }),
       listRecoveryCoins: () => [],
       mapRecoveryTasks,
-      recoveryNetworkApi: async () => ({ ping: async () => 'isolated-network-worker-v1' }),
-      requestRecoveryExport: vi.fn(async () => 'report.csv'),
+      recoveryNetworkApi: async () => ({ ping: async () => "isolated-network-worker-v1" }),
+      requestRecoveryExport: vi.fn(async () => "report.csv"),
       runRecoverySelfTest,
     } as unknown as Parameters<typeof createDiscoveryScannerController>[1];
 
@@ -319,14 +329,16 @@ describe('Discovery Scanner controller', () => {
     controller.start();
     controls.startButton.click();
     expect(scan).not.toHaveBeenCalled();
-    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('self-test has not passed'));
+    expect(view.showError).toHaveBeenCalledWith(
+      expect.stringContaining("self-test has not passed"),
+    );
 
     controls.revealButton.click();
     controls.batchMode.click();
-    expect(view.setMode).toHaveBeenLastCalledWith('batch');
+    expect(view.setMode).toHaveBeenLastCalledWith("batch");
     expect(view.setRevealed).toHaveBeenLastCalledWith(false);
 
-    selfTest.resolve({ checks: ['fixture'], durationMs: 1 });
+    selfTest.resolve({ checks: ["fixture"], durationMs: 1 });
     await settle();
     controls.singleMode.click();
     controls.startButton.click();
@@ -334,8 +346,8 @@ describe('Discovery Scanner controller', () => {
     expect(runRecoverySelfTest).toHaveBeenCalledOnce();
   });
 
-  it('cancels and restarts scans while clearing each run input on cancel, failure, and success', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("cancels and restarts scans while clearing each run input on cancel, failure, and success", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const { view, controls } = testView();
     const capturedInputs: Array<{ mnemonic: string; passphrase: string }> = [];
     let call = 0;
@@ -344,10 +356,12 @@ describe('Discovery Scanner controller', () => {
       call += 1;
       if (call === 1) {
         await new Promise<never>((_resolve, reject) => {
-          context.signal.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError')));
+          context.signal.addEventListener("abort", () =>
+            reject(new DOMException("cancelled", "AbortError")),
+          );
         });
       }
-      if (call === 2) throw new Error('fixture scan failure');
+      if (call === 2) throw new Error("fixture scan failure");
       return result();
     });
     const dependencies = {
@@ -355,23 +369,24 @@ describe('Discovery Scanner controller', () => {
       RecoveryConcurrencyLimiter,
       SecretEgressGuard,
       assertValidMnemonic: (value: string) => value.trim(),
-      createRecoveryExport: (_results: RecoveryWalletResult[], format: 'csv' | 'json') => ({
+      createRecoveryExport: (_results: RecoveryWalletResult[], format: "csv" | "json") => ({
         filename: `report.${format}`,
-        mimeType: format === 'csv' ? ('text/csv' as const) : ('application/json' as const),
-        text: 'public report',
+        mimeType: format === "csv" ? ("text/csv" as const) : ("application/json" as const),
+        text: "public report",
       }),
-      describeUnknownError: (cause: unknown) => (cause instanceof Error ? cause.message : String(cause)),
+      describeUnknownError: (cause: unknown) =>
+        cause instanceof Error ? cause.message : String(cause),
       getRecoveryCoin: () => ({
-        id: 'dash',
-        label: 'Dash',
-        networks: ['mainnet', 'testnet'] as const,
+        id: "dash",
+        label: "Dash",
+        networks: ["mainnet", "testnet"] as const,
         scan,
       }),
       listRecoveryCoins: () => [],
       mapRecoveryTasks,
-      recoveryNetworkApi: async () => ({ ping: async () => 'isolated-network-worker-v1' }),
-      requestRecoveryExport: vi.fn(async () => 'report.csv'),
-      runRecoverySelfTest: async () => ({ checks: ['fixture'], durationMs: 1 }),
+      recoveryNetworkApi: async () => ({ ping: async () => "isolated-network-worker-v1" }),
+      requestRecoveryExport: vi.fn(async () => "report.csv"),
+      runRecoverySelfTest: async () => ({ checks: ["fixture"], durationMs: 1 }),
     } as unknown as Parameters<typeof createDiscoveryScannerController>[1];
     createDiscoveryScannerController(view, dependencies).start();
     await settle();
@@ -382,8 +397,8 @@ describe('Discovery Scanner controller', () => {
     await vi.waitFor(() =>
       expect(capturedInputs[0]).toEqual(
         expect.objectContaining({
-          mnemonic: '',
-          passphrase: '',
+          mnemonic: "",
+          passphrase: "",
         }),
       ),
     );
@@ -393,42 +408,46 @@ describe('Discovery Scanner controller', () => {
     await vi.waitFor(() =>
       expect(capturedInputs[1]).toEqual(
         expect.objectContaining({
-          mnemonic: '',
-          passphrase: '',
+          mnemonic: "",
+          passphrase: "",
         }),
       ),
     );
-    expect(view.showError).toHaveBeenCalledWith('fixture scan failure');
+    expect(view.showError).toHaveBeenCalledWith("fixture scan failure");
 
     controls.startButton.click();
     await vi.waitFor(() => expect(scan).toHaveBeenCalledTimes(3));
     await vi.waitFor(() =>
       expect(capturedInputs[2]).toEqual(
         expect.objectContaining({
-          mnemonic: '',
-          passphrase: '',
+          mnemonic: "",
+          passphrase: "",
         }),
       ),
     );
     expect(view.setStatus).toHaveBeenCalledWith(
-      'Recovery scan complete. Review and export the standard-wallet handoff report.',
+      "Recovery scan complete. Review and export the standard-wallet handoff report.",
     );
   });
 
-  it('routes opt-in Bitcoin target searches locally across seed inputs without network RPC', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("routes opt-in Bitcoin target searches locally across seed inputs without network RPC", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const { view, controls } = testView();
     const state = {
       ...snapshot(),
-      coinId: 'bitcoin',
-      singleMnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+      coinId: "bitcoin",
+      singleMnemonic:
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
       addressSearchEnabled: true,
-      addressSearchTargets: '1BoatSLRHtKNngkdXEeobR76b53LETtpyT\n1BoatSLRHtKNngkdXEeobR76b53LETtpyT',
-      addressSearchStart: '0',
-      addressSearchCount: '1',
+      addressSearchTargets:
+        "1BoatSLRHtKNngkdXEeobR76b53LETtpyT\n1BoatSLRHtKNngkdXEeobR76b53LETtpyT",
+      addressSearchStart: "0",
+      addressSearchCount: "1",
     };
     vi.mocked(view.readInputs).mockReturnValue(state);
-    const networkApi = vi.fn(async () => ({ ping: async () => 'isolated-network-worker-v1' as const }));
+    const networkApi = vi.fn(async () => ({
+      ping: async () => "isolated-network-worker-v1" as const,
+    }));
     const derive = vi.fn(async (input: { branch: number }) => ({
       basicSummary: [],
       summary: [],
@@ -439,7 +458,7 @@ describe('Discovery Scanner controller', () => {
               {
                 index: 0,
                 path: "m/44'/0'/0'/0/0",
-                basic: [{ key: 'address', value: '1BoatSLRHtKNngkdXEeobR76b53LETtpyT' }],
+                basic: [{ key: "address", value: "1BoatSLRHtKNngkdXEeobR76b53LETtpyT" }],
                 advanced: [],
               },
             ]
@@ -451,13 +470,18 @@ describe('Discovery Scanner controller', () => {
       SecretEgressGuard,
       mapRecoveryTasks,
       assertValidMnemonic: (value: string) => value.trim(),
-      getRecoveryCoin: () => ({ id: 'bitcoin', label: 'Bitcoin', networks: ['mainnet'], scan: vi.fn() }),
+      getRecoveryCoin: () => ({
+        id: "bitcoin",
+        label: "Bitcoin",
+        networks: ["mainnet"],
+        scan: vi.fn(),
+      }),
       listRecoveryCoins: () => [],
       recoveryNetworkApi: networkApi,
       addressSearchRunner: createBitcoinAddressSearchRunner(
         () =>
           ({
-            id: 'bitcoin-legacy',
+            id: "bitcoin-legacy",
             derive,
             batchSize: 1,
             addressesEqual: (left: string, right: string) => left === right,
@@ -466,7 +490,8 @@ describe('Discovery Scanner controller', () => {
       createRecoveryExport: vi.fn(),
       requestRecoveryExport: vi.fn(),
       runRecoverySelfTest: async () => ({ checks: [], durationMs: 1 }),
-      describeUnknownError: (cause: unknown) => (cause instanceof Error ? cause.message : String(cause)),
+      describeUnknownError: (cause: unknown) =>
+        cause instanceof Error ? cause.message : String(cause),
     } as unknown as Parameters<typeof createDiscoveryScannerController>[1];
     const controller = createDiscoveryScannerController(view, dependencies);
     controller.start();
@@ -474,12 +499,16 @@ describe('Discovery Scanner controller', () => {
     networkApi.mockClear();
     controls.startButton.click();
     await vi.waitFor(() =>
-      expect(view.setStatus).toHaveBeenCalledWith('Local Bitcoin address search complete. No network worker was used.'),
+      expect(view.setStatus).toHaveBeenCalledWith(
+        "Local Bitcoin address search complete. No network worker was used.",
+      ),
     );
     expect(networkApi).not.toHaveBeenCalled();
     expect(derive).toHaveBeenCalledWith(expect.objectContaining({ branch: 0, start: 0, count: 1 }));
     expect(view.renderAddressSearch).toHaveBeenLastCalledWith(
-      expect.arrayContaining([expect.objectContaining({ match: expect.objectContaining({ index: 0 }) })]),
+      expect.arrayContaining([
+        expect.objectContaining({ match: expect.objectContaining({ index: 0 }) }),
+      ]),
       1,
       1,
     );
@@ -492,16 +521,16 @@ import {
   assertWatchOnlyMinimum,
   parseWatchOnlyLines,
   resolveWatchOnlyTargets,
-} from '@ckd/recovery/watch-only.js';
+} from "@ckd/recovery/watch-only.js";
 import type {
   RecoveryCoinAdapter,
   RecoveryWatchOnlyInput,
   RecoveryWatchOnlyScanConfig,
   RecoveryScanContext,
-} from '../src/types.js';
-import { createRecoveryExport } from '../src/export.js';
+} from "../src/types.js";
+import { createRecoveryExport } from "../src/export.js";
 
-const PUBLIC_KEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
+const PUBLIC_KEY = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
 function publicHarness(
   scan?: (
     coin: string,
@@ -511,7 +540,7 @@ function publicHarness(
   ) => Promise<RecoveryWalletResult>,
 ) {
   const { view, controls } = testView();
-  const scanSeed = vi.fn(async (input, _config: import('../src/types.js').RecoveryScanConfig) => ({
+  const scanSeed = vi.fn(async (input, _config: import("../src/types.js").RecoveryScanConfig) => ({
     ...result(),
     inputId: input.id,
     label: input.label,
@@ -534,26 +563,31 @@ function publicHarness(
             network: config.network,
           },
   );
-  const adapters: RecoveryCoinAdapter[] = ['bitcoin', 'ethereum', 'dash'].map((id) => ({
+  const adapters: RecoveryCoinAdapter[] = ["bitcoin", "ethereum", "dash"].map((id) => ({
     id,
     label: id,
-    networks: ['mainnet', 'testnet'],
+    networks: ["mainnet", "testnet"],
     scan: scanSeed,
-    detectWatchOnly: (value) => ({ coinId: id, kind: 'public-key', value }),
+    detectWatchOnly: (value) => ({ coinId: id, kind: "public-key", value }),
     scanWatchOnly: (input, config, context) => scanKey(id, input, config, context),
   }));
   const getRecoveryCoin = (id: string) => adapters.find((adapter) => adapter.id === id)!;
   const assertValidMnemonic = vi.fn((value: string) => value);
-  const requestRecoveryExport = vi.fn(async (_text: string, _format: 'csv' | 'json' | 'xlsx') => 'report.csv');
+  const requestRecoveryExport = vi.fn(
+    async (_text: string, _format: "csv" | "json" | "xlsx") => "report.csv",
+  );
   const recoveryNetworkApi = vi.fn(
-    async () => ({ ping: async () => 'isolated-network-worker-v1' as const }) as RecoveryScanContext['networkApi'],
+    async () =>
+      ({
+        ping: async () => "isolated-network-worker-v1" as const,
+      }) as RecoveryScanContext["networkApi"],
   );
   vi.mocked(view.readInputs).mockImplementation(() => ({
     ...snapshot(),
-    sourceMode: 'public',
+    sourceMode: "public",
     watchOnlyKeys: PUBLIC_KEY,
-    watchOnlyMinimumCount: '1',
-    requestConcurrency: '1',
+    watchOnlyMinimumCount: "1",
+    requestConcurrency: "1",
   }));
   const controller = createDiscoveryScannerController(view, {
     ...ALL_DISCOVERY_FEATURES,
@@ -586,36 +620,38 @@ function publicHarness(
   };
 }
 
-describe('public-key source integration', () => {
+describe("public-key source integration", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
-  it('scans only the coin selected for public input and ignores the hidden phrase', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("scans only the coin selected for public input and ignores the hidden phrase", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
     h.controller.start();
     await settle();
     h.controls.startButton.click();
     await vi.waitFor(() =>
-      expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Public-key scan complete')),
+      expect(h.view.setStatus).toHaveBeenCalledWith(
+        expect.stringContaining("Public-key scan complete"),
+      ),
     );
-    expect(h.scanKey.mock.calls.map(([coin]) => coin)).toEqual(['dash']);
+    expect(h.scanKey.mock.calls.map(([coin]) => coin)).toEqual(["dash"]);
     expect(h.scanSeed).not.toHaveBeenCalled();
     expect(h.assertValidMnemonic).not.toHaveBeenCalled();
-    expect(h.scanKey.mock.calls.every(([, input]) => input.value === '')).toBe(true);
+    expect(h.scanKey.mock.calls.every(([, input]) => input.value === "")).toBe(true);
     h.controls.exportJsonButton.click();
     await settle();
     expect(h.requestRecoveryExport).toHaveBeenCalledOnce();
     expect(h.requestRecoveryExport.mock.calls[0]?.[0]).not.toContain(snapshot().singleMnemonic);
   });
-  it('requires a coin choice when Auto-detect finds more than one compatible adapter', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("requires a coin choice when Auto-detect finds more than one compatible adapter", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
     vi.mocked(h.view.readInputs).mockReturnValue({
       ...snapshot(),
-      coinId: 'auto',
-      sourceMode: 'public',
+      coinId: "auto",
+      sourceMode: "public",
       watchOnlyKeys: PUBLIC_KEY,
     });
     h.controller.start();
@@ -623,32 +659,34 @@ describe('public-key source integration', () => {
     h.controls.startButton.click();
     await settle();
     expect(h.scanKey).not.toHaveBeenCalled();
-    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining('Select Coin'));
+    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining("Select Coin"));
   });
-  it('allows Auto-detect when an explicit format identifies exactly one coin', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("allows Auto-detect when an explicit format identifies exactly one coin", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
     vi.mocked(h.view.readInputs).mockReturnValue({
       ...snapshot(),
-      coinId: 'auto',
-      sourceMode: 'public',
+      coinId: "auto",
+      sourceMode: "public",
       watchOnlyKeys: `dash-core-xpub:${PUBLIC_KEY}`,
     });
     h.controller.start();
     await settle();
     h.controls.startButton.click();
     await vi.waitFor(() =>
-      expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Public-key scan complete')),
+      expect(h.view.setStatus).toHaveBeenCalledWith(
+        expect.stringContaining("Public-key scan complete"),
+      ),
     );
-    expect(h.scanKey.mock.calls.map(([coin]) => coin)).toEqual(['dash']);
+    expect(h.scanKey.mock.calls.map(([coin]) => coin)).toEqual(["dash"]);
   });
-  it('rejects a mixed public/private batch before invoking a scan and erases the input', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("rejects a mixed public/private batch before invoking a scan and erases the input", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
     vi.mocked(h.view.readInputs).mockReturnValue({
       ...snapshot(),
-      sourceMode: 'public',
-      watchOnlyKeys: `${PUBLIC_KEY}\n${'11'.repeat(32)}`,
+      sourceMode: "public",
+      watchOnlyKeys: `${PUBLIC_KEY}\n${"11".repeat(32)}`,
     });
     h.controller.start();
     await settle();
@@ -656,24 +694,30 @@ describe('public-key source integration', () => {
     await settle();
     expect(h.scanKey).not.toHaveBeenCalled();
     expect(h.view.clearVisibleSecrets).toHaveBeenCalled();
-    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining('Private'));
+    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining("Private"));
   });
-  it('stops at cancellation and keeps only completed coin reports exportable', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("stops at cancellation and keeps only completed coin reports exportable", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const pending = deferred<RecoveryWalletResult>();
     const h = publicHarness(async (coin, input, config, context) => {
-      if (input.id === 'watch-2-dash') {
+      if (input.id === "watch-2-dash") {
         await pending.promise;
-        if (context.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+        if (context.signal.aborted) throw new DOMException("Cancelled", "AbortError");
       }
-      return { ...result(), inputId: input.id, coinId: coin, label: input.label, network: config.network };
+      return {
+        ...result(),
+        inputId: input.id,
+        coinId: coin,
+        label: input.label,
+        network: config.network,
+      };
     });
     vi.mocked(h.view.readInputs).mockReturnValue({
       ...snapshot(),
-      coinId: 'dash',
-      sourceMode: 'public',
+      coinId: "dash",
+      sourceMode: "public",
       watchOnlyKeys: `${PUBLIC_KEY}\n${PUBLIC_KEY}`,
-      requestConcurrency: '1',
+      requestConcurrency: "1",
     });
     h.controller.start();
     await settle();
@@ -681,24 +725,30 @@ describe('public-key source integration', () => {
     await vi.waitFor(() => expect(h.scanKey).toHaveBeenCalledTimes(2));
     h.controls.cancelButton.click();
     pending.resolve(result());
-    await vi.waitFor(() => expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Scan cancelled')));
+    await vi.waitFor(() =>
+      expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining("Scan cancelled")),
+    );
     expect(h.scanKey).toHaveBeenCalledTimes(2);
     h.controls.exportJsonButton.click();
     await settle();
-    expect(h.requestRecoveryExport.mock.calls[0]?.[0]).toContain('watch-1-dash');
-    expect(h.requestRecoveryExport.mock.calls[0]?.[0]).not.toContain('watch-2-dash');
+    expect(h.requestRecoveryExport.mock.calls[0]?.[0]).toContain("watch-1-dash");
+    expect(h.requestRecoveryExport.mock.calls[0]?.[0]).not.toContain("watch-2-dash");
   });
 });
 
-describe('explicit source selection and both batch modes', () => {
+describe("explicit source selection and both batch modes", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
-  it('scans the seed tab even when a public key remains in the hidden tab', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("scans the seed tab even when a public key remains in the hidden tab", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
-    vi.mocked(h.view.readInputs).mockReturnValue({ ...snapshot(), sourceMode: 'seed', watchOnlyKeys: PUBLIC_KEY });
+    vi.mocked(h.view.readInputs).mockReturnValue({
+      ...snapshot(),
+      sourceMode: "seed",
+      watchOnlyKeys: PUBLIC_KEY,
+    });
     h.controller.start();
     await settle();
     h.controls.startButton.click();
@@ -706,27 +756,33 @@ describe('explicit source selection and both batch modes', () => {
     expect(h.scanKey).not.toHaveBeenCalled();
     expect(h.assertValidMnemonic).toHaveBeenCalled();
   });
-  it('requires a public key on the public tab even when a seed is present', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("requires a public key on the public tab even when a seed is present", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
-    vi.mocked(h.view.readInputs).mockReturnValue({ ...snapshot(), sourceMode: 'public', watchOnlyKeys: '' });
+    vi.mocked(h.view.readInputs).mockReturnValue({
+      ...snapshot(),
+      sourceMode: "public",
+      watchOnlyKeys: "",
+    });
     h.controller.start();
     await settle();
     h.controls.startButton.click();
     await settle();
     expect(h.scanSeed).not.toHaveBeenCalled();
     expect(h.scanKey).not.toHaveBeenCalled();
-    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining('Enter at least one public key'));
+    expect(h.view.showError).toHaveBeenCalledWith(
+      expect.stringContaining("Enter at least one public key"),
+    );
   });
-  it('keeps seed batches and ignores hidden public-key contents', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("keeps seed batches and ignores hidden public-key contents", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
     vi.mocked(h.view.readInputs).mockImplementation(() => ({
       ...snapshot(),
-      sourceMode: 'seed',
+      sourceMode: "seed",
       watchOnlyKeys: PUBLIC_KEY,
       batchMnemonics: `${snapshot().singleMnemonic}\n${snapshot().singleMnemonic}`,
-      batchPassphrases: '\n',
+      batchPassphrases: "\n",
     }));
     h.controller.start();
     await settle();
@@ -735,12 +791,12 @@ describe('explicit source selection and both batch modes', () => {
     await vi.waitFor(() => expect(h.scanSeed).toHaveBeenCalledTimes(2));
     expect(h.scanKey).not.toHaveBeenCalled();
   });
-  it('scans every public-key batch line independently of the seed single/batch selector', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("scans every public-key batch line independently of the seed single/batch selector", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
     vi.mocked(h.view.readInputs).mockImplementation(() => ({
       ...snapshot(),
-      sourceMode: 'public',
+      sourceMode: "public",
       watchOnlyKeys: `${PUBLIC_KEY}\n${PUBLIC_KEY}`,
     }));
     h.controller.start();
@@ -749,70 +805,81 @@ describe('explicit source selection and both batch modes', () => {
     h.controls.startButton.click();
     await vi.waitFor(() => expect(h.scanKey).toHaveBeenCalledTimes(2));
     expect(h.scanSeed).not.toHaveBeenCalled();
-    expect(h.scanKey.mock.calls.map(([, input]) => input.id)).toEqual(['watch-1-dash', 'watch-2-dash']);
+    expect(h.scanKey.mock.calls.map(([, input]) => input.id)).toEqual([
+      "watch-1-dash",
+      "watch-2-dash",
+    ]);
   });
 });
 
-for (const sourceMode of ['seed', 'public'] as const)
+for (const sourceMode of ["seed", "public"] as const)
   it(`reports a partial ${sourceMode} scan as incomplete and keeps its public report exportable`, async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const partial = {
       ...result(),
       sections: [
         {
-          id: 'shielded' as const,
-          title: 'Orchard',
-          description: 'fixture',
-          state: 'partial' as const,
+          id: "shielded" as const,
+          title: "Orchard",
+          description: "fixture",
+          state: "partial" as const,
           balanceAvailable: false,
           metrics: [],
           findings: [],
           scanned: 1n,
-          source: 'fixture',
-          proof: 'prefix',
-          warning: 'Incomplete stream',
+          source: "fixture",
+          proof: "prefix",
+          warning: "Incomplete stream",
         },
       ],
     };
     const h = publicHarness(async () => partial);
     h.scanSeed.mockResolvedValue(partial);
-    vi.mocked(h.view.readInputs).mockReturnValue({ ...snapshot(), sourceMode, watchOnlyKeys: PUBLIC_KEY });
+    vi.mocked(h.view.readInputs).mockReturnValue({
+      ...snapshot(),
+      sourceMode,
+      watchOnlyKeys: PUBLIC_KEY,
+    });
     h.controller.start();
     await settle();
     h.controls.startButton.click();
-    await vi.waitFor(() => expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringMatching(/scan incomplete/iu)));
+    await vi.waitFor(() =>
+      expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringMatching(/scan incomplete/iu)),
+    );
     h.controls.exportJsonButton.click();
     await settle();
     expect(h.requestRecoveryExport).toHaveBeenCalledOnce();
     const exported = JSON.parse(h.requestRecoveryExport.mock.calls[0]![0]);
-    expect(exported.results[0].sections[0].state).toBe('partial');
-    expect(exported.results[0].warnings.join(' ')).toMatch(/incomplete/u);
+    expect(exported.results[0].sections[0].state).toBe("partial");
+    expect(exported.results[0].warnings.join(" ")).toMatch(/incomplete/u);
     vi.unstubAllGlobals();
   });
 
-describe('custom account range controller', () => {
+describe("custom account range controller", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
-  it('passes one custom range per seed while leaving the standard Account setting unchanged', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("passes one custom range per seed while leaving the standard Account setting unchanged", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
     vi.mocked(h.view.readInputs).mockImplementation(() => ({
       ...snapshot(),
-      account: '3',
+      account: "3",
       scanCustomPath: true,
       scanCustomRange: true,
       customPathTemplate: "m/44'/5'/7'/0/{index}",
       customPathRangeEnd: "m/44'/5'/9'/0/{index}",
-      batchMnemonics: 'phrase one\nphrase two',
+      batchMnemonics: "phrase one\nphrase two",
     }));
     h.controller.start();
     await settle();
     h.controls.batchMode.click();
     h.controls.startButton.click();
     await vi.waitFor(() =>
-      expect(h.view.setStatus).toHaveBeenCalledWith(expect.stringContaining('Recovery scan complete')),
+      expect(h.view.setStatus).toHaveBeenCalledWith(
+        expect.stringContaining("Recovery scan complete"),
+      ),
     );
     expect(h.scanSeed).toHaveBeenCalledTimes(2);
     for (const [, cfg] of h.scanSeed.mock.calls)
@@ -822,8 +889,8 @@ describe('custom account range controller', () => {
         customPathRangeEnd: "m/44'/5'/9'/0/{index}",
       });
   });
-  it('rejects a branch mismatch before starting network queries', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("rejects a branch mismatch before starting network queries", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
     vi.mocked(h.view.readInputs).mockImplementation(() => ({
       ...snapshot(),
@@ -836,18 +903,18 @@ describe('custom account range controller', () => {
     await settle();
     h.recoveryNetworkApi.mockClear();
     h.controls.startButton.click();
-    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining('differ only'));
+    expect(h.view.showError).toHaveBeenCalledWith(expect.stringContaining("differ only"));
     expect(h.recoveryNetworkApi).not.toHaveBeenCalled();
   });
-  it('ignores a stale Finish path when range mode is off and accepts a fully custom single path', async () => {
-    vi.stubGlobal('window', { addEventListener: vi.fn() });
+  it("ignores a stale Finish path when range mode is off and accepts a fully custom single path", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
     const h = publicHarness();
     vi.mocked(h.view.readInputs).mockImplementation(() => ({
       ...snapshot(),
       scanCustomPath: true,
       scanCustomRange: false,
       customPathTemplate: "m/123'/4/{index}'/8",
-      customPathRangeEnd: 'bad',
+      customPathRangeEnd: "bad",
     }));
     h.controller.start();
     await settle();

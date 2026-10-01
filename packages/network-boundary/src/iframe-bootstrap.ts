@@ -1,4 +1,4 @@
-import { RECOVERY_VAULT_CHANNEL } from './protocol.js';
+import { RECOVERY_VAULT_CHANNEL } from "./protocol.js";
 
 export interface IsolatedBoundaryBootstrap {
   stop(): void;
@@ -19,11 +19,12 @@ export function bootstrapIsolatedBoundary(
   let closed = false;
   const deliver = (): void => {
     if (delivered) return;
-    if (closed) throw new Error('The isolated boundary channel was closed before delivery.');
+    if (closed) throw new Error("The isolated boundary channel was closed before delivery.");
     const target = frame.contentWindow;
-    if (target === null) throw new Error('The browser did not create the isolated boundary document.');
+    if (target === null)
+      throw new Error("The browser did not create the isolated boundary document.");
     delivered = true;
-    target.postMessage({ type: RECOVERY_VAULT_CHANNEL }, '*', [port]);
+    target.postMessage({ type: RECOVERY_VAULT_CHANNEL }, "*", [port]);
   };
   const onLoad = (): void => {
     try {
@@ -32,11 +33,11 @@ export function bootstrapIsolatedBoundary(
       onError(cause);
     }
   };
-  frame.addEventListener('load', onLoad);
+  frame.addEventListener("load", onLoad);
   frame.srcdoc = html;
   return {
     stop(): void {
-      frame.removeEventListener('load', onLoad);
+      frame.removeEventListener("load", onLoad);
       // Release the untransferred endpoint if unload wins the readiness race.
       if (!delivered && !closed) {
         closed = true;

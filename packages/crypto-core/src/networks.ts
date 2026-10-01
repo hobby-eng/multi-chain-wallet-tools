@@ -1,4 +1,4 @@
-import type { NetworkName } from './types.js';
+import type { NetworkName } from "./types.js";
 
 export interface Bip32Versions {
   private: number;
@@ -32,23 +32,23 @@ const TEST_VERSIONS = { private: 0x04358394, public: 0x043587cf } as const;
 
 const BITCOIN_NETWORKS: Record<NetworkName, BitcoinNetwork> = {
   mainnet: {
-    name: 'mainnet',
-    label: 'Bitcoin mainnet',
+    name: "mainnet",
+    label: "Bitcoin mainnet",
     coinType: 0,
     p2pkh: 0x00,
     p2sh: 0x05,
     wif: 0x80,
-    bech32Hrp: 'bc',
+    bech32Hrp: "bc",
     versions: MAIN_VERSIONS,
   },
   testnet: {
-    name: 'testnet',
-    label: 'Bitcoin testnet',
+    name: "testnet",
+    label: "Bitcoin testnet",
     coinType: 1,
     p2pkh: 0x6f,
     p2sh: 0xc4,
     wif: 0xef,
-    bech32Hrp: 'tb',
+    bech32Hrp: "tb",
     versions: TEST_VERSIONS,
   },
 };
@@ -57,23 +57,23 @@ const BITCOIN_NETWORKS: Record<NetworkName, BitcoinNetwork> = {
 // Dash Core now deliberately uses Bitcoin's xpub/xprv version bytes on mainnet.
 const DASH_NETWORKS: Record<NetworkName, DashNetwork> = {
   mainnet: {
-    name: 'mainnet',
-    label: 'Dash mainnet',
+    name: "mainnet",
+    label: "Dash mainnet",
     coinType: 5,
     p2pkh: 76,
     p2sh: 16,
     wif: 204,
-    platformHrp: 'dash',
+    platformHrp: "dash",
     versions: MAIN_VERSIONS,
   },
   testnet: {
-    name: 'testnet',
-    label: 'Dash testnet',
+    name: "testnet",
+    label: "Dash testnet",
     coinType: 1,
     p2pkh: 140,
     p2sh: 19,
     wif: 239,
-    platformHrp: 'tdash',
+    platformHrp: "tdash",
     versions: TEST_VERSIONS,
   },
 };

@@ -87,7 +87,7 @@
   font-weight: 700;
 }
 .psbt-trust-row span::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 10px;
   top: 50%;
@@ -111,7 +111,7 @@
     inset 0 1px rgba(255, 255, 255, 0.04);
 }
 .psbt-capability-card::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -128,7 +128,7 @@
 }
 .capability-orbit::before,
 .capability-orbit::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 19px;
   border: 1px solid rgba(245, 166, 35, 0.13);
@@ -199,7 +199,7 @@
   color: #efc6c9;
 }
 .danger-warning::after {
-  content: 'SIGNING BOUNDARY';
+  content: "SIGNING BOUNDARY";
   position: absolute;
   right: 17px;
   top: 9px;

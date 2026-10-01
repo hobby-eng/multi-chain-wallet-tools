@@ -1,25 +1,42 @@
-import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createBuildInfo } from '../../../tooling/build-metadata.mjs';
-import { applyProfileTemplate, getToolBuild, parseBuildProfile } from '../../../tooling/build-profiles.mjs';
-import { assertEvoSdkReadOnly } from '../../../tooling/verify-evo-read-only.mjs';
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
+import {
+  applyProfileTemplate,
+  getToolBuild,
+  parseBuildProfile,
+} from "../../../tooling/build-profiles.mjs";
+import { assertEvoSdkReadOnly } from "../../../tooling/verify-evo-read-only.mjs";
 
-const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
-const tool = getToolBuild(profile, 'discovery-scanner');
-const sourceRoot = resolve(root, 'apps/discovery-scanner/src');
-const artifactPath = resolve(root, 'dist', tool.artifactRelativePath);
-const checksumPath = resolve(root, 'dist', tool.artifactDirectory, tool.checksumFile);
-const orchardWasmPath = resolve(root, 'packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm');
-const html = readFileSync(artifactPath, 'utf8');
+const tool = getToolBuild(profile, "discovery-scanner");
+const sourceRoot = resolve(root, "apps/discovery-scanner/src");
+const artifactPath = resolve(root, "dist", tool.artifactRelativePath);
+const checksumPath = resolve(root, "dist", tool.artifactDirectory, tool.checksumFile);
+const orchardWasmPath = resolve(
+  root,
+  "packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm",
+);
+const html = readFileSync(artifactPath, "utf8");
 const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
 if (!html.includes(expectedFingerprint)) {
-  throw new Error('Discovery Scanner artifact does not contain the fingerprint of the current source tree.');
+  throw new Error(
+    "Discovery Scanner artifact does not contain the fingerprint of the current source tree.",
+  );
 }
-const vaultTemplate = applyProfileTemplate(readFileSync(resolve(sourceRoot, 'index.html'), 'utf8'), profile, tool);
-const shellTemplate = applyProfileTemplate(readFileSync(resolve(sourceRoot, 'shell.html'), 'utf8'), profile, tool);
+const vaultTemplate = applyProfileTemplate(
+  readFileSync(resolve(sourceRoot, "index.html"), "utf8"),
+  profile,
+  tool,
+);
+const shellTemplate = applyProfileTemplate(
+  readFileSync(resolve(sourceRoot, "shell.html"), "utf8"),
+  profile,
+  tool,
+);
 
 function occurrences(value, marker) {
   return value.split(marker).length - 1;
@@ -29,7 +46,9 @@ function sourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(directory, entry.name);
     if (entry.isDirectory()) return sourceFiles(path);
-    return entry.isFile() && path.endsWith('.ts') ? [{ path, text: readFileSync(path, 'utf8') }] : [];
+    return entry.isFile() && path.endsWith(".ts")
+      ? [{ path, text: readFileSync(path, "utf8") }]
+      : [];
   });
 }
 
@@ -46,32 +65,45 @@ function assertNoDuplicateIds(markup, label) {
 const expectedOuterCspPrefix = "default-src 'none'; script-src ";
 const expectedOuterCspSuffix =
   " 'wasm-unsafe-eval'; style-src 'unsafe-inline'; connect-src https:; worker-src blob:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'";
-const csp = /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/u.exec(html)?.[1];
-if (csp === undefined || !csp.startsWith(expectedOuterCspPrefix) || !csp.endsWith(expectedOuterCspSuffix)) {
-  throw new Error('Recovery shell CSP changed from the reviewed isolated-network policy.');
+const csp = /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/u.exec(
+  html,
+)?.[1];
+if (
+  csp === undefined ||
+  !csp.startsWith(expectedOuterCspPrefix) ||
+  !csp.endsWith(expectedOuterCspSuffix)
+) {
+  throw new Error("Recovery shell CSP changed from the reviewed isolated-network policy.");
 }
 if (/script-src[^;]*'unsafe-inline'/u.test(csp)) {
-  throw new Error('Recovery shell CSP must authorize its immutable inline script by hash, not unsafe-inline.');
+  throw new Error(
+    "Recovery shell CSP must authorize its immutable inline script by hash, not unsafe-inline.",
+  );
 }
 if (csp.includes("'unsafe-eval'")) throw new Error("Recovery CSP must never grant 'unsafe-eval'.");
 
-const scriptStart = html.indexOf('<script>');
-const scriptEnd = html.lastIndexOf('</script>');
-const styleStart = html.indexOf('<style>');
-const styleEnd = html.indexOf('</style>', styleStart);
+const scriptStart = html.indexOf("<script>");
+const scriptEnd = html.lastIndexOf("</script>");
+const styleStart = html.indexOf("<style>");
+const styleEnd = html.indexOf("</style>", styleStart);
 if (scriptStart < 0 || scriptEnd <= scriptStart || styleStart < 0 || styleEnd <= styleStart) {
-  throw new Error('Discovery Scanner artifact has no complete isolation-shell script/style pair.');
+  throw new Error("Discovery Scanner artifact has no complete isolation-shell script/style pair.");
 }
-const inlineScript = html.slice(scriptStart + '<script>'.length, scriptEnd);
-const shellScriptHash = `'sha256-${createHash('sha256').update(inlineScript).digest('base64')}'`;
-if (!csp.includes(shellScriptHash)) throw new Error('Recovery shell CSP hash does not match its inline script bytes.');
+const inlineScript = html.slice(scriptStart + "<script>".length, scriptEnd);
+const shellScriptHash = `'sha256-${createHash("sha256").update(inlineScript).digest("base64")}'`;
+if (!csp.includes(shellScriptHash))
+  throw new Error("Recovery shell CSP hash does not match its inline script bytes.");
 const outerScriptHashes = [...csp.matchAll(/'sha256-[A-Za-z0-9+/]+=*'/gu)].map((match) => match[0]);
 if (outerScriptHashes.length !== 2 || new Set(outerScriptHashes).size !== 2) {
-  throw new Error('Recovery shell CSP must authorize exactly the shell and inherited srcdoc-vault script hashes.');
+  throw new Error(
+    "Recovery shell CSP must authorize exactly the shell and inherited srcdoc-vault script hashes.",
+  );
 }
 const inheritedVaultHash = outerScriptHashes.find((hash) => hash !== shellScriptHash);
 if (inheritedVaultHash === undefined || occurrences(html, inheritedVaultHash) < 2) {
-  throw new Error('Recovery shell CSP does not repeat the embedded vault hash required by srcdoc CSP inheritance.');
+  throw new Error(
+    "Recovery shell CSP does not repeat the embedded vault hash required by srcdoc CSP inheritance.",
+  );
 }
 try {
   Function(inlineScript);
@@ -79,26 +111,31 @@ try {
   throw new Error(`Recovery isolation-shell JavaScript is syntactically invalid: ${String(cause)}`);
 }
 
-const outerIds = assertNoDuplicateIds(shellTemplate, 'Recovery shell template');
-for (const id of ['recovery-secret-vault', 'recovery-shell-error']) {
+const outerIds = assertNoDuplicateIds(shellTemplate, "Recovery shell template");
+for (const id of ["recovery-secret-vault", "recovery-shell-error"]) {
   if (!outerIds.includes(id)) throw new Error(`Recovery shell is missing required element #${id}.`);
 }
 const iframe = /<iframe\b[^>]+id="recovery-secret-vault"[^>]*>/u.exec(shellTemplate)?.[0];
 if (iframe === undefined || !/\bsandbox="allow-scripts"/u.test(iframe)) {
-  throw new Error('Recovery Secret Vault must be sandboxed with scripts as its only sandbox capability.');
+  throw new Error(
+    "Recovery Secret Vault must be sandboxed with scripts as its only sandbox capability.",
+  );
 }
 for (const forbidden of [
-  'allow-downloads',
-  'allow-same-origin',
-  'allow-forms',
-  'allow-popups',
-  'allow-top-navigation',
+  "allow-downloads",
+  "allow-same-origin",
+  "allow-forms",
+  "allow-popups",
+  "allow-top-navigation",
 ]) {
-  if (iframe.includes(forbidden)) throw new Error(`Recovery Secret Vault unexpectedly grants ${forbidden}.`);
+  if (iframe.includes(forbidden))
+    throw new Error(`Recovery Secret Vault unexpectedly grants ${forbidden}.`);
 }
 
 const vaultCsp =
-  /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/u.exec(vaultTemplate)?.[1] ?? '';
+  /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"\s*\/?\s*>/u.exec(
+    vaultTemplate,
+  )?.[1] ?? "";
 if (!/(?:^|;)\s*connect-src\s+'none'\s*(?:;|$)/u.test(vaultCsp)) {
   throw new Error("Recovery Secret Vault must enforce connect-src 'none'.");
 }
@@ -106,258 +143,285 @@ if (!/(?:^|;)\s*worker-src\s+'none'\s*(?:;|$)/u.test(vaultCsp)) {
   throw new Error("Recovery Secret Vault must enforce worker-src 'none'.");
 }
 if (!/script-src __VAULT_SCRIPT_CSP__ 'wasm-unsafe-eval'/u.test(vaultCsp)) {
-  throw new Error('Recovery Secret Vault script policy no longer uses a build-time SHA-256 placeholder.');
+  throw new Error(
+    "Recovery Secret Vault script policy no longer uses a build-time SHA-256 placeholder.",
+  );
 }
 const unexpandedMarker = /__[A-Z][A-Z0-9_]+__|\/\*__INLINE_/u.exec(html)?.[0];
 if (unexpandedMarker !== undefined) {
-  throw new Error(`Discovery Scanner artifact still contains unexpanded build marker ${unexpandedMarker}.`);
+  throw new Error(
+    `Discovery Scanner artifact still contains unexpanded build marker ${unexpandedMarker}.`,
+  );
 }
 if (!html.includes("connect-src 'none'"))
-  throw new Error('Embedded Recovery Secret Vault CSP is missing from the artifact.');
-if (!html.includes('connect-src https:')) throw new Error('Recovery Network Worker shell has no HTTPS permission.');
+  throw new Error("Embedded Recovery Secret Vault CSP is missing from the artifact.");
+if (!html.includes("connect-src https:"))
+  throw new Error("Recovery Network Worker shell has no HTTPS permission.");
 
-const vaultIds = assertNoDuplicateIds(vaultTemplate, 'Recovery Secret Vault template');
+const vaultIds = assertNoDuplicateIds(vaultTemplate, "Recovery Secret Vault template");
 for (const requiredId of [
-  'recovery-form',
-  'recovery-network',
-  'recovery-account',
-  'seed-source-tab',
-  'public-source-tab',
-  'seed-source-panel',
-  'public-input',
-  'seed-mode-tabs',
-  'watch-only-keys',
-  'watch-only-minimum',
-  'watch-only-detection',
-  'seed-coverage',
-  'single-mnemonic',
-  'single-passphrase',
-  'batch-mnemonics',
-  'batch-passphrases',
-  'batch-concurrency',
-  'reveal-recovery-input',
-  'scan-core',
-  'core-receive-count',
-  'core-change-count',
-  'scan-legacy-core',
-  'legacy-core-count',
-  'scan-coinjoin',
-  'coinjoin-external-count',
-  'coinjoin-internal-count',
-  'scan-identity-funding',
-  'identity-funding-count',
-  'identity-topup-identity-count',
-  'identity-topup-count',
-  'scan-provider-collateral',
-  'provider-collateral-count',
-  'coinjoin-path-preview',
-  'platform-address-count',
-  'identity-start-index',
-  'identity-gap-limit',
-  'identity-scan-limit',
-  'request-concurrency',
-  'include-used-zero-balance',
-  'scan-shielded',
-  'scan-estimate',
-  'start-recovery-scan',
-  'start-recovery-scan-label',
-  'cancel-recovery-scan',
-  'clear-recovery',
-  'recovery-progress',
-  'recovery-wallet-progress',
-  'recovery-results',
-  'recovery-result-tabs',
-  'recovery-result-list',
-  'export-recovery-csv',
-  'export-recovery-json',
-  'export-recovery-xlsx',
-  'recovery-self-test',
-  'recovery-build-footer',
-  'recovery-crypto-self-test-status',
-  'recovery-crypto-self-test-details',
-  'recovery-build-version',
-  'recovery-build-date',
-  'recovery-runtime',
-  'recovery-build-fingerprint',
-  'recovery-artifact-checksum-file',
-  'recovery-build-edition',
-  'recovery-build-profile',
+  "recovery-form",
+  "recovery-network",
+  "recovery-account",
+  "seed-source-tab",
+  "public-source-tab",
+  "seed-source-panel",
+  "public-input",
+  "seed-mode-tabs",
+  "watch-only-keys",
+  "watch-only-minimum",
+  "watch-only-detection",
+  "seed-coverage",
+  "single-mnemonic",
+  "single-passphrase",
+  "batch-mnemonics",
+  "batch-passphrases",
+  "batch-concurrency",
+  "reveal-recovery-input",
+  "scan-core",
+  "core-receive-count",
+  "core-change-count",
+  "scan-legacy-core",
+  "legacy-core-count",
+  "scan-coinjoin",
+  "coinjoin-external-count",
+  "coinjoin-internal-count",
+  "scan-identity-funding",
+  "identity-funding-count",
+  "identity-topup-identity-count",
+  "identity-topup-count",
+  "scan-provider-collateral",
+  "provider-collateral-count",
+  "coinjoin-path-preview",
+  "platform-address-count",
+  "identity-start-index",
+  "identity-gap-limit",
+  "identity-scan-limit",
+  "request-concurrency",
+  "include-used-zero-balance",
+  "scan-shielded",
+  "scan-estimate",
+  "start-recovery-scan",
+  "start-recovery-scan-label",
+  "cancel-recovery-scan",
+  "clear-recovery",
+  "recovery-progress",
+  "recovery-wallet-progress",
+  "recovery-results",
+  "recovery-result-tabs",
+  "recovery-result-list",
+  "export-recovery-csv",
+  "export-recovery-json",
+  "export-recovery-xlsx",
+  "recovery-self-test",
+  "recovery-build-footer",
+  "recovery-crypto-self-test-status",
+  "recovery-crypto-self-test-details",
+  "recovery-build-version",
+  "recovery-build-date",
+  "recovery-runtime",
+  "recovery-build-fingerprint",
+  "recovery-artifact-checksum-file",
+  "recovery-build-edition",
+  "recovery-build-profile",
 ]) {
   if (!vaultIds.includes(requiredId))
     throw new Error(`Recovery Secret Vault is missing required element #${requiredId}.`);
 }
-if (profile.id === 'dash-community' && vaultIds.includes('recovery-coin')) {
-  throw new Error('Dash Community Discovery Scanner artifact must omit the single-coin selector from its HTML.');
+if (profile.id === "dash-community" && vaultIds.includes("recovery-coin")) {
+  throw new Error(
+    "Dash Community Discovery Scanner artifact must omit the single-coin selector from its HTML.",
+  );
 }
-if (profile.id === 'multi-chain' && !vaultIds.includes('recovery-coin')) {
-  throw new Error('Multi-Chain Discovery Scanner artifact is missing its coin selector.');
+if (profile.id === "multi-chain" && !vaultIds.includes("recovery-coin")) {
+  throw new Error("Multi-Chain Discovery Scanner artifact is missing its coin selector.");
 }
 for (const id of [
-  'custom-path-options',
-  'scan-custom-path',
-  'custom-path-field',
-  'custom-path-template',
-  'custom-path-format',
-  'custom-path-count',
+  "custom-path-options",
+  "scan-custom-path",
+  "custom-path-field",
+  "custom-path-template",
+  "custom-path-format",
+  "custom-path-count",
 ]) {
   if (!vaultIds.includes(id))
     throw new Error(`Discovery Scanner artifact is missing extensible custom-path control #${id}.`);
 }
-for (const marker of ['Bitcoin wallet addresses', 'Ethereum EOA addresses']) {
-  if (profile.id === 'multi-chain' && !html.includes(marker)) {
+for (const marker of ["Bitcoin wallet addresses", "Ethereum EOA addresses"]) {
+  if (profile.id === "multi-chain" && !html.includes(marker)) {
     throw new Error(`Multi-Chain Discovery Scanner artifact is missing its ${marker} adapter.`);
   }
-  if (profile.id === 'dash-community' && html.includes(marker)) {
+  if (profile.id === "dash-community" && html.includes(marker)) {
     throw new Error(`Dash Community recovery vault unexpectedly bundles the ${marker} adapter.`);
   }
 }
 for (const marker of [
-  'Custom derivation path',
-  'Custom path template',
-  'Address format',
-  'Minimum addresses',
-  '{index}',
+  "Custom derivation path",
+  "Custom path template",
+  "Address format",
+  "Minimum addresses",
+  "{index}",
 ]) {
   if (!html.includes(marker))
-    throw new Error(`Discovery Scanner artifact is missing its generic custom-path marker: ${marker}`);
+    throw new Error(
+      `Discovery Scanner artifact is missing its generic custom-path marker: ${marker}`,
+    );
 }
 for (const match of vaultTemplate.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
-  if (!vaultIds.includes(match[1])) throw new Error(`Recovery label references missing control #${match[1]}.`);
+  if (!vaultIds.includes(match[1]))
+    throw new Error(`Recovery label references missing control #${match[1]}.`);
 }
 
 for (const marker of [
-  'Wallet Discovery Scanner',
-  'Opaque-origin Secret Vault',
-  'Vault network disabled by CSP',
-  'Use a trusted computer.',
-  'Select the Dash components and address ranges you want to check.',
-  'Core receive minimum',
-  'Core change minimum',
-  'Platform minimum per receive/change chain',
-  'Identity empty-gap limit',
-  'Platform identities',
-  'Account-wide encrypted notes',
-  'spent or previously used resources with zero balance',
-  'CoinJoin',
-  'Legacy mobile per branch',
-  'Discovered Identity funding details',
-  'Identity-bound top-up identities',
-  'Masternode holdings minimum',
-  'Masternode holdings',
-  'Rare DashSync/dashj collateral addresses.',
-  'Scan components for this result',
-  'component-result-tab',
-  '20 addresses after the last used address',
-  'Self-test running',
-  'ALL RESULTS',
-  'STANDARD-WALLET HANDOFF',
-  'Run a new scan',
-  'bounded-memory page stream',
-  'Dash Mobile CoinJoin · DIP9',
-  'Separate mobile receive and change chains.',
-  'Identity registration funding',
-  'For identities found above, show the linked L1 asset-lock and funding inputs.',
-  'Legacy mobile Core',
-  'Older Dash Wallet for Android backups.',
-  'Dash Core',
-  'BIP44 receive and change addresses',
-  'Dash Mobile CoinJoin · DIP9 paths for the selected network',
+  "Wallet Discovery Scanner",
+  "Opaque-origin Secret Vault",
+  "Vault network disabled by CSP",
+  "Use a trusted computer.",
+  "Select the Dash components and address ranges you want to check.",
+  "Core receive minimum",
+  "Core change minimum",
+  "Platform minimum per receive/change chain",
+  "Identity empty-gap limit",
+  "Platform identities",
+  "Account-wide encrypted notes",
+  "spent or previously used resources with zero balance",
+  "CoinJoin",
+  "Legacy mobile per branch",
+  "Discovered Identity funding details",
+  "Identity-bound top-up identities",
+  "Masternode holdings minimum",
+  "Masternode holdings",
+  "Rare DashSync/dashj collateral addresses.",
+  "Scan components for this result",
+  "component-result-tab",
+  "20 addresses after the last used address",
+  "Self-test running",
+  "ALL RESULTS",
+  "STANDARD-WALLET HANDOFF",
+  "Run a new scan",
+  "bounded-memory page stream",
+  "Dash Mobile CoinJoin · DIP9",
+  "Separate mobile receive and change chains.",
+  "Identity registration funding",
+  "For identities found above, show the linked L1 asset-lock and funding inputs.",
+  "Legacy mobile Core",
+  "Older Dash Wallet for Android backups.",
+  "Dash Core",
+  "BIP44 receive and change addresses",
+  "Dash Mobile CoinJoin · DIP9 paths for the selected network",
   "m/9'/5'/4'/0'/0/i",
-  'CoinJoin external minimum',
-  'CoinJoin internal minimum',
-  'No funded Dash Mobile CoinJoin · DIP9 address was found in this section and scanned range.',
-  'core.address-info',
-  'Release passport',
-  'Cryptographic self-test running',
-  'Embedded dependency versions and licenses:',
-  'Dash Identity mainnet / DIP13',
-  'Dash Identity testnet / DIP13',
-  'Wallet-wide located balances',
-  'Detailed results by recovery type',
-  'Identity credits',
-  'Lifetime self/change',
-  'Spent at pool position',
-  'section_lifetime_received_dash',
-  'No funded Dash Core L1 address was found in this section and scanned range.',
-  'The Dash mark is an official brand asset',
-  'wallet-discovery-report',
-  'Blocked ',
-  'Dash Platform DAPI',
-  'DashScan',
-  'recovery CSV report export',
-  'recovery JSON report export',
-  'xlsx',
-  'isolated-network-worker-v1',
-  'core.address-info',
-  'core.transaction',
-  'platform.address-history',
-  'platform.identity-by-public-key-hash',
-  'platform.identity-history',
-  'shielded.page',
-  'utxo.addresses',
-  'evm.accounts',
-  'ckd-recovery-export-request-v1',
+  "CoinJoin external minimum",
+  "CoinJoin internal minimum",
+  "No funded Dash Mobile CoinJoin · DIP9 address was found in this section and scanned range.",
+  "core.address-info",
+  "Release passport",
+  "Cryptographic self-test running",
+  "Embedded dependency versions and licenses:",
+  "Dash Identity mainnet / DIP13",
+  "Dash Identity testnet / DIP13",
+  "Wallet-wide located balances",
+  "Detailed results by recovery type",
+  "Identity credits",
+  "Lifetime self/change",
+  "Spent at pool position",
+  "section_lifetime_received_dash",
+  "No funded Dash Core L1 address was found in this section and scanned range.",
+  "The Dash mark is an official brand asset",
+  "wallet-discovery-report",
+  "Blocked ",
+  "Dash Platform DAPI",
+  "DashScan",
+  "recovery CSV report export",
+  "recovery JSON report export",
+  "xlsx",
+  "isolated-network-worker-v1",
+  "core.address-info",
+  "core.transaction",
+  "platform.address-history",
+  "platform.identity-by-public-key-hash",
+  "platform.identity-history",
+  "shielded.page",
+  "utxo.addresses",
+  "evm.accounts",
+  "ckd-recovery-export-request-v1",
 ]) {
-  const escapedMarker = marker.replaceAll('·', String.raw`\xB7`);
-  const srcdocEscapedMarker = marker.replaceAll('·', String.raw`\\xB7`);
-  if (!html.includes(marker) && !html.includes(escapedMarker) && !html.includes(srcdocEscapedMarker)) {
+  const escapedMarker = marker.replaceAll("·", String.raw`\xB7`);
+  const srcdocEscapedMarker = marker.replaceAll("·", String.raw`\\xB7`);
+  if (
+    !html.includes(marker) &&
+    !html.includes(escapedMarker) &&
+    !html.includes(srcdocEscapedMarker)
+  ) {
     throw new Error(`Discovery Scanner artifact is missing required marker: ${marker}`);
   }
 }
-if (profile.id === 'dash-community' && !html.includes('class="profile-brand-mark"')) {
-  throw new Error('Dash Community Discovery Scanner artifact is missing the official Dash brand mark.');
+if (profile.id === "dash-community" && !html.includes('class="profile-brand-mark"')) {
+  throw new Error(
+    "Dash Community Discovery Scanner artifact is missing the official Dash brand mark.",
+  );
 }
-if (profile.id === 'multi-chain' && html.includes('class="profile-brand-mark"')) {
-  throw new Error('Multi-Chain Discovery Scanner artifact must not display the Dash-only brand mark.');
+if (profile.id === "multi-chain" && html.includes('class="profile-brand-mark"')) {
+  throw new Error(
+    "Multi-Chain Discovery Scanner artifact must not display the Dash-only brand mark.",
+  );
 }
 for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
-  if (!html.includes(marker)) throw new Error(`Discovery Scanner artifact is missing profile marker: ${marker}`);
+  if (!html.includes(marker))
+    throw new Error(`Discovery Scanner artifact is missing profile marker: ${marker}`);
 }
 const allFunctionConstructors = html.match(/(?:^|[^.\w])(?:new\s+)?Function\s*\(/gu) ?? [];
 if (
-  occurrences(html, 'new Function') !== 2 ||
+  occurrences(html, "new Function") !== 2 ||
   allFunctionConstructors.length !== 3 ||
-  occurrences(html, 'Function(${o})') !== 1 ||
+  occurrences(html, "Function(${o})") !== 1 ||
   !html.includes('return import(\"node:zlib\")')
 ) {
-  throw new Error('Discovery Scanner artifact changed from the two reviewed, CSP-blocked SDK dynamic-code glue paths.');
+  throw new Error(
+    "Discovery Scanner artifact changed from the two reviewed, CSP-blocked SDK dynamic-code glue paths.",
+  );
 }
-if (occurrences(html, 'Embedded dependency versions and licenses') !== 1) {
-  throw new Error('Recovery dependency versions must appear exactly once inside the Release passport.');
+if (occurrences(html, "Embedded dependency versions and licenses") !== 1) {
+  throw new Error(
+    "Recovery dependency versions must appear exactly once inside the Release passport.",
+  );
 }
 if (html.includes('<span class="recovery-brand-mark">D</span>'))
-  throw new Error('Recovery still contains the old homemade Dash letter mark.');
-if (html.includes('Spent / not spendable'))
-  throw new Error('Recovery exposes spent Orchard notes in the default spendable-only presentation.');
+  throw new Error("Recovery still contains the old homemade Dash letter mark.");
+if (html.includes("Spent / not spendable"))
+  throw new Error(
+    "Recovery exposes spent Orchard notes in the default spendable-only presentation.",
+  );
 
-for (const id of ['core-receive-count', 'core-change-count', 'platform-address-count']) {
-  const tag = new RegExp(`<input[^>]+id="${id}"[^>]*>`, 'u').exec(vaultTemplate)?.[0];
+for (const id of ["core-receive-count", "core-change-count", "platform-address-count"]) {
+  const tag = new RegExp(`<input[^>]+id="${id}"[^>]*>`, "u").exec(vaultTemplate)?.[0];
   if (tag === undefined) throw new Error(`Recovery count input #${id} is missing.`);
-  if (/\bmax=/u.test(tag)) throw new Error(`Recovery count input #${id} has an artificial HTML maximum.`);
+  if (/\bmax=/u.test(tag))
+    throw new Error(`Recovery count input #${id} has an artificial HTML maximum.`);
 }
 const startButtonTag = /<button[^>]+id="start-recovery-scan"[^>]*>/u.exec(vaultTemplate)?.[0];
 if (startButtonTag === undefined || !/\btype="button"/u.test(startButtonTag)) {
   throw new Error(
-    'Recovery start control must be a non-submit button because the Secret Vault intentionally lacks allow-forms.',
+    "Recovery start control must be a non-submit button because the Secret Vault intentionally lacks allow-forms.",
   );
 }
 for (const [pattern, label] of [
-  [/\blocalStorage\b/u, 'localStorage'],
-  [/\bsessionStorage\b/u, 'sessionStorage'],
-  [/\bindexedDB\b/u, 'IndexedDB'],
-  [/\bdocument\.cookie\b/u, 'cookie access'],
-  [/\bdata-(?:copy-value|value)\s*=/iu, 'secret-bearing data attribute'],
-  [/sourceMappingURL/u, 'source map reference'],
-  [/<script\b[^>]+src=/iu, 'external script'],
-  [/<link\b[^>]+href=/iu, 'external stylesheet'],
+  [/\blocalStorage\b/u, "localStorage"],
+  [/\bsessionStorage\b/u, "sessionStorage"],
+  [/\bindexedDB\b/u, "IndexedDB"],
+  [/\bdocument\.cookie\b/u, "cookie access"],
+  [/\bdata-(?:copy-value|value)\s*=/iu, "secret-bearing data attribute"],
+  [/sourceMappingURL/u, "source map reference"],
+  [/<script\b[^>]+src=/iu, "external script"],
+  [/<link\b[^>]+href=/iu, "external stylesheet"],
 ]) {
-  if (pattern.test(html)) throw new Error(`Discovery Scanner artifact contains forbidden ${label}.`);
+  if (pattern.test(html))
+    throw new Error(`Discovery Scanner artifact contains forbidden ${label}.`);
 }
-if (!html.includes('AGFzbQ') && !html.includes('AGFzbQE'))
-  throw new Error('Embedded WebAssembly was not found in the Discovery Scanner artifact.');
-const expectedOrchardWasm = readFileSync(orchardWasmPath).toString('base64');
+if (!html.includes("AGFzbQ") && !html.includes("AGFzbQE"))
+  throw new Error("Embedded WebAssembly was not found in the Discovery Scanner artifact.");
+const expectedOrchardWasm = readFileSync(orchardWasmPath).toString("base64");
 if (occurrences(html, expectedOrchardWasm) !== 1) {
-  throw new Error('Recovery does not embed exactly one byte-identical pinned Orchard WASM module.');
+  throw new Error("Recovery does not embed exactly one byte-identical pinned Orchard WASM module.");
 }
 
 const allRecoverySources = sourceFiles(sourceRoot);
@@ -369,73 +433,81 @@ const vaultSources = allRecoverySources
       ),
   )
   .map(({ text }) => text)
-  .join('\n');
+  .join("\n");
 for (const [pattern, label] of [
-  [/@dashevo\/evo-sdk/u, 'Evo SDK import'],
-  [/\bEvoSDK\b/u, 'Evo SDK reference'],
-  [/\bglobalThis\.fetch\b/u, 'global fetch'],
-  [/(?:^|[^.\w])fetch\s*\(/mu, 'direct fetch call'],
-  [/\bXMLHttpRequest\b/u, 'XMLHttpRequest'],
-  [/\bWebSocket\b/u, 'WebSocket'],
-  [/URL\.createObjectURL/u, 'direct object-URL creation'],
-  [/\.download\s*=/u, 'direct download initiation'],
+  [/@dashevo\/evo-sdk/u, "Evo SDK import"],
+  [/\bEvoSDK\b/u, "Evo SDK reference"],
+  [/\bglobalThis\.fetch\b/u, "global fetch"],
+  [/(?:^|[^.\w])fetch\s*\(/mu, "direct fetch call"],
+  [/\bXMLHttpRequest\b/u, "XMLHttpRequest"],
+  [/\bWebSocket\b/u, "WebSocket"],
+  [/URL\.createObjectURL/u, "direct object-URL creation"],
+  [/\.download\s*=/u, "direct download initiation"],
 ]) {
-  if (pattern.test(vaultSources)) throw new Error(`Recovery Secret Vault source contains forbidden ${label}.`);
+  if (pattern.test(vaultSources))
+    throw new Error(`Recovery Secret Vault source contains forbidden ${label}.`);
 }
 
 const reviewedProtocolPaths = [
-  resolve(root, 'packages/network-boundary/src/recovery-protocol.ts'),
-  resolve(root, 'packages/network-boundary/src/dash-recovery-protocol.ts'),
-  resolve(root, 'packages/network-boundary/src/public-recovery-protocol.ts'),
+  resolve(root, "packages/network-boundary/src/recovery-protocol.ts"),
+  resolve(root, "packages/network-boundary/src/dash-recovery-protocol.ts"),
+  resolve(root, "packages/network-boundary/src/public-recovery-protocol.ts"),
 ];
 const networkSources = [
   ...reviewedProtocolPaths,
-  resolve(sourceRoot, 'network-service.ts'),
-  resolve(sourceRoot, 'network-validation.ts'),
-  resolve(sourceRoot, 'dash-core-network.ts'),
-  resolve(sourceRoot, 'dash-platform-network.ts'),
-  resolve(sourceRoot, 'recovery-http.ts'),
-  resolve(sourceRoot, 'platform-explorer-values.ts'),
-  resolve(root, 'packages/network-boundary/src/request-validation.ts'),
-  resolve(root, 'packages/network-boundary/src/worker-runtime.ts'),
+  resolve(sourceRoot, "network-service.ts"),
+  resolve(sourceRoot, "network-validation.ts"),
+  resolve(sourceRoot, "dash-core-network.ts"),
+  resolve(sourceRoot, "dash-platform-network.ts"),
+  resolve(sourceRoot, "recovery-http.ts"),
+  resolve(sourceRoot, "platform-explorer-values.ts"),
+  resolve(root, "packages/network-boundary/src/request-validation.ts"),
+  resolve(root, "packages/network-boundary/src/worker-runtime.ts"),
 ]
-  .map((path) => readFileSync(path, 'utf8'))
-  .join('\n');
+  .map((path) => readFileSync(path, "utf8"))
+  .join("\n");
 for (const [pattern, label] of [
-  [/mnemonicToSeed|assertValidMnemonic|\bmnemonic\b|\bpassphrase\b/iu, 'mnemonic/passphrase handling'],
-  [/deriveDash|rootFromSeed|fullViewingKey|spendingKey/iu, 'secret derivation'],
-  [/secret-guard|SecretEgressGuard/iu, 'Secret Vault guard import'],
+  [
+    /mnemonicToSeed|assertValidMnemonic|\bmnemonic\b|\bpassphrase\b/iu,
+    "mnemonic/passphrase handling",
+  ],
+  [/deriveDash|rootFromSeed|fullViewingKey|spendingKey/iu, "secret derivation"],
+  [/secret-guard|SecretEgressGuard/iu, "Secret Vault guard import"],
 ]) {
-  if (pattern.test(networkSources)) throw new Error(`Recovery Network Worker source contains forbidden ${label}.`);
+  if (pattern.test(networkSources))
+    throw new Error(`Recovery Network Worker source contains forbidden ${label}.`);
 }
 // The compatibility facade only re-exports these focused contracts. Inspect the
 // contracts themselves so moving an operation out of the former monolith cannot
 // silently weaken the reviewed-operation allowlist.
-const protocolSource = reviewedProtocolPaths.map((path) => readFileSync(path, 'utf8')).join('\n');
-if (/\burl\s*:/iu.test(protocolSource)) throw new Error('Recovery Network RPC must not accept an arbitrary URL.');
+const protocolSource = reviewedProtocolPaths.map((path) => readFileSync(path, "utf8")).join("\n");
+if (/\burl\s*:/iu.test(protocolSource))
+  throw new Error("Recovery Network RPC must not accept an arbitrary URL.");
 for (const operation of [
-  'ping',
-  'core.status',
-  'core.tip',
-  'core.address-info',
-  'core.address-history',
-  'platform.addresses',
-  'platform.address-history',
-  'platform.identity-by-public-key-hash',
-  'platform.identity-history',
-  'shielded.page',
+  "ping",
+  "core.status",
+  "core.tip",
+  "core.address-info",
+  "core.address-history",
+  "platform.addresses",
+  "platform.address-history",
+  "platform.identity-by-public-key-hash",
+  "platform.identity-history",
+  "shielded.page",
 ]) {
   if (!protocolSource.includes(`operation: '${operation}'`))
     throw new Error(`Recovery RPC is missing reviewed operation ${operation}.`);
 }
 
 assertEvoSdkReadOnly(
-  [...allRecoverySources, ...sourceFiles(resolve(root, 'packages/dash-network/src'))].map(({ path }) => path),
-  'Recovery source',
+  [...allRecoverySources, ...sourceFiles(resolve(root, "packages/dash-network/src"))].map(
+    ({ path }) => path,
+  ),
+  "Recovery source",
   root,
 );
 
-const actual = createHash('sha256').update(html).digest('hex');
-const recorded = readFileSync(checksumPath, 'utf8').trim().split(/\s+/u)[0];
-if (actual !== recorded) throw new Error('Recovery SHA-256 sidecar does not match its HTML.');
+const actual = createHash("sha256").update(html).digest("hex");
+const recorded = readFileSync(checksumPath, "utf8").trim().split(/\s+/u)[0];
+if (actual !== recorded) throw new Error("Recovery SHA-256 sidecar does not match its HTML.");
 console.log(`Verified sandboxed Discovery Scanner artifact: ${actual}`);

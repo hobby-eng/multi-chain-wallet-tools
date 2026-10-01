@@ -1,3 +1,3 @@
-import { wallet as sdkWallet } from '@dashevo/evo-sdk';
+import { wallet as sdkWallet } from "@dashevo/evo-sdk";
 
 void sdkWallet;

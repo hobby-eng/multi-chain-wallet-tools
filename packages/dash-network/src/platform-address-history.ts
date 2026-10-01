@@ -1,8 +1,8 @@
-import { validateAddressHistoryPage } from './provider-json.js';
-import { assertPlatformExplorerNetwork } from './provider-json.js';
-import { validatePlatformAddress } from './public-address.js';
-import { createProviderHttp, ProviderHttpError, type FetchLike } from './provider-http.js';
-import type { ViewerNetwork } from './types.js';
+import { validateAddressHistoryPage } from "./provider-json.js";
+import { assertPlatformExplorerNetwork } from "./provider-json.js";
+import { validatePlatformAddress } from "./public-address.js";
+import { createProviderHttp, ProviderHttpError, type FetchLike } from "./provider-http.js";
+import type { ViewerNetwork } from "./types.js";
 
 const EXPLORER_PAGE_SIZE = 100;
 
@@ -33,7 +33,7 @@ export interface PlatformAddressHistorySnapshot {
   transitions: PlatformAddressTransition[];
   historyLimit: number;
   endpoint: string;
-  indexStatus: 'synced';
+  indexStatus: "synced";
   indexedHeight: number;
   indexedTimeMs: number;
   requests: number;
@@ -53,8 +53,8 @@ interface PlatformHistoryProvider {
 }
 
 const PLATFORM_EXPLORER_ENDPOINTS: Record<ViewerNetwork, string> = {
-  mainnet: 'https://platform-explorer.pshenmic.dev',
-  testnet: 'https://testnet.platform-explorer.pshenmic.dev',
+  mainnet: "https://platform-explorer.pshenmic.dev",
+  testnet: "https://testnet.platform-explorer.pshenmic.dev",
 };
 
 const {
@@ -63,25 +63,26 @@ const {
   requiredInteger,
   exactInteger: exactCredits,
   fetchJson,
-} = createProviderHttp('Platform Explorer');
+} = createProviderHttp("Platform Explorer");
 
 function transitionView(value: unknown): PlatformAddressTransition {
-  const transition = object(value, 'address transition');
-  const timestampMs = typeof transition.timestamp === 'string' ? Date.parse(transition.timestamp) : Number.NaN;
+  const transition = object(value, "address transition");
+  const timestampMs =
+    typeof transition.timestamp === "string" ? Date.parse(transition.timestamp) : Number.NaN;
   const gasUsed =
     transition.gasUsed === null || transition.gasUsed === undefined
       ? null
-      : exactCredits(transition.gasUsed, 'transition gas');
+      : exactCredits(transition.gasUsed, "transition gas");
   return {
-    hash: typeof transition.hash === 'string' ? transition.hash : 'unknown',
+    hash: typeof transition.hash === "string" ? transition.hash : "unknown",
     incoming: transition.incoming === true,
-    type: typeof transition.type === 'string' ? transition.type : 'UNKNOWN',
-    batchType: typeof transition.batchType === 'string' ? transition.batchType : null,
-    status: typeof transition.status === 'string' ? transition.status : 'UNKNOWN',
-    error: typeof transition.error === 'string' ? transition.error : null,
+    type: typeof transition.type === "string" ? transition.type : "UNKNOWN",
+    batchType: typeof transition.batchType === "string" ? transition.batchType : null,
+    status: typeof transition.status === "string" ? transition.status : "UNKNOWN",
+    error: typeof transition.error === "string" ? transition.error : null,
     timestampMs: Number.isFinite(timestampMs) ? timestampMs : null,
     blockHeight: optionalInteger(transition.blockHeight),
-    blockHash: typeof transition.blockHash === 'string' ? transition.blockHash : null,
+    blockHash: typeof transition.blockHash === "string" ? transition.blockHash : null,
     gasUsed,
   };
 }
@@ -95,18 +96,20 @@ async function queryPlatformExplorer(
 ): Promise<PlatformAddressHistorySnapshot> {
   const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
   let requests = 1;
-  const status = object(await fetchJson(fetcher, `${endpoint}/status`, signal), 'index status');
-  const indexer = object(status.indexer, 'indexer status');
-  if (indexer.status !== 'synced') {
-    throw new Error('Platform Explorer reports that its index is not synchronized with Dash Platform.');
+  const status = object(await fetchJson(fetcher, `${endpoint}/status`, signal), "index status");
+  const indexer = object(status.indexer, "indexer status");
+  if (indexer.status !== "synced") {
+    throw new Error(
+      "Platform Explorer reports that its index is not synchronized with Dash Platform.",
+    );
   }
   assertPlatformExplorerNetwork(status.network, network);
-  const api = object(status.api, 'API status');
-  const tip = object(api.block, 'latest indexed block');
-  const indexedHeight = requiredInteger(tip.height, 'latest indexed Platform height');
-  const indexedTimeMs = typeof tip.timestamp === 'string' ? Date.parse(tip.timestamp) : Number.NaN;
+  const api = object(status.api, "API status");
+  const tip = object(api.block, "latest indexed block");
+  const indexedHeight = requiredInteger(tip.height, "latest indexed Platform height");
+  const indexedTimeMs = typeof tip.timestamp === "string" ? Date.parse(tip.timestamp) : Number.NaN;
   if (!Number.isFinite(indexedTimeMs)) {
-    throw new Error('Platform Explorer returned an invalid latest indexed block time.');
+    throw new Error("Platform Explorer returned an invalid latest indexed block time.");
   }
 
   requests += 1;
@@ -133,17 +136,17 @@ async function queryPlatformExplorer(
       transitions: [],
       historyLimit,
       endpoint,
-      indexStatus: 'synced',
+      indexStatus: "synced",
       indexedHeight,
       indexedTimeMs,
       requests,
     };
   }
 
-  const info = object(infoValue, 'address info');
-  const totalTransitions = requiredInteger(info.totalTxs, 'total transition count');
-  const incomingTransitions = requiredInteger(info.incomingTxs, 'incoming transition count');
-  const outgoingTransitions = requiredInteger(info.outgoingTxs, 'outgoing transition count');
+  const info = object(infoValue, "address info");
+  const totalTransitions = requiredInteger(info.totalTxs, "total transition count");
+  const incomingTransitions = requiredInteger(info.incomingTxs, "incoming transition count");
+  const outgoingTransitions = requiredInteger(info.outgoingTxs, "outgoing transition count");
   const transitions: PlatformAddressTransition[] = [];
   let target = Math.min(totalTransitions, historyLimit);
   // Page-number APIs calculate offsets from the requested limit. Keep it fixed.
@@ -157,10 +160,10 @@ async function queryPlatformExplorer(
         `${endpoint}/platformAddress/${encodeURIComponent(address)}/transactions?page=${pageNumber}&limit=${limit}&order=desc`,
         signal,
       ),
-      'address-transition page',
+      "address-transition page",
     );
     const items: unknown = page.resultSet;
-    const pagination = object(page.pagination, 'address-transition pagination');
+    const pagination = object(page.pagination, "address-transition pagination");
     validateAddressHistoryPage(items, pagination.total, totalTransitions, limit, seen);
     const fullPage = items.map(transitionView);
     target = Math.min(totalTransitions, historyLimit);
@@ -168,24 +171,26 @@ async function queryPlatformExplorer(
     const parsed = fullPage.slice(0, remaining);
     transitions.push(...parsed);
     if (items.length < limit && transitions.length < target) {
-      throw new Error('Address history ended before the reported transaction count. Retry the query.');
+      throw new Error(
+        "Address history ended before the reported transaction count. Retry the query.",
+      );
     }
   }
   return {
     provider: PLATFORM_EXPLORER_PROVIDER.displayName,
     address,
-    base58Address: typeof info.base58Address === 'string' ? info.base58Address : null,
+    base58Address: typeof info.base58Address === "string" ? info.base58Address : null,
     totalTransitions,
     incomingTransitions,
     outgoingTransitions,
-    totalIncomingCredits: exactCredits(info.totalIncomingAmount, 'total incoming amount', true),
-    totalOutgoingCredits: exactCredits(info.totalOutgoingAmount, 'total outgoing amount', true),
-    explorerBalanceCredits: exactCredits(info.balance, 'current address balance'),
-    explorerNonce: requiredInteger(info.nonce, 'address nonce'),
+    totalIncomingCredits: exactCredits(info.totalIncomingAmount, "total incoming amount", true),
+    totalOutgoingCredits: exactCredits(info.totalOutgoingAmount, "total outgoing amount", true),
+    explorerBalanceCredits: exactCredits(info.balance, "current address balance"),
+    explorerNonce: requiredInteger(info.nonce, "address nonce"),
     transitions,
     historyLimit,
     endpoint,
-    indexStatus: 'synced',
+    indexStatus: "synced",
     indexedHeight,
     indexedTimeMs,
     requests,
@@ -193,8 +198,8 @@ async function queryPlatformExplorer(
 }
 
 const PLATFORM_EXPLORER_PROVIDER: PlatformHistoryProvider = {
-  id: 'platform-explorer',
-  displayName: 'Dash Platform Explorer',
+  id: "platform-explorer",
+  displayName: "Dash Platform Explorer",
   endpoint(network) {
     return PLATFORM_EXPLORER_ENDPOINTS[network];
   },
@@ -211,7 +216,7 @@ export async function queryPlatformAddressHistory(
 ): Promise<PlatformAddressHistorySnapshot> {
   const address = validatePlatformAddress(addressInput, network);
   if (!Number.isSafeInteger(historyLimit) || historyLimit < 1 || historyLimit > 1000) {
-    throw new Error('Platform history limit must be an integer from 1 to 1000.');
+    throw new Error("Platform history limit must be an integer from 1 to 1000.");
   }
   return provider.query(address, network, historyLimit, signal, fetcher);
 }

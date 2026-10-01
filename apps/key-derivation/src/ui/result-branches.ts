@@ -1,11 +1,11 @@
-import type { CoinAdapter } from '@ckd/coins/registry.js';
-import type { DerivationResult } from '@ckd/core/types.js';
-import { selectAll } from './selection.js';
+import type { CoinAdapter } from "@ckd/coins/registry.js";
+import type { DerivationResult } from "@ckd/core/types.js";
+import { selectAll } from "./selection.js";
 
-export type ResultBranch = 'receive' | 'change' | 'coinjoin-external' | 'coinjoin-internal';
+export type ResultBranch = "receive" | "change" | "coinjoin-external" | "coinjoin-internal";
 
 /** Top-level result tab a branch belongs to. CoinJoin's two branches share one tab. */
-type ResultBranchGroup = 'receive' | 'change' | 'coinjoin';
+type ResultBranchGroup = "receive" | "change" | "coinjoin";
 
 export interface ResultBranchPlan {
   kind: ResultBranch;
@@ -26,7 +26,7 @@ export interface BranchResultState {
 }
 
 export function resultBranchGroup(branch: ResultBranch): ResultBranchGroup {
-  return branch === 'coinjoin-external' || branch === 'coinjoin-internal' ? 'coinjoin' : branch;
+  return branch === "coinjoin-external" || branch === "coinjoin-internal" ? "coinjoin" : branch;
 }
 
 /** Protocol-neutral branch plan driven only by adapter metadata. */
@@ -39,15 +39,15 @@ export function planResultBranches(
   const plans: ResultBranchPlan[] =
     includeChange && adapter.addressBranches !== undefined
       ? [
-          { kind: 'receive', branch: adapter.addressBranches.receive },
-          { kind: 'change', branch: adapter.addressBranches.change },
+          { kind: "receive", branch: adapter.addressBranches.receive },
+          { kind: "change", branch: adapter.addressBranches.change },
         ]
-      : [{ kind: 'receive', branch: selectedBranch }];
+      : [{ kind: "receive", branch: selectedBranch }];
   if (includeCoinJoin && adapter.coinJoin !== undefined) {
     const { branches, workerAdapterId } = adapter.coinJoin;
     plans.push(
-      { kind: 'coinjoin-external', branch: branches.external, workerAdapterId },
-      { kind: 'coinjoin-internal', branch: branches.internal, workerAdapterId },
+      { kind: "coinjoin-external", branch: branches.external, workerAdapterId },
+      { kind: "coinjoin-internal", branch: branches.internal, workerAdapterId },
     );
   }
   return plans;

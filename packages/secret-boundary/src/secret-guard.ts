@@ -1,4 +1,4 @@
-import { bytesToHex, wipe } from '@ckd/core/crypto.js';
+import { bytesToHex, wipe } from "@ckd/core/crypto.js";
 
 interface SecretCandidate {
   label: string;
@@ -7,11 +7,11 @@ interface SecretCandidate {
 }
 
 function normalizedString(value: string): string {
-  return value.normalize('NFKD');
+  return value.normalize("NFKD");
 }
 
 function compactedString(value: string): string {
-  return value.replace(/[^0-9a-z]+/giu, '');
+  return value.replace(/[^0-9a-z]+/giu, "");
 }
 
 /**
@@ -29,7 +29,7 @@ function candidateViews(raw: string): string[] {
   };
   const normalized = normalizedString(raw);
   add(normalized);
-  if (normalized.includes('%')) {
+  if (normalized.includes("%")) {
     try {
       add(normalizedString(decodeURIComponent(normalized)));
     } catch {
@@ -38,8 +38,8 @@ function candidateViews(raw: string): string[] {
   }
   if (/^[0-9a-z+/=_-]{12,}$/iu.test(normalized.trim())) {
     try {
-      const base64 = normalized.trim().replaceAll('-', '+').replaceAll('_', '/');
-      add(normalizedString(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='))));
+      const base64 = normalized.trim().replaceAll("-", "+").replaceAll("_", "/");
+      add(normalizedString(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))));
     } catch {
       /* raw form remains covered */
     }
@@ -48,11 +48,11 @@ function candidateViews(raw: string): string[] {
 }
 
 function collectStrings(value: unknown, output: string[], seen = new Set<object>()): void {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     output.push(value);
     return;
   }
-  if (value === null || value === undefined || typeof value !== 'object') return;
+  if (value === null || value === undefined || typeof value !== "object") return;
   if (seen.has(value)) return;
   seen.add(value);
   if (value instanceof Uint8Array) {
@@ -63,7 +63,8 @@ function collectStrings(value: unknown, output: string[], seen = new Set<object>
     for (const item of value) collectStrings(item, output, seen);
     return;
   }
-  for (const item of Object.values(value as Record<string, unknown>)) collectStrings(item, output, seen);
+  for (const item of Object.values(value as Record<string, unknown>))
+    collectStrings(item, output, seen);
 }
 
 export class SecretEgressGuard {
@@ -80,7 +81,11 @@ export class SecretEgressGuard {
   }
 
   registerBytes(label: string, bytes: Uint8Array): void {
-    this.#candidates.push({ label: `${label} (hex)`, value: bytesToHex(bytes), substringSafe: true });
+    this.#candidates.push({
+      label: `${label} (hex)`,
+      value: bytesToHex(bytes),
+      substringSafe: true,
+    });
   }
 
   assertPublic(value: unknown, context: string): void {
@@ -89,8 +94,13 @@ export class SecretEgressGuard {
     for (const raw of strings) {
       for (const candidateValue of candidateViews(raw)) {
         for (const secret of this.#candidates) {
-          if (candidateValue === secret.value || (secret.substringSafe && candidateValue.includes(secret.value))) {
-            throw new Error(`Blocked ${context}: it contained registered secret material (${secret.label}).`);
+          if (
+            candidateValue === secret.value ||
+            (secret.substringSafe && candidateValue.includes(secret.value))
+          ) {
+            throw new Error(
+              `Blocked ${context}: it contained registered secret material (${secret.label}).`,
+            );
           }
         }
       }

@@ -1,12 +1,12 @@
-import type { CoinAdapter } from '@ckd/coins/registry.js';
-import type { DerivationResult, DisplayMode } from '@ckd/core/types.js';
+import type { CoinAdapter } from "@ckd/coins/registry.js";
+import type { DerivationResult, DisplayMode } from "@ckd/core/types.js";
 import {
   formatSelectedRows,
   inspectSelectedRows,
   iterateSelectedRows,
   type ExportAction,
   type ExportFormat,
-} from '@ckd/export/formatter.js';
+} from "@ckd/export/formatter.js";
 
 const CLIPBOARD_VALUE_LIMIT = 200_000;
 
@@ -29,9 +29,13 @@ interface ResultExportDependencies {
 }
 
 export function createResultExportController(dependencies: ResultExportDependencies) {
-  async function copyText(button: HTMLButtonElement, text: string, containsSecret: boolean): Promise<void> {
+  async function copyText(
+    button: HTMLButtonElement,
+    text: string,
+    containsSecret: boolean,
+  ): Promise<void> {
     if (containsSecret && !dependencies.secretsRevealed()) {
-      dependencies.showError('Show private and privacy-sensitive values before copying them.');
+      dependencies.showError("Show private and privacy-sensitive values before copying them.");
       return;
     }
     let temporary = text;
@@ -39,12 +43,14 @@ export function createResultExportController(dependencies: ResultExportDependenc
       await dependencies.writeClipboard(temporary);
       dependencies.flashCopied(button);
       dependencies.showStatus(
-        containsSecret ? 'Sensitive values copied. Clear your clipboard when finished.' : 'Copied to clipboard.',
+        containsSecret
+          ? "Sensitive values copied. Clear your clipboard when finished."
+          : "Copied to clipboard.",
       );
     } catch (cause) {
-      dependencies.showError(cause instanceof Error ? cause.message : 'Clipboard access failed.');
+      dependencies.showError(cause instanceof Error ? cause.message : "Clipboard access failed.");
     } finally {
-      temporary = '';
+      temporary = "";
     }
   }
 
@@ -54,18 +60,26 @@ export function createResultExportController(dependencies: ResultExportDependenc
     context: ResultExportContext,
   ): Promise<void> {
     if (context.selected.size === 0) {
-      dependencies.showError('Select at least one result first.');
+      dependencies.showError("Select at least one result first.");
       return;
     }
-    const inspection = inspectSelectedRows(context.adapter, context.result, context.selected, context.mode, action);
+    const inspection = inspectSelectedRows(
+      context.adapter,
+      context.result,
+      context.selected,
+      context.mode,
+      action,
+    );
     if (inspection.valueCount === 0) {
-      dependencies.showError('That field type does not apply to the selected protocol and display mode.');
+      dependencies.showError(
+        "That field type does not apply to the selected protocol and display mode.",
+      );
       return;
     }
     if (inspection.valueCount > CLIPBOARD_VALUE_LIMIT) {
       dependencies.showError(
         `That selection holds ${inspection.valueCount.toLocaleString()} values, more than the clipboard can assemble safely. ` +
-          'Use Save selected instead: it streams the same rows to a file.',
+          "Use Save selected instead: it streams the same rows to a file.",
       );
       return;
     }
@@ -87,16 +101,24 @@ export function createResultExportController(dependencies: ResultExportDependenc
     onFinished: () => void,
   ): Promise<void> {
     if (context.selected.size === 0) {
-      dependencies.showError('Select at least one result first.');
+      dependencies.showError("Select at least one result first.");
       return;
     }
-    const inspection = inspectSelectedRows(context.adapter, context.result, context.selected, context.mode, action);
+    const inspection = inspectSelectedRows(
+      context.adapter,
+      context.result,
+      context.selected,
+      context.mode,
+      action,
+    );
     if (inspection.valueCount === 0) {
-      dependencies.showError('That field type does not apply to the selected protocol and display mode.');
+      dependencies.showError(
+        "That field type does not apply to the selected protocol and display mode.",
+      );
       return;
     }
     if (inspection.containsSecret && !dependencies.secretsRevealed()) {
-      dependencies.showError('Show private and privacy-sensitive values before exporting them.');
+      dependencies.showError("Show private and privacy-sensitive values before exporting them.");
       return;
     }
 
@@ -118,14 +140,18 @@ export function createResultExportController(dependencies: ResultExportDependenc
           else controller.enqueue(encoder.encode(next.value));
         },
       });
-      const mime = context.format === 'tsv' ? 'text/tab-separated-values' : 'text/plain';
-      const blob = await new Response(stream, { headers: { 'Content-Type': `${mime};charset=utf-8` } }).blob();
-      const extension = context.format === 'tsv' ? 'tsv' : 'txt';
+      const mime = context.format === "tsv" ? "text/tab-separated-values" : "text/plain";
+      const blob = await new Response(stream, {
+        headers: { "Content-Type": `${mime};charset=utf-8` },
+      }).blob();
+      const extension = context.format === "tsv" ? "tsv" : "txt";
       const fileName = `${context.result.id}-${context.mode}-${inspection.rowCount}-rows.${extension}`;
       dependencies.downloadBlob(blob, fileName);
-      dependencies.showStatus(`Streamed ${inspection.rowCount.toLocaleString()} selected rows into ${fileName}.`);
+      dependencies.showStatus(
+        `Streamed ${inspection.rowCount.toLocaleString()} selected rows into ${fileName}.`,
+      );
     } catch (cause) {
-      dependencies.showError(cause instanceof Error ? cause.message : 'Export download failed.');
+      dependencies.showError(cause instanceof Error ? cause.message : "Export download failed.");
     } finally {
       dependencies.setDownloadPreparing(button, false);
       onFinished();

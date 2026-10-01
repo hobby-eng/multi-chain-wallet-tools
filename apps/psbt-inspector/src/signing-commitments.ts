@@ -1,7 +1,7 @@
-import { bytesToHex } from '@ckd/core/crypto.js';
-import type { ParsedPsbt, PsbtPair } from './psbt.js';
+import { bytesToHex } from "@ckd/core/crypto.js";
+import type { ParsedPsbt, PsbtPair } from "./psbt.js";
 
-type SighashProtocol = 'legacy' | 'segwit-v0' | 'taproot';
+type SighashProtocol = "legacy" | "segwit-v0" | "taproot";
 
 interface SighashCommitments {
   readonly label: string;
@@ -28,21 +28,28 @@ function field(map: readonly PsbtPair[], type: bigint): PsbtPair | undefined {
 }
 
 function u32(bytes: Uint8Array): number {
-  if (bytes.length !== 4) throw new Error('Expected a four-byte integer.');
-  return ((bytes[0] ?? 0) | ((bytes[1] ?? 0) << 8) | ((bytes[2] ?? 0) << 16) | ((bytes[3] ?? 0) << 24)) >>> 0;
+  if (bytes.length !== 4) throw new Error("Expected a four-byte integer.");
+  return (
+    ((bytes[0] ?? 0) |
+      ((bytes[1] ?? 0) << 8) |
+      ((bytes[2] ?? 0) << 16) |
+      ((bytes[3] ?? 0) << 24)) >>>
+    0
+  );
 }
 
 function inputProtocol(parsed: ParsedPsbt, index: number): SighashProtocol {
   const map = parsed.inputs[index] ?? [];
   const script = parsed.inputUtxos[index]?.script;
-  const scriptHex = script === undefined ? '' : bytesToHex(script);
-  if (/^5120[0-9a-f]{64}$/u.test(scriptHex)) return 'taproot';
-  if (/^00(?:14[0-9a-f]{40}|20[0-9a-f]{64})$/u.test(scriptHex)) return 'segwit-v0';
+  const scriptHex = script === undefined ? "" : bytesToHex(script);
+  if (/^5120[0-9a-f]{64}$/u.test(scriptHex)) return "taproot";
+  if (/^00(?:14[0-9a-f]{40}|20[0-9a-f]{64})$/u.test(scriptHex)) return "segwit-v0";
   const redeem = field(map, 0x04n)?.value;
-  if (redeem !== undefined && /^00(?:14[0-9a-f]{40}|20[0-9a-f]{64})$/u.test(bytesToHex(redeem))) return 'segwit-v0';
-  if (script !== undefined) return 'legacy';
-  if (map.some(({ type }) => type >= 0x13n && type <= 0x1cn)) return 'taproot';
-  return 'legacy';
+  if (redeem !== undefined && /^00(?:14[0-9a-f]{40}|20[0-9a-f]{64})$/u.test(bytesToHex(redeem)))
+    return "segwit-v0";
+  if (script !== undefined) return "legacy";
+  if (map.some(({ type }) => type >= 0x13n && type <= 0x1cn)) return "taproot";
+  return "legacy";
 }
 
 export function analyzeSighash(
@@ -52,101 +59,108 @@ export function analyzeSighash(
 ): SighashCommitments {
   if (value === null)
     return {
-      label: 'Not specified · signer decides according to wallet policy',
+      label: "Not specified · signer decides according to wallet policy",
       known: false,
       unusual: false,
-      currentInput: 'Unknown until a sighash type is selected',
-      otherInputs: 'Unknown until a sighash type is selected',
-      otherInputSequences: 'Unknown until a sighash type is selected',
-      outputs: 'Unknown until a sighash type is selected',
+      currentInput: "Unknown until a sighash type is selected",
+      otherInputs: "Unknown until a sighash type is selected",
+      otherInputSequences: "Unknown until a sighash type is selected",
+      outputs: "Unknown until a sighash type is selected",
       currentInputAmount:
-        protocol === 'legacy' ? 'Not committed by legacy sighash' : 'Unknown until a sighash type is selected',
+        protocol === "legacy"
+          ? "Not committed by legacy sighash"
+          : "Unknown until a sighash type is selected",
     };
   if (value > 0xff)
     return {
       label: `Unknown sighash value 0x${value.toString(16)}`,
       known: false,
       unusual: true,
-      currentInput: 'Unknown',
-      otherInputs: 'Unknown',
-      otherInputSequences: 'Unknown',
-      outputs: 'Unknown',
-      currentInputAmount: 'Unknown',
+      currentInput: "Unknown",
+      otherInputs: "Unknown",
+      otherInputSequences: "Unknown",
+      outputs: "Unknown",
+      currentInputAmount: "Unknown",
     };
   const anyoneCanPay = (value & 0x80) !== 0;
   const base = value & 0x7f;
-  const effectiveBase = protocol === 'taproot' && base === 0 ? 1 : base;
-  if (![1, 2, 3].includes(effectiveBase) || (base === 0 && (protocol !== 'taproot' || anyoneCanPay)))
+  const effectiveBase = protocol === "taproot" && base === 0 ? 1 : base;
+  if (
+    ![1, 2, 3].includes(effectiveBase) ||
+    (base === 0 && (protocol !== "taproot" || anyoneCanPay))
+  )
     return {
-      label: `Unknown sighash value 0x${value.toString(16).padStart(2, '0')}`,
+      label: `Unknown sighash value 0x${value.toString(16).padStart(2, "0")}`,
       known: false,
       unusual: true,
-      currentInput: 'Unknown',
-      otherInputs: 'Unknown',
-      otherInputSequences: 'Unknown',
-      outputs: 'Unknown',
-      currentInputAmount: 'Unknown',
+      currentInput: "Unknown",
+      otherInputs: "Unknown",
+      otherInputSequences: "Unknown",
+      outputs: "Unknown",
+      currentInputAmount: "Unknown",
     };
   const baseName =
-    protocol === 'taproot' && base === 0
-      ? 'SIGHASH_DEFAULT'
+    protocol === "taproot" && base === 0
+      ? "SIGHASH_DEFAULT"
       : effectiveBase === 1
-        ? 'SIGHASH_ALL'
+        ? "SIGHASH_ALL"
         : effectiveBase === 2
-          ? 'SIGHASH_NONE'
-          : 'SIGHASH_SINGLE';
+          ? "SIGHASH_NONE"
+          : "SIGHASH_SINGLE";
   const missingSingleOutput = effectiveBase === 3 && !correspondingOutput;
-  if (missingSingleOutput && protocol === 'legacy') {
+  if (missingSingleOutput && protocol === "legacy") {
     return {
-      label: `${baseName}${anyoneCanPay ? ' | ANYONECANPAY' : ''}`,
+      label: `${baseName}${anyoneCanPay ? " | ANYONECANPAY" : ""}`,
       known: true,
       unusual: true,
-      currentInput: 'Not committed · legacy bug returns the constant hash 1',
-      otherInputs: 'Not committed · legacy bug returns the constant hash 1',
-      otherInputSequences: 'Not committed · legacy bug returns the constant hash 1',
-      outputs: 'No corresponding output · legacy SIGHASH_SINGLE returns the constant hash 1',
-      currentInputAmount: 'Not committed by legacy sighash',
+      currentInput: "Not committed · legacy bug returns the constant hash 1",
+      otherInputs: "Not committed · legacy bug returns the constant hash 1",
+      otherInputSequences: "Not committed · legacy bug returns the constant hash 1",
+      outputs: "No corresponding output · legacy SIGHASH_SINGLE returns the constant hash 1",
+      currentInputAmount: "Not committed by legacy sighash",
     };
   }
-  if (missingSingleOutput && protocol === 'taproot') {
+  if (missingSingleOutput && protocol === "taproot") {
     return {
-      label: `${baseName}${anyoneCanPay ? ' | ANYONECANPAY' : ''}`,
+      label: `${baseName}${anyoneCanPay ? " | ANYONECANPAY" : ""}`,
       known: false,
       unusual: true,
-      currentInput: 'Invalid · no corresponding output',
-      otherInputs: 'Invalid · no corresponding output',
-      otherInputSequences: 'Invalid · no corresponding output',
-      outputs: 'Invalid · SIGHASH_SINGLE has no corresponding output',
-      currentInputAmount: 'Invalid · no corresponding output',
+      currentInput: "Invalid · no corresponding output",
+      otherInputs: "Invalid · no corresponding output",
+      otherInputSequences: "Invalid · no corresponding output",
+      outputs: "Invalid · SIGHASH_SINGLE has no corresponding output",
+      currentInputAmount: "Invalid · no corresponding output",
     };
   }
   const outputs =
     effectiveBase === 1
-      ? 'All outputs and their amounts are committed'
+      ? "All outputs and their amounts are committed"
       : effectiveBase === 2
-        ? 'No outputs are committed'
+        ? "No outputs are committed"
         : missingSingleOutput
-          ? 'No corresponding output is committed'
-          : 'Only the output with the same index is committed';
+          ? "No corresponding output is committed"
+          : "Only the output with the same index is committed";
   return {
-    label: `${baseName}${anyoneCanPay ? ' | ANYONECANPAY' : ''}`,
+    label: `${baseName}${anyoneCanPay ? " | ANYONECANPAY" : ""}`,
     known: true,
     unusual: effectiveBase !== 1 || anyoneCanPay || missingSingleOutput,
-    currentInput: 'Committed',
-    otherInputs: anyoneCanPay ? 'Not committed · inputs may be added or removed' : 'Committed',
+    currentInput: "Committed",
+    otherInputs: anyoneCanPay ? "Not committed · inputs may be added or removed" : "Committed",
     otherInputSequences:
-      anyoneCanPay || (protocol !== 'taproot' && effectiveBase !== 1) ? 'Not committed' : 'Committed',
+      anyoneCanPay || (protocol !== "taproot" && effectiveBase !== 1)
+        ? "Not committed"
+        : "Committed",
     outputs,
-    currentInputAmount: protocol === 'legacy' ? 'Not committed by legacy sighash' : 'Committed',
+    currentInputAmount: protocol === "legacy" ? "Not committed by legacy sighash" : "Committed",
   };
 }
 
 function signatureState(map: readonly PsbtPair[]): string {
   if (field(map, 0x07n) !== undefined || field(map, 0x08n) !== undefined)
-    return 'Final script supplied · signatures are not cryptographically verified here';
+    return "Final script supplied · signatures are not cryptographically verified here";
   const count = map.filter(({ type }) => [0x02n, 0x13n, 0x14n, 0x1cn].includes(type)).length;
   return count === 0
-    ? 'No signature or final-script fields supplied'
+    ? "No signature or final-script fields supplied"
     : `${count} signature field(s) supplied · not cryptographically verified here`;
 }
 
@@ -155,7 +169,8 @@ function signatureSighashes(map: readonly PsbtPair[]): number[] {
   for (const item of map) {
     if (item.type === 0x02n && item.value.length > 0) values.push(item.value.at(-1)!);
     if ((item.type === 0x13n || item.type === 0x14n) && item.value.length === 64) values.push(0);
-    if ((item.type === 0x13n || item.type === 0x14n) && item.value.length === 65) values.push(item.value[64]!);
+    if ((item.type === 0x13n || item.type === 0x14n) && item.value.length === 65)
+      values.push(item.value[64]!);
   }
   return values;
 }
@@ -186,8 +201,10 @@ function describeAbsoluteLocktime(parsed: ParsedPsbt, index: number): string {
       if (time !== undefined && height === undefined) heightPossible = false;
       if (time === undefined && height !== undefined) timePossible = false;
     }
-    if (heightPossible && maximumHeight > 0) return `Effective transaction lock: block height ${maximumHeight}`;
-    if (timePossible && maximumTime > 0) return `Effective transaction lock: Unix time ${maximumTime}`;
+    if (heightPossible && maximumHeight > 0)
+      return `Effective transaction lock: block height ${maximumHeight}`;
+    if (timePossible && maximumTime > 0)
+      return `Effective transaction lock: Unix time ${maximumTime}`;
   }
   const map = parsed.inputs[index] ?? [];
   const requiredTime = field(map, 0x11n)?.value;
@@ -197,16 +214,20 @@ function describeAbsoluteLocktime(parsed: ParsedPsbt, index: number): string {
   const raw =
     parsed.transaction?.lockTime ??
     (field(parsed.global, 0x03n) === undefined ? 0 : u32(field(parsed.global, 0x03n)!.value));
-  if (raw === 0) return 'None';
-  const allFinal = parsed.inputs.every((_map, inputIndex) => sequence(parsed, inputIndex) === 0xffffffff);
+  if (raw === 0) return "None";
+  const allFinal = parsed.inputs.every(
+    (_map, inputIndex) => sequence(parsed, inputIndex) === 0xffffffff,
+  );
   if (allFinal) return `${raw} is set but inactive because every input has a final sequence`;
   return raw < 500_000_000 ? `Block height ${raw}` : `Unix time ${raw}`;
 }
 
 function describeRelativeLocktime(parsed: ParsedPsbt, inputSequence: number): string {
-  if (transactionVersion(parsed) < 2 || (inputSequence & 0x80000000) !== 0) return 'None';
+  if (transactionVersion(parsed) < 2 || (inputSequence & 0x80000000) !== 0) return "None";
   const value = inputSequence & 0xffff;
-  return (inputSequence & 0x00400000) !== 0 ? `${value * 512} seconds (BIP68)` : `${value} blocks (BIP68)`;
+  return (inputSequence & 0x00400000) !== 0
+    ? `${value * 512} seconds (BIP68)`
+    : `${value} blocks (BIP68)`;
 }
 
 export function analyzeInputSigning(parsed: ParsedPsbt, index: number): InputSigningAnalysis {
@@ -226,7 +247,7 @@ export function analyzeInputSigning(parsed: ParsedPsbt, index: number): InputSig
       ...sighash,
       label:
         explicit === null
-          ? 'Mixed sighash types in supplied signatures'
+          ? "Mixed sighash types in supplied signatures"
           : `${sighash.label} requested, but supplied signatures use mixed sighash types`,
       unusual: true,
     };
@@ -245,14 +266,18 @@ export function analyzeInputSigning(parsed: ParsedPsbt, index: number): InputSig
   return {
     signature: signatureState(map),
     protocol:
-      protocol === 'taproot' ? 'Taproot / BIP341' : protocol === 'segwit-v0' ? 'SegWit v0 / BIP143' : 'Legacy Script',
+      protocol === "taproot"
+        ? "Taproot / BIP341"
+        : protocol === "segwit-v0"
+          ? "SegWit v0 / BIP143"
+          : "Legacy Script",
     sighash,
     rbf:
-      parsed.chain === 'dash'
-        ? `Not supported by Dash Core${rbfSignal ? ' · this input has a non-final sequence' : ''}`
+      parsed.chain === "dash"
+        ? `Not supported by Dash Core${rbfSignal ? " · this input has a non-final sequence" : ""}`
         : rbfSignal
-          ? `Opt-in RBF signaled · sequence 0x${inputSequence.toString(16).padStart(8, '0')}`
-          : 'Not signaled',
+          ? `Opt-in RBF signaled · sequence 0x${inputSequence.toString(16).padStart(8, "0")}`
+          : "Not signaled",
     locktime: describeAbsoluteLocktime(parsed, index),
     relativeLocktime: describeRelativeLocktime(parsed, inputSequence),
   };

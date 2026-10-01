@@ -1,4 +1,4 @@
-import type { NetworkName } from '@ckd/core/types.js';
+import type { NetworkName } from "@ckd/core/types.js";
 
 export type RecoveryNetwork = NetworkName;
 
@@ -63,16 +63,25 @@ export interface ShieldedPageView {
 }
 
 export type DashRecoveryRequestInput =
-  | { operation: 'core.status'; payload: { network: RecoveryNetwork } }
-  | { operation: 'core.tip'; payload: { network: RecoveryNetwork } }
-  | { operation: 'core.address-info'; payload: { network: RecoveryNetwork; addresses: string[] } }
-  | { operation: 'core.address-history'; payload: { network: RecoveryNetwork; address: string } }
-  | { operation: 'core.transaction'; payload: { network: RecoveryNetwork; hash: string } }
-  | { operation: 'platform.addresses'; payload: { network: RecoveryNetwork; addresses: string[] } }
-  | { operation: 'platform.address-history'; payload: { network: RecoveryNetwork; address: string } }
+  | { operation: "core.status"; payload: { network: RecoveryNetwork } }
+  | { operation: "core.tip"; payload: { network: RecoveryNetwork } }
+  | { operation: "core.address-info"; payload: { network: RecoveryNetwork; addresses: string[] } }
+  | { operation: "core.address-history"; payload: { network: RecoveryNetwork; address: string } }
+  | { operation: "core.transaction"; payload: { network: RecoveryNetwork; hash: string } }
+  | { operation: "platform.addresses"; payload: { network: RecoveryNetwork; addresses: string[] } }
   | {
-      operation: 'platform.identity-by-public-key-hash';
+      operation: "platform.address-history";
+      payload: { network: RecoveryNetwork; address: string };
+    }
+  | {
+      operation: "platform.identity-by-public-key-hash";
       payload: { network: RecoveryNetwork; publicKeyHashHex: string };
     }
-  | { operation: 'platform.identity-history'; payload: { network: RecoveryNetwork; identifier: string } }
-  | { operation: 'shielded.page'; payload: { network: RecoveryNetwork; startPosition: string; count: number } };
+  | {
+      operation: "platform.identity-history";
+      payload: { network: RecoveryNetwork; identifier: string };
+    }
+  | {
+      operation: "shielded.page";
+      payload: { network: RecoveryNetwork; startPosition: string; count: number };
+    };

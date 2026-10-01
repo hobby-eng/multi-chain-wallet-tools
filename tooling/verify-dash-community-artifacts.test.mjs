@@ -1,41 +1,52 @@
-import { describe, expect, it } from 'vitest';
-import { findDashArtifactViolations, findDashInspectorArtifactViolations } from './verify-dash-community-artifacts.mjs';
+import { describe, expect, it } from "vitest";
+import {
+  findDashArtifactViolations,
+  findDashInspectorArtifactViolations,
+} from "./verify-dash-community-artifacts.mjs";
 
-describe('Dash Community artifact exclusion rules', () => {
-  it('rejects non-Dash registrations, protocol copy, and branding', () => {
-    expect(findDashArtifactViolations('bitcoin-taproot Ethereum EOA · BIP44 Multi-Chain Wallet Tools BIP86')).toEqual(
+describe("Dash Community artifact exclusion rules", () => {
+  it("rejects non-Dash registrations, protocol copy, and branding", () => {
+    expect(
+      findDashArtifactViolations(
+        "bitcoin-taproot Ethereum EOA · BIP44 Multi-Chain Wallet Tools BIP86",
+      ),
+    ).toEqual(
       expect.arrayContaining([
-        'Bitcoin',
-        'Bitcoin adapter registration',
-        'Ethereum',
-        'non-Dash protocol copy',
-        'Multi-Chain branding',
+        "Bitcoin",
+        "Bitcoin adapter registration",
+        "Ethereum",
+        "non-Dash protocol copy",
+        "Multi-Chain branding",
       ]),
     );
   });
 
-  it('permits only the protocol-defined BIP32 HMAC domain string', () => {
+  it("permits only the protocol-defined BIP32 HMAC domain string", () => {
     expect(
-      findDashArtifactViolations('Uint8Array.from("Bitcoin seed".split("")) Uint8Array.from(`Bitcoin seed`.split(""))'),
+      findDashArtifactViolations(
+        'Uint8Array.from("Bitcoin seed".split("")) Uint8Array.from(`Bitcoin seed`.split(""))',
+      ),
     ).toEqual([]);
-    expect(findDashArtifactViolations('Visible Bitcoin wallet option')).toContain('Bitcoin');
+    expect(findDashArtifactViolations("Visible Bitcoin wallet option")).toContain("Bitcoin");
   });
 
-  it('rejects unknown adapter registrations without a chain-specific denylist', () => {
-    expect(findDashArtifactViolations('var adapters=[{id:"solana",group:"Solana",label:"Wallet"}]')).toContain(
-      'non-Dash derivation adapter registration: solana',
-    );
+  it("rejects unknown adapter registrations without a chain-specific denylist", () => {
+    expect(
+      findDashArtifactViolations('var adapters=[{id:"solana",group:"Solana",label:"Wallet"}]'),
+    ).toContain("non-Dash derivation adapter registration: solana");
     expect(
       findDashArtifactViolations(
         String.raw`var worker="[{id:\"future-coin\",group:\"Future Coin\",label:\"Wallet\"}]"`,
       ),
-    ).toContain('non-Dash derivation adapter registration: future-coin');
-    expect(findDashArtifactViolations('var recovery={id:"cardano",label:"Cardano",networks:["mainnet"]}')).toContain(
-      'non-Dash recovery adapter registration: cardano',
-    );
+    ).toContain("non-Dash derivation adapter registration: future-coin");
+    expect(
+      findDashArtifactViolations(
+        'var recovery={id:"cardano",label:"Cardano",networks:["mainnet"]}',
+      ),
+    ).toContain("non-Dash recovery adapter registration: cardano");
   });
 
-  it('accepts only the explicit Dash adapter registrations', () => {
+  it("accepts only the explicit Dash adapter registrations", () => {
     expect(
       findDashArtifactViolations(
         'var adapters=[{id:"dash-core",group:"Dash"},{id:"dash-platform",group:"Dash"},' +
@@ -45,16 +56,20 @@ describe('Dash Community artifact exclusion rules', () => {
     ).toEqual([]);
   });
 
-  it('applies a reviewed shared-decoder allowlist to the Dash Inspector', () => {
+  it("applies a reviewed shared-decoder allowlist to the Dash Inspector", () => {
     const safe =
       '<main>Dash only</main><script>const labels = ["Bitcoin", "Taproot", "MuSig2", "rawtr", "multi_a", "P2TR", "P2WPKH"];</script>';
     expect(findDashInspectorArtifactViolations(safe)).toEqual([]);
-    expect(findDashInspectorArtifactViolations(safe.replace('</script>', 'keyAggregate();</script>'))).toContain(
-      'Bitcoin MuSig2 aggregation implementation',
-    );
-    expect(findDashInspectorArtifactViolations('<main>Ethereum wallet</main><script></script>')).toContain('Ethereum');
-    expect(findDashInspectorArtifactViolations(`<main>Dash</main><script>${'Bitcoin '.repeat(72)}</script>`)).toContain(
-      'Bitcoin shared-decoder terms exceed reviewed allowlist: 72 > 71',
-    );
+    expect(
+      findDashInspectorArtifactViolations(safe.replace("</script>", "keyAggregate();</script>")),
+    ).toContain("Bitcoin MuSig2 aggregation implementation");
+    expect(
+      findDashInspectorArtifactViolations("<main>Ethereum wallet</main><script></script>"),
+    ).toContain("Ethereum");
+    expect(
+      findDashInspectorArtifactViolations(
+        `<main>Dash</main><script>${"Bitcoin ".repeat(72)}</script>`,
+      ),
+    ).toContain("Bitcoin shared-decoder terms exceed reviewed allowlist: 72 > 71");
   });
 });

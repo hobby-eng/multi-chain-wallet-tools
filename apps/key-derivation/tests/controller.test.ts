@@ -1,13 +1,13 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createKeyDerivationController } from '../src/ui/controller.js';
-import type { KeyDerivationView } from '../src/ui/view.js';
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createKeyDerivationController } from "../src/ui/controller.js";
+import type { KeyDerivationView } from "../src/ui/view.js";
 
 class TestControl extends EventTarget {
   disabled = false;
   hidden = false;
   checked = false;
-  value = '';
-  textContent = '';
+  value = "";
+  textContent = "";
   readonly listeners = new Map<string, number>();
 
   override addEventListener(
@@ -20,13 +20,13 @@ class TestControl extends EventTarget {
   }
 
   click(): void {
-    this.dispatchEvent(new Event('click'));
+    this.dispatchEvent(new Event("click"));
   }
 }
 
 class TestForm extends TestControl {
   submit(): void {
-    this.dispatchEvent(new Event('submit', { cancelable: true }));
+    this.dispatchEvent(new Event("submit", { cancelable: true }));
   }
 }
 
@@ -37,7 +37,7 @@ async function settle(): Promise<void> {
 /** A started controller with fake view controls; `extra` adds or replaces dependencies. */
 function controllerHarness(extra: Record<string, unknown> = {}) {
   const windowEvents = new TestControl();
-  vi.stubGlobal('window', {
+  vi.stubGlobal("window", {
     addEventListener: windowEvents.addEventListener.bind(windowEvents),
     setTimeout(callback: () => void): number {
       return globalThis.setTimeout(callback, 0) as unknown as number;
@@ -63,10 +63,16 @@ function controllerHarness(extra: Record<string, unknown> = {}) {
   };
   const modeBasic = new TestControl();
   const modeAdvanced = new TestControl();
-  let resolveWorkerSelfTest!: (value: { passed: boolean; checks: string[]; durationMs: number }) => void;
-  const workerSelfTest = new Promise<{ passed: boolean; checks: string[]; durationMs: number }>((resolve) => {
-    resolveWorkerSelfTest = resolve;
-  });
+  let resolveWorkerSelfTest!: (value: {
+    passed: boolean;
+    checks: string[];
+    durationMs: number;
+  }) => void;
+  const workerSelfTest = new Promise<{ passed: boolean; checks: string[]; durationMs: number }>(
+    (resolve) => {
+      resolveWorkerSelfTest = resolve;
+    },
+  );
   const startupWorker = {
     selfTest: vi.fn(() => workerSelfTest),
     terminate: vi.fn(),
@@ -91,7 +97,7 @@ function controllerHarness(extra: Record<string, unknown> = {}) {
     toggleResultSecrets: new TestControl(),
     copyMnemonicButton: new TestControl(),
     descriptorButtons: Object.fromEntries(
-      ['scanner', 'publicCopy', 'publicDownload', 'privateCopy', 'privateDownload'].map((key) => [
+      ["scanner", "publicCopy", "publicDownload", "privateCopy", "privateDownload"].map((key) => [
         key,
         new TestControl(),
       ]),
@@ -135,21 +141,21 @@ function controllerHarness(extra: Record<string, unknown> = {}) {
     clearAllInputs: vi.fn(),
   } as unknown as KeyDerivationView;
   const adapter = {
-    id: 'bitcoin-bip44',
-    label: 'Bitcoin',
-    variantLabel: 'BIP44',
+    id: "bitcoin-bip44",
+    label: "Bitcoin",
+    variantLabel: "BIP44",
     defaults: {},
   };
   const createWorker = vi.fn(() => startupWorker);
   const dependencies = {
-    coinFamilies: [{ id: 'bitcoin', label: 'Bitcoin' }],
-    getAdapterFamilyId: () => 'bitcoin',
+    coinFamilies: [{ id: "bitcoin", label: "Bitcoin" }],
+    getAdapterFamilyId: () => "bitcoin",
     getCoinAdapter: () => adapter,
     getDefaultCoinAdapter: () => adapter,
     buildInfo: {},
     generateMnemonic: vi.fn(),
     mnemonicToSeed: vi.fn(),
-    runBip39SelfTest: () => ({ passed: true, checks: ['fixture'], durationMs: 1 }),
+    runBip39SelfTest: () => ({ passed: true, checks: ["fixture"], durationMs: 1 }),
     runRecoveryBackupSelfTest: vi.fn(() => ({ passed: true, checks: [], durationMs: 0 })),
     setRecoveryControlsEnabled: vi.fn(),
     writeClipboard: vi.fn(),
@@ -159,28 +165,52 @@ function controllerHarness(extra: Record<string, unknown> = {}) {
     ...extra,
   } as unknown as Parameters<typeof createKeyDerivationController>[1];
   const controller = createKeyDerivationController(view, dependencies);
-  return { controller, view, dependencies, form, createWorker, modeBasic, modeAdvanced, resolveWorkerSelfTest };
+  return {
+    controller,
+    view,
+    dependencies,
+    form,
+    createWorker,
+    modeBasic,
+    modeAdvanced,
+    resolveWorkerSelfTest,
+  };
 }
 
-describe('Key Derivation controller', () => {
+describe("Key Derivation controller", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
-  it('registers once, gates derivation on startup self-test, and handles mode transitions', async () => {
-    const chosenWords = { active: vi.fn(() => false), generate: vi.fn(), setRevealed: vi.fn(), clear: vi.fn() };
-    const { controller, view, dependencies, form, createWorker, modeBasic, modeAdvanced, resolveWorkerSelfTest } =
-      controllerHarness({ chosenWords });
+  it("registers once, gates derivation on startup self-test, and handles mode transitions", async () => {
+    const chosenWords = {
+      active: vi.fn(() => false),
+      generate: vi.fn(),
+      setRevealed: vi.fn(),
+      clear: vi.fn(),
+    };
+    const {
+      controller,
+      view,
+      dependencies,
+      form,
+      createWorker,
+      modeBasic,
+      modeAdvanced,
+      resolveWorkerSelfTest,
+    } = controllerHarness({ chosenWords });
 
     controller.start();
     controller.start();
     form.submit();
-    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining('self-test has not completed'));
-    expect(form.listeners.get('submit')).toBe(1);
+    expect(view.showError).toHaveBeenCalledWith(
+      expect.stringContaining("self-test has not completed"),
+    );
+    expect(form.listeners.get("submit")).toBe(1);
     expect(createWorker).toHaveBeenCalledOnce();
 
-    resolveWorkerSelfTest({ passed: true, checks: ['worker fixture'], durationMs: 1 });
+    resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
     await settle();
     expect(view.setCryptoControlsEnabled).toHaveBeenLastCalledWith(true);
     expect(dependencies.runRecoveryBackupSelfTest).toHaveBeenCalledOnce();
@@ -195,34 +225,38 @@ describe('Key Derivation controller', () => {
 
     modeAdvanced.click();
     modeBasic.click();
-    expect(view.updateMode).toHaveBeenNthCalledWith(2, 'advanced');
-    expect(view.updateMode).toHaveBeenNthCalledWith(3, 'basic');
+    expect(view.updateMode).toHaveBeenNthCalledWith(2, "advanced");
+    expect(view.updateMode).toHaveBeenNthCalledWith(3, "basic");
     // The chosen words are part of the phrase and are shown and hidden with it.
     expect(chosenWords.setRevealed).toHaveBeenCalledWith(true);
   });
 
-  it('generates with chosen words only when they are active, and never falls back', async () => {
+  it("generates with chosen words only when they are active, and never falls back", async () => {
     const chosenWords = {
       active: vi.fn(() => true),
-      generate: vi.fn(() => Promise.reject(new Error('Chosen word 1 is not an English BIP39 word.'))),
+      generate: vi.fn(() =>
+        Promise.reject(new Error("Chosen word 1 is not an English BIP39 word.")),
+      ),
       setRevealed: vi.fn(),
       clear: vi.fn(),
     };
-    const { controller, view, dependencies, resolveWorkerSelfTest } = controllerHarness({ chosenWords });
+    const { controller, view, dependencies, resolveWorkerSelfTest } = controllerHarness({
+      chosenWords,
+    });
     controller.start();
-    resolveWorkerSelfTest({ passed: true, checks: ['worker fixture'], durationMs: 1 });
+    resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
     await settle();
 
     (view.generate12Button as unknown as TestControl).click();
     await settle();
     expect(chosenWords.generate).toHaveBeenCalledWith(12);
-    expect(view.showError).toHaveBeenLastCalledWith('Chosen word 1 is not an English BIP39 word.');
+    expect(view.showError).toHaveBeenLastCalledWith("Chosen word 1 is not an English BIP39 word.");
     // A wish that cannot be met is an error, never an ordinary phrase in its place.
     expect(dependencies.generateMnemonic).not.toHaveBeenCalled();
 
     chosenWords.active.mockReturnValue(false);
     vi.mocked(dependencies.generateMnemonic).mockImplementation(() => {
-      throw new Error('ordinary generation fixture');
+      throw new Error("ordinary generation fixture");
     });
     (view.generate24Button as unknown as TestControl).click();
     await settle();

@@ -1,12 +1,12 @@
-import type { CoinAdapter } from '@ckd/coins/registry.js';
-import type { DerivationControlValues } from './inputs.js';
-import { planResultBranches } from './result-branches.js';
+import type { CoinAdapter } from "@ckd/coins/registry.js";
+import type { DerivationControlValues } from "./inputs.js";
+import { planResultBranches } from "./result-branches.js";
 
 const LARGE_REQUEST_CONFIRM_THRESHOLD = 10_000;
 
 interface LargeRequestPolicyOptions {
   adapter: () => CoinAdapter;
-  activeFeatureTab: () => 'silent-payment' | 'bip85' | 'coinjoin' | null;
+  activeFeatureTab: () => "silent-payment" | "bip85" | "coinjoin" | null;
   showConfirmation: () => void;
   showStatus: (message: string) => void;
 }
@@ -16,9 +16,9 @@ export function createLargeRequestPolicy(options: LargeRequestPolicyOptions) {
 
   const plannedBranches = (input: DerivationControlValues) => {
     const adapter = options.adapter();
-    if (options.activeFeatureTab() === 'coinjoin' && adapter.coinJoin !== undefined) {
+    if (options.activeFeatureTab() === "coinjoin" && adapter.coinJoin !== undefined) {
       return planResultBranches(adapter, input.branch, false, true).filter(
-        ({ kind }) => kind === 'coinjoin-external' || kind === 'coinjoin-internal',
+        ({ kind }) => kind === "coinjoin-external" || kind === "coinjoin-internal",
       );
     }
     return planResultBranches(adapter, input.branch, input.includeChange, false);
@@ -35,7 +35,7 @@ export function createLargeRequestPolicy(options: LargeRequestPolicyOptions) {
       input.count,
       input.includeChange,
       input.includeCoinJoin,
-    ].join(':');
+    ].join(":");
   };
 
   const approximateMemoryRange = (count: number): string => {
@@ -73,8 +73,8 @@ export function createLargeRequestPolicy(options: LargeRequestPolicyOptions) {
       const batches = Math.ceil(input.count / (adapter.batchSize ?? 50)) * branchCount;
       options.showConfirmation();
       options.showStatus(
-        `Large request confirmation: ${totalCount.toLocaleString()} results across ${branchCount} address branch${branchCount === 1 ? '' : 'es'} in ${batches.toLocaleString()} visible batches; ${approximateMemoryRange(totalCount)}. ` +
-          'Keep the tab open and click “Confirm large request” to proceed. You can cancel at any time.',
+        `Large request confirmation: ${totalCount.toLocaleString()} results across ${branchCount} address branch${branchCount === 1 ? "" : "es"} in ${batches.toLocaleString()} visible batches; ${approximateMemoryRange(totalCount)}. ` +
+          "Keep the tab open and click “Confirm large request” to proceed. You can cancel at any time.",
       );
       return false;
     },

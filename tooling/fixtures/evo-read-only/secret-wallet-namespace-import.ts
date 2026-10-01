@@ -1,3 +1,3 @@
-import * as evo from '@dashevo/evo-sdk';
+import * as evo from "@dashevo/evo-sdk";
 
 void evo;

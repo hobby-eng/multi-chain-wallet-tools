@@ -1,11 +1,11 @@
-import type { NetworkName } from '@ckd/core/types.js';
+import type { NetworkName } from "@ckd/core/types.js";
 
 export type RecoveryNetwork = NetworkName;
 export interface RecoveryHistory {
   asset: string;
   atomicUnit: string;
   decimals: number;
-  status: 'complete' | 'partial' | 'unavailable' | 'unsupported';
+  status: "complete" | "partial" | "unavailable" | "unsupported";
   source: string;
   scope: string;
   note: string;

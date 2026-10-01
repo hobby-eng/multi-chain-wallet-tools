@@ -1,3 +1,3 @@
-import { startActivityViewer } from './start.js';
+import { startActivityViewer } from "./start.js";
 
 startActivityViewer();

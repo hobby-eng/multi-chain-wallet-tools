@@ -1,5 +1,5 @@
-import type { ShieldedActivity } from '@ckd/dash-network/types.js';
-import { formatDashFromCredits } from './util.js';
+import type { ShieldedActivity } from "@ckd/dash-network/types.js";
+import { formatDashFromCredits } from "./util.js";
 
 export function shieldedFindingPresentation(
   record: ShieldedActivity,
@@ -12,34 +12,34 @@ export function shieldedFindingPresentation(
   if (record.incoming === undefined) {
     return {
       balanceAtomic: null,
-      balanceLabel: 'Current balance unavailable · outgoing view only',
-      spendState: 'Outgoing view only',
+      balanceLabel: "Current balance unavailable · outgoing view only",
+      spendState: "Outgoing view only",
     };
   }
   if (record.spent === true) {
     return {
       balanceAtomic: 0n,
-      balanceLabel: '0 DASH · already spent',
-      spendState: 'Spent',
+      balanceLabel: "0 DASH · already spent",
+      spendState: "Spent",
     };
   }
   if (record.spent === false && !complete) {
     return {
       balanceAtomic: null,
-      balanceLabel: 'Current balance unavailable · scan incomplete',
-      spendState: 'Unknown · scan incomplete',
+      balanceLabel: "Current balance unavailable · scan incomplete",
+      spendState: "Unknown · scan incomplete",
     };
   }
   if (record.spent === false) {
     return {
       balanceAtomic: record.incoming.value,
       balanceLabel: formatDashFromCredits(record.incoming.value),
-      spendState: 'Unspent',
+      spendState: "Unspent",
     };
   }
   return {
     balanceAtomic: null,
-    balanceLabel: 'Current balance unavailable · spend state unknown',
-    spendState: 'Unknown · FVK required',
+    balanceLabel: "Current balance unavailable · spend state unknown",
+    spendState: "Unknown · FVK required",
   };
 }

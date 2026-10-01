@@ -1,10 +1,10 @@
-import type { CryptoSelfTestReport } from '@ckd/self-test-types';
-import { runCodex32SelfTest } from './self-test-codex32.js';
-import { runSeedQrSelfTest } from './self-test-seedqr.js';
-import { runSskrSelfTest } from './self-test-sskr.js';
-import { runGordianEnvelopeSelfTest } from './self-test-gordian-envelope.js';
-import { runSlip39SelfTest } from './self-test-slip39.js';
-import { runMnemoCodeSelfTest } from './self-test-mnemocode.js';
+import type { CryptoSelfTestReport } from "@ckd/self-test-types";
+import { runCodex32SelfTest } from "./self-test-codex32.js";
+import { runSeedQrSelfTest } from "./self-test-seedqr.js";
+import { runSskrSelfTest } from "./self-test-sskr.js";
+import { runGordianEnvelopeSelfTest } from "./self-test-gordian-envelope.js";
+import { runSlip39SelfTest } from "./self-test-slip39.js";
+import { runMnemoCodeSelfTest } from "./self-test-mnemocode.js";
 
 /** Exercises every recovery codec in the complete build. */
 export function runRecoveryBackupSelfTest(): CryptoSelfTestReport {
@@ -17,7 +17,7 @@ export function runRecoveryBackupSelfTest(): CryptoSelfTestReport {
     runGordianEnvelopeSelfTest(),
   ];
   if (reports.some((report) => report.passed !== true)) {
-    throw new Error('A recovery codec self-test returned an unsuccessful report.');
+    throw new Error("A recovery codec self-test returned an unsuccessful report.");
   }
   return {
     passed: true,

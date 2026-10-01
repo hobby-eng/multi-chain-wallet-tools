@@ -1,22 +1,23 @@
-import { describe, expect, it } from 'vitest';
-import { mnemonicToSeed } from '@ckd/core/bip39.js';
-import { BITCOIN_RECOVERY_ADAPTER } from '../src/coins/bitcoin/index.js';
-import { scanDashCore } from '../src/coins/dash/core-scanner.js';
-import { ETHEREUM_RECOVERY_ADAPTER } from '../src/coins/ethereum/index.js';
-import { RecoveryNetworkGateway } from '../src/network-gateway.js';
-import type { RecoveryNetworkApi } from '@ckd/network-boundary/protocol.js';
-import { SecretEgressGuard } from '@ckd/secret-boundary/secret-guard.js';
-import type { RecoveryScanConfig } from '../src/types.js';
+import { describe, expect, it } from "vitest";
+import { mnemonicToSeed } from "@ckd/core/bip39.js";
+import { BITCOIN_RECOVERY_ADAPTER } from "../src/coins/bitcoin/index.js";
+import { scanDashCore } from "../src/coins/dash/core-scanner.js";
+import { ETHEREUM_RECOVERY_ADAPTER } from "../src/coins/ethereum/index.js";
+import { RecoveryNetworkGateway } from "../src/network-gateway.js";
+import type { RecoveryNetworkApi } from "@ckd/network-boundary/protocol.js";
+import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
+import type { RecoveryScanConfig } from "../src/types.js";
 
-const MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+const MNEMONIC =
+  "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
 function unavailable(): Promise<never> {
-  return Promise.reject(new Error('Unexpected network operation.'));
+  return Promise.reject(new Error("Unexpected network operation."));
 }
 
 function api(overrides: Partial<RecoveryNetworkApi>): RecoveryNetworkApi {
   return {
-    ping: async () => 'isolated-network-worker-v1',
+    ping: async () => "isolated-network-worker-v1",
     coreStatus: unavailable,
     coreTip: unavailable,
     coreAddressInfo: unavailable,
@@ -35,7 +36,7 @@ function api(overrides: Partial<RecoveryNetworkApi>): RecoveryNetworkApi {
 }
 
 const config: RecoveryScanConfig = {
-  network: 'mainnet',
+  network: "mainnet",
   account: 0,
   scanCore: true,
   coreReceiveCount: 1,
@@ -61,18 +62,18 @@ const config: RecoveryScanConfig = {
   scanShieldedPool: false,
 };
 
-describe('Multi-Chain recovery adapters', () => {
-  it('scans all common Bitcoin address families from public addresses only', async () => {
+describe("Multi-Chain recovery adapters", () => {
+  it("scans all common Bitcoin address families from public addresses only", async () => {
     const requested: string[] = [];
     const result = await BITCOIN_RECOVERY_ADAPTER.scan(
-      { id: 'seed-1', label: 'Seed phrase #1', mnemonic: MNEMONIC, passphrase: '' },
+      { id: "seed-1", label: "Seed phrase #1", mnemonic: MNEMONIC, passphrase: "" },
       config,
       {
         signal: new AbortController().signal,
         networkApi: api({
           utxoAddresses: async (_network, addresses) => {
             requested.push(...addresses);
-            return addresses.map((address) => ({ address, balance: '0', transactionCount: 0 }));
+            return addresses.map((address) => ({ address, balance: "0", transactionCount: 0 }));
           },
         }),
         onProgress: () => {},
@@ -80,24 +81,24 @@ describe('Multi-Chain recovery adapters', () => {
       },
     );
     expect(requested).toEqual([
-      '1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA',
-      '37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf',
-      'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu',
-      'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr',
+      "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
+      "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf",
+      "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+      "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
     ]);
-    expect(result.coinId).toBe('bitcoin');
+    expect(result.coinId).toBe("bitcoin");
     expect(result.sections[0]?.scanned).toBe(4);
   });
 
-  it('adds a selected Bitcoin custom path and address format', async () => {
+  it("adds a selected Bitcoin custom path and address format", async () => {
     const requested: string[] = [];
     const result = await BITCOIN_RECOVERY_ADAPTER.scan(
-      { id: 'seed-1', label: 'Seed phrase #1', mnemonic: MNEMONIC, passphrase: '' },
+      { id: "seed-1", label: "Seed phrase #1", mnemonic: MNEMONIC, passphrase: "" },
       {
         ...config,
         scanCustomPath: true,
         customPathTemplate: "m/44'/0'/7'/0/{index}",
-        customPathFormat: 'legacy',
+        customPathFormat: "legacy",
         customPathCount: 1,
       },
       {
@@ -105,7 +106,7 @@ describe('Multi-Chain recovery adapters', () => {
         networkApi: api({
           utxoAddresses: async (_network, addresses) => {
             requested.push(...addresses);
-            return addresses.map((address) => ({ address, balance: '0', transactionCount: 0 }));
+            return addresses.map((address) => ({ address, balance: "0", transactionCount: 0 }));
           },
         }),
         onProgress: () => {},
@@ -114,16 +115,16 @@ describe('Multi-Chain recovery adapters', () => {
     );
     expect(new Set(requested).size).toBe(5);
     expect(result.sections[0]?.scanned).toBe(5);
-    expect(result.overview).toContainEqual({ label: 'Path profiles', value: '5' });
+    expect(result.overview).toContainEqual({ label: "Path profiles", value: "5" });
   });
 
-  it('scans a custom Dash P2PKH path without requiring the standard Core family', async () => {
+  it("scans a custom Dash P2PKH path without requiring the standard Core family", async () => {
     const requested: string[] = [];
-    const seed = mnemonicToSeed(MNEMONIC, '');
+    const seed = mnemonicToSeed(MNEMONIC, "");
     const guard = new SecretEgressGuard();
-    guard.registerBytes('seed', seed);
+    guard.registerBytes("seed", seed);
     const section = await scanDashCore(
-      'seed-1',
+      "seed-1",
       seed,
       {
         ...config,
@@ -131,17 +132,19 @@ describe('Multi-Chain recovery adapters', () => {
         coreReceiveCount: 0,
         scanCustomPath: true,
         customPathTemplate: "m/44'/5'/7'/0/{index}",
-        customPathFormat: 'p2pkh',
+        customPathFormat: "p2pkh",
         customPathCount: 1,
       },
       new RecoveryNetworkGateway(
         guard,
         api({
-          coreStatus: async () => ({ status: 'ok' }),
-          coreTip: async () => ({ resultSet: [{ height: 2_300_000, timestamp: '2026-09-02T00:00:00.000Z' }] }),
+          coreStatus: async () => ({ status: "ok" }),
+          coreTip: async () => ({
+            resultSet: [{ height: 2_300_000, timestamp: "2026-09-02T00:00:00.000Z" }],
+          }),
           coreAddressInfo: async (_network, addresses) => {
             requested.push(...addresses);
-            return addresses.map((address) => ({ address, balance: '0', txCount: 0 }));
+            return addresses.map((address) => ({ address, balance: "0", txCount: 0 }));
           },
         }),
       ),
@@ -155,11 +158,11 @@ describe('Multi-Chain recovery adapters', () => {
     expect(section.scanned).toBe(1);
   });
 
-  it('scans standard, Ledger Live, and legacy Ledger Ethereum paths without duplicate requests', async () => {
+  it("scans standard, Ledger Live, and legacy Ledger Ethereum paths without duplicate requests", async () => {
     const requested: string[] = [];
     const progress: string[] = [];
     const result = await ETHEREUM_RECOVERY_ADAPTER.scan(
-      { id: 'seed-1', label: 'Seed phrase #1', mnemonic: MNEMONIC, passphrase: '' },
+      { id: "seed-1", label: "Seed phrase #1", mnemonic: MNEMONIC, passphrase: "" },
       config,
       {
         signal: new AbortController().signal,
@@ -167,8 +170,8 @@ describe('Multi-Chain recovery adapters', () => {
           evmAccounts: async (_network, addresses) => {
             requested.push(...addresses);
             return {
-              blockNumber: '1',
-              entries: addresses.map((address) => ({ address, balance: '0', nonce: '0' })),
+              blockNumber: "1",
+              entries: addresses.map((address) => ({ address, balance: "0", nonce: "0" })),
             };
           },
         }),
@@ -177,31 +180,31 @@ describe('Multi-Chain recovery adapters', () => {
       },
     );
     expect(requested).toEqual([
-      '0x9858EfFD232B4033E47d90003D41EC34EcaEda94',
-      '0xB8Fd42000d00202DCbCF5e18d6640d656345FD6A',
+      "0x9858EfFD232B4033E47d90003D41EC34EcaEda94",
+      "0xB8Fd42000d00202DCbCF5e18d6640d656345FD6A",
     ]);
     expect(progress).toEqual([
-      'Standard BIP44 · MetaMask / Trezor: checked 1 of 1 derivation candidates',
-      'Ledger Live accounts: checked 1 of 1 derivation candidates',
-      'Legacy Ledger / MEW: checked 1 of 1 derivation candidates',
+      "Standard BIP44 · MetaMask / Trezor: checked 1 of 1 derivation candidates",
+      "Ledger Live accounts: checked 1 of 1 derivation candidates",
+      "Legacy Ledger / MEW: checked 1 of 1 derivation candidates",
     ]);
-    expect(result.coinId).toBe('ethereum');
+    expect(result.coinId).toBe("ethereum");
     expect(result.sections[0]?.scanned).toBe(3);
-    expect(result.overview).toContainEqual({ label: 'Path profiles', value: '3' });
-    expect(result.overview).toContainEqual({ label: 'Unique addresses queried', value: '2' });
+    expect(result.overview).toContainEqual({ label: "Path profiles", value: "3" });
+    expect(result.overview).toContainEqual({ label: "Unique addresses queried", value: "2" });
   });
 
   it.each(["m/44'/60'/7'/0/{index}", "m/44'/60'/7'/0/{index}'"])(
-    'supports validated custom Ethereum path template %s',
+    "supports validated custom Ethereum path template %s",
     async (evmPathTemplate) => {
       const requested: string[] = [];
       const result = await ETHEREUM_RECOVERY_ADAPTER.scan(
-        { id: 'seed-1', label: 'Seed phrase #1', mnemonic: MNEMONIC, passphrase: '' },
+        { id: "seed-1", label: "Seed phrase #1", mnemonic: MNEMONIC, passphrase: "" },
         {
           ...config,
           scanCustomPath: true,
           customPathTemplate: evmPathTemplate,
-          customPathFormat: 'eoa',
+          customPathFormat: "eoa",
           customPathCount: 1,
         },
         {
@@ -210,8 +213,8 @@ describe('Multi-Chain recovery adapters', () => {
             evmAccounts: async (_network, addresses) => {
               requested.push(...addresses);
               return {
-                blockNumber: '1',
-                entries: addresses.map((address) => ({ address, balance: '0', nonce: '0' })),
+                blockNumber: "1",
+                entries: addresses.map((address) => ({ address, balance: "0", nonce: "0" })),
               };
             },
           }),
@@ -221,26 +224,26 @@ describe('Multi-Chain recovery adapters', () => {
       );
       expect(new Set(requested).size).toBe(3);
       expect(result.sections[0]?.scanned).toBe(4);
-      expect(result.overview).toContainEqual({ label: 'Path profiles', value: '4' });
+      expect(result.overview).toContainEqual({ label: "Path profiles", value: "4" });
     },
   );
 
   it.each([
-    '',
+    "",
     "44'/60'/0'/0/{index}",
     "m/44'/60'/0'/0/0",
     "m/44'/60'/{index}/{index}",
     "m/044'/60'/0'/0/{index}",
     "m/44'/60'/2147483648'/0/{index}",
-  ])('rejects invalid custom Ethereum template %j', async (evmPathTemplate) => {
+  ])("rejects invalid custom Ethereum template %j", async (evmPathTemplate) => {
     await expect(
       ETHEREUM_RECOVERY_ADAPTER.scan(
-        { id: 'seed-1', label: 'Seed phrase #1', mnemonic: MNEMONIC, passphrase: '' },
+        { id: "seed-1", label: "Seed phrase #1", mnemonic: MNEMONIC, passphrase: "" },
         {
           ...config,
           scanCustomPath: true,
           customPathTemplate: evmPathTemplate,
-          customPathFormat: 'eoa',
+          customPathFormat: "eoa",
           customPathCount: 1,
         },
         {

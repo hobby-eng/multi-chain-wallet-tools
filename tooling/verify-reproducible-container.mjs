@@ -1,23 +1,23 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const read = (path) => readFileSync(resolve(root, path), 'utf8');
-const dockerfile = read('Dockerfile.reproducible');
-const shellWrapper = read('tooling/build-reproducible.sh');
-const manifest = JSON.parse(read('package.json'));
-const nodeVersion = read('.node-version').trim();
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const read = (path) => readFileSync(resolve(root, path), "utf8");
+const dockerfile = read("Dockerfile.reproducible");
+const shellWrapper = read("tooling/build-reproducible.sh");
+const manifest = JSON.parse(read("package.json"));
+const nodeVersion = read(".node-version").trim();
 const packageManager = manifest.packageManager;
 const expectedNodeEngine = `>=${nodeVersion}`;
 if (manifest.engines?.node !== expectedNodeEngine) {
   throw new Error(`package.json engines.node must be ${expectedNodeEngine}.`);
 }
-if (!/^pnpm@\d+\.\d+\.\d+$/u.test(packageManager ?? '')) {
-  throw new Error('package.json packageManager must pin an exact pnpm version.');
+if (!/^pnpm@\d+\.\d+\.\d+$/u.test(packageManager ?? "")) {
+  throw new Error("package.json packageManager must pin an exact pnpm version.");
 }
-if (!String(manifest.scripts.verify).includes('node tooling/verify-dependency-provenance.mjs')) {
-  throw new Error('The canonical pnpm verify command must enforce dependency provenance.');
+if (!String(manifest.scripts.verify).includes("node tooling/verify-dependency-provenance.mjs")) {
+  throw new Error("The canonical pnpm verify command must enforce dependency provenance.");
 }
 
 function requireMatch(text, pattern, message) {
@@ -27,100 +27,114 @@ function requireMatch(text, pattern, message) {
 requireMatch(
   dockerfile,
   /^FROM buildpack-deps:noble@sha256:[a-f0-9]{64} AS toolchain$/m,
-  'The canonical base image must be pinned by an immutable SHA-256 digest.',
+  "The canonical base image must be pinned by an immutable SHA-256 digest.",
 );
 for (const expected of [
   `ARG NODE_VERSION=${nodeVersion}`,
-  'ARG NODE_ARCHIVE_SHA256=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022',
-  'ARG RUSTUP_VERSION=1.29.1',
-  'ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71',
-  'ARG CLANG_VERSION=1:18.0-59~exp2',
-  'ARG WASI_LIBC_VERSION=0.0~git20230113.4362b18-3',
-  'CARGO_NET_GIT_FETCH_WITH_CLI=true',
+  "ARG NODE_ARCHIVE_SHA256=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022",
+  "ARG RUSTUP_VERSION=1.29.1",
+  "ARG RUSTUP_INIT_SHA256=dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71",
+  "ARG CLANG_VERSION=1:18.0-59~exp2",
+  "ARG WASI_LIBC_VERSION=0.0~git20230113.4362b18-3",
+  "CARGO_NET_GIT_FETCH_WITH_CLI=true",
   'apt-get install --yes --no-install-recommends \"clang=${CLANG_VERSION}\" \"wasi-libc=${WASI_LIBC_VERSION}\"',
   'CFLAGS_wasm32_unknown_unknown="-I/usr/include/wasm32-wasi -include /usr/include/wasm32-wasi/string.h"',
-  'git config --system http.version HTTP/1.1',
+  "git config --system http.version HTTP/1.1",
   `npm install --global ${packageManager}`,
-  'cargo install wasm-bindgen-cli --version 0.2.129 --locked',
-  'for attempt in 1 2 3 4 5',
-  'Cargo fetch attempt ${attempt} failed',
-  'ARG SOURCE_COMMIT=unavailable',
-  'ARG SOURCE_DIRTY=false',
-  'VERIFICATION_COMMIT=${SOURCE_COMMIT}',
-  'VERIFICATION_DIRTY=${SOURCE_DIRTY}',
-  'RUN --network=none pnpm verify',
-  'RUN --network=none pnpm build:matrix:smoke',
-  'diff --recursive --brief /tmp/committed-generated/dash packages/dash-shielded-wasm/generated',
-  'diff --recursive --brief /tmp/committed-generated/codex32 packages/recovery-codex32-wasm/generated',
-  'diff --recursive --brief /tmp/committed-generated/sskr packages/recovery-sskr-wasm/generated',
-  'diff --recursive --brief /tmp/committed-generated/envelope packages/recovery-envelope-wasm/generated',
-  'COPY --from=built /workspace/packages/dash-shielded-wasm/generated /generated/dash',
-  'COPY --from=built /workspace/packages/recovery-codex32-wasm/generated /generated/codex32',
-  'COPY --from=built /workspace/packages/recovery-sskr-wasm/generated /generated/sskr',
-  'COPY --from=built /workspace/packages/recovery-envelope-wasm/generated /generated/envelope',
-  'FROM scratch AS artifacts',
-  'FROM scratch AS wasm-artifacts',
+  "cargo install wasm-bindgen-cli --version 0.2.129 --locked",
+  "for attempt in 1 2 3 4 5",
+  "Cargo fetch attempt ${attempt} failed",
+  "ARG SOURCE_COMMIT=unavailable",
+  "ARG SOURCE_DIRTY=false",
+  "VERIFICATION_COMMIT=${SOURCE_COMMIT}",
+  "VERIFICATION_DIRTY=${SOURCE_DIRTY}",
+  "RUN --network=none pnpm verify",
+  "RUN --network=none pnpm build:matrix:smoke",
+  "diff --recursive --brief /tmp/committed-generated/dash packages/dash-shielded-wasm/generated",
+  "diff --recursive --brief /tmp/committed-generated/codex32 packages/recovery-codex32-wasm/generated",
+  "diff --recursive --brief /tmp/committed-generated/sskr packages/recovery-sskr-wasm/generated",
+  "diff --recursive --brief /tmp/committed-generated/envelope packages/recovery-envelope-wasm/generated",
+  "COPY --from=built /workspace/packages/dash-shielded-wasm/generated /generated/dash",
+  "COPY --from=built /workspace/packages/recovery-codex32-wasm/generated /generated/codex32",
+  "COPY --from=built /workspace/packages/recovery-sskr-wasm/generated /generated/sskr",
+  "COPY --from=built /workspace/packages/recovery-envelope-wasm/generated /generated/envelope",
+  "FROM scratch AS artifacts",
+  "FROM scratch AS wasm-artifacts",
 ]) {
-  if (!dockerfile.includes(expected)) throw new Error(`Missing canonical container assertion: ${expected}`);
+  if (!dockerfile.includes(expected))
+    throw new Error(`Missing canonical container assertion: ${expected}`);
 }
 
 for (const expected of [
-  'git rev-parse HEAD',
-  'git status --porcelain',
+  "git rev-parse HEAD",
+  "git status --porcelain",
   '--build-arg "SOURCE_COMMIT=$source_commit"',
   '--build-arg "SOURCE_DIRTY=$source_dirty"',
 ]) {
   if (!shellWrapper.includes(expected)) {
-    throw new Error(`The local reproducible-build wrapper is missing provenance binding: ${expected}`);
+    throw new Error(
+      `The local reproducible-build wrapper is missing provenance binding: ${expected}`,
+    );
   }
 }
 
-for (const path of ['.github/workflows/ci.yml', '.github/workflows/full-wasm.yml', '.github/workflows/release.yml']) {
+for (const path of [
+  ".github/workflows/ci.yml",
+  ".github/workflows/full-wasm.yml",
+  ".github/workflows/release.yml",
+]) {
   const workflow = read(path);
   for (const expected of [
-    '--platform linux/amd64',
-    '--network host',
-    '--file Dockerfile.reproducible',
-    '--build-arg SOURCE_COMMIT=${GITHUB_SHA}',
-    '--build-arg SOURCE_DIRTY=false',
-    '--target artifacts',
+    "--platform linux/amd64",
+    "--network host",
+    "--file Dockerfile.reproducible",
+    "--build-arg SOURCE_COMMIT=${GITHUB_SHA}",
+    "--build-arg SOURCE_DIRTY=false",
+    "--target artifacts",
   ]) {
     if (!workflow.includes(expected))
       throw new Error(`${path} does not use the canonical container setting: ${expected}`);
   }
 }
 
-for (const path of ['.github/workflows/ci.yml', '.github/workflows/release.yml']) {
+for (const path of [".github/workflows/ci.yml", ".github/workflows/release.yml"]) {
   const workflow = read(path);
   for (const expected of [
-    'playwright install --with-deps chromium firefox',
-    'pnpm test:browser:files',
-    'pnpm test:browser:regressions',
-    'pnpm test:browser:selective',
+    "playwright install --with-deps chromium firefox",
+    "pnpm test:browser:files",
+    "pnpm test:browser:regressions",
+    "pnpm test:browser:selective",
   ]) {
-    if (!workflow.includes(expected)) throw new Error(`${path} is missing the browser release gate: ${expected}`);
+    if (!workflow.includes(expected))
+      throw new Error(`${path} is missing the browser release gate: ${expected}`);
   }
 }
 
-for (const path of ['.github/workflows/ci.yml', '.github/workflows/release.yml', '.github/workflows/vectors.yml']) {
+for (const path of [
+  ".github/workflows/ci.yml",
+  ".github/workflows/release.yml",
+  ".github/workflows/vectors.yml",
+]) {
   const workflow = read(path);
-  if (!workflow.includes('node-version-file: .node-version')) {
+  if (!workflow.includes("node-version-file: .node-version")) {
     throw new Error(`${path} must read Node.js from .node-version.`);
   }
   if (/\n\s+version:\s+\d+\.\d+\.\d+\s*$/mu.test(workflow)) {
     throw new Error(`${path} must read pnpm from package.json packageManager.`);
   }
 }
-if (!read('.github/workflows/release.yml').includes('needs: browser')) {
-  throw new Error('The release job must wait for the browser gate.');
+if (!read(".github/workflows/release.yml").includes("needs: browser")) {
+  throw new Error("The release job must wait for the browser gate.");
 }
 
-const ignored = read('.dockerignore').split(/\r?\n/u);
-for (const expected of ['.git', 'node_modules', '.pnpm-store', 'dist', '**/target']) {
+const ignored = read(".dockerignore").split(/\r?\n/u);
+for (const expected of [".git", "node_modules", ".pnpm-store", "dist", "**/target"]) {
   if (!ignored.includes(expected)) throw new Error(`.dockerignore must exclude ${expected}`);
 }
-if (ignored.includes('.github') || ignored.includes('.github/**')) {
-  throw new Error('.dockerignore must include the GitHub workflows verified inside the canonical container.');
+if (ignored.includes(".github") || ignored.includes(".github/**")) {
+  throw new Error(
+    ".dockerignore must include the GitHub workflows verified inside the canonical container.",
+  );
 }
 
-console.log('Canonical reproducible-container configuration verified.');
+console.log("Canonical reproducible-container configuration verified.");

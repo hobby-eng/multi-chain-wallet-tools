@@ -1,17 +1,17 @@
-import { DASHSCAN_CORE_ENDPOINTS } from './endpoints.js';
-import { dashCoreHistory } from './history.js';
-import { MAX_BIP32_INDEX, rootFromSeed, requirePublic } from '@ckd/core/bip32.js';
-import { bytesToHex, encodeP2pkh, hash160, wipe } from '@ckd/core/crypto.js';
-import { getDashNetwork } from '@ckd/core/networks.js';
-import { RecoveryNetworkGateway } from '../../network-gateway.js';
-import { RECOVERY_CORE_ADDRESS_BATCH } from '@ckd/network-boundary/protocol.js';
+import { DASHSCAN_CORE_ENDPOINTS } from "./endpoints.js";
+import { dashCoreHistory } from "./history.js";
+import { MAX_BIP32_INDEX, rootFromSeed, requirePublic } from "@ckd/core/bip32.js";
+import { bytesToHex, encodeP2pkh, hash160, wipe } from "@ckd/core/crypto.js";
+import { getDashNetwork } from "@ckd/core/networks.js";
+import { RecoveryNetworkGateway } from "../../network-gateway.js";
+import { RECOVERY_CORE_ADDRESS_BATCH } from "@ckd/network-boundary/protocol.js";
 import type {
   RecoveryFinding,
   RecoveryProgress,
   RecoveryScanConfig,
   RecoverySection,
   RecoverySectionId,
-} from '../../types.js';
+} from "../../types.js";
 import {
   ADDRESS_DISCOVERY_GAP,
   extendAddressTarget,
@@ -19,7 +19,7 @@ import {
   formatDashFromDuffs,
   validateDashScanAddressBatch,
   validateDashScanAddressHistory,
-} from './util.js';
+} from "./util.js";
 
 const ADDRESS_CHUNK = RECOVERY_CORE_ADDRESS_BATCH;
 
@@ -81,12 +81,14 @@ export async function scanDashTransparentFamily(
       const branchNode = root.derive(branchPath);
       try {
         for (let offset = 0; offset < target;) {
-          if (signal.aborted) throw new DOMException(`${spec.title} scan cancelled.`, 'AbortError');
+          if (signal.aborted) throw new DOMException(`${spec.title} scan cancelled.`, "AbortError");
           const chunk: DerivedTransparentAddress[] = [];
           const end = Math.min(offset + ADDRESS_CHUNK, target);
           for (let index = offset; index < end; index += 1) {
-            const child = branchNode.deriveChild(branch.hardenedIndex ? index + MAX_BIP32_INDEX + 1 : index);
-            const path = `${branchPath}/${index}${branch.hardenedIndex ? "'" : ''}`;
+            const child = branchNode.deriveChild(
+              branch.hardenedIndex ? index + MAX_BIP32_INDEX + 1 : index,
+            );
+            const path = `${branchPath}/${index}${branch.hardenedIndex ? "'" : ""}`;
             const publicKey = requirePublic(child, path);
             const publicKeyHash = hash160(publicKey);
             chunk.push({
@@ -114,7 +116,8 @@ export async function scanDashTransparentFamily(
           }> = [];
           infos.forEach((info, index) => {
             const derived = chunk[index];
-            if (derived === undefined) throw new Error(`Local ${spec.title} address batch changed during scanning.`);
+            if (derived === undefined)
+              throw new Error(`Local ${spec.title} address batch changed during scanning.`);
             totalBalance += info.balance;
             const used = info.txCount > 0 || info.balance > 0n;
             if (!used) return;
@@ -124,21 +127,29 @@ export async function scanDashTransparentFamily(
             gapTruncated ||= extension.truncated;
             usedCount += 1;
             if (info.balance > 0n) fundedCount += 1;
-            if (info.balance > 0n || config.includeUsedZeroBalance) displayCandidates.push({ derived, info });
+            if (info.balance > 0n || config.includeUsedZeroBalance)
+              displayCandidates.push({ derived, info });
           });
-          const historyByAddress = new Map<string, ReturnType<typeof validateDashScanAddressHistory>>();
+          const historyByAddress = new Map<
+            string,
+            ReturnType<typeof validateDashScanAddressHistory>
+          >();
           await Promise.all(
             displayCandidates.map(async ({ derived }) => {
               try {
                 const value = await gateway.runPublic(
                   { network: config.network, address: derived.address },
                   `${spec.id}.address-history`,
-                  () => gateway.networkApi.coreAddressHistory(config.network, derived.address, signal),
+                  () =>
+                    gateway.networkApi.coreAddressHistory(config.network, derived.address, signal),
                   signal,
                 );
-                historyByAddress.set(derived.address, validateDashScanAddressHistory(value, derived.address));
+                historyByAddress.set(
+                  derived.address,
+                  validateDashScanAddressHistory(value, derived.address),
+                );
               } catch (cause) {
-                if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+                if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
                 historyDetailFailures += 1;
               }
             }),
@@ -153,20 +164,24 @@ export async function scanDashTransparentFamily(
               balanceLabel: formatDashFromDuffs(info.balance),
               ...(history === undefined ? {} : { history: dashCoreHistory(history) }),
               fields: [
-                { label: 'Scan family', value: spec.familyLabel },
-                { label: 'Branch', value: derived.branchLabel },
-                { label: 'Derivation path', value: derived.path, copyable: true },
-                { label: 'Address index', value: String(derived.index) },
-                { label: 'Transactions reported', value: String(history?.txCount ?? info.txCount) },
+                { label: "Scan family", value: spec.familyLabel },
+                { label: "Branch", value: derived.branchLabel },
+                { label: "Derivation path", value: derived.path, copyable: true },
+                { label: "Address index", value: String(derived.index) },
+                { label: "Transactions reported", value: String(history?.txCount ?? info.txCount) },
                 ...(history === undefined
                   ? []
                   : [
-                      { label: 'Lifetime received', value: formatDashFromDuffs(history.received) },
-                      { label: 'Lifetime sent', value: formatDashFromDuffs(history.sent) },
-                      ...(history.firstSeen === null ? [] : [{ label: 'First seen', value: history.firstSeen }]),
-                      ...(history.lastSeen === null ? [] : [{ label: 'Last seen', value: history.lastSeen }]),
+                      { label: "Lifetime received", value: formatDashFromDuffs(history.received) },
+                      { label: "Lifetime sent", value: formatDashFromDuffs(history.sent) },
+                      ...(history.firstSeen === null
+                        ? []
+                        : [{ label: "First seen", value: history.firstSeen }]),
+                      ...(history.lastSeen === null
+                        ? []
+                        : [{ label: "Last seen", value: history.lastSeen }]),
                     ]),
-                { label: 'Public-key hash', value: derived.publicKeyHash, copyable: true },
+                { label: "Public-key hash", value: derived.publicKeyHash, copyable: true },
               ],
             };
             findings.push(finding);
@@ -178,7 +193,7 @@ export async function scanDashTransparentFamily(
           onProgress({
             inputId,
             section: spec.id,
-            message: `${branch.label}: checked ${scannedCounts.get(branch.key)?.toLocaleString() ?? '0'} of ${target.toLocaleString()} (${branchPath}/0 .. ${branchPath}/${Math.max(target - 1, 0)}) · ${ADDRESS_DISCOVERY_GAP}-address post-use gap`,
+            message: `${branch.label}: checked ${scannedCounts.get(branch.key)?.toLocaleString() ?? "0"} of ${target.toLocaleString()} (${branchPath}/0 .. ${branchPath}/${Math.max(target - 1, 0)}) · ${ADDRESS_DISCOVERY_GAP}-address post-use gap`,
             completed,
             total: [...branchTargets.values()].reduce((sum, value) => sum + value, 0),
           });
@@ -194,37 +209,39 @@ export async function scanDashTransparentFamily(
   const warningParts: string[] = [];
   if (gapTruncated)
     warningParts.push(
-      'A used address was found too close to the end of the BIP32 index space to complete the 20-address safety gap.',
+      "A used address was found too close to the end of the BIP32 index space to complete the 20-address safety gap.",
     );
   if (historyDetailFailures > 0)
     warningParts.push(
-      `${historyDetailFailures} optional historical address summar${historyDetailFailures === 1 ? 'y' : 'ies'} could not be loaded; balance and transaction-count discovery remains complete.`,
+      `${historyDetailFailures} optional historical address summar${historyDetailFailures === 1 ? "y" : "ies"} could not be loaded; balance and transaction-count discovery remains complete.`,
     );
   warningParts.push(
-    'DashScan is the sole Core-chain balance/history source for this section. Independently verify funded addresses in a standard Dash wallet before recovery.',
+    "DashScan is the sole Core-chain balance/history source for this section. Independently verify funded addresses in a standard Dash wallet before recovery.",
   );
   return {
     id: spec.id,
     title: spec.title,
     description: spec.description,
-    state: 'complete',
+    state: "complete",
     metrics: [
       {
-        label: 'Spendable balance',
+        label: "Spendable balance",
         value: formatDashFromDuffs(totalBalance),
-        tone: totalBalance > 0n ? 'positive' : 'neutral',
+        tone: totalBalance > 0n ? "positive" : "neutral",
       },
-      { label: 'Funded addresses', value: String(fundedCount) },
-      { label: 'Previously used · empty', value: String(usedCount - fundedCount) },
+      { label: "Funded addresses", value: String(fundedCount) },
+      { label: "Previously used · empty", value: String(usedCount - fundedCount) },
       {
-        label: 'Addresses checked',
-        value: spec.branches.map(({ key, label }) => `${label}: ${scannedCounts.get(key) ?? 0}`).join(' · '),
+        label: "Addresses checked",
+        value: spec.branches
+          .map(({ key, label }) => `${label}: ${scannedCounts.get(key) ?? 0}`)
+          .join(" · "),
       },
     ],
     findings,
     scanned: [...scannedCounts.values()].reduce((sum, value) => sum + value, 0),
     source: endpoint,
     proof: `DashScan synchronized · indexed Core height ${indexedHeight} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap · ${spec.proofLabel}`,
-    warning: warningParts.join(' '),
+    warning: warningParts.join(" "),
   };
 }

@@ -3,14 +3,14 @@ export interface ViewerBatchInput {
   line: number;
   value: string;
 }
-import { parseConcurrency } from '@ckd/core/validation.js';
+import { parseConcurrency } from "@ckd/core/validation.js";
 
 export function parseViewerBatchInputs(value: string): ViewerBatchInput[] {
   const seen = new Set<string>();
   const inputs: ViewerBatchInput[] = [];
   value
-    .replaceAll('\r', '')
-    .split('\n')
+    .replaceAll("\r", "")
+    .split("\n")
     .forEach((line, lineIndex) => {
       const trimmed = line.trim();
       if (trimmed.length === 0 || seen.has(trimmed)) return;
@@ -21,12 +21,12 @@ export function parseViewerBatchInputs(value: string): ViewerBatchInput[] {
         value: trimmed,
       });
     });
-  if (inputs.length === 0) throw new Error('Enter at least one lookup value in batch mode.');
+  if (inputs.length === 0) throw new Error("Enter at least one lookup value in batch mode.");
   return inputs;
 }
 
 export function parseViewerConcurrency(value: string): number {
-  return parseConcurrency(value, 'Batch concurrency');
+  return parseConcurrency(value, "Batch concurrency");
 }
 
 export async function mapViewerBatchTasks<T, R>(
@@ -44,13 +44,16 @@ export async function mapViewerBatchTasks<T, R>(
       if (index >= items.length) return;
       const item = items[index];
       if (item === undefined) {
-        results[index] = { status: 'rejected', reason: new Error('Batch input changed while running.') };
+        results[index] = {
+          status: "rejected",
+          reason: new Error("Batch input changed while running."),
+        };
         continue;
       }
       try {
-        results[index] = { status: 'fulfilled', value: await task(item, index) };
+        results[index] = { status: "fulfilled", value: await task(item, index) };
       } catch (reason) {
-        results[index] = { status: 'rejected', reason };
+        results[index] = { status: "rejected", reason };
       }
     }
   };
@@ -58,8 +61,8 @@ export async function mapViewerBatchTasks<T, R>(
   return results.map(
     (result) =>
       result ?? {
-        status: 'rejected',
-        reason: new Error('Batch query did not produce a result.'),
+        status: "rejected",
+        reason: new Error("Batch query did not produce a result."),
       },
   );
 }

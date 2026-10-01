@@ -1,6 +1,6 @@
-import { basename, isAbsolute, relative, resolve } from 'node:path';
+import { basename, isAbsolute, relative, resolve } from "node:path";
 
-import { TOOL_MANIFESTS } from './tool-manifests.mjs';
+import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
 export const TOOL_FEATURE_DEFINITIONS = TOOL_MANIFESTS;
 
@@ -10,56 +10,77 @@ function values(args, name) {
     const argument = args[index];
     if (argument === name) {
       const value = args[++index];
-      if (value === undefined || value.startsWith('--') || value.split(',').some((entry) => entry.trim() === ''))
+      if (
+        value === undefined ||
+        value.startsWith("--") ||
+        value.split(",").some((entry) => entry.trim() === "")
+      )
         throw new Error(`${name} requires a comma-separated value.`);
       found.push(value);
     } else if (argument.startsWith(`${name}=`)) {
       const value = argument.slice(name.length + 1);
-      if (value.split(',').some((entry) => entry.trim() === ''))
+      if (value.split(",").some((entry) => entry.trim() === ""))
         throw new Error(`${name} requires a comma-separated value.`);
       found.push(value);
     }
   }
   return found
-    .flatMap((value) => value.split(','))
+    .flatMap((value) => value.split(","))
     .map((value) => value.trim())
     .filter(Boolean);
 }
 
 function checked(raw, option, allowed) {
   return raw.map((name) => {
-    if (!allowed.includes(name)) throw new Error(`Unknown ${option} value "${name}". Expected: ${allowed.join(', ')}.`);
+    if (!allowed.includes(name))
+      throw new Error(`Unknown ${option} value "${name}". Expected: ${allowed.join(", ")}.`);
     return name;
   });
 }
 
 export function parseToolFeatureOptions(toolId, profile, args = process.argv.slice(2)) {
   const definition = TOOL_FEATURE_DEFINITIONS[toolId];
-  if (definition === undefined) throw new Error(`No selective-build definition exists for ${toolId}.`);
-  const includedCoins = checked(values(args, '--coins'), '--coins', definition.coins);
-  const excludedCoins = checked(values(args, '--exclude-coins'), '--exclude-coins', definition.coins);
-  const profileCoins = profile.id === 'dash-community' ? ['dash'] : definition.coins;
+  if (definition === undefined)
+    throw new Error(`No selective-build definition exists for ${toolId}.`);
+  const includedCoins = checked(values(args, "--coins"), "--coins", definition.coins);
+  const excludedCoins = checked(
+    values(args, "--exclude-coins"),
+    "--exclude-coins",
+    definition.coins,
+  );
+  const profileCoins = profile.id === "dash-community" ? ["dash"] : definition.coins;
   const selectedCoins = new Set(includedCoins.length > 0 ? includedCoins : profileCoins);
   for (const coin of excludedCoins) selectedCoins.delete(coin);
   if (selectedCoins.size === 0) throw new Error(`Select at least one coin for ${toolId}.`);
-  if (profile.id === 'dash-community' && [...selectedCoins].some((coin) => coin !== 'dash')) {
-    throw new Error('Dash Community builds may include only Dash. Use --profile multi-chain for the general design.');
+  if (profile.id === "dash-community" && [...selectedCoins].some((coin) => coin !== "dash")) {
+    throw new Error(
+      "Dash Community builds may include only Dash. Use --profile multi-chain for the general design.",
+    );
   }
 
-  const included = checked(values(args, '--features'), '--features', definition.features);
-  const excluded = checked(values(args, '--exclude'), '--exclude', definition.features);
+  const included = checked(values(args, "--features"), "--features", definition.features);
+  const excluded = checked(values(args, "--exclude"), "--exclude", definition.features);
   const selected = new Set(included.length > 0 ? included : definition.features);
   for (const feature of excluded) selected.delete(feature);
-  if (toolId === 'discovery-scanner' && !selected.has('seed-discovery') && !selected.has('watch-only-discovery')) {
-    throw new Error('Discovery Scanner requires seed-discovery, watch-only-discovery, or both.');
+  if (
+    toolId === "discovery-scanner" &&
+    !selected.has("seed-discovery") &&
+    !selected.has("watch-only-discovery")
+  ) {
+    throw new Error("Discovery Scanner requires seed-discovery, watch-only-discovery, or both.");
   }
-  if (toolId === 'discovery-scanner' && selected.has('wallet-matcher') && !selected.has('seed-discovery')) {
-    throw new Error('Discovery Scanner wallet-matcher requires seed-discovery.');
+  if (
+    toolId === "discovery-scanner" &&
+    selected.has("wallet-matcher") &&
+    !selected.has("seed-discovery")
+  ) {
+    throw new Error("Discovery Scanner wallet-matcher requires seed-discovery.");
   }
-  if (toolId === 'psbt-inspector' && selected.size === 0) {
-    throw new Error('PSBT Inspector requires at least one workflow feature.');
+  if (toolId === "psbt-inspector" && selected.size === 0) {
+    throw new Error("PSBT Inspector requires at least one workflow feature.");
   }
-  const custom = includedCoins.length + excludedCoins.length + included.length + excluded.length > 0;
+  const custom =
+    includedCoins.length + excludedCoins.length + included.length + excluded.length > 0;
   return Object.freeze({
     custom,
     coins: Object.freeze(definition.coins.filter((coin) => selectedCoins.has(coin))),
@@ -71,16 +92,16 @@ export function parseToolFeatureOptions(toolId, profile, args = process.argv.sli
 
 const FIXED_PROVIDER_ORIGINS = Object.freeze({
   bitcoin: [
-    'https://blockstream.info',
-    'https://mempool.space',
-    'https://blockchain.info',
-    'https://api.blockcypher.com',
+    "https://blockstream.info",
+    "https://mempool.space",
+    "https://blockchain.info",
+    "https://api.blockcypher.com",
   ],
   ethereum: [
-    'https://ethereum-rpc.publicnode.com',
-    'https://ethereum-sepolia-rpc.publicnode.com',
-    'https://eth.blockscout.com',
-    'https://eth-sepolia.blockscout.com',
+    "https://ethereum-rpc.publicnode.com",
+    "https://ethereum-sepolia-rpc.publicnode.com",
+    "https://eth.blockscout.com",
+    "https://eth-sepolia.blockscout.com",
   ],
 });
 
@@ -88,21 +109,23 @@ export function applySelectedNetworkCsp(template, options) {
   // Dash Platform discovers quorum endpoints at runtime, so Dash builds retain
   // the HTTPS scheme boundary. Fixed-provider Bitcoin/Ethereum builds can pin
   // every permitted origin directly in CSP.
-  if (options.hasCoin('dash')) return template;
+  if (options.hasCoin("dash")) return template;
   const origins = [...new Set(options.coins.flatMap((coin) => FIXED_PROVIDER_ORIGINS[coin] ?? []))];
-  if (origins.length === 0) throw new Error('No fixed CSP provider origins exist for the selected coins.');
-  const marker = 'connect-src https:';
-  if (!template.includes(marker)) throw new Error('Connected-tool template is missing its connect-src marker.');
-  return template.replace(marker, `connect-src ${origins.join(' ')}`);
+  if (origins.length === 0)
+    throw new Error("No fixed CSP provider origins exist for the selected coins.");
+  const marker = "connect-src https:";
+  if (!template.includes(marker))
+    throw new Error("Connected-tool template is missing its connect-src marker.");
+  return template.replace(marker, `connect-src ${origins.join(" ")}`);
 }
 
 export function assertSafeCustomOutput(root, output) {
-  for (const directory of ['multi-chain-edition', 'dash-community-edition']) {
-    const canonicalRoot = resolve(root, 'dist', directory);
+  for (const directory of ["multi-chain-edition", "dash-community-edition"]) {
+    const canonicalRoot = resolve(root, "dist", directory);
     const pathFromCanonicalRoot = relative(canonicalRoot, output);
     if (
-      pathFromCanonicalRoot === '' ||
-      (!pathFromCanonicalRoot.startsWith('..') && !isAbsolute(pathFromCanonicalRoot))
+      pathFromCanonicalRoot === "" ||
+      (!pathFromCanonicalRoot.startsWith("..") && !isAbsolute(pathFromCanonicalRoot))
     ) {
       throw new Error(
         `--output cannot write inside ${relative(root, canonicalRoot)}. Canonical release artifacts are reserved for full profile builds.`,
@@ -115,29 +138,29 @@ export function customToolArtifact(root, profile, toolId, tool, options, request
   if (!options.custom && requestedOutput === undefined) return undefined;
   if (requestedOutput !== undefined) {
     const output = resolve(root, requestedOutput);
-    if (!output.endsWith('.html')) throw new Error('--output must name an .html file.');
+    if (!output.endsWith(".html")) throw new Error("--output must name an .html file.");
     assertSafeCustomOutput(root, output);
     return output;
   }
-  const featureSlug = options.selected.length === 0 ? 'base' : options.selected.join('_');
+  const featureSlug = options.selected.length === 0 ? "base" : options.selected.join("_");
   return resolve(
     root,
-    'dist',
-    'custom-builds',
+    "dist",
+    "custom-builds",
     profile.id,
-    `${tool.artifactName.replace(/\.html$/u, '')}_${options.coins.join('-')}__${featureSlug}.html`,
+    `${tool.artifactName.replace(/\.html$/u, "")}_${options.coins.join("-")}__${featureSlug}.html`,
   );
 }
 
 export function parseRequestedOutput(args = process.argv.slice(2)) {
-  const inline = args.find((argument) => argument.startsWith('--output='));
-  const index = args.indexOf('--output');
-  const output = inline?.slice('--output='.length) ?? (index >= 0 ? args[index + 1] : undefined);
+  const inline = args.find((argument) => argument.startsWith("--output="));
+  const index = args.indexOf("--output");
+  const output = inline?.slice("--output=".length) ?? (index >= 0 ? args[index + 1] : undefined);
   if (
     (inline !== undefined || index >= 0) &&
-    (output === undefined || output.trim() === '' || output.startsWith('--'))
+    (output === undefined || output.trim() === "" || output.startsWith("--"))
   ) {
-    throw new Error('--output requires an .html path.');
+    throw new Error("--output requires an .html path.");
   }
   return output;
 }

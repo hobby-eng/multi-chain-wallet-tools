@@ -1,5 +1,5 @@
-import type { CoinAdapter } from '@ckd/coins/registry.js';
-import type { DerivationControlValues, SharedDerivationControlValues } from './inputs.js';
+import type { CoinAdapter } from "@ckd/coins/registry.js";
+import type { DerivationControlValues, SharedDerivationControlValues } from "./inputs.js";
 
 /** Keeps user-entered ranges stable while switching protocol variants. */
 export class AdapterSettingsStore {
@@ -20,8 +20,10 @@ export class AdapterSettingsStore {
       start: values.start,
       count: values.count,
     });
-    if (adapter.addressBranches !== undefined) this.#includeChangeByCoin.set(family, values.includeChange);
-    if (adapter.coinJoin !== undefined) this.#includeCoinJoinByCoin.set(family, values.includeCoinJoin);
+    if (adapter.addressBranches !== undefined)
+      this.#includeChangeByCoin.set(family, values.includeChange);
+    if (adapter.coinJoin !== undefined)
+      this.#includeCoinJoinByCoin.set(family, values.includeCoinJoin);
   }
 
   selectVariant(adapter: CoinAdapter): void {
@@ -38,7 +40,11 @@ export class AdapterSettingsStore {
   } {
     const family = this.familyId(adapter);
     const remembered = this.#settingsByAdapter.get(adapter.id);
-    const values = remembered ?? { ...adapter.defaults, includeChange: false, includeCoinJoin: false };
+    const values = remembered ?? {
+      ...adapter.defaults,
+      includeChange: false,
+      includeCoinJoin: false,
+    };
     return {
       values: {
         ...values,

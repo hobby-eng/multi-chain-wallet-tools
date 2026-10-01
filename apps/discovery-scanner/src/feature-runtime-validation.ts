@@ -1,23 +1,28 @@
-import type { DiscoveryFeatureRuntime } from './feature-selection.js';
+import type { DiscoveryFeatureRuntime } from "./feature-selection.js";
 
 const FEATURE_METHODS = {
   seedDiscovery: [
-    'scanCandidates',
-    'candidateSummary',
-    'createRecoverySeedInputs',
-    'recoveryScanConfig',
-    'wipeRecoverySeedInputs',
+    "scanCandidates",
+    "candidateSummary",
+    "createRecoverySeedInputs",
+    "recoveryScanConfig",
+    "wipeRecoverySeedInputs",
   ],
   watchOnlyDiscovery: [
-    'resolveWatchOnlyScanTargets',
-    'watchOnlyScanConfig',
-    'wipeWatchOnlyTargets',
-    'assertWatchOnlyBatchInput',
-    'assertWatchOnlyMinimum',
-    'parseWatchOnlyLines',
-    'resolveWatchOnlyTargets',
+    "resolveWatchOnlyScanTargets",
+    "watchOnlyScanConfig",
+    "wipeWatchOnlyTargets",
+    "assertWatchOnlyBatchInput",
+    "assertWatchOnlyMinimum",
+    "parseWatchOnlyLines",
+    "resolveWatchOnlyTargets",
   ],
-  customPaths: ['customScanPaths', 'parseCustomAccountRange', 'describeCustomPath', 'editCustomPath'],
+  customPaths: [
+    "customScanPaths",
+    "parseCustomAccountRange",
+    "describeCustomPath",
+    "editCustomPath",
+  ],
 } as const;
 
 export function assertDiscoveryFeatureRuntime(runtime: DiscoveryFeatureRuntime): void {

@@ -1,19 +1,19 @@
-import { normalizeEthereumAddress } from '@ckd/public-data-providers/address-normalization.js';
-import { EthereumPublicDataService } from '@ckd/public-data-providers/ethereum-service.js';
-import type { ExternalActivityAdapter } from './external-activity.js';
+import { normalizeEthereumAddress } from "@ckd/public-data-providers/address-normalization.js";
+import { EthereumPublicDataService } from "@ckd/public-data-providers/ethereum-service.js";
+import type { ExternalActivityAdapter } from "./external-activity.js";
 
-type EthereumActivityService = Pick<EthereumPublicDataService, 'addressHistory' | 'evmAccounts'>;
+type EthereumActivityService = Pick<EthereumPublicDataService, "addressHistory" | "evmAccounts">;
 
 export function createEthereumActivityAdapter(
   service: EthereumActivityService = new EthereumPublicDataService(),
 ): ExternalActivityAdapter {
   return {
-    id: 'ethereum',
-    label: 'Ethereum',
-    asset: 'ETH',
+    id: "ethereum",
+    label: "Ethereum",
+    asset: "ETH",
     decimals: 18,
-    singlePlaceholder: 'Paste an Ethereum 0x address',
-    batchPlaceholder: 'One Ethereum address per line',
+    singlePlaceholder: "Paste an Ethereum 0x address",
+    batchPlaceholder: "One Ethereum address per line",
     normalize: (value) => normalizeEthereumAddress(value),
     dedupeKey: (value) => value.toLowerCase(),
     async query(address, network, signal) {
@@ -23,7 +23,7 @@ export function createEthereumActivityAdapter(
       ]);
       const account = accounts.entries[0]!;
       return {
-        coin: 'ethereum',
+        coin: "ethereum",
         address: account.address,
         balanceAtomic: BigInt(account.balance),
         nonce: BigInt(account.nonce),

@@ -1,9 +1,12 @@
-import { base58 } from '@scure/base';
-import { EvoSDK, StateTransition, type Identity, type IdentityPublicKey } from '@dashevo/evo-sdk';
-import { bytesToHex, hash160, hexToBytes, secp256k1, wipe } from '@ckd/core/crypto.js';
-import { assertPublicLookupInput, PrivateMaterialError } from '@ckd/secret-boundary/public-input-guard.js';
-import { createProviderHttp, ProviderHttpError, type FetchLike } from './provider-http.js';
-import type { ViewerNetwork } from './types.js';
+import { base58 } from "@scure/base";
+import { EvoSDK, StateTransition, type Identity, type IdentityPublicKey } from "@dashevo/evo-sdk";
+import { bytesToHex, hash160, hexToBytes, secp256k1, wipe } from "@ckd/core/crypto.js";
+import {
+  assertPublicLookupInput,
+  PrivateMaterialError,
+} from "@ckd/secret-boundary/public-input-guard.js";
+import { createProviderHttp, ProviderHttpError, type FetchLike } from "./provider-http.js";
+import type { ViewerNetwork } from "./types.js";
 
 const HASH160_PATTERN = /^[0-9a-f]{40}$/u;
 const HEX_IDENTIFIER_PATTERN = /^[0-9a-f]{64}$/u;
@@ -14,27 +17,27 @@ const DPNS_NAME_PATTERN = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:
 const EXPLICIT_HEX_ID_PATTERN = /^idhex:\s*(?:0x)?([0-9a-f]{64})$/iu;
 const EXPLICIT_REGISTRATION_TRANSACTION_PATTERN = /^(?:tx|transition):\s*(?:0x)?([0-9a-f]{64})$/iu;
 const IDENTITY_CREATION_ACTIONS = new Set([
-  'IdentityCreate',
-  'IdentityCreateFromAddresses',
-  'IdentityCreateFromShieldedPool',
+  "IdentityCreate",
+  "IdentityCreateFromAddresses",
+  "IdentityCreateFromShieldedPool",
 ]);
 const IDENTITY_CREATION_TYPES = new Set([
-  'IDENTITY_CREATE',
-  'IDENTITY_CREATE_FROM_ADDRESSES',
-  'IDENTITY_CREATE_FROM_SHIELDED_POOL',
+  "IDENTITY_CREATE",
+  "IDENTITY_CREATE_FROM_ADDRESSES",
+  "IDENTITY_CREATE_FROM_SHIELDED_POOL",
 ]);
 const MAX_NON_UNIQUE_IDENTITIES = 100;
 const MAX_DPNS_NAMES = 100;
 const IDENTITY_NONCE_VALUE_FILTER = 0xffffffffffn;
 
 type IdentityLookupKind =
-  | 'identity-id'
-  | 'identity-id-hex'
-  | 'registration-transaction'
-  | 'public-key-hash'
-  | 'ecdsa-public-key'
-  | 'bls-public-key'
-  | 'dpns-name';
+  | "identity-id"
+  | "identity-id-hex"
+  | "registration-transaction"
+  | "public-key-hash"
+  | "ecdsa-public-key"
+  | "bls-public-key"
+  | "dpns-name";
 
 interface NormalizedIdentityLookup {
   kind: IdentityLookupKind;
@@ -87,7 +90,7 @@ export interface PlatformIdentitySnapshot {
 }
 
 export interface PlatformIdentityLookupSnapshot {
-  kind: 'identity';
+  kind: "identity";
   network: ViewerNetwork;
   inputKind: IdentityLookupKind;
   inputLabel: string;
@@ -111,14 +114,15 @@ interface MetadataLike {
 type RegistrationTransactionDecoder = (encodedTransition: string, expectedHash: string) => string;
 
 const PLATFORM_EXPLORER_ENDPOINTS: Record<ViewerNetwork, string> = {
-  mainnet: 'https://platform-explorer.pshenmic.dev',
-  testnet: 'https://testnet.platform-explorer.pshenmic.dev',
+  mainnet: "https://platform-explorer.pshenmic.dev",
+  testnet: "https://testnet.platform-explorer.pshenmic.dev",
 };
 
-const { object: explorerObject, fetchJson: fetchExplorerJson } = createProviderHttp('Platform Explorer');
+const { object: explorerObject, fetchJson: fetchExplorerJson } =
+  createProviderHttp("Platform Explorer");
 
 function normalizedHex(input: string): string {
-  return input.trim().replace(/^0x/iu, '').replace(/\s+/gu, '').toLowerCase();
+  return input.trim().replace(/^0x/iu, "").replace(/\s+/gu, "").toLowerCase();
 }
 
 function canonicalIdentifier(value: string): string | null {
@@ -135,8 +139,8 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
   const hex = normalizedHex(trimmed);
   if (HEX_IDENTIFIER_PATTERN.test(hex)) {
     throw new PrivateMaterialError(
-      'A bare 64-character hex value could be a private key and was erased without a network request. ' +
-        'For a public hex Identity ID use idhex:<hex>; for a registration transition use tx:<hash>.',
+      "A bare 64-character hex value could be a private key and was erased without a network request. " +
+        "For a public hex Identity ID use idhex:<hex>; for a registration transition use tx:<hash>.",
     );
   }
   assertPublicLookupInput(value);
@@ -145,19 +149,21 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
     const bytes = hexToBytes(explicitHexIdentifier);
     try {
       return {
-        kind: 'identity-id-hex',
-        label: 'Hex Identity ID',
+        kind: "identity-id-hex",
+        label: "Hex Identity ID",
         identityId: base58.encode(bytes),
       };
     } finally {
       wipe(bytes);
     }
   }
-  const registrationTransactionHash = trimmed.match(EXPLICIT_REGISTRATION_TRANSACTION_PATTERN)?.[1]?.toUpperCase();
+  const registrationTransactionHash = trimmed
+    .match(EXPLICIT_REGISTRATION_TRANSACTION_PATTERN)?.[1]
+    ?.toUpperCase();
   if (registrationTransactionHash !== undefined) {
     return {
-      kind: 'registration-transaction',
-      label: 'Identity registration transition hash',
+      kind: "registration-transaction",
+      label: "Identity registration transition hash",
       registrationTransactionHash,
     };
   }
@@ -166,8 +172,8 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
     const bytes = hexToBytes(explicitBlsPublicKey);
     try {
       return {
-        kind: 'bls-public-key',
-        label: 'BLS12_381 public key',
+        kind: "bls-public-key",
+        label: "BLS12_381 public key",
         publicKeyHashHex: bytesToHex(hash160(bytes)),
         publicKeyHex: explicitBlsPublicKey,
       };
@@ -177,8 +183,8 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
   }
   if (HASH160_PATTERN.test(hex)) {
     return {
-      kind: 'public-key-hash',
-      label: 'Public-key HASH160',
+      kind: "public-key-hash",
+      label: "Public-key HASH160",
       publicKeyHashHex: hex,
     };
   }
@@ -186,13 +192,13 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
     try {
       secp256k1.Point.fromHex(hex);
     } catch {
-      throw new Error('The compressed secp256k1 public key is invalid.');
+      throw new Error("The compressed secp256k1 public key is invalid.");
     }
     const bytes = hexToBytes(hex);
     try {
       return {
-        kind: 'ecdsa-public-key',
-        label: 'ECDSA_SECP256K1 public key',
+        kind: "ecdsa-public-key",
+        label: "ECDSA_SECP256K1 public key",
         publicKeyHashHex: bytesToHex(hash160(bytes)),
         publicKeyHex: hex,
       };
@@ -202,28 +208,28 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
   }
   if (BLS_PUBLIC_KEY_PATTERN.test(hex)) {
     throw new PrivateMaterialError(
-      'A bare 96-character hex value is ambiguous with truncated viewing-key material and was erased ' +
-        'without a network request. For a BLS12_381 public key use bls:<hex>.',
+      "A bare 96-character hex value is ambiguous with truncated viewing-key material and was erased " +
+        "without a network request. For a BLS12_381 public key use bls:<hex>.",
     );
   }
   const identifier = canonicalIdentifier(trimmed);
   if (identifier !== null) {
     return {
-      kind: 'identity-id',
-      label: 'Base58 Identity ID',
+      kind: "identity-id",
+      label: "Base58 Identity ID",
       identityId: identifier,
     };
   }
   const name = trimmed.toLowerCase();
   if (DPNS_NAME_PATTERN.test(name)) {
     return {
-      kind: 'dpns-name',
-      label: 'DPNS name',
-      dpnsName: name.endsWith('.dash') ? name : `${name}.dash`,
+      kind: "dpns-name",
+      label: "DPNS name",
+      dpnsName: name.endsWith(".dash") ? name : `${name}.dash`,
     };
   }
   throw new Error(
-    'Enter a Base58 Identity ID, idhex:<hex ID>, tx:<registration hash>, 40-character HASH160, compressed ECDSA key, BLS key, or DPNS name.',
+    "Enter a Base58 Identity ID, idhex:<hex ID>, tx:<registration hash>, 40-character HASH160, compressed ECDSA key, BLS key, or DPNS name.",
   );
 }
 
@@ -233,19 +239,19 @@ function decodeRegistrationTransaction(encodedTransition: string, expectedHash: 
   try {
     transition = StateTransition.fromBase64(encodedTransition);
     if (!IDENTITY_CREATION_ACTIONS.has(transition.actionType)) {
-      throw new Error('The transition is not an Identity creation transition.');
+      throw new Error("The transition is not an Identity creation transition.");
     }
     if (transition.hash(false).toUpperCase() !== expectedHash) {
-      throw new Error('The indexed transition bytes do not match the requested transition hash.');
+      throw new Error("The indexed transition bytes do not match the requested transition hash.");
     }
     const transitionOwner = transition.ownerId;
     if (transitionOwner === undefined) {
-      throw new Error('The Identity creation transition omitted its owner identifier.');
+      throw new Error("The Identity creation transition omitted its owner identifier.");
     }
     ownerId = transitionOwner;
     const identityId = ownerId.toBase58();
     if (canonicalIdentifier(identityId) === null) {
-      throw new Error('The Identity creation transition contains an invalid owner identifier.');
+      throw new Error("The Identity creation transition contains an invalid owner identifier.");
     }
     return identityId;
   } finally {
@@ -279,7 +285,10 @@ function copyContractBounds(key: IdentityPublicKey): IdentityContractBoundsSnaps
   }
 }
 
-function copyPublicKey(key: IdentityPublicKey, lookupHash: string | undefined): IdentityPublicKeySnapshot {
+function copyPublicKey(
+  key: IdentityPublicKey,
+  lookupHash: string | undefined,
+): IdentityPublicKeySnapshot {
   const publicKeyHashHex = key.getPublicKeyHash().toLowerCase();
   return {
     keyId: key.keyId,
@@ -299,7 +308,10 @@ function copyPublicKey(key: IdentityPublicKey, lookupHash: string | undefined): 
   };
 }
 
-function copyIdentity(identity: Identity, lookupHash: string | undefined): PlatformIdentitySnapshot {
+function copyIdentity(
+  identity: Identity,
+  lookupHash: string | undefined,
+): PlatformIdentitySnapshot {
   const identifier = identity.id;
   const keys = identity.publicKeys;
   try {
@@ -337,8 +349,15 @@ export class DashPlatformIdentitySource {
   constructor(
     network: ViewerNetwork,
     createSdk: (network: ViewerNetwork) => EvoSDK = (selectedNetwork) => {
-      const settings = { connectTimeoutMs: 10_000, timeoutMs: 30_000, retries: 3, banFailedAddress: true };
-      return selectedNetwork === 'mainnet' ? EvoSDK.mainnetTrusted({ settings }) : EvoSDK.testnetTrusted({ settings });
+      const settings = {
+        connectTimeoutMs: 10_000,
+        timeoutMs: 30_000,
+        retries: 3,
+        banFailedAddress: true,
+      };
+      return selectedNetwork === "mainnet"
+        ? EvoSDK.mainnetTrusted({ settings })
+        : EvoSDK.testnetTrusted({ settings });
     },
     fetcher: FetchLike = fetch,
     registrationTransactionDecoder: RegistrationTransactionDecoder = decodeRegistrationTransaction,
@@ -361,7 +380,7 @@ export class DashPlatformIdentitySource {
     lookupHash: string | undefined,
     proofs: IdentityProofMetadata[],
   ): Promise<PlatformIdentitySnapshot | null> {
-    if (this.#sdk === undefined) throw new Error('Dash Evo SDK is not connected.');
+    if (this.#sdk === undefined) throw new Error("Dash Evo SDK is not connected.");
     const response = await this.#sdk.identities.fetchWithProof(identityId);
     const metadata = response.metadata;
     const identity = response.data;
@@ -376,8 +395,11 @@ export class DashPlatformIdentitySource {
     }
   }
 
-  async #lookupByHash(publicKeyHashHex: string, proofs: IdentityProofMetadata[]): Promise<PlatformIdentitySnapshot[]> {
-    if (this.#sdk === undefined) throw new Error('Dash Evo SDK is not connected.');
+  async #lookupByHash(
+    publicKeyHashHex: string,
+    proofs: IdentityProofMetadata[],
+  ): Promise<PlatformIdentitySnapshot[]> {
+    if (this.#sdk === undefined) throw new Error("Dash Evo SDK is not connected.");
     const publicKeyHash = hexToBytes(publicKeyHashHex);
     try {
       const uniqueResponse = await this.#sdk.identities.byPublicKeyHashWithProof(publicKeyHash);
@@ -396,7 +418,10 @@ export class DashPlatformIdentitySource {
       const seen = new Set<string>();
       let startAfter: string | undefined;
       while (identities.length <= MAX_NON_UNIQUE_IDENTITIES) {
-        const response = await this.#sdk.identities.byNonUniquePublicKeyHashWithProof(publicKeyHash, startAfter);
+        const response = await this.#sdk.identities.byNonUniquePublicKeyHashWithProof(
+          publicKeyHash,
+          startAfter,
+        );
         const metadata = response.metadata;
         const page = response.data;
         try {
@@ -405,7 +430,9 @@ export class DashPlatformIdentitySource {
           for (const identity of page) {
             const copied = copyIdentity(identity, publicKeyHashHex);
             if (seen.has(copied.identifier)) {
-              throw new Error('DAPI repeated an Identity while paginating a non-unique public-key hash.');
+              throw new Error(
+                "DAPI repeated an Identity while paginating a non-unique public-key hash.",
+              );
             }
             seen.add(copied.identifier);
             identities.push(copied);
@@ -426,11 +453,11 @@ export class DashPlatformIdentitySource {
   }
 
   async #resolveDpns(name: string): Promise<string | null> {
-    if (this.#sdk === undefined) throw new Error('Dash Evo SDK is not connected.');
+    if (this.#sdk === undefined) throw new Error("Dash Evo SDK is not connected.");
     const identityId = await this.#sdk.dpns.resolveName(name);
     if (identityId === undefined) return null;
     if (canonicalIdentifier(identityId) === null) {
-      throw new Error('DAPI returned a malformed Identity ID while resolving the DPNS name.');
+      throw new Error("DAPI returned a malformed Identity ID while resolving the DPNS name.");
     }
     return identityId;
   }
@@ -439,40 +466,51 @@ export class DashPlatformIdentitySource {
     const endpoint = PLATFORM_EXPLORER_ENDPOINTS[this.#network];
     let value: unknown;
     try {
-      value = await fetchExplorerJson(this.#fetcher, `${endpoint}/transaction/${encodeURIComponent(transactionHash)}`);
+      value = await fetchExplorerJson(
+        this.#fetcher,
+        `${endpoint}/transaction/${encodeURIComponent(transactionHash)}`,
+      );
     } catch (cause) {
       if (cause instanceof ProviderHttpError && cause.status === 404) {
-        throw new Error('The registration transition was not found in the synchronized Platform Explorer index.');
+        throw new Error(
+          "The registration transition was not found in the synchronized Platform Explorer index.",
+        );
       }
       throw cause;
     }
-    const transaction = explorerObject(value, 'registration transaction');
-    const indexedHash = typeof transaction.hash === 'string' ? transaction.hash.toUpperCase() : null;
-    const indexedType = typeof transaction.type === 'string' ? transaction.type : null;
+    const transaction = explorerObject(value, "registration transaction");
+    const indexedHash =
+      typeof transaction.hash === "string" ? transaction.hash.toUpperCase() : null;
+    const indexedType = typeof transaction.type === "string" ? transaction.type : null;
     const encodedTransition =
-      typeof transaction.data === 'string' && transaction.data.length > 0 ? transaction.data : null;
+      typeof transaction.data === "string" && transaction.data.length > 0 ? transaction.data : null;
     if (indexedHash !== transactionHash) {
-      throw new Error('Platform Explorer returned a different transaction than requested.');
+      throw new Error("Platform Explorer returned a different transaction than requested.");
     }
     if (indexedType === null || !IDENTITY_CREATION_TYPES.has(indexedType)) {
-      throw new Error('The supplied transaction is not an Identity registration transition.');
+      throw new Error("The supplied transaction is not an Identity registration transition.");
     }
     if (encodedTransition === null) {
-      throw new Error('Platform Explorer omitted the raw Identity registration transition.');
+      throw new Error("Platform Explorer omitted the raw Identity registration transition.");
     }
     const identityId = this.#decodeRegistrationTransaction(encodedTransition, transactionHash);
     const indexedOwner = transaction.owner;
-    if (typeof indexedOwner === 'object' && indexedOwner !== null && !Array.isArray(indexedOwner)) {
+    if (typeof indexedOwner === "object" && indexedOwner !== null && !Array.isArray(indexedOwner)) {
       const ownerIdentifier = (indexedOwner as Record<string, unknown>).identifier;
-      if (typeof ownerIdentifier === 'string' && ownerIdentifier !== identityId) {
-        throw new Error('The decoded registration owner disagrees with the Platform Explorer index.');
+      if (typeof ownerIdentifier === "string" && ownerIdentifier !== identityId) {
+        throw new Error(
+          "The decoded registration owner disagrees with the Platform Explorer index.",
+        );
       }
     }
     return identityId;
   }
 
-  async #enrichIdentity(identity: PlatformIdentitySnapshot, proofs: IdentityProofMetadata[]): Promise<void> {
-    if (this.#sdk === undefined) throw new Error('Dash Evo SDK is not connected.');
+  async #enrichIdentity(
+    identity: PlatformIdentitySnapshot,
+    proofs: IdentityProofMetadata[],
+  ): Promise<void> {
+    if (this.#sdk === undefined) throw new Error("Dash Evo SDK is not connected.");
     const [nonceResponse, namesResponse] = await Promise.all([
       this.#sdk.identities.nonceWithProof(identity.identifier),
       this.#sdk.dpns.usernamesWithProof({ identityId: identity.identifier, limit: MAX_DPNS_NAMES }),
@@ -482,10 +520,14 @@ export class DashPlatformIdentitySource {
     try {
       recordProof(proofs, nonceMetadata);
       recordProof(proofs, namesMetadata);
-      identity.nonce = nonceResponse.data === undefined ? null : nonceResponse.data & IDENTITY_NONCE_VALUE_FILTER;
+      identity.nonce =
+        nonceResponse.data === undefined ? null : nonceResponse.data & IDENTITY_NONCE_VALUE_FILTER;
       const names: unknown = namesResponse.data;
-      if (!Array.isArray(names) || !names.every((name): name is string => typeof name === 'string')) {
-        throw new Error('DAPI returned malformed DPNS names for the Identity.');
+      if (
+        !Array.isArray(names) ||
+        !names.every((name): name is string => typeof name === "string")
+      ) {
+        throw new Error("DAPI returned malformed DPNS names for the Identity.");
       }
       identity.dpnsNames = [...new Set(names.map((name) => name.toLowerCase()))].sort();
     } finally {
@@ -497,22 +539,24 @@ export class DashPlatformIdentitySource {
   }
 
   async query(input: NormalizedIdentityLookup): Promise<PlatformIdentityLookupSnapshot> {
-    if (this.#sdk === undefined) throw new Error('Dash Evo SDK is not connected.');
+    if (this.#sdk === undefined) throw new Error("Dash Evo SDK is not connected.");
     const proofs: IdentityProofMetadata[] = [];
     let identities: PlatformIdentitySnapshot[] = [];
     let resolvedDpnsDocumentId: string | null = null;
     let resolvedDpnsName: string | null = null;
     let resolvedRegistrationTransactionHash: string | null = null;
 
-    if (input.kind === 'identity-id' || input.kind === 'identity-id-hex') {
+    if (input.kind === "identity-id" || input.kind === "identity-id-hex") {
       const identity = await this.#identityById(input.identityId!, undefined, proofs);
       if (identity !== null) identities = [identity];
-    } else if (input.kind === 'registration-transaction') {
-      const resolved = await this.#resolveRegistrationTransaction(input.registrationTransactionHash!);
+    } else if (input.kind === "registration-transaction") {
+      const resolved = await this.#resolveRegistrationTransaction(
+        input.registrationTransactionHash!,
+      );
       resolvedRegistrationTransactionHash = input.registrationTransactionHash!;
       const identity = await this.#identityById(resolved, undefined, proofs);
       if (identity !== null) identities = [identity];
-    } else if (input.kind === 'dpns-name') {
+    } else if (input.kind === "dpns-name") {
       const resolved = await this.#resolveDpns(input.dpnsName!);
       resolvedDpnsName = input.dpnsName!;
       if (resolved !== null) {
@@ -524,12 +568,15 @@ export class DashPlatformIdentitySource {
     }
 
     for (const identity of identities) await this.#enrichIdentity(identity, proofs);
-    if (input.kind === 'dpns-name' && identities.some(({ dpnsNames }) => !dpnsNames.includes(input.dpnsName!))) {
-      throw new Error('The proof-verified DPNS records did not confirm the resolved Identity.');
+    if (
+      input.kind === "dpns-name" &&
+      identities.some(({ dpnsNames }) => !dpnsNames.includes(input.dpnsName!))
+    ) {
+      throw new Error("The proof-verified DPNS records did not confirm the resolved Identity.");
     }
 
     return {
-      kind: 'identity',
+      kind: "identity",
       network: this.#network,
       inputKind: input.kind,
       inputLabel: input.label,
@@ -539,7 +586,9 @@ export class DashPlatformIdentitySource {
       resolvedRegistrationTransactionHash,
       identities,
       proofs,
-      requests: proofs.length + (input.kind === 'dpns-name' || input.kind === 'registration-transaction' ? 1 : 0),
+      requests:
+        proofs.length +
+        (input.kind === "dpns-name" || input.kind === "registration-transaction" ? 1 : 0),
     };
   }
 }

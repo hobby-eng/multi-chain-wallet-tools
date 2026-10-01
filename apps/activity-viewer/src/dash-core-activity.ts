@@ -1,11 +1,11 @@
-import type { ViewerNetwork } from '@ckd/dash-network/types.js';
-import type { ViewerSingleExportState } from './export.js';
-import type { ActivityViewerView } from './view.js';
+import type { ViewerNetwork } from "@ckd/dash-network/types.js";
+import type { ViewerSingleExportState } from "./export.js";
+import type { ActivityViewerView } from "./view.js";
 
 interface DashCoreActivityOptions {
   view: ActivityViewerView;
-  assertPublicLookupInput: typeof import('@ckd/secret-boundary/public-input-guard.js').assertPublicLookupInput;
-  queryCoreAddress: typeof import('@ckd/dash-network/public-address.js').queryCoreAddress;
+  assertPublicLookupInput: typeof import("@ckd/secret-boundary/public-input-guard.js").assertPublicLookupInput;
+  queryCoreAddress: typeof import("@ckd/dash-network/public-address.js").queryCoreAddress;
   cancelled(): boolean;
 }
 
@@ -15,18 +15,18 @@ export async function runDashCoreActivity(
   network: ViewerNetwork,
   value: string,
   signal: AbortSignal,
-): Promise<Extract<ViewerSingleExportState, { mode: 'core' }>> {
+): Promise<Extract<ViewerSingleExportState, { mode: "core" }>> {
   options.assertPublicLookupInput(value);
   const limit = Number(options.view.historyLimitInput.value);
   options.view.setStatus(`Querying Dash Core ${network} address history…`);
   options.view.setDiagnosticDetail(
-    'Validating the Base58Check address, checking DashScan synchronization, then loading exact-duff totals and history.',
+    "Validating the Base58Check address, checking DashScan synchronization, then loading exact-duff totals and history.",
   );
   const remoteStarted = performance.now();
   const snapshot = await options.queryCoreAddress(value, network, limit, signal);
   options.view.addRemoteDuration(performance.now() - remoteStarted);
   options.view.setRequestCount(snapshot.requests);
-  const state = { mode: 'core' as const, network: snapshot.network, snapshot };
+  const state = { mode: "core" as const, network: snapshot.network, snapshot };
   if (options.cancelled()) return state;
   options.view.renderCore(snapshot);
   options.view.setDiagnosticSource(snapshot.endpoint);

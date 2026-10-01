@@ -1,11 +1,13 @@
-import type { RecoveryCoinAdapter } from '../types.js';
+import type { RecoveryCoinAdapter } from "../types.js";
 
 export interface RecoveryCoinRegistry {
   getRecoveryCoin(id: string): RecoveryCoinAdapter;
   listRecoveryCoins(): RecoveryCoinAdapter[];
 }
 
-export function createRecoveryCoinRegistry(registeredAdapters: readonly RecoveryCoinAdapter[]): RecoveryCoinRegistry {
+export function createRecoveryCoinRegistry(
+  registeredAdapters: readonly RecoveryCoinAdapter[],
+): RecoveryCoinRegistry {
   const adapters = new Map<string, RecoveryCoinAdapter>();
   for (const adapter of registeredAdapters) {
     if (adapters.has(adapter.id)) {

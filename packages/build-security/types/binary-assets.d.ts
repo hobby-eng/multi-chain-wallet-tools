@@ -1,13 +1,13 @@
 // The build embeds these files with esbuild's binary loader.
-declare module '*.ttf' {
+declare module "*.ttf" {
   const bytes: Uint8Array;
   export default bytes;
 }
-declare module '*.png' {
+declare module "*.png" {
   const bytes: Uint8Array;
   export default bytes;
 }
-declare module '*.jpg' {
+declare module "*.jpg" {
   const bytes: Uint8Array;
   export default bytes;
 }

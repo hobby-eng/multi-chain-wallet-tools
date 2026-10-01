@@ -1,27 +1,28 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { readReleaseMetadata } from './project-metadata.mjs';
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { readReleaseMetadata } from "./project-metadata.mjs";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const checkOnly = process.argv.includes('--check');
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const checkOnly = process.argv.includes("--check");
 const release = readReleaseMetadata(root);
 const changes = new Map();
 
 function stage(relativePath, transform) {
   const path = resolve(root, relativePath);
-  const before = readFileSync(path, 'utf8');
+  const before = readFileSync(path, "utf8");
   const after = transform(before);
   if (after === before) return;
   changes.set(relativePath, after);
 }
 
 function replaceRequired(text, pattern, replacement, label) {
-  if (!pattern.test(text)) throw new Error(`Cannot synchronize ${label}: expected marker is missing.`);
+  if (!pattern.test(text))
+    throw new Error(`Cannot synchronize ${label}: expected marker is missing.`);
   return text.replace(pattern, replacement);
 }
 
-for (const workspaceRoot of ['apps', 'packages']) {
+for (const workspaceRoot of ["apps", "packages"]) {
   for (const entry of readdirSync(resolve(root, workspaceRoot), { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const relativePath = `${workspaceRoot}/${entry.name}/package.json`;
@@ -32,21 +33,21 @@ for (const workspaceRoot of ['apps', 'packages']) {
         return `${JSON.stringify(manifest, null, 2)}\n`;
       });
     } catch (cause) {
-      if (cause?.code !== 'ENOENT') throw cause;
+      if (cause?.code !== "ENOENT") throw cause;
     }
   }
 }
 
 for (const rustPackage of [
-  'dash-shielded-wasm',
-  'recovery-codex32-wasm',
-  'recovery-sskr-wasm',
-  'recovery-envelope-wasm',
+  "dash-shielded-wasm",
+  "recovery-codex32-wasm",
+  "recovery-sskr-wasm",
+  "recovery-envelope-wasm",
 ]) {
   stage(`packages/${rustPackage}/rust/Cargo.toml`, (text) =>
     replaceRequired(
       text,
-      new RegExp(`^(\\[package\\]\\nname = "${rustPackage}"\\nversion = ")[^"]+(")`, 'mu'),
+      new RegExp(`^(\\[package\\]\\nname = "${rustPackage}"\\nversion = ")[^"]+(")`, "mu"),
       `$1${release.version}$2`,
       `${rustPackage} Rust package version`,
     ),
@@ -54,40 +55,40 @@ for (const rustPackage of [
   stage(`packages/${rustPackage}/rust/Cargo.lock`, (text) =>
     replaceRequired(
       text,
-      new RegExp(`(\\[\\[package\\]\\]\\nname = "${rustPackage}"\\nversion = ")[^"]+(")`, 'u'),
+      new RegExp(`(\\[\\[package\\]\\]\\nname = "${rustPackage}"\\nversion = ")[^"]+(")`, "u"),
       `$1${release.version}$2`,
       `${rustPackage} Rust lock version`,
     ),
   );
 }
 // The executable Key Derivation Tool carries the release version too.
-stage('apps/key-derivation/launcher/Cargo.toml', (text) =>
+stage("apps/key-derivation/launcher/Cargo.toml", (text) =>
   replaceRequired(
     text,
     /^(\[package\]\nname = "key-derivation-launcher"\nversion = ")[^"]+(")/mu,
     `$1${release.version}$2`,
-    'key-derivation-launcher package version',
+    "key-derivation-launcher package version",
   ),
 );
-stage('apps/key-derivation/launcher/Cargo.lock', (text) =>
+stage("apps/key-derivation/launcher/Cargo.lock", (text) =>
   replaceRequired(
     text,
     /(\[\[package\]\]\nname = "key-derivation-launcher"\nversion = ")[^"]+(")/u,
     `$1${release.version}$2`,
-    'key-derivation-launcher lock version',
+    "key-derivation-launcher lock version",
   ),
 );
-stage('THIRD_PARTY_NOTICES.md', (text) => {
+stage("THIRD_PARTY_NOTICES.md", (text) => {
   let next = text;
   for (const rustPackage of [
-    'dash-shielded-wasm',
-    'recovery-codex32-wasm',
-    'recovery-sskr-wasm',
-    'recovery-envelope-wasm',
+    "dash-shielded-wasm",
+    "recovery-codex32-wasm",
+    "recovery-sskr-wasm",
+    "recovery-envelope-wasm",
   ]) {
     next = replaceRequired(
       next,
-      new RegExp(`^(${rustPackage}\\s+)[0-9]+\\.[0-9]+\\.[0-9]+(\\s+)`, 'mu'),
+      new RegExp(`^(${rustPackage}\\s+)[0-9]+\\.[0-9]+\\.[0-9]+(\\s+)`, "mu"),
       `$1${release.version}$2`,
       `${rustPackage} notice version`,
     );
@@ -102,13 +103,13 @@ stage(releaseNotes, (text) => {
     text,
     /^# Multi-Chain Wallet Tools v[0-9]+\.[0-9]+\.[0-9]+$/mu,
     `# Multi-Chain Wallet Tools ${release.tag}`,
-    'release-note title',
+    "release-note title",
   );
   next = replaceRequired(
     next,
     /carry version [0-9]+\.[0-9]+\.[0-9]+\./u,
     `carry version ${release.version}.`,
-    'release-note version',
+    "release-note version",
   );
   return next;
 });
@@ -117,7 +118,7 @@ if (changes.size === 0) {
   console.log(`Project metadata is synchronized at ${release.tag} (${release.releaseDate}).`);
 } else if (checkOnly) {
   throw new Error(
-    `Project metadata is out of sync with package.json: ${[...changes.keys()].join(', ')}. Run pnpm metadata:sync.`,
+    `Project metadata is out of sync with package.json: ${[...changes.keys()].join(", ")}. Run pnpm metadata:sync.`,
   );
 } else {
   for (const [relativePath, text] of changes) writeFileSync(resolve(root, relativePath), text);

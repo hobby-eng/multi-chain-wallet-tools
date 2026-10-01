@@ -1,4 +1,4 @@
-import { findMatchingClose, splitTopLevelArguments } from './balanced-syntax.js';
+import { findMatchingClose, splitTopLevelArguments } from "./balanced-syntax.js";
 
 export const CONSENSUS_LIMITS = Object.freeze({
   absoluteLockTimeThreshold: 500_000_000,
@@ -16,11 +16,12 @@ export const CONSENSUS_LIMITS = Object.freeze({
   maximumDashMoney: 21_000_000n * 100_000_000n,
 });
 
-export type ScriptPolicyContext = 'bare' | 'p2sh' | 'p2wsh' | 'tapscript';
+export type ScriptPolicyContext = "bare" | "p2sh" | "p2wsh" | "tapscript";
 
 const matchingClose = (text: string, open: number): number =>
-  findMatchingClose(text, open, '(', ')', 'Miniscript expression');
-const splitTopLevel = (text: string): string[] => splitTopLevelArguments(text, { context: 'Miniscript expression' });
+  findMatchingClose(text, open, "(", ")", "Miniscript expression");
+const splitTopLevel = (text: string): string[] =>
+  splitTopLevelArguments(text, { context: "Miniscript expression" });
 
 function fragmentBodies(text: string, name: string): string[] {
   const results: string[] = [];
@@ -28,7 +29,7 @@ function fragmentBodies(text: string, name: string): string[] {
   while (from < text.length) {
     const start = text.indexOf(`${name}(`, from);
     if (start === -1) break;
-    const previous = start === 0 ? '' : text[start - 1]!;
+    const previous = start === 0 ? "" : text[start - 1]!;
     if (/[a-z0-9_]/u.test(previous)) {
       from = start + name.length;
       continue;
@@ -41,8 +42,11 @@ function fragmentBodies(text: string, name: string): string[] {
   return results;
 }
 
-export function validateMultisigConsensusLimits(source: string, context: ScriptPolicyContext): void {
-  for (const name of ['multi', 'sortedmulti', 'multi_a', 'sortedmulti_a'] as const) {
+export function validateMultisigConsensusLimits(
+  source: string,
+  context: ScriptPolicyContext,
+): void {
+  for (const name of ["multi", "sortedmulti", "multi_a", "sortedmulti_a"] as const) {
     for (const body of fragmentBodies(source, name)) {
       const argumentsList = splitTopLevel(body);
       const threshold = Number(argumentsList[0]);
@@ -50,16 +54,18 @@ export function validateMultisigConsensusLimits(source: string, context: ScriptP
       if (!Number.isSafeInteger(threshold) || threshold < 1 || threshold > keyCount) {
         throw new Error(`${name}() threshold must satisfy 1 <= threshold <= ${keyCount}.`);
       }
-      const tapscriptMultisig = name.endsWith('_a');
-      if (tapscriptMultisig && context !== 'tapscript') {
+      const tapscriptMultisig = name.endsWith("_a");
+      if (tapscriptMultisig && context !== "tapscript") {
         throw new Error(`${name}() is permitted only inside a Taproot script tree.`);
       }
-      if (!tapscriptMultisig && context === 'tapscript') {
-        throw new Error(`${name}() is not permitted in Tapscript; use multi_a() or sortedmulti_a().`);
+      if (!tapscriptMultisig && context === "tapscript") {
+        throw new Error(
+          `${name}() is not permitted in Tapscript; use multi_a() or sortedmulti_a().`,
+        );
       }
       const maximum = tapscriptMultisig
         ? CONSENSUS_LIMITS.maximumCheckSigAddKeys
-        : context === 'bare'
+        : context === "bare"
           ? CONSENSUS_LIMITS.maximumBareMultisigKeys
           : CONSENSUS_LIMITS.maximumCheckMultisigKeys;
       if (keyCount > maximum) {

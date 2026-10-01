@@ -6,9 +6,9 @@ import {
   recover_seed_envelope,
   recover_seed_envelope_advanced,
   recover_seed_envelope_bundle_advanced,
-} from '@ckd/recovery-envelope-wasm/recovery_envelope_wasm.js';
-import wasmBytes from '@ckd/recovery-envelope-wasm/recovery_envelope_wasm_bg.wasm';
-import { validateSskrGroups, type SskrGroupSpec } from './sskr-groups.js';
+} from "@ckd/recovery-envelope-wasm/recovery_envelope_wasm.js";
+import wasmBytes from "@ckd/recovery-envelope-wasm/recovery_envelope_wasm_bg.wasm";
+import { validateSskrGroups, type SskrGroupSpec } from "./sskr-groups.js";
 
 let initialized = false;
 function initializeEnvelopeWasm(): void {
@@ -20,11 +20,16 @@ interface GordianRecipientKeys {
   readonly privateKey: string;
   readonly publicKey: string;
 }
-export function createGordianSeedEnvelope(entropy: Uint8Array, name = '', note = '', password = ''): string {
+export function createGordianSeedEnvelope(
+  entropy: Uint8Array,
+  name = "",
+  note = "",
+  password = "",
+): string {
   initializeEnvelopeWasm();
   return create_seed_envelope(entropy, name, note, password);
 }
-export function recoverGordianSeedEnvelope(record: string, password = ''): Uint8Array {
+export function recoverGordianSeedEnvelope(record: string, password = ""): Uint8Array {
   initializeEnvelopeWasm();
   return recover_seed_envelope(record, password);
 }
@@ -49,27 +54,27 @@ export function createProtectedGordianSeedEnvelope(
   initializeEnvelopeWasm();
   const groups = options.sskrGroups ?? [];
   const packedGroups = validateSskrGroups(options.sskrGroupThreshold, groups, {
-    label: 'Envelope SSKR',
+    label: "Envelope SSKR",
     allowEmpty: true,
   });
   return create_seed_envelope_advanced(
     entropy,
     name,
     note,
-    options.password ?? '',
-    options.bip39Passphrase ?? '',
-    (options.recipientPublicKeys ?? []).join('\n'),
+    options.password ?? "",
+    options.bip39Passphrase ?? "",
+    (options.recipientPublicKeys ?? []).join("\n"),
     options.sskrGroupThreshold ?? 0,
     packedGroups,
-  ).split('\n');
+  ).split("\n");
 }
 export function recoverProtectedGordianSeedEnvelope(
   records: readonly string[],
-  password = '',
-  recipientPrivateKey = '',
+  password = "",
+  recipientPrivateKey = "",
 ): Uint8Array {
   initializeEnvelopeWasm();
-  return recover_seed_envelope_advanced(records.join('\n'), password, recipientPrivateKey);
+  return recover_seed_envelope_advanced(records.join("\n"), password, recipientPrivateKey);
 }
 
 interface RecoveredGordianSeedBundle {
@@ -79,12 +84,12 @@ interface RecoveredGordianSeedBundle {
 
 export function recoverProtectedGordianSeedEnvelopeBundle(
   records: readonly string[],
-  password = '',
-  recipientPrivateKey = '',
+  password = "",
+  recipientPrivateKey = "",
 ): RecoveredGordianSeedBundle {
   initializeEnvelopeWasm();
   const parsed = JSON.parse(
-    recover_seed_envelope_bundle_advanced(records.join('\n'), password, recipientPrivateKey),
+    recover_seed_envelope_bundle_advanced(records.join("\n"), password, recipientPrivateKey),
   ) as { entropy: number[]; bip39Passphrase: string | null };
   return {
     entropy: Uint8Array.from(parsed.entropy),

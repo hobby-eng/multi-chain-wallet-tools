@@ -12,14 +12,14 @@ interface ShieldedStreamCursor {
 }
 
 interface ShieldedStreamStep extends ShieldedStreamCursor {
-  decision: 'continue' | 'complete' | 'limit';
+  decision: "continue" | "complete" | "limit";
 }
 
 export interface ShieldedStreamOutcome {
   complete: boolean;
   pageCount: number;
   terminalPosition: bigint;
-  limitReason?: 'changing-tip';
+  limitReason?: "changing-tip";
 }
 
 interface ShieldedPageVisit {
@@ -35,7 +35,7 @@ export function initialShieldedStreamCursor(): ShieldedStreamCursor {
 /** A short non-empty page is not proof of end-of-pool; only an empty successor is. */
 export function isTerminalShieldedPage(noteCount: number): boolean {
   if (!Number.isSafeInteger(noteCount) || noteCount < 0 || noteCount > SHIELDED_PAGE_SIZE) {
-    throw new Error('Orchard page count is outside the reviewed range.');
+    throw new Error("Orchard page count is outside the reviewed range.");
   }
   return noteCount === 0;
 }
@@ -62,10 +62,10 @@ export function advanceShieldedStream(
     cursor.consecutiveEmpty < 0 ||
     cursor.consecutiveEmpty >= SHIELDED_EMPTY_CONFIRMATIONS
   ) {
-    throw new Error('Orchard stream cursor is outside the reviewed state space.');
+    throw new Error("Orchard stream cursor is outside the reviewed state space.");
   }
   if (!Number.isSafeInteger(maximumPages) || maximumPages < SHIELDED_EMPTY_CONFIRMATIONS) {
-    throw new Error('Orchard stream page ceiling is invalid.');
+    throw new Error("Orchard stream page ceiling is invalid.");
   }
   isTerminalShieldedPage(noteCount);
 
@@ -73,19 +73,19 @@ export function advanceShieldedStream(
   if (noteCount === 0) {
     const consecutiveEmpty = cursor.consecutiveEmpty + 1;
     if (consecutiveEmpty >= SHIELDED_EMPTY_CONFIRMATIONS) {
-      return { position: cursor.position, pageCount, consecutiveEmpty, decision: 'complete' };
+      return { position: cursor.position, pageCount, consecutiveEmpty, decision: "complete" };
     }
     if (pageCount >= maximumPages) {
-      return { position: cursor.position, pageCount, consecutiveEmpty, decision: 'limit' };
+      return { position: cursor.position, pageCount, consecutiveEmpty, decision: "limit" };
     }
-    return { position: cursor.position, pageCount, consecutiveEmpty, decision: 'continue' };
+    return { position: cursor.position, pageCount, consecutiveEmpty, decision: "continue" };
   }
 
   const position = cursor.position + BigInt(SHIELDED_PAGE_SIZE);
   if (pageCount >= maximumPages) {
-    return { position, pageCount, consecutiveEmpty: 0, decision: 'limit' };
+    return { position, pageCount, consecutiveEmpty: 0, decision: "limit" };
   }
-  return { position, pageCount, consecutiveEmpty: 0, decision: 'continue' };
+  return { position, pageCount, consecutiveEmpty: 0, decision: "continue" };
 }
 
 /** Shared loop used by both the Viewer and Recovery vault. */
@@ -103,15 +103,16 @@ export async function runShieldedPageStream<Page>(options: {
 }): Promise<ShieldedStreamOutcome> {
   const maximumPages = options.maximumPages ?? SHIELDED_MAX_PAGES_PER_SCAN;
   if (!Number.isSafeInteger(maximumPages) || maximumPages < SHIELDED_EMPTY_CONFIRMATIONS) {
-    throw new Error('Orchard stream page ceiling is invalid.');
+    throw new Error("Orchard stream page ceiling is invalid.");
   }
   const maximumReconciliations = options.maximumReconciliations ?? SHIELDED_MAX_RECONCILIATIONS;
   if (!Number.isSafeInteger(maximumReconciliations) || maximumReconciliations < 1) {
-    throw new Error('Orchard reconciliation ceiling is invalid.');
+    throw new Error("Orchard reconciliation ceiling is invalid.");
   }
   let reconciliations = 0;
   const checkCancellation = (): void => {
-    if (options.isCancelled?.() === true) throw new DOMException('Shielded pool scan cancelled.', 'AbortError');
+    if (options.isCancelled?.() === true)
+      throw new DOMException("Shielded pool scan cancelled.", "AbortError");
   };
   let cursor = initialShieldedStreamCursor();
   let lastPartial: { position: bigint; revision: bigint } | undefined;
@@ -128,13 +129,15 @@ export async function runShieldedPageStream<Page>(options: {
       noteCount = options.noteCount(page);
       isTerminalShieldedPage(noteCount);
       revision = options.revision(page);
-      if (typeof revision !== 'bigint' || revision < 0n) {
-        throw new Error('Orchard proof revision must be a non-negative bigint.');
+      if (typeof revision !== "bigint" || revision < 0n) {
+        throw new Error("Orchard proof revision must be a non-negative bigint.");
       }
       // A proof authenticates a state, not its freshness relative to earlier
       // pages. Never combine an older tail with a newer ledger snapshot.
       if (highestRevision !== undefined && revision < highestRevision) {
-        throw new Error('Orchard proof height decreased during the scan. Retry with a synchronized provider.');
+        throw new Error(
+          "Orchard proof height decreased during the scan. Retry with a synchronized provider.",
+        );
       }
       highestRevision = revision;
       const partialMatchesRevision = lastPartial === undefined || lastPartial.revision === revision;
@@ -146,7 +149,11 @@ export async function runShieldedPageStream<Page>(options: {
           : 0;
       // A nonempty successor can also prove that the earlier partial chunk
       // grew. Reconcile it first, before applying later nullifiers out of order.
-      if (lastPartial !== undefined && cursor.position !== lastPartial.position && !partialMatchesRevision) {
+      if (
+        lastPartial !== undefined &&
+        cursor.position !== lastPartial.position &&
+        !partialMatchesRevision
+      ) {
         refreshPosition = lastPartial.position;
       } else
         await options.onPage(page, {
@@ -167,7 +174,9 @@ export async function runShieldedPageStream<Page>(options: {
           complete: false,
           pageCount,
           terminalPosition: refreshPosition,
-          ...(reconciliations >= maximumReconciliations ? { limitReason: 'changing-tip' as const } : {}),
+          ...(reconciliations >= maximumReconciliations
+            ? { limitReason: "changing-tip" as const }
+            : {}),
         };
       }
       cursor = { position: refreshPosition, pageCount, consecutiveEmpty: 0 };
@@ -177,20 +186,22 @@ export async function runShieldedPageStream<Page>(options: {
     const transition = advanceShieldedStream(
       {
         ...cursor,
-        consecutiveEmpty: noteCount === 0 && terminalRevision !== revision ? 0 : cursor.consecutiveEmpty,
+        consecutiveEmpty:
+          noteCount === 0 && terminalRevision !== revision ? 0 : cursor.consecutiveEmpty,
       },
       noteCount,
       maximumPages,
     );
     if (noteCount > 0) {
-      lastPartial = noteCount < SHIELDED_PAGE_SIZE ? { position: cursor.position, revision } : undefined;
+      lastPartial =
+        noteCount < SHIELDED_PAGE_SIZE ? { position: cursor.position, revision } : undefined;
       terminalRevision = undefined;
     } else {
       terminalRevision = revision;
     }
-    if (transition.decision !== 'continue') {
+    if (transition.decision !== "continue") {
       return {
-        complete: transition.decision === 'complete',
+        complete: transition.decision === "complete",
         pageCount: transition.pageCount,
         terminalPosition: transition.position,
       };

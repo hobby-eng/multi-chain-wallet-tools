@@ -1,29 +1,37 @@
-import type { ViewerNetwork } from '@ckd/dash-network/types.js';
-import type { ViewingKeyInputMode } from '@ckd/dash-network/viewing-key.js';
-import { runDashCoreActivity } from './dash-core-activity.js';
-import { runDashPlatformActivity } from './dash-platform-activity.js';
-import { runDashIdentityActivity } from './dash-identity-activity.js';
-import { runDashOrchardActivity } from './dash-orchard-activity.js';
-import { createActivityBatchController } from './batch-controller.js';
-import { createViewerExportController } from './export-controller.js';
-import type { ViewerExportState } from './export.js';
-import type { ActivityViewerView, ViewerDetectionMode, ViewerMode, ViewerQueryMode } from './view.js';
+import type { ViewerNetwork } from "@ckd/dash-network/types.js";
+import type { ViewingKeyInputMode } from "@ckd/dash-network/viewing-key.js";
+import { runDashCoreActivity } from "./dash-core-activity.js";
+import { runDashPlatformActivity } from "./dash-platform-activity.js";
+import { runDashIdentityActivity } from "./dash-identity-activity.js";
+import { runDashOrchardActivity } from "./dash-orchard-activity.js";
+import { createActivityBatchController } from "./batch-controller.js";
+import { createViewerExportController } from "./export-controller.js";
+import type { ViewerExportState } from "./export.js";
+import type {
+  ActivityViewerView,
+  ViewerDetectionMode,
+  ViewerMode,
+  ViewerQueryMode,
+} from "./view.js";
 
-import type { ActivityViewerDependencies } from './dependencies.js';
-export function createActivityViewerController(view: ActivityViewerView, dependencies: ActivityViewerDependencies) {
+import type { ActivityViewerDependencies } from "./dependencies.js";
+export function createActivityViewerController(
+  view: ActivityViewerView,
+  dependencies: ActivityViewerDependencies,
+) {
   let started = false;
   let cancellationRequested = false;
   let resetRevision = 0;
   let running = false;
-  let viewerMode: ViewerMode = 'core';
-  let queryMode: ViewerQueryMode = 'single';
-  let detectionMode: ViewerDetectionMode = 'auto';
+  let viewerMode: ViewerMode = "core";
+  let queryMode: ViewerQueryMode = "single";
+  let detectionMode: ViewerDetectionMode = "auto";
   let currentAbort: AbortController | null = null;
   let currentExport: ViewerExportState | null = null;
   let viewerSelfTestPassed = false;
 
   function checkCancellation(): void {
-    if (cancellationRequested) throw new DOMException('Viewer query cancelled.', 'AbortError');
+    if (cancellationRequested) throw new DOMException("Viewer query cancelled.", "AbortError");
   }
 
   function setRunning(value: boolean): void {
@@ -81,7 +89,10 @@ export function createActivityViewerController(view: ActivityViewerView, depende
     );
   }
 
-  async function runCore(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
+  async function runCore(
+    network: ViewerNetwork,
+    value = view.viewingKeyInput.value,
+  ): Promise<void> {
     currentAbort = new AbortController();
     const state = await runDashCoreActivity(
       {
@@ -97,7 +108,10 @@ export function createActivityViewerController(view: ActivityViewerView, depende
     if (!cancellationRequested) setExportState(state);
   }
 
-  async function runPlatform(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
+  async function runPlatform(
+    network: ViewerNetwork,
+    value = view.viewingKeyInput.value,
+  ): Promise<void> {
     currentAbort = new AbortController();
     const state = await runDashPlatformActivity(
       {
@@ -114,7 +128,10 @@ export function createActivityViewerController(view: ActivityViewerView, depende
     setExportState(state);
   }
 
-  async function runIdentity(network: ViewerNetwork, value = view.viewingKeyInput.value): Promise<void> {
+  async function runIdentity(
+    network: ViewerNetwork,
+    value = view.viewingKeyInput.value,
+  ): Promise<void> {
     currentAbort = new AbortController();
     const state = await runDashIdentityActivity(
       {
@@ -134,11 +151,11 @@ export function createActivityViewerController(view: ActivityViewerView, depende
   async function runAutoSingle(network: ViewerNetwork): Promise<void> {
     const detected = dependencies.detectViewerInput(view.viewingKeyInput.value, network);
     view.setDiagnosticMode(detected.mode, network);
-    if (detected.mode === 'shielded') {
+    if (detected.mode === "shielded") {
       await runShielded(network, detected.value, detected.viewingKeyMode);
-    } else if (detected.mode === 'core') {
+    } else if (detected.mode === "core") {
       await runCore(network, detected.value);
-    } else if (detected.mode === 'platform') {
+    } else if (detected.mode === "platform") {
       await runPlatform(network, detected.value);
     } else {
       await runIdentity(network, detected.value);
@@ -148,7 +165,7 @@ export function createActivityViewerController(view: ActivityViewerView, depende
   async function submitQuery(): Promise<void> {
     if (running) return;
     if (!viewerSelfTestPassed) {
-      view.showError('Cryptographic startup self-test has not passed. Queries remain disabled.');
+      view.showError("Cryptographic startup self-test has not passed. Queries remain disabled.");
       return;
     }
     const submittedRevision = resetRevision;
@@ -162,32 +179,33 @@ export function createActivityViewerController(view: ActivityViewerView, depende
     view.startDiagnostics(
       viewerMode,
       network,
-      viewerMode === 'core'
-        ? 'DashScan Core API · synchronization checked'
-        : viewerMode === 'platform'
-          ? 'Dash Platform DAPI proof + Platform Explorer history'
-          : viewerMode === 'identity'
-            ? 'Dash Platform Identity proof + Platform Explorer history'
-            : 'Dash Platform DAPI · trusted quorum discovery',
+      viewerMode === "core"
+        ? "DashScan Core API · synchronization checked"
+        : viewerMode === "platform"
+          ? "Dash Platform DAPI proof + Platform Explorer history"
+          : viewerMode === "identity"
+            ? "Dash Platform Identity proof + Platform Explorer history"
+            : "Dash Platform DAPI · trusted quorum discovery",
     );
     try {
-      if (queryMode === 'batch' && detectionMode === 'auto') await batchController.runAutoBatch(network);
-      else if (queryMode === 'batch') await batchController.runBatch(network, viewerMode);
-      else if (detectionMode === 'auto') await runAutoSingle(network);
-      else if (viewerMode === 'shielded') await runShielded(network);
-      else if (viewerMode === 'core') await runCore(network);
-      else if (viewerMode === 'platform') await runPlatform(network);
+      if (queryMode === "batch" && detectionMode === "auto")
+        await batchController.runAutoBatch(network);
+      else if (queryMode === "batch") await batchController.runBatch(network, viewerMode);
+      else if (detectionMode === "auto") await runAutoSingle(network);
+      else if (viewerMode === "shielded") await runShielded(network);
+      else if (viewerMode === "core") await runCore(network);
+      else if (viewerMode === "platform") await runPlatform(network);
       else await runIdentity(network);
     } catch (cause) {
       if (submittedRevision !== resetRevision) return;
       if (cancellationRequested) {
-        view.setStatus('Query cancelled.');
-        view.failDiagnostics('Cancelled by the user. No additional results were applied.');
+        view.setStatus("Query cancelled.");
+        view.failDiagnostics("Cancelled by the user. No additional results were applied.");
       } else {
         const message = cause instanceof Error ? cause.message : String(cause);
-        if (cause instanceof Error && cause.name === 'PrivateMaterialError') view.clearQueryInput();
+        if (cause instanceof Error && cause.name === "PrivateMaterialError") view.clearQueryInput();
         view.showError(message);
-        view.setStatus('');
+        view.setStatus("");
         view.failDiagnostics(`Stopped during the current stage. Error: ${message}`);
       }
     } finally {
@@ -214,7 +232,7 @@ export function createActivityViewerController(view: ActivityViewerView, depende
 
   function setViewerMode(mode: ViewerMode): void {
     if (running || mode === viewerMode) return;
-    detectionMode = 'advanced';
+    detectionMode = "advanced";
     viewerMode = mode;
     view.setDetectionMode(detectionMode, viewerMode);
     view.setViewerMode(mode);
@@ -250,7 +268,9 @@ export function createActivityViewerController(view: ActivityViewerView, depende
       viewerSelfTestPassed = false;
       view.showSelfTestFailed(cause instanceof Error ? cause.message : String(cause));
       setRunning(false);
-      view.showError('Cryptographic startup self-test failed. This build will not query or scan wallet activity.');
+      view.showError(
+        "Cryptographic startup self-test failed. This build will not query or scan wallet activity.",
+      );
     }
   }
 
@@ -268,27 +288,35 @@ export function createActivityViewerController(view: ActivityViewerView, depende
       if (started) return;
       started = true;
       exportController.install();
-      view.form.addEventListener('submit', (event) => {
+      view.form.addEventListener("submit", (event) => {
         event.preventDefault();
         void submitQuery();
       });
-      view.cancelButton.addEventListener('click', cancelQuery);
-      view.clearButton.addEventListener('click', resetViewer);
-      view.revealButton.addEventListener('click', () => view.toggleViewingKeyReveal(viewerMode));
-      view.revealBatchButton.addEventListener('click', () => view.toggleViewingKeyReveal(viewerMode));
+      view.cancelButton.addEventListener("click", cancelQuery);
+      view.clearButton.addEventListener("click", resetViewer);
+      view.revealButton.addEventListener("click", () => view.toggleViewingKeyReveal(viewerMode));
+      view.revealBatchButton.addEventListener("click", () =>
+        view.toggleViewingKeyReveal(viewerMode),
+      );
       for (const button of view.modeButtons) {
-        button.addEventListener('click', () => setViewerMode(button.dataset.viewerMode as ViewerMode));
+        button.addEventListener("click", () =>
+          setViewerMode(button.dataset.viewerMode as ViewerMode),
+        );
       }
       for (const button of view.queryModeButtons) {
-        button.addEventListener('click', () => setQueryMode(button.dataset.queryMode as ViewerQueryMode));
+        button.addEventListener("click", () =>
+          setQueryMode(button.dataset.queryMode as ViewerQueryMode),
+        );
       }
       for (const button of view.detectionModeButtons) {
-        button.addEventListener('click', () => setDetectionMode(button.dataset.detectionMode as ViewerDetectionMode));
+        button.addEventListener("click", () =>
+          setDetectionMode(button.dataset.detectionMode as ViewerDetectionMode),
+        );
       }
-      view.viewingKeyInput.addEventListener('input', () => view.updateInputMode(viewerMode));
-      view.batchInput.addEventListener('input', () => view.updateInputMode(viewerMode));
-      view.keyCapabilityInput.addEventListener('change', () => view.updateInputMode(viewerMode));
-      view.networkInput.addEventListener('change', () => view.updateInputMode(viewerMode));
+      view.viewingKeyInput.addEventListener("input", () => view.updateInputMode(viewerMode));
+      view.batchInput.addEventListener("input", () => view.updateInputMode(viewerMode));
+      view.keyCapabilityInput.addEventListener("change", () => view.updateInputMode(viewerMode));
+      view.networkInput.addEventListener("change", () => view.updateInputMode(viewerMode));
       view.setDetectionMode(detectionMode, viewerMode);
       view.setQueryMode(queryMode, viewerMode);
       view.updateInputMode(viewerMode);

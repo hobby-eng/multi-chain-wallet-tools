@@ -1,22 +1,25 @@
-import { signCompactMessage, verifyCompactMessage } from './compact-message-internal.js';
-import type { CompactMessageParameters, CompactMessageSignature } from './compact-message-internal.js';
-import type { NetworkName } from './types.js';
+import { signCompactMessage, verifyCompactMessage } from "./compact-message-internal.js";
+import type {
+  CompactMessageParameters,
+  CompactMessageSignature,
+} from "./compact-message-internal.js";
+import type { NetworkName } from "./types.js";
 
-type CompactMessageChain = 'bitcoin' | 'dash';
-export type { CompactMessageSignature } from './compact-message-internal.js';
+type CompactMessageChain = "bitcoin" | "dash";
+export type { CompactMessageSignature } from "./compact-message-internal.js";
 
 function parameters(chain: CompactMessageChain, network: NetworkName): CompactMessageParameters {
-  if (chain === 'bitcoin') {
+  if (chain === "bitcoin") {
     return {
-      magic: 'Bitcoin Signed Message:\n',
-      p2pkhPrefix: network === 'mainnet' ? 0x00 : 0x6f,
-      format: 'Bitcoin compact P2PKH (BIP137)',
+      magic: "Bitcoin Signed Message:\n",
+      p2pkhPrefix: network === "mainnet" ? 0x00 : 0x6f,
+      format: "Bitcoin compact P2PKH (BIP137)",
     };
   }
   return {
-    magic: 'DarkCoin Signed Message:\n',
-    p2pkhPrefix: network === 'mainnet' ? 0x4c : 0x8c,
-    format: 'Dash Core compact P2PKH',
+    magic: "DarkCoin Signed Message:\n",
+    p2pkhPrefix: network === "mainnet" ? 0x4c : 0x8c,
+    format: "Dash Core compact P2PKH",
   };
 }
 

@@ -1,3 +1,6 @@
-import { BITCOIN_ACTIVITY_ADAPTER } from './activity-bitcoin.js';
-import { ETHEREUM_ACTIVITY_ADAPTER } from './activity-ethereum.js';
-export const SELECTED_EXTERNAL_ACTIVITY_ADAPTERS = [BITCOIN_ACTIVITY_ADAPTER, ETHEREUM_ACTIVITY_ADAPTER];
+import { BITCOIN_ACTIVITY_ADAPTER } from "./activity-bitcoin.js";
+import { ETHEREUM_ACTIVITY_ADAPTER } from "./activity-ethereum.js";
+export const SELECTED_EXTERNAL_ACTIVITY_ADAPTERS = [
+  BITCOIN_ACTIVITY_ADAPTER,
+  ETHEREUM_ACTIVITY_ADAPTER,
+];

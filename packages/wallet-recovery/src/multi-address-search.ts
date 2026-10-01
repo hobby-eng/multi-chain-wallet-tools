@@ -1,7 +1,7 @@
 export const MAX_LOCAL_SEARCH_CONCURRENCY = 5;
 
-import type { AddressSearchMatch } from './address-search.js';
-import type { AddressSearchTarget } from './address-targets.js';
+import type { AddressSearchMatch } from "./address-search.js";
+import type { AddressSearchTarget } from "./address-targets.js";
 
 interface MultiAddressSearchResult {
   readonly target: AddressSearchTarget;
@@ -16,7 +16,7 @@ interface MultiAddressSearchOptions {
   readonly concurrency?: number;
   readonly signal?: AbortSignal;
   readonly search: (
-    adapterId: AddressSearchTarget['adapterId'],
+    adapterId: AddressSearchTarget["adapterId"],
     target: AddressSearchTarget,
     start: number,
     count: number,
@@ -25,7 +25,9 @@ interface MultiAddressSearchOptions {
   readonly onProgress?: (completed: number, total: number) => void;
 }
 
-export async function searchAcrossAddresses(options: MultiAddressSearchOptions): Promise<MultiAddressSearchResult[]> {
+export async function searchAcrossAddresses(
+  options: MultiAddressSearchOptions,
+): Promise<MultiAddressSearchResult[]> {
   const { targets, concurrency = 2 } = options;
   const results = new Array<MultiAddressSearchResult>(targets.length);
   let next = 0;
@@ -37,18 +39,34 @@ export async function searchAcrossAddresses(options: MultiAddressSearchOptions):
       if (index >= targets.length) return;
       const target = targets[index]!;
       try {
-        const match = await options.search(target.adapterId, target, options.start, options.count, options.signal);
+        const match = await options.search(
+          target.adapterId,
+          target,
+          options.start,
+          options.count,
+          options.signal,
+        );
         results[index] = { target, match };
       } catch (cause) {
         if (options.signal?.aborted === true) throw cause;
-        results[index] = { target, match: null, error: cause instanceof Error ? cause.message : String(cause) };
+        results[index] = {
+          target,
+          match: null,
+          error: cause instanceof Error ? cause.message : String(cause),
+        };
       }
       options.onProgress?.(results.filter(Boolean).length, targets.length);
     }
   };
   await Promise.all(
     Array.from(
-      { length: Math.min(Math.max(1, concurrency), MAX_LOCAL_SEARCH_CONCURRENCY, Math.max(1, targets.length)) },
+      {
+        length: Math.min(
+          Math.max(1, concurrency),
+          MAX_LOCAL_SEARCH_CONCURRENCY,
+          Math.max(1, targets.length),
+        ),
+      },
       () => worker(),
     ),
   );
