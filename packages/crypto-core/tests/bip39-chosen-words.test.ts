@@ -275,6 +275,18 @@ describe("BIP39 phrase with chosen words", () => {
     ).rejects.toThrow("Secure randomness is unavailable");
   });
 
+  it("refuses a random source that returns the wrong number of bytes (AUD-019-API001)", async () => {
+    const request: ChosenWordsRequest = { wordCount: 12, chosen: [], neverUse: [] };
+    const { source } = seededSource(9);
+    const short = (length: number) => source(length).subarray(0, length - 1);
+    const long = (length: number) => source(length + 1);
+    const array = (length: number) => Array.from({ length }, () => 7) as unknown as Uint8Array;
+    for (const randomBytes of [short, long, array])
+      await expect(generateMnemonicWithChosenWords(request, { randomBytes })).rejects.toThrow(
+        /Random-byte source returned (?:\d+ bytes|no Uint8Array); expected 4096 bytes/u,
+      );
+  });
+
   it("accepts words in any letter case and with spaces around them", async () => {
     const phrase = await generateMnemonicWithChosenWords({
       wordCount: 12,
