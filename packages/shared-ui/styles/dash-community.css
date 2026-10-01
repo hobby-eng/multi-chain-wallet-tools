@@ -387,14 +387,16 @@ body::before {
 .form-grid > div:has(> #coin) {
   display: none;
 }
+/* One row while the longest words fit, more rows when they do not, as in the shared style: with
+   the Child seeds tab, seven tabs at 640px left "Purpose48" wider than its button. */
 .form-grid .protocol-tabs {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   width: 100%;
 }
 .form-grid .protocol-tab {
   flex: 1 1 0;
-  min-width: 0;
+  min-width: min-content;
   white-space: normal;
   overflow-wrap: normal;
   word-break: normal;
@@ -636,10 +638,7 @@ footer {
   color: #d1dcff;
 }
 @media (max-width: 560px) {
-  /* Rows of tabs on a phone, as in the shared style; one squeezed row cut the words. */
-  .form-grid .protocol-tabs {
-    flex-wrap: wrap;
-  }
+  /* Rows of about three tabs on a phone, as in the shared style. */
   .form-grid .protocol-tab {
     flex: 1 1 100px;
   }
