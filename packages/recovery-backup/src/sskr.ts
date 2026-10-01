@@ -21,9 +21,11 @@ const SSKR_ENCODING: Readonly<Record<SskrShareEncoding, number>> = {
 };
 
 function encodingCode(encoding: SskrShareEncoding): number {
-  const code = SSKR_ENCODING[encoding];
-  if (code === undefined) throw new Error(`Unsupported SSKR share encoding: ${String(encoding)}.`);
-  return code;
+  // Own keys only: a plain lookup also finds "toString" or "constructor" on Object.prototype, and
+  // WebAssembly reads such a value as 0, Compact UR (AUD-019-API002).
+  if (!Object.hasOwn(SSKR_ENCODING, encoding))
+    throw new Error(`Unsupported SSKR share encoding: ${String(encoding)}.`);
+  return SSKR_ENCODING[encoding];
 }
 
 export type { SskrGroupSpec } from "./sskr-groups.js";
