@@ -5,11 +5,15 @@ on:
     paths:
       - 'packages/**/rust/Cargo.toml'
       - 'packages/**/rust/Cargo.lock'
+      - 'apps/key-derivation/launcher/Cargo.toml'
+      - 'apps/key-derivation/launcher/Cargo.lock'
       - '.github/workflows/audit.yml'
   pull_request:
     paths:
       - 'packages/**/rust/Cargo.toml'
       - 'packages/**/rust/Cargo.lock'
+      - 'apps/key-derivation/launcher/Cargo.toml'
+      - 'apps/key-derivation/launcher/Cargo.lock'
       - '.github/workflows/audit.yml'
   schedule:
     - cron: '17 4 * * 1'
@@ -38,6 +42,9 @@ jobs:
             lockfile: packages/recovery-envelope-wasm/rust/Cargo.lock
           - crate: SSKR recovery
             lockfile: packages/recovery-sskr-wasm/rust/Cargo.lock
+          # The executable Key Derivation Tool is shipped as a native program; its crates count too.
+          - crate: Executable Key Derivation Tool
+            lockfile: apps/key-derivation/launcher/Cargo.lock
     steps:
       - name: Check out the exact revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
