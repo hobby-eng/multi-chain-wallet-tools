@@ -19,6 +19,7 @@ import {
   required,
   type RecoveryFeatureContext,
 } from './recovery-workspace-shared.js';
+import { clearOnFirstProgress, describe } from './recovery-mhfe-status.js';
 
 // Texts of the package's classic scripts, embedded by build-key-derivation-html.mjs.
 declare const __MHFE_WORKER_SOURCE__: string;
@@ -167,13 +168,6 @@ async function runOperation<T>(
     stop.onclick = null;
     for (const action of actions) action.disabled = false;
   }
-}
-
-/** Error text for the status line: the client's codes carry a message written for people. */
-function describe(cause: unknown, fallback: string): string {
-  if (cause instanceof MhfeError && cause.code === 'CANCELLED')
-    return 'Stopped. The worker and its memory were discarded.';
-  return cause instanceof Error ? cause.message : fallback;
 }
 
 interface ContainerCard {
@@ -343,6 +337,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
               `by chance it also passes the check of ${read.otherLengths.join(' and ')} words.`;
         const started = performance.now();
         encryptStatus.textContent = `Starting · ${read.words}-word phrase accepted.${lengthNote}`;
+        const clearPasswords = clearOnFirstProgress(passwordInput, repeatInput);
         const pending = mhfeClient().encrypt({
           phrase: source,
           password,
@@ -350,6 +345,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
           pim,
           memoryLevel: MEMORY_LEVEL,
           onProgress: (progress) => {
+            clearPasswords();
             encryptStatus.textContent = progressText(progress, performance.now() - started, false) + lengthNote;
           },
           onUnverified: ({ container }) => {
@@ -363,9 +359,6 @@ export function installMhfe(context: RecoveryFeatureContext): void {
             );
           },
         });
-        // The client holds its own copies now; the fields need not keep the password.
-        passwordInput.value = '';
-        repeatInput.value = '';
         const { container } = await pending;
         card ??= renderContainer(
           encryptResult,
@@ -403,6 +396,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
         const words = selectedSourceWords();
         const { container } = await mhfeClient().readContainer(encryptedInput.value);
         const started = performance.now();
+        const clearPassword = clearOnFirstProgress(passwordInput);
         const pending = mhfeClient().decrypt({
           container,
           password: passwordInput.value,
@@ -410,10 +404,10 @@ export function installMhfe(context: RecoveryFeatureContext): void {
           memoryLevel: MEMORY_LEVEL,
           words,
           onProgress: (progress) => {
+            clearPassword();
             decryptStatus.textContent = progressText(progress, performance.now() - started, true);
           },
         });
-        passwordInput.value = '';
         const recovery: MhfeRecovery = await pending;
         for (const candidate of recovery.candidates) {
           const summary = document.createElement('div');
