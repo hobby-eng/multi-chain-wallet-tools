@@ -120,12 +120,52 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     return elements;
   }
 
+  /** The phrase of Generate & Derive while it is valid; each backup tab offers it until one is entered. */
+  let offeredSource: RecoverySourceReference | null = null;
+  const sourceOffers = new Map<RecoverySourceTarget, HTMLElement>();
+
+  function manualPhraseField(target: RecoverySourceTarget): HTMLTextAreaElement {
+    return required<HTMLTextAreaElement>(target === 'matcher' ? '#matcher-seeds' : sourceSelectors[target]);
+  }
+
+  /** Shows the offer only where it helps: a phrase is available, nothing is linked and the field is empty. */
+  function updateSourceOffer(target: RecoverySourceTarget): void {
+    const offer = sourceOffers.get(target);
+    if (offer === undefined) return;
+    offer.hidden = offeredSource === null || linkedSources.has(target) || manualPhraseField(target).value.trim() !== '';
+  }
+
+  function installSourceOffer(target: RecoverySourceTarget): void {
+    const offer = document.createElement('div');
+    offer.className = 'recovery-source-offer';
+    offer.hidden = true;
+    const text = document.createElement('span');
+    text.textContent = 'A recovery phrase is entered in Generate & Derive. It can be used here without copying it.';
+    const use = document.createElement('button');
+    use.type = 'button';
+    use.className = 'secondary compact';
+    use.textContent = 'Import from Generate & Derive';
+    use.addEventListener('click', () => {
+      if (offeredSource !== null) useSource(offeredSource, target);
+    });
+    offer.append(text, use);
+    manualSourceElements(target)[0]?.before(offer);
+    manualPhraseField(target).addEventListener('input', () => updateSourceOffer(target));
+    sourceOffers.set(target, offer);
+  }
+
+  function offerSource(reference: RecoverySourceReference | null): void {
+    offeredSource = reference;
+    for (const target of sourceOffers.keys()) updateSourceOffer(target);
+  }
+
   function unlinkSource(target: RecoverySourceTarget): void {
     linkedSources.delete(target);
     revealedLinkedSources.delete(target);
     document.querySelector<HTMLElement>(`[data-linked-source-for="${target}"]`)?.remove();
     for (const element of manualSourceElements(target)) element.hidden = false;
     document.dispatchEvent(new CustomEvent('recovery-source-change', { detail: target }));
+    updateSourceOffer(target);
   }
 
   function useSource(reference: RecoverySourceReference, target: RecoverySourceTarget): void {
@@ -144,6 +184,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     }
     linkedSources.set(target, reference);
     document.dispatchEvent(new CustomEvent('recovery-source-change', { detail: target }));
+    updateSourceOffer(target);
     const badge = document.createElement('div');
     badge.className = 'linked-recovery-source';
     badge.dataset.linkedSourceFor = target;
@@ -283,5 +324,6 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
   }
   const linkedSourceRevealed = (target: RecoverySourceTarget): boolean => revealedLinkedSources.has(target);
   installSelectedRecoveryFeatures({ ...options, readMnemonic, linkedValue, linkedSourceRevealed });
-  return { useSource, setCryptoEnabled };
+  for (const target of selectedRecoveryTargets) installSourceOffer(target);
+  return { useSource, offerSource, setCryptoEnabled };
 }

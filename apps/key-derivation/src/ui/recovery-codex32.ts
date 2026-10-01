@@ -13,7 +13,7 @@ import {
   type RecoveryFeatureContext,
 } from './recovery-workspace-shared.js';
 export function installCodex32(context: RecoveryFeatureContext): void {
-  installSecretToggle('#toggle-codex32-source', '#codex32-source', 'Show phrase', 'Hide phrase');
+  installSecretToggle('#toggle-codex32-source', '#codex32-source', 'Show', 'Hide', 'recovery phrase');
   installMnemonicSourceDiagnostic(
     context,
     'codex32',
@@ -21,7 +21,7 @@ export function installCodex32(context: RecoveryFeatureContext): void {
     '#toggle-codex32-source',
     '#codex32-passphrase',
   );
-  installSecretToggle('#toggle-codex32-shares', '#codex32-shares', 'Show records', 'Hide records');
+  installSecretToggle('#toggle-codex32-shares', '#codex32-shares', 'Show', 'Hide', 'records');
   installSecretToggle(
     '#toggle-codex32-created',
     '#codex32-create-result .share-secret',

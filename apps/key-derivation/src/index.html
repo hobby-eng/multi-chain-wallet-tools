@@ -602,7 +602,7 @@
             <div class="field-heading-row">
               <label for="seedqr-source">BIP39 recovery phrase to encode</label>
               <button id="toggle-seedqr-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Show phrase
+                Show
               </button>
             </div>
             <textarea
@@ -632,7 +632,12 @@
               <option value="standard">Standard SeedQR · numeric digits</option>
               <option value="compact">CompactSeedQR · hexadecimal bytes</option>
             </select>
-            <label for="seedqr-payload">Decoded QR payload</label>
+            <div class="field-heading-row">
+              <label for="seedqr-payload">Decoded QR payload</label>
+              <button id="toggle-seedqr-payload" class="danger-outline compact" type="button" aria-pressed="false">
+                Show
+              </button>
+            </div>
             <textarea
               id="seedqr-payload"
               class="concealed"
@@ -642,9 +647,6 @@
               placeholder="Paste the numeric payload, or compact bytes as hexadecimal"
             ></textarea>
             <div class="actions">
-              <button id="toggle-seedqr-payload" class="danger-outline" type="button" aria-pressed="false">
-                Show payload
-              </button>
               <button class="primary" id="restore-seedqr" type="button">Restore phrase</button>
             </div>
             <div id="seedqr-restore-result" class="share-results" role="status" aria-live="polite"></div>
@@ -718,7 +720,7 @@
             <div class="field-heading-row">
               <label for="mhfe-source">BIP39 phrase to encrypt</label>
               <button id="toggle-mhfe-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Show phrase
+                Show
               </button>
             </div>
             <textarea
@@ -789,7 +791,7 @@
             <div class="field-heading-row">
               <label for="mhfe-container">Encrypted 24-word MHFE container</label>
               <button id="toggle-mhfe-container" class="danger-outline compact" type="button" aria-pressed="false">
-                Show container
+                Show
               </button>
             </div>
             <textarea
@@ -901,7 +903,7 @@
             <div class="field-heading-row">
               <label for="slip39-source-mnemonic">BIP39 recovery phrase to back up</label
               ><button id="toggle-slip39-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Show phrase
+                Show
               </button>
             </div>
             <textarea
@@ -957,7 +959,7 @@
             <div class="field-heading-row">
               <label for="slip39-shares">SLIP-39 shares</label>
               <button id="toggle-slip39-shares" class="danger-outline compact" type="button" aria-pressed="false">
-                Show shares
+                Show
               </button>
             </div>
             <textarea
@@ -1038,7 +1040,7 @@
             <div class="field-heading-row">
               <label for="sskr-source">BIP39 recovery phrase</label>
               <button id="toggle-sskr-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Show phrase
+                Show
               </button>
             </div>
             <textarea id="sskr-source" class="concealed" rows="4"></textarea>
@@ -1073,11 +1075,15 @@
                 <option value="bytewords">Bytewords · full words</option>
               </select>
             </div>
-            <label for="sskr-shares">SSKR shares</label
-            ><textarea id="sskr-shares" class="concealed" rows="7"></textarea>
+            <div class="field-heading-row">
+              <label for="sskr-shares">SSKR shares</label>
+              <button id="toggle-sskr-shares" class="danger-outline compact" type="button" aria-pressed="false">
+                Show
+              </button>
+            </div>
+            <textarea id="sskr-shares" class="concealed" rows="7"></textarea>
             <div class="actions">
-              <button id="toggle-sskr-shares" class="danger-outline compact" type="button">Show shares</button
-              ><button id="restore-sskr" class="primary" type="button">Restore phrase</button>
+              <button id="restore-sskr" class="primary" type="button">Restore phrase</button>
             </div>
             <div id="sskr-restore-result"></div>
           </section>
@@ -1152,7 +1158,7 @@
             <div class="field-heading-row">
               <label for="envelope-source">BIP39 recovery phrase</label>
               <button id="toggle-envelope-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Show phrase
+                Show
               </button>
             </div>
             <textarea id="envelope-source" class="concealed" rows="4"></textarea>
@@ -1188,11 +1194,18 @@
                 <input id="envelope-bip39-passphrase" type="password" autocomplete="off" />
               </div>
               <div id="envelope-manual-recipient-source" hidden>
-                <label for="envelope-recipient-mnemonic">BIP39 recovery phrase</label>
+                <div class="field-heading-row">
+                  <label for="envelope-recipient-mnemonic">BIP39 recovery phrase</label>
+                  <button
+                    id="toggle-envelope-recipient-mnemonic"
+                    class="danger-outline compact"
+                    type="button"
+                    aria-pressed="false"
+                  >
+                    Show
+                  </button>
+                </div>
                 <textarea id="envelope-recipient-mnemonic" class="concealed" rows="4" autocomplete="off"></textarea>
-                <button id="toggle-envelope-recipient-mnemonic" class="danger-outline compact" type="button">
-                  Show phrase
-                </button>
                 <label for="envelope-recipient-manual-passphrase">BIP39 passphrase</label>
                 <input id="envelope-recipient-manual-passphrase" type="password" autocomplete="off" />
               </div>
@@ -1233,9 +1246,13 @@
             data-operation-panel
             hidden
           >
-            <label for="envelope-records">Envelope or SSKR Envelope records</label
-            ><textarea id="envelope-records" class="concealed" rows="7"></textarea
-            ><button id="toggle-envelope-records" class="danger-outline compact" type="button">Show records</button>
+            <div class="field-heading-row">
+              <label for="envelope-records">Envelope or SSKR Envelope records</label>
+              <button id="toggle-envelope-records" class="danger-outline compact" type="button" aria-pressed="false">
+                Show
+              </button>
+            </div>
+            <textarea id="envelope-records" class="concealed" rows="7"></textarea>
             <label for="envelope-unlock-password">Password · optional</label
             ><input id="envelope-unlock-password" type="password" /><label for="envelope-private-key"
               >Recipient private key · optional</label
@@ -1313,7 +1330,7 @@
             <div class="field-heading-row">
               <label for="codex32-source">BIP39 recovery phrase</label>
               <button id="toggle-codex32-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Show phrase
+                Show
               </button>
             </div>
             <textarea
@@ -1381,7 +1398,7 @@
             <div class="field-heading-row">
               <label for="codex32-shares">Codex32 secret or shares</label>
               <button id="toggle-codex32-shares" class="danger-outline compact" type="button" aria-pressed="false">
-                Show records
+                Show
               </button>
             </div>
             <textarea
@@ -1471,7 +1488,7 @@
             <div class="field-heading-row">
               <label for="mnemocode-source">BIP39 recovery phrase to encode</label>
               <button id="toggle-mnemocode-source" class="danger-outline compact" type="button" aria-pressed="false">
-                Show phrase
+                Show
               </button>
             </div>
             <textarea
@@ -1663,7 +1680,7 @@
             <div class="field-heading-row">
               <label for="mnemocode-input">MNC1 record or raw representation</label>
               <button id="toggle-mnemocode-input" class="danger-outline compact" type="button" aria-pressed="false">
-                Show input
+                Show
               </button>
             </div>
             <textarea
@@ -1708,7 +1725,7 @@
                 type="button"
                 aria-pressed="false"
               >
-                Show phrase
+                Show
               </button>
             </div>
             <textarea

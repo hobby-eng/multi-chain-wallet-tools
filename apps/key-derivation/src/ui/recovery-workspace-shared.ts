@@ -308,11 +308,17 @@ export function updateLineNumbers(textarea: HTMLTextAreaElement, gutter: HTMLEle
   gutter.scrollTop = textarea.scrollTop;
 }
 
+/**
+ * A Show/Hide button for concealed text. A button beside the label of its field says only "Show" or
+ * "Hide", because the label already names the field; `subject` then gives screen readers the full action,
+ * such as "Show container".
+ */
 export function installSecretToggle(
   buttonSelector: string,
   targetSelector: string,
   revealLabel: string,
   hideLabel: string,
+  subject?: string,
 ): void {
   const button = required<HTMLButtonElement>(buttonSelector);
   const scope = button.closest<HTMLElement>('.backup-operation') ?? document.body;
@@ -323,6 +329,7 @@ export function installSecretToggle(
     }
     for (const action of scope.querySelectorAll<HTMLButtonElement>('.secret-copy-action')) action.disabled = !revealed;
     button.textContent = revealed ? hideLabel : revealLabel;
+    if (subject !== undefined) button.setAttribute('aria-label', `${revealed ? 'Hide' : 'Show'} ${subject}`);
     button.setAttribute('aria-pressed', String(revealed));
   };
   button.addEventListener('click', () => {
