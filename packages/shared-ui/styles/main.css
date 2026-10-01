@@ -759,8 +759,11 @@ textarea.concealed {
   min-width: 0;
   margin-top: 2px;
 }
+/* Tabs share one row while their longest words fit and wrap into further rows when they do not:
+   with the Child seeds tab, seven Dash tabs at 640px left "Purpose48" wider than its button. */
 .primary-mode-tabs {
   display: flex;
+  flex-wrap: wrap;
   width: 100%;
   gap: 8px;
   min-width: 0;
@@ -771,7 +774,7 @@ textarea.concealed {
 .primary-mode-tab {
   position: relative;
   flex: 1 1 0;
-  min-width: 0;
+  min-width: min-content;
   min-height: 48px;
   text-align: center;
   border: 1px solid #303a46;
@@ -2032,11 +2035,8 @@ footer p {
   .span-three {
     grid-column: 1;
   }
-  /* On a phone the tabs wrap into rows of about three instead of squeezing into one row, where
-     words were cut; the text keeps the 12px of every other button. */
-  .primary-mode-tabs {
-    flex-wrap: wrap;
-  }
+  /* On a phone the tabs form rows of about three instead of squeezing into one row, where words
+     were cut; the text keeps the 12px of every other button. */
   .primary-mode-tab {
     flex: 1 1 100px;
     padding-inline: 9px;
