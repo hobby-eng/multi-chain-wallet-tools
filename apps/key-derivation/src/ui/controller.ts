@@ -21,6 +21,7 @@ import { createResultExportController } from './result-export-controller.js';
 import { installAccountExportController } from './account-export-controller.js';
 import { createLargeRequestPolicy } from './large-request-policy.js';
 import { installRecoverySourceController } from './recovery-source-controller.js';
+import { englishMnemonicToEntropy } from '@ckd/core/bip39.js';
 import { AdapterSettingsStore } from './adapter-settings.js';
 import { AutomaticDerivationScheduler } from './automatic-derivation.js';
 import { runStartupSelfTests } from './startup-self-test.js';
@@ -45,6 +46,7 @@ interface KeyDerivationDependencies {
   createWorker(): DerivationWorkerClient;
   addressSearch?: AddressSearchRunner;
   openRecoverySource?(reference: RecoverySourceReference, target: RecoverySourceTarget): void;
+  offerRecoverySource?(reference: RecoverySourceReference | null): void;
   installSilentPaymentFeature?: typeof import('./silent-payment-feature.js').installSilentPaymentFeature;
   installBip85Feature?: typeof import('./bip85-feature.js').installBip85Feature;
   installBip38EncryptionFeature?: ReturnType<
@@ -78,6 +80,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         createWorker,
         addressSearch,
         openRecoverySource,
+        offerRecoverySource,
         installSilentPaymentFeature,
         installBip85Feature,
         installBip38EncryptionFeature,
@@ -818,24 +821,38 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
         resetForAdapter(getCoinAdapter(id));
         view.focusProtocolButton(id);
       });
+      /** A reference to the phrase in Generate & Derive; it expires when that phrase or passphrase changes. */
+      const originalRecoveryReference = (): RecoverySourceReference => {
+        const revision = mainRecoverySourceRevision;
+        return {
+          label: 'Original recovery phrase',
+          read: () =>
+            revision === mainRecoverySourceRevision ? { mnemonic: mnemonic.value, passphrase: passphrase.value } : null,
+        };
+      };
       if (openRecoverySource !== undefined) {
         installRecoverySourceController({
           document,
           open: openRecoverySource,
           childReference: () => bip85Feature?.sourceReference() ?? null,
-          originalReference: () => {
-            const revision = mainRecoverySourceRevision;
-            return {
-              label: 'Original recovery phrase',
-              read: () =>
-                revision === mainRecoverySourceRevision
-                  ? { mnemonic: mnemonic.value, passphrase: passphrase.value }
-                  : null,
-            };
-          },
+          originalReference: originalRecoveryReference,
           showError,
         });
       }
+      /** Offers the phrase to the backup tabs while it is a checksum-valid English BIP39 phrase. */
+      const offerMainRecoverySource = (): void => {
+        if (offerRecoverySource === undefined) return;
+        let entropy: Uint8Array | null = null;
+        try {
+          entropy = englishMnemonicToEntropy(mnemonic.value);
+          offerRecoverySource(originalRecoveryReference());
+        } catch {
+          offerRecoverySource(null);
+        } finally {
+          entropy?.fill(0);
+        }
+      };
+      offerMainRecoverySource();
 
       for (const control of [
         controls.network,
@@ -864,6 +881,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
       for (const input of [mnemonic, passphrase]) {
         input.addEventListener('input', () => {
           mainRecoverySourceRevision += 1;
+          queueMicrotask(offerMainRecoverySource);
           stopActiveDerivation();
           invalidateAddressSearch();
           derivationRevision += 1;
@@ -889,6 +907,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
       ] as const) {
         generateButton.addEventListener('click', () => {
           mainRecoverySourceRevision += 1;
+          queueMicrotask(offerMainRecoverySource);
           cancelAutomaticDerivation();
           invalidateAddressSearch();
           derivationRevision += 1;
@@ -910,6 +929,7 @@ export function createKeyDerivationController(view: KeyDerivationView, dependenc
 
       clearAllButton.addEventListener('click', () => {
         mainRecoverySourceRevision += 1;
+        queueMicrotask(offerMainRecoverySource);
         cancellationRequested = true;
         cancelAutomaticDerivation();
         stopActiveDerivation('Derivation cleared by the user.');

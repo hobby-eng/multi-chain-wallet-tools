@@ -26,8 +26,9 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
   installSecretToggle(
     '#toggle-envelope-recipient-mnemonic',
     '#envelope-recipient-mnemonic',
-    'Show phrase',
-    'Hide phrase',
+    'Show',
+    'Hide',
+    'recipient recovery phrase',
   );
   const recipientSource = required<HTMLSelectElement>('#envelope-recipient-source');
   const synchronizeRecipientSource = (): void => {
@@ -50,7 +51,7 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
     layout: 'inline',
     help: 'Each permit group creates a separate set of SSKR shares. First satisfy Shares required inside a group; then satisfy the Envelope group threshold with that many completed groups.',
   });
-  installSecretToggle('#toggle-envelope-source', '#envelope-source', 'Show phrase', 'Hide phrase');
+  installSecretToggle('#toggle-envelope-source', '#envelope-source', 'Show', 'Hide', 'recovery phrase');
   installMnemonicSourceDiagnostic(
     context,
     'gordian-envelope',
@@ -61,8 +62,9 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
   installSecretToggle(
     '#toggle-envelope-records',
     '#envelope-records, #envelope-private-key',
-    'Show records',
-    'Hide records',
+    'Show',
+    'Hide',
+    'records and private key',
   );
   installSecretToggle(
     '#toggle-envelope-created',
