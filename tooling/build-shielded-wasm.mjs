@@ -47,7 +47,7 @@ if (!lockfile.includes(expectedOrchard)) {
   throw new Error("Cargo.lock does not contain the audited Dash Orchard release and commit.");
 }
 
-version(cargo, "cargo 1.98.1");
+version(cargo, "cargo 1.99.0");
 assertExactToolVersion(wasmBindgen, "wasm-bindgen 0.2.129", { cwd: root, env: environment });
 run(cargo, [
   "build",

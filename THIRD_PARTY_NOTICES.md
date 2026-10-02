@@ -88,12 +88,11 @@ The following is the complete Cargo metadata package set of the WASM modules; th
 ### MIT OR Apache-2.0 family
 
 ```text
-allocator-api2 0.2.21           equivalent 1.0.2
 aead 0.5.2                      aes 0.8.4
 arrayvec 0.7.8                  atomic-polyfill 1.0.3
 autocfg 1.5.1                   base16ct 0.2.0
 bls12_381 0.8.0                 bumpalo 3.20.3
-cbc 0.1.2                       cfg-if 1.0.4
+cbc 0.1.2                       cfg-if 1.0.5
 chacha20 0.9.1                  chacha20poly1305 0.10.1
 cipher 0.4.4                    cobs 0.3.0
 corez 0.1.1                     cpufeatures 0.2.17
@@ -108,11 +107,10 @@ embedded-io 0.6.1               ff 0.13.1
 fpe 0.6.1                       frost-core 3.0.0
 frost-rerandomized 3.0.0        group 0.13.0
 halo2_poseidon 0.1.0            hash32 0.2.1
-hashbrown 0.15.5
 heapless 0.7.17                 hex 0.4.3
 incrementalmerkletree 0.8.2     inout 0.1.4
 itertools 0.14.0                jubjub 0.10.0
-lazy_static 1.5.0               libc 0.2.189
+lazy_static 1.5.1               libc 0.2.189
 litrs 1.0.0                     lock_api 0.4.14
 memuse 0.2.2                    num-bigint 0.4.8
 num-integer 0.1.47              num-traits 0.2.19
@@ -128,8 +126,8 @@ serde 1.0.229                   serde_core 1.0.229
 serde_derive 1.0.229            serdect 0.2.0
 sinsemilla 0.1.0               stable_deref_trait 1.2.1
 static_assertions 1.1.0         syn 2.0.119
-syn 3.0.4 / 3.0.5               thiserror 2.0.20
-thiserror-impl 2.0.20           typenum 1.20.1
+syn 3.0.6                       thiserror 2.0.21
+thiserror-impl 2.0.21           typenum 1.20.1
 universal-hash 0.5.1            version_check 0.9.5
 wasm-bindgen 0.2.129            wasm-bindgen-macro 0.2.129
 wasm-bindgen-macro-support 0.2.129
@@ -159,9 +157,8 @@ byteorder 1.5.0                                               Unlicense OR MIT
 memchr 2.8.3                                                  Unlicense OR MIT
 codex32 0.1.0                                                CC0-1.0
 constant_time_eq 0.4.2                                        CC0-1.0 OR MIT-0 OR Apache-2.0
-foldhash 0.1.5                                                 Zlib
 subtle 2.6.1                                                  BSD-3-Clause
-unicode-ident 1.0.24                                          (MIT OR Apache-2.0) AND Unicode-3.0
+unicode-ident 1.0.26                                          (MIT OR Apache-2.0) AND Unicode-3.0
 visibility 0.1.1                                             Zlib OR MIT OR Apache-2.0
 wasi 0.11.1+wasi-snapshot-preview1                           Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
 ```
@@ -182,8 +179,8 @@ bc-rand 0.5.0                                    BSD-2-Clause-Patent
 bc-shamir 0.13.0                                 BSD-2-Clause-Patent
 bc-tags 0.12.0                                   BSD-2-Clause-Patent
 bc-ur 0.19.2                                     BSD-2-Clause-Patent
-bitcoin-consensus-encoding 1.2.0                 CC0-1.0
-bitcoin-internals 0.6.0                          CC0-1.0
+bitcoin-consensus-encoding 1.3.0                 CC0-1.0
+bitcoin-internals 0.7.0                          CC0-1.0
 bitcoin-io 0.1.101                               CC0-1.0
 bitcoin-private 0.1.0                            CC0-1.0
 bitcoin_hashes 0.12.0                            CC0-1.0
@@ -191,7 +188,7 @@ bitcoin_hashes 0.14.101                          CC0-1.0
 blake2 0.10.6                                    MIT OR Apache-2.0
 block-buffer 0.10.4                              MIT OR Apache-2.0
 bytes 1.12.1                                     MIT
-cc 1.4.6                                         MIT OR Apache-2.0
+cc 1.5.1                                         MIT OR Apache-2.0
 chrono 0.4.45                                    MIT OR Apache-2.0
 const-oid 0.9.6                                  Apache-2.0 OR MIT
 core-foundation-sys 0.8.7                        MIT OR Apache-2.0
@@ -208,7 +205,7 @@ displaydoc 0.2.7                                 MIT OR Apache-2.0
 ed25519 2.2.3                                    Apache-2.0 OR MIT
 ed25519-dalek 2.2.0                              BSD-3-Clause
 fiat-crypto 0.2.9                                MIT OR Apache-2.0 OR BSD-1-Clause
-find-msvc-tools 0.1.12                           MIT OR Apache-2.0
+find-msvc-tools 0.1.14                           MIT OR Apache-2.0
 form_urlencoded 1.2.2                            MIT OR Apache-2.0
 futures-core 0.3.34                              MIT OR Apache-2.0
 futures-task 0.3.34                              MIT OR Apache-2.0
@@ -252,7 +249,6 @@ r-efi 5.3.0                                      MIT OR Apache-2.0 OR LGPL-2.1-o
 rand 0.9.5                                       MIT OR Apache-2.0
 rand_chacha 0.9.0                                MIT OR Apache-2.0
 rand_core 0.9.5                                  MIT OR Apache-2.0
-rand_core 0.9.5                                  MIT OR Apache-2.0
 rand_xoshiro 0.6.0                               MIT OR Apache-2.0
 rand_xoshiro 0.7.0                               MIT OR Apache-2.0
 salsa20 0.10.2                                   MIT OR Apache-2.0
@@ -263,13 +259,13 @@ serde_json 1.0.151                               MIT OR Apache-2.0
 sha2 0.10.9                                      MIT OR Apache-2.0
 shlex 2.0.1                                      MIT OR Apache-2.0
 signature 2.2.0                                  Apache-2.0 OR MIT
-siphasher 1.0.3                                  MIT/Apache-2.0
+siphasher 1.0.4                                  MIT OR Apache-2.0
 slab 0.4.12                                      MIT
-smallvec 1.16.1                                  MIT OR Apache-2.0
+smallvec 1.16.2                                  MIT OR Apache-2.0
 spki 0.7.3                                       Apache-2.0 OR MIT
 sskr 0.12.0                                      BSD-2-Clause-Patent
 syn 1.0.109                                      MIT OR Apache-2.0
-syn 3.0.5                                        MIT OR Apache-2.0
+syn 3.0.6                                        MIT OR Apache-2.0
 synstructure 0.14.0                              MIT
 tinystr 0.8.4                                    Unicode-3.0
 tinyvec 1.13.3                                   Zlib OR Apache-2.0 OR MIT
@@ -288,9 +284,9 @@ wit-bindgen 0.57.1                               Apache-2.0 WITH LLVM-exception 
 writeable 0.6.4                                  Unicode-3.0
 x25519-dalek 2.0.1                               BSD-3-Clause
 yoke 0.8.3                                       Unicode-3.0
-yoke-derive 0.8.3                                Unicode-3.0
-zerocopy 0.8.57                                  BSD-2-Clause OR Apache-2.0 OR MIT
-zerocopy-derive 0.8.57                           BSD-2-Clause OR Apache-2.0 OR MIT
+yoke-derive 0.8.4                                Unicode-3.0
+zerocopy 0.8.59                                  BSD-2-Clause OR Apache-2.0 OR MIT
+zerocopy-derive 0.8.59                           BSD-2-Clause OR Apache-2.0 OR MIT
 zerofrom 0.1.8                                   Unicode-3.0
 zerofrom-derive 0.1.8                            Unicode-3.0
 zeroize 1.9.0                                    Apache-2.0 OR MIT
@@ -304,12 +300,12 @@ zerovec-derive 0.11.6                            Unicode-3.0
 The executable versions of the Deriver compile exactly the crates of `apps/key-derivation/launcher/Cargo.lock`, all licensed MIT OR Apache-2.0:
 
 ```text
-block-buffer 0.12.1             cfg-if 1.0.4                  cpufeatures 0.3.1
+block-buffer 0.12.1             cfg-if 1.0.5                  cpufeatures 0.3.1
 crypto-common 0.2.2             digest 0.11.3                 hybrid-array 0.4.15
 libc 0.2.189                    sha2 0.11.0                   typenum 1.20.1
 ```
 
-Each executable also contains the standard library of Rust 1.98.1, licensed MIT OR Apache-2.0. The Linux and Windows executables are linked in `Dockerfile.launchers` with the GNU toolchains of its pinned Ubuntu snapshot (`gcc-aarch64-linux-gnu`, MinGW-w64 `gcc-mingw-w64-x86-64`), the macOS executables with Apple's toolchain on the release runner.
+Each executable also contains the standard library of Rust 1.99.0, licensed MIT OR Apache-2.0. The Linux and Windows executables are linked in `Dockerfile.launchers` with the GNU toolchains of its pinned Ubuntu snapshot (`gcc-aarch64-linux-gnu`, MinGW-w64 `gcc-mingw-w64-x86-64`), the macOS executables with Apple's toolchain on the release runner.
 
 ## Reproduced notices for Recovery and QR components
 
