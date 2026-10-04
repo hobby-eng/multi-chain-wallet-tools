@@ -1,5 +1,9 @@
 # Dash Community Wallet Tools
 
+[![Release](https://github.com/hobby-eng/dash-wallet-tools/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/hobby-eng/dash-wallet-tools/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/hobby-eng/dash-wallet-tools/blob/main/LICENSE)
+[![Build provenance: GitHub attestations](https://img.shields.io/badge/build%20provenance-GitHub%20attestations-2ea44f)](https://github.com/hobby-eng/dash-wallet-tools/attestations)
+
 **Current canonical source version: {{VERSION}}** (source metadata date: {{RELEASE_DATE}}). This documentation describes the current code, not necessarily the latest published HTML release. Download published files from [Dash releases](https://github.com/hobby-eng/dash-wallet-tools/releases).
 
 Dash Community Edition contains four standalone HTML tools for Dash. Open downloaded files in a current browser; no installation or server is required. Application code lives in [multi-chain-wallet-tools](https://github.com/hobby-eng/multi-chain-wallet-tools), and this repository distributes the Dash releases.
@@ -44,7 +48,7 @@ Download the release files into one directory and run:
 sha256sum -c SHA256SUMS
 ```
 
-Release bundles include `verification-record.json`, `LICENSE`, `ATTRIBUTION.md`, and `THIRD_PARTY_NOTICES.md`. Verify GitHub build-provenance attestations with:
+Release bundles include `verification-record.json`, `LICENSE`, `ATTRIBUTION.md`, and `THIRD_PARTY_NOTICES.md`. Verify GitHub build-provenance attestations on the computer that downloaded the file, because it needs the network:
 
 ```sh
 gh attestation verify Dash_Community_Key_Derivation_Tool.html -R hobby-eng/dash-wallet-tools

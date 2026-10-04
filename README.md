@@ -5,6 +5,9 @@ Changes after the latest release, including security-related dependency replacem
 [![CI](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/ci.yml)
 [![Published vectors](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/vectors.yml/badge.svg?branch=main)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/vectors.yml)
 [![RustSec audit](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/audit.yml)
+[![Release](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/release.yml/badge.svg)](https://github.com/hobby-eng/multi-chain-wallet-tools/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Build provenance: GitHub attestations](https://img.shields.io/badge/build%20provenance-GitHub%20attestations-2ea44f)](https://github.com/hobby-eng/multi-chain-wallet-tools/attestations)
 
 This documentation describes **v0.1.5**, which is in preparation: the release candidate v0.1.5-rc.1 is published, and the latest stable release is v0.1.4. Both editions are built from the same tagged source revision.
 
@@ -152,6 +155,12 @@ sha256sum -c Wallet_Key_Derivation_Tool.html.sha256
 sha256sum -c Wallet_Activity_Viewer.html.sha256
 sha256sum -c Wallet_Discovery_Scanner.html.sha256
 sha256sum -c PSBT_Multisig_Inspector.html.sha256
+```
+
+Then check that GitHub built the file from this repository. Run it on the computer that downloaded the file, because it needs the network:
+
+```bash
+gh attestation verify Wallet_Key_Derivation_Tool.html --repo hobby-eng/multi-chain-wallet-tools
 ```
 
 The Deriver also comes as an executable for each platform, such as `Wallet_Key_Derivation_Tool-linux-x86_64` or `Wallet_Key_Derivation_Tool-windows-x86_64.exe`. It is the same page inside a small program that serves it to this computer only, so that MHFE runs in fast mode. Check it the same way before running it (`sha256sum -c Wallet_Key_Derivation_Tool-linux-x86_64.sha256`), and ideally also with `gh attestation verify`. On Linux and macOS, allow it to run with `chmod +x`. The macOS versions are not signed by Apple: the first time, open them with a right click and **Open**. The Linux and Windows versions are built reproducibly in a pinned container (`Dockerfile.launchers`) around the canonical HTML page; the macOS versions are built by the release workflow on GitHub's macOS runners and are covered by the same `SHA256SUMS` and attestations.
