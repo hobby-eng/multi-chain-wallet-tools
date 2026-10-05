@@ -51,6 +51,17 @@ Each module requires its own UI fragment, entrypoint, tests and artifact markers
 
 - [x] Public Bitcoin/Ethereum history providers now live in `packages/public-data-providers`; Activity Viewer no longer imports Discovery Scanner application code.
 
+## Own decentralized block explorer with batch queries and GroveDB proofs
+
+Idea recorded on 2026-10-05. Today the Discovery Scanner and Activity Viewer depend on free public explorers, which limit requests per IP address and can block or ban an address that sends too many. The plan is a block explorer built for these tools.
+
+- [ ] Cover all popular coins, not only the ones the tools support today.
+- [ ] Answer for single addresses and in batches of 50, 100, 200, 500 or 1,000 addresses per request.
+- [ ] Return every answer with a cryptographic proof based on GroveDB, including proof that an address is absent: no balance and no history. GroveDB already proves the absence of a key and of further keys within a queried range, also on secondary indexes.
+- [ ] Run as a decentralized network of independent nodes with different endpoints and addresses, so there is no single choke point for rate limits or denial of service.
+- [ ] Make indexing deterministic, so that independent nodes reach the same GroveDB root hash at the same block height and a client can trust a proof by comparing that root across several nodes. A proof by itself only shows consistency with the root of the node that produced it.
+- [ ] Open questions: who runs and pays for the nodes, and privacy, since a node that answers a batch learns that its addresses belong together.
+
 ## Dash address and descriptor evolution
 
 - [ ] Monitor Dash Core releases, DIPs and descriptor/RPC documentation for new address/script types and corresponding descriptor expressions. Current account descriptor exports cover Core L1 P2PKH via `pkh(...)` only (BIP44, legacy mobile and mobile DIP9 CoinJoin paths). Do not assume a new Platform or Orchard address format is a Core descriptor.
