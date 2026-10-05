@@ -582,6 +582,14 @@
   font-size: 11.5px;
   line-height: 1.55;
 }
+.large-scan-confirm {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 9px;
+  color: #efe4c6;
+  font-weight: 600;
+}
 .scan-always-on-note {
   margin: 0 0 17px;
   padding: 10px 13px;

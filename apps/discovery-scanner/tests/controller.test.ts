@@ -810,6 +810,50 @@ describe("explicit source selection and both batch modes", () => {
       "watch-2-dash",
     ]);
   });
+  it("refuses a seed scan above the large-scan limit until the warning is confirmed", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
+    const h = publicHarness();
+    // 30,000 receive addresses in each of four Bitcoin families: 1,200 lookups for one phrase.
+    const large = { ...snapshot(), coinId: "bitcoin", coreReceiveCount: "30000" };
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({ ...large }));
+    h.controller.start();
+    await settle();
+    h.controls.startButton.click();
+    await settle();
+    expect(h.scanSeed).not.toHaveBeenCalled();
+    expect(h.view.showError).toHaveBeenCalledWith(
+      expect.stringContaining("at least 1,204 provider lookups"),
+    );
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({
+      ...large,
+      largeScanConfirmed: true,
+    }));
+    h.controls.startButton.click();
+    await vi.waitFor(() => expect(h.scanSeed).toHaveBeenCalledOnce());
+  });
+  it("applies the same limit to automatic candidate batches", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
+    const h = publicHarness();
+    const phrase = snapshot().singleMnemonic;
+    // 200 phrases x 8 Bitcoin lookups at the default 100 + 100 addresses per family.
+    vi.mocked(h.view.readInputs).mockImplementation(() => ({
+      ...snapshot(),
+      automaticCandidates: true,
+      candidateCoinIds: ["bitcoin"],
+      coreReceiveCount: "100",
+      coreChangeCount: "100",
+      batchMnemonics: Array.from({ length: 200 }, () => phrase).join("\n"),
+    }));
+    h.controller.start();
+    await settle();
+    h.controls.batchMode.click();
+    h.controls.startButton.click();
+    await settle();
+    expect(h.scanSeed).not.toHaveBeenCalled();
+    expect(h.view.showError).toHaveBeenCalledWith(
+      expect.stringContaining("at least 1,600 provider lookups"),
+    );
+  });
 });
 
 for (const sourceMode of ["seed", "public"] as const)

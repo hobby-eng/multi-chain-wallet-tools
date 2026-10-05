@@ -600,6 +600,14 @@
             branch. Results appear progressively and cancellation is checked between batches; CPU, network traffic,
             memory used by findings, and total time can still be substantial.
           </div>
+          <div id="large-scan-warning" class="scale-warning" hidden>
+            <strong>This scan needs at least <span id="large-scan-lookups">0</span> provider lookups.</strong> Public
+            services limit requests per IP address, so this many can get your IP address slowed down, blocked, or
+            banned, and the scan may end with incomplete results.
+            <label class="large-scan-confirm"
+              ><input id="large-scan-confirm" type="checkbox" /> I understand and want to start anyway</label
+            >
+          </div>
           <div class="recovery-action-bar">
             <div class="actions">
               <button id="start-recovery-scan" class="primary recovery-scan-button" type="button">

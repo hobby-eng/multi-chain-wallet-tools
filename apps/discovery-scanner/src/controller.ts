@@ -14,6 +14,12 @@ import { parseConcurrency } from "@ckd/core/validation.js";
 import { wipeRecoveryInputSnapshot } from "./input-snapshot.js";
 import type { WatchOnlyTarget } from "./watch-only-input.js";
 import { WalletProgressTracker } from "./wallet-progress.js";
+import {
+  countCandidateLines,
+  needsLargeScanConfirmation,
+  seedLookupEstimate,
+  seedLookupsPerPhrase,
+} from "./scan-estimate.js";
 import { ValidatedRecoveryExports } from "./validated-exports.js";
 
 interface DiscoveryScannerDependencies {
@@ -203,6 +209,24 @@ export function createDiscoveryScannerController(
     });
   }
 
+  /** Refuses a seed scan above the large-scan limit unless the person confirmed the warning. */
+  function assertLargeScanConfirmed(
+    snapshot: RecoveryInputSnapshot,
+    coinIds: readonly string[],
+  ): void {
+    // The same rule as the view's estimate: one phrase in single mode, one per non-empty line.
+    const phrases = inputMode === "single" ? 1 : countCandidateLines(snapshot.batchMnemonics);
+    const estimate = seedLookupEstimate(
+      phrases,
+      seedLookupsPerPhrase(coinIds, snapshot),
+      snapshot.requestConcurrency,
+    );
+    if (needsLargeScanConfirmation(estimate) && snapshot.largeScanConfirmed !== true)
+      throw new Error(
+        `This scan needs at least ${estimate.lookups.toLocaleString()} provider lookups. Confirm the warning above the Start button first.`,
+      );
+  }
+
   function startCandidateScan(snapshot: RecoveryInputSnapshot): void {
     if (dependencies.recoveryScanConfig === undefined)
       throw new Error("Seed discovery is not included in this build.");
@@ -214,6 +238,10 @@ export function createDiscoveryScannerController(
       wipeInputSnapshot(snapshot);
       throw new Error("Select at least one coin for candidate scanning.");
     }
+    assertLargeScanConfirmed(
+      snapshot,
+      adapters.map((adapter) => adapter.id),
+    );
     const phrases = (inputMode === "single" ? snapshot.singleMnemonic : snapshot.batchMnemonics)
       .replaceAll("\r", "")
       .split("\n");
@@ -365,6 +393,7 @@ export function createDiscoveryScannerController(
         return;
       }
       try {
+        assertLargeScanConfirmed(snapshot, [snapshot.coinId]);
         inputs = recoveryInputs(snapshot);
       } finally {
         // The controller retains only the individually wipeable input objects;

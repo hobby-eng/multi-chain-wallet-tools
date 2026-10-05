@@ -17,9 +17,15 @@ import { createDiscoveryResultsView } from "./discovery-results-view.js";
 import {
   bitcoinScanEstimate,
   coinJoinPathPattern,
+  countCandidateLines,
   dashScanEstimate,
   estimateInteger,
   ethereumScanEstimate,
+  formatLookupEstimate,
+  needsLargeScanConfirmation,
+  seedLookupEstimate,
+  seedLookupsPerPhrase,
+  type SeedLookupSettings,
 } from "./scan-estimate.js";
 
 declare const __DASH_COMMUNITY__: boolean;
@@ -80,6 +86,8 @@ export interface RecoveryInputSnapshot {
   identityScanLimit: string;
   includeUsedZeroBalance: boolean;
   scanShieldedPool: boolean;
+  /** The person confirmed a scan above the large-scan lookup limit. */
+  largeScanConfirmed?: boolean;
   addressSearchEnabled?: boolean;
   addressSearchTargets?: string;
   addressSearchStart?: string;
@@ -275,6 +283,9 @@ export function createDiscoveryScannerView(
   const addressSearchResults = document.querySelector<HTMLElement>("#address-search-results");
   const addressSearchProgress = document.querySelector<HTMLElement>("#address-search-progress");
   const estimate = required<HTMLElement>("#scan-estimate");
+  const largeScanWarning = required<HTMLElement>("#large-scan-warning");
+  const largeScanLookups = required<HTMLElement>("#large-scan-lookups");
+  const largeScanConfirm = required<HTMLInputElement>("#large-scan-confirm");
   const startButton = required<HTMLButtonElement>("#start-recovery-scan");
   const startButtonLabel = required<HTMLElement>("#start-recovery-scan-label");
   const cancelButton = required<HTMLButtonElement>("#cancel-recovery-scan");
@@ -298,6 +309,7 @@ export function createDiscoveryScannerView(
   const modeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-input-mode]")];
   const estimateInputs = [
     automaticCandidates,
+    batchMnemonics,
     watchOnlyKeys,
     watchOnlyMinimum,
     ...(coinInput === null ? [] : [coinInput]),
@@ -547,6 +559,48 @@ export function createDiscoveryScannerView(
       }
     });
   }
+  /** The settings that decide how many provider lookups a seed scan needs; readInputs uses them too. */
+  function lookupSettings(coinId: string): SeedLookupSettings {
+    const dashSelected = coinId === "dash" || candidateMode();
+    return {
+      requestConcurrency: requestConcurrencyInput.value,
+      scanCore: dashSelected ? scanCoreInput.checked : true,
+      coreReceiveCount: coreReceiveInput.value,
+      coreChangeCount: coreChangeInput.value,
+      scanLegacyCore: dashSelected && scanCoreInput.checked && scanLegacyCoreInput.checked,
+      legacyCoreCount: legacyCoreCountInput.value,
+      scanCoinJoin: dashSelected && scanCoreInput.checked && scanCoinJoinInput.checked,
+      coinJoinExternalCount: coinJoinExternalCountInput.value,
+      coinJoinInternalCount: coinJoinInternalCountInput.value,
+      scanIdentityFunding:
+        dashSelected && scanPlatformIdentitiesInput.checked && scanIdentityFundingInput.checked,
+      scanProviderCollateral:
+        dashSelected && scanCoreInput.checked && scanProviderCollateralInput.checked,
+      providerCollateralCount: providerCollateralCountInput.value,
+      scanPlatformAddresses: dashSelected && scanPlatformAddressesInput.checked,
+      platformAddressCount: platformCountInput.value,
+      scanPlatformIdentities: dashSelected && scanPlatformIdentitiesInput.checked,
+      identityScanLimit: identityLimitInput.value,
+      includeUsedZeroBalance: includeUsedZeroInput.checked,
+      scanShieldedPool: dashSelected && scanShieldedInput.checked,
+    };
+  }
+
+  /** Shows the minimum lookups and time of a seed scan, and the confirmation above the limit. */
+  function showLookupEstimate(coinIds: readonly string[], coinId: string): string {
+    const phrases = seedMode === "single" ? 1 : countCandidateLines(batchMnemonics.value);
+    const lookupEstimate = seedLookupEstimate(
+      phrases,
+      seedLookupsPerPhrase(coinIds, lookupSettings(coinId)),
+      requestConcurrencyInput.value,
+    );
+    const large = needsLargeScanConfirmation(lookupEstimate);
+    largeScanWarning.hidden = !large;
+    largeScanLookups.textContent = lookupEstimate.lookups.toLocaleString();
+    if (!large) largeScanConfirm.checked = false;
+    return formatLookupEstimate(phrases, lookupEstimate);
+  }
+
   const view = {
     form,
     startButton,
@@ -578,50 +632,20 @@ export function createDiscoveryScannerView(
         batchMnemonics: batchMnemonics.value,
         batchPassphrases: batchPassphrases.value,
         batchConcurrency: batchConcurrencyInput.value,
-        requestConcurrency: requestConcurrencyInput.value,
         clearInputOnStart: clearInputOnStart.checked,
-        scanCore: coinId === "dash" || candidateMode() ? scanCoreInput.checked : true,
-        coreReceiveCount: coreReceiveInput.value,
-        coreChangeCount: coreChangeInput.value,
         scanCustomPath: !candidateMode() && scanCustomPathInput.checked,
         customPathTemplate: customPathTemplateInput.value,
         scanCustomRange: customRangeInput.checked,
         customPathRangeEnd: customRangeEndInput.value,
         customPathFormat: customPathFormatInput.value,
         customPathCount: customPathCountInput.value,
-        scanLegacyCore:
-          (coinId === "dash" || candidateMode()) &&
-          scanCoreInput.checked &&
-          scanLegacyCoreInput.checked,
-        legacyCoreCount: legacyCoreCountInput.value,
-        scanCoinJoin:
-          (coinId === "dash" || candidateMode()) &&
-          scanCoreInput.checked &&
-          scanCoinJoinInput.checked,
-        coinJoinExternalCount: coinJoinExternalCountInput.value,
-        coinJoinInternalCount: coinJoinInternalCountInput.value,
-        scanIdentityFunding:
-          (coinId === "dash" || candidateMode()) &&
-          scanPlatformIdentitiesInput.checked &&
-          scanIdentityFundingInput.checked,
         identityFundingCount: identityFundingCountInput.value,
         identityTopUpIdentityCount: identityTopUpIdentityCountInput.value,
         identityTopUpCount: identityTopUpCountInput.value,
-        scanProviderCollateral:
-          (coinId === "dash" || candidateMode()) &&
-          scanCoreInput.checked &&
-          scanProviderCollateralInput.checked,
-        providerCollateralCount: providerCollateralCountInput.value,
-        scanPlatformAddresses:
-          (coinId === "dash" || candidateMode()) && scanPlatformAddressesInput.checked,
-        platformAddressCount: platformCountInput.value,
-        scanPlatformIdentities:
-          (coinId === "dash" || candidateMode()) && scanPlatformIdentitiesInput.checked,
         identityStartIndex: identityStartInput.value,
         identityGapLimit: identityGapInput.value,
-        identityScanLimit: identityLimitInput.value,
-        includeUsedZeroBalance: includeUsedZeroInput.checked,
-        scanShieldedPool: (coinId === "dash" || candidateMode()) && scanShieldedInput.checked,
+        ...lookupSettings(coinId),
+        largeScanConfirmed: largeScanConfirm.checked,
         addressSearchEnabled: addressSearchEnabled?.checked ?? false,
         addressSearchTargets: addressSearchTargets?.value ?? "",
         addressSearchStart: addressSearchStart?.value ?? "",
@@ -724,6 +748,8 @@ export function createDiscoveryScannerView(
       watchOnlyDetection.textContent =
         "Select a coin, or use Auto-detect for formats that identify exactly one coin.";
       if (publicInput) {
+        largeScanWarning.hidden = true;
+        largeScanConfirm.checked = false;
         startButtonLabel.textContent = "Scan public keys";
         networkInput.options[0]!.textContent = "Mainnet";
         networkInput.options[1]!.textContent = "Testnet";
@@ -801,7 +827,17 @@ export function createDiscoveryScannerView(
         startButtonLabel.textContent =
           seedMode === "single" ? "Scan selected coins" : "Check seed candidates";
         const selected = candidateCoinInputs.filter((input) => input.checked);
-        estimate.textContent = `${selected.map((input) => coinAdapters.get(input.value)?.label).join(" · ") || "Select at least one coin"} · one phrase at a time · selected coins in parallel · shared network concurrency${includeUsedZeroInput.checked ? " · zero-balance history enabled" : ""}`;
+        let lookupText: string;
+        try {
+          lookupText = showLookupEstimate(
+            selected.map((input) => input.value),
+            coinInput?.value ?? profileCoinId ?? "dash",
+          );
+        } catch {
+          largeScanWarning.hidden = true;
+          lookupText = "enter valid scan counts";
+        }
+        estimate.textContent = `${selected.map((input) => coinAdapters.get(input.value)?.label).join(" · ") || "Select at least one coin"} · ${lookupText} · selected coins in parallel · shared network concurrency${includeUsedZeroInput.checked ? " · zero-balance history enabled" : ""}`;
         scanCoverageDescription.textContent =
           "Multi-coin scan coverage · supported standard branches and selected components";
         return;
@@ -809,8 +845,9 @@ export function createDiscoveryScannerView(
       coinJoinPathPreview.textContent = coinJoinPathPattern(networkInput.value);
       try {
         const coinId = coinInput?.value ?? profileCoinId ?? "dash";
+        const lookupText = showLookupEstimate([coinId], coinId);
         if (!__DASH_COMMUNITY__ && coinId === "bitcoin") {
-          estimate.textContent = bitcoinScanEstimate(
+          estimate.textContent = `${bitcoinScanEstimate(
             coreReceiveInput.value,
             coreChangeInput.value,
             {
@@ -819,22 +856,22 @@ export function createDiscoveryScannerView(
               requests: requestConcurrencyInput.value,
               includeUsedZero: includeUsedZeroInput.checked,
             },
-          );
+          )} · ${lookupText}`;
           startButtonLabel.textContent = "Scan Bitcoin holdings";
           return;
         }
         if (!__DASH_COMMUNITY__ && coinId === "ethereum") {
-          estimate.textContent = ethereumScanEstimate(coreReceiveInput.value, {
+          estimate.textContent = `${ethereumScanEstimate(coreReceiveInput.value, {
             customPath: scanCustomPathInput.checked,
             customRange: customRangeInput.checked,
             requests: requestConcurrencyInput.value,
             includeUsedZero: includeUsedZeroInput.checked,
-          });
+          })} · ${lookupText}`;
           startButtonLabel.textContent = "Scan Ethereum holdings";
           return;
         }
         startButtonLabel.textContent = "Scan Dash holdings";
-        estimate.textContent = dashScanEstimate({
+        estimate.textContent = `${dashScanEstimate({
           scanCore: scanCoreInput.checked,
           receiveCount: coreReceiveInput.value,
           changeCount: coreChangeInput.value,
@@ -854,8 +891,9 @@ export function createDiscoveryScannerView(
           requestConcurrency: requestConcurrencyInput.value,
           includeUsedZero: includeUsedZeroInput.checked,
           scanShielded: scanShieldedInput.checked,
-        });
+        })} · ${lookupText}`;
       } catch {
+        largeScanWarning.hidden = true;
         estimate.textContent = "Enter valid scan counts";
       }
     },
