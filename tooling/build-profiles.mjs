@@ -81,6 +81,7 @@ export function assertDashOnlyGraph(inputs, label) {
       "packages/network-boundary/src/recovery-protocol.ts",
       "packages/network-boundary/src/data-types.ts",
       "packages/network-boundary/src/bounded-fetch.ts",
+      "packages/network-boundary/src/bounded-json.ts",
       "packages/network-boundary/src/recovery-history.ts",
       "packages/network-boundary/src/client.ts",
       "packages/network-boundary/src/worker-runtime.ts",

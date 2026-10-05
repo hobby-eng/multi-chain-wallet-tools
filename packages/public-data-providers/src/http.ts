@@ -1,28 +1,18 @@
 import { PROVIDER_UNSIGNED_DECIMAL } from "@ckd/core/numeric-limits.js";
 import { boundedFetch } from "@ckd/network-boundary/bounded-fetch.js";
+import { readBoundedJson } from "@ckd/network-boundary/bounded-json.js";
 
 const DECIMAL_PATTERN = PROVIDER_UNSIGNED_DECIMAL;
+/** Byte ceiling for one Bitcoin or Ethereum provider response; the earlier check used it too. */
+const MAX_PUBLIC_PROVIDER_JSON_BYTES = 20_000_000;
 
 export function publicProviderAbortError(): DOMException {
   return new DOMException("Recovery network operation cancelled.", "AbortError");
 }
 
+// boundedFetch turns an abort during body reading into the caller's abort or timeout error.
 function readProviderJson(response: Response, signal: AbortSignal): Promise<unknown> {
-  return response.text().then(
-    (text) => {
-      if (text.length > 20_000_000)
-        throw new Error("Network provider response exceeded the size limit.");
-      try {
-        return JSON.parse(text) as unknown;
-      } catch {
-        throw new Error("Network provider returned malformed JSON.");
-      }
-    },
-    (cause) => {
-      if (signal.aborted) throw publicProviderAbortError();
-      throw cause;
-    },
-  );
+  return readBoundedJson(response, signal, MAX_PUBLIC_PROVIDER_JSON_BYTES);
 }
 
 export function record(value: unknown, context: string): Record<string, unknown> {
