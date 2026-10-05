@@ -58,6 +58,8 @@ gh attestation verify Dash_Community_Key_Derivation_Tool.html -R hobby-eng/dash-
 
 Use a trusted offline device for the Deriver and Inspector. The Viewer is connected and accepts public/watch-only inputs. The Scanner is connected, but secret derivation runs in a network-disabled isolated vault and sends public lookups to the network worker. A compromised browser or operating system can still steal secrets. See [SECURITY.md](https://github.com/hobby-eng/dash-wallet-tools/blob/main/SECURITY.md).
 
+**Do not use the Discovery Scanner for mass scanning.** It asks free public services (DashScan, Dash Platform Explorer and Dash Platform nodes) about every address it checks. These services limit how many requests one IP address may send. Too many requests can get your IP address slowed down, temporarily blocked, or banned, and the scan then ends with incomplete results. The Scanner checks one seed phrase at a time by default (up to five in Batch mode), runs at most five lookups at once (lower this under **Parallel network requests**), and asks about up to 100 addresses in one lookup. It retries a failed Platform proof query after 0.4 and then 0.8 seconds, but otherwise does not pause or slow down by itself. For many candidates, use 1 or 2 parallel requests, smaller batches, and breaks between them.
+
 This is an independent hobby project, not an official Dash product. Ready-made open-source cryptographic libraries do not establish the safety of their integration. See [attribution](https://github.com/hobby-eng/dash-wallet-tools/blob/main/ATTRIBUTION.md) and [third-party licenses](https://github.com/hobby-eng/dash-wallet-tools/blob/main/THIRD_PARTY_NOTICES.md).
 
 ## Releases and documentation updates

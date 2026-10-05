@@ -93,6 +93,16 @@ The Scanner searches supported standard wallet paths from one or many BIP39 cand
 
 Seed derivation runs in a network-denied Secret Vault. Only validated public lookup material crosses to the Network Worker. A public key covers only paths reachable below that key; a seed phrase and its passphrase provide the broadest supported search. The Scanner never creates, signs, or broadcasts transactions.
 
+**Do not use the Scanner for mass scanning.** It asks free public blockchain services about every address it checks. These services limit how many requests one IP address may send. Too many requests can get your IP address slowed down, temporarily blocked, or banned, and the scan then ends with incomplete results. Check a few candidates at a time, not thousands.
+
+What the Scanner already does to stay within these limits:
+
+- It scans one seed phrase at a time. Batch mode can scan up to five at once, but one is the default.
+- It runs at most five lookups at once, shared by all selected coins. You can lower this to one under **Parallel network requests**.
+- One lookup asks about up to 100 Bitcoin, Ethereum, Dash Core, or Dash Platform addresses together.
+- If the Bitcoin batch services (Blockchain.com, BlockCypher) fail, the lookup asks Mempool.space and Blockstream.info one address at a time, at most three at a time. When one of them is busy or refuses (for example HTTP 429), it tries again after 0.35 and then 0.9 seconds, switching between the two. A failed Dash Platform proof query is retried after 0.4 and then 0.8 seconds. Both stop after three attempts.
+- It does not pause between ordinary requests and does not slow down by itself during a long scan. For many candidates, set **Parallel network requests** to 1 or 2, split the list into smaller batches, and take breaks between them.
+
 [Detailed Scanner instructions](apps/discovery-scanner/README.md)
 
 ### PSBT & Multisig Inspector
