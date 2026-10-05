@@ -160,6 +160,7 @@ const requiredIds = [
   "mhfe-container",
   "mhfe-encrypt",
   "mhfe-decrypt",
+  "mhfe-runtime",
   "matcher-seed-lines",
   "matcher-passphrase-lines",
   "matcher-address-lines",

@@ -34,6 +34,8 @@ const MAX_PIM = 1023;
 const MEMORY_LEVEL = 0;
 /** Rounds of one pass through the cipher; an encryption runs a second pass as its check. */
 const ROUNDS_PER_STAGE = 12;
+/** Argon2 threads of the browser package in fast mode; the file version gets one. */
+const FAST_MODE_THREADS = 4;
 
 let client: MhfeClient | undefined;
 
@@ -91,6 +93,9 @@ function renderSpeedNotice(): void {
           "seven minutes. For about one and a half minutes, use the executable version of this tool.",
       );
   notice.replaceChildren(experimental, speed);
+  required<HTMLElement>("#mhfe-runtime").textContent = isFastMode()
+    ? `Active · ${FAST_MODE_THREADS} threads`
+    : "Inactive · 1 thread · use the executable version";
 }
 
 function selectedPim(prefix: "encrypt" | "decrypt"): number {
