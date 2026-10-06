@@ -13,7 +13,7 @@
       /*__INLINE_CSS__*/
     </style>
   </head>
-  <body>
+  <body spellcheck="false">
     <noscript>This offline tool requires JavaScript.</noscript>
     <header class="hero">
       <div class="deriver-topbar">
@@ -851,7 +851,7 @@
                     Show
                   </button>
                 </div>
-                <input id="mhfe-encrypt-password" type="password" autocomplete="new-password" maxlength="1024" />
+                <input id="mhfe-encrypt-password" type="password" autocomplete="off" />
               </div>
               <div class="mhfe-password-field">
                 <div class="field-heading-row">
@@ -865,12 +865,7 @@
                     Show
                   </button>
                 </div>
-                <input
-                  id="mhfe-encrypt-password-confirm"
-                  type="password"
-                  autocomplete="new-password"
-                  maxlength="1024"
-                />
+                <input id="mhfe-encrypt-password-confirm" type="password" autocomplete="off" />
               </div>
             </div>
             <label class="checkbox-row" for="mhfe-encrypt-use-pim">
@@ -924,7 +919,7 @@
                   Show
                 </button>
               </div>
-              <input id="mhfe-decrypt-password" type="password" autocomplete="current-password" maxlength="1024" />
+              <input id="mhfe-decrypt-password" type="password" autocomplete="off" />
             </div>
             <label class="checkbox-row" for="mhfe-decrypt-use-pim">
               <input id="mhfe-decrypt-use-pim" type="checkbox" />
@@ -1290,7 +1285,7 @@
               <div><label for="envelope-note">Note · optional</label><input id="envelope-note" type="text" /></div>
               <div>
                 <label for="envelope-password">Container password · optional</label
-                ><input id="envelope-password" type="password" autocomplete="new-password" />
+                ><input id="envelope-password" type="password" autocomplete="off" />
               </div>
               <div>
                 <label for="envelope-public-keys">Recipient public keys · optional, one UR per line</label
@@ -1377,7 +1372,7 @@
             </div>
             <textarea id="envelope-records" class="concealed" rows="7"></textarea>
             <label for="envelope-unlock-password">Password · optional</label
-            ><input id="envelope-unlock-password" type="password" /><label for="envelope-private-key"
+            ><input id="envelope-unlock-password" type="password" autocomplete="off" /><label for="envelope-private-key"
               >Recipient private key · optional</label
             ><textarea
               id="envelope-private-key"
@@ -1951,12 +1946,7 @@
             </label>
             <div id="bulk-bip38-fields" class="bulk-bip38-inline" hidden>
               <label class="visually-hidden" for="bulk-bip38-passphrase">BIP38 password</label>
-              <input
-                id="bulk-bip38-passphrase"
-                type="password"
-                autocomplete="new-password"
-                placeholder="BIP38 password"
-              />
+              <input id="bulk-bip38-passphrase" type="password" autocomplete="off" placeholder="BIP38 password" />
               <button class="secondary compact" id="toggle-bulk-bip38-passphrase" type="button" aria-pressed="false">
                 Show
               </button>

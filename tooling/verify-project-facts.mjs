@@ -304,6 +304,27 @@ for (const path of markdownFiles(root)) {
     );
 }
 
+// Pages that take secrets keep them away from spell-check services, password managers and silent
+// truncation: spell checking is off for the whole page (the attribute is inherited), no password
+// field asks a password manager to save or fill it, and none has a maxlength, since the libraries
+// refuse an overlong value with their own message.
+const PAGES_WITH_SECRET_FIELDS = [
+  "apps/key-derivation/src/index.html",
+  "apps/discovery-scanner/src/index.html",
+  "apps/discovery-scanner/src/shell.html",
+  "apps/psbt-inspector/src/index.html",
+  "apps/activity-viewer/src/index.html",
+];
+for (const path of [...PAGES_WITH_SECRET_FIELDS, "tooling/profile-template.mjs"]) {
+  const page = read(path);
+  if (PAGES_WITH_SECRET_FIELDS.includes(path))
+    requireText(page, '<body spellcheck="false">', `${path} spell checking`);
+  for (const [input] of page.matchAll(/<input\b[^>]*\btype="password"[^>]*>/gu)) {
+    if (!/\bautocomplete="off"/u.test(input) || /\bmaxlength=/u.test(input))
+      throw new Error(`${path}: ${input} needs autocomplete="off" and no maxlength.`);
+  }
+}
+
 requireText(
   read(`docs/releases/${release.tag}.md`),
   `# Multi-Chain Wallet Tools ${release.tag}`,
