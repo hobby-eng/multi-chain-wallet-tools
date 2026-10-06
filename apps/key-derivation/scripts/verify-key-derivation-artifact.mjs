@@ -25,6 +25,7 @@ const wasmPaths = [
   ["MHFE", resolve(root, "packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm")],
 ];
 const html = readFileSync(artifactPath, "utf8");
+const rootPackage = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
 if (!html.includes(expectedFingerprint)) {
   throw new Error(
@@ -242,6 +243,7 @@ const required = [
   "Release passport",
   "Embedded dependency versions and licenses:",
   "passport-mnemocode-cards-dependency",
+  "passport-mhfe-dependency",
   "Cryptographic self-test running",
   "Dedicated Web Worker",
   "wallet-key-derivation",
@@ -275,7 +277,8 @@ for (const marker of [
   "MHFE specification",
   'aria-label="MHFE operation"',
   "Import QR images",
-  "qr 0.7.0",
+  // The passport names the locked QR reader; tooling/verify-project-facts.mjs checks the same.
+  `qr ${rootPackage.dependencies.qr}`,
   "CompactSeedQR",
   "SLIP-39 mnemonic shares",
   'aria-label="SeedQR operation"',

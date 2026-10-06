@@ -145,6 +145,112 @@ for (const path of markdownFiles(root)) {
   }
 }
 
+// Every version a release passport names must be the locked one, so that a dependency update cannot
+// leave a stale number on screen (AUD-021-DOC001). A version the table does not know fails too.
+const rootPackage = JSON.parse(read("package.json"));
+const pnpmLock = read("pnpm-lock.yaml");
+function npmVersion(name) {
+  const version = rootPackage.dependencies?.[name] ?? rootPackage.devDependencies?.[name];
+  if (version === undefined) throw new Error(`package.json does not pin ${name}.`);
+  return version;
+}
+function lockedVersion(name) {
+  const match = pnpmLock.match(
+    new RegExp(`^  ${name.replace(/[.*+?^${}()|[\]\\/]/gu, "\\$&")}@(\\d+\\.\\d+\\.\\d+):`, "mu"),
+  );
+  if (match === null) throw new Error(`pnpm-lock.yaml does not lock ${name}.`);
+  return match[1];
+}
+function cargoVersion(lockPath, name) {
+  const match = read(lockPath).match(new RegExp(`name = "${name}"\\nversion = "([^"]+)"`, "u"));
+  if (match === null) throw new Error(`${lockPath} does not lock ${name}.`);
+  return match[1];
+}
+function oneVersion(label, versions) {
+  if (new Set(versions).size !== 1)
+    throw new Error(
+      `The passport names one version for ${label}, but the locks differ: ${versions.join(", ")}.`,
+    );
+  return versions[0];
+}
+const SHIELDED_LOCK = "packages/dash-shielded-wasm/rust/Cargo.lock";
+const ENVELOPE_LOCK = "packages/recovery-envelope-wasm/rust/Cargo.lock";
+const WASM_LOCKS = [
+  SHIELDED_LOCK,
+  "packages/recovery-codex32-wasm/rust/Cargo.lock",
+  "packages/recovery-sskr-wasm/rust/Cargo.lock",
+  ENVELOPE_LOCK,
+];
+const orchardTag = read(SHIELDED_LOCK).match(/orchard\.git\?tag=dashified-(\d+\.\d+\.\d+)#/u)?.[1];
+const mhfeRelease = read("tooling/verify-dependency-provenance.mjs").match(
+  /id: "mhfe-v(\d+\.\d+\.\d+)"/u,
+)?.[1];
+if (orchardTag === undefined || mhfeRelease === undefined)
+  throw new Error("Missing the Orchard tag or the MHFE release in their records.");
+/** Text right before a version in a passport, and the version it must name. */
+const PASSPORT_VERSIONS = [
+  ["Dash Evo SDK/WASM SDK ", npmVersion("@dashevo/evo-sdk")],
+  [
+    "Noble Curves/Hashes ",
+    oneVersion("Noble", [npmVersion("@noble/curves"), npmVersion("@noble/hashes")]),
+  ],
+  [
+    "Scure Base/BIP32/BIP39 ",
+    oneVersion("Scure", ["@scure/base", "@scure/bip32", "@scure/bip39"].map(npmVersion)),
+  ],
+  ["Scure Base ", npmVersion("@scure/base")],
+  ["write-excel-file ", npmVersion("write-excel-file")],
+  ["fflate ", npmVersion("fflate")],
+  ["uqr ", npmVersion("uqr")],
+  ["qr ", npmVersion("qr")],
+  ["pdf-lib ", npmVersion("pdf-lib")],
+  ["@pdf-lib/fontkit ", npmVersion("@pdf-lib/fontkit")],
+  ["@pdf-lib/upng ", npmVersion("@pdf-lib/upng")],
+  ["pako ", lockedVersion("pako")],
+  ["Dash Orchard ", cargoVersion(SHIELDED_LOCK, "orchard")],
+  ["dashified-", orchardTag],
+  [
+    "wasm-bindgen ",
+    oneVersion(
+      "wasm-bindgen",
+      WASM_LOCKS.map((lock) => cargoVersion(lock, "wasm-bindgen")),
+    ),
+  ],
+  ["ZIP32 ", cargoVersion(SHIELDED_LOCK, "zip32")],
+  ["sskr ", cargoVersion(ENVELOPE_LOCK, "sskr")],
+  ["bc-envelope ", cargoVersion(ENVELOPE_LOCK, "bc-envelope")],
+  ["bc-components ", cargoVersion(ENVELOPE_LOCK, "bc-components")],
+  ["MHFE ", mhfeRelease],
+];
+const VERSION = /\d+\.\d+\.\d+/gu;
+for (const app of ["key-derivation", "activity-viewer", "discovery-scanner"]) {
+  const path = `apps/${app}/src/index.html`;
+  const paragraph = read(path).match(
+    /<p class="field-note passport-dependencies">([\s\S]*?)<\/p>/u,
+  )?.[1];
+  if (paragraph === undefined) throw new Error(`${path} has no dependency passport.`);
+  const text = paragraph.replace(/<[^>]+>/gu, " ").replace(/\s+/gu, " ");
+  const checked = new Set();
+  for (const [prefix, expected] of PASSPORT_VERSIONS) {
+    const escaped = prefix.replace(/[.*+?^${}()|[\]\\/]/gu, "\\$&");
+    for (const match of text.matchAll(
+      new RegExp(`(?<![\\w@/.-])${escaped}(\\d+\\.\\d+\\.\\d+)`, "gu"),
+    )) {
+      if (match[1] !== expected)
+        throw new Error(
+          `${path} passport names ${prefix}${match[1]}; the locked version is ${expected}.`,
+        );
+      checked.add(match.index + match[0].length - match[1].length);
+    }
+  }
+  for (const match of text.matchAll(VERSION)) {
+    if (!checked.has(match.index))
+      throw new Error(
+        `${path} passport names version ${match[0]}, which this check does not know.`,
+      );
+  }
+}
+
 // GitHub renders a Markdown list "loose", as separate paragraphs with wider spacing than every other
 // list, when a blank line separates two of its items or two blocks of one item. Audit records are
 // frozen and vendored notices are upstream text, so both are left out.

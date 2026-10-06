@@ -222,6 +222,8 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     const menuTarget = feature === "wallet-matcher" ? "matcher" : feature;
     rendered = removeButtons(rendered, "data-recovery-target", menuTarget);
   }
+  // The passport names only what this build contains.
+  if (!features.has("mhfe")) rendered = removeBalancedElement(rendered, "passport-mhfe-dependency");
   if (!features.has("mnemocode-cards")) {
     rendered = removeBalancedElement(rendered, "mnemocode-cards-section");
     // The passport names only what this build contains.
