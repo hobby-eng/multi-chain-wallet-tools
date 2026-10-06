@@ -391,9 +391,9 @@ is described above.
 ### How the licence is chosen
 
 - The crates are those compiled into the program for every release target: Linux,
-  Windows and macOS on x86-64, Linux and macOS on ARM64, with and without the `ssse3`
-  feature, and WebAssembly with the `wasm` feature. Build scripts and procedural macros,
-  which run only while building, are left out. Not every crate is in every archive.
+  Windows and macOS on x86-64, Linux and macOS on ARM64, and WebAssembly with the `wasm`
+  feature. Build scripts and procedural macros, which run only while building, are left
+  out. Not every crate is in every archive.
 - Every licence joined by AND is required and listed. Among licences joined by OR, MIT is
   used when it is offered, otherwise Apache-2.0, otherwise the only licence.
 - The text is the crate's own licence file, unchanged, with its copyright lines. Where a
@@ -420,7 +420,7 @@ is described above.
 - `block2` 0.6.2: `MIT`, used under MIT; [text 10](#text-10).
   The crate publishes no licence file. This is the standard SPDX MIT text with the copyright holders taken from the crate's `authors`.
 - `bs58` 0.5.1: `MIT/Apache-2.0`, used under MIT; [text 11](#text-11).
-- `cfg-if` 1.0.4: `MIT OR Apache-2.0`, used under MIT; [text 12](#text-12).
+- `cfg-if` 1.0.5: `MIT OR Apache-2.0`, used under MIT; [text 12](#text-12).
 - `clap` 4.6.7: `MIT OR Apache-2.0`, used under MIT; [text 1](#text-1).
 - `clap_builder` 4.6.7: `MIT OR Apache-2.0`, used under MIT; [text 1](#text-1).
 - `clap_lex` 1.1.1: `MIT OR Apache-2.0`, used under MIT; [text 1](#text-1).
@@ -456,9 +456,10 @@ is described above.
 - `itoa` 1.0.18: `MIT OR Apache-2.0`, used under MIT; [text 20](#text-20).
 - `js-sys` 0.3.106: `MIT OR Apache-2.0`, used under MIT; [text 12](#text-12).
 - `k256` 0.14.0: `Apache-2.0 OR MIT`, used under MIT; [text 31](#text-31).
-- `libc` 0.2.189: `MIT OR Apache-2.0`, used under MIT; [text 32](#text-32).
-- `memchr` 2.8.3: `Unlicense OR MIT`, used under MIT; [text 33](#text-33).
-- `nix` 0.31.3: `MIT`, used under MIT; [text 34](#text-34).
+- `keccak` 0.2.2: `Apache-2.0 OR MIT`, used under MIT; [text 32](#text-32).
+- `libc` 0.2.189: `MIT OR Apache-2.0`, used under MIT; [text 33](#text-33).
+- `memchr` 2.8.3: `Unlicense OR MIT`, used under MIT; [text 34](#text-34).
+- `nix` 0.31.3: `MIT`, used under MIT; [text 35](#text-35).
 - `num-traits` 0.2.19: `MIT OR Apache-2.0`, used under MIT; [text 6](#text-6).
 - `objc2` 0.6.4: `MIT`, used under MIT; [text 10](#text-10).
   The crate publishes no licence file. This is the standard SPDX MIT text with the copyright holders taken from the crate's `authors`.
@@ -467,29 +468,31 @@ is described above.
 - `once_cell` 1.21.4: `MIT OR Apache-2.0`, used under MIT; [text 20](#text-20).
 - `once_cell_polyfill` 1.70.2: `MIT OR Apache-2.0`, used under MIT; [text 1](#text-1).
 - `pin-project-lite` 0.2.17: `Apache-2.0 OR MIT`, used under MIT; [text 20](#text-20).
-- `primefield` 0.14.0: `Apache-2.0 OR MIT`, used under MIT; [text 35](#text-35).
-- `primeorder` 0.14.0: `Apache-2.0 OR MIT`, used under MIT; [text 36](#text-36).
-- `rand_core` 0.10.1: `MIT OR Apache-2.0`, used under MIT; [text 37](#text-37).
+- `primefield` 0.14.0: `Apache-2.0 OR MIT`, used under MIT; [text 36](#text-36).
+- `primeorder` 0.14.0: `Apache-2.0 OR MIT`, used under MIT; [text 37](#text-37).
+- `rand_core` 0.10.1: `MIT OR Apache-2.0`, used under MIT; [text 38](#text-38).
 - `sec1` 0.8.1: `Apache-2.0 OR MIT`, used under MIT; [text 17](#text-17).
 - `serde` 1.0.229: `MIT OR Apache-2.0`, used under MIT; [text 20](#text-20).
 - `serde_core` 1.0.229: `MIT OR Apache-2.0`, used under MIT; [text 20](#text-20).
 - `serde_json` 1.0.151: `MIT OR Apache-2.0`, used under MIT; [text 20](#text-20).
-- `sha2` 0.10.9: `MIT OR Apache-2.0`, used under MIT; [text 38](#text-38).
-- `sha2` 0.11.0: `MIT OR Apache-2.0`, used under MIT; [text 39](#text-39).
-- `slab` 0.4.12: `MIT`, used under MIT; [text 40](#text-40).
-- `strsim` 0.11.1: `MIT`, used under MIT; [text 41](#text-41).
-- `subtle` 2.6.1: `BSD-3-Clause`, used under BSD-3-Clause; [text 42](#text-42).
-- `tinyvec` 1.13.3: `Zlib OR Apache-2.0 OR MIT`, used under MIT; [text 43](#text-43).
-- `typenum` 1.20.1: `MIT OR Apache-2.0`, used under MIT; [text 44](#text-44).
-- `unicode-ident` 1.0.24: `(MIT OR Apache-2.0) AND Unicode-3.0`, used under MIT and Unicode-3.0; [text 20](#text-20), [text 45](#text-45).
-- `unicode-normalization` 0.1.25: `MIT OR Apache-2.0`, used under MIT; [text 46](#text-46).
-- `utf8parse` 0.2.2: `Apache-2.0 OR MIT`, used under MIT; [text 47](#text-47).
+- `sha2` 0.10.9: `MIT OR Apache-2.0`, used under MIT; [text 39](#text-39).
+- `sha2` 0.11.0: `MIT OR Apache-2.0`, used under MIT; [text 40](#text-40).
+- `sha3` 0.12.0: `MIT OR Apache-2.0`, used under MIT; [text 41](#text-41).
+- `slab` 0.4.12: `MIT`, used under MIT; [text 42](#text-42).
+- `sponge-cursor` 0.1.0: `MIT OR Apache-2.0`, used under MIT; [text 43](#text-43).
+- `strsim` 0.11.1: `MIT`, used under MIT; [text 44](#text-44).
+- `subtle` 2.6.1: `BSD-3-Clause`, used under BSD-3-Clause; [text 45](#text-45).
+- `tinyvec` 1.13.3: `Zlib OR Apache-2.0 OR MIT`, used under MIT; [text 46](#text-46).
+- `typenum` 1.20.1: `MIT OR Apache-2.0`, used under MIT; [text 47](#text-47).
+- `unicode-ident` 1.0.26: `(MIT OR Apache-2.0) AND Unicode-3.0`, used under MIT and Unicode-3.0; [text 20](#text-20), [text 48](#text-48).
+- `unicode-normalization` 0.1.25: `MIT OR Apache-2.0`, used under MIT; [text 49](#text-49).
+- `utf8parse` 0.2.2: `Apache-2.0 OR MIT`, used under MIT; [text 50](#text-50).
 - `wasm-bindgen` 0.2.129: `MIT OR Apache-2.0`, used under MIT; [text 12](#text-12).
 - `wasm-bindgen-shared` 0.2.129: `MIT OR Apache-2.0`, used under MIT; [text 12](#text-12).
-- `windows-link` 0.2.1: `MIT OR Apache-2.0`, used under MIT; [text 48](#text-48).
-- `windows-sys` 0.61.2: `MIT OR Apache-2.0`, used under MIT; [text 48](#text-48).
-- `wnaf` 0.14.1: `Apache-2.0 OR MIT`, used under MIT; [text 49](#text-49).
-- `zeroize` 1.9.0: `Apache-2.0 OR MIT`, used under MIT; [text 50](#text-50).
+- `windows-link` 0.2.1: `MIT OR Apache-2.0`, used under MIT; [text 51](#text-51).
+- `windows-sys` 0.61.2: `MIT OR Apache-2.0`, used under MIT; [text 51](#text-51).
+- `wnaf` 0.14.1: `Apache-2.0 OR MIT`, used under MIT; [text 52](#text-52).
+- `zeroize` 1.9.0: `Apache-2.0 OR MIT`, used under MIT; [text 32](#text-32).
 - `zmij` 1.0.23: `MIT`, used under MIT; [text 20](#text-20).
 
 ### Licence texts
@@ -932,7 +935,7 @@ SOFTWARE.
 
 #### Text 12
 
-MIT, for cfg-if 1.0.4, js-sys 0.3.106, wasm-bindgen 0.2.129, wasm-bindgen-shared 0.2.129.
+MIT, for cfg-if 1.0.5, js-sys 0.3.106, wasm-bindgen 0.2.129, wasm-bindgen-shared 0.2.129.
 
 ```
 Copyright (c) 2014 Alex Crichton
@@ -1188,7 +1191,7 @@ DEALINGS IN THE SOFTWARE.
 
 #### Text 20
 
-MIT, for ctrlc 3.5.2, group 0.14.0, itoa 1.0.18, once_cell 1.21.4, pin-project-lite 0.2.17, serde 1.0.229, serde_core 1.0.229, serde_json 1.0.151, unicode-ident 1.0.24, zmij 1.0.23.
+MIT, for ctrlc 3.5.2, group 0.14.0, itoa 1.0.18, once_cell 1.21.4, pin-project-lite 0.2.17, serde 1.0.229, serde_core 1.0.229, serde_json 1.0.151, unicode-ident 1.0.26, zmij 1.0.23.
 
 ```
 Permission is hereby granted, free of charge, to any
@@ -1556,6 +1559,38 @@ DEALINGS IN THE SOFTWARE.
 
 #### Text 32
 
+MIT, for keccak 0.2.2, zeroize 1.9.0.
+
+```
+Copyright (c) 2018-2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
+#### Text 33
+
 MIT, for libc 0.2.189.
 
 ```
@@ -1586,7 +1621,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-#### Text 33
+#### Text 34
 
 MIT, for memchr 2.8.3.
 
@@ -1614,7 +1649,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-#### Text 34
+#### Text 35
 
 MIT, for nix 0.31.3.
 
@@ -1642,7 +1677,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-#### Text 35
+#### Text 36
 
 MIT, for primefield 0.14.0.
 
@@ -1674,7 +1709,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-#### Text 36
+#### Text 37
 
 MIT, for primeorder 0.14.0.
 
@@ -1706,7 +1741,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-#### Text 37
+#### Text 38
 
 MIT, for rand_core 0.10.1.
 
@@ -1738,7 +1773,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-#### Text 38
+#### Text 39
 
 MIT, for sha2 0.10.9.
 
@@ -1772,7 +1807,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-#### Text 39
+#### Text 40
 
 MIT, for sha2 0.11.0.
 
@@ -1807,7 +1842,43 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-#### Text 40
+#### Text 41
+
+MIT, for sha3 0.12.0.
+
+```
+Copyright (c) 2020-2026 The RustCrypto Project Developers
+Copyright (c) 2016-2023 Artyom Pavlov, Marek Kotewicz
+Copyright (c) 2014 Sébastien Martini
+Copyright (c) 2009-2013 Mozilla Foundation
+Copyright (c) 2006-2009 Graydon Hoare
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
+#### Text 42
 
 MIT, for slab 0.4.12.
 
@@ -1839,7 +1910,39 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-#### Text 41
+#### Text 43
+
+MIT, for sponge-cursor 0.1.0.
+
+```
+Copyright (c) 2026 The RustCrypto Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
+#### Text 44
 
 MIT, for strsim 0.11.1.
 
@@ -1869,7 +1972,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-#### Text 42
+#### Text 45
 
 BSD-3-Clause, for subtle 2.6.1.
 
@@ -1905,7 +2008,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-#### Text 43
+#### Text 46
 
 MIT, for tinyvec 1.13.3.
 
@@ -1917,7 +2020,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-#### Text 44
+#### Text 47
 
 MIT, for typenum 1.20.1.
 
@@ -1945,9 +2048,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-#### Text 45
+#### Text 48
 
-Unicode-3.0, for unicode-ident 1.0.24.
+Unicode-3.0, for unicode-ident 1.0.26.
 
 ```
 UNICODE LICENSE V3
@@ -1991,7 +2094,7 @@ dealings in these Data Files or Software without prior written
 authorization of the copyright holder.
 ```
 
-#### Text 46
+#### Text 49
 
 MIT, for unicode-normalization 0.1.25.
 
@@ -2023,7 +2126,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-#### Text 47
+#### Text 50
 
 MIT, for utf8parse 0.2.2.
 
@@ -2055,7 +2158,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
 
-#### Text 48
+#### Text 51
 
 MIT, for windows-link 0.2.1, windows-sys 0.61.2.
 
@@ -2083,45 +2186,13 @@ MIT, for windows-link 0.2.1, windows-sys 0.61.2.
     SOFTWARE
 ```
 
-#### Text 49
+#### Text 52
 
 MIT, for wnaf 0.14.1.
 
 ```
 Copyright (c) 2026 RustCrypto Developers
 Copyright (c) 2018-2025 `group` crate developers
-
-Permission is hereby granted, free of charge, to any
-person obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without
-limitation the rights to use, copy, modify, merge,
-publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software
-is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice
-shall be included in all copies or substantial portions
-of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
-```
-
-#### Text 50
-
-MIT, for zeroize 1.9.0.
-
-```
-Copyright (c) 2018-2026 The RustCrypto Project Developers
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated

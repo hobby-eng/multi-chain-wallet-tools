@@ -1,11 +1,12 @@
-// MHFE panel: encrypts a BIP39 phrase into a 24-word container and recovers it, with the MHFE
-// 0.4.0 browser package (suite MHFE-BIP39-256-EXPERIMENTAL-3). Every operation runs in a fresh
-// worker that the MHFE client terminates when it ends or is stopped, which also frees the 2 GiB
-// of Argon2 memory.
+// MHFE panel: encrypts a BIP39 phrase into a 24-word container, or on request into one as long as
+// a 12- to 21-word phrase, and recovers it, with the MHFE 0.5.0 browser package. Every operation
+// runs in a fresh worker that the MHFE client terminates when it ends or is stopped, which also
+// frees the 2 GiB of Argon2 memory. The page never calls the client's check(): it repeats the whole
+// computation, and the owner wants no such long check; a recovered phrase is confirmed instead with
+// the master key fingerprint shown under it or with a known address in the Deriver.
 import {
   MhfeClient,
   MhfeError,
-  type MhfeCandidate,
   type MhfeProgress,
   type MhfeRecovery,
 } from "@ckd/recovery-mhfe-wasm/client.js";
@@ -19,16 +20,21 @@ import {
   required,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
-import { clearOnFirstProgress, describe } from "./recovery-mhfe-status.js";
+import {
+  CONTAINER_WORDS,
+  FULL_SUITE_ID,
+  SAME_LENGTH_SUITE_ID,
+  clearOnFirstProgress,
+  describe,
+  recoverySummary,
+  rememberNote,
+} from "./recovery-mhfe-status.js";
 
 // Texts of the package's classic scripts, embedded by build-key-derivation-html.mjs.
 declare const __MHFE_WORKER_SOURCE__: string;
 declare const __MHFE_ARGON2_THREADED_SOURCE__: string;
 declare const __MHFE_ARGON2_SINGLE_THREADED_SOURCE__: string;
 
-const SUITE_ID = "MHFE-BIP39-256-EXPERIMENTAL-3";
-/** A 24-word original fills the whole state and carries no verifier. */
-const WORDS_WITHOUT_CHECK = 24;
 const MAX_PIM = 1023;
 /** The only memory level a browser supports: 2 GiB, the limit of 32-bit WebAssembly Argon2. */
 const MEMORY_LEVEL = 0;
@@ -133,6 +139,11 @@ function installPasswordToggle(buttonSelector: string, inputSelector: string, la
   synchronize();
 }
 
+/** The specification lets only the user choose a same-length container; 24 words is the default. */
+function sameLengthChosen(): boolean {
+  return required<HTMLInputElement>("#mhfe-length-same").checked;
+}
+
 function selectedSourceWords(): 0 | 12 | 15 | 18 | 21 | 24 {
   const selected = required<HTMLSelectElement>("#mhfe-decrypt-source-words").value;
   if (selected === "auto") return 0;
@@ -188,6 +199,8 @@ async function runOperation<T>(
 interface ContainerCard {
   readonly element: HTMLElement;
   readonly state: HTMLElement;
+  /** What to keep besides the container; set once the suite is known. */
+  readonly note: HTMLParagraphElement;
 }
 
 /**
@@ -197,14 +210,12 @@ interface ContainerCard {
 function renderContainer(
   target: HTMLElement,
   container: string,
-  words: number,
-  lengthMustBeChosen: boolean,
-  pim: number,
+  containerWords: number,
   copy: (value: string) => Promise<void>,
 ): ContainerCard {
   const card = document.createElement("article");
   const title = document.createElement("strong");
-  title.textContent = "Encrypted 24-word MHFE container";
+  title.textContent = `Encrypted ${containerWords}-word MHFE container`;
   const state = document.createElement("div");
   state.className = "warning-callout";
   state.textContent =
@@ -235,66 +246,16 @@ function renderContainer(
   copyButton.addEventListener("click", () => void copy(container));
   const qr = createQrAction(document, container, "MHFE encrypted container", container, {
     heading: "Encrypted MHFE container QR",
-    description: "Checksum-valid 24-word BIP39 container:",
+    description: `Checksum-valid ${containerWords}-word BIP39 container:`,
     ecc: "M",
   });
   const actions = document.createElement("div");
   actions.className = "share-secret-actions";
   actions.append(reveal, copyButton, qr);
-  const keep = paragraph(rememberNote(words, lengthMustBeChosen, pim), "field-note");
-  card.append(title, state, output, actions, keep);
+  const note = paragraph("", "field-note");
+  card.append(title, state, output, actions, note);
   target.replaceChildren(card);
-  return { element: card, state };
-}
-
-/**
- * The suite, which the specification requires to be shown, and what recovery needs besides the
- * container and the password: a PIM other than the default (the page supports only memory level 0),
- * and, for the rare phrase that automatic length detection would misread, its word count.
- */
-function rememberNote(words: number, lengthMustBeChosen: boolean, pim: number): string {
-  const notes: string[] = [];
-  if (pim === 0 && !lengthMustBeChosen) {
-    notes.push("Nothing else needs to be kept: the 24 words and the password are enough.");
-  }
-  if (pim !== 0) {
-    notes.push(
-      `You changed the default settings; remember them: PIM ${pim}. Recovery needs exactly this value: ` +
-        "with another the container turns into a different phrase that looks just as valid.",
-    );
-  }
-  if (lengthMustBeChosen) {
-    notes.push(
-      `Remember the word count: your phrase has ${words} words. As said above, automatic length detection ` +
-        "would misread this phrase; select that length when you recover.",
-    );
-  }
-  if (words === WORDS_WITHOUT_CHECK) {
-    notes.push(
-      "A 24-word phrase has no built-in check, so recovery will show it as not verified; that is expected. " +
-        "Compare a known address of the wallet to confirm it.",
-    );
-  }
-  return (
-    `Suite ${SUITE_ID}. ${notes.join(" ")} Use a different password for each phrase you encrypt, and ` +
-    "nowhere else; to make another copy, copy these 24 words exactly. Before relying on the container, " +
-    "rehearse the recovery in Decode with the words typed from the plate or paper you wrote, not from the " +
-    "screen, and compare the result with your wallet: a wrongly copied word can still pass the BIP39 checksum."
-  );
-}
-
-function recoverySummary(candidate: MhfeCandidate, selectedWords: number): string {
-  if (candidate.verified) {
-    return `Recovered · ${candidate.words} words · the built-in check passed: the password and settings are right. It does not confirm the wallet; compare a receiving address.`;
-  }
-  if (selectedWords === 24) {
-    return "Not verified: recovered as 24 words, as selected. A 24-word phrase has no built-in check, so any password gives a valid phrase: compare it with your wallet.";
-  }
-  return (
-    "Not verified: no shorter length passed its check, so the result is read as 24 words. If your original has " +
-    "24 words, compare this phrase with your wallet. If it has fewer, this usually means a wrong password, PIM " +
-    "or container."
-  );
+  return { element: card, state, note };
 }
 
 export function installMhfe(context: RecoveryFeatureContext): void {
@@ -338,6 +299,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
     void runOperation(encryptStop, [encryptAction, decryptAction], async () => {
       try {
         const pim = selectedPim("encrypt");
+        const sameLength = sameLengthChosen();
         const password = passwordInput.value;
         const passwordRepeat = repeatInput.value;
         if (password !== passwordRepeat)
@@ -345,12 +307,14 @@ export function installMhfe(context: RecoveryFeatureContext): void {
         const source = context.readMnemonic("mhfe", "#mhfe-source").trim();
         const read = await mhfeClient().readPhrase(source);
         // About one phrase in four billion also passes the check of another length; automatic
-        // detection would then not give it back on its own.
-        const lengthNote =
-          read.otherLengths.length === 0
-            ? ""
-            : ` Write down that your phrase has ${read.words} words and select that length when you recover: ` +
-              `by chance it also passes the check of ${read.otherLengths.join(" and ")} words.`;
+        // detection in a 24-word container would then not give it back on its own. A same-length
+        // container needs no such note: its own length is the phrase's.
+        const lengthMustBeChosen = !sameLength && read.otherLengths.length > 0;
+        const containerWords = sameLength ? read.words : CONTAINER_WORDS;
+        const lengthNote = !lengthMustBeChosen
+          ? ""
+          : ` Write down that your phrase has ${read.words} words and select that length when you recover: ` +
+            `by chance it also passes the check of ${read.otherLengths.join(" and ")} words.`;
         const started = performance.now();
         encryptStatus.textContent = `Starting · ${read.words}-word phrase accepted.${lengthNote}`;
         const clearPasswords = clearOnFirstProgress(passwordInput, repeatInput);
@@ -360,6 +324,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
           passwordRepeat,
           pim,
           memoryLevel: MEMORY_LEVEL,
+          sameLength,
           onProgress: (progress) => {
             clearPasswords();
             encryptStatus.textContent =
@@ -369,21 +334,26 @@ export function installMhfe(context: RecoveryFeatureContext): void {
             card = renderContainer(
               encryptResult,
               container,
-              read.words,
-              read.otherLengths.length > 0,
-              pim,
+              containerWords,
               context.writeClipboard,
+            );
+            card.note.textContent = rememberNote(
+              read.words,
+              sameLength,
+              lengthMustBeChosen,
+              pim,
+              sameLength ? SAME_LENGTH_SUITE_ID : FULL_SUITE_ID,
             );
           },
         });
-        const { container } = await pending;
-        card ??= renderContainer(
-          encryptResult,
-          container,
+        const { container, suiteId } = await pending;
+        card ??= renderContainer(encryptResult, container, containerWords, context.writeClipboard);
+        card.note.textContent = rememberNote(
           read.words,
-          read.otherLengths.length > 0,
+          sameLength,
+          lengthMustBeChosen,
           pim,
-          context.writeClipboard,
+          suiteId,
         );
         card.state.className = "success-callout";
         card.state.textContent = "Verified: the container turns back into your original phrase.";

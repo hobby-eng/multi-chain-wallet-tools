@@ -54,13 +54,13 @@ export const GITHUB_SOURCES = [
     commit: "cfaf443a5f19e3a3e2b2c7be7572ae3924142c0e",
   },
   {
-    // The browser package of the MHFE 0.4.0 release: mhfe-v0.4.0-browser.tar.gz, checked against
-    // the release's SHA256SUMS, from tag v0.4.0. The Python fast-mode launcher of the package is
-    // not vendored: the executable Deriver replaces it.
-    id: "mhfe-v0.4.0",
+    // The browser package of the MHFE 0.5.0 release: mhfe-v0.5.0-browser.tar.gz, checked against
+    // the release's OpenPGP-signed SHA256SUMS, from tag v0.5.0. The Python fast-mode launcher of the package is not vendored: the executable Deriver
+    // replaces it.
+    id: "mhfe-v0.5.0",
     repository: "hobby-eng/mhfe",
-    reference: "release v0.4.0, browser package",
-    commit: "70dddd069b3e3bb6553a3a41c42713d1e09f2d87",
+    reference: "release v0.5.0, browser package",
+    commit: "52b6b36a16d36fa895f3b3e9e034b52c9f963c34",
   },
   {
     id: "sskr-0.12.0",
@@ -113,7 +113,7 @@ const LOCAL_IMPLEMENTATIONS = [
   },
   {
     id: "mhfe-browser-module",
-    upstream: "mhfe-v0.4.0",
+    upstream: "mhfe-v0.5.0",
     files: [
       "packages/recovery-mhfe-wasm/generated/client.js",
       "packages/recovery-mhfe-wasm/generated/client.d.ts",
@@ -175,13 +175,13 @@ const LOCAL_IMPLEMENTATIONS = [
 
 const FIXED_SOURCE_HASHES = Object.freeze({
   "packages/recovery-mhfe-wasm/generated/client.js":
-    "4758cb17b1a2ba50255e2254bdc9209ee24779e5150a236e5bfadeb872480494",
+    "057ce242fbbd94e94df833f1cfc7a3b742c98086095a869c34977307dc209cee",
   "packages/recovery-mhfe-wasm/generated/client.d.ts":
-    "385a4cc0bebdcd18ffb295151da99618aa05c439fa8bb7afda97b7c5f41778b6",
+    "8692d3d6777215feac9a9d84094b88122aee60fa7d6c5a235c096efe86db2653",
   "packages/recovery-mhfe-wasm/generated/mhfe-worker.js":
-    "f6bbf93e71df765723493b4d94c27afb181ebd91fded2844e0df71252137f5db",
+    "f6d0b120bfbafb83ddbc20d121b9fcb87c581d89ae55c5d87db2893bf5c2c5d9",
   "packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm":
-    "1a0899e69de6f1a1059970675197a8700dd2e9014bf4a63e3ebce472f397a438",
+    "a8afbcb8b0800396daeb099d23897f9000987a49e71110ee66808412b363e9f7",
   "packages/recovery-mhfe-wasm/generated/argon2-mt.js":
     "f98906c851a986df514d22536bb48a09724a0fa0b49079860b9a0ef00806f521",
   "packages/recovery-mhfe-wasm/generated/argon2-st.js":

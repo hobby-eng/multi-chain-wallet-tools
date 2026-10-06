@@ -377,7 +377,7 @@ Copyright (c) 2021 SeedSigner
 SeedSigner — SeedQR specification and vectors
 
 Copyright (c) 2026 Sergei Semenov
-MHFE 0.4.0 — browser package (client, worker, Rust core WebAssembly)
+MHFE 0.5.0 — browser package (client, worker, Rust core WebAssembly)
 (its Emscripten, musl and wasm-bindgen notices and the licences of the Rust crates in its core are in
 `packages/recovery-mhfe-wasm/notices/THIRD_PARTY_NOTICES.md`)
 
@@ -416,7 +416,7 @@ SOFTWARE.
 - `package.json` uses exact dependency versions; pnpm's lockfile pins the npm closure and integrity hashes.
 - `Cargo.toml` uses exact registry versions and one exact audited Orchard tag; `Cargo.lock` pins all transitive versions and git commits.
 - Every supported build validates SHA-512 integrity entries for the complete pnpm package closure, SHA-256 checksums for every crates.io package, and full commit pins for Cargo git sources before compiling.
-- Exact GitHub revisions are recorded for Orchard, note encryption, rust-codex32, the SLIP-39 reference, SeedSigner SeedQR, MHFE 0.4.0, Blockchain Commons SSKR, Gordian Envelope, and bc-components. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply. The registry-published `blahaj` source is bound by its Cargo SHA-256 checksum.
+- Exact GitHub revisions are recorded for Orchard, note encryption, rust-codex32, the SLIP-39 reference, SeedSigner SeedQR, MHFE 0.5.0, Blockchain Commons SSKR, Gordian Envelope, and bc-components. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply. The registry-published `blahaj` source is bound by its Cargo SHA-256 checksum.
 - The verification record also carries SHA-256 hashes for the local SeedQR, MnemoCode, MHFE, SLIP-39, Codex32, SSKR, Gordian Seed Envelope, QR rendering, and QR decoding sources. The six vendored MHFE package files are additionally checked against fixed SHA-256 values before every supported build. The package's Argon2 builds contain the reference C implementation of Argon2 (`P-H-C/phc-winner-argon2`, commit `f57e61e19229e23c4445b85494dbf7c07de721cb`), which is dual licensed CC0-1.0 or Apache-2.0; MHFE uses it under Apache-2.0, whose text is in `packages/recovery-mhfe-wasm/LICENSE-ARGON2`.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.

@@ -322,8 +322,8 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   };
   const before = await storageSnapshot(page);
   await clickStep(page.locator("#recovery-backup-mode"), "Open Recover & Back Up");
-  // One help per recovery panel plus the option helps; MHFE 0.4.0 removed the final-word option and its help.
-  assert.equal(await page.locator(".recovery-help").count(), 13);
+  // One help per recovery panel plus the option helps; MHFE 0.5.0 adds the container-length help.
+  assert.equal(await page.locator(".recovery-help").count(), 14);
   const firstHelp = page.locator(".recovery-help").first();
   await firstHelp.locator("summary").hover();
   await page.waitForFunction(() => document.querySelector(".recovery-help")?.hasAttribute("open"));
@@ -343,6 +343,9 @@ async function recoveryBackupRoundTrips(context, profile, run) {
   await page.locator("#mhfe-encrypt-use-pim").uncheck();
   // The final-word mode of the old module is gone, and the page says which speed it runs at.
   assert.equal(await page.locator("#mhfe-encrypt-preserve-final-word").count(), 0);
+  // A 24-word container stays the default; the same length is the user's own choice.
+  assert.equal(await page.locator("#mhfe-length-24").isChecked(), true);
+  assert.equal(await page.locator("#mhfe-length-same").isChecked(), false);
   await waitText(page, "#mhfe-mode", /Slow mode|Fast mode/u);
   await clickStep(
     page.locator('#mhfe-panel [data-operation-tab][aria-controls="mhfe-restore-panel"]'),

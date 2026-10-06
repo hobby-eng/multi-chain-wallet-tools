@@ -1,6 +1,13 @@
 import { describe as group, expect, it } from "vitest";
 import { MhfeError } from "@ckd/recovery-mhfe-wasm/client.js";
-import { clearOnFirstProgress, describe } from "../src/ui/recovery-mhfe-status.js";
+import {
+  FULL_SUITE_ID,
+  SAME_LENGTH_SUITE_ID,
+  clearOnFirstProgress,
+  describe,
+  recoverySummary,
+  rememberNote,
+} from "../src/ui/recovery-mhfe-status.js";
 
 group("MHFE panel", () => {
   it("empties the password fields once, when the operation reports its first progress", () => {
@@ -17,7 +24,7 @@ group("MHFE panel", () => {
 
   it("says that an error in the page stopped the operation", () => {
     const cause = new Error("progress element missing");
-    // The error as the MHFE 0.4.0 client gives it: its constructor stores the page's error as `cause`.
+    // The error as the MHFE client gives it: its constructor stores the page's error as `cause`.
     const error = Object.defineProperty(
       new MhfeError("CALLBACK_FAILED", "callback failed"),
       "cause",
@@ -30,5 +37,36 @@ group("MHFE panel", () => {
     expect(describe(new MhfeError("EMPTY_PASSWORD", "The password is empty."), "fallback")).toBe(
       "The password is empty.",
     );
+  });
+
+  it("tells what to keep for a same-length container and for a 24-word one", () => {
+    const same = rememberNote(12, true, false, 0, SAME_LENGTH_SUITE_ID);
+    expect(same).toContain(`Suite ${SAME_LENGTH_SUITE_ID}.`);
+    expect(same).toContain("the 12 words and the password are enough");
+    expect(same).toContain("copy these 12 words exactly");
+    // The fingerprint under a recovered phrase is computed without a BIP39 passphrase.
+    expect(same).toContain("without a BIP39 passphrase");
+    expect(same).not.toContain("Remember the word count");
+
+    const full = rememberNote(12, false, true, 0, FULL_SUITE_ID);
+    expect(full).toContain(`Suite ${FULL_SUITE_ID}.`);
+    expect(full).toContain("Remember the word count: your phrase has 12 words");
+    expect(full).toContain("copy these 24 words exactly");
+    expect(full).not.toContain("Nothing else needs to be kept");
+  });
+
+  it("never calls a same-length recovery verified", () => {
+    const phrase = "public test phrase";
+    expect(
+      recoverySummary({ words: 12, verified: false, phrase, suiteId: SAME_LENGTH_SUITE_ID }, 0),
+    ).toMatch(
+      /^Not verified: this container keeps the length of its 12-word phrase.*passphrase\.$/u,
+    );
+    expect(
+      recoverySummary({ words: 12, verified: true, phrase, suiteId: FULL_SUITE_ID }, 0),
+    ).toContain("the built-in check passed");
+    expect(
+      recoverySummary({ words: 24, verified: false, phrase, suiteId: FULL_SUITE_ID }, 0),
+    ).toContain("no shorter length passed its check");
   });
 });

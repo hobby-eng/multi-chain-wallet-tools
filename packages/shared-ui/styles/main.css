@@ -2577,6 +2577,28 @@ footer p {
   font-family: inherit;
 }
 
+#mhfe-panel .mhfe-length-choice {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* The legend looks like every other field label. */
+#mhfe-panel .mhfe-length-choice legend {
+  margin: 0 0 8px;
+  padding: 0;
+  color: #d9e0e7;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#mhfe-panel .mhfe-length-choice input[type="radio"] {
+  width: auto;
+  margin: 0;
+}
+
 #mhfe-panel .mhfe-option-explainer {
   display: flex;
   align-items: baseline;

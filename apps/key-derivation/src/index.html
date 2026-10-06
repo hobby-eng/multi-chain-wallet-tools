@@ -732,15 +732,17 @@
               <h3>Memory-Hard Feistel Encryption</h3>
               <p>
                 MHFE is an experimental encryption construction designed by this project's author. It turns a
-                checksum-valid 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase into a password-protected 24-word
-                container that is itself a checksum-valid BIP39 phrase, without storing a salt, nonce, or tag. It runs
-                twelve Feistel rounds, each with Argon2id over 2 GiB of memory, so every recovery deliberately takes
-                minutes; an encryption decrypts its result once more to check it and takes twice as long.
+                checksum-valid 12-, 15-, 18-, 21-, or 24-word English BIP39 phrase into a password-protected container
+                that is itself a checksum-valid BIP39 phrase, without storing a salt, nonce, or tag: 24 words by
+                default, or as long as a 12- to 21-word phrase on request. It runs twelve Feistel rounds, each with
+                Argon2id over 2 GiB of memory, so every recovery deliberately takes minutes; an encryption decrypts its
+                result once more to check it and takes twice as long.
               </p>
               <p>
-                Short source phrases carry a built-in check that confirms the password and finds the length. A 24-word
-                source fills the whole state and has none, so a wrong password gives another valid phrase; compare the
-                result with your wallet.
+                In a 24-word container a shorter phrase carries a built-in check that confirms the password and finds
+                the length. A 24-word phrase fills the whole state and has none, and neither has a container of the same
+                length as its phrase: a wrong password then gives another valid phrase, so compare the result with your
+                wallet.
               </p>
               <p>
                 In this HTML version the browser runs Argon2 on one thread. The executable version of this tool opens
@@ -755,7 +757,8 @@
                 and inspect the
                 <a href="https://github.com/hobby-eng/mhfe" target="_blank" rel="noopener noreferrer"
                   >reference implementation</a
-                >. This page embeds the MHFE 0.4.0 browser package, suite MHFE-BIP39-256-EXPERIMENTAL-3.
+                >. This page embeds the MHFE 0.5.0 browser package: suite MHFE-BIP39-256-EXPERIMENTAL-3 for 24-word
+                containers and MHFE-BIP39-LP-EXPERIMENTAL-4 for containers of the phrase's own length.
               </p>
             </div>
           </details>
@@ -797,6 +800,44 @@
               autocapitalize="none"
               placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
             ></textarea>
+            <fieldset class="mhfe-length-choice">
+              <legend>Container length</legend>
+              <label class="checkbox-row" for="mhfe-length-24">
+                <input id="mhfe-length-24" type="radio" name="mhfe-container-length" value="24" checked />
+                24 words (recommended)
+              </label>
+              <label class="checkbox-row" for="mhfe-length-same">
+                <input id="mhfe-length-same" type="radio" name="mhfe-container-length" value="same" />
+                Same length as the phrase (12 to 21 words)
+              </label>
+            </fieldset>
+            <div class="mhfe-option-explainer">
+              <p class="field-note">
+                24 words tell you when a password is wrong and hide how long your phrase is. The same length keeps the
+                backup as short as the phrase, but cannot tell a wrong password, shows the length, and lets a miscopied
+                word through more often.
+              </p>
+              <details class="recovery-help mhfe-option-help">
+                <summary>More details</summary>
+                <div class="recovery-help-popover">
+                  <h3>24 words or the same length?</h3>
+                  <p>
+                    A 24-word container holds a 12- to 21-word phrase together with a built-in check. Recovery then
+                    reports a wrong password or PIM, and the container does not show how long the phrase is. This is
+                    suite MHFE-BIP39-256-EXPERIMENTAL-3, the same as for a 24-word phrase.
+                  </p>
+                  <p>
+                    A same-length container is exactly as long as the phrase, suite MHFE-BIP39-LP-EXPERIMENTAL-4. It has
+                    no built-in check: any password gives another valid phrase, so every recovered phrase is shown as
+                    not verified, and you confirm it with a known address or with the master key fingerprint shown under
+                    it, which is computed without a BIP39 passphrase. A word copied wrongly still passes the BIP39
+                    checksum about once in 16 for 12 words and once in 128 for 21 words, against once in 256 in a
+                    24-word container.
+                  </p>
+                  <p>A 24-word phrase always gives a 24-word container.</p>
+                </div>
+              </details>
+            </div>
             <div class="backup-options-grid mhfe-password-grid">
               <div class="mhfe-password-field">
                 <div class="field-heading-row">
@@ -862,7 +903,7 @@
           </section>
           <section id="mhfe-restore-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
             <div class="field-heading-row">
-              <label for="mhfe-container">Encrypted 24-word MHFE container</label>
+              <label for="mhfe-container">Encrypted MHFE container</label>
               <button id="toggle-mhfe-container" class="danger-outline compact" type="button" aria-pressed="false">
                 Show
               </button>
@@ -873,7 +914,7 @@
               rows="4"
               autocomplete="off"
               autocapitalize="none"
-              placeholder="Paste or scan the encrypted 24-word BIP39 container"
+              placeholder="Paste or scan the encrypted container: 12 to 24 BIP39 words"
             ></textarea>
             <div class="mhfe-password-field">
               <div class="field-heading-row">
@@ -910,8 +951,9 @@
               </select>
             </label>
             <p class="field-note">
-              Auto checks the built-in checks of 12, 15, 18, and 21 words; if none passes, it returns the 24-word
-              reading. Select the length yourself for a 24-word original, or when encryption told you to. In the
+              In a 24-word container, Auto checks the built-in checks of 12, 15, 18, and 21 words; if none passes, it
+              returns the 24-word reading. Select the length yourself for a 24-word original, or when encryption told
+              you to. A shorter container keeps the length of its phrase: leave Auto or select that length. In the
               extremely unlikely event that several lengths pass, every candidate is shown.
             </p>
             <div class="actions">
@@ -2120,7 +2162,7 @@
           domain.</span
         >
         <span id="passport-mhfe-dependency"
-          >MHFE 0.4.0 — MIT, with the Argon2 reference implementation — Apache-2.0.</span
+          >MHFE 0.5.0 — MIT, with the Argon2 reference implementation — Apache-2.0.</span
         >
         Dash Orchard 0.14.0, official dashified-0.14.1 commit 38ac9c19a2df7bf3eeadc22ab23053e8fd538828; Blockchain
         Commons sskr 0.12.0, bc-envelope 0.43.0, and bc-components 0.31.1 — BSD-2-Clause-Patent; wasm-bindgen 0.2.129;

@@ -29,6 +29,21 @@ const MAX_PIM = 1023;
 const MAX_MEMORY_LEVEL = 21;
 const WORD_COUNTS = [12, 15, 18, 21, 24];
 const REFERENCE_KINDS = ["address", "fingerprint", "words"];
+/** The coins of an address reference, as `Coin::id` names them in the Rust core. */
+const COINS = [
+  "bitcoin",
+  "ethereum",
+  "xrp",
+  "tron",
+  "zcash",
+  "dogecoin",
+  "bitcoin-cash",
+  "litecoin",
+  "ethereum-classic",
+  "cosmos",
+  "injective",
+  "dash",
+];
 
 export class MhfeError extends Error {
   /** `options.cause` keeps the original error, as for CALLBACK_FAILED. */
@@ -79,8 +94,13 @@ export class MhfeClient {
    * Encrypts an original phrase. `passwordRepeat` is the password typed a second time: a typing
    * mistake in the password would lock the phrase away for good. The encryption then decrypts
    * the container's words again and compares the result with the phrase, so it runs 24 rounds.
-   * Resolves to `{ container }` only after that check has passed; a failed check rejects with
-   * the code VERIFICATION_FAILED.
+   * Resolves to `{ container, suiteId }` only after that check has passed; a failed check rejects
+   * with the code VERIFICATION_FAILED. The page shows `suiteId` with the container.
+   *
+   * The container has 24 words. With `sameLength: true`, which only the user's own choice may
+   * set after the page has shown its consequences, a 12- to 21-word phrase gives a container of
+   * its own length instead: nothing then detects a wrong password, the container shows the
+   * phrase's length, and a word copied wrongly passes the shorter checksum more often.
    *
    * `onUnverified({ container })` is called after the first 12 rounds, so that the page can show
    * the container while the check runs. The page must then mark it as not yet verified and later
@@ -93,19 +113,23 @@ export class MhfeClient {
     passwordRepeat,
     pim = 0,
     memoryLevel = 0,
+    sameLength = false,
     onProgress,
     onUnverified,
   } = {}) {
     requireText(phrase, "phrase");
     requireSamePassword(password, passwordRepeat);
     requireCallback(onUnverified, "onUnverified");
-    const request = { operation: "encrypt", phrase };
+    if (typeof sameLength !== "boolean") throw new TypeError("sameLength must be a boolean.");
+    const request = { operation: "encrypt", phrase, sameLength };
     return this.#start(request, { password, pim, memoryLevel, onProgress, onUnverified });
   }
 
   /**
-   * Recovers the original phrase. `words` is 0 for automatic detection or the known length.
-   * Resolves to `{ kind: 'phrase' | 'ambiguous', candidates: [{ words, verified, phrase }] }`.
+   * Recovers the original phrase. The container's word count selects the suite: 24 words, or a
+   * same-length container of 12 to 21 words, whose result is never verified. `words` is 0 for
+   * automatic detection or the known length; a same-length container takes only its own length.
+   * Resolves to `{ kind: 'phrase' | 'ambiguous', candidates: [{ words, verified, phrase, suiteId }] }`.
    */
   async decrypt({ container, password, pim = 0, memoryLevel = 0, words = 0, onProgress } = {}) {
     requireText(container, "container");
@@ -124,7 +148,8 @@ export class MhfeClient {
   /**
    * The rehearsal check. `reference` is `{ address, path? }` (strong), `{ fingerprint }` (quick,
    * weaker) or `{ words }` (built-in check of a 12- to 21-word original). Resolves to
-   * `{ matches }` and never to any part of the phrase.
+   * `{ matches, path }`, `path` being where a matched address was found and null otherwise, and
+   * never to any part of the phrase.
    */
   async check({
     container,
@@ -136,7 +161,7 @@ export class MhfeClient {
     onProgress,
   } = {}) {
     requireText(container, "container");
-    const [referenceKind, referenceValue, path] = describeReference(reference);
+    const [referenceKind, referenceValue, coin, path] = describeReference(reference);
     // Everything that is not secret is checked before the passphrase is copied into bytes.
     this.#requireIdle();
     requireSettings(pim, memoryLevel);
@@ -147,6 +172,7 @@ export class MhfeClient {
       container,
       referenceKind,
       reference: referenceValue,
+      coin,
       path,
       passphrase: passphraseBytes,
     };
@@ -167,7 +193,10 @@ export class MhfeClient {
     return this.#read({ operation: "readPhrase", phrase });
   }
 
-  /** Like readPhrase for a container: resolves to `{ container }` with every word written out. */
+  /**
+   * Like readPhrase for a container: resolves to `{ container, words }` with every word written
+   * out. A container has 24 words, or 12 to 21 for a same-length container.
+   */
   async readContainer(container) {
     requireText(container, "container");
     return this.#read({ operation: "readContainer", container });
@@ -398,20 +427,25 @@ function describeReference(reference) {
   const kinds = isObject ? REFERENCE_KINDS.filter(given) : [];
   if (kinds.length !== 1) {
     throw new TypeError(
-      "reference must be exactly one of { address, path? }, { fingerprint } or { words }.",
+      "reference must be exactly one of { address, coin?, path? }, { fingerprint } or { words }.",
     );
   }
-  if (reference.path !== undefined && kinds[0] !== "address") {
-    throw new TypeError("reference.path belongs only to an address reference.");
+  for (const key of ["coin", "path"]) {
+    if (reference[key] !== undefined && kinds[0] !== "address") {
+      throw new TypeError(`reference.${key} belongs only to an address reference.`);
+    }
   }
   switch (kinds[0]) {
     case "address":
       requireText(reference.address, "reference.address");
       if (reference.path !== undefined) requireText(reference.path, "reference.path");
-      return ["address", reference.address, reference.path ?? ""];
+      if (reference.coin !== undefined && !COINS.includes(reference.coin)) {
+        throw new TypeError(`reference.coin must be one of ${COINS.join(", ")}.`);
+      }
+      return ["address", reference.address, reference.coin ?? "bitcoin", reference.path ?? ""];
     case "fingerprint":
       requireText(reference.fingerprint, "reference.fingerprint");
-      return ["fingerprint", reference.fingerprint, ""];
+      return ["fingerprint", reference.fingerprint, "", ""];
     default:
       if (![12, 15, 18, 21].includes(reference.words)) {
         throw new MhfeError(
@@ -419,6 +453,6 @@ function describeReference(reference) {
           "The built-in check needs a 12-, 15-, 18- or 21-word original.",
         );
       }
-      return ["words", String(reference.words), ""];
+      return ["words", String(reference.words), "", ""];
   }
 }

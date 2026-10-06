@@ -5,23 +5,28 @@ let wasm_bindgen = (function(exports) {
     }
 
     /**
-     * The rehearsal check; returns only whether the recovery matches the reference.
+     * The rehearsal check, as JSON: `{"matches": bool, "path": string | null}`. Only whether the
+     * recovery matches comes out, and for a matched address the path where it was found.
      *
      * `reference_kind` is "address", "fingerprint" or "words"; `reference` is the address, the
-     * eight hex digits or the word count; `path` is empty for the standard path search.
+     * eight hex digits or the word count; `coin` is the address's coin, such as "bitcoin" or
+     * "ethereum" (`Coin::id`); `path` is empty for the standard path search.
      * @param {string} container
      * @param {Uint8Array} password_utf8
      * @param {number} pim
      * @param {number} memory_level
      * @param {string} reference_kind
      * @param {string} reference
+     * @param {string} coin
      * @param {string} path
      * @param {Uint8Array} passphrase_utf8
      * @param {any} argon2
      * @param {Function} on_round
-     * @returns {boolean}
+     * @returns {string}
      */
-    function check(container, password_utf8, pim, memory_level, reference_kind, reference, path, passphrase_utf8, argon2, on_round) {
+    function check(container, password_utf8, pim, memory_level, reference_kind, reference, coin, path, passphrase_utf8, argon2, on_round) {
+        let deferred9_0;
+        let deferred9_1;
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             const ptr0 = passStringToWasm0(container, wasm.__wbindgen_export, wasm.__wbindgen_export2);
@@ -32,21 +37,30 @@ let wasm_bindgen = (function(exports) {
             const len2 = WASM_VECTOR_LEN;
             const ptr3 = passStringToWasm0(reference, wasm.__wbindgen_export, wasm.__wbindgen_export2);
             const len3 = WASM_VECTOR_LEN;
-            const ptr4 = passStringToWasm0(path, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const ptr4 = passStringToWasm0(coin, wasm.__wbindgen_export, wasm.__wbindgen_export2);
             const len4 = WASM_VECTOR_LEN;
-            const ptr5 = passArray8ToWasm0(passphrase_utf8, wasm.__wbindgen_export);
+            const ptr5 = passStringToWasm0(path, wasm.__wbindgen_export, wasm.__wbindgen_export2);
             const len5 = WASM_VECTOR_LEN;
-            wasm.check(retptr, ptr0, len0, ptr1, len1, pim, memory_level, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, addHeapObject(argon2), addBorrowedObject(on_round));
+            const ptr6 = passArray8ToWasm0(passphrase_utf8, wasm.__wbindgen_export);
+            const len6 = WASM_VECTOR_LEN;
+            wasm.check(retptr, ptr0, len0, ptr1, len1, pim, memory_level, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, ptr6, len6, addHeapObject(argon2), addBorrowedObject(on_round));
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr8 = r0;
+            var len8 = r1;
+            if (r3) {
+                ptr8 = 0; len8 = 0;
+                throw takeObject(r2);
             }
-            return r0 !== 0;
+            deferred9_0 = ptr8;
+            deferred9_1 = len8;
+            return getStringFromWasm0(ptr8, len8);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             heap[stack_pointer++] = undefined;
+            wasm.__wbindgen_export4(deferred9_0, deferred9_1, 1);
         }
     }
     exports.check = check;
@@ -130,8 +144,9 @@ let wasm_bindgen = (function(exports) {
     exports.checkPhrase = checkPhrase;
 
     /**
-     * Recovers the phrase. `words` is 0 for automatic detection, otherwise the chosen length.
-     * Returns JSON: `{ kind, candidates: [{ words, verified, phrase }] }`.
+     * Recovers the phrase; the container's word count selects the suite. `words` is 0 for automatic
+     * detection, otherwise the chosen length, which a same-length container takes only as its own.
+     * Returns JSON: `{ kind, candidates: [{ words, verified, phrase, suiteId }] }`.
      * @param {string} container
      * @param {Uint8Array} password_utf8
      * @param {number} pim
@@ -173,7 +188,9 @@ let wasm_bindgen = (function(exports) {
     exports.decrypt = decrypt;
 
     /**
-     * Encrypts `phrase` and returns the 24-word container once its check has passed.
+     * Encrypts `phrase` and returns JSON `{ container, suiteId }` once its check has passed: a
+     * 24-word container, or with `same_length`, which only the user's own choice may set, a
+     * container as long as the 12- to 21-word phrase.
      *
      * After the first twelve rounds `on_unverified` receives the container, so that a page can
      * show it, marked as not yet verified, while the check runs.
@@ -181,12 +198,13 @@ let wasm_bindgen = (function(exports) {
      * @param {Uint8Array} password_utf8
      * @param {number} pim
      * @param {number} memory_level
+     * @param {boolean} same_length
      * @param {any} argon2
      * @param {Function} on_round
      * @param {Function} on_unverified
      * @returns {string}
      */
-    function encrypt(phrase, password_utf8, pim, memory_level, argon2, on_round, on_unverified) {
+    function encrypt(phrase, password_utf8, pim, memory_level, same_length, argon2, on_round, on_unverified) {
         let deferred4_0;
         let deferred4_1;
         try {
@@ -195,7 +213,7 @@ let wasm_bindgen = (function(exports) {
             const len0 = WASM_VECTOR_LEN;
             const ptr1 = passArray8ToWasm0(password_utf8, wasm.__wbindgen_export);
             const len1 = WASM_VECTOR_LEN;
-            wasm.encrypt(retptr, ptr0, len0, ptr1, len1, pim, memory_level, addHeapObject(argon2), addBorrowedObject(on_round), addBorrowedObject(on_unverified));
+            wasm.encrypt(retptr, ptr0, len0, ptr1, len1, pim, memory_level, same_length, addHeapObject(argon2), addBorrowedObject(on_round), addBorrowedObject(on_unverified));
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -335,7 +353,7 @@ let wasm_bindgen = (function(exports) {
                 const ret = getObject(arg0).call(getObject(arg1), getObject(arg2));
                 return addHeapObject(ret);
             }, arguments); },
-            __wbg_derive_b259485fb9a652e1: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+            __wbg_derive_47b5d4cb3c0245fa: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
                 getObject(arg0).derive(getArrayU8FromWasm0(arg1, arg2), getArrayU8FromWasm0(arg3, arg4), arg5 >>> 0, arg6 >>> 0, getArrayU8FromWasm0(arg7, arg8));
             }, arguments); },
             __wbg_get_31af05bd4842a84f: function() { return handleError(function (arg0, arg1) {
@@ -663,7 +681,8 @@ function readWords(request) {
     const otherLengths = Array.from(wasm_bindgen.otherDetectedLengths(phrase));
     return { phrase, words: phrase.split(" ").length, otherLengths };
   }
-  return { container: wasm_bindgen.checkContainer(request.container) };
+  const container = wasm_bindgen.checkContainer(request.container);
+  return { container, words: container.split(" ").length };
 }
 
 /** Starts the Argon2 build that was placed in front of this file. */
@@ -686,17 +705,18 @@ function runOperation(request, argon2, onRound) {
   const { pim, memoryLevel } = request;
   switch (request.operation) {
     case "encrypt":
-      return {
-        container: wasm_bindgen.encrypt(
+      return JSON.parse(
+        wasm_bindgen.encrypt(
           request.phrase,
           request.password,
           pim,
           memoryLevel,
+          request.sameLength,
           argon2,
           onRound,
           onUnverified,
         ),
-      };
+      );
     case "decrypt":
       return JSON.parse(
         wasm_bindgen.decrypt(
@@ -710,20 +730,21 @@ function runOperation(request, argon2, onRound) {
         ),
       );
     case "check":
-      return {
-        matches: wasm_bindgen.check(
+      return JSON.parse(
+        wasm_bindgen.check(
           request.container,
           request.password,
           pim,
           memoryLevel,
           request.referenceKind,
           request.reference,
+          request.coin,
           request.path,
           request.passphrase,
           argon2,
           onRound,
         ),
-      };
+      );
     default:
       throw new Error(`INVALID_REQUEST: unknown operation ${String(request.operation)}`);
   }

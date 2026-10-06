@@ -43,9 +43,14 @@ export interface MhfeSettings {
 
 export interface MhfeCandidate {
   words: WordCount;
-  /** True when a 12- to 21-word phrase passed its built-in check. Never true for 24 words. */
+  /**
+   * True when a 12- to 21-word phrase from a 24-word container passed its built-in check. Never
+   * true for 24 words or for a same-length container, which have no check.
+   */
   verified: boolean;
   phrase: string;
+  /** The suite of the container, which its word count selected. */
+  suiteId: string;
 }
 
 export interface MhfeRecovery {
@@ -54,14 +59,38 @@ export interface MhfeRecovery {
   candidates: MhfeCandidate[];
 }
 
+/**
+ * The coin of an address reference. "ethereum" covers every EVM network, such as BNB Smart Chain,
+ * Polygon, Avalanche C-Chain, Arbitrum, Optimism and Base.
+ */
+export type MhfeCoin =
+  | "bitcoin"
+  | "ethereum"
+  | "xrp"
+  | "tron"
+  | "zcash"
+  | "dogecoin"
+  | "bitcoin-cash"
+  | "litecoin"
+  | "ethereum-classic"
+  | "cosmos"
+  | "injective"
+  | "dash";
+
 /** Exactly one kind of reference; an object with several is refused with a TypeError. */
 export type MhfeReference =
-  /** A receiving address of the wallet: the strong check. */
-  | { address: string; path?: string; fingerprint?: never; words?: never }
+  /**
+   * A single-key receiving address of the wallet, the strong check. `coin` defaults to "bitcoin";
+   * the address is searched on that coin's standard paths, or only at `path`.
+   */
+  | { address: string; coin?: MhfeCoin; path?: string; fingerprint?: never; words?: never }
   /** The BIP32 master key fingerprint, eight hex digits: quick but weaker. */
-  | { fingerprint: string; address?: never; path?: never; words?: never }
-  /** The built-in check of a 12- to 21-word original: confirms the password, not the wallet. */
-  | { words: 12 | 15 | 18 | 21; address?: never; path?: never; fingerprint?: never };
+  | { fingerprint: string; address?: never; coin?: never; path?: never; words?: never }
+  /**
+   * The built-in check of a 12- to 21-word original in a 24-word container: confirms the
+   * password, not the wallet. A same-length container has none (NO_BUILT_IN_CHECK).
+   */
+  | { words: 12 | 15 | 18 | 21; address?: never; coin?: never; path?: never; fingerprint?: never };
 
 export class MhfeError extends Error {
   readonly code: string;
@@ -96,9 +125,20 @@ export class MhfeClient {
     options: MhfeSettings & {
       phrase: string;
       passwordRepeat: string | Uint8Array;
+      /**
+       * A container as long as the 12- to 21-word phrase instead of 24 words. Set it only on the
+       * user's own choice, after showing its consequences: nothing detects a wrong password, the
+       * container shows the phrase's length, and a word copied wrongly passes the shorter
+       * checksum more often. Default false.
+       */
+      sameLength?: boolean;
       onUnverified?: (result: { container: string }) => void | Promise<void>;
     },
-  ): Promise<{ container: string }>;
+  ): Promise<{ container: string; suiteId: string }>;
+  /**
+   * The container's word count selects the suite. `words` chooses the length of a 24-word
+   * container's original; a same-length container takes only its own length.
+   */
   decrypt(
     options: MhfeSettings & { container: string; words?: 0 | WordCount },
   ): Promise<MhfeRecovery>;
@@ -108,7 +148,11 @@ export class MhfeClient {
       reference: MhfeReference;
       passphrase?: string | Uint8Array;
     },
-  ): Promise<{ matches: boolean }>;
+  ): Promise<{
+    matches: boolean;
+    /** Where a matched address was found, such as "m/84'/0'/0'/0/5"; null otherwise. */
+    path: string | null;
+  }>;
   /**
    * The phrase with every word written out, for showing back to the user.
    *
@@ -119,7 +163,7 @@ export class MhfeClient {
     phrase: string,
   ): Promise<{ phrase: string; words: WordCount; otherLengths: WordCount[] }>;
   /** The container with every word written out, for showing back to the user. */
-  readContainer(container: string): Promise<{ container: string }>;
+  readContainer(container: string): Promise<{ container: string; words: WordCount }>;
   /** Stops the running operation at once; its promise rejects with MhfeCancelledError. */
   cancel(): void;
 }
