@@ -459,6 +459,7 @@
             MnemoCode
           </button>
         </nav>
+        <p id="recovery-busy" class="field-note" role="status" aria-live="polite" hidden></p>
 
         <section id="wallet-matcher-panel" class="panel recovery-panel" role="tabpanel" data-recovery-panel>
           <div class="section-head">
@@ -800,7 +801,7 @@
               autocapitalize="none"
               placeholder="Enter 12, 15, 18, 21, or 24 English BIP39 words"
             ></textarea>
-            <fieldset class="mhfe-length-choice">
+            <fieldset class="choice-group">
               <legend>Container length</legend>
               <label class="checkbox-row" for="mhfe-length-24">
                 <input id="mhfe-length-24" type="radio" name="mhfe-container-length" value="24" checked />
@@ -811,13 +812,13 @@
                 Same length as the phrase (12 to 21 words)
               </label>
             </fieldset>
-            <div class="mhfe-option-explainer">
+            <div class="option-explainer">
               <p class="field-note">
                 24 words tell you when a password is wrong and hide how long your phrase is. The same length keeps the
                 backup as short as the phrase, but cannot tell a wrong password, shows the length, and lets a miscopied
                 word through more often.
               </p>
-              <details class="recovery-help mhfe-option-help">
+              <details class="recovery-help option-help">
                 <summary>More details</summary>
                 <div class="recovery-help-popover">
                   <h3>24 words or the same length?</h3>
@@ -890,7 +891,7 @@
               command-line program.
             </p>
             <div class="actions">
-              <button class="primary" id="mhfe-encrypt" type="button">Encrypt</button>
+              <button class="primary" id="mhfe-encrypt" type="button" data-heavy-job>Encrypt</button>
               <button class="secondary" id="mhfe-encrypt-stop" type="button" hidden>Cancel</button>
             </div>
             <p id="mhfe-encrypt-status" class="status" role="status" aria-live="polite"></p>
@@ -953,7 +954,7 @@
               extremely unlikely event that several lengths pass, every candidate is shown.
             </p>
             <div class="actions">
-              <button class="primary" id="mhfe-decrypt" type="button">Restore phrase</button>
+              <button class="primary" id="mhfe-decrypt" type="button" data-heavy-job>Restore phrase</button>
               <button class="secondary" id="mhfe-decrypt-stop" type="button" hidden>Cancel</button>
             </div>
             <p id="mhfe-decrypt-status" class="status" role="status" aria-live="polite"></p>

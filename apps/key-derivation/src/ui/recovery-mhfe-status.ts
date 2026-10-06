@@ -1,6 +1,11 @@
-// Status texts and password-field handling of the MHFE panel, kept apart from the panel so that
-// they can be tested without the browser package's WebAssembly and the page.
-import { MhfeError, type MhfeCandidate } from "@ckd/recovery-mhfe-wasm/client.js";
+// Status texts, progress lines and password-field handling of the MHFE panel, kept apart from the
+// panel so that they can be tested without the browser package's WebAssembly and the page.
+import {
+  MhfeError,
+  type MhfeCandidate,
+  type MhfeProgress,
+} from "@ckd/recovery-mhfe-wasm/client.js";
+import type { JobClock } from "./recovery-progress.js";
 
 /** The suite of a 24-word container, shown before the client confirms it. */
 export const FULL_SUITE_ID = "MHFE-BIP39-256-EXPERIMENTAL-3";
@@ -10,6 +15,24 @@ export const SAME_LENGTH_SUITE_ID = "MHFE-BIP39-LP-EXPERIMENTAL-4";
 export const CONTAINER_WORDS = 24;
 /** A 24-word original fills the whole state and carries no verifier. */
 const WORDS_WITHOUT_CHECK = 24;
+/** Rounds of one pass through the cipher; an encryption runs a second pass as its check. */
+const ROUNDS_PER_STAGE = 12;
+
+/**
+ * Progress for the status line: an encryption has two stages of 12 rounds, "Encrypting" and
+ * "Checking the container", each with its own count; a recovery has one.
+ */
+export function progressLine(progress: MhfeProgress, clock: JobClock, recovering: boolean): string {
+  const checking = progress.rounds > ROUNDS_PER_STAGE && progress.round > ROUNDS_PER_STAGE;
+  const stage = recovering ? "Recovering" : checking ? "Checking the container" : "Encrypting";
+  const round = checking ? progress.round - ROUNDS_PER_STAGE : progress.round;
+  return clock.line(
+    stage,
+    `round ${round} of ${ROUNDS_PER_STAGE}`,
+    progress.round - 1,
+    progress.rounds,
+  );
+}
 
 /** Error text for the status line: the client's codes carry a message written for people. */
 export function describe(cause: unknown, fallback: string): string {

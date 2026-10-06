@@ -5,10 +5,12 @@ import {
   SAME_LENGTH_SUITE_ID,
   clearOnFirstProgress,
   describe,
+  progressLine,
   readBackDiffers,
   recoverySummary,
   rememberNote,
 } from "../src/ui/recovery-mhfe-status.js";
+import { JobClock } from "../src/ui/recovery-progress.js";
 
 group("MHFE panel", () => {
   it("empties the password fields once, when the operation reports its first progress", () => {
@@ -69,6 +71,25 @@ group("MHFE panel", () => {
     expect(
       recoverySummary({ words: 24, verified: false, phrase, suiteId: FULL_SUITE_ID }, 0),
     ).toContain("no shorter length passed its check");
+  });
+
+  it("counts the rounds of each stage on its own", () => {
+    let now = 0;
+    const clock = new JobClock(() => now);
+    expect(progressLine({ round: 1, rounds: 24 }, clock, false)).toBe(
+      "Encrypting · round 1 of 12 · 0 s elapsed",
+    );
+    now = 66_000;
+    // Eleven rounds took 66 s, so the 13 still to come take about 78 s.
+    expect(progressLine({ round: 12, rounds: 24 }, clock, false)).toBe(
+      "Encrypting · round 12 of 12 · 1 min 6 s elapsed · about 1 min 18 s left",
+    );
+    expect(progressLine({ round: 13, rounds: 24 }, clock, false)).toMatch(
+      /^Checking the container · round 1 of 12 · /u,
+    );
+    expect(progressLine({ round: 3, rounds: 12 }, clock, true)).toMatch(
+      /^Recovering · round 3 of 12 · /u,
+    );
   });
 
   it("shows the words read back only when they differ from the entry", () => {

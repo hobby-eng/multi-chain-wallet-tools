@@ -11,6 +11,7 @@ import {
 import { parseMnemoCodeDates, type MnemoCodeMode } from "@ckd/recovery-backup/mnemocode.js";
 import { cardPagesAsPng } from "./recovery-mnemocode-card-images.js";
 import { required, type RecoveryFeatureContext } from "./recovery-workspace-shared.js";
+import type { RecoveryFeature } from "./recovery-feature.js";
 
 const PROFILE_FIELDS = [
   "name",
@@ -53,7 +54,7 @@ function nextFrame(): Promise<void> {
   });
 }
 
-export function installMnemoCodeCards(context: RecoveryFeatureContext): void {
+function installMnemoCodeCards(context: RecoveryFeatureContext): void {
   const exporter = createMnemoCodeCardExporter(readMnemoCodeCardAsset, cardPagesAsPng);
   const section = required<HTMLDetailsElement>("#mnemocode-cards-section");
   const representation = required<HTMLSelectElement>("#mnemocode-encode-format");
@@ -163,3 +164,5 @@ export function installMnemoCodeCards(context: RecoveryFeatureContext): void {
     })();
   });
 }
+
+export const recoveryFeature: RecoveryFeature = { install: installMnemoCodeCards };

@@ -300,7 +300,8 @@ const featureSourceMarkers = {
     "/node_modules/pdf-lib/",
     "/node_modules/@pdf-lib/",
   ],
-  mhfe: ["/recovery-mhfe.ts", "/recovery-mhfe-wasm/"],
+  // One prefix covers every MHFE panel module and the browser package.
+  mhfe: ["/recovery-mhfe"],
   slip39: [
     "/recovery-slip39.ts",
     "/recovery-backup/src/slip39.ts",

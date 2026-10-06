@@ -15,6 +15,7 @@ import {
   updateLineNumbers,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
+import type { RecoveryFeature } from "./recovery-feature.js";
 
 interface MatchFinding {
   readonly seedNumber: number;
@@ -38,7 +39,7 @@ function adapterMetadata(context: RecoveryFeatureContext, id: string): CoinAdapt
     };
   return context.registry.getCoinAdapter(id);
 }
-export function installWalletMatcher(context: RecoveryFeatureContext): void {
+function installWalletMatcher(context: RecoveryFeatureContext): void {
   installSecretToggle(
     "#toggle-matcher-secrets",
     "#matcher-seeds, #matcher-passphrases",
@@ -467,3 +468,15 @@ export function installWalletMatcher(context: RecoveryFeatureContext): void {
     })();
   });
 }
+
+export const recoveryFeature: RecoveryFeature = {
+  phraseSlot: {
+    target: "matcher",
+    panelId: "wallet-matcher-panel",
+    phraseField: "#matcher-seeds",
+    passphraseField: "#matcher-passphrases",
+    manualBlock: ".matcher-input-grid",
+    linkedNote: "The matching BIP39 passphrase will be used when the search starts.",
+  },
+  install: installWalletMatcher,
+};

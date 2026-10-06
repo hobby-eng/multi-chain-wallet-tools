@@ -16,13 +16,14 @@ import {
   required,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
+import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
 function displayFailure(cause: unknown, fallback: string): string {
   const message = describeUnknownError(cause, fallback);
   freeThrownValue(cause);
   return message;
 }
 
-export function installGordianEnvelope(context: RecoveryFeatureContext): void {
+function installGordianEnvelope(context: RecoveryFeatureContext): void {
   installSecretToggle(
     "#toggle-envelope-recipient-mnemonic",
     "#envelope-recipient-mnemonic",
@@ -181,3 +182,14 @@ export function installGordianEnvelope(context: RecoveryFeatureContext): void {
     },
   });
 }
+
+export const recoveryFeature: RecoveryFeature = {
+  phraseSlot: {
+    target: "gordian-envelope",
+    panelId: "gordian-envelope-panel",
+    phraseField: "#envelope-source",
+    passphraseField: "#envelope-bip39-passphrase",
+    linkedNote: PHRASE_ONLY_NOTE,
+  },
+  install: installGordianEnvelope,
+};

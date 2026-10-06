@@ -82,7 +82,7 @@ export const GITHUB_SOURCES = [
   },
 ];
 
-const LOCAL_IMPLEMENTATIONS = [
+export const LOCAL_IMPLEMENTATIONS = [
   {
     id: "seedqr-codec",
     upstream: "seedsigner-seedqr",
@@ -122,6 +122,12 @@ const LOCAL_IMPLEMENTATIONS = [
       "packages/recovery-mhfe-wasm/generated/argon2-mt.js",
       "packages/recovery-mhfe-wasm/generated/argon2-st.js",
       "apps/key-derivation/src/ui/recovery-mhfe.ts",
+      "apps/key-derivation/src/ui/recovery-mhfe-engine.ts",
+      "apps/key-derivation/src/ui/recovery-mhfe-encode.ts",
+      "apps/key-derivation/src/ui/recovery-mhfe-decode.ts",
+      "apps/key-derivation/src/ui/recovery-mhfe-fields.ts",
+      "apps/key-derivation/src/ui/recovery-mhfe-container-card.ts",
+      "apps/key-derivation/src/ui/recovery-mhfe-status.ts",
     ],
   },
   {

@@ -15,7 +15,8 @@ import {
   required,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
-export function installSlip39(context: RecoveryFeatureContext): void {
+import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
+function installSlip39(context: RecoveryFeatureContext): void {
   installSecretToggle(
     "#toggle-slip39-source",
     "#slip39-source-mnemonic",
@@ -113,3 +114,13 @@ export function installSlip39(context: RecoveryFeatureContext): void {
     }
   });
 }
+
+export const recoveryFeature: RecoveryFeature = {
+  phraseSlot: {
+    target: "slip39",
+    panelId: "slip39-panel",
+    phraseField: "#slip39-source-mnemonic",
+    linkedNote: PHRASE_ONLY_NOTE,
+  },
+  install: installSlip39,
+};

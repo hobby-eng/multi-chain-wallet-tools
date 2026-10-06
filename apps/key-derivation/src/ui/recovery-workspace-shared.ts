@@ -1,5 +1,6 @@
 import type { CoinRegistry } from "@ckd/coins/registry-base.js";
 import type { WalletMatcherTargetDetector } from "@ckd/recovery/matcher-types.js";
+import type { RecoveryJobGate } from "./recovery-job-gate.js";
 import type { RecoverySourceTarget } from "./recovery-source-link.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { createQrAction } from "@ckd/ui/payment-qr.js";
@@ -19,11 +20,29 @@ export interface RecoveryFeatureContext {
   ) => { mnemonic: string; passphrase: string } | null;
   /** True while the phrase linked from Generate & Derive is shown in its card. */
   readonly linkedSourceRevealed: (target: RecoverySourceTarget) => boolean;
+  /** Runs heavy jobs one at a time across every panel. */
+  readonly jobs: RecoveryJobGate;
 }
 
 export function required<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
   if (element === null) throw new Error(`Recovery workspace is missing ${selector}.`);
+  return element;
+}
+
+export function paragraph(text: string, className?: string): HTMLParagraphElement {
+  const element = document.createElement("p");
+  element.textContent = text;
+  if (className !== undefined) element.className = className;
+  return element;
+}
+
+/** A paragraph with a bold lead-in, such as "Slow mode: ...". */
+export function leadParagraph(lead: string, text: string): HTMLParagraphElement {
+  const strong = document.createElement("strong");
+  strong.textContent = lead;
+  const element = document.createElement("p");
+  element.append(strong, ` ${text}`);
   return element;
 }
 

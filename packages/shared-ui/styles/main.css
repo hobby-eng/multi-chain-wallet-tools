@@ -2577,7 +2577,8 @@ footer p {
   font-family: inherit;
 }
 
-#mhfe-panel .mhfe-length-choice {
+/* A group of radio answers, each with its own label; used by every panel of the workspace. */
+.choice-group {
   display: grid;
   gap: 0.45rem;
   margin: 0;
@@ -2586,7 +2587,7 @@ footer p {
 }
 
 /* The legend looks like every other field label. */
-#mhfe-panel .mhfe-length-choice legend {
+.choice-group legend {
   margin: 0 0 8px;
   padding: 0;
   color: #d9e0e7;
@@ -2594,30 +2595,31 @@ footer p {
   font-weight: 700;
 }
 
-#mhfe-panel .mhfe-length-choice input[type="radio"] {
+.choice-group input[type="radio"] {
   width: auto;
   margin: 0;
 }
 
-#mhfe-panel .mhfe-option-explainer {
+/* A short note under a choice, with a "More details" popover beside it. */
+.option-explainer {
   display: flex;
   align-items: baseline;
   gap: 0.65rem;
   margin-top: -0.75rem;
 }
 
-#mhfe-panel .mhfe-option-explainer > .field-note {
+.option-explainer > .field-note {
   margin: 0;
 }
 
-#mhfe-panel .mhfe-option-help {
+.option-help {
   position: relative;
   top: auto;
   right: auto;
   flex: 0 0 auto;
 }
 
-#mhfe-panel .mhfe-option-help .recovery-help-popover {
+.option-help .recovery-help-popover {
   right: 0;
 }
 
@@ -2626,7 +2628,7 @@ footer p {
     grid-template-columns: 1fr;
   }
 
-  #mhfe-panel .mhfe-option-explainer {
+  .option-explainer {
     align-items: flex-start;
   }
 }

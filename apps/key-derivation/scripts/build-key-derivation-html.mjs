@@ -217,36 +217,31 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
           namespace: "ckd-recovery-selection",
         }));
         buildContext.onLoad({ filter: /.*/, namespace: "ckd-recovery-selection" }, () => {
-          const definitions = [
-            ["wallet-matcher", "matcher", "recovery-wallet-matcher.ts", "installWalletMatcher"],
-            ["seedqr", "seedqr", "recovery-seedqr.ts", "installSeedQr"],
-            ["mnemocode", "mnemocode", "recovery-mnemocode.ts", "installMnemoCode"],
-            ["mnemocode-cards", "", "recovery-mnemocode-cards.ts", "installMnemoCodeCards"],
-            ["mhfe", "mhfe", "recovery-mhfe.ts", "installMhfe"],
-            ["slip39", "slip39", "recovery-slip39.ts", "installSlip39"],
-            ["codex32", "codex32", "recovery-codex32.ts", "installCodex32"],
-            ["sskr", "sskr", "recovery-sskr.ts", "installSskr"],
-            [
-              "gordian-envelope",
-              "gordian-envelope",
-              "recovery-gordian-envelope.ts",
-              "installGordianEnvelope",
-            ],
-          ].filter(([feature]) => features.has(feature));
-          const imports = definitions
+          // Each module exports `recoveryFeature`; the order is the order of installation.
+          const files = [
+            ["wallet-matcher", "recovery-wallet-matcher.ts"],
+            ["seedqr", "recovery-seedqr.ts"],
+            ["mnemocode", "recovery-mnemocode.ts"],
+            ["mnemocode-cards", "recovery-mnemocode-cards.ts"],
+            ["mhfe", "recovery-mhfe.ts"],
+            ["slip39", "recovery-slip39.ts"],
+            ["codex32", "recovery-codex32.ts"],
+            ["sskr", "recovery-sskr.ts"],
+            ["gordian-envelope", "recovery-gordian-envelope.ts"],
+          ]
+            .filter(([feature]) => features.has(feature))
+            .map(([, file]) => file);
+          const imports = files
             .map(
-              ([, , file, symbol], index) =>
-                `import { ${symbol} as install${index} } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/ui", file))};`,
+              (file, index) =>
+                `import { recoveryFeature as feature${index} } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/ui", file))};`,
             )
             .join("\n");
-          const targets = definitions
-            .flatMap(([, values]) => values.split(","))
-            .filter((value) => value !== "");
-          const calls = definitions.map((_, index) => `install${index}(context);`).join("\n");
+          const list = files.map((_, index) => `feature${index}`).join(", ");
           return {
             loader: "ts",
             resolveDir: root,
-            contents: `${imports}\nexport const selectedRecoveryTargets = new Set(${JSON.stringify(targets)});\nexport function installSelectedRecoveryFeatures(context) { ${calls} }`,
+            contents: `${imports}\nexport const selectedRecoveryFeatures = [${list}];`,
           };
         });
       },

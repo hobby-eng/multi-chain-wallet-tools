@@ -12,7 +12,8 @@ import {
   required,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
-export function installCodex32(context: RecoveryFeatureContext): void {
+import type { RecoveryFeature } from "./recovery-feature.js";
+function installCodex32(context: RecoveryFeatureContext): void {
   installSecretToggle(
     "#toggle-codex32-source",
     "#codex32-source",
@@ -173,3 +174,14 @@ export function installCodex32(context: RecoveryFeatureContext): void {
     }
   });
 }
+
+export const recoveryFeature: RecoveryFeature = {
+  phraseSlot: {
+    target: "codex32",
+    panelId: "codex32-panel",
+    phraseField: "#codex32-source",
+    passphraseField: "#codex32-passphrase",
+    linkedNote: "The BIP39 passphrase is included only in BIP32 master-seed mode.",
+  },
+  install: installCodex32,
+};

@@ -27,6 +27,7 @@ import {
   required,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
+import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
 
 function selectedMode(selector: string): MnemoCodeMode {
   return required<HTMLSelectElement>(selector).value as MnemoCodeMode;
@@ -260,7 +261,7 @@ function renderMissingWordCandidates(
   );
 }
 
-export function installMnemoCode(context: RecoveryFeatureContext): void {
+function installMnemoCode(context: RecoveryFeatureContext): void {
   installSecretToggle(
     "#toggle-mnemocode-source",
     "#mnemocode-source",
@@ -451,3 +452,13 @@ export function installMnemoCode(context: RecoveryFeatureContext): void {
     }
   });
 }
+
+export const recoveryFeature: RecoveryFeature = {
+  phraseSlot: {
+    target: "mnemocode",
+    panelId: "mnemocode-panel",
+    phraseField: "#mnemocode-source",
+    linkedNote: PHRASE_ONLY_NOTE,
+  },
+  install: installMnemoCode,
+};

@@ -16,6 +16,7 @@ import {
   required,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
+import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
 
 function selectedEncoding(selector: string): SskrShareEncoding {
   const value = required<HTMLSelectElement>(selector).value;
@@ -28,7 +29,7 @@ function displayFailure(cause: unknown, fallback: string): string {
   return message;
 }
 
-export function installSskr(context: RecoveryFeatureContext): void {
+function installSskr(context: RecoveryFeatureContext): void {
   const groupEditor = installThresholdGroupEditor("#sskr-groups", {
     initial: [{ threshold: 2, count: 3 }],
     minimumRows: 1,
@@ -96,3 +97,13 @@ export function installSskr(context: RecoveryFeatureContext): void {
     },
   });
 }
+
+export const recoveryFeature: RecoveryFeature = {
+  phraseSlot: {
+    target: "sskr",
+    panelId: "sskr-panel",
+    phraseField: "#sskr-source",
+    linkedNote: PHRASE_ONLY_NOTE,
+  },
+  install: installSskr,
+};

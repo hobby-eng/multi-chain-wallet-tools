@@ -14,7 +14,8 @@ import {
   required,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
-export function installSeedQr(context: RecoveryFeatureContext): void {
+import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
+function installSeedQr(context: RecoveryFeatureContext): void {
   installSecretToggle("#toggle-seedqr-source", "#seedqr-source", "Show", "Hide", "recovery phrase");
   installMnemonicSourceDiagnostic(context, "seedqr", "#seedqr-source", "#toggle-seedqr-source");
   installSecretToggle(
@@ -107,3 +108,13 @@ export function installSeedQr(context: RecoveryFeatureContext): void {
     }
   });
 }
+
+export const recoveryFeature: RecoveryFeature = {
+  phraseSlot: {
+    target: "seedqr",
+    panelId: "seedqr-panel",
+    phraseField: "#seedqr-source",
+    linkedNote: PHRASE_ONLY_NOTE,
+  },
+  install: installSeedQr,
+};
