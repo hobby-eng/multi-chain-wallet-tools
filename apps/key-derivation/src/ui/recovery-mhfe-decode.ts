@@ -4,6 +4,7 @@
 // or with a known address in the Deriver instead.
 import type { MhfeRecovery, WordCount } from "@ckd/recovery-mhfe-wasm/client.js";
 import { installQrImageImport } from "@ckd/ui/qr-image-import.js";
+import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
 import { MEMORY_LEVEL, type MhfeEngine } from "./recovery-mhfe-engine.js";
 import { PasswordField, PimField } from "./recovery-mhfe-fields.js";
 import {
@@ -17,7 +18,6 @@ import { JobClock, formatDuration } from "./recovery-progress.js";
 import {
   installSecretToggle,
   paragraph,
-  phraseFingerprint,
   renderReadBackWords,
   renderRecoveredMnemonic,
   required,
@@ -119,7 +119,7 @@ export class MhfeDecodeTab {
     }
     this.#readBack.append(
       paragraph(
-        `Container fingerprint ${phraseFingerprint(container, this.#context.mnemonicToSeed)}. If it differs from ` +
+        `Container fingerprint ${fingerprintWithoutPassphrase(container, this.#context.mnemonicToSeed)}. If it differs from ` +
           "the one noted when the container was made, a word is miscopied: press Cancel and check the words.",
         "field-note",
       ),

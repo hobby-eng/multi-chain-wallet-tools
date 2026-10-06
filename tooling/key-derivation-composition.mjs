@@ -283,6 +283,11 @@ const featureSourceMarkers = {
   mnemocode: [
     "/recovery-mnemocode.ts",
     "/recovery-mnemocode-help.ts",
+    "/recovery-mnemocode-encode.ts",
+    "/recovery-mnemocode-decode.ts",
+    "/recovery-mnemocode-words.ts",
+    "/recovery-mnemocode-fields.ts",
+    "/recovery-mnemocode-results.ts",
     "/recovery-backup/src/mnemocode.ts",
     "/recovery-mnemocode/source/",
     "/self-test-mnemocode.ts",

@@ -635,19 +635,6 @@ export function renderReadBackWords(
   );
 }
 
-/** The BIP32 master key fingerprint of a phrase without a BIP39 passphrase; the seed is wiped. */
-export function phraseFingerprint(
-  mnemonic: string,
-  mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array,
-): string {
-  const seed = mnemonicToSeed(mnemonic, "");
-  try {
-    return masterFingerprintFromSeed(seed);
-  } finally {
-    seed.fill(0);
-  }
-}
-
 function renderRecoveredSecret(
   container: HTMLElement,
   value: string,

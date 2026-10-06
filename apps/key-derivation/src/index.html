@@ -1753,6 +1753,25 @@
             </details>
           </section>
           <section id="mnemocode-decode-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
+            <div class="field-heading-row">
+              <label for="mnemocode-input">MNC1 record or raw representation</label>
+              <button id="toggle-mnemocode-input" class="danger-outline compact" type="button" aria-pressed="false">
+                Show
+              </button>
+            </div>
+            <textarea
+              id="mnemocode-input"
+              class="concealed"
+              rows="7"
+              autocomplete="off"
+              autocapitalize="none"
+              placeholder="Paste an MNC1 record or raw representation, or import a local QR image"
+            ></textarea>
+            <p class="field-note">
+              An MNC1 record names its own mode and representation. Dates are never stored in it: enter them below for a
+              Seedshift record.
+            </p>
+            <p id="mnemocode-decode-record-note" class="field-note" role="status" aria-live="polite" hidden></p>
             <div class="backup-options-grid two-options">
               <div>
                 <div class="mnemocode-option-heading">
@@ -1796,24 +1815,7 @@
                 placeholder="Dates are required for every Seedshift mode"
               ></textarea>
             </div>
-            <div class="field-heading-row">
-              <label for="mnemocode-input">MNC1 record or raw representation</label>
-              <button id="toggle-mnemocode-input" class="danger-outline compact" type="button" aria-pressed="false">
-                Show
-              </button>
-            </div>
-            <textarea
-              id="mnemocode-input"
-              class="concealed"
-              rows="7"
-              autocomplete="off"
-              autocapitalize="none"
-              placeholder="Paste an MNC1 record or raw representation, or import a local QR image"
-            ></textarea>
-            <p class="field-note">
-              An MNC1 record overrides the mode and representation selectors. Dates remain external and must be entered
-              above.
-            </p>
+            <p id="mnemocode-decode-codes-note" class="field-note" role="status" aria-live="polite" hidden></p>
             <button id="decode-mnemocode" class="primary" type="button">Restore phrase</button>
             <div id="mnemocode-decode-result" class="share-results" role="status" aria-live="polite"></div>
             <hr />

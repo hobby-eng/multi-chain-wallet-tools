@@ -110,6 +110,7 @@ export function assertDashOnlyGraph(inputs, label) {
         .map((path) => `${MNEMOCODE_SOURCE_DIRECTORY}/${path}`)
         .sort(),
       "packages/recovery-backup/src/mnemonic-entries.ts",
+      "packages/recovery-backup/src/fingerprint.ts",
       "packages/recovery-backup/src/self-test.ts",
       "packages/recovery-backup/src/self-test-helpers.ts",
       "packages/recovery-backup/src/self-test-seedqr.ts",

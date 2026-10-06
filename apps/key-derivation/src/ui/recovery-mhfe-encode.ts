@@ -1,6 +1,7 @@
 // The Encode tab of the MHFE panel: a BIP39 phrase into a 24-word container, or on request into one
 // as long as a 12- to 21-word phrase.
 import { MhfeError, type MhfeClient } from "@ckd/recovery-mhfe-wasm/client.js";
+import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
 import { ContainerCard } from "./recovery-mhfe-container-card.js";
 import { MEMORY_LEVEL, type MhfeEngine } from "./recovery-mhfe-engine.js";
 import { PasswordField, PimField } from "./recovery-mhfe-fields.js";
@@ -16,7 +17,6 @@ import {
 } from "./recovery-mhfe-status.js";
 import { JobClock, formatDuration } from "./recovery-progress.js";
 import {
-  phraseFingerprint,
   renderReadBackWords,
   required,
   type RecoveryFeatureContext,
@@ -132,7 +132,7 @@ export class MhfeEncodeTab {
       this.#result,
       container,
       containerWords,
-      phraseFingerprint(container, this.#context.mnemonicToSeed),
+      fingerprintWithoutPassphrase(container, this.#context.mnemonicToSeed),
       this.#context.writeClipboard,
     );
     this.#card.keepNote = this.#keepNote(request, suiteId);

@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 import {
   decodeMnemoCode,
   detectMnemoCodeFormats,
+  effectiveMnemoCodeMode,
   encodeMnemoCode,
   MNEMOCODE_FORMATS,
   MNEMOCODE_VERSION,
+  mnemoCodeEncodedPhrase,
   parseMnemoCode,
   parseMnemoCodeDate,
   parseMnemoCodeDates,
@@ -225,5 +227,29 @@ describe("MnemoCode 0.1.0 compatibility", () => {
     expect(decodeMnemoCode(record, { mode: "seedshift", format: "auto", dates }).mnemonic).toBe(
       zeroMnemonic,
     );
+  });
+
+  it("lets a record decide the mode, and reads the encoded words before the dates", () => {
+    const encoded = encodeMnemoCode(zeroMnemonic, "seedshift", "english", dates);
+    const encodedWords =
+      "wool abuse actual wool abuse actual wool abuse actual wool abuse congress";
+    expect(encoded.mnemonic).toBe(zeroMnemonic);
+    expect(encoded.encodedMnemonic).toBe(encodedWords);
+    // The page shows the dates field for the record's mode, not for the selector's.
+    expect(effectiveMnemoCodeMode(encoded.record, "direct")).toBe("seedshift");
+    expect(effectiveMnemoCodeMode(encoded.payload, "direct")).toBe("direct");
+    expect(mnemoCodeEncodedPhrase(encoded.record, "direct", "auto")).toBe(encodedWords);
+    expect(mnemoCodeEncodedPhrase(encoded.payload, "seedshift", "english")).toBe(encodedWords);
+    expect(mnemoCodeEncodedPhrase("wool abuse", "seedshift", "english")).toBeUndefined();
+  });
+
+  it("gives no encoded phrase when the legacy output fails the BIP39 checksum", () => {
+    const encoded = encodeMnemoCode(zeroMnemonic, "seedshift-legacy", "english", dates);
+    expect(encoded.payload).toBe(
+      "wool abuse actual wool abuse actual wool abuse actual wool abuse addict",
+    );
+    expect(encoded.checksumValid).toBe(false);
+    expect(encoded.encodedMnemonic).toBeUndefined();
+    expect(mnemoCodeEncodedPhrase(encoded.record, "direct", "auto")).toBeUndefined();
   });
 });

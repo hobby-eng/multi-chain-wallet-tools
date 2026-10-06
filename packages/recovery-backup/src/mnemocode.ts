@@ -65,6 +65,10 @@ export interface MnemoCodeEncodeResult {
   readonly record: string;
   readonly colors: readonly string[];
   readonly checksumValid: boolean;
+  /** The phrase that was encoded, with its words written out in full. */
+  readonly mnemonic: string;
+  /** The encoded words as a BIP39 phrase; absent when they fail its checksum (Original Seedshift). */
+  readonly encodedMnemonic?: string;
 }
 
 export interface MnemoCodeDecodeResult {
@@ -227,14 +231,72 @@ export function encodeMnemoCode(
       ? "seedshift-legacy"
       : mode;
   const payload = formatEncoded(result, format);
+  const encodedMnemonic = result.shiftedEnglish.join(" ");
+  const checksumValid = validateMnemonic(encodedMnemonic, englishWordlist);
   return {
     mode: effectiveMode,
     format,
     payload,
     record: serializeMnemoCodeRecord(effectiveMode, format, payload),
     colors: indexesToColors(result.shiftedIndexes),
-    checksumValid: validateMnemonic(result.shiftedEnglish.join(" "), englishWordlist),
+    checksumValid,
+    mnemonic: canonical,
+    ...(checksumValid ? { encodedMnemonic } : {}),
   };
+}
+
+/** The codes of an input: a record names its mode and form; raw input takes the selected ones. */
+interface MnemoCodeCodes {
+  readonly mode: MnemoCodeMode;
+  readonly format: MnemoCodeFormat;
+  readonly indexes: number[];
+}
+
+function readCodes(
+  input: string,
+  selectedMode: MnemoCodeMode,
+  selectedFormat: MnemoCodeFormat | "auto",
+): MnemoCodeCodes {
+  const record = parseMnemoCodeRecord(input);
+  const raw = record?.payload ?? input.trim();
+  let format = record?.format;
+  if (format === undefined) {
+    if (selectedFormat === "auto") {
+      const detected = detectMnemoCodeFormats(raw);
+      if (detected.length === 0)
+        throw new Error("The MnemoCode representation format could not be detected.");
+      if (detected.length > 1)
+        throw new Error(`The input is ambiguous; select one of: ${detected.join(", ")}.`);
+      format = detected[0]!;
+    } else {
+      format = selectedFormat;
+    }
+  }
+  return { mode: record?.mode ?? selectedMode, format, indexes: parseMnemoCode(raw, format) };
+}
+
+/** The mode a decode uses: the record's own, or for raw input the selected one. */
+export function effectiveMnemoCodeMode(input: string, selectedMode: MnemoCodeMode): MnemoCodeMode {
+  assertMode(selectedMode);
+  return parseMnemoCodeRecord(input)?.mode ?? selectedMode;
+}
+
+/**
+ * The encoded words of an input as a BIP39 phrase, before any date is applied, so that their
+ * fingerprint can be compared with the one Encode showed. Undefined while the input cannot be read
+ * or its words fail the BIP39 checksum.
+ */
+export function mnemoCodeEncodedPhrase(
+  input: string,
+  selectedMode: MnemoCodeMode,
+  selectedFormat: MnemoCodeFormat | "auto",
+): string | undefined {
+  try {
+    const phrase = englishFromIndexes(readCodes(input, selectedMode, selectedFormat).indexes);
+    return validateMnemonic(phrase, englishWordlist) ? phrase : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function decodeMnemoCode(
@@ -247,23 +309,7 @@ export function decodeMnemoCode(
 ): MnemoCodeDecodeResult {
   assertMode(options.mode);
   if (options.format !== "auto") assertFormat(options.format);
-  const record = parseMnemoCodeRecord(input);
-  const mode = record?.mode ?? options.mode;
-  const raw = record?.payload ?? input.trim();
-  let format = record?.format;
-  if (format === undefined) {
-    if (options.format === "auto") {
-      const detected = detectMnemoCodeFormats(raw);
-      if (detected.length === 0)
-        throw new Error("The MnemoCode representation format could not be detected.");
-      if (detected.length > 1)
-        throw new Error(`The input is ambiguous; select one of: ${detected.join(", ")}.`);
-      format = detected[0]!;
-    } else {
-      format = options.format;
-    }
-  }
-  const indexes = parseMnemoCode(raw, format);
+  const { mode, format, indexes } = readCodes(input, options.mode, options.format);
   // A record names its own mode. Dates left in the form are no reason to refuse a Direct record.
   const dates = mode === "direct" ? [] : datesForMode(mode, options.dates ?? []);
   if (mode === "direct") {
