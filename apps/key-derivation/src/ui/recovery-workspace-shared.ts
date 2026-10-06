@@ -600,6 +600,35 @@ export function renderRecoveredSeed(
   );
 }
 
+/** Words a reader wrote out from the user's entry, concealed like the entry, for checking before use. */
+export function renderReadBackWords(
+  container: HTMLElement,
+  words: string,
+  note: string,
+  copy: (value: string) => Promise<void>,
+): void {
+  renderRecoveredSecret(
+    container,
+    words,
+    { reveal: "Show words", hide: "Hide words", copy: "Copy words" },
+    copy,
+    note,
+  );
+}
+
+/** The BIP32 master key fingerprint of a phrase without a BIP39 passphrase; the seed is wiped. */
+export function phraseFingerprint(
+  mnemonic: string,
+  mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array,
+): string {
+  const seed = mnemonicToSeed(mnemonic, "");
+  try {
+    return masterFingerprintFromSeed(seed);
+  } finally {
+    seed.fill(0);
+  }
+}
+
 function renderRecoveredSecret(
   container: HTMLElement,
   value: string,

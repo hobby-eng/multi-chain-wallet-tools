@@ -111,3 +111,11 @@ export function recoverySummary(candidate: MhfeCandidate, selectedWords: number)
     "or container."
   );
 }
+
+/**
+ * Whether the words MHFE read differ from the entry once case and spacing are set aside, for example
+ * because words were typed shortened to their first four letters.
+ */
+export function readBackDiffers(typed: string, read: string): boolean {
+  return typed.trim().toLowerCase().split(/\s+/u).join(" ") !== read;
+}

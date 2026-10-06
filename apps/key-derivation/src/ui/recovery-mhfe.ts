@@ -16,6 +16,8 @@ import { installQrImageImport } from "@ckd/ui/qr-image-import.js";
 import {
   installSecretToggle,
   installMnemonicSourceDiagnostic,
+  phraseFingerprint,
+  renderReadBackWords,
   renderRecoveredMnemonic,
   required,
   type RecoveryFeatureContext,
@@ -26,6 +28,7 @@ import {
   SAME_LENGTH_SUITE_ID,
   clearOnFirstProgress,
   describe,
+  readBackDiffers,
   recoverySummary,
   rememberNote,
 } from "./recovery-mhfe-status.js";
@@ -196,6 +199,20 @@ async function runOperation<T>(
   }
 }
 
+/**
+ * The package asks the page to show the words it read back. They are shown only when they differ
+ * from the entry, for example when words were typed shortened to their first four letters.
+ */
+function showReadBack(
+  target: HTMLElement,
+  typed: string,
+  read: string,
+  note: string,
+  copy: (value: string) => Promise<void>,
+): void {
+  if (readBackDiffers(typed, read)) renderReadBackWords(target, read, note, copy);
+}
+
 interface ContainerCard {
   readonly element: HTMLElement;
   readonly state: HTMLElement;
@@ -211,6 +228,7 @@ function renderContainer(
   target: HTMLElement,
   container: string,
   containerWords: number,
+  fingerprint: string,
   copy: (value: string) => Promise<void>,
 ): ContainerCard {
   const card = document.createElement("article");
@@ -252,8 +270,16 @@ function renderContainer(
   const actions = document.createElement("div");
   actions.className = "share-secret-actions";
   actions.append(reveal, copyButton, qr);
+  // A container is itself a BIP39 phrase; its fingerprint lets Decode catch a miscopied word
+  // before the long recovery starts.
+  const fingerprintNote = paragraph(
+    `Container fingerprint ${fingerprint} (BIP32 master key fingerprint of these words). Note it with the ` +
+      "container: Decode shows the fingerprint of the words you type before the recovery starts, so a " +
+      "miscopied word is caught at once.",
+    "field-note",
+  );
   const note = paragraph("", "field-note");
-  card.append(title, state, output, actions, note);
+  card.append(title, state, output, actions, fingerprintNote, note);
   target.replaceChildren(card);
   return { element: card, state, note };
 }
@@ -285,13 +311,16 @@ export function installMhfe(context: RecoveryFeatureContext): void {
   const encryptStop = required<HTMLButtonElement>("#mhfe-encrypt-stop");
   const encryptStatus = required<HTMLElement>("#mhfe-encrypt-status");
   const encryptResult = required<HTMLElement>("#mhfe-encrypt-result");
+  const encryptRead = required<HTMLElement>("#mhfe-encrypt-read");
   const decryptAction = required<HTMLButtonElement>("#mhfe-decrypt");
   const decryptStop = required<HTMLButtonElement>("#mhfe-decrypt-stop");
   const decryptStatus = required<HTMLElement>("#mhfe-decrypt-status");
   const decryptResult = required<HTMLElement>("#mhfe-decrypt-result");
+  const decryptRead = required<HTMLElement>("#mhfe-decrypt-read");
 
   encryptAction.addEventListener("click", () => {
     encryptResult.replaceChildren();
+    encryptRead.replaceChildren();
     encryptStatus.classList.remove("warning");
     const passwordInput = required<HTMLInputElement>("#mhfe-encrypt-password");
     const repeatInput = required<HTMLInputElement>("#mhfe-encrypt-password-confirm");
@@ -306,6 +335,13 @@ export function installMhfe(context: RecoveryFeatureContext): void {
           throw new Error("The two passwords differ. Type them again.");
         const source = context.readMnemonic("mhfe", "#mhfe-source").trim();
         const read = await mhfeClient().readPhrase(source);
+        showReadBack(
+          encryptRead,
+          source,
+          read.phrase,
+          "MHFE read your phrase as these words, written out in full. Check them against your backup.",
+          context.writeClipboard,
+        );
         // About one phrase in four billion also passes the check of another length; automatic
         // detection in a 24-word container would then not give it back on its own. A same-length
         // container needs no such note: its own length is the phrase's.
@@ -335,6 +371,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
               encryptResult,
               container,
               containerWords,
+              phraseFingerprint(container, context.mnemonicToSeed),
               context.writeClipboard,
             );
             card.note.textContent = rememberNote(
@@ -347,7 +384,13 @@ export function installMhfe(context: RecoveryFeatureContext): void {
           },
         });
         const { container, suiteId } = await pending;
-        card ??= renderContainer(encryptResult, container, containerWords, context.writeClipboard);
+        card ??= renderContainer(
+          encryptResult,
+          container,
+          containerWords,
+          phraseFingerprint(container, context.mnemonicToSeed),
+          context.writeClipboard,
+        );
         card.note.textContent = rememberNote(
           read.words,
           sameLength,
@@ -375,6 +418,7 @@ export function installMhfe(context: RecoveryFeatureContext): void {
 
   decryptAction.addEventListener("click", () => {
     decryptResult.replaceChildren();
+    decryptRead.replaceChildren();
     decryptStatus.classList.remove("warning");
     const passwordInput = required<HTMLInputElement>("#mhfe-decrypt-password");
     void runOperation(decryptStop, [encryptAction, decryptAction], async () => {
@@ -382,6 +426,20 @@ export function installMhfe(context: RecoveryFeatureContext): void {
         const pim = selectedPim("decrypt");
         const words = selectedSourceWords();
         const { container } = await mhfeClient().readContainer(encryptedInput.value);
+        showReadBack(
+          decryptRead,
+          encryptedInput.value,
+          container,
+          "MHFE read the container as these words, written out in full.",
+          context.writeClipboard,
+        );
+        decryptRead.append(
+          paragraph(
+            `Container fingerprint ${phraseFingerprint(container, context.mnemonicToSeed)}. If it differs from ` +
+              "the one noted when the container was made, a word is miscopied: press Cancel and check the words.",
+            "field-note",
+          ),
+        );
         const started = performance.now();
         const clearPassword = clearOnFirstProgress(passwordInput);
         const pending = mhfeClient().decrypt({

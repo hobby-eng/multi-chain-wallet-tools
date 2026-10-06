@@ -5,6 +5,7 @@ import {
   SAME_LENGTH_SUITE_ID,
   clearOnFirstProgress,
   describe,
+  readBackDiffers,
   recoverySummary,
   rememberNote,
 } from "../src/ui/recovery-mhfe-status.js";
@@ -68,5 +69,12 @@ group("MHFE panel", () => {
     expect(
       recoverySummary({ words: 24, verified: false, phrase, suiteId: FULL_SUITE_ID }, 0),
     ).toContain("no shorter length passed its check");
+  });
+
+  it("shows the words read back only when they differ from the entry", () => {
+    const read = "abandon ability able about";
+    expect(readBackDiffers("  Abandon  ability\nable ABOUT ", read)).toBe(false);
+    // Words shortened to their first four letters are written out by the reader.
+    expect(readBackDiffers("aban abil able abou", read)).toBe(true);
   });
 });
