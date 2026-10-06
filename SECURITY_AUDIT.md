@@ -94,7 +94,6 @@ A compromised browser, extension, operating system, firmware, build host, or alr
 ### PSBT & Multisig Inspector
 
 - Optional BIP38 decryption accepts encrypted private keys/passwords and reveals recovered WIF/hex only on request; it is a local secret-handling workflow, separate from public PSBT/policy inspection.
-
 - The artifact is offline: its CSP sets `connect-src 'none'`, blocks remote assets, and authorizes the immutable inline application script by a build-time hash.
 - The PSBT parser accepts Bitcoin PSBT v0/v2 and Dash Core PSBT v0, rejects duplicate map keys, non-minimal CompactSize integers, unsupported versions, trailing data, and unreasonably large collections.
 - The Script and descriptor workflows display user-provided public transaction/script/descriptor material with DOM nodes and `textContent`; they do not sign, finalize, fund, broadcast, or query UTXOs.

@@ -49,24 +49,18 @@ Before assigning the next version, carry every applicable **Unreleased** entry f
 2. From a clean source checkout with Docker Engine/Desktop running, run `./tooling/build-reproducible.sh`. This performs the locked install, TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, release WASM rebuilds and exact generated-byte comparisons, generated-browser-WASM tests, two byte-identical builds of both profiles, per-profile manifest checks, Dash graph/content isolation checks, and each application's CSP/artifact verifier.
 3. Run direct-file acceptance and extended browser regressions for the eight freshly built artifacts using [the verification map](docs/VERIFICATION.md). These browser checks are separate from the current Docker/CI command. Then run the live network release observations below. They are intentionally not part of deterministic CI because changing chain state or a provider outage must not change the reproducible build result.
 4. Ensure the working tree is clean. A GPG key is not required. Create and push an annotated tag:
-
    ```bash
    git tag -a v<version> -m "v<version>"
    git push origin v<version>
    ```
-
    If a maintainer later configures a trusted GPG key, `git tag -s ...` may be used instead as an additional human-approval signal. GitHub Actions provenance remains available either way.
-
 5. Open the tag's Actions run. All checks must pass. Only after every gate succeeds does the workflow publish the release using its curated notes.
 6. Rebuild locally with `./tooling/build-reproducible.sh`. Compare `dist/multi-chain-edition/release/SHA256SUMS` with the published release manifest. If a maintainer has a GPG key and wants an additional detached approval signature, sign that exact flat manifest locally without giving CI the private key:
-
    ```bash
    pnpm release:sign -- YOUR_GPG_KEY_ID
    gh release upload v<version> dist/multi-chain-edition/release/SHA256SUMS.asc --repo hobby-eng/multi-chain-wallet-tools
    ```
-
    The `.asc` file can instead be uploaded through the GitHub release web form. Skip this optional signing step when no GPG key is configured.
-
 7. Review the published notes, artifact list, provenance attestations, and checksums. If any release gate or post-publication comparison is wrong, remove the release and tag rather than replacing assets silently.
 8. After the stable canonical release is published, the [Build and publish Dash Community release](https://github.com/hobby-eng/dash-wallet-tools/actions/workflows/release.yml) workflow detects it on its 15-minute schedule and publishes the same tag if it is not already present. GitHub scheduling may add delay. For immediate manual execution, set both `source_ref` and `release_tag` to that exact tag. Wait for its canonical rebuild, Dash-only asset check, checksums, attestations, and publication to succeed; then verify the Dash release separately.
 

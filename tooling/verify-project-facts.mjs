@@ -145,6 +145,59 @@ for (const path of markdownFiles(root)) {
   }
 }
 
+// GitHub renders a Markdown list "loose", as separate paragraphs with wider spacing than every other
+// list, when a blank line separates two of its items or two blocks of one item. Audit records are
+// frozen and vendored notices are upstream text, so both are left out.
+const FROZEN_MARKDOWN = [
+  "docs/audits/",
+  "packages/recovery-mhfe-wasm/notices/",
+  "packages/recovery-mnemocode/source/",
+];
+const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s/u;
+const CODE_FENCE = /^\s*(?:```|~~~)/u;
+const INDENTED_TEXT = /^\s{2,}\S/u;
+
+/** The 1-based number of the first blank line that makes a list loose, or undefined. */
+function looseListLine(lines) {
+  let inFence = false;
+  let inList = false;
+  let blankInList = false;
+  for (const [index, line] of lines.entries()) {
+    if (CODE_FENCE.test(line)) {
+      const indented = /^\s/u.test(line);
+      // A fence opened with indentation right after a blank line is a second block of the item.
+      if (!inFence && blankInList && indented) return index;
+      // A fence at the left margin belongs to no list item, so it ends the list.
+      if (!inFence && !indented) inList = false;
+      inFence = !inFence;
+      blankInList = false;
+      continue;
+    }
+    if (inFence) continue;
+    if (line.trim() === "") {
+      if (inList) blankInList = true;
+      continue;
+    }
+    if (LIST_ITEM.test(line) || (blankInList && INDENTED_TEXT.test(line))) {
+      if (blankInList) return index;
+      inList = true;
+      continue;
+    }
+    if (blankInList || line.startsWith("#")) inList = false;
+    blankInList = false;
+  }
+  return undefined;
+}
+for (const path of markdownFiles(root)) {
+  const relativePath = path.slice(root.length + 1);
+  if (FROZEN_MARKDOWN.some((prefix) => relativePath.startsWith(prefix))) continue;
+  const line = looseListLine(readFileSync(path, "utf8").split("\n"));
+  if (line !== undefined)
+    throw new Error(
+      `${relativePath}:${line} has a blank line inside a list, so GitHub renders it with wider spacing.`,
+    );
+}
+
 requireText(
   read(`docs/releases/${release.tag}.md`),
   `# Multi-Chain Wallet Tools ${release.tag}`,
