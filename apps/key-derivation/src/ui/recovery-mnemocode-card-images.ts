@@ -161,8 +161,11 @@ async function paint(
       case "strokeColor":
         context.strokeStyle = color(step);
         break;
-      case "opacity":
+      case "graphicsState":
         opacity = { fill: step.fill ?? opacity.fill, stroke: step.stroke ?? opacity.stroke };
+        // The canvas keeps the blend with save and restore, like the PDF graphics state.
+        if (step.blend !== undefined)
+          context.globalCompositeOperation = step.blend === "color" ? "color" : "source-over";
         break;
       case "lineWidth":
         context.lineWidth = step.width > 0 ? step.width : THINNEST_LINE;
@@ -182,7 +185,7 @@ async function paint(
           context.stroke();
         }
         // A PDF paints a path first and limits the following drawing to it afterwards.
-        if (step.clip) context.clip("nonzero");
+        if (step.clip) context.clip(step.clipRule);
         break;
       case "text":
         context.save();

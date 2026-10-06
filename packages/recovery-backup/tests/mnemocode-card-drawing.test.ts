@@ -2,7 +2,22 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { unzipSync } from "fflate";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import {
+  PDFDocument,
+  PDFName,
+  StandardFonts,
+  clipEvenOdd,
+  closePath,
+  endPath,
+  fill,
+  lineTo,
+  moveTo,
+  popGraphicsState,
+  pushGraphicsState,
+  rectangle,
+  rgb,
+  setGraphicsState,
+} from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { readCardPages, type DrawingStep } from "../src/mnemocode-card-drawing.js";
 import {
@@ -93,6 +108,48 @@ describe("reading a card PDF for image export", () => {
       }
     }
   }, 600_000);
+
+  it("reads an even-odd outline and a Color tint, and stops at another blend mode", async () => {
+    // A frame with a hole, as the material cards clip their samples, then a tinted fill.
+    async function tintedFrame(blendMode: string): Promise<Uint8Array> {
+      const document = await PDFDocument.create();
+      const page = document.addPage([100, 100]);
+      page.node.setExtGState(
+        PDFName.of("Tint"),
+        document.context.obj({ Type: "ExtGState", BM: blendMode, ca: 0.85 }),
+      );
+      page.pushOperators(
+        pushGraphicsState(),
+        ...[10, 30].flatMap((inset) => [
+          moveTo(inset, inset),
+          lineTo(100 - inset, inset),
+          lineTo(100 - inset, 100 - inset),
+          lineTo(inset, 100 - inset),
+          closePath(),
+        ]),
+        clipEvenOdd(),
+        endPath(),
+        setGraphicsState("Tint"),
+        rectangle(0, 0, 100, 100),
+        fill(),
+        popGraphicsState(),
+      );
+      return document.save();
+    }
+
+    const [page] = await readCardPages(await tintedFrame("Color"));
+    if (page === undefined) throw new Error("The frame has no page.");
+    const [outline, tint] = steps(page.steps, "path");
+    expect(outline).toMatchObject({ clip: true, clipRule: "evenodd", fill: false, stroke: false });
+    expect(tint).toMatchObject({ clip: false, fill: true });
+    expect(steps(page.steps, "graphicsState")).toEqual([
+      { do: "graphicsState", fill: 0.85, blend: "color" },
+    ]);
+
+    await expect(readCardPages(await tintedFrame("Multiply"))).rejects.toThrow(
+      "it uses the blend mode /Multiply",
+    );
+  });
 
   it("stops at a drawing command that it does not know", async () => {
     const shapes = await PDFDocument.create();

@@ -15,8 +15,9 @@ import {
  *
  * MnemoCode draws its cards as PDF pages. A browser has no program that turns a PDF into
  * an image, so image export repeats the drawing on a canvas. The card renderers use a
- * small set of PDF commands, listed in `readSteps`. Any other command stops the export:
- * an image that silently lacks a part of the card would be worse than no image.
+ * small set of PDF commands, listed in `readSteps`, and of graphics settings, listed in
+ * `readGraphicsState`. Any other command or setting stops the export: an image that silently
+ * lacks a part of the card would be worse than no image.
  */
 
 /** The six numbers of a PDF transformation: x' = a·x + c·y + e, y' = b·x + d·y + f. */
@@ -53,6 +54,9 @@ export interface CardImage {
   readonly alpha?: Uint8Array;
 }
 
+/** PDF blend modes the cards use: plain painting, and the hue and colourfulness of a tint. */
+export type BlendMode = "normal" | "color";
+
 export type DrawingStep =
   | { readonly do: "save" | "restore" }
   | { readonly do: "transform"; readonly matrix: Matrix }
@@ -62,7 +66,12 @@ export type DrawingStep =
       readonly green: number;
       readonly blue: number;
     }
-  | { readonly do: "opacity"; readonly fill?: number; readonly stroke?: number }
+  | {
+      readonly do: "graphicsState";
+      readonly fill?: number;
+      readonly stroke?: number;
+      readonly blend?: BlendMode;
+    }
   | { readonly do: "lineWidth"; readonly width: number }
   | { readonly do: "dash"; readonly pattern: readonly number[]; readonly phase: number }
   | {
@@ -72,6 +81,8 @@ export type DrawingStep =
       readonly stroke: boolean;
       /** The path also limits everything drawn until the matching `restore`. */
       readonly clip: boolean;
+      /** Which inside counts for the clip: `W` uses the nonzero rule, `W*` the even-odd rule. */
+      readonly clipRule: "nonzero" | "evenodd";
     }
   /** Outlines of the letters of one line, already placed one after another. */
   | { readonly do: "text"; readonly matrix: Matrix; readonly segments: readonly PathSegment[] }
@@ -249,18 +260,34 @@ function readImage(document: PDFDocument, stream: PDFRawStream): CardImage {
   return { width, height, format: "rgb", data, alpha };
 }
 
-function readOpacity(state: PDFDict): { fill?: number; stroke?: number } {
-  const opacity: { fill?: number; stroke?: number } = {};
+const BLEND_MODES: ReadonlyMap<string, BlendMode> = new Map([
+  ["/Normal", "normal"],
+  ["/Color", "color"],
+]);
+
+function readGraphicsState(state: PDFDict): {
+  fill?: number;
+  stroke?: number;
+  blend?: BlendMode;
+} {
+  const settings: { fill?: number; stroke?: number; blend?: BlendMode } = {};
   for (const [key, value] of state.entries()) {
     const name = key.toString();
     if (name === "/Type") continue;
+    if (name === "/BM") {
+      // A blend mode may also be a list of choices; the cards write exactly one name.
+      const blend = value instanceof PDFName ? BLEND_MODES.get(value.toString()) : undefined;
+      if (blend === undefined) throw unsupported(`it uses the blend mode ${value.toString()}`);
+      settings.blend = blend;
+      continue;
+    }
     if (!(value instanceof PDFNumber))
       throw unsupported(`the graphics setting ${name} is not a number`);
-    if (name === "/ca") opacity.fill = value.asNumber();
-    else if (name === "/CA") opacity.stroke = value.asNumber();
+    if (name === "/ca") settings.fill = value.asNumber();
+    else if (name === "/CA") settings.stroke = value.asNumber();
     else throw unsupported(`it uses the graphics setting ${name}`);
   }
-  return opacity;
+  return settings;
 }
 
 /** Splits one line of a content stream into its values and the command at its end. */
@@ -300,13 +327,14 @@ function readSteps(document: PDFDocument, content: string, resources: PDFDict): 
 
   const steps: DrawingStep[] = [];
   let path: PathSegment[] = [];
-  let clip = false;
+  let clipRule: "nonzero" | "evenodd" | undefined;
   let font: { letters: LetterFont; size: number } | undefined;
   let textMatrix: Matrix = [1, 0, 0, 1, 0, 0];
   const paint = (fill: boolean, stroke: boolean): void => {
-    steps.push({ do: "path", segments: path, fill, stroke, clip });
+    const clip = clipRule !== undefined;
+    steps.push({ do: "path", segments: path, fill, stroke, clip, clipRule: clipRule ?? "nonzero" });
     path = [];
-    clip = false;
+    clipRule = undefined;
   };
 
   for (const line of content.split("\n")) {
@@ -349,7 +377,10 @@ function readSteps(document: PDFDocument, content: string, resources: PDFDict): 
         path.push({ to: "close" });
         break;
       case "W":
-        clip = true;
+        clipRule = "nonzero";
+        break;
+      case "W*":
+        clipRule = "evenodd";
         break;
       case "n":
         paint(false, false);
@@ -392,7 +423,7 @@ function readSteps(document: PDFDocument, content: string, resources: PDFDict): 
       }
       case "gs": {
         const state = document.context.lookup(resource("ExtGState", operands[0] ?? ""), PDFDict);
-        steps.push({ do: "opacity", ...readOpacity(state) });
+        steps.push({ do: "graphicsState", ...readGraphicsState(state) });
         break;
       }
       case "Do": {
