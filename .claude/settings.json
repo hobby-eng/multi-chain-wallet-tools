@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/tooling/cloud-session-start.sh\"",
+            "timeout": 60,
+            "statusMessage": "Cloud toolchain setup"
+          }
+        ]
+      }
+    ]
+  }
+}
