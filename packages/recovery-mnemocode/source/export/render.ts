@@ -5,6 +5,7 @@ import {
   isCardPageSize,
   assertSeparateCardSize,
   SHEET_PAGE_SIZE,
+  type CardOrientation,
 } from "./card-settings.js";
 import { PDFDocument } from "pdf-lib";
 import type { CardContent } from "./backup-cards.js";
@@ -13,8 +14,22 @@ import { separateCardName } from "./card-codes.js";
 import { joinedDocuments, savedWithoutMetadata, type NamedDocument } from "./pdf-documents.js";
 import { assertColorCardContent, EMPTY_CARD_COLLECTION } from "./card-content.js";
 import { withPlannedDecoys } from "./card-plan.js";
-import { SHEETS_ONLY } from "./template-catalog.js";
+import { SHEETS_ONLY, sheetsOnly } from "./template-catalog.js";
+import { defined } from "../core/defined.js";
+import { ErrorCatalog, suppliedMessage } from "../core/error-catalog.js";
 
+const ERRORS = new ErrorCatalog("export.render", {
+  "no-approved-card-templates-installed-yet": () => "No approved card templates are installed yet.",
+  "template-does-not-support": (value0: string, value1: string) =>
+    `Template ${value0} does not support ${value1}.`,
+  "template-rendered-empty-document": (value0: string) =>
+    `Template ${value0} rendered an empty document.`,
+  "assert-individual-template-refused": suppliedMessage,
+  "no-individual-cards": () => NO_INDIVIDUAL_CARDS,
+  "empty-card-collection": () => EMPTY_CARD_COLLECTION,
+});
+
+/** One card output: the design that draws it and the content it draws. */
 export interface CardJob {
   readonly template: CardTemplate;
   readonly content: CardContent;
@@ -50,6 +65,16 @@ export async function plannedCardJob(drawing: CardDrawing, job: CardJob): Promis
 }
 
 /**
+ * `job`, planned for a sheet (plannedCardJob), as separate cards draw it: its cards and decoys
+ * kept, its orientation the one the person gave, never the one the sheet plan chose, which turns a
+ * sheet, not the page of one card (AUD-022-FUN002).
+ */
+export function separateCardJob(job: CardJob, orientation: CardOrientation | undefined): CardJob {
+  const { orientation: _planned, ...content } = job.content;
+  return { ...job, content: orientation === undefined ? content : { ...content, orientation } };
+}
+
+/**
  * Preview and encode share this path; no simplified preview renderer exists.
  * A sheet size gives one page per template. A card size gives one page per card. Every card is
  * drawn with `drawing`, the host's CardRenderer.
@@ -58,16 +83,27 @@ export async function renderCards(
   drawing: CardDrawing,
   jobs: readonly CardJob[],
 ): Promise<Uint8Array> {
-  if (jobs.length === 0) throw new Error("No approved card templates are installed yet.");
+  if (jobs.length === 0) throw ERRORS.create("no-approved-card-templates-installed-yet", []);
   // Every page setting is checked before any choice is made or any template draws
-  // (AUD-012-FUN006).
-  for (const { content } of jobs) assertPageSettings(content);
+  // (AUD-012-FUN006), and so is every design that a card page size draws as separate cards.
+  for (const { template, content } of jobs) {
+    assertPageSettings(content);
+    if (content.kind === "colors" && isCardPageSize(content.pageSize))
+      assertIndividualTemplate(template, jobs.length > 1);
+  }
   // One person and one set of texts for every design; the employer suits the first.
-  const details = ExportDetails.of(drawing.randomInt, jobs[0]!.content, jobs[0]!.template.style);
+  const details = ExportDetails.of(
+    drawing.randomInt,
+    defined(jobs[0]).content,
+    defined(jobs[0]).template.style,
+  );
   const pages: Uint8Array[] = [];
   for (const { template, content } of jobs) {
     if (template.kind !== content.kind)
-      throw new Error(`Template ${template.id} does not support ${content.kind}.`);
+      throw ERRORS.create("template-does-not-support", [
+        `${template.id}`,
+        `${String(content.kind)}`,
+      ]);
     // A design's own texts and details print over those of the export.
     const resolved: CardContent = {
       ...content,
@@ -89,11 +125,11 @@ export async function renderCards(
     });
     const source = await PDFDocument.load(bytes);
     if (source.getPageCount() === 0)
-      throw new Error(`Template ${template.id} rendered an empty document.`);
+      throw ERRORS.create("template-rendered-empty-document", [`${template.id}`]);
     pages.push(bytes);
   }
   if (pages.length === 1) {
-    return savedWithoutMetadata(await PDFDocument.load(pages[0]!));
+    return savedWithoutMetadata(await PDFDocument.load(defined(pages[0])));
   }
   return joinedDocuments(pages);
 }
@@ -103,10 +139,14 @@ const NO_INDIVIDUAL_CARDS = "Only color codes are drawn as individual business c
 
 /**
  * Refuses a template that draws no separate cards, such as a design printed on sheets only
- * (SHEETS_ONLY): also before any content exists.
+ * (SHEETS_ONLY): also before any content exists. `named`: the design is one of several drawn
+ * together, and the refusal names it.
  */
-export function assertIndividualTemplate(template: CardTemplate): void {
-  if (!template.renderIndividual) throw new Error(SHEETS_ONLY);
+export function assertIndividualTemplate(template: CardTemplate, named = false): void {
+  if (!template.renderIndividual)
+    throw ERRORS.create("assert-individual-template-refused", [
+      named ? sheetsOnly(`The design "${template.name}"`) : SHEETS_ONLY,
+    ]);
 }
 
 /**
@@ -118,8 +158,8 @@ export function assertIndividualTemplate(template: CardTemplate): void {
  */
 export function assertIndividualCards(template: CardTemplate, content: CardContent): void {
   assertIndividualTemplate(template);
-  if (content.kind !== "colors") throw new Error(NO_INDIVIDUAL_CARDS);
-  if (!content.colors.length) throw new Error(EMPTY_CARD_COLLECTION);
+  if (content.kind !== "colors") throw ERRORS.create("no-individual-cards", []);
+  if (!content.colors.length) throw ERRORS.create("empty-card-collection", []);
   assertColorCardContent(content);
   assertPageSettings(content);
   assertSeparateCardSize(content.pageSize);
@@ -133,7 +173,7 @@ export async function renderIndividualCards(
 ): Promise<RenderedCard[]> {
   assertIndividualCards(template, content);
   // Checked by assertIndividualCards.
-  const renderIndividual = template.renderIndividual!;
+  const renderIndividual = defined(template.renderIndividual);
   const { profile, presentation } = ExportDetails.of(drawing.randomInt, content, template.style);
   const resolvedContent = await plannedContent(
     drawing,

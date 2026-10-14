@@ -7,6 +7,7 @@ import { MnemoCodeWalletRecognition } from "@ckd/recovery-backup/mnemocode-walle
 import { MasterFingerprintCheck } from "../../../../packages/recovery-mnemocode/source/core/master-fingerprint.js";
 import { webCryptoPbkdf2 } from "./webcrypto-pbkdf2.js";
 import type { ReEncodingWalletRequest } from "@ckd/recovery-backup/mnemocode-reencoding.js";
+import { MnemoCodeWorkerProtocol } from "./mnemocode-worker-protocol.js";
 
 // The adapter owns each input shape; the worker adds only the routing discriminator.
 export type MnemoCodeSearchRequest =
@@ -50,7 +51,7 @@ self.onmessage = async ({ data }: MessageEvent<MnemoCodeSearchRequest>) => {
       "list" in outcome && outcome.list !== undefined ? [outcome.list.bytes.buffer] : [];
     postMessage({ type: "result", outcome }, { transfer });
   } catch (cause) {
-    postMessage({ type: "error", message: cause instanceof Error ? cause.message : String(cause) });
+    postMessage(MnemoCodeWorkerProtocol.failure(cause));
   }
 };
 postMessage({ type: "ready" });

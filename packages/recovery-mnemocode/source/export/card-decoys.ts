@@ -1,7 +1,7 @@
 // Decoys: random codes after a backup's own codes on its cards (owner, 2026-10-13). A sheet of
 // cards ends in full rows, which a backup's own codes seldom fill, and with a few more codes its
 // cards may be larger: a set of cards has at least one decoy, then as many as give the largest
-// cards in full rows on one sheet (planCollectionSheet, collection-sheet.ts). Separate cards have
+// cards in full rows on one sheet (planCollectionSheet, collection-layout.ts). Separate cards have
 // as many as the sheet of their design. A decoy looks like the backup's codes: the Unicode code of
 // a random word, a colour of a random phrase of the same length, or a random colour beside the
 // colours of a share. The QR code of the cards holds the backup alone; the sheet for heirs says how
@@ -15,6 +15,16 @@ import { indexesToColors, RGB_MAX_VALUE, RGB_REFERENCE_COUNTS, rgbHex } from "..
 import { unicodeCodesOfIndexes } from "../core/words.js";
 import { codeColors } from "./card-palette.js";
 import { checkedChoice, type UniformChoice } from "./platform.js";
+import { defined } from "../core/defined.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.card-decoys", {
+  "decoy-cards-whole-number-fewer-than-cards": () =>
+    "The decoy cards must be a whole number, fewer than the cards.",
+  "decoys-added-colors-whole-phrase": () => "Decoys are added to the colors of a whole phrase.",
+  "cards-their-decoys-already": () => "These cards have their decoys already.",
+  "cards-kept-hold-every-code-backup": () => "The cards kept must hold every code of the backup.",
+});
 
 /** The most decoys that a set of cards takes: more than any sheet needs to fill its last row. */
 export const MAX_DECOYS = 16;
@@ -25,7 +35,9 @@ const COLOR_CODES = RGB_MAX_VALUE + 1;
 /** Why a random source is refused that gave a number out of range. */
 const RANDOM_REFUSAL = "The random source of the decoy cards gave a number out of range.";
 
-/** The cards that decoys are added to: colours, the codes printed in their place, and the decoys. */
+/**
+ * The cards that decoys are added to: colours, the codes printed in their place, and the decoys.
+ */
 export interface DecoyCards {
   /** A seed phrase's cards ("colors") or a share's ("sskr"). */
   readonly kind: "colors" | "sskr";
@@ -44,7 +56,7 @@ export function assertDecoys(cards: DecoyCards): void {
   const { decoys } = cards;
   if (decoys === undefined) return;
   if (!Number.isSafeInteger(decoys) || decoys < 0 || decoys >= cards.colors.length)
-    throw new Error("The decoy cards must be a whole number, fewer than the cards.");
+    throw ERRORS.create("decoy-cards-whole-number-fewer-than-cards", []);
 }
 
 /** How many of the cards print the backup's own codes: all but the decoys after them. */
@@ -55,7 +67,9 @@ export function ownCards(cards: DecoyCards): number {
 
 /** The Unicode code of a random word: a decoy beside the Unicode codes of a phrase or a share. */
 function wordCode(random: UniformChoice): string {
-  return unicodeCodesOfIndexes([checkedChoice(random, BIP39_DICTIONARY_SIZE, RANDOM_REFUSAL)])[0]!;
+  return defined(
+    unicodeCodesOfIndexes([checkedChoice(random, BIP39_DICTIONARY_SIZE, RANDOM_REFUSAL)])[0],
+  );
 }
 
 /**
@@ -64,13 +78,13 @@ function wordCode(random: UniformChoice): string {
  */
 function phraseColor(random: UniformChoice, colorCount: number): string {
   const words = BIP39_WORD_COUNTS[RGB_REFERENCE_COUNTS.indexOf(colorCount)];
-  if (words === undefined) throw new Error("Decoys are added to the colors of a whole phrase.");
+  if (words === undefined) throw ERRORS.create("decoys-added-colors-whole-phrase", []);
   const colors = indexesToColors(
     Array.from({ length: words }, () =>
       checkedChoice(random, BIP39_DICTIONARY_SIZE, RANDOM_REFUSAL),
     ),
   );
-  return colors[checkedChoice(random, colors.length, RANDOM_REFUSAL)]!;
+  return defined(colors[checkedChoice(random, colors.length, RANDOM_REFUSAL)]);
 }
 
 /** A random colour: a decoy beside a share's colours, which look random themselves. */
@@ -87,7 +101,7 @@ export function withDecoyPool<T extends DecoyCards>(
   cards: T,
   random: UniformChoice,
 ): WithDecoys<T> {
-  if ((cards.decoys ?? 0) !== 0) throw new Error("These cards have their decoys already.");
+  if ((cards.decoys ?? 0) !== 0) throw ERRORS.create("cards-their-decoys-already", []);
   const own = cards.colors.length;
   const decoys = Array.from({ length: MAX_DECOYS }, () =>
     cards.labels !== undefined
@@ -106,7 +120,7 @@ export function withDecoyPool<T extends DecoyCards>(
 export function keptCards<T extends DecoyCards>(cards: T, count: number): WithDecoys<T> {
   const own = ownCards(cards);
   if (!Number.isSafeInteger(count) || count < own || count > cards.colors.length)
-    throw new Error("The cards kept must hold every code of the backup.");
+    throw ERRORS.create("cards-kept-hold-every-code-backup", []);
   return {
     ...cards,
     colors: cards.colors.slice(0, count),

@@ -17,6 +17,12 @@ import {
   SELF_TEST_CARD_DETAILS,
   WIDTH_TOLERANCE_POINTS,
 } from "./self-test-cards.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.cards-self-test", {
+  "a6-page-count-mismatch": (value0: string) => `${value0} A6 page count mismatch.`,
+  "a6-dimensions-mismatch": (value0: string) => `${value0} A6 dimensions mismatch.`,
+});
 
 const PUBLIC_MNEMONIC =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -40,9 +46,9 @@ async function checkCardExports(drawing: CardDrawing): Promise<void> {
       ...SELF_TEST_CARD_DETAILS,
     });
     const pdf = await PDFDocument.load(bytes);
-    if (pdf.getPageCount() !== 1) throw new Error(`${template.id} A6 page count mismatch.`);
+    if (pdf.getPageCount() !== 1) throw ERRORS.create("a6-page-count-mismatch", [`${template.id}`]);
     if (Math.abs(pdf.getPage(0).getWidth() - A6_WIDTH_POINTS) > WIDTH_TOLERANCE_POINTS)
-      throw new Error(`${template.id} A6 dimensions mismatch.`);
+      throw ERRORS.create("a6-dimensions-mismatch", [`${template.id}`]);
   }
 }
 

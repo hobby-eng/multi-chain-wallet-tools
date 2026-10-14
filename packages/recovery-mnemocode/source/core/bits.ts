@@ -2,6 +2,14 @@
 
 import { BIP39_INDEX_BITS, BITS_PER_BYTE, checksumBits } from "./bip39-sizes.js";
 import { textPieces } from "./pieces.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.bits", {
+  "entropy-contain-whole-number-bytes": () => "Entropy must contain a whole number of bytes.",
+  "hexadecimal-text-two-digits-0-9-f-each": () =>
+    "Hexadecimal text has two digits, 0-9 or a-f, for each byte.",
+});
 
 // Defined in bip39-sizes.ts, which this module imports and which may not import it back.
 export { BITS_PER_BYTE };
@@ -14,7 +22,8 @@ export { BITS_PER_BYTE };
 export function equalBytes(left: ArrayLike<number>, right: ArrayLike<number>): boolean {
   if (left.length !== right.length) return false;
   let different = 0;
-  for (let index = 0; index < left.length; index += 1) different |= left[index]! ^ right[index]!;
+  for (let index = 0; index < left.length; index += 1)
+    different |= defined(left[index]) ^ defined(right[index]);
   return different === 0;
 }
 
@@ -68,18 +77,24 @@ export async function wipedAfterAsync<T>(
   }
 }
 
+/** `value` modulo `divisor`, from 0 up to `divisor`, also for a negative `value`. */
 export function modulo(value: number, divisor: number): number {
   const remainder = value % divisor;
   return remainder < 0 ? remainder + divisor : remainder;
 }
 
+/** `bytes` as a string of bits, eight for each byte, the most significant first. */
 export function bytesToBits(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(2).padStart(BITS_PER_BYTE, "0")).join("");
 }
 
+/**
+ * The bytes of `bits`, eight to a byte, the most significant first; refuses a count that is not a
+ * whole number of bytes or a character other than 0 and 1.
+ */
 export function bitsToBytes(bits: string): Uint8Array {
   if (bits.length % BITS_PER_BYTE !== 0 || !/^[01]+$/u.test(bits))
-    throw new Error("Entropy must contain a whole number of bytes.");
+    throw ERRORS.create("entropy-contain-whole-number-bytes", []);
   return Uint8Array.from(textPieces(bits, BITS_PER_BYTE, (byte) => Number.parseInt(byte, 2)));
 }
 
@@ -101,7 +116,7 @@ export const HEX_DIGITS_PER_BYTE = 2;
  */
 export function bytesOfHex(text: string): Uint8Array {
   if (text.length % HEX_DIGITS_PER_BYTE !== 0 || !/^[0-9a-f]*$/iu.test(text))
-    throw new Error("Hexadecimal text has two digits, 0-9 or a-f, for each byte.");
+    throw ERRORS.create("hexadecimal-text-two-digits-0-9-f-each", []);
   return Uint8Array.from(
     textPieces(text, HEX_DIGITS_PER_BYTE, (byte) => Number.parseInt(byte, 16)),
   );
@@ -112,5 +127,6 @@ export function bytesOfHex(text: string): Uint8Array {
  * to a share's payload, or to a secret and its digest. The caller owns both and wipes them.
  */
 export function xorInto(target: Uint8Array, delta: ArrayLike<number>): void {
-  for (let index = 0; index < target.length; index += 1) target[index]! ^= delta[index]!;
+  for (let index = 0; index < target.length; index += 1)
+    target[index] = defined(target[index]) ^ defined(delta[index]);
 }

@@ -5,16 +5,24 @@ import {
   type CardSettings,
   assertSeparateCardSize,
 } from "./card-settings.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.sskr-content", {
+  "card-layout-one": (value0: string) => `The card layout must be one of: ${value0}.`,
+  "business-page-size-gives-separate-cards-choose-size": (value0: string) =>
+    `The business page size gives separate cards. Choose the ${value0} size for a collection sheet.`,
+});
 
 /** The layouts of share cards that a caller may ask for. */
 export const SSKR_CARD_LAYOUTS = Object.freeze(["qr", "collection", "individual"] as const);
+/** A layout of share cards (SSKR_CARD_LAYOUTS). */
 export type SskrCardLayout = (typeof SSKR_CARD_LAYOUTS)[number];
 
 /** `value` as a layout of share cards; undefined stays undefined, for the page size to decide. */
 export function parseSskrLayout(value: string | undefined): SskrCardLayout | undefined {
   if (value === undefined) return undefined;
   if (!(SSKR_CARD_LAYOUTS as readonly string[]).includes(value))
-    throw new Error(`The card layout must be one of: ${SSKR_CARD_LAYOUTS.join(", ")}.`);
+    throw ERRORS.create("card-layout-one", [`${SSKR_CARD_LAYOUTS.join(", ")}`]);
   return value as SskrCardLayout;
 }
 /**
@@ -29,13 +37,17 @@ export function resolveSskrLayout(
   if (requested === "qr") return "qr";
   const cards = isCardPageSize(pageSize);
   if (requested === "collection" && cards)
-    throw new Error(
-      `The business page size gives separate cards. Choose the ${SHEET_SIZES_TEXT} size for a collection sheet.`,
-    );
+    throw ERRORS.create("business-page-size-gives-separate-cards-choose-size", [
+      `${SHEET_SIZES_TEXT}`,
+    ]);
   if (requested === "individual") assertSeparateCardSize(pageSize);
   return requested ?? (cards ? "individual" : "collection");
 }
 
+/**
+ * The content of the cards of one share: its colors, the codes that the cards print where they are
+ * not its colors, the share as its QR code holds it, and the card settings.
+ */
 export interface SskrCardContent extends CardSettings {
   readonly kind: "sskr";
   /**

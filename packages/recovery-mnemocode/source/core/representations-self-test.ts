@@ -15,7 +15,9 @@ import {
   type EncodedFormat,
   type EncodedResult,
 } from "./types.js";
+import { defined } from "./defined.js";
 
+/** A known answer of the forms of codes: a phrase of `words` words written in every form. */
 export interface Answer {
   readonly words: number;
   readonly forms: Readonly<Record<EncodedFormat, string>>;
@@ -31,6 +33,7 @@ export interface SeedshiftAnswer extends Answer {
 // defect shared by the writer and reader. Repeated literals here are intentional test oracles.
 // The 12-word answers are a deliberate copy of vectors/mnemocode-v1.json's direct-12, since a
 // startup reads no file; test/startup-edges.test.ts keeps the two in step.
+/** The known answers of the forms of codes, a phrase of each length written in every form. */
 export const REPRESENTATION_ANSWERS: readonly Answer[] = [
   {
     words: 12,
@@ -59,6 +62,7 @@ export const REPRESENTATION_ANSWERS: readonly Answer[] = [
 // A deliberate copy of vectors/mnemocode-v1.json's checksum-valid-seedshift-15, -18 and -21, for
 // the same reason; test/startup-edges.test.ts keeps them in step too. The three share their dates.
 const SEEDSHIFT_DATES = ["07-11-1951", "08-08-1988", "23-09-2026"];
+/** The known answers of MnemoCode Seedshift with a valid checksum, for 15, 18 and 21 words. */
 export const SEEDSHIFT_ANSWERS: readonly SeedshiftAnswer[] = [
   {
     words: 15,
@@ -130,7 +134,9 @@ function checkForms(
   }
 }
 
-/** Exact forward/reverse answers and refusals, without PBKDF2, files, renderers or a share engine. */
+/**
+ * Exact forward/reverse answers and refusals, without PBKDF2, files, renderers or a share engine.
+ */
 export function checkRepresentationStartup(): void {
   for (const { words, forms } of REPRESENTATION_ANSWERS)
     checkForms(
@@ -177,14 +183,14 @@ export function checkRepresentationStartup(): void {
   expectRefused(
     () =>
       parseInput(
-        `F8FFF8FF${REPRESENTATION_ANSWERS[0]!.forms["colors-unicode"].slice(8)}`,
+        `F8FFF8FF${defined(REPRESENTATION_ANSWERS[0]).forms["colors-unicode"].slice(8)}`,
         "colors-unicode",
       ),
     /outside the #RRGGBB range/u,
     "Color Unicode beyond RGB",
   );
   expectRefused(
-    () => parseInput(REPRESENTATION_ANSWERS[0]!.forms.english, "unknown" as EncodedFormat),
+    () => parseInput(defined(REPRESENTATION_ANSWERS[0]).forms.english, "unknown" as EncodedFormat),
     /Unsupported encoded format/u,
     "Unknown representation",
   );

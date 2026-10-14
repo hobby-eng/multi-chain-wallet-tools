@@ -25,6 +25,15 @@ import { backupCardContent, type CardBackup, type CardContent } from "./backup-c
 import type { CardSettings } from "./card-settings.js";
 import { renderCards, renderIndividualCards, type CardJob } from "./render.js";
 import { cardTemplates, selectTemplate, type CardDrawing, type CardTemplate } from "./templates.js";
+import { defined } from "../core/defined.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.card-preview", {
+  "preview-mnemonic-contain-words": (value0: string) =>
+    `The preview mnemonic must contain ${value0} words.`,
+  "colour-cards-not-written-as": (value0: string) => `Colour cards are not written as ${value0}.`,
+  "one-design-separate-cards": () => ONE_DESIGN_FOR_SEPARATE_CARDS,
+});
 
 /** The lengths of a sample phrase, as BIP39 has them. */
 export const SAMPLE_WORD_COUNTS = BIP39_WORD_COUNTS;
@@ -41,7 +50,8 @@ export const ONE_DESIGN_FOR_SEPARATE_CARDS =
 /** The length of the sample phrase when none is chosen: the shortest. */
 export const DEFAULT_SAMPLE_WORDS: SampleWordCount = BIP39_WORD_COUNTS[0];
 /** The longest sample phrase: the most codes, and the most cards, that a backup prints. */
-export const LONGEST_SAMPLE_WORDS: SampleWordCount = BIP39_WORD_COUNTS.at(-1)!;
+export const LONGEST_SAMPLE_WORDS: SampleWordCount = defined(BIP39_WORD_COUNTS.at(-1));
+/** The length of a sample phrase, in words: one of BIP39's. */
 export type SampleWordCount = Bip39WordCount;
 
 /** The fixed public dates that the sample phrase is masked with. */
@@ -82,10 +92,10 @@ export class CardPreview {
     this.#drawing = drawing;
     const words = options.words ?? DEFAULT_SAMPLE_WORDS;
     if (!isBip39WordCount(words))
-      throw new Error(`The preview mnemonic must contain ${WORD_COUNTS_TEXT} words.`);
+      throw ERRORS.create("preview-mnemonic-contain-words", [`${WORD_COUNTS_TEXT}`]);
     const colorForm = options.colorForm ?? "colors";
     if (EncodedForm.of(colorForm).cardKind !== "colors")
-      throw new Error(`Colour cards are not written as ${colorForm}.`);
+      throw ERRORS.create("colour-cards-not-written-as", [`${colorForm}`]);
     const result = encodeMnemonic(samplePhrase(words), SAMPLE_DATES);
     const { settings, title } = options;
     // The cards of a backup, built as a save builds them (backupCardContent).
@@ -119,14 +129,14 @@ export class CardPreview {
    * Refuses separate sample cards of every design: a folder of separate cards shows one. A host
    * asks before it checks the folder, since the sample cards need no secret.
    */
-  static assertSeparateCards(selection: DesignSelection): void {
-    if (selection.every) throw new Error(ONE_DESIGN_FOR_SEPARATE_CARDS);
+  static assertOneDesign(selection: DesignSelection): void {
+    if (selection.every) throw ERRORS.create("one-design-separate-cards", []);
   }
 
-  /** The one design of separate sample cards with its content (assertSeparateCards). */
+  /** The one design of separate sample cards with its content (assertOneDesign). */
   separateCardsJob(selection: DesignSelection): CardJob {
-    CardPreview.assertSeparateCards(selection);
-    return this.jobs(selection)[0]!;
+    CardPreview.assertOneDesign(selection);
+    return defined(this.jobs(selection)[0]);
   }
 
   /** One design, by its name or number, or the first one; as one PDF. */

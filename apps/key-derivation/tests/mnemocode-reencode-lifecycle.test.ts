@@ -32,7 +32,12 @@ vi.mock("@ckd/recovery-backup/mnemocode-wallet-bitcoin.js", () => ({
     static assertEvidence(): void {}
   },
 }));
-vi.mock("../src/workers/mnemocode-worker-client.js", () => ({
+vi.mock("../src/workers/mnemocode-worker-client.js", async () => ({
+  JOB_STOPPED: (
+    await vi.importActual<typeof import("../src/workers/mnemocode-worker-client.js")>(
+      "../src/workers/mnemocode-worker-client.js",
+    )
+  ).JOB_STOPPED,
   MnemoCodeWorker: class {
     #run: (typeof pending.runs)[number] | undefined;
     run(request: unknown): Promise<unknown> {
@@ -44,7 +49,7 @@ vi.mock("../src/workers/mnemocode-worker-client.js", () => ({
     terminate(): void {
       if (this.#run !== undefined && !this.#run.terminated) {
         this.#run.terminated = true;
-        this.#run.reject(new Error("Stopped. The worker and its memory were discarded."));
+        this.#run.resolve({ kind: "stopped" });
       }
     }
   },

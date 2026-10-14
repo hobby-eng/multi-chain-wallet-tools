@@ -18,6 +18,7 @@ import { colorsToUnicode, RGB_HEX_DIGITS, rgbHex, unicodeToColorCodes } from "..
 import { UNICODE_CODES, UNICODE_INDEX, wordIndexOf } from "../core/words.js";
 import { BITS_PER_BYTE, WORD_NUMBER_DIGITS, wordNumberOf } from "../core/bip39-sizes.js";
 import { ELEMENT_SPACING } from "../core/code-text.js";
+import { defined } from "../core/defined.js";
 
 /** The forms that a share is written in, the standard UR first as the default. */
 export const SHARE_FORMATS = Object.freeze([
@@ -28,6 +29,7 @@ export const SHARE_FORMATS = Object.freeze([
   "colors",
   "colors-unicode",
 ] as const);
+/** A form that a share is written in (SHARE_FORMATS). */
 export type ShareFormat = (typeof SHARE_FORMATS)[number];
 
 /** What the UR of a share starts with (BCR-2020-005), before its bytewords. */
@@ -45,7 +47,7 @@ export const UR_SSKR_START = new RegExp(`^${UR_SSKR_PREFIX}`, "iu");
  */
 export const BYTEWORD_SEPARATORS = new RegExp(`[${ELEMENT_SPACING}-]+`, "u");
 /** The letters of every Byteword (BCR-2020-012): four, the first word's; a test checks the rest. */
-export const BYTEWORD_LETTERS = bytewords[0]!.length;
+export const BYTEWORD_LETTERS = defined(bytewords[0]).length;
 /** A Byteword or a ? for a whole one, in Bytewords run together. */
 const BYTEWORD_OR_MARK = new RegExp(`[a-z]{${BYTEWORD_LETTERS}}|\\?`, "gu");
 
@@ -105,7 +107,7 @@ function colorUnicodeValue(codes: string): number | undefined {
   } catch {
     return undefined;
   }
-  return colors.length === 1 ? colorValue(colors[0]!) : undefined;
+  return colors.length === 1 ? colorValue(defined(colors[0])) : undefined;
 }
 
 /** How one form writes its units. */
@@ -160,13 +162,13 @@ export const SHARE_UNITS: Readonly<Record<ShareFormat, ShareUnits>> = Object.fre
   ur: unitsOf(
     {
       valueOf: (pair) => MINIMAL_BYTEWORD_VALUES.get(pair),
-      unitText: (byte) => MINIMAL_BYTEWORDS[byte]!,
+      unitText: (byte) => defined(MINIMAL_BYTEWORDS[byte]),
     },
     "",
     UR_SSKR_PREFIX,
   ),
   words: unitsOf(
-    { valueOf: (word) => BYTEWORD_VALUES.get(word), unitText: (byte) => bytewords[byte]! },
+    { valueOf: (word) => BYTEWORD_VALUES.get(word), unitText: (byte) => defined(bytewords[byte]) },
     " ",
   ),
   indexes: unitsOf(
@@ -181,7 +183,7 @@ export const SHARE_UNITS: Readonly<Record<ShareFormat, ShareUnits>> = Object.fre
     {
       mixed: WORD_FORM,
       valueOf: (code) => UNICODE_INDEX.get(code),
-      unitText: (index) => UNICODE_CODES[index]!,
+      unitText: (index) => defined(UNICODE_CODES[index]),
     },
     " ",
   ),

@@ -92,8 +92,8 @@ export class ExportDetails {
   }
 
   /**
-   * The details of `settings`, settled once for them (`#once`). `personFirst` gives the order of the
-   * random choices: the person before the texts (`ofPersonFirst`) or after them (`of`).
+   * The details of `settings`, settled once for them (`#once`). `personFirst` gives the order of
+   * the random choices: the person before the texts (`ofPersonFirst`) or after them (`of`).
    */
   static #settledFrom(
     choose: UniformChoice,

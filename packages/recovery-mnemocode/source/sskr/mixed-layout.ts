@@ -11,11 +11,13 @@
 
 import { BIP39_DICTIONARY_SIZE, BIP39_INDEX_BITS, BITS_PER_BYTE } from "../core/bip39-sizes.js";
 import { CRC32_BYTES, shareMask } from "./checksum.js";
+import { defined } from "../core/defined.js";
 
 /** The version byte and the length of the CBOR, before the CBOR of a share in colors or words. */
 export const SHARE_HEADER_BYTES = 2;
 /** The bytes of one color, #RRGGBB, red first. */
 export const RGB_BYTES = 3;
+/** The version byte of shares written in colors, MnemoCode's own form. */
 export const COLOR_VERSION = 0xa1;
 /** Shares written as BIP39 word numbers or Unicode codes: MnemoCode's own form, like colors. */
 export const WORD_VERSION = 0xa2;
@@ -161,7 +163,7 @@ export function unmixedBody(bytes: readonly number[], length: number): number[] 
   const checksum = Uint8Array.from(bytes.slice(0, CRC32_BYTES));
   return Array.from(
     { length },
-    (_, index) => bytes[CRC32_BYTES + index]! ^ shareMask(checksum, index),
+    (_, index) => defined(bytes[CRC32_BYTES + index]) ^ shareMask(checksum, index),
   );
 }
 
@@ -172,8 +174,8 @@ export function headerFields(
   cborLength: number,
 ): ZeroField[] {
   return [
-    [body[0]! ^ version, BITS_PER_BYTE],
-    [body[1]! ^ cborLength, BITS_PER_BYTE],
+    [defined(body[0]) ^ version, BITS_PER_BYTE],
+    [defined(body[1]) ^ cborLength, BITS_PER_BYTE],
   ];
 }
 
@@ -197,7 +199,7 @@ export function fillingFields(packed: PackedUnits, end: number): ZeroField[] {
 export function ownUnitCount(form: MixedForm, values: readonly number[]): number | undefined {
   const { bytes } = form.pack(values);
   if (bytes.length < CRC32_BYTES + SHARE_HEADER_BYTES) return undefined;
-  const cborLength = unmixedBody(bytes, SHARE_HEADER_BYTES)[1]!;
+  const cborLength = defined(unmixedBody(bytes, SHARE_HEADER_BYTES)[1]);
   return form.unitCount(CRC32_BYTES + SHARE_HEADER_BYTES + cborLength);
 }
 

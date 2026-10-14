@@ -11,6 +11,12 @@ import { EncodedForm } from "../core/encoded-form.js";
 import { codeColors } from "./card-palette.js";
 import type { EncodedFormat } from "../core/types.js";
 import type { CardSettings } from "./card-settings.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.backup-cards", {
+  "no-card-prints-codes-written-as": (value0: string) =>
+    `No card prints codes written as ${value0}.`,
+});
 
 /** What cards are drawn from: codes in their form, such as an EncodedBackup. */
 export interface CardBackup {
@@ -41,7 +47,7 @@ export type CardContent = CardSettings & {
   readonly colors: readonly string[];
   readonly labels?: readonly string[];
   readonly payload: string;
-  readonly title?: string;
+  readonly title?: string | undefined;
   /** How many of the last cards are decoys; undefined until a plan adds them (card-plan.ts). */
   readonly decoys?: number;
 };
@@ -54,7 +60,8 @@ export type CardContent = CardSettings & {
 export function backupCardContent(backup: CardBackup, details: CardDetails = {}): CardContent {
   const form = EncodedForm.of(backup.format);
   const kind = form.cardKind;
-  if (kind === undefined) throw new Error(`No card prints codes written as ${backup.format}.`);
+  if (kind === undefined)
+    throw ERRORS.create("no-card-prints-codes-written-as", [`${backup.format}`]);
   const codes = form.cardCodes(backup.indexes);
   return Object.freeze({
     ...details.settings,

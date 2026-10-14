@@ -15,6 +15,7 @@ import { DatesAnswer, DateSearch } from "./date-search.js";
 import { formatDate } from "./dates.js";
 import { expectRefused, expectSame } from "./self-test-check.js";
 import { fingerprintWalletCheck, type PhraseFingerprint } from "./wallet-check.js";
+import { defined } from "./defined.js";
 
 const PUBLIC_MNEMONIC =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -132,7 +133,8 @@ export function checkDateSearchStartup(): void {
   )) {
     combinations += 1;
     for (const candidate of candidates)
-      if (candidate.mnemonic === PUBLIC_MNEMONIC) found.push(candidate.dates.map(formatDate)[0]!);
+      if (candidate.mnemonic === PUBLIC_MNEMONIC)
+        found.push(defined(candidate.dates.map(formatDate)[0]));
   }
   expectSame(combinations, 10, "Date search combinations");
   expectSame(found.join(" "), MASKED_DATE, "Date search of the Seedshift vector");

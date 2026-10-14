@@ -23,6 +23,20 @@ import {
 import { parseShareFormat, shareFormatHasCards, type ShareFormat } from "../sskr/transport.js";
 import type { HeirSheetSection, HeirSheetText } from "./heir-sheet.js";
 import type { EncodedFormat } from "../core/types.js";
+import { defined } from "../core/defined.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.heir-sheet-text", {
+  "sheet-heirs-threshold-from-number-shares-at-most": (value0: string, value1: string) =>
+    `A sheet for heirs needs a threshold from ${value0} to the number of shares, and at most ${value1} shares.`,
+  "sheet-heirs-whole-number-codes-each-share": () =>
+    "A sheet for heirs needs a whole number of codes for each share.",
+  "sheet-heirs-made-encoded-backup-shamir-shares": () =>
+    "A sheet for heirs is made for an encoded backup or for Shamir shares.",
+  "sheet-heirs-whole-number-dates": () => "A sheet for heirs needs a whole number of dates.",
+  "sheet-heirs-may-print-route-s-address-once": () =>
+    "The sheet for heirs may print the route's address once and no other.",
+});
 
 /** How the seed phrase was masked: a mode for which a sheet can be made (Masking). */
 export type HeirMode = HeirSheetMode;
@@ -46,6 +60,9 @@ export type HeirBackup =
       readonly codes?: number;
     };
 
+/**
+ * What the sheet for heirs says of a backup: its form, its mode and how many dates mask the phrase.
+ */
 export interface HeirSheetFacts {
   readonly backup: HeirBackup;
   readonly mode: HeirMode;
@@ -183,7 +200,7 @@ function basics({ mode }: HeirSheetFacts): HeirSheetSection[] {
       heading: "Secret dates",
       paragraphs: [
         // The example is the one of the README (How checksum-valid Seedshift works).
-        `The owner masked the words with secret dates, such as birthdays: their year, month and day shift the words along the BIP39 list (with 23-09-2026, "abandon" becomes "wool"). Use the owner's dates to undo the shift. ${masking.wrongDateWarning!} The dates have nothing to do with today's date.`,
+        `The owner masked the words with secret dates, such as birthdays: their year, month and day shift the words along the BIP39 list (with 23-09-2026, "abandon" becomes "wool"). Use the owner's dates to undo the shift. ${defined(masking.wrongDateWarning)} The dates have nothing to do with today's date.`,
       ],
     });
   sections.push(
@@ -206,9 +223,10 @@ function basics({ mode }: HeirSheetFacts): HeirSheetSection[] {
 /** Refuses shares of which `threshold` of `count` could not restore anything (isRecordedQuorum). */
 function assertQuorum(threshold: number, count: number): void {
   if (!isRecordedQuorum(threshold, count))
-    throw new Error(
-      `A sheet for heirs needs a threshold from ${MIN_RECORDED_THRESHOLD} to the number of shares, and at most ${MAX_GROUP_MEMBERS} shares.`,
-    );
+    throw ERRORS.create("sheet-heirs-threshold-from-number-shares-at-most", [
+      `${MIN_RECORDED_THRESHOLD}`,
+      `${MAX_GROUP_MEMBERS}`,
+    ]);
 }
 
 /**
@@ -226,10 +244,10 @@ function assertBackup(backup: HeirBackup): void {
       parseShareFormat(backup.format);
       assertQuorum(backup.threshold, backup.count);
       if (backup.codes !== undefined && (!Number.isSafeInteger(backup.codes) || backup.codes < 1))
-        throw new Error("A sheet for heirs needs a whole number of codes for each share.");
+        throw ERRORS.create("sheet-heirs-whole-number-codes-each-share", []);
       return;
     default:
-      throw new Error("A sheet for heirs is made for an encoded backup or for Shamir shares.");
+      throw ERRORS.create("sheet-heirs-made-encoded-backup-shamir-shares", []);
   }
 }
 
@@ -242,7 +260,7 @@ function assertFacts({ backup, mode, dates }: HeirSheetFacts): void {
   assertBackup(backup);
   if (backup.kind === "shares") Masking.assertSplitMode(mode);
   if (!Number.isSafeInteger(dates) || dates < 0)
-    throw new Error("A sheet for heirs needs a whole number of dates.");
+    throw ERRORS.create("sheet-heirs-whole-number-dates", []);
   Masking.of(mode).assertDateCount(dates);
 }
 
@@ -312,7 +330,7 @@ export class HeirInstructions {
     const printed = own === undefined ? 0 : [...sheet.matchAll(own)].length;
     const rest = own === undefined ? sheet : sheet.replace(own, " ");
     if (printed > 1 || WEB_ADDRESS.test(rest))
-      throw new Error("The sheet for heirs may print the route's address once and no other.");
+      throw ERRORS.create("sheet-heirs-may-print-route-s-address-once", []);
     return text;
   }
 

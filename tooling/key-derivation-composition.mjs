@@ -537,6 +537,7 @@ const PNG_ADMISSION_SOURCE = "packages/shared-ui/src/png-admission.ts";
 // Generic QR imports share this bounded PNG parser, even when MnemoCode is not offered.
 // Keep the exception at exact files: the rest of the vendored library remains feature-gated.
 const GENERIC_PNG_SOURCES = [
+  "core/error-catalog.ts",
   "core/png-admission.ts",
   "core/byte-units.ts",
   "core/bits.ts",

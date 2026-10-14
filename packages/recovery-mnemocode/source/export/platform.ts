@@ -1,3 +1,14 @@
+import { defined } from "../core/defined.js";
+import { ErrorCatalog, suppliedMessage } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.platform", {
+  "unknown-card-asset": (value0: string) => `Unknown card asset: ${value0}`,
+  "cannot-load-card-artwork": (value0: string, value1: string) =>
+    `Cannot load card artwork ${value0}: ${value1}`,
+  "image-dimensions-positive-integers": () => "Image dimensions must be positive integers.",
+  "checked-choice-refused": suppliedMessage,
+});
+
 /**
  * Host services used by the card renderers.
  *
@@ -14,6 +25,9 @@ export interface RasterImage {
   readonly data: Uint8Array;
 }
 
+/**
+ * The modules of a QR code: the number on a side, and whether the one at a row and column is dark.
+ */
 export interface QrModules {
   readonly size: number;
   readonly get: (row: number, column: number) => boolean;
@@ -31,6 +45,10 @@ export const QR_ERROR_CORRECTION_LEVEL = "M";
  */
 export type UniformChoice = (upperExclusive: number) => number;
 
+/**
+ * The services that a host gives the card renderers: its bundled files, randomness, PNG coding and
+ * QR codes.
+ */
 export interface RenderPlatform {
   /** Returns one bundled file named in `renderAssets`. */
   readonly readAsset: (path: RenderAsset) => Promise<Uint8Array>;
@@ -53,7 +71,9 @@ export interface RandomSource {
   /** Uniform integer from 0 up to, but not including, the limit; called detached. */
   readonly randomInt: UniformChoice;
 }
+/** The one service of a render platform that draws QR codes. */
 export type QrSource = Pick<RenderPlatform, "qrModules">;
+/** The services of a render platform that read and write PNG images. */
 export type PngCodec = Pick<RenderPlatform, "decodePng" | "encodePng">;
 
 /**
@@ -76,15 +96,17 @@ export const renderAssets = [
   "images/material-tile.jpg",
   "images/material-vehicle.jpg",
 ] as const;
+/** A bundled file that a renderer may ask for (renderAssets). */
 export type RenderAsset = (typeof renderAssets)[number];
 
+/** Whether `path` is a bundled file that a renderer may ask for. */
 export function isRenderAsset(path: string): path is RenderAsset {
   return (renderAssets as readonly string[]).includes(path);
 }
 
 /** The bundled file `path` from `source`, refused when it is none of renderAssets. */
 export function readRenderAsset(source: AssetSource, path: string): Promise<Uint8Array> {
-  if (!isRenderAsset(path)) throw new Error(`Unknown card asset: ${path}`);
+  if (!isRenderAsset(path)) throw ERRORS.create("unknown-card-asset", [`${path}`]);
   return source.readAsset(path);
 }
 
@@ -114,7 +136,7 @@ export class BundledAssetCache<T> {
         .then((bytes) => this.#prepare(bytes))
         .catch((error: unknown) => {
           this.#entries.delete(path);
-          throw new Error(`Cannot load card artwork ${path}: ${String(error)}`);
+          throw ERRORS.create("cannot-load-card-artwork", [`${path}`, `${String(error)}`]);
         });
       this.#entries.set(path, entry);
     }
@@ -130,9 +152,13 @@ export function pixelOffset(image: RasterImage, x: number, y: number): number {
   return (y * image.width + x) * RGBA_CHANNELS;
 }
 
+/**
+ * A new image of `width` by `height` pixels, all transparent black; refuses a size that is not a
+ * positive whole number of pixels.
+ */
 export function createRasterImage(width: number, height: number): RasterImage {
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1)
-    throw new Error("Image dimensions must be positive integers.");
+    throw ERRORS.create("image-dimensions-positive-integers", []);
   return { width, height, data: new Uint8Array(width * height * RGBA_CHANNELS) };
 }
 
@@ -143,7 +169,8 @@ export function createRasterImage(width: number, height: number): RasterImage {
  */
 export function checkedChoice(choose: UniformChoice, limit: number, refusal: string): number {
   const index = choose(limit);
-  if (!Number.isInteger(index) || index < 0 || index >= limit) throw new Error(refusal);
+  if (!Number.isInteger(index) || index < 0 || index >= limit)
+    throw ERRORS.create("checked-choice-refused", [refusal]);
   return index;
 }
 
@@ -153,5 +180,7 @@ export function checkedChoice(choose: UniformChoice, limit: number, refusal: str
  * copy of a card are picked through it, one choice each, in the order they are made.
  */
 export function pickWith<T>(values: readonly T[], choose: UniformChoice): T {
-  return values[checkedChoice(choose, values.length, "Invalid random selection for a card.")]!;
+  return defined(
+    values[checkedChoice(choose, values.length, "Invalid random selection for a card.")],
+  );
 }

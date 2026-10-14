@@ -155,12 +155,18 @@ export const MNEMOCODE_CARD_ASSETS: readonly RenderAsset[] = renderAssets;
 export interface MnemoCodeCardTemplate {
   readonly id: string;
   readonly name: string;
+  /** The design also draws separate cards; the others print on sheets only (sheetsOnly). */
+  readonly separateCards: boolean;
 }
 
 /** The list comes from the vendored MnemoCode registry, never from a copy kept here. */
 export const MNEMOCODE_CARD_TEMPLATES: readonly MnemoCodeCardTemplate[] = cardTemplates
   .filter((template) => template.kind === "colors")
-  .map(({ id, name }) => ({ id, name }));
+  .map(({ id, name, renderIndividual }) => ({
+    id,
+    name,
+    separateCards: renderIndividual !== undefined,
+  }));
 
 /** The page's own name of each of MnemoCode's page sizes; the sizes themselves are MnemoCode's. */
 const PAGE_SIZE_NAMES: Readonly<Record<CardPageSize, string>> = {
@@ -341,12 +347,12 @@ function ownCopy(copy: CardCopyOverrides | undefined): CardCopyOverrides {
   return Object.fromEntries(typed) as CardCopyOverrides;
 }
 
-/** The texts that `template` prints besides the person's details, as MnemoCode's designs do. */
-export function mnemoCodeCardTexts(
-  template: string,
-  output: MnemoCodeCardOutput,
-): readonly (keyof CardCopyOverrides)[] {
-  return designTexts(template, output === "collection");
+/**
+ * The texts that a design prints besides the person's details in `output`, as MnemoCode's designs
+ * do: the same for every design, since only a business design makes separate cards.
+ */
+export function mnemoCodeCardTexts(output: MnemoCodeCardOutput): readonly (keyof CardCopyOverrides)[] {
+  return designTexts(output === "collection");
 }
 
 function cardContent(request: MnemoCodeCardRequest, session: CardSession): CardContent {
@@ -589,7 +595,7 @@ export function createMnemoCodeCardExporter(
       const every = request.template === "";
       const selection = every ? ({ every: true } as const) : { template: request.template };
       // As the command line: a folder of separate cards holds one design.
-      if (output === "individual") CardPreview.assertSeparateCards(selection);
+      if (output === "individual") CardPreview.assertOneDesign(selection);
       const orientation =
         request.orientation === undefined || request.orientation === ""
           ? undefined

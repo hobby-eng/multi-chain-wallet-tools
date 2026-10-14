@@ -27,7 +27,7 @@ export {
   DEFAULT_SHARE_TEMPLATE_ID,
   DEFAULT_TEMPLATE_ID,
   findTemplate,
-  NoCardTemplate,
+  NoCardTemplateError,
   resolveTemplateId,
   TEMPLATE_CATALOG,
   type CardStyle,

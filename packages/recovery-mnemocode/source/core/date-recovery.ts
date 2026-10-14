@@ -18,6 +18,7 @@ import {
 import { Masking, type MaskedMode } from "./masking.js";
 import type { Bip39WordCount, DatePattern, DateShiftDate } from "./types.js";
 import { assertWordCount, BIP39_DICTIONARY_SIZE } from "./words.js";
+import { defined } from "./defined.js";
 
 /** The Seedshift variants whose dates can be searched: those that mask with them (MaskedMode). */
 export type SeedshiftMode = MaskedMode;
@@ -160,7 +161,7 @@ class EarlierShifts {
     if (this.#lastModulus > LONGEST_MONTH) return undefined;
     // With fewer dates the shifts repeat, and the day of the last date moves other words too.
     if (all.length !== maximumDates(this.#wordCount)) return undefined;
-    const last = all.at(-1)!;
+    const last = defined(all.at(-1));
     return {
       year: last.year % BIP39_DICTIONARY_SIZE,
       month: last.month,
@@ -174,7 +175,7 @@ class EarlierShifts {
     remaining: ReadonlyMap<string, number>,
     lastDay: { readonly year: number; readonly month: number; readonly day: number } | undefined,
   ): Stand[] {
-    const allowed = this.#allowed[index]!;
+    const allowed = defined(this.#allowed[index]);
     const stands: Stand[] = [];
     const add = (year: number, month: number, day: number, key: string | undefined) => {
       if (!allowed.years.has(year) || !allowed.months.has(month) || !allowed.days.has(day)) return;
@@ -211,9 +212,9 @@ class EarlierShifts {
     const index = chosen.length;
     if (index === guessed.length) return before && this.#shiftsOf(chosen) === shifts;
     const sameAs = this.#sameAs[index];
-    for (const stand of stands[index]!) {
-      if (sameAs !== undefined && compareDates(stand.date, chosen[sameAs]!) < 0) continue;
-      const order = before ? -1 : compareDates(stand.date, guessed[index]!);
+    for (const stand of defined(stands[index])) {
+      if (sameAs !== undefined && compareDates(stand.date, defined(chosen[sameAs])) < 0) continue;
+      const order = before ? -1 : compareDates(stand.date, defined(guessed[index]));
       // The stands are sorted, so every later one is later than the combination too.
       if (order > 0) break;
       const count = stand.key === undefined ? 0 : (remaining.get(stand.key) ?? 0);

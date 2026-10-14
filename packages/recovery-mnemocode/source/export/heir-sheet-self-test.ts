@@ -26,6 +26,11 @@ import {
 import { A5, A6, renderHeirSheet, type HeirSheetFormat, type HeirSheetText } from "./heir-sheet.js";
 import type { AssetSource } from "./platform.js";
 import type { Bip39WordCount } from "../core/bip39-sizes.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.heir-sheet-self-test", {
+  "heir-sheet-page-size-mismatch": (value0: string) => `Heir sheet ${value0} page size mismatch.`,
+});
 
 /**
  * An address reserved for examples (RFC 2606), the one the test route prints, without http(s)://
@@ -108,7 +113,9 @@ const SHEET_PAGES = 2;
 /** Steps enough to overflow the back of any size. */
 const OVERFLOWING_STEPS = 200;
 
-/** The lines of a sheet that its facts decide: what is needed, the steps, the advice, the warning. */
+/**
+ * The lines of a sheet that its facts decide: what is needed, the steps, the advice, the warning.
+ */
 function factLines(text: HeirSheetText): string[] {
   return [...text.needs, ...text.steps, text.trouble, text.warning];
 }
@@ -185,7 +192,7 @@ async function checkHeirSheet(assets: AssetSource): Promise<void> {
         Math.abs(page.getWidth() - width) > TOLERANCE_POINTS ||
         Math.abs(page.getHeight() - height) > TOLERANCE_POINTS
       )
-        throw new Error(`Heir sheet ${name} page size mismatch.`);
+        throw ERRORS.create("heir-sheet-page-size-mismatch", [`${name}`]);
   }
   const overflowing = { ...text, steps: Array<string>(OVERFLOWING_STEPS).fill(OPEN_WALLET) };
   await expectRefusedLater(

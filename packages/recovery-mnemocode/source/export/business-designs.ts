@@ -14,6 +14,7 @@ import {
   type ProfileField,
 } from "./card-settings.js";
 import { BUSINESS_STYLES, type PhysicalBusinessStyle } from "./template-catalog.js";
+import { defined } from "../core/defined.js";
 
 export type { PhysicalBusinessStyle };
 /** The business designs with artwork of their own, in the catalog's order: "mixed" draws them. */
@@ -82,7 +83,7 @@ export interface BusinessDesign {
   readonly fields: readonly FieldPlace[];
 }
 
-/** The themes of a sheet of business cards (collection-sheet.ts StudyTheme). */
+/** The themes of a sheet of business cards (collection-layout.ts StudyTheme). */
 export type BusinessStudyTheme = "cool" | "noir";
 /** The theme of a sheet of mixed designs. */
 const MIXED_STUDY_THEME: BusinessStudyTheme = "cool";
@@ -127,6 +128,10 @@ function design(entry: BusinessDesign): BusinessDesign {
   return Object.freeze(entry);
 }
 
+/**
+ * The design of each business style that has artwork of its own: the hue of its photograph, its
+ * tint and the ink of its fields.
+ */
 export const businessDesigns: Readonly<Record<PhysicalBusinessStyle, BusinessDesign>> =
   Object.freeze({
     architect: design({
@@ -244,7 +249,7 @@ export const businessDesigns: Readonly<Record<PhysicalBusinessStyle, BusinessDes
 
 /** The design that card `index` of `style` shows: "mixed" takes the designs in turn. */
 export function physicalStyle(style: BusinessStyle, index: number): PhysicalBusinessStyle {
-  return style === "mixed" ? businessStyles[index % businessStyles.length]! : style;
+  return style === "mixed" ? defined(businessStyles[index % businessStyles.length]) : style;
 }
 
 /** The theme of a sheet of `style`: the design's own, or the mixed sheet's. */

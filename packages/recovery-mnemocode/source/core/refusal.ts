@@ -5,7 +5,9 @@
 //
 // Imports nothing, so that every module can take it, the self-tests included.
 
-/** The message of a refusal: the Error's message; anything thrown that is no Error passes through. */
+/**
+ * The message of a refusal: the Error's message; anything thrown that is no Error passes through.
+ */
 export function refusalMessage(error: unknown): string {
   if (!(error instanceof Error)) throw error;
   return error.message;
@@ -14,4 +16,11 @@ export function refusalMessage(error: unknown): string {
 /** What any thrown value says, for a report: an Error's message, or the value as text. */
 export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** An Error's string code, read once; undefined for other thrown values or a non-string code. */
+export function errorCode(error: unknown): string | undefined {
+  if (!(error instanceof Error) || !("code" in error)) return undefined;
+  const code: unknown = error.code;
+  return typeof code === "string" ? code : undefined;
 }

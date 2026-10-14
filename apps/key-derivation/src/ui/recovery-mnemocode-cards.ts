@@ -29,7 +29,11 @@ import { shareCardChecks } from "@ckd/recovery-backup/mnemocode-share-card-check
 import { SHARE_FORMAT_NAMES } from "../../../../packages/recovery-mnemocode/source/sskr/share-set.js";
 import { createQrAction } from "@ckd/ui/payment-qr.js";
 import { InputRevision } from "./recovery-input-revision.js";
-import { profileFields } from "../../../../packages/recovery-mnemocode/source/export/card-settings.js";
+import {
+  profileFields,
+  SHEET_QR_HOLDS,
+} from "../../../../packages/recovery-mnemocode/source/export/card-settings.js";
+import { SHEET_PLAN_TEXT } from "../../../../packages/recovery-mnemocode/source/export/collection-layout.js";
 
 /** The texts around the cards, each with its field, as MnemoCode's card copy names them. */
 const COPY_FIELDS: Readonly<Record<keyof CardCopyOverrides, string>> = {
@@ -150,7 +154,7 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
     required<HTMLElement>("#mnemocode-card-title-row").hidden = printsShares;
     required<HTMLElement>("#mnemocode-card-qr-text").textContent = printsShares
       ? "Add a QR code of its own share to each collection sheet"
-      : "Add one QR code with the complete data to the sheet";
+      : `Add a QR code with ${SHEET_QR_HOLDS} to the sheet`;
     if (shareQr !== null && sharesChoice?.checked !== true) shareQr.checked = false;
     section.hidden = !phraseCards && shares === undefined;
     // A hidden section is also closed, so it never reopens with stale choices.
@@ -172,6 +176,11 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
   );
   const pageSize = required<HTMLSelectElement>("#mnemocode-card-page-size");
   fillSelect(pageSize, MNEMOCODE_CARD_PAGE_SIZES);
+  const orientation = required<HTMLSelectElement>("#mnemocode-card-orientation");
+  // The choice left to MnemoCode: on a sheet its plan turns it, in its own order of preference.
+  const plannedOrientation = required<HTMLOptionElement>(
+    '#mnemocode-card-orientation option[value=""]',
+  );
   const fileFormat = required<HTMLSelectElement>("#mnemocode-card-file-format");
   fillSelect(fileFormat, MNEMOCODE_CARD_FILE_FORMATS);
   const qr = required<HTMLInputElement>("#mnemocode-card-qr");
@@ -187,6 +196,18 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
     // A QR code belongs to a sheet only; a separate card never carries one.
     qrRow.hidden = separate || layout === "qr";
     if (qrRow.hidden) qr.checked = false;
+    // As MnemoCode's design question: separate cards are made in the business card designs only.
+    for (const [index, design] of MNEMOCODE_CARD_TEMPLATES.entries()) {
+      const option = template.options.item(index);
+      if (option !== null) option.disabled = separate && !design.separateCards;
+    }
+    if (template.selectedOptions.item(0)?.disabled === true) {
+      const first = MNEMOCODE_CARD_TEMPLATES.find((design) => design.separateCards);
+      if (first !== undefined) template.value = first.id;
+    }
+    plannedOrientation.textContent = separate
+      ? "The design's own"
+      : `Whichever fills the sheet best · ${SHEET_PLAN_TEXT}`;
     const file = { pdf: "PDF", png: "PNG image", jpg: "JPEG image" }[fileFormat.value] ?? "PDF";
     const corners =
       fileFormat.value === "png"
@@ -207,7 +228,7 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
               : `One collection sheet per share, saved as ${file} files in one ZIP file.`
             : `All cards are placed on one sheet, saved as one ${file}.`;
     // Only the texts that this design prints in this output are asked for.
-    const printed = mnemoCodeCardTexts(template.value, mnemoCodeCardOutput(pageSize.value));
+    const printed = mnemoCodeCardTexts(mnemoCodeCardOutput(pageSize.value));
     for (const key of COPY_KEYS)
       required<HTMLElement>(`#mnemocode-card-text-${key}-field`).hidden = !printed.includes(key);
   };
@@ -289,7 +310,7 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
     const settings = {
       template: template.value,
       pageSize: pageSize.value,
-      orientation: required<HTMLSelectElement>("#mnemocode-card-orientation").value,
+      orientation: orientation.value,
       qr: qr.checked,
       fileFormat: fileFormat.value,
       // Hidden fields are ignored, so unticking the box returns to the invented details.

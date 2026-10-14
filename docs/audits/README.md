@@ -36,6 +36,7 @@ New audits must follow [the audit report standard](AUDIT_STANDARD.md) and [the r
 28. [AUD-028](AUD-028-2026-10-12.md) · [JSON](AUD-028-2026-10-12.json) — 2026-10-12; full scope with bounded execution, 28 confirmed open roots, Envelope recipient/passphrase validation, recovery handoff, shared-code ownership and build blockers; paired Dash distribution review is AUD-001 in its repository
 29. [AUD-029](AUD-029-2026-10-12.md) · [JSON](AUD-029-2026-10-12.json) — 2026-10-12; verified remediation of all 28 AUD-028 roots and the AUD-026-DOC001 recurrence at uncommitted source bytes, canonical WASM regeneration and eight default HTML pages; targeted checks only, no release acceptance
 30. [AUD-030](AUD-030-2026-10-13.md) · [JSON](AUD-030-2026-10-13.json) — 2026-10-13; MnemoCode P01–P60 integration follow-up, exact 175-file owner binding, literal secret-file and delayed private QR corrections, bounded checks and eight fresh default HTML pages; partial-batch failures and scoped reruns retained, no real-browser or release acceptance
+31. [AUD-031](AUD-031-2026-10-14.md) · [JSON](AUD-031-2026-10-14.json) — 2026-10-14; frozen MnemoCode handover with 185 exact vendor bindings and 37 actual control/owner traces, stopped search outcomes and coded worker refusals, 135 targeted cases and six separate Scanner controls, four focused HTML builds; no real-browser, full-vector or release acceptance
 
 Historical findings describe only the reviewed snapshot. Use the latest audit and the `dist/verification-record.json` emitted for the build being evaluated.
 

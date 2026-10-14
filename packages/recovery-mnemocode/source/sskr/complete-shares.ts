@@ -14,6 +14,15 @@ import type { SharePlatform } from "./share-platform.js";
 import { Share } from "./transport.js";
 import { equalBytes } from "../core/bits.js";
 import { placeOf } from "../core/places.js";
+import { defined } from "../core/defined.js";
+import { ErrorCatalog, suppliedMessage } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("sskr.complete-shares", {
+  "no-secret": () => NO_SECRET,
+  "too-many-failing": () => TOO_MANY_FAILING,
+  "recovered-sskr-secret-not-bip39-entropy": () => "Recovered SSKR secret is not BIP39 entropy.",
+  "operation-refused": suppliedMessage,
+});
 
 /**
  * Choices of groups tried as the reference: about a second of recoveries for the largest sets.
@@ -44,7 +53,7 @@ function* choicesOf<T>(items: readonly T[], count: number, from = 0): Generator<
     return;
   }
   for (let at = from; at <= items.length - count; at += 1)
-    for (const rest of choicesOf(items, count - 1, at + 1)) yield [items[at]!, ...rest];
+    for (const rest of choicesOf(items, count - 1, at + 1)) yield [defined(items[at]), ...rest];
 }
 
 /**
@@ -65,7 +74,7 @@ async function referenceOf(
   const checkable = complete.filter((group) => memberThreshold(group) >= MIN_DIGEST_THRESHOLD);
   if (groupThreshold < MIN_DIGEST_THRESHOLD && checkable.length === 0) {
     const entropy = await restore(complete.slice(0, 1));
-    if (entropy === undefined) throw new Error(NO_SECRET);
+    if (entropy === undefined) throw ERRORS.create("no-secret", []);
     return { groups: complete.slice(0, 1), entropy, checked: false };
   }
   const choices =
@@ -74,14 +83,14 @@ async function referenceOf(
       : checkable.map((group) => [group]);
   let tries = 0;
   for (const groups of choices) {
-    if (tries === MAX_REFERENCE_TRIES) throw new Error(TOO_MANY_FAILING);
+    if (tries === MAX_REFERENCE_TRIES) throw ERRORS.create("too-many-failing", []);
     tries += 1;
     const entropy = await restore(groups);
     if (entropy !== undefined) return { groups, entropy, checked: true };
   }
   // A group of member threshold 1 may still restore, unchecked: no share is named, so that no
   // refusal leads there.
-  throw new Error(NO_SECRET);
+  throw ERRORS.create("no-secret", []);
 }
 
 /**
@@ -141,18 +150,21 @@ export async function restoreCompleteShares(
   /** The entropy that the SSKR library restores from `members`, or undefined when it refuses. */
   const recoverWith = async (members: readonly number[]): Promise<Uint8Array | undefined> => {
     try {
-      return await platform.combineShares(members.map((member) => normalized[member]!));
+      return await platform.combineShares(members.map((member) => defined(normalized[member])));
     } catch {
       return undefined;
     }
   };
-  const reference = await referenceOf(complete, infos[0]!.groupThreshold, threshold, (choice) =>
-    recoverWith(choice.flatMap(firstMembers)),
+  const reference = await referenceOf(
+    complete,
+    defined(infos[0]).groupThreshold,
+    threshold,
+    (choice) => recoverWith(choice.flatMap(firstMembers)),
   );
   const { groups: used, entropy } = reference;
   try {
     if (!BIP39_ENTROPY_BYTES.includes(entropy.length))
-      throw new Error("Recovered SSKR secret is not BIP39 entropy.");
+      throw ERRORS.create("recovered-sskr-secret-not-bip39-entropy", []);
     /** The secret with `group` in place of one of the groups used: its own place, or the last. */
     const agrees = async (group: Group, members: readonly number[]): Promise<boolean> => {
       const at = used.includes(group) ? used.indexOf(group) : used.length - 1;
@@ -166,7 +178,9 @@ export async function restoreCompleteShares(
     };
     // Without a digest, a disagreement shows only that some share is wrong, not which one.
     const refuse = (message: string): never => {
-      throw new Error(reference.checked ? message : UNCHECKED_DISAGREEMENT);
+      throw ERRORS.create("operation-refused", [
+        reference.checked ? message : UNCHECKED_DISAGREEMENT,
+      ]);
     };
     for (const group of complete) {
       const first = firstMembers(group);

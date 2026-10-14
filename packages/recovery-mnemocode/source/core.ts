@@ -1,4 +1,5 @@
 /** Stable public API. Implementations are grouped by responsibility in core/. */
+export type { CodedFailure } from "./core/error-catalog.js";
 export {
   BIP39_WORD_COUNTS,
   ENCODED_FORMATS,

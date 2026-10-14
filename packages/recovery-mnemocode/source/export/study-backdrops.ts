@@ -1,6 +1,7 @@
 import { rgb, type PDFPage } from "pdf-lib";
 import { MM } from "./business-layout.js";
 import { pdfPoint, pdfRect } from "./business-render-primitives.js";
+import { defined } from "../core/defined.js";
 
 /**
  * Pages behind a material's design study, each from the world the material belongs to: a car
@@ -98,9 +99,9 @@ function verticalGradient(
 ): void {
   const colourAt = (share: number): Color => {
     const next = stops.findIndex(([position]) => position >= share);
-    if (next <= 0) return stops[Math.max(next, 0)]![1];
-    const [from, start] = stops[next - 1]!;
-    const [to, end] = stops[next]!;
+    if (next <= 0) return defined(stops[Math.max(next, 0)])[1];
+    const [from, start] = defined(stops[next - 1]);
+    const [to, end] = defined(stops[next]);
     return mix(start, end, (share - from) / (to - from));
   };
   const band = height / GRADIENT_BANDS;

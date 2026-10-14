@@ -8,7 +8,8 @@
 // with, the QR matrix of a sheet's code and the random decoys.
 
 import { ownCards, withDecoyPool, keptCards, type WithDecoys } from "./card-decoys.js";
-import { collectionPayload, planCollectionSheet, type SheetShape } from "./collection-sheet.js";
+import { collectionPayload } from "./collection-sheet.js";
+import { planCollectionSheet, type SheetShape } from "./collection-layout.js";
 import { SHEET_PAGE_SIZE, type CardPageSize, type CardSettings } from "./card-settings.js";
 import type { ColorCards } from "./card-content.js";
 import type { UniformChoice } from "./platform.js";

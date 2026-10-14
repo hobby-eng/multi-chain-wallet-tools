@@ -15,7 +15,8 @@ import type { CardContent } from "./backup-cards.js";
 import type { CardDrawing } from "./templates.js";
 import type { SskrCardContent } from "./sskr-content.js";
 import { MM, separateCardPage, type CardBox } from "./business-layout.js";
-import { drawCollectionStudy, separateCardIndex, type SheetShape } from "./collection-sheet.js";
+import { drawCollectionStudy, separateCardIndex } from "./collection-sheet.js";
+import { type SheetShape } from "./collection-layout.js";
 import {
   parsePageSize,
   type BusinessStyle,
@@ -28,6 +29,7 @@ import { assertColorCards, type ColorCards } from "./card-content.js";
 import { peakRelativeLuma } from "./color-math.js";
 import { artworkBrightness } from "./business-tint.js";
 import { documentWithFont } from "./pdf-documents.js";
+import { defined } from "../core/defined.js";
 
 /** The top of the reference line's box on a separate card, in millimetres. */
 const REFERENCE_TOP = 46;
@@ -71,6 +73,12 @@ interface RenderContext {
   fieldColor: (dark: boolean | undefined, index: number) => ReturnType<typeof rgb>;
 }
 
+/**
+ * Draws the business cards of `content` in `style` as a PDF: the sheet of the whole collection, or
+ * with `individualIndex` that one separate card; `styleOffset` turns the mixed design's styles
+ * further for each card. Refuses content that is not color cards and a page size that does not
+ * exist.
+ */
 export async function renderBusinessCards(
   drawing: BusinessDrawing,
   style: BusinessStyle,
@@ -89,7 +97,7 @@ export async function renderBusinessCards(
   const fieldColor = (dark: boolean | undefined, index: number) => {
     if (!dark) return white;
     if (businessDesigns[designOf(index)].darkFieldInk === "fixed") return ink;
-    const color = content.colors[index]!;
+    const color = defined(content.colors[index]);
     const lightness = peakRelativeLuma(color) * artworkBrightness(color);
     return lightness > LIGHT_REFERENCE_LUMA ? ink : white;
   };
@@ -243,7 +251,7 @@ async function renderCollection(context: RenderContext): Promise<void> {
  */
 async function drawCardFace(context: RenderContext, page: PDFPage, box: CardBox): Promise<void> {
   const { font, content, fieldsFor, fieldColor } = context;
-  const code = content.colors[box.index]!.toUpperCase();
+  const code = defined(content.colors[box.index]).toUpperCase();
   drawClippedArtwork(page, await context.artwork(box.index, code), box);
   const scale = box.width / CARD.width;
   for (const field of fieldsFor(box.index))

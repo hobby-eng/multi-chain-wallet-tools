@@ -1,3 +1,4 @@
+import { defined } from "./defined.js";
 // How the messages of the library name places: the dates, codes or shares at places counted from
 // 1 among those typed, so that a message points to what is wrong without repeating it. A small
 // helper that the parts share; it needs nothing from the host.
@@ -6,7 +7,7 @@
 export function listInWords(items: readonly (string | number)[], last = "and"): string {
   return items.length < 2
     ? items.join("")
-    : `${items.slice(0, -1).join(", ")} ${last} ${items.at(-1)!}`;
+    : `${items.slice(0, -1).join(", ")} ${last} ${defined(items.at(-1))}`;
 }
 
 /** The places with what is at them, as the subject of a message: "Date 2", "Dates 1 and 2". */

@@ -3,13 +3,41 @@
 // remain unchanged until decoding ends; file readers own and wipe that input in one scope.
 
 import { BITS_PER_BYTE, equalBytes } from "./bits.js";
-import { MEBIBYTE } from "./byte-units.js";
+import { InputTooLargeError, MEBIBYTE } from "./byte-units.js";
 import { CRC32_BYTES, crc32 } from "../sskr/checksum.js";
+import { ErrorCatalog } from "./error-catalog.js";
 
+const ERRORS = new ErrorCatalog("core.png-admission", {
+  "invalid-png-input": () => INVALID_PNG_INPUT,
+  "qr-png-dimensions-non-zero": () => "QR PNG dimensions must be non-zero.",
+  "qr-png-dimensions-exceed-px-megapixel-safety-limit": (value0: string, value1: string) =>
+    `QR PNG dimensions exceed the ${value0} px / ${value1}-megapixel safety limit.`,
+  "incomplete-png": () => INCOMPLETE_PNG,
+  "not-png": () => NOT_PNG,
+  "no-leading-ihdr": () => NO_LEADING_IHDR,
+  "invalid-ihdr-length": () => INVALID_IHDR_LENGTH,
+  "wide-samples": () => WIDE_SAMPLES,
+});
+
+/** The largest QR code image that a host reads; the menu checks a file's size against it. */
 export const MAX_PNG_BYTES = 16 * MEBIBYTE;
+/**
+ * The widest and tallest QR code image that a host reads, in pixels: far above the 720 px images
+ * that MnemoCode writes, low enough to bound the pixels a decoder allocates.
+ */
 export const MAX_PNG_DIMENSION = 4096;
+/** A megapixel as the limit names it: 2^20 pixels, counted as a mebibyte is. */
 export const MEGAPIXEL = MEBIBYTE;
-export const MAX_PNG_PIXELS = 16 * MEGAPIXEL;
+/**
+ * The most pixels of a QR code image that a host reads: a whole 3840 x 2160 screen fits. It bounds
+ * what a decoder holds for a small file of the largest admitted image (AUD-022).
+ */
+export const MAX_PNG_PIXELS = 8 * MEGAPIXEL;
+/**
+ * The most bits of a sample that a host reads. A QR code has two levels, and 16-bit samples would
+ * only double the buffers of the decoder.
+ */
+export const MAX_PNG_SAMPLE_BITS = 8;
 
 // PNG signature, chunk framing and IHDR fields: W3C PNG Third Edition, sections 5 and 11.2.1.
 const SIGNATURE = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
@@ -23,9 +51,27 @@ const IDAT = 0x49444154;
 const IEND = 0x49454e44;
 const PLTE = 0x504c5445;
 const PNG_ANCILLARY_BIT = 0x20000000;
-const MAX_PALETTE_BYTES = 256 * 3;
+// A palette holds 1 to 256 entries of three bytes, red, green and blue, and an image of color type
+// 3, indexed color, needs one before its data (PNG section 11.2.2).
+const PALETTE_ENTRY_BYTES = 3;
+const MAX_PALETTE_ENTRIES = 256;
+const MAX_PALETTE_BYTES = MAX_PALETTE_ENTRIES * PALETTE_ENTRY_BYTES;
+const INDEXED_COLOR = 3;
 const FILTER_BYTES_PER_ROW = 1;
+/**
+ * The refusal of a QR code image that is no valid PNG file, for a reason that the more specific
+ * refusals do not give.
+ */
 export const INVALID_PNG_INPUT = "The QR input is not a valid PNG file.";
+// The refusals of a damaged start, each with its own reason (AUD-002-API003, AUD-022-API001).
+const INCOMPLETE_PNG = "The QR input is not a complete PNG file.";
+const NOT_PNG = "The QR input is not a PNG file.";
+const INVALID_IHDR_LENGTH = "The QR PNG has an invalid IHDR chunk length.";
+const NO_LEADING_IHDR = "The QR PNG does not begin with an IHDR chunk.";
+const WIDE_SAMPLES = `The QR PNG has samples of more than ${MAX_PNG_SAMPLE_BITS} bits; save it with ${MAX_PNG_SAMPLE_BITS} bits per sample.`;
+/** Where the first chunk starts, after the signature. */
+const FIRST_CHUNK_AT = SIGNATURE.length;
+/** Where each field starts in the data of IHDR. */
 const HEADER_FIELDS = {
   width: 0,
   height: 4,
@@ -35,6 +81,10 @@ const HEADER_FIELDS = {
   filter: 11,
   interlace: 12,
 } as const;
+/** The bytes up to the end of the first chunk's height, which is where its bit depth starts. */
+const DIMENSIONS_END = FIRST_CHUNK_AT + CHUNK_HEADER_BYTES + HEADER_FIELDS.depth;
+/** The interlace method of Adam7; 0 is none, and no other is defined (PNG section 11.2.1). */
+const ADAM7_INTERLACE = 1;
 
 /** Color types and permitted sample depths, PNG section 11.2.1. */
 const COLOR_LAYOUTS: Readonly<Record<number, { channels: number; depths: readonly number[] }>> = {
@@ -57,15 +107,16 @@ const ADAM7 = [
 ] as const;
 
 function refused(): never {
-  throw new Error(INVALID_PNG_INPUT);
+  throw ERRORS.create("invalid-png-input", []);
 }
 
 function assertDimensions(width: number, height: number): void {
-  if (width === 0 || height === 0) throw new Error("QR PNG dimensions must be non-zero.");
+  if (width === 0 || height === 0) throw ERRORS.create("qr-png-dimensions-non-zero", []);
   if (width > MAX_PNG_DIMENSION || height > MAX_PNG_DIMENSION || width * height > MAX_PNG_PIXELS)
-    throw new Error(
-      `QR PNG dimensions exceed the ${MAX_PNG_DIMENSION} px / ${MAX_PNG_PIXELS / MEGAPIXEL}-megapixel safety limit.`,
-    );
+    throw ERRORS.create("qr-png-dimensions-exceed-px-megapixel-safety-limit", [
+      `${MAX_PNG_DIMENSION}`,
+      `${MAX_PNG_PIXELS / MEGAPIXEL}`,
+    ]);
 }
 
 function rowBytes(width: number, bitsPerPixel: number): number {
@@ -101,11 +152,22 @@ export class PngAdmission {
   /** Validates the whole chunk stream; a second IHDR can never replace admitted dimensions. */
   static read(bytes: Uint8Array): PngAdmission {
     if (bytes.byteLength > MAX_PNG_BYTES)
-      throw new Error(`QR PNG input exceeds the ${MAX_PNG_BYTES / MEBIBYTE} MiB safety limit.`);
-    if (bytes.length < SIGNATURE.length)
-      throw new Error("The QR input is not a complete PNG file.");
-    if (!PngAdmission.hasSignature(bytes)) throw new Error("The QR input is not a PNG file.");
+      throw new InputTooLargeError("QR PNG input", MAX_PNG_BYTES);
+    if (bytes.length < SIGNATURE.length) throw ERRORS.create("incomplete-png", []);
+    if (!PngAdmission.hasSignature(bytes)) throw ERRORS.create("not-png", []);
+    if (bytes.length < DIMENSIONS_END) throw ERRORS.create("incomplete-png", []);
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    // The start is read before the chunk stream, so that a damaged one is refused with its reason
+    // and no larger dimensions reach any later check. The type first: a first chunk of another
+    // type is no IHDR, whatever its length.
+    if (view.getUint32(FIRST_CHUNK_AT + CHUNK_LENGTH_BYTES) !== IHDR)
+      throw ERRORS.create("no-leading-ihdr", []);
+    if (view.getUint32(FIRST_CHUNK_AT) !== IHDR_BYTES)
+      throw ERRORS.create("invalid-ihdr-length", []);
+    assertDimensions(
+      view.getUint32(FIRST_CHUNK_AT + CHUNK_HEADER_BYTES + HEADER_FIELDS.width),
+      view.getUint32(FIRST_CHUNK_AT + CHUNK_HEADER_BYTES + HEADER_FIELDS.height),
+    );
     let offset = SIGNATURE.length;
     let budget: number | undefined;
     let ended = false;
@@ -128,26 +190,29 @@ export class PngAdmission {
         const width = view.getUint32(start + HEADER_FIELDS.width);
         const height = view.getUint32(start + HEADER_FIELDS.height);
         assertDimensions(width, height);
-        const depth = bytes[start + HEADER_FIELDS.depth]!;
-        colorType = bytes[start + HEADER_FIELDS.color]!;
+        const depth = view.getUint8(start + HEADER_FIELDS.depth);
+        colorType = view.getUint8(start + HEADER_FIELDS.color);
+        const interlace = view.getUint8(start + HEADER_FIELDS.interlace);
         const layout = Object.hasOwn(COLOR_LAYOUTS, colorType)
           ? COLOR_LAYOUTS[colorType]
           : undefined;
         if (!layout || !layout.depths.includes(depth)) refused();
+        if (depth > MAX_PNG_SAMPLE_BITS) throw ERRORS.create("wide-samples", []);
+        // Compression and filter method 0 are the only ones defined (PNG section 11.2.1).
         if (
-          bytes[start + HEADER_FIELDS.compression] !== 0 ||
-          bytes[start + HEADER_FIELDS.filter] !== 0 ||
-          bytes[start + HEADER_FIELDS.interlace]! > 1
+          view.getUint8(start + HEADER_FIELDS.compression) !== 0 ||
+          view.getUint8(start + HEADER_FIELDS.filter) !== 0 ||
+          interlace > ADAM7_INTERLACE
         )
           refused();
         budget = scanlineBytes(
           width,
           height,
           depth * layout.channels,
-          bytes[start + HEADER_FIELDS.interlace] === 1,
+          interlace === ADAM7_INTERLACE,
         );
       } else if (type === IDAT) {
-        if (dataEnded || (colorType === 3 && !palette)) refused();
+        if (dataEnded || (colorType === INDEXED_COLOR && !palette)) refused();
         parts.push(bytes.subarray(start, end));
       } else {
         if (parts.length > 0) dataEnded = true;
@@ -157,7 +222,7 @@ export class PngAdmission {
             dataEnded ||
             length === 0 ||
             length > MAX_PALETTE_BYTES ||
-            length % 3 !== 0
+            length % PALETTE_ENTRY_BYTES !== 0
           )
             refused();
           palette = true;

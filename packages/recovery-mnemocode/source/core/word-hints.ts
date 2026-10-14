@@ -11,13 +11,27 @@
 // Host-neutral: it imports only the English BIP39 list.
 
 import { englishWordlist } from "./english-words.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog } from "./error-catalog.js";
 
-/** Letters typed before the words that begin with them are listed; fewer give how many there are. */
+const ERRORS = new ErrorCatalog("core.word-hints", {
+  "word-list-holds-lower-case-letters-hyphens-only": () =>
+    "A word list holds lower-case letters and hyphens only.",
+  "word-list-alphabetical-order-without-repeats": () =>
+    "A word list must be in alphabetical order without repeats.",
+  "words-run-together-all-same-length": () => "Words run together must all have the same length.",
+});
+
+/**
+ * Letters typed before the words that begin with them are listed; fewer give how many there are.
+ */
 export const LIST_FROM_LETTERS = 2;
 
 /** What a front end shows below a word being typed. */
 export type WordHint =
-  /** Nothing: no word is being typed, or the list has it whole and no longer word begins with it. */
+  /**
+   * Nothing: no word is being typed, or the list has it whole and no longer word begins with it.
+   */
   | { readonly kind: "nothing" }
   /** One letter typed: how many words of the list begin with it, as `text` says. */
   | { readonly kind: "count"; readonly count: number; readonly text: string }
@@ -89,9 +103,9 @@ export class WordList implements WordHints {
   constructor(names: WordNames, words: readonly string[], spacing: WordSpacing = {}) {
     words.forEach((word, index) => {
       if (!WORD_CHARACTERS.test(word) || word !== word.toLowerCase())
-        throw new Error("A word list holds lower-case letters and hyphens only.");
-      if (index > 0 && words[index - 1]! >= word)
-        throw new Error("A word list must be in alphabetical order without repeats.");
+        throw ERRORS.create("word-list-holds-lower-case-letters-hyphens-only", []);
+      if (index > 0 && defined(words[index - 1]) >= word)
+        throw ERRORS.create("word-list-alphabetical-order-without-repeats", []);
     });
     this.#names = Object.freeze({ ...names });
     this.#words = Object.freeze([...words]);
@@ -99,7 +113,7 @@ export class WordList implements WordHints {
     this.#separators = spacing.separators ?? WHITE_SPACE;
     this.#runTogether = spacing.runTogether;
     if (this.#runTogether !== undefined && words.some((word) => word.length !== this.#runTogether))
-      throw new Error("Words run together must all have the same length.");
+      throw ERRORS.create("words-run-together-all-same-length", []);
   }
 
   /** The hint for the last word of `line`, the text typed so far. */
@@ -159,7 +173,7 @@ export class WordList implements WordHints {
   #startingWith(letters: string): readonly string[] {
     const start = firstAtLeast(this.#words, letters);
     let end = start;
-    while (end < this.#words.length && this.#words[end]!.startsWith(letters)) end += 1;
+    while (end < this.#words.length && defined(this.#words[end]).startsWith(letters)) end += 1;
     return this.#words.slice(start, end);
   }
 }
@@ -170,7 +184,7 @@ function firstAtLeast(words: readonly string[], letters: string): number {
   let high = words.length;
   while (low < high) {
     const middle = (low + high) >>> 1;
-    if (words[middle]! < letters) low = middle + 1;
+    if (defined(words[middle]) < letters) low = middle + 1;
     else high = middle;
   }
   return low;

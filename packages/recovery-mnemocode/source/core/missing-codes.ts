@@ -61,6 +61,26 @@ import {
   WORD_NUMBERS_RUN_TOGETHER,
 } from "./words.js";
 import { Redacted } from "./redacted.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog, suppliedMessage } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.missing-codes", {
+  "word-number-no-number-from": (value0: string, value1: string) =>
+    `Word number ${value0} is no number from ${value1}.`,
+  "word-numbers-run-together": () => WORD_NUMBERS_RUN_TOGETHER,
+  "code-no-unicode-code-word-list": (value0: string) =>
+    `Code ${value0} is no Unicode code of the word list.`,
+  "unicode-colors-refused": suppliedMessage,
+  "colors-give-no-word-at-place": (value0: string) => `The colors give no word at place ${value0}.`,
+  "places-refused": suppliedMessage,
+  "mark-color-cannot-read-one-place-whole-color": () =>
+    "Mark a color that cannot be read with one ? in place of the whole color.",
+  "codes-cannot-marked-form": () => "These codes cannot be marked in this form.",
+  "codes-seed-phrase": (value0: string, value1: string) =>
+    `These are ${value0} codes; a seed phrase has ${value1}.`,
+  "no-code-marked-mark-each-code-cannot-read": () =>
+    "No code is marked: mark each code that cannot be read with ?.",
+});
 
 /** What makes a search of marked codes smaller, in the words of its refusal (assertSearchable). */
 const NARROW_MARKED_CODES = "read a few letters or digits of the codes, or mark fewer";
@@ -84,7 +104,7 @@ const MARKED_WORD_NUMBER = new RegExp(`^[0-9?]{1,${WORD_NUMBER_DIGITS}}$`, "u");
 
 /** The refusal of word number `place`, which no number of a word fits. */
 function noWordNumber(place: number): Error {
-  return new Error(`Word number ${place} is no number from ${WORD_NUMBERS_THROUGH}.`);
+  return ERRORS.create("word-number-no-number-from", [`${place}`, `${WORD_NUMBERS_THROUGH}`]);
 }
 
 /** The words that one word number allows: a number, a lone ?, or a number with ? for a digit. */
@@ -102,7 +122,7 @@ function numberPlace(written: string, place: number): WordPlace {
     const words = wordsOfNumber(written, false);
     if (words.length > 0) return words;
   }
-  if (runTogetherNumbers(written)) throw new Error(WORD_NUMBERS_RUN_TOGETHER);
+  if (runTogetherNumbers(written)) throw ERRORS.create("word-numbers-run-together", []);
   throw noWordNumber(place);
 }
 
@@ -113,7 +133,7 @@ function codePlace(written: string, place: number): WordPlace {
     const words = unicodeCodesFitting(written);
     if (words.length > 0) return words;
   }
-  throw new Error(`Code ${place} is no Unicode code of the word list.`);
+  throw ERRORS.create("code-no-unicode-code-word-list", [`${place}`]);
 }
 
 /** The colors of Color Unicode codes, each undefined where one of its two codes cannot be read. */
@@ -121,7 +141,7 @@ function unicodeColors(text: string): (string | undefined)[] {
   // The codes may also be the Private Use symbols themselves.
   const points = markedColorSymbols(text) ?? hexUnits(text, UNICODE_CODE_DIGITS);
   if (points === undefined || points.length % COLOR_UNICODE_POINTS_PER_COLOR !== 0)
-    throw new Error(withJoinedMarksHint(COLOR_UNICODE_PAIRS, text));
+    throw ERRORS.create("unicode-colors-refused", [withJoinedMarksHint(COLOR_UNICODE_PAIRS, text)]);
   return Array.from({ length: points.length / COLOR_UNICODE_POINTS_PER_COLOR }, (_, color) => {
     const pair = points.slice(
       color * COLOR_UNICODE_POINTS_PER_COLOR,
@@ -130,7 +150,7 @@ function unicodeColors(text: string): (string | undefined)[] {
     // A code with ? among its digits leaves its color unknown: its digits are no digits of it.
     if (pair.some((code) => code.includes("?"))) return undefined;
     const [high, low] = pair.map((code) => Number.parseInt(code, 16));
-    return colorOfUnicodePair(high!, low!);
+    return colorOfUnicodePair(defined(high), defined(low));
   });
 }
 
@@ -138,7 +158,7 @@ function unicodeColors(text: string): (string | undefined)[] {
 function colorPlaces(colors: readonly (string | undefined)[]): WordPlace[] {
   return wordPositionPatterns(colors).map((pattern, place) => {
     const words = wordsOfNumber(pattern, true);
-    if (words.length === 0) throw new Error(`The colors give no word at place ${place + 1}.`);
+    if (words.length === 0) throw ERRORS.create("colors-give-no-word-at-place", [`${place + 1}`]);
     return words;
   });
 }
@@ -153,24 +173,24 @@ function placesOf(text: string, format: EncodedFormat): WordPlace[] {
     case "unicode": {
       const codes = hexUnits(text, UNICODE_CODE_DIGITS);
       if (codes === undefined)
-        throw new Error(
+        throw ERRORS.create("places-refused", [
           withJoinedMarksHint(
             "Unicode codes have four hexadecimal digits each, or ? where unread.",
             text,
           ),
-        );
+        ]);
       return codes.map((code, index) => codePlace(code, index + 1));
     }
     case "colors": {
       const colors = hexUnits(text, RGB_HEX_DIGITS);
       if (colors === undefined || colors.some((color) => color !== "?" && color.includes("?")))
-        throw new Error("Mark a color that cannot be read with one ? in place of the whole color.");
+        throw ERRORS.create("mark-color-cannot-read-one-place-whole-color", []);
       return colorPlaces(colors.map((color) => (color === "?" ? undefined : `#${color}`)));
     }
     case "colors-unicode":
       return colorPlaces(unicodeColors(text));
     default:
-      throw new Error("These codes cannot be marked in this form.");
+      throw ERRORS.create("codes-cannot-marked-form", []);
   }
 }
 
@@ -195,6 +215,8 @@ export interface CodesCheckResult {
   readonly passed: number;
   /** How many candidates were checked. */
   readonly count: number;
+  /** Whether the host stopped the search: then only the candidates checked before it count. */
+  readonly stopped: boolean;
 }
 
 /**
@@ -214,9 +236,9 @@ export class MissingCodes extends Redacted {
     // (AUD-014-API006): refused here by the guard that complete codes have (EncodedBackup).
     const masking = Masking.of(mode);
     if (!isBip39WordCount(places.length))
-      throw new Error(`These are ${places.length} codes; a seed phrase has ${WORD_COUNTS_TEXT}.`);
+      throw ERRORS.create("codes-seed-phrase", [`${places.length}`, `${WORD_COUNTS_TEXT}`]);
     if (places.every((place) => place.length === 1))
-      throw new Error("No code is marked: mark each code that cannot be read with ?.");
+      throw ERRORS.create("no-code-marked-mark-each-code-cannot-read", []);
     // Counted and bounded as the word search counts and bounds its places (candidates.ts).
     const combinations = searchCombinations({ kind: "unknown-words", places });
     assertSearchable(combinations, NARROW_MARKED_CODES);
@@ -317,13 +339,19 @@ export class MissingCodes extends Redacted {
     let passed = 0;
     const turns = SearchTurns.of(run);
     for (const codes of this.candidates()) {
+      if (turns.stopped) return { found, passed, count, stopped: true };
+      const passes = await run.check(codes);
+      // An answer that came after a stop is not counted (AUD-015-API001).
+      if (turns.stopped) return { found, passed, count, stopped: true };
       count += 1;
-      if (await run.check(codes)) {
+      if (passes) {
         passed += 1;
         if (found.length < maxFound) found.push(EncodedBackup.of(codes, this.#format, this.mode));
       }
-      if (await turns.due()) run.onProgress?.({ checked: count, found: passed });
+      const turn = await turns.due();
+      if (turn === "stopped") return { found, passed, count, stopped: true };
+      if (turn === "turned") run.onProgress?.({ checked: count, found: passed });
     }
-    return { found, passed, count };
+    return { found, passed, count, stopped: false };
   }
 }

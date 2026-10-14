@@ -18,13 +18,27 @@ import {
   type MnemoCodeHelp,
 } from "./recovery-mnemocode-help.js";
 import { required } from "./recovery-workspace-shared.js";
+import {
+  isMaskingMode,
+  isEncodedFormat,
+} from "../../../../packages/recovery-mnemocode/source/core/types.js";
+import { ErrorCatalog } from "../../../../packages/recovery-mnemocode/source/core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("wallet.mnemocode-fields", {
+  mode: () => "Choose a supported MnemoCode mode.",
+  format: () => "Choose a supported MnemoCode representation.",
+});
 
 export function selectedMode(select: HTMLSelectElement): MnemoCodeMode {
-  return select.value as MnemoCodeMode;
+  const value = select.value;
+  if (!isMaskingMode(value)) throw ERRORS.create("mode", []);
+  return value;
 }
 
 export function selectedFormat(select: HTMLSelectElement): MnemoCodeFormat {
-  return select.value as MnemoCodeFormat;
+  const value = select.value;
+  if (!isEncodedFormat(value)) throw ERRORS.create("format", []);
+  return value;
 }
 
 /** Every tab reads the library's choices and the same help titles, rather than copying lists. */

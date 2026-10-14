@@ -1,6 +1,9 @@
 import { pickWith, type UniformChoice } from "./platform.js";
 import { validateProfile, type BusinessStyle, type CardProfile } from "./card-settings.js";
 
+/**
+ * The sector of the invented employer on business cards, which the design suits (sectorForStyle).
+ */
 export type CompanySector = "it" | "architecture" | "property" | "consulting";
 
 /** Employer names are separate from the print studios used on collection sheets. */
@@ -35,6 +38,7 @@ export const employers: Record<CompanySector, readonly string[]> = {
   ],
 };
 
+/** The roles that an employer of any sector may give the person on the cards. */
 export const commonRoles = [
   "Sales Manager",
   "Sales Consultant",
@@ -48,6 +52,7 @@ export const commonRoles = [
   "Project Manager",
 ] as const;
 
+/** The roles that only an employer of each sector gives. */
 export const sectorRoles: Record<CompanySector, readonly string[]> = {
   it: [
     "Software Engineer",

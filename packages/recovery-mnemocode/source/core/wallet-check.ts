@@ -6,6 +6,13 @@
 // which every search and wallet check takes without any package.
 
 import { trimWhiteSpace } from "./white-space.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.wallet-check", {
+  "malformed-wallet-answer": { kind: "type", text: () => MALFORMED_WALLET_ANSWER },
+  "master-fingerprint-eight-hexadecimal-characters": () =>
+    "A master fingerprint must be eight hexadecimal characters.",
+});
 
 /** What the host's wallet check says of one phrase. */
 export interface WalletMatch {
@@ -24,6 +31,9 @@ export type WalletCheck<M extends WalletMatch = WalletMatch> = (
   mnemonic: string,
 ) => M | PromiseLike<M>;
 
+/** What the host's wallet check compared the phrase with, as a line about its match names it. */
+export type MatchedBy = "address" | "key" | "fingerprint";
+
 /** The refusal of an answer of a host's wallet check that is no WalletMatch. */
 export const MALFORMED_WALLET_ANSWER =
   "The wallet check must answer with an object whose matched field is true or false.";
@@ -38,18 +48,19 @@ function readOnce(answer: unknown): Readonly<Record<keyof WalletMatch, unknown>>
   return { matched, path, warning };
 }
 
-/** Checked fields are fixed data; the host's extra accessors/methods keep their original receiver. */
+/**
+ * Checked fields are fixed data; the host's extra accessors/methods keep their original receiver.
+ */
 function ownedAnswer(given: object, read: Readonly<Record<keyof WalletMatch, unknown>>): object {
   const fields = new Map<PropertyKey, PropertyDescriptor>();
-  for (const key of Reflect.ownKeys(read))
-    fields.set(key, { value: Reflect.get(read, key), enumerable: true });
+  for (const [key, value] of Object.entries(read)) fields.set(key, { value, enumerable: true });
 
-  const prototype: object | null = Object.getPrototypeOf(given);
+  const prototype = Reflect.getPrototypeOf(given);
   const seen = new Set<object>();
   for (
     let owner: object | null = given;
     owner !== null && owner !== Object.prototype && !seen.has(owner);
-    owner = Object.getPrototypeOf(owner) as object | null
+    owner = Reflect.getPrototypeOf(owner)
   ) {
     seen.add(owner);
     for (const key of Reflect.ownKeys(owner)) {
@@ -58,8 +69,9 @@ function ownedAnswer(given: object, read: Readonly<Record<keyof WalletMatch, unk
       const field = Object.getOwnPropertyDescriptor(owner, key);
       if (field === undefined) continue;
       if ("value" in field) {
-        if (typeof field.value === "function" && key !== "constructor")
-          field.value = field.value.bind(given);
+        const method: unknown = field.value;
+        if (typeof method === "function" && key !== "constructor")
+          field.value = (method as (...values: unknown[]) => unknown).bind(given);
       } else {
         // Reading other getters here could throw or perform work the caller never requested.
         // Bound accessors remain lazy and can read the original class's private fields.
@@ -87,7 +99,7 @@ export async function askWallet<M extends WalletMatch>(
   // The fields a search reads are read once and kept as checked (AUD-015). Extra data remains
   // owned data, while getters/methods keep the host's receiver and private brand (AUD-016-API001).
   const read = readOnce(given);
-  if (typeof read?.matched !== "boolean") throw new TypeError(MALFORMED_WALLET_ANSWER);
+  if (typeof read?.matched !== "boolean") throw ERRORS.create("malformed-wallet-answer", []);
   return ownedAnswer(given as object, read) as M;
 }
 
@@ -126,7 +138,7 @@ export const FINGERPRINT_WARNING =
 export function parseMasterFingerprint(value: string): string {
   const fingerprint = trimWhiteSpace(value).toLowerCase();
   if (!isFingerprintText(fingerprint))
-    throw new Error("A master fingerprint must be eight hexadecimal characters.");
+    throw ERRORS.create("master-fingerprint-eight-hexadecimal-characters", []);
   return fingerprint;
 }
 

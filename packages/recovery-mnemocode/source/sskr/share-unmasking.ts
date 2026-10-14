@@ -20,10 +20,19 @@ import {
 import { EncodedBackup } from "../core/encoded-backup.js";
 import { Masking, type SplitMode } from "../core/masking.js";
 import { askWallet, type WalletCheck } from "../core/wallet-check.js";
-import type { RepairedSet } from "./joint-repair.js";
+import type { RepairedSet } from "./joint-results.js";
 import type { DateWork } from "./repair-report.js";
 import { Redacted } from "../core/redacted.js";
 import { BIP39_WORD_COUNTS } from "../core/bip39-sizes.js";
+import { defined } from "../core/defined.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("sskr.share-unmasking", {
+  "seedshift-phrase-unmasked-dates-dates-answer": {
+    kind: "type",
+    text: () => "A Seedshift phrase is unmasked with its dates, a DatesAnswer.",
+  },
+});
 
 /** The two modes in which shares are made: SSKR splits the entropy of a valid BIP39 phrase. */
 export type ShareMode = SplitMode;
@@ -59,7 +68,9 @@ export type Unmasked =
       /** Every phrase for a candidate list, also the matches of a search beyond those shown. */
       readonly listed: readonly string[];
     }
-  | { readonly kind: "dates"; readonly message: string };
+  | { readonly kind: "dates"; readonly message: string }
+  /** The host stopped the date search (DateSearchRun.signal): no phrase is told (CORE-22). */
+  | { readonly kind: "stopped" };
 
 /**
  * A phrase length for the wallet checks of one date combination: MnemoCode Seedshift gives one
@@ -68,7 +79,7 @@ export type Unmasked =
  */
 const ANY_WORD_COUNT = BIP39_WORD_COUNTS[0];
 /** The longest phrase, which the decoding of the dates is timed with (secondsPerCombination). */
-const LONGEST_PHRASE = BIP39_WORD_COUNTS.at(-1)!;
+const LONGEST_PHRASE = defined(BIP39_WORD_COUNTS.at(-1));
 
 /**
  * How the sets of one restore are turned into seed phrases. A class, so that a host builds it once
@@ -87,7 +98,7 @@ export class ShareUnmasking extends Redacted {
     Masking.assertSplitMode(options.mode);
     const masked = Masking.isMaskedMode(options.mode);
     if (masked && !(options.dates instanceof DatesAnswer))
-      throw new TypeError("A Seedshift phrase is unmasked with its dates, a DatesAnswer.");
+      throw ERRORS.create("seedshift-phrase-unmasked-dates-dates-answer", []);
     this.#mode = options.mode;
     this.#dates = masked ? options.dates : undefined;
     this.#walletCheck = options.walletCheck;
@@ -105,7 +116,7 @@ export class ShareUnmasking extends Redacted {
    * is said against (ShareSet.walletMismatch); undefined without a search.
    */
   get searchedCombinations(): number | undefined {
-    return this.searches ? this.#dates!.combinations : undefined;
+    return this.searches ? defined(this.#dates).combinations : undefined;
   }
 
   /** Whether the search needs the wallet to tell the right dates (walletNeeded). */
@@ -124,7 +135,7 @@ export class ShareUnmasking extends Redacted {
     // Only a masked phrase has dates to search.
     const mode = this.#mode;
     if (!this.searches || !Masking.isMaskedMode(mode)) return undefined;
-    const dates = this.#dates!;
+    const dates = defined(this.#dates);
     // The shares do not say yet how long their phrase is; every count of dates fits 24 words.
     const perCombination = DateSearch.secondsPerCombination(mode, dates, LONGEST_PHRASE);
     if (this.#walletCheck === undefined)
@@ -166,6 +177,7 @@ export class ShareUnmasking extends Redacted {
         maxShown: this.#maxShown,
         keep,
       }).run(run);
+      if (result.stopped) return { kind: "stopped" };
       for (const match of result.shown)
         phrases.push({
           set,

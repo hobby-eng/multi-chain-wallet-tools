@@ -8,7 +8,7 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
 import { checkCandidateEncryptionQuick } from "../../../packages/recovery-mnemocode/source/core/candidate-encryption-self-test.js";
 import { checkCandidateListStartup } from "../../../packages/recovery-mnemocode/source/core/candidate-list-self-test.js";
-import { CandidateFileRefused } from "../../../packages/recovery-mnemocode/source/core/candidate-encryption.js";
+import { CandidateFileRefusedError } from "../../../packages/recovery-mnemocode/source/core/candidate-encryption.js";
 import { CandidateListImport, type CandidateListFile } from "./candidate-list-import.js";
 
 /** RFC 7914, section 12: scrypt of an empty password and salt, N = 16, r = 1, p = 1. */
@@ -40,7 +40,7 @@ export async function runCandidateListSelfTest(): Promise<CryptoSelfTestReport> 
   try {
     await lists.open(file);
   } catch (cause) {
-    if (!(cause instanceof CandidateFileRefused) || cause.problem !== "unsupported") throw cause;
+    if (!(cause instanceof CandidateFileRefusedError) || cause.code !== "unsupported") throw cause;
     refused = true;
   } finally {
     retained = lists.count !== 0;

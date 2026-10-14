@@ -1,11 +1,32 @@
 import type { BusinessStyle, MaterialStyle } from "./template-catalog.js";
 import { listInWords } from "../core/places.js";
 import { capitalized } from "../core/prose.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.card-settings", {
+  "page-size": (value0: string) => `Page size must be ${value0}.`,
+  "separate-cards-business-size-choose-business-size-leave": () =>
+    "Separate cards have the business size. Choose the business size, or leave the size out.",
+  "qr-code-printed-on-sheet-only-choose-size": (value0: string) =>
+    `A QR code is printed on a sheet only. Choose the ${value0} size for a QR code; separate cards never carry one.`,
+  orientation: (value0: string) => `Orientation must be ${value0}.`,
+  "card-non-empty-text-on-one-line": (value0: string, value1: string) =>
+    `Card ${value0} must be non-empty text on one line${value1}`,
+  "card-too-long-maximum-characters": (value0: string, value1: string) =>
+    `Card ${value0} is too long (maximum ${value1} characters).`,
+  "card-name-use-latin-letters-only-spaces-apostrophes": () =>
+    "Card name must use Latin letters only (spaces, apostrophes and hyphens are allowed).",
+});
 
 /** Print layout is independent of the visual template and the encoded format. */
 export const CARD_PAGE_SIZES = Object.freeze(["a6", "a5", "a4", "business"] as const);
+/**
+ * A page size of cards: a sheet size, or the business size of a separate card (CARD_PAGE_SIZES).
+ */
 export type CardPageSize = (typeof CARD_PAGE_SIZES)[number];
+/** The orientations of a sheet of cards. */
 export const CARD_ORIENTATIONS = Object.freeze(["portrait", "landscape"] as const);
+/** An orientation of a sheet of cards (CARD_ORIENTATIONS). */
 export type CardOrientation = (typeof CARD_ORIENTATIONS)[number];
 /** The details of the person on the cards, in the order a host asks for them. */
 export const profileFields = [
@@ -17,11 +38,13 @@ export const profileFields = [
   "website",
   "location",
 ] as const;
+/** A detail of the person on the cards (profileFields). */
 export type ProfileField = (typeof profileFields)[number];
 /** How a detail of the person is named to the person and in a refusal: its field, capitalized. */
 export function profileFieldLabel(field: ProfileField): string {
   return capitalized(field);
 }
+/** The details of the person on the cards, each optional. */
 export type CardProfile = Readonly<Partial<Record<ProfileField, string>>>;
 
 /**
@@ -35,11 +58,18 @@ export const COPY_FIELDS = Object.freeze([
   "footer",
   "referenceLabel",
 ] as const);
+/** A text of a card design besides the person's details (COPY_FIELDS). */
 export type CopyField = (typeof COPY_FIELDS)[number];
+/** Every text of a card design besides the person's details. */
 export type CardPresentation = Readonly<Record<CopyField, string>>;
+/**
+ * How cards are printed: the page size and orientation, the person's details, the texts of the
+ * design, and whether a sheet carries its QR code. A size or orientation left undefined is chosen
+ * by the plan.
+ */
 export interface CardSettings {
-  readonly pageSize?: CardPageSize;
-  readonly orientation?: CardOrientation;
+  readonly pageSize?: CardPageSize | undefined;
+  readonly orientation?: CardOrientation | undefined;
   readonly profile?: CardProfile;
   readonly presentation?: CardPresentation;
   readonly cardQr?: boolean;
@@ -71,7 +101,7 @@ export function parsePageSize(value: string | undefined): CardPageSize {
   if (value === undefined) return SHEET_PAGE_SIZE;
   const size = CARD_PAGE_SIZES.find((known) => known === value);
   if (size === undefined)
-    throw new Error(`Page size must be ${listInWords(CARD_PAGE_SIZES, "or")}.`);
+    throw ERRORS.create("page-size", [`${listInWords(CARD_PAGE_SIZES, "or")}`]);
   return size;
 }
 
@@ -80,11 +110,6 @@ export function parsePageSize(value: string | undefined): CardPageSize {
  * which the paper of the business size follows, never the other way.
  */
 export const BUSINESS_CARD_MM = Object.freeze({ width: 90, height: 50 } as const);
-/**
- * A card of ISO/IEC 7810 ID-1, the size of a bank card, in millimetres: the material layout is
- * drawn for it.
- */
-export const ID1_CARD_MM = Object.freeze({ width: 85.6, height: 54 } as const);
 
 /** Width and height in millimetres, in the natural orientation of each size (ISO 216 for A). */
 const PAGE_DIMENSIONS: Readonly<Record<CardPageSize, readonly [number, number]>> = {
@@ -139,10 +164,14 @@ export function resolvePageSize(value: string | undefined, separate: boolean): C
 /** Refuses a size given for separate cards other than theirs: they have the business size. */
 export function assertSeparateCardSize(size: CardPageSize | undefined): void {
   if (size !== undefined && !isCardPageSize(size))
-    throw new Error(
-      "Separate cards have the business size. Choose the business size, or leave the size out.",
-    );
+    throw ERRORS.create("separate-cards-business-size-choose-business-size-leave", []);
 }
+
+/**
+ * What the QR code of a sheet holds, as the menu and the help name it: the backup alone, never the
+ * cards that end a set and belong to nothing (card-plan.ts).
+ */
+export const SHEET_QR_HOLDS = "the codes of the backup, without the extra cards";
 
 /**
  * Refuses a QR code on colour cards of the business size, which are separate cards: a QR code is
@@ -151,9 +180,7 @@ export function assertSeparateCardSize(size: CardPageSize | undefined): void {
  */
 export function assertSheetQr(card: { readonly kind: string } & CardSettings): void {
   if (card.kind === "colors" && isCardPageSize(card.pageSize) && card.cardQr === true)
-    throw new Error(
-      `A QR code is printed on a sheet only. Choose the ${SHEET_SIZES_TEXT} size for a QR code; separate cards never carry one.`,
-    );
+    throw ERRORS.create("qr-code-printed-on-sheet-only-choose-size", [`${SHEET_SIZES_TEXT}`]);
 }
 
 /** The orientation that `value` names, or none; every export reads an orientation through it. */
@@ -161,7 +188,7 @@ export function parseOrientation(value: string | undefined): CardOrientation | u
   if (value === undefined) return undefined;
   const orientation = CARD_ORIENTATIONS.find((known) => known === value);
   if (orientation === undefined)
-    throw new Error(`Orientation must be ${listInWords(CARD_ORIENTATIONS, "or")}.`);
+    throw ERRORS.create("orientation", [`${listInWords(CARD_ORIENTATIONS, "or")}`]);
   return orientation;
 }
 
@@ -175,12 +202,19 @@ export const MAX_CARD_TEXT_LENGTH = 100;
  */
 export function cardText(text: unknown, label: string, blankEnding: string): string {
   if (typeof text !== "string" || !text.trim() || /[\p{Cc}\p{Cf}]/u.test(text))
-    throw new Error(`Card ${label} must be non-empty text on one line${blankEnding}`);
-  if ([...text].length > MAX_CARD_TEXT_LENGTH)
-    throw new Error(`Card ${label} is too long (maximum ${MAX_CARD_TEXT_LENGTH} characters).`);
+    throw ERRORS.create("card-non-empty-text-on-one-line", [`${label}`, `${blankEnding}`]);
+  if (Array.from(text).length > MAX_CARD_TEXT_LENGTH)
+    throw ERRORS.create("card-too-long-maximum-characters", [
+      `${label}`,
+      `${MAX_CARD_TEXT_LENGTH}`,
+    ]);
   return text.trim().normalize("NFC");
 }
 
+/**
+ * The details of the person, each trimmed and in NFC; refuses a detail that is empty, on more than
+ * one line, too long or holds a control character, and a name not in Latin letters.
+ */
 export function validateProfile(profile: CardProfile = {}): CardProfile {
   const result: Record<string, string> = {};
   for (const field of profileFields) {
@@ -192,9 +226,7 @@ export function validateProfile(profile: CardProfile = {}): CardProfile {
       (!/\p{Script=Latin}/u.test(normalized) ||
         !/^[\p{Script=Latin}\p{M} .’'‐-]+$/u.test(normalized))
     ) {
-      throw new Error(
-        "Card name must use Latin letters only (spaces, apostrophes and hyphens are allowed).",
-      );
+      throw ERRORS.create("card-name-use-latin-letters-only-spaces-apostrophes", []);
     }
     result[field] = normalized;
   }

@@ -1,6 +1,6 @@
-// Coins that write addresses as Bitcoin does: Base58Check with a version prefix, and for Bitcoin and
-// Litecoin also SegWit in Bech32 or Bech32m (BIP173, BIP350). Bitcoin, Litecoin, Dogecoin and the
-// transparent addresses of Zcash.
+// Coins that write addresses as Bitcoin does: Base58Check with a version prefix, and for Bitcoin
+// and Litecoin also SegWit in Bech32 or Bech32m (BIP173, BIP350). Bitcoin, Litecoin, Dogecoin and
+// the transparent addresses of Zcash.
 //
 // Host-neutral, with @scure/base (test/portable-modules.test.ts).
 
@@ -41,7 +41,9 @@ const SEGWIT_RULES: CoinRules = {
   commitments: { "p2sh-p2wpkh": nestedSegwitHash, p2tr: taprootOutputKey },
   purposes: { "p2sh-p2wpkh": 49, p2wpkh: 84, p2tr: 86 },
 };
-/** The characters of a P2WPKH address besides its prefix: separator, version, key hash, checksum. */
+/**
+ * The characters of a P2WPKH address besides its prefix: separator, version, key hash, checksum.
+ */
 const P2WPKH_CHARACTERS_AFTER_PREFIX = 40;
 const TYPE_NAMES: Readonly<Partial<Record<AddressType, string>>> = {
   p2pkh: "legacy",
@@ -97,7 +99,9 @@ class SegwitCoin extends Base58Coin {
   }
 }
 
-/** A SegWit address's lower-case prefix, witness version and program, or undefined (BIP173, BIP350). */
+/**
+ * A SegWit address's lower-case prefix, witness version and program, or undefined (BIP173, BIP350).
+ */
 function decodeSegwit(
   text: string,
 ): { readonly prefix: string; readonly version: number; readonly program: Uint8Array } | undefined {
@@ -137,10 +141,15 @@ class ZcashCoin extends Base58Coin {
 
 // Version bytes from each coin's chain parameters. A "3…" address is taken as nested SegWit, the
 // only single-key address of that form.
+/**
+ * Bitcoin: legacy, nested SegWit, native SegWit and Taproot addresses of one key, on the main
+ * network and the test network.
+ */
 export const BITCOIN = new SegwitCoin({
   id: "bitcoin",
   name: "Bitcoin",
   addressForms: "1…, 3…, bc1q… or bc1p…",
+  testnetAddressForms: "m…, n…, 2…, tb1q… or tb1p…",
   coinTypes: [0],
   versions: [
     { prefix: [BITCOIN_P2PKH_VERSION], type: "p2pkh", testnet: false },
@@ -151,6 +160,7 @@ export const BITCOIN = new SegwitCoin({
   segwit: { prefixes: new Bech32Prefixes("bc", "tb"), taproot: true },
 });
 
+/** Litecoin: legacy, nested SegWit and native SegWit addresses of one key. */
 export const LITECOIN = new SegwitCoin({
   id: "litecoin",
   name: "Litecoin",
@@ -165,6 +175,7 @@ export const LITECOIN = new SegwitCoin({
   segwit: { prefixes: new Bech32Prefixes("ltc"), taproot: false },
 });
 
+/** Dogecoin: legacy addresses of one key. */
 export const DOGECOIN = new Base58Coin({
   id: "dogecoin",
   name: "Dogecoin",
@@ -173,6 +184,7 @@ export const DOGECOIN = new Base58Coin({
   versions: [{ prefix: [0x1e], type: "p2pkh", testnet: false }],
 });
 
+/** Zcash: transparent addresses of one key (t1…). */
 export const ZCASH = new ZcashCoin({
   id: "zcash",
   name: "Zcash",

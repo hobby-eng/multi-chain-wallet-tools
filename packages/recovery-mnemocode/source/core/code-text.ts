@@ -1,3 +1,4 @@
+import { defined } from "./defined.js";
 // How codes are written as text: what separates the elements of one backup or one share, and how
 // hexadecimal codes of one width are read, written apart or run together, with ? for what cannot
 // be read. Every reader of codes and shares reads its text through it, and so does every guess of
@@ -71,9 +72,9 @@ export function joinedWithMarks(text: string): boolean {
   const tokens = codeTokens(text);
   return (
     tokens.length === 1 &&
-    /^[0-9A-F?]+$/u.test(tokens[0]!) &&
-    tokens[0]!.includes("?") &&
-    !wholeMark(tokens[0]!)
+    /^[0-9A-F?]+$/u.test(defined(tokens[0])) &&
+    defined(tokens[0]).includes("?") &&
+    !wholeMark(defined(tokens[0]))
   );
 }
 

@@ -1,4 +1,5 @@
 import { bytesOfHex, hexOfBytes } from "../core/bits.js";
+import { defined } from "../core/defined.js";
 
 /**
  * Converts RGB channels from 0 to 1 into hue, saturation and value, each from 0 to 1.
@@ -27,7 +28,11 @@ const BYTE_MAX = 255;
  * `data`, as hsv takes them: each byte divided by BYTE_MAX. The artwork reads its photographs so.
  */
 export function pixelHsv(data: ArrayLike<number>, offset: number): [number, number, number] {
-  return hsv(data[offset]! / BYTE_MAX, data[offset + 1]! / BYTE_MAX, data[offset + 2]! / BYTE_MAX);
+  return hsv(
+    defined(data[offset]) / BYTE_MAX,
+    defined(data[offset + 1]) / BYTE_MAX,
+    defined(data[offset + 2]) / BYTE_MAX,
+  );
 }
 
 /**
@@ -52,7 +57,7 @@ function toByte(channel: number): number {
  */
 export function rgbBytes(color: string): [number, number, number] {
   const [red, green, blue] = bytesOfHex(color.startsWith("#") ? color.slice(1) : color);
-  return [red!, green!, blue!];
+  return [defined(red), defined(green), defined(blue)];
 }
 
 /** The same channels from 0 to 1, as PDF colors and the color spaces take them. */

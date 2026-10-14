@@ -31,6 +31,7 @@ export function asciiLowercase(text: string): string {
   return text.replace(/[A-Z]+/gu, (letters) => letters.toLowerCase());
 }
 
+/** `text` with its ASCII letters in capitals, every other character as it is. */
 export function asciiUppercase(text: string): string {
   return text.replace(/[a-z]+/gu, (letters) => letters.toUpperCase());
 }

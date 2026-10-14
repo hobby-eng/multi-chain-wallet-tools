@@ -7,9 +7,16 @@
 
 import { listInWords } from "./places.js";
 import { inWholeRange, integerRefusal, rangeText, type WholeRange } from "./typed-number.js";
+import { ErrorCatalog, suppliedMessage } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.bip39-sizes", {
+  "assert-word-indexes-refused": suppliedMessage,
+  "expected-word-indexes": (value0: string) => `Expected ${value0} word indexes.`,
+});
 
 /** BIP39's phrase lengths, in words. */
 export const BIP39_WORD_COUNTS = Object.freeze([12, 15, 18, 21, 24] as const);
+/** A BIP39 phrase length, in words. */
 export type Bip39WordCount = (typeof BIP39_WORD_COUNTS)[number];
 
 /** Whether a phrase of `count` words has a BIP39 length. */
@@ -27,6 +34,7 @@ export const WORD_COUNTS_LESS_ONE_TEXT = listInWords(
 
 /** Each word stands for 11 bits: an index into the 2,048 words. */
 export const BIP39_INDEX_BITS = 11;
+/** The number of words in a BIP39 word list: 2,048, one for each 11-bit index. */
 export const BIP39_DICTIONARY_SIZE = 2 ** BIP39_INDEX_BITS;
 /**
  * Word numbers as people write them, counted from 1 as Seedshift counts them: 1 through 2,048.
@@ -115,7 +123,7 @@ export function isWordIndex(value: unknown): value is number {
  * which is refused, where every() alone would skip them. The one test of a list of word indexes:
  * assertWordIndexes refuses with it, and a caller with its own refusal asks it.
  */
-export function areWordIndexes(indexes: readonly unknown[]): boolean {
+export function areWordIndexes(indexes: readonly unknown[]): indexes is readonly number[] {
   return Array.from(indexes).every(isWordIndex);
 }
 
@@ -123,14 +131,19 @@ export function areWordIndexes(indexes: readonly unknown[]): boolean {
  * Refuses `indexes` unless each is a word index (areWordIndexes). Every decoder, the colors, the
  * backup of codes and the date search check the codes they are given with it.
  */
-export function assertWordIndexes(indexes: readonly unknown[]): void {
+export function assertWordIndexes(
+  indexes: readonly unknown[],
+): asserts indexes is readonly number[] {
   if (!areWordIndexes(indexes))
-    throw new Error(integerRefusal("Every BIP39 index", WORD_INDEX_RANGE));
+    throw ERRORS.create("assert-word-indexes-refused", [
+      integerRefusal("Every BIP39 index", WORD_INDEX_RANGE),
+    ]);
 }
 
 /** Refuses a count of words that no BIP39 phrase has. */
 export function assertWordCount(count: number): asserts count is Bip39WordCount {
-  if (!isBip39WordCount(count)) throw new Error(`Expected ${WORD_COUNTS_TEXT} word indexes.`);
+  if (!isBip39WordCount(count))
+    throw ERRORS.create("expected-word-indexes", [`${WORD_COUNTS_TEXT}`]);
 }
 
 /**

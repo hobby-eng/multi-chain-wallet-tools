@@ -43,10 +43,7 @@ import {
 } from "../../recovery-mnemocode/source/core/missing-codes-search.js";
 import { askWallet, type WalletCheck } from "../../recovery-mnemocode/source/core/wallet-check.js";
 import { counted, duration } from "../../recovery-mnemocode/source/core/search-plan.js";
-import {
-  assertStillRunning,
-  SearchTurns,
-} from "../../recovery-mnemocode/source/core/search-turns.js";
+import { stillRunning, SearchTurns } from "../../recovery-mnemocode/source/core/search-turns.js";
 import {
   inWholeRange,
   integerRefusal,
@@ -60,6 +57,15 @@ import {
   type MnemoCodePhraseWords,
 } from "./mnemocode.js";
 import type { WalletEvidenceRequest, WalletRecognition } from "./mnemocode-wallet.js";
+import {
+  ErrorCatalog,
+  suppliedMessage,
+} from "../../recovery-mnemocode/source/core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("wallet.mnemocode-search", {
+  refusal: suppliedMessage,
+  count: { kind: "range", text: suppliedMessage },
+});
 
 export type { WalletEvidenceRequest } from "./mnemocode-wallet.js";
 
@@ -94,13 +100,15 @@ export class MnemoCodeSearchSettings {
 
   private constructor(kind: SearchSettingsKind, request: MnemoCodeDateSearchSettings) {
     if (kind !== "dates" && (request.maxShown !== undefined || request.progressEvery !== undefined))
-      throw new Error("Display and progress overrides apply only to a date search.");
+      throw ERRORS.create("refusal", [
+        "Display and progress overrides apply only to a date search.",
+      ]);
     if (kind === "words" && request.maxCandidates !== undefined)
-      throw new Error("A word search has no consent allowance override.");
+      throw ERRORS.create("refusal", ["A word search has no consent allowance override."]);
     for (const [name, value] of Object.entries(request)) {
       if (value === undefined) continue;
       const range = name === "maxCandidates" ? CONSENT_COUNTS : POSITIVE_COUNTS;
-      if (!inWholeRange(value, range)) throw new RangeError(integerRefusal(name, range));
+      if (!inWholeRange(value, range)) throw ERRORS.create("count", [integerRefusal(name, range)]);
     }
     this.#request = Object.freeze({ ...request });
   }
@@ -108,9 +116,12 @@ export class MnemoCodeSearchSettings {
   static of(kind: SearchSettingsKind, request: object): MnemoCodeSearchSettings {
     const { maxCandidates, maxShown, progressEvery } = request as MnemoCodeDateSearchSettings;
     const { maxTries, keep } = request as { readonly maxTries?: unknown; readonly keep?: unknown };
-    if (maxTries !== undefined) throw new Error("maxTries applies only to share recovery.");
+    if (maxTries !== undefined)
+      throw ERRORS.create("refusal", ["maxTries applies only to share recovery."]);
     if (keep !== undefined)
-      throw new Error("Candidate-file retention is set by the requested list, not an override.");
+      throw ERRORS.create("refusal", [
+        "Candidate-file retention is set by the requested list, not an override.",
+      ]);
     return new MnemoCodeSearchSettings(kind, {
       ...(maxCandidates === undefined ? {} : { maxCandidates }),
       ...(maxShown === undefined ? {} : { maxShown }),
@@ -139,7 +150,7 @@ export class MnemoCodeSearchSettings {
   /** A feature supplies its core-owned maximum; the shared numeric reader owns admission. */
   static boundedCountRange(max: number): WholeRange {
     if (!inWholeRange(max, POSITIVE_COUNTS))
-      throw new RangeError(integerRefusal("Allowance bound", POSITIVE_COUNTS));
+      throw ERRORS.create("count", [integerRefusal("Allowance bound", POSITIVE_COUNTS)]);
     return Object.freeze({ ...POSITIVE_COUNTS, max });
   }
 
@@ -185,7 +196,8 @@ export type MissingCodesOutcome =
     }
   | { readonly kind: "list"; readonly rows: readonly MissingCodesRow[] }
   | { readonly kind: "none"; readonly message: string }
-  | { readonly kind: "several"; readonly count: number; readonly message: string };
+  | { readonly kind: "several"; readonly count: number; readonly message: string }
+  | Extract<MissingCodesResult, { readonly kind: "stopped" }>;
 
 /** One candidate to show: its number, its phrase, what is new in it, and the wallet's answer. */
 export interface ShownCandidate {
@@ -227,6 +239,8 @@ const NO_LIST: ListOutcome = { listFull: false, listEmpty: false };
 const LIST_FULL: ListOutcome = { listFull: true, listEmpty: false };
 
 export interface SearchOutcome extends ListOutcome {
+  /** A stopped result is partial and must not be published as a completed candidate list. */
+  readonly stopped?: true;
   readonly shown: readonly ShownCandidate[];
   readonly count: number;
   readonly matched: number;
@@ -243,11 +257,15 @@ function outcomeOf(written: WrittenList): ListOutcome {
 }
 
 /** A stop during list protection must also suppress and wipe the newly written bytes. */
-function currentList(listed: ListOutcome, signal: AbortSignal): ListOutcome {
-  if (signal.aborted) listed.list?.bytes.fill(0);
-  assertStillRunning({ signal });
-  return listed;
-}
+const STOPPED_SEARCH: SearchOutcome = Object.freeze({
+  ...NO_LIST,
+  stopped: true,
+  shown: [],
+  count: 0,
+  matched: 0,
+  warning: undefined,
+});
+const STOPPED_CODES: MissingCodesOutcome = Object.freeze({ kind: "stopped" });
 
 /**
  * Writes the candidate list for the Discovery Scanner as MnemoCode's command line saves one,
@@ -258,6 +276,12 @@ function currentList(listed: ListOutcome, signal: AbortSignal): ListOutcome {
 export class CandidateListWriter {
   /** Candidates a search keeps for a list: one more than a list holds, to tell they are too many. */
   static readonly KEEP = LIST_KEEP;
+  /** Refuses publication after a stop and wipes a list completed during its asynchronous write. */
+  static current(listed: ListOutcome, signal: AbortSignal): boolean {
+    if (stillRunning({ signal })) return true;
+    listed.list?.bytes.fill(0);
+    return false;
+  }
   readonly #writer: ListWriter;
 
   /** `passphrase` is the BIP39 passphrase that the list stores for every record; "" stores none. */
@@ -337,32 +361,32 @@ export class MnemoCodeSearches {
   ): Promise<MissingCodesOutcome | SearchQuestion> {
     const settings = MnemoCodeSearchSettings.of("missing-codes", request).request;
     if (request.way === "list" && settings.maxCandidates !== undefined)
-      throw new Error(
+      throw ERRORS.create("refusal", [
         "A consent allowance applies to fingerprint or wallet search, not the bounded list.",
-      );
-    assertStillRunning({ signal });
+      ]);
+    if (!stillRunning({ signal })) return STOPPED_CODES;
     if (this.#fingerprint === undefined)
-      throw new Error("This search needs the master fingerprint of a phrase.");
+      throw ERRORS.create("refusal", ["This search needs the master fingerprint of a phrase."]);
     const codes = readMnemoCodeBackup(request.text, false, request.words)
       .missingCodes(request.format)
       .withMode(request.mode);
     const search = new MissingCodesSearch(codes, this.#fingerprint);
     if (!search.fits(request.way))
-      throw new Error(
+      throw ERRORS.create("refusal", [
         request.way === "list"
           ? `A list holds at most ${MissingCodesSearch.MAX_LISTED} candidates; these codes have about ${counted(codes.expected, "candidate")}.`
           : "The encoded fingerprint cannot tell these codes: they keep no checksum.",
-      );
+      ]);
     const way = this.#way(search, request);
     const plan = await way.plan(settings.maxCandidates);
-    assertStillRunning({ signal });
+    if (!stillRunning({ signal })) return STOPPED_CODES;
     if (plan.ask && request.confirmed !== true) return { question: plan.question() };
     const result = await way.run({
       signal,
       onProgress: ({ checked, total, found }) =>
         onProgress({ checked, total, found, matched: found }),
     });
-    assertStillRunning({ signal });
+    if (!stillRunning({ signal })) return STOPPED_CODES;
     return missingCodesOutcome(MissingCodesSearch.placesText(codes), result);
   }
 
@@ -376,7 +400,8 @@ export class MnemoCodeSearches {
       return search.byEncodedFingerprint(parseMasterFingerprint(request.encodedFingerprint ?? ""));
     if (request.way === "wallet") {
       const walletCheck = this.#walletCheck(request.wallet);
-      if (walletCheck === undefined) throw new Error("Describe the wallet to compare with.");
+      if (walletCheck === undefined)
+        throw ERRORS.create("refusal", ["Describe the wallet to compare with."]);
       const dates = search.needsDates
         ? DatesAnswer.parse(request.dates ?? "", { patterns: true, wordCount })
         : undefined;
@@ -402,7 +427,7 @@ export class MnemoCodeSearches {
     signal: AbortSignal,
   ): Promise<SearchOutcome> {
     MnemoCodeSearchSettings.of("words", request);
-    assertStillRunning({ signal });
+    if (!stillRunning({ signal })) return STOPPED_SEARCH;
     if (request.kind === "legacy-replacements") return this.#legacy(request, onProgress, signal);
     const writer = listWriterOf(request);
     const search = WordCandidateSearch.parse(request.text, request.kind);
@@ -417,6 +442,10 @@ export class MnemoCodeSearches {
       onProgress: ({ checked, found, matched }) => onProgress({ checked, total, found, matched }),
       signal,
     });
+    if (result.stopped || !stillRunning({ signal })) {
+      for (const entropy of result.entropies) entropy.fill(0);
+      return STOPPED_SEARCH;
+    }
     // After an overflow the search has wiped and dropped the entropies it kept.
     const listed =
       writer === undefined
@@ -424,8 +453,9 @@ export class MnemoCodeSearches {
         : result.listFull
           ? LIST_FULL
           : await writer.write(result.entropies);
+    if (!CandidateListWriter.current(listed, signal)) return STOPPED_SEARCH;
     return {
-      ...currentList(listed, signal),
+      ...listed,
       shown: result.shown.map(({ candidate, match }) => ({
         number: candidate.number,
         phrase: candidate.phrase,
@@ -450,16 +480,18 @@ export class MnemoCodeSearches {
     signal: AbortSignal,
   ): Promise<SearchOutcome> {
     if (request.list !== undefined)
-      throw new Error("Legacy final-word replacements are stored phrases: no candidate list.");
+      throw ERRORS.create("refusal", [
+        "Legacy final-word replacements are stored phrases: no candidate list.",
+      ]);
     const candidates = recoverMnemoCodeLegacyLastWords(request.text);
     const check = this.#walletCheck(request.wallet);
     const tally = new MatchTally();
     const shown: ShownCandidate[] = [];
     const turns = new SearchTurns(signal);
     for (const candidate of candidates) {
-      await turns.due();
+      if ((await turns.due()) === "stopped") return STOPPED_SEARCH;
       const match = check === undefined ? undefined : await askWallet(check, candidate.mnemonic);
-      assertStillRunning({ signal });
+      if (!stillRunning({ signal })) return STOPPED_SEARCH;
       tally.add(match);
       shown.push({
         number: shown.length + 1,
@@ -477,7 +509,7 @@ export class MnemoCodeSearches {
         matched: tally.matched,
       });
     }
-    assertStillRunning({ signal });
+    if (!stillRunning({ signal })) return STOPPED_SEARCH;
     return {
       ...NO_LIST,
       shown,
@@ -504,14 +536,15 @@ export class MnemoCodeSearches {
     signal: AbortSignal,
   ): Promise<SearchOutcome | SearchQuestion> {
     const settings = MnemoCodeSearchSettings.of("dates", request);
-    assertStillRunning({ signal });
+    if (!stillRunning({ signal })) return STOPPED_SEARCH;
     const writer = listWriterOf(request);
     const dates = DatesAnswer.parse(request.dates, {
       patterns: true,
       wordCount: request.indexes.length,
     });
     dates.assertIncomplete();
-    if (request.mode === "direct") throw new Error("Direct mode has no dates to search.");
+    if (request.mode === "direct")
+      throw ERRORS.create("refusal", ["Direct mode has no dates to search."]);
     const search = new DateSearch({
       indexes: request.indexes,
       dates,
@@ -522,7 +555,7 @@ export class MnemoCodeSearches {
     });
     // Consent changes the question only; the core still searches every assessed combination.
     const plan = search.plan(await search.pace(), settings.request.maxCandidates);
-    assertStillRunning({ signal });
+    if (!stillRunning({ signal })) return STOPPED_SEARCH;
     if (plan.ask && request.confirmed !== true) return { question: plan.question() };
     // MnemoCode's plan says when the time is shown with the progress (TELL_SECONDS).
     const takes = plan.tell ? { takes: duration(plan.seconds) } : {};
@@ -542,9 +575,11 @@ export class MnemoCodeSearches {
         }),
       signal,
     });
+    if (result.stopped || !stillRunning({ signal })) return STOPPED_SEARCH;
     const listed = writer === undefined ? NO_LIST : await writer.writePhrases(result.kept);
+    if (!CandidateListWriter.current(listed, signal)) return STOPPED_SEARCH;
     return {
-      ...currentList(listed, signal),
+      ...listed,
       shown: result.shown.map((match, index) => ({
         number: index + 1,
         phrase: match.mnemonic,

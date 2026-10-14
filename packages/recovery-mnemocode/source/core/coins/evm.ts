@@ -9,6 +9,7 @@ import { Base58Coin } from "./base58.js";
 import { HexCoin } from "./ethereum.js";
 import { KECCAK_RULES } from "./keccak-account.js";
 
+/** Ethereum Classic: Ethereum's addresses (0x…), on its own coin type and on Ethereum's. */
 export const ETHEREUM_CLASSIC = new HexCoin({
   id: "ethereum-classic",
   name: "Ethereum Classic",
@@ -18,6 +19,7 @@ export const ETHEREUM_CLASSIC = new HexCoin({
   ...KECCAK_RULES,
 });
 
+/** Tron: Base58Check addresses (T…) of the Keccak-256 hash of one key, as Ethereum's. */
 export const TRON = new Base58Coin({
   id: "tron",
   name: "Tron",

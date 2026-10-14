@@ -34,8 +34,20 @@ import { type DateShiftDate, type MaskingMode, type EncodedFormat } from "./type
 import { Redacted } from "./redacted.js";
 import { modeConflictOf } from "./backup-reading.js";
 import { englishTokens } from "./english-words.js";
-import { isMarked } from "../sskr/repair.js";
+import { isMarked } from "../sskr/repair-units.js";
 import { refusalMessage } from "./refusal.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog, suppliedMessage } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.backup-check", {
+  uncheckable: () => UNCHECKABLE,
+  "share-check-whole-threshold-at-least": (value0: string) =>
+    `A share check needs a whole threshold of at least ${value0}.`,
+  "shares-refused": suppliedMessage,
+  "restore-refused": suppliedMessage,
+  "restore-refused-2": suppliedMessage,
+  "restore-refused-3": suppliedMessage,
+});
 
 /** The part of a backup that a finding is about. */
 export type BackupPart = "codes" | "shares" | "dates";
@@ -302,7 +314,7 @@ export class EncodedBackupCheck implements BackupCheck {
   }
 
   constructor(original: EncodedOriginal) {
-    if (!EncodedBackupCheck.supports(original.mode)) throw new Error(UNCHECKABLE);
+    if (!EncodedBackupCheck.supports(original.mode)) throw ERRORS.create("uncheckable", []);
     this.#original = Object.freeze({
       ...original,
       codes: Object.freeze([...original.codes]),
@@ -509,7 +521,7 @@ export class RestoredShares extends Redacted {
   static of(set: ShareSet, kept: KeptShares): RestoredShares {
     const places = kept.places;
     const shares = [...set.unchecked, ...set.unsettled.map((element) => element.share)];
-    const unchecked = [...new Set(shares.map((share) => places[share - 1]!))];
+    const unchecked = [...new Set(shares.map((share) => defined(places[share - 1])))];
     unchecked.sort((a, b) => a - b);
     return new RestoredShares(set, unchecked);
   }
@@ -558,9 +570,7 @@ export class ShareBackupCheck implements BackupCheck {
     // nothing, so that any shares that restore would pass.
     Masking.assertSplitMode(original.mode);
     if (!Number.isSafeInteger(original.threshold) || original.threshold < MIN_RECORDED_THRESHOLD)
-      throw new Error(
-        `A share check needs a whole threshold of at least ${MIN_RECORDED_THRESHOLD}.`,
-      );
+      throw ERRORS.create("share-check-whole-threshold-at-least", [`${MIN_RECORDED_THRESHOLD}`]);
     this.#original = Object.freeze({
       ...original,
       dates: original.dates === undefined ? undefined : ownedDates(original.dates),
@@ -591,7 +601,7 @@ export class ShareBackupCheck implements BackupCheck {
   sharesOf(answer: string): string[] {
     const shares = this.#input.sharesOfAnswer(answer);
     if (shares.length < this.threshold)
-      throw new Error(tooFewShares(shares.length, this.threshold));
+      throw ERRORS.create("shares-refused", [tooFewShares(shares.length, this.threshold)]);
     return shares;
   }
 
@@ -616,19 +626,19 @@ export class ShareBackupCheck implements BackupCheck {
   async restore(kept: KeptShares): Promise<RestoredShares> {
     const count = kept.texts.length;
     if (count < this.threshold)
-      throw new Error(
+      throw ERRORS.create("restore-refused", [
         kept.notes.length === 0
           ? tooFewShares(count, this.threshold)
           : `Once the copies are left out, ${count === 1 ? "one share is" : `${count} shares are`} left; type ${this.threshold} different shares.`,
-      );
+      ]);
     // Shares of another set, or a repeated member, are named as sskr-combine names them.
     const problem = kept.setProblem;
-    if (problem !== undefined) throw new Error(problem);
+    if (problem !== undefined) throw ERRORS.create("restore-refused-2", [problem]);
     let set: ShareSet;
     try {
       set = await ShareSet.combine(kept.texts, this.#platform, kept.places);
     } catch (error) {
-      throw new Error(refusalMessage(error), { cause: error });
+      throw ERRORS.create("restore-refused-3", [refusalMessage(error)], { cause: error });
     }
     return RestoredShares.of(set, kept);
   }

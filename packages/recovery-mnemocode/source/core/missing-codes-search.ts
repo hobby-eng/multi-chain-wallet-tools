@@ -17,12 +17,7 @@ import { EncodedBackup } from "./encoded-backup.js";
 import { EncodedForm } from "./encoded-form.js";
 import { Masking } from "./masking.js";
 import type { MissingCodes } from "./missing-codes.js";
-import {
-  assertStillRunning,
-  startTimer,
-  type SearchProgress,
-  type SearchRun,
-} from "./search-turns.js";
+import { stillRunning, startTimer, type SearchProgress, type SearchRun } from "./search-turns.js";
 import type { DateShiftDate } from "./types.js";
 import {
   askWallet,
@@ -35,6 +30,20 @@ import { placesNamed } from "./places.js";
 import { phraseOfIndexes } from "./words.js";
 import { ownedDates } from "./dates.js";
 import { CORRECT_WRITTEN_COPY, SearchPlan, counted } from "./search-plan.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog, suppliedMessage } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.missing-codes-search", {
+  "search-host-s-fingerprint-function": {
+    kind: "type",
+    text: () => "The search needs the host's fingerprint function.",
+  },
+  "codes-were-not-masked-no-dates-search": () =>
+    "Codes that were not masked have no dates to search.",
+  "dates-found-do-not-decode-codes-wallet-matched": () =>
+    "The dates found do not decode the codes to the wallet that matched.",
+  "operation-refused": suppliedMessage,
+});
 
 /** How the right codes are told. */
 export type MissingCodesWay = "encoded" | "wallet" | "list";
@@ -83,7 +92,12 @@ export type MissingCodesResult =
   /** No codes fit: `message` says what to check. */
   | { readonly kind: "none"; readonly message: string }
   /** Several sets fit, which a fingerprint leaves only by chance: the wallet tells them apart. */
-  | { readonly kind: "several"; readonly count: number; readonly message: string };
+  | { readonly kind: "several"; readonly count: number; readonly message: string }
+  /** The host stopped the search (SearchRun.signal): nothing found is told (CORE-22). */
+  | { readonly kind: "stopped" };
+
+/** The result of a way that the host stopped. */
+const STOPPED: MissingCodesResult = { kind: "stopped" };
 
 /**
  * A search of one way before it starts: what is searched, such as "128 candidates" or "128
@@ -138,14 +152,15 @@ function secondsToDecode(backup: EncodedBackup, dates: readonly DateShiftDate[])
   return elapsed();
 }
 
-/** The one set found, none, or several, as a result. */
+/** The one set found, none, or several, as a result; or that the host stopped the search. */
 function foundOne(
-  { found, passed }: SearchedCodes,
+  { found, passed, stopped }: SearchedCodes,
   nothing: string,
   dates: readonly DateShiftDate[] | undefined,
 ): MissingCodesResult {
+  if (stopped) return STOPPED;
   if (passed === 0) return { kind: "none", message: nothing };
-  if (passed === 1) return { kind: "found", backup: found[0]!, dates };
+  if (passed === 1) return { kind: "found", backup: defined(found[0]), dates };
   // Counted by every set that passed, as the progress counts them, not by those kept.
   return {
     kind: "several",
@@ -168,7 +183,7 @@ export class MissingCodesSearch {
 
   constructor(codes: MissingCodes, fingerprint: PhraseFingerprint) {
     if (typeof fingerprint !== "function")
-      throw new TypeError("The search needs the host's fingerprint function.");
+      throw ERRORS.create("search-host-s-fingerprint-function", []);
     this.#codes = codes;
     this.#fingerprint = fingerprint;
   }
@@ -266,10 +281,11 @@ export class MissingCodesSearch {
   }
 }
 
-/** What a search of the codes kept, and how many sets of codes passed in all. */
+/** What a search of the codes kept, how many sets of codes passed in all, and whether it stopped. */
 interface SearchedCodes {
   readonly found: readonly EncodedBackup[];
   readonly passed: number;
+  readonly stopped: boolean;
 }
 
 /** The search of `codes` with `check`, with the host's progress and signal. */
@@ -285,10 +301,14 @@ async function searched(
     onProgress:
       run.onProgress === undefined
         ? undefined
-        : ({ checked, found }) => run.onProgress!({ checked, total: codes.expected, found }),
+        : ({ checked, found }) =>
+            defined(run.onProgress)({ checked, total: codes.expected, found }),
   });
-  assertStillRunning(run);
-  return { found: result.found, passed: result.passed };
+  return {
+    found: result.found,
+    passed: result.passed,
+    stopped: result.stopped || !stillRunning(run),
+  };
 }
 
 /** The way of the encoded fingerprint, which needs no dates. */
@@ -389,7 +409,7 @@ class WalletAndDatesWay implements MissingCodesWaySearch {
   constructor(codes: MissingCodes, walletCheck: WalletCheck, dates: DatesAnswer) {
     const { mode } = codes;
     if (!Masking.isMaskedMode(mode))
-      throw new Error("Codes that were not masked have no dates to search.");
+      throw ERRORS.create("codes-were-not-masked-no-dates-search", []);
     this.#codes = codes;
     this.#mode = mode;
     this.#walletCheck = walletCheck;
@@ -430,6 +450,8 @@ class WalletAndDatesWay implements MissingCodesWaySearch {
       this.#codes,
       async (indexes) => {
         const result = await this.#searchOf(indexes).run({ signal: run.signal, turn: run.turn });
+        // A stop is heard by the search of the codes too, at its next turn.
+        if (result.stopped) return false;
         const match = result.shown[0];
         if (match === undefined) return false;
         matched += 1;
@@ -440,12 +462,12 @@ class WalletAndDatesWay implements MissingCodesWaySearch {
     );
     const result = foundOne(found, MISSING_CODES_TEXTS.noneByWallet, []);
     if (result.kind !== "found") return result;
-    const match = first!;
+    const match = defined(first);
     // The codes are decoded with every date, the known ones too: the guessed ones alone give
     // another phrase (AUD-012-FUN001). Checked here, so that no host decodes another wallet.
     const phrases = result.backup.candidates(match.allDates);
     if (!phrases.some((phrase) => phrase.recoveredMnemonic === match.mnemonic))
-      throw new Error("The dates found do not decode the codes to the wallet that matched.");
+      throw ERRORS.create("dates-found-do-not-decode-codes-wallet-matched", []);
     return { ...result, dates: match.allDates, foundDates: match.dates };
   }
 }
@@ -461,7 +483,8 @@ class ListWay implements MissingCodesWaySearch {
     fingerprintOf: PhraseFingerprint,
     dates: readonly DateShiftDate[],
   ) {
-    if (codes.expected > MAX_LISTED) throw new Error(tooManyToList(codes.expected));
+    if (codes.expected > MAX_LISTED)
+      throw ERRORS.create("operation-refused", [tooManyToList(codes.expected)]);
     this.#codes = codes;
     this.#fingerprintOf = fingerprintOf;
     // Copied and checked, so that a date the host changes later reaches no candidate.
@@ -474,12 +497,13 @@ class ListWay implements MissingCodesWaySearch {
   }
 
   async run(run: MissingCodesRun = {}): Promise<MissingCodesResult> {
-    const { found } = await searched(this.#codes, () => true, run);
+    const { found, stopped } = await searched(this.#codes, () => true, run);
+    if (stopped) return STOPPED;
     const rows: MissingCodesRow[] = [];
     for (const backup of found)
       for (const phrase of phrasesOf(backup, this.#dates)) {
         const fingerprint = await this.#fingerprintOf(phrase);
-        assertStillRunning(run);
+        if (!stillRunning(run)) return STOPPED;
         rows.push({
           codes: backup.text(),
           phrase,
@@ -487,7 +511,6 @@ class ListWay implements MissingCodesWaySearch {
         });
       }
     // The host's fingerprints are waited for after the search: a stop meanwhile lists nothing.
-    assertStillRunning(run);
-    return { kind: "list", rows };
+    return stillRunning(run) ? { kind: "list", rows } : STOPPED;
   }
 }

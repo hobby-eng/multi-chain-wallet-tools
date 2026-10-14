@@ -27,6 +27,7 @@ import {
   type SelfTestFeature,
 } from "../self-test-check.js";
 import type { AddressLocation, Coin } from "./coin.js";
+import { defined } from "../defined.js";
 
 /** Where the wallet of the public phrase has an address of a coin, with its BIP39 passphrase. */
 export interface CoinVector {
@@ -69,7 +70,7 @@ export function locationOf(path: string): AddressLocation {
     .split("/")
     .slice(-3)
     .map((step) => Number.parseInt(step, 10));
-  return { account: account!, branch: branch!, index: index! };
+  return { account: defined(account), branch: defined(branch), index: defined(index) };
 }
 
 /** Where the wallet has `vector`'s address when it is given at `location`, among `addresses`. */
@@ -92,7 +93,7 @@ function checkVector(vector: CoinVector): void {
 
 /** The checks of a coin family, at every start and in the full self-test. */
 export function coinFamilySelfTest(answers: CoinFamilyAnswers): SelfTestFeature {
-  const vector = (place: number): CoinVector => answers.vectors[place]!;
+  const vector = (place: number): CoinVector => defined(answers.vectors[place]);
   const startup = (): void => {
     for (const place of answers.startup) checkVector(vector(place));
     const away = vector(answers.elsewhere);

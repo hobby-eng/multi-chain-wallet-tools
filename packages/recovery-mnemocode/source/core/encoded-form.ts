@@ -1,7 +1,8 @@
 // The forms that the codes of an encoded seed phrase are written in, each with what it is: how its
 // codes are read and written, what they are called, how text in it looks, how it prints on cards,
-// which list its words are typed from, and whether a seed phrase in it is always masked. A new form is one more variant here, and the
-// compiler asks for each of its facts; every reader, writer and question asks the form.
+// which list its words are typed from, and whether a seed phrase in it is always masked. A new form
+// is one more variant here, and the compiler asks for each of its facts; every reader, writer and
+// question asks the form.
 //
 // Host-neutral: it reaches only the core's words and colors.
 
@@ -22,7 +23,7 @@ import {
   colorsToUnicode,
   indexesToColors,
   isColorUnicodeSymbol,
-  markedColorSymbols,
+  colorSymbolsOf,
   parseColors,
   unicodeToColors,
 } from "./colors.js";
@@ -41,6 +42,12 @@ import {
   unicodeIndexesOf,
   wordIndexOfNumber,
 } from "./words.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.encoded-form", {
+  "unsupported-encoded-format": (value0: string) => `Unsupported encoded format: ${value0}.`,
+});
 
 /** How the elements of a form are counted for a phrase: one per word, or one per colour. */
 type ElementUnit = "word" | "color";
@@ -143,12 +150,8 @@ const VARIANTS = Object.freeze({
     // Each colour is two code points, written as symbols run together or as four-digit codes.
     leading: (text, count) => {
       const points = count * COLOR_UNICODE_POINTS_PER_COLOR;
-      const symbols = markedColorSymbols(text);
-      if (symbols !== undefined)
-        return symbols
-          .slice(0, points)
-          .map((code) => (code === "?" ? code : String.fromCodePoint(parseInt(code, 16))))
-          .join("");
+      const symbols = colorSymbolsOf(text);
+      if (symbols !== undefined) return symbols.slice(0, points).join("");
       return leadingHexUnits(text, UNICODE_CODE_DIGITS, points)?.join(" ");
     },
     cardKind: "colors",
@@ -207,7 +210,8 @@ export class EncodedForm {
    * may pass anything. The one refusal of such a value: every other module asks it.
    */
   static of(format: EncodedFormat): EncodedForm {
-    if (!isEncodedFormat(format)) throw new Error(`Unsupported encoded format: ${String(format)}.`);
+    if (!isEncodedFormat(format))
+      throw ERRORS.create("unsupported-encoded-format", [`${String(format)}`]);
     return EncodedForm.#values[format];
   }
 
@@ -221,7 +225,7 @@ export class EncodedForm {
 
   /** The form that typed text most likely is, judged by its characters. */
   static likely(text: string): EncodedFormat {
-    return LIKELY_ORDER.find((format) => VARIANTS[format].looks(text))!;
+    return defined(LIKELY_ORDER.find((format) => VARIANTS[format].looks(text)));
   }
 
   get format(): EncodedFormat {
@@ -257,7 +261,7 @@ export class EncodedForm {
   /** How many elements of this form a seed phrase of `words` words has: one a word, or a colour. */
   elementCount(words: Bip39WordCount): number {
     if (this.#variant.elementUnit === "word") return words;
-    return RGB_REFERENCE_COUNTS[BIP39_WORD_COUNTS.indexOf(words)]!;
+    return defined(RGB_REFERENCE_COUNTS[BIP39_WORD_COUNTS.indexOf(words)]);
   }
 
   /**

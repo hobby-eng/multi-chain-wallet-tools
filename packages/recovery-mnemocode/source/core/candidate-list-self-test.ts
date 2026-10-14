@@ -15,6 +15,7 @@ import {
   padmeLength,
 } from "./candidate-list.js";
 import { bytesOfHex, expectRefused, expectSame, hexOfBytes } from "./self-test-check.js";
+import { defined } from "./defined.js";
 
 /**
  * vectors/candidates-v1.json, "three phrases": the entropy of the public phrases of BIP39's first,
@@ -26,6 +27,10 @@ export const THREE_PHRASES_ENTROPY = [
   "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
   "ffffffffffffffffffffffffffffffff",
 ] as const;
+/**
+ * The bytes, in hexadecimal, of the list that the startup check writes of THREE_PHRASES: the known
+ * answer that the writer must give and the reader take back.
+ */
 export const THREE_PHRASES_LIST =
   "4d4e434c01001000000003000000000000000000000000000000007f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7fffffffffffffffffffffffffffffffff98854aa000";
 
@@ -85,7 +90,7 @@ export function checkCandidateListStartup(): void {
   const records = THREE_PHRASES_ENTROPY.map((entropy) => ({ entropy: bytesOfHex(entropy) }));
   // One above the unsigned byte range: neither a wide value nor its changed prototype may
   // silently become all-zero entropy through Uint8Array's copy constructor.
-  const wider = new Uint16Array(records[0]!.entropy.length).fill(256);
+  const wider = new Uint16Array(defined(records[0]).entropy.length).fill(256);
   for (const [prototype, label] of [
     [Uint16Array.prototype, "Non-byte candidate entropy"],
     [Uint8Array.prototype, "Non-byte candidate entropy with a byte-array prototype"],

@@ -9,7 +9,8 @@ import { effectiveMnemoCodeMode, type MnemoCodeFormat } from "@ckd/recovery-back
 import type { WalletMatch } from "../../../../packages/recovery-mnemocode/source/core/wallet-check.js";
 import { EncodedForm } from "../../../../packages/recovery-mnemocode/source/core/encoded-form.js";
 import { WordList } from "../../../../packages/recovery-mnemocode/source/core/word-hints.js";
-import { MnemoCodeWorker } from "../workers/mnemocode-worker-client.js";
+import { JOB_STOPPED, MnemoCodeWorker } from "../workers/mnemocode-worker-client.js";
+import { MnemoCodeWorkerProtocol } from "../workers/mnemocode-worker-protocol.js";
 import { InputRevision } from "./recovery-input-revision.js";
 import { WalletEvidenceField } from "./recovery-mnemocode-evidence.js";
 import {
@@ -246,9 +247,15 @@ export class MnemoCodeReEncodeTab {
         this.#cancel.onclick = () => worker.terminate();
         try {
           const match = await session.confirmByWallet(wallet, (request) =>
-            worker.run(request, () => undefined),
+            worker
+              .run(request, () => undefined)
+              .then((result) => MnemoCodeWorkerProtocol.completed(result)),
           );
           if (!current() || !this.#current() || session !== this.#session) return;
+          if (match === undefined) {
+            this.#status.textContent = JOB_STOPPED;
+            return;
+          }
           this.#status.textContent = [
             match.warning,
             match.matched

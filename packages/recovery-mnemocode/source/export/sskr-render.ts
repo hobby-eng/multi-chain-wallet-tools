@@ -18,6 +18,8 @@ import {
   assertShareFormatHasCards,
   shareFormatHasCards,
 } from "../sskr/transport.js";
+import { sskrLongVector } from "../sskr/known-answers.js";
+import { refusalMessage } from "../core/refusal.js";
 import { ExportDetails } from "./export-details.js";
 import type { CardSettings } from "./card-settings.js";
 import { printedCode, separateCardName } from "./card-codes.js";
@@ -40,7 +42,19 @@ import { SHEET_PAGE_SIZE } from "./card-settings.js";
 import { codeColors } from "./card-palette.js";
 import { ownCards } from "./card-decoys.js";
 import { withPlannedDecoys, type SheetShaper } from "./card-plan.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
 
+const ERRORS = new ErrorCatalog("export.sskr-render", {
+  "unsupported-sskr-card-style": () => "Unsupported SSKR card style.",
+  "share-cards-cannot-printed-every-seed-phrase-longest": (value0: string) =>
+    `These share cards cannot be printed for every seed phrase, the longest of 24 words included: ${value0}`,
+  "there-no-share-at-place-set": () => "There is no share at that place in the set.",
+});
+
+/**
+ * How the cards of shares are drawn: the design, the layout, unless the page size decides it, and
+ * the card settings.
+ */
 export interface SskrRenderOptions extends CardSettings {
   readonly style: CardStyle;
   /** Omitted: decided by the page size. */
@@ -136,7 +150,7 @@ export class ShareCardSet {
         : {}),
     };
     const design = designOfStyle(options.style);
-    if (design === undefined) throw new Error("Unsupported SSKR card style.");
+    if (design === undefined) throw ERRORS.create("unsupported-sskr-card-style", []);
     if (layout === "individual") assertSeparateCards(design);
     // The details first, then the shares: the order in which the random choices are made. Copies
     // of what the caller gave (ExportDetails), so that every card rendered later shows them as they
@@ -227,6 +241,24 @@ export class ShareCardSet {
     }
   }
 
+  /**
+   * Refuses `requested` where the cards of a share of the longest secret, 32 bytes for a 24-word
+   * phrase (sskrLongVector, public), cannot be drawn: a typed detail too long for its card, or a
+   * material with fewer distinct samples than such a share has codes. A host asks it before any
+   * secret is asked, so that it refuses then, not after the shares are made (AUD-022-FUN004).
+   * Nothing is kept; the render takes about a second.
+   */
+  static async assertPrintable(drawing: CardDrawing, requested: SskrRenderOptions): Promise<void> {
+    try {
+      const set = await ShareCardSet.create(drawing, [...sskrLongVector.shares], requested);
+      (await set.renderShare(0)).fill(0);
+    } catch (error) {
+      throw ERRORS.create("share-cards-cannot-printed-every-seed-phrase-longest", [
+        `${refusalMessage(error)}`,
+      ]);
+    }
+  }
+
   /** One PDF with every page of the share at `place` and of no other share. */
   async renderShare(place: number): Promise<Uint8Array> {
     return this.#combined([this.#member(place)]);
@@ -239,7 +271,7 @@ export class ShareCardSet {
 
   #member(place: number): Member {
     const member = Number.isSafeInteger(place) ? this.#members[place] : undefined;
-    if (member === undefined) throw new Error("There is no share at that place in the set.");
+    if (member === undefined) throw ERRORS.create("there-no-share-at-place-set", []);
     return member;
   }
 

@@ -1,4 +1,5 @@
 import { BITS_PER_BYTE } from "../core/bip39-sizes.js";
+import { defined } from "../core/defined.js";
 
 const CRC32_INITIAL = 0xffffffff;
 const CRC32_REFLECTED_POLYNOMIAL = 0xedb88320;
@@ -26,7 +27,7 @@ export function crc32(bytes: Uint8Array): number {
 export function checksumAt(bytes: ArrayLike<number>, at: number): number {
   let value = 0;
   for (let index = 0; index < CRC32_BYTES; index += 1)
-    value = value * 2 ** BITS_PER_BYTE + bytes[at + index]!;
+    value = value * 2 ** BITS_PER_BYTE + defined(bytes[at + index]);
   return value;
 }
 

@@ -11,10 +11,15 @@
 // own style (the command line: a status line, a grey hint, a warning, a README link).
 
 import { asksFirst } from "../core/search-turns.js";
-import type { JointAssessment } from "./joint-repair.js";
+import type { JointAssessment } from "./joint-results.js";
 import { CORRECT_WRITTEN_COPY, counted, counting, duration } from "../core/search-plan.js";
-import type { RepairedShares } from "./joint-repair.js";
+import type { RepairedShares } from "./joint-results.js";
 import { placeOf } from "../core/places.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("sskr.repair-report", {
+  "repair-report-positive-pace": () => "A repair report needs a positive pace.",
+});
 
 /** The refusal when the search of marked shares found no phrase. */
 export const NO_PHRASE_FITS =
@@ -116,7 +121,7 @@ export class RepairReport {
 
   /** `places` names each share by its place among those typed, by its index in the plan. */
   constructor(assessment: JointAssessment, triesPerSecond: number, places?: readonly number[]) {
-    if (!(triesPerSecond > 0)) throw new Error("A repair report needs a positive pace.");
+    if (!(triesPerSecond > 0)) throw ERRORS.create("repair-report-positive-pace", []);
     this.#assessment = ownedAssessment(assessment);
     this.#triesPerSecond = triesPerSecond;
     this.#places = places === undefined ? undefined : Object.freeze([...places]);

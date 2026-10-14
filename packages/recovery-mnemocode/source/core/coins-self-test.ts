@@ -1,7 +1,7 @@
 // The self-test of the twelve coins (core/coins.ts) as "coin-address" wallet evidence: the checks
-// of every coin family (the -self-test.ts modules of core/coins/) as one row. A host that builds in every coin
-// adds it to its self-test (SelfTestHost.features, MnemoCodeSelfTest.core); a host of one family,
-// such as the Dash edition of the Deriver, takes that family's check instead, such as
+// of every coin family (the -self-test.ts modules of core/coins/) as one row. A host that builds in
+// every coin adds it to its self-test (SelfTestHost.features, MnemoCodeSelfTest.core); a host of
+// one family, such as the Dash edition of the Deriver, takes that family's check instead, such as
 // DASH_ADDRESS_SELF_TEST of core/coins/dash-self-test.ts, and carries none of the others.
 //
 // Host-neutral: it imports only the coin families' self-test modules.

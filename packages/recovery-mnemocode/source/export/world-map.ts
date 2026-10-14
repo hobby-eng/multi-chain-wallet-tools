@@ -1,3 +1,4 @@
+import { defined } from "../core/defined.js";
 /**
  * Geometry of the world map printed behind a collection sheet.
  *
@@ -43,8 +44,8 @@ export function robinson(longitude: number, latitude: number): { x: number; y: n
   const position = Math.min(Math.abs(latitude), 90) / TABLE_STEP_DEGREES;
   const row = Math.min(Math.floor(position), ROBINSON_TABLE.length - 2);
   const share = position - row;
-  const [length, distance] = ROBINSON_TABLE[row]!;
-  const [nextLength, nextDistance] = ROBINSON_TABLE[row + 1]!;
+  const [length, distance] = defined(ROBINSON_TABLE[row]);
+  const [nextLength, nextDistance] = defined(ROBINSON_TABLE[row + 1]);
   const parallelLength = length + (nextLength - length) * share;
   const fromEquator = (distance + (nextDistance - distance) * share) * Math.sign(latitude);
   return {

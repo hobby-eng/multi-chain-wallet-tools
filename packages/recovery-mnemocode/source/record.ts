@@ -4,13 +4,28 @@ import {
   type EncodedFormat,
   type MaskingMode,
 } from "./core/types.js";
+import { defined } from "./core/defined.js";
+import { ErrorCatalog } from "./core/error-catalog.js";
 
+const ERRORS = new ErrorCatalog("record", {
+  "unsupported-mode": () => "Unsupported MnemoCode record mode.",
+  "unsupported-format": () => "Unsupported MnemoCode record format.",
+  "empty-payload": () => "A MnemoCode record payload must not be empty.",
+  "malformed-header": () => "Malformed MnemoCode record header.",
+  "unsupported-version": (version: string) =>
+    `Unsupported MnemoCode record version: ${version}. A newer MnemoCode reads it.`,
+});
+
+/** The version of the MNC1 record that this program writes, and the only one it reads. */
 export const MNEMOCODE_RECORD_VERSION = 1 as const;
 /** @deprecated Use MaskingMode; kept because index.ts exports it and hosts import it. */
 export type RecordMode = MaskingMode;
 /** @deprecated Use EncodedFormat; kept because index.ts exports it and hosts import it. */
 export type RecordFormat = EncodedFormat;
 
+/**
+ * An MNC1 record as it is read: its version, its mode, its form of codes and the codes themselves.
+ */
 export interface MnemoCodeRecord {
   readonly version: typeof MNEMOCODE_RECORD_VERSION;
   readonly mode: MaskingMode;
@@ -29,11 +44,10 @@ const recordPattern = new RegExp(
 
 /** Wraps a raw representation with enough public metadata to select its decoder later. */
 export function serializeRecord(mode: MaskingMode, format: EncodedFormat, payload: string): string {
-  if (!isMaskingMode(mode)) throw new Error(`Unsupported MnemoCode record mode: ${String(mode)}.`);
-  if (!isEncodedFormat(format))
-    throw new Error(`Unsupported MnemoCode record format: ${String(format)}.`);
+  if (!isMaskingMode(mode)) throw ERRORS.create("unsupported-mode", []);
+  if (!isEncodedFormat(format)) throw ERRORS.create("unsupported-format", []);
   const normalized = payload.trim();
-  if (normalized.length === 0) throw new Error("A MnemoCode record payload must not be empty.");
+  if (normalized.length === 0) throw ERRORS.create("empty-payload", []);
   return `${RECORD_PREFIX}${MNEMOCODE_RECORD_VERSION}:${mode}:${format}:${normalized}`;
 }
 
@@ -42,21 +56,17 @@ export function parseRecord(value: string): MnemoCodeRecord | undefined {
   const normalized = value.trim();
   if (!normalized.startsWith(RECORD_PREFIX)) return undefined;
   const match = recordPattern.exec(normalized);
-  if (match === null || !isMaskingMode(match[2]))
-    throw new Error("Malformed MnemoCode record header.");
+  if (match === null || !isMaskingMode(match[2])) throw ERRORS.create("malformed-header", []);
   const version = Number(match[1]);
   // The pattern admits only versions from 1 up, so any other than this one is newer.
   if (version !== MNEMOCODE_RECORD_VERSION)
-    throw new Error(
-      `Unsupported MnemoCode record version: ${version}. A newer MnemoCode reads it.`,
-    );
+    throw ERRORS.create("unsupported-version", [`${version}`]);
   const format = match[3];
-  if (!isEncodedFormat(format))
-    throw new Error(`Unsupported MnemoCode record format: ${match[3]}.`);
+  if (!isEncodedFormat(format)) throw ERRORS.create("unsupported-format", []);
   return {
     version: MNEMOCODE_RECORD_VERSION,
     mode: match[2],
     format,
-    payload: match[4]!,
+    payload: defined(match[4]),
   };
 }

@@ -16,6 +16,18 @@ import { ONE_GROUP, SEED_BYTES, type SharePlatform } from "./share-platform.js";
 import { Share } from "./transport.js";
 import { isRecordedQuorum, MAX_GROUP_MEMBERS, MIN_DIGEST_THRESHOLD } from "./share-layout.js";
 import { restoreCompleteShares } from "./complete-shares.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("sskr.split", {
+  "split-threshold-from-number-shares-at-most-shares": (value0: string, value1: string) =>
+    `A split needs a threshold from ${value0} to the number of shares, and at most ${value1} shares: with a threshold of 1 no share would be checked.`,
+  "sskr-engine-returned-unexpected-share-count": () =>
+    "SSKR engine returned an unexpected share count.",
+  "sskr-engine-returned-shares-another-split-than-asked": () =>
+    "SSKR engine returned shares of another split than asked.",
+  "sskr-generated-shares-did-not-reconstruct-source-entropy": () =>
+    "SSKR generated shares did not reconstruct the source entropy.",
+});
 
 /** A split makes one group, of at most as many members as SSKR numbers (MAX_GROUP_MEMBERS). */
 export const MAX_SHARES = MAX_GROUP_MEMBERS;
@@ -63,9 +75,10 @@ export class ShareSplit {
    */
   static validateThreshold(threshold: number, count: number): void {
     if (!isRecordedQuorum(threshold, count) || threshold < MIN_THRESHOLD)
-      throw new Error(
-        `A split needs a threshold from ${MIN_THRESHOLD} to the number of shares, and at most ${MAX_SHARES} shares: with a threshold of 1 no share would be checked.`,
-      );
+      throw ERRORS.create("split-threshold-from-number-shares-at-most-shares", [
+        `${MIN_THRESHOLD}`,
+        `${MAX_SHARES}`,
+      ]);
   }
 
   /**
@@ -80,7 +93,7 @@ export class ShareSplit {
       this.#fillRandom(seed);
       const records = await this.#platform.createShares(entropy, threshold, count, seed);
       if (records.length !== count)
-        throw new Error("SSKR engine returned an unexpected share count.");
+        throw ERRORS.create("sskr-engine-returned-unexpected-share-count", []);
       const shares = Share.readSet(records);
       ShareSplit.#assertAsked(shares, threshold, entropy.length);
       const validated = shares.map((share) => share.ur);
@@ -126,7 +139,7 @@ export class ShareSplit {
         info.secretLength === secretBytes
       );
     });
-    if (!asked) throw new Error("SSKR engine returned shares of another split than asked.");
+    if (!asked) throw ERRORS.create("sskr-engine-returned-shares-another-split-than-asked", []);
   }
 
   /**
@@ -139,6 +152,6 @@ export class ShareSplit {
     const restored = await restoreCompleteShares(records, this.#platform).catch(() => undefined);
     // The phrase as words, compared with the phrase of `entropy`: the restore wipes its entropy.
     if (restored?.mnemonic !== entropyToMnemonic(entropy, wordlist))
-      throw new Error("SSKR generated shares did not reconstruct the source entropy.");
+      throw ERRORS.create("sskr-generated-shares-did-not-reconstruct-source-entropy", []);
   }
 }

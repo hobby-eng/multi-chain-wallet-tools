@@ -54,14 +54,14 @@ class BitcoinCashCoin extends Base58Coin {
     const separator = lowercase.indexOf(":");
     if (separator >= 0 && lowercase.slice(0, separator) !== CASHADDR_PREFIX) throw this.notOurs();
     const payload = lowercase.slice(separator + 1);
-    const groups = [...payload].map((character) => BECH32_ALPHABET.indexOf(character));
+    const groups = Array.from(payload, (character) => BECH32_ALPHABET.indexOf(character));
     if (groups.includes(-1)) throw this.notOurs();
     // Only what could be a CashAddr is held to its rule of one case; an address of another coin,
     // such as an XRP or EIP-55 one whose letters all fit the alphabet, is not this coin's.
     if (lowercase !== text && asciiUppercase(text) !== text)
       throw unreadableAddress("it mixes capital and small letters, which CashAddr does not allow");
     // The prefix enters the checksum as the low five bits of each character, then a zero.
-    const prefixGroups = [...CASHADDR_PREFIX].map((character) => character.charCodeAt(0) & 0x1f);
+    const prefixGroups = Array.from(CASHADDR_PREFIX, (character) => character.charCodeAt(0) & 0x1f);
     if (
       groups.length <= CASHADDR_CHECKSUM_GROUPS ||
       polymod([...prefixGroups, 0, ...groups]) !== 0n
@@ -89,6 +89,10 @@ function polymod(groups: readonly number[]): bigint {
   return checksum ^ 1n;
 }
 
+/**
+ * Bitcoin Cash: CashAddr addresses (bitcoincash:q…) and the legacy ones (1…) of one key, on paths
+ * of its own coin type or of Bitcoin's.
+ */
 export const BITCOIN_CASH = new BitcoinCashCoin({
   id: "bitcoin-cash",
   name: "Bitcoin Cash",

@@ -9,6 +9,14 @@
 import { BusinessArtwork } from "./business-artwork.js";
 import type { QrModules, RenderAsset, RenderPlatform, UniformChoice } from "./platform.js";
 import type { CardDrawing } from "./templates.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.card-renderer", {
+  "card-rendering-host-s-render-platform": {
+    kind: "type",
+    text: () => "Card rendering needs the host's RenderPlatform.",
+  },
+});
 
 /**
  * Every service of a RenderPlatform: a record, so that the compiler refuses one left out. A host
@@ -37,7 +45,7 @@ export class CardRenderer implements CardDrawing {
   constructor(platform: RenderPlatform) {
     for (const service of Object.keys(PLATFORM_SERVICES))
       if (typeof platform?.[service as keyof RenderPlatform] !== "function")
-        throw new TypeError("Card rendering needs the host's RenderPlatform.");
+        throw ERRORS.create("card-rendering-host-s-render-platform", []);
     // Each service is called on the platform, so that a host's methods keep their `this`, and
     // may be passed on alone, as the renderers pass the random choice.
     this.readAsset = (path) => platform.readAsset(path);

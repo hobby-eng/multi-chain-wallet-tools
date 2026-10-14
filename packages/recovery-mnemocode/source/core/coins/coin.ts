@@ -17,6 +17,19 @@ import { hash160, type AddressType } from "./address-types.js";
 import { writtenAsAnAddress } from "./other-forms.js";
 import { trimWhiteSpace, asciiLowercase } from "../white-space.js";
 import { equalBytes } from "../bits.js";
+import { ErrorCatalog, suppliedMessage } from "../error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.coins.coin", {
+  "assert-address-location-refused": suppliedMessage,
+  "coins-wallet-check-coins-core-coins": {
+    kind: "type",
+    text: () => "The coins of a wallet check must be coins of core/coins/.",
+  },
+  "coins-wallet-check-each-given-once": () =>
+    "The coins of a wallet check must each be given once.",
+  "unknown-coin-coins": (value0: string, value1: string) =>
+    `Unknown coin "${value0}"; the coins are ${value1}.`,
+});
 
 /** The identifier of each coin, as a host names it, such as "bitcoin-cash". */
 export type CoinId =
@@ -48,6 +61,11 @@ export interface CoinDescription {
   /** How its supported addresses begin, such as "1…, 3…, bc1q… or bc1p…". */
   readonly addressForms: string;
   /**
+   * How they begin on its test network, where that differs and is supported, such as "m…, n…,
+   * 2…, tb1q… or tb1p…" for Bitcoin.
+   */
+  readonly testnetAddressForms?: string;
+  /**
    * The SLIP-44 coin types of its main network's paths. A coin that forked from another, such as
    * Bitcoin Cash from Bitcoin, has its own first and the other's second: its wallets use either.
    */
@@ -71,8 +89,11 @@ const TESTNET_COIN_TYPE = 1;
 const BIP44_PURPOSE = 44;
 
 /** Why an address is refused, as the reasons below say it. */
-export function invalidAddress(reason: string, kind: AddressRefusalKind = "other"): AddressRefusal {
-  return new AddressRefusal(reason, kind);
+export function invalidAddress(
+  reason: string,
+  kind: AddressRefusalKind = "other",
+): AddressRefusalError {
+  return new AddressRefusalError(reason, kind);
 }
 
 /**
@@ -85,15 +106,15 @@ export type AddressRefusalKind = "not-single-key" | "unreadable" | "other";
  * The refusal of an address, with its `reason`, one of the reasons below or a family's own, so
  * that a caller tells the reasons apart by it and never by the words of the message.
  */
-export class AddressRefusal extends Error {
+export class AddressRefusalError extends Error {
   readonly reason: string;
-  readonly kind: AddressRefusalKind;
+  readonly code: AddressRefusalKind;
 
-  constructor(reason: string, kind: AddressRefusalKind = "other") {
+  constructor(reason: string, code: AddressRefusalKind = "other") {
     super(`The address cannot be used for the check: ${reason}.`);
-    this.name = "AddressRefusal";
+    this.name = "AddressRefusalError";
     this.reason = reason;
-    this.kind = kind;
+    this.code = code;
   }
 }
 
@@ -104,9 +125,10 @@ export const DAMAGED = "its checksum or format is wrong";
  * A refusal of text that this coin cannot read, damaged (`reason` DAMAGED) or of a form it does not
  * allow: parse makes it the address of another coin where the text is written as one.
  */
-export function unreadableAddress(reason: string = DAMAGED): AddressRefusal {
+export function unreadableAddress(reason: string = DAMAGED): AddressRefusalError {
   return invalidAddress(reason, "unreadable");
 }
+/** The reason of a refusal of an address with the wrong length, which several families give. */
 export const WRONG_LENGTH = "it has the wrong length";
 
 /**
@@ -119,6 +141,7 @@ export abstract class Coin implements CoinDescription {
   readonly name: string;
   readonly addressForms: string;
   readonly coinTypes: readonly number[];
+  readonly #testnetAddressForms: string | undefined;
   readonly #commitments: Readonly<Partial<Record<AddressType, KeyCommitment>>>;
   readonly #purposes: Readonly<Partial<Record<AddressType, number>>>;
 
@@ -126,9 +149,18 @@ export abstract class Coin implements CoinDescription {
     this.id = description.id;
     this.name = description.name;
     this.addressForms = description.addressForms;
+    this.#testnetAddressForms = description.testnetAddressForms;
     this.coinTypes = Object.freeze([...description.coinTypes]);
     this.#commitments = Object.freeze({ ...description.commitments });
     this.#purposes = Object.freeze({ ...description.purposes });
+  }
+
+  /**
+   * How the coin's addresses begin on the main network, or on its test network where `testnet`
+   * and they differ there (testnetAddressForms): what a question names beside the coin.
+   */
+  addressFormsOn(testnet: boolean): string {
+    return testnet ? (this.#testnetAddressForms ?? this.addressForms) : this.addressForms;
   }
 
   /** What an address of `type` commits to for `publicKey`: its HASH160 unless the family says. */
@@ -185,8 +217,8 @@ export abstract class Coin implements CoinDescription {
       // What this coin cannot read but is valid in another coin's form is that coin's address;
       // with this coin's own prefix it is this coin's, damaged.
       if (
-        error instanceof AddressRefusal &&
-        error.kind === "unreadable" &&
+        error instanceof AddressRefusalError &&
+        error.code === "unreadable" &&
         !startsWithAny(trimmed, this.ownPrefixes) &&
         writtenAsAnAddress(trimmed)
       )
@@ -323,7 +355,9 @@ export function assertAddressLocation(location: AddressLocation): void {
   for (const name of ["account", "branch", "index"] as const) {
     const value = location[name];
     if (!inWholeRange(value, NORMAL_INDEX_RANGE))
-      throw new Error(integerRefusal(name, NORMAL_INDEX_RANGE));
+      throw ERRORS.create("assert-address-location-refused", [
+        integerRefusal(name, NORMAL_INDEX_RANGE),
+      ]);
   }
 }
 
@@ -343,9 +377,9 @@ export class CoinList {
   constructor(coins: readonly Coin[]) {
     const owned = Array.from(coins);
     if (!owned.every((coin) => coin instanceof Coin))
-      throw new TypeError("The coins of a wallet check must be coins of core/coins/.");
+      throw ERRORS.create("coins-wallet-check-coins-core-coins", []);
     if (new Set(owned.map((coin) => coin.id)).size !== owned.length)
-      throw new Error("The coins of a wallet check must each be given once.");
+      throw ERRORS.create("coins-wallet-check-each-given-once", []);
     this.#coins = Object.freeze(owned);
   }
 
@@ -362,9 +396,10 @@ export class CoinList {
     const wanted = asciiLowercase(trimWhiteSpace(String(id)));
     const coin = this.#coins.find((candidate) => candidate.id === wanted);
     if (coin === undefined)
-      throw new Error(
-        `Unknown coin "${id}"; the coins are ${this.#coins.map((known) => known.id).join(", ")}.`,
-      );
+      throw ERRORS.create("unknown-coin-coins", [
+        `${id}`,
+        `${this.#coins.map((known) => known.id).join(", ")}`,
+      ]);
     return coin;
   }
 }

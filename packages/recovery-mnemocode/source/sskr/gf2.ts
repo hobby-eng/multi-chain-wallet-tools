@@ -1,3 +1,4 @@
+import { defined } from "../core/defined.js";
 // Linear algebra over GF(2) with bit vectors held in bigints: bit i of a column is equation i.
 // repair.ts and joint-repair.ts write every check of a share as such equations in the bits of
 // its unreadable elements, and solve them here instead of trying values.
@@ -60,7 +61,9 @@ export class PivotBasis {
     return this.#pivots.size;
   }
 
-  /** The pivots' vectors, in the order they were added: a basis of the span of the vectors added. */
+  /**
+   * The pivots' vectors, in the order they were added: a basis of the span of the vectors added.
+   */
   get vectors(): bigint[] {
     return [...this.#pivots.values()].map((pivot) => pivot.vector);
   }
@@ -121,7 +124,7 @@ export class BitFields {
 export function bytesToBits(bytes: Uint8Array): bigint {
   let vector = 0n;
   for (let index = bytes.length - 1; index >= 0; index -= 1)
-    vector = (vector << 8n) | BigInt(bytes[index]!);
+    vector = (vector << 8n) | BigInt(defined(bytes[index]));
   return vector;
 }
 

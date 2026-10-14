@@ -8,19 +8,29 @@
 
 import { listInWords } from "../core/places.js";
 import { POINTS_PER_INCH } from "./page-units.js";
+import { defined } from "../core/defined.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.document-formats", {
+  "image-format-one-accepted-as-alias": (value0: string, value1: string) =>
+    `The image format must be one of: ${value0}; ${value1} is accepted as an alias.`,
+  "select-as-file-format": (value0: string) => `Select ${value0} as the file format.`,
+});
 
 /** The formats of the files of cards: the PDF first, the default, then the image formats. */
 export const DOCUMENT_FORMATS = Object.freeze(["pdf", "png", "jpg"] as const);
+/** A format of the files of cards (DOCUMENT_FORMATS). */
 export type DocumentFormat = (typeof DOCUMENT_FORMATS)[number];
 /** The image formats, png first as the default. */
 export const IMAGE_FORMATS = Object.freeze(
   DOCUMENT_FORMATS.filter((format): format is Exclude<DocumentFormat, "pdf"> => format !== "pdf"),
 );
+/** An image format of the files of cards (IMAGE_FORMATS). */
 export type ImageFormat = (typeof IMAGE_FORMATS)[number];
 /** The format of the files of cards when none is chosen. */
 export const DEFAULT_DOCUMENT_FORMAT: DocumentFormat = DOCUMENT_FORMATS[0];
 /** The image format when an image is asked for without one. */
-export const DEFAULT_IMAGE_FORMAT: ImageFormat = IMAGE_FORMATS[0]!;
+export const DEFAULT_IMAGE_FORMAT: ImageFormat = defined(IMAGE_FORMATS[0]);
 
 /** What each format is, as hosts name and save it. */
 export interface DocumentFormatFacts {
@@ -60,7 +70,7 @@ export const DOCUMENT_FORMAT_FACTS: Readonly<Record<DocumentFormat, DocumentForm
   });
 
 /** The quality of a JPEG page, of 100. */
-export const JPEG_QUALITY = DOCUMENT_FORMAT_FACTS.jpg.qualityPercent!;
+export const JPEG_QUALITY = defined(DOCUMENT_FORMAT_FACTS.jpg.qualityPercent);
 /** Another name of jpg that a person may type. */
 const JPEG_ALIAS = "jpeg";
 
@@ -83,9 +93,10 @@ export function parseImageFormat(value: string | undefined): ImageFormat {
   if (value === undefined) return DEFAULT_IMAGE_FORMAT;
   if (value === JPEG_ALIAS) return "jpg";
   if (!isImageFormat(value))
-    throw new Error(
-      `The image format must be one of: ${IMAGE_FORMATS.join(", ")}; ${JPEG_ALIAS} is accepted as an alias.`,
-    );
+    throw ERRORS.create("image-format-one-accepted-as-alias", [
+      `${IMAGE_FORMATS.join(", ")}`,
+      `${JPEG_ALIAS}`,
+    ]);
   return value;
 }
 
@@ -94,7 +105,7 @@ export function parseDocumentFormat(value: string | undefined): DocumentFormat {
   if (value === undefined || value === "" || value === "pdf") return DEFAULT_DOCUMENT_FORMAT;
   if (value === JPEG_ALIAS || isImageFormat(value)) return parseImageFormat(value);
   const names = DOCUMENT_FORMATS.map((format) => DOCUMENT_FORMAT_FACTS[format].name);
-  throw new Error(`Select ${listInWords(names, "or")} as the file format.`);
+  throw ERRORS.create("select-as-file-format", [`${listInWords(names, "or")}`]);
 }
 
 // The points of an inch (page-units.ts), here too for the hosts that take it with the formats.

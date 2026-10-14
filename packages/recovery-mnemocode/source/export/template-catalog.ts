@@ -8,6 +8,14 @@
 // commands, which name a design by its id or its number (a test pins them).
 
 import type { CardKind } from "../core/types.js";
+import { defined } from "../core/defined.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.template-catalog", {
+  "sheets-only": () => SHEETS_ONLY,
+  "card-template-unknown-incompatible-list-available-preview-templates": (value0: string) =>
+    `The card template “${value0}” is unknown or incompatible. List the available preview templates and choose one of them.`,
+});
 
 /** The business designs, in their order; "mixed" draws the others in turn. */
 export const BUSINESS_STYLES = Object.freeze([
@@ -20,6 +28,7 @@ export const BUSINESS_STYLES = Object.freeze([
   "facets",
   "mixed",
 ] as const);
+/** A business card design style (BUSINESS_STYLES). */
 export type BusinessStyle = (typeof BUSINESS_STYLES)[number];
 /** The business designs that have artwork of their own: all but "mixed". */
 export type PhysicalBusinessStyle = Exclude<BusinessStyle, "mixed">;
@@ -32,6 +41,7 @@ export const MATERIAL_STYLES = Object.freeze([
   "switch",
   "kitchen",
 ] as const);
+/** A material design style (MATERIAL_STYLES). */
 export type MaterialStyle = (typeof MATERIAL_STYLES)[number];
 
 /** How a design draws: a business style or a material. */
@@ -78,17 +88,21 @@ export function drawsSeparateCards(entry: CatalogEntry): boolean {
   return SEPARATE_CARDS[entry.family];
 }
 
+/** Why `design`, a design named in a sentence, is not drawn as separate cards. */
+export function sheetsOnly(design: string): string {
+  return `${design} is printed on sheets only: separate cards are made in the business card designs.`;
+}
+
 /** Why a design is not drawn as separate cards. */
-export const SHEETS_ONLY =
-  "This design is printed on sheets only: separate cards are made in the business card designs.";
+export const SHEETS_ONLY = sheetsOnly("This design");
 
 /** Refuses separate cards of `entry` where it is drawn on sheets only (SHEETS_ONLY). */
 export function assertSeparateCards(entry: CatalogEntry): void {
-  if (!drawsSeparateCards(entry)) throw new Error(SHEETS_ONLY);
+  if (!drawsSeparateCards(entry)) throw ERRORS.create("sheets-only", []);
 }
 
 /** The design of colour cards when none is named: the first. */
-export const DEFAULT_TEMPLATE_ID = TEMPLATE_CATALOG[0]!.id;
+export const DEFAULT_TEMPLATE_ID = defined(TEMPLATE_CATALOG[0]).id;
 /** The design of share cards when none is named, chosen for shares on its own. */
 export const DEFAULT_SHARE_TEMPLATE_ID = "business-it";
 
@@ -113,11 +127,15 @@ const CARD_KIND_NAMES: Readonly<Record<CardKind, string>> = Object.freeze({
   colors: "color",
 });
 
+/** The code of the refusal of cards that no installed design draws, the catalog's own error. */
+export type TemplateCatalogErrorCode = "no-card-template";
+
 /**
  * Cards of `kind` that no installed design draws. The message names the kind only: a front end
  * adds how its person chooses another kind, such as the command line's form numbers.
  */
-export class NoCardTemplate extends Error {
+export class NoCardTemplateError extends Error {
+  readonly code: TemplateCatalogErrorCode = "no-card-template";
   readonly kind: CardKind | undefined;
 
   constructor(kind: CardKind | undefined) {
@@ -126,19 +144,19 @@ export class NoCardTemplate extends Error {
         ? "No card template is installed."
         : `No installed card template supports ${CARD_KIND_NAMES[kind]} cards yet.`,
     );
-    this.name = "NoCardTemplate";
+    this.name = "NoCardTemplateError";
     this.kind = kind;
   }
 }
 
 /** The design that `idOrNumber` names (findTemplate); refuses a kind without designs, or no fit. */
 export function resolveTemplateId(idOrNumber?: string, kind?: CardKind): CatalogEntry {
-  if (findTemplate(undefined, kind) === undefined) throw new NoCardTemplate(kind);
+  if (findTemplate(undefined, kind) === undefined) throw new NoCardTemplateError(kind);
   const found = findTemplate(idOrNumber, kind);
   if (found === undefined)
-    throw new Error(
-      `The card template “${idOrNumber}” is unknown or incompatible. List the available preview templates and choose one of them.`,
-    );
+    throw ERRORS.create("card-template-unknown-incompatible-list-available-preview-templates", [
+      `${idOrNumber}`,
+    ]);
   return found;
 }
 

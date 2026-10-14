@@ -13,7 +13,7 @@
 // self-test modules.
 
 import {
-  CandidateFileRefused,
+  CandidateFileRefusedError,
   createSessionIdentity,
   decryptCandidates,
   encryptCandidates,
@@ -29,10 +29,17 @@ import {
   hexOfBytes,
 } from "./self-test-check.js";
 import { CandidateFileAdmission } from "./candidate-file-admission.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.candidate-encryption-self-test", {
+  "refused-another-reason": () => "refused for another reason",
+  "malformed-identity-reached-diagnostics": () => "A malformed identity reached diagnostics",
+});
 
 /**
- * `open` refused as a CandidateFileRefused with `problem` and a message that `because` matches;
- * a refusal of another class or problem is another reason.
+ * `open` refused as a CandidateFileRefusedError with `problem` and a message that `because`
+ * matches; a refusal of another class or problem is another reason.
  */
 function expectFileRefused(
   open: () => Promise<unknown>,
@@ -45,8 +52,8 @@ function expectFileRefused(
       try {
         await open();
       } catch (error) {
-        if (error instanceof CandidateFileRefused && error.problem === problem) throw error;
-        throw new Error("refused for another reason");
+        if (error instanceof CandidateFileRefusedError && error.code === problem) throw error;
+        throw ERRORS.create("refused-another-reason", []);
       }
     },
     because,
@@ -65,7 +72,9 @@ const TO_THE_SESSION_KEY =
   "6167652d656e6372797074696f6e2e6f72672f76310a2d3e20583235353139206136356439553562555137474f6b35622b3652746b5963424f494650435a54716561665571764e5a4a326f0a54557678394c374742754f746a473346792f4b454f4c2b526344612f613971456c4b41552f517155306e630a2d2d2d204e363162377937377063536b6654314e34384a7177506c6b516b74723268432f71355856665a6f446275380ac627d2859a80b6da35a28846ac0b28c759492f215288a81f00fab74592a8ad30661a38e24bea23b0471d1eee33c7f03509aed8e68eab614d0fa3655102bc25272799f15a1203ceca9dcd57dc00caff920523cac73e2cac07876a7c7ea4e2c8c8";
 const WITH_THE_PASSPHRASE =
   "6167652d656e6372797074696f6e2e6f72672f76310a2d3e20736372797074205870525a634577686a5772633579485174772b6843672031380a3273444e75712f66773558356f2b6169326c5244557844733753335a374b3335357a584c58536b2b4a68490a2d2d2d20756e415248654a6f756e436f303350616e58692b733030795239624e7976426849544249617250726465730a2c9d8c5ab6187d40f723d29b32b3e7a700040053411d2ab9923f2ceb2f4f9b24db3c85a38bacab3e6739f621f9b36803f0fb1114f6d9b29ddebf067e976c78439064dda175a4b27e25da4b6ba415caa4bc4128dd532df80e73545c2e5e9f29ab";
-/** Files that a reader refuses ("refuse"): to the session key and a second one, and scrypt at 16. */
+/**
+ * Files that a reader refuses ("refuse"): to the session key and a second one, and scrypt at 16.
+ */
 const TO_TWO_KEYS =
   "6167652d656e6372797074696f6e2e6f72672f76310a2d3e20583235353139207161526c654541674e686b486a48706e634f4b624f51516e586d5570323837684572485a53484f42766e550a5a5634345857336f696e50666f394e4d4d506e5a446d7a4c6f552f6549434448614957584f32724f776c410a2d3e2058323535313920745a7472634f306274396c5466463549635238442f2b5958696c42687a75736a79447163652f55727643490a787542476b7342447658657430387266474e53514b67386e4a463064505242323636447441414e57676f380a2d2d2d206d574c39642f4a3873442f2f743251574a7a2f522f505555736b4152486d2f73643530304f4d476f4458550ab7c08cf5243c795f7035d4f881b7c460b23040a088fd25903e24b0afa075ff11188d2bfdc1dc5d61fbba8c14a6dc43696167c21a1cad40ba1099e25edacce5daf085a909d538347a257cae085ae7efc3a2a5776bc3d3f3a69029cfe19f09ee58";
 const SCRYPT_WORK_FACTOR_16 =
@@ -74,7 +83,7 @@ const SCRYPT_WORK_FACTOR_16 =
 /** The file with its last byte changed: a byte of the encrypted list, which age authenticates. */
 function changedLastByte(hex: string): Uint8Array {
   const bytes = bytesOfHex(hex);
-  bytes[bytes.length - 1]! ^= 1;
+  bytes[bytes.length - 1] = defined(bytes[bytes.length - 1]) ^ 1;
   return bytes;
 }
 
@@ -107,7 +116,7 @@ export async function checkCandidateEncryptionQuick(): Promise<void> {
           error.message.includes(malformed) ||
           error.cause !== undefined
         )
-          throw new Error("A malformed identity reached diagnostics");
+          throw ERRORS.create("malformed-identity-reached-diagnostics", []);
         throw error;
       }
     },

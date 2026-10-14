@@ -18,7 +18,9 @@ const HEX_ACCOUNT_PREFIX = /^0x/iu;
 export const HEX_ACCOUNT_DIGITS = 2 * HEX_ACCOUNT_BYTES;
 const HEX_ACCOUNT_BODY = new RegExp(`^[0-9a-f]{${HEX_ACCOUNT_DIGITS}}$`, "iu");
 
-/** The digits after 0x of `text`, an account written as Ethereum writes it; undefined without 0x. */
+/**
+ * The digits after 0x of `text`, an account written as Ethereum writes it; undefined without 0x.
+ */
 export function hexAccountDigits(text: string): string | undefined {
   return HEX_ACCOUNT_PREFIX.test(text) ? text.slice(2) : undefined;
 }

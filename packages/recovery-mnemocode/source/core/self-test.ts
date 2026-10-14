@@ -63,6 +63,32 @@ import { recoverLegacyValidLastWords } from "./words.js";
 import { hexOfBytes } from "./bits.js";
 import { Masking, decodeInput } from "./masking.js";
 import { isFingerprintText, type PhraseFingerprint } from "./wallet-check.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.self-test", {
+  "checksum-valid-seedshift-produced-invalid-bip39-checksum": () =>
+    "Checksum-valid Seedshift produced an invalid BIP39 checksum.",
+  "non-empty-string": (value0: string, value1: string) =>
+    `${value0}.${value1} must be a non-empty string.`,
+  "array-strings": (value0: string, value1: string) =>
+    `${value0}.${value1} must be an array of strings.`,
+  object: (value0: string) => `${value0} must be an object.`,
+  "mode-unsupported": (value0: string) => `${value0}.mode is unsupported.`,
+  "source-mnemonic-valid-english-bip39-mnemonic": (value0: string) =>
+    `${value0}.sourceMnemonic must be a valid English BIP39 mnemonic.`,
+  "dates-does-not-match-mode": (value0: string) => `${value0}.dates does not match its mode.`,
+  "eight-lowercase-hexadecimal-characters": (value0: string, value1: string) =>
+    `${value0}.${value1} must be eight lowercase hexadecimal characters.`,
+  "public-vector-file-unsupported-structure": () =>
+    "Public vector file has an unsupported structure.",
+  "public-vector-names-unique": () => "Public vector names must be unique.",
+  "public-vector-file-missing-required-vector": (value0: string) =>
+    `Public vector file is missing required vector: ${value0}.`,
+  "self-test-host-s-fingerprint-function": {
+    kind: "type",
+    text: () => "A self-test needs the host's fingerprint function.",
+  },
+});
 
 export type { SelfTestCheck, SelfTestFeature };
 
@@ -166,7 +192,7 @@ function runCoreChecks(): void {
     "Checksum-valid Seedshift vector",
   );
   if (!phraseChecksumValid(shifted.shiftedEnglish.join(" ")))
-    throw new Error("Checksum-valid Seedshift produced an invalid BIP39 checksum.");
+    throw ERRORS.create("checksum-valid-seedshift-produced-invalid-bip39-checksum", []);
   equal(
     decodeInput(CHECKSUM_VALID_ENGLISH, "english", CHECKSUM_VALID_DATE).recoveredMnemonic,
     PUBLIC_MNEMONIC,
@@ -224,37 +250,40 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function requiredString(record: Record<string, unknown>, key: string, label: string): string {
   const value = record[key];
   if (typeof value !== "string" || value.trim().length === 0)
-    throw new Error(`${label}.${key} must be a non-empty string.`);
+    throw ERRORS.create("non-empty-string", [`${label}`, `${key}`]);
   return value;
 }
 
 function requiredStrings(record: Record<string, unknown>, key: string, label: string): string[] {
   const value = record[key];
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string"))
-    throw new Error(`${label}.${key} must be an array of strings.`);
+  if (!isStringList(value)) throw ERRORS.create("array-strings", [`${label}`, `${key}`]);
   return value;
+}
+
+function isStringList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
 function validateVector(value: unknown, index: number): PublicVector {
   const label = `vectors[${index}]`;
-  if (!isObject(value)) throw new Error(`${label} must be an object.`);
+  if (!isObject(value)) throw ERRORS.create("object", [`${label}`]);
   const mode = requiredString(value, "mode", label);
-  if (!isVectorMode(mode)) throw new Error(`${label}.mode is unsupported.`);
+  if (!isVectorMode(mode)) throw ERRORS.create("mode-unsupported", [`${label}`]);
   const sourceMnemonic = requiredString(value, "sourceMnemonic", label);
   if (!phraseChecksumValid(sourceMnemonic))
-    throw new Error(`${label}.sourceMnemonic must be a valid English BIP39 mnemonic.`);
+    throw ERRORS.create("source-mnemonic-valid-english-bip39-mnemonic", [`${label}`]);
   const dates = requiredStrings(value, "dates", label);
   try {
     Masking.of(mode).assertDateCount(dates.length);
   } catch {
-    throw new Error(`${label}.dates does not match its mode.`);
+    throw ERRORS.create("dates-does-not-match-mode", [`${label}`]);
   }
   dates.forEach(parseDate);
   const fingerprint = (key: "sourceFingerprint" | "encodedFingerprint") => {
     const candidate = value[key];
     if (candidate === undefined) return undefined;
     if (typeof candidate !== "string" || !isFingerprintText(candidate))
-      throw new Error(`${label}.${key} must be eight lowercase hexadecimal characters.`);
+      throw ERRORS.create("eight-lowercase-hexadecimal-characters", [`${label}`, `${key}`]);
     return candidate;
   };
   return {
@@ -275,13 +304,13 @@ function validateVector(value: unknown, index: number): PublicVector {
 /** The vectors of the parsed file, refused unless every required one is there, once. */
 function publicVectorsOf(parsed: unknown): readonly PublicVector[] {
   if (!isObject(parsed) || parsed.version !== 1 || !Array.isArray(parsed.vectors))
-    throw new Error("Public vector file has an unsupported structure.");
+    throw ERRORS.create("public-vector-file-unsupported-structure", []);
   const vectors = parsed.vectors.map(validateVector);
   const names = new Set(vectors.map((vector) => vector.name));
-  if (names.size !== vectors.length) throw new Error("Public vector names must be unique.");
+  if (names.size !== vectors.length) throw ERRORS.create("public-vector-names-unique", []);
   for (const name of REQUIRED_VECTOR_NAMES) {
     if (!names.has(name))
-      throw new Error(`Public vector file is missing required vector: ${name}.`);
+      throw ERRORS.create("public-vector-file-missing-required-vector", [`${name}`]);
   }
   return vectors;
 }
@@ -447,7 +476,7 @@ export class MnemoCodeSelfTest {
 
   constructor(host: SelfTestHost) {
     if (typeof host?.fingerprint !== "function")
-      throw new TypeError("A self-test needs the host's fingerprint function.");
+      throw ERRORS.create("self-test-host-s-fingerprint-function", []);
     this.#host = host;
   }
 

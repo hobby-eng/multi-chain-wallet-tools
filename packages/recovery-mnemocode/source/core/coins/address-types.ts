@@ -11,10 +11,10 @@ import { HASH160_BYTES } from "./address-sizes.js";
 
 /**
  * How an address commits to a public key. p2pkh: HASH160 of the key, as legacy addresses ("1…",
- * "L…", "D…", "X…", "t1…", a Bitcoin Cash "q…"), XRP and Cosmos have it; p2sh-p2wpkh: nested SegWit,
- * "3…" or "M…"; p2wpkh: native SegWit, "bc1q…" or "ltc1q…"; p2tr: Taproot, "bc1p…"; keccak: the
- * account of Ethereum, its networks, Ethereum Classic, Tron and Injective; dash-platform: a Dash
- * Platform payment address, "dash1k…", HASH160 of the key written after DIP18's type byte.
+ * "L…", "D…", "X…", "t1…", a Bitcoin Cash "q…"), XRP and Cosmos have it; p2sh-p2wpkh: nested
+ * SegWit, "3…" or "M…"; p2wpkh: native SegWit, "bc1q…" or "ltc1q…"; p2tr: Taproot, "bc1p…"; keccak:
+ * the account of Ethereum, its networks, Ethereum Classic, Tron and Injective; dash-platform: a
+ * Dash Platform payment address, "dash1k…", HASH160 of the key written after DIP18's type byte.
  */
 export type AddressType = "p2pkh" | "p2sh-p2wpkh" | "p2wpkh" | "p2tr" | "keccak" | "dash-platform";
 

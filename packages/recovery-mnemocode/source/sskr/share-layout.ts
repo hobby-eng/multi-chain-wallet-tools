@@ -33,7 +33,10 @@ export const CBOR_BYTE_STRING_ONE_BYTE_LENGTH = 0x58;
 /** The first length that the head of a byte string cannot hold itself. */
 export const CBOR_SHORT_LENGTH_LIMIT = 24;
 
-/** The heads that a byte string of `length` bytes may be written with: one byte where it fits, and two. */
+/**
+ * The heads that a byte string of `length` bytes may be written with: one byte where it fits, and
+ * two.
+ */
 export function byteStringHeads(length: number): number[][] {
   return [
     ...(length < CBOR_SHORT_LENGTH_LIMIT ? [[CBOR_BYTE_STRING + length]] : []),
@@ -65,10 +68,15 @@ export function payloadLayouts(
  * threshold and count less one. The high nibble of the member's byte is reserved and zero.
  */
 export const SHARE_METADATA_BYTES = 5;
+/** The byte of the metadata that holds the group threshold and the group count, a nibble each. */
 export const GROUP_BYTE = 2;
+/** The byte of the metadata that holds the group index and the member threshold, a nibble each. */
 export const MEMBER_THRESHOLD_BYTE = 3;
+/** The byte of the metadata that holds the member index in its low nibble. */
 export const MEMBER_BYTE = 4;
+/** The bits of a nibble, half a byte. */
 export const NIBBLE_BITS = 4;
+/** The mask of the low nibble of a byte. */
 export const LOW_NIBBLE = 0x0f;
 
 /**

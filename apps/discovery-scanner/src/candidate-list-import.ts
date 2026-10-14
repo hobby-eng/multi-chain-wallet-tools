@@ -9,7 +9,7 @@
 // The candidates are never shown: they become the seed inputs of a scan, candidate N as MnemoCode
 // numbers it, and their entropy is wiped when the list is removed or replaced.
 import {
-  CandidateFileRefused,
+  CandidateFileRefusedError,
   createSessionIdentity,
   decryptCandidates,
   parseListPassphrase,
@@ -122,7 +122,7 @@ export class CandidateListImport implements CandidateSource {
         bytes.byteLength !== size ||
         (lock !== undefined && CandidateFileAdmission.lock(bytes) !== lock)
       )
-        throw new CandidateFileRefused(
+        throw new CandidateFileRefusedError(
           "damaged",
           "The candidate file changed or ended while it was being read.",
         );
@@ -179,7 +179,7 @@ export class CandidateListImport implements CandidateSource {
       return await decryptCandidates(file, key);
     } catch (cause) {
       // MnemoCode's message says what failed; only the page knows which page a key belongs to.
-      if (cause instanceof CandidateFileRefused && cause.problem === "key" && "identity" in key)
+      if (cause instanceof CandidateFileRefusedError && cause.code === "key" && "identity" in key)
         throw new Error(
           "This list was saved for another Scanner key. A list opens only in the page whose key it was saved to, while that page stays open.",
           { cause },

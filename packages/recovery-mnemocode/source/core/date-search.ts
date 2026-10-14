@@ -34,7 +34,7 @@ import { dateRecoveryCandidates, type SeedshiftMode } from "./date-recovery.js";
 import { Masking, type MaskingMode } from "./masking.js";
 import { placesNamed } from "./places.js";
 import {
-  assertStillRunning,
+  stillRunning,
   keptCount,
   SearchTurns,
   startTimer,
@@ -49,6 +49,24 @@ import { indexesOfWords, zeroEntropyPhrase } from "./english-words.js";
 import { SearchPlan, counted, counting } from "./search-plan.js";
 import { refusalMessage } from "./refusal.js";
 import { afterPlace } from "./prose.js";
+import { ErrorCatalog, suppliedMessage } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.date-search", {
+  "at-place-refused": suppliedMessage,
+  "assert-keys-fit-refused": suppliedMessage,
+  "date-recovery-supports-at-most-incomplete-dates": (value0: string) =>
+    `Date recovery supports at most ${value0} incomplete dates.`,
+  "date-patterns-produce-more-than-combinations-which-exceeds": (value0: string) =>
+    `The date patterns produce more than ${value0} combinations, which exceeds the safety limit. Narrow at least one pattern.`,
+  "no-date": () => NO_DATE,
+  "parse-refused": suppliedMessage,
+  "stand-what-forgotten-only-where-mnemo-code-can": () =>
+    "? and | stand for what is forgotten only where MnemoCode can search dates; type every date in full.",
+  "at-least-one-date-contain-forgotten-digit-represented": () =>
+    "At least one date must contain a forgotten digit represented by ?.",
+  "dates-dates-answer": { kind: "type", text: () => "The dates must be a DatesAnswer." },
+  "operation-refused": suppliedMessage,
+});
 
 export type { WalletCheck, WalletMatch } from "./wallet-check.js";
 
@@ -61,7 +79,10 @@ export const HARD_MAX_COMBINATIONS = 2 ** 31;
 export const MAX_INCOMPLETE_DATES = 3;
 /** Matches that a search keeps to show unless the host asks for another number. */
 export const MAX_SHOWN_MATCHES = 100;
-/** How a date search with more matches than a candidate list holds is narrowed (TooManyForList). */
+/**
+ * How a date search with more matches than a candidate list holds is narrowed
+ * (TooManyForListError).
+ */
 export const NARROW_DATE_SEARCH = "narrow the dates, or give the wallet's fingerprint";
 /**
  * A phrase to time the host's wallet check with: the one of all-zero entropy, "abandon … about",
@@ -132,7 +153,9 @@ function atPlaceOf<T>(place: number, read: () => T): T {
   try {
     return read();
   } catch (error) {
-    throw new Error(atPlace(place, refusalMessage(error)), { cause: error });
+    throw ERRORS.create("at-place-refused", [atPlace(place, refusalMessage(error))], {
+      cause: error,
+    });
   }
 }
 
@@ -143,7 +166,10 @@ function atPlaceOf<T>(place: number, read: () => T): T {
  */
 function assertKeysFit(patterns: readonly DatePattern[], places: readonly number[]): void {
   const index = conflictingPatternKey(patterns);
-  if (index >= 0) throw new Error(atPlace(places[index] ?? index + 1, KEY_CONFLICT));
+  if (index >= 0)
+    throw ERRORS.create("assert-keys-fit-refused", [
+      atPlace(places[index] ?? index + 1, KEY_CONFLICT),
+    ]);
 }
 
 /**
@@ -169,7 +195,9 @@ export class DatesAnswer extends Redacted {
     // The limits are checked here, not only in parse and of: a private constructor is private to
     // TypeScript alone, and a JavaScript host can call it (AUD-009-FUN001).
     if (patterns.length > MAX_INCOMPLETE_DATES)
-      throw new Error(`Date recovery supports at most ${MAX_INCOMPLETE_DATES} incomplete dates.`);
+      throw ERRORS.create("date-recovery-supports-at-most-incomplete-dates", [
+        `${MAX_INCOMPLETE_DATES}`,
+      ]);
     // Copied and frozen, date by date: a caller that kept a date or a pattern could otherwise
     // change it after the limits were checked (AUD-009-FUN001). Array.from reads a hole of a
     // sparse list as undefined, which is refused; map would keep it.
@@ -180,9 +208,9 @@ export class DatesAnswer extends Redacted {
     // Counted once, so that no later question copies and counts the patterns again.
     this.#combinations = datePatternCombinationCount(this.#patterns, HARD_MAX_COMBINATIONS);
     if (this.#combinations > HARD_MAX_COMBINATIONS)
-      throw new Error(
-        `The date patterns produce more than ${counting(HARD_MAX_COMBINATIONS)} combinations, which exceeds the safety limit. Narrow at least one pattern.`,
-      );
+      throw ERRORS.create("date-patterns-produce-more-than-combinations-which-exceeds", [
+        `${counting(HARD_MAX_COMBINATIONS)}`,
+      ]);
   }
 
   /**
@@ -191,10 +219,10 @@ export class DatesAnswer extends Redacted {
    */
   static parse(line: string, rules: DatesRules): DatesAnswer {
     const typed = line.split(DATE_SEPARATORS).filter(Boolean);
-    if (typed.length === 0) throw new Error(NO_DATE);
+    if (typed.length === 0) throw ERRORS.create("no-date", []);
     const words = phraseLength(rules.wordCount);
     if (words !== undefined && typed.length > maximumDates(words))
-      throw new Error(tooManyDatesMessage(words));
+      throw ERRORS.create("parse-refused", [tooManyDatesMessage(words)]);
     const known: DateShiftDate[] = [];
     const patterns: DatePattern[] = [];
     const incompletePlaces: number[] = [];
@@ -202,9 +230,7 @@ export class DatesAnswer extends Redacted {
       const place = index + 1;
       const incomplete = isDatePattern(text);
       if (incomplete && !rules.patterns)
-        throw new Error(
-          "? and | stand for what is forgotten only where MnemoCode can search dates; type every date in full.",
-        );
+        throw ERRORS.create("stand-what-forgotten-only-where-mnemo-code-can", []);
       atPlaceOf(place, () => {
         if (incomplete) patterns.push(parseDatePattern(text));
         else known.push(parseDate(text));
@@ -220,7 +246,7 @@ export class DatesAnswer extends Redacted {
    * typed after the complete ones.
    */
   static of(known: readonly DateShiftDate[], patterns: readonly DatePattern[] = []): DatesAnswer {
-    if (known.length + patterns.length === 0) throw new Error(NO_DATE);
+    if (known.length + patterns.length === 0) throw ERRORS.create("no-date", []);
     // Each date is checked as parse checks a typed one, and named by its place (AUD-009-API001).
     // Array.from, not map: a hole of a sparse list is then a date that is refused, not skipped.
     const ownKnown = Array.from(known, (date, index) =>
@@ -256,7 +282,7 @@ export class DatesAnswer extends Redacted {
   /** Standalone date recovery needs a pattern; combined code recovery also accepts known dates. */
   assertIncomplete(): void {
     if (!this.hasForgottenDigits)
-      throw new Error("At least one date must contain a forgotten digit represented by ?.");
+      throw ERRORS.create("at-least-one-date-contain-forgotten-digit-represented", []);
   }
 
   /**
@@ -340,6 +366,13 @@ export interface DateSearchResult {
   readonly shown: readonly DateMatch[];
   /** The phrase of every match, kept only when `keep` is above 0, at most `keep` of them. */
   readonly kept: readonly string[];
+  /** The date combinations checked: all of them, unless the search was stopped. */
+  readonly checked: number;
+  /**
+   * Whether the host stopped the search (SearchRun.signal): then the counts and matches cover only
+   * the combinations checked before the stop, and nothing found after it (CORE-22).
+   */
+  readonly stopped: boolean;
 }
 
 /** How fast a search goes in a host, in seconds, as DateSearch.pace measures it. */
@@ -412,9 +445,9 @@ export class DateSearch extends Redacted {
     assertWordCount(words);
     assertWordIndexes(indexes);
     Masking.assertMaskedMode(options.mode);
-    if (!(options.dates instanceof DatesAnswer))
-      throw new TypeError("The dates must be a DatesAnswer.");
-    if (!options.dates.fitsPhrase(words)) throw new Error(tooManyDatesMessage(words));
+    if (!(options.dates instanceof DatesAnswer)) throw ERRORS.create("dates-dates-answer", []);
+    if (!options.dates.fitsPhrase(words))
+      throw ERRORS.create("operation-refused", [tooManyDatesMessage(words)]);
     this.#indexes = Object.freeze(indexes);
     this.#dates = options.dates;
     this.#mode = options.mode;
@@ -525,20 +558,34 @@ export class DateSearch extends Redacted {
     let checksumValid = 0;
     let matchCount = 0;
     const turns = SearchTurns.of(run);
+    const result = (stopped: boolean): DateSearchResult => ({
+      combinations,
+      checksumValid,
+      matchCount,
+      shown,
+      kept,
+      checked,
+      stopped,
+    });
+    if (turns.stopped) return result(true);
     for (const candidates of dateRecoveryCandidates(
       this.#indexes,
       this.#dates.known,
       this.#dates.patterns,
       this.#mode,
     )) {
+      const turn = await turns.due();
+      if (turn === "stopped") return result(true);
       checked += 1;
-      const turned = await turns.due();
+      const turned = turn === "turned";
       for (const candidate of candidates) {
         checksumValid += 1;
         const match =
           this.#walletCheck === undefined
             ? undefined
             : await askWallet(this.#walletCheck, candidate.mnemonic);
+        // An answer that came after a stop is neither counted nor published (AUD-015-API001).
+        if (!stillRunning(run)) return result(true);
         if (match !== undefined && !match.matched) continue;
         matchCount += 1;
         if (kept.length < this.#keep) kept.push(candidate.mnemonic);
@@ -550,7 +597,6 @@ export class DateSearch extends Redacted {
           // Only a match of the wallet at a path names one; without a check there is no key.
           ...(match?.path === undefined ? {} : { evidence: match.path }),
         };
-        assertStillRunning(run);
         if (shown.length < this.#maxShown) shown.push(found);
         run.onMatch?.(found);
       }
@@ -563,7 +609,6 @@ export class DateSearch extends Redacted {
           matched: matchCount,
         });
     }
-    assertStillRunning(run);
-    return { combinations, checksumValid, matchCount, shown, kept };
+    return result(!stillRunning(run));
   }
 }

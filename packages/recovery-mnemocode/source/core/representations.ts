@@ -10,6 +10,11 @@ import {
 import { wordNumberOf, isBip39WordCount } from "./bip39-sizes.js";
 import { EncodedForm } from "./encoded-form.js";
 
+/**
+ * The result of encoding the phrase of `words` into `shiftedIndexes` with `dates` and their
+ * `shifts`: the phrase, its shifted word numbers with their English words and Unicode codes, the
+ * dates and the shifts.
+ */
 export function resultFromIndexes(
   words: readonly string[],
   shiftedIndexes: readonly number[],

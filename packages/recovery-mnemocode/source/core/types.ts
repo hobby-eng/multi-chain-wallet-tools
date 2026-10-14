@@ -14,6 +14,7 @@ export const ENCODED_FORMATS = Object.freeze([
   "colors-unicode",
   "colors",
 ] as const);
+/** A form of codes that a seed phrase is written in (ENCODED_FORMATS). */
 export type EncodedFormat = (typeof ENCODED_FORMATS)[number];
 
 /** Whether `value` names a form of codes; a record, an option or a host may pass anything. */
@@ -34,6 +35,7 @@ export const MASKING_MODES = Object.freeze([
   "seedshift-legacy",
   "seedshift-legacy-valid",
 ] as const);
+/** A transformation mode: no Seedshift, or one of the Seedshifts (MASKING_MODES). */
 export type MaskingMode = (typeof MASKING_MODES)[number];
 
 /** Whether `value` names a transformation mode; a record, an option or a host may pass anything. */
@@ -41,12 +43,17 @@ export function isMaskingMode(value: unknown): value is MaskingMode {
   return (MASKING_MODES as readonly unknown[]).includes(value);
 }
 
+/** A date of the calendar, as Seedshift takes it: year, month from 1 and day from 1. */
 export interface DateShiftDate {
   readonly year: number;
   readonly month: number;
   readonly day: number;
 }
 
+/**
+ * What encoding a phrase gives: the phrase, its shifted word numbers with their English words and
+ * Unicode codes, the dates and the shift of each word.
+ */
 export interface EncodedResult {
   readonly sourceMnemonic: string;
   readonly shiftedIndexes: readonly number[];
@@ -56,6 +63,10 @@ export interface EncodedResult {
   readonly shifts: readonly number[];
 }
 
+/**
+ * What decoding codes gives: the phrase recovered, its word numbers, the dates, the shift of each
+ * word and whether the phrase's checksum is valid.
+ */
 export interface DecodedResult {
   readonly recoveredMnemonic: string;
   readonly recoveredIndexes: readonly number[];
@@ -64,12 +75,18 @@ export interface DecodedResult {
   readonly checksumValid: boolean;
 }
 
+/** One row of the word table: a word number, its English word and its Unicode code. */
 export interface MappingRow {
   readonly index: number;
   readonly english: string;
   readonly unicodeHex: string;
 }
 
+/**
+ * A candidate for a forgotten word: its place, the word and its number, the whole phrase with it
+ * and its checksum bits, and, for a last word of the Original Seedshift, whether it keeps the
+ * entropy of the legacy encoding (preservesLegacyEntropy).
+ */
 export interface MissingWordCandidate {
   readonly position: number;
   readonly word: string;
@@ -79,6 +96,10 @@ export interface MissingWordCandidate {
   readonly preservesLegacyEntropy?: boolean;
 }
 
+/**
+ * The dates that a pattern stands for: its key, the pattern written in one canonical way, and the
+ * years, months and days that its digits allow.
+ */
 export interface DatePattern {
   readonly key: string;
   readonly years: readonly number[];

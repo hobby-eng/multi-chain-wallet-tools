@@ -11,6 +11,11 @@ import {
   type CopyField,
 } from "./card-settings.js";
 import type { UniformChoice } from "./platform.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.card-session", {
+  "card-session-no-name": () => "The card session has no name.",
+});
 
 /**
  * Remembers the random choices of one working session.
@@ -47,6 +52,10 @@ function ownCopy(copy: CardCopyOverrides, remembered: CardPresentation): CardCop
   return merged;
 }
 
+/**
+ * A session that keeps the invented details of the cards for its exports, chosen with `choose`, so
+ * that the outputs of one command show the same person; details given always replace them.
+ */
 export function createCardSession(choose: UniformChoice): CardSession {
   let name: string | undefined;
   let presentation: CardPresentation | undefined;
@@ -69,7 +78,7 @@ export function createCardSession(choose: UniformChoice): CardSession {
       presentation ??= resolveCardPresentation(choose);
       const own = validateProfile(supplied);
       // The name was chosen together with the first employment.
-      if (name === undefined) throw new Error("The card session has no name.");
+      if (name === undefined) throw ERRORS.create("card-session-no-name", []);
       // Email and website follow the company that is finally printed.
       const details = ExportDetails.drawn(
         choose,

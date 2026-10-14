@@ -1,3 +1,8 @@
+import { ErrorCatalog, suppliedMessage } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.typed-number", {
+  "typed-whole-number-refused": suppliedMessage,
+});
 // A whole number in a range, as a person types it in answer to a question, which every question
 // for a number reads the same way (in the menu, in the questions of the commands and on a page),
 // and as a command-line option gives it, in its own stricter syntax (cli/arguments.ts).
@@ -67,6 +72,6 @@ export function typedWholeNumber(
   refusal = `Type a number from ${rangeText(range)}.`,
 ): number {
   const number = wholeNumberOf(answer, DIGITS, range);
-  if (number === undefined) throw new Error(refusal);
+  if (number === undefined) throw ERRORS.create("typed-whole-number-refused", [refusal]);
   return number;
 }

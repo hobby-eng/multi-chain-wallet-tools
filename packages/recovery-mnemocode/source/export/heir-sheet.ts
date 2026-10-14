@@ -15,6 +15,16 @@ import { documentWithFont } from "./pdf-documents.js";
 import type { AssetSource } from "./platform.js";
 import { pageDimensions } from "./card-settings.js";
 import { listInWords } from "../core/places.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.heir-sheet", {
+  "instructions-heirs-leave-no-room-hint-on-front": () =>
+    "The instructions for heirs leave no room for a hint on the front.",
+  "steps-basics-heirs-do-not-fit-on-back": () =>
+    "The steps and the basics for heirs do not fit on the back.",
+  "size-instructions-heirs": (value0: string) =>
+    `The size of the instructions for heirs must be ${value0}.`,
+});
 
 /** A part of the back: a heading and its paragraphs. */
 export interface HeirSheetSection {
@@ -63,6 +73,7 @@ export interface HeirSheetFormat {
 
 /** The sizes of the sheet, by the names a host takes them by. */
 export const HEIR_SHEET_SIZES = Object.freeze(["a5", "a6"] as const);
+/** A size of the sheet for heirs (HEIR_SHEET_SIZES). */
 export type HeirSheetSize = (typeof HEIR_SHEET_SIZES)[number];
 /** The size of the sheet when none is chosen: A5, with larger print. */
 export const DEFAULT_HEIR_SHEET_SIZE: HeirSheetSize = "a5";
@@ -148,34 +159,36 @@ function wrap(text: string, font: PDFFont, size: number, width: number): string[
 class Writer {
   /** Where the next line goes, from the bottom of the page; only the methods below move it. */
   #y: number;
+  readonly #page: PDFPage | undefined;
+  readonly #font: PDFFont;
+  readonly #format: HeirSheetFormat;
 
-  constructor(
-    private readonly page: PDFPage | undefined,
-    private readonly font: PDFFont,
-    private readonly format: HeirSheetFormat,
-  ) {
+  constructor(page: PDFPage | undefined, font: PDFFont, format: HeirSheetFormat) {
+    this.#page = page;
+    this.#font = font;
+    this.#format = format;
     this.#y = format.height - format.margin;
   }
 
   /** The room left above the bottom margin. */
   get room(): number {
-    return this.#y - this.format.margin;
+    return this.#y - this.#format.margin;
   }
 
   paragraph(text: string, size: number, color = INK, indent = 0, marker?: string): void {
-    const width = this.format.width - 2 * this.format.margin - indent;
-    const x = this.format.margin;
-    wrap(text, this.font, size, width).forEach((line, index) => {
+    const width = this.#format.width - 2 * this.#format.margin - indent;
+    const x = this.#format.margin;
+    wrap(text, this.#font, size, width).forEach((line, index) => {
       this.#y -= size * LEADING;
       if (index === 0 && marker !== undefined)
-        this.page?.drawText(marker, { x, y: this.#y, size, font: this.font, color });
-      this.page?.drawText(line, { x: x + indent, y: this.#y, size, font: this.font, color });
+        this.#page?.drawText(marker, { x, y: this.#y, size, font: this.#font, color });
+      this.#page?.drawText(line, { x: x + indent, y: this.#y, size, font: this.#font, color });
     });
   }
 
   /** The gap of the format between two parts of the sheet. */
   gap(): void {
-    this.space(this.format.gap);
+    this.space(this.#format.gap);
   }
 
   /** `amount` points of empty space. */
@@ -185,16 +198,16 @@ class Writer {
 
   heading(text: string): void {
     this.gap();
-    this.paragraph(text, this.format.heading);
+    this.paragraph(text, this.#format.heading);
     this.space(SMALL_GAP);
   }
 
   ruledLines(count: number): void {
     for (let line = 0; line < count; line += 1) {
-      this.space(this.format.ruling);
-      this.page?.drawLine({
-        start: { x: this.format.margin, y: this.#y },
-        end: { x: this.format.width - this.format.margin, y: this.#y },
+      this.space(this.#format.ruling);
+      this.#page?.drawLine({
+        start: { x: this.#format.margin, y: this.#y },
+        end: { x: this.#format.width - this.#format.margin, y: this.#y },
         thickness: 0.5,
         color: RULE,
       });
@@ -231,7 +244,7 @@ function hintLinesFor(font: PDFFont, text: HeirSheetText, format: HeirSheetForma
   writeFront(trial, text, format, 0);
   const lines = Math.floor(trial.room / format.ruling);
   if (lines < MIN_HINT_LINES)
-    throw new Error("The instructions for heirs leave no room for a hint on the front.");
+    throw ERRORS.create("instructions-heirs-leave-no-room-hint-on-front", []);
   return lines;
 }
 
@@ -263,8 +276,7 @@ function writeBack(writer: Writer, text: HeirSheetText, format: HeirSheetFormat)
   writer.gap();
   writeBasics(writer, text, format);
   // The words are fixed by the program, so a back they overflow is a bug in them.
-  if (writer.room < 0)
-    throw new Error("The steps and the basics for heirs do not fit on the back.");
+  if (writer.room < 0) throw ERRORS.create("steps-basics-heirs-do-not-fit-on-back", []);
 }
 
 /** The layout of each size of the sheet. */
@@ -277,12 +289,14 @@ export const HEIR_SHEET_FORMATS: Readonly<Record<HeirSheetSize, HeirSheetFormat>
 export function parseHeirSheetSize(value: string | undefined): HeirSheetFormat {
   const size = HEIR_SHEET_SIZES.find((known) => known === (value ?? DEFAULT_HEIR_SHEET_SIZE));
   if (size === undefined)
-    throw new Error(
-      `The size of the instructions for heirs must be ${listInWords(HEIR_SHEET_SIZES, "or")}.`,
-    );
+    throw ERRORS.create("size-instructions-heirs", [`${listInWords(HEIR_SHEET_SIZES, "or")}`]);
   return HEIR_SHEET_FORMATS[size];
 }
 
+/**
+ * Draws the sheet for heirs of `text` in `format`, A5 unless another is given, as a PDF of two
+ * pages, its front and its back, without metadata.
+ */
 export async function renderHeirSheet(
   assets: AssetSource,
   text: HeirSheetText,

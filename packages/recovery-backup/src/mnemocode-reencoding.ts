@@ -53,13 +53,13 @@ export class MnemoCodeReEncoding {
     this.#core.confirmByPerson();
   }
 
-  confirmByWallet(
+  async confirmByWallet(
     wallet: WalletEvidenceRequest,
-    compare: (request: ReEncodingWalletRequest) => Promise<WalletMatch>,
-  ): Promise<WalletMatch> {
-    return this.#core.confirmByWallet((mnemonic) =>
-      compare({ type: "reencoding-wallet", mnemonic, wallet }),
-    );
+    compare: (request: ReEncodingWalletRequest) => Promise<WalletMatch | undefined>,
+  ): Promise<WalletMatch | undefined> {
+    const match = await compare({ type: "reencoding-wallet", mnemonic: this.#core.phrase, wallet });
+    if (match === undefined) return undefined;
+    return this.#core.confirmByWallet(() => match);
   }
 
   confirmedPhrase(): string {

@@ -51,6 +51,23 @@ describe("a MnemoCode job whose inputs changed while it ran", () => {
     worker.resolve({ found: true });
     await expect(run).resolves.toMatchObject({ outcome: { found: true } });
   });
+  it.each([{ kind: "stopped" }, { stopped: true }])(
+    "discards a stopped library reply instead of publishing candidates",
+    async (stopped) => {
+      const { status, run, worker } = setup();
+      const bytes = Uint8Array.of(7, 11);
+      worker.resolve({ ...stopped, list: { bytes } });
+      await expect(run).resolves.toBeUndefined();
+      expect(status.textContent).toBe("Stopped.");
+      expect([...bytes]).toEqual([0, 0]);
+    },
+  );
+
+  it("does not parse an operational error's text as a cancellation", async () => {
+    const { run, worker } = setup();
+    worker.reject(new Error("Stopped."));
+    await expect(run).rejects.toThrow("Stopped.");
+  });
 
   it("shows no progress of the older inputs and wipes their result's list", async () => {
     const { job, status, run, worker } = setup();

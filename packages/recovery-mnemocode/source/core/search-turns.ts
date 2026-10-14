@@ -8,6 +8,15 @@
 // Needs from the host: nothing; setTimeout, which every host has, is the default turn.
 
 import { inWholeRange, wholeNumbersFrom } from "./typed-number.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.search-turns", {
+  "whole-number-more": {
+    kind: "range",
+    text: (value0: string, value1: string) =>
+      `${value0} must be a whole number of ${value1} or more.`,
+  },
+});
 
 /**
  * A search expected to take longer than this on the host's computer is asked for first: twelve
@@ -17,8 +26,11 @@ import { inWholeRange, wholeNumbersFrom } from "./typed-number.js";
 export const QUESTION_HOURS = 12;
 /** Seconds in a minute, an hour and a day: the units that search times are limited and said in. */
 export const SECONDS_PER_MINUTE = 60;
+/** Seconds in an hour. */
 export const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
+/** Seconds in a day. */
 export const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
+/** QUESTION_HOURS in seconds: a search expected to take longer is asked for first. */
 export const QUESTION_SECONDS = QUESTION_HOURS * SECONDS_PER_HOUR;
 
 /**
@@ -62,7 +74,8 @@ function nextTask(): Promise<void> {
 export interface SearchRun {
   /**
    * Stops the search at its next look at its turns (SearchTurns.due or take), even between two
-   * turns; the signal's reason is thrown.
+   * turns. A stop is no failure (CORE-22): the search returns what it found before it, marked
+   * as stopped, and publishes nothing found after it.
    */
   readonly signal?: AbortSignal | undefined;
   /** How the search lets the host's event loop run; a zero timeout by default. */
@@ -84,19 +97,25 @@ export interface SearchProgress {
 }
 
 /**
+ * What a look at the turns of a search tells: go on ("running"), the host's event loop ran and
+ * the search tells its progress ("turned"), or the host's signal says stop ("stopped").
+ */
+export type TurnState = "running" | "turned" | "stopped";
+
+/**
  * The turns of one search: when TURN_MILLISECONDS of work have passed since the last turn, it lets
- * the host's event loop run, then stops the search if the host's signal says so; a stop that came
- * between two turns stops it at the next look. The date search, the word search, the search of
- * marked codes and the share repair each take one, so that they turn and stop alike.
+ * the host's event loop run, then tells whether the host's signal says stop; a stop that came
+ * between two turns is told at the next look. A stop is a state of the search, returned, not an
+ * error (CORE-22). The date search, the word search, the search of marked codes and the share
+ * repair each take one, so that they turn and stop alike.
  */
 export class SearchTurns {
   readonly #turn: () => Promise<void>;
   readonly #signal: AbortSignal | undefined;
   #last: number;
 
-  /** Starts the turns of a search; a signal that is already aborted stops it before any work. */
+  /** Starts the turns of a search; with a signal already aborted, it is stopped at once. */
   constructor(signal?: AbortSignal, turn: () => Promise<void> = nextTask) {
-    signal?.throwIfAborted();
     this.#signal = signal;
     this.#turn = turn;
     this.#last = now();
@@ -107,13 +126,20 @@ export class SearchTurns {
     return new SearchTurns(run.signal, run.turn);
   }
 
-  /** Lets the host run if a turn is due; true when it did, so that the search tells its progress. */
-  async due(): Promise<boolean> {
+  /** Whether the host's signal says stop. */
+  get stopped(): boolean {
+    return this.#signal?.aborted === true;
+  }
+
+  /**
+   * Lets the host run if a turn is due: "turned" when it did, so that the search tells its
+   * progress, "stopped" when the host's signal says stop, before or after the turn.
+   */
+  async due(): Promise<TurnState> {
     // Heard at once: a host may stop a search from its progress, between two turns.
-    this.#signal?.throwIfAborted();
-    if (now() - this.#last < TURN_MILLISECONDS) return false;
-    await this.take();
-    return true;
+    if (this.stopped) return "stopped";
+    if (now() - this.#last < TURN_MILLISECONDS) return "running";
+    return (await this.take()) === "stopped" ? "stopped" : "turned";
   }
 
   /**
@@ -121,22 +147,21 @@ export class SearchTurns {
    * which may take a turn, such as the shares of a repair's assessment, so that a key read as
    * Ctrl+C is heard even when all of them take less than a turn's time.
    */
-  async take(): Promise<void> {
-    this.#signal?.throwIfAborted();
+  async take(): Promise<"running" | "stopped"> {
+    if (this.stopped) return "stopped";
     await this.#turn();
-    this.#signal?.throwIfAborted();
     this.#last = now();
+    return this.stopped ? "stopped" : "running";
   }
 }
 
 /**
- * Refuses to go on once the host's signal says stop. A search asks it just before it publishes a
- * match and before it returns what it found, after its last wait (a host's answer, a turn), so
- * that nothing found after a stop reaches the host (AUD-015-API001). The signal's reason is
- * thrown, as SearchTurns throws it.
+ * Whether the host's signal still lets the search go on. A search asks it just before it
+ * publishes a match and before it returns what it found, after its last wait (a host's answer, a
+ * turn), so that nothing found after a stop reaches the host (AUD-015-API001).
  */
-export function assertStillRunning(run: SearchRun): void {
-  run.signal?.throwIfAborted();
+export function stillRunning(run: SearchRun): boolean {
+  return run.signal?.aborted !== true;
 }
 
 /** A count that a run keeps, such as the matches it shows: a whole number of 0 or more. */
@@ -148,6 +173,6 @@ export function keptCount(
 ): number {
   if (count === undefined) return fallback;
   if (!inWholeRange(count, wholeNumbersFrom(minimum)))
-    throw new RangeError(`${name} must be a whole number of ${minimum} or more.`);
+    throw ERRORS.create("whole-number-more", [`${name}`, `${minimum}`]);
   return count;
 }

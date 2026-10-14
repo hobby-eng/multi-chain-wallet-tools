@@ -22,6 +22,28 @@ import {
   parseMasterFingerprint,
   type WalletMatch,
 } from "./wallet-check.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.master-fingerprint", {
+  "expected-string": { kind: "type", text: () => "expected a string" },
+  "expected-well-formed-unicode-string": {
+    kind: "type",
+    text: () => "expected well-formed Unicode string",
+  },
+  "invalid-mnemonic": () => "Invalid mnemonic",
+  "expected-string-passphrase": { kind: "type", text: () => "expected a string passphrase" },
+  "host-s-pbkdf2-gave-no-bytes": { kind: "type", text: () => "The host's PBKDF2 gave no bytes." },
+  "host-s-pbkdf2-gave-bytes-not": (value0: string, value1: string) =>
+    `The host's PBKDF2 gave ${value0} bytes, not ${value1}.`,
+  "wallet-check-host-s-pbkdf2-hmac-sha512-function": {
+    kind: "type",
+    text: () => "A wallet check needs the host's PBKDF2-HMAC-SHA512 function.",
+  },
+  "host-s-pbkdf2-answers-later-use-match-async": {
+    kind: "type",
+    text: () => "The host's PBKDF2 answers later: use matchAsync or fingerprintAsync with it.",
+  },
+});
 
 /**
  * PBKDF2-HMAC-SHA512 of `password` under `salt`, with `rounds` iterations and `bytes` bytes of
@@ -60,9 +82,9 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
  * another wallet as "null" or "123" (AUD-008-API005).
  */
 function nfkd(text: string): string {
-  if (typeof text !== "string") throw new TypeError("expected a string");
+  if (typeof text !== "string") throw ERRORS.create("expected-string", []);
   // With the u flag, a surrogate on its own is a code point of its own; a pair is not.
-  if (/\p{Cs}/u.test(text)) throw new TypeError("expected well-formed Unicode string");
+  if (/\p{Cs}/u.test(text)) throw ERRORS.create("expected-well-formed-unicode-string", []);
   return text.normalize("NFKD");
 }
 
@@ -75,18 +97,18 @@ function seedInput(
   passphrase: string,
 ): { readonly phrase: string; readonly salt: string } {
   const phrase = nfkd(mnemonic);
-  if (!isBip39WordCount(phrase.split(" ").length)) throw new Error("Invalid mnemonic");
+  if (!isBip39WordCount(phrase.split(" ").length)) throw ERRORS.create("invalid-mnemonic", []);
   // Checked before the template below would turn it into text.
-  if (typeof passphrase !== "string") throw new TypeError("expected a string passphrase");
+  if (typeof passphrase !== "string") throw ERRORS.create("expected-string-passphrase", []);
   return { phrase, salt: nfkd(`${SEED_SALT_PREFIX}${passphrase}`) };
 }
 
 /** The host's answer, refused unless it is a seed's 64 bytes; a wrong length is wiped first. */
 function checkedSeed(seed: unknown): Uint8Array {
-  if (!(seed instanceof Uint8Array)) throw new TypeError("The host's PBKDF2 gave no bytes.");
+  if (!(seed instanceof Uint8Array)) throw ERRORS.create("host-s-pbkdf2-gave-no-bytes", []);
   if (seed.length !== SEED_BYTES) {
     seed.fill(0);
-    throw new Error(`The host's PBKDF2 gave ${seed.length} bytes, not ${SEED_BYTES}.`);
+    throw ERRORS.create("host-s-pbkdf2-gave-bytes-not", [`${seed.length}`, `${SEED_BYTES}`]);
   }
   return seed;
 }
@@ -101,7 +123,7 @@ export class Bip39Seed {
 
   constructor(pbkdf2: Pbkdf2HmacSha512) {
     if (typeof pbkdf2 !== "function")
-      throw new TypeError("A wallet check needs the host's PBKDF2-HMAC-SHA512 function.");
+      throw ERRORS.create("wallet-check-host-s-pbkdf2-hmac-sha512-function", []);
     this.#pbkdf2 = pbkdf2;
   }
 
@@ -117,9 +139,7 @@ export class Bip39Seed {
         },
         () => undefined,
       );
-      throw new TypeError(
-        "The host's PBKDF2 answers later: use matchAsync or fingerprintAsync with it.",
-      );
+      throw ERRORS.create("host-s-pbkdf2-answers-later-use-match-async", []);
     }
     return checkedSeed(seed);
   }
@@ -130,9 +150,9 @@ export class Bip39Seed {
     return checkedSeed(await this.#pbkdf2(phrase, salt, SEED_ROUNDS, SEED_BYTES));
   }
   /**
-   * What `use` makes of the master key of the wallet of `mnemonic`, from a PBKDF2 that answers at once:
-   * the seed and the key are wiped once `use` returns, so `use` must not keep the key or answer
-   * later. `versions` are the root's version bytes; BIP32's default ones by default.
+   * What `use` makes of the master key of the wallet of `mnemonic`, from a PBKDF2 that answers at
+   * once: the seed and the key are wiped once `use` returns, so `use` must not keep the key or
+   * answer later. `versions` are the root's version bytes; BIP32's default ones by default.
    */
   withRoot<T>(
     mnemonic: string,
@@ -154,7 +174,9 @@ export class Bip39Seed {
   }
 }
 
-/** What `use` makes of the master key of `seed`; the seed and the key are wiped, whatever happens. */
+/**
+ * What `use` makes of the master key of `seed`; the seed and the key are wiped, whatever happens.
+ */
 function useRoot<T>(seed: Uint8Array, use: (root: HDKey) => T, versions?: Versions): T {
   let root: HDKey;
   try {

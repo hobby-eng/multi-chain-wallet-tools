@@ -12,6 +12,7 @@ import {
   SECONDS_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from "./search-turns.js";
+import { defined } from "./defined.js";
 
 /**
  * What to do once a search filled in what could not be read, codes or the elements of shares: the
@@ -39,7 +40,7 @@ export function counting(value: number): string {
 /** A length of time in words: "about 3 minutes", or "under a second". */
 export function duration(seconds: number): string {
   if (seconds < 1) return "under a second";
-  const [name, size] = TIME_UNITS.find(([, size]) => seconds >= size)!;
+  const [name, size] = defined(TIME_UNITS.find(([, size]) => seconds >= size));
   const rounded = Math.round(seconds / size);
   return `about ${counting(rounded)} ${name}${rounded === 1 ? "" : "s"}`;
 }

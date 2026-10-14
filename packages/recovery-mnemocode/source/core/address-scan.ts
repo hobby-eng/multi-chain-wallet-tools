@@ -12,6 +12,14 @@
 import type { HDKey } from "@scure/bip32";
 import { HARDENED_OFFSET, LAST_NORMAL_INDEX, NORMAL_INDEX_RANGE } from "./bip32-limits.js";
 import { inWholeRange, typedWholeNumber, type WholeRange, integerRefusal } from "./typed-number.js";
+import { ErrorCatalog, suppliedMessage } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.address-scan", {
+  "address-count-refused": suppliedMessage,
+  "addresses-compared-would-pass-index": (value0: string) =>
+    `The addresses compared would pass index ${value0}.`,
+  "unable-derive-public-key": () => "Unable to derive the public key.",
+});
 
 export { LAST_NORMAL_INDEX };
 
@@ -75,9 +83,11 @@ export interface AddressRange {
 export function addressCount(requested: number | undefined, first: number): number {
   if (requested === undefined) return 1;
   if (!inWholeRange(requested, ADDRESS_COUNT_RANGE))
-    throw new Error(integerRefusal("The number of addresses compared", ADDRESS_COUNT_RANGE));
+    throw ERRORS.create("address-count-refused", [
+      integerRefusal("The number of addresses compared", ADDRESS_COUNT_RANGE),
+    ]);
   if (first + requested - 1 > LAST_NORMAL_INDEX)
-    throw new Error(`The addresses compared would pass index ${LAST_NORMAL_INDEX}.`);
+    throw ERRORS.create("addresses-compared-would-pass-index", [`${LAST_NORMAL_INDEX}`]);
   return requested;
 }
 
@@ -143,6 +153,6 @@ export function deriveWiping(root: HDKey, path: string): HDKey {
 
 function publicKeyOf(node: HDKey): Uint8Array {
   const publicKey = node.publicKey;
-  if (publicKey === null) throw new Error("Unable to derive the public key.");
+  if (publicKey === null) throw ERRORS.create("unable-derive-public-key", []);
   return publicKey;
 }

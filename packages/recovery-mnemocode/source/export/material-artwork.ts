@@ -1,8 +1,17 @@
-import type { StudyTheme } from "./collection-sheet.js";
+import type { StudyTheme } from "./collection-layout.js";
 import { channelsHex, rgbChannels } from "./color-math.js";
 import { isRgbReference, rgbReferenceDigits } from "../core/colors.js";
 import type { MaterialStyle } from "./card-settings.js";
 import { capitalized } from "../core/prose.js";
+import { defined } from "../core/defined.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.material-artwork", {
+  "material-reference-contain-exactly-six-hexadecimal-digits": () =>
+    "Material reference must contain exactly six hexadecimal digits.",
+  "material-offers-only-distinct-samples": (value0: string, value1: string) =>
+    `The ${value0} material offers only ${value1} distinct samples.`,
+});
 
 // The styles are named with the other card settings, which the template catalog reads without
 // this artwork.
@@ -26,6 +35,7 @@ export interface MaterialFinish {
   /** Shown only under a tint, because as photographed it looks too much like another finish. */
   readonly onlyTinted?: boolean;
 }
+/** A colour of a material's catalogue: its name and its #RRGGBB code. */
 export interface CatalogueColour {
   readonly name: string;
   readonly color: string;
@@ -44,6 +54,10 @@ export interface MaterialCatalogue {
    */
   readonly outline: readonly (readonly number[])[];
 }
+/**
+ * The artwork of a material design: the title and backdrop of its study, whether it is dark, its
+ * background colour, its finishes and its catalogue of colours.
+ */
 export interface MaterialArtwork {
   readonly title: string;
   /** The page of the design study: a backdrop from the material's own world. */
@@ -53,7 +67,9 @@ export interface MaterialArtwork {
   readonly finishes: readonly MaterialFinish[];
   readonly catalogue: MaterialCatalogue;
 }
-/** The optional details of a finish row: those of MaterialFinish beyond its name, colour and crop. */
+/**
+ * The optional details of a finish row: those of MaterialFinish beyond its name, colour and crop.
+ */
 type FinishDetails = Pick<MaterialFinish, "surface" | "outlineFit" | "onlyTinted">;
 /** A finish photographed for its material: its name, colour, crop in pixels and details. */
 type FinishRow = (
@@ -91,6 +107,7 @@ function surfaced(surface: string, scale: number, x: number, y: number): FinishD
 }
 const colours = (entries: Record<string, string>): CatalogueColour[] =>
   Object.entries(entries).map(([name, color]) => ({ name, color }));
+/** The artwork of each material design. */
 export const materialArtwork: Record<MaterialStyle, MaterialArtwork> = {
   kitchen: {
     title: "KITCHEN / MATERIAL SELECTION",
@@ -467,6 +484,10 @@ function lab(hex: string): [number, number, number] {
   return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
 }
 
+/**
+ * A sample of a material that a card shows for a code: the finish, the catalogue colour laid over
+ * it if any, its label and how it looks.
+ */
 export interface MaterialSample {
   readonly finish: MaterialFinish;
   /** The catalogue colour laid over the photograph; none for a finish as photographed. */
@@ -476,8 +497,10 @@ export interface MaterialSample {
   readonly look: string;
 }
 
-// How strongly a tint covers its photograph; the little of the photograph's own colour that
-// shows through keeps the surface natural.
+/**
+ * How strongly a tint covers its photograph; the little of the photograph's own colour that shows
+ * through keeps the surface natural.
+ */
 export const TINT_OPACITY = 0.85;
 // Codes are far more colourful than any real finish: their colourfulness is scaled per material,
 // then capped near that of the most colourful samples, so that the hue decides the match.
@@ -492,7 +515,8 @@ const MATCH_LIGHTNESS_WEIGHT = 0.5;
  * with the photograph by TINT_OPACITY.
  */
 export function tintedLook(base: string, tint: string): string {
-  const luminosity = ([r, g, b]: number[]) => 0.3 * r! + 0.59 * g! + 0.11 * b!;
+  const luminosity = ([r, g, b]: number[]) =>
+    0.3 * defined(r) + 0.59 * defined(g) + 0.11 * defined(b);
   const backdrop: number[] = rgbChannels(base);
   const light = luminosity(backdrop);
   const shifted = rgbChannels(tint).map((v, _, all) => v + light - luminosity(all));
@@ -504,7 +528,9 @@ export function tintedLook(base: string, tint: string): string {
     if (high > 1) v = light + ((v - light) * (1 - light)) / (high - light);
     return v;
   });
-  return channelsHex(backdrop.map((v, i) => (1 - TINT_OPACITY) * v + TINT_OPACITY * clipped[i]!));
+  return channelsHex(
+    backdrop.map((v, i) => (1 - TINT_OPACITY) * v + TINT_OPACITY * defined(clipped[i])),
+  );
 }
 
 /**
@@ -525,7 +551,7 @@ export function materialSamples(style: MaterialStyle): MaterialSample[] {
         ? candidate
         : best,
     );
-    const surface = finish.surface!;
+    const surface = defined(finish.surface);
     const label = catalogue.surfaceFirst
       ? `${capitalized(surface)} ${name.toLowerCase()}`
       : `${name} ${surface}`;
@@ -540,20 +566,24 @@ export function materialSamples(style: MaterialStyle): MaterialSample[] {
  * never look alike while each keeps the direction of its colour as far as the catalogue allows.
  * The same references get the same samples in any order and letter case, and a repeated reference
  * keeps its sample. Its neighbours take part in the choice, so in another collection a reference
- * may get another sample; an individual fragment therefore takes its sample from the whole card.
+ * may get another sample.
  */
 export function chooseMaterialSamples(
   style: MaterialStyle,
   references: readonly string[],
 ): MaterialSample[] {
   if (!references.every(isRgbReference))
-    throw new Error("Material reference must contain exactly six hexadecimal digits.");
+    throw ERRORS.create("material-reference-contain-exactly-six-hexadecimal-digits", []);
   const { chromaScale } = materialArtwork[style].catalogue;
   const samples = materialSamples(style);
   const codes = [...new Set(references.map(rgbReferenceDigits))];
   if (codes.length > samples.length)
-    throw new Error(`The ${style} material offers only ${samples.length} distinct samples.`);
-  const point = ([l, a, b]: readonly number[]) => [l! * MATCH_LIGHTNESS_WEIGHT, a!, b!];
+    throw ERRORS.create("material-offers-only-distinct-samples", [`${style}`, `${samples.length}`]);
+  const point = ([l, a, b]: readonly number[]) => [
+    defined(l) * MATCH_LIGHTNESS_WEIGHT,
+    defined(a),
+    defined(b),
+  ];
   const looks = samples.map((sample) => point(lab(sample.look)));
   const pairs = codes.flatMap((code, c) => {
     const [l, a, b] = lab(code);
@@ -567,11 +597,13 @@ export function chooseMaterialSamples(
   const taken = new Set<number>();
   for (const { c, s } of pairs) {
     if (chosen[c] !== undefined || taken.has(s)) continue;
-    chosen[c] = samples[s]!;
+    chosen[c] = defined(samples[s]);
     taken.add(s);
   }
-  return references.map((reference) => chosen[codes.indexOf(rgbReferenceDigits(reference))]!);
+  return references.map((reference) =>
+    defined(chosen[codes.indexOf(rgbReferenceDigits(reference))]),
+  );
 }
 
 const labDistance = (a: readonly number[], b: readonly number[]) =>
-  a.reduce((sum, v, i) => sum + (v - b[i]!) ** 2, 0);
+  a.reduce((sum, v, i) => sum + (v - defined(b[i])) ** 2, 0);

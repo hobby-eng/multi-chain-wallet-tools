@@ -30,6 +30,16 @@ import { Redacted } from "./redacted.js";
 import { CRC32_BYTES } from "../sskr/checksum.js";
 import { BITS_PER_BYTE } from "./bits.js";
 import type { MaskingMode } from "./types.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog, suppliedMessage } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.backup-reading", {
+  "date-recovery-available-only-records-created-seedshift": () =>
+    "Date recovery is available only for records created with Seedshift.",
+  "shamir-share-not-encoded-seed-phrase-reads": (value0: string) =>
+    `This is a Shamir share, not an encoded seed phrase: ${value0} reads it.`,
+  "formats-refused": suppliedMessage,
+});
 
 /** What a host reads a backup for. */
 export interface ReadingRules {
@@ -90,14 +100,12 @@ export class BackupReading extends Redacted {
     if (rules.words !== undefined) assertWordCount(rules.words);
     const record = parseRecord(text);
     if (record !== undefined && !Masking.isMaskedMode(record.mode) && rules.seedshiftOnly)
-      throw new Error("Date recovery is available only for records created with Seedshift.");
+      throw ERRORS.create("date-recovery-available-only-records-created-seedshift", []);
     const payload = record?.payload ?? text;
     // A share's own checksum makes a phrase's codes read as one only by a chance of about one in
     // four billion (transport.ts); a record header says it is no share.
     if (record === undefined && Share.reads(payload))
-      throw new Error(
-        `This is a Shamir share, not an encoded seed phrase: ${rules.shareReader} reads it.`,
-      );
+      throw ERRORS.create("shamir-share-not-encoded-seed-phrase-reads", [`${rules.shareReader}`]);
     return new BackupReading(record, payload, rules.words);
   }
 
@@ -201,7 +209,7 @@ export class BackupReading extends Redacted {
     const named = this.#namedFormat(given);
     if (named !== undefined) return [named];
     const fitting = this.#fitting(detect);
-    if (fitting.length === 0) throw new Error(none());
+    if (fitting.length === 0) throw ERRORS.create("formats-refused", [none()]);
     return fitting;
   }
 
@@ -260,7 +268,7 @@ export class BackupReading extends Redacted {
   /**
    * The codes in `format`, held to the rules that need no mode: their count, and that each is a
    * code of that form (EncodedBackup.read). The host then gives them their mode (withMode), which
-   * may find the checksum missing (MissingChecksum).
+   * may find the checksum missing (MissingChecksumError).
    */
   codes(format: EncodedFormat): EncodedBackup {
     return EncodedBackup.read(this.#payloadIn(format), format, "direct");
@@ -285,7 +293,7 @@ export function modeConflictOf(
   given: MaskingMode | undefined,
 ): string | undefined {
   if (!metadataDiffers(recorded, given)) return undefined;
-  return `The record was made with ${Masking.of(recorded!).name}, not with ${Masking.of(given!).name}.`;
+  return `The record was made with ${Masking.of(defined(recorded)).name}, not with ${Masking.of(defined(given)).name}.`;
 }
 
 /** The same for the form of the codes: the record's, `recorded`, and `given`. */

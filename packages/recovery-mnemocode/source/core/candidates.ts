@@ -41,7 +41,7 @@ import {
 } from "./bip39-sizes.js";
 import { BITS_PER_BYTE, lastWordChecksumBits, wipeAll } from "./bits.js";
 import {
-  assertStillRunning,
+  stillRunning,
   keptCount,
   SearchTurns,
   type SearchProgress,
@@ -51,6 +51,37 @@ import { askWallet, type WalletCheck, type WalletMatch } from "./wallet-check.js
 import { Redacted } from "./redacted.js";
 import { counting } from "./search-plan.js";
 import { inWholeRange, wholeNumbersFrom } from "./typed-number.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.candidates", {
+  "no-bip39-word-starts-letters-at": (value0: string) =>
+    `No BIP39 word starts with the letters at ${value0}.`,
+  "unknown-english-bip39-word-at": (value0: string) => `Unknown English BIP39 word at ${value0}.`,
+  "enter-places-words-prefix-b": (value0: string) =>
+    `Enter ${value0} places: words, ?, a prefix with *, or a|b.`,
+  "mark-each-forgotten-word-prefix-b": () =>
+    "Mark each forgotten word with ?, a prefix with *, or a|b.",
+  "enter-words-you-their-order": (value0: string) =>
+    `Enter the ${value0} words you have, in their order.`,
+  "unknown-english-bip39-word-at-place": (value0: string) =>
+    `Unknown English BIP39 word at place ${value0}.`,
+  "missing-word-search-one-word-fewer-than-valid": () =>
+    "A missing-word search needs one word fewer than a valid phrase length.",
+  "written-word-not-bip39-index": () => "A written word is not a BIP39 index.",
+  "unknown-search-kind": () => UNKNOWN_SEARCH_KIND,
+  "word-search-places": (value0: string) => `A word search needs ${value0} places.`,
+  "every-place-one-more-bip39-indexes-ascending-order": () =>
+    "Every place needs one or more BIP39 indexes in ascending order.",
+  "search-more-than-combinations": (value0: string, value1: string) =>
+    `This search has more than ${value0} combinations: ${value1}.`,
+  "every-place-search-at-least-one-word": () => "Every place of a search needs at least one word.",
+  "candidate-s-number-counts-from-1": {
+    kind: "range",
+    text: () => "A candidate's number counts from 1.",
+  },
+  "candidate-bip39-indexes": (value0: string) => `A candidate needs ${value0} BIP39 indexes.`,
+});
 
 /** Combinations that one search may check; at a few microseconds each, about a minute. */
 export const MAX_SEARCH_COMBINATIONS = 2 ** 24;
@@ -120,16 +151,18 @@ export function wordPlaceOf(written: string, position: number): WordPlace {
   if (written === "?") return EVERY_WORD;
   if (written.endsWith("*")) {
     const prefix = written.slice(0, -1);
-    const indexes = EVERY_WORD.filter((index) => englishWordlist[index]!.startsWith(prefix));
+    const indexes = EVERY_WORD.filter((index) =>
+      defined(englishWordlist[index]).startsWith(prefix),
+    );
     // The letters are part of a secret word: the message names only their place.
     if (prefix === "" || /[*?|]/u.test(prefix) || indexes.length === 0)
-      throw new Error(`No BIP39 word starts with the letters at ${where}.`);
+      throw ERRORS.create("no-bip39-word-starts-letters-at", [`${where}`]);
     return indexes;
   }
   const words = written.split("|");
   const indexes = words.map((word) => ENGLISH_INDEX.get(word));
   if (indexes.some((index) => index === undefined))
-    throw new Error(`Unknown English BIP39 word at ${where}.`);
+    throw ERRORS.create("unknown-english-bip39-word-at", [`${where}`]);
   return [...new Set(indexes as number[])].sort((a, b) => a - b);
 }
 
@@ -137,10 +170,10 @@ export function wordPlaceOf(written: string, position: number): WordPlace {
 export function parseUnknownWords(text: string): WordSearch {
   const written = englishTokens(text);
   if (!isBip39WordCount(written.length))
-    throw new Error(`Enter ${WORD_COUNTS_TEXT} places: words, ?, a prefix with *, or a|b.`);
+    throw ERRORS.create("enter-places-words-prefix-b", [`${WORD_COUNTS_TEXT}`]);
   const places = written.map((word, index) => wordPlaceOf(word, index + 1));
   if (places.every((place) => place.length === 1))
-    throw new Error("Mark each forgotten word with ?, a prefix with *, or a|b.");
+    throw ERRORS.create("mark-each-forgotten-word-prefix-b", []);
   return { kind: "unknown-words", places };
 }
 
@@ -148,10 +181,11 @@ export function parseUnknownWords(text: string): WordSearch {
 export function parseMissingWord(text: string): WordSearch {
   const written = englishTokens(text);
   if (!isBip39WordCount(written.length + 1))
-    throw new Error(`Enter the ${WORD_COUNTS_LESS_ONE_TEXT} words you have, in their order.`);
+    throw ERRORS.create("enter-words-you-their-order", [`${WORD_COUNTS_LESS_ONE_TEXT}`]);
   const indexes = written.map((word, index) => {
     const found = ENGLISH_INDEX.get(word);
-    if (found === undefined) throw new Error(`Unknown English BIP39 word at place ${index + 1}.`);
+    if (found === undefined)
+      throw ERRORS.create("unknown-english-bip39-word-at-place", [`${index + 1}`]);
     return found;
   });
   return { kind: "missing-word", written: indexes };
@@ -192,15 +226,15 @@ const UNKNOWN_SEARCH_KIND = "Unknown kind of word search.";
 function assertSearch(search: WordSearch): void {
   if (search.kind === "missing-word") {
     if (!Array.isArray(search.written) || !isBip39WordCount(search.written.length + 1))
-      throw new Error("A missing-word search needs one word fewer than a valid phrase length.");
-    if (!areWordIndexes(search.written)) throw new Error("A written word is not a BIP39 index.");
+      throw ERRORS.create("missing-word-search-one-word-fewer-than-valid", []);
+    if (!areWordIndexes(search.written)) throw ERRORS.create("written-word-not-bip39-index", []);
     return;
   }
-  if (search.kind !== "unknown-words") throw new Error(UNKNOWN_SEARCH_KIND);
+  if (search.kind !== "unknown-words") throw ERRORS.create("unknown-search-kind", []);
   if (!Array.isArray(search.places) || !isBip39WordCount(search.places.length))
-    throw new Error(`A word search needs ${WORD_COUNTS_TEXT} places.`);
+    throw ERRORS.create("word-search-places", [`${WORD_COUNTS_TEXT}`]);
   if (!everyElement(search.places, isPlace))
-    throw new Error("Every place needs one or more BIP39 indexes in ascending order.");
+    throw ERRORS.create("every-place-one-more-bip39-indexes-ascending-order", []);
 }
 
 /** The combinations a search checks: the work it takes, which MAX_SEARCH_COMBINATIONS bounds. */
@@ -216,9 +250,10 @@ export function searchCombinations(search: WordSearch): number {
  */
 export function assertSearchable(combinations: number, narrow: string = NARROW_WORD_SEARCH): void {
   if (combinations > MAX_SEARCH_COMBINATIONS)
-    throw new Error(
-      `This search has more than ${counting(MAX_SEARCH_COMBINATIONS)} combinations: ${narrow}.`,
-    );
+    throw ERRORS.create("search-more-than-combinations", [
+      `${counting(MAX_SEARCH_COMBINATIONS)}`,
+      `${narrow}`,
+    ]);
 }
 
 /** The places, counted from 0, that a search tries several words in. */
@@ -237,7 +272,8 @@ export function expectedCandidates(search: WordSearch): ExpectedCandidates {
     search.kind === "unknown-words" ? search.places.length : search.written.length + 1;
   const passing = combinations * checksumPassShare(wordCount);
   const exact =
-    search.kind === "unknown-words" && search.places.at(-1)!.length === BIP39_DICTIONARY_SIZE;
+    search.kind === "unknown-words" &&
+    defined(search.places.at(-1)).length === BIP39_DICTIONARY_SIZE;
   // At least one: the right phrase is always among the candidates, and the time of a search is
   // planned by this count.
   return { count: exact ? passing : Math.max(1, Math.round(passing)), exact };
@@ -285,9 +321,9 @@ export function checksumValid(words: CandidateWords): boolean {
 function checksumFits(words: CandidateWords): boolean {
   const checksumLength = checksumBits(words.length);
   const entropy = entropyOfWords(words);
-  const expected = sha256(entropy)[0]! >>> (BITS_PER_BYTE - checksumLength);
+  const expected = defined(sha256(entropy)[0]) >>> (BITS_PER_BYTE - checksumLength);
   entropy.fill(0);
-  return (words.at(-1)! & ((1 << checksumLength) - 1)) === expected;
+  return (defined(words.at(-1)) & ((1 << checksumLength) - 1)) === expected;
 }
 
 /** The English phrase of word indexes (words.ts). */
@@ -304,8 +340,8 @@ export function placeCombinations(places: readonly WordPlace[]): Generator<reado
   // Copied first, then checked: Array.from turns holes into undefined, which is refused.
   const owned = Array.from(places, (place) => {
     if (!Array.isArray(place) || place.length === 0)
-      throw new Error("Every place of a search needs at least one word.");
-    const words = Array.from(place);
+      throw ERRORS.create("every-place-search-at-least-one-word", []);
+    const words = Array.from<unknown>(place);
     assertWordIndexes(words);
     return Object.freeze(words);
   });
@@ -315,18 +351,18 @@ export function placeCombinations(places: readonly WordPlace[]): Generator<reado
 /** The counter of placeCombinations, on places already checked. */
 function* combinationsOf(places: readonly WordPlace[]): Generator<readonly number[]> {
   const counters = places.map(() => 0);
-  const words = places.map((place) => place[0]!);
+  const words = places.map((place) => defined(place[0]));
   for (;;) {
     yield words;
     let place = places.length - 1;
-    while (place >= 0 && counters[place] === places[place]!.length - 1) {
+    while (place >= 0 && counters[place] === defined(places[place]).length - 1) {
       counters[place] = 0;
-      words[place] = places[place]![0]!;
+      words[place] = defined(defined(places[place])[0]);
       place -= 1;
     }
     if (place < 0) return;
-    counters[place]! += 1;
-    words[place] = places[place]![counters[place]!]!;
+    counters[place] = defined(counters[place]) + 1;
+    words[place] = defined(defined(places[place])[defined(counters[place])]);
   }
 }
 
@@ -434,6 +470,12 @@ export interface WordSearchResult<M extends WalletMatch = WalletMatch> {
   readonly warning: string | undefined;
   /** Whether the candidates were more than `keep`, so that no list holds them. */
   readonly listFull: boolean;
+  /**
+   * Whether the host stopped the search (SearchRun.signal): then the counts and candidates cover
+   * only those checked before the stop, and no entropy is kept, since no list of a part is
+   * complete (CORE-22).
+   */
+  readonly stopped: boolean;
 }
 
 /**
@@ -449,14 +491,14 @@ export class WordCandidate extends Redacted {
   constructor(number: number, words: CandidateWords) {
     super("WordCandidate");
     if (!inWholeRange(number, CANDIDATE_NUMBERS))
-      throw new RangeError("A candidate's number counts from 1.");
+      throw ERRORS.create("candidate-s-number-counts-from-1", []);
     if (!Array.isArray(words))
-      throw new Error(`A candidate needs ${WORD_COUNTS_TEXT} BIP39 indexes.`);
+      throw ERRORS.create("candidate-bip39-indexes", [`${WORD_COUNTS_TEXT}`]);
     // A copy, checked itself: a search reuses its array for the next combination, and a getter
     // cannot give the check one value and the copy another.
-    const copy = Array.from(words);
+    const copy = Array.from<unknown>(words);
     if (!isBip39WordCount(copy.length) || !areWordIndexes(copy))
-      throw new Error(`A candidate needs ${WORD_COUNTS_TEXT} BIP39 indexes.`);
+      throw ERRORS.create("candidate-bip39-indexes", [`${WORD_COUNTS_TEXT}`]);
     this.#number = number;
     this.#words = Object.freeze(copy);
   }
@@ -483,7 +525,7 @@ export class WordCandidate extends Redacted {
 
   /** The checksum bits at the end of its last word, as a candidate table shows them. */
   get checksumBits(): string {
-    return lastWordChecksumBits(this.#words.at(-1)!, this.#words.length);
+    return lastWordChecksumBits(defined(this.#words.at(-1)), this.#words.length);
   }
 }
 
@@ -522,7 +564,7 @@ export class WordCandidateSearch extends Redacted {
   static parse(text: string, kind: WordSearch["kind"]): WordCandidateSearch {
     if (kind === "unknown-words") return new WordCandidateSearch(parseUnknownWords(text));
     if (kind === "missing-word") return new WordCandidateSearch(parseMissingWord(text));
-    throw new Error(UNKNOWN_SEARCH_KIND);
+    throw ERRORS.create("unknown-search-kind", []);
   }
 
   /** Takes a search that a host made itself, after the same checks as a parsed one. */
@@ -599,9 +641,23 @@ export class WordCandidateSearch extends Redacted {
     let count = 0;
     const tally = new MatchTally();
     let listFull = false;
+    let stopped = false;
     try {
       const turns = SearchTurns.of(run);
       for (const candidate of this.candidates()) {
+        if (turns.stopped) {
+          stopped = true;
+          break;
+        }
+        const match =
+          run.walletCheck === undefined
+            ? undefined
+            : await askWallet(run.walletCheck, candidate.phrase);
+        // An answer that came after a stop is neither counted nor shown (AUD-015-API001).
+        if (!stillRunning(run)) {
+          stopped = true;
+          break;
+        }
         count += 1;
         if (keep > 0 && !listFull && count > keep) {
           listFull = true;
@@ -609,24 +665,27 @@ export class WordCandidateSearch extends Redacted {
           entropies = [];
           run.onListFull?.();
         }
-        const match =
-          run.walletCheck === undefined
-            ? undefined
-            : await askWallet(run.walletCheck, candidate.phrase);
         tally.add(match);
         if (keep > 0 && !listFull) entropies.push(candidate.entropy());
         if (count <= maxShown || match?.matched === true)
           shown.push(match === undefined ? { candidate } : { candidate, match });
         // Every candidate is a phrase whose checksum holds: each one checked is one found.
-        if (await turns.due())
+        const turn = await turns.due();
+        if (turn === "turned")
           run.onProgress?.({ checked: count, found: count, matched: tally.matched });
       }
-      assertStillRunning(run);
     } catch (error) {
       wipeAll(entropies);
       throw error;
     }
+    // A stop heard only after the last candidate still tells the search as stopped, as every
+    // search tells it.
+    if (!stillRunning(run)) stopped = true;
+    if (stopped) {
+      wipeAll(entropies);
+      entropies = [];
+    }
     const { matched, warning } = tally;
-    return { shown, entropies, count, matched, warning, listFull };
+    return { shown, entropies, count, matched, warning, listFull, stopped };
   }
 }

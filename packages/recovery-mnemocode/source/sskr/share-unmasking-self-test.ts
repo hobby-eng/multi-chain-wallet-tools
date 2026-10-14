@@ -14,7 +14,8 @@ import { mnemonicToEntropy } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { DatesAnswer } from "../core/date-search.js";
 import { expectSame } from "../core/self-test-check.js";
-import { JointRepair, searchOnce, type RepairedSet } from "./joint-repair.js";
+import { JointRepair, searchOnce } from "./joint-repair.js";
+import { type RepairedSet } from "./joint-results.js";
 import { SEED_BYTES, type SharePlatform } from "./share-platform.js";
 import { ShareUnmasking } from "./share-unmasking.js";
 import { writeShare } from "./transport.js";
@@ -56,8 +57,10 @@ async function unmasked(
   unmasking: ShareUnmasking,
   sets: readonly RepairedSet[] = [MASKED_SET],
 ): Promise<string> {
+  // Unmasked without a signal: nothing stops it.
   const result = await unmasking.unmask(sets);
   if (result.kind === "dates") return result.message;
+  if (result.kind === "stopped") return "stopped";
   return result.phrases
     .map((phrase) => [phrase.mnemonic, phrase.dates].filter(Boolean).join(" at "))
     .join("; ");
@@ -126,5 +129,6 @@ async function repairedMaskedShares(platform: SharePlatform): Promise<RepairedSe
     return colors.join(" ");
   });
   const plan = await new JointRepair(platform).plan(marked);
-  return searchOnce(plan);
+  // Searched without a signal: nothing stops it.
+  return (await searchOnce(plan)).sets;
 }

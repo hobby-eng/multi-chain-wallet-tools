@@ -1,3 +1,11 @@
+import { defined } from "../core/defined.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.card-codes", {
+  "there-no-card-cards-1": (value0: string, value1: string) =>
+    `There is no card ${value0}: the cards are 1 to ${value1}.`,
+});
+
 // What a card prints for each element of a backup: the hex code of its color, which is the element
 // itself in the color forms; or, for a Shamir share written in another form, the share's own code
 // in that form (a word number, a Unicode code, a Bytewords word), when the colors only decorate the
@@ -15,7 +23,7 @@ export interface PrintedCodes {
 
 /** The code that the card of the element at `index` prints, without a #. */
 export function printedCode(content: PrintedCodes, index: number): string {
-  return content.labels?.[index] ?? content.colors[index]!.slice(1).toUpperCase();
+  return content.labels?.[index] ?? defined(content.colors[index]).slice(1).toUpperCase();
 }
 
 /**
@@ -35,7 +43,7 @@ export function pageFileName(
 /** Refuses a card `index` that is not one of the `count` cards, counted from 0. */
 export function assertCardIndex(index: number, count: number): void {
   if (!Number.isInteger(index) || index < 0 || index >= count)
-    throw new Error(`There is no card ${index + 1}: the cards are 1 to ${count}.`);
+    throw ERRORS.create("there-no-card-cards-1", [`${index + 1}`, `${count}`]);
 }
 
 /**

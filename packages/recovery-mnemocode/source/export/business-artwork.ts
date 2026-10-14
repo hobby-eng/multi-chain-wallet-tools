@@ -12,6 +12,7 @@ import { pixelHsv, rgbOfHsv } from "./color-math.js";
 import { ReferenceTint } from "./business-tint.js";
 import { rgbReferenceDigits } from "../core/colors.js";
 import { BUSINESS_CARD_MM } from "./card-settings.js";
+import { defined } from "../core/defined.js";
 
 /** Pixels per millimetre of the business artwork: 254 dpi, 900 x 500 on a business card. */
 const ARTWORK_PIXELS_PER_MM = 10;
@@ -36,10 +37,10 @@ function resampled(original: RasterImage): RasterImage {
       const dy = sy - y0;
       for (let c = 0; c < RGBA_CHANNELS; c++)
         out.data[pixelOffset(out, x, y) + c] = Math.round(
-          original.data[pixelOffset(original, x0, y0) + c]! * (1 - dx) * (1 - dy) +
-            original.data[pixelOffset(original, x1, y0) + c]! * dx * (1 - dy) +
-            original.data[pixelOffset(original, x0, y1) + c]! * (1 - dx) * dy +
-            original.data[pixelOffset(original, x1, y1) + c]! * dx * dy,
+          defined(original.data[pixelOffset(original, x0, y0) + c]) * (1 - dx) * (1 - dy) +
+            defined(original.data[pixelOffset(original, x1, y0) + c]) * dx * (1 - dy) +
+            defined(original.data[pixelOffset(original, x0, y1) + c]) * (1 - dx) * dy +
+            defined(original.data[pixelOffset(original, x1, y1) + c]) * dx * dy,
         );
     }
   return out;

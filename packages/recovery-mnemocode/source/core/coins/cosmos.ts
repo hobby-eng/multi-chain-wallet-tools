@@ -1,6 +1,6 @@
 // Accounts of Cosmos SDK chains, such as "cosmos1…" or "inj1…": a chain's prefix and a 20-byte
-// account in Bech32 (BIP173). Cosmos hashes the key with HASH160; Injective takes the Keccak account
-// of Ethereum, whose coin type its wallets use.
+// account in Bech32 (BIP173). Cosmos hashes the key with HASH160; Injective takes the Keccak
+// account of Ethereum, whose coin type its wallets use.
 //
 // Host-neutral: it imports only coin.ts, address-types.ts, bech32.ts, keccak-account.ts and
 // @scure/base (test/portable-modules.test.ts).
@@ -53,6 +53,7 @@ class Bech32AccountCoin extends Coin {
   }
 }
 
+/** Cosmos: Bech32 account addresses (cosmos1…) of one secp256k1 key. */
 export const COSMOS = new Bech32AccountCoin({
   id: "cosmos",
   name: "Cosmos",
@@ -62,6 +63,7 @@ export const COSMOS = new Bech32AccountCoin({
   type: "p2pkh",
 });
 
+/** Injective: Bech32 account addresses (inj1…) of the Keccak-256 hash of one key, as Ethereum's. */
 export const INJECTIVE = new Bech32AccountCoin({
   id: "injective",
   name: "Injective",

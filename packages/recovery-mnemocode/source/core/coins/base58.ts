@@ -27,6 +27,10 @@ export interface Base58Version {
   readonly testnet: boolean;
 }
 
+/**
+ * What describes a coin whose addresses are Base58Check: its versions, in the order they are tried,
+ * and its alphabet.
+ */
 export interface Base58CoinDescription extends CoinDescription, CoinRules {
   /** In the order they are tried: the first prefix that the decoded bytes start with names them. */
   readonly versions: readonly Base58Version[];

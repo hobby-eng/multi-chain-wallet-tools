@@ -3,6 +3,15 @@ import type { QrModules } from "./platform.js";
 import { rgb, type PDFPage } from "pdf-lib";
 import { MM } from "./business-layout.js";
 import { pdfRect } from "./business-render-primitives.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.card-qr", {
+  "qr-module-size-positive-physical-measurement": () =>
+    "The QR module size must be a positive physical measurement.",
+  "qr-too-small-payload-use-larger-page": () =>
+    "The QR is too small for this payload; use a larger page.",
+  "qr-does-not-fit-on-page": () => "The QR does not fit on this page.",
+});
 
 const QUIET_MODULES = 4;
 const MIN_MODULE_MM = 0.4;
@@ -12,9 +21,13 @@ export function qrSizeMm(qr: QrModules, minimum = 28): number {
   return qrSizeForModuleMm(qr, minimum, MIN_MODULE_MM);
 }
 
+/**
+ * The side of the QR code `qr`, quiet zone included, in millimetres for modules `moduleMm` wide,
+ * and at least `minimum`; refuses a module size that is not a positive measurement.
+ */
 export function qrSizeForModuleMm(qr: QrModules, minimum: number, moduleMm: number): number {
   if (!Number.isFinite(moduleMm) || moduleMm <= 0)
-    throw new Error("The QR module size must be a positive physical measurement.");
+    throw ERRORS.create("qr-module-size-positive-physical-measurement", []);
   return Math.max(minimum, (qr.size + QUIET_MODULES * 2) * moduleMm);
 }
 
@@ -29,14 +42,14 @@ export function drawCollectionQr(
 ): void {
   const totalModules = qr.size + QUIET_MODULES * 2;
   if (size / totalModules < minimumModuleMm - 1e-8)
-    throw new Error("The QR is too small for this payload; use a larger page.");
+    throw ERRORS.create("qr-too-small-payload-use-larger-page", []);
   if (
     x < 0 ||
     top < 0 ||
     (x + size) * MM > page.getWidth() + 0.01 ||
     (top + size) * MM > page.getHeight() + 0.01
   )
-    throw new Error("The QR does not fit on this page.");
+    throw ERRORS.create("qr-does-not-fit-on-page", []);
   const pitch = (size * MM) / totalModules;
   const plate = pdfRect(page, { x, y: top, width: size, height: size });
   page.drawRectangle({ ...plate, color: rgb(1, 1, 1) });

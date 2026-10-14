@@ -22,10 +22,21 @@ import {
   SCRYPT_LOG_N,
   type ListFileLock,
 } from "./candidate-file-admission.js";
-import { CandidateFileRefused } from "./candidate-file-refusal.js";
+import { CandidateFileRefusedError } from "./candidate-file-refusal.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.candidate-encryption", {
+  "no-webcrypto": () => NO_WEBCRYPTO,
+  "key-one-age-key-62-characters-starts-age1": () =>
+    "The key must be one age key of 62 characters that starts with age1, as the Scanner shows it.",
+  "use-at-least-characters-passphrase-all-protects-seed": (value0: string) =>
+    `Use at least ${value0} characters for the passphrase: it is all that protects these seed phrases.`,
+  "passphrase-candidates-empty": () => "The passphrase for the candidates is empty.",
+  "not-protection-choice": { kind: "type", text: () => NOT_A_PROTECTION_CHOICE },
+});
 
 // Keep the existing import paths valid for hosts that already use this module.
-export { CandidateFileRefused, type CandidateFileProblem } from "./candidate-file-refusal.js";
+export { CandidateFileRefusedError, type CandidateFileProblem } from "./candidate-file-refusal.js";
 export { SCRYPT_LOG_N, type ListFileLock } from "./candidate-file-admission.js";
 
 /** An X25519 recipient: "age1", then 58 Bech32 characters (age-encryption.org/v1). */
@@ -44,7 +55,8 @@ const ENCRYPTED_READ_CHUNK_BYTES = 64 * 1024;
  * TypeError ("Cannot read properties of undefined") that tells a person nothing.
  */
 function requireWebCryptoX25519(): void {
-  if (typeof globalThis.crypto?.subtle?.importKey !== "function") throw new Error(NO_WEBCRYPTO);
+  if (typeof globalThis.crypto?.subtle?.importKey !== "function")
+    throw ERRORS.create("no-webcrypto", []);
 }
 
 /** A one-time key: the identity that opens the file, and the recipient a writer encrypts to. */
@@ -68,9 +80,7 @@ export async function createSessionIdentity(): Promise<SessionIdentity> {
  */
 export function parseRecipient(text: string): string {
   const recipient = text.trim().toLowerCase();
-  const refused = new Error(
-    "The key must be one age key of 62 characters that starts with age1, as the Scanner shows it.",
-  );
+  const refused = ERRORS.create("key-one-age-key-62-characters-starts-age1", []);
   if (!X25519_RECIPIENT.test(recipient)) throw refused;
   try {
     // Decodes the Bech32 text and checks its checksum and length, without encrypting anything.
@@ -97,10 +107,10 @@ export async function encryptCandidates(plain: Uint8Array, recipient: string): P
 export function parseListPassphrase(text: string): string {
   const passphrase = withoutByteOrderMark(text).trim();
   // Characters as a person counts them: code points, not UTF-16 units.
-  if ([...passphrase].length < MIN_LIST_PASSPHRASE_LENGTH)
-    throw new Error(
-      `Use at least ${MIN_LIST_PASSPHRASE_LENGTH} characters for the passphrase: it is all that protects these seed phrases.`,
-    );
+  if (Array.from(passphrase).length < MIN_LIST_PASSPHRASE_LENGTH)
+    throw ERRORS.create("use-at-least-characters-passphrase-all-protects-seed", [
+      `${MIN_LIST_PASSPHRASE_LENGTH}`,
+    ]);
   return passphrase;
 }
 
@@ -113,7 +123,7 @@ export async function encryptCandidatesWithPassphrase(
   passphrase: string,
 ): Promise<Uint8Array> {
   CandidateFileAdmission.assertSize(plain.byteLength, "plaintext");
-  if (passphrase === "") throw new Error("The passphrase for the candidates is empty.");
+  if (passphrase === "") throw ERRORS.create("passphrase-candidates-empty", []);
   const encrypter = new Encrypter();
   encrypter.setPassphrase(passphrase);
   encrypter.setScryptWorkFactor(SCRYPT_LOG_N);
@@ -152,7 +162,7 @@ export async function decryptCandidates(
     } catch {
       // The decoder includes a malformed private identity in its error. Neither that diagnostic
       // nor its cause may reach a host's UI, inspection or logging.
-      throw new CandidateFileRefused("key", "This Scanner key is not a valid age identity.");
+      throw new CandidateFileRefusedError("key", "This Scanner key is not a valid age identity.");
     }
   } else decrypter.addPassphrase(key.passphrase);
   // Given bytes, age reads its output through a fetch Response, and a browser replaces any error
@@ -165,7 +175,7 @@ export async function decryptCandidates(
     stream = await decrypter.decrypt(streamOf(file));
   } catch (error) {
     const what = given === "key" ? "This Scanner key" : "This passphrase";
-    throw new CandidateFileRefused(
+    throw new CandidateFileRefusedError(
       "key",
       `${what} does not open the candidate file, or its header is damaged (${describeError(error)}).`,
       error,
@@ -174,9 +184,9 @@ export async function decryptCandidates(
   try {
     return await CandidateFileAdmission.readPlaintext(stream);
   } catch (error) {
-    if (error instanceof CandidateFileRefused) throw error;
+    if (error instanceof CandidateFileRefusedError) throw error;
     // The contents: every chunk carries its own tag, so a changed or cut file fails here.
-    throw new CandidateFileRefused(
+    throw new CandidateFileRefusedError(
       "damaged",
       `The candidate file is damaged (${describeError(error)}).`,
       error,
@@ -184,7 +194,9 @@ export async function decryptCandidates(
   }
 }
 
-/** Borrowed ciphertext views: age never needs a temporary copy of the entire file to read a nonce. */
+/**
+ * Borrowed ciphertext views: age never needs a temporary copy of the entire file to read a nonce.
+ */
 function streamOf(bytes: Uint8Array): ReadableStream<Uint8Array> {
   let offset = 0;
   return new ReadableStream({
@@ -311,12 +323,12 @@ const NOT_A_PROTECTION_CHOICE =
  * returned: a host's object may answer differently when it is read again (AUD-015).
  */
 function checkedChoice(given: unknown): ListProtectionChoice {
-  if (typeof given !== "object" || given === null) throw new TypeError(NOT_A_PROTECTION_CHOICE);
+  if (typeof given !== "object" || given === null) throw ERRORS.create("not-protection-choice", []);
   const choice: object = { ...given };
   const fields = choice as Readonly<Record<string, unknown>>;
   const kind = Object.hasOwn(choice, "kind") ? fields["kind"] : undefined;
   if (typeof kind !== "string" || !Object.hasOwn(CHOICE_FIELDS, kind))
-    throw new TypeError(NOT_A_PROTECTION_CHOICE);
+    throw ERRORS.create("not-protection-choice", []);
   const wanted: readonly string[] = CHOICE_FIELDS[kind as ListProtectionChoice["kind"]];
   // Own enumerable names, as many as the kind has and each one of them: no field is missing, and
   // none of another kind, such as a passphrase beside "none", comes along unread.
@@ -326,7 +338,7 @@ function checkedChoice(given: unknown): ListProtectionChoice {
     !names.every((name) => name === "kind" || wanted.includes(name)) ||
     !wanted.every((name) => typeof fields[name] === "string")
   )
-    throw new TypeError(NOT_A_PROTECTION_CHOICE);
+    throw ERRORS.create("not-protection-choice", []);
   return choice as ListProtectionChoice;
 }
 

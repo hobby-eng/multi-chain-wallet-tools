@@ -6,6 +6,7 @@
 import { base58xrp } from "@scure/base";
 import { Base58Coin } from "./base58.js";
 
+/** XRP: Base58Check addresses (r…) of one key, in the XRP Ledger's own alphabet. */
 export const XRP = new Base58Coin({
   id: "xrp",
   name: "XRP",

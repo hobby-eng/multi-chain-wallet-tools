@@ -17,7 +17,7 @@
 // Host-neutral: it imports only @scure/bip39 and the core modules above.
 
 import { serializeRecord } from "../record.js";
-import { Masking, type MaskingMode, MissingChecksum } from "./masking.js";
+import { Masking, type MaskingMode, MissingChecksumError } from "./masking.js";
 import { parseInput } from "./representations.js";
 import {
   type DateShiftDate,
@@ -36,6 +36,19 @@ import {
 } from "./bip39-sizes.js";
 import { EncodedForm } from "./encoded-form.js";
 import { refusalMessage } from "./refusal.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.encoded-backup", {
+  "encoded-seed-phrase": (value0: string, value1: string, value2: string) =>
+    `These are ${value0} ${value1}; an encoded seed phrase has ${value2}.`,
+  "create-legacy-checksum-valid-record-select-legacy-seedshift": () =>
+    "To create a legacy checksum-valid record, select legacy Seedshift and enable the checksum-word replacement.",
+  "legacy-checksum-word-replacement-available-only-legacy-seedshift": () =>
+    "The legacy checksum-word replacement is available only in legacy Seedshift mode.",
+  "original-seedshift-valid-last-word-gives-several-phrases": () =>
+    "The Original Seedshift with a valid last word gives several phrases: take its candidates.",
+});
 
 /**
  * How the codes were made: not masked, or one of the Seedshift variants (core/masking.ts).
@@ -68,7 +81,10 @@ export interface Encoding {
   readonly validLastWord?: EncodedResult | undefined;
   /** Whether that last word differs from the shifted one: only then is anything replaced. */
   readonly lastWordChanged: boolean;
-  /** Whether the last word was replaced: asked for, and changed; the record then names the mode that keeps it. */
+  /**
+   * Whether the last word was replaced: asked for, and changed; the record then names the mode that
+   * keeps it.
+   */
   readonly replaced: boolean;
 }
 
@@ -80,14 +96,14 @@ export interface EncodeOptions {
 
 // The refusal is Masking's, which checks it (Masking.assertCodes); here too for the hosts that
 // take it with the backup.
-export { MissingChecksum };
+export { MissingChecksumError };
 
 /**
  * The codes of one encoded seed phrase with their format and mode. A class pays off here: it is
  * built only by `read` or `of`, and its constructor refuses codes that no seed phrase has or that
- * their mode cannot have written, so every EncodedBackup can be decoded; it never changes afterwards
- * (`withMode` gives another); and it keeps the codes, which without Seedshift are the seed phrase
- * itself, out of toString, toJSON and Node.js's inspect.
+ * their mode cannot have written, so every EncodedBackup can be decoded; it never changes
+ * afterwards (`withMode` gives another); and it keeps the codes, which without Seedshift are the
+ * seed phrase itself, out of toString, toJSON and Node.js's inspect.
  */
 export class EncodedBackup extends Redacted {
   readonly #indexes: readonly number[];
@@ -109,9 +125,11 @@ export class EncodedBackup extends Redacted {
     // copy another.
     const codes = Array.from(indexes);
     if (!isBip39WordCount(codes.length))
-      throw new Error(
-        `These are ${codes.length} ${form.unit}; an encoded seed phrase has ${WORD_COUNTS_TEXT}.`,
-      );
+      throw ERRORS.create("encoded-seed-phrase", [
+        `${codes.length}`,
+        `${form.unit}`,
+        `${WORD_COUNTS_TEXT}`,
+      ]);
     masking.assertCodes(codes);
     this.#indexes = Object.freeze(codes);
     this.#format = format;
@@ -120,7 +138,8 @@ export class EncodedBackup extends Redacted {
 
   /**
    * Reads codes written in `format` as the codes of a seed phrase made with `mode`. Throws why
-   * they cannot be, naming places and counts only; MissingChecksum for a checksum-keeping mode.
+   * they cannot be, naming places and counts only; MissingChecksumError for a checksum-keeping
+   * mode.
    */
   static read(text: string, format: EncodedFormat, mode: MaskingMode): EncodedBackup {
     return EncodedBackup.of(parseInput(text, format), format, mode);
@@ -134,13 +153,9 @@ export class EncodedBackup extends Redacted {
   static assertEncodable(mode: MaskingMode, options: EncodeOptions = {}): void {
     const masking = Masking.of(mode);
     if (!masking.encodable)
-      throw new Error(
-        "To create a legacy checksum-valid record, select legacy Seedshift and enable the checksum-word replacement.",
-      );
+      throw ERRORS.create("create-legacy-checksum-valid-record-select-legacy-seedshift", []);
     if (options.validLastWord === true && masking.withValidLastWord === undefined)
-      throw new Error(
-        "The legacy checksum-word replacement is available only in legacy Seedshift mode.",
-      );
+      throw ERRORS.create("legacy-checksum-word-replacement-available-only-legacy-seedshift", []);
   }
 
   /**
@@ -168,8 +183,8 @@ export class EncodedBackup extends Redacted {
       validLastWord !== undefined &&
       validLastWord.shiftedIndexes.at(-1) !== base.shiftedIndexes.at(-1);
     const replaced = options.validLastWord === true && lastWordChanged;
-    const result = replaced ? validLastWord! : base;
-    const recordMode: MaskingMode = replaced ? replacement!.mode : mode;
+    const result = replaced ? defined(validLastWord) : base;
+    const recordMode: MaskingMode = replaced ? defined(replacement).mode : mode;
     return {
       backup: EncodedBackup.of(result.shiftedIndexes, format, recordMode),
       result,
@@ -222,7 +237,9 @@ export class EncodedBackup extends Redacted {
     return this.#indexes.length as Bip39WordCount;
   }
 
-  /** Whether complete dates still leave several phrases: the Original Seedshift's valid last word. */
+  /**
+   * Whether complete dates still leave several phrases: the Original Seedshift's valid last word.
+   */
   get givesSeveral(): boolean {
     return Masking.of(this.#mode).givesSeveral;
   }
@@ -254,10 +271,8 @@ export class EncodedBackup extends Redacted {
    */
   decode(dates: readonly DateShiftDate[]): DecodedResult {
     if (this.givesSeveral)
-      throw new Error(
-        "The Original Seedshift with a valid last word gives several phrases: take its candidates.",
-      );
-    return Masking.of(this.#mode).undo(this.#indexes, dates)[0]!;
+      throw ERRORS.create("original-seedshift-valid-last-word-gives-several-phrases", []);
+    return defined(Masking.of(this.#mode).undo(this.#indexes, dates)[0]);
   }
 
   /** Every phrase that the codes and the complete `dates` may give: one unless givesSeveral. */

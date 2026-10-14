@@ -5,6 +5,10 @@
 // that are no longer in the fields.
 import type { SearchProgress } from "@ckd/recovery-backup/mnemocode-search.js";
 import { JOB_STOPPED, MnemoCodeWorker } from "../workers/mnemocode-worker-client.js";
+import {
+  MnemoCodeWorkerProtocol,
+  type WorkerStopped,
+} from "../workers/mnemocode-worker-protocol.js";
 import { JobClock, formatDuration } from "./recovery-progress.js";
 
 /** What the status line says of an outcome, a result or an error, that was dropped. */
@@ -81,7 +85,9 @@ export class MnemoCodeWorkerJob<Request, Outcome> {
     request: Request,
     progressLine: (progress: SearchProgress, elapsed: string) => string,
     startLine: string,
-  ): Promise<{ readonly outcome: Outcome; readonly elapsed: string } | undefined> {
+  ): Promise<
+    { readonly outcome: Exclude<Outcome, WorkerStopped>; readonly elapsed: string } | undefined
+  > {
     const revision = this.#revision;
     // Progress, a result and an error all belong to the inputs the job started with: after an
     // edit the status line says only that the job's outcome was dropped (AUD-024-API003).
@@ -101,12 +107,13 @@ export class MnemoCodeWorkerJob<Request, Outcome> {
         this.#status.textContent = DROPPED;
         return undefined;
       }
-      return { outcome, elapsed: formatDuration(clock.elapsed()) };
-    } catch (cause) {
-      if (cause instanceof Error && cause.message === JOB_STOPPED) {
+      const completed = MnemoCodeWorkerProtocol.completed<Outcome>(outcome);
+      if (completed === undefined) {
         this.#status.textContent = JOB_STOPPED;
         return undefined;
       }
+      return { outcome: completed, elapsed: formatDuration(clock.elapsed()) };
+    } catch (cause) {
       if (!current()) {
         this.#status.textContent = DROPPED;
         return undefined;

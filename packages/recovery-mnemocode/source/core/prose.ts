@@ -30,15 +30,18 @@ export function capitalized(text: string): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
-/** Two capitals at the start: an abbreviation such as SSKR or PDF, which keeps its case. */
-const ABBREVIATION_START = /^[A-Z]{2}/u;
+/**
+ * A first word that keeps its case: an abbreviation such as SSKR or PDF (two capitals at the
+ * start), or a name with a capital inside it, such as MnemoCode.
+ */
+const KEEPS_CASE_START = /^(?:[A-Z]{2}|[A-Z][a-z]+[A-Z])/u;
 
 /**
- * `text` with its first letter made small, to follow other words, unless it begins an
- * abbreviation such as SSKR or PDF.
+ * `text` with its first letter made small, to follow other words, unless its first word keeps
+ * its case, an abbreviation such as SSKR or a name such as MnemoCode.
  */
 export function lowerFirst(text: string): string {
-  return ABBREVIATION_START.test(text) ? text : `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+  return KEEPS_CASE_START.test(text) ? text : `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
 }
 
 /**

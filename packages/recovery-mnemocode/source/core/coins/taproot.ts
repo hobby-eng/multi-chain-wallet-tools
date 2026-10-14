@@ -6,10 +6,18 @@
 
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1.js";
 import { hash160 } from "./address-types.js";
+import { ErrorCatalog } from "../error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.coins.taproot", {
+  "bip341-gives-no-taproot-output-key-key": () =>
+    "BIP341 gives no Taproot output key for this key.",
+});
 
 /** BIP340: a Taproot key is written as its x coordinate alone, 32 bytes. */
 export const X_ONLY_KEY_BYTES = 32;
-/** BIP141: the redeem script of nested SegWit is OP_0, a push of 20 bytes, and the key's HASH160. */
+/**
+ * BIP141: the redeem script of nested SegWit is OP_0, a push of 20 bytes, and the key's HASH160.
+ */
 const WITNESS_KEY_HASH_PREFIX = [0x00, 0x14];
 /** BIP341: the tag of the hash that tweaks a Taproot internal key. */
 const TAP_TWEAK_TAG = "TapTweak";
@@ -31,9 +39,9 @@ export function taprootOutputKey(publicKey: Uint8Array): Uint8Array {
   const xOnly = schnorr.utils.pointToBytes(internal);
   const tweak = bigEndian(schnorr.utils.taggedHash(TAP_TWEAK_TAG, xOnly));
   // BIP341 fails when t is not below the group order or Q is the point at infinity: about 2^-128.
-  if (tweak >= Point.Fn.ORDER) throw new Error("BIP341 gives no Taproot output key for this key.");
+  if (tweak >= Point.Fn.ORDER) throw ERRORS.create("bip341-gives-no-taproot-output-key-key", []);
   const output = internal.add(Point.BASE.multiplyUnsafe(tweak));
-  if (output.is0()) throw new Error("BIP341 gives no Taproot output key for this key.");
+  if (output.is0()) throw ERRORS.create("bip341-gives-no-taproot-output-key-key", []);
   return schnorr.utils.pointToBytes(output);
 }
 

@@ -22,7 +22,7 @@ import {
   DatesAnswer,
   MAX_SHOWN_MATCHES,
 } from "../../recovery-mnemocode/source/core/date-search.js";
-import type { RepairedSet } from "../../recovery-mnemocode/source/sskr/joint-repair.js";
+import type { RepairedSet } from "../../recovery-mnemocode/source/sskr/joint-results.js";
 import { ShareUnmasking } from "../../recovery-mnemocode/source/sskr/share-unmasking.js";
 import { fingerprintWithoutPassphrase } from "../src/fingerprint.js";
 import { sskrCodec } from "../src/sskr.js";

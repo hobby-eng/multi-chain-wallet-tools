@@ -27,11 +27,20 @@ import {
   type PDFPage,
   type PDFRef,
 } from "pdf-lib";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.card-drawing", {
+  "save-cards-as-pdf": (value0: string, value1: string) =>
+    `${value0}: ${value1}. Save the cards as PDF.`,
+});
 
 /** The six numbers of a PDF transformation: x' = a·x + c·y + e, y' = b·x + d·y + f. */
 export type Matrix = readonly [a: number, b: number, c: number, d: number, e: number, f: number];
 const IDENTITY_MATRIX: Matrix = [1, 0, 0, 1, 0, 0];
 
+/**
+ * One step of a path: move or line to a point, a cubic curve with its two control points, or close.
+ */
 export type PathSegment =
   | { readonly to: "move" | "line"; readonly x: number; readonly y: number }
   | {
@@ -53,6 +62,9 @@ export type PathSegment =
     }
   | { readonly to: "close" };
 
+/**
+ * An image that a drawing places: its size in pixels and its pixels as RGB bytes or a JPEG file.
+ */
 export interface CardImage {
   readonly width: number;
   readonly height: number;
@@ -78,6 +90,10 @@ export interface GraphicsSettings {
   readonly blend?: BlendMode;
 }
 
+/**
+ * One step of the drawing of a card page: save or restore the state, transform, fill or stroke a
+ * path, clip, or draw an image.
+ */
 export type DrawingStep =
   | { readonly do: "save" | "restore" }
   | { readonly do: "transform"; readonly matrix: Matrix }
@@ -104,6 +120,10 @@ export type DrawingStep =
   /** Drawn into the square from (0, 0) to (1, 1) of the current transformation. */
   | { readonly do: "image"; readonly image: CardImage };
 
+/**
+ * The drawing of one card page, its size in PDF points and its steps, which a host replays on its
+ * own canvas.
+ */
 export interface CardPageDrawing {
   /** Page size in PDF points, 72 to an inch. */
   readonly width: number;
@@ -115,7 +135,7 @@ export interface CardPageDrawing {
 export const CARD_DRAWING_REFUSAL = "Image export cannot draw this card";
 
 function unsupported(what: string): Error {
-  return new Error(`${CARD_DRAWING_REFUSAL}: ${what}. Save the cards as PDF.`);
+  return ERRORS.create("save-cards-as-pdf", [`${CARD_DRAWING_REFUSAL}`, `${what}`]);
 }
 
 // How many values each command takes (ISO 32000-1, 8.4.4 and 8.5.2): a point, a rectangle, a

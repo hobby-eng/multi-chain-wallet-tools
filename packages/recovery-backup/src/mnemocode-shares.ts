@@ -9,7 +9,7 @@
 import { mnemoCodeDatesFor } from "./mnemocode.js";
 import { hmac } from "@noble/hashes/hmac.js";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { TooManyForList } from "../../recovery-mnemocode/source/core/candidate-list.js";
+import { TooManyForListError } from "../../recovery-mnemocode/source/core/candidate-list.js";
 import { DatesAnswer } from "../../recovery-mnemocode/source/core/date-search.js";
 import type { EncodedFormat } from "../../recovery-mnemocode/source/core/encoded-backup.js";
 import type { WalletCheck } from "../../recovery-mnemocode/source/core/wallet-check.js";
@@ -144,6 +144,7 @@ interface Shown {
 
 /** An outcome that ends a job without a result: a trouble to say, or a question to ask first. */
 export type Stop =
+  | (Shown & { readonly kind: "stopped" })
   | (Shown & { readonly kind: "trouble"; readonly message: string })
   | (Shown & { readonly kind: "question"; readonly question: string });
 
@@ -184,7 +185,7 @@ function reportLines(lines: readonly ReportLine[]): string[] {
 
 /** Why no list was written although one was asked for, as a note; nothing otherwise. */
 function listNotes(outcome: ListOutcome): string[] {
-  if (outcome.listFull) return [new TooManyForList(NARROW_SHARE_LIST).message];
+  if (outcome.listFull) return [new TooManyForListError(NARROW_SHARE_LIST).message];
   return outcome.listEmpty ? [NO_CANDIDATE_TO_SAVE] : [];
 }
 
@@ -268,6 +269,7 @@ export class MnemoCodeShares {
       writer === undefined
         ? { listFull: false, listEmpty: false }
         : await writer.writePhrases(restored.listed);
+    if (!CandidateListWriter.current(listed, signal)) return { kind: "stopped", lines: [] };
     return {
       ...listed,
       kind: "phrases",

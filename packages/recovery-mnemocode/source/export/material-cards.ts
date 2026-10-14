@@ -23,7 +23,8 @@ import type { CardDrawing } from "./templates.js";
 import type { SskrCardContent } from "./sskr-content.js";
 import { ExportDetails } from "./export-details.js";
 import { clearDocumentMetadata } from "./document-metadata.js";
-import { drawCollectionStudy, MAX_SHEET_CARDS, type SheetShape } from "./collection-sheet.js";
+import { drawCollectionStudy } from "./collection-sheet.js";
+import { MAX_SHEET_CARDS, type SheetShape } from "./collection-layout.js";
 import {
   chooseMaterialSamples,
   materialArtwork,
@@ -38,13 +39,18 @@ import { assertColorCards, EMPTY_CARD_COLLECTION, type ColorCards } from "./card
 import { pdfRect } from "./business-render-primitives.js";
 import { rgbChannels } from "./color-math.js";
 import { documentWithFont } from "./pdf-documents.js";
-import { type CardPageSize, isCardPageSize, resolvePageSize } from "./card-settings.js";
+import { type CardPageSize, isCardPageSize, parsePageSize } from "./card-settings.js";
+import { defined } from "../core/defined.js";
+import { ErrorCatalog } from "../core/error-catalog.js";
+
+const ERRORS = new ErrorCatalog("export.material-cards", {
+  "empty-card-collection": () => EMPTY_CARD_COLLECTION,
+  "material-cards-support-at-most-references": (value0: string) =>
+    `Material cards support at most ${value0} references.`,
+});
+
 /** The sizes of a material card's page: those of every card (CardPageSize). */
 export type MaterialPageSize = CardPageSize;
-export interface MaterialCardOptions {
-  readonly pageSize?: MaterialPageSize;
-}
-
 // The tint layer keeps the photograph's light, texture and highlights ("Color" blend) and takes
 // the hue and saturation of the catalogue colour of the sample. It covers only the object in the
 // photograph, inside the material's outline; the backdrop, shadows and screws keep their colour.
@@ -112,22 +118,22 @@ function drawSample(
     // Outline points are fractions of the crop with y downwards; the page's y runs upwards.
     const at = (ring: readonly number[], i: number) =>
       [
-        left + (ring[i]! * scale + dx) * dw * MM,
-        bottom + (1 - ring[i + 1]! * scale - dy) * dh * MM,
+        left + (defined(ring[i]) * scale + dx) * dw * MM,
+        bottom + (1 - defined(ring[i + 1]) * scale - dy) * dh * MM,
       ] as const;
     const outline = artwork.catalogue.outline.flatMap((ring) => [
       moveTo(...at(ring, 0)),
       ...Array.from({ length: ring.length / 2 - 1 }, (_, i) => lineTo(...at(ring, 2 * i + 2))),
       closePath(),
     ]);
-    const [r, g, b] = rgbChannels(sample.tint!);
+    const [r, g, b] = rgbChannels(defined(sample.tint));
     page.pushOperators(
       ...outline,
       // Even-odd, so that a hole in the outline, such as a screw, stays untinted.
       clipEvenOdd(),
       endPath(),
       setGraphicsState(useTintState(page)),
-      setFillingRgbColor(r!, g!, b!),
+      setFillingRgbColor(defined(r), defined(g), defined(b)),
       rectangle(left, bottom, placed.width, placed.height),
       fill(),
     );
@@ -148,9 +154,8 @@ export async function renderMaterialCard(
   drawing: MaterialDrawing,
   style: MaterialStyle,
   content: CardContent | SskrCardContent,
-  options: MaterialCardOptions = {},
 ): Promise<Uint8Array> {
-  const context = await createRenderContext(drawing, style, content, options);
+  const context = await createRenderContext(drawing, style, content);
   await drawMaterialStudy(context);
   return context.doc.save();
 }
@@ -159,16 +164,13 @@ async function createRenderContext(
   drawing: MaterialDrawing,
   style: MaterialStyle,
   content: CardContent | SskrCardContent,
-  options: MaterialCardOptions,
 ) {
   assertColorCards(content);
-  if (content.colors.length === 0) throw new Error(EMPTY_CARD_COLLECTION);
+  if (content.colors.length === 0) throw ERRORS.create("empty-card-collection", []);
   if (content.colors.length > MAX_SHEET_CARDS)
-    throw new Error(`Material cards support at most ${MAX_SHEET_CARDS} references.`);
-  // Material cards are of the business size unless another is asked for.
-  // A study keeps the business size too, unlike the other families' A6 sheet: a change of what
-  // is drawn, which waits for the card output checks (scan finding S100).
-  const size = resolvePageSize(options.pageSize ?? content.pageSize, true);
+    throw ERRORS.create("material-cards-support-at-most-references", [`${MAX_SHEET_CARDS}`]);
+  // A material design is printed on sheets only: A6 unless another size is asked for.
+  const size = parsePageSize(content.pageSize);
   const artwork = materialArtwork[style];
   // Through an export the content carries the details settled for it, which come back unchanged.
   // A material card suits an employer of any sector.
@@ -205,7 +207,7 @@ function studyCaptions(
 ): string[][] {
   return Array.from({ length: count }, (_, index) => [
     numberedCode(content, index),
-    ...(compact ? [] : [samples[index]!.label]),
+    ...(compact ? [] : [defined(samples[index]).label]),
   ]);
 }
 
@@ -235,7 +237,7 @@ export async function materialSheetShape(
   const compact = isCardPageSize(pageSize);
   return {
     font,
-    aspect: cropAspect(image, materialArtwork[style].finishes[0]!),
+    aspect: cropAspect(image, defined(materialArtwork[style].finishes[0])),
     captions: (count) => {
       const samples = chooseMaterialSamples(style, content.colors.slice(0, count));
       return studyCaptions(content, samples, compact, count);
@@ -256,10 +258,19 @@ async function drawMaterialStudy(context: MaterialRenderContext): Promise<void> 
     preparedFor: profile.name,
     theme: artwork.studyTheme,
     // The finishes of one material are cropped alike, so every box takes the shape of a sample.
-    aspect: cropAspect(image, artwork.finishes[0]!),
+    aspect: cropAspect(image, defined(artwork.finishes[0])),
     captions: studyCaptions(content, samples, compact, content.colors.length),
     paint: (page, box) =>
-      drawSample(page, image, artwork, samples[box.index]!, box.x, box.y, box.width, box.height),
-    pictureArea: (box) => sampleArea(image, samples[box.index]!.finish, box),
+      drawSample(
+        page,
+        image,
+        artwork,
+        defined(samples[box.index]),
+        box.x,
+        box.y,
+        box.width,
+        box.height,
+      ),
+    pictureArea: (box) => sampleArea(image, defined(samples[box.index]).finish, box),
   });
 }

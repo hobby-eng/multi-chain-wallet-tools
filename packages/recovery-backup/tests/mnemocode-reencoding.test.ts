@@ -80,9 +80,24 @@ describe("MnemoCode browser re-encoding confirmation", () => {
       },
       async () => ({ matched: true, warning: FINGERPRINT_WARNING }),
     );
-    expect(answer.warning).toBe(FINGERPRINT_WARNING);
+    expect(answer).not.toBeUndefined();
+    expect(answer!.warning).toBe(FINGERPRINT_WARNING);
     expect(session.confirmation?.by).toBe("wallet");
     expect(session.confirmedPhrase()).toBe(PUBLIC_PHRASE);
+  });
+
+  it("does not confirm or report a mismatch when the host stops its wallet comparison", async () => {
+    const session = MnemoCodeReEncoding.of(OLD);
+    const answer = await session.confirmByWallet(
+      {
+        evidence: { kind: "master-fingerprint", value: "73c5da0a", network: "mainnet" },
+        passphrase: "",
+      },
+      async () => undefined,
+    );
+    expect(answer).toBeUndefined();
+    expect(session.confirmation).toBeUndefined();
+    expect(() => session.confirmedPhrase()).toThrow();
   });
 
   it("requires the original final word for a replaced-word legacy backup", () => {

@@ -4,9 +4,16 @@
 // none of them; core/self-test.ts composes those of the library, and a host adds those of the
 // features it builds in.
 //
-// Host-neutral: it imports only core/bits.ts and core/refusal.ts.
+// Host-neutral: it takes only refusal messages and the shared error catalog.
 
 import { describeError } from "./refusal.js";
+import { ErrorCatalog } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.self-test-check", {
+  mismatch: (value0: string) => `${value0} mismatch.`,
+  "was-accepted": (value0: string) => `${value0} was accepted.`,
+  "was-refused-another-reason": (value0: string) => `${value0} was refused for another reason.`,
+});
 
 /** One check of a self-test: its name and what it covers, as the report shows them. */
 export interface SelfTestCheck {
@@ -63,7 +70,7 @@ export function combinedFeature(
 
 /** Throws, naming what was compared, unless `actual` is exactly `expected`. */
 export function expectSame(actual: unknown, expected: unknown, name: string): void {
-  if (actual !== expected) throw new Error(`${name} mismatch.`);
+  if (actual !== expected) throw ERRORS.create("mismatch", [`${name}`]);
 }
 
 /** The message of what `run` throws, or undefined when it throws nothing. */
@@ -81,8 +88,8 @@ function refusalOf(run: () => unknown): string | undefined {
  * matches; undefined means that the case was accepted.
  */
 function assertRefusedFor(message: string | undefined, because: RegExp, name: string): void {
-  if (message === undefined) throw new Error(`${name} was accepted.`);
-  if (!because.test(message)) throw new Error(`${name} was refused for another reason.`);
+  if (message === undefined) throw ERRORS.create("was-accepted", [`${name}`]);
+  if (!because.test(message)) throw ERRORS.create("was-refused-another-reason", [`${name}`]);
 }
 
 /**

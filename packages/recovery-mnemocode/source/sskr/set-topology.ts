@@ -7,6 +7,7 @@
 // Needs from the host: nothing. Imports only the type of a share's metadata (transport.ts).
 
 import type { ShareInfo } from "./transport.js";
+import { defined } from "../core/defined.js";
 
 /** Two shares that cannot both be right: `at`, and `with`, which came first. */
 export interface SetConflict {
@@ -71,7 +72,7 @@ export class SetTopology {
    * earlier share's. Undefined when there is none.
    */
   static firstConflict(infos: readonly ShareInfo[], reference = 0): SetConflict | undefined {
-    const set = SetTopology.setOf(infos[reference]!);
+    const set = SetTopology.setOf(defined(infos[reference]));
     const members = new Map<string, number>();
     const firstOfGroup = new Map<number, number>();
     for (const [at, info] of infos.entries()) {
@@ -80,7 +81,7 @@ export class SetTopology {
       if (same !== undefined) return { kind: "member", at, with: same };
       members.set(SetTopology.memberOf(info), at);
       const first = firstOfGroup.get(info.groupIndex);
-      if (first !== undefined && infos[first]!.memberThreshold !== info.memberThreshold)
+      if (first !== undefined && defined(infos[first]).memberThreshold !== info.memberThreshold)
         return { kind: "threshold", at, with: first };
       if (first === undefined) firstOfGroup.set(info.groupIndex, at);
     }
@@ -94,7 +95,7 @@ export class SetTopology {
 
   /** The member threshold of `group`, which every share of it carries. */
   thresholdOf(group: readonly number[]): number {
-    return this.#infos[group[0]!]!.memberThreshold;
+    return defined(this.#infos[defined(group[0])]).memberThreshold;
   }
 
   /** The groups with at least as many members as their threshold. */
@@ -112,7 +113,7 @@ export class SetTopology {
 
   /** Whether the complete groups are as many as the set's group threshold. */
   get enough(): boolean {
-    return this.complete.length >= this.#infos[0]!.groupThreshold;
+    return this.complete.length >= defined(this.#infos[0]).groupThreshold;
   }
 }
 

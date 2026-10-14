@@ -40,6 +40,17 @@ import {
 import { assertWordCount } from "./words.js";
 import { phraseChecksumValid, phraseOfIndexes } from "./english-words.js";
 import { parseInput } from "./representations.js";
+import { defined } from "./defined.js";
+import { ErrorCatalog, suppliedMessage } from "./error-catalog.js";
+
+const ERRORS = new ErrorCatalog("core.masking", {
+  "unsupported-mode": () => UNSUPPORTED_MODE,
+  "assert-date-count-refused": suppliedMessage,
+  "assert-takes-dates-refused": suppliedMessage,
+  "split-modes-only": () => SPLIT_MODES_ONLY,
+  "sheet-heirs-cannot-made-only-search-finds-seed": (value0: string) =>
+    `A sheet for heirs cannot be made for ${value0}: only a search finds its seed phrase.`,
+});
 
 /**
  * How a seed phrase was written: not masked, or one of the Seedshift variants. The names are
@@ -261,7 +272,7 @@ export class Masking {
 
   /** The masking of `mode`; refuses a value that names none. */
   static of(mode: MaskingMode): Masking {
-    if (!Masking.isMode(mode)) throw new Error(UNSUPPORTED_MODE);
+    if (!Masking.isMode(mode)) throw ERRORS.create("unsupported-mode", []);
     return Masking.#values[mode];
   }
 
@@ -291,7 +302,8 @@ export class Masking {
     words: DateCountWords = DATE_COUNT_WORDS.codes,
   ): void {
     this.#assertTakesDates(count, words);
-    if (this.masked && count === 0 && !askedLater) throw new Error(words.missing(this.#mode));
+    if (this.masked && count === 0 && !askedLater)
+      throw ERRORS.create("assert-date-count-refused", [words.missing(this.#mode)]);
   }
 
   /**
@@ -300,7 +312,8 @@ export class Masking {
    * (AUD-014-API005). A masked mode without dates is refused by its shifts (deriveShifts).
    */
   #assertTakesDates(count: number, words: DateCountWords = DATE_COUNT_WORDS.codes): void {
-    if (!this.masked && count > 0) throw new Error(words.direct);
+    if (!this.masked && count > 0)
+      throw ERRORS.create("assert-takes-dates-refused", [words.direct]);
   }
 
   /**
@@ -371,7 +384,7 @@ export class Masking {
    * another mode would silently decode another way. The guard of every date search.
    */
   static assertMaskedMode(mode: unknown): asserts mode is MaskedMode {
-    if (!Masking.isMaskedMode(mode)) throw new Error(UNSUPPORTED_MODE);
+    if (!Masking.isMaskedMode(mode)) throw ERRORS.create("unsupported-mode", []);
   }
 
   /** Whether `mode` names a mode in which a seed phrase can be split into shares. */
@@ -381,7 +394,7 @@ export class Masking {
 
   /** Refuses a mode in which no shares are made (SPLIT_MODES_ONLY). */
   static assertSplitMode(mode: unknown): asserts mode is SplitMode {
-    if (!Masking.isSplitMode(mode)) throw new Error(SPLIT_MODES_ONLY);
+    if (!Masking.isSplitMode(mode)) throw ERRORS.create("split-modes-only", []);
   }
 
   /** Whether `mode` names a mode for which a sheet for heirs can be made. */
@@ -392,9 +405,9 @@ export class Masking {
   /** Refuses a mode for which no sheet for heirs can be made: only a search finds its phrase. */
   static assertHeirSheetMode(mode: unknown): asserts mode is HeirSheetMode {
     if (!Masking.isHeirSheetMode(mode))
-      throw new Error(
-        `A sheet for heirs cannot be made for ${Masking.isMode(mode) ? Masking.of(mode).name : "this mode"}: only a search finds its seed phrase.`,
-      );
+      throw ERRORS.create("sheet-heirs-cannot-made-only-search-finds-seed", [
+        `${Masking.isMode(mode) ? Masking.of(mode).name : "this mode"}`,
+      ]);
   }
 
   /** The codes of `mnemonic` masked with `dates` in this mode; no dates without Seedshift. */
@@ -424,13 +437,13 @@ export class Masking {
 
   /**
    * Refuses codes that this mode cannot have written: a phrase's count and BIP39 indexes, and,
-   * where the mode keeps the checksum (keepsChecksum), a valid one (MissingChecksum).
+   * where the mode keeps the checksum (keepsChecksum), a valid one (MissingChecksumError).
    */
   assertCodes(indexes: readonly number[]): void {
     // Checked before the words are looked up, which would report a bad index as a bad checksum.
     assertPhraseIndexes(indexes);
     if (this.keepsChecksum && !phraseChecksumValid(phraseOfIndexes(indexes)))
-      throw new MissingChecksum(this.#mode);
+      throw new MissingChecksumError(this.#mode);
   }
 
   /**
@@ -475,13 +488,17 @@ export class Masking {
   }
 }
 
+/** The code of the refusal of codes without their mode's checksum, this module's own error. */
+export type MaskingErrorCode = "missing-checksum";
+
 /** Codes that lack the BIP39 checksum that their mode gives every phrase it writes. */
-export class MissingChecksum extends Error {
+export class MissingChecksumError extends Error {
+  readonly code: MaskingErrorCode = "missing-checksum";
   readonly mode: MaskingMode;
 
   constructor(mode: MaskingMode) {
     super(`These codes lack the BIP39 checksum that ${Masking.of(mode).name} gives them.`);
-    this.name = "MissingChecksum";
+    this.name = "MissingChecksumError";
     this.mode = mode;
   }
 }
@@ -493,7 +510,7 @@ export function decodeIndexes(
   indexes: readonly number[],
   dates: readonly DateShiftDate[],
 ): DecodedResult {
-  return Masking.of("seedshift").undo(indexes, dates)[0]!;
+  return defined(Masking.of("seedshift").undo(indexes, dates)[0]);
 }
 
 /** The Original Seedshift with a valid last word undone: every phrase it may have been. */

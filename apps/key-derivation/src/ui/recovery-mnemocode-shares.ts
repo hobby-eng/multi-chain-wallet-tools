@@ -248,7 +248,8 @@ async function runSharesJob<
     status.textContent = (outcome as Extract<Stop, { kind: "trouble" }>).message;
     return undefined;
   }
-  return outcome as Exclude<Outcome, Stop>;
+  // Questions/trouble were handled above; the common worker owner already discarded stops.
+  return outcome as typeof outcome & Exclude<Outcome, Stop>;
 }
 
 /**

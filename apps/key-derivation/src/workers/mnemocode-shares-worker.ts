@@ -10,6 +10,7 @@ import { MnemoCodeWalletRecognition } from "@ckd/recovery-backup/mnemocode-walle
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { fillSecureRandom } from "@ckd/core/secure-random.js";
 import { webCryptoPbkdf2 } from "./webcrypto-pbkdf2.js";
+import { MnemoCodeWorkerProtocol } from "./mnemocode-worker-protocol.js";
 
 interface ShareWorkerFactors {
   readonly wallet?: WalletEvidenceRequest;
@@ -79,7 +80,7 @@ self.onmessage = async ({ data }: MessageEvent<MnemoCodeSharesRequest>) => {
       { transfer: list === undefined ? [] : [list.bytes.buffer] },
     );
   } catch (cause) {
-    postMessage({ type: "error", message: cause instanceof Error ? cause.message : String(cause) });
+    postMessage(MnemoCodeWorkerProtocol.failure(cause));
   }
 };
 postMessage({ type: "ready" });
