@@ -1,3 +1,4 @@
+import { trustedEvoSdk } from "./evo-sdk.js";
 import { EvoSDK } from "@dashevo/evo-sdk";
 import type { ViewerNetwork } from "./types.js";
 import { validatePlatformAddress } from "./public-address.js";
@@ -25,16 +26,7 @@ export class DashPlatformAddressSource {
 
   async connect(): Promise<void> {
     if (this.#sdk !== undefined) return;
-    const settings = {
-      connectTimeoutMs: 10_000,
-      timeoutMs: 30_000,
-      retries: 3,
-      banFailedAddress: true,
-    };
-    const sdk =
-      this.#network === "mainnet"
-        ? EvoSDK.mainnetTrusted({ settings })
-        : EvoSDK.testnetTrusted({ settings });
+    const sdk = trustedEvoSdk(this.#network);
     await sdk.connect();
     this.#sdk = sdk;
   }

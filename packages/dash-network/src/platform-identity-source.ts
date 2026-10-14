@@ -1,3 +1,7 @@
+import { IDENTITY_CREATION_KINDS } from "./identity-transition-types.js";
+import { trustedEvoSdk } from "./evo-sdk.js";
+import { PLATFORM_EXPLORER_ENDPOINTS, PLATFORM_EXPLORER_HTTP } from "./platform-explorer.js";
+import { BLS_KEY_HEX, COMPRESSED_KEY_HEX, HASH160_HEX, normalizedHex } from "@ckd/core/key-text.js";
 import { base58 } from "@scure/base";
 import { EvoSDK, StateTransition, type Identity, type IdentityPublicKey } from "@dashevo/evo-sdk";
 import { bytesToHex, hash160, hexToBytes, secp256k1, wipe } from "@ckd/core/crypto.js";
@@ -5,27 +9,14 @@ import {
   assertPublicLookupInput,
   PrivateMaterialError,
 } from "@ckd/secret-boundary/public-input-guard.js";
-import { createProviderHttp, ProviderHttpError, type FetchLike } from "./provider-http.js";
+import { ProviderHttpError, type FetchLike } from "./provider-http.js";
 import type { ViewerNetwork } from "./types.js";
 
-const HASH160_PATTERN = /^[0-9a-f]{40}$/u;
 const HEX_IDENTIFIER_PATTERN = /^[0-9a-f]{64}$/u;
-const ECDSA_PUBLIC_KEY_PATTERN = /^(?:02|03)[0-9a-f]{64}$/u;
-const BLS_PUBLIC_KEY_PATTERN = /^[0-9a-f]{96}$/u;
 const EXPLICIT_BLS_PUBLIC_KEY_PATTERN = /^bls:\s*(?:0x)?([0-9a-f]{96})$/iu;
 const DPNS_NAME_PATTERN = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.dash)?$/u;
 const EXPLICIT_HEX_ID_PATTERN = /^idhex:\s*(?:0x)?([0-9a-f]{64})$/iu;
 const EXPLICIT_REGISTRATION_TRANSACTION_PATTERN = /^(?:tx|transition):\s*(?:0x)?([0-9a-f]{64})$/iu;
-const IDENTITY_CREATION_ACTIONS = new Set([
-  "IdentityCreate",
-  "IdentityCreateFromAddresses",
-  "IdentityCreateFromShieldedPool",
-]);
-const IDENTITY_CREATION_TYPES = new Set([
-  "IDENTITY_CREATE",
-  "IDENTITY_CREATE_FROM_ADDRESSES",
-  "IDENTITY_CREATE_FROM_SHIELDED_POOL",
-]);
 const MAX_NON_UNIQUE_IDENTITIES = 100;
 const MAX_DPNS_NAMES = 100;
 const IDENTITY_NONCE_VALUE_FILTER = 0xffffffffffn;
@@ -113,17 +104,7 @@ interface MetadataLike {
 
 type RegistrationTransactionDecoder = (encodedTransition: string, expectedHash: string) => string;
 
-const PLATFORM_EXPLORER_ENDPOINTS: Record<ViewerNetwork, string> = {
-  mainnet: "https://platform-explorer.pshenmic.dev",
-  testnet: "https://testnet.platform-explorer.pshenmic.dev",
-};
-
-const { object: explorerObject, fetchJson: fetchExplorerJson } =
-  createProviderHttp("Platform Explorer");
-
-function normalizedHex(input: string): string {
-  return input.trim().replace(/^0x/iu, "").replace(/\s+/gu, "").toLowerCase();
-}
+const { object: explorerObject, fetchJson: fetchExplorerJson } = PLATFORM_EXPLORER_HTTP;
 
 function canonicalIdentifier(value: string): string | null {
   try {
@@ -181,14 +162,14 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
       wipe(bytes);
     }
   }
-  if (HASH160_PATTERN.test(hex)) {
+  if (HASH160_HEX.test(hex)) {
     return {
       kind: "public-key-hash",
       label: "Public-key HASH160",
       publicKeyHashHex: hex,
     };
   }
-  if (ECDSA_PUBLIC_KEY_PATTERN.test(hex)) {
+  if (COMPRESSED_KEY_HEX.test(hex)) {
     try {
       secp256k1.Point.fromHex(hex);
     } catch {
@@ -206,7 +187,7 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
       wipe(bytes);
     }
   }
-  if (BLS_PUBLIC_KEY_PATTERN.test(hex)) {
+  if (BLS_KEY_HEX.test(hex)) {
     throw new PrivateMaterialError(
       "A bare 96-character hex value is ambiguous with truncated viewing-key material and was erased " +
         "without a network request. For a BLS12_381 public key use bls:<hex>.",
@@ -238,7 +219,7 @@ function decodeRegistrationTransaction(encodedTransition: string, expectedHash: 
   let ownerId: { toBase58(): string; free(): void } | undefined;
   try {
     transition = StateTransition.fromBase64(encodedTransition);
-    if (!IDENTITY_CREATION_ACTIONS.has(transition.actionType)) {
+    if (!IDENTITY_CREATION_KINDS.isAction(transition.actionType)) {
       throw new Error("The transition is not an Identity creation transition.");
     }
     if (transition.hash(false).toUpperCase() !== expectedHash) {
@@ -348,17 +329,8 @@ export class DashPlatformIdentitySource {
 
   constructor(
     network: ViewerNetwork,
-    createSdk: (network: ViewerNetwork) => EvoSDK = (selectedNetwork) => {
-      const settings = {
-        connectTimeoutMs: 10_000,
-        timeoutMs: 30_000,
-        retries: 3,
-        banFailedAddress: true,
-      };
-      return selectedNetwork === "mainnet"
-        ? EvoSDK.mainnetTrusted({ settings })
-        : EvoSDK.testnetTrusted({ settings });
-    },
+    createSdk: (network: ViewerNetwork) => EvoSDK = (selectedNetwork) =>
+      trustedEvoSdk(selectedNetwork),
     fetcher: FetchLike = fetch,
     registrationTransactionDecoder: RegistrationTransactionDecoder = decodeRegistrationTransaction,
   ) {
@@ -487,7 +459,7 @@ export class DashPlatformIdentitySource {
     if (indexedHash !== transactionHash) {
       throw new Error("Platform Explorer returned a different transaction than requested.");
     }
-    if (indexedType === null || !IDENTITY_CREATION_TYPES.has(indexedType)) {
+    if (indexedType === null || !IDENTITY_CREATION_KINDS.isExplorerType(indexedType)) {
       throw new Error("The supplied transaction is not an Identity registration transition.");
     }
     if (encodedTransition === null) {

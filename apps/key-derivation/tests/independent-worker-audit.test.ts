@@ -35,9 +35,52 @@ function client(ready = true): DerivationWorkerClient {
   return result;
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.clearAllTimers();
+  vi.useRealTimers();
+});
 
 describe("derivation worker readiness contract", () => {
+  it("releases a script URL when the browser refuses to construct its worker", () => {
+    vi.stubGlobal("__DERIVATION_WORKER_SOURCE__", "public test source");
+    vi.stubGlobal(
+      "Worker",
+      class {
+        constructor() {
+          throw new Error("synthetic worker admission failure");
+        }
+      },
+    );
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:public-derivation-worker");
+    const revoked = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    expect(() => new DerivationWorkerClient()).toThrow("synthetic worker admission failure");
+    expect(revoked).toHaveBeenCalledExactlyOnceWith("blob:public-derivation-worker");
+  });
+
+  it("settles readiness and queued work when the worker never loads", async () => {
+    vi.useFakeTimers();
+    const revoked = vi.spyOn(URL, "revokeObjectURL");
+    const worker = client(false);
+    const ready = worker.ready();
+    const source = new Uint8Array(64).fill(9);
+    const result = worker.deriveBip85(source, { application: "hex", bytes: 16, index: 0 });
+    const rejected = Promise.all([
+      expect(ready).rejects.toThrow("did not become ready in time"),
+      expect(result).rejects.toThrow("did not become ready in time"),
+    ]);
+    vi.advanceTimersByTime(15_000);
+    await rejected;
+    expect(FakeWorker.latest.requests).toEqual([]);
+    expect(FakeWorker.latest.terminate).toHaveBeenCalledOnce();
+    expect(revoked).toHaveBeenCalledOnce();
+    expect(source).toEqual(new Uint8Array(64).fill(9));
+    FakeWorker.latest.reply({ type: "ready" });
+    expect(FakeWorker.latest.terminate).toHaveBeenCalledOnce();
+    await expect(worker.ready()).rejects.toThrow("no longer available");
+  });
+
   it("queues sensitive requests until the worker reports ready", async () => {
     const worker = client(false);
     const ready = worker.ready();

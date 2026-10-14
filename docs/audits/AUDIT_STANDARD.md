@@ -1,6 +1,6 @@
 # Audit report standard
 
-This standard applies to new audits and follow-up records. Reports and structured records are written in English. Historical reports were normalized in a documentation-only migration on 2026-09-18. Their canonical IDs follow this standard; original aliases are retained in [LEGACY_FINDING_IDS.md](LEGACY_FINDING_IDS.md), its JSON twin, and `legacyId` metadata. Existing report filenames and dates remain unchanged. Do not infer a historical finding's severity from its former prefix.
+This standard applies to new audits and follow-up records. Reports and structured records are written in English. Historical reports were normalized in a documentation-only migration on 2026-09-18. Their canonical IDs follow this standard; original aliases are retained in [LEGACY_FINDING_IDS.md](LEGACY_FINDING_IDS.md), its JSON twin, and `legacyId` metadata. That migration left report filenames and dates unchanged; the files took the workspace's one name form, AUD-NNN-<date>, on 2026-10-14. Do not infer a historical finding's severity from its former prefix.
 
 The execution procedure and coverage requirements are defined in [FULL_AUDIT_GUIDE.md](../FULL_AUDIT_GUIDE.md). Its `CHECK-SEC-001` task IDs are checklist references, distinct from report finding IDs. Group findings by category and subsystem; retain IDs when reordering.
 
@@ -8,7 +8,7 @@ The execution procedure and coverage requirements are defined in [FULL_AUDIT_GUI
 
 Use one repository-wide sequence, independent of tool, reviewer, model, severity, or date. Assign the next unused number after the highest existing audit number; never reuse an assigned number or renumber published reports. Coordinate reservations when reviews run concurrently.
 
-The report identifier is `AUD-018` for audit 18. Use at least three digits in report identifiers, expanding when needed. Filenames keep the existing convention: `audit-18-2026-09-18.md` and `audit-18-2026-09-18.json`, with at least two digits for the audit number. The date is the UTC completion date. The Markdown and JSON pair describes the same review and must agree on metadata, finding IDs, severities, statuses, and results. Add each new report to the chronological index in README.md.
+The report identifier is `AUD-018` for audit 18. Use at least three digits in report identifiers, expanding when needed. The date in a report's file name is the UTC completion date. The Markdown and JSON pair describes the same review and must agree on metadata, finding IDs, severities, statuses, and results. Add each new report to the chronological index in README.md.
 
 A fresh review of a different snapshot receives a new audit number. Updating remediation evidence in an existing report does not change its number, original review date, or reviewed snapshot; record the update date and verification commit separately.
 

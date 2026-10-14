@@ -1,12 +1,5 @@
 import { keccak_256 } from "@noble/hashes/sha3.js";
-import { utf8ToBytes } from "@noble/hashes/utils.js";
-import {
-  assertBatch,
-  assertIndex,
-  requirePrivate,
-  requirePublic,
-  rootFromSeed,
-} from "@ckd/core/bip32.js";
+import { EthereumAddress } from "@ckd/core/eip55.js";
 import { bytesToHex, secp256k1, wipe } from "@ckd/core/crypto.js";
 import {
   field,
@@ -14,23 +7,12 @@ import {
   type Bip32BatchOptions,
   type DerivationResult,
 } from "@ckd/core/types.js";
-import { bip32SummaryFields } from "../../bip32-summary.js";
-
-const BIP32_MAIN_VERSIONS = { private: 0x0488ade4, public: 0x0488b21e } as const;
+import { BIP32_MAINNET_VERSIONS } from "@ckd/core/networks.js";
+import { withAccountBranch } from "../../account-branch.js";
+import { ETHEREUM_PATHS } from "./profiles.js";
 
 export function toEip55(lowercaseAddress: string): string {
-  const raw = lowercaseAddress.toLowerCase().replace(/^0x/u, "");
-  if (!/^[0-9a-f]{40}$/u.test(raw))
-    throw new Error("Ethereum address must contain 40 hex characters.");
-  const checksumHash = bytesToHex(keccak_256(utf8ToBytes(raw)));
-  let checksummed = "0x";
-  for (let index = 0; index < raw.length; index += 1) {
-    const character = raw[index] as string;
-    const hashNibble = Number.parseInt(checksumHash[index] as string, 16);
-    checksummed +=
-      /[a-f]/u.test(character) && hashNibble >= 8 ? character.toUpperCase() : character;
-  }
-  return checksummed;
+  return EthereumAddress.fromHex(lowercaseAddress).checksummed;
 }
 
 export function ethereumAddressFromPublicKey(uncompressedPublicKey: Uint8Array): {
@@ -45,73 +27,67 @@ export function ethereumAddressFromPublicKey(uncompressedPublicKey: Uint8Array):
   return { raw, checksummed: toEip55(raw) };
 }
 
-export function deriveEthereum(options: Bip32BatchOptions): DerivationResult {
-  assertIndex(options.account, "Account");
-  assertIndex(options.branch, "Branch", 1);
-  assertBatch(options.start, options.count);
-
-  const root = rootFromSeed(options.seed, BIP32_MAIN_VERSIONS);
-  const accountPath = `m/44'/60'/${options.account}'`;
-  const branchPath = `${accountPath}/${options.branch}`;
-  const account = root.derive(accountPath);
-  const branch = root.derive(branchPath);
-  const { fields: summary } = bip32SummaryFields(root, account, accountPath);
-  const rows = [];
-
+/** The checksummed address of a secp256k1 public key in either SEC1 form; an expanded copy is wiped. */
+export function ethereumAddressOfKey(publicKey: Uint8Array): string {
+  const uncompressed =
+    publicKey.length === 65
+      ? publicKey
+      : secp256k1.Point.fromHex(bytesToHex(publicKey)).toBytes(false);
   try {
-    for (let offset = 0; offset < options.count; offset += 1) {
-      const index = options.start + offset;
-      const path = `${branchPath}/${index}`;
-      const child = branch.deriveChild(index);
-      const privateKey = requirePrivate(child, path);
-      const compressedPublicKey = requirePublic(child, path);
+    return ethereumAddressFromPublicKey(uncompressed).checksummed;
+  } finally {
+    if (uncompressed !== publicKey) wipe(uncompressed);
+  }
+}
+
+export function deriveEthereum(options: Bip32BatchOptions): DerivationResult {
+  // Ethereum keys use the mainnet serialization on every chain.
+  const layout = { versions: BIP32_MAINNET_VERSIONS, paths: ETHEREUM_PATHS };
+  return withAccountBranch(options, layout, (chain) => {
+    const rows = chain.rows(({ index, path, node, privateKey, publicKey }) => {
       const uncompressedPublicKey = secp256k1.getPublicKey(privateKey, false);
-      const address = ethereumAddressFromPublicKey(uncompressedPublicKey);
-
-      rows.push({
-        index,
-        path,
-        title: `Account #${index}`,
-        basic: [
-          paymentAddressField(
-            "address",
-            "Ethereum address (EIP55)",
-            address.checksummed,
-            "ethereum",
-          ),
-          field("publicKey", "Uncompressed public key", bytesToHex(uncompressedPublicKey)),
-          field("privateKey", "Private key (32-byte hex)", bytesToHex(privateKey), true),
-        ],
-        advanced: [
-          field("path", "Derivation path", path),
-          field("rawAddress", "Raw lowercase address", `0x${address.raw}`),
-          field("compressedPublicKey", "Compressed public key", bytesToHex(compressedPublicKey)),
-          field(
-            "publicKeyPayload",
-            "Uncompressed X || Y (without 0x04)",
-            bytesToHex(uncompressedPublicKey.slice(1)),
-          ),
-          field("childXprv", "Child xprv", child.privateExtendedKey, true),
-          field("childXpub", "Child xpub", child.publicExtendedKey),
-        ],
-      });
-      wipe(privateKey, compressedPublicKey, uncompressedPublicKey);
-      child.wipePrivateData();
-    }
-
+      try {
+        const address = ethereumAddressFromPublicKey(uncompressedPublicKey);
+        return {
+          index,
+          path,
+          title: `Account #${index}`,
+          basic: [
+            paymentAddressField(
+              "address",
+              "Ethereum address (EIP55)",
+              address.checksummed,
+              "ethereum",
+            ),
+            field("publicKey", "Uncompressed public key", bytesToHex(uncompressedPublicKey)),
+            field("privateKey", "Private key (32-byte hex)", bytesToHex(privateKey), true),
+          ],
+          advanced: [
+            field("path", "Derivation path", path),
+            field("rawAddress", "Raw lowercase address", `0x${address.raw}`),
+            field("compressedPublicKey", "Compressed public key", bytesToHex(publicKey)),
+            field(
+              "publicKeyPayload",
+              "Uncompressed X || Y (without 0x04)",
+              bytesToHex(uncompressedPublicKey.slice(1)),
+            ),
+            field("childXprv", "Child xprv", node.privateExtendedKey, true),
+            field("childXpub", "Child xpub", node.publicExtendedKey),
+          ],
+        };
+      } finally {
+        wipe(uncompressedPublicKey);
+      }
+    });
     return {
       id: "ethereum",
       title: "Ethereum EOA (BIP44)",
       networkLabel: "Ethereum EOA · address format is chain-independent",
-      pathTemplate: `${branchPath}/i`,
+      pathTemplate: `${chain.branchPath}/i`,
       basicSummary: [],
-      summary,
+      summary: chain.summary,
       rows,
       notices: ["Ethereum private keys are canonical 32-byte hexadecimal values, not WIF."],
     };
-  } finally {
-    branch.wipePrivateData();
-    account.wipePrivateData();
-    root.wipePrivateData();
-  }
+  });
 }

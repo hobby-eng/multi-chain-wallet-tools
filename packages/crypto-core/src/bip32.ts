@@ -1,15 +1,11 @@
-import { HDKey, HARDENED_OFFSET } from "@scure/bip32";
+import { HDKey } from "@scure/bip32";
 import type { Bip32Versions } from "./networks.js";
 
-export const MAX_BIP32_INDEX = HARDENED_OFFSET - 1;
-export const MAX_BATCH_SIZE = 50;
+import { MAX_BATCH_SIZE, MAX_BIP32_INDEX, assertIndex } from "./bip32-limits.js";
 
-export function assertIndex(value: number, name: string, max = MAX_BIP32_INDEX): number {
-  if (!Number.isSafeInteger(value) || value < 0 || value > max) {
-    throw new Error(`${name} must be an integer from 0 to ${max}.`);
-  }
-  return value;
-}
+// The limits are data of their own (bip32-limits.ts); they are named here too for the callers of
+// this module.
+export { MAX_BATCH_SIZE, MAX_BIP32_INDEX, assertIndex };
 
 export function assertBatch(start: number, count: number): void {
   assertIndex(start, "Start index");

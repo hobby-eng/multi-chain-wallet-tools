@@ -1,3 +1,4 @@
+import { isMainScript } from "./run-script.mjs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -65,7 +66,7 @@ export function renderDashDistributionDocs(sourceRoot, sourceSha) {
   return files;
 }
 
-if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainScript(import.meta.url)) {
   const args = process.argv.slice(2);
   if (args.length !== 2 || args[0] !== "--output" || !args[1]) {
     throw new Error(

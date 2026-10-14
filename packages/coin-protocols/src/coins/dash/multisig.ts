@@ -1,15 +1,10 @@
-import {
-  assertBatch,
-  assertIndex,
-  requirePrivate,
-  requirePublic,
-  rootFromSeed,
-} from "@ckd/core/bip32.js";
 import { bytesToHex, encodeWif, hash160, wipe } from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import { addDescriptorChecksum } from "@ckd/core/descriptor-checksum.js";
 import { field, type Bip32BatchOptions, type DerivationResult } from "@ckd/core/types.js";
-import { bip32SummaryFields } from "../../bip32-summary.js";
+import { withAccountBranch } from "../../account-branch.js";
+import { descriptorOrigin } from "../../account-descriptors.js";
+import { DASH_CORE_PATHS, DASH_MULTISIG_PATHS } from "./profiles.js";
 
 type DashMultisigDerivation = "purpose48" | "core-pkh";
 
@@ -18,62 +13,53 @@ function deriveDashMultisigMode(
   mode: DashMultisigDerivation,
 ): DerivationResult {
   const network = getDashNetwork(options.network);
-  assertIndex(options.account, "Account");
-  assertIndex(options.branch, "Branch", 1);
-  assertBatch(options.start, options.count);
-
-  const root = rootFromSeed(options.seed, network.versions);
-  const accountPath =
-    mode === "purpose48"
-      ? `m/48'/${network.coinType}'/${options.account}'/0'`
-      : `m/44'/${network.coinType}'/${options.account}'`;
-  const branchPath = `${accountPath}/${options.branch}`;
-  const account = root.derive(accountPath);
-  const branch = account.deriveChild(options.branch);
-  const { fields: summary, masterFingerprint } = bip32SummaryFields(root, account, accountPath, {
-    accountPath: "Multisig cosigner account path",
-    accountXprv: "Multisig cosigner account xprv",
-    accountXpub: "Multisig cosigner account xpub",
-  });
-  const origin = `[${masterFingerprint}${accountPath.slice(1).replaceAll("'", "h")}]`;
-  const descriptorAccountKey = `${origin}${account.publicExtendedKey}`;
-  const signerDescriptor = (branch: 0 | 1): string =>
-    addDescriptorChecksum(`pkh(${descriptorAccountKey}/${branch}/*)`);
-  const rows = [];
-
-  try {
-    for (let offset = 0; offset < options.count; offset += 1) {
-      const index = options.start + offset;
-      const path = `${branchPath}/${index}`;
-      const child = branch.deriveChild(index);
-      const privateKey = requirePrivate(child, path);
-      const publicKey = requirePublic(child, path);
+  const layout = {
+    versions: network.versions,
+    paths: mode === "purpose48" ? DASH_MULTISIG_PATHS : DASH_CORE_PATHS,
+    summaryLabels: {
+      accountPath: "Multisig cosigner account path",
+      accountXprv: "Multisig cosigner account xprv",
+      accountXpub: "Multisig cosigner account xpub",
+    },
+  };
+  return withAccountBranch(options, layout, (chain) => {
+    const origin = descriptorOrigin(chain.masterFingerprint, chain.accountPath);
+    const descriptorAccountKey = `${origin}${chain.account.publicExtendedKey}`;
+    const signerDescriptor = (branch: 0 | 1): string =>
+      addDescriptorChecksum(`pkh(${descriptorAccountKey}/${branch}/*)`);
+    const rows = chain.rows(({ index, path, node, privateKey, publicKey }) => {
       const publicKeyHash = hash160(publicKey);
-
-      rows.push({
-        index,
-        path,
-        title: `Cosigner key #${index}`,
-        basic: [
-          field("publicKey", "Compressed public key for multisig", bytesToHex(publicKey)),
-          field("originPath", "Origin path", path),
-        ],
-        advanced: [
-          field("privateKey", "Child private key (WIF)", encodeWif(privateKey, network.wif), true),
-          field("privateKeyHex", "Child private key (hex)", bytesToHex(privateKey), true),
-          field("publicKeyHash", "HASH160(public key)", bytesToHex(publicKeyHash)),
-          field("childXprv", "Child xprv", child.privateExtendedKey, true),
-          field("childXpub", "Child xpub", child.publicExtendedKey),
-          field(
-            "descriptorKey",
-            "Descriptor key expression",
-            `${origin}${account.publicExtendedKey}/${options.branch}/${index}`,
-          ),
-        ],
-      });
-      wipe(privateKey, publicKey, publicKeyHash);
-      child.wipePrivateData();
-    }
+      try {
+        return {
+          index,
+          path,
+          title: `Cosigner key #${index}`,
+          basic: [
+            field("publicKey", "Compressed public key for multisig", bytesToHex(publicKey)),
+            field("originPath", "Origin path", path),
+          ],
+          advanced: [
+            field(
+              "privateKey",
+              "Child private key (WIF)",
+              encodeWif(privateKey, network.wif),
+              true,
+            ),
+            field("privateKeyHex", "Child private key (hex)", bytesToHex(privateKey), true),
+            field("publicKeyHash", "HASH160(public key)", bytesToHex(publicKeyHash)),
+            field("childXprv", "Child xprv", node.privateExtendedKey, true),
+            field("childXpub", "Child xpub", node.publicExtendedKey),
+            field(
+              "descriptorKey",
+              "Descriptor key expression",
+              `${descriptorAccountKey}/${options.branch}/${index}`,
+            ),
+          ],
+        };
+      } finally {
+        wipe(publicKeyHash);
+      }
+    });
 
     return {
       id: mode === "purpose48" ? "dash-multisig-p2sh" : "dash-multisig-core-pkh",
@@ -84,7 +70,7 @@ function deriveDashMultisigMode(
             ? "Dash multisig cosigner (Dash Core pkh signer)"
             : "Dash multisig cosigner (custom BIP44 pkh account)",
       networkLabel: network.label,
-      pathTemplate: `${branchPath}/i`,
+      pathTemplate: `${chain.branchPath}/i`,
       basicSummary: [
         field("descriptorAccountKey", "Origin-tagged cosigner account xpub", descriptorAccountKey),
         ...(mode === "core-pkh"
@@ -102,7 +88,7 @@ function deriveDashMultisigMode(
             ]
           : []),
       ],
-      summary,
+      summary: chain.summary,
       watchOnly: {
         label: "Copy multisig cosigner xpub",
         description:
@@ -124,11 +110,7 @@ function deriveDashMultisigMode(
         "This mode derives cosigner public keys only. Shared 2-of-N P2SH addresses require all cosigner xpubs and are built in the Multisig wallet utility.",
       ],
     };
-  } finally {
-    branch.wipePrivateData();
-    account.wipePrivateData();
-    root.wipePrivateData();
-  }
+  });
 }
 
 export function deriveDashMultisig(options: Bip32BatchOptions): DerivationResult {

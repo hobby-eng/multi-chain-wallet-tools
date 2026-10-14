@@ -1,3 +1,7 @@
+import {
+  SCANNER_NETWORK_CONCURRENCY,
+  SCANNER_ORCHESTRATION_CONCURRENCY,
+} from "./concurrency-parameters.js";
 export interface RecoveryTaskLimiter {
   run<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T>;
 }
@@ -22,11 +26,8 @@ export class RecoveryConcurrencyLimiter implements RecoveryTaskLimiter {
   #active = 0;
   readonly #waiting: WaitingTask[] = [];
 
-  constructor(limit: number) {
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 5) {
-      throw new Error("Recovery concurrency must be an integer from 1 to 5.");
-    }
-    this.#limit = limit;
+  constructor(limit = SCANNER_NETWORK_CONCURRENCY.defaultValue) {
+    this.#limit = SCANNER_NETWORK_CONCURRENCY.admit(limit, "Recovery concurrency");
   }
 
   get active(): number {
@@ -95,9 +96,7 @@ export async function mapRecoveryTasks<T, R>(
   concurrency: number,
   task: (item: T, index: number) => Promise<R>,
 ): Promise<Array<R | undefined>> {
-  if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 5) {
-    throw new Error("Recovery task concurrency must be an integer from 1 to 5.");
-  }
+  SCANNER_ORCHESTRATION_CONCURRENCY.admit(concurrency, "Recovery task concurrency");
   const results: Array<R | undefined> = new Array(items.length);
   let nextIndex = 0;
   let failed = false;

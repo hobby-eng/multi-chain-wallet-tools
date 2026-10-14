@@ -1,9 +1,21 @@
+import { MAX_BATCH_SIZE } from "@ckd/core/bip32-limits.js";
 import type { CoinAdapter } from "@ckd/coins/registry.js";
 import type { DerivationResult } from "@ckd/core/types.js";
 import type { DerivationControlValues } from "./inputs.js";
 import type { ResultBranch, ResultBranchPlan } from "./result-branches.js";
 import { clearDerivationResult } from "./secrets.js";
 import type { DerivationWorkerClient } from "../workers/derive-client.js";
+
+/**
+ * Yields between batches. requestAnimationFrame is deliberately not used: it stops firing in a
+ * background tab, which silently stalls a long derivation at exactly the moment the user switches
+ * away from it to wait.
+ */
+export async function yieldToBrowser(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
 
 interface StreamedDerivationOptions {
   worker: DerivationWorkerClient;
@@ -33,7 +45,7 @@ export async function runStreamedDerivation(
   options: StreamedDerivationOptions,
 ): Promise<StreamedDerivationOutcome> {
   const { worker, adapter, input, branches, seed } = options;
-  const batchSize = adapter.batchSize ?? 50;
+  const batchSize = adapter.batchSize ?? MAX_BATCH_SIZE;
   if (!Number.isSafeInteger(batchSize) || batchSize < 1) {
     throw new Error(`Adapter ${adapter.id} declares an invalid internal batch size.`);
   }
@@ -84,4 +96,39 @@ export async function runStreamedDerivation(
     }
   }
   return { generated: generatedTotal, stale: false, cancelled: false };
+}
+
+/**
+ * Derives every branch in the worker's bounded batches, as runStreamedDerivation does, and gives
+ * them together once all are complete: undefined when the request became stale, and nothing kept
+ * on a failure, so that a view that publishes its branches at once never shows part of them
+ * (the BIP85 child wallet, AUD-024-FUN001).
+ */
+export async function deriveAllBranches(
+  options: Pick<
+    StreamedDerivationOptions,
+    "worker" | "adapter" | "input" | "branches" | "seed" | "isStale"
+  >,
+): Promise<Map<ResultBranch, DerivationResult> | undefined> {
+  const results = new Map<ResultBranch, DerivationResult>();
+  const forget = (): void => {
+    for (const result of results.values()) clearDerivationResult(result);
+    results.clear();
+  };
+  try {
+    const outcome = await runStreamedDerivation({
+      ...options,
+      isCancelled: () => false,
+      onInitialBatch: (kind, result) => results.set(kind, result),
+      onAppendedBatch: () => undefined,
+      onProgress: () => undefined,
+      yieldTurn: yieldToBrowser,
+    });
+    if (!outcome.stale) return results;
+    forget();
+    return undefined;
+  } catch (cause) {
+    forget();
+    throw cause;
+  }
 }

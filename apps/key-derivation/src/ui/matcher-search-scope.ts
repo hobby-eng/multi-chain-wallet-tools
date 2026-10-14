@@ -1,4 +1,8 @@
-import type { CoinAdapter, CoinRegistry } from "@ckd/coins/registry-base.js";
+import {
+  resolveCoinProtocol,
+  type CoinAdapter,
+  type CoinRegistry,
+} from "@ckd/coins/registry-base.js";
 import type { NetworkName } from "@ckd/core/types.js";
 import type {
   WalletMatcherTarget,
@@ -15,8 +19,7 @@ export function matcherSearchTargets(
   allCoins: boolean,
 ): WalletMatcherTarget[] {
   const familyFor = (adapterId: string): string | undefined => {
-    const id = adapterId === "dash-core-coinjoin" ? "dash-core" : adapterId;
-    const adapter = registry.COIN_ADAPTERS.find((candidate) => candidate.id === id);
+    const adapter = resolveCoinProtocol(registry, adapterId);
     return adapter === undefined ? undefined : registry.getAdapterFamilyId(adapter);
   };
   if (!allCoins) {
@@ -49,10 +52,6 @@ export function matcherSearchBranches(
   allCoins = false,
 ): readonly number[] {
   const searchChange = includeChange || allCoins;
-  if (adapter.id === "dash-core-coinjoin" && adapter.coinJoin !== undefined) {
-    const { external, internal } = adapter.coinJoin.branches;
-    return searchChange ? [external, internal] : [external];
-  }
   if (adapter.addressBranches !== undefined) {
     const { receive, change } = adapter.addressBranches;
     return searchChange ? [receive, change] : [receive];

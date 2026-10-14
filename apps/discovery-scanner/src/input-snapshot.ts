@@ -7,4 +7,6 @@ export function wipeRecoveryInputSnapshot(snapshot: RecoveryInputSnapshot): void
   snapshot.batchMnemonics = "";
   snapshot.batchPassphrases = "";
   snapshot.watchOnlyKeys = "";
+  // Only the reference: the list stays in its panel until it is removed or the input is cleared.
+  delete snapshot.candidateList;
 }

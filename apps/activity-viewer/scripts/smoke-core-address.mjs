@@ -1,31 +1,13 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { pathToFileURL, fileURLToPath } from "node:url";
-import { build } from "esbuild";
+import { smokeNetwork, withNodeModule } from "../../../tooling/node-module.mjs";
 
-const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
-const network = process.argv[2] ?? "mainnet";
-if (network !== "mainnet" && network !== "testnet") {
-  throw new Error("DashScan smoke argument must be mainnet or testnet.");
-}
+const network = smokeNetwork("DashScan smoke");
+// m/44'/5'/0'/0/0 and m/44'/1'/0'/0/0 of the public test phrase "abandon … about".
 const knownAddress =
   network === "mainnet"
     ? "XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5"
     : "yRd4FhXfVGHXpsuZXPNkMrfD9GVj46pnjt";
-const temporaryDirectory = mkdtempSync(join(tmpdir(), "derivationtool-dashscan-smoke-"));
-const output = join(temporaryDirectory, "public-address.mjs");
 
-try {
-  await build({
-    entryPoints: [resolve(root, "packages/dash-network/src/public-address.ts")],
-    outfile: output,
-    bundle: true,
-    format: "esm",
-    platform: "node",
-    logLevel: "silent",
-  });
-  const module = await import(`${pathToFileURL(output).href}?run=${Date.now()}`);
+await withNodeModule("packages/dash-network/src/public-address.ts", async (module) => {
   const startedAt = performance.now();
   const snapshot = await module.queryCoreAddress(knownAddress, network, 2);
   if (snapshot.provider !== "DashScan" || snapshot.indexStatus !== "ok") {
@@ -43,6 +25,4 @@ try {
       `${snapshot.transactionCount} transactions reported; ${snapshot.transactions.length} loaded; ` +
       `${snapshot.requests} requests; ${Math.round(performance.now() - startedAt)} ms.`,
   );
-} finally {
-  rmSync(temporaryDirectory, { recursive: true, force: true });
-}
+});

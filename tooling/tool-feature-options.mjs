@@ -1,10 +1,12 @@
 import { basename, isAbsolute, relative, resolve } from "node:path";
 
+import { ToolBuildPolicy } from "./tool-build-policy.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
 export const TOOL_FEATURE_DEFINITIONS = TOOL_MANIFESTS;
 
-function values(args, name) {
+/** The comma-separated values of every `name` option among `args`, trimmed. */
+export function commaOptionValues(args, name) {
   const found = [];
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -30,55 +32,20 @@ function values(args, name) {
     .filter(Boolean);
 }
 
-function checked(raw, option, allowed) {
-  return raw.map((name) => {
-    if (!allowed.includes(name))
-      throw new Error(`Unknown ${option} value "${name}". Expected: ${allowed.join(", ")}.`);
-    return name;
-  });
-}
-
 export function parseToolFeatureOptions(toolId, profile, args = process.argv.slice(2)) {
-  const definition = TOOL_FEATURE_DEFINITIONS[toolId];
-  if (definition === undefined)
-    throw new Error(`No selective-build definition exists for ${toolId}.`);
-  const includedCoins = checked(values(args, "--coins"), "--coins", definition.coins);
-  const excludedCoins = checked(
-    values(args, "--exclude-coins"),
+  const policy = new ToolBuildPolicy(toolId, profile);
+  const definition = policy.definition;
+  const includedCoins = policy.normalize(commaOptionValues(args, "--coins"), "--coins");
+  const excludedCoins = policy.normalize(
+    commaOptionValues(args, "--exclude-coins"),
     "--exclude-coins",
-    definition.coins,
   );
-  const profileCoins = profile.id === "dash-community" ? ["dash"] : definition.coins;
-  const selectedCoins = new Set(includedCoins.length > 0 ? includedCoins : profileCoins);
-  for (const coin of excludedCoins) selectedCoins.delete(coin);
-  if (selectedCoins.size === 0) throw new Error(`Select at least one coin for ${toolId}.`);
-  if (profile.id === "dash-community" && [...selectedCoins].some((coin) => coin !== "dash")) {
-    throw new Error(
-      "Dash Community builds may include only Dash. Use --profile multi-chain for the general design.",
-    );
-  }
-
-  const included = checked(values(args, "--features"), "--features", definition.features);
-  const excluded = checked(values(args, "--exclude"), "--exclude", definition.features);
-  const selected = new Set(included.length > 0 ? included : definition.features);
-  for (const feature of excluded) selected.delete(feature);
-  if (
-    toolId === "discovery-scanner" &&
-    !selected.has("seed-discovery") &&
-    !selected.has("watch-only-discovery")
-  ) {
-    throw new Error("Discovery Scanner requires seed-discovery, watch-only-discovery, or both.");
-  }
-  if (
-    toolId === "discovery-scanner" &&
-    selected.has("wallet-matcher") &&
-    !selected.has("seed-discovery")
-  ) {
-    throw new Error("Discovery Scanner wallet-matcher requires seed-discovery.");
-  }
-  if (toolId === "psbt-inspector" && selected.size === 0) {
-    throw new Error("PSBT Inspector requires at least one workflow feature.");
-  }
+  const coins = policy.coins(includedCoins, excludedCoins);
+  const included = policy.normalize(commaOptionValues(args, "--features"), "--features");
+  const excluded = policy.normalize(commaOptionValues(args, "--exclude"), "--exclude");
+  const features = policy.features(coins, included, excluded);
+  const selectedCoins = new Set(coins);
+  const selected = new Set(features);
   const custom =
     includedCoins.length + excludedCoins.length + included.length + excluded.length > 0;
   return Object.freeze({
@@ -134,14 +101,17 @@ export function assertSafeCustomOutput(root, output) {
   }
 }
 
+/** The page that `--output` names, refused unless it is an .html file outside release folders. */
+export function requestedArtifact(root, requestedOutput) {
+  const output = resolve(root, requestedOutput);
+  if (!output.endsWith(".html")) throw new Error("--output must name an .html file.");
+  assertSafeCustomOutput(root, output);
+  return output;
+}
+
 export function customToolArtifact(root, profile, toolId, tool, options, requestedOutput) {
   if (!options.custom && requestedOutput === undefined) return undefined;
-  if (requestedOutput !== undefined) {
-    const output = resolve(root, requestedOutput);
-    if (!output.endsWith(".html")) throw new Error("--output must name an .html file.");
-    assertSafeCustomOutput(root, output);
-    return output;
-  }
+  if (requestedOutput !== undefined) return requestedArtifact(root, requestedOutput);
   const featureSlug = options.selected.length === 0 ? "base" : options.selected.join("_");
   return resolve(
     root,

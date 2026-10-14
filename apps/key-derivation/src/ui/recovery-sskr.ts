@@ -1,11 +1,11 @@
 import { englishMnemonicToEntropy, entropyToEnglishMnemonic } from "@ckd/core/bip39.js";
 import { describeUnknownError, freeThrownValue } from "@ckd/core/error-handling.js";
+import { SskrGroupPolicy } from "@ckd/recovery-backup/sskr-groups.js";
 import {
   createSskrShares,
   recoverSskrShares,
   type SskrShareEncoding,
 } from "@ckd/recovery-backup/sskr.js";
-import { installQrImageImport } from "@ckd/ui/qr-image-import.js";
 import {
   installSecretToggle,
   installMnemonicSourceDiagnostic,
@@ -15,6 +15,8 @@ import {
   renderSensitiveShares,
   required,
   type RecoveryFeatureContext,
+  installFieldImports,
+  QR_IMAGES_IMPORT,
 } from "./recovery-workspace-shared.js";
 import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
 
@@ -30,6 +32,10 @@ function displayFailure(cause: unknown, fallback: string): string {
 }
 
 function installSskr(context: RecoveryFeatureContext): void {
+  const groupThreshold = required<HTMLInputElement>("#sskr-group-threshold");
+  const parameters = SskrGroupPolicy.parameters();
+  groupThreshold.min = String(parameters.minimum);
+  groupThreshold.max = String(parameters.maximumGroups);
   const groupEditor = installThresholdGroupEditor("#sskr-groups", {
     initial: [{ threshold: 2, count: 3 }],
     minimumRows: 1,
@@ -52,14 +58,21 @@ function installSskr(context: RecoveryFeatureContext): void {
     try {
       entropy = englishMnemonicToEntropy(context.readMnemonic("sskr", "#sskr-source"));
       const specs = groupEditor.read();
-      const threshold = Number(required<HTMLInputElement>("#sskr-group-threshold").value);
+      const threshold = Number(groupThreshold.value);
       const shares = createSskrShares(
         entropy,
         threshold,
         specs,
         selectedEncoding("#sskr-create-encoding"),
       );
-      renderSensitiveShares(created, shares, context.writeClipboard);
+      renderSensitiveShares(
+        created,
+        shares,
+        context.writeClipboard,
+        [],
+        [],
+        () => context.jobs.ready,
+      );
     } catch (e) {
       created.textContent = displayFailure(e, "SSKR creation failed.");
     } finally {
@@ -88,14 +101,11 @@ function installSskr(context: RecoveryFeatureContext): void {
       secret?.fill(0);
     }
   });
-  installQrImageImport(document, required<HTMLTextAreaElement>("#sskr-shares"), {
-    label: "Import QR images",
-    multiple: true,
-    onDecoded: ({ text }) => text.trim(),
-    onError: (m) => {
-      restored.textContent = m;
-    },
-  });
+  installFieldImports(
+    required<HTMLTextAreaElement>("#sskr-shares"),
+    (message) => (restored.textContent = message),
+    { qr: QR_IMAGES_IMPORT },
+  );
 }
 
 export const recoveryFeature: RecoveryFeature = {

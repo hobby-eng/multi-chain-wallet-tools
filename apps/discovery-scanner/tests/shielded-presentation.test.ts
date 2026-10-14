@@ -50,4 +50,48 @@ describe("Orchard viewing-key presentation", () => {
       spendState: "Outgoing view only",
     });
   });
+
+  it.each([
+    ["full", true, 1n, "Unspent"],
+    ["full", false, null, "Unknown · scan incomplete"],
+    ["incoming", true, null, "Unknown · FVK required"],
+    ["incoming", false, null, "Unknown · FVK required"],
+    ["outgoing", true, null, "Unknown · FVK required"],
+    ["outgoing", false, null, "Unknown · FVK required"],
+  ] as const)(
+    "uses shared spend-state admission for %s viewing keys with complete=%s",
+    (keyKind, complete, balanceAtomic, spendState) => {
+      const provisional = {
+        ...base,
+        direction: "received",
+        incoming: note,
+        spent: false,
+      } satisfies ShieldedActivity;
+      expect(shieldedFindingPresentation(provisional, complete, keyKind)).toMatchObject({
+        balanceAtomic,
+        spendState,
+      });
+      // Unknown notes remain visible; showing a note must not imply a spendable balance.
+      expect(shouldDisplayShieldedActivity(provisional, false, complete, keyKind)).toBe(true);
+    },
+  );
+
+  it.each(["full", "incoming", "outgoing"] as const)(
+    "keeps an observed spend known for an incomplete %s scan",
+    (keyKind) => {
+      const spent = {
+        ...base,
+        direction: "received",
+        incoming: note,
+        spent: true,
+      } satisfies ShieldedActivity;
+      expect(shieldedFindingPresentation(spent, false, keyKind)).toEqual({
+        balanceAtomic: 0n,
+        balanceLabel: "0 DASH · already spent",
+        spendState: "Spent",
+      });
+      expect(shouldDisplayShieldedActivity(spent, false, false, keyKind)).toBe(false);
+      expect(shouldDisplayShieldedActivity(spent, true, false, keyKind)).toBe(true);
+    },
+  );
 });

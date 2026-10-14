@@ -3,8 +3,9 @@ import { bytesToHex, hash160, secp256k1, sha256 } from "@ckd/core/crypto.js";
 import { ripemd160 } from "@noble/hashes/legacy.js";
 import { aggregateMusigParticipants } from "./musig-psbt.js";
 import { CONSENSUS_LIMITS } from "./consensus-limits.js";
-import { Reader, compactValue, littleU32, type PsbtPair, pair } from "./psbt-binary.js";
+import { Reader, compactValue, type PsbtPair, pair } from "./psbt-binary.js";
 import { isUnsupportedField, type PsbtMapScope } from "./psbt-field-registry.js";
+import { PsbtV2Locktime } from "./psbt-locktime.js";
 import type { PsbtChain } from "./psbt-types.js";
 import { readTxOut } from "./transaction.js";
 
@@ -206,26 +207,11 @@ export function validateVersionFields(
     return false;
   }
   if (pair(global, 2) === undefined) throw new Error("PSBT v2 is missing its transaction version.");
-  let timeLockPossible = true;
-  let heightLockPossible = true;
   for (const map of inputs) {
     if (pair(map, 14) === undefined || pair(map, 15) === undefined)
       throw new Error("PSBT v2 input is missing its previous transaction ID or output index.");
-    const time = pair(map, 17);
-    const height = pair(map, 18);
-    if (time !== undefined) {
-      if (littleU32(time.value, "time lock") < CONSENSUS_LIMITS.absoluteLockTimeThreshold)
-        throw new Error("Required time lock is below 500000000.");
-    }
-    if (height !== undefined) {
-      const value = littleU32(height.value, "height lock");
-      if (value === 0 || value >= CONSENSUS_LIMITS.absoluteLockTimeThreshold)
-        throw new Error("Required height lock is outside 1..499999999.");
-    }
-    if (time !== undefined && height === undefined) heightLockPossible = false;
-    if (time === undefined && height !== undefined) timeLockPossible = false;
   }
-  const mixedLockKinds = !timeLockPossible && !heightLockPossible;
+  const mixedLockKinds = !new PsbtV2Locktime(inputs).compatible;
   if (outputs.some((map) => pair(map, 3) === undefined || pair(map, 4) === undefined))
     throw new Error("PSBT v2 output is missing its amount or script.");
   return mixedLockKinds;

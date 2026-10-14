@@ -69,13 +69,24 @@ Idea recorded on 2026-10-05. Today the Discovery Scanner and Activity Viewer dep
 
 References: [Dash Core releases](https://github.com/dashpay/dash/releases), [DIPs](https://github.com/dashpay/dips), [descriptor utilities](https://docs.dash.org/en/stable/docs/core/api/remote-procedure-calls-util.html#deriveaddresses), [importdescriptors](https://docs.dash.org/en/stable/docs/core/api/remote-procedure-calls-wallet.html#importdescriptors).
 
+## Bitcoin P2MR addresses (BIP-360)
+
+Pay-to-Merkle-Root is a proposed segwit version 2 output (`bc1z…`) that commits only to a script tree, without Taproot's key-path spend. BIP-360 is a draft since February 2026 (version 0.12.1) with no consensus and no activation. The BIP repository already holds a Python reference implementation and construction test vectors (`bip-0360/ref-impl`), so the address construction itself can be verified today; what is missing is a wallet standard and activation.
+
+- [ ] Wait for a wallet standard before generating addresses: a descriptor (such as `mr()`), a derivation path or purpose number, and a single-signature tree template. A single-leaf tree is anyone-can-spend in P2MR, so a lone one-key leaf must never be generated. Until activation every segwit version 2 output is anyone-can-spend under current consensus: no mainnet address before activation, at most a clearly marked testnet or regtest preview.
+- [ ] Then add an address module next to `taproot.ts` (tap leaf hashes, a TapBranch root without an internal key, bech32m version 2), a startup self-test from the BIP's construction vectors, the address type in the Deriver, `bc1z` recognition in the Discovery Scanner, the Activity Viewer and MnemoCode's wallet evidence, P2MR spends in the PSBT Inspector (control block of 1 + 32·m bytes), exclusion from the Dash Community edition, and a browser regression case.
+- [ ] Protection when coins are spent needs a post-quantum signature opcode (proposals: ML-DSA, SLH-DSA, SHRINCS). Add its leaf types once a BIP for one is merged.
+
+References: [BIP-360](https://github.com/bitcoin/bips/blob/master/bip-0360.mediawiki), [reference implementation and vectors](https://github.com/bitcoin/bips/tree/master/bip-0360/ref-impl).
+
 ## September 2026 audit follow-up
 
-See [the detailed review](audits/audit-06-2026-09-12.md) for public reproductions and priorities.
+See [the detailed review](audits/AUD-006-2026-09-12.md) for public reproductions and priorities.
 
 - [x] Fix MuSig descriptor multipath validation before branch substitution, preserving original grammar and origins through script-tree parsing. Add valid aggregate and invalid participant/aggregate combinations.
 - [x] Validate BIP174 hash-preimage field widths and commitments; define which remaining known fields are structurally or semantically verified.
 - [x] Cover valid legacy uncompressed `sh(pkh(KEY))` compilation and distinguish recognized-only descriptor forms from validated forms.
 - [x] Recover missing earlier pagination/network/copy-out regression cases against current modules; add Docker failure-cleanup simulation without invoking Docker.
 - [x] Replace the premature Blob Worker teardown with one shared readiness contract, keep controls in an explicit cryptography-initialisation state, and cover immediate Clear, Cancel, and protocol changes in Chromium and Firefox. Keep the Inspector badge explicitly limited to parser boundary checks rather than implying a cryptographic startup self-test.
+- [x] Give every tool known-answer self-tests for each feature and coin of its build: at start before any control opens (the Inspector's former parser-boundary badge included), a full self-test on request with the slower vectors, and a browser regression case (`self-tests`) for both editions.
 - [x] Consolidate descriptor checksum and balanced grammar helpers; split Inspector workflows and Deriver BIP85/BIP38/signing, streamed derivation, large-request policy, and export controllers along their state boundaries while preserving compile-time edition isolation.

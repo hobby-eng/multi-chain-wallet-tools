@@ -1,11 +1,15 @@
-import type { PDFDocument } from 'pdf-lib';
+import { PDFRef, type PDFDocument } from "pdf-lib";
 
-/** Keep contact data, references and application branding out of PDF metadata. */
+/**
+ * Keeps contact data, references, application branding and the time of an export out of a PDF:
+ * its document information dictionary is removed whole. pdf-lib fills one with its own name and
+ * the time whenever a document is made or loaded (CreationDate, ModDate), which would tell when a
+ * backup was printed (owner, 2026-10-13). The dictionary is deleted from the file too, not only
+ * unlinked from its trailer, so that no copy of it is written.
+ */
 export function clearDocumentMetadata(document: PDFDocument): void {
-  document.setTitle('');
-  document.setAuthor('');
-  document.setSubject('');
-  document.setKeywords([]);
-  document.setCreator('');
-  document.setProducer('');
+  const { context } = document;
+  const info = context.trailerInfo.Info;
+  if (info instanceof PDFRef) context.delete(info);
+  delete context.trailerInfo.Info;
 }

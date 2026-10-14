@@ -1,3 +1,4 @@
+import { resultIncomplete } from "./wallet-result.js";
 import type { RecoveryExportFormat } from "./export.js";
 import type { RecoveryWalletResult } from "./types.js";
 import type { createDiscoveryRenderers } from "./discovery-renderers.js";
@@ -79,9 +80,7 @@ export function createDiscoveryResultsView(options: DiscoveryResultsViewOptions)
         const active = coin.id === activeCoinId;
         tab.classList.toggle("active", active);
         tab.setAttribute("aria-pressed", String(active));
-        const failed = reports.some((result) =>
-          result.sections.some(({ state }) => state === "failed" || state === "partial"),
-        );
+        const failed = reports.some(resultIncomplete);
         tab.textContent = coin.label + (failed ? " · warning" : "");
         tab.addEventListener("click", () => selectCoin(coin.id));
         resultTabs.append(tab);
@@ -99,11 +98,7 @@ export function createDiscoveryResultsView(options: DiscoveryResultsViewOptions)
         copy.append(title, subtitle);
         const state = document.createElement("span");
         state.className = "wallet-state";
-        state.textContent = result.sections.some(
-          ({ state: sectionState }) => sectionState === "failed" || sectionState === "partial",
-        )
-          ? "Completed with warnings"
-          : "Scan complete";
+        state.textContent = resultIncomplete(result) ? "Completed with warnings" : "Scan complete";
         head.append(copy, state);
         wallet.append(head);
         for (const message of result.warnings) {

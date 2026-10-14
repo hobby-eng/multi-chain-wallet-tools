@@ -1,0 +1,57 @@
+{
+  "testQualityFinding": {
+    "category": "ARC",
+    "severity": "low",
+    "releaseBlocking": true,
+    "title": "Platform positive test fixture omits requested storage keys",
+    "affectedFiles": [
+      "apps/discovery-scanner/tests/discovery-scanner-security.test.ts:1245",
+      "apps/discovery-scanner/src/coins/dash/platform-scanner.ts:75"
+    ],
+    "reproduction": "Run the bounded boundary test group recorded in boundary-tests. The positive fixture supplies one Map entry for a request containing100 addresses.",
+    "expected": "A positive fixture must follow the validator's documented complete-key contract, including explicit null absence for requested unfunded addresses. A separate sparse-map negative must still refuse.",
+    "observed": "93cases pass and one positive test fails: Isolated Platform address response omitted a requested storage key. The fixture is incomplete; no need to weaken the production validator.",
+    "impact": "A mandatory regression suite is red because its positive fixture contradicts the fail-closed admission contract. Installed Evo4.1.1 JS forwards its WASM Map unchanged; the genuine empty-proof schema remains unverified, so this finding does not claim a production SDK incompatibility.",
+    "recommendedFix": "Complete the positive fixture according to the explicit-null contract and retain an omitted-key rejection test. Independently confirm the actual SDK/proof absence schema before changing any production normalization.",
+    "requiredVerification": "The corrected positive passes and sparse-map negatives refuse; a bounded actual-SDK/proof fixture establishes absent-key semantics. No live provider calls were executed.",
+    "evidence": ["boundary-tests.command.json", "boundary-tests.log"],
+    "relatedFindings": ["AUD-026-FUN002"]
+  },
+  "historicalFollowup": {
+    "id": "AUD-026-DOC001",
+    "status": "open",
+    "fixCommit": null,
+    "verificationCommit": null,
+    "evidence": [
+      "docs/ARCHITECTURE.md:45",
+      "packages/recovery-mhfe-wasm/README.md",
+      "tooling/dependency-provenance.json"
+    ],
+    "explanation": "The original verification applied to a local MHFE0.5.1 integration. The current MHFE0.6.0 signed release pin leaves ARCHITECTURE's unreleased-local/CI-refuses sentence stale again. Preserve the historical verified record; this is a current recurrence requiring a documentation correction under the existing ID, not a new historical test execution."
+  },
+  "limitations": [
+    "Full audit scope was reviewed with targeted/security-level execution. This is an incomplete baseline audit, not release acceptance or independent certification.",
+    "No real browsers, viewports, screenshots, accessibility trees, startup controls or actual browser worker/CSP lifecycle were executed at the owner's request. Controller probes use bounded fake DOM/worker replies; source integration was challenged separately.",
+    "No canonical Docker/WASM/launcher rebuild, complete feature matrix compilation/runtime, packaged launcher binaries, checksums/signing/attestation release bundle or GitHub Actions execution. Seven fresh default HTML pages and three minimal compositions were built; default Dash Deriver failed, and its old page was rejected as stale.",
+    "No full vector/statistics replays, full-size Argon2/scrypt/password KDFs, mass PDF/card/QR generation, live providers, regtest, wallet funds or real secrets. One mistakenly selected statistics file timed out and is excluded from completed test totals.",
+    "The crypto reviewer completed source inspection but its proposed test preparation was interrupted by an automatic cybersecurity content filter. The coordinator subsequently completed ordinary bounded synthetic conformance/rejection/recovery tests. Independent decryption of a weak-recipient record without a private key remains unexecuted; the confidentiality impact is inferred from the bound dependency path.",
+    "Npm advisories returned zero for150 packages. Five offline Cargo.lock scans returned zero known vulnerabilities using1296 cached advisories, with unknown advisory database freshness and yanked-package checks disabled. Unmaintained atomic-polyfill and paste warnings remain informational.",
+    "Exact service model identifiers and reliable reasoning-effort metadata were unavailable for all phases; null means unknown. Five reviewers contributed distinct scopes plus coordinator follow-up; no claim of independent certification.",
+    "No proof of post-GC zeroization, compiler erasure or secret residue recoverability. Captured buffer references demonstrate explicit cleanup only. No active unauthorized network/write call or real secret egress was demonstrated.",
+    "Installed Evo SDK4.1.1 delegates unfunded-address key selection to opaque WASM. Compatibility with explicit-null complete Maps is checked; actual empty-proof inclusion/omission semantics remain a gap.",
+    "Pinned MnemoCode source169 files is byte-matched to the checked source manifest but intentionally unreleased/dirty; CI rejects it. Its release handover remains a prerequisite. MHFE0.6.0 browser release pin is retained unchanged.",
+    "Crypto-backed known answers and narrow independent Go derivation checks were sampled. Full per-coin/path/script/BIP38/Silent Payments cryptographic acceptance was not replayed. Broad Taproot self-comparisons are not counted as independent oracles.",
+    "Original Node/Rust sandbox EPERM failures and harness/CLI initialization errors are retained separately from scoped successful reruns. No assertion, vector, offline boundary or integrity gate was relaxed.",
+    "Command memory sampling and serialization protect the coordinator's child process group; unrelated host processes are outside its enforcement. Source fingerprints remained stable throughout recorded product checks. Audit evidence is ignored and uncommitted."
+  ],
+  "skepticDecisions": [
+    "Retained whole-file admission as Medium without claiming measured memory exhaustion.",
+    "Downgraded exceptional cleanup and SDK assertion-analysis blind spots to Low; no production write/egress claim.",
+    "Downgraded Core balance labels and NaN concurrency to Low; no numeric corruption or ordinary UI trigger proved.",
+    "Replaced overstrict stale-DOM removal assertions with actual stale handoff probes;10 failures and1 pass in revised subset. Retained Decode/Silent Payments Medium, concealment and keyboard findings Low.",
+    "Kept missing-code passphrase handoff Medium and release-blocking despite reviewer's High proposal: wrong wallet handoff is observed, manual passphrase re-entry exists, loss is not shown.",
+    "Rejected oracle-alias and unsigned-Dash-commit allegations; actual Go WASM and signed local bot history contradicted them.",
+    "Separated stale Platform test fixture from unresolved real SDK absence semantics.",
+    "Confirmed Envelope unsafe recipient admission High with independent source skeptic; confidentiality impact remains an explicit source-derived inference."
+  ]
+}

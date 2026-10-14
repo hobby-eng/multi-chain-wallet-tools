@@ -1,3 +1,4 @@
+import { assertIndex } from "@ckd/core/bip32-limits.js";
 import { rootFromSeed, requirePrivate, requirePublic } from "@ckd/core/bip32.js";
 import { bytesToHex, concatBytes, secp256k1, wipe } from "@ckd/core/crypto.js";
 import { getBitcoinNetwork } from "@ckd/core/networks.js";
@@ -56,9 +57,7 @@ export async function deriveSilentPayment(
   account: number,
   labelIndexes?: readonly number[],
 ): Promise<SilentPaymentResult> {
-  if (!Number.isSafeInteger(account) || account < 0 || account > 0x7fffffff) {
-    throw new Error("Silent Payment account must be an integer from 0 to 2147483647.");
-  }
+  assertIndex(account, "Silent Payment account");
   const labels = [...new Set(labelIndexes ?? [])].sort((left, right) => left - right);
   if (labels.length > MAX_LABELS_PER_REQUEST) {
     throw new Error(`Request at most ${MAX_LABELS_PER_REQUEST} labels at a time.`);

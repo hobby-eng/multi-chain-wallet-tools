@@ -1,10 +1,12 @@
 import { describeUnknownError } from "@ckd/core/error-handling.js";
+import { PublicExportSession } from "@ckd/export/public-export-session.js";
 import type { ViewerExportFormat, ViewerExportState } from "./export.js";
 import type { ActivityViewerView } from "./view.js";
 
 interface ViewerExportDependencies {
   view: ActivityViewerView;
   state(): ViewerExportState | null;
+  session?: PublicExportSession;
   createTextExport: typeof import("./export.js").createViewerExport;
   createWorkbookExport: typeof import("./export.js").createViewerWorkbookExport;
   downloadBlob: typeof import("@ckd/export/download.js").downloadBlob;
@@ -12,7 +14,7 @@ interface ViewerExportDependencies {
 }
 
 export function createViewerExportController(dependencies: ViewerExportDependencies) {
-  let exportingWorkbook = false;
+  const session = dependencies.session ?? new PublicExportSession();
 
   async function download(format: ViewerExportFormat): Promise<void> {
     const state = dependencies.state();
@@ -20,13 +22,18 @@ export function createViewerExportController(dependencies: ViewerExportDependenc
       dependencies.view.showError("Run a query before exporting data.");
       return;
     }
+    // Standalone callers supply the visible state directly; integrated owners share the session.
+    if (dependencies.session === undefined && !session.contains(state)) session.replace(state);
+    const ticket = session.begin(state);
+    if (ticket === null) return;
     try {
       if (format === "xlsx") {
-        if (exportingWorkbook) return;
-        exportingWorkbook = true;
         dependencies.view.setExportBusy(true);
         dependencies.view.setStatus("Building XLSX workbook locally…");
         const file = await dependencies.createWorkbookExport(state);
+        // A workbook of results that were cleared or replaced meanwhile is neither saved nor
+        // reported (AUD-024-API004).
+        if (dependencies.state() !== state || !session.owns(ticket, state)) return;
         dependencies.downloadBlob(file.blob, file.filename);
         dependencies.view.setStatus(
           `Exported ${file.filename}. No private or viewing-key input is included.`,
@@ -39,10 +46,10 @@ export function createViewerExportController(dependencies: ViewerExportDependenc
         `Exported ${file.filename}. No private or viewing-key input is included.`,
       );
     } catch (cause) {
+      if (dependencies.state() !== state || !session.owns(ticket, state)) return;
       dependencies.view.showError(`Export failed: ${describeUnknownError(cause)}`);
     } finally {
-      if (format === "xlsx") {
-        exportingWorkbook = false;
+      if (session.finish(ticket, state) && dependencies.state() === state && format === "xlsx") {
         dependencies.view.setExportBusy(false);
         dependencies.view.setExportAvailable(dependencies.state() !== null);
       }

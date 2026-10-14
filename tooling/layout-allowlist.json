@@ -16,6 +16,11 @@
       "check": "controls-overlap",
       "within": [".secret-field"],
       "reason": "A password field with its Show button drawn inside the field at the right end, on purpose."
+    },
+    {
+      "check": "empty-grid-cell",
+      "within": [".reserved-line"],
+      "reason": "A status line that fills after a typing pause keeps its height while it is empty (RESERVED_NOTE_LINE), so that the buttons below it do not move under the pointer when it fills."
     }
   ]
 }

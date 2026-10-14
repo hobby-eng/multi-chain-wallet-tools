@@ -1,5 +1,42 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { englishList } from "../packages/crypto-core/src/listing.ts";
+import { WASM_CATALOG } from "./wasm-modules.mjs";
+
+const VERSION_PATTERN = /^\d+\.\d+\.\d+$/u;
+
+function versionOf(manifest, label) {
+  const version = String(manifest.version ?? "");
+  if (!VERSION_PATTERN.test(version)) throw new Error(`${label} version must use x.y.z.`);
+  return version;
+}
+
+/** Application release metadata and independently versioned reusable bridges. */
+export class ProjectMetadata {
+  #root;
+  #release;
+  #independent;
+
+  constructor(root) {
+    this.#root = root;
+    this.#release = readReleaseMetadata(root);
+    this.#independent = new Set(
+      WASM_CATALOG.firstParty()
+        .filter((module) => module.releaseManaged === false)
+        .map((module) => `packages/${module.packageDirectory}`),
+    );
+  }
+
+  get release() {
+    return this.#release;
+  }
+
+  packageVersion(directory) {
+    if (!this.#independent.has(directory)) return this.#release.version;
+    const path = resolve(this.#root, directory, "package.json");
+    return versionOf(JSON.parse(readFileSync(path, "utf8")), directory);
+  }
+}
 
 export const PRODUCT_FACTS = Object.freeze({
   multiChainCoins: Object.freeze(["Bitcoin", "Ethereum", "Dash"]),
@@ -20,16 +57,13 @@ export const PRODUCT_FACTS = Object.freeze({
 });
 
 export function formatEnglishList(values) {
-  if (values.length < 2) return values[0] ?? "";
-  if (values.length === 2) return `${values[0]} and ${values[1]}`;
-  return `${values.slice(0, -1).join(", ")}, and ${values.at(-1)}`;
+  return englishList(values, "and");
 }
 
 export function readReleaseMetadata(root) {
   const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
-  const version = String(manifest.version ?? "");
+  const version = versionOf(manifest, "package.json");
   const releaseDate = String(manifest.releaseDate ?? "");
-  if (!/^\d+\.\d+\.\d+$/u.test(version)) throw new Error("package.json version must use x.y.z.");
   if (
     !/^\d{4}-\d{2}-\d{2}$/u.test(releaseDate) ||
     Number.isNaN(Date.parse(`${releaseDate}T00:00:00Z`))

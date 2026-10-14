@@ -1,43 +1,17 @@
-import { PROVIDER_UNSIGNED_DECIMAL } from "@ckd/core/numeric-limits.js";
+import { providerValues } from "@ckd/core/provider-values.js";
+import { networkCancelledError } from "@ckd/core/error-handling.js";
 import { boundedFetch } from "@ckd/network-boundary/bounded-fetch.js";
 import { readBoundedJson } from "@ckd/network-boundary/bounded-json.js";
 
-const DECIMAL_PATTERN = PROVIDER_UNSIGNED_DECIMAL;
 /** Byte ceiling for one Bitcoin or Ethereum provider response; the earlier check used it too. */
 const MAX_PUBLIC_PROVIDER_JSON_BYTES = 20_000_000;
-
-export function publicProviderAbortError(): DOMException {
-  return new DOMException("Recovery network operation cancelled.", "AbortError");
-}
 
 // boundedFetch turns an abort during body reading into the caller's abort or timeout error.
 function readProviderJson(response: Response, signal: AbortSignal): Promise<unknown> {
   return readBoundedJson(response, signal, MAX_PUBLIC_PROVIDER_JSON_BYTES);
 }
 
-export function record(value: unknown, context: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`Public provider returned malformed ${context}.`);
-  }
-  return value as Record<string, unknown>;
-}
-
-export function decimal(value: unknown, context: string, nullAsZero = false): string {
-  if (nullAsZero && (value === null || value === undefined)) return "0";
-  const text = typeof value === "number" && Number.isSafeInteger(value) ? String(value) : value;
-  if (typeof text !== "string" || !DECIMAL_PATTERN.test(text)) {
-    throw new Error(`Public provider returned an invalid ${context}.`);
-  }
-  return text;
-}
-
-export function unsignedInteger(value: unknown, context: string): number {
-  const numeric = typeof value === "string" && DECIMAL_PATTERN.test(value) ? Number(value) : value;
-  if (typeof numeric !== "number" || !Number.isSafeInteger(numeric) || numeric < 0) {
-    throw new Error(`Public provider returned an invalid ${context}.`);
-  }
-  return numeric;
-}
+export const { record, decimal, unsignedInteger } = providerValues("Public provider");
 
 export function fetchJson(
   url: string,
@@ -49,7 +23,7 @@ export function fetchJson(
     signal,
     init,
     timeoutMs,
-    abortError: publicProviderAbortError,
+    abortError: networkCancelledError,
     read: readProviderJson,
   });
 }

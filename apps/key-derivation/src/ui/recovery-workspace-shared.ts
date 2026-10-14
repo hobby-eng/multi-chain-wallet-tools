@@ -1,11 +1,24 @@
+import { isTabKey, markTab, tabIndexAfter } from "@ckd/ui/tabs.js";
+import { SskrGroupPolicy } from "@ckd/recovery-backup/sskr-groups.js";
+import { textLines } from "@ckd/core/text-lines.js";
 import type { CoinRegistry } from "@ckd/coins/registry-base.js";
 import type { WalletMatcherTargetDetector } from "@ckd/recovery/matcher-types.js";
 import type { RecoveryJobGate } from "./recovery-job-gate.js";
-import type { RecoverySourceTarget } from "./recovery-source-link.js";
+import type { RecoverySourceReference, RecoverySourceTarget } from "./recovery-source-link.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { createQrAction } from "@ckd/ui/payment-qr.js";
+import { installQrImageImport, type DecodedQrImage } from "@ckd/ui/qr-image-import.js";
+import { installTextFileImport } from "@ckd/ui/text-file-import.js";
 import { diagnoseMnemonic, masterFingerprintFromSeed } from "@ckd/core/bip39.js";
 import { renderSeedDiagnostic } from "./seed-diagnostic-view.js";
+import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
+
+/**
+ * A status line that fills after a typing pause keeps its height with this text while it is empty,
+ * so that the buttons and results below it do not move when it fills. Such a line has the class
+ * reserved-line, which tooling/layout-allowlist.json names as a deliberately empty grid cell.
+ */
+export const RESERVED_NOTE_LINE = "\u00a0";
 
 export interface RecoveryFeatureContext {
   readonly registry: CoinRegistry;
@@ -14,6 +27,11 @@ export interface RecoveryFeatureContext {
   readonly writeClipboard: (value: string) => Promise<void>;
   readonly downloadText: (text: string, fileName: string, mimeType: string) => void;
   readonly useMnemonicInDeriver: (mnemonic: string, passphrase?: string) => void;
+  /** A confirmed recovery result can use the same linked-source owner as Generate & Derive. */
+  readonly useRecoverySource?: (
+    reference: RecoverySourceReference,
+    target: RecoverySourceTarget,
+  ) => void;
   readonly readMnemonic: (target: RecoverySourceTarget, selector: string) => string;
   readonly linkedValue: (
     target: RecoverySourceTarget,
@@ -22,6 +40,8 @@ export interface RecoveryFeatureContext {
   readonly linkedSourceRevealed: (target: RecoverySourceTarget) => boolean;
   /** Runs heavy jobs one at a time across every panel. */
   readonly jobs: RecoveryJobGate;
+  /** A failed feature self-test closes the same controls as the global full self-test. */
+  readonly selfTestFailed?: (cause: unknown) => void;
 }
 
 export function required<T extends Element>(selector: string): T {
@@ -60,7 +80,7 @@ export function integer(
 }
 
 export function lines(value: string, preserveEmpty = false): string[] {
-  const result = value.replaceAll("\r", "").split("\n");
+  const result = textLines(value);
   return preserveEmpty ? result : result.map((line) => line.trim()).filter(Boolean);
 }
 
@@ -73,8 +93,7 @@ interface ThresholdGroupEditor {
   read(): ThresholdGroupSpec[];
 }
 
-/** SSKR allows at most 16 groups and at most 16 shares in one group. */
-const MAX_SSKR_GROUP_VALUE = 16;
+const SSKR_GROUP_PARAMETERS = SskrGroupPolicy.parameters();
 /** Values of a newly added group: a common 2-of-3 split. */
 const NEW_GROUP_SPEC: ThresholdGroupSpec = { threshold: 2, count: 3 };
 
@@ -84,8 +103,8 @@ function groupNumberInput(
 ): HTMLInputElement {
   const input = document.createElement("input");
   input.type = "number";
-  input.min = "1";
-  input.max = String(MAX_SSKR_GROUP_VALUE);
+  input.min = String(SSKR_GROUP_PARAMETERS.minimum);
+  input.max = String(SSKR_GROUP_PARAMETERS.maximumMembers);
   input.value = String(value);
   input.dataset[dataName] = "";
   return input;
@@ -140,13 +159,13 @@ export function installThresholdGroupEditor(
           requiredWithin<HTMLInputElement>(row, "[data-group-threshold]"),
           `Group ${index + 1} shares required`,
           1,
-          MAX_SSKR_GROUP_VALUE,
+          SSKR_GROUP_PARAMETERS.maximumMembers,
         ),
         count: integer(
           requiredWithin<HTMLInputElement>(row, "[data-group-count]"),
           `Group ${index + 1} shares created`,
           1,
-          MAX_SSKR_GROUP_VALUE,
+          SSKR_GROUP_PARAMETERS.maximumMembers,
         ),
       })),
   };
@@ -184,7 +203,7 @@ function installGroupTable(container: HTMLElement, options: ThresholdGroupOption
   const synchronizeRows = (): void => {
     const groupRows = [...rows.querySelectorAll<HTMLElement>("[data-threshold-group-row]")];
     header.hidden = groupRows.length === 0;
-    add.disabled = groupRows.length >= MAX_SSKR_GROUP_VALUE;
+    add.disabled = groupRows.length >= SSKR_GROUP_PARAMETERS.maximumGroups;
     groupRows.forEach((row, index) => {
       const ordinal = index + 1;
       requiredWithin<HTMLElement>(row, "[data-group-name]").textContent = `Group ${ordinal}`;
@@ -271,7 +290,7 @@ function installInlineGroupRows(
   const synchronizeRemoveButtons = (): void => {
     const buttons = [...rows.querySelectorAll<HTMLButtonElement>("[data-remove-threshold-group]")];
     for (const button of buttons) button.disabled = buttons.length <= options.minimumRows;
-    add.disabled = buttons.length >= MAX_SSKR_GROUP_VALUE;
+    add.disabled = buttons.length >= SSKR_GROUP_PARAMETERS.maximumGroups;
   };
   const appendRow = (spec: ThresholdGroupSpec): void => {
     const row = document.createElement("div");
@@ -330,37 +349,57 @@ function setTab(
 ): void {
   buttons.forEach((button, index) => {
     const active = index === selected;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-selected", String(active));
-    button.tabIndex = active ? 0 : -1;
-    panels[index]!.hidden = !active;
+    markTab(button, active);
+    const panel = panels[index];
+    if (panel !== undefined) panel.hidden = !active;
   });
 }
 
 export function installTabs(root: ParentNode, buttonSelector: string, panelSelector: string): void {
   const buttons = [...root.querySelectorAll<HTMLButtonElement>(buttonSelector)];
   const panels = [...root.querySelectorAll<HTMLElement>(panelSelector)];
-  buttons.forEach((button, index) =>
-    button.addEventListener("click", () => setTab(buttons, panels, index)),
+  buttons.forEach((button, index) => {
+    button.addEventListener("click", () => {
+      if (!button.disabled) setTab(buttons, panels, index);
+    });
+    button.addEventListener("keydown", (event) => {
+      if (button.disabled || !isTabKey(event.key)) return;
+      const enabled = buttons.filter((tab) => !tab.disabled);
+      const next = tabIndexAfter(event.key, enabled.indexOf(button), enabled.length);
+      if (next === undefined) return;
+      event.preventDefault();
+      const selected = enabled[next]!;
+      setTab(buttons, panels, buttons.indexOf(selected));
+      selected.focus();
+    });
+  });
+  setTab(
+    buttons,
+    panels,
+    buttons.findIndex((button) => !button.disabled),
   );
-  if (buttons.length > 0) setTab(buttons, panels, 0);
 }
 
-export function installNumberedInput(textarea: HTMLTextAreaElement, gutter: HTMLElement): void {
-  const update = (): void => {
-    const count = Math.max(1, textarea.value.replaceAll("\r", "").split("\n").length);
-    gutter.textContent = Array.from({ length: count }, (_, index) => String(index + 1)).join("\n");
-    gutter.scrollTop = textarea.scrollTop;
-  };
-  textarea.addEventListener("input", update);
-  textarea.addEventListener("scroll", update);
-  update();
-}
+/**
+ * The part of a panel whose secrets one Show button reveals and whose Copy buttons it enables: a
+ * block marked data-secret-scope, such as a section with results of its own inside a tab, or else
+ * the whole tab.
+ */
+const SECRET_SCOPE = "[data-secret-scope], .backup-operation";
 
-export function updateLineNumbers(textarea: HTMLTextAreaElement, gutter: HTMLElement): void {
-  const count = Math.max(1, textarea.value.replaceAll("\r", "").split("\n").length);
-  gutter.textContent = Array.from({ length: count }, (_, index) => String(index + 1)).join("\n");
-  gutter.scrollTop = textarea.scrollTop;
+/**
+ * Whether a Copy button copies one of `targets`: it sits in a card that holds one, or under a
+ * result that holds them ("Copy all"), in the button's own scope rather than in a nested block with
+ * a Show button of its own. So showing an input field never unlocks the Copy of a result.
+ */
+function copiesTarget(
+  action: HTMLElement,
+  scope: HTMLElement,
+  targets: readonly HTMLElement[],
+): boolean {
+  if (action.closest(SECRET_SCOPE) !== scope) return false;
+  const holder = action.closest("article") ?? action.parentElement?.parentElement;
+  return holder != null && targets.some((target) => holder.contains(target));
 }
 
 /**
@@ -376,14 +415,13 @@ export function installSecretToggle(
   subject?: string,
 ): void {
   const button = required<HTMLButtonElement>(buttonSelector);
-  const scope = button.closest<HTMLElement>(".backup-operation") ?? document.body;
+  const scope = button.closest<HTMLElement>(SECRET_SCOPE) ?? document.body;
   let revealed = button.getAttribute("aria-pressed") === "true";
   const synchronize = (): void => {
-    for (const target of document.querySelectorAll<HTMLElement>(targetSelector)) {
-      target.classList.toggle("concealed", !revealed);
-    }
+    const targets = [...document.querySelectorAll<HTMLElement>(targetSelector)];
+    for (const target of targets) target.classList.toggle("concealed", !revealed);
     for (const action of scope.querySelectorAll<HTMLButtonElement>(".secret-copy-action"))
-      action.disabled = !revealed;
+      if (copiesTarget(action, scope, targets)) action.disabled = !revealed;
     button.textContent = revealed ? hideLabel : revealLabel;
     if (subject !== undefined)
       button.setAttribute("aria-label", `${revealed ? "Hide" : "Show"} ${subject}`);
@@ -396,10 +434,12 @@ export function installSecretToggle(
   for (const target of document.querySelectorAll<HTMLElement>(targetSelector)) {
     target.addEventListener("input", () => queueMicrotask(synchronize));
   }
-  scope.addEventListener("secret-content-reset", () => {
+  const conceal = (): void => {
     revealed = false;
     synchronize();
-  });
+  };
+  scope.addEventListener("secret-content-reset", conceal);
+  RecoverySecretLifecycle.register(button, conceal);
   synchronize();
 }
 
@@ -452,7 +492,15 @@ export function installMnemonicSourceDiagnostic(
   const diagnostic = createSeedDiagnosticElement();
   input.after(diagnostic);
   const update = (): void => {
-    const linked = context.linkedValue(target);
+    let linked: { mnemonic: string; passphrase: string } | null;
+    try {
+      linked = context.linkedValue(target);
+    } catch {
+      // The linked phrase changed or was cleared in Generate & Derive: nothing to describe until
+      // it is chosen again.
+      updateMnemonicDiagnostic(diagnostic, "", "", false, context.mnemonicToSeed);
+      return;
+    }
     // A linked phrase is shown by the toggle in its card; the hidden manual field says nothing about it.
     const revealed =
       linked === null
@@ -469,6 +517,7 @@ export function installMnemonicSourceDiagnostic(
   input.addEventListener("input", update);
   passphrase?.addEventListener("input", update);
   reveal.addEventListener("click", () => queueMicrotask(update));
+  RecoverySecretLifecycle.onConceal(reveal, () => queueMicrotask(update));
   for (const type of ["recovery-source-change", "recovery-source-visibility"]) {
     document.addEventListener(type, (event) => {
       if (event instanceof CustomEvent && event.detail === target) update();
@@ -477,50 +526,90 @@ export function installMnemonicSourceDiagnostic(
   update();
 }
 
+/** The class of codes shown apart beside the same codes written joined (appendApartCodes). */
+const APART_CODES = "apart-codes";
+
+/** What leads from codes shown apart to the same codes joined, as MnemoCode's command line says. */
+export const JOINED_CODES_CAPTION = "Joined, for copying:";
+
+/**
+ * Codes that their form writes joined, such as MnemoCode's Unicode codes, shown apart and separated
+ * by spaces, so that a person sees where each code ends and which one to mark with ? (MnemoCode,
+ * owner 2026-10-13); then the caption that leads to the joined text, which the caller shows next.
+ * Concealed like that text; returns the codes' element for the caller's Show button.
+ */
+export function appendApartCodes(container: HTMLElement, codes: readonly string[]): HTMLElement {
+  const view = paragraph(codes.join(" "), `concealed ${APART_CODES}`);
+  container.append(view, paragraph(JOINED_CODES_CAPTION, "field-note"));
+  return view;
+}
+
+/**
+ * Everything that a Show button of `result` reveals: the cards' texts and the codes shown apart
+ * beside them (appendApartCodes), which carry a class of their own so that a reader of the cards'
+ * texts gets the texts alone.
+ */
+export function shownTextsIn(result: string): string {
+  return `${result} .share-secret, ${result} .${APART_CODES}`;
+}
+
 /**
  * Shows each share or record as a concealed card with Copy and QR. Returns the row of buttons that
  * follows the cards, so that a caller can add its own button there instead of on a line of its own:
  * with several cards it is a row holding "Copy all"; with one card, whose Copy already copies
- * everything, it is that card's own row.
+ * everything, it is that card's own row. A card with codes in `apart` shows them apart above its
+ * joined text (appendApartCodes); its Show button then needs shownTextsIn.
  */
 export function renderSensitiveShares(
   container: HTMLElement,
   shares: readonly string[],
   copy: (value: string) => Promise<void>,
   labels: readonly string[] = [],
+  apart: readonly (readonly string[] | undefined)[] = [],
+  current: () => boolean = () => true,
 ): HTMLElement {
   let lastActions: HTMLElement | undefined;
+  const revealedCards: (() => boolean)[] = [];
   shares.forEach((share, index) => {
     const card = document.createElement("article");
     const title = document.createElement("strong");
     const label = labels[index] ?? `Share ${index + 1}`;
     title.textContent = label;
+    card.append(title);
+    const codes = apart[index];
+    if (codes !== undefined) appendApartCodes(card, codes);
     const text = document.createElement("p");
     text.className = "concealed share-secret";
     text.textContent = share;
+    const revealed = (): boolean =>
+      card.isConnected && current() && !text.classList.contains("concealed");
+    revealedCards.push(revealed);
     const copyButton = document.createElement("button");
     copyButton.type = "button";
     copyButton.className = "secret-action compact secret-copy-action";
     copyButton.textContent = "Copy";
     copyButton.setAttribute("aria-label", `Copy ${label.toLowerCase()}`);
     copyButton.disabled = true;
-    copyButton.addEventListener("click", () => void copy(share));
+    copyButton.addEventListener("click", () => {
+      if (revealed()) void copy(share);
+    });
     const qr = createQrAction(document, share, label.toLowerCase(), share, {
       heading: `${label} QR`,
       description: "Sensitive payload:",
       ecc: "M",
+      current: revealed,
     });
     qr.classList.add("share-qr-action");
     const actions = document.createElement("div");
     actions.className = "share-secret-actions";
     actions.append(copyButton, qr);
-    card.append(title, text, actions);
+    card.append(text, actions);
     container.append(card);
     lastActions = actions;
   });
   const reset = (): void => {
     container
-      .closest<HTMLElement>(".backup-operation")
+      .closest<HTMLElement>(SECRET_SCOPE)
       ?.dispatchEvent(new CustomEvent("secret-content-reset"));
   };
   if (shares.length === 1 && lastActions !== undefined) {
@@ -533,7 +622,10 @@ export function renderSensitiveShares(
   copyAll.textContent = "Copy all";
   copyAll.setAttribute("aria-label", labels.length > 0 ? "Copy all records" : "Copy all shares");
   copyAll.disabled = true;
-  copyAll.addEventListener("click", () => void copy(shares.join("\n")));
+  copyAll.addEventListener("click", () => {
+    if (footer.isConnected && current() && revealedCards.every((revealed) => revealed()))
+      void copy(shares.join("\n"));
+  });
   const footer = document.createElement("div");
   footer.className = "share-secret-actions";
   footer.append(copyAll);
@@ -542,13 +634,18 @@ export function renderSensitiveShares(
   return footer;
 }
 
+/**
+ * A recovered phrase, concealed until shown, with Copy (left out when `copy` is undefined, for a
+ * phrase that must not reach the clipboard), Use in Generate & Derive and the Seed Diagnostic.
+ */
 export function renderRecoveredMnemonic(
   container: HTMLElement,
   mnemonic: string,
-  copy: (value: string) => Promise<void>,
+  copy: ((value: string) => Promise<void>) | undefined,
   useInDeriver: (mnemonic: string) => void,
   mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array,
   diagnosticPassphrase = "",
+  current: () => boolean = () => true,
 ): void {
   const diagnostic = createSeedDiagnosticElement();
   diagnostic.hidden = true;
@@ -570,6 +667,7 @@ export function renderRecoveredMnemonic(
     undefined,
     () => useInDeriver(mnemonic),
     updateDiagnostic,
+    current,
   );
   container.append(diagnostic);
 }
@@ -635,14 +733,15 @@ export function renderReadBackWords(
   );
 }
 
-function renderRecoveredSecret(
+export function renderRecoveredSecret(
   container: HTMLElement,
   value: string,
-  labels: Readonly<{ reveal: string; hide: string; copy: string }>,
-  copy: (value: string) => Promise<void>,
+  labels: Readonly<{ reveal: string; hide: string; copy: string; copyText?: string }>,
+  copy: ((value: string) => Promise<void>) | undefined,
   note?: string,
   useInDeriver?: () => void,
   onVisibilityChange?: (revealed: boolean) => void,
+  current: () => boolean = () => true,
 ): void {
   const output = document.createElement("textarea");
   output.rows = 4;
@@ -653,32 +752,41 @@ function renderRecoveredSecret(
   reveal.type = "button";
   reveal.className = "danger-outline compact";
   reveal.textContent = labels.reveal;
+  reveal.setAttribute("aria-pressed", "false");
   const copyButton = document.createElement("button");
   copyButton.type = "button";
   copyButton.className = "secret-action compact";
-  copyButton.textContent = "Copy";
+  copyButton.textContent = labels.copyText ?? "Copy";
   copyButton.setAttribute("aria-label", labels.copy);
   copyButton.disabled = true;
   const actions = document.createElement("div");
   actions.className = "actions recovered-secret-actions";
-  actions.append(reveal, copyButton);
+  actions.append(reveal);
+  if (copy !== undefined) actions.append(copyButton);
   if (useInDeriver !== undefined) {
     const useButton = document.createElement("button");
     useButton.type = "button";
     useButton.className = "secondary compact";
     useButton.textContent = "Use in Generate & Derive";
-    useButton.addEventListener("click", useInDeriver);
+    useButton.addEventListener("click", () => {
+      if (current()) useInDeriver();
+    });
     actions.append(useButton);
   }
-  reveal.addEventListener("click", () => {
-    const visible = output.classList.contains("concealed");
+  const setVisible = (visible: boolean): void => {
     output.classList.toggle("concealed", !visible);
     reveal.textContent = visible ? labels.hide : labels.reveal;
     reveal.setAttribute("aria-pressed", String(visible));
     copyButton.disabled = !visible;
     onVisibilityChange?.(visible);
+  };
+  reveal.addEventListener("click", () => {
+    if (current()) setVisible(output.classList.contains("concealed"));
   });
-  copyButton.addEventListener("click", () => void copy(value));
+  RecoverySecretLifecycle.register(reveal, () => setVisible(false));
+  copyButton.addEventListener("click", () => {
+    if (current() && !copyButton.disabled) void copy?.(value);
+  });
   container.append(output, actions);
   if (note !== undefined) {
     const warning = document.createElement("p");
@@ -686,4 +794,49 @@ function renderRecoveredSecret(
     warning.textContent = note;
     container.append(warning);
   }
+}
+
+/** A MnemoCode record, as a field opens it from a file. */
+export const RECORD_FILE_IMPORT = {
+  label: "Open a record file",
+  accept: ".mnc,.txt,text/plain",
+} as const;
+/** A complete or marked English phrase is private text, not an encoded-record header. */
+export const PHRASE_FILE_IMPORT = {
+  label: "Open a phrase text file",
+  accept: ".txt,text/plain",
+} as const;
+/** Shares or records in several QR images, one a share, read into one field. */
+export const QR_IMAGES_IMPORT = { label: "Import QR images", multiple: true } as const;
+/** Shares written one a line, as a field opens them from a file. */
+export const SHARES_FILE_IMPORT = {
+  label: "Open a shares file",
+  accept: ".txt,text/plain",
+} as const;
+
+/**
+ * Lets `field` be filled from a text file of the kind `file` names and, with `qr`, from QR images,
+ * each refusal said on `say`. The file's button is put first: each button goes right after the
+ * field, so that the QR button then comes first.
+ */
+export function installFieldImports(
+  field: HTMLTextAreaElement,
+  say: (message: string) => void,
+  options: {
+    readonly file?: { readonly label: string; readonly accept: string };
+    readonly qr?: {
+      readonly label?: string;
+      readonly multiple?: boolean;
+      readonly onDecoded?: (decoded: DecodedQrImage) => string;
+    };
+  },
+): void {
+  if (options.file !== undefined)
+    installTextFileImport(document, field, { ...options.file, onError: say });
+  if (options.qr !== undefined)
+    installQrImageImport(document, field, {
+      onDecoded: (decoded) => decoded.text.trim(),
+      ...options.qr,
+      onError: say,
+    });
 }

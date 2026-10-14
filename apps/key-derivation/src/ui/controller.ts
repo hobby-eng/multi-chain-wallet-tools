@@ -1,3 +1,5 @@
+import { isTabKey, tabIndexAfter } from "@ckd/ui/tabs.js";
+import { isAbortError } from "@ckd/core/error-handling.js";
 import type { CoinAdapter } from "@ckd/coins/registry.js";
 import type { DerivationResult, DisplayMode, ResultField } from "@ckd/core/types.js";
 import { displayedFields, type ExportAction, type ExportFormat } from "@ckd/export/formatter.js";
@@ -13,7 +15,7 @@ import {
   type BranchResultState,
   type ResultBranch,
 } from "./result-branches.js";
-import { runStreamedDerivation } from "./streamed-derivation.js";
+import { runStreamedDerivation, yieldToBrowser } from "./streamed-derivation.js";
 import { invertSelection, selectAll, selectNone } from "./selection.js";
 import { DerivationCancelledError, DerivationWorkerClient } from "../workers/derive-client.js";
 
@@ -30,6 +32,8 @@ import { AdapterSettingsStore } from "./adapter-settings.js";
 import { AutomaticDerivationScheduler } from "./automatic-derivation.js";
 import { runStartupSelfTests } from "./startup-self-test.js";
 import { installResultTabNavigation, type TopLevelResultTab } from "./result-tab-navigation.js";
+import { SELF_TEST_NOT_PASSED } from "./crypto-self-test-gate.js";
+import { FieldEdits } from "./field-edits.js";
 
 const BASIC_WINDOW_SIZE = 200;
 const ADVANCED_WINDOW_SIZE = 24;
@@ -41,10 +45,13 @@ interface KeyDerivationDependencies {
   buildInfo: typeof import("@ckd/build-info").BUILD_INFO;
   generateMnemonic: typeof import("@ckd/core/bip39.js").generateMnemonic;
   chosenWords?: import("./chosen-words-feature.js").ChosenWordsFeature;
+  installCheckedMnemonicFeature?: typeof import("./checked-mnemonic-feature.js").installCheckedMnemonicFeature;
   mnemonicToSeed: typeof import("@ckd/core/bip39.js").mnemonicToSeed;
   runBip39SelfTest: typeof import("@ckd/bip39-self-test").runBip39SelfTest;
   runRecoveryBackupSelfTest: typeof import("@ckd/recovery-backup/self-test.js").runRecoveryBackupSelfTest;
   setRecoveryControlsEnabled(enabled: boolean): void;
+  /** Registers what the controller does when the person's full self-test fails. */
+  onFullSelfTestFailure?(listener: (cause: unknown) => void): void;
   writeClipboard: typeof import("@ckd/export/clipboard.js").writeClipboard;
   downloadBlob: typeof import("@ckd/export/download.js").downloadBlob;
   downloadText: typeof import("@ckd/export/download.js").downloadText;
@@ -79,10 +86,12 @@ export function createKeyDerivationController(
         buildInfo,
         generateMnemonic,
         chosenWords,
+        installCheckedMnemonicFeature,
         mnemonicToSeed,
         runBip39SelfTest,
         runRecoveryBackupSelfTest,
         setRecoveryControlsEnabled,
+        onFullSelfTestFailure,
         writeClipboard,
         downloadBlob,
         downloadText,
@@ -151,6 +160,19 @@ export function createKeyDerivationController(
       let mainRecoverySourceRevision = 0;
       let activeFeatureTab: "silent-payment" | "bip85" | "coinjoin" | null = null;
       let cryptoReady = false;
+      /**
+       * A wish or the checked mode changed: a phrase made for the earlier request is not
+       * published, and a running draw stops (AUD-024-API002).
+       */
+      const invalidateGeneration = (): void => {
+        checkedMnemonic?.cancel();
+        derivationRevision += 1;
+        stopActiveDerivation();
+        clearMessages();
+      };
+      const checkedMnemonic = installCheckedMnemonicFeature?.(document, invalidateGeneration);
+      chosenWords?.onChange(invalidateGeneration);
+      if (checkedMnemonic !== undefined) chosenWords?.useChecked(checkedMnemonic);
       const adapterSettings = new AdapterSettingsStore(getAdapterFamilyId);
       const automaticDerivation = new AutomaticDerivationScheduler(window);
       /** Remembers which CoinJoin sub-branch was last shown, so re-activating the Dash Mobile CoinJoin · DIP9 tab returns to it. */
@@ -194,6 +216,7 @@ export function createKeyDerivationController(
         mnemonicToSeed,
         createWorker,
         render: () => renderCurrent(),
+        cryptoReady: () => cryptoReady,
       });
       const encryptedBip38ByBranch =
         bip38Feature?.encryptedByBranch ?? new Map<ResultBranch, Map<number, string>>();
@@ -233,6 +256,7 @@ export function createKeyDerivationController(
         copy: (button, text) => {
           void copyText(button, text, false);
         },
+        cryptoReady: () => cryptoReady,
       });
       bip85Feature =
         installBip85Feature?.({
@@ -341,7 +365,7 @@ export function createKeyDerivationController(
       silentPaymentTab?.addEventListener("click", () => {
         if (installSilentPaymentFeature === undefined) return;
         cancelAutomaticDerivation();
-        stopActiveDerivation("Derivation mode changed to Silent Payments.");
+        stopActiveDerivation("Derivation mode changed to the selected payment protocol.");
         derivationRevision += 1;
         clearResults();
         setFeatureTab("silent-payment");
@@ -375,6 +399,7 @@ export function createKeyDerivationController(
         createWorker,
         isActive: () => activeFeatureTab === "silent-payment",
         mnemonicMayBeComplete,
+        cryptoReady: () => cryptoReady,
       });
 
       function stopActiveDerivation(message = "Derivation superseded by a new request."): void {
@@ -650,8 +675,29 @@ export function createKeyDerivationController(
 
       function setCryptoControlsEnabled(enabled: boolean): void {
         view.setCryptoControlsEnabled(enabled);
+        checkedMnemonic?.setEnabled(enabled);
+        bip85Feature?.setEnabled(enabled);
+        silentPaymentFeature?.setEnabled(enabled);
         setRecoveryControlsEnabled(enabled);
       }
+
+      /**
+       * A failed self-test, at startup or the person's full one, closes every control that derives
+       * from the phrase and drops what this build derived before it was found faulty.
+       */
+      function failCryptoSelfTest(cause: unknown): void {
+        cryptoReady = false;
+        cancelAutomaticDerivation();
+        stopActiveDerivation("The cryptographic self-test failed.");
+        invalidateAddressSearch();
+        derivationRevision += 1;
+        clearResults();
+        if (messageSigning?.isOpen() === true) messageSigning.close();
+        view.showCryptoSelfTestFailed(cause);
+        setCryptoControlsEnabled(false);
+        showError("Cryptographic self-test failed. This build will not derive wallet keys.");
+      }
+      onFullSelfTestFailure?.(failCryptoSelfTest);
 
       async function initializeCryptoRuntime(): Promise<void> {
         setCryptoControlsEnabled(false);
@@ -668,26 +714,12 @@ export function createKeyDerivationController(
           setCryptoControlsEnabled(true);
           scheduleAutomaticDerivation();
         } catch (cause) {
-          cryptoReady = false;
-          view.showCryptoSelfTestFailed(cause);
-          setCryptoControlsEnabled(false);
-          showError("Cryptographic self-test failed. This build will not derive wallet keys.");
+          failCryptoSelfTest(cause);
         }
       }
 
       populateBuildPassport();
       void initializeCryptoRuntime();
-
-      /**
-       * Yields between batches. requestAnimationFrame is deliberately not used: it
-       * stops firing in a background tab, which silently stalls a long derivation at
-       * exactly the moment the user switches away from it to wait.
-       */
-      async function yieldToBrowser(): Promise<void> {
-        await new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 0);
-        });
-      }
 
       const STREAM_RENDER_INTERVAL_MS = 120;
       let lastStreamRenderAt = 0;
@@ -877,19 +909,12 @@ export function createKeyDerivationController(
         view.focusProtocolButton(id);
       });
       controls.protocolTabs.addEventListener("keydown", (event) => {
-        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        if (!isTabKey(event.key)) return;
         const adapterIds = view.protocolAdapterIds();
         const current = adapterIds.indexOf(adapter.id);
         if (current < 0 || adapterIds.length === 0) return;
         event.preventDefault();
-        const nextIndex =
-          event.key === "Home"
-            ? 0
-            : event.key === "End"
-              ? adapterIds.length - 1
-              : (current + (event.key === "ArrowRight" ? 1 : -1) + adapterIds.length) %
-                adapterIds.length;
-        const id = adapterIds[nextIndex];
+        const id = adapterIds[tabIndexAfter(event.key, current, adapterIds.length)!];
         if (id === undefined) return;
         resetForAdapter(getCoinAdapter(id));
         view.focusProtocolButton(id);
@@ -929,6 +954,8 @@ export function createKeyDerivationController(
       };
       offerMainRecoverySource();
 
+      // A text field repeats its edit as change on blur; that repeat must not cancel the derivation.
+      const rangeEdits = new FieldEdits();
       for (const control of [
         controls.network,
         controls.account,
@@ -940,6 +967,9 @@ export function createKeyDerivationController(
         controls.count,
       ]) {
         const refresh = (): void => {
+          // Changing a derivation setting revokes its generation too; discard the worker now.
+          checkedMnemonic?.cancel();
+          clearMessages();
           stopActiveDerivation();
           invalidateAddressSearch();
           derivationRevision += 1;
@@ -950,14 +980,18 @@ export function createKeyDerivationController(
           view.resetDeriveAction();
           scheduleAutomaticDerivation();
         };
-        control.addEventListener("input", refresh);
-        control.addEventListener("change", refresh);
+        for (const type of ["input", "change"])
+          control.addEventListener(type, (event) => {
+            if (rangeEdits.isNew(event)) refresh();
+          });
       }
       for (const input of [mnemonic, passphrase]) {
         input.addEventListener("input", () => {
+          checkedMnemonic?.cancel();
           mainRecoverySourceRevision += 1;
           queueMicrotask(offerMainRecoverySource);
           stopActiveDerivation();
+          invalidateParentFeatures();
           invalidateAddressSearch();
           derivationRevision += 1;
           if (currentResult !== null) clearResults();
@@ -966,6 +1000,12 @@ export function createKeyDerivationController(
           view.resetDeriveAction();
           scheduleAutomaticDerivation();
         });
+      }
+
+      /** Parent edits and generation revoke every feature derived from the previous wallet. */
+      function invalidateParentFeatures(): void {
+        bip85Feature?.invalidate();
+        silentPaymentFeature?.clear();
       }
 
       for (const input of [expectedAddress, searchStart, searchCount])
@@ -987,8 +1027,13 @@ export function createKeyDerivationController(
         generateButton.addEventListener("click", () => void generatePhrase(words));
       }
 
-      /** Puts a new phrase in the field: an ordinary one, or one that meets the chosen words. */
+      /** A fresh phrase, with all explicitly selected word and wallet-check conditions. */
       async function generatePhrase(words: 12 | 15 | 18 | 21 | 24): Promise<void> {
+        if (!cryptoReady) {
+          showError(SELF_TEST_NOT_PASSED);
+          return;
+        }
+        checkedMnemonic?.cancel();
         mainRecoverySourceRevision += 1;
         queueMicrotask(offerMainRecoverySource);
         cancelAutomaticDerivation();
@@ -1000,32 +1045,49 @@ export function createKeyDerivationController(
         const wishes = chosenWords?.active() === true ? chosenWords : null;
         try {
           let phrase: string;
-          if (wishes === null) {
+          const checked = checkedMnemonic?.active() === true;
+          if (checked) {
+            const request = wishes?.request(words) ?? {
+              wordCount: words,
+              chosen: [],
+              neverUse: [],
+            };
+            phrase = await checkedMnemonic!.generate(words, passphrase.value, request, (line) => {
+              if (revision === derivationRevision) showStatus(line);
+            });
+          } else if (wishes === null) {
             phrase = generateMnemonic(words);
           } else {
             showStatus(`Looking for a random ${words}-word phrase that meets your chosen words…`);
             phrase = await wishes.generate(words);
-            // Another Generate, Clear all or a typed phrase during the search wins.
+            // Sampling finished in one synchronous call; a newer input before publication wins.
             if (revision !== derivationRevision) return;
           }
+          if (revision !== derivationRevision || !cryptoReady) return;
+          // A new phrase is a new wallet: an ordinary generation starts it without the BIP39
+          // passphrase of the last one, which the field shows only as dots, so that no address of
+          // the new phrase is taken unnoticed from the wallet with that passphrase (owner's
+          // decision, 2026-10-08). The MHFE wallet check keeps it: the phrase was drawn for the
+          // passphrase confirmed there.
+          const passphraseCleared = !checked && passphrase.value !== "";
+          if (!checked) passphrase.value = "";
+          // Generation replaces the parent without an input event. Revoke its descendants before
+          // publishing the new source (AUD-022-SEC001, AUD-028-API008).
+          invalidateParentFeatures();
           view.setGeneratedMnemonic(phrase, adapter.defaults.count);
           // The offer queued above ran during the search, while the field still held the old
           // phrase; offer the new one to the backup tabs now (AUD-019-UI001).
-          if (wishes !== null) offerMainRecoverySource();
+          if (wishes !== null || checked) offerMainRecoverySource();
           rememberCurrentSettings();
           updateWordCount();
           showStatus(
-            `Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues()${wishes === null ? "" : ", with your chosen words"}. Deriving ${adapter.defaults.count} results…`,
+            `Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues()${wishes === null ? "" : ", with your chosen words"}${checked ? ", passing the MHFE wallet check with the BIP39 passphrase you confirmed" : ""}.${passphraseCleared ? " The BIP39 passphrase field was emptied: a new phrase starts without one; type one now if this wallet should use one." : ""} Deriving ${adapter.defaults.count} results…`,
           );
           void deriveCurrent(true);
         } catch (cause) {
           // A cancelled search was replaced by a newer action, which reports for itself. A wish that
           // cannot be met is reported as an error; no ordinary phrase is put in its place.
-          if (
-            (cause instanceof DOMException && cause.name === "AbortError") ||
-            revision !== derivationRevision
-          )
-            return;
+          if (isAbortError(cause) || revision !== derivationRevision) return;
           showError(cause instanceof Error ? cause.message : "Secure phrase generation failed.");
         }
       }
@@ -1061,6 +1123,7 @@ export function createKeyDerivationController(
         silentPaymentFeature?.reset();
         view.clearAllInputs();
         chosenWords?.clear();
+        checkedMnemonic?.clear();
         mnemonicDiagnostic.reset();
       });
 

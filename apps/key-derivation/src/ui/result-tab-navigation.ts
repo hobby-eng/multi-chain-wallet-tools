@@ -1,3 +1,4 @@
+import { isTabKey, tabIndexAfter } from "@ckd/ui/tabs.js";
 import type { ResultBranch } from "./result-branches.js";
 
 export type TopLevelResultTab = "receive" | "change" | "coinjoin";
@@ -26,19 +27,12 @@ export function installResultTabNavigation(options: ResultTabNavigationOptions):
   for (const [button, tab] of topLevel) {
     button.addEventListener("click", () => activateTopLevel(tab));
     button.addEventListener("keydown", (event) => {
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      if (!isTabKey(event.key)) return;
       event.preventDefault();
       const visible = topLevel.filter(([candidate]) => !candidate.hidden);
       if (visible.length === 0) return;
       const currentIndex = visible.findIndex(([candidate]) => candidate === button);
-      const nextIndex =
-        event.key === "Home"
-          ? 0
-          : event.key === "End"
-            ? visible.length - 1
-            : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + visible.length) %
-              visible.length;
-      const next = visible[nextIndex];
+      const next = visible[tabIndexAfter(event.key, currentIndex, visible.length)!];
       if (next === undefined || next[0].disabled) return;
       activateTopLevel(next[1]);
       next[0].focus();
@@ -48,7 +42,7 @@ export function installResultTabNavigation(options: ResultTabNavigationOptions):
   for (const [button, branch] of coinJoinBranches) {
     button.addEventListener("click", () => activateBranch(branch));
     button.addEventListener("keydown", (event) => {
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      if (!isTabKey(event.key)) return;
       event.preventDefault();
       const next =
         event.key === "ArrowLeft" || event.key === "Home"

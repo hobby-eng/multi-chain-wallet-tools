@@ -1,8 +1,9 @@
-import { bech32, bech32m } from "@scure/base";
-import { bytesToHex, encodeBase58Check, sha256 } from "@ckd/core/crypto.js";
+import { BIP32_HARDENED_OFFSET } from "@ckd/core/bip32-limits.js";
+import { bytesToHex, sha256 } from "@ckd/core/crypto.js";
 import { reverseHex, type PsbtPair } from "./psbt-binary.js";
 import { isUnsupportedField, type PsbtMapScope } from "./psbt-field-registry.js";
 import type { PsbtChain, PsbtNetwork } from "./psbt-types.js";
+import { InspectorNetworkProfile } from "./network-profile.js";
 
 export function pairName(scope: PsbtMapScope, type: bigint, chain: PsbtChain = "bitcoin"): string {
   const names: Record<string, Record<string, string>> = {
@@ -72,6 +73,7 @@ export function pairSummary(
   pair: PsbtPair,
   chain: PsbtChain = "bitcoin",
 ): string | null {
+  if (isUnsupportedField(chain, scope, pair.type)) return null;
   const classicDerivation =
     (scope === "global" && pair.type === 0x01n) ||
     (scope === "input" && pair.type === 0x06n) ||
@@ -108,17 +110,10 @@ function derivationSummary(value: Uint8Array, offset: number): string {
         ((value[position + 2] ?? 0) << 16) |
         ((value[position + 3] ?? 0) << 24)) >>>
       0;
-    const hardened = child >= 0x80000000;
-    path.push(`${hardened ? child - 0x80000000 : child}${hardened ? "'" : ""}`);
+    const hardened = child >= BIP32_HARDENED_OFFSET;
+    path.push(`${hardened ? child - BIP32_HARDENED_OFFSET : child}${hardened ? "'" : ""}`);
   }
   return `Master fingerprint ${fingerprint} · path m${path.length === 0 ? "" : `/${path.join("/")}`}`;
-}
-
-function payloadAddress(prefix: number, payload: Uint8Array): string {
-  const prefixed = new Uint8Array(payload.length + 1);
-  prefixed[0] = prefix;
-  prefixed.set(payload, 1);
-  return encodeBase58Check(prefixed);
 }
 
 export function describeScript(
@@ -126,39 +121,22 @@ export function describeScript(
   chain: PsbtChain,
   network: PsbtNetwork,
 ): { type: string; address: string | null } {
+  const profile = new InspectorNetworkProfile(chain, network);
   const hex = bytesToHex(script);
   if (/^76a914[0-9a-f]{40}88ac$/u.test(hex)) {
-    const prefix =
-      chain === "dash"
-        ? network === "mainnet"
-          ? 0x4c
-          : 0x8c
-        : network === "mainnet"
-          ? 0x00
-          : 0x6f;
-    return { type: "P2PKH", address: payloadAddress(prefix, script.slice(3, 23)) };
+    return { type: "P2PKH", address: profile.p2pkhAddress(script.slice(3, 23)) };
   }
   if (/^a914[0-9a-f]{40}87$/u.test(hex)) {
-    const prefix =
-      chain === "dash"
-        ? network === "mainnet"
-          ? 0x10
-          : 0x13
-        : network === "mainnet"
-          ? 0x05
-          : 0xc4;
-    return { type: "P2SH", address: payloadAddress(prefix, script.slice(2, 22)) };
+    return { type: "P2SH", address: profile.p2shAddress(script.slice(2, 22)) };
   }
   if (chain === "bitcoin" && (/^0014[0-9a-f]{40}$/u.test(hex) || /^0020[0-9a-f]{64}$/u.test(hex))) {
-    const hrp = network === "mainnet" ? "bc" : network === "regtest" ? "bcrt" : "tb";
     return {
       type: script.length === 22 ? "P2WPKH" : "P2WSH",
-      address: bech32.encode(hrp, [0, ...bech32.toWords(script.slice(2))]),
+      address: profile.witnessAddress(0, script.slice(2)),
     };
   }
   if (chain === "bitcoin" && /^5120[0-9a-f]{64}$/u.test(hex)) {
-    const hrp = network === "mainnet" ? "bc" : network === "regtest" ? "bcrt" : "tb";
-    return { type: "P2TR", address: bech32m.encode(hrp, [1, ...bech32m.toWords(script.slice(2))]) };
+    return { type: "P2TR", address: profile.witnessAddress(1, script.slice(2)) };
   }
   if (script[0] === 0x6a) return { type: "OP_RETURN", address: null };
   return { type: "Non-standard / unrecognized", address: null };

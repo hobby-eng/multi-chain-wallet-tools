@@ -74,6 +74,7 @@ describe("page-number explorer histories", () => {
             value = { address: core, txCount: 150, balance: "0", received: "0", sent: "0" };
           else if (kind === "platform")
             value = {
+              bech32mAddress: platform,
               totalTxs: 150,
               incomingTxs: 150,
               outgoingTxs: 0,

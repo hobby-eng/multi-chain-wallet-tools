@@ -2,12 +2,12 @@
 
 ## Unreleased
 
-No changes after v0.1.5 yet.
+The next stable release is being prepared; v0.1.5 has not been published.
 
-## v0.1.5 (2026-10-01)
+## v0.1.5 (in preparation)
 
-The first release with MnemoCode 0.1.0 and its cards, MHFE 0.5.0, the executable Deriver,
-generation with chosen words, and Node.js 26.10.0, pnpm 12.8.1 and wasm-bindgen 0.2.129. See
+The draft includes MnemoCode 0.1.0 and its cards, MHFE 0.5.1, the executable Deriver,
+generation with one chosen word or one excluded word, the explicit MHFE wallet-check option, and Node.js 26.10.0, pnpm 12.8.1 and wasm-bindgen 0.2.129. See
 [the v0.1.5 notes](docs/releases/v0.1.5.md) and
 [the Dash Community notes](docs/releases/v0.1.5-dash-community.md).
 

@@ -1,10 +1,11 @@
-import { concatBytes, encodeBase58Check, hash160 } from "@ckd/core/crypto.js";
+import { hash160 } from "@ckd/core/crypto.js";
 import {
   compactMessageDigest,
   decodeCompactSignature,
   recoverCompactPublicKey,
 } from "@ckd/core/compact-message-internal.js";
 import type { PsbtNetwork } from "./psbt.js";
+import { InspectorNetworkProfile } from "./network-profile.js";
 
 export interface MessageVerification {
   readonly valid: boolean;
@@ -16,9 +17,7 @@ export interface MessageVerification {
 }
 
 function dashAddress(publicKey: Uint8Array, network: PsbtNetwork): string {
-  return encodeBase58Check(
-    concatBytes(Uint8Array.of(network === "mainnet" ? 0x4c : 0x8c), hash160(publicKey)),
-  );
+  return new InspectorNetworkProfile("dash", network).p2pkhAddress(hash160(publicKey));
 }
 
 function hexadecimal(bytes: Uint8Array): string {

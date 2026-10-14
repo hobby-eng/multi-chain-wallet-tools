@@ -5,6 +5,7 @@ import { planResultBranches, type ResultBranch } from "./result-branches.js";
 import { DerivationCancelledError, type DerivationWorkerClient } from "../workers/derive-client.js";
 import type { MessageSigningFormat } from "../workers/protocol.js";
 import type { MessageSigningPolicy } from "./message-signing-policy.js";
+import { SELF_TEST_NOT_PASSED } from "./crypto-self-test-gate.js";
 
 interface WalletSource {
   adapter: CoinAdapter | null;
@@ -20,6 +21,8 @@ interface MessageSigningInstallerOptions {
   mnemonicToSeed: typeof import("@ckd/core/bip39.js").mnemonicToSeed;
   createWorker(): DerivationWorkerClient;
   copy(button: HTMLButtonElement, text: string): void;
+  /** Whether the cryptographic self-tests have passed; nothing is signed before they do. */
+  cryptoReady(): boolean;
 }
 
 type SigningContext = {
@@ -126,6 +129,12 @@ function installMessageSigningFeature(
         : defaultFormat;
     if (active === null || signingFormat === null) {
       error.textContent = "The selected address is no longer available for message signing.";
+      error.hidden = false;
+      signatureResult.hidden = true;
+      return;
+    }
+    if (!options.cryptoReady()) {
+      error.textContent = SELF_TEST_NOT_PASSED;
       error.hidden = false;
       signatureResult.hidden = true;
       return;

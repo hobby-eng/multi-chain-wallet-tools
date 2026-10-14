@@ -54,14 +54,17 @@ export function createResultExportController(dependencies: ResultExportDependenc
     }
   }
 
-  async function copyRows(
-    button: HTMLButtonElement,
+  /**
+   * What `action` takes from the selected rows, or undefined, after saying why, when nothing is
+   * selected or the field does not apply to them.
+   */
+  function inspectSelection(
     action: ExportAction,
     context: ResultExportContext,
-  ): Promise<void> {
+  ): ReturnType<typeof inspectSelectedRows> | undefined {
     if (context.selected.size === 0) {
       dependencies.showError("Select at least one result first.");
-      return;
+      return undefined;
     }
     const inspection = inspectSelectedRows(
       context.adapter,
@@ -74,8 +77,18 @@ export function createResultExportController(dependencies: ResultExportDependenc
       dependencies.showError(
         "That field type does not apply to the selected protocol and display mode.",
       );
-      return;
+      return undefined;
     }
+    return inspection;
+  }
+
+  async function copyRows(
+    button: HTMLButtonElement,
+    action: ExportAction,
+    context: ResultExportContext,
+  ): Promise<void> {
+    const inspection = inspectSelection(action, context);
+    if (inspection === undefined) return;
     if (inspection.valueCount > CLIPBOARD_VALUE_LIMIT) {
       dependencies.showError(
         `That selection holds ${inspection.valueCount.toLocaleString()} values, more than the clipboard can assemble safely. ` +
@@ -100,23 +113,8 @@ export function createResultExportController(dependencies: ResultExportDependenc
     context: ResultExportContext,
     onFinished: () => void,
   ): Promise<void> {
-    if (context.selected.size === 0) {
-      dependencies.showError("Select at least one result first.");
-      return;
-    }
-    const inspection = inspectSelectedRows(
-      context.adapter,
-      context.result,
-      context.selected,
-      context.mode,
-      action,
-    );
-    if (inspection.valueCount === 0) {
-      dependencies.showError(
-        "That field type does not apply to the selected protocol and display mode.",
-      );
-      return;
-    }
+    const inspection = inspectSelection(action, context);
+    if (inspection === undefined) return;
     if (inspection.containsSecret && !dependencies.secretsRevealed()) {
       dependencies.showError("Show private and privacy-sensitive values before exporting them.");
       return;

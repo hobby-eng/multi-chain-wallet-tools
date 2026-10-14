@@ -1,3 +1,4 @@
+import { textLines } from "@ckd/core/text-lines.js";
 import { parseInteger } from "@ckd/core/validation.js";
 import type { RecoveryInputSnapshot } from "./view.js";
 import type { RecoveryInputMode, RecoveryScanConfig, RecoverySeedInput } from "./types.js";
@@ -17,8 +18,10 @@ export function createRecoverySeedInputs(
       },
     ];
   }
-  const mnemonicLines = snapshot.batchMnemonics.replaceAll("\r", "").split("\n");
-  const passphraseLines = snapshot.batchPassphrases.replaceAll("\r", "").split("\n");
+  // A MnemoCode candidate list stands in for the typed lines; its phrases are valid by its format.
+  if (snapshot.candidateList !== undefined) return snapshot.candidateList.inputs();
+  const mnemonicLines = textLines(snapshot.batchMnemonics);
+  const passphraseLines = textLines(snapshot.batchPassphrases);
   const inputs: RecoverySeedInput[] = [];
   mnemonicLines.forEach((mnemonic, lineIndex) => {
     if (mnemonic.trim().length === 0) return;

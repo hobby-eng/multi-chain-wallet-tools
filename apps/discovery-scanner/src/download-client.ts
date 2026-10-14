@@ -1,3 +1,4 @@
+import { onParentMessage } from "@ckd/network-boundary/iframe-protocol.js";
 import {
   RECOVERY_EXPORT_REQUEST,
   RECOVERY_EXPORT_RESULT,
@@ -16,10 +17,8 @@ const pending = new Map<
 let sequence = 0;
 
 if (typeof window !== "undefined") {
-  window.addEventListener("message", (event: MessageEvent<unknown>) => {
-    if (event.source !== window.parent || typeof event.data !== "object" || event.data === null)
-      return;
-    const result = event.data as Partial<RecoveryExportBrokerResult>;
+  onParentMessage((data) => {
+    const result = data as Partial<RecoveryExportBrokerResult>;
     if (
       result.type !== RECOVERY_EXPORT_RESULT ||
       typeof result.id !== "string" ||

@@ -399,9 +399,6 @@ main {
   padding-bottom: 30px;
 }
 .warning {
-  display: grid;
-  grid-template-columns: 34px 1fr;
-  gap: 14px;
   background: #241c0f;
   border: 1px solid #60491e;
   color: #e7d6b0;
@@ -410,6 +407,11 @@ main {
   font-size: 14px;
   line-height: 1.55;
   margin-bottom: 18px;
+}
+.warning:has(> .warning-icon) {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 14px;
 }
 .warning-icon {
   width: 28px;
@@ -584,8 +586,10 @@ textarea.concealed {
 .chosen-words-panel[hidden] {
   display: none;
 }
-#chosen-words-add {
-  justify-self: start;
+/* A word hint below its field takes a row of its own, after the field's button. */
+.chosen-words-row .word-hint {
+  grid-column: 1 / -1;
+  order: 1;
 }
 .chosen-words-panel input[aria-invalid="true"] {
   border-color: var(--danger);
@@ -1039,11 +1043,14 @@ button {
   font-weight: 750;
   font-family: inherit;
 }
-button:focus-visible {
+/* A file chooser (.file-choice) is a button too: it shows its input's focus and disabled state. */
+button:focus-visible,
+.file-choice:has(> input:focus-visible) {
   outline: 3px solid rgba(245, 166, 35, 0.35);
   outline-offset: 2px;
 }
-button:disabled {
+button:disabled,
+.file-choice:has(> input:disabled) {
   cursor: not-allowed;
   opacity: 0.42;
 }
@@ -2280,16 +2287,15 @@ footer p {
   }
 }
 
+/* Tabs in equal columns that wrap to another row where they do not fit, as on a phone. */
 .recovery-subtabs,
 .backup-mode-tabs {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
   gap: 0.5rem;
 }
 
 .recovery-subtabs {
-  grid-auto-flow: row;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
 }
 
@@ -2315,24 +2321,29 @@ footer p {
 }
 
 .recovery-panel,
-.backup-operation {
+/* A block inside a tab that shows for one answer, or a section of its own, keeps the tab's grid. */
+.backup-operation,
+.operation-block {
   display: grid;
   gap: 1rem;
+}
+.mnemocode-cards > .operation-block {
+  margin-top: 1rem;
 }
 
 /* The grid gap separates the parts of a form. A label belongs to the control below it and a note
    to the field above it, so both sit 8px from it instead of adding their own margins to the gap;
    the actions keep a little more room than the gap. */
-.backup-operation > label:not(:has(input, select, textarea)) {
+:is(.backup-operation, .operation-block) > label:not(:has(input, select, textarea)) {
   margin-bottom: -8px;
 }
-.backup-operation > label:has(input, select, textarea) {
+:is(.backup-operation, .operation-block) > label:has(input, select, textarea) {
   margin-bottom: 0;
 }
-.backup-operation > .field-note {
+:is(.backup-operation, .operation-block) > .field-note {
   margin-top: -8px;
 }
-.backup-operation > .actions {
+:is(.backup-operation, .operation-block) > .actions {
   margin-top: 8px;
 }
 /* The diagnostic's own bottom margin serves the Generate & Derive page; in a form grid it would add
@@ -2511,6 +2522,99 @@ footer p {
   margin-top: 1rem;
 }
 
+/* MnemoCode's self-test report: one row per check. */
+.self-test-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.self-test-table td {
+  padding: 6px 10px 6px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.self-test-table td:last-child {
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* What a repair of shares filled in where ? stood: a row for each share, as MnemoCode prints it. */
+.mnemocode-repairs p {
+  margin: 0;
+}
+.mnemocode-repairs p + p {
+  margin-top: 8px;
+}
+.mnemocode-repair-table {
+  border-collapse: collapse;
+  margin-top: 6px;
+  color: var(--text);
+}
+.mnemocode-repair-table th,
+.mnemocode-repair-table td {
+  padding: 6px 18px 6px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.mnemocode-repair-table th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: normal;
+}
+.mnemocode-repair-elements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+.mnemocode-repair-position {
+  color: var(--muted);
+}
+.mnemocode-repair-guess {
+  color: var(--accent2);
+}
+
+/* MnemoCode's measured repair times in the help beside the share fields. */
+.mnemocode-repair-times-wrap {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+.mnemocode-repair-times {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.mnemocode-repair-times caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: 4px;
+}
+.mnemocode-repair-times th,
+.mnemocode-repair-times td {
+  padding: 4px 10px 4px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.mnemocode-repair-times th {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+/* One row of MnemoCode's word table: labels on the left, values on the right. */
+.mnemocode-table-row {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 18px;
+  margin: 0;
+}
+.mnemocode-table-row dt {
+  color: var(--muted);
+}
+.mnemocode-table-row dd {
+  margin: 0;
+  font-family: var(--mono, monospace);
+}
+
 .mnemocode-cards > summary {
   cursor: pointer;
   font-weight: 600;
@@ -2574,7 +2678,15 @@ footer p {
 /* The note is prose, not a secret: keep the body font that share cards replace with monospace. */
 #mhfe-panel .share-results article > p.field-note {
   margin: 0;
+}
+.share-results article > p.field-note {
   font-family: inherit;
+}
+
+/* Codes shown apart beside their joined text (appendApartCodes), also outside a card. */
+.apart-codes {
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
 }
 
 /* A group of radio answers, each with its own label; used by every panel of the workspace. */
@@ -2621,6 +2733,117 @@ footer p {
 
 .option-help .recovery-help-popover {
   right: 0;
+}
+
+/* The grey note after a radio answer, as the command-line tools print it after each answer. */
+.answer-note {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Labelled facts of a result, the page form of the command-line tools' summary lines. */
+.result-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  font-size: 12px;
+}
+
+.result-facts dt {
+  color: var(--muted);
+}
+
+.result-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A repair card as it is written: four "i/k word" cells to a row. */
+.mhfe-repair-card {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.mhfe-repair-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem 0.9rem;
+  font: 12px/1.5 var(--mono);
+}
+
+.mhfe-changes {
+  margin: 0;
+  padding-left: 1.2rem;
+  font: 12px/1.5 var(--mono);
+}
+
+.mhfe-review-answers {
+  display: grid;
+  gap: 0.4rem;
+}
+
+/* The words toggle keeps its own width inside the grid of the review. */
+.mhfe-password-review > button {
+  justify-self: start;
+}
+
+#mhfe-panel .field-note a {
+  color: var(--accent2);
+}
+
+/* Candidates of a MnemoCode search: number, what was found, the wallet's answer and Use. */
+.candidate-table-wrapper {
+  max-height: 28rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+}
+
+.candidate-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.candidate-table th,
+.candidate-table td {
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.candidate-table th {
+  position: sticky;
+  top: 0;
+  color: var(--muted);
+  background: var(--panel2);
+}
+
+.candidate-table td.candidate-found {
+  font-family: var(--mono);
+}
+
+.mnemocode-chosen-candidate {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.mnemocode-advanced > summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mhfe-wallet-check,
+.mhfe-owner-check {
+  display: grid;
+  gap: 0.6rem;
+}
+
+@media (max-width: 700px) {
+  .mhfe-repair-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
@@ -2878,13 +3101,32 @@ footer p {
   }
 }
 
-.qr-image-import {
+/* A file chooser (file-choice.ts): a button-styled label around a file input that is not drawn. */
+.file-choice {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: fit-content;
   margin-top: 0.5rem;
   cursor: pointer;
+}
+/* Out of sight but focusable: the keyboard opens the browser's file picker from it. */
+.file-choice > input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  opacity: 0;
+}
+.file-choice-name {
+  margin-left: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .matcher-entry-textarea {
@@ -3261,7 +3503,7 @@ footer p {
   .secondary,
   .danger-outline,
   .secret-action,
-  label.qr-image-import,
+  label.file-choice,
   .share-qr-action .qr-trigger
 ) {
   min-height: 40px;
@@ -3273,7 +3515,7 @@ footer p {
   white-space: nowrap;
 }
 /* A button in a form grid keeps its own width instead of stretching across the form. */
-:is(.backup-operation, .share-results) > :is(button, label.qr-image-import, label.secondary) {
+:is(.backup-operation, .share-results) > :is(button, label.file-choice, label.secondary) {
   justify-self: start;
 }
 /* Buttons that act on a share or container sit side by side with room between them. */

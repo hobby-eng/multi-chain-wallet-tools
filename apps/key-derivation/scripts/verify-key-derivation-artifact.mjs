@@ -1,16 +1,21 @@
+import {
+  assertReviewedDynamicCode,
+  assertRecordedChecksum,
+  assertSingleDocument,
+  currentArtifact,
+  occurrences,
+  uniqueIds,
+} from "../../../tooling/artifact-checks.mjs";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
-import { getToolBuild, parseBuildProfile } from "../../../tooling/build-profiles.mjs";
+import { parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 import { vendoredMnemoCodeVersion } from "../../../tooling/key-derivation-features.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
-const tool = getToolBuild(profile, "key-derivation");
-const artifactPath = resolve(root, "dist", tool.artifactRelativePath);
-const checksumPath = resolve(root, "dist", tool.artifactDirectory, tool.checksumFile);
+const { tool, html, checksumPath } = currentArtifact(root, profile, "key-derivation", "Standalone");
 const wasmPaths = [
   ["Orchard", resolve(root, "packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm")],
   [
@@ -22,34 +27,12 @@ const wasmPaths = [
     "Gordian Envelope",
     resolve(root, "packages/recovery-envelope-wasm/generated/recovery_envelope_wasm_bg.wasm"),
   ],
-  ["MHFE", resolve(root, "packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm")],
+  ["MHFE", resolve(root, "packages/recovery-mhfe-wasm/generated/runtime/mhfe.wasm")],
 ];
-const html = readFileSync(artifactPath, "utf8");
 const rootPackage = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
-const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
-if (!html.includes(expectedFingerprint)) {
-  throw new Error(
-    "Standalone artifact does not contain the fingerprint of the current source tree.",
-  );
-}
 
-function occurrences(value, marker) {
-  return value.split(marker).length - 1;
-}
-
-for (const [marker, expected] of [
-  ["<!doctype html>", 1],
-  ['<html lang="en">', 1],
-  ["</html>", 1],
-  ["<style>", 1],
-  ["</style>", 1],
-  ["<script>", 1],
-  ["</script>", 1],
-]) {
-  const actual = occurrences(html, marker);
-  if (actual !== expected)
-    throw new Error(`Expected ${expected} ${marker} marker; found ${actual}.`);
-}
+assertSingleDocument(html, "standalone");
+assertReviewedDynamicCode(html, "key-derivation");
 
 const scriptStart = html.indexOf("<script>");
 const scriptEnd = html.lastIndexOf("</script>");
@@ -84,10 +67,13 @@ if (csp.includes("'unsafe-eval'"))
 if (html.includes("__INLINE_SCRIPT_CSP__") || html.includes("/*__INLINE_")) {
   throw new Error("Standalone artifact still contains an unexpanded build marker.");
 }
+if (
+  html.includes("MNEMOCODE_WALLET_FIELDS") ||
+  /__MNEMOCODE_(?:PREFIX|WALLET_[A-Z_]+)__/u.test(html)
+)
+  throw new Error("Standalone artifact still contains an unexpanded MnemoCode wallet marker.");
 
-const ids = [...html.matchAll(/\sid="([^"]+)"/gu)].map((match) => match[1]);
-if (new Set(ids).size !== ids.length)
-  throw new Error("Standalone artifact contains duplicate HTML IDs.");
+const ids = uniqueIds(html, "Standalone artifact");
 const requiredIds = [
   "derive-form",
   "recovery-workspace",
@@ -123,6 +109,14 @@ const requiredIds = [
   "generate-18",
   "generate-21",
   "generate-24",
+  "wallet-check-generation",
+  "wallet-check-help",
+  "wallet-check-enabled",
+  "wallet-check-status",
+  "wallet-check-options",
+  "wallet-check-passphrase-repeat",
+  "wallet-check-outlook",
+  "wallet-check-cancel",
   "coin",
   "protocol-tabs",
   "network",
@@ -149,10 +143,37 @@ const requiredIds = [
   "mnemocode-panel",
   "mnemocode-source",
   "encode-mnemocode",
+  "mnemocode-encode-mode",
+  "mnemocode-encode-format",
   "mnemocode-input",
   "decode-mnemocode",
-  "mnemocode-missing-word-input",
-  "recover-mnemocode-word",
+  "mnemocode-decode-mode",
+  "mnemocode-decode-format",
+  "mnemocode-reencode-panel",
+  "mnemocode-reencode-input",
+  "mnemocode-reencode-mode",
+  "mnemocode-reencode-format",
+  "mnemocode-reencode-read",
+  "mnemocode-reencode-result",
+  "mnemocode-reencode-confirmation",
+  "mnemocode-reencode-person",
+  "mnemocode-reencode-wallet-check",
+  "mnemocode-reencode-continue",
+  "mnemocode-reencode-wallet-fingerprint",
+  "mnemocode-reencode-wallet-passphrase",
+  "mnemocode-reencode-status",
+  "mnemocode-forgotten-panel",
+  "mnemocode-forgotten-mode",
+  "mnemocode-forgotten-format",
+  "mnemocode-forgotten-phrase",
+  "mnemocode-forgotten-search",
+  "mnemocode-split-section",
+  "mnemocode-split",
+  "mnemocode-restore-panel",
+  "mnemocode-restore-shares",
+  "mnemocode-restore",
+  "mnemocode-forgotten-shares",
+  "mnemocode-forgotten-shares-repair",
   "mnemocode-cards-section",
   "mnemocode-card-template",
   "export-mnemocode-cards",
@@ -160,6 +181,7 @@ const requiredIds = [
   "mhfe-source",
   "mhfe-container",
   "mhfe-encrypt",
+  "mhfe-rekey-wallet-passphrase",
   "mhfe-decrypt",
   "mhfe-runtime",
   "matcher-seed-lines",
@@ -301,8 +323,10 @@ for (const marker of [
   "SLIP-39 official + encode/decode",
   "encode/decode",
   "Codex32 official + entropy encode/decode",
+  "SSKR BCR-2020-011 grouped vector",
   "SSKR Compact UR encode/decode",
   "SSKR Bytewords encode/decode",
+  "BIP85 BIP39 / WIF / XPRV / HEX",
   "Gordian Seed Envelope encrypted entropy/passphrase encode/decode",
 ]) {
   if (!html.includes(marker))
@@ -368,8 +392,6 @@ const forbidden = [
   [/\bouterHTML\b/u, "outerHTML"],
   [/\binsertAdjacentHTML\b/u, "insertAdjacentHTML"],
   [/\bdocument\.cookie\b/u, "cookie access"],
-  [/\beval\s*\(/u, "JavaScript eval"],
-  [/\bnew\s+Function\b/u, "Function constructor"],
   [/\bdata-(?:copy-value|value)\s*=/iu, "secret-bearing data attribute"],
   [/sourceMappingURL/u, "source map reference"],
   [/https?:\/\//iu, "HTTP URL"],
@@ -416,7 +438,5 @@ for (const deceptiveWipe of [".repeat(mnemonicLength)", ".repeat(passphraseLengt
     throw new Error("Artifact contains a misleading JavaScript string-overwrite pattern.");
 }
 
-const actual = createHash("sha256").update(html).digest("hex");
-const recorded = readFileSync(checksumPath, "utf8").trim().split(/\s+/u)[0];
-if (actual !== recorded) throw new Error("Recorded SHA-256 checksum does not match the HTML.");
+const actual = assertRecordedChecksum(html, checksumPath, "Standalone artifact");
 console.log(`Verified standalone offline artifact: ${actual}`);

@@ -1,15 +1,23 @@
 import { secureRandomBytes } from "@ckd/core/secure-random.js";
 import {
   decode_codex32_seed as decodeSeedWasm,
+  codex32_parameters_json as parametersWasm,
+  encode_codex32_random_share as encodeRandomShareWasm,
   encode_codex32_seed as encodeSeedWasm,
   initSync as initCodex32,
   interpolate_codex32 as interpolateWasm,
 } from "@ckd/recovery-codex32-wasm/recovery_codex32_wasm.js";
 import codex32WasmBytes from "@ckd/recovery-codex32-wasm/recovery_codex32_wasm_bg.wasm";
 
-const SHARE_INDICES = "acdefghjklmnpqrtuvwxyz023456789".split("");
-const IDENTIFIER = /^[023456789acdefghjklmnpqrstuvwxyz]{4}$/u;
 let initialized = false;
+interface Codex32Parameters {
+  readonly seedBytes: readonly number[];
+  readonly shareIndices: string;
+  readonly minThreshold: number;
+  readonly maxThreshold: number;
+  readonly seedLengthError: string;
+}
+let parameters: Codex32Parameters;
 
 interface Codex32ShareSet {
   readonly identifier: string;
@@ -20,23 +28,36 @@ interface Codex32ShareSet {
 function initialize(): void {
   if (initialized) return;
   initCodex32({ module: codex32WasmBytes });
+  parameters = JSON.parse(parametersWasm()) as Codex32Parameters;
   initialized = true;
 }
 
 function validateSeedLength(seed: Uint8Array): void {
-  if (![16, 20, 24, 28, 32, 64].includes(seed.length)) {
-    throw new Error("Codex32 supports 16, 20, 24, 28, 32, or 64 bytes of secret data.");
+  initialize();
+  if (!parameters.seedBytes.includes(seed.length)) {
+    throw new Error(parameters.seedLengthError);
   }
 }
 
-function validateIdentifier(value: string): string {
-  const identifier = value.trim().toLowerCase();
-  if (!IDENTIFIER.test(identifier)) {
-    throw new Error(
-      "Codex32 identifier must contain exactly four Bech32 characters; b, i, o, and 1 are not available.",
-    );
+/** The normalized BIP93 identifier, admitted once for every host. */
+export class Codex32Identifier {
+  readonly #value: string;
+
+  constructor(input: string) {
+    initialize();
+    const value = input.trim().toLowerCase();
+    const alphabet = `${parameters.shareIndices}s`;
+    if (value.length !== 4 || [...value].some((character) => !alphabet.includes(character))) {
+      throw new Error(
+        "Codex32 identifier must contain exactly four Bech32 characters; b, i, o, and 1 are not available.",
+      );
+    }
+    this.#value = value;
   }
-  return identifier;
+
+  get value(): string {
+    return this.#value;
+  }
 }
 
 function validateInteger(value: number, label: string, minimum: number, maximum: number): void {
@@ -81,7 +102,7 @@ export function createCodex32Shares(
   count: number,
 ): Codex32ShareSet {
   validateSeedLength(masterSeed);
-  const identifier = validateIdentifier(identifierInput);
+  const identifier = new Codex32Identifier(identifierInput).value;
   initialize();
   if (threshold === 0) {
     if (count !== 1) throw new Error("An unsplit Codex32 secret creates exactly one record.");
@@ -95,8 +116,9 @@ export function createCodex32Shares(
       ],
     };
   }
-  validateInteger(threshold, "Codex32 threshold", 2, 9);
-  validateInteger(count, "Codex32 share count", threshold, SHARE_INDICES.length);
+  const shareIndices = parameters.shareIndices.split("");
+  validateInteger(threshold, "Codex32 threshold", parameters.minThreshold, parameters.maxThreshold);
+  validateInteger(count, "Codex32 share count", threshold, shareIndices.length);
 
   const basis = [
     callCodex32("Codex32 encoding failed", () =>
@@ -107,17 +129,27 @@ export function createCodex32Shares(
   try {
     for (let index = 0; index < threshold - 1; index += 1) {
       random.fill(0);
-      random = secureRandomBytes(masterSeed.length);
+      // The final byte supplies independent random padding in the last GF(32)
+      // symbol; random basis shares must not inherit the seed's zero padding.
+      random = secureRandomBytes(masterSeed.length + 1);
       basis.push(
         callCodex32("Codex32 encoding failed", () =>
-          encodeSeedWasm(random, threshold, identifier, SHARE_INDICES[index]!),
+          encodeRandomShareWasm(
+            random.subarray(0, masterSeed.length),
+            threshold,
+            identifier,
+            shareIndices[index]!,
+            random[masterSeed.length]!,
+          ),
         ),
       );
     }
     const basisText = basis.join("\n");
-    const shares = SHARE_INDICES.slice(0, count).map((index) =>
-      callCodex32("Codex32 share creation failed", () => interpolateWasm(basisText, index)),
-    );
+    const shares = shareIndices
+      .slice(0, count)
+      .map((index) =>
+        callCodex32("Codex32 share creation failed", () => interpolateWasm(basisText, index)),
+      );
     return { identifier, threshold, shares };
   } finally {
     random.fill(0);

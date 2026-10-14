@@ -1,24 +1,6 @@
 name: Published vectors
 
 on:
-  push:
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'tooling/verify-dip13-vectors.mjs'
-      - 'tooling/verify-mhfe-vector.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - '.github/workflows/vectors.yml'
-  pull_request:
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'tooling/verify-dip13-vectors.mjs'
-      - 'tooling/verify-mhfe-vector.mjs'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - '.github/workflows/vectors.yml'
   workflow_dispatch:
 
 permissions:

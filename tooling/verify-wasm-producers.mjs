@@ -1,10 +1,14 @@
+import { isMainScript } from "./run-script.mjs";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertNoBuilderPaths } from "./builder-paths.mjs";
 import { verifyWasmIntegrityManifest } from "./verify-wasm-integrity.mjs";
 import { WASM_MODULES } from "./wasm-modules.mjs";
 
-export const CANONICAL_WASM_BINDGEN_VERSION = "0.2.129";
+import { TOOLCHAIN_PINS } from "./toolchain-pins.mjs";
+
+export const CANONICAL_WASM_BINDGEN_VERSION = TOOLCHAIN_PINS.wasmBindgen;
 
 function readUleb(bytes, state) {
   let value = 0;
@@ -61,17 +65,19 @@ export function assertCanonicalWasmBindgenProducer(bytes, label = "WASM module")
 }
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
-if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainScript(import.meta.url)) {
   verifyWasmIntegrityManifest();
   for (const module of WASM_MODULES) {
     const relativePath = `packages/${module.packageDirectory}/generated/${module.stem}_bg.wasm`;
-    assertCanonicalWasmBindgenProducer(readFileSync(resolve(root, relativePath)), module.label);
+    const bytes = readFileSync(resolve(root, relativePath));
+    assertCanonicalWasmBindgenProducer(bytes, module.label);
+    assertNoBuilderPaths(bytes, relativePath);
   }
-  for (const stem of [
-    "recovery-codex32-wasm/generated/recovery_codex32_wasm",
-    "recovery-sskr-wasm/generated/recovery_sskr_wasm",
-    "recovery-envelope-wasm/generated/recovery_envelope_wasm",
-  ]) {
+  // MHFE's package is built in its own repository and vendored as it is released.
+  const mhfeWasm = "packages/recovery-mhfe-wasm/generated/runtime/mhfe.wasm";
+  assertNoBuilderPaths(readFileSync(resolve(root, mhfeWasm)), mhfeWasm);
+  for (const module of WASM_MODULES.filter(({ offlineDeclarations }) => offlineDeclarations)) {
+    const stem = `${module.packageDirectory}/generated/${module.stem}`;
     const declaration = readFileSync(resolve(root, "packages", `${stem}.d.ts`), "utf8");
     const glue = readFileSync(resolve(root, "packages", `${stem}.js`), "utf8");
     if (

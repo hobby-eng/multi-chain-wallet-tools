@@ -1,9 +1,5 @@
-import {
-  indexRange,
-  TRANSPARENT_ROLES,
-  type BranchControl,
-  type CoinAdapter,
-} from "../registry-base.js";
+import { TRANSPARENT_ROLES, type BranchControl, type CoinAdapter } from "../registry-base.js";
+import { ETHEREUM_PATHS } from "../ethereum/profiles.js";
 
 const ETHEREUM_ADDRESS_BRANCH_CONTROL: BranchControl = {
   label: "Address branch",
@@ -27,7 +23,6 @@ export const ETHEREUM_COIN_ADAPTERS: readonly CoinAdapter[] = [
     defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: TRANSPARENT_ROLES,
     addressesEqual: (derived, expected) => derived.toLowerCase() === expected.toLowerCase(),
-    pathPreview: ({ account, branch, start, count }) =>
-      `m/44'/60'/${account}'/${branch}/${indexRange(start, count)}`,
+    pathPreview: (input) => ETHEREUM_PATHS.pathPreview(input),
   },
 ] as const;

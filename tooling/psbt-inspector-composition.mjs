@@ -62,6 +62,51 @@ function selectedAliases(root, options) {
   return aliases;
 }
 
+/**
+ * The known answers of the selected features for the selected coins (self-test-bitcoin.ts,
+ * self-test-dash.ts): quick ones at every start, slower ones (scrypt, the BIP-322 library) in the
+ * full self-test only. A build without a coin carries none of that coin's checks or vectors.
+ */
+export function selectedSelfTestSource(root, options) {
+  const checks = [
+    ["psbt-decoder", "startup", "bitcoinPsbtDecoder", "dashPsbtDecoder"],
+    ["script-decoder", "startup", "bitcoinScriptDecoder", "dashScriptDecoder"],
+    ["policy-builder", "startup", "bitcoinPolicyBuilder", "dashPolicyBuilder"],
+    ["multisig-wallet", "startup", "bitcoinMultisigWallet", "dashMultisigWallet"],
+    ["message-verification", "startup", "bitcoinMessageVerification", "dashMessageVerification"],
+    ["message-verification", "full", "bitcoinBip322Verification", undefined],
+    ["bip38-decrypt", "full", "bitcoinBip38Decrypt", "dashBip38Decrypt"],
+  ];
+  const symbols = { bitcoin: [], dash: [] };
+  const startup = [];
+  const full = [];
+  for (const [feature, stage, bitcoin, dash] of checks) {
+    if (!options.has(feature)) continue;
+    for (const [coin, symbol] of [
+      ["bitcoin", bitcoin],
+      ["dash", dash],
+    ]) {
+      if (symbol === undefined || !options.hasCoin(coin)) continue;
+      symbols[coin].push(symbol);
+      (stage === "startup" ? startup : full).push(symbol);
+    }
+  }
+  // The descriptor checksum vector is the same for every chain: one check is enough.
+  if (options.has("descriptor-decoder")) {
+    const coin = options.hasCoin("bitcoin") ? "bitcoin" : "dash";
+    const symbol = `${coin}DescriptorDecoder`;
+    symbols[coin].push(symbol);
+    startup.push(symbol);
+  }
+  const imports = Object.entries(symbols)
+    .filter(([, names]) => names.length > 0)
+    .map(
+      ([coin, names]) =>
+        `import { ${names.join(", ")} } from ${JSON.stringify(resolve(root, `apps/psbt-inspector/src/self-test-${coin}.ts`))};`,
+    );
+  return { imports, startup, full };
+}
+
 export function createPsbtCompositionPlugin(root, options, basePlugin) {
   const aliases = selectedAliases(root, options);
   const installers = [];
@@ -104,7 +149,8 @@ export function createPsbtCompositionPlugin(root, options, basePlugin) {
     );
     installers.push("installBip38Feature()");
   }
-  const featureSelection = `${featureImports.join("\n")}\nexport function installSelectedPsbtFeatures(){ ${installers.join("; ")}; }`;
+  const selfTests = selectedSelfTestSource(root, options);
+  const featureSelection = `${featureImports.join("\n")}\n${selfTests.imports.join("\n")}\nexport function installSelectedPsbtFeatures(){ ${installers.join("; ")}; }\nexport function selectedSelfTests(){ return { startup: [${selfTests.startup.join(", ")}], full: [${selfTests.full.join(", ")}] }; }`;
   return {
     name: "psbt-inspector-composition",
     setup(build) {
@@ -215,7 +261,9 @@ export function assertPsbtComposition(options, inputs) {
   if (!options.hasCoin("bitcoin")) {
     const leaked = normalized.filter(
       (input) =>
-        input.includes("/bip322-verifier.ts") || input.includes("/message-verifier-bitcoin.ts"),
+        input.includes("/bip322-verifier.ts") ||
+        input.includes("/message-verifier-bitcoin.ts") ||
+        input.includes("/self-test-bitcoin.ts"),
     );
     if (leaked.length)
       throw new Error(
@@ -225,7 +273,9 @@ export function assertPsbtComposition(options, inputs) {
   if (!options.hasCoin("dash")) {
     const leaked = normalized.filter(
       (input) =>
-        input.includes("/dash-message-verifier.ts") || input.includes("/message-verifier-dash.ts"),
+        input.includes("/dash-message-verifier.ts") ||
+        input.includes("/message-verifier-dash.ts") ||
+        input.includes("/self-test-dash.ts"),
     );
     if (leaked.length)
       throw new Error(

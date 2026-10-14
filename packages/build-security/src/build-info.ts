@@ -5,6 +5,8 @@ interface BuildInfo {
   checksumFile: string;
   profile: "multi-chain" | "dash-community";
   edition: "Multi-Chain Edition" | "Dash Community Edition";
+  /** The GitHub repository, as owner/name, whose Releases publish this edition. */
+  releaseRepository: "hobby-eng/multi-chain-wallet-tools" | "hobby-eng/dash-wallet-tools";
   coins?: readonly string[];
   features?: readonly string[];
 }

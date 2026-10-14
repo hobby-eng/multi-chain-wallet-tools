@@ -16,3 +16,20 @@ export async function loadPlaywright(moduleOverride = process.env.PLAYWRIGHT_MOD
   }
   return api;
 }
+
+/**
+ * Starts `browserName` of `playwright` for a check that reports each browser run. A browser that
+ * cannot start is recorded in `report` as a failed run and saved; the caller then goes on with the
+ * next one, so undefined comes back.
+ */
+export async function launchForReport(playwright, browserName, executablePath, report, save) {
+  try {
+    const engine = { chromium: playwright.chromium, firefox: playwright.firefox }[browserName];
+    if (engine === undefined) throw new Error(`Unknown browser engine: ${browserName}`);
+    return await engine.launch({ headless: process.env.HEADED !== "1", executablePath });
+  } catch (error) {
+    report.runs.push({ browser: browserName, passed: false, error: String(error) });
+    save();
+    return undefined;
+  }
+}

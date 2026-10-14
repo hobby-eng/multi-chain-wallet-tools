@@ -1,21 +1,25 @@
+import { MAX_BIP32_INDEX } from "@ckd/core/bip32-limits.js";
+import { matchedTargetField, rowFields } from "@ckd/recovery/address-search.js";
+import { MAX_LOCAL_SEARCH_COUNT } from "@ckd/recovery/local-search-admission.js";
+import { installNumberedInput, updateLineNumbers } from "@ckd/ui/dom.js";
 import { matcherPrivateTsv } from "./matcher-private-export.js";
 import { matcherSearchBranches, matcherSearchTargets } from "./matcher-search-scope.js";
 import { downloadText } from "@ckd/export/download.js";
-import type { CoinAdapter } from "@ckd/coins/registry-base.js";
+import { resolveCoinProtocol, type CoinAdapter } from "@ckd/coins/registry-base.js";
 import type { NetworkName, ResultField } from "@ckd/core/types.js";
 import { parseMnemonicEntries } from "@ckd/recovery-backup/mnemonic-entries.js";
 import type { WalletMatcherTarget } from "@ckd/recovery/matcher-types.js";
 import { DerivationCancelledError, DerivationWorkerClient } from "../workers/derive-client.js";
 import {
-  installNumberedInput,
   installSecretToggle,
   integer,
   lines,
   required,
-  updateLineNumbers,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
 import type { RecoveryFeature } from "./recovery-feature.js";
+
+const PUBLIC_MATCH_COLUMNS = ["Seed", "Known target", "Wallet structure", "Path"];
 
 interface MatchFinding {
   readonly seedNumber: number;
@@ -31,13 +35,7 @@ interface MatchFinding {
   readonly path: string;
 }
 function adapterMetadata(context: RecoveryFeatureContext, id: string): CoinAdapter {
-  if (id === "dash-core-coinjoin")
-    return {
-      ...context.registry.getCoinAdapter("dash-core"),
-      id,
-      label: "Dash Mobile CoinJoin · DIP9",
-    };
-  return context.registry.getCoinAdapter(id);
+  return resolveCoinProtocol(context.registry, id) ?? context.registry.getCoinAdapter(id);
 }
 function installWalletMatcher(context: RecoveryFeatureContext): void {
   installSecretToggle(
@@ -136,13 +134,13 @@ function installWalletMatcher(context: RecoveryFeatureContext): void {
           required<HTMLInputElement>("#matcher-account-start"),
           "Account start",
           0,
-          2_147_483_647,
+          MAX_BIP32_INDEX,
         );
         const accountEnd = integer(
           required<HTMLInputElement>("#matcher-account-end"),
           "Account finish",
           accountStart,
-          2_147_483_647,
+          MAX_BIP32_INDEX,
         );
         if (accountEnd - accountStart > 20)
           throw new Error("Scan at most 21 accounts in one Wallet Matcher run.");
@@ -150,13 +148,13 @@ function installWalletMatcher(context: RecoveryFeatureContext): void {
           required<HTMLInputElement>("#matcher-index-start"),
           "Index start",
           0,
-          2_147_483_647,
+          MAX_BIP32_INDEX,
         );
         const indexCount = integer(
           required<HTMLInputElement>("#matcher-index-count"),
           "Indices to scan",
           1,
-          5000,
+          MAX_LOCAL_SEARCH_COUNT,
         );
         for (let index = 0; index < mnemonics.length; index += 1) {
           seeds.push(context.mnemonicToSeed(mnemonics[index]!, passphrases[index] ?? ""));
@@ -254,7 +252,7 @@ function installWalletMatcher(context: RecoveryFeatureContext): void {
           table.className = "matcher-results-table";
           const head = document.createElement("thead");
           const headerRow = document.createElement("tr");
-          for (const label of ["Seed", "Known target", "Wallet structure", "Path"]) {
+          for (const label of PUBLIC_MATCH_COLUMNS) {
             const cell = document.createElement("th");
             cell.textContent = label;
             headerRow.append(cell);
@@ -283,7 +281,7 @@ function installWalletMatcher(context: RecoveryFeatureContext): void {
           matcherResults.append(toolbar, tableWrap);
 
           const publicTsv = [
-            ["Seed", "Known target", "Wallet structure", "Path"],
+            PUBLIC_MATCH_COLUMNS,
             ...findings.map((finding) => [
               String(finding.seedNumber),
               finding.address,
@@ -359,21 +357,14 @@ function installWalletMatcher(context: RecoveryFeatureContext): void {
                   const row = derived.rows.find(({ index }) => index === finding.index);
                   if (row === undefined)
                     throw new Error(`Could not reproduce matched path ${finding.path}.`);
-                  const fields = [
-                    ...row.basic,
-                    ...row.advanced,
-                    ...(row.groups ?? []).flatMap((group) => [...group.basic, ...group.advanced]),
-                  ];
-                  const addressMatches = fields.some((field) => {
-                    const eligible =
-                      finding.fieldKeys === undefined
-                        ? field.role === "paymentAddress"
-                        : finding.fieldKeys.includes(field.key);
-                    return (
-                      eligible &&
-                      field.value.toLowerCase() === finding.normalizedAddress.toLowerCase()
-                    );
-                  });
+                  const fields = rowFields(row);
+                  // The re-derived row must hold what the search found there, by the search's
+                  // own comparison.
+                  const addressMatches =
+                    matchedTargetField(adapterMetadata(context, finding.adapterId), fields, {
+                      address: finding.normalizedAddress,
+                      ...(finding.fieldKeys === undefined ? {} : { fieldKeys: finding.fieldKeys }),
+                    }) !== undefined;
                   if (!addressMatches) {
                     throw new Error(
                       "Recovery inputs or search settings changed. Run Wallet Matcher again before reveal.",

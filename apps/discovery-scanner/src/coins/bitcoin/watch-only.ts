@@ -1,19 +1,20 @@
+import { requirePublic } from "@ckd/core/bip32.js";
+import { watchOnlyPublicKey } from "@ckd/recovery/watch-only.js";
+import { verifyFundsWarning, WalletScan } from "../../wallet-result.js";
+import { BITCOIN_COIN } from "./coin.js";
+import { ScanSecrets } from "../../scan-secrets.js";
 import { assertWatchOnlyMinimum } from "@ckd/recovery/watch-only.js";
-import { PROVIDER_UNSIGNED_DECIMAL } from "@ckd/core/numeric-limits.js";
 import { HDKey } from "@scure/bip32";
-import { bytesToHex, secp256k1, wipe } from "@ckd/core/crypto.js";
+import { bytesToHex, wipe } from "@ckd/core/crypto.js";
 import { getBitcoinNetwork } from "@ckd/core/networks.js";
 import {
   parseBitcoinSlip132,
   parseBitcoinWatchDescriptor,
 } from "@ckd/recovery/watch-only/bitcoin-formats.js";
-import { RecoveryConcurrencyLimiter } from "../../concurrency.js";
-import { RecoveryNetworkGateway } from "../../network-gateway.js";
 import {
   RECOVERY_UTXO_ADDRESS_BATCH,
   type UtxoAddressView,
 } from "@ckd/network-boundary/protocol.js";
-import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
 import type {
   RecoveryFinding,
   RecoveryScanContext,
@@ -22,8 +23,16 @@ import type {
   RecoveryWatchOnlyInput,
   RecoveryWatchOnlyScanConfig,
 } from "../../types.js";
-import { extendAddressTarget } from "../../address-gap.js";
-import { addressFor, BITCOIN_MODES, formatBitcoin, type BitcoinMode } from "./shared.js";
+import { AddressBook, scanBranches } from "../../address-book.js";
+import {
+  addressFor,
+  bitcoinAddressSource,
+  BITCOIN_MODES,
+  BITCOIN_PROOF,
+  BITCOIN_SOURCES,
+  formatBitcoin,
+  type BitcoinMode,
+} from "./shared.js";
 
 interface CandidateProfile {
   id: string;
@@ -143,106 +152,39 @@ function candidateProfiles(
   );
 }
 
-async function queryAddresses(
-  gateway: RecoveryNetworkGateway,
-  networkName: RecoveryWatchOnlyScanConfig["network"],
-  addresses: readonly string[],
-  signal: AbortSignal,
-): Promise<UtxoAddressView[]> {
-  if (addresses.length === 0) return [];
-  const value = await gateway.runPublic(
-    { network: networkName, addresses },
-    "utxo.addresses",
-    () => gateway.networkApi.utxoAddresses(networkName, [...addresses], signal),
-    signal,
-  );
-  if (!Array.isArray(value) || value.length !== addresses.length) {
-    throw new Error("Bitcoin address service returned an incomplete batch.");
-  }
-  return value.map((entry, index) => {
-    if (
-      entry.address !== addresses[index] ||
-      !PROVIDER_UNSIGNED_DECIMAL.test(entry.balance) ||
-      !Number.isSafeInteger(entry.transactionCount) ||
-      entry.transactionCount < 0
-    ) {
-      throw new Error("Bitcoin address service returned malformed data.");
-    }
-    return entry;
-  });
-}
-
 function buildResult(
-  input: RecoveryWatchOnlyInput,
   description: string,
   findings: RecoveryFinding[],
-  addressStates: ReadonlyMap<string, UtxoAddressView>,
+  book: AddressBook<UtxoAddressView>,
   scanned: number,
   config: RecoveryWatchOnlyScanConfig,
   warning: string | undefined,
-  startedAt: string,
+  walletScan: WalletScan,
 ): RecoveryWalletResult {
-  let totalBalance = 0n;
-  let fundedCount = 0;
-  let usedCount = 0;
-  for (const entry of addressStates.values()) {
-    const balance = BigInt(entry.balance);
-    totalBalance += balance;
-    if (balance > 0n) fundedCount += 1;
-    if (balance > 0n || entry.transactionCount > 0) usedCount += 1;
-  }
   const section: RecoverySection = {
     id: "core",
     title: "Bitcoin watch-only addresses",
     description,
     state: "complete",
     metrics: [
-      {
-        label: "Spendable balance",
-        value: formatBitcoin(totalBalance),
-        tone: totalBalance > 0n ? "positive" : "neutral",
-      },
-      { label: "Funded addresses", value: String(fundedCount) },
-      { label: "Previously used · empty", value: String(usedCount - fundedCount) },
-      { label: "Unique addresses queried", value: String(addressStates.size) },
+      ...book.metrics(formatBitcoin),
+      { label: "Unique addresses queried", value: String(book.queried) },
       { label: "Derivation candidates", value: String(scanned) },
     ],
     findings,
     scanned,
-    source:
-      config.network === "mainnet"
-        ? "https://blockchain.info · fallbacks https://api.blockcypher.com, https://blockstream.info, and https://mempool.space"
-        : "https://api.blockcypher.com · fallbacks https://blockstream.info/testnet and https://mempool.space/testnet",
-    proof:
-      "Indexed Bitcoin chain and mempool state · batch lookup where available · bounded retry with provider failover",
+    source: BITCOIN_SOURCES[config.network],
+    proof: BITCOIN_PROOF,
     ...(warning === undefined ? {} : { warning }),
   };
-  return {
-    inputId: input.id,
-    label: input.label,
-    coinId: "bitcoin",
-    coinLabel: "Bitcoin",
-    network: config.network,
-    startedAt,
-    completedAt: new Date().toISOString(),
+  return walletScan.result({
     overview: [
-      {
-        label: "Total located value",
-        value: formatBitcoin(totalBalance),
-        tone: totalBalance > 0n ? "positive" : "neutral",
-      },
-      {
-        label: "Funded addresses",
-        value: String(fundedCount),
-        tone: fundedCount > 0 ? "positive" : "neutral",
-      },
-      { label: "Unique addresses queried", value: String(addressStates.size) },
+      ...book.overview(formatBitcoin),
+      { label: "Unique addresses queried", value: String(book.queried) },
     ],
     sections: [section],
-    warnings: [
-      "Independently verify every funded address in a standard Bitcoin wallet before treating a balance as spendable.",
-    ],
-  };
+    warnings: [verifyFundsWarning(BITCOIN_COIN.label)],
+  });
 }
 
 export async function scanBitcoinWatchOnly(
@@ -251,30 +193,16 @@ export async function scanBitcoinWatchOnly(
   context: RecoveryScanContext,
 ): Promise<RecoveryWalletResult> {
   assertWatchOnlyMinimum(config.minimumCount);
-  const guard = new SecretEgressGuard();
-  if (input.kind !== "public-key" && input.kind !== "identity") {
-    guard.registerString("Bitcoin watch-only input", input.value);
-    context.sessionSecretGuard?.registerString("Bitcoin watch-only input", input.value);
-  }
-  const gateway = new RecoveryNetworkGateway(
-    guard,
-    context.networkApi,
-    context.networkLimiter ?? new RecoveryConcurrencyLimiter(5),
-  );
+  const secrets = new ScanSecrets(context);
+  secrets.watchOnly(input, "Bitcoin");
+  const gateway = secrets.gateway(context);
   const network = getBitcoinNetwork(config.network);
-  const startedAt = new Date().toISOString();
+  const book = new AddressBook(bitcoinAddressSource(gateway, config.network, context.signal));
+  const walletScan = new WalletScan(input, BITCOIN_COIN, config.network);
 
   if (input.kind === "public-key") {
-    let point: ReturnType<typeof secp256k1.Point.fromHex>;
+    const { compressed, uncompressed } = watchOnlyPublicKey(input.value);
     try {
-      point = secp256k1.Point.fromHex(input.value);
-    } catch {
-      throw new Error("This public key is not a valid point on the secp256k1 curve.");
-    }
-    const compressed = point.toBytes(true);
-    const uncompressed = point.toBytes(false);
-    try {
-      const addressStates = new Map<string, UtxoAddressView>();
       const findings: RecoveryFinding[] = [];
       const candidates: Array<{
         address: string;
@@ -306,20 +234,12 @@ export async function scanBitcoinWatchOnly(
         label: "Taproot · P2TR",
         fields: [],
       });
-      const uniqueAddresses = [...new Set(candidates.map((candidate) => candidate.address))];
-      const entries = await queryAddresses(
-        gateway,
-        config.network,
-        uniqueAddresses,
-        context.signal,
-      );
-      for (const entry of entries) addressStates.set(entry.address, entry);
+      const entries = await book.states(candidates.map(({ address }) => address));
       const seenAddress = new Set<string>();
-      for (const candidate of candidates) {
+      for (const [position, candidate] of candidates.entries()) {
         if (seenAddress.has(candidate.address)) continue;
         seenAddress.add(candidate.address);
-        const entry = addressStates.get(candidate.address);
-        if (entry === undefined) continue;
+        const entry = entries[position]!;
         const balance = BigInt(entry.balance);
         const used = balance > 0n || entry.transactionCount > 0;
         if (balance === 0n && !(config.includeUsedZeroBalance && used)) continue;
@@ -339,14 +259,13 @@ export async function scanBitcoinWatchOnly(
         context.onFinding(input.id, "core", finding);
       }
       return buildResult(
-        input,
         "A single public key can only be checked exactly, at every address encoding it maps to; it cannot derive descendant addresses.",
         findings,
-        addressStates,
+        book,
         candidates.length,
         config,
         undefined,
-        startedAt,
+        walletScan,
       );
     } finally {
       wipe(compressed, uncompressed);
@@ -403,88 +322,49 @@ export async function scanBitcoinWatchOnly(
           ]
         : candidateProfiles(node, descriptorMode);
     const findings: RecoveryFinding[] = [];
-    const addressStates = new Map<string, UtxoAddressView>();
-    let scanned = 0;
-    let gapTruncated = false;
-    for (const profile of profiles) {
-      let target = config.minimumCount;
-      for (let offset = 0; offset < target;) {
-        if (context.signal.aborted)
-          throw new DOMException("Bitcoin watch-only scan cancelled.", "AbortError");
-        const end = Math.min(offset + RECOVERY_UTXO_ADDRESS_BATCH, target);
-        const derived: DerivedCandidate[] = [];
-        for (let index = offset; index < end; index += 1) {
-          const child = profile.deriveChild(index);
-          const publicKey = child.publicKey;
-          if (publicKey === null)
-            throw new Error("Watch-only derivation unexpectedly produced no public key.");
-          derived.push({
-            address: addressFor(profile.mode, publicKey, network),
-            path: profile.path.replace(/\/i$/u, `/${index}`),
-            index,
-            profile,
-          });
-        }
-        const missing = derived.filter(({ address }) => !addressStates.has(address));
-        if (missing.length > 0) {
-          const entries = await queryAddresses(
-            gateway,
-            config.network,
-            missing.map(({ address }) => address),
-            context.signal,
-          );
-          for (const entry of entries) addressStates.set(entry.address, entry);
-        }
-        for (const item of derived) {
-          const entry = addressStates.get(item.address);
-          if (entry === undefined)
-            throw new Error("Bitcoin watch-only address cache omitted a derived address.");
-          const balance = BigInt(entry.balance);
-          const used = balance > 0n || entry.transactionCount > 0;
-          if (used) {
-            const extension = extendAddressTarget(target, item.index);
-            target = extension.target;
-            gapTruncated ||= extension.truncated;
-          }
-          if (balance === 0n && !(config.includeUsedZeroBalance && used)) continue;
-          const finding: RecoveryFinding = {
-            id: `bitcoin:watch:${item.profile.id}:${item.index}`,
-            title: item.address,
-            subtitle: `${item.profile.label} · index ${item.index}`,
-            balanceAtomic: balance,
-            balanceLabel: formatBitcoin(balance),
-            fields: [
-              { label: "Scan family", value: item.profile.label },
-              { label: "Relative derivation path", value: item.path, copyable: true },
-              { label: "Transactions reported", value: String(entry.transactionCount) },
-            ],
-          };
-          findings.push(finding);
-          context.onFinding(input.id, "core", finding);
-        }
-        scanned += derived.length;
-        offset = end;
+    const scanned = await scanBranches(profiles, (profile, before) => ({
+      initial: config.minimumCount,
+      batchSize: RECOVERY_UTXO_ADDRESS_BATCH,
+      signal: context.signal,
+      cancelled: "Bitcoin watch-only scan cancelled.",
+      derive: (index): DerivedCandidate => ({
+        address: addressFor(
+          profile.mode,
+          requirePublic(profile.deriveChild(index), "the watch-only key"),
+          network,
+        ),
+        path: profile.path.replace(/\/i$/u, `/${index}`),
+        index,
+        profile,
+      }),
+      lookUp: book.lookUpWith({ includeUsedZeroBalance: config.includeUsedZeroBalance }),
+      show: ({ derived: item, state: entry }) => {
+        const balance = BigInt(entry.balance);
+        const finding: RecoveryFinding = {
+          id: `bitcoin:watch:${item.profile.id}:${item.index}`,
+          title: item.address,
+          subtitle: `${item.profile.label} · index ${item.index}`,
+          balanceAtomic: balance,
+          balanceLabel: formatBitcoin(balance),
+          fields: [
+            { label: "Scan family", value: item.profile.label },
+            { label: "Relative derivation path", value: item.path, copyable: true },
+            { label: "Transactions reported", value: String(entry.transactionCount) },
+          ],
+        };
+        findings.push(finding);
+        context.onFinding(input.id, "core", finding);
+      },
+      progress: (checked, target) =>
         context.onProgress({
           inputId: input.id,
           section: "core",
-          message: `${profile.label}: checked ${offset} of ${target}`,
-          completed: scanned,
+          message: `${profile.label}: checked ${checked} of ${target}`,
+          completed: before + checked,
           total: null,
-        });
-      }
-    }
-    return buildResult(
-      input,
-      description,
-      findings,
-      addressStates,
-      scanned,
-      config,
-      gapTruncated
-        ? "A used address was found too close to the end of the BIP32 index space to complete the post-use gap."
-        : undefined,
-      startedAt,
-    );
+        }),
+    }));
+    return buildResult(description, findings, book, scanned, config, book.gap.warning, walletScan);
   } finally {
     // Watch-only nodes hold no private data; nothing to wipe on the HDKey itself.
   }

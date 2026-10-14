@@ -1,8 +1,13 @@
+import { OrchardViewingCapability } from "@ckd/dash-network/viewing-capability.js";
+import { isPrivateMaterialError } from "@ckd/secret-boundary/private-material-error.js";
 import { describeUnknownError } from "@ckd/core/error-handling.js";
 import type { ShieldedActivityLedger } from "@ckd/dash-network/activity.js";
+import type { ShieldedPage } from "@ckd/dash-network/types.js";
 import type { ViewerNetwork } from "@ckd/dash-network/types.js";
-import type { NormalizedViewingKey, ViewingKeyInputMode } from "@ckd/dash-network/viewing-key.js";
+import type { ViewingKeyInputMode } from "@ckd/dash-network/viewing-key.js";
 import {
+  batchInputNumber,
+  byInputLine,
   mapViewerBatchTasks,
   parseViewerBatchInputs,
   parseViewerConcurrency,
@@ -13,6 +18,7 @@ import type { ActivityViewerDependencies } from "./dependencies.js";
 import type {
   ViewerBatchExportError,
   ViewerBatchExportItem,
+  ViewerBatchExportState,
   ViewerExportState,
   ViewerSingleExportState,
 } from "./export.js";
@@ -27,6 +33,13 @@ import {
   compactActivityLabel,
   renderActivityResult,
 } from "./batch-result-presentation.js";
+
+/** A viewing key of the batch, ready for the shared Orchard scan, with the ledger of its notes. */
+interface PreparedOrchardKey {
+  readonly input: ViewerBatchInput;
+  readonly key: OrchardViewingCapability;
+  readonly ledger: ShieldedActivityLedger;
+}
 
 interface ActivityBatchControllerOptions {
   isCancellationRequested: () => boolean;
@@ -46,6 +59,179 @@ export function createActivityBatchController(
   let batchErrors: ViewerBatchExportError[] = [];
   let activeBatchResultId: string | null = null;
 
+  /**
+   * Clears the last batch and opens a new one; returns the step that counts `finished` inputs
+   * (one by default) and says what finished.
+   */
+  function openBatch(total: number, name: string): (label: string, finished?: number) => void {
+    currentAbort = new AbortController();
+    batchItems = [];
+    batchErrors = [];
+    activeBatchResultId = null;
+    let completed = 0;
+    return (label, finished = 1) => {
+      completed += finished;
+      view.setStatus(`${name} ${completed.toLocaleString()}/${total.toLocaleString()} · ${label}`);
+      view.updateTiming();
+    };
+  }
+
+  /** What every public query of a batch needs, with the step it takes when it finishes. */
+  function queryOptions(network: ViewerNetwork, limit: number, onFinished: () => void) {
+    return {
+      dependencies,
+      view,
+      network,
+      limit,
+      signal: currentAbort?.signal,
+      isCancellationRequested,
+      onFinished,
+    };
+  }
+
+  /** Connects a source once for the whole batch, counting the time as remote time. */
+  async function connectOnce(source: { connect(): Promise<void> }): Promise<void> {
+    const started = performance.now();
+    await source.connect();
+    checkCancellation();
+    view.addRemoteDuration(performance.now() - started);
+  }
+
+  /**
+   * Connects the source `create` makes when the batch `needed` it, counting the time as remote
+   * time. Returns what gives the source to an input: it throws the connection's failure, so that
+   * only the inputs that need the source fail.
+   */
+  async function sourceFor<Source extends { connect(): Promise<void> }>(
+    needed: boolean,
+    create: () => Source,
+    name: string,
+  ): Promise<() => Source> {
+    if (!needed)
+      return () => {
+        throw new Error(`${name} is unavailable.`);
+      };
+    const startedAt = performance.now();
+    try {
+      const source = create();
+      await source.connect();
+      return () => source;
+    } catch (cause) {
+      return () => {
+        throw cause;
+      };
+    } finally {
+      view.addRemoteDuration(performance.now() - startedAt);
+    }
+  }
+
+  /** A viewing key of the batch, checked for the selected network and its canonical form. */
+  function viewingKeyOf(
+    value: string,
+    mode: ViewingKeyInputMode,
+    network: ViewerNetwork,
+  ): OrchardViewingCapability {
+    return OrchardViewingCapability.open(value, mode, network, {
+      normalize: dependencies.normalizeViewingKey,
+      canonical: dependencies.assertCanonicalViewingKey,
+    });
+  }
+
+  /**
+   * Scans the Orchard pool once for every prepared viewing key: each verified page is fetched
+   * once and tried with every key that has not failed. A key that fails is reported through
+   * `failedKey` and dropped; when all have failed the scan stops with the first failure.
+   */
+  async function scanOrchardTogether(
+    prepared: readonly PreparedOrchardKey[],
+    network: ViewerNetwork,
+    hooks: {
+      connecting: string;
+      connected?: () => void;
+      onPage?: (page: ShieldedPage) => void;
+      failedKey: (item: PreparedOrchardKey, cause: unknown) => void;
+    },
+  ): Promise<{ complete: boolean; failed: ReadonlySet<string> }> {
+    const failed = new Set<string>();
+    let firstScanFailure: unknown;
+    const source = new dependencies.DashEvoShieldedSource(network);
+    view.setStatus(hooks.connecting);
+    await connectOnce(source);
+    hooks.connected?.();
+    const outcome = await dependencies.streamShieldedPages({
+      fetchPage: async (position) => {
+        view.setStatus(
+          `Fetching shared verified Orchard page at aligned position ${position} for ${prepared.length - failed.size} active key(s)…`,
+        );
+        const fetchStarted = performance.now();
+        const page = await source.fetchPage(position, dependencies.shieldedPageSize);
+        if (!isCancellationRequested()) {
+          view.addRemoteDuration(performance.now() - fetchStarted);
+          view.recordRequest();
+        }
+        return page;
+      },
+      onPage: (page, visit) => {
+        checkCancellation();
+        hooks.onPage?.(page);
+        for (const item of prepared) {
+          if (failed.has(item.input.id) || page.notes.length === 0) continue;
+          const scanStarted = performance.now();
+          try {
+            const matches = dependencies.scanEncryptedPage(
+              item.key.normalized,
+              visit.position,
+              page.notes,
+              network,
+            );
+            item.ledger.applyPage(visit.position, page, matches);
+          } catch (cause) {
+            failed.add(item.input.id);
+            firstScanFailure ??= cause;
+            hooks.failedKey(item, cause);
+          } finally {
+            view.addLocalDuration(performance.now() - scanStarted);
+          }
+        }
+        if (failed.size === prepared.length && firstScanFailure !== undefined)
+          throw firstScanFailure;
+        view.updateTiming();
+      },
+      isCancelled: () => isCancellationRequested(),
+      yieldTurn: yieldToBrowser,
+    });
+    checkCancellation();
+    return { complete: outcome.complete, failed };
+  }
+
+  /** Adds a result of the batch, labelled by its input. */
+  function addItem(input: ViewerBatchInput, state: ViewerSingleExportState): void {
+    batchItems.push({
+      id: input.id,
+      label: activityBatchResultLabel(input, state, batchInputNumber(input.id) - 1),
+      state,
+    });
+  }
+
+  /**
+   * Orders the results and the refusals by input line, refuses a batch without any result, offers
+   * the results for export and shows the first.
+   */
+  function publishBatch(
+    mode: ViewerBatchExportState["mode"],
+    network: ViewerNetwork,
+    name: string,
+  ): void {
+    batchItems.sort(byInputLine);
+    batchErrors.sort(byInputLine);
+    if (batchItems.length === 0) {
+      const firstError = batchErrors[0]?.message ?? "No query returned a result.";
+      throw new Error(`${name} completed without a successful result. ${firstError}`);
+    }
+    setExportState({ batch: true, mode, network, items: batchItems, errors: batchErrors });
+    renderBatchSelection(batchItems[0]!.id);
+  }
+
   function renderBatchSelection(id: string): void {
     const item = batchItems.find((candidate) => candidate.id === id);
     if (item === undefined) return;
@@ -63,18 +249,12 @@ export function createActivityBatchController(
         status: "failed" as const,
         error: message,
       })),
-    ].sort(
-      (left, right) => Number(left.id.replace(/\D/gu, "")) - Number(right.id.replace(/\D/gu, "")),
-    );
+    ].sort(byInputLine);
     view.renderBatchResults(options, activeBatchResultId, renderBatchSelection);
   }
 
   function errorMessage(cause: unknown): string {
     return cause instanceof Error ? cause.message : describeUnknownError(cause);
-  }
-
-  function isPrivateMaterialError(cause: unknown): boolean {
-    return cause instanceof Error && cause.name === "PrivateMaterialError";
   }
 
   async function runAutoBatch(network: ViewerNetwork): Promise<void> {
@@ -83,20 +263,9 @@ export function createActivityBatchController(
     const inputs = parseViewerBatchInputs(rawInput);
     const concurrency = parseViewerConcurrency(view.batchConcurrencyInput.value);
     const limit = Number(view.historyLimitInput.value);
-    currentAbort = new AbortController();
-    batchItems = [];
-    batchErrors = [];
-    activeBatchResultId = null;
-    let completed = 0;
-    const updateProgress = (label: string): void => {
-      completed += 1;
-      view.setStatus(
-        `Mixed batch ${completed.toLocaleString()}/${inputs.length.toLocaleString()} · ${label}`,
-      );
-      view.updateTiming();
-    };
+    const updateProgress = openBatch(inputs.length, "Mixed batch");
     const errorLabel = (input: ViewerBatchInput, mode?: ViewerMode): string => {
-      const number = Number(input.id.replace(/\D/gu, ""));
+      const number = batchInputNumber(input.id);
       if (
         mode === "shielded" ||
         (mode === undefined && dependencies.looksLikeAutoOrchardInput(input.value))
@@ -124,13 +293,13 @@ export function createActivityBatchController(
     const preparedOrchard: Array<{
       input: ViewerBatchInput;
       detected: DetectedViewerInput;
-      key: NormalizedViewingKey;
+      key: OrchardViewingCapability;
       ledger: ShieldedActivityLedger;
     }> = [];
 
     try {
       for (const input of inputs) {
-        let key: NormalizedViewingKey | null = null;
+        let key: OrchardViewingCapability | null = null;
         let detected: DetectedViewerInput | null = null;
         try {
           detected = dependencies.detectViewerInput(input.value, network);
@@ -140,13 +309,7 @@ export function createActivityBatchController(
               dependencies.normalizeIdentityLookupInput(detected.value),
             );
           } else if (detected.mode === "shielded") {
-            key = dependencies.normalizeViewingKey(detected.value, detected.viewingKeyMode);
-            if (key.bundleNetwork !== undefined && key.bundleNetwork !== network) {
-              throw new Error(
-                `This viewing bundle is for ${key.bundleNetwork}; select that network before scanning.`,
-              );
-            }
-            dependencies.assertCanonicalViewingKey(key);
+            key = viewingKeyOf(detected.value, detected.viewingKeyMode, network);
             preparedOrchard.push({
               input,
               detected,
@@ -157,7 +320,7 @@ export function createActivityBatchController(
           }
           detectedInputs.push({ input, detected });
         } catch (cause) {
-          if (key !== null) key.hex = "";
+          if (key !== null) key.dispose();
           if (isPrivateMaterialError(cause)) throw cause;
           addError(input, cause, detected?.mode);
           updateProgress(`line ${input.line} rejected locally`);
@@ -165,38 +328,19 @@ export function createActivityBatchController(
       }
 
       const publicInputs = detectedInputs.filter(({ detected }) => detected.mode !== "shielded");
-      const needsPlatform = publicInputs.some(({ detected }) => detected.mode === "platform");
-      const needsIdentity = publicInputs.some(({ detected }) => detected.mode === "identity");
-      let platformSource: InstanceType<
-        ActivityViewerDependencies["DashPlatformAddressSource"]
-      > | null = null;
-      let platformConnectionError: unknown;
-      if (needsPlatform) {
-        const startedAt = performance.now();
-        try {
-          platformSource = new dependencies.DashPlatformAddressSource(network);
-          await platformSource.connect();
-        } catch (cause) {
-          platformConnectionError = cause;
-        } finally {
-          view.addRemoteDuration(performance.now() - startedAt);
-        }
-      }
-      let identitySource: InstanceType<
-        ActivityViewerDependencies["DashPlatformIdentitySource"]
-      > | null = null;
-      let identityConnectionError: unknown;
-      if (needsIdentity) {
-        const startedAt = performance.now();
-        try {
-          identitySource = new dependencies.DashPlatformIdentitySource(network);
-          await identitySource.connect();
-        } catch (cause) {
-          identityConnectionError = cause;
-        } finally {
-          view.addRemoteDuration(performance.now() - startedAt);
-        }
-      }
+      const needs = (mode: ViewerMode): boolean =>
+        publicInputs.some(({ detected }) => detected.mode === mode);
+      // A source that cannot connect fails only the inputs that need it.
+      const platform = await sourceFor(
+        needs("platform"),
+        () => new dependencies.DashPlatformAddressSource(network),
+        "Platform address source",
+      );
+      const identity = await sourceFor(
+        needs("identity"),
+        () => new dependencies.DashPlatformIdentitySource(network),
+        "Platform Identity source",
+      );
 
       const publicSettled = await mapViewerBatchTasks(
         publicInputs,
@@ -205,146 +349,66 @@ export function createActivityBatchController(
           if (isCancellationRequested())
             throw new DOMException("Mixed batch cancelled.", "AbortError");
           if (detected.mode === "core") {
-            return queryCoreBatchItem(detected.value, {
-              dependencies,
-              view,
-              network,
-              limit,
-              signal: currentAbort?.signal,
-              isCancellationRequested,
-              onFinished: () => updateProgress(`core line ${input.line} finished`),
-            });
+            return queryCoreBatchItem(
+              detected.value,
+              queryOptions(network, limit, () =>
+                updateProgress(`core line ${input.line} finished`),
+              ),
+            );
           }
           if (detected.mode === "platform") {
-            if (platformConnectionError !== undefined) throw platformConnectionError;
-            if (platformSource === null) throw new Error("Platform address source is unavailable.");
-            return queryPlatformBatchItem(detected.value, platformSource, {
-              dependencies,
-              view,
-              network,
-              limit,
-              signal: currentAbort?.signal,
-              isCancellationRequested,
-              onFinished: () => updateProgress(`platform line ${input.line} finished`),
-            });
+            return queryPlatformBatchItem(
+              detected.value,
+              platform(),
+              queryOptions(network, limit, () =>
+                updateProgress(`platform line ${input.line} finished`),
+              ),
+            );
           }
-          if (identityConnectionError !== undefined) throw identityConnectionError;
-          if (identitySource === null) throw new Error("Platform Identity source is unavailable.");
           const lookup = identityLookups.get(input.id);
           if (lookup === undefined) throw new Error("Normalized Identity input is unavailable.");
-          return queryIdentityBatchItem(lookup, identitySource, {
-            dependencies,
-            view,
-            network,
-            limit,
-            signal: currentAbort?.signal,
-            isCancellationRequested,
-            onFinished: () => updateProgress(`identity line ${input.line} finished`),
-          });
+          return queryIdentityBatchItem(
+            lookup,
+            identity(),
+            queryOptions(network, limit, () =>
+              updateProgress(`identity line ${input.line} finished`),
+            ),
+          );
         },
       );
 
       publicSettled.forEach((result, index) => {
         const item = publicInputs[index];
         if (item === undefined) return;
-        if (result.status === "fulfilled") {
-          const ordinal = Number(item.input.id.replace(/\D/gu, "")) - 1;
-          batchItems.push({
-            id: item.input.id,
-            label: activityBatchResultLabel(item.input, result.value, ordinal),
-            state: result.value,
-          });
-        } else {
+        if (result.status === "fulfilled") addItem(item.input, result.value);
+        else {
           addError(item.input, result.reason, item.detected.mode);
         }
       });
 
       if (preparedOrchard.length > 0) {
-        const failed = new Set<string>();
-        let firstScanFailure: unknown;
         try {
-          const source = new dependencies.DashEvoShieldedSource(network);
-          view.setStatus(
-            `Connecting once to scan Orchard for ${preparedOrchard.length.toLocaleString()} detected viewing key(s)…`,
-          );
-          const connectStarted = performance.now();
-          await source.connect();
-          checkCancellation();
-          view.addRemoteDuration(performance.now() - connectStarted);
-          const outcome = await dependencies.runShieldedPageStream({
-            fetchPage: async (position) => {
-              view.setStatus(
-                `Fetching shared verified Orchard page at aligned position ${position} for ${preparedOrchard.length - failed.size} active key(s)…`,
-              );
-              const fetchStarted = performance.now();
-              const page = await source.fetchPage(position, dependencies.shieldedPageSize);
-              if (!isCancellationRequested()) {
-                view.addRemoteDuration(performance.now() - fetchStarted);
-                view.recordRequest();
-              }
-              return page;
+          const { complete, failed } = await scanOrchardTogether(preparedOrchard, network, {
+            connecting: `Connecting once to scan Orchard for ${preparedOrchard.length.toLocaleString()} detected viewing key(s)…`,
+            failedKey: (item, cause) => {
+              addError(item.input, cause, "shielded");
+              updateProgress(`Orchard line ${item.input.line} failed`);
             },
-            noteCount: (page) => page.notes.length,
-            revision: (page) => page.proofHeight,
-            onPage: (page, visit) => {
-              checkCancellation();
-              for (const item of preparedOrchard) {
-                if (failed.has(item.input.id) || page.notes.length === 0) continue;
-                const scanStarted = performance.now();
-                try {
-                  const matches = dependencies.scanEncryptedPage(
-                    item.key,
-                    visit.position,
-                    page.notes,
-                    network,
-                  );
-                  item.ledger.applyPage(visit.position, page, matches);
-                } catch (cause) {
-                  failed.add(item.input.id);
-                  firstScanFailure ??= cause;
-                  addError(item.input, cause, "shielded");
-                  updateProgress(`Orchard line ${item.input.line} failed`);
-                } finally {
-                  view.addLocalDuration(performance.now() - scanStarted);
-                }
-              }
-              if (failed.size === preparedOrchard.length && firstScanFailure !== undefined) {
-                throw firstScanFailure;
-              }
-              view.updateTiming();
-            },
-            disposePage: (page) => {
-              for (const note of page.notes) {
-                note.cmx.fill(0);
-                note.nullifier.fill(0);
-                note.cvNet.fill(0);
-                note.encryptedNote.fill(0);
-              }
-              page.notes.length = 0;
-            },
-            isCancelled: () => isCancellationRequested(),
-            yieldTurn: yieldToBrowser,
           });
-          checkCancellation();
           for (const item of preparedOrchard) {
             if (failed.has(item.input.id)) continue;
-            const state: ViewerSingleExportState = {
+            addItem(item.input, {
               mode: "shielded",
               network,
-              snapshot: item.ledger.snapshot(outcome.complete),
-            };
-            const ordinal = Number(item.input.id.replace(/\D/gu, "")) - 1;
-            batchItems.push({
-              id: item.input.id,
-              label: activityBatchResultLabel(item.input, state, ordinal),
-              state,
+              snapshot: item.ledger.snapshot(complete),
             });
             updateProgress(`Orchard line ${item.input.line} finished`);
           }
         } catch (cause) {
           if (isCancellationRequested()) throw cause;
+          // Keys that failed on their own were reported already; the others fail with the scan.
           for (const item of preparedOrchard) {
-            if (failed.has(item.input.id)) continue;
+            if (batchErrors.some(({ id }) => id === item.input.id)) continue;
             addError(item.input, cause, "shielded");
             updateProgress(`Orchard line ${item.input.line} failed`);
           }
@@ -352,26 +416,7 @@ export function createActivityBatchController(
       }
 
       if (isCancellationRequested()) throw new DOMException("Mixed batch cancelled.", "AbortError");
-      batchItems.sort(
-        (left, right) => Number(left.id.replace(/\D/gu, "")) - Number(right.id.replace(/\D/gu, "")),
-      );
-      batchErrors.sort(
-        (left, right) => Number(left.id.replace(/\D/gu, "")) - Number(right.id.replace(/\D/gu, "")),
-      );
-      if (batchItems.length === 0) {
-        const firstError = batchErrors[0]?.message ?? "No query returned a result.";
-        throw new Error(`Mixed batch completed without a successful result. ${firstError}`);
-      }
-      setExportState({
-        batch: true,
-        mode: "mixed",
-        network,
-        items: batchItems,
-        errors: batchErrors,
-      });
-      const first = batchItems[0];
-      if (first === undefined) throw new Error("Batch result selection is unavailable.");
-      renderBatchSelection(first.id);
+      publishBatch("mixed", network, "Mixed batch");
 
       const modes = [...new Set(batchItems.map(({ state }) => state.mode))];
       const coreHeights = batchItems.flatMap(({ state }) =>
@@ -420,7 +465,7 @@ export function createActivityBatchController(
         `Detected ${modes.length.toLocaleString()} input type(s) locally and used bounded public-query concurrency ${concurrency}. Orchard viewing keys never left this page.`,
       );
     } finally {
-      for (const { key } of preparedOrchard) key.hex = "";
+      for (const { key } of preparedOrchard) key.dispose();
     }
   }
 
@@ -430,20 +475,9 @@ export function createActivityBatchController(
     const inputs = parseViewerBatchInputs(rawInput);
     const concurrency = parseViewerConcurrency(view.batchConcurrencyInput.value);
     const limit = Number(view.historyLimitInput.value);
-    currentAbort = new AbortController();
-    batchItems = [];
-    batchErrors = [];
-    activeBatchResultId = null;
-    let completed = 0;
-    const updateProgress = (label: string): void => {
-      completed += 1;
-      view.setStatus(
-        `Batch ${completed.toLocaleString()}/${inputs.length.toLocaleString()} · ${label}`,
-      );
-      view.updateTiming();
-    };
+    const updateProgress = openBatch(inputs.length, "Batch");
     const errorLabel = (input: ViewerBatchInput): string => {
-      const number = Number(input.id.replace(/\D/gu, ""));
+      const number = batchInputNumber(input.id);
       if (viewerMode === "shielded") return `${number} · viewing key`;
       return `${number} · ${compactActivityLabel(input.value)}`;
     };
@@ -466,15 +500,10 @@ export function createActivityBatchController(
         `Validated ${inputs.length.toLocaleString()} public Core address input(s) locally before networking.`,
       );
       settled = await mapViewerBatchTasks(inputs, concurrency, (input) =>
-        queryCoreBatchItem(input.value, {
-          dependencies,
-          view,
-          network,
-          limit,
-          signal: currentAbort?.signal,
-          isCancellationRequested,
-          onFinished: () => updateProgress(`Core line ${input.line} finished`),
-        }),
+        queryCoreBatchItem(
+          input.value,
+          queryOptions(network, limit, () => updateProgress(`Core line ${input.line} finished`)),
+        ),
       );
       view.setDiagnosticSource("DashScan Core API");
     } else if (viewerMode === "platform") {
@@ -484,23 +513,18 @@ export function createActivityBatchController(
       view.setStatus(
         `Connecting once for ${inputs.length.toLocaleString()} Platform address lookup(s)…`,
       );
-      const connectStarted = performance.now();
-      await source.connect();
-      checkCancellation();
-      view.addRemoteDuration(performance.now() - connectStarted);
+      await connectOnce(source);
       view.setDiagnosticDetail(
         `Validated all public inputs before opening DAPI; running up to ${concurrency} address lookup(s) at once.`,
       );
       settled = await mapViewerBatchTasks(inputs, concurrency, (input) =>
-        queryPlatformBatchItem(input.value, source, {
-          dependencies,
-          view,
-          network,
-          limit,
-          signal: currentAbort?.signal,
-          isCancellationRequested,
-          onFinished: () => updateProgress(`Platform line ${input.line} finished`),
-        }),
+        queryPlatformBatchItem(
+          input.value,
+          source,
+          queryOptions(network, limit, () =>
+            updateProgress(`Platform line ${input.line} finished`),
+          ),
+        ),
       );
       view.setDiagnosticSource("Proof DAPI + Dash Platform Explorer");
     } else if (viewerMode === "identity") {
@@ -522,144 +546,71 @@ export function createActivityBatchController(
         view.setStatus(
           `Connecting once for ${taskInputs.length.toLocaleString()} valid Identity lookup(s)…`,
         );
-        const connectStarted = performance.now();
-        await source.connect();
-        checkCancellation();
-        view.addRemoteDuration(performance.now() - connectStarted);
+        await connectOnce(source);
         view.setDiagnosticDetail(
           `All Identity inputs were checked locally before DAPI; running up to ${concurrency} lookup(s) at once.`,
         );
         settled = await mapViewerBatchTasks(taskInputs, concurrency, (input) => {
           const lookup = normalized.get(input.id);
           if (lookup === undefined) throw new Error("Normalized Identity input is unavailable.");
-          return queryIdentityBatchItem(lookup, source, {
-            dependencies,
-            view,
-            network,
-            limit,
-            signal: currentAbort?.signal,
-            isCancellationRequested,
-            onFinished: () => updateProgress(`Identity line ${input.line} finished`),
-          });
+          return queryIdentityBatchItem(
+            lookup,
+            source,
+            queryOptions(network, limit, () =>
+              updateProgress(`Identity line ${input.line} finished`),
+            ),
+          );
         });
       }
       view.setDiagnosticSource("Proof DAPI + Dash Platform Explorer");
     } else {
-      const prepared: Array<{
-        input: ViewerBatchInput;
-        key: NormalizedViewingKey;
-        ledger: ShieldedActivityLedger;
-      }> = [];
+      const prepared: PreparedOrchardKey[] = [];
       for (const input of inputs) {
-        let key: NormalizedViewingKey | null = null;
+        let key: OrchardViewingCapability | null = null;
         try {
-          key = dependencies.normalizeViewingKey(
+          key = viewingKeyOf(
             input.value,
             view.keyCapabilityInput.value as ViewingKeyInputMode,
+            network,
           );
-          if (key.bundleNetwork !== undefined && key.bundleNetwork !== network) {
-            throw new Error(
-              `This viewing bundle is for ${key.bundleNetwork}; select that network before scanning.`,
-            );
-          }
-          dependencies.assertCanonicalViewingKey(key);
           prepared.push({ input, key, ledger: new dependencies.ShieldedActivityLedger(key.kind) });
+          key = null;
         } catch (cause) {
-          if (key !== null) key.hex = "";
           addPreflightError(input, cause);
+        } finally {
+          key?.dispose();
         }
       }
       taskInputs = prepared.map(({ input }) => input);
       if (prepared.length > 0) {
         try {
-          const source = new dependencies.DashEvoShieldedSource(network);
-          view.setStatus(
-            `Connecting once to scan the Orchard pool for ${prepared.length.toLocaleString()} viewing key(s)…`,
-          );
-          const connectStarted = performance.now();
-          await source.connect();
-          checkCancellation();
-          view.addRemoteDuration(performance.now() - connectStarted);
-          view.setDiagnosticDetail(
-            "Every viewing key was validated locally. Verified encrypted pool pages are fetched once and reused across the batch.",
-          );
-          const failed = new Set<string>();
-          let firstScanFailure: unknown;
-          const outcome = await dependencies.runShieldedPageStream({
-            fetchPage: async (position) => {
-              view.setStatus(
-                `Fetching shared verified Orchard page at aligned position ${position} for ${prepared.length - failed.size} active key(s)…`,
-              );
-              const fetchStarted = performance.now();
-              const page = await source.fetchPage(position, dependencies.shieldedPageSize);
-              if (!isCancellationRequested()) {
-                view.addRemoteDuration(performance.now() - fetchStarted);
-                view.recordRequest();
-              }
-              return page;
-            },
-            noteCount: (page) => page.notes.length,
-            revision: (page) => page.proofHeight,
-            onPage: (page, visit) => {
-              checkCancellation();
+          const { complete, failed } = await scanOrchardTogether(prepared, network, {
+            connecting: `Connecting once to scan the Orchard pool for ${prepared.length.toLocaleString()} viewing key(s)…`,
+            connected: () =>
+              view.setDiagnosticDetail(
+                "Every viewing key was validated locally. Verified encrypted pool pages are fetched once and reused across the batch.",
+              ),
+            onPage: (page) => {
               view.setDiagnosticProof(`${page.proofHeight} · protocol ${page.protocolVersion}`);
               view.setDiagnosticRemoteTime(page.timeMs);
-              for (const item of prepared) {
-                if (failed.has(item.input.id) || page.notes.length === 0) continue;
-                const scanStarted = performance.now();
-                try {
-                  const matches = dependencies.scanEncryptedPage(
-                    item.key,
-                    visit.position,
-                    page.notes,
-                    network,
-                  );
-                  item.ledger.applyPage(visit.position, page, matches);
-                } catch (cause) {
-                  failed.add(item.input.id);
-                  firstScanFailure ??= cause;
-                  batchErrors.push({
-                    id: item.input.id,
-                    label: errorLabel(item.input),
-                    message: errorMessage(cause),
-                    mode: viewerMode,
-                  });
-                } finally {
-                  view.addLocalDuration(performance.now() - scanStarted);
-                }
-              }
-              if (failed.size === prepared.length && firstScanFailure !== undefined)
-                throw firstScanFailure;
-              view.updateTiming();
             },
-            disposePage: (page) => {
-              for (const note of page.notes) {
-                note.cmx.fill(0);
-                note.nullifier.fill(0);
-                note.cvNet.fill(0);
-                note.encryptedNote.fill(0);
-              }
-              page.notes.length = 0;
-            },
-            isCancelled: () => isCancellationRequested(),
-            yieldTurn: yieldToBrowser,
+            failedKey: (item, cause) =>
+              batchErrors.push({
+                id: item.input.id,
+                label: errorLabel(item.input),
+                message: errorMessage(cause),
+                mode: viewerMode,
+              }),
           });
-          checkCancellation();
-          settled = prepared
-            .filter(({ input }) => !failed.has(input.id))
-            .map(({ ledger }): PromiseFulfilledResult<ViewerSingleExportState> => ({
-              status: "fulfilled",
-              value: { mode: "shielded", network, snapshot: ledger.snapshot(outcome.complete) },
-            }));
-          taskInputs = prepared
-            .filter(({ input }) => !failed.has(input.id))
-            .map(({ input }) => input);
-          completed += prepared.length - failed.size;
-          view.setStatus(
-            `Batch ${completed.toLocaleString()}/${inputs.length.toLocaleString()} · shared Orchard scan finished`,
-          );
+          const scanned = prepared.filter(({ input }) => !failed.has(input.id));
+          settled = scanned.map(({ ledger }): PromiseFulfilledResult<ViewerSingleExportState> => ({
+            status: "fulfilled",
+            value: { mode: "shielded", network, snapshot: ledger.snapshot(complete) },
+          }));
+          taskInputs = scanned.map(({ input }) => input);
+          updateProgress("shared Orchard scan finished", scanned.length);
         } finally {
-          for (const { key } of prepared) key.hex = "";
+          for (const { key } of prepared) key.dispose();
         }
       }
       view.setDiagnosticSource("Dash Platform DAPI proof + local Orchard recovery");
@@ -669,14 +620,8 @@ export function createActivityBatchController(
     settled.forEach((result, index) => {
       const input = taskInputs[index];
       if (input === undefined) return;
-      if (result.status === "fulfilled") {
-        const ordinal = Number(input.id.replace(/\D/gu, "")) - 1;
-        batchItems.push({
-          id: input.id,
-          label: activityBatchResultLabel(input, result.value, ordinal),
-          state: result.value,
-        });
-      } else {
+      if (result.status === "fulfilled") addItem(input, result.value);
+      else {
         batchErrors.push({
           id: input.id,
           label: errorLabel(input),
@@ -685,26 +630,7 @@ export function createActivityBatchController(
         });
       }
     });
-    batchItems.sort(
-      (left, right) => Number(left.id.replace(/\D/gu, "")) - Number(right.id.replace(/\D/gu, "")),
-    );
-    batchErrors.sort(
-      (left, right) => Number(left.id.replace(/\D/gu, "")) - Number(right.id.replace(/\D/gu, "")),
-    );
-    if (batchItems.length === 0) {
-      const firstError = batchErrors[0]?.message ?? "No query returned a result.";
-      throw new Error(`Batch completed without a successful result. ${firstError}`);
-    }
-    setExportState({
-      batch: true,
-      mode: viewerMode,
-      network,
-      items: batchItems,
-      errors: batchErrors,
-    });
-    const first = batchItems[0];
-    if (first === undefined) throw new Error("Batch result selection is unavailable.");
-    renderBatchSelection(first.id);
+    publishBatch(viewerMode, network, "Batch");
     if (viewerMode === "core") {
       const snapshots = batchItems.flatMap(({ state }) =>
         state.mode === "core" ? [state.snapshot] : [],

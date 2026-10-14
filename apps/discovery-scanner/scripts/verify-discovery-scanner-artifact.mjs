@@ -1,32 +1,30 @@
+import {
+  assertReviewedDynamicCode,
+  assertRecordedChecksum,
+  currentArtifact,
+  occurrences,
+  sourceFiles,
+} from "../../../tooling/artifact-checks.mjs";
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
-import {
-  applyProfileTemplate,
-  getToolBuild,
-  parseBuildProfile,
-} from "../../../tooling/build-profiles.mjs";
+import { applyProfileTemplate, parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 import { assertEvoSdkReadOnly } from "../../../tooling/verify-evo-read-only.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
-const tool = getToolBuild(profile, "discovery-scanner");
+const { tool, html, checksumPath } = currentArtifact(
+  root,
+  profile,
+  "discovery-scanner",
+  "Discovery Scanner",
+);
 const sourceRoot = resolve(root, "apps/discovery-scanner/src");
-const artifactPath = resolve(root, "dist", tool.artifactRelativePath);
-const checksumPath = resolve(root, "dist", tool.artifactDirectory, tool.checksumFile);
 const orchardWasmPath = resolve(
   root,
   "packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm",
 );
-const html = readFileSync(artifactPath, "utf8");
-const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
-if (!html.includes(expectedFingerprint)) {
-  throw new Error(
-    "Discovery Scanner artifact does not contain the fingerprint of the current source tree.",
-  );
-}
 const vaultTemplate = applyProfileTemplate(
   readFileSync(resolve(sourceRoot, "index.html"), "utf8"),
   profile,
@@ -37,20 +35,6 @@ const shellTemplate = applyProfileTemplate(
   profile,
   tool,
 );
-
-function occurrences(value, marker) {
-  return value.split(marker).length - 1;
-}
-
-function sourceFiles(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = resolve(directory, entry.name);
-    if (entry.isDirectory()) return sourceFiles(path);
-    return entry.isFile() && path.endsWith(".ts")
-      ? [{ path, text: readFileSync(path, "utf8") }]
-      : [];
-  });
-}
 
 function idsIn(markup) {
   return [...markup.matchAll(/\sid="([^"]+)"/gu)].map((match) => match[1]);
@@ -82,6 +66,7 @@ if (/script-src[^;]*'unsafe-inline'/u.test(csp)) {
 }
 if (csp.includes("'unsafe-eval'")) throw new Error("Recovery CSP must never grant 'unsafe-eval'.");
 
+assertReviewedDynamicCode(html, "discovery-scanner");
 const scriptStart = html.indexOf("<script>");
 const scriptEnd = html.lastIndexOf("</script>");
 const styleStart = html.indexOf("<style>");
@@ -270,6 +255,10 @@ for (const marker of [
       `Discovery Scanner artifact is missing its generic custom-path marker: ${marker}`,
     );
 }
+// The watch-only path screens its inputs with the public-input guard, whose known answers must
+// run at startup with the rest (AUD-023-BLD007).
+if (!html.includes("Public-input guard refuses phrases, WIF and extended private keys"))
+  throw new Error("Discovery Scanner artifact lacks the public-input guard's startup check.");
 for (const match of vaultTemplate.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
   if (!vaultIds.includes(match[1]))
     throw new Error(`Recovery label references missing control #${match[1]}.`);
@@ -372,17 +361,7 @@ for (const marker of [profile.editionName, profile.id, tool.documentTitle]) {
   if (!html.includes(marker))
     throw new Error(`Discovery Scanner artifact is missing profile marker: ${marker}`);
 }
-const allFunctionConstructors = html.match(/(?:^|[^.\w])(?:new\s+)?Function\s*\(/gu) ?? [];
-if (
-  occurrences(html, "new Function") !== 2 ||
-  allFunctionConstructors.length !== 3 ||
-  occurrences(html, "Function(${o})") !== 1 ||
-  !html.includes('return import(\"node:zlib\")')
-) {
-  throw new Error(
-    "Discovery Scanner artifact changed from the two reviewed, CSP-blocked SDK dynamic-code glue paths.",
-  );
-}
+
 if (occurrences(html, "Embedded dependency versions and licenses") !== 1) {
   throw new Error(
     "Recovery dependency versions must appear exactly once inside the Release passport.",
@@ -515,7 +494,5 @@ assertEvoSdkReadOnly(
   root,
 );
 
-const actual = createHash("sha256").update(html).digest("hex");
-const recorded = readFileSync(checksumPath, "utf8").trim().split(/\s+/u)[0];
-if (actual !== recorded) throw new Error("Recovery SHA-256 sidecar does not match its HTML.");
+const actual = assertRecordedChecksum(html, checksumPath, "Recovery");
 console.log(`Verified sandboxed Discovery Scanner artifact: ${actual}`);

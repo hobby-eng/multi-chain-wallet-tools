@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createActivityViewerController } from "../src/controller.js";
+import { ActivityStateSelfTest } from "../src/activity-state-self-test.js";
 import type { ActivityViewerView } from "../src/view.js";
 import type { NormalizedViewingKey } from "@ckd/dash-network/viewing-key.js";
 import {
@@ -7,7 +8,7 @@ import {
   PrivateMaterialError,
 } from "@ckd/secret-boundary/public-input-guard.js";
 import { assertAutoViewerBatchInput, detectViewerInput } from "../src/detection.js";
-import { runShieldedPageStream } from "@ckd/dash-network/shielded-stream-policy.js";
+import { streamShieldedPages } from "@ckd/dash-network/shielded-stream-policy.js";
 
 class TestControl extends EventTarget {
   disabled = false;
@@ -217,7 +218,8 @@ function testDependencies(
     queryPlatformIdentityHistory: vi.fn(),
     runBlobWorkerSelfTest: vi.fn(async () => 1),
     runOrchardRuntimeSelfTest: vi.fn(() => ({ passed: true, checks: ["fixture"], durationMs: 1 })),
-    runShieldedPageStream: vi.fn(stream),
+    runPublicInputGuardSelfTest: vi.fn(() => ["guard fixture"]),
+    streamShieldedPages: vi.fn(stream),
     scanEncryptedPage: vi.fn(),
     shieldedEmptyConfirmations: 2,
     shieldedMaxPagesPerScan: 4096,
@@ -230,6 +232,25 @@ describe("Activity Viewer controller", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("keeps queries closed when activity state startup checks fail", async () => {
+    vi.stubGlobal("window", testWindow());
+    const { view, controls } = testView();
+    const dependencies = testDependencies({ kind: "full", hex: "ab".repeat(96) }, async () => ({
+      complete: true,
+      terminalPosition: 0n,
+    }));
+    vi.spyOn(ActivityStateSelfTest, "run").mockImplementation(() => {
+      throw new Error("Synthetic activity state failure.");
+    });
+    const controller = createActivityViewerController(view, dependencies);
+    controller.start();
+    await settle();
+    expect(view.showSelfTestFailed).toHaveBeenCalledWith("Synthetic activity state failure.");
+    controls.form.submit();
+    await settle();
+    expect(dependencies.queryCoreAddress).not.toHaveBeenCalled();
   });
 
   it.each(["clear", "cancel"] as const)(
@@ -252,7 +273,7 @@ describe("Activity Viewer controller", () => {
         async () => ({ complete: true, terminalPosition: 0n }),
         undefined,
         {
-          runShieldedPageStream,
+          streamShieldedPages,
           DashEvoShieldedSource: class {
             async connect() {}
             fetchPage = fetchPage;
@@ -327,7 +348,7 @@ describe("Activity Viewer controller", () => {
     await settle();
     controls.shieldedMode.click();
     controls.form.submit();
-    await vi.waitFor(() => expect(dependencies.runShieldedPageStream).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(dependencies.streamShieldedPages).toHaveBeenCalledOnce());
   });
 
   it.each(["success", "failure", "cancel"] as const)(
@@ -580,7 +601,7 @@ describe("Activity Viewer controller", () => {
       controls.form.submit();
 
       await vi.waitFor(() => expect(key.hex).toBe(""));
-      expect(dependencies.runShieldedPageStream).not.toHaveBeenCalled();
+      expect(dependencies.streamShieldedPages).not.toHaveBeenCalled();
     },
   );
 
@@ -606,7 +627,7 @@ describe("Activity Viewer controller", () => {
 
     await vi.waitFor(() => expect(view.renderBatchResults).toHaveBeenCalled());
     expect(dependencies.normalizeViewingKey).toHaveBeenCalledTimes(2);
-    expect(dependencies.runShieldedPageStream).toHaveBeenCalledOnce();
+    expect(dependencies.streamShieldedPages).toHaveBeenCalledOnce();
     expect(view.renderShielded).toHaveBeenCalledOnce();
     expect(firstKey.hex).toBe("");
     expect(secondKey.hex).toBe("");
@@ -716,7 +737,7 @@ describe("Activity Viewer controller", () => {
     expect(dependencies.queryCoreAddress).toHaveBeenCalledOnce();
     expect(platformQuery).toHaveBeenCalledOnce();
     expect(identityQuery).toHaveBeenCalledOnce();
-    expect(dependencies.runShieldedPageStream).toHaveBeenCalledOnce();
+    expect(dependencies.streamShieldedPages).toHaveBeenCalledOnce();
     expect(view.renderBatchResults).toHaveBeenLastCalledWith(
       [
         expect.objectContaining({ id: "query-1", status: "complete" }),

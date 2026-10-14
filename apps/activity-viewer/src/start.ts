@@ -20,7 +20,7 @@ import {
 } from "@ckd/secret-boundary/public-input-guard.js";
 import { queryCoreAddress } from "@ckd/dash-network/public-address.js";
 import {
-  runShieldedPageStream,
+  streamShieldedPages,
   SHIELDED_EMPTY_CONFIRMATIONS,
   SHIELDED_MAX_PAGES_PER_SCAN,
   SHIELDED_PAGE_SIZE,
@@ -35,6 +35,7 @@ import {
 } from "./detection.js";
 import { createViewerExport, createViewerWorkbookExport } from "./export.js";
 import { createActivityViewerView, type ActivityViewerView } from "./view.js";
+import { runPublicInputGuardSelfTest } from "@ckd/secret-boundary/public-input-guard-self-test.js";
 
 export function startActivityViewer(): ActivityViewerView {
   const view = createActivityViewerView(document, BUILD_INFO);
@@ -60,7 +61,8 @@ export function startActivityViewer(): ActivityViewerView {
     queryPlatformIdentityHistory,
     runBlobWorkerSelfTest,
     runOrchardRuntimeSelfTest,
-    runShieldedPageStream,
+    runPublicInputGuardSelfTest,
+    streamShieldedPages,
     scanEncryptedPage,
     shieldedEmptyConfirmations: SHIELDED_EMPTY_CONFIRMATIONS,
     shieldedMaxPagesPerScan: SHIELDED_MAX_PAGES_PER_SCAN,

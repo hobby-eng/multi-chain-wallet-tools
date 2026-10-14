@@ -1,8 +1,12 @@
+import { batchInputNumber } from "./batch.js";
 import type {
   ViewerBatchExportError,
   ViewerBatchExportState,
   ViewerExportState,
 } from "./export-model.js";
+
+/** Version 3 removes unsupported Core confirmation accounting and provisional spend claims. */
+export const VIEWER_EXPORT_SCHEMA_VERSION = 3;
 
 export function exactJson(_key: string, value: unknown): unknown {
   return typeof value === "bigint" ? value.toString() : value;
@@ -24,7 +28,7 @@ export function exportError(
   fallbackMode?: ViewerBatchExportState["mode"],
 ): ViewerBatchExportError {
   const mode = error.mode ?? (fallbackMode === "mixed" ? undefined : fallbackMode);
-  const ordinal = Number(error.id.replace(/\D/gu, ""));
+  const ordinal = batchInputNumber(error.id);
   if (mode === undefined) {
     return {
       id: error.id,

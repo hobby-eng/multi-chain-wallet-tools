@@ -1,4 +1,6 @@
 import type { PlatformIdentityLookupSnapshot } from "@ckd/dash-network/platform-identity-source.js";
+import { ShieldedActivityState } from "@ckd/dash-network/shielded-activity-state.js";
+import { CoreActivityState } from "./core-activity-state.js";
 import type { ViewerSingleExportState } from "./export-model.js";
 
 function groupedIdentityProofs(snapshot: PlatformIdentityLookupSnapshot): unknown[] {
@@ -36,22 +38,8 @@ function identityJsonData(state: Extract<ViewerSingleExportState, { mode: "ident
     identities: snapshot.identities.map((identity) => {
       const result = state.histories.find(({ identifier }) => identifier === identity.identifier);
       const history = result?.history ?? null;
-      if (history === null) {
-        return {
-          identifier: identity.identifier,
-          identifierHex: identity.identifierHex,
-          names: identity.dpnsNames,
-          state: {
-            balanceCredits: identity.balanceCredits,
-            revision: identity.revision,
-            nonce: identity.nonce,
-          },
-          keys: identity.publicKeys,
-          history: null,
-          historyError: result?.error ?? null,
-        };
-      }
-      return {
+      // What the proof says of the identity; its history from the index follows when it came.
+      const proven = {
         identifier: identity.identifier,
         identifierHex: identity.identifierHex,
         names: identity.dpnsNames,
@@ -61,6 +49,11 @@ function identityJsonData(state: Extract<ViewerSingleExportState, { mode: "ident
           nonce: identity.nonce,
         },
         keys: identity.publicKeys,
+      };
+      if (history === null)
+        return { ...proven, history: null, historyError: result?.error ?? null };
+      return {
+        ...proven,
         history: {
           source: {
             provider: history.provider,
@@ -159,14 +152,12 @@ export function viewerJsonData(state: ViewerSingleExportState): unknown {
       address: snapshot.address,
       provider: snapshot.provider,
       endpoint: snapshot.endpoint,
-      balance: {
-        confirmedDuffs: snapshot.balanceDuffs,
-        unconfirmedDuffs: snapshot.unconfirmedDuffs,
-        totalReceivedDuffs: snapshot.totalReceivedDuffs,
-        totalSentDuffs: snapshot.totalSentDuffs,
-      },
+      balance: new CoreActivityState(snapshot).balance,
       transactionCount: snapshot.transactionCount,
-      transactions: snapshot.transactions,
+      transactions: snapshot.transactions.map((transaction) => ({
+        ...transaction,
+        confirmationStatus: CoreActivityState.confirmationStatus(transaction),
+      })),
       historyLimit: snapshot.historyLimit,
       indexStatus: snapshot.indexStatus,
       indexedHeight: snapshot.indexedHeight,
@@ -174,6 +165,7 @@ export function viewerJsonData(state: ViewerSingleExportState): unknown {
       requests: snapshot.requests,
     };
   }
+  const activity = new ShieldedActivityState(state.snapshot);
   return {
     keyCapability: state.snapshot.keyKind,
     complete: state.snapshot.complete,
@@ -181,11 +173,18 @@ export function viewerJsonData(state: ViewerSingleExportState): unknown {
       scannedNotes: state.snapshot.scannedNotes,
       proofHeight: state.snapshot.proofHeight,
       protocolVersion: state.snapshot.protocolVersion,
-      balanceCredits: state.snapshot.balance,
+      balanceCredits: activity.balance,
       externalReceivedCredits: state.snapshot.receivedExternal,
       externalSentCredits: state.snapshot.sentExternal,
       selfChangeCredits: state.snapshot.selfOrChange,
     },
-    notes: state.snapshot.records,
+    notes: state.snapshot.records.map((record) => {
+      const spendStatus = activity.noteSpendStatus(record);
+      return {
+        ...record,
+        spent: spendStatus === "unknown" ? null : spendStatus === "spent",
+        spendStatus,
+      };
+    }),
   };
 }

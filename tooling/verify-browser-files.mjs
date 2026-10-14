@@ -2,12 +2,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
 import { readReleaseMetadata } from "./project-metadata.mjs";
-import { loadPlaywright } from "./playwright-loader.mjs";
+import { launchForReport, loadPlaywright } from "./playwright-loader.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const release = readReleaseMetadata(root);
@@ -57,6 +57,18 @@ const browserExecutablePaths = {
   chromium: process.env.CHROMIUM_EXECUTABLE_PATH,
   firefox: process.env.FIREFOX_EXECUTABLE_PATH,
 };
+
+/** Builds the policy in the form and waits for its results; an error shown fails the check. */
+async function buildPolicyWithoutError(page) {
+  await page.locator("#build-policy").click();
+  await page.waitForTimeout(50);
+  assert.equal(
+    await page.locator("#builder-error").isHidden(),
+    true,
+    await page.locator("#builder-error").innerText(),
+  );
+  await page.locator("#policy-results").waitFor({ state: "visible" });
+}
 
 function providerFixture(request) {
   const url = new URL(request.url());
@@ -124,19 +136,14 @@ function providerFixture(request) {
 }
 
 for (const browserName of selectedBrowsers) {
-  const engine = { chromium, firefox }[browserName];
-  assert.ok(engine, `Unknown browser: ${browserName}`);
-  let browser;
-  try {
-    browser = await engine.launch({
-      headless: process.env.HEADED !== "1",
-      executablePath: browserExecutablePaths[browserName],
-    });
-  } catch (error) {
-    report.runs.push({ browser: browserName, passed: false, error: String(error) });
-    save();
-    continue;
-  }
+  const browser = await launchForReport(
+    { chromium, firefox },
+    browserName,
+    browserExecutablePaths[browserName],
+    report,
+    save,
+  );
+  if (browser === undefined) continue;
   try {
     for (const profile of Object.values(BUILD_PROFILES)) {
       for (const toolId of profileToolIds(profile)) {
@@ -147,7 +154,8 @@ for (const browserName of selectedBrowsers) {
           browserVersion: browser.version(),
           profile: profile.id,
           tool: toolId,
-          artifact,
+          // Repository-relative, so that reports from any checkout location compare equal.
+          artifact: relative(root, artifact),
           passed: false,
           errors: [],
           console: [],
@@ -558,14 +566,7 @@ for (const browserName of selectedBrowsers) {
               await page.locator("#builder-wrapper").selectOption("p2tr");
               await page.locator("#public-keys").fill(`${pubkey}\n${secondPubkey}`);
               await page.locator("#required-signatures").fill("2");
-              await page.locator("#build-policy").click();
-              await page.waitForTimeout(50);
-              assert.equal(
-                await page.locator("#builder-error").isHidden(),
-                true,
-                await page.locator("#builder-error").innerText(),
-              );
-              await page.locator("#policy-results").waitFor({ state: "visible" });
+              await buildPolicyWithoutError(page);
               assert.match(await page.locator("#policy-address").innerText(), /^bc1p/u);
               assert.match(
                 await page.locator("#policy-descriptor").innerText(),
@@ -583,14 +584,7 @@ for (const browserName of selectedBrowsers) {
               await page.locator("#builder-wrapper").selectOption("p2tr-musig2");
               assert.equal(await page.locator("#policy-mode").isDisabled(), true);
               assert.equal(await page.locator("#required-signatures").inputValue(), "2");
-              await page.locator("#build-policy").click();
-              await page.waitForTimeout(50);
-              assert.equal(
-                await page.locator("#builder-error").isHidden(),
-                true,
-                await page.locator("#builder-error").innerText(),
-              );
-              await page.locator("#policy-results").waitFor({ state: "visible" });
+              await buildPolicyWithoutError(page);
               assert.match(await page.locator("#policy-address").innerText(), /^bc1p/u);
               assert.match(await page.locator("#policy-descriptor").innerText(), /^tr\(musig\(/u);
               assert.equal(await page.locator("#redeem-script").innerText(), "");

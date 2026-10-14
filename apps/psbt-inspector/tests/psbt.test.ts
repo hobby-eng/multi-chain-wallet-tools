@@ -1200,7 +1200,7 @@ describe("PSBT inspector core", () => {
     expect(policyHex(policy).redeemScript).toMatch(/^51b269/u);
     expect(
       decodeScript(policyHex(policy).redeemScript, "bitcoin", "testnet", "spending").inferredPolicy,
-    ).toContain("after lock value 1");
+    ).toContain("after relative delay 1 block");
   });
 
   it("builds and decodes a 4-of-5 or delayed recovery policy", () => {

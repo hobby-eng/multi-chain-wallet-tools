@@ -1,9 +1,11 @@
 import { bytesToHex, wipe } from "@ckd/core/crypto.js";
+import { base64, base64url } from "@scure/base";
 
 interface SecretCandidate {
   label: string;
   value: string;
   substringSafe: boolean;
+  ignoreCase?: boolean;
 }
 
 function normalizedString(value: string): string {
@@ -29,6 +31,8 @@ function candidateViews(raw: string): string[] {
   };
   const normalized = normalizedString(raw);
   add(normalized);
+  // A malformed percent escape elsewhere in a CSV must not hide a valid encoded cell.
+  add(normalized.replace(/%[0-9a-f]{2}/giu, (escape) => escape.toUpperCase()));
   if (normalized.includes("%")) {
     try {
       add(normalizedString(decodeURIComponent(normalized)));
@@ -78,14 +82,40 @@ export class SecretEgressGuard {
     if (compact !== normalized && compact.length >= 8) {
       this.#candidates.push({ label: `${label} (compact)`, value: compact, substringSafe: true });
     }
+    // Encoded input may preserve composed text even when the wallet normalizes it for its KDF.
+    for (const text of new Set([value, normalized])) {
+      const bytes = new TextEncoder().encode(text);
+      try {
+        this.#encodedBytes(label, bytes);
+        try {
+          const encoded = encodeURIComponent(text);
+          if (encoded !== text)
+            this.#candidates.push({ label, value: encoded, substringSafe: encoded.length >= 8 });
+        } catch {
+          // A lone UTF-16 surrogate has no URI encoding; raw and UTF-8 transport views still apply.
+        }
+      } finally {
+        wipe(bytes);
+      }
+    }
   }
 
   registerBytes(label: string, bytes: Uint8Array): void {
+    if (bytes.length === 0) return;
     this.#candidates.push({
       label: `${label} (hex)`,
       value: bytesToHex(bytes),
       substringSafe: true,
+      ignoreCase: true,
     });
+    this.#encodedBytes(label, bytes);
+  }
+
+  #encodedBytes(label: string, bytes: Uint8Array): void {
+    const encodings = new Set([base64.encode(bytes), base64url.encode(bytes)]);
+    for (const encoded of [...encodings]) encodings.add(encoded.replace(/=+$/u, ""));
+    for (const value of encodings)
+      this.#candidates.push({ label, value, substringSafe: value.length >= 8 });
   }
 
   assertPublic(value: unknown, context: string): void {
@@ -94,10 +124,8 @@ export class SecretEgressGuard {
     for (const raw of strings) {
       for (const candidateValue of candidateViews(raw)) {
         for (const secret of this.#candidates) {
-          if (
-            candidateValue === secret.value ||
-            (secret.substringSafe && candidateValue.includes(secret.value))
-          ) {
+          const view = secret.ignoreCase ? candidateValue.toLowerCase() : candidateValue;
+          if (view === secret.value || (secret.substringSafe && view.includes(secret.value))) {
             throw new Error(
               `Blocked ${context}: it contained registered secret material (${secret.label}).`,
             );

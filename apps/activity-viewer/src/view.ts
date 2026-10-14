@@ -1,3 +1,6 @@
+import { DashHistoryBudget } from "@ckd/dash-network/history-budget.js";
+import { nonEmptyLines } from "@ckd/core/text-lines.js";
+import { BLS_KEY_HEX, COMPRESSED_KEY_HEX, HASH160_HEX } from "@ckd/core/key-text.js";
 import { requireIdElement } from "@ckd/ui/dom.js";
 import type { BUILD_INFO } from "@ckd/build-info";
 import type { ViewerNetwork } from "@ckd/dash-network/types.js";
@@ -25,6 +28,9 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
   const capabilityControls = required<HTMLDivElement>("viewer-capability-controls");
   const historyField = required<HTMLDivElement>("viewer-history-field");
   const historyLimitInput = required<HTMLInputElement>("viewer-history-limit");
+  historyLimitInput.min = String(DashHistoryBudget.minimum);
+  historyLimitInput.max = String(DashHistoryBudget.maximum);
+  historyLimitInput.value = String(DashHistoryBudget.defaultLimit);
   const batchControls = required<HTMLDivElement>("viewer-batch-controls");
   const batchConcurrencyInput = required<HTMLSelectElement>("viewer-batch-concurrency");
   const singleInputPanel = required<HTMLDivElement>("viewer-single-input-panel");
@@ -387,27 +393,11 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
     updateInputMode(mode: ViewerMode): void {
       const activeInput = queryMode === "batch" ? batchInput.value : viewingKeyInput.value;
       const trimmed = activeInput.trim();
-      const batchCount =
-        queryMode === "batch"
-          ? new Set(
-              batchInput.value
-                .replaceAll("\r", "")
-                .split("\n")
-                .map((line) => line.trim())
-                .filter(Boolean),
-            ).size
-          : 1;
+      const batchCount = queryMode === "batch" ? new Set(nonEmptyLines(batchInput.value)).size : 1;
       const length = trimmed.replace(/^0x/iu, "").replace(/\s+/gu, "").length;
       const outgoingMode = keyCapabilityInput.value === "outgoing";
       if (detectionMode === "auto") {
-        const values =
-          queryMode === "batch"
-            ? batchInput.value
-                .replaceAll("\r", "")
-                .split("\n")
-                .map((line) => line.trim())
-                .filter(Boolean)
-            : [trimmed];
+        const values = queryMode === "batch" ? nonEmptyLines(batchInput.value) : [trimmed];
         const containsOrchard = values.some(looksLikeAutoOrchardInput);
         privacyChip.lastChild!.textContent = containsOrchard
           ? " Auto detection · viewing keys stay local"
@@ -558,12 +548,11 @@ export function createActivityViewerView(document: Document, buildInfo: typeof B
           keyMode.textContent = "Hex Identity ID · explicit public input";
         else if (/^(?:tx|transition):/iu.test(trimmed))
           keyMode.textContent = "Registration transition · local owner verification";
-        else if (/^(?:0x)?[0-9a-f]{40}$/iu.test(trimmed))
+        else if (HASH160_HEX.test(trimmed))
           keyMode.textContent = "Registered public-key HASH160 · auto-detected";
-        else if (/^(?:0x)?(?:02|03)[0-9a-f]{64}$/iu.test(trimmed))
+        else if (COMPRESSED_KEY_HEX.test(trimmed))
           keyMode.textContent = "ECDSA public key · local HASH160";
-        else if (/^(?:0x)?[0-9a-f]{96}$/iu.test(trimmed))
-          keyMode.textContent = "BLS public key · local HASH160";
+        else if (BLS_KEY_HEX.test(trimmed)) keyMode.textContent = "BLS public key · local HASH160";
         else if (/\.dash$/iu.test(trimmed)) keyMode.textContent = "DPNS name · proof resolved";
         else keyMode.textContent = "Identity ID / public key";
         inputHelp.textContent = `Accepts ${queryMode === "batch" ? "one value per line: " : ""}a public Base58 Identity ID, idhex:<64-hex Identity ID>, tx:<64-hex registration transition>, the 40-hex HASH160 fingerprint of a registered public key, a compressed ECDSA/BLS public key, or a DPNS name with or without .dash. Bare 64-hex input remains blocked because it could be a private key.`;

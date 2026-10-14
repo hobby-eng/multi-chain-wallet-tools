@@ -387,8 +387,10 @@ describe("adapter history contract and exports", () => {
       decimals: 8,
       totalReceivedAtomic: "123",
     });
+    // Platform history is admitted only for a DIP18 address of the requested network.
+    const platform = "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs";
     ctx.networkApi.platformAddressHistory = vi.fn(async () => ({
-      resource: btc,
+      resource: platform,
       balance: "0",
       transactionCount: 2,
       incomingCount: 1,
@@ -400,7 +402,9 @@ describe("adapter history contract and exports", () => {
       lastSeen: null,
       indexedHeight: 10,
     }));
-    expect(await getDashHistory(f, "platform", "mainnet", ctx)).toMatchObject({
+    expect(
+      await getDashHistory({ ...f, title: platform }, "platform", "mainnet", ctx),
+    ).toMatchObject({
       atomicUnit: "credits",
       decimals: 11,
       totalReceivedAtomic: "100000000001",

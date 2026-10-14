@@ -1,3 +1,4 @@
+import { isMainScript } from "./run-script.mjs";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -11,6 +12,8 @@ const DASH_FORBIDDEN_ARTIFACT_PATTERNS = [
   [/\blitecoin\b/iu, "Litecoin"],
   [/\bdogecoin\b/iu, "Dogecoin"],
   [/\bethereum\b/iu, "Ethereum"],
+  [/\bSilent Payments?\b/iu, "Silent Payments"],
+  [/\bBIP[- ]?352\b/iu, "BIP-352"],
   [/bitcoin-(?:legacy|nested-segwit|native-segwit|taproot)/u, "Bitcoin adapter registration"],
   [/\bethereum\b/u, "Ethereum adapter registration"],
   [
@@ -56,6 +59,9 @@ export function findDashArtifactViolations(html) {
 }
 
 const DASH_INSPECTOR_SHARED_DECODER_ALLOWLIST = [
+  // Refusal/descriptive branches in the shared descriptor decoder, no implementation on Dash.
+  [/\bSilent Payments?\b/giu, 4, "Silent Payments shared-decoder terms"],
+  [/\bBIP[- ]?352\b/giu, 1, "BIP-352 shared-decoder terms"],
   [/\bbitcoin\b/giu, 71, "Bitcoin shared-decoder terms"],
   [/\bP2WPKH\b/gu, 2, "P2WPKH shared-decoder terms"],
   [/\bP2TR\b/gu, 3, "P2TR shared-decoder terms"],
@@ -104,6 +110,7 @@ function verifyDashCommunityArtifacts(projectRoot = root) {
       profile.editionName,
       `profile:"${profile.id}"`,
       `edition:"${profile.editionName}"`,
+      `releaseRepository:"${profile.releaseRepository}"`,
       `<title>${tool.documentTitle}</title>`,
       ".primary{background:#008de4",
       /--bg:\s*#0b0f3b/u,
@@ -154,6 +161,6 @@ function verifyDashCommunityArtifacts(projectRoot = root) {
   );
 }
 
-if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainScript(import.meta.url)) {
   verifyDashCommunityArtifacts();
 }

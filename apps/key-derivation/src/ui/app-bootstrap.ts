@@ -14,6 +14,9 @@ import { installRecoveryWorkspace } from "./recovery-workspace.js";
 import { runRecoveryBackupSelfTest } from "@ckd/recovery-backup/self-test.js";
 import * as derivationFeatures from "./derivation-feature-selection.js";
 import { installTopLevelModes } from "./top-level-modes.js";
+import { FullSelfTestSection } from "./full-self-test.js";
+import { runStartupSelfTests } from "./startup-self-test.js";
+import { RecoveryDeriverHandoff } from "./recovery-deriver-handoff.js";
 
 export function startKeyDerivationApp(
   registry: CoinRegistry,
@@ -28,6 +31,7 @@ export function startKeyDerivationApp(
     getCoinFamily: registry.getCoinFamily,
   });
   const modes = installTopLevelModes();
+  const handoff = new RecoveryDeriverHandoff(document, () => modes.setMode("derive"));
   const recovery = __CKD_HAS_RECOVERY__
     ? installRecoveryWorkspace({
         registry,
@@ -35,22 +39,7 @@ export function startKeyDerivationApp(
         mnemonicToSeed,
         writeClipboard,
         downloadText,
-        useMnemonicInDeriver(mnemonic, passphrase = "") {
-          const mnemonicInput = document.querySelector<HTMLTextAreaElement>("#mnemonic");
-          const passphraseInput = document.querySelector<HTMLInputElement>("#passphrase");
-          if (mnemonicInput === null || passphraseInput === null) {
-            throw new Error("The primary recovery source fields are unavailable.");
-          }
-          modes.setMode("derive");
-          mnemonicInput.value = mnemonic;
-          passphraseInput.value = passphrase;
-          mnemonicInput.dispatchEvent(new Event("input", { bubbles: true }));
-          passphraseInput.dispatchEvent(new Event("input", { bubbles: true }));
-          mnemonicInput.focus({ preventScroll: true });
-          document
-            .querySelector<HTMLElement>(".input-panel")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        },
+        useMnemonicInDeriver: handoff.use.bind(handoff),
       })
     : {
         useSource() {
@@ -58,7 +47,20 @@ export function startKeyDerivationApp(
         },
         offerSource() {},
         setCryptoEnabled() {},
+        jobs: undefined,
       };
+  const createWorker = () => new DerivationWorkerClient();
+  // The person's full self-test: the startup checks again with the slower vectors, then the
+  // self-tests that the backup methods add. It is enabled with the other controls once the startup
+  // checks pass, runs as a heavy job of Recover & Back Up, and a failure closes the controls.
+  const fullSelfTest = new FullSelfTestSection(
+    () =>
+      runStartupSelfTests(
+        { runBip39SelfTest, runRecoveryBackupSelfTest, createWorker, ...derivationFeatures },
+        true,
+      ),
+    recovery.jobs,
+  );
   const controller = createKeyDerivationController(view, {
     coinFamilies: registry.COIN_FAMILIES,
     getAdapterFamilyId: registry.getAdapterFamilyId,
@@ -70,11 +72,18 @@ export function startKeyDerivationApp(
     mnemonicToSeed,
     runBip39SelfTest,
     runRecoveryBackupSelfTest,
-    setRecoveryControlsEnabled: recovery.setCryptoEnabled,
+    setRecoveryControlsEnabled(enabled) {
+      recovery.setCryptoEnabled(enabled);
+      fullSelfTest.enabled = enabled;
+    },
+    onFullSelfTestFailure: (listener) => {
+      fullSelfTest.onFailure(listener);
+      if ("onSelfTestFailure" in recovery) recovery.onSelfTestFailure(listener);
+    },
     writeClipboard,
     downloadBlob,
     downloadText,
-    createWorker: () => new DerivationWorkerClient(),
+    createWorker,
     ...derivationFeatures,
     openRecoverySource(reference, target) {
       modes.setMode("recovery");

@@ -4,6 +4,7 @@ import {
   decodeStandardSeedQr,
   encodeCompactSeedQr,
   encodeStandardSeedQr,
+  isCompactSeedQr,
 } from "@ckd/recovery-backup/seedqr.js";
 import { createQrAction } from "@ckd/ui/payment-qr.js";
 import { installQrImageImport } from "@ckd/ui/qr-image-import.js";
@@ -28,7 +29,7 @@ function installSeedQr(context: RecoveryFeatureContext): void {
   installQrImageImport(document, required<HTMLTextAreaElement>("#seedqr-payload"), {
     onDecoded(decoded) {
       const compact = decoded.binaryData;
-      if (compact !== undefined && [16, 20, 24, 28, 32].includes(compact.length)) {
+      if (compact !== undefined && isCompactSeedQr(compact)) {
         required<HTMLSelectElement>("#seedqr-restore-format").value = "compact";
         return bytesToHex(compact);
       }

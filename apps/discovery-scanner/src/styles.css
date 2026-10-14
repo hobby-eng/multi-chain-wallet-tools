@@ -396,6 +396,33 @@
   font-size: 10.5px;
   line-height: 1.5;
 }
+.candidate-list-import {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #26323e;
+}
+.candidate-list-import > summary {
+  cursor: pointer;
+  color: #c9d3dd;
+  font-size: 12px;
+  font-weight: 650;
+}
+.candidate-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 13px;
+}
+.candidate-list-key-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.candidate-list-key-row input {
+  flex: 1;
+  font-family: var(--mono, monospace);
+}
 .secret-actions {
   display: flex;
   align-items: center;

@@ -1,12 +1,11 @@
+import { runNodeScript } from "./run-script.mjs";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import { loadPlaywright } from "./playwright-loader.mjs";
 
-const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const temporary = mkdtempSync(join(tmpdir(), "ckd-selective-browser-"));
 const variants = [
   ...["bitcoin", "ethereum"].map((coin) => ({
@@ -66,14 +65,7 @@ const variants = [
   },
 ].map((variant) => ({ ...variant, path: resolve(temporary, `${variant.id}.html`) }));
 
-const run = (script, args) => {
-  const result = spawnSync(process.execPath, [resolve(root, script), ...args], {
-    cwd: root,
-    stdio: "inherit",
-  });
-  if (result.error !== undefined) throw result.error;
-  if (result.status !== 0) throw new Error(`Selective build failed with status ${result.status}.`);
-};
+const run = (script, args) => runNodeScript(script, args, { throwOnFailure: true });
 
 try {
   for (const variant of variants) {

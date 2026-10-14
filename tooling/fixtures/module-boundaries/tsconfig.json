@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowJs": true,
+    "noEmit": true,
+    "paths": {
+      "@fixture/beta": ["./apps/beta/entry.ts"],
+      "@fixture/alpha-package": ["./packages/alpha/cycle.ts"]
+    }
+  },
+  "include": ["apps/**/*.ts", "apps/**/*.mjs", "packages/**/*.ts"]
+}

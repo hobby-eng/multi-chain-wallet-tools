@@ -54,7 +54,7 @@ export function robinson(longitude: number, latitude: number): { x: number; y: n
 }
 
 function line(points: readonly { x: number; y: number }[]): string {
-  return `M${points.map(({ x, y }) => `${x.toFixed(1)} ${y.toFixed(1)}`).join('L')}`;
+  return `M${points.map(({ x, y }) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L")}`;
 }
 
 /** Meridians and parallels every `step` degrees, as one path each. */

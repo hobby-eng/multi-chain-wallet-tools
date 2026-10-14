@@ -1,3 +1,4 @@
+import { BIP32_BRANCH_SIZE } from "@ckd/core/bip32-limits.js";
 import { ADDRESS_DISCOVERY_GAP } from "../address-gap.js";
 import { MAX_BIP32_INDEX } from "@ckd/core/bip32.js";
 
@@ -100,10 +101,10 @@ export function customScanPaths(config: {
   if (
     !Number.isSafeInteger(config.customPathCount) ||
     (config.customPathCount ?? 0) < 1 ||
-    minimum > MAX_BIP32_INDEX + 1
+    minimum > BIP32_BRANCH_SIZE
   ) {
     throw new Error(
-      "Custom path address minimum, including the 20-address range margin, exceeds the supported index range.",
+      `Custom path address minimum, including the ${ADDRESS_DISCOVERY_GAP}-address range margin, exceeds the supported index range.`,
     );
   }
   return {

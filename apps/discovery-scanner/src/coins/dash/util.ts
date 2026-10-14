@@ -1,5 +1,6 @@
 import { PROVIDER_UNSIGNED_DECIMAL, MAX_PROVIDER_INTEGER } from "@ckd/core/numeric-limits.js";
 import type {
+  RecoveryField,
   RecoveryMetric,
   RecoveryNetwork,
   RecoverySection,
@@ -13,7 +14,11 @@ export {
   formatDashCredits as formatDashFromCredits,
   formatDashDuffs as formatDashFromDuffs,
 } from "@ckd/core/dash-units.js";
-export { ADDRESS_DISCOVERY_GAP, extendAddressTarget } from "../../address-gap.js";
+export {
+  ADDRESS_DISCOVERY_GAP,
+  extendAddressTarget,
+  AddressGapTracker,
+} from "../../address-gap.js";
 
 export function object(value: unknown, context: string): Record<string, unknown> {
   return requireRecord(value, `${context} returned malformed data.`);
@@ -41,12 +46,12 @@ export function exactSafeInteger(value: unknown, context: string): number {
  * derived P2PKH addresses; only the derivation path differs. Reusing these
  * validators avoids a second, independently-risky parse of network responses.
  */
-interface DashScanAddressInfo {
+export interface DashScanAddressInfo {
   balance: bigint;
   txCount: number;
 }
 
-interface DashScanHistorySummary {
+export interface DashScanHistorySummary {
   txCount: number;
   received: bigint;
   sent: bigint;
@@ -146,4 +151,15 @@ export function failedSection(
     proof: "Not completed",
     warning: message,
   };
+}
+
+/** The first-seen and last-seen fields of a finding's history, each only when the index knows it. */
+export function seenFields(history: {
+  readonly firstSeen: string | null;
+  readonly lastSeen: string | null;
+}): RecoveryField[] {
+  return [
+    ...(history.firstSeen === null ? [] : [{ label: "First seen", value: history.firstSeen }]),
+    ...(history.lastSeen === null ? [] : [{ label: "Last seen", value: history.lastSeen }]),
+  ];
 }

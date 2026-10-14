@@ -18,11 +18,13 @@ describe("build metadata profiles", () => {
     expect(multiInfo).toMatchObject({
       profile: "multi-chain",
       edition: "Multi-Chain Edition",
+      releaseRepository: "hobby-eng/multi-chain-wallet-tools",
       checksumFile: "Wallet_Key_Derivation_Tool.html.sha256",
     });
     expect(dashInfo).toMatchObject({
       profile: "dash-community",
       edition: "Dash Community Edition",
+      releaseRepository: "hobby-eng/dash-wallet-tools",
       checksumFile: "Dash_Community_Key_Derivation_Tool.html.sha256",
     });
     expect(dashInfo.fingerprint).toBe(multiInfo.fingerprint);

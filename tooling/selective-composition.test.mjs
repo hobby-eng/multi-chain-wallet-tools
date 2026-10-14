@@ -24,9 +24,10 @@ import {
 import {
   applyKeyDerivationFeatureTemplate,
   parseKeyDerivationFeatures,
-  parseOutputPath,
 } from "./key-derivation-features.mjs";
 import { assertPsbtComposition } from "./psbt-inspector-composition.mjs";
+import { assertDashOnlyGraph, BUILD_PROFILES } from "./build-profiles.mjs";
+import { MnemoCodeWalletTemplate } from "./mnemocode-wallet-template.mjs";
 
 const options = (coins, features = []) => ({
   coins,
@@ -34,7 +35,190 @@ const options = (coins, features = []) => ({
   has: (feature) => features.includes(feature),
 });
 
+// Independent graph fixture for the reviewed generic PNG closure, not all MnemoCode sources.
+const GENERIC_PNG_INPUTS = [
+  "core/png-admission.ts",
+  "core/byte-units.ts",
+  "core/bits.ts",
+  "core/bip39-sizes.ts",
+  "core/pieces.ts",
+  "core/places.ts",
+  "core/typed-number.ts",
+  "sskr/checksum.ts",
+].map((file) => `packages/recovery-mnemocode/source/${file}`);
+const QR_IMAGE_INPUT = "packages/shared-ui/src/qr-image-import.ts";
+const PNG_ADMISSION_INPUT = "packages/shared-ui/src/png-admission.ts";
+
 describe("selective bundle graph guards", () => {
+  for (const profileId of ["multi-chain", "dash-community"]) {
+    const profile = BUILD_PROFILES[profileId];
+    const coins = profile.id === "dash-community" ? ["dash"] : ["bitcoin", "dash", "ethereum"];
+    const genericQr = options(coins, ["seedqr"]);
+    const pngGraph = [QR_IMAGE_INPUT, PNG_ADMISSION_INPUT, ...GENERIC_PNG_INPUTS];
+
+    it(`admits only the generic PNG closure without MnemoCode in ${profileId}`, () => {
+      for (const pathOf of [
+        (path) => path,
+        (path) => `/workspace/${path}`,
+        (path) => `C:\\workspace\\${path.replaceAll("/", "\\")}`,
+      ])
+        expect(() => assertKeyDerivationComposition(genericQr, pngGraph.map(pathOf))).not.toThrow();
+      if (profileId === "dash-community")
+        expect(() => assertDashOnlyGraph(pngGraph, "Generic QR PNG import")).not.toThrow();
+    });
+
+    it(`refuses each PNG dependency without the generic QR importer in ${profileId}`, () => {
+      for (const input of GENERIC_PNG_INPUTS) {
+        expect(() =>
+          assertKeyDerivationComposition(genericQr, [PNG_ADMISSION_INPUT, input]),
+        ).toThrow(/Feature mnemocode is excluded/u);
+        for (const lookalike of [
+          `${QR_IMAGE_INPUT}.backup`,
+          "apps/key-derivation/src/ui/qr-image-import.ts",
+        ])
+          expect(() =>
+            assertKeyDerivationComposition(genericQr, [lookalike, PNG_ADMISSION_INPUT, input]),
+          ).toThrow(/Feature mnemocode is excluded/u);
+      }
+    });
+
+    it(`requires the exact shared PNG admission wrapper in ${profileId}`, () => {
+      for (const selected of [genericQr, options(coins, ["mnemocode"])])
+        for (const lookalike of [
+          [],
+          [`${PNG_ADMISSION_INPUT}.backup`],
+          ["apps/key-derivation/src/ui/png-admission.ts"],
+        ])
+          expect(() =>
+            assertKeyDerivationComposition(selected, [
+              QR_IMAGE_INPUT,
+              ...GENERIC_PNG_INPUTS,
+              ...lookalike,
+            ]),
+          ).toThrow(/requires packages\/shared-ui\/src\/png-admission\.ts/u);
+    });
+
+    it(`keeps unrelated MnemoCode modules excluded beside generic PNG imports in ${profileId}`, () => {
+      for (const leaked of [
+        "packages/recovery-mnemocode/source/core/wallet-evidence.ts",
+        "packages/recovery-mnemocode/source/core/types.ts",
+        "packages/recovery-mnemocode/source/core/encoded-form.ts",
+        "packages/recovery-mnemocode/source/core/re-encoding.ts",
+        "packages/recovery-mnemocode/source/core/png-admission-self-test.ts",
+        "packages/recovery-mnemocode/source/core/byte-units.ts.backup",
+        "packages/recovery-mnemocode/source/sskr/share-restore.ts",
+        "packages/recovery-mnemocode/source/export/card-content.ts",
+        "packages/recovery-backup/src/mnemocode.ts",
+        "apps/key-derivation/src/ui/recovery-mnemocode-reencode.ts",
+        "apps/key-derivation/src/ui/recovery-mnemocode-fields.ts",
+        "apps/key-derivation/src/ui/recovery-mnemocode-help.ts",
+        "apps/key-derivation/src/ui/recovery-mnemocode-forgotten-dates.ts",
+      ])
+        expect(() => assertKeyDerivationComposition(genericQr, [...pngGraph, leaked])).toThrow(
+          /excluded/u,
+        );
+    });
+
+    it(`keeps runtime card content excluded without cards in ${profileId}`, () => {
+      const selected = options(coins, ["mnemocode"]);
+      for (const leaked of [
+        "apps/key-derivation/src/ui/recovery-mnemocode-cards.ts",
+        "apps/key-derivation/src/ui/recovery-mnemocode-card-images.ts",
+        "packages/recovery-backup/src/mnemocode-cards.ts",
+        "packages/recovery-mnemocode/source/export/card-content.ts",
+      ])
+        expect(() => assertKeyDerivationComposition(selected, [...pngGraph, leaked])).toThrow(
+          /Feature mnemocode-cards is excluded/u,
+        );
+    });
+
+    it(`keeps reencoding code and fields with MnemoCode in ${profileId}`, () => {
+      const reencode = "apps/key-derivation/src/ui/recovery-mnemocode-reencode.ts";
+      expect(() =>
+        assertKeyDerivationComposition(options(coins, ["mnemocode"]), [reencode]),
+      ).not.toThrow();
+      expect(() => assertKeyDerivationComposition(genericQr, [...pngGraph, reencode])).toThrow(
+        /Feature mnemocode is excluded/u,
+      );
+      const template = new MnemoCodeWalletTemplate().expand(
+        readFileSync("apps/key-derivation/src/index.html", "utf8"),
+      );
+      const included = applyKeyDerivationFeatureTemplate(template, {
+        ...options(coins, ["mnemocode"]),
+        hasRecovery: true,
+      });
+      const excluded = applyKeyDerivationFeatureTemplate(template, {
+        ...genericQr,
+        hasRecovery: true,
+      });
+      for (const id of [
+        "mnemocode-reencode-panel",
+        "mnemocode-reencode-input",
+        "mnemocode-reencode-read",
+        "mnemocode-reencode-wallet-check",
+        "mnemocode-reencode-continue",
+        "mnemocode-reencode-wallet-fingerprint",
+        "mnemocode-reencode-wallet-passphrase",
+      ]) {
+        expect(included).toContain(`id="${id}"`);
+        expect(excluded).not.toContain(`id="${id}"`);
+      }
+      expect(included).toContain('aria-controls="mnemocode-reencode-panel"');
+      expect(excluded).not.toContain('aria-controls="mnemocode-reencode-panel"');
+    });
+  }
+
+  it("requires reencoding IDs and expanded wallet fields in the static artifact gate", () => {
+    const verifier = readFileSync(
+      "apps/key-derivation/scripts/verify-key-derivation-artifact.mjs",
+      "utf8",
+    );
+    const requiredIds = /const requiredIds = \[([\s\S]*?)\];/u.exec(verifier)?.[1];
+    expect(requiredIds).toBeDefined();
+    for (const id of [
+      "mnemocode-reencode-panel",
+      "mnemocode-reencode-input",
+      "mnemocode-reencode-read",
+      "mnemocode-reencode-wallet-check",
+      "mnemocode-reencode-continue",
+      "mnemocode-reencode-wallet-fingerprint",
+      "mnemocode-reencode-wallet-passphrase",
+    ])
+      expect(requiredIds).toContain(`"${id}"`);
+    expect(verifier).toContain('html.includes("MNEMOCODE_WALLET_FIELDS")');
+    for (const operation of ["encode", "decode", "forgotten", "reencode"])
+      for (const choice of ["mode", "format"])
+        expect(requiredIds).toContain(`"mnemocode-${operation}-${choice}"`);
+  });
+
+  it("ships checked generation only with MHFE", () => {
+    const template =
+      '<div id="wallet-check-generation"><input id="wallet-check-enabled"></div><section id="mhfe-panel"></section>';
+    expect(applyKeyDerivationFeatureTemplate(template, options(["dash"], []))).not.toContain(
+      "wallet-check-enabled",
+    );
+    expect(applyKeyDerivationFeatureTemplate(template, options(["dash"], ["mhfe"]))).toContain(
+      "wallet-check-enabled",
+    );
+    for (const file of [
+      "apps/key-derivation/src/ui/checked-mnemonic-feature.ts",
+      "apps/key-derivation/src/ui/recovery-mhfe-draw-outlook.ts",
+    ])
+      expect(() => assertKeyDerivationComposition(options(["dash"], []), [file])).toThrow(
+        /excluded/u,
+      );
+    // MHFE draws in its own package: the page's worker wordlist and seed provider are MnemoCode's.
+    const workerHelpers = [
+      "apps/key-derivation/src/workers/page-wordlist.ts",
+      "apps/key-derivation/src/workers/webcrypto-pbkdf2.ts",
+    ];
+    expect(() =>
+      assertKeyDerivationComposition(options(["dash"], ["mnemocode"]), workerHelpers),
+    ).not.toThrow();
+    expect(() =>
+      assertKeyDerivationComposition(options(["dash"], ["mhfe"]), workerHelpers),
+    ).toThrow();
+  });
   it("pins fixed provider origins in connected builds without Dash", () => {
     const rendered = applySelectedNetworkCsp(
       "connect-src https:;",
@@ -58,7 +242,7 @@ describe("selective bundle graph guards", () => {
       "--features requires",
     );
     expect(() => parseRequestedOutput(["--output"])).toThrow("--output requires");
-    expect(() => parseOutputPath(["--output="])).toThrow("--output requires");
+    expect(() => parseRequestedOutput(["--output="])).toThrow("--output requires");
   });
 
   it("rejects unknown tools and a shared output path without an explicit profile before building", () => {
@@ -158,6 +342,31 @@ describe("selective bundle graph guards", () => {
       options(["bitcoin"], ["message-signing"]),
     );
     expect(bitcoinWorker).toContain("message-signer.ts");
+  });
+
+  it("brings each feature's known answers with the feature, quick ones at startup", () => {
+    const profile = { id: "multi-chain" };
+    const all = ["bip85", "silent-payments", "bip38-encrypt", "message-signing"];
+    const bitcoinWorker = selectedWorkerEntry("/workspace", profile, options(["bitcoin"], all));
+    expect(bitcoinWorker).toContain(
+      "startupSelfTests: [runSilentPaymentSelfTest, runBip85SelfTest, runBitcoinMessageSigningSelfTest]",
+    );
+    expect(bitcoinWorker).toContain(
+      "fullSelfTests: [runBip322FullSelfTest, runBitcoinBip38FullSelfTest]",
+    );
+    // A coin's vectors come only with the coin (AUD-023-BLD001).
+    expect(bitcoinWorker).not.toContain("-dash.ts");
+    const dashWorker = selectedWorkerEntry("/workspace", profile, options(["dash"], all));
+    expect(dashWorker).toContain("message-signer-self-test-dash.ts");
+    expect(dashWorker).toContain("bip38-self-test-dash.ts");
+    expect(dashWorker).not.toContain("-bitcoin.ts");
+    expect(dashWorker).not.toContain("runBip322FullSelfTest");
+    const both = selectedWorkerEntry("/workspace", profile, options(["bitcoin", "dash"], all));
+    expect(both).toContain(
+      "fullSelfTests: [runBip322FullSelfTest, runBitcoinBip38FullSelfTest, runDashBip38FullSelfTest]",
+    );
+    const bare = selectedWorkerEntry("/workspace", profile, options(["dash"], []));
+    expect(bare).toContain("startupSelfTests: [], fullSelfTests: []");
   });
 
   it("keeps recovery destination menus ordered like their tabs", () => {

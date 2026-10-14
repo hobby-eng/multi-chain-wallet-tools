@@ -1,5 +1,6 @@
 import { BUILD_INFO } from "@ckd/build-info";
-import { installSelectedPsbtFeatures } from "./feature-selection.js";
+import { installSelectedPsbtFeatures, selectedSelfTests } from "./feature-selection.js";
+import { InspectorSelfTest } from "./self-test.js";
 import { required } from "./ui-common.js";
 
 declare const __PSBT_FEATURES__: readonly string[];
@@ -22,6 +23,8 @@ for (const mode of Object.keys(modeFeature)) {
 for (const button of modeButtons) {
   const requiredFeatures = modeFeature[button.dataset.mode ?? ""] ?? [];
   button.hidden = !requiredFeatures.some((feature) => enabledFeatures.has(feature));
+  // Every workflow opens only after the startup self-test has passed.
+  button.disabled = true;
   button.addEventListener("click", () => {
     const mode = button.dataset.mode ?? "";
     for (const [panelMode, panel] of panels) panel.hidden = panelMode !== mode;
@@ -39,4 +42,13 @@ required<HTMLElement>("psbt-build-date").textContent = BUILD_INFO.releaseDate;
 required<HTMLElement>("psbt-build-fingerprint").textContent = BUILD_INFO.fingerprint;
 required<HTMLElement>("psbt-artifact-checksum-file").textContent = BUILD_INFO.checksumFile;
 required<HTMLElement>("psbt-build-footer").textContent = `Build ${BUILD_INFO.version}`;
-modeButtons.find((button) => !button.hidden)?.click();
+
+void new InspectorSelfTest(selectedSelfTests()).start().then((passed) => {
+  if (!passed) {
+    // A failed self-test keeps every workflow closed.
+    for (const panel of panels.values()) panel.hidden = true;
+    return;
+  }
+  for (const button of modeButtons) button.disabled = false;
+  modeButtons.find((button) => !button.hidden)?.click();
+});

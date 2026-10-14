@@ -229,7 +229,7 @@
               </div>
               <div id="viewer-history-field">
                 <label class="viewer-capability-label" for="viewer-history-limit">Newest history entries to load</label>
-                <input id="viewer-history-limit" type="number" value="200" min="1" max="1000" step="1" />
+                <input id="viewer-history-limit" type="number" step="1" />
                 <p class="field-note">
                   Aggregated totals cover complete indexed history where available; each displayed history section is
                   capped at this limit.
@@ -406,6 +406,7 @@
       <p id="viewer-crypto-self-test-details" class="field-note">
         Queries remain disabled until the embedded cryptographic runtime and Blob Worker pass deterministic checks.
       </p>
+      <p id="viewer-external-self-test" class="field-note" hidden></p>
       <p class="field-note passport-dependencies">
         <strong>Embedded dependency versions and licenses:</strong> Dash Evo SDK/WASM SDK 4.1.1, Noble Curves/Hashes
         2.4.0, Scure Base 2.4.0, write-excel-file 4.1.1, and fflate 0.8.3 — MIT. Dash Orchard 0.14.0, official

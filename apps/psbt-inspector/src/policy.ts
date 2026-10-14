@@ -1,12 +1,4 @@
-import { bech32 } from "@scure/base";
-import {
-  bytesToHex,
-  encodeBase58Check,
-  hash160,
-  hexToBytes,
-  secp256k1,
-  sha256,
-} from "@ckd/core/crypto.js";
+import { bytesToHex, hash160, hexToBytes, secp256k1, sha256 } from "@ckd/core/crypto.js";
 import { descriptorChecksum } from "@ckd/core/descriptor-checksum.js";
 import { materializeDescriptorKey } from "@ckd/core/descriptor-key.js";
 import { buildCustomMiniscriptPolicy, type CustomMiniscriptContext } from "./custom-miniscript.js";
@@ -15,8 +7,10 @@ import { analyzeMusigDescriptor } from "./musig-descriptor.js";
 import type { HashlockKind } from "./preimage.js";
 import type { PsbtChain, PsbtNetwork } from "./psbt.js";
 import { CONSENSUS_LIMITS } from "./consensus-limits.js";
+import { PolicyLock, type LockKind } from "./policy-lock.js";
+import { InspectorNetworkProfile } from "./network-profile.js";
 
-export type LockKind = "none" | "height" | "time" | "relative-blocks" | "relative-time";
+export type { LockKind } from "./policy-lock.js";
 type PolicyMode =
   | "locked-multisig"
   | "delayed-recovery"
@@ -119,41 +113,6 @@ function orderKeyBytes(keys: readonly Uint8Array[], keyOrder: "supplied" | "bip6
   );
 }
 
-function lockDetails(kind: LockKind, value: number): { fragment: string; requirement: string } {
-  if (kind === "none") return { fragment: "", requirement: "No timelock" };
-  let encoded = value;
-  let requirement: string;
-  let fragmentName: "after" | "older";
-  if (!Number.isSafeInteger(value) || value < 0 || value > 0x7fffffff)
-    throw new Error("Lock value is outside the supported script-number range.");
-  if (kind === "height") {
-    if (value >= CONSENSUS_LIMITS.absoluteLockTimeThreshold)
-      throw new Error(
-        "Absolute block height must be below 500000000; larger values are timestamps.",
-      );
-    fragmentName = "after";
-    requirement = `Absolute block height ≥ ${value}; spending input sequence must not be final`;
-  } else if (kind === "time") {
-    if (value < CONSENSUS_LIMITS.absoluteLockTimeThreshold)
-      throw new Error("Absolute Unix locktime must be at least 500000000.");
-    fragmentName = "after";
-    requirement = `Absolute median-time-past locktime ≥ ${value}; spending input sequence must not be final`;
-  } else if (kind === "relative-blocks") {
-    if (value > CONSENSUS_LIMITS.bip68SequenceMask)
-      throw new Error("Relative block delay cannot exceed 65535.");
-    fragmentName = "older";
-    requirement = `Relative delay of ${value} blocks via BIP68/BIP112 sequence`;
-  } else {
-    const units = Math.ceil(value / 512);
-    if (units > CONSENSUS_LIMITS.bip68SequenceMask)
-      throw new Error("Relative time delay is too large.");
-    encoded = CONSENSUS_LIMITS.bip68TypeFlag | units;
-    fragmentName = "older";
-    requirement = `Relative delay of ${units * 512} seconds (${units} × 512-second units) via BIP68/BIP112 sequence`;
-  }
-  return { fragment: `${fragmentName}(${encoded})`, requirement };
-}
-
 function multisigMiniscript(
   keys: readonly Uint8Array[],
   required: number,
@@ -172,19 +131,12 @@ function signingMiniscript(
     : multisigMiniscript(keys, required, tapscript);
 }
 
-function lockedMiniscript(inner: string, lock: ReturnType<typeof lockDetails>): string {
+function lockedMiniscript(inner: string, lock: PolicyLock): string {
   return lock.fragment.length === 0 ? inner : `and_v(v:${lock.fragment},${inner})`;
 }
 
 function checksummedDescriptor(payload: string): string {
   return `${payload}#${descriptorChecksum(payload)}`;
-}
-
-function base58Address(prefix: number, hash: Uint8Array): string {
-  const payload = new Uint8Array(21);
-  payload[0] = prefix;
-  payload.set(hash, 1);
-  return encodeBase58Check(payload);
 }
 
 function taprootNumsKey(): Uint8Array {
@@ -294,7 +246,7 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
         `${hashKind} commitment must be exactly ${digestLength / 2} bytes encoded as hexadecimal.`,
       );
     }
-    const delayed = lockDetails(request.lockKind, request.lockValue);
+    const delayed = new PolicyLock(request.lockKind, request.lockValue);
     const recoveryExpression = `${recoveryRequired}-of-${recoveryKeys.length}`;
     requirement = `${request.required}-of-${keys.length} plus an exact 32-byte ${hashKind} preimage immediately OR ${recoveryExpression} after: ${delayed.requirement}`;
     policyExpression = `htlc(primary:${primaryExpression}+${hashKind}:${digest},fallback:after(${request.lockValue},${recoveryExpression}))`;
@@ -306,7 +258,7 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
     if (recoveryInputs.length !== 1)
       throw new Error("Delayed recovery requires exactly one recovery key.");
     const recoveryKey = orderedPolicyKeys(recoveryInputs, "supplied", tapscript)[0]!;
-    const delayed = lockDetails(request.lockKind, request.lockValue);
+    const delayed = new PolicyLock(request.lockKind, request.lockValue);
     requirement = `${request.required}-of-${keys.length} immediately OR recovery key after: ${delayed.requirement}`;
     policyExpression = `or(${primaryExpression},after(${request.lockValue},recovery-key))`;
     miniscript = `or_i(${primaryMiniscript},${lockedMiniscript(`pk(${bytesToHex(recoveryKey)})`, delayed)})`;
@@ -318,7 +270,7 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
     const recoveryKeys = orderedPolicyKeys(request.recoveryPublicKeys ?? [], keyOrder, tapscript);
     const recoveryRequired =
       request.recoveryRequired ?? Math.min(request.required, recoveryKeys.length);
-    const delayed = lockDetails(request.lockKind, request.lockValue);
+    const delayed = new PolicyLock(request.lockKind, request.lockValue);
     requirement =
       mode === "backup-committee"
         ? `${request.required}-of-${keys.length} primary committee immediately OR ${recoveryRequired}-of-${recoveryKeys.length} backup committee after: ${delayed.requirement}`
@@ -333,7 +285,7 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
     const recoveryRequired = request.recoveryRequired ?? Math.max(1, request.required - 1);
     if (recoveryRequired >= request.required)
       throw new Error("Decaying multisig must reduce the required signature count after the lock.");
-    const delayed = lockDetails(request.lockKind, request.lockValue);
+    const delayed = new PolicyLock(request.lockKind, request.lockValue);
     requirement = `${request.required}-of-${keys.length} immediately OR decays to ${recoveryRequired}-of-${keys.length} after: ${delayed.requirement}`;
     policyExpression = `or(${primaryExpression},after(${request.lockValue},decayed:${recoveryRequired}-of-${keys.length}))`;
     miniscript = `or_i(${primaryMiniscript},${lockedMiniscript(multisigMiniscript(keys, recoveryRequired, tapscript), delayed)})`;
@@ -348,7 +300,7 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
       );
     const expandedKeys = orderKeyBytes([...keys, ...recoveryKeys], keyOrder);
     const recoveryRequired = request.recoveryRequired ?? request.required;
-    const delayed = lockDetails(request.lockKind, request.lockValue);
+    const delayed = new PolicyLock(request.lockKind, request.lockValue);
     requirement = `${request.required}-of-${keys.length} immediately OR expands to ${recoveryRequired}-of-${expandedKeys.length} after: ${delayed.requirement}`;
     policyExpression = `or(${primaryExpression},after(${request.lockValue},expanded:${recoveryRequired}-of-${expandedKeys.length}))`;
     miniscript = `or_i(${primaryMiniscript},${lockedMiniscript(multisigMiniscript(expandedKeys, recoveryRequired, tapscript), delayed)})`;
@@ -379,8 +331,8 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
       throw new Error("Staged recovery requires exactly one first recovery key.");
     if (emergencyKey === undefined || (request.emergencyPublicKeys?.length ?? 0) !== 1)
       throw new Error("Staged recovery requires exactly one second recovery key.");
-    const first = lockDetails(request.lockKind, request.lockValue);
-    const second = lockDetails(request.secondLockKind, request.secondLockValue ?? 0);
+    const first = new PolicyLock(request.lockKind, request.lockValue);
+    const second = new PolicyLock(request.secondLockKind, request.secondLockValue ?? 0);
     requirement = `Primary key immediately OR first recovery key after: ${first.requirement} OR second recovery key after: ${second.requirement}`;
     policyExpression = `or(primary-key,after(${request.lockValue},first-recovery-key),after(${request.secondLockValue ?? 0},second-recovery-key))`;
     const recoveryCheck = `${tapscript ? "pk" : "pkh"}(${bytesToHex(recoveryKey)})`;
@@ -411,13 +363,13 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
     const emergencyKeys = orderedPolicyKeys(request.emergencyPublicKeys ?? [], keyOrder, tapscript);
     const emergencyRequired =
       request.emergencyRequired ?? Math.min(recoveryRequired, emergencyKeys.length);
-    const first = lockDetails(request.lockKind, request.lockValue);
-    const second = lockDetails(request.secondLockKind, request.secondLockValue ?? 0);
+    const first = new PolicyLock(request.lockKind, request.lockValue);
+    const second = new PolicyLock(request.secondLockKind, request.secondLockValue ?? 0);
     requirement = `${request.required}-of-${keys.length} immediately OR ${recoveryRequired}-of-${recoveryKeys.length} after first lock (${first.requirement}) OR ${emergencyRequired}-of-${emergencyKeys.length} after second lock (${second.requirement})`;
     policyExpression = `or(${primaryExpression},after(${request.lockValue},recovery:${recoveryRequired}-of-${recoveryKeys.length}),after(${request.secondLockValue ?? 0},emergency:${emergencyRequired}-of-${emergencyKeys.length}))`;
     miniscript = `or_i(${primaryMiniscript},or_i(${lockedMiniscript(multisigMiniscript(recoveryKeys, recoveryRequired, tapscript), first)},${lockedMiniscript(multisigMiniscript(emergencyKeys, emergencyRequired, tapscript), second)}))`;
   } else {
-    const locked = lockDetails(request.lockKind, request.lockValue);
+    const locked = new PolicyLock(request.lockKind, request.lockValue);
     requirement = locked.requirement;
     policyExpression =
       request.lockKind === "none"
@@ -457,25 +409,14 @@ export function buildPolicy(request: PolicyRequest): BuiltPolicy {
     scriptPubKey = new Uint8Array(34);
     scriptPubKey.set([0x00, 0x20]);
     scriptPubKey.set(digest, 2);
-    address = bech32.encode(
-      request.network === "mainnet" ? "bc" : request.network === "regtest" ? "bcrt" : "tb",
-      [0, ...bech32.toWords(digest)],
-    );
+    address = new InspectorNetworkProfile(request.chain, request.network).witnessAddress(0, digest);
   } else {
     const digest = hash160(redeemScript);
     scriptPubKey = new Uint8Array(23);
     scriptPubKey.set([0xa9, 0x14]);
     scriptPubKey.set(digest, 2);
     scriptPubKey[22] = 0x87;
-    const prefix =
-      request.chain === "dash"
-        ? request.network === "mainnet"
-          ? 0x10
-          : 0x13
-        : request.network === "mainnet"
-          ? 0x05
-          : 0xc4;
-    address = base58Address(prefix, digest);
+    address = new InspectorNetworkProfile(request.chain, request.network).p2shAddress(digest);
   }
   const standardMultisig = mode === "locked-multisig" && request.lockKind === "none";
   const descriptorBody =

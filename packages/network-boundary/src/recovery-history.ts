@@ -1,5 +1,15 @@
 import type { RecoveryHistory } from "./data-types.js";
 
+/** Date fields cleared together whenever provider history is incomplete. */
+export const RECOVERY_HISTORY_DATE_FIELDS = [
+  "firstSeen",
+  "lastSeen",
+  "firstReceived",
+  "lastReceived",
+  "firstSpent",
+  "lastSpent",
+] as const satisfies readonly (keyof RecoveryHistory)[];
+
 /** Creates a neutral history result before a coin provider fills reviewed fields. */
 export function emptyRecoveryHistory(asset = "", atomicUnit = "", decimals = 0): RecoveryHistory {
   return {

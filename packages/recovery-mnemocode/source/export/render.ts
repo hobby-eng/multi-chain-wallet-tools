@@ -1,96 +1,151 @@
-import { resolveIdentityFor, sectorForTemplate } from './card-identities.js';
-import { resolvePresentationFor } from './card-copy.js';
-import { isCardPageSize } from './card-settings.js';
-import { clearDocumentMetadata } from './document-metadata.js';
-import { PDFDocument } from 'pdf-lib';
-import type { CardContent, CardTemplate } from './templates.js';
+import { ExportDetails } from "./export-details.js";
+import {
+  assertPageSettings,
+  assertSheetQr,
+  isCardPageSize,
+  assertSeparateCardSize,
+  SHEET_PAGE_SIZE,
+} from "./card-settings.js";
+import { PDFDocument } from "pdf-lib";
+import type { CardContent } from "./backup-cards.js";
+import type { CardDrawing, CardTemplate } from "./templates.js";
+import { separateCardName } from "./card-codes.js";
+import { joinedDocuments, savedWithoutMetadata, type NamedDocument } from "./pdf-documents.js";
+import { assertColorCardContent, EMPTY_CARD_COLLECTION } from "./card-content.js";
+import { withPlannedDecoys } from "./card-plan.js";
+import { SHEETS_ONLY } from "./template-catalog.js";
 
 export interface CardJob {
   readonly template: CardTemplate;
   readonly content: CardContent;
 }
 
-export interface RenderedCard {
-  /** File name without extension: position and the first reference of the card. */
-  readonly name: string;
-  readonly bytes: Uint8Array;
+/** A separate card, named by its position and the reference it prints. */
+export type RenderedCard = NamedDocument;
+
+/**
+ * `content` with the decoys that `template` plans for it (withPlannedDecoys): for `separate`
+ * cards, or for its sheet. A design that a host made without a sheet shape adds none.
+ */
+function plannedContent(
+  drawing: CardDrawing,
+  template: CardTemplate,
+  content: CardContent,
+  separate: boolean,
+): Promise<CardContent> {
+  const { sheetShape } = template;
+  if (sheetShape === undefined) return Promise.resolve(content);
+  return withPlannedDecoys(sheetShape, drawing, content, separate);
+}
+
+/**
+ * `job` with the decoys that its template plans (plannedContent): for separate cards where its
+ * page has a card size. A host that saves one export in several files, such as a PDF and its page
+ * images, plans it once and passes it to each, so that every file shows the same cards.
+ */
+export async function plannedCardJob(drawing: CardDrawing, job: CardJob): Promise<CardJob> {
+  assertPageSettings(job.content);
+  const separate = isCardPageSize(job.content.pageSize);
+  return { ...job, content: await plannedContent(drawing, job.template, job.content, separate) };
 }
 
 /**
  * Preview and encode share this path; no simplified preview renderer exists.
- * A sheet size gives one page per template. A card size gives one page per card.
+ * A sheet size gives one page per template. A card size gives one page per card. Every card is
+ * drawn with `drawing`, the host's CardRenderer.
  */
-export async function renderCards(jobs: readonly CardJob[]): Promise<Uint8Array> {
-  if (jobs.length === 0) throw new Error('No approved card templates are installed yet.');
-  const presentation = resolvePresentationFor(jobs[0]!.content);
-  const profile = resolveIdentityFor(jobs[0]!.content, sectorForTemplate(jobs[0]!.template.id));
+export async function renderCards(
+  drawing: CardDrawing,
+  jobs: readonly CardJob[],
+): Promise<Uint8Array> {
+  if (jobs.length === 0) throw new Error("No approved card templates are installed yet.");
+  // Every page setting is checked before any choice is made or any template draws
+  // (AUD-012-FUN006).
+  for (const { content } of jobs) assertPageSettings(content);
+  // One person and one set of texts for every design; the employer suits the first.
+  const details = ExportDetails.of(drawing.randomInt, jobs[0]!.content, jobs[0]!.template.style);
   const pages: Uint8Array[] = [];
   for (const { template, content } of jobs) {
     if (template.kind !== content.kind)
       throw new Error(`Template ${template.id} does not support ${content.kind}.`);
+    // A design's own texts and details print over those of the export.
     const resolved: CardContent = {
       ...content,
-      presentation: content.presentation ?? presentation,
-      profile: { ...profile, ...content.profile },
+      presentation: content.presentation ?? details.presentation,
+      profile: { ...details.profile, ...content.profile },
       cardQr: content.cardQr === true,
     };
-    if (resolved.kind === 'colors' && isCardPageSize(resolved.pageSize)) {
-      if (resolved.cardQr)
-        throw new Error(
-          'A QR code is printed on a sheet only. Choose the A6 or A4 size for a QR code; separate cards never carry one.',
-        );
-      for (const card of await renderIndividualCards(template, resolved)) pages.push(card.bytes);
+    assertSheetQr(resolved);
+    if (resolved.kind === "colors" && isCardPageSize(resolved.pageSize)) {
+      for (const card of await renderIndividualCards(drawing, template, resolved))
+        pages.push(card.bytes);
       continue;
     }
+    const planned = await plannedContent(drawing, template, resolved, false);
     // Without a page size every template uses the A6 sheet.
-    const bytes = await template.render({ ...resolved, pageSize: resolved.pageSize ?? 'a6' });
+    const bytes = await template.render(drawing, {
+      ...planned,
+      pageSize: planned.pageSize ?? SHEET_PAGE_SIZE,
+    });
     const source = await PDFDocument.load(bytes);
     if (source.getPageCount() === 0)
       throw new Error(`Template ${template.id} rendered an empty document.`);
     pages.push(bytes);
   }
   if (pages.length === 1) {
-    const document = await PDFDocument.load(pages[0]!);
-    clearDocumentMetadata(document);
-    return document.save();
+    return savedWithoutMetadata(await PDFDocument.load(pages[0]!));
   }
-  const merged = await PDFDocument.create();
-  for (const bytes of pages) {
-    const source = await PDFDocument.load(bytes);
-    for (const page of await merged.copyPages(source, source.getPageIndices()))
-      merged.addPage(page);
-  }
-  clearDocumentMetadata(merged);
-  return merged.save();
+  return joinedDocuments(pages);
 }
 
-/** One document per card or reference group, all sharing one identity. */
+/** Why content cannot be drawn as separate cards. */
+const NO_INDIVIDUAL_CARDS = "Only color codes are drawn as individual business cards.";
+
+/**
+ * Refuses a template that draws no separate cards, such as a design printed on sheets only
+ * (SHEETS_ONLY): also before any content exists.
+ */
+export function assertIndividualTemplate(template: CardTemplate): void {
+  if (!template.renderIndividual) throw new Error(SHEETS_ONLY);
+}
+
+/**
+ * Refuses what cannot be drawn as separate cards: content that is no colors, or whose colors are
+ * not the backup that its QR code holds (assertColorCardContent), a template without separate
+ * cards, no card at all, a page setting that no card family prints, or a sheet size. The export
+ * of a folder of cards checks it before any file is touched, and the drawing of the cards again
+ * (AUD-012-ARC007).
+ */
+export function assertIndividualCards(template: CardTemplate, content: CardContent): void {
+  assertIndividualTemplate(template);
+  if (content.kind !== "colors") throw new Error(NO_INDIVIDUAL_CARDS);
+  if (!content.colors.length) throw new Error(EMPTY_CARD_COLLECTION);
+  assertColorCardContent(content);
+  assertPageSettings(content);
+  assertSeparateCardSize(content.pageSize);
+}
+
+/** One document per card, all sharing one identity, drawn with `drawing`. */
 export async function renderIndividualCards(
+  drawing: CardDrawing,
   template: CardTemplate,
   content: CardContent,
 ): Promise<RenderedCard[]> {
-  if (content.kind !== 'colors' || !template.renderIndividual)
-    throw new Error('This template does not support individual business cards.');
-  if (!content.colors.length) throw new Error('The card collection is empty.');
-  if (content.pageSize !== undefined && !isCardPageSize(content.pageSize))
-    throw new Error(
-      'Separate cards have the business size. Choose the business size, or leave the size out.',
-    );
-  const resolvedContent: CardContent = {
-    ...content,
-    presentation: resolvePresentationFor(content),
-    profile: resolveIdentityFor(content, sectorForTemplate(template.id)),
-    cardQr: content.cardQr === true,
-  };
-  const perCard = template.referencesPerCard ?? 1;
-  const count = Math.ceil(content.colors.length / perCard);
+  assertIndividualCards(template, content);
+  // Checked by assertIndividualCards.
+  const renderIndividual = template.renderIndividual!;
+  const { profile, presentation } = ExportDetails.of(drawing.randomInt, content, template.style);
+  const resolvedContent = await plannedContent(
+    drawing,
+    template,
+    { ...content, presentation, profile, cardQr: content.cardQr === true },
+    true,
+  );
   const cards: RenderedCard[] = [];
-  for (let index = 0; index < count; index++) {
-    const code = content.colors[index * perCard]!.replace(/^#/u, '').toUpperCase();
-    if (!/^[0-9A-F]{6}$/u.test(code)) throw new Error('Invalid RGB reference.');
+  for (let index = 0; index < resolvedContent.colors.length; index++) {
     cards.push({
-      name: `${String(index + 1).padStart(2, '0')}-${code}`,
-      bytes: await template.renderIndividual(resolvedContent, index),
+      name: separateCardName(resolvedContent, index),
+      bytes: await renderIndividual(drawing, resolvedContent, index),
     });
   }
   return cards;

@@ -1,0 +1,2736 @@
+{
+  "schemaVersion": 1,
+  "artifact": "AUD-030 static MnemoCode browser parity matrix",
+  "reportTimeZone": "UTC (+00:00)",
+  "reviewDateUtc": "2026-10-13",
+  "execution": "None: source inspection only; no inventory harness, application, test, browser, build, renderer or formatter was executed.",
+  "acceptance": "All 60 obligations are mapped; no confirmed source omission remains after the two scoped fixes. This is static reachability plus the named parent fixtures, not complete real-browser or release acceptance.",
+  "reconciliation": "All 60 rows were drafted before a source reread. Parent-reported fixes are credited only where the corresponding handler/owner is present; in-progress edits retain their inspected state. No runtime or generated-artifact acceptance is implied.",
+  "ownership": "Only parity-matrix.json and parity-matrix.md in this harness directory. Product changes, execution scheduling, sibling communication and the AUD-030 report remain with the parent.",
+  "upstream": {
+    "notes": "mnemocode/docs/audits/AUD-021-harnesses/parity-notes.md",
+    "registry": "mnemocode/src/cli/command-options.ts",
+    "suppliedCoordinatorSourceFingerprint": "f4d4f1b8b33c221f27b6e67cd1542ccaa311d12fed8bdf8bc9fb9f1b5a76601e",
+    "fingerprintIndependentlyRecomputed": false,
+    "latestParentPinLabel": "final-05",
+    "latestParentPinStatus": "Parent sync and offline binding passed against the frozen final-05 owner snapshot; all 175 mapped files match. The older suppliedCoordinatorSourceFingerprint remains historical.",
+    "identityCaveat": "The fingerprint is supplied by the sibling notes, not a fingerprint of these inspected browser bytes. Concurrent edits and vendored-source equality require the parent's final reconciliation.",
+    "editable": false,
+    "finalOwnerFingerprint": "991f61a993042265cf6ed9575cddc5ab0d84e605fbf0a1aaa2fccb62120e468e",
+    "finalOwnerSnapshotSha256": "3d7ec91a8ae85f668b73a3fa0ff227aca3a0e8d97665660ffe0fba48668ba08e",
+    "vendoredManifestSha256": "54904484cca615431bef964e55ef92246d713a6d353e929ce3ef356cd40b0d86"
+  },
+  "scope": {
+    "rows": "Every upstream obligation P01 through P60, including public-library obligations without a standalone CLI command.",
+    "browser": "Wallet Deriver MnemoCode operations; Scanner candidate-list import for P32/P34/P59.",
+    "editionRule": "Controls require mnemocode; shares also require sskr; document exports require mnemocode-cards. Bitcoin evidence requires Bitcoin admission. Dash Community offers fingerprint and Dash address evidence; other selective builds offer their admitted coins. An omitted feature does not establish parity for a build that includes it.",
+    "lineReferenceRule": "sources keys resolve to workspace-relative paths; a reference key:line identifies a one-based source line at inspection. Named calls disambiguate references after formatting. No absolute machine-owner path is published.",
+    "stateRule": "States describe static semantic reachability, not test success. Every row still needs runtime validation. A visible tab, API export, generic download or successful neighboring workflow is insufficient.",
+    "stateDefinitions": {
+      "covered": "A reachable control-to-owner chain implements the stated operation within the shared supported domain; runtime behavior is unexecuted.",
+      "source-gap": "An inspected handler or adapter omits an applicable semantic, option, output or refusal; the row explains the partial path and missing part.",
+      "shared-unsupported": "Both upstream and browser owners reject the same requested operation; the refusal is not a browser implementation gap.",
+      "host-equivalent": "The browser implements an explicit host adaptation, such as worker termination, download/ZIP delivery or contextual help, while retaining the underlying operation.",
+      "pending-validation": "The available source trace is insufficient to claim complete coverage; the unresolved acceptance question is explicit."
+    }
+  },
+  "parentHandoff": {
+    "pendingFixRows": ["P31", "P33", "P52", "P59"],
+    "agentStatus": "Stopped after authorized matrix corrections. No agent runtime, further review rounds, cosmetic/feature work or expanded inventory. Existing owner handoffs and mechanical final source/hash/result binding remain with the parent.",
+    "rowCompleteness": "P01 through P60 are enumerated exactly once, confirmed by read-only row inspection. Enumeration does not mean all obligations are complete or accepted; no parser, application or test execution.",
+    "sourceConfirmedDeltas": [
+      {
+        "rows": ["P07"],
+        "change": "formatEncoded JSON and a secret export action with explicit dates/shifts warning are present."
+      },
+      {
+        "rows": ["P08"],
+        "change": "Encode and Forgotten file/QR acquisition is present."
+      },
+      {
+        "rows": ["P14", "P21", "P22", "P23"],
+        "change": "Date/marked allowances, editable date progress cadence and separately admitted display retention are present. The later reread also confirms complete share allowance controls/request/worker/owner wiring."
+      },
+      {
+        "rows": ["P15", "P21", "P43", "P55"],
+        "change": "Restore/Repair now expose their own max-tries/max-candidates controls and pass SearchLimits through the worker to ShareRestore. P15 is a sequential host equivalent: first-share routing opens Restore before work, where applicable settings are explicitly chosen. A text-only FirstShare event is not itself an operation gap."
+      },
+      {
+        "rows": ["P18"],
+        "change": "Legacy replacement phrases now use wallet comparison with an explicit replacement warning; list export remains refused."
+      },
+      {
+        "rows": ["P20"],
+        "change": "DatesAnswer.assertIncomplete is now called before date search."
+      },
+      {
+        "rows": ["P30", "P31", "P33"],
+        "change": "Exact-value LiteralSecretField is shared by wallet and list passphrases with concealed textareas. Clear/edit/pagehide revoke canonical imports. WIF DOM-equality refusal guard already covers nonliteral INPUT imports."
+      },
+      {
+        "rows": ["P30"],
+        "change": "Exact-value LiteralSecretField is shared by wallet and list passphrases with concealed textareas. Clear/edit/pagehide revoke canonical imports. WIF DOM-equality refusal guard already covers nonliteral INPUT imports."
+      },
+      {
+        "rows": ["P28"],
+        "change": "Authorized Mnemo owner confirms CLI also passes branch/index and the same account-xpub owner ignores them. No function is missing; explaining inactive fields is optional clarity only."
+      },
+      {
+        "rows": ["P34"],
+        "change": "Explicit plaintext consent, size admission and shared MNCL parsing are present; encrypted opening remains the default without fallback."
+      },
+      {
+        "rows": ["P38", "P53", "P59"],
+        "change": "Share/Split/heir input ownership and post-await publication guards are present."
+      },
+      {
+        "rows": ["P47"],
+        "change": "Imported multi-group share cards now delegate topology/reference handling to ShareCardSet."
+      },
+      {
+        "rows": ["P52", "P37", "P59"],
+        "change": "Standalone raw backup-text QR was already host-equivalent. The separate delayed PNG publication defect is now fixed in shared QrPngExport with a sensitive result/reveal/readiness predicate; no duplicate QR route."
+      }
+    ],
+    "resolvedShareChallenge": {
+      "rows": ["P15", "P21", "P43", "P55"],
+      "meaning": "The share controls and complete limits chain are now present. CLI filters command arguments accepted by restore; browser routing instead opens Restore for explicit settings before running. No reachable trace of a configured applicable share allowance being silently lost was established.",
+      "consentBoundary": "Decode's code allowance belongs to its marked-code block, which input/kind changes hide. FirstShare carries text/fromQr only, not code-job consent. Restore has its own MnemoCodeWorkerJob; its input event revises confirmation, and captured limits belong to that share request. A confirmed code job must not authorize share work.",
+      "runtimeStatus": "Source reconciliation only; routing, allowance edits and fresh share consent still need queued browser checks."
+    },
+    "remainingChallenges": [
+      {
+        "priority": 1,
+        "rows": ["P58"],
+        "classification": "pending-validation; runtime/artifact acceptance",
+        "meaning": "Startup/full-test composition is present, but real-browser failure-before-secret activation, selected-edition pruning and browser host services remain unexecuted. Node behavior or success cannot establish browser acceptance.",
+        "nextStep": "Parent binds final source/artifacts and uses the shared real-browser check queue; no release acceptance follows from source inspection or Node checks."
+      },
+      {
+        "priority": 3,
+        "rows": ["P60"],
+        "classification": "pending-validation; public help/version reachability",
+        "meaning": "Contextual help and navigation are present. Complete named-topic semantic mapping and pre-secret version access still need concrete source/artifact references; a terminal menu parser is not demanded in the browser.",
+        "nextStep": "Parent challenges the public help/version path and validates it in real browsers; Node execution is not browser reachability evidence. Do not expand the supported feature set."
+      }
+    ],
+    "runtimeStatus": "Agents performed static review only. Parent records contain 393-case partial batch (388 passed, five template-whitespace failures), separate corrected 29-case template pass, six plaintext cases (11 excluded), pnpm check and eight default HTML/static passes. The template rerun overlaps 24 prior passing cases; counts are not added. None is a real-browser acceptance run.",
+    "scopeBoundary": "Only P01-P60 semantics in the upstream notes are mapped. An unused library function, tab or generic export does not automatically establish coverage or a new gap. Shared capability refusals remain explicit.",
+    "formatterCommandForParentNotExecuted": "pnpm exec prettier --write docs/audits/AUD-030-harnesses/parity-matrix.json docs/audits/AUD-030-harnesses/parity-matrix.md"
+  },
+  "optionGroups": {
+    "walletEvidence": [
+      "--bitcoin-address",
+      "--coin-address",
+      "--coin",
+      "--master-xpub",
+      "--account-xpub",
+      "--compressed-public-key",
+      "--master-fingerprint",
+      "--wif-file",
+      "--network",
+      "--account",
+      "--branch",
+      "--index",
+      "--bitcoin-profile",
+      "--scan-gap",
+      "--bip39-passphrase-file"
+    ],
+    "candidateList": [
+      "--candidates-file",
+      "--candidates-key",
+      "--candidates-key-file",
+      "--candidates-passphrase-file",
+      "--plaintext-candidates"
+    ],
+    "shareInput": ["--share", "--share-file", "--share-qr", "--ask-secrets"],
+    "drawing": ["--images-dir", "--image-format"],
+    "cardSettings": [
+      "--page-size",
+      "--orientation",
+      "--card-name",
+      "--card-company",
+      "--card-role",
+      "--card-email",
+      "--card-phone",
+      "--card-website",
+      "--card-location",
+      "--studio-name",
+      "--card-slogan",
+      "--card-subtitle",
+      "--card-footer",
+      "--card-reference-label",
+      "--card-qr"
+    ]
+  },
+  "cliOptionPolicy": "A row's cliOptions and optionGroups identify pertinent accepted options, not new flags. The current commandOptions registry, its imported groups and command-specific refusals govern complete accepted sets. --dates/--old-dates normalize to date/old-date; accepted singular --date/--old-date do not gain plural multi-value consumption. Numeric --format aliases follow the upstream representation order; share commands use transport names. JSON representation is a library API, not a CLI format number.",
+  "walletControlInstances": [
+    "mnemocode-decode",
+    "mnemocode-forgotten",
+    "mnemocode-restore",
+    "mnemocode-forgotten-shares",
+    "mnemocode-reencode"
+  ],
+  "walletControlRule": "Wallet rows list actual Forgotten instance IDs. The same suffixes are expanded for the other listed instances by the shared partial and MnemoCodeWalletTemplate; visibility and coin/edition admission are controlled by WalletEvidenceField. Decode wallet controls belong to marked-code recovery, not every complete-code decode.",
+  "sources": {
+    "cli.options": "mnemocode/src/cli/command-options.ts",
+    "cli.decode": "mnemocode/src/cli/decode-command.ts",
+    "cli.words": "mnemocode/src/cli/recover-word-command.ts",
+    "cli.dates": "mnemocode/src/cli/recover-date-command.ts",
+    "cli.wallet": "mnemocode/src/cli/bitcoin-options.ts",
+    "cli.reencode": "mnemocode/src/cli/re-encode-command.ts",
+    "cli.reencode-options": "mnemocode/src/cli/re-encode-options.ts",
+    "cli.encode-options": "mnemocode/src/cli/encode-option-groups.ts",
+    "cli.encode-export": "mnemocode/src/cli/encode-export.ts",
+    "cli.candidates-file": "mnemocode/src/cli/candidates-file.ts",
+    "cli.sskr-export": "mnemocode/src/cli/sskr-export-command.ts",
+    "cli.sskr-output": "mnemocode/src/cli/sskr-output.ts",
+    "cli.preview": "mnemocode/src/cli/preview-command.ts",
+    "cli.help": "mnemocode/src/cli/help-pages.ts",
+    "upstream.candidates-policy": "mnemocode/docs/CANDIDATES.md",
+    "html": "multi-chain-wallet-tools/apps/key-derivation/src/index.html",
+    "html.wallet": "multi-chain-wallet-tools/apps/key-derivation/src/partials/mnemocode-wallet-fields.html",
+    "build.wallet-template": "multi-chain-wallet-tools/tooling/mnemocode-wallet-template.mjs",
+    "build.wallet-admission": "multi-chain-wallet-tools/tooling/key-derivation-composition.mjs",
+    "build.features": "multi-chain-wallet-tools/apps/key-derivation/scripts/build-key-derivation-html.mjs",
+    "ui.install": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode.ts",
+    "ui.encode": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-encode.ts",
+    "ui.decode": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-decode.ts",
+    "ui.missing": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-missing-codes.ts",
+    "ui.forgotten": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-forgotten.ts",
+    "ui.forgotten-dates": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-forgotten-dates.ts",
+    "ui.search-settings": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-search-settings.ts",
+    "ui.evidence": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-evidence.ts",
+    "ui.reencode": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-reencode.ts",
+    "ui.shares": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-shares.ts",
+    "ui.share-choice": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-share-choice.ts",
+    "ui.share-store": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-share-store.ts",
+    "ui.share-handover": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-share-handover.ts",
+    "ui.cards": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-cards.ts",
+    "ui.images": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-card-images.ts",
+    "ui.heirs": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-heirs.ts",
+    "ui.backup-check": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-backup-check.ts",
+    "ui.table": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-word-table.ts",
+    "ui.self-test": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-self-test.ts",
+    "ui.fields": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-fields.ts",
+    "ui.help": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-help.ts",
+    "ui.results": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-results.ts",
+    "ui.candidates": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-candidates.ts",
+    "ui.list": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-list.ts",
+    "ui.job": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-worker-job.ts",
+    "ui.shared": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-workspace-shared.ts",
+    "ui.text-file-import": "multi-chain-wallet-tools/packages/shared-ui/src/text-file-import.ts",
+    "ui.qr": "multi-chain-wallet-tools/packages/shared-ui/src/payment-qr.ts",
+    "ui.workspace": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-workspace.ts",
+    "ui.linked": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-linked-sources.ts",
+    "ui.revision": "multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-input-revision.ts",
+    "worker.search": "multi-chain-wallet-tools/apps/key-derivation/src/workers/mnemocode-search-worker.ts",
+    "worker.shares": "multi-chain-wallet-tools/apps/key-derivation/src/workers/mnemocode-shares-worker.ts",
+    "worker.client": "multi-chain-wallet-tools/apps/key-derivation/src/workers/mnemocode-worker-client.ts",
+    "adapter.backup": "multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode.ts",
+    "adapter.search": "multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-search.ts",
+    "adapter.wallet": "multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-wallet-bitcoin.ts",
+    "adapter.coins": "multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-wallet-coins.ts",
+    "adapter.reencode": "multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-reencoding.ts",
+    "adapter.shares": "multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-shares.ts",
+    "adapter.cards": "multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-cards.ts",
+    "adapter.heirs": "multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-heirs.ts",
+    "adapter.startup": "multi-chain-wallet-tools/packages/recovery-backup/src/self-test-mnemocode.ts",
+    "adapter.self-test": "multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-self-test.ts",
+    "core.backup": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/encoded-backup.ts",
+    "core.form": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/encoded-form.ts",
+    "core.reading": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/backup-reading.ts",
+    "core.representations": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/representations.ts",
+    "core.masking": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/masking.ts",
+    "core.dates": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/dates.ts",
+    "core.date-search": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/date-search.ts",
+    "core.codes": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/missing-codes.ts",
+    "core.codes-search": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/missing-codes-search.ts",
+    "core.words": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/candidates.ts",
+    "core.plan": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/search-plan.ts",
+    "core.turns": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/search-turns.ts",
+    "core.fingerprint": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/master-fingerprint.ts",
+    "core.wallet": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/wallet-evidence.ts",
+    "core.scan": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/address-scan.ts",
+    "core.list": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/candidate-list.ts",
+    "core.list-writer": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/candidate-list-writer.ts",
+    "core.encryption": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/candidate-encryption.ts",
+    "core.file-admission": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/candidate-file-admission.ts",
+    "core.reencode": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/re-encoding.ts",
+    "core.backup-check": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/core/backup-check.ts",
+    "sskr.split": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/sskr/split.ts",
+    "sskr.transport": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/sskr/transport.ts",
+    "sskr.input": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/sskr/share-input.ts",
+    "sskr.restore": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/sskr/share-restore.ts",
+    "sskr.set": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/sskr/share-set.ts",
+    "sskr.topology": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/sskr/set-topology.ts",
+    "sskr.repair": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/sskr/repair.ts",
+    "sskr.joint": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/sskr/joint-repair.ts",
+    "sskr.unmask": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/sskr/share-unmasking.ts",
+    "export.catalog": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/export/template-catalog.ts",
+    "export.preview": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/export/card-preview.ts",
+    "export.content": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/export/sskr-content.ts",
+    "export.sskr": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/export/sskr-render.ts",
+    "export.session": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/export/card-session.ts",
+    "export.heirs": "multi-chain-wallet-tools/packages/recovery-mnemocode/source/export/heir-sheet-text.ts",
+    "scanner.import": "multi-chain-wallet-tools/apps/discovery-scanner/src/candidate-list-import.ts",
+    "scanner.panel": "multi-chain-wallet-tools/apps/discovery-scanner/src/candidate-list-panel.ts",
+    "scanner.html": "multi-chain-wallet-tools/apps/discovery-scanner/src/index.html",
+    "scanner.inputs": "multi-chain-wallet-tools/apps/discovery-scanner/src/seed-scan-input.ts",
+    "ui.literal": "multi-chain-wallet-tools/packages/shared-ui/src/literal-secret-field.ts",
+    "test.qr-publication": "multi-chain-wallet-tools/packages/shared-ui/tests/qr-publication.test.ts"
+  },
+  "rows": [
+    {
+      "id": "P01",
+      "cliSemantics": "Reversibly encode/decode English BIP39 indexes as English words, word numbers, Unicode, RGB or Color Unicode without changing the original phrase in Direct mode.",
+      "cliEntryPoints": ["encode", "decode"],
+      "cliOptions": ["--mode direct", "--format", "--mnemonic", "--input"],
+      "browserControlIds": [
+        "mnemocode-source",
+        "mnemocode-encode-mode",
+        "mnemocode-encode-format",
+        "encode-mnemocode",
+        "mnemocode-input",
+        "mnemocode-decode-format",
+        "decode-mnemocode"
+      ],
+      "browserRoute": "Encode/Decode operation buttons invoke their handlers after the recovery readiness gate; each format selector selects the shared representation.",
+      "sharedOwnerCalls": [
+        "encodeMnemoCode -> EncodedBackup.encode -> EncodedForm",
+        "decodeMnemoCode -> BackupReading.codes -> EncodedBackup.decode"
+      ],
+      "refusalMapping": "Shared phrase/index/form validation; malformed or ambiguous input is shown as an error and requires a representation choice.",
+      "progressMapping": "Synchronous bounded conversion; no search progress.",
+      "cancelMapping": "No long conversion job; Decode result actions are bound to InputRevision.",
+      "outputMapping": "Concealed payload, MNC1 Save record, mode/form facts, palette and original/encoded fingerprints; decoded phrase has explicit Copy/Use actions.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.encode:105",
+        "ui.decode:278",
+        "adapter.backup:210",
+        "core.backup:154",
+        "core.form:232"
+      ],
+      "pendingValidation": "Exact published representation answers in every admitted format and length, with malformed input refusal; no execution here."
+    },
+    {
+      "id": "P02",
+      "cliSemantics": "Apply and undo checksum-preserving MnemoCode Seedshift; dates are independent recovery inputs and are excluded from the saved backup.",
+      "cliEntryPoints": ["encode", "decode"],
+      "cliOptions": ["--mode seedshift", "--dates"],
+      "browserControlIds": [
+        "mnemocode-encode-mode",
+        "mnemocode-encode-dates",
+        "encode-mnemocode",
+        "mnemocode-decode-mode",
+        "mnemocode-decode-dates",
+        "decode-mnemocode"
+      ],
+      "browserRoute": "DatesField reads the chosen mode's dates; Decode uses the record's mode before deciding which dates apply.",
+      "sharedOwnerCalls": [
+        "DatesField.values -> mnemoCodeDatesFor -> DatesAnswer.parse",
+        "EncodedBackup.encode/decode -> Masking"
+      ],
+      "refusalMapping": "Masking.assertDateCount and calendar parsing reject invalid counts/dates; decoding warns that checksum-valid output does not identify the wallet.",
+      "progressMapping": "Bounded synchronous shift/unshift.",
+      "cancelMapping": "Input changes invalidate Decode publication; no long shift to cancel.",
+      "outputMapping": "MNC1 record excludes dates; original and encoded fingerprints are distinguished; unverified decoded wallet warning remains visible.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.fields:45",
+        "ui.encode:105",
+        "ui.decode:416",
+        "adapter.backup:166",
+        "core.masking:288"
+      ],
+      "pendingValidation": "Known Seedshift output, order/count rules, wrong-date warning and exact recovery with original dates."
+    },
+    {
+      "id": "P03",
+      "cliSemantics": "Original Seedshift shifts the complete final word without replacing it; report possible encoded or restored checksum failure.",
+      "cliEntryPoints": ["encode", "decode"],
+      "cliOptions": ["--mode seedshift-legacy", "--dates"],
+      "browserControlIds": [
+        "mnemocode-encode-mode",
+        "mnemocode-encode-dates",
+        "encode-mnemocode",
+        "mnemocode-decode-mode",
+        "decode-mnemocode"
+      ],
+      "browserRoute": "The legacy selector maps to the ordinary legacy owner; the valid-final-word alternative is a separate mode.",
+      "sharedOwnerCalls": [
+        "encodeMnemoCode -> EncodedBackup.encode",
+        "decodeMnemoCode -> EncodedBackup.decode",
+        "renderInvalidMnemonic"
+      ],
+      "refusalMapping": "Invalid input dates/phrase are refused; an invalid restored checksum is shown without a trusted phrase handoff.",
+      "progressMapping": "Synchronous conversion; legacy candidate fingerprints are asynchronous only for the replacement variant.",
+      "cancelMapping": "Decode input revision suppresses stale fingerprint results and actions.",
+      "outputMapping": "Encoded checksum warning, optional replacement explanation, decoded validity and shorter-prefix fingerprint hints.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.encode:141",
+        "ui.encode:173",
+        "ui.decode:398",
+        "adapter.backup:210",
+        "core.masking:102"
+      ],
+      "pendingValidation": "Published legacy vector, unchanged final-word shift and checksum-failure presentation."
+    },
+    {
+      "id": "P04",
+      "cliSemantics": "Optionally replace a legacy shifted final word with a checksum-valid word; record the actual resulting mode and decode all possible original final words.",
+      "cliEntryPoints": ["encode", "decode"],
+      "cliOptions": ["--mode seedshift-legacy", "--legacy-valid-last-word", "--dates"],
+      "browserControlIds": [
+        "mnemocode-encode-mode",
+        "encode-mnemocode",
+        "mnemocode-input",
+        "decode-mnemocode",
+        "mnemocode-decode-result"
+      ],
+      "browserRoute": "The seedshift-legacy-valid selector is the host translation of the CLI flag; the adapter asks legacy encode with validLastWord and returns backup.mode.",
+      "sharedOwnerCalls": [
+        "encodeMnemoCode -> EncodedBackup.encode({validLastWord})",
+        "EncodedBackup.candidates",
+        "MnemoCodeDecodeTab.#showCandidates -> renderLegacyCandidates"
+      ],
+      "refusalMapping": "Shared encodability/date/phrase refusals; UI explains information loss and the need for independent wallet evidence.",
+      "progressMapping": "Replacement is bounded; candidate fingerprints are computed asynchronously without a progress counter.",
+      "cancelMapping": "InputRevision guards candidate fingerprint completion and every retained Copy action; no separate candidate-fingerprint Cancel button.",
+      "outputMapping": "Actual MNC1 mode, candidate phrase/fingerprint table, fingerprint lookup and concealed candidate copying; no automatic claim of original-wallet identification.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "adapter.backup:217",
+        "ui.encode:141",
+        "ui.decode:367",
+        "ui.results:161",
+        "core.backup:264"
+      ],
+      "pendingValidation": "Changed and already-valid last-word cases, exact candidate families and action revocation during fingerprint computation."
+    },
+    {
+      "id": "P05",
+      "cliSemantics": "Validate supported English BIP39 lengths, words and checksum plus mode-specific rules; checksum success must not be presented as proof of the intended wallet.",
+      "cliEntryPoints": ["encode", "decode", "recover-word", "recover-date"],
+      "cliOptions": ["--words", "--mode", "--mnemonic", "--input"],
+      "browserControlIds": [
+        "mnemocode-source",
+        "mnemocode-decode-words",
+        "mnemocode-forgotten-words",
+        "encode-mnemocode",
+        "decode-mnemocode"
+      ],
+      "browserRoute": "Encode reads through the source owner and assertValidMnemonic; Decode/word/date paths ask the vendored owners, and word-count selects read the shared count list.",
+      "sharedOwnerCalls": [
+        "assertValidMnemonic",
+        "EncodedBackup.decode",
+        "installPhraseWordCounts",
+        "WordCandidateSearch.parse",
+        "Masking.assertDateCount"
+      ],
+      "refusalMapping": "Unsupported word counts, words, checksum and mode/date combinations are refused or shown as invalid readings; Seedshift and candidate-result wallet warnings remain explicit.",
+      "progressMapping": "Immediate input diagnostics; long recovery uses its own job progress.",
+      "cancelMapping": "Inherited from the selected conversion or search workflow.",
+      "outputMapping": "Seed diagnostic, validity messages, original fingerprint and wallet-recognition warning rather than checksum-only confirmation.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "adapter.backup:220",
+        "ui.fields:98",
+        "ui.shared:457",
+        "ui.decode:398",
+        "ui.candidates:47"
+      ],
+      "pendingValidation": "Every shared length, wrong-word/checksum refusals and warning persistence in each supported mode."
+    },
+    {
+      "id": "P06",
+      "cliSemantics": "Detect fitting representations, ask on ambiguity, preserve joined/apart Unicode and color elements and refuse invalid syntax; numeric format aliases identify the same forms.",
+      "cliEntryPoints": ["decode"],
+      "cliOptions": ["--format", "--input", "--words"],
+      "browserControlIds": [
+        "mnemocode-input",
+        "mnemocode-decode-format",
+        "mnemocode-decode-words",
+        "decode-mnemocode"
+      ],
+      "browserRoute": "Auto-detect uses BackupReading.formats; ambiguity requires the explicit form selector. Marked-code ambiguity is checked separately before recovery ways are offered.",
+      "sharedOwnerCalls": [
+        "readMnemoCodeCodes -> BackupReading.formats/codes",
+        "BackupReading.markedFormats",
+        "EncodedForm.apartCodes"
+      ],
+      "refusalMapping": "Ambiguous forms are named and no representation is silently selected; shared element parsers reject malformed syntax.",
+      "progressMapping": "Synchronous reading and classification; recovery has its own progress.",
+      "cancelMapping": "Input revisions invalidate Decode results.",
+      "outputMapping": "Form facts and joined/apart concealed code displays; browser selects named formats with the CLI's numbered help labels.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "adapter.backup:261",
+        "ui.missing:115",
+        "core.reading:186",
+        "core.form:289",
+        "ui.help:70"
+      ],
+      "pendingValidation": "Ambiguous complete/marked forms, joined Unicode and Color Unicode, invalid element framing and numeric alias correspondence."
+    },
+    {
+      "id": "P07",
+      "cliSemantics": "Read/write MNC1 with record mode/form overriding host hints and conflict guidance; separately expose the library's JSON representation output without inventing a CLI format.",
+      "cliEntryPoints": ["encode", "decode", "formatEncoded(..., json) public API"],
+      "cliOptions": ["--output", "--input-file", "--mode", "--format"],
+      "browserControlIds": [
+        "encode-mnemocode",
+        "mnemocode-input",
+        "mnemocode-decode-record-note",
+        "mnemocode-decode-mode",
+        "mnemocode-decode-format",
+        "decode-mnemocode"
+      ],
+      "browserRoute": "Save record and Save JSON with dates and shifts are generated concealed-result actions without fixed IDs; Decode imports text and reports that the header overrides both selectors.",
+      "sharedOwnerCalls": [
+        "EncodedBackup.record",
+        "encodeMnemoCode -> formatEncoded(encoded, json)",
+        "parseMnemoCodeRecord -> parseRecord",
+        "readMnemoCodeCodes -> BackupReading.mode/formats"
+      ],
+      "refusalMapping": "Malformed header is refused; record ownership is explained. The general note is not a separate detailed modeConflict/formatConflict rendering.",
+      "progressMapping": "Text file admission is asynchronous; record conversion is synchronous.",
+      "cancelMapping": "Decode result revision follows imported input; the text-file helper owns stale reads.",
+      "outputMapping": "MNC1 text record excludes dates; the separate mnemocode-representation.json uses the shared JSON representation and explicitly warns that it includes every representation, dates and shifts and must stay private.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.encode:209",
+        "ui.encode:219",
+        "ui.decode:194",
+        "adapter.backup:194",
+        "adapter.backup:219",
+        "core.reading:172",
+        "core.representations:1"
+      ],
+      "pendingValidation": "Conflicting selectors versus record header, malformed header, exact MNC1/JSON output and concealed JSON-button gating with the explicit dates warning."
+    },
+    {
+      "id": "P08",
+      "cliSemantics": "Admit typed, text-file and applicable local PNG QR inputs; interactive secret acquisition excludes simultaneous secret arguments and refusals must not echo secret text.",
+      "cliEntryPoints": ["encode", "decode", "recover-word", "recover-date", "re-encode"],
+      "cliOptions": [
+        "--mnemonic",
+        "--mnemonic-file",
+        "--input",
+        "--input-file",
+        "--qr-file",
+        "--ask-secrets"
+      ],
+      "browserControlIds": [
+        "mnemocode-source",
+        "mnemocode-input",
+        "mnemocode-forgotten-phrase",
+        "mnemocode-forgotten-codes",
+        "mnemocode-reencode-input"
+      ],
+      "browserRoute": "Encode, Forgotten words/date codes, Decode and Re-encode now install generated local file/QR buttons via installFieldImports; generated buttons have labels, not stable IDs. The imported content feeds the corresponding typed/linked input owner.",
+      "sharedOwnerCalls": [
+        "installFieldImports -> installTextFileImport/installQrImageImport",
+        "readMnemoCodeBackup",
+        "WordCandidateSearch.parse",
+        "LinkedSources.readMnemonic"
+      ],
+      "refusalMapping": "Bounded input/admission rules and owner messages; browser has no CLI secret-argument channel. Error-text privacy is still an unexecuted negative acceptance check.",
+      "progressMapping": "Import status or owner errors; no secret-processing progress before admission.",
+      "cancelMapping": "Import helpers and input revision own replacement/clear; search cancellation starts only after a request is admitted.",
+      "outputMapping": "Admitted local text feeds the same input owner; no remote resource or automatic upload.",
+      "state": "host-equivalent",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.encode:54",
+        "ui.forgotten:92",
+        "ui.forgotten-dates:42",
+        "ui.decode:123",
+        "ui.reencode:69",
+        "ui.shared:803",
+        "ui.linked:135"
+      ],
+      "pendingValidation": "Oversized/malformed local text and PNG, imported marked phrases, replacement races, secret-free refusals and browser acquisition without CLI secret-argument channels."
+    },
+    {
+      "id": "P09",
+      "cliSemantics": "Apply declared phrase length before representation detection and marked-code parsing; preserve real question marks and drop only trailing card decoys.",
+      "cliEntryPoints": ["decode", "recover-date", "re-encode"],
+      "cliOptions": ["--words", "--format", "--input"],
+      "browserControlIds": [
+        "mnemocode-decode-words",
+        "mnemocode-forgotten-words",
+        "mnemocode-reencode-words",
+        "mnemocode-decode-missing-search",
+        "mnemocode-forgotten-search",
+        "mnemocode-reencode-read"
+      ],
+      "browserRoute": "All three readers pass chosenPhraseWords into readMnemoCodeBackup; marked-code requests retain words across the worker boundary.",
+      "sharedOwnerCalls": [
+        "BackupReading.#payloadIn/#fitting",
+        "EncodedForm.leadingCodes",
+        "BackupReading.missingCodes",
+        "MnemoCodeSearches.missingCodes"
+      ],
+      "refusalMapping": "Shared word-count and retained-code syntax refusals; auto-detection uses only each form's admitted prefix. Share classification remains a separate Decode decision.",
+      "progressMapping": "Reading is bounded; any marked/date search reports its own total.",
+      "cancelMapping": "Words selector is watched by Decode/Recovery input ownership; marked worker results are dropped after edits.",
+      "outputMapping": "Recovered phrase/code prefix and original length, without interpreting decoys as forgotten real elements.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.decode:95",
+        "ui.missing:225",
+        "ui.forgotten-dates:83",
+        "ui.reencode:179",
+        "core.reading:108",
+        "core.reading:122"
+      ],
+      "pendingValidation": "Declared length plus joined/partial marks and malformed trailing decoys in every form; challenge Decode's earlier share-versus-codes classification independently."
+    },
+    {
+      "id": "P10",
+      "cliSemantics": "Route marked encoded elements to code recovery and phrase words to word recovery; hints and classification must not silently change representation.",
+      "cliEntryPoints": ["decode --ask-secrets", "recover-word --ask-secrets"],
+      "cliOptions": ["--format", "--input", "--mnemonic"],
+      "browserControlIds": [
+        "mnemocode-input",
+        "decode-mnemocode",
+        "mnemocode-forgotten-kind-code",
+        "mnemocode-forgotten-open-decode",
+        "mnemocode-forgotten-phrase",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "Decode offers MnemoCodeMissingCodes; Forgotten code selection opens Decode; word recovery refuses encoded-code input and points to Decode.",
+      "sharedOwnerCalls": [
+        "BackupReading.isCodes/shareKind",
+        "EncodedForm.typedWords",
+        "WordCandidateSearch.parse",
+        "MnemoCodeMissingCodes.offer"
+      ],
+      "refusalMapping": "Words-versus-codes guidance is explicit; ambiguity requires the user's form/kind answer.",
+      "progressMapping": "Classification/hints are immediate; the selected recovery owns subsequent progress.",
+      "cancelMapping": "Classification changes revise the relevant job; hints do not start searches.",
+      "outputMapping": "A corrected route and explanation, preserving input until the user starts the right operation.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.decode:284",
+        "ui.forgotten:121",
+        "ui.forgotten:214",
+        "ui.forgotten:265",
+        "cli.words:105",
+        "core.reading:222"
+      ],
+      "pendingValidation": "Marked English versus encoded forms, ambiguous code/share text and hint behavior without silent conversion."
+    },
+    {
+      "id": "P11",
+      "cliSemantics": "Recover unread English, number, Unicode, RGB and Color Unicode elements with full-element or partial marks and unambiguous joined syntax.",
+      "cliEntryPoints": ["decode --ask-secrets"],
+      "cliOptions": ["--format", "--words", "--input", "--input-file"],
+      "browserControlIds": [
+        "mnemocode-input",
+        "mnemocode-decode-format",
+        "mnemocode-decode-words",
+        "decode-mnemocode",
+        "mnemocode-decode-missing-search",
+        "mnemocode-decode-missing-stop"
+      ],
+      "browserRoute": "Decode offers marked-format choices and builds MissingCodes with the declared length and mode; the search worker rebuilds the same typed-code owner.",
+      "sharedOwnerCalls": [
+        "BackupReading.markedFormats/missingCodes",
+        "MissingCodes.read/run",
+        "MnemoCodeSearches.missingCodes"
+      ],
+      "refusalMapping": "Ambiguous marked forms require selection; malformed marks and excessive solution spaces are refused by shared parsers/limits.",
+      "progressMapping": "mnemocode-decode-missing-status reports checked/total/found and elapsed time.",
+      "cancelMapping": "Missing-stop terminates the worker; edits revoke the request and stale result publication.",
+      "outputMapping": "Found whole codes and filled positions, or a bounded unverified candidate table, with correction guidance.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.missing:115",
+        "ui.missing:211",
+        "adapter.search:224",
+        "core.codes:250",
+        "core.codes:313"
+      ],
+      "pendingValidation": "Every marked representation, whole/partial elements and joined syntax with exact accepted and refused examples."
+    },
+    {
+      "id": "P12",
+      "cliSemantics": "Choose an encoded-fingerprint filter, wallet comparison, or explicitly bounded unverified candidate listing; wallet evidence and list-candidates are exclusive.",
+      "cliEntryPoints": ["decode --ask-secrets"],
+      "cliOptions": ["--encoded-fingerprint", "--list-candidates"],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-decode-missing-way-list",
+        "mnemocode-decode-encoded-fingerprint",
+        "mnemocode-decode-missing-wallet",
+        "mnemocode-decode-missing-search"
+      ],
+      "browserRoute": "Dynamic radio controls named mnemocode-decode-missing-way choose one of MissingCodesSearch.ways; their generated radios have no IDs.",
+      "sharedOwnerCalls": [
+        "MissingCodesSearch.ways/fits",
+        "byEncodedFingerprint",
+        "byWallet",
+        "listed",
+        "parseMasterFingerprint"
+      ],
+      "refusalMapping": "No selected way is an error; impossible fingerprint/checksum combinations or an oversized list are refused; wallet way requires evidence.",
+      "progressMapping": "Marked-code worker checked/total/found updates and assessed long-work consent.",
+      "cancelMapping": "Missing-stop terminates the worker; way/evidence edits revise ownership.",
+      "outputMapping": "Found or none/several verdicts; list outcome is explicitly unverified and does not assert wallet identity.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.missing:165",
+        "ui.missing:211",
+        "adapter.search:250",
+        "core.codes-search:230",
+        "core.codes-search:248"
+      ],
+      "pendingValidation": "Exclusive ways, fingerprint collisions, bounded-list refusal and warning text."
+    },
+    {
+      "id": "P13",
+      "cliSemantics": "For marked masked codes with complete dates, unmask by the actual recorded/selected mode and compare each candidate with the wallet.",
+      "cliEntryPoints": ["decode --ask-secrets"],
+      "cliOptions": ["--mode", "--dates", "--format"],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-decode-mode",
+        "mnemocode-decode-dates",
+        "mnemocode-decode-missing-way-list",
+        "mnemocode-decode-wallet-fingerprint-choice",
+        "mnemocode-decode-missing-search"
+      ],
+      "browserRoute": "Wallet way captures dates/evidence; the marked reading's mode overrides host hints and is passed to the worker.",
+      "sharedOwnerCalls": [
+        "BackupReading.mode",
+        "MissingCodesSearch.byWallet",
+        "DatesAnswer.parse",
+        "MnemoCodeWalletRecognition.checkFor"
+      ],
+      "refusalMapping": "Missing/invalid dates or wallet evidence are refused; no encoded fingerprint is substituted for original-wallet evidence.",
+      "progressMapping": "Combined code work reports checked/total/found on the missing status line.",
+      "cancelMapping": "Worker termination and Decode revision protect the result and captured passphrase.",
+      "outputMapping": "Filled codes, actual mode/form, dates and decoded original phrase; successful wallet passphrase is handed on with the result.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.missing:130",
+        "ui.missing:225",
+        "adapter.search:275",
+        "core.codes-search:257",
+        "ui.decode:333"
+      ],
+      "pendingValidation": "Complete-date masked-code recovery, wrong-wallet refusal and original versus encoded fingerprint distinction."
+    },
+    {
+      "id": "P14",
+      "cliSemantics": "Jointly recover marked codes and incomplete dates, assess combined work and require identifying evidence where checksum cannot distinguish date choices.",
+      "cliEntryPoints": ["decode --ask-secrets"],
+      "cliOptions": ["--mode", "--dates", "--max-candidates"],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-decode-dates",
+        "mnemocode-decode-missing-way-list",
+        "mnemocode-decode-max-candidates",
+        "mnemocode-decode-missing-search",
+        "mnemocode-decode-missing-stop"
+      ],
+      "browserRoute": "Wallet way passes patterns into DatesAnswer and uses MissingCodesSearch.byWallet; the generated max-candidates control is admitted by MnemoCodeSearchSettings and plan.ask becomes a second-press Search anyway question.",
+      "sharedOwnerCalls": [
+        "DatesAnswer.parse({patterns:true})",
+        "MnemoCodeSearchSettingsFields.request -> MnemoCodeSearchSettings.parse/of",
+        "MissingCodesSearch.byWallet -> plan(maxCandidates)/run",
+        "MnemoCodeSearches.missingCodes"
+      ],
+      "refusalMapping": "Wallet way cannot run without evidence; shared date/code hard bounds remain enforced.",
+      "progressMapping": "Combined plan and checked/total/found updates; consent is retained only for identical captured inputs.",
+      "cancelMapping": "Missing-stop destroys the worker; input revisions suppress stale combined results.",
+      "outputMapping": "Filled codes, dates/foundDates and original phrase with wallet factor captured from the request.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.missing:61",
+        "ui.missing:197",
+        "ui.search-settings:43",
+        "adapter.search:323",
+        "adapter.search:342",
+        "core.codes-search:389",
+        "core.codes-search:410"
+      ],
+      "pendingValidation": "Combined work, required evidence, custom allowance below assessed work, unchanged hard bounds and confirmation revoked by setting edits."
+    },
+    {
+      "id": "P15",
+      "cliSemantics": "Distinguish encoded phrases from complete/marked shares; keep the first entered share when routing and transfer only restore-supported settings.",
+      "cliEntryPoints": ["decode --ask-secrets -> sskr-combine"],
+      "cliOptions": ["--input-kind codes", "--input-kind share", "--max-tries", "--max-candidates"],
+      "browserControlIds": [
+        "mnemocode-input",
+        "mnemocode-decode-input-kind-share",
+        "mnemocode-decode-input-kind-codes",
+        "decode-mnemocode",
+        "mnemocode-restore-shares",
+        "mnemocode-restore-search-settings",
+        "mnemocode-restore-max-tries",
+        "mnemocode-restore-max-candidates",
+        "mnemocode-restore"
+      ],
+      "browserRoute": "BackupReading.shareKind asks on either; handOverShare/takeHandedOverShares select Restore and prepend the first share without discarding previously entered shares. Routing does not run work. Restore exposes its own max-tries/max-candidates, mode/dates and evidence choices before the separate Restore click; their SearchLimits reach ShareRestore through the worker.",
+      "sharedOwnerCalls": [
+        "BackupReading.shareKind",
+        "handOverShare -> MnemoCodeRestoreTab.#takeFirstShare",
+        "MnemoCodeSearchSettingsFields.limits -> MnemoCodeShares.restore -> ShareRestore.restore",
+        "ShareInput.replaceAll"
+      ],
+      "refusalMapping": "No ambiguous-kind answer stops Decode; a build without shares explains that it cannot restore shares. Only Restore's applicable controls form its request; an encoded fingerprint or code-job confirmation is not treated as share evidence/consent.",
+      "progressMapping": "Routing itself is immediate; Restore owns any subsequent repair progress.",
+      "cancelMapping": "First-share input dispatch revises Restore's own confirmation/result ownership; its request snapshot includes share limits. Decode's marked-code block hides on input/kind changes and its separate job's confirmation is never transferred.",
+      "outputMapping": "First share retained, route explanation and visible Restore settings, followed by a separate user-started operation. CLI accepted-argument filtering is adapted to sequential browser settings; no flag-copy or confirmation-copy requirement is invented.",
+      "state": "host-equivalent",
+      "gaps": [],
+      "sourceRefs": [
+        "cli.decode:266",
+        "ui.decode:111",
+        "ui.decode:159",
+        "ui.decode:249",
+        "ui.decode:271",
+        "ui.share-handover:10",
+        "ui.share-handover:16",
+        "ui.shares:497",
+        "ui.shares:586",
+        "ui.shares:690",
+        "ui.search-settings:59",
+        "ui.search-settings:119",
+        "html:4771",
+        "worker.shares:59",
+        "adapter.shares:268",
+        "ui.job:52"
+      ],
+      "pendingValidation": "Complete/marked/ambiguous routing, first-share retention, visible allowance choice before Restore, distinct code/share consent, allowance edits revoking confirmation and build-without-shares explanation."
+    },
+    {
+      "id": "P16",
+      "cliSemantics": "Recover one or several unknown words, including partial-letter marks; filter exact checksums and retain stable candidate numbers before wallet comparison.",
+      "cliEntryPoints": ["recover-word"],
+      "cliOptions": ["--mnemonic", "--mnemonic-file", "--ask-secrets"],
+      "optionGroups": ["walletEvidence", "candidateList"],
+      "browserControlIds": [
+        "mnemocode-forgotten-kind-word",
+        "mnemocode-forgotten-where-places",
+        "mnemocode-forgotten-phrase",
+        "mnemocode-forgotten-search",
+        "mnemocode-forgotten-stop"
+      ],
+      "browserRoute": "Forgotten builds a words request of kind unknown-words; the worker uses MnemoCodeSearches.words and the vendored WordCandidateSearch.",
+      "sharedOwnerCalls": [
+        "WordCandidateSearch.parse/run",
+        "MnemoCodeWalletRecognition.checkFor",
+        "CandidateListWriter.write"
+      ],
+      "refusalMapping": "Wrong words/counts and excessive combinations are refused by the shared owner; encoded forms get Decode guidance.",
+      "progressMapping": "Combinations/checksum expectation before starting, checked/found/matched during the worker job.",
+      "cancelMapping": "Forgotten-stop terminates the worker; input edits drop the result and wipe retained list bytes.",
+      "outputMapping": "Stable numbered rows with filled words and optional wallet path, selected phrase/fingerprint/Use and optional protected list.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.forgotten:202",
+        "ui.forgotten:300",
+        "adapter.search:289",
+        "core.words:522",
+        "ui.candidates:114"
+      ],
+      "pendingValidation": "Multiword/partial-letter known answers, exact candidate numbering and checking beyond the visible subset."
+    },
+    {
+      "id": "P17",
+      "cliSemantics": "Insert one missing word at every possible position, preserving given-word order and deduplicating repeated candidate phrases; incompatible with the legacy replacement action.",
+      "cliEntryPoints": ["recover-word"],
+      "cliOptions": ["--missing-word", "--mnemonic", "--ask-secrets"],
+      "optionGroups": ["walletEvidence", "candidateList"],
+      "browserControlIds": [
+        "mnemocode-forgotten-kind-word",
+        "mnemocode-forgotten-where-missing",
+        "mnemocode-forgotten-phrase",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "Mutually exclusive where radios choose missing-word versus places or legacy; the words worker uses the same WordCandidateSearch kind.",
+      "sharedOwnerCalls": [
+        "WordCandidateSearch.parse(text, missing-word)",
+        "WordCandidateSearch.candidates/run",
+        "placesOf(candidate)"
+      ],
+      "refusalMapping": "Shared input-length/count/combination rules; missing and legacy cannot be selected simultaneously in the radio group.",
+      "progressMapping": "Expected combinations before starting and worker checked/found/matched updates.",
+      "cancelMapping": "Forgotten-stop and input revision as for ordinary word search.",
+      "outputMapping": "Stable candidate number plus insertion position/new word, selected phrase and optional list; supplied-word order comes from the owner.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.forgotten:257",
+        "ui.forgotten:312",
+        "core.words:522",
+        "adapter.search:310",
+        "cli.words:277"
+      ],
+      "pendingValidation": "Each insertion position, repeated-word deduplication and refusal of malformed missing-word inputs."
+    },
+    {
+      "id": "P18",
+      "cliSemantics": "List checksum-valid final-word replacements of an exact stored legacy phrase, mark the entropy-preserving row and optionally compare those replacements with wallet evidence; refuse candidate-list output.",
+      "cliEntryPoints": ["recover-word"],
+      "cliOptions": ["--legacy-valid-last-word", "--mnemonic", "--ask-secrets"],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-forgotten-where-legacy",
+        "mnemocode-forgotten-phrase",
+        "mnemocode-forgotten-search",
+        "mnemocode-forgotten-list-unavailable"
+      ],
+      "browserRoute": "Legacy without wallet evidence uses the bounded local replacement display. With evidence the visible wallet controls build a legacy-replacements worker request and call MnemoCodeSearches.#legacy; list output remains disabled.",
+      "sharedOwnerCalls": [
+        "recoverMnemoCodeLegacyLastWords -> recoverLegacyValidLastWords",
+        "MnemoCodeSearches.words -> #legacy -> askWallet/MatchTally/SearchTurns",
+        "renderCandidates with Stored replacement label and LEGACY_REPLACEMENTS_NOTE"
+      ],
+      "refusalMapping": "Exact-input/mark refusals and no-list restriction match the shared operation; the browser replacement warning does not make these original-wallet candidates.",
+      "progressMapping": "Without evidence a bounded local list; with evidence checked/found/matched worker progress.",
+      "cancelMapping": "Wallet comparison uses Forgotten-stop and job revision; the immediate list clears on edits.",
+      "outputMapping": "Word/word-number/checksum/preserved marker and replacement phrases, plus wallet match/path where requested. An explicit warning says evidence compares stored replacements, not original legacy phrases.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.forgotten:145",
+        "ui.forgotten:214",
+        "ui.forgotten:247",
+        "ui.forgotten:309",
+        "adapter.search:432",
+        "adapter.search:446",
+        "cli.words:203",
+        "cli.words:425"
+      ],
+      "pendingValidation": "Preserved row, exact replacement family, wallet comparisons/path and prohibition of candidate-list output without relabeling replacements as recovered originals."
+    },
+    {
+      "id": "P19",
+      "cliSemantics": "Recover date digits, alternatives separated by | and whole dates, enforcing calendar, repeated-pattern, phrase-specific count and hard combination limits.",
+      "cliEntryPoints": ["recover-date", "decode --ask-secrets"],
+      "cliOptions": ["--dates", "--mode", "--format", "--words"],
+      "browserControlIds": [
+        "mnemocode-forgotten-kind-date",
+        "mnemocode-forgotten-codes",
+        "mnemocode-forgotten-dates",
+        "mnemocode-forgotten-words",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "Forgotten uses mnemoCodeCodes with the admitted word count and passes date patterns into MnemoCodeSearches.dates; marked-code wallet recovery accepts the same date syntax.",
+      "sharedOwnerCalls": [
+        "DatesAnswer.parse({patterns:true,wordCount})",
+        "DateSearch.plan/run",
+        "dateRecoveryCandidates"
+      ],
+      "refusalMapping": "Calendar/pattern/date-count/hard-work refusals are shared; Direct is not a date-search mode.",
+      "progressMapping": "Date combination count while typing and measured time/checked/found/matched updates during search.",
+      "cancelMapping": "Forgotten-stop terminates the worker; edited patterns revoke results and consent.",
+      "outputMapping": "Dates associated with each original phrase, numbering and optional wallet path/list; masked code fingerprint remains separate.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.forgotten:247",
+        "ui.forgotten-dates:83",
+        "adapter.search:492",
+        "core.date-search:192",
+        "core.date-search:513"
+      ],
+      "pendingValidation": "Leap/calendar limits, alternatives, repeated patterns, whole-date marks and phrase-specific maximum dates."
+    },
+    {
+      "id": "P20",
+      "cliSemantics": "recover-date requires at least one incomplete date; checksum-preserving modes require wallet evidence, while legacy checksum filtering may enumerate without it.",
+      "cliEntryPoints": ["recover-date", "decode --ask-secrets"],
+      "cliOptions": ["--dates", "--mode"],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-forgotten-kind-date",
+        "mnemocode-forgotten-dates",
+        "mnemocode-forgotten-wallet-none",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "ForgottenDates.request captures patterns and wallet evidence; MnemoCodeSearches.dates parses them and calls the shared DatesAnswer.assertIncomplete before constructing DateSearch.",
+      "sharedOwnerCalls": [
+        "walletNeeded",
+        "DatesAnswer.parse/assertIncomplete",
+        "DateSearch constructor/run"
+      ],
+      "refusalMapping": "Missing required wallet evidence and complete dates are refused. The UI hint supplements the adapter's hard shared admission guard.",
+      "progressMapping": "Complete dates are refused before search progress; legacy incomplete patterns can enumerate without wallet evidence.",
+      "cancelMapping": "Worker stop/revision remains available for the admitted request.",
+      "outputMapping": "An incomplete-date refusal or normal numbered recovery results from admitted patterns.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.forgotten-dates:67",
+        "ui.forgotten-dates:83",
+        "adapter.search:509",
+        "adapter.search:513",
+        "cli.dates:118"
+      ],
+      "pendingValidation": "Complete-date refusal, checksum-preserving evidence requirement and legacy enumeration without evidence."
+    },
+    {
+      "id": "P21",
+      "cliSemantics": "Keep immutable hard safety bounds, user consent allowances and retained-result limits distinct; an allowance below assessed work asks or refuses, never truncates the cryptographic search.",
+      "cliEntryPoints": ["recover-date", "decode --ask-secrets", "sskr-combine", "sskr-export"],
+      "cliOptions": ["--max-candidates", "--max-tries", "--max-results"],
+      "browserControlIds": [
+        "mnemocode-decode-max-candidates",
+        "mnemocode-decode-missing-search",
+        "mnemocode-forgotten-max-candidates",
+        "mnemocode-forgotten-progress-every",
+        "mnemocode-forgotten-max-results",
+        "mnemocode-forgotten-search",
+        "mnemocode-restore-max-tries",
+        "mnemocode-restore-max-candidates",
+        "mnemocode-restore",
+        "mnemocode-forgotten-shares-max-tries",
+        "mnemocode-forgotten-shares-max-candidates",
+        "mnemocode-forgotten-shares-repair"
+      ],
+      "browserRoute": "Date/marked controls carry maxCandidates; dates separately carry maxShown/progressEvery. Restore/Repair instantiate share settings with the core maximum and send limits.shares/limits.dates through the worker/adapter to ShareRestore. Each share consent snapshot includes its own limits.",
+      "sharedOwnerCalls": [
+        "MnemoCodeSearchSettings.parse/of/parseCount",
+        "MnemoCodeSearchSettingsFields.limits -> SearchLimits",
+        "SearchPlan.of",
+        "DateSearch.plan(pace, maxCandidates)",
+        "MissingCodesWaySearch.plan(maxCandidates)",
+        "ShareRestore.restore/repair({limits,confirmed}) -> searchDecision",
+        "MnemoCodeWorkerJob.ask/confirmed"
+      ],
+      "refusalMapping": "Shared hard bounds remain intact and Search anyway does not widen them. Settings reject retention overrides and irrelevant fields; bounded list-candidates omits consent overrides.",
+      "progressMapping": "Assessed work/time and search totals are reported; max-results changes display retention rather than search work.",
+      "cancelMapping": "Each search has a worker Stop button; field edits revoke consent for a different request.",
+      "outputMapping": "Full assessed search or explicit refusal/consent question; no intentional cryptographic prefix search was found.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "html:4771",
+        "html:5073",
+        "ui.search-settings:25",
+        "ui.search-settings:119",
+        "ui.shares:497",
+        "ui.shares:586",
+        "ui.shares:724",
+        "ui.shares:808",
+        "worker.shares:59",
+        "adapter.shares:94",
+        "adapter.shares:268",
+        "adapter.shares:317",
+        "sskr.restore:151",
+        "sskr.restore:609",
+        "adapter.search:524",
+        "ui.job:65"
+      ],
+      "pendingValidation": "Consent below assessed work separately from hard bounds, complete search after fresh consent, limits edits revoking confirmation, code/share job separation, progress cadence and display/list retention."
+    },
+    {
+      "id": "P22",
+      "cliSemantics": "Assess extent/time, yield during long work, report progress, stop on signal/Ctrl+C and recheck cancellation after awaited callbacks before publishing.",
+      "cliEntryPoints": [
+        "recover-word",
+        "recover-date",
+        "decode --ask-secrets",
+        "sskr-combine",
+        "sskr-export"
+      ],
+      "cliOptions": ["--progress-every on recover-date"],
+      "browserControlIds": [
+        "mnemocode-forgotten-stop",
+        "mnemocode-decode-missing-stop",
+        "mnemocode-restore-stop",
+        "mnemocode-forgotten-shares-stop"
+      ],
+      "browserRoute": "MnemoCodeWorkerJob owns progress and Cancel; Cancel terminates the isolated worker rather than firing its neverAborted library signal.",
+      "sharedOwnerCalls": [
+        "SearchTurns",
+        "WordCandidateSearch.run",
+        "DateSearch.run",
+        "ShareRestore",
+        "MnemoCodeWorker.run/terminate",
+        "MnemoCodeWorkerJob.run"
+      ],
+      "refusalMapping": "Shared long-work questions and worker errors reach status; stale outcomes are dropped and list bytes wiped.",
+      "progressMapping": "Checked/total/found/matched and elapsed/time estimate. The date workflow now exposes mnemocode-forgotten-progress-every and passes it to DateSearch.run; other operations keep their shared host callback cadence.",
+      "cancelMapping": "Stop destroys the worker/resource and rejects the pending request; revision guards run after worker completion and Decode additionally captures its owner revision.",
+      "outputMapping": "Only the current terminal result is rendered; stopped/dropped jobs show a stop/drop status and no list publication.",
+      "state": "host-equivalent",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.job:78",
+        "worker.client:57",
+        "worker.client:74",
+        "worker.search:74",
+        "worker.shares:53",
+        "core.date-search:521"
+      ],
+      "pendingValidation": "Cancel before ready, during assessment, after callback/crypto completion and before result publication; confirm worker disposal and no stale Copy/Use/Save."
+    },
+    {
+      "id": "P23",
+      "cliSemantics": "Preserve complete counts independently of screen caps, continue wallet checks beyond shown rows and retain every listable requested candidate; bounded list-candidates is a different operation.",
+      "cliEntryPoints": ["recover-word", "recover-date", "decode --ask-secrets", "sskr-combine"],
+      "cliOptions": ["--max-results", "--candidates-file", "--list-candidates"],
+      "browserControlIds": [
+        "mnemocode-forgotten-max-results",
+        "mnemocode-forgotten-list",
+        "mnemocode-restore-list",
+        "mnemocode-decode-missing-way-list",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "Date max-results feeds independently admitted maxShown; word recovery uses shared MAX_SHOWN_CANDIDATES and keeps matches; requested candidate-list retention is separate from shown rows.",
+      "sharedOwnerCalls": [
+        "WordCandidateSearch.run({maxShown,keep})",
+        "DateSearch.run({onMatch})",
+        "CandidateListWriter.KEEP/write/writePhrases",
+        "renderCandidates"
+      ],
+      "refusalMapping": "Date maxShown uses the admitted positive-count rule rather than the former word-screen upper cap; full/empty list outcomes are explicit and do not stop counting/checking.",
+      "progressMapping": "Complete found/matched totals continue beyond shown rows; list overflow leaves result counts intact.",
+      "cancelMapping": "Search Stop or input revision drops/wipes retained list bytes.",
+      "outputMapping": "Counts, visible subset and explicit list save. Date output retains only its chosen visible matches on screen; all requested listable matches are separately retained for the list.",
+      "state": "host-equivalent",
+      "gaps": [],
+      "sourceRefs": [
+        "adapter.search:88",
+        "adapter.search:395",
+        "adapter.search:499",
+        "ui.search-settings:56",
+        "ui.candidates:76",
+        "ui.candidates:230",
+        "adapter.shares:284"
+      ],
+      "pendingValidation": "Candidate counts and matching beyond screen caps, list overflow/empty refusal and list numbering versus visible match numbering."
+    },
+    {
+      "id": "P24",
+      "cliSemantics": "Compare a Bitcoin single-key address over selected profiles on the selected network; unsupported script or multisignature evidence must be refused.",
+      "cliEntryPoints": [
+        "recover-word",
+        "recover-date",
+        "decode --ask-secrets",
+        "sskr-combine",
+        "sskr-export",
+        "re-encode"
+      ],
+      "cliOptions": ["--bitcoin-address", "--bitcoin-profile", "--network"],
+      "browserControlIds": [
+        "mnemocode-forgotten-wallet-address-choice",
+        "mnemocode-forgotten-wallet-address",
+        "mnemocode-forgotten-wallet-network",
+        "mnemocode-forgotten-wallet-profile-legacy",
+        "mnemocode-forgotten-wallet-profile-nested-segwit",
+        "mnemocode-forgotten-wallet-profile-native-segwit",
+        "mnemocode-forgotten-wallet-profile-taproot",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "WalletEvidenceField builds address evidence and checks admission before sending the request; the Bitcoin worker recognition compares via the vendored wallet owner.",
+      "sharedOwnerCalls": [
+        "WalletEvidenceField.request",
+        "MnemoCodeWalletRecognition.assertEvidence/checkFor",
+        "WalletEvidenceCheck.matchAsync"
+      ],
+      "refusalMapping": "Shared address/network/profile restrictions, including unsupported scripts; absent Bitcoin edition removes these controls rather than interpreting a different coin as Bitcoin.",
+      "progressMapping": "Each checked candidate contributes to its recovery progress; matched path is retained.",
+      "cancelMapping": "Selected recovery worker Stop; evidence/profile edits invalidate results.",
+      "outputMapping": "Matched/not-matched verdict and derivation path in candidate/restore/confirmation results.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.evidence:133",
+        "ui.evidence:149",
+        "ui.evidence:238",
+        "adapter.wallet:38",
+        "adapter.wallet:53",
+        "html.wallet:14"
+      ],
+      "pendingValidation": "Every selected single-key profile/network, unsupported multisignature/P2WSH refusal and per-edition removal."
+    },
+    {
+      "id": "P25",
+      "cliSemantics": "Compare a supported coin address on that coin's standard paths; the address determines type/network and coin-specific restrictions apply, without Bitcoin-only options.",
+      "cliEntryPoints": [
+        "recover-word",
+        "recover-date",
+        "decode --ask-secrets",
+        "sskr-combine",
+        "sskr-export",
+        "re-encode"
+      ],
+      "cliOptions": ["--coin-address", "--coin", "--account", "--branch", "--index", "--scan-gap"],
+      "browserControlIds": [
+        "mnemocode-forgotten-wallet-coin-choice",
+        "mnemocode-forgotten-wallet-coin",
+        "mnemocode-forgotten-wallet-coin-address",
+        "mnemocode-forgotten-wallet-account",
+        "mnemocode-forgotten-wallet-branch",
+        "mnemocode-forgotten-wallet-index",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "The coin selector is populated from MnemoCodeWalletRecognition.COINS. Full builds use upstream COINS; selective composition admits its Dash/Ethereum subset and swaps the compatible recognition owner.",
+      "sharedOwnerCalls": [
+        "MnemoCodeWalletRecognition.COINS/assertEvidence/checkFor",
+        "WalletEvidenceCheck.matchAsync or CoinAddressCheck via the coin-only adapter",
+        "Coin.address recognition/standard path owners"
+      ],
+      "refusalMapping": "A non-admitted coin is refused; network/profile controls are hidden for coin evidence and no Bitcoin-only fields enter its request.",
+      "progressMapping": "Recovery progress includes local coin checks and matches.",
+      "cancelMapping": "Recovery worker termination and coin/evidence input revision.",
+      "outputMapping": "Coin address verdict with matched path; a single admitted coin is named directly instead of showing an unnecessary selector.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.evidence:163",
+        "ui.evidence:190",
+        "adapter.wallet:28",
+        "adapter.coins:26",
+        "build.wallet-admission:142",
+        "cli.wallet:191"
+      ],
+      "pendingValidation": "Final admitted COINS versus upstream inventory, each coin's published vectors/exclusions, full build and Dash/selective composition."
+    },
+    {
+      "id": "P26",
+      "cliSemantics": "Compare the original wallet's BIP32 master fingerprint with a collision/filter warning; the encoded fingerprint is a separate check of encoded backup codes.",
+      "cliEntryPoints": [
+        "recover-word",
+        "recover-date",
+        "decode --ask-secrets",
+        "sskr-combine",
+        "sskr-export",
+        "re-encode"
+      ],
+      "cliOptions": ["--master-fingerprint", "--encoded-fingerprint"],
+      "browserControlIds": [
+        "mnemocode-forgotten-wallet-fingerprint-choice",
+        "mnemocode-forgotten-wallet-fingerprint",
+        "mnemocode-decode-encoded-fingerprint",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "Wallet fingerprint uses the original candidate with its requested BIP39 passphrase. Marked-code encoded way uses codes before unmasking and has a different field.",
+      "sharedOwnerCalls": [
+        "MasterFingerprintCheck",
+        "MnemoCodeWalletRecognition.checkFor",
+        "MissingCodesSearch.byEncodedFingerprint"
+      ],
+      "refusalMapping": "Shared fingerprint syntax and collision warnings; no encoded fingerprint is substituted as original-wallet proof.",
+      "progressMapping": "Recovery checked/found/matched totals; Encode/Decode notes also compute non-passphrase display fingerprints.",
+      "cancelMapping": "Recovery worker Stop and revision guards; asynchronous legacy display fingerprints are also owner-revoked.",
+      "outputMapping": "Warning, match/path as applicable, and explicitly original/encoded fingerprint labels with their empty-passphrase display qualification.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.evidence:142",
+        "html.wallet:84",
+        "ui.results:340",
+        "adapter.search:274",
+        "ui.decode:232"
+      ],
+      "pendingValidation": "Original versus encoded and nonempty-passphrase recognition, malformed fingerprint refusal and collision warning."
+    },
+    {
+      "id": "P27",
+      "cliSemantics": "Compare the complete master extended public key on its network; reject account-placement flags rather than silently interpreting them as a master-key location.",
+      "cliEntryPoints": [
+        "recover-word",
+        "recover-date",
+        "decode --ask-secrets",
+        "sskr-combine",
+        "sskr-export",
+        "re-encode"
+      ],
+      "cliOptions": ["--master-xpub", "--network"],
+      "browserControlIds": [
+        "mnemocode-forgotten-wallet-key-choice",
+        "mnemocode-forgotten-wallet-key-kind",
+        "mnemocode-forgotten-wallet-key",
+        "mnemocode-forgotten-wallet-network",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "Choosing master-xpub hides placement/scan controls and builds only kind/value/network; no active placement setting is transmitted for this evidence kind.",
+      "sharedOwnerCalls": [
+        "WalletEvidenceField.#keyEvidence",
+        "MnemoCodeWalletRecognition.assertEvidence",
+        "WalletEvidenceCheck.matchAsync master key branch"
+      ],
+      "refusalMapping": "Shared extended-key encoding/network validation; CLI explicitly rejects supplied placement flags, while the browser excludes unavailable fields from this operation.",
+      "progressMapping": "One complete master-key check per candidate; recovery progress owns totals.",
+      "cancelMapping": "Recovery worker Stop; key kind/value/network edits invalidate prior results.",
+      "outputMapping": "Master-key match verdict, without claiming an account or address scan path.",
+      "state": "host-equivalent",
+      "gaps": [],
+      "sourceRefs": ["ui.evidence:177", "ui.evidence:279", "core.wallet:418", "cli.wallet:218"],
+      "pendingValidation": "Complete-key equality/network refusal and switching from previously entered placement settings to master evidence."
+    },
+    {
+      "id": "P28",
+      "cliSemantics": "Compare an account extended public key at selected account/profile/network; it is account evidence, not an address scan and takes no scan-gap.",
+      "cliEntryPoints": [
+        "recover-word",
+        "recover-date",
+        "decode --ask-secrets",
+        "sskr-combine",
+        "sskr-export",
+        "re-encode"
+      ],
+      "cliOptions": ["--account-xpub", "--account", "--bitcoin-profile", "--network"],
+      "browserControlIds": [
+        "mnemocode-forgotten-wallet-key-kind",
+        "mnemocode-forgotten-wallet-key",
+        "mnemocode-forgotten-wallet-account",
+        "mnemocode-forgotten-wallet-profile-legacy",
+        "mnemocode-forgotten-wallet-network",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "Account-xpub carries profiles/location without addresses; the addresses field is hidden and the shared owner compares account paths.",
+      "sharedOwnerCalls": [
+        "WalletEvidenceField.#keyEvidence",
+        "WalletEvidenceCheck.matchAsync",
+        "PlacedKeyEvidence account paths"
+      ],
+      "refusalMapping": "Invalid account key/profile/network is refused; address count is omitted. Branch/index fields remain part of the common location UI although the account owner uses only account.",
+      "progressMapping": "Account-key check per candidate, not a consecutive address scan.",
+      "cancelMapping": "Recovery worker Stop and evidence revisions.",
+      "outputMapping": "Account-level matched derivation path and verdict.",
+      "state": "host-equivalent",
+      "gaps": [],
+      "optionalClarity": "The authorized Mnemo owner confirms CLI and browser both pass location.branch/index while account-xpub uses only account. Explaining or hiding unused fields is optional interface clarity, not a missing operation or parity blocker.",
+      "sourceRefs": [
+        "ui.evidence:183",
+        "ui.evidence:279",
+        "core.wallet:510",
+        "core.wallet:533",
+        "cli.wallet:173"
+      ],
+      "pendingValidation": "Account-xpub owner semantics match CLI: account-level recognition ignores branch/index. No missing scan was established; actual browser acceptance is unexecuted."
+    },
+    {
+      "id": "P29",
+      "cliSemantics": "Compare a compressed public key within the selected receiving/change key range and report the exact matching derivation path.",
+      "cliEntryPoints": [
+        "recover-word",
+        "recover-date",
+        "decode --ask-secrets",
+        "sskr-combine",
+        "sskr-export",
+        "re-encode"
+      ],
+      "cliOptions": [
+        "--compressed-public-key",
+        "--account",
+        "--branch",
+        "--index",
+        "--scan-gap",
+        "--bitcoin-profile",
+        "--network"
+      ],
+      "browserControlIds": [
+        "mnemocode-forgotten-wallet-key-kind",
+        "mnemocode-forgotten-wallet-key",
+        "mnemocode-forgotten-wallet-account",
+        "mnemocode-forgotten-wallet-branch",
+        "mnemocode-forgotten-wallet-index",
+        "mnemocode-forgotten-wallet-addresses",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "Compressed-public-key selects located/scanned evidence and passes the bounded address count into the shared check.",
+      "sharedOwnerCalls": [
+        "parsePlaceNumber/parseAddressCount",
+        "WalletEvidenceField.#keyEvidence",
+        "WalletEvidenceCheck.matchAsync -> address scan"
+      ],
+      "refusalMapping": "Shared compression/hex/key, range, profile and network validation; normal-index and count boundaries are read from the owner.",
+      "progressMapping": "Recovery candidate totals include the bounded key scan per candidate.",
+      "cancelMapping": "Recovery Stop destroys the worker; placement/count edits invalidate the result.",
+      "outputMapping": "Matched compressed key path in candidate/restore/confirmation results.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.evidence:177",
+        "ui.evidence:216",
+        "ui.evidence:228",
+        "core.wallet:512",
+        "core.scan:1"
+      ],
+      "pendingValidation": "First/last permitted index, multiple-address match, bad compression/hex and matched-path fidelity."
+    },
+    {
+      "id": "P30",
+      "cliSemantics": "Read private WIF evidence from a local secret file, validate network/compression and compare locally; never treat it as watch-only material.",
+      "cliEntryPoints": [
+        "recover-word",
+        "recover-date",
+        "decode --ask-secrets",
+        "sskr-combine",
+        "sskr-export",
+        "re-encode"
+      ],
+      "cliOptions": ["--wif-file", "--network", "--account", "--branch", "--index", "--scan-gap"],
+      "browserControlIds": [
+        "mnemocode-forgotten-wallet-key-kind",
+        "mnemocode-forgotten-wallet-key",
+        "mnemocode-forgotten-wallet-wif-warning",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "WIF key kind changes the shared key input to password, shows a spend-authority warning and clears it before switching to a public-key kind. WalletEvidenceField installs a generated Open a text file action beside the key with preserveWhitespace:false; file ends are trimmed before local worker recognition.",
+      "sharedOwnerCalls": [
+        "WalletEvidenceField.#keyEvidence/request",
+        "MnemoCodeWalletRecognition.assertEvidence/checkFor",
+        "WalletEvidenceCheck WIF evidence"
+      ],
+      "refusalMapping": "Shared WIF encoding/network/compression validation and bounded UTF-8 admission with fixed secret-free errors. The (literal || input) guard refuses DOM normalization of any input, including WIF with preserveWhitespace:false; it does not silently strip internal CR/LF. No watch-only/provider route is used.",
+      "progressMapping": "Recovery progress includes the local bounded key scan.",
+      "cancelMapping": "Recovery worker Stop and field revisions; changing away from WIF wipes the DOM field value.",
+      "outputMapping": "Match/path only, with no WIF echo in the result.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.evidence:62",
+        "ui.evidence:66",
+        "ui.text-file-import:38",
+        "ui.text-file-import:97",
+        "core.wallet:698",
+        "cli.wallet:175"
+      ],
+      "pendingValidation": "Source challenge confirms the (literal || input) DOM-equality guard also refuses sanitized malformed key text when preserveWhitespace is false. Exact refusal and file boundaries remain subject to real-browser acceptance."
+    },
+    {
+      "id": "P31",
+      "cliSemantics": "Apply account/branch/start index, consecutive-address allowance and BIP39 passphrase consistently; select one evidence kind and reject unused CLI placement settings.",
+      "cliEntryPoints": [
+        "recover-word",
+        "recover-date",
+        "decode --ask-secrets",
+        "sskr-combine",
+        "sskr-export",
+        "re-encode"
+      ],
+      "cliOptions": ["--account", "--branch", "--index", "--scan-gap", "--bip39-passphrase-file"],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-forgotten-wallet-account",
+        "mnemocode-forgotten-wallet-branch",
+        "mnemocode-forgotten-wallet-index",
+        "mnemocode-forgotten-wallet-addresses",
+        "mnemocode-forgotten-wallet-passphrase",
+        "toggle-mnemocode-forgotten-wallet-passphrase",
+        "mnemocode-forgotten-search"
+      ],
+      "browserRoute": "Exactly one wallet radio selects the evidence shape; shared place/count parsers feed that shape and the raw password value accompanies it. A generated Open a text file action beside the passphrase uses stripFinalLineBreak:true, literal whitespace and BOM preservation. Master/coin/account-specific inactive fields are hidden or omitted. Concealed textareas use the common exact-value owner: imported CR/CRLF remain canonical even when presented as LF; real edits, Clear and pagehide discard that capture.",
+      "sharedOwnerCalls": [
+        "parsePlaceNumber",
+        "defaultAddressCount/parseAddressCount",
+        "MnemoCodeWalletRecognition.checkFor({evidence,passphrase})",
+        "LiteralSecretField.assign/read/clear"
+      ],
+      "refusalMapping": "Shared normal-index/count and evidence validation; none/no selected evidence is handled separately. Supported BIP39 file passwords with internal CR/LF are currently host-refused by the single-line field, a confirmed parity gap rather than shared unsupported input. Browser does not reproduce CLI argument-presence errors for inactive fields.",
+      "progressMapping": "Recovery progress reflects complete candidate checks over the requested range.",
+      "cancelMapping": "Evidence/passphrase/range edits invalidate the captured request and results.",
+      "outputMapping": "Matched path and explicitly captured passphrase at phrase handoff/list construction; display fingerprints remain qualified as empty-passphrase where appropriate.",
+      "state": "covered",
+      "fixStatus": "pending-fix-handoff; Carson owns the existing field fix, with no agent runtime acceptance",
+      "gaps": [],
+      "sourceRefs": [
+        "cli.wallet:199",
+        "html.wallet:239",
+        "ui.evidence:61",
+        "ui.evidence:67",
+        "ui.evidence:72",
+        "ui.text-file-import:75",
+        "ui.text-file-import:88",
+        "ui.shared:410",
+        "ui.shared:422",
+        "ui.literal:4"
+      ],
+      "pendingValidation": "Parent text-file and all-instance binding fixtures passed, including normalized textarea presentation, exact imported factor, edit/clear/pagehide and Show/Hide. Actual browser file and reveal acceptance remains unexecuted."
+    },
+    {
+      "id": "P32",
+      "cliSemantics": "Create/read integrity-protected MNCL lists with entropy, list/record passphrase fields, stable numbering, Padme padding and admission bounds; empty or oversized lists are not published.",
+      "cliEntryPoints": [
+        "recover-word",
+        "recover-date",
+        "sskr-combine",
+        "OpenedCandidateList public reading API"
+      ],
+      "cliOptions": ["--candidates-file"],
+      "optionGroups": ["candidateList"],
+      "browserControlIds": [
+        "mnemocode-forgotten-list",
+        "mnemocode-restore-list",
+        "mnemocode-forgotten-search",
+        "mnemocode-restore",
+        "candidate-list-file",
+        "candidate-list-open"
+      ],
+      "browserRoute": "Recovery workers use the shared writer; a generated Save candidate list action downloads its bytes. Scanner opens a protected list through the shared decoder and maps record order to candidate numbers.",
+      "sharedOwnerCalls": [
+        "CandidateListWriter -> core CandidateListWriter",
+        "encodeCandidateList",
+        "OpenedCandidateList.fromBytes/candidates/wipe"
+      ],
+      "refusalMapping": "Shared size/integrity/passphrase/record validation; empty/full list outcomes have explicit UI messages and no file.",
+      "progressMapping": "Search totals continue independently of list retention; Scanner shows opening status and admitted record count.",
+      "cancelMapping": "Search Stop/dropped outcomes wipe list buffers; Scanner Remove/Clear/replacement generation drops late opened lists and wipes entropy.",
+      "outputMapping": "candidates.age or explicitly consented candidates.mncl download; stable record numbers feed Scanner batch inputs. Explicit plaintext reading is mapped at P34.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "adapter.search:160",
+        "adapter.search:300",
+        "adapter.shares:278",
+        "ui.candidates:230",
+        "core.list:150",
+        "core.list:335",
+        "scanner.import:129"
+      ],
+      "pendingValidation": "Exact format/integrity/padding boundaries, overflow/empty refusal, every passphrase storage mode and number correspondence."
+    },
+    {
+      "id": "P33",
+      "cliSemantics": "Settle candidate-list protection before long work: Scanner age recipient, separate list passphrase or explicit plaintext consent; validate options and wipe working buffers.",
+      "cliEntryPoints": ["recover-word", "recover-date", "sskr-combine"],
+      "cliOptions": [
+        "--candidates-key",
+        "--candidates-key-file",
+        "--candidates-passphrase-file",
+        "--plaintext-candidates",
+        "--candidates-file"
+      ],
+      "browserControlIds": [
+        "mnemocode-forgotten-list",
+        "mnemocode-forgotten-list-protect-key",
+        "mnemocode-forgotten-list-key",
+        "mnemocode-forgotten-list-protect-passphrase",
+        "mnemocode-forgotten-list-passphrase",
+        "mnemocode-forgotten-list-passphrase-confirm",
+        "mnemocode-forgotten-list-plain",
+        "mnemocode-forgotten-list-plain-confirm"
+      ],
+      "browserRoute": "CandidateListField installs generated Open a text file actions beside recipient, passphrase and confirmation inputs, with normalize delegated to parseRecipient or parseListPassphrase. request requires one protection choice or advanced plaintext confirmation; adapters construct protectionFor/ListWriter before long search. Concealed textareas use the common exact-value owner: imported CR/CRLF remain canonical even when presented as LF; real edits, Clear and pagehide discard that capture.",
+      "sharedOwnerCalls": [
+        "installTextFileImport({normalize:parseRecipient/parseListPassphrase})",
+        "CandidateListField.request",
+        "protectionFor",
+        "CandidateListWriter constructor/write",
+        "core list/encryption wiping",
+        "LiteralSecretField.assign/read/clear"
+      ],
+      "refusalMapping": "No encryption choice, unequal passphrases, malformed recipient and shared passphrase/bounds errors are refused before work; plaintext needs an explicit warning acknowledgment. A supported list passphrase with internal CR/LF is currently refused by the single-line browser import, not by parseListPassphrase.",
+      "progressMapping": "Recovery progress starts only after writer/protection admission; protection errors remain input errors.",
+      "cancelMapping": "Worker Stop discards work; retained/list bytes are wiped on dropped result, input change or Save.",
+      "outputMapping": "One protected/explicitly plaintext list, with description and download-folder/cloud synchronization warning.",
+      "state": "covered",
+      "fixStatus": "pending-fix-handoff; scoped reuse of Carson's existing field fix, with no agent runtime acceptance",
+      "gaps": [],
+      "sourceRefs": [
+        "cli.candidates-file:50",
+        "core.encryption:97",
+        "ui.list:24",
+        "ui.list:26",
+        "ui.list:28",
+        "ui.text-file-import:80",
+        "ui.text-file-import:88",
+        "ui.shared:410",
+        "ui.literal:4"
+      ],
+      "pendingValidation": "Parent text-file and all-instance binding fixtures passed, including normalized textarea presentation, exact imported factor, edit/clear/pagehide and Show/Hide. Actual browser file and reveal acceptance remains unexecuted."
+    },
+    {
+      "id": "P34",
+      "cliSemantics": "Use public APIs for bounded plaintext/encrypted candidate-file admission and recipient/passphrase decryption. CANDIDATES.md requires reader permission for plaintext import; no standalone CLI decrypt command exists.",
+      "cliEntryPoints": [
+        "CandidateFileAdmission public API",
+        "decryptCandidates public API",
+        "OpenedCandidateList.fromBytes public API"
+      ],
+      "cliOptions": [],
+      "browserControlIds": [
+        "candidate-list-show-key",
+        "candidate-list-key",
+        "candidate-list-file",
+        "candidate-list-plaintext",
+        "candidate-list-passphrase",
+        "candidate-list-open",
+        "candidate-list-remove"
+      ],
+      "browserRoute": "Unchecked plaintext consent uses bounded encrypted-header inspection and age X25519/scrypt opening. Checking the explicit unencrypted recovery-material acknowledgment selects inspectPlaintext/openPlaintext, then the same owned MNCL parser/lifecycle.",
+      "sharedOwnerCalls": [
+        "CandidateFileAdmission.inspect/assertSize/lock",
+        "CandidateListImport.inspectPlaintext/openPlaintext/#open",
+        "createSessionIdentity",
+        "decryptCandidates",
+        "OpenedCandidateList.fromBytes"
+      ],
+      "refusalMapping": "Size/header changes, foreign key/file errors and malformed MNCL are owner refusals. openPlaintext requires consent and plaintext never becomes an automatic fallback after encrypted opening fails.",
+      "progressMapping": "Opening status; no decryption progress percentage.",
+      "cancelMapping": "Remove/Clear/replacement increment a generation and prevent retaining late plaintext; scrypt itself is not forcibly cancelled by this panel.",
+      "outputMapping": "Candidate count/passphrase-storage facts and Scanner batch inputs, never a bulk visible phrase dump or automatic public scan.",
+      "state": "covered",
+      "gaps": [],
+      "policyDecision": "Plaintext import is reader-controlled, not an automatic demand to expose every library API. CANDIDATES.md:87/:103 specifies reader permission. The parent's new explicit checkbox exercises that permission; encrypted import remains the default. This matrix did not authorize or implement a policy change.",
+      "sourceRefs": [
+        "upstream.candidates-policy:87",
+        "upstream.candidates-policy:103",
+        "scanner.html:335",
+        "scanner.panel:61",
+        "scanner.panel:134",
+        "scanner.panel:176",
+        "scanner.import:64",
+        "scanner.import:98",
+        "scanner.import:106",
+        "core.list:335",
+        "core.file-admission:130"
+      ],
+      "pendingValidation": "New plaintext consent/refusal and admission tests are pending with the parent; check oversized prefix/body, encrypted failure without fallback, malformed secret-free errors and removal/replacement races."
+    },
+    {
+      "id": "P35",
+      "cliSemantics": "Decode an old backup, show phrase/fingerprint and require recognition or successful wallet comparison before releasing it to new Encode; checksum alone is not consent and recognition/evidence are alternate confirmation ways.",
+      "cliEntryPoints": ["re-encode"],
+      "cliOptions": [
+        "--input",
+        "--input-file",
+        "--qr-file",
+        "--old-mode",
+        "--old-format",
+        "--old-dates",
+        "--words",
+        "--recognised"
+      ],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-reencode-input",
+        "mnemocode-reencode-mode",
+        "mnemocode-reencode-format",
+        "mnemocode-reencode-dates",
+        "mnemocode-reencode-read",
+        "mnemocode-reencode-person",
+        "mnemocode-reencode-wallet-check",
+        "mnemocode-reencode-cancel",
+        "mnemocode-reencode-continue"
+      ],
+      "browserRoute": "Re-encode reads an owned snapshot into MnemoCodeReEncoding; recognition or a current worker match enables Continue, which calls confirmedPhrase before linking the source to Encode.",
+      "sharedOwnerCalls": [
+        "MnemoCodeReEncoding.of -> ReEncoding.of",
+        "confirmByPerson",
+        "confirmByWallet",
+        "confirmedPhrase",
+        "useRecoverySource"
+      ],
+      "refusalMapping": "Invalid reading/checksum or unconfirmed phrase cannot continue; wallet mismatch does not confirm; warning and match path/filter warning are displayed.",
+      "progressMapping": "Read is bounded; wallet worker exposes a checking status and Cancel rather than a search percentage.",
+      "cancelMapping": "Cancel terminates the confirmation worker; old-backup or wallet-factor edits reset confirmation, invalidate pending results and revoke the linked capability.",
+      "outputMapping": "Concealed old phrase/fingerprint and explicit confirmation, then a revocable source reference used by normal Encode; no clipboard round trip.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.reencode:115",
+        "ui.reencode:134",
+        "ui.reencode:166",
+        "adapter.reencode:37",
+        "core.reencode:125",
+        "core.reencode:137",
+        "core.reencode:152",
+        "cli.reencode:87"
+      ],
+      "pendingValidation": "Checksum-only refusal, recognition/match exclusivity, mismatch and cancellation races, factor edits and post-confirmation source revocation."
+    },
+    {
+      "id": "P36",
+      "cliSemantics": "For a lossy legacy final-word replacement backup, require the original remembered last word to select one original; still require the independent re-encoding confirmation.",
+      "cliEntryPoints": ["re-encode"],
+      "cliOptions": ["--last-word", "--old-mode", "--old-format", "--old-dates", "--recognised"],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-reencode-last-word",
+        "toggle-mnemocode-reencode-last-word",
+        "mnemocode-reencode-read",
+        "mnemocode-reencode-person",
+        "mnemocode-reencode-continue"
+      ],
+      "browserRoute": "The concealed last-word field is frozen into the old-backup input; ReEncoding.of selects through #withLastWord but confirmedPhrase remains unavailable until confirmation.",
+      "sharedOwnerCalls": [
+        "MnemoCodeReEncoding.of",
+        "ReEncoding.of/#withLastWord",
+        "ReEncoding.confirmByPerson/confirmByWallet/confirmedPhrase"
+      ],
+      "refusalMapping": "Missing/nonmatching remembered last word is refused without echoing it; word selection is not confirmation and does not invoke the unrelated replacement-list workflow.",
+      "progressMapping": "Bounded candidate-family selection, then optional wallet checking status.",
+      "cancelMapping": "Last-word/input edits clear the session/confirmation; wallet Stop is separate.",
+      "outputMapping": "One original phrase/fingerprint pending recognition or wallet match, then the same guarded Encode handoff.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "html:4353",
+        "ui.reencode:58",
+        "ui.reencode:119",
+        "adapter.reencode:37",
+        "core.reencode:78",
+        "core.reencode:90"
+      ],
+      "pendingValidation": "Every lossy legacy family, missing/wrong remembered word, and proof that selecting a word never bypasses confirmation."
+    },
+    {
+      "id": "P37",
+      "cliSemantics": "After confirmation use normal Encode for all new modes/dates/forms, optional legacy replacement, SSKR and applicable record/QR/card/image/heir/backup-check outputs; preserve the old-backup warning and owned result.",
+      "cliEntryPoints": ["re-encode -> encode"],
+      "cliOptions": [
+        "--mode",
+        "--format",
+        "--dates",
+        "--legacy-valid-last-word",
+        "--sskr",
+        "--output",
+        "--qr",
+        "--pdf",
+        "--cards-dir",
+        "--images-dir",
+        "--heir-sheet",
+        "--backup-check"
+      ],
+      "optionGroups": ["cardSettings"],
+      "browserControlIds": [
+        "mnemocode-reencode-continue",
+        "mnemocode-encode-mode",
+        "mnemocode-encode-format",
+        "mnemocode-encode-dates",
+        "encode-mnemocode",
+        "mnemocode-split",
+        "export-mnemocode-cards",
+        "mnemocode-heirs-save",
+        "mnemocode-encode-check"
+      ],
+      "browserRoute": "Continue links the confirmed phrase to the existing MnemoCode source owner, so Encode, Split and Cards read the same capability and choose new settings independently of the old backup.",
+      "sharedOwnerCalls": [
+        "confirmedPhrase -> LinkedSources.use/readMnemonic",
+        "encodeMnemoCode",
+        "MnemoCodeShares.split",
+        "createMnemoCodeCardExporter",
+        "MnemoCodeHeirSheets",
+        "EncodedBackupCheck",
+        "QrPngExport.save -> current predicate before/after toBlob",
+        "renderSensitiveShares -> revealed result/readiness predicate"
+      ],
+      "refusalMapping": "No confirmed source means no handoff; each downstream capability still refuses unsupported legacy/share/card operations.",
+      "progressMapping": "The downstream operation owns its status/progress, rather than reusing confirmation progress.",
+      "cancelMapping": "Re-encode input/evidence revisions revoke the linked capability; Split captures inputs/readiness before its await. The final shared QrPngExport.save rechecks the sensitive result, reveal and readiness predicate after toBlob; createQrAction also revokes publication on detachment and pagehide (P52/P59).",
+      "outputMapping": "Normal Encode record, JSON, standalone raw-payload QR/PNG, shares and supported documents, with the warning that a new backup does not revoke the old one. P52 establishes exact standalone QR payload equivalence.",
+      "state": "pending-validation",
+      "gaps": [
+        "Integrated real-browser QR download and lifetime acceptance remains unexecuted. The P52/P59 code handoff is complete and its passive delayed-publication fixtures passed; this is an acceptance gap, not pending source work or a separate QR workflow."
+      ],
+      "sourceRefs": [
+        "ui.reencode:278",
+        "ui.workspace:59",
+        "ui.encode:112",
+        "ui.encode:180",
+        "ui.qr:54",
+        "ui.qr:60",
+        "ui.shares:379",
+        "ui.shares:404",
+        "cli.reencode-options:64",
+        "ui.shared:563",
+        "test.qr-publication:79"
+      ],
+      "pendingValidation": "The final shared QrPngExport/renderSensitiveShares owner and passive delayed-publication fixtures cover the confirmed P52/P59 defect. Actual browser QR download and lifetime acceptance remain unexecuted."
+    },
+    {
+      "id": "P38",
+      "cliSemantics": "Split every supported BIP39 length with validated threshold/count and host randomness; generation is one group rather than a grouped-policy editor.",
+      "cliEntryPoints": ["encode --sskr", "sskr-split compatibility command"],
+      "cliOptions": ["--sskr", "--threshold", "--shares", "--mode", "--dates", "--share-format"],
+      "browserControlIds": [
+        "mnemocode-source",
+        "mnemocode-encode-mode",
+        "mnemocode-split-sets",
+        "mnemocode-split-count",
+        "mnemocode-split-threshold",
+        "mnemocode-split-form",
+        "mnemocode-split",
+        "mnemocode-split-save"
+      ],
+      "browserRoute": "Preset/custom sets use ShareSetChoice; Split snapshots source/settings and calls MnemoCodeShares with the pinned SSKR platform and fillSecureRandom. Current-input/readiness checks precede all post-await publication.",
+      "sharedOwnerCalls": [
+        "ShareSetChoice.typedCount/typedThreshold/of",
+        "MnemoCodeShares.split -> ShareSplit.splitBackup",
+        "CheckedSskrPlatform -> SskrCodec.create/recover"
+      ],
+      "refusalMapping": "Shared phrase/threshold/count and split-capability checks; there is no grouped generation claim. The set check verifies the generated shares reconstruct the held phrase.",
+      "progressMapping": "A split status after completion; no long-search progress or separate split Cancel control.",
+      "cancelMapping": "Input/source/settings changes, page lifetime and lost readiness revise the capture and clear held shares. A late split result returns without publishing; result actions also check the captured ownership. No dedicated bounded-split Stop is offered.",
+      "outputMapping": "Concealed shares, optional whole-phrase representation, original/encoded fingerprint distinction, text download, card handoff and share-backup check.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.share-choice:21",
+        "ui.shares:104",
+        "ui.shares:120",
+        "ui.shares:293",
+        "ui.shares:379",
+        "ui.shares:404",
+        "ui.shares:473",
+        "adapter.shares:207"
+      ],
+      "pendingValidation": "All supported lengths, threshold/count boundaries, checked randomness/platform and source-change race during split."
+    },
+    {
+      "id": "P39",
+      "cliSemantics": "Read/write UR, Bytewords and mirrored word-number/Unicode/RGB/Color Unicode share transports; enforce CRC, CBOR tag, lengths, versions and framing, keeping Bytewords distinct from BIP39 words.",
+      "cliEntryPoints": ["encode --sskr", "sskr-split", "sskr-combine", "sskr-export"],
+      "cliOptions": [
+        "--share-format",
+        "--format on share commands",
+        "--share",
+        "--share-file",
+        "--share-qr"
+      ],
+      "browserControlIds": [
+        "mnemocode-split-form",
+        "mnemocode-split",
+        "mnemocode-restore-shares",
+        "mnemocode-restore",
+        "mnemocode-forgotten-shares-form",
+        "mnemocode-forgotten-shares-repair"
+      ],
+      "browserRoute": "Split populates named transport options; Restore parses each supplied share; Repair keeps its form or uses the requested common form.",
+      "sharedOwnerCalls": [
+        "writeShare",
+        "Share.read via ShareInput",
+        "MnemoCodeShares.restore/repair",
+        "ShareExport.inForm"
+      ],
+      "refusalMapping": "Transport/CRC/tag/version/framing refusals are owner results, not generic text acceptance; share-word hints use SHARE_WORD_HINTS.",
+      "progressMapping": "Restore/repair worker progress when marked elements require search.",
+      "cancelMapping": "Restore/repair Stop and revisions; Split checks its input/readiness capture after its await and guards generated actions.",
+      "outputMapping": "Exact requested transport, group/member facts in shared reports and joined/apart mirrored element displays.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.shares:78",
+        "ui.shares:221",
+        "adapter.shares:247",
+        "adapter.shares:207",
+        "sskr.input:374",
+        "sskr.transport:1"
+      ],
+      "pendingValidation": "Every named transport, independent known records and CRC/tag/length/version/framing negatives."
+    },
+    {
+      "id": "P40",
+      "cliSemantics": "Restore imported grouped policies with group/member thresholds, set IDs, duplicates/conflicts and unused-share notes; preserve group/member references.",
+      "cliEntryPoints": ["sskr-combine"],
+      "cliOptions": ["--share", "--share-file", "--share-qr", "--ask-secrets"],
+      "browserControlIds": [
+        "mnemocode-restore-shares",
+        "mnemocode-restore",
+        "mnemocode-restore-stop",
+        "mnemocode-restore-result"
+      ],
+      "browserRoute": "Typed/file/multiple QR shares reach ShareInput and ShareRestore through the worker. The one-group restriction applies to local generation/card notes, not this restoration owner.",
+      "sharedOwnerCalls": [
+        "ShareInput.replaceAll/restoreComplete",
+        "SetTopology",
+        "ShareSet",
+        "ShareRestore.restore",
+        "SskrCodec.recover"
+      ],
+      "refusalMapping": "Owner quorum/set conflicts and unsupported records are explicit trouble outcomes; duplicate and unused-share notes are retained.",
+      "progressMapping": "Grouped restoration/marked repair assessment and worker checked/total status.",
+      "cancelMapping": "Restore-stop destroys the worker; new share input invalidates the result and candidate list.",
+      "outputMapping": "Original phrase/fingerprint, per-share repairs and shared topology/unused-share notes, with explicit Deriver handoff.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.shares:438",
+        "ui.shares:491",
+        "adapter.shares:273",
+        "sskr.input:491",
+        "sskr.topology:43",
+        "sskr.set:84"
+      ],
+      "pendingValidation": "Independent grouped-policy records, quorum across groups, conflicting members, duplicates and unused-share reference fidelity."
+    },
+    {
+      "id": "P41",
+      "cliSemantics": "Split/restore only share-capable modes; Direct shares hold the phrase, Seedshift shares hold the masked phrase and require the dates to recover the wallet; legacy split is unsupported in both hosts.",
+      "cliEntryPoints": ["encode --sskr", "sskr-split", "sskr-combine"],
+      "cliOptions": ["--mode direct", "--mode seedshift", "--dates"],
+      "browserControlIds": [
+        "mnemocode-encode-mode",
+        "mnemocode-encode-dates",
+        "mnemocode-split",
+        "mnemocode-restore-mode-direct",
+        "mnemocode-restore-mode-seedshift",
+        "mnemocode-restore-dates",
+        "mnemocode-restore"
+      ],
+      "browserRoute": "Split asks Masking.capabilities.split; Restore offers Direct/Seedshift and the shared ShareUnmasking owner applies known or searched dates.",
+      "sharedOwnerCalls": [
+        "Masking.of(mode).capabilities.split",
+        "ShareSplit.splitBackup",
+        "ShareRestore.restore -> ShareUnmasking"
+      ],
+      "refusalMapping": "Legacy split is explicitly refused with a user-facing Direct/Seedshift explanation; wrong/missing dates or missing evidence for searched checksum-preserving dates are shared refusals.",
+      "progressMapping": "Immediate split status or restoration/date-search worker progress.",
+      "cancelMapping": "Restore Stop; bounded Split has no dedicated Stop, but revisions suppress late publication and result actions.",
+      "outputMapping": "Held masked phrase versus original phrase/fingerprints are distinguished; dates are not embedded in the shares.",
+      "state": "covered",
+      "sharedUnsupportedCases": [
+        "Splitting seedshift-legacy or seedshift-legacy-valid is unsupported by both the upstream capability owner and browser."
+      ],
+      "gaps": [],
+      "sourceRefs": [
+        "ui.shares:306",
+        "ui.shares:340",
+        "ui.shares:456",
+        "ui.shares:536",
+        "core.masking:113",
+        "sskr.unmask:155"
+      ],
+      "pendingValidation": "Legacy split refusal, correct/wrong/missing dates, masked-versus-original output and no stored dates."
+    },
+    {
+      "id": "P42",
+      "cliSemantics": "Repair one marked share using transport constraints and CRC, with whole/partial marks, ambiguity handling and bounded solution spaces.",
+      "cliEntryPoints": ["sskr-export"],
+      "cliOptions": ["--share", "--share-file", "--share-qr", "--format"],
+      "browserControlIds": [
+        "mnemocode-forgotten-kind-share",
+        "mnemocode-forgotten-shares",
+        "mnemocode-forgotten-shares-form",
+        "mnemocode-forgotten-shares-repair",
+        "mnemocode-forgotten-shares-stop"
+      ],
+      "browserRoute": "Forgotten share repair sends one or more marked inputs to MnemoCodeShares.repair; below quorum and without wallet evidence the shared owner attempts independent uniquely settled repairs.",
+      "sharedOwnerCalls": [
+        "ShareInput.repairEach",
+        "ShareRestore.repair/#repairEach",
+        "Share repair reading spaces/CRC owner"
+      ],
+      "refusalMapping": "Malformed/oversized marked spaces, no settled share and representation ambiguity are owner messages; an ambiguous variant does not become a settled exported share.",
+      "progressMapping": "Assessment lines, possible long-search consent and worker checked/total status.",
+      "cancelMapping": "Share repair Stop destroys the worker; changed marks/form/evidence invalidate the result.",
+      "outputMapping": "Filled-element/guess table, correction notes and only settled rewritten shares; ambiguous alternatives are display-only variants.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.shares:624",
+        "ui.shares:716",
+        "adapter.shares:330",
+        "sskr.restore:528",
+        "sskr.input:532",
+        "sskr.repair:1"
+      ],
+      "pendingValidation": "One-share CRC known answers, whole/partial marks, multiple readings, no-solution and hard-space refusals."
+    },
+    {
+      "id": "P43",
+      "cliSemantics": "Jointly assess/search marked shares using digest/quorum, unmask dates and compare the original wallet; preserve certainty, guesses and unused-share explanations.",
+      "cliEntryPoints": ["sskr-combine", "sskr-export"],
+      "cliOptions": ["--share", "--mode", "--dates", "--max-tries", "--max-candidates"],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-restore-shares",
+        "mnemocode-restore-dates",
+        "mnemocode-restore-max-tries",
+        "mnemocode-restore-max-candidates",
+        "mnemocode-restore",
+        "mnemocode-forgotten-shares",
+        "mnemocode-forgotten-shares-dates",
+        "mnemocode-forgotten-shares-max-tries",
+        "mnemocode-forgotten-shares-max-candidates",
+        "mnemocode-forgotten-shares-repair"
+      ],
+      "browserRoute": "Share worker binds the pinned platform and wallet recognition, then forwards the owning Restore/Repair controls' SearchLimits to the same ShareRestore planner/run through MnemoCodeShares.",
+      "sharedOwnerCalls": [
+        "MnemoCodeSearchSettingsFields.limits",
+        "ShareRestore.read/restore/repair -> searchDecision",
+        "JointRepair plan/searchOnce",
+        "ShareUnmasking",
+        "RepairReport -> reportLines/repairsTable"
+      ],
+      "refusalMapping": "Quorum/digest/date/wallet refusals and guess/unused-share notes remain owner outcomes. Typed allowance bounds are admitted before work; core searchDecision requests fresh consent where assessed work exceeds those allowances.",
+      "progressMapping": "Assessment/consent lines and combined checked/total progress; no claim that certainty comes from a visible successful checksum alone.",
+      "cancelMapping": "Restore/repair Stop destroys the worker; request edits revoke publication and retained list bytes.",
+      "outputMapping": "Original phrases or rewritten shares, per-element repairs/guess markers, dates, wallet paths and unused-share notes.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.shares:586",
+        "ui.shares:808",
+        "ui.search-settings:119",
+        "adapter.shares:94",
+        "adapter.shares:268",
+        "adapter.shares:317",
+        "worker.shares:59",
+        "sskr.joint:183",
+        "sskr.restore:151",
+        "sskr.restore:609"
+      ],
+      "pendingValidation": "Digest/quorum known answers, masked wallet recognition, uncertainty/unused-share fidelity, allowance bounds and fresh consent for the exact share request."
+    },
+    {
+      "id": "P44",
+      "cliSemantics": "Display ambiguous per-share or multiple-set repair variants without saving a chosen variant; actual next actions are retype/add shares or finish, with wallet evidence able to settle complete sets.",
+      "cliEntryPoints": ["sskr-export"],
+      "cliOptions": ["--share", "--format", "--ask-secrets"],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-forgotten-shares",
+        "mnemocode-forgotten-shares-repair",
+        "mnemocode-forgotten-shares-result"
+      ],
+      "browserRoute": "A variants outcome renders every alternative and returns before #offerShares, so no variant is placed in latestShares or offered as a text/card file. Retyping/adding shares or evidence starts another repair.",
+      "sharedOwnerCalls": [
+        "ShareRestore.variants",
+        "MnemoCodeShares.repair",
+        "MnemoCodeShareRepair.#repair/#renderShares"
+      ],
+      "refusalMapping": "Unsettled outcomes retain a warning and no selected/saved variant; no unsupported explicit variant-selection action is invented.",
+      "progressMapping": "Repair assessment/search progress, then a variants warning.",
+      "cancelMapping": "Repair Stop; edits discard the displayed alternatives and request ownership.",
+      "outputMapping": "Variant fingerprint, filled-element guesses and concealed share text. Generated Copy actions can copy displayed text, but there is no file/card save or selection for a variant.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.shares:797",
+        "ui.shares:816",
+        "ui.shares:828",
+        "adapter.shares:297",
+        "sskr.restore:548",
+        "sskr.restore:573"
+      ],
+      "pendingValidation": "Multiple per-share/set variants, no latestShares/text-file/card publication and parent review of displayed Copy actions versus the CLI's display-only semantics."
+    },
+    {
+      "id": "P45",
+      "cliSemantics": "Rewrite complete shares without reconstructing a phrase when no wallet check was requested; below quorum repair only uniquely settled shares. Wallet checks require quorum and Seedshift repair requires evidence.",
+      "cliEntryPoints": ["sskr-export"],
+      "cliOptions": ["--share", "--mode", "--dates", "--format", "--ask-secrets"],
+      "optionGroups": ["walletEvidence"],
+      "browserControlIds": [
+        "mnemocode-forgotten-shares",
+        "mnemocode-forgotten-shares-wallet-none",
+        "mnemocode-forgotten-shares-mode-seedshift",
+        "mnemocode-forgotten-shares-dates",
+        "mnemocode-forgotten-shares-repair"
+      ],
+      "browserRoute": "Repair without a selected wallet uses direct/unknown holding semantics; ShareRestore.rewritesOnly short-circuits complete inputs without reconstruction. A supplied wallet remains in the request on failure.",
+      "sharedOwnerCalls": [
+        "ShareRestore.repairRefusal/rewritesOnly/repair",
+        "ShareInput.rewritten/repairEach",
+        "MnemoCodeShares.repair"
+      ],
+      "refusalMapping": "Wallet below quorum is refused; Seedshift/evidence refusal remains shared. Browser does not silently retry without evidence: changing the wallet choice is an explicit new request.",
+      "progressMapping": "Complete rewrite is bounded; marked-share repair reports assessed/search progress.",
+      "cancelMapping": "Repair Stop and input/evidence revision; no successful partial-wallet check is claimed.",
+      "outputMapping": "Rewritten shares plus known masked/unknown holding note, with no restored phrase display on this route.",
+      "state": "host-equivalent",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.shares:682",
+        "ui.shares:716",
+        "ui.shares:776",
+        "sskr.restore:509",
+        "sskr.restore:517",
+        "sskr.restore:528"
+      ],
+      "pendingValidation": "Complete shares below quorum without reconstruction, uniquely repairable partial inputs and explicit removal of a requested wallet check."
+    },
+    {
+      "id": "P46",
+      "cliSemantics": "Re-export settled shares in original forms or one requested common form; omit unsettled shares with notes, save duplicates once and require a common form for mixed-form cards.",
+      "cliEntryPoints": ["sskr-export"],
+      "cliOptions": [
+        "--format",
+        "--output",
+        "--pdf",
+        "--cards-dir",
+        "--images-dir",
+        "--image-format"
+      ],
+      "browserControlIds": [
+        "mnemocode-forgotten-shares-form",
+        "mnemocode-forgotten-shares-repair",
+        "mnemocode-forgotten-shares-result",
+        "mnemocode-card-source-shares",
+        "export-mnemocode-cards"
+      ],
+      "browserRoute": "Blank form preserves each share's format; a common form goes to ShareExport. Settled results get a generated text Save action and only common-form results are handed to the card owner.",
+      "sharedOwnerCalls": [
+        "ShareExport.of/inForm/leftOutMessages",
+        "MnemoCodeShares.repair",
+        "MnemoCodeShareRepair.#offerShares",
+        "latestShares"
+      ],
+      "refusalMapping": "Unsettled and duplicate notes are shared; mixed formats get explicit common-form card guidance rather than a silent conversion.",
+      "progressMapping": "Repair progress precedes file/card handoff; card rendering has its own status.",
+      "cancelMapping": "Repair Stop and edits forget its held shares; card InputRevision rejects stale handoffs/publication.",
+      "outputMapping": "Unique settled share text file plus requested PDF/image/ZIP cards of the captured common-form records.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.shares:716",
+        "ui.shares:797",
+        "ui.share-store:29",
+        "sskr.set:333",
+        "sskr.set:359",
+        "ui.cards:297"
+      ],
+      "pendingValidation": "Mixed-form preservation/common conversion, duplicates, omitted unsettled shares and text/card record agreement."
+    },
+    {
+      "id": "P47",
+      "cliSemantics": "Print supported Unicode/RGB/Color Unicode shares with imported group/member references; grouped printing must not imply grouped generation. UR, Bytewords and word-number share transports have no cards.",
+      "cliEntryPoints": ["sskr-export", "encode --sskr", "sskr-split"],
+      "cliOptions": ["--format", "--share-format", "--pdf", "--cards-dir", "--images-dir"],
+      "browserControlIds": [
+        "mnemocode-forgotten-shares-form",
+        "mnemocode-card-source-shares",
+        "mnemocode-card-share-qr",
+        "export-mnemocode-cards",
+        "mnemocode-card-source-shares-note"
+      ],
+      "browserRoute": "shareFormatHasCards gates the supported transport subset; ShareCardSet.create checks imported topology/references. The revised host shareCardSet metadata adapter retains records without a one-group rejection.",
+      "sharedOwnerCalls": [
+        "shareFormatHasCards/assertShareFormatHasCards",
+        "ShareCardSet.create -> shareReference",
+        "createMnemoCodeCardExporter.renderShares -> shareCardSet"
+      ],
+      "refusalMapping": "Unsupported transport card refusal is shared and explained; shared imported-set validation is retained without the former host-only group restriction.",
+      "progressMapping": "Rendering status for admitted imported groups and layouts.",
+      "cancelMapping": "Card inputs and latestShares changes invalidate publication; no dedicated render Stop.",
+      "outputMapping": "Imported grouped/single-group cards retain shared group/member references; keepingAdvice uses shareKeepingNote on the actual records and packaging rather than inventing one-group quorum.",
+      "state": "covered",
+      "sharedUnsupportedCases": [
+        "Cards for UR, Bytewords or word-number shares are unsupported by both owners."
+      ],
+      "gaps": [],
+      "sourceRefs": [
+        "ui.cards:134",
+        "adapter.cards:314",
+        "adapter.cards:702",
+        "export.sskr:116",
+        "export.sskr:293",
+        "cli.sskr-output:50"
+      ],
+      "pendingValidation": "Supported transport subset, imported grouped PDF/ZIP references, topology-based keeping notes and retained one-group generation distinction."
+    },
+    {
+      "id": "P48",
+      "cliSemantics": "Resolve whole-share QR, collection or individual-fragment card layout using actual page-size rules; collection forbids business, individual forbids sheet sizes and QR layout permits every size.",
+      "cliEntryPoints": ["sskr-export", "encode --sskr", "sskr-split"],
+      "cliOptions": ["--card-layout", "--page-size", "--orientation"],
+      "browserControlIds": [
+        "mnemocode-card-source-shares",
+        "mnemocode-card-share-qr",
+        "mnemocode-card-page-size",
+        "mnemocode-card-orientation",
+        "export-mnemocode-cards"
+      ],
+      "browserRoute": "Whole-share QR checkbox passes layout=qr; otherwise the shared size rule selects collection for sheets or individual for business cards. The browser prevents contradictory layout/size combinations through those choices.",
+      "sharedOwnerCalls": [
+        "mnemoCodeCardOutput",
+        "ShareCardSet.create -> resolveSskrLayout",
+        "parsePageSize/parseOrientation"
+      ],
+      "refusalMapping": "Shared layout/size/material-design refusals remain in the renderer; no unsupported collection-at-business or individual-at-sheet operation is invented.",
+      "progressMapping": "Card rendering status, not share-search progress.",
+      "cancelMapping": "InputRevision invalidates late card/image publication; rendering has no explicit Stop button.",
+      "outputMapping": "QR card per share, collection sheet per share or individually packed fragments as resolved by the owner; geometry derives from shared page facts.",
+      "state": "host-equivalent",
+      "sharedUnsupportedCases": [
+        "Explicit collection/business and individual/sheet combinations are refused by the shared layout rule."
+      ],
+      "gaps": [],
+      "sourceRefs": [
+        "ui.cards:189",
+        "ui.cards:297",
+        "adapter.cards:663",
+        "export.content:25",
+        "export.sskr:130",
+        "cli.sskr-output:63"
+      ],
+      "pendingValidation": "Every QR/collection/individual size combination, geometry/orientation and resolved packaging."
+    },
+    {
+      "id": "P49",
+      "cliSemantics": "Select installed designs by ID or catalogue number; business designs support individual cards, material designs only sheets, including share exports and previews.",
+      "cliEntryPoints": [
+        "encode",
+        "encode --sskr",
+        "sskr-split",
+        "sskr-export",
+        "re-encode",
+        "preview"
+      ],
+      "cliOptions": ["--template", "--cards-dir", "--page-size"],
+      "browserControlIds": [
+        "mnemocode-card-template",
+        "mnemocode-card-page-size",
+        "mnemocode-card-sample",
+        "export-mnemocode-cards"
+      ],
+      "browserRoute": "The template select is populated from the shared catalogue in order, displaying number/name while transmitting ID. Preview and card/share renderers resolve the same designs.",
+      "sharedOwnerCalls": [
+        "MNEMOCODE_CARD_TEMPLATES -> cardTemplates",
+        "resolveTemplateId/selectTemplate",
+        "CardPreview.assertSeparateCards",
+        "ShareCardSet.create -> assertSeparateCards"
+      ],
+      "refusalMapping": "Unsupported template and material individual-card requests are refused by shared design rules; invalid combinations need not produce an artifact to establish the refusal path.",
+      "progressMapping": "Rendering/sample status.",
+      "cancelMapping": "Template/size edits revise export ownership; no dedicated render Stop.",
+      "outputMapping": "Selected shared design in PDF/image/ZIP; catalogue labels give the same public numbering as the CLI.",
+      "state": "covered",
+      "sharedUnsupportedCases": [
+        "Material-design individual cards are unsupported in both owners."
+      ],
+      "gaps": [],
+      "sourceRefs": [
+        "ui.cards:172",
+        "adapter.cards:160",
+        "adapter.cards:583",
+        "adapter.cards:650",
+        "export.catalog:77",
+        "export.catalog:86"
+      ],
+      "pendingValidation": "Catalogue ID/number equality and material-sheet versus individual-card refusal in phrase, share and preview paths."
+    },
+    {
+      "id": "P50",
+      "cliSemantics": "Customize profile, design copy, title, size/orientation and permitted QR settings; invented details and decoys stay stable within the export/session and across its files.",
+      "cliEntryPoints": ["encode", "encode --sskr", "sskr-export", "re-encode", "preview"],
+      "cliOptions": ["--title", "--template"],
+      "optionGroups": ["cardSettings"],
+      "browserControlIds": [
+        "mnemocode-card-own-details",
+        "mnemocode-card-name",
+        "mnemocode-card-company",
+        "mnemocode-card-role",
+        "mnemocode-card-email",
+        "mnemocode-card-phone",
+        "mnemocode-card-website",
+        "mnemocode-card-location",
+        "mnemocode-card-studio",
+        "mnemocode-card-slogan",
+        "mnemocode-card-subtitle",
+        "mnemocode-card-footer",
+        "mnemocode-card-reference-label",
+        "mnemocode-card-title",
+        "mnemocode-card-page-size",
+        "mnemocode-card-orientation",
+        "mnemocode-card-qr"
+      ],
+      "browserRoute": "Own-details selects only applicable visible copy fields; captureRender snapshots settings before asynchronous work. The exporter retains CardSession and a per-layout DecoyTail cache until the source is forgotten.",
+      "sharedOwnerCalls": [
+        "validateProfile",
+        "CardSession.settingsFor",
+        "plannedCardJob",
+        "designTexts",
+        "createMnemoCodeCardExporter.forgetDetails"
+      ],
+      "refusalMapping": "Shared settings/profile/text limits and design/layout restrictions; share exports omit collection title and individual fragments omit whole-backup QR.",
+      "progressMapping": "Drawing/rendering status; planned details are not presented as secret recovery evidence.",
+      "cancelMapping": "Source/settings changes invalidate publication; a new phrase, Clear or pagehide also forgets details/decoys.",
+      "outputMapping": "Captured profile/copy/title and stable invented details/decoy layout in requested output files; printed note derives from the rendered content.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.cards:69",
+        "ui.cards:189",
+        "ui.cards:229",
+        "ui.cards:275",
+        "adapter.cards:554",
+        "adapter.cards:560",
+        "export.session:1"
+      ],
+      "pendingValidation": "All profile/copy fields, hidden-field exclusion, title/QR restrictions and repeated PDF/image exports with stable details/decoys."
+    },
+    {
+      "id": "P51",
+      "cliSemantics": "Export collection PDF, individual documents or PNG/JPEG pages using exact shared geometry and document facts, private publication and consistent planned content for multiple outputs.",
+      "cliEntryPoints": ["encode", "encode --sskr", "sskr-export", "re-encode", "preview"],
+      "cliOptions": ["--pdf", "--cards-dir", "--images-dir", "--image-format"],
+      "browserControlIds": [
+        "mnemocode-card-file-format",
+        "mnemocode-card-page-size",
+        "mnemocode-card-orientation",
+        "export-mnemocode-cards",
+        "mnemocode-card-sample"
+      ],
+      "browserRoute": "One selected file format per browser export maps through shared document facts; individual documents are packed in a ZIP and image output uses the browser rasterizer of shared drawing instructions.",
+      "sharedOwnerCalls": [
+        "CardRenderer/renderCards/renderIndividualCards",
+        "ShareCardSet.renderAll/documents",
+        "DOCUMENT_FORMAT_FACTS",
+        "cardPagesAsImages",
+        "downloadBlob"
+      ],
+      "refusalMapping": "Shared page/design/output facts and one-page admission; unavailable rasterizer is an explicit error. Browser download-folder/cloud consequences are explained.",
+      "progressMapping": "Rendering status; browser drawing yields before heavy work and image conversion checks current ownership.",
+      "cancelMapping": "Source/settings/lifetime edits invalidate output; buffers and object URLs are cleared/revoked around publication. There is no dedicated synchronous-render Stop.",
+      "outputMapping": "PDF/PNG/JPEG download or ZIP of named individual/share files. CLI simultaneous outputs become separate browser exports sharing the retained session and planned decoys.",
+      "state": "host-equivalent",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.cards:123",
+        "ui.cards:275",
+        "ui.cards:312",
+        "adapter.cards:528",
+        "adapter.cards:538",
+        "adapter.cards:678",
+        "adapter.cards:719",
+        "ui.images:1"
+      ],
+      "pendingValidation": "Exact geometry/pages/names, transparency versus white corners, consistent repeated PDF/image content and private/stale publication boundaries."
+    },
+    {
+      "id": "P52",
+      "cliSemantics": "Export standalone QR of the encoded backup's raw representation text, or the whole share-sheet payload and companion PNG; individual printed fragments never receive a full-share QR. Read local PNG QR through bounded admission. CLI --qr uses backup.text(), not backup.record().",
+      "cliEntryPoints": ["encode", "re-encode", "sskr-export", "decode", "sskr-combine"],
+      "cliOptions": ["--qr", "--card-qr", "--qr-file", "--share-qr"],
+      "browserControlIds": [
+        "encode-mnemocode",
+        "mnemocode-card-qr",
+        "mnemocode-card-share-qr",
+        "mnemocode-cards-qr-images",
+        "export-mnemocode-cards",
+        "mnemocode-input",
+        "mnemocode-restore-shares"
+      ],
+      "browserRoute": "encode-mnemocode -> Encode.#show -> renderSensitiveShares([result.payload]) -> generated QR button (.qr-trigger) -> popup Save as PNG (.payment-qr-save). result.payload is backup.text(), for every selected representation and independently of cards. Supported card exports separately expose file.qrCodes; import actions come from installFieldImports.",
+      "sharedOwnerCalls": [
+        "encodeMnemoCode -> EncodedBackup.encode -> backup.text()",
+        "renderSensitiveShares -> createQrAction -> saveQrPng",
+        "ShareCardSet.qrCodes",
+        "createMnemoCodeCardExporter render/renderShares",
+        "installQrImageImport",
+        "QrPngExport.save",
+        "createQrAction current/lifetime predicate",
+        "renderSensitiveShares revealed/result/readiness predicate"
+      ],
+      "refusalMapping": "Whole-share QR is absent on fragments and unsupported transport cards are refused; PNG admission belongs to the local QR import helper.",
+      "progressMapping": "QR draws on popup opening; Save as PNG reports Saving/Saved/failure. Card drawing and PNG import have their own status; standalone Encode QR needs no card job.",
+      "cancelMapping": "QR popup closes on Close/Escape and result replacement removes controls, but those actions do not cancel an already awaited toBlob continuation. saveQrPng currently publishes without rechecking sensitive-result ownership/readiness after that await. Card/import revisions do not by themselves guard this separate PNG callback. PNG publication rechecks ownership after toBlob; Clear/edit, detached card, concealment, gate loss and pagehide revoke it. Canvas and matrix state are cleared in finally.",
+      "outputMapping": "Standalone raw-payload PNG for all forms, identical in semantic text to CLI --qr; separate MNC1 Save record includes mode/form. Sheet/whole-share PNG and fragment exclusion follow shared packaging facts. Neither host's standalone --qr embeds an MNC1 envelope.",
+      "state": "host-equivalent",
+      "fixStatus": "pending-fix-handoff; parent owns payment-qr.ts and the sensitive-render predicate, with no agent runtime acceptance",
+      "gaps": [],
+      "sourceRefs": [
+        "cli.encode-export:100",
+        "adapter.backup:217",
+        "core.backup:242",
+        "ui.encode:189",
+        "ui.shared:563",
+        "ui.shared:589",
+        "ui.qr:30",
+        "ui.qr:54",
+        "ui.qr:60",
+        "ui.qr:178",
+        "ui.cards:325",
+        "adapter.cards:674"
+      ],
+      "sourceIdentity": {
+        "purpose": "Retained point-in-time bytes for the earlier QR payload/route challenge, not final lifecycle-fix bytes or test/build/artifact evidence. Parent owns the new payment-qr/predicate fix and final source pin; these historical inspection hashes must not be credited to that pending fix.",
+        "sha256": {
+          "cli.encode-export": "807e94805479a88bf14d5c91c697790d8b235c9964cfee99e2cf3d8072e3b8a9",
+          "ui.encode": "c6f11e549cb1fcc1466f941cdd11f5d756fb3029effe0993930f057d1aaab944",
+          "adapter.backup": "d46a13da3f085bd84342c5eacd15fa64085b8fa0b4eaa33b87670aee1df4f695",
+          "core.backup": "3467307af526636e8bf0ba03d00c8e04fdb68523103bd0cca7175e2294d0de9f",
+          "ui.shared": "ecc4c1b4c0e1ad81c361313e868750345b3dd06d007cf7f60ddbb1db6e34efaf",
+          "ui.qr": "a1419b7b58b78e86c6d4b3bf2a9a90a1c98ccad0cf379d0fb00af212ad939d43"
+        },
+        "readOnlyHashCommandsExecuted": [
+          "In multi-chain-wallet-tools: sha256sum apps/key-derivation/src/ui/recovery-mnemocode-encode.ts packages/recovery-backup/src/mnemocode.ts apps/key-derivation/src/ui/recovery-workspace-shared.ts packages/shared-ui/src/payment-qr.ts",
+          "In multi-chain-wallet-tools: sha256sum packages/recovery-mnemocode/source/core/encoded-backup.ts",
+          "In mnemocode (read-only): sha256sum src/cli/encode-export.ts src/core/encoded-backup.ts"
+        ]
+      },
+      "pendingValidation": "Parent delayed-canvas and sensitive-action fixtures passed within the recorded partial batch. Actual browser canvas/download/lifecycle acceptance remains unexecuted; no new standalone QR route was added."
+    },
+    {
+      "id": "P53",
+      "cliSemantics": "Generate heir instructions tied to actual mode/form, phrase length, decoys, share policy and packaging; refuse lossy legacy replacement instructions by shared capability.",
+      "cliEntryPoints": ["encode", "encode --sskr", "sskr-split", "re-encode"],
+      "cliOptions": ["--heir-sheet", "--heir-sheet-size"],
+      "browserControlIds": [
+        "mnemocode-heirs-backup-encoded",
+        "mnemocode-heirs-backup-shares",
+        "mnemocode-heirs-words",
+        "mnemocode-heirs-size",
+        "mnemocode-heirs-save",
+        "mnemocode-encode-mode",
+        "mnemocode-encode-format"
+      ],
+      "browserRoute": "Heirs snapshots encoded/share choices, mode, number of dates, selected/typed phrase length and generated ShareSetChoice, then renders shared text with a Deriver route. Mirrored share cards obtain their own code count from retained matching split records before decoys.",
+      "sharedOwnerCalls": [
+        "MnemoCodeHeirSheets.supports/render",
+        "HeirInstructions.text",
+        "renderHeirSheet",
+        "chosenShareSet/chosenShareForm",
+        "deriverHeirRoute"
+      ],
+      "refusalMapping": "Replaced-final-word mode is refused; missing phrase length/dates or invalid share set is an owner/input error. Share-card facts refuse imported/repair records or a stale/nonmatching split. Linked phrase length is selected explicitly without reading a linked secret. Instructions contain no mnemonic or dates.",
+      "progressMapping": "Drawing/saved status for the public instruction sheet.",
+      "cancelMapping": "InputRevision watches sheet/Encode/source/Split settings, latestShares, source events, readiness and page lifetime. A post-await current check suppresses stale PDF publication and buffers are wiped. No dedicated render Stop.",
+      "outputMapping": "A5/A6 instruction PDF, kept separately from the secret backup, with browser route and current chosen backup facts.",
+      "state": "covered",
+      "gaps": [],
+      "sharedUnsupportedCases": [
+        "Heir instructions for seedshift-legacy-valid are unsupported by the shared capability owner."
+      ],
+      "sourceRefs": [
+        "ui.heirs:58",
+        "ui.heirs:83",
+        "ui.heirs:107",
+        "ui.heirs:145",
+        "ui.heirs:158",
+        "ui.heirs:171",
+        "adapter.heirs:37",
+        "adapter.heirs:42",
+        "export.heirs:280",
+        "core.masking:129"
+      ],
+      "pendingValidation": "Exact instruction facts versus actually kept files, linked-source length, decoy/read-length guidance, packaging and lossy-mode refusal."
+    },
+    {
+      "id": "P54",
+      "cliSemantics": "Read back the backup actually kept, compare it with the original, guide corrections and certify restoration only after matching; share checks honor quorum and retained packaging/codes.",
+      "cliEntryPoints": ["encode", "encode --sskr", "sskr-split", "re-encode"],
+      "cliOptions": ["--backup-check"],
+      "browserControlIds": [
+        "mnemocode-encode-check-backup",
+        "mnemocode-encode-check-dates",
+        "mnemocode-encode-check",
+        "mnemocode-split-check-backup",
+        "mnemocode-split-check-dates",
+        "mnemocode-split-check"
+      ],
+      "browserRoute": "Encode and Split offer an EncodedBackupCheck or ShareBackupCheck tied to the generated result. The person retypes kept backup data and dates; a repeated check follows corrections.",
+      "sharedOwnerCalls": [
+        "EncodedBackupCheck.supports/check",
+        "ShareBackupCheck.check",
+        "BackupCheckSection.offer/#run"
+      ],
+      "refusalMapping": "Unusable/lossy-mode checks are not offered; unreadable/differs/unchecked verdicts and correction notes are not presented as restores.",
+      "progressMapping": "Bounded asynchronous verdict; no search-progress or separate check Stop.",
+      "cancelMapping": "Check revision changes on typed input, a new press or an offered result and suppresses late verdicts; new Encode/Split state clears the check.",
+      "outputMapping": "Only restores gets success styling; shared notes identify code/date/share corrections without disclosing the original phrase.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.backup-check:54",
+        "ui.backup-check:70",
+        "ui.encode:119",
+        "ui.shares:384",
+        "core.backup-check:300",
+        "core.backup-check:375",
+        "core.backup-check:682"
+      ],
+      "pendingValidation": "Actually printed decoy tails, wrong form/mode/dates, share quorum/unused packaging and delayed verdict after an input or source edit."
+    },
+    {
+      "id": "P55",
+      "cliSemantics": "Display restored original phrases/fingerprints, found dates and repair notes; masked backup and encoded fingerprint stay distinct, and every requested listable match is retained for Scanner export.",
+      "cliEntryPoints": ["sskr-combine"],
+      "cliOptions": ["--candidates-file", "--mode", "--dates", "--max-tries", "--max-candidates"],
+      "optionGroups": ["walletEvidence", "candidateList"],
+      "browserControlIds": [
+        "mnemocode-restore-max-tries",
+        "mnemocode-restore-max-candidates",
+        "mnemocode-restore",
+        "mnemocode-restore-result",
+        "mnemocode-restore-list",
+        "mnemocode-restore-list-protect-key",
+        "mnemocode-restore-list-protect-passphrase",
+        "mnemocode-restore-stop"
+      ],
+      "browserRoute": "Restore renders every returned phrase with its own repairs/dates/matchedAt and original fingerprint; held/masked backup is a separate concealed display. ListWriter receives restored.listed, not merely the displayed phrases.",
+      "sharedOwnerCalls": [
+        "ShareRestore.restore -> ShareUnmasking",
+        "MnemoCodeShares.restore",
+        "CandidateListWriter.writePhrases",
+        "renderRecoveredMnemonic/renderCandidateListSave"
+      ],
+      "refusalMapping": "Shared no-match/quorum/date/list refusals and unverified Seedshift warnings are retained; visible phrase count is not assumed to equal all date matches.",
+      "progressMapping": "Restore/date-search checked/total and elapsed status, plus final displayed phrase count and shared notes.",
+      "cancelMapping": "Restore-stop destroys worker state; edits drop outcomes and wipe retained list bytes.",
+      "outputMapping": "Original phrase with its captured passphrase for Deriver Use, dates/repairs/holding facts and protected candidate-list download with numbering explanation.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.shares:586",
+        "ui.shares:598",
+        "ui.shares:600",
+        "ui.shares:667",
+        "ui.shares:683",
+        "worker.shares:59",
+        "adapter.shares:268",
+        "sskr.unmask:155"
+      ],
+      "pendingValidation": "More listable matches than the visible cap, exact phrase/list numbering, original versus held fingerprints, passphrase handoff and restored list retention after share allowance consent."
+    },
+    {
+      "id": "P56",
+      "cliSemantics": "List installed templates or preview one/every design with a public sample at any supported length; list-only mode processes no secret and separate previews obey design restrictions.",
+      "cliEntryPoints": ["preview"],
+      "cliOptions": [
+        "--list",
+        "--all",
+        "--template",
+        "--words",
+        "--pdf",
+        "--cards-dir",
+        "--images-dir",
+        "--image-format"
+      ],
+      "optionGroups": ["cardSettings"],
+      "browserControlIds": [
+        "mnemocode-card-template",
+        "mnemocode-card-sample-words",
+        "mnemocode-card-sample-all",
+        "mnemocode-card-sample",
+        "mnemocode-card-file-format",
+        "mnemocode-card-page-size"
+      ],
+      "browserRoute": "The public template dropdown lists the catalogue; Save sample cards calls captureRender(true) without reading the mnemonic and delegates to shared CardPreview for one/all designs.",
+      "sharedOwnerCalls": [
+        "MNEMOCODE_CARD_TEMPLATES/SAMPLE_WORD_COUNTS",
+        "createMnemoCodeCardExporter.renderSamples -> CardPreview",
+        "CardPreview.assertSeparateCards"
+      ],
+      "refusalMapping": "All-design separate previews and material individual cards are refused by the shared design selection rules; listing the select does not launch a render or process a secret.",
+      "progressMapping": "Drawing sample cards status and heavy-job admission.",
+      "cancelMapping": "Settings/revision guards suppress stale sample exports; no dedicated render Stop.",
+      "outputMapping": "One/every design PDF/image or ZIP of separate public-sample cards; public catalogue selection replaces CLI printed --list output.",
+      "state": "host-equivalent",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.cards:172",
+        "ui.cards:255",
+        "ui.cards:286",
+        "adapter.cards:575",
+        "export.preview:77",
+        "cli.preview:16"
+      ],
+      "pendingValidation": "Empty-secret public preview, every supported length/design, list-only no-render behavior and all/material separate-card refusals."
+    },
+    {
+      "id": "P57",
+      "cliSemantics": "Look up an English word, its human word number or Unicode code and export the complete public mapping; table index is not a wallet derivation index.",
+      "cliEntryPoints": ["table"],
+      "cliOptions": ["--word", "--index", "--unicode", "--all"],
+      "browserControlIds": [
+        "mnemocode-table-lookup-word",
+        "mnemocode-table-lookup-index",
+        "mnemocode-table-lookup-unicode",
+        "mnemocode-table-value",
+        "mnemocode-table-look-up",
+        "mnemocode-table-save"
+      ],
+      "browserRoute": "Word table radio/value and Enter/button lookups call wordTableRow; Save the whole table calls wordTableText and text download without a phrase input.",
+      "sharedOwnerCalls": [
+        "wordTableRow",
+        "wordTableText",
+        "shared word-number/Unicode mapping owner"
+      ],
+      "refusalMapping": "Out-of-range word number, invalid word and Unicode code are shared lookup errors; hints appear only for English-word lookup.",
+      "progressMapping": "Immediate public lookup/text generation; no search progress.",
+      "cancelMapping": "No long operation; changing lookup kind clears the result.",
+      "outputMapping": "Word number/English/Unicode row and complete TSV download; the input is explicitly a 1-based human number.",
+      "state": "covered",
+      "gaps": [],
+      "sourceRefs": ["ui.table:32", "ui.table:58", "ui.table:73", "html:5093"],
+      "pendingValidation": "Dictionary endpoints, all lookup forms/refusals and exact full mapping versus the upstream owner."
+    },
+    {
+      "id": "P58",
+      "cliSemantics": "Run quick startup known answers before secret processing/feature activation and full enabled-feature plus host-adapter checks on self-test; browser composition must provide equivalent feature checks and host services.",
+      "cliEntryPoints": ["startup COMMAND_FACTS.coreSelfTest", "self-test"],
+      "cliOptions": [],
+      "browserControlIds": [
+        "mnemocode-self-test",
+        "mnemocode-self-test-status",
+        "mnemocode-self-test-result",
+        "encode-mnemocode",
+        "mnemocode-forgotten-search",
+        "export-mnemocode-cards"
+      ],
+      "browserRoute": "The startup recovery composition includes runMnemoCodeSelfTest/core feature answers; RecoveryWorkspace readiness gates primary controls and secret operations. The MnemoCode button/full-page test use MnemoCodeSelfTestRun with optional share/card/heir additions.",
+      "sharedOwnerCalls": [
+        "MnemoCodeSelfTest.core(MNEMOCODE_PAGE_FEATURES)",
+        "MnemoCodeSelfTestRun.run -> MnemoCodeSelfTest.run",
+        "addShares/addFeature/addCheck",
+        "RecoveryWorkspace.setCryptoEnabled/readyOperation"
+      ],
+      "refusalMapping": "Startup/full-test failure disables the recovery job gate and reports failure; excluded features should carry no corresponding checks. Native OS/file protection checks are not asserted to execute in a browser.",
+      "progressMapping": "Full test reports rows/durations/public vectors/round trips from the owner; no result counts have been recomputed for this matrix.",
+      "cancelMapping": "No dedicated self-test Cancel; heavy-job admission and failure gate own activation. Public checks process no user's secret.",
+      "outputMapping": "Known-answer failures keep controls closed; button/full-page results identify only the checks of installed features and browser adapters.",
+      "state": "pending-validation",
+      "gaps": [
+        "The source composition and readiness chain are present, but final generated artifacts, startup-failure controls, selected-edition pruning and browser host services have no executed real-browser acceptance here. Node execution cannot establish their browser behavior; parent acceptance must provide it."
+      ],
+      "sourceRefs": [
+        "adapter.startup:26",
+        "adapter.startup:35",
+        "adapter.self-test:52",
+        "ui.self-test:25",
+        "ui.self-test:35",
+        "ui.workspace:35",
+        "ui.workspace:72",
+        "build.features:209"
+      ],
+      "pendingValidation": "Parent real-browser checks for injected known-answer failure before every secret action, full enabled-feature tests, browser host services and both admitted editions. Node checks do not establish browser equivalence; no agent runtime."
+    },
+    {
+      "id": "P59",
+      "cliSemantics": "Explicitly hand confirmed/recovered phrases, protected candidate lists, records, share transports and documents to host destinations while preserving consent, result ownership and cancellation boundaries.",
+      "cliEntryPoints": [
+        "public package APIs",
+        "all applicable encode/recovery/share/re-encode outputs"
+      ],
+      "cliOptions": [
+        "--output",
+        "--candidates-file",
+        "--qr",
+        "--pdf",
+        "--cards-dir",
+        "--images-dir",
+        "--heir-sheet"
+      ],
+      "browserControlIds": [
+        "mnemocode-reencode-continue",
+        "mnemocode-decode-result",
+        "mnemocode-forgotten-result",
+        "mnemocode-restore-result",
+        "mnemocode-split-save",
+        "export-mnemocode-cards",
+        "candidate-list-open",
+        "candidate-list-remove"
+      ],
+      "browserRoute": "Generated Copy/Use/Save actions publish only on user clicks; confirmed Re-encode uses an in-memory capability, candidates download for separate Scanner import and cards snapshot their input/result owner before publication.",
+      "sharedOwnerCalls": [
+        "renderRecoveredMnemonic -> context.useMnemonicInDeriver",
+        "MnemoCodeReEncoding.confirmedPhrase -> useRecoverySource",
+        "CandidateListWriter/renderCandidateListSave",
+        "downloadText/downloadBlob",
+        "latestShares",
+        "InputRevision",
+        "QrPngExport.save",
+        "createQrAction current/lifetime predicate",
+        "renderSensitiveShares revealed/result/readiness predicate"
+      ],
+      "refusalMapping": "Unconfirmed phrase handoff is refused; Scanner import does not start a public scan and protected card/Decode outcomes have guards. An already running sensitive QR PNG export still lacks refusal of late publication after Clear/readiness loss.",
+      "progressMapping": "Each owning conversion/search/render/import reports its own work; downloads are explicit final actions.",
+      "cancelMapping": "Search Stop, card/Decode/confirmation/share/heir revisions and list wipes guard their own paths. Split checks current inputs/readiness after its await. The separate QR toBlob callback can still resume and download after its sensitive owner was cleared or lost readiness (P52). PNG publication rechecks ownership after toBlob; Clear/edit, detached card, concealment, gate loss and pagehide revoke it. Canvas and matrix state are cleared in finally.",
+      "outputMapping": "Explicit Deriver Use, text/age/MNCL/document downloads and separate Scanner import; no direct secret network transmission from MnemoCode recovery is implied.",
+      "state": "host-equivalent",
+      "fixStatus": "pending-fix-handoff; the same parent-owned QR lifecycle correction as P52, with no agent runtime acceptance",
+      "gaps": [],
+      "sourceRefs": [
+        "ui.shared:563",
+        "ui.shared:589",
+        "ui.shared:627",
+        "ui.qr:30",
+        "ui.qr:54",
+        "ui.qr:60",
+        "ui.reencode:278",
+        "ui.candidates:198",
+        "ui.shares:404",
+        "scanner.import:106",
+        "scanner.inputs:22"
+      ],
+      "pendingValidation": "Parent delayed-canvas and sensitive-action fixtures passed within the recorded partial batch. Actual browser canvas/download/lifecycle acceptance remains unexecuted; no new standalone QR route was added."
+    },
+    {
+      "id": "P60",
+      "cliSemantics": "Expose command help, named topics, version and no-command menu workflows without processing secrets; supported operations must not disappear behind feature menus or capability gates.",
+      "cliEntryPoints": [
+        "help",
+        "help modes",
+        "help formats",
+        "help cards",
+        "version",
+        "no-command terminal menu"
+      ],
+      "cliOptions": ["-h", "--help", "-V", "--version"],
+      "browserControlIds": [
+        "mnemocode-panel",
+        "mnemocode-mode-help",
+        "mnemocode-format-help",
+        "mnemocode-reencode-mode-help",
+        "mnemocode-decode-mode-help",
+        "mnemocode-card-template",
+        "mnemocode-self-test"
+      ],
+      "browserRoute": "Recovery/operation tab buttons use data attributes/aria-controls rather than stable IDs; contextual mode/form popovers and public template/sample/word-table paths adapt menu/help workflows. MnemoCode version appears in result metadata.",
+      "sharedOwnerCalls": [
+        "installTabs",
+        "HelpPopovers.install",
+        "installOptionHelp -> MNEMOCODE_MODE_HELP/MNEMOCODE_FORMAT_HELP",
+        "MNEMOCODE_VERSION -> appendMetadata"
+      ],
+      "refusalMapping": "Feature admission removes unavailable components and relevant explanations identify shared unsupported operations. Contextual UI prose is host-owned; it is not automatically the complete CLI command/topic help registry.",
+      "progressMapping": "Help/menu navigation is immediate and should start no secret processing.",
+      "cancelMapping": "No job to cancel when reading help; navigation must not revive stale result actions.",
+      "outputMapping": "Contextual help and operation navigation. No standalone pre-secret MnemoCode version action or complete command/topic-help mapping was identified from this source trace.",
+      "state": "pending-validation",
+      "gaps": [
+        "Parent must compare named modes/formats/cards topics and all supported command workflows with browser help; presence of tabs/popovers alone is insufficient.",
+        "MNEMOCODE_VERSION is read in generated result metadata; a pre-secret version display needs a concrete reachable source/artifact reference before this obligation is accepted."
+      ],
+      "sourceRefs": [
+        "ui.install:41",
+        "ui.workspace:41",
+        "ui.fields:69",
+        "ui.help:12",
+        "ui.results:15",
+        "cli.options:18",
+        "cli.help:1455"
+      ],
+      "pendingValidation": "Parent real-browser acceptance of public help/version access before any phrase read, named-topic semantics and admitted menu/operation reachability. Source tabs/popovers and Node success are insufficient; no agent runtime."
+    }
+  ],
+  "parentValidation": {
+    "hostSourceFingerprint": "b997da0c4573caececd3d1256bd796a4621626e2920e794d7d6a10f564692538",
+    "hostSourceFiles": 1282,
+    "mappedOwnerFiles": 175,
+    "evidenceLabels": [
+      "vendor-binding-final-owner",
+      "types-bound-final",
+      "passive-final",
+      "passive-corrected",
+      "plaintext-final",
+      "html-final",
+      "artifacts-final"
+    ],
+    "browserExecuted": false,
+    "releaseAcceptance": false
+  }
+}

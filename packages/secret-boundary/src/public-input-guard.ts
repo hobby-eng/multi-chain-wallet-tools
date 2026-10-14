@@ -1,3 +1,6 @@
+import { nonEmptyLines } from "@ckd/core/text-lines.js";
+import { BIP39_WORD_COUNTS, isBip39WordCount } from "@ckd/core/bip39-parameters.js";
+import { PrivateMaterialError } from "./private-material-error.js";
 import { createBase58check } from "@scure/base";
 import { wordlist as czechWordlist } from "@scure/bip39/wordlists/czech.js";
 import { wordlist as englishWordlist } from "@scure/bip39/wordlists/english.js";
@@ -18,9 +21,8 @@ const EXTENDED_PRIVATE_PATTERN =
 const PRIVATE_LABEL_PATTERN =
   /(?:^|[{"'\s])(?:private[\s_-]*key|spending[\s_-]*key|mnemonic|seed[\s_-]*phrase|recovery[\s_-]*phrase|xprv)["']?\s*[:=]/iu;
 const WIF_VERSIONS = new Set([0x80, 0xcc, 0xef]);
-const MNEMONIC_WORD_COUNTS = [12, 15, 18, 21, 24] as const;
-const SHORTEST_PHRASE_WORDS = 12;
-const LONGEST_PHRASE_WORDS = 24;
+const SHORTEST_PHRASE_WORDS = BIP39_WORD_COUNTS[0];
+const LONGEST_PHRASE_WORDS = BIP39_WORD_COUNTS.at(-1)!;
 /** Every word has at least one letter (the Chinese lists use single characters). */
 const SHORTEST_PHRASE_LETTERS = SHORTEST_PHRASE_WORDS;
 /**
@@ -42,21 +44,11 @@ const BIP39_WORDLISTS = [
   traditionalChineseWordlist,
 ] as const;
 
-export class PrivateMaterialError extends Error {
-  constructor(
-    message = "Private key-like material was detected and erased. No network request was made.",
-  ) {
-    super(message);
-    this.name = "PrivateMaterialError";
-  }
-}
+export { PrivateMaterialError };
 
 function looksLikeMnemonic(value: string): boolean {
   const words = value.normalize("NFKD").trim().split(/\s+/u);
-  return (
-    MNEMONIC_WORD_COUNTS.includes(words.length as (typeof MNEMONIC_WORD_COUNTS)[number]) &&
-    words.every((word) => /^[\p{L}]+$/u.test(word))
-  );
+  return isBip39WordCount(words.length) && words.every((word) => /^[\p{L}]+$/u.test(word));
 }
 
 /** Each wordlist as a set, with the length of its longest word, for the joined-phrase checks. */
@@ -69,7 +61,7 @@ const BIP39_WORD_SETS = BIP39_WORDLISTS.map((wordlist) => {
 });
 
 function isPhraseLength(count: number): boolean {
-  return MNEMONIC_WORD_COUNTS.includes(count as (typeof MNEMONIC_WORD_COUNTS)[number]);
+  return isBip39WordCount(count);
 }
 
 /**
@@ -167,11 +159,7 @@ export function assertPublicLookupInput(value: string): void {
 }
 
 export function assertPublicBatchLookupInput(value: string): void {
-  const lines = value
-    .replaceAll("\r", "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const lines = nonEmptyLines(value);
   for (const line of lines) assertPublicLookupInput(line);
   if (containsPhraseRun(value)) throw new PrivateMaterialError();
 }

@@ -1,14 +1,16 @@
 import { equalBytes } from "@ckd/core/bytes.js";
 import { pair, type PsbtPair } from "./psbt-binary.js";
 import type { PsbtChain, PsbtVerificationCheck, SuppliedUtxo } from "./psbt-types.js";
+import { PsbtFieldRegistry } from "./psbt-field-registry.js";
 
 export function inputVerification(
-  map: readonly PsbtPair[],
+  rawMap: readonly PsbtPair[],
   utxo: SuppliedUtxo | null,
   chain: PsbtChain,
   commitmentFailure: string | null,
   mixedLockKinds: boolean,
 ): readonly PsbtVerificationCheck[] {
+  const map = new PsbtFieldRegistry(chain).interpreted(rawMap, "input");
   const checks: PsbtVerificationCheck[] = [
     {
       relationship: "PSBT framing and field schema",

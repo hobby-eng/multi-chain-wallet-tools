@@ -1,9 +1,13 @@
 import decodeQr from "qr/decode.js";
+import { MEBIBYTE } from "@ckd/core/byte-units.js";
+import { FileChoice } from "./file-choice.js";
+import { BrowserPngAdmission, PNG_MIME_TYPE } from "./png-admission.js";
 
-const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 20 * MEBIBYTE;
 const MAX_DECODE_DIMENSION = 4096;
+const PNG_ADMISSION = new BrowserPngAdmission();
 
-interface DecodedQrImage {
+export interface DecodedQrImage {
   readonly text: string;
   /** Present when the QR contains one byte-mode segment, including embedded NUL/CR/LF bytes. */
   readonly binaryData?: Uint8Array;
@@ -32,21 +36,53 @@ async function decodeQrImage(file: File): Promise<DecodedQrImage> {
   if (file.size === 0 || file.size > MAX_IMAGE_BYTES)
     throw new Error("QR image must be between 1 byte and 20 MiB.");
 
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(await file.arrayBuffer());
+  } catch {
+    throw new Error("The QR image could not be read.");
+  }
+  try {
+    if (file.type === PNG_MIME_TYPE || BrowserPngAdmission.hasSignature(bytes)) {
+      // decode() owns its snapshot synchronously, so the file-read buffer can be wiped now.
+      return PNG_ADMISSION.decode(bytes, (owned) =>
+        decodeQrBlob(new Blob([owned], { type: PNG_MIME_TYPE })),
+      );
+    }
+  } finally {
+    bytes.fill(0);
+  }
+  return decodeQrBlob(file);
+}
+
+async function decodeQrBlob(file: Blob): Promise<DecodedQrImage> {
   const bitmap = await createImageBitmap(file);
+  let canvas: HTMLCanvasElement | undefined;
   try {
     const scale = Math.min(1, MAX_DECODE_DIMENSION / Math.max(bitmap.width, bitmap.height));
     const width = Math.max(1, Math.round(bitmap.width * scale));
     const height = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = document.createElement("canvas");
+    canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (context === null) throw new Error("Canvas image decoding is unavailable in this browser.");
     context.drawImage(bitmap, 0, 0, width, height);
     const image = context.getImageData(0, 0, width, height);
-    return decodeQrPixels(image);
+    try {
+      return decodeQrPixels(image);
+    } finally {
+      image.data.fill(0);
+    }
   } finally {
-    bitmap.close();
+    try {
+      if (canvas !== undefined) {
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+    } finally {
+      bitmap.close();
+    }
   }
 }
 
@@ -60,19 +96,14 @@ export function installQrImageImport(
     onError?(message: string): void;
   }> = {},
 ): void {
-  const label = document.createElement("label");
-  label.className = "secondary compact qr-image-import";
-  label.textContent = options.label ?? "Import QR image";
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "image/png,image/jpeg,image/webp,image/gif,image/bmp";
-  input.multiple = options.multiple === true;
-  input.hidden = true;
-  label.append(input);
-  target.after(label);
-  input.addEventListener("change", () => {
-    const files = [...(input.files ?? [])];
-    input.value = "";
+  const choice = FileChoice.create(document, options.label ?? "Import QR image", {
+    accept: "image/png,image/jpeg,image/webp,image/gif,image/bmp",
+    multiple: options.multiple === true,
+  });
+  target.after(...choice.elements);
+  choice.onChoose(() => {
+    const files = choice.files;
+    choice.clear();
     if (files.length === 0) return;
     void (async () => {
       try {

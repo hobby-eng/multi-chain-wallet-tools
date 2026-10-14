@@ -4,6 +4,7 @@ import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseBuildProfile, profileArtifacts } from "./build-profiles.mjs";
 import { assertLauncherFileEmbedsPage, findLaunchers } from "./key-derivation-launchers.mjs";
+import { copyReleaseLegalDocuments } from "./release-legal-documents.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const dist = resolve(root, "dist");
@@ -61,14 +62,7 @@ const verificationDigest = createHash("sha256").update(verificationBytes).digest
 copyFileSync(verificationSource, resolve(release, verificationName));
 manifest.push(`${verificationDigest}  ${verificationName}`);
 
-for (const legalName of ["LICENSE", "ATTRIBUTION.md", "THIRD_PARTY_NOTICES.md"]) {
-  const legalSource = resolve(root, legalName);
-  if (!existsSync(legalSource)) throw new Error(`Root ${legalName} is missing.`);
-  const legalBytes = readFileSync(legalSource);
-  const legalDigest = createHash("sha256").update(legalBytes).digest("hex");
-  copyFileSync(legalSource, resolve(release, legalName));
-  manifest.push(`${legalDigest}  ${legalName}`);
-}
+manifest.push(...copyReleaseLegalDocuments(root, release));
 
 writeFileSync(resolve(release, "SHA256SUMS"), `${manifest.sort().join("\n")}\n`);
 console.log(`Created flat ${profile.editionName} release assets in ${profile.releaseDirectory}/.`);

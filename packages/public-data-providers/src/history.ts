@@ -1,4 +1,7 @@
-import { emptyRecoveryHistory } from "@ckd/network-boundary/recovery-history.js";
+import {
+  emptyRecoveryHistory,
+  RECOVERY_HISTORY_DATE_FIELDS,
+} from "@ckd/network-boundary/recovery-history.js";
 import { decimal, fetchJson, record, unsignedInteger } from "./http.js";
 import type { PublicDataNetwork, RecoveryHistory } from "./types.js";
 
@@ -39,15 +42,7 @@ function activity(h: RecoveryHistory, date: string, received: bigint, spent: big
   if (spent > 0n) range("firstSpent", "lastSpent");
 }
 function clearDates(h: RecoveryHistory): void {
-  for (const key of [
-    "firstSeen",
-    "lastSeen",
-    "firstReceived",
-    "lastReceived",
-    "firstSpent",
-    "lastSpent",
-  ] as const)
-    h[key] = null;
+  for (const key of RECOVERY_HISTORY_DATE_FIELDS) h[key] = null;
 }
 function btcStats(value: unknown, address: string) {
   const info = record(value, "Bitcoin history");

@@ -1,6 +1,9 @@
+import { nonEmptyLines } from "@ckd/core/text-lines.js";
+import { downloadText } from "@ckd/export/download.js";
 import { isRangedDescriptorKey, materializeDescriptorKey } from "@ckd/core/descriptor-key.js";
 import { buildDashCoreImport, type DashCoreImportArtifacts } from "./dash-import.js";
 import { buildPolicy, policyHex, type LockKind } from "./policy.js";
+import { PolicyLock } from "./policy-lock.js";
 import { calculatePhrasePreimage, type HashlockKind } from "./preimage.js";
 import { required, selectedNetwork, syncNetworkChoice } from "./ui-common.js";
 
@@ -88,10 +91,7 @@ export function installPolicyBuilderFeature(): void {
     builderChain.disabled = custom;
     builderWrapper.disabled = builderChain.value === "dash";
     if (builderChain.value === "dash") builderWrapper.value = "p2sh";
-    const primaryCount = publicKeys.value
-      .split(/\r?\n/u)
-      .map((value) => value.trim())
-      .filter(Boolean).length;
+    const primaryCount = nonEmptyLines(publicKeys.value).length;
     const musig2 = !custom && builderWrapper.value === "p2tr-musig2";
     if (musig2) {
       policyMode.value = "locked-multisig";
@@ -199,14 +199,8 @@ export function installPolicyBuilderFeature(): void {
     secondLockValueLabel.textContent = `Second ${labels[secondLockKind.value]?.toLowerCase() ?? "lock value"}`;
     secondTimeUnit.hidden = secondLockKind.value !== "relative-time";
     const singleRecovery = selectedMode === "delayed-recovery" || stagedRecovery;
-    const recoveryCount = recoveryPublicKey.value
-      .split(/\r?\n/u)
-      .map((value) => value.trim())
-      .filter(Boolean).length;
-    const emergencyCount = emergencyPublicKeys.value
-      .split(/\r?\n/u)
-      .map((value) => value.trim())
-      .filter(Boolean).length;
+    const recoveryCount = nonEmptyLines(recoveryPublicKey.value).length;
+    const emergencyCount = nonEmptyLines(emergencyPublicKeys.value).length;
     publicKeys.setCustomValidity(
       stagedRecovery && primaryCount > 1 ? "Staged recovery accepts exactly one primary key." : "",
     );
@@ -231,41 +225,6 @@ export function installPolicyBuilderFeature(): void {
           : selectedMode === "decaying-multisig"
             ? "Both branches use the same primary key set; only the required signature count decreases after the lock."
             : "Thresholds are validated against the number of keys supplied for each branch.";
-  }
-
-  function normalizedLockValue(): number {
-    const value = Number(lockValue.value);
-    if (lockKind.value !== "relative-time") return value;
-    const multipliers: Record<string, number> = {
-      seconds: 1,
-      minutes: 60,
-      hours: 3_600,
-      days: 86_400,
-      months: 2_592_000,
-    };
-    return value * (multipliers[timeUnit.value] ?? 1);
-  }
-
-  function normalizedSecondLockValue(): number {
-    const value = Number(secondLockValue.value);
-    if (secondLockKind.value !== "relative-time") return value;
-    const multipliers: Record<string, number> = {
-      seconds: 1,
-      minutes: 60,
-      hours: 3_600,
-      days: 86_400,
-      months: 2_592_000,
-    };
-    return value * (multipliers[secondTimeUnit.value] ?? 1);
-  }
-
-  function downloadText(filename: string, value: string, type: string): void {
-    const url = URL.createObjectURL(new Blob([value], { type }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   function calculatePreimage(): void {
@@ -293,18 +252,9 @@ export function installPolicyBuilderFeature(): void {
     builderError.hidden = true;
     policyResults.hidden = true;
     try {
-      const enteredKeys = publicKeys.value
-        .split(/\r?\n/u)
-        .map((value) => value.trim())
-        .filter(Boolean);
-      const enteredRecoveryKeys = recoveryPublicKey.value
-        .split(/\r?\n/u)
-        .map((value) => value.trim())
-        .filter(Boolean);
-      const enteredEmergencyKeys = emergencyPublicKeys.value
-        .split(/\r?\n/u)
-        .map((value) => value.trim())
-        .filter(Boolean);
+      const enteredKeys = nonEmptyLines(publicKeys.value);
+      const enteredRecoveryKeys = nonEmptyLines(recoveryPublicKey.value);
+      const enteredEmergencyKeys = nonEmptyLines(emergencyPublicKeys.value);
       const network = selectedNetwork(
         builderNetwork,
         builderChain.value === "dash" ? "dash" : "bitcoin",
@@ -342,7 +292,11 @@ export function installPolicyBuilderFeature(): void {
         publicKeys: keys,
         keyOrder: builderKeyOrder.value === "bip67" ? "bip67" : "supplied",
         lockKind: lockKind.value as LockKind,
-        lockValue: normalizedLockValue(),
+        lockValue: PolicyLock.normalizeInputValue(
+          lockKind.value as LockKind,
+          Number(lockValue.value),
+          timeUnit.value,
+        ),
         bitcoinWrapper:
           builderWrapper.value === "p2sh"
             ? "p2sh"
@@ -375,7 +329,11 @@ export function installPolicyBuilderFeature(): void {
         recoveryPublicKeys: recoveryKeys,
         recoveryRequired: Number(recoveryRequired.value),
         secondLockKind: secondLockKind.value as LockKind,
-        secondLockValue: normalizedSecondLockValue(),
+        secondLockValue: PolicyLock.normalizeInputValue(
+          secondLockKind.value as LockKind,
+          Number(secondLockValue.value),
+          secondTimeUnit.value,
+        ),
         emergencyPublicKeys: emergencyKeys,
         emergencyRequired: Number(emergencyRequired.value),
         hashKind: htlcHashKind.value as HashlockKind,
@@ -493,11 +451,7 @@ export function installPolicyBuilderFeature(): void {
   syncNetworkChoice(builderChain, builderNetwork);
   downloadDashJson.addEventListener("click", () => {
     if (dashImportArtifacts !== null)
-      downloadText(
-        "dash-core-import.json",
-        dashImportArtifacts.rpcJson,
-        "application/json;charset=utf-8",
-      );
+      downloadText(dashImportArtifacts.rpcJson, "dash-core-import.json", "application/json");
   });
   document.querySelectorAll<HTMLButtonElement>("#builder-panel [data-copy]").forEach((button) =>
     button.addEventListener("click", async () => {

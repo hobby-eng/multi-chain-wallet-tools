@@ -1,4 +1,5 @@
 import { scanCandidates, candidateSummary } from "./candidate-scan.js";
+import { CandidateListImport } from "./candidate-list-import.js";
 import {
   createRecoverySeedInputs,
   recoveryScanConfig,
@@ -28,6 +29,8 @@ export interface DiscoveryFeatureRuntime {
   readonly createRecoverySeedInputs?: typeof createRecoverySeedInputs;
   readonly recoveryScanConfig?: typeof recoveryScanConfig;
   readonly wipeRecoverySeedInputs?: typeof wipeRecoverySeedInputs;
+  /** Opens a MnemoCode candidate list as the seed inputs of a scan. */
+  readonly CandidateListImport?: typeof CandidateListImport;
   readonly resolveWatchOnlyScanTargets?: typeof resolveWatchOnlyScanTargets;
   readonly watchOnlyScanConfig?: typeof watchOnlyScanConfig;
   readonly wipeWatchOnlyTargets?: typeof wipeWatchOnlyTargets;
@@ -54,6 +57,7 @@ export const ALL_DISCOVERY_FEATURES: DiscoveryFeatureRuntime = {
   createRecoverySeedInputs,
   recoveryScanConfig,
   wipeRecoverySeedInputs,
+  CandidateListImport,
   resolveWatchOnlyScanTargets,
   watchOnlyScanConfig,
   wipeWatchOnlyTargets,

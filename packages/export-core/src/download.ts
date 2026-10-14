@@ -12,6 +12,7 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;
+  link.rel = "noopener";
   link.hidden = true;
   document.body.append(link);
   try {

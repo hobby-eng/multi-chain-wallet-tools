@@ -5,6 +5,7 @@ import { secureRandomBytes } from "@ckd/core/secure-random.js";
 import { hmac } from "@noble/hashes/hmac.js";
 import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
+import { CheckedRandomByteSource } from "@ckd/core/random-byte-source.js";
 import { concatBytes, utf8ToBytes } from "@noble/hashes/utils.js";
 import { SLIP39_WORDLIST } from "./slip39-wordlist.js";
 
@@ -339,7 +340,9 @@ function crypt(
   let left: Uint8Array = input.slice(0, input.length / 2);
   let right: Uint8Array = input.slice(input.length / 2);
   const roundSalt = salt(identifier, extendable);
-  const rounds = decrypt ? [3, 2, 1, 0] : [0, 1, 2, 3];
+  const rounds = Array.from({ length: ROUND_COUNT }, (_, index) =>
+    decrypt ? ROUND_COUNT - index - 1 : index,
+  );
   try {
     for (const round of rounds) {
       const password = concatBytes(Uint8Array.of(round), passphrase);
@@ -390,16 +393,8 @@ export function createSlip39Shares(
   const iterationExponent = options.iterationExponent ?? 1;
   assertSmallInteger(iterationExponent, "Iteration exponent", 0, 15);
   const extendable = options.extendable ?? true;
-  const suppliedRandomBytes = options.randomBytes ?? defaultRandomBytes;
-  const randomBytes = (length: number): Uint8Array => {
-    const bytes = suppliedRandomBytes(length);
-    if (!(bytes instanceof Uint8Array) || bytes.length !== length) {
-      throw new Error(
-        `Random-byte source returned ${String(bytes?.length)} bytes; expected ${length}.`,
-      );
-    }
-    return bytes;
-  };
+  const source = new CheckedRandomByteSource(options.randomBytes ?? defaultRandomBytes);
+  const randomBytes = (length: number): Uint8Array => source.bytes(length);
   const identifierBytes = randomBytes(2);
   const identifier =
     (((identifierBytes[0]! << 8) | identifierBytes[1]!) & ((1 << ID_LENGTH_BITS) - 1)) >>> 0;

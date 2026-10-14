@@ -1,5 +1,9 @@
+import { WASM_CATALOG } from "./wasm-modules.mjs";
+import { MhfeIntegrationModules } from "./mhfe-integration.mjs";
+import { isMainScript } from "./run-script.mjs";
+import { MHFE_MANIFEST_SHA256, VendoredMhfePackage } from "./vendored-mhfe-package.mjs";
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -22,6 +26,9 @@ export const GITHUB_SOURCES = [
     repository: mnemocodeManifest.repository,
     reference: `${mnemocodeManifest.version} core, ${mnemocodeManifest.reference}`,
     commit: mnemocodeManifest.commit,
+    ...(mnemocodeManifest.unreleased === undefined
+      ? {}
+      : { unreleased: mnemocodeManifest.unreleased }),
   },
   {
     id: "dash-orchard",
@@ -54,13 +61,13 @@ export const GITHUB_SOURCES = [
     commit: "cfaf443a5f19e3a3e2b2c7be7572ae3924142c0e",
   },
   {
-    // The browser package of the MHFE 0.5.0 release: mhfe-v0.5.0-browser.tar.gz, checked against
-    // the release's OpenPGP-signed SHA256SUMS, from tag v0.5.0. The Python fast-mode launcher of the package is not vendored: the executable Deriver
-    // replaces it.
-    id: "mhfe-v0.5.0",
+    // The browser package of the signed MHFE v0.6.0 release (mhfe-v0.6.0-browser.tar.gz, SHA-256
+    // e7f97d48…, listed in the OpenPGP-signed SHA256SUMS). The Python fast-mode launcher of the
+    // package is not vendored: the executable Deriver replaces it.
+    id: "mhfe-v0.6.0",
     repository: "hobby-eng/mhfe",
-    reference: "release v0.5.0, browser package",
-    commit: "52b6b36a16d36fa895f3b3e9e034b52c9f963c34",
+    reference: "v0.6.0 signed release, browser package",
+    commit: "66f142566464255e331763966b00ea1681c2dabd",
   },
   {
     id: "sskr-0.12.0",
@@ -82,6 +89,47 @@ export const GITHUB_SOURCES = [
   },
 ];
 
+/** The same MHFE integration modules that composition gates own. */
+function mhfePanelFiles(root) {
+  return MhfeIntegrationModules.files(root);
+}
+
+/**
+ * The Deriver's and the Scanner's own files that bind MnemoCode, found by their names as the MHFE
+ * panel's are, so that a new one is never left out of the record (AUD-023-BLD006).
+ */
+function mnemocodeIntegrationFiles(root) {
+  const groups = [
+    ["apps/key-derivation/src/ui", (name) => name.startsWith("recovery-mnemocode")],
+    ["apps/key-derivation/tests", (name) => name.startsWith("recovery-mnemocode")],
+    [
+      "apps/key-derivation/src/workers",
+      (name) =>
+        name.startsWith("mnemocode-") ||
+        name === "page-wordlist.ts" ||
+        name === "webcrypto-pbkdf2.ts",
+    ],
+    [
+      "packages/recovery-backup/src",
+      (name) => name.startsWith("mnemocode") || name.startsWith("self-test-mnemocode"),
+    ],
+    ["packages/recovery-backup/tests", (name) => name.startsWith("mnemocode")],
+    ["apps/discovery-scanner/src", (name) => name.startsWith("candidate-list")],
+    ["apps/discovery-scanner/tests", (name) => name.startsWith("candidate-list")],
+  ];
+  return groups.flatMap(([directory, belongs]) =>
+    readdirSync(resolve(root, directory))
+      .filter((name) => /\.(?:ts|mjs)$/u.test(name) && belongs(name))
+      .sort()
+      .map((name) => `${directory}/${name}`),
+  );
+}
+
+/** Binds the vendored MHFE files to the package's manifest, and the manifest to its pin. */
+export function verifyMhfePackage(root, pinnedManifestSha256 = MHFE_MANIFEST_SHA256) {
+  new VendoredMhfePackage(root).verify(pinnedManifestSha256);
+}
+
 export const LOCAL_IMPLEMENTATIONS = [
   {
     id: "seedqr-codec",
@@ -97,43 +145,13 @@ export const LOCAL_IMPLEMENTATIONS = [
     files: [
       MNEMOCODE_MANIFEST,
       ...Object.values(MNEMOCODE_FILES).map((path) => `${MNEMOCODE_SOURCE_DIRECTORY}/${path}`),
-      "packages/recovery-backup/src/mnemocode.ts",
-      "packages/recovery-backup/src/self-test-mnemocode.ts",
-      "packages/recovery-backup/tests/mnemocode.test.ts",
-      "apps/key-derivation/src/ui/recovery-mnemocode.ts",
-      "apps/key-derivation/src/ui/recovery-mnemocode-help.ts",
-      "apps/key-derivation/src/ui/recovery-mnemocode-encode.ts",
-      "apps/key-derivation/src/ui/recovery-mnemocode-decode.ts",
-      "apps/key-derivation/src/ui/recovery-mnemocode-words.ts",
-      "apps/key-derivation/src/ui/recovery-mnemocode-fields.ts",
-      "apps/key-derivation/src/ui/recovery-mnemocode-results.ts",
-      "packages/recovery-backup/src/mnemocode-cards.ts",
-      "packages/recovery-backup/src/mnemocode-card-drawing.ts",
-      "packages/recovery-backup/src/mnemocode-card-assets.ts",
-      "packages/recovery-backup/tests/mnemocode-cards.test.ts",
-      "packages/recovery-backup/tests/mnemocode-card-drawing.test.ts",
-      "apps/key-derivation/src/ui/recovery-mnemocode-cards.ts",
-      "apps/key-derivation/src/ui/recovery-mnemocode-card-images.ts",
+      ...mnemocodeIntegrationFiles(defaultRoot),
     ],
   },
   {
     id: "mhfe-browser-module",
-    upstream: "mhfe-v0.5.0",
-    files: [
-      "packages/recovery-mhfe-wasm/generated/client.js",
-      "packages/recovery-mhfe-wasm/generated/client.d.ts",
-      "packages/recovery-mhfe-wasm/generated/mhfe-worker.js",
-      "packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm",
-      "packages/recovery-mhfe-wasm/generated/argon2-mt.js",
-      "packages/recovery-mhfe-wasm/generated/argon2-st.js",
-      "apps/key-derivation/src/ui/recovery-mhfe.ts",
-      "apps/key-derivation/src/ui/recovery-mhfe-engine.ts",
-      "apps/key-derivation/src/ui/recovery-mhfe-encode.ts",
-      "apps/key-derivation/src/ui/recovery-mhfe-decode.ts",
-      "apps/key-derivation/src/ui/recovery-mhfe-fields.ts",
-      "apps/key-derivation/src/ui/recovery-mhfe-container-card.ts",
-      "apps/key-derivation/src/ui/recovery-mhfe-status.ts",
-    ],
+    upstream: "mhfe-v0.6.0",
+    files: [...new VendoredMhfePackage(defaultRoot).files(), ...mhfePanelFiles(defaultRoot)],
   },
   {
     id: "slip39-codec",
@@ -161,6 +179,7 @@ export const LOCAL_IMPLEMENTATIONS = [
     files: [
       "packages/recovery-sskr-wasm/rust/src/lib.rs",
       "packages/recovery-backup/src/sskr.ts",
+      "packages/recovery-backup/src/sskr-codec.ts",
       "packages/recovery-backup/src/self-test-sskr.ts",
     ],
   },
@@ -184,20 +203,7 @@ export const LOCAL_IMPLEMENTATIONS = [
   },
 ];
 
-const FIXED_SOURCE_HASHES = Object.freeze({
-  "packages/recovery-mhfe-wasm/generated/client.js":
-    "057ce242fbbd94e94df833f1cfc7a3b742c98086095a869c34977307dc209cee",
-  "packages/recovery-mhfe-wasm/generated/client.d.ts":
-    "8692d3d6777215feac9a9d84094b88122aee60fa7d6c5a235c096efe86db2653",
-  "packages/recovery-mhfe-wasm/generated/mhfe-worker.js":
-    "f6d0b120bfbafb83ddbc20d121b9fcb87c581d89ae55c5d87db2893bf5c2c5d9",
-  "packages/recovery-mhfe-wasm/generated/mhfe_core_bg.wasm":
-    "a8afbcb8b0800396daeb099d23897f9000987a49e71110ee66808412b363e9f7",
-  "packages/recovery-mhfe-wasm/generated/argon2-mt.js":
-    "f98906c851a986df514d22536bb48a09724a0fa0b49079860b9a0ef00806f521",
-  "packages/recovery-mhfe-wasm/generated/argon2-st.js":
-    "63ece7b314daf8a06ebadb0ff7acdf8be886ddfc9660b5ad13577536c4a3f6da",
-});
+/** SHA-256 of the MHFE package manifest, generated/modules.json, which pins every other file. */
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -283,6 +289,27 @@ async function checkGithubSource(source, fetchImpl, timeoutMs) {
   }
 }
 
+/**
+ * An upstream marked `unreleased` was vendored from a local, unpublished build at the owner's
+ * request. Local builds go on with a warning; CI and the reproducible container (both set CI=true)
+ * refuse, so that no release carries an upstream that cannot be checked.
+ */
+export function assertReleasedUpstreams(
+  logger,
+  sources = GITHUB_SOURCES,
+  ci = process.env.CI === "true",
+) {
+  const unreleased = sources.filter((source) => source.unreleased !== undefined);
+  for (const source of unreleased)
+    logger.warn(
+      `WARNING: ${source.id} is ${source.unreleased}. Vendor its published release before any release of these tools.`,
+    );
+  if (unreleased.length > 0 && ci)
+    throw new Error(
+      `Unreleased upstream sources cannot be built in CI: ${unreleased.map((source) => source.id).join(", ")}.`,
+    );
+}
+
 export async function verifyDependencyProvenance({
   root = defaultRoot,
   fetchImpl = fetch,
@@ -293,22 +320,10 @@ export async function verifyDependencyProvenance({
 } = {}) {
   if (verifyFixedSources) {
     verifyMnemoCodeSource({ root });
-    for (const [path, expected] of Object.entries(FIXED_SOURCE_HASHES)) {
-      const actual = sha256(readFileSync(resolve(root, path)));
-      if (actual !== expected)
-        throw new Error(
-          `Pinned source checksum mismatch for ${path}: expected ${expected}, got ${actual}.`,
-        );
-    }
+    verifyMhfePackage(root);
   }
   const pnpmPackages = verifyPnpmLock(readFileSync(resolve(root, "pnpm-lock.yaml"), "utf8"));
-  const cargoLockPaths = [
-    "packages/dash-shielded-wasm/rust/Cargo.lock",
-    "packages/recovery-codex32-wasm/rust/Cargo.lock",
-    "packages/recovery-sskr-wasm/rust/Cargo.lock",
-    "packages/recovery-envelope-wasm/rust/Cargo.lock",
-    "apps/key-derivation/launcher/Cargo.lock",
-  ];
+  const cargoLockPaths = WASM_CATALOG.nativeCrates().map(({ lockPath }) => lockPath);
   const cargoPackages = cargoLockPaths.reduce(
     (count, path) => count + verifyCargoLock(readFileSync(resolve(root, path), "utf8"), path),
     0,
@@ -333,6 +348,7 @@ export async function verifyDependencyProvenance({
       );
     }
   }
+  assertReleasedUpstreams(logger);
   const report = {
     schemaVersion: 1,
     lockedDependencies: {
@@ -363,6 +379,6 @@ export async function verifyDependencyProvenance({
   return report;
 }
 
-if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainScript(import.meta.url)) {
   await verifyDependencyProvenance();
 }

@@ -27,16 +27,7 @@ export function assertAddressBatch(
   if (!Array.isArray(addresses) || addresses.length < 1 || addresses.length > maximum) {
     throw new Error(`Network Worker requires 1 to ${maximum} ${label} addresses per request.`);
   }
-  for (const address of addresses) {
-    if (typeof address !== "string")
-      throw new Error(`Network Worker rejected an invalid ${label} address.`);
-    try {
-      if (validate(address, network) !== address)
-        throw new Error("Address normalization changed the value.");
-    } catch {
-      throw new Error(`Network Worker rejected an invalid ${label} address.`);
-    }
-  }
+  for (const address of addresses) assertSingleAddress(address, network, validate, label);
 }
 
 export function assertSingleAddress(

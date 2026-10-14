@@ -1,52 +1,29 @@
+import {
+  assertReviewedDynamicCode,
+  assertRecordedChecksum,
+  assertSingleDocument,
+  currentArtifact,
+  occurrences,
+  sourceFiles,
+  uniqueIds,
+} from "../../../tooling/artifact-checks.mjs";
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
-import { getToolBuild, parseBuildProfile } from "../../../tooling/build-profiles.mjs";
+import { parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 import { assertEvoSdkReadOnly } from "../../../tooling/verify-evo-read-only.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
-const tool = getToolBuild(profile, "activity-viewer");
-const artifactPath = resolve(root, "dist", tool.artifactRelativePath);
-const checksumPath = resolve(root, "dist", tool.artifactDirectory, tool.checksumFile);
+const { tool, html, checksumPath } = currentArtifact(root, profile, "activity-viewer", "Viewer");
 const orchardWasmPath = resolve(
   root,
   "packages/dash-shielded-wasm/generated/dash_shielded_wasm_bg.wasm",
 );
-const html = readFileSync(artifactPath, "utf8");
-const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
-if (!html.includes(expectedFingerprint)) {
-  throw new Error("Viewer artifact does not contain the fingerprint of the current source tree.");
-}
-function occurrences(value, marker) {
-  return value.split(marker).length - 1;
-}
 
-function sourceFiles(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = resolve(directory, entry.name);
-    if (entry.isDirectory()) return sourceFiles(path);
-    return entry.isFile() && path.endsWith(".ts")
-      ? [{ path, text: readFileSync(path, "utf8") }]
-      : [];
-  });
-}
-
-for (const [marker, expected] of [
-  ["<!doctype html>", 1],
-  ['<html lang="en">', 1],
-  ["</html>", 1],
-  ["<style>", 1],
-  ["</style>", 1],
-  ["<script>", 1],
-  ["</script>", 1],
-]) {
-  const actual = occurrences(html, marker);
-  if (actual !== expected)
-    throw new Error(`Expected ${expected} viewer ${marker} marker; found ${actual}.`);
-}
+assertSingleDocument(html, "viewer");
+assertReviewedDynamicCode(html, "activity-viewer");
 
 const scriptStart = html.indexOf("<script>");
 const scriptEnd = html.lastIndexOf("</script>");
@@ -104,9 +81,7 @@ try {
   throw new Error(`Viewer application JavaScript is syntactically invalid: ${String(cause)}`);
 }
 
-const ids = [...html.matchAll(/\sid="([^"]+)"/gu)].map((match) => match[1]);
-if (new Set(ids).size !== ids.length)
-  throw new Error("Viewer artifact contains duplicate HTML IDs.");
+const ids = uniqueIds(html, "Viewer artifact");
 for (const requiredId of [
   "viewer-form",
   "viewer-network",
@@ -287,7 +262,5 @@ assertEvoSdkReadOnly(
   root,
 );
 
-const actual = createHash("sha256").update(html).digest("hex");
-const recorded = readFileSync(checksumPath, "utf8").trim().split(/\s+/u)[0];
-if (actual !== recorded) throw new Error("Viewer SHA-256 sidecar does not match its HTML.");
+const actual = assertRecordedChecksum(html, checksumPath, "Viewer");
 console.log(`Verified separate network-enabled viewer artifact: ${actual}`);

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vitest";
-import { createCodex32Shares, recoverCodex32Shares } from "../src/codex32.js";
+import { Codex32Identifier, createCodex32Shares, recoverCodex32Shares } from "../src/codex32.js";
 import officialVectors from "./fixtures/bip93-vectors.json";
 
 vi.mock("@ckd/recovery-codex32-wasm/recovery_codex32_wasm_bg.wasm", async () => ({
@@ -11,6 +11,24 @@ vi.mock("@ckd/recovery-codex32-wasm/recovery_codex32_wasm_bg.wasm", async () => 
 }));
 
 describe("Codex32 BIP93 backup", () => {
+  it("uses the same normalized identifier for admission and the official unsplit record", () => {
+    expect(new Codex32Identifier("  LEET\n").value).toBe("leet");
+    const seed = hexToBytes("ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100");
+    expect(createCodex32Shares(seed, "  LEET\n", 0, 1).shares).toEqual([
+      "ms10leetsllhdmn9m42vcsamx24zrxgs3qrl7ahwvhw4fnzrhve25gvezzyqqtum9pgv99ycma",
+    ]);
+  });
+
+  it.each(["", "abc", "abcde", "b234", "i234", "o234", "1234", "a c2", "ä234"])(
+    "refuses an invalid identifier %j before encoding",
+    (input) => {
+      const refusal =
+        "Codex32 identifier must contain exactly four Bech32 characters; b, i, o, and 1 are not available.";
+      expect(() => new Codex32Identifier(input)).toThrow(refusal);
+      expect(() => createCodex32Shares(new Uint8Array(16), input, 0, 1)).toThrow(refusal);
+    },
+  );
+
   it("decodes every official unshared BIP93 vector, including alternate padding and long Codex32", () => {
     for (const vector of officialVectors.unshared) {
       for (const record of vector.records) {
@@ -95,9 +113,9 @@ describe("Codex32 BIP93 backup", () => {
     expect(() =>
       recoverCodex32Shares([first.shares[0]!, first.shares[1]!, second.shares[2]!]),
     ).toThrow(/different identifiers/u);
-    expect(() =>
+    expect(
       recoverCodex32Shares([first.shares[0]!.toUpperCase(), first.shares[1]!, first.shares[2]!]),
-    ).toThrow(/incompatible prefixes/u);
+    ).toEqual(seed);
     const damaged = `${first.shares[0]!.slice(0, -1)}${first.shares[0]!.endsWith("q") ? "p" : "q"}`;
     expect(() => recoverCodex32Shares([damaged, first.shares[1]!, first.shares[2]!])).toThrow(
       /invalid checksum/u,

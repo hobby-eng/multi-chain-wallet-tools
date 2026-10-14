@@ -7,6 +7,16 @@ import {
 } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { HDKey } from "@scure/bip32";
+import {
+  BIP39_WORD_BITS,
+  BIP39_WORD_COUNT_LIST,
+  assertBip39WordCount,
+  bip39ChecksumBits,
+  bip39EntropyBits,
+  bip39EntropyBytes,
+  isBip39WordCount,
+  type Bip39WordCount,
+} from "./bip39-parameters.js";
 import { bytesToHex, hash160, wipe } from "./crypto.js";
 
 function normalizeMnemonic(value: string): string {
@@ -16,8 +26,8 @@ function normalizeMnemonic(value: string): string {
 export function assertValidMnemonic(value: string): string {
   const mnemonic = normalizeMnemonic(value);
   const words = mnemonic.length === 0 ? [] : mnemonic.split(" ");
-  if (![12, 15, 18, 21, 24].includes(words.length)) {
-    throw new Error("Enter exactly 12, 15, 18, 21, or 24 BIP39 English words.");
+  if (!isBip39WordCount(words.length)) {
+    throw new Error(`Enter exactly ${BIP39_WORD_COUNT_LIST} BIP39 English words.`);
   }
   if (!validateMnemonic(mnemonic, wordlist)) {
     // The message names the position of an unknown word, never the word itself: a mistyped
@@ -36,23 +46,9 @@ export function mnemonicToSeed(mnemonic: string, passphrase = ""): Uint8Array {
   return mnemonicToSeedSync(assertValidMnemonic(mnemonic), passphrase);
 }
 
-const BIP39_WORD_COUNTS = [12, 15, 18, 21, 24] as const;
-type Bip39WordCount = (typeof BIP39_WORD_COUNTS)[number];
-
-const BIP39_ENTROPY_BYTES: Readonly<Record<Bip39WordCount, number>> = {
-  12: 16,
-  15: 20,
-  18: 24,
-  21: 28,
-  24: 32,
-};
-
 export function generateMnemonic(wordCount: Bip39WordCount): string {
-  const entropyBytes = BIP39_ENTROPY_BYTES[wordCount];
-  if (entropyBytes === undefined)
-    throw new Error("BIP39 word count must be 12, 15, 18, 21, or 24.");
-
-  const entropy = secureRandomBytes(entropyBytes);
+  assertBip39WordCount(wordCount);
+  const entropy = secureRandomBytes(bip39EntropyBytes(wordCount));
   try {
     return entropyToMnemonic(entropy, wordlist);
   } finally {
@@ -140,13 +136,14 @@ function nearbyWords(value: string): readonly string[] {
 export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
   const normalized = normalizeMnemonic(value);
   const words = normalized === "" ? [] : normalized.split(" ");
-  const wordCountValid = BIP39_WORD_COUNTS.includes(words.length as Bip39WordCount);
+  const wordCount = words.length;
+  const wordCountValid = isBip39WordCount(wordCount);
   const unknownWords = words.flatMap((word, index) =>
     BIP39_WORD_SET.has(word) ? [] : [{ index, word, suggestions: nearbyWords(word) }],
   );
   const allWordsKnown = words.length > 0 && unknownWords.length === 0;
   const checksumValid = wordCountValid && allWordsKnown && validateMnemonic(normalized, wordlist);
-  const entropyBits = wordCountValid ? (words.length / 3) * 32 : null;
+  const entropyBits = wordCountValid ? bip39EntropyBits(wordCount) : null;
   const wordDiagnostics = words.map((word, index) => {
     const wordlistIndex = BIP39_WORD_SET.has(word) ? wordlist.indexOf(word) : null;
     return {
@@ -154,7 +151,8 @@ export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
       word,
       wordlistIndex,
       indexHex: wordlistIndex === null ? null : `0x${wordlistIndex.toString(16).padStart(3, "0")}`,
-      bits: wordlistIndex === null ? null : wordlistIndex.toString(2).padStart(11, "0"),
+      bits:
+        wordlistIndex === null ? null : wordlistIndex.toString(2).padStart(BIP39_WORD_BITS, "0"),
     };
   });
   let construction: MnemonicConstructionDiagnostic | null = null;
@@ -167,7 +165,7 @@ export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
       const canonicalWords = entropyToMnemonic(entropy, wordlist).split(" ");
       const canonicalIndexes = canonicalWords.map((word) => wordlist.indexOf(word));
       const mnemonicBinary = canonicalIndexes
-        .map((index) => index.toString(2).padStart(11, "0"))
+        .map((index) => index.toString(2).padStart(BIP39_WORD_BITS, "0"))
         .join("");
       const entropyBinary = Array.from(entropy, (byte) => byte.toString(2).padStart(8, "0")).join(
         "",
@@ -192,7 +190,7 @@ export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
     allWordsKnown,
     checksumValid,
     entropyBits,
-    checksumBits: entropyBits === null ? null : entropyBits / 32,
+    checksumBits: wordCountValid ? bip39ChecksumBits(wordCount) : null,
     unknownWords,
     words: wordDiagnostics,
     construction,

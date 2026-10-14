@@ -1,16 +1,21 @@
 import { deriveDashCore } from "@ckd/coins/dash/core.js";
+import { DASH_COIN_ADAPTERS } from "@ckd/coins/adapters/dash.js";
+import { runDashPathSelfTest } from "@ckd/coins/dash/path-self-test.js";
 import { deriveDashIdentityAuthenticationKey } from "@ckd/coins/dash/identity.js";
 import { deriveDashPlatform } from "@ckd/coins/dash/platform.js";
 import { requirePublic, rootFromSeed } from "@ckd/core/bip32.js";
 import { bytesToHex, encodeP2pkh, hash160, hexToBytes, wipe } from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import { clearDerivationResult } from "@ckd/core/secrets.js";
-import { expectEqual, now, resultValue } from "./helpers.js";
+import {
+  ABANDON_ABOUT_SEED_HEX,
+  checkDerivationVectors,
+  expectEqual,
+  firstAddressOf,
+  now,
+  resultValue,
+} from "./helpers.js";
 import type { CryptoSelfTestReport } from "./types.js";
-
-const FIXED_SEED_HEX =
-  "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc1" +
-  "9a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4";
 
 // The canonical upstream BIP39 test vector "abandon x11 about" + passphrase
 // "TREZOR", already independently pinned by bip39-self-test.ts. Reusing the
@@ -24,85 +29,38 @@ const COINJOIN_SEED_HEX =
 /** Dash-only worker vectors. This module has no non-Dash protocol imports. */
 export async function runDashDerivationSelfTest(): Promise<CryptoSelfTestReport> {
   const started = now();
-  const checks: string[] = [];
-  const seed = hexToBytes(FIXED_SEED_HEX);
-  const transparentResults = [
-    {
-      name: "Dash Core / BIP44",
-      result: deriveDashCore({
-        seed: seed.slice(),
-        network: "mainnet",
-        account: 0,
-        branch: 0,
-        start: 0,
-        count: 1,
-      }),
-      address: "XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5",
-    },
-    {
-      name: "Dash Core testnet / BIP44",
-      result: deriveDashCore({
-        seed: seed.slice(),
-        network: "testnet",
-        account: 0,
-        branch: 0,
-        start: 0,
-        count: 1,
-      }),
-      address: "yRd4FhXfVGHXpsuZXPNkMrfD9GVj46pnjt",
-    },
-    {
-      name: "Dash Platform / DIP17",
-      result: deriveDashPlatform({
-        seed: seed.slice(),
-        network: "mainnet",
-        account: 0,
-        branch: 0,
-        start: 0,
-        count: 1,
-      }),
-      address: "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs",
-    },
-    {
-      name: "Dash Platform testnet / DIP17",
-      result: deriveDashPlatform({
-        seed: seed.slice(),
-        network: "testnet",
-        account: 0,
-        branch: 0,
-        start: 0,
-        count: 1,
-      }),
-      address: "tdash1kzfj6fvrpza60u6m9u2nhzkthey68v7cqg2u9ymk",
-    },
-  ];
-  try {
-    for (const vector of transparentResults) {
-      expectEqual(vector.name, resultValue(vector.result, "address"), vector.address);
-      checks.push(vector.name);
-    }
-    expectEqual(
-      "Dash BIP32 master public key",
-      resultValue(transparentResults[0]!.result, "masterPublicKey"),
-      "03d902f35f560e0470c63313c7369168d9d7df2d49bf295fd9fb7cb109ccee0494",
-    );
-    expectEqual(
-      "Dash BIP32 master fingerprint",
-      resultValue(transparentResults[0]!.result, "masterFingerprint"),
-      "73c5da0a",
-    );
-    expectEqual(
-      "Dash Core account extended key",
-      resultValue(transparentResults[0]!.result, "accountXpub"),
-      "xpub6CYEjsU6zPM3sADS2ubu2aZeGxCm3C5KabkCpo4rkNbXGAH9M7rRUJ4E5CKiyUddmRzrSCopPzisTBrXkfCD4o577XKM9mzyZtP1Xdbizyk",
-    );
-    checks.push("Dash master/account extended-key integrity");
-  } finally {
-    seed.fill(0);
-    for (const vector of transparentResults) clearDerivationResult(vector.result);
-  }
+  const pathChecks = runDashPathSelfTest({ COIN_ADAPTERS: DASH_COIN_ADAPTERS });
+  const checks = checkDerivationVectors(
+    [
+      {
+        name: "Dash Core / BIP44",
+        derive: (seed) => deriveDashCore(firstAddressOf(seed, "mainnet")),
+        address: "XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5",
+        accountXpub:
+          "xpub6CYEjsU6zPM3sADS2ubu2aZeGxCm3C5KabkCpo4rkNbXGAH9M7rRUJ4E5CKiyUddmRzrSCopPzisTBrXkfCD4o577XKM9mzyZtP1Xdbizyk",
+      },
+      {
+        name: "Dash Core testnet / BIP44",
+        derive: (seed) => deriveDashCore(firstAddressOf(seed, "testnet")),
+        address: "yRd4FhXfVGHXpsuZXPNkMrfD9GVj46pnjt",
+      },
+      {
+        name: "Dash Platform / DIP17",
+        derive: (seed) => deriveDashPlatform(firstAddressOf(seed, "mainnet")),
+        address: "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs",
+        accountXpub:
+          "xpub6FevKUTsHuMwZmumCETpZSSiK2bfW8gyb7kUAPs9Gep7SeskR2DPuaYoKo7vhLC99TMyfnUuyDjsWawjMvfbHvLLG6g9JLf1mjozFk9PUYz",
+      },
+      {
+        name: "Dash Platform testnet / DIP17",
+        derive: (seed) => deriveDashPlatform(firstAddressOf(seed, "testnet")),
+        address: "tdash1kzfj6fvrpza60u6m9u2nhzkthey68v7cqg2u9ymk",
+      },
+    ],
+    "Dash master/account extended-key integrity",
+  );
 
-  const identitySeed = hexToBytes(FIXED_SEED_HEX);
+  const identitySeed = hexToBytes(ABANDON_ABOUT_SEED_HEX);
   try {
     for (const vector of [
       {
@@ -227,5 +185,6 @@ export async function runDashDerivationSelfTest(): Promise<CryptoSelfTestReport>
     shieldedSeed.fill(0);
   }
 
+  checks.unshift(...pathChecks);
   return { passed: true, checks, durationMs: Math.round(now() - started) };
 }

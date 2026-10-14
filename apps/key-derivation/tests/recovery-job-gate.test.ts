@@ -4,6 +4,7 @@ import { RecoveryJobGate, type JobGateChange } from "../src/ui/recovery-job-gate
 describe("Recover & Back Up job gate", () => {
   it("runs one heavy job at a time and frees the slot when a job fails", async () => {
     const gate = new RecoveryJobGate();
+    gate.setReady(true);
     const changes: JobGateChange[] = [];
     gate.onChange((change) => changes.push(change));
     let finish: () => void = () => undefined;
@@ -33,5 +34,20 @@ describe("Recover & Back Up job gate", () => {
     gate.setReady(true);
     expect(gate.ready).toBe(true);
     expect(changes).toEqual(["ready"]);
+  });
+
+  it("refuses secret work before startup and after an enabled-feature self-test failure", async () => {
+    const gate = new RecoveryJobGate();
+    let called = 0;
+    const work = async () => {
+      called += 1;
+    };
+    await expect(gate.runHeavy("Cards", work)).rejects.toThrow("Controls are closed");
+    gate.setReady(true);
+    await gate.runHeavy("Cards", work);
+    gate.setReady(false);
+    await expect(gate.runHeavy("Cards", work)).rejects.toThrow("Controls are closed");
+    expect(called).toBe(1);
+    expect(gate.runningJob).toBeNull();
   });
 });

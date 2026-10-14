@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { GITHUB_SOURCES } from "./verify-dependency-provenance.mjs";
+import { TOOLCHAIN_PINS } from "./toolchain-pins.mjs";
 
 export const WASM_BINDGEN_CRATE_URL = "https://crates.io/api/v1/crates/wasm-bindgen";
 const NOTE_ENCRYPTION_REPOSITORY_URL = "https://api.github.com/repos/dashpay/zcash_note_encryption";
@@ -177,9 +178,10 @@ export function readPinnedVersions(root) {
   );
 
   const node = capture(dockerfile, /^ARG NODE_VERSION=(\S+)$/mu, "Node version");
+  // The Docker build installs package.json's packageManager and the shared toolchain pins, so
+  // these are their only sources (toolchain-pins.mjs keeps the Dockerfiles consuming them).
   const pnpm = capture(String(manifest.packageManager), /^pnpm@(.+)$/u, "pnpm version");
-  const dockerPnpm = capture(dockerfile, /npm install --global pnpm@(\S+)/u, "Docker pnpm version");
-  const rust = capture(dockerfile, /--default-toolchain (\S+)/u, "Rust version");
+  const rust = requiredString(TOOLCHAIN_PINS.rust, "pinned Rust version");
   const rustup = capture(dockerfile, /^ARG RUSTUP_VERSION=(\S+)$/mu, "rustup version");
   const evo = requiredString(manifest.dependencies?.["@dashevo/evo-sdk"], "pinned Evo SDK version");
   const orchard = capture(cargoManifest, /orchard = \{[^}]*tag = "([^"]+)"/u, "Dash Orchard tag");
@@ -218,14 +220,7 @@ export function readPinnedVersions(root) {
   );
   const slip39Commit = pinnedSourceCommit("slip39-reference");
   const seedqrCommit = pinnedSourceCommit("seedsigner-seedqr");
-  const dockerWasmBindgen = capture(
-    dockerfile,
-    /cargo install wasm-bindgen-cli --version (\S+)/u,
-    "wasm-bindgen-cli version",
-  );
-
-  assertSynchronized("pnpm", pnpm, dockerPnpm);
-  assertSynchronized("wasm-bindgen/wasm-bindgen-cli", wasmBindgen, dockerWasmBindgen);
+  assertSynchronized("wasm-bindgen/wasm-bindgen-cli", wasmBindgen, TOOLCHAIN_PINS.wasmBindgen);
   return {
     node,
     pnpm,

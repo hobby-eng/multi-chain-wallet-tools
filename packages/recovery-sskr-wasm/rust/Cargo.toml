@@ -1,6 +1,6 @@
 [package]
 name = "recovery-sskr-wasm"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 rust-version = "1.85.1"
 license = "MIT OR Apache-2.0"
@@ -18,7 +18,7 @@ sskr = "=0.12.0"
 rand_chacha = "=0.9.0"
 rand_core = "=0.9.5"
 wasm-bindgen = "=0.2.129"
-zeroize = "=1.9.0"
+zeroize = "=1.9.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom02 = { package = "getrandom", version = "=0.2.17", features = ["js"] }

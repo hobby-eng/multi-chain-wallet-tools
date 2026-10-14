@@ -1,3 +1,6 @@
+import { MnemoCodeWalletTemplate } from "./mnemocode-wallet-template.mjs";
+import { ToolProtocolFooter } from "./tool-protocol-footer.mjs";
+
 /** ID prefix of every control in the derived (BIP85 child) wallet workspace. */
 const CHILD_WALLET_ID_PREFIX = "bip85-wallet-";
 
@@ -46,7 +49,9 @@ function silentPaymentMarkup(idPrefix) {
   };
 }
 
-export function applyProfileTemplate(template, profile, tool) {
+export function applyProfileTemplate(template, profile, tool, selection) {
+  template = new MnemoCodeWalletTemplate().expand(template);
+  const footer = new ToolProtocolFooter(profile, selection);
   const dashBrandMark =
     profile.id === "dash-community"
       ? '<span class="dash-header-brand"><span class="dash-header-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle cx="471.5" cy="471.5" r="471"/><path d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span><span>Dash Community Edition</span></span>'
@@ -264,9 +269,7 @@ export function applyProfileTemplate(template, profile, tool) {
   const psbtMessageVerifyScope = !profile.capabilities.advancedPsbt
     ? "<strong>Dash:</strong> Dash Core compact P2PKH signatures are checked with the protocol-compatible Dash signed-message domain."
     : "<strong>Bitcoin:</strong> BIP-322 legacy, simple, full, and proof-of-funds formats are checked by the pinned btcutil verifier and Bitcoin Script engine. Unprefixed pre-finalization simple signatures remain accepted for compatibility. <strong>Dash:</strong> Dash Core compact P2PKH signatures are checked with the protocol-compatible Dash signed-message domain.";
-  const psbtFooterProtocols = !profile.capabilities.advancedPsbt
-    ? "Dash Core PSBT v0 · P2SH · multisig · hashlocks · CLTV/CSV"
-    : "BIP-174 · BIP-370 · BIP-371 · BIP-373 · Dash Core PSBT · P2SH/P2WSH · Taproot · MuSig2 · CLTV/CSV";
+  const psbtFooterProtocols = footer.render("psbt-inspector");
   const psbtChainScope = profile.capabilities.advancedPsbt ? " · BITCOIN &amp; DASH" : "";
   const replacements = {
     __DOCUMENT_TITLE__: tool.documentTitle,
@@ -275,7 +278,8 @@ export function applyProfileTemplate(template, profile, tool) {
     __BRAND_NAME__: profile.brandName,
     __EDITION_EYEBROW__: tool.eyebrow,
     __KEY_DERIVATION_INTRODUCTION__: tool.introduction,
-    __KEY_DERIVATION_FOOTER_PROTOCOLS__: tool.footerProtocols,
+    __KEY_DERIVATION_FOOTER_PROTOCOLS__: footer.render("key-derivation"),
+    __DISCOVERY_FOOTER_PROTOCOLS__: footer.render("discovery-scanner"),
     __KEY_DERIVATION_SIGNER_FORMAT_FIELD__: signerFormatField,
     __DASH_HEADER_BRAND__: dashBrandMark,
     __PROFILE_BRAND_MARK__: profileBrandMark,
@@ -319,7 +323,7 @@ export function applyProfileTemplate(template, profile, tool) {
     if (value !== undefined) rendered = rendered.replaceAll(marker, value);
   }
   const remaining = rendered.match(
-    /__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_[A-Z_]+|TOOL_INTRODUCTION|PSBT_[A-Z_]+)__/gu,
+    /__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DISCOVERY_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_[A-Z_]+|TOOL_INTRODUCTION|PSBT_[A-Z_]+)__/gu,
   );
   if (remaining !== null)
     throw new Error(`Unexpanded build-profile marker: ${remaining.join(", ")}`);

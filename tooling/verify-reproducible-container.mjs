@@ -1,11 +1,16 @@
+import { verifyToolchainProjections } from "./toolchain-pins.mjs";
+import { DockerStageGraph } from "./docker-stage-graph.mjs";
+import { CANONICAL_WORKSPACE } from "./verify-wasm-integrity.mjs";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const read = (path) => readFileSync(resolve(root, path), "utf8");
+verifyToolchainProjections(root);
 const dockerfile = read("Dockerfile.reproducible");
 const shellWrapper = read("tooling/build-reproducible.sh");
+const orchestrator = read("tooling/build-reproducible.mjs");
 const manifest = JSON.parse(read("package.json"));
 const nodeVersion = read(".node-version").trim();
 const packageManager = manifest.packageManager;
@@ -24,6 +29,10 @@ function requireMatch(text, pattern, message) {
   if (!pattern.test(text)) throw new Error(message);
 }
 
+// The canonical WASM record writer recognizes the container by this checkout location.
+if (!dockerfile.split("\n").includes(`WORKDIR ${CANONICAL_WORKSPACE}`))
+  throw new Error(`Dockerfile.reproducible must build in WORKDIR ${CANONICAL_WORKSPACE}.`);
+
 requireMatch(
   dockerfile,
   /^FROM buildpack-deps:noble@sha256:[a-f0-9]{64} AS toolchain$/m,
@@ -40,8 +49,8 @@ for (const expected of [
   'apt-get install --yes --no-install-recommends \"clang=${CLANG_VERSION}\" \"wasi-libc=${WASI_LIBC_VERSION}\"',
   'CFLAGS_wasm32_unknown_unknown="-I/usr/include/wasm32-wasi -include /usr/include/wasm32-wasi/string.h"',
   "git config --system http.version HTTP/1.1",
-  `npm install --global ${packageManager}`,
-  "cargo install wasm-bindgen-cli --version 0.2.129 --locked",
+  'npm install --global "${package_manager}"',
+  'cargo install wasm-bindgen-cli --version "${bindgen_version}" --locked',
   "for attempt in 1 2 3 4 5",
   "Cargo fetch attempt ${attempt} failed",
   "ARG SOURCE_COMMIT=unavailable",
@@ -50,14 +59,10 @@ for (const expected of [
   "VERIFICATION_DIRTY=${SOURCE_DIRTY}",
   "RUN --network=none pnpm verify",
   "RUN --network=none pnpm build:matrix:smoke",
-  "diff --recursive --brief /tmp/committed-generated/dash packages/dash-shielded-wasm/generated",
-  "diff --recursive --brief /tmp/committed-generated/codex32 packages/recovery-codex32-wasm/generated",
-  "diff --recursive --brief /tmp/committed-generated/sskr packages/recovery-sskr-wasm/generated",
-  "diff --recursive --brief /tmp/committed-generated/envelope packages/recovery-envelope-wasm/generated",
-  "COPY --from=built /workspace/packages/dash-shielded-wasm/generated /generated/dash",
-  "COPY --from=built /workspace/packages/recovery-codex32-wasm/generated /generated/codex32",
-  "COPY --from=built /workspace/packages/recovery-sskr-wasm/generated /generated/sskr",
-  "COPY --from=built /workspace/packages/recovery-envelope-wasm/generated /generated/envelope",
+  "node tooling/wasm-catalog.mjs fetch",
+  "node tooling/wasm-catalog.mjs snapshot /tmp/committed-generated",
+  "node tooling/wasm-catalog.mjs verify /tmp/committed-generated",
+  "COPY --from=wasm-built /tmp/wasm-artifacts /generated",
   "FROM scratch AS artifacts",
   "FROM scratch AS wasm-artifacts",
 ]) {
@@ -65,18 +70,34 @@ for (const expected of [
     throw new Error(`Missing canonical container assertion: ${expected}`);
 }
 
+const stages = new DockerStageGraph(dockerfile);
+const wasmCommands = stages.runCommands("wasm-artifacts").join("\n");
+if (/\bpnpm\s+(?:verify\b|build:matrix:smoke\b)/u.test(wasmCommands))
+  throw new Error("WASM regeneration must not execute release verification or the build matrix.");
+const releaseCommands = stages.runCommands("artifacts").join("\n");
+for (const required of [
+  "pnpm verify",
+  "pnpm build:matrix:smoke",
+  "verify /tmp/committed-generated",
+])
+  if (!releaseCommands.includes(required))
+    throw new Error(`The release target lost its mandatory gate: ${required}`);
+
 for (const expected of [
-  "git rev-parse HEAD",
-  "git status --porcelain",
-  '--build-arg "SOURCE_COMMIT=$source_commit"',
-  '--build-arg "SOURCE_DIRTY=$source_dirty"',
+  'spawnSync("git", ["rev-parse", "HEAD"]',
+  'spawnSync("git", ["status", "--porcelain"]',
+  "`SOURCE_COMMIT=${sourceCommit}`",
+  "`SOURCE_DIRTY=${String(sourceDirty)}`",
 ]) {
-  if (!shellWrapper.includes(expected)) {
+  if (!orchestrator.includes(expected)) {
     throw new Error(
       `The local reproducible-build wrapper is missing provenance binding: ${expected}`,
     );
   }
 }
+
+if (!shellWrapper.includes('exec node "$root/tooling/build-reproducible.mjs" "$@"'))
+  throw new Error("The shell entry point must delegate to the catalog-based build orchestrator.");
 
 for (const path of [
   ".github/workflows/ci.yml",

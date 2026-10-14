@@ -7,7 +7,14 @@ import { fileURLToPath } from "node:url";
 import { unzipSync } from "fflate";
 import { PDFDocument } from "pdf-lib";
 import decodeQr from "qr/decode.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@ckd/recovery-sskr-wasm/recovery_sskr_wasm_bg.wasm", async () => ({
+  default: readFileSync(
+    new URL("../../recovery-sskr-wasm/generated/recovery_sskr_wasm_bg.wasm", import.meta.url),
+  ),
+}));
+
 import { decodeMnemoCode, encodeMnemoCode, parseMnemoCodeDates } from "../src/mnemocode.js";
 import {
   MNEMOCODE_CARD_ASSETS,
@@ -17,11 +24,20 @@ import {
   createMnemoCodeCardExporter,
   createMnemoCodeCardPlatform,
   mnemoCodeCardOutput,
+  mnemoCodeCardSavedNote,
   decodePng,
   encodePng,
   uniformInteger,
+  type MnemoCodeCardFile,
   type MnemoCodeCardRequest,
+  type MnemoCodeShareCardRequest,
 } from "../src/mnemocode-cards.js";
+import { createSskrShares, sskrCodec } from "../src/sskr.js";
+
+/** The UR records of a public test set, `threshold` of `count`: MnemoCode reads the quorum from them. */
+function shareRecords(threshold: number, count: number): string[] {
+  return createSskrShares(new Uint8Array(16), 1, [{ threshold, count }]);
+}
 
 // Public BIP39 test vector; never a real wallet.
 const MNEMONIC =
@@ -47,6 +63,36 @@ const request: MnemoCodeCardRequest = {
   profile: { name: "John Smith", company: "Example Systems", role: "Systems Engineer" },
 };
 
+/** Two shares of any three restore the public phrase above; a fixed seed keeps them the same. */
+function phraseShares(): string[] {
+  const entropy = new Uint8Array(16); // "abandon … about" is the all-zero 128-bit entropy.
+  const seed = Uint8Array.from({ length: 32 }, (_, index) => (index * 37 + 11) & 0xff);
+  return sskrCodec().create(entropy, 1, [{ threshold: 2, count: 3 }], seed);
+}
+
+const shareRequest = (
+  more: Partial<MnemoCodeShareCardRequest> = {},
+): MnemoCodeShareCardRequest => ({
+  template: request.template,
+  pageSize: request.pageSize,
+  qr: false,
+  profile: request.profile,
+  records: phraseShares(),
+  masked: false,
+  shareFormat: "colors",
+  ...more,
+});
+
+/** A saved file as the note sees it: never its bytes. */
+const savedFile = (more: Partial<MnemoCodeCardFile>): MnemoCodeCardFile => ({
+  fileName: "cards-a6.pdf",
+  mimeType: "application/pdf",
+  bytes: new Uint8Array(0),
+  cards: 1,
+  printed: { name: "John Smith", company: "Example Systems", studio: "" },
+  ...more,
+});
+
 // RGBA pixels of the bundled PNG artwork as decoded by MnemoCode's own Node.js host.
 const PIXELS: Record<string, string> = {
   "images/business-architect-v1.png":
@@ -54,29 +100,32 @@ const PIXELS: Record<string, string> = {
   "images/business-contact-v1.png":
     "900x500:ceeb0b89ff0cb4617cee8dcbbfeb02db4a6224c576491c25164a49d915bdf971",
   "images/business-curves-v1.png":
-    "900x500:eb9efd24cfd964793cff35a894bffb3b9a260211fad88189f793d818d06d2326",
+    "900x500:5222eb4089f93b565b26172307e6eeae21b95839e32e8b62cb31b438d3065f8f",
   "images/business-diagonal-v1.png":
     "900x500:8e3d487eb413133d1eb5b47d520867b5f7d3577c9371e41576b1f23c3a7f9783",
   "images/business-estate-v1.png":
     "720x400:99d2f22d90c25cc7eef4b74e35dcecafee49adf989f705b3ecf3480532f0549c",
   "images/business-facets-v1.png":
     "900x500:9f7635552afd756119b1014b411f3ec0d888d8e23175997ed1be60768d033390",
-  "images/business-glass-4in1.png":
-    "900x500:e309d59cfea1f869bdb7f03542e9fdf19b5b3b51bac3154cbbd8fcfb0490cf31",
   "images/business-it-v1.png":
     "900x500:6296b7605019057cf15c7e89ab490ddef3bd575a657f120f63520b612b42a5d7",
 };
 
 describe("MnemoCode card export", () => {
   it("offers the template list of the vendored MnemoCode registry", () => {
-    expect(MNEMOCODE_CARD_TEMPLATES).toHaveLength(16);
-    expect(new Set(MNEMOCODE_CARD_TEMPLATES.map((template) => template.id)).size).toBe(16);
-    expect(MNEMOCODE_CARD_PAGE_SIZES.map((size) => size.id)).toEqual(["a6", "a4", "business"]);
+    expect(MNEMOCODE_CARD_TEMPLATES).toHaveLength(13);
+    expect(new Set(MNEMOCODE_CARD_TEMPLATES.map((template) => template.id)).size).toBe(13);
+    expect(MNEMOCODE_CARD_PAGE_SIZES.map((size) => size.id)).toEqual([
+      "a6",
+      "a5",
+      "a4",
+      "business",
+    ]);
     // Sheet sizes hold the collection; the card size means separate cards.
     expect(
-      ["", undefined, "a6", "a4", "business"].map((size) => mnemoCodeCardOutput(size)),
-    ).toEqual(["collection", "collection", "collection", "collection", "individual"]);
-    expect(MNEMOCODE_CARD_FILE_FORMATS.map((format) => format.id)).toEqual(["pdf", "png"]);
+      ["", undefined, "a6", "a5", "a4", "business"].map((size) => mnemoCodeCardOutput(size)),
+    ).toEqual(["collection", "collection", "collection", "collection", "collection", "individual"]);
+    expect(MNEMOCODE_CARD_FILE_FORMATS.map((format) => format.id)).toEqual(["pdf", "png", "jpg"]);
   });
 
   it("decodes the bundled PNG artwork to the same pixels as MnemoCode and encodes without loss", () => {
@@ -87,7 +136,7 @@ describe("MnemoCode card export", () => {
       const digest = createHash("sha256").update(image.data).digest("hex");
       expect(`${image.width}x${image.height}:${digest}`, path).toBe(PIXELS[path]);
     }
-    const original = decodePng(readAsset("images/business-glass-4in1.png"));
+    const original = decodePng(readAsset("images/business-it-v1.png"));
     const restored = decodePng(encodePng(original));
     expect(restored.width).toBe(original.width);
     expect(restored.height).toBe(original.height);
@@ -141,9 +190,11 @@ describe("MnemoCode card export", () => {
     const colors = encodeMnemoCode(MNEMONIC, request.mode, "colors", request.dates).colors;
     const archive = await exporter.render({ ...request, pageSize: "business" });
     expect(archive.mimeType).toBe("application/zip");
-    expect(archive.cards).toBe(colors.length);
     const files = unzipSync(archive.bytes);
-    expect(Object.keys(files)).toEqual(
+    // One code a card: the backup's codes in order, then at least one decoy (MnemoCode's plan).
+    expect(archive.cards).toBe(Object.keys(files).length);
+    expect(archive.cards).toBeGreaterThan(colors.length);
+    expect(Object.keys(files).slice(0, colors.length)).toEqual(
       colors.map(
         (color, index) =>
           `${String(index + 1).padStart(2, "0")}-${color.slice(1).toUpperCase()}.pdf`,
@@ -182,7 +233,7 @@ describe("MnemoCode card export", () => {
     const mixed = await own.render({
       ...invented,
       profile: { name: "John Smith" },
-      studioName: "AURORA STUDIO",
+      copy: { studioName: "AURORA STUDIO" },
     });
     expect(mixed.printed).toEqual({
       name: "John Smith",
@@ -254,26 +305,45 @@ describe("MnemoCode card export", () => {
 
     const colors = encodeMnemoCode(MNEMONIC, request.mode, "colors", request.dates).colors;
     const archive = await images.render({ ...request, pageSize: "business", fileFormat: "png" });
-    expect([archive.fileName, archive.mimeType, archive.cards]).toEqual([
-      "cards-business.zip",
-      "application/zip",
-      colors.length,
-    ]);
-    expect(Object.keys(unzipSync(archive.bytes))).toEqual(
+    expect([archive.fileName, archive.mimeType]).toEqual(["cards-business.zip", "application/zip"]);
+    const names = Object.keys(unzipSync(archive.bytes));
+    // The backup's codes in order, then the decoys of the separate cards.
+    expect(archive.cards).toBe(names.length);
+    expect(names.slice(0, colors.length)).toEqual(
       colors.map(
         (color, index) =>
           `${String(index + 1).padStart(2, "0")}-${color.slice(1).toUpperCase()}.png`,
       ),
     );
     // Every PDF was recovery material and is filled with zeros after its image exists.
-    expect(received).toHaveLength(1 + colors.length);
+    expect(received).toHaveLength(1 + archive.cards);
     for (const pdf of received) expect(pdf.every((byte) => byte === 0)).toBe(true);
+    // The same layout saved as PDF keeps those decoys, so both files show the same cards.
+    const documents = await images.render({ ...request, pageSize: "business" });
+    expect(Object.keys(unzipSync(documents.bytes))).toEqual(
+      names.map((name) => name.replace(/\.png$/u, ".pdf")),
+    );
+    // A sheet without a given orientation keeps the one its plan chose, in every file type.
+    const turned: string[] = [];
+    const sheets = createMnemoCodeCardExporter(readAsset, async (pdf) => {
+      const { width, height } = (await PDFDocument.load(pdf)).getPage(0).getSize();
+      turned.push(width > height ? "landscape" : "portrait");
+      return [new Uint8Array(1)];
+    });
+    const automatic = { ...request, template: "material-vehicle", orientation: "" };
+    await sheets.render({ ...automatic, fileFormat: "png" });
+    const pdfSheet = await sheets.render(automatic);
+    const { width, height } = (await PDFDocument.load(pdfSheet.bytes)).getPage(0).getSize();
+    expect(turned).toEqual([width > height ? "landscape" : "portrait"]);
 
     await expect(exporter.render({ ...request, fileFormat: "png" })).rejects.toThrow(
       "Image export is unavailable",
     );
-    await expect(exporter.render({ ...request, fileFormat: "jpg" })).rejects.toThrow(
-      "Select PDF or PNG",
+    // JPEG is an image too, written by the same image maker; an unknown format is refused.
+    const jpeg = await images.render({ ...request, fileFormat: "jpg" });
+    expect([jpeg.fileName, jpeg.mimeType]).toEqual(["cards-a6.jpg", "image/jpeg"]);
+    await expect(exporter.render({ ...request, fileFormat: "gif" })).rejects.toThrow(
+      "Select PDF, PNG or JPEG",
     );
     const twoPages = createMnemoCodeCardExporter(readAsset, async () => [
       new Uint8Array(1),
@@ -284,13 +354,35 @@ describe("MnemoCode card export", () => {
     );
   }, 120_000);
 
+  it("draws sample cards in every output the preview command has (AUD-023-API003)", async () => {
+    const images = createMnemoCodeCardExporter(readAsset, async (pdf) => [
+      Uint8Array.from([0x89, 0x50, 0x4e, 0x47, ...pdf.subarray(0, 5)]),
+    ]);
+    const sample = { template: "business-it", words: 12 };
+    const pdf = await exporter.renderSamples({ ...sample, qr: true, title: "Sample studio" });
+    expect([pdf.fileName, pdf.mimeType]).toEqual(["mnemocode-preview.pdf", "application/pdf"]);
+    expect(Buffer.from(pdf.bytes.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
+    const png = await images.renderSamples({ ...sample, fileFormat: "png" });
+    expect([png.fileName, png.mimeType]).toEqual(["mnemocode-preview.png", "image/png"]);
+    // Separate cards of one design, as --cards-dir saves them.
+    const cards = await exporter.renderSamples({ ...sample, pageSize: "business" });
+    expect([cards.fileName, cards.mimeType]).toEqual([
+      "mnemocode-preview-business.zip",
+      "application/zip",
+    ]);
+    expect(Object.keys(unzipSync(cards.bytes)).length).toBe(cards.cards);
+    await expect(
+      exporter.renderSamples({ template: "", words: 12, pageSize: "business" }),
+    ).rejects.toThrow("Separate sample cards show one design");
+  }, 120_000);
+
   it("rejects invalid requests before rendering", async () => {
     await expect(exporter.render({ ...request, template: "unknown" })).rejects.toThrow(
       "Select a card template.",
     );
     await expect(exporter.render({ ...request, pageSize: "a3" })).rejects.toThrow();
     await expect(exporter.render({ ...request, pageSize: "wallet" })).rejects.toThrow(
-      "a6, a4 or business",
+      "a6, a5, a4 or business",
     );
     await expect(exporter.render({ ...request, orientation: "diagonal" })).rejects.toThrow();
     await expect(exporter.render({ ...request, mnemonic: "abandon abandon" })).rejects.toThrow();
@@ -299,4 +391,104 @@ describe("MnemoCode card export", () => {
       createMnemoCodeCardExporter(() => new Uint8Array()).render(request),
     ).rejects.toThrow(/missing from this build/u);
   });
+
+  it("words the saved note by what the cards hold", () => {
+    const printed = "Printed for John Smith, Example Systems.";
+    expect(mnemoCodeCardSavedNote(savedFile({}))).toBe(
+      `Saved cards-a6.pdf. ${printed} Print it at 100% size. The printed codes can restore the wallet; keep the file and the prints private.`,
+    );
+    expect(
+      mnemoCodeCardSavedNote(
+        savedFile({ fileName: "cards-business.zip", mimeType: "application/zip", cards: 9 }),
+      ),
+    ).toBe(
+      `Saved cards-business.zip with 9 cards. ${printed} Every card is needed for recovery; keep the file and the prints private.`,
+    );
+
+    const shareZip = (fragmented: boolean, threshold = 2, masked = false): string =>
+      mnemoCodeCardSavedNote(
+        savedFile({
+          fileName: "share-cards-business.zip",
+          mimeType: "application/zip",
+          cards: 6,
+          shares: { records: shareRecords(threshold, 3), fragmented, masked },
+        }),
+      );
+    const fragments = shareZip(true);
+    expect(fragments).toContain(`Saved share-cards-business.zip with 6 cards. ${printed}`);
+    expect(fragments).toContain("Any 2 of the 3 shares are enough for recovery");
+    expect(fragments).toContain("each folder is one share and needs all its cards");
+    expect(fragments).toContain("Store the shares apart. Keep the file and the prints private.");
+    expect(fragments).not.toContain("Every card is needed");
+    expect(shareZip(false)).toContain("; each file is one share.");
+    expect(shareZip(false, 3)).toContain("All 3 shares are needed for recovery");
+
+    const shareSheets = (masked: boolean): string =>
+      mnemoCodeCardSavedNote(
+        savedFile({
+          fileName: "share-cards-a6.pdf",
+          cards: 3,
+          shares: { records: shareRecords(2, 3), fragmented: false, masked },
+        }),
+      );
+    const sheets = shareSheets(false);
+    expect(sheets).toContain("Print it at 100% size");
+    expect(sheets).toContain(
+      "Any 2 of the 3 shares are enough for recovery; the file holds every share.",
+    );
+    expect(sheets).not.toContain("The printed codes can restore the wallet");
+    // A share printed again on its own is not enough by itself, and the note says so.
+    expect(
+      mnemoCodeCardSavedNote(
+        savedFile({
+          shares: { records: shareRecords(2, 2).slice(0, 1), fragmented: false, masked: false },
+        }),
+      ),
+    ).toContain("These shares are fewer than the 2 needed for recovery");
+
+    // Seedshift shares restore the decoy; the note sends the reader to the dates, as MnemoCode does.
+    const dates =
+      "to restore the masked phrase (decoy), which only the same dates turn back into the original seed phrase, the wallet's";
+    const maskedZip = shareZip(true, 2, true);
+    expect(maskedZip).toContain(
+      `Any 2 of the 3 shares are enough ${dates}; each folder is one share and needs all its cards.`,
+    );
+    expect(maskedZip).not.toContain("enough for recovery");
+    const maskedSheets = shareSheets(true);
+    expect(maskedSheets).toContain("Print it at 100% size");
+    expect(maskedSheets).toContain(
+      `Any 2 of the 3 shares are enough ${dates}; the file holds every share.`,
+    );
+    expect(maskedSheets).not.toContain("enough for recovery");
+    expect(shareZip(false, 3, true)).toContain(`All 3 shares are needed ${dates}`);
+  });
+
+  it("reports the threshold, count and fragments of share cards", async () => {
+    // A stand-in for the canvas of a browser, as in the image test above.
+    const images = createMnemoCodeCardExporter(readAsset, async (pdf) => [pdf.slice(0, 5)]);
+    const sheetImages = await images.renderShares(shareRequest({ fileFormat: "png" }));
+    expect(sheetImages.mimeType).toBe("application/zip");
+    // The facts carry the records; MnemoCode reads "any 2 of the 3" from them for the note.
+    expect(sheetImages.shares).toMatchObject({ fragmented: false, masked: false });
+    expect(sheetImages.shares?.records).toHaveLength(3);
+    expect(mnemoCodeCardSavedNote(sheetImages)).toContain("Any 2 of the 3 shares are enough");
+    const names = Object.keys(unzipSync(sheetImages.bytes));
+    expect(names).toHaveLength(3);
+    for (const name of names) expect(name).toMatch(/^collection-[0-9A-F]{4}-1-[1-3]\.png$/u);
+
+    // Separate cards: each share's cards, one code each, in a folder of its own.
+    const separate = await exporter.renderShares(
+      shareRequest({ pageSize: "business", template: "business-architect" }),
+    );
+    expect(separate.mimeType).toBe("application/zip");
+    expect(separate.shares).toMatchObject({ fragmented: true, masked: false });
+    expect(separate.shares?.records).toHaveLength(3);
+
+    // The records cannot tell a Seedshift split, so the request's word is carried to the note.
+    const sheets = await exporter.renderShares(shareRequest({ pageSize: "", masked: true }));
+    expect(sheets.mimeType).toBe("application/pdf");
+    expect(sheets.shares).toMatchObject({ fragmented: false, masked: true });
+
+    // The official grouped input is covered without PDF rendering in mnemocode-share-card-plans.test.ts.
+  }, 120_000);
 });

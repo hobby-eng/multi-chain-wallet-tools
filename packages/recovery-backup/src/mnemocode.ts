@@ -6,54 +6,47 @@
  * tooling/sync-mnemocode-source.mjs. This module only adds the Derivation
  * Tool's input limits, its BIP39 validation and the result shapes used by the UI.
  */
-import { validateMnemonic } from "@scure/bip39";
-import { wordlist as englishWordlist } from "@scure/bip39/wordlists/english.js";
 import { assertValidMnemonic } from "@ckd/core/bip39.js";
+import { wordlist as englishWordlist } from "@scure/bip39/wordlists/english.js";
 import {
-  decodeIndexes,
-  decodeIndexesLegacy,
-  decodeIndexesLegacyValid,
-  encodeMnemonic,
-  encodeMnemonicLegacy,
-  formatEncoded,
   indexesToColors,
-  legacyChecksumValidResult,
   parseDate,
-  parseInput,
   recoverLegacyValidLastWords,
-  recoverMissingWord,
-  representMnemonic,
-  type DateShiftDate,
-  type EncodedResult,
   type MissingWordCandidate,
 } from "../../recovery-mnemocode/source/core.js";
-import { resultFromIndexes } from "../../recovery-mnemocode/source/core/representations.js";
+import { BackupReading } from "../../recovery-mnemocode/source/core/backup-reading.js";
+import {
+  BIP39_WORD_COUNTS,
+  type Bip39WordCount,
+} from "../../recovery-mnemocode/source/core/bip39-sizes.js";
+import { WordCandidateSearch } from "../../recovery-mnemocode/source/core/candidates.js";
+import { DatesAnswer } from "../../recovery-mnemocode/source/core/date-search.js";
+import { EncodedBackup } from "../../recovery-mnemocode/source/core/encoded-backup.js";
+import {
+  phraseChecksumValid,
+  phraseOfIndexes,
+} from "../../recovery-mnemocode/source/core/english-words.js";
+import { Masking } from "../../recovery-mnemocode/source/core/masking.js";
+import { formatEncoded } from "../../recovery-mnemocode/source/core/representations.js";
+import {
+  ENCODED_FORMATS,
+  MASKING_MODES,
+  type DateShiftDate,
+  type EncodedFormat,
+  type MaskingMode,
+} from "../../recovery-mnemocode/source/core/types.js";
 import {
   parseRecord,
-  serializeRecord,
   type MnemoCodeRecord as CoreRecord,
 } from "../../recovery-mnemocode/source/record.js";
 
 /** Must equal the version in packages/recovery-mnemocode/source.json; a test enforces it. */
 export const MNEMOCODE_VERSION = "0.1.0";
 
-export const MNEMOCODE_FORMATS = [
-  "english",
-  "indexes",
-  "unicode",
-  "colors",
-  "colors-unicode",
-] as const;
-export type MnemoCodeFormat = (typeof MNEMOCODE_FORMATS)[number];
-
-export const MNEMOCODE_MODES = [
-  "direct",
-  "seedshift",
-  "seedshift-legacy",
-  "seedshift-legacy-valid",
-] as const;
-export type MnemoCodeMode = (typeof MNEMOCODE_MODES)[number];
-
+// The forms and modes are MnemoCode's own, in its order (core/types.ts).
+export { ENCODED_FORMATS, MASKING_MODES };
+export type MnemoCodeFormat = EncodedFormat;
+export type MnemoCodeMode = MaskingMode;
 export type MnemoCodeDate = DateShiftDate;
 export type MnemoCodeMissingWordCandidate = MissingWordCandidate;
 export type MnemoCodeRecord = CoreRecord;
@@ -63,12 +56,21 @@ export interface MnemoCodeEncodeResult {
   readonly format: MnemoCodeFormat;
   readonly payload: string;
   readonly record: string;
+  /** The library's JSON representation includes dates and shifts, unlike an MNC1 record. */
+  readonly json: string;
   readonly colors: readonly string[];
   readonly checksumValid: boolean;
   /** The phrase that was encoded, with its words written out in full. */
   readonly mnemonic: string;
   /** The encoded words as a BIP39 phrase; absent when they fail its checksum (Original Seedshift). */
   readonly encodedMnemonic?: string;
+  /** The codes as BIP39 word indexes, 0 to 2047, as a backup check compares them. */
+  readonly indexes: readonly number[];
+  /**
+   * For the Original Seedshift: the masked phrase with a checksum-valid last word, chosen or not,
+   * and whether that word differs from the shifted one (EncodedBackup.encode).
+   */
+  readonly validLastWord?: { readonly phrase: string; readonly changed: boolean };
 }
 
 export interface MnemoCodeDecodeResult {
@@ -77,14 +79,24 @@ export interface MnemoCodeDecodeResult {
   readonly checksumValid: boolean;
   readonly mnemonic?: string;
   readonly candidates?: readonly string[];
+  /**
+   * Where the checksum failed, the phrases of fewer words that the first codes give with a valid
+   * checksum (EncodedBackup.shorterPhrases): codes typed from printed cards end with decoys. A page
+   * shows them by fingerprint only, as MnemoCode's decode does.
+   */
+  readonly shorter?: readonly { readonly words: Bip39WordCount; readonly mnemonic: string }[];
 }
 
-const WORD_COUNTS = new Set([12, 15, 18, 21, 24]);
-const DICTIONARY_SIZE = 2048;
-// Pasted browser input is bounded before any parser allocates from it.
+/** The lengths a seed phrase may have, for the page's word-count choices (MnemoCode's list). */
+export const MNEMOCODE_PHRASE_WORD_COUNTS: readonly Bip39WordCount[] = BIP39_WORD_COUNTS;
+
+/** The words of the seed phrase, where the person gave them: only so many words' codes are read. */
+export type MnemoCodePhraseWords = Bip39WordCount | undefined;
+
+// Pasted browser input is bounded before any parser allocates from it: the page's own limit.
 const MAX_INPUT_LENGTH = 64 * 1024;
-const FORMAT_SET = new Set<string>(MNEMOCODE_FORMATS);
-const MODE_SET = new Set<string>(MNEMOCODE_MODES);
+/** Where this page reads Shamir shares, which MnemoCode names when a share is typed elsewhere. */
+export const MNEMOCODE_SHARE_READER = "MnemoCode's Restore tab";
 
 function assertInputLength(value: string): void {
   if (value.length === 0) throw new Error("Enter a MnemoCode payload or MNC1 record.");
@@ -97,30 +109,41 @@ function assertMnemonicLength(value: string): void {
     throw new Error("Mnemonic input exceeds the 64 KiB safety limit.");
 }
 
-function assertIndexes(indexes: readonly number[]): void {
-  if (!WORD_COUNTS.has(indexes.length))
-    throw new Error("Expected 12, 15, 18, 21, or 24 BIP39 words.");
-  if (indexes.some((index) => !Number.isInteger(index) || index < 0 || index >= DICTIONARY_SIZE)) {
-    throw new Error("Every BIP39 index must be an integer from 0 through 2047.");
-  }
+/**
+ * A backup as typed or pasted, read by MnemoCode's own rules (core/backup-reading.ts): its record
+ * header, and a Shamir share refused with the place this page reads it; `seedshiftOnly` refuses a
+ * record without Seedshift where only a Seedshift backup will do.
+ */
+export function readMnemoCodeBackup(
+  text: string,
+  seedshiftOnly = false,
+  words?: MnemoCodePhraseWords,
+): BackupReading {
+  assertInputLength(text.trim());
+  return BackupReading.of(text, {
+    seedshiftOnly,
+    shareReader: MNEMOCODE_SHARE_READER,
+    ...(words === undefined ? {} : { words }),
+  });
 }
 
-function assertMode(mode: MnemoCodeMode): void {
-  if (!MODE_SET.has(mode)) throw new Error(`Unsupported MnemoCode mode: ${String(mode)}.`);
-}
-
-function assertFormat(format: MnemoCodeFormat): void {
-  if (!FORMAT_SET.has(format)) throw new Error(`Unsupported MnemoCode format: ${String(format)}.`);
-}
-
-function englishFromIndexes(indexes: readonly number[]): string {
-  assertIndexes(indexes);
-  return indexes.map((index) => englishWordlist[index]!).join(" ");
-}
-
+/** The candidates of a phrase with one forgotten word, written ?: MnemoCode's word search. */
 export function recoverMnemoCodeWord(value: string): MnemoCodeMissingWordCandidate[] {
   assertMnemonicLength(value);
-  return recoverMissingWord(value);
+  const search = WordCandidateSearch.parse(value, "unknown-words");
+  if (search.unknownPlaces.length !== 1)
+    throw new Error("Enter exactly one ? placeholder for the forgotten BIP39 word.");
+  const place = search.unknownPlaces[0]!;
+  return Array.from(search.candidates(), (candidate) => {
+    const index = candidate.words[place]!;
+    return {
+      position: place + 1,
+      word: englishWordlist[index]!,
+      wordIndex: index + 1,
+      mnemonic: candidate.phrase,
+      checksumBits: candidate.checksumBits,
+    };
+  });
 }
 
 export function recoverMnemoCodeLegacyLastWords(value: string): MnemoCodeMissingWordCandidate[] {
@@ -132,55 +155,28 @@ export function parseMnemoCodeDate(value: string): MnemoCodeDate {
   return parseDate(value);
 }
 
+/**
+ * The dates of a Seedshift phrase typed in full, read by MnemoCode's own reader (DatesAnswer) with
+ * its separators, limits and messages; none for an empty field, which the caller judges.
+ */
 export function parseMnemoCodeDates(value: string): MnemoCodeDate[] {
   if (value.length > MAX_INPUT_LENGTH)
     throw new Error("Date input exceeds the 64 KiB safety limit.");
-  return value
-    .trim()
-    .split(/[\s,;]+/u)
-    .filter(Boolean)
-    .map(parseMnemoCodeDate);
+  if (value.trim() === "") return [];
+  return [...DatesAnswer.parse(value.trim(), { patterns: false }).known];
 }
 
-export function mnemoCodeIndexesToColors(indexes: readonly number[]): string[] {
-  assertIndexes(indexes);
-  return indexesToColors(indexes);
+/**
+ * The dates that `mode` takes from `text`: none for a mode without Seedshift, whose text left in
+ * a hidden field is ignored (MnemoCode's Masking says which modes mask).
+ */
+export function mnemoCodeDatesFor(mode: MnemoCodeMode, text: string): MnemoCodeDate[] {
+  return Masking.of(mode).masked ? parseMnemoCodeDates(text) : [];
 }
 
-export function formatMnemoCode(indexes: readonly number[], format: MnemoCodeFormat): string {
-  assertIndexes(indexes);
-  assertFormat(format);
-  return formatEncoded(resultFromIndexes([], indexes, [], []), format);
-}
-
-export function parseMnemoCode(value: string, format: MnemoCodeFormat): number[] {
-  assertInputLength(value);
-  assertFormat(format);
-  const indexes = parseInput(value, format);
-  assertIndexes(indexes);
-  return indexes;
-}
-
-export function detectMnemoCodeFormats(value: string): MnemoCodeFormat[] {
-  return MNEMOCODE_FORMATS.filter((format) => {
-    try {
-      parseMnemoCode(value, format);
-      return true;
-    } catch {
-      return false;
-    }
-  });
-}
-
-export function serializeMnemoCodeRecord(
-  mode: MnemoCodeMode,
-  format: MnemoCodeFormat,
-  payload: string,
-): string {
-  assertMode(mode);
-  assertFormat(format);
-  assertInputLength(payload.trim());
-  return serializeRecord(mode, format, payload);
+/** Whether `mode` masks the phrase with dates, which are then needed to undo it. */
+export function mnemoCodeTakesDates(mode: MnemoCodeMode): boolean {
+  return Masking.of(mode).masked;
 }
 
 export function parseMnemoCodeRecord(value: string): MnemoCodeRecord | undefined {
@@ -188,97 +184,87 @@ export function parseMnemoCodeRecord(value: string): MnemoCodeRecord | undefined
   return parseRecord(value);
 }
 
-function datesForMode(
-  mode: MnemoCodeMode,
-  dates: readonly MnemoCodeDate[],
-): readonly MnemoCodeDate[] {
-  if (mode === "direct") {
-    if (dates.length > 0) throw new Error("Direct mode does not use dates.");
-    return [];
-  }
-  if (dates.length === 0) throw new Error("Seedshift modes require at least one date.");
-  return dates;
-}
-
-function transform(
-  mnemonic: string,
-  mode: MnemoCodeMode,
-  dates: readonly MnemoCodeDate[],
-): EncodedResult {
-  if (mode === "direct") return representMnemonic(mnemonic);
-  if (mode === "seedshift") return encodeMnemonic(mnemonic, dates);
-  const legacy = encodeMnemonicLegacy(mnemonic, dates);
-  return mode === "seedshift-legacy-valid" ? legacyChecksumValidResult(legacy) : legacy;
-}
-
+/**
+ * The codes of `mnemonic` in `mode`, with `dates` where the mode takes them, made by MnemoCode's
+ * own Encode (EncodedBackup.encode), which also refuses a wrong count of dates. This page offers
+ * the Original Seedshift with a checksum-valid last word as a mode of its own,
+ * "seedshift-legacy-valid": that is the Original Seedshift with its last word replaced, which the
+ * record then names only where the word really changed.
+ */
 export function encodeMnemoCode(
   mnemonic: string,
   mode: MnemoCodeMode,
   format: MnemoCodeFormat,
   dates: readonly MnemoCodeDate[] = [],
 ): MnemoCodeEncodeResult {
-  assertMode(mode);
-  assertFormat(format);
   assertMnemonicLength(mnemonic);
+  const validLastWord = mode === "seedshift-legacy-valid";
+  const asked: MnemoCodeMode = validLastWord ? "seedshift-legacy" : mode;
+  EncodedBackup.assertEncodable(asked, { validLastWord });
+  Masking.of(asked).assertDateCount(dates.length);
   const canonical = assertValidMnemonic(mnemonic);
-  const enteredDates = datesForMode(mode, dates);
-  const result = transform(canonical, mode, enteredDates);
-  // A legacy phrase whose checksum is already valid needs no replacement and keeps the exact legacy profile.
-  const effectiveMode =
-    mode === "seedshift-legacy-valid" &&
-    result.shiftedIndexes.at(-1) ===
-      encodeMnemonicLegacy(canonical, enteredDates).shiftedIndexes.at(-1)
-      ? "seedshift-legacy"
-      : mode;
-  const payload = formatEncoded(result, format);
-  const encodedMnemonic = result.shiftedEnglish.join(" ");
-  const checksumValid = validateMnemonic(encodedMnemonic, englishWordlist);
+  const {
+    backup,
+    result: encoded,
+    validLastWord: alternative,
+    lastWordChanged,
+  } = EncodedBackup.encode(canonical, dates, format, asked, { validLastWord });
+  const encodedMnemonic = phraseOfIndexes(backup.indexes);
+  const checksumValid = phraseChecksumValid(encodedMnemonic);
   return {
-    mode: effectiveMode,
+    mode: backup.mode,
     format,
-    payload,
-    record: serializeMnemoCodeRecord(effectiveMode, format, payload),
-    colors: indexesToColors(result.shiftedIndexes),
+    payload: backup.text(),
+    record: backup.record(),
+    json: formatEncoded(encoded, "json"),
+    colors: indexesToColors(backup.indexes),
     checksumValid,
     mnemonic: canonical,
     ...(checksumValid ? { encodedMnemonic } : {}),
+    indexes: [...backup.indexes],
+    ...(alternative === undefined
+      ? {}
+      : {
+          validLastWord: {
+            phrase: alternative.shiftedEnglish.join(" "),
+            changed: lastWordChanged,
+          },
+        }),
   };
 }
 
-/** The codes of an input: a record names its mode and form; raw input takes the selected ones. */
-interface MnemoCodeCodes {
-  readonly mode: MnemoCodeMode;
-  readonly format: MnemoCodeFormat;
-  readonly indexes: number[];
-}
-
-function readCodes(
+/**
+ * The codes of an input with their mode, by MnemoCode's rules: a record names its mode and form;
+ * raw input takes the selected mode, and the selected form or the one form it fits.
+ */
+export function readMnemoCodeCodes(
   input: string,
   selectedMode: MnemoCodeMode,
   selectedFormat: MnemoCodeFormat | "auto",
-): MnemoCodeCodes {
-  const record = parseMnemoCodeRecord(input);
-  const raw = record?.payload ?? input.trim();
-  let format = record?.format;
-  if (format === undefined) {
-    if (selectedFormat === "auto") {
-      const detected = detectMnemoCodeFormats(raw);
-      if (detected.length === 0)
-        throw new Error("The MnemoCode representation format could not be detected.");
-      if (detected.length > 1)
-        throw new Error(`The input is ambiguous; select one of: ${detected.join(", ")}.`);
-      format = detected[0]!;
-    } else {
-      format = selectedFormat;
-    }
-  }
-  return { mode: record?.mode ?? selectedMode, format, indexes: parseMnemoCode(raw, format) };
+  words?: MnemoCodePhraseWords,
+): EncodedBackup {
+  const reading = readMnemoCodeBackup(input, false, words);
+  const formats = reading.formats(selectedFormat === "auto" ? undefined : selectedFormat);
+  if (formats.length > 1)
+    throw new Error(`The input is ambiguous; select one of: ${formats.join(", ")}.`);
+  return reading.codes(formats[0]!).withMode(reading.mode(Masking.of(selectedMode).mode)!);
+}
+
+/** The mode and the BIP39 indexes of the codes an input holds, for a search of their dates. */
+export function mnemoCodeCodes(
+  input: string,
+  selectedMode: MnemoCodeMode,
+  selectedFormat: MnemoCodeFormat | "auto",
+  words?: MnemoCodePhraseWords,
+): { mode: MnemoCodeMode; indexes: number[] } {
+  const backup = readMnemoCodeCodes(input, selectedMode, selectedFormat, words);
+  return { mode: backup.mode, indexes: [...backup.indexes] };
 }
 
 /** The mode a decode uses: the record's own, or for raw input the selected one. */
 export function effectiveMnemoCodeMode(input: string, selectedMode: MnemoCodeMode): MnemoCodeMode {
-  assertMode(selectedMode);
-  return parseMnemoCodeRecord(input)?.mode ?? selectedMode;
+  const recorded = parseMnemoCodeRecord(input)?.mode;
+  return recorded ?? Masking.of(selectedMode).mode;
 }
 
 /**
@@ -290,53 +276,44 @@ export function mnemoCodeEncodedPhrase(
   input: string,
   selectedMode: MnemoCodeMode,
   selectedFormat: MnemoCodeFormat | "auto",
+  words?: MnemoCodePhraseWords,
 ): string | undefined {
   try {
-    const phrase = englishFromIndexes(readCodes(input, selectedMode, selectedFormat).indexes);
-    return validateMnemonic(phrase, englishWordlist) ? phrase : undefined;
+    return readMnemoCodeCodes(input, selectedMode, selectedFormat, words).fingerprint(
+      (codes) => codes,
+    );
   } catch {
     return undefined;
   }
 }
 
+/** The phrase that the codes of an input and the dates give, by the codes' mode. */
 export function decodeMnemoCode(
   input: string,
   options: Readonly<{
     mode: MnemoCodeMode;
     format: MnemoCodeFormat | "auto";
     dates?: readonly MnemoCodeDate[];
+    words?: MnemoCodePhraseWords;
   }>,
 ): MnemoCodeDecodeResult {
-  assertMode(options.mode);
-  if (options.format !== "auto") assertFormat(options.format);
-  const { mode, format, indexes } = readCodes(input, options.mode, options.format);
+  const backup = readMnemoCodeCodes(input, options.mode, options.format, options.words);
+  const masking = Masking.of(backup.mode);
   // A record names its own mode. Dates left in the form are no reason to refuse a Direct record.
-  const dates = mode === "direct" ? [] : datesForMode(mode, options.dates ?? []);
-  if (mode === "direct") {
-    const mnemonic = englishFromIndexes(indexes);
-    return { mode, format, mnemonic, checksumValid: validateMnemonic(mnemonic, englishWordlist) };
-  }
-  if (mode === "seedshift-legacy") {
-    const { recoveredMnemonic, checksumValid } = decodeIndexesLegacy(indexes, dates);
-    return { mode, format, mnemonic: recoveredMnemonic, checksumValid };
-  }
-  if (!validateMnemonic(englishFromIndexes(indexes), englishWordlist)) {
-    throw new Error(
-      mode === "seedshift"
-        ? "The checksum-valid Seedshift container has an invalid BIP39 checksum."
-        : "The legacy valid-last-word container has an invalid BIP39 checksum.",
-    );
-  }
-  if (mode === "seedshift-legacy-valid") {
+  const dates = masking.masked ? (options.dates ?? []) : [];
+  masking.assertDateCount(dates.length);
+  const { mode, format } = backup;
+  if (backup.givesSeveral)
     return {
       mode,
       format,
       checksumValid: true,
-      candidates: decodeIndexesLegacyValid(indexes, dates).map(
-        (candidate) => candidate.recoveredMnemonic,
-      ),
+      candidates: backup.candidates(dates).map((candidate) => candidate.recoveredMnemonic),
     };
-  }
-  const { recoveredMnemonic, checksumValid } = decodeIndexes(indexes, dates);
-  return { mode, format, mnemonic: recoveredMnemonic, checksumValid };
+  const { recoveredMnemonic, checksumValid } = backup.decode(dates);
+  if (checksumValid) return { mode, format, mnemonic: recoveredMnemonic, checksumValid };
+  const shorter = backup
+    .shorterPhrases(dates)
+    .map(({ words, result }) => ({ words, mnemonic: result.recoveredMnemonic }));
+  return { mode, format, mnemonic: recoveredMnemonic, checksumValid, shorter };
 }

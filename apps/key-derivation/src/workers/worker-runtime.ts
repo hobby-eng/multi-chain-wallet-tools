@@ -1,3 +1,4 @@
+import { combinedSelfTest } from "@ckd/verification/helpers.js";
 import type { RuntimeCoinAdapter } from "@ckd/coins/runtime-registry.js";
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
 import { hexToBytes, wipe } from "@ckd/core/crypto.js";
@@ -14,9 +15,28 @@ interface WorkerScope {
   postMessage(message: WorkerMessage): void;
 }
 
+/**
+ * The functions of the optional features that the build composed (the Bitcoin or the Dash-only
+ * signer, for example); a feature's known-answer check runs through them, so that it checks the
+ * code the worker actually uses.
+ */
+export type FeatureFunctions = Pick<
+  WorkerDependencies,
+  "signDerivedMessage" | "encryptDerivedP2pkhKey"
+>;
+
+/** A known-answer check of an optional feature of the build. */
+type FeatureSelfTest = (
+  features: FeatureFunctions,
+) => Promise<CryptoSelfTestReport> | CryptoSelfTestReport;
+
 interface WorkerDependencies {
   getRuntimeCoinAdapter(id: string): RuntimeCoinAdapter;
   runDerivationSelfTest(): Promise<CryptoSelfTestReport>;
+  /** The quick checks of the optional features built in, run at every startup. */
+  startupSelfTests?: readonly FeatureSelfTest[];
+  /** The slower checks of those features, run only in the full self-test. */
+  fullSelfTests?: readonly FeatureSelfTest[];
   signDerivedMessage?(
     privateKeyHex: string,
     address: string,
@@ -46,6 +66,61 @@ interface WorkerDependencies {
   ): Promise<{ encryptedKey: string; address: string }>;
 }
 
+/** The derivation checks, then each feature's, one at a time: one report for all of them. */
+async function runSelfTests(
+  dependencies: WorkerDependencies,
+  full: boolean,
+): Promise<CryptoSelfTestReport> {
+  const features = [
+    ...(dependencies.startupSelfTests ?? []),
+    ...(full ? (dependencies.fullSelfTests ?? []) : []),
+  ];
+  return combinedSelfTest([
+    dependencies.runDerivationSelfTest,
+    ...features.map((run) => () => run(dependencies)),
+  ]);
+}
+
+/** The private key of one derived row, lent to an operation that needs it. */
+interface DerivedPrivateKey {
+  readonly hex: string;
+  readonly bytes: Uint8Array;
+  /** Every field of the row, for an operation that names the key's type. */
+  readonly fields: ResultField[];
+}
+
+/**
+ * Derives the one row at `input.start`, checks that its address is still `address`, and lends its
+ * private key to `use`; the key and the row are wiped afterwards, whatever `use` does.
+ * `unsupported` refuses a mode that shows no private key.
+ */
+async function withDerivedPrivateKey<T>(
+  adapter: RuntimeCoinAdapter,
+  input: Parameters<RuntimeCoinAdapter["derive"]>[0],
+  address: string,
+  unsupported: string,
+  use: (key: DerivedPrivateKey) => T | Promise<T>,
+): Promise<T> {
+  const result = await adapter.derive({ ...input, start: input.start, count: 1 });
+  let privateKey: Uint8Array | null = null;
+  try {
+    const row = result.rows[0];
+    const derivedAddress = row?.basic.find((field) => field.key === "address")?.value;
+    const fields = row === undefined ? [] : [...row.basic, ...row.advanced];
+    const privateKeyHex = fields.find(
+      (field) => field.key === "privateKeyHex" || field.key === "childPrivateKey",
+    )?.value;
+    if (derivedAddress !== address)
+      throw new Error("The selected address no longer matches the requested derivation path.");
+    if (privateKeyHex === undefined) throw new Error(unsupported);
+    privateKey = hexToBytes(privateKeyHex);
+    return await use({ hex: privateKeyHex, bytes: privateKey, fields });
+  } finally {
+    wipe(privateKey);
+    clearDerivationResult(result);
+  }
+}
+
 export function startDerivationWorker(dependencies: WorkerDependencies): void {
   const workerScope = self as unknown as WorkerScope;
   workerScope.postMessage({ type: "ready" });
@@ -55,14 +130,16 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
     void (async () => {
       try {
         if (request.type === "self-test") {
-          const result = await dependencies.runDerivationSelfTest();
+          const result = await runSelfTests(dependencies, request.full === true);
           workerScope.postMessage({ id: request.id, ok: true, type: "self-test", result });
           return;
         }
         if (request.type === "silent-payment") {
           try {
             if (dependencies.deriveSilentPayment === undefined) {
-              throw new Error("Silent Payments are unavailable in this build profile.");
+              throw new Error(
+                "The requested payment protocol is unavailable in this build profile.",
+              );
             }
             const result = await dependencies.deriveSilentPayment(
               request.seed,
@@ -114,91 +191,50 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
             return;
           }
           if (request.type === "sign-message") {
-            const result = await adapter.derive({
-              ...request.input,
-              start: request.input.start,
-              count: 1,
+            const sign = dependencies.signDerivedMessage;
+            if (sign === undefined)
+              throw new Error("Message signing is unavailable in this build profile.");
+            const signed = await withDerivedPrivateKey(
+              adapter,
+              request.input,
+              request.address,
+              "This derivation mode does not expose a compatible private key for message signing.",
+              (key) =>
+                sign(
+                  key.hex,
+                  request.address,
+                  request.message,
+                  request.input.network,
+                  request.format,
+                  key.fields,
+                ),
+            );
+            workerScope.postMessage({
+              id: request.id,
+              ok: true,
+              type: "sign-message",
+              result: signed,
             });
-            let privateKey: Uint8Array | null = null;
-            try {
-              const row = result.rows[0];
-              const derivedAddress = row?.basic.find((field) => field.key === "address")?.value;
-              const fields = row === undefined ? [] : [...row.basic, ...row.advanced];
-              const privateKeyHex = fields.find(
-                (field) => field.key === "privateKeyHex" || field.key === "childPrivateKey",
-              )?.value;
-              if (derivedAddress !== request.address)
-                throw new Error(
-                  "The selected address no longer matches the requested derivation path.",
-                );
-              if (privateKeyHex === undefined)
-                throw new Error(
-                  "This derivation mode does not expose a compatible private key for message signing.",
-                );
-              privateKey = hexToBytes(privateKeyHex);
-              if (dependencies.signDerivedMessage === undefined) {
-                throw new Error("Message signing is unavailable in this build profile.");
-              }
-              const signed = await dependencies.signDerivedMessage(
-                privateKeyHex,
-                request.address,
-                request.message,
-                request.input.network,
-                request.format,
-                fields,
-              );
-              workerScope.postMessage({
-                id: request.id,
-                ok: true,
-                type: "sign-message",
-                result: signed,
-              });
-            } finally {
-              wipe(privateKey);
-              clearDerivationResult(result);
-            }
             return;
           }
           if (request.type === "bip38-encrypt") {
-            const result = await adapter.derive({
-              ...request.input,
-              start: request.input.start,
-              count: 1,
+            const encrypt = dependencies.encryptDerivedP2pkhKey;
+            if (encrypt === undefined)
+              throw new Error("Private-key encryption is unavailable in this build profile.");
+            const encrypted = await withDerivedPrivateKey(
+              adapter,
+              request.input,
+              request.address,
+              "This derivation mode does not expose a compatible private key.",
+              (key) =>
+                encrypt(key.bytes, request.adapterId, request.input.network, request.passphrase),
+            );
+            workerScope.postMessage({
+              id: request.id,
+              ok: true,
+              type: "bip38-encrypt",
+              result: encrypted,
             });
-            let privateKey: Uint8Array | null = null;
-            try {
-              const row = result.rows[0];
-              const derivedAddress = row?.basic.find((field) => field.key === "address")?.value;
-              const fields = row === undefined ? [] : [...row.basic, ...row.advanced];
-              const privateKeyHex = fields.find(
-                (field) => field.key === "privateKeyHex" || field.key === "childPrivateKey",
-              )?.value;
-              if (derivedAddress !== request.address)
-                throw new Error(
-                  "The selected address no longer matches the requested derivation path.",
-                );
-              if (privateKeyHex === undefined)
-                throw new Error("This derivation mode does not expose a compatible private key.");
-              privateKey = hexToBytes(privateKeyHex);
-              if (dependencies.encryptDerivedP2pkhKey === undefined) {
-                throw new Error("Private-key encryption is unavailable in this build profile.");
-              }
-              const encrypted = await dependencies.encryptDerivedP2pkhKey(
-                privateKey,
-                request.adapterId,
-                request.input.network,
-                request.passphrase,
-              );
-              workerScope.postMessage({
-                id: request.id,
-                ok: true,
-                type: "bip38-encrypt",
-                result: encrypted,
-              });
-            } finally {
-              wipe(privateKey);
-              clearDerivationResult(result);
-            }
             return;
           }
           const result = await adapter.derive(request.input);

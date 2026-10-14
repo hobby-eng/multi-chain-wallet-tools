@@ -1,12 +1,20 @@
+import { watchOnlyPublicKey } from "@ckd/recovery/watch-only.js";
+import { COMPRESSED_KEY_HEX } from "@ckd/core/key-text.js";
+import {
+  fundedMetric,
+  locatedValueMetric,
+  verifyFundsWarning,
+  WalletScan,
+} from "../../wallet-result.js";
+import { DASH_COIN } from "./coin.js";
+import { ScanSecrets } from "../../scan-secrets.js";
 import { assertWatchOnlyMinimum } from "@ckd/recovery/watch-only.js";
 import { HDKey } from "@scure/bip32";
-import { bytesToHex, encodeP2pkh, hash160, secp256k1, wipe } from "@ckd/core/crypto.js";
+import { bytesToHex, encodeP2pkh, hash160, hexToBytes, wipe } from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import { encodePlatformP2pkh } from "@ckd/coins/dash/platform.js";
 import { type NormalizedViewingKey } from "@ckd/dash-network/viewing-key.js";
-import { RecoveryConcurrencyLimiter } from "../../concurrency.js";
 import { RecoveryNetworkGateway } from "../../network-gateway.js";
-import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
 import type {
   RecoveryFinding,
   RecoveryScanContext,
@@ -20,17 +28,22 @@ import { validateIdentityLookup } from "./identity-scanner.js";
 import { DashPlatformClient } from "./platform-client.js";
 import { validatePlatformAddressBatch } from "./platform-scanner.js";
 import { scanDashShieldedWatchOnly } from "./shielded-watch-only.js";
+import { DASHSCAN_ENDPOINTS } from "@ckd/dash-network/public-address.js";
+import {
+  RECOVERY_CORE_ADDRESS_BATCH,
+  RECOVERY_PLATFORM_ADDRESS_BATCH,
+} from "@ckd/network-boundary/protocol.js";
+import { scanBranch } from "../../address-book.js";
+import { DashScanAddresses } from "./dashscan-addresses.js";
 import {
   ADDRESS_DISCOVERY_GAP,
+  AddressGapTracker,
   failedSection,
-  extendAddressTarget,
   fetchDashScanIndexedHeight,
   formatDashFromCredits,
   formatDashFromDuffs,
   validateDashScanAddressBatch,
 } from "./util.js";
-
-const ECDSA_PUBLIC_KEY_PATTERN = /^(?:0x)?(?:02|03)[0-9a-f]{64}$/iu;
 
 function rejectMasterXpub(node: HDKey, kindLabel: string): void {
   if (node.depth === 0) {
@@ -76,105 +89,66 @@ async function scanTransparentXpub(
     );
   }
   const indexedHeight = await fetchDashScanIndexedHeight(gateway, config.network, context.signal);
+  const addresses = new DashScanAddresses(gateway, config.network, sectionId, context.signal);
   const findings: RecoveryFinding[] = [];
-  const addressStates = new Map<string, { balance: bigint; txCount: number }>();
   let scanned = 0;
-  let gapTruncated = false;
-  const startedAt = new Date().toISOString();
+  const walletScan = new WalletScan(input, DASH_COIN, config.network);
   const branches: Array<{ branch: 0 | 1 | null; node: HDKey }> =
     node.depth === accountDepth
       ? ([0, 1] as const).map((branch) => ({ branch, node: node.deriveChild(branch) }))
       : [{ branch: null, node }];
   for (const { branch, node: branchNode } of branches) {
-    let target = config.minimumCount;
-    for (let offset = 0; offset < target;) {
-      if (context.signal.aborted)
-        throw new DOMException("Dash Core watch-only scan cancelled.", "AbortError");
-      const end = Math.min(offset + 100, target);
-      const derived: Array<{
-        address: string;
-        index: number;
-        path: string;
-        publicKeyHash: string;
-      }> = [];
-      for (let index = offset; index < end; index += 1) {
-        const child = branchNode.deriveChild(index);
-        const publicKey = child.publicKey;
-        if (publicKey === null)
-          throw new Error("Watch-only derivation unexpectedly produced no public key.");
-        const publicKeyHash = hash160(publicKey);
-        derived.push({
-          address: encodeP2pkh(publicKeyHash, network.p2pkh),
+    const branchLabel = branch === 0 ? "External" : branch === 1 ? "Internal" : "Branch";
+    const before = scanned;
+    scanned += await scanBranch({
+      initial: config.minimumCount,
+      batchSize: RECOVERY_CORE_ADDRESS_BATCH,
+      signal: context.signal,
+      cancelled: "Dash Core watch-only scan cancelled.",
+      derive: (index) =>
+        addresses.address(
+          branchNode.deriveChild(index),
           index,
-          path: branch === null ? `<branch xpub>/${index}` : `<account xpub>/${branch}/${index}`,
-          publicKeyHash: bytesToHex(publicKeyHash),
-        });
-      }
-      const addresses = derived.map(({ address }) => address);
-      const infos = validateDashScanAddressBatch(
-        await gateway.runPublic(
-          { network: config.network, addresses },
-          "core.address-info",
-          () => gateway.networkApi.coreAddressInfo(config.network, addresses, context.signal),
-          context.signal,
+          branch === null ? `<branch xpub>/${index}` : `<account xpub>/${branch}/${index}`,
         ),
-        addresses,
-      );
-      infos.forEach((info, position) => {
-        const derivedItem = derived[position];
-        if (derivedItem === undefined)
-          throw new Error("Dash Core watch-only batch changed during scanning.");
-        addressStates.set(derivedItem.address, info);
-        const used = info.txCount > 0 || info.balance > 0n;
-        if (used) {
-          const extension = extendAddressTarget(target, derivedItem.index);
-          target = extension.target;
-          gapTruncated ||= extension.truncated;
-        }
-        if (info.balance === 0n && !(config.includeUsedZeroBalance && used)) return;
-        const finding: RecoveryFinding = {
-          id: `${input.kind}:${branch ?? "branch"}:${derivedItem.index}`,
-          title: derivedItem.address,
-          subtitle: `${branch === 0 ? "External" : branch === 1 ? "Internal" : "Branch"} address #${derivedItem.index}`,
-          balanceAtomic: info.balance,
-          balanceLabel: formatDashFromDuffs(info.balance),
-          fields: [
-            { label: "Relative derivation path", value: derivedItem.path, copyable: true },
+      lookUp: (chunk, target) =>
+        addresses.batch(chunk, target, {
+          includeUsedZeroBalance: config.includeUsedZeroBalance,
+          history: () => false,
+        }),
+      show: (shown) => {
+        const { index, path } = shown.derived;
+        const finding = addresses.finding(
+          `${input.kind}:${branch ?? "branch"}:${index}`,
+          `${branchLabel} address #${index}`,
+          shown,
+          [
+            { label: "Relative derivation path", value: path, copyable: true },
             ...(input.descriptorPath === undefined
               ? []
               : [
                   {
                     label: "Descriptor derivation path",
-                    value: `${input.descriptorPath}/${derivedItem.index}`,
+                    value: `${input.descriptorPath}/${index}`,
                     copyable: true,
                   },
                 ]),
-            { label: "Transactions reported", value: String(info.txCount) },
-            { label: "Public-key hash", value: derivedItem.publicKeyHash, copyable: true },
           ],
-        };
+        );
         findings.push(finding);
         context.onFinding(input.id, sectionId, finding);
-      });
-      scanned += derived.length;
-      offset = end;
-      context.onProgress({
-        inputId: input.id,
-        section: sectionId,
-        message: `${branch === 0 ? "External" : branch === 1 ? "Internal" : "Branch"}: checked ${offset} of ${target}`,
-        completed: scanned,
-        total: null,
-      });
-    }
+      },
+      progress: (checked, target) =>
+        context.onProgress({
+          inputId: input.id,
+          section: sectionId,
+          message: `${branchLabel}: checked ${checked} of ${target}`,
+          completed: before + checked,
+          total: null,
+        }),
+    });
   }
-  let totalBalance = 0n;
-  let fundedCount = 0;
-  let usedCount = 0;
-  for (const info of addressStates.values()) {
-    totalBalance += info.balance;
-    if (info.balance > 0n) fundedCount += 1;
-    if (info.balance > 0n || info.txCount > 0) usedCount += 1;
-  }
+  const warning = addresses.book.gap.warning;
   const section: RecoverySection = {
     id: sectionId,
     title: `${familyLabel} watch-only addresses`,
@@ -183,56 +157,24 @@ async function scanTransparentXpub(
         ? `The account xpub at depth ${accountDepth} derives its external (/0/i) and internal (/1/i) branches without a seed.`
         : `The branch xpub at depth ${branchDepth} derives its relative /i address indices without a seed. The xpub does not reveal whether this is the external or internal branch.`,
     state: "complete",
-    metrics: [
-      {
-        label: "Spendable balance",
-        value: formatDashFromDuffs(totalBalance),
-        tone: totalBalance > 0n ? "positive" : "neutral",
-      },
-      { label: "Funded addresses", value: String(fundedCount) },
-      { label: "Previously used · empty", value: String(usedCount - fundedCount) },
-      { label: "Unique addresses queried", value: String(addressStates.size) },
-    ],
+    metrics: addresses.metrics({
+      label: "Unique addresses queried",
+      value: String(addresses.book.queried),
+    }),
     findings,
     scanned,
-    source:
-      config.network === "mainnet"
-        ? "https://dashscan.pshenmic.dev"
-        : "https://testnet.dashscan.pshenmic.dev",
+    source: DASHSCAN_ENDPOINTS[config.network],
     proof: `DashScan synchronized · indexed Core height ${indexedHeight} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap`,
-    ...(gapTruncated
-      ? {
-          warning:
-            "A used address was found too close to the end of the BIP32 index space to complete the post-use gap.",
-        }
-      : {}),
+    ...(warning === undefined ? {} : { warning }),
   };
-  return {
-    inputId: input.id,
-    label: input.label,
-    coinId: "dash",
-    coinLabel: "Dash",
-    network: config.network,
-    startedAt,
-    completedAt: new Date().toISOString(),
+  return walletScan.result({
     overview: [
-      {
-        label: "Total located value",
-        value: formatDashFromDuffs(totalBalance),
-        tone: totalBalance > 0n ? "positive" : "neutral",
-      },
-      {
-        label: "Funded addresses",
-        value: String(fundedCount),
-        tone: fundedCount > 0 ? "positive" : "neutral",
-      },
-      { label: "Unique addresses queried", value: String(addressStates.size) },
+      ...addresses.book.overview(formatDashFromDuffs),
+      { label: "Unique addresses queried", value: String(addresses.book.queried) },
     ],
     sections: [section],
-    warnings: [
-      "Independently verify every funded address in a standard Dash wallet before treating a balance as spendable.",
-    ],
-  };
+    warnings: [verifyFundsWarning(DASH_COIN.label)],
+  });
 }
 
 async function scanPlatformXpub(
@@ -262,12 +204,12 @@ async function scanPlatformXpub(
   let scanned = 0;
   let proofHeight = 0n;
   let protocolVersion = 0;
-  let gapTruncated = false;
-  const startedAt = new Date().toISOString();
+  const gap = new AddressGapTracker();
+  const walletScan = new WalletScan(input, DASH_COIN, config.network);
   for (let offset = 0; offset < target;) {
     if (context.signal.aborted)
       throw new DOMException("Dash Platform watch-only scan cancelled.", "AbortError");
-    const end = Math.min(offset + 100, target);
+    const end = Math.min(offset + RECOVERY_PLATFORM_ADDRESS_BATCH, target);
     const derived: Array<{
       address: string;
       index: number;
@@ -295,6 +237,7 @@ async function scanPlatformXpub(
         derived.map(({ address }) => address),
         context.signal,
       ),
+      derived.map(({ storageKey }) => storageKey),
     );
     proofHeight = proofHeight > response.height ? proofHeight : response.height;
     protocolVersion = Math.max(protocolVersion, response.protocolVersion);
@@ -303,11 +246,7 @@ async function scanPlatformXpub(
       if (info === undefined || info === null) continue;
       addressStates.set(item.address, info);
       const used = info.balance > 0n || info.nonce > 0n;
-      if (used) {
-        const extension = extendAddressTarget(target, item.index);
-        target = extension.target;
-        gapTruncated ||= extension.truncated;
-      }
+      if (used) target = gap.extend(target, item.index);
       if (info.balance === 0n && !(config.includeUsedZeroBalance && used)) continue;
       const finding: RecoveryFinding = {
         id: `dash-platform-xpub:${item.index}`,
@@ -359,38 +298,13 @@ async function scanPlatformXpub(
     scanned,
     source: "Dash Platform DAPI · trusted quorum discovery",
     proof: `Balance proof verified at Platform height ${proofHeight} · protocol ${protocolVersion} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap`,
-    ...(gapTruncated
-      ? {
-          warning:
-            "A used address was found too close to the end of the BIP32 index space to complete the post-use gap.",
-        }
-      : {}),
+    ...(gap.warning === undefined ? {} : { warning: gap.warning }),
   };
-  return {
-    inputId: input.id,
-    label: input.label,
-    coinId: "dash",
-    coinLabel: "Dash",
-    network: config.network,
-    startedAt,
-    completedAt: new Date().toISOString(),
-    overview: [
-      {
-        label: "Total located value",
-        value: formatDashFromCredits(totalBalance),
-        tone: totalBalance > 0n ? "positive" : "neutral",
-      },
-      {
-        label: "Funded addresses",
-        value: String(fundedCount),
-        tone: fundedCount > 0 ? "positive" : "neutral",
-      },
-    ],
+  return walletScan.result({
+    overview: [locatedValueMetric(totalBalance, formatDashFromCredits), fundedMetric(fundedCount)],
     sections: [section],
-    warnings: [
-      "Independently verify every funded address in a standard Dash wallet before treating a balance as spendable.",
-    ],
-  };
+    warnings: [verifyFundsWarning(DASH_COIN.label)],
+  });
 }
 
 async function scanExactPublicKey(
@@ -401,15 +315,8 @@ async function scanExactPublicKey(
   client: DashPlatformClient,
 ): Promise<RecoveryWalletResult> {
   const network = getDashNetwork(config.network);
-  let point: ReturnType<typeof secp256k1.Point.fromHex>;
-  try {
-    point = secp256k1.Point.fromHex(input.value);
-  } catch {
-    throw new Error("This public key is not a valid point on the secp256k1 curve.");
-  }
-  const compressed = point.toBytes(true);
-  const uncompressed = point.toBytes(false);
-  const startedAt = new Date().toISOString();
+  const { compressed, uncompressed } = watchOnlyPublicKey(input.value);
+  const walletScan = new WalletScan(input, DASH_COIN, config.network);
   const sections: RecoverySection[] = [];
   async function check(
     id: RecoverySection["id"],
@@ -474,16 +381,14 @@ async function scanExactPublicKey(
         metrics: [{ label: "Addresses checked", value: "2" }],
         findings,
         scanned: 2,
-        source:
-          config.network === "mainnet"
-            ? "https://dashscan.pshenmic.dev"
-            : "https://testnet.dashscan.pshenmic.dev",
+        source: DASHSCAN_ENDPOINTS[config.network],
         proof: "DashScan indexed Core state · single exact-key lookup",
       };
     });
     await check("platform", "Dash Platform · exact public key", async () => {
       const response = validatePlatformAddressBatch(
         await client.addresses([platformAddress], context.signal),
+        [`00${compressedHashHex}`],
       );
       const info = response.data.get(`00${compressedHashHex}`);
       const findings: RecoveryFinding[] =
@@ -538,14 +443,7 @@ async function scanExactPublicKey(
         proof: `Balance proof verified at Platform height ${response.proofHeight} · protocol ${response.protocolVersion}`,
       };
     });
-    return {
-      inputId: input.id,
-      label: input.label,
-      coinId: "dash",
-      coinLabel: "Dash",
-      network: config.network,
-      startedAt,
-      completedAt: new Date().toISOString(),
+    return walletScan.result({
       overview: summarizeDashSections(sections),
       sections,
       warnings: [
@@ -554,7 +452,7 @@ async function scanExactPublicKey(
           .filter(({ state }) => state === "failed")
           .map(({ title, warning }) => `${title} was not checked: ${warning}`),
       ],
-    };
+    });
   } finally {
     wipe(compressed, uncompressed);
   }
@@ -566,8 +464,8 @@ async function scanIdentityLookup(
   context: RecoveryScanContext,
   client: DashPlatformClient,
 ): Promise<RecoveryWalletResult> {
-  const startedAt = new Date().toISOString();
-  const publicKeyHashHex = ECDSA_PUBLIC_KEY_PATTERN.test(input.value)
+  const walletScan = new WalletScan(input, DASH_COIN, config.network);
+  const publicKeyHashHex = COMPRESSED_KEY_HEX.test(input.value)
     ? bytesToHex(hash160(hexToBytes(input.value)))
     : input.value;
   const identityResult = validateIdentityLookup(
@@ -609,32 +507,14 @@ async function scanIdentityLookup(
     source: "Dash Platform DAPI · trusted quorum discovery",
     proof: `Balance proof verified at Platform height ${identityResult.proofHeight} · protocol ${identityResult.protocolVersion}`,
   };
-  return {
-    inputId: input.id,
-    label: input.label,
-    coinId: "dash",
-    coinLabel: "Dash",
-    network: config.network,
-    startedAt,
-    completedAt: new Date().toISOString(),
+  return walletScan.result({
     overview: [
-      {
-        label: "Total located value",
-        value: formatDashFromCredits(totalBalance),
-        tone: totalBalance > 0n ? "positive" : "neutral",
-      },
+      locatedValueMetric(totalBalance, formatDashFromCredits),
       { label: "Identities found", value: String(identityResult.identities.length) },
     ],
     sections: [section],
     warnings: ["Independently verify identity ownership before treating a balance as spendable."],
-  };
-}
-
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let index = 0; index < bytes.length; index += 1)
-    bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
-  return bytes;
+  });
 }
 
 async function scanOrchard(
@@ -651,7 +531,7 @@ async function scanOrchard(
   const kind =
     input.kind === "orchard-fvk" ? "full" : input.kind === "orchard-ivk" ? "incoming" : "outgoing";
   const viewingKey: NormalizedViewingKey = { kind, hex: input.value };
-  const startedAt = new Date().toISOString();
+  const walletScan = new WalletScan(input, DASH_COIN, config.network);
   try {
     const section = await scanDashShieldedWatchOnly(
       input.id,
@@ -664,14 +544,7 @@ async function scanOrchard(
       (finding) => context.onFinding(input.id, "shielded", finding),
     );
     const balanceMetric = section.metrics.find((metric) => metric.label === "Spendable balance");
-    return {
-      inputId: input.id,
-      label: input.label,
-      coinId: "dash",
-      coinLabel: "Dash",
-      network: config.network,
-      startedAt,
-      completedAt: new Date().toISOString(),
+    return walletScan.result({
       overview: [
         balanceMetric ?? { label: "Spendable balance", value: "Not available", tone: "neutral" },
         {
@@ -691,7 +564,7 @@ async function scanOrchard(
           : [
               "This viewing key cannot see the full picture of this account; it does not have an authoritative current balance.",
             ],
-    };
+    });
   } finally {
     viewingKey.hex = "";
   }
@@ -703,16 +576,9 @@ export async function scanDashWatchOnly(
   context: RecoveryScanContext,
 ): Promise<RecoveryWalletResult> {
   assertWatchOnlyMinimum(config.minimumCount);
-  const guard = new SecretEgressGuard();
-  if (input.kind !== "public-key" && input.kind !== "identity") {
-    guard.registerString("Dash watch-only input", input.value);
-    context.sessionSecretGuard?.registerString("Dash watch-only input", input.value);
-  }
-  const gateway = new RecoveryNetworkGateway(
-    guard,
-    context.networkApi,
-    context.networkLimiter ?? new RecoveryConcurrencyLimiter(5),
-  );
+  const secrets = new ScanSecrets(context);
+  secrets.watchOnly(input, "Dash");
+  const gateway = secrets.gateway(context);
   const client = new DashPlatformClient(config.network, gateway);
   switch (input.kind) {
     case "dash-legacy-xpub":

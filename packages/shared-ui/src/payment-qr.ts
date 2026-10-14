@@ -10,8 +10,9 @@ export function paymentQrPayload(field: ResultField): string | undefined {
 }
 
 type QrPayload = string | Readonly<Array<number>>;
+type QrEcc = "L" | "M" | "Q" | "H";
 
-export function qrMatrix(payload: QrPayload, ecc: "L" | "M" | "Q" | "H" = "M"): boolean[][] {
+export function qrMatrix(payload: QrPayload, ecc: QrEcc = "M"): boolean[][] {
   if (payload.length === 0 || payload.length > 4096)
     throw new Error("QR payload length is invalid.");
   return encode(payload, { ecc, border: 4 }).data;
@@ -27,63 +28,100 @@ function qrFileStem(label: string): string {
   return normalized === "" ? "qr-code" : normalized;
 }
 
-async function saveQrPng(
-  document: Document,
-  payload: QrPayload,
-  ecc: "L" | "M" | "Q" | "H",
-  label: string,
-): Promise<void> {
-  const matrix = qrMatrix(payload, ecc);
-  const scale = Math.max(4, Math.min(12, Math.floor(1024 / matrix.length)));
-  const canvas = document.createElement("canvas");
-  canvas.width = matrix.length * scale;
-  canvas.height = matrix.length * scale;
-  const context = canvas.getContext("2d");
-  if (context === null) throw new Error("Canvas rendering is unavailable in this browser.");
-  context.imageSmoothingEnabled = false;
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#05070a";
-  for (let row = 0; row < matrix.length; row += 1) {
-    for (let column = 0; column < matrix.length; column += 1) {
-      if (matrix[row]?.[column] === true)
-        context.fillRect(column * scale, row * scale, scale, scale);
-    }
-  }
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((value) => {
-      if (value === null) reject(new Error("The browser could not encode the QR image as PNG."));
-      else resolve(value);
-    }, "image/png");
-  });
-  downloadBlob(blob, `${qrFileStem(label)}-qr.png`);
+function clearQrMatrix(matrix: boolean[][]): void {
+  for (const row of matrix) row.fill(false);
+  matrix.length = 0;
 }
 
-function renderMatrix(document: Document, payload: QrPayload, ecc: "L" | "M" | "Q" | "H"): Element {
+/** Owns one PNG export through asynchronous encoding and checks permission before publication. */
+export class QrPngExport {
+  readonly #document: Document;
+
+  constructor(document: Document) {
+    this.#document = document;
+  }
+
+  /** False means permission was revoked; it never reports a cancelled export as saved. */
+  async save(
+    payload: QrPayload,
+    ecc: QrEcc,
+    label: string,
+    current: () => boolean = () => true,
+  ): Promise<boolean> {
+    if (!current()) return false;
+    const matrix = qrMatrix(payload, ecc);
+    let canvas: HTMLCanvasElement | undefined;
+    try {
+      const scale = Math.max(4, Math.min(12, Math.floor(1024 / matrix.length)));
+      canvas = this.#document.createElement("canvas");
+      canvas.width = matrix.length * scale;
+      canvas.height = matrix.length * scale;
+      const context = canvas.getContext("2d");
+      if (context === null) throw new Error("Canvas rendering is unavailable in this browser.");
+      context.imageSmoothingEnabled = false;
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = "#05070a";
+      for (let row = 0; row < matrix.length; row += 1) {
+        for (let column = 0; column < matrix.length; column += 1) {
+          if (matrix[row]?.[column] === true)
+            context.fillRect(column * scale, row * scale, scale, scale);
+        }
+      }
+      const pngCanvas = canvas;
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        pngCanvas.toBlob((value) => {
+          if (value === null)
+            reject(new Error("The browser could not encode the QR image as PNG."));
+          else resolve(value);
+        }, "image/png");
+      });
+      // toBlob is asynchronous: edits, concealment or a lost gate may revoke this image meanwhile.
+      if (!current()) return false;
+      downloadBlob(blob, `${qrFileStem(label)}-qr.png`);
+      return true;
+    } finally {
+      try {
+        if (canvas !== undefined) {
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+      } finally {
+        clearQrMatrix(matrix);
+      }
+    }
+  }
+}
+
+function renderMatrix(document: Document, payload: QrPayload, ecc: QrEcc): Element {
   const matrix = qrMatrix(payload, ecc);
-  const size = matrix.length;
-  const svgNamespace = document.documentElement.namespaceURI?.replace("1999/xhtml", "2000/svg");
-  if (svgNamespace === undefined)
-    throw new Error("The document has no namespace for inline SVG rendering.");
-  const svg = document.createElementNS(svgNamespace, "svg");
-  svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "QR code containing the payload shown below");
-  svg.setAttribute("shape-rendering", "crispEdges");
-  const background = document.createElementNS(svgNamespace, "rect");
-  background.setAttribute("width", String(size));
-  background.setAttribute("height", String(size));
-  background.setAttribute("fill", "#fff");
-  svg.append(background);
-  const path = document.createElementNS(svgNamespace, "path");
-  const commands: string[] = [];
-  for (let row = 0; row < size; row += 1)
-    for (let column = 0; column < size; column += 1)
-      if (matrix[row]?.[column] === true) commands.push(`M${column} ${row}h1v1h-1z`);
-  path.setAttribute("d", commands.join(""));
-  path.setAttribute("fill", "#05070a");
-  svg.append(path);
-  return svg;
+  try {
+    const size = matrix.length;
+    const svgNamespace = document.documentElement.namespaceURI?.replace("1999/xhtml", "2000/svg");
+    if (svgNamespace === undefined)
+      throw new Error("The document has no namespace for inline SVG rendering.");
+    const svg = document.createElementNS(svgNamespace, "svg");
+    svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "QR code containing the payload shown below");
+    svg.setAttribute("shape-rendering", "crispEdges");
+    const background = document.createElementNS(svgNamespace, "rect");
+    background.setAttribute("width", String(size));
+    background.setAttribute("height", String(size));
+    background.setAttribute("fill", "#fff");
+    svg.append(background);
+    const path = document.createElementNS(svgNamespace, "path");
+    const commands: string[] = [];
+    for (let row = 0; row < size; row += 1)
+      for (let column = 0; column < size; column += 1)
+        if (matrix[row]?.[column] === true) commands.push(`M${column} ${row}h1v1h-1z`);
+    path.setAttribute("d", commands.join(""));
+    path.setAttribute("fill", "#05070a");
+    svg.append(path);
+    return svg;
+  } finally {
+    clearQrMatrix(matrix);
+  }
 }
 
 export function createQrAction(
@@ -91,10 +129,18 @@ export function createQrAction(
   payload: QrPayload,
   label: string,
   displayedPayload: string,
-  options: Readonly<{ heading?: string; description?: string; ecc?: "L" | "M" | "Q" | "H" }> = {},
+  options: Readonly<{
+    heading?: string;
+    description?: string;
+    ecc?: QrEcc;
+    current?: () => boolean;
+  }> = {},
 ): HTMLElement {
   const root = document.createElement("span");
   root.className = "payment-qr-action";
+  let active = true;
+  const current = (): boolean => active && root.isConnected && (options.current?.() ?? true);
+  const pngExport = new QrPngExport(document);
   const button = document.createElement("button");
   button.type = "button";
   button.className = "copy qr-trigger";
@@ -148,6 +194,15 @@ export function createQrAction(
       suppressFocusPreview = false;
     }
   };
+  document.defaultView?.addEventListener(
+    "pagehide",
+    () => {
+      // A page in the back-forward cache can keep its cards connected after departure.
+      active = false;
+      hide();
+    },
+    { once: true },
+  );
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -158,6 +213,10 @@ export function createQrAction(
     if (event.target instanceof Node && !root.contains(event.target)) hide();
   };
   const show = (pin: boolean): void => {
+    if (!current()) {
+      hide();
+      return;
+    }
     if (pin && !pinned) {
       pinned = true;
       document.addEventListener("keydown", onKeyDown);
@@ -178,15 +237,32 @@ export function createQrAction(
       save.className = "payment-qr-save";
       save.textContent = "Save as PNG";
       save.setAttribute("aria-label", `Save ${label} QR code as PNG`);
+      const cancelled = (): void => {
+        save.textContent = "Save as PNG";
+        save.removeAttribute("title");
+        hide();
+      };
       save.addEventListener("click", () => {
+        if (!current()) {
+          hide();
+          return;
+        }
         void (async () => {
           save.disabled = true;
           save.textContent = "Saving…";
           try {
-            await saveQrPng(document, payload, options.ecc ?? "M", label);
+            const saved = await pngExport.save(payload, options.ecc ?? "M", label, current);
+            if (!saved || !current()) {
+              cancelled();
+              return;
+            }
             save.textContent = "Saved PNG";
             save.removeAttribute("title");
           } catch (cause) {
+            if (!current()) {
+              cancelled();
+              return;
+            }
             save.textContent = "Save failed";
             save.title = cause instanceof Error ? cause.message : "QR PNG export failed.";
           } finally {
@@ -236,7 +312,8 @@ export function createQrAction(
       return;
     }
     show(true);
-    popover.querySelector<HTMLButtonElement>(".payment-qr-close")?.focus({ preventScroll: true });
+    if (!popover.hidden)
+      popover.querySelector<HTMLButtonElement>(".payment-qr-close")?.focus({ preventScroll: true });
   });
   root.addEventListener("mouseleave", previewEnd);
   root.append(button, popover);

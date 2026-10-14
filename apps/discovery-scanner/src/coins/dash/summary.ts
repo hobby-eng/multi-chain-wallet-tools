@@ -1,3 +1,5 @@
+import { RECOVERY_SECTION_GROUPS } from "../../recovery-section-groups.js";
+import { fundedMetric } from "../../wallet-result.js";
 import { CREDITS_PER_DUFF } from "@ckd/core/dash-units.js";
 import type { RecoveryMetric, RecoverySection } from "../../types.js";
 import { formatDashFromCredits, formatDashFromDuffs } from "./util.js";
@@ -14,7 +16,7 @@ function positiveBalance(section: RecoverySection | undefined): bigint {
 
 /** Coin-owned overview keeps Dash unit conversion out of the generic renderer. */
 export function summarizeDashSections(sections: readonly RecoverySection[]): RecoveryMetric[] {
-  const coreIds = ["core", "legacyCore", "coinjoin", "providerCollateral"];
+  const coreIds = RECOVERY_SECTION_GROUPS.members("core");
   const coreResources = new Map<string, bigint | null>();
   const confirmedCore = new Set<string>();
   for (const section of sections.filter((section) => coreIds.includes(section.id))) {
@@ -46,7 +48,7 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
     0n,
   );
   const totalCredits = coreChain * CREDITS_PER_DUFF + platform + identity + shielded;
-  const unavailable = (ids?: string[]): boolean =>
+  const unavailable = (ids?: readonly string[]): boolean =>
     (coreConflict && (ids === undefined || coreIds.every((id) => ids.includes(id)))) ||
     sections.some(
       (section) =>
@@ -78,18 +80,17 @@ export function summarizeDashSections(sections: readonly RecoverySection[]): Rec
         : formatDashFromCredits(totalCredits),
       tone: !unavailable() && totalCredits > 0n ? "positive" : "neutral",
     },
-    {
-      label: unavailable() ? "Confirmed funded resources" : "Funded resources",
-      value: String(fundedResources),
-      tone: fundedResources > 0 ? "positive" : "neutral",
-    },
+    fundedMetric(
+      fundedResources,
+      unavailable() ? "Confirmed funded resources" : "Funded resources",
+    ),
     {
       label: "Core L1",
-      value: unavailable(["core", "legacyCore", "coinjoin", "providerCollateral"])
+      value: unavailable(RECOVERY_SECTION_GROUPS.members("core"))
         ? "Unavailable"
         : formatDashFromDuffs(coreChain),
       tone:
-        !unavailable(["core", "legacyCore", "coinjoin", "providerCollateral"]) && coreChain > 0n
+        !unavailable(RECOVERY_SECTION_GROUPS.members("core")) && coreChain > 0n
           ? "positive"
           : "neutral",
     },

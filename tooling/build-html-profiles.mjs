@@ -1,10 +1,11 @@
+import { runNodeScript } from "./run-script.mjs";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BUILD_PROFILES, profileToolIds } from "./build-profiles.mjs";
+import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
 import { createBuildMatrixPlan, createBuildMatrixSmokePlan } from "./build-matrix-plan.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -35,21 +36,17 @@ for (let index = 2; index < process.argv.length; index += 1) {
 }
 const selectiveBuild = featureArgs.length > 0 || requestedTool !== undefined;
 const selectedTool = requestedTool ?? (featureArgs.length > 0 ? "key-derivation" : undefined);
-const scripts = {
-  "key-derivation": "apps/key-derivation/scripts/build-key-derivation-html.mjs",
-  "activity-viewer": "apps/activity-viewer/scripts/build-activity-viewer-html.mjs",
-  "discovery-scanner": "apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
-  "psbt-inspector": "apps/psbt-inspector/scripts/build-psbt-inspector-html.mjs",
-};
 
 if (process.argv.some((argument) => argument === "--tool" || argument.startsWith("--tool="))) {
   if (
     requestedTool === undefined ||
     requestedTool.trim() === "" ||
-    !Object.hasOwn(scripts, requestedTool)
+    !Object.values(BUILD_PROFILES).some((profile) =>
+      profileToolIds(profile).includes(requestedTool),
+    )
   ) {
     throw new Error(
-      `Unknown or missing --tool value "${requestedTool ?? ""}". Expected: ${Object.keys(scripts).join(", ")}.`,
+      `Unknown or missing --tool value "${requestedTool ?? ""}". Expected: ${profileToolIds(BUILD_PROFILES["multi-chain"]).join(", ")}.`,
     );
   }
 }
@@ -62,14 +59,7 @@ if (hasOutput && requested === undefined) {
   );
 }
 
-function runBuild(script, args) {
-  const result = spawnSync(process.execPath, [resolve(root, script), ...args], {
-    cwd: root,
-    stdio: "inherit",
-  });
-  if (result.error !== undefined) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
-}
+const runBuild = (script, args) => runNodeScript(script, args, { throwOnFailure: true });
 
 function runBuildMatrix({ checkOnly = false, planOnly = false, smoke = false } = {}) {
   const plan = smoke
@@ -91,7 +81,7 @@ function runBuildMatrix({ checkOnly = false, planOnly = false, smoke = false } =
   const temporaryRoot = checkOnly ? mkdtempSync(join(tmpdir(), "ckd-build-matrix-")) : null;
   try {
     for (const [index, job] of plan.entries()) {
-      const script = scripts[job.toolId];
+      const script = getToolBuild(BUILD_PROFILES[job.profileId], job.toolId).buildScript;
       if (script === undefined) throw new Error(`Missing build script for ${job.toolId}.`);
       const output = resolve(root, job.relativePath);
       const buildOutput =
@@ -146,7 +136,7 @@ for (const profileId of profileIds) {
   }
   for (const toolId of profileToolIds(BUILD_PROFILES[profileId])) {
     if (selectedTool !== undefined && toolId !== selectedTool) continue;
-    const script = scripts[toolId];
+    const script = getToolBuild(BUILD_PROFILES[profileId], toolId).buildScript;
     if (script === undefined) throw new Error(`Missing build script for ${toolId}.`);
     runBuild(script, ["--profile", profileId, ...(selectedTool === toolId ? featureArgs : [])]);
   }

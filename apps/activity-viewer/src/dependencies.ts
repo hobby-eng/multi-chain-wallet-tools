@@ -20,7 +20,8 @@ export interface ActivityViewerDependencies {
   queryPlatformIdentityHistory: typeof import("@ckd/dash-network/platform-identity-history.js").queryPlatformIdentityHistory;
   runBlobWorkerSelfTest: typeof import("@ckd/dash-network/blob-worker-self-test.js").runBlobWorkerSelfTest;
   runOrchardRuntimeSelfTest: typeof import("@ckd/dash-network/orchard-scanner.js").runOrchardRuntimeSelfTest;
-  runShieldedPageStream: typeof import("@ckd/dash-network/shielded-stream-policy.js").runShieldedPageStream;
+  runPublicInputGuardSelfTest: typeof import("@ckd/secret-boundary/public-input-guard-self-test.js").runPublicInputGuardSelfTest;
+  streamShieldedPages: typeof import("@ckd/dash-network/shielded-stream-policy.js").streamShieldedPages;
   scanEncryptedPage: typeof import("@ckd/dash-network/orchard-scanner.js").scanEncryptedPage;
   shieldedEmptyConfirmations: number;
   shieldedMaxPagesPerScan: number;

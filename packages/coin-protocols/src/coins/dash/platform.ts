@@ -9,6 +9,11 @@ import {
 import { bytesToHex, concatBytes, encodeWif, hash160, wipe } from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import {
+  DASH_PLATFORM_HASH_BYTES,
+  DASH_PLATFORM_P2PKH_TYPE,
+  DASH_PLATFORM_P2PKH_LABEL,
+} from "@ckd/core/dash-platform-address-facts.js";
+import {
   field,
   paymentAddressField,
   type Bip32BatchOptions,
@@ -16,12 +21,12 @@ import {
 } from "@ckd/core/types.js";
 import { bip32SummaryFields } from "../../bip32-summary.js";
 import { DIP17_PAYMENT_CHAINS } from "./platform-paths.js";
-
-const PLATFORM_P2PKH_TYPE = 0xb0;
+import { DASH_PLATFORM_PATHS } from "./profiles.js";
 
 export function encodePlatformP2pkh(publicKeyHash: Uint8Array, hrp: string): string {
-  if (publicKeyHash.length !== 20) throw new Error("Platform P2PKH hash must be 20 bytes.");
-  const payload = concatBytes(Uint8Array.of(PLATFORM_P2PKH_TYPE), publicKeyHash);
+  if (publicKeyHash.length !== DASH_PLATFORM_HASH_BYTES)
+    throw new Error(`Platform P2PKH hash must be ${DASH_PLATFORM_HASH_BYTES} bytes.`);
+  const payload = concatBytes(Uint8Array.of(DASH_PLATFORM_P2PKH_TYPE), publicKeyHash);
   return bech32m.encode(hrp, bech32m.toWords(payload));
 }
 
@@ -36,7 +41,7 @@ export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult
   assertBatch(options.start, options.count);
 
   const root = rootFromSeed(options.seed, network.versions);
-  const keyClassPath = `m/9'/${network.coinType}'/17'/${options.account}'/${options.branch}'`;
+  const keyClassPath = DASH_PLATFORM_PATHS.branchPath(options);
   const keyClass = root.derive(keyClassPath);
   const { fields: summary } = bip32SummaryFields(root, keyClass, keyClassPath, {
     accountPath: "DIP17 account path",
@@ -48,14 +53,14 @@ export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult
   try {
     for (let offset = 0; offset < options.count; offset += 1) {
       const index = options.start + offset;
-      const path = `${keyClassPath}/${index}`;
+      const path = DASH_PLATFORM_PATHS.addressPath(options, index);
       const child = keyClass.deriveChild(index);
       const privateKey = requirePrivate(child, path);
       const publicKey = requirePublic(child, path);
       const publicKeyHash = hash160(publicKey);
       const address = encodePlatformP2pkh(publicKeyHash, network.platformHrp);
       const storagePayload = concatBytes(Uint8Array.of(0x00), publicKeyHash);
-      const displayPayload = concatBytes(Uint8Array.of(PLATFORM_P2PKH_TYPE), publicKeyHash);
+      const displayPayload = concatBytes(Uint8Array.of(DASH_PLATFORM_P2PKH_TYPE), publicKeyHash);
 
       rows.push({
         index,
@@ -83,7 +88,7 @@ export function deriveDashPlatform(options: Bip32BatchOptions): DerivationResult
             "This losslessly encodes the secp256k1 secret but does not identify a Platform address or derivation path.",
           ),
           field("publicKeyHash", "HASH160(public key)", bytesToHex(publicKeyHash)),
-          field("addressType", "DIP18 display type byte", "0xb0 (P2PKH)"),
+          field("addressType", "DIP18 display type byte", DASH_PLATFORM_P2PKH_LABEL),
           field("displayPayload", "DIP18 display payload", bytesToHex(displayPayload)),
           field("storagePayload", "DPP storage payload", bytesToHex(storagePayload)),
           field("humanReadablePart", "Bech32m HRP", network.platformHrp),

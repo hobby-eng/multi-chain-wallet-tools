@@ -51,8 +51,10 @@ it("withholds an incomplete balance in presentation, aggregate, JSON and CSV, re
     value: "Unknown · scan incomplete",
   });
   expect(partial.metrics).toContainEqual({ label: "Observed received", value: "1 DASH" });
+  expect(partial.metrics).toContainEqual({ label: "Spendable notes", value: "Unknown" });
   expect(partial.metrics.some(({ label }) => label.startsWith("Lifetime"))).toBe(false);
   expect(complete.findings[0]!.balanceAtomic).toBe(100_000_000_000n);
+  expect(complete.metrics).toContainEqual({ label: "Spendable notes", value: "1" });
   const overview = summarizeDashSections([partial]);
   expect(overview.find(({ label }) => label === "Total located value")!.value).toMatch(
     /Unavailable/u,
@@ -97,11 +99,13 @@ it("withholds an incomplete balance in presentation, aggregate, JSON and CSV, re
     { ...page, notes: [{ ...wire, nullifier: new Uint8Array(32).fill(0x11) }] },
     [],
   );
-  expect(section(false).findings[0]!.balanceAtomic).toBe(0n);
-  expect(section(false).findings[0]!.fields).toContainEqual({
+  const spentPartial = section(false);
+  expect(spentPartial.findings[0]!.balanceAtomic).toBe(0n);
+  expect(spentPartial.findings[0]!.fields).toContainEqual({
     label: "Spend state",
     value: "Spent",
   });
+  expect(spentPartial.metrics).toContainEqual({ label: "Spent notes", value: "1" });
 });
 
 it("does not infer a zero account balance from an empty incoming-only scan", () => {

@@ -1,4 +1,5 @@
 import type { ShieldedActivityLedger } from "@ckd/dash-network/activity.js";
+import { ShieldedActivityState } from "@ckd/dash-network/shielded-activity-state.js";
 import {
   SHIELDED_EMPTY_CONFIRMATIONS,
   SHIELDED_MAX_PAGES_PER_SCAN,
@@ -23,17 +24,23 @@ export function sectionFromLedger(
   onFinding: (finding: RecoveryFinding) => void,
 ): RecoverySection {
   const snapshot = ledger.snapshot(outcome.complete);
+  const activityState = new ShieldedActivityState(snapshot);
   const visibleRecords = snapshot.records.filter((record) =>
-    shouldDisplayShieldedActivity(record, options.includeUsedZeroBalance),
+    shouldDisplayShieldedActivity(
+      record,
+      options.includeUsedZeroBalance,
+      snapshot.complete,
+      snapshot.keyKind,
+    ),
   );
   const incomingCount = snapshot.records.filter((record) => record.direction === "received").length;
   const outgoingCount = snapshot.records.filter((record) => record.direction === "sent").length;
   const selfCount = snapshot.records.filter((record) => record.direction === "self").length;
   const spendableCount = snapshot.records.filter(
-    (record) => record.incoming !== undefined && record.spent === false,
+    (record) => activityState.noteSpendStatus(record) === "spendable",
   ).length;
   const spentCount = snapshot.records.filter(
-    (record) => record.incoming !== undefined && record.spent === true,
+    (record) => activityState.noteSpendStatus(record) === "spent",
   ).length;
   const memoCount = snapshot.records.filter(
     (record) => (record.incoming ?? record.outgoing)?.memo.length !== 0,
@@ -45,7 +52,7 @@ export function sectionFromLedger(
     const outgoing = record.outgoing;
     const note = incoming ?? outgoing;
     if (note === undefined) throw new Error("Recovered Orchard activity has no note view.");
-    const presentation = shieldedFindingPresentation(record, outcome.complete);
+    const presentation = shieldedFindingPresentation(record, snapshot.complete, snapshot.keyKind);
     const finding: RecoveryFinding = {
       id: `shielded:${record.position}`,
       title: note.address,
@@ -76,7 +83,8 @@ export function sectionFromLedger(
       : keyKind === "incoming"
         ? "An Incoming Viewing Key sees incoming notes only. It cannot see outgoing notes, cannot prove a note is unspent, and therefore has no authoritative current balance."
         : "An Outgoing Viewing Key sees outgoing notes only. It cannot see incoming notes and has no concept of a current balance.";
-  const balanceAvailable = keyKind === "full" && outcome.complete;
+  const balance = activityState.balance;
+  const balanceAvailable = balance !== null;
   const incompleteReason =
     outcome.limitReason === "changing-tip"
       ? "The pool kept changing while its last partial page was being reconciled."
@@ -85,8 +93,8 @@ export function sectionFromLedger(
   const balanceMetric = balanceAvailable
     ? {
         label: "Spendable balance",
-        value: formatDashFromCredits(snapshot.balance ?? 0n),
-        tone: (snapshot.balance ?? 0n) > 0n ? ("positive" as const) : ("neutral" as const),
+        value: formatDashFromCredits(balance),
+        tone: balance > 0n ? ("positive" as const) : ("neutral" as const),
       }
     : {
         label: "Spendable balance",

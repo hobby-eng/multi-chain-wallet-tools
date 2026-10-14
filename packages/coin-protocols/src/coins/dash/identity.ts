@@ -1,11 +1,12 @@
 import type { HDKey } from "@scure/bip32";
 import {
-  assertBatch,
-  assertIndex,
-  requirePrivate,
-  requirePublic,
-  rootFromSeed,
-} from "@ckd/core/bip32.js";
+  DASH_IDENTITY_PATHS,
+  DASH_IDENTITY_STANDARD_KEYS,
+  DASH_IDENTITY_STANDARD_PROFILE_NAME,
+  type DashIdentityStandardKey,
+} from "./profiles.js";
+
+import { assertBatch, requirePrivate, requirePublic, rootFromSeed } from "@ckd/core/bip32.js";
 import { bytesToHex, encodeWif, hash160, wipe } from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import {
@@ -16,6 +17,8 @@ import {
   type ResultFieldGroup,
 } from "@ckd/core/types.js";
 
+export { DASH_IDENTITY_STANDARD_KEYS, DASH_IDENTITY_STANDARD_PROFILE_NAME } from "./profiles.js";
+
 interface DashIdentityKey {
   path: string;
   privateKey: Uint8Array;
@@ -24,57 +27,6 @@ interface DashIdentityKey {
 }
 
 type DashIdentityAuthenticationKey = DashIdentityKey;
-
-interface DashIdentityStandardKey {
-  keyId: 0 | 1 | 2 | 3;
-  purpose: "AUTHENTICATION" | "TRANSFER";
-  purposeValue: 0 | 3;
-  securityLevel: "MASTER" | "CRITICAL" | "HIGH";
-  securityLevelValue: 0 | 1 | 2;
-  use: string;
-}
-
-export const DASH_IDENTITY_STANDARD_PROFILE_NAME = "Official Platform Wallet v4.1.1 · 4 ECDSA keys";
-
-/**
- * The default registration profile is wallet policy, not a DIP13 path rule.
- * An IdentityCreate transition explicitly assigns each public key its purpose
- * and security level; a custom registration can assign different metadata.
- */
-export const DASH_IDENTITY_STANDARD_KEYS: readonly DashIdentityStandardKey[] = [
-  {
-    keyId: 0,
-    purpose: "AUTHENTICATION",
-    purposeValue: 0,
-    securityLevel: "MASTER",
-    securityLevelValue: 0,
-    use: "Master-level identity authentication and later identity-key management.",
-  },
-  {
-    keyId: 1,
-    purpose: "AUTHENTICATION",
-    purposeValue: 0,
-    securityLevel: "CRITICAL",
-    securityLevelValue: 1,
-    use: "Critical authentication operations, including sensitive token operations.",
-  },
-  {
-    keyId: 2,
-    purpose: "AUTHENTICATION",
-    purposeValue: 0,
-    securityLevel: "HIGH",
-    securityLevelValue: 2,
-    use: "Routine document and application state transitions.",
-  },
-  {
-    keyId: 3,
-    purpose: "TRANSFER",
-    purposeValue: 3,
-    securityLevel: "CRITICAL",
-    securityLevelValue: 1,
-    use: "Identity credit transfers and withdrawals.",
-  },
-] as const;
 
 /**
  * Derives an ECDSA/secp256k1 key from the current Dash Identity DIP13 branch.
@@ -89,10 +41,7 @@ function deriveDashIdentityKey(
   identityIndex: number,
   keyIndex = 0,
 ): DashIdentityKey {
-  assertIndex(identityIndex, "Identity index");
-  assertIndex(keyIndex, "Identity key index");
-  const network = getDashNetwork(networkName);
-  const path = `m/9'/${network.coinType}'/5'/0'/0'/${identityIndex}'/${keyIndex}'`;
+  const path = DASH_IDENTITY_PATHS.keyPath(networkName, identityIndex, keyIndex);
   const node = root.derive(path);
   const privateSource = requirePrivate(node, path);
   const publicSource = requirePublic(node, path);
@@ -201,13 +150,13 @@ export function deriveDashIdentity(options: Bip32BatchOptions): DerivationResult
   const network = getDashNetwork(options.network);
   assertBatch(options.start, options.count);
   const root = rootFromSeed(options.seed, network.versions);
-  const profilePath = `m/9'/${network.coinType}'/5'/0'/0'`;
+  const profilePath = DASH_IDENTITY_PATHS.profilePath(options.network);
   const rows = [];
 
   try {
     for (let offset = 0; offset < options.count; offset += 1) {
       const identityIndex = options.start + offset;
-      const identityPath = `${profilePath}/${identityIndex}'`;
+      const identityPath = DASH_IDENTITY_PATHS.identityPath(options.network, identityIndex);
       rows.push({
         index: identityIndex,
         path: identityPath,

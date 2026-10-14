@@ -7,7 +7,7 @@ import {
   initSync as initializeOfficialOrchard,
 } from "@ckd/dash-wasm/dash_shielded_wasm.js";
 import { buildDashShieldedResult } from "./shielded-result.js";
-const MAX_DIVERSIFIER_INDEX = 0xffff_ffff;
+import { MAX_DASH_DIVERSIFIER_INDEX } from "./profiles.js";
 
 let wasmInitialized = false;
 
@@ -24,25 +24,30 @@ function initWasm(): void {
 export function deriveDashShielded(options: ShieldedBatchOptions): DerivationResult {
   const network = getDashNetwork(options.network);
   assertIndex(options.account, "Account");
-  assertIndex(options.start, "Diversifier index", MAX_DIVERSIFIER_INDEX);
+  assertIndex(options.start, "Diversifier index", MAX_DASH_DIVERSIFIER_INDEX);
   if (!Number.isSafeInteger(options.count) || options.count < 1 || options.count > MAX_BATCH_SIZE) {
     throw new Error(`Number of results must be an integer from 1 to ${MAX_BATCH_SIZE}.`);
   }
-  if (options.start + options.count - 1 > MAX_DIVERSIFIER_INDEX) {
+  if (options.start + options.count - 1 > MAX_DASH_DIVERSIFIER_INDEX) {
     throw new Error("The requested diversifier index range exceeds uint32.");
   }
   initWasm();
 
-  let json = deriveOfficialOrchardJson(
-    options.seed,
-    network.coinType,
-    options.account,
-    options.start,
-    options.count,
-  );
+  // The mutable WASM binding wipes and copies its input back. It must own a
+  // disposable copy; callers reuse the BIP39 seed for other wallet protocols.
+  const seed = options.seed.slice();
+  let json = "";
   try {
+    json = deriveOfficialOrchardJson(
+      seed,
+      network.coinType,
+      options.account,
+      options.start,
+      options.count,
+    );
     return buildDashShieldedResult(json, options);
   } finally {
+    seed.fill(0);
     json = "";
   }
 }

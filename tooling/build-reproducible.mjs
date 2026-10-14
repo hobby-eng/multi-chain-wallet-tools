@@ -1,25 +1,28 @@
 import { BUILD_PROFILES } from "./build-profiles.mjs";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { WASM_MODULES } from "./wasm-modules.mjs";
+import { DockerBuildLimits } from "./docker-build-limits.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+if (process.argv.slice(2).some((argument) => argument !== "--wasm"))
+  throw new Error("Usage: build-reproducible.mjs [--wasm]");
 const wasmOnly = process.argv.includes("--wasm");
 const target = wasmOnly ? "wasm-artifacts" : "artifacts";
 const image = `multi-chain-wallet-tools-reproducible:${String(manifest.version)}-${target}`;
 let sourceCommit = "unavailable";
-let sourceDirty = false;
+// An archive without readable Git metadata must never be described as a clean checkout.
+let sourceDirty = true;
 try {
-  sourceCommit =
-    spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout.trim() ||
-    "unavailable";
-  sourceDirty =
-    spawnSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).stdout.trim() !==
-    "";
+  const commit = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
+  const status = spawnSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" });
+  if (commit.error === undefined && commit.status === 0)
+    sourceCommit = commit.stdout.trim() || "unavailable";
+  if (status.error === undefined && status.status === 0) sourceDirty = status.stdout.trim() !== "";
 } catch {}
 const temporary = mkdtempSync(join(tmpdir(), "multi-chain-wallet-tools-reproducible-"));
 let container;
@@ -50,6 +53,8 @@ try {
   run("docker", ["version"]);
   run("docker", [
     "build",
+    "--load",
+    ...new DockerBuildLimits().arguments(),
     "--platform",
     "linux/amd64",
     "--network",
@@ -71,19 +76,28 @@ try {
   container = readFileSync(containerIdFile, "utf8").trim();
   if (container.length === 0) throw new Error("Docker did not record the temporary container ID.");
   const source = wasmOnly ? "/generated/." : "/dist/.";
-  run("docker", ["cp", `${container}:${source}`, temporary]);
+  // Container bookkeeping belongs to the temporary root, never to the exported artifact tree.
+  const exported = resolve(temporary, "output");
+  mkdirSync(exported);
+  run("docker", ["cp", `${container}:${source}`, exported]);
 
   if (wasmOnly) {
-    if (!existsSync(resolve(temporary, "dash", "dash_shielded_wasm_bg.wasm"))) {
+    if (
+      WASM_MODULES.some(
+        (module) =>
+          !existsSync(resolve(exported, module.archiveDirectory, `${module.stem}_bg.wasm`)),
+      ) ||
+      !existsSync(resolve(exported, "wasm-canonical-manifest.json"))
+    ) {
       throw new Error("The reproducible WASM image did not contain the expected generated module.");
     }
     for (const module of WASM_MODULES) {
       const destination = resolve(root, "packages", module.packageDirectory, "generated");
       rmSync(destination, { recursive: true, force: true });
-      cpSync(resolve(temporary, module.archiveDirectory), destination, { recursive: true });
+      cpSync(resolve(exported, module.archiveDirectory), destination, { recursive: true });
     }
     cpSync(
-      resolve(temporary, "wasm-canonical-manifest.json"),
+      resolve(exported, "wasm-canonical-manifest.json"),
       resolve(root, "tooling/wasm-canonical-manifest.json"),
     );
     console.log("Replaced the committed generated WASM inputs with the canonical container build.");
@@ -92,11 +106,11 @@ try {
     const manifests = Object.values(BUILD_PROFILES).map(
       (profile) => `${profile.outputDirectory}/release/SHA256SUMS`,
     );
-    if (manifests.some((path) => !existsSync(resolve(temporary, path)))) {
+    if (manifests.some((path) => !existsSync(resolve(exported, path)))) {
       throw new Error("The reproducible build did not contain the verified release bundle.");
     }
     rmSync(destination, { recursive: true, force: true });
-    cpSync(temporary, destination, { recursive: true });
+    cpSync(exported, destination, { recursive: true });
     for (const path of manifests)
       console.log(readFileSync(resolve(destination, path), "utf8").trim());
     console.log("Copied the canonical container build to dist/.");

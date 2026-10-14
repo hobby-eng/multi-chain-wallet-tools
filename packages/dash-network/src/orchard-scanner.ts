@@ -22,6 +22,13 @@ import type {
 } from "./types.js";
 
 const MAX_U64 = (1n << 64n) - 1n;
+// Fixed Dash Orchard action geometry at the committed WASM scanner boundary.
+const NOTE_FIELD_WIDTHS: Readonly<Record<keyof ShieldedEncryptedNote, number>> = Object.freeze({
+  cmx: 32,
+  nullifier: 32,
+  cvNet: 32,
+  encryptedNote: 216,
+});
 let wasmInitialized = false;
 
 const SELF_TEST_INCOMING_VIEWING_KEY =
@@ -90,7 +97,11 @@ function parseNoteView(
       memo: decodeDashShieldedMemo(memoBytes),
     };
     if (noteNullifierMode === "required") {
-      parsed.noteNullifier = assertHex(view.noteNullifier, 32, "derived note nullifier");
+      parsed.noteNullifier = assertHex(
+        view.noteNullifier,
+        NOTE_FIELD_WIDTHS.nullifier,
+        "derived note nullifier",
+      );
     } else if (view.noteNullifier !== undefined) {
       throw new Error("Limited viewing-key recovery unexpectedly returned a note nullifier.");
     }
@@ -104,16 +115,21 @@ function parseNoteView(
 function concatenate(
   notes: ShieldedEncryptedNote[],
   field: keyof ShieldedEncryptedNote,
-  width: number,
 ): Uint8Array {
+  const width = NOTE_FIELD_WIDTHS[field];
   const output = new Uint8Array(notes.length * width);
-  notes.forEach((note, index) => {
-    const value = note[field];
-    if (value.length !== width)
-      throw new Error(`DAPI returned ${field} with an invalid byte length.`);
-    output.set(value, index * width);
-  });
-  return output;
+  try {
+    notes.forEach((note, index) => {
+      const value = note[field];
+      if (value.length !== width)
+        throw new Error(`DAPI returned ${field} with an invalid byte length.`);
+      output.set(value, index * width);
+    });
+    return output;
+  } catch (cause) {
+    output.fill(0);
+    throw cause;
+  }
 }
 
 function parseResult(
@@ -151,8 +167,12 @@ function parseResult(
     const source = notes[Number(offset)];
     if (source === undefined)
       throw new Error("The DAPI note page is missing a scanner-referenced position.");
-    const cmx = assertHex(raw.cmx, 32, "note commitment");
-    const actionNullifier = assertHex(raw.actionNullifier, 32, "action nullifier");
+    const cmx = assertHex(raw.cmx, NOTE_FIELD_WIDTHS.cmx, "note commitment");
+    const actionNullifier = assertHex(
+      raw.actionNullifier,
+      NOTE_FIELD_WIDTHS.nullifier,
+      "action nullifier",
+    );
     if (cmx !== bytesToHex(source.cmx) || actionNullifier !== bytesToHex(source.nullifier)) {
       throw new Error("The official Orchard scanner result does not match its DAPI input page.");
     }
@@ -193,12 +213,18 @@ export function scanEncryptedPage(
     throw new Error("Start position is outside uint64.");
   initWasm();
   const viewingKey = hexToBytes(normalizedKey.hex);
-  const cmx = concatenate(notes, "cmx", 32);
-  const nullifiers = concatenate(notes, "nullifier", 32);
-  const cvNet = concatenate(notes, "cvNet", 32);
-  const encryptedNotes = concatenate(notes, "encryptedNote", 216);
+  const prepared: Uint8Array[] = [viewingKey];
+  const prepare = (field: keyof ShieldedEncryptedNote): Uint8Array => {
+    const bytes = concatenate(notes, field);
+    prepared.push(bytes);
+    return bytes;
+  };
   let json = "";
   try {
+    const cmx = prepare("cmx");
+    const nullifiers = prepare("nullifier");
+    const cvNet = prepare("cvNet");
+    const encryptedNotes = prepare("encryptedNote");
     if (normalizedKey.kind === "full") {
       json = scanOfficialOrchardBatch(
         viewingKey,
@@ -229,11 +255,7 @@ export function scanEncryptedPage(
     }
     return parseResult(json, startPosition, notes, network, normalizedKey.kind);
   } finally {
-    viewingKey.fill(0);
-    cmx.fill(0);
-    nullifiers.fill(0);
-    cvNet.fill(0);
-    encryptedNotes.fill(0);
+    for (const bytes of prepared) bytes.fill(0);
     json = "";
   }
 }
@@ -285,19 +307,13 @@ export function runOrchardRuntimeSelfTest(): OrchardRuntimeSelfTestReport {
     }
     const viewingKey: NormalizedViewingKey = { kind: "full", hex: candidate.fullViewingKey };
     assertCanonicalViewingKey(viewingKey);
-    const matches = scanEncryptedPage(
-      viewingKey,
-      0n,
-      [
-        {
-          cmx: new Uint8Array(32),
-          nullifier: new Uint8Array(32),
-          cvNet: new Uint8Array(32),
-          encryptedNote: new Uint8Array(216),
-        },
-      ],
-      "testnet",
-    );
+    const emptyNote: ShieldedEncryptedNote = {
+      cmx: new Uint8Array(NOTE_FIELD_WIDTHS.cmx),
+      nullifier: new Uint8Array(NOTE_FIELD_WIDTHS.nullifier),
+      cvNet: new Uint8Array(NOTE_FIELD_WIDTHS.cvNet),
+      encryptedNote: new Uint8Array(NOTE_FIELD_WIDTHS.encryptedNote),
+    };
+    const matches = scanEncryptedPage(viewingKey, 0n, [emptyNote], "testnet");
     if (matches.length !== 0) {
       throw new Error(
         "Dash Orchard WASM returned a false match for the fixed empty scanner boundary.",
@@ -311,12 +327,24 @@ export function runOrchardRuntimeSelfTest(): OrchardRuntimeSelfTestReport {
     }
     if (!rejectedInvalid)
       throw new Error("Dash Orchard WASM accepted an invalid Full Viewing Key.");
+    for (const field of Object.keys(NOTE_FIELD_WIDTHS) as Array<keyof ShieldedEncryptedNote>) {
+      let rejectedWidth = false;
+      try {
+        // A malformed public page must fail before the engine sees a copied viewing key.
+        scanEncryptedPage(viewingKey, 0n, [{ ...emptyNote, [field]: new Uint8Array() }], "testnet");
+      } catch {
+        rejectedWidth = true;
+      }
+      if (!rejectedWidth)
+        throw new Error(`Dash Orchard scanner accepted an invalid ${field} width.`);
+    }
     return {
       passed: true,
       checks: [
         "Dash Orchard ZIP-32 fixed vector",
         "Dash Orchard viewing-key scanner boundary",
         "Invalid Full Viewing Key rejection",
+        "Malformed Orchard page rejection",
       ],
       durationMs: Math.round(performance.now() - started),
     };

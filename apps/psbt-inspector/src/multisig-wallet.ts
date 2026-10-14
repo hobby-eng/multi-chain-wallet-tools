@@ -1,7 +1,7 @@
 import { HDKey } from "@scure/bip32";
 import { bytesToHex } from "@ckd/core/crypto.js";
-import { getBitcoinNetwork, getDashNetwork, type Bip32Versions } from "@ckd/core/networks.js";
-import type { NetworkName } from "@ckd/core/types.js";
+import type { Bip32Versions } from "@ckd/core/networks.js";
+import { InspectorNetworkProfile } from "./network-profile.js";
 import { buildDashCoreImport } from "./dash-import.js";
 import { descriptorChecksum } from "@ckd/core/descriptor-checksum.js";
 import { buildPolicy, policyHex } from "./policy.js";
@@ -64,8 +64,7 @@ export interface RangedWallet {
 }
 
 function versions(chain: PsbtChain, network: PsbtNetwork): Bip32Versions {
-  const name: NetworkName = network === "mainnet" ? "mainnet" : "testnet";
-  return chain === "dash" ? getDashNetwork(name).versions : getBitcoinNetwork(name).versions;
+  return new InspectorNetworkProfile(chain, network).versions;
 }
 
 function xpubNetworkHint(value: string, expectedNetwork: PsbtNetwork): string {
@@ -407,22 +406,7 @@ function importPayload(
   request: RangedWalletRequest,
   descriptors: readonly DescriptorRecord[],
 ): { text: string; json: string } {
-  if (request.chain === "bitcoin") {
-    const payload = descriptors.map((descriptor) => ({
-      desc: descriptor.descriptor,
-      timestamp: "now",
-      active: true,
-      internal: descriptor.branch === 1,
-      range: [request.startIndex, request.endIndex],
-      next_index: request.startIndex,
-    }));
-    const json = `${JSON.stringify(payload, null, 2)}\n`;
-    const flag = cliNetworkFlag(request.network);
-    return {
-      json,
-      text: `# Create a separate blank watch-only descriptor wallet; choose a unique wallet name.\nbitcoin-cli${flag} -named createwallet wallet_name=multisig-watch-only disable_private_keys=true blank=true descriptors=true load_on_startup=true\nbitcoin-cli${flag} -rpcwallet=multisig-watch-only importdescriptors '${JSON.stringify(payload)}'\n# Verify the same receive/change addresses with every cosigner before funding.\n# For an existing wallet, replace timestamp now with its earliest possible use time and rescan.`,
-    };
-  }
+  // The importdescriptors request of both nodes: one active entry per branch, change internal.
   const payload = descriptors.map((descriptor) => ({
     desc: descriptor.descriptor,
     timestamp: "now",
@@ -431,10 +415,14 @@ function importPayload(
     range: [request.startIndex, request.endIndex],
     next_index: request.startIndex,
   }));
-  const json = `${JSON.stringify({ jsonrpc: "1.0", id: "multisig-wallet", method: "importdescriptors", params: [payload] }, null, 2)}\n`;
+  const json =
+    request.chain === "bitcoin"
+      ? `${JSON.stringify(payload, null, 2)}\n`
+      : `${JSON.stringify({ jsonrpc: "1.0", id: "multisig-wallet", method: "importdescriptors", params: [payload] }, null, 2)}\n`;
+  const cli = `${request.chain === "bitcoin" ? "bitcoin-cli" : "dash-cli"}${cliNetworkFlag(request.network)}`;
   return {
     json,
-    text: `# Create a separate blank watch-only descriptor wallet; choose a unique wallet name.\ndash-cli${cliNetworkFlag(request.network)} -named createwallet wallet_name=multisig-watch-only disable_private_keys=true blank=true descriptors=true load_on_startup=true\ndash-cli${cliNetworkFlag(request.network)} -rpcwallet=multisig-watch-only importdescriptors '${JSON.stringify(payload)}'\n# Verify the same receive/change addresses with every cosigner before funding.\n# For an existing wallet, replace timestamp now with its earliest possible use time and rescan.`,
+    text: `# Create a separate blank watch-only descriptor wallet; choose a unique wallet name.\n${cli} -named createwallet wallet_name=multisig-watch-only disable_private_keys=true blank=true descriptors=true load_on_startup=true\n${cli} -rpcwallet=multisig-watch-only importdescriptors '${JSON.stringify(payload)}'\n# Verify the same receive/change addresses with every cosigner before funding.\n# For an existing wallet, replace timestamp now with its earliest possible use time and rescan.`,
   };
 }
 

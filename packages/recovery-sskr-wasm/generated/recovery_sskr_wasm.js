@@ -1,6 +1,22 @@
 /* @ts-self-types="./recovery_sskr_wasm.d.ts" */
 
 /**
+ * The encodings of a share, which a host asks for by their number: the compact UR, or standard
+ * Bytewords. JavaScript reads the numbers from this enum (`ShareEncoding.CompactUr`), so they are
+ * written only here.
+ *
+ * The entries still take the number as a `u8`: wasm-bindgen refuses a number outside an enum by
+ * throwing before any code here runs, which would leave the secret it has already copied in
+ * unwiped. `ShareEncoding::try_from` refuses it inside the entry, which then wipes the secret
+ * (AUD-012-SEC001).
+ * @enum {0 | 1}
+ */
+export const ShareEncoding = Object.freeze({
+    CompactUr: 0, "0": "CompactUr",
+    Bytewords: 1, "1": "Bytewords",
+});
+
+/**
  * @param {Uint8Array} secret
  * @param {number} group_threshold
  * @param {Uint8Array} group_specs
@@ -137,9 +153,6 @@ function __wbg_get_imports() {
             // Cast intrinsic for `Ref(String) -> Externref`.
             const ret = getStringFromWasm0(arg0, arg1);
             return addHeapObject(ret);
-        },
-        __wbindgen_object_drop_ref: function(arg0) {
-            takeObject(arg0);
         },
     };
     return {

@@ -1,9 +1,9 @@
+import { SCANNER_NETWORK_CONCURRENCY } from "./concurrency-parameters.js";
 import {
   RECOVERY_CORE_ADDRESS_BATCH,
-  RECOVERY_EVM_ACCOUNT_BATCH,
   RECOVERY_PLATFORM_ADDRESS_BATCH,
-  RECOVERY_UTXO_ADDRESS_BATCH,
 } from "@ckd/network-boundary/protocol.js";
+import type { RecoveryCoinAdapter } from "./types.js";
 
 const COINJOIN_COIN_TYPE: Record<"mainnet" | "testnet", number> = { mainnet: 5, testnet: 1 };
 
@@ -20,9 +20,7 @@ export function estimateInteger(value: string, minimum: number): number {
 }
 
 function estimateConcurrency(value: string): number {
-  const number = estimateInteger(value, 1);
-  if (number > 5) throw new Error("Invalid estimate concurrency.");
-  return number;
+  return SCANNER_NETWORK_CONCURRENCY.parse(value, "Estimate concurrency");
 }
 
 interface StandardEstimateOptions {
@@ -114,8 +112,6 @@ export function dashScanEstimate(input: DashScanEstimateInput): string {
 export const LARGE_SCAN_LOOKUPS = 1_000;
 /** Assumed time of one public-provider lookup; used only for the displayed estimate. */
 const ESTIMATED_SECONDS_PER_LOOKUP = 1;
-const BITCOIN_STANDARD_FAMILIES = 4;
-const ETHEREUM_STANDARD_PROFILES = 3;
 
 /** The scan settings that decide how many provider lookups one seed phrase needs. */
 export interface SeedLookupSettings {
@@ -139,52 +135,52 @@ export interface SeedLookupSettings {
   readonly scanShieldedPool: boolean;
 }
 
-function batches(count: string, batchSize: number): number {
+/** The provider lookups of `count` addresses, `batchSize` to a lookup. */
+export function lookupBatches(count: string, batchSize: number): number {
   return Math.ceil(estimateInteger(count, 0) / batchSize);
 }
 
-/** Minimum provider lookups for one seed phrase across the given coins, before post-use gaps. */
+/** Minimum Dash provider lookups for one seed phrase with these settings, before post-use gaps. */
+export function dashSeedLookups(settings: SeedLookupSettings): number {
+  const dash = dashMinimumLookups({
+    scanCore: settings.scanCore,
+    receiveCount: settings.coreReceiveCount,
+    changeCount: settings.coreChangeCount,
+    customPath: false,
+    scanLegacyCore: settings.scanLegacyCore,
+    legacyCoreCount: settings.legacyCoreCount,
+    scanCoinJoin: settings.scanCoinJoin,
+    coinJoinExternalCount: settings.coinJoinExternalCount,
+    coinJoinInternalCount: settings.coinJoinInternalCount,
+    scanIdentityFunding: settings.scanIdentityFunding,
+    scanProviderCollateral: settings.scanProviderCollateral,
+    providerCollateralCount: settings.providerCollateralCount,
+    scanPlatformAddresses: settings.scanPlatformAddresses,
+    platformCount: settings.platformAddressCount,
+    scanPlatformIdentities: settings.scanPlatformIdentities,
+    identityLimit: settings.identityScanLimit,
+    requestConcurrency: settings.requestConcurrency,
+    includeUsedZero: settings.includeUsedZeroBalance,
+    scanShielded: settings.scanShieldedPool,
+  });
+  return dash.addressBatches + dash.identityCalls;
+}
+
+/**
+ * Minimum provider lookups for one seed phrase across the given coins, before post-use gaps. Each
+ * coin counts its own (RecoveryCoinAdapter.minimumSeedLookups), so that an edition holds the code
+ * of its own coins only.
+ */
 export function seedLookupsPerPhrase(
-  coinIds: readonly string[],
+  coins: readonly Pick<RecoveryCoinAdapter, "id" | "minimumSeedLookups">[],
   settings: SeedLookupSettings,
 ): number {
   let lookups = 0;
-  for (const coinId of coinIds) {
-    if (coinId === "bitcoin") {
-      lookups +=
-        BITCOIN_STANDARD_FAMILIES *
-        (batches(settings.coreReceiveCount, RECOVERY_UTXO_ADDRESS_BATCH) +
-          batches(settings.coreChangeCount, RECOVERY_UTXO_ADDRESS_BATCH));
-    } else if (coinId === "ethereum") {
-      lookups +=
-        ETHEREUM_STANDARD_PROFILES * batches(settings.coreReceiveCount, RECOVERY_EVM_ACCOUNT_BATCH);
-    } else if (coinId === "dash") {
-      const dash = dashMinimumLookups({
-        scanCore: settings.scanCore,
-        receiveCount: settings.coreReceiveCount,
-        changeCount: settings.coreChangeCount,
-        customPath: false,
-        scanLegacyCore: settings.scanLegacyCore,
-        legacyCoreCount: settings.legacyCoreCount,
-        scanCoinJoin: settings.scanCoinJoin,
-        coinJoinExternalCount: settings.coinJoinExternalCount,
-        coinJoinInternalCount: settings.coinJoinInternalCount,
-        scanIdentityFunding: settings.scanIdentityFunding,
-        scanProviderCollateral: settings.scanProviderCollateral,
-        providerCollateralCount: settings.providerCollateralCount,
-        scanPlatformAddresses: settings.scanPlatformAddresses,
-        platformCount: settings.platformAddressCount,
-        scanPlatformIdentities: settings.scanPlatformIdentities,
-        identityLimit: settings.identityScanLimit,
-        requestConcurrency: settings.requestConcurrency,
-        includeUsedZero: settings.includeUsedZeroBalance,
-        scanShielded: settings.scanShieldedPool,
-      });
-      lookups += dash.addressBatches + dash.identityCalls;
-    } else {
-      // A new coin adapter must state its lookups here, or the estimate would silently drop it.
-      throw new Error(`No lookup estimate for coin ${coinId}.`);
-    }
+  for (const coin of coins) {
+    // A new coin adapter must state its lookups, or the estimate would silently drop it.
+    if (coin.minimumSeedLookups === undefined)
+      throw new Error(`No lookup estimate for coin ${coin.id}.`);
+    lookups += coin.minimumSeedLookups(settings);
   }
   return lookups;
 }

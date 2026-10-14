@@ -1,0 +1,251 @@
+{
+  "AUD-028-SEC001": {
+    "summary": "Validate every recipient with contributory X25519 agreement before creating the content key; retain the pinned encapsulation implementation.",
+    "files": [
+      "packages/recovery-envelope-wasm/rust/src/recipient.rs",
+      "packages/recovery-envelope-wasm/rust/src/lib.rs",
+      "packages/recovery-backup/tests/gordian-admission.test.ts"
+    ],
+    "commands": ["crypto-final", "native-final", "wasm-integrity-final"]
+  },
+  "AUD-028-API001": {
+    "summary": "Use one Core confirmation-state owner across display and all exports, preserving pending independently of lock flags.",
+    "files": [
+      "apps/activity-viewer/src/core-activity-state.ts",
+      "apps/activity-viewer/src/export-csv.ts",
+      "apps/activity-viewer/tests/activity-state-export.test.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-API002": {
+    "summary": "Give the mutable Dash WASM binding a disposable seed copy and wipe it in finally; preserve caller ownership on success and failure.",
+    "files": [
+      "packages/coin-protocols/src/coins/dash/shielded.ts",
+      "packages/coin-protocols/tests/dash-shielded-ownership.test.ts"
+    ],
+    "commands": ["crypto-final"]
+  },
+  "AUD-028-API003": {
+    "summary": "Propagate malformed and duplicate typed passphrase assertions; transfer decoded entropy without a redundant copy and wipe on all validation paths.",
+    "files": [
+      "packages/recovery-envelope-wasm/rust/src/lib.rs",
+      "packages/recovery-backup/tests/gordian-admission.test.ts"
+    ],
+    "commands": ["crypto-final", "native-final"]
+  },
+  "AUD-028-API004": {
+    "summary": "Delegate Orchard note state and balance availability to ShieldedActivityState; incomplete coverage never establishes spendability.",
+    "files": [
+      "packages/dash-network/src/shielded-activity-state.ts",
+      "apps/activity-viewer/src/export-csv.ts",
+      "apps/discovery-scanner/src/coins/dash/shielded-presentation.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-API005": {
+    "summary": "Carry the captured BIP39 passphrase through missing-code recovery and atomically assign both Deriver factors before dispatching input events.",
+    "files": [
+      "apps/key-derivation/src/ui/recovery-deriver-handoff.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-missing-codes.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-decode.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-API006": {
+    "summary": "Bind codes, dates, interpretation radios and wallet factors to result ownership; reject stale replies and detached actions.",
+    "files": [
+      "apps/key-derivation/src/ui/recovery-input-revision.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-decode.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-results.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-API007": {
+    "summary": "Bind auxiliary Platform history to the admitted DIP18 address and requested network in one shared admission class.",
+    "files": [
+      "packages/dash-network/src/platform-address-history-admission.ts",
+      "packages/dash-network/src/platform-address-history.ts",
+      "apps/discovery-scanner/src/dash-platform-network.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-API008": {
+    "summary": "Invalidate Silent Payments synchronously on parent edits and generation; refuse late worker publication.",
+    "files": [
+      "apps/key-derivation/src/ui/controller.ts",
+      "apps/key-derivation/src/ui/silent-payment-feature.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-BLD001": {
+    "summary": "Regenerate all four bridges in the canonical container; bind the shared compiler pins, integrity writer and build inputs to their output records. Recognize BuildKit by the declared workspace and execution flag; retain release byte-comparison gates.",
+    "files": [
+      "tooling/verify-wasm-integrity.mjs",
+      "tooling/wasm-canonical-manifest.json",
+      "Dockerfile.reproducible",
+      ".dockerignore"
+    ],
+    "commands": ["canonical-wasm-final", "wasm-integrity-final", "build-policy-final"]
+  },
+  "AUD-028-BLD002": {
+    "summary": "Admit the reviewed neutral MnemoCode share-platform and local-search modules precisely in the Dash graph and build the current Dash Deriver.",
+    "files": [
+      "tooling/build-profiles.mjs",
+      "packages/recovery-backup/src/mnemocode-share-platform.ts"
+    ],
+    "commands": ["html-final", "static-artifacts-final"]
+  },
+  "AUD-028-BLD003": {
+    "summary": "Preserve the reusable SSKR bridge compatibility version 0.1.6 independently of application version 0.1.5; derive metadata policy from the WASM catalog.",
+    "files": [
+      "tooling/wasm-modules.mjs",
+      "tooling/project-metadata.mjs",
+      "tooling/sync-project-metadata.mjs",
+      "packages/recovery-sskr-wasm/package.json",
+      "RELEASING.md"
+    ],
+    "commands": ["check-final", "build-policy-final"]
+  },
+  "AUD-028-FUN001": {
+    "summary": "Use the shared InspectorNetworkProfile for BIP173/BIP350 address encoding and descriptor admission, preserving regtest and rejecting the wrong checksum family.",
+    "files": [
+      "apps/psbt-inspector/src/network-profile.ts",
+      "apps/psbt-inspector/src/descriptor-compiler.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-FUN002": {
+    "summary": "Validate each original Codex32 record before normalizing compatible presentation cases for reference interpolation.",
+    "files": [
+      "packages/recovery-codex32-wasm/rust/src/record.rs",
+      "packages/recovery-backup/tests/codex32.test.ts"
+    ],
+    "commands": ["crypto-final", "native-final"]
+  },
+  "AUD-028-FUN003": {
+    "summary": "Parse wire previous transactions with their required CompactSize-framed Dash special payload while retaining the distinct PSBT-global encoding.",
+    "files": ["apps/psbt-inspector/src/transaction.ts", "apps/psbt-inspector/src/psbt-utxo.ts"],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-FUN004": {
+    "summary": "Keep unsupported Dash PSBT fields raw; consistently exclude them from Bitcoin verification and signing semantics.",
+    "files": [
+      "apps/psbt-inspector/src/psbt-field-registry.ts",
+      "apps/psbt-inspector/src/psbt-verification.ts",
+      "apps/psbt-inspector/src/signing-commitments.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-SEC002": {
+    "summary": "Delegate byte ceilings and bounded age-prefix admission to unchanged MnemoCode modules before buffering; recheck body size, preserve request generations and wipe owned buffers.",
+    "files": [
+      "apps/discovery-scanner/src/candidate-list-import.ts",
+      "apps/discovery-scanner/src/candidate-list-panel.ts",
+      "packages/recovery-mnemocode/source/core/candidate-file-admission.ts",
+      "packages/recovery-mnemocode/source/core/candidate-file-refusal.ts",
+      "packages/recovery-mnemocode/source/core/candidate-encryption.ts",
+      "packages/recovery-mnemocode/source/core/candidate-list.ts"
+    ],
+    "commands": ["candidate-files-final", "mnemocode-final"]
+  },
+  "AUD-028-SEC003": {
+    "summary": "Draw independent final GF(32) padding for random Codex32 basis shares and use reference checksum encoding; verify the complete projected field support with a narrow independent oracle.",
+    "files": [
+      "packages/recovery-codex32-wasm/rust/src/record.rs",
+      "packages/recovery-backup/src/codex32.ts",
+      "packages/recovery-backup/tests/codex32-padding.test.ts"
+    ],
+    "commands": ["crypto-final", "native-final"]
+  },
+  "AUD-028-API009": {
+    "summary": "Emit neutral provider-reported balance and accounting discrepancy in schema version 3; retain exact amounts across CSV, JSON, text and workbook output.",
+    "files": [
+      "apps/activity-viewer/src/core-activity-state.ts",
+      "apps/activity-viewer/src/export-json.ts",
+      "apps/activity-viewer/src/export-csv.ts",
+      "apps/activity-viewer/docs/EXPORT_SCHEMA.md"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-API010": {
+    "summary": "Refuse invalid concurrency through shared admission; drain accepted in-flight jobs before seed owners dispose their inputs.",
+    "files": [
+      "packages/wallet-recovery/src/local-search-admission.ts",
+      "packages/wallet-recovery/src/local-search-queue.ts",
+      "packages/wallet-recovery/src/multi-address-search.ts",
+      "packages/wallet-recovery/src/multi-seed-search.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-ARC001": {
+    "summary": "Delegate optional CoinJoin protocol identity, preview and dispatch to its metadata owner, including generated composition glue.",
+    "files": [
+      "packages/coin-protocols/src/coins/registry-base.ts",
+      "packages/coin-protocols/src/coins/dash/profiles.ts",
+      "packages/coin-protocols/src/coins/dash/runtime.ts",
+      "tooling/key-derivation-composition.mjs"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-ARC002": {
+    "summary": "Share private path profiles between previews and actual derivation; compose account/branch ownership with cleanup covering early construction and key-admission errors.",
+    "files": [
+      "packages/coin-protocols/src/derivation-path.ts",
+      "packages/coin-protocols/src/account-branch.ts",
+      "packages/coin-protocols/src/coins/bitcoin/profiles.ts",
+      "packages/coin-protocols/src/coins/dash/profiles.ts",
+      "packages/coin-protocols/src/coins/ethereum/profiles.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-ARC003": {
+    "summary": "Parse compiler-resolved static, dynamic, re-exported and aliased edges; reject unresolved runtime imports while allowing controlled Node verification loaders.",
+    "files": ["tooling/module-boundaries.test.mjs"],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-ARC004": {
+    "summary": "Make positive proof fixtures supply every requested storage key, preserving explicit-null absence and missing-key refusal.",
+    "files": ["apps/discovery-scanner/tests/discovery-scanner-security.test.ts"],
+    "commands": ["platform-proof-final"]
+  },
+  "AUD-028-SEC004": {
+    "summary": "Establish owned-secret cleanup before Orchard preprocessing and network preparation can fail.",
+    "files": [
+      "packages/dash-network/src/orchard-scanner.ts",
+      "apps/discovery-scanner/src/coins/dash/shielded-scanner.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-SEC005": {
+    "summary": "Use one recovery concealment lifecycle for phrase cards, alternate code/list outputs and manual MHFE fields, closing reveal and Copy on blur/hidden.",
+    "files": [
+      "apps/key-derivation/src/ui/recovery-secret-lifecycle.ts",
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-results.ts",
+      "apps/key-derivation/src/ui/recovery-mhfe-fields.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-SEC006": {
+    "summary": "Unwrap transparent TypeScript assertions and expressions before recognizing known SDK writes; retain fail-closed unknown-operation handling.",
+    "files": ["tooling/verify-evo-read-only.mjs", "tooling/verify-evo-read-only.test.mjs"],
+    "commands": ["targeted-final"]
+  },
+  "AUD-028-UI001": {
+    "summary": "Use the shared keyboard-tab helper for both recovery levels, including disabled-tab and empty-group handling.",
+    "files": [
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts",
+      "apps/key-derivation/src/ui/recovery-workspace.ts"
+    ],
+    "commands": ["targeted-final"]
+  },
+  "AUD-026-DOC001": {
+    "summary": "Replace the stale unreleased-local MHFE claim with the unchanged signed 0.6.0 browser package provenance.",
+    "files": [
+      "docs/ARCHITECTURE.md",
+      "packages/recovery-mhfe-wasm/README.md",
+      "packages/recovery-mhfe-wasm/generated/modules.json"
+    ],
+    "commands": ["check-final", "mnemocode-final"]
+  }
+}

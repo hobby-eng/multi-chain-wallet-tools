@@ -1,0 +1,369 @@
+[
+  {
+    "category": "BLD",
+    "severity": "medium",
+    "title": "SSKR bridge version conflicts with the repository metadata policy",
+    "releaseBlocking": true,
+    "affectedFiles": [
+      "package.json",
+      "tooling/sync-project-metadata.mjs:30",
+      "packages/recovery-sskr-wasm/package.json",
+      "packages/recovery-sskr-wasm/rust/Cargo.toml",
+      "packages/recovery-sskr-wasm/rust/Cargo.lock",
+      "THIRD_PARTY_NOTICES.md"
+    ],
+    "reproduction": "Run pnpm check on the reviewed dirty tree. Root version is0.1.5; the canonical SSKR bridge and its Rust crate are0.1.6.",
+    "expected": "The version policy, bridge metadata and generated runtime must agree before metadata/type/integrity checks can pass.",
+    "observed": "pnpm check exits1 before tsc/no-copy execution: Project metadata is out of sync with package.json: packages/recovery-sskr-wasm/package.json, packages/recovery-sskr-wasm/rust/Cargo.toml, packages/recovery-sskr-wasm/rust/Cargo.lock, THIRD_PARTY_NOTICES.md. Run pnpm metadata:sync.",
+    "impact": "Routine pnpm check and release verification cannot complete. The suggested synchronizer would downgrade bridge metadata to0.1.5 without rebuilding the0.1.6 WASM; that is not an acceptable audit workaround. No incorrect cryptographic output was established by this metadata failure.",
+    "recommendedFix": "Choose and encode one supported bridge/release version policy. Keep Rust/package/notices/runtime versions aligned, then regenerate canonical WASM when Rust build inputs change. Do not blindly rewrite the source version while retaining another compiled bridge version.",
+    "requiredVerification": "pnpm metadata:check and pnpm check; inspect exported bridge_version against metadata; canonical WASM comparison at release.",
+    "evidence": ["metadata.command.json", "metadata.log"]
+  },
+  {
+    "category": "BLD",
+    "severity": "medium",
+    "title": "Canonical WASM record does not identify the reviewed inputs and SSKR output",
+    "releaseBlocking": true,
+    "affectedFiles": [
+      "tooling/wasm-canonical-manifest.json",
+      "tooling/verify-wasm-integrity.mjs:71",
+      "tooling/wasm-build.mjs",
+      "packages/recovery-sskr-wasm/generated/recovery_sskr_wasm_bg.wasm"
+    ],
+    "reproduction": "Run node tooling/verify-wasm-producers.mjs and node docs/audits/AUD-028-harnesses/inputs.mjs. Compare actual createWasmIntegrityManifest() with the retained canonical manifest.",
+    "expected": "All four current source hashes and committed generated files match the canonical build record.",
+    "observed": "The mandatory integrity gate exits1. All four sourceSha256 values differ; SSKR glue, declarations and WASM also differ. The other three generated directories match the retained record.",
+    "impact": "The reviewed Rust/build source cannot be presented as canonically corresponding to the committed WASM. This mismatch is rejected correctly; it is not evidence of secret theft or tampering. The audit did not rewrite the record or run a canonical rebuild.",
+    "recommendedFix": "After source/version decisions are final and at the authorized release check, regenerate with the canonical container and retain the exact record and comparison. Preserve the failing baseline evidence.",
+    "requiredVerification": "Canonical uncached source/output comparison and node tooling/verify-wasm-producers.mjs; review each changed generated file. No host-only manifest rewrite.",
+    "evidence": [
+      "wasm-integrity.command.json",
+      "wasm-integrity.log",
+      "input-record-diff.command.json",
+      "input-record-diff.log"
+    ],
+    "relatedFindings": ["AUD-026-BLD003"]
+  },
+  {
+    "category": "BLD",
+    "severity": "medium",
+    "title": "Default Dash Deriver build rejects the checked MnemoCode SSKR platform module",
+    "releaseBlocking": true,
+    "affectedFiles": [
+      "tooling/build-profiles.mjs:65",
+      "apps/key-derivation/scripts/build-key-derivation-html.mjs:263",
+      "packages/recovery-backup/src/mnemocode-share-platform.ts"
+    ],
+    "reproduction": "Run pnpm build:html with default features, then the Dash Deriver artifact verifier. Compare a derive-only Dash composition.",
+    "expected": "Both supported default editions compile with their intended modules; graph admission retains Dash-only protocol exclusion.",
+    "observed": "Four multi-chain tools and Dash Viewer/Scanner compile; the default Dash Deriver fails: graph contains inputs outside the Dash allowlist: packages/recovery-backup/src/mnemocode-share-platform.ts (reported twice because of separate graphs). Independently built Dash Inspector and derive-only Dash Deriver compile. The old default Dash Deriver fails the current source fingerprint verifier.",
+    "impact": "The default Dash package cannot be built from current source. An old local page remains; a branding-only pass does not prove source freshness. The new platform gate is protocol-neutral; no excluded coin behavior was demonstrated.",
+    "recommendedFix": "Review and admit this specific protocol-neutral module in the Dash graph owner; retain exclusions for actual non-Dash implementations. Add a default-MnemoCode composition regression.",
+    "requiredVerification": "Both default builds and current artifact verifiers; Dash branding/exclusion gate; minimal derive-only and MnemoCode+SSKR selective combinations.",
+    "evidence": [
+      "build-defaults.command.json",
+      "build-defaults.log",
+      "artifact-dash-key.command.json",
+      "minimal-dash-deriver.command.json",
+      "dash-inspector-build.command.json"
+    ]
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "SEC",
+    "severity": "medium",
+    "title": "Candidate-list admission buffers an oversized file before rejecting it",
+    "releaseBlocking": false,
+    "affectedFiles": [
+      "apps/discovery-scanner/src/candidate-list-panel.ts:119",
+      "apps/discovery-scanner/src/candidate-list-import.ts:67",
+      "packages/recovery-mnemocode/source/core/candidate-encryption.ts:144"
+    ],
+    "reproduction": "Use the real importer and panel Select/Open actions with synthetic oversized File metadata and an arrayBuffer spy returning only a small invalid header. No large allocation is needed.",
+    "expected": "Read only a bounded header and reject unsupported file sizes before whole-file buffering.",
+    "observed": "All three entry points call arrayBuffer once before rejection. The subsequent 64 KiB header restriction cannot bound this initial allocation.",
+    "impact": "A locally selected untrusted large file can consume excessive memory before format rejection. Host exhaustion was not attempted; no remote trigger or secret egress was shown. The importer accepts an arrayBuffer-only interface, so the primary admission fix belongs to the actual file selection/Open owner and its format limits.",
+    "recommendedFix": "Read a bounded header slice, derive one format-owned encrypted/plaintext size ceiling, and enforce it before and during buffering/decryption.",
+    "requiredVerification": "Oversized metadata refuses without arrayBuffer; valid small files and boundary-size headers still import; streaming/body size is bounded."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "SEC",
+    "severity": "low",
+    "title": "Early Orchard preparation errors bypass owned-secret cleanup",
+    "releaseBlocking": false,
+    "affectedFiles": [
+      "packages/dash-network/src/orchard-scanner.ts:195",
+      "apps/discovery-scanner/src/coins/dash/shielded-scanner.ts:33"
+    ],
+    "reproduction": "Capture the decoder-owned synthetic viewing-key buffer and fail each note field width; separately have shielded derivation throw after capturing its wrapper-owned seed copy.",
+    "expected": "Owned secret allocations enter a wiping scope immediately; caller-owned inputs remain unchanged.",
+    "observed": "Four note preparation failures retain decoded key bytes. A throwing derivation retains the copied seed. In-scope engine/guard failures wipe correctly, and the supplied caller seed stays unchanged. The viewing buffer retained95nonzero bytes out of96; the seed copy retained64outof64.",
+    "impact": "Avoidable secret memory residue on exceptional paths, not demonstrated exfiltration or extraction. Provider admission limits ordinary malformed-note reachability in Discovery; arbitrary library inputs and injected failures establish ownership gaps. The harness retained references to observe missing explicit wiping; it cannot establish post-GC persistence or real trap frequency.",
+    "recommendedFix": "Move fallible preparation into the owning try/finally immediately after allocation; safely dispose partially initialized buffers.",
+    "requiredVerification": "Each preparation, derivation and registration failure wipes owned copies; successful results and caller ownership remain correct."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "SEC",
+    "severity": "low",
+    "title": "Read-only SDK gate misses known writes behind transparent TypeScript expressions",
+    "releaseBlocking": false,
+    "affectedFiles": [
+      "tooling/verify-evo-read-only.mjs:73",
+      "tooling/verify-evo-read-only.mjs:185"
+    ],
+    "reproduction": "Analyze declare const sdk:any plus (sdk as any).addresses.transfer({}), (<any>sdk).addresses.transfer({}) and (sdk satisfies any).addresses.transfer({}). Do not execute those calls.",
+    "expected": "The same known write method is detected regardless of a transparent type expression.",
+    "observed": "The direct-call control is detected once and a read-only control passes; all three assertion variants yield zero detections.",
+    "impact": "An inadvertent known write call can evade the source integrity check. No active first-party production write call was found; the experiment is static analysis, not a broadcast.",
+    "recommendedFix": "Unwrap AsExpression, TypeAssertion and SatisfiesExpression alongside parentheses/non-null expressions; retain alias/computed-call handling.",
+    "requiredVerification": "Direct, alias, assertion, optional and computed known write fixtures fail the gate; read-only fixtures still pass."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "FUN",
+    "severity": "medium",
+    "title": "Address descriptors reject valid Bech32m Taproot addresses",
+    "releaseBlocking": false,
+    "affectedFiles": ["apps/psbt-inspector/src/descriptor-compiler.ts:26"],
+    "reproduction": "Render the literal BIP86 P2TR script, then compile its checksummed addr(bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr) descriptor through decodeDescriptor.",
+    "expected": "Recover the exact published script and address, while rejecting corrupted checksums, wrong networks and v1 encoded with Bech32.",
+    "observed": "The independent script-to-address control passes. addr() fails with Invalid checksum in the valid Bech32m address because bech32.decode is called before selecting the checksum family. Negative controls pass.",
+    "impact": "A supported Taproot address descriptor cannot be inspected. No incorrectly generated address was demonstrated.",
+    "recommendedFix": "Use the shared witness-address decoder, then enforce witness version, checksum family and selected network in one owner.",
+    "requiredVerification": "Literal v0/v1 address descriptors, Base58 controls, both networks/regtest and wrong checksum-family refusals."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "FUN",
+    "severity": "medium",
+    "title": "Unknown Dash PSBT fields acquire unsupported Bitcoin verification semantics",
+    "releaseBlocking": false,
+    "affectedFiles": [
+      "apps/psbt-inspector/src/psbt-validation.ts:87",
+      "apps/psbt-inspector/src/psbt-field-registry.ts:5",
+      "apps/psbt-inspector/src/psbt-verification.ts:135",
+      "apps/psbt-inspector/src/signing-commitments.ts:217"
+    ],
+    "reproduction": "Parse a supported Dash v0 one-input/one-output PSBT, adding unknown input keys0x11 and0x13 with empty values. Compare semantic checks and signing analysis to the unmodified control.",
+    "expected": "Preserve unknown bytes without deriving Bitcoin locktime or signature conclusions from them.",
+    "observed": "Each unknown field changes Dash semantic conclusions although the chain-aware schema skips its validation. Bitcoin controls reject the same malformed known fields.",
+    "impact": "Unvalidated unknown data receives verification/signing labels. This is not signature verification or demonstrated spending capability.",
+    "recommendedFix": "Use the chain-aware field registry throughout relationship, locktime and signing analysis, not only structural admission.",
+    "requiredVerification": "Adding each Dash unknown field preserves known semantic conclusions and raw bytes; valid Bitcoin known fields keep their intended behavior."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "FUN",
+    "severity": "medium",
+    "title": "Dash previous-transaction parser accepts malformed special-payload framing",
+    "releaseBlocking": false,
+    "affectedFiles": [
+      "apps/psbt-inspector/src/transaction.ts:86",
+      "apps/psbt-inspector/src/psbt-utxo.ts:34"
+    ],
+    "reproduction": "Feed special Dash wire transactions with a truncated payload, nonminimal CompactSize payload length and an extra trailing byte to readTransaction and the actual PSBT non-witness UTXO path.",
+    "expected": "Validate the wire payload length, canonical prefix and complete consumption separately from any PSBT-global representation.",
+    "observed": "All six malformed direct/PSBT-path cases are accepted. Valid length-prefixed transaction and txid/outpoint binding controls pass.",
+    "impact": "Malformed previous transactions pass structural inspection. No consensus acceptance, valid blockchain inclusion or unauthorized spending was established.",
+    "recommendedFix": "Introduce explicit wire framing for previous transactions and retain the documented global-PSBT payload representation separately.",
+    "requiredVerification": "Pinned Dash special-transaction positives plus truncated/nonminimal/trailing negatives through direct and PSBT entry points."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "API",
+    "severity": "medium",
+    "title": "Platform address history is relabeled without checking its resource identity",
+    "releaseBlocking": false,
+    "affectedFiles": ["packages/dash-network/src/platform-address-history.ts:133"],
+    "reproduction": "Use the actual history lookup with three small mocked HTTP replies; change info.bech32mAddress to another valid resource while keeping its supported schema/network.",
+    "expected": "Reject a response for a different resource before using totals/history.",
+    "observed": "The lookup resolves and labels returned indexed history with the requested address. Matching-resource control passes and wrong-network control rejects.",
+    "impact": "Auxiliary indexed history can be shown under an unrelated proof-verified address. The address-balance proof does not authenticate this auxiliary response.",
+    "recommendedFix": "Share the resource/network normalization and binding checks already enforced by Discovery; distinguish proof-backed state from indexed history.",
+    "requiredVerification": "Missing/mismatched resource rejects; equivalent normalized resource succeeds; proof state and auxiliary history remain separately labeled."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "API",
+    "severity": "medium",
+    "title": "Core CSV exports label a pending transaction as confirmed",
+    "releaseBlocking": false,
+    "affectedFiles": ["apps/activity-viewer/src/export-csv.ts:164"],
+    "reproduction": "Serialize a supported pending Core transaction with null block/time, zero confirmations and both lock flags false through createViewerExport.",
+    "expected": "Use pending/unconfirmed confirmation status; retain lock information separately.",
+    "observed": "Parsed CSV row status is confirmed, while the confirmed control also serializes successfully.",
+    "impact": "Consumers receive an incorrect confirmation label. No provider query or wallet mutation was performed.",
+    "recommendedFix": "Derive confirmation state from authoritative block/confirmation fields rather than the absence of lock flags.",
+    "requiredVerification": "Inspect actual single/batch CSV for pending, confirmed and locked combinations with null/zero distinction."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "API",
+    "severity": "low",
+    "title": "Core JSON and CSV invent a confirmed/unconfirmed balance split",
+    "releaseBlocking": false,
+    "affectedFiles": [
+      "apps/activity-viewer/src/export-json.ts:153",
+      "apps/activity-viewer/src/export-csv.ts:147",
+      "packages/dash-network/src/public-address.ts:359"
+    ],
+    "reproduction": "Export reported balance5, received10, sent7 and derived discrepancy2 through actual JSON and CSV serializers.",
+    "expected": "Preserve the reported balance and discrepancy without assigning undocumented confirmation semantics.",
+    "observed": "JSON uses confirmedDuffs=5 and unconfirmedDuffs=2; CSV metadata uses unconfirmed_duffs=2. The normalizer explicitly treats this as an undocumented derived discrepancy.",
+    "impact": "Consumers may misclassify amounts or double-count the derived difference. The raw reported balance itself is preserved.",
+    "recommendedFix": "Publish neutral reported-balance/discrepancy fields and document the export schema migration; keep all formats aligned.",
+    "requiredVerification": "Literal parsed JSON/CSV/XLSX fields for positive, negative and zero discrepancy; no unsupported confirmation claims."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "API",
+    "severity": "medium",
+    "title": "Incomplete Orchard CSV marks provisional unspent notes as spendable",
+    "releaseBlocking": false,
+    "affectedFiles": [
+      "apps/activity-viewer/src/export-csv.ts:295",
+      "packages/dash-network/src/activity.ts:100"
+    ],
+    "reproduction": "Export a synthetic incomplete FVK ledger snapshot with one recovered incoming note whose provisional spent flag is false.",
+    "expected": "An incomplete spend scan reports unknown for provisional unspent notes; observed spends remain known.",
+    "observed": "The summary says partial but the note CSV row says spendable. Complete-FVK, IVK-unknown and observed-spent partial controls pass.",
+    "impact": "A spend outside the scanned prefix may be overlooked by CSV consumers. No current-chain balance or spending authority was established.",
+    "recommendedFix": "Require complete FVK coverage before labeling unspent notes spendable; reuse the completeness-aware presentation contract.",
+    "requiredVerification": "Actual serialized complete/partial FVK, IVK/OVK and known-spent cases remain consistent with summaries and other formats."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "API",
+    "severity": "low",
+    "title": "NaN concurrency silently resolves local searches without executing jobs",
+    "releaseBlocking": false,
+    "affectedFiles": [
+      "packages/wallet-recovery/src/multi-address-search.ts:34",
+      "packages/wallet-recovery/src/multi-seed-search.ts:50"
+    ],
+    "reproduction": "Call both actual search entry points with one synthetic target, a counting lookup callback and concurrency:Number.NaN; compare concurrency1 controls.",
+    "expected": "Reject or deliberately normalize invalid concurrency without skipping supplied jobs.",
+    "observed": "Both NaN calls resolve with resultLength1, populatedSlots0 and lookupCalls0. Both concurrency1 controls execute the supplied job.",
+    "impact": "An API caller can receive a sparse apparently successful result without a search. Production UI reachability was not established.",
+    "recommendedFix": "Use one finite safe-integer concurrency validator and bounded scheduler, retaining seed cleanup in the seed-owning layer.",
+    "requiredVerification": "NaN/Infinity/fractional/negative/zero and bounds follow an explicit safe policy; every accepted job executes with complete result slots, ordering and cancellation preserved."
+  },
+  {
+    "evidence": [
+      "boundary-public-architecture-probes.command.json",
+      "boundary-public-architecture-probes.log"
+    ],
+    "status": "open",
+    "category": "ARC",
+    "severity": "low",
+    "title": "Module-boundary import extraction ignores dynamic imports",
+    "releaseBlocking": false,
+    "affectedFiles": [
+      "tooling/module-boundaries.test.mjs:30",
+      "tooling/module-boundaries.test.mjs:70",
+      "packages/coin-protocols/src/coins/dash/runtime.ts:32"
+    ],
+    "reproduction": "Read and execute the exact private gate extractor in isolation on equivalent static and valid dynamic cross-application import syntax; do not import the foreign application.",
+    "expected": "Both forms contribute the same resolved dependency edge.",
+    "observed": "The static control resolves apps/activity-viewer/src/app.js; dynamic import yields an empty edge list because the regex requires whitespace after import.",
+    "impact": "Boundary/cycle tests omit a supported module edge form. No current forbidden production edge was established; build graph checks are separate mitigation.",
+    "recommendedFix": "Resolve static imports, re-exports and dynamic imports through the TypeScript parser/module resolver rather than a whitespace regex.",
+    "requiredVerification": "Static/dynamic/aliased cross-app and package-cycle fixtures are detected; valid dynamic Dash runtime imports remain permitted."
+  },
+  {
+    "title": "Derivation path previews and runtime paths have separate policy owners",
+    "affectedFiles": [
+      "packages/coin-protocols/src/coins/adapters/bitcoin.ts:22",
+      "packages/coin-protocols/src/coins/bitcoin/index.ts:39",
+      "packages/coin-protocols/src/coins/adapters/dash.ts:24",
+      "packages/coin-protocols/src/coins/dash/core.ts:9",
+      "packages/coin-protocols/src/coins/dash/coinjoin.ts:18",
+      "packages/coin-protocols/src/coins/dash/platform.ts:43",
+      "packages/coin-protocols/src/coins/adapters/ethereum.ts:30",
+      "packages/coin-protocols/src/coins/ethereum/index.ts:44"
+    ],
+    "reproduction": "Compare the adapter metadata path builders with each runtime derivation path builder for the same protocol, network, account and branch.",
+    "expected": "One crypto-free protocol profile owns the segment order, hardening and rendering consumed by both metadata and runtime.",
+    "observed": "Bitcoin, Dash and Ethereum reconstruct the same path rules independently. No currently incorrect path was established in the reviewed samples.",
+    "impact": "A path-policy change can update display and derivation differently. This is a concrete DRY/ownership violation with maintainability impact, not demonstrated key loss.",
+    "recommendedFix": "Extend crypto-free protocol profiles with path methods and make both metadata and runtime delegate to them.",
+    "requiredVerification": "Compare metadata preview paths and actual requested derivation paths at account/branch boundaries for each adapter; retain independent output vectors.",
+    "evidence": [
+      "arc-doc-source-bindings-20261012T122604Z.json",
+      "crypto-bounded-rerun.command.json",
+      "ownership-regression-tests.command.json"
+    ],
+    "category": "ARC",
+    "severity": "low",
+    "releaseBlocking": false
+  },
+  {
+    "title": "CoinJoin protocol identity remapping is repeated in UI and protocol modules",
+    "affectedFiles": [
+      "apps/key-derivation/src/ui/matcher-search-scope.ts:18",
+      "apps/key-derivation/src/ui/recovery-wallet-matcher.ts:36",
+      "packages/coin-protocols/src/coins/dash/runtime.ts:38",
+      "packages/coin-protocols/src/coins/adapters/dash.ts:21"
+    ],
+    "reproduction": "Trace dash-core-coinjoin resolution through the matcher scope/UI and runtime protocol adapter metadata.",
+    "expected": "The crypto-free protocol metadata owner resolves runtime identity and display name.",
+    "observed": "Three consumers special-case dash-core-coinjoin to dash-core; the UI also synthesizes the protocol label.",
+    "impact": "A protocol mapping change requires synchronized edits in independent consumers. No wrong current CoinJoin address was demonstrated.",
+    "recommendedFix": "Expose a metadata resolver owned by the protocol profile; keep the page independent of cryptographic runtime imports.",
+    "requiredVerification": "Matcher scopes, preview labels and runtime registry resolve CoinJoin consistently in both editions.",
+    "evidence": [
+      "arc-doc-source-bindings-20261012T122604Z.json",
+      "ownership-regression-tests.command.json"
+    ],
+    "category": "ARC",
+    "severity": "low",
+    "releaseBlocking": false
+  }
+]

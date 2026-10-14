@@ -53,3 +53,27 @@ export function splitTopLevelArguments(text: string, options: BalancedSyntaxOpti
   result.push(text.slice(start));
   return result;
 }
+
+/**
+ * The argument text of every `name(…)` fragment in `text`, matched by balanced parentheses; a name
+ * that is the end of a longer one (`multi` in `sortedmulti`) is skipped. `context` names the text
+ * in the refusal of an unclosed pair.
+ */
+export function fragmentBodies(text: string, name: string, context: string): string[] {
+  const results: string[] = [];
+  let from = 0;
+  while (from < text.length) {
+    const start = text.indexOf(`${name}(`, from);
+    if (start === -1) break;
+    const previous = start === 0 ? "" : text[start - 1]!;
+    if (/[a-z0-9_]/u.test(previous)) {
+      from = start + name.length;
+      continue;
+    }
+    const open = start + name.length;
+    const close = findMatchingClose(text, open, "(", ")", context);
+    results.push(text.slice(open + 1, close));
+    from = close + 1;
+  }
+  return results;
+}

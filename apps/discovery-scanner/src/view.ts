@@ -1,3 +1,10 @@
+import {
+  SCANNER_NETWORK_CONCURRENCY,
+  SCANNER_ORCHESTRATION_CONCURRENCY,
+} from "./concurrency-parameters.js";
+import { isTabKey, markTab, tabIndexAfter } from "@ckd/ui/tabs.js";
+import { isPrivateMaterialError } from "@ckd/secret-boundary/private-material-error.js";
+import { MAX_BIP32_INDEX } from "@ckd/core/bip32-limits.js";
 import { installSynchronizedNumberedInputs, requireQueryElement } from "@ckd/ui/dom.js";
 import type { BUILD_INFO } from "@ckd/build-info";
 import type { RecoveryExportFormat } from "./export.js";
@@ -12,6 +19,8 @@ import type {
 } from "./types.js";
 import type { MultiSeedAddressResult } from "@ckd/recovery/multi-seed-search.js";
 import type { DiscoveryFeatureRuntime } from "./feature-selection.js";
+import type { CandidateSource } from "./candidate-list-import.js";
+import { CandidateListPanel } from "./candidate-list-panel.js";
 import { createDiscoveryRenderers } from "./discovery-renderers.js";
 import { createDiscoveryResultsView } from "./discovery-results-view.js";
 import {
@@ -55,6 +64,8 @@ export interface RecoveryInputSnapshot {
   singlePassphrase: string;
   batchMnemonics: string;
   batchPassphrases: string;
+  /** An opened MnemoCode candidate list, checked in place of the typed phrases in batch mode. */
+  candidateList?: CandidateSource;
   batchConcurrency: string;
   requestConcurrency: string;
   clearInputOnStart: boolean;
@@ -233,6 +244,14 @@ export function createDiscoveryScannerView(
   const singlePassphrase = seedElement<HTMLInputElement>("#single-passphrase", "input");
   const batchMnemonics = seedElement<HTMLTextAreaElement>("#batch-mnemonics", "textarea");
   const batchPassphrases = seedElement<HTMLTextAreaElement>("#batch-passphrases", "textarea");
+  // A MnemoCode candidate list stands in for the typed phrases (seed-discovery builds only).
+  const candidateList =
+    features.CandidateListImport === undefined
+      ? undefined
+      : new CandidateListPanel(features.CandidateListImport, required, () => view.updateEstimate());
+  /** The opened list where it stands in for the typed phrases: in batch mode only. */
+  const standingList = (): CandidateSource | undefined =>
+    seedMode === "batch" ? candidateList?.source : undefined;
   if (features.seedDiscovery)
     installSynchronizedNumberedInputs([
       { textarea: batchMnemonics, gutter: required<HTMLElement>("#batch-mnemonic-lines") },
@@ -273,6 +292,8 @@ export function createDiscoveryScannerView(
   const identityGapInput = required<HTMLInputElement>("#identity-gap-limit");
   const identityLimitInput = required<HTMLInputElement>("#identity-scan-limit");
   const requestConcurrencyInput = required<HTMLSelectElement>("#request-concurrency");
+  SCANNER_NETWORK_CONCURRENCY.populate(requestConcurrencyInput);
+  SCANNER_ORCHESTRATION_CONCURRENCY.populate(batchConcurrencyInput);
   const includeUsedZeroInput = required<HTMLInputElement>("#include-used-zero-balance");
   const scanShieldedInput = required<HTMLInputElement>("#scan-shielded");
   const addressSearchEnabled = document.querySelector<HTMLInputElement>("#address-search-enabled");
@@ -422,7 +443,7 @@ export function createDiscoveryScannerView(
       previousDefaultPath = defaultPath;
       const parts = customPathTemplateInput.value.trim().split("/");
       const accountMatch = /^(0|[1-9][0-9]*)'$/u.exec(parts[3] ?? "");
-      if (accountMatch !== null && Number(accountMatch[1]) < 2147483647)
+      if (accountMatch !== null && Number(accountMatch[1]) < MAX_BIP32_INDEX)
         parts[3] = `${Number(accountMatch[1]) + 1}'`;
       const finish = parts.join("/");
       if (
@@ -545,14 +566,9 @@ export function createDiscoveryScannerView(
     };
     button.addEventListener("click", select);
     button.addEventListener("keydown", (event) => {
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      if (!isTabKey(event.key)) return;
       event.preventDefault();
-      const next =
-        event.key === "Home"
-          ? sourceButtons[0]
-          : event.key === "End"
-            ? sourceButtons.at(-1)
-            : sourceButtons[(index + 1) % sourceButtons.length];
+      const next = sourceButtons[tabIndexAfter(event.key, index, sourceButtons.length)!];
       if (next?.disabled === false) {
         next.click();
         next.focus();
@@ -586,12 +602,21 @@ export function createDiscoveryScannerView(
     };
   }
 
+  function adapterOf(id: string): RecoveryCoinAdapter {
+    const adapter = coinAdapters.get(id);
+    if (adapter === undefined) throw new Error(`Unsupported recovery coin: ${id}.`);
+    return adapter;
+  }
+
   /** Shows the minimum lookups and time of a seed scan, and the confirmation above the limit. */
   function showLookupEstimate(coinIds: readonly string[], coinId: string): string {
-    const phrases = seedMode === "single" ? 1 : countCandidateLines(batchMnemonics.value);
+    const phrases =
+      seedMode === "single"
+        ? 1
+        : (candidateList?.source?.count ?? countCandidateLines(batchMnemonics.value));
     const lookupEstimate = seedLookupEstimate(
       phrases,
-      seedLookupsPerPhrase(coinIds, lookupSettings(coinId)),
+      seedLookupsPerPhrase(coinIds.map(adapterOf), lookupSettings(coinId)),
       requestConcurrencyInput.value,
     );
     const large = needsLargeScanConfirmation(lookupEstimate);
@@ -616,6 +641,7 @@ export function createDiscoveryScannerView(
       const coinId = coinInput?.value ?? profileCoinId;
       if (coinId === null || coinId.length === 0)
         throw new Error("Recovery coin registry is empty.");
+      const list = standingList();
       return {
         coinId,
         automaticCandidates: candidateMode(),
@@ -631,6 +657,7 @@ export function createDiscoveryScannerView(
         singlePassphrase: singlePassphrase.value,
         batchMnemonics: batchMnemonics.value,
         batchPassphrases: batchPassphrases.value,
+        ...(list === undefined ? {} : { candidateList: list }),
         batchConcurrency: batchConcurrencyInput.value,
         clearInputOnStart: clearInputOnStart.checked,
         scanCustomPath: !candidateMode() && scanCustomPathInput.checked,
@@ -670,6 +697,7 @@ export function createDiscoveryScannerView(
       revealButton.setAttribute("aria-pressed", String(value));
     },
     clearVisibleSecrets(): void {
+      candidateList?.clear();
       singleMnemonic.value = "";
       singlePassphrase.value = "";
       batchMnemonics.value = "";
@@ -707,12 +735,11 @@ export function createDiscoveryScannerView(
       seedModeTabs.hidden = publicInput;
       singlePanel.hidden = publicInput || seedMode !== "single";
       batchPanel.hidden = publicInput || seedMode !== "batch";
-      revealButton.hidden = publicInput;
+      // Public keys are no secret, and a list's candidates are never shown: nothing to show.
+      revealButton.hidden = publicInput || standingList() !== undefined;
       for (const button of sourceButtons) {
         const active = button.dataset.sourceMode === sourceMode;
-        button.classList.toggle("active", active);
-        button.setAttribute("aria-selected", String(active));
-        button.tabIndex = active ? 0 : -1;
+        markTab(button, active);
       }
       accountInput.parentElement!.hidden = publicInput;
       if (coinInput !== null) coinInput.parentElement!.hidden = false;
@@ -807,12 +834,11 @@ export function createDiscoveryScannerView(
             ? "Select one coin to continue"
             : `${targets.length} coin scan${targets.length === 1 ? "" : "s"} · ${estimateInteger(watchOnlyMinimum.value, 1)} minimum addresses per derived branch; single public keys are checked exactly`;
         } catch (cause) {
-          watchOnlyDetection.textContent =
-            cause instanceof Error && cause.name === "PrivateMaterialError"
-              ? "Private material is not accepted in the public-key field."
-              : cause instanceof Error
-                ? cause.message
-                : "Public key not recognized.";
+          watchOnlyDetection.textContent = isPrivateMaterialError(cause)
+            ? "Private material is not accepted in the public-key field."
+            : cause instanceof Error
+              ? cause.message
+              : "Public key not recognized.";
           estimate.textContent = "Check the public key input";
         }
         return;
@@ -909,6 +935,8 @@ export function createDiscoveryScannerView(
       }
       for (const button of [...modeButtons, ...sourceButtons]) button.disabled = value;
       revealButton.disabled = value;
+      // The loop above opened the list's controls too; they wait for the startup self-test.
+      candidateList?.setEnabled(!value && selfTestPassed);
       if (value) startButtonLabel.textContent = "Scanning…";
       else if (hasCompletedScan) {
         this.updateEstimate();
@@ -1094,6 +1122,7 @@ export function createDiscoveryScannerView(
         : "Boundary self-test failed";
       passportSelfTestDetails.textContent = message;
       recoveryRuntime.textContent = "Blocked · self-test failure";
+      candidateList?.close();
       showError(message);
     },
     setBuildInfo(): void {

@@ -1,23 +1,38 @@
 # MnemoCode source
 
-The `mnemocode` and `mnemocode-cards` build features contain no separate implementation of MnemoCode. They compile the unmodified sources of [hobby-eng/mnemocode](https://github.com/hobby-eng/mnemocode), stored in `packages/recovery-mnemocode/source/`.
+The Deriver's `mnemocode` and `mnemocode-cards` build features and the candidate-list import of the Discovery Scanner contain no separate implementation of MnemoCode. They compile the unmodified sources of [hobby-eng/mnemocode](https://github.com/hobby-eng/mnemocode), stored in `packages/recovery-mnemocode/source/`.
 
-| Feature           | Imported from MnemoCode                                     | Added by this project                                                             |
-| ----------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `mnemocode`       | Transformations, representations and the MNC1 record format | Input limits, BIP39 validation and result shapes                                  |
-| `mnemocode-cards` | Card templates and renderers with their font and artwork    | Random source, QR matrix, PNG coding, ZIP file, PNG images of the cards, the form |
+| Feature           | Imported from MnemoCode                                                                                                                                                              | Added by this project                                                                                                                                                                                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mnemocode`       | Transformations, representations, the MNC1 record format, searches, wallet evidence and checks, candidate lists, Shamir share sets and their repair, backup checks and the self-test | Input limits, BIP39 validation, result shapes, the share platform with this project's SSKR WASM (`mnemocode-shares.ts`) and the wallet recognition of each edition (`mnemocode-wallet-bitcoin.ts` or `mnemocode-wallet-coins.ts`) and the coins it offers (`mnemocode-offered-coins.ts`) |
+| `mnemocode-cards` | Card templates and renderers with their font and artwork                                                                                                                             | Random source, QR matrix, PNG coding, ZIP file, PNG images of the cards, the form                                                                                                                                                                                                        |
 
-The command-line program, file output, the share engine with its WASM, and the QR and PNG libraries of MnemoCode are never imported. MnemoCode makes images with a separate program that a browser does not have, so this project draws the finished PDF page on a canvas; see `packages/recovery-backup/src/mnemocode-card-drawing.ts`. The renderers ask their host for those services, and this project supplies them from components it already has.
+The command-line program, file output, the SSKR engine with its WASM, and the QR and PNG libraries of MnemoCode are never imported. The imported library and renderers ask their host for these services through MnemoCode's platform interfaces, and this project supplies them from components it already has. The share modules take the SSKR engine and HMAC-SHA256 through `SharePlatform` (`sskr/share-platform.ts`), which `packages/recovery-backup/src/mnemocode-shares.ts` fills with this project's SSKR WASM (`packages/recovery-sskr-wasm`). The card renderers take bundled artwork, random choices, PNG coding and QR matrices through `RenderPlatform` (`export/platform.ts`). The wallet checks take BIP39's PBKDF2-HMAC-SHA512 as a function (`Pbkdf2HmacSha512` in `core/master-fingerprint.ts`), which the Deriver supplies through WebCrypto (`apps/key-derivation/src/workers/webcrypto-pbkdf2.ts`). MnemoCode makes images with a separate program that a browser does not have, so this project draws the finished PDF page on a canvas from the drawing steps that MnemoCode's own reader returns (`export/card-drawing.ts`, `readCardPages`).
+
+Two parts depend on the rest of the build. Share split, restore and repair need the `sskr` feature as well; without it the page has no share tabs. Wallet evidence (`core/wallet-evidence.ts`), which matches a phrase against a Bitcoin address, an extended or compressed public key, a WIF key, the master fingerprint or an address of another coin, is compiled only when the `bitcoin` coin is built. Builds without Bitcoin, such as the Dash Community edition, recognise a wallet by its master fingerprint (`core/master-fingerprint.ts`) or an address of an offered coin (`core/coin-address-evidence.ts`): the build puts `packages/recovery-backup/src/mnemocode-wallet-coins.ts` in place of `mnemocode-wallet-bitcoin.ts`. The full build, with every coin, offers all twelve of MnemoCode's coins (`core/coins.ts`); a build with fewer coins offers and checks only its own, Dash and Ethereum where built, through a generated list in place of `mnemocode-offered-coins.ts`, and a build that offers none recognises a wallet by its fingerprint alone. The composition gates (`coinSourceMarkers.bitcoin` and `sharedSourceMarkers` in `tooling/key-derivation-composition.mjs`) fail a build if wallet evidence without Bitcoin, or the known answers of a coin it does not offer, reach its bundle. MnemoCode's wallet evidence still names every coin family itself, so a selective build with Bitcoin carries the code of the other families, though it neither offers nor checks them.
+
+## Self-tests
+
+The Deriver's startup adapter calls MnemoCode's own `MnemoCodeSelfTest.core()`. Its engine-free checks include exact 12- and 24-word answers in all five representations, input refusals, and published SSKR transport, quorum, duplicate, mixed-set and checksum controls. The same core checks are part of MnemoCode's full self-test.
+
+`CheckedSskrPlatform` checks this host's SSKR engine with MnemoCode's `checkSskrKnownAnswers()` before its first split or restoration. It compares official grouped recovery and deterministic creation, and requires incomplete and damaged shares to be refused. Concurrent operations share one pending check; a failure keeps that platform instance closed. Only public fixtures are processed by the check. This engine check does not run as part of the general MnemoCode startup check; the SSKR row of the full self-test runs it again on request.
+
+## In the Discovery Scanner
+
+The Discovery Scanner's `seed-discovery` feature opens the encrypted candidate lists that MnemoCode and the Deriver save (`apps/discovery-scanner/src/candidate-list-import.ts`). For this it compiles nineteen vendored files: the list format and its encryption (`core/candidate-list.ts`, `core/candidate-encryption.ts`), the admission of a list file before it is read and its refusals (`core/candidate-file-admission.ts`, `core/candidate-file-refusal.ts`), their startup checks (`core/candidate-list-self-test.ts`, `core/candidate-encryption-self-test.ts`, `core/self-test-check.ts`), and the small modules these use (`core/bip39-sizes.ts`, `core/bits.ts`, `core/english-words.ts`, `core/pieces.ts`, `core/places.ts`, `core/redacted.ts`, `core/refusal.ts`, `core/search-plan.ts`, `core/search-turns.ts`, `core/typed-number.ts`, `core/white-space.ts`, `sskr/checksum.ts`), and with them `age-encryption`, `@scure/base` and `@scure/bip39`, in both editions. This part does not depend on the Deriver's `mnemocode` feature: the Scanner is a separate page, so `--exclude mnemocode` does not remove it. Only a Scanner build without `seed-discovery` leaves it out, and the Scanner's composition gate (`featureMarkers["seed-discovery"]` in `tooling/discovery-composition.mjs`) fails such a build if the candidate-list import, `core/candidate-encryption.ts` or `age-encryption` remains in its bundle.
+
+An explicit plaintext-list checkbox also admits MNCL without age encryption, using the same file-size policy and candidate-list parser. The checkbox is off by default; no decryption failure changes the selected format. Removing or replacing either list invalidates a pending open and wipes its retained entropy.
 
 ## Shared packages
 
-The imported files use three packages, each resolved to the version pinned by this project: `@scure/bip39`, `pdf-lib` and `@pdf-lib/fontkit`. The synchronization command refuses any other import and refuses a MnemoCode revision that pins a different version of these packages.
+The imported files may use nine packages, each resolved to the version pinned by this project: `@scure/base`, `@scure/bip39` (with its English and traditional Chinese word lists), `@scure/bip32`, `@scure/btc-signer`, `@noble/curves` (secp256k1 only), `@noble/hashes` (SHA-2, SHA-3 for Keccak and the legacy RIPEMD-160 only), `age-encryption`, `pdf-lib` and `@pdf-lib/fontkit`. Only wallet evidence uses `@scure/btc-signer`, so in a build without Bitcoin no imported file needs it; `@noble/curves` also serves the coin-address check (`core/coin-address-evidence.ts`), which every edition uses for the addresses of its own coins. The three files in the Discovery Scanner use only `age-encryption`. Synchronization and the offline check refuse any other import and refuse a MnemoCode revision that pins a different version of any of them.
 
 ## Updating
 
 ```sh
 pnpm sync:mnemocode                 # highest vMAJOR.MINOR.PATCH tag, or main when no tag exists
 pnpm sync:mnemocode -- --ref v0.2.0 # a specific tag, branch or full commit
+pnpm sync:mnemocode -- --working-tree <checkout> # a local checkout, marked unreleased
 pnpm verify:mnemocode               # offline check of the committed files
 ```
 
@@ -25,11 +40,16 @@ A signed or annotated tag is resolved to the commit behind it. A full commit is 
 
 The command resolves the reference to a full commit, downloads the listed files at that commit, checks their imports, and writes `packages/recovery-mnemocode/source.json` with the repository, reference, commit, version and SHA-256 of every file. Review and commit the result together with any adapter change.
 
-## Builds stay offline
+## Builds and the network
 
-Synchronization is a deliberate developer action. Builds never contact GitHub for MnemoCode: they compile the committed files, and `pnpm verify:provenance` fails if a file differs from its pinned hash, if the file set changes, or if a shared package version drifts.
+Synchronization is a deliberate developer action and the only step that downloads MnemoCode files. Builds compile the committed files. Every supported build first runs `pnpm verify:provenance`, which has two parts:
 
-`--exclude mnemocode-cards` removes card export, the PDF libraries, the font and the artwork. `--exclude mnemocode` removes both features. The composition gate checks that nothing of an excluded feature remains in the bundle.
+- Local integrity, mandatory and offline: the build stops if a file differs from its pinned SHA-256, if the file set changes, if an import leaves the list above, or if a shared package version drifts.
+- Commit availability, best effort: the command asks `api.github.com` whether the pinned MnemoCode commit exists, as it does for the other reviewed upstream commits. The request carries only the public repository name and commit, never wallet data. If GitHub names a different commit, the build stops. If it does not answer or returns an error, for example for a commit that is not pushed yet, the command prints a warning and the build continues on the local hashes.
+
+A manifest written with `--working-tree` is marked unreleased: local builds warn about it, and CI and the reproducible container refuse it, so that no release carries a MnemoCode state that cannot be checked. [RELEASING.md](../RELEASING.md) describes the same provenance check for every reviewed upstream.
+
+`--exclude mnemocode-cards` removes card export, the PDF libraries, the font and the artwork. `--exclude mnemocode` removes both features from the Deriver; the Discovery Scanner keeps its candidate-list import, as described [above](#in-the-discovery-scanner). Each tool's composition gate checks that nothing of an excluded feature remains in its bundle.
 
 ## Build-time adjustments for the PDF libraries
 

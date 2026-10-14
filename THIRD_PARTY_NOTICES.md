@@ -31,6 +31,8 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 | `tslib`                    | 1.14.1        | `microsoft/tslib`                            | 0BSD              | Runtime helpers used by `pdf-lib`                                                                                                 |
 | `uqr`                      | 0.1.3         | `unjs/uqr`                                   | MIT               | Offline QR matrix encoding for public payment addresses                                                                           |
 | `qr`                       | 0.7.0         | `paulmillr/qr`                               | MIT OR Apache-2.0 | Offline QR image decoding for SeedQR and recovery-share imports                                                                   |
+| `age-encryption`           | 0.3.1         | `FiloSottile/typage`                         | BSD-3-Clause      | age encryption of MnemoCode candidate lists: written in the Key Derivation Tool, opened in the Discovery Scanner                  |
+| `@noble/post-quantum`      | 0.5.4         | `paulmillr/noble-post-quantum`               | MIT               | Dependency of `age-encryption`; its post-quantum recipients are bundled but not used, since lists use X25519 or scrypt only       |
 
 The two Dash SDK packages are bundled into both editions of the Wallet Activity Viewer and scan-only Wallet Discovery Scanner, never into either Wallet Key Derivation Tool. Their pnpm integrity pins are `sha512-DsfHXlLByyhvAerDknozg0HT4KHNsYP6rEy949aj/KGLLydb9bwJBHOWyn5oDsNR016tvr3oeT/jCkjMA4qoCA==` and `sha512-/be0D7qohZc9fHgYjbtzOg8KOajarzo0NtKCNybv4Z1xeV617Wo0CusnsxCzwbV7C/jDgPJiGel0KtcSTzQcfQ==`. Copyright notices embedded by Noble/Scure identify Paul Miller and, for Scure BIP32/BIP39, Patricio Palladino. esbuild preserves inline legal comments in the standalone JavaScript.
 
@@ -79,7 +81,7 @@ These packages are not imported by production source except esbuild/TypeScript d
 | `esbuild`                  | 0.28.2        | `evanw/esbuild`        | MIT        | Browser bundle and CSS minification                           |
 | `typescript`               | 7.0.2         | `microsoft/TypeScript` | Apache-2.0 | Static type checking                                          |
 | `vitest`                   | 5.0.3         | `vitest-dev/vitest`    | MIT        | JS/TS tests                                                   |
-| `playwright`               | 1.63.0        | `microsoft/playwright` | Apache-2.0 | Chromium/Firefox standalone-file and browser-regression tests |
+| `playwright`               | 1.64.0        | `microsoft/playwright` | Apache-2.0 | Chromium/Firefox standalone-file and browser-regression tests |
 
 ## Complete locked Rust metadata closure
 
@@ -99,10 +101,10 @@ corez 0.1.1                     cpufeatures 0.2.17
 critical-section 1.2.0          crypto-common 0.1.7
 dash-shielded-wasm 0.1.5
 recovery-codex32-wasm 0.1.5
-recovery-sskr-wasm 0.1.5
+recovery-sskr-wasm 0.1.6
 recovery-envelope-wasm 0.1.5
 document-features 0.2.12
-either 1.18.0                   embedded-io 0.4.0
+either 1.19.0                   embedded-io 0.4.0
 embedded-io 0.6.1               ff 0.13.1
 fpe 0.6.1                       frost-core 3.0.0
 frost-rerandomized 3.0.0        group 0.13.0
@@ -110,7 +112,7 @@ halo2_poseidon 0.1.0            hash32 0.2.1
 heapless 0.7.17                 hex 0.4.3
 incrementalmerkletree 0.8.2     inout 0.1.4
 itertools 0.14.0                jubjub 0.10.0
-lazy_static 1.5.1               libc 0.2.189
+lazy_static 1.5.1               libc 0.2.190
 litrs 1.0.0                     lock_api 0.4.14
 memuse 0.2.2                    num-bigint 0.4.8
 num-integer 0.1.47              num-traits 0.2.19
@@ -132,7 +134,7 @@ universal-hash 0.5.1            version_check 0.9.5
 wasm-bindgen 0.2.129            wasm-bindgen-macro 0.2.129
 wasm-bindgen-macro-support 0.2.129
 wasm-bindgen-shared 0.2.129     zcash_note_encryption 0.4.1
-zcash_spec 0.2.1                zeroize 1.9.0
+zcash_spec 0.2.1                zeroize 1.9.1
 zeroize_derive 1.5.0            zip32 0.2.1
 itoa 1.0.18                     serde_json 1.0.151
 ```
@@ -188,7 +190,7 @@ bitcoin_hashes 0.14.101                          CC0-1.0
 blake2 0.10.6                                    MIT OR Apache-2.0
 block-buffer 0.10.4                              MIT OR Apache-2.0
 bytes 1.12.1                                     MIT
-cc 1.5.1                                         MIT OR Apache-2.0
+cc 1.6.0                                         MIT OR Apache-2.0
 chrono 0.4.45                                    MIT OR Apache-2.0
 const-oid 0.9.6                                  Apache-2.0 OR MIT
 core-foundation-sys 0.8.7                        MIT OR Apache-2.0
@@ -285,11 +287,11 @@ writeable 0.6.4                                  Unicode-3.0
 x25519-dalek 2.0.1                               BSD-3-Clause
 yoke 0.8.3                                       Unicode-3.0
 yoke-derive 0.8.4                                Unicode-3.0
-zerocopy 0.8.59                                  BSD-2-Clause OR Apache-2.0 OR MIT
+zerocopy 0.8.62                                  BSD-2-Clause OR Apache-2.0 OR MIT
 zerocopy-derive 0.8.59                           BSD-2-Clause OR Apache-2.0 OR MIT
 zerofrom 0.1.8                                   Unicode-3.0
 zerofrom-derive 0.1.8                            Unicode-3.0
-zeroize 1.9.0                                    Apache-2.0 OR MIT
+zeroize 1.9.1                                    Apache-2.0 OR MIT
 zerotrie 0.2.5                                   Unicode-3.0
 zerovec 0.11.8                                   Unicode-3.0
 zerovec-derive 0.11.6                            Unicode-3.0
@@ -302,7 +304,7 @@ The executable versions of the Deriver compile exactly the crates of `apps/key-d
 ```text
 block-buffer 0.12.1             cfg-if 1.0.5                  cpufeatures 0.3.1
 crypto-common 0.2.2             digest 0.11.3                 hybrid-array 0.4.15
-libc 0.2.189                    sha2 0.11.0                   typenum 1.20.1
+libc 0.2.190                    sha2 0.11.0                   typenum 1.20.1
 ```
 
 Each executable also contains the standard library of Rust 1.99.0, licensed MIT OR Apache-2.0. The Linux and Windows executables are linked in `Dockerfile.launchers` with the GNU toolchains of its pinned Ubuntu snapshot (`gcc-aarch64-linux-gnu`, MinGW-w64 `gcc-mingw-w64-x86-64`), the macOS executables with Apple's toolchain on the release runner.
@@ -365,6 +367,40 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
+### BSD-3-Clause notice
+
+`age-encryption` (`FiloSottile/typage`), bundled into the Key Derivation Tool and the seed-capable Discovery Scanner, is distributed under these terms:
+
+```text
+Copyright 2023 The age Authors
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+   * Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following disclaimer
+in the documentation and/or other materials provided with the
+distribution.
+   * Neither the name of the age project nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
 ### MIT notices
 
 The following Recovery and QR sources are distributed or adapted under the MIT License. The common MIT terms below apply to every listed copyright notice:
@@ -377,9 +413,11 @@ Copyright (c) 2021 SeedSigner
 SeedSigner — SeedQR specification and vectors
 
 Copyright (c) 2026 Sergei Semenov
-MHFE 0.5.0 — browser package (client, worker, Rust core WebAssembly)
-(its Emscripten, musl and wasm-bindgen notices and the licences of the Rust crates in its core are in
-`packages/recovery-mhfe-wasm/notices/THIRD_PARTY_NOTICES.md`)
+MHFE 0.6.0 — browser package (runtime, worker, WebAssembly and module classes)
+(its Emscripten, musl and wasm-bindgen notices, the licences of the Rust crates in its WebAssembly, and
+the EFF large wordlist by the Electronic Frontier Foundation, CC BY 4.0, built into that WebAssembly,
+are in `packages/recovery-mhfe-wasm/notices/THIRD_PARTY_NOTICES.md`, released as
+`MHFE-THIRD_PARTY_NOTICES.md`)
 
 Copyright (c) Project Nayuki
 Copyright (c) 2023 Anthony Fu <https://github.com/antfu>
@@ -416,14 +454,15 @@ SOFTWARE.
 - `package.json` uses exact dependency versions; pnpm's lockfile pins the npm closure and integrity hashes.
 - `Cargo.toml` uses exact registry versions and one exact audited Orchard tag; `Cargo.lock` pins all transitive versions and git commits.
 - Every supported build validates SHA-512 integrity entries for the complete pnpm package closure, SHA-256 checksums for every crates.io package, and full commit pins for Cargo git sources before compiling.
-- Exact GitHub revisions are recorded for Orchard, note encryption, rust-codex32, the SLIP-39 reference, SeedSigner SeedQR, MHFE 0.5.0, Blockchain Commons SSKR, Gordian Envelope, and bc-components. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply. The registry-published `blahaj` source is bound by its Cargo SHA-256 checksum.
-- The verification record also carries SHA-256 hashes for the local SeedQR, MnemoCode, MHFE, SLIP-39, Codex32, SSKR, Gordian Seed Envelope, QR rendering, and QR decoding sources. The six vendored MHFE package files are additionally checked against fixed SHA-256 values before every supported build. The package's Argon2 builds contain the reference C implementation of Argon2 (`P-H-C/phc-winner-argon2`, commit `f57e61e19229e23c4445b85494dbf7c07de721cb`), which is dual licensed CC0-1.0 or Apache-2.0; MHFE uses it under Apache-2.0, whose text is in `packages/recovery-mhfe-wasm/LICENSE-ARGON2`.
+- Exact GitHub revisions are recorded for Orchard, note encryption, rust-codex32, the SLIP-39 reference, SeedSigner SeedQR, MHFE 0.6.0, Blockchain Commons SSKR, Gordian Envelope, and bc-components. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply. The registry-published `blahaj` source is bound by its Cargo SHA-256 checksum.
+- The verification record also carries SHA-256 hashes for the local SeedQR, MnemoCode, MHFE, SLIP-39, Codex32, SSKR, Gordian Seed Envelope, QR rendering, and QR decoding sources. The vendored MHFE package files are checked against the package's `modules.json`, whose own SHA-256 is pinned, before every supported build. The package's Argon2 builds contain the reference C implementation of Argon2 (`P-H-C/phc-winner-argon2`, commit `f57e61e19229e23c4445b85494dbf7c07de721cb`), which is dual licensed CC0-1.0 or Apache-2.0; MHFE uses it under Apache-2.0, whose text is in `packages/recovery-mhfe-wasm/LICENSE-ARGON2`, released as `MHFE-LICENSE-ARGON2`.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.
 - `apps/discovery-scanner/src/index.html` identifies its embedded Evo SDK/Orchard versions and mnemonic-bearing online boundary; its current Bitcoin, Ethereum, and Dash providers are documented in its application README and the root security audit.
 - `apps/psbt-inspector/src/index.html` identifies its embedded BitcoinerLab Miniscript compiler/analyzer and Scure BTC Signer MuSig2 inspection dependency. The pinned dependency remains unmodified; the standalone esbuild bundle may tree-shake signing APIs that this inspect/derive-only application does not import.
+- Every flat release carries the MHFE and MnemoCode licence and notice files this report names, byte for byte and under the release names given with them, next to this file. `tooling/release-legal-documents.mjs` lists them, and the release scripts check each copy against its package file.
 - Original project code is licensed under MIT as declared in the root `LICENSE` and `package.json`. Third-party components retain the licenses and notices listed above.
 
 ## MnemoCode card font and artwork
 
-The `mnemocode-cards` feature embeds the DejaVu Sans font and the card artwork from MnemoCode, vendored under `packages/recovery-mnemocode/source/assets/`. The font notice is `assets/fonts/DejaVuSans-NOTICE`; the MnemoCode `LICENSE` and `NOTICE` are stored next to the sources. The world map on collection sheets is drawn from public-domain Natural Earth land polygons; its notice is `assets/maps/NOTICE`.
+The `mnemocode-cards` feature embeds the DejaVu Sans font and the card artwork from MnemoCode, vendored under `packages/recovery-mnemocode/source/assets/`. The font notice is `packages/recovery-mnemocode/source/assets/fonts/DejaVuSans-NOTICE`, released as `MnemoCode-DejaVuSans-NOTICE`. The MnemoCode licence and notice are `packages/recovery-mnemocode/source/LICENSE` and `packages/recovery-mnemocode/source/NOTICE`, released as `MnemoCode-LICENSE` and `MnemoCode-NOTICE`. The world map on collection sheets is drawn from public-domain Natural Earth land polygons; its notice is `packages/recovery-mnemocode/source/assets/maps/NOTICE`, released as `MnemoCode-NaturalEarth-NOTICE`.

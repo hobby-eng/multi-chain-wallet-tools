@@ -3,6 +3,7 @@ import { ripemd160 } from "@noble/hashes/legacy.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils.js";
 import { createBase58check } from "@scure/base";
+import { ADDRESS_HASH_BYTES } from "./address-parameters.js";
 
 const base58check = createBase58check(sha256);
 
@@ -17,12 +18,14 @@ export function encodeBase58Check(payload: Uint8Array): string {
 }
 
 export function encodeP2pkh(hash: Uint8Array, prefix: number): string {
-  if (hash.length !== 20) throw new Error("P2PKH hash must be 20 bytes.");
+  if (hash.length !== ADDRESS_HASH_BYTES)
+    throw new Error(`P2PKH hash must be ${ADDRESS_HASH_BYTES} bytes.`);
   return encodeBase58Check(concatBytes(Uint8Array.of(prefix), hash));
 }
 
 export function encodeP2sh(hash: Uint8Array, prefix: number): string {
-  if (hash.length !== 20) throw new Error("P2SH hash must be 20 bytes.");
+  if (hash.length !== ADDRESS_HASH_BYTES)
+    throw new Error(`P2SH hash must be ${ADDRESS_HASH_BYTES} bytes.`);
   return encodeBase58Check(concatBytes(Uint8Array.of(prefix), hash));
 }
 

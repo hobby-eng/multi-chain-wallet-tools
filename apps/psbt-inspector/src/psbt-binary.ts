@@ -1,8 +1,9 @@
+import { MEBIBYTE } from "@ckd/core/byte-units.js";
 import { bytesToHex } from "@ckd/core/crypto.js";
 
 const MAX_COLLECTION_SIZE = 10_000;
 const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
-export const MAX_PSBT_BYTES = 16 * 1024 * 1024;
+export const MAX_PSBT_BYTES = 16 * MEBIBYTE;
 
 export interface PsbtPair {
   readonly type: bigint;

@@ -1,12 +1,16 @@
+#![deny(unsafe_code)]
+
+mod recipient;
+
 use bc_components::{
-    KeyDerivationMethod, PrivateKeyBase, SSKRGroupSpec, SSKRSpec, SymmetricKey,
-    X25519PrivateKey, X25519PublicKey,
+    KeyDerivationMethod, PrivateKeyBase, SSKRGroupSpec, SSKRSpec, SymmetricKey, X25519PrivateKey,
 };
 use bc_envelope::prelude::{URDecodable, UREncodable};
 use bc_envelope::{known_values, Envelope};
 use dcbor::prelude::*;
+use recipient::ValidatedRecipient;
 use wasm_bindgen::prelude::*;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 fn message(error: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&error.to_string())
@@ -25,8 +29,7 @@ fn validate_entropy(entropy: &[u8]) -> Result<(), JsValue> {
 const BIP39_PASSPHRASE_PREDICATE: &str = "ckd-bip39-passphrase";
 
 fn seed_envelope(data: &[u8], name: &str, note: &str, bip39_passphrase: Option<&str>) -> Envelope {
-    let mut envelope =
-        Envelope::new(CBOR::to_byte_string(data)).add_type(known_values::SEED_TYPE);
+    let mut envelope = Envelope::new(CBOR::to_byte_string(data)).add_type(known_values::SEED_TYPE);
     if !name.trim().is_empty() {
         envelope = envelope.add_assertion(known_values::NAME, name.trim());
     }
@@ -43,14 +46,18 @@ fn extract_seed_entropy(envelope: &Envelope) -> Result<Vec<u8>, JsValue> {
     envelope
         .check_type_value(&known_values::SEED_TYPE)
         .map_err(message)?;
-    let data = envelope
+    let mut data = envelope
         .subject()
         .try_leaf()
         .map_err(message)?
         .try_into_byte_string()
-        .map_err(message)?
-        .to_vec();
-    validate_entropy(&data)?;
+        .map_err(message)?;
+    // The decoder already returns an owned Vec. Never leave an extra copy or
+    // invalid-length plaintext outside the caller's cleanup ownership.
+    if let Err(error) = validate_entropy(&data) {
+        data.zeroize();
+        return Err(error);
+    }
     Ok(data)
 }
 
@@ -80,10 +87,7 @@ pub fn create_seed_envelope(
 }
 
 #[wasm_bindgen]
-pub fn recover_seed_envelope(
-    mut record: String,
-    mut password: String,
-) -> Result<Vec<u8>, JsValue> {
+pub fn recover_seed_envelope(mut record: String, mut password: String) -> Result<Vec<u8>, JsValue> {
     bc_envelope::register_tags();
     let result = (|| {
         let envelope = Envelope::from_ur_string(record.trim()).map_err(message)?;
@@ -120,10 +124,14 @@ pub fn create_seed_envelope_advanced(
             .lines()
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .map(|value| X25519PublicKey::from_ur_string(value).map_err(message))
+            .map(|value| ValidatedRecipient::read(value).map_err(message))
             .collect::<Result<Vec<_>, _>>()?;
         let wants_sskr = !group_specs.is_empty();
-        if !bip39_passphrase.is_empty() && password.is_empty() && recipients.is_empty() && !wants_sskr {
+        if !bip39_passphrase.is_empty()
+            && password.is_empty()
+            && recipients.is_empty()
+            && !wants_sskr
+        {
             return Err(JsValue::from_str(
                 "Including the BIP39 passphrase requires password, recipient, or SSKR protection.",
             ));
@@ -133,8 +141,10 @@ pub fn create_seed_envelope_advanced(
         }
 
         let content_key = SymmetricKey::new();
-        let included_passphrase = (!bip39_passphrase.is_empty()).then_some(bip39_passphrase.as_str());
-        let mut protected = seed_envelope(&entropy, &name, &note, included_passphrase).encrypt(&content_key);
+        let included_passphrase =
+            (!bip39_passphrase.is_empty()).then_some(bip39_passphrase.as_str());
+        let mut protected =
+            seed_envelope(&entropy, &name, &note, included_passphrase).encrypt(&content_key);
         if !password.is_empty() {
             protected = protected
                 .add_secret(
@@ -145,7 +155,7 @@ pub fn create_seed_envelope_advanced(
                 .map_err(message)?;
         }
         for recipient in &recipients {
-            protected = protected.add_recipient(recipient, &content_key);
+            protected = protected.add_recipient(recipient.key(), &content_key);
         }
 
         let records = if wants_sskr {
@@ -157,12 +167,10 @@ pub fn create_seed_envelope_advanced(
             let groups = group_specs
                 .chunks_exact(2)
                 .map(|pair| {
-                    SSKRGroupSpec::new(usize::from(pair[0]), usize::from(pair[1]))
-                        .map_err(message)
+                    SSKRGroupSpec::new(usize::from(pair[0]), usize::from(pair[1])).map_err(message)
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let spec =
-                SSKRSpec::new(usize::from(group_threshold), groups).map_err(message)?;
+            let spec = SSKRSpec::new(usize::from(group_threshold), groups).map_err(message)?;
             protected
                 .sskr_split_flattened(&spec, &content_key)
                 .map_err(message)?
@@ -196,7 +204,8 @@ fn open_seed_envelope_advanced(
         return Err(JsValue::from_str("Enter a Gordian Envelope."));
     }
     if !recipient_private_key.is_empty() {
-        let key = X25519PrivateKey::from_ur_string(recipient_private_key.trim()).map_err(message)?;
+        let key =
+            X25519PrivateKey::from_ur_string(recipient_private_key.trim()).map_err(message)?;
         envelopes[0].decrypt_to_recipient(&key).map_err(message)
     } else if !password.is_empty() {
         envelopes[0].unlock(password.as_bytes()).map_err(message)
@@ -235,17 +244,19 @@ pub fn recover_seed_envelope_bundle_advanced(
     bc_envelope::register_tags();
     let result = (|| {
         let opened = open_seed_envelope_advanced(&records, &password, &recipient_private_key)?;
-        let mut entropy = extract_seed_entropy(&opened)?;
-        let mut passphrase = opened
-            .extract_object_for_predicate::<String>(BIP39_PASSPHRASE_PREDICATE)
-            .ok();
+        // Typed extraction can fail after entropy was opened; own its cleanup
+        // immediately so malformed/ambiguous assertions cannot bypass wiping.
+        let entropy = Zeroizing::new(extract_seed_entropy(&opened)?);
+        let passphrase = Zeroizing::new(
+            opened
+                .extract_optional_object_for_predicate::<String>(BIP39_PASSPHRASE_PREDICATE)
+                .map_err(message)?,
+        );
         let encoded = serde_json::to_string(&serde_json::json!({
-            "entropy": entropy,
-            "bip39Passphrase": passphrase,
+            "entropy": &*entropy,
+            "bip39Passphrase": passphrase.as_deref(),
         }))
         .map_err(message);
-        entropy.zeroize();
-        passphrase.zeroize();
         encoded
     })();
     records.zeroize();
@@ -319,12 +330,8 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            recover_seed_envelope_advanced(
-                records,
-                "correct horse".into(),
-                String::new(),
-            )
-            .unwrap(),
+            recover_seed_envelope_advanced(records, "correct horse".into(), String::new(),)
+                .unwrap(),
             entropy,
         );
     }
@@ -348,12 +355,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            recover_seed_envelope_advanced(
-                records,
-                String::new(),
-                private_key.into(),
-            )
-            .unwrap(),
+            recover_seed_envelope_advanced(records, String::new(), private_key.into(),).unwrap(),
             entropy,
         );
     }

@@ -40,12 +40,9 @@ export function derive_shielded_json(seed, coin_type, account, start, count) {
 }
 
 /**
- * Trial-decrypts one fixed-width page returned by Dash Platform DAPI.
- *
- * `full_viewing_key` is overwritten before this function returns, including
- * on validation errors. The returned JSON contains only matched incoming or
- * outgoing notes; it never contains spending authority.
- * @param {Uint8Array} full_viewing_key
+ * Trial-decrypts a Dash Platform DAPI page with a FullViewingKey, without spending authority.
+ * The caller's key is overwritten before return, including on validation errors.
+ * @param {Uint8Array} key
  * @param {bigint} start_position
  * @param {Uint8Array} cmx
  * @param {Uint8Array} nullifiers
@@ -53,12 +50,12 @@ export function derive_shielded_json(seed, coin_type, account, start, count) {
  * @param {Uint8Array} encrypted_notes
  * @returns {string}
  */
-export function scan_shielded_batch_json(full_viewing_key, start_position, cmx, nullifiers, cv_net, encrypted_notes) {
+export function scan_shielded_batch_json(key, start_position, cmx, nullifiers, cv_net, encrypted_notes) {
     let deferred7_0;
     let deferred7_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        var ptr0 = passArray8ToWasm0(full_viewing_key, wasm.__wbindgen_export);
+        var ptr0 = passArray8ToWasm0(key, wasm.__wbindgen_export);
         var len0 = WASM_VECTOR_LEN;
         const ptr1 = passArray8ToWasm0(cmx, wasm.__wbindgen_export);
         const len1 = WASM_VECTOR_LEN;
@@ -68,7 +65,7 @@ export function scan_shielded_batch_json(full_viewing_key, start_position, cmx, 
         const len3 = WASM_VECTOR_LEN;
         const ptr4 = passArray8ToWasm0(encrypted_notes, wasm.__wbindgen_export);
         const len4 = WASM_VECTOR_LEN;
-        wasm.scan_shielded_batch_json(retptr, ptr0, len0, addHeapObject(full_viewing_key), start_position, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4);
+        wasm.scan_shielded_batch_json(retptr, ptr0, len0, addHeapObject(key), start_position, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -89,12 +86,9 @@ export function scan_shielded_batch_json(full_viewing_key, start_position, cmx, 
 }
 
 /**
- * Trial-decrypts incoming notes with a 64-byte raw IncomingViewingKey.
- *
- * This deliberately omits outgoing recovery and note-nullifier derivation,
- * which are cryptographically unavailable without the FullViewingKey.
- * `incoming_viewing_key` is overwritten before return on success or error.
- * @param {Uint8Array} incoming_viewing_key
+ * Scans with an IncomingViewingKey; outgoing recovery and note nullifiers are unavailable.
+ * The caller's key is overwritten before return, including on validation errors.
+ * @param {Uint8Array} key
  * @param {bigint} start_position
  * @param {Uint8Array} cmx
  * @param {Uint8Array} nullifiers
@@ -102,12 +96,12 @@ export function scan_shielded_batch_json(full_viewing_key, start_position, cmx, 
  * @param {Uint8Array} encrypted_notes
  * @returns {string}
  */
-export function scan_shielded_incoming_batch_json(incoming_viewing_key, start_position, cmx, nullifiers, cv_net, encrypted_notes) {
+export function scan_shielded_incoming_batch_json(key, start_position, cmx, nullifiers, cv_net, encrypted_notes) {
     let deferred7_0;
     let deferred7_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        var ptr0 = passArray8ToWasm0(incoming_viewing_key, wasm.__wbindgen_export);
+        var ptr0 = passArray8ToWasm0(key, wasm.__wbindgen_export);
         var len0 = WASM_VECTOR_LEN;
         const ptr1 = passArray8ToWasm0(cmx, wasm.__wbindgen_export);
         const len1 = WASM_VECTOR_LEN;
@@ -117,7 +111,7 @@ export function scan_shielded_incoming_batch_json(incoming_viewing_key, start_po
         const len3 = WASM_VECTOR_LEN;
         const ptr4 = passArray8ToWasm0(encrypted_notes, wasm.__wbindgen_export);
         const len4 = WASM_VECTOR_LEN;
-        wasm.scan_shielded_incoming_batch_json(retptr, ptr0, len0, addHeapObject(incoming_viewing_key), start_position, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4);
+        wasm.scan_shielded_incoming_batch_json(retptr, ptr0, len0, addHeapObject(key), start_position, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -138,11 +132,9 @@ export function scan_shielded_incoming_batch_json(incoming_viewing_key, start_po
 }
 
 /**
- * Recovers outgoing notes with a 32-byte raw OutgoingViewingKey.
- *
- * This deliberately omits incoming recovery, balance, and spent detection.
- * `outgoing_viewing_key` is overwritten before return on success or error.
- * @param {Uint8Array} outgoing_viewing_key
+ * Recovers outgoing notes with an OutgoingViewingKey; balance and spent detection are unavailable.
+ * The caller's key is overwritten before return, including on validation errors.
+ * @param {Uint8Array} key
  * @param {bigint} start_position
  * @param {Uint8Array} cmx
  * @param {Uint8Array} nullifiers
@@ -150,12 +142,12 @@ export function scan_shielded_incoming_batch_json(incoming_viewing_key, start_po
  * @param {Uint8Array} encrypted_notes
  * @returns {string}
  */
-export function scan_shielded_outgoing_batch_json(outgoing_viewing_key, start_position, cmx, nullifiers, cv_net, encrypted_notes) {
+export function scan_shielded_outgoing_batch_json(key, start_position, cmx, nullifiers, cv_net, encrypted_notes) {
     let deferred7_0;
     let deferred7_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        var ptr0 = passArray8ToWasm0(outgoing_viewing_key, wasm.__wbindgen_export);
+        var ptr0 = passArray8ToWasm0(key, wasm.__wbindgen_export);
         var len0 = WASM_VECTOR_LEN;
         const ptr1 = passArray8ToWasm0(cmx, wasm.__wbindgen_export);
         const len1 = WASM_VECTOR_LEN;
@@ -165,7 +157,7 @@ export function scan_shielded_outgoing_batch_json(outgoing_viewing_key, start_po
         const len3 = WASM_VECTOR_LEN;
         const ptr4 = passArray8ToWasm0(encrypted_notes, wasm.__wbindgen_export);
         const len4 = WASM_VECTOR_LEN;
-        wasm.scan_shielded_outgoing_batch_json(retptr, ptr0, len0, addHeapObject(outgoing_viewing_key), start_position, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4);
+        wasm.scan_shielded_outgoing_batch_json(retptr, ptr0, len0, addHeapObject(key), start_position, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);

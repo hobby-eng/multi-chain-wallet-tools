@@ -1,6 +1,7 @@
+import { DESCRIPTOR_FRAGMENTS } from "./descriptor-fragments.js";
 import { analyzeMiniscript } from "@bitcoinerlab/miniscript";
-import { CONSENSUS_LIMITS } from "./consensus-limits.js";
-import { findMatchingClose, splitTopLevelArguments } from "./balanced-syntax.js";
+import { CONSENSUS_LIMITS, RelativeSequence } from "./consensus-limits.js";
+import { findMatchingClose, fragmentBodies, splitTopLevelArguments } from "./balanced-syntax.js";
 
 export interface DescriptorPathCard {
   readonly title: string;
@@ -78,13 +79,7 @@ export function expression(text: string): ExpressionNode | null {
   const close = matchingClose(body, open);
   const name = match[1]!;
   const rawArguments = splitTopLevel(body.slice(open + 1, close));
-  const numericFirstArgument = [
-    "thresh",
-    "multi",
-    "sortedmulti",
-    "multi_a",
-    "sortedmulti_a",
-  ].includes(name);
+  const numericFirstArgument = DESCRIPTOR_FRAGMENTS.has("numericFirst", name);
   if (
     close !== body.length - 1 &&
     !(
@@ -117,7 +112,7 @@ export function describeTaprootKey(value: ExpressionNode | string): string {
 
 function unwrapWrapper(node: ExpressionNode): ExpressionNode {
   if (
-    ["sh", "wsh"].includes(node.name) &&
+    DESCRIPTOR_FRAGMENTS.has("wrappers", node.name) &&
     node.args[0] !== undefined &&
     typeof node.args[0] !== "string"
   )
@@ -153,9 +148,9 @@ export function collectWrappers(value: ExpressionNode | string): string[] {
 }
 
 export function describeCondition(node: ExpressionNode): string {
-  if (["sh", "wsh"].includes(node.name))
+  if (DESCRIPTOR_FRAGMENTS.has("wrappers", node.name))
     return `${node.name} wrapper: ${node.args.map(nodeText).join("; ")}`;
-  if (["multi", "sortedmulti", "multi_a", "sortedmulti_a"].includes(node.name)) {
+  if (DESCRIPTOR_FRAGMENTS.has("multisig", node.name)) {
     const required = Number(node.args[0]);
     const keys = node.args.slice(1);
     return `${required}-of-${keys.length} signatures (${keys
@@ -167,19 +162,18 @@ export function describeCondition(node: ExpressionNode): string {
     const keys = node.args.filter((value): value is string => typeof value === "string");
     return `MuSig2 aggregate key from ${keys.length} participants (${keys.map(describedKey).join("; ")}); cooperative spend uses one aggregate Schnorr signature`;
   }
-  if (["pk", "pk_k", "pkh", "pk_h"].includes(node.name))
+  if (DESCRIPTOR_FRAGMENTS.has("scriptKeys", node.name))
     return `one signature from ${describedKey(String(node.args[0] ?? "unknown key"))}`;
   if (node.name === "older")
     return `relative timelock ${relativeLock(Number(node.args[0]))} after confirmation of the spent UTXO`;
   if (node.name === "after") return describeAbsolute(Number(node.args[0]));
-  if (["sha256", "hash256", "ripemd160", "hash160"].includes(node.name)) {
+  if (DESCRIPTOR_FRAGMENTS.has("hashes", node.name)) {
     return `reveal an exact 32-byte preimage whose ${hashAlgorithm(node.name)} digest is ${String(node.args[0] ?? "")}`;
   }
-  if (["and_v", "and_b", "and_n"].includes(node.name)) return node.args.map(nodeText).join(" AND ");
+  if (DESCRIPTOR_FRAGMENTS.has("and", node.name)) return node.args.map(nodeText).join(" AND ");
   if (node.name === "andor" && node.args.length === 3)
     return `if ${nodeText(node.args[0]!)}, then ${nodeText(node.args[1]!)}, otherwise ${nodeText(node.args[2]!)}`;
-  if (["or_b", "or_c", "or_d", "or_i"].includes(node.name))
-    return node.args.map(nodeText).join(" OR ");
+  if (DESCRIPTOR_FRAGMENTS.has("or", node.name)) return node.args.map(nodeText).join(" OR ");
   if (node.name === "thresh")
     return `at least ${String(node.args[0])} of these conditions: ${node.args.slice(1).map(nodeText).join("; ")}`;
   if (node.name === "0") return "an impossible branch";
@@ -191,17 +185,17 @@ function treeLabel(node: ExpressionNode): string {
   const prefix = node.wrappers.length > 0 ? `${node.wrappers}:` : "";
   if (node.name === "0") return `${prefix}false / impossible condition`;
   if (node.name === "1") return `${prefix}true / no additional condition`;
-  if (["sh", "wsh"].includes(node.name)) return `${node.name} wrapper`;
-  if (["or_b", "or_c", "or_d", "or_i"].includes(node.name)) return `${prefix}OR (${node.name})`;
-  if (["and_v", "and_b", "and_n"].includes(node.name)) return `${prefix}AND (${node.name})`;
+  if (DESCRIPTOR_FRAGMENTS.has("wrappers", node.name)) return `${node.name} wrapper`;
+  if (DESCRIPTOR_FRAGMENTS.has("or", node.name)) return `${prefix}OR (${node.name})`;
+  if (DESCRIPTOR_FRAGMENTS.has("and", node.name)) return `${prefix}AND (${node.name})`;
   if (node.name === "older") return `relative lock: ${relativeLock(Number(node.args[0]))}`;
   if (node.name === "after") return `absolute lock: ${describeAbsolute(Number(node.args[0]))}`;
-  if (["sha256", "hash256", "ripemd160", "hash160"].includes(node.name))
+  if (DESCRIPTOR_FRAGMENTS.has("hashes", node.name))
     return `${prefix}hashlock: ${hashAlgorithm(node.name)} ${String(node.args[0] ?? "")}`;
-  if (["pk", "pk_k", "pkh", "pk_h"].includes(node.name))
+  if (DESCRIPTOR_FRAGMENTS.has("scriptKeys", node.name))
     return `${prefix}${node.name}: ${shortenedKey(String(node.args[0] ?? "unknown key"))}`;
   if (node.name === "musig") return `${prefix}musig: aggregate ${node.args.length} keys`;
-  if (["multi", "sortedmulti", "multi_a", "sortedmulti_a"].includes(node.name)) {
+  if (DESCRIPTOR_FRAGMENTS.has("multisig", node.name)) {
     return `${prefix}${node.name}: ${String(node.args[0])}-of-${Math.max(0, node.args.length - 1)} keys`;
   }
   if (node.name === "thresh")
@@ -225,13 +219,13 @@ export function policyTree(node: ExpressionNode, prefix = "", last = true): stri
 
 function collectKeys(value: ExpressionNode | string): string[] {
   if (typeof value === "string") return [];
-  const direct = ["pk", "pk_k", "pkh", "pk_h"].includes(value.name)
+  const direct = DESCRIPTOR_FRAGMENTS.has("scriptKeys", value.name)
     ? [shortenedKey(String(value.args[0] ?? "unknown key"))]
     : value.name === "musig"
       ? value.args
           .filter((argument): argument is string => typeof argument === "string")
           .map(shortenedKey)
-      : ["multi", "sortedmulti", "multi_a", "sortedmulti_a"].includes(value.name)
+      : DESCRIPTOR_FRAGMENTS.has("multisig", value.name)
         ? value.args
             .slice(1)
             .filter((argument): argument is string => typeof argument === "string")
@@ -242,7 +236,7 @@ function collectKeys(value: ExpressionNode | string): string[] {
 
 export function collectKeyExpressions(value: ExpressionNode | string): string[] {
   if (typeof value === "string") return [];
-  const direct = ["pk", "pk_k", "pkh", "pk_h", "wpkh", "combo", "rawtr"].includes(value.name)
+  const direct = DESCRIPTOR_FRAGMENTS.has("descriptorKeys", value.name)
     ? typeof value.args[0] === "string"
       ? [value.args[0]]
       : []
@@ -252,7 +246,7 @@ export function collectKeyExpressions(value: ExpressionNode | string): string[] 
         : []
       : value.name === "musig"
         ? value.args.filter((argument): argument is string => typeof argument === "string")
-        : ["multi", "sortedmulti", "multi_a", "sortedmulti_a"].includes(value.name)
+        : DESCRIPTOR_FRAGMENTS.has("multisig", value.name)
           ? value.args
               .slice(1)
               .filter((argument): argument is string => typeof argument === "string")
@@ -283,7 +277,7 @@ export function hashAlgorithm(name: string): string {
 
 function collectPreimages(value: ExpressionNode | string): string[] {
   if (typeof value === "string") return [];
-  const direct = ["sha256", "hash256", "ripemd160", "hash160"].includes(value.name)
+  const direct = DESCRIPTOR_FRAGMENTS.has("hashes", value.name)
     ? [`32-byte preimage for ${hashAlgorithm(value.name)} digest ${String(value.args[0] ?? "")}`]
     : [];
   return [...direct, ...value.args.flatMap(collectPreimages)];
@@ -313,7 +307,7 @@ function combinePaths(left: PathEnumeration, right: PathEnumeration): PathEnumer
 function pathAlternatives(value: ExpressionNode | string): PathEnumeration {
   if (typeof value === "string") return { paths: [], limited: false };
   const node = unwrapWrapper(value);
-  if (["or_b", "or_c", "or_d", "or_i"].includes(node.name)) {
+  if (DESCRIPTOR_FRAGMENTS.has("or", node.name)) {
     const children = node.args.map(pathAlternatives);
     if (children.some(({ limited }) => limited)) return { paths: [], limited: true };
     const paths = children.flatMap(({ paths }) => paths);
@@ -335,7 +329,7 @@ function pathAlternatives(value: ExpressionNode | string): PathEnumeration {
     }
     return { paths: [...primary.paths, ...fallback.paths], limited: false };
   }
-  if (["and_v", "and_b", "and_n"].includes(node.name)) {
+  if (DESCRIPTOR_FRAGMENTS.has("and", node.name)) {
     return node.args.reduce<PathEnumeration>(
       (paths, argument) => combinePaths(paths, pathAlternatives(argument)),
       {
@@ -386,34 +380,20 @@ export function treeLeaves(tree: string): string[] {
   return [tree];
 }
 
+/** The argument text of every `name(…)` fragment of a descriptor. */
 export function calls(text: string, name: string): string[] {
-  const results: string[] = [];
-  let from = 0;
-  while (true) {
-    const start = text.indexOf(`${name}(`, from);
-    if (start === -1) return results;
-    const previous = start === 0 ? "" : text[start - 1]!;
-    if (/[a-z0-9_]/u.test(previous)) {
-      from = start + name.length;
-      continue;
-    }
-    const open = start + name.length;
-    const close = matchingClose(text, open);
-    results.push(text.slice(open + 1, close));
-    from = close + 1;
-  }
+  return fragmentBodies(text, name, "Descriptor");
 }
 
 export function relativeLock(value: number): string {
-  if ((value & CONSENSUS_LIMITS.bip68DisableFlag) !== 0)
-    return `${value} (disabled flag set; invalid as an active relative lock)`;
-  const units = value & CONSENSUS_LIMITS.bip68SequenceMask;
-  if ((value & CONSENSUS_LIMITS.bip68TypeFlag) !== 0) {
-    const seconds = units * 512;
+  const sequence = new RelativeSequence(value);
+  if (sequence.disabled) return `${value} (disabled flag set; invalid as an active relative lock)`;
+  if (sequence.timeBased) {
+    const { seconds, units } = sequence;
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainder = seconds % 60;
     return `${value} = ${units} × 512 seconds = ${seconds} seconds (${hours}:${minutes.toString().padStart(2, "0")}:${remainder.toString().padStart(2, "0")})`;
   }
-  return `${value} = ${units} blocks`;
+  return `${value} = ${sequence.units} blocks`;
 }

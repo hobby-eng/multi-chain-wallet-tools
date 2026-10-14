@@ -1,3 +1,5 @@
+import { PlatformProofIndexReconciliation } from "@ckd/dash-network/platform-proof-index.js";
+import { ShieldedActivityState } from "@ckd/dash-network/shielded-activity-state.js";
 import writeExcelFile, { type Sheet, type SheetData } from "write-excel-file/universal";
 import type { ActivitySnapshot } from "@ckd/dash-network/types.js";
 import type {
@@ -9,6 +11,7 @@ import type {
 } from "./export-model.js";
 import { exportError, fileStamp, isBatchExportState } from "./export-common.js";
 import { CSV_HEADER, singleRows, type CsvValue } from "./export-csv.js";
+import { CoreActivityState } from "./core-activity-state.js";
 
 type WorkbookValue = string | number | boolean | null;
 
@@ -89,21 +92,19 @@ function summaryRow(item: ViewerBatchExportItem, recordCount: number): CsvValue[
       state.network,
       state.snapshot.indexStatus,
       state.snapshot.address,
-      state.snapshot.balanceDuffs,
+      new CoreActivityState(state.snapshot).balance.reportedBalanceDuffs,
       "duffs",
       recordCount,
     ];
   }
   if (state.mode === "platform") {
-    const agrees =
-      state.snapshot.balanceCredits === state.history.explorerBalanceCredits &&
-      state.snapshot.nonce === BigInt(state.history.explorerNonce);
+    const reconciliation = new PlatformProofIndexReconciliation(state.snapshot, state.history);
     return [
       item.id,
       item.label,
       state.mode,
       state.network,
-      agrees ? "proof_and_index_agree" : "proof_takes_precedence",
+      reconciliation.status,
       state.snapshot.address,
       state.snapshot.balanceCredits,
       "credits",
@@ -137,7 +138,7 @@ function summaryRow(item: ViewerBatchExportItem, recordCount: number): CsvValue[
     state.network,
     state.snapshot.complete ? "complete" : "partial",
     "Orchard shielded pool",
-    state.snapshot.balance,
+    new ShieldedActivityState(state.snapshot).balance,
     "credits",
     recordCount,
   ];

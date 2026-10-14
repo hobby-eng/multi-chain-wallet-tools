@@ -1,10 +1,21 @@
-// MHFE panel: encrypts a BIP39 phrase into a 24-word container, or on request into one as long as
-// a 12- to 21-word phrase, and recovers it, with the MHFE 0.5.0 browser package. Each operation tab
-// is its own class (recovery-mhfe-encode.ts, recovery-mhfe-decode.ts); they share one engine.
+// MHFE panel: every operation of the MHFE 0.6.0 browser package, one class per tab over one shared
+// engine: encrypt and recover a BIP39 phrase, rehearse a recovery, draw a new wallet, change the
+// password, open hidden wallets, repair a container phrase, make a password, and the self-test on request.
 import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
+import { MhfeCheckTab } from "./recovery-mhfe-check.js";
 import { MhfeDecodeTab } from "./recovery-mhfe-decode.js";
 import { MhfeEncodeTab } from "./recovery-mhfe-encode.js";
 import { FAST_MODE_THREADS, MhfeEngine } from "./recovery-mhfe-engine.js";
+import { MhfeNewWalletTab } from "./recovery-mhfe-new-wallet.js";
+import { MhfePasswordTab } from "./recovery-mhfe-password.js";
+import { MhfePanelParameters } from "./recovery-mhfe-parameters.js";
+import { MhfeRekeyTab } from "./recovery-mhfe-rekey.js";
+import { MhfeRepairTab } from "./recovery-mhfe-repair.js";
+import { MhfePanelCheck } from "./recovery-mhfe-self-check.js";
+import { MhfeSelfTestTab } from "./recovery-mhfe-self-test.js";
+import { timeRange } from "./recovery-mhfe-status.js";
+import { MhfeWalletsTab } from "./recovery-mhfe-wallets.js";
+import { installMhfeWordHints } from "./recovery-mhfe-word-hints.js";
 import {
   installMnemonicSourceDiagnostic,
   installSecretToggle,
@@ -14,35 +25,56 @@ import {
 } from "./recovery-workspace-shared.js";
 
 /** The one warning of the MHFE panel: what MHFE is, what recovery needs, and how fast this page runs. */
-function renderSpeedNotice(fastMode: boolean): void {
+function renderSpeedNotice(engine: MhfeEngine): void {
   const experimental = leadParagraph(
-    "Experimental.",
-    "MHFE has not had enough independent review to protect real funds. Recovery needs the password, and the " +
+    "Experimental:",
+    "not independently reviewed; do not use it to protect real funds. Recovery needs the password, and the " +
       "PIM or memory level if you changed them.",
   );
-  const speed = fastMode
+  const recovery = `a recovery takes about ${timeRange(...engine.recoverySeconds)}`;
+  const speed = engine.fastMode
     ? leadParagraph(
         "Fast mode:",
-        "all four processor cores are in use; a recovery takes about one and a half minutes.",
+        `all ${FAST_MODE_THREADS} processor cores are in use; ${recovery}.`,
       )
     : leadParagraph(
         "Slow mode:",
-        "in this HTML version the browser lets MHFE use one processor core, so a recovery takes about four to " +
-          "seven minutes. For about one and a half minutes, use the executable version of this tool.",
+        `in this HTML version the browser lets MHFE run the ${FAST_MODE_THREADS} Argon2 lanes one after ` +
+          `another, so ${recovery}. For the fast mode, use the executable version of this tool.`,
       );
   required<HTMLElement>("#mhfe-mode").replaceChildren(experimental, speed);
-  required<HTMLElement>("#mhfe-runtime").textContent = fastMode
+  required<HTMLElement>("#mhfe-runtime").textContent = engine.fastMode
     ? `Active · ${FAST_MODE_THREADS} threads`
     : "Inactive · 1 thread · use the executable version";
 }
 
 function installMhfe(context: RecoveryFeatureContext): void {
   const engine = new MhfeEngine();
-  renderSpeedNotice(engine.fastMode);
+  new MhfePanelParameters(required<HTMLElement>("#mhfe-panel"), engine);
+  renderSpeedNotice(engine);
+  // MHFE checks its classes when its panel is first opened, before any of its fields opens.
+  const panelCheck = new MhfePanelCheck(
+    engine,
+    required<HTMLElement>("#mhfe-panel"),
+    required<HTMLElement>("#mhfe-self-check-status"),
+  );
+  required<HTMLButtonElement>('[data-recovery-tab][aria-controls="mhfe-panel"]').addEventListener(
+    "click",
+    () => void panelCheck.ensure(),
+  );
   installSecretToggle("#toggle-mhfe-source", "#mhfe-source", "Show", "Hide", "recovery phrase");
   installMnemonicSourceDiagnostic(context, "mhfe", "#mhfe-source", "#toggle-mhfe-source");
   new MhfeEncodeTab(context, engine);
   new MhfeDecodeTab(context, engine);
+  new MhfeCheckTab(context, engine);
+  new MhfeNewWalletTab(context, engine);
+  new MhfeRekeyTab(context, engine);
+  new MhfeWalletsTab(context, engine);
+  new MhfeRepairTab(context, engine);
+  new MhfePasswordTab(engine);
+  new MhfeSelfTestTab(context, engine);
+  // Hints below every field of words, as mhfe gives them where it reads typed words.
+  installMhfeWordHints(engine, required<HTMLElement>("#mhfe-panel"));
 }
 
 export const recoveryFeature: RecoveryFeature = {

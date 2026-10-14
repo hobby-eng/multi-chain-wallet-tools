@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MNEMOCODE_MANIFEST } from "./sync-mnemocode-source.mjs";
-import { assertSafeCustomOutput } from "./tool-feature-options.mjs";
+import { removeElementById } from "./html-elements.mjs";
+import { ToolBuildPolicy } from "./tool-build-policy.mjs";
+import { commaOptionValues, requestedArtifact } from "./tool-feature-options.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
 export const KEY_DERIVATION_COINS = TOOL_MANIFESTS["key-derivation"].coins;
@@ -18,7 +20,6 @@ const RECOVERY_FEATURES = Object.freeze([
   "sskr",
   "gordian-envelope",
 ]);
-const ALIASES = Object.freeze({ matcher: "wallet-matcher", silent: "silent-payments" });
 
 const PROJECT_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const MNEMOCODE_VERSION_MARKER = "__MNEMOCODE_VERSION__";
@@ -34,102 +35,22 @@ export function vendoredMnemoCodeVersion() {
   return version;
 }
 
-function optionValues(args, name) {
-  const values = [];
-  for (let index = 0; index < args.length; index += 1) {
-    const argument = args[index];
-    if (argument === name) {
-      const value = args[index + 1];
-      if (
-        value === undefined ||
-        value.startsWith("--") ||
-        value.split(",").some((entry) => entry.trim() === "")
-      )
-        throw new Error(`${name} requires a comma-separated value.`);
-      values.push(value);
-      index += 1;
-    } else if (argument.startsWith(`${name}=`)) {
-      const value = argument.slice(name.length + 1);
-      if (value.split(",").some((entry) => entry.trim() === ""))
-        throw new Error(`${name} requires a comma-separated value.`);
-      values.push(value);
-    }
-  }
-  return values
-    .flatMap((value) => value.split(","))
-    .map((value) => value.trim())
-    .filter(Boolean);
-}
-
-function normalizeNames(names, option, allowed = KEY_DERIVATION_FEATURES) {
-  return names.map((name) => {
-    const normalized = ALIASES[name] ?? name;
-    if (!allowed.includes(normalized)) {
-      throw new Error(`Unknown ${option} value "${name}". Expected: ${allowed.join(", ")}.`);
-    }
-    return normalized;
-  });
-}
-
 export function parseKeyDerivationFeatures(profile, args = process.argv.slice(2)) {
-  const included = normalizeNames(optionValues(args, "--features"), "--features");
-  const excluded = normalizeNames(optionValues(args, "--exclude"), "--exclude");
-  const includedCoins = normalizeNames(
-    optionValues(args, "--coins"),
-    "--coins",
-    KEY_DERIVATION_COINS,
-  );
-  const excludedCoins = normalizeNames(
-    optionValues(args, "--exclude-coins"),
+  const policy = new ToolBuildPolicy("key-derivation", profile);
+  const included = policy.normalize(commaOptionValues(args, "--features"), "--features");
+  const excluded = policy.normalize(commaOptionValues(args, "--exclude"), "--exclude");
+  const includedCoins = policy.normalize(commaOptionValues(args, "--coins"), "--coins");
+  const excludedCoins = policy.normalize(
+    commaOptionValues(args, "--exclude-coins"),
     "--exclude-coins",
-    KEY_DERIVATION_COINS,
   );
-  const profileCoins = profile.id === "dash-community" ? ["dash"] : [...KEY_DERIVATION_COINS];
-  const selectedCoins = new Set(includedCoins.length > 0 ? includedCoins : profileCoins);
-  for (const coin of excludedCoins) selectedCoins.delete(coin);
-  if (selectedCoins.size === 0) throw new Error("Select at least one coin for Key Derivation.");
-  if (profile.id === "dash-community" && [...selectedCoins].some((coin) => coin !== "dash")) {
-    throw new Error(
-      "Dash Community builds may include only the Dash coin module. Use --profile multi-chain for the general design.",
-    );
-  }
+  const coins = policy.coins(includedCoins, excludedCoins);
+  const profileDefaults = policy.defaultFeatures(coins);
+  const ordered = policy.features(coins, included, excluded);
+  const selectedCoins = new Set(coins);
+  const selected = new Set(ordered);
   const custom =
-    included.length > 0 ||
-    excluded.length > 0 ||
-    includedCoins.length > 0 ||
-    excludedCoins.length > 0;
-  const hasSigningCoin = selectedCoins.has("bitcoin") || selectedCoins.has("dash");
-  const profileDefaults = KEY_DERIVATION_FEATURES.filter((feature) => {
-    if (feature === "silent-payments")
-      return profile.capabilities.bitcoinSilentPayments && selectedCoins.has("bitcoin");
-    if (feature === "bip38-encrypt" || feature === "message-signing") return hasSigningCoin;
-    return true;
-  });
-  const selected = new Set(included.length > 0 ? included : profileDefaults);
-  for (const feature of excluded) selected.delete(feature);
-  // Card export prints the output of the MnemoCode module and cannot exist without it.
-  if (!selected.has("mnemocode")) {
-    if (included.includes("mnemocode-cards"))
-      throw new Error('The "mnemocode-cards" feature requires the "mnemocode" feature.');
-    selected.delete("mnemocode-cards");
-  }
-  if (!selected.has("derive")) {
-    throw new Error(
-      'The base "derive" feature is required by the Key Derivation Tool and cannot be excluded.',
-    );
-  }
-  if (
-    selected.has("silent-payments") &&
-    (!profile.capabilities.bitcoinSilentPayments || !selectedCoins.has("bitcoin"))
-  ) {
-    throw new Error(
-      'The "silent-payments" feature requires Bitcoin in the general multi-chain profile.',
-    );
-  }
-  if ((selected.has("bip38-encrypt") || selected.has("message-signing")) && !hasSigningCoin) {
-    throw new Error("BIP38 encryption and message signing require Bitcoin or Dash.");
-  }
-  const ordered = KEY_DERIVATION_FEATURES.filter((feature) => selected.has(feature));
+    included.length + excluded.length + includedCoins.length + excludedCoins.length > 0;
   return Object.freeze({
     custom,
     coins: Object.freeze(KEY_DERIVATION_COINS.filter((coin) => selectedCoins.has(coin))),
@@ -143,44 +64,13 @@ export function parseKeyDerivationFeatures(profile, args = process.argv.slice(2)
 
 export function customKeyDerivationArtifact(root, profile, features, requestedOutput) {
   if (!features.custom && requestedOutput === undefined) return undefined;
-  if (requestedOutput !== undefined) {
-    const output = resolve(root, requestedOutput);
-    if (!output.endsWith(".html")) throw new Error("--output must name an .html file.");
-    assertSafeCustomOutput(root, output);
-    return output;
-  }
+  if (requestedOutput !== undefined) return requestedArtifact(root, requestedOutput);
   const slug = `${features.coins.join("-")}__${features.selected.join("_")}`;
   return resolve(root, "dist", "custom-builds", profile.id, `Key_Derivation_${slug}.html`);
 }
 
-export function parseOutputPath(args = process.argv.slice(2)) {
-  const inline = args.find((arg) => arg.startsWith("--output="));
-  const index = args.indexOf("--output");
-  const output = inline?.slice("--output=".length) ?? (index >= 0 ? args[index + 1] : undefined);
-  if (
-    (inline !== undefined || index >= 0) &&
-    (output === undefined || output.trim() === "" || output.startsWith("--"))
-  ) {
-    throw new Error("--output requires an .html path.");
-  }
-  return output;
-}
-
 function removeBalancedElement(source, id) {
-  const opening = new RegExp(`<([a-z][a-z0-9-]*)\\b[^>]*\\bid=["']${id}["'][^>]*>`, "iu").exec(
-    source,
-  );
-  if (opening === null) return source;
-  const tag = opening[1];
-  const token = new RegExp(`<\\/?${tag}\\b[^>]*>`, "giu");
-  token.lastIndex = opening.index;
-  let depth = 0;
-  for (let match = token.exec(source); match !== null; match = token.exec(source)) {
-    if (match[0].startsWith("</")) depth -= 1;
-    else depth += 1;
-    if (depth === 0) return source.slice(0, opening.index) + source.slice(token.lastIndex);
-  }
-  throw new Error(`Could not find the closing <${tag}> for #${id}.`);
+  return removeElementById(source, id, "Key Derivation template");
 }
 
 function removeButtons(source, attribute, value) {
@@ -207,7 +97,7 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     "wallet-matcher": "wallet-matcher-panel",
     seedqr: "seedqr-panel",
     mnemocode: "mnemocode-panel",
-    mhfe: "mhfe-panel",
+    mhfe: ["mhfe-panel", "wallet-check-generation"],
     slip39: "slip39-panel",
     codex32: "codex32-panel",
     sskr: "sskr-panel",
@@ -222,10 +112,52 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     const menuTarget = feature === "wallet-matcher" ? "matcher" : feature;
     rendered = removeButtons(rendered, "data-recovery-target", menuTarget);
   }
+  // Without Bitcoin the Bitcoin address and key evidence leaves every wallet question. "Address of
+  // another coin" stays where the build offers a coin besides Bitcoin, Dash or Ethereum (every coin
+  // of MnemoCode's in the full build; packages/recovery-backup/src/mnemocode-offered-coins.ts), with
+  // its place and count of addresses. Without any of them, MnemoCode recognises a wallet by its
+  // master fingerprint only.
+  const offersCoins = features.hasCoin("dash") || features.hasCoin("ethereum");
+  const parts = [
+    ...(features.hasCoin("bitcoin")
+      ? []
+      : [
+          "address-row",
+          "key-row",
+          "located-help",
+          "address-field",
+          "key-field",
+          "profile-row",
+          "network-field",
+        ]),
+    ...(offersCoins ? [] : ["coin-row", "coin-field", "coin-help"]),
+    ...(features.hasCoin("bitcoin") || offersCoins ? [] : ["location-field", "addresses-field"]),
+  ];
+  for (const prefix of [
+    "mnemocode-forgotten",
+    "mnemocode-restore",
+    "mnemocode-forgotten-shares",
+    "mnemocode-decode",
+    "mnemocode-reencode",
+  ])
+    for (const part of parts)
+      rendered = removeBalancedElement(rendered, `${prefix}-wallet-${part}`);
+  // MnemoCode's shares need the SSKR library: without it, MnemoCode has no share tabs.
+  if (features.has("mnemocode") && !features.has("sskr")) {
+    rendered = removeBalancedElement(rendered, "mnemocode-split-section");
+    rendered = removeBalancedElement(rendered, "mnemocode-restore-panel");
+    rendered = removeButtons(rendered, "aria-controls", "mnemocode-restore-panel");
+    rendered = removeBalancedElement(rendered, "mnemocode-forgotten-kind-share-row");
+    rendered = removeBalancedElement(rendered, "mnemocode-heirs-backup-shares-row");
+    rendered = removeBalancedElement(rendered, "mnemocode-card-source-field");
+    rendered = removeBalancedElement(rendered, "mnemocode-card-share-qr-row");
+    rendered = removeBalancedElement(rendered, "mnemocode-forgotten-share");
+  }
   // The passport names only what this build contains.
   if (!features.has("mhfe")) rendered = removeBalancedElement(rendered, "passport-mhfe-dependency");
   if (!features.has("mnemocode-cards")) {
     rendered = removeBalancedElement(rendered, "mnemocode-cards-section");
+    rendered = removeBalancedElement(rendered, "mnemocode-heirs-section");
     // The passport names only what this build contains.
     rendered = removeBalancedElement(rendered, "passport-mnemocode-cards-dependency");
   }

@@ -17,6 +17,8 @@
 //   buttons-touching   two neighbouring buttons in one row with no gap between them
 //   controls-overlap   two controls drawn on top of each other
 //   uneven-row         buttons of one kind side by side in one row with different heights
+//   native-file-input  a file input that the browser draws itself, with a "Choose File" look of
+//                      its own in every browser, instead of a FileChoice button (shown or not)
 //   style-variant      buttons of one kind (the same classes) that differ in font size, weight,
 //                      corner radius, padding or, on one line, height, across all checked pages
 //                      at the same width; the less common look is reported
@@ -202,6 +204,11 @@ function inspectPage({ allowlist, buttonFontSizes }) {
         report("controls-overlap", controls[i], `over ${describe(controls[j])}`);
     }
   }
+  // Every file chooser is a FileChoice (packages/shared-ui/src/file-choice.ts): a button-styled
+  // label that holds the input unseen. Checked shown or not, so that a closed panel is covered too.
+  for (const input of document.querySelectorAll('input[type="file"]')) {
+    if (!input.parentElement?.matches("label.file-choice")) report("native-file-input", input);
+  }
   // Buttons of one kind side by side in one row must be equally tall.
   for (const button of buttons) {
     const next = button.nextElementSibling;
@@ -359,15 +366,16 @@ async function eachCoin(page, selector, recorder, state) {
 }
 
 /**
- * The Key Derivation Tool's states beyond its tabs: the chosen-words panel with both words, a
- * phrase, every coin and a BIP85 child wallet.
+ * The Key Derivation Tool's states beyond its tabs: the chosen-word panel with a word, a phrase,
+ * every coin and a BIP85 child wallet.
  */
 async function deriverStates(page, recorder, state) {
   if ((await page.locator("#generate-12").count()) === 0) return;
   if ((await page.locator("#chosen-words-enabled").count()) > 0) {
     await page.locator("#chosen-words-enabled").check();
-    await page.locator("#chosen-words-add").click();
+    await page.locator("#chosen-word-1").fill("zoo");
     await recorder.record(page, `${state} chosen words`);
+    await page.locator("#chosen-word-1").fill("");
     await page.locator("#chosen-words-enabled").uncheck();
   }
   await page.locator("#generate-12").click();
@@ -471,6 +479,8 @@ const SELF_TEST_PAGE = `<!doctype html><html><head><style>
   <div class="stack"><button id="under">Under</button><button>Over</button></div>
   <div class="scroller"><table style="width: 2000px"><tr><td>held</td></tr></table></div>
   <details><summary>closed</summary><div style="width: 3000px">hidden</div></details>
+  <details><summary>files</summary><input type="file" id="raw-file"></details>
+  <label class="secondary file-choice">Choose<input type="file" style="position: absolute; width: 1px; height: 1px; opacity: 0"></label>
   <div class="row"><button class="chip">A</button><button class="chip">B</button><button class="chip" id="odd-chip" style="border-radius: 2px">C</button></div>
   <div class="row" style="align-items: flex-start"><button class="pair" id="short">Short</button><button class="pair" style="height: 60px">Tall</button></div>
   <div aria-hidden="true" style="position: absolute; left: 1300px; top: 0; width: 300px">decoration</div>
@@ -486,6 +496,7 @@ const SELF_TEST_EXPECTED = [
   ["controls-overlap", "#under"],
   ["style-variant", "radius 2px"],
   ["uneven-row", "#short"],
+  ["native-file-input", "#raw-file"],
 ];
 
 async function selfTest() {

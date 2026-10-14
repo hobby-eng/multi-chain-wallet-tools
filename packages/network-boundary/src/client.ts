@@ -1,3 +1,4 @@
+import { onParentMessage } from "./iframe-protocol.js";
 import {
   RECOVERY_NETWORK_FATAL,
   RECOVERY_VAULT_CHANNEL,
@@ -237,10 +238,7 @@ export function installNetworkBoundaryListener(): void {
     if (!installed)
       rejectClient?.(new Error("Timed out while establishing the network boundary channel."));
   }, 15_000);
-  window.addEventListener("message", (event: MessageEvent<unknown>) => {
-    if (event.source !== window.parent || typeof event.data !== "object" || event.data === null)
-      return;
-    const message = event.data as { type?: unknown; message?: unknown };
+  onParentMessage((message, event) => {
     if (message.type === RECOVERY_NETWORK_FATAL) {
       const cause = new Error(
         typeof message.message === "string" ? message.message : "Network boundary failed.",

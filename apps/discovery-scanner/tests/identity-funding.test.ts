@@ -12,6 +12,8 @@ import type { RecoveryScanConfig } from "../src/types.js";
 
 const MNEMONIC =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+// Synthetic identity ID and transaction hash (32 bytes of 0x22 each); the funding input address
+// below is m/44'/5'/0'/0/1 of the same public test phrase.
 const IDENTITY = "3JF3sEqM796hk5WFqA6EtmEwJQ9quALszsfJyvXNQKy3";
 const FUNDING_TRANSACTION = "2222222222222222222222222222222222222222222222222222222222222222";
 

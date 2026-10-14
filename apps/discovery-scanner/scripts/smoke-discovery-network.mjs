@@ -1,14 +1,7 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { pathToFileURL, fileURLToPath } from "node:url";
-import { build } from "esbuild";
+import { smokeNetwork } from "../../../tooling/node-module.mjs";
+import { smokeScanConfig, withDashRecovery } from "./smoke-module.mjs";
 
-const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
-const network = process.argv[2] ?? "testnet";
-if (network !== "mainnet" && network !== "testnet") {
-  throw new Error("Recovery smoke argument must be mainnet or testnet.");
-}
+const network = smokeNetwork("Recovery smoke", "testnet");
 const identityIndexes = Number(process.argv[3] ?? "1");
 if (!Number.isSafeInteger(identityIndexes) || identityIndexes < 1 || identityIndexes > 20) {
   throw new Error("Recovery smoke identity-index argument must be an integer from 1 through 20.");
@@ -17,61 +10,20 @@ if (!Number.isSafeInteger(identityIndexes) || identityIndexes < 1 || identityInd
 // Public BIP39 vector. It is intentionally not a user wallet and must never receive funds.
 const mnemonic =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-const temporaryDirectory = mkdtempSync(join(tmpdir(), "wallet-discovery-smoke-"));
-const output = join(temporaryDirectory, "wallet-discovery-scanner.mjs");
 
-try {
-  await build({
-    stdin: {
-      contents: `
-        import { DASH_RECOVERY_ADAPTER } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/coins/dash/index.ts"))};
-        import { DirectRecoveryNetworkService } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/network-service.ts"))};
-        export { DASH_RECOVERY_ADAPTER, DirectRecoveryNetworkService };
-      `,
-      loader: "ts",
-      resolveDir: root,
-    },
-    outfile: output,
-    bundle: true,
-    format: "esm",
-    platform: "node",
-    target: "node24",
-    loader: { ".wasm": "binary" },
-    define: { __DASH_COMMUNITY__: "false" },
-    logLevel: "silent",
-  });
-  const module = await import(`${pathToFileURL(output).href}?run=${Date.now()}`);
+await withDashRecovery(async (module) => {
   const networkApi = new module.DirectRecoveryNetworkService();
   const progress = [];
   const startedAt = performance.now();
   const result = await module.DASH_RECOVERY_ADAPTER.scan(
     { id: "public-vector", label: "Public BIP39 vector", mnemonic, passphrase: "" },
-    {
-      network,
-      account: 0,
-      scanCore: true,
+    smokeScanConfig(network, {
       coreReceiveCount: 2,
       coreChangeCount: 2,
-      scanLegacyCore: false,
-      legacyCoreCount: 0,
-      scanCoinJoin: false,
-      coinJoinExternalCount: 0,
-      coinJoinInternalCount: 0,
-      scanIdentityFunding: false,
-      identityFundingCount: 0,
-      identityTopUpIdentityCount: 0,
-      identityTopUpCount: 0,
-      scanProviderCollateral: false,
-      providerCollateralCount: 0,
-      scanPlatformAddresses: true,
       platformAddressCount: 2,
-      scanPlatformIdentities: true,
-      identityStartIndex: 0,
       identityGapLimit: identityIndexes,
       identityScanLimit: identityIndexes,
-      includeUsedZeroBalance: false,
-      scanShieldedPool: false,
-    },
+    }),
     {
       signal: new AbortController().signal,
       networkApi,
@@ -97,6 +49,7 @@ try {
       "Recovery smoke did not preserve disabled Orchard state or progress reporting.",
     );
   }
+  // DIP17 m/9'/5'/17'/0'/0'/0 and m/9'/1'/17'/0'/0'/0 of the public test phrase "abandon … about".
   const knownAddress =
     network === "mainnet"
       ? "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs"
@@ -122,6 +75,4 @@ try {
       `${identityMetrics.get("Proof queries")} identity proofs; DAPI avg/max ${identityMetrics.get("DAPI average / max")}; ` +
       `${progress.length} progress events; ${Math.round(performance.now() - startedAt)} ms.`,
   );
-} finally {
-  rmSync(temporaryDirectory, { recursive: true, force: true });
-}
+});

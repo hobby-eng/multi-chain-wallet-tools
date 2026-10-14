@@ -2,7 +2,7 @@
 
 These audit-only harnesses record commands and validate evidence for AUD-020,
 the full audit of the Multi-Chain Wallet Tools repository at reviewed commit
-`c9bfa5b01e473c6cabb3aa2d7f898b32c4e3dcce`.
+`3e1966f0f3bb3c86e8b24559a7e1d60b9582a53d`.
 
 ## Inputs and scope
 

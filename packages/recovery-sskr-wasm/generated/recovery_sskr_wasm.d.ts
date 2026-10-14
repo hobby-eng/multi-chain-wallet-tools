@@ -1,6 +1,21 @@
 /* tslint:disable */
 /* eslint-disable */
 
+/**
+ * The encodings of a share, which a host asks for by their number: the compact UR, or standard
+ * Bytewords. JavaScript reads the numbers from this enum (`ShareEncoding.CompactUr`), so they are
+ * written only here.
+ *
+ * The entries still take the number as a `u8`: wasm-bindgen refuses a number outside an enum by
+ * throwing before any code here runs, which would leave the secret it has already copied in
+ * unwiped. `ShareEncoding::try_from` refuses it inside the entry, which then wipes the secret
+ * (AUD-012-SEC001).
+ */
+export enum ShareEncoding {
+  CompactUr = 0,
+  Bytewords = 1,
+}
+
 export function create_sskr_shares(
   secret: Uint8Array,
   group_threshold: number,

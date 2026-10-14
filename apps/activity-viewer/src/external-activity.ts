@@ -1,3 +1,6 @@
+import { AtomicAmount } from "@ckd/core/atomic-amount.js";
+import { PublicExportSession } from "@ckd/export/public-export-session.js";
+import { nonEmptyLines } from "@ckd/core/text-lines.js";
 import { downloadBlob } from "@ckd/export/download.js";
 import { createPublicActivityExport, type PublicActivityExport } from "./export-public.js";
 import type { PublicDataNetwork, RecoveryHistory } from "@ckd/public-data-providers/types.js";
@@ -5,6 +8,7 @@ import {
   assertPublicBatchLookupInput,
   PrivateMaterialError,
 } from "@ckd/secret-boundary/public-input-guard.js";
+import { runPublicInputGuardSelfTest } from "@ckd/secret-boundary/public-input-guard-self-test.js";
 
 export interface ExternalActivityHostView {
   canStartQuery(): boolean;
@@ -31,6 +35,30 @@ export interface ExternalActivityAdapter {
   normalize(value: string, network: PublicDataNetwork): string;
   dedupeKey(value: string): string;
   query(address: string, network: PublicDataNetwork, signal: AbortSignal): Promise<AddressResult>;
+  /** The known answers of the address checks, at startup; throws when one differs. */
+  selfTest(): readonly string[];
+}
+
+/**
+ * Runs the known answers of what screens and reads the addresses once, before any lookup: the
+ * public-input guard that refuses secret material typed as an address (it runs here too because a
+ * build without Dash has no other startup check of it), then every adapter's address checks. The
+ * names of the checks that passed, or the reason that keeps lookups closed.
+ */
+function adapterSelfTests(
+  adapters: readonly ExternalActivityAdapter[],
+): { readonly checks: readonly string[] } | { readonly failure: string } {
+  try {
+    return {
+      checks: [
+        ...runPublicInputGuardSelfTest(),
+        ...adapters.flatMap((adapter) => adapter.selfTest()),
+      ],
+    };
+  } catch (cause) {
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    return { failure: `${reason} Lookups stay closed: do not use this copy of the tool.` };
+  }
 }
 
 function required<T extends HTMLElement>(document: Document, selector: string): T {
@@ -43,12 +71,7 @@ function required<T extends HTMLElement>(document: Document, selector: string): 
 function formatAtomic(value: bigint | string | null, asset: string, decimals: number): string {
   if (value === null) return "Unavailable";
   const atomic = typeof value === "bigint" ? value : BigInt(value);
-  const negative = atomic < 0n;
-  const absolute = negative ? -atomic : atomic;
-  const base = 10n ** BigInt(decimals);
-  const whole = absolute / base;
-  const fraction = (absolute % base).toString().padStart(decimals, "0").replace(/0+$/u, "");
-  return `${negative ? "−" : ""}${whole.toLocaleString()}${fraction ? `.${fraction}` : ""} ${asset}`;
+  return `${AtomicAmount.format(atomic, decimals, { negativeSign: "−", whole: (value) => value.toLocaleString() })} ${asset}`;
 }
 
 function formatDate(value: string | null): string {
@@ -172,14 +195,27 @@ export function installExternalActivity(
   const diagnosticRequests = required<HTMLElement>(document, "#diagnostic-requests");
   const diagnosticProof = required<HTMLElement>(document, "#diagnostic-proof");
   const diagnosticDetail = required<HTMLElement>(document, "#diagnostic-detail");
+  const selfTest = adapterSelfTests(adapters);
+  const selfTestLine = document.querySelector<HTMLElement>("#viewer-external-self-test");
+  if (selfTestLine !== null) {
+    selfTestLine.textContent =
+      "failure" in selfTest
+        ? selfTest.failure
+        : `Address checks passed: ${selfTest.checks.join(" · ")}.`;
+    selfTestLine.hidden = false;
+  }
   let exportState: PublicActivityExport | null = null;
   let exporting = false;
+  const exportSession = PublicExportSession.forHost(view);
   const exportButtons = (["csv", "xlsx", "json"] as const).map((format) => ({
     format,
     button: required<HTMLButtonElement>(document, `#viewer-export-${format}`),
   }));
   const setExportState = (state: PublicActivityExport | null): void => {
     exportState = state;
+    exportSession.replace(state);
+    exporting = false;
+    exportActions.setAttribute("aria-busy", "false");
     exportActions.hidden = state === null;
     for (const { button } of exportButtons) button.disabled = state === null || exporting;
   };
@@ -191,22 +227,29 @@ export function installExternalActivity(
         event.stopImmediatePropagation();
         const state = exportState;
         if (state === null || exporting) return;
+        const ticket = exportSession.begin(state);
+        if (ticket === null) return;
         exporting = true;
-        setExportState(state);
+        exportActions.setAttribute("aria-busy", "true");
+        for (const { button } of exportButtons) button.disabled = true;
         void createPublicActivityExport(state, format)
           .then((file) => {
-            if (exportState !== state) return;
+            if (exportState !== state || !exportSession.owns(ticket, state)) return;
             downloadBlob(file.blob, file.filename);
             status.textContent = `Exported ${file.filename}. Only loaded public data is included.`;
             status.hidden = false;
           })
           .catch((cause) => {
+            // A failure of an export of results replaced meanwhile is not theirs (AUD-024-API004).
+            if (exportState !== state || !exportSession.owns(ticket, state)) return;
             error.textContent = `Export failed: ${cause instanceof Error ? cause.message : String(cause)}`;
             error.hidden = false;
           })
           .finally(() => {
+            if (!exportSession.finish(ticket, state)) return;
             exporting = false;
-            if (externalCoin() !== null) setExportState(exportState);
+            exportActions.setAttribute("aria-busy", "false");
+            for (const { button } of exportButtons) button.disabled = exportState === null;
           });
       },
       true,
@@ -220,6 +263,7 @@ export function installExternalActivity(
 
   const configure = (): void => {
     if (view.isQueryRunning()) return;
+    setExportState(null);
     const selected = externalCoin();
     if (selected === null) {
       detectionTabs.hidden = false;
@@ -232,7 +276,6 @@ export function installExternalActivity(
     detectionTabs.hidden = true;
     advancedModes.hidden = true;
     capability.hidden = true;
-    setExportState(null);
     network.previousElementSibling!.textContent = "Network";
     network.options[0]!.textContent = "Mainnet";
     network.options[1]!.textContent = "Testnet";
@@ -256,6 +299,11 @@ export function installExternalActivity(
       event.preventDefault();
       event.stopImmediatePropagation();
       if (active !== null || !view.canStartQuery()) return;
+      if ("failure" in selfTest) {
+        error.textContent = selfTest.failure;
+        error.hidden = false;
+        return;
+      }
       void (async () => {
         error.hidden = true;
         results.hidden = true;
@@ -265,12 +313,7 @@ export function installExternalActivity(
         try {
           const input = queryMode() === "batch" ? batch.value : single.value;
           assertPublicBatchLookupInput(input);
-          values = input
-            .replaceAll("\r", "")
-            .split("\n")
-            .map((value) => value.trim())
-            .filter(Boolean)
-            .map((value) => selected.normalize(value, selectedNetwork));
+          values = nonEmptyLines(input).map((value) => selected.normalize(value, selectedNetwork));
         } catch (cause) {
           if (cause instanceof PrivateMaterialError) {
             single.value = "";
@@ -422,7 +465,10 @@ export function installExternalActivity(
     },
     true,
   );
-  coin.addEventListener("change", () => queueMicrotask(configure));
+  coin.addEventListener("change", () => {
+    if (!view.isQueryRunning()) setExportState(null);
+    queueMicrotask(configure);
+  });
   network.addEventListener("change", () => queueMicrotask(configure));
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-query-mode]")) {
     button.addEventListener("click", () => queueMicrotask(configure));

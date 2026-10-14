@@ -1,26 +1,28 @@
 name: Executable Deriver
 
-# Builds the executable Key Derivation Tool the way a release does and runs each one on its own
-# system: Dockerfile.launchers for Linux and Windows, a macOS runner for macOS. On every system
-# tooling/verify-key-derivation-launcher.mjs starts the real program and checks the served page in
-# Chromium: headers, refusals, isolation, fast mode, an MHFE worker, no requests and no storage.
+# Builds the executable Key Derivation Tool the way a release does and runs it on three systems:
+# Dockerfile.launchers for Linux and Windows, a macOS runner for macOS. On x86-64 Linux, Windows and
+# Apple-silicon macOS tooling/verify-key-derivation-launcher.mjs starts the real program and checks
+# the served page in Chromium: headers, refusals, isolation, fast mode, an MHFE worker, no requests
+# and no storage. The ARM Linux and Intel macOS programs are started by the release workflow,
+# which runs all five before it publishes; on every push three runners are enough.
 
 on:
   push:
     branches: [main]
     paths:
-      - 'apps/key-derivation/**'
-      - 'packages/**'
-      - 'tooling/**'
-      - 'Dockerfile.launchers'
-      - '.github/workflows/launchers.yml'
+      - "apps/key-derivation/**"
+      - "packages/**"
+      - "tooling/**"
+      - "Dockerfile.launchers"
+      - ".github/workflows/launchers.yml"
   pull_request:
     paths:
-      - 'apps/key-derivation/**'
-      - 'packages/**'
-      - 'tooling/**'
-      - 'Dockerfile.launchers'
-      - '.github/workflows/launchers.yml'
+      - "apps/key-derivation/**"
+      - "packages/**"
+      - "tooling/**"
+      - "Dockerfile.launchers"
+      - ".github/workflows/launchers.yml"
   workflow_dispatch:
 
 permissions:
@@ -116,10 +118,11 @@ jobs:
       # The macOS executables are built here, around the same page, as the release workflow does.
       - name: Build the macOS executable
         if: runner.os == 'macOS'
-        env:
-          RUSTUP_TOOLCHAIN: 1.99.0
         run: |
-          rustup toolchain install 1.99.0 --profile minimal --target aarch64-apple-darwin
+          rust_version="$(node -p 'JSON.parse(require("node:fs").readFileSync("tooling/toolchain-pins.json", "utf8")).rust')"
+          echo "RUSTUP_TOOLCHAIN=${rust_version}" >> "$GITHUB_ENV"
+          export RUSTUP_TOOLCHAIN="$rust_version"
+          rustup toolchain install "$rust_version" --profile minimal --target aarch64-apple-darwin
           cargo fetch --locked --manifest-path apps/key-derivation/launcher/Cargo.toml
           node tooling/build-key-derivation-launchers.mjs --platforms macos-aarch64
 

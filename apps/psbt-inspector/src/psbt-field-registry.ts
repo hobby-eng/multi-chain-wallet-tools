@@ -1,4 +1,5 @@
 import type { PsbtChain } from "./psbt-types.js";
+import type { PsbtPair } from "./psbt-binary.js";
 
 export type PsbtMapScope = "global" | "input" | "output";
 
@@ -10,4 +11,13 @@ const DASH_UNSUPPORTED_TYPES: Readonly<Record<PsbtMapScope, readonly bigint[]>> 
 
 export function isUnsupportedField(chain: PsbtChain, scope: PsbtMapScope, type: bigint): boolean {
   return chain === "dash" && DASH_UNSUPPORTED_TYPES[scope].includes(type);
+}
+
+/** Raw maps retain passthrough bytes; only this view may acquire protocol semantics. */
+export class PsbtFieldRegistry {
+  constructor(private readonly chain: PsbtChain) {}
+
+  interpreted(map: readonly PsbtPair[], scope: PsbtMapScope): readonly PsbtPair[] {
+    return map.filter(({ type }) => !isUnsupportedField(this.chain, scope, type));
+  }
 }

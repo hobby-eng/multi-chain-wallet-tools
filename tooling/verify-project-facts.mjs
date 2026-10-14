@@ -1,3 +1,5 @@
+import { WASM_MODULES } from "./wasm-modules.mjs";
+import { verifyToolchainProjections } from "./toolchain-pins.mjs";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,6 +8,7 @@ import { formatEnglishList, PRODUCT_FACTS, readReleaseMetadata } from "./project
 import { renderDashDistributionDocs } from "./sync-dash-distribution-docs.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+verifyToolchainProjections(root);
 const release = readReleaseMetadata(root);
 renderDashDistributionDocs(root, "0".repeat(40));
 const read = (path) => readFileSync(resolve(root, path), "utf8");
@@ -88,11 +91,10 @@ requireText(
   "Identity request estimate",
 );
 
-const multiChainReleaseManifest = `${BUILD_PROFILES["multi-chain"].releaseDirectory.replace(/^dist\//u, "")}/SHA256SUMS`;
 requireText(
   reproducibleBuildWrapper,
-  `expected_path=\"${multiChainReleaseManifest}\"`,
-  "Canonical build wrapper release-manifest path",
+  'exec node "$root/tooling/build-reproducible.mjs" "$@"',
+  "Canonical build wrapper dispatch",
 );
 
 for (const profile of Object.values(BUILD_PROFILES)) {
@@ -175,12 +177,7 @@ function oneVersion(label, versions) {
 }
 const SHIELDED_LOCK = "packages/dash-shielded-wasm/rust/Cargo.lock";
 const ENVELOPE_LOCK = "packages/recovery-envelope-wasm/rust/Cargo.lock";
-const WASM_LOCKS = [
-  SHIELDED_LOCK,
-  "packages/recovery-codex32-wasm/rust/Cargo.lock",
-  "packages/recovery-sskr-wasm/rust/Cargo.lock",
-  ENVELOPE_LOCK,
-];
+const WASM_LOCKS = WASM_MODULES.map(({ lockPath }) => lockPath);
 const orchardTag = read(SHIELDED_LOCK).match(/orchard\.git\?tag=dashified-(\d+\.\d+\.\d+)#/u)?.[1];
 const mhfeRelease = read("tooling/verify-dependency-provenance.mjs").match(
   /id: "mhfe-v(\d+\.\d+\.\d+)"/u,

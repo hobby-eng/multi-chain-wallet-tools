@@ -1,3 +1,5 @@
+import { PLATFORM_EXPLORER_NAME } from "@ckd/dash-network/platform-explorer.js";
+import { PlatformAddressHistoryAdmission } from "@ckd/dash-network/platform-address-history-admission.js";
 import { emptyHistory, historyGateway } from "../../history.js";
 import type {
   RecoveryAmountUnit,
@@ -16,6 +18,11 @@ export function dashAmountUnit(section: RecoverySectionId): RecoveryAmountUnit {
 
 const HISTORY_DATE_NOTE =
   "First/last seen are activity dates, not necessarily receipt/spend dates. Separate receipt/spend dates are not provided by this index.";
+/** A provider's timestamp as an ISO 8601 instant; null stays null. */
+function isoInstant(value: string | null): string | null {
+  return value === null ? null : new Date(value).toISOString();
+}
+
 export function dashCoreHistory(
   data: ReturnType<typeof validateDashScanAddressHistory>,
 ): RecoveryHistory {
@@ -26,8 +33,8 @@ export function dashCoreHistory(
     scope: "Indexed Core address history",
     totalReceivedAtomic: data.received.toString(),
     totalSentAtomic: data.sent.toString(),
-    firstSeen: data.firstSeen === null ? null : new Date(data.firstSeen).toISOString(),
-    lastSeen: data.lastSeen === null ? null : new Date(data.lastSeen).toISOString(),
+    firstSeen: isoInstant(data.firstSeen),
+    lastSeen: isoInstant(data.lastSeen),
     transactionCount: data.txCount,
     note: `${HISTORY_DATE_NOTE} Sent counts consumed address outputs, including change and fees.`,
   };
@@ -38,13 +45,13 @@ export function dashPlatformHistory(
   return {
     ...emptyHistory("DASH", "credits", 11),
     status: "complete",
-    source: "Dash Platform Explorer",
+    source: PLATFORM_EXPLORER_NAME,
     scope: "Indexed Platform credit history",
     totalReceivedAtomic: data.totalReceived.toString(),
     totalSentAtomic: data.totalSent.toString(),
     totalFeesAtomic: data.totalFees?.toString() ?? null,
-    firstSeen: data.firstSeen === null ? null : new Date(data.firstSeen).toISOString(),
-    lastSeen: data.lastSeen === null ? null : new Date(data.lastSeen).toISOString(),
+    firstSeen: isoInstant(data.firstSeen),
+    lastSeen: isoInstant(data.lastSeen),
     transactionCount: data.transactionCount,
     note: HISTORY_DATE_NOTE,
   };
@@ -60,7 +67,7 @@ export const getDashHistory: NonNullable<RecoveryCoinAdapter["getHistory"]> = as
   const platform = section === "platform" || section === "identity";
   const unit = dashAmountUnit(section);
   const h = emptyHistory(unit.asset, unit.atomicUnit, unit.decimals);
-  h.source = platform ? "Dash Platform Explorer" : "DashScan";
+  h.source = platform ? PLATFORM_EXPLORER_NAME : "DashScan";
   h.scope = platform ? "Indexed Platform credit history" : "Indexed Core address history";
   h.note =
     "First/last seen are activity dates, not necessarily receipt/spend dates. The provider does not expose separate first/last receipt and spend dates.";
@@ -85,7 +92,11 @@ export const getDashHistory: NonNullable<RecoveryCoinAdapter["getHistory"]> = as
           : context.networkApi.platformAddressHistory(network, finding.title, context.signal),
       context.signal,
     );
-    const data = validatePlatformHistory(value, finding.title, finding.balanceAtomic);
+    const resource =
+      section === "identity"
+        ? finding.title
+        : new PlatformAddressHistoryAdmission(finding.title, network);
+    const data = validatePlatformHistory(value, resource, finding.balanceAtomic);
     return dashPlatformHistory(data);
   }
   const data = validateDashScanAddressHistory(

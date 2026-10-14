@@ -9,6 +9,7 @@ node_modules
 dist
 coverage
 test-results
+docs/audits/*-evidence/
 playwright-report
 **/target
 *.log

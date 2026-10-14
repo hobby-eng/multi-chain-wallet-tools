@@ -7,7 +7,8 @@ interface Bip322Verification {
   readonly timeConstraints?: TimeConstraints;
 }
 let initialization: ReturnType<typeof init> | null = null;
-function btcutil(): ReturnType<typeof init> {
+/** The BIP-322 library, its WebAssembly started once for every caller that signs or verifies. */
+export function bip322Library(): ReturnType<typeof init> {
   initialization ??= init(Uint8Array.from(wasm).buffer);
   return initialization;
 }
@@ -17,6 +18,6 @@ export async function verifyBip322Message(
   signature: string,
   network: Bip322Network,
 ): Promise<Bip322Verification> {
-  const api = await btcutil();
+  const api = await bip322Library();
   return api.bip322.verifyMessage(message, address.trim(), signature.trim(), network as Network);
 }

@@ -1,23 +1,20 @@
+import type { DashSectionScan } from "./section-scan.js";
+import { PlatformAddressHistoryAdmission } from "@ckd/dash-network/platform-address-history-admission.js";
 import { DIP17_PAYMENT_CHAINS } from "@ckd/coins/dash/platform-paths.js";
 import { dashPlatformHistory } from "./history.js";
 import { rootFromSeed, requirePublic } from "@ckd/core/bip32.js";
 import { bytesToHex, hash160, wipe } from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import { encodePlatformP2pkh } from "@ckd/coins/dash/platform.js";
-import type {
-  RecoveryFinding,
-  RecoveryProgress,
-  RecoveryScanConfig,
-  RecoverySection,
-} from "../../types.js";
+import type { RecoveryFinding } from "../../types.js";
 import { RECOVERY_PLATFORM_ADDRESS_BATCH } from "@ckd/network-boundary/protocol.js";
 import { DashPlatformClient } from "./platform-client.js";
-import { validatePlatformHistory } from "./platform-history.js";
+import { platformHistoryFields, validatePlatformHistory } from "./platform-history.js";
 import {
   ADDRESS_DISCOVERY_GAP,
   exactSafeInteger,
   exactUnsigned,
-  extendAddressTarget,
+  AddressGapTracker,
   formatDashFromCredits,
   object,
 } from "./util.js";
@@ -40,6 +37,7 @@ interface PlatformInfo {
 
 export function validatePlatformAddressBatch(
   value: Awaited<ReturnType<DashPlatformClient["addresses"]>>,
+  requestedKeys: readonly string[],
 ): {
   data: Map<string, PlatformInfo | null>;
   height: bigint;
@@ -49,6 +47,9 @@ export function validatePlatformAddressBatch(
   if (!Array.isArray(response.entries))
     throw new Error("Isolated Platform address response omitted its entry list.");
   const data = new Map<string, PlatformInfo | null>();
+  const expected = new Set(requestedKeys);
+  if (expected.size !== requestedKeys.length)
+    throw new Error("Platform address request contained a duplicate storage key.");
   for (const rawEntry of response.entries) {
     if (
       !Array.isArray(rawEntry) ||
@@ -60,6 +61,8 @@ export function validatePlatformAddressBatch(
     }
     if (data.has(rawEntry[0]))
       throw new Error("Isolated Platform address response contained a duplicate storage key.");
+    if (!expected.has(rawEntry[0]))
+      throw new Error("Isolated Platform address response contained an unrequested storage key.");
     if (rawEntry[1] === null) {
       data.set(rawEntry[0], null);
       continue;
@@ -70,6 +73,8 @@ export function validatePlatformAddressBatch(
       nonce: exactUnsigned(info.nonce, "Platform address nonce"),
     });
   }
+  if (data.size !== expected.size)
+    throw new Error("Isolated Platform address response omitted a requested storage key.");
   const metadata = object(response.metadata, "Isolated Platform proof metadata");
   return {
     data,
@@ -78,15 +83,15 @@ export function validatePlatformAddressBatch(
   };
 }
 
-export async function scanDashPlatformAddresses(
-  inputId: string,
-  seed: Uint8Array,
-  config: RecoveryScanConfig,
-  client: DashPlatformClient,
-  signal: AbortSignal,
-  onProgress: (progress: RecoveryProgress) => void,
-  onFinding: (finding: RecoveryFinding) => void,
-): Promise<RecoverySection> {
+export const scanDashPlatformAddresses: DashSectionScan<DashPlatformClient> = async (
+  inputId,
+  seed,
+  config,
+  client,
+  signal,
+  onProgress,
+  onFinding,
+) => {
   if (config.platformAddressCount === 0) {
     return {
       id: "platform",
@@ -110,7 +115,7 @@ export async function scanDashPlatformAddresses(
   let historyDetailFailures = 0;
   let historyDetails = 0;
   let historyIndexedHeight = 0;
-  let gapTruncated = false;
+  const gap = new AddressGapTracker();
   const network = getDashNetwork(config.network);
   const root = rootFromSeed(seed, network.versions);
   try {
@@ -148,6 +153,7 @@ export async function scanDashPlatformAddresses(
           const publicAddresses = chunk.map(({ address }) => address);
           const response = validatePlatformAddressBatch(
             await client.addresses(publicAddresses, signal),
+            chunk.map(({ storageKey }) => storageKey),
           );
           proofHeight = proofHeight > response.height ? proofHeight : response.height;
           protocolVersion = Math.max(protocolVersion, response.protocolVersion);
@@ -158,9 +164,7 @@ export async function scanDashPlatformAddresses(
             totalBalance += info.balance;
             const used = info.balance > 0n || info.nonce > 0n;
             if (!used) continue;
-            const extension = extendAddressTarget(target, derived.index);
-            target = extension.target;
-            gapTruncated ||= extension.truncated;
+            target = gap.extend(target, derived.index);
             usedCount += 1;
             if (info.balance > 0n) fundedCount += 1;
             if (info.balance === 0n && !config.includeUsedZeroBalance) continue;
@@ -171,7 +175,7 @@ export async function scanDashPlatformAddresses(
               try {
                 return validatePlatformHistory(
                   await client.addressHistory(derived.address, signal),
-                  derived.address,
+                  new PlatformAddressHistoryAdmission(derived.address, config.network),
                   info.balance,
                 );
               } catch (cause) {
@@ -200,24 +204,7 @@ export async function scanDashPlatformAddresses(
                 { label: "Branch", value: `${keyClass}' · ${chainLabel.toLowerCase()}` },
                 { label: "Address index", value: String(derived.index) },
                 { label: "Outgoing nonce", value: info.nonce.toString() },
-                ...(history === null
-                  ? []
-                  : [
-                      { label: "Transactions reported", value: String(history.transactionCount) },
-                      { label: "Incoming credit events", value: String(history.incomingCount) },
-                      { label: "Outgoing credit events", value: String(history.outgoingCount) },
-                      {
-                        label: "Lifetime received",
-                        value: formatDashFromCredits(history.totalReceived),
-                      },
-                      { label: "Lifetime sent", value: formatDashFromCredits(history.totalSent) },
-                      ...(history.firstSeen === null
-                        ? []
-                        : [{ label: "First seen", value: history.firstSeen }]),
-                      ...(history.lastSeen === null
-                        ? []
-                        : [{ label: "Last seen", value: history.lastSeen }]),
-                    ]),
+                ...(history === null ? [] : platformHistoryFields(history)),
                 { label: "Public-key hash", value: derived.publicKeyHash, copyable: true },
               ],
             };
@@ -250,7 +237,7 @@ export async function scanDashPlatformAddresses(
     title: "Dash Platform addresses",
     description:
       "DIP17 receive (0') and internal/change (1') addresses are derived locally and queried through proof-verified Platform DAPI batches.",
-    state: gapTruncated ? "partial" : "complete",
+    state: gap.truncated ? "partial" : "complete",
     metrics: [
       {
         label: "Address balance",
@@ -270,14 +257,10 @@ export async function scanDashPlatformAddresses(
     source:
       "Dash Platform DAPI · trusted quorum discovery; synchronized Platform Explorer · auxiliary history",
     proof: `Balance proof verified at Platform height ${proofHeight} · ${ADDRESS_DISCOVERY_GAP}-address post-use gap per receive/internal chain${historyIndexedHeight > 0 ? ` · history indexed through height ${historyIndexedHeight}` : ""}`,
-    ...(gapTruncated || historyDetailFailures > 0
+    ...(gap.truncated || historyDetailFailures > 0
       ? {
           warning: [
-            ...(gapTruncated
-              ? [
-                  "A used address was found too close to the end of the BIP32 index space to complete the 20-address safety gap.",
-                ]
-              : []),
+            ...(gap.warning === undefined ? [] : [gap.warning]),
             ...(historyDetailFailures > 0
               ? [
                   `Historical details were unavailable or failed the DAPI balance cross-check for ${historyDetailFailures} displayed address${historyDetailFailures === 1 ? "" : "es"}; proof-verified balances remain valid.`,
@@ -287,4 +270,4 @@ export async function scanDashPlatformAddresses(
         }
       : {}),
   };
-}
+};

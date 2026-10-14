@@ -3,7 +3,7 @@ import { requirePrivate, requirePublic } from "@ckd/core/bip32.js";
 import { bytesToHex, hash160, wipe } from "@ckd/core/crypto.js";
 import { field, type ResultField } from "@ckd/core/types.js";
 
-interface Bip32SummaryLabels {
+export interface Bip32SummaryLabels {
   accountPath: string;
   accountXprv: string;
   accountXpub: string;
@@ -27,10 +27,13 @@ export function bip32SummaryFields(
   labels: Partial<Bip32SummaryLabels> = {},
 ): { fields: ResultField[]; masterFingerprint: string } {
   const resolved = { ...DEFAULT_LABELS, ...labels };
-  const rootPrivate = requirePrivate(root, "m");
-  const rootPublic = requirePublic(root, "m");
-  const fingerprintBytes = hash160(rootPublic).slice(0, 4);
+  let rootPrivate: Uint8Array | null = null;
+  let rootPublic: Uint8Array | null = null;
+  let fingerprintBytes: Uint8Array | null = null;
   try {
+    rootPrivate = requirePrivate(root, "m");
+    rootPublic = requirePublic(root, "m");
+    fingerprintBytes = hash160(rootPublic).slice(0, 4);
     const masterFingerprint = bytesToHex(fingerprintBytes);
     return {
       masterFingerprint,

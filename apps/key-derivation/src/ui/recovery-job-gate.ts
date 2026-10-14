@@ -8,7 +8,7 @@ export type JobGateChange = "ready" | "job";
 export class RecoveryJobGate {
   #ready = false;
   #runningJob: string | null = null;
-  readonly #listeners: ((change: JobGateChange) => void)[] = [];
+  readonly #listeners = new Set<(change: JobGateChange) => void>();
 
   /** True once the startup self-test has passed. */
   get ready(): boolean {
@@ -25,12 +25,22 @@ export class RecoveryJobGate {
     this.#notify("ready");
   }
 
-  onChange(listener: (change: JobGateChange) => void): void {
-    this.#listeners.push(listener);
+  onChange(listener: (change: JobGateChange) => void): () => void {
+    this.#listeners.add(listener);
+    return () => {
+      this.#listeners.delete(listener);
+    };
+  }
+
+  /** Every secret operation asks the same gate, including callbacks from older result cards. */
+  assertReady(): void {
+    if (!this.#ready)
+      throw new Error("The cryptographic self-test has not passed. Controls are closed.");
   }
 
   /** Runs a heavy job; a second one is refused until the first ends, fails or is cancelled. */
   async runHeavy<T>(name: string, job: () => Promise<T>): Promise<T> {
+    this.assertReady();
     if (this.#runningJob !== null) {
       throw new Error(`${this.#runningJob} is running. Wait until it ends, or press Cancel there.`);
     }

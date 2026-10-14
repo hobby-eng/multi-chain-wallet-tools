@@ -20,3 +20,13 @@ export function replaceBalancedElement(
   }
   throw new Error(`${context} is missing the closing <${tag}> element.`);
 }
+
+/** Removes the balanced HTML element whose id is `id`; a template without it stays as it is. */
+export function removeElementById(source, id, context = "HTML template") {
+  return replaceBalancedElement(
+    source,
+    new RegExp(`<([a-z][a-z0-9-]*)\\b[^>]*\\bid=["']${id}["'][^>]*>`, "iu"),
+    "",
+    context,
+  );
+}

@@ -17,6 +17,28 @@ const temporary = [];
 afterEach(() => {
   for (const path of temporary.splice(0)) rmSync(path, { recursive: true, force: true });
 });
+/** The tooling the reproducible build imports, copied into each temporary project. */
+const TOOLING_FILES = [
+  "build-reproducible.mjs",
+  "build-profiles.mjs",
+  "build-profile-definitions.mjs",
+  "sync-mnemocode-source.mjs",
+  "run-script.mjs",
+  "profile-template.mjs",
+  "tool-protocol-footer.mjs",
+  "project-metadata.mjs",
+  "wasm-modules.mjs",
+  "docker-build-limits.mjs",
+];
+
+function copyToolingFixture(root) {
+  for (const file of TOOLING_FILES)
+    cpSync(fileURLToPath(new URL(file, import.meta.url)), join(root, "tooling", file));
+  const listing = "packages/crypto-core/src/listing.ts";
+  mkdirSync(dirname(join(root, listing)), { recursive: true });
+  cpSync(fileURLToPath(new URL(`../${listing}`, import.meta.url)), join(root, listing));
+}
+
 describe("Docker copy-out and failure cleanup without a Docker daemon", () => {
   for (const mode of ["complete", "incomplete", "copy-failure", "build-failure"])
     it(mode, () => {
@@ -26,15 +48,7 @@ describe("Docker copy-out and failure cleanup without a Docker daemon", () => {
         mkdirSync(join(root, dir), { recursive: true });
       writeFileSync(join(root, "dist/keep.txt"), "previous output");
       writeFileSync(join(root, "package.json"), '{"type":"module","version":"1.2.3"}');
-      for (const file of [
-        "build-reproducible.mjs",
-        "build-profiles.mjs",
-        "build-profile-definitions.mjs",
-        "sync-mnemocode-source.mjs",
-        "profile-template.mjs",
-        "wasm-modules.mjs",
-      ])
-        cpSync(fileURLToPath(new URL(file, import.meta.url)), join(root, "tooling", file));
+      copyToolingFixture(root);
       cpSync(
         fileURLToPath(
           new URL("../packages/edition-profiles/profile-capabilities.json", import.meta.url),
@@ -73,6 +87,9 @@ if(a[0]==='cp') {
       expect(r.status, r.stderr).toBe(
         mode === "complete" ? 0 : mode === "copy-failure" ? 9 : mode === "build-failure" ? 7 : 1,
       );
+      // This synthetic archive has no Git metadata: it must not claim a clean source tree.
+      if (mode !== "build-failure")
+        expect(readFileSync(log, "utf8")).toContain("SOURCE_DIRTY=true");
       const calls = readFileSync(log, "utf8").trim().split("\n").map(JSON.parse);
       expect(
         calls.some((a) => a[0] === "rm" && a[1] === "--force" && a[2] === "fixture-container"),
@@ -80,6 +97,7 @@ if(a[0]==='cp') {
       ).toBe(mode !== "build-failure");
       expect(readdirSync(join(root, "tmp"))).toEqual([]);
       if (mode === "complete") {
+        expect(existsSync(join(root, "dist/container-id"))).toBe(false);
         expect(existsSync(join(root, "dist/keep.txt"))).toBe(false);
         for (const edition of ["multi-chain-edition", "dash-community-edition"])
           expect(readFileSync(join(root, "dist", edition, "release/SHA256SUMS"), "utf8")).toBe(
@@ -94,15 +112,7 @@ if(a[0]==='cp') {
     for (const dir of ["tooling", "bin", "tmp", "packages/edition-profiles"])
       mkdirSync(join(root, dir), { recursive: true });
     writeFileSync(join(root, "package.json"), '{"type":"module","version":"1.2.3"}');
-    for (const file of [
-      "build-reproducible.mjs",
-      "build-profiles.mjs",
-      "build-profile-definitions.mjs",
-      "sync-mnemocode-source.mjs",
-      "profile-template.mjs",
-      "wasm-modules.mjs",
-    ])
-      cpSync(fileURLToPath(new URL(file, import.meta.url)), join(root, "tooling", file));
+    copyToolingFixture(root);
     cpSync(
       fileURLToPath(
         new URL("../packages/edition-profiles/profile-capabilities.json", import.meta.url),

@@ -1,17 +1,30 @@
 import { Transaction } from "@scure/btc-signer";
-import { init, type Network } from "btcutil-js";
-import wasm from "btcutil-js-wasm";
+import type { Network } from "btcutil-js";
+import {
+  bip322Library,
+  verifyBip322Message as verifyWithLibrary,
+} from "@ckd/core/bip322-verifier.js";
 import { hexToBytes, wipe } from "@ckd/core/crypto.js";
 import type { NetworkName } from "@ckd/core/types.js";
 import type { CompactMessageSignature } from "@ckd/core/compact-message.js";
 
 type Bip322SigningMode = "legacy-p2pkh" | "nested-segwit" | "native-segwit" | "taproot";
 
-let initialization: ReturnType<typeof init> | null = null;
-
-function btcutil(): ReturnType<typeof init> {
-  initialization ??= init(Uint8Array.from(wasm).buffer);
-  return initialization;
+/**
+ * Whether `signature` is a valid BIP-322 signature of `message` by `address`. The library throws
+ * for a signature that fails its script check, which is a "no" here too.
+ */
+export async function verifyBip322Message(
+  message: string,
+  address: string,
+  signature: string,
+  network: NetworkName,
+): Promise<boolean> {
+  try {
+    return (await verifyWithLibrary(message, address, signature, network)).valid;
+  } catch {
+    return false;
+  }
 }
 
 function decodeBase64(value: string): Uint8Array {
@@ -38,7 +51,7 @@ export async function signBip322Message(
   if (message.length === 0) throw new Error("Enter a message to sign.");
   const privateKey = hexToBytes(privateKeyHex);
   try {
-    const api = await btcutil();
+    const api = await bip322Library();
     const scriptPubKey = hexToBytes(scriptPubKeyHex);
     const full = mode === "legacy-p2pkh" || mode === "nested-segwit";
     const psbt = full

@@ -22,6 +22,11 @@ class TestControl extends EventTarget {
   click(): void {
     this.dispatchEvent(new Event("click"));
   }
+
+  /** The fake protocol tabs hold no buttons; Clear all marks the selected one through this. */
+  querySelectorAll(): never[] {
+    return [];
+  }
 }
 
 class TestForm extends TestControl {
@@ -139,6 +144,7 @@ function controllerHarness(extra: Record<string, unknown> = {}) {
     clearResults: vi.fn(),
     setGeneratedMnemonic: vi.fn(),
     clearAllInputs: vi.fn(),
+    updatePathPreview: vi.fn(),
   } as unknown as KeyDerivationView;
   const adapter = {
     id: "bitcoin-bip44",
@@ -185,6 +191,8 @@ describe("Key Derivation controller", () => {
 
   it("registers once, gates derivation on startup self-test, and handles mode transitions", async () => {
     const chosenWords = {
+      onChange: vi.fn(),
+      useChecked: vi.fn(),
       active: vi.fn(() => false),
       generate: vi.fn(),
       setRevealed: vi.fn(),
@@ -233,6 +241,8 @@ describe("Key Derivation controller", () => {
 
   it("generates with chosen words only when they are active, and never falls back", async () => {
     const chosenWords = {
+      onChange: vi.fn(),
+      useChecked: vi.fn(),
       active: vi.fn(() => true),
       generate: vi.fn(() =>
         Promise.reject(new Error("Chosen word 1 is not an English BIP39 word.")),
@@ -264,10 +274,139 @@ describe("Key Derivation controller", () => {
     expect(chosenWords.generate).toHaveBeenCalledOnce();
   });
 
+  it("drops an already sampled chosen-word phrase when wishes change before publication (AUD-026-ARC001)", async () => {
+    const chosenWords = {
+      onChange: vi.fn(),
+      useChecked: vi.fn(),
+      active: vi.fn(() => true),
+      // Production sampling finishes before this promise is returned.
+      generate: vi.fn(() =>
+        Promise.resolve(
+          "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        ),
+      ),
+      setRevealed: vi.fn(),
+      clear: vi.fn(),
+    };
+    const { controller, view, resolveWorkerSelfTest } = controllerHarness({ chosenWords });
+    controller.start();
+    resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
+    await settle();
+    // No checked mode is installed here: the panel itself tells the page of its edits.
+    expect(chosenWords.useChecked).not.toHaveBeenCalled();
+    const edited = chosenWords.onChange.mock.calls[0]![0] as () => void;
+    (view.generate12Button as unknown as TestControl).click();
+    edited();
+    await settle();
+    expect(view.setGeneratedMnemonic).not.toHaveBeenCalled();
+  });
+
+  it("empties the BIP39 passphrase for an ordinary or chosen-word phrase and keeps it for the MHFE check", async () => {
+    const publicPhrase =
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    const chosenWords = {
+      onChange: vi.fn(),
+      useChecked: vi.fn(),
+      active: vi.fn(() => false),
+      generate: vi.fn(async () => publicPhrase),
+      request: vi.fn(() => ({
+        wordCount: 24,
+        chosen: [{ word: "abandon", position: 1 }],
+        neverUse: [],
+      })),
+      setRevealed: vi.fn(),
+      clear: vi.fn(),
+    };
+    const checked = {
+      active: vi.fn(() => false),
+      generate: vi.fn(async () => publicPhrase),
+      cancel: vi.fn(),
+      clear: vi.fn(),
+      setEnabled: vi.fn(),
+    };
+    const { controller, view, dependencies, resolveWorkerSelfTest } = controllerHarness({
+      chosenWords,
+      generateMnemonic: vi.fn(() => publicPhrase),
+      installCheckedMnemonicFeature: vi.fn(() => checked),
+    });
+    const exactPassphrase = "  ＴＲＥＺＯＲ\n";
+    (view.passphrase as unknown as TestControl).value = exactPassphrase;
+    controller.start();
+    (view.generate24Button as unknown as TestControl).click();
+    expect(dependencies.generateMnemonic).not.toHaveBeenCalled();
+    resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
+    await settle();
+    // A new phrase is a new wallet: an ordinary generation starts it without the old passphrase.
+    for (const button of [
+      view.generate12Button,
+      view.generate15Button,
+      view.generate18Button,
+      view.generate21Button,
+      view.generate24Button,
+    ]) {
+      (view.passphrase as unknown as TestControl).value = exactPassphrase;
+      (button as unknown as TestControl).click();
+      await settle();
+      expect(view.passphrase.value).toBe("");
+    }
+    (view.passphrase as unknown as TestControl).value = exactPassphrase;
+    chosenWords.active.mockReturnValue(true);
+    (view.generate24Button as unknown as TestControl).click();
+    await settle();
+    expect(chosenWords.generate).toHaveBeenCalledWith(24);
+    expect(view.passphrase.value).toBe("");
+    // The MHFE wallet check keeps the passphrase its phrase was drawn for, exactly as typed.
+    (view.passphrase as unknown as TestControl).value = exactPassphrase;
+    checked.active.mockReturnValue(true);
+    (view.generate24Button as unknown as TestControl).click();
+    await settle();
+    expect(checked.generate).toHaveBeenCalledWith(
+      24,
+      exactPassphrase,
+      chosenWords.request(),
+      expect.any(Function),
+    );
+    expect(view.passphrase.value).toBe(exactPassphrase);
+  });
+
+  it("cancels a checked draw when a derivation control changes (AUD-026-API001)", async () => {
+    let fail!: (cause: Error) => void;
+    const draw = new Promise<string>((_, reject) => {
+      fail = reject;
+    });
+    const checked = {
+      active: vi.fn(() => true),
+      generate: vi.fn(() => draw),
+      cancel: vi.fn(() => {
+        const cause = new Error("Stopped");
+        cause.name = "AbortError";
+        fail(cause);
+      }),
+      clear: vi.fn(),
+      setEnabled: vi.fn(),
+    };
+    const { controller, view, resolveWorkerSelfTest } = controllerHarness({
+      installCheckedMnemonicFeature: vi.fn(() => checked),
+    });
+    controller.start();
+    resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
+    await settle();
+    (view.generate24Button as unknown as TestControl).click();
+    await settle();
+    expect(checked.generate).toHaveBeenCalledOnce();
+    checked.cancel.mockClear();
+    (view.controls.count as unknown as TestControl).dispatchEvent(new Event("change"));
+    await settle();
+    expect(checked.cancel).toHaveBeenCalledOnce();
+    expect(view.setGeneratedMnemonic).not.toHaveBeenCalled();
+  });
+
   it("offers a phrase made with chosen words to the backup tabs (AUD-019-UI001)", async () => {
     const PHRASE =
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
     const chosenWords = {
+      onChange: vi.fn(),
+      useChecked: vi.fn(),
       active: vi.fn(() => true),
       generate: vi.fn(() => Promise.resolve(PHRASE)),
       setRevealed: vi.fn(),
@@ -294,5 +433,101 @@ describe("Key Derivation controller", () => {
     const offered = offerRecoverySource.mock.lastCall?.[0];
     expect(offered).not.toBeNull();
     expect(offered?.read()).toEqual({ mnemonic: PHRASE, passphrase: "" });
+  });
+
+  it("drops the BIP85 child whenever the parent changes or is cleared (AUD-022-SEC001)", async () => {
+    const PHRASE =
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    const bip85Feature = {
+      derive: vi.fn(() => Promise.resolve()),
+      scheduleRefresh: vi.fn(),
+      childSource: vi.fn(() => ({ adapter: null, controls: null, mnemonic: null, passphrase: "" })),
+      sourceReference: vi.fn(() => null),
+      setSecretsVisible: vi.fn(),
+      invalidate: vi.fn(),
+      reset: vi.fn(),
+      setEnabled: vi.fn(),
+    };
+    const chosenWords = {
+      onChange: vi.fn(),
+      useChecked: vi.fn(),
+      active: vi.fn(() => false),
+      generate: vi.fn(),
+      setRevealed: vi.fn(),
+      clear: vi.fn(),
+    };
+    const { controller, view, dependencies, resolveWorkerSelfTest } = controllerHarness({
+      chosenWords,
+      installBip85Feature: vi.fn(() => bip85Feature),
+    });
+    controller.start();
+    resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
+    await settle();
+    expect(bip85Feature.invalidate).not.toHaveBeenCalled();
+
+    (view.mnemonic as unknown as TestControl).dispatchEvent(new Event("input"));
+    expect(bip85Feature.invalidate).toHaveBeenCalledTimes(1);
+    (view.passphrase as unknown as TestControl).dispatchEvent(new Event("input"));
+    expect(bip85Feature.invalidate).toHaveBeenCalledTimes(2);
+
+    // Generate writes the parent without an input event.
+    vi.mocked(dependencies.generateMnemonic).mockReturnValue(PHRASE);
+    (view.generate12Button as unknown as TestControl).click();
+    await settle();
+    expect(view.setGeneratedMnemonic).toHaveBeenCalledWith(PHRASE, undefined);
+    expect(bip85Feature.invalidate).toHaveBeenCalledTimes(3);
+
+    expect(bip85Feature.reset).not.toHaveBeenCalled();
+    (view.clearAllButton as unknown as TestControl).click();
+    expect(bip85Feature.reset).toHaveBeenCalledOnce();
+  });
+
+  it("keeps BIP85 and Silent Payments closed after a failed startup or full self-test (AUD-023-SEC001)", async () => {
+    const feature = () => ({
+      derive: vi.fn(() => Promise.resolve()),
+      scheduleRefresh: vi.fn(),
+      cancelScheduledRefresh: vi.fn(),
+      childSource: vi.fn(() => ({ adapter: null, controls: null, mnemonic: null, passphrase: "" })),
+      sourceReference: vi.fn(() => null),
+      setSecretsVisible: vi.fn(),
+      invalidate: vi.fn(),
+      clear: vi.fn(),
+      reset: vi.fn(),
+      setEnabled: vi.fn(),
+    });
+    const bip85Feature = feature();
+    const silentPaymentFeature = feature();
+    let failFullSelfTest: ((cause: unknown) => void) | undefined;
+
+    const failed = controllerHarness({
+      installBip85Feature: vi.fn(() => bip85Feature),
+      installSilentPaymentFeature: vi.fn(() => silentPaymentFeature),
+    });
+    failed.controller.start();
+    failed.resolveWorkerSelfTest({ passed: false, checks: [], durationMs: 1 });
+    await settle();
+    expect(bip85Feature.setEnabled).toHaveBeenLastCalledWith(false);
+    expect(silentPaymentFeature.setEnabled).toHaveBeenLastCalledWith(false);
+    expect(bip85Feature.setEnabled).not.toHaveBeenCalledWith(true);
+    vi.unstubAllGlobals();
+
+    const passed = controllerHarness({
+      installBip85Feature: vi.fn(() => bip85Feature),
+      installSilentPaymentFeature: vi.fn(() => silentPaymentFeature),
+      onFullSelfTestFailure: (listener: (cause: unknown) => void) => {
+        failFullSelfTest = listener;
+      },
+    });
+    passed.controller.start();
+    passed.resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
+    await settle();
+    expect(bip85Feature.setEnabled).toHaveBeenLastCalledWith(true);
+    expect(silentPaymentFeature.setEnabled).toHaveBeenLastCalledWith(true);
+
+    failFullSelfTest?.(new Error("A known answer differs."));
+    expect(bip85Feature.setEnabled).toHaveBeenLastCalledWith(false);
+    expect(silentPaymentFeature.setEnabled).toHaveBeenLastCalledWith(false);
+    expect(passed.view.showCryptoSelfTestFailed).toHaveBeenCalled();
+    expect(passed.view.setCryptoControlsEnabled).toHaveBeenLastCalledWith(false);
   });
 });

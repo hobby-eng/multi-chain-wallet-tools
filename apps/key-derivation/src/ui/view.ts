@@ -1,3 +1,4 @@
+import { markTab } from "@ckd/ui/tabs.js";
 import { requireQueryElement } from "@ckd/ui/dom.js";
 import type { CoinAdapter } from "@ckd/coins/registry.js";
 import type { DerivationResult, DisplayMode } from "@ckd/core/types.js";
@@ -73,6 +74,8 @@ export function createKeyDerivationView(
   const summaryRoot = required<HTMLElement>("#summary");
   const noticesRoot = required<HTMLElement>("#result-notices");
   const listRoot = required<HTMLElement>("#address-list");
+  /** Said right above the addresses when they belong to the wallet with a BIP39 passphrase. */
+  const passphraseInUse = required<HTMLElement>("#passphrase-in-use");
   const selectedCount = required<HTMLElement>("#selected-count");
   const modeBasic = required<HTMLButtonElement>("#mode-basic");
   const modeAdvanced = required<HTMLButtonElement>("#mode-advanced");
@@ -349,6 +352,8 @@ export function createKeyDerivationView(
       clearRenderedSecrets(summaryRoot);
       clearRenderedSecrets(listRoot);
       renderResults(summaryRoot, listRoot, noticesRoot, result, options);
+      // The passphrase field shows only dots; the addresses say whose wallet they are.
+      passphraseInUse.hidden = passphrase.value === "";
       updateSecretVisibility(resultsRoot, sensitiveValuesRevealed);
       this.updateMode(options.mode);
       this.updateResultBranchTabs(result, branchStates, activeBranch);
@@ -392,24 +397,18 @@ export function createKeyDerivationView(
         [resultChangeTab, "change"],
       ] as const) {
         const active = activeGroup === branch;
-        button.classList.toggle("active", active);
-        button.setAttribute("aria-selected", String(active));
-        button.tabIndex = active ? 0 : -1;
+        markTab(button, active);
         button.disabled = !branchStates.has(branch);
       }
       const coinJoinActive = activeGroup === "coinjoin";
-      resultCoinJoinTab.classList.toggle("active", coinJoinActive);
-      resultCoinJoinTab.setAttribute("aria-selected", String(coinJoinActive));
-      resultCoinJoinTab.tabIndex = coinJoinActive ? 0 : -1;
+      markTab(resultCoinJoinTab, coinJoinActive);
       resultCoinJoinTab.disabled = !hasCoinJoin;
       for (const [button, branch] of [
         [resultCoinJoinExternalTab, "coinjoin-external"],
         [resultCoinJoinInternalTab, "coinjoin-internal"],
       ] as const) {
         const active = activeBranch === branch;
-        button.classList.toggle("active", active);
-        button.setAttribute("aria-selected", String(active));
-        button.tabIndex = active ? 0 : -1;
+        markTab(button, active);
         button.disabled = !branchStates.has(branch);
       }
       branchResultContent.setAttribute("aria-labelledby", branchTabButtons[activeBranch].id);

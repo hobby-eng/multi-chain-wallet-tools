@@ -6,41 +6,9 @@ import {
   type ViewerSingleExportState,
 } from "../src/export.js";
 import { strFromU8, unzipSync } from "fflate";
+import { parseCsv } from "./export-test-support.js";
 
 const generatedAt = new Date("2026-09-01T21:30:00.000Z");
-
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let quoted = false;
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index]!;
-    if (character === '"') {
-      if (quoted && text[index + 1] === '"') {
-        field += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (character === "," && !quoted) {
-      row.push(field);
-      field = "";
-    } else if (character === "\n" && !quoted) {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = "";
-    } else if (character !== "\r") {
-      field += character;
-    }
-  }
-  if (row.length > 0 || field.length > 0) {
-    row.push(field);
-    rows.push(row);
-  }
-  return rows;
-}
 
 describe("viewer exports", () => {
   it("exports exact Core amounts and spreadsheet-safe text to CSV", () => {
@@ -127,7 +95,7 @@ describe("viewer exports", () => {
     const result = createViewerExport(state, "json", generatedAt);
     expect(JSON.parse(result.text)).toMatchObject({
       schema: "wallet-activity-viewer-export",
-      version: 2,
+      version: 3,
       mode: "platform",
       network: "testnet",
       data: { state: { balanceCredits: "9007199254740993", nonce: "7" } },
@@ -222,7 +190,7 @@ describe("viewer exports", () => {
     expect(json.text).toContain('"matchesLookup": true');
     expect(json.text).not.toMatch(/privateKey|mnemonic|xprv/iu);
     expect(JSON.parse(json.text)).toMatchObject({
-      version: 2,
+      version: 3,
       data: {
         query: { proofs: [{ height: "12", responseCount: 2 }] },
         identities: [
@@ -321,7 +289,7 @@ describe("viewer exports", () => {
 
     const json = createViewerExport(state, "json", generatedAt);
     expect(JSON.parse(json.text)).toMatchObject({
-      version: 2,
+      version: 3,
       data: {
         batch: { requested: 3, succeeded: 2, failed: 1 },
         results: [

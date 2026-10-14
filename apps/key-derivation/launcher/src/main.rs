@@ -6,10 +6,10 @@
 //! headers that make it isolated. It never receives a secret: all the work happens in the page.
 //! It needs no installation and uses only the Rust standard library.
 
+mod digest;
 mod server;
 
-use sha2::{Digest, Sha256};
-use std::fmt::Write;
+use digest::sha256_hex;
 use std::io::{self, BufRead};
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener};
 use std::process::{Command, ExitCode};
@@ -78,16 +78,6 @@ fn run() -> Result<(), String> {
     println!("Closing this window does not close the page: close its browser tab as well.");
     server::serve(listener, format!("127.0.0.1:{port}"), PAGE);
     Ok(())
-}
-
-/// SHA-256 as 64 lowercase hex digits, the form build.rs embeds.
-fn sha256_hex(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .fold(String::with_capacity(64), |mut text, byte| {
-            let _ = write!(text, "{byte:02x}");
-            text
-        })
 }
 
 /// Opens the default browser; the address holds no secret.

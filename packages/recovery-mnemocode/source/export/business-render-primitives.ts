@@ -1,7 +1,10 @@
 import {
   rgb,
   type PDFFont,
+  type PDFImage,
   type PDFPage,
+  type RGB,
+  popGraphicsState,
   pushGraphicsState,
   moveTo,
   lineTo,
@@ -9,13 +12,23 @@ import {
   closePath,
   clip,
   endPath,
-} from 'pdf-lib';
-import { MM, type CardBox } from './business-layout.js';
-const ink = rgb(0.12, 0.13, 0.14);
+} from "pdf-lib";
+import { MM, type MmRect } from "./business-layout.js";
+import { rgbChannels } from "./color-math.js";
+/** The dark ink of the business designs' text. */
+export const ink = rgb(0.12, 0.13, 0.14);
 const CORNER_RADIUS_HEIGHT_RATIO = 0.055;
 // A cubic Bezier approximation of one quarter of a circle: 4 * (sqrt(2) - 1) / 3.
 // Keep the historical rounded coefficient to preserve the approved clipping boundary.
 const QUARTER_CIRCLE_CONTROL = 0.55228475;
+/** The least width a text is measured at, so that an empty one never divides by zero. */
+const MIN_MEASURED_WIDTH = 0.001;
+
+/**
+ * The size, at most `preferred`, at which `text` fits `width` points; refused, naming `label`, when
+ * the font lacks one of its characters or it would be smaller than `minimum`. Every family of
+ * cards sizes its text through it, each with its own sizes and scale.
+ */
 export function fit(
   font: PDFFont,
   text: string,
@@ -27,10 +40,46 @@ export function fit(
   const unsupported = [...text].find((c) => !font.getCharacterSet().includes(c.codePointAt(0)!));
   if (unsupported !== undefined)
     throw new Error(`${label} contains a character not supported by the card font: ${unsupported}`);
-  const size = Math.min(preferred, width / Math.max(font.widthOfTextAtSize(text, 1), 0.001));
+  const size = Math.min(
+    preferred,
+    width / Math.max(font.widthOfTextAtSize(text, 1), MIN_MEASURED_WIDTH),
+  );
   if (size < minimum)
     throw new Error(`${label} is too long to fit legibly on the card; shorten it.`);
   return size;
+}
+
+/**
+ * The PDF baseline of text of `size` points whose line box starts `top` millimetres below the top
+ * of `page`. PDF measures from the bottom, the layouts from the top with a line box of one font
+ * size; keeping top + size keeps the approved typography rather than switching to the font's
+ * ascent. Every family of cards places its text through it.
+ */
+export function baselineOf(page: PDFPage, top: number, size: number): number {
+  return pdfPoint(page, 0, top).y - size;
+}
+
+/**
+ * `rect`, given in millimetres from the top left of `page`, in PDF points from its bottom left.
+ * Every family of cards places its rectangles and images through it.
+ */
+export function pdfRect(page: PDFPage, rect: MmRect) {
+  // PDF places a rectangle by its bottom left corner.
+  const { x, y } = pdfPoint(page, rect.x, rect.y + rect.height);
+  return { x, y, width: rect.width * MM, height: rect.height * MM };
+}
+
+/**
+ * The point `x` millimetres from the left and `top` below the top of `page`, in PDF points: the
+ * one place that turns the layouts' top-down millimetres into PDF's bottom-up points.
+ */
+export function pdfPoint(page: PDFPage, x: number, top: number): { x: number; y: number } {
+  return { x: x * MM, y: page.getHeight() - top * MM };
+}
+
+/** A color #RRGGBB or RRGGBB as pdf-lib draws it. */
+export function pdfColor(color: string): RGB {
+  return rgb(...rgbChannels(color));
 }
 
 export function text(
@@ -42,23 +91,38 @@ export function text(
   size: number,
   color = ink,
 ) {
-  // PDF text uses a baseline measured from the bottom. Our layout uses a top
-  // offset and one font-size line box; preserving top - size keeps existing
-  // typography stable rather than switching to font-dependent ascent metrics.
   page.drawText(value, {
     x: x * MM,
-    y: page.getHeight() - top * MM - size,
+    y: baselineOf(page, top, size),
     size,
     font,
     color,
   });
 }
 
-export function clipCard(page: PDFPage, box: CardBox) {
-  const x = box.x * MM;
-  const y = page.getHeight() - (box.y + box.height) * MM;
-  const w = box.width * MM;
-  const h = box.height * MM;
+/**
+ * `value` centred in `box`, `box.width` millimetres wide from `box.left`, its line box `box.top`
+ * below the top of the page, at the size from `preferred` down to `minimum` at which it fits the
+ * box (fit, which names `label` when it refuses).
+ */
+export function centredText(
+  page: PDFPage,
+  font: PDFFont,
+  value: string,
+  box: { readonly left: number; readonly top: number; readonly width: number },
+  preferred: number,
+  minimum: number,
+  label: string,
+  color = ink,
+): void {
+  const size = fit(font, value, preferred, minimum, box.width * MM, label);
+  const left = box.left + (box.width - font.widthOfTextAtSize(value, size) / MM) / 2;
+  text(page, font, value, left, box.top, size, color);
+}
+
+/** Starts clipping to the rounded corners of the card in `box`; popGraphicsState ends it. */
+function clipCard(page: PDFPage, box: MmRect) {
+  const { x, y, width: w, height: h } = pdfRect(page, box);
   const r = h * CORNER_RADIUS_HEIGHT_RATIO;
   const k = QUARTER_CIRCLE_CONTROL;
   page.pushOperators(
@@ -76,4 +140,11 @@ export function clipCard(page: PDFPage, box: CardBox) {
     clip(),
     endPath(),
   );
+}
+
+/** The photograph `image` of the card in `box`, clipped to the card's rounded corners. */
+export function drawClippedArtwork(page: PDFPage, image: PDFImage, box: MmRect): void {
+  clipCard(page, box);
+  page.drawImage(image, pdfRect(page, box));
+  page.pushOperators(popGraphicsState());
 }

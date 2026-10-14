@@ -1,170 +1,155 @@
-// The Encode tab of the MHFE panel: a BIP39 phrase into a 24-word container, or on request into one
-// as long as a 12- to 21-word phrase.
-import { MhfeError, type MhfeClient } from "@ckd/recovery-mhfe-wasm/client.js";
-import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
-import { ContainerCard } from "./recovery-mhfe-container-card.js";
-import { MEMORY_LEVEL, type MhfeEngine } from "./recovery-mhfe-engine.js";
-import { PasswordField, PimField } from "./recovery-mhfe-fields.js";
+// The Encode tab of the MHFE panel: a BIP39 phrase into a 24-word container, or on the user's
+// choice into one as long as a 12- to 21-word phrase, with optional repair words for the container
+// phrase.
+// It asks nothing about a BIP39 passphrase, as the command-line tool asks nothing: in a tool that
+// encrypts a phrase such a question looks suspicious, and without an answer the package's list of
+// what to keep names any passphrase of the wallet (mhfe docs/BROWSER-PACKAGE.md).
+import { NewContainerResult } from "./recovery-mhfe-cards.js";
+import type { MhfeEngine } from "./recovery-mhfe-engine.js";
+import type { MhfeRun } from "./recovery-mhfe-run.js";
 import {
-  CONTAINER_WORDS,
-  FULL_SUITE_ID,
-  SAME_LENGTH_SUITE_ID,
+  PasswordField,
+  PasswordReview,
+  PimField,
+  StrengthNote,
+  selectedRepairCount,
+  reviewSaid,
+} from "./recovery-mhfe-fields.js";
+import {
+  ENCRYPT_STAGES,
+  REHEARSE,
   clearOnFirstProgress,
-  describe,
-  progressLine,
+  listed,
   readBackDiffers,
-  rememberNote,
 } from "./recovery-mhfe-status.js";
-import { JobClock, formatDuration } from "./recovery-progress.js";
+import { NewPasswordChoice } from "./recovery-mhfe-new-password.js";
+import { MhfeTask } from "./recovery-mhfe-task.js";
 import {
   renderReadBackWords,
   required,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
 
-/** The phrase with every word written out, and the lengths whose check it also passes. */
-type PhraseReading = Awaited<ReturnType<MhfeClient["readPhrase"]>>;
-
-/** The settings of one encryption, read from the form before it starts. */
-interface EncryptionRequest {
-  readonly phrase: string;
-  readonly reading: PhraseReading;
-  readonly sameLength: boolean;
-  readonly pim: number;
-  /** About one phrase in four billion also passes the check of another length; see `#lengthNote`. */
-  readonly lengthMustBeChosen: boolean;
+/** The warning under a new password that the package calls weak. */
+export function weakPasswordText(bits: number): string {
+  return `This password is weak: about ${Math.round(bits)} bits, by a rough estimate. The Password tab makes a strong one.`;
 }
 
 export class MhfeEncodeTab {
   readonly #context: RecoveryFeatureContext;
   readonly #engine: MhfeEngine;
-  readonly #action = required<HTMLButtonElement>("#mhfe-encrypt");
-  readonly #cancel = required<HTMLButtonElement>("#mhfe-encrypt-stop");
   readonly #status = required<HTMLElement>("#mhfe-encrypt-status");
-  readonly #result = required<HTMLElement>("#mhfe-encrypt-result");
   readonly #readBack = required<HTMLElement>("#mhfe-encrypt-read");
   readonly #sameLength = required<HTMLInputElement>("#mhfe-length-same");
-  readonly #password = new PasswordField(
-    "#mhfe-encrypt-password",
-    "#toggle-mhfe-encrypt-password",
-    "MHFE password",
-  );
-  readonly #repeat = new PasswordField(
-    "#mhfe-encrypt-password-confirm",
-    "#toggle-mhfe-encrypt-password-confirm",
-    "password confirmation",
-  );
+  readonly #password = new PasswordField("mhfe-encrypt-password", "MHFE password");
+  readonly #repeat = new PasswordField("mhfe-encrypt-password-confirm", "password confirmation");
   readonly #pim = new PimField("encrypt");
-  /** The card of the running encryption, once its container exists. */
-  #card: ContainerCard | undefined;
+  readonly #review: PasswordReview;
+  readonly #newPassword: NewPasswordChoice;
+  readonly #result: NewContainerResult;
+  readonly #task: MhfeTask;
 
   constructor(context: RecoveryFeatureContext, engine: MhfeEngine) {
     this.#context = context;
     this.#engine = engine;
-    this.#action.addEventListener("click", () => this.#start());
+    this.#review = new PasswordReview(engine, "mhfe-encrypt-password-review", [
+      this.#password,
+      this.#repeat,
+    ]);
+    new StrengthNote(engine, this.#password.input, "mhfe-encrypt-strength", weakPasswordText);
+    this.#newPassword = new NewPasswordChoice(
+      engine,
+      "encrypt",
+      { password: this.#password, repeat: this.#repeat },
+      this.#status,
+    );
+    this.#result = new NewContainerResult(
+      required<HTMLElement>("#mhfe-encrypt-result"),
+      engine,
+      context.writeClipboard,
+    );
+    this.#task = new MhfeTask(context, engine, {
+      status: this.#status,
+      cancel: required<HTMLButtonElement>("#mhfe-encrypt-stop"),
+      name: "MHFE encryption",
+      failure: "MHFE encryption failed.",
+      inputs: required<HTMLElement>("#mhfe-create-panel"),
+      source: "mhfe",
+      onEdit: () => {
+        this.#readBack.replaceChildren();
+        this.#result.reset();
+      },
+    });
+    required<HTMLButtonElement>("#mhfe-encrypt").addEventListener("click", () => this.#start());
   }
 
   #start(): void {
-    this.#result.replaceChildren();
+    if (!this.#task.available) return;
     this.#readBack.replaceChildren();
-    this.#status.classList.remove("warning");
-    this.#card = undefined;
-    void this.#context.jobs
-      .runHeavy("MHFE encryption", () =>
-        this.#engine.runCancellable(this.#cancel, () => this.#encrypt()),
-      )
-      .catch((cause: unknown) => this.#fail(cause));
+    this.#result.reset();
+    void this.#task.run((run) => this.#encrypt(run), {
+      failed: (cause) => this.#result.failed(cause),
+    });
   }
 
-  async #encrypt(): Promise<void> {
-    const pim = this.#pim.value();
-    const sameLength = this.#sameLength.checked;
-    const password = this.#password.value;
-    const passwordRepeat = this.#repeat.value;
-    if (password !== passwordRepeat) throw new Error("The two passwords differ. Type them again.");
+  async #encrypt(run: MhfeRun): Promise<void> {
+    const typed = this.#newPassword.passwords();
+    const repairWordCount = selectedRepairCount("mhfe-repair-count");
     const phrase = this.#context.readMnemonic("mhfe", "#mhfe-source").trim();
-    const reading = await this.#engine.client.readPhrase(phrase);
-    if (readBackDiffers(phrase, reading.phrase)) {
+    const client = await run.step(() => this.#engine.client());
+    const facts = await run.step(() => client.readPhrase(phrase));
+    if (readBackDiffers(phrase, facts.phrase))
       renderReadBackWords(
         this.#readBack,
-        reading.phrase,
+        facts.phrase,
         "MHFE read your phrase as these words, written out in full. Check them against your backup.",
         this.#context.writeClipboard,
       );
-    }
-    // A same-length container needs no length note: its own length is the phrase's.
-    const request: EncryptionRequest = {
-      phrase,
-      reading,
-      sameLength,
-      pim,
-      lengthMustBeChosen: !sameLength && reading.otherLengths.length > 0,
-    };
-    const lengthNote = this.#lengthNote(request);
-    const clock = new JobClock();
-    this.#status.textContent = `Starting · ${reading.words}-word phrase accepted.${lengthNote}`;
-    const clearPasswords = clearOnFirstProgress(this.#password.input, this.#repeat.input);
-    const { container, suiteId } = await this.#engine.client.encrypt({
-      phrase,
-      password,
-      passwordRepeat,
-      pim,
-      memoryLevel: MEMORY_LEVEL,
-      sameLength,
-      onProgress: (progress) => {
-        clearPasswords();
-        this.#status.textContent = progressLine(progress, clock, false) + lengthNote;
+    const choice = await this.#review.require(run, typed.password, typed.repeat);
+    const sameLength = this.#sameLength.checked;
+    // About one phrase in four billion also passes the check of another length; automatic detection
+    // would then not give it back on its own. The package says so for each container it offers:
+    // never for a same-length one, which keeps the phrase's own length.
+    const container = facts.containers.find((offered) => offered.sameLength === sameLength);
+    const otherLengths = container?.otherLengths ?? [];
+    const lengthNote =
+      otherLengths.length === 0
+        ? ""
+        : ` Write down that your phrase has ${facts.words} words and select that length when you recover: ` +
+          `by chance it also passes the check of ${listed(otherLengths)} words.`;
+    const progress = await run.step(() => this.#engine.progress(ENCRYPT_STAGES));
+    this.#review.assertCurrent(choice);
+    const outcome = reviewSaid(choice);
+    this.#status.textContent = `Starting · ${facts.words}-word phrase accepted.${outcome}${lengthNote}`;
+    const clearPasswords = clearOnFirstProgress(...this.#newPassword.inputs());
+    const sealed = await run.step(() =>
+      client.encrypt({
+        phrase,
+        password: typed.password,
+        passwordRepeat: typed.repeat,
+        passwordRepair: choice.repair,
+        pim: this.#pim.value(),
+        sameLength,
+        repairWordCount,
+        onProgress: (report) =>
+          run.publish(() => {
+            clearPasswords();
+            this.#status.textContent = progress.line(report) + lengthNote;
+          }),
+        onUnverified: (result) => run.publish(() => this.#result.unverified(result)),
+      }),
+    );
+    await this.#result.seal(
+      sealed,
+      {
+        verified: "Verified: the container turns back into your original seed phrase.",
+        next: REHEARSE,
+        ...(typed.made === undefined ? {} : { password: typed.made }),
       },
-      onUnverified: ({ container: unverified }) => {
-        this.#showCard(request, unverified, sameLength ? SAME_LENGTH_SUITE_ID : FULL_SUITE_ID);
-      },
-    });
-    const card = this.#card ?? this.#showCard(request, container, suiteId);
-    card.keepNote = this.#keepNote(request, suiteId);
-    card.markVerified();
-    this.#status.textContent = `Encryption complete in ${formatDuration(clock.elapsed())}.${lengthNote}`;
+      run,
+    );
+    this.#newPassword.forget();
+    this.#status.textContent = `Encryption complete in ${progress.elapsed()}.${lengthNote}`;
     this.#status.classList.toggle("warning", lengthNote !== "");
-  }
-
-  #showCard(request: EncryptionRequest, container: string, suiteId: string): ContainerCard {
-    const containerWords = request.sameLength ? request.reading.words : CONTAINER_WORDS;
-    this.#card = new ContainerCard(
-      this.#result,
-      container,
-      containerWords,
-      fingerprintWithoutPassphrase(container, this.#context.mnemonicToSeed),
-      this.#context.writeClipboard,
-    );
-    this.#card.keepNote = this.#keepNote(request, suiteId);
-    return this.#card;
-  }
-
-  #keepNote(request: EncryptionRequest, suiteId: string): string {
-    return rememberNote(
-      request.reading.words,
-      request.sameLength,
-      request.lengthMustBeChosen,
-      request.pim,
-      suiteId,
-    );
-  }
-
-  /**
-   * Automatic detection in a 24-word container would not give back a phrase that also passes the
-   * check of another length, so its word count must be written down and selected at recovery.
-   */
-  #lengthNote(request: EncryptionRequest): string {
-    if (!request.lengthMustBeChosen) return "";
-    return (
-      ` Write down that your phrase has ${request.reading.words} words and select that length when you recover: ` +
-      `by chance it also passes the check of ${request.reading.otherLengths.join(" and ")} words.`
-    );
-  }
-
-  #fail(cause: unknown): void {
-    this.#status.classList.add("warning");
-    this.#status.textContent = describe(cause, "MHFE encryption failed.");
-    if (cause instanceof MhfeError && cause.code === "VERIFICATION_FAILED") this.#card?.markWrong();
-    else this.#card?.markUnfinished();
   }
 }

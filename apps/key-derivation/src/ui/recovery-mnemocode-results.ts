@@ -6,7 +6,11 @@ import {
   type MnemoCodeMissingWordCandidate,
   type MnemoCodeMode,
 } from "@ckd/recovery-backup/mnemocode.js";
-import { paragraph } from "./recovery-workspace-shared.js";
+import {
+  Masking,
+  PHRASE_WORDS,
+} from "../../../../packages/recovery-mnemocode/source/core/masking.js";
+import { paragraph, renderRecoveredSecret } from "./recovery-workspace-shared.js";
 
 export function appendMetadata(
   container: HTMLElement,
@@ -62,6 +66,7 @@ interface ConcealedText {
   readonly copyLabel: string;
   readonly extraClass?: string;
   readonly copy: (value: string) => Promise<void>;
+  readonly current?: () => boolean;
 }
 
 /** A read-only text that stays concealed until it is revealed; it can be copied only while revealed. */
@@ -72,45 +77,48 @@ function concealedText({
   copyLabel,
   extraClass,
   copy,
+  current,
 }: ConcealedText): HTMLElement[] {
-  const output = document.createElement("textarea");
+  // Keep MnemoCode's presentation while the shared owner handles reveal, Copy and concealment.
+  const container = document.createElement("div");
+  renderRecoveredSecret(
+    container,
+    value,
+    {
+      reveal: `Show ${subject}`,
+      hide: `Hide ${subject}`,
+      copy: `${copyLabel} ${subject}`,
+      copyText: copyLabel,
+    },
+    copy,
+    undefined,
+    undefined,
+    undefined,
+    current,
+  );
+  const output = container.querySelector<HTMLTextAreaElement>("textarea")!;
   output.rows = rows;
-  output.readOnly = true;
-  output.className = extraClass === undefined ? "concealed" : `concealed ${extraClass}`;
-  output.value = value;
-  const reveal = document.createElement("button");
-  reveal.type = "button";
-  reveal.className = "danger-outline compact";
-  reveal.textContent = `Show ${subject}`;
-  const copyButton = document.createElement("button");
-  copyButton.type = "button";
-  copyButton.className = "secret-action compact";
-  copyButton.textContent = copyLabel;
-  copyButton.setAttribute("aria-label", `${copyLabel} ${subject}`);
-  copyButton.disabled = true;
-  reveal.addEventListener("click", () => {
-    const visible = output.classList.contains("concealed");
-    output.classList.toggle("concealed", !visible);
-    reveal.textContent = visible ? `Hide ${subject}` : `Show ${subject}`;
-    reveal.setAttribute("aria-pressed", String(visible));
-    copyButton.disabled = !visible;
-  });
-  copyButton.addEventListener("click", () => void copy(value));
-  const actions = document.createElement("div");
-  actions.className = "actions";
-  actions.append(reveal, copyButton);
-  return [output, actions];
+  if (extraClass !== undefined) output.classList.add(extraClass);
+  return [...container.children] as HTMLElement[];
+}
+
+/** A warning box above a recovered result; its text says why the result needs care. */
+function warningCallout(text = ""): HTMLDivElement {
+  const warning = document.createElement("div");
+  warning.className = "warning-callout";
+  warning.textContent = text;
+  return warning;
 }
 
 export function renderInvalidMnemonic(
   container: HTMLElement,
   mnemonic: string,
   copy: (value: string) => Promise<void>,
+  current: () => boolean = () => true,
 ): void {
-  const warning = document.createElement("div");
-  warning.className = "warning-callout";
-  warning.textContent =
-    "The recovered legacy phrase has an invalid BIP39 checksum. Check the dates and input before using it.";
+  const warning = warningCallout(
+    "The recovered legacy phrase has an invalid BIP39 checksum. Check the dates and input before using it.",
+  );
   container.append(
     warning,
     ...concealedText({
@@ -119,29 +127,150 @@ export function renderInvalidMnemonic(
       subject: "phrase",
       copyLabel: "Copy",
       copy,
+      current,
     }),
   );
 }
 
-export function renderCandidates(
+/**
+ * Where the checksum failed, the shorter phrases that the first codes give with a valid checksum,
+ * each by its fingerprint and never by its words, as MnemoCode's decode lists them: codes typed
+ * from printed cards end with decoys, which the word count leaves out.
+ */
+export function renderShorterPhrases(
+  container: HTMLElement,
+  shorter: readonly { readonly words: number; readonly fingerprint: string }[],
+): void {
+  if (shorter.length === 0) return;
+  const listed = shorter
+    .map(({ words, fingerprint }) => `${words} words, fingerprint ${fingerprint}`)
+    .join("; ");
+  container.append(
+    warningCallout(
+      `The first codes give a phrase with a valid checksum: ${listed}. Printed cards end with ` +
+        `codes that belong to nothing; choose how many words the seed phrase has (${shorter[0]!.words}).`,
+    ),
+  );
+}
+
+/**
+ * Every phrase that a record with a replaced last word may hold, each with its fingerprint, as
+ * MnemoCode's decode lists them: the phrases concealed, the fingerprints open, since they do not
+ * reveal a phrase, with a field that finds the candidate of the wallet's fingerprint.
+ */
+export function renderLegacyCandidates(
   container: HTMLElement,
   candidates: readonly string[],
+  fingerprints: readonly string[],
   copy: (value: string) => Promise<void>,
+  current: () => boolean = () => true,
 ): void {
-  const warning = document.createElement("div");
-  warning.className = "warning-callout";
-  warning.textContent =
+  const warning = warningCallout(
     `${candidates.length} checksum-valid candidates were recovered. ` +
-    "A legacy checksum-word replacement discarded information; use independent wallet evidence to identify the original.";
+      "A legacy checksum-word replacement discarded information; use independent wallet evidence to identify the original.",
+  );
+  const list = document.createElement("p");
+  list.className = "field-note mnemocode-candidate-fingerprints";
+  list.textContent = `Fingerprints (empty BIP39 passphrase): ${fingerprints
+    .map((fingerprint, index) => `${index + 1} ${fingerprint}`)
+    .join(" · ")}`;
+  const label = document.createElement("label");
+  label.textContent = "Your wallet's fingerprint, to find its candidate";
+  const lookup = document.createElement("input");
+  lookup.type = "text";
+  lookup.autocomplete = "off";
+  lookup.placeholder = "73c5da0a";
+  label.append(lookup);
+  const found = document.createElement("p");
+  found.className = "field-note";
+  found.setAttribute("role", "status");
+  lookup.addEventListener("input", () => {
+    const wanted = lookup.value.trim().toLowerCase();
+    const matches = fingerprints.flatMap((fingerprint, index) =>
+      fingerprint === wanted ? [index + 1] : [],
+    );
+    found.textContent =
+      wanted === ""
+        ? ""
+        : matches.length === 0
+          ? "No candidate has this fingerprint."
+          : `Candidate ${matches.join(", ")} has this fingerprint.`;
+  });
   container.append(
     warning,
     ...concealedText({
-      value: candidates.map((candidate, index) => `${index + 1}\t${candidate}`).join("\n"),
+      value: candidates
+        .map((candidate, index) => `${index + 1}\t${candidate}\t${fingerprints[index]}`)
+        .join("\n"),
       rows: Math.min(12, Math.max(5, candidates.length)),
       subject: "candidates",
       copyLabel: "Copy all",
       copy,
+      current,
     }),
+    list,
+    label,
+    found,
+  );
+}
+
+/**
+ * Codes marked with ? that the search found, as MnemoCode's decode reports them: which codes were
+ * filled in, the codes whole (concealed, since codes without Seedshift are the phrase), the dates
+ * found, and the advice to correct the written copy.
+ */
+export function renderFoundCodes(
+  container: HTMLElement,
+  found: { readonly places: string; readonly codes: string; readonly foundDates?: string },
+  correct: string,
+  copy: (value: string) => Promise<void>,
+  current: () => boolean = () => true,
+): void {
+  container.append(
+    paragraph(`${found.places} found:`, "field-note"),
+    ...concealedText({
+      value: found.codes,
+      rows: 3,
+      subject: "codes",
+      copyLabel: "Copy",
+      copy,
+      current,
+    }),
+    ...(found.foundDates === undefined
+      ? []
+      : [paragraph(`Dates found: ${found.foundDates}`, "field-note")]),
+    paragraph(correct, "field-note"),
+  );
+}
+
+/** Every candidate of codes marked with ?, one per line as MnemoCode prints them, concealed. */
+export function renderMissingCodesList(
+  container: HTMLElement,
+  rows: readonly {
+    readonly codes: string;
+    readonly phrase: string;
+    readonly fingerprint: string;
+  }[],
+  explanation: string,
+  copy: (value: string) => Promise<void>,
+  current: () => boolean = () => true,
+): void {
+  container.append(
+    paragraph(`${rows.length} candidate${rows.length === 1 ? "" : "s"}.`, "field-note"),
+    ...concealedText({
+      value: rows
+        .map(
+          ({ codes, phrase, fingerprint }, index) =>
+            `${index + 1}\t${codes}\t${phrase}\t${fingerprint}`,
+        )
+        .join("\n"),
+      rows: Math.min(12, Math.max(4, rows.length)),
+      subject: "candidates",
+      copyLabel: "Copy all",
+      copy,
+      current,
+    }),
+    paragraph(explanation, "field-note"),
   );
 }
 
@@ -150,9 +279,9 @@ export function renderMissingWordCandidates(
   candidates: readonly MnemoCodeMissingWordCandidate[],
   copy: (value: string) => Promise<void>,
   legacyReplacement = false,
+  current: () => boolean = () => true,
 ): void {
-  const summary = document.createElement("div");
-  summary.className = "warning-callout";
+  const summary = warningCallout();
   if (candidates.length === 0) {
     summary.textContent =
       "No checksum-valid BIP39 phrase matches the supplied known words. Check the other words, their order, and the placeholder position.";
@@ -198,27 +327,33 @@ export function renderMissingWordCandidates(
       copyLabel: "Copy all",
       extraClass: "mnemocode-word-phrases",
       copy,
+      current,
     }),
   );
 }
 
 /**
- * Under a new record: the fingerprints of the phrase and of its encoded words. The encoded one lets
- * Decode catch a miscopied code before anything else is computed.
+ * Under a new record: the fingerprints of the phrase and of its encoded words, in MnemoCode's words
+ * (PHRASE_WORDS). The encoded one lets Decode catch a miscopied code before anything else is
+ * computed; with Seedshift it is that of the masked phrase (decoy), which no wallet check matches.
  */
 export function appendEncodeFingerprints(
   container: HTMLElement,
+  mode: MnemoCodeMode,
   original: string,
   encoded: string | undefined,
 ): void {
+  const masking = Masking.of(mode);
   const text =
     encoded === undefined
-      ? `Original fingerprint ${original}. The encoded words fail the BIP39 checksum, so they have no ` +
+      ? `${PHRASE_WORDS.originalFingerprint} ${original}. The encoded words fail the BIP39 checksum, so they have no ` +
         "fingerprint. It is a BIP32 master key fingerprint for an empty BIP39 passphrase and does not " +
         "reveal the phrase."
-      : `Original fingerprint ${original} · encoded fingerprint ${encoded}. Both are BIP32 master key ` +
-        "fingerprints for an empty BIP39 passphrase and do not reveal the phrase. Note the encoded one with " +
-        "the record: Decode shows the fingerprint of the codes you type, so a miscopied code is caught at once.";
+      : `${PHRASE_WORDS.originalFingerprint} ${original} · ${masking.encodedFingerprintLabel} ${encoded}.` +
+        (masking.masked ? ` ${PHRASE_WORDS.fingerprintRoles}` : "") +
+        " Both are BIP32 master key fingerprints for an empty BIP39 passphrase and do not reveal the phrase. " +
+        "Note the encoded one with the record: Decode shows the fingerprint of the codes you type, so a " +
+        "miscopied code is caught at once.";
   container.append(paragraph(text, "field-note"));
 }
 
@@ -226,8 +361,8 @@ export function appendEncodeFingerprints(
 export function appendRecoveredFingerprint(container: HTMLElement, fingerprint: string): void {
   container.append(
     paragraph(
-      `Recovered fingerprint ${fingerprint} (BIP32 master key fingerprint for an empty BIP39 passphrase). ` +
-        "Compare it with your wallet's.",
+      `Phrase: ${PHRASE_WORDS.original}. ${PHRASE_WORDS.originalFingerprint} ${fingerprint} (BIP32 ` +
+        "master key fingerprint for an empty BIP39 passphrase). Compare it with your wallet's.",
       "field-note",
     ),
   );

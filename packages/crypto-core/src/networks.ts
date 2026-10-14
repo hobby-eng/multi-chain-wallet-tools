@@ -1,4 +1,6 @@
 import type { NetworkName } from "./types.js";
+import { BITCOIN_ADDRESS_FACTS } from "./bitcoin-address-facts.js";
+import { dashPlatformHrp } from "./dash-platform-address-facts.js";
 
 export interface Bip32Versions {
   private: number;
@@ -16,7 +18,7 @@ export interface BitcoinNetwork {
   versions: Bip32Versions;
 }
 
-interface DashNetwork {
+export interface DashNetwork {
   name: NetworkName;
   label: string;
   coinType: number;
@@ -27,35 +29,39 @@ interface DashNetwork {
   versions: Bip32Versions;
 }
 
-const MAIN_VERSIONS = { private: 0x0488ade4, public: 0x0488b21e } as const;
-const TEST_VERSIONS = { private: 0x04358394, public: 0x043587cf } as const;
+/** The BIP32 serialization versions of extended keys: xprv/xpub on mainnet, tprv/tpub on testnet. */
+export const BIP32_MAINNET_VERSIONS = { private: 0x0488ade4, public: 0x0488b21e } as const;
+export const BIP32_TESTNET_VERSIONS = { private: 0x04358394, public: 0x043587cf } as const;
 
-const BITCOIN_NETWORKS: Record<NetworkName, BitcoinNetwork> = {
+/** The versions of a network's extended keys; testnet and regtest share tprv/tpub. */
+export function bip32VersionsFor(network: string): Bip32Versions {
+  return network === "mainnet" ? BIP32_MAINNET_VERSIONS : BIP32_TESTNET_VERSIONS;
+}
+
+// Only private literal metadata is read here. The pure annotation lets a Dash-only build
+// discard this table, including object-spread reads the bundler cannot prove harmless itself.
+const BITCOIN_NETWORKS = /* @__PURE__ */ ((): Record<NetworkName, BitcoinNetwork> => ({
   mainnet: {
     name: "mainnet",
     label: "Bitcoin mainnet",
     coinType: 0,
-    p2pkh: 0x00,
-    p2sh: 0x05,
+    ...BITCOIN_ADDRESS_FACTS.mainnet,
     wif: 0x80,
-    bech32Hrp: "bc",
-    versions: MAIN_VERSIONS,
+    versions: BIP32_MAINNET_VERSIONS,
   },
   testnet: {
     name: "testnet",
     label: "Bitcoin testnet",
     coinType: 1,
-    p2pkh: 0x6f,
-    p2sh: 0xc4,
+    ...BITCOIN_ADDRESS_FACTS.testnet,
     wif: 0xef,
-    bech32Hrp: "tb",
-    versions: TEST_VERSIONS,
+    versions: BIP32_TESTNET_VERSIONS,
   },
-};
+}))();
 
 // Verified against Dash Core chainparams.cpp (current master, 2026-09-01).
 // Dash Core now deliberately uses Bitcoin's xpub/xprv version bytes on mainnet.
-const DASH_NETWORKS: Record<NetworkName, DashNetwork> = {
+const DASH_NETWORKS = /* @__PURE__ */ ((): Record<NetworkName, DashNetwork> => ({
   mainnet: {
     name: "mainnet",
     label: "Dash mainnet",
@@ -63,8 +69,8 @@ const DASH_NETWORKS: Record<NetworkName, DashNetwork> = {
     p2pkh: 76,
     p2sh: 16,
     wif: 204,
-    platformHrp: "dash",
-    versions: MAIN_VERSIONS,
+    platformHrp: dashPlatformHrp("mainnet"),
+    versions: BIP32_MAINNET_VERSIONS,
   },
   testnet: {
     name: "testnet",
@@ -73,10 +79,10 @@ const DASH_NETWORKS: Record<NetworkName, DashNetwork> = {
     p2pkh: 140,
     p2sh: 19,
     wif: 239,
-    platformHrp: "tdash",
-    versions: TEST_VERSIONS,
+    platformHrp: dashPlatformHrp("testnet"),
+    versions: BIP32_TESTNET_VERSIONS,
   },
-};
+}))();
 
 export function getBitcoinNetwork(name: NetworkName): BitcoinNetwork {
   const network = (BITCOIN_NETWORKS as Partial<Record<string, BitcoinNetwork>>)[name];

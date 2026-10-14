@@ -1,7 +1,8 @@
+import { AtomicAmount } from "@ckd/core/atomic-amount.js";
+import { DashHistoryBudget } from "./history-budget.js";
 import { validateAddressHistoryPage } from "./provider-json.js";
 import { bech32m, createBase58check } from "@scure/base";
 import { sha256 } from "@ckd/core/crypto.js";
-import { DUFFS_PER_DASH } from "@ckd/core/dash-units.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import { createProviderHttp, ProviderHttpError, type FetchLike } from "./provider-http.js";
 import type { ViewerNetwork } from "./types.js";
@@ -56,7 +57,8 @@ interface CoreAddressProvider {
   ): Promise<CoreAddressSnapshot>;
 }
 
-const DASHSCAN_ENDPOINTS: Record<ViewerNetwork, string> = {
+/** The DashScan origin of each network, which every Core-chain lookup of the tools asks. */
+export const DASHSCAN_ENDPOINTS: Readonly<Record<ViewerNetwork, string>> = {
   mainnet: "https://dashscan.pshenmic.dev",
   testnet: "https://testnet.dashscan.pshenmic.dev",
 };
@@ -89,12 +91,8 @@ export function dashDecimalToDuffs(value: unknown): bigint {
   if (typeof value !== "number" && typeof value !== "string") return 0n;
   const text = typeof value === "number" ? value.toFixed(8) : value.trim();
   if (text.length > 110) throw new Error("Decimal DASH amount exceeds the safety limit.");
-  const match = /^(-?)(\d{1,100})(?:\.(\d{0,8}))?$/u.exec(text);
-  if (match === null) return 0n;
-  const whole = BigInt(match[2]!);
-  const fraction = BigInt((match[3] ?? "").padEnd(8, "0"));
-  const result = whole * DUFFS_PER_DASH + fraction;
-  return match[1] === "-" ? -result : result;
+  if (!/^(-?)(\d{1,100})(?:\.(\d{0,8}))?$/u.test(text)) return 0n;
+  return AtomicAmount.parseDecimal(text, 8) ?? 0n;
 }
 
 function decodeCoreAddress(
@@ -402,8 +400,6 @@ export async function queryCoreAddress(
   provider: CoreAddressProvider = DASHSCAN_CORE_PROVIDER,
 ): Promise<CoreAddressSnapshot> {
   const address = validateCoreAddress(addressInput, network);
-  if (!Number.isSafeInteger(historyLimit) || historyLimit < 1 || historyLimit > 1000) {
-    throw new Error("Transaction history limit must be an integer from 1 to 1000.");
-  }
+  DashHistoryBudget.admit(historyLimit, "Transaction history limit");
   return provider.query(address, network, historyLimit, signal, fetcher);
 }

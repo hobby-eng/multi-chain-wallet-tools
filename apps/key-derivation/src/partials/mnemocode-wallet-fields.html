@@ -1,0 +1,218 @@
+<fieldset class="choice-group">
+  <legend>How can MnemoCode recognise the wallet?</legend>
+  <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-fingerprint-choice">
+    <input
+      id="__MNEMOCODE_PREFIX__-wallet-fingerprint-choice"
+      type="radio"
+      name="__MNEMOCODE_PREFIX__-wallet"
+      value="fingerprint"
+      autocomplete="off"
+    />
+    Fingerprint <span class="answer-note">the wallet's own: Encode's Original, not the Encoded</span>
+  </label>
+  <label
+    id="__MNEMOCODE_PREFIX__-wallet-address-row"
+    class="checkbox-row"
+    for="__MNEMOCODE_PREFIX__-wallet-address-choice"
+  >
+    <input
+      id="__MNEMOCODE_PREFIX__-wallet-address-choice"
+      type="radio"
+      name="__MNEMOCODE_PREFIX__-wallet"
+      value="address"
+      autocomplete="off"
+    />
+    Bitcoin address
+    <span class="answer-note">the first receiving address, m/.../0/0, or the place below</span>
+  </label>
+  <label id="__MNEMOCODE_PREFIX__-wallet-key-row" class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-key-choice">
+    <input
+      id="__MNEMOCODE_PREFIX__-wallet-key-choice"
+      type="radio"
+      name="__MNEMOCODE_PREFIX__-wallet"
+      value="key"
+      autocomplete="off"
+    />
+    Another key of the wallet
+    <span class="answer-note">an xpub, an account xpub, a public key or a WIF</span>
+  </label>
+  <label id="__MNEMOCODE_PREFIX__-wallet-coin-row" class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-coin-choice">
+    <input
+      id="__MNEMOCODE_PREFIX__-wallet-coin-choice"
+      type="radio"
+      name="__MNEMOCODE_PREFIX__-wallet"
+      value="coin"
+      autocomplete="off"
+    />
+    <span id="__MNEMOCODE_PREFIX__-wallet-coin-label">Address of another coin</span>
+    <span id="__MNEMOCODE_PREFIX__-wallet-coin-note" class="answer-note"></span>
+  </label>
+  <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-none">
+    <input
+      id="__MNEMOCODE_PREFIX__-wallet-none"
+      type="radio"
+      name="__MNEMOCODE_PREFIX__-wallet"
+      value="none"
+      autocomplete="off"
+    />
+    It cannot <span class="answer-note">__MNEMOCODE_WALLET_NONE_NOTE__</span>
+  </label>
+</fieldset>
+<div class="option-explainer">
+  <p class="field-note">Only the wallet tells which candidate is yours. Each check computes the BIP39 seed once.</p>
+  <details class="recovery-help option-help">
+    <summary>More details</summary>
+    <div class="recovery-help-popover">
+      <h3>Recognising the wallet</h3>
+      <p>
+        A fingerprint has 32 bits: it is a filter, not proof, since a wrong candidate passes about once in four billion.
+        It is the fingerprint of the wallet itself: with Seedshift, of the phrase before the shift, which Encode shows
+        as the original fingerprint. The check unmasks each candidate with the dates first, so the encoded fingerprint
+        never matches.
+      </p>
+      <p id="__MNEMOCODE_PREFIX__-wallet-located-help">
+        An address, an xpub or a key compares the wallet itself. An address, a public key or a WIF is looked for at the
+        account, branch and index below, by default the first receiving address of account 0, in every address type or
+        the one chosen. An account xpub is compared at its account.
+      </p>
+      <p id="__MNEMOCODE_PREFIX__-wallet-coin-help">
+        An address of a coin is looked for on the paths that its wallets use, at the account, branch and index below,
+        among as many addresses from there as the number says.
+      </p>
+    </div>
+  </details>
+</div>
+<div id="__MNEMOCODE_PREFIX__-wallet-fingerprint-field" hidden>
+  <label for="__MNEMOCODE_PREFIX__-wallet-fingerprint">
+    Original fingerprint of the wallet, such as 73c5da0a (not the encoded one)
+    <input id="__MNEMOCODE_PREFIX__-wallet-fingerprint" type="text" autocomplete="off" placeholder="73c5da0a" />
+  </label>
+</div>
+<div id="__MNEMOCODE_PREFIX__-wallet-address-field" hidden>
+  <label for="__MNEMOCODE_PREFIX__-wallet-address">
+    Bitcoin address
+    <input
+      id="__MNEMOCODE_PREFIX__-wallet-address"
+      type="text"
+      autocomplete="off"
+      autocapitalize="none"
+      placeholder="1..., 3..., bc1q... or bc1p..."
+    />
+  </label>
+</div>
+<div id="__MNEMOCODE_PREFIX__-wallet-coin-field" hidden>
+  <label for="__MNEMOCODE_PREFIX__-wallet-coin">
+    Coin
+    <select id="__MNEMOCODE_PREFIX__-wallet-coin"></select>
+  </label>
+  <label for="__MNEMOCODE_PREFIX__-wallet-coin-address">
+    Receiving address
+    <input id="__MNEMOCODE_PREFIX__-wallet-coin-address" type="text" autocomplete="off" autocapitalize="none" />
+  </label>
+</div>
+<div id="__MNEMOCODE_PREFIX__-wallet-key-field" hidden>
+  <label for="__MNEMOCODE_PREFIX__-wallet-key-kind">
+    Kind of key
+    <select id="__MNEMOCODE_PREFIX__-wallet-key-kind">
+      <option value="master-xpub">Master extended public key (xpub, ypub, zpub, tpub…)</option>
+      <option value="account-xpub">Account extended public key</option>
+      <option value="compressed-public-key">Compressed public key, hex</option>
+      <option value="wif">WIF private key</option>
+    </select>
+  </label>
+  <label for="__MNEMOCODE_PREFIX__-wallet-key">
+    Key
+    <input id="__MNEMOCODE_PREFIX__-wallet-key" type="text" autocomplete="off" autocapitalize="none" />
+  </label>
+  <p id="__MNEMOCODE_PREFIX__-wallet-wif-warning" class="warning-callout" hidden>
+    A WIF can spend the funds. It stays in this offline page and is compared in the search worker only.
+  </p>
+</div>
+<div id="__MNEMOCODE_PREFIX__-wallet-location-field" class="backup-options-grid" hidden>
+  <fieldset id="__MNEMOCODE_PREFIX__-wallet-profile-row" class="choice-group">
+    <legend>Address types <span class="answer-note">none ticked: every type</span></legend>
+    <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-profile-legacy">
+      <input id="__MNEMOCODE_PREFIX__-wallet-profile-legacy" type="checkbox" value="legacy" autocomplete="off" />
+      Legacy (BIP44)
+    </label>
+    <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-profile-nested-segwit">
+      <input
+        id="__MNEMOCODE_PREFIX__-wallet-profile-nested-segwit"
+        type="checkbox"
+        value="nested-segwit"
+        autocomplete="off"
+      />
+      Nested SegWit (BIP49)
+    </label>
+    <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-profile-native-segwit">
+      <input
+        id="__MNEMOCODE_PREFIX__-wallet-profile-native-segwit"
+        type="checkbox"
+        value="native-segwit"
+        autocomplete="off"
+      />
+      Native SegWit (BIP84)
+    </label>
+    <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-profile-taproot">
+      <input id="__MNEMOCODE_PREFIX__-wallet-profile-taproot" type="checkbox" value="taproot" autocomplete="off" />
+      Taproot (BIP86)
+    </label>
+  </fieldset>
+  <label for="__MNEMOCODE_PREFIX__-wallet-account">
+    Account
+    <input id="__MNEMOCODE_PREFIX__-wallet-account" type="number" min="0" step="1" value="0" />
+  </label>
+  <label for="__MNEMOCODE_PREFIX__-wallet-branch">
+    Branch
+    <span class="answer-note">0 receiving, 1 change, or another normal BIP32 branch</span>
+    <input id="__MNEMOCODE_PREFIX__-wallet-branch" type="number" min="0" step="1" value="0" />
+  </label>
+  <label for="__MNEMOCODE_PREFIX__-wallet-index">
+    Index
+    <input id="__MNEMOCODE_PREFIX__-wallet-index" type="number" min="0" step="1" value="0" />
+  </label>
+</div>
+<div id="__MNEMOCODE_PREFIX__-wallet-addresses-field" hidden>
+  <label for="__MNEMOCODE_PREFIX__-wallet-addresses">
+    Compare with how many addresses from this place
+    <input
+      id="__MNEMOCODE_PREFIX__-wallet-addresses"
+      type="number"
+      min="1"
+      step="1"
+      aria-describedby="__MNEMOCODE_PREFIX__-wallet-addresses-note"
+    />
+  </label>
+  <p id="__MNEMOCODE_PREFIX__-wallet-addresses-note" class="field-note"></p>
+</div>
+<div id="__MNEMOCODE_PREFIX__-wallet-network-field" hidden>
+  <label for="__MNEMOCODE_PREFIX__-wallet-network">
+    Network
+    <select id="__MNEMOCODE_PREFIX__-wallet-network">
+      <option value="mainnet">Mainnet</option>
+      <option value="testnet">Testnet</option>
+    </select>
+  </label>
+</div>
+<div id="__MNEMOCODE_PREFIX__-wallet-passphrase-field" hidden>
+  <div class="field-heading-row">
+    <label for="__MNEMOCODE_PREFIX__-wallet-passphrase">BIP39 passphrase, if the wallet has one</label>
+    <button
+      id="toggle-__MNEMOCODE_PREFIX__-wallet-passphrase"
+      class="secondary compact"
+      type="button"
+      aria-pressed="false"
+    >
+      Show
+    </button>
+  </div>
+  <textarea
+    id="__MNEMOCODE_PREFIX__-wallet-passphrase"
+    class="concealed"
+    rows="2"
+    autocomplete="off"
+    autocapitalize="none"
+    spellcheck="false"
+  ></textarea>
+  <p class="field-note">__MNEMOCODE_WALLET_PASSPHRASE_NOTE__</p>
+</div>

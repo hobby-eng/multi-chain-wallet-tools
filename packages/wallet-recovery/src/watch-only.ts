@@ -1,8 +1,16 @@
-import { MAX_BIP32_INDEX } from "@ckd/core/bip32.js";
+import { WatchOnlyDepthPolicy } from "./watch-only/dash-profile.js";
+import { nonEmptyLines } from "@ckd/core/text-lines.js";
+import { SEC1_KEY_HEX, normalizedHex } from "@ckd/core/key-text.js";
+import { assertAddressCount } from "@ckd/core/bip32-limits.js";
 import { HDKey } from "@scure/bip32";
 import { secp256k1 } from "@ckd/core/crypto.js";
+import { bip32VersionsFor } from "@ckd/core/networks.js";
 import { assertPublicBatchLookupInput } from "@ckd/secret-boundary/public-input-guard.js";
-import type { ResolvedWatchOnlyTarget, WatchOnlyAdapterLike } from "./watch-only/types.js";
+import type {
+  DetectedWatchOnlyMaterial,
+  ResolvedWatchOnlyTarget,
+  WatchOnlyAdapterLike,
+} from "./watch-only/types.js";
 import { DASH_WATCH_ONLY_PREFIX_COINS } from "./watch-only/dash-profile.js";
 
 export class WatchOnlyNotRecognizedError extends Error {
@@ -24,11 +32,7 @@ export class WatchOnlyNeedsFamilyError extends Error {
 const WATCH_ONLY_PREFIX_COINS = DASH_WATCH_ONLY_PREFIX_COINS;
 
 export function assertWatchOnlyMinimum(count: number): void {
-  if (!Number.isSafeInteger(count) || count < 1 || count > MAX_BIP32_INDEX + 1) {
-    throw new Error(
-      `The watch-only address minimum must be an integer from 1 to ${MAX_BIP32_INDEX + 1}.`,
-    );
-  }
+  assertAddressCount(count, "The watch-only address minimum");
 }
 
 interface ExplicitPrefixMatch {
@@ -62,12 +66,95 @@ export function looksLikeExtendedPublicKey(value: string): boolean {
   return EXTENDED_PUBLIC_KEY_PATTERN.test(value.trim());
 }
 
-const SEC1_PUBLIC_KEY_PATTERN = /^(?:0x)?(?:04[0-9a-f]{128}|0[23][0-9a-f]{64})$/iu;
 export function looksLikeSec1PublicKey(value: string): boolean {
-  return SEC1_PUBLIC_KEY_PATTERN.test(value.trim());
+  return SEC1_KEY_HEX.test(value.trim());
 }
-export function normalizedHexKey(value: string): string {
-  return value.trim().toLowerCase().replace(/^0x/u, "");
+/** The canonical form of a pasted hex key. */
+export const normalizedHexKey = normalizedHex;
+
+/**
+ * The keys of a single watch-only public key, in both SEC1 forms. Refuses text that is no point of
+ * secp256k1, so that no address is made from it.
+ */
+export function watchOnlyPublicKey(value: string): {
+  compressed: Uint8Array;
+  uncompressed: Uint8Array;
+} {
+  let point: ReturnType<typeof secp256k1.Point.fromHex>;
+  try {
+    point = secp256k1.Point.fromHex(normalizedHexKey(value));
+  } catch {
+    throw new Error("This public key is not a valid point on the secp256k1 curve.");
+  }
+  return { compressed: point.toBytes(true), uncompressed: point.toBytes(false) };
+}
+
+/** What reads watch-only material: from its explicit prefix, or from its bare form. */
+export interface WatchOnlyReaders {
+  prefixed(
+    matched: ExplicitPrefixMatch,
+    trimmed: string,
+    mode: { auto: boolean },
+  ): DetectedWatchOnlyMaterial;
+  bare(trimmed: string, mode: { auto: boolean }): DetectedWatchOnlyMaterial;
+}
+
+/** A coin's detector of watch-only material, made from its two readers. */
+export function watchOnlyDetector(
+  read: WatchOnlyReaders,
+): (raw: string, mode: { auto: boolean }) => DetectedWatchOnlyMaterial {
+  return (raw, mode) => {
+    const trimmed = raw.trim();
+    const matched = matchExplicitPrefix(trimmed);
+    return matched === null ? read.bare(trimmed, mode) : read.prefixed(matched, trimmed, mode);
+  };
+}
+
+/** The value after an explicit prefix; a prefix with nothing after it is refused. */
+export function prefixedValue(matched: ExplicitPrefixMatch): string {
+  if (!matched.value) throw new Error(`${matched.prefix}: requires a value.`);
+  return matched.value;
+}
+
+/** A single public key as the watch-only material of `coinId`. */
+export function publicKeyMaterial(coinId: string, value: string): DetectedWatchOnlyMaterial {
+  return { coinId, kind: "public-key", value: normalizedHexKey(value) };
+}
+
+/**
+ * A bare public key, which every coin could own: only a coin that the person chose claims it, never
+ * automatic detection. Null when `trimmed` is no public key.
+ */
+export function chosenCoinPublicKey(
+  trimmed: string,
+  coinId: string,
+  mode: { auto: boolean },
+): DetectedWatchOnlyMaterial | null {
+  if (!looksLikeSec1PublicKey(trimmed)) return null;
+  if (mode.auto) throw new WatchOnlyNotRecognizedError();
+  return publicKeyMaterial(coinId, trimmed);
+}
+
+/**
+ * Refuses an explicit prefix that the coin's detector does not read. Automatic detection only
+ * learns that the input is not this coin's; a person who chose the coin learns whose prefix it is.
+ * Without `prefixCoins` the build knows no other coin by name, so the message names none.
+ */
+export function refuseOtherPrefix(
+  trimmed: string,
+  matched: ExplicitPrefixMatch,
+  coin: { readonly id: string; readonly label: string },
+  mode: { auto: boolean },
+  prefixCoins?: Readonly<Record<string, string>>,
+): never {
+  const conflict = foreignPrefixCoin(trimmed, coin.id, prefixCoins);
+  if (mode.auto) throw new WatchOnlyNotRecognizedError();
+  if (conflict === null) throw new Error(`Unrecognized prefix "${matched.prefix}:".`);
+  throw new Error(
+    prefixCoins === undefined
+      ? `"${matched.prefix}:" belongs to another coin, not ${coin.label}. Remove the prefix or select the matching edition.`
+      : `"${matched.prefix}:" belongs to ${conflict}, not ${coin.label}. Remove the prefix or select ${conflict[0]!.toUpperCase()}${conflict.slice(1)}.`,
+  );
 }
 
 export function parseWatchOnlyLines(raw: string): string[] {
@@ -79,11 +166,7 @@ export function parseWatchOnlyLines(raw: string): string[] {
       /* line-oriented batch */
     }
   }
-  return raw
-    .replaceAll("\r", "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  return nonEmptyLines(raw);
 }
 
 export function assertWatchOnlyBatchInput(raw: string): void {
@@ -106,7 +189,7 @@ export function resolveWatchOnlyTargets(
   prefixCoins: Readonly<Record<string, string>> = WATCH_ONLY_PREFIX_COINS,
   multiChain = false,
   networklessAdapterIds: readonly string[] = [],
-  supportedDepths: (adapterId: string) => readonly number[] = () => [3, 4, 5],
+  supportedDepths: (adapterId: string) => readonly number[] = WatchOnlyDepthPolicy.supported,
   singleChainCoinId = "dash",
 ): ResolvedWatchOnlyTarget[] {
   assertWatchOnlyBatchInput(raw);
@@ -124,21 +207,12 @@ export function resolveWatchOnlyTargets(
   let depth: number | undefined;
   let network: "mainnet" | "testnet" | undefined;
   if (sharedPublicKey || prefix?.prefix === "public-key") {
-    try {
-      secp256k1.Point.fromHex(normalizedHexKey(value));
-    } catch {
-      throw new Error("This public key is not a valid point on the secp256k1 curve.");
-    }
+    watchOnlyPublicKey(value);
   }
   if (looksLikeExtendedPublicKey(value)) {
     network = value.startsWith("tpub") ? "testnet" : "mainnet";
     try {
-      const node = HDKey.fromExtendedKey(
-        value,
-        network === "testnet"
-          ? { private: 0x04358394, public: 0x043587cf }
-          : { private: 0x0488ade4, public: 0x0488b21e },
-      );
+      const node = HDKey.fromExtendedKey(value, bip32VersionsFor(network));
       depth = node.depth;
       if (depth === 0)
         throw new Error(

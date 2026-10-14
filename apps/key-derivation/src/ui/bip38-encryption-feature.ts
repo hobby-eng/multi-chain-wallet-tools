@@ -3,6 +3,7 @@ import type { DerivationResult } from "@ckd/core/types.js";
 import { readControls, type DerivationControls } from "./inputs.js";
 import { planResultBranches, type ResultBranch } from "./result-branches.js";
 import { DerivationCancelledError, type DerivationWorkerClient } from "../workers/derive-client.js";
+import { SELF_TEST_NOT_PASSED } from "./crypto-self-test-gate.js";
 
 interface Bip38FeatureOptions {
   document: Document;
@@ -15,6 +16,8 @@ interface Bip38FeatureOptions {
   mnemonicToSeed: typeof import("@ckd/core/bip39.js").mnemonicToSeed;
   createWorker(): DerivationWorkerClient;
   render(): void;
+  /** Whether the cryptographic self-tests have passed; nothing is encrypted before they do. */
+  cryptoReady(): boolean;
 }
 
 function optional<T extends Element>(document: Document, selector: string): T | null {
@@ -87,6 +90,11 @@ function installBip38EncryptionFeature(
       password.value.length === 0
     )
       return;
+    if (!options.cryptoReady()) {
+      error.textContent = SELF_TEST_NOT_PASSED;
+      error.hidden = false;
+      return;
+    }
     const adapter = options.adapter();
     const branch = options.branch();
     const encryptionPassword = password.value;

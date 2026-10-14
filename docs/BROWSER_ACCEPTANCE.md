@@ -11,7 +11,7 @@ pnpm test:browser:regressions
 pnpm test:browser:selective
 ```
 
-Release acceptance requires the browsers bundled with pinned Playwright 1.63.0: Chromium 153 and Firefox 155 or newer. Firefox 153 is below the supported acceptance baseline because its process can crash while reloading the BIP85 regression case.
+Release acceptance requires the browsers bundled with pinned Playwright 1.64.0: Chromium 156 and Firefox 157 or newer. Firefox 153 is below the supported acceptance baseline because its process can crash while reloading the BIP85 regression case.
 
 `PLAYWRIGHT_MODULE` can override module resolution for a separately installed matching copy. `HEADED=1` shows the browsers. `BROWSER_ENGINES=chromium` selects a single engine for diagnosis; it is not evidence that Firefox passed.
 
@@ -30,7 +30,7 @@ Covered checks:
 
 This is bounded UI acceptance, not a full end-to-end wallet-discovery or network compatibility suite. It does not exercise every export/clipboard path, verify real DAPI proofs, or cover every mainnet/testnet provider. Scanner execution uses deterministic provider fixtures. Run the existing live smoke commands separately with public test fixtures. Never replace the bundled synthetic test phrase/addresses with a real wallet: request logs and screenshots are deliberately retained.
 
-The user-run report `test-results/browser-files/2026-09-08T21-41-48.962Z/report.json` records **12/12 passing cases** for clean commit `94eb3374cc6d3e67a578d459891d0f1e7d65ecab`, using Chromium 151.0.7922.34 and Firefox 153.0. Its recorded hashes matched that revision's six HTML artifacts. This is historical evidence for that revision, not evidence that Firefox 153 meets the current release baseline. Later changes require a new build and browser run. Fixture or browser-environment failures must be inspected rather than treated as application success or automatically waived.
+The user-run report `test-results/browser-files/2026-09-08T21-41-48.962Z/report.json` records **12/12 passing cases** for clean commit `22f7d04f2810a5d8bdfaedc57dff6fae53ca9c84`, using Chromium 151.0.7922.34 and Firefox 153.0. Its recorded hashes matched that revision's six HTML artifacts. This is historical evidence for that revision, not evidence that Firefox 153 meets the current release baseline. Later changes require a new build and browser run. Fixture or browser-environment failures must be inspected rather than treated as application success or automatically waived.
 
 The selective smoke runner is `pnpm test:browser:selective`. It builds Bitcoin-only and Ethereum-only Activity Viewers, seed-only Discovery without custom paths, watch-only Discovery, and a minimal recovery-enabled Deriver into a temporary directory. It opens every variant in Chromium and Firefox and rejects startup errors, failed self-tests, missing release fingerprints, missing feature pruning, or a non-resizing Discovery boundary.
 

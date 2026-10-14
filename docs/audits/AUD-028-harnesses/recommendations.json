@@ -1,0 +1,25 @@
+[
+  {
+    "area": "Inspector network encoding",
+    "locations": [
+      "apps/psbt-inspector/src/psbt-presentation.ts:132",
+      "apps/psbt-inspector/src/policy.ts:426",
+      "apps/psbt-inspector/src/descriptor-compiler.ts:25",
+      "apps/psbt-inspector/src/custom-miniscript.ts:49",
+      "apps/psbt-inspector/src/musig-descriptor.ts:272"
+    ],
+    "owner": "One explicit Inspector network profile over crypto-core networks/address facts, retaining distinct regtest treatment.",
+    "reason": "Repeated prefixes and HRPs; the addr(Bech32m) runtime defect is tracked separately rather than duplicating its ID."
+  },
+  {
+    "area": "Local search queue and admission",
+    "locations": [
+      "packages/wallet-recovery/src/multi-address-search.ts:34",
+      "packages/wallet-recovery/src/multi-seed-search.ts:50",
+      "packages/wallet-recovery/src/address-search.ts:14",
+      "apps/discovery-scanner/src/address-search-feature.ts:34"
+    ],
+    "owner": "Shared bounded queue/range admission service; seed disposal stays with the seed owner.",
+    "reason": "Repeated concurrency, cancellation, result order and5000-address limit; any reproduced invalid-concurrency defect is one API root."
+  }
+]

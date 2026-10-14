@@ -15,6 +15,20 @@ export function createEthereumActivityAdapter(
     singlePlaceholder: "Paste an Ethereum 0x address",
     batchPlaceholder: "One Ethereum address per line",
     normalize: (value) => normalizeEthereumAddress(value),
+    // EIP-55's own example address: lower case gets its checksum, and a wrong mixed case is refused.
+    selfTest() {
+      const checksummed = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed";
+      if (normalizeEthereumAddress(checksummed.toLowerCase()) !== checksummed)
+        throw new Error("Self-test failed: EIP-55 checksum.");
+      let refused = false;
+      try {
+        normalizeEthereumAddress("0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAeD");
+      } catch {
+        refused = true;
+      }
+      if (!refused) throw new Error("Self-test failed: EIP-55 refusal of a wrong checksum.");
+      return ["Ethereum EIP-55 address checksum"];
+    },
     dedupeKey: (value) => value.toLowerCase(),
     async query(address, network, signal) {
       const [history, accounts] = await Promise.all([

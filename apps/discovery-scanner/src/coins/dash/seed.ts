@@ -1,8 +1,10 @@
-import { getDashHistory, dashAmountUnit } from "./history.js";
+import { WalletScan } from "../../wallet-result.js";
+import type { DashSectionScan } from "./section-scan.js";
+import { assertAddressCount } from "@ckd/core/bip32-limits.js";
+import { DASH_COIN } from "./coin.js";
+import { SeedScanSecrets } from "../../seed-scan-secrets.js";
+import { isAbortError } from "@ckd/core/error-handling.js";
 import { MAX_BIP32_INDEX, assertIndex } from "@ckd/core/bip32.js";
-import { assertValidMnemonic, mnemonicToSeed } from "@ckd/core/bip39.js";
-import { SecretEgressGuard, disposeSecretBytes } from "@ckd/secret-boundary/secret-guard.js";
-import { RecoveryNetworkGateway } from "../../network-gateway.js";
 import type {
   RecoveryCoinAdapter,
   RecoveryProgress,
@@ -22,7 +24,7 @@ import { scanDashPlatformAddresses } from "./platform-scanner.js";
 import { scanDashShielded, scanDashShieldedBatch } from "./shielded-scanner.js";
 import { failedSection } from "./util.js";
 import { summarizeDashSections } from "./summary.js";
-import { RecoveryConcurrencyLimiter } from "../../concurrency.js";
+import { dashSeedLookups } from "../../scan-estimate.js";
 
 const TITLES: Record<RecoverySectionId, [string, string]> = {
   core: ["Dash Core · L1", "BIP44 receive and change address scan"],
@@ -37,61 +39,54 @@ const TITLES: Record<RecoverySectionId, [string, string]> = {
   shielded: ["Dash Orchard · shielded pool", "Account-wide encrypted note recovery"],
 };
 
-function assertCount(value: number, label: string, allowZero = false): void {
-  const minimum = allowZero ? 0 : 1;
-  if (!Number.isSafeInteger(value) || value < minimum || value > MAX_BIP32_INDEX + 1) {
-    throw new Error(`${label} must be an integer from ${minimum} to ${MAX_BIP32_INDEX + 1}.`);
-  }
-}
-
 function validateConfig(config: RecoveryScanConfig): void {
   assertIndex(config.account, "Account");
-  assertCount(config.coreReceiveCount, "Core receive count", true);
-  assertCount(config.coreChangeCount, "Core change count", true);
+  assertAddressCount(config.coreReceiveCount, "Core receive count", 0);
+  assertAddressCount(config.coreChangeCount, "Core change count", 0);
   if (config.scanCore && config.coreReceiveCount + config.coreChangeCount < 1) {
     throw new Error("At least one Dash Core receive or change address must be scanned.");
   }
   if (config.scanCustomPath === true) {
-    assertCount(config.customPathCount ?? 0, "Custom path address count");
+    assertAddressCount(config.customPathCount ?? 0, "Custom path address count");
     if (config.customPathFormat !== "p2pkh")
       throw new Error("Dash custom paths require the P2PKH address format.");
   }
-  assertCount(config.legacyCoreCount, "Legacy Core address count", true);
+  assertAddressCount(config.legacyCoreCount, "Legacy Core address count", 0);
   if (config.scanLegacyCore && config.legacyCoreCount < 1) {
     throw new Error("At least one legacy Core address per branch must be scanned.");
   }
-  assertCount(
+  assertAddressCount(
     config.coinJoinExternalCount,
     "Dash Mobile CoinJoin · DIP9 external address count",
-    true,
+    0,
   );
-  assertCount(
+  assertAddressCount(
     config.coinJoinInternalCount,
     "Dash Mobile CoinJoin · DIP9 internal address count",
-    true,
+    0,
   );
   if (config.scanCoinJoin && config.coinJoinExternalCount + config.coinJoinInternalCount < 1) {
     throw new Error(
       "At least one Dash Mobile CoinJoin · DIP9 external or internal address must be scanned.",
     );
   }
-  assertCount(config.identityFundingCount, "Registration funding keys to compare", true);
-  assertCount(config.identityTopUpIdentityCount, "Identity-bound top-up identity count", true);
-  assertCount(config.identityTopUpCount, "Identity-bound top-ups per identity", true);
+  assertAddressCount(config.identityFundingCount, "Registration funding keys to compare", 0);
+  assertAddressCount(config.identityTopUpIdentityCount, "Identity-bound top-up identity count", 0);
+  assertAddressCount(config.identityTopUpCount, "Identity-bound top-ups per identity", 0);
   if (config.scanIdentityFunding && config.identityFundingCount < 1) {
     throw new Error("At least one registration funding key must be compared.");
   }
-  assertCount(config.providerCollateralCount, "Provider collateral address count", true);
+  assertAddressCount(config.providerCollateralCount, "Provider collateral address count", 0);
   if (config.scanProviderCollateral && config.providerCollateralCount < 1) {
     throw new Error("At least one provider collateral/holdings address must be scanned.");
   }
-  assertCount(config.platformAddressCount, "Platform address count", true);
+  assertAddressCount(config.platformAddressCount, "Platform address count", 0);
   if (config.scanPlatformAddresses && config.platformAddressCount < 1) {
     throw new Error("At least one Dash Platform address must be scanned.");
   }
   assertIndex(config.identityStartIndex, "Identity start index");
-  assertCount(config.identityGapLimit, "Identity gap limit");
-  assertCount(config.identityScanLimit, "Identity scan limit");
+  assertAddressCount(config.identityGapLimit, "Identity gap limit");
+  assertAddressCount(config.identityScanLimit, "Identity scan limit");
   if (config.identityStartIndex + config.identityScanLimit - 1 > MAX_BIP32_INDEX) {
     throw new Error("The requested identity scan range exceeds the BIP32 index space.");
   }
@@ -123,10 +118,6 @@ function validateConfig(config: RecoveryScanConfig): void {
   }
 }
 
-function isAbort(cause: unknown): boolean {
-  return cause instanceof DOMException && cause.name === "AbortError";
-}
-
 async function guardedSection(
   id: RecoverySectionId,
   run: () => Promise<RecoverySection>,
@@ -134,7 +125,7 @@ async function guardedSection(
   try {
     return await run();
   } catch (cause) {
-    if (isAbort(cause)) throw cause;
+    if (isAbortError(cause)) throw cause;
     const [title, description] = TITLES[id];
     return failedSection(id, title, description, cause);
   }
@@ -156,17 +147,8 @@ function skippedSection(id: RecoverySectionId): RecoverySection {
 }
 
 export const DASH_SEED_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
-  id: "dash",
-  getHistory: getDashHistory,
-  amountUnit: dashAmountUnit,
-  label: "Dash",
-  networks: ["mainnet", "testnet"],
-  customPath: {
-    description: "Optional; standard Dash recovery stays enabled.",
-    placeholder: "m/44'/5'/0'/0/{index}",
-    defaultTemplate: (network) => `m/44'/${network === "mainnet" ? 5 : 1}'/0'/0/{index}`,
-    formats: [{ id: "p2pkh", label: "Dash Core · P2PKH" }],
-  },
+  ...DASH_COIN,
+  minimumSeedLookups: dashSeedLookups,
 
   async prepareBatch(inputs, config, context): Promise<ReadonlyMap<string, RecoverySection>> {
     validateConfig(config);
@@ -175,22 +157,9 @@ export const DASH_SEED_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
 
   async scan(input, config, context): Promise<RecoveryWalletResult> {
     validateConfig(config);
-    const mnemonic = assertValidMnemonic(input.mnemonic);
-    const seed = mnemonicToSeed(mnemonic, input.passphrase);
-    const guard = new SecretEgressGuard();
-    guard.registerString("BIP39 mnemonic", mnemonic);
-    guard.registerString("BIP39 passphrase", input.passphrase);
-    guard.registerBytes("BIP39 seed", seed);
-    context.sessionSecretGuard?.registerString("BIP39 mnemonic", mnemonic);
-    context.sessionSecretGuard?.registerString("BIP39 passphrase", input.passphrase);
-    context.sessionSecretGuard?.registerBytes("BIP39 seed", seed);
-    const gateway = new RecoveryNetworkGateway(
-      guard,
-      context.networkApi,
-      context.networkLimiter ?? new RecoveryConcurrencyLimiter(5),
-    );
+    const { secrets, seed, gateway } = SeedScanSecrets.forSeed(input, context);
     const platformClient = new DashPlatformClient(config.network, gateway);
-    const startedAt = new Date().toISOString();
+    const walletScan = new WalletScan(input, DASH_COIN, config.network);
     const onProgress = (progress: RecoveryProgress): void => context.onProgress(progress);
     const onFinding =
       (section: RecoverySectionId) =>
@@ -230,88 +199,43 @@ export const DASH_SEED_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
         context.onProgress({ inputId: input.id, section: id, message, completed: 1, total: 1 });
         return section;
       };
+      /** Starts one section's scan when the settings ask for it, or reports it skipped. */
+      const scanSection = <Source>(
+        id: RecoverySectionId,
+        enabled: boolean,
+        scan: DashSectionScan<Source>,
+        source: Source,
+      ): Promise<RecoverySection> =>
+        startSection(id, () =>
+          enabled
+            ? scan(input.id, seed, config, source, context.signal, onProgress, onFinding(id))
+            : Promise.resolve(skippedSection(id)),
+        );
       // These scanners have independent accounting state. Promise.all keeps the
       // returned section order stable while the shared semaphore remains the
       // sole authority for the maximum number of network/DAPI operations.
       const sections = await Promise.all([
-        startSection("core", () =>
-          config.scanCore || config.scanCustomPath === true
-            ? scanDashCore(
-                input.id,
-                seed,
-                config,
-                gateway,
-                context.signal,
-                onProgress,
-                onFinding("core"),
-              )
-            : Promise.resolve(skippedSection("core")),
+        scanSection(
+          "core",
+          config.scanCore || config.scanCustomPath === true,
+          scanDashCore,
+          gateway,
         ),
-        startSection("legacyCore", () =>
-          config.scanLegacyCore
-            ? scanDashLegacyCore(
-                input.id,
-                seed,
-                config,
-                gateway,
-                context.signal,
-                onProgress,
-                onFinding("legacyCore"),
-              )
-            : Promise.resolve(skippedSection("legacyCore")),
+        scanSection("legacyCore", config.scanLegacyCore, scanDashLegacyCore, gateway),
+        scanSection("coinjoin", config.scanCoinJoin, scanDashCoinJoin, gateway),
+        scanSection(
+          "providerCollateral",
+          config.scanProviderCollateral,
+          scanDashProviderCollateral,
+          gateway,
         ),
-        startSection("coinjoin", () =>
-          config.scanCoinJoin
-            ? scanDashCoinJoin(
-                input.id,
-                seed,
-                config,
-                gateway,
-                context.signal,
-                onProgress,
-                onFinding("coinjoin"),
-              )
-            : Promise.resolve(skippedSection("coinjoin")),
+        scanSection(
+          "platform",
+          config.scanPlatformAddresses,
+          scanDashPlatformAddresses,
+          platformClient,
         ),
-        startSection("providerCollateral", () =>
-          config.scanProviderCollateral
-            ? scanDashProviderCollateral(
-                input.id,
-                seed,
-                config,
-                gateway,
-                context.signal,
-                onProgress,
-                onFinding("providerCollateral"),
-              )
-            : Promise.resolve(skippedSection("providerCollateral")),
-        ),
-        startSection("platform", () =>
-          config.scanPlatformAddresses
-            ? scanDashPlatformAddresses(
-                input.id,
-                seed,
-                config,
-                platformClient,
-                context.signal,
-                onProgress,
-                onFinding("platform"),
-              )
-            : Promise.resolve(skippedSection("platform")),
-        ),
-        startSection("identity", () =>
-          config.scanPlatformIdentities
-            ? scanDashIdentities(
-                input.id,
-                seed,
-                config,
-                platformClient,
-                context.signal,
-                onProgress,
-                onFinding("identity"),
-              )
-            : Promise.resolve(skippedSection("identity")),
-        ),
+        scanSection("identity", config.scanPlatformIdentities, scanDashIdentities, platformClient),
         startSection("shielded", async () => {
           if (context.preparedSections !== undefined) {
             const prepared = (await context.preparedSections).get(input.id);
@@ -330,23 +254,15 @@ export const DASH_SEED_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
           );
         }),
       ]);
-      return {
-        inputId: input.id,
-        label: input.label,
-        coinId: "dash",
-        coinLabel: "Dash",
-        network: config.network,
-        startedAt,
-        completedAt: new Date().toISOString(),
+      return walletScan.result({
         overview: summarizeDashSections(sections),
         sections,
         warnings: [
           "For found funds, verify the public address, derivation path, branch/index and balance in the recovery report, then restore the mnemonic in a standard Dash wallet on a trusted device.",
         ],
-      };
+      });
     } finally {
-      disposeSecretBytes(seed);
-      guard.clear();
+      secrets.close();
     }
   },
 };

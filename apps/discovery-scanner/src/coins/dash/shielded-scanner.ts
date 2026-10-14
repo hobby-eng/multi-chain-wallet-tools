@@ -1,11 +1,10 @@
+import { SeedScanSecrets } from "../../seed-scan-secrets.js";
 import { deriveDashShielded } from "@ckd/coins/dash/shielded.js";
-import { assertValidMnemonic, mnemonicToSeed } from "@ckd/core/bip39.js";
 import { clearDerivationResult } from "@ckd/core/secrets.js";
-import type { ResultField } from "@ckd/core/types.js";
+import type { DerivationResult, ResultField } from "@ckd/core/types.js";
 import { ShieldedActivityLedger } from "@ckd/dash-network/activity.js";
 import { assertCanonicalViewingKey } from "@ckd/dash-network/orchard-scanner.js";
 import type { NormalizedViewingKey } from "@ckd/dash-network/viewing-key.js";
-import { RecoveryConcurrencyLimiter } from "../../concurrency.js";
 import { RecoveryNetworkGateway } from "../../network-gateway.js";
 import { SecretEgressGuard, disposeSecretBytes } from "@ckd/secret-boundary/secret-guard.js";
 import type {
@@ -32,14 +31,15 @@ function deriveViewingKey(
   sessionSecretGuard?: SecretEgressGuard,
 ): NormalizedViewingKey {
   const shieldedSeed = seed.slice();
-  const derived = deriveDashShielded({
-    seed: shieldedSeed,
-    network: config.network,
-    account: config.account,
-    start: 0,
-    count: 1,
-  });
+  let derived: DerivationResult | undefined;
   try {
+    derived = deriveDashShielded({
+      seed: shieldedSeed,
+      network: config.network,
+      account: config.account,
+      start: 0,
+      count: 1,
+    });
     const fullViewingKey = findField(derived.summary, "fullViewingKey");
     guard.registerString("Orchard Full Viewing Key", fullViewingKey);
     if (sessionSecretGuard !== undefined) {
@@ -57,7 +57,7 @@ function deriveViewingKey(
     return viewingKey;
   } finally {
     shieldedSeed.fill(0);
-    clearDerivationResult(derived);
+    if (derived !== undefined) clearDerivationResult(derived);
   }
 }
 
@@ -87,8 +87,8 @@ export async function scanDashShielded(
 ): Promise<RecoverySection> {
   if (!config.scanShieldedPool) return skippedSection();
   const viewingKey = deriveViewingKey(seed, config, gateway.guard, sessionSecretGuard);
-  const ledger = new ShieldedActivityLedger("full");
   try {
+    const ledger = new ShieldedActivityLedger("full");
     onProgress({
       inputId,
       section: "shielded",
@@ -129,30 +129,20 @@ export async function scanDashShieldedBatch(
   context: Omit<RecoveryScanContext, "preparedSections">,
 ): Promise<ReadonlyMap<string, RecoverySection>> {
   if (!config.scanShieldedPool) return new Map(inputs.map((input) => [input.id, skippedSection()]));
-  const guard = new SecretEgressGuard();
-  const gateway = new RecoveryNetworkGateway(
-    guard,
-    context.networkApi,
-    context.networkLimiter ?? new RecoveryConcurrencyLimiter(5),
-  );
+  const secrets = new SeedScanSecrets(context);
+  const gateway = secrets.gateway(context);
   const participants: ShieldedParticipant[] = [];
   try {
     // This preparation intentionally contains no await: every phrase is
     // consumed before per-wallet orchestration is allowed to clear its input.
     for (const input of inputs) {
-      const mnemonic = assertValidMnemonic(input.mnemonic);
-      const seed = mnemonicToSeed(mnemonic, input.passphrase);
+      const seed = secrets.seed(input);
       try {
-        guard.registerString("BIP39 mnemonic", mnemonic);
-        guard.registerString("BIP39 passphrase", input.passphrase);
-        guard.registerBytes("BIP39 seed", seed);
-        context.sessionSecretGuard?.registerString("BIP39 mnemonic", mnemonic);
-        context.sessionSecretGuard?.registerString("BIP39 passphrase", input.passphrase);
-        context.sessionSecretGuard?.registerBytes("BIP39 seed", seed);
+        const ledger = new ShieldedActivityLedger("full");
         participants.push({
           inputId: input.id,
-          viewingKey: deriveViewingKey(seed, config, guard, context.sessionSecretGuard),
-          ledger: new ShieldedActivityLedger("full"),
+          viewingKey: deriveViewingKey(seed, config, secrets.guard, context.sessionSecretGuard),
+          ledger,
         });
       } finally {
         disposeSecretBytes(seed);
@@ -193,6 +183,6 @@ export async function scanDashShieldedBatch(
     return results;
   } finally {
     for (const participant of participants) participant.viewingKey.hex = "";
-    guard.clear();
+    secrets.close();
   }
 }

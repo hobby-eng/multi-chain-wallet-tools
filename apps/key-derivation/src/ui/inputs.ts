@@ -1,3 +1,4 @@
+import { MAX_BIP32_INDEX } from "@ckd/core/bip32-limits.js";
 import type { CoinAdapter, CoinDerivationInput, CoinFamily } from "@ckd/coins/registry-base.js";
 
 export interface CoinMetadataRegistry {
@@ -43,15 +44,13 @@ export type SharedDerivationControlValues = Pick<
   "network" | "account" | "start" | "count"
 >;
 
-const DEFAULT_INDEX_MAX = 2_147_483_647;
-
 export function applySharedDerivationControls(
   adapter: CoinAdapter,
   base: DerivationControlValues,
   shared: SharedDerivationControlValues | undefined,
 ): DerivationControlValues {
-  const startMax = adapter.limits?.startMax ?? DEFAULT_INDEX_MAX;
-  const accountMax = adapter.limits?.accountMax ?? DEFAULT_INDEX_MAX;
+  const startMax = adapter.limits?.startMax ?? MAX_BIP32_INDEX;
+  const accountMax = adapter.limits?.accountMax ?? MAX_BIP32_INDEX;
   const start = Math.min(shared?.start ?? base.start, startMax);
   return {
     ...base,
@@ -65,7 +64,7 @@ export function applySharedDerivationControls(
   };
 }
 
-function setNumeric(input: HTMLInputElement, value: number, max = 2_147_483_647): void {
+function setNumeric(input: HTMLInputElement, value: number, max = MAX_BIP32_INDEX): void {
   input.value = String(value);
   input.min = "0";
   input.max = String(max);
@@ -177,9 +176,9 @@ export function configureControls(
   controls.accountLabel.textContent = adapter.controlLabels?.account ?? "Account";
   controls.startLabel.textContent = adapter.controlLabels?.start ?? "Start index";
   controls.countLabel.textContent = adapter.controlLabels?.count ?? "Number of results";
-  setNumeric(controls.account, values.account, adapter.limits?.accountMax ?? DEFAULT_INDEX_MAX);
-  setNumeric(controls.start, values.start, adapter.limits?.startMax ?? DEFAULT_INDEX_MAX);
-  setNumeric(controls.count, values.count, (adapter.limits?.startMax ?? DEFAULT_INDEX_MAX) + 1);
+  setNumeric(controls.account, values.account, adapter.limits?.accountMax ?? MAX_BIP32_INDEX);
+  setNumeric(controls.start, values.start, adapter.limits?.startMax ?? MAX_BIP32_INDEX);
+  setNumeric(controls.count, values.count, (adapter.limits?.startMax ?? MAX_BIP32_INDEX) + 1);
 
   const branch = adapter.branchControl;
   controls.branchField.hidden = branch === undefined;
@@ -218,7 +217,7 @@ function numericValue(
   input: HTMLInputElement | HTMLSelectElement,
   label: string,
   min = 0,
-  max = DEFAULT_INDEX_MAX,
+  max = MAX_BIP32_INDEX,
 ): number {
   const value = Number(input.value);
   if (!Number.isSafeInteger(value) || value < min || value > max) {
@@ -231,8 +230,8 @@ export function readControls(
   adapter: CoinAdapter,
   controls: DerivationControls,
 ): DerivationControlValues {
-  const accountMax = adapter.limits?.accountMax ?? DEFAULT_INDEX_MAX;
-  const startMax = adapter.limits?.startMax ?? DEFAULT_INDEX_MAX;
+  const accountMax = adapter.limits?.accountMax ?? MAX_BIP32_INDEX;
+  const startMax = adapter.limits?.startMax ?? MAX_BIP32_INDEX;
   const branch =
     adapter.addressBranches?.receive ??
     (adapter.branchControl === undefined

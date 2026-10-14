@@ -53,3 +53,9 @@ wallet.dat
 
 # Audit evidence stays local; only harness scripts are published, in docs/audits/AUD-NNN-harnesses/.
 docs/audits/*-evidence/
+
+# Python bytecode caches of audit harnesses.
+__pycache__/
+*.py[cod]
+# Local-only capability inventories and source snapshots for the coordinated MnemoCode handover.
+/output/mnemocode-parity/

@@ -1,0 +1,28 @@
+# AUD-029 remediation harnesses
+
+These scripts verify the fixes recorded by AUD-029 against the existing primary checkout at HEAD `c5b62c2d489e7525326071128095ba95ecca92ac`. The uncommitted source fingerprint and individual file hashes in the paired report identify the actual reviewed bytes; HEAD alone does not. AUD-028 and its evidence remain historical and unchanged.
+
+Inputs are public vectors, synthetic addresses, fake DOM/worker replies and bounded file fixtures. No real wallet secrets, funds, live providers or browser sessions are used. Dependencies are the repository's installed Node/pnpm packages, Python 3 with `jsonschema`, the workspace-managed Rust toolchain and the already populated native Cargo caches.
+
+Run from the repository root. The unchanged `../AUD-028-harnesses/capture.py` owns a fresh evidence name, records UTC timing and source/log hashes, acquires the shared heavy-check lock, limits Node's heap to 1536 MiB and Cargo to one job, and stops its child group if less than 1200 MiB remains available. Logs and snapshots go only to ignored `AUD-029-evidence/`. Do not overwrite an existing command name. This reserve is not a bound on unrelated host processes.
+
+```sh
+python3 docs/audits/AUD-028-harnesses/capture.py . 29 rerun-targeted python3 docs/audits/AUD-029-harnesses/run-targeted.py
+python3 docs/audits/AUD-028-harnesses/capture.py . 29 rerun-native python3 docs/audits/AUD-029-harnesses/native.py
+python3 docs/audits/AUD-028-harnesses/capture.py . 29 rerun-build-policy python3 docs/audits/AUD-029-harnesses/build-policy.py
+python3 docs/audits/AUD-028-harnesses/capture.py . 29 rerun-typecheck pnpm check
+python3 docs/audits/AUD-028-harnesses/capture.py . 29 rerun-provenance node tooling/verify-dependency-provenance.mjs
+python3 docs/audits/AUD-028-harnesses/capture.py . 29 rerun-wasm-integrity node tooling/verify-wasm-producers.mjs
+python3 docs/audits/AUD-028-harnesses/capture.py . 29 rerun-html python3 docs/audits/AUD-029-harnesses/html.py
+python3 docs/audits/AUD-028-harnesses/capture.py . 29 rerun-static-artifacts python3 docs/audits/AUD-029-harnesses/html.py --check
+```
+
+`targeted-files.json` selects 31 files and 391 tests, rather than discovering the full test suite. `native.py` selects four Codex32 tests and two Envelope recipient tests, with managed toolchain locations derived from the adjacent `workingspace` directory. It excludes password KDF tests. `build-policy.py` selects 22 admission/source-binding cases and the static Docker stage verifier. `html.py` selects four default tools in both editions without assembling release manifests or executing a feature matrix. Static artifact checks do not prove browser behavior.
+
+The exact selected commands and filters for `crypto-final`, `candidate-files-final` and `platform-proof-final` are recorded in the report's JSON command table. `vitest.config.mjs` admits the unchanged AUD-028 recipient/quorum controls alongside production regressions. Codex32's old padding probe assumed a 32-byte RNG request; the new production test independently verifies the added random padding byte and enumerates its 32 possible symbols. That old model is preserved in the historical audit, not relaxed or rerun as if it covered the new contract.
+
+Canonical WASM regeneration is an authorized build action, not a routine test. Its executed command, Docker memory and CPU limits, final source relationship and output hashes are recorded in the report. Do not rerun a Docker build concurrently with another session. No full vectors, statistical sampling, full-size KDFs, bulk PDFs/cards, browser suites, launcher builds, release bundles, signing or publishing are part of these harnesses.
+
+`remediation.json` maps original finding IDs to source owners and required evidence names. `report.py` requires the final source snapshots and successful named records, verifies immutable baseline report hashes, binds all fixes and eight HTML artifacts, and writes the paired AUD-029/AUD-002 reports. `validate.py` checks the canonical schema and all 32 procedure checks, stable source/artifact/harness hashes, original IDs, command/log integrity, privacy, index entries and ignored evidence. Both scripts exit nonzero on a mismatch. They write reports and validation evidence, not product source, and must not be used to relabel failed checks as successful. After the working tree has moved on from the reviewed snapshot, run it with `--historical`: it then compares the records with what they and the local evidence retained (`docs/audits/retained_evidence.py`): the source manifest against its own fingerprint, bound file hashes against that manifest, artifacts against a retained artifact snapshot, and the files listed in the retained `SHA256SUMS`. It does not compare the live tree and writes no evidence file. Procedure files are checked through `docs/audits/procedure_changes.py` in both modes, and each report is found by its audit number, whatever its date. From the repository root: `python3 docs/audits/AUD-029-harnesses/validate.py --historical`.
+
+A later follow-up on the completed record is kept in the JSON `followUp` object with its own snapshot, changes, checks and local evidence hashes; `report.py` renders it after the limitations, and the completed record's statuses and checks stay as they were. Report generation needs a fresh `final` snapshot in both repositories after product changes stop. It uses the final command names in `remediation.json`; a later rerun needs a new audit record rather than overwriting the completed snapshots. Successful validation prints a JSON result for each repository and writes its local evidence manifest. No commit is created.

@@ -21,6 +21,13 @@ describe("Dash Community artifact exclusion rules", () => {
     );
   });
 
+  it("rejects Silent Payments labels outside the Inspector's refusal text", () => {
+    expect(findDashArtifactViolations("Silent Payments BIP-352")).toContain("Silent Payments");
+    expect(
+      findDashInspectorArtifactViolations("<main>Silent Payments BIP352</main><script></script>"),
+    ).toContain("Silent Payments");
+  });
+
   it("permits only the protocol-defined BIP32 HMAC domain string", () => {
     expect(
       findDashArtifactViolations(

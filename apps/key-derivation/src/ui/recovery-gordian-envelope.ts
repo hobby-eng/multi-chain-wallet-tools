@@ -5,7 +5,6 @@ import {
   deriveGordianRecipientKeys,
   recoverProtectedGordianSeedEnvelopeBundle,
 } from "@ckd/recovery-backup/gordian-envelope.js";
-import { installQrImageImport } from "@ckd/ui/qr-image-import.js";
 import {
   installSecretToggle,
   installMnemonicSourceDiagnostic,
@@ -15,6 +14,8 @@ import {
   renderSensitiveShares,
   required,
   type RecoveryFeatureContext,
+  installFieldImports,
+  QR_IMAGES_IMPORT,
 } from "./recovery-workspace-shared.js";
 import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
 function displayFailure(cause: unknown, fallback: string): string {
@@ -113,6 +114,8 @@ function installGordianEnvelope(context: RecoveryFeatureContext): void {
         records.length === 1
           ? ["Seed Envelope record"]
           : records.map((_, index) => `SSKR Envelope record ${index + 1}`),
+        [],
+        () => context.jobs.ready,
       );
     } catch (e) {
       result.textContent = displayFailure(e, "Envelope creation failed.");
@@ -138,10 +141,14 @@ function installGordianEnvelope(context: RecoveryFeatureContext): void {
       const existing = lines(recipients.value);
       if (!existing.includes(keys.publicKey))
         recipients.value = [...existing, keys.publicKey].join("\n");
-      renderSensitiveShares(result, [keys.privateKey, keys.publicKey], context.writeClipboard, [
-        "Recipient private key",
-        "Recipient public key",
-      ]);
+      renderSensitiveShares(
+        result,
+        [keys.privateKey, keys.publicKey],
+        context.writeClipboard,
+        ["Recipient private key", "Recipient public key"],
+        [],
+        () => context.jobs.ready,
+      );
     } catch (e) {
       result.textContent = displayFailure(e, "Recipient derivation failed.");
     } finally {
@@ -173,14 +180,11 @@ function installGordianEnvelope(context: RecoveryFeatureContext): void {
       entropy?.fill(0);
     }
   });
-  installQrImageImport(document, required<HTMLTextAreaElement>("#envelope-records"), {
-    label: "Import QR images",
-    multiple: true,
-    onDecoded: ({ text }) => text.trim(),
-    onError: (m) => {
-      restored.textContent = m;
-    },
-  });
+  installFieldImports(
+    required<HTMLTextAreaElement>("#envelope-records"),
+    (message) => (restored.textContent = message),
+    { qr: QR_IMAGES_IMPORT },
+  );
 }
 
 export const recoveryFeature: RecoveryFeature = {

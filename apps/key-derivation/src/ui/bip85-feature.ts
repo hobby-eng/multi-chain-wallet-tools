@@ -5,7 +5,8 @@ import {
   installBip85ChildWallet,
   type Bip85ChildWalletOptions,
 } from "./bip85-child-wallet-feature.js";
-import type { DerivationWorkerClient } from "../workers/derive-client.js";
+import { DerivationCancelledError, type DerivationWorkerClient } from "../workers/derive-client.js";
+import { SELF_TEST_NOT_PASSED } from "./crypto-self-test-gate.js";
 
 type ChildMessageSigning = NonNullable<Bip85ChildWalletOptions["messageSigning"]>;
 
@@ -34,6 +35,9 @@ export function installBip85Feature(options: Bip85FeatureOptions) {
   const recoverySourceMenu = optionalElement<HTMLElement>("#bip85-recovery-source-menu");
   let mnemonic: string | null = null;
   let sourceRevision = 0;
+  /** Counts BIP85 requests and their cancellations; a reply or error that sees it move is dropped. */
+  let requestRevision = 0;
+  let activeWorker: DerivationWorkerClient | null = null;
   let secretRevealed = false;
   let passphraseRevealed = false;
   let pendingRefresh: number | null = null;
@@ -84,6 +88,29 @@ export function installBip85Feature(options: Bip85FeatureOptions) {
     }
   }
 
+  /** Stops the running request: its worker goes away and whatever it still returns is ignored. */
+  function cancelDerivation(message: string): void {
+    requestRevision += 1;
+    activeWorker?.terminate(new DerivationCancelledError(message));
+    activeWorker = null;
+    if (deriveButton !== null) deriveButton.disabled = !options.cryptoReady();
+  }
+
+  /** Drops the running request and every child value derived so far; old references read null. */
+  function discardChild(message: string): void {
+    if (pendingRefresh !== null) window.clearTimeout(pendingRefresh);
+    pendingRefresh = null;
+    cancelDerivation(message);
+    childWallet.cancelScheduledRefresh();
+    clearDerivedWallet();
+    const output = optionalElement<HTMLTextAreaElement>("#bip85-output");
+    if (output !== null) output.value = "";
+    const result = optionalElement<HTMLElement>("#bip85-result");
+    if (result !== null) result.hidden = true;
+    const error = optionalElement<HTMLElement>("#bip85-error");
+    if (error !== null) error.hidden = true;
+  }
+
   async function derive(): Promise<void> {
     const index = optionalElement<HTMLInputElement>("#bip85-index");
     const words = optionalElement<HTMLSelectElement>("#bip85-words");
@@ -104,14 +131,22 @@ export function installBip85Feature(options: Bip85FeatureOptions) {
       error === null
     )
       return;
+    cancelDerivation("Superseded by a new BIP85 request.");
+    const revision = requestRevision;
     result.hidden = true;
     error.hidden = true;
+    if (!options.cryptoReady()) {
+      error.textContent = SELF_TEST_NOT_PASSED;
+      error.hidden = false;
+      return;
+    }
     deriveButton.disabled = true;
     let seed: Uint8Array | null = null;
     let worker: DerivationWorkerClient | null = null;
     try {
       seed = options.mnemonicToSeed(options.parentMnemonic(), options.parentPassphrase());
       worker = options.createWorker();
+      activeWorker = worker;
       const wifVersionValue = optionalElement<HTMLSelectElement>("#bip85-wif-encoding")?.value;
       const wifVersion = wifVersionValue === undefined ? undefined : Number(wifVersionValue);
       if (
@@ -127,6 +162,8 @@ export function installBip85Feature(options: Bip85FeatureOptions) {
         bytes: Number(bytes.value),
         ...(wifVersion === undefined ? {} : { wifVersion }),
       });
+      // Clear, a parent edit or a newer request ran while the worker was busy: this reply is stale.
+      if (revision !== requestRevision) return;
       path.textContent = derived.path;
       let displayedValue = derived.value;
       if (derived.kind === "bip39") {
@@ -145,20 +182,25 @@ export function installBip85Feature(options: Bip85FeatureOptions) {
       if (recoverySourceMenu !== null) recoverySourceMenu.hidden = mnemonic === null;
       if (mnemonic === null) clearDerivedWallet();
       else if (childWallet.workspace?.hidden === false) await childWallet.derive();
+      if (revision !== requestRevision) return;
       result.hidden = false;
     } catch (cause) {
+      // Also drops the DerivationCancelledError that cancelDerivation() raises.
+      if (revision !== requestRevision) return;
       clearDerivedWallet();
       error.textContent = cause instanceof Error ? cause.message : String(cause);
       error.hidden = false;
     } finally {
       seed?.fill(0);
-      worker?.terminate();
-      deriveButton.disabled = false;
+      if (activeWorker === worker) activeWorker = null;
+      worker?.terminate(new DerivationCancelledError("BIP85 worker released."));
+      if (revision === requestRevision) deriveButton.disabled = !options.cryptoReady();
     }
   }
 
   function scheduleRefresh(): void {
-    if (!options.isActive() || !options.mnemonicMayBeComplete() || deriveButton === null) return;
+    if (!options.isActive() || !options.mnemonicMayBeComplete() || !options.cryptoReady()) return;
+    if (deriveButton === null) return;
     if (pendingRefresh !== null) window.clearTimeout(pendingRefresh);
     pendingRefresh = window.setTimeout(() => {
       pendingRefresh = null;
@@ -225,17 +267,23 @@ export function installBip85Feature(options: Bip85FeatureOptions) {
       setPassphraseVisibility(revealed);
       childWallet.setSecretsVisible(revealed);
     },
+    /**
+     * The parent phrase or passphrase changed: the running request and every child derived from
+     * the old parent are dropped. The child passphrase is the user's own input and stays.
+     */
+    invalidate() {
+      discardChild("The BIP85 parent changed.");
+    },
+    /** Follows the self-tests' verdict: a failure drops every child and closes the button. */
+    setEnabled(enabled: boolean) {
+      if (!enabled) discardChild("The cryptographic self-test failed.");
+      if (deriveButton !== null) deriveButton.disabled = !enabled;
+    },
     reset() {
-      if (pendingRefresh !== null) window.clearTimeout(pendingRefresh);
-      pendingRefresh = null;
-      childWallet.cancelScheduledRefresh();
-      clearDerivedWallet();
+      discardChild("BIP85 derivation cleared by the user.");
       childWallet.resetFeatures();
-      const output = optionalElement<HTMLTextAreaElement>("#bip85-output");
-      if (output !== null) output.value = "";
       const passphrase = optionalElement<HTMLInputElement>("#bip85-child-passphrase");
       if (passphrase !== null) passphrase.value = "";
-      optionalElement<HTMLElement>("#bip85-result")?.setAttribute("hidden", "");
       setPassphraseVisibility(false);
       setSecretVisibility(false);
     },

@@ -7,6 +7,7 @@ import {
   type ShieldedBatchOptions,
 } from "@ckd/core/types.js";
 import { encodeDashShieldedAddress, ORCHARD_ADDRESS_TYPE } from "./shielded-address.js";
+import { DASH_SHIELDED_PATHS } from "./profiles.js";
 
 const DASH_ORCHARD_RELEASE = "Dash Platform v4.1.1 / dashpay/orchard dashified-0.14.1";
 
@@ -65,7 +66,7 @@ export function buildDashShieldedResult(
 ): DerivationResult {
   const network = getDashNetwork(options.network);
   const raw = parseOfficialResult(json, options.start, options.count);
-  const path = `m/32'/${network.coinType}'/${options.account}'`;
+  const path = DASH_SHIELDED_PATHS.accountPath(options);
   const rows = raw.rows.map(({ index, rawAddress: rawAddressHex }) => {
     const rawAddress = hexToBytes(rawAddressHex);
     const displayPayload = concatBytes(Uint8Array.of(ORCHARD_ADDRESS_TYPE), rawAddress);

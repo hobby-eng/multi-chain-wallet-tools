@@ -10,7 +10,6 @@
       "@ckd/export/*": ["./packages/export-core/src/*"],
       "@ckd/dash-network/*": ["./packages/dash-network/src/*"],
       "@ckd/dash-wasm/*": ["./packages/dash-shielded-wasm/generated/*"],
-      "@ckd/editions": ["./packages/edition-profiles/src/index.ts"],
       "@ckd/public-data-providers/*": ["./packages/public-data-providers/src/*"],
       "@ckd/secret-boundary/*": ["./packages/secret-boundary/src/*"],
       "@ckd/network-boundary/*": ["./packages/network-boundary/src/*"],
@@ -22,11 +21,14 @@
       "@ckd/recovery-envelope-wasm/*": ["./packages/recovery-envelope-wasm/generated/*"],
       "@ckd/recovery-mhfe-wasm/*": ["./packages/recovery-mhfe-wasm/generated/*"],
       "@ckd/build-info": ["./packages/build-security/src/build-info.ts"],
+      "@ckd/verification/*": ["./packages/verification/src/*"],
       "@ckd/self-test": ["./packages/verification/src/self-test.ts"],
       "@ckd/self-test-types": ["./packages/verification/src/types.ts"],
       "@ckd/bip39-self-test": ["./packages/verification/src/bip39-self-test.ts"],
       "@ckd/derivation-self-test": ["./packages/verification/src/derivation-self-test.ts"],
-      "@ckd/dash-derivation-self-test": ["./packages/verification/src/derivation-self-test-dash.ts"],
+      "@ckd/dash-derivation-self-test": [
+        "./packages/verification/src/derivation-self-test-dash.ts"
+      ],
       "@ckd/test-support/*": ["./test/support/*"],
       "@ckd/recovery-codex32-wasm/*": ["./packages/recovery-codex32-wasm/generated/*"]
     },

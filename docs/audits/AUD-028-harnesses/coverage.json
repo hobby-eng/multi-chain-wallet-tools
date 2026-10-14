@@ -1,0 +1,259 @@
+[
+  {
+    "checkId": "CHECK-SEC-001",
+    "outcome": "partial-with-findings",
+    "method": "Source ownership trace across Deriver, imported recovery modules and connected watch-only inputs; actual Dash caller-seed and recovered-passphrase probes.",
+    "evidence": ["boundary-tests", "crypto-contract-followup", "deriver-probes"],
+    "gap": "Full browser composition and every secret lifetime were not observed."
+  },
+  {
+    "checkId": "CHECK-SEC-002",
+    "outcome": "partial",
+    "method": "Vault/bridge/CSP/worker source and bounded ownership regressions; launcher headers/socket tests with scoped sandbox reruns.",
+    "evidence": ["ownership-regression-tests", "launcher-tests", "launcher-socket-unsandboxed"],
+    "gap": "Real browsers, packaged launchers and OS memory-isolation acceptance were not executed."
+  },
+  {
+    "checkId": "CHECK-SEC-003",
+    "outcome": "partial",
+    "method": "Public-input rejection, local guards and fixed adapter/source traces; no active private-material egress found.",
+    "evidence": ["boundary-tests", "ownership-regression-tests"],
+    "gap": "No live provider or browser network interception; static source findings are not runtime isolation proof."
+  },
+  {
+    "checkId": "CHECK-SEC-004",
+    "outcome": "partial-with-findings",
+    "method": "Bounded CSPRNG controls and actual Envelope/Codex32 WASM admission/recovery; independent Noble low-order refusals and source skeptic.",
+    "evidence": ["crypto-bounded-rerun", "crypto-contract-followup"],
+    "gap": "No full KDF/vector/statistics replay or independent weak-recipient decryption."
+  },
+  {
+    "checkId": "CHECK-SEC-005",
+    "outcome": "partial-with-findings",
+    "method": "Thrown preparation/registration cleanup controls, real caller seed mutation, component concealment on blur/hidden.",
+    "evidence": [
+      "boundary-public-architecture-probes",
+      "deriver-probes",
+      "crypto-contract-followup"
+    ],
+    "gap": "Captured references cannot prove post-GC residue; complete workspace browser lifecycle not executed."
+  },
+  {
+    "checkId": "CHECK-SEC-006",
+    "outcome": "partial",
+    "method": "Review DOM text sinks, storage and sensitive boundaries, plus bounded secret-boundary tests.",
+    "evidence": ["boundary-tests"],
+    "gap": "No browser injection/persistence runtime suite."
+  },
+  {
+    "checkId": "CHECK-SEC-007",
+    "outcome": "partial-with-findings",
+    "method": "Actual source analyzer fixtures, candidate-file admission spies and requested-key fail-closed controls.",
+    "evidence": ["boundary-public-architecture-probes", "boundary-tests"],
+    "gap": "No host exhaustion, broadcasting, real SDK empty-proof schema or unauthorized writes attempted."
+  },
+  {
+    "checkId": "CHECK-FUN-001",
+    "outcome": "partial",
+    "method": "Public BIP39/BIP32 diagnostics, BIP85 and bounded chosen-word/material tests; current generation source inspected.",
+    "evidence": ["crypto-bounded-rerun", "mhfe-controller-tests"],
+    "gap": "No full random sampling or costly MHFE prefix-search generation; uniformity source argument is conditional on uniform draws."
+  },
+  {
+    "checkId": "CHECK-FUN-002",
+    "outcome": "partial-with-findings",
+    "method": "Narrow independent Go derivation and path-boundary samples; actual repeated-seed Orchard outputs.",
+    "evidence": ["crypto-bounded-rerun", "ownership-regression-tests", "crypto-contract-followup"],
+    "gap": "Full per-coin/network/account/change/address vector catalogue not replayed."
+  },
+  {
+    "checkId": "CHECK-FUN-003",
+    "outcome": "partial-with-findings",
+    "method": "BIP85 known answers and Silent Payments controller source/revision probes; fresh source controls precede failing invalidation.",
+    "evidence": ["crypto-bounded-rerun", "deriver-invalidation-followup"],
+    "gap": "Full BIP38, message and Silent Payments cryptographic vector/worker execution not run."
+  },
+  {
+    "checkId": "CHECK-FUN-004",
+    "outcome": "partial-with-findings",
+    "method": "Actual PSBT/descriptor suites plus literal BIP86 Bech32m addr descriptor and negative controls.",
+    "evidence": ["inspector-tests", "boundary-public-architecture-probes"],
+    "gap": "No complete script/Miniscript/multisig matrix or node oracle."
+  },
+  {
+    "checkId": "CHECK-FUN-005",
+    "outcome": "partial-with-findings",
+    "method": "Actual Dash PSBT unknown fields and direct/non-witness special transaction framing with txid controls.",
+    "evidence": ["inspector-tests", "boundary-public-architecture-probes"],
+    "gap": "Wire framing admission does not establish consensus or valid inclusion; full transaction vector sets not run."
+  },
+  {
+    "checkId": "CHECK-FUN-006",
+    "outcome": "partial-with-findings",
+    "method": "MHFE fake-controller contracts, actual MnemoCode SSKR known answer, SeedQR/Codex32/Envelope bounded WASM controls.",
+    "evidence": ["mhfe-controller-tests", "wallet-host-tests", "crypto-contract-followup"],
+    "gap": "Full MHFE/SLIP39/Argon2 and printable-card backup suites not run."
+  },
+  {
+    "checkId": "CHECK-FUN-007",
+    "outcome": "partial-with-findings",
+    "method": "Actual provider/history normalizers and bounded HTTP fixtures, proofs admission and partial accounting.",
+    "evidence": ["public-data-tests", "boundary-tests", "boundary-public-architecture-probes"],
+    "gap": "Live chains, regtest, actual unfunded SDK proof Maps and full streams not executed."
+  },
+  {
+    "checkId": "CHECK-API-001",
+    "outcome": "partial-with-findings",
+    "method": "Pinned browser-package/module provenance and actual host call contracts, passphrase transport, owned seed mutation.",
+    "evidence": [
+      "wallet-host-tests",
+      "mhfe-controller-tests",
+      "deriver-probes",
+      "crypto-contract-followup"
+    ],
+    "gap": "Successful recovery-worker reply in missing-code handoff is synthetic; actual expensive cryptographic match not executed."
+  },
+  {
+    "checkId": "CHECK-API-002",
+    "outcome": "partial-with-findings",
+    "method": "Real controller/missing-code/Silent Payments revision and current-source probes; NaN queue controls.",
+    "evidence": ["deriver-invalidation-followup", "boundary-public-architecture-probes"],
+    "gap": "Browser event/debounce lifecycle and every async module not exhaustively executed."
+  },
+  {
+    "checkId": "CHECK-API-003",
+    "outcome": "partial-with-findings",
+    "method": "Parse real JSON/CSV serializer output for pending transactions, disputed balance labels and partial Orchard.",
+    "evidence": ["public-data-tests", "boundary-public-architecture-probes"],
+    "gap": "No full spreadsheet/print layout or live balance oracle."
+  },
+  {
+    "checkId": "CHECK-API-004",
+    "outcome": "partial-with-findings",
+    "method": "Pinned BIP93 upper/lower case controls and malformed typed Envelope assertions; actual committed codec WASM.",
+    "evidence": ["crypto-contract-followup", "wallet-host-tests"],
+    "gap": "Independent whole-format implementation and all interoperability variants not replayed."
+  },
+  {
+    "checkId": "CHECK-BLD-001",
+    "outcome": "partial-with-findings",
+    "method": "Metadata gate, both default editions and representative Bitcoin/Dash derive-only plus Ethereum watch-only builds.",
+    "evidence": [
+      "metadata",
+      "build-defaults",
+      "minimal-bitcoin-deriver",
+      "minimal-dash-deriver",
+      "watch-only-ethereum"
+    ],
+    "gap": "Default Dash Deriver rejected its graph; no release workaround applied."
+  },
+  {
+    "checkId": "CHECK-BLD-002",
+    "outcome": "partial-with-findings",
+    "method": "35 profiles,156 full tasks and70 smoke tasks planned; seven default and three representative minimal HTML outputs compiled.",
+    "evidence": ["matrix-plan", "smoke-plan", "build-defaults"],
+    "gap": "Plans are not executed matrix coverage; no browser combinations."
+  },
+  {
+    "checkId": "CHECK-BLD-003",
+    "outcome": "partial",
+    "method": "Local provenance for150 pnpm and445 Cargo records, pinned integrations/licensing and advisory scans.",
+    "evidence": [
+      "provenance",
+      "dependency-advisories",
+      "rust-advisories-dash-shielded-wasm",
+      "rust-advisories-recovery-codex32-wasm",
+      "rust-advisories-recovery-sskr-wasm",
+      "rust-advisories-recovery-envelope-wasm",
+      "rust-advisories-launcher"
+    ],
+    "gap": "Remote provenance0/10 unavailable in this environment; cached Cargo advisory freshness unknown, yanked checks off; MnemoCode intentionally unreleased."
+  },
+  {
+    "checkId": "CHECK-BLD-004",
+    "outcome": "partial-with-findings",
+    "method": "Static reproducible-container policy and exact current canonical input/output comparison.",
+    "evidence": ["container-policy", "wasm-integrity", "input-record-diff"],
+    "gap": "No canonical Docker/WASM rebuild; integrity mismatches correctly refuse."
+  },
+  {
+    "checkId": "CHECK-BLD-005",
+    "outcome": "partial-with-findings",
+    "method": "Seven fresh default artifact verifiers, stale Dash Deriver refusal, static release/CI review and thirteen Dash resolver fixtures.",
+    "evidence": [
+      "artifact-multi-viewer",
+      "artifact-multi-scanner",
+      "artifact-multi-key",
+      "artifact-multi-inspector",
+      "artifact-dash-viewer",
+      "artifact-dash-scanner",
+      "artifact-dash-inspector",
+      "artifact-dash-key",
+      "edition-text-gate"
+    ],
+    "gap": "No paid Actions, release signing/bundle/attestation, packaged launcher acceptance or current default Dash Deriver output."
+  },
+  {
+    "checkId": "CHECK-UI-001",
+    "outcome": "not-run",
+    "method": "No real browser/viewport execution at owner request; HTML source/build artifact policy inspected.",
+    "evidence": ["build-defaults"],
+    "gap": "Requested real-file browser/viewport procedure is unexecuted, not passed."
+  },
+  {
+    "checkId": "CHECK-UI-002",
+    "outcome": "partial-with-findings",
+    "method": "Actual Recovery tabs and Decode/Silent Payments state contracts exercised in bounded fake DOM.",
+    "evidence": ["deriver-probes", "deriver-invalidation-followup", "mhfe-controller-tests"],
+    "gap": "No full browser interactions or complete workspace instantiation."
+  },
+  {
+    "checkId": "CHECK-UI-003",
+    "outcome": "partial-with-findings",
+    "method": "Component reveal/conceal and keyboard rules compared with source safety contract and shared tabs owner.",
+    "evidence": ["deriver-probes", "boundary-tests"],
+    "gap": "No real tooltip hover/pin behavior, QR display, focus tree or accessibility inspection."
+  },
+  {
+    "checkId": "CHECK-ARC-001",
+    "outcome": "partial-with-findings",
+    "method": "Module/edition graph, exact dynamic-import gate probe and library/frontend path policy ownership.",
+    "evidence": ["boundary-public-architecture-probes", "copies"],
+    "gap": "No present prohibited production import demonstrated; shared graph admission remains separate protection."
+  },
+  {
+    "checkId": "CHECK-ARC-002",
+    "outcome": "partial-with-findings",
+    "method": "618-source no-copy gate; two source-confirmed semantic duplication families plus two consolidation recommendations.",
+    "evidence": ["copies", "ownership-regression-tests"],
+    "gap": "Text-copy gate cannot prove no semantic repetition or dead code; no fabricated clone totals."
+  },
+  {
+    "checkId": "CHECK-ARC-003",
+    "outcome": "partial-with-findings",
+    "method": "Production-path controls and independent oracle tracing; positive fixture mismatch and skepticism over strict UI assertions.",
+    "evidence": ["boundary-tests", "deriver-invalidation-followup", "crypto-contract-followup"],
+    "gap": "All historical audit harnesses and full test catalogue were not replayed."
+  },
+  {
+    "checkId": "CHECK-DOC-001",
+    "outcome": "partial-with-findings",
+    "method": "Compare README/security claims, UI code, pinned MHFE/MnemoCode packages and current runtime findings.",
+    "evidence": ["project-facts", "provenance"],
+    "gap": "AUD-026-DOC001 stale unreleased MHFE description recurs under its original ID."
+  },
+  {
+    "checkId": "CHECK-DOC-002",
+    "outcome": "partial-with-findings",
+    "method": "Format, project facts/links, metadata and exact Dash copied-document hashes; license/advisory inspection.",
+    "evidence": ["format", "project-facts", "input-record-diff", "metadata"],
+    "gap": "Metadata fails; remote availability not verified and rendered manuals/help not executed."
+  },
+  {
+    "checkId": "CHECK-DOC-003",
+    "outcome": "partial",
+    "method": "Current paired reports use canonical schema,32-item ledger, source/procedure/log hashes and a local validator.",
+    "evidence": ["plan.json"],
+    "gap": "Historical numbered-report validators not replayed; new report validation separately recorded after generation."
+  }
+]

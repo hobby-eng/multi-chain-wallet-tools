@@ -1,3 +1,5 @@
+import { PlatformProofIndexReconciliation } from "@ckd/dash-network/platform-proof-index.js";
+import { ShieldedActivityState } from "@ckd/dash-network/shielded-activity-state.js";
 import { formatDashDuffs } from "@ckd/core/dash-units.js";
 import { formatPlatformCredits } from "@ckd/dash-network/memo.js";
 import type { PlatformAddressHistorySnapshot } from "@ckd/dash-network/platform-address-history.js";
@@ -7,6 +9,7 @@ import type { PlatformIdentityLookupSnapshot } from "@ckd/dash-network/platform-
 import type { CoreAddressSnapshot } from "@ckd/dash-network/public-address.js";
 import type { ActivitySnapshot } from "@ckd/dash-network/types.js";
 import { formatDate, type createActivityRenderers } from "./activity-renderers.js";
+import { CoreActivityState } from "./core-activity-state.js";
 
 interface ActivityResultsViewOptions {
   readonly document: Document;
@@ -46,6 +49,7 @@ export function createActivityResultsView(options: ActivityResultsViewOptions) {
   } = renderers;
   return {
     renderShielded(snapshot: ActivitySnapshot): void {
+      const activity = new ShieldedActivityState(snapshot);
       completeness.classList.remove("viewer-completeness-warning");
       results.hidden = false;
       resultsHeading.textContent = "Recovered shielded activity";
@@ -63,7 +67,7 @@ export function createActivityResultsView(options: ActivityResultsViewOptions) {
       const amount = (value: bigint | null): string =>
         value === null ? unavailable : formatPlatformCredits(value);
       summary.replaceChildren(
-        stat("Spendable balance", amount(snapshot.balance), "◎", true),
+        stat("Spendable balance", amount(activity.balance), "◎", true),
         stat("External received", amount(snapshot.receivedExternal), "↓"),
         stat("External sent outputs", amount(snapshot.sentExternal), "↑"),
         stat("Self / change outputs", amount(snapshot.selfOrChange), "↻"),
@@ -79,7 +83,11 @@ export function createActivityResultsView(options: ActivityResultsViewOptions) {
         completeness.textContent = `Complete incoming-only scan. Received notes are visible; outgoing activity, spend state, and balance require the 96-byte FVK. Proof height ${snapshot.proofHeight}.`;
       else
         completeness.textContent = `Complete outgoing-only scan. Sent outputs are visible; incoming activity and balance require the 96-byte FVK. Proof height ${snapshot.proofHeight}.`;
-      activityList.replaceChildren(...snapshot.records.map(renderShieldedActivity));
+      activityList.replaceChildren(
+        ...snapshot.records.map((record) =>
+          renderShieldedActivity(record, activity.noteSpendStatus(record)),
+        ),
+      );
       if (snapshot.records.length === 0) {
         const empty = document.createElement("p");
         empty.className = "viewer-empty";
@@ -91,6 +99,7 @@ export function createActivityResultsView(options: ActivityResultsViewOptions) {
     },
 
     renderCore(snapshot: CoreAddressSnapshot): void {
+      const balance = new CoreActivityState(snapshot).balance;
       completeness.classList.remove("viewer-completeness-warning");
       results.hidden = false;
       resultsHeading.textContent = "Dash Core address activity";
@@ -100,11 +109,11 @@ export function createActivityResultsView(options: ActivityResultsViewOptions) {
       resultHelp.textContent =
         "Core totals come from the Dash-specific DashScan index after its synchronization status and latest indexed block are checked. “Total sent” is the sum of UTXO inputs spent from this address, while “total received” includes outputs returning as change. Each transaction therefore also shows its net effect on the queried address.";
       summary.replaceChildren(
-        stat("Current balance", formatDashDuffs(snapshot.balanceDuffs), "◎", true),
+        stat("Reported balance", formatDashDuffs(balance.reportedBalanceDuffs), "◎", true),
         stat("Total received outputs", formatDashDuffs(snapshot.totalReceivedDuffs), "↓"),
         stat("Total spent inputs", formatDashDuffs(snapshot.totalSentDuffs), "↑"),
         stat("Transactions total", snapshot.transactionCount.toLocaleString(), "≡"),
-        stat("Balance vs. confirmed flow", formatDashDuffs(snapshot.unconfirmedDuffs, true), "◌"),
+        stat("Balance discrepancy", formatDashDuffs(balance.balanceDiscrepancyDuffs, true), "◌"),
         stat("Transactions loaded", snapshot.transactions.length.toLocaleString(), "◇"),
       );
       completeness.textContent =
@@ -142,9 +151,7 @@ export function createActivityResultsView(options: ActivityResultsViewOptions) {
         stat("Outgoing address nonce", snapshot.nonce.toLocaleString(), "↗"),
         stat("Verified Platform height", snapshot.proofHeight.toLocaleString(), "✓"),
       );
-      const agrees =
-        snapshot.balanceCredits === history.explorerBalanceCredits &&
-        snapshot.nonce === BigInt(history.explorerNonce);
+      const { agrees } = new PlatformProofIndexReconciliation(snapshot, history);
       completeness.classList.toggle("viewer-completeness-warning", !agrees);
       const proofText = snapshot.exists
         ? `Address state proof verified at Platform height ${snapshot.proofHeight}; protocol ${snapshot.protocolVersion}; Core ChainLocked height ${snapshot.coreChainLockedHeight}.`

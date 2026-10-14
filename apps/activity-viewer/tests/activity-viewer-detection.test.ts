@@ -6,6 +6,8 @@ import {
 } from "../src/detection.js";
 
 describe("Activity Viewer input detection", () => {
+  // Addresses of the public test phrase "abandon … about" (m/44'/5'/0'/0/0, m/44'/1'/0'/0/0,
+  // DIP17 m/9'/5'/17'/0'/0'/0 and m/9'/1'/17'/0'/0'/0); the name and the identity ID are synthetic.
   it.each([
     ["XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5", "mainnet", "core"],
     ["yRd4FhXfVGHXpsuZXPNkMrfD9GVj46pnjt", "testnet", "core"],

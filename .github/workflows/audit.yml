@@ -3,20 +3,24 @@ name: RustSec audit
 on:
   push:
     paths:
-      - 'packages/**/rust/Cargo.toml'
-      - 'packages/**/rust/Cargo.lock'
-      - 'apps/key-derivation/launcher/Cargo.toml'
-      - 'apps/key-derivation/launcher/Cargo.lock'
-      - '.github/workflows/audit.yml'
+      - "packages/**/rust/Cargo.toml"
+      - "packages/**/rust/Cargo.lock"
+      - "apps/key-derivation/launcher/Cargo.toml"
+      - "apps/key-derivation/launcher/Cargo.lock"
+      - ".github/workflows/audit.yml"
+      - "tooling/wasm-modules.mjs"
+      - "tooling/wasm-catalog.mjs"
   pull_request:
     paths:
-      - 'packages/**/rust/Cargo.toml'
-      - 'packages/**/rust/Cargo.lock'
-      - 'apps/key-derivation/launcher/Cargo.toml'
-      - 'apps/key-derivation/launcher/Cargo.lock'
-      - '.github/workflows/audit.yml'
+      - "packages/**/rust/Cargo.toml"
+      - "packages/**/rust/Cargo.lock"
+      - "apps/key-derivation/launcher/Cargo.toml"
+      - "apps/key-derivation/launcher/Cargo.lock"
+      - ".github/workflows/audit.yml"
+      - "tooling/wasm-modules.mjs"
+      - "tooling/wasm-catalog.mjs"
   schedule:
-    - cron: '17 4 * * 1'
+    - cron: "17 4 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -27,24 +31,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  catalog:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.catalog.outputs.matrix }}
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up the pinned Node.js version
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Project native crates from the build catalog
+        id: catalog
+        run: echo "matrix=$(node tooling/wasm-catalog.mjs audit)" >> "$GITHUB_OUTPUT"
+
   audit:
+    needs: catalog
     name: ${{ matrix.crate }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - crate: Dash shielded
-            lockfile: packages/dash-shielded-wasm/rust/Cargo.lock
-          - crate: Codex32 recovery
-            lockfile: packages/recovery-codex32-wasm/rust/Cargo.lock
-          - crate: Gordian Envelope recovery
-            lockfile: packages/recovery-envelope-wasm/rust/Cargo.lock
-          - crate: SSKR recovery
-            lockfile: packages/recovery-sskr-wasm/rust/Cargo.lock
-          # The executable Key Derivation Tool is shipped as a native program; its crates count too.
-          - crate: Executable Key Derivation Tool
-            lockfile: apps/key-derivation/launcher/Cargo.lock
+      matrix: ${{ fromJSON(needs.catalog.outputs.matrix) }}
     steps:
       - name: Check out the exact revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -1,22 +1,17 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import {
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 import path from "node:path";
 
 const harnessDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(harnessDirectory, "../../..");
 const evidenceDirectory = path.join(repositoryRoot, "docs/audits/AUD-020-evidence");
-const reportMarkdown = "docs/audits/audit-20-2026-10-01.md";
-const reportJson = "docs/audits/audit-20-2026-10-01.json";
+const reportMarkdown = "docs/audits/AUD-020-2026-10-01.md";
+const reportJson = "docs/audits/AUD-020-2026-10-01.json";
 const commandRecordName = "finalize-evidence";
 const startedAt = new Date().toISOString();
 const command = ["node", "docs/audits/AUD-020-harnesses/finalize-evidence.mjs"];
@@ -52,8 +47,15 @@ try {
   const report = JSON.parse(readFileSync(path.join(repositoryRoot, reportJson), "utf8"));
   const procedureHashes = report.procedure;
   for (const [relativePath, expectedHash] of Object.entries(procedureHashes)) {
-    const actualHash = sha256(path.join(repositoryRoot, relativePath));
-    if (actualHash !== expectedHash) throw new Error(`Procedure hash mismatch: ${relativePath}`);
+    // Procedure files edited after this audit are checked through docs/audits/procedure_changes.py.
+    const recovered = spawnSync(
+      "python3",
+      ["-B", "docs/audits/procedure_changes.py", relativePath, expectedHash],
+      {
+        cwd: repositoryRoot,
+      },
+    );
+    if (recovered.status !== 0) throw new Error(`Procedure hash mismatch: ${relativePath}`);
   }
 
   const validationCode = String.raw`
@@ -92,13 +94,14 @@ for target in re.findall(r"\[[^\]]+\]\(([^)]+)\)", markdown):
     if local and not (markdown_path.parent / local).resolve().exists():
         raise ValueError(f"broken Markdown link: {target}")
 index = index_path.read_text()
-for name in ("audit-20-2026-10-01.md", "audit-20-2026-10-01.json"):
+for name in ("AUD-020-2026-10-01.md", "AUD-020-2026-10-01.json"):
     if name not in index:
         raise ValueError(f"audit index missing {name}")
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(root / "docs/audits"))
+from procedure_changes import matches_audited
 for relative_path, expected_hash in record["procedure"].items():
-    import hashlib
-    actual_hash = hashlib.sha256((root / relative_path).read_bytes()).hexdigest()
-    if actual_hash != expected_hash:
+    if not matches_audited(root / relative_path, expected_hash):
         raise ValueError(f"procedure hash mismatch: {relative_path}")
 print(f"PASS Draft 2020-12 schema; {len(ids)} paired IDs; unique JSON keys; procedure hashes; local links; index")
 `;
@@ -115,11 +118,17 @@ print(f"PASS Draft 2020-12 schema; {len(ids)} paired IDs; unique JSON keys; proc
   const statusLines = execFileSync("git", ["status", "--short"], {
     cwd: repositoryRoot,
     encoding: "utf8",
-  }).trim().split("\n").filter(Boolean);
+  })
+    .trim()
+    .split("\n")
+    .filter(Boolean);
   const staged = execFileSync("git", ["diff", "--cached", "--name-only"], {
     cwd: repositoryRoot,
     encoding: "utf8",
-  }).trim().split("\n").filter(Boolean);
+  })
+    .trim()
+    .split("\n")
+    .filter(Boolean);
   if (staged.some((item) => item.startsWith("docs/audits/AUD-020-evidence/"))) {
     throw new Error("Audit evidence is staged in Git.");
   }
@@ -157,10 +166,16 @@ print(f"PASS Draft 2020-12 schema; {len(ids)} paired IDs; unique JSON keys; proc
     ["wasm-bindgen", ["--version"]],
     ["cargo", ["audit", "--version"]],
     ["docker", ["--version"]],
-    ["python3", ["-c", "import importlib.metadata; print(importlib.metadata.version('jsonschema'))"]],
+    [
+      "python3",
+      ["-c", "import importlib.metadata; print(importlib.metadata.version('jsonschema'))"],
+    ],
     ["node_modules/.bin/playwright", ["--version"]],
-    [(process.env.HOME + "/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome"), ["--version"]],
-    [(process.env.HOME + "/.cache/ms-playwright/firefox-1538/firefox/firefox"), ["--version"]],
+    [
+      path.join(homedir(), ".cache/ms-playwright/chromium-1234/chrome-linux64/chrome"),
+      ["--version"],
+    ],
+    [path.join(homedir(), ".cache/ms-playwright/firefox-1538/firefox/firefox"), ["--version"]],
   ];
   const environmentLines = [
     run("uname", ["-a"]),
@@ -218,7 +233,8 @@ print(f"PASS Draft 2020-12 schema; {len(ids)} paired IDs; unique JSON keys; proc
     .join("\n");
   writeEvidence("SHA256SUMS", sums);
   for (const line of readFileSync(path.join(evidenceDirectory, "SHA256SUMS"), "utf8")
-    .trim().split("\n")) {
+    .trim()
+    .split("\n")) {
     const [expectedHash, fileName] = line.split(/\s{2,}/u);
     if (sha256(path.join(evidenceDirectory, fileName)) !== expectedHash) {
       throw new Error(`Evidence checksum mismatch: ${fileName}`);

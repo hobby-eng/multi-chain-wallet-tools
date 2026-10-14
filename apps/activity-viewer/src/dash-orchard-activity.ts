@@ -1,3 +1,4 @@
+import { OrchardViewingCapability } from "@ckd/dash-network/viewing-capability.js";
 import type { ShieldedActivityLedger } from "@ckd/dash-network/activity.js";
 import type { ViewerNetwork } from "@ckd/dash-network/types.js";
 import type { ViewingKeyInputMode } from "@ckd/dash-network/viewing-key.js";
@@ -12,7 +13,7 @@ interface DashOrchardActivityOptions {
   Source: typeof import("@ckd/dash-network/dash-source.js").DashEvoShieldedSource;
   assertCanonicalViewingKey: typeof import("@ckd/dash-network/orchard-scanner.js").assertCanonicalViewingKey;
   normalizeViewingKey: typeof import("@ckd/dash-network/viewing-key.js").normalizeViewingKey;
-  runPageStream: typeof import("@ckd/dash-network/shielded-stream-policy.js").runShieldedPageStream;
+  streamPages: typeof import("@ckd/dash-network/shielded-stream-policy.js").streamShieldedPages;
   scanEncryptedPage: typeof import("@ckd/dash-network/orchard-scanner.js").scanEncryptedPage;
   emptyConfirmations: number;
   maxPagesPerScan: number;
@@ -30,7 +31,11 @@ export async function runDashOrchardActivity(
   value: string,
   inputMode: ViewingKeyInputMode,
 ): Promise<void> {
-  const viewingKey = options.normalizeViewingKey(value, inputMode);
+  const capability = OrchardViewingCapability.open(value, inputMode, network, {
+    normalize: options.normalizeViewingKey,
+    canonical: options.assertCanonicalViewingKey,
+  });
+  const viewingKey = capability.normalized;
   let lastPaintAt = 0;
   const renderProgress = (
     ledger: ShieldedActivityLedger,
@@ -45,12 +50,6 @@ export async function runDashOrchardActivity(
     options.view.renderShielded(snapshot);
   };
   try {
-    if (viewingKey.bundleNetwork !== undefined && viewingKey.bundleNetwork !== network) {
-      throw new Error(
-        `This viewing bundle is for ${viewingKey.bundleNetwork}; select that network before scanning.`,
-      );
-    }
-    options.assertCanonicalViewingKey(viewingKey);
     options.view.setDiagnosticDetail(
       `Validated canonical ${viewingKey.kind} viewing capability locally.`,
     );
@@ -66,7 +65,7 @@ export async function runDashOrchardActivity(
     options.view.setDiagnosticDetail(
       "Connected through trusted quorum discovery. Fetching proof-verified encrypted notes.",
     );
-    const outcome = await options.runPageStream({
+    const outcome = await options.streamPages({
       fetchPage: async (position) => {
         options.view.setStatus(
           `Fetching and verifying pool actions from aligned position ${position}…`,
@@ -79,8 +78,6 @@ export async function runDashOrchardActivity(
         }
         return page;
       },
-      noteCount: (page) => page.notes.length,
-      revision: (page) => page.proofHeight,
       onPage: (page, visit) => {
         options.checkCancellation();
         options.view.setDiagnosticProof(`${page.proofHeight} · protocol ${page.protocolVersion}`);
@@ -102,15 +99,6 @@ export async function runDashOrchardActivity(
         }
         renderProgress(ledger, false, false);
         options.view.updateTiming();
-      },
-      disposePage: (page) => {
-        for (const note of page.notes) {
-          note.cmx.fill(0);
-          note.nullifier.fill(0);
-          note.cvNet.fill(0);
-          note.encryptedNote.fill(0);
-        }
-        page.notes.length = 0;
       },
       isCancelled: options.cancelled,
       yieldTurn: options.yieldTurn,
@@ -134,6 +122,6 @@ export async function runDashOrchardActivity(
       options.view.failDiagnostics(message);
     }
   } finally {
-    viewingKey.hex = "";
+    capability.dispose();
   }
 }

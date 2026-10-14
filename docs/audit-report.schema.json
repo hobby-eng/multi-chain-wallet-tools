@@ -47,11 +47,21 @@
     "checks": { "type": ["array", "object"] },
     "findings": {
       "type": "array",
-      "items": { "allOf": [{ "$ref": "#/$defs/record" }, { "properties": { "kind": { "const": "finding" } } }] }
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/record" },
+          { "properties": { "kind": { "const": "finding" } } }
+        ]
+      }
     },
     "observations": {
       "type": "array",
-      "items": { "allOf": [{ "$ref": "#/$defs/record" }, { "properties": { "kind": { "const": "observation" } } }] }
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/record" },
+          { "properties": { "kind": { "const": "observation" } } }
+        ]
+      }
     },
     "remediation": {
       "type": "array",
@@ -71,9 +81,22 @@
     "historicalEvidence": { "type": "object" }
   },
   "$defs": {
-    "findingId": { "type": "string", "pattern": "^AUD-[0-9]{3,}-(SEC|FUN|API|BLD|DOC|UI|ARC)[0-9]{3,}$" },
+    "findingId": {
+      "type": "string",
+      "pattern": "^AUD-[0-9]{3,}-(SEC|FUN|API|BLD|DOC|UI|ARC)[0-9]{3,}$"
+    },
     "status": {
-      "enum": ["open", "fixed", "verified", "deferred", "accepted", "not-reproduced", "withdrawn", "duplicate", null]
+      "enum": [
+        "open",
+        "fixed",
+        "verified",
+        "deferred",
+        "accepted",
+        "not-reproduced",
+        "withdrawn",
+        "duplicate",
+        null
+      ]
     },
     "record": {
       "type": "object",

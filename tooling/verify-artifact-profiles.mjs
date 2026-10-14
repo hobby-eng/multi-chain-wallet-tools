@@ -1,7 +1,10 @@
+import { runNodeScript } from "./run-script.mjs";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BUILD_PROFILES, profileToolIds } from "./build-profiles.mjs";
+import { assertEmbeddedWasmWithoutBuilderPaths } from "./builder-paths.mjs";
+import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const scripts = {
@@ -15,12 +18,13 @@ for (const profileId of Object.keys(BUILD_PROFILES)) {
   for (const toolId of profileToolIds(BUILD_PROFILES[profileId])) {
     const script = scripts[toolId];
     if (script === undefined) throw new Error(`Missing artifact verifier for ${toolId}.`);
-    const result = spawnSync(process.execPath, [resolve(root, script), "--profile", profileId], {
-      cwd: root,
-      stdio: "inherit",
-    });
-    if (result.error !== undefined) throw result.error;
-    if (result.status !== 0) process.exit(result.status ?? 1);
+    runNodeScript(script, ["--profile", profileId]);
+    // No WebAssembly module in a finished page may name the computer it was built on.
+    const artifact = getToolBuild(BUILD_PROFILES[profileId], toolId).artifactRelativePath;
+    assertEmbeddedWasmWithoutBuilderPaths(
+      readFileSync(resolve(root, "dist", artifact), "utf8"),
+      artifact,
+    );
   }
   const manifest = spawnSync(
     process.execPath,

@@ -1,5 +1,6 @@
 export { installSilentPaymentFeature } from "./silent-payment-feature.js";
 export { installBip85Feature } from "./bip85-feature.js";
+export { installCheckedMnemonicFeature } from "./checked-mnemonic-feature.js";
 import { createBip38EncryptionInstaller } from "./bip38-encryption-feature.js";
 
 export const installBip38EncryptionFeature = createBip38EncryptionInstaller([

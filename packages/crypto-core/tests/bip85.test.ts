@@ -29,6 +29,13 @@ describe("BIP85 official application vectors", () => {
     },
   );
 
+  it("refuses a word count that no BIP39 phrase has, before any entropy (AUD-024-API001)", () => {
+    for (const words of [0, 13, 25, 12.5, Number.NaN, "12"])
+      expect(() => deriveBip85Bip39(ROOT, words as never, 0)).toThrow(
+        "BIP39 word count must be 12, 15, 18, 21, or 24.",
+      );
+  });
+
   it("derives the WIF application", () => {
     expect(deriveBip85Wif(ROOT, 0)).toEqual({
       path: "m/83696968'/2'/0'",

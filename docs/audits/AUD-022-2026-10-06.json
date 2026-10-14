@@ -1,0 +1,2096 @@
+{
+  "schemaVersion": 1,
+  "auditId": "AUD-022",
+  "auditNumber": 22,
+  "date": "2026-10-06",
+  "title": "Wallet Tools source, recovery integration and security audit after MHFE/MnemoCode migration",
+  "reviewer": {
+    "name": "Codex coordinator and five scoped reviewers",
+    "model": null,
+    "reasoningEffort": null,
+    "note": "Exact service model/effort metadata were not retained. The owner reported selecting Ultra; actual execution settings are not reconstructed.",
+    "roles": [
+      "Deriver lifecycle/interface",
+      "MHFE API/specification/CLI",
+      "MnemoCode interoperability",
+      "Cryptography/protocols",
+      "Build/dependencies/documentation"
+    ]
+  },
+  "snapshot": {
+    "commit": "c5b62c2d489e7525326071128095ba95ecca92ac",
+    "commitComplete": true,
+    "workingTree": "Dirty on entry: 987 tracked/untracked non-ignored paths in source manifest, staged old MHFE deletions and untracked replacement modules/tabs. HEAD alone does not identify reviewed bytes. Product files were not edited by this audit.",
+    "sourceFingerprint": "007212c257185cf5eda39dbc7adae1d85010645248cfe27e3955f2cd08aaf663",
+    "sourceFingerprintAlgorithm": "SHA-256 of json.dumps(sorted path-to-SHA256 map); excludes AUD-022-owned files. Not the HTML build fingerprint algorithm.",
+    "initialFingerprint": "6128e3ded588dddbd6d324a0fc609d583ecaa853823da6ff911ecade3e83042e",
+    "capturedAt": "2026-10-06T23:35:38.535224Z",
+    "finalCapture": "2026-10-06T23:44:11.883740Z",
+    "buildFingerprint": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+    "artifacts": {
+      "multi-chain-edition/activity-viewer/Wallet_Activity_Viewer.html": "4064ca5b3e7499d6c4e3c768a9b2b87fc0588c2c74dbb3a68e87064020ec4214",
+      "multi-chain-edition/discovery-scanner/Wallet_Discovery_Scanner.html": "9f9fb5a72f744d673ef225b7219eac6d6881a55ac302e263727e356c3d205e9d",
+      "multi-chain-edition/key-derivation/Wallet_Key_Derivation_Tool.html": "41f986ae9650848e142b18ec90d89c55fabbaf89ea0fff9445f04cc306e752d1",
+      "multi-chain-edition/psbt-inspector/PSBT_Multisig_Inspector.html": "c940afc583d667b72c15e7aa90267e7d82464fe5cd9f345ec3e831c7f46fe04e",
+      "dash-community-edition/activity-viewer/Dash_Community_Activity_Viewer.html": "1c34c7c6b63ff68e4c691840bc392487b12e2cbd7c02bfa04a3526872615d35a",
+      "dash-community-edition/discovery-scanner/Dash_Community_Discovery_Scanner.html": "84460ad1e40d53de620b9eae3b2edc72453257c98cc4bda158465ed11582502d",
+      "dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html": "b25294d4705d7946fd1c86d2d8d444df10277ca676edfdff9cf0e5c601aa7e96",
+      "dash-community-edition/psbt-inspector/Dash_Community_PSBT_Multisig_Inspector.html": "ceb1fca8e93970f34a33fcd20bfdbdceb6e1bc0c5fca0b11c530f2bbc69e329b"
+    },
+    "artifactRelationship": "Eight fresh local default pages; stable before/after build fingerprint and matching verifier/browser hashes. No new canonical container/release/launcher build claim.",
+    "distribution": {
+      "capturedAt": "2026-10-06T23:42:04.071835Z",
+      "repository": "/home/user/Documents/bip_tools/dash-wallet-tools",
+      "commit": "134f3fc30ab7982ececb055e7c981051ae9c64e9",
+      "gitStatusPorcelain": "",
+      "clean": true,
+      "scope": "Eight reviewed workflow/documentation/legal files; not a full-repository manifest.",
+      "fingerprintAlgorithm": "SHA-256 of sorted relative path UTF-8 + NUL + file bytes + NUL.",
+      "reviewedFilesFingerprint": "c725a727e9c42fc577dd926379146b0c2aac41885db61d1a3a1315deed8914d6",
+      "files": {
+        ".github/workflows/release.yml": "eb8657d6fda0c87a1449d5810b754a6cc2043ca59ecf7c5c1850a8e24d174252",
+        ".github/workflows/sync-documentation.yml": "a45b8edfc3f0a8fa6413071e6c1b1ad73effe0e966d0fb4d61dd5452e12d3615",
+        "ATTRIBUTION.md": "1d81bcad39a8ff082f6177cf5e2e12dda531904e8a7a52b436865726d3713152",
+        "LICENSE": "caf27edda9f161c05080b929367e2b039351b717fc67657884c2e5d5e7ed6e39",
+        "README.md": "4aca3dce0fd92605074280b1f634d8cd3562b96da1b9e313482d54ac31cb71db",
+        "SECURITY.md": "cfe3bb03630fd0a21f5ad394ca53c78c4b61ceb5ee4c3dfb0ac6889077a4ab2a",
+        "THIRD_PARTY_NOTICES.md": "ffa62095f37cfeec99a648e16c986472fad690bdcacaa02bf82df4440762a54c",
+        "documentation-source.json": "f3275d9e4d5555704b95f24f9b89f9b988789468f1e6a1d7a431c6e07042b6ca"
+      }
+    },
+    "sourceTransitions": [
+      "apps/discovery-scanner/src/candidate-list-import.ts",
+      "apps/discovery-scanner/src/candidate-list-panel.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-decode.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-encode.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-evidence.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-forgotten.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-results.ts",
+      "apps/key-derivation/src/ui/recovery-mnemocode-shares.ts",
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts",
+      "packages/recovery-backup/src/mnemocode-shares.ts",
+      "packages/recovery-mnemocode/source.json",
+      "packages/recovery-mnemocode/source/core/masking.ts",
+      "tooling/verify-browser-regressions.mjs"
+    ]
+  },
+  "procedure": {
+    "docs/FULL_AUDIT_GUIDE.md": "30fa6a1675892e2a3059bdbd6e97737f2959a74aca98a0a90e4f655ae12854a6",
+    "docs/audits/AUDIT_STANDARD.md": "9128a5e243ec5de86b58bde7b84f7d3bf6b9174346c056a34c5425957b27dc1f",
+    "docs/audits/AUDIT_TEMPLATE.md": "8122777f8093b04119633459b9b2cc50bc6ca9258bfc6184b52136d3b8172210",
+    "docs/audit-report.schema.json": "d47df01252ad6fb11d8cad00b7d9e6dde62b3ee3331c3bfbef9a7b99adda30f7"
+  },
+  "scope": {
+    "included": [
+      "Four tools and both default editions; primary focus on Deriver/new recovery tabs",
+      "Host-neutral MnemoCode, actual MHFE browser modules and read-only upstream implementation/specification/CLI contracts",
+      "Cryptographic/derivation seams, parsers, workers, secret lifecycle, public-data boundaries",
+      "Build/composition/provenance/licensing/docs and scoped Dash distribution workflow review"
+    ],
+    "excludedExecution": [
+      "Full vector corpus, full-cost Argon2 and browser recovery suite",
+      "Mass card/PDF/image generation, print acceptance and all selective combinations",
+      "Fresh Docker/Rust/WASM rebuild, release publishing, launcher runtime/build, paid GitHub Actions",
+      "Live provider/consensus nodes, real wallets and advisory exploits"
+    ],
+    "authorization": "Review-only; public/synthetic data. No product remediation or commit/push/tag/release.",
+    "upstream": [
+      {
+        "project": "mhfe",
+        "commit": "d7af4b1035355a69779f8ad70a9dc50ba5b9ffd0",
+        "state": "dirty local unreleased input"
+      },
+      {
+        "project": "mnemocode",
+        "commit": "c525d0d616eb9db31d730a3309ed6784ce7b62d2",
+        "state": "dirty local unreleased input"
+      },
+      {
+        "project": "mhfe_spec",
+        "commit": "b2395276bba3c593c518714caa29409b69f45961",
+        "state": "read-only dirty source, referenced specification sections"
+      }
+    ]
+  },
+  "environment": {
+    "timezone": "UTC",
+    "node": "26.10.0",
+    "pnpm": "12.8.1",
+    "vitest": "5.0.3",
+    "docker": "29.8.2 (version only)",
+    "chromium": "153.0.8010.12",
+    "firefox": "155.0",
+    "memoryLimitBytes": 15032385536,
+    "sampledPeakHostUsedBytes": 11066372096,
+    "memoryStops": 0,
+    "execution": "One resource-bearing check at a time, one Vitest worker, Node heap 1536 MiB; process-group stop at sampled host limit. Subsecond checks report peak 0 because no sample occurred, not zero actual use."
+  },
+  "checks": {
+    "coverage": [
+      {
+        "checkId": "CHECK-SEC-001",
+        "primaryOwner": "Deriver",
+        "outcome": "failed",
+        "method": "Threat/secret ownership trace and actual installer probes",
+        "evidence": "AUD-022-SEC001, AUD-022-SEC003; source-to-worker/result ownership.",
+        "remainingGap": "No exhaustive upstream/OS/browser compromise proof."
+      },
+      {
+        "checkId": "CHECK-SEC-002",
+        "primaryOwner": "Deriver",
+        "outcome": "passed",
+        "method": "Effective CSP/sandbox/transport/storage probes in both pinned engines",
+        "evidence": "28 selected browser cases; opaque vault blocks parent DOM.",
+        "remainingGap": "Malformed postMessage matrix and all transports not replayed."
+      },
+      {
+        "checkId": "CHECK-SEC-003",
+        "primaryOwner": "Coordinator",
+        "outcome": "passed",
+        "method": "Public request, secret-guard and network-boundary tests",
+        "evidence": "138-test scoped network/PSBT run plus earlier Scanner/Viewer tests.",
+        "remainingGap": "No live-provider or arbitrary egress proof."
+      },
+      {
+        "checkId": "CHECK-SEC-004",
+        "primaryOwner": "Cryptography",
+        "outcome": "passed",
+        "method": "RNG/source cryptographic seam review and bounded invariants",
+        "evidence": "63 selected recovery/RNG tests; one SLIP39 vector and literal derivation controls.",
+        "remainingGap": "Full Argon2, all randomness/permit combinations and compiled-WASM crypto proof not run."
+      },
+      {
+        "checkId": "CHECK-SEC-005",
+        "primaryOwner": "Deriver",
+        "outcome": "failed",
+        "method": "Clear/edit/Cancel/fault ordering with production owners",
+        "evidence": "AUD-022-SEC001, AUD-022-SEC002; AUD-022-API005, AUD-022-API006, AUD-022-API007; AUD-022-UI001, AUD-022-UI002.",
+        "remainingGap": "Synthetic collaborators; real full-cost work and heap erasure not established."
+      },
+      {
+        "checkId": "CHECK-SEC-006",
+        "primaryOwner": "Deriver",
+        "outcome": "passed",
+        "method": "Source sinks plus CSP and persistence probes",
+        "evidence": "Both-engine default-page boundary/storage checks and public export tests.",
+        "remainingGap": "All generated export/image/QR parsers and arbitrary inputs not exhausted."
+      },
+      {
+        "checkId": "CHECK-SEC-007",
+        "primaryOwner": "Coordinator",
+        "outcome": "failed",
+        "method": "Bounded body/parser tests plus dependency advisory inventory",
+        "evidence": "Provider body ceilings pass; AUD-022-SEC004 dev advisory remains.",
+        "remainingGap": "No DoS exploit, maximum-file allocation or live stress run."
+      },
+      {
+        "checkId": "CHECK-FUN-001",
+        "primaryOwner": "Cryptography",
+        "outcome": "passed",
+        "method": "Selected literal/independent BIP39/PBKDF2 comparisons",
+        "evidence": "12 bounded derivation cases include six OpenSSL PBKDF2 comparisons.",
+        "remainingGap": "Full width/language/vector corpus intentionally not replayed."
+      },
+      {
+        "checkId": "CHECK-FUN-002",
+        "primaryOwner": "Cryptography",
+        "outcome": "passed",
+        "method": "Source path/network trace and selected official vectors",
+        "evidence": "BIP86 complete first receiving and two BIP32 leading-zero controls.",
+        "remainingGap": "Every coin/network/index combination and Orchard crypto not replayed."
+      },
+      {
+        "checkId": "CHECK-FUN-003",
+        "primaryOwner": "Cryptography",
+        "outcome": "passed",
+        "method": "Source review and selected BIP85 application controls",
+        "evidence": "English 12-word, WIF and XPRV vectors; BIP85 lifetime tracked separately.",
+        "remainingGap": "BIP38 full-cost vectors, message/signing/Silent Payments corpus not rerun."
+      },
+      {
+        "checkId": "CHECK-FUN-004",
+        "primaryOwner": "Cryptography",
+        "outcome": "passed",
+        "method": "Script/descriptor/commitment static review and negative tests",
+        "evidence": "Scoped PSBT relationship/Core-regression and boundary tests.",
+        "remainingGap": "No external node/wallet import or full policy corpus."
+      },
+      {
+        "checkId": "CHECK-FUN-005",
+        "primaryOwner": "Cryptography",
+        "outcome": "failed",
+        "method": "Independent minimal PSBTv2 protocol/finality probes",
+        "evidence": "AUD-022-FUN001, AUD-022-FUN002; correctly bound/native and non-final controls pass.",
+        "remainingGap": "No consensus engine, signature verification or broadcast."
+      },
+      {
+        "checkId": "CHECK-FUN-006",
+        "primaryOwner": "MHFE and MnemoCode",
+        "outcome": "failed",
+        "method": "Recovery source/CLI/spec traces plus bounded runtime round trips",
+        "evidence": "AUD-022-API001, AUD-022-API003, AUD-022-API004; 63 recovery tests and browser MnemoCode/share flows.",
+        "remainingGap": "Real MHFE encrypt/rekey/hidden-wallet suite and all recovery widths/quorums not rerun."
+      },
+      {
+        "checkId": "CHECK-FUN-007",
+        "primaryOwner": "Coordinator",
+        "outcome": "passed",
+        "method": "Scanner estimates/candidates and mocked provider/accounting review",
+        "evidence": "Selected candidate, watch-only, lifecycle, completeness and atomic-unit tests.",
+        "remainingGap": "Live proofs/endpoints, sparse extremes and Orchard stream corpus not replayed."
+      },
+      {
+        "checkId": "CHECK-API-001",
+        "primaryOwner": "MHFE",
+        "outcome": "failed",
+        "method": "Actual dependency request/result contracts and bounded adapters",
+        "evidence": "AUD-022-API001, AUD-022-API002, AUD-022-API003, AUD-022-API004; MnemoCode subset jointly reviewed.",
+        "remainingGap": "All malformed runtime types, first-init/fault combinations not exercised."
+      },
+      {
+        "checkId": "CHECK-API-002",
+        "primaryOwner": "Deriver",
+        "outcome": "failed",
+        "method": "Controlled response-order/state-owner probes",
+        "evidence": "13 Deriver cases: five controls pass, eight fail; two MHFE invariant failures; Scanner panel race.",
+        "remainingGap": "Not native-browser crypto reproduction; some Decode/date/Split follow-ups remain."
+      },
+      {
+        "checkId": "CHECK-API-003",
+        "primaryOwner": "Coordinator",
+        "outcome": "passed",
+        "method": "Public projection, export guard and monetary tests",
+        "evidence": "Selected CSV/public/export-unit tests in 138-test and 245-test runs.",
+        "remainingGap": "No complete real downloaded CSV/JSON/XLSX combination matrix."
+      },
+      {
+        "checkId": "CHECK-API-004",
+        "primaryOwner": "MnemoCode",
+        "outcome": "failed",
+        "method": "Encoding contracts, protected list import and real browser round trips",
+        "evidence": "AUD-022-API003 missing SSKR MNCL; other included portable source bytes match upstream.",
+        "remainingGap": "Full literal encoding corpus, QR/image/PDF transport not rerun."
+      },
+      {
+        "checkId": "CHECK-BLD-001",
+        "primaryOwner": "Build/documentation",
+        "outcome": "passed",
+        "method": "Feature manifest/installer tests and eight fresh default HTML builds",
+        "evidence": "resumed-html/artifacts; edition-specific code/branding exclusion gates.",
+        "remainingGap": "All selective feature/coin combinations not built."
+      },
+      {
+        "checkId": "CHECK-BLD-002",
+        "primaryOwner": "Build/documentation",
+        "outcome": "not-run",
+        "method": "Matrix planner/runner source inspected",
+        "evidence": "No new demonstrated graph defect in selected module/composition tests.",
+        "remainingGap": "Full matrix and selective browser suites are release-level and were not requested."
+      },
+      {
+        "checkId": "CHECK-BLD-003",
+        "primaryOwner": "Build/documentation",
+        "outcome": "failed",
+        "method": "Lock integrity, source manifest, licenses and online advisory inventory",
+        "evidence": "150 pnpm/445 Cargo integrity pins pass; AUD-022-SEC004 and AUD-022-BLD001 remain.",
+        "remainingGap": "Ten public base commits verified after a network-enabled rerun; signed release vendoring, Cargo advisories and every license not independently audited."
+      },
+      {
+        "checkId": "CHECK-BLD-004",
+        "primaryOwner": "Build/documentation",
+        "outcome": "not-run",
+        "method": "Local producer/hash/container-config gates only",
+        "evidence": "Initial wasm-integrity/wasm-producers/container-config pass; affected bytes match resumed snapshot.",
+        "remainingGap": "No canonical fresh Docker/WASM rebuild; no claim of source-to-binary reproducibility."
+      },
+      {
+        "checkId": "CHECK-BLD-005",
+        "primaryOwner": "Build/documentation",
+        "outcome": "failed",
+        "method": "Stable artifact hashes and local CI/release source trace",
+        "evidence": "AUD-022-SEC003, AUD-022-BLD001, AUD-022-BLD002; default artifact verifier passes.",
+        "remainingGap": "No CI dispatch, release bundle, launcher build/run or remote policy verification."
+      },
+      {
+        "checkId": "CHECK-UI-001",
+        "primaryOwner": "Deriver",
+        "outcome": "passed",
+        "method": "Actual Chromium layouts and limited manual screenshot inspection",
+        "evidence": "Eight layouts at 1280x900 and 390x844; no horizontal page overflow.",
+        "remainingGap": "Not every tab/state/browser; compact MnemoCode mobile labels and full visual/accessibility review remain follow-up."
+      },
+      {
+        "checkId": "CHECK-UI-002",
+        "primaryOwner": "Deriver",
+        "outcome": "failed",
+        "method": "Default browser workflows plus production-state ordering probes",
+        "evidence": "AUD-022-UI001 and AUD-022-API006; no stale green assurance accepted as correct.",
+        "remainingGap": "All navigation/form ordering and linked-source modes not exhausted."
+      },
+      {
+        "checkId": "CHECK-UI-003",
+        "primaryOwner": "Deriver",
+        "outcome": "not-run",
+        "method": "Reveal/help/export/QR/accessibility source reviewed",
+        "evidence": "Selected secret conceal/worker tests pass; AUD-022-API007 lifecycle fails.",
+        "remainingGap": "No complete keyboard/touch/QR/popover/accessibility acceptance; no print/card batches."
+      },
+      {
+        "checkId": "CHECK-ARC-001",
+        "primaryOwner": "Deriver",
+        "outcome": "passed",
+        "method": "Production installer/class/import and composition seam review",
+        "evidence": "Module-boundary/selective-composition tests in 245-test run and fresh default builds.",
+        "remainingGap": "No exhaustive resolved graph/cycle proof."
+      },
+      {
+        "checkId": "CHECK-ARC-002",
+        "primaryOwner": "Deriver",
+        "outcome": "not-run",
+        "method": "Targeted references checked before declaring dead code",
+        "evidence": "No additional dead-code finding retained.",
+        "remainingGap": "Whole-repository duplication/dead-code/cycle audit not executed."
+      },
+      {
+        "checkId": "CHECK-ARC-003",
+        "primaryOwner": "Deriver",
+        "outcome": "failed",
+        "method": "Challenge test fidelity using complete production owners",
+        "evidence": "New lifecycle probes reveal unsupported assurances hidden by passing helper tests.",
+        "remainingGap": "No coverage percentage or exhaustive production-path test guarantee."
+      },
+      {
+        "checkId": "CHECK-DOC-001",
+        "primaryOwner": "Build/documentation",
+        "outcome": "failed",
+        "method": "Implementation, current upstream contracts and user guidance comparison",
+        "evidence": "AUD-022-API003, AUD-022-API004, AUD-022-DOC001, AUD-022-DOC003 and browser capability traces.",
+        "remainingGap": "No full rendered/printed recovery acceptance or measured timing guarantee."
+      },
+      {
+        "checkId": "CHECK-DOC-002",
+        "primaryOwner": "Build/documentation",
+        "outcome": "failed",
+        "method": "Commands/metadata/legal/source provenance comparison",
+        "evidence": "AUD-022-BLD001, AUD-022-DOC002; six rendered metadata pages now show wasm-bindgen 0.2.129.",
+        "remainingGap": "Remote assets/private reporting settings and all legal requirements not adjudicated."
+      },
+      {
+        "checkId": "CHECK-DOC-003",
+        "primaryOwner": "Coordinator",
+        "outcome": "passed",
+        "method": "Paired report/schema/IDs/links/log hashes validation",
+        "evidence": "Report validation harness and local SHA256SUMS; exact commands retained.",
+        "remainingGap": "Only the stated source phases/evidence; no independent certification."
+      }
+    ],
+    "commands": [
+      {
+        "name": "types",
+        "argv": ["pnpm", "check"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:53:29.712Z",
+        "completedAt": "2026-10-06T22:53:30.598Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "types.log",
+        "logSha256": "ee27b72aef018eac0c6a9785430838e21d9e3176d3e92d345d9962eee9c737af",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "provenance",
+        "argv": ["node", "tooling/verify-dependency-provenance.mjs"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:53:40.715Z",
+        "completedAt": "2026-10-06T22:53:40.815Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "provenance.log",
+        "logSha256": "34a59bf852347a09e5af3533518e131f7ced86025816c6556507ed6aaf1c54e9",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "wasm-integrity",
+        "argv": ["node", "tooling/verify-wasm-integrity.mjs"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:53:52.806Z",
+        "completedAt": "2026-10-06T22:53:52.893Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "wasm-integrity.log",
+        "logSha256": "2d4c0410c2273d1cdc5414060cbd64f32f04ae2404bf82fdb48285ccf1ebda8f",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "wasm-producers",
+        "argv": ["node", "tooling/verify-wasm-producers.mjs"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:53:52.927Z",
+        "completedAt": "2026-10-06T22:53:53.008Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "wasm-producers.log",
+        "logSha256": "856f7e487168bbd3fa09c5c6e9582ea620323b49b0a69eac86cc5d1cd5541708",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "container-config",
+        "argv": ["node", "tooling/verify-reproducible-container.mjs"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:53:53.038Z",
+        "completedAt": "2026-10-06T22:53:53.058Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "container-config.log",
+        "logSha256": "aae63236b8bcd95872d779047d65833f3382c7d0c553c860a17638d35230cc9a",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "recovery-scanner-ui",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "apps/key-derivation/tests/recovery-mhfe.test.ts",
+          "apps/key-derivation/tests/recovery-job-gate.test.ts",
+          "apps/key-derivation/tests/controller.test.ts",
+          "apps/key-derivation/tests/inputs.test.ts",
+          "apps/key-derivation/tests/worker-runtime.test.ts",
+          "apps/key-derivation/tests/top-level-modes.test.ts",
+          "packages/recovery-backup/tests/mnemocode.test.ts",
+          "packages/recovery-backup/tests/mnemocode-shares.test.ts",
+          "packages/recovery-backup/tests/mnemocode-wallet.test.ts",
+          "packages/recovery-backup/tests/sskr.test.ts",
+          "packages/recovery-backup/tests/slip39-lifecycle.test.ts",
+          "apps/discovery-scanner/tests/candidate-list-import.test.ts",
+          "apps/discovery-scanner/tests/controller.test.ts",
+          "apps/discovery-scanner/tests/scan-estimate.test.ts",
+          "apps/discovery-scanner/tests/discovery-scanner-security.test.ts",
+          "apps/discovery-scanner/tests/watch-only.test.ts",
+          "apps/discovery-scanner/tests/candidate-scan.test.ts",
+          "apps/discovery-scanner/tests/export-balance-units.test.ts",
+          "apps/discovery-scanner/tests/http-body-lifecycle.test.ts",
+          "apps/activity-viewer/tests/controller.test.ts",
+          "apps/activity-viewer/tests/multichain-lifecycle.test.ts",
+          "apps/activity-viewer/tests/export-public.test.ts",
+          "tooling/module-boundaries.test.mjs",
+          "tooling/selective-composition.test.mjs",
+          "tooling/verify-dependency-provenance.test.mjs",
+          "tooling/sync-mnemocode-source.test.mjs",
+          "--maxWorkers=1",
+          "--no-file-parallelism",
+          "--reporter=dot"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:54:03.440Z",
+        "completedAt": "2026-10-06T22:54:40.747Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 10048516096,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "recovery-scanner-ui.log",
+        "logSha256": "d03cc11c35e2e8838d4336ed2322aebe07d0a89a0b25c969a5df6d1da8550705",
+        "interpretation": "245 passed in 26 selected files; initial source phase."
+      },
+      {
+        "name": "formatting",
+        "argv": ["pnpm", "format:check"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:54:47.064Z",
+        "completedAt": "2026-10-06T22:54:53.743Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 9748389888,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "formatting.log",
+        "logSha256": "f533e69fa393d2abe190d3273d0067208d640b77ea224c43c2df08a1702eb777",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "scanner-clear-race",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "docs/audits/AUD-022-harnesses/vitest.config.mjs",
+          "docs/audits/AUD-022-harnesses/scanner-import.audit.test.ts",
+          "--reporter=verbose"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:54:53.315Z",
+        "completedAt": "2026-10-06T22:54:53.898Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "scanner-clear-race.log",
+        "logSha256": "886cea3e7b92eb969f38e118c551fdbd90c382393d142dfebba243d8d19d1d4a",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "fresh-html",
+        "argv": ["pnpm", "build"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:55:06.471Z",
+        "completedAt": "2026-10-06T22:55:13.509Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 9939668992,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "fresh-html.log",
+        "logSha256": "3288011bb0f748e8fa5d3d37335007efc12c659cea14e87e93d8123c1e078300",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "artifact-profiles",
+        "argv": ["node", "tooling/verify-artifact-profiles.mjs"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:55:29.838Z",
+        "completedAt": "2026-10-06T22:55:29.968Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "artifact-profiles.log",
+        "logSha256": "2f263455f846a6b84f0e965c6bbd96f52a1100fab3fd6d7e421afbb5f4c82225",
+        "interpretation": "Initial failure caused by concurrent source edits, not retained as product defect; stable rebuilt artifacts pass."
+      },
+      {
+        "name": "focused-browser",
+        "argv": [
+          "env",
+          "BROWSER_CASES=key-derivation-boundaries,discovery-scanner-boundaries,activity-viewer-boundaries,psbt-inspector-boundaries,mnemocode-roundtrip,mnemocode-shares,worker-readiness",
+          "node",
+          "tooling/verify-browser-regressions.mjs"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:55:30.000Z",
+        "completedAt": "2026-10-06T22:56:55.735Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 10798051328,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "log": "focused-browser.log",
+        "logSha256": "c071df7ece9635d03e0af6179efe30040f1e495316472680750686e747d9350b",
+        "interpretation": "Initial Firefox14/14 pass; Chromium launch blocked by sandbox, then resumed run resolved environment limitation."
+      },
+      {
+        "name": "mnemocode-contracts",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "docs/audits/AUD-022-harnesses/mnemocode-vitest.config.mjs",
+          "--reporter=verbose"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:57:07.321Z",
+        "completedAt": "2026-10-06T22:57:07.984Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "sourceFingerprintAfter": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "log": "mnemocode-contracts.log",
+        "logSha256": "c98b8b104e3f66fc2e57173d281014ef1e4435af09cc5003b83ef6982ddf40ac",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "scanner-clear-race-current",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "docs/audits/AUD-022-harnesses/vitest.config.mjs",
+          "docs/audits/AUD-022-harnesses/scanner-import.audit.test.ts",
+          "--reporter=verbose"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:57:08.041Z",
+        "completedAt": "2026-10-06T22:57:08.602Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "sourceFingerprintAfter": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "log": "scanner-clear-race-current.log",
+        "logSha256": "025fa0a6bb86cda2232f3b784ae425e1beca91481ad8042434fe06d5f9cb3229",
+        "interpretation": "Cancellation now rejects instead of resolving; probe adaptation required, not a new product failure."
+      },
+      {
+        "name": "scanner-clear-race-verified",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "docs/audits/AUD-022-harnesses/vitest.config.mjs",
+          "docs/audits/AUD-022-harnesses/scanner-import.audit.test.ts",
+          "--reporter=verbose"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:57:34.578Z",
+        "completedAt": "2026-10-06T22:57:36.528Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 11066372096,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "sourceFingerprintAfter": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "log": "scanner-clear-race-verified.log",
+        "logSha256": "f2633f74446d592f2b10352979d05bb7417d66a86fea876c99dc6bb52549c55c",
+        "interpretation": "Importer decrypt-stage Clear passes on externally fixed bytes; panel earlier file-read stage still fails."
+      },
+      {
+        "name": "network-and-psbt",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "packages/network-boundary/tests/bounded-json.test.ts",
+          "packages/network-boundary/tests/protocol.test.ts",
+          "packages/network-boundary/tests/request-validation.test.ts",
+          "packages/secret-boundary/tests/public-input-guard.test.ts",
+          "packages/secret-boundary/tests/secret-guard.test.ts",
+          "apps/activity-viewer/tests/activity-viewer-batch.test.ts",
+          "apps/activity-viewer/tests/activity-viewer-export.test.ts",
+          "apps/discovery-scanner/tests/public-address-multichain.test.ts",
+          "apps/discovery-scanner/tests/fresh-queries.test.ts",
+          "apps/psbt-inspector/tests/psbt-relationships.test.ts",
+          "apps/psbt-inspector/tests/bitcoin-core-audit-regressions.test.ts",
+          "apps/psbt-inspector/tests/audit-followup.test.ts",
+          "--maxWorkers=1",
+          "--no-file-parallelism",
+          "--reporter=dot"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:57:44.035Z",
+        "completedAt": "2026-10-06T22:57:48.720Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 10541088768,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "sourceFingerprintAfter": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "log": "network-and-psbt.log",
+        "logSha256": "9a8c22536ade14406761143c2e23c77945bdd8f408594429630ee67dd8b801f2",
+        "interpretation": "138 passed in 12 selected files; pre-pause source fingerprint recorded."
+      },
+      {
+        "name": "crypto-protocol-probes",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "docs/audits/AUD-022-harnesses/crypto-vitest.config.mjs",
+          "--reporter=verbose"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:58:04.427Z",
+        "completedAt": "2026-10-06T22:58:05.818Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 10574041088,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "sourceFingerprintAfter": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "log": "crypto-protocol-probes.log",
+        "logSha256": "3a20e9294b51e6402e13669082412126ef54d72e762b8774b4121790924f0aa9",
+        "interpretation": "Initial three controls pass, two PSBT failures and one audit instrumentation error. Correction rerun separately."
+      },
+      {
+        "name": "mhfe-contract-probes",
+        "argv": [
+          "node",
+          "--experimental-vm-modules",
+          "docs/audits/AUD-022-harnesses/mhfe-contract-probes.mjs"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:58:05.961Z",
+        "completedAt": "2026-10-06T22:58:06.191Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "sourceFingerprintAfter": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "log": "mhfe-contract-probes.log",
+        "logSha256": "22b93b62fe1cbae71998976590e11e378de5cf6792602af2ac82c9a04111663f",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "bounded-derivation-vectors",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "packages/coin-protocols/tests/bitcoin.test.ts",
+          "packages/crypto-core/tests/bip85.test.ts",
+          "packages/crypto-core/tests/independent-conformance-audit.test.ts",
+          "-t",
+          "complete BIP86 first receiving|WIF application|XPRV application|English 12-word application|matches OpenSSL PBKDF2|retains BIP32 leading zeros",
+          "--maxWorkers=1",
+          "--no-file-parallelism",
+          "--reporter=verbose"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T22:58:39.964Z",
+        "completedAt": "2026-10-06T22:58:41.429Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 10218913792,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "sourceFingerprintAfter": "2a801f49d263352f486fc89f7c3b647baa7ff2721d53b9a3a54baf0a0b032118",
+        "log": "bounded-derivation-vectors.log",
+        "logSha256": "ae450aabd202769955e3a4267f1cb1635c3c5063e0bbf33d5d33546dfa382be2",
+        "interpretation": "12 passed / 21 skipped in three files; only selected public vectors."
+      },
+      {
+        "name": "resumed-types",
+        "argv": ["pnpm", "check"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:36:09.533Z",
+        "completedAt": "2026-10-06T23:36:09.795Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "resumed-types.log",
+        "logSha256": "cb65a757af5f8819b900cdbcdb683caa88979763dff4ab708b6e82baed2dabf0",
+        "interpretation": "Audit note :line Markdown target failed metadata validation; source types not at fault. Original note retained as .txt and note links corrected."
+      },
+      {
+        "name": "resumed-types-verified",
+        "argv": ["pnpm", "check"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:36:21.330Z",
+        "completedAt": "2026-10-06T23:36:22.132Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "resumed-types-verified.log",
+        "logSha256": "ee27b72aef018eac0c6a9785430838e21d9e3176d3e92d345d9962eee9c737af",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "resumed-html",
+        "argv": ["pnpm", "build"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:36:26.177Z",
+        "completedAt": "2026-10-06T23:36:33.119Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 9716748288,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "resumed-html.log",
+        "logSha256": "0bb6c899af7b4fd25b5d048f88badefc589b320af5d6e3a875967e44624d667b",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "resumed-artifacts",
+        "argv": ["node", "tooling/verify-artifact-profiles.mjs"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:36:52.995Z",
+        "completedAt": "2026-10-06T23:36:57.466Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 9613406208,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "resumed-artifacts.log",
+        "logSha256": "68e263649dc4c0918870334296017c88f1c2cee1fdd6c9c3e80089cee3d8a28b",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "scanner-panel-race",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "docs/audits/AUD-022-harnesses/vitest.config.mjs",
+          "docs/audits/AUD-022-harnesses/scanner-panel.audit.test.ts",
+          "docs/audits/AUD-022-harnesses/scanner-import.audit.test.ts",
+          "--reporter=verbose"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:36:57.521Z",
+        "completedAt": "2026-10-06T23:36:58.290Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "scanner-panel-race.log",
+        "logSha256": "09d953d270291905d7fe2d77403914031fe2b8bd4382606e10ca7f3f413050b1",
+        "interpretation": "Three assertions across two files: ordinary panel open and decrypt-stage Clear pass; file-read-stage Clear fails."
+      },
+      {
+        "name": "resumed-browser",
+        "argv": [
+          "env",
+          "BROWSER_ENGINES=chromium,firefox",
+          "BROWSER_CASES=key-derivation-boundaries,discovery-scanner-boundaries,activity-viewer-boundaries,psbt-inspector-boundaries,mnemocode-roundtrip,mnemocode-shares,worker-readiness",
+          "node",
+          "tooling/verify-browser-regressions.mjs"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:37:15.680Z",
+        "completedAt": "2026-10-06T23:39:09.979Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 10252410880,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "resumed-browser.log",
+        "logSha256": "cd04a0a926d08f2230f3e0fbd3ac4d2f71a12b177b52c04c7ac9f601fd659b74",
+        "interpretation": "28/28 cases in Chromium and Firefox; normal security/CSP enabled, no card/PDF cases."
+      },
+      {
+        "name": "resumed-contracts",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "docs/audits/AUD-022-harnesses/vitest.config.mjs",
+          "docs/audits/AUD-022-harnesses/mnemocode-contracts.audit.test.ts",
+          "docs/audits/AUD-022-harnesses/crypto-protocols.audit.test.ts",
+          "--reporter=verbose"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:39:38.433Z",
+        "completedAt": "2026-10-06T23:39:39.377Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "resumed-contracts.log",
+        "logSha256": "f5582526f7081293e58a4603d14ea2c36458deefa86ceba3edeb629e4f6a2bfe",
+        "interpretation": "Nine assertions: five failures (two PSBT roots, two empty-list variants, one late-validation root), four controls/observations pass. Corrected decoder instrumentation retained."
+      },
+      {
+        "name": "resumed-mhfe-contracts",
+        "argv": [
+          "node",
+          "--experimental-vm-modules",
+          "docs/audits/AUD-022-harnesses/mhfe-contract-probes.mjs"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:39:39.439Z",
+        "completedAt": "2026-10-06T23:39:39.548Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "resumed-mhfe-contracts.log",
+        "logSha256": "e1c94c18d3981598f09a0954e7e32db132c9e6482a73e0455af0ca4597a3d1e1",
+        "interpretation": "Two controlled invariant failures, zero harness errors; no WASM/Argon2 execution."
+      },
+      {
+        "name": "resumed-recovery",
+        "argv": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "packages/recovery-backup/tests/mnemocode-shares.test.ts",
+          "packages/recovery-backup/tests/mnemocode.test.ts",
+          "packages/recovery-backup/tests/mnemocode-wallet.test.ts",
+          "packages/crypto-core/tests/secure-random.test.ts",
+          "apps/discovery-scanner/tests/candidate-list-import.test.ts",
+          "apps/key-derivation/tests/recovery-mhfe.test.ts",
+          "tooling/sync-mnemocode-source.test.mjs",
+          "--maxWorkers=1",
+          "--no-file-parallelism",
+          "--reporter=dot"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:39:39.608Z",
+        "completedAt": "2026-10-06T23:40:11.460Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 9562361856,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "resumed-recovery.log",
+        "logSha256": "7cca8a8c06537a2bd0be7ec95d746a400dccc5478c79bff95a34f4974490a4c5",
+        "interpretation": "63 passed in seven selected files, final stable product fingerprint."
+      },
+      {
+        "name": "deriver-bip85-lifecycle",
+        "argv": [
+          "node",
+          "--experimental-vm-modules",
+          "docs/audits/AUD-022-harnesses/deriver-bip85-clear.mjs"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:40:21.515Z",
+        "completedAt": "2026-10-06T23:40:21.637Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "deriver-bip85-lifecycle.log",
+        "logSha256": "196f937f6b3ba1782b1a3c7e296f7e74f7238c3c64e0966d1d1c92429163a340",
+        "interpretation": "Three cases: one control, two Clear-order failures, zero harness errors."
+      },
+      {
+        "name": "deriver-check-lifecycle",
+        "argv": [
+          "node",
+          "--experimental-vm-modules",
+          "docs/audits/AUD-022-harnesses/deriver-mhfe-check-edit.mjs"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:40:21.693Z",
+        "completedAt": "2026-10-06T23:40:21.798Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "deriver-check-lifecycle.log",
+        "logSha256": "98b83a2508daa85756d821ce439575f93a9bee4f1ff183a7eba879789724b5f2",
+        "interpretation": "Three cases: one control, two edit-attribution failures, zero harness errors."
+      },
+      {
+        "name": "deriver-owner-lifecycle",
+        "argv": [
+          "node",
+          "--experimental-vm-modules",
+          "docs/audits/AUD-022-harnesses/deriver-rekey-owner-lifetime.mjs"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:40:21.854Z",
+        "completedAt": "2026-10-06T23:40:21.963Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "deriver-owner-lifecycle.log",
+        "logSha256": "b616df172ff09204fe8264155cd59948fc1172827a3579ceccd178934be5b0e3",
+        "interpretation": "Three cases: one control, two owner-lifetime failures, zero harness errors."
+      },
+      {
+        "name": "resumed-format",
+        "argv": ["pnpm", "format:check"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:40:22.019Z",
+        "completedAt": "2026-10-06T23:40:28.745Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 9052942336,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "resumed-format.log",
+        "logSha256": "f533e69fa393d2abe190d3273d0067208d640b77ea224c43c2df08a1702eb777",
+        "interpretation": "Scoped result only; see command and retained log. Local integrity checks are not reproducibility proof."
+      },
+      {
+        "name": "resumed-provenance",
+        "argv": ["node", "tooling/verify-dependency-provenance.mjs"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:40:28.805Z",
+        "completedAt": "2026-10-06T23:40:28.929Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "resumed-provenance.log",
+        "logSha256": "34a59bf852347a09e5af3533518e131f7ced86025816c6556507ed6aaf1c54e9",
+        "interpretation": "Local pins pass; restricted-network GitHub checks unavailable 0/10, superseded for availability by the final network-enabled run; dirty-vendor warnings remain."
+      },
+      {
+        "name": "dependency-advisories",
+        "argv": ["pnpm", "audit", "--json"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:41:15.862Z",
+        "completedAt": "2026-10-06T23:41:16.959Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 8762937344,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "dependency-advisories.log",
+        "logSha256": "fb99dba6299405fabc220b09361e683639d74c23e127b4e2c580291e040dfe6a",
+        "interpretation": "One upstream High development advisory; zero other severity counters. No exploit run."
+      },
+      {
+        "name": "deriver-backup-lifecycle",
+        "argv": [
+          "node",
+          "--experimental-vm-modules",
+          "docs/audits/AUD-022-harnesses/deriver-backup-check.mjs"
+        ],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:42:43.149Z",
+        "completedAt": "2026-10-06T23:42:43.244Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "deriver-backup-lifecycle.log",
+        "logSha256": "52711d4108445f75ab6d5b8a947a00288ce7fd6081f38351c456e702e5d9cd11",
+        "interpretation": "Four cases: two positive controls, two stale-verdict failures, zero harness errors."
+      },
+      {
+        "name": "browser-layout",
+        "argv": ["node", "docs/audits/AUD-022-harnesses/browser-layout.mjs"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:42:48.316Z",
+        "completedAt": "2026-10-06T23:43:22.772Z",
+        "exitCode": 1,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 9265127424,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "browser-layout.log",
+        "logSha256": "03c38badcbed29ed5f930d11a299160c707805fb976ae70d2f07157989a14cb4",
+        "interpretation": "Audit locator missed Scanner metadata in opaque iframe; partial layouts retained, then corrected scope rerun."
+      },
+      {
+        "name": "browser-layout-verified",
+        "argv": ["node", "docs/audits/AUD-022-harnesses/browser-layout.mjs", "final"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:43:44.543Z",
+        "completedAt": "2026-10-06T23:43:53.890Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 9199132672,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "browser-layout-verified.log",
+        "logSha256": "e66ead0c571de8d7df9e4720d0373550f8154f548de2628a00464d6c36ee89e5",
+        "interpretation": "Six actual metadata pages and eight layout captures pass; selected screenshots manually inspected."
+      },
+      {
+        "name": "upstream-availability",
+        "argv": ["node", "tooling/verify-dependency-provenance.mjs"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:50:53.996Z",
+        "completedAt": "2026-10-06T23:50:56.304Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 8394219520,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "upstream-availability.log",
+        "logSha256": "82f51258b82fcde3ce1b42c54513058e8472e76784afcf0368baef39862a2fc2",
+        "interpretation": "150 pnpm/445 Cargo pins pass; all 10 public base commits verified with network access. This does not verify uncommitted imported bytes as signed releases."
+      },
+      {
+        "name": "final-metadata-types",
+        "argv": ["pnpm", "check"],
+        "workingDirectory": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/",
+        "startedAt": "2026-10-06T23:51:22.125Z",
+        "completedAt": "2026-10-06T23:51:22.932Z",
+        "exitCode": 0,
+        "signal": null,
+        "spawnError": null,
+        "memoryLimitBytes": 15032385536,
+        "peakUsedBytes": 0,
+        "stoppedForMemory": false,
+        "environment": {
+          "NODE_OPTIONS": "--max-old-space-size=1536"
+        },
+        "sourceFingerprintBefore": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "sourceFingerprintAfter": "d5482299f712f09866bff0f46e49dab6292b3c8098de863627c01206a5e8b28f",
+        "log": "final-metadata-types.log",
+        "logSha256": "ee27b72aef018eac0c6a9785430838e21d9e3176d3e92d345d9962eee9c737af",
+        "interpretation": "Final metadata/type checks with audit-owned files present; passed after local note links were corrected."
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "AUD-022-API001",
+      "category": "API",
+      "kind": "finding",
+      "title": "Optional candidate list turns an empty completed search into failure",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-search.ts",
+          "line": 123,
+          "sha256": "e85c611cce557bf0bff2ba1d5a0bd7345fc2d2ddd42d8d411e216acce6ca3445"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-search.ts",
+          "line": 190,
+          "sha256": "e85c611cce557bf0bff2ba1d5a0bd7345fc2d2ddd42d8d411e216acce6ca3445"
+        }
+      ],
+      "checks": ["CHECK-API-001", "CHECK-FUN-006"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": ["resumed-contracts.log"]
+      },
+      "reproduction": "Request a list for eleven abandon words plus abandon|ability (zero checksum-valid results), or ten date candidates with a wallet stub matching none.",
+      "expected": "Return completed counts, zero matches and no file, as the upstream CLI does.",
+      "observed": "The no-list controls complete. Optional serialization throws A candidate list holds 1 to 524,288 records; neither completed outcome is returned.",
+      "impact": "Recovery result reporting fails and work may need repeating. No invalid mnemonic is accepted.",
+      "recommendedFix": "Skip serialization for no retained candidates and report a clear no-file outcome.",
+      "requiredVerification": "Zero words/date matches, protected/unprotected lists and a non-empty positive list control."
+    },
+    {
+      "id": "AUD-022-API002",
+      "category": "API",
+      "kind": "finding",
+      "title": "Stored BIP39 passphrase is validated after candidate search",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-search.ts",
+          "line": 113,
+          "sha256": "e85c611cce557bf0bff2ba1d5a0bd7345fc2d2ddd42d8d411e216acce6ca3445"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-search.ts",
+          "line": 227,
+          "sha256": "e85c611cce557bf0bff2ba1d5a0bd7345fc2d2ddd42d8d411e216acce6ca3445"
+        }
+      ],
+      "checks": ["CHECK-API-001"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": ["resumed-contracts.log"]
+      },
+      "reproduction": "Request an optional list for eleven abandon words plus about|zoo, stored listPassphrase of 257 ASCII bytes and a counting wallet check.",
+      "expected": "Reject an unrepresentable list passphrase before any search/wallet work.",
+      "observed": "One wallet callback runs instead of zero, then serialization correctly rejects the 256-byte limit. Upstream CLI validates the same limit before work.",
+      "impact": "Avoidable work and discarded completed results. Large-work exhaustion and actual PBKDF2 cost were not measured.",
+      "recommendedFix": "Call assertListPassphrase before searches whenever a list is requested; keep optional output failures separate from valid recovery results.",
+      "requiredVerification": "Words/date paths, 256/257 UTF-8 bytes, multibyte text and lone surrogates; no-list path."
+    },
+    {
+      "id": "AUD-022-API003",
+      "category": "API",
+      "kind": "finding",
+      "title": "Browser SSKR Restore lacks the upstream candidate-list export",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": true,
+      "releaseBlockingReason": "Resolve before publishing the affected capability or workflow; the stated recovery, cleanup or release contract is not met.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-shares.ts",
+          "line": 345,
+          "sha256": "e86369e0c716f810bbaee4f6ea38e7fc18d9996c37c348d1f09eec8427746b91"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/workers/mnemocode-shares-worker.ts",
+          "line": 19,
+          "sha256": "12b4f9eeecba652f47cee6cf8ebf23598c70f4db3856fabbc4e41453b8d1863c"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-shares.ts",
+          "line": 384,
+          "sha256": "e0f14db11f53efcdacab3efcde57da474bbae663cfdce35d0d6cb145f5980087"
+        }
+      ],
+      "checks": ["CHECK-API-004", "CHECK-API-001", "CHECK-FUN-006"],
+      "evidence": {
+        "method": "Static installed API/UI and current upstream CLI contract comparison",
+        "localLogs": ["mnemocode-resumed-review.md"]
+      },
+      "reproduction": "Restore the two public shares of the upstream bip39-128-2-of-3 fixture and request the protected MNCL output supported by sskr-combine, including its marked-share/date-search route.",
+      "expected": "Optional protected original candidates with their BIP39 passphrase/order can be saved for Scanner independently of the display cap.",
+      "observed": "No request/result/UI list operation exists. ShareUnmasking receives no keep and its listed values are discarded. Forgotten share repair maps to sskr-export and is not a second missing-list finding.",
+      "impact": "Concrete CLI/browser capability gap under the workspace parity rule; no failure of valid quorum restoration is alleged.",
+      "recommendedFix": "Expose the upstream listed result through the existing protected candidate-list service and Restore controls.",
+      "requiredVerification": "One normal quorum, one small repaired-share case and bounded date candidates; decrypt/import and compare passphrase/order with CLI."
+    },
+    {
+      "id": "AUD-022-API004",
+      "category": "API",
+      "kind": "finding",
+      "title": "MHFE rekey requirements omit the known wallet BIP39 passphrase",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": true,
+      "releaseBlockingReason": "Resolve before publishing the affected capability or workflow; the stated recovery, cleanup or release contract is not met.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-rekey.ts",
+          "line": 207,
+          "sha256": "f8abe09486f03190a70cb6a7d45dfd478d57774eb31e10fe7eb37cc34ad245bd"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-status.ts",
+          "line": 162,
+          "sha256": "ac241c11a817523e0003b4f8ff7f7e2709b728bd5c4347fd826c2bb8394e05b3"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/mhfe/src/wasm_api/core.rs",
+          "line": 732,
+          "sha256": "f1b34403ae85183f4af7fb86839b3865fa5042bfebffa29518bd23fc69f9ff27"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/mhfe/src/bin/mhfe/rekey.rs",
+          "line": 172,
+          "sha256": "d40b83119bba8dee823cf16914f7d9632e277fdbf152e5b1e88a5c9eba929293"
+        }
+      ],
+      "checks": ["CHECK-API-001", "CHECK-FUN-006", "CHECK-DOC-001"],
+      "evidence": {
+        "method": "Static upstream binding/CLI/specification-to-production-renderer trace",
+        "localLogs": ["mhfe-resumed-review.md"]
+      },
+      "reproduction": "Rekey an ordinary 24-word wallet with non-empty BIP39 passphrase, confirming by its address/fingerprint; choose new PIM 0 and no repair words for the clearest sentence.",
+      "expected": "Keep must include the independent wallet passphrase; rekeying its mnemonic does not store or replace that wallet factor.",
+      "observed": "Passphrase reaches confirmation, but WASM binding and native CLI both call keep/serialization with false. The browser list can say Nothing else needs to be kept: the 24 words and the password are enough.",
+      "impact": "Incorrect backup requirements for a known wallet factor. Default repair words avoid that exact sentence but still omit passphrase. No wallet loss or wrong recovered mnemonic was demonstrated; real emitted WASM JSON was not rerun.",
+      "recommendedFix": "Preserve explicit wallet-passphrase presence through upstream rekey/API/CLI results and browser instructions, including reference modes where it cannot be inferred.",
+      "requiredVerification": "Empty/non-empty wallet passphrases, no/default repair words, built-in/reference/owner modes and actual resulting Keep list."
+    },
+    {
+      "id": "AUD-022-API005",
+      "category": "API",
+      "kind": "finding",
+      "title": "MHFE Cancel before client preparation does not prevent later work",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-engine.ts",
+          "line": 92,
+          "sha256": "3c2cdcf6aff5322b38dd302969dbf09f1fa338bbb52b773f985d3cffa350efec"
+        }
+      ],
+      "checks": ["CHECK-API-002", "CHECK-SEC-005"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": ["resumed-mhfe-contracts.log"]
+      },
+      "reproduction": "Defer production engine compilation, start runCancellable, invoke its Cancel handler, then resolve compilation and a synthetic client operation.",
+      "expected": "Cancel latches from the start and prevents every later operation and completion.",
+      "observed": "The later operation starts once and resolves; cancel reaches no client (cancelled 0). Quick facts/password review stages have the same source ownership seam.",
+      "impact": "An operation can start after Cancel, potentially costing full Argon2 resources. No real Argon2 allocation or incorrect cipher output was demonstrated; cancellation of already active library work is a separate path.",
+      "recommendedFix": "Own a cancellation/revision token over preparation, every await and active work; release the shared gate.",
+      "requiredVerification": "Cancel during compilation, facts, password review and active operation; no late results and normal completion controls."
+    },
+    {
+      "id": "AUD-022-API006",
+      "category": "API",
+      "kind": "finding",
+      "title": "Written-backup checks can publish a verdict for obsolete text",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": true,
+      "releaseBlockingReason": "Resolve before publishing the affected capability or workflow; the stated recovery, cleanup or release contract is not met.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-backup-check.ts",
+          "line": 73,
+          "sha256": "131a40b91503c52bed0948e1513177ded7495427b55b08a519ff55dfdb594234"
+        }
+      ],
+      "checks": ["CHECK-API-002", "CHECK-UI-002"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": ["deriver-backup-lifecycle.log"]
+      },
+      "reproduction": "Offer one original; defer its written-backup check, edit backup text or finish a newer mismatch before resolving the older synthetic success.",
+      "expected": "Editing or a new run invalidates the old verdict while the same original remains selected.",
+      "observed": "Both challenged cases append obsolete green success. Unchanged input and changing the offered original controls pass. The guard compares only the BackupCheck instance.",
+      "impact": "Backup reassurance can describe a different written record. Library verdicts are synthetic to isolate ordering; actual long marked-share timing/cryptography was not executed.",
+      "recommendedFix": "Increment an input/run revision on edits, offer and each start, and gate both success and failure.",
+      "requiredVerification": "Edits/dates, reverse ordering, changing original and one bounded yielding real share-check collaborator."
+    },
+    {
+      "id": "AUD-022-BLD001",
+      "category": "BLD",
+      "kind": "finding",
+      "title": "Flat release omits MHFE supplemental redistribution material",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": true,
+      "releaseBlockingReason": "Resolve before publishing the affected capability or workflow; the stated recovery, cleanup or release contract is not met.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/tooling/create-github-release-assets.mjs",
+          "line": 64,
+          "sha256": "0058841733eb88e4cd2d902b59554d3398ca991ac14888574bbcc7a41b16cde2"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/tooling/verify-github-release-assets.mjs",
+          "line": 31,
+          "sha256": "6d2a452b60bc95132b3e450c1995c2c135422b90d72068f3fe123bbfc448bb98"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/THIRD_PARTY_NOTICES.md",
+          "line": 416,
+          "sha256": "728aa4e29d37667576d37b6519676db9442956d47d28b82dca4b7f5891da60a0"
+        }
+      ],
+      "checks": ["CHECK-BLD-003", "CHECK-BLD-005", "CHECK-DOC-002"],
+      "evidence": {
+        "method": "Static packager/allowlist and retained notice-text comparison",
+        "localLogs": ["build-review.md"]
+      },
+      "reproduction": "Consume an MHFE-containing flat HTML/launcher release without the source repository; inspect the legal copy loop and exact allowlist.",
+      "expected": "Required supplemental notices and selected Argon2 license ship as files or are merged into shipped text.",
+      "observed": "Only root LICENSE, ATTRIBUTION.md and THIRD_PARTY_NOTICES.md ship. Root text references package-relative supplemental notices and LICENSE-ARGON2 absent from the allowed assets.",
+      "impact": "The stated redistribution-material contract is incomplete. Source checkout retains the files; this is not a legal adjudication or secret compromise. No new release bundle was built.",
+      "recommendedFix": "Merge supplemental material into shipped text or include explicit legal assets and update checksum/allowlist verification together.",
+      "requiredVerification": "Inspect one final asset set per edition for required texts, paths and SHA256SUMS; preserve upstream notices."
+    },
+    {
+      "id": "AUD-022-BLD002",
+      "category": "BLD",
+      "kind": "finding",
+      "title": "Dash publication is not gated by launcher runtime acceptance",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": true,
+      "releaseBlockingReason": "Resolve before publishing the affected capability or workflow; the stated recovery, cleanup or release contract is not met.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/dash-wallet-tools/.github/workflows/release.yml",
+          "line": 227,
+          "sha256": "eb8657d6fda0c87a1449d5810b754a6cc2043ca59ecf7c5c1850a8e24d174252"
+        }
+      ],
+      "checks": ["CHECK-BLD-005"],
+      "evidence": {
+        "method": "Static canonical-versus-distribution workflow dependency comparison",
+        "localLogs": ["build-review.md"]
+      },
+      "reproduction": "A selected canonical tag has launcher tooling; Dash builds its own embedded page/executables and reaches publish.",
+      "expected": "The affected target executable/page starts and passes the documented launcher acceptance before publishing.",
+      "observed": "Publish needs resolve/release/macOS only. No launcher verifier/runtime job exists; embedding/checksum checks do not establish executable startup. Canonical release has the corresponding runtime dependency.",
+      "impact": "Missing acceptance gate for separately assembled Dash executables. No binary malfunction, isolation failure or failed startup was observed; no launcher/CI process was run.",
+      "recommendedFix": "Add Dash-profile target-runner runtime acceptance and make publishing depend on it without full Argon2 replay in routine CI.",
+      "requiredVerification": "Static DAG failure fixture and supported target-runner launcher/header/worker checks during release verification."
+    },
+    {
+      "id": "AUD-022-FUN001",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "Unbound redeemScript incorrectly selects BIP143",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/psbt-inspector/src/signing-commitments.ts",
+          "line": 48,
+          "sha256": "27b9ed6c133f0546cc631da44b33c768a8879a8e8ceb898f0ae7fa167fa22460"
+        }
+      ],
+      "checks": ["CHECK-FUN-005"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": ["resumed-contracts.log"]
+      },
+      "reproduction": "Parse a synthetic PSBTv2 with a P2PKH UTXO, unrelated 0014 witness-program redeemScript and SIGHASH_ALL. Native and correctly HASH160-bound nested SegWit controls run.",
+      "expected": "Contradictory metadata cannot establish witness execution; retain legacy semantics or mark context inconsistent/unknown.",
+      "observed": "The HASH160 relationship is separately failed, but signing analysis reports SegWit v0 / BIP143. The first failed protocol assertion prevents the later amount assertion from running; its wrong Committed description is source-derived.",
+      "impact": "Incorrect signature-commitment explanation for an untrusted PSBT. The inspector does not sign/broadcast and visibly reports the relationship failure. No consensus bypass or unauthorized signature is established.",
+      "recommendedFix": "Derive protocol from the supplied UTXO and validated script commitments; never promote from unbound optional metadata.",
+      "requiredVerification": "Legacy, native and nested witness controls, mismatched HASH160, conflicting UTXOs and missing context.",
+      "references": [
+        "https://bips.dev/143/",
+        "https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"
+      ]
+    },
+    {
+      "id": "AUD-022-FUN002",
+      "category": "FUN",
+      "kind": "finding",
+      "title": "PSBTv2 required locktime is described as active with all-final sequences",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/psbt-inspector/src/signing-commitments.ts",
+          "line": 204,
+          "sha256": "27b9ed6c133f0546cc631da44b33c768a8879a8e8ceb898f0ae7fa167fa22460"
+        }
+      ],
+      "checks": ["CHECK-FUN-005"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": ["resumed-contracts.log"]
+      },
+      "reproduction": "One-input PSBTv2: required height 100, sequence omitted. A non-final 0xfffffffe control uses the same required locktime.",
+      "expected": "Calculate nLockTime under BIP370, then explain that all-final sequences disable it.",
+      "observed": "Output says Effective transaction lock: block height 100. The required-locktime branch returns before the final-sequence check. Non-final control passes.",
+      "impact": "Misleading transaction-finality advice. Serialized locktime is not itself incorrect; no script execution, signing or broadcast was performed.",
+      "recommendedFix": "Apply the transaction-wide sequence-activity check after determining every locktime source.",
+      "requiredVerification": "Height/time/fallback locktimes with omitted/final/non-final sequences and compatible/incompatible alternatives.",
+      "references": [
+        "https://bips.dev/370/",
+        "https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki#implementation"
+      ]
+    },
+    {
+      "id": "AUD-022-SEC001",
+      "category": "SEC",
+      "kind": "finding",
+      "title": "BIP85 completion restores a cleared child secret",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": true,
+      "releaseBlockingReason": "Resolve before publishing the affected capability or workflow; the stated recovery, cleanup or release contract is not met.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/bip85-feature.ts",
+          "line": 123,
+          "sha256": "3d7f4634039f37cbf8dd616eb64b87b8bfb29e7b86b69f104ccc41ff3ebc24f1"
+        }
+      ],
+      "checks": ["CHECK-SEC-001", "CHECK-SEC-005", "CHECK-API-002"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": ["deriver-bip85-lifecycle.log"]
+      },
+      "reproduction": "Start BIP85 with the public zero-entropy BIP39 parent; Clear while deriveBip85 is pending, then complete the earlier worker response or error. The real installer/reset are evaluated with a deferred synthetic worker.",
+      "expected": "Clear invalidates the whole request, terminates its worker and leaves child output and recovery reference absent.",
+      "observed": "Late success restores the child DOM value/result/reference. A late error is also published. Normal completion, seed wiping and final worker release controls pass; termination does not occur at reset.",
+      "impact": "A previous child secret remains available after the parent was discarded. Main Clear closes the feature tab, so immediate visible exposure is not claimed. No wrong BIP85 math, parent restoration or egress is demonstrated.",
+      "recommendedFix": "Own the active worker and revision; invalidate/terminate on reset or parent change and gate every completion/error.",
+      "requiredVerification": "Clear and parent edits before readiness and replies; reverse response order; positive completion and buffer cleanup controls."
+    },
+    {
+      "id": "AUD-022-SEC002",
+      "category": "SEC",
+      "kind": "finding",
+      "title": "Scanner file-read completion reinstalls a cleared candidate list",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": true,
+      "releaseBlockingReason": "Resolve before publishing the affected capability or workflow; the stated recovery, cleanup or release contract is not met.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/discovery-scanner/src/candidate-list-panel.ts",
+          "line": 112,
+          "sha256": "8ff2ff0bb125266de927b1840ee3aa4f332af189af0a1735adc6b81fbe39aeb1"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/discovery-scanner/src/candidate-list-import.ts",
+          "line": 88,
+          "sha256": "54939a851c4fed207362a00058954fe583e4113d02181fc59752e056eea5d83a"
+        }
+      ],
+      "checks": ["CHECK-SEC-005", "CHECK-API-002"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": [
+          "scanner-panel-race.log",
+          "scanner-clear-race.log",
+          "scanner-clear-race-verified.log"
+        ]
+      },
+      "reproduction": "Open a one-record MNCL age file encrypted to the actual importer recipient. Defer File.arrayBuffer, call panel.clear, then release file bytes. The unchanged file-open control also runs.",
+      "expected": "Clear invalidates the file-read stage as well as the decrypt stage; no candidate source returns.",
+      "observed": "The panel starts a new importer generation after the earlier Clear and exposes count 1 instead of 0. The importer-level Clear-during-decryption control now passes after Claude changes.",
+      "impact": "A discarded secret candidate list can become the next scan source. This is one import ownership defect with a partially corrected later stage, not an age authentication failure or demonstrated external disclosure.",
+      "recommendedFix": "Capture a panel revision before reading the file; invalidate it on Clear, file changes and replacement; gate open/results/errors and wipe owned buffers in finally.",
+      "requiredVerification": "Deferred file read and decrypt, replacement ordering, Clear and failure; unchanged encrypted import with passphrase/order controls."
+    },
+    {
+      "id": "AUD-022-SEC003",
+      "category": "SEC",
+      "kind": "finding",
+      "title": "Dash dependency build inherits publication and OIDC permissions",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": true,
+      "releaseBlockingReason": "Resolve before publishing the affected capability or workflow; the stated recovery, cleanup or release contract is not met.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/dash-wallet-tools/.github/workflows/release.yml",
+          "line": 17,
+          "sha256": "eb8657d6fda0c87a1449d5810b754a6cc2043ca59ecf7c5c1850a8e24d174252"
+        }
+      ],
+      "checks": ["CHECK-BLD-005", "CHECK-SEC-001"],
+      "evidence": {
+        "method": "Static effective-permission and workflow-source trace",
+        "localLogs": ["build-review.md"]
+      },
+      "reproduction": "A stable canonical release is selected and the Dash release build job installs/runs the canonical build and launcher scripts.",
+      "expected": "Dependency-executing build jobs are read-only; write, OIDC and attestation permissions belong only to publication.",
+      "observed": "Workflow defaults grant contents/write, id-token/write and attestations/write. jobs.release has no override; resolve and macOS do. The canonical workflow already separates these privileges.",
+      "impact": "Unnecessary privileged identity is available during build execution. Abuse requires code execution there; no token theft, compromised dependency or unauthorized publication was demonstrated. Organization policy was not inspected.",
+      "recommendedFix": "Use read-only workflow permissions and grant publication permissions explicitly to publish.",
+      "requiredVerification": "Static permission assertions for every job; no CI dispatch or credential extraction is required."
+    },
+    {
+      "id": "AUD-022-SEC004",
+      "category": "SEC",
+      "kind": "finding",
+      "title": "Known source-map-js advisory remains in the development lockfile",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/pnpm-lock.yaml",
+          "line": 1425,
+          "sha256": "8edb9ad6fbaae2e341ae34e78dc1f9fef72e776ea60dd10644905c1bbe0c3b68"
+        }
+      ],
+      "checks": ["CHECK-BLD-003", "CHECK-SEC-007"],
+      "evidence": {
+        "method": "Registry advisory plus locked/installed dependency trace",
+        "localLogs": ["dependency-advisories.log", "build-review.md"]
+      },
+      "reproduction": "Run pnpm audit --json against the locked inventory. source-map-js 1.2.1 occurs via Vitest/Vite/PostCSS.",
+      "expected": "The supported developer dependency graph uses a patched source-map-js version.",
+      "observed": "One upstream High advisory GHSA-68fv-2mgg-jv7q / CVE-2026-93749 is reported; patched version is 1.2.2. Both affected paths are explicitly dev-only. The installed declared production closure has 27 packages and excludes this module.",
+      "impact": "Malicious indexed source maps can synchronously block the affected developer tooling. Project severity is medium because production inclusion and an attacker-controlled invocation path were not established. No exploit or event-loop stall was run; this is not a browser wallet secret compromise.",
+      "recommendedFix": "In separate remediation refresh the compatible transitive pin to 1.2.2 or later patched release and review lock/integrity changes.",
+      "requiredVerification": "Repeat the advisory inventory and nearest affected tooling check; do not suppress the advisory.",
+      "upstreamSeverity": "high",
+      "references": [
+        "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
+        "https://github.com/7rulnik/source-map-js/releases/tag/v1.2.2"
+      ]
+    },
+    {
+      "id": "AUD-022-UI001",
+      "category": "UI",
+      "kind": "finding",
+      "title": "MHFE Check verdict is not bound to its current fields",
+      "severity": "medium",
+      "status": "open",
+      "releaseBlocking": true,
+      "releaseBlockingReason": "Resolve before publishing the affected capability or workflow; the stated recovery, cleanup or release contract is not met.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-check.ts",
+          "line": 130,
+          "sha256": "54b0b86331e6059ef96f8bfe890bf00cb3f0467feda9f165c06f7d774353417d"
+        }
+      ],
+      "checks": ["CHECK-API-002", "CHECK-UI-002"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": ["deriver-check-lifecycle.log"]
+      },
+      "reproduction": "Check A/reference F; edit container/reference to B/G during its deferred response or after the successful synthetic verdict.",
+      "expected": "Editing clears the old assurance and its late completion cannot certify current fields.",
+      "observed": "Both edit cases retain/publish Matches for the original request. Unchanged-input control, original dispatch, job gate and Cancel cleanup pass.",
+      "impact": "Misleading recovery rehearsal for the current written backup/reference. This is verdict attribution, not an incorrect cryptographic comparison.",
+      "recommendedFix": "Bind a verdict to an immutable labelled snapshot or invalidate/cancel by input revision before every result/error mutation.",
+      "requiredVerification": "Container/password/passphrase/reference edits before/during/after Check, old/new completion ordering and positive control."
+    },
+    {
+      "id": "AUD-022-API007",
+      "category": "API",
+      "kind": "finding",
+      "title": "Cancelling MHFE owner confirmation retains its phrase and listener",
+      "severity": "low",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-rekey.ts",
+          "line": 277,
+          "sha256": "f8abe09486f03190a70cb6a7d45dfd478d57774eb31e10fe7eb37cc34ad245bd"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-rekey.ts",
+          "line": 308,
+          "sha256": "f8abe09486f03190a70cb6a7d45dfd478d57774eb31e10fe7eb37cc34ad245bd"
+        }
+      ],
+      "checks": ["CHECK-SEC-005", "CHECK-API-002"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": ["deriver-owner-lifecycle.log"]
+      },
+      "reproduction": "The actual Rekey owner callback displays a public phrase; cancel or fail the synthetic outer client operation before answering.",
+      "expected": "Every exit empties the textarea, removes its blur listener and settles/disposes the question.",
+      "observed": "Cancel/failure remove DOM but retain its value/listener and pending question; dispatched blur still touches the detached node. Normal No-answer cleanup passes; gate/Cancel cleanup pass.",
+      "impact": "Unnecessary live phrase retention and accumulating listeners until page disposal. No external leak or new attacker access is established; this is distinct from immutable-string erasure limitations.",
+      "recommendedFix": "Use one idempotent disposable owner-prompt cleanup for answer, cancellation, failure, replacement and teardown.",
+      "requiredVerification": "Answer/Cancel/failure/replacement paths, detached-value clearing, listener removal, promise settlement and gate controls."
+    },
+    {
+      "id": "AUD-022-DOC001",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "Dash heir instructions point to the canonical download repository",
+      "severity": "low",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-heirs.ts",
+          "line": 22,
+          "sha256": "4a5b6c5559dbc7ed4c57e7eed3f0f6d888d8af390ad62ee87ba7c464d472a4dc"
+        }
+      ],
+      "checks": ["CHECK-DOC-001", "CHECK-API-004"],
+      "evidence": {
+        "method": "Static injected heir-route and distribution-publication trace",
+        "localLogs": ["build-review.md"]
+      },
+      "reproduction": "In Dash edition create heir instructions for encoded backup/shares that require the program.",
+      "expected": "Instructions link the Dash distribution release repository for the named edition.",
+      "observed": "PAGE_ROUTE hardcodes hobby-eng/multi-chain-wallet-tools while asking for the Dash edition; canonical publication uploads only Multi-Chain assets.",
+      "impact": "An heir can waste time locating the named file. Multi-Chain remains a recovery route; no bad output or malicious destination is shown. Direct English-phrase sheets omit the download step.",
+      "recommendedFix": "Select the release repository from edition metadata.",
+      "requiredVerification": "Compare injected route text for both editions with synthetic facts, without generating PDFs."
+    },
+    {
+      "id": "AUD-022-DOC002",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "MnemoCode source guide understates dependency and build-network closure",
+      "severity": "low",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/docs/MNEMOCODE_SOURCE.md",
+          "line": 14,
+          "sha256": "8351e91e21fb201729d4d3f418d762487098e47908270865c5de908fb7207ca8"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/tooling/sync-mnemocode-source.mjs",
+          "line": 160,
+          "sha256": "73aca9a45cd4f43e7fc76ce1ef119d44e64c5b12c0a992e5500d580f7aaaf4ab"
+        },
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/tooling/verify-dependency-provenance.mjs",
+          "line": 326,
+          "sha256": "7a95d58b38cd4bff90b6e79519da41f158290418d98a1839aca37e652776f3ca"
+        }
+      ],
+      "checks": ["CHECK-DOC-002", "CHECK-BLD-003"],
+      "evidence": {
+        "method": "Static document/source comparison with existing command evidence",
+        "localLogs": ["build-review.md", "resumed-provenance.log"]
+      },
+      "reproduction": "Follow the source guide while reviewing imports or running a supported build.",
+      "expected": "Describe the actual shared-package allowlist and provenance commit-availability requests.",
+      "observed": "The guide says three packages and no MnemoCode GitHub contact; the allowlist has eight packages and provenance attempts a GitHub commit request.",
+      "impact": "Misleading developer expectations. No wallet data is sent by this provenance request; standalone offline runtime is not contradicted.",
+      "recommendedFix": "Update allowed capabilities/dependencies and distinguish mandatory local integrity from availability warnings.",
+      "requiredVerification": "Document/source comparison and a mocked-fetch provenance contract; no new runtime network behavior."
+    },
+    {
+      "id": "AUD-022-DOC003",
+      "category": "DOC",
+      "kind": "finding",
+      "title": "Threshold-share ZIP message says every exported card is required",
+      "severity": "low",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-cards.ts",
+          "line": 267,
+          "sha256": "24bdf7a6d5283c3a7d85b31692813f1bf83a90e2a99bd928450a639b4687b3a9"
+        }
+      ],
+      "checks": ["CHECK-DOC-001", "CHECK-FUN-006"],
+      "evidence": {
+        "method": "Static installed export-success and threshold-contract trace",
+        "localLogs": ["build-review.md"]
+      },
+      "reproduction": "Export a 2-of-3 share set as separate-card PDF or images producing a ZIP. The observation is from the installed source; no PDF/cards were generated.",
+      "expected": "Any two complete shares suffice; all fragments are required only within each selected fragmented share.",
+      "observed": "The common success branch says Every card is needed for recovery for the entire share ZIP, as for phrase fragments.",
+      "impact": "Misleading retention advice; share thresholds/data are unchanged.",
+      "recommendedFix": "Use distinct share-versus-phrase success text with threshold/member/fragment semantics.",
+      "requiredVerification": "Stub rendering to a synthetic ZIP result and inspect actual host success text; a card batch is unnecessary."
+    },
+    {
+      "id": "AUD-022-UI002",
+      "category": "UI",
+      "kind": "finding",
+      "title": "Password review choices reappear after the password was cleared",
+      "severity": "low",
+      "status": "open",
+      "releaseBlocking": false,
+      "releaseBlockingReason": "The demonstrated impact is bounded; no secret compromise or wrong cryptographic output is established.",
+      "affectedFiles": [
+        {
+          "path": "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-fields.ts",
+          "line": 131,
+          "sha256": "ddc0afb81df308d4ea15633e49e7b6a17722babc401bdbb9c353500d7a7b4e56"
+        }
+      ],
+      "checks": ["CHECK-API-002", "CHECK-SEC-005", "CHECK-UI-002"],
+      "evidence": {
+        "method": "Controlled production-entry probe",
+        "localLogs": ["resumed-mhfe-contracts.log"]
+      },
+      "reproduction": "Defer PasswordReview.choose, clear/edit its field and emit the actual input event, then complete the old synthetic review.",
+      "expected": "The obsolete review remains hidden/empty and cannot retain or publish its password answers.",
+      "observed": "The reset occurs, but the response restores a visible box with three initially concealed choices. The next choose has a pending-text equality check.",
+      "impact": "Stale secret-bearing UI choices can be explicitly revealed after clearing. No automatic reveal, wrong-password operation or external disclosure is established; coordinator rates bounded presentation impact low.",
+      "recommendedFix": "Capture revisions of both repeated fields and drop obsolete review results/continuations.",
+      "requiredVerification": "Edit either field, reverse overlapping reviews, concealed-state cleanup and unchanged-input control."
+    }
+  ],
+  "observations": [],
+  "remediation": [
+    {
+      "id": "AUD-021-SEC001",
+      "status": "verified",
+      "fixCommit": "4289ae79357286f24e75f69df7079e451dae9933",
+      "verificationCommit": "c5b62c2d489e7525326071128095ba95ecca92ac",
+      "verificationSourceFingerprint": "007212c257185cf5eda39dbc7adae1d85010645248cfe27e3955f2cd08aaf663",
+      "evidence": "Current public-provider HTTP uses streamed bounded-json. Targeted byte-ceiling/abort/body-lifecycle tests pass in network-and-psbt; current bounded reader unchanged from committed fix. Verification refers to these assertions only."
+    },
+    {
+      "id": "AUD-021-DOC001",
+      "status": "verified",
+      "fixCommit": null,
+      "verificationCommit": "c5b62c2d489e7525326071128095ba95ecca92ac",
+      "verificationSourceFingerprint": "007212c257185cf5eda39dbc7adae1d85010645248cfe27e3955f2cd08aaf663",
+      "evidence": "Current three applicable templates and six actual rendered edition/tool passports show wasm-bindgen 0.2.129 matching notices; browser-layout-verified. Exact introducing fix commit not established."
+    }
+  ],
+  "limitations": [
+    "All findings remain open; no product fixes performed. Controlled VM probes use unchanged production owners with synthetic collaborators, not native-browser cryptographic acceptance.",
+    "No full-cost MHFE operation or source-to-WASM reproduction. Local vendor/producers/hashes establish identity only.",
+    "Owner supplied a narrative claiming full-cost MHFE and launcher/486-test checks; these are contextual claims without independently retained command/source binding and are not credited as new audit passes.",
+    "Both vendors explicitly declare unreleased dirty working-tree inputs; local provenance warns and CI is expected to reject. Replace with published verified releases before release acceptance.",
+    "Initial restricted-network GitHub availability checks were 0/10; the final network-enabled check verified 10/10 public base commits. That does not verify uncommitted imported bytes as signed releases. No Cargo advisory inventory or exhaustive transitive-code audit.",
+    "Not every UI, format width, share quorum, provider/proof, export schema, viewport or feature combination was executed. Remaining scoped CHECK gaps are explicit.",
+    "Minor mobile MnemoCode tab-label crowding needs focused usability follow-up; no claim of full accessibility acceptance.",
+    "Decode completed-result invalidation/date listeners, Split revision/settings ownership and QR/import ordering remain follow-ups, not accepted unproven findings.",
+    "Sampling cannot guarantee machine-wide memory use between samples or constrain unrelated desktop tasks. All measured audit peaks stayed under 14 GiB.",
+    "No demonstrated direct secret exfiltration, unauthorized spending or wrong key/address in executed bounded vectors; absence of those observations is not proof of exhaustive safety.",
+    "Registering AUD-022 changes only docs/audits/README.md within the 987-path manifest; post-report fingerprint f19b51330fbbafcde579bddfbbaca3d18cc1a5d560f3346964e50078925edf2c. Every other manifest entry and HEAD match the final reviewed snapshot; product-source-stability.json records both index hashes."
+  ],
+  "assessment": {
+    "findingCounts": {
+      "medium": 15,
+      "low": 5
+    },
+    "acceptedFindingCount": 20,
+    "releaseAccepted": false,
+    "releaseBlockingFindings": [
+      "AUD-022-SEC001",
+      "AUD-022-SEC002",
+      "AUD-022-SEC003",
+      "AUD-022-API003",
+      "AUD-022-API004",
+      "AUD-022-API006",
+      "AUD-022-BLD001",
+      "AUD-022-BLD002",
+      "AUD-022-UI001"
+    ],
+    "completionAt": "2026-10-06T23:51:53.919270Z",
+    "verificationLevel": "Targeted security-sensitive execution, full source scope; not release-level verification",
+    "fixPriorities": "First stale recovery assurances and Clear ownership; then recovery requirements/parity and release identity/acceptance/material boundaries; remaining correctness/developer/docs findings."
+  },
+  "informationalObservations": [
+    {
+      "title": "Decoder exceptional copies",
+      "detail": "Instrumentation sees a temporary entropy copy after MNCL CRC failure. Import rejects the file and installs no records; no uninstrumented disclosure demonstrated. Cleanup improvement only."
+    },
+    {
+      "title": "Claude source transition",
+      "detail": "13 files changed after the first snapshot. The user confirmed Claude edits. Paused agents, captured resumed/final identical manifests, rebuilt final pages and reran relevant checks. Earlier failures/results remain separately attributable."
+    },
+    {
+      "title": "Local integrity versus release provenance",
+      "detail": "92 MnemoCode manifest digests and retained MHFE modules/declarations match current local upstream bytes. This does not turn dirty snapshots into signed release inputs."
+    }
+  ],
+  "findingSourceHashes": {
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/bip85-feature.ts": "3d7f4634039f37cbf8dd616eb64b87b8bfb29e7b86b69f104ccc41ff3ebc24f1",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/discovery-scanner/src/candidate-list-panel.ts": "8ff2ff0bb125266de927b1840ee3aa4f332af189af0a1735adc6b81fbe39aeb1",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/discovery-scanner/src/candidate-list-import.ts": "54939a851c4fed207362a00058954fe583e4113d02181fc59752e056eea5d83a",
+    "/home/user/Documents/bip_tools/dash-wallet-tools/.github/workflows/release.yml": "eb8657d6fda0c87a1449d5810b754a6cc2043ca59ecf7c5c1850a8e24d174252",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/pnpm-lock.yaml": "8edb9ad6fbaae2e341ae34e78dc1f9fef72e776ea60dd10644905c1bbe0c3b68",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/psbt-inspector/src/signing-commitments.ts": "27b9ed6c133f0546cc631da44b33c768a8879a8e8ceb898f0ae7fa167fa22460",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-search.ts": "e85c611cce557bf0bff2ba1d5a0bd7345fc2d2ddd42d8d411e216acce6ca3445",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/packages/recovery-backup/src/mnemocode-shares.ts": "e86369e0c716f810bbaee4f6ea38e7fc18d9996c37c348d1f09eec8427746b91",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/workers/mnemocode-shares-worker.ts": "12b4f9eeecba652f47cee6cf8ebf23598c70f4db3856fabbc4e41453b8d1863c",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-shares.ts": "e0f14db11f53efcdacab3efcde57da474bbae663cfdce35d0d6cb145f5980087",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-rekey.ts": "f8abe09486f03190a70cb6a7d45dfd478d57774eb31e10fe7eb37cc34ad245bd",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-status.ts": "ac241c11a817523e0003b4f8ff7f7e2709b728bd5c4347fd826c2bb8394e05b3",
+    "/home/user/Documents/bip_tools/mhfe/src/wasm_api/core.rs": "f1b34403ae85183f4af7fb86839b3865fa5042bfebffa29518bd23fc69f9ff27",
+    "/home/user/Documents/bip_tools/mhfe/src/bin/mhfe/rekey.rs": "d40b83119bba8dee823cf16914f7d9632e277fdbf152e5b1e88a5c9eba929293",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-engine.ts": "3c2cdcf6aff5322b38dd302969dbf09f1fa338bbb52b773f985d3cffa350efec",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-backup-check.ts": "131a40b91503c52bed0948e1513177ded7495427b55b08a519ff55dfdb594234",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/tooling/create-github-release-assets.mjs": "0058841733eb88e4cd2d902b59554d3398ca991ac14888574bbcc7a41b16cde2",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/tooling/verify-github-release-assets.mjs": "6d2a452b60bc95132b3e450c1995c2c135422b90d72068f3fe123bbfc448bb98",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/THIRD_PARTY_NOTICES.md": "728aa4e29d37667576d37b6519676db9442956d47d28b82dca4b7f5891da60a0",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-check.ts": "54b0b86331e6059ef96f8bfe890bf00cb3f0467feda9f165c06f7d774353417d",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mhfe-fields.ts": "ddc0afb81df308d4ea15633e49e7b6a17722babc401bdbb9c353500d7a7b4e56",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-heirs.ts": "4a5b6c5559dbc7ed4c57e7eed3f0f6d888d8af390ad62ee87ba7c464d472a4dc",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/docs/MNEMOCODE_SOURCE.md": "8351e91e21fb201729d4d3f418d762487098e47908270865c5de908fb7207ca8",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/tooling/sync-mnemocode-source.mjs": "73aca9a45cd4f43e7fc76ce1ef119d44e64c5b12c0a992e5500d580f7aaaf4ab",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/tooling/verify-dependency-provenance.mjs": "7a95d58b38cd4bff90b6e79519da41f158290418d98a1839aca37e652776f3ca",
+    "/home/user/Documents/bip_tools/multi-chain-wallet-tools/apps/key-derivation/src/ui/recovery-mnemocode-cards.ts": "24bdf7a6d5283c3a7d85b31692813f1bf83a90e2a99bd928450a639b4687b3a9"
+  },
+  "reportTimeZone": "UTC (+00:00)",
+  "privacyProvenance": {
+    "note": "Owner-authorized privacy-only publication metadata; no audit checks were rerun. Original instants, date precision, findings, counts, source and artifact hashes, and raw local evidence are retained. Date-only records gain no inferred clock value. Original document bindings remain recorded as historical provenance; current document bindings identify publication bytes only.",
+    "checksRerun": false,
+    "originalDocuments": {
+      "markdownSha256": "5ae04a6869c02ce7a7214b44b949cee77ce9abf38996d58fc20663a31638e125",
+      "jsonSha256": "9f327af53a3598260a2025d9f34fed5ea4aa34939e93a7e07788bafea85bfbf5"
+    },
+    "originalDocumentBindings": []
+  }
+}

@@ -1,15 +1,17 @@
+import { DESCRIPTOR_FRAGMENTS } from "./descriptor-fragments.js";
 import { findMatchingClose, splitTopLevelArguments } from "./balanced-syntax.js";
 import { tapLeafHash } from "@scure/btc-signer/payment.js";
 import { materializeDescriptorKey, validateDescriptorPublicKey } from "@ckd/core/descriptor-key.js";
 import { compilePolicyMiniscript } from "./miniscript-engine.js";
 import { CONSENSUS_LIMITS } from "./consensus-limits.js";
-import { HDKey, type Versions } from "@scure/bip32";
-import { bech32m } from "@scure/base";
-import { NETWORK, TEST_NETWORK, p2tr } from "@scure/btc-signer";
+import { HDKey } from "@scure/bip32";
+import { bip32VersionsFor } from "@ckd/core/networks.js";
+import { p2tr } from "@scure/btc-signer";
 import { taprootTweakPubkey } from "@scure/btc-signer/utils.js";
 import { keyAggregate, sortKeys } from "@scure/btc-signer/musig2.js";
 import { bytesToHex, hexToBytes, secp256k1, sha256 } from "@ckd/core/crypto.js";
 import type { PsbtNetwork } from "./psbt.js";
+import { InspectorNetworkProfile } from "./network-profile.js";
 
 interface MusigKeyAnalysis {
   readonly participantCount: number;
@@ -29,8 +31,6 @@ export interface MusigDescriptorAnalysis {
 const SYNTHETIC_CHAIN_CODE = hexToBytes(
   "868087ca02a6f974c4598924c36b57762d32cb45717167e300622c7167e38965",
 );
-const MAINNET_VERSIONS: Versions = { private: 0x0488ade4, public: 0x0488b21e };
-const TESTNET_VERSIONS: Versions = { private: 0x04358394, public: 0x043587cf };
 
 const matchingClose = (text: string, open: number): number =>
   findMatchingClose(text, open, "(", ")", "MuSig2 expression");
@@ -119,7 +119,7 @@ function parseMusigExpression(
         "BIP-390 does not allow participant wildcard/multipath derivation together with aggregate-key derivation.",
       );
     }
-    const versions = network === "mainnet" ? MAINNET_VERSIONS : TESTNET_VERSIONS;
+    const versions = bip32VersionsFor(network);
     const synthetic = new HDKey({
       publicKey: aggregateKey.compressed,
       chainCode: SYNTHETIC_CHAIN_CODE,
@@ -226,7 +226,7 @@ export function compileTaprootDescriptor(
       throw new Error("Unexpected data after Tapscript fragment.");
     const name = match[2]!;
     let args = splitTopLevel(text.slice(open + 1, -1));
-    if (["pk", "pk_k", "pkh", "pk_h"].includes(name)) {
+    if (DESCRIPTOR_FRAGMENTS.has("scriptKeys", name)) {
       if (args.length !== 1) throw new Error("Invalid key fragment arity.");
       args = [key(args[0]!)];
     } else if (name === "multi_a" || name === "sortedmulti_a") {
@@ -265,22 +265,14 @@ export function compileTaprootDescriptor(
   if (args.length < 1 || args.length > (type === "tr" ? 2 : 1))
     throw new Error("Invalid Taproot descriptor arity.");
   const internal = hexToBytes(key(args[0]!));
+  const profile = new InspectorNetworkProfile("bitcoin", network);
   if (type === "rawtr")
     return {
       script: Uint8Array.of(0x51, 0x20, ...internal),
-      address: bech32m.encode(
-        network === "mainnet" ? "bc" : network === "regtest" ? "bcrt" : "tb",
-        [1, ...bech32m.toWords(internal)],
-      ),
+      address: profile.witnessAddress(1, internal),
     };
-  const net =
-    network === "mainnet"
-      ? NETWORK
-      : network === "regtest"
-        ? { ...TEST_NETWORK, bech32: "bcrt" }
-        : TEST_NETWORK;
   if (args[1] === undefined) {
-    const payment = p2tr(internal, undefined, net);
+    const payment = p2tr(internal, undefined, profile.signerNetwork);
     return { script: payment.script, address: payment.address };
   }
   // Compute the BIP341 commitment directly. The dependency's p2tr() helper
@@ -289,6 +281,6 @@ export function compileTaprootDescriptor(
   const outputKey = taprootTweakPubkey(internal, treeHash(args[1]))[0];
   return {
     script: Uint8Array.of(0x51, 0x20, ...outputKey),
-    address: bech32m.encode(net.bech32, [1, ...bech32m.toWords(outputKey)]),
+    address: profile.witnessAddress(1, outputKey),
   };
 }

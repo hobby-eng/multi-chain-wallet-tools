@@ -1,11 +1,4 @@
-import {
-  assertBatch,
-  assertIndex,
-  requirePrivate,
-  requirePublic,
-  rootFromSeed,
-} from "@ckd/core/bip32.js";
-import { bytesToHex, encodeWif, wipe } from "@ckd/core/crypto.js";
+import { bytesToHex, encodeWif } from "@ckd/core/crypto.js";
 import { getBitcoinNetwork } from "@ckd/core/networks.js";
 import {
   field,
@@ -19,73 +12,39 @@ import { deriveLegacyAddress } from "./legacy.js";
 import { deriveNativeSegwitAddress } from "./native-segwit.js";
 import { deriveNestedSegwitAddress } from "./nested-segwit.js";
 import { deriveTaprootDetails } from "./taproot.js";
-import { accountDescriptorExport } from "../../account-descriptors.js";
-import { bip32SummaryFields } from "../../bip32-summary.js";
+import { accountDescriptorExport, descriptorOrigin } from "../../account-descriptors.js";
+import { withAccountBranch } from "../../account-branch.js";
+import { BitcoinPurposeProfile, type BitcoinMode } from "./profiles.js";
 
-export type BitcoinMode = "legacy" | "nested-segwit" | "native-segwit" | "taproot";
-
-const MODES = {
-  legacy: { purpose: 44, label: "Bitcoin Legacy (BIP44 / P2PKH)" },
-  "nested-segwit": { purpose: 49, label: "Bitcoin Nested SegWit (BIP49 / P2SH-P2WPKH)" },
-  "native-segwit": { purpose: 84, label: "Bitcoin Native SegWit (BIP84 / P2WPKH)" },
-  taproot: { purpose: 86, label: "Bitcoin Taproot (BIP86 / P2TR)" },
-} as const;
+export type { BitcoinMode } from "./profiles.js";
 
 function descriptorForAccount(
   mode: BitcoinMode,
   accountXpub: string,
   fingerprint: string,
-  purpose: number,
-  coinType: number,
-  account: number,
+  accountPath: string,
   branch: number,
 ): string {
-  const key = `[${fingerprint}/${purpose}h/${coinType}h/${account}h]${accountXpub}/${branch}/*`;
-  const body =
-    mode === "legacy"
-      ? `pkh(${key})`
-      : mode === "nested-segwit"
-        ? `sh(wpkh(${key}))`
-        : mode === "native-segwit"
-          ? `wpkh(${key})`
-          : `tr(${key})`;
-  return addDescriptorChecksum(body);
+  const key = `${descriptorOrigin(fingerprint, accountPath)}${accountXpub}/${branch}/*`;
+  return addDescriptorChecksum(BitcoinPurposeProfile.forMode(mode).descriptorForKey(key));
 }
 
 export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): DerivationResult {
   const network = getBitcoinNetwork(options.network);
-  const config = MODES[mode];
-  assertIndex(options.account, "Account");
-  assertIndex(options.branch, "Branch", 1);
-  assertBatch(options.start, options.count);
-
-  const root = rootFromSeed(options.seed, network.versions);
-  const accountPath = `m/${config.purpose}'/${network.coinType}'/${options.account}'`;
-  const branchPath = `${accountPath}/${options.branch}`;
-  const account = root.derive(accountPath);
-  const branch = root.derive(branchPath);
-  const { fields: summary, masterFingerprint } = bip32SummaryFields(root, account, accountPath);
-  const descriptor = descriptorForAccount(
-    mode,
-    account.publicExtendedKey,
-    masterFingerprint,
-    config.purpose,
-    network.coinType,
-    options.account,
-    options.branch,
-  );
-  const rows = [];
-
-  try {
-    for (let offset = 0; offset < options.count; offset += 1) {
-      const index = options.start + offset;
-      const path = `${branchPath}/${index}`;
-      const child = branch.deriveChild(index);
-      const privateKey = requirePrivate(child, path);
-      const publicKey = requirePublic(child, path);
-      const privateKeyHex = bytesToHex(privateKey);
-      const publicKeyHex = bytesToHex(publicKey);
-      const privateKeyWif = encodeWif(privateKey, network.wif);
+  const config = BitcoinPurposeProfile.forMode(mode);
+  const layout = {
+    versions: network.versions,
+    paths: config.paths,
+  };
+  return withAccountBranch(options, layout, (chain) => {
+    const descriptor = descriptorForAccount(
+      mode,
+      chain.account.publicExtendedKey,
+      chain.masterFingerprint,
+      chain.accountPath,
+      options.branch,
+    );
+    const rows = chain.rows(({ index, path, node, privateKey, publicKey }) => {
       let address: string;
       let advanced: ResultField[];
 
@@ -145,17 +104,17 @@ export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): De
         ];
       }
 
-      rows.push({
+      return {
         index,
         path,
         title: `Address #${index}`,
         basic: [
           paymentAddressField("address", "Address", address, "bitcoin"),
-          field("publicKey", "Compressed public key", publicKeyHex),
+          field("publicKey", "Compressed public key", bytesToHex(publicKey)),
           field(
             "privateKey",
             mode === "taproot" ? "BIP32 child private key (WIF)" : "Private key (WIF)",
-            privateKeyWif,
+            encodeWif(privateKey, network.wif),
             true,
             mode === "taproot"
               ? "WIF does not encode the P2TR descriptor or Taproot tweak; importing it into an arbitrary wallet may produce a different address."
@@ -164,41 +123,32 @@ export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): De
         ],
         advanced: [
           field("path", "Derivation path", path),
-          field("childPrivateKey", "BIP32 child private key (hex)", privateKeyHex, true),
-          field("childXprv", "Child xprv", child.privateExtendedKey, true),
-          field("childXpub", "Child xpub", child.publicExtendedKey),
+          field("childPrivateKey", "BIP32 child private key (hex)", bytesToHex(privateKey), true),
+          field("childXprv", "Child xprv", node.privateExtendedKey, true),
+          field("childXpub", "Child xpub", node.publicExtendedKey),
           ...advanced,
         ],
-      });
-      wipe(privateKey, publicKey);
-      child.wipePrivateData();
-    }
+      };
+    });
 
     return {
       id: `bitcoin-${mode}`,
-      title: config.label,
+      title: config.derivationLabel,
       networkLabel: network.label,
-      pathTemplate: `${branchPath}/i`,
+      pathTemplate: `${chain.branchPath}/i`,
       basicSummary: [],
-      summary,
+      summary: chain.summary,
       accountDescriptors: accountDescriptorExport({
-        script:
-          mode === "legacy"
-            ? "pkh"
-            : mode === "nested-segwit"
-              ? "sh-wpkh"
-              : mode === "native-segwit"
-                ? "wpkh"
-                : "tr",
-        fingerprint: masterFingerprint,
-        accountPath,
-        publicKey: account.publicExtendedKey,
-        privateKey: account.privateExtendedKey,
+        script: config.descriptorScript,
+        fingerprint: chain.masterFingerprint,
+        accountPath: chain.accountPath,
+        publicKey: chain.account.publicExtendedKey,
+        privateKey: chain.account.privateExtendedKey,
         fileStem: `bitcoin-${mode}-${options.network}-account-${options.account}`,
       }),
       watchOnly: {
         label: "Copy Bitcoin watch-only descriptor",
-        description: `Checksummed ranged ${config.label} output descriptor for branch ${options.branch}. It contains the account xpub and can reveal every address on that branch, but cannot spend.`,
+        description: `Checksummed ranged ${config.derivationLabel} output descriptor for branch ${options.branch}. It contains the account xpub and can reveal every address on that branch, but cannot spend.`,
         text: descriptor,
         fileName: `bitcoin-${mode}-${options.network}-account-${options.account}-branch-${options.branch}.descriptor.txt`,
         mimeType: "text/plain",
@@ -207,9 +157,5 @@ export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): De
       rows,
       notices: [],
     };
-  } finally {
-    branch.wipePrivateData();
-    account.wipePrivateData();
-    root.wipePrivateData();
-  }
+  });
 }

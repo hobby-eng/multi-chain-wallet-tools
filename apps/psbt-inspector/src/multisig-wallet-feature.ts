@@ -1,3 +1,5 @@
+import { nonEmptyLines } from "@ckd/core/text-lines.js";
+import { downloadText } from "@ckd/export/download.js";
 import { createPaymentQrAction } from "@ckd/ui/payment-qr.js";
 import {
   branchLabel,
@@ -9,7 +11,6 @@ import {
 } from "./multisig-wallet.js";
 import {
   copyPlainText,
-  downloadText,
   required,
   selectedNetwork,
   syncNetworkChoice,
@@ -98,10 +99,7 @@ export function installMultisigWalletFeature(): void {
         keyOrder: walletOrder.value === "bip67" ? ("bip67" as const) : ("supplied" as const),
         wrapper: walletWrapper.value === "p2sh" ? ("p2sh" as const) : ("p2wsh" as const),
       };
-      const inputs = walletKeys.value
-        .split(/\r?\n/u)
-        .map((line) => line.trim())
-        .filter(Boolean);
+      const inputs = nonEmptyLines(walletKeys.value);
       const childKeyCount = inputs.filter(isCompressedPublicKey).length;
       const xpubCount = inputs.filter(isAccountXpub).length;
       if (inputs.length === 0)
@@ -443,11 +441,9 @@ export function installMultisigWalletFeature(): void {
   walletDownloadSelected.addEventListener("click", () => {
     const extension = walletExportFormat.value === "tsv" ? "tsv" : "txt";
     downloadText(
-      `multisig-wallet-selected.${extension}`,
       walletExportRows("selected"),
-      walletExportFormat.value === "tsv"
-        ? "text/tab-separated-values;charset=utf-8"
-        : "text/plain;charset=utf-8",
+      `multisig-wallet-selected.${extension}`,
+      walletExportFormat.value === "tsv" ? "text/tab-separated-values" : "text/plain",
     );
   });
   clearWalletButton.addEventListener("click", () => {

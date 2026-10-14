@@ -1,6 +1,8 @@
+import { nonEmptyLines } from "@ckd/core/text-lines.js";
 import { englishMnemonicToEntropy } from "@ckd/core/bip39.js";
+import { BIP39_WORD_COUNTS } from "@ckd/core/bip39-parameters.js";
 
-const BIP39_ENTRY_WORD_COUNTS = [24, 21, 18, 15, 12] as const;
+const BIP39_ENTRY_WORD_COUNTS = [...BIP39_WORD_COUNTS].reverse();
 
 function isValidMnemonic(value: string): boolean {
   let entropy: Uint8Array | null = null;
@@ -20,11 +22,7 @@ function isValidMnemonic(value: string): boolean {
  * BIP39 length and checksum prove them.
  */
 export function parseMnemonicEntries(value: string): string[] {
-  const explicit = value
-    .replaceAll("\r", "")
-    .split("\n")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+  const explicit = nonEmptyLines(value);
   if (explicit.length === 0 || explicit.every(isValidMnemonic)) return explicit;
 
   const words = value.trim().split(/\s+/u).filter(Boolean);

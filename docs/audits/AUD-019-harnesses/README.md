@@ -1,7 +1,7 @@
 # AUD-019 harnesses
 
-These scripts belong to AUD-019 (`docs/audits/audit-19-2026-10-01.md`), the full-scope audit of commit
-`06a791682e2a09508c6606113c0bd1e7f0a885c4` on `main`. They produced the audit's evidence and let a
+These scripts belong to AUD-019 (`docs/audits/AUD-019-2026-10-01.md`), the full-scope audit of commit
+`16358c35acb2a3b0c149bf0908ac214fcfeba308` on `main`. They produced the audit's evidence and let a
 reader repeat its probes. They use public test data only: the BIP39 vectors "abandon … about" and
 "zoo … wrong", private key 1, the BIP32 test vector 1 master key and a repeatable SHA-256 counter
 stream. None of them makes a network request, and none writes into the repository outside the
@@ -51,8 +51,8 @@ the Identity lookup; the previous-findings probe accepts `toString`, `constructo
 BIP39 seed in hex is recorded, not asserted: it has the length of an Orchard Incoming Viewing Key,
 and the Viewer treats it as one, locally.
 
-The remediation commits `07c36b2bc57d500b2899c68cd8e3eb9050d75a38` … `7181c644ac051cf7d52925b78866255987469b00` are on `main`; at the verification commit
-`9df0124aa19ea36d1e878d758e2c182a8db01828` (tag `v0.1.5-rc.1`) the three test files pass 45 of 45
+The remediation commits `3d809598edc01ebf479c07c88991eb51c2be88e0` … `d8ce0f82f01751bfbbb968c8d97975cb48f6790d` are on `main`; at the verification commit
+`3fdb1fdfdb4611397f14317e1307b9897671a806` (tag `v0.1.5-rc.1`) the three test files pass 45 of 45
 and `inspect-artifact-csp.mjs` prints eight PASS lines.
 
 The statistical probes use fixed streams, so they give the same numbers on every run:

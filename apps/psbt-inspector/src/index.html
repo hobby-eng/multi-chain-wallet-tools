@@ -1035,7 +1035,7 @@
           <span class="step">BUILD</span>
           <h2 id="psbt-passport-title">Release passport</h2>
         </div>
-        <span class="self-test-badge passed">Parser boundary checks enabled</span>
+        <span id="psbt-self-test-status" class="self-test-badge checking">Self-test running…</span>
       </div>
       <div class="build-passport-grid">
         <div><span>Version</span><code id="psbt-build-version">—</code></div>
@@ -1045,6 +1045,19 @@
           <span>Source/build fingerprint · SHA-256</span><code id="psbt-build-fingerprint">—</code>
         </div>
       </div>
+      <p id="psbt-self-test-details" class="field-note">
+        Every workflow stays closed until the known answers of this build's features pass.
+      </p>
+      <div class="actions">
+        <button id="psbt-full-self-test" class="secondary compact" type="button" disabled>
+          Run the full self-test
+        </button>
+      </div>
+      <p id="psbt-full-self-test-status" class="field-note" role="status" aria-live="polite">
+        The full self-test repeats the startup checks with the slower vectors of this build's features. It uses public
+        test data only.
+      </p>
+      <div id="psbt-full-self-test-result" aria-live="polite"></div>
       <p class="field-note"><strong>Edition:</strong> <span>__EDITION_NAME__</span> · <span>__BUILD_PROFILE__</span></p>
       <p class="field-note"><strong>Scope:</strong> __PSBT_PROTOCOL_SCOPE__</p>
       __PSBT_POLICY_SCOPE__ __PSBT_NUNCHUK_SCOPE__ __PSBT_DESCRIPTOR_SCOPE__ __PSBT_MUSIG_SCOPE__

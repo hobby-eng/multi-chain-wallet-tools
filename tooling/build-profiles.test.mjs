@@ -17,7 +17,7 @@ describe("build profiles", () => {
     ]);
   });
 
-  it("uses explicit Dash Community entrypoints and filenames", () => {
+  it("uses active builder metadata and Dash Community filenames", () => {
     const profile = BUILD_PROFILES["dash-community"];
     expect(profileArtifacts(profile)).toEqual([
       "dash-community-edition/activity-viewer/Dash_Community_Activity_Viewer.html",
@@ -25,18 +25,24 @@ describe("build profiles", () => {
       "dash-community-edition/key-derivation/Dash_Community_Key_Derivation_Tool.html",
       "dash-community-edition/psbt-inspector/Dash_Community_PSBT_Multisig_Inspector.html",
     ]);
-    expect(getToolBuild(profile, "key-derivation")).toMatchObject({
-      entryPoint: "apps/key-derivation/src/ui/app-dash-community.ts",
-      workerEntryPoint: "apps/key-derivation/src/workers/derive-worker-dash-community.ts",
-    });
-
-    expect(getToolBuild(profile, "activity-viewer").entryPoint).toContain("app-dash-community.ts");
-    expect(getToolBuild(profile, "discovery-scanner").entryPoint).toContain(
-      "app-dash-community.ts",
-    );
+    const builders = {
+      "key-derivation": "apps/key-derivation/scripts/build-key-derivation-html.mjs",
+      "activity-viewer": "apps/activity-viewer/scripts/build-activity-viewer-html.mjs",
+      "discovery-scanner": "apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
+    };
+    for (const [toolId, buildScript] of Object.entries(builders)) {
+      for (const edition of Object.values(BUILD_PROFILES)) {
+        const tool = getToolBuild(edition, toolId);
+        expect(tool.buildScript).toBe(buildScript);
+        // AUD-024-ARC005: composed entries have no inactive app entry-point metadata.
+        expect(tool).not.toHaveProperty("entryPoint");
+        expect(tool).not.toHaveProperty("workerEntryPoint");
+      }
+    }
     expect(getToolBuild(profile, "psbt-inspector")).toMatchObject({
       entryPoint: "apps/psbt-inspector/src/app.ts",
       artifactName: "Dash_Community_PSBT_Multisig_Inspector.html",
+      buildScript: "apps/psbt-inspector/scripts/build-psbt-inspector-html.mjs",
     });
   });
 
@@ -99,6 +105,9 @@ describe("build profiles", () => {
           "packages/coin-protocols/src/coins/dash/core.ts",
           "apps/discovery-scanner/src/coins/dash-community.ts",
           "apps/discovery-scanner/src/coins/dash/platform-scanner.ts",
+          "packages/recovery-backup/src/mnemocode-reencoding.ts",
+          "packages/recovery-backup/src/self-test-mnemocode-cards.ts",
+          "packages/recovery-backup/src/mnemocode-share-cards.ts",
         ],
         "fixture",
       ),

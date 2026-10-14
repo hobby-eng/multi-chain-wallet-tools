@@ -1,10 +1,10 @@
-import { NETWORK, TEST_NETWORK, p2tr, taprootNumsKey } from "@scure/btc-signer";
-import { bech32 } from "@scure/base";
+import { p2tr, taprootNumsKey } from "@scure/btc-signer";
 import { bytesToHex, sha256 } from "@ckd/core/crypto.js";
 import { descriptorChecksum } from "@ckd/core/descriptor-checksum.js";
 import { compilePolicyMiniscript } from "./miniscript-engine.js";
 import type { PsbtNetwork } from "./psbt.js";
 import { CONSENSUS_LIMITS } from "./consensus-limits.js";
+import { InspectorNetworkProfile } from "./network-profile.js";
 
 export type CustomMiniscriptContext = "p2wsh" | "tapscript";
 
@@ -45,10 +45,7 @@ export function buildCustomMiniscriptPolicy(
   if (context === "p2wsh") {
     const digest = sha256(compiled.script);
     const scriptPubKey = Uint8Array.of(0x00, 0x20, ...digest);
-    const address = bech32.encode(
-      network === "mainnet" ? "bc" : network === "regtest" ? "bcrt" : "tb",
-      [0, ...bech32.toWords(digest)],
-    );
+    const address = new InspectorNetworkProfile("bitcoin", network).witnessAddress(0, digest);
     return {
       address,
       descriptor: checksummedDescriptor(`wsh(${miniscript})`),
@@ -67,11 +64,7 @@ export function buildCustomMiniscriptPolicy(
   const payment = p2tr(
     undefined,
     { script: compiled.script },
-    network === "mainnet"
-      ? NETWORK
-      : network === "regtest"
-        ? { ...TEST_NETWORK, bech32: "bcrt" }
-        : TEST_NETWORK,
+    new InspectorNetworkProfile("bitcoin", network).signerNetwork,
     true,
   );
   return {

@@ -1,6 +1,11 @@
 import { englishMnemonicToEntropy, entropyToEnglishMnemonic } from "@ckd/core/bip39.js";
-import { createCodex32Shares, recoverCodex32Shares } from "@ckd/recovery-backup/codex32.js";
-import { installQrImageImport } from "@ckd/ui/qr-image-import.js";
+import { BIP39_ENTROPY_BYTES } from "@ckd/core/bip39-parameters.js";
+import { orList } from "@ckd/core/listing.js";
+import {
+  Codex32Identifier,
+  createCodex32Shares,
+  recoverCodex32Shares,
+} from "@ckd/recovery-backup/codex32.js";
 import {
   installSecretToggle,
   installMnemonicSourceDiagnostic,
@@ -11,6 +16,8 @@ import {
   renderSensitiveShares,
   required,
   type RecoveryFeatureContext,
+  installFieldImports,
+  QR_IMAGES_IMPORT,
 } from "./recovery-workspace-shared.js";
 import type { RecoveryFeature } from "./recovery-feature.js";
 function installCodex32(context: RecoveryFeatureContext): void {
@@ -35,14 +42,11 @@ function installCodex32(context: RecoveryFeatureContext): void {
     "Show records",
     "Hide records",
   );
-  installQrImageImport(document, required<HTMLTextAreaElement>("#codex32-shares"), {
-    label: "Import QR images",
-    multiple: true,
-    onDecoded: ({ text }) => text.trim(),
-    onError(message) {
-      required<HTMLElement>("#codex32-restore-result").textContent = message;
-    },
-  });
+  installFieldImports(
+    required<HTMLTextAreaElement>("#codex32-shares"),
+    (message) => (required<HTMLElement>("#codex32-restore-result").textContent = message),
+    { qr: QR_IMAGES_IMPORT },
+  );
   const codex32SecretType = required<HTMLSelectElement>("#codex32-secret-type");
   const codex32RestoreType = required<HTMLSelectElement>("#codex32-restore-type");
   const codex32Passphrase = required<HTMLInputElement>("#codex32-passphrase");
@@ -70,17 +74,15 @@ function installCodex32(context: RecoveryFeatureContext): void {
   synchronizeCodex32SecretType();
 
   const codex32Identifier = required<HTMLInputElement>("#codex32-identifier");
-  const codex32IdentifierPattern = /^[023456789acdefghjklmnpqrstuvwxyz]{4}$/u;
   const synchronizeIdentifier = (): void => {
-    const lowercase = codex32Identifier.value.toLowerCase();
-    if (lowercase !== codex32Identifier.value) codex32Identifier.value = lowercase;
-    const valid = codex32IdentifierPattern.test(lowercase);
-    codex32Identifier.setCustomValidity(
-      valid
-        ? ""
-        : "Use exactly four Bech32 characters. The characters b, i, o, and 1 are not available.",
-    );
-    codex32Identifier.setAttribute("aria-invalid", String(!valid));
+    try {
+      codex32Identifier.value = new Codex32Identifier(codex32Identifier.value).value;
+      codex32Identifier.setCustomValidity("");
+      codex32Identifier.setAttribute("aria-invalid", "false");
+    } catch (cause) {
+      codex32Identifier.setCustomValidity(cause instanceof Error ? cause.message : String(cause));
+      codex32Identifier.setAttribute("aria-invalid", "true");
+    }
   };
   codex32Identifier.addEventListener("input", synchronizeIdentifier);
   synchronizeIdentifier();
@@ -137,7 +139,14 @@ function installCodex32(context: RecoveryFeatureContext): void {
             contentLabel +
             " shares created. Store the complete shares separately.";
       codex32CreateResult.append(heading);
-      renderSensitiveShares(codex32CreateResult, created.shares, context.writeClipboard);
+      renderSensitiveShares(
+        codex32CreateResult,
+        created.shares,
+        context.writeClipboard,
+        [],
+        [],
+        () => context.jobs.ready,
+      );
     } catch (cause) {
       codex32CreateResult.textContent =
         cause instanceof Error ? cause.message : "Codex32 backup creation failed.";
@@ -153,8 +162,10 @@ function installCodex32(context: RecoveryFeatureContext): void {
     try {
       seed = recoverCodex32Shares(lines(required<HTMLTextAreaElement>("#codex32-shares").value));
       if (codex32RestoreType.value === "bip39-entropy") {
-        if (![16, 20, 24, 28, 32].includes(seed.length)) {
-          throw new Error("BIP39 entropy must contain exactly 16, 20, 24, 28, or 32 bytes.");
+        if (!BIP39_ENTROPY_BYTES.includes(seed.length)) {
+          throw new Error(
+            `BIP39 entropy must contain exactly ${orList(BIP39_ENTROPY_BYTES)} bytes.`,
+          );
         }
         renderRecoveredMnemonic(
           codex32RestoreResult,

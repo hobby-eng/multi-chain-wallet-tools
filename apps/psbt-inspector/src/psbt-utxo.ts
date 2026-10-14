@@ -9,12 +9,14 @@ import {
   type TransactionInput,
 } from "./transaction.js";
 import type { PsbtChain, SuppliedUtxo } from "./psbt-types.js";
+import { PsbtFieldRegistry } from "./psbt-field-registry.js";
 
 export function inputUtxo(
-  map: readonly PsbtPair[],
+  rawMap: readonly PsbtPair[],
   txInput: TransactionInput | undefined,
   chain: PsbtChain,
 ): SuppliedUtxo | null {
+  const map = new PsbtFieldRegistry(chain).interpreted(rawMap, "input");
   const witnessPair = pair(map, 0x01);
   const witness =
     chain === "bitcoin" && witnessPair !== undefined ? readTxOut(witnessPair.value) : undefined;
@@ -29,7 +31,7 @@ export function inputUtxo(
     return witness === undefined
       ? null
       : { ...witness, binding: "witness-only", previousTransaction: null };
-  const transaction = readTransaction(previous.value, chain);
+  const transaction = readTransaction(previous.value, chain, true, "wire");
   const id =
     txInput?.txid ??
     (pair(map, 0x0e) === undefined ? undefined : reverseHex(pair(map, 0x0e)!.value));
@@ -62,17 +64,24 @@ function p2shCommitment(script: Uint8Array): Uint8Array {
   return Uint8Array.of(0xa9, 0x14, ...hash160(script), 0x87);
 }
 
+/** True when the supplied UTXO is the P2SH output that commits to this redeemScript. */
+export function redeemScriptMatches(utxo: SuppliedUtxo, redeem: Uint8Array): boolean {
+  return equalBytes(utxo.script, p2shCommitment(redeem));
+}
+
 function p2wshCommitment(script: Uint8Array): Uint8Array {
   return Uint8Array.of(0x00, 0x20, ...sha256(script));
 }
 
 export function scriptCommitmentFailure(
-  map: readonly PsbtPair[],
+  rawMap: readonly PsbtPair[],
   utxo: SuppliedUtxo | null,
+  chain: PsbtChain,
 ): string | null {
+  const map = new PsbtFieldRegistry(chain).interpreted(rawMap, "input");
   const redeem = pair(map, 0x04)?.value;
   const witness = pair(map, 0x05)?.value;
-  if (redeem !== undefined && utxo !== null && !equalBytes(utxo.script, p2shCommitment(redeem))) {
+  if (redeem !== undefined && utxo !== null && !redeemScriptMatches(utxo, redeem)) {
     return "redeemScript HASH160 does not match the supplied UTXO scriptPubKey.";
   }
   if (witness !== undefined) {

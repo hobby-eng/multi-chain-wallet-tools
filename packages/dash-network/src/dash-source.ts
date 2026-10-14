@@ -1,3 +1,4 @@
+import { trustedEvoSdk } from "./evo-sdk.js";
 import { EvoSDK, type ShieldedEncryptedNote as EvoShieldedEncryptedNote } from "@dashevo/evo-sdk";
 import { copyAndFreeEvoShieldedNote } from "./evo-shielded-note.js";
 import type { ShieldedPage, ShieldedPageSource, ViewerNetwork } from "./types.js";
@@ -25,16 +26,7 @@ export class DashEvoShieldedSource implements ShieldedPageSource {
     if (this.#sdk !== undefined) return;
     if (this.#connecting !== undefined) return this.#connecting;
     const connecting = (async (): Promise<void> => {
-      const settings = {
-        connectTimeoutMs: 10_000,
-        timeoutMs: 30_000,
-        retries: 3,
-        banFailedAddress: true,
-      };
-      const sdk =
-        this.#network === "mainnet"
-          ? EvoSDK.mainnetTrusted({ settings })
-          : EvoSDK.testnetTrusted({ settings });
+      const sdk = trustedEvoSdk(this.#network);
       await this.#run("shielded.connect", { network: this.#network }, () => sdk.connect());
       this.#sdk = sdk;
     })();

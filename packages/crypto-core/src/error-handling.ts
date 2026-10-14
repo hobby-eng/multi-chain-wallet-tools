@@ -7,10 +7,20 @@ function readablePrimitive(value: unknown): string | null {
   return null;
 }
 
+/** Whether `cause` is the abort of a cancelled operation, which callers pass on instead of reporting. */
+export function isAbortError(cause: unknown): cause is DOMException {
+  return cause instanceof DOMException && cause.name === "AbortError";
+}
+
+/** The error a cancelled network operation of a recovery scan ends with. */
+export function networkCancelledError(): DOMException {
+  return new DOMException("Recovery network operation cancelled.", "AbortError");
+}
+
 export function describeUnknownError(cause: unknown, fallback = "Unknown error"): string {
   // WASM-bindgen failures may be freeable plain objects rather than Error
   // instances; inspect public fields before the owner disposes the object.
-  if (cause instanceof DOMException && cause.name === "AbortError") return "Operation cancelled.";
+  if (isAbortError(cause)) return "Operation cancelled.";
   if (cause instanceof Error) return cause.message || cause.name || fallback;
   const direct = readablePrimitive(cause);
   if (direct !== null) return direct;

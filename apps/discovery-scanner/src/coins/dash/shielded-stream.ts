@@ -1,7 +1,7 @@
 import { ShieldedActivityLedger } from "@ckd/dash-network/activity.js";
 import { scanEncryptedPage } from "@ckd/dash-network/orchard-scanner.js";
 import {
-  runShieldedPageStream,
+  streamShieldedPages,
   SHIELDED_EMPTY_CONFIRMATIONS,
   SHIELDED_PAGE_SIZE,
   type ShieldedStreamOutcome,
@@ -52,16 +52,6 @@ function validateShieldedPage(value: unknown, maximumCount: number): ShieldedPag
   };
 }
 
-function wipeShieldedPage(page: ShieldedPage): void {
-  for (const note of page.notes) {
-    note.cmx.fill(0);
-    note.nullifier.fill(0);
-    note.cvNet.fill(0);
-    note.encryptedNote.fill(0);
-  }
-  page.notes.length = 0;
-}
-
 async function fetchShieldedPage(
   network: RecoveryNetwork,
   gateway: RecoveryNetworkGateway,
@@ -88,10 +78,8 @@ export async function streamShieldedPool(
   signal: AbortSignal,
   onProgress: (progress: RecoveryProgress) => void,
 ): Promise<ShieldedStreamOutcome> {
-  return runShieldedPageStream({
+  return streamShieldedPages({
     fetchPage: (position) => fetchShieldedPage(network, gateway, position, signal),
-    noteCount: (page) => page.notes.length,
-    revision: (page) => page.proofHeight,
     onPage: (page, visit) => {
       const noteCount = page.notes.length;
       if (noteCount > 0) {
@@ -130,7 +118,6 @@ export async function streamShieldedPool(
         }
       }
     },
-    disposePage: wipeShieldedPage,
     isCancelled: () => signal.aborted,
     yieldTurn: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
   });

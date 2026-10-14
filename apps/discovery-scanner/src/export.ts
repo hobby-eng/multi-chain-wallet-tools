@@ -1,3 +1,5 @@
+import { RECOVERY_SECTION_GROUPS } from "./recovery-section-groups.js";
+import { AtomicAmount } from "@ckd/core/atomic-amount.js";
 import { validateHistory, historyAmount } from "./history.js";
 import { encodeCsvCell } from "@ckd/export/csv.js";
 import type {
@@ -84,51 +86,19 @@ function csvCell(value: string): string {
 }
 
 const CSV_FIELD_COLUMNS = [
-  ["Scan family", "scan_family", ["core", "legacyCore", "coinjoin", "providerCollateral"]],
-  [
-    "Derivation path",
-    "derivation_path",
-    ["core", "legacyCore", "coinjoin", "providerCollateral", "platform", "identity", "shielded"],
-  ],
-  ["Branch", "branch", ["core", "legacyCore", "coinjoin", "providerCollateral", "platform"]],
-  [
-    "Address index",
-    "address_index",
-    ["core", "legacyCore", "coinjoin", "providerCollateral", "platform"],
-  ],
-  [
-    "Transactions reported",
-    "transactions_reported",
-    ["core", "legacyCore", "coinjoin", "providerCollateral", "platform", "identity"],
-  ],
-  ["Incoming credit events", "incoming_credit_events", ["platform", "identity"]],
-  ["Outgoing credit events", "outgoing_credit_events", ["platform", "identity"]],
-  [
-    "Lifetime received",
-    "lifetime_received_display",
-    ["core", "legacyCore", "coinjoin", "providerCollateral", "platform", "identity"],
-  ],
-  [
-    "Lifetime sent",
-    "lifetime_sent_display",
-    ["core", "legacyCore", "coinjoin", "providerCollateral", "platform", "identity"],
-  ],
+  ["Scan family", "scan_family", RECOVERY_SECTION_GROUPS.members("core")],
+  ["Derivation path", "derivation_path", RECOVERY_SECTION_GROUPS.members("derivable")],
+  ["Branch", "branch", RECOVERY_SECTION_GROUPS.members("addressable")],
+  ["Address index", "address_index", RECOVERY_SECTION_GROUPS.members("addressable")],
+  ["Transactions reported", "transactions_reported", RECOVERY_SECTION_GROUPS.members("history")],
+  ["Incoming credit events", "incoming_credit_events", RECOVERY_SECTION_GROUPS.members("credits")],
+  ["Outgoing credit events", "outgoing_credit_events", RECOVERY_SECTION_GROUPS.members("credits")],
+  ["Lifetime received", "lifetime_received_display", RECOVERY_SECTION_GROUPS.members("history")],
+  ["Lifetime sent", "lifetime_sent_display", RECOVERY_SECTION_GROUPS.members("history")],
   ["Lifetime fees spent", "lifetime_fees_spent_dash", ["identity"]],
-  [
-    "First seen",
-    "first_seen",
-    ["core", "legacyCore", "coinjoin", "providerCollateral", "platform", "identity"],
-  ],
-  [
-    "Last seen",
-    "last_seen",
-    ["core", "legacyCore", "coinjoin", "providerCollateral", "platform", "identity"],
-  ],
-  [
-    "Public-key hash",
-    "public_key_hash",
-    ["core", "legacyCore", "coinjoin", "providerCollateral", "platform", "identity"],
-  ],
+  ["First seen", "first_seen", RECOVERY_SECTION_GROUPS.members("history")],
+  ["Last seen", "last_seen", RECOVERY_SECTION_GROUPS.members("history")],
+  ["Public-key hash", "public_key_hash", RECOVERY_SECTION_GROUPS.members("history")],
   ["Pool position", "pool_position", ["shielded"]],
   ["Spent at pool position", "spent_at_pool_position", ["shielded"]],
   ["Direction", "direction", ["shielded"]],
@@ -185,20 +155,11 @@ function numericDash(value: string): string {
   return /^(\d+(?:\.\d+)?) DASH(?:\b|$)/u.exec(value)?.[1] ?? "";
 }
 
-function decimalAtomic(atomic: bigint, decimals: number): string {
-  if (decimals === 0) return atomic.toString();
-  const negative = atomic < 0n;
-  const digits = (negative ? -atomic : atomic).toString().padStart(decimals + 1, "0");
-  const whole = digits.slice(0, -decimals);
-  const fraction = digits.slice(-decimals).replace(/0+$/u, "");
-  return `${negative ? "-" : ""}${whole}${fraction ? `.${fraction}` : ""}`;
-}
-
 function findingBalanceDisplay(
   finding: RecoveryWalletResult["sections"][number]["findings"][number],
 ): string {
   if (finding.balanceAtomic != null && finding.balanceUnit !== undefined) {
-    return decimalAtomic(finding.balanceAtomic, finding.balanceUnit.decimals);
+    return AtomicAmount.format(finding.balanceAtomic, finding.balanceUnit.decimals);
   }
   return numericDash(finding.balanceLabel);
 }
@@ -280,12 +241,18 @@ function toCsv(results: RecoveryWalletResult[]): string {
     "warnings",
     "proof",
   ];
-  const rows = [header.map(csvCell).join(",")];
+  const csvRow = (cells: readonly string[]): string => cells.map(csvCell).join(",");
+  const rows = [csvRow(header)];
   for (const result of results) {
     for (const section of result.sections) {
+      // Every row of a section ends with the same notes: the warnings and the proof.
+      const notes = [
+        [...result.warnings, ...(section.warning ? [section.warning] : [])].join(" | "),
+        section.proof,
+      ];
       if (section.findings.length === 0) {
         rows.push(
-          [
+          csvRow([
             result.label,
             result.coinLabel,
             result.network,
@@ -305,11 +272,8 @@ function toCsv(results: RecoveryWalletResult[]): string {
               sectionMetricValue(section.metrics, label, numeric),
             ),
             "",
-            [...result.warnings, ...(section.warning ? [section.warning] : [])].join(" | "),
-            section.proof,
-          ]
-            .map(csvCell)
-            .join(","),
+            ...notes,
+          ]),
         );
         continue;
       }
@@ -319,7 +283,7 @@ function toCsv(results: RecoveryWalletResult[]): string {
           .map(({ label, value }) => `${label}: ${value}`)
           .join(" | ");
         rows.push(
-          [
+          csvRow([
             result.label,
             result.coinLabel,
             result.network,
@@ -349,11 +313,8 @@ function toCsv(results: RecoveryWalletResult[]): string {
               sectionMetricValue(section.metrics, label, numeric),
             ),
             metadata,
-            [...result.warnings, ...(section.warning ? [section.warning] : [])].join(" | "),
-            section.proof,
-          ]
-            .map(csvCell)
-            .join(","),
+            ...notes,
+          ]),
         );
       }
     }

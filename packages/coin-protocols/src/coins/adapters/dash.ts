@@ -1,10 +1,17 @@
 import { DIP17_PAYMENT_CHAINS } from "../dash/platform-paths.js";
 import {
-  BIP44_ADDRESS_BRANCHES,
-  indexRange,
-  TRANSPARENT_ROLES,
-  type CoinAdapter,
-} from "../registry-base.js";
+  DASH_CORE_PATHS,
+  DASH_COINJOIN_PROTOCOL,
+  DASH_IDENTITY_PATHS,
+  DASH_LEGACY_MOBILE_PATHS,
+  DASH_MULTISIG_PATHS,
+  DASH_PLATFORM_PATHS,
+  DASH_SHIELDED_PATHS,
+  MAX_DASH_DIVERSIFIER_INDEX,
+} from "../dash/profiles.js";
+import { BIP44_ADDRESS_BRANCHES, TRANSPARENT_ROLES, type CoinAdapter } from "../registry-base.js";
+
+const MULTISIG_PRIVATE_FIELDS = ["privateKey", "privateKeyHex", "childXprv"];
 
 export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
   {
@@ -16,22 +23,10 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     defaultVariant: true,
     networkControl: true,
     addressBranches: BIP44_ADDRESS_BRANCHES,
-    coinJoin: {
-      branches: { external: 0, internal: 1 },
-      workerAdapterId: "dash-core-coinjoin",
-      pathPreview: ({ network, account, start, count }) => {
-        const coinType = network === "mainnet" ? 5 : 1;
-        const range = indexRange(start, count);
-        return {
-          external: `m/9'/${coinType}'/4'/${account}'/0/${range}`,
-          internal: `m/9'/${coinType}'/4'/${account}'/1/${range}`,
-        };
-      },
-    },
+    coinJoin: DASH_COINJOIN_PROTOCOL,
     defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: TRANSPARENT_ROLES,
-    pathPreview: ({ network, account, branch, start, count }) =>
-      `m/44'/${network === "mainnet" ? 5 : 1}'/${account}'/${branch}/${indexRange(start, count)}`,
+    pathPreview: (input) => DASH_CORE_PATHS.pathPreview(input),
   },
   {
     id: "dash-multisig-p2sh",
@@ -49,10 +44,9 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     fieldRoles: {
       addresses: [],
       publicKeys: ["publicKey", "childXpub", "descriptorKey", "descriptorAccountKey"],
-      privateKeys: ["privateKey", "privateKeyHex", "childXprv"],
+      privateKeys: MULTISIG_PRIVATE_FIELDS,
     },
-    pathPreview: ({ network, account, branch, start, count }) =>
-      `m/48'/${network === "mainnet" ? 5 : 1}'/${account}'/0'/${branch}/${indexRange(start, count)}`,
+    pathPreview: (input) => DASH_MULTISIG_PATHS.pathPreview(input),
   },
   {
     id: "dash-multisig-core-pkh",
@@ -77,10 +71,9 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
         "receivePkhDescriptor",
         "changePkhDescriptor",
       ],
-      privateKeys: ["privateKey", "privateKeyHex", "childXprv"],
+      privateKeys: MULTISIG_PRIVATE_FIELDS,
     },
-    pathPreview: ({ network, account, branch, start, count }) =>
-      `m/44'/${network === "mainnet" ? 5 : 1}'/${account}'/${branch}/${indexRange(start, count)}`,
+    pathPreview: (input) => DASH_CORE_PATHS.pathPreview(input),
   },
   {
     id: "dash-legacy-mobile",
@@ -93,8 +86,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     addressBranches: BIP44_ADDRESS_BRANCHES,
     defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: TRANSPARENT_ROLES,
-    pathPreview: ({ account, branch, start, count }) =>
-      `m/${account}'/${branch}/${indexRange(start, count)}`,
+    pathPreview: (input) => DASH_LEGACY_MOBILE_PATHS.pathPreview(input),
   },
   {
     id: "dash-platform",
@@ -110,8 +102,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     },
     defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: TRANSPARENT_ROLES,
-    pathPreview: ({ network, account, branch, start, count }) =>
-      `m/9'/${network === "mainnet" ? 5 : 1}'/17'/${account}'/${branch}'/${indexRange(start, count)}`,
+    pathPreview: (input) => DASH_PLATFORM_PATHS.pathPreview(input),
   },
   {
     id: "dash-identity",
@@ -140,10 +131,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
         "key3PrivateKeyHex",
       ],
     },
-    pathPreview: ({ network, start, count }) => {
-      const identity = count > 1 ? `{${start}'…${start + count - 1}'}` : `${start}'`;
-      return `m/9'/${network === "mainnet" ? 5 : 1}'/5'/0'/0'/${identity}/{0'…3'}`;
-    },
+    pathPreview: (input) => DASH_IDENTITY_PATHS.pathPreview(input),
   },
   {
     id: "dash-shielded",
@@ -152,7 +140,7 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
     label: "Dash Shielded · Orchard / ZIP-32",
     variantLabel: "Shielded\nOrchard / ZIP-32",
     networkControl: true,
-    limits: { startMax: 0xffff_ffff },
+    limits: { startMax: MAX_DASH_DIVERSIFIER_INDEX },
     controlLabels: { start: "Start diversifier index", count: "Number of addresses" },
     defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 20 },
     fieldRoles: {
@@ -160,7 +148,6 @@ export const DASH_COIN_ADAPTERS: readonly CoinAdapter[] = [
       publicKeys: [],
       privateKeys: ["spendingKey"],
     },
-    pathPreview: ({ network, account, start, count }) =>
-      `m/32'/${network === "mainnet" ? 5 : 1}'/${account}' · external diversifier ${indexRange(start, count)}`,
+    pathPreview: (input) => DASH_SHIELDED_PATHS.pathPreview(input),
   },
 ] as const;

@@ -1,4 +1,5 @@
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
+import { runPublicInputGuardSelfTest } from "@ckd/secret-boundary/public-input-guard-self-test.js";
 import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
 
 export interface RecoverySelfTestReport {
@@ -74,9 +75,11 @@ export function createPublicInputBoundarySelfTest(): () => Promise<RecoverySelfT
   return async () => {
     const started = performance.now();
     assertIsolatedBoundary("Public Input Boundary");
+    // Secret material typed as a watch-only input is refused before any lookup can be sent.
+    const guard = runPublicInputGuardSelfTest();
     return {
       passed: true,
-      checks: ["Opaque-origin Public Input Boundary and network-denied CSP"],
+      checks: ["Opaque-origin Public Input Boundary and network-denied CSP", ...guard],
       durationMs: Math.round(performance.now() - started),
     };
   };

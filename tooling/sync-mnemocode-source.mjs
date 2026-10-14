@@ -1,3 +1,4 @@
+import { isMainScript } from "./run-script.mjs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -7,15 +8,24 @@ import { fileURLToPath } from "node:url";
 /**
  * Vendors the MnemoCode core from its public Git repository.
  *
- * The build itself never uses the network: this command is run deliberately,
- * writes reviewed source files plus a manifest of their SHA-256 values, and the
- * result is committed. `--check` verifies the committed files offline.
+ * Builds never download MnemoCode: this command is run deliberately, writes
+ * reviewed source files plus a manifest of their SHA-256 values, and the result is
+ * committed. `--check` verifies the committed files offline; the build's provenance
+ * check (verify-dependency-provenance.mjs) runs the same check and only asks GitHub
+ * whether the pinned commit exists.
  *
- * Two groups are imported: the transformation core, and the card renderers with
- * their font and artwork. MnemoCode's CLI, file output, SSKR engine and WASM, QR
- * reader and PNG coder are never vendored: the renderers receive those services
- * from the host through MnemoCode's platform interface, and the Derivation Tool
- * supplies them from components it already has.
+ * Two groups are imported: the host-neutral library (transformations, records,
+ * searches, wallet evidence, candidate lists, Shamir share sets and their repair,
+ * backup checks), and the card, share-card and heir-sheet renderers with their font
+ * and artwork. MnemoCode's CLI, file output, SSKR engine and WASM, QR reader and PNG
+ * coder are never vendored: the library and renderers receive those services from
+ * the host through MnemoCode's platform interfaces, and the Derivation Tool supplies
+ * them from components it already has.
+ *
+ * `--working-tree <path>` copies the files from a local MnemoCode checkout instead,
+ * uncommitted changes included, when the owner asks for the newest state before it
+ * is pushed. The manifest then marks the source unreleased, which the provenance
+ * check turns into a refusal in CI.
  */
 
 const defaultRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -34,26 +44,47 @@ export const MNEMOCODE_CARD_FILES = Object.freeze({
       "business-designs",
       "business-layout",
       "business-render-primitives",
+      "business-tint",
+      "card-codes",
+      "card-content",
+      "card-decoys",
+      "card-drawing",
       "card-copy",
+      "card-renderer",
       "card-identities",
+      "card-palette",
+      "card-plan",
+      "card-preview",
+      "cards-self-test",
+      "card-sets-self-test",
       "card-qr",
       "card-session",
       "card-settings",
       "collection-sheet",
       "color-math",
       "document-metadata",
-      "glass-artwork",
-      "glass-cards",
-      "glass-layout",
+      "export-details",
+      "heir-sheet",
+      "heir-sheet-self-test",
+      "heir-sheet-text",
       "material-artwork",
       "material-cards",
-      "material-layout",
+      "pdf-documents",
       "platform",
       "render",
+      "self-test-cards",
       "sskr-content",
+      "sskr-render",
+      "sskr-render-self-test",
+      "study-backdrops",
       "templates",
       "world-map",
       "world-map-data",
+      "backup-cards",
+      "document-formats",
+      "page-units",
+      "sskr-keeping-text",
+      "template-catalog",
     ].map((name) => [`src/export/${name}.ts`, `export/${name}.ts`]),
   ),
   // Share text validation used by the renderers; the sharing engine is not imported.
@@ -71,9 +102,6 @@ export const MNEMOCODE_CARD_FILES = Object.freeze({
       "images/business-diagonal-v1.png",
       "images/business-estate-v1.png",
       "images/business-facets-v1.png",
-      "images/business-glass-4in1.png",
-      "images/business-glass-6in1.jpg",
-      "images/business-glass-8in1.jpg",
       "images/business-it-v1.png",
       "images/material-enclosure.jpg",
       "images/material-kitchen.jpg",
@@ -84,29 +112,163 @@ export const MNEMOCODE_CARD_FILES = Object.freeze({
   ),
 });
 
+/** The host-neutral library: every module below is importable on its own in a browser. */
+export const MNEMOCODE_LIBRARY_FILES = Object.freeze({
+  "src/core.ts": "core.ts",
+  ...Object.fromEntries(
+    [
+      "address-scan",
+      "backup-check",
+      "backup-check-self-test",
+      "backup-options",
+      "backup-reading",
+      "backup-reading-self-test",
+      "bip32-limits",
+      "bip39-sizes",
+      "bits",
+      "byte-units",
+      "candidate-encryption",
+      "candidate-encryption-self-test",
+      "candidate-file-admission",
+      "candidate-file-refusal",
+      "candidate-list",
+      "candidate-list-self-test",
+      "candidate-list-writer",
+      "candidates",
+      "candidates-self-test",
+      "coin-address-evidence",
+      "code-text",
+      "coins",
+      "coins-self-test",
+      "colors",
+      "date-recovery",
+      "date-search",
+      "date-search-self-test",
+      "dates",
+      "encoded-backup",
+      "encoded-form",
+      "english-words",
+      "masking",
+      "missing-codes",
+      "missing-codes-search",
+      "places",
+      "pieces",
+      "prose",
+      "png-admission",
+      "redacted",
+      "re-encoding",
+      "re-encoding-self-test",
+      "refusal",
+      "representations",
+      "representations-self-test",
+      "search-turns",
+      "search-plan",
+      "seedshift",
+      "self-test",
+      "self-test-check",
+      "typed-number",
+      "types",
+      "wallet-check",
+      "master-fingerprint",
+      "master-fingerprint-self-test",
+      "wallet-evidence",
+      "wallet-evidence-self-test",
+      "white-space",
+      "word-hints",
+      "word-hints-self-test",
+      "words",
+      // Each coin family is its own module, so that a one-coin edition takes only its own.
+      "coins/address-types",
+      "coins/address-sizes",
+      "coins/base58",
+      "coins/base58-check",
+      "coins/bech32",
+      "coins/bitcoin-cash",
+      "coins/bitcoin-cash-self-test",
+      "coins/bitcoin-like",
+      "coins/bitcoin-like-self-test",
+      "coins/bitcoin-versions",
+      "coins/coin",
+      "coins/coin-self-test",
+      "coins/cosmos",
+      "coins/cosmos-self-test",
+      "coins/dash",
+      "coins/dash-self-test",
+      "coins/evm",
+      "coins/ethereum",
+      "coins/ethereum-self-test",
+      "coins/evm-self-test",
+      "coins/keccak-account",
+      "coins/other-forms",
+      "coins/taproot",
+      "coins/xrp",
+      "coins/xrp-self-test",
+    ].map((name) => [`src/core/${name}.ts`, `core/${name}.ts`]),
+  ),
+  ...Object.fromEntries(
+    [
+      "checksum",
+      "complete-shares",
+      "gf2",
+      "gf256",
+      "joint-repair",
+      "mixed-layout",
+      "known-answers",
+      "repair",
+      "repair-report",
+      "repair-self-test",
+      "share-input",
+      "share-restore",
+      "set-topology",
+      "share-layout",
+      "share-platform",
+      "share-set",
+      "share-unmasking",
+      "share-unmasking-self-test",
+      "share-units",
+      "split",
+    ].map((name) => [`src/sskr/${name}.ts`, `sskr/${name}.ts`]),
+  ),
+  "src/record.ts": "record.ts",
+  "src/bundled-file-paths.ts": "bundled-file-paths.ts",
+  // The public vectors that the self-test checks; the page bundles them as JSON.
+  "vectors/mnemocode-v1.json": "vectors/mnemocode-v1.json",
+});
+
 /** Upstream path -> vendored path below MNEMOCODE_SOURCE_DIRECTORY. */
 export const MNEMOCODE_FILES = Object.freeze({
   ...MNEMOCODE_CARD_FILES,
-  "src/core.ts": "core.ts",
-  "src/core/bits.ts": "core/bits.ts",
-  "src/core/colors.ts": "core/colors.ts",
-  "src/core/dates.ts": "core/dates.ts",
-  "src/core/representations.ts": "core/representations.ts",
-  "src/core/seedshift.ts": "core/seedshift.ts",
-  "src/core/types.ts": "core/types.ts",
-  "src/core/words.ts": "core/words.ts",
-  "src/record.ts": "record.ts",
+  ...MNEMOCODE_LIBRARY_FILES,
   LICENSE: "LICENSE",
   NOTICE: "NOTICE",
 });
 
 /** Packages the vendored files are compiled against; each resolves to this project's own pin. */
-const SHARED_DEPENDENCIES = Object.freeze(["@scure/bip39", "pdf-lib", "@pdf-lib/fontkit"]);
+export const SHARED_DEPENDENCIES = Object.freeze([
+  "@scure/base",
+  "@scure/bip39",
+  "@scure/bip32",
+  "@scure/btc-signer",
+  "@noble/curves",
+  "@noble/hashes",
+  "age-encryption",
+  "pdf-lib",
+  "@pdf-lib/fontkit",
+]);
 /** Every other module specifier would duplicate or add a dependency. */
 const ALLOWED_PACKAGE_IMPORTS = new Set([
+  "@scure/base",
   "@scure/bip39",
   "@scure/bip39/wordlists/english.js",
   "@scure/bip39/wordlists/traditional-chinese.js",
+  "@scure/bip32",
+  "@scure/btc-signer",
+  "@noble/curves/secp256k1.js",
+  "@noble/hashes/sha2.js",
+  // Keccak for the EVM and Tron addresses, RIPEMD-160 for HASH160 (coin addresses).
+  "@noble/hashes/sha3.js",
+  "@noble/hashes/legacy.js",
+  "age-encryption",
   "pdf-lib",
   "@pdf-lib/fontkit",
 ]);
@@ -249,7 +411,7 @@ async function resolveUpstreamCommit(reference, fetchImpl) {
   return { reference: "main", commit: main };
 }
 
-async function download(commit, path, fetchImpl) {
+async function fetchFile(commit, path, fetchImpl) {
   const url = `https://raw.githubusercontent.com/${MNEMOCODE_REPOSITORY}/${commit}/${path}`;
   let failure;
   // A short retry covers transient connection failures; an HTTP error is final.
@@ -309,16 +471,38 @@ export function verifyMnemoCodeSource({ root = defaultRoot } = {}) {
   return manifest;
 }
 
+/**
+ * The files of a local MnemoCode checkout, uncommitted changes included, with the commit they
+ * stand on. Reading from disk replaces the download; every other check stays the same.
+ */
+function workingTreeSource(path) {
+  const commit = execFileSync("git", ["-C", path, "rev-parse", "HEAD"], {
+    encoding: "utf8",
+  }).trim();
+  const changed = execFileSync("git", ["-C", path, "status", "--porcelain"], {
+    encoding: "utf8",
+  }).trim();
+  return {
+    upstream: { reference: `working tree on ${commit.slice(0, 7)}`, commit },
+    unreleased:
+      changed === ""
+        ? "a local checkout of a commit that may not be pushed"
+        : "a copy of an uncommitted local working tree, not a pushed commit",
+    read: async (upstreamPath) => readFileSync(resolve(path, upstreamPath)),
+  };
+}
+
 export async function syncMnemoCodeSource({
   root = defaultRoot,
   reference,
+  workingTree,
   fetchImpl = fetch,
   logger = console,
 } = {}) {
-  const upstream = await resolveUpstreamCommit(reference, fetchImpl);
-  const upstreamPackage = JSON.parse(
-    (await download(upstream.commit, "package.json", fetchImpl)).toString("utf8"),
-  );
+  const local = workingTree === undefined ? undefined : workingTreeSource(workingTree);
+  const upstream = local?.upstream ?? (await resolveUpstreamCommit(reference, fetchImpl));
+  const download = local?.read ?? ((path) => fetchFile(upstream.commit, path, fetchImpl));
+  const upstreamPackage = JSON.parse((await download("package.json")).toString("utf8"));
   const shared = sharedVersions(upstreamPackage);
   assertSameSharedVersions(
     shared,
@@ -327,7 +511,7 @@ export async function syncMnemoCodeSource({
   );
   const downloaded = [];
   for (const [upstreamPath, vendoredPath] of Object.entries(MNEMOCODE_FILES)) {
-    const bytes = await download(upstream.commit, upstreamPath, fetchImpl);
+    const bytes = await download(upstreamPath);
     if (vendoredPath.endsWith(".ts")) assertAllowedImports(vendoredPath, bytes.toString("utf8"));
     downloaded.push({ upstreamPath, vendoredPath, bytes });
   }
@@ -348,6 +532,7 @@ export async function syncMnemoCodeSource({
     commit: upstream.commit,
     version: upstreamPackage.version,
     sharedDependencies: shared,
+    ...(local === undefined ? {} : { unreleased: local.unreleased }),
     excluded: "CLI, file and image output, SSKR engine and WASM, QR reader and writer, PNG coder",
     files: Object.fromEntries(
       Object.entries(files).sort(([left], [right]) => left.localeCompare(right)),
@@ -362,7 +547,7 @@ export async function syncMnemoCodeSource({
   return manifest;
 }
 
-if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMainScript(import.meta.url)) {
   const args = process.argv.slice(2);
   if (args.includes("--check")) {
     const manifest = verifyMnemoCodeSource();
@@ -374,6 +559,10 @@ if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(
     const reference = index >= 0 ? args[index + 1] : undefined;
     if (index >= 0 && reference === undefined)
       throw new Error("--ref requires a tag, branch or full commit.");
-    await syncMnemoCodeSource({ reference });
+    const treeIndex = args.indexOf("--working-tree");
+    const workingTree = treeIndex >= 0 ? resolve(args[treeIndex + 1] ?? "") : undefined;
+    if (treeIndex >= 0 && args[treeIndex + 1] === undefined)
+      throw new Error("--working-tree requires the path of a MnemoCode checkout.");
+    await syncMnemoCodeSource({ reference, workingTree });
   }
 }

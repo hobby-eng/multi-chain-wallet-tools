@@ -1,6 +1,14 @@
 import { addDescriptorChecksum } from "@ckd/core/descriptor-checksum.js";
 import type { AccountDescriptorExport } from "@ckd/core/types.js";
 
+/** The labels the Discovery Scanner reads in front of a Dash account's public key. */
+export type DashScannerPrefix = "dash-core-xpub" | "dash-legacy-xpub" | "dash-coinjoin-xpub";
+
+/** The key origin of a descriptor, [fingerprint/path] with h for hardened steps (BIP380). */
+export function descriptorOrigin(fingerprint: string, accountPath: string): string {
+  return `[${fingerprint}${accountPath.slice(1).replaceAll("'", "h")}]`;
+}
+
 /** Account-level keys only; origin metadata is descriptive, not a second derivation. */
 export function accountDescriptorExport(options: {
   script: "pkh" | "sh-wpkh" | "wpkh" | "tr";
@@ -9,9 +17,9 @@ export function accountDescriptorExport(options: {
   publicKey: string;
   privateKey: string;
   fileStem: string;
-  scannerPrefix?: "dash-core-xpub" | "dash-legacy-xpub" | "dash-coinjoin-xpub";
+  scannerPrefix?: DashScannerPrefix;
 }): AccountDescriptorExport {
-  const origin = `[${options.fingerprint}${options.accountPath.slice(1).replaceAll("'", "h")}]`;
+  const origin = descriptorOrigin(options.fingerprint, options.accountPath);
   const descriptors = (extendedKey: string): string =>
     [0, 1]
       .map((branch) => {

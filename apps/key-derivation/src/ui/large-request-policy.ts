@@ -1,3 +1,4 @@
+import { MAX_BATCH_SIZE } from "@ckd/core/bip32-limits.js";
 import type { CoinAdapter } from "@ckd/coins/registry.js";
 import type { DerivationControlValues } from "./inputs.js";
 import { planResultBranches } from "./result-branches.js";
@@ -70,7 +71,7 @@ export function createLargeRequestPolicy(options: LargeRequestPolicyOptions) {
       }
       pendingFingerprint = requestFingerprint;
       const adapter = options.adapter();
-      const batches = Math.ceil(input.count / (adapter.batchSize ?? 50)) * branchCount;
+      const batches = Math.ceil(input.count / (adapter.batchSize ?? MAX_BATCH_SIZE)) * branchCount;
       options.showConfirmation();
       options.showStatus(
         `Large request confirmation: ${totalCount.toLocaleString()} results across ${branchCount} address branch${branchCount === 1 ? "" : "es"} in ${batches.toLocaleString()} visible batches; ${approximateMemoryRange(totalCount)}. ` +

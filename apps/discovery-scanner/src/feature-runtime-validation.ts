@@ -7,6 +7,7 @@ const FEATURE_METHODS = {
     "createRecoverySeedInputs",
     "recoveryScanConfig",
     "wipeRecoverySeedInputs",
+    "CandidateListImport",
   ],
   watchOnlyDiscovery: [
     "resolveWatchOnlyScanTargets",

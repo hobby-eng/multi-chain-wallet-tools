@@ -2,6 +2,7 @@ import { bytesToHex, concatBytes, sha256 } from "@ckd/core/crypto.js";
 import { Reader, reverseHex } from "./psbt-binary.js";
 
 type TransactionChain = "bitcoin" | "dash";
+type TransactionFraming = "wire" | "psbt-global";
 
 export interface TransactionInput {
   readonly txid: string;
@@ -30,6 +31,7 @@ export function readTransaction(
   bytes: Uint8Array,
   chain: TransactionChain,
   allowWitness = true,
+  framing: TransactionFraming = "wire",
 ): ParsedTransaction {
   const reader = new Reader(bytes);
   let version: number;
@@ -83,11 +85,13 @@ export function readTransaction(
   }
   const lockTime = reader.u32();
   let extraPayload: Uint8Array | null = null;
-  // Dash PSBT serializes the typed DIP-2 payload directly, while an on-wire
-  // previous transaction prefixes it with a CompactSize length. The inspector
-  // preserves and exposes the remaining payload bytes without pretending the
-  // two encodings are interchangeable.
-  if (chain === "dash" && dashType !== 0) extraPayload = reader.read(reader.remaining);
+  // Dash's global PSBT representation deliberately omits the wire CompactSize
+  // prefix. Previous transactions must consume one canonical length and payload.
+  if (chain === "dash" && dashType !== 0)
+    extraPayload =
+      framing === "psbt-global"
+        ? reader.read(reader.remaining)
+        : reader.varBytes("Dash special payload length");
   if (reader.remaining !== 0)
     throw new Error("Unsigned transaction contains unsupported or trailing data.");
   return {

@@ -1,0 +1,10 @@
+declare const sdk: any;
+(sdk as any).addresses.transfer({});
+(<any>sdk).addresses.transfer({});
+(sdk satisfies any).addresses.transfer({});
+(sdk.addresses.transfer as any satisfies any)({});
+const addresses = (sdk as any).addresses;
+addresses.transfer?.({});
+const method = "transfer" as const;
+(sdk satisfies any).addresses[method as string]({});
+(sdk as any)["broadcastStateTransition" satisfies string]({});

@@ -13,6 +13,7 @@ import type { CompactMessageSignature } from "@ckd/core/compact-message.js";
 import type { SilentPaymentResult } from "./silent-payment.js";
 import type { Bip85RequestOptions, Bip85Result } from "./bip85-deriver.js";
 import type { Bip38EncryptionResult } from "./protocol.js";
+import { EmbeddedWorkerResource } from "@ckd/ui/embedded-worker-resource.js";
 
 declare const __DERIVATION_WORKER_SOURCE__: string;
 
@@ -52,39 +53,29 @@ export class DerivationCancelledError extends Error {
 }
 
 export class DerivationWorkerClient {
-  readonly #worker: Worker;
+  readonly #resource: EmbeddedWorkerResource;
   readonly #pending = new Map<number, PendingRequest>();
   readonly #queued = new Map<number, QueuedRequest>();
   readonly #readyWaiters = new Set<ReadyWaiter>();
   #nextId = 1;
   #lifecycle: WorkerLifecycle = "booting";
-  #workerUrl: string | null;
-  #workerUrlTimer: ReturnType<typeof globalThis.setTimeout> | null;
 
   constructor() {
-    if (typeof Worker === "undefined")
-      throw new Error("This browser does not support Web Workers.");
-    const blob = new Blob([__DERIVATION_WORKER_SOURCE__], { type: "text/javascript" });
-    const url = URL.createObjectURL(blob);
-    this.#workerUrl = url;
-    this.#worker = new Worker(url, { name: "wallet-key-derivation" });
-    // Revocation is safe only after the worker confirms its script loaded.
-    // The timeout is a leak-prevention fallback for a browser that never emits
-    // either ready or error; it is deliberately not the normal path.
-    this.#workerUrlTimer = globalThis.setTimeout(() => this.#revokeWorkerUrl(), 15_000);
-    this.#worker.addEventListener("message", (event: MessageEvent<WorkerMessage>) => {
+    this.#resource = new EmbeddedWorkerResource(
+      [__DERIVATION_WORKER_SOURCE__],
+      { name: "wallet-key-derivation" },
+      () => this.#fail(new Error("The derivation worker did not become ready in time.")),
+    );
+    this.#resource.worker.addEventListener("message", (event: MessageEvent<WorkerMessage>) => {
       const response = event.data;
       if (!("id" in response)) {
+        this.#resource.loaded();
         if (this.#lifecycle === "booting") {
-          this.#revokeWorkerUrl();
           this.#lifecycle = "ready";
           for (const waiter of this.#readyWaiters) waiter.resolve();
           this.#readyWaiters.clear();
           for (const queued of this.#queued.values()) this.#post(queued);
           this.#queued.clear();
-        } else if (this.#lifecycle === "terminated") {
-          this.#worker.terminate();
-          this.#revokeWorkerUrl();
         }
         return;
       }
@@ -94,17 +85,12 @@ export class DerivationWorkerClient {
       if (response.ok) pending.resolve(response.result);
       else pending.reject(new Error(response.error));
     });
-    this.#worker.addEventListener("error", (event) => {
+    this.#resource.worker.addEventListener("error", (event) => {
       // The worker is gone: without marking the client terminated, a later
       // request would post to a dead worker and never settle, leaving the UI
       // stuck on "Deriving…" with no timeout to release it.
       const failure = new Error(event.message || "The derivation worker stopped unexpectedly.");
-      this.#lifecycle = "terminated";
-      this.#wipeQueued();
-      this.#revokeWorkerUrl();
-      this.#rejectAll(failure);
-      for (const waiter of this.#readyWaiters) waiter.reject(failure);
-      this.#readyWaiters.clear();
+      this.#fail(failure);
     });
   }
 
@@ -125,8 +111,9 @@ export class DerivationWorkerClient {
     );
   }
 
-  async selfTest(): Promise<CryptoSelfTestReport> {
-    return this.#request<CryptoSelfTestReport>({ id: this.#nextId, type: "self-test" });
+  /** The startup checks; with `full`, also the slower ones of the full self-test. */
+  async selfTest(full = false): Promise<CryptoSelfTestReport> {
+    return this.#request<CryptoSelfTestReport>({ id: this.#nextId, type: "self-test", full });
   }
 
   async search(
@@ -249,25 +236,21 @@ export class DerivationWorkerClient {
   }
 
   terminate(reason = new DerivationCancelledError()): void {
+    this.#dispose(reason, true);
+  }
+
+  #fail(reason: Error): void {
+    this.#dispose(reason, false);
+  }
+
+  #dispose(reason: Error, force: boolean): void {
     if (this.#lifecycle === "terminated") return;
-    const ready = this.#lifecycle === "ready";
     this.#lifecycle = "terminated";
     this.#wipeQueued();
     this.#rejectAll(reason);
     for (const waiter of this.#readyWaiters) waiter.reject(reason);
     this.#readyWaiters.clear();
-    if (ready) {
-      this.#worker.terminate();
-      this.#revokeWorkerUrl();
-    }
-  }
-
-  #revokeWorkerUrl(): void {
-    if (this.#workerUrlTimer !== null) globalThis.clearTimeout(this.#workerUrlTimer);
-    this.#workerUrlTimer = null;
-    if (this.#workerUrl === null) return;
-    URL.revokeObjectURL(this.#workerUrl);
-    this.#workerUrl = null;
+    this.#resource.dispose(force);
   }
 
   #request<
@@ -300,7 +283,7 @@ export class DerivationWorkerClient {
 
   #post(queued: QueuedRequest): void {
     try {
-      this.#worker.postMessage(queued.request, [...queued.transfer]);
+      this.#resource.worker.postMessage(queued.request, [...queued.transfer]);
     } catch (cause) {
       this.#wipeRequest(queued.request);
       const pending = this.#pending.get(queued.request.id);

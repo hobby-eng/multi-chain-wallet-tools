@@ -1,8 +1,16 @@
+import type { MatcherCoin } from "./matcher-targets.js";
+import { nonEmptyLines } from "@ckd/core/text-lines.js";
 import type { NetworkName } from "@ckd/core/types.js";
 import { normalizeBitcoinAddress } from "@ckd/public-data-providers/address-normalization.js";
 
-type BitcoinAddressAdapterId =
-  "bitcoin-legacy" | "bitcoin-nested-segwit" | "bitcoin-native-segwit" | "bitcoin-taproot";
+/** The address profiles of Bitcoin, one per standard script type. */
+const BITCOIN_ADDRESS_ADAPTERS = [
+  "bitcoin-legacy",
+  "bitcoin-nested-segwit",
+  "bitcoin-native-segwit",
+  "bitcoin-taproot",
+] as const;
+type BitcoinAddressAdapterId = (typeof BITCOIN_ADDRESS_ADAPTERS)[number];
 
 export interface AddressSearchTarget {
   readonly input: string;
@@ -53,13 +61,27 @@ export function detectBitcoinAddressTargets(
   input: string,
   network: NetworkName,
 ): AddressSearchTarget[] {
-  const values = input
-    .replaceAll("\r", "")
-    .split("\n")
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const values = nonEmptyLines(input);
   if (values.length === 0) return invalid();
   const targets = values.map((value) => detectBitcoinAddressTarget(value, network));
   const seen = new Set<string>();
   return targets.filter((target) => !seen.has(target.normalized) && seen.add(target.normalized));
 }
+
+/** Bitcoin's part of the Wallet Matcher: an address of any of the four standard script types. */
+export const BITCOIN_MATCHER: MatcherCoin = {
+  recognize(value, network) {
+    try {
+      const target = detectBitcoinAddressTarget(value, network);
+      return {
+        input: value,
+        normalized: target.normalized,
+        network,
+        adapterIds: [target.adapterId],
+      };
+    } catch {
+      return null;
+    }
+  },
+  addressAdapters: BITCOIN_ADDRESS_ADAPTERS,
+};

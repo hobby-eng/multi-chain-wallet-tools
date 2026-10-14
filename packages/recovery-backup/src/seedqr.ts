@@ -4,17 +4,24 @@ import {
   englishMnemonicToEntropy,
   entropyToEnglishMnemonic,
 } from "@ckd/core/bip39.js";
+import { BIP39_ENTROPY_BYTES, BIP39_WORD_COUNTS } from "@ckd/core/bip39-parameters.js";
+import { orList } from "@ckd/core/listing.js";
 
-const SUPPORTED_WORD_COUNTS = new Set([12, 15, 18, 21, 24]);
-const STANDARD_PAYLOAD_LENGTHS = new Set([48, 60, 72, 84, 96]);
-const COMPACT_PAYLOAD_LENGTHS = new Set([16, 20, 24, 28, 32]);
+/** Standard SeedQR writes each word as its index in four decimal digits. */
+const STANDARD_DIGITS_PER_WORD = 4;
+/** SeedQR takes every BIP39 length: a standard payload of four digits a word, a compact one of the entropy. */
+const STANDARD_PAYLOAD_LENGTHS: readonly number[] = BIP39_WORD_COUNTS.map(
+  (words) => words * STANDARD_DIGITS_PER_WORD,
+);
 
+/** Whether `bytes` have the size of a CompactSeedQR: the entropy of a BIP39 phrase. */
+export function isCompactSeedQr(bytes: Uint8Array): boolean {
+  return BIP39_ENTROPY_BYTES.includes(bytes.length);
+}
+
+/** SeedQR encodes every BIP39 phrase, so a valid one is all it needs. */
 function assertSeedQrMnemonic(value: string): string {
-  const mnemonic = assertValidMnemonic(value);
-  if (!SUPPORTED_WORD_COUNTS.has(mnemonic.split(" ").length)) {
-    throw new Error("SeedQR accepts 12-, 15-, 18-, 21-, or 24-word English BIP39 phrases.");
-  }
-  return mnemonic;
+  return assertValidMnemonic(value);
 }
 
 export function encodeStandardSeedQr(value: string): string {
@@ -30,12 +37,14 @@ export function encodeStandardSeedQr(value: string): string {
 
 export function decodeStandardSeedQr(value: string): string {
   const payload = value.trim();
-  if (!/^\d+$/u.test(payload) || !STANDARD_PAYLOAD_LENGTHS.has(payload.length)) {
-    throw new Error("Standard SeedQR must contain exactly 48, 60, 72, 84, or 96 decimal digits.");
+  if (!/^\d+$/u.test(payload) || !STANDARD_PAYLOAD_LENGTHS.includes(payload.length)) {
+    throw new Error(
+      `Standard SeedQR must contain exactly ${orList(STANDARD_PAYLOAD_LENGTHS)} decimal digits.`,
+    );
   }
   const words: string[] = [];
-  for (let offset = 0; offset < payload.length; offset += 4) {
-    const index = Number(payload.slice(offset, offset + 4));
+  for (let offset = 0; offset < payload.length; offset += STANDARD_DIGITS_PER_WORD) {
+    const index = Number(payload.slice(offset, offset + STANDARD_DIGITS_PER_WORD));
     const word = wordlist[index];
     if (word === undefined)
       throw new Error(`SeedQR word index ${index} is outside the BIP39 English list.`);
@@ -50,8 +59,8 @@ export function encodeCompactSeedQr(value: string): Uint8Array {
 }
 
 export function decodeCompactSeedQr(value: Uint8Array): string {
-  if (!COMPACT_PAYLOAD_LENGTHS.has(value.length)) {
-    throw new Error("CompactSeedQR must contain exactly 16, 20, 24, 28, or 32 bytes.");
+  if (!isCompactSeedQr(value)) {
+    throw new Error(`CompactSeedQR must contain exactly ${orList(BIP39_ENTROPY_BYTES)} bytes.`);
   }
   return entropyToEnglishMnemonic(value);
 }

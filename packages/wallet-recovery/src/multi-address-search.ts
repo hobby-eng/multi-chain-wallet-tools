@@ -1,7 +1,9 @@
-export const MAX_LOCAL_SEARCH_CONCURRENCY = 5;
-
 import type { AddressSearchMatch } from "./address-search.js";
 import type { AddressSearchTarget } from "./address-targets.js";
+import { LocalSearchAdmission } from "./local-search-admission.js";
+import { LocalSearchQueue } from "./local-search-queue.js";
+
+export { MAX_LOCAL_SEARCH_CONCURRENCY } from "./local-search-admission.js";
 
 interface MultiAddressSearchResult {
   readonly target: AddressSearchTarget;
@@ -13,7 +15,7 @@ interface MultiAddressSearchOptions {
   readonly targets: readonly AddressSearchTarget[];
   readonly start: number;
   readonly count: number;
-  readonly concurrency?: number;
+  readonly concurrency?: number | undefined;
   readonly signal?: AbortSignal;
   readonly search: (
     adapterId: AddressSearchTarget["adapterId"],
@@ -28,15 +30,14 @@ interface MultiAddressSearchOptions {
 export async function searchAcrossAddresses(
   options: MultiAddressSearchOptions,
 ): Promise<MultiAddressSearchResult[]> {
-  const { targets, concurrency = 2 } = options;
-  const results = new Array<MultiAddressSearchResult>(targets.length);
-  let next = 0;
-  const worker = async (): Promise<void> => {
-    while (true) {
-      options.signal?.throwIfAborted();
-      const index = next;
-      next += 1;
-      if (index >= targets.length) return;
+  const { targets } = options;
+  LocalSearchAdmission.range(options.start, options.count);
+  return LocalSearchQueue.run<MultiAddressSearchResult>({
+    total: targets.length,
+    concurrency: options.concurrency,
+    signal: options.signal,
+    onProgress: options.onProgress,
+    execute: async (index) => {
       const target = targets[index]!;
       try {
         const match = await options.search(
@@ -46,29 +47,15 @@ export async function searchAcrossAddresses(
           options.count,
           options.signal,
         );
-        results[index] = { target, match };
+        return { target, match };
       } catch (cause) {
         if (options.signal?.aborted === true) throw cause;
-        results[index] = {
+        return {
           target,
           match: null,
           error: cause instanceof Error ? cause.message : String(cause),
         };
       }
-      options.onProgress?.(results.filter(Boolean).length, targets.length);
-    }
-  };
-  await Promise.all(
-    Array.from(
-      {
-        length: Math.min(
-          Math.max(1, concurrency),
-          MAX_LOCAL_SEARCH_CONCURRENCY,
-          Math.max(1, targets.length),
-        ),
-      },
-      () => worker(),
-    ),
-  );
-  return results;
+    },
+  });
 }

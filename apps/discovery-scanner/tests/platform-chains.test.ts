@@ -58,15 +58,17 @@ for (const network of ["mainnet", "testnet"] as const) {
           addresses: async (addresses: string[]) => {
             queried.push(...addresses);
             return {
-              entries: addresses.flatMap((address) => {
-                const entry = oracle.get(address);
-                expect(entry, "unexpected derivation path").toBeDefined();
-                return used.some(
-                  ([branch, index]) => entry!.keyClass === branch && entry!.index === index,
-                )
-                  ? [[entry!.storage, { balance: "100000000000", nonce: "1" }]]
-                  : [];
-              }),
+              entries: addresses.map(
+                (address): [string, { balance: string; nonce: string } | null] => {
+                  const entry = oracle.get(address);
+                  expect(entry, "unexpected derivation path").toBeDefined();
+                  return used.some(
+                    ([branch, index]) => entry!.keyClass === branch && entry!.index === index,
+                  )
+                    ? [entry!.storage, { balance: "100000000000", nonce: "1" }]
+                    : [entry!.storage, null];
+                },
+              ),
               metadata: { height: "100", protocolVersion: 1 },
             };
           },

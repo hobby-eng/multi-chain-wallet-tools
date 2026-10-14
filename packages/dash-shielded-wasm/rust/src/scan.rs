@@ -248,10 +248,7 @@ fn scan_full_batch_json(
         fvk.to_ivk(Scope::External).prepare(),
         fvk.to_ivk(Scope::Internal).prepare(),
     ];
-    let outgoing_viewing_keys = [
-        fvk.to_ovk(Scope::External),
-        fvk.to_ovk(Scope::Internal),
-    ];
+    let outgoing_viewing_keys = [fvk.to_ovk(Scope::External), fvk.to_ovk(Scope::Internal)];
     scan_prepared_batch_json(
         &prepared_ivks,
         Some(&fvk),
@@ -335,85 +332,109 @@ pub fn validate_outgoing_viewing_key(outgoing_viewing_key: &mut [u8]) -> Result<
     result.map_err(|message| JsValue::from_str(&message))
 }
 
-/// Trial-decrypts one fixed-width page returned by Dash Platform DAPI.
-///
-/// `full_viewing_key` is overwritten before this function returns, including
-/// on validation errors. The returned JSON contains only matched incoming or
-/// outgoing notes; it never contains spending authority.
-#[wasm_bindgen]
-pub fn scan_shielded_batch_json(
-    full_viewing_key: &mut [u8],
+// All exported scan modes hand off to the same key-erasure and JS-error boundary.
+type BatchScanner = fn(&[u8], u64, &[u8], &[u8], &[u8], &[u8]) -> Result<String, String>;
+
+fn scan_key_batch_json(
+    scanner: BatchScanner,
+    key: &mut [u8],
     start_position: u64,
     cmx: &[u8],
     nullifiers: &[u8],
     cv_net: &[u8],
     encrypted_notes: &[u8],
-) -> Result<String, JsValue> {
-    let result = scan_full_batch_json(
-        full_viewing_key,
+) -> Result<String, String> {
+    let result = scanner(
+        key,
         start_position,
         cmx,
         nullifiers,
         cv_net,
         encrypted_notes,
     );
-    full_viewing_key.fill(0);
-    result.map_err(|message| JsValue::from_str(&message))
+    key.fill(0);
+    result
 }
 
-/// Trial-decrypts incoming notes with a 64-byte raw IncomingViewingKey.
-///
-/// This deliberately omits outgoing recovery and note-nullifier derivation,
-/// which are cryptographically unavailable without the FullViewingKey.
-/// `incoming_viewing_key` is overwritten before return on success or error.
-#[wasm_bindgen]
-pub fn scan_shielded_incoming_batch_json(
-    incoming_viewing_key: &mut [u8],
-    start_position: u64,
-    cmx: &[u8],
-    nullifiers: &[u8],
-    cv_net: &[u8],
-    encrypted_notes: &[u8],
-) -> Result<String, JsValue> {
-    let result = scan_incoming_batch_json(
-        incoming_viewing_key,
-        start_position,
-        cmx,
-        nullifiers,
-        cv_net,
-        encrypted_notes,
-    );
-    incoming_viewing_key.fill(0);
-    result.map_err(|message| JsValue::from_str(&message))
+// The WASM signatures share fixed-width page inputs; generate them from one binding definition.
+macro_rules! export_batch_scanner {
+    ($name:ident, $scanner:ident, $description:literal) => {
+        #[doc = $description]
+        #[doc = "The caller's key is overwritten before return, including on validation errors."]
+        #[wasm_bindgen]
+        pub fn $name(
+            key: &mut [u8],
+            start_position: u64,
+            cmx: &[u8],
+            nullifiers: &[u8],
+            cv_net: &[u8],
+            encrypted_notes: &[u8],
+        ) -> Result<String, JsValue> {
+            scan_key_batch_json(
+                $scanner,
+                key,
+                start_position,
+                cmx,
+                nullifiers,
+                cv_net,
+                encrypted_notes,
+            )
+            .map_err(|message| JsValue::from_str(&message))
+        }
+    };
 }
 
-/// Recovers outgoing notes with a 32-byte raw OutgoingViewingKey.
-///
-/// This deliberately omits incoming recovery, balance, and spent detection.
-/// `outgoing_viewing_key` is overwritten before return on success or error.
-#[wasm_bindgen]
-pub fn scan_shielded_outgoing_batch_json(
-    outgoing_viewing_key: &mut [u8],
-    start_position: u64,
-    cmx: &[u8],
-    nullifiers: &[u8],
-    cv_net: &[u8],
-    encrypted_notes: &[u8],
-) -> Result<String, JsValue> {
-    let result = scan_outgoing_batch_json(
-        outgoing_viewing_key,
-        start_position,
-        cmx,
-        nullifiers,
-        cv_net,
-        encrypted_notes,
-    );
-    outgoing_viewing_key.fill(0);
-    result.map_err(|message| JsValue::from_str(&message))
-}
+export_batch_scanner!(
+    scan_shielded_batch_json,
+    scan_full_batch_json,
+    "Trial-decrypts a Dash Platform DAPI page with a FullViewingKey, without spending authority."
+);
+export_batch_scanner!(
+    scan_shielded_incoming_batch_json,
+    scan_incoming_batch_json,
+    "Scans with an IncomingViewingKey; outgoing recovery and note nullifiers are unavailable."
+);
+export_batch_scanner!(
+    scan_shielded_outgoing_batch_json,
+    scan_outgoing_batch_json,
+    "Recovers outgoing notes with an OutgoingViewingKey; balance and spent detection are unavailable."
+);
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn batch_boundary_wipes_key_on_success_and_refusal() {
+        fn accepted(
+            _: &[u8],
+            _: u64,
+            _: &[u8],
+            _: &[u8],
+            _: &[u8],
+            _: &[u8],
+        ) -> Result<String, String> {
+            Ok("public result".into())
+        }
+        fn refused(
+            _: &[u8],
+            _: u64,
+            _: &[u8],
+            _: &[u8],
+            _: &[u8],
+            _: &[u8],
+        ) -> Result<String, String> {
+            Err("invalid page".into())
+        }
+        for (scanner, succeeds) in [
+            (accepted as super::BatchScanner, true),
+            (refused as super::BatchScanner, false),
+        ] {
+            let mut key = [0x42; 32];
+            let result = super::scan_key_batch_json(scanner, &mut key, 0, &[], &[], &[], &[]);
+            assert_eq!(result.is_ok(), succeeds);
+            assert_eq!(key, [0; 32]);
+        }
+    }
+
     use super::*;
     use orchard::{
         keys::SpendingKey,
@@ -585,22 +606,29 @@ mod tests {
         let rho = Option::<Rho>::from(Rho::from_bytes(&[0x01; 32])).unwrap();
         let rseed = Option::<RandomSeed>::from(RandomSeed::from_bytes([0x02; 32], &rho)).unwrap();
         let note = Option::<Note>::from(Note::from_parts(
-            recipient, NoteValue::from_raw(123_456_789_012), rho, rseed,
-        )).unwrap();
+            recipient,
+            NoteValue::from_raw(123_456_789_012),
+            rho,
+            rseed,
+        ))
+        .unwrap();
         let mut memo = [0u8; 36];
         memo[..4].copy_from_slice(&1u32.to_le_bytes());
         memo[4..15].copy_from_slice(b"viewer test");
-        println!("INTERNAL_FIXTURE={}", serde_json::json!({
-            "source": { "kind": "local synthetic Internal-scope note", "generator": "scan::tests::capture_internal_scope_fixture", "orchardCommit": "38ac9c19a2df7bf3eeadc22ab23053e8fd538828" },
-            "position": 42,
-            "recipientFullViewingKey": hex::encode(fvk.to_bytes()),
-            "recipientIncomingViewingKey": hex::encode(fvk.to_ivk(Scope::Internal).to_bytes()),
-            "externalIncomingViewingKey": hex::encode(fvk.to_ivk(Scope::External).to_bytes()),
-            "senderOutgoingViewingKey": hex::encode(fvk.to_ovk(Scope::Internal).as_ref()),
-            "cmx": hex::encode(cmx), "actionNullifier": hex::encode(nf),
-            "cvNet": hex::encode(cv), "encryptedNote": hex::encode(encrypted),
-            "expected": { "value": "123456789012", "addressRaw": hex::encode(recipient.to_raw_address_bytes()), "memo": hex::encode(memo), "noteNullifier": hex::encode(note.nullifier(&fvk).to_bytes()) }
-        }));
+        println!(
+            "INTERNAL_FIXTURE={}",
+            serde_json::json!({
+                "source": { "kind": "local synthetic Internal-scope note", "generator": "scan::tests::capture_internal_scope_fixture", "orchardCommit": "38ac9c19a2df7bf3eeadc22ab23053e8fd538828" },
+                "position": 42,
+                "recipientFullViewingKey": hex::encode(fvk.to_bytes()),
+                "recipientIncomingViewingKey": hex::encode(fvk.to_ivk(Scope::Internal).to_bytes()),
+                "externalIncomingViewingKey": hex::encode(fvk.to_ivk(Scope::External).to_bytes()),
+                "senderOutgoingViewingKey": hex::encode(fvk.to_ovk(Scope::Internal).as_ref()),
+                "cmx": hex::encode(cmx), "actionNullifier": hex::encode(nf),
+                "cvNet": hex::encode(cv), "encryptedNote": hex::encode(encrypted),
+                "expected": { "value": "123456789012", "addressRaw": hex::encode(recipient.to_raw_address_bytes()), "memo": hex::encode(memo), "noteNullifier": hex::encode(note.nullifier(&fvk).to_bytes()) }
+            })
+        );
     }
 
     #[test]
@@ -608,7 +636,8 @@ mod tests {
         let (fvk, cmx, nf, cv, encrypted) = own_note_fixture_for_scope(Scope::Internal);
         let json = scan_full_batch_json(&fvk.to_bytes(), 42, &cmx, &nf, &cv, &encrypted).unwrap();
         let result: serde_json::Value = serde_json::from_str(&json).unwrap();
-        let fixture: serde_json::Value = serde_json::from_str(include_str!("../fixtures/internal-scope-note.json")).unwrap();
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../fixtures/internal-scope-note.json")).unwrap();
         let items = result["items"].as_array().unwrap();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0]["position"], "42");
@@ -617,7 +646,10 @@ mod tests {
                 assert_eq!(items[0][capability][field], fixture["expected"][field]);
             }
         }
-        assert_eq!(items[0]["incoming"]["noteNullifier"], fixture["expected"]["noteNullifier"]);
+        assert_eq!(
+            items[0]["incoming"]["noteNullifier"],
+            fixture["expected"]["noteNullifier"]
+        );
     }
 
     #[test]

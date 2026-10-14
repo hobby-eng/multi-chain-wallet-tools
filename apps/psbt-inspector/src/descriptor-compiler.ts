@@ -1,3 +1,4 @@
+import { DESCRIPTOR_FRAGMENTS } from "./descriptor-fragments.js";
 import { descriptorChecksum } from "@ckd/core/descriptor-checksum.js";
 import { materializeDescriptorKey, validateDescriptorPublicKey } from "@ckd/core/descriptor-key.js";
 import { bytesToHex, hash160, hexToBytes, sha256 } from "@ckd/core/crypto.js";
@@ -15,37 +16,7 @@ import {
 } from "./descriptor-policy.js";
 import type { DescriptorCompiledOutput } from "./descriptor-types.js";
 import type { PsbtNetwork } from "./psbt-types.js";
-import { bech32, bech32m, createBase58check } from "@scure/base";
-
-const base58check = createBase58check(sha256);
-
-function selectedAddressScript(address: string, network: PsbtNetwork): Uint8Array {
-  if (/^(?:bc|tb|bcrt)1/iu.test(address)) {
-    const expectedPrefix = network === "mainnet" ? "bc" : network === "regtest" ? "bcrt" : "tb";
-    const tentative = bech32.decode(address as `${string}1${string}`, 1000);
-    const version = tentative.words[0];
-    if (version === undefined || version > 16) throw new Error("Invalid witness address version.");
-    const decoded =
-      version === 0 ? tentative : bech32m.decode(address as `${string}1${string}`, 1000);
-    if (decoded.prefix !== expectedPrefix)
-      throw new Error(`Address does not belong to ${network}.`);
-    const program = (version === 0 ? bech32 : bech32m).fromWords(decoded.words.slice(1));
-    if (
-      program.length < 2 ||
-      program.length > 40 ||
-      (version === 0 && ![20, 32].includes(program.length))
-    )
-      throw new Error("Invalid witness program length.");
-    return Uint8Array.of(version === 0 ? 0 : 0x50 + version, program.length, ...program);
-  }
-  const payload = base58check.decode(address);
-  if (payload.length !== 21) throw new Error("Invalid Base58 address payload.");
-  const p2pkh = network === "mainnet" ? 0x00 : 0x6f;
-  const p2sh = network === "mainnet" ? 0x05 : 0xc4;
-  if (payload[0] === p2pkh) return Uint8Array.of(0x76, 0xa9, 0x14, ...payload.slice(1), 0x88, 0xac);
-  if (payload[0] === p2sh) return Uint8Array.of(0xa9, 0x14, ...payload.slice(1), 0x87);
-  throw new Error(`Address does not belong to ${network}.`);
-}
+import { InspectorNetworkProfile } from "./network-profile.js";
 
 export function validateNodeKeys(
   node: ExpressionNode,
@@ -60,10 +31,7 @@ export function validateNodeKeys(
       );
     validateDescriptorPublicKey(value, network, { allowXOnly, wildcardIndex });
   };
-  if (
-    ["pk", "pk_k", "pkh", "pk_h", "wpkh", "combo"].includes(node.name) &&
-    typeof node.args[0] === "string"
-  )
+  if (DESCRIPTOR_FRAGMENTS.has("regularKeys", node.name) && typeof node.args[0] === "string")
     validate(node.args[0]);
   if (
     node.name === "rawtr" &&
@@ -73,7 +41,7 @@ export function validateNodeKeys(
     validate(node.args[0], true);
   if (node.name === "tr" && typeof node.args[0] === "string" && !node.args[0].startsWith("musig("))
     validate(node.args[0], true);
-  if (["multi", "sortedmulti", "multi_a", "sortedmulti_a"].includes(node.name)) {
+  if (DESCRIPTOR_FRAGMENTS.has("multisig", node.name)) {
     node.args.slice(1).forEach((key) => {
       if (typeof key === "string") validate(key, tapscript || node.name.endsWith("_a"));
     });
@@ -95,11 +63,9 @@ function materializedExpression(
   multipathChoice: 0 | 1,
   wildcardIndex: number,
 ): string {
-  const keyIndexes = ["multi", "sortedmulti", "multi_a", "sortedmulti_a"].includes(node.name)
+  const keyIndexes = DESCRIPTOR_FRAGMENTS.has("multisig", node.name)
     ? new Set(node.args.slice(1).map((_, index) => index + 1))
-    : new Set(
-        ["pk", "pk_k", "pkh", "pk_h", "wpkh", "combo", "rawtr"].includes(node.name) ? [0] : [],
-      );
+    : new Set(DESCRIPTOR_FRAGMENTS.has("descriptorKeys", node.name) ? [0] : []);
   let args = node.args.map((argument, index) => {
     if (typeof argument !== "string")
       return materializedExpression(argument, network, multipathChoice, wildcardIndex);
@@ -188,7 +154,7 @@ export function compiledDescriptorOutput(
         ],
       };
     }
-    if (["wpkh", "wsh", "sh", "tr", "rawtr", "addr", "raw"].includes(parsed.name))
+    if (DESCRIPTOR_FRAGMENTS.has("outputWrappers", parsed.name))
       throw new Error("Invalid nested output wrapper.");
     const concreteMiniscript = materializedExpression(
       parsed,
@@ -218,7 +184,7 @@ export function compiledDescriptorOutput(
       outputType = "P2SH";
     }
     concretePayload = `${type}(${concreteMiniscript})`;
-  } else if (["pk", "pkh", "wpkh", "rawtr"].includes(type)) {
+  } else if (DESCRIPTOR_FRAGMENTS.has("directOutputs", type)) {
     const concreteKey =
       type === "rawtr" && /^[0-9a-fA-F]{64}$/u.test(argument)
         ? argument.toLowerCase()
@@ -250,7 +216,7 @@ export function compiledDescriptorOutput(
     }
     concretePayload = `${type}(${concreteKey})`;
   } else if (type === "addr" && chain === "bitcoin") {
-    scriptPubKey = selectedAddressScript(argument, network);
+    scriptPubKey = new InspectorNetworkProfile(chain, network).addressScript(argument);
     spendingScript = scriptPubKey;
     asm = decodeScript(bytesToHex(scriptPubKey), chain, network, "script-pubkey").asm;
     concretePayload = `addr(${argument})`;
@@ -301,7 +267,7 @@ export function validateDescriptorMiniscript(payload: string, type: string): voi
     const parsed = expression(fragment);
     if (parsed === null)
       throw new Error("Unsupported top-level Miniscript: the fragment is not recognized.");
-    if (["multi", "sortedmulti", "multi_a", "sortedmulti_a"].includes(parsed.name)) {
+    if (DESCRIPTOR_FRAGMENTS.has("multisig", parsed.name)) {
       const thresholdText = parsed.args[0];
       const threshold = typeof thresholdText === "string" ? Number(thresholdText) : Number.NaN;
       if (
@@ -313,7 +279,7 @@ export function validateDescriptorMiniscript(payload: string, type: string): voi
         throw new Error("Invalid multisig threshold.");
       if (parsed.name === "sortedmulti" || parsed.name === "sortedmulti_a") return;
     }
-    if (["wpkh", "wsh", "sh", "tr", "rawtr", "addr", "raw"].includes(parsed.name)) {
+    if (DESCRIPTOR_FRAGMENTS.has("outputWrappers", parsed.name)) {
       throw new Error(
         `Invalid wrapper combination: ${parsed.name}() is an output descriptor, not a Miniscript fragment in this position.`,
       );

@@ -1,22 +1,22 @@
+import {
+  assertReviewedDynamicCode,
+  assertRecordedChecksum,
+  currentArtifact,
+  occurrences,
+} from "../../../tooling/artifact-checks.mjs";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
-import { getToolBuild, parseBuildProfile } from "../../../tooling/build-profiles.mjs";
+import { parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
-const tool = getToolBuild(profile, "psbt-inspector");
-const artifact = resolve(root, "dist", tool.artifactRelativePath);
-const sidecar = resolve(root, "dist", tool.artifactDirectory, tool.checksumFile);
-const html = readFileSync(artifact, "utf8");
-const expectedFingerprint = createBuildInfo(root, tool.checksumFile, profile).fingerprint;
-if (!html.includes(expectedFingerprint)) {
-  throw new Error(
-    "PSBT & Multisig Inspector artifact does not contain the fingerprint of the current source tree.",
-  );
-}
+const {
+  tool,
+  html,
+  checksumPath: sidecar,
+} = currentArtifact(root, profile, "psbt-inspector", "PSBT & Multisig Inspector");
+assertReviewedDynamicCode(html, "psbt-inspector");
 const scriptStart = html.indexOf("<script>");
 const scriptEnd = html.lastIndexOf("</script>");
 if (scriptStart < 0 || scriptEnd <= scriptStart) {
@@ -38,9 +38,6 @@ if (/script-src[^;]*'unsafe-inline'/u.test(csp)) {
   );
 }
 
-function occurrences(value, marker) {
-  return value.split(marker).length - 1;
-}
 for (const [marker, expected] of [
   ["<!doctype html>", 1],
   ["<style>", 1],
@@ -226,8 +223,10 @@ try {
 } catch (cause) {
   throw new Error(`PSBT & Multisig Inspector JavaScript is invalid: ${String(cause)}`);
 }
-const actual = createHash("sha256").update(html).digest("hex");
-const recorded = readFileSync(sidecar, "utf8").trim();
-if (recorded !== `${actual}  ${tool.artifactName}`)
-  throw new Error("PSBT & Multisig Inspector checksum sidecar does not match.");
+const actual = assertRecordedChecksum(
+  html,
+  sidecar,
+  "PSBT & Multisig Inspector",
+  tool.artifactName,
+);
 console.log(`Verified offline PSBT & Multisig Inspector artifact: ${actual}`);

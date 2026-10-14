@@ -14,7 +14,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      NODE_OPTIONS: --max-old-space-size=1536
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the pinned pnpm runtime
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: Install the pinned Node runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - name: Install locked JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check metadata, types and code ownership
+        run: pnpm check
+      - name: Check formatting
+        run: pnpm format:check
+      - name: Run bounded build-policy contracts
+        run: pnpm exec vitest run tooling/tool-build-policy.test.mjs tooling/rust-toolchain.test.mjs tooling/wasm-catalog.test.mjs tooling/vendored-mhfe-package.test.mjs --maxWorkers=1
+
+  canonical:
+    # Full builds run only by an explicit pre-release request.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -42,6 +70,7 @@ jobs:
           cat dist/multi-chain-edition/release/SHA256SUMS
 
   browser:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

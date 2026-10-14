@@ -1,3 +1,5 @@
+import { OrchardViewingCapability } from "@ckd/dash-network/viewing-capability.js";
+import { textLines } from "@ckd/core/text-lines.js";
 import { normalizeIdentityLookupInput } from "@ckd/dash-network/platform-identity-source.js";
 import {
   assertPublicBatchLookupInput,
@@ -5,7 +7,7 @@ import {
 } from "@ckd/secret-boundary/public-input-guard.js";
 import { validateCoreAddress, validatePlatformAddress } from "@ckd/dash-network/public-address.js";
 import type { ViewerNetwork } from "@ckd/dash-network/types.js";
-import { normalizeViewingKey, type ViewingKeyInputMode } from "@ckd/dash-network/viewing-key.js";
+import { type ViewingKeyInputMode } from "@ckd/dash-network/viewing-key.js";
 import type { ViewerMode } from "./view.js";
 
 export interface DetectedViewerInput {
@@ -29,13 +31,9 @@ function validateOrchard(
   prefix: OrchardPrefix,
 ): DetectedViewerInput {
   const viewingKeyMode: ViewingKeyInputMode = prefix === "orchard-ovk" ? "outgoing" : "automatic";
-  const key = normalizeViewingKey(value, viewingKeyMode);
+  const capability = OrchardViewingCapability.open(value, viewingKeyMode, network);
+  const key = capability.normalized;
   try {
-    if (key.bundleNetwork !== undefined && key.bundleNetwork !== network) {
-      throw new Error(
-        `This viewing bundle is for ${key.bundleNetwork}; select that network before scanning.`,
-      );
-    }
     if (prefix === "orchard-fvk" && key.kind !== "full") {
       throw new Error("orchard-fvk: requires a 96-byte Full Viewing Key.");
     }
@@ -44,7 +42,7 @@ function validateOrchard(
     }
     return { mode: "shielded", value, viewingKeyMode, explicit: true };
   } finally {
-    key.hex = "";
+    capability.dispose();
   }
 }
 
@@ -75,9 +73,7 @@ export function looksLikeAutoOrchardInput(value: string): boolean {
 
 export function assertAutoViewerBatchInput(value: string): void {
   assertPublicBatchLookupInput(value);
-  const effectivePublicValues = value
-    .replaceAll("\r", "")
-    .split("\n")
+  const effectivePublicValues = textLines(value)
     .map((line) => {
       const trimmed = line.trim();
       const routed = ROUTING_PREFIX.exec(trimmed);

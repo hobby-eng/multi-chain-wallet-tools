@@ -1,5 +1,9 @@
+import { AtomicAmount } from "@ckd/core/atomic-amount.js";
 import { PROVIDER_UNSIGNED_DECIMAL } from "@ckd/core/numeric-limits.js";
-import { emptyRecoveryHistory } from "@ckd/network-boundary/recovery-history.js";
+import {
+  emptyRecoveryHistory,
+  RECOVERY_HISTORY_DATE_FIELDS,
+} from "@ckd/network-boundary/recovery-history.js";
 import type { RecoveryField, RecoveryHistory } from "./types.js";
 
 export const emptyHistory = emptyRecoveryHistory;
@@ -15,7 +19,11 @@ export function validateHistory(value: RecoveryHistory): RecoveryHistory {
       throw new Error("Invalid history metadata.");
     h[key] = value[key];
   }
-  if (!Number.isSafeInteger(value.decimals) || value.decimals < 0 || value.decimals > 30)
+  if (
+    !Number.isSafeInteger(value.decimals) ||
+    value.decimals < 0 ||
+    value.decimals > AtomicAmount.maximumDecimals
+  )
     throw new Error("Invalid history units.");
   h.decimals = value.decimals;
   for (const key of ["totalReceivedAtomic", "totalSentAtomic", "totalFeesAtomic"] as const) {
@@ -24,14 +32,7 @@ export function validateHistory(value: RecoveryHistory): RecoveryHistory {
       throw new Error("Invalid history amount.");
     h[key] = amount;
   }
-  for (const key of [
-    "firstSeen",
-    "lastSeen",
-    "firstReceived",
-    "lastReceived",
-    "firstSpent",
-    "lastSpent",
-  ] as const) {
+  for (const key of RECOVERY_HISTORY_DATE_FIELDS) {
     const date = value[key];
     if (
       date !== null &&
@@ -49,10 +50,7 @@ export function validateHistory(value: RecoveryHistory): RecoveryHistory {
 }
 
 export function historyAmount(atomic: string, h: RecoveryHistory): string {
-  const digits = atomic.padStart(h.decimals + 1, "0");
-  const whole = h.decimals === 0 ? digits : digits.slice(0, -h.decimals);
-  const fraction = h.decimals === 0 ? "" : digits.slice(-h.decimals).replace(/0+$/u, "");
-  return `${whole}${fraction ? `.${fraction}` : ""} ${h.asset}`;
+  return `${AtomicAmount.format(BigInt(atomic), h.decimals)} ${h.asset}`;
 }
 
 export function historyFields(h: RecoveryHistory): RecoveryField[] {

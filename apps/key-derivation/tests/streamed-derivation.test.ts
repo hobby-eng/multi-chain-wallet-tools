@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runStreamedDerivation } from "../src/ui/streamed-derivation.js";
+import { deriveAllBranches, runStreamedDerivation } from "../src/ui/streamed-derivation.js";
 import type { DerivationResult } from "@ckd/core/types.js";
 
 function result(start: number, count: number, id = "test"): DerivationResult {
@@ -118,5 +118,74 @@ describe("streamed derivation engine", () => {
       }),
     ).rejects.toThrow(/inconsistent streamed batch/u);
     expect(batches).toHaveLength(0);
+  });
+});
+
+describe("every branch at once, in bounded batches (AUD-024-FUN001)", () => {
+  /** A worker that refuses more than 50 results a call, as the derivation worker does. */
+  function boundedWorker(failAt?: number) {
+    const calls: number[] = [];
+    const derive = vi.fn(async (_id: string, request: { start: number; count: number }) => {
+      if (!Number.isInteger(request.count) || request.count < 1 || request.count > 50)
+        throw new Error("Number of results must be an integer from 1 to 50.");
+      calls.push(request.count);
+      if (failAt === calls.length) throw new Error("synthetic worker failure");
+      return result(request.start, request.count);
+    });
+    const worker = { derive } as unknown as Parameters<typeof runStreamedDerivation>[0]["worker"];
+    return { worker, calls };
+  }
+  const unbounded = { id: "test" } as Parameters<typeof runStreamedDerivation>[0]["adapter"];
+
+  for (const [count, batches] of [
+    [50, [50]],
+    [51, [50, 1]],
+    [200, [50, 50, 50, 50]],
+  ] as const)
+    it(`derives ${count} results a branch in batches of at most 50`, async () => {
+      const { worker, calls } = boundedWorker();
+      const results = await deriveAllBranches({
+        worker,
+        adapter: unbounded,
+        input: { ...input, count },
+        branches: [
+          { kind: "receive", branch: 0 },
+          { kind: "change", branch: 1 },
+        ],
+        seed: new Uint8Array(64),
+        isStale: () => false,
+      });
+      expect(calls).toEqual([...batches, ...batches]);
+      expect(results?.get("receive")?.rows.map(({ index }) => index)).toEqual(
+        Array.from({ length: count }, (_, index) => index),
+      );
+      expect(results?.get("change")?.rows).toHaveLength(count);
+    });
+
+  it("gives nothing for a stale request and keeps nothing after a failure", async () => {
+    let stale = false;
+    const staleWorker = boundedWorker();
+    const staleResults = deriveAllBranches({
+      worker: staleWorker.worker,
+      adapter: unbounded,
+      input: { ...input, count: 120 },
+      branches: [{ kind: "receive", branch: 0 }],
+      seed: new Uint8Array(64),
+      isStale: () => stale,
+    });
+    stale = true;
+    await expect(staleResults).resolves.toBeUndefined();
+
+    const failing = boundedWorker(3);
+    await expect(
+      deriveAllBranches({
+        worker: failing.worker,
+        adapter: unbounded,
+        input: { ...input, count: 120 },
+        branches: [{ kind: "receive", branch: 0 }],
+        seed: new Uint8Array(64),
+        isStale: () => false,
+      }),
+    ).rejects.toThrow("synthetic worker failure");
   });
 });

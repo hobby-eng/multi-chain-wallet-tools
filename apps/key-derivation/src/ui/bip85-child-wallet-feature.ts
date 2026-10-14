@@ -20,11 +20,18 @@ import {
 } from "./inputs.js";
 import { planResultBranches, type ResultBranch } from "./result-branches.js";
 import { clearDerivationResult } from "./secrets.js";
+import { deriveAllBranches } from "./streamed-derivation.js";
 import { renderResults, updateSecretVisibility } from "./results.js";
 import { invertSelection, selectAll, selectNone } from "./selection.js";
 import { DerivationCancelledError, type DerivationWorkerClient } from "../workers/derive-client.js";
+import { SELF_TEST_NOT_PASSED } from "./crypto-self-test-gate.js";
 
 const BASIC_WINDOW_SIZE = 200;
+/**
+ * The most results per branch that the embedded child-wallet view derives: its own limit, apart
+ * from the worker's batches, which runStreamedDerivation keeps to the adapter's batch size.
+ */
+const CHILD_RESULTS_LIMIT = 200;
 const ADVANCED_WINDOW_SIZE = 24;
 /** Element ID prefix of the child workspace (see CHILD_WALLET_ID_PREFIX in tooling/profile-template.mjs). */
 const CHILD_WALLET_ID_PREFIX = "bip85-wallet-";
@@ -172,6 +179,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
           createWorker,
           isActive: () => silentPaymentActive && bip85WalletWorkspace?.hidden === false,
           mnemonicMayBeComplete: () => options.mnemonic() !== null,
+          cryptoReady: options.cryptoReady,
         });
 
   function createBip85WalletControls(): DerivationControls | null {
@@ -480,7 +488,7 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     const requestedControls = bip85WalletControls;
     if (!options.cryptoReady()) {
       if (bip85WalletError !== null) {
-        bip85WalletError.textContent = "Cryptographic self-test has not completed successfully.";
+        bip85WalletError.textContent = SELF_TEST_NOT_PASSED;
         bip85WalletError.hidden = false;
       }
       return;
@@ -488,8 +496,10 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
     let input: DerivationControlValues;
     try {
       input = readControls(requestedAdapter, requestedControls);
-      if (input.count > 200)
-        throw new Error("The embedded child-wallet view is limited to 200 results per branch.");
+      if (input.count > CHILD_RESULTS_LIMIT)
+        throw new Error(
+          `The embedded child-wallet view is limited to ${CHILD_RESULTS_LIMIT} results per branch.`,
+        );
     } catch (cause) {
       if (bip85WalletError !== null) {
         bip85WalletError.textContent = cause instanceof Error ? cause.message : String(cause);
@@ -519,19 +529,17 @@ export function installBip85ChildWallet(options: Bip85ChildWalletOptions) {
         includeChange,
         includeCoinJoin,
       );
-      const nextResults = new Map<ResultBranch, DerivationResult>();
-      for (const { kind, branch, workerAdapterId } of branches) {
-        const result = await worker.derive(workerAdapterId ?? requestedAdapter.id, {
-          ...baseInput,
-          branch,
-          seed,
-        });
-        nextResults.set(kind, result);
-      }
-      if (revision !== bip85WalletRevision) {
-        for (const result of nextResults.values()) clearDerivationResult(result);
-        return;
-      }
+      // Every branch in the worker's batches, as the main view derives them; the child view
+      // publishes the branches together once all are complete (AUD-024-FUN001).
+      const nextResults = await deriveAllBranches({
+        worker,
+        adapter: requestedAdapter,
+        input,
+        branches,
+        seed,
+        isStale: () => revision !== bip85WalletRevision,
+      });
+      if (nextResults === undefined) return;
       for (const [kind, result] of nextResults) {
         bip85WalletBranchResults.set(kind, result);
         for (const row of result.rows) bip85WalletSelected.add(row.index);

@@ -1,3 +1,4 @@
+import type { DashSectionScan } from "./section-scan.js";
 import { dashPlatformHistory } from "./history.js";
 import { requirePublic, rootFromSeed } from "@ckd/core/bip32.js";
 import { bytesToHex, encodeP2pkh, hash160, wipe } from "@ckd/core/crypto.js";
@@ -9,10 +10,9 @@ import type {
   RecoveryFinding,
   RecoveryProgress,
   RecoveryScanConfig,
-  RecoverySection,
 } from "../../types.js";
 import { DashPlatformClient } from "./platform-client.js";
-import { validatePlatformHistory } from "./platform-history.js";
+import { platformHistoryFields, validatePlatformHistory } from "./platform-history.js";
 import {
   exactSafeInteger,
   exactUnsigned,
@@ -206,15 +206,15 @@ async function queryIdentityIndex(
   }
 }
 
-export async function scanDashIdentities(
-  inputId: string,
-  seed: Uint8Array,
-  config: RecoveryScanConfig,
-  client: DashPlatformClient,
-  signal: AbortSignal,
-  onProgress: (progress: RecoveryProgress) => void,
-  onFinding: (finding: RecoveryFinding) => void,
-): Promise<RecoverySection> {
+export const scanDashIdentities: DashSectionScan<DashPlatformClient> = async (
+  inputId,
+  seed,
+  config,
+  client,
+  signal,
+  onProgress,
+  onFinding,
+) => {
   const network = getDashNetwork(config.network);
   const root = rootFromSeed(seed, network.versions);
   const findings: RecoveryFinding[] = [];
@@ -312,32 +312,7 @@ export async function scanDashIdentities(
                   copyable: true,
                 },
                 { label: "Identity revision", value: identity.revision.toString() },
-                ...(history === null
-                  ? []
-                  : [
-                      { label: "Transactions reported", value: String(history.transactionCount) },
-                      { label: "Incoming credit events", value: String(history.incomingCount) },
-                      { label: "Outgoing credit events", value: String(history.outgoingCount) },
-                      {
-                        label: "Lifetime received",
-                        value: formatDashFromCredits(history.totalReceived),
-                      },
-                      { label: "Lifetime sent", value: formatDashFromCredits(history.totalSent) },
-                      ...(history.totalFees === null
-                        ? []
-                        : [
-                            {
-                              label: "Lifetime fees spent",
-                              value: formatDashFromCredits(history.totalFees),
-                            },
-                          ]),
-                      ...(history.firstSeen === null
-                        ? []
-                        : [{ label: "First seen", value: history.firstSeen }]),
-                      ...(history.lastSeen === null
-                        ? []
-                        : [{ label: "Last seen", value: history.lastSeen }]),
-                    ]),
+                ...(history === null ? [] : platformHistoryFields(history)),
                 ...fundingFields,
               ],
             };
@@ -413,4 +388,4 @@ export async function scanDashIdentities(
         }
       : {}),
   };
-}
+};

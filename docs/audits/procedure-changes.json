@@ -1,0 +1,38 @@
+{
+  "description": "Edits of the audit procedure files made after audit records pinned their SHA-256. Each change gives the exact reverse edit, so that a validator recovers the bytes an audit used from the current file. procedure_changes.py applies them.",
+  "changes": [
+    {
+      "date": "2026-10-09",
+      "file": "docs/FULL_AUDIT_GUIDE.md",
+      "reason": "Timestamps are recorded in UTC only; the line about an operator timezone was removed. No other procedure rule changed.",
+      "auditedSha256": "30fa6a1675892e2a3059bdbd6e97737f2959a74aca98a0a90e4f655ae12854a6",
+      "currentSha256": "e1b2fb641e4a25ebf292548fc1e2ef0c25dbd01faa5c2b580c6ba75df2afcab7",
+      "reverseEdit": {
+        "current": "- UTC start and completion timestamps.\n",
+        "audited": "- UTC start and completion timestamps; operator timezone separately if useful.\n"
+      }
+    },
+    {
+      "date": "2026-10-14",
+      "file": "docs/audits/AUDIT_STANDARD.md",
+      "reason": "One naming form for report files across the workspace: the sentence that fixed this repository's file name pattern was removed, and the rule that the date in a file name is the UTC completion date stays. No other procedure rule changed.",
+      "auditedSha256": "9128a5e243ec5de86b58bde7b84f7d3bf6b9174346c056a34c5425957b27dc1f",
+      "currentSha256": "7c5227ce091291d0c0a1e1c865387deee6f69600adb2ab526e19ee0a2b4a7b6b",
+      "reverseEdit": {
+        "current": "The date in a report's file name is the UTC completion date.",
+        "audited": "Filenames keep the existing convention: `audit-18-2026-09-18.md` and `audit-18-2026-09-18.json`, with at least two digits for the audit number. The date is the UTC completion date."
+      }
+    },
+    {
+      "date": "2026-10-14",
+      "file": "docs/audits/AUDIT_STANDARD.md",
+      "reason": "The report files were renamed to AUD-NNN-<date>: the sentence that said they keep their names now says that the 2026-09-18 normalization left them unchanged and when they were renamed. No procedure rule changed.",
+      "auditedSha256": "7c5227ce091291d0c0a1e1c865387deee6f69600adb2ab526e19ee0a2b4a7b6b",
+      "currentSha256": "0c80621acaf5d210f85af76de28a994e545f89f3f660a129026ac0931bb38593",
+      "reverseEdit": {
+        "current": "That migration left report filenames and dates unchanged; the files took the workspace's one name form, AUD-NNN-<date>, on 2026-10-14.",
+        "audited": "Existing report filenames and dates remain unchanged."
+      }
+    }
+  ]
+}

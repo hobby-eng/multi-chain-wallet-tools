@@ -11,6 +11,9 @@ it("updates release metadata without rewriting audit dates, commits or evidence"
     const paths = [
       "tooling/sync-project-metadata.mjs",
       "tooling/project-metadata.mjs",
+      "tooling/wasm-modules.mjs",
+      "packages/crypto-core/src/listing.ts",
+      "packages/recovery-sskr-wasm/package.json",
       "packages/dash-shielded-wasm/rust/Cargo.toml",
       "packages/dash-shielded-wasm/rust/Cargo.lock",
       "packages/recovery-codex32-wasm/rust/Cargo.toml",
@@ -24,7 +27,7 @@ it("updates release metadata without rewriting audit dates, commits or evidence"
       "THIRD_PARTY_NOTICES.md",
       "SECURITY_AUDIT.md",
       "docs/reference/DASH_IMPLEMENTATION.md",
-      "docs/audits/audit-01-2026-09-08.json",
+      "docs/audits/AUD-001-2026-09-08.json",
     ];
     for (const path of paths) {
       mkdirSync(dirname(resolve(root, path)), { recursive: true });
@@ -46,7 +49,7 @@ it("updates release metadata without rewriting audit dates, commits or evidence"
     for (const path of [
       "SECURITY_AUDIT.md",
       "docs/reference/DASH_IMPLEMENTATION.md",
-      "docs/audits/audit-01-2026-09-08.json",
+      "docs/audits/AUD-001-2026-09-08.json",
     ]) {
       expect(readFileSync(resolve(root, path), "utf8")).toBe(
         readFileSync(resolve(source, path), "utf8"),
@@ -60,7 +63,7 @@ it("updates release metadata without rewriting audit dates, commits or evidence"
     ]) {
       expect(
         readFileSync(resolve(root, `packages/${rustPackage}/rust/Cargo.toml`), "utf8"),
-      ).toContain('version = "9.9.9"');
+      ).toContain(`version = "${rustPackage === "recovery-sskr-wasm" ? "0.1.6" : "9.9.9"}"`);
     }
   } finally {
     rmSync(root, { recursive: true, force: true });

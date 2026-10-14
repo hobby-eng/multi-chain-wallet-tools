@@ -1,6 +1,7 @@
+import { DESCRIPTOR_FRAGMENTS } from "./descriptor-fragments.js";
 import { descriptorChecksum } from "@ckd/core/descriptor-checksum.js";
 import { materializeDescriptorKey, validateDescriptorPublicKey } from "@ckd/core/descriptor-key.js";
-import { CONSENSUS_LIMITS } from "./consensus-limits.js";
+import { CONSENSUS_LIMITS, RelativeSequence } from "./consensus-limits.js";
 import { analyzeMusigDescriptor } from "./musig-descriptor.js";
 import {
   compiledDescriptorOutput,
@@ -29,6 +30,9 @@ import {
 } from "./descriptor-policy.js";
 import type { DecodedDescriptor, DescriptorRow } from "./descriptor-types.js";
 import type { PsbtNetwork } from "./psbt-types.js";
+
+/** Seconds of a block, about ten minutes: only for an estimate of a block-based lock. */
+const APPROXIMATE_BLOCK_SECONDS = 600;
 
 export { descriptorChecksum };
 export type { DescriptorPathCard } from "./descriptor-policy.js";
@@ -74,23 +78,7 @@ export function decodeDescriptor(
   const type = /^([a-z0-9_]+)\(/u.exec(payload)?.[1];
   if (type === undefined)
     throw new Error("Input is neither Script hex nor a recognized output descriptor.");
-  if (
-    ![
-      "tr",
-      "rawtr",
-      "sp",
-      "wsh",
-      "sh",
-      "pk",
-      "pkh",
-      "wpkh",
-      "combo",
-      "addr",
-      "raw",
-      "multi",
-      "sortedmulti",
-    ].includes(type)
-  )
+  if (!DESCRIPTOR_FRAGMENTS.has("roots", type))
     throw new Error(`Unsupported top-level descriptor ${type}().`);
   if (type === "raw") {
     const open = payload.indexOf("(");
@@ -104,7 +92,7 @@ export function decodeDescriptor(
   }
   if (options.chain === "dash") {
     if (
-      !["pk", "pkh", "sh", "combo", "addr", "raw", "multi", "sortedmulti"].includes(type) ||
+      !DESCRIPTOR_FRAGMENTS.has("legacyRoots", type) ||
       /(?:^|[,(])(?:wpkh|wsh|tr|rawtr|sp|multi_a|sortedmulti_a|musig)\(/u.test(payload)
     ) {
       throw new Error(
@@ -153,7 +141,7 @@ export function decodeDescriptor(
   if (
     type === "tr"
       ? parsedDescriptor.args.length < 1 || parsedDescriptor.args.length > 2
-      : !["multi", "sortedmulti", "sp"].includes(type) && parsedDescriptor.args.length !== 1
+      : !DESCRIPTOR_FRAGMENTS.has("multipleArguments", type) && parsedDescriptor.args.length !== 1
   )
     throw new Error("Invalid output descriptor arity.");
   if (type === "combo" && typeof parsedDescriptor.args[0] !== "string")
@@ -301,9 +289,9 @@ export function decodeDescriptor(
     const value = Number(body);
     if (!Number.isSafeInteger(value) || value < 1 || value >= CONSENSUS_LIMITS.bip68DisableFlag)
       throw new Error(`older() value ${body} is invalid.`);
-    const timeBased = (value & CONSENSUS_LIMITS.bip68TypeFlag) !== 0;
-    const units = value & CONSENSUS_LIMITS.bip68SequenceMask;
-    const approximateSeconds = timeBased ? units * 512 : units * 600;
+    const { timeBased, units, seconds } = new RelativeSequence(value);
+    // A block takes about ten minutes; a time-based lock's units are exactly 512 seconds.
+    const approximateSeconds = timeBased ? seconds : units * APPROXIMATE_BLOCK_SECONDS;
     rows.push(
       { label: `Relative lock ${index + 1}`, value: relativeLock(value) },
       ...(units === 0
@@ -346,7 +334,7 @@ export function decodeDescriptor(
       { label: `Absolute timelock ${index + 1} · value`, value: describeAbsolute(value) },
     );
   });
-  const hashlocks = ["sha256", "hash256", "ripemd160", "hash160"].flatMap((name) =>
+  const hashlocks = DESCRIPTOR_FRAGMENTS.names("hashes").flatMap((name) =>
     calls(payload, name).map((digest) => ({ name, digest })),
   );
   hashlocks.forEach(({ name, digest }, index) => {

@@ -1,4 +1,8 @@
-import { fetchRecoveryJson, recoveryAbortError, throwIfRecoveryAborted } from "./recovery-http.js";
+import { trustedEvoSdk } from "@ckd/dash-network/evo-sdk.js";
+import { PLATFORM_EXPLORER_ENDPOINTS } from "@ckd/dash-network/platform-explorer.js";
+import { PlatformAddressHistoryAdmission } from "@ckd/dash-network/platform-address-history-admission.js";
+import { networkCancelledError } from "@ckd/core/error-handling.js";
+import { fetchRecoveryJson, throwIfRecoveryAborted } from "./recovery-http.js";
 import {
   platformDecimal,
   platformPageItems,
@@ -35,10 +39,6 @@ import {
 const PLATFORM_HISTORY_PAGE_SIZE = 100;
 export const PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS = 1_000;
 export const PLATFORM_IDENTITY_HISTORY_TIMEOUT_MS = 30_000;
-const PLATFORM_EXPLORER_ENDPOINTS: Record<RecoveryNetwork, string> = {
-  mainnet: "https://platform-explorer.pshenmic.dev",
-  testnet: "https://testnet.platform-explorer.pshenmic.dev",
-};
 const EVO_CONNECT_TIMEOUT_MS = 8_000;
 const EVO_REQUEST_TIMEOUT_MS = 10_000;
 const EVO_EXPLICIT_ATTEMPTS = 3;
@@ -91,7 +91,7 @@ async function waitBeforeProofRetry(attempt: number, signal?: AbortSignal): Prom
     }, EVO_RETRY_DELAY_MS * attempt);
     const onAbort = (): void => {
       clearTimeout(timeout);
-      reject(recoveryAbortError());
+      reject(networkCancelledError());
     };
     signal?.addEventListener("abort", onAbort, { once: true });
     if (signal?.aborted === true) onAbort();
@@ -128,16 +128,12 @@ export class DashPlatformNetworkService {
       // retries below. The SDK's nested retry/connection rotation could keep one
       // tail request alive for more than two minutes and hold an entire
       // identity batch. A failed proof is never converted to an empty result.
-      const settings = {
+      const sdk = trustedEvoSdk(network, {
         connectTimeoutMs: EVO_CONNECT_TIMEOUT_MS,
         timeoutMs: EVO_REQUEST_TIMEOUT_MS,
         retries: 0,
         banFailedAddress: true,
-      };
-      const sdk =
-        network === "mainnet"
-          ? EvoSDK.mainnetTrusted({ settings })
-          : EvoSDK.testnetTrusted({ settings });
+      });
       await sdk.connect();
       return sdk;
     })();
@@ -167,7 +163,7 @@ export class DashPlatformNetworkService {
         throwIfRecoveryAborted(signal);
         return await run(sdk);
       } catch (cause) {
-        if (signal?.aborted === true) throw recoveryAbortError();
+        if (signal?.aborted === true) throw networkCancelledError();
         const failure = describeUnknownError(cause);
         failures.push(`attempt ${attempt}: ${failure}`);
         freeThrownValue(cause);
@@ -236,17 +232,15 @@ export class DashPlatformNetworkService {
   ): Promise<PlatformHistorySummaryView> {
     assertNetwork(network);
     assertSingleAddress(address, network, validatePlatformP2pkhAddress, "Dash Platform P2PKH");
+    const admission = new PlatformAddressHistoryAdmission(address, network);
     const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
     const indexedHeight = await this.#platformExplorerHeight(network, signal);
-    const info = platformRecord(
+    const info = admission.admitInfo(
       await fetchRecoveryJson(
         `${endpoint}/platformAddress/${encodeURIComponent(address)}/info`,
         signal,
       ),
-      "address info",
     );
-    if (info.bech32mAddress !== address)
-      throw new Error("Platform Explorer address info did not match the requested address.");
     const transactionCount = platformUnsignedInteger(info.totalTxs, "address transaction count");
     // Platform Explorer serves an address's history at /transitions; the former /transactions
     // route now answers 404 (AUD-019-API003). Identities keep their /transactions route.

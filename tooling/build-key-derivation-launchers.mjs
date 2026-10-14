@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { resolveRustToolchain } from "./rust-toolchain.mjs";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
@@ -59,10 +60,11 @@ function verifiedPageDigest(page) {
 
 const { page } = findLaunchers(dist, profile);
 const digest = verifiedPageDigest(page);
+const { cargo, environment } = resolveRustToolchain(root);
 for (const platform of requestedPlatforms()) {
   const { target, extension } = LAUNCHER_PLATFORMS[platform];
   const result = spawnSync(
-    process.env.CARGO ?? "cargo",
+    cargo,
     [
       "build",
       "--release",
@@ -75,7 +77,7 @@ for (const platform of requestedPlatforms()) {
     ],
     {
       cwd: root,
-      env: { ...process.env, DERIVER_PAGE: page, DERIVER_PAGE_SHA256: digest },
+      env: { ...environment, DERIVER_PAGE: page, DERIVER_PAGE_SHA256: digest },
       stdio: "inherit",
     },
   );

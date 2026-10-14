@@ -1,9 +1,8 @@
-import { HDKey, HARDENED_OFFSET, type Versions } from "@scure/bip32";
+import { HDKey, HARDENED_OFFSET } from "@scure/bip32";
 import { bytesToHex, hexToBytes, secp256k1 } from "./crypto.js";
+import { bip32VersionsFor } from "./networks.js";
 
 type DescriptorNetwork = "mainnet" | "testnet" | "regtest";
-const MAINNET_VERSIONS: Versions = { private: 0x0488ade4, public: 0x0488b21e };
-const TESTNET_VERSIONS: Versions = { private: 0x04358394, public: 0x043587cf };
 
 export function isRangedDescriptorKey(value: string): boolean {
   return /(?:^|\])[xt]pub[1-9A-HJ-NP-Za-km-z]+/u.test(value.trim());
@@ -112,10 +111,7 @@ export function materializeDescriptorKey(
       throw new Error(`Descriptor child step ${selected} is outside the unhardened BIP32 range.`);
     return index;
   });
-  let node = HDKey.fromExtendedKey(
-    xpub,
-    network === "mainnet" ? MAINNET_VERSIONS : TESTNET_VERSIONS,
-  );
+  let node = HDKey.fromExtendedKey(xpub, bip32VersionsFor(network));
   for (const index of indexes) node = node.deriveChild(index);
   if (node.publicKey === null)
     throw new Error("Descriptor key derivation did not produce a public key.");

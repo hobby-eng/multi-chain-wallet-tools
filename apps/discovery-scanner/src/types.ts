@@ -1,3 +1,4 @@
+import type { SeedLookupSettings } from "./scan-estimate.js";
 import type { NetworkName } from "@ckd/core/types.js";
 import type { RecoveryTaskLimiter } from "./concurrency.js";
 import type { RecoveryNetworkApi } from "@ckd/network-boundary/protocol.js";
@@ -197,6 +198,11 @@ export interface RecoveryCoinAdapter {
     config: RecoveryScanConfig,
     context: RecoveryScanContext,
   ): Promise<RecoveryWalletResult>;
+  /**
+   * The fewest provider lookups that a seed scan of one phrase makes with `settings`, before
+   * post-use gaps extend a branch: for the time estimate and the large-scan confirmation.
+   */
+  minimumSeedLookups?(settings: SeedLookupSettings): number;
   /**
    * Local, offline shape detection for one pasted watch-only line. Throws
    * `WatchOnlyNotRecognizedError` (see `../watch-only.js`) when this coin does

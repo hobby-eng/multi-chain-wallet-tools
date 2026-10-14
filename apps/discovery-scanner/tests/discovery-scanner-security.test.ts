@@ -1,4 +1,6 @@
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
+import { bytesToHex } from "@ckd/core/crypto.js";
+import { bech32m } from "@scure/base";
 import type { ShieldedActivity } from "@ckd/dash-network/types.js";
 import { mapRecoveryTasks, RecoveryConcurrencyLimiter } from "../src/concurrency.js";
 import { scanDashCoinJoin } from "../src/coins/dash/coinjoin-scanner.js";
@@ -6,7 +8,10 @@ import { scanDashCore } from "../src/coins/dash/core-scanner.js";
 import { scanDashProviderCollateral } from "../src/coins/dash/funding-scanner.js";
 import { scanDashLegacyCore } from "../src/coins/dash/legacy-core-scanner.js";
 import type { DashPlatformClient } from "../src/coins/dash/platform-client.js";
-import { scanDashPlatformAddresses } from "../src/coins/dash/platform-scanner.js";
+import {
+  scanDashPlatformAddresses,
+  validatePlatformAddressBatch,
+} from "../src/coins/dash/platform-scanner.js";
 import { shouldDisplayShieldedActivity } from "../src/coins/dash/shielded-filter.js";
 import { shieldedFindingPresentation } from "../src/coins/dash/shielded-presentation.js";
 import {
@@ -20,7 +25,10 @@ import {
 import { extendAddressTarget } from "../src/coins/dash/util.js";
 import { createRecoveryExport } from "../src/export.js";
 import { RecoveryNetworkGateway } from "../src/network-gateway.js";
-import type { RecoveryNetworkApi } from "@ckd/network-boundary/protocol.js";
+import type {
+  PlatformAddressBatchView,
+  RecoveryNetworkApi,
+} from "@ckd/network-boundary/protocol.js";
 import { executeRecoveryNetworkRequest } from "../src/network-executor.js";
 import { DirectRecoveryNetworkService } from "../src/network-service.js";
 import { MultiChainRecoveryNetworkService } from "../src/network-service-multichain.js";
@@ -267,6 +275,7 @@ describe("recovery secret boundary", () => {
   });
 
   it("recovers a missing DashScan first-seen timestamp from its first transaction", async () => {
+    // m/44'/5'/0'/0/0 of the public test phrase "abandon … about" and a synthetic transaction.
     const responses = [
       {
         address: "XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5",
@@ -299,6 +308,7 @@ describe("recovery secret boundary", () => {
   });
 
   it("loads synchronized Platform address history with exact totals", async () => {
+    // DIP17 m/9'/5'/17'/0'/0'/1 of the public test phrase "abandon … about".
     const address = "dash1kzjl7qzxy9lar37j8r37z3kvt07epqe20ckxfezw";
     vi.stubGlobal(
       "fetch",
@@ -418,6 +428,7 @@ describe("recovery secret boundary", () => {
   });
 
   it("parses Dash asset-lock credit outputs separately from ordinary L1 inputs", async () => {
+    // A synthetic transaction and key hash; the input is m/44'/5'/0'/0/1 of "abandon … about".
     const hash = "2222222222222222222222222222222222222222222222222222222222222222";
     vi.stubGlobal(
       "fetch",
@@ -1230,7 +1241,112 @@ describe("Orchard recovery output filter", () => {
   });
 });
 
+describe("Discovery Platform address info admission", () => {
+  const address = "dash1kzjl7qzxy9lar37j8r37z3kvt07epqe20ckxfezw";
+  const otherAddress = "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs";
+  const testnetAddress = bech32m.encode(
+    "tdash",
+    bech32m.decode(address as `${string}1${string}`).words,
+  );
+
+  function fetcherFor(info: Record<string, unknown>) {
+    return vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      let body: unknown;
+      if (url.endsWith("/status")) {
+        body = {
+          network: "evo1",
+          indexer: { status: "synced" },
+          api: { block: { height: 500_001 } },
+        };
+      } else if (url.endsWith(`/platformAddress/${address}/info`)) {
+        body = info;
+      } else {
+        throw new Error("Unexpected mock history request after address admission.");
+      }
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+  }
+
+  it.each([
+    ["another resource", { bech32mAddress: otherAddress }, /did not match the requested address/u],
+    ["missing resource", {}, /omitted its resource address/u],
+    ["resource from another network", { bech32mAddress: testnetAddress }, /not for mainnet/u],
+    [
+      "wrong info network",
+      { bech32mAddress: address, network: "testnet" },
+      /unknown or wrong network/u,
+    ],
+    [
+      "unknown info network",
+      { bech32mAddress: address, network: "custom-mainnet" },
+      /unknown or wrong network/u,
+    ],
+  ] as const)("refuses %s before requesting transition history", async (_label, info, message) => {
+    const fetcher = fetcherFor(info);
+    vi.stubGlobal("fetch", fetcher);
+    await expect(
+      new DirectRecoveryNetworkService().platformAddressHistory("mainnet", address),
+    ).rejects.toThrow(message);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls.every(([input]) => !String(input).includes("/transitions"))).toBe(
+      true,
+    );
+  });
+
+  it.each(["evo1", "mainnet"])(
+    "accepts matching address info with the %s network",
+    async (network) => {
+      const fetcher = fetcherFor({
+        bech32mAddress: address,
+        network,
+        balance: "0",
+        totalTxs: 0,
+        incomingTxs: 0,
+        outgoingTxs: 0,
+        totalIncomingAmount: "0",
+        totalOutgoingAmount: "0",
+      });
+      vi.stubGlobal("fetch", fetcher);
+      await expect(
+        new DirectRecoveryNetworkService().platformAddressHistory("mainnet", address),
+      ).resolves.toMatchObject({ resource: address, balance: "0", transactionCount: 0 });
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    },
+  );
+});
+
 describe("proof-verified Platform recovery scan", () => {
+  it("refuses an omitted requested storage key while accepting explicit null absence", () => {
+    const fundedKey = "00f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525";
+    const absentKey = `00${"11".repeat(20)}`;
+    const sparse: PlatformAddressBatchView = {
+      entries: [[fundedKey, { balance: "4990050160", nonce: "2" }]],
+      metadata: {
+        height: "426137",
+        coreChainLockedHeight: 2_000_000,
+        protocolVersion: 13,
+        timeMs: "10",
+      },
+    };
+    expect(() => validatePlatformAddressBatch(sparse, [fundedKey, absentKey])).toThrow(
+      /omitted a requested storage key/u,
+    );
+    const complete: PlatformAddressBatchView = {
+      ...sparse,
+      entries: [...sparse.entries, [absentKey, null]],
+    };
+    expect(validatePlatformAddressBatch(complete, [fundedKey, absentKey]).data).toEqual(
+      new Map<string, { balance: bigint; nonce: bigint } | null>([
+        [fundedKey, { balance: 4_990_050_160n, nonce: 2n }],
+        [absentKey, null],
+      ]),
+    );
+  });
+
   it("matches getManyWithProof results by the internal 00-prefixed storage payload", async () => {
     const seed = mnemonicToSeed(MNEMONIC);
     const guard = new SecretEgressGuard();
@@ -1242,9 +1358,20 @@ describe("proof-verified Platform recovery scan", () => {
       addresses: async (addresses: string[]) => {
         queried.push(addresses);
         return {
-          entries: [
-            ["00f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525", { balance: "4990050160", nonce: "2" }],
-          ],
+          // DPP storage uses 00 + hash, while DIP18 display uses a payment-type tag.
+          // Every requested key is present; an unfunded address is explicitly null.
+          entries: addresses.map((address) => {
+            const payload = bech32m.fromWords(
+              bech32m.decode(address as `${string}1${string}`).words,
+            );
+            const key = `00${bytesToHex(payload.subarray(1))}`;
+            return [
+              key,
+              key === "00f7da0a2b5cbd4ff6bb2c4d89b67d2f3ffeec0525"
+                ? { balance: "4990050160", nonce: "2" }
+                : null,
+            ];
+          }),
           metadata: {
             height: "426137",
             coreChainLockedHeight: 2_000_000,

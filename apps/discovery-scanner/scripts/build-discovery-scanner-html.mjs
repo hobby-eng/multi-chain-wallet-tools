@@ -1,8 +1,18 @@
-import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build, transform } from "esbuild";
+import { build } from "esbuild";
+import {
+  BROWSER_BUNDLE,
+  bundleText,
+  inlineApplication,
+  inlineSafeJavascript,
+  inlineScriptOf,
+  scriptCsp,
+  toolCss,
+  withScriptHash,
+  writeToolArtifact,
+} from "../../../tooling/html-artifact.mjs";
 import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
 import {
   applyDiscoveryFeatureTemplate,
@@ -44,36 +54,23 @@ let vaultTemplate = applyProfileTemplate(
   readFileSync(resolve(root, "apps/discovery-scanner/src/index.html"), "utf8"),
   profile,
   tool,
+  options,
 );
 let shellTemplate = applyProfileTemplate(
   readFileSync(resolve(root, "apps/discovery-scanner/src/shell.html"), "utf8"),
   profile,
   tool,
+  options,
 );
 vaultTemplate = applyDiscoveryFeatureTemplate(vaultTemplate, options);
 shellTemplate = applySelectedNetworkCsp(shellTemplate, options);
 if (!options.has("seed-discovery"))
   shellTemplate = shellTemplate.replaceAll("Secret Vault", "Public Input Boundary");
-const sharedCss = readFileSync(resolve(root, "packages/shared-ui/styles/main.css"), "utf8");
-const recoveryCss = readFileSync(resolve(root, "apps/discovery-scanner/src/styles.css"), "utf8");
-const shellCss = readFileSync(resolve(root, "packages/shared-ui/styles/tool-shell.css"), "utf8");
-const themeCss =
-  profile.themeStylesheet === undefined
-    ? ""
-    : readFileSync(resolve(root, profile.themeStylesheet), "utf8");
-const css = (
-  await transform(`${sharedCss}\n${recoveryCss}\n${shellCss}\n${themeCss}`, {
-    loader: "css",
-    minify: true,
-    legalComments: "inline",
-  })
-).code;
+const css = await toolCss(root, profile, ["apps/discovery-scanner/src/styles.css"]);
 const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
   coins: options.coins,
   features: options.selected,
 });
-const scriptCsp = (javascript) =>
-  `'sha256-${createHash("sha256").update(javascript).digest("base64")}'`;
 function dynamicCodeSurface(javascript) {
   // TypeScript 7 deliberately removed its stable in-process parser API. Use
   // a fail-closed lexical surface instead: it includes strings/comments, so a
@@ -89,22 +86,13 @@ function dynamicCodeSurface(javascript) {
 const networkBundle = await build({
   absWorkingDir: root,
   stdin: { contents: discoveryNetworkWorkerEntry(root), loader: "ts", resolveDir: root },
-  bundle: true,
-  format: "iife",
-  platform: "browser",
-  target: ["chrome120", "firefox120", "safari17"],
-  treeShaking: true,
-  minify: true,
-  legalComments: "inline",
+  ...BROWSER_BUNDLE,
   loader: { ".wasm": "binary" },
   plugins: [createDiscoveryCompositionPlugin(root, options)],
   define: { __DASH_COMMUNITY__: JSON.stringify(profile.id === "dash-community") },
   metafile: true,
-  write: false,
 });
-const networkJavascript = networkBundle.outputFiles[0]?.text;
-if (networkJavascript === undefined)
-  throw new Error("esbuild did not produce the Recovery Network Worker bundle.");
+const networkJavascript = bundleText(networkBundle, "Recovery Network Worker");
 const networkInputs = Object.keys(networkBundle.metafile.inputs);
 if (options.hasCoin("dash") && !networkInputs.some((input) => input.includes("@dashevo/evo-sdk"))) {
   throw new Error("Recovery Network Worker bundle omitted the pinned Evo SDK.");
@@ -148,13 +136,7 @@ if (options.hasCoin("dash")) {
 const vaultBundle = await build({
   absWorkingDir: root,
   stdin: { contents: discoveryAppEntry(root, options), loader: "ts", resolveDir: root },
-  bundle: true,
-  format: "iife",
-  platform: "browser",
-  target: ["chrome120", "firefox120", "safari17"],
-  treeShaking: true,
-  minify: true,
-  legalComments: "inline",
+  ...BROWSER_BUNDLE,
   loader: { ".wasm": "binary" },
   plugins: [createDiscoveryCompositionPlugin(root, options)],
   define: {
@@ -163,11 +145,8 @@ const vaultBundle = await build({
     __DASH_COMMUNITY__: JSON.stringify(profile.id === "dash-community"),
   },
   metafile: true,
-  write: false,
 });
-const vaultJavascript = vaultBundle.outputFiles[0]?.text;
-if (vaultJavascript === undefined)
-  throw new Error("esbuild did not produce the Recovery Secret Vault bundle.");
+const vaultJavascript = bundleText(vaultBundle, "Recovery Secret Vault");
 const vaultInputs = Object.keys(vaultBundle.metafile.inputs);
 if (profile.id === "dash-community") {
   assertDashOnlyGraph(vaultInputs, "Dash Community Recovery Secret Vault");
@@ -189,25 +168,10 @@ if (vaultInputs.some((input) => input.endsWith("/packages/export-core/src/downlo
     "Recovery Secret Vault bundle unexpectedly contains direct browser download capability.",
   );
 }
-if (
-  !vaultTemplate.includes("/*__INLINE_CSS__*/") ||
-  !vaultTemplate.includes("/*__INLINE_JS__*/") ||
-  !vaultTemplate.includes("__VAULT_SCRIPT_CSP__")
-) {
-  throw new Error("Recovery Secret Vault template is missing an inline build marker.");
-}
-const safeVaultJavascript = vaultJavascript.replaceAll("</script", "<\/script");
-let vaultHtml = vaultTemplate
-  .replace("__VAULT_SCRIPT_CSP__", "__VAULT_INLINE_SCRIPT_HASH__")
-  .replace("/*__INLINE_CSS__*/", () => css)
-  .replace("/*__INLINE_JS__*/", () => safeVaultJavascript);
-const vaultScriptStart = vaultHtml.indexOf("<script>");
-const vaultScriptEnd = vaultHtml.lastIndexOf("</script>");
-if (vaultScriptStart < 0 || vaultScriptEnd <= vaultScriptStart)
-  throw new Error("Recovery Secret Vault HTML did not contain the generated inline script.");
-// Hash the final embedded bytes, including whitespace introduced by the HTML template.
-const vaultInlineScript = vaultHtml.slice(vaultScriptStart + "<script>".length, vaultScriptEnd);
-vaultHtml = vaultHtml.replace("__VAULT_INLINE_SCRIPT_HASH__", scriptCsp(vaultInlineScript));
+const vaultHtml = inlineApplication(vaultTemplate, css, vaultJavascript, "Recovery Secret Vault", {
+  cspMarker: "__VAULT_SCRIPT_CSP__",
+});
+const vaultScriptCsp = scriptCsp(inlineScriptOf(vaultHtml, "Recovery Secret Vault"));
 
 const vaultDynamicCode = dynamicCodeSurface(vaultJavascript);
 if (vaultDynamicCode.functionConstructors !== 0 || vaultDynamicCode.evalCalls !== 0) {
@@ -233,27 +197,19 @@ const selectedBoundaryPlugin = {
 const shellBundle = await build({
   absWorkingDir: root,
   entryPoints: ["apps/discovery-scanner/src/shell.ts"],
-  bundle: true,
-  format: "iife",
-  platform: "browser",
-  target: ["chrome120", "firefox120", "safari17"],
-  treeShaking: true,
-  minify: true,
-  legalComments: "inline",
+  ...BROWSER_BUNDLE,
   plugins: [selectedBoundaryPlugin],
   define: {
     __RECOVERY_VAULT_HTML__: JSON.stringify(vaultHtml),
     __RECOVERY_NETWORK_WORKER_JS__: JSON.stringify(networkJavascript),
   },
   metafile: true,
-  write: false,
 });
-const shellJavascript = shellBundle.outputFiles[0]?.text;
-if (shellJavascript === undefined)
-  throw new Error("esbuild did not produce the Recovery isolation shell bundle.");
+const shellJavascript = bundleText(shellBundle, "Recovery isolation shell");
 const allowedShellInputs = new Set([
   "apps/discovery-scanner/src/shell.ts",
   "apps/discovery-scanner/src/report-workbook.ts",
+  "packages/export-core/src/download.ts",
   "packages/network-boundary/src/protocol.ts",
   "packages/network-boundary/src/transport-protocol.ts",
   "packages/network-boundary/src/iframe-protocol.ts",
@@ -298,32 +254,18 @@ if (
 ) {
   throw new Error("Recovery shell template is missing an inline build marker.");
 }
-const safeShellJavascript = shellJavascript.replaceAll("</script", "<\/script");
+const safeShellJavascript = inlineSafeJavascript(shellJavascript);
 let html = shellTemplate
   .replace("__SHELL_SCRIPT_CSP__", "__SHELL_INLINE_SCRIPT_HASH__")
   // A srcdoc document inherits the embedding document's CSP in addition to
   // enforcing its own. Both policies therefore authorize the exact vault
   // script hash; the vault's own connect-src remains the stricter 'none'.
-  .replace("__VAULT_SCRIPT_CSP__", scriptCsp(vaultInlineScript))
+  .replace("__VAULT_SCRIPT_CSP__", vaultScriptCsp)
   .replace("/*__SHELL_JS__*/", () => safeShellJavascript);
-const shellScriptStart = html.indexOf("<script>");
-const shellScriptEnd = html.lastIndexOf("</script>");
-if (shellScriptStart < 0 || shellScriptEnd <= shellScriptStart)
-  throw new Error("Recovery shell HTML did not contain the generated inline script.");
-const shellInlineScript = html.slice(shellScriptStart + "<script>".length, shellScriptEnd);
-html = html.replace("__SHELL_INLINE_SCRIPT_HASH__", scriptCsp(shellInlineScript));
+html = withScriptHash(html, "__SHELL_INLINE_SCRIPT_HASH__", "Recovery shell");
 const unexpandedMarker = /__[A-Z][A-Z0-9_]+__/u.exec(html)?.[0];
 if (unexpandedMarker !== undefined)
   throw new Error(
     `Discovery Scanner artifact still contains unexpanded build marker ${unexpandedMarker}.`,
   );
-const artifact = customArtifact ?? resolve(root, "dist", tool.artifactDirectory, tool.artifactName);
-const dist = resolve(artifact, "..");
-mkdirSync(dist, { recursive: true });
-writeFileSync(artifact, html);
-const checksum = createHash("sha256").update(html).digest("hex");
-writeFileSync(`${artifact}.sha256`, `${checksum}  ${artifactDisplayName(artifact)}\n`);
-console.log(
-  `Built ${customArtifact === undefined ? `dist/${tool.artifactRelativePath}` : artifact} (${Buffer.byteLength(html).toLocaleString()} bytes)`,
-);
-console.log(`SHA-256 ${checksum}`);
+writeToolArtifact(root, tool, customArtifact, html, artifactDisplayName);

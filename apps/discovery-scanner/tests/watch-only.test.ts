@@ -2,7 +2,7 @@ import { encodePlatformP2pkh } from "@ckd/coins/dash/platform.js";
 import { deriveBitcoin } from "@ckd/coins/bitcoin/index.js";
 import { describe, expect, it, vi } from "vitest";
 import { HDKey } from "@scure/bip32";
-import { createBase58check } from "@scure/base";
+import { bech32m, createBase58check } from "@scure/base";
 import { bytesToHex, encodeP2pkh, hash160, hexToBytes, sha256 } from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import { descriptorChecksum } from "@ckd/export/descriptor.js";
@@ -14,7 +14,7 @@ import {
   parseWatchOnlyLines,
   resolveWatchOnlyTargets as resolveWatchOnlyTargetsForProfile,
 } from "@ckd/recovery/watch-only.js";
-import { MULTI_CHAIN_WATCH_ONLY_PREFIX_COINS } from "@ckd/recovery/watch-only/multi-chain-profile.js";
+import { MULTI_CHAIN_WATCH_ONLY_PROFILE } from "../src/multi-chain-watch-only.js";
 import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
 import { createRecoveryExport } from "../src/export.js";
 import type { RecoveryNetworkApi } from "@ckd/network-boundary/protocol.js";
@@ -28,10 +28,10 @@ const resolveWatchOnlyTargets = (raw: string, adapters: readonly RecoveryCoinAda
   resolveWatchOnlyTargetsForProfile(
     raw,
     adapters,
-    MULTI_CHAIN_WATCH_ONLY_PREFIX_COINS,
-    true,
-    ["ethereum"],
-    (adapterId) => (adapterId === "bitcoin" ? [3, 4] : [3, 4, 5]),
+    MULTI_CHAIN_WATCH_ONLY_PROFILE.prefixCoins,
+    MULTI_CHAIN_WATCH_ONLY_PROFILE.multiChain,
+    MULTI_CHAIN_WATCH_ONLY_PROFILE.networklessAdapterIds,
+    MULTI_CHAIN_WATCH_ONLY_PROFILE.supportedDepths,
   );
 
 vi.mock("@ckd/dash-wasm/dash_shielded_wasm_bg.wasm", async () => {
@@ -420,9 +420,14 @@ it.each([0, 1])(
       platformAddresses: async (_network, addresses) => {
         queries.push(...addresses);
         return {
-          entries: addresses.includes(address)
-            ? [[`00${bytesToHex(childHash)}`, { balance: "100000000001", nonce: "1" }]]
-            : [],
+          // Every queried key has either proved account data or explicit proved absence.
+          entries: addresses.map((queried): [string, { balance: string; nonce: string } | null] => {
+            const hash = bech32m.fromWords(bech32m.decode(queried).words).slice(1);
+            return [
+              `00${bytesToHex(hash)}`,
+              queried === address ? { balance: "100000000001", nonce: "1" } : null,
+            ];
+          }),
           metadata: { height: "1", protocolVersion: 1, coreChainLockedHeight: 1, timeMs: "1" },
         };
       },

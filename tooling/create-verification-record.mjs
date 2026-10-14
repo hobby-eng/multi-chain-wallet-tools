@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
 import { createBuildInfo } from "./build-metadata.mjs";
 import { readReleaseMetadata } from "./project-metadata.mjs";
+import { TOOLCHAIN_PINS } from "./toolchain-pins.mjs";
+import { VendoredMhfePackage } from "./vendored-mhfe-package.mjs";
+import { WASM_MODULES } from "./wasm-modules.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const modeIndex = process.argv.indexOf("--mode");
@@ -40,21 +43,22 @@ for (const profile of Object.values(BUILD_PROFILES)) {
     });
   }
 }
-const generatedDirectories = [
-  "packages/dash-shielded-wasm/generated",
-  "packages/recovery-codex32-wasm/generated",
-  "packages/recovery-sskr-wasm/generated",
-  "packages/recovery-envelope-wasm/generated",
-  "packages/recovery-mhfe-wasm/generated",
+// The project's own WASM modules, from their catalog, each a flat folder of generated files, and
+// the vendored MHFE package with its nested folders, as its own inventory lists them.
+const wasmFiles = [
+  ...WASM_MODULES.flatMap(({ packageDirectory }) => {
+    const directory = `packages/${packageDirectory}/generated`;
+    return readdirSync(resolve(root, directory))
+      .sort()
+      .map((name) => `${directory}/${name}`);
+  }),
+  ...new VendoredMhfePackage(root).files(),
 ];
-const wasm = generatedDirectories.flatMap((directory) =>
-  readdirSync(resolve(root, directory))
-    .sort()
-    .map((name) => {
-      const path = `${directory}/${name}`;
-      return { path, bytes: readFileSync(resolve(root, path)).byteLength, sha256: digest(path) };
-    }),
-);
+const wasm = wasmFiles.map((path) => ({
+  path,
+  bytes: readFileSync(resolve(root, path)).byteLength,
+  sha256: digest(path),
+}));
 let commit = process.env.VERIFICATION_COMMIT;
 let dirty = process.env.VERIFICATION_DIRTY === "true";
 if (commit === undefined) {
@@ -81,12 +85,6 @@ const dependencyProvenance = {
     commit,
   })),
   localSources: provenanceReport.localSources,
-};
-const dockerfile = readFileSync(resolve(root, "Dockerfile.reproducible"), "utf8");
-const pin = (pattern, label) => {
-  const value = pattern.exec(dockerfile)?.[1];
-  if (value === undefined) throw new Error(`Missing ${label} pin in Dockerfile.reproducible.`);
-  return value;
 };
 const record = {
   schema:
@@ -124,10 +122,10 @@ const record = {
           ],
   },
   toolchain: {
-    node: pin(/ARG NODE_VERSION=([^\n]+)/u, "Node"),
+    node: readFileSync(resolve(root, ".node-version"), "utf8").trim(),
     pnpm: String(manifest.packageManager).replace(/^pnpm@/u, ""),
-    rust: pin(/default-toolchain ([0-9.]+)/u, "Rust"),
-    wasmBindgen: pin(/wasm-bindgen-cli --version ([0-9.]+)/u, "wasm-bindgen"),
+    rust: TOOLCHAIN_PINS.rust,
+    wasmBindgen: TOOLCHAIN_PINS.wasmBindgen,
     typescript: manifest.devDependencies.typescript,
     vitest: manifest.devDependencies.vitest,
     playwright: manifest.devDependencies.playwright,

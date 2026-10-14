@@ -1,5 +1,6 @@
 import { BUILD_PROFILES, profileToolIds } from "./build-profiles.mjs";
 import { KEY_DERIVATION_COINS, KEY_DERIVATION_FEATURES } from "./key-derivation-features.mjs";
+import { ToolBuildPolicy } from "./tool-build-policy.mjs";
 import { TOOL_FEATURE_DEFINITIONS } from "./tool-feature-options.mjs";
 
 function nonemptySubsets(values) {
@@ -9,39 +10,10 @@ function nonemptySubsets(values) {
   });
 }
 
-function featureSets(toolId, coins) {
-  if (toolId === "activity-viewer") return [[]];
-  if (toolId === "key-derivation") {
-    const optional = KEY_DERIVATION_FEATURES.filter((feature) => feature !== "derive").filter(
-      (feature) => {
-        if (feature === "silent-payments") return coins.includes("bitcoin");
-        if (feature === "bip38-encrypt" || feature === "message-signing")
-          return coins.includes("bitcoin") || coins.includes("dash");
-        return true;
-      },
-    );
-    return (
-      [[], ...nonemptySubsets(optional)]
-        // Card export prints MnemoCode output, so it is valid only together with that module.
-        .filter(
-          (features) => !features.includes("mnemocode-cards") || features.includes("mnemocode"),
-        )
-        .map((features) => ["derive", ...features])
-    );
-  }
-  const features = TOOL_FEATURE_DEFINITIONS[toolId].features;
-  return nonemptySubsets(features).filter((selected) => {
-    if (toolId !== "discovery-scanner") return true;
-    if (!selected.includes("seed-discovery") && !selected.includes("watch-only-discovery"))
-      return false;
-    return !selected.includes("wallet-matcher") || selected.includes("seed-discovery");
-  });
-}
-
-function coinSets(toolId, profile) {
-  const supported =
-    toolId === "key-derivation" ? KEY_DERIVATION_COINS : TOOL_FEATURE_DEFINITIONS[toolId].coins;
-  return nonemptySubsets(profile.id === "dash-community" ? ["dash"] : supported);
+function featureSets(policy, coins) {
+  // Profile defaults bound candidates; admission owns every dependency between them.
+  const candidates = policy.defaultFeatures(coins);
+  return [[], ...nonemptySubsets(candidates)].filter((features) => policy.isLegal(coins, features));
 }
 
 export function createBuildMatrixPlan(profileIds = Object.keys(BUILD_PROFILES), requestedTool) {
@@ -50,8 +22,9 @@ export function createBuildMatrixPlan(profileIds = Object.keys(BUILD_PROFILES), 
     if (profile === undefined) throw new Error(`Unknown build profile "${profileId}".`);
     return profileToolIds(profile).flatMap((toolId) => {
       if (requestedTool !== undefined && requestedTool !== toolId) return [];
-      return coinSets(toolId, profile).flatMap((coins) =>
-        featureSets(toolId, coins).map((features) => {
+      const policy = new ToolBuildPolicy(toolId, profile);
+      return nonemptySubsets(policy.profileCoins()).flatMap((coins) =>
+        featureSets(policy, coins).map((features) => {
           const featureSlug = features.length === 0 ? "base" : features.join("_");
           return {
             profileId,
@@ -100,7 +73,10 @@ export function createBuildMatrixSmokePlan(
       sample.toolId === "key-derivation"
         ? { coins: KEY_DERIVATION_COINS, features: KEY_DERIVATION_FEATURES }
         : TOOL_FEATURE_DEFINITIONS[sample.toolId];
-    const allowedCoins = sample.profileId === "dash-community" ? ["dash"] : definition.coins;
+    const allowedCoins = new ToolBuildPolicy(
+      sample.toolId,
+      BUILD_PROFILES[sample.profileId],
+    ).profileCoins();
     const fullCoins = allowedCoins.filter((coin) => jobs.some((job) => job.coins.includes(coin)));
     const full = jobs.find(
       (job) =>

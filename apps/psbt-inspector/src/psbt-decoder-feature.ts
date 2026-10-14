@@ -15,6 +15,7 @@ import { decodeScript } from "./script.js";
 import { analyzeInputSigning } from "./signing-commitments.js";
 import { describeOpReturn, describePreviousScriptSig } from "./transaction-display.js";
 import { required, selectedNetwork, syncNetworkChoice, textElement } from "./ui-common.js";
+import { isUnsupportedField, PsbtFieldRegistry } from "./psbt-field-registry.js";
 
 export function installPsbtDecoderFeature(): void {
   const chainSelect = required<HTMLSelectElement>("psbt-chain");
@@ -242,7 +243,7 @@ export function installPsbtDecoderFeature(): void {
         if (interpretation !== null) rows.splice(2, 0, ["Interpretation", interpretation]);
         const isInputScript = scope === "input" && (item.type === 0x04n || item.type === 0x05n);
         const isOutputScript = scope === "output" && (item.type === 0x00n || item.type === 0x01n);
-        if (isInputScript || isOutputScript) {
+        if ((isInputScript || isOutputScript) && !isUnsupportedField(chain, scope, item.type)) {
           try {
             const decoded = decodeScript(
               bytesToHex(item.value),
@@ -303,7 +304,10 @@ export function installPsbtDecoderFeature(): void {
   }
 
   function inputMapCount(parsed: ParsedPsbt, types: readonly bigint[]): number {
-    return parsed.inputs.filter((map) => map.some((item) => types.includes(item.type))).length;
+    const registry = new PsbtFieldRegistry(parsed.chain);
+    return parsed.inputs.filter((map) =>
+      registry.interpreted(map, "input").some((item) => types.includes(item.type)),
+    ).length;
   }
 
   function signingState(parsed: ParsedPsbt): string {

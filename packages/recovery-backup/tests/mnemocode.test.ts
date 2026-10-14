@@ -3,13 +3,12 @@ import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { describe, expect, it } from "vitest";
 import {
   decodeMnemoCode,
-  detectMnemoCodeFormats,
   effectiveMnemoCodeMode,
   encodeMnemoCode,
-  MNEMOCODE_FORMATS,
+  ENCODED_FORMATS,
   MNEMOCODE_VERSION,
   mnemoCodeEncodedPhrase,
-  parseMnemoCode,
+  readMnemoCodeBackup,
   parseMnemoCodeDate,
   parseMnemoCodeDates,
   recoverMnemoCodeLegacyLastWords,
@@ -76,7 +75,7 @@ describe("MnemoCode 0.1.0 compatibility", () => {
         Uint8Array.from({ length: size }, (_, index) => index),
         wordlist,
       );
-      for (const format of MNEMOCODE_FORMATS) {
+      for (const format of ENCODED_FORMATS) {
         for (const mode of ["direct", "seedshift", "seedshift-legacy"] as const) {
           const encoded = encodeMnemoCode(mnemonic, mode, format, mode === "direct" ? [] : dates);
           expect(
@@ -110,12 +109,12 @@ describe("MnemoCode 0.1.0 compatibility", () => {
   });
 
   it("detects strict raw formats without guessing ambiguous input", () => {
-    for (const format of MNEMOCODE_FORMATS) {
+    for (const format of ENCODED_FORMATS) {
       const payload = encodeMnemoCode(zeroMnemonic, "direct", format).payload;
-      expect(detectMnemoCodeFormats(payload)).toEqual([format]);
+      expect(readMnemoCodeBackup(payload).formats()).toEqual([format]);
     }
     const ambiguous = "76 84 57 28 90 19 59 27 62 11 89 81 66 42 75 28 50 11 52 30 57 30 62 10";
-    expect(detectMnemoCodeFormats(ambiguous)).toEqual(["indexes", "unicode"]);
+    expect(readMnemoCodeBackup(ambiguous).formats()).toEqual(["indexes", "unicode"]);
     expect(() => decodeMnemoCode(ambiguous, { mode: "direct", format: "auto" })).toThrow(
       /ambiguous/u,
     );
@@ -125,10 +124,16 @@ describe("MnemoCode 0.1.0 compatibility", () => {
     for (const value of ["29-02-1900", "31-04-2026", "01-01-0000", "01-13-2026"]) {
       expect(() => parseMnemoCodeDate(value)).toThrow();
     }
-    expect(() => parseMnemoCode("1e3 1 1 1 1 1 1 1 1 1 1 1", "indexes")).toThrow(/decimal/u);
-    expect(() => parseMnemoCode("a".repeat(64 * 1024 + 1), "english")).toThrow(/64 KiB/u);
+    expect(() =>
+      decodeMnemoCode("1e3 1 1 1 1 1 1 1 1 1 1 1", { mode: "direct", format: "indexes" }),
+    ).toThrow(/decimal/u);
+    expect(() => readMnemoCodeBackup("a".repeat(64 * 1024 + 1))).toThrow(/64 KiB/u);
+    // MnemoCode's own refusals of a wrong count of dates (Masking#assertDateCount).
     expect(() => encodeMnemoCode(zeroMnemonic, "seedshift", "english")).toThrow(
-      /at least one date/u,
+      "seedshift requires at least one date.",
+    );
+    expect(() => encodeMnemoCode(zeroMnemonic, "direct", "english", dates)).toThrow(
+      "Dates cannot be used in direct mode.",
     );
   });
 
@@ -203,13 +208,18 @@ describe("MnemoCode 0.1.0 compatibility", () => {
   });
 
   it("rejects missing, repeated, and malformed forgotten-word placeholders", () => {
-    expect(() => recoverMnemoCodeWord(zeroMnemonic)).toThrow(/exactly one/u);
+    // No ? at all: MnemoCode's own word search says how a forgotten word is marked.
+    expect(() => recoverMnemoCodeWord(zeroMnemonic)).toThrow(/Mark each forgotten word with \?/u);
+    expect(() =>
+      recoverMnemoCodeWord(zeroMnemonic.replace("abandon", "?").replace("about", "?")),
+    ).toThrow(/exactly one/u);
+    // Every word forgotten: MnemoCode refuses a search that large before it starts.
     expect(() => recoverMnemoCodeWord(zeroMnemonic.replaceAll("abandon", "?"))).toThrow(
-      /exactly one/u,
+      /more than 16,777,216/u,
     );
     expect(() =>
       recoverMnemoCodeWord(zeroMnemonic.replace("abandon", "notaword").replace("about", "?")),
-    ).toThrow(/position 1/u);
+    ).toThrow(/place 1/u);
   });
 
   it("returns an empty set when the known words admit no checksum-valid completion", () => {
@@ -226,6 +236,17 @@ describe("MnemoCode 0.1.0 compatibility", () => {
     // The form can still hold dates from an earlier Seedshift input.
     expect(decodeMnemoCode(record, { mode: "seedshift", format: "auto", dates }).mnemonic).toBe(
       zeroMnemonic,
+    );
+  });
+
+  it("refuses a Shamir share where an encoded seed phrase is read, naming where shares are read", () => {
+    // A share of the published SSKR test set (sskr.test.ts).
+    const share = "ur:sskr/gogrrsbyadaefmnlbnctaaecvoqdfnjpbzecstfgaxtifpsskbfw";
+    expect(() => readMnemoCodeBackup(share)).toThrow(
+      "This is a Shamir share, not an encoded seed phrase: MnemoCode's Restore tab reads it.",
+    );
+    expect(() => decodeMnemoCode(share, { mode: "direct", format: "auto" })).toThrow(
+      /Shamir share/u,
     );
   });
 

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createKeyDerivationController } from "../src/ui/controller.js";
 import type { KeyDerivationView } from "../src/ui/view.js";
 import { createBitcoinAddressSearchRunner } from "../src/ui/address-search-feature.js";
+import { settlePromises } from "./fake-recovery-page.js";
 
 class Control extends EventTarget {
   value = "";
@@ -232,11 +233,8 @@ describe("known-address search lifecycle", () => {
     f.fields.expectedAddress!.value = "another-address";
     f.controls.account!.value = "9";
     f.resolve(null);
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    // The worker's result passes through several promise turns before cleanup; count none of them.
+    await settlePromises();
     expect(f.worker.search).toHaveBeenCalledWith(
       "bitcoin-legacy",
       expect.objectContaining({ account: 0, network: "mainnet", branch: 0 }),

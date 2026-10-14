@@ -1,3 +1,4 @@
+import type { ShieldedPage } from "./types.js";
 export const SHIELDED_PAGE_SIZE = 2048;
 export const SHIELDED_EMPTY_CONFIRMATIONS = 2;
 export const SHIELDED_MAX_PAGES_PER_SCAN = 4096;
@@ -209,4 +210,33 @@ export async function runShieldedPageStream<Page>(options: {
     cursor = transition;
     await options.yieldTurn?.();
   }
+}
+
+/** Zeroes the encrypted notes of a page that was scanned, and empties it. */
+export function wipeShieldedPage(page: ShieldedPage): void {
+  for (const note of page.notes) {
+    note.cmx.fill(0);
+    note.nullifier.fill(0);
+    note.cvNet.fill(0);
+    note.encryptedNote.fill(0);
+  }
+  page.notes.length = 0;
+}
+
+/**
+ * The stream over verified Orchard pool pages: each page counted by its notes, ordered by the
+ * height its proof authenticates, and wiped once its turn is over.
+ */
+export function streamShieldedPages(
+  options: Omit<
+    Parameters<typeof runShieldedPageStream<ShieldedPage>>[0],
+    "noteCount" | "revision" | "disposePage"
+  >,
+): Promise<ShieldedStreamOutcome> {
+  return runShieldedPageStream<ShieldedPage>({
+    ...options,
+    noteCount: (page) => page.notes.length,
+    revision: (page) => page.proofHeight,
+    disposePage: wipeShieldedPage,
+  });
 }

@@ -1,6 +1,7 @@
 import { normalizeBitcoinAddress } from "./address-normalization.js";
 import { bitcoinAddressHistory } from "./history.js";
-import { decimal, fetchJson, publicProviderAbortError, record, unsignedInteger } from "./http.js";
+import { networkCancelledError, isAbortError } from "@ckd/core/error-handling.js";
+import { decimal, fetchJson, record, unsignedInteger } from "./http.js";
 import {
   RECOVERY_UTXO_ADDRESS_BATCH,
   type PublicDataNetwork,
@@ -50,7 +51,7 @@ async function mapConcurrent<T, R>(
   return results;
 }
 async function waitForBitcoinRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) throw publicProviderAbortError();
+  if (signal?.aborted) throw networkCancelledError();
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
       signal?.removeEventListener("abort", onAbort);
@@ -58,14 +59,14 @@ async function waitForBitcoinRetry(delayMs: number, signal?: AbortSignal): Promi
     }, delayMs);
     const onAbort = () => {
       clearTimeout(timeout);
-      reject(publicProviderAbortError());
+      reject(networkCancelledError());
     };
     signal?.addEventListener("abort", onAbort, { once: true });
     if (signal?.aborted) onAbort();
   });
 }
 function isRetryableBitcoinFailure(cause: unknown): boolean {
-  if (cause instanceof DOMException && cause.name === "AbortError") return false;
+  if (isAbortError(cause)) return false;
   const message = cause instanceof Error ? cause.message : String(cause);
   const status = /HTTP ([0-9]{3})\b/u.exec(message)?.[1];
   if (status !== undefined && !["408", "425", "429"].includes(status) && !status.startsWith("5"))

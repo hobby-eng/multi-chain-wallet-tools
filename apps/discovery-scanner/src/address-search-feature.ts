@@ -1,5 +1,6 @@
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { findDerivedAddress } from "@ckd/recovery/address-search.js";
+import { LocalSearchAdmission } from "@ckd/recovery/local-search-admission.js";
 import { detectBitcoinAddressTargets } from "@ckd/recovery/address-targets.js";
 import {
   searchAcrossSeedsAndAddresses,
@@ -7,8 +8,9 @@ import {
   type RecoverySeedTarget,
 } from "@ckd/recovery/multi-seed-search.js";
 import type { RuntimeCoinAdapter } from "@ckd/coins/runtime-registry.js";
+import { SCANNER_ORCHESTRATION_CONCURRENCY } from "./concurrency-parameters.js";
 import type { AddressSearchRunner } from "./types.js";
-import { parseConcurrency, parseInteger } from "@ckd/core/validation.js";
+import { parseInteger } from "@ckd/core/validation.js";
 
 export function createBitcoinAddressSearchRunner(
   getAddressSearchAdapter: (id: string) => RuntimeCoinAdapter,
@@ -26,8 +28,11 @@ export function createBitcoinAddressSearchRunner(
     const seedConcurrency =
       context.inputMode === "single"
         ? 1
-        : parseConcurrency(snapshot.batchConcurrency, "Batch seed concurrency");
-    if (count > 5000) throw new Error("Search count must be an integer from 1 to 5000.");
+        : SCANNER_ORCHESTRATION_CONCURRENCY.parse(
+            snapshot.batchConcurrency,
+            "Batch seed concurrency",
+          );
+    LocalSearchAdmission.range(start, count);
     let inputs = [] as ReturnType<typeof context.recoveryInputs>;
     const seeds: RecoverySeedTarget[] = [];
     try {

@@ -79,7 +79,8 @@ export type WorkerRequest =
       address: string;
       passphrase: string;
     }
-  | { id: number; type: "self-test" };
+  /** `full` adds the slower known answers of the optional features (the full self-test). */
+  | { id: number; type: "self-test"; full?: boolean };
 
 type WorkerSuccess =
   | { id: number; ok: true; type: "derive"; result: DerivationResult }

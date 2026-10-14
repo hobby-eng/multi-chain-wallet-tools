@@ -1,16 +1,11 @@
+import { DASH_ADDRESS_FAMILIES } from "@ckd/coins/dash/address-families.js";
 import { bech32m, createBase58check } from "@scure/base";
 import { sha256 } from "@noble/hashes/sha2.js";
 import type { NetworkName } from "@ckd/core/types.js";
-import type { WalletMatcherTarget } from "./matcher-types.js";
+import { detectMatcherTargets, type MatcherCoin } from "./matcher-targets.js";
+import type { WalletMatcherTargetDetector } from "./matcher-types.js";
 
 const base58check = createBase58check(sha256);
-const ALL_DASH_ADDRESS_ADAPTERS = [
-  "dash-core",
-  "dash-legacy-mobile",
-  "dash-core-coinjoin",
-  "dash-platform",
-  "dash-shielded",
-] as const;
 
 function detectDashAddress(
   address: string,
@@ -22,7 +17,7 @@ function detectDashAddress(
     if (payload.length === 21 && payload[0] === expected) {
       return {
         normalized: address,
-        adapters: ["dash-core", "dash-legacy-mobile", "dash-core-coinjoin"],
+        adapters: DASH_ADDRESS_FAMILIES.coreAdapters(),
       };
     }
   } catch {
@@ -45,46 +40,29 @@ function detectDashAddress(
   return null;
 }
 
-export function detectDashMatcherTargets(
-  input: string,
-  network: NetworkName,
-  forceAllProfiles: boolean,
-): WalletMatcherTarget[] {
-  const values = input
-    .replaceAll("\r", "")
-    .split("\n")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  if (values.length === 0) throw new Error("Enter at least one known address.");
-  const seen = new Set<string>();
-  return values.map((value, index) => {
-    if (/^[0-9a-f]{40}$/iu.test(value)) {
-      const normalized = value.toLowerCase();
-      if (seen.has(normalized))
-        throw new Error(`Target ${index + 1} duplicates an earlier target.`);
-      seen.add(normalized);
+/** Dash's part of the matcher: Core, Platform and Orchard addresses, and identity key hashes. */
+export const DASH_MATCHER: MatcherCoin = {
+  recognize(value, network) {
+    // An identity is found by the HASH160 of one of its keys, compared with derived key fields.
+    if (/^[0-9a-f]{40}$/iu.test(value))
       return {
-        id: `address-${index + 1}`,
         input: value,
-        normalized,
+        normalized: value.toLowerCase(),
         network,
         adapterIds: ["dash-identity"],
         fieldKeys: ["key0PublicKeyHash"],
       };
-    }
     const detected = detectDashAddress(value, network);
-    if (detected === null)
-      throw new Error(`Address ${index + 1} is not a valid Dash address for the selected network.`);
-    const { normalized, adapters } = detected;
-    if (seen.has(normalized))
-      throw new Error(`Address ${index + 1} duplicates an earlier address.`);
-    seen.add(normalized);
-    return {
-      id: `address-${index + 1}`,
-      input: value,
-      normalized,
-      network,
-      adapterIds: forceAllProfiles ? ALL_DASH_ADDRESS_ADAPTERS : adapters,
-    };
-  });
-}
+    return detected === null
+      ? null
+      : { input: value, normalized: detected.normalized, network, adapterIds: detected.adapters };
+  },
+  addressAdapters: DASH_ADDRESS_FAMILIES.addressAdapters(),
+};
+
+/** The matcher targets of the Dash Community Edition. */
+export const detectDashMatcherTargets: WalletMatcherTargetDetector = (
+  input,
+  network,
+  forceAllProfiles,
+) => detectMatcherTargets(input, network, forceAllProfiles, [DASH_MATCHER]);

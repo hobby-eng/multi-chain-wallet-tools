@@ -1,4 +1,5 @@
 import type { DerivationWorkerClient } from "../workers/derive-client.js";
+import { SELF_TEST_NOT_PASSED } from "./crypto-self-test-gate.js";
 
 interface SilentPaymentFeatureOptions {
   document: Document;
@@ -13,6 +14,8 @@ interface SilentPaymentFeatureOptions {
   createWorker(): DerivationWorkerClient;
   isActive(): boolean;
   mnemonicMayBeComplete(): boolean;
+  /** Whether the cryptographic self-tests have passed; nothing is derived before they do. */
+  cryptoReady(): boolean;
 }
 
 function optionalElement<T extends Element>(document: Document, selector: string): T | null {
@@ -76,8 +79,12 @@ export function installSilentPaymentFeature(options: SilentPaymentFeatureOptions
       labeledList === null
     )
       return;
-    error.hidden = true;
-    result.hidden = true;
+    clear();
+    if (!options.cryptoReady()) {
+      error.textContent = SELF_TEST_NOT_PASSED;
+      error.hidden = false;
+      return;
+    }
     let labels: number[];
     try {
       labels = parseLabels(labelsInput.value);
@@ -87,7 +94,6 @@ export function installSilentPaymentFeature(options: SilentPaymentFeatureOptions
       return;
     }
     button.disabled = true;
-    revision += 1;
     const requestRevision = revision;
     void (async () => {
       let seed: Uint8Array | null = null;
@@ -134,12 +140,14 @@ export function installSilentPaymentFeature(options: SilentPaymentFeatureOptions
       } finally {
         seed?.fill(0);
         worker?.terminate();
-        if (requestRevision === revision) button.disabled = false;
+        if (requestRevision === revision) button.disabled = !options.cryptoReady();
       }
     })();
   };
   const scheduleRefresh = (): void => {
-    if (!options.isActive() || !options.mnemonicMayBeComplete() || button === null) return;
+    clear();
+    if (!options.isActive() || !options.mnemonicMayBeComplete() || !options.cryptoReady()) return;
+    if (button === null) return;
     cancelScheduledRefresh();
     pendingRefresh = window.setTimeout(() => {
       pendingRefresh = null;
@@ -150,9 +158,9 @@ export function installSilentPaymentFeature(options: SilentPaymentFeatureOptions
   const clear = (): void => {
     cancelScheduledRefresh();
     revision += 1;
-    if (button !== null) button.disabled = false;
-    result?.setAttribute("hidden", "");
-    error?.setAttribute("hidden", "");
+    if (button !== null) button.disabled = !options.cryptoReady();
+    if (result !== null) result.hidden = true;
+    if (error !== null) error.hidden = true;
     labeledList?.replaceChildren();
     for (const id of OUTPUT_IDS) {
       const output = element<HTMLElement>(id);
@@ -167,9 +175,22 @@ export function installSilentPaymentFeature(options: SilentPaymentFeatureOptions
   const setSecretsVisible = (revealed: boolean): void => {
     result?.classList.toggle("revealed", revealed);
   };
+  /** Follows the self-tests' verdict: a failure drops what was derived and closes the button. */
+  const setEnabled = (enabled: boolean): void => {
+    if (!enabled) clear();
+    if (button !== null) button.disabled = !enabled;
+  };
   button?.addEventListener("click", derive);
   network?.addEventListener("change", scheduleRefresh);
   account?.addEventListener("input", scheduleRefresh);
   labelsInput?.addEventListener("input", scheduleRefresh);
-  return { derive, scheduleRefresh, cancelScheduledRefresh, clear, reset, setSecretsVisible };
+  return {
+    derive,
+    scheduleRefresh,
+    cancelScheduledRefresh,
+    clear,
+    reset,
+    setSecretsVisible,
+    setEnabled,
+  };
 }

@@ -1,3 +1,6 @@
+import { isPrivateMaterialError } from "@ckd/secret-boundary/private-material-error.js";
+import { PublicExportSession } from "@ckd/export/public-export-session.js";
+import { ActivityStateSelfTest } from "./activity-state-self-test.js";
 import type { ViewerNetwork } from "@ckd/dash-network/types.js";
 import type { ViewingKeyInputMode } from "@ckd/dash-network/viewing-key.js";
 import { runDashCoreActivity } from "./dash-core-activity.js";
@@ -28,6 +31,7 @@ export function createActivityViewerController(
   let detectionMode: ViewerDetectionMode = "auto";
   let currentAbort: AbortController | null = null;
   let currentExport: ViewerExportState | null = null;
+  const exportSession = PublicExportSession.forHost(view);
   let viewerSelfTestPassed = false;
 
   function checkCancellation(): void {
@@ -41,6 +45,8 @@ export function createActivityViewerController(
 
   function setExportState(state: ViewerExportState | null): void {
     currentExport = state;
+    exportSession.replace(state);
+    view.setExportBusy(false);
     view.setExportAvailable(state !== null);
   }
 
@@ -73,7 +79,7 @@ export function createActivityViewerController(
         Source: dependencies.DashEvoShieldedSource,
         assertCanonicalViewingKey: dependencies.assertCanonicalViewingKey,
         normalizeViewingKey: dependencies.normalizeViewingKey,
-        runPageStream: dependencies.runShieldedPageStream,
+        streamPages: dependencies.streamShieldedPages,
         scanEncryptedPage: dependencies.scanEncryptedPage,
         emptyConfirmations: dependencies.shieldedEmptyConfirmations,
         maxPagesPerScan: dependencies.shieldedMaxPagesPerScan,
@@ -203,7 +209,7 @@ export function createActivityViewerController(
         view.failDiagnostics("Cancelled by the user. No additional results were applied.");
       } else {
         const message = cause instanceof Error ? cause.message : String(cause);
-        if (cause instanceof Error && cause.name === "PrivateMaterialError") view.clearQueryInput();
+        if (isPrivateMaterialError(cause)) view.clearQueryInput();
         view.showError(message);
         view.setStatus("");
         view.failDiagnostics(`Stopped during the current stage. Error: ${message}`);
@@ -260,9 +266,15 @@ export function createActivityViewerController(
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     try {
       const blobWorkerDurationMs = await dependencies.runBlobWorkerSelfTest();
+      // Secret material is refused before any lookup can be sent.
+      const guard = dependencies.runPublicInputGuardSelfTest();
+      const activityChecks = ActivityStateSelfTest.run();
       const report = dependencies.runOrchardRuntimeSelfTest();
       viewerSelfTestPassed = report.passed;
-      view.showSelfTestPassed(report.checks, blobWorkerDurationMs);
+      view.showSelfTestPassed(
+        [...guard, ...activityChecks, ...report.checks],
+        blobWorkerDurationMs,
+      );
       setRunning(false);
     } catch (cause) {
       viewerSelfTestPassed = false;
@@ -276,7 +288,8 @@ export function createActivityViewerController(
 
   const exportController = createViewerExportController({
     view,
-    state: () => currentExport,
+    state: () => (exportSession.contains(currentExport) ? currentExport : null),
+    session: exportSession,
     createTextExport: dependencies.createViewerExport,
     createWorkbookExport: dependencies.createViewerWorkbookExport,
     downloadBlob: dependencies.downloadBlob,

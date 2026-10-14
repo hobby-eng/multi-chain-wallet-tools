@@ -1,11 +1,13 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readReleaseMetadata } from "./project-metadata.mjs";
+import { WASM_MODULES } from "./wasm-modules.mjs";
+import { ProjectMetadata } from "./project-metadata.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const checkOnly = process.argv.includes("--check");
-const release = readReleaseMetadata(root);
+const metadata = new ProjectMetadata(root);
+const release = metadata.release;
 const changes = new Map();
 
 function stage(relativePath, transform) {
@@ -29,7 +31,7 @@ for (const workspaceRoot of ["apps", "packages"]) {
     try {
       stage(relativePath, (text) => {
         const manifest = JSON.parse(text);
-        manifest.version = release.version;
+        manifest.version = metadata.packageVersion(`${workspaceRoot}/${entry.name}`);
         return `${JSON.stringify(manifest, null, 2)}\n`;
       });
     } catch (cause) {
@@ -38,17 +40,13 @@ for (const workspaceRoot of ["apps", "packages"]) {
   }
 }
 
-for (const rustPackage of [
-  "dash-shielded-wasm",
-  "recovery-codex32-wasm",
-  "recovery-sskr-wasm",
-  "recovery-envelope-wasm",
-]) {
+for (const rustPackage of WASM_MODULES.map(({ packageDirectory }) => packageDirectory)) {
+  const version = metadata.packageVersion(`packages/${rustPackage}`);
   stage(`packages/${rustPackage}/rust/Cargo.toml`, (text) =>
     replaceRequired(
       text,
       new RegExp(`^(\\[package\\]\\nname = "${rustPackage}"\\nversion = ")[^"]+(")`, "mu"),
-      `$1${release.version}$2`,
+      `$1${version}$2`,
       `${rustPackage} Rust package version`,
     ),
   );
@@ -56,7 +54,7 @@ for (const rustPackage of [
     replaceRequired(
       text,
       new RegExp(`(\\[\\[package\\]\\]\\nname = "${rustPackage}"\\nversion = ")[^"]+(")`, "u"),
-      `$1${release.version}$2`,
+      `$1${version}$2`,
       `${rustPackage} Rust lock version`,
     ),
   );
@@ -80,16 +78,12 @@ stage("apps/key-derivation/launcher/Cargo.lock", (text) =>
 );
 stage("THIRD_PARTY_NOTICES.md", (text) => {
   let next = text;
-  for (const rustPackage of [
-    "dash-shielded-wasm",
-    "recovery-codex32-wasm",
-    "recovery-sskr-wasm",
-    "recovery-envelope-wasm",
-  ]) {
+  for (const rustPackage of WASM_MODULES.map(({ packageDirectory }) => packageDirectory)) {
+    const version = metadata.packageVersion(`packages/${rustPackage}`);
     next = replaceRequired(
       next,
       new RegExp(`^(${rustPackage}\\s+)[0-9]+\\.[0-9]+\\.[0-9]+(\\s+)`, "mu"),
-      `$1${release.version}$2`,
+      `$1${version}$2`,
       `${rustPackage} notice version`,
     );
   }

@@ -1,0 +1,1447 @@
+{
+  "description": "Report file names AUD-NNN-<date> (owner, 2026-10-14): a documentation-only migration. No audit was replayed; findings, statuses, counts, commands, source manifests and artifact hashes keep their meaning. sha256Before is the publication before this migration; rebound lists the document bindings that now name the new bytes.",
+  "appliedAtUtc": "2026-10-13T23:37:06.629928+00:00",
+  "renamed": [
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-01-2026-09-08.json",
+      "to": "docs/audits/AUD-001-2026-09-08.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-01-2026-09-08.md",
+      "to": "docs/audits/AUD-001-2026-09-08.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-02-2026-09-08.json",
+      "to": "docs/audits/AUD-002-2026-09-08.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-02-2026-09-08.md",
+      "to": "docs/audits/AUD-002-2026-09-08.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-03-2026-09-09.json",
+      "to": "docs/audits/AUD-003-2026-09-09.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-03-2026-09-09.md",
+      "to": "docs/audits/AUD-003-2026-09-09.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-04-2026-09-12.json",
+      "to": "docs/audits/AUD-004-2026-09-12.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-04-2026-09-12.md",
+      "to": "docs/audits/AUD-004-2026-09-12.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-05-2026-09-12.json",
+      "to": "docs/audits/AUD-005-2026-09-12.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-05-2026-09-12.md",
+      "to": "docs/audits/AUD-005-2026-09-12.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-06-2026-09-12.json",
+      "to": "docs/audits/AUD-006-2026-09-12.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-06-2026-09-12.md",
+      "to": "docs/audits/AUD-006-2026-09-12.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-07-2026-09-12.json",
+      "to": "docs/audits/AUD-007-2026-09-12.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-07-2026-09-12.md",
+      "to": "docs/audits/AUD-007-2026-09-12.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-08-2026-09-12.json",
+      "to": "docs/audits/AUD-008-2026-09-12.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-08-2026-09-12.md",
+      "to": "docs/audits/AUD-008-2026-09-12.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-09-2026-09-12.json",
+      "to": "docs/audits/AUD-009-2026-09-12.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-09-2026-09-12.md",
+      "to": "docs/audits/AUD-009-2026-09-12.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-10-2026-09-15.json",
+      "to": "docs/audits/AUD-010-2026-09-15.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-10-2026-09-15.md",
+      "to": "docs/audits/AUD-010-2026-09-15.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-11-2026-09-15.json",
+      "to": "docs/audits/AUD-011-2026-09-15.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-11-2026-09-15.md",
+      "to": "docs/audits/AUD-011-2026-09-15.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-12-2026-09-17.json",
+      "to": "docs/audits/AUD-012-2026-09-17.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-12-2026-09-17.md",
+      "to": "docs/audits/AUD-012-2026-09-17.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-13-2026-09-17.json",
+      "to": "docs/audits/AUD-013-2026-09-17.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-13-2026-09-17.md",
+      "to": "docs/audits/AUD-013-2026-09-17.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-14-2026-09-17.json",
+      "to": "docs/audits/AUD-014-2026-09-17.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-14-2026-09-17.md",
+      "to": "docs/audits/AUD-014-2026-09-17.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-15-2026-09-17.json",
+      "to": "docs/audits/AUD-015-2026-09-17.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-15-2026-09-17.md",
+      "to": "docs/audits/AUD-015-2026-09-17.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-16-2026-09-17.json",
+      "to": "docs/audits/AUD-016-2026-09-17.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-16-2026-09-17.md",
+      "to": "docs/audits/AUD-016-2026-09-17.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-17-2026-09-17.json",
+      "to": "docs/audits/AUD-017-2026-09-17.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-17-2026-09-17.md",
+      "to": "docs/audits/AUD-017-2026-09-17.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-18-2026-09-29.json",
+      "to": "docs/audits/AUD-018-2026-09-29.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-18-2026-09-29.md",
+      "to": "docs/audits/AUD-018-2026-09-29.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-19-2026-10-01.json",
+      "to": "docs/audits/AUD-019-2026-10-01.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-19-2026-10-01.md",
+      "to": "docs/audits/AUD-019-2026-10-01.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-20-2026-10-01.json",
+      "to": "docs/audits/AUD-020-2026-10-01.json",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-20-2026-10-01.md",
+      "to": "docs/audits/AUD-020-2026-10-01.md",
+      "gitTracked": true
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-21-2026-10-03.json",
+      "to": "docs/audits/AUD-021-2026-10-03.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-21-2026-10-03.md",
+      "to": "docs/audits/AUD-021-2026-10-03.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-22-2026-10-06.json",
+      "to": "docs/audits/AUD-022-2026-10-06.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-22-2026-10-06.md",
+      "to": "docs/audits/AUD-022-2026-10-06.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-23-2026-10-07.json",
+      "to": "docs/audits/AUD-023-2026-10-07.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-23-2026-10-07.md",
+      "to": "docs/audits/AUD-023-2026-10-07.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-24-2026-10-08.json",
+      "to": "docs/audits/AUD-024-2026-10-08.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-24-2026-10-08.md",
+      "to": "docs/audits/AUD-024-2026-10-08.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-25-2026-10-08.json",
+      "to": "docs/audits/AUD-025-2026-10-08.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-25-2026-10-08.md",
+      "to": "docs/audits/AUD-025-2026-10-08.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-26-2026-10-09.json",
+      "to": "docs/audits/AUD-026-2026-10-09.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-26-2026-10-09.md",
+      "to": "docs/audits/AUD-026-2026-10-09.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-27-2026-10-08.json",
+      "to": "docs/audits/AUD-027-2026-10-08.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-27-2026-10-08.md",
+      "to": "docs/audits/AUD-027-2026-10-08.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-28-2026-10-12.json",
+      "to": "docs/audits/AUD-028-2026-10-12.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-28-2026-10-12.md",
+      "to": "docs/audits/AUD-028-2026-10-12.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-29-2026-10-12.json",
+      "to": "docs/audits/AUD-029-2026-10-12.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-29-2026-10-12.md",
+      "to": "docs/audits/AUD-029-2026-10-12.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-30-2026-10-13.json",
+      "to": "docs/audits/AUD-030-2026-10-13.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "multi-chain-wallet-tools",
+      "from": "docs/audits/audit-30-2026-10-13.md",
+      "to": "docs/audits/AUD-030-2026-10-13.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "dash-wallet-tools",
+      "from": "docs/audits/audit-01-2026-10-12.json",
+      "to": "docs/audits/AUD-001-2026-10-12.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "dash-wallet-tools",
+      "from": "docs/audits/audit-01-2026-10-12.md",
+      "to": "docs/audits/AUD-001-2026-10-12.md",
+      "gitTracked": false
+    },
+    {
+      "repository": "dash-wallet-tools",
+      "from": "docs/audits/audit-02-2026-10-12.json",
+      "to": "docs/audits/AUD-002-2026-10-12.json",
+      "gitTracked": false
+    },
+    {
+      "repository": "dash-wallet-tools",
+      "from": "docs/audits/audit-02-2026-10-12.md",
+      "to": "docs/audits/AUD-002-2026-10-12.md",
+      "gitTracked": false
+    }
+  ],
+  "files": [
+    {
+      "stage": "migration",
+      "repository": "dash-wallet-tools",
+      "path": "docs/audits/AUD-001-2026-10-12.json",
+      "sha256Before": "6434d9685e75b52ed9aaa9f9cf4e64120f3a8b76ffd05d1eba96bbb8e9453d4c",
+      "sha256After": "fa129407e3b97d30a3bc3de25ecaa4d80a5319fe26b18ad95d27e60e209db0c8"
+    },
+    {
+      "stage": "migration",
+      "repository": "dash-wallet-tools",
+      "path": "docs/audits/AUD-001-2026-10-12.md",
+      "sha256Before": "4826edf8ce5e230e7505020a09f92c8b8335c9a00aaae163bf570e9cffa6172a",
+      "sha256After": "f529b196039c981325d07410567612206b1e62edda56f1da4a59f0bbf71590df"
+    },
+    {
+      "stage": "migration",
+      "repository": "dash-wallet-tools",
+      "path": "docs/audits/AUD-002-2026-10-12.json",
+      "sha256Before": "e5c91d514e99097890e11720974f62754883ab83ea515db00596a49056d15965",
+      "sha256After": "7004e4ccaeaf306344901ebf525c35926c8730cb4b3f2b43db161bbbcab5165e"
+    },
+    {
+      "stage": "migration",
+      "repository": "dash-wallet-tools",
+      "path": "docs/audits/README.md",
+      "sha256Before": "602060f457f2cc885984c678a8108bdd1fbd223ec55f961ced3c64bac8a9fe58",
+      "sha256After": "d21f34208160c1f04597ef0c30ce66321d31ee0e8f285b13d5d0bc120b8b6896"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "SECURITY_AUDIT.md",
+      "sha256Before": "f1034354084fe3b178b833763dd4c8a6287121d2b287bff89d1b15593fb6296f",
+      "sha256After": "e4dbed800a5d8337fc756f68a93197e039c009a9abd178a2cb11ac108bfe654a"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "apps/DASH_UNITS_AUDIT.md",
+      "sha256Before": "3f14383474d047e1b17e62b2124140107cc2f889d53844da9f629a60ce266add",
+      "sha256After": "df9dd018c745b985a71a8609e4cb788e22c682286622c0c8691ee62bc5c6d26c"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "apps/psbt-inspector/README.md",
+      "sha256Before": "77910c6cea49df481089291e2e7546877f87abb98e3e23bf2efd6b9c6b161526",
+      "sha256After": "d89bc49451fc463129885738efeda2be263e0716577e633b74571afe72f907b3"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "apps/psbt-inspector/SECURITY.md",
+      "sha256Before": "7359360db91a3bddcd14a1e0f13c870a76113c4eb77a3e6e6fb572a301bb3912",
+      "sha256After": "20a4eb509c0a84e4843e25c28259da6c3a9ec6c0185aab48eaa9db49b834485a"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/ROADMAP.md",
+      "sha256Before": "25d0f85f6ddae7662da1a4f4995783cfbf86166ee36e4d3778d93f5c710b6cc8",
+      "sha256After": "35b3f0dae5093521ecfb5d99e88427c56db1eee3f9a36d868508fcee2c4c55d0"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/VERIFICATION.md",
+      "sha256Before": "7f25a1d5a0bdcd6ec132b45f8508e053436069eeb58a1a7a4ef8f08b3cfc5b38",
+      "sha256After": "5b46635b5795e467cb45744cf0a60adcfcf2cdcf332454af559bda4457158f77"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-001-2026-09-08.json",
+      "sha256Before": "b0b7c6a8cfd23bb91851c5bc30edb29156f7ad066448881f75d437761c6ec3b3",
+      "sha256After": "88b2c33ed29bafbeac3d2824277d006e4c882978ddb1099a45bc204a69c8cd72"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-002-2026-09-08.json",
+      "sha256Before": "6bd42ce3fc8f2bddf21387447150fe0ce55ae3991602dc6279bb101626393363",
+      "sha256After": "142232649ac5dd20a653485deac6c052320a3ed8ebb49de09ca83bc71955b16b"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-003-2026-09-09.json",
+      "sha256Before": "790bddddeda8803c6a36e98e6f6dd866e9cedb0fbb466498706f88d57ff2de28",
+      "sha256After": "7df50a7c257b9e3b2df36c6b2b3b687f90fd4f7b467b8a6b4a64747a7883d341"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-004-2026-09-12.json",
+      "sha256Before": "6fd22a46633e925c9e1b2a9fe944406eb31a0e2e244fe7757a0bbc3c3f224b09",
+      "sha256After": "88f647b2b191b0f79c351e710944d420a3bb85ea09c1272e8e740a9b671d0a93"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-004-2026-09-12.md",
+      "sha256Before": "78d2c02504ff860543e252da49559ea7fdd92f951f743d7f1e3b65195ad2686b",
+      "sha256After": "e4962f045a8269514e3e5a4fa110375f43105220efe9e457034d3d7b50721039"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-005-2026-09-12.json",
+      "sha256Before": "0737107d801b7800205c89b03f8dd6ef028d2f69c278021060a47e2c134ea935",
+      "sha256After": "f8e39b26ef0bbcf0c422c4192b63c9127ae95568656aa4b160ca6417f68bd594"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-005-2026-09-12.md",
+      "sha256Before": "df62b71837fdbba2b77d26f368c1396c19e7e60dcd08ead6b83b6c93a16828e0",
+      "sha256After": "cfbb3312c32504403cca88385ea7f9b0ff22e2de5f71968325735b36187d10b2"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-006-2026-09-12.json",
+      "sha256Before": "5f379ec6bc1b8e9c6bd04fb6e37e3221ad25380b722d03f9f60b7d87cfb01016",
+      "sha256After": "7d4f6a12f9803a4c7fded59eb1adeecfb92847f6b52686f03dd07c6f58c76510"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-006-2026-09-12.md",
+      "sha256Before": "9dffe853eb9efa674c0604ea313e5083d296f8e3ad9ee788bf30e17e6e82e048",
+      "sha256After": "624e5fe5894d1eacf993048e4781927dce767ebd9f4fb55b217bbeccec297811"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-007-2026-09-12.json",
+      "sha256Before": "7f856e6f5ac3ac72565e93429b37a87c904352bc2642aad4f7ebe3b27ebca9cc",
+      "sha256After": "d7e57304086da1ab91044900c2cdd6961aadfe9120e39946b7def50757a43140"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-007-2026-09-12.md",
+      "sha256Before": "1d37c30015de0011a4cd3b8574e30ee53ac222380b55b6788d55c1ef975d9a08",
+      "sha256After": "32bf73ad81793de04b21cc0c0f54c6913843b76914fd3dac45ab1f278c874756"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-008-2026-09-12.json",
+      "sha256Before": "6a9c732225183310c7d11c0ba498631169129e19cd737ccd04ed4044bcb312a3",
+      "sha256After": "ed5cf60b4f867945e1dd226ec227561d949aab3e00d43d0c68fec310bcf02e89"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-008-2026-09-12.md",
+      "sha256Before": "df23d1fb4ac92e9c6ac7f6e3a80d4e63913a1c41c61e6bdb4c4529d7dca7673b",
+      "sha256After": "e6ee7dbeac15a9155e9b6b40ab0304165a441a8a365035c3b9cab1a07b690eeb"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-009-2026-09-12.json",
+      "sha256Before": "2c06ba46f6f83b50c3197ef636ce40a075a5bdb3b180f5dbe10e81023e5c9b65",
+      "sha256After": "f710f7f3f6c1fdaace698ad262935dfe7971c70e856a1a9ae6bd92095c929bd4"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-009-2026-09-12.md",
+      "sha256Before": "ad5f160a0372d9b331f741bfec4c7edd2e5578a5cb5919241f11f7121985d278",
+      "sha256After": "09add2dfb4da8c0abe12d1005a93bffb0e8c98d37910de5024a754257976eb6a"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-010-2026-09-15.json",
+      "sha256Before": "533b9fdb527ffcbde948292aba090dfb3fc4da6e25eb2351e069565d25b62646",
+      "sha256After": "ee750f311127993aa3601010180af7a6e9534a8ac20d717d2c9367b857d80442"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-011-2026-09-15.json",
+      "sha256Before": "25f6f5a7095393a2b0c27d1ed4c9cbc90d7c78333d0416f58dd1001ac6df1821",
+      "sha256After": "5baf0a0204a3c60626b1751ff96c85bf8d97158fb0a28fb594b284370dd87f4a"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-011-2026-09-15.md",
+      "sha256Before": "ead66df155d19fefff4ae4d3b64bbf75bd9e6927acfa88a30d89f8621cee08ca",
+      "sha256After": "3f3fb8b7236856ada362a57005a6b2bd0c43df3807fb2a5409dd20236b2dfbda"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-012-2026-09-17.json",
+      "sha256Before": "28247f5044c43fbf053dbf59ec23e0c18ad7955c7da3dca94f08e50865e1e3ee",
+      "sha256After": "95b78c2618a8a51d9c722c68b6d7f4bb91147ac745ac8d74cc4fa11fb81f5ea1"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-013-2026-09-17.json",
+      "sha256Before": "d01f5b34502cc8b23ffc4e2bcc1a49c3a35c501de6cdadefdb35df9cf59b50df",
+      "sha256After": "3519acef455bc5f3aa8cb28da0a3b0af500ec5469c613c4c49acdb3bc413fbe5"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-013-2026-09-17.md",
+      "sha256Before": "b0e6c194973863a91e85f7fab60bdcc529df3a54aefae1123b6429755971c560",
+      "sha256After": "7ef4cdae5569ff84b20758501dd592d720e7b3f7ed6e65ec6257748436b0a76a"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-014-2026-09-17.json",
+      "sha256Before": "0f5a96e67ab341296a7e308079f097c429f9e6389672c14ecd2a0a773dcec32e",
+      "sha256After": "71d78d43b36c3b10bb2719c65972befd68e6f504bd9625c72055cfb53d9be3fe"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-014-2026-09-17.md",
+      "sha256Before": "c8a09ce07705741a9252726af5e7d0a74d27bd47b2aa909f880cf38daa52aabe",
+      "sha256After": "6e71ac8fd170c63dd361658c650ec5f2d5a39e5a2410f1a3b1adcf75fd3f3c03"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-015-2026-09-17.json",
+      "sha256Before": "198e87d354df19428d6ebb0a78e6cdc11d346a43cf1107ccf751c429559af87e",
+      "sha256After": "8466e79ea60b5b388319d0c7bfbca2b350323a5d8ede42fce1abf191e646f794"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-016-2026-09-17.json",
+      "sha256Before": "f7cf4cd164e789621618e683f35132de037d1774ba7a33fdeb780e42552215ec",
+      "sha256After": "88f696c5265502be657473f59cb18c18b977846f9cf330f25c07710c00a85c34"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-017-2026-09-17.json",
+      "sha256Before": "647ffc8c3a7f7c9a7f128052814838be7b096ed7d874ca31d49913e666a4d4e5",
+      "sha256After": "ef1605ab74c56ddb94cf7b4c739b14c2763157474620860f562b146705a6006b"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-019-harnesses/README.md",
+      "sha256Before": "aa3883e67a2906a6059e4383c0921fae5bc1a8317836a9af95b45bb8f005d613",
+      "sha256After": "a818a854943366ad09bb7d012378391607dfd6634968db6dabb7e93d48d76b20"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-020-harnesses/finalize-evidence.mjs",
+      "sha256Before": "56b39258906bd5c7bafbb751d2f4fdca258cbde244d86d3e733823fe5dec24a2",
+      "sha256After": "ac670aef4e668218b3cde1c3a73e7cc34605aa5c0177cc0a712bfa09fd57b436"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-021-harnesses/build-report.py",
+      "sha256Before": "fbd9a2639c45dcbecc0e04542385185c04ebc163abb59c75869c02aeae7317de",
+      "sha256After": "47f9e9952cf0cc64b235ba2aba93169150cd32357c05dfb24a897c2f3fed80c8"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-021-harnesses/finalize-review.py",
+      "sha256Before": "10a275340e772b52d5dc7106663d68f90e42a7a9f261fb8ffc108a982703dc33",
+      "sha256After": "b56e6eea7d32a04d50f35046d0ba5c10e9d8de019966b05495af8c04895353d0"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-022-2026-10-06.md",
+      "sha256Before": "0fc7cd71f0f42d1d8a0dd7cb45893fe23314ffd049abf136d758936c0355bced",
+      "sha256After": "9fc2c7e613931082d89191b3b2ef7c08b4ffbb3f504cf7e92712ba3864820ad2"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-022-harnesses/README.md",
+      "sha256Before": "13b093b28a5133209ed0e893c974300b450f6c90a08748dff789e1cc43f48a63",
+      "sha256After": "37e93aca679b4274582dc03a3ea767a1747abfec1f77fa76398ad76b2bb13bef"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-023-2026-10-07.md",
+      "sha256Before": "984b08cc03de7226d294fbb6d961984103066d2e1dbdeec5ee953b0c96ba37ad",
+      "sha256After": "7fd1b32785064d6b93828f9cd76f7737024a9ff659ed3480d0ab6ff76bb5a1e0"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-023-harnesses/README.md",
+      "sha256Before": "c42742f8ab2147f3806b415a7c41602fbb10b05a2b30eb72751496cd871ab575",
+      "sha256After": "11b998eee65edd354088b19fb7dff86c6fc35c46e921b5e6e9fb2d4ac7cfc068"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-024-2026-10-08.json",
+      "sha256Before": "554b6139eb91d4d4d8356a1fa160e542fe394241a690a6e9479889646cbf79ea",
+      "sha256After": "e4e18c98b212f3e953f902f041bf1931077e34bf4419fb655a2d34866c9a24c0"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-024-harnesses/README.md",
+      "sha256Before": "4b8e1fc9eceba30fd65eb9d6597c4f53b85081376fe2bf2f7c83ab0f6bbcbd8c",
+      "sha256After": "422297c9dd453cb7cb1cdedce51cca1f9a9ab5ff862eb7e958e3eaa26a4ea1d8"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-025-2026-10-08.json",
+      "sha256Before": "543cbb17db659a49b1835a6e9c6b031af91c8b362e38162271028885f433230d",
+      "sha256After": "ff920f04cb6d6f52ccf5d32ef1e874b814e0dc318da1abacc45b486e1a105668"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-025-2026-10-08.md",
+      "sha256Before": "a37799c455d5edf35a363f38c3400a92553b9be52ebcffe5734eb2aa8ccf6d7e",
+      "sha256After": "ac60c0ca0bd9c73219c78a423ea9d26c3bf0d4aa3b598da072e78653ccbebe7d"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-025-harnesses/finalize.py",
+      "sha256Before": "4e55f4abb7378fcf0334d807f3441555c3374e070e4c208cb176af8dc75ade80",
+      "sha256After": "422fdee32a33911e40bbc9696a7ce9e6e9850ea0a0ccefe7ea9f3efeb2300f72"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-026-2026-10-09.json",
+      "sha256Before": "cd8fd4bdd259f84242630af88162f3494d5898f538f75c5d74ba9ed50ccf5860",
+      "sha256After": "38d19f7d7722d526e89fe5c122f5af13581c4e15c90d8dfd66c09f0beac7477b"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-026-2026-10-09.md",
+      "sha256Before": "7a2e53e27adf1374409144102803c5069a85002188ae7767ca72eafdff984c31",
+      "sha256After": "95159c62930648ba6e3c586dce93ea17f0e77d52b861edefb60fe871722dd17d"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-026-harnesses/README.md",
+      "sha256Before": "3178fe9cabbf253393a75a7839fc2f7c355a29c57b94c631193bc141e18161cf",
+      "sha256After": "4483aa648b317d677a8c6dab47e02ae38149c4203dbdf5a25d7ecf0737a44043"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-026-harnesses/append-remediation.py",
+      "sha256Before": "b88bf2c62a17e63bd6d870f1c677f5944744e2180f047f030540cad44ce80afe",
+      "sha256After": "693136f9539d2d3d06b7e705e8ad8b72f5a492b97fbc2a7abe935dacba9f220b"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-026-harnesses/build-audit-records.py",
+      "sha256Before": "262ca9ad5a122a7d57caa702513e6fb3e2ccb4f24f49f0880c703cbebddeed00",
+      "sha256After": "25ffba7733ae68b5839f7514c05eb9cc16973a28ca7242d2ec8190b5df6a7538"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-026-harnesses/build-historical-records-diff.py",
+      "sha256Before": "b18428511afcbd4dedfe872d67d67e6ae44ccb2d6e3cd3cf6486abe3d7d99592",
+      "sha256After": "0b7be1c16c44d754133c47064a244e6c2542ed87df911b3d57fb46e2de0ee396"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-026-harnesses/resumption/README.md",
+      "sha256Before": "d9a04beeb8a8f300d716b719e5182c6ea7886fc55bcc4b5850e40b08e8cd8565",
+      "sha256After": "909a812df4697f9b79feb8964a9b11453d653adbd2ab3f22ddd6a11272f30216"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-026-harnesses/validate-remediation.py",
+      "sha256Before": "60c4a32ff860e2ec01be8d7edca334f850bf60fbb44e133c060eb613c123159d",
+      "sha256After": "ff5c653ca6d5999df1fb52fe01a41fff6490d5350d2bb381074b02f5fe5905c6"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-027-2026-10-08.json",
+      "sha256Before": "fd138aa44597e1a308e9a736a612d21ab46891fed995a4d5ea0984890fde6917",
+      "sha256After": "947e5a74a613d273e8d1652c3f257376fd838c647d80ef3c143357852e9fea96"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-027-2026-10-08.md",
+      "sha256Before": "74933011ffe3cb56924b1790784c7630a22543c67f54df688d40405c18cce803",
+      "sha256After": "8ed5e57ed5c920ab37f14c40a3ff481a2670dcf180a648ad720354eaf52c582f"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-027-harnesses/README.md",
+      "sha256Before": "fd1c8b8bbd4b2fc3ff7341e2427812de9005ea86dea1369a8f0264dc6ebe0098",
+      "sha256After": "aa8fa207db89c073d6e187e1d5d82b8111717dafdaa32dc94a111b1bffa11a7c"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-027-harnesses/append_remediation.py",
+      "sha256Before": "46015c6f8c195336584e3c57a875c320e7b9de326b7015c5b57cd5a7e73a60f3",
+      "sha256After": "eb3acecc93307d4293f7ec58dca71030d735a77fe3300469018641d29f806d86"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-027-harnesses/create-report.py",
+      "sha256Before": "7b95793e64aa08e297f55362952228b3ffc9ab147a44bbf39a9dc845b380545c",
+      "sha256After": "02ea8c9d69ccf58cc2aa38c1e62ac92a57636149b5b307a158fb947ce6412636"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-027-harnesses/validate.py",
+      "sha256Before": "5c4502a3088a448097d421aa72407c403e3868eae3b70360353252f5cb4dd639",
+      "sha256After": "0cbaccee89f5b4a81aac157c0a931f7ac215dd00c8f3eb98423442c2af3dbbd6"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-028-harnesses/README.md",
+      "sha256Before": "f8f8ea38e9b8ca0253d270be74b8437dbb89b550d6429c5f02ed5f47dce9dbe7",
+      "sha256After": "585645a12da8c4a2c320cbc96a388234cd53b7b417a1c01dfca91cf76369e998"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-028-harnesses/report.py",
+      "sha256Before": "7054dcf103d7a9cb0b83224a27a775a44218881c936b6d0e947dd9f09ec07cbd",
+      "sha256After": "4afb1b96de8fc4bd5fa3c9d1dd690fa1ec49560487ac158d2d16d63191c8db9f"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-028-harnesses/validate.py",
+      "sha256Before": "8e22f671eee612616b3fd4285d772721700c420407718758c01de8e2bf558d88",
+      "sha256After": "06005d1e1404f7e22a44d4686a635ca072d3ca8b249914190e029417647afeb4"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-029-2026-10-12.json",
+      "sha256Before": "918de37813e62d1b69ffe5cd29ae9b7a38f47e0a59a5a76db204784bbd95b8b6",
+      "sha256After": "6a396f05c20730ffc28b43fd1e10fe01a1297d77d93dcba4087379e97c3d5957"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-029-harnesses/report.py",
+      "sha256Before": "df821c2bae6c149a2f5e33f96d5d948bef69ecff9726c8a29fe46c92c8e9d696",
+      "sha256After": "68bdf0878c99dab9e0bbd0fdf12a4f419c46997a29489b67ff3266a11c5784e5"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-029-harnesses/validate.py",
+      "sha256Before": "7dda211fff51e7d155740db0791c979cfe81ec7b1b52009933b6c83fbc99cb3e",
+      "sha256After": "3bc41baee29ff75c566753ab300d14d88a325436b4f66f44d576b31bca10207c"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-030-2026-10-13.json",
+      "sha256Before": "4acb05a2149bc5f133caa4dbad522d70dea12c9d8901044bf87f6faab660f42f",
+      "sha256After": "20c0f150e9b3fef42d20e247735bae00ff6edcfc022b550d054c227bf8cd4bb4"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-030-harnesses/privacy.py",
+      "sha256Before": "2e11e4a3898f35b7ab307462bdd9e5bab5f226763ae74962643b0aa4f30badff",
+      "sha256After": "8385149eb500605616ca2502bf7c8a6ede93c0eb95e77ddcac6d8a6cac7d8701"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-030-harnesses/report.py",
+      "sha256Before": "7ddfdbbb0faef30c6b98d9843ca6d5bf8687b8045944882bf81e38ee64b3f5cb",
+      "sha256After": "19d00e8aa8c2299faa473fe453bee7f9188f120b50c1a948790a8d09ff4e4f05"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/README.md",
+      "sha256Before": "b47d0d70723a569cba027d1b200b67b46355c78eb044ad9e0a1a4e0e504c0416",
+      "sha256After": "85d1b333f0514c16b7c2257a2511b086a1bf43e021e92d565e78333560da8f92"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/reference/DASH_IMPLEMENTATION.md",
+      "sha256Before": "3b46993a750dd02bd9848f367bf5d866857d1ce97ac8e70410c83ac2b4597084",
+      "sha256After": "ed70dd706ec231d74922b800cb6efb8177a8b18da20a6f495c1586791d47b210"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "path": "tooling/audit-metadata.test.mjs",
+      "sha256Before": "3117e0eea48e4ef9ffd73e12cdc8dc88dd71b91a50451bb3ab0c81e797afc0d2",
+      "sha256After": "ace1750d47210cd77f84a453b6cf74577591ca2aa115f82cd62b952fee708c77"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-026-2026-10-09.json",
+      "sha256Before": "38d19f7d7722d526e89fe5c122f5af13581c4e15c90d8dfd66c09f0beac7477b",
+      "sha256After": "b38483934d643fec8f70745921fdef475c851eb2a26e801546ee8355ef9bb8df"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-028-2026-10-12.json",
+      "sha256Before": "3516e13eb79d292835ffb02e5cbb7c47c45d5665d12999d65479bf1d94f53a1f",
+      "sha256After": "24f24d75f4fb5a59491edb2bf30e82b0f5b109c59c78754b8349112610c2b779"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-028-harnesses/validate.py",
+      "sha256Before": "06005d1e1404f7e22a44d4686a635ca072d3ca8b249914190e029417647afeb4",
+      "sha256After": "5aa786c23c5152cb307abfdad979f9d629ac36cf5abe9511889972224abfefca"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-029-2026-10-12.json",
+      "sha256Before": "6a396f05c20730ffc28b43fd1e10fe01a1297d77d93dcba4087379e97c3d5957",
+      "sha256After": "6a5bc9f09267975d205a499052d112a3aa280ff71dd024d0d3cfc689672d4a77"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-029-harnesses/report.py",
+      "sha256Before": "68bdf0878c99dab9e0bbd0fdf12a4f419c46997a29489b67ff3266a11c5784e5",
+      "sha256After": "3e710ed5e72f9a2e51c544542ea7c484a9f147807860b2f0baf2e5fee7fd01da"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-029-harnesses/validate.py",
+      "sha256Before": "3bc41baee29ff75c566753ab300d14d88a325436b4f66f44d576b31bca10207c",
+      "sha256After": "748ff67e96a258de9ff409d657a6c017558d55a78f4601e5649d6b7962f9468a"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-030-2026-10-13.json",
+      "sha256Before": "20c0f150e9b3fef42d20e247735bae00ff6edcfc022b550d054c227bf8cd4bb4",
+      "sha256After": "6e29be71fe2dfb23f48a77baf4071bb7b1c6cf0266449a263aa3d7b6fc16daa4"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-030-harnesses/privacy.py",
+      "sha256Before": "8385149eb500605616ca2502bf7c8a6ede93c0eb95e77ddcac6d8a6cac7d8701",
+      "sha256After": "fc054ed9182aed05451f23e339de81caf35b6a200f3c2ae7b6ee741ec66dbc6a"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-028-2026-10-12.json",
+      "sha256Before": "24f24d75f4fb5a59491edb2bf30e82b0f5b109c59c78754b8349112610c2b779",
+      "sha256After": "f6094fc50a98ea3369e4ba626fc345aa39d8ee338bbbbf078d722e60b5e7a00f"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-028-harnesses/README.md",
+      "sha256Before": "585645a12da8c4a2c320cbc96a388234cd53b7b417a1c01dfca91cf76369e998",
+      "sha256After": "2b0767a7e21f638f1438f6c7156d0d347d7419c5868575c5a22475e885369084"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-029-2026-10-12.json",
+      "sha256Before": "6a5bc9f09267975d205a499052d112a3aa280ff71dd024d0d3cfc689672d4a77",
+      "sha256After": "578da593b740223825d3ea0809cb41ef2ee24d12a7ad274ddf74caa5e7b2cf50"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-029-harnesses/README.md",
+      "sha256Before": "943784d87b9c25234d0ea71d9878b4364530aa6ca8751e805cf80b1eb50d4fdb",
+      "sha256After": "5f6ac6012d00ba91367d4c49e1d8731ed9fc02fae28429771710879bc51eb117"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-029-harnesses/report.py",
+      "sha256Before": "3e710ed5e72f9a2e51c544542ea7c484a9f147807860b2f0baf2e5fee7fd01da",
+      "sha256After": "9db6ef1cfc1a45233f4961035aa12f0125bfd3ecee949fc7a811f97d74c5df3b"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/AUD-030-2026-10-13.json",
+      "sha256Before": "6e29be71fe2dfb23f48a77baf4071bb7b1c6cf0266449a263aa3d7b6fc16daa4",
+      "sha256After": "0c85573af50f7c65e42866a651d41e952d867a4252b7204fed7f399dbecb2b18"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/README.md",
+      "sha256Before": "7805347b445471c653d688afa0abbbea453d48e72ceb523a1bd60d27388cbf80",
+      "sha256After": "7edaddd84aaaea8bbf3984b0228849dcad6d1d0a7dd2c10f5df4a5d8e88bdc62"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "path": "docs/audits/report-names/README.md",
+      "sha256Before": "a64cb59442bd023ade6751fb799d31769e32fa8c2606b8a94ab75ed13dd9f905",
+      "sha256After": "eec8b0788fce5c7c2d45f28bdab64008dee08a3638b5449856b69c66e9472bff"
+    }
+  ],
+  "rebound": [
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-025-2026-10-08.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-025-harnesses/finalize.py",
+      "from": "4e55f4abb7378fcf0334d807f3441555c3374e070e4c208cb176af8dc75ade80",
+      "to": "422fdee32a33911e40bbc9696a7ce9e6e9850ea0a0ccefe7ea9f3efeb2300f72"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-026-2026-10-09.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-026-harnesses/validate-remediation.py",
+      "from": "60c4a32ff860e2ec01be8d7edca334f850bf60fbb44e133c060eb613c123159d",
+      "to": "ff5c653ca6d5999df1fb52fe01a41fff6490d5350d2bb381074b02f5fe5905c6"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-026-2026-10-09.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-026-harnesses/resumption/README.md",
+      "from": "d9a04beeb8a8f300d716b719e5182c6ea7886fc55bcc4b5850e40b08e8cd8565",
+      "to": "909a812df4697f9b79feb8964a9b11453d653adbd2ab3f22ddd6a11272f30216"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-026-2026-10-09.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-026-harnesses/build-audit-records.py",
+      "from": "262ca9ad5a122a7d57caa702513e6fb3e2ccb4f24f49f0880c703cbebddeed00",
+      "to": "25ffba7733ae68b5839f7514c05eb9cc16973a28ca7242d2ec8190b5df6a7538"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-026-2026-10-09.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-026-harnesses/build-historical-records-diff.py",
+      "from": "b18428511afcbd4dedfe872d67d67e6ae44ccb2d6e3cd3cf6486abe3d7d99592",
+      "to": "0b7be1c16c44d754133c47064a244e6c2542ed87df911b3d57fb46e2de0ee396"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-026-2026-10-09.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-026-harnesses/append-remediation.py",
+      "from": "b88bf2c62a17e63bd6d870f1c677f5944744e2180f047f030540cad44ce80afe",
+      "to": "693136f9539d2d3d06b7e705e8ad8b72f5a492b97fbc2a7abe935dacba9f220b"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-026-2026-10-09.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-027-2026-10-08.md",
+      "from": "74933011ffe3cb56924b1790784c7630a22543c67f54df688d40405c18cce803",
+      "to": "8ed5e57ed5c920ab37f14c40a3ff481a2670dcf180a648ad720354eaf52c582f"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-026-2026-10-09.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-027-2026-10-08.json",
+      "from": "fd138aa44597e1a308e9a736a612d21ab46891fed995a4d5ea0984890fde6917",
+      "to": "947e5a74a613d273e8d1652c3f257376fd838c647d80ef3c143357852e9fea96"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-026-2026-10-09.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-027-harnesses/append_remediation.py",
+      "from": "46015c6f8c195336584e3c57a875c320e7b9de326b7015c5b57cd5a7e73a60f3",
+      "to": "eb3acecc93307d4293f7ec58dca71030d735a77fe3300469018641d29f806d86"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-026-2026-10-09.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-026-harnesses/README.md",
+      "from": "3178fe9cabbf253393a75a7839fc2f7c355a29c57b94c631193bc141e18161cf",
+      "to": "4483aa648b317d677a8c6dab47e02ae38149c4203dbdf5a25d7ecf0737a44043"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-028-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-harnesses/report.py",
+      "from": "7054dcf103d7a9cb0b83224a27a775a44218881c936b6d0e947dd9f09ec07cbd",
+      "to": "4afb1b96de8fc4bd5fa3c9d1dd690fa1ec49560487ac158d2d16d63191c8db9f"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-028-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-harnesses/validate.py",
+      "from": "8e22f671eee612616b3fd4285d772721700c420407718758c01de8e2bf558d88",
+      "to": "06005d1e1404f7e22a44d4686a635ca072d3ca8b249914190e029417647afeb4"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-028-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-harnesses/README.md",
+      "from": "f8f8ea38e9b8ca0253d270be74b8437dbb89b550d6429c5f02ed5f47dce9dbe7",
+      "to": "585645a12da8c4a2c320cbc96a388234cd53b7b417a1c01dfca91cf76369e998"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/validate.py",
+      "from": "7dda211fff51e7d155740db0791c979cfe81ec7b1b52009933b6c83fbc99cb3e",
+      "to": "3bc41baee29ff75c566753ab300d14d88a325436b4f66f44d576b31bca10207c"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/report.py",
+      "from": "df821c2bae6c149a2f5e33f96d5d948bef69ecff9726c8a29fe46c92c8e9d696",
+      "to": "6dcb3da183dd34e9b129c67426c55c933cc215c6821a93a16e2a4dfc0f39064d"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-harnesses/report.py",
+      "target": "dash-wallet-tools/docs/audits/AUD-001-2026-10-12.md",
+      "from": "4826edf8ce5e230e7505020a09f92c8b8335c9a00aaae163bf570e9cffa6172a",
+      "to": "f529b196039c981325d07410567612206b1e62edda56f1da4a59f0bbf71590df"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-harnesses/report.py",
+      "target": "dash-wallet-tools/docs/audits/AUD-001-2026-10-12.json",
+      "from": "6434d9685e75b52ed9aaa9f9cf4e64120f3a8b76ffd05d1eba96bbb8e9453d4c",
+      "to": "fa129407e3b97d30a3bc3de25ecaa4d80a5319fe26b18ad95d27e60e209db0c8"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-030-harnesses/report.py",
+      "from": "7ddfdbbb0faef30c6b98d9843ca6d5bf8687b8045944882bf81e38ee64b3f5cb",
+      "to": "19d00e8aa8c2299faa473fe453bee7f9188f120b50c1a948790a8d09ff4e4f05"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/report.py",
+      "from": "df821c2bae6c149a2f5e33f96d5d948bef69ecff9726c8a29fe46c92c8e9d696",
+      "to": "6dcb3da183dd34e9b129c67426c55c933cc215c6821a93a16e2a4dfc0f39064d"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-030-harnesses/privacy.py",
+      "from": "2e11e4a3898f35b7ab307462bdd9e5bab5f226763ae74962643b0aa4f30badff",
+      "to": "8385149eb500605616ca2502bf7c8a6ede93c0eb95e77ddcac6d8a6cac7d8701"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-2026-10-12.json",
+      "from": "918de37813e62d1b69ffe5cd29ae9b7a38f47e0a59a5a76db204784bbd95b8b6",
+      "to": "07b9cb1f370f555a47356737fcc8a5d7e102956499d947e28f0180b495394df2"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-harnesses/report.py",
+      "from": "7054dcf103d7a9cb0b83224a27a775a44218881c936b6d0e947dd9f09ec07cbd",
+      "to": "4afb1b96de8fc4bd5fa3c9d1dd690fa1ec49560487ac158d2d16d63191c8db9f"
+    },
+    {
+      "stage": "migration",
+      "repository": "dash-wallet-tools",
+      "file": "docs/audits/AUD-002-2026-10-12.json",
+      "target": "dash-wallet-tools/docs/audits/AUD-001-2026-10-12.md",
+      "from": "4826edf8ce5e230e7505020a09f92c8b8335c9a00aaae163bf570e9cffa6172a",
+      "to": "f529b196039c981325d07410567612206b1e62edda56f1da4a59f0bbf71590df"
+    },
+    {
+      "stage": "migration",
+      "repository": "dash-wallet-tools",
+      "file": "docs/audits/AUD-002-2026-10-12.json",
+      "target": "dash-wallet-tools/docs/audits/AUD-001-2026-10-12.json",
+      "from": "6434d9685e75b52ed9aaa9f9cf4e64120f3a8b76ffd05d1eba96bbb8e9453d4c",
+      "to": "fa129407e3b97d30a3bc3de25ecaa4d80a5319fe26b18ad95d27e60e209db0c8"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-2026-10-12.json",
+      "from": "ed3fbc8af52eb9f3f0ba25feac39b036c3a78e7578d9726a500e428c7b9ac2f4",
+      "to": "3516e13eb79d292835ffb02e5cbb7c47c45d5665d12999d65479bf1d94f53a1f"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/report.py",
+      "from": "6dcb3da183dd34e9b129c67426c55c933cc215c6821a93a16e2a4dfc0f39064d",
+      "to": "9d299be8056a9586db0d24952ab5b228ecb9bfbacab0fe11f91b7099ba07eed5"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-harnesses/report.py",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-2026-10-12.json",
+      "from": "ed3fbc8af52eb9f3f0ba25feac39b036c3a78e7578d9726a500e428c7b9ac2f4",
+      "to": "3516e13eb79d292835ffb02e5cbb7c47c45d5665d12999d65479bf1d94f53a1f"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-2026-10-12.json",
+      "from": "07b9cb1f370f555a47356737fcc8a5d7e102956499d947e28f0180b495394df2",
+      "to": "8b048be76b87e0fc3f55fdeacd997f51f7de54d2be1e5382dd899f2b9d5db23e"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/report.py",
+      "from": "6dcb3da183dd34e9b129c67426c55c933cc215c6821a93a16e2a4dfc0f39064d",
+      "to": "9d299be8056a9586db0d24952ab5b228ecb9bfbacab0fe11f91b7099ba07eed5"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/report.py",
+      "from": "9d299be8056a9586db0d24952ab5b228ecb9bfbacab0fe11f91b7099ba07eed5",
+      "to": "68bdf0878c99dab9e0bbd0fdf12a4f419c46997a29489b67ff3266a11c5784e5"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-2026-10-12.json",
+      "from": "8b048be76b87e0fc3f55fdeacd997f51f7de54d2be1e5382dd899f2b9d5db23e",
+      "to": "4b4327e5956d0108db70e83921042fe5e3d468d98c2174ae3d228b6abb562f50"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/report.py",
+      "from": "9d299be8056a9586db0d24952ab5b228ecb9bfbacab0fe11f91b7099ba07eed5",
+      "to": "68bdf0878c99dab9e0bbd0fdf12a4f419c46997a29489b67ff3266a11c5784e5"
+    },
+    {
+      "stage": "migration",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-2026-10-12.json",
+      "from": "4b4327e5956d0108db70e83921042fe5e3d468d98c2174ae3d228b6abb562f50",
+      "to": "6a396f05c20730ffc28b43fd1e10fe01a1297d77d93dcba4087379e97c3d5957"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-028-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-harnesses/validate.py",
+      "from": "06005d1e1404f7e22a44d4686a635ca072d3ca8b249914190e029417647afeb4",
+      "to": "5aa786c23c5152cb307abfdad979f9d629ac36cf5abe9511889972224abfefca"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/validate.py",
+      "from": "3bc41baee29ff75c566753ab300d14d88a325436b4f66f44d576b31bca10207c",
+      "to": "748ff67e96a258de9ff409d657a6c017558d55a78f4601e5649d6b7962f9468a"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-030-harnesses/privacy.py",
+      "from": "8385149eb500605616ca2502bf7c8a6ede93c0eb95e77ddcac6d8a6cac7d8701",
+      "to": "fc054ed9182aed05451f23e339de81caf35b6a200f3c2ae7b6ee741ec66dbc6a"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-2026-10-12.json",
+      "from": "3516e13eb79d292835ffb02e5cbb7c47c45d5665d12999d65479bf1d94f53a1f",
+      "to": "24f24d75f4fb5a59491edb2bf30e82b0f5b109c59c78754b8349112610c2b779"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-harnesses/report.py",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-2026-10-12.json",
+      "from": "3516e13eb79d292835ffb02e5cbb7c47c45d5665d12999d65479bf1d94f53a1f",
+      "to": "24f24d75f4fb5a59491edb2bf30e82b0f5b109c59c78754b8349112610c2b779"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-2026-10-12.json",
+      "from": "6a396f05c20730ffc28b43fd1e10fe01a1297d77d93dcba4087379e97c3d5957",
+      "to": "5ac8acdc4cc7c88328fda5330521129331469644098470e97023bf753b691f0f"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/report.py",
+      "from": "68bdf0878c99dab9e0bbd0fdf12a4f419c46997a29489b67ff3266a11c5784e5",
+      "to": "3e710ed5e72f9a2e51c544542ea7c484a9f147807860b2f0baf2e5fee7fd01da"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-2026-10-12.json",
+      "from": "5ac8acdc4cc7c88328fda5330521129331469644098470e97023bf753b691f0f",
+      "to": "63faa943c81f35986bb0f277fd3c992498d8e9baa959a709cce15084cc939147"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/report.py",
+      "from": "68bdf0878c99dab9e0bbd0fdf12a4f419c46997a29489b67ff3266a11c5784e5",
+      "to": "3e710ed5e72f9a2e51c544542ea7c484a9f147807860b2f0baf2e5fee7fd01da"
+    },
+    {
+      "stage": "harnesses-new-names",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-2026-10-12.json",
+      "from": "63faa943c81f35986bb0f277fd3c992498d8e9baa959a709cce15084cc939147",
+      "to": "6a5bc9f09267975d205a499052d112a3aa280ff71dd024d0d3cfc689672d4a77"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-028-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-harnesses/README.md",
+      "from": "585645a12da8c4a2c320cbc96a388234cd53b7b417a1c01dfca91cf76369e998",
+      "to": "2b0767a7e21f638f1438f6c7156d0d347d7419c5868575c5a22475e885369084"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/README.md",
+      "from": "943784d87b9c25234d0ea71d9878b4364530aa6ca8751e805cf80b1eb50d4fdb",
+      "to": "5f6ac6012d00ba91367d4c49e1d8731ed9fc02fae28429771710879bc51eb117"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-2026-10-12.json",
+      "from": "24f24d75f4fb5a59491edb2bf30e82b0f5b109c59c78754b8349112610c2b779",
+      "to": "f6094fc50a98ea3369e4ba626fc345aa39d8ee338bbbbf078d722e60b5e7a00f"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-harnesses/report.py",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-028-2026-10-12.json",
+      "from": "24f24d75f4fb5a59491edb2bf30e82b0f5b109c59c78754b8349112610c2b779",
+      "to": "f6094fc50a98ea3369e4ba626fc345aa39d8ee338bbbbf078d722e60b5e7a00f"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-2026-10-12.json",
+      "from": "6a5bc9f09267975d205a499052d112a3aa280ff71dd024d0d3cfc689672d4a77",
+      "to": "256a500d3e7ba06a4372a60bdbd113f4fced4ee678ff44d22b47669847fad2e2"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-029-2026-10-12.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/report.py",
+      "from": "3e710ed5e72f9a2e51c544542ea7c484a9f147807860b2f0baf2e5fee7fd01da",
+      "to": "9db6ef1cfc1a45233f4961035aa12f0125bfd3ecee949fc7a811f97d74c5df3b"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-2026-10-12.json",
+      "from": "256a500d3e7ba06a4372a60bdbd113f4fced4ee678ff44d22b47669847fad2e2",
+      "to": "a7a9ecabd9fa6549ebfea914fd14e95fd8f3defa406eabb3d693516da66739e3"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-harnesses/report.py",
+      "from": "3e710ed5e72f9a2e51c544542ea7c484a9f147807860b2f0baf2e5fee7fd01da",
+      "to": "9db6ef1cfc1a45233f4961035aa12f0125bfd3ecee949fc7a811f97d74c5df3b"
+    },
+    {
+      "stage": "harness-readmes",
+      "repository": "multi-chain-wallet-tools",
+      "file": "docs/audits/AUD-030-2026-10-13.json",
+      "target": "multi-chain-wallet-tools/docs/audits/AUD-029-2026-10-12.json",
+      "from": "a7a9ecabd9fa6549ebfea914fd14e95fd8f3defa406eabb3d693516da66739e3",
+      "to": "578da593b740223825d3ea0809cb41ef2ee24d12a7ad274ddf74caa5e7b2cf50"
+    }
+  ]
+}

@@ -1,20 +1,23 @@
+import { COMPRESSED_KEY_HEX, HASH160_HEX } from "@ckd/core/key-text.js";
+import { BIP32_HARDENED_OFFSET } from "@ckd/core/bip32-limits.js";
+import { MAX_BIP32_INDEX } from "@ckd/core/bip32-limits.js";
 import { HDKey } from "@scure/bip32";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import { descriptorChecksum } from "@ckd/export/descriptor.js";
 import { normalizeViewingKey } from "@ckd/dash-network/viewing-key.js";
 import type { DetectedWatchOnlyMaterial } from "./types.js";
 import {
-  foreignPrefixCoin,
   looksLikeExtendedPublicKey,
-  looksLikeSec1PublicKey,
-  matchExplicitPrefix,
   normalizedHexKey,
   WatchOnlyNeedsFamilyError,
   WatchOnlyNotRecognizedError,
+  chosenCoinPublicKey,
+  prefixedValue,
+  publicKeyMaterial,
+  refuseOtherPrefix,
+  watchOnlyDetector,
 } from "../watch-only.js";
 
-const HASH160_PATTERN = /^(?:0x)?[0-9a-f]{40}$/iu;
-const ECDSA_PUBLIC_KEY_PATTERN = /^(?:0x)?(?:02|03)[0-9a-f]{64}$/iu;
 const ORCHARD_BUNDLE_HEX_LENGTH = { fvk: 192, ivk: 128 } as const;
 
 function looksLikeOrchardBundleOrRaw(value: string): "bundle" | "fvk" | "ivk" | false {
@@ -51,7 +54,7 @@ function detectDashDescriptor(text: string, explicit = false): DetectedWatchOnly
   const coinjoin = parts.length === 4 && parts[0] === 9 && parts[1] === coin && parts[2] === 4;
   if (
     (!legacy && !core && !coinjoin) ||
-    parts.some((part) => !Number.isSafeInteger(part) || part < 0 || part > 0x7fffffff)
+    parts.some((part) => !Number.isSafeInteger(part) || part < 0 || part > MAX_BIP32_INDEX)
   ) {
     if (explicit)
       throw new Error(
@@ -62,7 +65,7 @@ function detectDashDescriptor(text: string, explicit = false): DetectedWatchOnly
   if (descriptorChecksum(text.slice(0, text.lastIndexOf("#"))) !== checksum)
     throw new Error("Dash descriptor checksum does not match its content.");
   const account = HDKey.fromExtendedKey(xpub!, getDashNetwork(network).versions);
-  if (account.depth !== parts.length || account.index !== parts.at(-1)! + 0x80000000)
+  if (account.depth !== parts.length || account.index !== parts.at(-1)! + BIP32_HARDENED_OFFSET)
     throw new Error("Dash descriptor account depth or child index disagrees with its origin.");
   const branch = Number(branchText);
   return {
@@ -84,35 +87,25 @@ function sniffExtendedKeyDepth(value: string): number {
   }
 }
 
-export function detectDashWatchOnly(
-  raw: string,
-  mode: { auto: boolean },
-): DetectedWatchOnlyMaterial {
-  const trimmed = raw.trim();
-  const matched = matchExplicitPrefix(trimmed);
-  if (matched !== null) {
+export const detectDashWatchOnly = watchOnlyDetector({
+  prefixed(matched, trimmed, mode) {
     if (matched.prefix === "dash-descriptor") return detectDashDescriptor(matched.value, true);
     if (
       ["dash-legacy-xpub", "dash-core-xpub", "dash-coinjoin-xpub", "dash-platform-xpub"].includes(
         matched.prefix,
       )
     ) {
-      if (!matched.value) throw new Error(`${matched.prefix}: requires a value.`);
       return {
         coinId: "dash",
         kind: matched.prefix as
           "dash-legacy-xpub" | "dash-core-xpub" | "dash-coinjoin-xpub" | "dash-platform-xpub",
-        value: matched.value,
+        value: prefixedValue(matched),
       };
     }
-    if (matched.prefix === "public-key") {
-      if (!matched.value) throw new Error("public-key: requires a value.");
-      return { coinId: "dash", kind: "public-key", value: normalizedHexKey(matched.value) };
-    }
+    if (matched.prefix === "public-key") return publicKeyMaterial("dash", prefixedValue(matched));
     if (matched.prefix === "identity") {
-      if (!matched.value) throw new Error("identity: requires a value.");
-      const value = normalizedHexKey(matched.value);
-      if (!HASH160_PATTERN.test(value) && !ECDSA_PUBLIC_KEY_PATTERN.test(value))
+      const value = normalizedHexKey(prefixedValue(matched));
+      if (!HASH160_HEX.test(value) && !COMPRESSED_KEY_HEX.test(value))
         throw new Error(
           "identity: requires a compressed ECDSA public key (33-byte hex) or its HASH160 (20-byte hex). This scanner performs a single proof-verified lookup by unique public-key hash and does not support Identity IDs, DPNS names, or BLS keys.",
         );
@@ -144,48 +137,40 @@ export function detectDashWatchOnly(
         key.hex = "";
       }
     }
-    const conflict = foreignPrefixCoin(trimmed, "dash");
-    if (conflict !== null) {
+    refuseOtherPrefix(trimmed, matched, { id: "dash", label: "Dash" }, mode);
+  },
+  bare(trimmed, mode) {
+    if (/^pkh\(/u.test(trimmed)) return detectDashDescriptor(trimmed);
+    const orchardShape = looksLikeOrchardBundleOrRaw(trimmed);
+    if (orchardShape !== false) {
+      const key = normalizeViewingKey(trimmed, "automatic");
+      try {
+        return {
+          coinId: "dash",
+          kind: key.kind === "full" ? "orchard-fvk" : "orchard-ivk",
+          value: key.hex,
+          ...(key.bundleNetwork === undefined ? {} : { bundleNetwork: key.bundleNetwork }),
+        };
+      } finally {
+        key.hex = "";
+      }
+    }
+    if (looksLikeExtendedPublicKey(trimmed)) {
       if (mode.auto) throw new WatchOnlyNotRecognizedError();
-      throw new Error(
-        `"${matched.prefix}:" belongs to another coin, not Dash. Remove the prefix or select the matching edition.`,
+      const depth = sniffExtendedKeyDepth(trimmed);
+      if (depth === 3)
+        return {
+          coinId: "dash",
+          kind: "dash-core-xpub",
+          value: trimmed,
+          detectionLabel: "Dash Core · candidate account xpub",
+        };
+      throw new WatchOnlyNeedsFamilyError(
+        `A Dash xpub at depth ${depth} does not encode its hardened ancestry. Prefix it with dash-core-xpub:, dash-legacy-xpub:, dash-coinjoin-xpub:, or dash-platform-xpub: so the scanner uses the intended address family.`,
       );
     }
-    if (mode.auto) throw new WatchOnlyNotRecognizedError();
-    throw new Error(`Unrecognized prefix "${matched.prefix}:".`);
-  }
-  if (/^pkh\(/u.test(trimmed)) return detectDashDescriptor(trimmed);
-  const orchardShape = looksLikeOrchardBundleOrRaw(trimmed);
-  if (orchardShape !== false) {
-    const key = normalizeViewingKey(trimmed, "automatic");
-    try {
-      return {
-        coinId: "dash",
-        kind: key.kind === "full" ? "orchard-fvk" : "orchard-ivk",
-        value: key.hex,
-        ...(key.bundleNetwork === undefined ? {} : { bundleNetwork: key.bundleNetwork }),
-      };
-    } finally {
-      key.hex = "";
-    }
-  }
-  if (looksLikeExtendedPublicKey(trimmed)) {
-    if (mode.auto) throw new WatchOnlyNotRecognizedError();
-    const depth = sniffExtendedKeyDepth(trimmed);
-    if (depth === 3)
-      return {
-        coinId: "dash",
-        kind: "dash-core-xpub",
-        value: trimmed,
-        detectionLabel: "Dash Core · candidate account xpub",
-      };
-    throw new WatchOnlyNeedsFamilyError(
-      `A Dash xpub at depth ${depth} does not encode its hardened ancestry. Prefix it with dash-core-xpub:, dash-legacy-xpub:, dash-coinjoin-xpub:, or dash-platform-xpub: so the scanner uses the intended address family.`,
-    );
-  }
-  if (looksLikeSec1PublicKey(trimmed)) {
-    if (mode.auto) throw new WatchOnlyNotRecognizedError();
-    return { coinId: "dash", kind: "public-key", value: normalizedHexKey(trimmed) };
-  }
-  throw new WatchOnlyNotRecognizedError();
-}
+    const publicKey = chosenCoinPublicKey(trimmed, "dash", mode);
+    if (publicKey !== null) return publicKey;
+    throw new WatchOnlyNotRecognizedError();
+  },
+});

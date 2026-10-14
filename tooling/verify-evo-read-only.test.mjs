@@ -9,7 +9,11 @@ describe("Evo SDK read-only verifier", () => {
   it("accepts reviewed read-only facade calls", () => {
     expect(() =>
       assertEvoSdkReadOnly(
-        [fixture("read-only.ts"), fixture("local-mnemonic-validator.ts")],
+        [
+          fixture("read-only.ts"),
+          fixture("local-mnemonic-validator.ts"),
+          fixture("asserted-read-only.ts"),
+        ],
         "Fixture",
         root,
       ),
@@ -19,6 +23,7 @@ describe("Evo SDK read-only verifier", () => {
   it.each([
     ["direct property access", "direct-write.ts"],
     ["computed, optional, and aliased access", "computed-write.ts"],
+    ["transparent TypeScript assertions", "asserted-writes.ts"],
     ["secret-capable wallet calls", "secret-wallet-calls.ts"],
     ["secret-capable wallet imports", "secret-wallet-import.ts"],
     ["combined SDK namespace imports", "secret-wallet-namespace-import.ts"],
@@ -39,6 +44,15 @@ describe("Evo SDK read-only verifier", () => {
       expect.objectContaining({ path: fixture("direct-write.ts"), line: 2, column: 1 }),
       expect.objectContaining({ path: fixture("direct-write.ts"), line: 3, column: 1 }),
     ]);
+  });
+
+  it("detects every asserted receiver, callee, alias and computed property", () => {
+    const findings = findEvoWriteCalls([fixture("asserted-writes.ts")], root);
+    expect(findings.map(({ description }) => description)).toEqual([
+      ...Array(6).fill("write-capable addresses.transfer facade"),
+      "low-level state-transition method broadcastStateTransition",
+    ]);
+    expect(findings.map(({ line }) => line)).toEqual([2, 3, 4, 5, 7, 9, 10]);
   });
 
   it("covers every write-capable pinned Evo SDK facade", () => {

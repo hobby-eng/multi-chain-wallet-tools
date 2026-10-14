@@ -1,23 +1,24 @@
 //! Narrow WebAssembly boundary around the pinned `rust-codex32` reference implementation.
 //! The host supplies all entropy. This crate validates, checksums, and interpolates only.
 
-use codex32::{Codex32String, Fe};
+#![deny(unsafe_code)]
+
+mod record;
+
+use record::{Codex32Record, MAX_THRESHOLD, MIN_THRESHOLD, SEED_BYTES, SHARE_INDICES};
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroize;
 
-fn parse_index(index: &str) -> Result<Fe, JsValue> {
-    index
-        .parse::<Fe>()
-        .map_err(|error| JsValue::from_str(&format!("Invalid Codex32 share index: {error:?}")))
+fn message(error: String) -> JsValue {
+    JsValue::from_str(&error)
 }
 
-fn parse_codex32(value: &str) -> Result<Codex32String, JsValue> {
-    let normalized = value.trim();
-    if !(normalized.starts_with("ms1") || normalized.starts_with("MS1")) {
-        return Err(JsValue::from_str("A Codex32 value must use the ms1 human-readable prefix."));
-    }
-    Codex32String::from_string(normalized.to_owned())
-        .map_err(|error| JsValue::from_str(&format!("Invalid Codex32 value: {error:?}")))
+#[wasm_bindgen]
+pub fn codex32_parameters_json() -> String {
+    let seed_length_error = Codex32Record::seed_length_error();
+    format!(
+        r#"{{"seedBytes":{SEED_BYTES:?},"shareIndices":"{SHARE_INDICES}","minThreshold":{MIN_THRESHOLD},"maxThreshold":{MAX_THRESHOLD},"seedLengthError":"{seed_length_error}"}}"#
+    )
 }
 
 #[wasm_bindgen]
@@ -27,42 +28,46 @@ pub fn encode_codex32_seed(
     identifier: &str,
     share_index: &str,
 ) -> Result<String, JsValue> {
-    if !matches!(seed.len(), 16 | 20 | 24 | 28 | 32 | 64) {
-        seed.zeroize();
-        return Err(JsValue::from_str(
-            "Codex32 master seeds must contain 16, 20, 24, 28, 32, or 64 bytes.",
-        ));
-    }
-    let index = match parse_index(share_index) {
-        Ok(index) => index,
-        Err(error) => {
-            seed.zeroize();
-            return Err(error);
-        }
-    };
-    let encoded = Codex32String::from_seed("ms", usize::from(threshold), identifier, index, &seed)
-        .map(|value| value.to_string())
-        .map_err(|error| JsValue::from_str(&format!("Codex32 encoding failed: {error:?}")));
+    let encoded = Codex32Record::from_seed(&seed, usize::from(threshold), identifier, share_index)
+        .map(|value| value.text())
+        .map_err(message);
     seed.zeroize();
     encoded
 }
 
 #[wasm_bindgen]
 pub fn interpolate_codex32(shares_text: &str, target_index: &str) -> Result<String, JsValue> {
-    let mut shares = Vec::new();
-    for line in shares_text.lines().map(str::trim).filter(|line| !line.is_empty()) {
-        shares.push(parse_codex32(line)?);
-    }
-    let target = parse_index(target_index)?;
-    Codex32String::interpolate_at(&shares, target)
-        .map(|value| value.to_string())
-        .map_err(|error| JsValue::from_str(&format!("Codex32 interpolation failed: {error:?}")))
+    Codex32Record::interpolate(shares_text, target_index)
+        .map(|value| value.text())
+        .map_err(message)
 }
 
 #[wasm_bindgen]
 pub fn decode_codex32_seed(value: &str) -> Result<Vec<u8>, JsValue> {
-    let parsed = parse_codex32(value)?;
-    Ok(parsed.parts().data())
+    Codex32Record::read(value)
+        .map(|value| value.data())
+        .map_err(message)
+}
+
+#[wasm_bindgen]
+pub fn encode_codex32_random_share(
+    mut random: Vec<u8>,
+    threshold: u8,
+    identifier: &str,
+    share_index: &str,
+    padding: u8,
+) -> Result<String, JsValue> {
+    let encoded = Codex32Record::random_share(
+        &random,
+        usize::from(threshold),
+        identifier,
+        share_index,
+        padding,
+    )
+    .map(|value| value.text())
+    .map_err(message);
+    random.zeroize();
+    encoded
 }
 
 #[cfg(test)]

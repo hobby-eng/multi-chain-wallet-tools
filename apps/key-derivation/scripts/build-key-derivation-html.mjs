@@ -1,8 +1,15 @@
-import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build, transform } from "esbuild";
+import { build } from "esbuild";
+import { embeddedBtcutilPlugin } from "../../../tooling/btcutil-offline.mjs";
+import {
+  BROWSER_BUNDLE,
+  bundleText,
+  inlineApplication,
+  toolCss,
+  writeToolArtifact,
+} from "../../../tooling/html-artifact.mjs";
 import { createBundledLibraryTextPlugin } from "../../../tooling/bundled-library-text.mjs";
 import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
 import {
@@ -17,8 +24,8 @@ import {
   describeCustomArtifact,
   featureDefines,
   parseKeyDerivationFeatures,
-  parseOutputPath,
 } from "../../../tooling/key-derivation-features.mjs";
+import { parseRequestedOutput } from "../../../tooling/tool-feature-options.mjs";
 import { LAUNCHER_PLATFORMS, launcherName } from "../../../tooling/key-derivation-launchers.mjs";
 import {
   applyProfileTemplate,
@@ -41,93 +48,40 @@ const featureProfile = {
       profile.capabilities.bitcoinMessageSigning && features.hasCoin("bitcoin"),
   },
 };
-const customArtifact = customKeyDerivationArtifact(root, profile, features, parseOutputPath());
-const scriptCsp = (javascript) =>
-  `'sha256-${createHash("sha256").update(javascript).digest("base64")}'`;
+const customArtifact = customKeyDerivationArtifact(root, profile, features, parseRequestedOutput());
 const template = applyProfileTemplate(
   readFileSync(resolve(root, "apps/key-derivation/src/index.html"), "utf8"),
   featureProfile,
   tool,
+  features,
 );
 const featuredTemplate = applyKeyDerivationFeatureTemplate(template, features);
-const cssSource = readFileSync(resolve(root, "packages/shared-ui/styles/main.css"), "utf8");
-const shellCss = readFileSync(resolve(root, "packages/shared-ui/styles/tool-shell.css"), "utf8");
-const themeCss =
-  profile.themeStylesheet === undefined
-    ? ""
-    : readFileSync(resolve(root, profile.themeStylesheet), "utf8");
-const css = (
-  await transform(`${cssSource}\n${shellCss}\n${themeCss}`, {
-    loader: "css",
-    minify: true,
-    legalComments: "inline",
-  })
-).code;
+const css = await toolCss(root, profile);
 const workerBuild = await build({
   absWorkingDir: root,
   stdin: { contents: selectedWorkerEntry(root, profile, features), loader: "ts", resolveDir: root },
-  bundle: true,
-  format: "iife",
-  platform: "browser",
-  target: ["chrome120", "firefox120", "safari17"],
-  treeShaking: true,
-  minify: true,
-  legalComments: "inline",
+  ...BROWSER_BUNDLE,
   loader: { ".wasm": "binary" },
   plugins: [
     createKeyDerivationCompositionPlugin(root, features),
-    ...(features.hasCoin("bitcoin")
-      ? [
-          {
-            name: "embedded-btcutil-wasm",
-            setup(buildContext) {
-              buildContext.onResolve({ filter: /^btcutil-js-wasm$/ }, () => ({
-                path: "btcutil-js-wasm",
-                namespace: "btcutil-wasm",
-              }));
-              buildContext.onLoad({ filter: /.*/, namespace: "btcutil-wasm" }, () => ({
-                contents: readFileSync(resolve(root, "node_modules/btcutil-js/dist/btcutil.wasm")),
-                loader: "binary",
-              }));
-              buildContext.onLoad(
-                { filter: /node_modules\/btcutil-js\/dist\/index\.js$/ },
-                ({ path }) => ({
-                  contents: `const __offlineFetch = () => Promise.reject(new Error('Network access is unavailable in the offline browser artifact.'));\n${readFileSync(
-                    path,
-                    "utf8",
-                  )
-                    .replaceAll(
-                      'new Function("m", "return import(m)")',
-                      "((moduleName) => Promise.reject(new Error(`Node-only module ${moduleName} is unavailable in the offline browser artifact.`)))",
-                    )
-                    .replaceAll("fetch(", "__offlineFetch(")}`,
-                  loader: "js",
-                }),
-              );
-            },
-          },
-        ]
-      : []),
+    ...(features.hasCoin("bitcoin") ? [embeddedBtcutilPlugin(root, { replaceFetch: true })] : []),
   ],
   metafile: true,
-  write: false,
 });
-const workerSource = workerBuild.outputFiles[0]?.text;
-if (workerSource === undefined)
-  throw new Error("esbuild did not produce a derivation worker bundle.");
+const workerSource = bundleText(workerBuild, "derivation worker");
 if (!/postMessage\(\{type:"ready"\}\)/u.test(workerSource)) {
   throw new Error("Derivation worker bundle is missing its explicit ready handshake.");
 }
-// The MHFE browser package ships its worker and both Argon2 builds as finished classic scripts.
-// The page passes them to the MHFE client as text, because under the page's Content-Security-Policy
+// The MHFE browser package ships its worker (shared by every module class) and both Argon2 builds
+// as finished classic scripts. The page passes them to the MHFE classes as text, because under the page's Content-Security-Policy
 // a worker may run only from a Blob built in the page; they are embedded unchanged.
 const mhfeDirectory = resolve(root, "packages/recovery-mhfe-wasm/generated");
 const readMhfeScript = (name) =>
   features.has("mhfe") ? readFileSync(resolve(mhfeDirectory, name), "utf8") : "";
 const mhfeSources = {
-  worker: readMhfeScript("mhfe-worker.js"),
-  argon2Threaded: readMhfeScript("argon2-mt.js"),
-  argon2SingleThreaded: readMhfeScript("argon2-st.js"),
+  worker: readMhfeScript("runtime/worker.js"),
+  argon2Threaded: readMhfeScript("core/argon2-mt.js"),
+  argon2SingleThreaded: readMhfeScript("core/argon2-st.js"),
 };
 if (
   features.has("mhfe") &&
@@ -137,6 +91,42 @@ if (
 ) {
   throw new Error("The embedded MHFE browser package is incomplete.");
 }
+// MnemoCode's long jobs run in workers of their own, embedded as text like the derivation worker,
+// so that Cancel can terminate them: the searches of forgotten words and date digits, and, when the
+// SSKR library is in the build too, the restores and repairs of Shamir shares.
+const mnemocodeShares = features.has("mnemocode") && features.has("sskr");
+async function bundleMnemoCodeWorker(file) {
+  const result = await build({
+    absWorkingDir: root,
+    entryPoints: [resolve(root, "apps/key-derivation/src/workers", file)],
+    ...BROWSER_BUNDLE,
+    plugins: [
+      createKeyDerivationCompositionPlugin(root, features),
+      {
+        // The artifact embeds the BIP39 English wordlist once: a worker reads the page's copy.
+        name: "page-wordlist",
+        setup(buildContext) {
+          buildContext.onResolve(
+            { filter: /^@scure\/bip39\/wordlists\/english(?:\.js)?$/ },
+            () => ({
+              path: resolve(root, "apps/key-derivation/src/workers/page-wordlist.ts"),
+            }),
+          );
+        },
+      },
+    ],
+    metafile: true,
+  });
+  const source = result.outputFiles[0]?.text ?? "";
+  if (!source.includes("onmessage")) throw new Error(`esbuild did not produce ${file}.`);
+  return { inputs: Object.keys(result.metafile.inputs), source };
+}
+const mnemocodeSearchWorker = features.has("mnemocode")
+  ? await bundleMnemoCodeWorker("mnemocode-search-worker.ts")
+  : { inputs: [], source: "" };
+const mnemocodeSharesWorker = mnemocodeShares
+  ? await bundleMnemoCodeWorker("mnemocode-shares-worker.ts")
+  : { inputs: [], source: "" };
 const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
   coins: features.coins,
   features: features.selected,
@@ -144,13 +134,7 @@ const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
 const bundled = await build({
   absWorkingDir: root,
   stdin: { contents: selectedUiEntry(root), loader: "ts", resolveDir: root },
-  bundle: true,
-  format: "iife",
-  platform: "browser",
-  target: ["chrome120", "firefox120", "safari17"],
-  treeShaking: true,
-  minify: true,
-  legalComments: "inline",
+  ...BROWSER_BUNDLE,
   loader: { ".wasm": "binary", ".ttf": "binary", ".png": "binary", ".jpg": "binary" },
   metafile: true,
   plugins: [
@@ -167,6 +151,7 @@ const bundled = await build({
           const definitions = [
             ["bip85", "bip85-feature.ts", "installBip85Feature"],
             ["silent-payments", "silent-payment-feature.ts", "installSilentPaymentFeature"],
+            ["mhfe", "checked-mnemonic-feature.ts", "installCheckedMnemonicFeature"],
           ].filter(([feature]) => features.has(feature));
           const exports = definitions
             .map(
@@ -223,6 +208,9 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
             ["seedqr", "recovery-seedqr.ts"],
             ["mnemocode", "recovery-mnemocode.ts"],
             ["mnemocode-cards", "recovery-mnemocode-cards.ts"],
+            ["mnemocode-cards", "recovery-mnemocode-heirs.ts"],
+            // Shares need MnemoCode and the SSKR library both.
+            ...(mnemocodeShares ? [["mnemocode", "recovery-mnemocode-shares.ts"]] : []),
             ["mhfe", "recovery-mhfe.ts"],
             ["slip39", "recovery-slip39.ts"],
             ["codex32", "recovery-codex32.ts"],
@@ -258,21 +246,28 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
     __BUILD_INFO__: JSON.stringify(buildInfo),
     __DERIVATION_WORKER_SOURCE__: JSON.stringify(workerSource),
     __MHFE_WORKER_SOURCE__: JSON.stringify(mhfeSources.worker),
+    __MNEMOCODE_SEARCH_WORKER_SOURCE__: JSON.stringify(mnemocodeSearchWorker.source),
+    __MNEMOCODE_SHARES_WORKER_SOURCE__: JSON.stringify(mnemocodeSharesWorker.source),
     __MHFE_ARGON2_THREADED_SOURCE__: JSON.stringify(mhfeSources.argon2Threaded),
     __MHFE_ARGON2_SINGLE_THREADED_SOURCE__: JSON.stringify(mhfeSources.argon2SingleThreaded),
     __DASH_COMMUNITY__: profile.id === "dash-community" ? "true" : "false",
   },
-  write: false,
 });
 assertKeyDerivationComposition(features, [
   ...Object.keys(workerBuild.metafile.inputs),
+  ...mnemocodeSearchWorker.inputs,
+  ...mnemocodeSharesWorker.inputs,
   ...Object.keys(bundled.metafile.inputs),
 ]);
-const javascript = bundled.outputFiles[0]?.text;
-if (javascript === undefined) throw new Error("esbuild did not produce a JavaScript bundle.");
+const javascript = bundleText(bundled, "Key Derivation Tool");
 if (profile.id === "dash-community") {
   assertDashOnlyGraph(
-    [...Object.keys(workerBuild.metafile.inputs), ...Object.keys(bundled.metafile.inputs)],
+    [
+      ...Object.keys(workerBuild.metafile.inputs),
+      ...mnemocodeSearchWorker.inputs,
+      ...mnemocodeSharesWorker.inputs,
+      ...Object.keys(bundled.metafile.inputs),
+    ],
     "Dash Community key derivation",
   );
 }
@@ -282,39 +277,9 @@ if (
 ) {
   throw new Error("Derivation worker client lost its reviewed startup/error lifecycle.");
 }
-if (
-  !featuredTemplate.includes("/*__INLINE_CSS__*/") ||
-  !template.includes("/*__INLINE_JS__*/") ||
-  !template.includes("__INLINE_SCRIPT_CSP__")
-) {
-  throw new Error("HTML template is missing an inline build marker.");
-}
-const safeJavascript = javascript.replaceAll("</script", "<\\/script");
-// Callback replacements keep '$&', '$`', and '$'' sequences inside bundled
-// code literal. Passing bundle text as the replacement argument would make
-// String.replace interpret those sequences and can duplicate the template.
-let html = featuredTemplate
-  .replace("__INLINE_SCRIPT_CSP__", "__INLINE_SCRIPT_CSP_HASH__")
-  .replace("/*__INLINE_CSS__*/", () => css)
-  .replace("/*__INLINE_JS__*/", () => safeJavascript);
-const scriptStart = html.indexOf("<script>");
-const scriptEnd = html.lastIndexOf("</script>");
-if (scriptStart < 0 || scriptEnd <= scriptStart)
-  throw new Error("Generated HTML did not contain the inline application script.");
-// CSP authorizes the exact bytes the browser will execute, including template whitespace.
-const inlineScript = html.slice(scriptStart + "<script>".length, scriptEnd);
-html = html.replace("__INLINE_SCRIPT_CSP_HASH__", scriptCsp(inlineScript));
-const artifact = customArtifact ?? resolve(root, "dist", tool.artifactDirectory, tool.artifactName);
-const dist = resolve(artifact, "..");
-mkdirSync(dist, { recursive: true });
-writeFileSync(artifact, html);
-const checksum = createHash("sha256").update(html).digest("hex");
-writeFileSync(`${artifact}.sha256`, `${checksum}  ${describeCustomArtifact(artifact)}\n`);
+const html = inlineApplication(featuredTemplate, css, javascript, "Key Derivation Tool");
+const artifact = writeToolArtifact(root, tool, customArtifact, html, describeCustomArtifact);
 removeStaleLaunchers(artifact);
-console.log(
-  `Built ${customArtifact === undefined ? `dist/${tool.artifactRelativePath}` : artifact} (${Buffer.byteLength(html).toLocaleString()} bytes)`,
-);
-console.log(`SHA-256 ${checksum}`);
 
 /**
  * Removes the executable versions of an earlier build of this page from its folder. Each one

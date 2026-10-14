@@ -1,7 +1,31 @@
 import { bytesToHex } from "@ckd/core/crypto.js";
+import { CONSENSUS_LIMITS, RelativeSequence } from "./consensus-limits.js";
 import type { ParsedPsbt, PsbtPair } from "./psbt.js";
+import { redeemScriptMatches } from "./psbt-utxo.js";
+import { PsbtV2Locktime, type TransactionLocktime } from "./psbt-locktime.js";
+import { PsbtFieldRegistry } from "./psbt-field-registry.js";
 
 type SighashProtocol = "legacy" | "segwit-v0" | "taproot";
+
+const TAPROOT_OUTPUT = /^5120[0-9a-f]{64}$/u;
+const WITNESS_V0_PROGRAM = /^00(?:14[0-9a-f]{40}|20[0-9a-f]{64})$/u;
+const P2SH_OUTPUT = /^a914[0-9a-f]{40}87$/u;
+
+const PROTOCOL_LABELS: Readonly<Record<SighashProtocol, string>> = {
+  legacy: "Legacy Script",
+  "segwit-v0": "SegWit v0 / BIP143",
+  taproot: "Taproot / BIP341",
+};
+const NO_UTXO_PROTOCOL =
+  "Unknown · no UTXO was supplied, so the spending protocol is not established";
+const UNBOUND_P2SH_PROTOCOL =
+  "Unknown · the P2SH redeemScript is missing or does not match the UTXO";
+const PROTOCOL_DEPENDENT =
+  "Unknown · depends on the spending protocol, which the supplied data does not establish";
+
+// BIP370 treats an omitted PSBT_IN_SEQUENCE as final, and consensus ignores nLockTime when every
+// input of the transaction is final.
+const FINAL_SEQUENCE = 0xffffffff;
 
 interface SighashCommitments {
   readonly label: string;
@@ -12,6 +36,14 @@ interface SighashCommitments {
   readonly otherInputSequences: string;
   readonly outputs: string;
   readonly currentInputAmount: string;
+}
+
+type CommitmentText = Exclude<keyof SighashCommitments, "label" | "known" | "unusual">;
+
+interface SpendingContext {
+  /** Every protocol the supplied data leaves possible: exactly one when it is established. */
+  readonly candidates: readonly SighashProtocol[];
+  readonly label: string;
 }
 
 interface InputSigningAnalysis {
@@ -38,18 +70,26 @@ function u32(bytes: Uint8Array): number {
   );
 }
 
-function inputProtocol(parsed: ParsedPsbt, index: number): SighashProtocol {
-  const map = parsed.inputs[index] ?? [];
-  const script = parsed.inputUtxos[index]?.script;
-  const scriptHex = script === undefined ? "" : bytesToHex(script);
-  if (/^5120[0-9a-f]{64}$/u.test(scriptHex)) return "taproot";
-  if (/^00(?:14[0-9a-f]{40}|20[0-9a-f]{64})$/u.test(scriptHex)) return "segwit-v0";
-  const redeem = field(map, 0x04n)?.value;
-  if (redeem !== undefined && /^00(?:14[0-9a-f]{40}|20[0-9a-f]{64})$/u.test(bytesToHex(redeem)))
-    return "segwit-v0";
-  if (script !== undefined) return "legacy";
-  if (map.some(({ type }) => type >= 0x13n && type <= 0x1cn)) return "taproot";
-  return "legacy";
+function established(protocol: SighashProtocol): SpendingContext {
+  return { candidates: [protocol], label: PROTOCOL_LABELS[protocol] };
+}
+
+// Only the supplied UTXO, and a redeemScript whose HASH160 that UTXO commits to, can establish the
+// protocol. Optional metadata (Taproot fields, an unbound redeemScript) never promotes an input.
+function spendingContext(parsed: ParsedPsbt, index: number): SpendingContext {
+  // Dash Core has neither SegWit nor Taproot; their metadata is preserved as unknown fields.
+  if (parsed.chain === "dash") return established("legacy");
+  const utxo = parsed.inputUtxos[index] ?? null;
+  if (utxo === null)
+    return { candidates: ["legacy", "segwit-v0", "taproot"], label: NO_UTXO_PROTOCOL };
+  const script = bytesToHex(utxo.script);
+  if (TAPROOT_OUTPUT.test(script)) return established("taproot");
+  if (WITNESS_V0_PROGRAM.test(script)) return established("segwit-v0");
+  if (!P2SH_OUTPUT.test(script)) return established("legacy");
+  const redeem = field(parsed.inputs[index] ?? [], 0x04n)?.value;
+  if (redeem === undefined || !redeemScriptMatches(utxo, redeem))
+    return { candidates: ["legacy", "segwit-v0"], label: UNBOUND_P2SH_PROTOCOL };
+  return established(WITNESS_V0_PROGRAM.test(bytesToHex(redeem)) ? "segwit-v0" : "legacy");
 }
 
 export function analyzeSighash(
@@ -155,6 +195,26 @@ export function analyzeSighash(
   };
 }
 
+function agreedText(analyses: readonly SighashCommitments[], key: CommitmentText): string {
+  const first = analyses[0]![key];
+  return analyses.every((analysis) => analysis[key] === first) ? first : PROTOCOL_DEPENDENT;
+}
+
+// Merges the analyses of every candidate protocol: a statement survives only where all agree, so
+// an unestablished protocol never yields a "Committed" claim that one candidate contradicts.
+function commonCommitments(analyses: readonly SighashCommitments[]): SighashCommitments {
+  return {
+    label: [...new Set(analyses.map(({ label }) => label))].join(" or "),
+    known: analyses.every(({ known }) => known),
+    unusual: analyses.some(({ unusual }) => unusual),
+    currentInput: agreedText(analyses, "currentInput"),
+    otherInputs: agreedText(analyses, "otherInputs"),
+    otherInputSequences: agreedText(analyses, "otherInputSequences"),
+    outputs: agreedText(analyses, "outputs"),
+    currentInputAmount: agreedText(analyses, "currentInputAmount"),
+  };
+}
+
 function signatureState(map: readonly PsbtPair[]): string {
   if (field(map, 0x07n) !== undefined || field(map, 0x08n) !== undefined)
     return "Final script supplied · signatures are not cryptographically verified here";
@@ -176,9 +236,14 @@ function signatureSighashes(map: readonly PsbtPair[]): number[] {
 }
 
 function sequence(parsed: ParsedPsbt, index: number): number {
-  if (parsed.transaction !== null) return parsed.transaction.inputs[index]?.sequence ?? 0xffffffff;
+  if (parsed.transaction !== null)
+    return parsed.transaction.inputs[index]?.sequence ?? FINAL_SEQUENCE;
   const encoded = field(parsed.inputs[index] ?? [], 0x10n)?.value;
-  return encoded === undefined ? 0xffffffff : u32(encoded);
+  return encoded === undefined ? FINAL_SEQUENCE : u32(encoded);
+}
+
+function everySequenceFinal(parsed: ParsedPsbt): boolean {
+  return parsed.inputs.every((_map, index) => sequence(parsed, index) === FINAL_SEQUENCE);
 }
 
 function transactionVersion(parsed: ParsedPsbt): number {
@@ -187,52 +252,56 @@ function transactionVersion(parsed: ParsedPsbt): number {
   return encoded === undefined ? 2 : u32(encoded);
 }
 
-function describeAbsoluteLocktime(parsed: ParsedPsbt, index: number): string {
-  if (parsed.version === 2) {
-    let timePossible = true;
-    let heightPossible = true;
-    let maximumTime = 0;
-    let maximumHeight = 0;
-    for (const input of parsed.inputs) {
-      const time = field(input, 0x11n)?.value;
-      const height = field(input, 0x12n)?.value;
-      if (time !== undefined) maximumTime = Math.max(maximumTime, u32(time));
-      if (height !== undefined) maximumHeight = Math.max(maximumHeight, u32(height));
-      if (time !== undefined && height === undefined) heightPossible = false;
-      if (time === undefined && height !== undefined) timePossible = false;
-    }
-    if (heightPossible && maximumHeight > 0)
-      return `Effective transaction lock: block height ${maximumHeight}`;
-    if (timePossible && maximumTime > 0)
-      return `Effective transaction lock: Unix time ${maximumTime}`;
-  }
-  const map = parsed.inputs[index] ?? [];
-  const requiredTime = field(map, 0x11n)?.value;
-  const requiredHeight = field(map, 0x12n)?.value;
-  if (requiredTime !== undefined) return `Requires Unix time ${u32(requiredTime)}`;
-  if (requiredHeight !== undefined) return `Requires block height ${u32(requiredHeight)}`;
-  const raw =
-    parsed.transaction?.lockTime ??
-    (field(parsed.global, 0x03n) === undefined ? 0 : u32(field(parsed.global, 0x03n)!.value));
-  if (raw === 0) return "None";
-  const allFinal = parsed.inputs.every(
-    (_map, inputIndex) => sequence(parsed, inputIndex) === 0xffffffff,
-  );
-  if (allFinal) return `${raw} is set but inactive because every input has a final sequence`;
-  return raw < 500_000_000 ? `Block height ${raw}` : `Unix time ${raw}`;
+function serializedLockTime(parsed: ParsedPsbt): number {
+  if (parsed.transaction !== null) return parsed.transaction.lockTime;
+  const fallback = field(parsed.global, 0x03n)?.value;
+  return fallback === undefined ? 0 : u32(fallback);
 }
 
+function transactionLock(parsed: ParsedPsbt): TransactionLocktime | null {
+  const fallback = serializedLockTime(parsed);
+  return parsed.version === 2
+    ? new PsbtV2Locktime(parsed.inputs).resolve(fallback)
+    : { value: fallback, fromRequirements: false };
+}
+
+function lockText(lock: TransactionLocktime): string {
+  const isHeight = lock.value < CONSENSUS_LIMITS.absoluteLockTimeThreshold;
+  if (lock.fromRequirements)
+    return `Effective transaction lock: ${isHeight ? "block height" : "Unix time"} ${lock.value}`;
+  return `${isHeight ? "Block height" : "Unix time"} ${lock.value}`;
+}
+
+// The sequence check comes last and covers every lock source, because final sequences disable
+// nLockTime for the whole transaction however its value was determined.
+function describeAbsoluteLocktime(parsed: ParsedPsbt): string {
+  const lock = transactionLock(parsed);
+  if (lock === null) return "Unsatisfiable · inputs require both a block height and a Unix time";
+  if (lock.value === 0) return "None";
+  const text = lockText(lock);
+  return everySequenceFinal(parsed)
+    ? `${text} · inactive because every input has a final sequence`
+    : text;
+}
+
+/** BIP68: a sequence is a relative lock only from transaction version 2 on, without its disable flag. */
 function describeRelativeLocktime(parsed: ParsedPsbt, inputSequence: number): string {
-  if (transactionVersion(parsed) < 2 || (inputSequence & 0x80000000) !== 0) return "None";
-  const value = inputSequence & 0xffff;
-  return (inputSequence & 0x00400000) !== 0
-    ? `${value * 512} seconds (BIP68)`
-    : `${value} blocks (BIP68)`;
+  const sequence = new RelativeSequence(inputSequence);
+  if (transactionVersion(parsed) < 2 || sequence.disabled) return "None";
+  return `${sequence.delay} (BIP68)`;
 }
 
-export function analyzeInputSigning(parsed: ParsedPsbt, index: number): InputSigningAnalysis {
+export function analyzeInputSigning(rawParsed: ParsedPsbt, index: number): InputSigningAnalysis {
+  const registry = new PsbtFieldRegistry(rawParsed.chain);
+  // All signing and transaction-wide locktime lookups share the interpreted
+  // view. The caller's parsed maps still retain every unknown byte.
+  const parsed: ParsedPsbt = {
+    ...rawParsed,
+    global: registry.interpreted(rawParsed.global, "global"),
+    inputs: rawParsed.inputs.map((map) => registry.interpreted(map, "input")),
+  };
   const map = parsed.inputs[index] ?? [];
-  const protocol = inputProtocol(parsed, index);
+  const context = spendingContext(parsed, index);
   const requested = field(map, 0x03n)?.value;
   const explicit = requested === undefined ? null : u32(requested);
   const signatureValues = signatureSighashes(map);
@@ -241,7 +310,11 @@ export function analyzeInputSigning(parsed: ParsedPsbt, index: number): InputSig
       ? signatureValues[0]!
       : null;
   const correspondingOutput = index < parsed.outputValues.length;
-  let sighash = analyzeSighash(explicit ?? inferred, protocol, correspondingOutput);
+  const analyze = (value: number | null): SighashCommitments =>
+    commonCommitments(
+      context.candidates.map((protocol) => analyzeSighash(value, protocol, correspondingOutput)),
+    );
+  let sighash = analyze(explicit ?? inferred);
   if (signatureValues.length > 1 && inferred === null) {
     sighash = {
       ...sighash,
@@ -252,7 +325,7 @@ export function analyzeInputSigning(parsed: ParsedPsbt, index: number): InputSig
       unusual: true,
     };
   } else if (explicit !== null && inferred !== null && explicit !== inferred) {
-    const signatureLabel = analyzeSighash(inferred, protocol, correspondingOutput).label;
+    const signatureLabel = analyze(inferred).label;
     sighash = {
       ...sighash,
       label: `${sighash.label} requested, but supplied signature uses ${signatureLabel}`,
@@ -265,12 +338,7 @@ export function analyzeInputSigning(parsed: ParsedPsbt, index: number): InputSig
   const rbfSignal = inputSequence < 0xfffffffe;
   return {
     signature: signatureState(map),
-    protocol:
-      protocol === "taproot"
-        ? "Taproot / BIP341"
-        : protocol === "segwit-v0"
-          ? "SegWit v0 / BIP143"
-          : "Legacy Script",
+    protocol: context.label,
     sighash,
     rbf:
       parsed.chain === "dash"
@@ -278,7 +346,7 @@ export function analyzeInputSigning(parsed: ParsedPsbt, index: number): InputSig
         : rbfSignal
           ? `Opt-in RBF signaled · sequence 0x${inputSequence.toString(16).padStart(8, "0")}`
           : "Not signaled",
-    locktime: describeAbsoluteLocktime(parsed, index),
+    locktime: describeAbsoluteLocktime(parsed),
     relativeLocktime: describeRelativeLocktime(parsed, inputSequence),
   };
 }

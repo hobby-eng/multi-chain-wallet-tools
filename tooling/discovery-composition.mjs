@@ -1,3 +1,8 @@
+import {
+  COMBINED_SELF_TEST_MODULE,
+  DERIVATION_SELF_TESTS,
+  LOCAL_SEARCH_SELF_TEST,
+} from "./derivation-self-tests.mjs";
 import { replaceBalancedElement as replaceHtmlElement } from "./html-elements.mjs";
 import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
@@ -169,6 +174,12 @@ import { describeUnknownError, freeThrownValue } from ${JSON.stringify(resolve(r
 startNetworkBoundaryWorker(selectedRecoveryNetworkService, executeSelectedRecoveryNetworkRequest, validateSelectedRecoveryNetworkRequest, (cause) => { const message = describeUnknownError(cause); freeThrownValue(cause); return message; });`;
 }
 
+function hasLocalAddressSearch(options) {
+  return (
+    options.has("wallet-matcher") && options.hasCoin("bitcoin") && options.has("seed-discovery")
+  );
+}
+
 export function discoveryAppEntry(root, options) {
   const lines = [
     `import * as registry from 'ckd:selected-discovery-registry';`,
@@ -190,11 +201,7 @@ export function discoveryAppEntry(root, options) {
     );
     lines.push("const runRecoverySelfTest = createPublicInputBoundarySelfTest();");
   }
-  if (
-    options.has("wallet-matcher") &&
-    options.hasCoin("bitcoin") &&
-    options.has("seed-discovery")
-  ) {
+  if (hasLocalAddressSearch(options)) {
     lines.push(
       `import { createBitcoinAddressSearchRunner } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/address-search-feature.ts"))};`,
     );
@@ -214,29 +221,31 @@ export function discoveryAppEntry(root, options) {
 }
 
 function selfTestSource(root, options) {
-  const modules = [];
-  if (options.hasCoin("bitcoin"))
+  const modules = Object.entries(DERIVATION_SELF_TESTS)
+    .filter(([coin]) => options.hasCoin(coin))
+    .map(([, module]) => module);
+  // The candidate lists come with seed discovery, which is the only build of this self-test.
+  modules.push([
+    "runCandidateListSelfTest",
+    "apps/discovery-scanner/src/candidate-list-self-test.ts",
+  ]);
+  // Watch-only discovery screens its public inputs with the public-input guard, in the same
+  // vault, so the guard's known answers run wherever it is built.
+  if (options.has("watch-only-discovery"))
     modules.push([
-      "runBitcoinDerivationSelfTest",
-      "packages/verification/src/derivation-self-test-bitcoin.ts",
+      "runPublicInputGuardStartupCheck",
+      "apps/discovery-scanner/src/public-input-self-test.ts",
     ]);
-  if (options.hasCoin("dash"))
-    modules.push([
-      "runDashDerivationSelfTest",
-      "packages/verification/src/derivation-self-test-dash.ts",
-    ]);
-  if (options.hasCoin("ethereum"))
-    modules.push([
-      "runEthereumDerivationSelfTest",
-      "packages/verification/src/derivation-self-test-ethereum.ts",
-    ]);
+  if (hasLocalAddressSearch(options))
+    modules.push([LOCAL_SEARCH_SELF_TEST.symbol, LOCAL_SEARCH_SELF_TEST.module]);
   const imports = modules.map(
     ([symbol, file]) => `import { ${symbol} } from ${JSON.stringify(resolve(root, file))};`,
   );
   return `${imports.join("\n")}
 import { runBip39SelfTest } from ${JSON.stringify(resolve(root, "packages/verification/src/bip39-self-test.ts"))};
 import { createRecoverySelfTest } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/recovery-self-test.ts"))};
-export const runRecoverySelfTest = createRecoverySelfTest(async () => { const reports = [runBip39SelfTest(), ${modules.map(([symbol]) => `${symbol}()`).join(", ")}]; const values = await Promise.all(reports); if (values.some((report) => report.passed !== true)) throw new Error('A selected Discovery self-test did not pass.'); return { passed: true, checks: values.flatMap((report) => report.checks), durationMs: values.reduce((sum, report) => sum + report.durationMs, 0) }; });`;
+import { combinedSelfTest } from ${JSON.stringify(resolve(root, COMBINED_SELF_TEST_MODULE))};
+export const runRecoverySelfTest = createRecoverySelfTest(() => combinedSelfTest([runBip39SelfTest, ${modules.map(([symbol]) => symbol).join(", ")}]));`;
 }
 
 function watchOnlyProfileSource(root, options) {
@@ -272,6 +281,7 @@ function featureRuntimeSource(root, options) {
     imports.push(
       `import { scanCandidates, candidateSummary } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/candidate-scan.ts"))};`,
       `import { createRecoverySeedInputs, recoveryScanConfig, wipeRecoverySeedInputs } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/seed-scan-input.ts"))};`,
+      `import { CandidateListImport } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/candidate-list-import.ts"))};`,
     );
     fields.push(
       "scanCandidates",
@@ -279,6 +289,7 @@ function featureRuntimeSource(root, options) {
       "createRecoverySeedInputs",
       "recoveryScanConfig",
       "wipeRecoverySeedInputs",
+      "CandidateListImport",
     );
   }
   if (options.has("custom-paths")) {
@@ -413,7 +424,12 @@ export function parseCustomPathTemplate() { throw new Error('Custom paths are no
 export function assertDiscoveryComposition(options, inputs) {
   const normalized = inputs.map((input) => input.replaceAll("\\", "/"));
   const markers = {
-    bitcoin: ["/coins/bitcoin/", "/bitcoin-service.ts", "/bitcoin-address-search-runtime.ts"],
+    bitcoin: [
+      "/coins/bitcoin/",
+      "/bitcoin-service.ts",
+      "/bitcoin-address-search-runtime.ts",
+      "/wallet-recovery/src/watch-only/bitcoin.ts",
+    ],
     dash: [
       "/coins/dash/",
       "/network-service.ts",
@@ -423,7 +439,11 @@ export function assertDiscoveryComposition(options, inputs) {
       "/dash-network/",
       "/@dashevo/evo-sdk/",
     ],
-    ethereum: ["/coins/ethereum/", "/ethereum-service.ts"],
+    ethereum: [
+      "/coins/ethereum/",
+      "/ethereum-service.ts",
+      "/wallet-recovery/src/watch-only/ethereum.ts",
+    ],
   };
   for (const [coin, values] of Object.entries(markers)) {
     if (options.hasCoin(coin)) continue;
@@ -435,11 +455,19 @@ export function assertDiscoveryComposition(options, inputs) {
   }
 
   const featureMarkers = {
-    "seed-discovery": ["/seed-scan-input.ts", "/candidate-scan.ts"],
+    "seed-discovery": [
+      "/seed-scan-input.ts",
+      "/candidate-scan.ts",
+      "/candidate-list-import.ts",
+      "/candidate-list-self-test.ts",
+      "/recovery-mnemocode/source/core/candidate-encryption.ts",
+      "/node_modules/age-encryption/",
+    ],
     "watch-only-discovery": [
       "/wallet-recovery/src/watch-only",
       "/watch-adapter.ts",
       "/watch-only.ts",
+      "/public-input-self-test.ts",
     ],
     "wallet-matcher": ["/address-search-feature.ts", "/bitcoin-address-search-runtime.ts"],
     "custom-paths": ["/coins/custom-path.ts", "/custom-path-editor.ts"],
@@ -450,6 +478,15 @@ export function assertDiscoveryComposition(options, inputs) {
     if (leaked.length)
       throw new Error(
         `Discovery Scanner excluded ${feature}, but its modules remain:\n${leaked.join("\n")}`,
+      );
+  }
+  if (!hasLocalAddressSearch(options)) {
+    const leaked = normalized.filter((input) =>
+      LOCAL_SEARCH_SELF_TEST.sourceMarkers.some((marker) => input.includes(marker)),
+    );
+    if (leaked.length)
+      throw new Error(
+        `Discovery Scanner excluded local address search, but its self-test remains:\n${leaked.join("\n")}`,
       );
   }
   if (!options.has("seed-discovery")) {
@@ -474,6 +511,9 @@ export function assertDiscoveryComposition(options, inputs) {
   if (options.has("watch-only-discovery"))
     requireInput("watch-only-discovery", "/watch-only-input.ts");
   if (options.has("custom-paths")) requireInput("custom-paths", "/coins/custom-path.ts");
-  if (options.has("wallet-matcher") && options.hasCoin("bitcoin"))
+  if (hasLocalAddressSearch(options)) {
     requireInput("wallet-matcher", "/address-search-feature.ts");
+    for (const marker of LOCAL_SEARCH_SELF_TEST.sourceMarkers)
+      requireInput("Local address search startup self-test", marker);
+  }
 }

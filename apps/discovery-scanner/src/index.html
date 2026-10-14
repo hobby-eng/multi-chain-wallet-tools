@@ -306,13 +306,7 @@
               <div class="batch-concurrency-row">
                 <div>
                   <label for="batch-concurrency">Seed phrases scanned at once</label
-                  ><select id="batch-concurrency">
-                    <option value="1" selected>1 · recommended / predictable</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5 · highest DAPI load</option>
-                  </select>
+                  ><select id="batch-concurrency"></select>
                 </div>
                 <p>
                   Sequential seed scanning is the reliable default. Parallel phrases remain optional, but can increase
@@ -323,6 +317,42 @@
               <p class="field-note">
                 Line N in the right box belongs to phrase N on the left. Empty passphrase lines are preserved.
               </p>
+              <details id="candidate-list-import" class="candidate-list-import">
+                <summary>Import a MnemoCode candidate list</summary>
+                <p class="field-note">
+                  MnemoCode and the Wallet Deriver save the candidates of a forgotten word or date as one encrypted
+                  file. Its candidates are checked in place of the phrases above, numbered as MnemoCode numbers them,
+                  and are never shown.
+                </p>
+                <div class="candidate-list-key-row">
+                  <button id="candidate-list-show-key" class="secondary" type="button">Show the Scanner key</button>
+                  <input id="candidate-list-key" type="text" readonly hidden aria-label="Scanner key" />
+                </div>
+                <p id="candidate-list-key-note" class="field-note" hidden>
+                  Paste this key where MnemoCode or the Deriver asks for the Scanner's key. It opens lists only in this
+                  page and is gone when the page closes.
+                </p>
+                <input id="candidate-list-file" type="file" accept=".age,.mncl" />
+                <label class="checkbox-row" for="candidate-list-plaintext">
+                  <input id="candidate-list-plaintext" type="checkbox" autocomplete="off" />
+                  I intentionally chose an unencrypted MNCL file and understand that it contains recovery material.
+                </label>
+                <p class="field-note">
+                  Leave this unchecked for encrypted age files. Plaintext is read locally and is not sent to providers.
+                </p>
+                <div id="candidate-list-passphrase-field" hidden>
+                  <label for="candidate-list-passphrase">List passphrase</label>
+                  <input id="candidate-list-passphrase" type="password" autocomplete="off" />
+                  <p class="field-note">
+                    This list was saved under a passphrase. Opening it takes a few seconds and about 256 MiB of memory.
+                  </p>
+                </div>
+                <div class="candidate-list-actions">
+                  <button id="candidate-list-open" class="secondary" type="button">Open list</button>
+                  <button id="candidate-list-remove" class="secondary" type="button" hidden>Remove list</button>
+                </div>
+                <p id="candidate-list-status" class="field-note" role="status" aria-live="polite"></p>
+              </details>
             </div>
           </div>
           <div
@@ -574,13 +604,7 @@
             </div>
             <div>
               <label for="request-concurrency">Parallel network requests</label
-              ><select id="request-concurrency">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5" selected>5 · recommended maximum</option>
-              </select>
+              ><select id="request-concurrency"></select>
             </div>
           </div>
           <label class="shielded-option history-option"
@@ -727,7 +751,7 @@
 
     <footer>
       <div class="footer-main">
-        <p>Dash Core BIP44 · Platform DIP17/DIP18 · Identity DIP13 · Dash Orchard ZIP-32 · Evo SDK 4.1.1</p>
+        <p>__DISCOVERY_FOOTER_PROTOCOLS__</p>
         <p>
           No persistence, analytics, cookies, external scripts, or secret-bearing network requests. Mnemonic, seed and
           Orchard FVK remain inside a CSP network-denied Secret Vault; Evo SDK runs in a separate Worker.

@@ -1,7 +1,6 @@
 import { fetchRecoveryJson } from "./recovery-http.js";
 import { platformDecimal, platformRecord, platformTimestamp } from "./platform-explorer-values.js";
-import { DASHSCAN_CORE_ENDPOINTS } from "./coins/dash/endpoints.js";
-import { validateCoreP2pkhAddress } from "@ckd/dash-network/public-address.js";
+import { DASHSCAN_ENDPOINTS, validateCoreP2pkhAddress } from "@ckd/dash-network/public-address.js";
 import { RECOVERY_CORE_ADDRESS_BATCH } from "@ckd/network-boundary/protocol.js";
 import type { DashCoreTransactionView, RecoveryNetwork } from "@ckd/network-boundary/protocol.js";
 import {
@@ -15,13 +14,13 @@ import {
 export class DashCoreNetworkService {
   async coreStatus(network: RecoveryNetwork, signal?: AbortSignal): Promise<unknown> {
     assertNetwork(network);
-    return fetchRecoveryJson(`${DASHSCAN_CORE_ENDPOINTS[network]}/status`, signal);
+    return fetchRecoveryJson(`${DASHSCAN_ENDPOINTS[network]}/status`, signal);
   }
 
   async coreTip(network: RecoveryNetwork, signal?: AbortSignal): Promise<unknown> {
     assertNetwork(network);
     return fetchRecoveryJson(
-      `${DASHSCAN_CORE_ENDPOINTS[network]}/blocks?page=1&limit=1&order=desc`,
+      `${DASHSCAN_ENDPOINTS[network]}/blocks?page=1&limit=1&order=desc`,
       signal,
     );
   }
@@ -40,7 +39,7 @@ export class DashCoreNetworkService {
       RECOVERY_CORE_ADDRESS_BATCH,
     );
     return fetchRecoveryJson(
-      `${DASHSCAN_CORE_ENDPOINTS[network]}/addresses/info?addresses=${addresses.map(encodeURIComponent).join(",")}`,
+      `${DASHSCAN_ENDPOINTS[network]}/addresses/info?addresses=${addresses.map(encodeURIComponent).join(",")}`,
       signal,
     );
   }
@@ -53,7 +52,7 @@ export class DashCoreNetworkService {
     assertNetwork(network);
     assertSingleAddress(address, network, validateCoreP2pkhAddress, "Dash Core P2PKH");
     const historyValue = await fetchRecoveryJson(
-      `${DASHSCAN_CORE_ENDPOINTS[network]}/address/${encodeURIComponent(address)}`,
+      `${DASHSCAN_ENDPOINTS[network]}/address/${encodeURIComponent(address)}`,
       signal,
     );
     if (typeof historyValue !== "object" || historyValue === null || Array.isArray(historyValue))
@@ -71,7 +70,7 @@ export class DashCoreNetworkService {
     )
       return historyValue;
     const transactionValue = await fetchRecoveryJson(
-      `${DASHSCAN_CORE_ENDPOINTS[network]}/transaction/${encodeURIComponent(history.firstSeenTx)}`,
+      `${DASHSCAN_ENDPOINTS[network]}/transaction/${encodeURIComponent(history.firstSeenTx)}`,
       signal,
     );
     if (
@@ -99,7 +98,7 @@ export class DashCoreNetworkService {
     assertNetwork(network);
     assertHash(hash);
     const transaction = platformRecord(
-      await fetchRecoveryJson(`${DASHSCAN_CORE_ENDPOINTS[network]}/transaction/${hash}`, signal),
+      await fetchRecoveryJson(`${DASHSCAN_ENDPOINTS[network]}/transaction/${hash}`, signal),
       "DashScan transaction",
     );
     if (transaction.hash !== hash)

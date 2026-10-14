@@ -1,0 +1,104 @@
+[
+  {
+    "category": "SEC",
+    "severity": "high",
+    "releaseBlocking": true,
+    "title": "Envelope accepts noncontributory X25519 recipients",
+    "affectedFiles": [
+      "packages/recovery-envelope-wasm/rust/src/lib.rs:123",
+      "packages/recovery-envelope-wasm/rust/src/lib.rs:148",
+      "packages/recovery-backup/src/gordian-envelope.ts:66",
+      "apps/key-derivation/src/ui/recovery-gordian-envelope.ts:103"
+    ],
+    "reproduction": "Run the bounded Envelope recipient conformance harness against the committed WASM. Encode synthetic u=0 and u=1 as correctly checksummed agreement-public-key URs; call recipient-only protected creation with public entropy and TREZOR.",
+    "expected": "Reject a recipient that produces an all-zero X25519 shared secret before returning any protected record. Preserve correct recipient and SSKR recovery.",
+    "observed": "Both rejection assertions fail: protected records are returned. Independent Noble X25519 controls refuse both points. Two ordinary recipient private keys and a two-of-three SSKR quorum recover exact entropy and TREZOR; a wrong key/no permit refuse.",
+    "impact": "The pinned bc-crypto path feeds the shared secret into HKDF without rejecting zero. For these points, the recipient wrapping key is therefore determined by public constants, so recipient-only confidentiality cannot be relied on; adding another permit does not repair a weak permit. This impact follows from the bound source path and cryptographic semantics. Independent decryption without a private key was not executed. Ordinary generated recipient keys were not shown defective.",
+    "recommendedFix": "Place one contributory-recipient admission rule in the Rust protection owner, enforce it for every recipient before content-key wrapping, and propagate a clear refusal through all bindings. Prefer checked fallible encapsulation returning an error on the actual all-zero shared secret, including noncanonical equivalent encodings; do not duplicate a page-only blacklist.",
+    "requiredVerification": "Actual compiled WASM refusal of low-order and equivalent encodings plus ordinary recipient/SSKR controls; library proof that all-zero agreement cannot yield a wrapping key. Canonical source/output verification at release.",
+    "evidence": [
+      "envelope-recipient-conformance.command.json",
+      "envelope-recipient-conformance.log",
+      "crypto-contract-followup.command.json",
+      "crypto-contract-followup.log"
+    ],
+    "references": ["https://www.rfc-editor.org/rfc/rfc7748"],
+    "qualification": "RFC 7748 allows an all-zero check; it does not impose universal syntactic rejection. The finding concerns the application's confidential recipient permit, not noncompliance with a mandatory RFC parsing rule."
+  },
+  {
+    "category": "SEC",
+    "severity": "medium",
+    "releaseBlocking": true,
+    "title": "Codex32 zero-padded random basis reveals a secret bit below threshold",
+    "affectedFiles": [
+      "packages/recovery-backup/src/codex32.ts:119",
+      "packages/recovery-codex32-wasm/rust/src/lib.rs:43"
+    ],
+    "reproduction": "Enumerate the two final-byte low-bit choices of the random basis for a synthetic 32-byte two-of-two share set, twice for secrets differing only in their final bit. Inspect the final payload symbol of index c and retain exact two-share restoration controls.",
+    "expected": "The distribution of a below-threshold share must not identify a bit of the secret. Random basis elements must cover the full GF(32) payload symbol space, including padding positions.",
+    "observed": "The last-symbol supports are disjoint: secret bit0 gives p/q and bit1 gives 3/s. All four two-share round-trip controls restore exact inputs. from_seed supplies zero padding for the last four bits of both the master and the random basis.",
+    "impact": "For this supported 256-bit two-of-two layout, one index-c share identifies the secret's last bit. This is a one-bit threshold secrecy violation, not recovery of an entire mnemonic or demonstrated fund loss. The fixture enumerates the last-symbol projection; pointwise GF(32) interpolation makes other payload symbols irrelevant to that projection. No large statistical run was used.",
+    "recommendedFix": "Generate random basis records with independent uniform GF(32) symbols including padding positions, using one validated reference-implementation entry point. Keep canonical master data encoding, valid BIP93 checksums and interoperability.",
+    "requiredVerification": "Independent finite-field projection check and below-threshold secrecy cases at every non-byte-aligned supported length, including other thresholds/indexes; known BIP93 values and reconstruction/refusal tests.",
+    "evidence": ["crypto-contract-followup.command.json", "crypto-contract-followup.log"],
+    "references": [
+      "https://github.com/bitcoin/bips/blob/5117f5831bcbf0485949e5951d2954b792eded28/bip-0093.mediawiki"
+    ]
+  },
+  {
+    "category": "FUN",
+    "severity": "medium",
+    "releaseBlocking": false,
+    "title": "Codex32 restoration rejects compatible records in different presentation cases",
+    "affectedFiles": [
+      "packages/recovery-codex32-wasm/rust/src/lib.rs:14",
+      "packages/recovery-codex32-wasm/rust/src/lib.rs:53",
+      "packages/recovery-backup/tests/codex32.test.ts:116"
+    ],
+    "reproduction": "Use official BIP93 shared vector two. Restore both full-uppercase records, both full-lowercase records, then one uppercase and one lowercase record.",
+    "expected": "Each individually valid presentation case denotes the same data and compatible shares restore the pinned seed. Mixed case within one record remains invalid.",
+    "observed": "Both uniform-case controls restore d1808e096b35b209ca12132b264662a5; the compatible cross-record case pair fails with incompatible prefixes. A within-record mixed-case control correctly refuses.",
+    "impact": "A valid backup can be rejected after one complete record is transcribed in the other permitted case. Manual whole-record case normalization is a workaround.",
+    "recommendedFix": "Validate each original record for its case/checksum rules, then normalize admitted semantic prefixes before interpolation. Correct the test that conflates cross-record presentation differences with mixed case within a record.",
+    "requiredVerification": "Published upper/lower/cross-record combinations plus mixed-within-record, wrong HRP, checksum, identity, threshold and duplicate-index refusals.",
+    "evidence": ["crypto-contract-followup.command.json", "crypto-contract-followup.log"],
+    "references": [
+      "https://github.com/bitcoin/bips/blob/5117f5831bcbf0485949e5951d2954b792eded28/bip-0093.mediawiki"
+    ]
+  },
+  {
+    "category": "API",
+    "severity": "medium",
+    "releaseBlocking": true,
+    "title": "Envelope restoration discards malformed or ambiguous passphrase assertions",
+    "affectedFiles": [
+      "packages/recovery-envelope-wasm/rust/src/lib.rs:239",
+      "packages/recovery-backup/src/gordian-envelope.ts:101"
+    ],
+    "reproduction": "Pass small correctly typed synthetic Seed Envelope records with a string passphrase, no passphrase, a numeric passphrase object and two distinct string passphrase assertions to the actual committed bundle-recovery WASM.",
+    "expected": "Absent is distinct from malformed or ambiguous. Restore valid string values; refuse wrong types and duplicate conflicting assertions instead of substituting an empty BIP39 passphrase.",
+    "observed": "Valid TREZOR and absent controls pass. Both wrong-type and duplicate rejection assertions fail. Rust extract_object_for_predicate(...).ok() converts all extraction errors to None and the JS bundle omits the field.",
+    "impact": "An accepted record can silently select the entropy-only wallet rather than the intended phrase-plus-passphrase wallet. This affects malformed/imported containers; ordinary well-formed generated controls preserved their passphrase. No external container, real wallet or loss was used.",
+    "recommendedFix": "Use the library's optional typed extraction contract to distinguish a genuinely absent predicate from extraction failure. Propagate wrong-type/ambiguity errors and preserve valid empty/string semantics through bundle handoff.",
+    "requiredVerification": "Actual WASM absent/empty/nonempty/wrong-type/duplicate bundle controls and host handoff; encrypted recipient and SSKR recovery preserve exact entropy and passphrase.",
+    "evidence": ["crypto-contract-followup.command.json", "crypto-contract-followup.log"]
+  },
+  {
+    "category": "API",
+    "severity": "medium",
+    "releaseBlocking": true,
+    "title": "Dash Shielded derivation wipes the caller seed and changes output on reuse",
+    "affectedFiles": [
+      "packages/coin-protocols/src/coins/dash/shielded.ts:36",
+      "packages/dash-shielded-wasm/rust/src/lib.rs:106",
+      "packages/dash-shielded-wasm/generated/dash_shielded_wasm.js:253"
+    ],
+    "reproduction": "Call actual deriveDashShielded with one synthetic 64-byte seed and one testnet address. Inspect caller bytes, call again with the same buffer, and compare with a fresh copy of the original seed.",
+    "expected": "The derivation API borrows caller seed data. Owned copies are wiped without changing future derivation from the same caller input.",
+    "observed": "The first call zeros the caller buffer. Reuse produces a different address/spending key; a fresh original-seed copy reproduces the first output. Rust mut slice zeroization is copied back by wasm-bindgen glue.",
+    "impact": "API composition or caller reuse can derive the all-zero-seed wallet after the first call. No UI loss or actual funded output was demonstrated; ordinary callers that supply a disposable copy may avoid the effect.",
+    "recommendedFix": "Give the WASM boundary an explicit owned copy and wipe it on all paths; keep the caller buffer intact. Retain zeroization of WASM-owned secret memory and document ownership consistently.",
+    "requiredVerification": "Actual WASM success/failure paths preserve caller bytes; repeated calls and mixed protocol derivations remain deterministic; fresh-copy control and independent pinned Orchard output remain valid.",
+    "evidence": ["crypto-contract-followup.command.json", "crypto-contract-followup.log"]
+  }
+]

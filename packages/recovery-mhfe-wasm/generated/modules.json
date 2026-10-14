@@ -1,0 +1,53 @@
+{
+  "version": "0.6.0",
+  "buildId": "4f5000f4290fa5eb",
+  "runtime": {
+    "files": {
+      "mhfe.wasm": "cdd9e5e4a4de7349cb4066b00be1f2c1429cc62e672448addc69b67f0d8c6f9c",
+      "runtime.d.ts": "d8df45b38ce9387b4c99f7d306ba8b2aa19423439b538824534d60799abf38b5",
+      "runtime.js": "61999d889d16977fa8c38aae225364820a843dc204c637e882c29b7b59338636",
+      "worker.js": "50526ef1c25f20b4da8ed125f8321648bc2dde1368e94dab310841185cccd27b"
+    }
+  },
+  "modules": {
+    "core": {
+      "files": {
+        "argon2-mt.js": "62396b89249ee7528d16562ac5beb8c15390ad2c6360b6c55bfe0e183c8bdfb5",
+        "argon2-st.js": "1780eced88eb3024d41b6e30d2722df815a9de7d9383478cff314efa19f4d512",
+        "client.d.ts": "5f0e18b7055bc9f946436d46b3eb44baeaa6b8d7197837e8a694051d8af7427d",
+        "client.js": "595665aac4ad9a68d9405e9414899137e1b87f3d29b4ef3a1984a989b66e1fe7",
+        "mhfe-fast-mode.py": "25b428f65000d942558874fd7849cbbd30428609477f9126a73cb16acf13ff1a"
+      },
+      "requires": [
+        "runtime"
+      ]
+    },
+    "repair": {
+      "files": {
+        "repair.d.ts": "b6e72947711806cff42a00fd60296f1eb9f4fab716a9d1e856e545a8473b54a6",
+        "repair.js": "854a42c4f59ea54b92d5c5f6d83ee4fa97c574c338d3433788e0cee962d8ac10"
+      },
+      "requires": [
+        "runtime"
+      ]
+    },
+    "passwords": {
+      "files": {
+        "passwords.d.ts": "9b492df3e5645e99b0216217451469076aa7e1d3737ce9c8b2fb4c0b38e48c6b",
+        "passwords.js": "04e370906f28dcb820cbba4218d6cad5dce8c57f97693ea8a7d8b97edd69ea6c"
+      },
+      "requires": [
+        "runtime"
+      ]
+    },
+    "wallet": {
+      "files": {
+        "wallet.d.ts": "d4d882e7e0f8d8dce7bb8b2eaad5b0ae4981acf2cb951739da7a2e13e419505b",
+        "wallet.js": "e8658dec3b49142b1a3232308f528ebc5f6285ee5d6e54b0a00100cc0dae5660"
+      },
+      "requires": [
+        "runtime"
+      ]
+    }
+  }
+}

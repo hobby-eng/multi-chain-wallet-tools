@@ -5,8 +5,7 @@ import type { RecoveryPhraseSlot } from "./recovery-feature.js";
 import type { RecoverySourceReference, RecoverySourceTarget } from "./recovery-source-link.js";
 import { required } from "./recovery-workspace-shared.js";
 
-const SOURCE_CHANGED =
-  "The linked source changed or was cleared. Choose it again from Generate & Derive.";
+const SOURCE_CHANGED = "The linked source changed or was cleared. Choose the source again.";
 
 interface LinkedPhraseView {
   readonly toggle: HTMLButtonElement;
@@ -19,6 +18,8 @@ export class LinkedSources {
   readonly #linked = new Map<RecoverySourceTarget, RecoverySourceReference>();
   /** Linked phrases the user chose to show, with the function that hides each again. */
   readonly #revealed = new Map<RecoverySourceTarget, () => void>();
+  /** Links whose phrase was changed or cleared in Generate & Derive, already announced. */
+  readonly #expired = new Set<RecoverySourceTarget>();
   /** The phrase of Generate & Derive while it is valid; each panel offers it until one is entered. */
   #offered: RecoverySourceReference | null = null;
   readonly #offers = new Map<RecoverySourceTarget, HTMLElement>();
@@ -46,6 +47,14 @@ export class LinkedSources {
   offer(reference: RecoverySourceReference | null): void {
     this.#offered = reference;
     for (const target of this.#offers.keys()) this.#updateOffer(target);
+    // The phrase of Generate & Derive changed or was cleared: a panel linked to it drops what it
+    // made from it (an encoded record, card QR images), as on any change of its source. The link
+    // stays and says it changed when it is used.
+    for (const [target, linked] of this.#linked)
+      if (!this.#expired.has(target) && linked.read() === null) {
+        this.#expired.add(target);
+        document.dispatchEvent(new CustomEvent("recovery-source-change", { detail: target }));
+      }
   }
 
   /** The linked phrase and passphrase, or null when the panel's own fields are used. */
@@ -77,6 +86,7 @@ export class LinkedSources {
     if (slot.passphraseField !== undefined)
       required<HTMLInputElement | HTMLTextAreaElement>(slot.passphraseField).value = "";
     this.#linked.set(target, reference);
+    this.#expired.delete(target);
     document.dispatchEvent(new CustomEvent("recovery-source-change", { detail: target }));
     this.#updateOffer(target);
     const panel = required<HTMLElement>(`#${slot.panelId}`);
@@ -97,6 +107,7 @@ export class LinkedSources {
 
   #unlink(slot: RecoveryPhraseSlot): void {
     this.#linked.delete(slot.target);
+    this.#expired.delete(slot.target);
     this.#revealed.delete(slot.target);
     document.querySelector<HTMLElement>(`[data-linked-source-for="${slot.target}"]`)?.remove();
     for (const element of manualFieldElements(slot)) element.hidden = false;

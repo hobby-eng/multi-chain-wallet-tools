@@ -1,3 +1,5 @@
+import { PlatformProofIndexReconciliation } from "@ckd/dash-network/platform-proof-index.js";
+import { ShieldedActivityState } from "@ckd/dash-network/shielded-activity-state.js";
 import { encodeCsv, type CsvValue } from "@ckd/export/csv.js";
 export type { CsvValue } from "@ckd/export/csv.js";
 import { formatDashCredits, formatDashDuffs } from "@ckd/core/dash-units.js";
@@ -7,7 +9,13 @@ import type {
   ViewerExportState,
   ViewerSingleExportState,
 } from "./export-model.js";
-import { exactJson, exportError, isBatchExportState } from "./export-common.js";
+import {
+  exactJson,
+  exportError,
+  isBatchExportState,
+  VIEWER_EXPORT_SCHEMA_VERSION,
+} from "./export-common.js";
+import { CoreActivityState } from "./core-activity-state.js";
 
 function timestamp(value: number | bigint | null): string {
   if (value === null) return "";
@@ -95,7 +103,7 @@ function csvRecord(
   record: CsvRecord,
 ): CsvValue[] {
   return [
-    "2",
+    String(VIEWER_EXPORT_SCHEMA_VERSION),
     generatedAt,
     mode,
     network,
@@ -126,6 +134,7 @@ function coreRows(
   generatedAt: string,
 ): CsvValue[][] {
   const { snapshot } = state;
+  const balance = new CoreActivityState(snapshot).balance;
   const queryLabel = snapshot.address;
   const records = [
     csvRecord(state.mode, state.network, generatedAt, {
@@ -139,13 +148,14 @@ function coreRows(
       status: snapshot.indexStatus,
       type: "CORE_ADDRESS",
       direction: "related",
-      amountAtomic: snapshot.balanceDuffs,
+      amountAtomic: balance.reportedBalanceDuffs,
       amountUnit: "duffs",
       blockHeight: snapshot.indexedHeight,
       metadata: metadata([
-        ["unconfirmed_duffs", snapshot.unconfirmedDuffs],
-        ["total_received_duffs", snapshot.totalReceivedDuffs],
-        ["total_sent_duffs", snapshot.totalSentDuffs],
+        ["reported_balance_duffs", balance.reportedBalanceDuffs],
+        ["balance_discrepancy_duffs", balance.balanceDiscrepancyDuffs],
+        ["total_received_duffs", balance.totalReceivedDuffs],
+        ["total_sent_duffs", balance.totalSentDuffs],
         ["transaction_count", snapshot.transactionCount],
         ["history_limit", snapshot.historyLimit],
         ["requests", snapshot.requests],
@@ -160,11 +170,7 @@ function coreRows(
         recordId: transaction.txid,
         source: snapshot.provider,
         timestamp: timestamp(transaction.timestampMs),
-        status: transaction.chainLocked
-          ? "chain_locked"
-          : transaction.instantLocked
-            ? "instant_locked"
-            : "confirmed",
+        status: CoreActivityState.confirmationStatus(transaction),
         type: transaction.type,
         direction: directionFromNet(transaction.netDuffs),
         amountAtomic: transaction.netDuffs,
@@ -191,9 +197,7 @@ function platformRows(
   generatedAt: string,
 ): CsvValue[][] {
   const { snapshot, history } = state;
-  const agrees =
-    snapshot.balanceCredits === history.explorerBalanceCredits &&
-    snapshot.nonce === BigInt(history.explorerNonce);
+  const reconciliation = new PlatformProofIndexReconciliation(snapshot, history);
   const queryLabel = snapshot.address;
   const records = [
     csvRecord(state.mode, state.network, generatedAt, {
@@ -204,7 +208,7 @@ function platformRows(
       recordId: snapshot.address,
       source: "Dash Platform DAPI + Dash Platform Explorer",
       timestamp: timestamp(history.indexedTimeMs),
-      status: agrees ? "proof_and_index_agree" : "proof_takes_precedence",
+      status: reconciliation.status,
       type: "PLATFORM_ADDRESS",
       direction: "related",
       amountAtomic: snapshot.balanceCredits,
@@ -260,6 +264,7 @@ function shieldedRows(
   generatedAt: string,
 ): CsvValue[][] {
   const { snapshot } = state;
+  const activity = new ShieldedActivityState(snapshot);
   const queryLabel = `${snapshot.keyKind} viewing key`;
   const records = [
     csvRecord(state.mode, state.network, generatedAt, {
@@ -272,7 +277,7 @@ function shieldedRows(
       status: snapshot.complete ? "complete" : "partial",
       type: "ORCHARD_SCAN",
       direction: "related",
-      amountAtomic: snapshot.balance,
+      amountAtomic: activity.balance,
       amountUnit: "credits",
       blockHeight: snapshot.proofHeight,
       metadata: metadata([
@@ -293,13 +298,15 @@ function shieldedRows(
         recordType: "note",
         recordId: record.position,
         source: "Local Orchard recovery",
-        status: record.spent === undefined ? "unknown" : record.spent ? "spent" : "spendable",
+        status: activity.noteSpendStatus(record),
         type: "ORCHARD_NOTE",
         direction: record.direction,
         amountAtomic: note?.value ?? null,
         amountUnit: "credits",
         blockHeight: snapshot.proofHeight,
         metadata: metadata([
+          ["scan_complete", snapshot.complete],
+          ["key_capability", snapshot.keyKind],
           ["pool_position", record.position],
           ["memo", note?.memo],
           ["spent_at_position", record.spentAtPosition],

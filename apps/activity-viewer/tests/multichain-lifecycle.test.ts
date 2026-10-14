@@ -19,6 +19,13 @@ vi.mock("@ckd/public-data-providers/multi-chain-service.js", () => ({
 }));
 
 class Control extends EventTarget {
+  readonly attributes = new Map<string, string>();
+  setAttribute(name: string, value: string): void {
+    this.attributes.set(name, value);
+  }
+  getAttribute(name: string): string | null {
+    return this.attributes.get(name) ?? null;
+  }
   value = "";
   disabled = false;
   hidden = false;

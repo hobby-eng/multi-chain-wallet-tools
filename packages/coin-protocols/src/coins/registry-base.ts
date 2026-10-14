@@ -38,6 +38,7 @@ export interface CoinJoinPathPreview {
 }
 
 export interface CoinJoinSupport {
+  readonly label: string;
   branches: CoinJoinBranches;
   /** Worker-dispatch id for this chain's derive() function; distinct from the adapter id because the path template differs from the adapter's own protocol. */
   workerAdapterId: string;
@@ -132,6 +133,33 @@ export const TRANSPARENT_ROLES: CoinFieldRoles = {
 
 export function indexRange(start: number, count: number): string {
   return count > 1 ? `${start}…${start + count - 1}` : String(start);
+}
+
+/** Resolves only protocols admitted by this build, including an adapter's optional chain. */
+export function resolveCoinProtocol(
+  registry: Pick<CoinRegistry, "COIN_ADAPTERS">,
+  id: string,
+): CoinAdapter | undefined {
+  for (const adapter of registry.COIN_ADAPTERS) {
+    if (adapter.id === id) return adapter;
+    const protocol = adapter.coinJoin;
+    if (protocol?.workerAdapterId !== id) continue;
+    return {
+      ...adapter,
+      id,
+      label: protocol.label,
+      variantLabel: protocol.label,
+      defaults: { ...adapter.defaults, branch: protocol.branches.external },
+      addressBranches: { receive: protocol.branches.external, change: protocol.branches.internal },
+      pathPreview: (input) => {
+        const paths = protocol.pathPreview(input);
+        if (input.branch === protocol.branches.external) return paths.external;
+        if (input.branch === protocol.branches.internal) return paths.internal;
+        throw new Error("Unsupported optional protocol branch.");
+      },
+    };
+  }
+  return undefined;
 }
 
 function familyId(label: string): string {

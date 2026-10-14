@@ -5,6 +5,7 @@ import { inputUtxo, scriptCommitmentFailure, validateMoney } from "./psbt-utxo.j
 import { validateMap, validateMusigPsbtFields, validateVersionFields } from "./psbt-validation.js";
 import { inputVerification } from "./psbt-verification.js";
 import type { ParsedPsbt, PsbtChain, PsbtVerificationCheck } from "./psbt-types.js";
+import { PsbtFieldRegistry } from "./psbt-field-registry.js";
 
 export type { PsbtPair } from "./psbt-binary.js";
 export { parsedTransactionId } from "./transaction.js";
@@ -40,7 +41,7 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
     if (unsignedPair === undefined)
       throw new Error("PSBT v0 is missing its global unsigned transaction.");
     try {
-      transaction = readTransaction(unsignedPair.value, chain, false);
+      transaction = readTransaction(unsignedPair.value, chain, false, "psbt-global");
     } catch (legacyError) {
       if (chain === "bitcoin") {
         const witnessSerializationError = new Error(
@@ -99,7 +100,7 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
   );
   const commitmentFailures = suppliedUtxos.map((utxo, index) => {
     if (utxo !== null) validateMoney(utxo.value, chain, `Input ${index} value`);
-    return scriptCommitmentFailure(inputs[index]!, utxo);
+    return scriptCommitmentFailure(inputs[index]!, utxo, chain);
   });
   const inputValues = suppliedUtxos.map((utxo) => utxo?.value ?? null);
   const outputValues =
@@ -121,7 +122,8 @@ export function parsePsbt(text: string, chain: PsbtChain): ParsedPsbt {
       outputValues.reduce((total, value) => total + value, 0n)
     : null;
   if (fee !== null && fee < 0n) throw new Error("PSBT outputs exceed the supplied input values.");
-  const modifiable = pair(global, 0x06)?.value[0];
+  const modifiable = pair(new PsbtFieldRegistry(chain).interpreted(global, "global"), 0x06)
+    ?.value[0];
   const globalVerification: PsbtVerificationCheck[] = [
     modifiable === undefined
       ? {

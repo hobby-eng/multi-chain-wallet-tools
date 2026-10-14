@@ -3,7 +3,13 @@ import type {
   ViewerExportState,
   ViewerTextExportFormat,
 } from "./export-model.js";
-import { exactJson, exportError, fileStamp, isBatchExportState } from "./export-common.js";
+import {
+  exactJson,
+  exportError,
+  fileStamp,
+  isBatchExportState,
+  VIEWER_EXPORT_SCHEMA_VERSION,
+} from "./export-common.js";
 import { createViewerCsvText } from "./export-csv.js";
 import { viewerJsonData } from "./export-json.js";
 
@@ -38,7 +44,7 @@ export function createViewerExport(
       text: `${JSON.stringify(
         {
           schema: "wallet-activity-viewer-export",
-          version: 2,
+          version: VIEWER_EXPORT_SCHEMA_VERSION,
           generatedAt: generatedAtIso,
           mode: state.mode,
           network: state.network,

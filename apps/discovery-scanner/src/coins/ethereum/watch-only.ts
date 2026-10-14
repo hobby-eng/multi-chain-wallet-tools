@@ -1,14 +1,13 @@
+import { WalletScan } from "../../wallet-result.js";
+import { watchOnlyPublicKey } from "@ckd/recovery/watch-only.js";
+import { ETHEREUM_COIN } from "./coin.js";
+import { ScanSecrets } from "../../scan-secrets.js";
 import { assertWatchOnlyMinimum } from "@ckd/recovery/watch-only.js";
-import { isUint256Decimal } from "@ckd/core/numeric-limits.js";
 import { HDKey } from "@scure/bip32";
-import { bytesToHex, secp256k1, wipe } from "@ckd/core/crypto.js";
-import { ethereumAddressFromPublicKey } from "@ckd/coins/ethereum/index.js";
-import { RecoveryConcurrencyLimiter } from "../../concurrency.js";
-import { RecoveryNetworkGateway } from "../../network-gateway.js";
+import { ethereumAddressOfKey } from "@ckd/coins/ethereum/index.js";
+import { requirePublic } from "@ckd/core/bip32.js";
 import { RECOVERY_EVM_ACCOUNT_BATCH, type EvmAccountView } from "@ckd/network-boundary/protocol.js";
-import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
 import type {
-  DetectedWatchOnlyMaterial,
   RecoveryFinding,
   RecoveryScanContext,
   RecoverySection,
@@ -16,69 +15,17 @@ import type {
   RecoveryWatchOnlyInput,
   RecoveryWatchOnlyScanConfig,
 } from "../../types.js";
+import { AddressBook, scanBranches } from "../../address-book.js";
 import {
-  foreignPrefixCoin,
-  looksLikeExtendedPublicKey,
-  looksLikeSec1PublicKey,
-  matchExplicitPrefix,
-  normalizedHexKey,
-  WatchOnlyNotRecognizedError,
-} from "@ckd/recovery/watch-only.js";
-import { MULTI_CHAIN_WATCH_ONLY_PREFIX_COINS } from "@ckd/recovery/watch-only/multi-chain-profile.js";
-import { extendAddressTarget } from "../../address-gap.js";
-import { ETHEREUM_VERSIONS, formatEther } from "./shared.js";
-
-export function detectEthereumWatchOnly(
-  raw: string,
-  mode: { auto: boolean },
-): DetectedWatchOnlyMaterial {
-  const trimmed = raw.trim();
-  const matched = matchExplicitPrefix(trimmed);
-  if (matched !== null) {
-    if (matched.prefix === "ethereum-xpub") {
-      if (matched.value.length === 0) throw new Error("ethereum-xpub: requires a value.");
-      return { coinId: "ethereum", kind: "ethereum-xpub", value: matched.value };
-    }
-    if (matched.prefix === "public-key") {
-      if (matched.value.length === 0) throw new Error("public-key: requires a value.");
-      return { coinId: "ethereum", kind: "public-key", value: normalizedHexKey(matched.value) };
-    }
-    const conflict = foreignPrefixCoin(trimmed, "ethereum", MULTI_CHAIN_WATCH_ONLY_PREFIX_COINS);
-    if (conflict !== null) {
-      if (mode.auto) throw new WatchOnlyNotRecognizedError();
-      throw new Error(
-        `"${matched.prefix}:" belongs to ${conflict}, not Ethereum. Remove the prefix or select ${conflict === "dash" ? "Dash" : "Bitcoin"}.`,
-      );
-    }
-    if (mode.auto) throw new WatchOnlyNotRecognizedError();
-    throw new Error(`Unrecognized prefix "${matched.prefix}:".`);
-  }
-  if (looksLikeExtendedPublicKey(trimmed)) {
-    if (mode.auto) throw new WatchOnlyNotRecognizedError();
-    return {
-      coinId: "ethereum",
-      kind: "ethereum-xpub",
-      value: trimmed,
-      detectionLabel: "Ethereum EOA · candidate BIP32 key",
-    };
-  }
-  if (looksLikeSec1PublicKey(trimmed)) {
-    if (mode.auto) throw new WatchOnlyNotRecognizedError();
-    return { coinId: "ethereum", kind: "public-key", value: normalizedHexKey(trimmed) };
-  }
-  throw new WatchOnlyNotRecognizedError();
-}
+  ETHEREUM_SOURCES,
+  ETHEREUM_VERSIONS,
+  EthereumAccounts,
+  ethereumChainLabel,
+  formatEther,
+} from "./shared.js";
 
 function addressForNode(node: HDKey): string {
-  const compressed = node.publicKey;
-  if (compressed === null)
-    throw new Error("Watch-only derivation unexpectedly produced no public key.");
-  const uncompressed = secp256k1.Point.fromHex(bytesToHex(compressed)).toBytes(false);
-  try {
-    return ethereumAddressFromPublicKey(uncompressed).checksummed;
-  } finally {
-    wipe(uncompressed);
-  }
+  return ethereumAddressOfKey(requirePublic(node, "the watch-only key"));
 }
 
 interface EthCandidateProfile {
@@ -88,60 +35,20 @@ interface EthCandidateProfile {
   deriveChild(index: number): HDKey;
 }
 
-async function queryAccounts(
-  gateway: RecoveryNetworkGateway,
-  networkName: RecoveryWatchOnlyScanConfig["network"],
-  addresses: readonly string[],
-  signal: AbortSignal,
-): Promise<{ entries: EvmAccountView[]; blockNumber: bigint }> {
-  if (addresses.length === 0) return { entries: [], blockNumber: 0n };
-  const response = await gateway.runPublic(
-    { network: networkName, addresses },
-    "evm.accounts",
-    () => gateway.networkApi.evmAccounts(networkName, [...addresses], signal),
-    signal,
-  );
-  if (
-    !isUint256Decimal(response.blockNumber) ||
-    !Array.isArray(response.entries) ||
-    response.entries.length !== addresses.length
-  ) {
-    throw new Error("Ethereum RPC returned an incomplete account batch.");
-  }
-  response.entries.forEach((entry: EvmAccountView, index: number) => {
-    if (
-      entry.address !== addresses[index] ||
-      !isUint256Decimal(entry.balance) ||
-      !isUint256Decimal(entry.nonce)
-    ) {
-      throw new Error("Ethereum RPC returned malformed account data.");
-    }
-  });
-  return { entries: response.entries, blockNumber: BigInt(response.blockNumber) };
-}
-
 export async function scanEthereumWatchOnly(
   input: RecoveryWatchOnlyInput,
   config: RecoveryWatchOnlyScanConfig,
   context: RecoveryScanContext,
 ): Promise<RecoveryWalletResult> {
   assertWatchOnlyMinimum(config.minimumCount);
-  const guard = new SecretEgressGuard();
-  if (input.kind !== "public-key" && input.kind !== "identity") {
-    guard.registerString("Ethereum watch-only input", input.value);
-    context.sessionSecretGuard?.registerString("Ethereum watch-only input", input.value);
-  }
-  const gateway = new RecoveryNetworkGateway(
-    guard,
-    context.networkApi,
-    context.networkLimiter ?? new RecoveryConcurrencyLimiter(5),
-  );
-  const startedAt = new Date().toISOString();
+  const secrets = new ScanSecrets(context);
+  secrets.watchOnly(input, "Ethereum");
+  const gateway = secrets.gateway(context);
+  const walletScan = new WalletScan(input, ETHEREUM_COIN, config.network);
+  const accounts = new EthereumAccounts(gateway, config.network, context.signal);
+  const book = new AddressBook(accounts);
   const findings: RecoveryFinding[] = [];
-  const accountStates = new Map<string, EvmAccountView>();
-  let blockNumber = 0n;
   let scanned = 0;
-  let gapTruncated = false;
   let descriptionText: string;
 
   const recordFinding = (
@@ -151,9 +58,7 @@ export async function scanEthereumWatchOnly(
     entry: EvmAccountView,
   ): void => {
     const balance = BigInt(entry.balance);
-    const nonce = BigInt(entry.nonce);
-    const used = balance > 0n || nonce > 0n;
-    if (balance === 0n && !(config.includeUsedZeroBalance && used)) return;
+    if (balance === 0n && !(config.includeUsedZeroBalance && accounts.used(entry))) return;
     const finding: RecoveryFinding = {
       id: `ethereum:watch:${address}`,
       title: address,
@@ -163,39 +68,26 @@ export async function scanEthereumWatchOnly(
       fields: [
         { label: "Scan profile", value: label },
         { label: "Relative derivation path", value: path, copyable: true },
-        { label: "Transactions sent / nonce", value: nonce.toString() },
+        { label: "Transactions sent / nonce", value: BigInt(entry.nonce).toString() },
       ],
     };
     findings.push(finding);
     context.onFinding(input.id, "core", finding);
   };
+  /** One exact account: a public key or a leaf key, which derive nothing further. */
+  const recordExact = async (address: string, path: string, label: string): Promise<void> => {
+    const [entry] = await book.states([address]);
+    recordFinding(address, path, label, entry!);
+    scanned = 1;
+  };
 
   if (input.kind === "public-key") {
-    let point: ReturnType<typeof secp256k1.Point.fromHex>;
-    try {
-      point = secp256k1.Point.fromHex(input.value);
-    } catch {
-      throw new Error("This public key is not a valid point on the secp256k1 curve.");
-    }
-    const uncompressed = point.toBytes(false);
-    let address: string;
-    try {
-      address = ethereumAddressFromPublicKey(uncompressed).checksummed;
-    } finally {
-      wipe(uncompressed);
-    }
-    const { entries, blockNumber: block } = await queryAccounts(
-      gateway,
-      config.network,
-      [address],
-      context.signal,
+    const { uncompressed } = watchOnlyPublicKey(input.value);
+    await recordExact(
+      ethereumAddressOfKey(uncompressed),
+      "exact public key",
+      "Exact public key · EOA",
     );
-    blockNumber = block;
-    const entry = entries[0];
-    if (entry === undefined) throw new Error("Ethereum RPC omitted the requested account.");
-    accountStates.set(address, entry);
-    recordFinding(address, "exact public key", "Exact public key · EOA", entry);
-    scanned = 1;
     descriptionText =
       "A single public key maps to exactly one EOA; it cannot derive descendant addresses.";
   } else {
@@ -213,19 +105,7 @@ export async function scanEthereumWatchOnly(
       );
     }
     if (node.depth === 5) {
-      const address = addressForNode(node);
-      const { entries, blockNumber: block } = await queryAccounts(
-        gateway,
-        config.network,
-        [address],
-        context.signal,
-      );
-      blockNumber = block;
-      const entry = entries[0];
-      if (entry === undefined) throw new Error("Ethereum RPC omitted the requested account.");
-      accountStates.set(address, entry);
-      recordFinding(address, "exact leaf key", "Exact leaf public key · EOA", entry);
-      scanned = 1;
+      await recordExact(addressForNode(node), "exact leaf key", "Exact leaf public key · EOA");
       descriptionText =
         "A depth-5 leaf extended public key is already one exact account key; it cannot derive further descendants.";
     } else if (node.depth === 3 || node.depth === 4) {
@@ -253,57 +133,28 @@ export async function scanEthereumWatchOnly(
                 deriveChild: (index) => node.deriveChild(index),
               },
             ];
-      for (const profile of profiles) {
-        let target = config.minimumCount;
-        for (let offset = 0; offset < target;) {
-          if (context.signal.aborted)
-            throw new DOMException("Ethereum watch-only scan cancelled.", "AbortError");
-          const end = Math.min(offset + RECOVERY_EVM_ACCOUNT_BATCH, target);
-          const derived = Array.from({ length: end - offset }, (_, relativeIndex) => {
-            const index = offset + relativeIndex;
-            return {
-              address: addressForNode(profile.deriveChild(index)),
-              index,
-              path: profile.path.replace("i", String(index)),
-            };
-          });
-          const missing = derived.filter(
-            ({ address }) => !accountStates.has(address.toLowerCase()),
-          );
-          if (missing.length > 0) {
-            const { entries, blockNumber: block } = await queryAccounts(
-              gateway,
-              config.network,
-              missing.map(({ address }) => address),
-              context.signal,
-            );
-            blockNumber = block;
-            for (const entry of entries) accountStates.set(entry.address.toLowerCase(), entry);
-          }
-          for (const item of derived) {
-            const entry = accountStates.get(item.address.toLowerCase());
-            if (entry === undefined)
-              throw new Error("Ethereum watch-only account cache omitted a derived address.");
-            const balance = BigInt(entry.balance);
-            const nonce = BigInt(entry.nonce);
-            if (balance > 0n || nonce > 0n) {
-              const extension = extendAddressTarget(target, item.index);
-              target = extension.target;
-              gapTruncated ||= extension.truncated;
-            }
-            recordFinding(item.address, item.path, profile.label, entry);
-          }
-          scanned += derived.length;
-          offset = end;
+      scanned = await scanBranches(profiles, (profile, before) => ({
+        initial: config.minimumCount,
+        batchSize: RECOVERY_EVM_ACCOUNT_BATCH,
+        signal: context.signal,
+        cancelled: "Ethereum watch-only scan cancelled.",
+        derive: (index) => ({
+          address: addressForNode(profile.deriveChild(index)),
+          index,
+          path: profile.path.replace("i", String(index)),
+        }),
+        lookUp: book.lookUpWith({ includeUsedZeroBalance: config.includeUsedZeroBalance }),
+        show: ({ derived: item, state: entry }) =>
+          recordFinding(item.address, item.path, profile.label, entry),
+        progress: (checked, target) =>
           context.onProgress({
             inputId: input.id,
             section: "core",
-            message: `${profile.label}: checked ${offset} of ${target}`,
-            completed: scanned,
+            message: `${profile.label}: checked ${checked} of ${target}`,
+            completed: before + checked,
             total: null,
-          });
-        }
-      }
+          }),
+      }));
       descriptionText =
         node.depth === 4
           ? "Depth-4 branch extended public key: scanning its relative /i indices."
@@ -315,70 +166,31 @@ export async function scanEthereumWatchOnly(
     }
   }
 
-  let totalBalance = 0n;
-  let fundedCount = 0;
-  let usedCount = 0;
-  for (const entry of accountStates.values()) {
-    const balance = BigInt(entry.balance);
-    const nonce = BigInt(entry.nonce);
-    totalBalance += balance;
-    if (balance > 0n) fundedCount += 1;
-    if (balance > 0n || nonce > 0n) usedCount += 1;
-  }
+  const warning = book.gap.warning;
   const section: RecoverySection = {
     id: "core",
     title: "Ethereum watch-only EOA addresses",
     description: descriptionText,
     state: "complete",
     metrics: [
-      {
-        label: "Spendable balance",
-        value: formatEther(totalBalance),
-        tone: totalBalance > 0n ? "positive" : "neutral",
-      },
-      { label: "Funded addresses", value: String(fundedCount) },
-      { label: "Previously used · empty", value: String(usedCount - fundedCount) },
-      { label: "Unique addresses queried", value: String(accountStates.size) },
+      ...book.metrics(formatEther),
+      { label: "Unique addresses queried", value: String(book.queried) },
       { label: "Derivation candidates", value: String(scanned) },
     ],
     findings,
     scanned,
-    source:
-      config.network === "mainnet"
-        ? "https://ethereum-rpc.publicnode.com"
-        : "https://ethereum-sepolia-rpc.publicnode.com",
-    proof: `${config.network === "mainnet" ? "Ethereum mainnet" : "Sepolia testnet"} JSON-RPC state at block ${blockNumber}`,
-    ...(gapTruncated
-      ? {
-          warning:
-            "A used address was found too close to the end of the BIP32 index space to complete the post-use gap.",
-        }
-      : {}),
+    source: ETHEREUM_SOURCES[config.network],
+    proof: `${ethereumChainLabel(config.network)} JSON-RPC state at block ${accounts.blocks.latest ?? 0n}`,
+    ...(warning === undefined ? {} : { warning }),
   };
-  return {
-    inputId: input.id,
-    label: input.label,
-    coinId: "ethereum",
-    coinLabel: "Ethereum",
-    network: config.network,
-    startedAt,
-    completedAt: new Date().toISOString(),
+  return walletScan.result({
     overview: [
-      {
-        label: "Total located value",
-        value: formatEther(totalBalance),
-        tone: totalBalance > 0n ? "positive" : "neutral",
-      },
-      {
-        label: "Funded accounts",
-        value: String(fundedCount),
-        tone: fundedCount > 0 ? "positive" : "neutral",
-      },
-      { label: "Unique addresses queried", value: String(accountStates.size) },
+      ...book.overview(formatEther, "Funded accounts"),
+      { label: "Unique addresses queried", value: String(book.queried) },
     ],
     sections: [section],
     warnings: [
       "Only native ETH is scanned; tokens and smart-contract wallets require separate recovery tooling.",
     ],
-  };
+  });
 }

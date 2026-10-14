@@ -9,6 +9,17 @@ import { SecretEgressGuard } from "@ckd/secret-boundary/secret-guard.js";
 import type { RecoveryInputSnapshot, DiscoveryScannerView } from "../src/view.js";
 import type { RecoveryWalletResult } from "../src/types.js";
 import type { RuntimeCoinAdapter } from "@ckd/coins/runtime-registry.js";
+import { BITCOIN_SEED_RECOVERY_ADAPTER } from "../src/coins/bitcoin/seed.js";
+import { ETHEREUM_SEED_RECOVERY_ADAPTER } from "../src/coins/ethereum/seed.js";
+import { dashSeedLookups, type SeedLookupSettings } from "../src/scan-estimate.js";
+
+/** Each fake coin counts its lookups as the real adapter does, for the large-scan limit. */
+const minimumSeedLookups = (id: string) => (settings: SeedLookupSettings) =>
+  id === "bitcoin"
+    ? BITCOIN_SEED_RECOVERY_ADAPTER.minimumSeedLookups!(settings)
+    : id === "ethereum"
+      ? ETHEREUM_SEED_RECOVERY_ADAPTER.minimumSeedLookups!(settings)
+      : dashSeedLookups(settings);
 
 class TestControl extends EventTarget {
   disabled = false;
@@ -185,6 +196,7 @@ describe("Discovery Scanner controller", () => {
         id,
         label: id,
         networks: ["mainnet"],
+        minimumSeedLookups: minimumSeedLookups(id),
         scan: async (input: import("../src/types.js").RecoverySeedInput) => {
           calls.push(`${input.id}:${input.mnemonic}:${input.passphrase}`);
           return { ...result(), inputId: input.id, label: input.label, coinId: id, coinLabel: id };
@@ -259,6 +271,7 @@ describe("Discovery Scanner controller", () => {
         id: "dash",
         label: "Dash",
         networks: ["mainnet", "testnet"] as const,
+        minimumSeedLookups: dashSeedLookups,
         scan: vi.fn(async (input, _config, context) => {
           context.sessionSecretGuard?.registerString("BIP39 mnemonic", input.mnemonic);
           return result();
@@ -315,6 +328,7 @@ describe("Discovery Scanner controller", () => {
         id: "dash",
         label: "Dash",
         networks: ["mainnet", "testnet"] as const,
+        minimumSeedLookups: dashSeedLookups,
         scan,
       }),
       listRecoveryCoins: () => [],
@@ -380,6 +394,7 @@ describe("Discovery Scanner controller", () => {
         id: "dash",
         label: "Dash",
         networks: ["mainnet", "testnet"] as const,
+        minimumSeedLookups: dashSeedLookups,
         scan,
       }),
       listRecoveryCoins: () => [],
@@ -430,6 +445,127 @@ describe("Discovery Scanner controller", () => {
     );
   });
 
+  it("says nothing of an export that the broker answers after Clear (AUD-024-API004)", async () => {
+    vi.stubGlobal("window", { addEventListener: vi.fn() });
+    const { view, controls } = testView();
+    const reply = deferred<string>();
+    const dependencies = {
+      ...ALL_DISCOVERY_FEATURES,
+      RecoveryConcurrencyLimiter,
+      SecretEgressGuard,
+      assertValidMnemonic: (value: string) => value.trim(),
+      createRecoveryExport: (_results: RecoveryWalletResult[], format: "csv" | "json") => ({
+        filename: `report.${format}`,
+        mimeType: format === "csv" ? ("text/csv" as const) : ("application/json" as const),
+        text: "public report",
+      }),
+      describeUnknownError: (cause: unknown) =>
+        cause instanceof Error ? cause.message : String(cause),
+      getRecoveryCoin: () => ({
+        id: "dash",
+        label: "Dash",
+        networks: ["mainnet", "testnet"] as const,
+        minimumSeedLookups: dashSeedLookups,
+        scan: vi.fn(async () => result()),
+      }),
+      listRecoveryCoins: () => [],
+      mapRecoveryTasks,
+      recoveryNetworkApi: async () => ({ ping: async () => "isolated-network-worker-v1" }),
+      requestRecoveryExport: vi.fn(() => reply.promise),
+      runRecoverySelfTest: async () => ({ checks: ["fixture"], durationMs: 1 }),
+    } as unknown as Parameters<typeof createDiscoveryScannerController>[1];
+    createDiscoveryScannerController(view, dependencies).start();
+    await settle();
+    controls.startButton.click();
+    await vi.waitFor(() =>
+      expect(view.setStatus).toHaveBeenCalledWith(
+        "Recovery scan complete. Review and export the standard-wallet handoff report.",
+      ),
+    );
+    controls.exportCsvButton.click();
+    await settle();
+    expect(dependencies.requestRecoveryExport).toHaveBeenCalledOnce();
+    controls.clearButton.click();
+    reply.resolve("report.csv");
+    await settle();
+    expect(view.setStatus).not.toHaveBeenCalledWith(expect.stringMatching(/^Exported/u));
+  });
+
+  for (const mode of ["seed", "public"] as const) {
+    for (const outcome of ["resolve", "reject"] as const) {
+      it(`ignores a delayed ${outcome} broker reply after a new normal ${mode} scan`, async () => {
+        vi.stubGlobal("window", { addEventListener: vi.fn() });
+        const { view, controls } = testView();
+        let reply!: (value: string) => void;
+        let reject!: (cause: Error) => void;
+        const broker = new Promise<string>((resolve, fail) => {
+          reply = resolve;
+          reject = fail;
+        });
+        const scan = vi.fn(async () => result());
+        const adapter = {
+          id: "dash",
+          label: "Dash",
+          networks: ["mainnet", "testnet"] as const,
+          minimumSeedLookups: dashSeedLookups,
+          scan,
+          scanWatchOnly: scan,
+        };
+        const dependencies = {
+          ...ALL_DISCOVERY_FEATURES,
+          RecoveryConcurrencyLimiter,
+          SecretEgressGuard,
+          assertValidMnemonic: (value: string) => value.trim(),
+          createRecoveryExport: (_results: RecoveryWalletResult[], format: "csv" | "json") => ({
+            filename: `report.${format}`,
+            mimeType: format === "csv" ? "text/csv" : "application/json",
+            text: "public report",
+          }),
+          describeUnknownError: (cause: unknown) =>
+            cause instanceof Error ? cause.message : String(cause),
+          getRecoveryCoin: () => adapter,
+          listRecoveryCoins: () => [adapter],
+          mapRecoveryTasks,
+          resolveWatchOnlyScanTargets: () => [
+            {
+              adapter,
+              input: {
+                id: "public-1",
+                label: "Public test address",
+                value: "synthetic public input",
+              },
+            },
+          ],
+          recoveryNetworkApi: async () => ({ ping: async () => "isolated-network-worker-v1" }),
+          requestRecoveryExport: vi.fn(() => broker),
+          runRecoverySelfTest: async () => ({ checks: ["fixture"], durationMs: 1 }),
+        } as unknown as Parameters<typeof createDiscoveryScannerController>[1];
+        createDiscoveryScannerController(view, dependencies).start();
+        await settle();
+        controls.startButton.click();
+        await vi.waitFor(() =>
+          expect(view.setStatus).toHaveBeenCalledWith(
+            "Recovery scan complete. Review and export the standard-wallet handoff report.",
+          ),
+        );
+        controls.exportCsvButton.click();
+        expect(dependencies.requestRecoveryExport).toHaveBeenCalledOnce();
+        vi.mocked(view.readInputs).mockImplementation(() => ({ ...snapshot(), sourceMode: mode }));
+        controls.startButton.click();
+        await vi.waitFor(() => expect(scan).toHaveBeenCalledTimes(2));
+        await settle();
+        const statusCalls = vi.mocked(view.setStatus).mock.calls.length;
+        const errorCalls = vi.mocked(view.showError).mock.calls.length;
+        if (outcome === "resolve") reply("old-report.csv");
+        else reject(new Error("old broker refusal"));
+        await settle();
+        expect(view.setStatus).toHaveBeenCalledTimes(statusCalls);
+        expect(view.showError).toHaveBeenCalledTimes(errorCalls);
+        expect(view.setStatus).not.toHaveBeenCalledWith(expect.stringMatching(/^Exported/u));
+      });
+    }
+  }
+
   it("routes opt-in Bitcoin target searches locally across seed inputs without network RPC", async () => {
     vi.stubGlobal("window", { addEventListener: vi.fn() });
     const { view, controls } = testView();
@@ -474,6 +610,7 @@ describe("Discovery Scanner controller", () => {
         id: "bitcoin",
         label: "Bitcoin",
         networks: ["mainnet"],
+        minimumSeedLookups: minimumSeedLookups("bitcoin"),
         scan: vi.fn(),
       }),
       listRecoveryCoins: () => [],
@@ -567,6 +704,7 @@ function publicHarness(
     id,
     label: id,
     networks: ["mainnet", "testnet"],
+    minimumSeedLookups: minimumSeedLookups(id),
     scan: scanSeed,
     detectWatchOnly: (value) => ({ coinId: id, kind: "public-key", value }),
     scanWatchOnly: (input, config, context) => scanKey(id, input, config, context),

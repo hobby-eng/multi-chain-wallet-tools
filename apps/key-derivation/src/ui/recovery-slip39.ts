@@ -4,7 +4,6 @@ import {
   createSlip39Shares,
   parseSlip39Share,
 } from "@ckd/recovery-backup/slip39.js";
-import { installQrImageImport } from "@ckd/ui/qr-image-import.js";
 import {
   installSecretToggle,
   installMnemonicSourceDiagnostic,
@@ -14,6 +13,8 @@ import {
   renderSensitiveShares,
   required,
   type RecoveryFeatureContext,
+  installFieldImports,
+  QR_IMAGES_IMPORT,
 } from "./recovery-workspace-shared.js";
 import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
 function installSlip39(context: RecoveryFeatureContext): void {
@@ -37,14 +38,11 @@ function installSlip39(context: RecoveryFeatureContext): void {
     "Show shares",
     "Hide shares",
   );
-  installQrImageImport(document, required<HTMLTextAreaElement>("#slip39-shares"), {
-    label: "Import QR images",
-    multiple: true,
-    onDecoded: ({ text }) => text.trim(),
-    onError(message) {
-      required<HTMLElement>("#slip39-restore-result").textContent = message;
-    },
-  });
+  installFieldImports(
+    required<HTMLTextAreaElement>("#slip39-shares"),
+    (message) => (required<HTMLElement>("#slip39-restore-result").textContent = message),
+    { qr: QR_IMAGES_IMPORT },
+  );
   const createResult = required<HTMLElement>("#slip39-create-result");
   required<HTMLButtonElement>("#create-slip39-shares").addEventListener("click", () => {
     createResult.replaceChildren();
@@ -74,7 +72,14 @@ function installSlip39(context: RecoveryFeatureContext): void {
         const heading = document.createElement("p");
         heading.textContent = `${threshold}-of-${count} SLIP-39 shares created. Store the shares separately.`;
         createResult.append(heading);
-        renderSensitiveShares(createResult, shares, context.writeClipboard);
+        renderSensitiveShares(
+          createResult,
+          shares,
+          context.writeClipboard,
+          [],
+          [],
+          () => context.jobs.ready,
+        );
       } finally {
         entropy.fill(0);
       }

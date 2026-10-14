@@ -50,6 +50,7 @@ export function createBuildInfo(root, checksumFile, profile, composition = {}) {
     checksumFile,
     profile: profile.id,
     edition: profile.editionName,
+    releaseRepository: profile.releaseRepository,
     ...composition,
   };
 }

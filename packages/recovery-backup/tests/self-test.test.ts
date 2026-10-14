@@ -31,8 +31,12 @@ describe("embedded recovery startup self-test", () => {
     expect(report.checks).toEqual([
       "SeedQR encode/decode",
       "MnemoCode v0.1.0 vectors, word recovery, and all representation round trips",
+      "MnemoCode library, wallet recognition and word hint known answers",
+      "MnemoCode heir sheet known answers",
+      "MnemoCode share card known answers",
       "SLIP-39 official + encode/decode",
       "Codex32 official + entropy encode/decode",
+      "SSKR BCR-2020-011 grouped vector",
       "SSKR Compact UR encode/decode",
       "SSKR Bytewords encode/decode",
       "Gordian Seed Envelope encrypted entropy/passphrase encode/decode",

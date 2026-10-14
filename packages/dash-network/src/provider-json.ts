@@ -1,7 +1,8 @@
+import { MEBIBYTE } from "@ckd/core/byte-units.js";
 import { readBoundedJson } from "@ckd/network-boundary/bounded-json.js";
 
 /** Applies to first-party HTTP JSON adapters, not the SDK's proof transport. */
-const MAX_PROVIDER_JSON_BYTES = 8 * 1024 * 1024;
+const MAX_PROVIDER_JSON_BYTES = 8 * MEBIBYTE;
 
 export function readProviderJson(
   response: Response,

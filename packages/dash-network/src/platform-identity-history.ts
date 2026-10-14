@@ -1,6 +1,13 @@
-import { assertPlatformExplorerNetwork } from "./provider-json.js";
+import { IDENTITY_CREATION_KINDS } from "./identity-transition-types.js";
+import { DashHistoryBudget } from "./history-budget.js";
 import { IdentityPageIntegrity } from "./identity-pagination.js";
-import { createProviderHttp, ProviderHttpError, type FetchLike } from "./provider-http.js";
+import { ProviderHttpError, type FetchLike } from "./provider-http.js";
+import {
+  PLATFORM_EXPLORER_ENDPOINTS,
+  PLATFORM_EXPLORER_HTTP,
+  PLATFORM_EXPLORER_NAME,
+  platformExplorerTip,
+} from "./platform-explorer.js";
 import type { ViewerNetwork } from "./types.js";
 import {
   IdentityCreateTransition,
@@ -12,11 +19,6 @@ import { base58 } from "@scure/base";
 
 const EXPLORER_PAGE_SIZE = 100;
 const EXPLORER_MAX_PAGES = 10_000;
-const IDENTITY_CREATION_TYPES = new Set([
-  "IDENTITY_CREATE",
-  "IDENTITY_CREATE_FROM_ADDRESSES",
-  "IDENTITY_CREATE_FROM_SHIELDED_POOL",
-]);
 
 interface IdentityAliasHistory {
   name: string;
@@ -165,20 +167,15 @@ interface ClassicIdentityFunding {
 
 type ClassicIdentityFundingDecoder = (base64: string) => ClassicIdentityFunding;
 
-const PLATFORM_EXPLORER_ENDPOINTS: Record<ViewerNetwork, string> = {
-  mainnet: "https://platform-explorer.pshenmic.dev",
-  testnet: "https://testnet.platform-explorer.pshenmic.dev",
-};
-
 const PLATFORM_IDENTITY_HISTORY_PROVIDER: PlatformIdentityHistoryProvider = {
-  displayName: "Dash Platform Explorer",
+  displayName: PLATFORM_EXPLORER_NAME,
   endpoint(network) {
     return PLATFORM_EXPLORER_ENDPOINTS[network];
   },
 };
 
 const { object, optionalInteger, requiredInteger, exactInteger, fetchJson } =
-  createProviderHttp("Platform Explorer");
+  PLATFORM_EXPLORER_HTTP;
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
@@ -253,7 +250,7 @@ function creationTransaction(
   return (
     transactions.find((transaction) => {
       const type = text(transaction.type);
-      return type !== null && IDENTITY_CREATION_TYPES.has(type);
+      return type !== null && IDENTITY_CREATION_KINDS.isExplorerType(type);
     }) ?? null
   );
 }
@@ -539,9 +536,7 @@ export async function queryPlatformIdentityHistory(
   } catch {
     throw new Error("Invalid Base58 Platform Identity ID.");
   }
-  if (!Number.isSafeInteger(historyLimit) || historyLimit < 1 || historyLimit > 1000) {
-    throw new Error("Identity history limit must be an integer from 1 to 1000.");
-  }
+  DashHistoryBudget.admit(historyLimit, "Identity history limit");
   const endpoint = provider.endpoint(network);
   let requests = 0;
   const request = (): void => {
@@ -549,20 +544,7 @@ export async function queryPlatformIdentityHistory(
   };
 
   request();
-  const status = object(await fetchJson(fetcher, `${endpoint}/status`, signal), "index status");
-  const indexer = object(status.indexer, "indexer status");
-  if (indexer.status !== "synced") {
-    throw new Error(
-      "Platform Explorer reports that its index is not synchronized with Dash Platform.",
-    );
-  }
-  assertPlatformExplorerNetwork(status.network, network);
-  const api = object(status.api, "API status");
-  const tip = object(api.block, "latest indexed block");
-  const indexedHeight = requiredInteger(tip.height, "latest indexed Platform height");
-  const indexedTimeMs = timestamp(tip.timestamp);
-  if (indexedTimeMs === null)
-    throw new Error("Platform Explorer returned an invalid latest indexed block time.");
+  const { indexedHeight, indexedTimeMs } = await platformExplorerTip(fetcher, network, signal);
 
   request();
   const info = object(

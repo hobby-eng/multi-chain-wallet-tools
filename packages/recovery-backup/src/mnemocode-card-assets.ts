@@ -5,9 +5,6 @@ import businessCurves from "../../recovery-mnemocode/source/assets/images/busine
 import businessDiagonal from "../../recovery-mnemocode/source/assets/images/business-diagonal-v1.png";
 import businessEstate from "../../recovery-mnemocode/source/assets/images/business-estate-v1.png";
 import businessFacets from "../../recovery-mnemocode/source/assets/images/business-facets-v1.png";
-import businessGlass4 from "../../recovery-mnemocode/source/assets/images/business-glass-4in1.png";
-import businessGlass6 from "../../recovery-mnemocode/source/assets/images/business-glass-6in1.jpg";
-import businessGlass8 from "../../recovery-mnemocode/source/assets/images/business-glass-8in1.jpg";
 import businessIt from "../../recovery-mnemocode/source/assets/images/business-it-v1.png";
 import materialEnclosure from "../../recovery-mnemocode/source/assets/images/material-enclosure.jpg";
 import materialKitchen from "../../recovery-mnemocode/source/assets/images/material-kitchen.jpg";
@@ -29,9 +26,6 @@ const assets: Readonly<Record<RenderAsset, Uint8Array>> = {
   "images/business-estate-v1.png": businessEstate,
   "images/business-facets-v1.png": businessFacets,
   "images/business-it-v1.png": businessIt,
-  "images/business-glass-4in1.png": businessGlass4,
-  "images/business-glass-6in1.jpg": businessGlass6,
-  "images/business-glass-8in1.jpg": businessGlass8,
   "images/material-enclosure.jpg": materialEnclosure,
   "images/material-kitchen.jpg": materialKitchen,
   "images/material-switch.jpg": materialSwitch,

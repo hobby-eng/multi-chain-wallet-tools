@@ -3,24 +3,32 @@ import {
   type CardImage,
   type CardPageDrawing,
   type DrawingStep,
+  type GraphicsSettings,
   type PathSegment,
-} from "@ckd/recovery-backup/mnemocode-card-drawing.js";
-import { MNEMOCODE_CARD_IMAGE_DPI } from "@ckd/recovery-backup/mnemocode-cards.js";
+} from "../../../../packages/recovery-mnemocode/source/export/card-drawing.js";
+import type { MnemoCodeCardImageFormat } from "@ckd/recovery-backup/mnemocode-cards.js";
+import {
+  JPEG_QUALITY,
+  PIXELS_PER_POINT,
+  coveredPixels,
+} from "../../../../packages/recovery-mnemocode/source/export/document-formats.js";
 
 /**
- * Draws the pages of a card PDF on a canvas and saves each one as a PNG image.
+ * Draws the pages of a card PDF on a canvas and saves each one as a PNG or JPEG image.
  *
  * Paper that the card does not paint, such as the corners outside its rounded edge,
- * stays transparent.
+ * stays transparent in PNG and is white in JPEG.
  */
 
-const POINTS_PER_INCH = 72;
-const PIXELS_PER_POINT = MNEMOCODE_CARD_IMAGE_DPI / POINTS_PER_INCH;
 // A PDF draws a line of width zero as the thinnest line of the device: one pixel.
 const THINNEST_LINE = 1 / PIXELS_PER_POINT;
 
 type Context = CanvasRenderingContext2D;
 type Picture = HTMLCanvasElement | ImageBitmap;
+
+function assertCurrent(current: () => boolean): void {
+  if (!current()) throw new Error("The card inputs changed while the image was drawn.");
+}
 
 function newCanvas(width: number, height: number): { canvas: HTMLCanvasElement; context: Context } {
   const canvas = document.createElement("canvas");
@@ -118,16 +126,29 @@ function color(step: Extract<DrawingStep, { do: "fillColor" | "strokeColor" }>):
   return `rgb(${byte(step.red)}, ${byte(step.green)}, ${byte(step.blue)})`;
 }
 
-/** A canvas has one opacity; a PDF has one for filling and one for lines. */
-interface Opacity {
-  fill: number;
-  stroke: number;
+/** A canvas has one opacity; a PDF has one for filling and one for lines (its graphics state). */
+type Opacity = Required<Pick<GraphicsSettings, "fill" | "stroke">>;
+/** A page starts, and a restore without a matching save returns, fully opaque. */
+const FULL_OPACITY: Opacity = Object.freeze({ fill: 1, stroke: 1 });
+
+/** The value of `key` in `cache`, made by `make` the first time it is asked for. */
+async function readOnce<Key, Value>(
+  cache: Map<Key, Value>,
+  key: Key,
+  make: (key: Key) => Promise<Value>,
+): Promise<Value> {
+  const known = cache.get(key);
+  if (known !== undefined) return known;
+  const made = await make(key);
+  cache.set(key, made);
+  return made;
 }
 
 async function paint(
   context: Context,
   page: CardPageDrawing,
   pictures: Map<CardImage, Picture>,
+  current: () => boolean,
 ): Promise<void> {
   // A PDF measures from the bottom left corner and upwards, a canvas from the top left and downwards.
   context.setTransform(
@@ -140,9 +161,10 @@ async function paint(
   );
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
-  let opacity: Opacity = { fill: 1, stroke: 1 };
+  let opacity: Opacity = FULL_OPACITY;
   const saved: Opacity[] = [];
   for (const step of page.steps) {
+    assertCurrent(current);
     switch (step.do) {
       case "save":
         context.save();
@@ -150,7 +172,7 @@ async function paint(
         break;
       case "restore":
         context.restore();
-        opacity = saved.pop() ?? { fill: 1, stroke: 1 };
+        opacity = saved.pop() ?? FULL_OPACITY;
         break;
       case "transform":
         context.transform(...step.matrix);
@@ -196,11 +218,9 @@ async function paint(
         context.restore();
         break;
       case "image": {
-        let source = pictures.get(step.image);
-        if (source === undefined) {
-          source = await picture(step.image);
-          pictures.set(step.image, source);
-        }
+        const source = await readOnce(pictures, step.image, picture);
+        // The cached picture is released by pageAsImage even when its asynchronous decode is late.
+        assertCurrent(current);
         context.save();
         // The first row of an image is its top, which a PDF places at the height 1.
         context.transform(1, 0, 0, -1, 0, 1);
@@ -213,36 +233,83 @@ async function paint(
   }
 }
 
-function pngBytes(canvas: HTMLCanvasElement): Promise<Uint8Array> {
+/** The image kinds a card is saved as, as MnemoCode's command line writes them. */
+const IMAGE_TYPES: Readonly<Record<MnemoCodeCardImageFormat, string>> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+};
+/** MnemoCode's JPEG quality (its image export: pdftocairo -jpegopt quality=90). */
+
+function imageBytes(
+  canvas: HTMLCanvasElement,
+  format: MnemoCodeCardImageFormat,
+): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob === null)
-        reject(new Error("The browser could not write the image. Save the cards as PDF."));
-      else blob.arrayBuffer().then((buffer) => resolve(new Uint8Array(buffer)), reject);
-    }, "image/png");
+    canvas.toBlob(
+      (blob) => {
+        if (blob === null)
+          reject(new Error("The browser could not write the image. Save the cards as PDF."));
+        else blob.arrayBuffer().then((buffer) => resolve(new Uint8Array(buffer)), reject);
+      },
+      IMAGE_TYPES[format],
+      format === "jpg" ? JPEG_QUALITY / 100 : undefined,
+    );
   });
 }
 
-async function pageAsPng(page: CardPageDrawing): Promise<Uint8Array> {
+async function pageAsImage(
+  page: CardPageDrawing,
+  format: MnemoCodeCardImageFormat,
+  current: () => boolean,
+): Promise<Uint8Array> {
+  assertCurrent(current);
   // Whole pixels that the page covers completely, as MnemoCode counts them.
-  const { canvas, context } = newCanvas(
-    Math.max(1, Math.floor(page.width * PIXELS_PER_POINT)),
-    Math.max(1, Math.floor(page.height * PIXELS_PER_POINT)),
-  );
+  const { canvas, context } = newCanvas(coveredPixels(page.width), coveredPixels(page.height));
+  // JPEG has no transparency: the paper the card leaves, such as its corners, is white.
+  if (format === "jpg") {
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
   const pictures = new Map<CardImage, Picture>();
   try {
-    await paint(context, page, pictures);
-    return await pngBytes(canvas);
+    await paint(context, page, pictures, current);
+    assertCurrent(current);
+    const bytes = await imageBytes(canvas, format);
+    if (!current()) {
+      bytes.fill(0);
+      assertCurrent(current);
+    }
+    return bytes;
   } finally {
     for (const source of pictures.values()) release(source);
     discard(canvas);
   }
 }
 
-/** One PNG image for every page of the PDF. */
-export async function cardPagesAsPng(pdf: Uint8Array): Promise<Uint8Array[]> {
-  assertCanvasReadsBack();
+/**
+ * Consumes the PDF into page images under its export's input capture. Partial images are cleared
+ * on failure or invalidation; canvases and decoded pictures are released by each page.
+ */
+export async function cardPagesAsImages(
+  pdf: Uint8Array,
+  format: MnemoCodeCardImageFormat,
+  current: () => boolean = () => true,
+): Promise<Uint8Array[]> {
   const images: Uint8Array[] = [];
-  for (const page of await readCardPages(pdf)) images.push(await pageAsPng(page));
-  return images;
+  try {
+    assertCurrent(current);
+    assertCanvasReadsBack();
+    const pages = await readCardPages(pdf);
+    for (const page of pages) {
+      assertCurrent(current);
+      images.push(await pageAsImage(page, format, current));
+    }
+    assertCurrent(current);
+    return images;
+  } catch (cause) {
+    for (const image of images) image.fill(0);
+    throw cause;
+  } finally {
+    pdf.fill(0);
+  }
 }

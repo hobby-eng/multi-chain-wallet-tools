@@ -6,11 +6,13 @@
 //! release build without DERIVER_PAGE fails.
 
 use std::env;
-use std::fmt::Write;
 use std::fs;
 use std::path::PathBuf;
 
-use sha2::{Digest, Sha256};
+// The program's own digest, so that the build checks the page exactly as the program shows it.
+#[path = "src/digest.rs"]
+mod digest;
+use digest::sha256_hex;
 
 /// Marks a launcher built without the page; main.rs refuses to serve it.
 const PLACEHOLDER: &[u8] =
@@ -58,14 +60,4 @@ fn page_title(page: &[u8]) -> String {
         Some(end) if end > 0 => rest[..end].trim().to_string(),
         _ => FALLBACK.into(),
     }
-}
-
-/// SHA-256 as 64 lowercase hex digits, the form of the .sha256 files next to the page.
-fn sha256_hex(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .fold(String::with_capacity(64), |mut text, byte| {
-            let _ = write!(text, "{byte:02x}");
-            text
-        })
 }

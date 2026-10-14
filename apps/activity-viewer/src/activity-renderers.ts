@@ -1,3 +1,4 @@
+import { markTab } from "@ckd/ui/tabs.js";
 import { formatDashDuffs } from "@ckd/core/dash-units.js";
 import { formatPlatformCredits } from "@ckd/dash-network/memo.js";
 import type { PlatformAddressTransition } from "@ckd/dash-network/platform-address-history.js";
@@ -15,6 +16,8 @@ import type {
 } from "@ckd/dash-network/platform-identity-source.js";
 import type { CoreAddressTransaction } from "@ckd/dash-network/public-address.js";
 import type { ShieldedActivity } from "@ckd/dash-network/types.js";
+import type { ShieldedNoteSpendStatus } from "@ckd/dash-network/shielded-activity-state.js";
+import { CoreActivityState } from "./core-activity-state.js";
 
 export function formatDate(timestampMs: number | bigint | null): string {
   if (timestampMs === null) return "Unavailable";
@@ -81,7 +84,10 @@ export function createActivityRenderers(document: Document) {
     return card;
   }
 
-  function renderShieldedActivity(record: ShieldedActivity): HTMLElement {
+  function renderShieldedActivity(
+    record: ShieldedActivity,
+    spendStatus: ShieldedNoteSpendStatus,
+  ): HTMLElement {
     const note = record.incoming ?? record.outgoing;
     if (note === undefined) throw new Error("Activity record has no recovered note view.");
     const direction =
@@ -93,9 +99,9 @@ export function createActivityRenderers(document: Document) {
     const status =
       record.incoming === undefined
         ? "Outgoing view"
-        : record.spent === undefined
+        : spendStatus === "unknown"
           ? "Spend state unavailable"
-          : record.spent
+          : spendStatus === "spent"
             ? "Spent"
             : "Unspent";
     return detailsCard(
@@ -137,6 +143,7 @@ export function createActivityRenderers(document: Document) {
       [
         ["Date / time", formatDate(transaction.timestampMs)],
         ["Transaction type", transaction.type ?? "Unavailable"],
+        ["Confirmation state", CoreActivityState.confirmationStatus(transaction)],
         ["Block height", transaction.blockHeight?.toLocaleString() ?? "Unconfirmed"],
         ["Confirmations", transaction.confirmations?.toLocaleString() ?? "Unconfirmed"],
         ["Dash lock status", lockStatus],
@@ -597,9 +604,7 @@ export function createActivityRenderers(document: Document) {
     const activate = (activeIndex: number, moveFocus: boolean): void => {
       tabs.forEach((tab, index) => {
         const active = index === activeIndex;
-        tab.classList.toggle("active", active);
-        tab.setAttribute("aria-selected", String(active));
-        tab.tabIndex = active ? 0 : -1;
+        markTab(tab, active);
         panels[index]!.hidden = !active;
       });
       if (moveFocus) tabs[activeIndex]?.focus();

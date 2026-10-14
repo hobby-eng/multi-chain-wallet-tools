@@ -65,15 +65,27 @@ function isEvoModuleSpecifier(node) {
 }
 
 function staticString(node, strings) {
+  node = transparentExpression(node);
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
   if (ts.isIdentifier(node)) return strings.get(node.text);
   return undefined;
 }
 
-function expressionPath(node, aliases, strings) {
-  if (ts.isParenthesizedExpression(node) || ts.isNonNullExpression(node)) {
-    return expressionPath(node.expression, aliases, strings);
+function transparentExpression(node) {
+  while (
+    ts.isParenthesizedExpression(node) ||
+    ts.isNonNullExpression(node) ||
+    ts.isAsExpression(node) ||
+    ts.isTypeAssertion(node) ||
+    ts.isSatisfiesExpression(node)
+  ) {
+    node = node.expression;
   }
+  return node;
+}
+
+function expressionPath(node, aliases, strings) {
+  node = transparentExpression(node);
   if (ts.isIdentifier(node)) return aliases.get(node.text) ?? [node.text];
   if (ts.isPropertyAccessExpression(node)) {
     const base = expressionPath(node.expression, aliases, strings);

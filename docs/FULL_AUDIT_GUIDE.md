@@ -41,7 +41,7 @@ A full audit combines source reasoning, negative and boundary cases, independent
 Record these before running checks:
 
 - Next available report number and `AUD-NNN` identifier, reserved without colliding with another reviewer.
-- UTC start and completion timestamps; operator timezone separately if useful.
+- UTC start and completion timestamps.
 - Repository URL, branch, full HEAD, remote baseline if relevant, working-tree state, and any pre-existing changes or untracked implementation files.
 - Source fingerprint and artifact SHA-256 hashes. A full HEAD does not identify a dirty working tree. Retain a safe diff/fingerprint or describe exactly which changes were included.
 - Source/artifact relationship: freshly built from the reviewed snapshot, existing artifact from another commit, or unknown. Do not merge conclusions from different snapshots into one apparent result.

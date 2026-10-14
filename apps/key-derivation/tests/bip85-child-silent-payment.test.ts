@@ -7,6 +7,7 @@ import {
   type Bip85ChildWalletOptions,
 } from "../src/ui/bip85-child-wallet-feature.js";
 import { installSilentPaymentFeature } from "../src/ui/silent-payment-feature.js";
+import { SELF_TEST_NOT_PASSED } from "../src/ui/crypto-self-test-gate.js";
 import { deriveSilentPayment } from "../src/workers/silent-payment.js";
 import type { DerivationWorkerClient } from "../src/workers/derive-client.js";
 
@@ -158,6 +159,7 @@ describe("BIP85 child wallet Silent Payments", () => {
       createWorker: inProcessWorker,
       isActive: () => true,
       mnemonicMayBeComplete: () => true,
+      cryptoReady: () => true,
     });
 
     // The child workspace receives the same feature module that the controller passes in.
@@ -167,6 +169,7 @@ describe("BIP85 child wallet Silent Payments", () => {
       mnemonicToSeed,
       createWorker: inProcessWorker,
       installSilentPaymentFeature,
+      cryptoReady: () => true,
       secretsRevealed: () => false,
       setSecretsRevealed: () => undefined,
     } as unknown as Bip85ChildWalletOptions);
@@ -201,5 +204,64 @@ describe("BIP85 child wallet Silent Payments", () => {
     original.derive();
     await settle(byId, "");
     expect(outputsOf(byId, "")[0]).not.toBe(child[0]);
+  });
+});
+
+describe("Silent Payments after a failed self-test (AUD-023-SEC001)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  function install(selfTest: { passed: boolean }) {
+    vi.stubGlobal("window", { setTimeout, clearTimeout });
+    const { document, byId } = fakeDocument(panelIds(""));
+    byId("silent-payment-network").value = "mainnet";
+    byId("silent-payment-account").value = "0";
+    byId("silent-payment-result").hidden = true;
+    byId("silent-payment-error").hidden = true;
+    let workers = 0;
+    const feature = installSilentPaymentFeature({
+      document,
+      mnemonic: () => PARENT_MNEMONIC,
+      passphrase: () => "",
+      mnemonicToSeed,
+      createWorker: () => {
+        workers += 1;
+        return inProcessWorker();
+      },
+      isActive: () => true,
+      mnemonicMayBeComplete: () => true,
+      cryptoReady: () => selfTest.passed,
+    });
+    return { feature, byId, workers: () => workers };
+  }
+
+  it("derives nothing, by button or by itself, until the self-tests pass", async () => {
+    vi.useFakeTimers();
+    const { feature, byId, workers } = install({ passed: false });
+    feature.derive();
+    expect(workers()).toBe(0);
+    expect(byId("silent-payment-error").textContent).toBe(SELF_TEST_NOT_PASSED);
+    expect(byId("silent-payment-result").hidden).toBe(true);
+
+    feature.scheduleRefresh();
+    await vi.runAllTimersAsync();
+    expect(workers()).toBe(0);
+  });
+
+  it("drops the addresses and closes the button when a later self-test fails", async () => {
+    const selfTest = { passed: true };
+    const { feature, byId, workers } = install(selfTest);
+    feature.derive();
+    await settle(byId, "");
+    expect(workers()).toBe(1);
+    expect(byId("silent-payment-address").textContent).toMatch(/^sp1q/u);
+
+    selfTest.passed = false;
+    feature.setEnabled(false);
+    expect(byId("silent-payment-result").hidden).toBe(true);
+    expect(byId("silent-payment-address").textContent).toBe("");
+    expect(byId("derive-silent-payment").disabled).toBe(true);
   });
 });

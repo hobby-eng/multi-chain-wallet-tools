@@ -1,6 +1,7 @@
+import { LOCK_NUMBER_BYTES, scriptNumberOf } from "./script-number.js";
 import { bytesToHex, hash160, hexToBytes, sha256 } from "@ckd/core/crypto.js";
 import { describeScript, type PsbtChain, type PsbtNetwork } from "./psbt.js";
-import { CONSENSUS_LIMITS } from "./consensus-limits.js";
+import { CONSENSUS_LIMITS, RelativeSequence } from "./consensus-limits.js";
 
 interface ScriptOperation {
   readonly offset: number;
@@ -113,16 +114,9 @@ function operationMeaning(opcode: number, data: string | null): string {
   return OPERATION_MEANINGS[opcode] ?? "opcode is not interpreted by this inspector";
 }
 
+/** A push in the asm view: as a number when an arithmetic opcode could read it so, else as hex. */
 function pushedValueAsm(data: string): string {
-  if (data.length === 0 || data.length > 8) return data;
-  const bytes = hexToBytes(data);
-  const negative = (bytes[bytes.length - 1]! & 0x80) !== 0;
-  let value = 0;
-  for (let index = 0; index < bytes.length; index += 1) {
-    const byte = index === bytes.length - 1 ? bytes[index]! & 0x7f : bytes[index]!;
-    value += byte * 2 ** (8 * index);
-  }
-  return String(negative ? -value : value);
+  return scriptNumberOf(data)?.toString() ?? data;
 }
 
 function numberOpcode(opcode: number): number | null {
@@ -130,20 +124,11 @@ function numberOpcode(opcode: number): number | null {
   return opcode >= 0x51 && opcode <= 0x60 ? opcode - 0x50 : null;
 }
 
-function scriptNumber(hex: string): number | null {
-  const bytes = hexToBytes(hex);
-  if (bytes.length === 0 || bytes.length > 5) return null;
-  let value = 0;
-  for (let index = 0; index < bytes.length; index += 1)
-    value += (bytes[index]! & (index === bytes.length - 1 ? 0x7f : 0xff)) * 2 ** (8 * index);
-  return (bytes.at(-1)! & 0x80) === 0 ? value : -value;
-}
-
 function operationScriptNumber(operation: ScriptOperation | undefined): number | null {
   if (operation === undefined) return null;
   const opcodeValue = numberOpcode(operation.opcode);
   if (opcodeValue !== null) return opcodeValue;
-  return operation.data === null ? null : scriptNumber(operation.data);
+  return operation.data === null ? null : scriptNumberOf(operation.data, LOCK_NUMBER_BYTES);
 }
 
 function parse(hexText: string): { bytes: Uint8Array; operations: ScriptOperation[] } {
@@ -234,12 +219,14 @@ function lockAt(
     (terminal !== 0x69 && terminal !== 0x75)
   )
     return null;
-  const condition =
-    lockOp === 0xb1
-      ? `absolute lock ${lock}`
-      : (lock & CONSENSUS_LIMITS.bip68TypeFlag) !== 0
-        ? `relative delay ${(lock & CONSENSUS_LIMITS.bip68SequenceMask) * 512} seconds`
-        : `relative delay ${lock & CONSENSUS_LIMITS.bip68SequenceMask} blocks`;
+  // A negative operand fails the lock opcode: no branch spends through it.
+  if (lock < 0) return null;
+  if (lockOp === 0xb1) return { next: start + 3, condition: `absolute lock ${lock}` };
+  // BIP112: with its disable flag set, CSV checks nothing, so the branch has no delay.
+  const sequence = new RelativeSequence(lock);
+  const condition = sequence.disabled
+    ? "no delay (the CSV operand has its disable flag set)"
+    : `relative delay ${sequence.delay}`;
   return { next: start + 3, condition };
 }
 
@@ -289,15 +276,8 @@ function infer(ops: readonly ScriptOperation[]): string {
       }
     }
   }
-  const lock = operationScriptNumber(ops[0]);
-  const locked = multisigAt(ops, 3);
-  if (
-    lock !== null &&
-    (ops[1]?.opcode === 0xb1 || ops[1]?.opcode === 0xb2) &&
-    (ops[2]?.opcode === 0x69 || ops[2]?.opcode === 0x75) &&
-    locked?.end === ops.length
-  )
-    return `${locked.text} after lock value ${lock}`;
+  const recovery = recoveryBranchAt(ops, 0);
+  if (recovery?.end === ops.length) return recovery.text;
   return "No supported multisig/timelock template recognized; review every opcode manually.";
 }
 

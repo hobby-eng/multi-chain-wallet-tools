@@ -1,4 +1,5 @@
 import { createRecoveryWorkbook } from "./report-workbook.js";
+import { downloadBlob } from "@ckd/export/download.js";
 import {
   RECOVERY_EXPORT_REQUEST,
   RECOVERY_EXPORT_RESULT,
@@ -73,6 +74,7 @@ networkWorker.addEventListener("messageerror", () => {
 networkWorker.postMessage({ type: RECOVERY_NETWORK_ATTACH }, [networkChannel.port1]);
 
 const MAX_EXPORT_BYTES = 268_435_456;
+const EXPORT_SIZE_ERROR = `The export exceeds the ${MAX_EXPORT_BYTES / 1024 ** 2} MiB safety ceiling.`;
 
 function exportResult(target: Window, result: RecoveryExportBrokerResult): void {
   target.postMessage(result, "*");
@@ -121,23 +123,14 @@ async function handleVaultMessage(event: MessageEvent<unknown>): Promise<void> {
       type: RECOVERY_EXPORT_RESULT,
       id: request.id,
       ok: false,
-      error: "The export exceeds the 256 MiB safety ceiling.",
+      error: EXPORT_SIZE_ERROR,
     });
     return;
   }
-  let url: string | null = null;
   try {
     const download = request.format === "xlsx" ? await createRecoveryWorkbook(request.text) : blob;
-    if (download.size > MAX_EXPORT_BYTES)
-      throw new Error("The export exceeds the 256 MiB safety ceiling.");
-    url = URL.createObjectURL(download);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.rel = "noopener";
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
+    if (download.size > MAX_EXPORT_BYTES) throw new Error(EXPORT_SIZE_ERROR);
+    downloadBlob(download, filename);
     exportResult(target, { type: RECOVERY_EXPORT_RESULT, id: request.id, ok: true, filename });
   } catch (cause) {
     exportResult(target, {
@@ -146,9 +139,6 @@ async function handleVaultMessage(event: MessageEvent<unknown>): Promise<void> {
       ok: false,
       error: cause instanceof Error ? cause.message : String(cause),
     });
-  } finally {
-    const downloadUrl = url;
-    if (downloadUrl !== null) setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
   }
 }
 

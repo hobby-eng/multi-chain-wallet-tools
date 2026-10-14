@@ -1,32 +1,14 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { pathToFileURL, fileURLToPath } from "node:url";
-import { build } from "esbuild";
+import { smokeNetwork, withNodeModule } from "../../../tooling/node-module.mjs";
 import { EvoSDK } from "@dashevo/evo-sdk";
 
-const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
-const network = process.argv[2] ?? "mainnet";
-if (network !== "mainnet" && network !== "testnet") {
-  throw new Error("Platform Explorer smoke argument must be mainnet or testnet.");
-}
+const network = smokeNetwork("Platform Explorer smoke");
+// DIP17 m/9'/5'/17'/0'/0'/0 and m/9'/1'/17'/0'/0'/0 of the public test phrase "abandon … about".
 const knownAddress =
   network === "mainnet"
     ? "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs"
     : "tdash1kzfj6fvrpza60u6m9u2nhzkthey68v7cqg2u9ymk";
-const temporaryDirectory = mkdtempSync(join(tmpdir(), "derivationtool-platform-explorer-smoke-"));
-const output = join(temporaryDirectory, "platform-address-history.mjs");
 
-try {
-  await build({
-    entryPoints: [resolve(root, "packages/dash-network/src/platform-address-history.ts")],
-    outfile: output,
-    bundle: true,
-    format: "esm",
-    platform: "node",
-    logLevel: "silent",
-  });
-  const module = await import(`${pathToFileURL(output).href}?run=${Date.now()}`);
+await withNodeModule("packages/dash-network/src/platform-address-history.ts", async (module) => {
   const startedAt = performance.now();
   const snapshot = await module.queryPlatformAddressHistory(knownAddress, network, 2);
   if (snapshot.provider !== "Dash Platform Explorer" || snapshot.indexStatus !== "synced") {
@@ -67,6 +49,4 @@ try {
     metadata.free();
     verified.free();
   }
-} finally {
-  rmSync(temporaryDirectory, { recursive: true, force: true });
-}
+});

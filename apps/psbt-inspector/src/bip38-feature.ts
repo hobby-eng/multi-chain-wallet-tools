@@ -146,10 +146,15 @@ export function installBip38Feature(): void {
         progress.textContent = `Decrypting ${index + 1} of ${keys.length}…`;
         progress.hidden = false;
         try {
-          appendSuccess(index + 1, await decryptBip38Key(key, secret, selectedChain, networkName));
+          const recovered = await decryptBip38Key(key, secret, selectedChain, networkName);
+          // Clear, or a newer run, came while the key was decrypted: nothing of this run is
+          // shown any more, its key least of all (AUD-024-SEC001).
+          if (current !== revision) return;
+          appendSuccess(index + 1, recovered);
           succeeded += 1;
           toggleResult.disabled = false;
         } catch (cause) {
+          if (current !== revision) return;
           appendFailure(index + 1, cause);
           failed += 1;
         }

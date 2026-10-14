@@ -1,0 +1,282 @@
+[
+  {
+    "category": "API",
+    "severity": "medium",
+    "releaseBlocking": true,
+    "title": "Missing-code recovery drops the captured BIP39 passphrase during Deriver handoff",
+    "affectedFiles": [
+      "apps/key-derivation/src/ui/recovery-mnemocode-missing-codes.ts:173",
+      "apps/key-derivation/src/ui/recovery-mnemocode-missing-codes.ts:206",
+      "apps/key-derivation/src/ui/recovery-mnemocode-decode.ts:328",
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts:588",
+      "apps/key-derivation/src/ui/app-bootstrap.ts:40"
+    ],
+    "reproduction": "Use the actual MnemoCodeDecodeTab, MnemoCodeMissingCodes, WalletEvidenceField and MnemoCodeWorkerJob with the bounded synthetic DOM and deferred transport in deriver-probe.test.ts. Input eleven abandon words followed by ?, select the wallet search way with synthetic master fingerprint 01020304 and public BIP39 passphrase TREZOR, and start Search. Assert the captured request contains wallet.evidence={kind:master-fingerprint,value:01020304,network:mainnet} and wallet.passphrase=TREZOR. Resolve the deferred worker with {kind:found,places:Code 12,codes:eleven abandon words followed by about}. Click the actual Use in Generate & Derive button.",
+    "expected": "A successful recovery selected using a nonempty BIP39 passphrase hands the recovered phrase and that same captured passphrase to Generate & Derive. Missing-code result publication must preserve the wallet factors used by the request.",
+    "observed": "The coordinator's deriver-probes run passed the exact request guard, then failed the final handoff assertion: the callback was invoked once with only the public phrase, without TREZOR. Source captures wallet.passphrase at recovery-mnemocode-missing-codes.ts:173 but publishes only outcome, format and mode at :206. Decode renders through the phrase-only helper at recovery-mnemocode-decode.ts:328; recovery-workspace-shared.ts:588 invokes useInDeriver(mnemonic). The actual app-bootstrap.ts:40 handoff defaults the omitted passphrase to an empty string and assigns it to the parent field at :48. The live-application field replacement and resulting wrong-wallet selection are source-confirmed consequences of the runtime callback omission.",
+    "impact": "Automatic handoff selects the phrase with an empty BIP39 passphrase instead of the phrase-plus-TREZOR wallet used for recovery recognition. The recovered phrase remains available and manual passphrase re-entry is a workaround. No wallet loss, fund movement or failure of the cryptographic search was demonstrated.",
+    "recommendedFix": "Preserve the wallet passphrase captured for the successful missing-code request in its publication contract and pass it through Decode's recovered-phrase handoff. Bind it to the request revision rather than reading a potentially edited passphrase field when Use is clicked. Preserve empty-passphrase and non-wallet search semantics.",
+    "requiredVerification": "The bounded actual-controller request and handoff probe must pass with nonempty TREZOR and empty-passphrase controls. Verify the actual application handoff populates both parent fields, and that edits or cancellation cannot substitute another request's passphrase. Separately use an authorized public known-wallet control if claiming cryptographic wallet identity; this harness establishes argument preservation, not independent derivation correctness.",
+    "evidence": [
+      "deriver-probes.command.json",
+      "deriver-probes.log",
+      "deriver-probes.source-before.json",
+      "deriver-probes.source-after.json"
+    ],
+    "releaseBlockingReason": "The supported automatic recovery handoff silently replaces a captured nonempty recovery factor with an empty passphrase. Manual re-entry does not satisfy the automatic handoff contract.",
+    "skepticRecommendation": "The reviewer previously proposed High because the defect breaks automatic recovery to the recognised wallet. The coordinator accepted Medium with releaseBlocking=true because manual re-entry exists and no loss was demonstrated. This candidate records the High proposal only as a skeptic recommendation and retains the coordinator's Medium classification.",
+    "sourceContracts": [
+      "packages/recovery-backup/src/mnemocode-wallet.ts:18 requires evidence and the wallet's BIP39 passphrase in WalletEvidenceRequest.",
+      "packages/recovery-backup/src/mnemocode-wallet-bitcoin.ts:53 forwards request.passphrase to the recognition check.",
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts:594 demonstrates the existing bundle handoff contract that preserves an optional BIP39 passphrase.",
+      "docs/FULL_AUDIT_GUIDE.md:259 requires actual UI/library call-contract tracing and field preservation."
+    ],
+    "runtimeEvidence": [
+      {
+        "evidenceName": "deriver-probes",
+        "executor": "coordinator",
+        "result": "One missing-code passphrase case failed at the handoff assertion after the exact TREZOR request assertion passed. The whole run had 21 failures and 1 pass in 22 cases; its exit code was 1.",
+        "logSha256": "dda4e007ac3e2431079f62f39296150f44ac64eeeb4e2e0226b99ba5c10e51e3",
+        "harnessSha256": "dda619b155d9b19f9e240718cf5684188b905e5b0875ac7a02e3af3d648de180",
+        "sourceFingerprintBefore": "dca9cc0b259bf11b00fa0e65a5c7068e279feae63aeab25618f71e52d63ba06b",
+        "sourceFingerprintAfter": "dca9cc0b259bf11b00fa0e65a5c7068e279feae63aeab25618f71e52d63ba06b"
+      }
+    ],
+    "sourceSha256": {
+      "apps/key-derivation/src/ui/recovery-mnemocode-missing-codes.ts": "4ec450e65c41b2e5e8b5d9ffbac2321eb910292e3aa74f178753328b0fe22ff7",
+      "apps/key-derivation/src/ui/recovery-mnemocode-decode.ts": "6d1e6ada7c01e72b968eed775b075f3cf89bcd43d5743876d70fa35a6a4c00b2",
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts": "a3946072e7cce3e3b2c4ce25cf6d50f5ee91b5ddd7f0c406abbd356cdfc0a9c9",
+      "apps/key-derivation/src/ui/app-bootstrap.ts": "68f6ec9293a248788849471ddc83c7418d877a95523fe151854c764295cdfc6c",
+      "apps/key-derivation/src/ui/recovery-mnemocode-evidence.ts": "ddb8f219aa145fa46a3b4fc6dd2b5a352e1e0660e4a95e5c563aa7bc98fae352",
+      "packages/recovery-backup/src/mnemocode-wallet-bitcoin.ts": "c08c7cae74ffba4ffecb84a0c9ddc6aa40af77d8a98c50299a0f5811223ebb09"
+    },
+    "limitations": [
+      "The recognition validator, codec, fingerprint and successful search outcome are synthetic. The actual request-building and result-rendering controllers execute, but no candidate enumeration, Worker, WASM or KDF executes.",
+      "The application bootstrap is traced in source; the runtime handoff callback is a spy rather than a complete application instance.",
+      "The original evidence belongs to the original harness hash. This passphrase case was skipped by the later Decode/Silent Payments subset."
+    ]
+  },
+  {
+    "category": "API",
+    "severity": "medium",
+    "releaseBlocking": false,
+    "title": "MnemoCode Decode retains usable stale results after edits and accepts old-date replies",
+    "affectedFiles": [
+      "apps/key-derivation/src/ui/recovery-mnemocode-decode.ts:103",
+      "apps/key-derivation/src/ui/recovery-mnemocode-decode.ts:121",
+      "apps/key-derivation/src/ui/recovery-mnemocode-decode.ts:251",
+      "apps/key-derivation/src/ui/recovery-mnemocode-missing-codes.ts:80",
+      "apps/key-derivation/src/ui/recovery-mnemocode-missing-codes.ts:184"
+    ],
+    "reproduction": "Run the revised Decode group with the actual controllers and synthetic codec/worker. Decode the public phrase of eleven abandon words followed by about in Seedshift mode, English representation and date 01-01-2000. Separately change the input to legal winner thank year wave sausage worth useful legal winner thank yellow, mode to direct, representation to indexes, or date to 02-01-2000; attempt the retained Show phrase, Copy and Use actions. For the late-reply case, start the marked final-word wallet search with captured date 01-01-2000, edit the external dates field to 02-01-2000, resolve the old request with the public phrase and dates=01-01-2000, and attempt the published Use action. Keep the passing control that edits the marked input before resolving its request.",
+    "expected": "Results and their actions belong to the current Decode inputs. Editing relevant inputs makes old handoff/copy actions unavailable until a fresh Decode, and an old-date worker reply cannot publish a usable result. A retained concealed textarea is permitted if its stale actions are inaccessible; DOM removal is not required by this finding.",
+    "observed": "In deriver-invalidation-followup, each of the four completed-result edit cases and the pending-date case actually invoked the handoff callback once with the old public phrase, then failed the no-call assertion. The input-edit pending-worker control passed. Source input/mode/format listeners increment Decode's revision but do not invalidate existing result actions. No date listener revises Decode or the missing-code job. The missing-code job watches only its own block, while its request captures the external dates field. The actual markup places that dates field outside the block. The worker job's current-revision guard therefore does not see the date edit, and #showFound publishes the old result.",
+    "impact": "A corrected code sequence, interpretation or date can coexist with an enabled handoff of a phrase from older inputs. This can send the wrong recovered phrase to Deriver or expose an outdated result through its retained controls. The date-late-reply case demonstrates publication of usable stale output, not merely retention of concealed DOM. No independent wrong-wallet derivation or fund loss was executed.",
+    "recommendedFix": "Use one input-ownership rule covering codes, effective mode, representation and external dates. On relevant edits invalidate pending publication and deactivate or clear the old result's actions. Preserve deliberate interactions inside recovered results and the existing passing input-edit worker gate.",
+    "requiredVerification": "All revised completed-edit and pending-date handoff probes must pass, with fresh Decode/current-date positive controls and the existing input-edit cancellation control. Assert stale Use and Copy callbacks cannot execute; do not require DOM removal if equivalent inaccessible output is retained. Verify both found-date and supplied-date outcomes, including changed dates before completion and before Use.",
+    "evidence": [
+      "deriver-probes.command.json",
+      "deriver-probes.log",
+      "deriver-invalidation-followup.command.json",
+      "deriver-invalidation-followup.log",
+      "deriver-invalidation-followup.source-before.json",
+      "deriver-invalidation-followup.source-after.json"
+    ],
+    "sourceContracts": [
+      "apps/key-derivation/src/ui/recovery-mnemocode-worker-job.ts:4 and :78 require dropping outcomes when their captured inputs change.",
+      "apps/key-derivation/src/ui/recovery-mnemocode-missing-codes.ts:121 correctly revises the job when Decode hides its old marked-input search.",
+      "apps/key-derivation/src/ui/recovery-mnemocode-fields.ts:27 installs the dates field without an edit-revision listener.",
+      "apps/key-derivation/src/index.html:4379 and :4390 place the dates field and missing-code block as separate sections of Decode.",
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts:683 creates the enabled Use closure, and :691/:699 implement retained Reveal/Copy actions.",
+      "docs/FULL_AUDIT_GUIDE.md:267 requires binding results and buttons to the correct revision/source."
+    ],
+    "runtimeEvidence": [
+      {
+        "evidenceName": "deriver-invalidation-followup",
+        "executor": "coordinator",
+        "result": "Five stale Decode cases failed after invoking the callback once each; the pending-input-edit control passed. The selected Decode/Silent Payments run had 10 failures, 1 pass and 11 skipped cases; its exit code was 1.",
+        "logSha256": "eeb095223e692e0463ff9dc1d896cdec32965941a48bf514130a7c75f7acc5df",
+        "harnessSha256": "3cbbf896952d309d7f2fc1e817348f9173a03c86d6960f3b77777a2f3777ea85",
+        "sourceFingerprintBefore": "dca9cc0b259bf11b00fa0e65a5c7068e279feae63aeab25618f71e52d63ba06b",
+        "sourceFingerprintAfter": "dca9cc0b259bf11b00fa0e65a5c7068e279feae63aeab25618f71e52d63ba06b"
+      }
+    ],
+    "sourceSha256": {
+      "apps/key-derivation/src/ui/recovery-mnemocode-decode.ts": "6d1e6ada7c01e72b968eed775b075f3cf89bcd43d5743876d70fa35a6a4c00b2",
+      "apps/key-derivation/src/ui/recovery-mnemocode-missing-codes.ts": "4ec450e65c41b2e5e8b5d9ffbac2321eb910292e3aa74f178753328b0fe22ff7",
+      "apps/key-derivation/src/ui/recovery-mnemocode-worker-job.ts": "5a72830db3dd97571c6d1c50de54441d6cb70be663bf655b8bf151e3eeee20d1",
+      "apps/key-derivation/src/ui/recovery-mnemocode-fields.ts": "c602cc9c63134b3fc785174da63401afb496424c4033df0b203bc4dbbde92bc7",
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts": "a3946072e7cce3e3b2c4ce25cf6d50f5ee91b5ddd7f0c406abbd356cdfc0a9c9"
+    },
+    "limitations": [
+      "The initial four completed-result failures established retained textarea nodes only. The revised runtime handoff evidence supersedes that overstrict DOM-removal interpretation without claiming the original assertions tested callback execution.",
+      "The revised helper attempts Reveal and Copy before Use, but the logged failure occurs at the handoff assertion before the subsequent Copy assertion is reached. Copy availability is supported by source; a separately asserted clipboard result is not claimed.",
+      "The DOM and codec are synthetic and workers are deferred transports. These probes establish actual controller publication and action ownership, not browser rendering, clipboard permissions, date arithmetic or cryptographic wallet identity."
+    ]
+  },
+  {
+    "category": "API",
+    "severity": "medium",
+    "releaseBlocking": false,
+    "title": "Silent Payments publishes results for an outdated parent phrase or passphrase",
+    "affectedFiles": [
+      "apps/key-derivation/src/ui/controller.ts:984",
+      "apps/key-derivation/src/ui/controller.ts:1066",
+      "apps/key-derivation/src/ui/controller.ts:1075",
+      "apps/key-derivation/src/ui/silent-payment-feature.ts:112",
+      "apps/key-derivation/src/ui/silent-payment-feature.ts:159"
+    ],
+    "reproduction": "Install the actual main controller and Silent Payments feature with the explicit view contract stub and deferred derivation transport. Set the parent to eleven abandon words followed by about, select Silent Payments, and verify the seed call receives that phrase and an empty passphrase. For completed-output cases, publish sp1-audit-old-source, then change the parent to legal winner thank year wave sausage worth useful legal winner thank yellow with TREZOR, explicitly derive, assert current phrase/passphrase arguments and 64 seed bytes marked 8, and publish sp1-audit-current-source. Separately clear the parent mnemonic or passphrase. For pending-output cases, edit the parent mnemonic to empty or its passphrase to TREZOR before resolving the old request. For Generate, publish the original result, press Generate 12, verify the parent becomes the second phrase, and inspect whether the old Silent Payments result remains available. Do not advance the debounce timers before the invalidation assertions.",
+    "expected": "Changing the parent phrase or passphrase, including Generate, immediately makes old Silent Payments output unavailable and invalidates old pending publication. A later explicit or automatic derivation reads the current parent fields. Safety does not require an immediate second request or erasure of already hidden text.",
+    "observed": "All five revised Silent Payments cases failed because the actual feature result remained visible: both completed-parent edit cases, both late-reply cases and Generate. The successful fresh-source controls in the completed-output cases reached their argument, seed-marker and new-address assertions before the failing invalidation assertions. Source supplies dynamic parent-field getters at controller.ts:393 and reads them at silent-payment-feature.ts:104, so fresh derivation uses the current source. Parent edits at controller.ts:984 omit Silent Payments clear/invalidation; its local revision at silent-payment-feature.ts:112 does not detect them. Generate assigns a new phrase without an input event at view.ts:291 and calls ordinary deriveCurrent at controller.ts:1075 without invalidating the existing feature output.",
+    "impact": "An address or late result derived from the previous parent can remain presented beside a changed wallet source. Complete inputs eventually request an automatic refresh after the controller's debounce; the stale-publication window remains before that refresh. Incomplete inputs prevent the scheduled refresh, and Generate does not refresh this active feature, making the stale state persistent until another explicit action. The harness uses invented address labels and proves source/output association, not incorrect address mathematics or demonstrated fund loss.",
+    "recommendedFix": "Invalidate Silent Payments' pending revision and make its old result unavailable whenever the parent source changes, including Generate. Reuse the feature's existing clear contract or an equivalent source-revision operation, then schedule or explicitly request derivation from the current source. Preserve source-independent rendering and existing revision protection between feature requests.",
+    "requiredVerification": "The five revised actual-controller invalidation probes must pass with the fresh-source controls preserved. Cover parent mnemonic and passphrase edits, incomplete input, late replies before debounce, Generate, and later successful derivation from current fields. Hidden old text need not be erased, but it must not remain actionable or become republished by an old request. A claim about BIP352 address correctness needs separate cryptographic evidence owned by the crypto reviewer.",
+    "evidence": [
+      "deriver-probes.command.json",
+      "deriver-probes.log",
+      "deriver-invalidation-followup.command.json",
+      "deriver-invalidation-followup.log",
+      "deriver-invalidation-followup.source-before.json",
+      "deriver-invalidation-followup.source-after.json"
+    ],
+    "sourceContracts": [
+      "apps/key-derivation/src/ui/silent-payment-feature.ts:64 states that slower earlier results must not overwrite a reset or newer request.",
+      "apps/key-derivation/src/ui/silent-payment-feature.ts:158 defines clear for phrase, passphrase or workspace changes; :161 revises pending publication.",
+      "apps/key-derivation/src/ui/controller.ts:614 dispatches automatic refresh to the active feature; automatic-derivation.ts:7/:16 uses a 350 ms delay and requires complete inputs.",
+      "apps/key-derivation/src/ui/controller.ts:1063 explicitly invalidates BIP85 when Generate changes the parent without an input event, establishing the analogous parent-change contract.",
+      "docs/FULL_AUDIT_GUIDE.md:267 requires binding results and buttons to the correct revision/source."
+    ],
+    "runtimeEvidence": [
+      {
+        "evidenceName": "deriver-invalidation-followup",
+        "executor": "coordinator",
+        "result": "Five Silent Payments cases failed at result.hidden=true assertions. Both completed-output cases reached successful current-source refresh controls first. The selected run had 10 failures, 1 pass and 11 skipped cases; its exit code was 1.",
+        "logSha256": "eeb095223e692e0463ff9dc1d896cdec32965941a48bf514130a7c75f7acc5df",
+        "harnessSha256": "3cbbf896952d309d7f2fc1e817348f9173a03c86d6960f3b77777a2f3777ea85",
+        "sourceFingerprintBefore": "dca9cc0b259bf11b00fa0e65a5c7068e279feae63aeab25618f71e52d63ba06b",
+        "sourceFingerprintAfter": "dca9cc0b259bf11b00fa0e65a5c7068e279feae63aeab25618f71e52d63ba06b"
+      }
+    ],
+    "sourceSha256": {
+      "apps/key-derivation/src/ui/controller.ts": "da3b432020b49a8eccf86d76759264b3f3b1ee76e0f6cd71894beeb975b02c8e",
+      "apps/key-derivation/src/ui/silent-payment-feature.ts": "e50e11e55fe9300087c65c9542076ec84e21132453915e892d9acf5b493390df",
+      "apps/key-derivation/src/ui/view.ts": "5e10a08ebc55f9ae72e7fc59d4657499bad4be6373fa6df4c7c519fc49b17183",
+      "apps/key-derivation/src/ui/automatic-derivation.ts": "ca61bae8a14712bef2fe369bcc2c64c7bd7b2c4e68f8c811e5c7d94f9737a318"
+    },
+    "limitations": [
+      "The actual main controller and feature execute, but the view, startup results, mnemonic-to-seed conversion and transport are explicit stubs. Seed markers and address labels are not real derivation outputs.",
+      "Timers remain frozen for the invalidation checks. Eventual automatic refresh for complete inputs and persistent stale state for incomplete input are additionally traced in source rather than timed in a real browser.",
+      "The original Generate assertion required a second request and was stricter than the safety contract. The follow-up asserts that the old result becomes unavailable and does not require immediate dispatch."
+    ]
+  },
+  {
+    "category": "SEC",
+    "severity": "low",
+    "releaseBlocking": false,
+    "title": "Independent recovery secret controls remain revealed after blur or tab hiding",
+    "affectedFiles": [
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts:377",
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts:655",
+      "apps/key-derivation/src/ui/recovery-mhfe-fields.ts:59",
+      "apps/key-derivation/src/ui/controller.ts:1119"
+    ],
+    "reproduction": "Run the six concealment cases in the original deriver-probes harness. Install the actual main controller with its two global reveal flags initially false. Separately install an actual manual recovery installSecretToggle containing the public abandon/about phrase, render an actual recovered phrase with renderRecoveredMnemonic, or construct an actual MHFE PasswordField containing TREZOR. Click each local Show control and verify it reveals its value. Dispatch window blur, or set document.visibilityState=hidden and dispatch visibilitychange. Inspect the conceal class, password input type and local reveal state.",
+    "expected": "Locally revealed recovery phrases, recovered results and password fields return to their concealed state on window blur or tab hiding, with secret copy actions disabled again. Their independent reveal controls must not depend on the main Deriver's reveal flags being true.",
+    "observed": "The coordinator's original run reached all six intended concealment assertions after successful local-reveal setup: manual and recovered phrases still lacked the concealed class, and PasswordField still had type=text, on both blur and hidden. The actual controller lifecycle listeners were installed in those probes. Source initializes its global flags false at controller.ts:152 and performs no conceal operation while they remain false at :1119. Its view conceal methods affect only the main source and ordinary result root. The actual workspace installs LinkedSources handlers, but they conceal only linked-source cards in that class's private revealed map. MHFE wallet-list conceal handlers target only their own result container. Neither covers these manual controls, Decode results or PasswordField instances.",
+    "impact": "Secret text can remain visually exposed when the person leaves the window or hides the tab, contrary to the documented visual-protection contract. This is a limited visual confidentiality defect; no network disclosure, persistence compromise, browser screenshot disclosure or loss was demonstrated. Linked-source cards and MHFE wallet-list results with their own conceal handlers are not included in this allegation.",
+    "recommendedFix": "Give independent recovery reveal controls a shared lifecycle conceal registration that resets their local reveal state, concealment, diagnostics and secret copy availability. Install it through the real workspace and cover dynamically rendered recovered results. Preserve the deliberately separate scopes and existing linked-source/wallet-list handlers.",
+    "requiredVerification": "Retain the six bounded component/controller cases and add an actual workspace integration acceptance check for a manual source, a Decode result and an MHFE password field with global reveal flags false. Confirm blur and visibility hiding reconceal these controls and disable Copy. Keep linked-source and wallet-list positive controls. Real rendering, browser event delivery and clipboard permissions require separately authorized browser verification.",
+    "evidence": [
+      "deriver-probes.command.json",
+      "deriver-probes.log",
+      "deriver-probes.source-before.json",
+      "deriver-probes.source-after.json"
+    ],
+    "sourceContracts": [
+      "apps/key-derivation/SECURITY.md:9 promises default concealment and automatic reconcealment on window blur or tab hiding; :10 explicitly limits erasure guarantees.",
+      "apps/key-derivation/src/ui/view.ts:501/:508 limit main-controller visibility changes to the main source fields and ordinary result root.",
+      "apps/key-derivation/src/ui/recovery-workspace.ts:40/:52 install the actual selected features and LinkedSources; no generic recovery conceal handler is supplied.",
+      "apps/key-derivation/src/ui/recovery-linked-sources.ts:38/:229 scope its concealment to registered linked cards.",
+      "apps/key-derivation/src/ui/recovery-mhfe-wallets.ts:106 scopes its blur/visibility concealment to its own result container.",
+      "apps/key-derivation/src/ui/recovery-mnemocode.ts:18/:39 instantiate the manual toggle and Decode path in the real workspace; recovery-mhfe-encode.ts:44 instantiates PasswordField.",
+      "docs/FULL_AUDIT_GUIDE.md:341 requires hidden, revealed and automatically concealed states and correct secret-copy gating."
+    ],
+    "runtimeEvidence": [
+      {
+        "evidenceName": "deriver-probes",
+        "executor": "coordinator",
+        "result": "Six component/controller concealment cases failed after successful reveal setup. The whole run had 21 failures and 1 pass in 22 cases; its exit code was 1. This group was skipped in the later selective run.",
+        "logSha256": "dda4e007ac3e2431079f62f39296150f44ac64eeeb4e2e0226b99ba5c10e51e3",
+        "harnessSha256": "dda619b155d9b19f9e240718cf5684188b905e5b0875ac7a02e3af3d648de180",
+        "sourceFingerprintBefore": "dca9cc0b259bf11b00fa0e65a5c7068e279feae63aeab25618f71e52d63ba06b",
+        "sourceFingerprintAfter": "dca9cc0b259bf11b00fa0e65a5c7068e279feae63aeab25618f71e52d63ba06b"
+      }
+    ],
+    "sourceSha256": {
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts": "a3946072e7cce3e3b2c4ce25cf6d50f5ee91b5ddd7f0c406abbd356cdfc0a9c9",
+      "apps/key-derivation/src/ui/recovery-mhfe-fields.ts": "48201a2a9a88c61f56d71c98c5476965f9577b631b355d2b32b1d28cfe09c44f",
+      "apps/key-derivation/src/ui/controller.ts": "da3b432020b49a8eccf86d76759264b3f3b1ee76e0f6cd71894beeb975b02c8e",
+      "apps/key-derivation/src/ui/view.ts": "5e10a08ebc55f9ae72e7fc59d4657499bad4be6373fa6df4c7c519fc49b17183",
+      "apps/key-derivation/src/ui/recovery-workspace.ts": "94423804e54d81dcae4a73d6c8c92eab7a8efdffb2358fa6482b0d61d57e842b",
+      "apps/key-derivation/src/ui/recovery-linked-sources.ts": "81851b1970aaa5e5e73c7f1c8426a9e06aafabf42f210fc5901ac9804d3ef030",
+      "apps/key-derivation/src/ui/recovery-mhfe-wallets.ts": "161e36415bfaac2fd72d42da894acd7a54f54740497c8857a247a2295627b77e",
+      "apps/key-derivation/SECURITY.md": "9df029559c5b305986dbfbf4f622c5df25189febfc89028f811552b33e3aeaa4"
+    },
+    "limitations": [
+      "Runtime evidence is component-level execution beside the actual controller listeners. The complete feature-composition workspace and built HTML were not instantiated; absence of an integrated rescue handler is supported by current source tracing.",
+      "The fake DOM models classes, types and dispatched lifecycle events, not CSS, rendering, an accessibility tree or actual browser focus/visibility delivery.",
+      "The recovered-result case fails its concealment assertion before the following disabled-Copy assertion, so a separately completed runtime Copy assertion is not claimed.",
+      "Severity was reduced from the reviewer's provisional Medium to the coordinator-accepted Low because the demonstrated failure concerns bounded visual protection."
+    ]
+  },
+  {
+    "category": "UI",
+    "severity": "low",
+    "releaseBlocking": false,
+    "title": "Recovery tab installer omits keyboard navigation while removing inactive tabs from Tab order",
+    "affectedFiles": [
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts:341",
+      "apps/key-derivation/src/ui/recovery-workspace.ts:35",
+      "apps/key-derivation/src/ui/recovery-workspace.ts:38"
+    ],
+    "reproduction": "Use the actual recovery installTabs with three synthetic role=tab buttons and three role=tabpanel sections. Click and focus the starting tab, assert one selected tab and one tabindex=0, then dispatch ArrowRight from index 0, ArrowLeft from index 0, Home from index 2 or End from index 0. Expect selected tab indexes 1, 2, 0 and 2 respectively, corresponding focus and matching panel visibility.",
+    "expected": "The actual recovery tabs implement the shared WAI-ARIA tab contract: arrow keys move selection/focus with wrapping, Home/End reach the first/last tab, and the selected panel follows. Removing inactive tabs from the normal Tab order requires another keyboard route to them.",
+    "observed": "All four coordinator-run keyboard cases failed at the intended next-tab aria-selected assertion after click selection and roving tabindex setup passed. Source installTabs installs only click listeners. markTab sets inactive tabs to tabindex=-1, while isTabKey/tabIndexAfter define the required arrow/Home/End behavior. Actual recovery workspace uses this installer for both its main recovery tabs and each backup method's operation tabs. The controller's separate keyboard handler is attached to ordinary protocolTabs, not the recovery tab lists.",
+    "impact": "Keyboard users following normal Tab navigation cannot reach inactive recovery/operation tabs, and their expected arrow/Home/End alternatives do nothing. Mouse navigation still works. No browser accessibility-tree or assistive-technology assessment was executed.",
+    "recommendedFix": "Wire the recovery installer to the existing shared tab-key helpers, updating selected tab, panel and focus together and preventing the handled key's default behavior. Preserve its current click path and single tabindex=0 invariant rather than duplicating navigation rules.",
+    "requiredVerification": "All four actual-installer keyboard cases must pass with click, focus and panel assertions. Add actual workspace coverage for both recovery and operation tab lists and disabled/empty cases where applicable. Verify browser keyboard focus and accessibility behavior separately when browser execution is authorized.",
+    "evidence": [
+      "deriver-probes.command.json",
+      "deriver-probes.log",
+      "deriver-probes.source-before.json",
+      "deriver-probes.source-after.json"
+    ],
+    "sourceContracts": [
+      "packages/shared-ui/src/tabs.ts:1 states the WAI-ARIA tab pattern; :17 implements arrow/Home/End index selection and :25 assigns the selected tab as the sole tabindex=0.",
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts:341 omits a keydown binding in the actual installer.",
+      "apps/key-derivation/src/ui/controller.ts:910 attaches its tab keyboard behavior only to controls.protocolTabs.",
+      "docs/FULL_AUDIT_GUIDE.md:333/:341 require functional main/subtab navigation and keyboard alternatives."
+    ],
+    "runtimeEvidence": [
+      {
+        "evidenceName": "deriver-probes",
+        "executor": "coordinator",
+        "result": "Four actual-installer keyboard cases failed at selection assertions after click and tabindex setup passed. The whole run had 21 failures and 1 pass in 22 cases; its exit code was 1. This group was skipped in the later selective run.",
+        "logSha256": "dda4e007ac3e2431079f62f39296150f44ac64eeeb4e2e0226b99ba5c10e51e3",
+        "harnessSha256": "dda619b155d9b19f9e240718cf5684188b905e5b0875ac7a02e3af3d648de180",
+        "sourceFingerprintBefore": "dca9cc0b259bf11b00fa0e65a5c7068e279feae63aeab25618f71e52d63ba06b",
+        "sourceFingerprintAfter": "dca9cc0b259bf11b00fa0e65a5c7068e279feae63aeab25618f71e52d63ba06b"
+      }
+    ],
+    "sourceSha256": {
+      "apps/key-derivation/src/ui/recovery-workspace-shared.ts": "a3946072e7cce3e3b2c4ce25cf6d50f5ee91b5ddd7f0c406abbd356cdfc0a9c9",
+      "apps/key-derivation/src/ui/recovery-workspace.ts": "94423804e54d81dcae4a73d6c8c92eab7a8efdffb2358fa6482b0d61d57e842b",
+      "packages/shared-ui/src/tabs.ts": "b4372e9f6d052f01a7cc3816e588ed6810d4b6c75862fb3c9173d9ad2dae1f7e"
+    },
+    "limitations": [
+      "The exact production installer executes on synthetic tab markup; the complete built workspace is source-traced rather than rendered.",
+      "The DOM support models events, ARIA attributes, tabIndex and focus but not native key defaults, browser accessibility trees or assistive-technology interaction."
+    ]
+  }
+]

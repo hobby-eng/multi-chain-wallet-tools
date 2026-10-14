@@ -1,7 +1,14 @@
+import { DashHistoryBudget } from "./history-budget.js";
+import { PlatformAddressHistoryAdmission } from "./platform-address-history-admission.js";
 import { validateAddressHistoryPage } from "./provider-json.js";
-import { assertPlatformExplorerNetwork } from "./provider-json.js";
 import { validatePlatformAddress } from "./public-address.js";
-import { createProviderHttp, ProviderHttpError, type FetchLike } from "./provider-http.js";
+import { ProviderHttpError, type FetchLike } from "./provider-http.js";
+import {
+  PLATFORM_EXPLORER_ENDPOINTS,
+  PLATFORM_EXPLORER_HTTP,
+  PLATFORM_EXPLORER_NAME,
+  platformExplorerTip,
+} from "./platform-explorer.js";
 import type { ViewerNetwork } from "./types.js";
 
 const EXPLORER_PAGE_SIZE = 100;
@@ -52,18 +59,13 @@ interface PlatformHistoryProvider {
   ): Promise<PlatformAddressHistorySnapshot>;
 }
 
-const PLATFORM_EXPLORER_ENDPOINTS: Record<ViewerNetwork, string> = {
-  mainnet: "https://platform-explorer.pshenmic.dev",
-  testnet: "https://testnet.platform-explorer.pshenmic.dev",
-};
-
 const {
   object,
   optionalInteger,
   requiredInteger,
   exactInteger: exactCredits,
   fetchJson,
-} = createProviderHttp("Platform Explorer");
+} = PLATFORM_EXPLORER_HTTP;
 
 function transitionView(value: unknown): PlatformAddressTransition {
   const transition = object(value, "address transition");
@@ -96,21 +98,7 @@ async function queryPlatformExplorer(
 ): Promise<PlatformAddressHistorySnapshot> {
   const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
   let requests = 1;
-  const status = object(await fetchJson(fetcher, `${endpoint}/status`, signal), "index status");
-  const indexer = object(status.indexer, "indexer status");
-  if (indexer.status !== "synced") {
-    throw new Error(
-      "Platform Explorer reports that its index is not synchronized with Dash Platform.",
-    );
-  }
-  assertPlatformExplorerNetwork(status.network, network);
-  const api = object(status.api, "API status");
-  const tip = object(api.block, "latest indexed block");
-  const indexedHeight = requiredInteger(tip.height, "latest indexed Platform height");
-  const indexedTimeMs = typeof tip.timestamp === "string" ? Date.parse(tip.timestamp) : Number.NaN;
-  if (!Number.isFinite(indexedTimeMs)) {
-    throw new Error("Platform Explorer returned an invalid latest indexed block time.");
-  }
+  const { indexedHeight, indexedTimeMs } = await platformExplorerTip(fetcher, network, signal);
 
   requests += 1;
   const infoValue = await fetchJson(
@@ -143,7 +131,7 @@ async function queryPlatformExplorer(
     };
   }
 
-  const info = object(infoValue, "address info");
+  const info = new PlatformAddressHistoryAdmission(address, network).admitInfo(infoValue);
   const totalTransitions = requiredInteger(info.totalTxs, "total transition count");
   const incomingTransitions = requiredInteger(info.incomingTxs, "incoming transition count");
   const outgoingTransitions = requiredInteger(info.outgoingTxs, "outgoing transition count");
@@ -201,7 +189,7 @@ async function queryPlatformExplorer(
 
 const PLATFORM_EXPLORER_PROVIDER: PlatformHistoryProvider = {
   id: "platform-explorer",
-  displayName: "Dash Platform Explorer",
+  displayName: PLATFORM_EXPLORER_NAME,
   endpoint(network) {
     return PLATFORM_EXPLORER_ENDPOINTS[network];
   },
@@ -217,8 +205,6 @@ export async function queryPlatformAddressHistory(
   provider: PlatformHistoryProvider = PLATFORM_EXPLORER_PROVIDER,
 ): Promise<PlatformAddressHistorySnapshot> {
   const address = validatePlatformAddress(addressInput, network);
-  if (!Number.isSafeInteger(historyLimit) || historyLimit < 1 || historyLimit > 1000) {
-    throw new Error("Platform history limit must be an integer from 1 to 1000.");
-  }
+  DashHistoryBudget.admit(historyLimit, "Platform history limit");
   return provider.query(address, network, historyLimit, signal, fetcher);
 }

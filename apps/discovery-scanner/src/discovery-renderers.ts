@@ -1,3 +1,5 @@
+import { RECOVERY_SECTION_GROUPS } from "./recovery-section-groups.js";
+import { markTab } from "@ckd/ui/tabs.js";
 import { historyFields } from "./history.js";
 import type {
   RecoveryFinding,
@@ -23,7 +25,7 @@ const componentGroups: ReadonlyArray<{
   {
     id: "core",
     label: "Dash Core · L1",
-    sections: ["core", "legacyCore", "coinjoin", "providerCollateral"],
+    sections: RECOVERY_SECTION_GROUPS.members("core"),
   },
   { id: "platform", label: "Platform addresses", sections: ["platform"] },
   { id: "identity", label: "Platform identities", sections: ["identity"] },
@@ -239,9 +241,7 @@ export function createDiscoveryRenderers(
       panel.append(...groupSections(result, group).map((section) => renderSection(section)));
       for (const button of tabs.querySelectorAll<HTMLButtonElement>("[data-component-group]")) {
         const active = button.dataset.componentGroup === group.id;
-        button.classList.toggle("active", active);
-        button.setAttribute("aria-selected", String(active));
-        button.tabIndex = active ? 0 : -1;
+        markTab(button, active);
       }
     };
 

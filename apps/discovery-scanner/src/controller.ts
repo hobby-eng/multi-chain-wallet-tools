@@ -1,3 +1,7 @@
+import { textLines } from "@ckd/core/text-lines.js";
+import { isPrivateMaterialError } from "@ckd/secret-boundary/private-material-error.js";
+import { resultIncomplete } from "./wallet-result.js";
+import { isAbortError } from "@ckd/core/error-handling.js";
 import { enrichRecoveryHistory } from "./history.js";
 import type { RecoveryExportBrokerFormat } from "@ckd/network-boundary/protocol.js";
 import type { RecoveryCoinRegistry } from "./coins/registry.js";
@@ -6,11 +10,15 @@ import type { DiscoveryScannerView, RecoveryInputSnapshot } from "./view.js";
 import type {
   RecoveryFinding,
   RecoveryInputMode,
+  RecoveryScanContext,
   RecoverySectionId,
   RecoverySeedInput,
   RecoveryWalletResult,
 } from "./types.js";
-import { parseConcurrency } from "@ckd/core/validation.js";
+import {
+  SCANNER_NETWORK_CONCURRENCY,
+  SCANNER_ORCHESTRATION_CONCURRENCY,
+} from "./concurrency-parameters.js";
 import { wipeRecoveryInputSnapshot } from "./input-snapshot.js";
 import type { WatchOnlyTarget } from "./watch-only-input.js";
 import { WalletProgressTracker } from "./wallet-progress.js";
@@ -132,20 +140,94 @@ export function createDiscoveryScannerController(
     view.renderLiveFinding(inputId, section, finding, liveFindingCount);
   }
 
+  /** Clears the last run's results and secrets and opens a new run with its own limiter. */
+  function openRun(clearInput: boolean, requestConcurrency: number) {
+    runGeneration += 1;
+    sessionSecretGuard.clear();
+    validatedExports.clear();
+    if (clearInput) clearVisibleSecrets();
+    currentResults = [];
+    activeResultCoinId = null;
+    resultTabTouched = false;
+    scanCompleted = false;
+    liveFindingCount = 0;
+    renderResults();
+    currentAbort = new AbortController();
+    return {
+      runController: currentAbort,
+      networkLimiter: new dependencies.RecoveryConcurrencyLimiter(requestConcurrency),
+    };
+  }
+
+  /** What every adapter of a run scans with: the run's signal, network and secrets guard. */
+  function scanContext(
+    signal: AbortSignal,
+    networkApi: RecoveryScanContext["networkApi"],
+    networkLimiter: NonNullable<RecoveryScanContext["networkLimiter"]>,
+  ): RecoveryScanContext {
+    return {
+      signal,
+      networkApi,
+      networkLimiter,
+      sessionSecretGuard,
+      onProgress: (progress) => walletProgress.update(progress),
+      onFinding: renderLiveFinding,
+    };
+  }
+
+  /** Shows a finished wallet in the order of the inputs, whichever finished first. */
+  function showInOrder(
+    ordered: Array<RecoveryWalletResult | undefined>,
+    index: number,
+    result: RecoveryWalletResult,
+  ): void {
+    ordered[index] = result;
+    currentResults = ordered.filter(
+      (candidate): candidate is RecoveryWalletResult => candidate !== undefined,
+    );
+    renderResults();
+  }
+
+  /**
+   * Says why a run stopped and keeps the reports it completed exportable, unless the run already
+   * tried to stage them.
+   */
+  function reportStoppedRun(cause: unknown, cancelled: string, staged: boolean): void {
+    if (isAbortError(cause)) view.setStatus(cancelled);
+    else view.showError(dependencies.describeUnknownError(cause));
+    if (currentResults.length === 0 || staged) return;
+    try {
+      stageValidatedExports();
+      renderResults();
+    } catch (exportCause) {
+      view.showError(
+        `Completed reports could not pass the export tripwire: ${dependencies.describeUnknownError(exportCause)}`,
+      );
+    }
+  }
+
   function stageValidatedExports(): void {
     validatedExports.stage(currentResults);
   }
 
+  /**
+   * Exports the results of the run that is shown. The broker's reply belongs to that run: after
+   * Clear or a new scan it says nothing on the page of the next one (AUD-024-API004). The
+   * download that the broker already issued is the browser's; Clear does not revoke it.
+   */
   async function downloadExport(format: RecoveryExportBrokerFormat): Promise<void> {
+    const generation = runGeneration;
     try {
       const file = validatedExports.get(format === "xlsx" ? "json" : format);
       if (file === undefined)
         throw new Error("Run and complete a fresh recovery scan before exporting.");
       const filename = await dependencies.requestRecoveryExport(file.text, format);
+      if (generation !== runGeneration) return;
       view.setStatus(
         `Exported ${filename}. No recovery phrase or private/viewing/spending key is included.`,
       );
     } catch (cause) {
+      if (generation !== runGeneration) return;
       view.showError(dependencies.describeUnknownError(cause));
     }
   }
@@ -215,16 +297,46 @@ export function createDiscoveryScannerController(
     coinIds: readonly string[],
   ): void {
     // The same rule as the view's estimate: one phrase in single mode, one per non-empty line.
-    const phrases = inputMode === "single" ? 1 : countCandidateLines(snapshot.batchMnemonics);
+    const phrases =
+      inputMode === "single"
+        ? 1
+        : (snapshot.candidateList?.count ?? countCandidateLines(snapshot.batchMnemonics));
     const estimate = seedLookupEstimate(
       phrases,
-      seedLookupsPerPhrase(coinIds, snapshot),
+      seedLookupsPerPhrase(
+        coinIds.map((id) => dependencies.getRecoveryCoin(id)),
+        snapshot,
+      ),
       snapshot.requestConcurrency,
     );
     if (needsLargeScanConfirmation(estimate) && snapshot.largeScanConfirmed !== true)
       throw new Error(
         `This scan needs at least ${estimate.lookups.toLocaleString()} provider lookups. Confirm the warning above the Start button first.`,
       );
+  }
+
+  /** The candidates typed by hand, one per non-empty line, each with its passphrase line. */
+  function typedCandidates(snapshot: RecoveryInputSnapshot): RecoverySeedInput[] {
+    const phrases = textLines(
+      inputMode === "single" ? snapshot.singleMnemonic : snapshot.batchMnemonics,
+    );
+    const passwords =
+      inputMode === "single" ? [snapshot.singlePassphrase] : textLines(snapshot.batchPassphrases);
+    const inputs = phrases.flatMap((mnemonic, line) =>
+      mnemonic.trim()
+        ? [
+            {
+              id: `candidate-${line + 1}`,
+              label: `Candidate · source line ${line + 1}`,
+              mnemonic,
+              passphrase: passwords[line] ?? "",
+            },
+          ]
+        : [],
+    );
+    phrases.fill("");
+    passwords.fill("");
+    return inputs;
   }
 
   function startCandidateScan(snapshot: RecoveryInputSnapshot): void {
@@ -242,42 +354,15 @@ export function createDiscoveryScannerController(
       snapshot,
       adapters.map((adapter) => adapter.id),
     );
-    const phrases = (inputMode === "single" ? snapshot.singleMnemonic : snapshot.batchMnemonics)
-      .replaceAll("\r", "")
-      .split("\n");
-    const passwords =
-      inputMode === "single"
-        ? [snapshot.singlePassphrase]
-        : snapshot.batchPassphrases.replaceAll("\r", "").split("\n");
-    const inputs = phrases.flatMap((mnemonic, line) =>
-      mnemonic.trim()
-        ? [
-            {
-              id: `candidate-${line + 1}`,
-              label: `Candidate · source line ${line + 1}`,
-              mnemonic,
-              passphrase: passwords[line] ?? "",
-            },
-          ]
-        : [],
-    );
-    phrases.fill("");
-    passwords.fill("");
+    const inputs =
+      inputMode === "batch" && snapshot.candidateList !== undefined
+        ? snapshot.candidateList.inputs()
+        : typedCandidates(snapshot);
     wipeInputSnapshot(snapshot);
     if (inputs.length === 0) throw new Error("Enter at least one candidate seed phrase.");
-    sessionSecretGuard.clear();
-    validatedExports.clear();
-    if (snapshot.clearInputOnStart) clearVisibleSecrets();
-    currentResults = [];
-    activeResultCoinId = null;
-    resultTabTouched = false;
-    scanCompleted = false;
-    liveFindingCount = 0;
-    renderResults();
-    currentAbort = new AbortController();
-    const runController = currentAbort;
-    const networkLimiter = new dependencies.RecoveryConcurrencyLimiter(
-      parseConcurrency(snapshot.requestConcurrency, "Network concurrency"),
+    const { runController, networkLimiter } = openRun(
+      snapshot.clearInputOnStart,
+      SCANNER_NETWORK_CONCURRENCY.parse(snapshot.requestConcurrency, "Network concurrency"),
     );
     walletProgress.initialize(
       inputs.flatMap((input) =>
@@ -301,37 +386,18 @@ export function createDiscoveryScannerController(
           inputs,
           adapters,
           config,
-          {
-            signal: runController.signal,
-            networkApi,
-            networkLimiter,
-            sessionSecretGuard,
-            onProgress: (progress) => walletProgress.update(progress),
-            onFinding: renderLiveFinding,
-          },
+          scanContext(runController.signal, networkApi, networkLimiter),
           dependencies.assertValidMnemonic,
           (result) => {
             currentResults.push(result);
             if (result.coinId === "input") {
               for (const adapter of adapters)
                 walletProgress.finish(`${result.inputId}-${adapter.id}`, true);
-            } else
-              walletProgress.finish(
-                result.inputId,
-                result.sections.some(
-                  (section) => section.state === "failed" || section.state === "partial",
-                ),
-              );
+            } else walletProgress.finish(result.inputId, resultIncomplete(result));
             renderResults();
           },
         );
-        scanCompleted =
-          currentResults.length > 0 &&
-          currentResults.every((result) =>
-            result.sections.every(
-              (section) => section.state !== "failed" && section.state !== "partial",
-            ),
-          );
+        scanCompleted = currentResults.length > 0 && !currentResults.some(resultIncomplete);
         view.setStatus(
           "Candidate pass finished. Review each coin outcome; failed or skipped checks do not establish an empty wallet.",
         );
@@ -409,26 +475,21 @@ export function createDiscoveryScannerController(
       const seedConcurrency =
         inputMode === "single"
           ? 1
-          : parseConcurrency(snapshot.batchConcurrency, "Batch seed concurrency");
-      const requestConcurrency = parseConcurrency(
+          : SCANNER_ORCHESTRATION_CONCURRENCY.parse(
+              snapshot.batchConcurrency,
+              "Batch seed concurrency",
+            );
+      const requestConcurrency = SCANNER_NETWORK_CONCURRENCY.parse(
         snapshot.requestConcurrency,
         "Network concurrency",
       );
       const adapter = dependencies.getRecoveryCoin(snapshot.coinId);
       if (!adapter.networks.includes(config.network))
         throw new Error(`${adapter.label} does not support ${config.network}.`);
-      sessionSecretGuard.clear();
-      validatedExports.clear();
-      if (snapshot.clearInputOnStart) clearVisibleSecrets();
-      currentResults = [];
-      activeResultCoinId = null;
-      resultTabTouched = false;
-      scanCompleted = false;
-      liveFindingCount = 0;
-      renderResults();
-      currentAbort = new AbortController();
-      const runController = currentAbort;
-      const networkLimiter = new dependencies.RecoveryConcurrencyLimiter(requestConcurrency);
+      const { runController, networkLimiter } = openRun(
+        snapshot.clearInputOnStart,
+        requestConcurrency,
+      );
       setRunning(true);
       view.showProgress();
       walletProgress.initialize(inputs);
@@ -439,14 +500,11 @@ export function createDiscoveryScannerController(
           const orderedResults: Array<RecoveryWalletResult | undefined> = new Array(inputs.length);
           const preparedSections =
             inputs.length > 1 && config.scanShieldedPool && adapter.prepareBatch !== undefined
-              ? adapter.prepareBatch(inputs, config, {
-                  signal: runController.signal,
-                  networkApi,
-                  networkLimiter,
-                  sessionSecretGuard,
-                  onProgress: (progress) => walletProgress.update(progress),
-                  onFinding: renderLiveFinding,
-                })
+              ? adapter.prepareBatch(
+                  inputs,
+                  config,
+                  scanContext(runController.signal, networkApi, networkLimiter),
+                )
               : undefined;
           view.setStatus(
             `Scanning ${inputs.length} seed phrase${inputs.length === 1 ? "" : "s"} · up to ${seedConcurrency} seed scan${seedConcurrency === 1 ? "" : "s"} and ${requestConcurrency} network request${requestConcurrency === 1 ? "" : "s"} at once…`,
@@ -454,30 +512,16 @@ export function createDiscoveryScannerController(
           await dependencies.mapRecoveryTasks(inputs, seedConcurrency, async (input, index) => {
             try {
               const result = await adapter.scan(input, config, {
-                signal: runController.signal,
-                networkApi,
-                networkLimiter,
-                sessionSecretGuard,
+                ...scanContext(runController.signal, networkApi, networkLimiter),
                 ...(preparedSections === undefined ? {} : { preparedSections }),
-                onProgress: (progress) => walletProgress.update(progress),
-                onFinding: renderLiveFinding,
               });
-              await enrichRecoveryHistory(adapter, result, {
-                signal: runController.signal,
-                networkApi,
-                networkLimiter,
-                sessionSecretGuard,
-                onProgress: (progress) => walletProgress.update(progress),
-                onFinding: renderLiveFinding,
-              });
-              orderedResults[index] = result;
-              currentResults = orderedResults.filter(
-                (candidate): candidate is RecoveryWalletResult => candidate !== undefined,
+              await enrichRecoveryHistory(
+                adapter,
+                result,
+                scanContext(runController.signal, networkApi, networkLimiter),
               );
-              renderResults();
-              const incomplete = result.sections.some(
-                ({ state }) => state === "failed" || state === "partial",
-              );
+              showInOrder(orderedResults, index, result);
+              const incomplete = resultIncomplete(result);
               if (incomplete)
                 result.warnings.push(
                   "Scan incomplete: some sections were not fully checked; see section warnings.",
@@ -497,9 +541,7 @@ export function createDiscoveryScannerController(
           exportStagingAttempted = true;
           stageValidatedExports();
           renderResults();
-          scanCompleted = currentResults.every((result) =>
-            result.sections.every(({ state }) => state !== "failed" && state !== "partial"),
-          );
+          scanCompleted = !currentResults.some(resultIncomplete);
           view.setStatus(
             scanCompleted
               ? "Recovery scan complete. Review and export the standard-wallet handoff report."
@@ -507,23 +549,11 @@ export function createDiscoveryScannerController(
           );
         } catch (cause) {
           walletProgress.failPending("Stopped", "This wallet did not produce a complete report");
-          if (cause instanceof DOMException && cause.name === "AbortError") {
-            view.setStatus(
-              "Scan cancelled between bounded operations. Completed wallet reports remain exportable; the active wallet is incomplete and was not added.",
-            );
-          } else {
-            view.showError(dependencies.describeUnknownError(cause));
-          }
-          if (currentResults.length > 0 && !exportStagingAttempted) {
-            try {
-              stageValidatedExports();
-              renderResults();
-            } catch (exportCause) {
-              view.showError(
-                `Completed reports could not pass the export tripwire: ${dependencies.describeUnknownError(exportCause)}`,
-              );
-            }
-          }
+          reportStoppedRun(
+            cause,
+            "Scan cancelled between bounded operations. Completed wallet reports remain exportable; the active wallet is incomplete and was not added.",
+            exportStagingAttempted,
+          );
         } finally {
           wipeInputObjects(inputs);
           sessionSecretGuard.clear();
@@ -555,7 +585,7 @@ export function createDiscoveryScannerController(
       if (dependencies.watchOnlyScanConfig === undefined)
         throw new Error("Watch-only discovery is not included in this build.");
       const config = dependencies.watchOnlyScanConfig(snapshot, dependencies);
-      const requestConcurrency = parseConcurrency(
+      const requestConcurrency = SCANNER_NETWORK_CONCURRENCY.parse(
         snapshot.requestConcurrency,
         "Network concurrency",
       );
@@ -563,18 +593,10 @@ export function createDiscoveryScannerController(
         if (!adapter.networks.includes(network ?? config.network))
           throw new Error(`${adapter.label} does not support ${config.network}.`);
       }
-      sessionSecretGuard.clear();
-      validatedExports.clear();
-      if (snapshot.clearInputOnStart) clearVisibleSecrets();
-      currentResults = [];
-      activeResultCoinId = null;
-      resultTabTouched = false;
-      scanCompleted = false;
-      liveFindingCount = 0;
-      renderResults();
-      currentAbort = new AbortController();
-      const runController = currentAbort;
-      const networkLimiter = new dependencies.RecoveryConcurrencyLimiter(requestConcurrency);
+      const { runController, networkLimiter } = openRun(
+        snapshot.clearInputOnStart,
+        requestConcurrency,
+      );
       setRunning(true);
       view.showProgress();
       walletProgress.initialize(targets.map(({ input }) => input));
@@ -600,35 +622,19 @@ export function createDiscoveryScannerController(
                 const result = await target.adapter.scanWatchOnly(
                   target.input,
                   { ...config, network: target.network ?? config.network },
-                  {
-                    signal: runController.signal,
-                    networkApi,
-                    networkLimiter,
-                    sessionSecretGuard,
-                    onProgress: (progress) => walletProgress.update(progress),
-                    onFinding: renderLiveFinding,
-                  },
+                  scanContext(runController.signal, networkApi, networkLimiter),
                 );
-                await enrichRecoveryHistory(target.adapter, result, {
-                  signal: runController.signal,
-                  networkApi,
-                  networkLimiter,
-                  sessionSecretGuard,
-                  onProgress: (progress) => walletProgress.update(progress),
-                  onFinding: renderLiveFinding,
-                });
+                await enrichRecoveryHistory(
+                  target.adapter,
+                  result,
+                  scanContext(runController.signal, networkApi, networkLimiter),
+                );
                 if (target.ambiguous)
                   result.warnings.unshift(
                     "This key has no unique coin identifier. This report checks one candidate coin; an empty result does not establish which coin created the key.",
                   );
-                orderedResults[index] = result;
-                currentResults = orderedResults.filter(
-                  (candidate): candidate is RecoveryWalletResult => candidate !== undefined,
-                );
-                renderResults();
-                const incomplete = result.sections.some(
-                  ({ state }) => state === "failed" || state === "partial",
-                );
+                showInOrder(orderedResults, index, result);
+                const incomplete = resultIncomplete(result);
                 if (incomplete)
                   failures.push(
                     `${target.adapter.label}: some sections were not fully checked; see the report.`,
@@ -668,23 +674,11 @@ export function createDiscoveryScannerController(
             "Stopped",
             "This watch-only key did not produce a complete report",
           );
-          if (cause instanceof DOMException && cause.name === "AbortError") {
-            view.setStatus(
-              "Scan cancelled between bounded operations. Completed reports remain exportable; the active key is incomplete and was not added.",
-            );
-          } else {
-            view.showError(dependencies.describeUnknownError(cause));
-          }
-          if (currentResults.length > 0 && !exportStagingAttempted) {
-            try {
-              stageValidatedExports();
-              renderResults();
-            } catch (exportCause) {
-              view.showError(
-                `Completed reports could not pass the export tripwire: ${dependencies.describeUnknownError(exportCause)}`,
-              );
-            }
-          }
+          reportStoppedRun(
+            cause,
+            "Scan cancelled between bounded operations. Completed reports remain exportable; the active key is incomplete and was not added.",
+            exportStagingAttempted,
+          );
         } finally {
           dependencies.wipeWatchOnlyTargets?.(targets);
           sessionSecretGuard.clear();
@@ -694,7 +688,7 @@ export function createDiscoveryScannerController(
       };
       void run();
     } catch (cause) {
-      if (cause instanceof Error && cause.name === "PrivateMaterialError") clearVisibleSecrets();
+      if (isPrivateMaterialError(cause)) clearVisibleSecrets();
       dependencies.wipeWatchOnlyTargets?.(targets);
       sessionSecretGuard.clear();
       view.showError(dependencies.describeUnknownError(cause));

@@ -1,3 +1,4 @@
+import { scriptNumberOf } from "./script-number.js";
 import { analyzeMiniscript, compileMiniscript } from "@bitcoinerlab/miniscript";
 import { hash160, hexToBytes, secp256k1 } from "@ckd/core/crypto.js";
 import { validateMultisigConsensusLimits, type ScriptPolicyContext } from "./consensus-limits.js";
@@ -92,25 +93,13 @@ function pushData(data: Uint8Array): number[] {
   throw new Error("Compiled Miniscript push exceeds the supported Script element size.");
 }
 
-function scriptNumberFromPush(hex: string): string | null {
-  if (hex.length === 0 || hex.length > 8 || hex.length % 2 !== 0) return null;
-  const bytes = hexToBytes(hex);
-  const negative = (bytes[bytes.length - 1]! & 0x80) !== 0;
-  let value = 0;
-  for (let index = 0; index < bytes.length; index += 1) {
-    const byte = index === bytes.length - 1 ? bytes[index]! & 0x7f : bytes[index]!;
-    value += byte * 2 ** (8 * index);
-  }
-  return String(negative ? -value : value);
-}
-
 function normalizeMiniscriptAsm(asm: string): string {
   return asm
     .split(/\s+/u)
     .filter(Boolean)
     .map((token) => {
       const pushed = /^<([0-9a-fA-F]*)>$/u.exec(token)?.[1];
-      return pushed === undefined ? token : (scriptNumberFromPush(pushed) ?? token);
+      return pushed === undefined ? token : (scriptNumberOf(pushed)?.toString() ?? token);
     })
     .join(" ");
 }
