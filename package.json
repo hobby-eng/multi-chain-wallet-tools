@@ -95,7 +95,7 @@
     "dashkeys": "1.1.5",
     "esbuild": "0.28.2",
     "ethers": "6.17.0",
-    "playwright": "1.63.0",
+    "playwright": "1.64.0",
     "prettier": "3.9.9",
     "typescript": "7.0.2",
     "vitest": "5.0.2"
