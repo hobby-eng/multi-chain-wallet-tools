@@ -130,7 +130,13 @@ export class MnemoCodeDecodeTab {
           this.#qrText = text;
           // A share read from a QR code goes to Restore at once, as MnemoCode's decode sends it.
           queueMicrotask(() => {
-            if (BackupReading.shareKind(text) === "share") this.#decode();
+            if (this.#input.value.trim() !== text || !this.#context.jobs.ready) return;
+            try {
+              if (BackupReading.shareKind(text) === "share") this.#decode();
+            } catch (cause) {
+              this.#result.textContent =
+                cause instanceof Error ? cause.message : "The share input could not be read.";
+            }
           });
           return text;
         },
@@ -230,7 +236,7 @@ export class MnemoCodeDecodeTab {
   }
 
   /**
-   * Whether the text goes to Restore as its first share: a text that is surely a share does, one
+   * Whether the whole share text goes to Restore: a definite share part routes the whole input, one
    * that may also be the codes as the person answers; true when Restore took it.
    */
   #handedOver(): boolean {
@@ -249,7 +255,7 @@ export class MnemoCodeDecodeTab {
     if (handOverShare({ text, fromQr: text === this.#qrText })) {
       this.#result.append(
         paragraph(
-          "These are the codes of a Shamir share: they went to Restore as its first share.",
+          "The share text went to Restore. Every part and its line boundaries were kept.",
           "field-note",
         ),
       );
@@ -268,8 +274,8 @@ export class MnemoCodeDecodeTab {
     this.#flushFingerprint();
     const current = this.#inputs.capture();
     this.#result.replaceChildren();
-    if (this.#handedOver()) return;
     try {
+      if (this.#handedOver()) return;
       // Codes marked with ? are searched, as MnemoCode's decode searches them.
       if (
         this.#missing.offer(

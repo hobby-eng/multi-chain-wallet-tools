@@ -134,4 +134,5 @@ export function checkCandidateListStartup(): void {
     "Candidate list passphrase of each record",
   );
   opened.wipe();
+  expectRefused(() => opened.candidates(), /has been wiped/u, "A disposed candidate list");
 }

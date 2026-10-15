@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "repository": "hobby-eng/mnemocode",
+  "sourceFingerprint": "7593bf66fa328ca1d0ff87dc721ae7a8f730931949137c3b9e4e4d34fe1a0947",
+  "version": "0.1.7",
+  "unreleased": "Imported from a frozen uncommitted local MnemoCode handover.",
+  "canonicalWalletToolsComparison": "Not run; the existing canonical gate remains mandatory.",
+  "files": {
+    "rust/Cargo.lock": "cdff968d6f4af4304541fc270733cb039b0f7eb2795259bd328677103d94df88",
+    "rust/Cargo.toml": "df679e8b714ee3e540a8e1c1429f4f86f1b866dbe000271dee7ec60531fee6c6",
+    "rust/clippy.toml": "42205e005acff1dd5d36837c3c1a93000bd677f84b81f7722fec94c75e609c46",
+    "rust/rust-toolchain.toml": "58036485dea1e5bb8ccb7ca06d881ac7ea052a17e3c5b879a70259292c036797",
+    "rust/src/lib.rs": "9754125c4486c1307a29e2e21e062caa02f1867b077bda8a4c50ea003d2e25ca",
+    "rust/src/refusal.rs": "28ca1114025afdc0eb864f81abdc7f8f02b2dbd0e62a90134e227d13a42ba096",
+    "generated/recovery_sskr_wasm.js": "1b1bc148873935f57bf7b9ad195eb55ef374caa3a3b4088ed32a2d7a3e79622b",
+    "generated/recovery_sskr_wasm.d.ts": "4fe377e3834fbd460e5aeaa668cd16c343c50bd50606cf9390a2491797bdb2ac",
+    "generated/recovery_sskr_wasm_bg.wasm": "2772afe197c21631b9e9314cb0a20436d8092742fec45a46e8ae5396ecf17ce4",
+    "generated/recovery_sskr_wasm_bg.wasm.d.ts": "1f6e5b11c744324af89ae32b2d7980644543def7cc26995592c411f989f5db04",
+    "LICENSE": "caf27edda9f161c05080b929367e2b039351b717fc67657884c2e5d5e7ed6e39",
+    "NOTICE.md": "7b8fea95969ca58f6d21f7d3fe2dbc7d150a7794454d82f3cca054388ec6413e",
+    "UPSTREAM_NOTICES.md": "10b43f488314912828b2ef27f29ffe7a7d2c265d857e31fae1506abf95f652cc",
+    "integrity.json": "411b855f2d1179c95d60ce5602ab0417e066c9285d101c1ded1ab107d02ddda2"
+  }
+}

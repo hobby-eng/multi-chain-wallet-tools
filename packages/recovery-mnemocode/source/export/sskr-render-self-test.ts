@@ -141,6 +141,32 @@ async function checkShareCards(drawing: CardDrawing): Promise<void> {
     FIXED_DECOYS,
   );
   expectSame(separate.qrCodes.length, 0, "QR codes of separate cards");
+  const business = await ShareCardSet.create(
+    drawing,
+    SHARES,
+    { ...OPTIONS, style: "it", shareFormat: "unicode" },
+    FIXED_DECOYS,
+  );
+  const retained = business.forIndividualCards();
+  expectSame(
+    retained.printedCodes(0).join(" "),
+    business
+      .printedCodes(0)
+      .slice(0, business.ownCodes(0) + 1)
+      .join(" "),
+    "Retained share codes and first decoy",
+  );
+  expectSame(
+    defined(retained.shares[0]).documents,
+    business.ownCodes(0) + 1,
+    "Retained share cards",
+  );
+  expectSame(retained.qrCodes.length, 0, "QR codes of retained individual cards");
+  expectRefused(
+    () => retained.forIndividualCards({ pageSize: "a4" }),
+    /business size/u,
+    "Retained individual cards on a sheet size",
+  );
   await expectRefusedLater(
     () =>
       ShareCardSet.create(drawing, SHARES, {

@@ -311,6 +311,24 @@ export class ShareInput {
   }
 
   /**
+   * The parts of a share file or paste, with empty lines left out and wrapped shares joined.
+   * Unreadable parts stay in place: the reader must name them, never silently drop them. Decode
+   * uses the same boundaries before deciding whether the text holds shares or phrase codes.
+   */
+  static partsOfText(text: string): string[] {
+    const parts = text
+      .split(SHARE_SEPARATORS)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return [];
+    // Bounds the work below: wrapped or not, the parts make no more shares than a set may have.
+    assertShareCount(Math.ceil(parts.length / MAX_WRAPPED_LINES));
+    const shares = joinWrapped(parts);
+    assertShareCount(shares.length);
+    return shares;
+  }
+
+  /**
    * `message` of a share after "Share N" and `joint`, such as "Share 2 cannot be read: unknown …".
    * Its first letter is made small, unless it begins an abbreviation such as SSKR.
    */
@@ -383,18 +401,12 @@ export class ShareInput {
    * is refused as one: `subject` names the text in that message, "This is" or "The file holds".
    */
   sharesOfText(text: string, subject = "This is"): string[] {
-    const parts = text
-      .split(SHARE_SEPARATORS)
-      .map((part) => part.trim())
-      .filter(Boolean);
-    if (parts.length === 0) return [];
-    // Bounds the work below: wrapped or not, the parts make no more shares than a set may have.
-    assertShareCount(Math.ceil(parts.length / MAX_WRAPPED_LINES));
-    const shares = joinWrapped(parts);
+    const shares = ShareInput.partsOfText(text);
+    if (shares.length === 0) return [];
     // Looked for only when nothing reads as a share: a share in word numbers, wrapped or not, may
     // have as many numbers as a phrase has words.
     if (!shares.some(shareOrMarked)) {
-      const kind = phraseKind(parts.join(" "));
+      const kind = phraseKind(shares.join(" "));
       if (kind !== undefined)
         throw ERRORS.create("shares-text-refused", [this.#notShareMessage(kind, subject)]);
     }

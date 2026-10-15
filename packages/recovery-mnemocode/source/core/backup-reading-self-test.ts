@@ -11,6 +11,7 @@
 // Host-neutral: it imports only other core modules, and through them the share forms.
 
 import { sskrVector } from "../sskr/known-answers.js";
+import { ShareInput } from "../sskr/share-input.js";
 import { BackupReading } from "./backup-reading.js";
 import { EncodedBackup } from "./encoded-backup.js";
 import { MissingCodes } from "./missing-codes.js";
@@ -160,6 +161,17 @@ export function checkBackupReadingStartup(): void {
     "A word number of 2049",
   );
   expectSame(BackupReading.shareKind(SHARE_COLORS), "share", "A share in place of the codes");
+  const shareLines = [sskrVector.shares[0], sskrVector.shares[2]].join("\n");
+  expectSame(BackupReading.shareKind(shareLines), "share", "Several shares in place of the codes");
+  const parts = ShareInput.partsOfText(shareLines);
+  expectSame(parts.length, 2, "Every share line is kept");
+  expectSame(parts[0], sskrVector.shares[0], "First share line");
+  expectSame(parts[1], sskrVector.shares[2], "Third member at the second place");
+  expectSame(
+    BackupReading.shareKind("not-a-share\nalso-not-a-share"),
+    undefined,
+    "Unreadable lines are no share",
+  );
   expectSame(
     BackupReading.shareKind(SHARE_COLORS.replace("#7C4D62", "?")),
     "share",

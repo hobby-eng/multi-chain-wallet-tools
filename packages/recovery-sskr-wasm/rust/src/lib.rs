@@ -1,3 +1,8 @@
+//! The SSKR engine of MnemoCode, built into WebAssembly: Blockchain Commons' SSKR, which splits a
+//! secret into Shamir shares and restores it, with the shares written as compact URs or standard
+//! Bytewords. The host gives the fresh randomness of a split and reads the shares one per line;
+//! the copies of a secret, a seed or a share that the engine keeps are wiped once it is done.
+
 use bc_rand::RandomNumberGenerator;
 use bc_ur::{bytewords, prelude::*};
 use rand_chacha::ChaCha20Rng;
@@ -5,6 +10,9 @@ use rand_core::{CryptoRng, RngCore, SeedableRng};
 use sskr::{sskr_combine, sskr_generate_using, GroupSpec, Secret, Spec};
 use wasm_bindgen::prelude::*;
 use zeroize::{Zeroize, Zeroizing};
+
+mod refusal;
+pub use refusal::Refusal;
 
 /// The seed of a split's generator: as many bytes as ChaCha20 takes. The hosts' SEED_BYTES
 /// (src/sskr/share-platform.ts) is a deliberate copy, which test/sskr-vectors.test.ts keeps in step
@@ -86,16 +94,8 @@ impl CBORTaggedDecodable for UrShare {
     }
 }
 
-/// A refusal, as the text that the host shows.
-type Refusal = String;
-
-fn refusal(error: impl std::fmt::Display) -> Refusal {
+fn message(error: impl std::fmt::Display) -> String {
     error.to_string()
-}
-
-/// A refusal as JavaScript receives it: the text, thrown.
-fn thrown(text: Refusal) -> JsValue {
-    JsValue::from_str(&text)
 }
 
 /// The encodings of a share, which a host asks for by their number: the compact UR, or standard
@@ -109,20 +109,22 @@ fn thrown(text: Refusal) -> JsValue {
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShareEncoding {
+    /// The compact UR of a share (ur:sskr/...), its minimal Bytewords.
     CompactUr = 0,
+    /// The standard Bytewords of a share's tagged CBOR.
     Bytewords = 1,
 }
 
 const UNSUPPORTED_ENCODING: &str = "Unsupported SSKR share encoding.";
 
 impl TryFrom<u8> for ShareEncoding {
-    type Error = &'static str;
+    type Error = Refusal;
 
     fn try_from(code: u8) -> Result<Self, Self::Error> {
         [Self::CompactUr, Self::Bytewords]
             .into_iter()
             .find(|encoding| *encoding as u8 == code)
-            .ok_or(UNSUPPORTED_ENCODING)
+            .ok_or(Refusal::Encoding)
     }
 }
 
@@ -143,15 +145,19 @@ fn encode_share(share: &UrShare, encoding: ShareEncoding) -> String {
 
 fn decode_share(record: &str, encoding: ShareEncoding) -> Result<Vec<u8>, Refusal> {
     let share = match encoding {
-        ShareEncoding::CompactUr => UrShare::from_ur_string(record).map_err(refusal)?,
+        ShareEncoding::CompactUr => {
+            UrShare::from_ur_string(record).map_err(|error| Refusal::Decode(message(error)))?
+        }
         ShareEncoding::Bytewords => {
-            let data = bytewords::decode(record, bytewords::Style::Standard).map_err(refusal)?;
-            let cbor = CBOR::try_from_data(data).map_err(refusal)?;
+            let data = bytewords::decode(record, bytewords::Style::Standard)
+                .map_err(|error| Refusal::Decode(message(error)))?;
+            let cbor =
+                CBOR::try_from_data(data).map_err(|error| Refusal::Decode(message(error)))?;
             // Standard textual SSKR Bytewords carries the registered CBOR tag.
             // Accept the earlier CKD untagged wrapper for existing backups only.
             UrShare::from_tagged_cbor(cbor.clone())
                 .or_else(|_| UrShare::from_untagged_cbor(cbor))
-                .map_err(refusal)?
+                .map_err(|error| Refusal::Decode(message(error)))?
         }
     };
     Ok(share.into_bytes())
@@ -169,26 +175,26 @@ fn split(
     // Refused before the secret is read or any share is made (AUD-012-SEC001).
     let encoding = ShareEncoding::try_from(encoding)?;
     if group_specs.is_empty() || group_specs.len() % 2 != 0 {
-        return Err(refusal("SSKR groups must contain threshold/count pairs."));
+        return Err(Refusal::GroupPairs);
     }
     let groups = group_specs
         .chunks_exact(2)
-        .map(|pair| GroupSpec::new(usize::from(pair[0]), usize::from(pair[1])).map_err(refusal))
+        .map(|pair| {
+            GroupSpec::new(usize::from(pair[0]), usize::from(pair[1]))
+                .map_err(|error| Refusal::Group(message(error)))
+        })
         .collect::<Result<Vec<_>, _>>()?;
-    let spec = Spec::new(usize::from(group_threshold), groups).map_err(refusal)?;
-    let secret_value = Secret::new(secret).map_err(refusal)?;
-    let mut seed: Seed = random_seed.try_into().map_err(|_| {
-        format!(
-            "SSKR requires exactly {} bytes of fresh randomness.",
-            std::mem::size_of::<Seed>()
-        )
-    })?;
-    let mut rng = HostSeedRng(ChaCha20Rng::from_seed(seed));
+    let spec = Spec::new(usize::from(group_threshold), groups)
+        .map_err(|error| Refusal::Specification(message(error)))?;
+    // Validate randomness before the upstream owner makes its additional secret copy.
+    let mut seed = Zeroizing::new(Seed::try_from(random_seed).map_err(|_| Refusal::Randomness)?);
+    let secret_value = Secret::new(secret).map_err(|error| Refusal::Secret(message(error)))?;
+    let mut rng = HostSeedRng(ChaCha20Rng::from_seed(*seed));
     seed.zeroize();
     // Every share is held by a UrShare at once, which wipes it when dropped, whatever happens
     // after.
     let shares: Vec<UrShare> = sskr_generate_using(&spec, &secret_value, &mut rng)
-        .map_err(refusal)?
+        .map_err(|error| Refusal::Generate(message(error)))?
         .into_iter()
         .flatten()
         .map(UrShare)
@@ -213,13 +219,14 @@ fn combine(records: &str, encoding: u8) -> Result<Vec<u8>, Refusal> {
         .map(|record| decode_share(record, encoding).map(Zeroizing::new))
         .collect::<Result<Vec<_>, _>>()?;
     if shares.is_empty() {
-        return Err(refusal(NO_SHARES));
+        return Err(Refusal::NoShares);
     }
     sskr_combine(&shares)
         .map(|secret| secret.as_ref().to_vec())
-        .map_err(refusal)
+        .map_err(|error| Refusal::Combine(message(error)))
 }
 
+/// The shares of `secret` as compact URs, one per line (create_sskr_shares_formatted).
 #[wasm_bindgen]
 pub fn create_sskr_shares(
     secret: Vec<u8>,
@@ -236,6 +243,10 @@ pub fn create_sskr_shares(
     )
 }
 
+/// The shares of `secret` in the encoding numbered `encoding` (ShareEncoding), one per line: of
+/// the groups `group_specs`, a threshold and a count for each, of which `group_threshold` restore
+/// it, made with a generator seeded with the host's fresh `random_seed`. The secret and the seed
+/// are wiped, also when the split is refused.
 #[wasm_bindgen]
 pub fn create_sskr_shares_formatted(
     mut secret: Vec<u8>,
@@ -254,14 +265,17 @@ pub fn create_sskr_shares_formatted(
     );
     secret.zeroize();
     random_seed.zeroize();
-    result.map_err(thrown)
+    result.map_err(Refusal::thrown)
 }
 
+/// The secret of the compact UR shares `records`, one per line (recover_sskr_shares_formatted).
 #[wasm_bindgen]
 pub fn recover_sskr_shares(records: String) -> Result<Vec<u8>, JsValue> {
     recover_sskr_shares_formatted(records, ShareEncoding::CompactUr as u8)
 }
 
+/// The secret of the shares `records`, one per line, in the encoding numbered `encoding`
+/// (ShareEncoding). The records are wiped, also when they are refused.
 #[wasm_bindgen]
 pub fn recover_sskr_shares_formatted(
     mut records: String,
@@ -270,7 +284,7 @@ pub fn recover_sskr_shares_formatted(
     bc_tags::register_tags();
     let result = combine(&records, encoding);
     records.zeroize();
-    result.map_err(thrown)
+    result.map_err(Refusal::thrown)
 }
 
 #[cfg(test)]
@@ -304,7 +318,7 @@ mod tests {
         assert_eq!(ShareEncoding::try_from(0), Ok(ShareEncoding::CompactUr));
         assert_eq!(ShareEncoding::try_from(1), Ok(ShareEncoding::Bytewords));
         for code in [2, u8::MAX] {
-            assert_eq!(ShareEncoding::try_from(code), Err(UNSUPPORTED_ENCODING));
+            assert_eq!(ShareEncoding::try_from(code), Err(Refusal::Encoding));
         }
     }
 
@@ -312,14 +326,17 @@ mod tests {
     fn refuses_an_unknown_encoding_before_any_share() {
         assert_eq!(
             split(&[0x42; 16], 1, &[2, 3], &[7; 32], 2),
-            Err(UNSUPPORTED_ENCODING.to_string())
+            Err(Refusal::Encoding)
         );
-        assert_eq!(combine("", 2), Err(UNSUPPORTED_ENCODING.to_string()));
+        assert_eq!(combine("", 2), Err(Refusal::Encoding));
     }
 
     #[test]
     fn refuses_a_seed_of_another_length() {
-        let refused = "SSKR requires exactly 32 bytes of fresh randomness.".to_string();
+        assert_eq!(
+            Refusal::Randomness.to_string(),
+            "SSKR requires exactly 32 bytes of fresh randomness."
+        );
         for length in [31, 33] {
             let seed = vec![7; length];
             assert_eq!(
@@ -330,7 +347,7 @@ mod tests {
                     &seed,
                     ShareEncoding::CompactUr as u8
                 ),
-                Err(refused.clone())
+                Err(Refusal::Randomness)
             );
         }
     }
@@ -338,7 +355,7 @@ mod tests {
     #[test]
     fn refuses_no_shares_in_either_encoding() {
         for encoding in [ShareEncoding::CompactUr, ShareEncoding::Bytewords] {
-            assert_eq!(combine(" \n\n", encoding as u8), Err(NO_SHARES.to_string()));
+            assert_eq!(combine(" \n\n", encoding as u8), Err(Refusal::NoShares));
         }
     }
 

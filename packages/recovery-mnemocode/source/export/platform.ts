@@ -2,7 +2,7 @@ import { defined } from "../core/defined.js";
 import { ErrorCatalog, suppliedMessage } from "../core/error-catalog.js";
 
 const ERRORS = new ErrorCatalog("export.platform", {
-  "unknown-card-asset": (value0: string) => `Unknown card asset: ${value0}`,
+  "unknown-card-asset": () => "Unknown card asset.",
   "cannot-load-card-artwork": (value0: string, value1: string) =>
     `Cannot load card artwork ${value0}: ${value1}`,
   "image-dimensions-positive-integers": () => "Image dimensions must be positive integers.",
@@ -106,7 +106,7 @@ export function isRenderAsset(path: string): path is RenderAsset {
 
 /** The bundled file `path` from `source`, refused when it is none of renderAssets. */
 export function readRenderAsset(source: AssetSource, path: string): Promise<Uint8Array> {
-  if (!isRenderAsset(path)) throw ERRORS.create("unknown-card-asset", [`${path}`]);
+  if (!isRenderAsset(path)) throw ERRORS.create("unknown-card-asset", []);
   return source.readAsset(path);
 }
 

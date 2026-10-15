@@ -44,6 +44,7 @@ import {
   markLimit,
 } from "./repair.js";
 import { AMBIGUOUS_MARK_WIDTHS, AmbiguousMarksError } from "./repair-models.js";
+import { MAX_PARTIAL_UNIT_CANDIDATES } from "./repair-units.js";
 import type { SharePlatform } from "./share-platform.js";
 import { assertShareCount } from "./transport.js";
 import { SHARE_METADATA_BYTES } from "./share-layout.js";
@@ -324,7 +325,7 @@ function combinationsOf(branches: readonly Branch[]): number {
  * minutes. Beyond them
  * the codes stay unknown as a whole, and the assessment says what would help.
  */
-const CODE_TRIALS = 64;
+const CODE_TRIALS = MAX_PARTIAL_UNIT_CANDIDATES;
 
 const TRIAL_WORK = 2 ** 19;
 
@@ -597,7 +598,7 @@ async function searchBranches(
     if (turns.stopped) return { sets: [...found.values()], stopped: true };
   }
   options.onProgress?.(progress(total));
-  return { sets: [...found.values()], stopped: false };
+  return { sets: [...found.values()], stopped: turns.stopped };
 }
 
 /**

@@ -14,7 +14,12 @@
 
 import { HDKey } from "@scure/bip32";
 import { addressCount, scanBranch, type AddressRange, type KeyMatch } from "./address-scan.js";
-import type { AddressLocation, Coin, CoinAddress } from "./coins/coin.js";
+import {
+  checkedAddressLocation,
+  type AddressLocation,
+  type Coin,
+  type CoinAddress,
+} from "./coins/coin.js";
 import type { WalletMatch } from "./wallet-check.js";
 import { Bip39Seed, type Pbkdf2HmacSha512 } from "./master-fingerprint.js";
 
@@ -45,11 +50,12 @@ export class CoinAddressComparison {
   readonly #range: AddressRange;
 
   constructor(evidence: CoinAddressEvidence) {
+    const location = checkedAddressLocation(evidence.location);
     this.#address = evidence.coin.parse(evidence.value);
-    this.#branchPaths = this.#address.branchPathsAt(evidence.location);
+    this.#branchPaths = this.#address.branchPathsAt(location);
     this.#range = {
-      first: evidence.location.index,
-      count: addressCount(evidence.addresses, evidence.location.index),
+      first: location.index,
+      count: addressCount(evidence.addresses, location.index),
     };
     this.testnet = this.#address.testnet;
   }

@@ -131,6 +131,10 @@ for (const [path, text] of [
 function markdownFiles(directory, output = []) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     if ([".git", ".pnpm-store", "dist", "node_modules", "target"].includes(entry.name)) continue;
+    // Ignored, frozen audit evidence contains machine-local links from its own historical run.
+    // Each audit validates those bindings separately; they are not current project documents.
+    if (directory === resolve(root, "docs/audits") && /^AUD-\d+-evidence$/u.test(entry.name))
+      continue;
     const path = resolve(directory, entry.name);
     if (entry.isDirectory()) markdownFiles(path, output);
     else if (entry.name.endsWith(".md")) output.push(path);

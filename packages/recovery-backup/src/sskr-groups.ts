@@ -1,3 +1,13 @@
+import { CheckedSskrBridge } from "../../recovery-mnemocode/source/sskr/bridge.js";
+import { ErrorCatalog } from "../../recovery-mnemocode/source/core/error-catalog.js";
+import { errorCode } from "../../recovery-mnemocode/source/core/refusal.js";
+import {
+  MAX_GROUPS,
+  MAX_GROUP_MEMBERS,
+  MIN_RECORDED_THRESHOLD,
+} from "../../recovery-mnemocode/source/sskr/share-layout.js";
+
+/** A member quorum, captured once before any narrowing to WASM bytes. */
 export interface SskrGroupSpec {
   readonly threshold: number;
   readonly count: number;
@@ -8,12 +18,20 @@ interface SskrGroupValidationOptions {
   readonly allowEmpty: boolean;
 }
 
-// BCR-2020-011 stores each group/member index in a four-bit field.
-const SSKR_INDEX_BITS = 4;
 const GROUP_PARAMETERS = Object.freeze({
-  minimum: 1,
-  maximumGroups: 1 << SSKR_INDEX_BITS,
-  maximumMembers: 1 << SSKR_INDEX_BITS,
+  minimum: MIN_RECORDED_THRESHOLD,
+  maximumGroups: MAX_GROUPS,
+  maximumMembers: MAX_GROUP_MEMBERS,
+});
+const ERRORS = new ErrorCatalog("sskr.groups", {
+  "group-threshold": (label: string) =>
+    `${label} groups required must be an integer from ${GROUP_PARAMETERS.minimum} through the number of groups.`,
+  "group-count": (label: string) =>
+    label === "SSKR"
+      ? `SSKR requires from ${GROUP_PARAMETERS.minimum} to ${GROUP_PARAMETERS.maximumGroups} groups.`
+      : `Envelope SSKR supports at most ${GROUP_PARAMETERS.maximumGroups} groups.`,
+  "member-quorum": (label: string, index: number) =>
+    `${label} group ${index + 1} must use an integer threshold/count from ${GROUP_PARAMETERS.minimum} to ${GROUP_PARAMETERS.maximumMembers}.`,
 });
 
 /** An admitted two-level policy and the protocol limits that every editor uses. */
@@ -21,6 +39,7 @@ export class SskrGroupPolicy {
   readonly #groupThreshold: number;
   readonly #packed: Uint8Array;
 
+  /** Protocol limits shared by every group editor. */
   static parameters(): typeof GROUP_PARAMETERS {
     return GROUP_PARAMETERS;
   }
@@ -30,7 +49,7 @@ export class SskrGroupPolicy {
     groups: readonly SskrGroupSpec[],
     options: SskrGroupValidationOptions = { label: "SSKR", allowEmpty: false },
   ) {
-    const { minimum, maximumGroups, maximumMembers } = GROUP_PARAMETERS;
+    const { minimum, maximumGroups } = GROUP_PARAMETERS;
     if (
       groups.length === 0 &&
       options.allowEmpty &&
@@ -46,35 +65,25 @@ export class SskrGroupPolicy {
       groupThreshold < minimum ||
       groupThreshold > groups.length
     ) {
-      throw new Error(
-        `${options.label} groups required must be an integer from ${minimum} through the number of groups.`,
-      );
+      throw ERRORS.create("group-threshold", [options.label]);
     }
     if (groups.length < minimum || groups.length > maximumGroups) {
-      throw new Error(
-        options.label === "SSKR"
-          ? `SSKR requires from ${minimum} to ${maximumGroups} groups.`
-          : `Envelope SSKR supports at most ${maximumGroups} groups.`,
-      );
+      throw ERRORS.create("group-count", [options.label]);
     }
-    for (const [index, group] of groups.entries()) {
-      if (
-        !Number.isSafeInteger(group.threshold) ||
-        !Number.isSafeInteger(group.count) ||
-        group.threshold < minimum ||
-        group.count < minimum ||
-        group.threshold > group.count ||
-        group.count > maximumMembers
-      ) {
-        throw new Error(
-          `${options.label} group ${index + 1} must use an integer threshold/count from ${minimum} to ${maximumMembers}.`,
-        );
+    const specifications = groups.map((group, index) => {
+      const { threshold, count } = group;
+      try {
+        return CheckedSskrBridge.groupSpecifications(threshold, count);
+      } catch (cause) {
+        if (errorCode(cause) !== "sskr.bridge.member-quorum") throw cause;
+        throw ERRORS.create("member-quorum", [options.label, index], { cause });
       }
-    }
+    });
     this.#groupThreshold = groupThreshold;
-    this.#packed = Uint8Array.from(groups.flatMap((group) => [group.threshold, group.count]));
+    this.#packed = Uint8Array.from(specifications.flatMap((group) => [...group]));
   }
 
+  /** The admitted number of groups needed to restore the secret. */
   get groupThreshold(): number {
     return this.#groupThreshold;
   }

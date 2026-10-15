@@ -5,7 +5,7 @@
 // sheet holds no secret. Encoded facts come from the choices; share-card code counts come from
 // the retained split, before its decoys. Built with the card export, which draws PDFs.
 import { BUILD_INFO } from "@ckd/build-info";
-import { downloadBlob } from "@ckd/export/download.js";
+import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
 import { readMnemoCodeCardAsset } from "@ckd/recovery-backup/mnemocode-card-assets.js";
 import { createMnemoCodeCardPlatform } from "@ckd/recovery-backup/mnemocode-cards.js";
 import { Share, ownShareCards } from "@ckd/recovery-backup/mnemocode-share-cards.js";
@@ -168,12 +168,7 @@ class MnemoCodeHeirsSection {
           const sheet = await this.#sheets.render(facts, size);
           try {
             if (!current()) return;
-            const bytes = new Uint8Array(sheet.bytes);
-            try {
-              downloadBlob(new Blob([bytes], { type: "application/pdf" }), sheet.fileName);
-            } finally {
-              bytes.fill(0);
-            }
+            MnemoCodeDownload.bytes(sheet.bytes, "application/pdf", sheet.fileName);
             if (current())
               this.#status.textContent = `Saved ${sheet.fileName}. It holds no secret: keep it apart from the backup.`;
           } finally {

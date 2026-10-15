@@ -26,6 +26,7 @@ import {
 } from "./self-test-check.js";
 import {
   bitcoinProfiles,
+  isPlacedKind,
   parseBitcoinAddress,
   WalletEvidenceCheck,
   type BitcoinNetworkName,
@@ -112,6 +113,8 @@ function matchOf(evidence: WalletEvidence, passphrase = ""): string {
  * not found there, and an address with a wrong checksum refused.
  */
 function checkWalletEvidenceStartup(): void {
+  for (const kind of ["constructor", "toString", "hasOwnProperty", "__proto__"])
+    expectSame(isPlacedKind(kind), false, "Inherited wallet evidence kind");
   expectSame(
     matchOf(located("address", KEYS.address84, ["native-segwit"])),
     "matched at m/84'/0'/0'/0/0",

@@ -62,6 +62,8 @@ export interface MnemoCodeEncodeResult {
   readonly checksumValid: boolean;
   /** The phrase that was encoded, with its words written out in full. */
   readonly mnemonic: string;
+  /** The library's exact after-transformation English words, including legacy checksum failures. */
+  readonly shiftedEnglish: string;
   /** The encoded words as a BIP39 phrase; absent when they fail its checksum (Original Seedshift). */
   readonly encodedMnemonic?: string;
   /** The codes as BIP39 word indexes, 0 to 2047, as a backup check compares them. */
@@ -220,6 +222,7 @@ export function encodeMnemoCode(
     colors: indexesToColors(backup.indexes),
     checksumValid,
     mnemonic: canonical,
+    shiftedEnglish: encoded.shiftedEnglish.join(" "),
     ...(checksumValid ? { encodedMnemonic } : {}),
     indexes: [...backup.indexes],
     ...(alternative === undefined

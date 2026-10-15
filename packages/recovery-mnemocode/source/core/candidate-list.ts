@@ -18,8 +18,10 @@ import { equalBytes } from "./bits.js";
 import { assertCandidateFileSize } from "./candidate-file-refusal.js";
 import { defined } from "./defined.js";
 import { ErrorCatalog } from "./error-catalog.js";
+import { ByteArray } from "./byte-array.js";
 
 const ERRORS = new ErrorCatalog("core.candidate-list", {
+  "candidate-list-wiped": () => "This candidate list has been wiped.",
   "padm-length-2-more": () => "Padmé needs a length of 2 or more.",
   "not-valid-unicode-text": (value0: string) => `The ${value0} is not valid Unicode text.`,
   "longer-than-bytes": (value0: string, value1: string) =>
@@ -71,18 +73,6 @@ export function candidateListHolds(count: number): boolean {
 
 /** BIP39 entropy: 16 to 32 bytes for 12 to 24 words. */
 const ENTROPY_LENGTHS: ReadonlySet<number> = new Set(BIP39_ENTROPY_BYTES);
-// A genuine typed array may shadow byteLength with an own property. Its intrinsic getter reads
-// the actual storage, which the typed-array copy constructor copies too (ECMA-262 TypedArray).
-const intrinsicByteLength = typedArrayGetter("byteLength");
-// instanceof trusts an object's replaceable prototype. The intrinsic tag getter reads the real
-// element kind, including byte arrays from another realm, without consulting a custom tag.
-const intrinsicArrayName = typedArrayGetter(Symbol.toStringTag);
-
-/** The getter `key` of every typed array, which is called on the array checked. */
-function typedArrayGetter(key: PropertyKey): (this: unknown) => unknown {
-  const typedArray = defined(Reflect.getPrototypeOf(Uint8Array.prototype));
-  return defined(defined(Reflect.getOwnPropertyDescriptor(typedArray, key)).get);
-}
 /** Magic, version, flags, entropy length and the 4-byte count. */
 const HEADER_BYTES = 11;
 const LENGTH_BYTES = 2;
@@ -202,11 +192,7 @@ export function encodeCandidateList(list: CandidateList): Uint8Array {
   // Read each host field once: a getter must not supply bytes to validation and another value
   // to serialization. Own the admitted bytes before passphrase getters can change their source.
   const entropies = records.map((record) => record?.entropy);
-  const lengths = entropies.map((bytes) =>
-    ArrayBuffer.isView(bytes) && intrinsicArrayName.call(bytes) === "Uint8Array"
-      ? (intrinsicByteLength.call(bytes) as number)
-      : undefined,
-  );
+  const lengths = entropies.map((bytes) => ByteArray.length(bytes));
   const entropyLength = lengths[0];
   if (
     entropyLength === undefined ||
@@ -369,14 +355,26 @@ export class OpenedCandidateList extends Redacted {
     assertCandidateFileSize(size, MAX_CANDIDATE_LIST_BYTES, "plaintext candidate list");
   }
 
-  readonly #records: readonly CandidateRecord[];
-  /** The passphrase for every record without one of its own; "" for none. */
-  readonly #passphrase: string;
+  #records: readonly { readonly entropy: Uint8Array; readonly passphrase?: Uint8Array }[];
+  readonly #count: number;
+  readonly #passphrases: ListPassphrases;
+  #wiped = false;
+  /** The UTF-8 passphrase for records without one of their own; empty bytes for none. */
+  readonly #passphrase: Uint8Array;
 
   private constructor(list: CandidateList) {
     super("OpenedCandidateList");
-    this.#records = [...list.records];
-    this.#passphrase = list.passphrase ?? "";
+    this.#records = list.records.map(({ entropy, passphrase }) => ({
+      entropy,
+      ...(passphrase === undefined ? {} : { passphrase: encoder.encode(passphrase) }),
+    }));
+    this.#passphrase = encoder.encode(list.passphrase ?? "");
+    this.#count = this.#records.length;
+    this.#passphrases = this.#records.some((record) => record.passphrase !== undefined)
+      ? "records"
+      : this.#passphrase.length === 0
+        ? "none"
+        : "list";
   }
 
   /** The list in `plain`, its decrypted bytes, which are wiped once read, also when refused. */
@@ -390,34 +388,34 @@ export class OpenedCandidateList extends Redacted {
 
   /** How many candidates the list holds. */
   get count(): number {
-    return this.#records.length;
+    return this.#count;
   }
 
   /** Where the passphrases come from: any record's own, else one for all, else none. */
   get passphrases(): ListPassphrases {
-    if (this.#records.some((record) => record.passphrase !== undefined)) return "records";
-    return this.#passphrase === "" ? "none" : "list";
+    return this.#passphrases;
   }
 
   /** The candidates in the order of the list, candidate N as N; made fresh each time. */
   candidates(): ListCandidate[] {
+    if (this.#wiped) throw ERRORS.create("candidate-list-wiped", []);
+    const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+    const passphrase = decoder.decode(this.#passphrase);
     return this.#records.map((record) => ({
       phrase: entropyToMnemonic(record.entropy, englishWordlist),
-      passphrase: this.#passphraseOf(record),
+      passphrase: record.passphrase === undefined ? passphrase : decoder.decode(record.passphrase),
     }));
   }
 
-  /**
-   * The BIP39 passphrase of `record` (docs/CANDIDATES.md): its own when its field is not empty,
-   * otherwise the one for all records, otherwise empty.
-   */
-  #passphraseOf(record: CandidateRecord): string {
-    return record.passphrase ?? this.#passphrase;
-  }
-
-  /** Wipes the entropy of every record; the list gives nothing afterwards that it held. */
+  /** Wipes owned entropy/passphrase bytes and ends candidate access; count/flags remain metadata. */
   wipe(): void {
-    for (const record of this.#records) record.entropy.fill(0);
+    for (const record of this.#records) {
+      record.entropy.fill(0);
+      record.passphrase?.fill(0);
+    }
+    this.#passphrase.fill(0);
+    this.#records = [];
+    this.#wiped = true;
   }
 
   [Symbol.dispose](): void {

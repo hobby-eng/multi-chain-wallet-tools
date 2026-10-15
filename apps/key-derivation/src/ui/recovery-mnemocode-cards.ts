@@ -1,4 +1,4 @@
-import { downloadBlob } from "@ckd/export/download.js";
+import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
 import { readMnemoCodeCardAsset } from "@ckd/recovery-backup/mnemocode-card-assets.js";
 import {
   createMnemoCodeCardExporter,
@@ -345,13 +345,7 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
 
   const publish = (file: MnemoCodeCardFile, sample: boolean, current: () => boolean): void => {
     if (!current()) return;
-    const copy = new Uint8Array(file.bytes);
-    try {
-      // The shared download helper owns and revokes its object URL, including on click failure.
-      downloadBlob(new Blob([copy], { type: file.mimeType }), file.fileName);
-    } finally {
-      copy.fill(0);
-    }
+    MnemoCodeDownload.bytes(file.bytes, file.mimeType, file.fileName);
     if (!current()) return;
     status.textContent = sample
       ? `Saved ${file.fileName}: sample cards with the public test phrase.`

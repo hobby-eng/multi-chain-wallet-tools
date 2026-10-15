@@ -16,6 +16,7 @@ import {
   type EncodedResult,
 } from "./types.js";
 import { defined } from "./defined.js";
+import { EncodedForm } from "./encoded-form.js";
 
 /** A known answer of the forms of codes: a phrase of `words` words written in every form. */
 export interface Answer {
@@ -138,6 +139,19 @@ function checkForms(
  * Exact forward/reverse answers and refusals, without PBKDF2, files, renderers or a share engine.
  */
 export function checkRepresentationStartup(): void {
+  let coercions = 0;
+  expectRefused(
+    () =>
+      EncodedForm.of({
+        toString: () => {
+          coercions++;
+          return "coerced";
+        },
+      } as never),
+    /^Unsupported encoded format\.$/u,
+    "A non-text representation selector",
+  );
+  expectSame(coercions, 0, "Representation selector coercions");
   for (const { words, forms } of REPRESENTATION_ANSWERS)
     checkForms(
       `Direct ${words}-word`,
@@ -194,4 +208,37 @@ export function checkRepresentationStartup(): void {
     /Unsupported encoded format/u,
     "Unknown representation",
   );
+  checkLegacyValidAnswers();
+}
+
+/** Fixed independent Python bit-packing answers, first reproducing the published legacy vector. */
+export const LEGACY_VALID_ANSWERS = [
+  { words: 12, sourceLast: "about", storedLast: "actress", candidates: 128 },
+  { words: 15, sourceLast: "address", storedLast: "alert", candidates: 64 },
+  { words: 18, sourceLast: "agent", storedLast: "afford", candidates: 32 },
+  { words: 21, sourceLast: "admit", storedLast: "arrest", candidates: 16 },
+  { words: 24, sourceLast: "art", storedLast: "bridge", candidates: 8 },
+] as const;
+
+function checkLegacyValidAnswers(): void {
+  // docs/audits/AUD-026-harnesses/legacy-valid-oracles.py computes these from SHA-256 and
+  // integer packing, using only the published BIP39 word list, never MnemoCode's encoders.
+  const mode = Masking.of("seedshift-legacy-valid");
+  const dates = [parseDate("23-09-2026")];
+  for (const { words, sourceLast, storedLast, candidates } of LEGACY_VALID_ANSWERS) {
+    const source = "abandon ".repeat(words - 1) + sourceLast;
+    const stored = "wool abuse actual ".repeat(words / 3 - 1) + `wool abuse ${storedLast}`;
+    expectSame(
+      formatEncoded(mode.encode(source, dates), "english"),
+      stored,
+      `Legacy-valid ${words}-word encoding`,
+    );
+    const recovered = mode.undo(EncodedForm.of("english").read(stored), dates);
+    expectSame(recovered.length, candidates, `Legacy-valid ${words}-word candidates`);
+    expectSame(
+      recovered.some((candidate) => candidate.recoveredMnemonic === source),
+      true,
+      `Legacy-valid ${words}-word source`,
+    );
+  }
 }

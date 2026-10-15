@@ -109,6 +109,7 @@ export const DASH = new DashCoin({
   id: "dash",
   name: "Dash",
   addressForms: "X… or dash1k…",
+  testnetAddressForms: "tdash1k…",
   coinTypes: [5],
   versions: [{ prefix: [0x4c], type: "p2pkh", testnet: false }],
   purposes: { "dash-platform": DIP9_PURPOSE },

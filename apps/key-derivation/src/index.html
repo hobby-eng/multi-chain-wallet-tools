@@ -3992,6 +3992,17 @@
                 placeholder="23-09-2026 · separate multiple dates with spaces or new lines"
               ></textarea>
             </div>
+            <div id="mnemocode-show-masked-words-field" hidden>
+              <label class="checkbox-row" for="mnemocode-show-masked-words">
+                <input id="mnemocode-show-masked-words" type="checkbox" />
+                Also show the masked/decoy phrase after Seedshift as English words
+                <span class="answer-note">off by default; applies to Create record and Split</span>
+              </label>
+              <p class="field-note">
+                These words still need the same dates to recover the original wallet. This choice does not add words to
+                a share file.
+              </p>
+            </div>
             <div class="actions">
               <button id="encode-mnemocode" class="primary" type="button">Create record</button>
               <button id="toggle-mnemocode-created" class="danger-outline" type="button" aria-pressed="false">
@@ -4091,13 +4102,23 @@
                     </div>
                   </details>
                 </div>
+                <label for="mnemocode-show-original">
+                  Also show the original wallet seed phrase before Seedshift
+                  <select id="mnemocode-show-original"></select>
+                </label>
+                <p class="warning-callout">
+                  Showing an original copy is off by default. That complete copy needs no shares or Seedshift dates; any
+                  separate BIP39 passphrase is still needed. Keep it apart from the shares. It is never added to the
+                  share file.
+                </p>
                 <label class="checkbox-row" for="mnemocode-split-copy">
                   <input id="mnemocode-split-copy" type="checkbox" />
-                  Also show the whole seed phrase
+                  Also show the complete backup in the selected representation
                   <span class="answer-note">in the representation chosen above, beside the shares</span>
                 </label>
                 <p id="mnemocode-split-copy-warning" class="warning-callout" hidden>
-                  The whole copy alone restores the wallet: keep it apart from the shares, or leave this off.
+                  This is the backup that was split: with Seedshift it is masked and still needs the dates. Keep the
+                  complete copy apart from the shares.
                 </p>
                 <div class="actions">
                   <button id="mnemocode-split" class="primary" type="button">Split</button>

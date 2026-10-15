@@ -1,5 +1,5 @@
 import * as upngModule from "@pdf-lib/upng";
-import { zipSync } from "fflate";
+import { MnemoCodeCardFiles } from "./mnemocode-card-files.js";
 import { encode as encodeQr } from "uqr";
 import {
   CardRenderer,
@@ -14,7 +14,6 @@ import {
   selectTemplate,
   validateProfile,
   type CardContent,
-  type CardJob,
   type CardOrientation,
   type CardPageSize,
   type CardProfile,
@@ -35,7 +34,7 @@ import {
 import { cardExportCheck } from "../../recovery-mnemocode/source/export/cards-self-test.js";
 import type { SelfTestCheck } from "../../recovery-mnemocode/source/core/self-test.js";
 import { resolveTemplateId } from "../../recovery-mnemocode/source/export/template-catalog.js";
-import { plannedCardJob } from "../../recovery-mnemocode/source/export/render.js";
+import { MnemoCodeCardPlans } from "./mnemocode-card-plans.js";
 import { pageFileName } from "../../recovery-mnemocode/source/export/card-codes.js";
 import { backupCardContent } from "../../recovery-mnemocode/source/export/backup-cards.js";
 import { EncodedBackup } from "../../recovery-mnemocode/source/core/encoded-backup.js";
@@ -351,7 +350,9 @@ function ownCopy(copy: CardCopyOverrides | undefined): CardCopyOverrides {
  * The texts that a design prints besides the person's details in `output`, as MnemoCode's designs
  * do: the same for every design, since only a business design makes separate cards.
  */
-export function mnemoCodeCardTexts(output: MnemoCodeCardOutput): readonly (keyof CardCopyOverrides)[] {
+export function mnemoCodeCardTexts(
+  output: MnemoCodeCardOutput,
+): readonly (keyof CardCopyOverrides)[] {
   return designTexts(output === "collection");
 }
 
@@ -430,51 +431,6 @@ interface CachedSharePlan {
   readonly printed: MnemoCodeCardFile["printed"];
 }
 
-/**
- * The plan of one layout: the random codes after a backup's own, never the phrase's codes, and the
- * orientation that the plan chose for a sheet where none was asked.
- */
-interface DecoyTail {
-  readonly colors: readonly string[];
-  readonly labels?: readonly string[] | undefined;
-  readonly orientation?: CardOrientation | undefined;
-}
-
-/** The layout whose decoys a later export of the same cards reuses: everything but the file type. */
-function layoutKey(request: MnemoCodeCardRequest, content: CardContent): string {
-  // QR geometry and printed text affect capacity too. Content is the renderer owner's complete
-  // input and contains no file format, so identical PDF/image exports reuse the same plan.
-  return JSON.stringify([request.template, content]);
-}
-
-/** The decoys that `planned` adds after the `own` codes of the content it was planned from. */
-function decoyTail(planned: CardContent, own: number): DecoyTail | undefined {
-  if (planned.kind !== "colors" || planned.decoys === undefined) return undefined;
-  return {
-    colors: planned.colors.slice(own),
-    ...(planned.labels === undefined ? {} : { labels: planned.labels.slice(own) }),
-    ...(planned.orientation === undefined ? {} : { orientation: planned.orientation }),
-  };
-}
-
-/** `content` with the plan of an earlier export of the same layout: its decoys and orientation. */
-function withDecoyTail(content: CardContent, tail: DecoyTail): CardContent {
-  if (content.kind !== "colors") return content;
-  return {
-    ...content,
-    colors: [...content.colors, ...tail.colors],
-    ...(content.labels === undefined || tail.labels === undefined
-      ? {}
-      : { labels: [...content.labels, ...tail.labels] }),
-    decoys: tail.colors.length,
-    ...(tail.orientation === undefined ? {} : { orientation: tail.orientation }),
-  };
-}
-
-/** A fixed timestamp keeps the export time out of every archive. */
-const ARCHIVE_TIME = new Date(1980, 0, 1, 0, 0, 0);
-
-/** The title of a request, where one was typed: MnemoCode prints the studio name otherwise. */
 /** What a card file prints of the person, for the page to show; none of it is the phrase. */
 function printedOf(details: {
   readonly profile?: CardProfile | undefined;
@@ -491,13 +447,7 @@ function printedOf(details: {
  * Separate card files packed into one archive, which holds its own copy: the files are recovery
  * material and are cleared at once.
  */
-function packCards(entries: Record<string, Uint8Array>): Uint8Array {
-  try {
-    return zipSync(entries, { level: 0, mtime: ARCHIVE_TIME });
-  } finally {
-    for (const entry of Object.values(entries)) entry.fill(0);
-  }
-}
+const packCards = MnemoCodeCardFiles.pack;
 
 function titleOf(request: { readonly title?: string | undefined }): { title?: string } {
   const title = request.title?.trim() ?? "";
@@ -525,271 +475,265 @@ function fileFormat(request: Pick<MnemoCodeCardRequest, "fileFormat">): MnemoCod
   return parseDocumentFormat(request.fileFormat);
 }
 
+interface HeldShareCardPlan {
+  readonly key: string;
+  readonly source: string;
+  readonly pending: Promise<CachedSharePlan>;
+}
+
+/** Browser lifetime owner for the renderer, output buffers and retained phrase/share plans. */
+class MnemoCodeCardExporterOwner implements MnemoCodeCardExporter {
+  readonly #renderer: CardRenderer;
+  readonly #files: MnemoCodeCardFiles;
+  readonly #plans: MnemoCodeCardPlans;
+  #session: CardSession | undefined;
+  #sharePlan: HeldShareCardPlan | undefined;
+
+  constructor(readAsset: MnemoCodeCardAssetReader, rasterize?: MnemoCodeCardRasterizer) {
+    this.#renderer = createMnemoCodeCardRenderer(readAsset);
+    this.#files = new MnemoCodeCardFiles(rasterize);
+    this.#plans = new MnemoCodeCardPlans(this.#renderer);
+  }
+  forgetDetails(): void {
+    this.#session = undefined;
+    this.#plans.wipe();
+    this.#sharePlan = undefined;
+  }
+  async renderSamples(request: MnemoCodeSampleRequest): Promise<MnemoCodeCardFile> {
+    this.#session ??= createCardSession(this.#renderer.randomInt);
+    const format = fileFormat(request);
+    const size = pageSize(request);
+    const output = mnemoCodeCardOutput(size);
+    const every = request.template === "";
+    const selection = every ? ({ every: true } as const) : { template: request.template };
+    // As the command line: a folder of separate cards holds one design.
+    if (output === "individual") CardPreview.assertOneDesign(selection);
+    const orientation =
+      request.orientation === undefined || request.orientation === ""
+        ? undefined
+        : parseOrientation(request.orientation);
+    const template = every ? MNEMOCODE_CARD_TEMPLATES[0]!.id : request.template;
+    const preview = new CardPreview(this.#renderer, {
+      words: request.words,
+      settings: {
+        ...(size === undefined ? {} : { pageSize: parsePageSize(size) }),
+        ...(orientation === undefined ? {} : { orientation }),
+        ...this.#session.settingsFor(
+          template,
+          validateProfile(request.profile ?? {}),
+          ownCopy(request.copy),
+        ),
+        cardQr: request.qr === true,
+      },
+      ...titleOf(request),
+    });
+    const printed = { name: "", company: "", studio: "" };
+    if (output === "individual") {
+      const job = preview.separateCardsJob(selection);
+      const cards = await renderIndividualCards(this.#renderer, job.template, job.content);
+      const entries = await this.#files.entries(cards, format);
+      return {
+        fileName: `${SAMPLE_FILE_BASE}-${parsePageSize(size)}.zip`,
+        mimeType: "application/zip",
+        bytes: packCards(entries),
+        cards: cards.length,
+        printed,
+      };
+    }
+    const pdf = every ? await preview.renderAll() : await preview.render(request.template);
+    if (format === "pdf")
+      return {
+        fileName: pageFileName(SAMPLE_FILE_BASE, 0, 1, "pdf"),
+        mimeType: "application/pdf",
+        bytes: pdf,
+        cards: 1,
+        printed,
+      };
+    // Every sheet as an image, as `preview --images-dir` saves them: one file, or a ZIP of them.
+    const pages = await this.#files.pages(pdf, format);
+    if (pages.length === 1)
+      return {
+        fileName: pageFileName(SAMPLE_FILE_BASE, 0, 1, format),
+        mimeType: DOCUMENT_FORMAT_FACTS[format].mimeType,
+        bytes: pages[0]!,
+        cards: 1,
+        printed,
+      };
+    const entries = Object.fromEntries(
+      pages.map((page, index) => [
+        pageFileName(SAMPLE_FILE_BASE, index, pages.length, format),
+        page,
+      ]),
+    );
+    return {
+      fileName: `${SAMPLE_FILE_BASE}.zip`,
+      mimeType: "application/zip",
+      bytes: packCards(entries),
+      cards: pages.length,
+      printed,
+    };
+  }
+  async renderShares(request: MnemoCodeShareCardRequest): Promise<MnemoCodeCardFile> {
+    const { style } = resolveTemplateId(request.template, "colors");
+    const format = fileFormat(request);
+    const size = pageSize(request);
+    const sizeName = parsePageSize(size);
+    const orientation =
+      request.orientation === undefined || request.orientation === ""
+        ? undefined
+        : parseOrientation(request.orientation);
+    const source = { records: [...request.records], masked: request.masked };
+    const profile = validateProfile(request.profile ?? {});
+    const copy = ownCopy(request.copy);
+    const identity = [
+      Object.entries(profile).sort(([left], [right]) => left.localeCompare(right)),
+      Object.entries(copy).sort(([left], [right]) => left.localeCompare(right)),
+    ];
+    // Include every input to the shared plan and its identity, except the output file format.
+    // Sorted fields make equivalent caller objects share the same captured plan.
+    const key = JSON.stringify([
+      source.records,
+      source.masked,
+      style,
+      sizeName,
+      orientation ?? "",
+      request.shareFormat,
+      request.layout ?? "",
+      request.qr === true,
+      ...identity,
+    ]);
+    const planSource = JSON.stringify([
+      source.records,
+      source.masked,
+      style,
+      request.shareFormat,
+      request.layout === "qr",
+      ...identity,
+    ]);
+    if (this.#sharePlan?.key !== key) {
+      this.#session ??= createCardSession(this.#renderer.randomInt);
+      const settings = this.#session.settingsFor(request.template, profile, copy);
+      const previous = this.#sharePlan;
+      const pending =
+        previous?.source === planSource &&
+        resolveSskrLayout(request.layout, sizeName) === "individual"
+          ? previous.pending.then(({ cards, printed }) => ({
+              cards: cards.forIndividualCards({
+                pageSize: sizeName,
+                ...(orientation === undefined ? {} : { orientation }),
+              }),
+              printed,
+            }))
+          : ShareCardSet.create(this.#renderer, source.records, {
+              style,
+              ...(size === undefined ? {} : { pageSize: sizeName }),
+              ...(orientation === undefined ? {} : { orientation }),
+              ...settings,
+              cardQr: request.qr,
+              shareFormat: request.shareFormat,
+              ...(request.layout === undefined ? {} : { layout: request.layout }),
+            }).then((cards) => ({ cards, printed: printedOf(settings) }));
+      // Store the pending plan before awaiting it: forgetDetails can drop it while it settles.
+      this.#sharePlan = { key, source: planSource, pending };
+    }
+    const captured = this.#sharePlan;
+    let planned: CachedSharePlan;
+    try {
+      planned = await captured.pending;
+    } catch (cause) {
+      if (this.#sharePlan === captured) this.#sharePlan = undefined;
+      throw cause;
+    }
+    const { cards, printed } = planned;
+    const set = shareCardSet(source, cards);
+    const qrCodes = cards.qrCodes.length === 0 ? {} : { qrCodes: cards.qrCodes };
+    // The layout the set resolved to says how its documents are packed (MnemoCode's own rule).
+    if (format === "pdf" && cards.layout !== "individual") {
+      const bytes = await cards.renderAll();
+      return {
+        fileName: `share-cards-${sizeName}.pdf`,
+        mimeType: "application/pdf",
+        bytes,
+        cards: cards.shares.length,
+        printed,
+        shares: set,
+        ...qrCodes,
+      };
+    }
+    // Each share apart: its sheet, or its separate cards in a folder of its own.
+    const entries: Record<string, Uint8Array> = {};
+    try {
+      for (const [place, share] of cards.shares.entries())
+        for await (const document of cards.documents(place)) {
+          const folder = share.folder === undefined ? "" : `${share.folder}/`;
+          entries[`${folder}${document.name}.${format}`] = await this.#files.single(
+            document.bytes,
+            format,
+          );
+        }
+      const bytes = packCards(entries);
+      return {
+        fileName: `share-cards-${sizeName}.zip`,
+        mimeType: "application/zip",
+        bytes,
+        cards: Object.keys(entries).length,
+        printed,
+        shares: set,
+        ...qrCodes,
+      };
+    } catch (cause) {
+      // packCards clears a successful archive's inputs; a failed or stale image job must also
+      // clear the earlier shares it already converted before the later conversion failed.
+      for (const entry of Object.values(entries)) entry.fill(0);
+      throw cause;
+    }
+  }
+  async render(request: MnemoCodeCardRequest): Promise<MnemoCodeCardFile> {
+    if (!MNEMOCODE_CARD_TEMPLATES.some((template) => template.id === request.template))
+      throw new Error("Select a card template.");
+    const template = selectTemplate(request.template, "colors");
+    // The session draws its random choices from the renderer’s platform.
+    this.#session ??= createCardSession(this.#renderer.randomInt);
+    const format = fileFormat(request);
+    const job = await this.#plans.plan({ template, content: cardContent(request, this.#session) });
+    const { content } = job;
+    const size = parsePageSize(pageSize(request));
+    const printed = printedOf(content);
+    if (mnemoCodeCardOutput(pageSize(request)) === "collection") {
+      const bytes = await this.#files.single(await renderCards(this.#renderer, [job]), format);
+      const mimeType = DOCUMENT_FORMAT_FACTS[format].mimeType;
+      // A sheet with a QR code holds the cards' payload in it, as MnemoCode's cards-qr.png does.
+      const qrCodes =
+        content.cardQr === true
+          ? { qrCodes: [{ reference: "cards", payload: content.payload }] }
+          : {};
+      return {
+        fileName: `cards-${size}.${format}`,
+        mimeType,
+        bytes,
+        cards: 1,
+        printed,
+        ...qrCodes,
+      };
+    }
+    const cards = await renderIndividualCards(this.#renderer, job.template, content);
+    const bytes = packCards(await this.#files.entries(cards, format));
+    return {
+      fileName: `cards-${size}.zip`,
+      mimeType: "application/zip",
+      bytes,
+      cards: cards.length,
+      printed,
+    };
+  }
+}
+
+/** Creates the browser export owner; the caller wipes every returned file after save or refusal. */
 export function createMnemoCodeCardExporter(
   readAsset: MnemoCodeCardAssetReader,
   rasterize?: MnemoCodeCardRasterizer,
 ): MnemoCodeCardExporter {
-  const renderer = createMnemoCodeCardRenderer(readAsset);
-  /** The page's image maker; a build without one saves PDF only. */
-  const rasterizer = (): MnemoCodeCardRasterizer => {
-    if (rasterize === undefined) throw new Error("Image export is unavailable in this build.");
-    return rasterize;
-  };
-  /** Separate cards as archive entries in the chosen format, each named as MnemoCode names it. */
-  const cardEntries = async (
-    cards: readonly { readonly name: string; readonly bytes: Uint8Array }[],
-    format: MnemoCodeCardFileFormat,
-  ): Promise<Record<string, Uint8Array>> => {
-    const entries: Record<string, Uint8Array> = {};
-    for (const card of cards)
-      entries[`${card.name}.${format}`] = await inFormat(card.bytes, format);
-    return entries;
-  };
-  /** The card in the chosen file format. The PDF is recovery material and is cleared once it is drawn. */
-  const inFormat = async (
-    pdf: Uint8Array,
-    format: MnemoCodeCardFileFormat,
-  ): Promise<Uint8Array> => {
-    if (format === "pdf") return pdf;
-    const draw = rasterizer();
-    try {
-      const images = await draw(pdf, format);
-      const [image] = images;
-      if (image === undefined || images.length !== 1)
-        throw new Error("A card must have exactly one page.");
-      return image;
-    } finally {
-      pdf.fill(0);
-    }
-  };
-  // One session for every export until the page forgets it: every size shows the same details.
-  let session: CardSession | undefined;
-  // The decoys planned for each layout of the phrase's cards, kept as the details are, so that a
-  // PDF and its images saved one after the other show the same cards (plannedCardJob).
-  const decoys = new Map<string, DecoyTail>();
-  // Keep only the selected share export. Its shared plan owns the decoys; file format changes
-  // reuse it, and a new source or setting releases it without retaining earlier share sets.
-  let sharePlan: { readonly key: string; readonly pending: Promise<CachedSharePlan> } | undefined;
-  /** The cards of `request`, with the decoys its layout had before or newly planned ones. */
-  const plannedJob = async (request: MnemoCodeCardRequest, job: CardJob): Promise<CardJob> => {
-    const key = layoutKey(request, job.content);
-    const known = decoys.get(key);
-    if (known !== undefined) return { ...job, content: withDecoyTail(job.content, known) };
-    const own = job.content.kind === "colors" ? job.content.colors.length : 0;
-    const planned = await plannedCardJob(renderer, job);
-    const tail = decoyTail(planned.content, own);
-    if (tail !== undefined) decoys.set(key, tail);
-    return planned;
-  };
-  return {
-    forgetDetails() {
-      session = undefined;
-      decoys.clear();
-      sharePlan = undefined;
-    },
-    async renderSamples(request) {
-      session ??= createCardSession(renderer.randomInt);
-      const format = fileFormat(request);
-      const size = pageSize(request);
-      const output = mnemoCodeCardOutput(size);
-      const every = request.template === "";
-      const selection = every ? ({ every: true } as const) : { template: request.template };
-      // As the command line: a folder of separate cards holds one design.
-      if (output === "individual") CardPreview.assertOneDesign(selection);
-      const orientation =
-        request.orientation === undefined || request.orientation === ""
-          ? undefined
-          : parseOrientation(request.orientation);
-      const template = every ? MNEMOCODE_CARD_TEMPLATES[0]!.id : request.template;
-      const preview = new CardPreview(renderer, {
-        words: request.words,
-        settings: {
-          ...(size === undefined ? {} : { pageSize: parsePageSize(size) }),
-          ...(orientation === undefined ? {} : { orientation }),
-          ...session.settingsFor(
-            template,
-            validateProfile(request.profile ?? {}),
-            ownCopy(request.copy),
-          ),
-          cardQr: request.qr === true,
-        },
-        ...titleOf(request),
-      });
-      const printed = { name: "", company: "", studio: "" };
-      if (output === "individual") {
-        const job = preview.separateCardsJob(selection);
-        const cards = await renderIndividualCards(renderer, job.template, job.content);
-        const entries = await cardEntries(cards, format);
-        return {
-          fileName: `${SAMPLE_FILE_BASE}-${parsePageSize(size)}.zip`,
-          mimeType: "application/zip",
-          bytes: packCards(entries),
-          cards: cards.length,
-          printed,
-        };
-      }
-      const pdf = every ? await preview.renderAll() : await preview.render(request.template);
-      if (format === "pdf")
-        return {
-          fileName: pageFileName(SAMPLE_FILE_BASE, 0, 1, "pdf"),
-          mimeType: "application/pdf",
-          bytes: pdf,
-          cards: 1,
-          printed,
-        };
-      // Every sheet as an image, as `preview --images-dir` saves them: one file, or a ZIP of them.
-      const pages = await rasterizer()(pdf, format);
-      if (pages.length === 1)
-        return {
-          fileName: pageFileName(SAMPLE_FILE_BASE, 0, 1, format),
-          mimeType: DOCUMENT_FORMAT_FACTS[format].mimeType,
-          bytes: pages[0]!,
-          cards: 1,
-          printed,
-        };
-      const entries = Object.fromEntries(
-        pages.map((page, index) => [
-          pageFileName(SAMPLE_FILE_BASE, index, pages.length, format),
-          page,
-        ]),
-      );
-      return {
-        fileName: `${SAMPLE_FILE_BASE}.zip`,
-        mimeType: "application/zip",
-        bytes: packCards(entries),
-        cards: pages.length,
-        printed,
-      };
-    },
-    async renderShares(request) {
-      const { style } = resolveTemplateId(request.template, "colors");
-      const format = fileFormat(request);
-      const size = pageSize(request);
-      const sizeName = parsePageSize(size);
-      const orientation =
-        request.orientation === undefined || request.orientation === ""
-          ? undefined
-          : parseOrientation(request.orientation);
-      const source = { records: [...request.records], masked: request.masked };
-      const profile = validateProfile(request.profile ?? {});
-      const copy = ownCopy(request.copy);
-      // Include every input to the shared plan and its identity, except the output file format.
-      // Sorted fields make equivalent caller objects share the same captured plan.
-      const key = JSON.stringify([
-        source.records,
-        source.masked,
-        style,
-        sizeName,
-        orientation ?? "",
-        request.shareFormat,
-        request.layout ?? "",
-        request.qr === true,
-        Object.entries(profile).sort(([left], [right]) => left.localeCompare(right)),
-        Object.entries(copy).sort(([left], [right]) => left.localeCompare(right)),
-      ]);
-      if (sharePlan?.key !== key) {
-        session ??= createCardSession(renderer.randomInt);
-        const settings = session.settingsFor(request.template, profile, copy);
-        const pending = ShareCardSet.create(renderer, source.records, {
-          style,
-          ...(size === undefined ? {} : { pageSize: sizeName }),
-          ...(orientation === undefined ? {} : { orientation }),
-          ...settings,
-          cardQr: request.qr,
-          shareFormat: request.shareFormat,
-          ...(request.layout === undefined ? {} : { layout: request.layout }),
-        }).then((cards) => ({ cards, printed: printedOf(settings) }));
-        // Store the pending plan before awaiting it: forgetDetails can drop it while it settles.
-        sharePlan = { key, pending };
-      }
-      const captured = sharePlan;
-      let planned: CachedSharePlan;
-      try {
-        planned = await captured.pending;
-      } catch (cause) {
-        if (sharePlan === captured) sharePlan = undefined;
-        throw cause;
-      }
-      const { cards, printed } = planned;
-      const set = shareCardSet(source, cards);
-      const qrCodes = cards.qrCodes.length === 0 ? {} : { qrCodes: cards.qrCodes };
-      // The layout the set resolved to says how its documents are packed (MnemoCode's own rule).
-      if (format === "pdf" && cards.layout !== "individual") {
-        const bytes = await cards.renderAll();
-        return {
-          fileName: `share-cards-${sizeName}.pdf`,
-          mimeType: "application/pdf",
-          bytes,
-          cards: cards.shares.length,
-          printed,
-          shares: set,
-          ...qrCodes,
-        };
-      }
-      // Each share apart: its sheet, or its separate cards in a folder of its own.
-      const entries: Record<string, Uint8Array> = {};
-      try {
-        for (const [place, share] of cards.shares.entries())
-          for await (const document of cards.documents(place)) {
-            const folder = share.folder === undefined ? "" : `${share.folder}/`;
-            entries[`${folder}${document.name}.${format}`] = await inFormat(document.bytes, format);
-          }
-        const bytes = packCards(entries);
-        return {
-          fileName: `share-cards-${sizeName}.zip`,
-          mimeType: "application/zip",
-          bytes,
-          cards: Object.keys(entries).length,
-          printed,
-          shares: set,
-          ...qrCodes,
-        };
-      } catch (cause) {
-        // packCards clears a successful archive's inputs; a failed or stale image job must also
-        // clear the earlier shares it already converted before the later conversion failed.
-        for (const entry of Object.values(entries)) entry.fill(0);
-        throw cause;
-      }
-    },
-    async render(request) {
-      if (!MNEMOCODE_CARD_TEMPLATES.some((template) => template.id === request.template))
-        throw new Error("Select a card template.");
-      const template = selectTemplate(request.template, "colors");
-      // The session draws its random choices from the renderer's platform.
-      session ??= createCardSession(renderer.randomInt);
-      const format = fileFormat(request);
-      const job = await plannedJob(request, { template, content: cardContent(request, session) });
-      const { content } = job;
-      const size = parsePageSize(pageSize(request));
-      const printed = printedOf(content);
-      if (mnemoCodeCardOutput(pageSize(request)) === "collection") {
-        const bytes = await inFormat(await renderCards(renderer, [job]), format);
-        const mimeType = DOCUMENT_FORMAT_FACTS[format].mimeType;
-        // A sheet with a QR code holds the cards' payload in it, as MnemoCode's cards-qr.png does.
-        const qrCodes =
-          content.cardQr === true
-            ? { qrCodes: [{ reference: "cards", payload: content.payload }] }
-            : {};
-        return {
-          fileName: `cards-${size}.${format}`,
-          mimeType,
-          bytes,
-          cards: 1,
-          printed,
-          ...qrCodes,
-        };
-      }
-      const cards = await renderIndividualCards(renderer, job.template, content);
-      const bytes = packCards(await cardEntries(cards, format));
-      return {
-        fileName: `cards-${size}.zip`,
-        mimeType: "application/zip",
-        bytes,
-        cards: cards.length,
-        printed,
-      };
-    },
-  };
+  return new MnemoCodeCardExporterOwner(readAsset, rasterize);
 }
 
 /** One renderer over this build's render platform: the exporter and the checks draw through it. */

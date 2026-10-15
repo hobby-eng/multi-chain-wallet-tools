@@ -2,38 +2,43 @@
 // object made from its WASM bytes. The bytes are a parameter rather than an import, so that a
 // worker can be handed the page's copy: the artifact embeds each WASM module exactly once
 // (apps/key-derivation/scripts/verify-key-derivation-artifact.mjs).
-import {
-  ShareEncoding,
-  create_sskr_shares_formatted,
-  initSync,
-  recover_sskr_shares_formatted,
-} from "@ckd/recovery-sskr-wasm/recovery_sskr_wasm.js";
+import * as engine from "@ckd/recovery-sskr-wasm/recovery_sskr_wasm.js";
+import { CheckedSskrBridge } from "../../recovery-mnemocode/source/sskr/bridge.js";
+import { ErrorCatalog } from "../../recovery-mnemocode/source/core/error-catalog.js";
 import { SskrGroupPolicy, type SskrGroupSpec } from "./sskr-groups.js";
 
+/** The standard transport encodings supplied by the SSKR engine. */
 export type SskrShareEncoding = "compact-ur" | "bytewords";
+
+const ERRORS = new ErrorCatalog("sskr.codec", {
+  "unsupported-encoding": () => "Unsupported SSKR share encoding.",
+});
 
 // The bridge's own codes (its ShareEncoding export). Its entries take the code as a number, so
 // that a wrong one is refused inside the entry, which then wipes the secret.
 const SSKR_ENCODING: Readonly<Record<SskrShareEncoding, number>> = {
-  "compact-ur": ShareEncoding.CompactUr,
-  bytewords: ShareEncoding.Bytewords,
+  "compact-ur": engine.ShareEncoding.CompactUr,
+  bytewords: engine.ShareEncoding.Bytewords,
 };
 
 function encodingCode(encoding: SskrShareEncoding): number {
   // Own keys only: a plain lookup also finds "toString" or "constructor" on Object.prototype, and
   // WebAssembly reads such a value as 0, Compact UR (AUD-019-API002).
-  if (!Object.hasOwn(SSKR_ENCODING, encoding))
-    throw new Error(`Unsupported SSKR share encoding: ${String(encoding)}.`);
+  if (typeof encoding !== "string" || !Object.hasOwn(SSKR_ENCODING, encoding))
+    throw ERRORS.create("unsupported-encoding", []);
   return SSKR_ENCODING[encoding];
 }
 
 // The wasm-bindgen glue keeps one module instance per JavaScript realm (page or worker).
 let initialized = false;
 
+/** One initialized engine behind MnemoCode's checked argument and borrowed-buffer boundary. */
 export class SskrCodec {
+  readonly #bridge = new CheckedSskrBridge(engine);
+
   constructor(wasmBytes: Uint8Array<ArrayBuffer>) {
     if (initialized) return;
-    initSync({ module: wasmBytes });
+    engine.initSync({ module: wasmBytes });
     initialized = true;
   }
 
@@ -49,17 +54,24 @@ export class SskrCodec {
     encoding: SskrShareEncoding = "compact-ur",
   ): string[] {
     const policy = new SskrGroupPolicy(groupThreshold, groups);
-    return create_sskr_shares_formatted(
-      secret,
-      policy.groupThreshold,
-      policy.pack(),
-      seed,
-      encodingCode(encoding),
-    ).split("\n");
+    const packed = policy.pack();
+    try {
+      return this.#bridge
+        .create_sskr_shares_formatted(
+          secret,
+          policy.groupThreshold,
+          packed,
+          seed,
+          encodingCode(encoding),
+        )
+        .split("\n");
+    } finally {
+      packed.fill(0);
+    }
   }
 
   /** The secret that `shares` restore; refused unless they meet every threshold. */
   recover(shares: readonly string[], encoding: SskrShareEncoding = "compact-ur"): Uint8Array {
-    return recover_sskr_shares_formatted(shares.join("\n"), encodingCode(encoding));
+    return this.#bridge.recover_sskr_shares_formatted(shares.join("\n"), encodingCode(encoding));
   }
 }

@@ -101,7 +101,7 @@ corez 0.1.1                     cpufeatures 0.2.17
 critical-section 1.2.0          crypto-common 0.1.7
 dash-shielded-wasm 0.1.5
 recovery-codex32-wasm 0.1.5
-recovery-sskr-wasm 0.1.6
+recovery-sskr-wasm 0.1.7
 recovery-envelope-wasm 0.1.5
 document-features 0.2.12
 either 1.19.0                   embedded-io 0.4.0

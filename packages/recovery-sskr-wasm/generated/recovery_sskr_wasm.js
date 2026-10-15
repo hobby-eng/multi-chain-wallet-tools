@@ -12,11 +12,18 @@
  * @enum {0 | 1}
  */
 export const ShareEncoding = Object.freeze({
+    /**
+     * The compact UR of a share (ur:sskr/...), its minimal Bytewords.
+     */
     CompactUr: 0, "0": "CompactUr",
+    /**
+     * The standard Bytewords of a share's tagged CBOR.
+     */
     Bytewords: 1, "1": "Bytewords",
 });
 
 /**
+ * The shares of `secret` as compact URs, one per line (create_sskr_shares_formatted).
  * @param {Uint8Array} secret
  * @param {number} group_threshold
  * @param {Uint8Array} group_specs
@@ -55,6 +62,10 @@ export function create_sskr_shares(secret, group_threshold, group_specs, random_
 }
 
 /**
+ * The shares of `secret` in the encoding numbered `encoding` (ShareEncoding), one per line: of
+ * the groups `group_specs`, a threshold and a count for each, of which `group_threshold` restore
+ * it, made with a generator seeded with the host's fresh `random_seed`. The secret and the seed
+ * are wiped, also when the split is refused.
  * @param {Uint8Array} secret
  * @param {number} group_threshold
  * @param {Uint8Array} group_specs
@@ -94,6 +105,7 @@ export function create_sskr_shares_formatted(secret, group_threshold, group_spec
 }
 
 /**
+ * The secret of the compact UR shares `records`, one per line (recover_sskr_shares_formatted).
  * @param {string} records
  * @returns {Uint8Array}
  */
@@ -119,6 +131,8 @@ export function recover_sskr_shares(records) {
 }
 
 /**
+ * The secret of the shares `records`, one per line, in the encoding numbered `encoding`
+ * (ShareEncoding). The records are wiped, also when they are refused.
  * @param {string} records
  * @param {number} encoding
  * @returns {Uint8Array}
@@ -149,10 +163,12 @@ function __wbg_get_imports() {
         __wbg___wbindgen_throw_41e9ee4f547fc59a: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         },
-        __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Ref(String) -> Externref`.
-            const ret = getStringFromWasm0(arg0, arg1);
+        __wbg_new_04162cd42c43e379: function(arg0, arg1) {
+            const ret = new Error(getStringFromWasm0(arg0, arg1));
             return addHeapObject(ret);
+        },
+        __wbg_set_code_5a730805b54237fb: function(arg0, arg1, arg2) {
+            getObject(arg0).code = getStringFromWasm0(arg1, arg2);
         },
     };
     return {

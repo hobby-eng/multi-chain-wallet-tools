@@ -46,7 +46,9 @@ vi.mock("@ckd/recovery-backup/mnemocode-cards.js", async () => {
     },
     MNEMOCODE_CARD_FILE_FORMATS: ["pdf", "png", "jpg"].map((id) => ({ id, label: id })),
     MNEMOCODE_CARD_PAGE_SIZES: ["a6", "a5", "a4", "business"].map((id) => ({ id, label: id })),
-    MNEMOCODE_CARD_TEMPLATES: [{ id: "synthetic-design", name: "Synthetic design" }],
+    MNEMOCODE_CARD_TEMPLATES: [
+      { id: "synthetic-design", name: "Synthetic design", separateCards: true },
+    ],
     MNEMOCODE_SAMPLE_WORD_COUNTS: [12, 24],
     mnemoCodeCardOutput: (size: string) => (size === "business" ? "individual" : "collection"),
     mnemoCodeShareCardLayout: (size?: string, layout?: "qr") =>
@@ -139,6 +141,15 @@ class ElementStub extends EventTarget {
 
   get childElementCount(): number {
     return this.children.length;
+  }
+
+  get options() {
+    return { item: (index: number) => this.children[index] ?? null };
+  }
+
+  get selectedOptions() {
+    const selected = this.children.filter((child) => child.value === this.value);
+    return { item: (index: number) => selected[index] ?? null };
   }
 
   append(child: ElementStub): void {

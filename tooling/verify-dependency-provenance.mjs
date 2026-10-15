@@ -1,4 +1,5 @@
 import { WASM_CATALOG } from "./wasm-modules.mjs";
+import { MnemoCodeSskrSource } from "./sync-mnemocode-sskr.mjs";
 import { MhfeIntegrationModules } from "./mhfe-integration.mjs";
 import { isMainScript } from "./run-script.mjs";
 import { MHFE_MANIFEST_SHA256, VendoredMhfePackage } from "./vendored-mhfe-package.mjs";
@@ -320,6 +321,7 @@ export async function verifyDependencyProvenance({
 } = {}) {
   if (verifyFixedSources) {
     verifyMnemoCodeSource({ root });
+    new MnemoCodeSskrSource(root).verify();
     verifyMhfePackage(root);
   }
   const pnpmPackages = verifyPnpmLock(readFileSync(resolve(root, "pnpm-lock.yaml"), "utf8"));

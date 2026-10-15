@@ -12,10 +12,19 @@
  * (AUD-012-SEC001).
  */
 export enum ShareEncoding {
+  /**
+   * The compact UR of a share (ur:sskr/...), its minimal Bytewords.
+   */
   CompactUr = 0,
+  /**
+   * The standard Bytewords of a share's tagged CBOR.
+   */
   Bytewords = 1,
 }
 
+/**
+ * The shares of `secret` as compact URs, one per line (create_sskr_shares_formatted).
+ */
 export function create_sskr_shares(
   secret: Uint8Array,
   group_threshold: number,
@@ -23,6 +32,12 @@ export function create_sskr_shares(
   random_seed: Uint8Array,
 ): string;
 
+/**
+ * The shares of `secret` in the encoding numbered `encoding` (ShareEncoding), one per line: of
+ * the groups `group_specs`, a threshold and a count for each, of which `group_threshold` restore
+ * it, made with a generator seeded with the host's fresh `random_seed`. The secret and the seed
+ * are wiped, also when the split is refused.
+ */
 export function create_sskr_shares_formatted(
   secret: Uint8Array,
   group_threshold: number,
@@ -31,8 +46,15 @@ export function create_sskr_shares_formatted(
   encoding: number,
 ): string;
 
+/**
+ * The secret of the compact UR shares `records`, one per line (recover_sskr_shares_formatted).
+ */
 export function recover_sskr_shares(records: string): Uint8Array;
 
+/**
+ * The secret of the shares `records`, one per line, in the encoding numbered `encoding`
+ * (ShareEncoding). The records are wiped, also when they are refused.
+ */
 export function recover_sskr_shares_formatted(records: string, encoding: number): Uint8Array;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;

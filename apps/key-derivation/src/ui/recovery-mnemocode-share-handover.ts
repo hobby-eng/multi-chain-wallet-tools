@@ -1,12 +1,13 @@
-// A Shamir share given in Decode goes to Restore, kept as its first share, as MnemoCode's decode
-// sends it to the restore from shares (BackupReading.shareKind tells a share). Decode knows nothing
+// Share text given in Decode goes to Restore intact, including multiple and unreadable parts.
+// The historical event name is kept for existing installers; parsing belongs to ShareInput.
+// BackupReading.shareKind classifies it. Decode knows nothing
 // of the Restore tab, which only a build with SSKR has: it sends the share as an event, and the
 // Restore tab takes it.
 
 /** The event that carries a share from Decode to Restore. */
 const FIRST_SHARE_EVENT = "mnemocode-first-share";
 
-/** A share given in place of the codes, and whether it came from a QR image. */
+/** Whole share text given in place of codes, with all boundaries, and whether it came from QR. */
 export interface FirstShare {
   readonly text: string;
   readonly fromQr: boolean;

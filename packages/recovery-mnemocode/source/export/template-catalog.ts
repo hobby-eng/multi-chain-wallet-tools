@@ -13,8 +13,8 @@ import { ErrorCatalog } from "../core/error-catalog.js";
 
 const ERRORS = new ErrorCatalog("export.template-catalog", {
   "sheets-only": () => SHEETS_ONLY,
-  "card-template-unknown-incompatible-list-available-preview-templates": (value0: string) =>
-    `The card template “${value0}” is unknown or incompatible. List the available preview templates and choose one of them.`,
+  "card-template-unknown-incompatible-list-available-preview-templates": () =>
+    "The card template is unknown or incompatible. List the available preview templates and choose one of them.",
 });
 
 /** The business designs, in their order; "mixed" draws the others in turn. */
@@ -116,6 +116,7 @@ const TEMPLATE_NUMBER = /^[1-9][0-9]*$/u;
 export function findTemplate(idOrNumber?: string, kind?: CardKind): CatalogEntry | undefined {
   const available = TEMPLATE_CATALOG.filter((entry) => kind === undefined || entry.kind === kind);
   if (idOrNumber === undefined) return available[0];
+  if (typeof idOrNumber !== "string") return undefined;
   return (
     available.find((entry) => entry.id === idOrNumber) ??
     (TEMPLATE_NUMBER.test(idOrNumber) ? available[Number(idOrNumber) - 1] : undefined)
@@ -154,9 +155,7 @@ export function resolveTemplateId(idOrNumber?: string, kind?: CardKind): Catalog
   if (findTemplate(undefined, kind) === undefined) throw new NoCardTemplateError(kind);
   const found = findTemplate(idOrNumber, kind);
   if (found === undefined)
-    throw ERRORS.create("card-template-unknown-incompatible-list-available-preview-templates", [
-      `${idOrNumber}`,
-    ]);
+    throw ERRORS.create("card-template-unknown-incompatible-list-available-preview-templates", []);
   return found;
 }
 

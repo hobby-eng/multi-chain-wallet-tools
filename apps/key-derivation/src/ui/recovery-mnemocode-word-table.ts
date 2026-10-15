@@ -1,3 +1,4 @@
+import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
 // The Word table tab of the MnemoCode panel, as MnemoCode's menu offers "Look up a seed word, its
 // number or its Unicode code": one row found from a word, a word number or a Unicode code, or the
 // whole table saved as a file. Public data only; the rows are MnemoCode's.
@@ -46,7 +47,7 @@ export class MnemoCodeWordTableTab {
       this.#lookUp(),
     );
     required<HTMLButtonElement>("#mnemocode-table-save").addEventListener("click", () =>
-      context.downloadText(wordTableText(), TABLE_FILE, "text/tab-separated-values"),
+      MnemoCodeDownload.text(context, wordTableText(), TABLE_FILE, "text/tab-separated-values"),
     );
   }
 

@@ -2,7 +2,7 @@
 // cards ends in full rows, which a backup's own codes seldom fill, and with a few more codes its
 // cards may be larger: a set of cards has at least one decoy, then as many as give the largest
 // cards in full rows on one sheet (planCollectionSheet, collection-layout.ts). Separate cards have
-// as many as the sheet of their design. A decoy looks like the backup's codes: the Unicode code of
+// exactly one decoy. A decoy looks like the backup's codes: the Unicode code of
 // a random word, a colour of a random phrase of the same length, or a random colour beside the
 // colours of a share. The QR code of the cards holds the backup alone; the sheet for heirs says how
 // many codes the backup has, and a restore reads that many from the start.
@@ -28,6 +28,9 @@ const ERRORS = new ErrorCatalog("export.card-decoys", {
 
 /** The most decoys that a set of cards takes: more than any sheet needs to fill its last row. */
 export const MAX_DECOYS = 16;
+
+/** Separate cards need no grid padding: one extra card follows all real codes. */
+export const INDIVIDUAL_DECOYS = 1;
 
 /** How many colour codes there are: 2^24, six hexadecimal digits. */
 const COLOR_CODES = RGB_MAX_VALUE + 1;
@@ -127,4 +130,11 @@ export function keptCards<T extends DecoyCards>(cards: T, count: number): WithDe
     ...(cards.labels === undefined ? {} : { labels: cards.labels.slice(0, count) }),
     decoys: count - own,
   };
+}
+
+/** Keeps every real code and the first decoy of an existing plan or decoy pool, without redrawing. */
+export function keptIndividualCards<T extends DecoyCards>(cards: T): WithDecoys<T> {
+  const count = ownCards(cards) + INDIVIDUAL_DECOYS;
+  // The count is defined and validated above; generic intersections need an explicit assertion.
+  return cards.decoys === INDIVIDUAL_DECOYS ? (cards as WithDecoys<T>) : keptCards(cards, count);
 }

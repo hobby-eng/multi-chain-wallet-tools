@@ -81,6 +81,10 @@ export interface AddressRange {
  * BIP32 that is not hardened.
  */
 export function addressCount(requested: number | undefined, first: number): number {
+  if (!inWholeRange(first, NORMAL_INDEX_RANGE))
+    throw ERRORS.create("address-count-refused", [
+      integerRefusal("The first index", NORMAL_INDEX_RANGE),
+    ]);
   if (requested === undefined) return 1;
   if (!inWholeRange(requested, ADDRESS_COUNT_RANGE))
     throw ERRORS.create("address-count-refused", [
@@ -117,9 +121,11 @@ export function scanBranch(
   range: AddressRange,
   matchOf: KeyMatch,
 ): FoundKey | undefined {
+  const { first, count } = range;
+  addressCount(count, first);
   const branch = deriveWiping(root, branchPath);
   try {
-    for (let index = range.first; index < range.first + range.count; index += 1) {
+    for (let index = first; index < first + count; index += 1) {
       const derived = matchWiping(branch.deriveChild(index), matchOf);
       if (derived !== undefined) return { derived, path: `${branchPath}/${index}` };
     }

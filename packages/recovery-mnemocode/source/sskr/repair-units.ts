@@ -52,6 +52,9 @@ export const MAX_REPAIR_TEXT_LENGTH = 2048;
 /** The most units of a share: each holds at least one byte of the transport. */
 export const MAX_REPAIR_UNITS = MAX_TRANSPORT_BYTES;
 
+/** The most explicit choices of partly read units tried during joint refinement. */
+export const MAX_PARTIAL_UNIT_CANDIDATES = 64;
+
 const CRC_BITS = CHECKSUM_BYTES * BITS_PER_BYTE;
 
 /** Whether `text`, a whole share as written, marks an element that could not be read with ?. */

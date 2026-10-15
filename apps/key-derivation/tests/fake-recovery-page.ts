@@ -16,6 +16,12 @@ export class RecoveryTestElement extends FakeElement {
     readonly ownerDocument: RecoveryTestPage,
   ) {
     super();
+    // The real palette uses the CSSStyleDeclaration edge; no style parser or browser runs here.
+    Object.defineProperty(this.style, "setProperty", {
+      value: (name: string, value: string) => {
+        this.style[name] = value;
+      },
+    });
     this.type = tagName === "button" ? "button" : "text";
     let classNames: string[] = [];
     Object.defineProperty(this, "className", {

@@ -1,3 +1,6 @@
+import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
+import { MnemoCodeDisclosureFields } from "./recovery-mnemocode-disclosure.js";
+import { MnemoCodeDisclosure } from "@ckd/recovery-backup/mnemocode-disclosure.js";
 // The Encode tab of the MnemoCode panel: a BIP39 phrase into an MNC1 record in one of five
 // representations, directly or shifted by dates (Seedshift).
 import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
@@ -48,6 +51,7 @@ export class MnemoCodeEncodeTab {
   readonly #result = required<HTMLElement>("#mnemocode-encode-result");
   readonly #backupCheck = new BackupCheckSection("mnemocode-encode", EncodedForm.typedWords);
   readonly #maskNote = required<HTMLElement>("#mnemocode-encode-mask-note");
+  readonly #disclosure = new MnemoCodeDisclosureFields();
 
   constructor(context: RecoveryFeatureContext) {
     this.#context = context;
@@ -74,6 +78,7 @@ export class MnemoCodeEncodeTab {
     for (const control of [this.#mode, this.#format])
       control.addEventListener("change", () => this.#showMasking());
     this.#showMasking();
+    this.#disclosure.masked.addEventListener("change", () => this.#clear());
     // A record shown for other inputs would be mistaken for the current one.
     for (const control of [this.#mode, this.#format]) {
       control.addEventListener("change", () => this.#clear());
@@ -96,6 +101,7 @@ export class MnemoCodeEncodeTab {
    */
   #showMasking(): void {
     const direct = selectedMode(this.#mode) === "direct";
+    this.#disclosure.showFor(selectedMode(this.#mode));
     const shown = selectedFormat(this.#format);
     const exposed = direct && alwaysMasked(shown);
     this.#maskNote.hidden = !direct;
@@ -206,7 +212,8 @@ export class MnemoCodeEncodeTab {
     save.textContent = "Save record";
     save.disabled = true;
     save.addEventListener("click", () => {
-      this.#context.downloadText(
+      MnemoCodeDownload.text(
+        this.#context,
         result.record,
         mncFileName(result.mode, result.format),
         "text/plain",
@@ -219,7 +226,12 @@ export class MnemoCodeEncodeTab {
     json.textContent = "Save JSON with dates and shifts";
     json.disabled = true;
     json.addEventListener("click", () => {
-      this.#context.downloadText(result.json, "mnemocode-representation.json", "application/json");
+      MnemoCodeDownload.text(
+        this.#context,
+        result.json,
+        "mnemocode-representation.json",
+        "application/json",
+      );
     });
     recordActions.append(json);
     const saveNote = document.createElement("p");
@@ -239,5 +251,16 @@ export class MnemoCodeEncodeTab {
     );
     // The palette of a backup written in colors (EncodedForm writtenInColors).
     if (EncodedForm.of(result.format).writtenInColors) appendPalette(this.#result, result.colors);
+    MnemoCodeDisclosureFields.render(
+      this.#result,
+      MnemoCodeDisclosure.masked(
+        result.shiftedEnglish,
+        result.mode,
+        this.#disclosure.masked.checked,
+        result.format === "english" ? result.payload : undefined,
+      ),
+      this.#context.writeClipboard,
+      () => this.#context.jobs.ready,
+    );
   }
 }

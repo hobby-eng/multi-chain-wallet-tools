@@ -27,8 +27,7 @@ const ERRORS = new ErrorCatalog("core.coins.coin", {
   },
   "coins-wallet-check-each-given-once": () =>
     "The coins of a wallet check must each be given once.",
-  "unknown-coin-coins": (value0: string, value1: string) =>
-    `Unknown coin "${value0}"; the coins are ${value1}.`,
+  "unknown-coin-coins": (coins: string) => `Unknown coin; the coins are ${coins}.`,
 });
 
 /** The identifier of each coin, as a host names it, such as "bitcoin-cash". */
@@ -191,7 +190,8 @@ export abstract class Coin implements CoinDescription {
 
   /** The paths of the branch at `location` for addresses of `type`, one for each coin type. */
   branchPathsOf(type: AddressType, testnet: boolean, location: AddressLocation): string[] {
-    return this.coinTypesOn(testnet).map((coinType) => this.branchPathOf(type, coinType, location));
+    const owned = checkedAddressLocation(location);
+    return this.coinTypesOn(testnet).map((coinType) => this.branchPathOf(type, coinType, owned));
   }
 
   /** The paths of the account `account` for addresses of `type`, one for each coin type. */
@@ -327,7 +327,8 @@ export class CoinAddress {
    * class too.
    */
   pathsAt(location: AddressLocation): string[] {
-    return this.branchPathsAt(location).map((path) => `${path}/${location.index}`);
+    const owned = checkedAddressLocation(location);
+    return this.branchPathsAt(owned).map((path) => `${path}/${owned.index}`);
   }
 
   /**
@@ -336,7 +337,6 @@ export class CoinAddress {
    * derived from the branch's key one step each.
    */
   branchPathsAt(location: AddressLocation): string[] {
-    assertAddressLocation(location);
     return this.coin.branchPathsOf(this.type, this.testnet, location);
   }
 
@@ -352,13 +352,21 @@ export class CoinAddress {
  * the path hardens itself where it must.
  */
 export function assertAddressLocation(location: AddressLocation): void {
+  checkedAddressLocation(location);
+}
+
+/** Captures each location field once, refuses invalid indexes, and returns an owned snapshot. */
+export function checkedAddressLocation(location: AddressLocation): AddressLocation {
+  const { account, branch, index } = location;
+  const owned = { account, branch, index };
   for (const name of ["account", "branch", "index"] as const) {
-    const value = location[name];
+    const value = owned[name];
     if (!inWholeRange(value, NORMAL_INDEX_RANGE))
       throw ERRORS.create("assert-address-location-refused", [
         integerRefusal(name, NORMAL_INDEX_RANGE),
       ]);
   }
+  return Object.freeze(owned);
 }
 
 // The rules of typed text (white-space.ts), here too for the coin families that take them with the
@@ -393,11 +401,10 @@ export class CoinList {
    * coins there are, when none has it.
    */
   byId(id: string): Coin {
-    const wanted = asciiLowercase(trimWhiteSpace(String(id)));
+    const wanted = typeof id === "string" ? asciiLowercase(trimWhiteSpace(id)) : undefined;
     const coin = this.#coins.find((candidate) => candidate.id === wanted);
     if (coin === undefined)
       throw ERRORS.create("unknown-coin-coins", [
-        `${id}`,
         `${this.#coins.map((known) => known.id).join(", ")}`,
       ]);
     return coin;

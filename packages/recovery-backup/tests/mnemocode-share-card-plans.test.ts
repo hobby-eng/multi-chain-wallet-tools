@@ -345,6 +345,25 @@ describe("MnemoCode imported share-card plans", () => {
     expect(create).toHaveBeenCalledTimes(2);
   });
 
+  it("converts a prepared share sheet to individual fragments without another plan or randomness", async () => {
+    const create = vi.spyOn(ShareCardSet, "create");
+    const host = exporter();
+    (await host.renderShares(request())).bytes.fill(0);
+    const before = fixture.printed.at(-1);
+    const plans = fixture.plan.mock.calls.length;
+    fixture.choose.mockClear();
+    const file = await host.renderShares(request({ pageSize: "business", qr: false }));
+    const after = fixture.printed.at(-1);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(fixture.plan).toHaveBeenCalledTimes(plans);
+    expect(fixture.choose).not.toHaveBeenCalled();
+    expect(after?.references).toEqual(before?.references);
+    expect(after?.codes).toEqual(before?.codes);
+    expect(file.shares?.fragmented).toBe(true);
+    expect(file.qrCodes).toBeUndefined();
+    file.bytes.fill(0);
+  });
+
   it("clears earlier share images and the current PDF when later conversion fails", async () => {
     const image = Uint8Array.of(7);
     const pdfs: Uint8Array[] = [];

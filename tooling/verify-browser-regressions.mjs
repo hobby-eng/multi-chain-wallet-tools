@@ -1,5 +1,6 @@
 // Synthetic, direct-file integration tests. Never point this at a live browser profile.
 import assert from "node:assert/strict";
+import { MnemoCodeDisclosureCase } from "./browser-cases/mnemocode-disclosure.mjs";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -2322,6 +2323,11 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
         (context, run) => mnemocodeRoundTrip(context, profile, run),
       ]);
       cases.push(["mnemocode-shares", (context, run) => mnemocodeShares(context, profile, run)]);
+      cases.push([
+        "mnemocode-disclosure",
+        (context, run) =>
+          MnemoCodeDisclosureCase.run(context, profile, run, openWithLinkedPhrase, waitText),
+      ]);
       cases.push(["mnemocode-cards", (context, run) => mnemocodeCards(context, profile, run)]);
       cases.push([
         "mnemocode-late-cards",

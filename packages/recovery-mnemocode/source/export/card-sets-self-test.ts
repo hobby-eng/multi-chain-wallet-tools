@@ -24,7 +24,13 @@ import {
 import { artworkBrightness } from "./business-tint.js";
 import { codeColors } from "./card-palette.js";
 import { assertColorCardContent, type ColorCardContent } from "./card-content.js";
-import { keptCards, MAX_DECOYS, ownCards, withDecoyPool } from "./card-decoys.js";
+import {
+  keptCards,
+  keptIndividualCards,
+  MAX_DECOYS,
+  ownCards,
+  withDecoyPool,
+} from "./card-decoys.js";
 import { collectionSheetLayout } from "./collection-layout.js";
 import { oklab } from "./color-math.js";
 import { plannedCardJob, renderCards } from "./render.js";
@@ -87,6 +93,9 @@ function checkCardSetsStartup(): void {
   expectSame(pool.colors.at(-1), pool.colors[0], "Decoy colour");
   const kept = keptCards(pool, 15);
   expectSame(`${ownCards(kept)}+${kept.decoys}`, "12+3", "Decoys kept");
+  const individual = keptIndividualCards(pool);
+  expectSame(`${ownCards(individual)}+${individual.decoys}`, "12+1", "Separate cards");
+  expectSame(individual.labels?.slice(0, 12).join(""), phrase.payload, "Separate real codes");
   assertColorCardContent(kept);
   expectRefused(() => keptCards(pool, 11), /every code of the backup/u, "Cards that lose a code");
   expectRefused(

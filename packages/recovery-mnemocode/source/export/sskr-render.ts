@@ -21,7 +21,13 @@ import {
 import { sskrLongVector } from "../sskr/known-answers.js";
 import { refusalMessage } from "../core/refusal.js";
 import { ExportDetails } from "./export-details.js";
-import type { CardSettings } from "./card-settings.js";
+import {
+  type CardSettings,
+  assertPageSettings,
+  assertSeparateCardSize,
+  SEPARATE_CARD_SIZE,
+  SHEET_PAGE_SIZE,
+} from "./card-settings.js";
 import { printedCode, separateCardName } from "./card-codes.js";
 import type { UniformChoice } from "./platform.js";
 import { catalogSheetShape, renderCatalogDesign, type CardDrawing } from "./templates.js";
@@ -38,9 +44,8 @@ import {
   type CardStyle,
   type CatalogEntry,
 } from "./template-catalog.js";
-import { SHEET_PAGE_SIZE } from "./card-settings.js";
 import { codeColors } from "./card-palette.js";
-import { ownCards } from "./card-decoys.js";
+import { ownCards, keptIndividualCards } from "./card-decoys.js";
 import { withPlannedDecoys, type SheetShaper } from "./card-plan.js";
 import { ErrorCatalog } from "../core/error-catalog.js";
 
@@ -49,6 +54,12 @@ const ERRORS = new ErrorCatalog("export.sskr-render", {
   "share-cards-cannot-printed-every-seed-phrase-longest": (value0: string) =>
     `These share cards cannot be printed for every seed phrase, the longest of 24 words included: ${value0}`,
   "there-no-share-at-place-set": () => "There is no share at that place in the set.",
+  "qr-cards-cannot-become-fragments": () =>
+    "A whole-share QR card cannot become individual fragments. Start with a collection sheet.",
+  "individual-settings-object": {
+    kind: "type",
+    text: () => "Individual card settings must be an object.",
+  },
 });
 
 /**
@@ -136,7 +147,8 @@ export class ShareCardSet {
     parseSskrLayout(requested.layout);
     // Checked before any choice is made: another value would print the colors silently
     // (AUD-012-FUN007).
-    const format = requested.shareFormat ?? "colors";
+    const suppliedFormat = requested.shareFormat;
+    const format = suppliedFormat === undefined ? "colors" : suppliedFormat;
     parseShareFormat(format);
     assertShareFormatHasCards(format);
     const layout = resolveSskrLayout(requested.layout, requested.pageSize);
@@ -184,6 +196,45 @@ export class ShareCardSet {
       members.push({ share, memberIndex: read.info.memberIndex, content });
     }
     return new ShareCardSet(drawing, options, design, members);
+  }
+
+  /**
+   * A retained collection or individual set as separate business cards: every real code and its
+   * first decoy, with the same colors, identities and share references. Only the requested page
+   * size (business by default) and orientation apply; the sheet's orientation is not inherited.
+   * Refuses QR cards, sheet-only designs or invalid page settings. Draws nothing, chooses nothing
+   * and leaves this set unchanged; no separate card carries a whole-share QR code.
+   */
+  forIndividualCards(requested: Pick<CardSettings, "pageSize" | "orientation"> = {}): ShareCardSet {
+    if (requested === null || typeof requested !== "object" || Array.isArray(requested))
+      throw ERRORS.create("individual-settings-object", []);
+    if (this.#options.layout === "qr") throw ERRORS.create("qr-cards-cannot-become-fragments", []);
+    assertSeparateCards(this.#design);
+    // Read the host's settings once. Undefined deliberately replaces any sheet orientation.
+    const pageSize = requested.pageSize;
+    const individual = {
+      pageSize: pageSize === undefined ? SEPARATE_CARD_SIZE : pageSize,
+      orientation: requested.orientation,
+      layout: "individual" as const,
+      cardQr: false,
+      qrCard: false,
+    };
+    assertPageSettings(individual);
+    assertSeparateCardSize(individual.pageSize);
+    const options: ResolvedOptions = { ...this.#options, ...individual };
+    const members = this.#members.map((member) => {
+      const content = { ...keptIndividualCards(member.content), ...individual };
+      return {
+        ...member,
+        content,
+        share: Object.freeze({
+          ...member.share,
+          documents: content.colors.length,
+          folder: member.share.name,
+        }),
+      };
+    });
+    return new ShareCardSet(this.#drawing, options, this.#design, members);
   }
 
   /**
@@ -306,7 +357,14 @@ export class ShareCardSet {
     const render = (member: Member, index: number) => this.#render(member, index);
     async function* documents(): AsyncGenerator<Uint8Array> {
       for (const member of members)
-        for (let index = 0; index < member.share.documents; index++) yield render(member, index);
+        for (let index = 0; index < member.share.documents; index++) {
+          const bytes = await render(member, index);
+          try {
+            yield bytes;
+          } finally {
+            bytes.fill(0);
+          }
+        }
     }
     return joinedDocuments(documents());
   }

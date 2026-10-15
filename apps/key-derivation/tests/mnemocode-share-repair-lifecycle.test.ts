@@ -210,6 +210,8 @@ describe("MnemoCode share results and Repair QR import lifecycle", () => {
     page.require("mnemocode-encode-mode").value = "direct";
     page.require("mnemocode-encode-format").value = "english";
     page.require("mnemocode-source").value = PUBLIC_PHRASE;
+    page.add("mnemocode-show-masked-words-field", "div", encode);
+    page.add("mnemocode-show-masked-words", "input", encode).type = "checkbox";
     const split = page.add("mnemocode-split-section");
     split.dataset.secretScope = "";
     for (const id of [
@@ -232,6 +234,7 @@ describe("MnemoCode share results and Repair QR import lifecycle", () => {
     }
     page.add("mnemocode-split-form", "select", split).value = "words";
     page.add("mnemocode-split-copy", "input", split).type = "checkbox";
+    page.add("mnemocode-show-original", "select", split).value = "none";
     for (const id of ["mnemocode-split", "mnemocode-split-save", "toggle-mnemocode-split-result"])
       page.add(id, "button", split);
 
@@ -544,6 +547,8 @@ describe("MnemoCode share results and Repair QR import lifecycle", () => {
 
   it.each([
     ["mnemocode-source", "public replacement phrase", "input"],
+    ["mnemocode-show-original", "words", "change"],
+    ["mnemocode-show-masked-words", "", "change"],
     ["mnemocode-encode-mode", "seedshift", "change"],
     ["mnemocode-encode-dates", "02-01-2000", "input"],
     ["mnemocode-encode-format", "indexes", "change"],
@@ -554,7 +559,8 @@ describe("MnemoCode share results and Repair QR import lifecycle", () => {
   ])("does not publish a late Split result after editing %s", async (id, value, event) => {
     await startSplit();
     expect(trace.splits).toHaveLength(1);
-    if (id === "mnemocode-split-copy") page.require(id).checked = true;
+    if (id === "mnemocode-split-copy" || id === "mnemocode-show-masked-words")
+      page.require(id).checked = true;
     edit(page.require(id), value, event);
     trace.splits[0]!.resolve(splitOutcome());
     await settlePromises();
@@ -564,6 +570,35 @@ describe("MnemoCode share results and Repair QR import lifecycle", () => {
     expect(latestShares.shares).toBeUndefined();
     expect(trace.backupOffers.mock.calls.some(([check]) => check !== undefined)).toBe(false);
     expect(download).not.toHaveBeenCalled();
+  });
+
+  it("keeps original and masked copies out of the share request and saved share file", async () => {
+    edit(page.require("mnemocode-encode-mode"), "seedshift", "change");
+    edit(page.require("mnemocode-encode-dates"), "23-09-2026");
+    edit(page.require("mnemocode-encode-format"), "colors", "change");
+    edit(page.require("mnemocode-show-original"), "both", "change");
+    page.require("mnemocode-show-masked-words").checked = true;
+    await startSplit();
+    expect(trace.splits[0]!.request).not.toHaveProperty("showOriginal");
+    expect(trace.splits[0]!.request).not.toHaveProperty("showMaskedWords");
+    const masked = "wool abuse actual wool abuse actual wool abuse actual wool abuse congress";
+    const outcome = { ...splitOutcome(), split: masked };
+    trace.splits[0]!.resolve(outcome);
+    await settlePromises();
+    expect(trace.displayShares).toHaveBeenCalledTimes(4);
+    expect(trace.displayShares.mock.calls[1]![1]).toEqual([PUBLIC_PHRASE]);
+    expect(trace.displayShares.mock.calls[2]![3]).toEqual([
+      "Original wallet seed phrase before Seedshift · selected representation",
+    ]);
+    expect(trace.displayShares.mock.calls[3]![1]).toEqual([masked]);
+    page.require("mnemocode-split-save").click();
+    expect(download).toHaveBeenCalledExactlyOnceWith(
+      `${outcome.shares.join("\n")}\n`,
+      "mnemocode-shares.txt",
+      "text/plain",
+    );
+    expect(download.mock.calls[0]![0]).not.toContain(PUBLIC_PHRASE);
+    expect(download.mock.calls[0]![0]).not.toContain(masked);
   });
 
   it("keeps a Split current through the repeated blur change and backup-check edits", async () => {

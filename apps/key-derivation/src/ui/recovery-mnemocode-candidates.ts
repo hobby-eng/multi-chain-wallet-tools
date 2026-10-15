@@ -1,7 +1,7 @@
 // What a MnemoCode search found: a summary in the command line's words, a table of the candidates
 // (number, what was found, the wallet's answer), and the phrase of a candidate the person picks.
 // Phrases are never listed together and never copied in bulk: only one chosen candidate is shown.
-import { downloadBlob } from "@ckd/export/download.js";
+import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
 import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
 import {
   NO_CANDIDATE_TO_SAVE,
@@ -211,11 +211,13 @@ export function renderCandidateListSave(
     // A Blob copies its parts; the list itself is wiped at once, also if the download is cancelled,
     // since without encryption it holds every candidate's entropy (MnemoCode CandidateListFile).
     try {
-      downloadBlob(new Blob([list.bytes], { type: "application/octet-stream" }), name);
+      MnemoCodeDownload.bytes(list.bytes, "application/octet-stream", name);
+      save.textContent = "Candidate list saved";
+    } catch {
+      save.textContent = "Candidate list could not be saved. Run the search again.";
     } finally {
       list.bytes.fill(0);
       save.disabled = true;
-      save.textContent = "Candidate list saved";
     }
   });
   target.append(

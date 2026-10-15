@@ -65,6 +65,7 @@ export const MNEMOCODE_CARD_FILES = Object.freeze({
       "color-math",
       "document-metadata",
       "export-details",
+      "file-name",
       "heir-sheet",
       "heir-sheet-self-test",
       "heir-sheet-text",
@@ -128,6 +129,7 @@ export const MNEMOCODE_LIBRARY_FILES = Object.freeze({
       "bip39-sizes",
       "bits",
       "byte-units",
+      "byte-array",
       "candidate-encryption",
       "candidate-encryption-self-test",
       "candidate-file-admission",
@@ -213,6 +215,7 @@ export const MNEMOCODE_LIBRARY_FILES = Object.freeze({
   ),
   ...Object.fromEntries(
     [
+      "bridge",
       "checksum",
       "complete-shares",
       "gf2",

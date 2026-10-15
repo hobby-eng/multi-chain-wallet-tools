@@ -18,6 +18,7 @@
 import { parseRecord, type MnemoCodeRecord } from "../record.js";
 import { MarkedReading } from "../sskr/repair.js";
 import { Share } from "../sskr/transport.js";
+import { ShareInput } from "../sskr/share-input.js";
 import { EncodedBackup, FIT_NO_FORM, type EncodedFormat } from "./encoded-backup.js";
 import { EncodedForm } from "./encoded-form.js";
 import { withJoinedMarksHint } from "./code-text.js";
@@ -133,23 +134,36 @@ export class BackupReading extends Redacted {
   }
 
   /**
-   * Whether `text`, given in place of an encoded seed phrase, is a Shamir share: "share" when it
+   * Whether `text`, given in place of an encoded seed phrase, holds Shamir shares: "share" when it
    * reads as one and not as codes, "either" when it reads as both, which only the person can
    * tell; undefined when it is no share, or carries a record header, which only codes have. A
    * complete share's own checksum makes codes read as one only by a chance of about one in four
    * billion. Marked with ?, it is a share when one of its readings as a share has a solution
    * (sskr/repair.ts); word numbers and Unicode codes of 21 or 24 may then also be the codes of a
    * phrase with the same marks: with few marks the share's checksum settles it, with many they
-   * are "either".
+   * are "either". A file or paste is split by ShareInput before testing each part, so later shares
+   * are not mistaken for the decoy codes after the first one. Unreadable parts stay for the share
+   * reader to name; any definite share sends the whole text to it.
    */
   static shareKind(text: string): ShareKind | undefined {
     if (parseRecord(text) !== undefined) return undefined;
-    if (Share.reads(text)) return "share";
-    if (!MissingCodes.marked(text)) return undefined;
+    const parts = ShareInput.partsOfText(text);
+    if (parts.length > 1) {
+      let possible: ShareKind | undefined;
+      for (const part of parts) {
+        const kind = BackupReading.shareKind(part);
+        if (kind === "share") return kind;
+        possible ??= kind;
+      }
+      return possible;
+    }
+    const part = parts[0] ?? text;
+    if (Share.reads(part)) return "share";
+    if (!MissingCodes.marked(part)) return undefined;
     // The unknown bits of each reading that has a solution; the spaces themselves are wiped.
     let unknownBits: number[] = [];
     try {
-      unknownBits = MarkedReading.of(text.trim()).flatMap((reading) =>
+      unknownBits = MarkedReading.of(part.trim()).flatMap((reading) =>
         reading.withSpace((space) => (space === undefined ? [] : [space.unknownBits])),
       );
     } catch {
@@ -159,7 +173,7 @@ export class BackupReading extends Redacted {
     // A share's checksum and layout are more than 50 bits of rules: marks of up to 32 unknown bits
     // that still meet them leave no doubt, while text of another kind meets them by chance only.
     if (unknownBits.some((bits) => bits <= SURE_SHARE_UNKNOWN_BITS)) return "share";
-    return MissingCodes.formats(text).length > 0 ? "either" : "share";
+    return MissingCodes.formats(part).length > 0 ? "either" : "share";
   }
 
   /** Whether the text has an MNC1 record header, which names the mode and the form. */

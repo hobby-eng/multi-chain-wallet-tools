@@ -1,3 +1,6 @@
+import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
+import { MnemoCodeDisclosureFields } from "./recovery-mnemocode-disclosure.js";
+import { MnemoCodeDisclosure } from "@ckd/recovery-backup/mnemocode-disclosure.js";
 // MnemoCode's Shamir shares in the Deriver: "Split into Shamir shares" in the Encode tab, the
 // Restore tab, and the repair of shares with unreadable elements in the Forgotten tab, as
 // MnemoCode's sskr-split, sskr-combine and sskr-export do them. A module of its own because the
@@ -269,6 +272,8 @@ class MnemoCodeSplitSection {
   #written: readonly string[] = [];
   readonly #backupCheck = new BackupCheckSection("mnemocode-split", SHARE_WORD_HINTS);
   readonly #copy = required<HTMLInputElement>("#mnemocode-split-copy");
+  readonly #disclosure = new MnemoCodeDisclosureFields();
+  readonly #original = MnemoCodeDisclosureFields.installOriginal();
   readonly #inputs: InputRevision;
   #current: () => boolean = () => false;
 
@@ -300,6 +305,7 @@ class MnemoCodeSplitSection {
       this.#dates,
       required<HTMLTextAreaElement>("#mnemocode-source"),
       required<HTMLSelectElement>("#mnemocode-encode-format"),
+      this.#disclosure.masked,
     ])
       if (!section.contains(field)) this.#inputs.watch(field);
     document.addEventListener("recovery-source-change", (event) => {
@@ -308,8 +314,8 @@ class MnemoCodeSplitSection {
     installSecretToggle(
       "#toggle-mnemocode-split-result",
       shownTextsIn("#mnemocode-split-result"),
-      "Show shares",
-      "Hide shares",
+      "Show split result",
+      "Hide split result",
     );
     required<HTMLButtonElement>("#mnemocode-split").addEventListener(
       "click",
@@ -317,7 +323,12 @@ class MnemoCodeSplitSection {
     );
     this.#save.addEventListener("click", () => {
       if (this.#written.length === 0 || !this.#current()) return;
-      this.#context.downloadText(`${this.#written.join("\n")}\n`, SHARES_FILE, "text/plain");
+      MnemoCodeDownload.text(
+        this.#context,
+        `${this.#written.join("\n")}\n`,
+        SHARES_FILE,
+        "text/plain",
+      );
     });
     this.#changed();
   }
@@ -391,6 +402,8 @@ class MnemoCodeSplitSection {
       const form = this.#form.value as ShareFormat;
       const dates = this.#dates.value;
       const wholeCopy = this.#copy.checked;
+      const originalCopy = MnemoCodeDisclosureFields.originalChoice(this.#original);
+      const maskedWords = this.#disclosure.masked.checked;
       const wholeFormat = required<HTMLSelectElement>("#mnemocode-encode-format")
         .value as MnemoCodeFormat;
       // Snapshot every request and presentation choice before the first asynchronous turn.
@@ -438,6 +451,7 @@ class MnemoCodeSplitSection {
           : []),
       );
       // The whole phrase in Encode's representation, as MnemoCode's encode --sskr --format shows it.
+      let alreadyShown: string | undefined;
       if (wholeCopy) {
         const copy = encodeMnemoCode(
           outcome.original,
@@ -449,11 +463,25 @@ class MnemoCodeSplitSection {
           this.#result,
           [copy.payload],
           clipboard,
-          ["Whole seed phrase"],
+          [
+            mode === "seedshift"
+              ? "Complete masked/decoy backup after Seedshift"
+              : "Complete original wallet backup",
+          ],
           [EncodedForm.of(copy.format).apartCodes(copy.payload)],
           current,
         );
+        if (copy.format === "english") alreadyShown = copy.payload;
       }
+      MnemoCodeDisclosureFields.render(
+        this.#result,
+        [
+          ...MnemoCodeDisclosure.original(outcome.original, wholeFormat, originalCopy),
+          ...MnemoCodeDisclosure.masked(outcome.split, mode, maskedWords, alreadyShown),
+        ],
+        clipboard,
+        current,
+      );
       this.#written = outcome.shares;
       this.#save.hidden = false;
       latestShares.shares = {
@@ -715,8 +743,8 @@ class MnemoCodeRestoreTab {
     this.#status.classList.remove("warning");
     const kept = typed === "" ? "" : " The shares typed here before stay below it.";
     this.#status.textContent = share.fromQr
-      ? `The QR code held a Shamir share: it is the first share here.${kept} Read the next share from another QR code image, or type the shares below it.`
-      : `These are the codes of a Shamir share: they are the first share here.${kept} Type the other shares below it.`;
+      ? `The QR share text was added with its boundaries kept.${kept} Read another QR code image or add any other shares needed below.`
+      : `The share text was added with every part and its line boundaries kept.${kept} Add any other shares needed below.`;
   }
 }
 
@@ -893,7 +921,8 @@ class MnemoCodeShareRepair {
     save.textContent = "Save as a text file";
     const lines = shares.map((share) => share.text);
     save.addEventListener("click", () => {
-      if (current()) this.#context.downloadText(`${lines.join("\n")}\n`, SHARES_FILE, "text/plain");
+      if (current())
+        MnemoCodeDownload.text(this.#context, `${lines.join("\n")}\n`, SHARES_FILE, "text/plain");
     });
     const actions = document.createElement("div");
     actions.className = "actions";

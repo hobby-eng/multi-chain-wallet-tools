@@ -388,6 +388,8 @@ const featureSourceMarkers = {
     "/recovery-mnemocode.ts",
     "/recovery-mnemocode-help.ts",
     "/recovery-mnemocode-encode.ts",
+    "/recovery-mnemocode-disclosure.ts",
+    "/recovery-backup/src/mnemocode-disclosure.ts",
     "/recovery-mnemocode-decode.ts",
     "/recovery-mnemocode-reencode.ts",
     "/recovery-mnemocode-forgotten.ts",
@@ -396,6 +398,7 @@ const featureSourceMarkers = {
     "/recovery-mnemocode-evidence.ts",
     "/recovery-mnemocode-list.ts",
     "/recovery-mnemocode-fields.ts",
+    "/recovery-mnemocode-download.ts",
     "/recovery-mnemocode-results.ts",
     "/recovery-mnemocode-backup-check.ts",
     "/recovery-mnemocode-word-table.ts",
@@ -418,6 +421,8 @@ const featureSourceMarkers = {
     "/recovery-backup/src/mnemocode-heirs.ts",
     "/recovery-mnemocode-card-images.ts",
     "/recovery-backup/src/mnemocode-cards.ts",
+    "/recovery-backup/src/mnemocode-card-files.ts",
+    "/recovery-backup/src/mnemocode-card-plans.ts",
     "/recovery-backup/src/mnemocode-card-assets.ts",
     "/recovery-mnemocode/source/cards.ts",
     "/self-test-mnemocode-share-cards.ts",
@@ -537,6 +542,8 @@ const PNG_ADMISSION_SOURCE = "packages/shared-ui/src/png-admission.ts";
 // Generic QR imports share this bounded PNG parser, even when MnemoCode is not offered.
 // Keep the exception at exact files: the rest of the vendored library remains feature-gated.
 const GENERIC_PNG_SOURCES = [
+  "core/byte-array.ts",
+  "core/defined.ts",
   "core/error-catalog.ts",
   "core/png-admission.ts",
   "core/byte-units.ts",
@@ -548,6 +555,22 @@ const GENERIC_PNG_SOURCES = [
   "sskr/checksum.ts",
 ].map((file) => `packages/recovery-mnemocode/source/${file}`);
 
+// Standard SSKR and Envelope share the admission rules even without MnemoCode's panels.
+const SSKR_ADMISSION_SOURCES = [
+  "sskr/bridge.ts",
+  "sskr/share-layout.ts",
+  "core/byte-array.ts",
+  "core/defined.ts",
+  "core/error-catalog.ts",
+  "core/refusal.ts",
+  "core/bits.ts",
+  "core/bip39-sizes.ts",
+  "core/pieces.ts",
+  "core/places.ts",
+  "core/typed-number.ts",
+].map((file) => `packages/recovery-mnemocode/source/${file}`);
+const DOWNLOAD_NAME_SOURCE = "packages/recovery-mnemocode/source/export/file-name.ts";
+
 function matchesInput(path, source) {
   return path === source || path.endsWith(`/${source}`);
 }
@@ -557,13 +580,23 @@ export function assertKeyDerivationComposition(features, inputPaths) {
   const normalized = inputPaths.map((path) => path.replaceAll("\\", "/"));
   const includesSource = (source) => normalized.some((path) => matchesInput(path, source));
   const qrImageImport = includesSource(QR_IMAGE_IMPORT_SOURCE);
-  const allowedPngInputs = new Set(
-    qrImageImport
-      ? normalized.filter((path) =>
-          GENERIC_PNG_SOURCES.some((source) => matchesInput(path, source)),
-        )
-      : [],
+  const sharedSources = [
+    ...(qrImageImport ? GENERIC_PNG_SOURCES : []),
+    ...(includesSource("packages/recovery-backup/src/sskr-groups.ts")
+      ? SSKR_ADMISSION_SOURCES
+      : []),
+    ...(includesSource("packages/recovery-backup/src/sskr.ts")
+      ? ["packages/recovery-mnemocode/source/sskr/share-platform.ts"]
+      : []),
+  ];
+  const allowedSharedInputs = new Set(
+    normalized.filter((path) => sharedSources.some((source) => matchesInput(path, source))),
   );
+  const allowedDownloadInputs = includesSource(
+    "apps/key-derivation/src/ui/recovery-mnemocode-download.ts",
+  )
+    ? new Set(normalized.filter((path) => matchesInput(path, DOWNLOAD_NAME_SOURCE)))
+    : undefined;
   const assertAbsent = (label, markers, allowedInputs) => {
     const leaked = normalized.filter(
       (path) => !allowedInputs?.has(path) && markers.some((marker) => path.includes(marker)),
@@ -581,7 +614,11 @@ export function assertKeyDerivationComposition(features, inputPaths) {
       assertAbsent(
         `Feature ${feature}`,
         markers,
-        feature === "mnemocode" ? allowedPngInputs : undefined,
+        feature === "mnemocode"
+          ? allowedSharedInputs
+          : feature === "mnemocode-cards"
+            ? allowedDownloadInputs
+            : undefined,
       );
   }
   for (const { label, needed, markers } of sharedSourceMarkers) {

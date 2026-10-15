@@ -33,6 +33,7 @@ import {
   HEX_DIGIT_BITS,
   isMarked,
   MAX_REPAIR_UNITS,
+  MAX_PARTIAL_UNIT_CANDIDATES,
   mixedUnitCounts,
   type ReadBits,
   type ReadingUnits,
@@ -505,11 +506,14 @@ const COLOR_CODE_POINTS: readonly string[] = Array.from(
  * The colors whose two Color Unicode codes fit `pair`, its codes with a ? for each digit that
  * cannot be read: every high code that fits, with every low code that fits, that writes a color.
  */
-function colorsFitting(pair: readonly string[]): number[] {
+function colorsFitting(pair: readonly string[]): number[] | undefined {
   const [high, low] = pair.map((code) =>
     COLOR_CODE_POINTS.filter((point) => fitsPattern(code, point)),
   );
   const { valueOf } = SHARE_UNITS["colors-unicode"];
+  // Broad constraints stay symbolic in fits: no candidates are truncated or eagerly expanded.
+  if (defined(high).length > Math.floor(MAX_PARTIAL_UNIT_CANDIDATES / defined(low).length))
+    return undefined;
   return defined(high).flatMap((first) =>
     defined(low).flatMap((second) => valueOf(first + second) ?? []),
   );
@@ -520,9 +524,11 @@ function colorsFitting(pair: readonly string[]): number[] {
  * read, such as E1?A, as colors and the Unicode codes of words take them (owner, 2026-10-13). The
  * digits of a code are no bits of its color, which is a quotient and a remainder of
  * COLOR_UNICODE_WIDTH (core/colors.ts): a color with a code read in part is unknown as a whole,
- * and the colors whose codes fit what was read are its candidates, as the words of a partly read
+ * and small sets of colors whose codes fit are its candidates, as the words of a partly read
  * Unicode code are (addUnicodeModel). A code that cannot be read at all leaves its color unknown,
- * with no candidates; text without a digit marked is read by addColorUnicodeModels alone.
+ * with no candidates; broad pairs also keep just their digit predicate, avoiding a Cartesian
+ * expansion before the assessment's work guard. No allowed colors are discarded. Text without a
+ * digit marked is read by addColorUnicodeModels alone.
  */
 function addColorUnicodeDigitModel(models: UnitModel[], text: string): void {
   const codes = withinRepair(apartHexUnits(text, CODE_DIGITS));

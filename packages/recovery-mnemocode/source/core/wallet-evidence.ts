@@ -44,7 +44,7 @@ import {
 } from "./coin-address-evidence.js";
 import type { AddressType } from "./coins/address-types.js";
 import {
-  assertAddressLocation,
+  checkedAddressLocation,
   Coin,
   CoinList,
   type AddressLocation,
@@ -345,6 +345,7 @@ export function parseBitcoinAddress(value: string, network: BitcoinNetworkName):
  * a script, which no single key gives, in the coin's own words.
  */
 function bitcoinAddressOn(value: string, network: BitcoinNetworkName): CoinAddress {
+  assertNetwork(network);
   let address: CoinAddress;
   try {
     address = BITCOIN.parse(value);
@@ -402,7 +403,13 @@ export type ScannedKind = {
 
 /** Whether evidence of `kind` names one key among several addresses in a row (`addresses`). */
 export function isScannedKind(kind: string): kind is ScannedKind {
-  return (EVIDENCE_LEVELS as Record<string, EvidenceLevel | undefined>)[kind] === "address";
+  return evidenceLevel(kind) === "address";
+}
+
+function evidenceLevel(kind: unknown): EvidenceLevel | undefined {
+  if (typeof kind !== "string" || !Object.hasOwn(EVIDENCE_LEVELS, kind)) return undefined;
+  // Membership was checked against the own keys of the static table.
+  return EVIDENCE_LEVELS[kind as keyof typeof EVIDENCE_LEVELS];
 }
 
 /** Whether `evidence` names one key among several addresses in a row, as isScannedKind says. */
@@ -414,7 +421,7 @@ export function isScannedEvidence(
 
 /** Whether evidence of `kind` sits at a place of an account; a master key has none. */
 export function isPlacedKind(kind: string): boolean {
-  const level = (EVIDENCE_LEVELS as Record<string, EvidenceLevel | undefined>)[kind];
+  const level = evidenceLevel(kind);
   return level !== undefined && level !== "master";
 }
 
@@ -531,9 +538,11 @@ abstract class LocatedEvidence implements Evidence {
 
   /** Checks the place and the profiles, before the kind checks its value. */
   constructor(evidence: LocatedBitcoinEvidence, level: KeyLevel) {
-    assertLocation(evidence.location);
+    const source = evidence.location;
+    const network = source.network;
+    assertNetwork(network);
+    const { account, branch, index } = checkedAddressLocation(source);
     this.#profiles = checkedBitcoinProfiles(evidence.profiles);
-    const { network, account, branch, index } = evidence.location;
     this.#location = { network, account, branch, index };
     this.#addresses = isScannedEvidence(evidence) ? addressCount(evidence.addresses, index) : 1;
     this.#kind = evidence.kind;
@@ -701,11 +710,6 @@ class CoinEvidence implements Evidence {
 function assertNetwork(network: BitcoinNetworkName): void {
   if (!isBitcoinNetwork(network))
     throw ERRORS.create("bitcoin-network", [`${BITCOIN_NETWORKS_TEXT}`]);
-}
-
-function assertLocation(location: DerivationLocation): void {
-  assertNetwork(location.network);
-  assertAddressLocation(location);
 }
 
 /**

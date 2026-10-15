@@ -14,8 +14,11 @@ import { separateCardName } from "./card-codes.js";
 import { joinedDocuments, savedWithoutMetadata, type NamedDocument } from "./pdf-documents.js";
 import { assertColorCardContent, EMPTY_CARD_COLLECTION } from "./card-content.js";
 import { withPlannedDecoys } from "./card-plan.js";
+import { keptIndividualCards } from "./card-decoys.js";
 import { SHEETS_ONLY, sheetsOnly } from "./template-catalog.js";
 import { defined } from "../core/defined.js";
+import { wipeAll } from "../core/bits.js";
+import { ExportFileName } from "./file-name.js";
 import { ErrorCatalog, suppliedMessage } from "../core/error-catalog.js";
 
 const ERRORS = new ErrorCatalog("export.render", {
@@ -65,13 +68,15 @@ export async function plannedCardJob(drawing: CardDrawing, job: CardJob): Promis
 }
 
 /**
- * `job`, planned for a sheet (plannedCardJob), as separate cards draw it: its cards and decoys
- * kept, its orientation the one the person gave, never the one the sheet plan chose, which turns a
+ * `job`, planned for a sheet (plannedCardJob), as separate cards draw it: every real code and one
+ * decoy kept, its orientation the one the person gave, never the one the sheet plan chose, which turns a
  * sheet, not the page of one card (AUD-022-FUN002).
  */
 export function separateCardJob(job: CardJob, orientation: CardOrientation | undefined): CardJob {
   const { orientation: _planned, ...content } = job.content;
-  return { ...job, content: orientation === undefined ? content : { ...content, orientation } };
+  const cards =
+    content.decoys === undefined || content.decoys === 0 ? content : keptIndividualCards(content);
+  return { ...job, content: orientation === undefined ? cards : { ...cards, orientation } };
 }
 
 /**
@@ -98,40 +103,44 @@ export async function renderCards(
     defined(jobs[0]).template.style,
   );
   const pages: Uint8Array[] = [];
-  for (const { template, content } of jobs) {
-    if (template.kind !== content.kind)
-      throw ERRORS.create("template-does-not-support", [
-        `${template.id}`,
-        `${String(content.kind)}`,
-      ]);
-    // A design's own texts and details print over those of the export.
-    const resolved: CardContent = {
-      ...content,
-      presentation: content.presentation ?? details.presentation,
-      profile: { ...details.profile, ...content.profile },
-      cardQr: content.cardQr === true,
-    };
-    assertSheetQr(resolved);
-    if (resolved.kind === "colors" && isCardPageSize(resolved.pageSize)) {
-      for (const card of await renderIndividualCards(drawing, template, resolved))
-        pages.push(card.bytes);
-      continue;
+  try {
+    for (const { template, content } of jobs) {
+      if (template.kind !== content.kind)
+        throw ERRORS.create("template-does-not-support", [
+          `${template.id}`,
+          `${String(content.kind)}`,
+        ]);
+      // A design's own texts and details print over those of the export.
+      const resolved: CardContent = {
+        ...content,
+        presentation: content.presentation ?? details.presentation,
+        profile: { ...details.profile, ...content.profile },
+        cardQr: content.cardQr === true,
+      };
+      assertSheetQr(resolved);
+      if (resolved.kind === "colors" && isCardPageSize(resolved.pageSize)) {
+        for (const card of await renderIndividualCards(drawing, template, resolved))
+          pages.push(card.bytes);
+        continue;
+      }
+      const planned = await plannedContent(drawing, template, resolved, false);
+      // Without a page size every template uses the A6 sheet.
+      const bytes = await template.render(drawing, {
+        ...planned,
+        pageSize: planned.pageSize ?? SHEET_PAGE_SIZE,
+      });
+      pages.push(bytes);
+      const source = await PDFDocument.load(bytes);
+      if (source.getPageCount() === 0)
+        throw ERRORS.create("template-rendered-empty-document", [`${template.id}`]);
     }
-    const planned = await plannedContent(drawing, template, resolved, false);
-    // Without a page size every template uses the A6 sheet.
-    const bytes = await template.render(drawing, {
-      ...planned,
-      pageSize: planned.pageSize ?? SHEET_PAGE_SIZE,
-    });
-    const source = await PDFDocument.load(bytes);
-    if (source.getPageCount() === 0)
-      throw ERRORS.create("template-rendered-empty-document", [`${template.id}`]);
-    pages.push(bytes);
+    if (pages.length === 1) {
+      return await savedWithoutMetadata(await PDFDocument.load(defined(pages[0])));
+    }
+    return await joinedDocuments(pages);
+  } finally {
+    wipeAll(pages);
   }
-  if (pages.length === 1) {
-    return savedWithoutMetadata(await PDFDocument.load(defined(pages[0])));
-  }
-  return joinedDocuments(pages);
 }
 
 /** Why content cannot be drawn as separate cards. */
@@ -182,11 +191,16 @@ export async function renderIndividualCards(
     true,
   );
   const cards: RenderedCard[] = [];
-  for (let index = 0; index < resolvedContent.colors.length; index++) {
-    cards.push({
-      name: separateCardName(resolvedContent, index),
-      bytes: await renderIndividual(drawing, resolvedContent, index),
-    });
+  try {
+    for (let index = 0; index < resolvedContent.colors.length; index++) {
+      cards.push({
+        name: ExportFileName.checked(separateCardName(resolvedContent, index)),
+        bytes: await renderIndividual(drawing, resolvedContent, index),
+      });
+    }
+    return cards;
+  } catch (error) {
+    wipeAll(cards.map((card) => card.bytes));
+    throw error;
   }
-  return cards;
 }

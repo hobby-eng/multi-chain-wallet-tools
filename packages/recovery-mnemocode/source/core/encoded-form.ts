@@ -46,7 +46,7 @@ import { defined } from "./defined.js";
 import { ErrorCatalog } from "./error-catalog.js";
 
 const ERRORS = new ErrorCatalog("core.encoded-form", {
-  "unsupported-encoded-format": (value0: string) => `Unsupported encoded format: ${value0}.`,
+  "unsupported-encoded-format": () => "Unsupported encoded format.",
 });
 
 /** How the elements of a form are counted for a phrase: one per word, or one per colour. */
@@ -210,8 +210,7 @@ export class EncodedForm {
    * may pass anything. The one refusal of such a value: every other module asks it.
    */
   static of(format: EncodedFormat): EncodedForm {
-    if (!isEncodedFormat(format))
-      throw ERRORS.create("unsupported-encoded-format", [`${String(format)}`]);
+    if (!isEncodedFormat(format)) throw ERRORS.create("unsupported-encoded-format", []);
     return EncodedForm.#values[format];
   }
 
