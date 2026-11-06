@@ -108,7 +108,7 @@ export async function runDashDerivationSelfTest(): Promise<CryptoSelfTestReport>
   // DIP-0009 CoinJoin external-chain vectors: m/9'/coin_type'/4'/0'/0/0.
   // Independently derived from the canonical upstream BIP39 vector above and
   // cross-checked against Dash Core v23.1.8 GetPathTemplate()/CHDChain
-  // semantics (src/wallet/scriptpubkeyman.cpp, src/wallet/hdchain.h) and
+  // semantics (the same path in v24.0.0's inactive CoinJoin descriptor) (src/wallet/scriptpubkeyman.cpp, src/wallet/hdchain.h) and
   // DIP-0009 §"Address Generation and Assignment" (account 0', external
   // chain 0 only; no DIP9 change chain in current Dash Core).
   const coinJoinSeed = hexToBytes(COINJOIN_SEED_HEX);

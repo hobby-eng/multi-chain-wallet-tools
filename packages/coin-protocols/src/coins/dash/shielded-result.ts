@@ -9,7 +9,7 @@ import {
 import { encodeDashShieldedAddress, ORCHARD_ADDRESS_TYPE } from "./shielded-address.js";
 import { DASH_SHIELDED_PATHS } from "./profiles.js";
 
-const DASH_ORCHARD_RELEASE = "Dash Platform v4.1.1 / dashpay/orchard dashified-0.14.1";
+const DASH_ORCHARD_RELEASE = "Dash Platform v5.0.3 / dashpay/orchard dashified-0.14.1";
 
 interface RawShieldedRow {
   index: number;

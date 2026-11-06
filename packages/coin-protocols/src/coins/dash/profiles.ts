@@ -18,7 +18,7 @@ export interface DashIdentityStandardKey {
   use: string;
 }
 
-export const DASH_IDENTITY_STANDARD_PROFILE_NAME = "Official Platform Wallet v4.1.1 · 4 ECDSA keys";
+export const DASH_IDENTITY_STANDARD_PROFILE_NAME = "Official Platform Wallet v5.0.3 · 4 ECDSA keys";
 
 /**
  * The default registration profile is wallet policy, not a DIP13 path rule.

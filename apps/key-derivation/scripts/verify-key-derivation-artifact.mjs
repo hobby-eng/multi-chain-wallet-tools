@@ -259,7 +259,7 @@ const required = [
   "dash-identity",
   "dash-legacy-mobile",
   "DIP13",
-  "Official Platform Wallet v4.1.1",
+  "Official Platform Wallet v5.0.3",
   "Identity ID",
   "Also generate change addresses",
   "Receive addresses",

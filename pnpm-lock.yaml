@@ -12,8 +12,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0
       '@dashevo/evo-sdk':
-        specifier: 5.0.1
-        version: 5.0.1
+        specifier: 5.0.3
+        version: 5.0.3
       '@noble/ciphers':
         specifier: 2.4.0
         version: 2.4.0
@@ -147,12 +147,12 @@ packages:
   '@bitcoinerlab/miniscript@2.0.0':
     resolution: {integrity: sha512-P8yyubPf6lphmIZfyD/ZbhT/umJX7zH1mKjGql7z0Qt+xuffnz2AueQqq2/01VE2rTIq80VM0oRFdJClGBYx/g==}
 
-  '@dashevo/evo-sdk@5.0.1':
-    resolution: {integrity: sha512-GYS5C1W1xhtuFRnUicJ710rlD4zf7xvShkGrSg/cnQT17jwrYgZQDFyfh85HWs5WzDC5DTKbBBQSAJWfjIcLOQ==}
+  '@dashevo/evo-sdk@5.0.3':
+    resolution: {integrity: sha512-rfYrmGs+CK3hk3PCKb+AkTy6vunrtRJX4CcT+7Wm2cpc+0qVxH9LMyG6oWX0GRJOPRtcYly5u3nM6nYf5ElSFA==}
     engines: {node: '>=18.18'}
 
-  '@dashevo/wasm-sdk@5.0.1':
-    resolution: {integrity: sha512-3sBZfieE7XuLV2AwD90Ga3iIDM0NsBxYlKNrnfmjitejozpF06N9kYFdIuNObIBDgcpESC0UTkDInl+Ge1+ykQ==}
+  '@dashevo/wasm-sdk@5.0.3':
+    resolution: {integrity: sha512-4GpUI3jt/gNRAQcBwjOzjp+2ohssbUYz6FIkebQ7YF16ca+OIZNjDMqogJcjH7gN4upXyheGCDN/h3RGgVFJQQ==}
     engines: {node: '>=18.18'}
 
   '@dashincubator/secp256k1@1.7.1-5':
@@ -1122,11 +1122,11 @@ snapshots:
     dependencies:
       bip68: 1.0.4
 
-  '@dashevo/evo-sdk@5.0.1':
+  '@dashevo/evo-sdk@5.0.3':
     dependencies:
-      '@dashevo/wasm-sdk': 5.0.1
+      '@dashevo/wasm-sdk': 5.0.3
 
-  '@dashevo/wasm-sdk@5.0.1': {}
+  '@dashevo/wasm-sdk@5.0.3': {}
 
   '@dashincubator/secp256k1@1.7.1-5': {}
 

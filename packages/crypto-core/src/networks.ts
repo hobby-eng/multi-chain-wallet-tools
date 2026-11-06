@@ -65,7 +65,7 @@ const BITCOIN_NETWORKS = /* @__PURE__ */ ((): Record<NetworkName, BitcoinNetwork
   },
 }))();
 
-// Verified against Dash Core chainparams.cpp (current master, 2026-09-01).
+// Verified against Dash Core chainparams.cpp (v24.0.0, 2026-11-05; unchanged since 2026-09-01).
 // Dash Core now deliberately uses Bitcoin's xpub/xprv version bytes on mainnet.
 const DASH_NETWORKS = /* @__PURE__ */ ((): Record<NetworkName, DashNetwork> => ({
   mainnet: {

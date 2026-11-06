@@ -301,8 +301,8 @@ function secondaryToolMarkup(profile, footer) {
       : "Selected-coin public reads · local sensitive-key processing where required · Blob Worker check pending";
   const activityFooterProtocols =
     profile.id === "dash-community"
-      ? "Dash Evo SDK 5.0.1 · proof-verified DAPI queries · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer"
-      : "Bitcoin public history · Ethereum account activity · Dash Evo SDK 5.0.1 · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer";
+      ? "Dash Evo SDK 5.0.3 · proof-verified DAPI queries · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer"
+      : "Bitcoin public history · Ethereum account activity · Dash Evo SDK 5.0.3 · Dash Orchard dashified-0.14.1 · DashScan Core API · Dash Platform Explorer";
   const psbtScriptPlaceholder = !profile.capabilities.advancedPsbt
     ? "522102...53ae or sh(sortedmulti(...))#checksum"
     : "522102...53ae or tr(xpub.../0/*,{multi_a(...)})#checksum";

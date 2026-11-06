@@ -1,6 +1,6 @@
 # Dash implementation and verification reference
 
-\n> This is the detailed implementation and verification reference. For a conceptual overview, see [How Dash support works](../DASH.md). For a first-use introduction to the four tools, see the [project README](../../README.md).
+> This is the detailed implementation and verification reference. For a conceptual overview, see [How Dash support works](../DASH.md). For a first-use introduction to the four tools, see the [project README](../../README.md).
 
 Research baseline: 2026-09-08, commit `b91957b2cfa333faf74d54f14a4014e7f4cb8151` (release 0.1.3 at review). See the immutable [review record](../audits/AUD-001-2026-09-08.json). Later implementation corrections are recorded in Git; release metadata synchronization never renews this review date.
 
@@ -8,8 +8,8 @@ Original integration code is licensed under the repository's MIT License. Dash C
 
 ## Official target
 
-- Dash Platform stable release: **v5.0.1**, published 2026-10-27.
-- Platform release commit: `69b85c81af8e000e8506edaa13406d1f6274af5a`.
+- Dash Platform stable release: **v5.0.3**, published 2026-11-03.
+- Platform release commit: `5e9aff1c4835299773095494a7a1c53506d5b0f9`.
 - Platform repository/license: `dashpay/platform`, MIT.
 - Platform payments: current official DIP17 and DIP18 documents, both presently marked **Proposed**.
 - Shielded implementation: `dashpay/orchard`, tag `dashified-0.14.1`, commit `38ac9c19a2df7bf3eeadc22ab23053e8fd538828`, MIT OR Apache-2.0.
@@ -20,7 +20,7 @@ Weekly upstream monitoring compares the pinned `zcash_note_encryption` revision 
 
 ## Dash Core
 
-Mainnet uses coin type 5, P2PKH prefix 76, P2SH prefix 16, WIF 204, and current Bitcoin-compatible xpub/xprv version bytes. Testnet uses coin type 1, P2PKH 140, P2SH 19, WIF 239, and tpub/tprv version bytes. These values were checked against current Dash Core `chainparams.cpp`. Derivation is BIP44 `m/44'/coin_type'/account'/branch/index`, where branch `0` is external/receive and branch `1` is internal/change.
+Mainnet uses coin type 5, P2PKH prefix 76, P2SH prefix 16, WIF 204, and current Bitcoin-compatible xpub/xprv version bytes. Testnet uses coin type 1, P2PKH 140, P2SH 19, WIF 239, and tpub/tprv version bytes. These values were checked against Dash Core v24.0.0 `chainparams.cpp` (2026-11-05). Dash Core v24.0.0 adds no Core-chain address type: it recognises the DIP-18 Platform addresses `dash1k…` (P2PKH) and `dash1s…` (P2SH) and, once activated, sends to them through v2 asset locks; descriptor wallets, now its default, keep the BIP44 paths and add an inactive DIP-9 CoinJoin descriptor. Derivation is BIP44 `m/44'/coin_type'/account'/branch/index`, where branch `0` is external/receive and branch `1` is internal/change.
 
 The offline Wallet Key Derivation Tool always derives receive rows and can optionally derive the matching change rows into a separate tab. Both tabs use the same account, network, start index and count and expose equivalent address/public/private-key fields. The connected Wallet Discovery Scanner is intentionally different: recovery always scans both Core branches regardless of the offline tool's opt-in display setting, because unspent wallet value may reside on change addresses. More precisely, the scanner follows its configured per-branch counts; disabling a branch excludes it from coverage.
 
@@ -42,7 +42,7 @@ DIP17's normative result is a raw private scalar; it does not define a Platform-
 
 ## Platform Identity keys
 
-The offline derivation tool exposes the official Platform Wallet v4.1.1 default Identity registration profile through DIP13:
+The offline derivation tool exposes the official Platform Wallet default Identity registration profile, unchanged from v4.1.1 to v5.0.3, through DIP13:
 
 ```text
 m/9'/coin_type'/5'/0'/0'/identity_index'/0'  MASTER / AUTHENTICATION
@@ -62,7 +62,7 @@ Identity IDs are created from registration funding inputs, not from the recovery
 The separate network-enabled viewer supports four resource types and deliberately keeps their trust models distinct:
 
 - Dash Core L1 address history uses the open-source DashScan Mainnet/Testnet API. The provider must report `ok`; the viewer also records the latest indexed Core height/time. Balances and lifetime flows are parsed as exact duffs, and each transaction is reconstructed relative to the queried address from its inputs and outputs.
-- Dash Platform address current state uses Evo SDK 5.0.1 trusted quorum discovery and `addresses.getWithProof`. Address-indexed lifetime totals and transitions come from the open-source Dash Platform Explorer Mainnet/Testnet API only after its index reports `synced`. Explorer balance/nonce are compared with the DAPI proof; DAPI wins on any disagreement.
+- Dash Platform address current state uses Evo SDK 5.0.3 trusted quorum discovery and `addresses.getWithProof`. Address-indexed lifetime totals and transitions come from the open-source Dash Platform Explorer Mainnet/Testnet API only after its index reports `synced`. Explorer balance/nonce are compared with the DAPI proof; DAPI wins on any disagreement.
 - Dash Platform Identity lookup accepts a Base58 Identity ID, an explicitly labelled `idhex:<64-hex Identity ID>`, an explicitly labelled `tx:<64-hex registration transition>`, the HASH160 fingerprint of a public key registered to the Identity, a compressed ECDSA/BLS public key, or a DPNS name with or without `.dash`. Bare 64-hex input remains blocked because an identifier or transition hash is indistinguishable from a raw private key without an explicit prefix. Public keys are hashed locally before lookup. A registration-transaction lookup accepts only an Identity creation transition, verifies its hash against the indexed raw bytes, decodes its owner locally with the pinned Evo SDK, and then requests the resulting Identity from proof-verified DAPI. DAPI proofs provide current balance, revision, nonce, every registered public key with its actual purpose/security metadata, and the Identity's DPNS names. A DPNS forward resolution is accepted only after the resolved Identity's proof-verified username set confirms the requested name. Explorer registration metadata, aliases and history remain explicitly auxiliary; registration time/hash are selected from the actual Identity creation transition, and the pinned Evo SDK locally decodes the Core asset-lock outpoint for classic registrations. Address-funded and shielded-pool registrations are labelled separately. Owner transactions and transfer legs are grouped by transaction hash into one ledger event without losing multiple transfer legs.
 - Dash Orchard activity uses viewing-key recovery described below and does not query either public-address index.
 
@@ -83,7 +83,7 @@ m/44'/coin_type'/account'/0/index    receive
 m/44'/coin_type'/account'/1/index    change
 ```
 
-It sends only the exact public P2PKH addresses through fixed RPC to the Worker's DashScan `/addresses/info` client in batches of 100, after requiring `/status` to report `ok` and recording the indexed Core tip. DashScan is the sole Core source in this build; the result is explicitly marked single-source and must be independently verified in a standard wallet. The user count is a minimum: every balance-bearing or historically used Core address moves that branch endpoint to at least 20 following positions. Platform-payment recovery derives both DIP17 receive class `0'` and internal/change class `1'` addresses in the vault, with separate minimums and post-use gaps. It requests Evo SDK `addresses.getManyWithProof` through fixed RPC batches of 100; balance or outgoing nonce produces the same post-use gap extension. The Evo SDK 5.0.1 multi-address result Map is keyed by the internal storage payload `00 || HASH160(public_key)`, not by the DIP18 Bech32m display string; recovery therefore retains both encodings and performs the lookup with the canonical storage key. Monetary values remain exact integer duffs or credits throughout.
+It sends only the exact public P2PKH addresses through fixed RPC to the Worker's DashScan `/addresses/info` client in batches of 100, after requiring `/status` to report `ok` and recording the indexed Core tip. DashScan is the sole Core source in this build; the result is explicitly marked single-source and must be independently verified in a standard wallet. The user count is a minimum: every balance-bearing or historically used Core address moves that branch endpoint to at least 20 following positions. Platform-payment recovery derives both DIP17 receive class `0'` and internal/change class `1'` addresses in the vault, with separate minimums and post-use gaps. It requests Evo SDK `addresses.getManyWithProof` through fixed RPC batches of 100; balance or outgoing nonce produces the same post-use gap extension. The Evo SDK 5.0.3 multi-address result Map is keyed by the internal storage payload `00 || HASH160(public_key)`, not by the DIP18 Bech32m display string; recovery therefore retains both encodings and performs the lookup with the canonical storage key. Monetary values remain exact integer duffs or credits throughout.
 
 Core/Platform findings are funded-only by default. Opting into historical empty addresses changes presentation and export, not discovery: those addresses always count as used for the 20-address gap. The Core opt-in loads DashScan's per-address lifetime received/sent and first/last-seen summary through the bounded network scheduler. Exact input/output occurrence counts are not part of `/addresses/info` or `/address/:address`; reconstructing them would require the complete paginated transaction history and is not done by the recovery scan.
 
@@ -125,7 +125,7 @@ The TypeScript boundary deliberately does not reimplement Orchard, ZIP32, Pallas
 
 ## Viewing-key scanner
 
-Shielded history cannot be obtained from an address or viewing key alone while offline. The separate `Wallet_Activity_Viewer.html` uses official Evo SDK 5.0.1 trusted mode to request proof-verified encrypted-note pages from Dash Platform DAPI. Raw viewing keys never enter an SDK call; DAPI receives only public pool range queries. A 96-byte FVK enables the complete watch-only view, while 64-byte IVK and 32-byte OVK modes expose only incoming or outgoing recovery respectively.
+Shielded history cannot be obtained from an address or viewing key alone while offline. The separate `Wallet_Activity_Viewer.html` uses official Evo SDK 5.0.3 trusted mode to request proof-verified encrypted-note pages from Dash Platform DAPI. Raw viewing keys never enter an SDK call; DAPI receives only public pool range queries. A 96-byte FVK enables the complete watch-only view, while 64-byte IVK and 32-byte OVK modes expose only incoming or outgoing recovery respectively.
 
 Each returned action has `cmx(32)`, `nullifier(32)`, `cv_net(32)`, and `encrypted_note(216)`, where the latter is `epk(32) || enc_ciphertext(104) || out_ciphertext(80)`. The Rust scanner follows the official Platform wallet implementation:
 

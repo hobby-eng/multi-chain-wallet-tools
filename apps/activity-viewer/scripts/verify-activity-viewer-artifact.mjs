@@ -152,7 +152,7 @@ for (const marker of [
   "Outgoing Viewing Key",
   "Auto-detected by length",
   "dash-shielded-viewing-bundle",
-  "Evo SDK 5.0.1",
+  "Evo SDK 5.0.3",
   "dashified-0.14.1",
   "DashScan Core API",
   "Dash Platform Explorer",

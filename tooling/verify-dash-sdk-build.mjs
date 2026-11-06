@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const DASH_SDK_VERSION = "5.0.1";
+const DASH_SDK_VERSION = "5.0.3";
 const DASH_SDK_INTEGRITIES = [
-  "sha512-GYS5C1W1xhtuFRnUicJ710rlD4zf7xvShkGrSg/cnQT17jwrYgZQDFyfh85HWs5WzDC5DTKbBBQSAJWfjIcLOQ==",
-  "sha512-3sBZfieE7XuLV2AwD90Ga3iIDM0NsBxYlKNrnfmjitejozpF06N9kYFdIuNObIBDgcpESC0UTkDInl+Ge1+ykQ==",
+  "sha512-rfYrmGs+CK3hk3PCKb+AkTy6vunrtRJX4CcT+7Wm2cpc+0qVxH9LMyG6oWX0GRJOPRtcYly5u3nM6nYf5ElSFA==",
+  "sha512-4GpUI3jt/gNRAQcBwjOzjp+2ohssbUYz6FIkebQ7YF16ca+OIZNjDMqogJcjH7gN4upXyheGCDN/h3RGgVFJQQ==",
 ];
 
 function readJson(path) {
