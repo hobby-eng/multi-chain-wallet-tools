@@ -131,26 +131,52 @@ export async function fetchDashScanIndexedHeight(
   return exactSafeInteger(tip.height, "DashScan indexed height");
 }
 
+/** A stopped section keeps failed work and a person's cancellation distinct from an empty result. */
+export class StoppedScanSection {
+  readonly #id: RecoverySectionId;
+  readonly #title: string;
+  readonly #description: string;
+  constructor(id: RecoverySectionId, title: string, description: string) {
+    this.#id = id;
+    this.#title = title;
+    this.#description = description;
+  }
+
+  #result(state: "failed" | "partial", status: string, warning: string): RecoverySection {
+    const metrics: RecoveryMetric[] = [{ label: "Status", value: status, tone: "warning" }];
+    return {
+      id: this.#id,
+      title: this.#title,
+      description: this.#description,
+      state,
+      metrics,
+      findings: [],
+      scanned: 0,
+      source: "Unavailable",
+      proof: "Not completed",
+      warning,
+    };
+  }
+
+  /** A refused operation is recorded as failed, with the existing safe diagnostic projection. */
+  failed(cause: unknown): RecoverySection {
+    return this.#result("failed", "Stopped", describeUnknownError(cause));
+  }
+
+  /** Cancellation returns a visibly partial outcome; it never supplies a zero-balance conclusion. */
+  cancelled(): RecoverySection {
+    return this.#result("partial", "Cancelled", "This query was cancelled; its result is unknown.");
+  }
+}
+
+/** Compatibility entry for callers that record an operational section failure. */
 export function failedSection(
   id: RecoverySectionId,
   title: string,
   description: string,
   cause: unknown,
 ): RecoverySection {
-  const message = describeUnknownError(cause);
-  const metrics: RecoveryMetric[] = [{ label: "Status", value: "Stopped", tone: "warning" }];
-  return {
-    id,
-    title,
-    description,
-    state: "failed",
-    metrics,
-    findings: [],
-    scanned: 0,
-    source: "Unavailable",
-    proof: "Not completed",
-    warning: message,
-  };
+  return new StoppedScanSection(id, title, description).failed(cause);
 }
 
 /** The first-seen and last-seen fields of a finding's history, each only when the index knows it. */

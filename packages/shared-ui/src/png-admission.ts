@@ -1,8 +1,4 @@
-import {
-  INVALID_PNG_INPUT,
-  MAX_PNG_BYTES,
-  PngAdmission,
-} from "../../recovery-mnemocode/source/core/png-admission.js";
+import { INVALID_PNG_INPUT, MAX_PNG_BYTES, PngAdmission } from "./png-rules.js";
 
 export const PNG_MIME_TYPE = "image/png";
 export const PNG_BOUNDED_DECODER_UNAVAILABLE =

@@ -4,6 +4,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils.js";
 import { createBase58check } from "@scure/base";
 import { ADDRESS_HASH_BYTES } from "./address-parameters.js";
+import { WifVersion } from "./wif-version.js";
 
 const base58check = createBase58check(sha256);
 
@@ -31,7 +32,13 @@ export function encodeP2sh(hash: Uint8Array, prefix: number): string {
 
 export function encodeWif(privateKey: Uint8Array, prefix: number): string {
   if (privateKey.length !== 32) throw new Error("Private key must be 32 bytes.");
-  return encodeBase58Check(concatBytes(Uint8Array.of(prefix), privateKey, Uint8Array.of(1)));
+  const version = new WifVersion(prefix);
+  const payload = concatBytes(Uint8Array.of(version.value), privateKey, Uint8Array.of(1));
+  try {
+    return encodeBase58Check(payload);
+  } finally {
+    wipe(payload);
+  }
 }
 
 export function numberTo32Bytes(value: bigint): Uint8Array {

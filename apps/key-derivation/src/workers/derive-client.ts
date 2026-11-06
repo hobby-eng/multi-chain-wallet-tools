@@ -11,9 +11,10 @@ import type {
 } from "./protocol.js";
 import type { CompactMessageSignature } from "@ckd/core/compact-message.js";
 import type { SilentPaymentResult } from "./silent-payment.js";
-import type { Bip85RequestOptions, Bip85Result } from "./bip85-deriver.js";
+import type { Bip85RequestOptions, Bip85Result } from "@ckd/core/bip85-parameters.js";
 import type { Bip38EncryptionResult } from "./protocol.js";
 import { EmbeddedWorkerResource } from "@ckd/ui/embedded-worker-resource.js";
+import { DerivationSecrets } from "@ckd/core/secrets.js";
 
 declare const __DERIVATION_WORKER_SOURCE__: string;
 
@@ -44,6 +45,22 @@ interface ReadyWaiter {
 }
 
 type WorkerLifecycle = "booting" | "ready" | "terminated";
+
+/** A worker refusal whose stable library code survives structured transport. */
+export class DerivationWorkerError extends Error {
+  readonly #code: string;
+
+  constructor(message: string, code = "derivation.worker.failure") {
+    super(message);
+    this.name = "DerivationWorkerError";
+    this.#code = code;
+  }
+
+  /** The operation's library code, or the generic code of an older worker refusal. */
+  get code(): string {
+    return this.#code;
+  }
+}
 
 export class DerivationCancelledError extends Error {
   constructor(message = "Derivation cancelled.") {
@@ -80,10 +97,22 @@ export class DerivationWorkerClient {
         return;
       }
       const pending = this.#pending.get(response.id);
-      if (pending === undefined) return;
+      if (pending === undefined) {
+        if (response.ok && response.type === "derive") DerivationSecrets.clear(response.result);
+        return;
+      }
       this.#pending.delete(response.id);
-      if (response.ok) pending.resolve(response.result);
-      else pending.reject(new Error(response.error));
+      if (response.ok) {
+        try {
+          pending.resolve(
+            response.type === "derive" ? DerivationSecrets.take(response.result) : response.result,
+          );
+        } catch (cause) {
+          pending.reject(
+            cause instanceof Error ? cause : new DerivationWorkerError("derivation.worker.failure"),
+          );
+        }
+      } else pending.reject(new DerivationWorkerError(response.error, response.errorCode));
     });
     this.#resource.worker.addEventListener("error", (event) => {
       // The worker is gone: without marking the client terminated, a later

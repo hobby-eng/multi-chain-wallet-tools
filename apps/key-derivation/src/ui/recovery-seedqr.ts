@@ -1,3 +1,4 @@
+import { RenderedSecrets } from "./secrets.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import {
   decodeCompactSeedQr,
@@ -16,6 +17,7 @@ import {
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
 import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
+import { InputRevision } from "./recovery-input-revision.js";
 function installSeedQr(context: RecoveryFeatureContext): void {
   installSecretToggle("#toggle-seedqr-source", "#seedqr-source", "Show", "Hide", "recovery phrase");
   installMnemonicSourceDiagnostic(context, "seedqr", "#seedqr-source", "#toggle-seedqr-source");
@@ -37,11 +39,23 @@ function installSeedQr(context: RecoveryFeatureContext): void {
       return decoded.text.trim();
     },
     onError(message) {
-      required<HTMLElement>("#seedqr-restore-result").textContent = message;
+      RenderedSecrets.text(required<HTMLElement>("#seedqr-restore-result"), message);
     },
   });
   const seedQrCreateResult = required<HTMLElement>("#seedqr-create-result");
+  const inputs = new InputRevision(required("#seedqr-source"), () =>
+    seedQrCreateResult.replaceChildren(),
+  );
+  inputs.watch(required("#seedqr-format"));
+  inputs.bindPageLifetime();
+  context.jobs.onChange((change) => {
+    if (change === "ready" && !context.jobs.ready) inputs.revise();
+  });
+  document.addEventListener("recovery-source-change", (event) => {
+    if (event instanceof CustomEvent && event.detail === "seedqr") inputs.revise();
+  });
   required<HTMLButtonElement>("#create-seedqr").addEventListener("click", () => {
+    const current = inputs.capture();
     seedQrCreateResult.replaceChildren();
     let compact: Uint8Array | undefined;
     try {
@@ -70,6 +84,11 @@ function installSeedQr(context: RecoveryFeatureContext): void {
               ? "Binary payload shown below as hexadecimal:"
               : "Numeric payload:",
           ecc: "L",
+          current: () =>
+            current() &&
+            context.jobs.ready &&
+            card.isConnected &&
+            !text.classList.contains("concealed"),
         },
       );
       qr.classList.add("share-qr-action");
@@ -85,7 +104,7 @@ function installSeedQr(context: RecoveryFeatureContext): void {
 
   const seedQrRestoreResult = required<HTMLElement>("#seedqr-restore-result");
   required<HTMLButtonElement>("#restore-seedqr").addEventListener("click", () => {
-    seedQrRestoreResult.replaceChildren();
+    RenderedSecrets.replace(seedQrRestoreResult);
     let compact: Uint8Array | undefined;
     try {
       const format = required<HTMLSelectElement>("#seedqr-restore-format").value;
@@ -102,8 +121,10 @@ function installSeedQr(context: RecoveryFeatureContext): void {
         context.mnemonicToSeed,
       );
     } catch (cause) {
-      seedQrRestoreResult.textContent =
-        cause instanceof Error ? cause.message : "SeedQR restoration failed.";
+      RenderedSecrets.text(
+        seedQrRestoreResult,
+        cause instanceof Error ? cause.message : "SeedQR restoration failed.",
+      );
     } finally {
       compact?.fill(0);
     }

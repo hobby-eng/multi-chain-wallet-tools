@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { MNEMOCODE_MANIFEST } from "./sync-mnemocode-source.mjs";
+import { MNEMOCODE_WASM_DIRECTORY } from "./sync-mnemocode-wasm.mjs";
 import { removeElementById } from "./html-elements.mjs";
 import { ToolBuildPolicy } from "./tool-build-policy.mjs";
 import { commaOptionValues, requestedArtifact } from "./tool-feature-options.mjs";
@@ -24,8 +24,11 @@ const RECOVERY_FEATURES = Object.freeze([
 const PROJECT_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const MNEMOCODE_VERSION_MARKER = "__MNEMOCODE_VERSION__";
 
+/** The manifest of the multi-chain Deriver's MnemoCode file; every profile has the same version. */
+const MNEMOCODE_MANIFEST = `${MNEMOCODE_WASM_DIRECTORY}/generated/multi-chain/key-derivation/modules.json`;
+
 /**
- * Version of the vendored MnemoCode sources. The page shows this value and has no version
+ * Version of the vendored MnemoCode WebAssembly. The page shows this value and has no version
  * text of its own, so an update of MnemoCode cannot leave an old number on the page.
  */
 export function vendoredMnemoCodeVersion() {
@@ -112,27 +115,12 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     const menuTarget = feature === "wallet-matcher" ? "matcher" : feature;
     rendered = removeButtons(rendered, "data-recovery-target", menuTarget);
   }
-  // Without Bitcoin the Bitcoin address and key evidence leaves every wallet question. "Address of
-  // another coin" stays where the build offers a coin besides Bitcoin, Dash or Ethereum (every coin
-  // of MnemoCode's in the full build; packages/recovery-backup/src/mnemocode-offered-coins.ts), with
-  // its place and count of addresses. Without any of them, MnemoCode recognises a wallet by its
-  // master fingerprint only.
-  const offersCoins = features.hasCoin("dash") || features.hasCoin("ethereum");
-  const parts = [
-    ...(features.hasCoin("bitcoin")
-      ? []
-      : [
-          "address-row",
-          "key-row",
-          "located-help",
-          "address-field",
-          "key-field",
-          "profile-row",
-          "network-field",
-        ]),
-    ...(offersCoins ? [] : ["coin-row", "coin-field", "coin-help"]),
-    ...(features.hasCoin("bitcoin") || offersCoins ? [] : ["location-field", "addresses-field"]),
-  ];
+  // Without Bitcoin the Bitcoin key evidence leaves every wallet question. The address stays: it
+  // names its coin, and every build has a coin whose addresses MnemoCode compares
+  // (packages/recovery-backup/src/mnemocode-offered-coins.ts).
+  const parts = features.hasCoin("bitcoin")
+    ? []
+    : ["key-row", "key-help", "key-field", "network-field"];
   for (const prefix of [
     "mnemocode-forgotten",
     "mnemocode-restore",
@@ -155,11 +143,11 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
   }
   // The passport names only what this build contains.
   if (!features.has("mhfe")) rendered = removeBalancedElement(rendered, "passport-mhfe-dependency");
+  if (!features.has("mnemocode"))
+    rendered = removeBalancedElement(rendered, "passport-mnemocode-dependency");
   if (!features.has("mnemocode-cards")) {
     rendered = removeBalancedElement(rendered, "mnemocode-cards-section");
     rendered = removeBalancedElement(rendered, "mnemocode-heirs-section");
-    // The passport names only what this build contains.
-    rendered = removeBalancedElement(rendered, "passport-mnemocode-cards-dependency");
   }
   if (!features.has("bip38-encrypt"))
     rendered = removeBalancedElement(rendered, "bulk-bip38-panel");

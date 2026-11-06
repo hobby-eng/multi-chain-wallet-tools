@@ -6,7 +6,7 @@ const MNEMONIC =
 
 describe("BIP39 Seed Diagnostic", () => {
   it("reports the official zero-entropy phrase and BIP32 master fingerprint", () => {
-    const diagnostic = diagnoseMnemonic(MNEMONIC);
+    using diagnostic = diagnoseMnemonic(MNEMONIC);
     expect(diagnostic).toMatchObject({
       wordCount: 12,
       wordCountValid: true,
@@ -37,7 +37,7 @@ describe("BIP39 Seed Diagnostic", () => {
       providedChecksum: "0011",
       expectedChecksum: "0011",
       mnemonicBinary: `${"0".repeat(128)}0011`,
-      wordIndexes: [...Array(11).fill(0), 3],
+      wordIndexes: [...Array<number>(11).fill(0), 3],
     });
     const seed = mnemonicToSeed(MNEMONIC);
     try {
@@ -56,8 +56,8 @@ describe("BIP39 Seed Diagnostic", () => {
   ] as const)(
     "matches the official all-zero %i-word construction vector",
     (wordCount, finalWord, entropyBits, checksum) => {
-      const phrase = [...Array(wordCount - 1).fill("abandon"), finalWord].join(" ");
-      const diagnostic = diagnoseMnemonic(phrase);
+      const phrase = [...Array<string>(wordCount - 1).fill("abandon"), finalWord].join(" ");
+      using diagnostic = diagnoseMnemonic(phrase);
       expect(diagnostic.checksumValid).toBe(true);
       expect(diagnostic.construction).toMatchObject({
         entropyHex: "0".repeat(entropyBits / 4),
@@ -71,21 +71,18 @@ describe("BIP39 Seed Diagnostic", () => {
   );
 
   it("identifies an unknown word by position and suggests abandon for a transposition", () => {
-    const diagnostic = diagnoseMnemonic(MNEMONIC.replace("abandon abandon", "abandon abandno"));
+    using diagnostic = diagnoseMnemonic(MNEMONIC.replace("abandon abandon", "abandon abandno"));
     expect(diagnostic.allWordsKnown).toBe(false);
     expect(diagnostic.checksumValid).toBe(false);
     expect(diagnostic.construction).toBeNull();
-    expect(diagnostic.unknownWords).toEqual([
-      expect.objectContaining({
-        index: 1,
-        word: "abandno",
-        suggestions: expect.arrayContaining(["abandon"]),
-      }),
-    ]);
+    expect(diagnostic.unknownWords).toHaveLength(1);
+    expect(diagnostic.unknownWords[0]?.index).toBe(1);
+    expect(diagnostic.unknownWords[0]?.word).toBe("abandno");
+    expect(diagnostic.unknownWords[0]?.suggestions).toContain("abandon");
   });
 
   it("rejects non-English mnemonic words without treating Unicode passphrases as mnemonic words", () => {
-    const diagnostic = diagnoseMnemonic(MNEMONIC.replace("about", "пароль"));
+    using diagnostic = diagnoseMnemonic(MNEMONIC.replace("about", "пароль"));
     expect(diagnostic.unknownWords[0]).toMatchObject({
       index: 11,
       word: "пароль",
@@ -100,7 +97,8 @@ describe("BIP39 Seed Diagnostic", () => {
 
   it("normalizes case, compatible Unicode and whitespace before validation", () => {
     const decorated = `  ${MNEMONIC.toUpperCase().replace("ABANDON", "ＡＢＡＮＤＯＮ")}  `;
-    expect(diagnoseMnemonic(decorated)).toMatchObject({
+    using diagnostic = diagnoseMnemonic(decorated);
+    expect(diagnostic).toMatchObject({
       normalized: MNEMONIC,
       checksumValid: true,
     });

@@ -90,3 +90,20 @@ describe("shared controls across address profiles", () => {
     expect(values).toMatchObject({ account: 3, start: 900, count: 100 });
   });
 });
+
+it.each(["start", "account"] as const)(
+  "refuses an empty %s instead of deriving index zero",
+  (name) => {
+    const form = controls("1");
+    form[name].value = "";
+    expect(() => readControls(getCoinAdapter("bitcoin-native-segwit"), form)).toThrow();
+  },
+);
+
+it("does not repeat unknown network input in a derivation refusal", () => {
+  const form = controls("1");
+  form.network.value = "synthetic recovery phrase in the wrong field";
+  expect(() => readControls(getCoinAdapter("bitcoin-native-segwit"), form)).toThrow(
+    "Choose a supported derivation network.",
+  );
+});

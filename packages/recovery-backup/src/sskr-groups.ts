@@ -1,11 +1,7 @@
-import { CheckedSskrBridge } from "../../recovery-mnemocode/source/sskr/bridge.js";
-import { ErrorCatalog } from "../../recovery-mnemocode/source/core/error-catalog.js";
-import { errorCode } from "../../recovery-mnemocode/source/core/refusal.js";
-import {
-  MAX_GROUPS,
-  MAX_GROUP_MEMBERS,
-  MIN_RECORDED_THRESHOLD,
-} from "../../recovery-mnemocode/source/sskr/share-layout.js";
+import { CheckedSskrBridge } from "./sskr-bridge.js";
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
+import { errorCode } from "@ckd/core/refusal.js";
+import { MAX_GROUPS, MAX_GROUP_MEMBERS, MIN_RECORDED_THRESHOLD } from "./sskr-limits.js";
 
 /** A member quorum, captured once before any narrowing to WASM bytes. */
 export interface SskrGroupSpec {

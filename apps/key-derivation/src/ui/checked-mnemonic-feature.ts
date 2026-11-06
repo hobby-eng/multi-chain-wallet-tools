@@ -9,7 +9,7 @@ import { requireQueryElement } from "@ckd/ui/dom.js";
 import type { CheckedGeneration } from "./chosen-words-feature.js";
 import { MhfeDrawOutlook, NO_WISHES, type MhfeWishes } from "./recovery-mhfe-draw-outlook.js";
 import { MhfeEngine } from "./recovery-mhfe-engine.js";
-import { MhfeRun } from "./recovery-mhfe-run.js";
+import { MhfeRun, MhfeRunStopped } from "./recovery-mhfe-run.js";
 import { MhfePanelCheck } from "./recovery-mhfe-self-check.js";
 import {
   MHFE_PHRASE_WORDS,
@@ -33,8 +33,9 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
   readonly #box: HTMLInputElement;
   readonly #panel: HTMLElement;
   readonly #help: HTMLDetailsElement;
-  readonly #repeat: HTMLInputElement;
   readonly #cancel: HTMLButtonElement;
+  /** The note beside the passphrase label: optional, or required while this mode is chosen. */
+  readonly #need: HTMLElement | null;
   readonly #buttons: ReadonlyMap<number, HTMLButtonElement>;
   readonly #outlook: MhfeDrawOutlook;
   /** MHFE's quick check of its wallet module, run when the box is first ticked. */
@@ -52,8 +53,8 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
     this.#box = required<HTMLInputElement>("#wallet-check-enabled");
     this.#panel = required<HTMLElement>("#wallet-check-options");
     this.#help = required<HTMLDetailsElement>("#wallet-check-help");
-    this.#repeat = required<HTMLInputElement>("#wallet-check-passphrase-repeat");
     this.#cancel = required<HTMLButtonElement>("#wallet-check-cancel");
+    this.#need = page.querySelector<HTMLElement>("#passphrase-need");
     this.#buttons = new Map(
       BIP39_WORD_COUNTS.map((count) => [count, required<HTMLButtonElement>(`#generate-${count}`)]),
     );
@@ -67,16 +68,12 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
       this.#sync();
     };
     this.#box.addEventListener("change", () => {
-      if (!this.#box.checked) this.#repeat.value = "";
       changed();
       this.#showOutlook();
       if (this.#box.checked) void this.#open();
     });
-    page.querySelector("#passphrase")?.addEventListener("input", () => {
-      this.#repeat.value = "";
-      changed();
-    });
-    this.#repeat.addEventListener("input", changed);
+    // A draw belongs to the passphrase it started with: editing the passphrase stops it.
+    page.querySelector("#passphrase")?.addEventListener("input", changed);
     this.#cancel.addEventListener("click", changed);
     // A change of the wishes reaches this mode through the panel (showWishes).
     this.#sync();
@@ -104,7 +101,6 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
   clear(): void {
     this.cancel();
     this.#box.checked = false;
-    this.#repeat.value = "";
     this.#outlook.clear();
     this.#sync();
   }
@@ -114,10 +110,9 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
   }
 
   /**
-   * A phrase that passes the wallet check with `passphrase`, typed again in the confirmation
-   * field, and meets `wishes`; `onStatus` gets the status lines while it is drawn. MHFE refuses a
-   * missing passphrase, a different confirmation and wishes it does not take. Cancelled, it
-   * rejects with an AbortError.
+   * A phrase that passes the wallet check with `passphrase` and meets `wishes`; `onStatus` gets
+   * the status lines while it is drawn, with the average time at the speed so far. MHFE refuses a
+   * missing passphrase and wishes it does not take. Cancelled, it rejects with an AbortError.
    */
   async generate(
     words: ChosenWordCount,
@@ -152,9 +147,10 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
         wallet.drawPhrase({
           ...wanted,
           passphrase,
-          passphraseRepeat: this.#repeat.value,
+          // The owner chose one passphrase field, checked with Show (2026-10-25), over a repetition.
+          passphraseRepeat: passphrase,
           walletCheck: true,
-          onProgress: ({ draws }) => onStatus(drawLine(draws, clock, true)),
+          onProgress: ({ draws }) => onStatus(drawLine(draws, clock, true, expectedDraws)),
         }),
       );
       // MHFE's own check once more, in a fresh worker, before the phrase is shown.
@@ -162,7 +158,7 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
         throw new Error("The generated phrase failed its MHFE wallet check.");
       return drawn.phrase;
     } catch (cause) {
-      if (cause instanceof MhfeError && cause.code === "CANCELLED")
+      if (cause instanceof MhfeRunStopped)
         throw new DOMException("Checked phrase generation was stopped.", "AbortError");
       if (!(cause instanceof MhfeError)) throw cause;
       throw new Error(describe(cause, "the phrase could not be drawn."), { cause });
@@ -199,10 +195,13 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
     const open = this.#enabled && !this.#failed;
     this.#box.disabled = !open;
     this.#panel.hidden = !this.#box.checked;
-    this.#help.hidden = !this.#box.checked;
-    if (!this.#box.checked) this.#help.open = false;
-    this.#repeat.disabled = !open;
+    // The "?" explains the option before it is chosen (owner, 2026-10-23).
+    this.#help.hidden = false;
     this.#cancel.hidden = this.#run === undefined;
+    if (this.#need !== null)
+      this.#need.textContent = this.#box.checked
+        ? "required for MHFE generation, case-sensitive"
+        : "optional, case-sensitive";
     for (const [count, button] of this.#buttons)
       button.disabled = !this.#enabled || (this.#box.checked && count !== MHFE_PHRASE_WORDS);
   }

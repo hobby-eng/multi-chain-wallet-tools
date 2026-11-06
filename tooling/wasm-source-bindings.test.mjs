@@ -24,6 +24,7 @@ describe("canonical WASM source bindings", () => {
     "tooling/toolchain-pins.json",
     "tooling/toolchain-pins.mjs",
     "tooling/verify-wasm-integrity.mjs",
+    "tooling/mnemocode-intake-files.mjs",
     "tooling/verify-wasm-producers.mjs",
   ])("rejects an unchanged output record after %s changes", (input) => {
     const before = createWasmIntegrityManifest();

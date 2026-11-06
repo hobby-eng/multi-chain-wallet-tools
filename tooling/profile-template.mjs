@@ -1,8 +1,78 @@
 import { MnemoCodeWalletTemplate } from "./mnemocode-wallet-template.mjs";
-import { ToolProtocolFooter } from "./tool-protocol-footer.mjs";
+import {
+  BITCOIN_MAINNET_WIF,
+  BITCOIN_TESTNET_WIF,
+  DASH_MAINNET_WIF,
+  DASH_TESTNET_WIF,
+} from "../packages/crypto-core/src/wif-version.ts";
+import { BIP85_HEX_BYTES } from "../packages/crypto-core/src/bip85-values.ts";
+import { BIP39_WORD_COUNTS } from "../packages/crypto-core/src/bip39-word-counts.ts";
+import { MAX_BIP32_INDEX } from "../packages/crypto-core/src/bip32-limits.ts";
+import { EmbeddedDerivation } from "../packages/coin-protocols/src/coins/embedded-derivation.ts";
+
+/** The WIF version bytes of each coin and network, as the BIP85 WIF choice offers them. */
+const WIF_VERSIONS = {
+  bitcoin: { mainnet: BITCOIN_MAINNET_WIF, testnet: BITCOIN_TESTNET_WIF },
+  dash: { mainnet: DASH_MAINNET_WIF, testnet: DASH_TESTNET_WIF },
+};
+
+function bip85WifOptions(profile) {
+  const coins = profile.id === "dash-community" ? ["dash"] : ["bitcoin", "dash"];
+  return coins
+    .flatMap((coin) =>
+      Object.entries(WIF_VERSIONS[coin]).map(([network, version]) => {
+        const name = coin === "dash" ? "Dash" : "Bitcoin";
+        const hex = version.toString(16).padStart(2, "0").toUpperCase();
+        return `<option data-coin="${coin}" value="${version}">${name} ${network} · 0x${hex}</option>`;
+      }),
+    )
+    .join("");
+}
+import { ToolProtocolFooter, selectedCoins } from "./tool-protocol-footer.mjs";
 
 /** ID prefix of every control in the derived (BIP85 child) wallet workspace. */
 const CHILD_WALLET_ID_PREFIX = "bip85-wallet-";
+
+/** A "?" beside a hard option (owner, 2026-10-27: only where the meaning is not plain at once). */
+function optionHelp(name, title, paragraphs) {
+  return `<details class="recovery-help option-help"><summary class="help-mark" aria-label="${name}">?</summary><div class="recovery-help-popover"><h3>${title}</h3>${paragraphs.map((text) => `<p>${text}</p>`).join("")}</div></details>`;
+}
+
+const SILENT_PAYMENT_HELP = optionHelp("What Silent Payments are", "Silent Payments · BIP352", [
+  "Adds a tab that derives this wallet's reusable Silent Payments address, which begins with sp1 on mainnet. You can publish it once: each payer's wallet makes a new Taproot output from it, which outsiders cannot link to the address.",
+  "Finding these payments needs a wallet that scans the blockchain for them; this offline page does not. Turn it on only if your wallet supports BIP352.",
+]);
+
+const BIP85_HELP = optionHelp("What child seeds are", "Child seeds · BIP85", [
+  "Adds a tab that derives new, independent secrets from this wallet: a recovery phrase for another wallet, a WIF private key, a root xprv or hex entropy. The same phrase, passphrase, application, length and BIP85 index always give the same child again; a 12-word and a 24-word child at one index are unrelated.",
+  "A child does not reveal its parent, but anyone with the parent phrase and its passphrase can make every child. Back up the parent: a child alone does not restore it.",
+]);
+
+/** What each coin's derivation tabs are, named as the tabs name them. */
+const DERIVATION_TYPE_COPY = {
+  bitcoin:
+    "<strong>Bitcoin:</strong> each tab is an address type, with its own path and its own addresses from the same phrase: Legacy BIP44, Nested SegWit BIP49, Native SegWit BIP84 and Taproot BIP86, whose mainnet addresses begin with 1, 3, bc1q and bc1p. Choose the type of your wallet's addresses.",
+  ethereum:
+    "<strong>Ethereum:</strong> EOA · BIP44 gives the ordinary accounts that Ethereum wallets derive from a recovery phrase.",
+  dash: "<strong>Dash:</strong> Core BIP44 holds the ordinary addresses of Dash Core and the Dash mobile wallets. The two Multisig tabs give one cosigner's account xpub for a shared P2SH wallet: Purpose48 for wallets that use that path, Core pkh signer for a Dash Core signer wallet. Platform DIP17 / DIP18 gives Dash Platform payment addresses, Identity DIP13 the keys of a Platform identity, and Shielded Orchard / ZIP-32 private Orchard addresses.",
+};
+
+/** The "?" of the derivation tabs, for the coins of this build only. */
+function derivationTypeHelp(coins) {
+  return optionHelp("What the derivation types are", "Derivation type", [
+    "Each tab is one way in which wallets derive keys and addresses from the phrase; the path below shows the one chosen.",
+    ...Object.entries(DERIVATION_TYPE_COPY)
+      .filter(([coin]) => coins.has(coin))
+      .map(([, text]) => text),
+  ]);
+}
+
+/** Shared by every MHFE operation with a custom PIM; one text, no copies in the page. */
+const MHFE_PIM_HELP = optionHelp("What the PIM is", "PIM", [
+  "The PIM multiplies the time of every encryption and recovery, yours included, by PIM + 1: PIM 1 doubles it. A recovery that takes four to seven minutes in this page at PIM 0 takes about 3 to 5 days at PIM 1023, or 21 to 43 hours in fast mode.",
+  "Unticked means PIM 0, the default, which needs no note. A container made with another PIM opens only with that same PIM, and nothing in the container records it: write it down with the password. A forgotten PIM can only be found by trying the values one by one, each a full recovery.",
+  "A stronger password protects more than a higher PIM: each extra random word multiplies an attacker's work by 7,776, a PIM only by a fixed factor.",
+]);
 
 /**
  * Silent Payments tab, checkbox and panel. The original wallet uses an empty prefix; the derived child wallet
@@ -11,17 +81,17 @@ const CHILD_WALLET_ID_PREFIX = "bip85-wallet-";
 function silentPaymentMarkup(idPrefix) {
   return {
     tab: `<button type="button" id="${idPrefix}silent-payment-tab" class="protocol-tab primary-mode-tab" data-feature-tab="silent-payment" role="radio" aria-checked="false" aria-controls="${idPrefix}silent-payment-panel" tabindex="-1" hidden><span>Silent Payments</span><small>BIP352</small></button>`,
-    toggle: `<label class="feature-tab-toggle" for="${idPrefix}include-silent-payment" title="Give out one reusable address while each payment lands on a separate, unlinkable on-chain output.">
+    toggle: `<div class="field-heading-row"><label class="feature-tab-toggle" for="${idPrefix}include-silent-payment">
         <input id="${idPrefix}include-silent-payment" type="checkbox" aria-controls="${idPrefix}silent-payment-tab">
         <span>Show Silent Payments · BIP352</span>
-      </label>`,
+      </label>${SILENT_PAYMENT_HELP}</div>`,
     panel: `<section id="${idPrefix}silent-payment-panel" class="supplemental-derivation span-three" aria-labelledby="${idPrefix}silent-payment-title" hidden>
           <div class="supplemental-heading"><span class="step">SP</span><h3 id="${idPrefix}silent-payment-title">Bitcoin Silent Payments · BIP352</h3><span id="${idPrefix}silent-payment-secret-control-slot" class="result-secret-control-slot"></span></div>
-          <p class="feature-intro">Optional BIP352 address you can give out once and reuse. Everyone pays the same address, but each payment still lands on its own private, unlinkable output on-chain — nobody can tell they came from the same address. Discovering the unique outputs actually paid to this wallet requires scanning eligible transaction inputs and outputs; this offline file does not scan the blockchain.</p>
+          <p class="feature-intro">Optional BIP352 address you can give out once and reuse. Senders derive individual on-chain outputs from this reusable address. Discovering the unique outputs actually paid to this wallet requires scanning eligible transaction inputs and outputs; this offline file does not scan the blockchain.</p>
           <div class="form-grid">
           <div><label for="${idPrefix}silent-payment-network">Network</label><select id="${idPrefix}silent-payment-network"><option value="mainnet">Mainnet</option><option value="testnet">Testnet / Signet</option></select></div>
-          <div><label for="${idPrefix}silent-payment-account">Account</label><input id="${idPrefix}silent-payment-account" type="number" min="0" max="2147483647" value="0"></div>
-          <div><label for="${idPrefix}silent-payment-labels">Receive labels <span class="optional">optional</span></label><input id="${idPrefix}silent-payment-labels" type="text" placeholder="e.g. 1, 2, 3" autocomplete="off"><p class="field-note">Comma-separated label numbers from 1 upward, such as those you use to tell payers apart (“1 → Alice”, “2 → webshop”). Leave blank for just the base reusable address. Label <code>0</code> is reserved for change and is always shown separately below.</p></div>
+          <div><label for="${idPrefix}silent-payment-account">Account</label><input id="${idPrefix}silent-payment-account" type="number" min="0" value="0"></div>
+          <div><label for="${idPrefix}silent-payment-labels">Receive labels <span class="optional">optional</span></label><input id="${idPrefix}silent-payment-labels" type="text" placeholder="e.g. 1, 2, 3" autocomplete="off"><p class="field-note">At most <span id="${idPrefix}silent-payment-label-limit"></span> comma-separated label entries from 1 upward, such as those you use to tell payers apart (“1 → Alice”, “2 → webshop”). Leave blank for just the base reusable address. Label <code>0</code> is reserved for change and is always shown separately below.</p></div>
           </div>
           <div class="actions"><button id="${idPrefix}derive-silent-payment" class="primary" type="button">Derive Silent Payment info</button></div>
           <div id="${idPrefix}silent-payment-error" class="error" role="alert" hidden></div>
@@ -49,57 +119,7 @@ function silentPaymentMarkup(idPrefix) {
   };
 }
 
-export function applyProfileTemplate(template, profile, tool, selection) {
-  template = new MnemoCodeWalletTemplate().expand(template);
-  const footer = new ToolProtocolFooter(profile, selection);
-  const dashBrandMark =
-    profile.id === "dash-community"
-      ? '<span class="dash-header-brand"><span class="dash-header-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle cx="471.5" cy="471.5" r="471"/><path d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span><span>Dash Community Edition</span></span>'
-      : '<span class="profile-header-brand">Multi-Chain Wallet Tools</span>';
-  const profileBrandMark =
-    profile.id === "dash-community"
-      ? '<span class="profile-brand-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle fill="#008de4" cx="471.5" cy="471.5" r="471"/><path fill="#fff" d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path fill="#fff" d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span>'
-      : "";
-  const recoveryCoinField =
-    profile.id === "dash-community"
-      ? ""
-      : '<div><label for="recovery-coin">Coin</label><select id="recovery-coin"></select></div>';
-  const recoveryPublicKeyPlaceholder =
-    profile.id === "dash-community"
-      ? "Paste a public key, account xpub, or Dash Orchard viewing key. One key per line."
-      : "Paste a public key, account xpub, descriptor, or Dash Orchard viewing key. One key per line.";
-  const recoveryPublicKeyScope =
-    profile.id === "dash-community"
-      ? "<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any."
-      : "<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.";
-  const activityCoinControl =
-    profile.id === "dash-community"
-      ? ""
-      : '<div class="viewer-coin-field"><label for="viewer-coin">Coin</label><select id="viewer-coin"><option value="bitcoin" selected>Bitcoin</option><option value="ethereum">Ethereum</option><option value="dash">Dash</option></select><p class="field-note">Choose the coin before entering a public lookup.</p></div>';
-  const psbtChainOptions =
-    profile.id === "dash-community"
-      ? '<option value="dash">Dash Core</option>'
-      : '<option value="bitcoin">Bitcoin</option><option value="dash">Dash Core</option>';
-  const signerFormatField = profile.capabilities.bitcoinMessageSigning
-    ? `<div id="message-signer-format-field" hidden>
-          <label for="message-signer-format-select">Signature format</label>
-          <select id="message-signer-format-select">
-            <option value="bitcoin-bip322-legacy">BIP-322 full · recommended</option>
-            <option value="bitcoin-compact">Legacy compact · BIP137 compatibility</option>
-          </select>
-          <p class="field-note">BIP-322 is the current general-purpose Bitcoin message-signing standard. Use compact BIP137 only for software that does not support BIP-322.</p>
-        </div>`
-    : "";
-  const psbtNetworkOptions =
-    profile.id === "dash-community"
-      ? '<option value="mainnet">Mainnet</option><option value="testnet">Testnet</option>'
-      : '<option value="mainnet">Mainnet</option><option value="testnet">Testnet / Signet</option><option value="regtest">Regtest</option>';
-  const silentPayment = profile.capabilities.bitcoinSilentPayments
-    ? silentPaymentMarkup("")
-    : { tab: "", toggle: "", panel: "" };
-  const silentPaymentTab = silentPayment.tab;
-  const silentPaymentToggle = silentPayment.toggle;
-  const silentPaymentPanel = silentPayment.panel;
+function bip85Markup(profile, derivationHelp) {
   // The derived child wallet offers Silent Payments with the same markup under its own ID prefix.
   // Child seeds are deliberately not offered there: a child of a child would nest without end.
   const childSilentPayment =
@@ -111,10 +131,10 @@ export function applyProfileTemplate(template, profile, tool, selection) {
     : '<button type="button" id="bip85-tab" class="protocol-tab primary-mode-tab" data-feature-tab="bip85" role="radio" aria-checked="false" aria-controls="bip85-panel" tabindex="-1" hidden><span>Child seeds</span><small>BIP85</small></button>';
   const bip85Toggle = !profile.capabilities.bip85
     ? ""
-    : `<label class="feature-tab-toggle" for="include-bip85" title="Derive independent child seeds and application secrets from this wallet.">
+    : `<div class="field-heading-row"><label class="feature-tab-toggle" for="include-bip85">
         <input id="include-bip85" type="checkbox" aria-controls="bip85-tab">
         <span>Show Child seeds · BIP85</span>
-      </label>`;
+      </label>${BIP85_HELP}</div>`;
   const bip85Panel = !profile.capabilities.bip85
     ? ""
     : `<section class="supplemental-derivation span-three" id="bip85-panel" hidden>
@@ -122,10 +142,10 @@ export function applyProfileTemplate(template, profile, tool, selection) {
         <p class="feature-intro">First level: the original mnemonic and its BIP39 passphrase above form the parent seed; BIP85 derives the child mnemonic or secret from it. Changing either parent field or the BIP85 index changes this result.</p>
         <div class="form-grid">
           <div><label for="bip85-application">Application</label><select id="bip85-application"><option value="bip39">BIP39 mnemonic</option>${profile.id === "dash-community" ? '<option value="wif">WIF private key · Dash</option>' : '<option value="wif">WIF private key · Bitcoin / Dash</option>'}<option value="xprv">Root XPRV</option><option value="hex">Hex entropy</option></select></div>
-          <div><label for="bip85-index">Index</label><input id="bip85-index" type="number" min="0" max="2147483647" value="0"></div>
-          <div id="bip85-words-field"><label for="bip85-words">Mnemonic words</label><select id="bip85-words"><option>12</option><option>15</option><option>18</option><option>21</option><option>24</option></select></div>
-          <div id="bip85-wif-field" hidden><label for="bip85-wif-encoding">WIF encoding</label><select id="bip85-wif-encoding">${profile.id === "dash-community" ? '<option data-coin="dash" value="204">Dash mainnet · 0xCC</option><option data-coin="dash" value="239">Dash testnet · 0xEF</option>' : '<option data-coin="bitcoin" value="128">Bitcoin mainnet · 0x80</option><option data-coin="bitcoin" value="239">Bitcoin testnet · 0xEF</option><option data-coin="dash" value="204">Dash mainnet · 0xCC</option><option data-coin="dash" value="239">Dash testnet · 0xEF</option>'}</select><p class="field-note">The BIP85 path and 32-byte private key stay the same; this choice changes only the network prefix of the WIF transport string.</p></div>
-          <div id="bip85-bytes-field" hidden><label for="bip85-bytes">Entropy bytes</label><input id="bip85-bytes" type="number" min="16" max="64" value="32"></div>
+          <div><label for="bip85-index">Index</label><input id="bip85-index" type="number" min="0" max="${MAX_BIP32_INDEX}" value="0"></div>
+          <div id="bip85-words-field"><label for="bip85-words">Mnemonic words</label><select id="bip85-words">${BIP39_WORD_COUNTS.map((count) => `<option>${count}</option>`).join("")}</select></div>
+          <div id="bip85-wif-field" hidden><label for="bip85-wif-encoding">WIF encoding</label><select id="bip85-wif-encoding">${bip85WifOptions(profile)}</select><p class="field-note">The BIP85 path and 32-byte private key stay the same; this choice changes only the network prefix of the WIF transport string.</p></div>
+          <div id="bip85-bytes-field" hidden><label for="bip85-bytes">Entropy bytes</label><input id="bip85-bytes" type="number" min="${BIP85_HEX_BYTES.minimum}" max="${BIP85_HEX_BYTES.maximum}" value="${BIP85_HEX_BYTES.default}"></div>
         </div>
         <div class="actions"><button id="derive-bip85" class="primary" type="button">Derive child secret</button></div>
         <div id="bip85-error" class="error" role="alert" hidden></div>
@@ -146,12 +166,12 @@ export function applyProfileTemplate(template, profile, tool, selection) {
             <div class="form-grid">
               <div class="span-two"><label for="bip85-wallet-coin">Coin</label><select id="bip85-wallet-coin"></select></div>
               <div id="bip85-wallet-network-field" class="nested-standard-content"><label for="bip85-wallet-network">Network</label><select id="bip85-wallet-network"></select></div>
-              <div class="protocol-tabs-field span-three"><label id="bip85-wallet-tabs-label">Derivation type</label><div id="bip85-wallet-tabs" class="protocol-tabs primary-mode-tabs" role="radiogroup" aria-labelledby="bip85-wallet-tabs-label">${childSilentPayment.tab}</div></div>${childSilentPayment.toggle === "" ? "" : `<div class="feature-tab-options span-three">${childSilentPayment.toggle}</div>`}${childSilentPayment.panel}
+              <div class="protocol-tabs-field span-three"><div class="field-heading-row"><label id="bip85-wallet-tabs-label">Derivation type</label>${derivationHelp}</div><div id="bip85-wallet-tabs" class="protocol-tabs primary-mode-tabs" role="radiogroup" aria-labelledby="bip85-wallet-tabs-label">${childSilentPayment.tab}</div></div>${childSilentPayment.toggle === "" ? "" : `<div class="feature-tab-options span-three">${childSilentPayment.toggle}</div>`}${childSilentPayment.panel}
               <div id="bip85-wallet-legacy-field" hidden><input id="bip85-wallet-legacy-toggle" type="checkbox" hidden></div>
               <div id="bip85-wallet-account-field" class="nested-standard-content"><label id="bip85-wallet-account-label" for="bip85-wallet-account">Account</label><input id="bip85-wallet-account" type="number" value="0" min="0" max="2147483647"></div>
               <div id="bip85-wallet-branch-field" class="nested-standard-content"><label id="bip85-wallet-branch-label" for="bip85-wallet-branch-input">Branch</label><input id="bip85-wallet-branch-input" type="number" value="0" min="0" max="2147483647"><select id="bip85-wallet-branch-select" hidden></select></div>
               <div class="nested-standard-content"><label id="bip85-wallet-start-label" for="bip85-wallet-start">Start index</label><input id="bip85-wallet-start" type="number" value="0" min="0" max="2147483647"></div>
-              <div class="nested-standard-content"><label id="bip85-wallet-count-label" for="bip85-wallet-count">Number of results</label><input id="bip85-wallet-count" type="number" value="20" min="1" max="200"></div>
+              <div class="nested-standard-content"><label id="bip85-wallet-count-label" for="bip85-wallet-count">Number of results</label><input id="bip85-wallet-count" type="number" value="20" min="1" max="${EmbeddedDerivation.maximumRows}"></div>
               <div class="path-preview span-three nested-standard-content"><label>Standard derivation path · read-only</label><code id="bip85-wallet-path"></code></div>
               <div id="bip85-wallet-change-field" class="change-addresses-option span-three nested-standard-content" hidden><label for="bip85-wallet-include-change"><input id="bip85-wallet-include-change" type="checkbox"><span><strong>Also generate change addresses</strong><small id="bip85-wallet-change-help"></small></span></label></div>
               <div id="bip85-wallet-coinjoin-field" class="change-addresses-option span-three nested-standard-content" hidden><label for="bip85-wallet-include-coinjoin"><input id="bip85-wallet-include-coinjoin" type="checkbox"><span><strong>Show CoinJoin addresses</strong><small><code id="bip85-wallet-coinjoin-help"></code></small></span></label></div>
@@ -208,9 +228,44 @@ export function applyProfileTemplate(template, profile, tool, selection) {
           </section>
         </div>
       </section>`;
+  return { bip85Tab, bip85Toggle, bip85Panel };
+}
+
+function secondaryToolMarkup(profile, footer) {
   const psbtBuilderWrapperOptions = !profile.capabilities.advancedPsbt
     ? '<option value="p2sh">Legacy P2SH</option>'
     : '<option value="p2wsh">Native P2WSH</option><option value="p2sh">Legacy P2SH</option><option value="p2tr">Taproot P2TR · Tapscript policy</option><option value="p2tr-musig2">Taproot P2TR · MuSig2 key path</option>';
+  const psbtWrapperHelp = optionHelp(
+    "What the output wrapper does",
+    "Output wrapper",
+    !profile.capabilities.advancedPsbt
+      ? [
+          "Dash policies use Legacy P2SH: the address commits to the HASH160 of the policy's script, and the script may be at most 520 bytes, about 15 keys in plain multisig.",
+        ]
+      : [
+          "How the policy's script becomes an address. Native P2WSH (bc1q…) commits to the script's SHA-256 and is the usual choice for multisig. Legacy P2SH (3…) commits to its HASH160 and limits the script to 520 bytes, about 15 keys in plain multisig.",
+          "Taproot P2TR · Tapscript puts the policy in one script leaf behind an unspendable key, so only that script can spend. Taproot P2TR · MuSig2 is one aggregate key that all participants sign together: it has no script, so it is N-of-N only, without a timelock, and every signer must support MuSig2.",
+        ],
+  );
+  const psbtRangedKeysHelp = optionHelp("What a ranged descriptor key is", "Ranged keys", [
+    "A key given as a descriptor with <code>&lt;0;1&gt;</code> and <code>*</code> stands for many keys. These fields pick the ones used for the address shown: the first or second multipath branch, usually receive or change, and the index that replaces <code>*</code>.",
+    !profile.capabilities.advancedPsbt
+      ? "The P2SH address is exported as a <code>raw()</code> descriptor of this one address: keep the ranged keys to make the others."
+      : "With P2WSH or Taproot the descriptor shown keeps the whole range. A P2SH address is exported as a <code>raw()</code> descriptor of this one address: keep the ranged keys to make the others.",
+  ]);
+  const psbtScriptRoleHelp = optionHelp(
+    "What the two kinds of script are",
+    "What the script is",
+    !profile.capabilities.advancedPsbt
+      ? [
+          "Redeem script: the script that a spender reveals, such as a multisig script. The page also shows the P2SH address that commits to it.",
+          "scriptPubKey: the locking script of an output itself, as a block explorer shows it, such as <code>a914…87</code>. It is decoded as it stands.",
+        ]
+      : [
+          "Redeem / witness script: the script that a spender reveals, such as a multisig script. The page also shows the P2SH address that commits to it and, for Bitcoin, the P2WSH address.",
+          "scriptPubKey: the locking script of an output itself, as a block explorer shows it, such as <code>0020…</code> or <code>a914…87</code>. It is decoded as it stands.",
+        ],
+  );
   const psbtWalletWrapperOptions = !profile.capabilities.advancedPsbt
     ? '<option value="p2sh">Legacy P2SH</option>'
     : '<option value="p2sh">Legacy P2SH</option><option value="p2wsh">Bitcoin Native P2WSH</option>';
@@ -271,61 +326,154 @@ export function applyProfileTemplate(template, profile, tool, selection) {
     : "<strong>Bitcoin:</strong> BIP-322 legacy, simple, full, and proof-of-funds formats are checked by the pinned btcutil verifier and Bitcoin Script engine. Unprefixed pre-finalization simple signatures remain accepted for compatibility. <strong>Dash:</strong> Dash Core compact P2PKH signatures are checked with the protocol-compatible Dash signed-message domain.";
   const psbtFooterProtocols = footer.render("psbt-inspector");
   const psbtChainScope = profile.capabilities.advancedPsbt ? " · BITCOIN &amp; DASH" : "";
-  const replacements = {
-    __DOCUMENT_TITLE__: tool.documentTitle,
-    __EDITION_NAME__: profile.editionName,
-    __BUILD_PROFILE__: profile.id,
-    __BRAND_NAME__: profile.brandName,
-    __EDITION_EYEBROW__: tool.eyebrow,
-    __KEY_DERIVATION_INTRODUCTION__: tool.introduction,
-    __KEY_DERIVATION_FOOTER_PROTOCOLS__: footer.render("key-derivation"),
-    __DISCOVERY_FOOTER_PROTOCOLS__: footer.render("discovery-scanner"),
-    __KEY_DERIVATION_SIGNER_FORMAT_FIELD__: signerFormatField,
-    __DASH_HEADER_BRAND__: dashBrandMark,
-    __PROFILE_BRAND_MARK__: profileBrandMark,
-    __RECOVERY_COIN_FIELD__: recoveryCoinField,
-    __RECOVERY_PUBLIC_KEY_PLACEHOLDER__: recoveryPublicKeyPlaceholder,
-    __RECOVERY_PUBLIC_KEY_SCOPE__: recoveryPublicKeyScope,
-    __ACTIVITY_COIN_CONTROL__: activityCoinControl,
-    __ACTIVITY_TRUST_ITEMS__: activityTrustItems,
-    __ACTIVITY_CAPABILITY_CARD__: activityCapabilityCard,
-    __ACTIVITY_RUNTIME_DESCRIPTION__: activityRuntimeDescription,
-    __ACTIVITY_FOOTER_PROTOCOLS__: activityFooterProtocols,
-    __TOOL_INTRODUCTION__: tool.introduction,
-    __PSBT_CHAIN_OPTIONS__: psbtChainOptions,
-    __PSBT_NETWORK_OPTIONS__: psbtNetworkOptions,
-    __SILENT_PAYMENT_TAB__: silentPaymentTab,
-    __SILENT_PAYMENT_TOGGLE__: silentPaymentToggle,
-    __SILENT_PAYMENT_PANEL__: silentPaymentPanel,
-    __BIP85_TAB__: bip85Tab,
-    __BIP85_TOGGLE__: bip85Toggle,
-    __BIP85_PANEL__: bip85Panel,
-    __PSBT_BUILDER_WRAPPER_OPTIONS__: psbtBuilderWrapperOptions,
-    __PSBT_WALLET_WRAPPER_OPTIONS__: psbtWalletWrapperOptions,
-    __PSBT_CAPABILITIES__: psbtCapabilities,
-    __PSBT_PROTOCOL_SCOPE__: psbtProtocolScope,
-    __PSBT_DESCRIPTOR_SCOPE__: psbtDescriptorScope,
-    __PSBT_MUSIG_SCOPE__: psbtMusigScope,
-    __PSBT_DEPENDENCY_SCOPE__: psbtDependencyScope,
-    __PSBT_DECODER_INTRODUCTION__: psbtDecoderIntroduction,
-    __PSBT_SCRIPT_PLACEHOLDER__: psbtScriptPlaceholder,
-    __PSBT_POLICY_SCOPE__: psbtPolicyScope,
-    __PSBT_NUNCHUK_SCOPE__: psbtNunchukScope,
-    __PSBT_CUSTOM_MINISCRIPT_OPTION__: psbtCustomMiniscriptOption,
-    __PSBT_VERIFY_ADDRESS_PLACEHOLDER__: psbtVerifyAddressPlaceholder,
-    __PSBT_VERIFY_SIGNATURE_PLACEHOLDER__: psbtVerifySignaturePlaceholder,
-    __PSBT_MESSAGE_VERIFY_SCOPE__: psbtMessageVerifyScope,
-    __PSBT_FOOTER_PROTOCOLS__: psbtFooterProtocols,
-    __PSBT_CHAIN_SCOPE__: psbtChainScope,
+  return {
+    psbtBuilderWrapperOptions,
+    psbtWrapperHelp,
+    psbtRangedKeysHelp,
+    psbtScriptRoleHelp,
+    psbtWalletWrapperOptions,
+    psbtCapabilities,
+    psbtProtocolScope,
+    psbtDescriptorScope,
+    psbtMusigScope,
+    psbtDependencyScope,
+    psbtDecoderIntroduction,
+    activityTrustItems,
+    activityCapabilityCard,
+    activityRuntimeDescription,
+    activityFooterProtocols,
+    psbtScriptPlaceholder,
+    psbtPolicyScope,
+    psbtNunchukScope,
+    psbtCustomMiniscriptOption,
+    psbtVerifyAddressPlaceholder,
+    psbtVerifySignaturePlaceholder,
+    psbtMessageVerifyScope,
+    psbtFooterProtocols,
+    psbtChainScope,
   };
-  let rendered = template;
-  for (const [marker, value] of Object.entries(replacements)) {
-    if (value !== undefined) rendered = rendered.replaceAll(marker, value);
-  }
-  const remaining = rendered.match(
-    /__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DISCOVERY_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_[A-Z_]+|TOOL_INTRODUCTION|PSBT_[A-Z_]+)__/gu,
-  );
-  if (remaining !== null)
-    throw new Error(`Unexpanded build-profile marker: ${remaining.join(", ")}`);
-  return rendered;
 }
+
+/** Expands edition-specific markup without changing the source template. */
+export class ProfileTemplate {
+  static render(template, profile, tool, selection) {
+    template = new MnemoCodeWalletTemplate().expand(template);
+    const footer = new ToolProtocolFooter(profile, selection);
+    const dashBrandMark =
+      profile.id === "dash-community"
+        ? '<span class="dash-header-brand"><span class="dash-header-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle cx="471.5" cy="471.5" r="471"/><path d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span><span>Dash Community Edition</span></span>'
+        : '<span class="profile-header-brand">Multi-Chain Wallet Tools</span>';
+    const profileBrandMark =
+      profile.id === "dash-community"
+        ? '<span class="profile-brand-mark" aria-hidden="true"><svg viewBox="0 0 943 943"><circle fill="#008de4" cx="471.5" cy="471.5" r="471"/><path fill="#fff" d="M572.3 207.7H335.6L316 317.3l213.6.3c105.2 0 136.3 38.2 135.4 101.5-.5 32.5-14.5 87.4-20.6 105.2-16.2 47.4-49.5 101.6-174.3 101.4l-207.6-.1-19.7 109.7h236.1c83.3 0 118.7-9.7 156.2-27 83.2-38.4 132.7-120.5 152.5-227.6 29.5-159.5-7.3-273-215.3-273"/><path fill="#fff" d="M233.5 416.5c-62 0-70.9 40.4-76.7 64.8-7.7 32-10.2 44.9-10.2 44.9h242.3c62 0 70.9-40.4 76.7-64.8 7.7-32 10.2-44.9 10.2-44.9Z"/></svg></span>'
+        : "";
+    const recoveryCoinField =
+      profile.id === "dash-community"
+        ? ""
+        : '<div><label for="recovery-coin">Coin</label><select id="recovery-coin"></select></div>';
+    const recoveryPublicKeyPlaceholder =
+      profile.id === "dash-community"
+        ? "Paste a public key, account xpub, or Dash Orchard viewing key. One key per line."
+        : "Paste a public key, account xpub, descriptor, or Dash Orchard viewing key. One key per line.";
+    const recoveryPublicKeyScope =
+      profile.id === "dash-community"
+        ? "<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported Dash wallet schemes, use your seed phrase and original BIP39 passphrase, if any."
+        : "<strong>Limited search scope.</strong> Public keys only cover their own account, branch or reachable address formats; other hardened accounts are excluded. For the broadest search across supported wallet schemes, use your seed phrase and original BIP39 passphrase, if any. Trying different formats for one xpub does not search the separate Legacy, SegWit and Taproot accounts.";
+    const activityCoinControl =
+      profile.id === "dash-community"
+        ? ""
+        : '<div class="viewer-coin-field"><label for="viewer-coin">Coin</label><select id="viewer-coin"><option value="bitcoin" selected>Bitcoin</option><option value="ethereum">Ethereum</option><option value="dash">Dash</option></select><p class="field-note">Choose the coin before entering a public lookup.</p></div>';
+    const psbtChainOptions =
+      profile.id === "dash-community"
+        ? '<option value="dash">Dash Core</option>'
+        : '<option value="bitcoin">Bitcoin</option><option value="dash">Dash Core</option>';
+    const signerFormatField = profile.capabilities.bitcoinMessageSigning
+      ? `<div id="message-signer-format-field" hidden>
+          <label for="message-signer-format-select">Signature format</label>
+          <select id="message-signer-format-select">
+            <option value="bitcoin-bip322-legacy">BIP-322 full · recommended</option>
+            <option value="bitcoin-compact">Legacy compact · BIP137 compatibility</option>
+          </select>
+          <p class="field-note">BIP-322 is the current general-purpose Bitcoin message-signing standard. Use compact BIP137 only for software that does not support BIP-322.</p>
+        </div>`
+      : "";
+    const psbtNetworkOptions =
+      profile.id === "dash-community"
+        ? '<option value="mainnet">Mainnet</option><option value="testnet">Testnet</option>'
+        : '<option value="mainnet">Mainnet</option><option value="testnet">Testnet / Signet</option><option value="regtest">Regtest</option>';
+    const silentPayment = profile.capabilities.bitcoinSilentPayments
+      ? silentPaymentMarkup("")
+      : { tab: "", toggle: "", panel: "" };
+    const silentPaymentTab = silentPayment.tab;
+    const silentPaymentToggle = silentPayment.toggle;
+    const silentPaymentPanel = silentPayment.panel;
+    const derivationHelp = derivationTypeHelp(selectedCoins(profile, selection));
+    const { bip85Tab, bip85Toggle, bip85Panel } = bip85Markup(profile, derivationHelp);
+    const secondaryMarkup = secondaryToolMarkup(profile, footer);
+    const replacements = {
+      __DOCUMENT_TITLE__: tool.documentTitle,
+      __EDITION_NAME__: profile.editionName,
+      __BUILD_PROFILE__: profile.id,
+      __BRAND_NAME__: profile.brandName,
+      __EDITION_EYEBROW__: tool.eyebrow,
+      __KEY_DERIVATION_INTRODUCTION__: tool.introduction,
+      __KEY_DERIVATION_FOOTER_PROTOCOLS__: footer.render("key-derivation"),
+      __DISCOVERY_FOOTER_PROTOCOLS__: footer.render("discovery-scanner"),
+      __KEY_DERIVATION_SIGNER_FORMAT_FIELD__: signerFormatField,
+      __DASH_HEADER_BRAND__: dashBrandMark,
+      __PROFILE_BRAND_MARK__: profileBrandMark,
+      __RECOVERY_COIN_FIELD__: recoveryCoinField,
+      __RECOVERY_PUBLIC_KEY_PLACEHOLDER__: recoveryPublicKeyPlaceholder,
+      __RECOVERY_PUBLIC_KEY_SCOPE__: recoveryPublicKeyScope,
+      __ACTIVITY_COIN_CONTROL__: activityCoinControl,
+      __ACTIVITY_TRUST_ITEMS__: secondaryMarkup.activityTrustItems,
+      __ACTIVITY_CAPABILITY_CARD__: secondaryMarkup.activityCapabilityCard,
+      __ACTIVITY_RUNTIME_DESCRIPTION__: secondaryMarkup.activityRuntimeDescription,
+      __ACTIVITY_FOOTER_PROTOCOLS__: secondaryMarkup.activityFooterProtocols,
+      __TOOL_INTRODUCTION__: tool.introduction,
+      __PSBT_CHAIN_OPTIONS__: psbtChainOptions,
+      __PSBT_NETWORK_OPTIONS__: psbtNetworkOptions,
+      __SILENT_PAYMENT_TAB__: silentPaymentTab,
+      __SILENT_PAYMENT_TOGGLE__: silentPaymentToggle,
+      __SILENT_PAYMENT_PANEL__: silentPaymentPanel,
+      __MHFE_PIM_HELP__: MHFE_PIM_HELP,
+      __DERIVATION_TYPE_HELP__: derivationHelp,
+      __BIP85_TAB__: bip85Tab,
+      __BIP85_TOGGLE__: bip85Toggle,
+      __BIP85_PANEL__: bip85Panel,
+      __PSBT_BUILDER_WRAPPER_OPTIONS__: secondaryMarkup.psbtBuilderWrapperOptions,
+      __PSBT_WRAPPER_HELP__: secondaryMarkup.psbtWrapperHelp,
+      __PSBT_RANGED_KEYS_HELP__: secondaryMarkup.psbtRangedKeysHelp,
+      __PSBT_SCRIPT_ROLE_HELP__: secondaryMarkup.psbtScriptRoleHelp,
+      __PSBT_WALLET_WRAPPER_OPTIONS__: secondaryMarkup.psbtWalletWrapperOptions,
+      __PSBT_CAPABILITIES__: secondaryMarkup.psbtCapabilities,
+      __PSBT_PROTOCOL_SCOPE__: secondaryMarkup.psbtProtocolScope,
+      __PSBT_DESCRIPTOR_SCOPE__: secondaryMarkup.psbtDescriptorScope,
+      __PSBT_MUSIG_SCOPE__: secondaryMarkup.psbtMusigScope,
+      __PSBT_DEPENDENCY_SCOPE__: secondaryMarkup.psbtDependencyScope,
+      __PSBT_DECODER_INTRODUCTION__: secondaryMarkup.psbtDecoderIntroduction,
+      __PSBT_SCRIPT_PLACEHOLDER__: secondaryMarkup.psbtScriptPlaceholder,
+      __PSBT_POLICY_SCOPE__: secondaryMarkup.psbtPolicyScope,
+      __PSBT_NUNCHUK_SCOPE__: secondaryMarkup.psbtNunchukScope,
+      __PSBT_CUSTOM_MINISCRIPT_OPTION__: secondaryMarkup.psbtCustomMiniscriptOption,
+      __PSBT_VERIFY_ADDRESS_PLACEHOLDER__: secondaryMarkup.psbtVerifyAddressPlaceholder,
+      __PSBT_VERIFY_SIGNATURE_PLACEHOLDER__: secondaryMarkup.psbtVerifySignaturePlaceholder,
+      __PSBT_MESSAGE_VERIFY_SCOPE__: secondaryMarkup.psbtMessageVerifyScope,
+      __PSBT_FOOTER_PROTOCOLS__: secondaryMarkup.psbtFooterProtocols,
+      __PSBT_CHAIN_SCOPE__: secondaryMarkup.psbtChainScope,
+    };
+    let rendered = template;
+    for (const [marker, value] of Object.entries(replacements)) {
+      if (value !== undefined) rendered = rendered.replaceAll(marker, value);
+    }
+    const remaining = rendered.match(
+      /__(?:DOCUMENT_TITLE|EDITION_NAME|BUILD_PROFILE|BRAND_NAME|EDITION_EYEBROW|KEY_DERIVATION_[A-Z_]+|DISCOVERY_[A-Z_]+|DASH_HEADER_BRAND|PROFILE_BRAND_MARK|RECOVERY_COIN_FIELD|RECOVERY_PUBLIC_KEY_PLACEHOLDER|RECOVERY_PUBLIC_KEY_SCOPE|ACTIVITY_[A-Z_]+|TOOL_INTRODUCTION|PSBT_[A-Z_]+)__/gu,
+    );
+    if (remaining !== null)
+      throw new Error(`Unexpanded build-profile marker: ${remaining.join(", ")}`);
+    return rendered;
+  }
+}
+
+/** Compatibility entry for the existing tool builders. */
+export const applyProfileTemplate = ProfileTemplate.render.bind(ProfileTemplate);

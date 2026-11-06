@@ -1,465 +1,203 @@
-import { MAX_BIP32_INDEX } from "@ckd/core/bip32-limits.js";
-import { matchedTargetField, rowFields } from "@ckd/recovery/address-search.js";
-import { MAX_LOCAL_SEARCH_COUNT } from "@ckd/recovery/local-search-admission.js";
+import { WalletMatcherPlan } from "@ckd/recovery/matcher-plan.js";
 import { installNumberedInput, updateLineNumbers } from "@ckd/ui/dom.js";
-import { matcherPrivateTsv } from "./matcher-private-export.js";
-import { matcherSearchBranches, matcherSearchTargets } from "./matcher-search-scope.js";
-import { downloadText } from "@ckd/export/download.js";
-import { resolveCoinProtocol, type CoinAdapter } from "@ckd/coins/registry-base.js";
-import type { NetworkName, ResultField } from "@ckd/core/types.js";
-import { parseMnemonicEntries } from "@ckd/recovery-backup/mnemonic-entries.js";
-import type { WalletMatcherTarget } from "@ckd/recovery/matcher-types.js";
+import { MnemonicEntries } from "@ckd/core/mnemonic-entries.js";
 import { DerivationCancelledError, DerivationWorkerClient } from "../workers/derive-client.js";
+import { InputRevision } from "./recovery-input-revision.js";
+import { MatcherResults } from "./matcher-results.js";
 import {
   installSecretToggle,
-  integer,
-  lines,
   required,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
 import type { RecoveryFeature } from "./recovery-feature.js";
 
-const PUBLIC_MATCH_COLUMNS = ["Seed", "Known target", "Wallet structure", "Path"];
+/** The thin Matcher host owns current inputs, workers and the result it has published. */
+export class WalletMatcher {
+  readonly #context: RecoveryFeatureContext;
+  readonly #root: HTMLElement;
+  readonly #status: HTMLElement;
+  readonly #button: HTMLButtonElement;
+  readonly #cancel: HTMLButtonElement;
+  readonly #seeds: HTMLTextAreaElement;
+  readonly #passphrases: HTMLTextAreaElement;
+  readonly #inputs: InputRevision;
+  #worker: DerivationWorkerClient | undefined;
+  #result: MatcherResults | undefined;
+  #running = false;
 
-interface MatchFinding {
-  readonly seedNumber: number;
-  readonly addressNumber: number;
-  readonly address: string;
-  readonly normalizedAddress: string;
-  readonly fieldKeys?: readonly string[];
-  readonly adapterId: string;
-  readonly adapter: string;
-  readonly account: number;
-  readonly branch: number;
-  readonly index: number;
-  readonly path: string;
-}
-function adapterMetadata(context: RecoveryFeatureContext, id: string): CoinAdapter {
-  return resolveCoinProtocol(context.registry, id) ?? context.registry.getCoinAdapter(id);
-}
-function installWalletMatcher(context: RecoveryFeatureContext): void {
-  installSecretToggle(
-    "#toggle-matcher-secrets",
-    "#matcher-seeds, #matcher-passphrases",
-    "Show lists",
-    "Hide lists",
-  );
-  const coinSelect = required<HTMLSelectElement>("#matcher-coin");
-  for (const family of context.registry.COIN_FAMILIES) {
-    const option = document.createElement("option");
-    option.value = family.id;
-    option.textContent = family.label;
-    coinSelect.append(option);
+  /** Installs input/output adapters; WalletMatcherPlan owns admission and all computations. */
+  constructor(context: RecoveryFeatureContext) {
+    this.#context = context;
+    this.#root = required("#wallet-matcher-results");
+    this.#status = required("#wallet-matcher-status");
+    this.#button = required("#run-wallet-matcher");
+    this.#cancel = required("#cancel-wallet-matcher");
+    this.#seeds = required("#matcher-seeds");
+    this.#passphrases = required("#matcher-passphrases");
+    this.#installFields();
+    this.#inputs = new InputRevision(required("#wallet-matcher-panel"), () => this.#revoke());
+    this.#inputs.bindPageLifetime();
+    document.addEventListener("recovery-source-change", (event) => {
+      if (event instanceof CustomEvent && event.detail === "matcher") this.#inputs.revise();
+    });
+    context.jobs.onChange((change) => {
+      if (change !== "ready") return;
+      if (!context.jobs.ready) this.#inputs.revise();
+      this.#button.disabled = !context.jobs.ready || this.#running;
+    });
+    this.#button.disabled = !context.jobs.ready;
+    this.#button.addEventListener("click", () => void this.#search());
+    this.#cancel.addEventListener("click", () => {
+      this.#inputs.revise();
+      this.#status.textContent = "Search cancelled.";
+    });
   }
-  const mainCoin = document.querySelector<HTMLSelectElement>("#coin")?.value;
-  if (mainCoin !== undefined && context.registry.COIN_FAMILIES.some(({ id }) => id === mainCoin))
-    coinSelect.value = mainCoin;
-  const forceAll = required<HTMLInputElement>("#matcher-force-all");
-  const searchChange = required<HTMLInputElement>("#matcher-search-change");
-  let changePreference = searchChange.checked;
-  searchChange.addEventListener("change", () => {
-    changePreference = searchChange.checked;
-  });
-  const synchronizeCoin = (): void => {
-    coinSelect.disabled = forceAll.checked || context.registry.COIN_FAMILIES.length < 2;
-    searchChange.checked = forceAll.checked || changePreference;
-    searchChange.disabled = forceAll.checked;
-  };
-  forceAll.addEventListener("change", synchronizeCoin);
-  synchronizeCoin();
-  const seedInput = required<HTMLTextAreaElement>("#matcher-seeds");
-  const passphraseInput = required<HTMLTextAreaElement>("#matcher-passphrases");
-  const addressInput = required<HTMLTextAreaElement>("#matcher-addresses");
-  const seedGutter = required<HTMLElement>("#matcher-seed-lines");
-  installNumberedInput(seedInput, seedGutter);
-  installNumberedInput(passphraseInput, required("#matcher-passphrase-lines"));
-  installNumberedInput(addressInput, required("#matcher-address-lines"));
-  const normalizeSeedEntries = (): void => {
-    const entries = parseMnemonicEntries(seedInput.value);
-    if (entries.length === 0) return;
-    seedInput.value = entries.join("\n");
-    updateLineNumbers(seedInput, seedGutter);
-  };
-  seedInput.addEventListener("blur", normalizeSeedEntries);
-  seedInput.addEventListener("paste", () => window.setTimeout(normalizeSeedEntries, 0));
 
-  const matcherButton = required<HTMLButtonElement>("#run-wallet-matcher");
-  const matcherCancel = required<HTMLButtonElement>("#cancel-wallet-matcher");
-  const matcherStatus = required<HTMLElement>("#wallet-matcher-status");
-  const matcherResults = required<HTMLElement>("#wallet-matcher-results");
-  let matcherRevision = 0;
-  let activeWorker: DerivationWorkerClient | null = null;
-
-  matcherCancel.addEventListener("click", () => {
-    matcherRevision += 1;
-    activeWorker?.terminate(new DerivationCancelledError("Wallet matcher cancelled."));
-    activeWorker = null;
-    matcherButton.disabled = false;
-    matcherCancel.hidden = true;
-    matcherStatus.textContent = "Search cancelled.";
-  });
-
-  matcherButton.addEventListener("click", () => {
-    const revision = ++matcherRevision;
-    void (async () => {
-      matcherButton.disabled = true;
-      matcherCancel.hidden = false;
-      matcherResults.replaceChildren();
-      matcherResults.classList.remove("revealed");
-      matcherStatus.textContent = "Validating recovery inputs…";
-      const seeds: Uint8Array[] = [];
+  #installFields(): void {
+    installSecretToggle(
+      "#toggle-matcher-secrets",
+      "#matcher-seeds, #matcher-passphrases",
+      "Show lists",
+      "Hide lists",
+    );
+    const coin = required<HTMLSelectElement>("#matcher-coin");
+    for (const family of this.#context.registry.COIN_FAMILIES) {
+      const option = coin.ownerDocument.createElement("option");
+      option.value = family.id;
+      option.textContent = family.label;
+      coin.append(option);
+    }
+    const mainCoin = document.querySelector<HTMLSelectElement>("#coin")?.value;
+    if (
+      mainCoin !== undefined &&
+      this.#context.registry.COIN_FAMILIES.some(({ id }) => id === mainCoin)
+    )
+      coin.value = mainCoin;
+    const forceAll = required<HTMLInputElement>("#matcher-force-all");
+    const change = required<HTMLInputElement>("#matcher-search-change");
+    let preference = change.checked;
+    change.addEventListener("change", () => {
+      preference = change.checked;
+    });
+    const synchronize = (): void => {
+      coin.disabled = forceAll.checked || this.#context.registry.COIN_FAMILIES.length < 2;
+      change.checked = forceAll.checked || preference;
+      change.disabled = forceAll.checked;
+    };
+    forceAll.addEventListener("change", synchronize);
+    synchronize();
+    const gutter = required<HTMLElement>("#matcher-seed-lines");
+    installNumberedInput(this.#seeds, gutter);
+    installNumberedInput(this.#passphrases, required<HTMLElement>("#matcher-passphrase-lines"));
+    installNumberedInput(
+      required<HTMLTextAreaElement>("#matcher-addresses"),
+      required<HTMLElement>("#matcher-address-lines"),
+    );
+    const normalize = (): void => {
       try {
-        const linked = context.linkedValue("matcher");
-        const mnemonics =
-          linked === null ? parseMnemonicEntries(seedInput.value) : [linked.mnemonic];
-        if (mnemonics.length === 0)
-          throw new Error("Enter at least one BIP39 seed phrase, one phrase per line.");
-        if (mnemonics.length > 100)
-          throw new Error("Wallet Matcher accepts at most 100 seed phrases per run.");
-        const passphrases =
-          linked === null ? lines(passphraseInput.value, true) : [linked.passphrase];
-        if (passphrases.slice(mnemonics.length).some((value) => value.length > 0)) {
-          throw new Error("A passphrase line has no matching seed phrase line.");
-        }
-        const network = required<HTMLSelectElement>("#matcher-network").value as NetworkName;
-        const targets = matcherSearchTargets(
-          addressInput.value,
-          network,
-          context.detectTargets,
-          context.registry,
-          coinSelect.value,
-          forceAll.checked,
-        );
-        const accountStart = integer(
-          required<HTMLInputElement>("#matcher-account-start"),
-          "Account start",
-          0,
-          MAX_BIP32_INDEX,
-        );
-        const accountEnd = integer(
-          required<HTMLInputElement>("#matcher-account-end"),
-          "Account finish",
-          accountStart,
-          MAX_BIP32_INDEX,
-        );
-        if (accountEnd - accountStart > 20)
-          throw new Error("Scan at most 21 accounts in one Wallet Matcher run.");
-        const indexStart = integer(
-          required<HTMLInputElement>("#matcher-index-start"),
-          "Index start",
-          0,
-          MAX_BIP32_INDEX,
-        );
-        const indexCount = integer(
-          required<HTMLInputElement>("#matcher-index-count"),
-          "Indices to scan",
-          1,
-          MAX_LOCAL_SEARCH_COUNT,
-        );
-        for (let index = 0; index < mnemonics.length; index += 1) {
-          seeds.push(context.mnemonicToSeed(mnemonics[index]!, passphrases[index] ?? ""));
-        }
-        const findings: MatchFinding[] = [];
-        const jobs = seeds.flatMap((_, seedIndex) => {
-          const adapterTargets = new Map<string, WalletMatcherTarget[]>();
-          for (const target of targets) {
-            for (const adapterId of target.adapterIds) {
-              const group = adapterTargets.get(adapterId) ?? [];
-              group.push(target);
-              adapterTargets.set(adapterId, group);
-            }
-          }
-          return [...adapterTargets].flatMap(([adapterId, compatibleTargets]) => {
-            const adapter = adapterMetadata(context, adapterId);
-            const accounts =
-              adapter.accountControl === false
-                ? [adapter.defaults.account]
-                : Array.from(
-                    { length: accountEnd - accountStart + 1 },
-                    (_, offset) => accountStart + offset,
-                  );
-            return accounts.flatMap((account) =>
-              matcherSearchBranches(adapter, searchChange.checked, forceAll.checked).map(
-                (branch) => ({
-                  seedIndex,
-                  adapter,
-                  compatibleTargets,
-                  account,
-                  branch,
-                }),
-              ),
-            );
-          });
-        });
-        let completed = 0;
-        activeWorker = new DerivationWorkerClient();
-        for (const job of jobs) {
-          if (revision !== matcherRevision) return;
-          const results = await activeWorker.searchMany(
-            job.adapter.id,
-            { seed: seeds[job.seedIndex]!, network, account: job.account, branch: job.branch },
-            job.compatibleTargets.map((target) => ({
-              id: target.id,
-              address: target.normalized,
-              ...(target.fieldKeys === undefined ? {} : { fieldKeys: target.fieldKeys }),
-            })),
-            indexStart,
-            indexCount,
-          );
-          for (const result of results) {
-            const target = targets.find(({ id }) => id === result.id)!;
-            findings.push({
-              seedNumber: job.seedIndex + 1,
-              addressNumber: Number(target.id.slice("address-".length)),
-              address: target.input,
-              normalizedAddress: target.normalized,
-              ...(target.fieldKeys === undefined ? {} : { fieldKeys: target.fieldKeys }),
-              adapterId: job.adapter.id,
-              adapter: job.adapter.label,
-              account: job.account,
-              branch: job.branch,
-              index: result.index,
-              path: result.path,
-            });
-          }
-          completed += 1;
-          matcherStatus.textContent = `Scanning ${completed}/${jobs.length} wallet structures…`;
-        }
-        if (revision !== matcherRevision) return;
-        if (findings.length === 0) {
-          matcherResults.textContent =
-            "No supplied address was found in the selected account and index ranges.";
-        } else {
-          const toolbar = document.createElement("div");
-          toolbar.className = "matcher-result-actions";
-          const copyPublic = document.createElement("button");
-          copyPublic.type = "button";
-          copyPublic.className = "secondary compact";
-          copyPublic.textContent = "Copy public matches";
-          const exportPublic = document.createElement("button");
-          exportPublic.type = "button";
-          exportPublic.className = "secondary compact";
-          exportPublic.textContent = "Save public matches";
-          const revealPrivate = document.createElement("button");
-          revealPrivate.type = "button";
-          revealPrivate.className = "danger-outline compact";
-          revealPrivate.textContent = "Show private keys";
-          toolbar.append(copyPublic, exportPublic, revealPrivate);
-
-          const tableWrap = document.createElement("div");
-          tableWrap.className = "matcher-results-table-wrap";
-          const table = document.createElement("table");
-          table.className = "matcher-results-table";
-          const head = document.createElement("thead");
-          const headerRow = document.createElement("tr");
-          for (const label of PUBLIC_MATCH_COLUMNS) {
-            const cell = document.createElement("th");
-            cell.textContent = label;
-            headerRow.append(cell);
-          }
-          head.append(headerRow);
-          table.append(head);
-          const body = document.createElement("tbody");
-          const renderedRows: HTMLTableRowElement[] = [];
-          for (const finding of findings) {
-            const row = document.createElement("tr");
-            for (const value of [
-              `#${finding.seedNumber}`,
-              `#${finding.addressNumber} · ${finding.address}`,
-              finding.adapter,
-              finding.path,
-            ]) {
-              const cell = document.createElement("td");
-              cell.textContent = value;
-              row.append(cell);
-            }
-            renderedRows.push(row);
-            body.append(row);
-          }
-          table.append(body);
-          tableWrap.append(table);
-          matcherResults.append(toolbar, tableWrap);
-
-          const publicTsv = [
-            PUBLIC_MATCH_COLUMNS,
-            ...findings.map((finding) => [
-              String(finding.seedNumber),
-              finding.address,
-              finding.adapter,
-              finding.path,
-            ]),
-          ]
-            .map((row) => row.join("\t"))
-            .join("\n");
-          copyPublic.addEventListener("click", () => void context.writeClipboard(publicTsv));
-          exportPublic.addEventListener("click", () =>
-            downloadText(
-              publicTsv,
-              "wallet-matcher-public-results.tsv",
-              "text/tab-separated-values",
-            ),
-          );
-
-          let privateTsv: string | null = null;
-          let privateVisible = false;
-          let copyPrivateButton: HTMLButtonElement | null = null;
-          let exportPrivateButton: HTMLButtonElement | null = null;
-          revealPrivate.addEventListener("click", () => {
-            if (privateTsv !== null) {
-              privateVisible = !privateVisible;
-              matcherResults.classList.toggle("revealed", privateVisible);
-              revealPrivate.textContent = privateVisible
-                ? "Hide private keys"
-                : "Show private keys";
-              if (copyPrivateButton !== null) copyPrivateButton.disabled = !privateVisible;
-              if (exportPrivateButton !== null) exportPrivateButton.disabled = !privateVisible;
-              return;
-            }
-            void (async () => {
-              revealPrivate.disabled = true;
-              revealPrivate.textContent = "Deriving matched private keys…";
-              const privateWorker = new DerivationWorkerClient();
-              const privateSeeds: Uint8Array[] = [];
-              try {
-                const linkedNow = context.linkedValue("matcher");
-                const currentMnemonics =
-                  linkedNow === null ? parseMnemonicEntries(seedInput.value) : [linkedNow.mnemonic];
-                const currentPassphrases =
-                  linkedNow === null ? lines(passphraseInput.value, true) : [linkedNow.passphrase];
-                const currentNetwork = required<HTMLSelectElement>("#matcher-network")
-                  .value as NetworkName;
-                for (let index = 0; index < currentMnemonics.length; index += 1) {
-                  privateSeeds.push(
-                    context.mnemonicToSeed(
-                      currentMnemonics[index]!,
-                      currentPassphrases[index] ?? "",
-                    ),
-                  );
-                }
-                const privateRows: string[][] = [];
-                const privateFieldSets: ResultField[][] = [];
-                for (let findingIndex = 0; findingIndex < findings.length; findingIndex += 1) {
-                  const finding = findings[findingIndex]!;
-                  const seed = privateSeeds[finding.seedNumber - 1];
-                  if (seed === undefined)
-                    throw new Error(
-                      "The seed list changed after this search. Run Wallet Matcher again.",
-                    );
-                  const derived = await privateWorker.derive(finding.adapterId, {
-                    seed,
-                    network: currentNetwork,
-                    account: finding.account,
-                    branch: finding.branch,
-                    start: finding.index,
-                    count: 1,
-                  });
-                  if (revision !== matcherRevision) return;
-                  const row = derived.rows.find(({ index }) => index === finding.index);
-                  if (row === undefined)
-                    throw new Error(`Could not reproduce matched path ${finding.path}.`);
-                  const fields = rowFields(row);
-                  // The re-derived row must hold what the search found there, by the search's
-                  // own comparison.
-                  const addressMatches =
-                    matchedTargetField(adapterMetadata(context, finding.adapterId), fields, {
-                      address: finding.normalizedAddress,
-                      ...(finding.fieldKeys === undefined ? {} : { fieldKeys: finding.fieldKeys }),
-                    }) !== undefined;
-                  if (!addressMatches) {
-                    throw new Error(
-                      "Recovery inputs or search settings changed. Run Wallet Matcher again before reveal.",
-                    );
-                  }
-                  const secrets = [
-                    ...new Map(
-                      fields.filter(({ secret }) => secret).map((field) => [field.key, field]),
-                    ).values(),
-                  ];
-                  if (secrets.length === 0)
-                    throw new Error(`No private key field is available for ${finding.path}.`);
-                  privateFieldSets.push(secrets);
-                  privateRows.push([
-                    String(finding.seedNumber),
-                    finding.address,
-                    finding.adapter,
-                    finding.path,
-                  ]);
-                }
-                const privateHeader = document.createElement("th");
-                privateHeader.textContent = "Matched private keys";
-                headerRow.append(privateHeader);
-                for (
-                  let findingIndex = 0;
-                  findingIndex < privateFieldSets.length;
-                  findingIndex += 1
-                ) {
-                  const privateCell = document.createElement("td");
-                  privateCell.className = "matcher-private-fields secret-value";
-                  for (const field of privateFieldSets[findingIndex]!) {
-                    const line = document.createElement("div");
-                    const label = document.createElement("strong");
-                    label.textContent = field.label;
-                    const value = document.createElement("code");
-                    value.textContent = field.value;
-                    line.append(label, value);
-                    privateCell.append(line);
-                  }
-                  renderedRows[findingIndex]!.append(privateCell);
-                }
-                privateTsv = matcherPrivateTsv(privateRows, privateFieldSets);
-                copyPrivateButton = document.createElement("button");
-                copyPrivateButton.type = "button";
-                copyPrivateButton.className = "secret-action compact";
-                copyPrivateButton.textContent = "Copy private matches";
-                copyPrivateButton.addEventListener(
-                  "click",
-                  () => void context.writeClipboard(privateTsv!),
-                );
-                exportPrivateButton = document.createElement("button");
-                exportPrivateButton.type = "button";
-                exportPrivateButton.className = "secret-action compact";
-                exportPrivateButton.textContent = "Save private matches";
-                exportPrivateButton.addEventListener("click", () =>
-                  downloadText(
-                    privateTsv!,
-                    "wallet-matcher-PRIVATE-results.tsv",
-                    "text/tab-separated-values",
-                  ),
-                );
-                toolbar.append(copyPrivateButton, exportPrivateButton);
-                privateVisible = true;
-                matcherResults.classList.add("revealed");
-                revealPrivate.textContent = "Hide private keys";
-              } catch (cause) {
-                matcherStatus.textContent =
-                  cause instanceof Error ? cause.message : "Matched private-key derivation failed.";
-                revealPrivate.textContent = "Show private keys";
-              } finally {
-                privateWorker.terminate();
-                for (const seed of privateSeeds) seed.fill(0);
-                revealPrivate.disabled = false;
-              }
-            })();
-          });
-        }
-        matcherStatus.textContent = `${findings.length} match${findings.length === 1 ? "" : "es"} found.`;
+        const entries = MnemonicEntries.parse(this.#seeds.value);
+        if (entries.length === 0) return;
+        const normalized = entries.join("\n");
+        if (normalized === this.#seeds.value) return;
+        this.#seeds.value = normalized;
+        updateLineNumbers(this.#seeds, gutter);
+        this.#seeds.dispatchEvent(new Event("input", { bubbles: true }));
       } catch (cause) {
-        if (revision === matcherRevision)
-          matcherStatus.textContent =
-            cause instanceof Error ? cause.message : "Wallet search failed.";
-      } finally {
-        activeWorker?.terminate();
-        activeWorker = null;
-        for (const seed of seeds) seed.fill(0);
-        if (revision === matcherRevision) {
-          matcherButton.disabled = false;
-          matcherCancel.hidden = true;
-        }
+        this.#inputs.revise();
+        this.#status.textContent =
+          cause instanceof Error ? cause.message : "Mnemonic list parsing failed.";
       }
-    })();
-  });
+    };
+    this.#seeds.addEventListener("blur", normalize);
+    this.#seeds.addEventListener("paste", () => window.setTimeout(normalize, 0));
+  }
+
+  #plan(): WalletMatcherPlan {
+    const linked = this.#context.linkedValue("matcher");
+    return new WalletMatcherPlan(
+      {
+        source:
+          linked === null
+            ? { kind: "lists", phrases: this.#seeds.value, passphrases: this.#passphrases.value }
+            : { kind: "linked", ...linked },
+        targets: required<HTMLTextAreaElement>("#matcher-addresses").value,
+        network: required<HTMLSelectElement>("#matcher-network").value,
+        coin: required<HTMLSelectElement>("#matcher-coin").value,
+        allCoins: required<HTMLInputElement>("#matcher-force-all").checked,
+        change: required<HTMLInputElement>("#matcher-search-change").checked,
+        accountStart: Number(required<HTMLInputElement>("#matcher-account-start").value),
+        accountEnd: Number(required<HTMLInputElement>("#matcher-account-end").value),
+        indexStart: Number(required<HTMLInputElement>("#matcher-index-start").value),
+        indexCount: Number(required<HTMLInputElement>("#matcher-index-count").value),
+      },
+      this.#context,
+    );
+  }
+
+  #revoke(): void {
+    this.#worker?.terminate(new DerivationCancelledError("Wallet matcher cancelled."));
+    this.#worker = undefined;
+    this.#running = false;
+    this.#result?.wipe();
+    this.#result = undefined;
+    this.#root.replaceChildren();
+    this.#root.classList.remove("revealed");
+    this.#status.textContent = "";
+    this.#button.disabled = !this.#context.jobs.ready;
+    this.#cancel.hidden = true;
+  }
+
+  async #search(): Promise<void> {
+    if (!this.#context.jobs.ready || this.#running) return;
+    this.#inputs.revise();
+    const inputCurrent = this.#inputs.capture();
+    const ready = this.#context.jobs.captureReadiness();
+    const current = (): boolean => inputCurrent() && ready() && this.#root.isConnected;
+    this.#running = true;
+    this.#button.disabled = true;
+    this.#cancel.hidden = false;
+    this.#status.textContent = "Validating recovery inputs…";
+    let worker: DerivationWorkerClient | undefined;
+    try {
+      using plan = this.#plan();
+      if (!current()) return;
+      worker = new DerivationWorkerClient();
+      this.#worker = worker;
+      const outcome = await plan.search(worker, current, (completed, total) => {
+        if (current())
+          this.#status.textContent = `Scanning ${completed}/${total} wallet structures…`;
+      });
+      if (!current() || outcome.kind === "stopped") return;
+      const findings = outcome.findings;
+      if (findings.length === 0)
+        this.#root.textContent =
+          "No supplied address was found in the selected account and index ranges.";
+      else
+        this.#result = new MatcherResults(
+          this.#context,
+          this.#root,
+          this.#status,
+          findings,
+          current,
+          () => this.#plan(),
+        );
+      this.#status.textContent = `${findings.length} match${findings.length === 1 ? "" : "es"} found.`;
+    } catch (cause) {
+      if (current())
+        this.#status.textContent = cause instanceof Error ? cause.message : "Wallet search failed.";
+    } finally {
+      worker?.terminate();
+      if (this.#worker === worker) this.#worker = undefined;
+      if (current()) {
+        this.#running = false;
+        this.#button.disabled = !this.#context.jobs.ready;
+        this.#cancel.hidden = true;
+      }
+    }
+  }
 }
 
+/** Matcher composition only; all operation state is owned by WalletMatcher. */
 export const recoveryFeature: RecoveryFeature = {
   phraseSlot: {
     target: "matcher",
@@ -469,5 +207,7 @@ export const recoveryFeature: RecoveryFeature = {
     manualBlock: ".matcher-input-grid",
     linkedNote: "The matching BIP39 passphrase will be used when the search starts.",
   },
-  install: installWalletMatcher,
+  install: (context) => {
+    new WalletMatcher(context);
+  },
 };

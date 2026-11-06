@@ -5,12 +5,15 @@
 /** What changed: the self-test result, or the heavy job that runs. */
 export type JobGateChange = "ready" | "job";
 
+/** Readiness and heavy-job ownership; a failed known answer closes this gate permanently. */
 export class RecoveryJobGate {
   #ready = false;
+  #selfTestFailed = false;
+  #readinessRevision = 0;
   #runningJob: string | null = null;
   readonly #listeners = new Set<(change: JobGateChange) => void>();
 
-  /** True once the startup self-test has passed. */
+  /** True once the startup self-test passed and no later known answer failed. */
   get ready(): boolean {
     return this.#ready;
   }
@@ -20,9 +23,24 @@ export class RecoveryJobGate {
     return this.#runningJob;
   }
 
+  /** Updates ordinary readiness without reopening a gate whose known answer failed. */
   setReady(ready: boolean): void {
-    this.#ready = ready;
+    this.#ready = ready && !this.#selfTestFailed;
+    if (!this.#ready) this.#readinessRevision += 1;
     this.#notify("ready");
+  }
+
+  /** Permission for one result: losing readiness revokes it even after an ordinary reopening. */
+  captureReadiness(): () => boolean {
+    const revision = this.#readinessRevision;
+    return () => this.#ready && revision === this.#readinessRevision;
+  }
+
+  /** Latches a computed wrong answer; cancellation and unavailable workers do not call this. */
+  failSelfTest(): void {
+    if (this.#selfTestFailed) return;
+    this.#selfTestFailed = true;
+    this.setReady(false);
   }
 
   onChange(listener: (change: JobGateChange) => void): () => void {

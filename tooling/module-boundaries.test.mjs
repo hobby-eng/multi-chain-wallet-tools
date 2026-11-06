@@ -1,9 +1,12 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { API } from "typescript/unstable/sync";
 import * as ts from "typescript/unstable/ast";
 import { beforeAll, describe, expect, it } from "vitest";
+import { BundledAssets } from "./bundled-assets.mjs";
+import { MnemoCodeSskrLayout } from "./mnemocode-sskr-layout.mjs";
+import { MnemoCodeSskrSource } from "./sync-mnemocode-sskr.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const productionRoots = ["apps", "packages", "tooling"];
@@ -57,9 +60,10 @@ class ModuleBoundaryGraph {
   #root;
   #edges = new Map();
 
-  constructor(paths, cwd) {
+  constructor(paths, cwd, provenance = new Set()) {
     this.#root = cwd;
     const config = JSON.parse(readFileSync(join(cwd, "tsconfig.json"), "utf8"));
+    const assets = new BundledAssets(cwd, config.compilerOptions.paths ?? {});
     const api = new API({ cwd });
     try {
       const snapshot = api.updateSnapshot({
@@ -90,12 +94,12 @@ class ModuleBoundaryGraph {
             const target = symbol?.declarations
               .map((handle) => handle.resolve(project))
               .find((node) => node !== undefined && ts.isSourceFile(node))?.fileName;
-            // The compiler does not resolve binary assets. Keep their configured alias edges;
+            // The compiler does not resolve bundled resources. Keep their configured alias edges;
             // source-code edges always use the compiler's module resolution above.
-            const assetTarget = /\.(?:wasm|json|png|jpg|svg|ttf)$/u.test(specifier)
-              ? this.#assetTarget(file, specifier, config.compilerOptions.paths ?? {})
-              : undefined;
+            const assetTarget = assets.resolve(file, specifier);
             const resolvedTarget = assetTarget ?? target;
+            if (provenance.has(resolvedTarget))
+              throw new Error("Provenance snapshots cannot be imported by host modules.");
             if (
               resolvedTarget === undefined &&
               (specifier.startsWith(".") || isAbsolute(specifier) || specifier.startsWith("@ckd/"))
@@ -163,29 +167,25 @@ class ModuleBoundaryGraph {
   #relative(file) {
     return relative(this.#root, file).replaceAll("\\", "/");
   }
-
-  #assetTarget(file, specifier, paths) {
-    if (specifier.startsWith(".") || isAbsolute(specifier))
-      return resolve(dirname(file), specifier);
-    for (const [alias, targets] of Object.entries(paths)) {
-      const [prefix, suffix] = alias.split("*");
-      if (suffix === undefined) {
-        if (specifier === alias) return resolve(this.#root, targets[0]);
-      } else if (specifier.startsWith(prefix) && specifier.endsWith(suffix)) {
-        const matched = specifier.slice(prefix.length, specifier.length - suffix.length);
-        return resolve(this.#root, targets[0].replace("*", matched));
-      }
-    }
-    return undefined;
-  }
 }
 
 describe("module boundaries", () => {
-  const files = productionRoots.flatMap((directory) => sourceFiles(join(root, directory)));
+  const provenance = new Set(
+    MnemoCodeSskrLayout.provenanceTargets.map((path) =>
+      join(root, MnemoCodeSskrLayout.directory, path),
+    ),
+  );
+  const files = productionRoots
+    .flatMap((directory) => sourceFiles(join(root, directory)))
+    .filter((file) => !provenance.has(file));
   let graph;
+  // Parsing every production module takes seconds, longer while other test files run beside it.
   beforeAll(() => {
-    graph = new ModuleBoundaryGraph(files, root);
-  });
+    // Original recipes refer to the producer checkout. Verify their imported bytes instead of
+    // treating them as executable host modules; importing one from host code remains a refusal.
+    new MnemoCodeSskrSource(root).verify();
+    graph = new ModuleBoundaryGraph(files, root, provenance);
+  }, 60_000);
 
   it("keeps applications and packages pointing inward", () => {
     expect(graph.applicationViolations()).toEqual([]);
@@ -229,6 +229,25 @@ describe("module boundaries", () => {
     });
   });
 
+  it("retains MnemoCode's WebAssembly as a checked resource edge", () => {
+    expect(
+      graph.dependencies(join(root, "packages/recovery-backup/src/mnemocode-module.ts")),
+    ).toContainEqual({
+      specifier: "@ckd/mnemocode-wasm/mnemocode.wasm",
+      target: join(
+        root,
+        "packages/recovery-mnemocode-wasm/generated/multi-chain/key-derivation/mnemocode.wasm",
+      ),
+    });
+  });
+
+  it("separates only the producer's pinned original recipes from the host graph", () => {
+    expect([...provenance]).toEqual([
+      join(root, "packages/recovery-sskr-wasm/producer-recipe/Dockerfile.sskr"),
+      join(root, "packages/recovery-sskr-wasm/producer-recipe/build-sskr-wasm.mjs"),
+    ]);
+  });
+
   it("allows the reviewed Node verification loader without executing it", () => {
     const file = join(root, "apps/discovery-scanner/scripts/verify-shielded-stream.mjs");
     expect(graph.dependencies(file).map(({ specifier }) => specifier)).toContain("esbuild");
@@ -243,10 +262,11 @@ describe("module-boundary parser regressions", () => {
     "packages/alpha/src/nonliteral-runtime.ts",
     "packages/alpha/source/nonliteral-runtime.ts",
   ];
+  const refusedAssets = ["apps/alpha/missing-asset.ts", "apps/alpha/outside-asset.ts"];
   let graph;
   beforeAll(() => {
     // These deliberate rejection fixtures are analyzed separately; none is a product exclusion.
-    const rejected = new Set(nonliteralRuntime.map(fixture));
+    const rejected = new Set([...nonliteralRuntime, ...refusedAssets].map(fixture));
     graph = new ModuleBoundaryGraph(
       [...sourceFiles(join(cwd, "apps")), ...sourceFiles(join(cwd, "packages"))].filter(
         (file) => !rejected.has(file),
@@ -257,14 +277,26 @@ describe("module-boundary parser regressions", () => {
 
   it("resolves static, re-exported, dynamic and aliased cross-application edges", () => {
     const violations = graph.applicationViolations();
-    expect(violations).toHaveLength(5);
+    expect(violations).toHaveLength(6);
     for (const name of ["static", "re-export", "dynamic", "alias"])
       expect(violations.some((value) => value.startsWith(`apps/alpha/${name}.ts ->`))).toBe(true);
     expect(violations).toContain("packages/alpha/app-edge.ts -> ../../apps/beta/entry.js");
+    expect(violations).toContain("apps/alpha/asset.ts -> ../beta/guide.md?raw");
   });
 
   it("includes dynamic and aliased edges in package-cycle rejection", () => {
     expect(() => graph.assertAcyclic()).toThrow(/Package cycle: alpha -> beta -> alpha/u);
+  });
+
+  it("refuses an executable host import of a provenance-only snapshot", () => {
+    expect(
+      () =>
+        new ModuleBoundaryGraph(
+          [fixture("apps/alpha/static.ts")],
+          cwd,
+          new Set([fixture("apps/beta/entry.ts")]),
+        ),
+    ).toThrow("Provenance snapshots cannot be imported by host modules.");
   });
 
   it("ignores import-like comments and strings and permits same-application imports", () => {
@@ -283,5 +315,9 @@ describe("module-boundary parser regressions", () => {
     expect(() => new ModuleBoundaryGraph([fixture(path)], cwd)).toThrow(
       /Unresolved dynamic import in module-boundary source/u,
     );
+  });
+
+  it.each(refusedAssets)("refuses an absent or unowned resource edge in %s", (path) => {
+    expect(() => new ModuleBoundaryGraph([fixture(path)], cwd)).toThrow(/A bundled resource/u);
   });
 });

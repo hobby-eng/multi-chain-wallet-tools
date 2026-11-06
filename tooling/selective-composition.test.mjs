@@ -35,17 +35,14 @@ const options = (coins, features = []) => ({
   has: (feature) => features.includes(feature),
 });
 
-// Independent graph fixture for the reviewed generic PNG closure, not all MnemoCode sources.
+// Independent graph fixture for the reviewed generic PNG closure: the shared UI's rules and the
+// core's byte and refusal helpers, none of them MnemoCode's.
 const GENERIC_PNG_INPUTS = [
-  "core/png-admission.ts",
-  "core/byte-units.ts",
-  "core/bits.ts",
-  "core/bip39-sizes.ts",
-  "core/pieces.ts",
-  "core/places.ts",
-  "core/typed-number.ts",
-  "sskr/checksum.ts",
-].map((file) => `packages/recovery-mnemocode/source/${file}`);
+  "packages/shared-ui/src/png-rules.ts",
+  "packages/crypto-core/src/bytes.ts",
+  "packages/crypto-core/src/byte-units.ts",
+  "packages/crypto-core/src/error-catalog.ts",
+];
 const QR_IMAGE_INPUT = "packages/shared-ui/src/qr-image-import.ts";
 const PNG_ADMISSION_INPUT = "packages/shared-ui/src/png-admission.ts";
 
@@ -67,21 +64,6 @@ describe("selective bundle graph guards", () => {
         expect(() => assertDashOnlyGraph(pngGraph, "Generic QR PNG import")).not.toThrow();
     });
 
-    it(`refuses each PNG dependency without the generic QR importer in ${profileId}`, () => {
-      for (const input of GENERIC_PNG_INPUTS) {
-        expect(() =>
-          assertKeyDerivationComposition(genericQr, [PNG_ADMISSION_INPUT, input]),
-        ).toThrow(/Feature mnemocode is excluded/u);
-        for (const lookalike of [
-          `${QR_IMAGE_INPUT}.backup`,
-          "apps/key-derivation/src/ui/qr-image-import.ts",
-        ])
-          expect(() =>
-            assertKeyDerivationComposition(genericQr, [lookalike, PNG_ADMISSION_INPUT, input]),
-          ).toThrow(/Feature mnemocode is excluded/u);
-      }
-    });
-
     it(`requires the exact shared PNG admission wrapper in ${profileId}`, () => {
       for (const selected of [genericQr, options(coins, ["mnemocode"])])
         for (const lookalike of [
@@ -100,19 +82,17 @@ describe("selective bundle graph guards", () => {
 
     it(`keeps unrelated MnemoCode modules excluded beside generic PNG imports in ${profileId}`, () => {
       for (const leaked of [
-        "packages/recovery-mnemocode/source/core/wallet-evidence.ts",
-        "packages/recovery-mnemocode/source/core/types.ts",
-        "packages/recovery-mnemocode/source/core/encoded-form.ts",
-        "packages/recovery-mnemocode/source/core/re-encoding.ts",
-        "packages/recovery-mnemocode/source/core/png-admission-self-test.ts",
-        "packages/recovery-mnemocode/source/core/byte-units.ts.backup",
-        "packages/recovery-mnemocode/source/sskr/share-restore.ts",
-        "packages/recovery-mnemocode/source/export/card-content.ts",
+        "packages/recovery-mnemocode-wasm/generated/multi-chain/key-derivation/mnemocode.wasm",
         "packages/recovery-backup/src/mnemocode.ts",
+        "packages/recovery-backup/src/mnemocode-engine.ts",
+        "packages/recovery-backup/src/mnemocode-facts.ts",
+        "packages/recovery-backup/src/mnemocode-reencoding.ts",
+        "packages/recovery-backup/src/mnemocode-cards.ts",
         "apps/key-derivation/src/ui/recovery-mnemocode-reencode.ts",
         "apps/key-derivation/src/ui/recovery-mnemocode-fields.ts",
         "apps/key-derivation/src/ui/recovery-mnemocode-help.ts",
         "apps/key-derivation/src/ui/recovery-mnemocode-forgotten-dates.ts",
+        "apps/key-derivation/src/workers/page-wordlist.ts",
       ])
         expect(() => assertKeyDerivationComposition(genericQr, [...pngGraph, leaked])).toThrow(
           /excluded/u,
@@ -123,9 +103,10 @@ describe("selective bundle graph guards", () => {
       const selected = options(coins, ["mnemocode"]);
       for (const leaked of [
         "apps/key-derivation/src/ui/recovery-mnemocode-cards.ts",
-        "apps/key-derivation/src/ui/recovery-mnemocode-card-images.ts",
+        "apps/key-derivation/src/ui/recovery-mnemocode-heirs.ts",
+        "apps/key-derivation/src/ui/recovery-mnemocode-heir-route.ts",
         "packages/recovery-backup/src/mnemocode-cards.ts",
-        "packages/recovery-mnemocode/source/export/card-content.ts",
+        "packages/recovery-backup/src/mnemocode-heirs.ts",
       ])
         expect(() => assertKeyDerivationComposition(selected, [...pngGraph, leaked])).toThrow(
           /Feature mnemocode-cards is excluded/u,
@@ -207,11 +188,8 @@ describe("selective bundle graph guards", () => {
       expect(() => assertKeyDerivationComposition(options(["dash"], []), [file])).toThrow(
         /excluded/u,
       );
-    // MHFE draws in its own package: the page's worker wordlist and seed provider are MnemoCode's.
-    const workerHelpers = [
-      "apps/key-derivation/src/workers/page-wordlist.ts",
-      "apps/key-derivation/src/workers/webcrypto-pbkdf2.ts",
-    ];
+    // MHFE draws in its own package: the page's worker wordlist is MnemoCode's.
+    const workerHelpers = ["apps/key-derivation/src/workers/page-wordlist.ts"];
     expect(() =>
       assertKeyDerivationComposition(options(["dash"], ["mnemocode"]), workerHelpers),
     ).not.toThrow();
@@ -449,7 +427,8 @@ describe("selective bundle graph guards", () => {
     const inputs = [
       "apps/key-derivation/src/ui/bip85-feature.ts",
       "apps/key-derivation/src/ui/bip85-child-wallet-feature.ts",
-      "apps/key-derivation/src/workers/bip85-deriver.ts",
+      "apps/key-derivation/src/ui/bip85-child-derivation.ts",
+      "packages/crypto-core/src/bip85.ts",
     ];
     expect(() => assertKeyDerivationComposition(selected, inputs)).not.toThrow();
     expect(() => assertKeyDerivationComposition(selected, inputs.slice(1))).toThrow(

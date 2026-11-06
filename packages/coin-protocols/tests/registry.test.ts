@@ -108,7 +108,9 @@ describe("coin adapter extension contract", () => {
       ).toBeLessThanOrEqual(1);
     }
   });
+});
 
+describe("coin branch and edition contracts", () => {
   it("declares receive/change capability independently from protocol-specific branch controls", () => {
     for (const id of [
       "bitcoin-legacy",
@@ -185,7 +187,11 @@ describe("coin adapter extension contract", () => {
       "dash-shielded",
     ]);
     expect(DASH_COIN_FAMILIES.map(({ id }) => id)).toEqual(["dash"]);
-    expect(() => getDashCoinAdapter("bitcoin-taproot")).toThrow("Unsupported derivation protocol");
-    expect(() => getDashCoinAdapter("ethereum")).toThrow("Unsupported derivation protocol");
+    expect(() => getDashCoinAdapter("bitcoin-taproot")).toThrow(
+      expect.objectContaining({ code: "coin.registry.protocol" }),
+    );
+    expect(() => getDashCoinAdapter("ethereum")).toThrow(
+      expect.objectContaining({ code: "coin.registry.protocol" }),
+    );
   });
 });

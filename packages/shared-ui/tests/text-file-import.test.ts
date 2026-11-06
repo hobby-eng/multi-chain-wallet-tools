@@ -13,6 +13,8 @@ class TextField extends EventTarget {
   id = "synthetic-secret-field";
   type: string;
   disabled = false;
+  readonly isConnected = true;
+  readonly dataset: Record<string, string> = {};
   validity = "";
   readonly inputEvents: Event[] = [];
   readonly after = vi.fn();
@@ -130,244 +132,240 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("bounded local text-file inputs", () => {
-  it("preserves a literal input value and emits the existing bubbling input event", async () => {
-    const target = new TextField("INPUT");
-    const file = fakeFile("  public synthetic passphrase\t ");
-    const reader = mount(target);
-    reader.choose(file.file);
-    expect(reader.clear).toHaveBeenCalledOnce();
-    await vi.waitFor(() => expect(target.inputEvents).toHaveLength(1));
-    expect(target.value).toBe("  public synthetic passphrase\t ");
-    expect(target.inputEvents[0]!.bubbles).toBe(true);
-    expect(file.buffers[0]!.every((byte) => byte === 0)).toBe(true);
-    expect(reader.create).toHaveBeenCalledWith(expect.anything(), "Open a text file", {
-      accept: "text/plain",
-    });
+it("preserves a literal input value and emits the existing bubbling input event", async () => {
+  const target = new TextField("INPUT");
+  const file = fakeFile("  public synthetic passphrase\t ");
+  const reader = mount(target);
+  reader.choose(file.file);
+  expect(reader.clear).toHaveBeenCalledOnce();
+  await vi.waitFor(() => expect(target.inputEvents).toHaveLength(1));
+  expect(target.value).toBe("  public synthetic passphrase\t ");
+  expect(target.inputEvents[0]!.bubbles).toBe(true);
+  expect(file.buffers[0]!.every((byte) => byte === 0)).toBe(true);
+  expect(reader.create).toHaveBeenCalledWith(expect.anything(), "Open a text file", {
+    accept: "text/plain",
   });
+});
 
-  it("keeps the existing trimmed textarea import and its supplied picker label", async () => {
-    const target = new TextField("TEXTAREA");
-    const file = fakeFile("\n  synthetic record \n");
-    const reader = mount(target, { label: "Synthetic record import" });
-    reader.choose(file.file);
-    await vi.waitFor(() => expect(target.value).toBe("synthetic record"));
-    expect(reader.create).toHaveBeenCalledWith(expect.anything(), "Synthetic record import", {
-      accept: "text/plain",
-    });
+it("keeps the existing trimmed textarea import and its supplied picker label", async () => {
+  const target = new TextField("TEXTAREA");
+  const file = fakeFile("\n  synthetic record \n");
+  const reader = mount(target, { label: "Synthetic record import" });
+  reader.choose(file.file);
+  await vi.waitFor(() => expect(target.value).toBe("synthetic record"));
+  expect(reader.create).toHaveBeenCalledWith(expect.anything(), "Synthetic record import", {
+    accept: "text/plain",
   });
+});
 
-  it("can explicitly preserve a textarea's literal value", async () => {
-    const target = new TextField("TEXTAREA");
-    const file = fakeFile("  synthetic multiline value\n ");
-    mount(target, { preserveWhitespace: true }).choose(file.file);
-    await vi.waitFor(() => expect(target.value).toBe("  synthetic multiline value\n "));
-  });
+it("can explicitly preserve a textarea's literal value", async () => {
+  const target = new TextField("TEXTAREA");
+  const file = fakeFile("  synthetic multiline value\n ");
+  mount(target, { preserveWhitespace: true }).choose(file.file);
+  await vi.waitFor(() => expect(target.value).toBe("  synthetic multiline value\n "));
+});
 
-  it.each(["\n", "\r\n"])(
-    "drops one requested final %j while keeping a BOM and password spaces",
-    async (ending) => {
-      const target = new TextField("INPUT", true);
-      const password = "\uFEFF  public synthetic passphrase\t ";
-      const file = fakeFile(password + ending);
-      mount(target, { stripFinalLineBreak: true }).choose(file.file);
-      await vi.waitFor(() => expect(target.inputEvents).toHaveLength(1));
-      expect(target.value).toBe(password);
-      expect(file.buffers[0]!.every((byte) => byte === 0)).toBe(true);
-    },
-  );
-
-  it("removes exactly one final line break when the host can preserve the remainder", async () => {
-    const target = new TextField("TEXTAREA");
-    const file = fakeFile("\uFEFF  synthetic password \n\n");
-    mount(target, { preserveWhitespace: true, stripFinalLineBreak: true }).choose(file.file);
-    await vi.waitFor(() => expect(target.inputEvents).toHaveLength(1));
-    expect(target.value).toBe("\uFEFF  synthetic password \n");
-  });
-
-  it("imports exact BIP39 text through the value owner despite native textarea normalization", async () => {
-    const target = new TextField("TEXTAREA");
-    const value = new LiteralSecretField(target as unknown as HTMLTextAreaElement);
-    const file = fakeFile("\uFEFF  public synthetic\r\npassword\rwith spaces \n\r\n");
-    mount(target, { preserveWhitespace: true, stripFinalLineBreak: true, value }).choose(file.file);
-    await vi.waitFor(() => expect(target.inputEvents).toHaveLength(1));
-    expect(target.value).toBe("\uFEFF  public synthetic\npassword\nwith spaces \n");
-    const exact = "\uFEFF  public synthetic\r\npassword\rwith spaces \n";
-    expect(value.read()).toBe(exact);
-    expect(new TextEncoder().encode(value.read())).toEqual(new TextEncoder().encode(exact));
-    expect(file.buffers[0]!.every((byte) => byte === 0)).toBe(true);
-    expect(target.validity).toBe("");
-  });
-
-  it("delegates field normalization without trimming the text first", async () => {
+it.each(["\n", "\r\n"])(
+  "drops one requested final %j while keeping a BOM and password spaces",
+  async (ending) => {
     const target = new TextField("INPUT", true);
-    const text = "\uFEFF  synthetic password \r\n";
-    const normalize = vi.fn(() => "library-normalized synthetic value");
-    const file = fakeFile(text);
-    mount(target, { normalize }).choose(file.file);
+    const password = "\uFEFF  public synthetic passphrase\t ";
+    const file = fakeFile(password + ending);
+    mount(target, { stripFinalLineBreak: true }).choose(file.file);
     await vi.waitFor(() => expect(target.inputEvents).toHaveLength(1));
-    expect(normalize).toHaveBeenCalledWith(text);
-    expect(target.value).toBe("library-normalized synthetic value");
-  });
-
-  it("redacts a field parser's refusal and keeps the typed value", async () => {
-    const target = new TextField("INPUT");
-    const file = fakeFile("synthetic refused password");
-    const normalize = (): string => {
-      throw new Error("synthetic private parser detail");
-    };
-    mount(target, { normalize }).choose(file.file);
-    await vi.waitFor(() =>
-      expect(target.validity).toBe("That file is not accepted by this field."),
-    );
-    expect(target.value).toBe("typed synthetic value");
-    expect(target.inputEvents).toHaveLength(0);
+    expect(target.value).toBe(password);
     expect(file.buffers[0]!.every((byte) => byte === 0)).toBe(true);
-  });
+  },
+);
 
-  it.each(["synthetic password\n\n", "synthetic\npassword", "synthetic password\r"])(
-    "refuses remaining input line breaks without replacing the typed value (%j)",
-    async (contents) => {
-      const target = new TextField("INPUT", true);
-      const file = fakeFile(contents);
-      mount(target, { stripFinalLineBreak: true }).choose(file.file);
-      await vi.waitFor(() => expect(target.validity).not.toBe(""));
-      expect(target.value).toBe("typed synthetic value");
-      expect(target.validity).toBe("That file contains characters this field cannot preserve.");
-      expect(target.reportValidity).toHaveBeenCalledOnce();
-      expect(target.inputEvents).toHaveLength(0);
-      expect(file.buffers[0]!.every((byte) => byte === 0)).toBe(true);
-      target.dispatchEvent(new Event("input"));
-      expect(target.validity).toBe("");
-    },
-  );
+it("removes exactly one final line break when the host can preserve the remainder", async () => {
+  const target = new TextField("TEXTAREA");
+  const file = fakeFile("\uFEFF  synthetic password \n\n");
+  mount(target, { preserveWhitespace: true, stripFinalLineBreak: true }).choose(file.file);
+  await vi.waitFor(() => expect(target.inputEvents).toHaveLength(1));
+  expect(target.value).toBe("\uFEFF  synthetic password \n");
+});
 
-  it("does not concatenate an internally split key even when surrounding whitespace is trimmed", async () => {
+it("imports exact BIP39 text through the value owner despite native textarea normalization", async () => {
+  const target = new TextField("TEXTAREA");
+  const value = new LiteralSecretField(target as unknown as HTMLTextAreaElement);
+  const file = fakeFile("\uFEFF  public synthetic\r\npassword\rwith spaces \n\r\n");
+  mount(target, { preserveWhitespace: true, stripFinalLineBreak: true, value }).choose(file.file);
+  await vi.waitFor(() => expect(target.inputEvents).toHaveLength(1));
+  expect(target.value).toBe("\uFEFF  public synthetic\npassword\nwith spaces \n");
+  const exact = "\uFEFF  public synthetic\r\npassword\rwith spaces \n";
+  expect(value.read()).toBe(exact);
+  expect(new TextEncoder().encode(value.read())).toEqual(new TextEncoder().encode(exact));
+  expect(file.buffers[0]!.every((byte) => byte === 0)).toBe(true);
+  expect(target.validity).toBe("");
+});
+
+it("delegates field normalization without trimming the text first", async () => {
+  const target = new TextField("INPUT", true);
+  const text = "\uFEFF  synthetic password \r\n";
+  const normalize = vi.fn(() => "library-normalized synthetic value");
+  const file = fakeFile(text);
+  mount(target, { normalize }).choose(file.file);
+  await vi.waitFor(() => expect(target.inputEvents).toHaveLength(1));
+  expect(normalize).toHaveBeenCalledWith(text);
+  expect(target.value).toBe("library-normalized synthetic value");
+});
+
+it("redacts a field parser's refusal and keeps the typed value", async () => {
+  const target = new TextField("INPUT");
+  const file = fakeFile("synthetic refused password");
+  const normalize = (): string => {
+    throw new Error("synthetic private parser detail");
+  };
+  mount(target, { normalize }).choose(file.file);
+  await vi.waitFor(() => expect(target.validity).toBe("That file is not accepted by this field."));
+  expect(target.value).toBe("typed synthetic value");
+  expect(target.inputEvents).toHaveLength(0);
+  expect(file.buffers[0]!.every((byte) => byte === 0)).toBe(true);
+});
+
+it.each(["synthetic password\n\n", "synthetic\npassword", "synthetic password\r"])(
+  "refuses remaining input line breaks without replacing the typed value (%j)",
+  async (contents) => {
     const target = new TextField("INPUT", true);
-    const file = fakeFile("  synthetic\nkey \n");
-    mount(target, { preserveWhitespace: false }).choose(file.file);
+    const file = fakeFile(contents);
+    mount(target, { stripFinalLineBreak: true }).choose(file.file);
     await vi.waitFor(() => expect(target.validity).not.toBe(""));
     expect(target.value).toBe("typed synthetic value");
+    expect(target.validity).toBe("That file contains characters this field cannot preserve.");
+    expect(target.reportValidity).toHaveBeenCalledOnce();
     expect(target.inputEvents).toHaveLength(0);
-  });
-
-  it("refuses oversized metadata before reading the body", async () => {
-    const target = new TextField("INPUT");
-    const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
-    const file = { size: TEXT_FILE_LIMIT_BYTES + 1, arrayBuffer } as unknown as File;
-    const onError = vi.fn();
-    mount(target, { onError }).choose(file);
-    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
-    expect(arrayBuffer).not.toHaveBeenCalled();
-    expect(target.value).toBe("typed synthetic value");
-    expect(target.inputEvents).toHaveLength(0);
-  });
-
-  it("rechecks the actual byte length and wipes a mismatched oversized body", async () => {
-    const target = new TextField("INPUT");
-    const bytes = new Uint8Array(TEXT_FILE_LIMIT_BYTES + 1).fill(1);
-    const file = { size: 1, arrayBuffer: async () => bytes.buffer } as unknown as File;
-    const onError = vi.fn();
-    mount(target, { onError }).choose(file);
-    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
-    expect(target.value).toBe("typed synthetic value");
-    expect(bytes.every((byte) => byte === 0)).toBe(true);
-  });
-
-  it("refuses invalid UTF-8 without exposing bytes or replacing typed text", async () => {
-    const target = new TextField("INPUT");
-    // An incomplete UTF-8 sequence followed by an ASCII opening parenthesis.
-    const file = fakeFile(Uint8Array.of(0xc3, 0x28));
-    const onError = vi.fn();
-    mount(target, { onError }).choose(file.file);
-    await vi.waitFor(() => expect(onError).toHaveBeenCalledWith("That file is not text."));
-    expect(target.value).toBe("typed synthetic value");
     expect(file.buffers[0]!.every((byte) => byte === 0)).toBe(true);
-  });
+    target.dispatchEvent(new Event("input"));
+    expect(target.validity).toBe("");
+  },
+);
 
-  it("redacts a reader's own diagnostic", async () => {
-    const target = new TextField("INPUT");
-    const file = {
-      size: 1,
-      arrayBuffer: async () => {
-        throw new Error("synthetic file name and sensitive reader detail");
-      },
-    } as unknown as File;
-    const onError = vi.fn();
-    mount(target, { onError }).choose(file);
-    await vi.waitFor(() => expect(onError).toHaveBeenCalledWith("The file could not be read."));
-    expect(target.value).toBe("typed synthetic value");
-  });
+it("does not concatenate an internally split key even when surrounding whitespace is trimmed", async () => {
+  const target = new TextField("INPUT", true);
+  const file = fakeFile("  synthetic\nkey \n");
+  mount(target, { preserveWhitespace: false }).choose(file.file);
+  await vi.waitFor(() => expect(target.validity).not.toBe(""));
+  expect(target.value).toBe("typed synthetic value");
+  expect(target.inputEvents).toHaveLength(0);
+});
 
-  it.each(["edit", "clear", "type", "disable", "cancel"] as const)(
-    "drops a pending read after %s and wipes its buffer",
-    async (change) => {
-      const target = new TextField("INPUT");
-      const gate = deferred<ArrayBuffer>();
-      const bytes = new TextEncoder().encode("synthetic delayed secret");
-      const file = { size: bytes.byteLength, arrayBuffer: () => gate.promise } as unknown as File;
-      const onError = vi.fn();
-      const reader = mount(target, { onError });
-      reader.choose(file);
-      if (change === "edit") {
-        target.value = "later typed value";
-        target.dispatchEvent(new Event("input"));
-      } else if (change === "clear") target.value = "";
-      else if (change === "type") target.type = "text";
-      else if (change === "disable") target.disabled = true;
-      else reader.choose();
-      const expectedValue = target.value;
-      const inputEvents = target.inputEvents.length;
-      gate.resolve(bytes.buffer);
-      await vi.waitFor(() => expect(bytes.every((byte) => byte === 0)).toBe(true));
-      expect(target.value).toBe(expectedValue);
-      expect(target.inputEvents).toHaveLength(inputEvents);
-      expect(onError).not.toHaveBeenCalled();
+it("refuses oversized metadata before reading the body", async () => {
+  const target = new TextField("INPUT");
+  const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
+  const file = { size: TEXT_FILE_LIMIT_BYTES + 1, arrayBuffer } as unknown as File;
+  const onError = vi.fn();
+  mount(target, { onError }).choose(file);
+  await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+  expect(arrayBuffer).not.toHaveBeenCalled();
+  expect(target.value).toBe("typed synthetic value");
+  expect(target.inputEvents).toHaveLength(0);
+});
+
+it("rechecks the actual byte length and wipes a mismatched oversized body", async () => {
+  const target = new TextField("INPUT");
+  const bytes = new Uint8Array(TEXT_FILE_LIMIT_BYTES + 1).fill(1);
+  const file = { size: 1, arrayBuffer: async () => bytes.buffer } as unknown as File;
+  const onError = vi.fn();
+  mount(target, { onError }).choose(file);
+  await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+  expect(target.value).toBe("typed synthetic value");
+  expect(bytes.every((byte) => byte === 0)).toBe(true);
+});
+
+it("refuses invalid UTF-8 without exposing bytes or replacing typed text", async () => {
+  const target = new TextField("INPUT");
+  // An incomplete UTF-8 sequence followed by an ASCII opening parenthesis.
+  const file = fakeFile(Uint8Array.of(0xc3, 0x28));
+  const onError = vi.fn();
+  mount(target, { onError }).choose(file.file);
+  await vi.waitFor(() => expect(onError).toHaveBeenCalledWith("That file is not text."));
+  expect(target.value).toBe("typed synthetic value");
+  expect(file.buffers[0]!.every((byte) => byte === 0)).toBe(true);
+});
+
+it("redacts a reader's own diagnostic", async () => {
+  const target = new TextField("INPUT");
+  const file = {
+    size: 1,
+    arrayBuffer: async () => {
+      throw new Error("synthetic file name and sensitive reader detail");
     },
-  );
+  } as unknown as File;
+  const onError = vi.fn();
+  mount(target, { onError }).choose(file);
+  await vi.waitFor(() => expect(onError).toHaveBeenCalledWith("The file could not be read."));
+  expect(target.value).toBe("typed synthetic value");
+});
 
-  it("keeps the newest chosen file when an earlier read finishes later", async () => {
+it.each(["edit", "clear", "type", "disable", "cancel"] as const)(
+  "drops a pending read after %s and wipes its buffer",
+  async (change) => {
     const target = new TextField("INPUT");
     const gate = deferred<ArrayBuffer>();
-    const bytes = new TextEncoder().encode("synthetic earlier secret");
-    const first = { size: bytes.byteLength, arrayBuffer: () => gate.promise } as unknown as File;
-    const latest = fakeFile("synthetic latest secret");
-    const reader = mount(target);
-    reader.choose(first);
-    reader.choose(latest.file);
-    await vi.waitFor(() => expect(target.value).toBe("synthetic latest secret"));
-    gate.resolve(bytes.buffer);
-    await vi.waitFor(() => expect(bytes.every((byte) => byte === 0)).toBe(true));
-    expect(target.value).toBe("synthetic latest secret");
-    expect(target.inputEvents).toHaveLength(1);
-  });
-
-  it("cannot restore an exact secret from a file that finishes after pagehide", async () => {
-    const target = new TextField("TEXTAREA");
-    const value = new LiteralSecretField(target as unknown as HTMLTextAreaElement);
-    const gate = deferred<ArrayBuffer>();
-    const bytes = new TextEncoder().encode("synthetic delayed\r\nsecret");
+    const bytes = new TextEncoder().encode("synthetic delayed secret");
     const file = { size: bytes.byteLength, arrayBuffer: () => gate.promise } as unknown as File;
-    mount(target, { preserveWhitespace: true, value }).choose(file);
-    target.ownerDocument.defaultView!.dispatchEvent(new Event("pagehide"));
+    const onError = vi.fn();
+    const reader = mount(target, { onError });
+    reader.choose(file);
+    if (change === "edit") {
+      target.value = "later typed value";
+      target.dispatchEvent(new Event("input"));
+    } else if (change === "clear") target.value = "";
+    else if (change === "type") target.type = "text";
+    else if (change === "disable") target.disabled = true;
+    else reader.choose();
+    const expectedValue = target.value;
+    const inputEvents = target.inputEvents.length;
     gate.resolve(bytes.buffer);
     await vi.waitFor(() => expect(bytes.every((byte) => byte === 0)).toBe(true));
-    expect(target.value).toBe("");
-    expect(value.read()).toBe("");
-    // The clear emits input; the abandoned import emits none.
-    expect(target.inputEvents).toHaveLength(1);
-  });
+    expect(target.value).toBe(expectedValue);
+    expect(target.inputEvents).toHaveLength(inputEvents);
+    expect(onError).not.toHaveBeenCalled();
+  },
+);
 
-  it("does not read a disabled field or a cancelled choice", () => {
-    const target = new TextField("INPUT");
-    target.disabled = true;
-    const file = fakeFile("synthetic unused file");
-    const reader = mount(target);
-    reader.choose(file.file);
-    reader.choose();
-    expect(file.arrayBuffer).not.toHaveBeenCalled();
-    expect(target.value).toBe("typed synthetic value");
-  });
+it("keeps the newest chosen file when an earlier read finishes later", async () => {
+  const target = new TextField("INPUT");
+  const gate = deferred<ArrayBuffer>();
+  const bytes = new TextEncoder().encode("synthetic earlier secret");
+  const first = { size: bytes.byteLength, arrayBuffer: () => gate.promise } as unknown as File;
+  const latest = fakeFile("synthetic latest secret");
+  const reader = mount(target);
+  reader.choose(first);
+  reader.choose(latest.file);
+  await vi.waitFor(() => expect(target.value).toBe("synthetic latest secret"));
+  gate.resolve(bytes.buffer);
+  await vi.waitFor(() => expect(bytes.every((byte) => byte === 0)).toBe(true));
+  expect(target.value).toBe("synthetic latest secret");
+  expect(target.inputEvents).toHaveLength(1);
+});
+
+it("cannot restore an exact secret from a file that finishes after pagehide", async () => {
+  const target = new TextField("TEXTAREA");
+  const value = new LiteralSecretField(target as unknown as HTMLTextAreaElement);
+  const gate = deferred<ArrayBuffer>();
+  const bytes = new TextEncoder().encode("synthetic delayed\r\nsecret");
+  const file = { size: bytes.byteLength, arrayBuffer: () => gate.promise } as unknown as File;
+  mount(target, { preserveWhitespace: true, value }).choose(file);
+  target.ownerDocument.defaultView!.dispatchEvent(new Event("pagehide"));
+  gate.resolve(bytes.buffer);
+  await vi.waitFor(() => expect(bytes.every((byte) => byte === 0)).toBe(true));
+  expect(target.value).toBe("");
+  expect(value.read()).toBe("");
+  // The clear emits input; the abandoned import emits none.
+  expect(target.inputEvents).toHaveLength(1);
+});
+
+it("does not read a disabled field or a cancelled choice", () => {
+  const target = new TextField("INPUT");
+  target.disabled = true;
+  const file = fakeFile("synthetic unused file");
+  const reader = mount(target);
+  reader.choose(file.file);
+  reader.choose();
+  expect(file.arrayBuffer).not.toHaveBeenCalled();
+  expect(target.value).toBe("typed synthetic value");
 });
 
 describe("literal imported secret lifetime", () => {
@@ -447,5 +445,50 @@ describe("literal imported secret lifetime", () => {
     // Restoring the old display before the first read must not revive its canonical CRLF.
     target.value = "synthetic\npassword";
     expect(value.read()).toBe("synthetic\npassword");
+  });
+
+  it("ends the imported lifetime on disposal without reviving canonical line breaks", () => {
+    const { target, value } = field();
+    value.assign("synthetic\r\npassword");
+    value[Symbol.dispose]();
+    expect(target.value).toBe("");
+    target.value = "synthetic\npassword";
+    expect(value.read()).toBe("synthetic\npassword");
+  });
+
+  it("preserves every UTF-16 code unit of an opaque imported factor", () => {
+    const { value } = field();
+    const exact = "\uFEFFsynthetic\r\n\ud800text\udfff";
+    value.assign(exact);
+    expect(value.read()).toBe(exact);
+    value.clear();
+    expect(value.read()).toBe("");
+  });
+
+  it("keeps a replacement import when an input listener assigns it reentrantly", () => {
+    const { target, value } = field();
+    let replaced = false;
+    target.addEventListener("input", () => {
+      if (replaced) return;
+      replaced = true;
+      value.assign("synthetic second\r\nfactor");
+    });
+    value.assign("synthetic first\r\nfactor");
+    expect(replaced).toBe(true);
+    expect(value.read()).toBe("synthetic second\r\nfactor");
+  });
+
+  it("keeps a reentrant Clear final when an assignment publishes its input event", () => {
+    const { target, value } = field();
+    let cleared = false;
+    target.addEventListener("input", () => {
+      if (cleared) return;
+      cleared = true;
+      value.clear();
+    });
+    value.assign("synthetic\r\npassword");
+    expect(cleared).toBe(true);
+    expect(value.read()).toBe("");
+    expect(target.value).toBe("");
   });
 });

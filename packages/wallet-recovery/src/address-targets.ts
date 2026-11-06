@@ -19,8 +19,17 @@ export interface AddressSearchTarget {
   readonly network: NetworkName;
 }
 
+/** A refused address list; supplied text is deliberately absent from the diagnostic. */
+export class AddressTargetError extends Error {
+  readonly code = "address-target.invalid";
+  constructor() {
+    super("Enter valid Bitcoin addresses for the selected network.");
+    this.name = "AddressTargetError";
+  }
+}
+
 function invalid(): never {
-  throw new Error("Enter valid Bitcoin addresses for the selected network.");
+  throw new AddressTargetError();
 }
 
 export function detectBitcoinAddressTarget(

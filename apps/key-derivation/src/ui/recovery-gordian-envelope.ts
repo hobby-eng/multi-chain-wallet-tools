@@ -1,3 +1,4 @@
+import { RenderedSecrets } from "./secrets.js";
 import { englishMnemonicToEntropy, entropyToEnglishMnemonic } from "@ckd/core/bip39.js";
 import { describeUnknownError, freeThrownValue } from "@ckd/core/error-handling.js";
 import {
@@ -24,80 +25,106 @@ function displayFailure(cause: unknown, fallback: string): string {
   return message;
 }
 
-function installGordianEnvelope(context: RecoveryFeatureContext): void {
-  installSecretToggle(
-    "#toggle-envelope-recipient-mnemonic",
-    "#envelope-recipient-mnemonic",
-    "Show",
-    "Hide",
-    "recipient recovery phrase",
-  );
-  const recipientSource = required<HTMLSelectElement>("#envelope-recipient-source");
-  const synchronizeRecipientSource = (): void => {
-    const manual = recipientSource.value === "manual";
+/** Owns the native controls and independent create, recipient and restore operations. */
+export class GordianEnvelopeFeature {
+  readonly #context: RecoveryFeatureContext;
+  readonly #recipientSource: HTMLSelectElement;
+  readonly #includePassphrase: HTMLInputElement;
+  readonly #groupEditor: ReturnType<typeof installThresholdGroupEditor>;
+  readonly #result: HTMLElement;
+  readonly #restored: HTMLElement;
+  /** Bind controls; every secret operation admits the current readiness gate. */
+  constructor(context: RecoveryFeatureContext) {
+    this.#context = context;
+    this.#recipientSource = required<HTMLSelectElement>("#envelope-recipient-source");
+    this.#includePassphrase = required<HTMLInputElement>("#envelope-include-passphrase");
+    this.#groupEditor = installThresholdGroupEditor("#envelope-sskr-groups", {
+      initial: [],
+      minimumRows: 0,
+      layout: "inline",
+      help: "Each permit group creates a separate set of SSKR shares. First satisfy Shares required inside a group; then satisfy the Envelope group threshold with that many completed groups.",
+    });
+    this.#result = required<HTMLElement>("#envelope-create-result");
+    this.#restored = required<HTMLElement>("#envelope-restore-result");
+    this.#installControls();
+  }
+  #installControls(): void {
+    installSecretToggle(
+      "#toggle-envelope-recipient-mnemonic",
+      "#envelope-recipient-mnemonic",
+      "Show",
+      "Hide",
+      "recipient recovery phrase",
+    );
+    this.#recipientSource.addEventListener("change", this.#synchronizeRecipientSource);
+    this.#synchronizeRecipientSource();
+    this.#includePassphrase.addEventListener("change", this.#synchronizeIncludedPassphrase);
+    this.#synchronizeIncludedPassphrase();
+    installSecretToggle(
+      "#toggle-envelope-source",
+      "#envelope-source",
+      "Show",
+      "Hide",
+      "recovery phrase",
+    );
+    installMnemonicSourceDiagnostic(
+      this.#context,
+      "gordian-envelope",
+      "#envelope-source",
+      "#toggle-envelope-source",
+      "#envelope-bip39-passphrase",
+    );
+    installSecretToggle(
+      "#toggle-envelope-records",
+      "#envelope-records, #envelope-private-key",
+      "Show",
+      "Hide",
+      "records and private key",
+    );
+    installSecretToggle(
+      "#toggle-envelope-created",
+      "#envelope-create-result .share-secret",
+      "Show records",
+      "Hide records",
+    );
+    required<HTMLButtonElement>("#create-envelope").addEventListener("click", this.#create);
+    required<HTMLButtonElement>("#derive-envelope-recipient").addEventListener(
+      "click",
+      this.#deriveRecipient,
+    );
+    required<HTMLButtonElement>("#restore-envelope").addEventListener("click", this.#restore);
+    installFieldImports(
+      required<HTMLTextAreaElement>("#envelope-records"),
+      (message) => RenderedSecrets.text(this.#restored, message),
+      { qr: QR_IMAGES_IMPORT },
+    );
+  }
+  readonly #synchronizeRecipientSource = (): void => {
+    const manual = this.#recipientSource.value === "manual";
     required<HTMLElement>("#envelope-current-recipient-source").hidden = manual;
     required<HTMLElement>("#envelope-manual-recipient-source").hidden = !manual;
   };
-  recipientSource.addEventListener("change", synchronizeRecipientSource);
-  synchronizeRecipientSource();
-  const includePassphrase = required<HTMLInputElement>("#envelope-include-passphrase");
-  const synchronizeIncludedPassphrase = (): void => {
+  readonly #synchronizeIncludedPassphrase = (): void => {
     required<HTMLElement>("#envelope-included-passphrase-field").hidden =
-      !includePassphrase.checked;
+      !this.#includePassphrase.checked;
   };
-  includePassphrase.addEventListener("change", synchronizeIncludedPassphrase);
-  synchronizeIncludedPassphrase();
-
-  const groupEditor = installThresholdGroupEditor("#envelope-sskr-groups", {
-    initial: [],
-    minimumRows: 0,
-    layout: "inline",
-    help: "Each permit group creates a separate set of SSKR shares. First satisfy Shares required inside a group; then satisfy the Envelope group threshold with that many completed groups.",
-  });
-  installSecretToggle(
-    "#toggle-envelope-source",
-    "#envelope-source",
-    "Show",
-    "Hide",
-    "recovery phrase",
-  );
-  installMnemonicSourceDiagnostic(
-    context,
-    "gordian-envelope",
-    "#envelope-source",
-    "#toggle-envelope-source",
-    "#envelope-bip39-passphrase",
-  );
-  installSecretToggle(
-    "#toggle-envelope-records",
-    "#envelope-records, #envelope-private-key",
-    "Show",
-    "Hide",
-    "records and private key",
-  );
-  installSecretToggle(
-    "#toggle-envelope-created",
-    "#envelope-create-result .share-secret",
-    "Show records",
-    "Hide records",
-  );
-  const result = required<HTMLElement>("#envelope-create-result");
-  required<HTMLButtonElement>("#create-envelope").addEventListener("click", () => {
-    result.replaceChildren();
+  readonly #create = () => {
+    RenderedSecrets.replace(this.#result);
     let entropy: Uint8Array | null = null;
     try {
+      this.#context.jobs.assertReady();
       entropy = englishMnemonicToEntropy(
-        context.readMnemonic("gordian-envelope", "#envelope-source"),
+        this.#context.readMnemonic("gordian-envelope", "#envelope-source"),
       );
-      const specs = groupEditor.read();
+      const specs = this.#groupEditor.read();
       const records = createProtectedGordianSeedEnvelope(
         entropy,
         required<HTMLInputElement>("#envelope-name").value,
         required<HTMLInputElement>("#envelope-note").value,
         {
           password: required<HTMLInputElement>("#envelope-password").value,
-          bip39Passphrase: includePassphrase.checked
-            ? (context.linkedValue("gordian-envelope")?.passphrase ??
+          bip39Passphrase: this.#includePassphrase.checked
+            ? (this.#context.linkedValue("gordian-envelope")?.passphrase ??
               required<HTMLInputElement>("#envelope-included-passphrase").value)
             : undefined,
           recipientPublicKeys: lines(required<HTMLTextAreaElement>("#envelope-public-keys").value),
@@ -108,58 +135,59 @@ function installGordianEnvelope(context: RecoveryFeatureContext): void {
         },
       );
       renderSensitiveShares(
-        result,
+        this.#result,
         records,
-        context.writeClipboard,
+        this.#context.writeClipboard,
         records.length === 1
           ? ["Seed Envelope record"]
           : records.map((_, index) => `SSKR Envelope record ${index + 1}`),
         [],
-        () => context.jobs.ready,
+        () => this.#context.jobs.ready,
       );
     } catch (e) {
-      result.textContent = displayFailure(e, "Envelope creation failed.");
+      RenderedSecrets.text(this.#result, displayFailure(e, "Envelope creation failed."));
     } finally {
       entropy?.fill(0);
     }
-  });
-  required<HTMLButtonElement>("#derive-envelope-recipient").addEventListener("click", () => {
-    result.replaceChildren();
+  };
+  readonly #deriveRecipient = () => {
+    RenderedSecrets.replace(this.#result);
     let seed: Uint8Array | null = null;
     try {
-      const linked = context.linkedValue("gordian-envelope");
-      const manual = recipientSource.value === "manual";
+      this.#context.jobs.assertReady();
+      const linked = this.#context.linkedValue("gordian-envelope");
+      const manual = this.#recipientSource.value === "manual";
       const mnemonic = manual
         ? required<HTMLTextAreaElement>("#envelope-recipient-mnemonic").value
         : (linked?.mnemonic ?? required<HTMLTextAreaElement>("#envelope-source").value);
       const passphrase = manual
         ? required<HTMLInputElement>("#envelope-recipient-manual-passphrase").value
         : (linked?.passphrase ?? required<HTMLInputElement>("#envelope-bip39-passphrase").value);
-      seed = context.mnemonicToSeed(mnemonic, passphrase);
+      seed = this.#context.mnemonicToSeed(mnemonic, passphrase);
       const keys = deriveGordianRecipientKeys(seed);
       const recipients = required<HTMLTextAreaElement>("#envelope-public-keys");
       const existing = lines(recipients.value);
       if (!existing.includes(keys.publicKey))
         recipients.value = [...existing, keys.publicKey].join("\n");
       renderSensitiveShares(
-        result,
+        this.#result,
         [keys.privateKey, keys.publicKey],
-        context.writeClipboard,
+        this.#context.writeClipboard,
         ["Recipient private key", "Recipient public key"],
         [],
-        () => context.jobs.ready,
+        () => this.#context.jobs.ready,
       );
     } catch (e) {
-      result.textContent = displayFailure(e, "Recipient derivation failed.");
+      RenderedSecrets.text(this.#result, displayFailure(e, "Recipient derivation failed."));
     } finally {
       seed?.fill(0);
     }
-  });
-  const restored = required<HTMLElement>("#envelope-restore-result");
-  required<HTMLButtonElement>("#restore-envelope").addEventListener("click", () => {
-    restored.replaceChildren();
+  };
+  readonly #restore = () => {
+    RenderedSecrets.replace(this.#restored);
     let entropy: Uint8Array | null = null;
     try {
+      this.#context.jobs.assertReady();
       const bundle = recoverProtectedGordianSeedEnvelopeBundle(
         lines(required<HTMLTextAreaElement>("#envelope-records").value),
         required<HTMLInputElement>("#envelope-unlock-password").value,
@@ -167,24 +195,23 @@ function installGordianEnvelope(context: RecoveryFeatureContext): void {
       );
       entropy = bundle.entropy;
       renderRecoveredMnemonicBundle(
-        restored,
+        this.#restored,
         entropyToEnglishMnemonic(entropy),
         bundle.bip39Passphrase,
-        context.writeClipboard,
-        context.useMnemonicInDeriver,
-        context.mnemonicToSeed,
+        this.#context.writeClipboard,
+        this.#context.useMnemonicInDeriver,
+        this.#context.mnemonicToSeed,
       );
     } catch (e) {
-      restored.textContent = displayFailure(e, "Envelope restoration failed.");
+      RenderedSecrets.text(this.#restored, displayFailure(e, "Envelope restoration failed."));
     } finally {
       entropy?.fill(0);
     }
-  });
-  installFieldImports(
-    required<HTMLTextAreaElement>("#envelope-records"),
-    (message) => (restored.textContent = message),
-    { qr: QR_IMAGES_IMPORT },
-  );
+  };
+  /** Compose this feature without lending unbound native callbacks. */
+  static install(this: void, context: RecoveryFeatureContext): void {
+    new GordianEnvelopeFeature(context);
+  }
 }
 
 export const recoveryFeature: RecoveryFeature = {
@@ -195,5 +222,5 @@ export const recoveryFeature: RecoveryFeature = {
     passphraseField: "#envelope-bip39-passphrase",
     linkedNote: PHRASE_ONLY_NOTE,
   },
-  install: installGordianEnvelope,
+  install: GordianEnvelopeFeature.install,
 };

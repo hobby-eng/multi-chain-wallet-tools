@@ -5,12 +5,11 @@
 // ENT bits of entropy has ENT / 32 checksum bits and (ENT + CS) / 11 words.
 
 import { orList } from "./listing.js";
+import { BIP39_WORD_COUNTS, type Bip39WordCount } from "./bip39-word-counts.js";
+export { BIP39_WORD_COUNTS, type Bip39WordCount } from "./bip39-word-counts.js";
 
 /** Bits of one word: its index in the 2,048-word list. */
 export const BIP39_WORD_BITS = 11;
-/** The word counts of a BIP39 phrase, from 128 to 256 bits of entropy. */
-export const BIP39_WORD_COUNTS = [12, 15, 18, 21, 24] as const;
-export type Bip39WordCount = (typeof BIP39_WORD_COUNTS)[number];
 
 const COUNT_LIST = orList(BIP39_WORD_COUNTS);
 

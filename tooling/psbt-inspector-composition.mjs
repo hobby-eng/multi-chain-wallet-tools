@@ -1,10 +1,17 @@
 import { resolve } from "node:path";
+const BIP38_INPUTS = [
+  "/bip38-feature.ts",
+  "/bip38-decryptor.ts",
+  "/bip38-input.ts",
+  "/bip38-batch.ts",
+  "/bip38-results.ts",
+];
 
 const disabled = {
   "./bip38-decryptor.js":
     "export async function decryptBip38Key(){ throw new Error('BIP38 decryption is not included in this build.'); }",
   "./descriptor.js":
-    "export function decodeDescriptor(){ throw new Error('Descriptor decoding is not included in this build.'); }",
+    "const unavailable=()=>{throw new Error('Descriptor decoding is not included in this build.');}; export const decodeDescriptor=unavailable; export class DescriptorDecoder { constructor(){ unavailable(); } static selection(){ return unavailable(); } }",
   "./multisig-wallet.js":
     "const unavailable=()=>{throw new Error('Multisig wallet generation is not included in this build.');}; export const buildConcreteMultisigWallet=unavailable, buildRangedWallet=unavailable; export const branchLabel=unavailable;",
   "./policy.js":
@@ -238,8 +245,8 @@ export function assertPsbtComposition(options, inputs) {
       "/signing-commitments.ts",
       "/transaction-display.ts",
     ],
-    "script-decoder": ["/script-decoder-feature.ts"],
-    "bip38-decrypt": ["/bip38-decryptor.ts", "/crypto-core/src/bip38.ts"],
+    "script-decoder": ["/script-decoder-feature.ts", "/script-decoder.ts"],
+    "bip38-decrypt": [...BIP38_INPUTS, "/crypto-core/src/bip38.ts"],
     "descriptor-decoder": ["/psbt-inspector/src/descriptor.ts"],
     "policy-builder": ["/psbt-inspector/src/policy.ts", "/psbt-inspector/src/preimage.ts"],
     "multisig-wallet": ["/psbt-inspector/src/multisig-wallet.ts"],
@@ -298,13 +305,15 @@ export function assertPsbtComposition(options, inputs) {
     "policy-builder": ["/policy-builder-feature.ts", "/policy.ts", "/preimage.ts"],
     "multisig-wallet": ["/multisig-wallet-feature.ts", "/multisig-wallet.ts"],
     "message-verification": ["/message-verification-feature.ts"],
-    "bip38-decrypt": ["/bip38-feature.ts", "/bip38-decryptor.ts"],
+    "bip38-decrypt": BIP38_INPUTS,
   };
   for (const [feature, markers] of Object.entries(requiredFeatureModules)) {
     if (options.has(feature)) for (const marker of markers) requireInput(feature, marker);
   }
-  if (options.has("script-decoder") || options.has("descriptor-decoder"))
+  if (options.has("script-decoder") || options.has("descriptor-decoder")) {
     requireInput("script/descriptor tools", "/script-decoder-feature.ts");
+    requireInput("script/descriptor tools", "/script-decoder.ts");
+  }
   if (options.has("script-decoder")) requireInput("script-decoder", "/script.ts");
   if (options.has("descriptor-decoder")) requireInput("descriptor-decoder", "/descriptor.ts");
 }

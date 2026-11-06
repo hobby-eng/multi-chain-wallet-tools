@@ -1,197 +1,250 @@
-import { decryptBip38Key } from "./bip38-decryptor.js";
-import { copyPlainText, required, syncNetworkChoice, textElement } from "./ui-common.js";
+import { UiEventScope } from "@ckd/ui/ui-event-scope.js";
+import { Bip38Batch } from "./bip38-batch.js";
+import { Bip38Input } from "./bip38-input.js";
+import { Bip38Results } from "./bip38-results.js";
+import { required, syncNetworkChoice } from "./ui-common.js";
 
-export function installBip38Feature(): void {
-  const chain = required<HTMLSelectElement>("bip38-chain");
-  const network = required<HTMLSelectElement>("bip38-network");
-  const encryptedKey = required<HTMLTextAreaElement>("bip38-encrypted-key");
-  const password = required<HTMLInputElement>("bip38-password");
-  const togglePassword = required<HTMLButtonElement>("toggle-bip38-password");
-  const decryptButton = required<HTMLButtonElement>("decrypt-bip38");
-  const clearButton = required<HTMLButtonElement>("clear-bip38");
-  const errorBox = required<HTMLElement>("bip38-error");
-  const progress = required<HTMLElement>("bip38-progress");
-  const results = required<HTMLElement>("bip38-results");
-  const resultList = required<HTMLElement>("bip38-result-list");
-  const toggleResult = required<HTMLButtonElement>("toggle-bip38-result");
-  let revision = 0;
-  let revealed = false;
-
-  const setResultVisibility = (value: boolean): void => {
-    revealed = value;
-    for (const input of resultList.querySelectorAll<HTMLInputElement>("[data-bip38-secret]"))
-      input.type = value ? "text" : "password";
-    for (const button of resultList.querySelectorAll<HTMLButtonElement>("[data-copy-bip38-secret]"))
-      button.disabled = !value;
-    toggleResult.textContent = value ? "Hide private keys" : "Show private keys";
-    toggleResult.setAttribute("aria-pressed", String(value));
+/** Translates the page's fields into owned requests and publishes only current completions. */
+export class Bip38Feature implements Disposable {
+  readonly #ui = {
+    chain: required<HTMLSelectElement>("bip38-chain"),
+    network: required<HTMLSelectElement>("bip38-network"),
+    encryptedKey: required<HTMLTextAreaElement>("bip38-encrypted-key"),
+    password: required<HTMLInputElement>("bip38-password"),
+    togglePassword: required<HTMLButtonElement>("toggle-bip38-password"),
+    decrypt: required<HTMLButtonElement>("decrypt-bip38"),
+    clear: required<HTMLButtonElement>("clear-bip38"),
+    error: required<HTMLElement>("bip38-error"),
+    progress: required<HTMLElement>("bip38-progress"),
+    results: required<HTMLElement>("bip38-results"),
+    list: required<HTMLElement>("bip38-result-list"),
+    toggleResult: required<HTMLButtonElement>("toggle-bip38-result"),
   };
+  readonly #events = new UiEventScope((cause) => this.#failure(cause));
+  readonly #results = new Bip38Results(this.#ui.list, this.#ui.toggleResult, (cause) =>
+    this.#failure(cause),
+  );
+  #revision = 0;
+  #batch: Bip38Batch | undefined;
+  #running = false;
+  #queued: { readonly batch: Bip38Batch; readonly revision: number } | undefined;
+  #disposed = false;
+  #completion = Promise.resolve();
 
-  const clear = (): void => {
-    revision += 1;
-    encryptedKey.value = "";
-    password.value = "";
-    password.type = "password";
-    togglePassword.textContent = "Show";
-    togglePassword.setAttribute("aria-pressed", "false");
-    resultList.replaceChildren();
-    setResultVisibility(false);
-    toggleResult.disabled = true;
-    results.hidden = true;
-    errorBox.hidden = true;
-    progress.hidden = true;
-    decryptButton.disabled = false;
-    decryptButton.textContent = "Decrypt keys";
-  };
-
-  const appendSecret = (label: string, value: string, copyLabel: string): HTMLElement => {
-    const row = document.createElement("div");
-    row.className = "bip38-secret-output";
-    const input = document.createElement("input");
-    input.type = revealed ? "text" : "password";
-    input.readOnly = true;
-    input.value = value;
-    input.dataset.bip38Secret = "true";
-    const copy = textElement("button", "secondary compact", copyLabel) as HTMLButtonElement;
-    copy.type = "button";
-    copy.disabled = !revealed;
-    copy.dataset.copyBip38Secret = "true";
-    copy.addEventListener("click", () => void copyPlainText(value));
-    row.append(textElement("label", "", label), input, copy);
-    return row;
-  };
-
-  const appendSuccess = (
-    position: number,
-    value: Awaited<ReturnType<typeof decryptBip38Key>>,
-  ): void => {
-    const card = document.createElement("article");
-    card.className = "bip38-result-card";
-    const addressRow = document.createElement("div");
-    addressRow.className = "policy-row";
-    const copyAddress = textElement("button", "secondary compact", "Copy") as HTMLButtonElement;
-    copyAddress.type = "button";
-    copyAddress.addEventListener("click", () => void copyPlainText(value.address));
-    addressRow.append(
-      textElement("span", "", "Verified P2PKH address"),
-      textElement("code", "", value.address),
-      copyAddress,
-    );
-    const compression = document.createElement("div");
-    compression.className = "policy-row";
-    compression.append(
-      textElement("span", "", "Public-key encoding"),
-      textElement(
-        "code",
-        "",
-        value.compressed ? "Compressed public key" : "Uncompressed public key",
-      ),
-    );
-    card.append(
-      textElement("h3", "", `Recovered key #${position}`),
-      addressRow,
-      compression,
-      appendSecret("Private key · WIF", value.wif, "Copy WIF"),
-      appendSecret("Private key · hexadecimal", value.privateKeyHex, "Copy hex"),
-    );
-    resultList.append(card);
-  };
-
-  const appendFailure = (position: number, cause: unknown): void => {
-    const card = document.createElement("article");
-    card.className = "bip38-result-card bip38-result-error";
-    card.append(
-      textElement("h3", "", `Key #${position} could not be decrypted`),
-      textElement("p", "", cause instanceof Error ? cause.message : String(cause)),
-    );
-    resultList.append(card);
-  };
-
-  const decrypt = async (): Promise<void> => {
-    errorBox.hidden = true;
-    progress.hidden = true;
-    resultList.replaceChildren();
-    setResultVisibility(false);
-    toggleResult.disabled = true;
-    const keys = [
-      ...new Set(
-        encryptedKey.value
-          .split(/[\s,;]+/u)
-          .map((value) => value.trim())
-          .filter(Boolean),
-      ),
-    ];
-    if (keys.length === 0 || keys.length > 200 || password.value.length === 0) {
-      errorBox.textContent =
-        keys.length === 0
-          ? "Enter at least one BIP38 encrypted private key."
-          : keys.length > 200
-            ? "Decrypt at most 200 BIP38 keys in one batch."
-            : "Enter the BIP38 password.";
-      errorBox.hidden = false;
-      return;
+  constructor() {
+    try {
+      this.#bind();
+      syncNetworkChoice(this.#ui.chain, this.#ui.network);
+    } catch (cause) {
+      this.dispose();
+      throw cause;
     }
-    decryptButton.disabled = true;
-    decryptButton.textContent = "Decrypting…";
-    const current = ++revision;
-    const secret = password.value;
-    results.hidden = false;
+  }
+
+  #bind(): void {
+    this.#events.listen(this.#ui.decrypt, "click", () => this.#start());
+    this.#events.listen(this.#ui.clear, "click", () => this.#clear());
+    this.#events.listen(this.#ui.toggleResult, "click", () => this.#results.toggle());
+    this.#events.listen(this.#ui.togglePassword, "click", () =>
+      this.#passwordVisibility(this.#ui.password.type === "password"),
+    );
+    for (const field of [
+      this.#ui.encryptedKey,
+      this.#ui.password,
+      this.#ui.network,
+      this.#ui.chain,
+    ])
+      for (const type of ["input", "change"])
+        this.#events.listen(field, type, () => this.#retire());
+    this.#events.listen(this.#ui.chain, "change", () =>
+      syncNetworkChoice(this.#ui.chain, this.#ui.network),
+    );
+    this.#events.listen(document, "visibilitychange", () => {
+      if (document.visibilityState === "hidden") this.#conceal();
+    });
+    this.#events.listen(window, "blur", () => this.#conceal());
+    this.#events.listen(window, "pagehide", () => this.dispose());
+  }
+
+  #passwordVisibility(show: boolean): void {
+    this.#ui.password.type = show ? "text" : "password";
+    this.#ui.togglePassword.textContent = show ? "Hide" : "Show";
+    this.#ui.togglePassword.setAttribute("aria-pressed", String(show));
+  }
+  #conceal(): void {
+    this.#passwordVisibility(false);
+    this.#results.conceal();
+  }
+  #failure(cause: unknown): void {
+    if (this.#disposed) return;
+    this.#ui.error.textContent = Bip38Input.message(cause);
+    this.#ui.error.hidden = false;
+  }
+
+  #retire(): void {
+    this.#revision += 1;
+    this.#queued?.batch.wipe();
+    this.#queued = undefined;
+    this.#batch?.wipe();
+    this.#batch = undefined;
+    this.#results.clear();
+    this.#ui.results.hidden = true;
+    this.#ui.error.hidden = true;
+    this.#ui.progress.hidden = true;
+    this.#conceal();
+  }
+
+  #clear(): void {
+    this.#retire();
+    this.#ui.encryptedKey.value = "";
+    this.#ui.password.value = "";
+    // A new explicit click can queue one request; it cannot start a second KDF concurrently.
+    this.#ui.decrypt.disabled = false;
+    this.#ui.decrypt.textContent = "Decrypt keys";
+  }
+
+  #start(): void {
+    if (this.#disposed) return;
+    this.#retire();
+    let batch: Bip38Batch | undefined;
+    try {
+      batch = new Bip38Batch(
+        this.#ui.encryptedKey.value,
+        this.#ui.password.value,
+        this.#ui.chain.value,
+        this.#ui.network.value,
+      );
+      const revision = this.#revision;
+      if (this.#running) {
+        this.#queued = { batch, revision };
+        this.#ui.decrypt.disabled = true;
+        this.#ui.decrypt.textContent = "Waiting for the preceding key…";
+        return;
+      }
+      this.#launch(batch, revision);
+    } catch (cause) {
+      if (this.#queued?.batch === batch) this.#queued = undefined;
+      batch?.wipe();
+      this.#failure(cause);
+    }
+  }
+
+  #launch(batch: Bip38Batch, revision: number): void {
+    try {
+      this.#ui.decrypt.disabled = true;
+      this.#ui.decrypt.textContent = "Decrypting…";
+      this.#ui.results.hidden = false;
+      this.#batch = batch;
+      this.#running = true;
+      this.#completion = this.#run(batch, revision).catch((cause) => {
+        if (!this.#disposed && revision === this.#revision) this.#failure(cause);
+      });
+    } catch (cause) {
+      batch.wipe();
+      this.#batch = undefined;
+      this.#running = false;
+      this.#failure(cause);
+    }
+  }
+
+  #current(batch: Bip38Batch, revision: number): boolean {
+    if (this.#disposed || this.#batch !== batch || this.#revision !== revision) return false;
+    if (
+      batch.matches(
+        this.#ui.encryptedKey.value,
+        this.#ui.password.value,
+        this.#ui.chain.value,
+        this.#ui.network.value,
+      )
+    )
+      return true;
+    this.#retire();
+    return false;
+  }
+
+  async #run(batch: Bip38Batch, revision: number): Promise<void> {
     let succeeded = 0;
     let failed = 0;
     try {
-      const selectedChain = chain.value === "dash" ? "dash" : "bitcoin";
-      const networkName = network.value === "mainnet" ? "mainnet" : "testnet";
-      for (const [index, key] of keys.entries()) {
-        if (current !== revision) return;
-        progress.textContent = `Decrypting ${index + 1} of ${keys.length}…`;
-        progress.hidden = false;
+      for (let index = 0; index < batch.count; index += 1) {
+        if (!this.#current(batch, revision)) return;
+        this.#ui.progress.textContent = `Decrypting ${index + 1} of ${batch.count}…`;
+        this.#ui.progress.hidden = false;
         try {
-          const recovered = await decryptBip38Key(key, secret, selectedChain, networkName);
-          // Clear, or a newer run, came while the key was decrypted: nothing of this run is
-          // shown any more, its key least of all (AUD-024-SEC001).
-          if (current !== revision) return;
-          appendSuccess(index + 1, recovered);
+          const recovered = await batch.decrypt(index);
+          if (!this.#current(batch, revision)) return;
+          this.#results.success(index + 1, recovered);
           succeeded += 1;
-          toggleResult.disabled = false;
         } catch (cause) {
-          if (current !== revision) return;
-          appendFailure(index + 1, cause);
+          if (!this.#current(batch, revision)) return;
+          this.#results.failure(index + 1, cause);
           failed += 1;
         }
       }
-      password.value = "";
-      password.type = "password";
-      togglePassword.textContent = "Show";
-      togglePassword.setAttribute("aria-pressed", "false");
-      progress.textContent = `Finished ${keys.length} keys · ${succeeded} recovered${failed === 0 ? "" : ` · ${failed} failed`}.`;
+      if (!this.#current(batch, revision)) return;
+      this.#ui.password.value = "";
+      this.#passwordVisibility(false);
+      this.#ui.progress.textContent = `Finished ${batch.count} keys · ${succeeded} recovered${failed === 0 ? "" : ` · ${failed} failed`}.`;
     } finally {
-      if (current === revision) {
-        decryptButton.disabled = false;
-        decryptButton.textContent = "Decrypt keys";
+      try {
+        batch.wipe();
+      } finally {
+        if (this.#batch === batch) this.#batch = undefined;
+        this.#running = false;
+        if (!this.#disposed) {
+          this.#ui.decrypt.disabled = false;
+          this.#ui.decrypt.textContent = "Decrypt keys";
+          this.#launchQueued();
+        }
       }
     }
-  };
+  }
 
-  decryptButton.addEventListener("click", () => void decrypt());
-  clearButton.addEventListener("click", clear);
-  togglePassword.addEventListener("click", () => {
-    const show = password.type === "password";
-    password.type = show ? "text" : "password";
-    togglePassword.textContent = show ? "Hide" : "Show";
-    togglePassword.setAttribute("aria-pressed", String(show));
-  });
-  toggleResult.addEventListener("click", () => setResultVisibility(!revealed));
-  chain.addEventListener("change", () => syncNetworkChoice(chain, network));
-  syncNetworkChoice(chain, network);
-  const conceal = (): void => {
-    password.type = "password";
-    togglePassword.textContent = "Show";
-    togglePassword.setAttribute("aria-pressed", "false");
-    setResultVisibility(false);
-  };
-  document.addEventListener(
-    "visibilitychange",
-    () => document.visibilityState === "hidden" && conceal(),
-  );
-  window.addEventListener("blur", conceal);
+  #launchQueued(): void {
+    const queued = this.#queued;
+    this.#queued = undefined;
+    if (queued === undefined) return;
+    if (
+      queued.revision === this.#revision &&
+      queued.batch.matches(
+        this.#ui.encryptedKey.value,
+        this.#ui.password.value,
+        this.#ui.chain.value,
+        this.#ui.network.value,
+      )
+    )
+      this.#launch(queued.batch, queued.revision);
+    else queued.batch.wipe();
+  }
+
+  /** Revokes publication and clears typed and displayed secret fields. */
+  wipe(): void {
+    this.#clear();
+  }
+  /** Lets a host wait for queued/in-flight KDF cleanup after revoking its publication. */
+  async whenIdle(): Promise<void> {
+    while (this.#running) await this.#completion;
+  }
+  /** Ends the page's result/listener lifetime; an in-flight library KDF may still finish privately. */
+  dispose(): void {
+    if (this.#disposed) return;
+    this.#disposed = true;
+    try {
+      this.wipe();
+    } finally {
+      try {
+        this.#results.dispose();
+      } finally {
+        this.#events.dispose();
+      }
+    }
+  }
+  [Symbol.dispose](): void {
+    this.dispose();
+  }
+}
+
+/** Compatibility installer; every operation and listener belongs to the feature owner. */
+export function installBip38Feature(): void {
+  new Bip38Feature();
 }

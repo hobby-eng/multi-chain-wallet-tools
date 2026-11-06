@@ -1,7 +1,11 @@
 import { RECOVERY_SECTION_GROUPS } from "./recovery-section-groups.js";
 import { AtomicAmount } from "@ckd/core/atomic-amount.js";
-import { validateHistory, historyAmount } from "./history.js";
+import { validateHistory } from "./history.js";
 import { encodeCsvCell } from "@ckd/export/csv.js";
+import {
+  PublicReportFormat,
+  type PublicTextReportFormat,
+} from "@ckd/export/public-report-format.js";
 import type {
   RecoveryExportEnvelope,
   RecoveryExportResult,
@@ -9,8 +13,10 @@ import type {
   RecoveryWalletResult,
 } from "./types.js";
 
-export type RecoveryExportFormat = "json" | "csv";
+/** Text formats admitted by the shared public report boundary. */
+export type RecoveryExportFormat = PublicTextReportFormat;
 
+/** A public Discovery text report with a filename and MIME type matching its admitted format. */
 export interface RecoveryExportFile {
   filename: string;
   mimeType: "application/json" | "text/csv";
@@ -297,11 +303,12 @@ function toCsv(results: RecoveryWalletResult[]): string {
             String(finding.balanceUnit?.decimals ?? ""),
             findingBalanceDisplay(finding),
             ...HISTORY_COLUMNS.map(([key]) => String(finding.history?.[key] ?? "")),
-            ...HISTORY_AMOUNT_COLUMNS.map(([key]) =>
-              finding.history?.[key] == null
-                ? ""
-                : historyAmount(finding.history[key]!, finding.history).split(" ")[0]!,
-            ),
+            ...HISTORY_AMOUNT_COLUMNS.map(([key]) => {
+              const history = finding.history;
+              if (history === undefined) return "";
+              const amount = history[key];
+              return amount === null ? "" : AtomicAmount.format(BigInt(amount), history.decimals);
+            }),
             ...fieldColumns.map(([label]) =>
               label === "First seen" && finding.history
                 ? (finding.history.firstSeen ?? "")
@@ -322,32 +329,55 @@ function toCsv(results: RecoveryWalletResult[]): string {
   return `\uFEFF${rows.join("\r\n")}\r\n`;
 }
 
+/** Refuses a report with no completed input results. */
+export class RecoveryExportError extends Error {
+  readonly code = "recovery.export.empty";
+  constructor() {
+    super("Run a recovery scan before exporting.");
+    this.name = "RecoveryExportError";
+  }
+}
+
+/** Projects public Discovery results into an admitted text report format. */
+export class RecoveryExport {
+  /** Serializes a nonempty result list; invalid formats fail before reading any report fields. */
+  static create(
+    results: RecoveryWalletResult[],
+    format: RecoveryExportFormat,
+    date = new Date(),
+  ): RecoveryExportFile {
+    PublicReportFormat.text(format);
+    if (results.length === 0) throw new RecoveryExportError();
+    const suffix = safeTimestamp(date);
+    if (format === "json") {
+      const envelope: RecoveryExportEnvelope = {
+        format: "wallet-discovery-report",
+        version: 1,
+        createdAt: date.toISOString(),
+        containsSecrets: false,
+        safetyNotice:
+          "No mnemonic, BIP39 passphrase, seed, private key, spending key, or viewing key is included.",
+        results: exportableResults(results),
+      };
+      return {
+        filename: `wallet-discovery-report-${suffix}.json`,
+        mimeType: "application/json",
+        text: `${JSON.stringify(envelope, null, 2)}\n`,
+      };
+    }
+    return {
+      filename: `wallet-discovery-report-${suffix}.csv`,
+      mimeType: "text/csv",
+      text: toCsv(results),
+    };
+  }
+}
+
+/** Compatibility entry point for public Discovery reports. */
 export function createRecoveryExport(
   results: RecoveryWalletResult[],
   format: RecoveryExportFormat,
   date = new Date(),
 ): RecoveryExportFile {
-  if (results.length === 0) throw new Error("Run a recovery scan before exporting.");
-  const suffix = safeTimestamp(date);
-  if (format === "json") {
-    const envelope: RecoveryExportEnvelope = {
-      format: "wallet-discovery-report",
-      version: 1,
-      createdAt: date.toISOString(),
-      containsSecrets: false,
-      safetyNotice:
-        "No mnemonic, BIP39 passphrase, seed, private key, spending key, or viewing key is included.",
-      results: exportableResults(results),
-    };
-    return {
-      filename: `wallet-discovery-report-${suffix}.json`,
-      mimeType: "application/json",
-      text: `${JSON.stringify(envelope, null, 2)}\n`,
-    };
-  }
-  return {
-    filename: `wallet-discovery-report-${suffix}.csv`,
-    mimeType: "text/csv",
-    text: toCsv(results),
-  };
+  return RecoveryExport.create(results, format, date);
 }

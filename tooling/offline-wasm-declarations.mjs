@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { format } from "prettier";
+import { assertOfflineWasmDeclarations } from "./verify-wasm-producers.mjs";
 
 const prettierOptions = {
   parser: "typescript",
@@ -27,9 +28,7 @@ function removeAsyncInitializer(source, label) {
 export async function writeOfflineWasmDeclarations(staging, generated, stem, label) {
   const apiSource = readFileSync(resolve(staging, `${stem}.d.ts`), "utf8");
   const api = removeAsyncInitializer(apiSource, label);
-  if (/__wbg_init|export\s+default/u.test(api)) {
-    throw new Error(`${label} declaration still advertises an unavailable async initializer.`);
-  }
+  assertOfflineWasmDeclarations("", api, label);
   const bindings = readFileSync(resolve(staging, `${stem}_bg.wasm.d.ts`), "utf8");
   writeFileSync(resolve(generated, `${stem}.d.ts`), await format(api, prettierOptions));
   writeFileSync(

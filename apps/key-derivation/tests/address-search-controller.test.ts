@@ -161,10 +161,39 @@ describe("known-address search lifecycle", () => {
     vi.restoreAllMocks();
   });
 
+  it("refuses an invalid search range before deriving a seed or creating a worker", async () => {
+    const f = fixture();
+    await settlePromises();
+    f.fields.searchCount!.value = "5001";
+    f.fields.searchAddressButton!.click();
+    await settlePromises();
+    expect(f.mnemonicToSeed).not.toHaveBeenCalled();
+    expect(f.worker.search).not.toHaveBeenCalled();
+    expect(f.createWorker).toHaveBeenCalledOnce();
+    expect(f.method("showError")).toHaveBeenCalledWith(expect.stringContaining("5000"));
+  });
+
+  it("wipes an active search seed and completes Clear despite native teardown failure", async () => {
+    const f = fixture();
+    await settlePromises();
+    f.fields.searchAddressButton!.click();
+    f.worker.terminate.mockImplementationOnce(() => {
+      throw new Error("Synthetic native teardown refusal");
+    });
+    f.fields.clearAllButton!.click();
+    const wiped = f.seed.every((byte) => byte === 0);
+    f.resolve(null);
+    await settlePromises();
+    expect(wiped).toBe(true);
+    expect(f.method("clearAllInputs")).toHaveBeenCalledOnce();
+    expect(f.method("setSearchRunning")).toHaveBeenCalledWith(false);
+    expect(f.method("showError")).toHaveBeenCalledWith(expect.stringContaining("released"));
+  });
+
   it("passes the mnemonic and Unicode BIP39 passphrase to seed derivation verbatim", async () => {
     const f = fixture();
-    await Promise.resolve();
-    await Promise.resolve();
+    // The startup self-tests finish before the search controls are enabled.
+    await settlePromises();
     const mnemonic =
       "  abandon   abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about  ";
     const passphrase = ' кириллица 中文 "quotes" \\ \n\t 🔑 ';
@@ -192,8 +221,8 @@ describe("known-address search lifecycle", () => {
     "includeCoinJoin",
   ])("releases seed and rejects stale matches after %s", async (name) => {
     const f = fixture();
-    await Promise.resolve();
-    await Promise.resolve();
+    // The startup self-tests finish before the search controls are enabled.
+    await settlePromises();
     f.fields.searchAddressButton!.click();
     expect(f.worker.search).toHaveBeenCalledOnce();
     const control = f.fields[name] ?? f.controls[name]!;
@@ -204,8 +233,7 @@ describe("known-address search lifecycle", () => {
     f.method("showSearchResult").mockClear();
     f.method("showError").mockClear();
     f.resolve({ index: 1, path: "old/path", address: "original-address" });
-    await Promise.resolve();
-    await Promise.resolve();
+    await settlePromises();
     expect(f.worker.search).toHaveBeenCalledOnce();
     expect(f.method("showSearchResult")).not.toHaveBeenCalled();
     expect(f.method("showError")).not.toHaveBeenCalled();
@@ -213,22 +241,21 @@ describe("known-address search lifecycle", () => {
 
   it("does not surface an obsolete worker rejection after Clear All", async () => {
     const f = fixture();
-    await Promise.resolve();
-    await Promise.resolve();
+    // The startup self-tests finish before the search controls are enabled.
+    await settlePromises();
     f.fields.searchAddressButton!.click();
     f.fields.clearAllButton!.click();
     f.method("showError").mockClear();
     f.reject(new Error("late worker failure"));
-    await Promise.resolve();
-    await Promise.resolve();
+    await settlePromises();
     expect(f.method("showError")).not.toHaveBeenCalled();
     expect(f.seed.every((byte) => byte === 0)).toBe(true);
   });
 
   it("uses the original address and account snapshot for both branches", async () => {
     const f = fixture();
-    await Promise.resolve();
-    await Promise.resolve();
+    // The startup self-tests finish before the search controls are enabled.
+    await settlePromises();
     f.fields.searchAddressButton!.click();
     f.fields.expectedAddress!.value = "another-address";
     f.controls.account!.value = "9";
@@ -244,5 +271,16 @@ describe("known-address search lifecycle", () => {
     );
     expect(f.worker.terminate).toHaveBeenCalledOnce();
     expect(f.seed.every((byte) => byte === 0)).toBe(true);
+  });
+  it("shows a failed target search as incomplete rather than a confirmed absence", async () => {
+    const f = fixture();
+    await settlePromises();
+    f.fields.searchAddressButton!.click();
+    f.reject(new Error("Synthetic worker fault with arbitrary supplied text"));
+    await settlePromises();
+    const latest = f.method("showSearchResult").mock.calls.at(-1)?.[0];
+    expect(latest).toContain("Incomplete: 1 address search failed.");
+    expect(latest).not.toContain("arbitrary supplied text");
+    expect(latest).not.toContain(": not found");
   });
 });

@@ -2232,6 +2232,19 @@ footer p {
   font-size: 11px;
   line-height: 1;
   list-style: none;
+  cursor: help;
+}
+
+/* A "?" mark is a small circle, as help marks usually are (owner, 2026-10-25). */
+.recovery-help summary.help-mark {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .recovery-help summary::before {
@@ -2256,6 +2269,17 @@ footer p {
 .recovery-help:hover .recovery-help-popover,
 .recovery-help[open] .recovery-help-popover {
   display: block;
+}
+
+/* An open explanation lies over the "?" marks that come after it on the page. */
+.recovery-help:hover,
+.recovery-help[open] {
+  z-index: 13;
+}
+
+/* The generation options stand apart, each with its description (owner, 2026-10-23). */
+.generation-option + .generation-option {
+  margin-top: 12px;
 }
 
 .recovery-help-popover h3 {
@@ -2865,15 +2889,29 @@ footer p {
   }
 }
 
+/* A "?" follows its label closely and sits raised at its top right; buttons keep the right edge. */
 .field-heading-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  justify-content: flex-start;
+  gap: 0.35rem;
+}
+
+.field-heading-row > button {
+  margin-left: auto;
+}
+
+.field-heading-row > .option-help {
+  align-self: flex-start;
 }
 
 .field-heading-row label {
   margin: 0;
+}
+
+/* Without a button the row is only as tall as its label, so its control keeps a label's 8px. */
+.field-heading-row:not(:has(> button)) + :is(input, select, textarea, .protocol-tabs) {
+  margin-top: 8px;
 }
 
 .matcher-secret-toggle {
@@ -3268,6 +3306,11 @@ footer p {
   user-select: text;
 }
 
+.diagnostic-revealed .secret-value {
+  filter: none;
+  user-select: text;
+}
+
 .recovered-secret-actions {
   align-items: center;
   margin-top: 10px;
@@ -3562,6 +3605,24 @@ label:has(> input[type="checkbox"]) small {
 /* Hints under fields: one size. */
 .field-note {
   font-size: 12px;
+}
+
+/* A warning note keeps clear space above and below, so that its box never touches the field,
+   label or option next to it (owner, 2026-10-23). */
+.field-note.warning {
+  margin: 10px 0;
+  padding: 10px 12px;
+}
+
+/* An empty status line takes no row of its grid; its first message brings it back. */
+#mnemocode-reencode-status:empty,
+#mnemocode-table-export-status:empty {
+  display: none;
+}
+
+/* The passphrase warning shows while the field holds a passphrase. */
+#passphrase:placeholder-shown + #passphrase-warning {
+  display: none;
 }
 
 /* Callouts: text at the size of the form around them, and several points as a short list. */

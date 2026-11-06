@@ -1,15 +1,20 @@
 import packageManifest from "../package.json" with { type: "json" };
 import { PRODUCT_FACTS } from "./project-metadata.mjs";
 
+/** The coins a build includes: the selected ones, else all of its edition. */
+export function selectedCoins(profile, selection) {
+  return new Set(
+    selection?.coins ??
+      (profile.id === "dash-community" ? ["dash"] : PRODUCT_FACTS.multiChainCoinIds),
+  );
+}
+
 /** User-visible protocol copy follows the actual selected coins, not the edition's maximum. */
 export class ToolProtocolFooter {
   #coins;
 
   constructor(profile, selection) {
-    this.#coins = new Set(
-      selection?.coins ??
-        (profile.id === "dash-community" ? ["dash"] : PRODUCT_FACTS.multiChainCoinIds),
-    );
+    this.#coins = selectedCoins(profile, selection);
   }
 
   render(toolId) {

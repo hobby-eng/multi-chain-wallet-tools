@@ -9,7 +9,7 @@ import { getBitcoinNetwork } from "@ckd/core/networks.js";
 import { deriveLegacyAddress } from "@ckd/coins/bitcoin/legacy.js";
 import { deriveNativeSegwitAddress } from "@ckd/coins/bitcoin/native-segwit.js";
 import { deriveNestedSegwitAddress } from "@ckd/coins/bitcoin/nested-segwit.js";
-import { deriveTaprootAddress } from "@ckd/coins/bitcoin/taproot.js";
+import { Taproot } from "@ckd/coins/bitcoin/taproot.js";
 
 export type { BitcoinMode } from "@ckd/coins/bitcoin/profiles.js";
 
@@ -31,7 +31,7 @@ export function addressFor(
   if (mode === "legacy") return deriveLegacyAddress(publicKey, network).address;
   if (mode === "nested-segwit") return deriveNestedSegwitAddress(publicKey, network).address;
   if (mode === "native-segwit") return deriveNativeSegwitAddress(publicKey, network).address;
-  return deriveTaprootAddress(publicKey, network).address;
+  return Taproot.address(publicKey, network).address;
 }
 
 /** The providers a Bitcoin section names as its source. */

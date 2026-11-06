@@ -1,3 +1,4 @@
+import { RenderedSecrets } from "./secrets.js";
 import { englishMnemonicToEntropy, entropyToEnglishMnemonic } from "@ckd/core/bip39.js";
 import { describeUnknownError, freeThrownValue } from "@ckd/core/error-handling.js";
 import { SskrGroupPolicy } from "@ckd/recovery-backup/sskr-groups.js";
@@ -81,7 +82,7 @@ function installSskr(context: RecoveryFeatureContext): void {
   });
   const restored = required<HTMLElement>("#sskr-restore-result");
   required<HTMLButtonElement>("#restore-sskr").addEventListener("click", () => {
-    restored.replaceChildren();
+    RenderedSecrets.replace(restored);
     let secret: Uint8Array | null = null;
     try {
       secret = recoverSskrShares(
@@ -96,14 +97,14 @@ function installSskr(context: RecoveryFeatureContext): void {
         context.mnemonicToSeed,
       );
     } catch (e) {
-      restored.textContent = displayFailure(e, "SSKR restoration failed.");
+      RenderedSecrets.text(restored, displayFailure(e, "SSKR restoration failed."));
     } finally {
       secret?.fill(0);
     }
   });
   installFieldImports(
     required<HTMLTextAreaElement>("#sskr-shares"),
-    (message) => (restored.textContent = message),
+    (message) => RenderedSecrets.text(restored, message),
     { qr: QR_IMAGES_IMPORT },
   );
 }

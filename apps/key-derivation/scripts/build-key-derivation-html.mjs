@@ -1,3 +1,5 @@
+import { RecoveryWorkerBundle } from "../../../tooling/recovery-worker-bundle.mjs";
+import { BundledAssets } from "../../../tooling/bundled-assets.mjs";
 import { readFileSync, rmSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,7 +12,7 @@ import {
   toolCss,
   writeToolArtifact,
 } from "../../../tooling/html-artifact.mjs";
-import { createBundledLibraryTextPlugin } from "../../../tooling/bundled-library-text.mjs";
+import { mnemocodeWasmPlugin } from "../../../tooling/mnemocode-wasm-plugin.mjs";
 import { createBuildInfo } from "../../../tooling/build-metadata.mjs";
 import {
   assertKeyDerivationComposition,
@@ -91,41 +93,18 @@ if (
 ) {
   throw new Error("The embedded MHFE browser package is incomplete.");
 }
-// MnemoCode's long jobs run in workers of their own, embedded as text like the derivation worker,
-// so that Cancel can terminate them: the searches of forgotten words and date digits, and, when the
-// SSKR library is in the build too, the restores and repairs of Shamir shares.
+// MnemoCode's long jobs run in a worker of their own, embedded as text like the derivation worker,
+// so that Cancel can terminate them: the searches of forgotten words, date digits and marked codes,
+// and the restores and repairs of Shamir shares. The worker is given the page's compiled MnemoCode,
+// whose bytes the page embeds once; its glue is that of the page's own file.
 const mnemocodeShares = features.has("mnemocode") && features.has("sskr");
-async function bundleMnemoCodeWorker(file) {
-  const result = await build({
-    absWorkingDir: root,
-    entryPoints: [resolve(root, "apps/key-derivation/src/workers", file)],
-    ...BROWSER_BUNDLE,
-    plugins: [
-      createKeyDerivationCompositionPlugin(root, features),
-      {
-        // The artifact embeds the BIP39 English wordlist once: a worker reads the page's copy.
-        name: "page-wordlist",
-        setup(buildContext) {
-          buildContext.onResolve(
-            { filter: /^@scure\/bip39\/wordlists\/english(?:\.js)?$/ },
-            () => ({
-              path: resolve(root, "apps/key-derivation/src/workers/page-wordlist.ts"),
-            }),
-          );
-        },
-      },
-    ],
-    metafile: true,
-  });
-  const source = result.outputFiles[0]?.text ?? "";
-  if (!source.includes("onmessage")) throw new Error(`esbuild did not produce ${file}.`);
-  return { inputs: Object.keys(result.metafile.inputs), source };
-}
+const mnemocodeWasm = mnemocodeWasmPlugin(root, profile.id, "key-derivation");
+const recoveryWorkers = new RecoveryWorkerBundle(root, features, [mnemocodeWasm]);
 const mnemocodeSearchWorker = features.has("mnemocode")
-  ? await bundleMnemoCodeWorker("mnemocode-search-worker.ts")
+  ? await recoveryWorkers.bundle("mnemocode-search-worker.ts")
   : { inputs: [], source: "" };
-const mnemocodeSharesWorker = mnemocodeShares
-  ? await bundleMnemoCodeWorker("mnemocode-shares-worker.ts")
+const slip39Worker = features.has("slip39")
+  ? await recoveryWorkers.bundle("slip39-worker.ts")
   : { inputs: [], source: "" };
 const buildInfo = createBuildInfo(root, tool.checksumFile, profile, {
   coins: features.coins,
@@ -135,11 +114,11 @@ const bundled = await build({
   absWorkingDir: root,
   stdin: { contents: selectedUiEntry(root), loader: "ts", resolveDir: root },
   ...BROWSER_BUNDLE,
-  loader: { ".wasm": "binary", ".ttf": "binary", ".png": "binary", ".jpg": "binary" },
+  loader: BundledAssets.loaders,
   metafile: true,
   plugins: [
     createKeyDerivationCompositionPlugin(root, features),
-    createBundledLibraryTextPlugin(),
+    mnemocodeWasm,
     {
       name: "selected-recovery-features",
       setup(buildContext) {
@@ -235,19 +214,13 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
       },
     },
   ],
-  // Card export bundles a font library whose unused font-program interpreter calls the
-  // non-cryptographic random function. Every such call is redirected to the system source.
-  inject: features.has("mnemocode-cards")
-    ? [resolve(root, "packages/build-security/src/random-fraction.ts")]
-    : [],
   define: {
     ...featureDefines(features),
-    ...(features.has("mnemocode-cards") ? { "Math.random": "ckdRandomFraction" } : {}),
     __BUILD_INFO__: JSON.stringify(buildInfo),
     __DERIVATION_WORKER_SOURCE__: JSON.stringify(workerSource),
     __MHFE_WORKER_SOURCE__: JSON.stringify(mhfeSources.worker),
     __MNEMOCODE_SEARCH_WORKER_SOURCE__: JSON.stringify(mnemocodeSearchWorker.source),
-    __MNEMOCODE_SHARES_WORKER_SOURCE__: JSON.stringify(mnemocodeSharesWorker.source),
+    __SLIP39_WORKER_SOURCE__: JSON.stringify(slip39Worker.source),
     __MHFE_ARGON2_THREADED_SOURCE__: JSON.stringify(mhfeSources.argon2Threaded),
     __MHFE_ARGON2_SINGLE_THREADED_SOURCE__: JSON.stringify(mhfeSources.argon2SingleThreaded),
     __DASH_COMMUNITY__: profile.id === "dash-community" ? "true" : "false",
@@ -256,7 +229,7 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
 assertKeyDerivationComposition(features, [
   ...Object.keys(workerBuild.metafile.inputs),
   ...mnemocodeSearchWorker.inputs,
-  ...mnemocodeSharesWorker.inputs,
+  ...slip39Worker.inputs,
   ...Object.keys(bundled.metafile.inputs),
 ]);
 const javascript = bundleText(bundled, "Key Derivation Tool");
@@ -265,7 +238,7 @@ if (profile.id === "dash-community") {
     [
       ...Object.keys(workerBuild.metafile.inputs),
       ...mnemocodeSearchWorker.inputs,
-      ...mnemocodeSharesWorker.inputs,
+      ...slip39Worker.inputs,
       ...Object.keys(bundled.metafile.inputs),
     ],
     "Dash Community key derivation",

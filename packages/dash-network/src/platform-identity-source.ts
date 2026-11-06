@@ -1,4 +1,5 @@
 import { IDENTITY_CREATION_KINDS } from "./identity-transition-types.js";
+import { PlatformIdentifier } from "./platform-identifier.js";
 import { trustedEvoSdk } from "./evo-sdk.js";
 import { PLATFORM_EXPLORER_ENDPOINTS, PLATFORM_EXPLORER_HTTP } from "./platform-explorer.js";
 import { BLS_KEY_HEX, COMPRESSED_KEY_HEX, HASH160_HEX, normalizedHex } from "@ckd/core/key-text.js";
@@ -106,15 +107,6 @@ type RegistrationTransactionDecoder = (encodedTransition: string, expectedHash: 
 
 const { object: explorerObject, fetchJson: fetchExplorerJson } = PLATFORM_EXPLORER_HTTP;
 
-function canonicalIdentifier(value: string): string | null {
-  try {
-    const bytes = base58.decode(value);
-    return bytes.length === 32 && base58.encode(bytes) === value ? value : null;
-  } catch {
-    return null;
-  }
-}
-
 export function normalizeIdentityLookupInput(value: string): NormalizedIdentityLookup {
   const trimmed = value.trim();
   const hex = normalizedHex(trimmed);
@@ -193,12 +185,11 @@ export function normalizeIdentityLookupInput(value: string): NormalizedIdentityL
         "without a network request. For a BLS12_381 public key use bls:<hex>.",
     );
   }
-  const identifier = canonicalIdentifier(trimmed);
-  if (identifier !== null) {
+  if (PlatformIdentifier.is(trimmed)) {
     return {
       kind: "identity-id",
       label: "Base58 Identity ID",
-      identityId: identifier,
+      identityId: trimmed,
     };
   }
   const name = trimmed.toLowerCase();
@@ -231,7 +222,7 @@ function decodeRegistrationTransaction(encodedTransition: string, expectedHash: 
     }
     ownerId = transitionOwner;
     const identityId = ownerId.toBase58();
-    if (canonicalIdentifier(identityId) === null) {
+    if (!PlatformIdentifier.is(identityId)) {
       throw new Error("The Identity creation transition contains an invalid owner identifier.");
     }
     return identityId;
@@ -428,7 +419,7 @@ export class DashPlatformIdentitySource {
     if (this.#sdk === undefined) throw new Error("Dash Evo SDK is not connected.");
     const identityId = await this.#sdk.dpns.resolveName(name);
     if (identityId === undefined) return null;
-    if (canonicalIdentifier(identityId) === null) {
+    if (!PlatformIdentifier.is(identityId)) {
       throw new Error("DAPI returned a malformed Identity ID while resolving the DPNS name.");
     }
     return identityId;

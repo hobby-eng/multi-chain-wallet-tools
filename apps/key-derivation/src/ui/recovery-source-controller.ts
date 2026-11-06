@@ -1,59 +1,60 @@
-import { englishMnemonicToEntropy } from "@ckd/core/bip39.js";
-import type { RecoverySourceReference, RecoverySourceTarget } from "./recovery-source-link.js";
+import {
+  RecoverySourceRoute,
+  RecoverySourceRouteError,
+  type RecoverySourceProviders,
+  type RecoverySourceReference,
+  type RecoverySourceRouteErrorCode,
+  type RecoverySourceTarget,
+} from "@ckd/recovery/recovery-source.js";
 
-interface RecoverySourceControllerOptions {
+interface RecoverySourceControllerOptions extends RecoverySourceProviders {
   document: Document;
   open: (reference: RecoverySourceReference, target: RecoverySourceTarget) => void;
-  originalReference: () => RecoverySourceReference;
-  childReference: () => RecoverySourceReference | null;
   showError: (message: string) => void;
 }
 
-const RECOVERY_SOURCE_TARGETS = new Set<RecoverySourceTarget>([
-  "matcher",
-  "seedqr",
-  "mnemocode",
-  "mhfe",
-  "slip39",
-  "codex32",
-  "sskr",
-  "gordian-envelope",
-]);
+const ROUTE_MESSAGES: Record<RecoverySourceRouteErrorCode, string> = {
+  "recovery.source.kind": "Select the original phrase or a BIP85 child phrase.",
+  "recovery.source.target": "Select a supported recovery workflow.",
+  "recovery.source.child-missing":
+    "Derive a BIP39 child phrase before sending it to Recover & Back Up.",
+  "recovery.source.original-phrase": "Enter a checksum-valid English BIP39 recovery phrase first.",
+};
 
-/** Routes an in-memory mnemonic reference without copying it through the OS clipboard. */
-export function installRecoverySourceController(options: RecoverySourceControllerOptions): void {
-  options.document.addEventListener("click", (event) => {
+/** Routes native actions through library admission, without an OS clipboard copy. */
+export class RecoverySourceController {
+  readonly #options: RecoverySourceControllerOptions;
+
+  /** Installs the native event edge; library refusal and native failure receive input-free text. */
+  constructor(options: RecoverySourceControllerOptions) {
+    this.#options = options;
+    options.document.addEventListener("click", (event) => this.#click(event.target));
+  }
+
+  #click(target: EventTarget | null): void {
     const button =
-      event.target instanceof Element
-        ? event.target.closest<HTMLButtonElement>("[data-recovery-source]")
+      target instanceof Element
+        ? target.closest<HTMLButtonElement>("[data-recovery-source]")
         : null;
     if (button === null) return;
-    const target = button.dataset.recoveryTarget as RecoverySourceTarget | undefined;
-    if (target === undefined || !RECOVERY_SOURCE_TARGETS.has(target)) return;
-    let reference: RecoverySourceReference;
-    if (button.dataset.recoverySource === "bip85") {
-      const childReference = options.childReference();
-      if (childReference === null) {
-        options.showError("Derive a BIP39 child phrase before sending it to Recover & Back Up.");
-        return;
-      }
-      reference = childReference;
-    } else {
-      reference = options.originalReference();
-      const source = reference.read();
-      let entropy: Uint8Array | null = null;
-      try {
-        if (source === null)
-          throw new Error("The original recovery source is no longer available.");
-        entropy = englishMnemonicToEntropy(source.mnemonic);
-      } catch {
-        options.showError("Enter a checksum-valid English BIP39 recovery phrase first.");
-        return;
-      } finally {
-        entropy?.fill(0);
-      }
+    try {
+      const route = new RecoverySourceRoute(
+        button.dataset.recoverySource,
+        button.dataset.recoveryTarget,
+      );
+      this.#options.open(route.resolve(this.#options), route.target);
+      button.closest("details")?.removeAttribute("open");
+    } catch (cause) {
+      this.#options.showError(
+        cause instanceof RecoverySourceRouteError
+          ? ROUTE_MESSAGES[cause.code]
+          : "The recovery source could not be opened.",
+      );
     }
-    options.open(reference, target);
-    button.closest("details")?.removeAttribute("open");
-  });
+  }
+}
+
+/** Compatibility installer for existing Deriver compositions. */
+export function installRecoverySourceController(options: RecoverySourceControllerOptions): void {
+  new RecoverySourceController(options);
 }

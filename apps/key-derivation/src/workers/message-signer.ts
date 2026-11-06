@@ -3,6 +3,7 @@ import { signCompactP2pkhMessage } from "@ckd/core/compact-message.js";
 import type { ResultField } from "@ckd/core/types.js";
 import type { MessageSigningFormat } from "./protocol.js";
 import { signBip322Message } from "./bip322-signer.js";
+import { Bip322Signing } from "@ckd/core/bip322-signing.js";
 
 export async function signDerivedMessage(
   privateKeyHex: string,
@@ -12,9 +13,9 @@ export async function signDerivedMessage(
   format: MessageSigningFormat,
   fields: readonly ResultField[],
 ) {
-  const privateKey = hexToBytes(privateKeyHex);
-  try {
-    if (format === "bitcoin-compact" || format === "dash-compact") {
+  if (format === "bitcoin-compact" || format === "dash-compact") {
+    const privateKey = hexToBytes(privateKeyHex);
+    try {
       return signCompactP2pkhMessage(
         privateKey,
         address,
@@ -22,24 +23,18 @@ export async function signDerivedMessage(
         format === "bitcoin-compact" ? "bitcoin" : "dash",
         network,
       );
+    } finally {
+      wipe(privateKey);
     }
-    return signBip322Message(
-      privateKeyHex,
-      address,
-      message,
-      network,
-      format === "bitcoin-bip322-legacy"
-        ? "legacy-p2pkh"
-        : format === "bitcoin-bip322-nested"
-          ? "nested-segwit"
-          : format === "bitcoin-bip322-native"
-            ? "native-segwit"
-            : "taproot",
-      fields.find((field) => field.key === "scriptPubKey")?.value ?? "",
-      fields.find((field) => field.key === "redeemScript")?.value,
-      fields.find((field) => field.key === "internalPublicKey")?.value,
-    );
-  } finally {
-    wipe(privateKey);
   }
+  return signBip322Message(
+    privateKeyHex,
+    address,
+    message,
+    network,
+    Bip322Signing.mode(format),
+    fields.find((field) => field.key === "scriptPubKey")?.value ?? "",
+    fields.find((field) => field.key === "redeemScript")?.value,
+    fields.find((field) => field.key === "internalPublicKey")?.value,
+  );
 }

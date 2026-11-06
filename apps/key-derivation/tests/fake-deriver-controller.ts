@@ -6,6 +6,7 @@ import type { KeyDerivationView } from "../src/ui/view.js";
 import { installSilentPaymentFeature } from "../src/ui/silent-payment-feature.js";
 import type { SilentPaymentResult } from "../src/workers/silent-payment.js";
 import { RecoveryTestPage } from "./fake-recovery-page.js";
+import type { ChosenWordsFeature } from "../src/ui/chosen-words-feature.js";
 
 export interface Deferred<T> {
   readonly promise: Promise<T>;
@@ -34,6 +35,8 @@ export function installControllerFixture(
   },
   pendingDerivations: Deferred<SilentPaymentResult>[] = [],
   withSilentPayments = false,
+  chosenWords?: ChosenWordsFeature,
+  offerRecoverySource?: Parameters<typeof createKeyDerivationController>[1]["offerRecoverySource"],
 ) {
   const controls = Object.fromEntries(
     [
@@ -210,6 +213,8 @@ export function installControllerFixture(
       terminate: () => undefined,
     }),
     ...(withSilentPayments ? { installSilentPaymentFeature } : {}),
+    ...(chosenWords === undefined ? {} : { chosenWords }),
+    ...(offerRecoverySource === undefined ? {} : { offerRecoverySource }),
   } as unknown as Parameters<typeof createKeyDerivationController>[1];
   createKeyDerivationController(view, dependencies).start();
   return { page, view, viewElements, dependencies, deriveSilentPayment };

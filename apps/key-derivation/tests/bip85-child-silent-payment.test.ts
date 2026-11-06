@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PassiveQrPage } from "../../../test/support/qr-page.js";
+import type { RecoveryTestElement as FakeElement } from "./fake-recovery-page.js";
 import { entropyToEnglishMnemonic, mnemonicToSeed } from "@ckd/core/bip39.js";
-import { deriveBip85Bip39 } from "@ckd/core/bip85.js";
+import { Bip85 } from "@ckd/core/bip85.js";
 import { hexToBytes } from "@ckd/core/crypto.js";
 import {
   installBip85ChildWallet,
@@ -28,50 +30,11 @@ const OUTPUT_IDS = [
   "silent-payment-spend-key",
 ] as const;
 
-/** The few element features the Silent Payments and child-wallet code use. */
-class FakeElement extends EventTarget {
-  hidden = false;
-  disabled = false;
-  checked = false;
-  value = "";
-  textContent = "";
-  parentElement: FakeElement | null = null;
-  readonly classList = { toggle: (): void => undefined };
-  setAttribute(name: string, value: string): void {
-    if (name === "hidden") this.hidden = value !== null;
-  }
-  replaceChildren(): void {}
-  append(...children: FakeElement[]): void {
-    for (const child of children) child.parentElement = this;
-  }
-  prepend(...children: FakeElement[]): void {
-    this.append(...children);
-  }
-  closest(): FakeElement | null {
-    return null;
-  }
-  click(): void {
-    this.dispatchEvent(new Event("click"));
-  }
-}
-
-/** A document whose elements exist only for the IDs listed; every other query returns null. */
-function fakeDocument(ids: readonly string[]): {
-  document: Document;
-  byId: (id: string) => FakeElement;
-} {
-  const elements = new Map(ids.map((id) => [id, new FakeElement()]));
-  const byId = (id: string): FakeElement => {
-    const element = elements.get(id);
-    if (element === undefined) throw new Error(`Missing fake element #${id}.`);
-    return element;
-  };
-  const document = {
-    querySelector: (selector: string) =>
-      selector.startsWith("#") ? (elements.get(selector.slice(1)) ?? null) : null,
-    createElement: () => new FakeElement(),
-  } as unknown as Document;
-  return { document, byId };
+/** A native-boundary fake whose nodes have their owning document and window. */
+function fakeDocument(ids: readonly string[]) {
+  const page = new PassiveQrPage();
+  for (const id of ids) page.add(id);
+  return { document: page.asDocument(), byId: (id: string) => page.require(id) };
 }
 
 function panelIds(prefix: string): string[] {
@@ -103,7 +66,7 @@ function inProcessWorker(): DerivationWorkerClient {
 function childMnemonicOf(parent: string): string {
   const seed = mnemonicToSeed(parent);
   try {
-    return entropyToEnglishMnemonic(hexToBytes(deriveBip85Bip39(seed, 12, 0).entropyHex));
+    return entropyToEnglishMnemonic(hexToBytes(Bip85.bip39(seed, 12, 0).entropyHex));
   } finally {
     seed.fill(0);
   }
@@ -205,6 +168,46 @@ describe("BIP85 child wallet Silent Payments", () => {
     await settle(byId, "");
     expect(outputsOf(byId, "")[0]).not.toBe(child[0]);
   });
+});
+
+it("clears child Silent Payments even when an active signing surface refuses to close", async () => {
+  vi.stubGlobal("window", { setTimeout, clearTimeout });
+  const { document, byId } = fakeDocument([
+    ...panelIds(CHILD_PREFIX),
+    `${CHILD_PREFIX}include-silent-payment`,
+    `${CHILD_PREFIX}silent-payment-tab`,
+    `${CHILD_PREFIX}silent-payment-panel`,
+    "bip85-child-passphrase",
+  ]);
+  byId(`${CHILD_PREFIX}silent-payment-network`).value = "mainnet";
+  byId(`${CHILD_PREFIX}silent-payment-account`).value = "0";
+  byId(`${CHILD_PREFIX}silent-payment-result`).hidden = true;
+  byId(`${CHILD_PREFIX}silent-payment-error`).hidden = true;
+  const close = vi.fn((): void => {
+    throw new Error("Synthetic native signing close fault");
+  });
+  const child = installBip85ChildWallet({
+    document,
+    mnemonic: () => PARENT_MNEMONIC,
+    mnemonicToSeed,
+    createWorker: inProcessWorker,
+    installSilentPaymentFeature,
+    cryptoReady: () => true,
+    secretsRevealed: () => false,
+    setSecretsRevealed: () => undefined,
+    messageSigning: { activeSource: () => "bip85", close },
+  } as unknown as Bip85ChildWalletOptions);
+  byId(`${CHILD_PREFIX}include-silent-payment`).checked = true;
+  byId(`${CHILD_PREFIX}include-silent-payment`).dispatchEvent(new Event("change"));
+  // The failure is armed after the setup transition, which also clears the child view.
+  close.mockImplementationOnce(() => undefined);
+  byId(`${CHILD_PREFIX}silent-payment-tab`).click();
+  await settle(byId, CHILD_PREFIX);
+  expect(byId(`${CHILD_PREFIX}silent-payment-scan-key`).textContent).not.toBe("");
+  expect(() => child.clear()).toThrow("Synthetic native signing close fault");
+  for (const id of OUTPUT_IDS) expect(byId(`${CHILD_PREFIX}${id}`).textContent).toBe("");
+  expect(byId(`${CHILD_PREFIX}silent-payment-result`).hidden).toBe(true);
+  vi.unstubAllGlobals();
 });
 
 describe("Silent Payments after a failed self-test (AUD-023-SEC001)", () => {

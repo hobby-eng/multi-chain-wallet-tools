@@ -3,7 +3,8 @@ import {
   DirectRecoveryNetworkService,
   PLATFORM_IDENTITY_HISTORY_MAX_TRANSFERS,
 } from "../src/network-service.js";
-const identifier = "1".repeat(44);
+// Canonical Base58 of 32 zero bytes, not a 44-byte all-zero identifier.
+const identifier = "1".repeat(32);
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();

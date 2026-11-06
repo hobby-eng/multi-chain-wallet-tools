@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  INVALID_PNG_INPUT,
-  MAX_PNG_DIMENSION,
-  PngAdmission,
-} from "../../recovery-mnemocode/source/core/png-admission.js";
-import { CRC32_BYTES, crc32 } from "../../recovery-mnemocode/source/sskr/checksum.js";
+import { INVALID_PNG_INPUT, MAX_PNG_DIMENSION, PngAdmission } from "../src/png-rules.js";
+import { crc32 } from "@ckd/test-support/mncl-list.js";
+
+const CRC32_BYTES = 4;
 import { FileChoice } from "../src/file-choice.js";
 import {
   BrowserPngAdmission,
@@ -137,15 +135,20 @@ function importFile(file: File): Promise<{ text?: string; error?: string }> {
         choose = listener;
       },
     } as unknown as FileChoice);
-    const target = {
+    const target = Object.assign(new EventTarget(), {
       value: "",
+      isConnected: true,
+      disabled: false,
+      type: "textarea",
+      dataset: {},
       after: vi.fn(),
-      dispatchEvent() {
-        resolve({ text: target.value });
-        return true;
-      },
-    };
-    installQrImageImport({} as Document, target as unknown as HTMLTextAreaElement, {
+    });
+    target.addEventListener("input", () => resolve({ text: target.value }));
+    const page = Object.assign(new EventTarget(), {
+      defaultView: new EventTarget(),
+      querySelector: () => null,
+    });
+    installQrImageImport(page as unknown as Document, target as unknown as HTMLTextAreaElement, {
       onError: (error) => resolve({ error }),
     });
     choose();
@@ -157,178 +160,176 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("browser PNG admission", () => {
-  it("delegates signature classification to the shared core", () => {
-    const bytes = png();
-    expect(BrowserPngAdmission.hasSignature(bytes)).toBe(true);
-    expect(BrowserPngAdmission.hasSignature(bytes.subarray(0, SIGNATURE.length - 1))).toBe(false);
-    for (let index = 0; index < SIGNATURE.length; index += 1) {
-      const changed = bytes.slice();
-      changed[index]! ^= 1;
-      expect(BrowserPngAdmission.hasSignature(changed)).toBe(false);
+it("delegates signature classification to the shared core", () => {
+  const bytes = png();
+  expect(BrowserPngAdmission.hasSignature(bytes)).toBe(true);
+  expect(BrowserPngAdmission.hasSignature(bytes.subarray(0, SIGNATURE.length - 1))).toBe(false);
+  for (let index = 0; index < SIGNATURE.length; index += 1) {
+    const changed = bytes.slice();
+    changed[index]! ^= 1;
+    expect(BrowserPngAdmission.hasSignature(changed)).toBe(false);
+  }
+});
+
+it.each(["CRC", "dimensions", "duplicate header", "trailing bytes"])(
+  "keeps the stream and decoder closed on a core %s refusal",
+  async (problem) => {
+    let bytes = png();
+    if (problem === "CRC") bytes[bytes.length - 1]! ^= 1;
+    if (problem === "dimensions") bytes = png({ width: MAX_PNG_DIMENSION + 1 });
+    if (problem === "duplicate header") {
+      const headerEnd = SIGNATURE.length + LENGTH_BYTES * 2 + IHDR_BYTES + CRC32_BYTES;
+      bytes = joinBytes(bytes.subarray(0, headerEnd), bytes.subarray(SIGNATURE.length));
     }
-  });
-
-  it.each(["CRC", "dimensions", "duplicate header", "trailing bytes"])(
-    "keeps the stream and decoder closed on a core %s refusal",
-    async (problem) => {
-      let bytes = png();
-      if (problem === "CRC") bytes[bytes.length - 1]! ^= 1;
-      if (problem === "dimensions") bytes = png({ width: MAX_PNG_DIMENSION + 1 });
-      if (problem === "duplicate header") {
-        const headerEnd = SIGNATURE.length + LENGTH_BYTES * 2 + IHDR_BYTES + CRC32_BYTES;
-        bytes = joinBytes(bytes.subarray(0, headerEnd), bytes.subarray(SIGNATURE.length));
-      }
-      if (problem === "trailing bytes") bytes = joinBytes(bytes, Uint8Array.of(1));
-      const open = vi.fn(() => fakeReader([]));
-      const decoder = vi.fn(async () => "unreachable");
-      await expect(new BrowserPngAdmission(open).decode(bytes, decoder)).rejects.toThrow();
-      expect(open).not.toHaveBeenCalled();
-      expect(decoder).not.toHaveBeenCalled();
-    },
-  );
-
-  it("consumes exact-budget output through EOF and wipes chunks before decoding", async () => {
-    const chunks = [Uint8Array.of(4), Uint8Array.of(5)];
-    const reader = fakeReader(chunks);
-    let compressed!: Uint8Array;
-    const admission = new BrowserPngAdmission((bytes) => {
-      compressed = bytes;
-      expect(bytes).toEqual(COMPRESSED_PIXEL);
-      return reader;
-    });
-    const decoder = vi.fn(async () => {
-      expect(chunks.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true);
-      expect(compressed.every((byte) => byte === 0)).toBe(true);
-      expect(reader.releaseLock).toHaveBeenCalledOnce();
-      return "admitted";
-    });
-    expect(PngAdmission.read(png()).filteredBytes).toBe(PIXEL_SCANLINE_BYTES);
-    await expect(admission.decode(png(), decoder)).resolves.toBe("admitted");
-    expect(reader.read).toHaveBeenCalledTimes(chunks.length + 1);
-    expect(reader.cancel).not.toHaveBeenCalled();
-    expect(decoder).toHaveBeenCalledOnce();
-  });
-
-  it("uses the core's Adam7 budget, including empty passes", async () => {
-    const bytes = png({ width: 3, height: 3, interlace: 1 });
-    // W3C Adam7: the five nonempty passes have 2 + 2 + 3 + 4 + 4 filtered bytes.
-    const filtered = new Uint8Array(15).fill(7);
-    const reader = fakeReader([filtered]);
-    expect(PngAdmission.read(bytes).filteredBytes).toBe(filtered.byteLength);
-    const decoder = vi.fn(async () => "admitted interlaced image");
-    await expect(new BrowserPngAdmission(() => reader).decode(bytes, decoder)).resolves.toBe(
-      "admitted interlaced image",
-    );
-    expect(filtered.every((byte) => byte === 0)).toBe(true);
-    expect(decoder).toHaveBeenCalledOnce();
-  });
-
-  it.each([
-    { label: "cumulative overflow", chunks: [Uint8Array.of(1), Uint8Array.of(2, 3)] },
-    { label: "surplus after the exact budget", chunks: [Uint8Array.of(1, 2), Uint8Array.of(3)] },
-    { label: "one oversized chunk", chunks: [Uint8Array.of(1, 2, 3)] },
-  ])("cancels $label without reading another chunk", async ({ chunks }) => {
-    const unread = Uint8Array.of(9);
-    const reader = fakeReader([...chunks, unread]);
-    let compressed!: Uint8Array;
-    const admission = new BrowserPngAdmission((bytes) => {
-      compressed = bytes;
-      return reader;
-    });
+    if (problem === "trailing bytes") bytes = joinBytes(bytes, Uint8Array.of(1));
+    const open = vi.fn(() => fakeReader([]));
     const decoder = vi.fn(async () => "unreachable");
-    await expect(admission.decode(png(), decoder)).rejects.toThrow(INVALID_PNG_INPUT);
-    expect(reader.read).toHaveBeenCalledTimes(chunks.length);
-    expect(reader.cancel).toHaveBeenCalledOnce();
-    expect(reader.releaseLock).toHaveBeenCalledOnce();
+    await expect(new BrowserPngAdmission(open).decode(bytes, decoder)).rejects.toThrow();
+    expect(open).not.toHaveBeenCalled();
+    expect(decoder).not.toHaveBeenCalled();
+  },
+);
+
+it("consumes exact-budget output through EOF and wipes chunks before decoding", async () => {
+  const chunks = [Uint8Array.of(4), Uint8Array.of(5)];
+  const reader = fakeReader(chunks);
+  let compressed!: Uint8Array;
+  const admission = new BrowserPngAdmission((bytes) => {
+    compressed = bytes;
+    expect(bytes).toEqual(COMPRESSED_PIXEL);
+    return reader;
+  });
+  const decoder = vi.fn(async () => {
     expect(chunks.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true);
-    expect(unread).toEqual(Uint8Array.of(9));
     expect(compressed.every((byte) => byte === 0)).toBe(true);
-    expect(decoder).not.toHaveBeenCalled();
-  });
-
-  it("rejects a truncated expansion and releases the reader", async () => {
-    const output = Uint8Array.of(1);
-    const reader = fakeReader([output]);
-    const decoder = vi.fn(async () => "unreachable");
-    await expect(new BrowserPngAdmission(() => reader).decode(png(), decoder)).rejects.toThrow(
-      INVALID_PNG_INPUT,
-    );
-    expect(output).toEqual(Uint8Array.of(0));
-    expect(reader.cancel).toHaveBeenCalledOnce();
     expect(reader.releaseLock).toHaveBeenCalledOnce();
-    expect(decoder).not.toHaveBeenCalled();
+    return "admitted";
   });
+  expect(PngAdmission.read(png()).filteredBytes).toBe(PIXEL_SCANLINE_BYTES);
+  await expect(admission.decode(png(), decoder)).resolves.toBe("admitted");
+  expect(reader.read).toHaveBeenCalledTimes(chunks.length + 1);
+  expect(reader.cancel).not.toHaveBeenCalled();
+  expect(decoder).toHaveBeenCalledOnce();
+});
 
-  it("redacts stream and cancellation failures while wiping compressed input", async () => {
-    const output = Uint8Array.of(1);
-    const reader = fakeReader([output], new Error("synthetic private stream detail"));
-    reader.cancel.mockRejectedValueOnce(new Error("synthetic private cancellation detail"));
-    let compressed!: Uint8Array;
-    const admission = new BrowserPngAdmission((bytes) => {
-      compressed = bytes;
-      return reader;
-    });
-    const decoder = vi.fn(async () => "unreachable");
-    await expect(admission.decode(png(), decoder)).rejects.toThrow(INVALID_PNG_INPUT);
-    expect(output).toEqual(Uint8Array.of(0));
-    expect(compressed.every((byte) => byte === 0)).toBe(true);
-    expect(reader.cancel).toHaveBeenCalledOnce();
-    expect(reader.releaseLock).toHaveBeenCalledOnce();
-    expect(decoder).not.toHaveBeenCalled();
+it("uses the core's Adam7 budget, including empty passes", async () => {
+  const bytes = png({ width: 3, height: 3, interlace: 1 });
+  // W3C Adam7: the five nonempty passes have 2 + 2 + 3 + 4 + 4 filtered bytes.
+  const filtered = new Uint8Array(15).fill(7);
+  const reader = fakeReader([filtered]);
+  expect(PngAdmission.read(bytes).filteredBytes).toBe(filtered.byteLength);
+  const decoder = vi.fn(async () => "admitted interlaced image");
+  await expect(new BrowserPngAdmission(() => reader).decode(bytes, decoder)).resolves.toBe(
+    "admitted interlaced image",
+  );
+  expect(filtered.every((byte) => byte === 0)).toBe(true);
+  expect(decoder).toHaveBeenCalledOnce();
+});
+
+it.each([
+  { label: "cumulative overflow", chunks: [Uint8Array.of(1), Uint8Array.of(2, 3)] },
+  { label: "surplus after the exact budget", chunks: [Uint8Array.of(1, 2), Uint8Array.of(3)] },
+  { label: "one oversized chunk", chunks: [Uint8Array.of(1, 2, 3)] },
+])("cancels $label without reading another chunk", async ({ chunks }) => {
+  const unread = Uint8Array.of(9);
+  const reader = fakeReader([...chunks, unread]);
+  let compressed!: Uint8Array;
+  const admission = new BrowserPngAdmission((bytes) => {
+    compressed = bytes;
+    return reader;
   });
+  const decoder = vi.fn(async () => "unreachable");
+  await expect(admission.decode(png(), decoder)).rejects.toThrow(INVALID_PNG_INPUT);
+  expect(reader.read).toHaveBeenCalledTimes(chunks.length);
+  expect(reader.cancel).toHaveBeenCalledOnce();
+  expect(reader.releaseLock).toHaveBeenCalledOnce();
+  expect(chunks.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true);
+  expect(unread).toEqual(Uint8Array.of(9));
+  expect(compressed.every((byte) => byte === 0)).toBe(true);
+  expect(decoder).not.toHaveBeenCalled();
+});
 
-  it("wipes compressed input when the bounded stream cannot be opened", async () => {
-    let compressed!: Uint8Array;
-    const admission = new BrowserPngAdmission((bytes) => {
-      compressed = bytes;
-      throw new Error("synthetic private startup detail");
-    });
-    const decoder = vi.fn(async () => "unreachable");
-    await expect(admission.decode(png(), decoder)).rejects.toThrow(PNG_BOUNDED_DECODER_UNAVAILABLE);
-    expect(compressed.every((byte) => byte === 0)).toBe(true);
-    expect(decoder).not.toHaveBeenCalled();
+it("rejects a truncated expansion and releases the reader", async () => {
+  const output = Uint8Array.of(1);
+  const reader = fakeReader([output]);
+  const decoder = vi.fn(async () => "unreachable");
+  await expect(new BrowserPngAdmission(() => reader).decode(png(), decoder)).rejects.toThrow(
+    INVALID_PNG_INPUT,
+  );
+  expect(output).toEqual(Uint8Array.of(0));
+  expect(reader.cancel).toHaveBeenCalledOnce();
+  expect(reader.releaseLock).toHaveBeenCalledOnce();
+  expect(decoder).not.toHaveBeenCalled();
+});
+
+it("redacts stream and cancellation failures while wiping compressed input", async () => {
+  const output = Uint8Array.of(1);
+  const reader = fakeReader([output], new Error("synthetic private stream detail"));
+  reader.cancel.mockRejectedValueOnce(new Error("synthetic private cancellation detail"));
+  let compressed!: Uint8Array;
+  const admission = new BrowserPngAdmission((bytes) => {
+    compressed = bytes;
+    return reader;
   });
+  const decoder = vi.fn(async () => "unreachable");
+  await expect(admission.decode(png(), decoder)).rejects.toThrow(INVALID_PNG_INPUT);
+  expect(output).toEqual(Uint8Array.of(0));
+  expect(compressed.every((byte) => byte === 0)).toBe(true);
+  expect(reader.cancel).toHaveBeenCalledOnce();
+  expect(reader.releaseLock).toHaveBeenCalledOnce();
+  expect(decoder).not.toHaveBeenCalled();
+});
 
-  it("keeps one owned snapshot until the asynchronous decoder settles", async () => {
-    const input = png();
-    const expected = input.slice();
-    const started = gate();
-    const finish = gate();
-    const reader = fakeReader([Uint8Array.of(0, 0)]);
-    let owned!: Uint8Array;
-    const decoder = vi.fn(async (bytes: Uint8Array) => {
-      owned = bytes;
-      expect(owned).toEqual(expected);
-      started.resolve();
-      await finish.promise;
-      expect(owned).toEqual(expected);
-      return "decoded";
-    });
-    const pending = new BrowserPngAdmission(() => reader).decode(input, decoder);
-    input.fill(9);
-    await started.promise;
-    expect(owned.buffer).not.toBe(input.buffer);
+it("wipes compressed input when the bounded stream cannot be opened", async () => {
+  let compressed!: Uint8Array;
+  const admission = new BrowserPngAdmission((bytes) => {
+    compressed = bytes;
+    throw new Error("synthetic private startup detail");
+  });
+  const decoder = vi.fn(async () => "unreachable");
+  await expect(admission.decode(png(), decoder)).rejects.toThrow(PNG_BOUNDED_DECODER_UNAVAILABLE);
+  expect(compressed.every((byte) => byte === 0)).toBe(true);
+  expect(decoder).not.toHaveBeenCalled();
+});
+
+it("keeps one owned snapshot until the asynchronous decoder settles", async () => {
+  const input = png();
+  const expected = input.slice();
+  const started = gate();
+  const finish = gate();
+  const reader = fakeReader([Uint8Array.of(0, 0)]);
+  let owned!: Uint8Array;
+  const decoder = vi.fn(async (bytes: Uint8Array) => {
+    owned = bytes;
     expect(owned).toEqual(expected);
-    finish.resolve();
-    await expect(pending).resolves.toBe("decoded");
-    expect(owned.every((byte) => byte === 0)).toBe(true);
-    expect(input.every((byte) => byte === 9)).toBe(true);
+    started.resolve();
+    await finish.promise;
+    expect(owned).toEqual(expected);
+    return "decoded";
   });
+  const pending = new BrowserPngAdmission(() => reader).decode(input, decoder);
+  input.fill(9);
+  await started.promise;
+  expect(owned.buffer).not.toBe(input.buffer);
+  expect(owned).toEqual(expected);
+  finish.resolve();
+  await expect(pending).resolves.toBe("decoded");
+  expect(owned.every((byte) => byte === 0)).toBe(true);
+  expect(input.every((byte) => byte === 9)).toBe(true);
+});
 
-  it("wipes the owned snapshot and redacts a decoder rejection", async () => {
-    const reader = fakeReader([Uint8Array.of(0, 0)]);
-    let owned!: Uint8Array;
-    const decoder = vi.fn(async (bytes: Uint8Array) => {
-      owned = bytes;
-      throw new Error("synthetic private image detail");
-    });
-    await expect(new BrowserPngAdmission(() => reader).decode(png(), decoder)).rejects.toThrow(
-      PNG_IMAGE_DECODE_FAILED,
-    );
-    expect(owned.every((byte) => byte === 0)).toBe(true);
-    expect(reader.releaseLock).toHaveBeenCalledOnce();
+it("wipes the owned snapshot and redacts a decoder rejection", async () => {
+  const reader = fakeReader([Uint8Array.of(0, 0)]);
+  let owned!: Uint8Array;
+  const decoder = vi.fn(async (bytes: Uint8Array) => {
+    owned = bytes;
+    throw new Error("synthetic private image detail");
   });
+  await expect(new BrowserPngAdmission(() => reader).decode(png(), decoder)).rejects.toThrow(
+    PNG_IMAGE_DECODE_FAILED,
+  );
+  expect(owned.every((byte) => byte === 0)).toBe(true);
+  expect(reader.releaseLock).toHaveBeenCalledOnce();
 });
 
 describe("QR importer PNG admission boundary", () => {

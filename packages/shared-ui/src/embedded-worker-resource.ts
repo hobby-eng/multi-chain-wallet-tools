@@ -11,7 +11,11 @@ export class EmbeddedWorkerResource {
   #stopAfterLoad = false;
   #disposed = false;
 
-  constructor(source: readonly BlobPart[], options: WorkerOptions, onTimeout: () => void) {
+  constructor(
+    source: readonly BlobPart[],
+    options: WorkerOptions,
+    onTimeout: (cleanupFailure?: unknown) => void,
+  ) {
     if (typeof Worker === "undefined")
       throw new Error("This browser does not support Web Workers.");
     const url = URL.createObjectURL(new Blob([...source], { type: "text/javascript" }));
@@ -21,8 +25,14 @@ export class EmbeddedWorkerResource {
       worker = new Worker(url, options);
       this.#worker = worker;
       this.#timer = globalThis.setTimeout(() => {
-        this.dispose();
-        onTimeout();
+        // A cleanup fault must still reach the deadline owner; there is no caller to catch it.
+        let cleanupFailure: unknown;
+        try {
+          this.dispose();
+        } catch (cause) {
+          cleanupFailure = cause;
+        }
+        onTimeout(cleanupFailure);
       }, STARTUP_TIMEOUT_MS);
     } catch (cause) {
       // Allocation is not complete, so no client can reach dispose yet.
@@ -70,7 +80,8 @@ export class EmbeddedWorkerResource {
     if (this.#timer !== undefined) globalThis.clearTimeout(this.#timer);
     this.#timer = undefined;
     if (this.#url === undefined) return;
-    URL.revokeObjectURL(this.#url);
+    const url = this.#url;
     this.#url = undefined;
+    URL.revokeObjectURL(url);
   }
 }

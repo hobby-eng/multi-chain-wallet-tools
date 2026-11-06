@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CoinAdapter } from "@ckd/coins/registry.js";
-import { createLargeRequestPolicy } from "../src/ui/large-request-policy.js";
+import { LargeRequestPolicy } from "../src/ui/large-request-policy.js";
 import type { DerivationControlValues } from "../src/ui/inputs.js";
 
 const adapter = {
@@ -24,7 +24,7 @@ function input(count: number, includeChange = false): DerivationControlValues {
 describe("large request policy", () => {
   it("allows remembered ranges below the large-request threshold to run automatically", () => {
     const showStatus = vi.fn();
-    const policy = createLargeRequestPolicy({
+    const policy = new LargeRequestPolicy({
       adapter: () => adapter,
       activeFeatureTab: () => null,
       showConfirmation: vi.fn(),
@@ -38,7 +38,7 @@ describe("large request policy", () => {
   it("keeps the explicit two-step confirmation for extreme automatic requests", () => {
     const showConfirmation = vi.fn();
     const showStatus = vi.fn();
-    const policy = createLargeRequestPolicy({
+    const policy = new LargeRequestPolicy({
       adapter: () => adapter,
       activeFeatureTab: () => null,
       showConfirmation,

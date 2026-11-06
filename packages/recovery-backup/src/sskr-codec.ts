@@ -3,8 +3,8 @@
 // worker can be handed the page's copy: the artifact embeds each WASM module exactly once
 // (apps/key-derivation/scripts/verify-key-derivation-artifact.mjs).
 import * as engine from "@ckd/recovery-sskr-wasm/recovery_sskr_wasm.js";
-import { CheckedSskrBridge } from "../../recovery-mnemocode/source/sskr/bridge.js";
-import { ErrorCatalog } from "../../recovery-mnemocode/source/core/error-catalog.js";
+import { CheckedSskrBridge } from "./sskr-bridge.js";
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 import { SskrGroupPolicy, type SskrGroupSpec } from "./sskr-groups.js";
 
 /** The standard transport encodings supplied by the SSKR engine. */

@@ -43,6 +43,8 @@ const { installPolicyBuilderFeature } = await import("../src/policy-builder-feat
 
 function setup(chain = "bitcoin"): void {
   elements.clear();
+  // Copy feedback takes the page window's timers; Node's global timers are the same functions.
+  vi.stubGlobal("window", globalThis);
   vi.stubGlobal("document", {
     querySelector: () => null,
     querySelectorAll: () => [],

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DerivationCancelledError, DerivationWorkerClient } from "../src/workers/derive-client.js";
 import type { WorkerMessage, WorkerRequest } from "../src/workers/protocol.js";
+import { DerivationResultFixture } from "@ckd/test-support/derivation-result.js";
 
 class FakeWorker {
   static latest: FakeWorker;
@@ -43,6 +44,43 @@ afterEach(() => {
 });
 
 describe("derivation worker readiness contract", () => {
+  it("releases a late derivation payload whose cancelled request has no receiver", async () => {
+    const worker = client();
+    const pending = worker.derive("bitcoin-legacy", {
+      seed: new Uint8Array(64),
+      network: "mainnet",
+      account: 0,
+      branch: 0,
+      start: 0,
+      count: 1,
+    });
+    const rejected = expect(pending).rejects.toBeInstanceOf(DerivationCancelledError);
+    worker.terminate();
+    await rejected;
+    const late = DerivationResultFixture.create();
+    const field = late.rows[0]!.advanced[0]!;
+    FakeWorker.latest.reply({ id: 1, type: "derive", ok: true, result: late });
+    expect(field.value).toBe("");
+    expect(late.rows).toHaveLength(0);
+    expect(late.accountDescriptors?.privateText).toBe("");
+  });
+
+  it("retains the stable refusal code across the real client's message handling", async () => {
+    const worker = client();
+    const result = worker.deriveBip85(new Uint8Array(64), {
+      application: "hex",
+      bytes: 16,
+      index: 0,
+    });
+    const refused = expect(result).rejects.toMatchObject({
+      code: "bip85.bytes",
+      message: "bip85.bytes",
+    });
+    FakeWorker.latest.reply({ id: 1, ok: false, error: "bip85.bytes", errorCode: "bip85.bytes" });
+    await refused;
+    worker.terminate();
+  });
+
   it("releases a script URL when the browser refuses to construct its worker", () => {
     vi.stubGlobal("__DERIVATION_WORKER_SOURCE__", "public test source");
     vi.stubGlobal(

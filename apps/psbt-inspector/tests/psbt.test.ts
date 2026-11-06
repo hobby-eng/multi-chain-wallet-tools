@@ -491,6 +491,13 @@ describe("PSBT inspector core", () => {
       expect(analyzeMusigDescriptor(descriptor, "mainnet", wildcardIndex)?.outputScript).toBe(
         outputScript,
       );
+      const decoded = decodeDescriptor(descriptor, { wildcardIndex });
+      expect(decoded.compiledOutput?.rows).toContainEqual({
+        label: "scriptPubKey",
+        value: outputScript,
+      });
+      expect(decoded.spendingPaths[0]).toContain("aggregate Schnorr signature");
+      expect(decoded.pathCards[0]?.keys?.length).toBeGreaterThan(0);
     });
   });
 
@@ -599,7 +606,7 @@ describe("PSBT inspector core", () => {
     );
     expect(descriptor.summary).toContain("1 preimage/hashlock condition");
     expect(descriptor.pathCards).toHaveLength(2);
-    expect(descriptor.pathCards[0]?.preimages[0]).toContain("32-byte preimage");
+    expect(descriptor.pathCards[0]?.preimages?.[0]).toContain("32-byte preimage");
     expect(descriptor.pathCards[0]?.locks).toHaveLength(0);
     expect(descriptor.pathCards[1]?.preimages).toHaveLength(0);
     expect(descriptor.pathCards[1]?.locks).toContain("relative 144 = 144 blocks");

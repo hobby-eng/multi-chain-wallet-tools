@@ -30,6 +30,9 @@ import {
 } from "./scan-estimate.js";
 import { ValidatedRecoveryExports } from "./validated-exports.js";
 
+const CANCELLED_SCAN =
+  "Scan cancelled. Available reports remain exportable; unfinished checks and history are unknown.";
+
 interface DiscoveryScannerDependencies {
   RecoveryConcurrencyLimiter: typeof import("./concurrency.js").RecoveryConcurrencyLimiter;
   SecretEgressGuard: typeof import("@ckd/secret-boundary/secret-guard.js").SecretEgressGuard;
@@ -511,22 +514,24 @@ export function createDiscoveryScannerController(
           );
           await dependencies.mapRecoveryTasks(inputs, seedConcurrency, async (input, index) => {
             try {
+              if (runController.signal.aborted) return undefined;
               const result = await adapter.scan(input, config, {
                 ...scanContext(runController.signal, networkApi, networkLimiter),
                 ...(preparedSections === undefined ? {} : { preparedSections }),
               });
-              await enrichRecoveryHistory(
+              const historyOutcome = await enrichRecoveryHistory(
                 adapter,
                 result,
                 scanContext(runController.signal, networkApi, networkLimiter),
               );
               showInOrder(orderedResults, index, result);
               const incomplete = resultIncomplete(result);
+              if (historyOutcome === "cancelled") result.warnings.push(CANCELLED_SCAN);
               if (incomplete)
                 result.warnings.push(
                   "Scan incomplete: some sections were not fully checked; see section warnings.",
                 );
-              walletProgress.finish(input.id, incomplete);
+              walletProgress.finish(input.id, incomplete || historyOutcome === "cancelled");
               return result;
             } catch (cause) {
               walletProgress.finish(input.id, true);
@@ -537,10 +542,16 @@ export function createDiscoveryScannerController(
               input.passphrase = "";
             }
           });
+          if (runController.signal.aborted) walletProgress.cancelPending();
           walletProgress.render();
           exportStagingAttempted = true;
           stageValidatedExports();
           renderResults();
+          if (runController.signal.aborted) {
+            scanCompleted = false;
+            view.setStatus(CANCELLED_SCAN);
+            return;
+          }
           scanCompleted = !currentResults.some(resultIncomplete);
           view.setStatus(
             scanCompleted
@@ -614,6 +625,7 @@ export function createDiscoveryScannerController(
             requestConcurrency,
             async (target, index) => {
               try {
+                if (runController.signal.aborted) return undefined;
                 if (target.adapter.scanWatchOnly === undefined) {
                   throw new Error(
                     `${target.adapter.label} does not support watch-only scanning in this build.`,
@@ -624,7 +636,7 @@ export function createDiscoveryScannerController(
                   { ...config, network: target.network ?? config.network },
                   scanContext(runController.signal, networkApi, networkLimiter),
                 );
-                await enrichRecoveryHistory(
+                const historyOutcome = await enrichRecoveryHistory(
                   target.adapter,
                   result,
                   scanContext(runController.signal, networkApi, networkLimiter),
@@ -635,11 +647,16 @@ export function createDiscoveryScannerController(
                   );
                 showInOrder(orderedResults, index, result);
                 const incomplete = resultIncomplete(result);
-                if (incomplete)
+                if (incomplete || historyOutcome === "cancelled")
                   failures.push(
-                    `${target.adapter.label}: some sections were not fully checked; see the report.`,
+                    historyOutcome === "cancelled"
+                      ? CANCELLED_SCAN
+                      : `${target.adapter.label}: some sections were not fully checked; see the report.`,
                   );
-                walletProgress.finish(target.input.id, incomplete);
+                walletProgress.finish(
+                  target.input.id,
+                  incomplete || historyOutcome === "cancelled",
+                );
                 return result;
               } catch (cause) {
                 walletProgress.finish(target.input.id, true);
@@ -653,6 +670,7 @@ export function createDiscoveryScannerController(
               }
             },
           );
+          if (runController.signal.aborted) walletProgress.cancelPending();
           walletProgress.render();
           for (const report of currentResults) {
             for (const failure of failures) report.warnings.push(`Scan incomplete: ${failure}`);
@@ -660,8 +678,11 @@ export function createDiscoveryScannerController(
           exportStagingAttempted = true;
           stageValidatedExports();
           renderResults();
-          if (runController.signal.aborted)
-            throw new DOMException("Public-key scan cancelled.", "AbortError");
+          if (runController.signal.aborted) {
+            view.setStatus(CANCELLED_SCAN);
+            scanCompleted = false;
+            return;
+          }
           view.setStatus(
             failures.length === 0
               ? "Public-key scan complete. Review the results by coin and export the public report."

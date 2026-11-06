@@ -6,6 +6,7 @@ import { buildDashCoreImport } from "./dash-import.js";
 import { descriptorChecksum } from "@ckd/core/descriptor-checksum.js";
 import { buildPolicy, policyHex } from "./policy.js";
 import type { PsbtChain, PsbtNetwork } from "./psbt.js";
+import { MultisigInput, MultisigWalletError } from "./multisig-input.js";
 
 type MultisigKeyOrder = "supplied" | "bip67";
 type MultisigWrapper = "p2sh" | "p2wsh";
@@ -67,26 +68,16 @@ function versions(chain: PsbtChain, network: PsbtNetwork): Bip32Versions {
   return new InspectorNetworkProfile(chain, network).versions;
 }
 
-function xpubNetworkHint(value: string, expectedNetwork: PsbtNetwork): string {
-  if (value.startsWith("xpub") && expectedNetwork !== "mainnet") {
-    return " This looks like a mainnet xpub. Select mainnet, or export testnet cosigner keys as tpub from the deriver.";
-  }
-  if (value.startsWith("tpub") && expectedNetwork === "mainnet") {
-    return " This looks like a testnet tpub. Select testnet, or export mainnet cosigner keys as xpub from the deriver.";
-  }
-  return "";
-}
-
 export function branchLabel(branch: MultisigBranch): string {
-  return branch === 0 ? "receive" : "change";
+  return MultisigInput.branch(branch) === 0 ? "receive" : "change";
 }
 
 function normalizedWrapper(chain: PsbtChain, wrapper: MultisigWrapper): MultisigWrapper {
-  return chain === "dash" ? "p2sh" : wrapper;
+  return MultisigInput.wrapper(chain, wrapper);
 }
 
 function descriptorFunction(order: MultisigKeyOrder): "multi" | "sortedmulti" {
-  return order === "bip67" ? "sortedmulti" : "multi";
+  return MultisigInput.order(order) === "bip67" ? "sortedmulti" : "multi";
 }
 
 function descriptorWithChecksum(payload: string): string {
@@ -134,6 +125,7 @@ export interface ConcreteMultisigWallet {
 }
 
 function assertConcreteRequest(request: ConcreteMultisigRequest): void {
+  MultisigInput.order(request.keyOrder);
   const maximum = normalizedWrapper(request.chain, request.wrapper) === "p2sh" ? 15 : 20;
   if (request.publicKeys.length < 1 || request.publicKeys.length > maximum)
     throw new Error(`Enter from 1 to ${maximum} compressed child public keys or account xpubs.`);
@@ -144,14 +136,8 @@ function assertConcreteRequest(request: ConcreteMultisigRequest): void {
   ) {
     throw new Error(`Required signatures must be from 1 to ${request.publicKeys.length}.`);
   }
-  if (request.branch !== undefined && request.branch !== 0 && request.branch !== 1)
-    throw new Error("Concrete xpub branch must be 0 (receive) or 1 (change).");
-  if (
-    request.index !== undefined &&
-    (!Number.isSafeInteger(request.index) || request.index < 0 || request.index > 0x7fff_ffff)
-  ) {
-    throw new Error("Concrete xpub index must be a non-negative non-hardened integer.");
-  }
+  if (request.branch !== undefined) MultisigInput.branch(request.branch);
+  if (request.index !== undefined) MultisigInput.range(request.index, request.index);
 }
 
 function concreteImportPayload(
@@ -186,12 +172,15 @@ function parseConcreteKeyInput(
   request: ConcreteMultisigRequest,
   position: number,
 ): { publicKey: string; detail: string } {
-  const normalized = value.trim().toLowerCase();
+  value = MultisigInput.text(value);
+  MultisigInput.publicKey(value, request.network);
+  const normalized = value.toLowerCase();
   if (/^(02|03)[0-9a-f]{64}$/u.test(normalized)) {
     return { publicKey: normalized, detail: `${position}. child public key supplied directly` };
   }
-  const originMatch = /^\[([0-9a-fA-F]{8}(?:\/[0-9]+['hH]?)+)\]([A-Za-z0-9]+)$/u.exec(value.trim());
-  const bare = originMatch?.[2] ?? value.trim();
+  // The shared validator admitted the origin; this match only separates its fields.
+  const originMatch = /^\[([^\]]+)\](.+)$/u.exec(value);
+  const bare = originMatch?.[2] ?? value;
   if (!/^[xt]pub[1-9A-HJ-NP-Za-km-z]+$/u.test(bare)) {
     throw new Error(
       `Key input ${position} must be a compressed 33-byte public key or an account xpub.`,
@@ -203,9 +192,7 @@ function parseConcreteKeyInput(
   try {
     node = HDKey.fromExtendedKey(bare, versions(request.chain, request.network));
   } catch (cause) {
-    throw new Error(
-      `Account xpub ${position} is not valid for the selected network: ${String(cause)}.${xpubNetworkHint(bare, request.network)}`,
-    );
+    throw new MultisigWalletError("multisig.key", { cause });
   }
   const child = node.deriveChild(branch).deriveChild(index);
   const publicKey = child.publicKey;
@@ -286,7 +273,7 @@ function parseAccountXpub(
   network: PsbtNetwork,
   index: number,
 ): ParsedAccountXpub {
-  let value = line.trim();
+  let value = MultisigInput.text(line);
   if (value.startsWith("pkh(")) {
     const [body, checksum, extra] = value.split("#");
     if (
@@ -303,7 +290,9 @@ function parseAccountXpub(
       );
     value = signer[1];
   }
-  const match = /^\[([0-9a-fA-F]{8})((?:\/[0-9]+['hH]?)+)\]([A-Za-z0-9]+)$/u.exec(value);
+  MultisigInput.publicKey(value, network);
+  // Separates already-validated metadata, including fingerprint-only origins.
+  const match = /^\[([0-9a-fA-F]{8})([^\]]*)\](.+)$/u.exec(value);
   const xpub = match?.[3] ?? value;
   if (!/^[xt]pub[1-9A-HJ-NP-Za-km-z]+$/u.test(xpub)) {
     throw new Error(
@@ -314,9 +303,7 @@ function parseAccountXpub(
   try {
     node = HDKey.fromExtendedKey(xpub, versions(chain, network));
   } catch (cause) {
-    throw new Error(
-      `Account public key ${index + 1} is not valid for the selected network: ${String(cause)}.${xpubNetworkHint(xpub, network)}`,
-    );
+    throw new MultisigWalletError("multisig.key", { cause });
   }
   if (node.publicKey === null)
     throw new Error(`Account public key ${index + 1} does not contain public key material.`);
@@ -333,15 +320,11 @@ function parseAccountXpub(
 }
 
 function validateRange(startIndex: number, endIndex: number): void {
-  if (!Number.isSafeInteger(startIndex) || startIndex < 0)
-    throw new Error("Start index must be a non-negative integer.");
-  if (!Number.isSafeInteger(endIndex) || endIndex < startIndex)
-    throw new Error("End index must be greater than or equal to the start index.");
-  if (endIndex - startIndex + 1 > 200)
-    throw new Error("Build at most 200 addresses per branch at once.");
+  MultisigInput.range(startIndex, endIndex);
 }
 
 function assertRequest(request: RangedWalletRequest): void {
+  MultisigInput.order(request.keyOrder);
   const maximum = normalizedWrapper(request.chain, request.wrapper) === "p2sh" ? 15 : 20;
   if (request.accountXpubs.length < 1 || request.accountXpubs.length > maximum)
     throw new Error(`Enter from 1 to ${maximum} account public keys.`);
@@ -352,7 +335,7 @@ function assertRequest(request: RangedWalletRequest): void {
   ) {
     throw new Error(`Required signatures must be from 1 to ${request.accountXpubs.length}.`);
   }
-  if (request.branches.length === 0) throw new Error("Select at least one branch.");
+  MultisigInput.branches(request.branches);
   validateRange(request.startIndex, request.endIndex);
 }
 

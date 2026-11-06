@@ -8,12 +8,16 @@ export class AdapterSettingsStore {
   readonly #sharedByCoin = new Map<string, SharedDerivationControlValues>();
   readonly #includeChangeByCoin = new Map<string, boolean>();
   readonly #includeCoinJoinByCoin = new Map<string, boolean>();
+  readonly #familyId: (adapter: CoinAdapter) => string;
 
-  constructor(readonly familyId: (adapter: CoinAdapter) => string) {}
+  constructor(familyId: (adapter: CoinAdapter) => string) {
+    this.#familyId = familyId;
+  }
 
+  /** Snapshot admitted settings; later edits to a caller's object cannot change the saved variant. */
   remember(adapter: CoinAdapter, values: DerivationControlValues): void {
-    const family = this.familyId(adapter);
-    this.#settingsByAdapter.set(adapter.id, values);
+    const family = this.#familyId(adapter);
+    this.#settingsByAdapter.set(adapter.id, { ...values });
     this.#sharedByCoin.set(family, {
       network: values.network,
       account: values.account,
@@ -26,20 +30,24 @@ export class AdapterSettingsStore {
       this.#includeCoinJoinByCoin.set(family, values.includeCoinJoin);
   }
 
+  /** Remember the protocol selected in one coin family. */
   selectVariant(adapter: CoinAdapter): void {
-    this.#lastVariantByCoin.set(this.familyId(adapter), adapter.id);
+    this.#lastVariantByCoin.set(this.#familyId(adapter), adapter.id);
   }
 
+  /** Most recently selected protocol of the requested family, when one was selected. */
   variantForFamily(familyId: string): string | undefined {
     return this.#lastVariantByCoin.get(familyId);
   }
 
+  /** Fresh settings for a protocol, applying only the controls shared by its coin family. */
   controlsFor(adapter: CoinAdapter): {
     readonly values: DerivationControlValues;
     readonly shared: SharedDerivationControlValues | undefined;
   } {
-    const family = this.familyId(adapter);
+    const family = this.#familyId(adapter);
     const remembered = this.#settingsByAdapter.get(adapter.id);
+    const shared = this.#sharedByCoin.get(family);
     const values = remembered ?? {
       ...adapter.defaults,
       includeChange: false,
@@ -57,10 +65,11 @@ export class AdapterSettingsStore {
             ? false
             : (this.#includeCoinJoinByCoin.get(family) ?? remembered?.includeCoinJoin ?? false),
       },
-      shared: this.#sharedByCoin.get(family),
+      shared: shared === undefined ? undefined : { ...shared },
     };
   }
 
+  /** Forget every remembered variant and range. */
   clear(): void {
     this.#lastVariantByCoin.clear();
     this.#settingsByAdapter.clear();

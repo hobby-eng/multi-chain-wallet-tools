@@ -17,10 +17,7 @@ import {
   discoveryAppEntry,
 } from "./discovery-composition.mjs";
 import { DERIVATION_SELF_TESTS, LOCAL_SEARCH_SELF_TEST } from "./derivation-self-tests.mjs";
-import {
-  ENCODED_FORMATS,
-  MASKING_MODES,
-} from "../packages/recovery-mnemocode/source/core/types.ts";
+import { ENCODED_FORMATS, MASKING_MODES } from "../packages/recovery-backup/src/mnemocode-facts.ts";
 import {
   ENCODED_FORMATS as adapterFormats,
   MASKING_MODES as adapterModes,
@@ -79,13 +76,13 @@ describe("library-owned MnemoCode selector bindings", () => {
     ["reencode", true, false, "recovery-mnemocode-reencode.ts"],
   ];
 
-  it("reexports the core choice collections without another adapter list", () => {
+  it("reexports MnemoCode's choice collections without another adapter list", () => {
     expect(adapterModes).toBe(MASKING_MODES);
     expect(adapterFormats).toBe(ENCODED_FORMATS);
   });
 
-  it("keeps representation numbers aligned with the core's CLI choice order", () => {
-    // core/types.ts defines ENCODED_FORMATS in the order numbered by the CLI menu.
+  it("keeps representation numbers aligned with MnemoCode's CLI choice order", () => {
+    // mnemocode-facts.ts keeps ENCODED_FORMATS in the order numbered by MnemoCode's CLI menu.
     for (const [index, format] of ENCODED_FORMATS.entries())
       expect(MNEMOCODE_FORMAT_HELP[format].title, format).toMatch(
         new RegExp(`^${index + 1} · `, "u"),
@@ -93,7 +90,7 @@ describe("library-owned MnemoCode selector bindings", () => {
   });
 
   it.each(bindings)(
-    "binds %s controls to the core choices and their Help titles",
+    "binds %s controls to MnemoCode's choices and their Help titles",
     (prefix, auto, datesOnly, module) => {
       const markup = readFileSync(
         new URL("../apps/key-derivation/src/index.html", import.meta.url),

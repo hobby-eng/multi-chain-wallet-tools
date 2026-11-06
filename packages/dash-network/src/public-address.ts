@@ -1,29 +1,15 @@
 import { AtomicAmount } from "@ckd/core/atomic-amount.js";
 import { DashHistoryBudget } from "./history-budget.js";
-import { validateAddressHistoryPage } from "./provider-json.js";
 import { bech32m, createBase58check } from "@scure/base";
 import { sha256 } from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import { createProviderHttp, ProviderHttpError, type FetchLike } from "./provider-http.js";
 import type { ViewerNetwork } from "./types.js";
+import type { CoreAddressTransaction } from "./core-transaction.js";
+import { CoreAddressHistory } from "./core-address-history.js";
+export type { CoreAddressTransaction } from "./core-transaction.js";
 
 const base58check = createBase58check(sha256);
-const DASHSCAN_PAGE_SIZE = 100;
-
-export interface CoreAddressTransaction {
-  txid: string;
-  type: string | null;
-  timestampMs: number | null;
-  blockHeight: number | null;
-  confirmations: number | null;
-  instantLocked: boolean;
-  chainLocked: boolean;
-  receivedDuffs: bigint;
-  spentInputDuffs: bigint;
-  netDuffs: bigint;
-  feeDuffs: bigint | null;
-  blockHash: string | null;
-}
 
 export interface CoreAddressSnapshot {
   kind: "core";
@@ -65,20 +51,10 @@ export const DASHSCAN_ENDPOINTS: Readonly<Record<ViewerNetwork, string>> = {
 
 const {
   object,
-  optionalInteger,
   requiredInteger,
   exactInteger: exactDuffs,
   fetchJson,
 } = createProviderHttp("DashScan");
-
-function optionalDuffs(value: unknown): bigint | null {
-  if (value === null || value === undefined) return null;
-  try {
-    return exactDuffs(value, "transaction amount");
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Adapter helper for a `CoreAddressProvider` that reports decimal DASH instead
@@ -159,66 +135,6 @@ export function validatePlatformP2pkhAddress(addressInput: string, network: View
   return decoded.address;
 }
 
-function addressesFromOutput(output: Record<string, unknown>): string[] {
-  if (Array.isArray(output.addresses)) {
-    return output.addresses.filter((item): item is string => typeof item === "string");
-  }
-  return typeof output.address === "string" ? [output.address] : [];
-}
-
-function transactionFee(inputs: unknown[], outputs: unknown[]): bigint | null {
-  if (inputs.length === 0) return null;
-  let inputTotal = 0n;
-  let outputTotal = 0n;
-  for (const value of inputs) {
-    const amount = optionalDuffs(object(value, "transaction input").amount);
-    if (amount === null) return null;
-    inputTotal += amount;
-  }
-  for (const value of outputs) {
-    const amount = optionalDuffs(object(value, "transaction output").value);
-    if (amount === null) return null;
-    outputTotal += amount;
-  }
-  const fee = inputTotal - outputTotal;
-  return fee >= 0n ? fee : null;
-}
-
-function transactionView(value: unknown, address: string): CoreAddressTransaction {
-  const tx = object(value, "transaction");
-  const inputs = Array.isArray(tx.vIn) ? tx.vIn : [];
-  const outputs = Array.isArray(tx.vOut) ? tx.vOut : [];
-  let spentInputDuffs = 0n;
-  let receivedDuffs = 0n;
-  for (const value of inputs) {
-    const input = object(value, "transaction input");
-    if (input.address !== address) continue;
-    const amount = optionalDuffs(input.amount);
-    if (amount !== null) spentInputDuffs += amount;
-  }
-  for (const value of outputs) {
-    const output = object(value, "transaction output");
-    if (!addressesFromOutput(output).includes(address)) continue;
-    const amount = optionalDuffs(output.value);
-    if (amount !== null) receivedDuffs += amount;
-  }
-  const timestampMs = typeof tx.timestamp === "string" ? Date.parse(tx.timestamp) : Number.NaN;
-  return {
-    txid: typeof tx.hash === "string" ? tx.hash : "unknown",
-    type: typeof tx.type === "string" ? tx.type : null,
-    timestampMs: Number.isFinite(timestampMs) ? timestampMs : null,
-    blockHeight: optionalInteger(tx.blockHeight),
-    confirmations: optionalInteger(tx.confirmations),
-    instantLocked: typeof tx.instantLock === "string" && tx.instantLock.length > 0,
-    chainLocked: tx.chainLocked === true,
-    receivedDuffs,
-    spentInputDuffs,
-    netDuffs: receivedDuffs - spentInputDuffs,
-    feeDuffs: transactionFee(inputs, outputs),
-    blockHash: typeof tx.blockHash === "string" ? tx.blockHash : null,
-  };
-}
-
 async function queryDashScan(
   address: string,
   network: ViewerNetwork,
@@ -280,82 +196,14 @@ async function queryDashScan(
   const totalReceivedDuffs = exactDuffs(summary.received, "total received");
   const totalSentDuffs = exactDuffs(summary.sent, "total sent");
   const transactionCount = requiredInteger(summary.txCount, "transaction count");
-  const transactions: CoreAddressTransaction[] = [];
-  const pending: CoreAddressTransaction[] = [];
-  const pendingIds = new Set<string>();
-  let paginationPendingOffset: number | null = null;
-  let target = Math.min(Math.max(transactionCount, 1), historyLimit);
-  // Page-number APIs calculate offsets from the requested limit. Keep it fixed.
-  const limit = Math.min(DASHSCAN_PAGE_SIZE, historyLimit);
-  const seen = new Set<string>();
-  for (let pageNumber = 1; transactions.length < target; pageNumber += 1) {
-    requests += 1;
-    const page = object(
-      await fetchJson(
-        fetcher,
-        `${endpoint}/address/${encodeURIComponent(address)}/transactions?page=${pageNumber}&limit=${limit}&order=desc`,
-        signal,
-      ),
-      "transaction page",
-    );
-    if (!Array.isArray(page.resultSet))
-      throw new Error("Address history returned an invalid page.");
-    const isPending = (item: unknown): boolean => {
-      if (item === null || typeof item !== "object") return false;
-      const tx = item as Record<string, unknown>;
-      return (
-        tx.blockHeight === null &&
-        tx.blockHash === null &&
-        tx.timestamp === null &&
-        (tx.confirmations === null || tx.confirmations === 0)
-      );
-    };
-    const pendingRows = page.resultSet.filter(isPending);
-    if (pageNumber !== 1 && pendingRows.length > 0)
-      throw new Error("Unconfirmed history changed during pagination.");
-    if (pageNumber === 1)
-      validateAddressHistoryPage(
-        pendingRows,
-        pendingRows.length,
-        pendingRows.length,
-        1000,
-        pendingIds,
-      );
-    pending.push(...pendingRows.map((item) => transactionView(item, address)));
-    const items: unknown = page.resultSet.filter((item) => !isPending(item));
-    const pagination = object(page.pagination, "transaction pagination");
-    const pageTotal = requiredInteger(pagination.total, "transaction pagination total");
-    if (paginationPendingOffset === null) {
-      const possibleOffsets = [...new Set([0, pendingRows.length])].filter(
-        (offset) => pageTotal - offset === transactionCount,
-      );
-      if (possibleOffsets.length !== 1) {
-        throw new Error(
-          "Address history changed during pagination or disagrees with its confirmed transaction count.",
-        );
-      }
-      paginationPendingOffset = possibleOffsets[0]!;
-    }
-    validateAddressHistoryPage(
-      items,
-      pageTotal - paginationPendingOffset,
-      transactionCount,
-      limit,
-      seen,
-    );
-    if (items.some((item) => pendingIds.has(String(item.hash).toLowerCase())))
-      throw new Error("A pending transaction changed confirmation state during pagination.");
-    const fullPage = items.map((item) => transactionView(item, address));
-    target = Math.min(transactionCount, historyLimit);
-    const remaining = target - transactions.length;
-    const parsed = fullPage.slice(0, remaining);
-    transactions.push(...parsed);
-    if (items.length < limit && transactions.length < target) {
-      throw new Error(
-        "Address history ended before the reported transaction count. Retry the query.",
-      );
-    }
-  }
+  const history = await new CoreAddressHistory(
+    address,
+    endpoint,
+    historyLimit,
+    signal,
+    fetcher,
+  ).read(transactionCount);
+  requests += history.requests;
   // Difference between the reported balance and the confirmed inflow minus
   // outflow. It equals the mempool delta only if the provider includes
   // unconfirmed value in `balance` and excludes it from `received`/`sent`;
@@ -372,7 +220,7 @@ async function queryDashScan(
     totalReceivedDuffs,
     totalSentDuffs,
     transactionCount,
-    transactions: [...pending, ...transactions].slice(0, historyLimit),
+    transactions: history.transactions,
     historyLimit,
     endpoint,
     indexStatus: "ok",

@@ -1,4 +1,5 @@
 import type { PsbtChain, PsbtNetwork } from "./psbt.js";
+import { InspectorNetworkChoice } from "./network-choice.js";
 
 export function required<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -22,8 +23,7 @@ export async function copyPlainText(value: string): Promise<void> {
 }
 
 export function selectedNetwork(select: HTMLSelectElement, chain: PsbtChain): PsbtNetwork {
-  if (chain === "bitcoin" && select.value === "regtest") return "regtest";
-  return select.value === "testnet" ? "testnet" : "mainnet";
+  return new InspectorNetworkChoice(chain, select.value).network;
 }
 
 export function syncNetworkChoice(
@@ -31,7 +31,8 @@ export function syncNetworkChoice(
   networkControl: HTMLSelectElement,
 ): void {
   const regtest = networkControl.querySelector<HTMLOptionElement>('option[value="regtest"]');
-  const dash = chainControl.value === "dash";
-  if (regtest !== null) regtest.disabled = dash;
-  if (dash && networkControl.value === "regtest") networkControl.value = "testnet";
+  const network = InspectorNetworkChoice.transition(chainControl.value, networkControl.value);
+  if (regtest !== null)
+    regtest.disabled = !InspectorNetworkChoice.offers(chainControl.value, "regtest");
+  networkControl.value = network;
 }

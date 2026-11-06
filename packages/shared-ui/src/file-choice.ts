@@ -76,6 +76,7 @@ export class FileChoice {
   /** Calls `listener` when a file is chosen, or the choice is cancelled. */
   onChoose(listener: () => void): void {
     this.#input.addEventListener("change", listener);
+    this.#input.addEventListener("cancel", listener);
   }
 
   /** Forgets the file chosen, so that choosing the same file again counts as a new choice. */

@@ -77,6 +77,28 @@ describe("Discovery XLSX export", () => {
     );
     expect(Object.keys(archive)).toContain("xl/workbook.xml");
   });
+  it("keeps the source, scope, note, unit and pending count of a partial history, as the CSV does", () => {
+    const partial = JSON.parse(report) as {
+      results: { sections: { findings: { history: Record<string, unknown> }[] }[] }[];
+    };
+    Object.assign(partial.results[0]!.sections[0]!.findings[0]!.history, {
+      status: "partial",
+      scope: "first 50 transactions",
+      note: "The provider stopped early.",
+      pendingTransactionCount: 2,
+    });
+    const rows = recoveryWorkbookRows(JSON.stringify(partial));
+    const header = rows.resources[0]!;
+    const cell = (name: string) => rows.resources[1]![header.indexOf(name)];
+    expect(cell("history_status")).toBe("partial");
+    expect(cell("history_source")).toBe("Provider");
+    expect(cell("history_scope")).toBe("first 50 transactions");
+    expect(cell("history_note")).toBe("The provider stopped early.");
+    expect(cell("history_asset")).toBe("UNIT");
+    expect(cell("history_atomic_unit")).toBe("atom");
+    expect(cell("history_decimals")).toBe("8");
+    expect(cell("pending_transaction_count")).toBe("2");
+  });
   it("rejects reports not marked public", () =>
     expect(() => recoveryWorkbookRows(report.replace("false", "true"))).toThrow(/Unsupported/u));
 });

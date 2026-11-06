@@ -139,9 +139,12 @@ export function wasmModule(packageDirectory) {
 /**
  * Builds one of the recovery codec modules into its generated/ folder: the module, its offline
  * glue and its declarations. `wasiHeaders` gives C dependencies the wasm32 WASI headers and the
- * getrandom backend of a browser.
+ * getrandom backend of a browser; `glue` finishes the offline glue where its producer does more.
  */
-export async function buildRecoveryWasm(packageDirectory, { wasiHeaders = false, description }) {
+export async function buildRecoveryWasm(
+  packageDirectory,
+  { wasiHeaders = false, description, glue: finishGlue = (glue) => glue },
+) {
   const module = wasmModule(packageDirectory);
   const toolchain = wasmToolchain((environment) => {
     if (!wasiHeaders) return environment;
@@ -153,9 +156,8 @@ export async function buildRecoveryWasm(packageDirectory, { wasiHeaders = false,
   const compiled = compileWasmCrate(module, toolchain);
   const generated = resolve(root, "packages", packageDirectory, "generated");
   await bindgenStaged(module, compiled, toolchain, async (staging) => {
-    const glue = offlineGlue(
-      readFileSync(resolve(staging, `${module.stem}.js`), "utf8"),
-      module.label,
+    const glue = finishGlue(
+      offlineGlue(readFileSync(resolve(staging, `${module.stem}.js`), "utf8"), module.label),
     );
     mkdirSync(generated, { recursive: true });
     copyFileSync(

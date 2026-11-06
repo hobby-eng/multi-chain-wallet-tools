@@ -41,7 +41,8 @@ describe("SLIP-39", () => {
       });
       const selected = [groups[0]![0]!, groups[0]![2]!, groups[1]![0]!];
       expect(recoverSlip39Shares(selected, "correct horse")).toEqual(secret);
-      expect(parseSlip39Share(selected[0]!).extendable).toBe(extendable);
+      using parsed = parseSlip39Share(selected[0]!);
+      expect(parsed.extendable).toBe(extendable);
     }
   });
 
@@ -108,9 +109,7 @@ describe("SLIP-39", () => {
     expect(() => recoverSlip39Shares([first[0]!, second[1]!])).toThrow(/different sets/u);
     expect(() => recoverSlip39Shares([first[0]!, first[0]!])).toThrow(/complete/u);
     const words = first[0]!.split(" ");
-    words.at(-1) === "zero"
-      ? (words[words.length - 1] = "yoga")
-      : (words[words.length - 1] = "zero");
+    words[words.length - 1] = words.at(-1) === "zero" ? "yoga" : "zero";
     expect(() => parseSlip39Share(words.join(" "))).toThrow(/checksum/u);
     expect(() =>
       createSlip39Shares(new Uint8Array(16), { ...options, passphrase: "кириллица" }),

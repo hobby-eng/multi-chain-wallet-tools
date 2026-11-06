@@ -169,6 +169,54 @@ function familyId(label: string): string {
     .replace(/^-|-$/gu, "");
 }
 
+const REGISTRY_MESSAGES = {
+  "coin.registry.family": "Select a supported coin family.",
+  "coin.registry.protocol": "Unsupported derivation protocol.",
+  "coin.registry.defaults": "A coin family declares more than one default derivation variant.",
+  "coin.registry.empty-family": "A coin family has no derivation variant.",
+} as const;
+
+/** Stable input-free registry refusals. */
+export type CoinRegistryErrorCode = keyof typeof REGISTRY_MESSAGES;
+
+/** A refused family/protocol selection or inconsistent build-controlled family metadata. */
+export class CoinRegistryError extends Error {
+  readonly code: CoinRegistryErrorCode;
+  constructor(code: CoinRegistryErrorCode) {
+    super(REGISTRY_MESSAGES[code]);
+    this.name = "CoinRegistryError";
+    this.code = code;
+  }
+}
+
+/** Owns family selection and default-variant rules shared by registries and embedded views. */
+export class CoinFamilyCatalog {
+  readonly #families: readonly CoinFamily[];
+
+  /** Borrows the build's public family metadata; no wallet data or derivation runtime is needed. */
+  constructor(families: readonly CoinFamily[]) {
+    this.#families = families;
+  }
+
+  /** Refuses unknown native selectors without coercion or reflecting their contents. */
+  get(id: unknown): CoinFamily {
+    const family = this.#families.find((candidate) => candidate.id === id);
+    if (family === undefined) throw new CoinRegistryError("coin.registry.family");
+    return family;
+  }
+
+  /** Exactly one explicit default wins; otherwise use the family's first admitted variant. */
+  defaultAdapter(id: unknown): CoinAdapter {
+    const family = this.get(id);
+    const defaults = family.adapters.filter(({ defaultVariant }) => defaultVariant === true);
+    if (defaults.length > 1) throw new CoinRegistryError("coin.registry.defaults");
+    const adapter = defaults[0] ?? family.adapters[0];
+    if (adapter === undefined) throw new CoinRegistryError("coin.registry.empty-family");
+    return adapter;
+  }
+}
+
+/** Compatibility factory; metadata and lookup rules are owned by the shared family catalog. */
 export function createCoinRegistry(coinAdapters: readonly CoinAdapter[]): CoinRegistry {
   const coinFamilies: readonly CoinFamily[] = [
     ...new Set(coinAdapters.map(({ group }) => group)),
@@ -177,32 +225,23 @@ export function createCoinRegistry(coinAdapters: readonly CoinAdapter[]): CoinRe
     label,
     adapters: coinAdapters.filter(({ group }) => group === label),
   }));
+  const families = new CoinFamilyCatalog(coinFamilies);
 
   return {
     COIN_ADAPTERS: coinAdapters,
     COIN_FAMILIES: coinFamilies,
     getCoinFamily(id: string): CoinFamily {
-      const family = coinFamilies.find((candidate) => candidate.id === id);
-      if (family === undefined) throw new Error(`Unsupported coin family: ${id}.`);
-      return family;
+      return families.get(id);
     },
     getDefaultCoinAdapter(id: string): CoinAdapter {
-      const family = coinFamilies.find((candidate) => candidate.id === id);
-      if (family === undefined) throw new Error(`Unsupported coin family: ${id}.`);
-      const defaults = family.adapters.filter(({ defaultVariant }) => defaultVariant === true);
-      if (defaults.length > 1) {
-        throw new Error(
-          `Coin family ${family.label} declares more than one default derivation variant.`,
-        );
-      }
-      return defaults[0] ?? family.adapters[0]!;
+      return families.defaultAdapter(id);
     },
     getAdapterFamilyId(adapter: CoinAdapter): string {
       return familyId(adapter.group);
     },
     getCoinAdapter(id: string): CoinAdapter {
       const adapter = coinAdapters.find((candidate) => candidate.id === id);
-      if (adapter === undefined) throw new Error(`Unsupported derivation protocol: ${id}.`);
+      if (adapter === undefined) throw new CoinRegistryError("coin.registry.protocol");
       return adapter;
     },
   };

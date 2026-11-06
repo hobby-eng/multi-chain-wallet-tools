@@ -460,8 +460,8 @@ export function assertDiscoveryComposition(options, inputs) {
       "/candidate-scan.ts",
       "/candidate-list-import.ts",
       "/candidate-list-self-test.ts",
-      "/recovery-mnemocode/source/core/candidate-encryption.ts",
-      "/node_modules/age-encryption/",
+      "/recovery-backup/src/mnemocode-engine.ts",
+      "/recovery-mnemocode-wasm/",
     ],
     "watch-only-discovery": [
       "/wallet-recovery/src/watch-only",

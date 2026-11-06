@@ -3,8 +3,6 @@ import type { RecoveryNetwork } from "@ckd/network-boundary/protocol.js";
 const PUBLIC_KEY_HASH_PATTERN = /^[0-9a-f]{40}$/u;
 export const TRANSACTION_HASH_PATTERN = /^[0-9a-f]{64}$/u;
 export const POOL_POSITION_PATTERN = /^(0|[1-9][0-9]*)$/u;
-export const PLATFORM_IDENTIFIER_PATTERN =
-  /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{44}$/u;
 
 export function assertNetwork(value: unknown): asserts value is RecoveryNetwork {
   if (value !== "mainnet" && value !== "testnet")

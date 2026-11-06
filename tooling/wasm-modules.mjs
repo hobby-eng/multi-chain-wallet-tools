@@ -44,6 +44,12 @@ export class WasmModuleCatalog {
           manifestPath: `packages/${module.packageDirectory}/rust/Cargo.toml`,
           lockPath: `packages/${module.packageDirectory}/rust/Cargo.lock`,
           generatedDirectory: `packages/${module.packageDirectory}/generated`,
+          generatedFiles: Object.freeze([
+            `${module.stem}.d.ts`,
+            `${module.stem}.js`,
+            `${module.stem}_bg.wasm`,
+            `${module.stem}_bg.wasm.d.ts`,
+          ]),
           wasmPath: `packages/${module.packageDirectory}/generated/${module.stem}_bg.wasm`,
           offlineDeclarations: module.archiveDirectory !== "dash",
         }),

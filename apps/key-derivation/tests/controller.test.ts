@@ -1,46 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createKeyDerivationController } from "../src/ui/controller.js";
 import type { KeyDerivationView } from "../src/ui/view.js";
+import type { DerivationResult } from "@ckd/core/types.js";
+import { DerivationResultsError } from "@ckd/ui/derivation-results.js";
+import type { DerivationWorkerClient } from "../src/workers/derive-client.js";
+import { mnemonicToSeed } from "@ckd/core/bip39.js";
+import {
+  ControllerTestControl as TestControl,
+  ControllerTestForm as TestForm,
+} from "@ckd/test-support/controller-events.js";
 
-class TestControl extends EventTarget {
-  disabled = false;
-  hidden = false;
-  checked = false;
-  value = "";
-  textContent = "";
-  readonly listeners = new Map<string, number>();
-
-  override addEventListener(
-    type: string,
-    callback: EventListenerOrEventListenerObject | null,
-    options?: AddEventListenerOptions | boolean,
-  ): void {
-    this.listeners.set(type, (this.listeners.get(type) ?? 0) + 1);
-    super.addEventListener(type, callback, options);
-  }
-
-  click(): void {
-    this.dispatchEvent(new Event("click"));
-  }
-
-  /** The fake protocol tabs hold no buttons; Clear all marks the selected one through this. */
-  querySelectorAll(): never[] {
-    return [];
-  }
-}
-
-class TestForm extends TestControl {
-  submit(): void {
-    this.dispatchEvent(new Event("submit", { cancelable: true }));
-  }
-}
+type ResultTestWorker = Pick<DerivationWorkerClient, "ready" | "derive" | "terminate">;
 
 async function settle(): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
-/** A started controller with fake view controls; `extra` adds or replaces dependencies. */
-function controllerHarness(extra: Record<string, unknown> = {}) {
+function installNativeWindow(): void {
   const windowEvents = new TestControl();
   vi.stubGlobal("window", {
     addEventListener: windowEvents.addEventListener.bind(windowEvents),
@@ -51,6 +27,11 @@ function controllerHarness(extra: Record<string, unknown> = {}) {
       globalThis.clearTimeout(id);
     },
   });
+}
+
+/** A started controller with fake view controls; `extra` adds or replaces dependencies. */
+function controllerHarness(extra: Record<string, unknown> = {}) {
+  installNativeWindow();
   const document = new TestControl();
   const form = new TestForm();
   const controls = {
@@ -145,6 +126,13 @@ function controllerHarness(extra: Record<string, unknown> = {}) {
     setGeneratedMnemonic: vi.fn(),
     clearAllInputs: vi.fn(),
     updatePathPreview: vi.fn(),
+    showDerivationRunning: vi.fn(),
+    showDerivationIdle: vi.fn(),
+    showCancellationRequested: vi.fn(),
+    showResults: vi.fn(),
+    updateResultBranchTabs: vi.fn(),
+    renderCurrent: vi.fn(),
+    scrollResultsIntoView: vi.fn(),
   } as unknown as KeyDerivationView;
   const adapter = {
     id: "bitcoin-bip44",
@@ -152,8 +140,9 @@ function controllerHarness(extra: Record<string, unknown> = {}) {
     variantLabel: "BIP44",
     defaults: {},
   };
-  const createWorker = vi.fn(() => startupWorker);
-  const dependencies = {
+  // The startup fixture also sends passed:false to exercise rejection of a failed external report.
+  const createWorker = vi.fn<() => typeof startupWorker | ResultTestWorker>(() => startupWorker);
+  const dependencyMocks = {
     coinFamilies: [{ id: "bitcoin", label: "Bitcoin" }],
     getAdapterFamilyId: () => "bitcoin",
     getCoinAdapter: () => adapter,
@@ -169,12 +158,16 @@ function controllerHarness(extra: Record<string, unknown> = {}) {
     downloadText: vi.fn(),
     createWorker,
     ...extra,
-  } as unknown as Parameters<typeof createKeyDerivationController>[1];
+  };
+  const dependencies = dependencyMocks as unknown as Parameters<
+    typeof createKeyDerivationController
+  >[1];
   const controller = createKeyDerivationController(view, dependencies);
   return {
     controller,
     view,
     dependencies,
+    dependencyMocks,
     form,
     createWorker,
     modeBasic,
@@ -183,12 +176,252 @@ function controllerHarness(extra: Record<string, unknown> = {}) {
   };
 }
 
+function streamResult(start: number): DerivationResult {
+  return {
+    id: "bitcoin-bip44",
+    title: "Synthetic",
+    networkLabel: "Mainnet",
+    pathTemplate: "m/i",
+    basicSummary: [],
+    summary: [],
+    notices: [],
+    accountDescriptors: {
+      accountPath: "m/0'",
+      publicText: "synthetic public",
+      privateText: "synthetic private",
+      scannerText: "synthetic scanner",
+      fileStem: "synthetic",
+    },
+    rows: [start, start + 1].map((index) => ({
+      index,
+      path: `m/${index}`,
+      title: "Synthetic row",
+      basic: [],
+      advanced: [],
+    })),
+  };
+}
+
+async function streamHarness(extra: Record<string, unknown> = {}) {
+  const adapter = {
+    id: "bitcoin-bip44",
+    label: "Bitcoin",
+    variantLabel: "BIP44",
+    batchSize: 2,
+    defaults: { network: "mainnet", account: 0, branch: 0, start: 0, count: 6 },
+  };
+  const harness = controllerHarness({
+    mnemonicToSeed: () => new Uint8Array(64).fill(7),
+    getDefaultCoinAdapter: () => adapter,
+    getCoinAdapter: () => adapter,
+    ...extra,
+  });
+  harness.controller.start();
+  harness.resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
+  await settle();
+  harness.view.controls.network.value = "mainnet";
+  harness.view.controls.count.value = "6";
+  harness.view.controls.start.value = "0";
+  harness.view.controls.account.value = "0";
+  return harness;
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
 describe("Key Derivation controller", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
+  it("wipes the seed and unlocks controls even if completed-worker teardown fails", async () => {
+    const seeds: Uint8Array[] = [];
+    const { view, form, createWorker } = await streamHarness({
+      mnemonicToSeed: (text: string, passphrase?: string) => {
+        const seed = mnemonicToSeed(text, passphrase);
+        seeds.push(seed);
+        return seed;
+      },
+    });
+    view.mnemonic.value = `${"abandon ".repeat(11)}about`;
+    createWorker.mockReturnValue({
+      ready: async () => undefined,
+      derive: async (_adapter, input) => streamResult(input.start),
+      terminate: () => {
+        throw new Error("Synthetic native teardown fault");
+      },
+    });
+    form.submit();
+    await vi.waitFor(() => expect(seeds).toHaveLength(1));
+    // The wipe and the unlock follow the derivation's own awaits: wait for them, not for one turn.
+    await vi.waitFor(() => expect(seeds[0]?.every((byte) => byte === 0)).toBe(true));
+    await vi.waitFor(() => expect(view.showDerivationIdle).toHaveBeenCalledWith(true));
+    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining("released"));
+  });
+  it("unlocks a derivation whose native worker cannot be constructed", async () => {
+    const { view, form, createWorker } = await streamHarness();
+    createWorker.mockImplementationOnce(() => {
+      throw new Error("Synthetic worker creation refusal");
+    });
+    form.submit();
+    await settle();
+    expect(view.showError).toHaveBeenCalledWith("Derivation failed.");
+    expect(view.showError).not.toHaveBeenCalledWith("Synthetic worker creation refusal");
+    expect(view.showDerivationIdle).toHaveBeenCalledWith(true);
+  });
+  it("completes Clear and descendant revocation despite an active-worker teardown fault", async () => {
+    const invalidate = vi.fn();
+    const reset = vi.fn();
+    const { view, form, createWorker } = await streamHarness({
+      installBip85Feature: () => ({
+        invalidate,
+        reset,
+        setEnabled: vi.fn(),
+        setSecretsVisible: vi.fn(),
+      }),
+    });
+    let finish: ((result: DerivationResult) => void) | undefined;
+    const derive = vi.fn<ResultTestWorker["derive"]>((_adapter, input) =>
+      input.start === 0
+        ? Promise.resolve(streamResult(0))
+        : new Promise<DerivationResult>((resolve) => {
+            finish = resolve;
+          }),
+    );
+    createWorker.mockReturnValue({
+      ready: async () => undefined,
+      derive,
+      terminate: () => {
+        throw new Error("Synthetic teardown refusal");
+      },
+    });
+    form.submit();
+    await vi.waitFor(() => expect(derive).toHaveBeenCalledTimes(2));
+    view.clearAllButton.click();
+    finish?.(streamResult(2));
+    await settle();
+    expect(view.clearAllInputs).toHaveBeenCalledOnce();
+    expect(reset).toHaveBeenCalledOnce();
+    expect(view.clearResults).toHaveBeenCalled();
+    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining("released"));
+  });
+  it("completes Clear even when an optional address-search owner refuses cleanup", async () => {
+    const { view } = await streamHarness({
+      addressSearch: {
+        invalidate: () => {
+          throw new Error("Synthetic optional cleanup fault");
+        },
+      },
+    });
+    view.clearAllButton.click();
+    await settle();
+    expect(view.clearAllInputs).toHaveBeenCalledOnce();
+    expect(view.showError).toHaveBeenCalledWith(expect.stringContaining("released"));
+  });
+});
+
+describe("Key Derivation result ownership", () => {
+  it("retains appended real owner state on cancellation and wipes descriptors on Clear all", async () => {
+    const { view, form, createWorker } = await streamHarness();
+    const first = streamResult(0);
+    const next = streamResult(2);
+    const descriptors = first.accountDescriptors;
+    const derive = vi
+      .fn<DerivationWorkerClient["derive"]>()
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(next);
+    const terminate = vi.fn();
+    createWorker.mockReturnValue({ ready: async () => undefined, derive, terminate });
+    vi.mocked(view.showStatus).mockImplementation((message) => {
+      if (message.includes("4 of 6 total results")) view.cancelDerivationButton.click();
+    });
+    form.submit();
+    await vi.waitFor(() => expect(view.showDerivationIdle).toHaveBeenCalled());
+    expect(derive).toHaveBeenCalledTimes(2);
+    expect(first.rows.map(({ index }) => index)).toEqual([0, 1, 2, 3]);
+    expect(descriptors?.privateText).toBe("synthetic private");
+    expect(next.accountDescriptors?.privateText).toBe("");
+    expect(view.renderCurrent).toHaveBeenLastCalledWith(
+      first,
+      expect.objectContaining({ selected: new Set([0, 1, 2, 3]) }),
+      expect.any(Map),
+      "receive",
+      expect.any(Object),
+      false,
+    );
+    expect(view.showStatus).toHaveBeenLastCalledWith(
+      expect.stringContaining("cancelled after 4 of 6"),
+    );
+    view.clearAllButton.click();
+    expect(first.rows).toEqual([]);
+    expect(descriptors?.privateText).toBe("");
+    expect(view.showError).not.toHaveBeenCalled();
   });
 
+  it("discards late old batches after a new request without wiping fresh descriptors", async () => {
+    const { view, form, createWorker } = await streamHarness();
+    const first = streamResult(0);
+    const late = streamResult(2);
+    const fresh = streamResult(0);
+    let finishLate: (result: DerivationResult) => void = () => {
+      throw new Error("not started");
+    };
+    const pending = new Promise<DerivationResult>((resolve) => {
+      finishLate = resolve;
+    });
+    const derive = vi
+      .fn<DerivationWorkerClient["derive"]>()
+      .mockResolvedValueOnce(first)
+      .mockReturnValueOnce(pending);
+    const oldWorker = { ready: async () => undefined, derive, terminate: vi.fn() };
+    const newWorker = {
+      ready: async () => undefined,
+      derive: vi.fn(async () => fresh),
+      terminate: vi.fn(),
+    };
+    createWorker.mockReturnValueOnce(oldWorker).mockReturnValueOnce(newWorker);
+    form.submit();
+    await vi.waitFor(() => expect(derive).toHaveBeenCalledTimes(2));
+    view.controls.count.value = "2";
+    form.submit();
+    await vi.waitFor(() => expect(newWorker.terminate).toHaveBeenCalled());
+    expect(first.rows).toEqual([]);
+    expect(first.accountDescriptors?.privateText).toBe("");
+    finishLate(late);
+    await vi.waitFor(() => expect(oldWorker.terminate).toHaveBeenCalled());
+    expect(late.rows).toEqual([]);
+    expect(late.accountDescriptors?.privateText).toBe("");
+    expect(fresh.rows).toHaveLength(2);
+    expect(fresh.accountDescriptors?.privateText).toBe("synthetic private");
+    expect(view.renderCurrent).toHaveBeenLastCalledWith(
+      fresh,
+      expect.any(Object),
+      expect.any(Map),
+      "receive",
+      expect.any(Object),
+      false,
+    );
+    view.clearAllButton.click();
+    expect(fresh.accountDescriptors?.privateText).toBe("");
+    expect(view.showError).not.toHaveBeenCalled();
+  });
+
+  it("builds result invariant messages in the UI from their stable code", async () => {
+    const { view, form, createWorker } = await streamHarness();
+    createWorker.mockReturnValue({
+      ready: async () => undefined,
+      derive: async () => {
+        throw new DerivationResultsError();
+      },
+      terminate: vi.fn(),
+    });
+    form.submit();
+    await vi.waitFor(() => expect(view.showError).toHaveBeenCalled());
+    expect(view.showError).toHaveBeenLastCalledWith(
+      "The result branch state was lost during streamed derivation. Derive the wallet again.",
+    );
+  });
+});
+
+describe("Key Derivation readiness and chosen-word generation", () => {
   it("registers once, gates derivation on startup self-test, and handles mode transitions", async () => {
     const chosenWords = {
       onChange: vi.fn(),
@@ -201,7 +434,7 @@ describe("Key Derivation controller", () => {
     const {
       controller,
       view,
-      dependencies,
+      dependencyMocks,
       form,
       createWorker,
       modeBasic,
@@ -221,9 +454,9 @@ describe("Key Derivation controller", () => {
     resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
     await settle();
     expect(view.setCryptoControlsEnabled).toHaveBeenLastCalledWith(true);
-    expect(dependencies.runRecoveryBackupSelfTest).toHaveBeenCalledOnce();
-    expect(dependencies.setRecoveryControlsEnabled).toHaveBeenNthCalledWith(1, false);
-    expect(dependencies.setRecoveryControlsEnabled).toHaveBeenLastCalledWith(true);
+    expect(dependencyMocks.runRecoveryBackupSelfTest).toHaveBeenCalledOnce();
+    expect(dependencyMocks.setRecoveryControlsEnabled).toHaveBeenNthCalledWith(1, false);
+    expect(dependencyMocks.setRecoveryControlsEnabled).toHaveBeenLastCalledWith(true);
 
     view.toggleSensitiveValues.click();
     expect(view.setRecoverySourceVisibility).toHaveBeenCalledWith(true);
@@ -300,7 +533,9 @@ describe("Key Derivation controller", () => {
     await settle();
     expect(view.setGeneratedMnemonic).not.toHaveBeenCalled();
   });
+});
 
+describe("Key Derivation generated source publication", () => {
   it("empties the BIP39 passphrase for an ordinary or chosen-word phrase and keeps it for the MHFE check", async () => {
     const publicPhrase =
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -412,7 +647,10 @@ describe("Key Derivation controller", () => {
       setRevealed: vi.fn(),
       clear: vi.fn(),
     };
-    const offerRecoverySource = vi.fn();
+    const offerRecoverySource =
+      vi.fn<
+        NonNullable<Parameters<typeof createKeyDerivationController>[1]["offerRecoverySource"]>
+      >();
     const { controller, view, resolveWorkerSelfTest } = controllerHarness({
       chosenWords,
       offerRecoverySource,
@@ -434,7 +672,9 @@ describe("Key Derivation controller", () => {
     expect(offered).not.toBeNull();
     expect(offered?.read()).toEqual({ mnemonic: PHRASE, passphrase: "" });
   });
+});
 
+describe("Key Derivation descendant revocation", () => {
   it("drops the BIP85 child whenever the parent changes or is cleared (AUD-022-SEC001)", async () => {
     const PHRASE =
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";

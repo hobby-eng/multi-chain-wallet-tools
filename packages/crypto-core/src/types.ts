@@ -1,5 +1,8 @@
 export type NetworkName = "mainnet" | "testnet";
-export type DisplayMode = "basic" | "advanced";
+/** Result presentation modes shared by rendering and export admission. */
+export const DISPLAY_MODES = ["basic", "advanced"] as const;
+/** One admitted result presentation mode. */
+export type DisplayMode = (typeof DISPLAY_MODES)[number];
 
 export interface ResultField {
   key: string;

@@ -1,4 +1,5 @@
 import { BUILD_INFO } from "@ckd/build-info";
+import { HelpPopovers } from "@ckd/ui/help-popovers.js";
 import { installSelectedPsbtFeatures, selectedSelfTests } from "./feature-selection.js";
 import { InspectorSelfTest } from "./self-test.js";
 import { required } from "./ui-common.js";
@@ -36,6 +37,7 @@ for (const button of modeButtons) {
   });
 }
 
+new HelpPopovers().install(document);
 installSelectedPsbtFeatures();
 required<HTMLElement>("psbt-build-version").textContent = BUILD_INFO.version;
 required<HTMLElement>("psbt-build-date").textContent = BUILD_INFO.releaseDate;

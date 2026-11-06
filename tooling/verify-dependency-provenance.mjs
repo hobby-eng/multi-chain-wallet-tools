@@ -1,31 +1,35 @@
 import { WASM_CATALOG } from "./wasm-modules.mjs";
+import {
+  checkMnemoCodeWasm,
+  MNEMOCODE_WASM_SOURCE,
+  mnemocodeWasmFiles,
+} from "./sync-mnemocode-wasm.mjs";
 import { MnemoCodeSskrSource } from "./sync-mnemocode-sskr.mjs";
 import { MhfeIntegrationModules } from "./mhfe-integration.mjs";
 import { isMainScript } from "./run-script.mjs";
-import { MHFE_MANIFEST_SHA256, VendoredMhfePackage } from "./vendored-mhfe-package.mjs";
+import {
+  MHFE_MANIFEST_SHA256,
+  MHFE_SOURCE_MANIFEST,
+  VendoredMhfePackage,
+} from "./vendored-mhfe-package.mjs";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  MNEMOCODE_FILES,
-  MNEMOCODE_MANIFEST,
-  MNEMOCODE_SOURCE_DIRECTORY,
-  verifyMnemoCodeSource,
-} from "./sync-mnemocode-source.mjs";
 
 const defaultRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
-// The MnemoCode pin is written by tooling/sync-mnemocode-source.mjs together with the vendored files.
+// The MnemoCode pin is written by tooling/sync-mnemocode-wasm.mjs together with the vendored files.
 const mnemocodeManifest = JSON.parse(
-  readFileSync(resolve(defaultRoot, MNEMOCODE_MANIFEST), "utf8"),
+  readFileSync(resolve(defaultRoot, MNEMOCODE_WASM_SOURCE), "utf8"),
 );
+const mhfeManifest = new VendoredMhfePackage(defaultRoot).sourceIdentity();
 
 export const GITHUB_SOURCES = [
   {
-    id: "mnemocode-core",
+    id: "mnemocode-wasm",
     repository: mnemocodeManifest.repository,
-    reference: `${mnemocodeManifest.version} core, ${mnemocodeManifest.reference}`,
+    reference: `${mnemocodeManifest.version} page WebAssembly, ${mnemocodeManifest.tag ?? "commit"} ${mnemocodeManifest.commit.slice(0, 12)}`,
     commit: mnemocodeManifest.commit,
     ...(mnemocodeManifest.unreleased === undefined
       ? {}
@@ -62,13 +66,11 @@ export const GITHUB_SOURCES = [
     commit: "cfaf443a5f19e3a3e2b2c7be7572ae3924142c0e",
   },
   {
-    // The browser package of the signed MHFE v0.6.0 release (mhfe-v0.6.0-browser.tar.gz, SHA-256
-    // e7f97d48…, listed in the OpenPGP-signed SHA256SUMS). The Python fast-mode launcher of the
-    // package is not vendored: the executable Deriver replaces it.
-    id: "mhfe-v0.6.0",
-    repository: "hobby-eng/mhfe",
-    reference: "v0.6.0 signed release, browser package",
-    commit: "66f142566464255e331763966b00ea1681c2dabd",
+    id: "mhfe-browser-package",
+    repository: mhfeManifest.repository,
+    reference: `${mhfeManifest.version} browser package, ${mhfeManifest.reference}`,
+    commit: mhfeManifest.commit,
+    ...(mhfeManifest.unreleased === undefined ? {} : { unreleased: mhfeManifest.unreleased }),
   },
   {
     id: "sskr-0.12.0",
@@ -101,24 +103,36 @@ function mhfePanelFiles(root) {
  */
 function mnemocodeIntegrationFiles(root) {
   const groups = [
-    ["apps/key-derivation/src/ui", (name) => name.startsWith("recovery-mnemocode")],
-    ["apps/key-derivation/tests", (name) => name.startsWith("recovery-mnemocode")],
-    [
-      "apps/key-derivation/src/workers",
-      (name) =>
-        name.startsWith("mnemocode-") ||
-        name === "page-wordlist.ts" ||
-        name === "webcrypto-pbkdf2.ts",
-    ],
-    [
-      "packages/recovery-backup/src",
-      (name) => name.startsWith("mnemocode") || name.startsWith("self-test-mnemocode"),
-    ],
-    ["packages/recovery-backup/tests", (name) => name.startsWith("mnemocode")],
-    ["apps/discovery-scanner/src", (name) => name.startsWith("candidate-list")],
-    ["apps/discovery-scanner/tests", (name) => name.startsWith("candidate-list")],
+    {
+      directory: "apps/key-derivation/src/ui",
+      belongs: (name) => name.startsWith("recovery-mnemocode"),
+    },
+    {
+      directory: "apps/key-derivation/tests",
+      belongs: (name) => name.startsWith("recovery-mnemocode"),
+    },
+    {
+      directory: "apps/key-derivation/src/workers",
+      belongs: (name) => name.startsWith("mnemocode-"),
+    },
+    {
+      directory: "packages/recovery-backup/src",
+      belongs: (name) => name.startsWith("mnemocode") || name.startsWith("self-test-mnemocode"),
+    },
+    {
+      directory: "packages/recovery-backup/tests",
+      belongs: (name) => name.startsWith("mnemocode"),
+    },
+    {
+      directory: "apps/discovery-scanner/src",
+      belongs: (name) => name.startsWith("candidate-list"),
+    },
+    {
+      directory: "apps/discovery-scanner/tests",
+      belongs: (name) => name.startsWith("candidate-list"),
+    },
   ];
-  return groups.flatMap(([directory, belongs]) =>
+  return groups.flatMap(({ directory, belongs }) =>
     readdirSync(resolve(root, directory))
       .filter((name) => /\.(?:ts|mjs)$/u.test(name) && belongs(name))
       .sort()
@@ -141,18 +155,18 @@ export const LOCAL_IMPLEMENTATIONS = [
     ],
   },
   {
-    id: "mnemocode-codec",
-    upstream: "mnemocode-core",
-    files: [
-      MNEMOCODE_MANIFEST,
-      ...Object.values(MNEMOCODE_FILES).map((path) => `${MNEMOCODE_SOURCE_DIRECTORY}/${path}`),
-      ...mnemocodeIntegrationFiles(defaultRoot),
-    ],
+    id: "mnemocode-wasm-binding",
+    upstream: "mnemocode-wasm",
+    files: [...mnemocodeWasmFiles(defaultRoot), ...mnemocodeIntegrationFiles(defaultRoot)],
   },
   {
     id: "mhfe-browser-module",
-    upstream: "mhfe-v0.6.0",
-    files: [...new VendoredMhfePackage(defaultRoot).files(), ...mhfePanelFiles(defaultRoot)],
+    upstream: "mhfe-browser-package",
+    files: [
+      MHFE_SOURCE_MANIFEST,
+      ...new VendoredMhfePackage(defaultRoot).files(),
+      ...mhfePanelFiles(defaultRoot),
+    ],
   },
   {
     id: "slip39-codec",
@@ -320,7 +334,7 @@ export async function verifyDependencyProvenance({
   logger = console,
 } = {}) {
   if (verifyFixedSources) {
-    verifyMnemoCodeSource({ root });
+    checkMnemoCodeWasm(root);
     new MnemoCodeSskrSource(root).verify();
     verifyMhfePackage(root);
   }

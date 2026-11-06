@@ -1,14 +1,11 @@
+import { PassiveQrPage } from "../../../test/support/qr-page.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { entropyToEnglishMnemonic, mnemonicToSeed } from "@ckd/core/bip39.js";
-import { deriveBip85Bip39 } from "@ckd/core/bip85.js";
+import { Bip85 } from "@ckd/core/bip85.js";
 import { hexToBytes } from "@ckd/core/crypto.js";
 import { installBip85Feature } from "../src/ui/bip85-feature.js";
 import { SELF_TEST_NOT_PASSED } from "../src/ui/crypto-self-test-gate.js";
-import {
-  deriveBip85,
-  type Bip85RequestOptions,
-  type Bip85Result,
-} from "../src/workers/bip85-deriver.js";
+import type { Bip85RequestOptions, Bip85Result } from "@ckd/core/bip85-parameters.js";
 import {
   DerivationCancelledError,
   type DerivationWorkerClient,
@@ -40,29 +37,15 @@ const ELEMENT_IDS = [
 ] as const;
 type ElementId = (typeof ELEMENT_IDS)[number];
 
-/** The few element features the BIP85 feature and its child wallet use. */
-class FakeElement extends EventTarget {
-  hidden = false;
-  disabled = false;
-  value = "";
-  type = "";
-  textContent = "";
-  readonly attributes = new Map<string, string>();
-  readonly classList = { toggle: (): void => undefined };
-  setAttribute(name: string, value: string): void {
-    this.attributes.set(name, value);
-  }
-}
-
-/** A document whose elements exist only for ELEMENT_IDS; every other query returns null. */
-function fakeDocument(): { document: Document; byId: (id: ElementId) => FakeElement } {
-  const elements = new Map<string, FakeElement>(ELEMENT_IDS.map((id) => [id, new FakeElement()]));
-  const document = {
-    querySelector: (selector: string) =>
-      selector.startsWith("#") ? (elements.get(selector.slice(1)) ?? null) : null,
-    createElement: () => new FakeElement(),
-  } as unknown as Document;
-  return { document, byId: (id) => elements.get(id)! };
+/** A connected document with only the elements this feature needs. */
+function fakeDocument() {
+  const page = new PassiveQrPage();
+  for (const id of ELEMENT_IDS)
+    page.add(
+      id,
+      id.includes("passphrase") ? "input" : id === "bip85-output" ? "textarea" : "button",
+    );
+  return { document: page.asDocument(), page, byId: (id: ElementId) => page.require(id) };
 }
 
 /**
@@ -93,7 +76,7 @@ function deferredWorker(behaviour: "deaf" | "cancelling") {
     reply(): void {
       if (pending === null || request === null) throw new Error("No BIP85 request is pending.");
       try {
-        pending.resolve(deriveBip85(request.seed, request.options));
+        pending.resolve(Bip85.derive(request.seed, request.options));
       } finally {
         request.seed.fill(0);
       }
@@ -109,9 +92,7 @@ type DeferredWorker = ReturnType<typeof deferredWorker>;
 function expectedChild(index: number): string {
   const seed = mnemonicToSeed(PARENT_MNEMONIC);
   try {
-    return entropyToEnglishMnemonic(
-      hexToBytes(deriveBip85Bip39(seed, CHILD_WORDS, index).entropyHex),
-    );
+    return entropyToEnglishMnemonic(hexToBytes(Bip85.bip39(seed, CHILD_WORDS, index).entropyHex));
   } finally {
     seed.fill(0);
   }
@@ -123,7 +104,7 @@ function expectedChild(index: number): string {
  */
 function featureHarness(workers: readonly DeferredWorker[], selfTest = { passed: true }) {
   vi.stubGlobal("window", { setTimeout, clearTimeout });
-  const { document, byId } = fakeDocument();
+  const { document, byId, page } = fakeDocument();
   byId("bip85-application").value = "bip39";
   byId("bip85-index").value = "0";
   byId("bip85-words").value = String(CHILD_WORDS);
@@ -153,7 +134,7 @@ function featureHarness(workers: readonly DeferredWorker[], selfTest = { passed:
       return next.client;
     },
   } as unknown as Parameters<typeof installBip85Feature>[0]);
-  return { feature, byId, seeds };
+  return { feature, byId, seeds, page };
 }
 
 type Harness = ReturnType<typeof featureHarness>;
@@ -185,9 +166,47 @@ function expectNoChild({ feature, byId }: Harness): void {
   expect(feature.childSource().mnemonic).toBeNull();
 }
 
-describe("BIP85 feature request lifecycle (AUD-022-SEC001)", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+describe("BIP85 feature request admission (AUD-022-SEC001)", () => {
+  it("revokes a published child immediately on parameter edits, before the debounce", async () => {
+    vi.useFakeTimers();
+    const worker = deferredWorker("deaf");
+    const harness = featureHarness([worker]);
+    const pending = harness.feature.derive();
+    worker.reply();
+    await pending;
+    const old = harness.feature.sourceReference();
+    expect(old?.read()).not.toBeNull();
+    // The label uses the admitted published index, never text subsequently pasted into the field.
+    harness.byId("bip85-index").value = "synthetic pasted text";
+    expect(harness.feature.sourceReference()?.label).toBe("BIP85 child phrase · index 0");
+    harness.byId("bip85-index").dispatchEvent(new Event("input"));
+    expect(old?.read()).toBeNull();
+    expect(harness.feature.sourceReference()).toBeNull();
+    expect(harness.byId("bip85-output").value).toBe("");
+    harness.feature[Symbol.dispose]();
+    await vi.runAllTimersAsync();
+    expect(harness.seeds).toHaveLength(1);
+  });
+
+  it("rechecks readiness after the debounce and starts no work after disposal", async () => {
+    vi.useFakeTimers();
+    const selfTest = { passed: true };
+    const harness = featureHarness([], selfTest);
+    harness.feature.scheduleRefresh();
+    selfTest.passed = false;
+    await vi.runAllTimersAsync();
+    expect(harness.seeds).toHaveLength(0);
+    selfTest.passed = true;
+    harness.feature[Symbol.dispose]();
+    harness.feature.scheduleRefresh();
+    await harness.feature.derive();
+    await vi.runAllTimersAsync();
+    expect(harness.seeds).toHaveLength(0);
   });
 
   it("shows the child, wipes the parent seed and releases the worker once a request completes", async () => {
@@ -205,6 +224,20 @@ describe("BIP85 feature request lifecycle (AUD-022-SEC001)", () => {
     expectWiped(harness.seeds[0]);
   });
 
+  it.each(["", " ", "-1", "0.5", "2147483648"])(
+    "refuses index %j before allocating a seed or worker",
+    async (index) => {
+      const harness = featureHarness([]);
+      harness.byId("bip85-index").value = index;
+      await harness.feature.derive();
+      expect(harness.seeds).toHaveLength(0);
+      expect(harness.byId("bip85-error").hidden).toBe(false);
+      expect(harness.byId("bip85-error").textContent).toContain("BIP85 index");
+    },
+  );
+});
+
+describe("BIP85 request cancellation and replacement", () => {
   it("keeps a cleared child absent when the earlier reply arrives after Clear", async () => {
     const first = deferredWorker("cancelling");
     const second = deferredWorker("deaf");
@@ -315,11 +348,6 @@ describe("BIP85 feature request lifecycle (AUD-022-SEC001)", () => {
 });
 
 describe("BIP85 feature after a failed self-test (AUD-023-SEC001)", () => {
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.unstubAllGlobals();
-  });
-
   it("derives nothing, by button or by itself, until the self-tests pass", async () => {
     vi.useFakeTimers();
     // No worker is provided: creating one would throw and fail the test.
@@ -349,4 +377,65 @@ describe("BIP85 feature after a failed self-test (AUD-023-SEC001)", () => {
     expectNoChild(harness);
     expect(harness.byId("derive-bip85").disabled).toBe(true);
   });
+});
+
+describe("BIP85 independently revealed secrets", () => {
+  it.each(["blur", "hidden"] as const)(
+    "conceals local child output and passphrase on %s while the global flag is false",
+    async (event) => {
+      const worker = deferredWorker("cancelling");
+      const view = featureHarness([worker]);
+      const pending = view.feature.derive();
+      worker.reply();
+      await pending;
+      view.byId("toggle-bip85-secret").click();
+      view.byId("toggle-bip85-child-passphrase").click();
+      expect(view.byId("bip85-output").classList.contains("concealed")).toBe(false);
+      expect(view.byId("bip85-child-passphrase").type).toBe("text");
+      view.page.hideOrBlur(event);
+      expect(view.byId("bip85-output").classList.contains("concealed")).toBe(true);
+      expect(view.byId("bip85-child-passphrase").type).toBe("password");
+      expect(view.byId("toggle-bip85-secret").getAttribute("aria-pressed")).toBe("false");
+    },
+  );
+});
+
+it("retires child references and passphrase fields on pagehide", async () => {
+  const worker = deferredWorker("cancelling");
+  const view = featureHarness([worker]);
+  const pending = view.feature.derive();
+  worker.reply();
+  await pending;
+  const reference = view.feature.sourceReference();
+  expect(reference?.read()).not.toBeNull();
+  view.page.window.dispatchEvent(new Event("pagehide"));
+  expect(reference?.read()).toBeNull();
+  expect(view.byId("bip85-child-passphrase").value).toBe("");
+  expect(view.byId("bip85-output").value).toBe("");
+});
+
+it("revokes a published child and clears passphrase despite next-worker teardown failure", async () => {
+  const completed = deferredWorker("cancelling");
+  const next = deferredWorker("cancelling");
+  const view = featureHarness([completed, next]);
+  const first = view.feature.derive();
+  completed.reply();
+  await first;
+  const reference = view.feature.sourceReference();
+  expect(reference?.read()).not.toBeNull();
+  const pending = view.feature.derive();
+  next.terminate.mockImplementationOnce(() => {
+    next.fail(new DerivationCancelledError());
+    throw new Error("Synthetic teardown fault");
+  });
+  try {
+    view.feature.wipe();
+  } catch {
+    /* Owner cleanup must complete before this fault propagates. */
+  }
+  await pending;
+  expect(reference?.read()).toBeNull();
+  expect(view.byId("bip85-output").value).toBe("");
+  expect(view.byId("bip85-child-passphrase").value).toBe("");
+  expect(view.seeds.every((seed) => seed.every((byte) => byte === 0))).toBe(true);
 });

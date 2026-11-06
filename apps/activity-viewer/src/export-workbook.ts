@@ -10,8 +10,15 @@ import type {
   ViewerWorkbookExportFile,
 } from "./export-model.js";
 import { exportError, fileStamp, isBatchExportState } from "./export-common.js";
-import { CSV_HEADER, singleRows, type CsvValue } from "./export-csv.js";
+import {
+  CSV_HEADER,
+  singleRows,
+  ViewerCsv,
+  ViewerExportRecordError,
+  type CsvValue,
+} from "./export-csv.js";
 import { CoreActivityState } from "./core-activity-state.js";
+import { IdentityHistoryCoverage } from "@ckd/dash-network/identity-history-coverage.js";
 
 type WorkbookValue = string | number | boolean | null;
 
@@ -29,10 +36,10 @@ function worksheetRows(
     .slice(1)
     .map((row) => {
       if (label === undefined) return row;
-      const labeled = [...row];
-      labeled[4] =
-        state.mode === "shielded" ? shieldedWorkbookLabel(label, state.snapshot.keyKind) : label;
-      return labeled;
+      return ViewerCsv.withQueryLabel(
+        row,
+        state.mode === "shielded" ? shieldedWorkbookLabel(label, state.snapshot.keyKind) : label,
+      );
     });
 }
 
@@ -47,9 +54,15 @@ function compactDetailRows(rows: CsvValue[][]): CsvValue[][] {
     normalized.some((row) => row[index] !== null && row[index] !== ""),
   );
   return [
-    includedColumns.map((index) => CSV_HEADER[index]!),
-    ...normalized.map((row) => includedColumns.map((index) => row[index]!)),
+    includedColumns.map((index) => requiredCell(CSV_HEADER, index)),
+    ...normalized.map((row) => includedColumns.map((index) => requiredCell(row, index))),
   ];
+}
+
+function requiredCell(row: readonly CsvValue[], index: number): CsvValue {
+  const value = row[index];
+  if (value === undefined) throw new ViewerExportRecordError();
+  return value;
 }
 
 function shieldedWorkbookLabel(label: string, keyKind: ActivitySnapshot["keyKind"]): string {
@@ -113,6 +126,10 @@ function summaryRow(item: ViewerBatchExportItem, recordCount: number): CsvValue[
   }
   if (state.mode === "identity") {
     const identities = state.snapshot.identities;
+    const coverage = IdentityHistoryCoverage.summarize(
+      identities.map(({ identifier }) => identifier),
+      state.histories,
+    );
     const resource =
       identities.map((identity) => identity.dpnsNames[0] ?? identity.identifier).join("; ") ||
       state.snapshot.resolvedDpnsName ||
@@ -129,6 +146,8 @@ function summaryRow(item: ViewerBatchExportItem, recordCount: number): CsvValue[
       balance,
       "credits",
       recordCount,
+      coverage.status,
+      coverage.warnings,
     ];
   }
   return [
@@ -166,7 +185,9 @@ function addWorkbookSheet(
       };
     }),
   );
-  const columns = rows[0]!.map((_value, index) => {
+  const header = rows[0];
+  if (header === undefined) throw new ViewerExportRecordError();
+  const columns = header.map((_value, index) => {
     const width = rows.reduce((maximum, row) => {
       const value = row[index];
       return Math.max(maximum, value === null || value === undefined ? 0 : String(value).length);
@@ -176,90 +197,108 @@ function addWorkbookSheet(
   sheets.push({ data, sheet: name, columns, stickyRowsCount: 1 });
 }
 
-export async function createViewerWorkbookExport(
+/** Builds public XLSX sheets with exact amounts and separate proof/history qualifications. */
+export class ViewerWorkbook {
+  /** Returns a local workbook or fails; unknown cells are never substituted for known amounts. */
+  static async create(
+    state: ViewerExportState,
+    generatedAt = new Date(),
+  ): Promise<ViewerWorkbookExportFile> {
+    const generatedAtIso = generatedAt.toISOString();
+    const batch = isBatchExportState(state);
+    const items = workbookItems(state);
+    const errors = workbookErrors(state);
+    const sheets: Sheet<Blob>[] = [];
+    const preparedItems = items.map((item) => ({
+      item,
+      rows: worksheetRows(item.state, generatedAtIso, batch ? item.label : undefined),
+    }));
+
+    const summaryRows: CsvValue[][] = [
+      [
+        "query_id",
+        "query_label",
+        "mode",
+        "network",
+        "status",
+        "resource",
+        "balance_atomic",
+        "balance_unit",
+        "record_count",
+        "history_coverage",
+        "history_warnings",
+      ],
+    ];
+    summaryRows.push(...preparedItems.map(({ item, rows }) => summaryRow(item, rows.length)));
+    summaryRows.push(
+      ...errors.map((error) => [
+        error.id,
+        error.label,
+        error.mode ?? state.mode,
+        state.network,
+        "failed",
+        "",
+        "",
+        "",
+        0,
+      ]),
+    );
+    addWorkbookSheet(sheets, "Summary", summaryRows);
+
+    const addresses = preparedItems
+      .filter(({ item }) => item.state.mode === "core" || item.state.mode === "platform")
+      .flatMap(({ rows }) => rows);
+    const identities = preparedItems
+      .filter(({ item }) => item.state.mode === "identity")
+      .flatMap(({ rows }) => rows);
+    const orchard = preparedItems
+      .filter(({ item }) => item.state.mode === "shielded")
+      .flatMap(({ rows }) => rows);
+    addWorkbookSheet(
+      sheets,
+      "Addresses",
+      addresses.length === 0 ? [] : compactDetailRows(addresses),
+    );
+    addWorkbookSheet(
+      sheets,
+      "Identities",
+      identities.length === 0 ? [] : compactDetailRows(identities),
+    );
+    addWorkbookSheet(sheets, "Orchard", orchard.length === 0 ? [] : compactDetailRows(orchard));
+    addWorkbookSheet(
+      sheets,
+      "Errors",
+      errors.length === 0
+        ? []
+        : [
+            ["query_id", "query_label", "mode", "network", "status", "message"],
+            ...errors.map((error) => [
+              error.id,
+              error.label,
+              error.mode ?? state.mode,
+              state.network,
+              "failed",
+              error.message,
+            ]),
+          ],
+    );
+
+    const blob = await writeExcelFile(sheets, {
+      fontFamily: "Arial",
+      fontSize: 10,
+    }).toBlob();
+    return {
+      filename: `wallet-activity-viewer-${state.mode}${batch ? "-batch" : ""}-${state.network}-${fileStamp(generatedAt)}.xlsx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      blob,
+    };
+  }
+}
+
+/** Compatibility entry point for the public activity workbook. */
+export function createViewerWorkbookExport(
   state: ViewerExportState,
   generatedAt = new Date(),
 ): Promise<ViewerWorkbookExportFile> {
-  const generatedAtIso = generatedAt.toISOString();
-  const batch = isBatchExportState(state);
-  const items = workbookItems(state);
-  const errors = workbookErrors(state);
-  const sheets: Sheet<Blob>[] = [];
-  const preparedItems = items.map((item) => ({
-    item,
-    rows: worksheetRows(item.state, generatedAtIso, batch ? item.label : undefined),
-  }));
-
-  const summaryRows: CsvValue[][] = [
-    [
-      "query_id",
-      "query_label",
-      "mode",
-      "network",
-      "status",
-      "resource",
-      "balance_atomic",
-      "balance_unit",
-      "record_count",
-    ],
-  ];
-  summaryRows.push(...preparedItems.map(({ item, rows }) => summaryRow(item, rows.length)));
-  summaryRows.push(
-    ...errors.map((error) => [
-      error.id,
-      error.label,
-      error.mode ?? state.mode,
-      state.network,
-      "failed",
-      "",
-      "",
-      "",
-      0,
-    ]),
-  );
-  addWorkbookSheet(sheets, "Summary", summaryRows);
-
-  const addresses = preparedItems
-    .filter(({ item }) => item.state.mode === "core" || item.state.mode === "platform")
-    .flatMap(({ rows }) => rows);
-  const identities = preparedItems
-    .filter(({ item }) => item.state.mode === "identity")
-    .flatMap(({ rows }) => rows);
-  const orchard = preparedItems
-    .filter(({ item }) => item.state.mode === "shielded")
-    .flatMap(({ rows }) => rows);
-  addWorkbookSheet(sheets, "Addresses", addresses.length === 0 ? [] : compactDetailRows(addresses));
-  addWorkbookSheet(
-    sheets,
-    "Identities",
-    identities.length === 0 ? [] : compactDetailRows(identities),
-  );
-  addWorkbookSheet(sheets, "Orchard", orchard.length === 0 ? [] : compactDetailRows(orchard));
-  addWorkbookSheet(
-    sheets,
-    "Errors",
-    errors.length === 0
-      ? []
-      : [
-          ["query_id", "query_label", "mode", "network", "status", "message"],
-          ...errors.map((error) => [
-            error.id,
-            error.label,
-            error.mode ?? state.mode,
-            state.network,
-            "failed",
-            error.message,
-          ]),
-        ],
-  );
-
-  const blob = await writeExcelFile(sheets, {
-    fontFamily: "Arial",
-    fontSize: 10,
-  }).toBlob();
-  return {
-    filename: `wallet-activity-viewer-${state.mode}${batch ? "-batch" : ""}-${state.network}-${fileStamp(generatedAt)}.xlsx`,
-    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    blob,
-  };
+  return ViewerWorkbook.create(state, generatedAt);
 }

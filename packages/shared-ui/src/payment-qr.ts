@@ -1,6 +1,7 @@
 import { encode } from "uqr";
 import type { ResultField } from "@ckd/core/types.js";
 import { downloadBlob } from "@ckd/export/download.js";
+import { QrActionLifecycle } from "./qr-action-lifecycle.js";
 
 export function paymentQrPayload(field: ResultField): string | undefined {
   if (field.role !== "paymentAddress" || field.secret || field.value.length === 0) return undefined;
@@ -11,6 +12,8 @@ export function paymentQrPayload(field: ResultField): string | undefined {
 
 type QrPayload = string | Readonly<Array<number>>;
 type QrEcc = "L" | "M" | "Q" | "H";
+const SAVE_PNG = "Save as PNG";
+const PNG_RESET_DELAY_MS = 1400;
 
 export function qrMatrix(payload: QrPayload, ecc: QrEcc = "M"): boolean[][] {
   if (payload.length === 0 || payload.length > 4096)
@@ -93,6 +96,93 @@ export class QrPngExport {
   }
 }
 
+/** The asynchronous Save control borrows the widget's permission and payload until retirement. */
+interface QrPngPort {
+  payload(): QrPayload;
+  current(): boolean;
+  cancelled(): void;
+}
+
+class QrPngButton implements Disposable {
+  readonly #button: HTMLButtonElement;
+  readonly #export: QrPngExport;
+  readonly #label: string;
+  readonly #ecc: QrEcc;
+  #timer: ReturnType<typeof setTimeout> | undefined;
+  #port: QrPngPort | undefined;
+
+  constructor(document: Document, label: string, ecc: QrEcc, port: QrPngPort) {
+    this.#port = port;
+    this.#label = label;
+    this.#ecc = ecc;
+    this.#export = new QrPngExport(document);
+    this.#button = document.createElement("button");
+    this.#button.type = "button";
+    this.#button.className = "payment-qr-save";
+    this.#button.textContent = SAVE_PNG;
+    this.#button.setAttribute("aria-label", `Save ${label} QR code as PNG`);
+    this.#button.addEventListener("click", () => void this.#save());
+  }
+
+  get element(): HTMLButtonElement {
+    return this.#button;
+  }
+
+  #cancel(port: QrPngPort): void {
+    this.#button.textContent = SAVE_PNG;
+    this.#button.removeAttribute("title");
+    port.cancelled();
+  }
+
+  async #save(): Promise<void> {
+    const port = this.#port;
+    if (port === undefined) return;
+    const current = (): boolean => this.#port === port && port.current();
+    if (!current()) {
+      this.#cancel(port);
+      return;
+    }
+    this.#button.disabled = true;
+    this.#button.textContent = "Saving…";
+    try {
+      const saved = await this.#export.save(port.payload(), this.#ecc, this.#label, current);
+      if (!saved || !current()) {
+        this.#cancel(port);
+        return;
+      }
+      this.#button.textContent = "Saved PNG";
+      this.#button.removeAttribute("title");
+    } catch (cause) {
+      if (!current()) {
+        this.#cancel(port);
+        return;
+      }
+      this.#button.textContent = "Save failed";
+      this.#button.title = cause instanceof Error ? cause.message : "QR PNG export failed.";
+    } finally {
+      if (this.#port === port) {
+        if (this.#timer !== undefined) clearTimeout(this.#timer);
+        this.#timer = setTimeout(() => {
+          this.#timer = undefined;
+          this.#button.disabled = false;
+          this.#button.textContent = SAVE_PNG;
+        }, PNG_RESET_DELAY_MS);
+      }
+    }
+  }
+
+  wipe(): void {
+    this.#port = undefined;
+    if (this.#timer !== undefined) clearTimeout(this.#timer);
+    this.#timer = undefined;
+    this.#button.disabled = true;
+    this.#button.textContent = SAVE_PNG;
+  }
+  [Symbol.dispose](): void {
+    this.wipe();
+  }
+}
+
 function renderMatrix(document: Document, payload: QrPayload, ecc: QrEcc): Element {
   const matrix = qrMatrix(payload, ecc);
   try {
@@ -140,7 +230,7 @@ export function createQrAction(
   root.className = "payment-qr-action";
   let active = true;
   const current = (): boolean => active && root.isConnected && (options.current?.() ?? true);
-  const pngExport = new QrPngExport(document);
+  let pngButton: QrPngButton | undefined;
   const button = document.createElement("button");
   button.type = "button";
   button.className = "copy qr-trigger";
@@ -175,43 +265,37 @@ export function createQrAction(
     popover.style.left = `${Math.max(margin, Math.min(left, viewport.innerWidth - bounds.width - margin))}px`;
     popover.style.top = `${Math.max(margin, Math.min(top, viewport.innerHeight - bounds.height - margin))}px`;
   };
-  const onScroll = (event: Event): void => {
-    if (event.target instanceof Node && popover.contains(event.target)) return;
-    positionPopover();
-  };
   const hide = (restoreFocus = false): void => {
     pinned = false;
     if (popover.matches(":popover-open")) popover.hidePopover();
     popover.hidden = true;
     button.setAttribute("aria-expanded", "false");
-    document.removeEventListener("keydown", onKeyDown);
-    document.removeEventListener("pointerdown", onOutsidePointer);
-    document.removeEventListener("scroll", onScroll, true);
-    document.defaultView?.removeEventListener("resize", positionPopover);
+    delete root.dataset.qrOpen;
     if (restoreFocus) {
       suppressFocusPreview = true;
       button.focus({ preventScroll: true });
       suppressFocusPreview = false;
     }
   };
-  document.defaultView?.addEventListener(
-    "pagehide",
-    () => {
-      // A page in the back-forward cache can keep its cards connected after departure.
-      active = false;
-      hide();
+  const unregister = QrActionLifecycle.register(root, {
+    hide,
+    position(target) {
+      if (!(target instanceof Node) || !popover.contains(target)) positionPopover();
     },
-    { once: true },
-  );
-  const onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      hide(true);
-    }
-  };
-  const onOutsidePointer = (event: PointerEvent): void => {
-    if (event.target instanceof Node && !root.contains(event.target)) hide();
-  };
+    outside(target) {
+      if (target instanceof Node && !root.contains(target)) hide();
+    },
+    dispose() {
+      active = false;
+      pngButton?.wipe();
+      hide();
+      payload = "";
+      displayedPayload = "";
+      options = {};
+      popover.replaceChildren();
+      unregister();
+    },
+  });
   const show = (pin: boolean): void => {
     if (!current()) {
       hide();
@@ -219,8 +303,6 @@ export function createQrAction(
     }
     if (pin && !pinned) {
       pinned = true;
-      document.addEventListener("keydown", onKeyDown);
-      document.addEventListener("pointerdown", onOutsidePointer);
     }
     if (!rendered) {
       const heading = document.createElement("strong");
@@ -232,46 +314,10 @@ export function createQrAction(
       payloadText.className = "payment-qr-payload";
       payloadText.textContent = displayedPayload;
       payloadText.tabIndex = 0;
-      const save = document.createElement("button");
-      save.type = "button";
-      save.className = "payment-qr-save";
-      save.textContent = "Save as PNG";
-      save.setAttribute("aria-label", `Save ${label} QR code as PNG`);
-      const cancelled = (): void => {
-        save.textContent = "Save as PNG";
-        save.removeAttribute("title");
-        hide();
-      };
-      save.addEventListener("click", () => {
-        if (!current()) {
-          hide();
-          return;
-        }
-        void (async () => {
-          save.disabled = true;
-          save.textContent = "Saving…";
-          try {
-            const saved = await pngExport.save(payload, options.ecc ?? "M", label, current);
-            if (!saved || !current()) {
-              cancelled();
-              return;
-            }
-            save.textContent = "Saved PNG";
-            save.removeAttribute("title");
-          } catch (cause) {
-            if (!current()) {
-              cancelled();
-              return;
-            }
-            save.textContent = "Save failed";
-            save.title = cause instanceof Error ? cause.message : "QR PNG export failed.";
-          } finally {
-            globalThis.setTimeout(() => {
-              save.disabled = false;
-              save.textContent = "Save as PNG";
-            }, 1400);
-          }
-        })();
+      pngButton = new QrPngButton(document, label, options.ecc ?? "M", {
+        payload: () => payload,
+        current,
+        cancelled: () => hide(),
       });
       const close = document.createElement("button");
       close.type = "button";
@@ -284,7 +330,7 @@ export function createQrAction(
         renderMatrix(document, payload, options.ecc ?? "M"),
         description,
         payloadText,
-        save,
+        pngButton.element,
         close,
       );
       rendered = true;
@@ -293,8 +339,7 @@ export function createQrAction(
     popover.hidden = false;
     if (!popover.matches(":popover-open")) popover.showPopover();
     positionPopover();
-    document.addEventListener("scroll", onScroll, true);
-    document.defaultView?.addEventListener("resize", positionPopover);
+    root.dataset.qrOpen = "";
     button.setAttribute("aria-expanded", "true");
   };
   const previewEnd = (): void => {

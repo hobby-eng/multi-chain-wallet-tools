@@ -1,5 +1,7 @@
-import { MINIMAL_BYTEWORDS } from "../../recovery-mnemocode/source/sskr/bytewords-list.js";
-import { CRC32_BYTES, crc32 } from "../../recovery-mnemocode/source/sskr/checksum.js";
+import { MINIMAL_BYTEWORDS } from "@ckd/test-support/bytewords.js";
+import { crc32 } from "@ckd/test-support/mncl-list.js";
+
+const CRC32_BYTES = 4;
 
 /** Small public dCBOR inputs; the production Envelope decoder remains under test. */
 export class GordianAdmissionFixtures {

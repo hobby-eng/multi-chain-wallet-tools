@@ -1,33 +1,4 @@
-import { verifySelfTest } from "./self-test-check.mjs";
+import { SelfTestVerifier } from "./self-test-check.mjs";
+import { StartupSelfTestCatalog } from "../../../tooling/startup-self-test-catalog.mjs";
 
-await verifySelfTest({
-  entry: "packages/verification/src/self-test.ts",
-  run: "runCryptoSelfTest",
-  label: "startup cryptographic self-test",
-  expectedChecks: [
-    "BIP39",
-    "BIP39 chosen words",
-    "BIP39 chosen-word bit placement and readback (five lengths)",
-    "BIP39 chosen-word checksum, predicates and refusals (five lengths)",
-    "Bitcoin legacy",
-    "Bitcoin nested-segwit",
-    "Bitcoin native-segwit",
-    "Bitcoin taproot",
-    "Bitcoin testnet / BIP49",
-    "Bitcoin maximum child index",
-    "Bitcoin master/account extended-key integrity",
-    "Dash Core / BIP44",
-    "Dash Core testnet / BIP44",
-    "Dash Platform / DIP17",
-    "Dash Platform testnet / DIP17",
-    "Dash master/account extended-key integrity",
-    "Dash Identity mainnet / DIP13",
-    "Dash Identity testnet / DIP13",
-    "Dash Mobile CoinJoin · DIP9 · mainnet",
-    "Dash Mobile CoinJoin · DIP9 · testnet",
-    "Dash Orchard testnet / ZIP32",
-    "Dash Orchard mainnet / ZIP32",
-    "Ethereum / EIP55",
-    "Ethereum master/account extended-key integrity",
-  ],
-});
+await new SelfTestVerifier(StartupSelfTestCatalog.multiChain).verify();

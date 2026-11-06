@@ -59,7 +59,7 @@ export class RecoveryTestElement extends FakeElement {
     if (name === "hidden") this.hidden = false;
   }
 
-  get firstElementChild(): RecoveryTestElement | null {
+  override get firstElementChild(): RecoveryTestElement | null {
     return (
       (this.children.find(
         (child) => child instanceof RecoveryTestElement,
@@ -97,6 +97,42 @@ export class RecoveryTestElement extends FakeElement {
     }
   }
 
+  /** Native sibling insertion used by actual local-file chooser bindings. */
+  override after(...nodes: (RecoveryTestElement | string)[]): void {
+    const parent = this.parentElement;
+    if (parent === null) return;
+    let index = parent.children.indexOf(this) + 1;
+    for (const node of nodes) {
+      if (node instanceof RecoveryTestElement) {
+        node.remove();
+        node.parentElement = parent;
+      }
+      parent.children.splice(index, 0, node);
+      index += 1;
+    }
+  }
+
+  insertAdjacentElement(
+    position: InsertPosition,
+    node: RecoveryTestElement,
+  ): RecoveryTestElement | null {
+    const parent =
+      position === "beforebegin" || position === "afterend" ? this.parentElement : this;
+    if (parent === null) return null;
+    node.remove();
+    node.parentElement = parent;
+    const index =
+      position === "beforebegin"
+        ? parent.children.indexOf(this)
+        : position === "afterend"
+          ? parent.children.indexOf(this) + 1
+          : position === "afterbegin"
+            ? 0
+            : parent.children.length;
+    parent.children.splice(index, 0, node);
+    return node;
+  }
+
   remove(): void {
     const siblings = this.parentElement?.children;
     if (siblings !== undefined) {
@@ -111,7 +147,12 @@ export class RecoveryTestElement extends FakeElement {
   }
 
   override closest(selector = "label"): RecoveryTestElement | null {
-    for (let node: RecoveryTestElement | null = this; node !== null; node = node.parentElement)
+    if (this.matches(selector)) return this;
+    for (
+      let node: RecoveryTestElement | null = this.parentElement;
+      node !== null;
+      node = node.parentElement
+    )
       if (node.matches(selector)) return node;
     return null;
   }

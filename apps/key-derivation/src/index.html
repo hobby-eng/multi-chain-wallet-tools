@@ -155,7 +155,7 @@
               Copy
             </button>
           </div>
-          <div id="wallet-check-generation">
+          <div id="wallet-check-generation" class="generation-option">
             <div class="field-heading-row">
               <label class="feature-tab-toggle" for="wallet-check-enabled">
                 <input id="wallet-check-enabled" type="checkbox" disabled />
@@ -166,8 +166,8 @@
                   ></span
                 >
               </label>
-              <details id="wallet-check-help" class="recovery-help option-help" hidden>
-                <summary aria-label="How the MHFE wallet check works">?</summary>
+              <details id="wallet-check-help" class="recovery-help option-help">
+                <summary class="help-mark" aria-label="How the MHFE wallet check works">?</summary>
                 <div class="recovery-help-popover">
                   <h3>What is checked?</h3>
                   <p>
@@ -177,10 +177,10 @@
                     entropy nor the seed is zeroed.
                   </p>
                   <p>
-                    The check needs the BIP39 passphrase entered below, confirmed here: without one it would let anyone
-                    who sees the phrase test it. Keep the phrase and the passphrase for recovery, and keep all funds
-                    under this passphrase, since the wallet without it stays empty. Generation keeps the passphrase
-                    field unchanged.
+                    The check needs the BIP39 passphrase entered below: without one it would let anyone who sees the
+                    phrase test it. Keep the phrase and the passphrase for recovery, and keep all funds under this
+                    passphrase, since the wallet without it stays empty. Generation keeps the passphrase field
+                    unchanged.
                   </p>
                   <p>
                     The check takes 16 bits of choice from the phrase's 256; a chosen word and words never to use take
@@ -198,31 +198,35 @@
             </div>
             <p id="wallet-check-status" class="field-note" role="status" aria-live="polite" hidden></p>
             <div id="wallet-check-options" hidden>
-              <label for="wallet-check-passphrase-repeat">Confirm the BIP39 passphrase entered below</label>
-              <input
-                id="wallet-check-passphrase-repeat"
-                type="password"
-                autocomplete="off"
-                autocapitalize="none"
-                spellcheck="false"
-                disabled
-              />
               <p id="wallet-check-outlook" class="field-note warning" aria-live="polite" hidden></p>
-              <button id="wallet-check-cancel" type="button" class="secondary compact" hidden>
-                Cancel phrase generation
-              </button>
+              <button id="wallet-check-cancel" type="button" class="secondary compact" hidden>Stop</button>
             </div>
           </div>
-          <label class="feature-tab-toggle chosen-words-toggle" for="chosen-words-enabled">
-            <input id="chosen-words-enabled" type="checkbox" />
-            <span
-              ><strong>Generate with a chosen word</strong
-              ><small
-                >Not recommended. The Generate buttons above then make a random phrase that also meets the wishes
-                below.</small
-              ></span
-            >
-          </label>
+          <div class="field-heading-row generation-option">
+            <label class="feature-tab-toggle chosen-words-toggle" for="chosen-words-enabled">
+              <input id="chosen-words-enabled" type="checkbox" />
+              <span
+                ><strong>Generate with a chosen word</strong
+                ><small>Not recommended · a random phrase that also holds a word you choose.</small></span
+              >
+            </label>
+            <details id="chosen-words-help" class="recovery-help option-help">
+              <summary class="help-mark" aria-label="What generating with a chosen word does">?</summary>
+              <div class="recovery-help-popover">
+                <h3>A phrase with a word you choose</h3>
+                <p>
+                  The Generate buttons then draw a random phrase that also holds the word you choose, at a position or
+                  anywhere, and none of the words you rule out. The rest stays random, drawn with
+                  crypto.getRandomValues(); the checksum is calculated, never chosen.
+                </p>
+                <p>
+                  Each wish makes the phrase easier to find for someone who knows or guesses it: a word at a position
+                  takes about 11 of its random bits, a word anywhere about 7. Never write the word down next to the
+                  phrase.
+                </p>
+              </div>
+            </details>
+          </div>
           <div id="chosen-words-panel" class="chosen-words-panel" hidden>
             <p class="field-note chosen-words-warning">
               <strong>Not recommended.</strong> A phrase from the ordinary Generate buttons is the strongest. A word at
@@ -253,17 +257,37 @@
             <p class="field-note">Enter an English BIP39 recovery phrase to check its structure.</p>
           </section>
 
-          <label for="passphrase">BIP39 passphrase <span class="optional">optional, case-sensitive</span></label>
+          <div class="field-heading-row">
+            <label for="passphrase"
+              >BIP39 passphrase <span id="passphrase-need" class="optional">optional, case-sensitive</span></label
+            >
+            <details id="passphrase-help" class="recovery-help option-help">
+              <summary class="help-mark" aria-label="What a BIP39 passphrase is">?</summary>
+              <div class="recovery-help-popover">
+                <h3>BIP39 passphrase</h3>
+                <p>
+                  This optional extra secret selects a wallet together with the recovery phrase. It is not an
+                  application password, PIN or extra recovery word. Every different passphrase gives a different wallet,
+                  with no error for a wrong one.
+                </p>
+                <p>
+                  BIP39 normalizes Unicode with NFKD, so some different spellings are equivalent; case, spaces and
+                  symbols still matter. Use the exact original passphrase when restoring.
+                </p>
+              </div>
+            </details>
+            <button id="toggle-passphrase" class="secondary compact" type="button" aria-pressed="false">Show</button>
+          </div>
           <input
             id="passphrase"
             type="password"
             autocomplete="off"
             placeholder="Leave blank unless your wallet uses one"
           />
-          <p class="field-note">
-            A passphrase is not a PIN or another mnemonic word. Unicode is supported; case, spaces, and symbols are
-            significant. Standard BIP39 NFKD normalization is applied. Every different passphrase creates a different
-            wallet, with no error for a wrong one.
+          <p id="passphrase-warning" class="field-note warning">
+            Check your passphrase carefully with Show. A typing mistake, a different letter case or Caps Lock gives a
+            different wallet with different addresses. If you forget this passphrase, the recovery phrase alone cannot
+            restore access to that wallet&#39;s funds.
           </p>
         </section>
 
@@ -289,7 +313,10 @@
               <select id="network"></select>
             </div>
             <div class="protocol-tabs-field span-three">
-              <label id="protocol-tabs-label">Derivation type</label>
+              <div class="field-heading-row">
+                <label id="protocol-tabs-label">Derivation type</label>
+                __DERIVATION_TYPE_HELP__
+              </div>
               <div
                 id="protocol-tabs"
                 class="protocol-tabs primary-mode-tabs"
@@ -313,27 +340,43 @@
             </div>
             <div class="feature-tab-options span-three">
               __SILENT_PAYMENT_TOGGLE__ __BIP85_TOGGLE__
-              <label
-                id="legacy-mobile-field"
-                class="feature-tab-toggle standard-derivation-content"
-                for="include-legacy-mobile"
-                title="Reveal the historical Dash mobile m/account'/branch/index derivation tab only when an old DashSync/mobile path is required."
-                hidden
-              >
-                <input id="include-legacy-mobile" type="checkbox" />
-                <span>Show legacy mobile Core</span>
-              </label>
-              <label
-                id="coinjoin-addresses-field"
-                class="feature-tab-toggle standard-derivation-content"
-                for="include-coinjoin-addresses"
-                title="Generate the separate Dash Mobile CoinJoin DIP9 external and compatibility/internal chains."
-                hidden
-              >
-                <input id="include-coinjoin-addresses" type="checkbox" />
-                <span>Show Dash Mobile CoinJoin · DIP9 addresses</span>
-                <span id="coinjoin-path-help" hidden></span>
-              </label>
+              <div id="legacy-mobile-field" class="field-heading-row standard-derivation-content" hidden>
+                <label class="feature-tab-toggle" for="include-legacy-mobile">
+                  <input id="include-legacy-mobile" type="checkbox" />
+                  <span>Show legacy mobile Core</span>
+                </label>
+                <details class="recovery-help option-help">
+                  <summary class="help-mark" aria-label="What legacy mobile Core is">?</summary>
+                  <div class="recovery-help-popover">
+                    <h3>Legacy mobile Core</h3>
+                    <p>
+                      Adds a tab for the path <code>m/account'/branch/index</code> that old Dash mobile wallets, Dash
+                      Wallet and others built on DashSync, used without the BIP44 purpose and coin type of Dash Core.
+                    </p>
+                    <p>Turn it on only if funds from such an old wallet are missing from the standard Dash Core tab.</p>
+                  </div>
+                </details>
+              </div>
+              <div id="coinjoin-addresses-field" class="field-heading-row standard-derivation-content" hidden>
+                <label class="feature-tab-toggle" for="include-coinjoin-addresses">
+                  <input id="include-coinjoin-addresses" type="checkbox" />
+                  <span>Show Dash Mobile CoinJoin · DIP9 addresses</span>
+                  <span id="coinjoin-path-help" hidden></span>
+                </label>
+                <details class="recovery-help option-help">
+                  <summary class="help-mark" aria-label="What the CoinJoin addresses are">?</summary>
+                  <div class="recovery-help-popover">
+                    <h3>Dash Mobile CoinJoin · DIP9</h3>
+                    <p>
+                      Dash mobile wallets keep coins mixed with CoinJoin on a path of their own,
+                      <code>m/9'/5'/4'/account'/branch/index</code> (coin type <code>1'</code> on testnet), apart from
+                      the BIP44 addresses of Dash Core. This adds a tab with those addresses: branch 0, which the mobile
+                      wallets use, and branch 1, kept for compatibility.
+                    </p>
+                    <p>Turn it on if coins you mixed in a Dash mobile wallet are missing from the standard results.</p>
+                  </div>
+                </details>
+              </div>
             </div>
             __SILENT_PAYMENT_PANEL__ __BIP85_PANEL__
             <div id="account-field" class="standard-derivation-content">
@@ -380,8 +423,8 @@
           </div>
           <p class="field-note auto-derive-note standard-derivation-content">
             Generating or pasting a complete phrase, changing its BIP39 passphrase, coin, or derivation tab
-            automatically derives the selected result count. Remembered totals above 20 require a manual click; larger
-            requests run in visible batches and can consume substantial CPU, memory, and browser time.
+            automatically derives the selected result count. Large selections require manual confirmation. Requests run
+            in visible batches and can consume substantial CPU, memory, and browser time.
           </p>
           <div id="error" class="error" role="alert" hidden></div>
           <div id="status" class="status" role="status" aria-live="polite" hidden></div>
@@ -802,7 +845,7 @@
                 and inspect the
                 <a href="https://github.com/hobby-eng/mhfe" target="_blank" rel="noopener noreferrer"
                   >reference implementation</a
-                >. This page embeds the MHFE 0.6.0 browser package: suite MHFE-BIP39-256-EXPERIMENTAL-3 for 24-word
+                >. This page embeds the MHFE 0.7.0 browser package: suite MHFE-BIP39-256-EXPERIMENTAL-3 for 24-word
                 containers and MHFE-BIP39-LP-EXPERIMENTAL-4 for containers of the phrase's own length.
               </p>
             </div>
@@ -1097,10 +1140,13 @@
                 Show words
               </button>
             </fieldset>
-            <label class="checkbox-row" for="mhfe-encrypt-use-pim">
-              <input id="mhfe-encrypt-use-pim" type="checkbox" />
-              Use a custom PIM
-            </label>
+            <div class="field-heading-row">
+              <label class="checkbox-row" for="mhfe-encrypt-use-pim">
+                <input id="mhfe-encrypt-use-pim" type="checkbox" />
+                Use a custom PIM
+              </label>
+              __MHFE_PIM_HELP__
+            </div>
             <label id="mhfe-encrypt-pim-field" for="mhfe-encrypt-pim" hidden
               >PIM (1–1023)
               <input id="mhfe-encrypt-pim" type="number" min="1" step="1" value="1" />
@@ -1380,10 +1426,13 @@
                 Show words
               </button>
             </fieldset>
-            <label class="checkbox-row" for="mhfe-decrypt-use-pim">
-              <input id="mhfe-decrypt-use-pim" type="checkbox" />
-              Use a custom PIM
-            </label>
+            <div class="field-heading-row">
+              <label class="checkbox-row" for="mhfe-decrypt-use-pim">
+                <input id="mhfe-decrypt-use-pim" type="checkbox" />
+                Use a custom PIM
+              </label>
+              __MHFE_PIM_HELP__
+            </div>
             <label id="mhfe-decrypt-pim-field" for="mhfe-decrypt-pim" hidden
               >PIM (1–1023)
               <input id="mhfe-decrypt-pim" type="number" min="1" step="1" value="1" />
@@ -1394,6 +1443,14 @@
               offer the setting. To choose a higher memory level, or to open a container made with one, use the mhfe
               command-line program.
             </p>
+            <div id="mhfe-decrypt-more-passwords"></div>
+            <p id="mhfe-decrypt-several-note" class="warning-callout">
+              With several passwords, all their seed phrases are shown on one screen. Each appears under its password as
+              soon as it is recovered. Every password recovers a seed phrase of its own, such as a hidden wallet's.
+            </p>
+            <div class="actions">
+              <button id="mhfe-decrypt-add-password" class="secondary" type="button">Add another password</button>
+            </div>
             <label for="mhfe-decrypt-source-words">
               How many words does your original seed phrase have?
               <select id="mhfe-decrypt-source-words">
@@ -1406,6 +1463,23 @@
               encryption told you to. A shorter container keeps the length of its phrase, which is then the only answer.
               In the extremely unlikely event that several lengths pass, every candidate is shown.
             </p>
+            <div id="mhfe-decrypt-check-passphrase-field" class="mhfe-password-field" hidden>
+              <div class="field-heading-row">
+                <label for="mhfe-decrypt-check-passphrase"
+                  >BIP39 passphrase of the original seed phrase, for the 16-bit check</label
+                >
+                <button
+                  id="toggle-mhfe-decrypt-check-passphrase"
+                  class="secondary compact"
+                  type="button"
+                  aria-pressed="false"
+                >
+                  Show
+                </button>
+              </div>
+              <input id="mhfe-decrypt-check-passphrase" type="password" autocomplete="off" />
+              <p id="mhfe-decrypt-check-passphrase-note" class="field-note"></p>
+            </div>
             <p class="warning-callout">The seed phrase will be shown: recover only on a trusted offline computer.</p>
             <div class="actions">
               <button class="primary" id="mhfe-decrypt" type="button" data-heavy-job>Restore phrase</button>
@@ -1679,10 +1753,13 @@
                 Show words
               </button>
             </fieldset>
-            <label class="checkbox-row" for="mhfe-check-use-pim">
-              <input id="mhfe-check-use-pim" type="checkbox" />
-              Use a custom PIM
-            </label>
+            <div class="field-heading-row">
+              <label class="checkbox-row" for="mhfe-check-use-pim">
+                <input id="mhfe-check-use-pim" type="checkbox" />
+                Use a custom PIM
+              </label>
+              __MHFE_PIM_HELP__
+            </div>
             <label id="mhfe-check-pim-field" for="mhfe-check-pim" hidden
               >PIM (1–1023)
               <input id="mhfe-check-pim" type="number" min="1" step="1" value="1" />
@@ -1693,6 +1770,19 @@
               offer the setting. To choose a higher memory level, or to open a container made with one, use the mhfe
               command-line program.
             </p>
+            <div id="mhfe-check-passphrase-field">
+              <div class="field-heading-row">
+                <label for="mhfe-check-passphrase">BIP39 passphrase of the wallet, or empty if it has none</label>
+                <button id="toggle-mhfe-check-passphrase" class="secondary compact" type="button" aria-pressed="false">
+                  Show
+                </button>
+              </div>
+              <input id="mhfe-check-passphrase" type="password" autocomplete="off" />
+              <p class="field-note">
+                Part of the wallet; it is NOT the container password. Do not keep the address or fingerprint next to the
+                container.
+              </p>
+            </div>
             <fieldset class="choice-group">
               <legend>What should the recovered seed phrase be compared with?</legend>
               <label class="checkbox-row" for="mhfe-check-ref-address">
@@ -1770,19 +1860,6 @@
                 <input id="mhfe-check-fingerprint" type="text" autocomplete="off" pattern="[0-9a-fA-F]{8}" />
               </label>
               <p class="field-note">A fingerprint is a quick 32-bit check; an address is stronger.</p>
-            </div>
-            <div id="mhfe-check-passphrase-field" hidden>
-              <div class="field-heading-row">
-                <label for="mhfe-check-passphrase">BIP39 passphrase of the wallet, or empty if it has none</label>
-                <button id="toggle-mhfe-check-passphrase" class="secondary compact" type="button" aria-pressed="false">
-                  Show
-                </button>
-              </div>
-              <input id="mhfe-check-passphrase" type="password" autocomplete="off" />
-              <p class="field-note">
-                Part of the wallet; it is NOT the container password. Do not keep the address or fingerprint next to the
-                container.
-              </p>
             </div>
             <div class="actions">
               <button class="primary" id="mhfe-check" type="button" data-heavy-job>Rehearse the recovery</button>
@@ -2084,10 +2161,13 @@
                 Show words
               </button>
             </fieldset>
-            <label class="checkbox-row" for="mhfe-new-use-pim">
-              <input id="mhfe-new-use-pim" type="checkbox" />
-              Use a custom PIM
-            </label>
+            <div class="field-heading-row">
+              <label class="checkbox-row" for="mhfe-new-use-pim">
+                <input id="mhfe-new-use-pim" type="checkbox" />
+                Use a custom PIM
+              </label>
+              __MHFE_PIM_HELP__
+            </div>
             <label id="mhfe-new-pim-field" for="mhfe-new-pim" hidden
               >PIM (1–1023)
               <input id="mhfe-new-pim" type="number" min="1" step="1" value="1" />
@@ -2383,10 +2463,13 @@
                 Show words
               </button>
             </fieldset>
-            <label class="checkbox-row" for="mhfe-rekey-use-pim">
-              <input id="mhfe-rekey-use-pim" type="checkbox" />
-              The old container uses a custom PIM
-            </label>
+            <div class="field-heading-row">
+              <label class="checkbox-row" for="mhfe-rekey-use-pim">
+                <input id="mhfe-rekey-use-pim" type="checkbox" />
+                The old container uses a custom PIM
+              </label>
+              __MHFE_PIM_HELP__
+            </div>
             <label id="mhfe-rekey-pim-field" for="mhfe-rekey-pim" hidden
               >PIM (1–1023)
               <input id="mhfe-rekey-pim" type="number" min="1" step="1" value="1" />
@@ -2622,10 +2705,13 @@
                 Show words
               </button>
             </fieldset>
-            <label class="checkbox-row" for="mhfe-rekey-new-use-pim">
-              <input id="mhfe-rekey-new-use-pim" type="checkbox" />
-              Use a custom PIM for the new container
-            </label>
+            <div class="field-heading-row">
+              <label class="checkbox-row" for="mhfe-rekey-new-use-pim">
+                <input id="mhfe-rekey-new-use-pim" type="checkbox" />
+                Use a custom PIM for the new container
+              </label>
+              __MHFE_PIM_HELP__
+            </div>
             <label id="mhfe-rekey-new-pim-field" for="mhfe-rekey-new-pim" hidden
               >PIM (1–1023)
               <input id="mhfe-rekey-new-pim" type="number" min="1" step="1" value="1" />
@@ -2933,10 +3019,13 @@
               <p id="mhfe-wallets-marked-status" class="status" role="status" aria-live="polite"></p>
               <div id="mhfe-wallets-marked-result" class="share-results" aria-live="polite"></div>
             </div>
-            <label class="checkbox-row" for="mhfe-wallets-use-pim">
-              <input id="mhfe-wallets-use-pim" type="checkbox" />
-              Use a custom PIM
-            </label>
+            <div class="field-heading-row">
+              <label class="checkbox-row" for="mhfe-wallets-use-pim">
+                <input id="mhfe-wallets-use-pim" type="checkbox" />
+                Use a custom PIM
+              </label>
+              __MHFE_PIM_HELP__
+            </div>
             <label id="mhfe-wallets-pim-field" for="mhfe-wallets-pim" hidden
               >PIM (1–1023)
               <input id="mhfe-wallets-pim" type="number" min="1" step="1" value="1" />
@@ -3390,7 +3479,14 @@
               autocomplete="off"
               placeholder="Printable ASCII only"
             />
-            <button class="primary" id="restore-slip39-shares" type="button">Restore phrase</button>
+            <p class="field-note">
+              Restoration runs in a worker. Expensive shares ask for confirmation before work starts; Cancel stops a
+              running restore.
+            </p>
+            <div class="actions">
+              <button class="primary" id="restore-slip39-shares" type="button" data-heavy-job>Restore phrase</button>
+              <button class="secondary" id="slip39-restore-stop" type="button" hidden>Cancel</button>
+            </div>
             <div id="slip39-restore-result" class="share-results" role="status" aria-live="polite"></div>
           </section>
         </section>
@@ -3791,10 +3887,23 @@
                 <input id="codex32-count" type="number" value="3" min="2" max="31" step="1" />
               </div>
             </div>
-            <label class="feature-tab-toggle" for="codex32-unsplit">
-              <input id="codex32-unsplit" type="checkbox" />
-              <strong>Create one unsplit Codex32 secret</strong>
-            </label>
+            <div class="field-heading-row">
+              <label class="feature-tab-toggle" for="codex32-unsplit">
+                <input id="codex32-unsplit" type="checkbox" />
+                <strong>Create one unsplit Codex32 secret</strong>
+              </label>
+              <details class="recovery-help option-help">
+                <summary class="help-mark" aria-label="What an unsplit secret is">?</summary>
+                <div class="recovery-help-popover">
+                  <h3>One unsplit secret</h3>
+                  <p>
+                    Writes the whole secret as one Codex32 string, with threshold 0 and share index s, instead of
+                    shares. It keeps the Codex32 checksum, which reveals miscopied characters, but nothing is split:
+                    anyone who reads the string has the wallet.
+                  </p>
+                </div>
+              </details>
+            </div>
             <p class="field-note">Disables the threshold and share-count fields.</p>
             <div id="codex32-content-warning" class="warning-callout"></div>
             <div class="actions">
@@ -4088,8 +4197,9 @@
                     <div class="recovery-help-popover">
                       <h3>Shamir shares</h3>
                       <p>
-                        Each share alone reveals nothing about the phrase; any threshold of them restores it. Keep the
-                        shares in different places.
+                        Fewer shares than the threshold cannot restore the phrase, but each share still shows the set
+                        identifier, the thresholds and the length of the phrase; any threshold of them restores it. Keep
+                        every share private, and the shares in different places.
                       </p>
                       <p>
                         The other forms write a share as word numbers, Unicode codes or colors, as Encode writes a
@@ -4230,7 +4340,7 @@
                   <select id="mnemocode-card-orientation">
                     <option value="landscape" selected>Landscape</option>
                     <option value="portrait">Portrait</option>
-                    <option value="">Whichever gives larger cards</option>
+                    <option value="">Whichever fills the sheet best</option>
                   </select>
                 </div>
                 <div>
@@ -4260,31 +4370,31 @@
                 <div class="backup-options-grid two-options">
                   <div>
                     <label for="mnemocode-card-name">Name</label>
-                    <input id="mnemocode-card-name" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-name" type="text" autocomplete="off" />
                   </div>
                   <div>
                     <label for="mnemocode-card-company">Company</label>
-                    <input id="mnemocode-card-company" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-company" type="text" autocomplete="off" />
                   </div>
                   <div>
                     <label for="mnemocode-card-role">Role</label>
-                    <input id="mnemocode-card-role" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-role" type="text" autocomplete="off" />
                   </div>
                   <div>
                     <label for="mnemocode-card-email">Email</label>
-                    <input id="mnemocode-card-email" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-email" type="text" autocomplete="off" />
                   </div>
                   <div>
                     <label for="mnemocode-card-phone">Phone</label>
-                    <input id="mnemocode-card-phone" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-phone" type="text" autocomplete="off" />
                   </div>
                   <div>
                     <label for="mnemocode-card-website">Website</label>
-                    <input id="mnemocode-card-website" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-website" type="text" autocomplete="off" />
                   </div>
                   <div>
                     <label for="mnemocode-card-location">Location</label>
-                    <input id="mnemocode-card-location" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-location" type="text" autocomplete="off" />
                   </div>
                 </div>
                 <p class="field-note">
@@ -4294,23 +4404,23 @@
                 <div class="backup-options-grid two-options">
                   <div id="mnemocode-card-text-studioName-field">
                     <label for="mnemocode-card-studio">Studio name</label>
-                    <input id="mnemocode-card-studio" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-studio" type="text" autocomplete="off" />
                   </div>
                   <div id="mnemocode-card-text-slogan-field">
                     <label for="mnemocode-card-slogan">Slogan</label>
-                    <input id="mnemocode-card-slogan" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-slogan" type="text" autocomplete="off" />
                   </div>
                   <div id="mnemocode-card-text-subtitle-field">
                     <label for="mnemocode-card-subtitle">Subtitle</label>
-                    <input id="mnemocode-card-subtitle" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-subtitle" type="text" autocomplete="off" />
                   </div>
                   <div id="mnemocode-card-text-footer-field">
                     <label for="mnemocode-card-footer">Footer</label>
-                    <input id="mnemocode-card-footer" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-footer" type="text" autocomplete="off" />
                   </div>
                   <div id="mnemocode-card-text-referenceLabel-field">
                     <label for="mnemocode-card-reference-label">Label before each code</label>
-                    <input id="mnemocode-card-reference-label" type="text" autocomplete="off" maxlength="100" />
+                    <input id="mnemocode-card-reference-label" type="text" autocomplete="off" />
                   </div>
                 </div>
               </div>
@@ -4321,12 +4431,13 @@
               <div id="mnemocode-cards-qr-images" class="actions" hidden></div>
               <div class="mnemocode-sample-cards">
                 <p class="field-note">
-                  Sample cards show the designs with MnemoCode's public test phrase, in the size, orientation, file
-                  format, title, QR code and details chosen above. They need no phrase and hold no secret.
+                  Sample cards show the designs with a sample phrase drawn at random for each file and masked with fixed
+                  public dates, in the size, orientation, file format, title, QR code and details chosen above. They
+                  need no phrase of yours.
                 </p>
                 <div class="backup-options-grid two-options">
                   <div>
-                    <label for="mnemocode-card-sample-words">Words of the test phrase</label>
+                    <label for="mnemocode-card-sample-words">Length of the sample phrase</label>
                     <select id="mnemocode-card-sample-words"></select>
                   </div>
                   <label class="checkbox-row" for="mnemocode-card-sample-all">
@@ -4337,6 +4448,43 @@
                 <div class="actions">
                   <button id="mnemocode-card-sample" class="secondary" type="button">Save sample cards</button>
                 </div>
+              </div>
+            </details>
+            <details id="mnemocode-stitch-section" class="mnemocode-cards" data-secret-scope>
+              <summary>Cross-stitch pattern (PDF)</summary>
+              <div class="operation-block">
+                <p class="field-note">
+                  Hides the phrase above in the legend of a cross-stitch pattern made from a picture of your own: an
+                  ordinary chart in DMC threads, on which nothing names MnemoCode. The legend holds the phrase masked
+                  with MnemoCode Seedshift and the dates above. Decode reads the legend back without the picture or the
+                  chart.
+                </p>
+                <p id="mnemocode-stitch-mode-note" class="warning-callout" hidden></p>
+                <label for="mnemocode-stitch-picture">
+                  Picture: a PNG or JPEG file
+                  <input id="mnemocode-stitch-picture" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" />
+                </label>
+                <p class="field-note">
+                  A photograph or a painting with smooth shades works best; a flat picture of a few colours cannot hold
+                  a phrase. Up to 40 MiB and 60 megapixels; a pattern is at most 800 stitches high. The picture is not
+                  kept.
+                </p>
+                <label for="mnemocode-stitch-width">
+                  Stitches across
+                  <input id="mnemocode-stitch-width" type="number" min="40" max="500" step="1" value="200" />
+                </label>
+                <p class="field-note">
+                  40 to 500. A pattern of 200 stitches across is about 36 cm wide on 14-count Aida.
+                </p>
+                <div class="actions">
+                  <button id="mnemocode-stitch-make" class="primary" type="button" data-heavy-job>Make pattern</button>
+                  <button id="mnemocode-stitch-stop" class="secondary" type="button" hidden>Cancel</button>
+                  <button id="toggle-mnemocode-stitch-result" class="danger-outline" type="button" aria-pressed="false">
+                    Show legend
+                  </button>
+                </div>
+                <p id="mnemocode-stitch-status" class="status" role="status" aria-live="polite"></p>
+                <div id="mnemocode-stitch-result" class="share-results" aria-live="polite"></div>
               </div>
             </details>
             <details id="mnemocode-heirs-section" class="mnemocode-cards">
@@ -4378,7 +4526,7 @@
                 <label id="mnemocode-heirs-words-row" for="mnemocode-heirs-words">
                   Words of the seed phrase
                   <select id="mnemocode-heirs-words">
-                    <option value="">As many as the phrase above</option>
+                    <option value="">Use the length of the phrase typed into this tab</option>
                   </select>
                 </label>
                 <label for="mnemocode-heirs-size">
@@ -4691,15 +4839,12 @@
               </details>
             </div>
             <div id="mnemocode-restore-dates-field" hidden>
-              <label for="mnemocode-restore-dates">
-                Seedshift dates
-                <input
-                  id="mnemocode-restore-dates"
-                  type="text"
-                  autocomplete="off"
-                  placeholder="23-09-2026 · ? for what is forgotten: ?3-09-2026, 15-?-2025, 05|15-09-2026, or ? for a whole date"
-                />
-              </label>
+              <label for="mnemocode-restore-dates">Seedshift dates</label>
+              <textarea
+                id="mnemocode-restore-dates"
+                autocomplete="off"
+                placeholder="23-09-2026 · ? for what is forgotten: ?3-09-2026, 15-?-2025, 05|15-09-2026, or ? for a whole date"
+              ></textarea>
             </div>
             <!-- MNEMOCODE_WALLET_FIELDS: mnemocode-restore -->
             <label class="checkbox-row" for="mnemocode-restore-list">
@@ -4980,15 +5125,14 @@
                   <option value="">Read every code typed</option>
                 </select>
               </label>
-              <label for="mnemocode-forgotten-dates">
-                Seedshift dates
-                <input
+              <div id="mnemocode-forgotten-dates-field">
+                <label for="mnemocode-forgotten-dates">Seedshift dates</label>
+                <textarea
                   id="mnemocode-forgotten-dates"
-                  type="text"
                   autocomplete="off"
                   placeholder="23-09-2026 · ? for what is forgotten: ?3-09-2026, 15-?-2025, 05|15-09-2026, or ? for a whole date"
-                />
-              </label>
+                ></textarea>
+              </div>
               <p
                 id="mnemocode-forgotten-dates-note"
                 class="field-note reserved-line"
@@ -5066,15 +5210,12 @@
                   </label>
                 </fieldset>
                 <div id="mnemocode-forgotten-shares-dates-field" hidden>
-                  <label for="mnemocode-forgotten-shares-dates">
-                    Seedshift dates
-                    <input
-                      id="mnemocode-forgotten-shares-dates"
-                      type="text"
-                      autocomplete="off"
-                      placeholder="23-09-2026 · ? for what is forgotten: ?3-09-2026, 15-?-2025, 05|15-09-2026, or ? for a whole date"
-                    />
-                  </label>
+                  <label for="mnemocode-forgotten-shares-dates">Seedshift dates</label>
+                  <textarea
+                    id="mnemocode-forgotten-shares-dates"
+                    autocomplete="off"
+                    placeholder="23-09-2026 · ? for what is forgotten: ?3-09-2026, 15-?-2025, 05|15-09-2026, or ? for a whole date"
+                  ></textarea>
                 </div>
               </div>
               <label for="mnemocode-forgotten-shares-form">
@@ -5260,9 +5401,25 @@
             </p>
             <div class="actions">
               <button id="mnemocode-table-look-up" class="primary" type="button">Look up</button>
-              <button id="mnemocode-table-save" class="secondary" type="button">Save the whole table</button>
             </div>
             <div id="mnemocode-table-result" aria-live="polite"></div>
+            <label for="mnemocode-table-export-format">
+              Public dictionary export
+              <select id="mnemocode-table-export-format"></select>
+            </label>
+            <p class="field-note">
+              Save the full mapping and the English manual recovery guide for use offline. The guide explains dictionary
+              numbering, date shifts, the last word and checksum, and legacy modes. These files contain only public
+              reference material. Keep your dates and any BIP39 passphrase separately.
+            </p>
+            <div class="actions">
+              <button id="mnemocode-table-save" class="secondary" type="button">Save selected dictionary</button>
+              <button id="mnemocode-table-guide" class="secondary" type="button">Save manual recovery guide</button>
+              <button id="mnemocode-table-full-set" class="secondary" type="button">
+                Save full recovery set (.zip)
+              </button>
+            </div>
+            <div id="mnemocode-table-export-status" class="field-note" aria-live="polite"></div>
           </section>
           <section id="mnemocode-self-test-panel" class="backup-operation" role="tabpanel" data-operation-panel hidden>
             <p class="field-note">
@@ -5526,7 +5683,9 @@
           autocomplete="off"
           spellcheck="false"
           placeholder="Enter the exact message to sign"
+          aria-describedby="message-signer-message-help"
         ></textarea>
+        <p id="message-signer-message-help" class="help"></p>
         <div class="actions">
           <button class="primary" id="sign-message-button" type="button">Sign message</button>
         </div>
@@ -5579,13 +5738,13 @@
       <p class="field-note passport-dependencies">
         <strong>Embedded dependency versions and licenses:</strong> Noble Curves/Hashes 2.4.0 and Scure Base/BIP32/BIP39
         2.4.0 — MIT; uqr 0.1.3 — MIT; qr 0.7.2 — MIT OR Apache-2.0.
-        <span id="passport-mnemocode-cards-dependency"
-          >MnemoCode cards: pdf-lib 1.17.1, @pdf-lib/fontkit 1.1.1, @pdf-lib/upng 1.0.1 and fflate 0.8.3 — MIT; pako
-          1.0.11 — MIT and Zlib; DejaVu Sans font — Bitstream Vera license; Natural Earth map data — public
-          domain.</span
+        <span id="passport-mnemocode-dependency"
+          >MnemoCode 0.2.0 — MIT OR Apache-2.0, a WebAssembly file with the DejaVu Sans font subset — Bitstream Vera
+          license, Natural Earth map data — public domain, and card artwork — MIT OR Apache-2.0, generated images; the
+          licences of its Rust crates are in MnemoCode-THIRD_PARTY_NOTICES.md; fflate 0.8.3 — MIT.</span
         >
         <span id="passport-mhfe-dependency"
-          >MHFE 0.6.0 — MIT, with the Argon2 reference implementation — Apache-2.0, and the EFF large wordlist — CC BY
+          >MHFE 0.7.0 — MIT, with the Argon2 reference implementation — Apache-2.0, and the EFF large wordlist — CC BY
           4.0.</span
         >
         Dash Orchard 0.14.0, official dashified-0.14.1 commit 38ac9c19a2df7bf3eeadc22ab23053e8fd538828; Blockchain

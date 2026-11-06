@@ -3,10 +3,12 @@ import { EmbeddedWorkerResource } from "../src/embedded-worker-resource.js";
 
 const URL_VALUE = "blob:public-test-worker";
 const worker = { terminate: vi.fn() };
+const revoke = vi.fn<(url: string) => void>();
 
 beforeEach(() => {
   vi.useFakeTimers();
   worker.terminate.mockReset();
+  revoke.mockReset();
   vi.stubGlobal(
     "Worker",
     class {
@@ -16,7 +18,7 @@ beforeEach(() => {
     },
   );
   vi.spyOn(URL, "createObjectURL").mockReturnValue(URL_VALUE);
-  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(revoke);
 });
 
 afterEach(() => {
@@ -39,17 +41,17 @@ describe("embedded worker resource ownership", () => {
     expect(() => new EmbeddedWorkerResource(["public test source"], {}, vi.fn())).toThrow(
       "synthetic startup failure",
     );
-    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
+    expect(revoke).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it("keeps the URL until loaded, then disposes the worker exactly once", () => {
     const timeout = vi.fn();
     const resource = new EmbeddedWorkerResource(["public test source"], {}, timeout);
-    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    expect(revoke).not.toHaveBeenCalled();
     resource.loaded();
     resource.loaded();
-    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
+    expect(revoke).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
     expect(vi.getTimerCount()).toBe(0);
     expect(worker.terminate).not.toHaveBeenCalled();
     resource.dispose();
@@ -65,7 +67,7 @@ describe("embedded worker resource ownership", () => {
     expect(worker.terminate).not.toHaveBeenCalled();
     vi.advanceTimersByTime(15_000);
     expect(worker.terminate).toHaveBeenCalledOnce();
-    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
+    expect(revoke).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
     expect(timeout).toHaveBeenCalledOnce();
     resource.loaded();
     resource.dispose();
@@ -78,7 +80,7 @@ describe("embedded worker resource ownership", () => {
     resource.dispose(true);
     resource.loaded();
     expect(worker.terminate).toHaveBeenCalledOnce();
-    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
+    expect(revoke).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
     vi.advanceTimersByTime(15_000);
     expect(timeout).not.toHaveBeenCalled();
   });
@@ -89,9 +91,36 @@ describe("embedded worker resource ownership", () => {
     });
     const resource = new EmbeddedWorkerResource(["public test source"], {}, vi.fn());
     expect(() => resource.dispose()).toThrow("synthetic termination failure");
-    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
+    expect(revoke).toHaveBeenCalledExactlyOnceWith(URL_VALUE);
     expect(vi.getTimerCount()).toBe(0);
     resource.dispose();
     expect(worker.terminate).toHaveBeenCalledOnce();
   });
+});
+
+it("notifies the deadline owner even when native termination refuses", () => {
+  const cause = new Error("Synthetic termination fault");
+  worker.terminate.mockImplementationOnce(() => {
+    throw cause;
+  });
+  const timeout = vi.fn();
+  const resource = new EmbeddedWorkerResource(["public source"], {}, timeout);
+  expect(() => vi.advanceTimersByTime(15_000)).not.toThrow();
+  expect(timeout).toHaveBeenCalledExactlyOnceWith(cause);
+  expect(revoke).toHaveBeenCalledOnce();
+  expect(vi.getTimerCount()).toBe(0);
+  resource.dispose();
+  expect(worker.terminate).toHaveBeenCalledOnce();
+});
+
+it("retires its URL once even when native URL revocation refuses", () => {
+  revoke.mockImplementationOnce(() => {
+    throw new Error("Synthetic URL fault");
+  });
+  const resource = new EmbeddedWorkerResource(["public source"], {}, vi.fn());
+  expect(() => resource.loaded()).toThrow("Synthetic URL fault");
+  expect(() => resource.dispose()).not.toThrow();
+  expect(revoke).toHaveBeenCalledOnce();
+  expect(worker.terminate).toHaveBeenCalledOnce();
+  expect(vi.getTimerCount()).toBe(0);
 });

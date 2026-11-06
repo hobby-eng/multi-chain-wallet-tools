@@ -9,6 +9,7 @@ export class RecoverySecretLifecycle {
     this.#document = document;
     // The window of the document this lifecycle owns, not whichever global happens to be current.
     document.defaultView?.addEventListener("blur", () => this.conceal());
+    document.defaultView?.addEventListener("pagehide", () => this.conceal());
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") this.conceal();
     });
@@ -17,15 +18,18 @@ export class RecoverySecretLifecycle {
   static install(document: Document): RecoverySecretLifecycle {
     let lifecycle = this.#instances.get(document);
     if (lifecycle === undefined) {
-      lifecycle = new RecoverySecretLifecycle(document);
-      this.#instances.set(document, lifecycle);
+      const owner = new RecoverySecretLifecycle(document);
+      this.#instances.set(document, owner);
+      // Editing preserves an explicit Show choice; Clear is a concealment boundary.
+      document.querySelector("#clear-all")?.addEventListener("click", () => owner.conceal());
+      lifecycle = owner;
     }
     return lifecycle;
   }
 
   /** Keep the callback on its control, so removed result cards are never retained by the host. */
   static register(control: HTMLElement, conceal: () => void): void {
-    this.install(document);
+    this.install(control.ownerDocument);
     control.dataset.recoverySecretControl = "";
     control.addEventListener(this.#CONCEAL, conceal);
   }
@@ -35,9 +39,14 @@ export class RecoverySecretLifecycle {
     control.addEventListener(this.#CONCEAL, listener);
   }
 
+  /** Resets one result's disclosure without concealing unrelated input fields. */
+  static concealControl(control: HTMLElement): void {
+    control.dispatchEvent(new Event(this.#CONCEAL));
+  }
+
   /** Conceals every registered control in `root`: the whole page, or a self-test's own fixture. */
   conceal(root: ParentNode = this.#document): void {
     for (const control of root.querySelectorAll<HTMLElement>(RecoverySecretLifecycle.#SELECTOR))
-      control.dispatchEvent(new Event(RecoverySecretLifecycle.#CONCEAL));
+      RecoverySecretLifecycle.concealControl(control);
   }
 }

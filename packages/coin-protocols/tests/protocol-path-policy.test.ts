@@ -11,10 +11,7 @@ import { getRuntimeCoinAdapter } from "../src/coins/runtime-registry.js";
 import { getRuntimeCoinAdapter as getDashRuntimeCoinAdapter } from "../src/coins/dash-runtime-registry.js";
 import { DashRuntimeRegistry } from "../src/coins/dash/runtime.js";
 import { deriveDashIdentityAuthenticationKey } from "../src/coins/dash/identity.js";
-import {
-  matcherSearchBranches,
-  matcherSearchTargets,
-} from "../../../apps/key-derivation/src/ui/matcher-search-scope.js";
+import { MatcherScope } from "@ckd/recovery/matcher-scope.js";
 import type { WalletMatcherTargetDetector } from "@ckd/recovery/matcher-types.js";
 
 // Literal paths follow BIP44/49/84/86 and DIP9/13/17. No expected path is built by a profile.
@@ -142,8 +139,8 @@ describe("optional protocol metadata", () => {
       expect(runtime(protocol.id).pathPreview(protocol.defaults)).toBe(
         protocol.pathPreview(protocol.defaults),
       );
-      expect(matcherSearchBranches(protocol, false)).toEqual([0]);
-      expect(matcherSearchBranches(protocol, true)).toEqual([0, 1]);
+      expect(MatcherScope.branches(protocol, false)).toEqual([0]);
+      expect(MatcherScope.branches(protocol, true)).toEqual([0, 1]);
     }
   });
 
@@ -169,7 +166,7 @@ describe("optional protocol metadata", () => {
       },
     ];
     expect(
-      matcherSearchTargets("synthetic", "mainnet", detector, scoped, "dash", false)[0]?.adapterIds,
+      MatcherScope.targets("synthetic", "mainnet", detector, scoped, "dash", false)[0]?.adapterIds,
     ).toEqual(["optional-chain"]);
     expect(resolveCoinProtocol(scoped, "optional-chain")?.label).toBe("Optional chain");
     const excluded = createCoinRegistry([]);

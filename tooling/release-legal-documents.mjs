@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { RUST_LIBRARY_NOTICE } from "./linked-licenses.mjs";
 
 /**
  * The licence and notice files every flat release carries: `name` in the release, `source` in the
@@ -19,16 +20,42 @@ export const RELEASE_LEGAL_DOCUMENTS = Object.freeze(
       source: "packages/recovery-mhfe-wasm/notices/THIRD_PARTY_NOTICES.md",
     },
     { name: "MHFE-LICENSE-ARGON2", source: "packages/recovery-mhfe-wasm/LICENSE-ARGON2" },
-    { name: "MnemoCode-LICENSE", source: "packages/recovery-mnemocode/source/LICENSE" },
-    { name: "MnemoCode-NOTICE", source: "packages/recovery-mnemocode/source/NOTICE" },
+    // MnemoCode is under MIT OR Apache-2.0, at the recipient's option: both texts ship. Its
+    // third-party notices cover the font, map and card artwork its WebAssembly embeds, and the
+    // licence texts of the crates it links.
+    { name: "MnemoCode-LICENSE-MIT", source: "packages/recovery-mnemocode-wasm/LICENSE-MIT" },
     {
-      name: "MnemoCode-DejaVuSans-NOTICE",
-      source: "packages/recovery-mnemocode/source/assets/fonts/DejaVuSans-NOTICE",
+      name: "MnemoCode-LICENSE-APACHE",
+      source: "packages/recovery-mnemocode-wasm/LICENSE-APACHE",
+    },
+    { name: "MnemoCode-NOTICE", source: "packages/recovery-mnemocode-wasm/NOTICE" },
+    {
+      name: "MnemoCode-THIRD_PARTY_NOTICES.md",
+      source: "packages/recovery-mnemocode-wasm/THIRD_PARTY_NOTICES.md",
     },
     {
-      name: "MnemoCode-NaturalEarth-NOTICE",
-      source: "packages/recovery-mnemocode/source/assets/maps/NOTICE",
+      name: "MnemoCode-SSKR-LINKED_LICENSES.txt",
+      source: "packages/recovery-sskr-wasm/LINKED_LICENSES.txt",
     },
+    // The license texts of the crates in this project's own Rust products (linked-licenses.mjs).
+    {
+      name: "recovery-envelope-wasm-LINKED_LICENSES.txt",
+      source: "packages/recovery-envelope-wasm/LINKED_LICENSES.txt",
+    },
+    {
+      name: "recovery-codex32-wasm-LINKED_LICENSES.txt",
+      source: "packages/recovery-codex32-wasm/LINKED_LICENSES.txt",
+    },
+    {
+      name: "dash-shielded-wasm-LINKED_LICENSES.txt",
+      source: "packages/dash-shielded-wasm/LINKED_LICENSES.txt",
+    },
+    {
+      name: "key-derivation-launcher-LINKED_LICENSES.txt",
+      source: "apps/key-derivation/launcher/LINKED_LICENSES.txt",
+    },
+    // The Rust standard library, which each of them links, by the notice of the pinned toolchain.
+    { name: "Rust-library-NOTICE.html", source: RUST_LIBRARY_NOTICE },
   ].map((document) => Object.freeze(document)),
 );
 

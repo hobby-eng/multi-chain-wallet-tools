@@ -1,23 +1,11 @@
-// Production controllers with real ambiguous-share admission, synthetic codec and deferred transport.
-// Public BIP39 phrases and TREZOR are argument fixtures; no wallet search, KDF or WASM runs.
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MnemoCodeDecodeTab } from "../src/ui/recovery-mnemocode-decode.js";
+import { action, decodeHarness, fixture, trace } from "./recovery-decode-fixture.js";
+import { startMissingCodeSearch, startOfferedCodeSearch } from "./recovery-decode-fixture.js";
+import { describe, expect, it, vi } from "vitest";
 import { RecoveryDeriverHandoff } from "../src/ui/recovery-deriver-handoff.js";
-import { RecoveryJobGate } from "../src/ui/recovery-job-gate.js";
-import {
-  installSecretToggle,
-  installTabs,
-  renderRecoveredSecret,
-  type RecoveryFeatureContext,
-} from "../src/ui/recovery-workspace-shared.js";
-import { installRecoveryWorkspace } from "../src/ui/recovery-workspace.js";
-import { PasswordField } from "../src/ui/recovery-mhfe-fields.js";
-import { fullSelfTestParts } from "../src/ui/full-self-test.js";
-import { RecoveryUiSelfTest } from "../src/ui/recovery-ui-self-test.js";
-import { PHRASE_ONLY_NOTE } from "../src/ui/recovery-feature.js";
-import { BackupReading } from "../../../packages/recovery-mnemocode/source/core/backup-reading.js";
-import { sskrVector } from "../../../packages/recovery-mnemocode/source/sskr/known-answers.js";
-import { MAX_SEARCH_COMBINATIONS } from "../../../packages/recovery-mnemocode/source/core/candidates.js";
+import { mnemocode } from "@ckd/recovery-backup/mnemocode-engine.js";
+import { foundAmongOthers, MISSING_CODES_TEXTS } from "@ckd/recovery-backup/mnemocode-facts.js";
+import { MnemoCodeMarkedCodes } from "@ckd/recovery-backup/mnemocode-marked-codes.js";
+import { splitShares } from "@ckd/recovery-backup/mnemocode-shares.js";
 import { InputRevision } from "../src/ui/recovery-input-revision.js";
 import {
   renderFoundCodes,
@@ -26,298 +14,10 @@ import {
   renderMissingCodesList,
   renderMissingWordCandidates,
 } from "../src/ui/recovery-mnemocode-results.js";
-import { RecoveryTestPage, edit, keyDown, settlePromises } from "./fake-recovery-page.js";
-import { installControllerFixture } from "./fake-deriver-controller.js";
+import { RecoveryTestPage, edit, settlePromises } from "./fake-recovery-page.js";
 
-const fixture = vi.hoisted(() => ({
-  phrase:
-    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-  otherPhrase: "legal winner thank year wave sausage worth useful legal winner thank yellow",
-  marked:
-    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon ?",
-  passphrase: "TREZOR",
-  fingerprint: "01020304",
-  date: "01-01-2000",
-  otherDate: "02-01-2000",
-  entropyBytes: 16,
-  seedBytes: 64,
-  seedMarker: 7,
-  otherSeedMarker: 8,
-}));
-
-const trace = vi.hoisted(() => ({
-  decode: vi.fn(),
-  readBackup: vi.fn(),
-  encodedPhrase: vi.fn((): string | undefined => undefined),
-  features: [] as import("../src/ui/recovery-feature.js").RecoveryFeature[],
-  workerRuns: [] as {
-    request: Record<string, unknown>;
-    resolve(outcome: unknown): void;
-    terminate(): void;
-  }[],
-  forbiddenCrypto: vi.fn((): never => {
-    throw new Error(
-      "Recovery lifecycle Deriver probes forbid crypto, randomness, WASM and KDF execution.",
-    );
-  }),
-}));
-
-vi.mock("../src/ui/recovery-feature-selection.js", () => ({
-  selectedRecoveryFeatures: trace.features,
-}));
-
-vi.mock("@ckd/core/bip39.js", () => ({
-  assertValidMnemonic: (text: string) => text,
-  diagnoseMnemonic: (text: string) => ({
-    normalized: text,
-    wordCount: text.trim() === "" ? 0 : text.trim().split(/\s+/u).length,
-    wordCountValid: false,
-    allWordsKnown: false,
-    checksumValid: false,
-    entropyBits: null,
-    checksumBits: null,
-    unknownWords: [],
-    words: [],
-    construction: null,
-  }),
-  // Only the source-offer boundary needs entropy. No checksum or hash is evaluated.
-  englishMnemonicToEntropy: (text: string) => {
-    if (text !== fixture.phrase && text !== fixture.otherPhrase)
-      throw new Error("Recovery lifecycle synthetic source is incomplete.");
-    return new Uint8Array(fixture.entropyBytes);
-  },
-  mnemonicToSeed: trace.forbiddenCrypto,
-  generateMnemonic: trace.forbiddenCrypto,
-  entropyToEnglishMnemonic: trace.forbiddenCrypto,
-  masterFingerprintFromSeed: trace.forbiddenCrypto,
-}));
-vi.mock("@ckd/core/secure-random.js", () => ({
-  checkSecureRandom: () => undefined,
-  secureRandomBytes: trace.forbiddenCrypto,
-  fillSecureRandom: trace.forbiddenCrypto,
-}));
-vi.mock("@ckd/recovery-backup/fingerprint.js", () => ({
-  fingerprintWithoutPassphrase: () => fixture.fingerprint,
-}));
-vi.mock("../src/ui/seed-diagnostic-view.js", () => ({
-  renderSeedDiagnostic: () => undefined,
-}));
-vi.mock("@ckd/ui/qr-image-import.js", () => ({ installQrImageImport: () => undefined }));
-vi.mock("@ckd/ui/text-file-import.js", () => ({ installTextFileImport: () => undefined }));
-// The hints below a word field need a browser; recovery-mnemocode-word-hints.test.ts checks them.
-vi.mock("../src/ui/recovery-mnemocode-word-hints.js", () => ({
-  attachMnemoCodeWordHints: () => undefined,
-}));
-vi.mock("../src/workers/webcrypto-pbkdf2.js", () => ({
-  webCryptoPbkdf2: trace.forbiddenCrypto,
-}));
-vi.mock("@ckd/recovery-backup/mnemocode-wallet-bitcoin.js", () => ({
-  MnemoCodeWalletRecognition: class {
-    static readonly COINS = [];
-    static readonly PROFILES = [];
-    static assertEvidence(): void {}
-  },
-}));
-vi.mock("@ckd/recovery-backup/mnemocode.js", async () => {
-  // The real lengths, from MnemoCode, so that the word-count choices are those of the page.
-  const { BIP39_WORD_COUNTS } = await vi.importActual<
-    typeof import("../../../packages/recovery-mnemocode/source/core/bip39-sizes.js")
-  >("../../../packages/recovery-mnemocode/source/core/bip39-sizes.js");
-  const { ENCODED_FORMATS, MASKING_MODES } = await vi.importActual<
-    typeof import("../../../packages/recovery-mnemocode/source/core/types.js")
-  >("../../../packages/recovery-mnemocode/source/core/types.js");
-  const dates = (text: string) =>
-    text === "" ? [] : [{ day: Number(text.slice(0, 2)), month: 1, year: 2000 }];
-  return {
-    MNEMOCODE_VERSION: "Recovery lifecycle-codec-stub",
-    MNEMOCODE_PHRASE_WORD_COUNTS: BIP39_WORD_COUNTS,
-    MASKING_MODES,
-    ENCODED_FORMATS,
-    decodeMnemoCode: trace.decode,
-    effectiveMnemoCodeMode: (_text: string, mode: string) => mode,
-    mnemoCodeEncodedPhrase: trace.encodedPhrase,
-    parseMnemoCodeRecord: () => undefined,
-    parseMnemoCodeDates: dates,
-    mnemoCodeTakesDates: (mode: string) => mode !== "direct",
-    mnemoCodeDatesFor: (mode: string, text: string) => (mode === "direct" ? [] : dates(text)),
-    readMnemoCodeBackup: trace.readBackup,
-  };
-});
-vi.mock("../src/workers/mnemocode-worker-client.js", () => ({
-  JOB_STOPPED: "Stopped. The worker and its memory were discarded.",
-  MnemoCodeWorker: class {
-    #reject: ((cause: Error) => void) | undefined;
-    run(request: Record<string, unknown>): Promise<unknown> {
-      return new Promise((resolve, reject) => {
-        this.#reject = reject;
-        trace.workerRuns.push({
-          request,
-          resolve: (outcome) => {
-            this.#reject = undefined;
-            resolve(outcome);
-          },
-          terminate: () => this.terminate(),
-        });
-      });
-    }
-    terminate(): void {
-      this.#reject?.(new Error("Stopped. The worker and its memory were discarded."));
-      this.#reject = undefined;
-    }
-  },
-}));
-
-function recoveryContext() {
-  const useMnemonicInDeriver = vi.fn<(phrase: string, passphrase?: string) => void>();
-  const jobs = new RecoveryJobGate();
-  jobs.setReady(true);
-  const context = {
-    registry: {},
-    detectTargets: () => [],
-    mnemonicToSeed: trace.forbiddenCrypto,
-    writeClipboard: vi.fn(async () => undefined),
-    downloadText: vi.fn(),
-    useMnemonicInDeriver,
-    readMnemonic: () => fixture.phrase,
-    linkedValue: () => null,
-    linkedSourceRevealed: () => false,
-    jobs,
-  } as unknown as RecoveryFeatureContext;
-  return { context, useMnemonicInDeriver };
-}
-
-function decodeHarness(mode: "direct" | "seedshift" = "direct", install = true) {
-  const page = new RecoveryTestPage();
-  const panel = page.add("mnemocode-decode-panel");
-  panel.className = "backup-operation";
-  for (const id of ["mnemocode-input", "mnemocode-decode-dates"]) page.add(id, "textarea", panel);
-  for (const id of ["mnemocode-decode-mode", "mnemocode-decode-format", "mnemocode-decode-words"])
-    page.add(id, "select", panel);
-  for (const id of [
-    "mnemocode-decode-record-note",
-    "mnemocode-decode-codes-note",
-    "mnemocode-decode-dates-field",
-    "mnemocode-decode-result",
-    "mnemocode-decode-input-kind",
-  ])
-    page.add(id, "div", panel);
-  const interpretation = page.require("mnemocode-decode-input-kind");
-  interpretation.hidden = true;
-  for (const value of ["share", "codes"]) {
-    const radio = page.add(`mnemocode-decode-input-kind-${value}`, "input", interpretation);
-    radio.type = "radio";
-    radio.name = "mnemocode-decode-input-kind";
-    radio.value = value;
-  }
-  page.add("decode-mnemocode", "button", panel).className = "primary";
-  for (const id of ["mnemocode-decode-mode-help", "mnemocode-decode-format-help"]) {
-    const help = page.add(id, "div", panel);
-    const popover = page.createElement("div");
-    popover.className = "recovery-help-popover";
-    help.append(popover);
-  }
-  const block = page.add("mnemocode-decode-missing", "div", panel);
-  block.hidden = true;
-  page.add("mnemocode-decode-search-settings", "div", block);
-  for (const suffix of [
-    "missing-summary",
-    "missing-way-list",
-    "encoded-fingerprint-field",
-    "missing-wallet",
-    "missing-dates-note",
-    "missing-status",
-    "wallet-fingerprint-field",
-    "wallet-passphrase-field",
-  ])
-    page.add(`mnemocode-decode-${suffix}`, "div", block);
-  for (const suffix of ["missing-search", "missing-stop"])
-    page.add(`mnemocode-decode-${suffix}`, "button", block);
-  page.require("mnemocode-decode-missing-search").textContent = "Search";
-  for (const suffix of ["encoded-fingerprint", "wallet-fingerprint", "wallet-passphrase"])
-    page.add(`mnemocode-decode-${suffix}`, "input", block);
-  page.add("toggle-mnemocode-decode-wallet-passphrase", "button", block);
-  for (const value of ["fingerprint", "none"]) {
-    const row = page.createElement("label");
-    const suffix = value === "fingerprint" ? "fingerprint-choice" : value;
-    const radio = page.add(`mnemocode-decode-wallet-${suffix}`, "input", row);
-    radio.type = "radio";
-    radio.name = "mnemocode-decode-wallet";
-    radio.value = value;
-    radio.checked = value === "fingerprint";
-    block.append(row);
-  }
-  page.require("mnemocode-decode-wallet-fingerprint").value = fixture.fingerprint;
-  page.require("mnemocode-decode-wallet-passphrase").value = fixture.passphrase;
-  page.require("mnemocode-decode-mode").value = mode;
-  page.require("mnemocode-decode-format").value = "english";
-  page.require("mnemocode-decode-dates").value = fixture.date;
-  const context = recoveryContext();
-  if (install) new MnemoCodeDecodeTab(context.context);
-  return { page, ...context, result: page.require("mnemocode-decode-result") };
-}
-
-function startMissingCodeSearch(page: RecoveryTestPage, selectedWay = "wallet"): void {
-  edit(page.require("mnemocode-input"), fixture.marked);
-  page.require("decode-mnemocode").click();
-  startOfferedCodeSearch(page, selectedWay);
-}
-
-function startOfferedCodeSearch(page: RecoveryTestPage, selectedWay = "wallet"): void {
-  const way = page
-    .require("mnemocode-decode-missing-way-list")
-    .querySelectorAll("input")
-    .find((radio) => radio.value === selectedWay);
-  expect(way, "setup: actual Decode must offer the selected way").toBeDefined();
-  way!.checked = true;
-  way!.dispatchEvent(new Event("change", { bubbles: true }));
-  page.require("mnemocode-decode-missing-search").click();
-  expect(trace.workerRuns.length).toBeGreaterThan(0);
-}
-
-function action(result: ReturnType<RecoveryTestPage["add"]>, text: string) {
-  return result.querySelectorAll("button").find((button) => button.textContent === text);
-}
-
-beforeEach(() => {
-  vi.useFakeTimers();
-  vi.clearAllMocks();
-  trace.encodedPhrase.mockReset();
-  trace.workerRuns.length = 0;
-  trace.features.length = 0;
-  vi.spyOn(BackupReading, "shareKind").mockReturnValue(undefined);
-  trace.readBackup.mockImplementation((text: string) => ({
-    marked: text === fixture.marked,
-    markedFormats: () => ["english"],
-    mode: (mode: string) => mode,
-    missingCodes: () => ({
-      withMode: (mode: string) => ({
-        format: "english",
-        mode,
-        wordCount: 12,
-        missingPlaces: [12],
-        combinations: 2048,
-        expected: 128,
-        checksummed: true,
-      }),
-    }),
-  }));
-  trace.decode.mockImplementation((_text: string, options: { mode: string; format: string }) => ({
-    mode: options.mode,
-    format: options.format,
-    checksumValid: true,
-    mnemonic: fixture.phrase,
-  }));
-});
-
-afterEach(async () => {
-  for (const worker of trace.workerRuns) worker.terminate();
-  await settlePromises();
-  expect(trace.forbiddenCrypto).not.toHaveBeenCalled();
-  vi.clearAllTimers();
-  vi.useRealTimers();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
+// What a wallet check says of a match it cannot confirm; the worker's outcome carries it.
+const WALLET_WARNING = "Synthetic wallet check warning";
 
 describe("AUD-028-API005 captured recovery factors", () => {
   for (const passphrase of [fixture.passphrase, ""])
@@ -364,6 +64,36 @@ describe("AUD-028-API005 captured recovery factors", () => {
     trace.workerRuns[0]!.resolve({ kind: "found", places: "Code 12", codes: fixture.phrase });
     await settlePromises();
     expect(action(harness.result, "Use in Generate & Derive")).toBeDefined();
+  });
+
+  it("warns that the codes and dates found are one of several sets of the same phrase (AUD-037-FUN001)", async () => {
+    const harness = decodeHarness("seedshift");
+    startMissingCodeSearch(harness.page);
+    trace.workerRuns[0]!.resolve({
+      kind: "found",
+      places: "Code 12",
+      codes: fixture.phrase,
+      others: 8,
+    });
+    await settlePromises();
+    const shown = harness.result.descendants();
+    const warning = shown.find((node) => node.textContent === foundAmongOthers(8));
+    expect(warning?.classList.contains("warning-callout")).toBe(true);
+    expect(shown.some((node) => node.textContent === MISSING_CODES_TEXTS.correct)).toBe(false);
+  });
+
+  it("shows what the wallet check said of the codes found (AUD-037-SEC004)", async () => {
+    const harness = decodeHarness("seedshift");
+    startMissingCodeSearch(harness.page);
+    trace.workerRuns[0]!.resolve({
+      kind: "found",
+      places: "Code 12",
+      codes: fixture.phrase,
+      warning: WALLET_WARNING,
+    });
+    await settlePromises();
+    const shown = harness.result.descendants();
+    expect(shown.some((node) => node.textContent === WALLET_WARNING)).toBe(true);
   });
 
   it("keeps non-wallet recovery phrase-only and clears an earlier primary passphrase", async () => {
@@ -451,7 +181,9 @@ describe("AUD-028-API006 Decode result ownership", () => {
         ...(foundDates === undefined ? {} : { dates: fixture.otherDate }),
       });
       await settlePromises();
-      expect(trace.decode.mock.lastCall?.[1].dates).toEqual([{ day: 2, month: 1, year: 2000 }]);
+      expect((trace.decode.mock.lastCall?.[1] as { dates: unknown } | undefined)?.dates).toBe(
+        fixture.otherDate,
+      );
       const oldUse = action(harness.result, "Use in Generate & Derive")!;
       edit(harness.page.require("mnemocode-decode-dates"), fixture.date, "change");
       oldUse.dispatchEvent(new Event("click"));
@@ -534,27 +266,25 @@ function selectInterpretation(page: RecoveryTestPage, value: "share" | "codes"):
 }
 
 function ambiguousCodesHarness() {
-  // Exercise the actual "either" classification, not the default non-share codec fixture.
-  vi.mocked(BackupReading.shareKind).mockRestore();
-  trace.readBackup.mockImplementation((text: string) =>
-    BackupReading.of(text, { seedshiftOnly: false, shareReader: "Restore from shares" }),
-  );
-  // The published BCR-2020-011 share: repair treats these three partial Unicode codes as
-  // 33 unknown bits, but each final hex digit permits at most 16 words for the codes search.
-  // Three wholly unknown word numbers would exceed its existing combination guard.
+  // A share of the public test phrase in Unicode codes, with the last digit of codes 2, 6 and 10
+  // unreadable: a share whose damage Restore repairs, or codes for Decode's search.
+  const { records } = splitShares({
+    phrase: fixture.phrase,
+    mode: "direct",
+    dates: undefined,
+    threshold: 2,
+    count: 3,
+    form: "unicode",
+  });
   const markedPlaces = [2, 6, 10];
-  const codes = sskrVector.firstShareUnicode
+  const codes = mnemocode()
+    .writeShare(records[0]!, "unicode")
     .split(" ")
     .map((code, index) => (markedPlaces.includes(index + 1) ? `${code.slice(0, -1)}?` : code))
     .join(" ");
-  expect(BackupReading.shareKind(codes)).toBe("either");
-  const reading = BackupReading.of(codes, {
-    seedshiftOnly: false,
-    shareReader: "Restore from shares",
-  });
-  const combinations = reading.missingCodes("unicode").combinations;
-  expect(combinations).toBeGreaterThan(1);
-  expect(combinations).toBeLessThanOrEqual(MAX_SEARCH_COMBINATIONS);
+  expect(mnemocode().shareKind(codes)).toBe("either");
+  using marked = MnemoCodeMarkedCodes.read(codes, "unicode", "direct", undefined);
+  expect(marked?.ways.map(({ way }) => way)).toContain("wallet");
   const harness = decodeHarness();
   const { page } = harness;
   edit(page.require("mnemocode-decode-format"), "unicode", "change");
@@ -759,7 +489,6 @@ describe("AUD-028-SEC005 alternative MnemoCode output concealment", () => {
               position: 12,
               word: "about",
               wordIndex: 3,
-              checksumBits: "0011",
               mnemonic: fixture.phrase,
             },
           ],
@@ -803,160 +532,9 @@ describe("AUD-028-SEC005 alternative MnemoCode output concealment", () => {
   }
 });
 
-/** The real workspace composes actual Decode, manual secret controls and an MHFE PasswordField. */
-function workspaceHarness(enable = true) {
-  const harness = decodeHarness("direct", false);
-  const { page } = harness;
-  const root = page.add("recovery-workspace");
-  page.add("recovery-busy", "p", root);
-  const panels = Array.from({ length: 3 }, (_, index) => {
-    const tab = page.add(`workspace-tab-${index}`, "button", root);
-    tab.dataset.recoveryTab = "";
-    tab.setAttribute("aria-controls", `workspace-panel-${index}`);
-    const panel = page.add(`workspace-panel-${index}`, "section", root);
-    panel.dataset.recoveryPanel = "";
-    return panel;
-  });
-  const method = page.add("workspace-method", "div", panels[0]!);
-  method.className = "backup-method";
-  const operations = Array.from({ length: 3 }, (_, index) => {
-    const tab = page.add(`workspace-operation-tab-${index}`, "button", method);
-    tab.dataset.operationTab = "";
-    const panel =
-      index === 0
-        ? page.require("mnemocode-decode-panel")
-        : page.add(`workspace-operation-panel-${index}`, "section", method);
-    if (index === 0) method.append(panel);
-    panel.dataset.operationPanel = "";
-    return panel;
-  });
-  const manual = page.add("workspace-manual", "article", panels[0]!);
-  manual.className = "backup-operation";
-  page.add("workspace-manual-phrase", "textarea", manual).value = fixture.phrase;
-  const actions = page.add("workspace-manual-actions", "div", manual);
-  page.add("workspace-manual-toggle", "button", actions);
-  const manualCopy = page.add("workspace-manual-copy", "button", actions);
-  manualCopy.className = "secret-copy-action";
-  page.add("workspace-password", "input", panels[0]!).type = "password";
-  page.add("toggle-workspace-password", "button", panels[0]!);
-  const main = installControllerFixture(page, fixture);
-  trace.features.push({
-    phraseSlot: {
-      target: "mnemocode",
-      panelId: "workspace-panel-0",
-      phraseField: "#workspace-manual-phrase",
-      manualBlock: "#workspace-manual",
-      linkedNote: PHRASE_ONLY_NOTE,
-    },
-    install(context) {
-      new MnemoCodeDecodeTab(context);
-      new PasswordField("workspace-password", "synthetic MHFE password");
-      installSecretToggle("#workspace-manual-toggle", "#workspace-manual-phrase", "Show", "Hide");
-    },
-  });
-  const workspace = installRecoveryWorkspace(harness.context);
-  if (enable) workspace.setCryptoEnabled(true);
-  return { ...harness, workspace, main, panels, operations, manualCopy };
-}
-
-describe("AUD-028-SEC005 actual workspace automatic concealment", () => {
-  for (const event of ["blur", "hidden"] as const)
-    it(`conceals manual, Decode and MHFE password controls on ${event} with parent reveal flags false`, async () => {
-      const harness = workspaceHarness();
-      await settlePromises();
-      const { page } = harness;
-      page.require("mnemocode-input").value = fixture.phrase;
-      page.require("decode-mnemocode").click();
-      action(harness.result, "Show phrase")!.click();
-      page.require("workspace-manual-toggle").click();
-      page.require("toggle-workspace-password").click();
-      const output = harness.result.querySelector("textarea")!;
-      const copy = action(harness.result, "Copy")!;
-      const diagnostic = harness.result.querySelector(".recovered-seed-diagnostic")!;
-      expect(output.classList.contains("concealed")).toBe(false);
-      expect(copy.disabled).toBe(false);
-      expect(diagnostic.hidden).toBe(false);
-      expect(page.require("workspace-password").type).toBe("text");
-      expect(harness.manualCopy.disabled).toBe(false);
-      // Neither main reveal control was pressed; recovery must own its own local state.
-      page.hideOrBlur(event);
-      expect(output.classList.contains("concealed")).toBe(true);
-      expect(copy.disabled).toBe(true);
-      expect(diagnostic.hidden).toBe(true);
-      expect(page.require("workspace-password").type).toBe("password");
-      expect(page.require("workspace-manual-phrase").classList.contains("concealed")).toBe(true);
-      expect(page.require("workspace-manual-toggle").getAttribute("aria-pressed")).toBe("false");
-      expect(harness.manualCopy.disabled).toBe(true);
-      copy.dispatchEvent(new Event("click"));
-      expect(harness.context.writeClipboard).not.toHaveBeenCalled();
-      action(harness.result, "Show phrase")!.click();
-      expect(output.classList.contains("concealed")).toBe(false);
-      expect(copy.disabled).toBe(false);
-      // The linked-source handler still owns its reference, independently of manual controls.
-      harness.workspace.useSource(
-        {
-          label: "Public vector source",
-          read: () => ({ mnemonic: fixture.phrase, passphrase: "" }),
-        },
-        "mnemocode",
-      );
-      const linked = page.querySelector('[data-linked-source-for="mnemocode"]')!;
-      linked.querySelector("button")!.click();
-      expect(linked.querySelector("textarea")!.hidden).toBe(false);
-      page.hideOrBlur(event);
-      expect(linked.querySelector("textarea")!.hidden).toBe(true);
-      expect(linked.querySelector("textarea")!.value).toBe("");
-    });
-
-  it("runs the same small UI checks at startup enable and in the full self-test", async () => {
-    const check = vi.spyOn(RecoveryUiSelfTest, "run");
-    const harness = workspaceHarness();
-    expect(check).toHaveBeenCalledOnce();
-    expect(harness.workspace.jobs).toHaveProperty("ready", true);
-    const rows = await fullSelfTestParts.parts.at(-1)!();
-    expect(rows.map((row) => row.name)).toEqual([
-      "Recovery tab keyboard navigation",
-      "Recovery input and result ownership",
-      "Recovery automatic concealment and Copy gating",
-    ]);
-    expect(check).toHaveBeenCalledTimes(2);
-    expect(harness.page.querySelectorAll("[data-test-tab]")).toHaveLength(0);
-  });
-
-  it("leaves a phrase the person revealed on the page revealed while the full self-test runs", async () => {
-    const harness = workspaceHarness();
-    const result = harness.page.createElement("div");
-    harness.page.body.append(result);
-    renderRecoveredSecret(
-      result as unknown as HTMLElement,
-      "public revealed test text",
-      { reveal: "Show", hide: "Hide", copy: "Copy test" },
-      async () => undefined,
-    );
-    const [reveal, copy] = result.querySelectorAll("button");
-    reveal!.click();
-    expect(copy!.disabled).toBe(false);
-    await fullSelfTestParts.parts.at(-1)!();
-    // The check conceals its own fixture only, not the page's revealed results.
-    expect(copy!.disabled).toBe(false);
-    expect(result.querySelector("textarea")!.classList.contains("concealed")).toBe(false);
-  });
-
-  it("keeps the recovery gate closed when the UI startup check fails", () => {
-    const harness = workspaceHarness(false);
-    expect(harness.page.require("decode-mnemocode").disabled).toBe(true);
-    vi.spyOn(RecoveryUiSelfTest, "run").mockImplementation(() => {
-      throw new Error("Synthetic lifecycle failure");
-    });
-    expect(() => harness.workspace.setCryptoEnabled(true)).toThrow("Synthetic lifecycle failure");
-    expect(harness.page.require("decode-mnemocode").disabled).toBe(true);
-    expect(harness.workspace.jobs).toHaveProperty("ready", false);
-  });
-});
-
 describe("MnemoCode Decode layout while the codes fingerprint waits", () => {
   it("keeps the note's line while typing and shows the fingerprint with the result", () => {
-    trace.encodedPhrase.mockReturnValue(fixture.phrase);
+    trace.encodedFingerprint.mockReturnValue(fixture.fingerprint);
     const harness = decodeHarness();
     const note = harness.page.require("mnemocode-decode-codes-note");
     edit(harness.page.require("mnemocode-input"), fixture.phrase);
@@ -974,55 +552,50 @@ describe("MnemoCode Decode layout while the codes fingerprint waits", () => {
   });
 });
 
-describe("AUD-028-UI001 actual workspace keyboard tabs", () => {
-  for (const kind of ["recovery", "operation"] as const) {
-    for (const { key, start, next } of [
-      { key: "ArrowRight", start: 0, next: 1 },
-      { key: "ArrowLeft", start: 0, next: 2 },
-      { key: "Home", start: 2, next: 0 },
-      { key: "End", start: 0, next: 2 },
-    ])
-      it(`${kind} tabs select, show and focus the ${key} destination`, () => {
-        const harness = workspaceHarness();
-        const panels = kind === "recovery" ? harness.panels : harness.operations;
-        const tabs = panels.map((_, index) =>
-          harness.page.require(
-            kind === "recovery" ? `workspace-tab-${index}` : `workspace-operation-tab-${index}`,
-          ),
-        );
-        tabs[start]!.click();
-        tabs[start]!.focus();
-        const event = keyDown(tabs[start]!, key);
-        expect(event.defaultPrevented).toBe(true);
-        expect(tabs.map((tab) => tab.tabIndex)).toEqual(
-          tabs.map((_, index) => (index === next ? 0 : -1)),
-        );
-        expect(tabs[next]!.getAttribute("aria-selected")).toBe("true");
-        expect(harness.page.activeElement).toBe(tabs[next]);
-        expect(panels.map((panel) => panel.hidden)).toEqual(
-          panels.map((_, index) => index !== next),
-        );
-      });
-  }
+describe("MnemoCode Decode of a SeedStitch legend line", () => {
+  // MnemoCode's published SeedStitch example (docs/SEEDSTITCH.md), its first row mistyped.
+  const LEGEND =
+    "28:1726 25:2163 57:3275 34:3917 9:480 54:1505 17:5063 63:372 46:328 7:2818 62:1114 53:1997 " +
+    "37:2496 40:1945 3:882 58:7130 41:180 59:336 22:1634 36:778 64:1147 10:3804 24:1214 69:479 " +
+    "56:931 30:2066 23:3224 29:797";
 
-  it("handles disabled, empty and unrelated-key cases without changing the selection", () => {
-    const harness = workspaceHarness();
-    const tabs = harness.panels.map((_, index) => harness.page.require(`workspace-tab-${index}`));
-    tabs[1]!.disabled = true;
-    expect(keyDown(tabs[0]!, "ArrowRight").defaultPrevented).toBe(true);
-    expect(harness.page.activeElement).toBe(tabs[2]);
-    tabs[1]!.dispatchEvent(new Event("click"));
-    expect(tabs[2]!.tabIndex).toBe(0);
-    expect(keyDown(tabs[2]!, "Escape").defaultPrevented).toBe(false);
-    const empty = harness.page.add("empty-tabs");
-    expect(() => installTabs(empty as unknown as ParentNode, "button", "section")).not.toThrow();
-    for (const tab of tabs) tab.disabled = true;
-    installTabs(
-      harness.page as unknown as ParentNode,
-      "[data-recovery-tab]",
-      "[data-recovery-panel]",
+  it("decodes the record the legend holds with the dates, and names the row it corrected", () => {
+    const harness = decodeHarness("direct");
+    const note = harness.page.require("mnemocode-decode-record-note");
+    edit(harness.page.require("mnemocode-input"), LEGEND);
+    expect(note.textContent).toContain("SeedStitch legend");
+    expect(note.textContent).toContain("Row 1 of the legend did not fit");
+    expect(note.classList.contains("warning")).toBe(true);
+    // The legend holds a Seedshift record whatever mode is selected.
+    expect(harness.page.require("mnemocode-decode-dates-field").hidden).toBe(false);
+    trace.decode.mockReturnValueOnce({
+      mode: "seedshift",
+      format: "indexes",
+      checksumValid: true,
+      mnemonic: fixture.phrase,
+    });
+    harness.page.require("decode-mnemocode").click();
+    expect(trace.decode).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^MNC1:seedshift:indexes:1965 369 /u),
+      expect.objectContaining({ dates: fixture.date, words: undefined }),
     );
-    expect(tabs.every((tab) => tab.tabIndex === -1)).toBe(true);
-    expect(harness.panels.every((panel) => panel.hidden)).toBe(true);
+    expect(
+      harness.result
+        .querySelectorAll("p")
+        .some((line) => line.textContent?.startsWith("Row 1 of the legend did not fit")),
+    ).toBe(true);
+  });
+
+  it("says in MnemoCode's words why a legend line does not read, and decodes nothing", () => {
+    const harness = decodeHarness("direct");
+    const partial = LEGEND.split(" ").slice(0, 20).join(" ");
+    edit(harness.page.require("mnemocode-input"), partial);
+    const note = harness.page.require("mnemocode-decode-record-note");
+    expect(note.textContent).toContain("The legend does not read");
+    expect(note.classList.contains("warning")).toBe(false);
+    expect(harness.page.require("mnemocode-decode-dates-field").hidden).toBe(false);
+    harness.page.require("decode-mnemocode").click();
+    expect(trace.decode).not.toHaveBeenCalled();
+    expect(harness.result.textContent).toContain("The legend does not read");
   });
 });

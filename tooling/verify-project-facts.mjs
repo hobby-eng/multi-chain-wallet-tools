@@ -6,8 +6,14 @@ import { fileURLToPath } from "node:url";
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
 import { formatEnglishList, PRODUCT_FACTS, readReleaseMetadata } from "./project-metadata.mjs";
 import { renderDashDistributionDocs } from "./sync-dash-distribution-docs.mjs";
+import { checkMnemoCodeWasm } from "./sync-mnemocode-wasm.mjs";
+import { MnemoCodeSskrSource } from "./sync-mnemocode-sskr.mjs";
+import { MnemoCodeSskrLayout } from "./mnemocode-sskr-layout.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// Formatting a producer's licence would break its reviewed byte identity. Verify those bytes first.
+const MNEMOCODE_VERSION = checkMnemoCodeWasm(root).version;
+new MnemoCodeSskrSource(root).verify();
 verifyToolchainProjections(root);
 const release = readReleaseMetadata(root);
 renderDashDistributionDocs(root, "0".repeat(40));
@@ -154,18 +160,10 @@ for (const path of markdownFiles(root)) {
 // Every version a release passport names must be the locked one, so that a dependency update cannot
 // leave a stale number on screen (AUD-021-DOC001). A version the table does not know fails too.
 const rootPackage = JSON.parse(read("package.json"));
-const pnpmLock = read("pnpm-lock.yaml");
 function npmVersion(name) {
   const version = rootPackage.dependencies?.[name] ?? rootPackage.devDependencies?.[name];
   if (version === undefined) throw new Error(`package.json does not pin ${name}.`);
   return version;
-}
-function lockedVersion(name) {
-  const match = pnpmLock.match(
-    new RegExp(`^  ${name.replace(/[.*+?^${}()|[\]\\/]/gu, "\\$&")}@(\\d+\\.\\d+\\.\\d+):`, "mu"),
-  );
-  if (match === null) throw new Error(`pnpm-lock.yaml does not lock ${name}.`);
-  return match[1];
 }
 function cargoVersion(lockPath, name) {
   const match = read(lockPath).match(new RegExp(`name = "${name}"\\nversion = "([^"]+)"`, "u"));
@@ -183,11 +181,9 @@ const SHIELDED_LOCK = "packages/dash-shielded-wasm/rust/Cargo.lock";
 const ENVELOPE_LOCK = "packages/recovery-envelope-wasm/rust/Cargo.lock";
 const WASM_LOCKS = WASM_MODULES.map(({ lockPath }) => lockPath);
 const orchardTag = read(SHIELDED_LOCK).match(/orchard\.git\?tag=dashified-(\d+\.\d+\.\d+)#/u)?.[1];
-const mhfeRelease = read("tooling/verify-dependency-provenance.mjs").match(
-  /id: "mhfe-v(\d+\.\d+\.\d+)"/u,
-)?.[1];
-if (orchardTag === undefined || mhfeRelease === undefined)
-  throw new Error("Missing the Orchard tag or the MHFE release in their records.");
+const mhfeRelease = JSON.parse(read("packages/recovery-mhfe-wasm/generated/modules.json")).version;
+if (orchardTag === undefined || typeof mhfeRelease !== "string")
+  throw new Error("Missing the Orchard tag or the MHFE version in their records.");
 /** Text right before a version in a passport, and the version it must name. */
 const PASSPORT_VERSIONS = [
   ["Dash Evo SDK/WASM SDK ", npmVersion("@dashevo/evo-sdk")],
@@ -204,10 +200,6 @@ const PASSPORT_VERSIONS = [
   ["fflate ", npmVersion("fflate")],
   ["uqr ", npmVersion("uqr")],
   ["qr ", npmVersion("qr")],
-  ["pdf-lib ", npmVersion("pdf-lib")],
-  ["@pdf-lib/fontkit ", npmVersion("@pdf-lib/fontkit")],
-  ["@pdf-lib/upng ", npmVersion("@pdf-lib/upng")],
-  ["pako ", lockedVersion("pako")],
   ["Dash Orchard ", cargoVersion(SHIELDED_LOCK, "orchard")],
   ["dashified-", orchardTag],
   [
@@ -222,6 +214,7 @@ const PASSPORT_VERSIONS = [
   ["bc-envelope ", cargoVersion(ENVELOPE_LOCK, "bc-envelope")],
   ["bc-components ", cargoVersion(ENVELOPE_LOCK, "bc-components")],
   ["MHFE ", mhfeRelease],
+  ["MnemoCode ", MNEMOCODE_VERSION],
 ];
 const VERSION = /\d+\.\d+\.\d+/gu;
 for (const app of ["key-derivation", "activity-viewer", "discovery-scanner"]) {
@@ -258,8 +251,13 @@ for (const app of ["key-derivation", "activity-viewer", "discovery-scanner"]) {
 const FROZEN_MARKDOWN = [
   "docs/audits/",
   "packages/recovery-mhfe-wasm/notices/",
-  "packages/recovery-mnemocode/source/",
+  "packages/recovery-mnemocode-wasm/",
 ];
+const IMPORTED_SSKR_MARKDOWN = new Set(
+  MnemoCodeSskrLayout.files
+    .filter(({ target }) => target.endsWith(".md"))
+    .map(({ target }) => `${MnemoCodeSskrLayout.directory}/${target}`),
+);
 const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s/u;
 const CODE_FENCE = /^\s*(?:```|~~~)/u;
 const INDENTED_TEXT = /^\s{2,}\S/u;
@@ -297,7 +295,11 @@ function looseListLine(lines) {
 }
 for (const path of markdownFiles(root)) {
   const relativePath = path.slice(root.length + 1);
-  if (FROZEN_MARKDOWN.some((prefix) => relativePath.startsWith(prefix))) continue;
+  if (
+    FROZEN_MARKDOWN.some((prefix) => relativePath.startsWith(prefix)) ||
+    IMPORTED_SSKR_MARKDOWN.has(relativePath)
+  )
+    continue;
   const line = looseListLine(readFileSync(path, "utf8").split("\n"));
   if (line !== undefined)
     throw new Error(

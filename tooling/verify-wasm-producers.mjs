@@ -10,6 +10,18 @@ import { TOOLCHAIN_PINS } from "./toolchain-pins.mjs";
 
 export const CANONICAL_WASM_BINDGEN_VERSION = TOOLCHAIN_PINS.wasmBindgen;
 
+/** Refuses a generated recovery interface with an unavailable loader; label is public metadata. */
+export class OfflineWasmDeclarationsError extends Error {
+  constructor(label) {
+    super(`${label} advertises an unavailable async or default WASM initializer.`);
+    this.name = "OfflineWasmDeclarationsError";
+  }
+  /** Stable refusal shared by the writer, verifier and container importer. */
+  get code() {
+    return "wasm.declarations.offline";
+  }
+}
+
 function readUleb(bytes, state) {
   let value = 0;
   let shift = 0;
@@ -64,6 +76,12 @@ export function assertCanonicalWasmBindgenProducer(bytes, label = "WASM module")
   }
 }
 
+/** Refuses recovery glue or declarations that advertise a loader absent from the offline host. */
+export function assertOfflineWasmDeclarations(glue, declaration, label = "Recovery WASM") {
+  if (/__wbg_init|export\s+default/u.test(declaration) || /__wbg_init|export\s+default/u.test(glue))
+    throw new OfflineWasmDeclarationsError(label);
+}
+
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 if (isMainScript(import.meta.url)) {
   verifyWasmIntegrityManifest();
@@ -80,12 +98,7 @@ if (isMainScript(import.meta.url)) {
     const stem = `${module.packageDirectory}/generated/${module.stem}`;
     const declaration = readFileSync(resolve(root, "packages", `${stem}.d.ts`), "utf8");
     const glue = readFileSync(resolve(root, "packages", `${stem}.js`), "utf8");
-    if (
-      /__wbg_init|export\s+default/u.test(declaration) ||
-      /__wbg_init|export\s+default/u.test(glue)
-    ) {
-      throw new Error(`${stem} advertises an unavailable async or default WASM initializer.`);
-    }
+    assertOfflineWasmDeclarations(glue, declaration, stem);
   }
   console.log(
     `Verified canonical wasm-bindgen producer metadata for ${WASM_MODULES.length} WASM modules and offline-only recovery declarations.`,

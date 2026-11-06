@@ -18,6 +18,8 @@ import { ChosenWordFields } from "./chosen-word-fields.js";
  */
 
 const WORD_COUNTS: readonly ChosenWordCount[] = BIP39_WORD_COUNTS;
+const PERCENT_SCALE = 100;
+const BIT_DISPLAY_SCALE = 10;
 
 /**
  * A generation mode that draws only phrases that pass a check, as the MHFE wallet check does
@@ -57,59 +59,78 @@ export interface ChosenWordsFeature {
   useChecked(mode: CheckedGeneration): void;
 }
 
-export function installChosenWordsFeature(page: Document = document): ChosenWordsFeature {
-  const required = <T extends Element>(selector: string) => requireQueryElement<T>(page, selector);
-  const enabled = required<HTMLInputElement>("#chosen-words-enabled");
-  const panel = required<HTMLElement>("#chosen-words-panel");
-  const fields = new ChosenWordFields(required<HTMLElement>("#chosen-words-fields"), {
-    prefix: "chosen",
-    words: MOST_CHOSEN_WORDS,
-    neverUse: MOST_NEVER_USE_WORDS,
-  });
-  const strength = required<HTMLElement>("#chosen-words-strength");
-  const barFill = required<HTMLElement>("#chosen-words-bar-fill");
-  const bits = required<HTMLElement>("#chosen-words-bits");
-  const verdict = required<HTMLElement>("#chosen-words-verdict");
-  const rule = required<HTMLElement>("#chosen-words-rule");
-  let checked: CheckedGeneration | undefined;
-  const listeners: (() => void)[] = [];
-
-  function request(wordCount: ChosenWordCount): ChosenWordsRequest {
-    return { wordCount, chosen: fields.chosen(wordCount), neverUse: fields.neverUse() };
+import { defined } from "@ckd/core/defined.js";
+/** Owns chosen-word controls and readiness; generation and strength rules come from the library. */
+export class ChosenWordsPanel implements ChosenWordsFeature {
+  readonly #enabled;
+  readonly #panel;
+  readonly #fields;
+  readonly #strength;
+  readonly #barFill;
+  readonly #bits;
+  readonly #verdict;
+  readonly #rule;
+  #checked: CheckedGeneration | undefined;
+  readonly #listeners: (() => void)[];
+  constructor(page: Document = document) {
+    const required = <T extends Element>(selector: string) =>
+      requireQueryElement<T>(page, selector);
+    this.#enabled = required<HTMLInputElement>("#chosen-words-enabled");
+    this.#panel = required<HTMLElement>("#chosen-words-panel");
+    this.#fields = new ChosenWordFields(required<HTMLElement>("#chosen-words-fields"), {
+      prefix: "chosen",
+      words: MOST_CHOSEN_WORDS,
+      neverUse: MOST_NEVER_USE_WORDS,
+    });
+    this.#strength = required<HTMLElement>("#chosen-words-strength");
+    this.#barFill = required<HTMLElement>("#chosen-words-bar-fill");
+    this.#bits = required<HTMLElement>("#chosen-words-bits");
+    this.#verdict = required<HTMLElement>("#chosen-words-verdict");
+    this.#rule = required<HTMLElement>("#chosen-words-rule");
+    this.#listeners = [];
+    this.#enabled.addEventListener("change", this.#update);
+    this.#fields.onChange(this.#update);
+    this.#update();
+    this.#enabled.addEventListener("change", this.#changed);
+    this.#fields.onChange(this.#changed);
   }
-
-  function active(): boolean {
-    return enabled.checked && fields.hasWishes();
-  }
-
-  /** The random bits left at one length, or the reason these wishes do not fit it. */
-  function remaining(wordCount: ChosenWordCount): number | string {
+  /** {@inheritDoc ChosenWordsFeature.request} */
+  readonly request = (wordCount: ChosenWordCount): ChosenWordsRequest => {
+    return { wordCount, chosen: this.#fields.chosen(wordCount), neverUse: this.#fields.neverUse() };
+  };
+  /** {@inheritDoc ChosenWordsFeature.active} */
+  readonly active = (): boolean => {
+    return this.#enabled.checked && this.#fields.hasWishes();
+  };
+  readonly #remaining = (wordCount: ChosenWordCount): number | string => {
     try {
-      return chosenWordsRemainingBits(request(wordCount));
+      return chosenWordsRemainingBits(this.request(wordCount));
     } catch (cause) {
       return cause instanceof Error ? cause.message : "These wishes cannot be met.";
     }
-  }
-
-  function update(): void {
-    panel.hidden = !enabled.checked;
+  };
+  readonly #update = (): void => {
+    this.#panel.hidden = !this.#enabled.checked;
     // A checked mode rates the wishes with its own library and shows that itself.
-    const mode = checked?.active() === true ? checked : undefined;
-    strength.hidden = mode !== undefined;
-    rule.hidden = mode !== undefined;
+    const mode = this.#checked?.active() === true ? this.#checked : undefined;
+    this.#strength.hidden = mode !== undefined;
+    this.#rule.hidden = mode !== undefined;
     if (mode !== undefined) {
-      mode.showWishes(active() ? request : null);
+      mode.showWishes(this.active() ? this.request : null);
       return;
     }
-    const results = WORD_COUNTS.map((wordCount) => ({ wordCount, result: remaining(wordCount) }));
-    const shortest = results[0]!;
+    const results = WORD_COUNTS.map((wordCount) => ({
+      wordCount,
+      result: this.#remaining(wordCount),
+    }));
+    const shortest = defined(results[0]);
     const fraction =
       typeof shortest.result === "number"
         ? Math.max(0, shortest.result) / bip39EntropyBits(shortest.wordCount)
         : 0;
-    barFill.style.width = `${(fraction * 100).toFixed(1)}%`;
+    this.#barFill.style.width = `${(fraction * PERCENT_SCALE).toFixed(1)}%`;
     // One cell per length: "12 words" over "≈ 109 / 128 bits", or a dash when it cannot be met.
-    bits.replaceChildren(
+    this.#bits.replaceChildren(
       ...results.map(({ wordCount, result }) => {
         const cell = document.createElement("span");
         const length = document.createElement("small");
@@ -118,7 +139,7 @@ export function installChosenWordsFeature(page: Document = document): ChosenWord
         // value never reaches a threshold that the exact value is below.
         const value =
           typeof result === "number"
-            ? `≈ ${(Math.floor(result * 10) / 10).toFixed(1)} / ${bip39EntropyBits(wordCount)} bits`
+            ? `≈ ${(Math.floor(result * BIT_DISPLAY_SCALE) / BIT_DISPLAY_SCALE).toFixed(1)} / ${bip39EntropyBits(wordCount)} bits`
             : "—";
         cell.classList.toggle("chosen-words-alert", typeof result !== "number");
         cell.append(length, value);
@@ -126,44 +147,40 @@ export function installChosenWordsFeature(page: Document = document): ChosenWord
       }),
     );
     const problem = results.find(({ result }) => typeof result === "string");
-    verdict.classList.toggle("chosen-words-alert", problem !== undefined);
+    this.#verdict.classList.toggle("chosen-words-alert", problem !== undefined);
     // A mistake in a word fails every length alike; only a position depends on the length.
     const sameEverywhere = results.every(({ result }) => result === problem?.result);
     if (problem !== undefined && typeof problem.result === "string")
-      verdict.textContent = sameEverywhere
+      this.#verdict.textContent = sameEverywhere
         ? problem.result
         : `${problem.wordCount} words: ${problem.result}`;
-    else verdict.textContent = "Enough random bits remain at every length.";
-  }
-
-  enabled.addEventListener("change", update);
-  fields.onChange(update);
-  update();
-
-  // Any edit tells the page to drop publication for the older wishes: the panel owns
-  // this notice, so that it holds in a build without a checked mode too (AUD-024-API002).
-  const changed = (): void => {
-    for (const listener of listeners) listener();
+    else this.#verdict.textContent = "Enough random bits remain at every length.";
   };
-  enabled.addEventListener("change", changed);
-  fields.onChange(changed);
-
-  return {
-    active,
-    generate: (wordCount) => generateMnemonicWithChosenWords(request(wordCount)),
-    request,
-    setRevealed: (revealed) => fields.setRevealed(revealed),
-    clear() {
-      fields.clear();
-      update();
-    },
-    onChange(listener) {
-      listeners.push(listener);
-    },
-    useChecked(mode) {
-      checked = mode;
-      mode.onChange(update);
-      update();
-    },
+  readonly #changed = (): void => {
+    for (const listener of this.#listeners) listener();
   };
+  /** {@inheritDoc ChosenWordsFeature.generate} */
+  readonly generate = (wordCount: ChosenWordCount) =>
+    generateMnemonicWithChosenWords(this.request(wordCount));
+  /** {@inheritDoc ChosenWordsFeature.setRevealed} */
+  readonly setRevealed = (revealed: boolean) => this.#fields.setRevealed(revealed);
+  /** {@inheritDoc ChosenWordsFeature.clear} */
+  readonly clear = () => {
+    this.#fields.clear();
+    this.#update();
+  };
+  /** {@inheritDoc ChosenWordsFeature.onChange} */
+  readonly onChange = (listener: () => void): void => {
+    this.#listeners.push(listener);
+  };
+  /** {@inheritDoc ChosenWordsFeature.useChecked} */
+  readonly useChecked = (mode: CheckedGeneration): void => {
+    this.#checked = mode;
+    mode.onChange(this.#update);
+    this.#update();
+  };
+}
+/** Compatibility installer; one panel owns its native fields and event bindings. */
+export function installChosenWordsFeature(page: Document = document): ChosenWordsFeature {
+  return new ChosenWordsPanel(page);
 }

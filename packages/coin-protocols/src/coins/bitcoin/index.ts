@@ -11,7 +11,7 @@ import { addDescriptorChecksum } from "@ckd/core/descriptor-checksum.js";
 import { deriveLegacyAddress } from "./legacy.js";
 import { deriveNativeSegwitAddress } from "./native-segwit.js";
 import { deriveNestedSegwitAddress } from "./nested-segwit.js";
-import { deriveTaprootDetails } from "./taproot.js";
+import { Taproot } from "./taproot.js";
 import { accountDescriptorExport, descriptorOrigin } from "../../account-descriptors.js";
 import { withAccountBranch } from "../../account-branch.js";
 import { BitcoinPurposeProfile, type BitcoinMode } from "./profiles.js";
@@ -73,7 +73,7 @@ export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): De
           field("scriptPubKey", "scriptPubKey", details.scriptPubKeyHex),
         ];
       } else {
-        const details = deriveTaprootDetails(privateKey, network);
+        const details = Taproot.details(privateKey, network);
         address = details.address;
         advanced = [
           field("internalPublicKey", "Internal public key (x-only)", details.internalKeyHex),

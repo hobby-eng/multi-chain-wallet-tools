@@ -1,42 +1,32 @@
+import { BIP39_WORD_COUNTS, type Bip39WordCount } from "@ckd/core/bip39-word-counts.js";
 import { isTabKey, tabIndexAfter } from "@ckd/ui/tabs.js";
 import { isAbortError } from "@ckd/core/error-handling.js";
 import type { CoinAdapter } from "@ckd/coins/registry.js";
-import type { DerivationResult, DisplayMode, ResultField } from "@ckd/core/types.js";
-import { displayedFields, type ExportAction, type ExportFormat } from "@ckd/export/formatter.js";
 import {
   applySharedDerivationControls,
-  markSelectedProtocolTab,
   readControls,
-  syncFeatureTabVisibility,
-  type DerivationControlValues,
+  type DerivationFeatureTab,
 } from "./inputs.js";
-import {
-  createBranchResultState,
-  type BranchResultState,
-  type ResultBranch,
-} from "./result-branches.js";
-import { runStreamedDerivation, yieldToBrowser } from "./streamed-derivation.js";
-import { invertSelection, selectAll, selectNone } from "./selection.js";
-import { DerivationCancelledError, DerivationWorkerClient } from "../workers/derive-client.js";
+import { DerivationErrorText } from "./derivation-error-text.js";
+import type { DerivationWorkerClient } from "../workers/derive-client.js";
 
 import type { KeyDerivationView } from "./view.js";
 import type { AddressSearchRunner } from "./address-search-feature.js";
 import type { RecoverySourceReference, RecoverySourceTarget } from "./recovery-source-link.js";
 import { installMnemonicDiagnosticFeature } from "./mnemonic-diagnostic-feature.js";
-import { createResultExportController } from "./result-export-controller.js";
-import { installAccountExportController } from "./account-export-controller.js";
-import { createLargeRequestPolicy } from "./large-request-policy.js";
+import { MainDerivation } from "./main-derivation.js";
+import { DerivationWorkspaceTabs } from "./derivation-workspace-tabs.js";
+import { DerivationResultPanel } from "./derivation-result-panel.js";
+import { LargeRequestPolicy } from "./large-request-policy.js";
 import { installRecoverySourceController } from "./recovery-source-controller.js";
-import { englishMnemonicToEntropy } from "@ckd/core/bip39.js";
 import { AdapterSettingsStore } from "./adapter-settings.js";
 import { AutomaticDerivationScheduler } from "./automatic-derivation.js";
 import { runStartupSelfTests } from "./startup-self-test.js";
-import { installResultTabNavigation, type TopLevelResultTab } from "./result-tab-navigation.js";
 import { SELF_TEST_NOT_PASSED } from "./crypto-self-test-gate.js";
 import { FieldEdits } from "./field-edits.js";
+import { DerivationResults } from "@ckd/ui/derivation-results.js";
+import { DeriverSource } from "./deriver-source.js";
 
-const BASIC_WINDOW_SIZE = 200;
-const ADVANCED_WINDOW_SIZE = 24;
 interface KeyDerivationDependencies {
   coinFamilies: typeof import("@ckd/coins/registry.js").COIN_FAMILIES;
   getAdapterFamilyId: typeof import("@ckd/coins/registry.js").getAdapterFamilyId;
@@ -69,1225 +59,610 @@ interface KeyDerivationDependencies {
   >;
 }
 
+import { defined } from "@ckd/core/defined.js";
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
+const ERRORS = new ErrorCatalog("wallet.deriver", {
+  startup: () => "A cryptographic startup check returned a failed result.",
+});
+/** Composes the independent Deriver operations and binds their native page lifecycle. */
+export class KeyDerivationController {
+  readonly #view: KeyDerivationView;
+  readonly #dependencies: KeyDerivationDependencies;
+  #started = false;
+  #adapter: CoinAdapter;
+  #results: DerivationResults;
+  #cryptoReady: boolean;
+  #checkedMnemonic:
+    ReturnType<NonNullable<KeyDerivationDependencies["installCheckedMnemonicFeature"]>> | undefined;
+  #adapterSettings: AdapterSettingsStore;
+  #automaticDerivation: AutomaticDerivationScheduler;
+  #workspaceTabs: DerivationWorkspaceTabs;
+  #resultPanel: DerivationResultPanel;
+  #source: DeriverSource;
+  #bip38Feature:
+    ReturnType<NonNullable<KeyDerivationDependencies["installBip38EncryptionFeature"]>> | undefined;
+  #mnemonicDiagnostic: ReturnType<typeof installMnemonicDiagnosticFeature>;
+  #bip85Feature: ReturnType<NonNullable<KeyDerivationDependencies["installBip85Feature"]>> | null;
+  #messageSigning:
+    ReturnType<NonNullable<KeyDerivationDependencies["installMessageSigningFeature"]>> | undefined;
+  #largeRequestPolicy: LargeRequestPolicy;
+  #silentPaymentFeature:
+    ReturnType<NonNullable<KeyDerivationDependencies["installSilentPaymentFeature"]>> | undefined;
+  #derivation: MainDerivation;
+  constructor(view: KeyDerivationView, dependencies: KeyDerivationDependencies) {
+    this.#view = view;
+    this.#dependencies = dependencies;
+    this.#adapter = dependencies.getDefaultCoinAdapter(defined(dependencies.coinFamilies[0]).id);
+    this.#results = new DerivationResults();
+    this.#cryptoReady = false;
+    this.#checkedMnemonic = this.#dependencies.installCheckedMnemonicFeature?.(
+      this.#view.document,
+      this.#invalidateGeneration,
+    );
+    this.#adapterSettings = new AdapterSettingsStore(this.#dependencies.getAdapterFamilyId);
+    this.#automaticDerivation = new AutomaticDerivationScheduler(window);
+    this.#workspaceTabs = new DerivationWorkspaceTabs({
+      view: this.#view,
+      adapter: () => this.#adapter,
+      hasResults: () => this.#results.current !== null,
+      silentPaymentAvailable: this.#dependencies.installSilentPaymentFeature !== undefined,
+      activate: (feature) => this.#activateFeature(feature),
+      schedule: () => this.#scheduleAutomaticDerivation(),
+      placeDisclosure: () => this.#resultPanel.placeDisclosureControl(),
+    });
+    this.#resultPanel = new DerivationResultPanel({
+      view: this.#view,
+      results: this.#results,
+      adapter: () => this.#adapter,
+      feature: () => this.#workspaceTabs.active,
+      bip38: () => this.#bip38Feature,
+      signing: () => this.#messageSigning,
+      bip85: () => this.#bip85Feature,
+      silentPayment: () => this.#silentPaymentFeature,
+      release: (action) => this.#releaseOwnedPart(action),
+      writeClipboard: this.#dependencies.writeClipboard,
+      downloadBlob: this.#dependencies.downloadBlob,
+      downloadText: this.#dependencies.downloadText,
+    });
+    this.#source = new DeriverSource(this.#view, {
+      writeClipboard: this.#dependencies.writeClipboard,
+      onVisibility: () => this.#mnemonicDiagnostic.update(),
+      ...(this.#dependencies.chosenWords === undefined
+        ? {}
+        : { chosenWords: this.#dependencies.chosenWords }),
+      ...(this.#dependencies.offerRecoverySource === undefined
+        ? {}
+        : {
+            offer: (reference: RecoverySourceReference | null) =>
+              this.#dependencies.offerRecoverySource?.(reference),
+          }),
+    });
+    this.#bip38Feature = this.#dependencies.installBip38EncryptionFeature?.({
+      document: this.#view.document,
+      controls: this.#view.controls,
+      adapter: () => this.#adapter,
+      result: () => this.#results.current,
+      branch: () => this.#results.active,
+      ...this.#sourceOperations(),
+      render: () => this.#resultPanel.render(),
+      cryptoReady: () => this.#cryptoReady,
+    });
+    this.#mnemonicDiagnostic = installMnemonicDiagnosticFeature({
+      view: this.#view,
+      mnemonic: this.#view.mnemonic,
+      passphrase: this.#view.passphrase,
+      sourceRevealed: () => this.#source.revealed,
+      cryptoReady: () => this.#cryptoReady,
+      mnemonicToSeed: this.#dependencies.mnemonicToSeed,
+    });
+    this.#bip85Feature = null;
+    this.#messageSigning = this.#dependencies.installMessageSigningFeature?.({
+      document: this.#view.document,
+      mainSource: () => ({
+        adapter: this.#adapter,
+        controls: this.#view.controls,
+        mnemonic: this.#view.mnemonic.value,
+        passphrase: this.#view.passphrase.value,
+      }),
+      bip85Source: () =>
+        this.#bip85Feature?.childSource() ?? {
+          adapter: null,
+          controls: null,
+          mnemonic: null,
+          passphrase: "",
+        },
+      mnemonicToSeed: this.#dependencies.mnemonicToSeed,
+      createWorker: () => this.#dependencies.createWorker(),
+      copy: (button, text) => {
+        void this.#resultPanel.exports.copyText(button, text, false);
+      },
+      cryptoReady: () => this.#cryptoReady,
+    });
+    this.#largeRequestPolicy = new LargeRequestPolicy({
+      adapter: () => this.#adapter,
+      activeFeatureTab: () => this.#workspaceTabs.active,
+      showConfirmation: () => this.#view.showLargeRequestConfirmation(),
+      showStatus: (message) => this.#view.showStatus(message),
+    });
+    this.#silentPaymentFeature = this.#dependencies.installSilentPaymentFeature?.({
+      document: this.#view.document,
+      ...this.#sourceOperations(),
+      isActive: () => this.#workspaceTabs.active === "silent-payment",
+      mnemonicMayBeComplete: this.#mnemonicDiagnostic.mayBeComplete,
+      cryptoReady: () => this.#cryptoReady,
+    });
+    this.#derivation = new MainDerivation({
+      view: this.#view,
+      results: this.#results,
+      panel: this.#resultPanel,
+      tabs: this.#workspaceTabs,
+      settings: this.#adapterSettings,
+      policy: this.#largeRequestPolicy,
+      adapter: () => this.#adapter,
+      cryptoReady: () => this.#cryptoReady,
+      cancelAutomatic: () => this.#cancelAutomaticDerivation(),
+      bip38: () => this.#bip38Feature,
+      createWorker: () => this.#dependencies.createWorker(),
+      mnemonicToSeed: this.#dependencies.mnemonicToSeed,
+    });
+    this.#installChildWallet();
+  }
+  #sourceOperations() {
+    return {
+      mnemonic: () => this.#view.mnemonic.value,
+      passphrase: () => this.#view.passphrase.value,
+      mnemonicToSeed: this.#dependencies.mnemonicToSeed,
+      createWorker: () => this.#dependencies.createWorker(),
+    };
+  }
+
+  #installChildWallet(): void {
+    this.#bip85Feature =
+      this.#dependencies.installBip85Feature?.({
+        document: this.#view.document,
+        coinFamilies: this.#dependencies.coinFamilies,
+        getAdapterFamilyId: this.#dependencies.getAdapterFamilyId,
+        getCoinAdapter: this.#dependencies.getCoinAdapter,
+        getDefaultCoinAdapter: this.#dependencies.getDefaultCoinAdapter,
+        parentMnemonic: () => this.#view.mnemonic.value,
+        parentPassphrase: () => this.#view.passphrase.value,
+        isActive: () => this.#workspaceTabs.active === "bip85",
+        mnemonicMayBeComplete: this.#mnemonicDiagnostic.mayBeComplete,
+        cryptoReady: () => this.#cryptoReady,
+        secretsRevealed: () => this.#resultPanel.revealed,
+        setSecretsRevealed: (revealed) => this.#resultPanel.setRevealed(revealed),
+        mnemonicToSeed: this.#dependencies.mnemonicToSeed,
+        createWorker: () => this.#dependencies.createWorker(),
+        ...(this.#messageSigning === undefined ? {} : { messageSigning: this.#messageSigning }),
+        // The derived child wallet offers Silent Payments through the same feature module.
+        ...(this.#dependencies.installSilentPaymentFeature === undefined
+          ? {}
+          : { installSilentPaymentFeature: this.#dependencies.installSilentPaymentFeature }),
+        copyText: this.#resultPanel.exports.copyText,
+        copyBulkFrom: this.#resultPanel.exports.copyRows,
+        downloadRowsFrom: this.#resultPanel.exports.downloadRows,
+        invalidateExports: () => this.#resultPanel.exports.invalidate(),
+        downloadText: this.#dependencies.downloadText,
+        showError: (message) => this.#view.showError(message),
+        showStatus: (message) => this.#view.showStatus(message),
+      }) ?? null;
+  }
+  readonly #invalidateGeneration = (): void => {
+    this.#checkedMnemonic?.cancel();
+    this.#derivation.advance();
+    this.#view.clearMessages();
+  };
+  readonly #activateFeature = (feature: Exclude<DerivationFeatureTab, null>): void => {
+    this.#cancelAutomaticDerivation();
+    const messages = {
+      "silent-payment": "Derivation mode changed to the selected payment protocol.",
+      bip85: "Derivation mode changed to BIP85.",
+      coinjoin: "Derivation mode changed to Dash Mobile CoinJoin.",
+    };
+    this.#derivation.stop(messages[feature]);
+    if (feature === "coinjoin") this.#invalidateAddressSearch();
+    this.#derivation.advance();
+    this.#resultPanel.clear();
+    if (feature === "coinjoin") {
+      this.#largeRequestPolicy.clear();
+      this.#view.resetDeriveAction();
+    }
+    this.#workspaceTabs.select(feature);
+    if (!this.#mnemonicDiagnostic.mayBeComplete()) return;
+    if (feature === "silent-payment") this.#silentPaymentFeature?.derive();
+    else if (feature === "bip85") void this.#bip85Feature?.derive();
+    else void this.#derivation.run(true);
+  };
+  readonly #releaseOwnedPart = (release: () => void): void => {
+    try {
+      release();
+    } catch {
+      // Clear and source edits finish their other cleanup before the diagnostic is shown.
+      queueMicrotask(() => this.#view.showError(DerivationErrorText.CLEANUP_FAILURE));
+    }
+  };
+  readonly #invalidateAddressSearch = (): void => {
+    this.#releaseOwnedPart(() => this.#dependencies.addressSearch?.invalidate());
+    this.#view.hideSearchResult();
+  };
+  readonly #cancelAutomaticDerivation = (): void => {
+    this.#automaticDerivation.cancel();
+  };
+  readonly #scheduleAutomaticDerivation = (): void => {
+    this.#automaticDerivation.schedule(
+      () => this.#cryptoReady && this.#mnemonicDiagnostic.mayBeComplete(),
+      () => {
+        if (this.#workspaceTabs.active === "silent-payment") {
+          this.#silentPaymentFeature?.derive();
+        } else if (this.#workspaceTabs.active === "bip85") {
+          void this.#bip85Feature?.derive();
+        } else {
+          void this.#derivation.run(true);
+        }
+      },
+    );
+  };
+  readonly #rememberCurrentSettings = (): void => {
+    try {
+      this.#adapterSettings.remember(
+        this.#adapter,
+        readControls(this.#adapter, this.#view.controls),
+      );
+    } catch {
+      // Invalid partially edited controls are not persisted across variants.
+    }
+  };
+  readonly #resetForAdapter = (next: CoinAdapter, autoDerive = true): void => {
+    this.#cancelAutomaticDerivation();
+    this.#invalidateAddressSearch();
+    this.#rememberCurrentSettings();
+    this.#derivation.stop();
+    this.#derivation.advance();
+    this.#resultPanel.clear();
+    this.#results.resetCoinJoin();
+    this.#largeRequestPolicy.clear();
+    this.#view.resetDeriveAction();
+    this.#adapter = next;
+    this.#adapterSettings.selectVariant(this.#adapter);
+    const remembered = this.#adapterSettings.controlsFor(this.#adapter);
+    this.#view.configureControls(
+      this.#adapter,
+      applySharedDerivationControls(this.#adapter, remembered.values, remembered.shared),
+    );
+    this.#workspaceTabs.sync();
+    this.#view.clearMessages();
+    this.#view.hideSearchResult();
+    if (autoDerive && this.#mnemonicDiagnostic.mayBeComplete()) void this.#derivation.run(true);
+  };
+  readonly #populateBuildPassport = (): void => {
+    this.#view.populateBuildPassport(this.#dependencies.buildInfo);
+  };
+  readonly #setCryptoControlsEnabled = (enabled: boolean): void => {
+    this.#view.setCryptoControlsEnabled(enabled);
+    this.#checkedMnemonic?.setEnabled(enabled);
+    this.#bip85Feature?.setEnabled(enabled);
+    this.#silentPaymentFeature?.setEnabled(enabled);
+    this.#dependencies.setRecoveryControlsEnabled(enabled);
+  };
+  readonly #failCryptoSelfTest = (cause: unknown): void => {
+    this.#cryptoReady = false;
+    this.#cancelAutomaticDerivation();
+    this.#derivation.stop("The cryptographic self-test failed.");
+    this.#invalidateAddressSearch();
+    this.#derivation.advance();
+    this.#resultPanel.clear();
+    if (this.#messageSigning?.isOpen() === true) this.#messageSigning.close();
+    this.#view.showCryptoSelfTestFailed(cause);
+    this.#setCryptoControlsEnabled(false);
+    this.#view.showError("Cryptographic self-test failed. This build will not derive wallet keys.");
+  };
+  readonly #initializeCryptoRuntime = async (): Promise<void> => {
+    this.#setCryptoControlsEnabled(false);
+    try {
+      const report = await runStartupSelfTests({
+        runBip39SelfTest: this.#dependencies.runBip39SelfTest,
+        runRecoveryBackupSelfTest: this.#dependencies.runRecoveryBackupSelfTest,
+        createWorker: () => this.#dependencies.createWorker(),
+      });
+      this.#cryptoReady = report.passed;
+      if (!report.passed) throw ERRORS.create("startup", []);
+      this.#view.showCryptoSelfTestPassed(report.checks, report.durationMs);
+      this.#setCryptoControlsEnabled(true);
+      this.#mnemonicDiagnostic.update();
+      this.#scheduleAutomaticDerivation();
+    } catch (cause) {
+      this.#failCryptoSelfTest(cause);
+    }
+  };
+  readonly #invalidateParentFeatures = (): void => {
+    this.#releaseOwnedPart(() => this.#bip85Feature?.invalidate());
+    this.#releaseOwnedPart(() => this.#silentPaymentFeature?.clear());
+  };
+  readonly #generatePhrase = async (words: Bip39WordCount): Promise<void> => {
+    if (!this.#cryptoReady) {
+      this.#view.showError(SELF_TEST_NOT_PASSED);
+      return;
+    }
+    this.#source.changed();
+    this.#checkedMnemonic?.cancel();
+    this.#cancelAutomaticDerivation();
+    this.#invalidateAddressSearch();
+    this.#derivation.advance();
+    this.#resultPanel.clear();
+    this.#view.clearMessages();
+    const revision = this.#derivation.revision;
+    const wishes =
+      this.#dependencies.chosenWords?.active() === true ? this.#dependencies.chosenWords : null;
+    try {
+      let phrase: string;
+      const checkedFeature = this.#checkedMnemonic;
+      const checked = checkedFeature?.active() === true;
+      if (checkedFeature !== undefined && checked) {
+        const request = wishes?.request(words) ?? {
+          wordCount: words,
+          chosen: [],
+          neverUse: [],
+        };
+        phrase = await checkedFeature.generate(
+          words,
+          this.#view.passphrase.value,
+          request,
+          (line) => {
+            if (revision === this.#derivation.revision) this.#view.showStatus(line);
+          },
+        );
+      } else if (wishes === null) {
+        phrase = this.#dependencies.generateMnemonic(words);
+      } else {
+        this.#view.showStatus(
+          `Looking for a random ${words}-word phrase that meets your chosen words…`,
+        );
+        phrase = await wishes.generate(words);
+        // Sampling finished in one synchronous call; a newer input before publication wins.
+        if (revision !== this.#derivation.revision) return;
+      }
+      if (revision !== this.#derivation.revision || !this.#cryptoReady) return;
+      // A new phrase is a new wallet: an ordinary generation starts it without the BIP39
+      // passphrase of the last one, which the field shows only as dots, so that no address of
+      // the new phrase is taken unnoticed from the wallet with that passphrase (owner's
+      // decision, 2026-10-08). The MHFE wallet check keeps it: the phrase was drawn for the
+      // passphrase confirmed there.
+      const passphraseCleared = !checked && this.#view.passphrase.value !== "";
+      if (!checked) this.#view.passphrase.value = "";
+      // Generation replaces the parent without an input event. Revoke its descendants before
+      // publishing the new source (AUD-022-SEC001, AUD-028-API008).
+      this.#invalidateParentFeatures();
+      this.#source.publish(phrase, this.#adapter.defaults.count);
+      this.#rememberCurrentSettings();
+      this.#mnemonicDiagnostic.update();
+      this.#view.showStatus(
+        `Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues()${wishes === null ? "" : ", with your chosen words"}${checked ? ", passing the MHFE wallet check with the BIP39 passphrase you confirmed" : ""}.${passphraseCleared ? " The BIP39 passphrase field was emptied: a new phrase starts without one; type one now if this wallet should use one." : ""} Deriving ${this.#adapter.defaults.count} results…`,
+      );
+      void this.#derivation.run(true);
+    } catch (cause) {
+      // A cancelled search was replaced by a newer action, which reports for itself. A wish that
+      // cannot be met is reported as an error; no ordinary phrase is put in its place.
+      if (isAbortError(cause) || revision !== this.#derivation.revision) return;
+      this.#view.showError(
+        cause instanceof Error ? cause.message : "Secure phrase generation failed.",
+      );
+    }
+  };
+  readonly #clearAll = (): void => {
+    this.#releaseOwnedPart(() => this.#source.wipe());
+    this.#cancelAutomaticDerivation();
+    this.#derivation.stop("Derivation cleared by the user.");
+    this.#invalidateAddressSearch();
+    this.#derivation.advance();
+    this.#largeRequestPolicy.clear();
+    // Browser strings are immutable, so this only releases DOM references; mutable seed bytes are zeroed separately.
+    this.#resultPanel.clear();
+    this.#results.resetCoinJoin();
+    this.#adapterSettings.clear();
+    this.#view.configureControls(this.#adapter);
+    this.#resultPanel.setRevealed(false);
+    this.#view.clearMessages();
+    this.#releaseOwnedPart(() => this.#messageSigning?.invalidate());
+    this.#releaseOwnedPart(() => {
+      if (this.#messageSigning?.isOpen() === true) this.#messageSigning.close();
+    });
+    this.#releaseOwnedPart(() => this.#bip38Feature?.reset());
+    this.#releaseOwnedPart(() => this.#bip85Feature?.reset());
+    this.#workspaceTabs.reset();
+    this.#releaseOwnedPart(() => this.#silentPaymentFeature?.reset());
+    this.#dependencies.chosenWords?.clear();
+    this.#checkedMnemonic?.clear();
+    this.#mnemonicDiagnostic.reset();
+  };
+  readonly #concealSensitiveValues = (): void => {
+    if (this.#source.revealed) this.#source.setRevealed(false);
+    if (this.#resultPanel.revealed) this.#resultPanel.setRevealed(false);
+  };
+  /** Install once; construction does not run cryptographic self-tests. */
+  start(): void {
+    if (this.#started) return;
+    this.#started = true;
+    this.#dependencies.chosenWords?.onChange(this.#invalidateGeneration);
+    if (this.#checkedMnemonic !== undefined)
+      this.#dependencies.chosenWords?.useChecked(this.#checkedMnemonic);
+    this.#view.populateCoinSelect();
+    this.#adapterSettings.selectVariant(this.#adapter);
+    this.#view.configureControls(this.#adapter);
+    this.#workspaceTabs.sync();
+    this.#mnemonicDiagnostic.update();
+    this.#view.updateMode(this.#results.mode);
+    this.#resultPanel.updateBulkActions();
+    this.#dependencies.onFullSelfTestFailure?.(this.#failCryptoSelfTest);
+    this.#populateBuildPassport();
+    void this.#initializeCryptoRuntime();
+    this.#view.form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      this.#cancelAutomaticDerivation();
+      void this.#derivation.run(false);
+    });
+    this.#installAdapterNavigation();
+    this.#installEdits();
+    this.#installLifecycle();
+  }
+
+  #installAdapterNavigation(): void {
+    this.#view.controls.coin.addEventListener("change", () => {
+      this.#workspaceTabs.select(null);
+      const remembered = this.#adapterSettings.variantForFamily(this.#view.controls.coin.value);
+      this.#resetForAdapter(
+        remembered === undefined
+          ? this.#dependencies.getDefaultCoinAdapter(this.#view.controls.coin.value)
+          : this.#dependencies.getCoinAdapter(remembered),
+      );
+    });
+    this.#view.controls.includeLegacyMobile.addEventListener("change", () => {
+      if (
+        !this.#view.controls.includeLegacyMobile.checked &&
+        this.#adapter.id === "dash-legacy-mobile"
+      ) {
+        this.#resetForAdapter(this.#dependencies.getCoinAdapter("dash-core"));
+        return;
+      }
+      this.#resetForAdapter(this.#adapter, false);
+    });
+    this.#view.controls.protocolTabs.addEventListener("click", (event) => {
+      const id = this.#view.protocolAdapterIdFrom(event.target);
+      if (id !== undefined) this.#selectProtocol(id);
+    });
+    this.#view.controls.protocolTabs.addEventListener("keydown", (event) => {
+      if (!isTabKey(event.key)) return;
+      const adapterIds = this.#view.protocolAdapterIds();
+      const current = adapterIds.indexOf(this.#adapter.id);
+      if (current < 0 || adapterIds.length === 0) return;
+      event.preventDefault();
+      const index = tabIndexAfter(event.key, current, adapterIds.length);
+      const id = index === undefined ? undefined : adapterIds[index];
+      if (id === undefined) return;
+      this.#selectProtocol(id);
+    });
+  }
+
+  #selectProtocol(id: string): void {
+    // Pointer and keyboard selection retire the supplemental workspace through the same path.
+    this.#workspaceTabs.select(null);
+    if (id === this.#adapter.id) {
+      this.#cancelAutomaticDerivation();
+      this.#derivation.stop("Derivation mode changed.");
+      this.#invalidateAddressSearch();
+      this.#derivation.advance();
+      this.#resultPanel.clear();
+      this.#largeRequestPolicy.clear();
+      this.#view.resetDeriveAction();
+      if (this.#mnemonicDiagnostic.mayBeComplete()) void this.#derivation.run(true);
+    } else this.#resetForAdapter(this.#dependencies.getCoinAdapter(id));
+    this.#view.focusProtocolButton(id);
+  }
+
+  #installEdits(): void {
+    const rangeEdits = new FieldEdits();
+    for (const control of [
+      this.#view.controls.network,
+      this.#view.controls.account,
+      this.#view.controls.branchInput,
+      this.#view.controls.branchSelect,
+      this.#view.controls.includeChange,
+      this.#view.controls.includeCoinJoin,
+      this.#view.controls.start,
+      this.#view.controls.count,
+    ]) {
+      const refresh = (): void => {
+        // Changing a derivation setting revokes its generation too; discard the worker now.
+        this.#checkedMnemonic?.cancel();
+        this.#view.clearMessages();
+        this.#derivation.stop();
+        this.#invalidateAddressSearch();
+        this.#derivation.advance();
+        if (this.#results.current !== null) this.#resultPanel.clear();
+        this.#workspaceTabs.updatePathPreview();
+        this.#rememberCurrentSettings();
+        this.#largeRequestPolicy.clear();
+        this.#view.resetDeriveAction();
+        this.#scheduleAutomaticDerivation();
+      };
+      for (const type of ["input", "change"])
+        control.addEventListener(type, (event) => {
+          if (rangeEdits.isNew(event)) refresh();
+        });
+    }
+    for (const input of [this.#view.mnemonic, this.#view.passphrase]) {
+      input.addEventListener("input", () => {
+        this.#source.changed();
+        this.#checkedMnemonic?.cancel();
+        this.#derivation.stop();
+        this.#invalidateParentFeatures();
+        this.#invalidateAddressSearch();
+        this.#derivation.advance();
+        if (this.#results.current !== null) this.#resultPanel.clear();
+        this.#mnemonicDiagnostic.update();
+        this.#largeRequestPolicy.clear();
+        this.#view.resetDeriveAction();
+        this.#scheduleAutomaticDerivation();
+      });
+    }
+  }
+
+  #installLifecycle(): void {
+    if (this.#dependencies.openRecoverySource !== undefined) {
+      installRecoverySourceController({
+        document: this.#view.document,
+        open: (reference, target) => this.#dependencies.openRecoverySource?.(reference, target),
+        childReference: () => this.#bip85Feature?.sourceReference() ?? null,
+        originalReference: () => this.#source.reference(),
+        showError: (message) => this.#view.showError(message),
+      });
+    }
+    this.#source.offer();
+    for (const input of [
+      this.#view.expectedAddress,
+      this.#view.searchStart,
+      this.#view.searchCount,
+    ])
+      input?.addEventListener("input", this.#invalidateAddressSearch);
+    for (const words of BIP39_WORD_COUNTS) {
+      this.#view[`generate${words}Button`].addEventListener(
+        "click",
+        () => void this.#generatePhrase(words),
+      );
+    }
+    this.#view.clearAllButton.addEventListener("click", this.#clearAll);
+    window.addEventListener("pagehide", this.#clearAll);
+    this.#view.document.addEventListener("visibilitychange", () => {
+      if (this.#view.document.visibilityState === "hidden") this.#concealSensitiveValues();
+    });
+    window.addEventListener("blur", this.#concealSensitiveValues);
+    this.#view.cancelDerivationButton.addEventListener("click", () => this.#derivation.cancel());
+    this.#view.searchAddressButton?.addEventListener("click", () => {
+      if (this.#dependencies.addressSearch === undefined) return;
+      if (!this.#cryptoReady) {
+        this.#view.showError(
+          "Cryptographic self-test has not completed successfully. Address search is blocked.",
+        );
+        return;
+      }
+      this.#invalidateAddressSearch();
+      this.#dependencies.addressSearch.start({
+        adapter: this.#adapter,
+        controls: this.#view.controls,
+        fields: defined(this.#view.addressSearch),
+        mnemonic: this.#view.mnemonic,
+        passphrase: this.#view.passphrase,
+        view: this.#view,
+        readControls,
+        mnemonicToSeed: this.#dependencies.mnemonicToSeed,
+        createWorker: () => this.#dependencies.createWorker(),
+      });
+    });
+  }
+}
+/** Compatibility composition entry; start is idempotent. */
 export function createKeyDerivationController(
   view: KeyDerivationView,
   dependencies: KeyDerivationDependencies,
-) {
-  let started = false;
-  return {
-    start(): void {
-      if (started) return;
-      started = true;
-      const {
-        coinFamilies,
-        getAdapterFamilyId,
-        getCoinAdapter,
-        getDefaultCoinAdapter,
-        buildInfo,
-        generateMnemonic,
-        chosenWords,
-        installCheckedMnemonicFeature,
-        mnemonicToSeed,
-        runBip39SelfTest,
-        runRecoveryBackupSelfTest,
-        setRecoveryControlsEnabled,
-        onFullSelfTestFailure,
-        writeClipboard,
-        downloadBlob,
-        downloadText,
-        createWorker,
-        addressSearch,
-        openRecoverySource,
-        offerRecoverySource,
-        installSilentPaymentFeature,
-        installBip85Feature,
-        installBip38EncryptionFeature,
-        installMessageSigningFeature,
-      } = dependencies;
-      const {
-        document,
-        controls,
-        form,
-        mnemonic,
-        passphrase,
-        exportFormat,
-        modeBasic,
-        modeAdvanced,
-        resultReceiveTab,
-        resultChangeTab,
-        resultCoinJoinTab,
-        resultCoinJoinExternalTab,
-        resultCoinJoinInternalTab,
-        toggleSensitiveValues,
-        toggleResultSecrets,
-        copyMnemonicButton,
-        copyWatchOnlyButton,
-        downloadWatchOnlyButton,
-        descriptorButtons,
-        cancelDerivationButton,
-        expectedAddress,
-        searchStart,
-        searchCount,
-        searchAddressButton,
-        addressSearch: addressSearchFields,
-        generate12Button,
-        generate15Button,
-        generate18Button,
-        generate21Button,
-        generate24Button,
-        clearAllButton,
-        selectAllButton,
-        selectNoneButton,
-        selectInvertButton,
-        showError,
-        showStatus,
-        clearMessages,
-      } = view;
-
-      let adapter: CoinAdapter;
-      let currentResult: DerivationResult | null = null;
-      let selected = new Set<number>();
-      let activeResultBranch: ResultBranch = "receive";
-      const branchResultStates = new Map<ResultBranch, BranchResultState>();
-      let displayMode: DisplayMode = "basic";
-      let recoverySourceRevealed = false;
-      let resultSecretsRevealed = false;
-      let derivationRevision = 0;
-      let derivationsInFlight = 0;
-      let cancellationRequested = false;
-      let resultWindowStart = 0;
-      let activeDerivationWorker: DerivationWorkerClient | null = null;
-      let mainRecoverySourceRevision = 0;
-      let activeFeatureTab: "silent-payment" | "bip85" | "coinjoin" | null = null;
-      let cryptoReady = false;
-      /**
-       * A wish or the checked mode changed: a phrase made for the earlier request is not
-       * published, and a running draw stops (AUD-024-API002).
-       */
-      const invalidateGeneration = (): void => {
-        checkedMnemonic?.cancel();
-        derivationRevision += 1;
-        stopActiveDerivation();
-        clearMessages();
-      };
-      const checkedMnemonic = installCheckedMnemonicFeature?.(document, invalidateGeneration);
-      chosenWords?.onChange(invalidateGeneration);
-      if (checkedMnemonic !== undefined) chosenWords?.useChecked(checkedMnemonic);
-      const adapterSettings = new AdapterSettingsStore(getAdapterFamilyId);
-      const automaticDerivation = new AutomaticDerivationScheduler(window);
-      /** Remembers which CoinJoin sub-branch was last shown, so re-activating the Dash Mobile CoinJoin · DIP9 tab returns to it. */
-      let activeCoinJoinBranch: "coinjoin-external" | "coinjoin-internal" = "coinjoin-external";
-
-      function optionalElement<T extends Element>(selector: string): T | null {
-        return typeof document.querySelector === "function"
-          ? document.querySelector<T>(selector)
-          : null;
-      }
-
-      const includeSilentPayment = optionalElement<HTMLInputElement>("#include-silent-payment");
-      const silentPaymentTab = optionalElement<HTMLButtonElement>("#silent-payment-tab");
-      const silentPaymentPanel = optionalElement<HTMLElement>("#silent-payment-panel");
-      const includeBip85 = optionalElement<HTMLInputElement>("#include-bip85");
-      const bip85Tab = optionalElement<HTMLButtonElement>("#bip85-tab");
-      const bip85Panel = optionalElement<HTMLElement>("#bip85-panel");
-      const coinJoinTab = optionalElement<HTMLButtonElement>("#coinjoin-tab");
-      const derivationPanel = optionalElement<HTMLElement>("#derivation-panel");
-      const mainResults = optionalElement<HTMLElement>("#results");
-
-      const resultExport = createResultExportController({
-        secretsRevealed: () => resultSecretsRevealed,
-        writeClipboard,
-        downloadBlob,
-        flashCopied: (button) => view.flashCopied(button),
-        setDownloadPreparing: (button, preparing) => view.setDownloadPreparing(button, preparing),
-        showError,
-        showStatus,
-      });
-      const copyText = resultExport.copyText;
-
-      const bip38Feature = installBip38EncryptionFeature?.({
-        document,
-        controls,
-        adapter: () => adapter,
-        result: () => currentResult,
-        branch: () => activeResultBranch,
-        mnemonic: () => mnemonic.value,
-        passphrase: () => passphrase.value,
-        mnemonicToSeed,
-        createWorker,
-        render: () => renderCurrent(),
-        cryptoReady: () => cryptoReady,
-      });
-      const encryptedBip38ByBranch =
-        bip38Feature?.encryptedByBranch ?? new Map<ResultBranch, Map<number, string>>();
-      const visibleBip38RowsByBranch =
-        bip38Feature?.visibleRowsByBranch ?? new Map<ResultBranch, number>();
-
-      const mnemonicDiagnostic = installMnemonicDiagnosticFeature({
-        document,
-        view,
-        mnemonic,
-        passphrase,
-        sourceRevealed: () => recoverySourceRevealed,
-        mnemonicToSeed,
-      });
-      const updateWordCount = mnemonicDiagnostic.update;
-      const mnemonicMayBeComplete = mnemonicDiagnostic.mayBeComplete;
-
-      let bip85Feature: ReturnType<typeof import("./bip85-feature.js").installBip85Feature> | null =
-        null;
-      const messageSigning = installMessageSigningFeature?.({
-        document,
-        mainSource: () => ({
-          adapter,
-          controls,
-          mnemonic: mnemonic.value,
-          passphrase: passphrase.value,
-        }),
-        bip85Source: () =>
-          bip85Feature?.childSource() ?? {
-            adapter: null,
-            controls: null,
-            mnemonic: null,
-            passphrase: "",
-          },
-        mnemonicToSeed,
-        createWorker,
-        copy: (button, text) => {
-          void copyText(button, text, false);
-        },
-        cryptoReady: () => cryptoReady,
-      });
-      bip85Feature =
-        installBip85Feature?.({
-          document,
-          coinFamilies,
-          getAdapterFamilyId,
-          getCoinAdapter,
-          getDefaultCoinAdapter,
-          parentMnemonic: () => mnemonic.value,
-          parentPassphrase: () => passphrase.value,
-          isActive: () => activeFeatureTab === "bip85",
-          mnemonicMayBeComplete,
-          cryptoReady: () => cryptoReady,
-          secretsRevealed: () => resultSecretsRevealed,
-          setSecretsRevealed: (revealed) => setResultSecretsVisibility(revealed),
-          mnemonicToSeed,
-          createWorker,
-          ...(messageSigning === undefined ? {} : { messageSigning }),
-          // The derived child wallet offers Silent Payments through the same feature module.
-          ...(installSilentPaymentFeature === undefined ? {} : { installSilentPaymentFeature }),
-          copyText,
-          copyBulkFrom: resultExport.copyRows,
-          downloadRowsFrom: resultExport.downloadRows,
-          downloadText,
-          showError,
-          showStatus,
-        }) ?? null;
-
-      const largeRequestPolicy = createLargeRequestPolicy({
-        adapter: () => adapter,
-        activeFeatureTab: () => activeFeatureTab,
-        showConfirmation: () => view.showLargeRequestConfirmation(),
-        showStatus,
-      });
-
-      function placeResultSecretsToggle(): void {
-        // The child-wallet result has its own nearby synchronized control. Keeping
-        // the global control in the BIP85 heading duplicates the same action far
-        // above the keys and makes the workspace harder to understand.
-        if (activeFeatureTab === "bip85") {
-          toggleResultSecrets.hidden = true;
-          return;
-        }
-        toggleResultSecrets.hidden = false;
-        const slotSelector =
-          activeFeatureTab === "silent-payment"
-            ? "#silent-payment-secret-control-slot"
-            : currentResult === null
-              ? "#default-result-secret-control-slot"
-              : "#main-result-secret-control-slot";
-        optionalElement<HTMLElement>(slotSelector)?.append(toggleResultSecrets);
-      }
-
-      function setFeatureTab(next: "silent-payment" | "bip85" | "coinjoin" | null): void {
-        activeFeatureTab = next;
-        const supplemental = next === "silent-payment" || next === "bip85";
-        derivationPanel?.classList.toggle("feature-tab-active", supplemental);
-        if (silentPaymentPanel !== null) silentPaymentPanel.hidden = next !== "silent-payment";
-        if (bip85Panel !== null) bip85Panel.hidden = next !== "bip85";
-        markSelectedProtocolTab(controls.protocolTabs, adapter.id, next);
-        if (mainResults !== null) mainResults.hidden = supplemental || currentResult === null;
-        placeResultSecretsToggle();
-        updateActivePathPreview();
-      }
-
-      function updateActivePathPreview(): void {
-        view.updatePathPreview(adapter);
-        if (activeFeatureTab !== "coinjoin" || adapter.coinJoin === undefined) return;
-        try {
-          const input = readControls(adapter, controls);
-          const paths = adapter.coinJoin.pathPreview(input);
-          controls.preview.textContent = `${paths.external}  ·  ${paths.internal}`;
-        } catch {
-          // The regular control validation will surface partially edited values.
-        }
-      }
-
-      function syncFeatureToggle(
-        checkbox: HTMLInputElement | null,
-        tab: HTMLButtonElement | null,
-        feature: "silent-payment" | "bip85" | "coinjoin",
-      ): void {
-        if (checkbox === null || tab === null) return;
-        if (feature === "silent-payment") {
-          const available = installSilentPaymentFeature !== undefined;
-          checkbox.closest<HTMLElement>("label")!.hidden = !available;
-          checkbox.disabled = !available;
-          if (!available) checkbox.checked = false;
-        }
-        syncFeatureTabVisibility(checkbox, tab);
-        if (!checkbox.checked && activeFeatureTab === feature) {
-          setFeatureTab(null);
-          scheduleAutomaticDerivation();
-        }
-      }
-
-      includeSilentPayment?.addEventListener("change", () =>
-        syncFeatureToggle(includeSilentPayment, silentPaymentTab, "silent-payment"),
-      );
-      includeBip85?.addEventListener("change", () =>
-        syncFeatureToggle(includeBip85, bip85Tab, "bip85"),
-      );
-      controls.includeCoinJoin.addEventListener("change", () =>
-        syncFeatureToggle(controls.includeCoinJoin, coinJoinTab, "coinjoin"),
-      );
-      silentPaymentTab?.addEventListener("click", () => {
-        if (installSilentPaymentFeature === undefined) return;
-        cancelAutomaticDerivation();
-        stopActiveDerivation("Derivation mode changed to the selected payment protocol.");
-        derivationRevision += 1;
-        clearResults();
-        setFeatureTab("silent-payment");
-        if (mnemonicMayBeComplete()) silentPaymentFeature?.derive();
-      });
-      bip85Tab?.addEventListener("click", () => {
-        cancelAutomaticDerivation();
-        stopActiveDerivation("Derivation mode changed to BIP85.");
-        derivationRevision += 1;
-        clearResults();
-        setFeatureTab("bip85");
-        if (mnemonicMayBeComplete()) void bip85Feature?.derive();
-      });
-      coinJoinTab?.addEventListener("click", () => {
-        if (adapter.coinJoin === undefined) return;
-        cancelAutomaticDerivation();
-        stopActiveDerivation("Derivation mode changed to Dash Mobile CoinJoin.");
-        invalidateAddressSearch();
-        derivationRevision += 1;
-        clearResults();
-        largeRequestPolicy.clear();
-        view.resetDeriveAction();
-        setFeatureTab("coinjoin");
-        if (mnemonicMayBeComplete()) void deriveCurrent(true);
-      });
-      const silentPaymentFeature = installSilentPaymentFeature?.({
-        document,
-        mnemonic: () => mnemonic.value,
-        passphrase: () => passphrase.value,
-        mnemonicToSeed,
-        createWorker,
-        isActive: () => activeFeatureTab === "silent-payment",
-        mnemonicMayBeComplete,
-        cryptoReady: () => cryptoReady,
-      });
-
-      function stopActiveDerivation(message = "Derivation superseded by a new request."): void {
-        activeDerivationWorker?.terminate(new DerivationCancelledError(message));
-        activeDerivationWorker = null;
-      }
-
-      function invalidateAddressSearch(): void {
-        addressSearch?.invalidate();
-        view.hideSearchResult();
-      }
-
-      function clearResults(): void {
-        if (messageSigning?.activeSource() === "main") {
-          messageSigning?.close();
-        }
-        bip38Feature?.cancel("BIP38 encryption cancelled because results changed.");
-        encryptedBip38ByBranch.clear();
-        visibleBip38RowsByBranch.clear();
-        view.clearResults(currentResult, branchResultStates);
-        branchResultStates.clear();
-        currentResult = null;
-        selected = new Set();
-        activeResultBranch = "receive";
-        resultWindowStart = 0;
-        placeResultSecretsToggle();
-        updateBulkActions();
-      }
-
-      function updateResultBranchTabs(): void {
-        view.updateResultBranchTabs(currentResult, branchResultStates, activeResultBranch);
-      }
-
-      function activateResultBranch(branch: ResultBranch, render = true): void {
-        const state = branchResultStates.get(branch);
-        if (state === undefined) return;
-        activeResultBranch = branch;
-        if (branch === "coinjoin-external" || branch === "coinjoin-internal")
-          activeCoinJoinBranch = branch;
-        currentResult = state.result;
-        selected = state.selected;
-        resultWindowStart = state.windowStart;
-        updateResultBranchTabs();
-        placeResultSecretsToggle();
-        if (render) {
-          renderCurrent();
-          if (bip38Feature?.isReady() === true) bip38Feature?.start();
-        }
-      }
-
-      /** Selecting the top-level Dash Mobile CoinJoin · DIP9 tab restores whichever nested External/Internal branch was last shown. */
-      function activateCoinJoinTab(render = true): void {
-        const remembered = branchResultStates.has(activeCoinJoinBranch)
-          ? activeCoinJoinBranch
-          : branchResultStates.has("coinjoin-external")
-            ? "coinjoin-external"
-            : "coinjoin-internal";
-        activateResultBranch(remembered, render);
-      }
-
-      function setActiveWindowStart(start: number): void {
-        resultWindowStart = start;
-        const state = branchResultStates.get(activeResultBranch);
-        if (state !== undefined) state.windowStart = start;
-      }
-
-      function replaceActiveSelection(next: Set<number>): void {
-        selected = next;
-        const state = branchResultStates.get(activeResultBranch);
-        if (state !== undefined) state.selected = next;
-      }
-
-      function updateModeButtons(): void {
-        view.updateMode(displayMode);
-      }
-
-      function currentRenderOptions() {
-        const signingFormat =
-          currentResult === null ? null : (messageSigning?.format(currentResult.id) ?? null);
-        const rowLimit = visibleBip38RowsByBranch.get(activeResultBranch);
-        const canEncryptBip38 =
-          bip38Feature !== undefined &&
-          currentResult !== null &&
-          bip38Feature.supportsResult(currentResult.id);
-        bip38Feature?.syncAvailability(canEncryptBip38);
-        return {
-          mode: displayMode,
-          selected,
-          secretsRevealed: resultSecretsRevealed,
-          windowStart: resultWindowStart,
-          windowSize: displayMode === "basic" ? BASIC_WINDOW_SIZE : ADVANCED_WINDOW_SIZE,
-          onWindowChange(start: number) {
-            setActiveWindowStart(start);
-            renderCurrent();
-            view.scrollResultWindowIntoView();
-          },
-          onSelectionChange(index: number, checked: boolean) {
-            if (checked) selected.add(index);
-            else selected.delete(index);
-            updateBulkActions();
-          },
-          canSignMessages: signingFormat !== null,
-          onSignMessage(index: number, address: string) {
-            if (currentResult !== null) {
-              messageSigning?.open(currentResult, activeResultBranch, "main", index, address);
-            }
-          },
-          encryptedBip38:
-            encryptedBip38ByBranch.get(activeResultBranch) ?? new Map<number, string>(),
-          ...(rowLimit === undefined ? {} : { rowLimit }),
-        };
-      }
-
-      function renderCurrent(): void {
-        if (currentResult === null) return;
-        view.renderCurrent(
-          currentResult,
-          currentRenderOptions(),
-          branchResultStates,
-          activeResultBranch,
-          adapter,
-          resultSecretsRevealed,
-        );
-      }
-
-      function updateBulkActions(): void {
-        view.updateBulkActions(
-          currentResult,
-          selected,
-          adapter,
-          displayMode,
-          resultSecretsRevealed,
-        );
-      }
-
-      function sensitiveField(
-        scope: "summary" | "row",
-        fieldKey: string,
-        rowIndex?: number,
-      ): ResultField | undefined {
-        if (currentResult === null) return undefined;
-        if (scope === "row" && fieldKey === "bip38EncryptedKey" && rowIndex !== undefined) {
-          const value = encryptedBip38ByBranch.get(activeResultBranch)?.get(rowIndex);
-          return value === undefined
-            ? undefined
-            : {
-                key: fieldKey,
-                label: "Encrypted private key · BIP38",
-                value,
-                secret: true,
-              };
-        }
-        if (scope === "summary") {
-          return [...currentResult.basicSummary, ...currentResult.summary].find(
-            (field) => field.key === fieldKey,
-          );
-        }
-        const row = currentResult.rows.find((candidate) => candidate.index === rowIndex);
-        return row === undefined
-          ? undefined
-          : displayedFields(row, "advanced").find((field) => field.key === fieldKey);
-      }
-
-      async function copyBulk(button: HTMLButtonElement, action: ExportAction): Promise<void> {
-        if (currentResult === null) return;
-        await resultExport.copyRows(button, action, {
-          adapter,
-          result: currentResult,
-          selected,
-          mode: displayMode,
-          format: exportFormat.value as ExportFormat,
-        });
-      }
-
-      async function downloadSelectedRows(
-        button: HTMLButtonElement,
-        action: ExportAction,
-      ): Promise<void> {
-        if (currentResult === null) return;
-        await resultExport.downloadRows(
-          button,
-          action,
-          {
-            adapter,
-            result: currentResult,
-            selected,
-            mode: displayMode,
-            format: exportFormat.value as ExportFormat,
-          },
-          updateBulkActions,
-        );
-      }
-
-      function setRecoverySourceVisibility(revealed: boolean): void {
-        recoverySourceRevealed = revealed;
-        view.setRecoverySourceVisibility(revealed);
-        chosenWords?.setRevealed(revealed);
-        updateWordCount();
-      }
-
-      function setResultSecretsVisibility(revealed: boolean): void {
-        resultSecretsRevealed = revealed;
-        view.setResultSecretsVisibility(revealed);
-        bip85Feature?.setSecretsVisible(revealed);
-        silentPaymentFeature?.setSecretsVisible(revealed);
-        updateBulkActions();
-      }
-
-      function cancelAutomaticDerivation(): void {
-        automaticDerivation.cancel();
-      }
-
-      function scheduleAutomaticDerivation(): void {
-        automaticDerivation.schedule(
-          () => cryptoReady && mnemonicMayBeComplete(),
-          () => {
-            if (activeFeatureTab === "silent-payment") {
-              silentPaymentFeature?.derive();
-            } else if (activeFeatureTab === "bip85") {
-              void bip85Feature?.derive();
-            } else {
-              void deriveCurrent(true);
-            }
-          },
-        );
-      }
-
-      function rememberCurrentSettings(): void {
-        try {
-          adapterSettings.remember(adapter, readControls(adapter, controls));
-        } catch {
-          // Invalid partially edited controls are not persisted across variants.
-        }
-      }
-
-      function resetForAdapter(next: CoinAdapter, autoDerive = true): void {
-        cancelAutomaticDerivation();
-        invalidateAddressSearch();
-        rememberCurrentSettings();
-        stopActiveDerivation();
-        derivationRevision += 1;
-        clearResults();
-        activeCoinJoinBranch = "coinjoin-external";
-        largeRequestPolicy.clear();
-        view.resetDeriveAction();
-        adapter = next;
-        adapterSettings.selectVariant(adapter);
-        const remembered = adapterSettings.controlsFor(adapter);
-        view.configureControls(
-          adapter,
-          applySharedDerivationControls(adapter, remembered.values, remembered.shared),
-        );
-        syncFeatureToggle(includeSilentPayment, silentPaymentTab, "silent-payment");
-        syncFeatureToggle(controls.includeCoinJoin, coinJoinTab, "coinjoin");
-        clearMessages();
-        view.hideSearchResult();
-        if (autoDerive && mnemonicMayBeComplete()) void deriveCurrent(true);
-      }
-
-      view.populateCoinSelect();
-      const initialCoinFamily = coinFamilies[0]!;
-      adapter = getDefaultCoinAdapter(initialCoinFamily.id);
-      adapterSettings.selectVariant(adapter);
-      view.configureControls(adapter);
-      syncFeatureToggle(controls.includeCoinJoin, coinJoinTab, "coinjoin");
-      updateWordCount();
-      updateModeButtons();
-      updateBulkActions();
-
-      function populateBuildPassport(): void {
-        view.populateBuildPassport(buildInfo);
-      }
-
-      function setCryptoControlsEnabled(enabled: boolean): void {
-        view.setCryptoControlsEnabled(enabled);
-        checkedMnemonic?.setEnabled(enabled);
-        bip85Feature?.setEnabled(enabled);
-        silentPaymentFeature?.setEnabled(enabled);
-        setRecoveryControlsEnabled(enabled);
-      }
-
-      /**
-       * A failed self-test, at startup or the person's full one, closes every control that derives
-       * from the phrase and drops what this build derived before it was found faulty.
-       */
-      function failCryptoSelfTest(cause: unknown): void {
-        cryptoReady = false;
-        cancelAutomaticDerivation();
-        stopActiveDerivation("The cryptographic self-test failed.");
-        invalidateAddressSearch();
-        derivationRevision += 1;
-        clearResults();
-        if (messageSigning?.isOpen() === true) messageSigning.close();
-        view.showCryptoSelfTestFailed(cause);
-        setCryptoControlsEnabled(false);
-        showError("Cryptographic self-test failed. This build will not derive wallet keys.");
-      }
-      onFullSelfTestFailure?.(failCryptoSelfTest);
-
-      async function initializeCryptoRuntime(): Promise<void> {
-        setCryptoControlsEnabled(false);
-        try {
-          const report = await runStartupSelfTests({
-            runBip39SelfTest,
-            runRecoveryBackupSelfTest,
-            createWorker,
-          });
-          cryptoReady = report.passed;
-          if (!report.passed)
-            throw new Error("A cryptographic startup check returned a failed result.");
-          view.showCryptoSelfTestPassed(report.checks, report.durationMs);
-          setCryptoControlsEnabled(true);
-          scheduleAutomaticDerivation();
-        } catch (cause) {
-          failCryptoSelfTest(cause);
-        }
-      }
-
-      populateBuildPassport();
-      void initializeCryptoRuntime();
-
-      const STREAM_RENDER_INTERVAL_MS = 120;
-      let lastStreamRenderAt = 0;
-
-      /**
-       * Repainting the whole window and re-scanning every row for bulk-action state
-       * after each 50-row batch is quadratic over a large request. Streaming batches
-       * repaint at most every STREAM_RENDER_INTERVAL_MS; the final state is always
-       * forced so the displayed result is never a stale frame.
-       */
-      function renderStreamingProgress(force: boolean): void {
-        const now = performance.now();
-        if (!force && now - lastStreamRenderAt < STREAM_RENDER_INTERVAL_MS) return;
-        lastStreamRenderAt = now;
-        renderCurrent();
-      }
-
-      async function deriveCurrent(automatic = false): Promise<void> {
-        cancelAutomaticDerivation();
-        if (!cryptoReady) {
-          showError(
-            "Cryptographic self-test has not completed successfully. Derivation is blocked.",
-          );
-          return;
-        }
-        let input: DerivationControlValues;
-        try {
-          input = readControls(adapter, controls);
-        } catch (cause) {
-          showError(cause instanceof Error ? cause.message : "Invalid derivation controls.");
-          return;
-        }
-        if (!largeRequestPolicy.authorize(input, automatic)) return;
-        clearMessages();
-        clearResults();
-        cancellationRequested = false;
-        view.showDerivationRunning();
-        derivationsInFlight += 1;
-        const revision = ++derivationRevision;
-        const requestedAdapter = adapter;
-        const requestedFeatureTab = activeFeatureTab;
-        const derivationLabel =
-          requestedFeatureTab === "coinjoin"
-            ? "Dash Mobile CoinJoin · DIP9"
-            : requestedAdapter.variantLabel;
-        let seed: Uint8Array | null = null;
-        const worker = createWorker();
-        activeDerivationWorker = worker;
-        try {
-          showStatus("Initialising cryptography locally…");
-          await worker.ready();
-          if (revision !== derivationRevision || requestedAdapter !== adapter) return;
-          adapterSettings.remember(requestedAdapter, input);
-          seed = mnemonicToSeed(mnemonic.value, passphrase.value);
-          const resultBranches = largeRequestPolicy.plannedBranches(input);
-          const totalRequested = input.count * resultBranches.length;
-          if (totalRequested > 1000) {
-            showStatus(
-              `Large request: ${totalRequested.toLocaleString()} results will be generated and displayed in batches. Keep this tab open; you can cancel immediately.`,
-            );
-          }
-          const outcome = await runStreamedDerivation({
-            worker,
-            adapter: requestedAdapter,
-            input,
-            branches: resultBranches,
-            seed,
-            isStale: () => revision !== derivationRevision || requestedAdapter !== adapter,
-            isCancelled: () => cancellationRequested,
-            onInitialBatch: (resultBranch, result) => {
-              const state = createBranchResultState(result);
-              branchResultStates.set(resultBranch, state);
-              view.showResults();
-              if (
-                activeFeatureTab !== null &&
-                activeFeatureTab !== "coinjoin" &&
-                mainResults !== null
-              )
-                mainResults.hidden = true;
-              if (currentResult === null) activateResultBranch(resultBranch, false);
-              updateResultBranchTabs();
-              if (activeResultBranch === resultBranch) renderStreamingProgress(true);
-            },
-            onAppendedBatch: (resultBranch, rows) => {
-              const state = branchResultStates.get(resultBranch);
-              if (state === undefined)
-                throw new Error("The result branch state was lost during streamed derivation.");
-              for (const row of rows) state.selected.add(row.index);
-              if (activeResultBranch === resultBranch) renderStreamingProgress(false);
-            },
-            onProgress: (resultBranch, branchCount, totalCount) => {
-              const branchProgress =
-                requestedAdapter.addressBranches === undefined
-                  ? ""
-                  : ` ${resultBranch} branch ${branchCount.toLocaleString()} of ${input.count.toLocaleString()};`;
-              showStatus(
-                `Derived${branchProgress} ${totalCount.toLocaleString()} of ${totalRequested.toLocaleString()} total results for ${derivationLabel}.`,
-              );
-            },
-            yieldTurn: yieldToBrowser,
-          });
-          if (outcome.stale) return;
-          const generatedTotal = outcome.generated;
-          if (currentResult !== null) renderStreamingProgress(true);
-          updateBulkActions();
-          if (cancellationRequested) {
-            showStatus(
-              `Generation cancelled after ${generatedTotal.toLocaleString()} of ${totalRequested.toLocaleString()} results. Displayed partial branches remain available.`,
-            );
-          } else if (automatic) {
-            showStatus(
-              `Automatically derived ${generatedTotal.toLocaleString()} results for ${derivationLabel}.`,
-            );
-          } else {
-            showStatus(
-              `Derived ${generatedTotal.toLocaleString()} results for ${derivationLabel}.`,
-            );
-          }
-          if (!cancellationRequested && bip38Feature?.isReady() === true) bip38Feature?.start();
-          if (!automatic) view.scrollResultsIntoView();
-        } catch (cause) {
-          if (revision !== derivationRevision) return;
-          if (cause instanceof DerivationCancelledError && cancellationRequested) {
-            if (branchResultStates.size === 0) clearResults();
-            const generated = [...branchResultStates.values()].reduce(
-              (sum, state) => sum + state.result.rows.length,
-              0,
-            );
-            showStatus(
-              `Generation cancelled after ${generated.toLocaleString()} results. The worker stopped immediately; displayed results remain available.`,
-            );
-            return;
-          }
-          if (branchResultStates.size === 0) clearResults();
-          const message = cause instanceof Error ? cause.message : String(cause);
-          showError(message || "Derivation failed.");
-        } finally {
-          worker.terminate(new DerivationCancelledError("Derivation worker released."));
-          if (activeDerivationWorker === worker) activeDerivationWorker = null;
-          seed?.fill(0);
-          seed = null;
-          derivationsInFlight -= 1;
-          if (derivationsInFlight === 0) {
-            view.showDerivationIdle(cryptoReady);
-          }
-        }
-      }
-
-      form.addEventListener("submit", (event) => {
-        event.preventDefault();
-        cancelAutomaticDerivation();
-        void deriveCurrent(false);
-      });
-
-      controls.coin.addEventListener("change", () => {
-        setFeatureTab(null);
-        const remembered = adapterSettings.variantForFamily(controls.coin.value);
-        resetForAdapter(
-          remembered === undefined
-            ? getDefaultCoinAdapter(controls.coin.value)
-            : getCoinAdapter(remembered),
-        );
-      });
-      controls.includeLegacyMobile.addEventListener("change", () => {
-        if (!controls.includeLegacyMobile.checked && adapter.id === "dash-legacy-mobile") {
-          resetForAdapter(getCoinAdapter("dash-core"));
-          return;
-        }
-        resetForAdapter(adapter, false);
-      });
-      controls.protocolTabs.addEventListener("click", (event) => {
-        const id = view.protocolAdapterIdFrom(event.target);
-        if (id === undefined) return;
-        setFeatureTab(null);
-        if (id === adapter.id) {
-          cancelAutomaticDerivation();
-          stopActiveDerivation("Derivation mode changed.");
-          invalidateAddressSearch();
-          derivationRevision += 1;
-          clearResults();
-          largeRequestPolicy.clear();
-          view.resetDeriveAction();
-          if (mnemonicMayBeComplete()) void deriveCurrent(true);
-          return;
-        }
-        resetForAdapter(getCoinAdapter(id));
-        view.focusProtocolButton(id);
-      });
-      controls.protocolTabs.addEventListener("keydown", (event) => {
-        if (!isTabKey(event.key)) return;
-        const adapterIds = view.protocolAdapterIds();
-        const current = adapterIds.indexOf(adapter.id);
-        if (current < 0 || adapterIds.length === 0) return;
-        event.preventDefault();
-        const id = adapterIds[tabIndexAfter(event.key, current, adapterIds.length)!];
-        if (id === undefined) return;
-        resetForAdapter(getCoinAdapter(id));
-        view.focusProtocolButton(id);
-      });
-      /** A reference to the phrase in Generate & Derive; it expires when that phrase or passphrase changes. */
-      const originalRecoveryReference = (): RecoverySourceReference => {
-        const revision = mainRecoverySourceRevision;
-        return {
-          label: "Original recovery phrase",
-          read: () =>
-            revision === mainRecoverySourceRevision
-              ? { mnemonic: mnemonic.value, passphrase: passphrase.value }
-              : null,
-        };
-      };
-      if (openRecoverySource !== undefined) {
-        installRecoverySourceController({
-          document,
-          open: openRecoverySource,
-          childReference: () => bip85Feature?.sourceReference() ?? null,
-          originalReference: originalRecoveryReference,
-          showError,
-        });
-      }
-      /** Offers the phrase to the backup tabs while it is a checksum-valid English BIP39 phrase. */
-      const offerMainRecoverySource = (): void => {
-        if (offerRecoverySource === undefined) return;
-        let entropy: Uint8Array | null = null;
-        try {
-          entropy = englishMnemonicToEntropy(mnemonic.value);
-          offerRecoverySource(originalRecoveryReference());
-        } catch {
-          offerRecoverySource(null);
-        } finally {
-          entropy?.fill(0);
-        }
-      };
-      offerMainRecoverySource();
-
-      // A text field repeats its edit as change on blur; that repeat must not cancel the derivation.
-      const rangeEdits = new FieldEdits();
-      for (const control of [
-        controls.network,
-        controls.account,
-        controls.branchInput,
-        controls.branchSelect,
-        controls.includeChange,
-        controls.includeCoinJoin,
-        controls.start,
-        controls.count,
-      ]) {
-        const refresh = (): void => {
-          // Changing a derivation setting revokes its generation too; discard the worker now.
-          checkedMnemonic?.cancel();
-          clearMessages();
-          stopActiveDerivation();
-          invalidateAddressSearch();
-          derivationRevision += 1;
-          if (currentResult !== null) clearResults();
-          updateActivePathPreview();
-          rememberCurrentSettings();
-          largeRequestPolicy.clear();
-          view.resetDeriveAction();
-          scheduleAutomaticDerivation();
-        };
-        for (const type of ["input", "change"])
-          control.addEventListener(type, (event) => {
-            if (rangeEdits.isNew(event)) refresh();
-          });
-      }
-      for (const input of [mnemonic, passphrase]) {
-        input.addEventListener("input", () => {
-          checkedMnemonic?.cancel();
-          mainRecoverySourceRevision += 1;
-          queueMicrotask(offerMainRecoverySource);
-          stopActiveDerivation();
-          invalidateParentFeatures();
-          invalidateAddressSearch();
-          derivationRevision += 1;
-          if (currentResult !== null) clearResults();
-          updateWordCount();
-          largeRequestPolicy.clear();
-          view.resetDeriveAction();
-          scheduleAutomaticDerivation();
-        });
-      }
-
-      /** Parent edits and generation revoke every feature derived from the previous wallet. */
-      function invalidateParentFeatures(): void {
-        bip85Feature?.invalidate();
-        silentPaymentFeature?.clear();
-      }
-
-      for (const input of [expectedAddress, searchStart, searchCount])
-        input?.addEventListener("input", invalidateAddressSearch);
-
-      toggleSensitiveValues.addEventListener("click", () =>
-        setRecoverySourceVisibility(!recoverySourceRevealed),
-      );
-      toggleResultSecrets.addEventListener("click", () =>
-        setResultSecretsVisibility(!resultSecretsRevealed),
-      );
-      for (const [words, generateButton] of [
-        [12, generate12Button],
-        [15, generate15Button],
-        [18, generate18Button],
-        [21, generate21Button],
-        [24, generate24Button],
-      ] as const) {
-        generateButton.addEventListener("click", () => void generatePhrase(words));
-      }
-
-      /** A fresh phrase, with all explicitly selected word and wallet-check conditions. */
-      async function generatePhrase(words: 12 | 15 | 18 | 21 | 24): Promise<void> {
-        if (!cryptoReady) {
-          showError(SELF_TEST_NOT_PASSED);
-          return;
-        }
-        checkedMnemonic?.cancel();
-        mainRecoverySourceRevision += 1;
-        queueMicrotask(offerMainRecoverySource);
-        cancelAutomaticDerivation();
-        invalidateAddressSearch();
-        derivationRevision += 1;
-        clearResults();
-        clearMessages();
-        const revision = derivationRevision;
-        const wishes = chosenWords?.active() === true ? chosenWords : null;
-        try {
-          let phrase: string;
-          const checked = checkedMnemonic?.active() === true;
-          if (checked) {
-            const request = wishes?.request(words) ?? {
-              wordCount: words,
-              chosen: [],
-              neverUse: [],
-            };
-            phrase = await checkedMnemonic!.generate(words, passphrase.value, request, (line) => {
-              if (revision === derivationRevision) showStatus(line);
-            });
-          } else if (wishes === null) {
-            phrase = generateMnemonic(words);
-          } else {
-            showStatus(`Looking for a random ${words}-word phrase that meets your chosen words…`);
-            phrase = await wishes.generate(words);
-            // Sampling finished in one synchronous call; a newer input before publication wins.
-            if (revision !== derivationRevision) return;
-          }
-          if (revision !== derivationRevision || !cryptoReady) return;
-          // A new phrase is a new wallet: an ordinary generation starts it without the BIP39
-          // passphrase of the last one, which the field shows only as dots, so that no address of
-          // the new phrase is taken unnoticed from the wallet with that passphrase (owner's
-          // decision, 2026-10-08). The MHFE wallet check keeps it: the phrase was drawn for the
-          // passphrase confirmed there.
-          const passphraseCleared = !checked && passphrase.value !== "";
-          if (!checked) passphrase.value = "";
-          // Generation replaces the parent without an input event. Revoke its descendants before
-          // publishing the new source (AUD-022-SEC001, AUD-028-API008).
-          invalidateParentFeatures();
-          view.setGeneratedMnemonic(phrase, adapter.defaults.count);
-          // The offer queued above ran during the search, while the field still held the old
-          // phrase; offer the new one to the backup tabs now (AUD-019-UI001).
-          if (wishes !== null || checked) offerMainRecoverySource();
-          rememberCurrentSettings();
-          updateWordCount();
-          showStatus(
-            `Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues()${wishes === null ? "" : ", with your chosen words"}${checked ? ", passing the MHFE wallet check with the BIP39 passphrase you confirmed" : ""}.${passphraseCleared ? " The BIP39 passphrase field was emptied: a new phrase starts without one; type one now if this wallet should use one." : ""} Deriving ${adapter.defaults.count} results…`,
-          );
-          void deriveCurrent(true);
-        } catch (cause) {
-          // A cancelled search was replaced by a newer action, which reports for itself. A wish that
-          // cannot be met is reported as an error; no ordinary phrase is put in its place.
-          if (isAbortError(cause) || revision !== derivationRevision) return;
-          showError(cause instanceof Error ? cause.message : "Secure phrase generation failed.");
-        }
-      }
-
-      clearAllButton.addEventListener("click", () => {
-        mainRecoverySourceRevision += 1;
-        queueMicrotask(offerMainRecoverySource);
-        cancellationRequested = true;
-        cancelAutomaticDerivation();
-        stopActiveDerivation("Derivation cleared by the user.");
-        invalidateAddressSearch();
-        derivationRevision += 1;
-        largeRequestPolicy.clear();
-        // Browser strings are immutable, so this only releases DOM references; mutable seed bytes are zeroed separately.
-        clearResults();
-        activeCoinJoinBranch = "coinjoin-external";
-        adapterSettings.clear();
-        view.configureControls(adapter);
-        setRecoverySourceVisibility(false);
-        setResultSecretsVisibility(false);
-        clearMessages();
-        messageSigning?.invalidate();
-        if (messageSigning?.isOpen() === true) messageSigning.close();
-        bip38Feature?.reset();
-        bip85Feature?.reset();
-        if (includeSilentPayment !== null) {
-          includeSilentPayment.checked = false;
-        }
-        if (includeBip85 !== null) includeBip85.checked = false;
-        syncFeatureToggle(includeSilentPayment, silentPaymentTab, "silent-payment");
-        syncFeatureToggle(includeBip85, bip85Tab, "bip85");
-        setFeatureTab(null);
-        silentPaymentFeature?.reset();
-        view.clearAllInputs();
-        chosenWords?.clear();
-        checkedMnemonic?.clear();
-        mnemonicDiagnostic.reset();
-      });
-
-      function concealSensitiveValues(): void {
-        if (recoverySourceRevealed) setRecoverySourceVisibility(false);
-        if (resultSecretsRevealed) setResultSecretsVisibility(false);
-      }
-
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "hidden") concealSensitiveValues();
-      });
-      window.addEventListener("blur", concealSensitiveValues);
-
-      modeBasic.addEventListener("click", () => {
-        displayMode = "basic";
-        setActiveWindowStart(0);
-        updateModeButtons();
-        renderCurrent();
-      });
-      modeAdvanced.addEventListener("click", () => {
-        displayMode = "advanced";
-        setActiveWindowStart(0);
-        updateModeButtons();
-        renderCurrent();
-      });
-
-      const topLevelTabButtons: ReadonlyArray<readonly [HTMLButtonElement, TopLevelResultTab]> = [
-        [resultReceiveTab, "receive"],
-        [resultChangeTab, "change"],
-        [resultCoinJoinTab, "coinjoin"],
-      ];
-      installResultTabNavigation({
-        topLevel: topLevelTabButtons,
-        coinJoinBranches: [
-          [resultCoinJoinExternalTab, "coinjoin-external"],
-          [resultCoinJoinInternalTab, "coinjoin-internal"],
-        ],
-        activateTopLevel(tab) {
-          if (tab === "coinjoin") activateCoinJoinTab();
-          else activateResultBranch(tab);
-        },
-        activateBranch: activateResultBranch,
-        branchEnabled: view.resultBranchEnabled,
-        focusBranch: view.focusResultBranch,
-      });
-
-      selectAllButton.addEventListener("click", () => {
-        if (currentResult === null) return;
-        replaceActiveSelection(selectAll(currentResult.rows.map((row) => row.index)));
-        renderCurrent();
-      });
-      selectNoneButton.addEventListener("click", () => {
-        replaceActiveSelection(selectNone());
-        renderCurrent();
-      });
-      selectInvertButton.addEventListener("click", () => {
-        if (currentResult === null) return;
-        replaceActiveSelection(
-          invertSelection(
-            currentResult.rows.map((row) => row.index),
-            selected,
-          ),
-        );
-        renderCurrent();
-      });
-
-      exportFormat.addEventListener("change", updateBulkActions);
-
-      copyMnemonicButton.addEventListener("click", () => {
-        if (!recoverySourceRevealed || mnemonic.value.trim().length === 0) {
-          showError("Show the recovery phrase before copying it.");
-          return;
-        }
-        let temporary = mnemonic.value.trim();
-        void (async () => {
-          try {
-            await writeClipboard(temporary);
-            showStatus("Recovery phrase copied. Clear your clipboard immediately after use.");
-            view.flashCopied(copyMnemonicButton);
-          } catch (cause) {
-            showError(cause instanceof Error ? cause.message : "Clipboard access failed.");
-          } finally {
-            temporary = "";
-          }
-        })();
-      });
-
-      installAccountExportController({
-        document,
-        buttons: descriptorButtons,
-        result: () => currentResult,
-        secretsRevealed: () => resultSecretsRevealed,
-        copyText,
-        downloadText,
-        showError,
-        showStatus,
-      });
-
-      copyWatchOnlyButton.addEventListener("click", () => {
-        const watchOnly = currentResult?.watchOnly;
-        if (watchOnly === undefined) return;
-        void copyText(copyWatchOnlyButton, watchOnly.text, true);
-      });
-
-      downloadWatchOnlyButton.addEventListener("click", () => {
-        const watchOnly = currentResult?.watchOnly;
-        if (watchOnly === undefined) return;
-        if (!resultSecretsRevealed) {
-          showError("Show privacy-sensitive values before downloading a watch-only export.");
-          return;
-        }
-        downloadText(watchOnly.text, watchOnly.fileName, watchOnly.mimeType);
-        showStatus(
-          `Created ${watchOnly.fileName}. Treat it as private wallet metadata even though it cannot spend.`,
-        );
-      });
-
-      cancelDerivationButton.addEventListener("click", () => {
-        cancellationRequested = true;
-        stopActiveDerivation("Derivation cancelled by the user.");
-        view.showCancellationRequested();
-        showStatus("Generation worker stopped. Already displayed results are kept.");
-      });
-
-      searchAddressButton?.addEventListener("click", () => {
-        if (addressSearch === undefined) return;
-        if (!cryptoReady) {
-          showError(
-            "Cryptographic self-test has not completed successfully. Address search is blocked.",
-          );
-          return;
-        }
-        invalidateAddressSearch();
-        addressSearch.start({
-          adapter,
-          controls,
-          fields: addressSearchFields!,
-          mnemonic,
-          passphrase,
-          view,
-          readControls,
-          mnemonicToSeed,
-          createWorker,
-        });
-      });
-
-      document.addEventListener("click", (event) => {
-        const action = view.documentActionFrom(event.target);
-        if (action === null) return;
-        if (action.kind === "bulk") {
-          void copyBulk(action.button, action.action);
-          return;
-        }
-        if (action.kind === "download") {
-          void downloadSelectedRows(action.button, action.action);
-          return;
-        }
-        const field = sensitiveField(action.scope, action.fieldKey, action.rowIndex);
-        if (field === undefined) {
-          showError("The requested field is no longer available.");
-          return;
-        }
-        void copyText(action.button, field.value, field.secret);
-      });
-    },
-  };
+): KeyDerivationController {
+  return new KeyDerivationController(view, dependencies);
 }

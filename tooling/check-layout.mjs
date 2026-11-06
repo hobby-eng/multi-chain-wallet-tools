@@ -1,8 +1,11 @@
 // Layout check of the built standalone tools in a real browser. Synthetic data only.
 //
 //   node tooling/check-layout.mjs [--profile multi-chain|dash-community|all] [--tool <id>]
-//                                 [--widths 1280,768,390] [--json <file>] [page.html ...]
+//                                 [--widths 1280,768,390] [--json <file>]
+//   node tooling/check-layout.mjs [--widths 1280,768,390] [--json <file>] -- page.html ...
 //   node tooling/check-layout.mjs --self-test
+// Unknown, repeated or unused options fail before a browser starts. Explicit paths are separate
+// from profile/tool selectors; LayoutOptions owns the pixel and page-count budgets.
 //
 // Without page arguments it checks every built tool of the chosen profiles in dist/ (build them
 // first with `pnpm build:html`). It opens each page at every width, walks through its tabs and
@@ -19,6 +22,8 @@
 //   uneven-row         buttons of one kind side by side in one row with different heights
 //   native-file-input  a file input that the browser draws itself, with a "Choose File" look of
 //                      its own in every browser, instead of a FileChoice button (shown or not)
+//   help-off-screen    a "?" or "More details" popover that, opened as a click opens it, reaches
+//                      past a side of the window
 //   style-variant      buttons of one kind (the same classes) that differ in font size, weight,
 //                      corner radius, padding or, on one line, height, across all checked pages
 //                      at the same width; the less common look is reported
@@ -31,14 +36,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
+import { LayoutOptions } from "./layout-options.mjs";
 import { loadPlaywright } from "./playwright-loader.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const PHONE_WIDTH = 390;
-/** Between the 880px and 720px breakpoints of the shared style, where the layout changes again. */
-const TABLET_WIDTH = 768;
-const DESKTOP_WIDTH = 1280;
 /** How deep tabs inside tabs are followed; two levels reach every operation panel. */
 const TAB_DEPTH = 2;
 /** Time for a page to settle after a click; the tools render synchronously or within a frame. */
@@ -52,12 +53,6 @@ const TAB_SELECTOR = [
   "[data-mode]",
   ".result-branch-tabs button",
 ].join(", ");
-
-function option(name) {
-  const index = process.argv.indexOf(name);
-  if (index >= 0) return process.argv[index + 1];
-  return process.argv.find((argument) => argument.startsWith(`${name}=`))?.slice(name.length + 1);
-}
 
 /**
  * Runs in the page. Returns the findings of one state; `allowlist` entries whose selector contains
@@ -219,6 +214,19 @@ function inspectPage({ allowlist, buttonFontSizes }) {
     if (Math.abs(a.top - b.top) < 4 && Math.abs(a.height - b.height) > 1) {
       report("uneven-row", button, `${Math.round(a.height)}px next to ${Math.round(b.height)}px`);
     }
+  }
+  // Each shown help is opened as a click opens it, measured and closed again.
+  for (const summary of document.querySelectorAll(
+    ":is(.recovery-help, .linked-source-help, .threshold-group-help) > summary",
+  )) {
+    if (!visible(summary)) continue;
+    const help = summary.parentElement;
+    const wasOpen = help.open;
+    if (!wasOpen) summary.click();
+    const box = help.querySelector(":scope > :not(summary)")?.getBoundingClientRect();
+    if (box !== undefined && box.width > 0 && (box.left < 0 || box.right > width + 1))
+      report("help-off-screen", help, `${Math.round(box.left)}px to ${Math.round(box.right)}px`);
+    if (!wasOpen) summary.click();
   }
   const samples = [];
   for (const button of buttons) {
@@ -416,26 +424,6 @@ async function checkPage(browser, path, width, recorder) {
   await page.close();
 }
 
-function builtPages() {
-  const requested = option("--profile") ?? "all";
-  const profiles =
-    requested === "all" ? Object.values(BUILD_PROFILES) : [BUILD_PROFILES[requested]];
-  if (profiles.includes(undefined)) throw new Error(`Unknown profile "${requested}".`);
-  const tool = option("--tool");
-  return profiles.flatMap((profile) =>
-    profileToolIds(profile)
-      .filter((id) => tool === undefined || id === tool)
-      .map((id) => resolve(root, "dist", getToolBuild(profile, id).artifactRelativePath)),
-  );
-}
-
-function pageArguments() {
-  const valued = new Set(["--profile", "--tool", "--widths", "--json"]);
-  return process.argv
-    .slice(2)
-    .filter((argument, index, all) => !argument.startsWith("--") && !valued.has(all[index - 1]));
-}
-
 async function run(paths, widths, allowlist) {
   const { chromium } = await loadPlaywright();
   const browser = await chromium.launch();
@@ -483,6 +471,8 @@ const SELF_TEST_PAGE = `<!doctype html><html><head><style>
   <label class="secondary file-choice">Choose<input type="file" style="position: absolute; width: 1px; height: 1px; opacity: 0"></label>
   <div class="row"><button class="chip">A</button><button class="chip">B</button><button class="chip" id="odd-chip" style="border-radius: 2px">C</button></div>
   <div class="row" style="align-items: flex-start"><button class="pair" id="short">Short</button><button class="pair" style="height: 60px">Tall</button></div>
+  <details class="recovery-help" id="help-off" style="position: relative; width: 40px"><summary>?</summary><div style="position: absolute; right: 0; width: 200px">help</div></details>
+  <details class="recovery-help" style="position: relative; width: 40px"><summary>?</summary><div style="position: absolute; left: 0; width: 200px">help</div></details>
   <div aria-hidden="true" style="position: absolute; left: 1300px; top: 0; width: 300px">decoration</div>
 </body></html>`;
 
@@ -497,6 +487,7 @@ const SELF_TEST_EXPECTED = [
   ["style-variant", "radius 2px"],
   ["uneven-row", "#short"],
   ["native-file-input", "#raw-file"],
+  ["help-off-screen", "#help-off"],
 ];
 
 async function selfTest() {
@@ -506,7 +497,7 @@ async function selfTest() {
     writeFileSync(page, SELF_TEST_PAGE);
     const allowlist = [];
     allowlist.buttonFontSizes = ["12px"];
-    const findings = await run([page], [DESKTOP_WIDTH], allowlist);
+    const findings = await run([page], [LayoutOptions.selfTestWidth], allowlist);
     const missing = SELF_TEST_EXPECTED.filter(
       ([check, element]) => !findings.some((f) => f.check === check && f.element.includes(element)),
     );
@@ -532,19 +523,16 @@ async function selfTest() {
   }
 }
 
-if (process.argv.includes("--self-test")) {
+const options = new LayoutOptions(process.argv.slice(2), root);
+if (options.selfTest) {
   await selfTest();
 } else {
-  const paths =
-    pageArguments().length > 0 ? pageArguments().map((path) => resolve(path)) : builtPages();
-  const widths = (option("--widths") ?? `${DESKTOP_WIDTH},${TABLET_WIDTH},${PHONE_WIDTH}`)
-    .split(",")
-    .map(Number);
+  const { paths, widths } = options;
   const findings = await run(paths, widths, readAllowlist());
   for (const finding of findings) {
     console.log(`${finding.check}: ${finding.element}\n    ${finding.states.join("\n    ")}`);
   }
-  const json = option("--json");
+  const { json } = options;
   if (json !== undefined) writeFileSync(resolve(json), `${JSON.stringify(findings, null, 2)}\n`);
   console.log(
     findings.length === 0

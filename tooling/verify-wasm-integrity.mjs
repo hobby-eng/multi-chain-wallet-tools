@@ -4,9 +4,88 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WASM_MODULES } from "./wasm-modules.mjs";
+import { IntakeDirectory, IntakeIdentity } from "./mnemocode-intake-files.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const manifestPath = resolve(root, "tooling/wasm-canonical-manifest.json");
+/** Export filename and host path of the first-party integrity record. */
+export const WASM_MANIFEST_FILE = "wasm-canonical-manifest.json";
+export const WASM_MANIFEST_PATH = `tooling/${WASM_MANIFEST_FILE}`;
+const manifestPath = resolve(root, WASM_MANIFEST_PATH);
+
+/** Version of the closed first-party generated-WASM integrity record. */
+export const WASM_MANIFEST_SCHEMA = 1;
+/** Canonical generator identity shared by the container writer and host importer. */
+export const WASM_MANIFEST_GENERATOR = "Dockerfile.reproducible wasm-artifacts";
+
+const REFUSALS = {
+  shape: "The canonical WASM integrity record has an unexpected schema, file set or digest.",
+  missing: "Canonical WASM integrity manifest is missing. Run pnpm build:reproducible:wasm.",
+  changed:
+    "Generated WASM or its build inputs differ from the canonical container record. Run pnpm build:reproducible:wasm; local WASM builds are development-only.",
+  writer:
+    "Refusing to write the WASM record outside the canonical Docker build. Run pnpm build:reproducible:wasm.",
+};
+
+/** Stable, input-free integrity refusals; malformed records retain a diagnostic cause. */
+export class WasmIntegrityError extends Error {
+  constructor(reason, options) {
+    super(REFUSALS[reason], options);
+    this.name = "WasmIntegrityError";
+    this.code = `wasm.integrity.${reason}`;
+  }
+}
+
+/** Owns the closed record and its one serialization, independent of JSON member order. */
+export class WasmIntegrityRecord {
+  #value;
+
+  /** Refuses unknown fields, missing roles and non-SHA256 digests before taking a snapshot. */
+  constructor(value) {
+    try {
+      IntakeIdentity.exactKeys(value, ["schemaVersion", "generator", "modules"]);
+      if (
+        value.schemaVersion !== WASM_MANIFEST_SCHEMA ||
+        value.generator !== WASM_MANIFEST_GENERATOR
+      )
+        throw new WasmIntegrityError("shape");
+      IntakeIdentity.exactKeys(
+        value.modules,
+        WASM_MODULES.map((module) => module.packageDirectory),
+      );
+      const modules = WASM_MODULES.map((module) => {
+        const record = value.modules[module.packageDirectory];
+        IntakeIdentity.exactKeys(record, ["sourceSha256", "generated"]);
+        IntakeIdentity.requireHash(record.sourceSha256);
+        IntakeIdentity.exactKeys(record.generated, module.generatedFiles);
+        const generated = Object.fromEntries(
+          module.generatedFiles.map((name) => [
+            name,
+            IntakeIdentity.requireHash(record.generated[name]),
+          ]),
+        );
+        return [module.packageDirectory, { sourceSha256: record.sourceSha256, generated }];
+      });
+      this.#value = {
+        schemaVersion: WASM_MANIFEST_SCHEMA,
+        generator: WASM_MANIFEST_GENERATOR,
+        modules: Object.fromEntries(modules),
+      };
+    } catch (cause) {
+      if (cause instanceof WasmIntegrityError) throw cause;
+      throw new WasmIntegrityError("shape", { cause });
+    }
+  }
+
+  /** Returns an independent snapshot; editing it cannot alter the owned record. */
+  value() {
+    return structuredClone(this.#value);
+  }
+
+  /** UTF-8 JSON with catalog-ordered fields, two-space indentation and a final newline. */
+  bytes() {
+    return Buffer.from(JSON.stringify(this.#value, null, 2) + "\n");
+  }
+}
 
 function filesBelow(directory) {
   return readdirSync(directory, { withFileTypes: true })
@@ -40,6 +119,7 @@ function moduleRecord(module) {
     resolve(root, "tooling/wasm-build.mjs"),
     resolve(root, "tooling/wasm-modules.mjs"),
     resolve(root, "tooling/verify-wasm-integrity.mjs"),
+    resolve(root, "tooling/mnemocode-intake-files.mjs"),
     resolve(root, "tooling/toolchain-pins.mjs"),
     resolve(root, "tooling/toolchain-pins.json"),
     resolve(root, "tooling/verify-wasm-producers.mjs"),
@@ -60,28 +140,23 @@ function moduleRecord(module) {
 }
 
 export function createWasmIntegrityManifest() {
-  return {
-    schemaVersion: 1,
-    generator: "Dockerfile.reproducible wasm-artifacts",
+  return new WasmIntegrityRecord({
+    schemaVersion: WASM_MANIFEST_SCHEMA,
+    generator: WASM_MANIFEST_GENERATOR,
     modules: Object.fromEntries(
       WASM_MODULES.map((module) => [module.packageDirectory, moduleRecord(module)]),
     ),
-  };
+  }).value();
 }
 
 export function verifyWasmIntegrityManifest() {
   if (!existsSync(manifestPath)) {
-    throw new Error(
-      "Canonical WASM integrity manifest is missing. Run pnpm build:reproducible:wasm.",
-    );
+    throw new WasmIntegrityError("missing");
   }
-  const expected = JSON.parse(readFileSync(manifestPath, "utf8"));
-  const actual = createWasmIntegrityManifest();
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(
-      "Generated WASM or its build inputs differ from the canonical container record. Run pnpm build:reproducible:wasm; local WASM builds are development-only.",
-    );
-  }
+  const directory = new IntakeDirectory(root, [WASM_MANIFEST_PATH]);
+  const expected = new WasmIntegrityRecord(IntakeIdentity.json(directory.read(WASM_MANIFEST_PATH)));
+  const actual = new WasmIntegrityRecord(createWasmIntegrityManifest());
+  if (!actual.bytes().equals(expected.bytes())) throw new WasmIntegrityError("changed");
 }
 
 /** The WORKDIR of Dockerfile.reproducible; verify-reproducible-container.mjs keeps both equal. */
@@ -93,15 +168,13 @@ export const CANONICAL_WORKSPACE = "/workspace";
  */
 export function assertCanonicalManifestWriter(environment = process.env, workspace = root) {
   if (environment.WALLET_TOOLS_CANONICAL_WASM !== "1" || workspace !== CANONICAL_WORKSPACE)
-    throw new Error(
-      "Refusing to write the WASM record outside the canonical Docker build. Run pnpm build:reproducible:wasm.",
-    );
+    throw new WasmIntegrityError("writer");
 }
 
 if (isMainScript(import.meta.url)) {
   if (process.argv.includes("--write")) {
     assertCanonicalManifestWriter();
-    writeFileSync(manifestPath, `${JSON.stringify(createWasmIntegrityManifest(), null, 2)}\n`);
+    writeFileSync(manifestPath, new WasmIntegrityRecord(createWasmIntegrityManifest()).bytes());
     console.log(`Recorded canonical generated-WASM integrity in ${relative(root, manifestPath)}.`);
   } else {
     verifyWasmIntegrityManifest();

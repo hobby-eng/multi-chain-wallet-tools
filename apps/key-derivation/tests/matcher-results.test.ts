@@ -3,8 +3,18 @@ import type { ResultField } from "@ckd/core/types.js";
 import * as registry from "@ckd/coins/registry.js";
 import { createCoinRegistry } from "@ckd/coins/registry-base.js";
 import { detectMultiChainMatcherTargets } from "@ckd/recovery/matcher-targets-multichain.js";
-import { matcherPrivateTsv } from "../src/ui/matcher-private-export.js";
-import { matcherSearchBranches, matcherSearchTargets } from "../src/ui/matcher-search-scope.js";
+import { MatcherSecrets } from "@ckd/recovery/matcher-secrets.js";
+import { MatcherScope } from "@ckd/recovery/matcher-scope.js";
+
+// Pure export compatibility checks use the real disposable owner.
+function matcherPrivateTsv(
+  rows: readonly (readonly string[])[],
+  fields: readonly (readonly ResultField[])[],
+): string {
+  using result = new MatcherSecrets();
+  rows.forEach((row, index) => result.add(row, fields[index]!));
+  return result.tsv();
+}
 
 const BTC = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
 const DASH = "XdTw4G5AWW4cogGd7ayybyBNDbuB45UpgH";
@@ -35,7 +45,7 @@ describe("matcher export and coin scope", () => {
     const rows = tsv.split("\n").map((row) => row.split("\t"));
     expect(rows[0]).toEqual([
       "Seed",
-      "Known address",
+      "Known target",
       "Wallet structure",
       "Path",
       "WIF",
@@ -52,10 +62,11 @@ describe("matcher export and coin scope", () => {
       [[secret("one", "One", "abc"), secret("two", "Two", "abc")]],
     );
     expect(tsv.split("\n")[1]!.split("\t").slice(4)).toEqual(["abc", "abc"]);
-    expect(() => matcherPrivateTsv([], [[secret("one", "One", "abc")]])).toThrow(/aligned/u);
+    using owner = new MatcherSecrets();
+    expect(() => owner.add([], [secret("one", "One", "abc")])).toThrow(/aligned/u);
   });
   it("searches every Bitcoin address profile while excluding other coins without the override", () => {
-    const targets = matcherSearchTargets(
+    const targets = MatcherScope.targets(
       BTC,
       "mainnet",
       detectMultiChainMatcherTargets,
@@ -71,7 +82,7 @@ describe("matcher export and coin scope", () => {
     ]);
   });
   it("includes Core, legacy, CoinJoin, Platform and Orchard for Dash only", () => {
-    const targets = matcherSearchTargets(
+    const targets = MatcherScope.targets(
       DASH,
       "mainnet",
       detectMultiChainMatcherTargets,
@@ -87,7 +98,7 @@ describe("matcher export and coin scope", () => {
       "dash-shielded",
     ]);
     expect(() =>
-      matcherSearchTargets(
+      MatcherScope.targets(
         DASH,
         "mainnet",
         detectMultiChainMatcherTargets,
@@ -98,7 +109,7 @@ describe("matcher export and coin scope", () => {
     ).toThrow(/does not belong/u);
   });
   it("keeps Identity HASH160 matching on the dedicated DIP13 adapter", () => {
-    const [target] = matcherSearchTargets(
+    const [target] = MatcherScope.targets(
       DASH_IDENTITY_MASTER_HASH,
       "mainnet",
       detectMultiChainMatcherTargets,
@@ -114,7 +125,7 @@ describe("matcher export and coin scope", () => {
 
   it("requires the override for mixed coins and never schedules profiles excluded from the registry", () => {
     expect(() =>
-      matcherSearchTargets(
+      MatcherScope.targets(
         `${BTC}\n${DASH}`,
         "mainnet",
         detectMultiChainMatcherTargets,
@@ -123,7 +134,7 @@ describe("matcher export and coin scope", () => {
         false,
       ),
     ).toThrow(/Target 2/u);
-    const targets = matcherSearchTargets(
+    const targets = MatcherScope.targets(
       `${BTC}\n${DASH}`,
       "mainnet",
       detectMultiChainMatcherTargets,
@@ -138,7 +149,7 @@ describe("matcher export and coin scope", () => {
         (adapter) => registry.getAdapterFamilyId(adapter) === "bitcoin",
       ),
     );
-    const restricted = matcherSearchTargets(
+    const restricted = MatcherScope.targets(
       BTC,
       "mainnet",
       detectMultiChainMatcherTargets,
@@ -160,27 +171,27 @@ describe("matcher receive and change branch scope", () => {
       "dash-legacy-mobile",
     ]) {
       const adapter = registry.getCoinAdapter(id);
-      expect(matcherSearchBranches(adapter, false)).toEqual([adapter.addressBranches!.receive]);
-      expect(matcherSearchBranches(adapter, true)).toEqual([
+      expect(MatcherScope.branches(adapter, false)).toEqual([adapter.addressBranches!.receive]);
+      expect(MatcherScope.branches(adapter, true)).toEqual([
         adapter.addressBranches!.receive,
         adapter.addressBranches!.change,
       ]);
-      expect(matcherSearchBranches(adapter, false, true)).toEqual(
-        matcherSearchBranches(adapter, true),
+      expect(MatcherScope.branches(adapter, false, true)).toEqual(
+        MatcherScope.branches(adapter, true),
       );
     }
   });
   it("applies the same scope to CoinJoin external/internal branches", () => {
     const adapter = { ...registry.getCoinAdapter("dash-core"), id: "dash-core-coinjoin" };
-    expect(matcherSearchBranches(adapter, false)).toEqual([0]);
-    expect(matcherSearchBranches(adapter, true)).toEqual([0, 1]);
-    expect(matcherSearchBranches(adapter, false, true)).toEqual([0, 1]);
+    expect(MatcherScope.branches(adapter, false)).toEqual([0]);
+    expect(MatcherScope.branches(adapter, true)).toEqual([0, 1]);
+    expect(MatcherScope.branches(adapter, false, true)).toEqual([0, 1]);
   });
   it("preserves non-change alternate paths and single-branch protocols", () => {
-    expect(matcherSearchBranches(registry.getCoinAdapter("ethereum"), false)).toEqual([0, 1]);
+    expect(MatcherScope.branches(registry.getCoinAdapter("ethereum"), false)).toEqual([0, 1]);
     for (const id of ["dash-identity", "dash-shielded"]) {
       const adapter = registry.getCoinAdapter(id);
-      expect(matcherSearchBranches(adapter, true)).toEqual([adapter.defaults.branch]);
+      expect(MatcherScope.branches(adapter, true)).toEqual([adapter.defaults.branch]);
     }
   });
 });

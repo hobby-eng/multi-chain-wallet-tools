@@ -10,30 +10,45 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, posix } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 const temporary = [];
 afterEach(() => {
   for (const path of temporary.splice(0)) rmSync(path, { recursive: true, force: true });
 });
-/** The tooling the reproducible build imports, copied into each temporary project. */
-const TOOLING_FILES = [
-  "build-reproducible.mjs",
-  "build-profiles.mjs",
-  "build-profile-definitions.mjs",
-  "sync-mnemocode-source.mjs",
-  "run-script.mjs",
-  "profile-template.mjs",
-  "tool-protocol-footer.mjs",
-  "project-metadata.mjs",
-  "wasm-modules.mjs",
-  "docker-build-limits.mjs",
-];
+/**
+ * The files the reproducible build imports, copied into each temporary project: every module that
+ * tooling/build-reproducible.mjs reaches through relative imports, inside tooling/ or beyond it,
+ * JSON included, so that the fixture follows the build's own imports.
+ */
+const REPOSITORY = fileURLToPath(new URL("..", import.meta.url));
+const FIXTURE_FILES = (() => {
+  const reached = new Set(["tooling/build-reproducible.mjs"]);
+  const waiting = [...reached];
+  while (waiting.length > 0) {
+    const file = waiting.pop();
+    const source = readFileSync(join(REPOSITORY, file), "utf8");
+    for (const [, specifier] of source.matchAll(/\bfrom\s+["'](\.{1,2}\/[^"']+)["']/gu)) {
+      const written = posix.normalize(posix.join(posix.dirname(file), specifier));
+      // A TypeScript module names its neighbours by their .js output.
+      const target =
+        written.endsWith(".js") && !existsSync(join(REPOSITORY, written))
+          ? written.replace(/\.js$/u, ".ts")
+          : written;
+      if (reached.has(target)) continue;
+      reached.add(target);
+      if (/\.(?:mjs|ts|js)$/u.test(target)) waiting.push(target);
+    }
+  }
+  return [...reached].sort();
+})();
 
 function copyToolingFixture(root) {
-  for (const file of TOOLING_FILES)
-    cpSync(fileURLToPath(new URL(file, import.meta.url)), join(root, "tooling", file));
+  for (const file of FIXTURE_FILES) {
+    mkdirSync(dirname(join(root, file)), { recursive: true });
+    cpSync(join(REPOSITORY, file), join(root, file));
+  }
   const listing = "packages/crypto-core/src/listing.ts";
   mkdirSync(dirname(join(root, listing)), { recursive: true });
   cpSync(fileURLToPath(new URL(`../${listing}`, import.meta.url)), join(root, listing));
@@ -106,7 +121,8 @@ if(a[0]==='cp') {
       } else expect(readFileSync(join(root, "dist/keep.txt"), "utf8")).toBe("previous output");
     });
 
-  it("copies every canonical WASM module to its owning package", () => {
+  // canonical-wasm-import.test.mjs checks how a complete export is installed in each package.
+  it("takes the WASM source snapshot before Docker, and refuses a tree without it untouched", () => {
     const root = mkdtempSync(join(tmpdir(), "wallet-wasm-copy-regression-"));
     temporary.push(root);
     for (const dir of ["tooling", "bin", "tmp", "packages/edition-profiles"])
@@ -119,22 +135,12 @@ if(a[0]==='cp') {
       ),
       join(root, "packages/edition-profiles/profile-capabilities.json"),
     );
+    const calls = join(root, "docker-calls.log");
     writeFileSync(
       join(root, "bin/docker"),
       `#!/usr/bin/env node
 import fs from 'node:fs';
-import path from 'node:path';
-const a=process.argv.slice(2);
-if(a[0]==='create') fs.writeFileSync(a[a.indexOf('--cidfile')+1],'fixture-container\\n');
-if(a[0]==='cp') {
- for(const name of ['dash','codex32','sskr','envelope']) {
-  const p=path.join(a[2],name); fs.mkdirSync(p,{recursive:true});
-  fs.writeFileSync(path.join(p,name==='dash'?'dash_shielded_wasm_bg.wasm':
-    name==='codex32'?'recovery_codex32_wasm_bg.wasm':
-    name==='sskr'?'recovery_sskr_wasm_bg.wasm':'recovery_envelope_wasm_bg.wasm'),name);
- }
- fs.writeFileSync(path.join(a[2],'wasm-canonical-manifest.json'),'{}\\n');
-}
+fs.appendFileSync(${JSON.stringify(calls)}, process.argv.slice(2).join(' ') + '\\n');
 `,
       { mode: 0o755 },
     );
@@ -150,18 +156,10 @@ if(a[0]==='cp') {
         },
       },
     );
-    expect(result.status, result.stderr).toBe(0);
-    const expected = [
-      ["dash-shielded-wasm", "dash_shielded_wasm_bg.wasm", "dash"],
-      ["recovery-codex32-wasm", "recovery_codex32_wasm_bg.wasm", "codex32"],
-      ["recovery-sskr-wasm", "recovery_sskr_wasm_bg.wasm", "sskr"],
-      ["recovery-envelope-wasm", "recovery_envelope_wasm_bg.wasm", "envelope"],
-    ];
-    for (const [packageDirectory, file, contents] of expected) {
-      expect(
-        readFileSync(join(root, "packages", packageDirectory, "generated", file), "utf8"),
-      ).toBe(contents);
-    }
-    expect(readFileSync(join(root, "tooling/wasm-canonical-manifest.json"), "utf8")).toBe("{}\n");
+    expect(result.status).not.toBe(0);
+    expect(existsSync(calls)).toBe(false);
+    for (const module of ["dash-shielded-wasm", "recovery-codex32-wasm", "recovery-sskr-wasm"])
+      expect(existsSync(join(root, "packages", module, "generated"))).toBe(false);
+    expect(existsSync(join(root, "tooling/wasm-canonical-manifest.json"))).toBe(false);
   });
 });

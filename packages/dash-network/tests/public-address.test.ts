@@ -10,7 +10,9 @@ import {
 import { bech32m } from "@scure/base";
 import { concatBytes, encodeP2sh } from "@ckd/core/crypto.js";
 
-const CORE_ADDRESS = "XoJA8qE3N2Y3jMLEtZ3vcN42qseZ8LvFf5";
+import { DashScanCoreFixture } from "../../../test/support/dashscan-core-fixture.js";
+
+const CORE_ADDRESS = DashScanCoreFixture.address;
 const PLATFORM_ADDRESS = "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs";
 
 describe("public Dash address viewer", () => {
@@ -49,49 +51,8 @@ describe("public Dash address viewer", () => {
   });
 
   it("checks DashScan freshness, loads exact-duff totals, and computes transaction flow", async () => {
-    const fetcher = vi.fn(async (url: string) => {
-      let body: unknown;
-      if (url.endsWith("/status")) body = { status: "ok" };
-      else if (url.includes("/blocks?")) {
-        body = {
-          resultSet: [{ height: 2_531_735, timestamp: "2026-09-01T19:54:32.000Z" }],
-          pagination: { page: 1, limit: 1, total: 1_482_434 },
-        };
-      } else if (url.includes("/transactions?")) {
-        body = {
-          resultSet: [
-            {
-              hash: "ab".repeat(32),
-              type: "CLASSIC",
-              blockHeight: 2_531_700,
-              confirmations: 36,
-              timestamp: "2026-09-01T18:54:00.000Z",
-              instantLock: "01",
-              chainLocked: true,
-              blockHash: "cd".repeat(32),
-              vIn: [
-                { address: CORE_ADDRESS, amount: "200" },
-                { address: "Xother", amount: "900" },
-              ],
-              vOut: [{ value: 1_000, address: CORE_ADDRESS, addresses: [CORE_ADDRESS] }],
-            },
-          ],
-          pagination: { page: 1, limit: 1, total: 1 },
-        };
-      } else {
-        body = {
-          address: CORE_ADDRESS,
-          balance: "810",
-          received: "1000",
-          sent: "200",
-          txCount: 1,
-        };
-      }
-      return new Response(JSON.stringify(body), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
-    });
+    const fixture = new DashScanCoreFixture();
+    const fetcher = vi.fn(fixture.fetch);
 
     const snapshot = await queryCoreAddress(CORE_ADDRESS, "mainnet", 20, undefined, fetcher);
     expect(snapshot.provider).toBe("DashScan");

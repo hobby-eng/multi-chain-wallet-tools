@@ -26,8 +26,41 @@ describe("clipboard fallback cleanup", () => {
         throw new Error("synthetic copy failure");
       },
     });
-    await expect(writeClipboard("public test text")).rejects.toThrow("synthetic copy failure");
+    await expect(writeClipboard("public test text")).rejects.toMatchObject({
+      code: "clipboard.write",
+    });
     expect(temporary.value).toBe("");
     expect(removed).toBe(true);
   });
+});
+
+it("does not run the legacy clipboard fallback after the request is cancelled", async () => {
+  let refuse = (_cause: Error): void => {};
+  const pending = new Promise<void>((_resolve, reject) => {
+    refuse = reject;
+  });
+  const temporary = { value: "", style: {}, select() {}, remove() {} };
+  const createElement = vi.fn(() => temporary);
+  vi.stubGlobal("navigator", { clipboard: { writeText: () => pending } });
+  vi.stubGlobal("document", { createElement, body: { append: vi.fn() }, execCommand: () => true });
+  const abort = new AbortController();
+  const copied = Reflect.apply(writeClipboard, undefined, [
+    "synthetic public fixture",
+    abort.signal,
+  ]);
+  abort.abort();
+  refuse(new Error("synthetic native refusal"));
+  await copied;
+  expect(createElement).not.toHaveBeenCalled();
+});
+
+it("preserves a leading byte-order mark in the requested clipboard text", async () => {
+  const writeText = vi.fn(async (_value: string): Promise<void> => {});
+  vi.stubGlobal("navigator", { clipboard: { writeText } });
+  await writeClipboard("\uFEFFsynthetic public fixture");
+  expect(writeText).toHaveBeenCalledExactlyOnceWith("\uFEFFsynthetic public fixture");
+});
+
+it("refuses empty text as a rejected coded operation", async () => {
+  await expect(writeClipboard("")).rejects.toMatchObject({ code: "clipboard.empty" });
 });

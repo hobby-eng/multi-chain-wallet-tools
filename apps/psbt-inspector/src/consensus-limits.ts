@@ -19,6 +19,20 @@ export const CONSENSUS_LIMITS = Object.freeze({
 
 /** Seconds of one unit of a time-based BIP68 relative lock. */
 const BIP68_SECONDS_PER_UNIT = 512;
+const SEQUENCE_REFUSALS = {
+  "sequence.time.value": "Relative time delay must be a non-negative safe integer.",
+  "sequence.time.range": "Relative time delay is too large.",
+} as const;
+
+/** Stable refusals of seconds that cannot be encoded as BIP68 relative time. */
+export class RelativeSequenceError extends Error {
+  readonly code: keyof typeof SEQUENCE_REFUSALS;
+  constructor(code: keyof typeof SEQUENCE_REFUSALS) {
+    super(SEQUENCE_REFUSALS[code]);
+    this.name = "RelativeSequenceError";
+    this.code = code;
+  }
+}
 
 /**
  * The facts that BIP68 and BIP112 encode in a relative sequence or a CSV operand: the disable flag,
@@ -38,12 +52,13 @@ export class RelativeSequence {
   }
 
   /** Round a requested duration up so the encoded delay is never shorter (BIP68). */
+  /** Rounds seconds upward to BIP68 units; refuses invalid or unencodable durations by code. */
   static fromSeconds(seconds: number): RelativeSequence {
     if (!Number.isSafeInteger(seconds) || seconds < 0)
-      throw new Error("Relative time delay must be a non-negative safe integer.");
+      throw new RelativeSequenceError("sequence.time.value");
     const units = Math.ceil(seconds / BIP68_SECONDS_PER_UNIT);
     if (units > CONSENSUS_LIMITS.bip68SequenceMask)
-      throw new Error("Relative time delay is too large.");
+      throw new RelativeSequenceError("sequence.time.range");
     return new RelativeSequence(CONSENSUS_LIMITS.bip68TypeFlag | units);
   }
 

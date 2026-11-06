@@ -1,16 +1,13 @@
-export type RecoverySourceTarget =
-  "matcher" | "seedqr" | "mnemocode" | "mhfe" | "slip39" | "codex32" | "sskr" | "gordian-envelope";
+import type {
+  RecoverySourceReference,
+  RecoverySourceTarget,
+} from "@ckd/recovery/recovery-source.js";
 
-interface RecoverySourceValue {
-  readonly mnemonic: string;
-  readonly passphrase: string;
-}
-
-/** A capability-style reference: it contains no secret and expires when its source changes. */
-export interface RecoverySourceReference {
-  readonly label: string;
-  read(): RecoverySourceValue | null;
-}
+/** Compatibility types; the library owns source capability and admitted destination shapes. */
+export type {
+  RecoverySourceReference,
+  RecoverySourceTarget,
+} from "@ckd/recovery/recovery-source.js";
 
 export interface RecoverySourceReceiver {
   useSource(reference: RecoverySourceReference, target: RecoverySourceTarget): void;

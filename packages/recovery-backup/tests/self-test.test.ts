@@ -25,15 +25,17 @@ vi.mock("@ckd/recovery-envelope-wasm/recovery_envelope_wasm_bg.wasm", async () =
 import { runRecoveryBackupSelfTest } from "../src/self-test.js";
 
 describe("embedded recovery startup self-test", () => {
-  it("passes every shipped recovery codec before controls are enabled", () => {
-    const report = runRecoveryBackupSelfTest();
+  it("passes every shipped recovery codec before controls are enabled", async () => {
+    const report = await runRecoveryBackupSelfTest();
     expect(report.passed).toBe(true);
     expect(report.checks).toEqual([
       "SeedQR encode/decode",
-      "MnemoCode v0.1.0 vectors, word recovery, and all representation round trips",
-      "MnemoCode library, wallet recognition and word hint known answers",
-      "MnemoCode heir sheet known answers",
-      "MnemoCode share card known answers",
+      expect.stringMatching(
+        /^MnemoCode v\d+\.\d+\.\d+ WebAssembly: phrase, wallet, QR, candidate, share, recovery and cross-stitch known answers$/u,
+      ),
+      "MnemoCode encode and decode round trips in every form",
+      "MnemoCode SeedStitch: the specification's legend read back",
+      "MnemoCode card, heir sheet and share card known answers",
       "SLIP-39 official + encode/decode",
       "Codex32 official + entropy encode/decode",
       "SSKR BCR-2020-011 grouped vector",

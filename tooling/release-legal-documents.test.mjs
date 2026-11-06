@@ -42,7 +42,7 @@ describe("flat release legal documents", () => {
 
   it("ships exactly the package licence and notice files the root notices cite", () => {
     const notices = readFileSync(resolve(root, "THIRD_PARTY_NOTICES.md"), "utf8");
-    const cited = [...notices.matchAll(/`(packages\/[^`\s]+)`/gu)]
+    const cited = [...notices.matchAll(/`((?:packages|apps|notices)\/[^`\s]+)`/gu)]
       .map(([, path]) => path)
       .filter((path) => /LICENSE|NOTICE/u.test(posix.basename(path)));
     expect(new Set(cited)).toEqual(new Set(supplemental.map(({ source }) => source)));

@@ -249,15 +249,31 @@
               </select>
             </div>
             <div>
-              <label for="script-role">Input represents</label
-              ><select id="script-role">
+              <div class="field-heading-row">
+                <label for="script-role">Input represents</label>
+                __PSBT_SCRIPT_ROLE_HELP__
+              </div>
+              <select id="script-role">
                 <option value="spending">Redeem / witness script</option>
                 <option value="script-pubkey">scriptPubKey</option>
               </select>
             </div>
             <div>
-              <label for="script-branch">Descriptor multipath branch</label
-              ><select id="script-branch">
+              <div class="field-heading-row">
+                <label for="script-branch">Descriptor multipath branch</label>
+                <details class="recovery-help option-help">
+                  <summary class="help-mark" aria-label="What the descriptor fields pick">?</summary>
+                  <div class="recovery-help-popover">
+                    <h3>Ranged descriptors</h3>
+                    <p>
+                      A descriptor with <code>&lt;0;1&gt;</code> describes two branches, usually receive and change, and
+                      one with <code>*</code> a whole range of addresses. This field and the wildcard index pick the one
+                      address to decode. A descriptor without them ignores both.
+                    </p>
+                  </div>
+                </details>
+              </div>
+              <select id="script-branch">
                 <option value="0">First / receive</option>
                 <option value="1">Second / change</option>
               </select>
@@ -481,14 +497,39 @@
               </select>
             </div>
             <div class="preset-policy-field">
-              <label for="builder-wrapper">Output wrapper</label
-              ><select id="builder-wrapper">
+              <div class="field-heading-row">
+                <label for="builder-wrapper">Output wrapper</label>
+                __PSBT_WRAPPER_HELP__
+              </div>
+              <select id="builder-wrapper">
                 __PSBT_BUILDER_WRAPPER_OPTIONS__
               </select>
             </div>
             <div>
-              <label for="policy-mode">Policy shape</label
-              ><select id="policy-mode">
+              <div class="field-heading-row">
+                <label for="policy-mode">Policy shape</label>
+                <details class="recovery-help option-help">
+                  <summary class="help-mark" aria-label="What the policy shapes mean">?</summary>
+                  <div class="recovery-help-popover">
+                    <h3>Policy shape</h3>
+                    <p>
+                      Each shape is a set of spending paths, named in its option: “now” is a path open at once, “later”
+                      one that opens only when the timelock under Additional condition has passed. Plain multisig has
+                      one path; its optional lock delays every spend.
+                    </p>
+                    <p>
+                      HTLC-like also needs a 32-byte secret on the immediate path. Staged and escalating recovery have
+                      two locks, the second for the last fallback.
+                    </p>
+                    <p>
+                      Every shape with a timelock or a hashlock, plain multisig with a lock included, needs wallets and
+                      signers that support its exact Miniscript policy. Before funding, test a spend of each path with a
+                      small amount.
+                    </p>
+                  </div>
+                </details>
+              </div>
+              <select id="policy-mode">
                 <option value="locked-multisig">Plain / HODL multisig · M-of-N, optional lock applies to all</option>
                 <option value="htlc">HTLC-like · signatures + preimage OR delayed fallback</option>
                 <option value="staged-recovery">Staged recovery · key now OR first/second delayed key</option>
@@ -502,8 +543,25 @@
               </select>
             </div>
             <div class="preset-policy-field">
-              <label for="builder-key-order">Key order</label
-              ><select id="builder-key-order">
+              <div class="field-heading-row">
+                <label for="builder-key-order">Key order</label>
+                <details class="recovery-help option-help">
+                  <summary class="help-mark" aria-label="What the key order changes">?</summary>
+                  <div class="recovery-help-popover">
+                    <h3>Key order</h3>
+                    <p>
+                      The order of the public keys is part of the script, so another order gives another address. BIP67
+                      sorted (<code>sortedmulti</code>) orders them by value, so every cosigner gets the same address
+                      however the keys were listed.
+                    </p>
+                    <p>
+                      Supplied order (<code>multi</code>) keeps the order entered. Choose it only to match an existing
+                      wallet that used that exact order.
+                    </p>
+                  </div>
+                </details>
+              </div>
+              <select id="builder-key-order">
                 <option value="bip67" selected>BIP67 sorted · sortedmulti()</option>
                 <option value="supplied">Supplied order · multi()</option>
               </select>
@@ -513,8 +571,26 @@
               ><input id="required-signatures" type="number" value="2" min="1" max="16" />
             </div>
             <div class="preset-policy-field">
-              <label for="lock-kind">Additional condition</label
-              ><select id="lock-kind">
+              <div class="field-heading-row">
+                <label for="lock-kind">Additional condition</label>
+                <details class="recovery-help option-help">
+                  <summary class="help-mark" aria-label="How the timelocks work">?</summary>
+                  <div class="recovery-help-popover">
+                    <h3>Timelocks</h3>
+                    <p>
+                      An absolute lock opens at a block height or a moment in time, the same for every coin sent to the
+                      address. A relative lock counts from the confirmation of each coin received, so every payment
+                      waits its own full delay.
+                    </p>
+                    <p>
+                      A relative lock is at most 65,535 blocks, or 65,535 units of 512 seconds, about 388 days; a time
+                      is rounded up to whole units. Months here are 30 days. Unix time is compared with the median time
+                      of the last 11 blocks, which runs behind the clock.
+                    </p>
+                  </div>
+                </details>
+              </div>
+              <select id="lock-kind">
                 <option value="none">No timelock</option>
                 <option value="height">Spend after block height</option>
                 <option value="time">Spend after Unix time</option>
@@ -591,8 +667,23 @@
               ></textarea>
             </div>
             <div id="htlc-hash-field" class="span-three" hidden>
-              <label for="htlc-hash-kind">Hashlock commitment</label
-              ><select id="htlc-hash-kind">
+              <div class="field-heading-row">
+                <label for="htlc-hash-kind">Hashlock commitment</label>
+                <details class="recovery-help option-help">
+                  <summary class="help-mark" aria-label="What the hashlock is">?</summary>
+                  <div class="recovery-help-popover">
+                    <h3>Hashlock</h3>
+                    <p>
+                      The immediate path also needs a 32-byte secret, the preimage, whose hash is the digest entered
+                      here; spending reveals it on the blockchain. sha256 and hash256 (double SHA-256) give 32-byte
+                      digests, ripemd160 and hash160 (SHA-256, then RIPEMD-160) 20-byte ones: use the one the other
+                      party's contract expects.
+                    </p>
+                    <p>The calculator below makes the digest of a phrase.</p>
+                  </div>
+                </details>
+              </div>
+              <select id="htlc-hash-kind">
                 <option value="sha256">sha256 · 32-byte digest</option>
                 <option value="hash256">hash256 · 32-byte digest</option>
                 <option value="ripemd160">ripemd160 · 20-byte digest</option>
@@ -607,8 +698,11 @@
               />
             </div>
             <div id="staged-derivation-field" class="span-three" hidden>
-              <label for="staged-multipath-choice">Concrete output for ranged descriptor</label
-              ><select id="staged-multipath-choice">
+              <div class="field-heading-row">
+                <label for="staged-multipath-choice">Concrete output for ranged descriptor</label>
+                __PSBT_RANGED_KEYS_HELP__
+              </div>
+              <select id="staged-multipath-choice">
                 <option value="0">First multipath branch (for example 0 from &lt;0;1&gt;)</option>
                 <option value="1">Second multipath branch (for example 1 from &lt;0;1&gt;)</option></select
               ><label for="staged-wildcard-index">Wildcard index</label

@@ -3,7 +3,7 @@ import type { CryptoSelfTestReport } from "@ckd/self-test-types";
 import type { DerivationResult } from "@ckd/core/types.js";
 import type { CompactMessageSignature } from "@ckd/core/compact-message.js";
 import type { SilentPaymentResult } from "./silent-payment.js";
-import type { Bip85RequestOptions, Bip85Result } from "./bip85-deriver.js";
+import type { Bip85RequestOptions, Bip85Result } from "@ckd/core/bip85-parameters.js";
 
 export interface Bip38EncryptionResult {
   encryptedKey: string;
@@ -26,12 +26,7 @@ export interface AddressSearchResult extends AddressSearchMatch {
 }
 
 export type MessageSigningFormat =
-  | "bitcoin-compact"
-  | "dash-compact"
-  | "bitcoin-bip322-legacy"
-  | "bitcoin-bip322-nested"
-  | "bitcoin-bip322-native"
-  | "bitcoin-bip322-taproot";
+  "bitcoin-compact" | "dash-compact" | import("@ckd/core/bip322-signing.js").Bip322SigningFormat;
 
 export type WorkerRequest =
   | { id: number; type: "derive"; adapterId: string; input: CoinDerivationInput }
@@ -96,6 +91,7 @@ interface WorkerFailure {
   id: number;
   ok: false;
   error: string;
+  errorCode?: string;
 }
 
 interface WorkerReady {

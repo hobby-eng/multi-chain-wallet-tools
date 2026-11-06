@@ -1,6 +1,12 @@
 import type { NetworkName } from "./types.js";
 import { BITCOIN_ADDRESS_FACTS } from "./bitcoin-address-facts.js";
 import { dashPlatformHrp } from "./dash-platform-address-facts.js";
+import {
+  BITCOIN_MAINNET_WIF,
+  BITCOIN_TESTNET_WIF,
+  DASH_MAINNET_WIF,
+  DASH_TESTNET_WIF,
+} from "./wif-version.js";
 
 export interface Bip32Versions {
   private: number;
@@ -46,7 +52,7 @@ const BITCOIN_NETWORKS = /* @__PURE__ */ ((): Record<NetworkName, BitcoinNetwork
     label: "Bitcoin mainnet",
     coinType: 0,
     ...BITCOIN_ADDRESS_FACTS.mainnet,
-    wif: 0x80,
+    wif: BITCOIN_MAINNET_WIF,
     versions: BIP32_MAINNET_VERSIONS,
   },
   testnet: {
@@ -54,7 +60,7 @@ const BITCOIN_NETWORKS = /* @__PURE__ */ ((): Record<NetworkName, BitcoinNetwork
     label: "Bitcoin testnet",
     coinType: 1,
     ...BITCOIN_ADDRESS_FACTS.testnet,
-    wif: 0xef,
+    wif: BITCOIN_TESTNET_WIF,
     versions: BIP32_TESTNET_VERSIONS,
   },
 }))();
@@ -68,7 +74,7 @@ const DASH_NETWORKS = /* @__PURE__ */ ((): Record<NetworkName, DashNetwork> => (
     coinType: 5,
     p2pkh: 76,
     p2sh: 16,
-    wif: 204,
+    wif: DASH_MAINNET_WIF,
     platformHrp: dashPlatformHrp("mainnet"),
     versions: BIP32_MAINNET_VERSIONS,
   },
@@ -78,7 +84,7 @@ const DASH_NETWORKS = /* @__PURE__ */ ((): Record<NetworkName, DashNetwork> => (
     coinType: 1,
     p2pkh: 140,
     p2sh: 19,
-    wif: 239,
+    wif: DASH_TESTNET_WIF,
     platformHrp: dashPlatformHrp("testnet"),
     versions: BIP32_TESTNET_VERSIONS,
   },

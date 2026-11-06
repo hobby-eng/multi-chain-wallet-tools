@@ -1,3 +1,5 @@
+import { MnemonicInspection } from "./mnemonic-inspection.js";
+export type { MnemonicDiagnostic } from "./mnemonic-inspection.js";
 import { secureRandomBytes } from "./secure-random.js";
 import {
   entropyToMnemonic,
@@ -6,21 +8,19 @@ import {
   validateMnemonic,
 } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
-import { HDKey } from "@scure/bip32";
 import {
-  BIP39_WORD_BITS,
   BIP39_WORD_COUNT_LIST,
   assertBip39WordCount,
-  bip39ChecksumBits,
-  bip39EntropyBits,
   bip39EntropyBytes,
   isBip39WordCount,
   type Bip39WordCount,
 } from "./bip39-parameters.js";
-import { bytesToHex, hash160, wipe } from "./crypto.js";
+import { MnemonicFingerprint } from "./mnemonic-fingerprint.js";
+import { Bip39Input } from "./bip39-input.js";
+import { ENGLISH_BIP39_WORDS } from "./bip39-word-reader.js";
 
 function normalizeMnemonic(value: string): string {
-  return value.normalize("NFKD").trim().toLowerCase().split(/\s+/u).filter(Boolean).join(" ");
+  return Bip39Input.normalize(value);
 }
 
 export function assertValidMnemonic(value: string): string {
@@ -33,7 +33,7 @@ export function assertValidMnemonic(value: string): string {
     // The message names the position of an unknown word, never the word itself: a mistyped
     // word is close to a secret one, and this text is shown openly. The candidate-scan
     // export boundary replaces this error with fixed text before reporting it.
-    const unknown = words.findIndex((word) => !wordlist.includes(word));
+    const unknown = words.findIndex((word) => ENGLISH_BIP39_WORDS.exactIndex(word) === undefined);
     if (unknown >= 0) {
       throw new Error(`Invalid BIP39 mnemonic: word ${unknown + 1} is not an English BIP39 word.`);
     }
@@ -64,148 +64,8 @@ export function englishMnemonicToEntropy(value: string): Uint8Array {
   return mnemonicToEntropy(assertValidMnemonic(value), wordlist);
 }
 
-interface UnknownMnemonicWord {
-  readonly index: number;
-  readonly word: string;
-  readonly suggestions: readonly string[];
-}
+/** Inspect bounded phrase input; dispose the returned owner after its synchronous presentation. */
+export const diagnoseMnemonic = MnemonicInspection.inspect.bind(MnemonicInspection);
 
-interface MnemonicWordDiagnostic {
-  readonly position: number;
-  readonly word: string;
-  readonly wordlistIndex: number | null;
-  readonly indexHex: string | null;
-  readonly bits: string | null;
-}
-
-interface MnemonicConstructionDiagnostic {
-  readonly entropyHex: string;
-  readonly entropyBinary: string;
-  readonly providedChecksum: string;
-  readonly expectedChecksum: string;
-  readonly mnemonicBinary: string;
-  readonly wordIndexes: readonly number[];
-}
-
-export interface MnemonicDiagnostic {
-  readonly normalized: string;
-  readonly wordCount: number;
-  readonly wordCountValid: boolean;
-  readonly allWordsKnown: boolean;
-  readonly checksumValid: boolean;
-  readonly entropyBits: number | null;
-  readonly checksumBits: number | null;
-  readonly unknownWords: readonly UnknownMnemonicWord[];
-  readonly words: readonly MnemonicWordDiagnostic[];
-  readonly construction: MnemonicConstructionDiagnostic | null;
-}
-
-const BIP39_WORD_SET = new Set(wordlist);
-
-function editDistance(left: string, right: string): number {
-  let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
-  for (let leftIndex = 0; leftIndex < left.length; leftIndex += 1) {
-    const current = [leftIndex + 1];
-    for (let rightIndex = 0; rightIndex < right.length; rightIndex += 1) {
-      current.push(
-        Math.min(
-          (current[rightIndex] ?? 0) + 1,
-          (previous[rightIndex + 1] ?? 0) + 1,
-          (previous[rightIndex] ?? 0) + (left[leftIndex] === right[rightIndex] ? 0 : 1),
-        ),
-      );
-    }
-    previous = current;
-  }
-  return previous[right.length] ?? Math.max(left.length, right.length);
-}
-
-function nearbyWords(value: string): readonly string[] {
-  if (!/^[a-z]+$/u.test(value)) return [];
-  return wordlist
-    .map((candidate) => ({ candidate, distance: editDistance(value, candidate) }))
-    .filter(({ distance }) => distance <= 2)
-    .sort(
-      (left, right) =>
-        left.distance - right.distance || left.candidate.localeCompare(right.candidate),
-    )
-    .slice(0, 5)
-    .map(({ candidate }) => candidate);
-}
-
-export function diagnoseMnemonic(value: string): MnemonicDiagnostic {
-  const normalized = normalizeMnemonic(value);
-  const words = normalized === "" ? [] : normalized.split(" ");
-  const wordCount = words.length;
-  const wordCountValid = isBip39WordCount(wordCount);
-  const unknownWords = words.flatMap((word, index) =>
-    BIP39_WORD_SET.has(word) ? [] : [{ index, word, suggestions: nearbyWords(word) }],
-  );
-  const allWordsKnown = words.length > 0 && unknownWords.length === 0;
-  const checksumValid = wordCountValid && allWordsKnown && validateMnemonic(normalized, wordlist);
-  const entropyBits = wordCountValid ? bip39EntropyBits(wordCount) : null;
-  const wordDiagnostics = words.map((word, index) => {
-    const wordlistIndex = BIP39_WORD_SET.has(word) ? wordlist.indexOf(word) : null;
-    return {
-      position: index + 1,
-      word,
-      wordlistIndex,
-      indexHex: wordlistIndex === null ? null : `0x${wordlistIndex.toString(16).padStart(3, "0")}`,
-      bits:
-        wordlistIndex === null ? null : wordlistIndex.toString(2).padStart(BIP39_WORD_BITS, "0"),
-    };
-  });
-  let construction: MnemonicConstructionDiagnostic | null = null;
-  if (checksumValid && entropyBits !== null) {
-    // @scure/bip39 performs the normative checksum validation and entropy recovery.
-    // The binary/index presentation mirrors Ian Coleman's Entropy Details view,
-    // while keeping cryptographic conversion in the already pinned library.
-    const entropy = mnemonicToEntropy(normalized, wordlist);
-    try {
-      const canonicalWords = entropyToMnemonic(entropy, wordlist).split(" ");
-      const canonicalIndexes = canonicalWords.map((word) => wordlist.indexOf(word));
-      const mnemonicBinary = canonicalIndexes
-        .map((index) => index.toString(2).padStart(BIP39_WORD_BITS, "0"))
-        .join("");
-      const entropyBinary = Array.from(entropy, (byte) => byte.toString(2).padStart(8, "0")).join(
-        "",
-      );
-      const checksum = mnemonicBinary.slice(entropyBits);
-      construction = {
-        entropyHex: bytesToHex(entropy),
-        entropyBinary,
-        providedChecksum: checksum,
-        expectedChecksum: checksum,
-        mnemonicBinary,
-        wordIndexes: canonicalIndexes,
-      };
-    } finally {
-      wipe(entropy);
-    }
-  }
-  return {
-    normalized,
-    wordCount: words.length,
-    wordCountValid,
-    allWordsKnown,
-    checksumValid,
-    entropyBits,
-    checksumBits: wordCountValid ? bip39ChecksumBits(wordCount) : null,
-    unknownWords,
-    words: wordDiagnostics,
-    construction,
-  };
-}
-
-export function masterFingerprintFromSeed(seed: Uint8Array): string {
-  const root = HDKey.fromMasterSeed(seed);
-  const publicKey = root.publicKey;
-  if (publicKey === null) throw new Error("BIP32 master public key is unavailable.");
-  const fingerprint = hash160(publicKey).slice(0, 4);
-  try {
-    return bytesToHex(fingerprint);
-  } finally {
-    root.wipePrivateData();
-    wipe(publicKey, fingerprint);
-  }
-}
+/** Borrow the seed to compute its BIP32 master fingerprint; the temporary SDK node is wiped. */
+export const masterFingerprintFromSeed = MnemonicFingerprint.fromSeed.bind(MnemonicFingerprint);

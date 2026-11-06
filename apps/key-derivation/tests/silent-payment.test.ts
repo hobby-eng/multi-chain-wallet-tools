@@ -49,12 +49,12 @@ describe("BIP352 Silent Payment derivation", () => {
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     );
     try {
-      await expect(deriveSilentPayment(seed, "mainnet", 0, [0])).rejects.toThrow(
-        /reserved for change/u,
-      );
-      await expect(deriveSilentPayment(seed, "mainnet", 0, [4294967296])).rejects.toThrow(
-        /4294967295/u,
-      );
+      await expect(deriveSilentPayment(seed, "mainnet", 0, [0])).rejects.toMatchObject({
+        code: "silent-payment.labels",
+      });
+      await expect(deriveSilentPayment(seed, "mainnet", 0, [4294967296])).rejects.toMatchObject({
+        code: "silent-payment.labels",
+      });
     } finally {
       seed.fill(0);
     }

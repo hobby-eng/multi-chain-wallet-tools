@@ -102,6 +102,7 @@ async function fixture() {
     }),
   );
   Object.assign(fields.document!, {
+    defaultView: window,
     querySelector: (selector: string) => bySelector.get(selector) ?? null,
   });
   const controls = Object.fromEntries(

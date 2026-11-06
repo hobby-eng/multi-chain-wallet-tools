@@ -30,7 +30,7 @@ export async function runStartupSelfTests(
     checkSecureRandom();
     const randomnessMs = Math.round(performance.now() - started);
     const bip39 = dependencies.runBip39SelfTest();
-    const recovery = dependencies.runRecoveryBackupSelfTest();
+    const recovery = await dependencies.runRecoveryBackupSelfTest();
     const derivation = await worker.selfTest(full);
     return {
       passed: bip39.passed && recovery.passed && derivation.passed,

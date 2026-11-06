@@ -1,3 +1,4 @@
+import { CopyFeedback } from "@ckd/ui/copy-feedback.js";
 import { nonEmptyLines } from "@ckd/core/text-lines.js";
 import { downloadText } from "@ckd/export/download.js";
 import { createPaymentQrAction } from "@ckd/ui/payment-qr.js";
@@ -18,6 +19,7 @@ import {
 } from "./ui-common.js";
 
 export function installMultisigWalletFeature(): void {
+  const copyFeedback = new CopyFeedback(window);
   const walletChain = required<HTMLSelectElement>("wallet-chain");
   const walletNetwork = required<HTMLSelectElement>("wallet-network");
   const walletWrapper = required<HTMLSelectElement>("wallet-wrapper");
@@ -375,11 +377,7 @@ export function installMultisigWalletFeature(): void {
     button.textContent = "Copy";
     button.addEventListener("click", async () => {
       await copyPlainText(value);
-      const previous = button.textContent;
-      button.textContent = "Copied";
-      setTimeout(() => {
-        button.textContent = previous;
-      }, 900);
+      copyFeedback.flash(button);
     });
     return button;
   }

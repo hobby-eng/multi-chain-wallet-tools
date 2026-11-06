@@ -1,6 +1,8 @@
 import { CONSENSUS_LIMITS, RelativeSequence } from "./consensus-limits.js";
 
-export type LockKind = "none" | "height" | "time" | "relative-blocks" | "relative-time";
+const LOCK_KINDS = ["none", "height", "time", "relative-blocks", "relative-time"] as const;
+/** The preset lock choices, validated by PolicyLock.kind before use. */
+export type LockKind = (typeof LOCK_KINDS)[number];
 
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
@@ -18,37 +20,51 @@ const SECONDS_BY_UNIT = new Map<string, number>([
 ]);
 // The preset builder supports positive four-byte CScriptNum values (one bit is the sign).
 const MAXIMUM_POLICY_LOCK_VALUE = 0x7fffffff;
+const REFUSALS = {
+  kind: "Select a supported policy lock type.",
+  value: "Lock value is outside the supported script-number range.",
+  height: `Absolute block height must be below ${CONSENSUS_LIMITS.absoluteLockTimeThreshold}; larger values are timestamps.`,
+  time: `Absolute Unix locktime must be at least ${CONSENSUS_LIMITS.absoluteLockTimeThreshold}.`,
+  "relative-blocks": `Relative block delay cannot exceed ${CONSENSUS_LIMITS.bip68SequenceMask}.`,
+  unit: "Unsupported relative time unit.",
+} as const;
+
+/** A coded policy admission refusal without interpolating caller input. */
+export class PolicyLockError extends Error {
+  readonly code: `policy.lock.${keyof typeof REFUSALS}`;
+  constructor(code: keyof typeof REFUSALS) {
+    super(REFUSALS[code]);
+    this.name = "PolicyLockError";
+    this.code = `policy.lock.${code}`;
+  }
+}
 
 /** A preset policy's numeric lock, its Miniscript operand and its spending requirement. */
 export class PolicyLock {
   readonly #fragment: string;
   readonly #requirement: string;
 
-  constructor(kind: LockKind, value: number) {
+  constructor(inputKind: unknown, value: number) {
+    const kind = PolicyLock.kind(inputKind);
     if (kind === "none") {
       this.#fragment = "";
       this.#requirement = "No timelock";
       return;
     }
     if (!Number.isSafeInteger(value) || value < 0 || value > MAXIMUM_POLICY_LOCK_VALUE)
-      throw new Error("Lock value is outside the supported script-number range.");
+      throw new PolicyLockError("value");
     let encoded = value;
     let fragmentName: "after" | "older";
     if (kind === "height") {
-      if (value >= CONSENSUS_LIMITS.absoluteLockTimeThreshold)
-        throw new Error(
-          "Absolute block height must be below 500000000; larger values are timestamps.",
-        );
+      if (value >= CONSENSUS_LIMITS.absoluteLockTimeThreshold) throw new PolicyLockError("height");
       fragmentName = "after";
       this.#requirement = `Absolute block height ≥ ${value}; spending input sequence must not be final`;
     } else if (kind === "time") {
-      if (value < CONSENSUS_LIMITS.absoluteLockTimeThreshold)
-        throw new Error("Absolute Unix locktime must be at least 500000000.");
+      if (value < CONSENSUS_LIMITS.absoluteLockTimeThreshold) throw new PolicyLockError("time");
       fragmentName = "after";
       this.#requirement = `Absolute median-time-past locktime ≥ ${value}; spending input sequence must not be final`;
     } else if (kind === "relative-blocks") {
-      if (value > CONSENSUS_LIMITS.bip68SequenceMask)
-        throw new Error("Relative block delay cannot exceed 65535.");
+      if (value > CONSENSUS_LIMITS.bip68SequenceMask) throw new PolicyLockError("relative-blocks");
       fragmentName = "older";
       this.#requirement = `Relative delay of ${value} blocks via BIP68/BIP112 sequence`;
     } else {
@@ -60,18 +76,28 @@ export class PolicyLock {
     this.#fragment = `${fragmentName}(${encoded})`;
   }
 
+  /** Refuses unknown runtime kinds instead of silently selecting relative-time behavior. */
+  static kind(value: unknown): LockKind {
+    const kind = LOCK_KINDS.find((candidate) => candidate === value);
+    if (kind === undefined) throw new PolicyLockError("kind");
+    return kind;
+  }
+
   /** Convert either builder field to the library's units; only relative time uses a selector. */
-  static normalizeInputValue(kind: LockKind, value: number, timeUnit: string): number {
+  static normalizeInputValue(inputKind: unknown, value: number, timeUnit: string): number {
+    const kind = PolicyLock.kind(inputKind);
     if (kind !== "relative-time") return value;
     const multiplier = SECONDS_BY_UNIT.get(timeUnit);
-    if (multiplier === undefined) throw new Error("Unsupported relative time unit.");
+    if (multiplier === undefined) throw new PolicyLockError("unit");
     return value * multiplier;
   }
 
+  /** The admitted Miniscript lock fragment; empty only for the explicit none choice. */
   get fragment(): string {
     return this.#fragment;
   }
 
+  /** The corresponding spending constraint, using the same encoded units as the fragment. */
   get requirement(): string {
     return this.#requirement;
   }

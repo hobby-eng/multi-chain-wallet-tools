@@ -5,6 +5,7 @@ import {
   LOCAL_SEARCH_SELF_TEST,
 } from "./derivation-self-tests.mjs";
 import { resolve } from "node:path";
+import { COIN_WORDS } from "../packages/recovery-backup/src/mnemocode-offered-coins.ts";
 
 const adapterModules = {
   bitcoin: ["BITCOIN_COIN_ADAPTERS", "packages/coin-protocols/src/coins/adapters/bitcoin.ts"],
@@ -106,13 +107,6 @@ function selectedRecoverySelfTestSource(root, features) {
     ["seedqr", "runSeedQrSelfTest", "self-test-seedqr.ts"],
     ["mnemocode", "runMnemoCodeSelfTest", "self-test-mnemocode.ts"],
     ["mnemocode-cards", "runMnemoCodeCardsSelfTest", "self-test-mnemocode-cards.ts"],
-    ["mnemocode-cards", "runMnemoCodeHeirsSelfTest", "self-test-mnemocode-heirs.ts"],
-    // Share cards need the card export and the SSKR library both.
-    [
-      "mnemocode-cards+sskr",
-      "runMnemoCodeShareCardsSelfTest",
-      "self-test-mnemocode-share-cards.ts",
-    ],
     ["slip39", "runSlip39SelfTest", "self-test-slip39.ts"],
     ["codex32", "runCodex32SelfTest", "self-test-codex32.ts"],
     ["sskr", "runSskrSelfTest", "self-test-sskr.ts"],
@@ -123,10 +117,11 @@ function selectedRecoverySelfTestSource(root, features) {
       `import { ${symbol} } from ${JSON.stringify(resolve(root, "packages/recovery-backup/src", file))};`,
   );
   const calls = definitions.map(([, symbol]) => `${symbol}()`).join(", ");
+  // MnemoCode's checks load its WebAssembly first, so the run is asynchronous.
   return `${imports.join("\n")}
 import { combinedReports } from ${JSON.stringify(resolve(root, COMBINED_SELF_TEST_MODULE))};
-export function runRecoveryBackupSelfTest() {
-  return combinedReports([${calls}]);
+export async function runRecoveryBackupSelfTest() {
+  return combinedReports(await Promise.all([${calls}]));
 }`;
 }
 
@@ -134,24 +129,20 @@ export function runRecoveryBackupSelfTest() {
 const DERIVER_COINS = ["bitcoin", "dash", "ethereum"];
 
 /**
- * The coins of MnemoCode that a build with only some of the Deriver's coins offers as "an address of
- * another coin", with their known answers: Dash and Ethereum where built. Bitcoin has wallet
- * evidence of its own; MnemoCode's other nine coins come only with the full build (the owner's
- * choice of 2026-10-07; packages/recovery-backup/src/mnemocode-offered-coins.ts).
+ * The coins of MnemoCode whose addresses a build with only some of the Deriver's coins compares:
+ * its own of Bitcoin, Dash and Ethereum. MnemoCode's other nine coins come only with the full build
+ * (the owner's choice of 2026-10-07; packages/recovery-backup/src/mnemocode-offered-coins.ts).
+ * MnemoCode's file of the page still holds them: it is one file per page (MnemoCode ADR 0007), and
+ * the page narrows an address to its own coins. Only the offered coins' names come with the list,
+ * so that the Dash Community Edition names no other coin.
  */
-function selectedMnemoCodeCoinsSource(root, features) {
-  const families = [
-    ["dash", "DASH", "dash.ts", "DASH_ADDRESS_SELF_TEST", "dash-self-test.ts"],
-    ["ethereum", "ETHEREUM", "ethereum.ts", "ETHEREUM_ADDRESS_SELF_TEST", "ethereum-self-test.ts"],
-  ].filter(([coin]) => features.hasCoin(coin));
-  const coins = resolve(root, "packages/recovery-mnemocode/source/core/coins");
-  const imports = families.flatMap(([, coin, file, check, checkFile]) => [
-    `import { ${coin} } from ${JSON.stringify(resolve(coins, file))};`,
-    `import { ${check} } from ${JSON.stringify(resolve(coins, checkFile))};`,
-  ]);
-  return `${imports.join("\n")}
-export const OFFERED_COINS = [${families.map(([, coin]) => coin).join(", ")}];
-export const OFFERED_COIN_CHECKS = [${families.map(([, , , check]) => check).join(", ")}];`;
+function selectedMnemoCodeCoinsSource(features) {
+  const coins = DERIVER_COINS.filter((coin) => features.hasCoin(coin));
+  const words = Object.fromEntries(coins.map((coin) => [coin, COIN_WORDS[coin]]));
+  return [
+    `export const OFFERED_COIN_IDS = ${JSON.stringify(coins)};`,
+    `export const COIN_WORDS = Object.freeze(${JSON.stringify(words)});`,
+  ].join("\n");
 }
 
 export function createKeyDerivationCompositionPlugin(root, features) {
@@ -162,7 +153,7 @@ export function createKeyDerivationCompositionPlugin(root, features) {
     ["ckd:selected-derivation-self-test", selectedSelfTestSource(root, features.coins)],
     ["ckd:selected-matcher-targets", selectedMatcherSource(root, features)],
     ["ckd:selected-recovery-self-test", selectedRecoverySelfTestSource(root, features)],
-    ["ckd:selected-mnemocode-coins", selectedMnemoCodeCoinsSource(root, features)],
+    ["ckd:selected-mnemocode-coins", selectedMnemoCodeCoinsSource(features)],
   ]);
   return {
     name: "key-derivation-composition",
@@ -182,35 +173,12 @@ export function createKeyDerivationCompositionPlugin(root, features) {
           namespace: "ckd-selection",
         }),
       );
-      // MnemoCode's wallet recognition: every kind of evidence where Bitcoin is built, otherwise the
-      // master fingerprint and the addresses of the offered coins
-      // (packages/recovery-backup/src/mnemocode-wallet.ts).
-      if (!features.hasCoin("bitcoin"))
-        build.onResolve(
-          { filter: /^@ckd\/recovery-backup\/mnemocode-wallet-bitcoin\.js$/ },
-          () => ({
-            path: resolve(root, "packages/recovery-backup/src/mnemocode-wallet-coins.ts"),
-          }),
-        );
       // The offered coins: all of MnemoCode's in the full build, otherwise the build's own.
       if (!fullCoins)
         build.onResolve({ filter: /^\.\/mnemocode-offered-coins\.js$/ }, () => ({
           path: "ckd:selected-mnemocode-coins",
           namespace: "ckd-selection",
         }));
-      // Share cards, their renderer and their checks come only with the SSKR library
-      // (mnemocode-share-card-checks.ts, mnemocode-share-render.ts).
-      if (!features.has("sskr")) {
-        build.onResolve(
-          { filter: /^@ckd\/recovery-backup\/mnemocode-share-card-checks\.js$/ },
-          () => ({
-            path: resolve(root, "packages/recovery-backup/src/mnemocode-share-card-checks-none.ts"),
-          }),
-        );
-        build.onResolve({ filter: /^\.\/mnemocode-share-render\.js$/ }, () => ({
-          path: resolve(root, "packages/recovery-backup/src/mnemocode-share-render-none.ts"),
-        }));
-      }
       build.onResolve({ filter: /^@ckd\/recovery-backup\/self-test\.js$/ }, () => ({
         path: "ckd:selected-recovery-self-test",
         namespace: "ckd-selection",
@@ -233,7 +201,6 @@ export function selectedWorkerEntry(root, profile, features) {
   const properties = ["getRuntimeCoinAdapter", "runDerivationSelfTest"];
   const optional = [
     ["silent-payments", "deriveSilentPayment", "silent-payment.ts"],
-    ["bip85", "deriveBip85", "bip85-deriver.ts"],
     [
       "bip38-encrypt",
       "encryptDerivedP2pkhKey",
@@ -245,6 +212,12 @@ export function selectedWorkerEntry(root, profile, features) {
       features.hasCoin("bitcoin") ? "message-signer.ts" : "message-signer-dash.ts",
     ],
   ];
+  if (features.has("bip85")) {
+    imports.push(
+      `import { Bip85 } from ${JSON.stringify(resolve(root, "packages/crypto-core/src/bip85.ts"))};`,
+    );
+    properties.push("deriveBip85: Bip85.derive");
+  }
   for (const [feature, symbol, file] of optional) {
     if (!features.has(feature)) continue;
     imports.push(
@@ -318,17 +291,6 @@ startKeyDerivationApp(registry, detectSelectedMatcherTargets);`;
 const coinSourceMarkers = {
   bitcoin: [
     "/coins/bitcoin/",
-    "/recovery-backup/src/mnemocode-wallet-bitcoin.ts",
-    "/recovery-mnemocode/source/core/wallet-evidence.ts",
-    "/recovery-mnemocode/source/core/wallet-evidence-self-test.ts",
-    // MnemoCode's wallet evidence names every coin family (core/coins.ts), so their code comes
-    // with Bitcoin's recognition; their checks come only with the full build (see below).
-    "/recovery-mnemocode/source/core/coins.ts",
-    "/recovery-mnemocode/source/core/coins/bitcoin-like.ts",
-    "/recovery-mnemocode/source/core/coins/bitcoin-cash.ts",
-    "/recovery-mnemocode/source/core/coins/cosmos.ts",
-    "/recovery-mnemocode/source/core/coins/xrp.ts",
-    "/recovery-mnemocode/source/core/coins/taproot.ts",
     "/adapters/bitcoin.ts",
     "derivation-self-test-bitcoin.ts",
     // A coin's self-test vectors come only with the coin (AUD-023-BLD001).
@@ -358,13 +320,17 @@ const featureSourceMarkers = {
   bip85: [
     "/bip85-feature.ts",
     "/bip85-child-wallet-feature.ts",
-    "/bip85-deriver.ts",
+    "/bip85-child-derivation.ts",
+    "/coin-protocols/src/coins/embedded-derivation.ts",
+    "/crypto-core/src/bip85.ts",
     "/bip85-self-test.ts",
   ],
   "silent-payments": [
     "/silent-payment-feature.ts",
     "/silent-payment.ts",
     "/silent-payment-self-test.ts",
+    "/coin-protocols/src/coins/bitcoin/silent-payments.ts",
+    "/coin-protocols/src/coins/bitcoin/silent-payment-parameters.ts",
   ],
   "bip38-encrypt": [
     "/bip38-encryption-feature.ts",
@@ -375,6 +341,8 @@ const featureSourceMarkers = {
     "/bip38-self-test-dash.ts",
   ],
   "message-signing": [
+    "/crypto-core/src/bip322-signing.ts",
+    "/bip322-signer.ts",
     "/message-signing-feature.ts",
     "/message-signer.ts",
     "/message-signer-dash.ts",
@@ -382,7 +350,14 @@ const featureSourceMarkers = {
     "/message-signer-self-test-bitcoin.ts",
     "/message-signer-self-test-dash.ts",
   ],
-  "wallet-matcher": ["/recovery-wallet-matcher.ts", ...LOCAL_SEARCH_SELF_TEST.sourceMarkers],
+  "wallet-matcher": [
+    "/recovery-wallet-matcher.ts",
+    "apps/key-derivation/src/ui/matcher-results.ts",
+    "/wallet-recovery/src/matcher-plan.ts",
+    "/wallet-recovery/src/matcher-scope.ts",
+    "/wallet-recovery/src/matcher-secrets.ts",
+    ...LOCAL_SEARCH_SELF_TEST.sourceMarkers,
+  ],
   seedqr: ["/recovery-seedqr.ts", "/recovery-backup/src/seedqr.ts", "/self-test-seedqr.ts"],
   mnemocode: [
     "/recovery-mnemocode.ts",
@@ -408,10 +383,21 @@ const featureSourceMarkers = {
     "/recovery-backup/src/mnemocode-self-test.ts",
     "/recovery-backup/src/mnemocode-word-table.ts",
     "/recovery-backup/src/mnemocode-search.ts",
+    "/recovery-backup/src/mnemocode-marked-codes.ts",
+    "/recovery-backup/src/mnemocode-engine.ts",
+    "/recovery-backup/src/mnemocode-module.ts",
+    "/recovery-backup/src/mnemocode-facts.ts",
+    "/recovery-backup/src/mnemocode-wallet.ts",
+    "/recovery-backup/src/mnemocode-reencoding.ts",
+    "/recovery-backup/src/mnemocode-backup-check.ts",
+    "/recovery-mnemocode-stitch.ts",
+    "/recovery-backup/src/mnemocode-stitch.ts",
     "/mnemocode-search-worker.ts",
     "/mnemocode-worker-client.ts",
+    // The page's BIP39 list in a worker, which only MnemoCode's worker is given.
+    "/workers/page-wordlist.ts",
     "/recovery-backup/src/mnemocode.ts",
-    "/recovery-mnemocode/source/",
+    "/recovery-mnemocode-wasm/",
     "/self-test-mnemocode.ts",
   ],
   "mnemocode-cards": [
@@ -419,25 +405,20 @@ const featureSourceMarkers = {
     "/recovery-mnemocode-heirs.ts",
     "/recovery-mnemocode-heir-route.ts",
     "/recovery-backup/src/mnemocode-heirs.ts",
-    "/recovery-mnemocode-card-images.ts",
     "/recovery-backup/src/mnemocode-cards.ts",
-    "/recovery-backup/src/mnemocode-card-files.ts",
-    "/recovery-backup/src/mnemocode-card-plans.ts",
-    "/recovery-backup/src/mnemocode-card-assets.ts",
-    "/recovery-mnemocode/source/cards.ts",
-    "/self-test-mnemocode-share-cards.ts",
     "/self-test-mnemocode-cards.ts",
-    "/self-test-mnemocode-heirs.ts",
-    "/mnemocode-share-card-checks",
-    "/recovery-mnemocode/source/export/",
-    "/recovery-mnemocode/source/assets/",
-    "/node_modules/pdf-lib/",
-    "/node_modules/@pdf-lib/",
   ],
   // One prefix covers every MHFE panel module and the browser package.
   mhfe: MhfeIntegrationModules.markers,
   slip39: [
     "/recovery-slip39.ts",
+    "/recovery-slip39-create.ts",
+    "/recovery-slip39-restore.ts",
+    "/slip39-worker.ts",
+    "/slip39-worker-runtime.ts",
+    "/page-slip39-wordlist.ts",
+    "/recovery-backup/src/slip39-restore-request.ts",
+    "/recovery-backup/src/slip39-passphrase.ts",
     "/recovery-backup/src/slip39.ts",
     "/slip39-wordlist.ts",
     "/self-test-slip39.ts",
@@ -463,113 +444,17 @@ const featureSourceMarkers = {
   ],
 };
 
-/**
- * Sources that a pair of features needs: absent unless both are built. MnemoCode's own share code
- * (its sskr/ folder, no SSKR WebAssembly) comes with MnemoCode, since its backup check reads shares.
- */
+/** Sources that a pair of features needs: absent unless both are built. */
 const sharedSourceMarkers = [
-  {
-    label: "Worker BIP39 wordlist and accelerated seed provider (MnemoCode)",
-    needed: (features) => features.has("mnemocode"),
-    markers: ["/page-wordlist.ts", "/webcrypto-pbkdf2.ts"],
-  },
-  {
-    // The checks of MnemoCode's coins come with the coins a build offers (AUD-023-BLD001).
-    label: "MnemoCode's checks of every coin (the full build)",
-    needed: (features) => DERIVER_COINS.every((coin) => features.hasCoin(coin)),
-    markers: [
-      "/recovery-mnemocode/source/core/coins-self-test.ts",
-      "/recovery-mnemocode/source/core/coins/bitcoin-like-self-test.ts",
-      "/recovery-mnemocode/source/core/coins/bitcoin-cash-self-test.ts",
-      "/recovery-mnemocode/source/core/coins/cosmos-self-test.ts",
-      "/recovery-mnemocode/source/core/coins/xrp-self-test.ts",
-    ],
-  },
-  {
-    label: "MnemoCode's Ethereum coin (Bitcoin's wallet evidence or Ethereum)",
-    needed: (features) => features.hasCoin("bitcoin") || features.hasCoin("ethereum"),
-    markers: [
-      "/recovery-mnemocode/source/core/coins/ethereum.ts",
-      "/recovery-mnemocode/source/core/coins/keccak-account.ts",
-    ],
-  },
-  {
-    // Ethereum Classic and Tron: Bitcoin's wallet evidence names every coin family; an edition
-    // with Ethereum but no Bitcoin offers Ethereum alone (ethereum.ts).
-    label: "MnemoCode's other EVM coins (Bitcoin's wallet evidence)",
-    needed: (features) => features.hasCoin("bitcoin"),
-    markers: ["/recovery-mnemocode/source/core/coins/evm.ts"],
-  },
-  {
-    label: "MnemoCode's Ethereum address checks",
-    needed: (features) => features.hasCoin("ethereum"),
-    markers: [
-      "/recovery-mnemocode/source/core/coins/ethereum-self-test.ts",
-      "/recovery-mnemocode/source/core/coins/evm-self-test.ts",
-    ],
-  },
-  {
-    label: "MnemoCode's Dash address checks",
-    needed: (features) => features.hasCoin("dash"),
-    markers: ["/recovery-mnemocode/source/core/coins/dash-self-test.ts"],
-  },
   {
     label: "MnemoCode shares (mnemocode with sskr)",
     needed: (features) => features.has("mnemocode") && features.has("sskr"),
-    markers: [
-      "/recovery-mnemocode-shares.ts",
-      "/recovery-mnemocode-repair-times.ts",
-      "/recovery-backup/src/mnemocode-shares.ts",
-      "/mnemocode-shares-worker.ts",
-    ],
-  },
-  {
-    // Share cards, their renderer and their checks come only with share cards (AUD-023-BLD002).
-    label: "MnemoCode share cards (mnemocode-cards with sskr)",
-    needed: (features) => features.has("mnemocode-cards") && features.has("sskr"),
-    markers: [
-      "/self-test-mnemocode-share-cards.ts",
-      "/recovery-backup/src/mnemocode-share-card-checks.ts",
-      "/recovery-backup/src/mnemocode-share-render.ts",
-      "/recovery-mnemocode/source/export/sskr-render.ts",
-      "/recovery-mnemocode/source/export/sskr-render-self-test.ts",
-    ],
+    markers: ["/recovery-mnemocode-shares.ts", "/recovery-mnemocode-repair-times.ts"],
   },
 ];
 
 const QR_IMAGE_IMPORT_SOURCE = "packages/shared-ui/src/qr-image-import.ts";
 const PNG_ADMISSION_SOURCE = "packages/shared-ui/src/png-admission.ts";
-// Generic QR imports share this bounded PNG parser, even when MnemoCode is not offered.
-// Keep the exception at exact files: the rest of the vendored library remains feature-gated.
-const GENERIC_PNG_SOURCES = [
-  "core/byte-array.ts",
-  "core/defined.ts",
-  "core/error-catalog.ts",
-  "core/png-admission.ts",
-  "core/byte-units.ts",
-  "core/bits.ts",
-  "core/bip39-sizes.ts",
-  "core/pieces.ts",
-  "core/places.ts",
-  "core/typed-number.ts",
-  "sskr/checksum.ts",
-].map((file) => `packages/recovery-mnemocode/source/${file}`);
-
-// Standard SSKR and Envelope share the admission rules even without MnemoCode's panels.
-const SSKR_ADMISSION_SOURCES = [
-  "sskr/bridge.ts",
-  "sskr/share-layout.ts",
-  "core/byte-array.ts",
-  "core/defined.ts",
-  "core/error-catalog.ts",
-  "core/refusal.ts",
-  "core/bits.ts",
-  "core/bip39-sizes.ts",
-  "core/pieces.ts",
-  "core/places.ts",
-  "core/typed-number.ts",
-].map((file) => `packages/recovery-mnemocode/source/${file}`);
-const DOWNLOAD_NAME_SOURCE = "packages/recovery-mnemocode/source/export/file-name.ts";
 
 function matchesInput(path, source) {
   return path === source || path.endsWith(`/${source}`);
@@ -580,27 +465,8 @@ export function assertKeyDerivationComposition(features, inputPaths) {
   const normalized = inputPaths.map((path) => path.replaceAll("\\", "/"));
   const includesSource = (source) => normalized.some((path) => matchesInput(path, source));
   const qrImageImport = includesSource(QR_IMAGE_IMPORT_SOURCE);
-  const sharedSources = [
-    ...(qrImageImport ? GENERIC_PNG_SOURCES : []),
-    ...(includesSource("packages/recovery-backup/src/sskr-groups.ts")
-      ? SSKR_ADMISSION_SOURCES
-      : []),
-    ...(includesSource("packages/recovery-backup/src/sskr.ts")
-      ? ["packages/recovery-mnemocode/source/sskr/share-platform.ts"]
-      : []),
-  ];
-  const allowedSharedInputs = new Set(
-    normalized.filter((path) => sharedSources.some((source) => matchesInput(path, source))),
-  );
-  const allowedDownloadInputs = includesSource(
-    "apps/key-derivation/src/ui/recovery-mnemocode-download.ts",
-  )
-    ? new Set(normalized.filter((path) => matchesInput(path, DOWNLOAD_NAME_SOURCE)))
-    : undefined;
-  const assertAbsent = (label, markers, allowedInputs) => {
-    const leaked = normalized.filter(
-      (path) => !allowedInputs?.has(path) && markers.some((marker) => path.includes(marker)),
-    );
+  const assertAbsent = (label, markers) => {
+    const leaked = normalized.filter((path) => markers.some((marker) => path.includes(marker)));
     if (leaked.length > 0)
       throw new Error(
         `${label} is excluded but remains in the bundle graph:\n${leaked.join("\n")}`,
@@ -610,16 +476,7 @@ export function assertKeyDerivationComposition(features, inputPaths) {
     if (!features.hasCoin(coin)) assertAbsent(`Coin module ${coin}`, markers);
   }
   for (const [feature, markers] of Object.entries(featureSourceMarkers)) {
-    if (!features.has(feature))
-      assertAbsent(
-        `Feature ${feature}`,
-        markers,
-        feature === "mnemocode"
-          ? allowedSharedInputs
-          : feature === "mnemocode-cards"
-            ? allowedDownloadInputs
-            : undefined,
-      );
+    if (!features.has(feature)) assertAbsent(`Feature ${feature}`, markers);
   }
   for (const { label, needed, markers } of sharedSourceMarkers) {
     if (!needed(features)) assertAbsent(label, markers);
@@ -635,13 +492,19 @@ export function assertKeyDerivationComposition(features, inputPaths) {
     for (const marker of [
       "/bip85-feature.ts",
       "/bip85-child-wallet-feature.ts",
-      "/bip85-deriver.ts",
+      "/bip85-child-derivation.ts",
+      "/crypto-core/src/bip85.ts",
     ])
       requireInput("Feature bip85", marker);
   }
   if (features.has("silent-payments")) {
     requireInput("Feature silent-payments", "/silent-payment-feature.ts");
     requireInput("Feature silent-payments", "/silent-payment.ts");
+    requireInput("Feature silent-payments", "/coin-protocols/src/coins/bitcoin/silent-payments.ts");
+    requireInput(
+      "Feature silent-payments",
+      "/coin-protocols/src/coins/bitcoin/silent-payment-parameters.ts",
+    );
   }
   if (features.has("bip38-encrypt"))
     requireInput("Feature bip38-encrypt", "/bip38-encryption-feature.ts");

@@ -1,11 +1,16 @@
+import { UiEventScope } from "@ckd/ui/ui-event-scope.js";
+import { DerivationBranches } from "@ckd/coins/derivation-branches.js";
 import type { CoinAdapter } from "@ckd/coins/registry.js";
+import type { CompactMessageSignature } from "@ckd/core/compact-message.js";
+import { SigningMessage, SigningMessageError } from "@ckd/core/signing-message.js";
 import type { DerivationResult } from "@ckd/core/types.js";
 import { readControls, type DerivationControls } from "./inputs.js";
-import { planResultBranches, type ResultBranch } from "./result-branches.js";
+import type { ResultBranch } from "./result-branches.js";
 import { DerivationCancelledError, type DerivationWorkerClient } from "../workers/derive-client.js";
 import type { MessageSigningFormat } from "../workers/protocol.js";
 import type { MessageSigningPolicy } from "./message-signing-policy.js";
 import { SELF_TEST_NOT_PASSED } from "./crypto-self-test-gate.js";
+import { DerivationErrorText } from "./derivation-error-text.js";
 
 interface WalletSource {
   adapter: CoinAdapter | null;
@@ -14,204 +19,301 @@ interface WalletSource {
   passphrase: string;
 }
 
-interface MessageSigningInstallerOptions {
+type SigningWorker = Pick<DerivationWorkerClient, "signMessage" | "terminate">;
+/** Native page edges; the library and the disposable worker own signing rules and computation. */
+export interface MessageSigningFeatureOptions {
   document: Document;
   mainSource(): WalletSource;
   bip85Source(): WalletSource;
   mnemonicToSeed: typeof import("@ckd/core/bip39.js").mnemonicToSeed;
-  createWorker(): DerivationWorkerClient;
+  /** The client copies a borrowed seed before returning its response promise. */
+  createWorker(): SigningWorker;
   copy(button: HTMLButtonElement, text: string): void;
-  /** Whether the cryptographic self-tests have passed; nothing is signed before they do. */
   cryptoReady(): boolean;
 }
 
-type SigningContext = {
-  index: number;
-  address: string;
-  path: string;
-  source: "main" | "bip85";
-  resultId: string;
-  resultBranch: ResultBranch;
-};
-
-export function createMessageSigningInstaller(policy: MessageSigningPolicy) {
-  return (options: MessageSigningInstallerOptions) => installMessageSigningFeature(options, policy);
+interface SigningContext {
+  readonly index: number;
+  readonly address: string;
+  readonly source: "main" | "bip85";
+  readonly resultId: string;
+  readonly resultBranch: ResultBranch;
 }
 
-function installMessageSigningFeature(
-  options: MessageSigningInstallerOptions,
-  policy: MessageSigningPolicy,
-) {
-  const required = <T extends HTMLElement>(selector: string): T => {
-    const element = options.document.querySelector<T>(selector);
-    if (element === null) throw new Error(`Message-signing UI is missing ${selector}.`);
-    return element;
-  };
-  const formatField = options.document.querySelector<HTMLElement>("#message-signer-format-field");
-  const formatSelect = options.document.querySelector<HTMLSelectElement>(
-    "#message-signer-format-select",
-  );
-  const formatOutput = required<HTMLElement>("#message-signer-format");
-  const dialog = required<HTMLDialogElement>("#message-signer-dialog");
-  const addressOutput = required<HTMLElement>("#message-signer-address");
-  const pathOutput = required<HTMLElement>("#message-signer-path");
-  const message = required<HTMLTextAreaElement>("#message-signer-message");
-  const signButton = required<HTMLButtonElement>("#sign-message-button");
-  const closeButton = required<HTMLButtonElement>("#close-message-signer");
-  const error = required<HTMLElement>("#message-signer-error");
-  const signatureResult = required<HTMLElement>("#message-signature-result");
-  const signatureOutput = required<HTMLTextAreaElement>("#message-signature-output");
-  const verification = required<HTMLElement>("#message-signature-verification");
-  const copySignature = required<HTMLButtonElement>("#copy-message-signature");
-  let context: SigningContext | null = null;
-  let worker: DerivationWorkerClient | null = null;
-  let revision = 0;
+const REFUSALS = {
+  UI_MISSING: "The message-signing controls are unavailable.",
+  ADDRESS_GONE: "The selected address is no longer available for message signing.",
+  WALLET_GONE: "The selected wallet is no longer available for message signing.",
+  BRANCH_GONE: "The active address branch is no longer available.",
+  INVALID_FORMAT: "Select an offered message-signing format for this address.",
+  SELF_TEST: SELF_TEST_NOT_PASSED,
+  VERIFICATION_FAILED: "Generated signature failed local verification.",
+} as const;
+const SIGN_LABEL = "Sign message";
+const SIGNING_LABEL = "Signing…";
+const FAILED = "Message signing failed.";
 
-  const format = (resultId: string): MessageSigningFormat | null => {
-    return policy.format(resultId);
-  };
-  const invalidate = (): void => {
-    revision += 1;
-    worker?.terminate(new DerivationCancelledError("Message-signing request superseded."));
-    worker = null;
-    context = null;
-  };
-  const open = (
+class MessageSigningUiError extends Error {
+  readonly code: keyof typeof REFUSALS;
+  constructor(code: keyof typeof REFUSALS) {
+    super(REFUSALS[code]);
+    this.name = "MessageSigningUiError";
+    this.code = code;
+  }
+}
+
+/** Owns one dialog's request revision, native fields and disposable signing worker. */
+export class MessageSigningFeature implements Disposable {
+  readonly #options: MessageSigningFeatureOptions;
+  readonly #policy: MessageSigningPolicy;
+  readonly #events = new UiEventScope((cause) => this.#failure(cause));
+  readonly #ui;
+  #context: SigningContext | undefined;
+  #worker: SigningWorker | undefined;
+  #revision = 0;
+  #disposed = false;
+
+  constructor(options: MessageSigningFeatureOptions, policy: MessageSigningPolicy) {
+    this.#options = options;
+    this.#policy = policy;
+    this.#ui = {
+      formatField: options.document.querySelector<HTMLElement>("#message-signer-format-field"),
+      formatSelect: options.document.querySelector<HTMLSelectElement>(
+        "#message-signer-format-select",
+      ),
+      format: this.#required<HTMLElement>("#message-signer-format"),
+      dialog: this.#required<HTMLDialogElement>("#message-signer-dialog"),
+      address: this.#required<HTMLElement>("#message-signer-address"),
+      path: this.#required<HTMLElement>("#message-signer-path"),
+      message: this.#required<HTMLTextAreaElement>("#message-signer-message"),
+      messageHelp: options.document.querySelector<HTMLElement>("#message-signer-message-help"),
+      sign: this.#required<HTMLButtonElement>("#sign-message-button"),
+      close: this.#required<HTMLButtonElement>("#close-message-signer"),
+      error: this.#required<HTMLElement>("#message-signer-error"),
+      result: this.#required<HTMLElement>("#message-signature-result"),
+      signature: this.#required<HTMLTextAreaElement>("#message-signature-output"),
+      verification: this.#required<HTMLElement>("#message-signature-verification"),
+      copy: this.#required<HTMLButtonElement>("#copy-message-signature"),
+    };
+    if (this.#ui.messageHelp !== null) this.#ui.messageHelp.textContent = SigningMessage.help;
+    this.#events.listen(this.#ui.close, "click", this.close);
+    this.#events.listen(this.#ui.dialog, "cancel", this.close);
+    this.#events.listen(this.#ui.message, "input", () => this.#edited());
+    if (this.#ui.formatSelect !== null)
+      this.#events.listen(this.#ui.formatSelect, "change", () => {
+        this.#edited();
+        const context = this.#context;
+        if (context !== undefined)
+          this.#ui.format.textContent = this.#policy.label(this.#selection(context));
+      });
+    this.#events.listen(this.#ui.sign, "click", () => {
+      void this.#sign();
+    });
+    this.#events.listen(this.#ui.copy, "click", () => {
+      if (this.#ui.signature.value !== "") options.copy(this.#ui.copy, this.#ui.signature.value);
+    });
+    if (options.document.defaultView !== null)
+      this.#events.listen(options.document.defaultView, "pagehide", this.close);
+  }
+
+  #required<T extends HTMLElement>(selector: string): T {
+    const element = this.#options.document.querySelector<T>(selector);
+    if (element === null) throw new MessageSigningUiError("UI_MISSING");
+    return element;
+  }
+
+  /** The active coin policy supplies the default; unsupported result IDs have no signer. */
+  readonly format = (resultId: string): MessageSigningFormat | null =>
+    this.#policy.format(resultId);
+
+  /** Captures only public row identity; current factors are read just before the request. */
+  readonly open = (
     result: DerivationResult,
     branch: ResultBranch,
     source: "main" | "bip85",
     index: number,
     address: string,
   ): void => {
-    const signingFormat = format(result.id);
+    if (this.#disposed) return;
+    const signingFormat = this.format(result.id);
     const row = result.rows.find((candidate) => candidate.index === index);
     if (row === undefined || signingFormat === null) return;
-    invalidate();
-    context = { index, address, path: row.path, source, resultId: result.id, resultBranch: branch };
-    const chooseLegacy = policy.allowsLegacyChoice(result.id) && formatField !== null;
-    if (formatField !== null) formatField.hidden = !chooseLegacy;
-    if (chooseLegacy && formatSelect !== null) formatSelect.value = signingFormat;
-    addressOutput.textContent = address;
-    pathOutput.textContent = row.path;
-    formatOutput.textContent = policy.label(signingFormat);
-    message.value = "";
-    signatureOutput.value = "";
-    error.textContent = "";
-    error.hidden = true;
-    signatureResult.hidden = true;
-    signButton.disabled = false;
-    signButton.textContent = "Sign message";
-    dialog.showModal();
-    message.focus();
+    this.invalidate();
+    this.#context = { index, address, source, resultId: result.id, resultBranch: branch };
+    const chooseLegacy =
+      this.#policy.allowsLegacyChoice(result.id) && this.#ui.formatField !== null;
+    if (this.#ui.formatField !== null) this.#ui.formatField.hidden = !chooseLegacy;
+    if (chooseLegacy && this.#ui.formatSelect !== null) this.#ui.formatSelect.value = signingFormat;
+    this.#ui.address.textContent = address;
+    this.#ui.path.textContent = row.path;
+    this.#ui.format.textContent = this.#policy.label(signingFormat);
+    this.#ui.message.value = "";
+    this.#resetOutput();
+    this.#ui.dialog.showModal();
+    this.#ui.message.focus();
   };
 
-  const close = (): void => {
-    invalidate();
-    message.value = "";
-    signatureOutput.value = "";
-    error.textContent = "";
-    error.hidden = true;
-    signatureResult.hidden = true;
-    if (dialog.open) dialog.close();
+  /** Revokes a pending request and its displayed output, even if native termination fails. */
+  readonly invalidate = (): void => {
+    try {
+      this.#cancel();
+    } finally {
+      this.#context = undefined;
+      this.#resetOutput();
+    }
   };
-  closeButton.addEventListener("click", close);
-  dialog.addEventListener("cancel", () => {
-    invalidate();
-    message.value = "";
-    signatureOutput.value = "";
-  });
-  signButton.addEventListener("click", () => {
-    const active = context;
-    const defaultFormat = active === null ? null : format(active.resultId);
-    const signingFormat =
-      active !== null && policy.allowsLegacyChoice(active.resultId) && formatSelect !== null
-        ? (formatSelect.value as MessageSigningFormat)
-        : defaultFormat;
-    if (active === null || signingFormat === null) {
-      error.textContent = "The selected address is no longer available for message signing.";
-      error.hidden = false;
-      signatureResult.hidden = true;
+
+  /** Releases the request and clears native text on Close, cancellation and page exit. */
+  readonly close = (): void => {
+    try {
+      this.invalidate();
+    } finally {
+      this.#ui.message.value = "";
+      this.#ui.address.textContent = this.#ui.path.textContent = "";
+      if (this.#ui.dialog.open) this.#ui.dialog.close();
+    }
+  };
+
+  /** Whether the native dialog is currently visible. */
+  readonly isOpen = (): boolean => this.#ui.dialog.open;
+  /** Public source identity only, used by the main and child wallet's Clear operation. */
+  readonly activeSource = (): "main" | "bip85" | null => this.#context?.source ?? null;
+
+  #cancel(): void {
+    this.#revision += 1;
+    const worker = this.#worker;
+    this.#worker = undefined;
+    worker?.terminate(new DerivationCancelledError("Message-signing request superseded."));
+  }
+
+  #edited(): void {
+    try {
+      this.#cancel();
+    } finally {
+      this.#resetOutput();
+    }
+  }
+
+  #resetOutput(): void {
+    this.#ui.signature.value = "";
+    this.#ui.result.hidden = true;
+    this.#ui.verification.textContent = "";
+    this.#ui.error.textContent = "";
+    this.#ui.error.hidden = true;
+    this.#ui.sign.disabled = false;
+    this.#ui.sign.textContent = SIGN_LABEL;
+  }
+
+  #selection(context: SigningContext): MessageSigningFormat {
+    const selected =
+      this.#policy.allowsLegacyChoice(context.resultId) && this.#ui.formatSelect !== null
+        ? this.#ui.formatSelect.value
+        : this.format(context.resultId);
+    const admitted = this.#policy.choose(context.resultId, selected);
+    if (admitted === null) throw new MessageSigningUiError("INVALID_FORMAT");
+    return admitted;
+  }
+
+  #failure(cause: unknown): void {
+    this.#ui.signature.value = "";
+    this.#ui.result.hidden = true;
+    this.#ui.error.textContent =
+      cause instanceof SigningMessageError || cause instanceof MessageSigningUiError
+        ? cause.message
+        : DerivationErrorText.of(cause, FAILED);
+    this.#ui.error.hidden = false;
+  }
+
+  async #sign(): Promise<void> {
+    if (this.#disposed) return;
+    const active = this.#context;
+    let format: MessageSigningFormat;
+    try {
+      if (active === undefined) throw new MessageSigningUiError("ADDRESS_GONE");
+      if (!this.#options.cryptoReady()) throw new MessageSigningUiError("SELF_TEST");
+      SigningMessage.require(this.#ui.message.value);
+      format = this.#selection(active);
+      this.#cancel();
+    } catch (cause) {
+      this.#failure(cause);
       return;
     }
-    if (!options.cryptoReady()) {
-      error.textContent = SELF_TEST_NOT_PASSED;
-      error.hidden = false;
-      signatureResult.hidden = true;
-      return;
-    }
-    const messageText = message.value;
-    if (messageText.length === 0) {
-      error.textContent = "Enter a message to sign.";
-      error.hidden = false;
-      signatureResult.hidden = true;
-      return;
-    }
-    void (async () => {
-      let seed: Uint8Array | null = null;
-      worker?.terminate(new DerivationCancelledError("Message-signing request replaced."));
-      const requestRevision = ++revision;
-      const nextWorker = options.createWorker();
-      worker = nextWorker;
-      signButton.disabled = true;
-      signButton.textContent = "Signing…";
-      try {
-        const source = active.source === "bip85" ? options.bip85Source() : options.mainSource();
+    const revision = this.#revision;
+    let worker: SigningWorker | undefined;
+    this.#ui.sign.disabled = true;
+    this.#ui.sign.textContent = SIGNING_LABEL;
+    try {
+      worker = this.#options.createWorker();
+      this.#worker = worker;
+      let pending: Promise<CompactMessageSignature>;
+      {
+        // Raw factors leave this synchronous scope before waiting for the worker response.
+        const source =
+          active.source === "bip85" ? this.#options.bip85Source() : this.#options.mainSource();
         if (source.adapter === null || source.controls === null || source.mnemonic === null)
-          throw new Error("The selected wallet is no longer available for message signing.");
-        const input = readControls(source.adapter, source.controls);
-        const { includeChange, includeCoinJoin, ...baseInput } = input;
-        const plan = planResultBranches(
+          throw new MessageSigningUiError("WALLET_GONE");
+        const { includeChange, includeCoinJoin, ...input } = readControls(
           source.adapter,
-          baseInput.branch,
+          source.controls,
+        );
+        const plan = new DerivationBranches(
+          source.adapter,
+          input.branch,
           includeChange,
           includeCoinJoin,
-        ).find((candidate) => candidate.kind === active.resultBranch);
-        if (plan === undefined)
-          throw new Error("The active address branch is no longer available.");
-        seed = options.mnemonicToSeed(source.mnemonic, source.passphrase);
-        const signed = await nextWorker.signMessage(
-          plan.workerAdapterId ?? source.adapter.id,
-          { ...baseInput, branch: plan.branch, start: active.index, count: 1, seed },
-          active.address,
-          messageText,
-          signingFormat,
-        );
-        if (requestRevision !== revision || context !== active) return;
-        if (!signed.verified) throw new Error("Generated signature failed local verification.");
-        error.hidden = true;
-        signatureOutput.value = signed.signature;
-        signatureResult.hidden = false;
-        verification.textContent = `Verified locally against the selected address · ${signed.format}`;
-      } catch (cause) {
-        if (requestRevision === revision && context === active) {
-          error.textContent = cause instanceof Error ? cause.message : "Message signing failed.";
-          error.hidden = false;
-          signatureResult.hidden = true;
-        }
-      } finally {
-        nextWorker.terminate(new DerivationCancelledError("Message-signing worker released."));
-        seed?.fill(0);
-        if (requestRevision === revision) {
-          worker = null;
-          signButton.disabled = false;
-          signButton.textContent = "Sign message";
+        ).plans.find((candidate) => candidate.kind === active.resultBranch);
+        if (plan === undefined) throw new MessageSigningUiError("BRANCH_GONE");
+        const seed = this.#options.mnemonicToSeed(source.mnemonic, source.passphrase);
+        try {
+          if (revision !== this.#revision || this.#context !== active) return;
+          SigningMessage.require(this.#ui.message.value);
+          pending = worker.signMessage(
+            plan.workerAdapterId ?? source.adapter.id,
+            { ...input, branch: plan.branch, start: active.index, count: 1, seed },
+            active.address,
+            this.#ui.message.value,
+            format,
+          );
+        } finally {
+          seed.fill(0);
         }
       }
-    })();
-  });
-  formatSelect?.addEventListener("change", () => {
-    if (formatOutput !== null)
-      formatOutput.textContent = policy.label(formatSelect.value as MessageSigningFormat);
-  });
-  copySignature.addEventListener("click", () => {
-    if (signatureOutput.value.length > 0) options.copy(copySignature, signatureOutput.value);
-  });
-  return {
-    format,
-    open,
-    close,
-    invalidate,
-    isOpen: () => dialog.open,
-    activeSource: () => context?.source ?? null,
-  };
+      const signed = await pending;
+      if (revision !== this.#revision || this.#context !== active) return;
+      if (!signed.verified) throw new MessageSigningUiError("VERIFICATION_FAILED");
+      this.#ui.error.hidden = true;
+      this.#ui.signature.value = signed.signature;
+      this.#ui.result.hidden = false;
+      this.#ui.verification.textContent = `Verified locally against the selected address · ${signed.format}`;
+    } catch (cause) {
+      if (revision === this.#revision && this.#context === active) this.#failure(cause);
+    } finally {
+      try {
+        worker?.terminate(new DerivationCancelledError("Message-signing worker released."));
+      } catch (cause) {
+        if (revision === this.#revision) this.#failure(cause);
+      } finally {
+        if (revision === this.#revision) {
+          this.#worker = undefined;
+          this.#ui.sign.disabled = false;
+          this.#ui.sign.textContent = SIGN_LABEL;
+        }
+      }
+    }
+  }
+
+  /** Releases native listeners and all operation state when the host retires this feature. */
+  [Symbol.dispose](): void {
+    try {
+      this.close();
+    } finally {
+      this.#disposed = true;
+      this.#events.dispose();
+    }
+  }
+}
+
+/** Compatibility installer for the edition's selected policy. */
+export function createMessageSigningInstaller(policy: MessageSigningPolicy) {
+  return (options: MessageSigningFeatureOptions) => new MessageSigningFeature(options, policy);
 }

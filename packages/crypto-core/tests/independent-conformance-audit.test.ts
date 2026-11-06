@@ -3,7 +3,7 @@ import { HDNodeWallet, SigningKey } from "ethers";
 import { describe, expect, it } from "vitest";
 import { rootFromSeed } from "../src/bip32.js";
 import { mnemonicToSeed, entropyToEnglishMnemonic } from "../src/bip39.js";
-import { deriveBip85Bip39, deriveBip85Hex } from "../src/bip85.js";
+import { Bip85 } from "../src/bip85.js";
 import { decryptBip38, encryptBip38 } from "../src/bip38.js";
 import { signCompactP2pkhMessage } from "../src/compact-message.js";
 import {
@@ -68,7 +68,7 @@ describe("independent public-vector cryptographic audit", () => {
       "puppy ocean match cereal symbol another shed magic wrap hammer bulb intact gadget divorce twin tonight reason outdoor destroy simple truth cigar social volcano",
     ],
   ] as const)("matches official BIP85 %i-word vector", (words, entropy, mnemonic) => {
-    const result = deriveBip85Bip39(BIP85_ROOT, words, 0);
+    const result = Bip85.bip39(BIP85_ROOT, words, 0);
     expect(result.entropyHex).toBe(entropy);
     expect(entropyToEnglishMnemonic(Buffer.from(entropy, "hex"))).toBe(mnemonic);
   });
@@ -83,7 +83,7 @@ describe("independent public-vector cryptographic audit", () => {
           .update(Buffer.from(key.slice(2), "hex"))
           .digest()
           .subarray(0, 16);
-        const actual = deriveBip85Bip39(seed, 12, index);
+        const actual = Bip85.bip39(seed, 12, index);
         expect(actual.entropyHex).toBe(entropy.toString("hex"));
         const child = entropyToEnglishMnemonic(entropy);
         expect(Buffer.from(mnemonicToSeed(child, "public child"))).toEqual(
@@ -106,7 +106,7 @@ describe("independent public-vector cryptographic audit", () => {
       .digest()
       .subarray(0, bytes)
       .toString("hex");
-    expect(deriveBip85Hex(seed, bytes, 17).entropyHex).toBe(expected);
+    expect(Bip85.hex(seed, bytes, 17).entropyHex).toBe(expected);
   });
 
   // https://github.com/bitcoin/bips/blob/master/bip-0038.mediawiki#no-compression-no-ec-multiply

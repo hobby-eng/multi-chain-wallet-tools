@@ -1,6 +1,7 @@
 import { trustedEvoSdk } from "@ckd/dash-network/evo-sdk.js";
 import { PLATFORM_EXPLORER_ENDPOINTS } from "@ckd/dash-network/platform-explorer.js";
 import { PlatformAddressHistoryAdmission } from "@ckd/dash-network/platform-address-history-admission.js";
+import { PlatformIdentifier } from "@ckd/dash-network/platform-identifier.js";
 import { networkCancelledError } from "@ckd/core/error-handling.js";
 import { fetchRecoveryJson, throwIfRecoveryAborted } from "./recovery-http.js";
 import {
@@ -30,7 +31,6 @@ import {
   assertAddressBatch,
   assertNetwork,
   assertSingleAddress,
-  PLATFORM_IDENTIFIER_PATTERN,
   POOL_POSITION_PATTERN,
   publicKeyHashBytes,
   TRANSACTION_HASH_PATTERN,
@@ -323,8 +323,7 @@ export class DashPlatformNetworkService {
       return fetchRecoveryJson(url, signal, {}, remaining);
     };
     assertNetwork(network);
-    if (!PLATFORM_IDENTIFIER_PATTERN.test(identifier))
-      throw new Error("Network Worker rejected an invalid Platform identity.");
+    PlatformIdentifier.require(identifier);
     const endpoint = PLATFORM_EXPLORER_ENDPOINTS[network];
     const indexedHeight = await this.#platformExplorerHeight(network, signal);
     const info = platformRecord(

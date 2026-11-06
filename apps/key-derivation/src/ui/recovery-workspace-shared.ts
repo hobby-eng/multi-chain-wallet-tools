@@ -1,3 +1,5 @@
+import { defined } from "@ckd/core/defined.js";
+import { RecoverySecretToggle } from "./recovery-secret-toggle.js";
 import { isTabKey, markTab, tabIndexAfter } from "@ckd/ui/tabs.js";
 import { SskrGroupPolicy } from "@ckd/recovery-backup/sskr-groups.js";
 import { textLines } from "@ckd/core/text-lines.js";
@@ -8,10 +10,12 @@ import type { RecoverySourceReference, RecoverySourceTarget } from "./recovery-s
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { createQrAction } from "@ckd/ui/payment-qr.js";
 import { installQrImageImport, type DecodedQrImage } from "@ckd/ui/qr-image-import.js";
-import { installTextFileImport } from "@ckd/ui/text-file-import.js";
-import { diagnoseMnemonic, masterFingerprintFromSeed } from "@ckd/core/bip39.js";
-import { renderSeedDiagnostic } from "./seed-diagnostic-view.js";
+import { qrText } from "@ckd/ui/qr-text.js";
+import { installTextFileImport, type TextFileImportOptions } from "@ckd/ui/text-file-import.js";
+import { SeedDiagnosticView } from "./seed-diagnostic-view.js";
+import { RecoveryMnemonicDiagnostic } from "./recovery-mnemonic-diagnostic.js";
 import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
+import { APART_CODES } from "./secrets.js";
 
 /**
  * A status line that fills after a typing pause keeps its height with this text while it is empty,
@@ -368,7 +372,7 @@ export function installTabs(root: ParentNode, buttonSelector: string, panelSelec
       const next = tabIndexAfter(event.key, enabled.indexOf(button), enabled.length);
       if (next === undefined) return;
       event.preventDefault();
-      const selected = enabled[next]!;
+      const selected = defined(enabled[next]);
       setTab(buttons, panels, buttons.indexOf(selected));
       selected.focus();
     });
@@ -378,28 +382,6 @@ export function installTabs(root: ParentNode, buttonSelector: string, panelSelec
     panels,
     buttons.findIndex((button) => !button.disabled),
   );
-}
-
-/**
- * The part of a panel whose secrets one Show button reveals and whose Copy buttons it enables: a
- * block marked data-secret-scope, such as a section with results of its own inside a tab, or else
- * the whole tab.
- */
-const SECRET_SCOPE = "[data-secret-scope], .backup-operation";
-
-/**
- * Whether a Copy button copies one of `targets`: it sits in a card that holds one, or under a
- * result that holds them ("Copy all"), in the button's own scope rather than in a nested block with
- * a Show button of its own. So showing an input field never unlocks the Copy of a result.
- */
-function copiesTarget(
-  action: HTMLElement,
-  scope: HTMLElement,
-  targets: readonly HTMLElement[],
-): boolean {
-  if (action.closest(SECRET_SCOPE) !== scope) return false;
-  const holder = action.closest("article") ?? action.parentElement?.parentElement;
-  return holder != null && targets.some((target) => holder.contains(target));
 }
 
 /**
@@ -414,120 +396,22 @@ export function installSecretToggle(
   hideLabel: string,
   subject?: string,
 ): void {
-  const button = required<HTMLButtonElement>(buttonSelector);
-  const scope = button.closest<HTMLElement>(SECRET_SCOPE) ?? document.body;
-  let revealed = button.getAttribute("aria-pressed") === "true";
-  const synchronize = (): void => {
-    const targets = [...document.querySelectorAll<HTMLElement>(targetSelector)];
-    for (const target of targets) target.classList.toggle("concealed", !revealed);
-    for (const action of scope.querySelectorAll<HTMLButtonElement>(".secret-copy-action"))
-      if (copiesTarget(action, scope, targets)) action.disabled = !revealed;
-    button.textContent = revealed ? hideLabel : revealLabel;
-    if (subject !== undefined)
-      button.setAttribute("aria-label", `${revealed ? "Hide" : "Show"} ${subject}`);
-    button.setAttribute("aria-pressed", String(revealed));
-  };
-  button.addEventListener("click", () => {
-    revealed = !revealed;
-    synchronize();
+  new RecoverySecretToggle(required<HTMLButtonElement>(buttonSelector), targetSelector, {
+    reveal: revealLabel,
+    hide: hideLabel,
+    subject,
   });
-  for (const target of document.querySelectorAll<HTMLElement>(targetSelector)) {
-    target.addEventListener("input", () => queueMicrotask(synchronize));
-  }
-  const conceal = (): void => {
-    revealed = false;
-    synchronize();
-  };
-  scope.addEventListener("secret-content-reset", conceal);
-  RecoverySecretLifecycle.register(button, conceal);
-  synchronize();
 }
 
-function createSeedDiagnosticElement(): HTMLElement {
-  const diagnostic = document.createElement("section");
-  diagnostic.className = "seed-diagnostic recovered-seed-diagnostic";
-  const diagnosticHead = document.createElement("div");
-  diagnosticHead.className = "seed-diagnostic-head";
-  const diagnosticTitle = document.createElement("h3");
-  diagnosticTitle.textContent = "Seed Diagnostic";
-  const diagnosticScope = document.createElement("span");
-  diagnosticScope.textContent = "Local · no network";
-  diagnosticHead.append(diagnosticTitle, diagnosticScope);
-  diagnostic.append(diagnosticHead);
-  return diagnostic;
-}
+/** Compatibility installer for each recovery feature's source diagnostic. */
+export const installMnemonicSourceDiagnostic = RecoveryMnemonicDiagnostic.install.bind(
+  RecoveryMnemonicDiagnostic,
+);
 
-function updateMnemonicDiagnostic(
-  diagnostic: HTMLElement,
-  mnemonic: string,
-  passphrase: string,
-  revealed: boolean,
-  mnemonicToSeed: (mnemonic: string, passphrase: string) => Uint8Array,
-): void {
-  const report = diagnoseMnemonic(mnemonic);
-  let seed: Uint8Array | null = null;
-  let fingerprint: string | null = null;
-  if (report.checksumValid) {
-    try {
-      seed = mnemonicToSeed(mnemonic, passphrase);
-      fingerprint = masterFingerprintFromSeed(seed);
-    } finally {
-      seed?.fill(0);
-    }
-  }
-  renderSeedDiagnostic(document, diagnostic, report, fingerprint, revealed);
-}
-
-export function installMnemonicSourceDiagnostic(
-  context: RecoveryFeatureContext,
-  target: Exclude<RecoverySourceTarget, "matcher">,
-  inputSelector: string,
-  revealButtonSelector: string,
-  passphraseSelector?: string,
-): void {
-  const input = required<HTMLTextAreaElement>(inputSelector);
-  const reveal = required<HTMLButtonElement>(revealButtonSelector);
-  const passphrase =
-    passphraseSelector === undefined ? null : required<HTMLInputElement>(passphraseSelector);
-  const diagnostic = createSeedDiagnosticElement();
-  input.after(diagnostic);
-  const update = (): void => {
-    let linked: { mnemonic: string; passphrase: string } | null;
-    try {
-      linked = context.linkedValue(target);
-    } catch {
-      // The linked phrase changed or was cleared in Generate & Derive: nothing to describe until
-      // it is chosen again.
-      updateMnemonicDiagnostic(diagnostic, "", "", false, context.mnemonicToSeed);
-      return;
-    }
-    // A linked phrase is shown by the toggle in its card; the hidden manual field says nothing about it.
-    const revealed =
-      linked === null
-        ? !input.classList.contains("concealed")
-        : context.linkedSourceRevealed(target);
-    updateMnemonicDiagnostic(
-      diagnostic,
-      linked?.mnemonic ?? input.value,
-      linked?.passphrase ?? passphrase?.value ?? "",
-      revealed,
-      context.mnemonicToSeed,
-    );
-  };
-  input.addEventListener("input", update);
-  passphrase?.addEventListener("input", update);
-  reveal.addEventListener("click", () => queueMicrotask(update));
-  RecoverySecretLifecycle.onConceal(reveal, () => queueMicrotask(update));
-  for (const type of ["recovery-source-change", "recovery-source-visibility"]) {
-    document.addEventListener(type, (event) => {
-      if (event instanceof CustomEvent && event.detail === target) update();
-    });
-  }
-  update();
-}
-
-/** The class of codes shown apart beside the same codes written joined (appendApartCodes). */
-const APART_CODES = "apart-codes";
+const createSeedDiagnosticElement = RecoveryMnemonicDiagnostic.create.bind(
+  RecoveryMnemonicDiagnostic,
+);
+const updateMnemonicDiagnostic = RecoveryMnemonicDiagnostic.render.bind(RecoveryMnemonicDiagnostic);
 
 /** What leads from codes shown apart to the same codes joined, as MnemoCode's command line says. */
 export const JOINED_CODES_CAPTION = "Joined, for copying:";
@@ -609,7 +493,7 @@ export function renderSensitiveShares(
   });
   const reset = (): void => {
     container
-      .closest<HTMLElement>(SECRET_SCOPE)
+      .closest<HTMLElement>(RecoverySecretToggle.SCOPE)
       ?.dispatchEvent(new CustomEvent("secret-content-reset"));
   };
   if (shares.length === 1 && lastActions !== undefined) {
@@ -649,14 +533,20 @@ export function renderRecoveredMnemonic(
 ): void {
   const diagnostic = createSeedDiagnosticElement();
   diagnostic.hidden = true;
-  const diagnosticHead = diagnostic.firstElementChild!;
   const updateDiagnostic = (revealed: boolean): void => {
     if (!revealed) {
       diagnostic.hidden = true;
-      diagnostic.replaceChildren(diagnosticHead);
+      SeedDiagnosticView.clear(diagnostic);
       return;
     }
-    updateMnemonicDiagnostic(diagnostic, mnemonic, diagnosticPassphrase, true, mnemonicToSeed);
+    updateMnemonicDiagnostic(
+      diagnostic,
+      mnemonic,
+      diagnosticPassphrase,
+      true,
+      mnemonicToSeed,
+      current,
+    );
     diagnostic.hidden = false;
   };
   renderRecoveredSecret(
@@ -808,10 +698,11 @@ export const PHRASE_FILE_IMPORT = {
 } as const;
 /** Shares or records in several QR images, one a share, read into one field. */
 export const QR_IMAGES_IMPORT = { label: "Import QR images", multiple: true } as const;
-/** Shares written one a line, as a field opens them from a file. */
+/** Repeated share files accumulate line-oriented records, as repeatable CLI share-file options do. */
 export const SHARES_FILE_IMPORT = {
-  label: "Open a shares file",
+  label: "Add a shares file",
   accept: ".txt,text/plain",
+  append: true,
 } as const;
 
 /**
@@ -823,7 +714,7 @@ export function installFieldImports(
   field: HTMLTextAreaElement,
   say: (message: string) => void,
   options: {
-    readonly file?: { readonly label: string; readonly accept: string };
+    readonly file?: TextFileImportOptions;
     readonly qr?: {
       readonly label?: string;
       readonly multiple?: boolean;
@@ -835,7 +726,7 @@ export function installFieldImports(
     installTextFileImport(document, field, { ...options.file, onError: say });
   if (options.qr !== undefined)
     installQrImageImport(document, field, {
-      onDecoded: (decoded) => decoded.text.trim(),
+      onDecoded: (decoded) => qrText(decoded).trim(),
       ...options.qr,
       onError: say,
     });

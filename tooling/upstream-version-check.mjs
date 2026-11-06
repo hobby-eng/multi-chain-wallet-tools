@@ -201,7 +201,12 @@ export function readPinnedVersions(root) {
     "wasm-bindgen version",
   );
   const codex32 = capture(codex32Manifest, /codex32 = "=(\d+\.\d+\.\d+)"/u, "Codex32 version");
-  const sskr = capture(sskrManifest, /sskr = "=(\d+\.\d+\.\d+)"/u, "SSKR version");
+  // MnemoCode's engine links its reviewed copy of sskr by path, with the exact version beside it.
+  const sskr = capture(
+    sskrManifest,
+    /^sskr = (?:"=|\{ version = "=)(\d+\.\d+\.\d+)"/mu,
+    "SSKR version",
+  );
   const envelope = capture(
     envelopeManifest,
     /bc-envelope = \{ version = "=(\d+\.\d+\.\d+)"/u,

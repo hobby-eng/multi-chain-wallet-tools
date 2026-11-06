@@ -1,13 +1,15 @@
+import { CopyFeedback } from "@ckd/ui/copy-feedback.js";
 import { nonEmptyLines } from "@ckd/core/text-lines.js";
 import { downloadText } from "@ckd/export/download.js";
 import { isRangedDescriptorKey, materializeDescriptorKey } from "@ckd/core/descriptor-key.js";
 import { buildDashCoreImport, type DashCoreImportArtifacts } from "./dash-import.js";
-import { buildPolicy, policyHex, type LockKind } from "./policy.js";
+import { buildPolicy, policyHex } from "./policy.js";
 import { PolicyLock } from "./policy-lock.js";
 import { calculatePhrasePreimage, type HashlockKind } from "./preimage.js";
 import { required, selectedNetwork, syncNetworkChoice } from "./ui-common.js";
 
 export function installPolicyBuilderFeature(): void {
+  const copyFeedback = new CopyFeedback(window);
   let dashImportArtifacts: DashCoreImportArtifacts | null = null;
   const preimagePhrase = required<HTMLInputElement>("preimage-phrase");
   const togglePreimageVisibilityButton = required<HTMLButtonElement>("toggle-preimage-visibility");
@@ -291,9 +293,9 @@ export function installPolicyBuilderFeature(): void {
         required: Number(requiredSignatures.value),
         publicKeys: keys,
         keyOrder: builderKeyOrder.value === "bip67" ? "bip67" : "supplied",
-        lockKind: lockKind.value as LockKind,
+        lockKind: PolicyLock.kind(lockKind.value),
         lockValue: PolicyLock.normalizeInputValue(
-          lockKind.value as LockKind,
+          lockKind.value,
           Number(lockValue.value),
           timeUnit.value,
         ),
@@ -328,9 +330,9 @@ export function installPolicyBuilderFeature(): void {
         recoveryPublicKey: recoveryKeys[0] ?? "",
         recoveryPublicKeys: recoveryKeys,
         recoveryRequired: Number(recoveryRequired.value),
-        secondLockKind: secondLockKind.value as LockKind,
+        secondLockKind: PolicyLock.kind(secondLockKind.value),
         secondLockValue: PolicyLock.normalizeInputValue(
-          secondLockKind.value as LockKind,
+          secondLockKind.value,
           Number(secondLockValue.value),
           secondTimeUnit.value,
         ),
@@ -457,11 +459,7 @@ export function installPolicyBuilderFeature(): void {
     button.addEventListener("click", async () => {
       const source = required<HTMLElement>(button.dataset.copy ?? "");
       await navigator.clipboard.writeText(source.textContent ?? "");
-      const old = button.textContent;
-      button.textContent = "Copied";
-      setTimeout(() => {
-        button.textContent = old;
-      }, 900);
+      copyFeedback.flash(button);
     }),
   );
 

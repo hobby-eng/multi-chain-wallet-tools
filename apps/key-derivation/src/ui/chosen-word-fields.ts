@@ -2,16 +2,14 @@
 // anywhere, and a word never to use. Generate & Derive and MHFE's New wallet tab show the same
 // fields, built here; each hands what they hold to its own generator, whose library decides what
 // it takes and what it costs.
-import { wordlist } from "@scure/bip39/wordlists/english.js";
 import type { ChosenWord } from "@ckd/core/bip39-chosen-words.js";
 import { BIP39_WORD_COUNTS } from "@ckd/core/bip39-parameters.js";
 import { ENGLISH_BIP39_WORDS } from "@ckd/core/bip39-word-reader.js";
 import { FieldEdits } from "./field-edits.js";
+import { attachBip39WordHints } from "./bip39-word-hint-field.js";
 
 /** Positions offered by number: up to one before the longest phrase; "Last word" is the last. */
 const LONGEST_NUMBERED_POSITION = Math.max(...BIP39_WORD_COUNTS) - 1;
-/** One list of suggestions for every word field of the page: 2,048 options add 40 KB to it. */
-const SUGGESTIONS_ID = "chosen-words-list";
 
 /**
  * What a chosen word gives away and what it does not, in the words of mhfe new
@@ -66,6 +64,7 @@ export class ChosenWordFields {
   readonly #warning: HTMLParagraphElement;
   readonly #toggle: HTMLButtonElement | undefined;
   readonly #listeners: (() => void)[] = [];
+  readonly #edits = new FieldEdits();
   #revealed = false;
 
   constructor(
@@ -107,7 +106,6 @@ export class ChosenWordFields {
         position.append(new Option(`Word ${place}`, String(place)));
       position.append(new Option("Last word", "last"));
       const word = textInput(id, "English BIP39 word");
-      word.setAttribute("list", SUGGESTIONS_ID);
       word.setAttribute("aria-label", `Chosen word ${number}`);
       const clear = element("button", {
         id: `${id}-clear`,
@@ -118,12 +116,17 @@ export class ChosenWordFields {
       clear.addEventListener("click", () => {
         word.value = "";
         position.value = "anywhere";
-        this.#changed();
+        // Other owners of this field must also retire the former word and its results.
+        word.dispatchEvent(new Event("input", { bubbles: true }));
         word.focus();
       });
       const row = element("div", { className: "chosen-words-row", id: `${id}-row` });
       row.append(position, word, clear);
       container.append(row);
+      // The page's own word hints by the letters a word begins with, as in every word field, below
+      // the field once it is in its row. A browser list matched letters anywhere and looked unlike
+      // the page (owner, 2026-10-23).
+      attachBip39WordHints(word);
       return { position, word };
     });
     this.#warning = element("p", {
@@ -146,17 +149,11 @@ export class ChosenWordFields {
     );
     this.#never = textInput(`${prefix}-words-never`, "for example: zoo");
     container.append(this.#warning, label, this.#never);
-    if (page.getElementById(SUGGESTIONS_ID) === null) {
-      const suggestions = element("datalist", { id: SUGGESTIONS_ID });
-      suggestions.append(...wordlist.map((word) => new Option(word)));
-      container.append(suggestions);
-    }
-    const edits = new FieldEdits();
     for (const event of ["input", "change"])
       container.addEventListener(event, (happened) => {
         // The Clear buttons report for themselves, after they have emptied their row.
         if (happened.target instanceof HTMLButtonElement) return;
-        if (edits.isNew(happened)) this.#changed();
+        if (this.#edits.isNew(happened)) this.#changed();
       });
     this.setRevealed(false);
     this.#mark();
@@ -219,6 +216,7 @@ export class ChosenWordFields {
   }
 
   clear(): void {
+    this.#edits.wipe();
     for (const { word, position } of this.#rows) {
       word.value = "";
       position.value = "anywhere";

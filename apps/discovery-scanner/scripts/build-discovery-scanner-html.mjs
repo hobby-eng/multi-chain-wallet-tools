@@ -35,6 +35,7 @@ import {
   parseBuildProfile,
 } from "../../../tooling/build-profiles.mjs";
 import { verifyDashSdkBuild } from "../../../tooling/verify-dash-sdk-build.mjs";
+import { mnemocodeWasmPlugin } from "../../../tooling/mnemocode-wasm-plugin.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
@@ -138,7 +139,10 @@ const vaultBundle = await build({
   stdin: { contents: discoveryAppEntry(root, options), loader: "ts", resolveDir: root },
   ...BROWSER_BUNDLE,
   loader: { ".wasm": "binary" },
-  plugins: [createDiscoveryCompositionPlugin(root, options)],
+  plugins: [
+    createDiscoveryCompositionPlugin(root, options),
+    mnemocodeWasmPlugin(root, profile.id, "discovery-scanner"),
+  ],
   define: {
     __RECOVERY_NETWORK_WORKER_JS__: JSON.stringify(networkJavascript),
     __BUILD_INFO__: JSON.stringify(buildInfo),

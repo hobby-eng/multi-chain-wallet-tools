@@ -15,140 +15,29 @@ import {
   type AssetLockProof,
   type OutPoint,
 } from "@dashevo/evo-sdk";
-import { base58 } from "@scure/base";
+import { PlatformIdentifier } from "./platform-identifier.js";
 
 const EXPLORER_PAGE_SIZE = 100;
 const EXPLORER_MAX_PAGES = 10_000;
 
-interface IdentityAliasHistory {
-  name: string;
-  status: string;
-  contested: boolean;
-  timestampMs: number | null;
-  transactionHash: string | null;
-  documentId: string | null;
-}
-
-export interface IdentityActivityEvent {
-  transactionHash: string;
-  type: string;
-  batchType: string | null;
-  status: string | null;
-  error: string | null;
-  timestampMs: number | null;
-  blockHeight: number | null;
-  blockHash: string | null;
-  gasUsedCredits: bigint | null;
-  direction: "incoming" | "outgoing" | "self" | "related";
-  netAmountCredits: bigint | null;
-  transfers: IdentityTransferMovement[];
-}
-
-interface IdentityTransferMovement {
-  direction: "incoming" | "outgoing" | "self" | "related";
-  amountCredits: bigint;
-  sender: string | null;
-  recipient: string | null;
-}
-
-export interface IdentityDocumentHistory {
-  identifier: string;
-  dataContractIdentifier: string | null;
-  documentTypeName: string | null;
-  revision: number | null;
-  transactionHash: string | null;
-  timestampMs: number | null;
-  deleted: boolean;
-  system: boolean;
-}
-
-export interface IdentityDataContractHistory {
-  identifier: string;
-  name: string | null;
-  version: number | null;
-  transactionHash: string | null;
-  timestampMs: number | null;
-  system: boolean;
-  documentsCount: number | null;
-  tokensCount: number | null;
-  description: string | null;
-  keywords: string[];
-}
-
-export interface IdentityWithdrawalHistory {
-  documentId: string;
-  status: string;
-  amountCredits: bigint;
-  timestampMs: number | null;
-  withdrawalAddress: string | null;
-  coreTransactionHash: string | null;
-}
-
-export interface IdentityTokenHistory {
-  identifier: string;
-  dataContractIdentifier: string | null;
-  position: number | null;
-  name: string | null;
-  description: string | null;
-  baseSupply: bigint | null;
-  totalSupply: bigint | null;
-  maxSupply: bigint | null;
-  decimals: number | null;
-  mintable: boolean | null;
-  burnable: boolean | null;
-  freezable: boolean | null;
-  destroyable: boolean | null;
-  timestampMs: number | null;
-}
-
-interface PlatformIdentityHistorySnapshot {
-  provider: string;
-  identifier: string;
-  owner: string | null;
-  explorerRevision: bigint;
-  explorerBalanceCredits: bigint;
-  explorerNonce: bigint | null;
-  registeredAtMs: number | null;
-  registrationType: string | null;
-  registrationTransactionHash: string | null;
-  registrationFundingSource: "core-asset-lock" | "platform-addresses" | "shielded-pool" | "unknown";
-  fundingCoreTransactionHash: string | null;
-  fundingCoreTransactionOutputIndex: number | null;
-  fundingCoreTransactionError: string | null;
-  systemIdentity: boolean;
-  aliases: IdentityAliasHistory[];
-  totalTransactions: number;
-  totalTransfers: number;
-  totalDocuments: number;
-  totalDataContracts: number;
-  totalGasSpentCredits: bigint | null;
-  averageGasSpentCredits: bigint | null;
-  totalTopUps: number | null;
-  totalTopUpsCredits: bigint | null;
-  totalWithdrawals: number | null;
-  totalWithdrawalsCredits: bigint | null;
-  lastWithdrawalHash: string | null;
-  lastWithdrawalTimestampMs: number | null;
-  activity: IdentityActivityEvent[];
-  documents: IdentityDocumentHistory[];
-  dataContracts: IdentityDataContractHistory[];
-  withdrawals: IdentityWithdrawalHistory[];
-  tokens: IdentityTokenHistory[];
-  historyLimit: number;
-  historyWarnings?: string[];
-  endpoint: string;
-  indexStatus: "synced";
-  indexedHeight: number;
-  indexedTimeMs: number;
-  requests: number;
-}
-
-export interface PlatformIdentityHistoryResult {
-  identifier: string;
-  history: PlatformIdentityHistorySnapshot | null;
-  error: string | null;
-}
-
+import type {
+  IdentityAliasHistory,
+  IdentityActivityEvent,
+  IdentityTransferMovement,
+  IdentityDocumentHistory,
+  IdentityDataContractHistory,
+  IdentityWithdrawalHistory,
+  IdentityTokenHistory,
+  PlatformIdentityHistorySnapshot,
+} from "./platform-identity-history-model.js";
+export type {
+  IdentityActivityEvent,
+  IdentityDocumentHistory,
+  IdentityDataContractHistory,
+  IdentityWithdrawalHistory,
+  IdentityTokenHistory,
+  PlatformIdentityHistoryResult,
+} from "./platform-identity-history-model.js";
 interface ExplorerPage {
   items: Record<string, unknown>[];
   total: number | null;
@@ -522,6 +411,321 @@ async function paginatedItems(
   return items;
 }
 
+const HISTORY_ERRORS = {
+  "identity.history.used": "This Identity history request has already started.",
+  "identity.history.resource":
+    "Platform Explorer identity info did not match the requested Identity.",
+  "identity.history.registration":
+    "Platform Explorer returned an Identity creation transition without a hash.",
+} as const;
+
+/** Stable refusals from the indexed-history request owner. */
+export type PlatformIdentityHistoryErrorCode = keyof typeof HISTORY_ERRORS;
+
+/** Refuses invalid request use or conflicting provider resources without echoing their content. */
+export class PlatformIdentityHistoryError extends Error {
+  constructor(readonly code: PlatformIdentityHistoryErrorCode) {
+    super(HISTORY_ERRORS[code]);
+    this.name = "PlatformIdentityHistoryError";
+  }
+}
+
+interface IdentityHistoryOptions {
+  readonly identifier: string;
+  readonly network: ViewerNetwork;
+  readonly historyLimit: number;
+  readonly signal: AbortSignal | undefined;
+  readonly fetcher: FetchLike;
+  readonly provider: PlatformIdentityHistoryProvider;
+  readonly fundingDecoder: ClassicIdentityFundingDecoder;
+}
+
+/** Owns one indexed history query, its bounded collections and request accounting. */
+export class PlatformIdentityHistory {
+  readonly #options: IdentityHistoryOptions;
+  readonly #endpoint: string;
+  #started = false;
+  #requests = 0;
+  readonly #request = (): void => {
+    this.#requests += 1;
+  };
+
+  /** Admits canonical identifiers and a shared display bound before any HTTP request. */
+  constructor(
+    identifier: string,
+    network: ViewerNetwork,
+    historyLimit: number,
+    signal?: AbortSignal,
+    fetcher: FetchLike = fetch,
+    provider: PlatformIdentityHistoryProvider = PLATFORM_IDENTITY_HISTORY_PROVIDER,
+    fundingDecoder: ClassicIdentityFundingDecoder = decodeClassicIdentityFunding,
+  ) {
+    PlatformIdentifier.require(identifier);
+    DashHistoryBudget.admit(historyLimit, "Identity history limit");
+    this.#options = {
+      identifier,
+      network,
+      historyLimit,
+      signal,
+      fetcher,
+      provider,
+      fundingDecoder,
+    };
+    this.#endpoint = provider.endpoint(network);
+  }
+
+  /** Returns provider history with explicit collection warnings; fails on malformed or conflicting pages. */
+  async read(): Promise<PlatformIdentityHistorySnapshot> {
+    if (this.#started) throw new PlatformIdentityHistoryError("identity.history.used");
+    this.#started = true;
+    const { identifier, network, historyLimit, signal, fetcher, provider } = this.#options;
+    const endpoint = this.#endpoint;
+    this.#request();
+    const { indexedHeight, indexedTimeMs } = await platformExplorerTip(fetcher, network, signal);
+    this.#request();
+    const info = object(
+      await fetchJson(fetcher, `${endpoint}/identity/${encodeURIComponent(identifier)}`, signal),
+      "identity info",
+    );
+    if (info.identifier !== identifier)
+      throw new PlatformIdentityHistoryError("identity.history.resource");
+    const historyWarnings: string[] = [];
+    const {
+      transactions,
+      transfers,
+      documents,
+      dataContracts,
+      tokens,
+      withdrawals,
+      aliases,
+      totalTransactions,
+      totalTransfers,
+      totalDocuments,
+      totalDataContracts,
+    } = await this.#collections(info, historyWarnings);
+    const registration = await this.#registration(transactions, totalTransactions, info);
+    return {
+      provider: provider.displayName,
+      identifier,
+      owner: text(info.owner),
+      explorerRevision: exactInteger(info.revision, "identity revision"),
+      explorerBalanceCredits: exactInteger(info.balance, "identity balance"),
+      explorerNonce: optionalExactInteger(info.nonce, "identity nonce"),
+      ...registration,
+      systemIdentity: info.isSystem === true,
+      aliases,
+      totalTransactions,
+      totalTransfers,
+      totalDocuments,
+      totalDataContracts,
+      totalGasSpentCredits: optionalExactInteger(info.totalGasSpent, "total gas spent"),
+      averageGasSpentCredits: optionalExactInteger(info.averageGasSpent, "average gas spent"),
+      totalTopUps: optionalInteger(info.totalTopUps),
+      totalTopUpsCredits: optionalExactInteger(info.totalTopUpsAmount, "total top-up amount"),
+      totalWithdrawals: optionalInteger(info.totalWithdrawals),
+      totalWithdrawalsCredits: optionalExactInteger(
+        info.totalWithdrawalsAmount,
+        "total withdrawal amount",
+      ),
+      lastWithdrawalHash: text(info.lastWithdrawalHash),
+      lastWithdrawalTimestampMs: timestamp(info.lastWithdrawalTimestamp),
+      activity: mergeActivity(transactions, transfers, identifier),
+      documents: documents.map(documentView),
+      dataContracts: dataContracts.map(contractView),
+      withdrawals: withdrawals.map(withdrawalView),
+      tokens: tokens.map(tokenView),
+      historyLimit,
+      historyWarnings: historyWarnings.sort((left, right) =>
+        left < right ? -1 : left > right ? 1 : 0,
+      ),
+      endpoint,
+      indexStatus: "synced",
+      indexedHeight,
+      indexedTimeMs,
+      requests: this.#requests,
+    };
+  }
+
+  async #collections(info: Record<string, unknown>, historyWarnings: string[]) {
+    const { identifier, historyLimit, signal, fetcher } = this.#options;
+    const endpoint = this.#endpoint;
+    const request = this.#request;
+    const totalTransactions = requiredInteger(info.totalTxs, "identity transaction count");
+    const totalTransfers = requiredInteger(info.totalTransfers, "identity transfer count");
+    const totalDocuments = requiredInteger(info.totalDocuments, "identity document count");
+    const totalDataContracts = requiredInteger(
+      info.totalDataContracts,
+      "identity data-contract count",
+    );
+
+    const paths = {
+      transactions: `/identity/${encodeURIComponent(identifier)}/transactions`,
+      transfers: `/identity/${encodeURIComponent(identifier)}/transfers`,
+      documents: `/identity/${encodeURIComponent(identifier)}/documents`,
+      dataContracts: `/identity/${encodeURIComponent(identifier)}/dataContracts`,
+      tokens: `/identity/${encodeURIComponent(identifier)}/tokens`,
+    };
+    const [transactions, transfers, documents, dataContracts, tokens, withdrawalsValue] =
+      await Promise.all([
+        paginatedItems(
+          fetcher,
+          endpoint,
+          paths.transactions,
+          historyLimit,
+          "identity transactions",
+          signal,
+          request,
+          "transactions",
+          totalTransactions,
+          historyWarnings,
+        ),
+        paginatedItems(
+          fetcher,
+          endpoint,
+          paths.transfers,
+          historyLimit,
+          "identity transfers",
+          signal,
+          request,
+          "transfers",
+          totalTransfers,
+          historyWarnings,
+        ),
+        paginatedItems(
+          fetcher,
+          endpoint,
+          paths.documents,
+          historyLimit,
+          "identity documents",
+          signal,
+          request,
+          "resources",
+          totalDocuments,
+          historyWarnings,
+        ),
+        paginatedItems(
+          fetcher,
+          endpoint,
+          paths.dataContracts,
+          historyLimit,
+          "identity data contracts",
+          signal,
+          request,
+          "resources",
+          totalDataContracts,
+          historyWarnings,
+        ),
+        paginatedItems(
+          fetcher,
+          endpoint,
+          paths.tokens,
+          historyLimit,
+          "identity tokens",
+          signal,
+          request,
+          "resources",
+          null,
+          historyWarnings,
+        ),
+        (async (): Promise<unknown> => {
+          request();
+          return fetchJson(
+            fetcher,
+            `${endpoint}/identity/${encodeURIComponent(identifier)}/withdrawals?order=desc`,
+            signal,
+          ).catch((cause: unknown) => {
+            if (cause instanceof ProviderHttpError && cause.status === 404) {
+              return { resultSet: [], pagination: { page: null, limit: null, total: 0 } };
+            }
+            throw cause;
+          });
+        })(),
+      ]);
+    const withdrawals = page(withdrawalsValue, "identity withdrawals").items.slice(0, historyLimit);
+    const aliases = Array.isArray(info.aliases) ? info.aliases.map(aliasView) : [];
+    return {
+      transactions,
+      transfers,
+      documents,
+      dataContracts,
+      tokens,
+      withdrawals,
+      aliases,
+      totalTransactions,
+      totalTransfers,
+      totalDocuments,
+      totalDataContracts,
+    };
+  }
+
+  async #registration(
+    transactions: Record<string, unknown>[],
+    totalTransactions: number,
+    info: Record<string, unknown>,
+  ) {
+    const { identifier, signal, fetcher, fundingDecoder } = this.#options;
+    const endpoint = this.#endpoint;
+    const paths = { transactions: `/identity/${encodeURIComponent(identifier)}/transactions` };
+    const request = this.#request;
+    let registration = creationTransaction(transactions);
+    if (registration === null && totalTransactions > transactions.length) {
+      request();
+      const oldestTransactions = page(
+        await fetchJson(
+          fetcher,
+          `${endpoint}${paths.transactions}?page=1&limit=1&order=asc`,
+          signal,
+        ),
+        "identity registration transaction",
+      ).items;
+      registration = creationTransaction(oldestTransactions);
+    }
+    const registrationType = registration === null ? null : text(registration.type);
+    const registrationTransactionHash =
+      registration === null ? text(info.txHash) : text(registration.hash);
+    if (registration !== null && registrationTransactionHash === null) {
+      throw new PlatformIdentityHistoryError("identity.history.registration");
+    }
+    const registeredAtMs =
+      registration === null ? timestamp(info.timestamp) : timestamp(registration.timestamp);
+    let fundingCoreTransactionHash = text(info.fundingCoreTx);
+    let fundingCoreTransactionOutputIndex: number | null = null;
+    let fundingCoreTransactionError: string | null = null;
+    if (registrationType === "IDENTITY_CREATE") {
+      const encodedTransition = text(registration?.data);
+      if (encodedTransition !== null) {
+        try {
+          const funding = fundingDecoder(encodedTransition);
+          fundingCoreTransactionHash = funding.coreTransactionHash;
+          fundingCoreTransactionOutputIndex = funding.outputIndex;
+        } catch {
+          fundingCoreTransactionError =
+            "The indexed Identity creation transition could not be decoded by the pinned Dash Evo SDK.";
+        }
+      }
+    } else if (
+      registrationType === "IDENTITY_CREATE_FROM_ADDRESSES" ||
+      registrationType === "IDENTITY_CREATE_FROM_SHIELDED_POOL"
+    ) {
+      fundingCoreTransactionHash = null;
+    }
+
+    return {
+      registeredAtMs,
+      registrationType,
+      registrationTransactionHash,
+      registrationFundingSource: registrationFundingSource(
+        registrationType,
+        fundingCoreTransactionHash,
+      ),
+      fundingCoreTransactionHash,
+      fundingCoreTransactionOutputIndex,
+      fundingCoreTransactionError,
+    };
+  }
+}
+
+/** Compatibility entry point for one canonical, bounded provider-history request. */
 export async function queryPlatformIdentityHistory(
   identifier: string,
   network: ViewerNetwork,
@@ -531,206 +735,13 @@ export async function queryPlatformIdentityHistory(
   provider: PlatformIdentityHistoryProvider = PLATFORM_IDENTITY_HISTORY_PROVIDER,
   fundingDecoder: ClassicIdentityFundingDecoder = decodeClassicIdentityFunding,
 ): Promise<PlatformIdentityHistorySnapshot> {
-  try {
-    if (base58.decode(identifier).length !== 32) throw new Error("wrong length");
-  } catch {
-    throw new Error("Invalid Base58 Platform Identity ID.");
-  }
-  DashHistoryBudget.admit(historyLimit, "Identity history limit");
-  const endpoint = provider.endpoint(network);
-  let requests = 0;
-  const request = (): void => {
-    requests += 1;
-  };
-
-  request();
-  const { indexedHeight, indexedTimeMs } = await platformExplorerTip(fetcher, network, signal);
-
-  request();
-  const info = object(
-    await fetchJson(fetcher, `${endpoint}/identity/${encodeURIComponent(identifier)}`, signal),
-    "identity info",
-  );
-  if (info.identifier !== identifier)
-    throw new Error("Platform Explorer identity info did not match the requested Identity.");
-  const totalTransactions = requiredInteger(info.totalTxs, "identity transaction count");
-  const totalTransfers = requiredInteger(info.totalTransfers, "identity transfer count");
-  const totalDocuments = requiredInteger(info.totalDocuments, "identity document count");
-  const totalDataContracts = requiredInteger(
-    info.totalDataContracts,
-    "identity data-contract count",
-  );
-  const historyWarnings: string[] = [];
-
-  const paths = {
-    transactions: `/identity/${encodeURIComponent(identifier)}/transactions`,
-    transfers: `/identity/${encodeURIComponent(identifier)}/transfers`,
-    documents: `/identity/${encodeURIComponent(identifier)}/documents`,
-    dataContracts: `/identity/${encodeURIComponent(identifier)}/dataContracts`,
-    tokens: `/identity/${encodeURIComponent(identifier)}/tokens`,
-  };
-  const [transactions, transfers, documents, dataContracts, tokens, withdrawalsValue] =
-    await Promise.all([
-      paginatedItems(
-        fetcher,
-        endpoint,
-        paths.transactions,
-        historyLimit,
-        "identity transactions",
-        signal,
-        request,
-        "transactions",
-        totalTransactions,
-        historyWarnings,
-      ),
-      paginatedItems(
-        fetcher,
-        endpoint,
-        paths.transfers,
-        historyLimit,
-        "identity transfers",
-        signal,
-        request,
-        "transfers",
-        totalTransfers,
-        historyWarnings,
-      ),
-      paginatedItems(
-        fetcher,
-        endpoint,
-        paths.documents,
-        historyLimit,
-        "identity documents",
-        signal,
-        request,
-        "resources",
-        totalDocuments,
-        historyWarnings,
-      ),
-      paginatedItems(
-        fetcher,
-        endpoint,
-        paths.dataContracts,
-        historyLimit,
-        "identity data contracts",
-        signal,
-        request,
-        "resources",
-        totalDataContracts,
-        historyWarnings,
-      ),
-      paginatedItems(
-        fetcher,
-        endpoint,
-        paths.tokens,
-        historyLimit,
-        "identity tokens",
-        signal,
-        request,
-        "resources",
-        null,
-        historyWarnings,
-      ),
-      (async (): Promise<unknown> => {
-        request();
-        return fetchJson(
-          fetcher,
-          `${endpoint}/identity/${encodeURIComponent(identifier)}/withdrawals?order=desc`,
-          signal,
-        ).catch((cause: unknown) => {
-          if (cause instanceof ProviderHttpError && cause.status === 404) {
-            return { resultSet: [], pagination: { page: null, limit: null, total: 0 } };
-          }
-          throw cause;
-        });
-      })(),
-    ]);
-  const withdrawals = page(withdrawalsValue, "identity withdrawals").items.slice(0, historyLimit);
-  const aliases = Array.isArray(info.aliases) ? info.aliases.map(aliasView) : [];
-  let registration = creationTransaction(transactions);
-  if (registration === null && totalTransactions > transactions.length) {
-    request();
-    const oldestTransactions = page(
-      await fetchJson(fetcher, `${endpoint}${paths.transactions}?page=1&limit=1&order=asc`, signal),
-      "identity registration transaction",
-    ).items;
-    registration = creationTransaction(oldestTransactions);
-  }
-  const registrationType = registration === null ? null : text(registration.type);
-  const registrationTransactionHash =
-    registration === null ? text(info.txHash) : text(registration.hash);
-  if (registration !== null && registrationTransactionHash === null) {
-    throw new Error("Platform Explorer returned an Identity creation transition without a hash.");
-  }
-  const registeredAtMs =
-    registration === null ? timestamp(info.timestamp) : timestamp(registration.timestamp);
-  let fundingCoreTransactionHash = text(info.fundingCoreTx);
-  let fundingCoreTransactionOutputIndex: number | null = null;
-  let fundingCoreTransactionError: string | null = null;
-  if (registrationType === "IDENTITY_CREATE") {
-    const encodedTransition = text(registration?.data);
-    if (encodedTransition !== null) {
-      try {
-        const funding = fundingDecoder(encodedTransition);
-        fundingCoreTransactionHash = funding.coreTransactionHash;
-        fundingCoreTransactionOutputIndex = funding.outputIndex;
-      } catch {
-        fundingCoreTransactionError =
-          "The indexed Identity creation transition could not be decoded by the pinned Dash Evo SDK.";
-      }
-    }
-  } else if (
-    registrationType === "IDENTITY_CREATE_FROM_ADDRESSES" ||
-    registrationType === "IDENTITY_CREATE_FROM_SHIELDED_POOL"
-  ) {
-    fundingCoreTransactionHash = null;
-  }
-
-  return {
-    provider: provider.displayName,
+  return new PlatformIdentityHistory(
     identifier,
-    owner: text(info.owner),
-    explorerRevision: exactInteger(info.revision, "identity revision"),
-    explorerBalanceCredits: exactInteger(info.balance, "identity balance"),
-    explorerNonce: optionalExactInteger(info.nonce, "identity nonce"),
-    registeredAtMs,
-    registrationType,
-    registrationTransactionHash,
-    registrationFundingSource: registrationFundingSource(
-      registrationType,
-      fundingCoreTransactionHash,
-    ),
-    fundingCoreTransactionHash,
-    fundingCoreTransactionOutputIndex,
-    fundingCoreTransactionError,
-    systemIdentity: info.isSystem === true,
-    aliases,
-    totalTransactions,
-    totalTransfers,
-    totalDocuments,
-    totalDataContracts,
-    totalGasSpentCredits: optionalExactInteger(info.totalGasSpent, "total gas spent"),
-    averageGasSpentCredits: optionalExactInteger(info.averageGasSpent, "average gas spent"),
-    totalTopUps: optionalInteger(info.totalTopUps),
-    totalTopUpsCredits: optionalExactInteger(info.totalTopUpsAmount, "total top-up amount"),
-    totalWithdrawals: optionalInteger(info.totalWithdrawals),
-    totalWithdrawalsCredits: optionalExactInteger(
-      info.totalWithdrawalsAmount,
-      "total withdrawal amount",
-    ),
-    lastWithdrawalHash: text(info.lastWithdrawalHash),
-    lastWithdrawalTimestampMs: timestamp(info.lastWithdrawalTimestamp),
-    activity: mergeActivity(transactions, transfers, identifier),
-    documents: documents.map(documentView),
-    dataContracts: dataContracts.map(contractView),
-    withdrawals: withdrawals.map(withdrawalView),
-    tokens: tokens.map(tokenView),
+    network,
     historyLimit,
-    historyWarnings: historyWarnings.sort(),
-    endpoint,
-    indexStatus: "synced",
-    indexedHeight,
-    indexedTimeMs,
-    requests,
-  };
+    signal,
+    fetcher,
+    provider,
+    fundingDecoder,
+  ).read();
 }

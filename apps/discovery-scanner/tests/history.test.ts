@@ -313,8 +313,9 @@ describe("adapter history contract and exports", () => {
       result,
       context(),
     );
-    const json = JSON.parse(createRecoveryExport([result], "json").text);
-    expect(json.results[0].sections[0].findings[0].history).toEqual(
+    const json: unknown = JSON.parse(createRecoveryExport([result], "json").text);
+    expect(json).toHaveProperty(
+      "results.0.sections.0.findings.0.history",
       expect.objectContaining({
         firstSeen: h.firstSeen,
         lastSeen: h.lastSeen,
@@ -322,7 +323,7 @@ describe("adapter history contract and exports", () => {
       }),
     );
     for (const redundant of ["firstReceived", "lastReceived", "firstSpent", "lastSpent"]) {
-      expect(json.results[0].sections[0].findings[0].history).not.toHaveProperty(redundant);
+      expect(json).not.toHaveProperty(`results.0.sections.0.findings.0.history.${redundant}`);
     }
     const csv = createRecoveryExport([result], "csv").text;
     expect(csv).toContain("total_received_atomic");
@@ -330,7 +331,7 @@ describe("adapter history contract and exports", () => {
     expect(csv).not.toContain("first_received_utc");
     expect(csv).not.toContain("last_spent_utc");
     expect(csv).toContain("balance_atomic_unit");
-    expect(json.results[0].sections[0].findings[0].balanceUnit).toEqual({
+    expect(json).toHaveProperty("results.0.sections.0.findings.0.balanceUnit", {
       asset: "TEST",
       atomicUnit: "tiny units",
       decimals: 18,
@@ -353,7 +354,7 @@ describe("adapter history contract and exports", () => {
     await enrichRecoveryHistory(adapter(), r, context());
     expect(r.sections[0]!.findings[0]!.history?.status).toBe("unsupported");
   });
-  it("does not swallow cancellation or accept imprecise amounts from a worker", async () => {
+  it("returns cancellation as an explicit outcome and refuses imprecise worker amounts", async () => {
     const abort = new AbortController();
     const ctx = { ...context(), signal: abort.signal };
     await expect(
@@ -365,7 +366,7 @@ describe("adapter history contract and exports", () => {
         report(),
         ctx,
       ),
-    ).rejects.toThrow();
+    ).resolves.toBe("cancelled");
     expect(() =>
       validateHistory({ ...emptyHistory(), totalReceivedAtomic: 1 as unknown as string }),
     ).toThrow("amount");
@@ -459,15 +460,20 @@ it("exports explicit Dash L1/L2 units even when history cannot be loaded", async
     amountUnit: dashAmountUnit,
   };
   await enrichRecoveryHistory(dash, r, context());
-  const json = JSON.parse(createRecoveryExport([r], "json").text);
-  for (const section of json.results[0].sections) {
+  const json: unknown = JSON.parse(createRecoveryExport([r], "json").text);
+  expect(json).toHaveProperty("results.0.sections.length", r.sections.length);
+  for (const [index, section] of r.sections.entries()) {
     const credit = ["platform", "identity", "shielded"].includes(section.id);
-    expect(section.findings[0].balanceUnit).toEqual({
+    expect(json).toHaveProperty(`results.0.sections.${index}.id`, section.id);
+    expect(json).toHaveProperty(`results.0.sections.${index}.findings.0.balanceUnit`, {
       asset: "DASH",
       atomicUnit: credit ? "credits" : "duffs",
       decimals: credit ? 11 : 8,
     });
-    expect(section.findings[0].history.atomicUnit).toBe(credit ? "credits" : "duffs");
+    expect(json).toHaveProperty(
+      `results.0.sections.${index}.findings.0.history.atomicUnit`,
+      credit ? "credits" : "duffs",
+    );
   }
 });
 

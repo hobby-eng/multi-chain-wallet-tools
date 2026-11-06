@@ -4,7 +4,6 @@ import { secureRandomBytes } from "@ckd/core/secure-random.js";
 import wasmBytes from "@ckd/recovery-sskr-wasm/recovery_sskr_wasm_bg.wasm";
 import { SskrCodec, type SskrShareEncoding } from "./sskr-codec.js";
 import type { SskrGroupSpec } from "./sskr-groups.js";
-import { SEED_BYTES } from "../../recovery-mnemocode/source/sskr/share-platform.js";
 
 export type { SskrShareEncoding } from "./sskr-codec.js";
 export type { SskrGroupSpec } from "./sskr-groups.js";
@@ -12,6 +11,9 @@ export type { SskrGroupSpec } from "./sskr-groups.js";
 // esbuild's binary loader gives the module's bytes (packages/build-security/types/wasm.d.ts); the
 // .d.ts that wasm-bindgen writes beside the file describes an instantiated module instead.
 const embeddedWasm = wasmBytes as unknown as Uint8Array<ArrayBuffer>;
+
+/** The random bytes the engine takes for one split (sskr-wasm's split entry). */
+const SEED_BYTES = 32;
 
 let codec: SskrCodec | undefined;
 

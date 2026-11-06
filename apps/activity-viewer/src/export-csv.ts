@@ -16,6 +16,7 @@ import {
   VIEWER_EXPORT_SCHEMA_VERSION,
 } from "./export-common.js";
 import { CoreActivityState } from "./core-activity-state.js";
+import { IdentityHistoryCoverage } from "@ckd/dash-network/identity-history-coverage.js";
 
 function timestamp(value: number | bigint | null): string {
   if (value === null) return "";
@@ -33,6 +34,7 @@ function directionFromNet(value: bigint): string {
   return "related";
 }
 
+/** Column order shared by CSV serialization and XLSX detail projections. */
 export const CSV_HEADER: CsvValue[] = [
   "schema_version",
   "generated_at",
@@ -352,16 +354,70 @@ function identityRows(
     }),
   ];
   for (const identity of state.snapshot.identities) {
-    const historyResult = state.histories.find(
-      ({ identifier }) => identifier === identity.identifier,
-    );
-    const history = historyResult?.history ?? null;
-    const identityName = identity.dpnsNames[0] ?? identity.identifier;
+    rows.push(...new IdentityCsvRows(state, generatedAt, identity).rows());
+  }
+  return [CSV_HEADER, ...rows];
+}
+
+type IdentityExportState = Extract<ViewerSingleExportState, { mode: "identity" }>;
+type ExportedIdentity = IdentityExportState["snapshot"]["identities"][number];
+type IndexedIdentityHistory = NonNullable<IdentityExportState["histories"][number]["history"]>;
+
+function identityCsvFacts(
+  state: IdentityExportState,
+  generatedAt: string,
+  identity: ExportedIdentity,
+) {
+  const historyResult = state.histories.find(
+    ({ identifier }) => identifier === identity.identifier,
+  );
+  return {
+    state,
+    generatedAt,
+    identity,
+    historyResult,
+    history: historyResult?.history ?? null,
+    coverage: new IdentityHistoryCoverage(historyResult),
+    identityName: identity.dpnsNames[0] ?? identity.identifier,
+    queryLabel: state.snapshot.resolvedDpnsName ?? state.snapshot.inputLabel,
+  };
+}
+
+class IdentityCsvRows {
+  readonly #facts: ReturnType<typeof identityCsvFacts>;
+  constructor(state: IdentityExportState, generatedAt: string, identity: ExportedIdentity) {
+    this.#facts = identityCsvFacts(state, generatedAt, identity);
+  }
+
+  rows(): CsvValue[][] {
+    const rows = [...this.#summary(), ...this.#keys()];
+    const history = this.#facts.history;
+    if (history !== null) {
+      rows.push(...this.#aliases(history));
+      rows.push(...this.#activity(history));
+      rows.push(...this.#documents(history));
+      rows.push(...this.#dataContracts(history));
+      rows.push(...this.#withdrawals(history));
+      rows.push(...this.#tokens(history));
+    }
+    return rows;
+  }
+
+  #record(record: Omit<CsvRecord, "queryLabel" | "resourceId" | "resourceName">): CsvValue[] {
+    const { state, generatedAt, queryLabel, identity, identityName } = this.#facts;
+    return csvRecord(state.mode, state.network, generatedAt, {
+      queryLabel,
+      resourceId: identity.identifier,
+      resourceName: identityName,
+      ...record,
+    });
+  }
+
+  #summary(): CsvValue[][] {
+    const { identity, history, historyResult, coverage } = this.#facts;
+    const rows: CsvValue[][] = [];
     rows.push(
-      csvRecord(state.mode, state.network, generatedAt, {
-        queryLabel,
-        resourceId: identity.identifier,
-        resourceName: identityName,
+      this.#record({
         recordType: "identity",
         recordId: identity.identifier,
         source:
@@ -410,16 +466,21 @@ function identityRows(
           ["explorer_indexed_at", timestamp(history?.indexedTimeMs ?? null)],
           ["history_limit", history?.historyLimit],
           ["history_requests", history?.requests],
+          ["history_coverage", coverage.status],
+          ["history_warnings", coverage.warnings ?? undefined],
           ["history_error", historyResult?.error],
         ]),
       }),
     );
+    return rows;
+  }
+
+  #keys(): CsvValue[][] {
+    const { identity } = this.#facts;
+    const rows: CsvValue[][] = [];
     for (const key of identity.publicKeys) {
       rows.push(
-        csvRecord(state.mode, state.network, generatedAt, {
-          queryLabel,
-          resourceId: identity.identifier,
-          resourceName: identityName,
+        this.#record({
           recordType: "public_key",
           recordId: key.keyId,
           source: "Dash Platform DAPI proof",
@@ -445,13 +506,14 @@ function identityRows(
         }),
       );
     }
-    if (history === null) continue;
+    return rows;
+  }
+
+  #aliases(history: IndexedIdentityHistory): CsvValue[][] {
+    const rows: CsvValue[][] = [];
     for (const alias of history.aliases) {
       rows.push(
-        csvRecord(state.mode, state.network, generatedAt, {
-          queryLabel,
-          resourceId: identity.identifier,
-          resourceName: identityName,
+        this.#record({
           recordType: "alias",
           recordId: alias.documentId,
           source: history.provider,
@@ -467,12 +529,15 @@ function identityRows(
         }),
       );
     }
+
+    return rows;
+  }
+
+  #activity(history: IndexedIdentityHistory): CsvValue[][] {
+    const rows: CsvValue[][] = [];
     for (const event of history.activity) {
       rows.push(
-        csvRecord(state.mode, state.network, generatedAt, {
-          queryLabel,
-          resourceId: identity.identifier,
-          resourceName: identityName,
+        this.#record({
           recordType: "activity",
           recordId: event.transactionHash,
           source: history.provider,
@@ -494,10 +559,7 @@ function identityRows(
       );
       event.transfers.forEach((transfer, index) => {
         rows.push(
-          csvRecord(state.mode, state.network, generatedAt, {
-            queryLabel,
-            resourceId: identity.identifier,
-            resourceName: identityName,
+          this.#record({
             recordType: "transfer",
             recordId: `${event.transactionHash}:${index}`,
             source: history.provider,
@@ -517,12 +579,15 @@ function identityRows(
         );
       });
     }
+
+    return rows;
+  }
+
+  #documents(history: IndexedIdentityHistory): CsvValue[][] {
+    const rows: CsvValue[][] = [];
     for (const document of history.documents) {
       rows.push(
-        csvRecord(state.mode, state.network, generatedAt, {
-          queryLabel,
-          resourceId: identity.identifier,
-          resourceName: identityName,
+        this.#record({
           recordType: "document",
           recordId: document.identifier,
           source: history.provider,
@@ -540,12 +605,15 @@ function identityRows(
         }),
       );
     }
+
+    return rows;
+  }
+
+  #dataContracts(history: IndexedIdentityHistory): CsvValue[][] {
+    const rows: CsvValue[][] = [];
     for (const contract of history.dataContracts) {
       rows.push(
-        csvRecord(state.mode, state.network, generatedAt, {
-          queryLabel,
-          resourceId: identity.identifier,
-          resourceName: identityName,
+        this.#record({
           recordType: "data_contract",
           recordId: contract.identifier,
           source: history.provider,
@@ -565,12 +633,15 @@ function identityRows(
         }),
       );
     }
+
+    return rows;
+  }
+
+  #withdrawals(history: IndexedIdentityHistory): CsvValue[][] {
+    const rows: CsvValue[][] = [];
     for (const withdrawal of history.withdrawals) {
       rows.push(
-        csvRecord(state.mode, state.network, generatedAt, {
-          queryLabel,
-          resourceId: identity.identifier,
-          resourceName: identityName,
+        this.#record({
           recordType: "withdrawal",
           recordId: withdrawal.documentId,
           source: history.provider,
@@ -585,12 +656,15 @@ function identityRows(
         }),
       );
     }
+
+    return rows;
+  }
+
+  #tokens(history: IndexedIdentityHistory): CsvValue[][] {
+    const rows: CsvValue[][] = [];
     for (const token of history.tokens) {
       rows.push(
-        csvRecord(state.mode, state.network, generatedAt, {
-          queryLabel,
-          resourceId: identity.identifier,
-          resourceName: identityName,
+        this.#record({
           recordType: "token",
           recordId: token.identifier,
           source: history.provider,
@@ -615,44 +689,80 @@ function identityRows(
         }),
       );
     }
+    return rows;
   }
-  return [CSV_HEADER, ...rows];
 }
 
+/** Serializes public activity records and batch failures using one CSV field model. */
+export class ViewerCsv {
+  /** Returns a detached labelled row after checking its agreement with the field model. */
+  static withQueryLabel(row: readonly CsvValue[], label: string): CsvValue[] {
+    ViewerCsv.#requireRow(row);
+    const column = CSV_HEADER.indexOf("query_label");
+    if (column < 0) throw new ViewerExportRecordError();
+    const labelled = [...row];
+    labelled[column] = label;
+    return labelled;
+  }
+
+  static #requireRow(value: unknown): void {
+    // Keep the Array.isArray narrowing away from the caller's readonly CsvValue[] type.
+    if (!Array.isArray(value) || value.length !== CSV_HEADER.length)
+      throw new ViewerExportRecordError();
+  }
+  /** Returns the fixed header and records for a single public query. */
+  static rows(state: ViewerSingleExportState, generatedAt: string): CsvValue[][] {
+    return state.mode === "core"
+      ? coreRows(state, generatedAt)
+      : state.mode === "platform"
+        ? platformRows(state, generatedAt)
+        : state.mode === "identity"
+          ? identityRows(state, generatedAt)
+          : shieldedRows(state, generatedAt);
+  }
+
+  /** Returns spreadsheet-safe CSV, including explicit batch failures. */
+
+  static text(state: ViewerExportState, generatedAt: string): string {
+    const rows = isBatchExportState(state)
+      ? [
+          CSV_HEADER,
+          ...state.items.flatMap((item) =>
+            ViewerCsv.rows(item.state, generatedAt)
+              .slice(1)
+              .map((row) => ViewerCsv.withQueryLabel(row, item.label)),
+          ),
+          ...state.errors.map((sourceError) => {
+            const error = exportError(sourceError, state.mode);
+            return csvRecord(state.mode, state.network, generatedAt, {
+              queryLabel: error.label,
+              recordType: "error",
+              recordId: error.id,
+              status: "failed",
+              metadata: metadata([["message", error.message]]),
+            });
+          }),
+        ]
+      : ViewerCsv.rows(state, generatedAt);
+    return csv(rows);
+  }
+}
+
+/** Refuses an inconsistent public table rather than silently emitting missing cells. */
+export class ViewerExportRecordError extends Error {
+  readonly code = "viewer.export.record";
+  constructor() {
+    super("Public export records do not match their column model.");
+    this.name = "ViewerExportRecordError";
+  }
+}
+
+/** Compatibility entry for the shared CSV/XLSX single-query projection. */
 export function singleRows(state: ViewerSingleExportState, generatedAt: string): CsvValue[][] {
-  return state.mode === "core"
-    ? coreRows(state, generatedAt)
-    : state.mode === "platform"
-      ? platformRows(state, generatedAt)
-      : state.mode === "identity"
-        ? identityRows(state, generatedAt)
-        : shieldedRows(state, generatedAt);
+  return ViewerCsv.rows(state, generatedAt);
 }
 
+/** Compatibility entry for a complete public CSV export. */
 export function createViewerCsvText(state: ViewerExportState, generatedAt: string): string {
-  const rows = isBatchExportState(state)
-    ? [
-        CSV_HEADER,
-        ...state.items.flatMap((item) =>
-          singleRows(item.state, generatedAt)
-            .slice(1)
-            .map((row) => {
-              const labeled = [...row];
-              labeled[4] = item.label;
-              return labeled;
-            }),
-        ),
-        ...state.errors.map((sourceError) => {
-          const error = exportError(sourceError, state.mode);
-          return csvRecord(state.mode, state.network, generatedAt, {
-            queryLabel: error.label,
-            recordType: "error",
-            recordId: error.id,
-            status: "failed",
-            metadata: metadata([["message", error.message]]),
-          });
-        }),
-      ]
-    : singleRows(state, generatedAt);
-  return csv(rows);
+  return ViewerCsv.text(state, generatedAt);
 }

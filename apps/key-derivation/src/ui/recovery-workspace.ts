@@ -1,10 +1,9 @@
 // Recover & Back Up: the host its feature modules plug into. It owns what every panel shares (tabs,
-// help popovers, the job gate and phrases linked from Generate & Derive) and installs the modules
+// the job gate and phrases linked from Generate & Derive) and installs the modules
 // the build selected; it knows no feature by name.
 import { fullSelfTestParts, type HeavyJobs } from "./full-self-test.js";
 import type { RecoverySourceReceiver } from "./recovery-source-link.js";
 import { selectedRecoveryFeatures } from "./recovery-feature-selection.js";
-import { HelpPopovers } from "./recovery-help-popovers.js";
 import { RecoveryJobGate, bindJobGate } from "./recovery-job-gate.js";
 import { LinkedSources } from "./recovery-linked-sources.js";
 import { installTabs, required, type RecoveryFeatureContext } from "./recovery-workspace-shared.js";
@@ -39,7 +38,6 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     required<HTMLElement>("#recovery-busy"),
   );
   installTabs(document, "[data-recovery-tab]", "[data-recovery-panel]");
-  new HelpPopovers().install(document);
   for (const method of document.querySelectorAll<HTMLElement>(".backup-method")) {
     installTabs(method, "[data-operation-tab]", "[data-operation-panel]");
   }
@@ -60,7 +58,7 @@ export function installRecoveryWorkspace(options: RecoveryWorkspaceOptions): Rec
     linkedValue: readyOperation(jobs, sources.linkedValue.bind(sources)),
     linkedSourceRevealed: sources.isRevealed.bind(sources),
     selfTestFailed: (cause: unknown) => {
-      jobs.setReady(false);
+      jobs.failSelfTest();
       for (const listener of failureListeners) listener(cause);
     },
   };

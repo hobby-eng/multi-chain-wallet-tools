@@ -107,13 +107,20 @@ describe("build profiles", () => {
           "apps/discovery-scanner/src/coins/dash/platform-scanner.ts",
           "packages/recovery-backup/src/mnemocode-reencoding.ts",
           "packages/recovery-backup/src/self-test-mnemocode-cards.ts",
-          "packages/recovery-backup/src/mnemocode-share-cards.ts",
+          "packages/recovery-backup/src/mnemocode-heirs.ts",
+          "packages/recovery-backup/src/sskr-bridge.ts",
+          "packages/recovery-mnemocode-wasm/generated/dash-community/key-derivation/mnemocode.wasm",
+          "packages/recovery-mnemocode-wasm/generated/multi-chain/discovery-scanner/mnemocode.js",
+          "packages/recovery-backup/src/mhfe-input-text.ts",
+          "packages/recovery-backup/src/mhfe-repair-choices.ts",
         ],
         "fixture",
       ),
     ).not.toThrow();
     for (const input of [
       "packages/coin-protocols/src/coins/adapters/bitcoin.ts",
+      "packages/recovery-mnemocode-wasm/generated/multi-chain/key-derivation/mnemocode.wasm",
+      "packages/recovery-mnemocode-wasm/generated/future-edition/key-derivation/mnemocode.wasm",
       "packages/coin-protocols/src/coins/adapters/future-coin.ts",
       "packages/coin-protocols/src/coins/future-coin/index.ts",
       "packages/coin-protocols/src/coins/registry.ts",
@@ -130,4 +137,24 @@ describe("build profiles", () => {
       expect(() => assertDashOnlyGraph([input], "fixture")).toThrow("outside the Dash allowlist");
     }
   });
+});
+
+it("admits the three coin-neutral Matcher owners by exact path only", () => {
+  for (const name of ["matcher-plan", "matcher-scope", "matcher-secrets"]) {
+    const input = `packages/wallet-recovery/src/${name}.ts`;
+    expect(() => assertDashOnlyGraph([input], "Matcher")).not.toThrow();
+    expect(() => assertDashOnlyGraph([`${input}.backup`], "Matcher")).toThrow(
+      "outside the Dash allowlist",
+    );
+  }
+});
+
+it("admits the coin-neutral recovery route while refusing neighbouring unknown paths", () => {
+  const input = "packages/wallet-recovery/src/recovery-source.ts";
+  expect(() => assertDashOnlyGraph([input], "Recovery source")).not.toThrow();
+  for (const outside of [`${input}.backup`, input.replace("source.ts", "source-extra.ts")]) {
+    expect(() => assertDashOnlyGraph([outside], "Recovery source")).toThrow(
+      "outside the Dash allowlist",
+    );
+  }
 });

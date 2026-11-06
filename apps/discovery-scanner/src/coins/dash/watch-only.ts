@@ -1,4 +1,4 @@
-import { watchOnlyPublicKey } from "@ckd/recovery/watch-only.js";
+import { ExactPublicKeyScan } from "./exact-key.js";
 import { COMPRESSED_KEY_HEX } from "@ckd/core/key-text.js";
 import {
   fundedMetric,
@@ -10,7 +10,7 @@ import { DASH_COIN } from "./coin.js";
 import { ScanSecrets } from "../../scan-secrets.js";
 import { assertWatchOnlyMinimum } from "@ckd/recovery/watch-only.js";
 import { HDKey } from "@scure/bip32";
-import { bytesToHex, encodeP2pkh, hash160, hexToBytes, wipe } from "@ckd/core/crypto.js";
+import { bytesToHex, hash160, hexToBytes } from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import { encodePlatformP2pkh } from "@ckd/coins/dash/platform.js";
 import { type NormalizedViewingKey } from "@ckd/dash-network/viewing-key.js";
@@ -23,7 +23,6 @@ import type {
   RecoveryWatchOnlyInput,
   RecoveryWatchOnlyScanConfig,
 } from "../../types.js";
-import { summarizeDashSections } from "./summary.js";
 import { validateIdentityLookup } from "./identity-scanner.js";
 import { DashPlatformClient } from "./platform-client.js";
 import { validatePlatformAddressBatch } from "./platform-scanner.js";
@@ -38,11 +37,9 @@ import { DashScanAddresses } from "./dashscan-addresses.js";
 import {
   ADDRESS_DISCOVERY_GAP,
   AddressGapTracker,
-  failedSection,
   fetchDashScanIndexedHeight,
   formatDashFromCredits,
   formatDashFromDuffs,
-  validateDashScanAddressBatch,
 } from "./util.js";
 
 function rejectMasterXpub(node: HDKey, kindLabel: string): void {
@@ -307,157 +304,6 @@ async function scanPlatformXpub(
   });
 }
 
-async function scanExactPublicKey(
-  input: RecoveryWatchOnlyInput,
-  config: RecoveryWatchOnlyScanConfig,
-  context: RecoveryScanContext,
-  gateway: RecoveryNetworkGateway,
-  client: DashPlatformClient,
-): Promise<RecoveryWalletResult> {
-  const network = getDashNetwork(config.network);
-  const { compressed, uncompressed } = watchOnlyPublicKey(input.value);
-  const walletScan = new WalletScan(input, DASH_COIN, config.network);
-  const sections: RecoverySection[] = [];
-  async function check(
-    id: RecoverySection["id"],
-    title: string,
-    action: () => Promise<RecoverySection>,
-  ): Promise<void> {
-    if (context.signal.aborted) throw new DOMException("Public-key scan cancelled.", "AbortError");
-    context.onProgress({
-      inputId: input.id,
-      section: id,
-      message: title,
-      completed: 0,
-      total: null,
-    });
-    try {
-      const section = await action();
-      sections.push(section);
-      for (const finding of section.findings) context.onFinding(input.id, id, finding);
-    } catch (cause) {
-      if (context.signal.aborted) throw cause;
-      sections.push(failedSection(id, title, "Exact public-key lookup", cause));
-    }
-  }
-  try {
-    const compressedHashHex = bytesToHex(hash160(compressed));
-    const coreAddresses = [
-      encodeP2pkh(hash160(compressed), network.p2pkh),
-      encodeP2pkh(hash160(uncompressed), network.p2pkh),
-    ];
-    const platformAddress = encodePlatformP2pkh(hash160(compressed), network.platformHrp);
-    await check("core", "Dash Core · exact public key", async () => {
-      const infos = validateDashScanAddressBatch(
-        await gateway.runPublic(
-          { network: config.network, addresses: coreAddresses },
-          "core.address-info",
-          () => gateway.networkApi.coreAddressInfo(config.network, coreAddresses, context.signal),
-          context.signal,
-        ),
-        coreAddresses,
-      );
-      const findings: RecoveryFinding[] = infos.flatMap((info, index) => {
-        if (info.balance === 0n && !(config.includeUsedZeroBalance && info.txCount > 0)) return [];
-        return [
-          {
-            id: `dash-public-key:core:${coreAddresses[index]}`,
-            title: coreAddresses[index]!,
-            subtitle:
-              index === 0
-                ? "Exact Core P2PKH · compressed key"
-                : "Exact Core P2PKH · uncompressed key",
-            balanceAtomic: info.balance,
-            balanceLabel: formatDashFromDuffs(info.balance),
-            fields: [{ label: "Transactions reported", value: String(info.txCount) }],
-          },
-        ];
-      });
-      return {
-        id: "core",
-        title: "Dash Core · exact public key",
-        description: "Check the compressed and uncompressed P2PKH addresses of this exact key.",
-        state: "complete",
-        metrics: [{ label: "Addresses checked", value: "2" }],
-        findings,
-        scanned: 2,
-        source: DASHSCAN_ENDPOINTS[config.network],
-        proof: "DashScan indexed Core state · single exact-key lookup",
-      };
-    });
-    await check("platform", "Dash Platform · exact public key", async () => {
-      const response = validatePlatformAddressBatch(
-        await client.addresses([platformAddress], context.signal),
-        [`00${compressedHashHex}`],
-      );
-      const info = response.data.get(`00${compressedHashHex}`);
-      const findings: RecoveryFinding[] =
-        info != null && (info.balance > 0n || (config.includeUsedZeroBalance && info.nonce > 0n))
-          ? [
-              {
-                id: `dash-public-key:platform:${platformAddress}`,
-                title: platformAddress,
-                subtitle: "Exact Platform P2PKH · compressed key",
-                balanceAtomic: info.balance,
-                balanceLabel: formatDashFromCredits(info.balance),
-                fields: [{ label: "Outgoing nonce", value: info.nonce.toString() }],
-              },
-            ]
-          : [];
-      return {
-        id: "platform",
-        title: "Dash Platform · exact public key",
-        description: "Check the compressed-key Platform P2PKH address.",
-        state: "complete",
-        metrics: [{ label: "Addresses checked", value: "1" }],
-        findings,
-        scanned: 1,
-        source: "Dash Platform DAPI · trusted quorum discovery",
-        proof: `Balance proof verified at Platform height ${response.height} · protocol ${response.protocolVersion}`,
-      };
-    });
-    await check("identity", "Dash Platform · exact identity lookup", async () => {
-      const response = validateIdentityLookup(
-        await client.identity(compressedHashHex, context.signal),
-      );
-      const findings: RecoveryFinding[] = response.identities.map((identity) => ({
-        id: `dash-public-key:identity:${identity.identifier}`,
-        title: identity.identifier,
-        subtitle: "Identity matched by unique compressed-key HASH160",
-        balanceAtomic: identity.balance,
-        balanceLabel: formatDashFromCredits(identity.balance),
-        fields: [
-          { label: "Public-key hash", value: compressedHashHex, copyable: true },
-          { label: "Identity revision", value: identity.revision.toString() },
-        ],
-      }));
-      return {
-        id: "identity",
-        title: "Dash Platform · exact identity lookup",
-        description: "Proof-verified lookup by the compressed public key hash.",
-        state: "complete",
-        metrics: [{ label: "Identities found", value: String(findings.length) }],
-        findings,
-        scanned: 1,
-        source: "Dash Platform DAPI · trusted quorum discovery",
-        proof: `Balance proof verified at Platform height ${response.proofHeight} · protocol ${response.protocolVersion}`,
-      };
-    });
-    return walletScan.result({
-      overview: summarizeDashSections(sections),
-      sections,
-      warnings: [
-        "A single public key is checked exactly; it does not derive standard wallet descendants.",
-        ...sections
-          .filter(({ state }) => state === "failed")
-          .map(({ title, warning }) => `${title} was not checked: ${warning}`),
-      ],
-    });
-  } finally {
-    wipe(compressed, uncompressed);
-  }
-}
-
 async function scanIdentityLookup(
   input: RecoveryWatchOnlyInput,
   config: RecoveryWatchOnlyScanConfig,
@@ -540,7 +386,7 @@ async function scanOrchard(
       config.includeUsedZeroBalance,
       gateway,
       context.signal,
-      context.onProgress,
+      (progress) => context.onProgress(progress),
       (finding) => context.onFinding(input.id, "shielded", finding),
     );
     const balanceMetric = section.metrics.find((metric) => metric.label === "Spendable balance");
@@ -588,7 +434,17 @@ export async function scanDashWatchOnly(
     case "dash-platform-xpub":
       return scanPlatformXpub(input, config, context, client);
     case "public-key":
-      return scanExactPublicKey(input, config, context, gateway, client);
+      return new ExactPublicKeyScan(
+        input,
+        { network: config.network, includeUsedZeroBalance: config.includeUsedZeroBalance },
+        {
+          signal: context.signal,
+          onProgress: (progress) => context.onProgress(progress),
+          onFinding: (inputId, section, finding) => context.onFinding(inputId, section, finding),
+        },
+        gateway,
+        client,
+      ).run();
     case "identity":
       return scanIdentityLookup(input, config, context, client);
     case "orchard-fvk":

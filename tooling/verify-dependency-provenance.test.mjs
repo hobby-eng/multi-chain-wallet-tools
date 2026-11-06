@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { MNEMOCODE_REPOSITORY } from "./sync-mnemocode-source.mjs";
+import { MNEMOCODE_REPOSITORY } from "./sync-mnemocode-wasm.mjs";
 import {
   assertReleasedUpstreams,
   GITHUB_SOURCES,
@@ -71,7 +71,7 @@ describe("dependency provenance verifier", () => {
         expect(init?.body).toBeUndefined();
         expect(init?.method ?? "GET").toBe("GET");
       }
-      const mnemocode = GITHUB_SOURCES.find((source) => source.id === "mnemocode-core");
+      const mnemocode = GITHUB_SOURCES.find((source) => source.id === "mnemocode-wasm");
       expect(mnemocode?.repository).toBe(MNEMOCODE_REPOSITORY);
       expect(report.github.every((entry) => entry.status === "verified")).toBe(true);
     } finally {

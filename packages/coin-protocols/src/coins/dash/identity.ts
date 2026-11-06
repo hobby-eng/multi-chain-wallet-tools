@@ -6,7 +6,8 @@ import {
   type DashIdentityStandardKey,
 } from "./profiles.js";
 
-import { assertBatch, requirePrivate, requirePublic, rootFromSeed } from "@ckd/core/bip32.js";
+import { assertBatch, rootFromSeed } from "@ckd/core/bip32.js";
+import { Bip32Key } from "@ckd/core/bip32-key.js";
 import { bytesToHex, encodeWif, hash160, wipe } from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import {
@@ -42,14 +43,21 @@ function deriveDashIdentityKey(
   keyIndex = 0,
 ): DashIdentityKey {
   const path = DASH_IDENTITY_PATHS.keyPath(networkName, identityIndex, keyIndex);
-  const node = root.derive(path);
-  const privateSource = requirePrivate(node, path);
-  const publicSource = requirePublic(node, path);
-  const privateKey = Uint8Array.from(privateSource);
-  const publicKey = Uint8Array.from(publicSource);
-  const publicKeyHash = hash160(publicKey);
-  wipe(privateSource, publicSource);
-  node.wipePrivateData();
+  let privateKey: Uint8Array | undefined;
+  let publicKey: Uint8Array | undefined;
+  let publicKeyHash: Uint8Array | undefined;
+  try {
+    using node = Bip32Key.take(root.derive(path));
+    const privateSource = node.privateKey(path);
+    const publicSource = node.publicKey(path);
+    privateKey = Uint8Array.from(privateSource);
+    publicKey = Uint8Array.from(publicSource);
+    publicKeyHash = hash160(publicKey);
+  } catch (cause) {
+    wipe(privateKey, publicKey, publicKeyHash);
+    throw cause;
+  }
+  // Transfer only after the SDK node and source-byte disposal succeeded.
   return { path, privateKey, publicKey, publicKeyHash };
 }
 

@@ -55,6 +55,10 @@ it("updates release metadata without rewriting audit dates, commits or evidence"
         readFileSync(resolve(source, path), "utf8"),
       );
     }
+    // The SSKR engine keeps MnemoCode's own version, which its intake brings, not the release's.
+    const bridge = JSON.parse(
+      readFileSync(resolve(source, "packages/recovery-sskr-wasm/package.json"), "utf8"),
+    ).version;
     for (const rustPackage of [
       "dash-shielded-wasm",
       "recovery-codex32-wasm",
@@ -63,7 +67,7 @@ it("updates release metadata without rewriting audit dates, commits or evidence"
     ]) {
       expect(
         readFileSync(resolve(root, `packages/${rustPackage}/rust/Cargo.toml`), "utf8"),
-      ).toContain(`version = "${rustPackage === "recovery-sskr-wasm" ? "0.1.6" : "9.9.9"}"`);
+      ).toContain(`version = "${rustPackage === "recovery-sskr-wasm" ? bridge : "9.9.9"}"`);
     }
   } finally {
     rmSync(root, { recursive: true, force: true });

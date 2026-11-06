@@ -1,3 +1,6 @@
+import { Slip39Passphrase } from "./slip39-passphrase.js";
+import { defined } from "@ckd/core/defined.js";
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 import { equalBytes } from "@ckd/core/bytes.js";
 import { secureRandomBytes } from "@ckd/core/secure-random.js";
 // Ported from Trezor's MIT-licensed python-shamir-mnemonic reference implementation.
@@ -25,6 +28,12 @@ const MIN_STRENGTH_BITS = 128;
 const MIN_MNEMONIC_LENGTH_WORDS = METADATA_LENGTH_WORDS + Math.ceil(MIN_STRENGTH_BITS / RADIX_BITS);
 const BASE_ITERATION_COUNT = 10_000;
 const ROUND_COUNT = 4;
+const DEFAULT_ITERATION_EXPONENT = 1;
+const ERRORS = new ErrorCatalog("wallet.slip39", {
+  invalid: (message: string) => message,
+  word: (position: number) => `Invalid SLIP-39 word at position ${position}.`,
+  wiped: () => "This parsed SLIP-39 share has been released.",
+});
 const SECRET_INDEX = 255;
 const DIGEST_INDEX = 254;
 
@@ -65,7 +74,7 @@ if (SLIP39_WORDLIST.length !== RADIX || wordIndexes.size !== RADIX) {
 }
 
 function fail(message: string): never {
-  throw new Error(message);
+  throw ERRORS.create("invalid", [message]);
 }
 
 function assertSmallInteger(value: number, label: string, minimum: number, maximum: number): void {
@@ -82,7 +91,7 @@ function xor(left: Uint8Array, right: Uint8Array): Uint8Array {
   if (left.length !== right.length) fail("SLIP-39 cipher halves must have equal lengths.");
   const output = new Uint8Array(left.length);
   for (let index = 0; index < output.length; index += 1)
-    output[index] = left[index]! ^ right[index]!;
+    output[index] = defined(left[index]) ^ defined(right[index]);
   return output;
 }
 
@@ -93,13 +102,14 @@ function bytesToBigInt(bytes: Uint8Array): bigint {
 }
 
 function bigIntToBytes(value: bigint, length: number): Uint8Array {
+  // Reject excess padding before allocating bytes that no parsed owner could retire.
+  if (value >> BigInt(length * 8) !== 0n) fail("Invalid mnemonic padding.");
   const bytes = new Uint8Array(length);
   let remaining = value;
   for (let index = length - 1; index >= 0; index -= 1) {
     bytes[index] = Number(remaining & 0xffn);
     remaining >>= 8n;
   }
-  if (remaining !== 0n) fail("Invalid mnemonic padding.");
   return bytes;
 }
 
@@ -127,7 +137,7 @@ function polymod(values: Iterable<number>): number {
     const top = checksum >>> 20;
     checksum = ((checksum & 0xfffff) << 10) ^ value;
     for (let index = 0; index < 10; index += 1) {
-      if (((top >>> index) & 1) !== 0) checksum ^= RS1024_GENERATORS[index]!;
+      if (((top >>> index) & 1) !== 0) checksum ^= defined(RS1024_GENERATORS[index]);
     }
   }
   return checksum;
@@ -163,20 +173,22 @@ function encodeShare(share: Slip39ShareInfo): string {
     ...intToIndices(bytesToBigInt(share.value), valueWordCount),
   ];
   return [...data, ...checksum(data, customization(share.extendable))]
-    .map((index) => SLIP39_WORDLIST[index]!)
+    .map((index) => defined(SLIP39_WORDLIST[index]))
     .join(" ");
 }
 
-export function parseSlip39Share(mnemonic: string): Slip39ShareInfo {
+function parseShare(mnemonic: string): Slip39ShareInfo {
   const words = mnemonic.trim().toLowerCase().split(/\s+/u).filter(Boolean);
   if (words.length < MIN_MNEMONIC_LENGTH_WORDS) {
     fail(
       `Invalid SLIP-39 mnemonic length; at least ${MIN_MNEMONIC_LENGTH_WORDS} words are required.`,
     );
   }
-  const indices = words.map(
-    (word) => wordIndexes.get(word) ?? fail(`Invalid SLIP-39 word: ${word}.`),
-  );
+  const indices = words.map((word, place) => {
+    const index = wordIndexes.get(word);
+    if (index === undefined) throw ERRORS.create("word", [place + 1]);
+    return index;
+  });
   const paddingBits = (RADIX_BITS * (indices.length - METADATA_LENGTH_WORDS)) % 16;
   if (paddingBits > 8) fail("Invalid SLIP-39 mnemonic length.");
   const idExp = Number(indicesToBigInt(indices.slice(0, ID_EXP_LENGTH_WORDS)));
@@ -190,8 +202,11 @@ export function parseSlip39Share(mnemonic: string): Slip39ShareInfo {
     5,
     4,
   );
-  const [groupIndex, rawGroupThreshold, rawGroupCount, memberIndex, rawMemberThreshold] =
-    params as [number, number, number, number, number];
+  const groupIndex = defined(params[0]);
+  const rawGroupThreshold = defined(params[1]);
+  const rawGroupCount = defined(params[2]);
+  const memberIndex = defined(params[3]);
+  const rawMemberThreshold = defined(params[4]);
   const groupThreshold = rawGroupThreshold + 1;
   const groupCount = rawGroupCount + 1;
   if (groupCount < groupThreshold) fail("SLIP-39 group threshold cannot exceed its group count.");
@@ -234,16 +249,21 @@ function interpolate(shares: readonly RawShare[], x: number): Uint8Array {
   const direct = shares.find((share) => share.x === x);
   if (direct !== undefined) return direct.data.slice();
   const length = shares[0]?.data.length ?? fail("At least one SLIP-39 share is required.");
-  const logProduct = shares.reduce((sum, share) => sum + LOG_TABLE[share.x ^ x]!, 0);
+  const logProduct = shares.reduce((sum, share) => sum + defined(LOG_TABLE[share.x ^ x]), 0);
   const result = new Uint8Array(length);
   for (const share of shares) {
-    const denominator = shares.reduce((sum, other) => sum + LOG_TABLE[share.x ^ other.x]!, 0);
-    const basis = (logProduct - LOG_TABLE[share.x ^ x]! - denominator) % 255;
+    const denominator = shares.reduce(
+      (sum, other) => sum + defined(LOG_TABLE[share.x ^ other.x]),
+      0,
+    );
+    const basis = (logProduct - defined(LOG_TABLE[share.x ^ x]) - denominator) % 255;
     const normalizedBasis = basis < 0 ? basis + 255 : basis;
     for (let index = 0; index < length; index += 1) {
-      const value = share.data[index]!;
+      const value = defined(share.data[index]);
       if (value !== 0)
-        result[index] = result[index]! ^ EXP_TABLE[(LOG_TABLE[value]! + normalizedBasis) % 255]!;
+        result[index] =
+          defined(result[index]) ^
+          defined(EXP_TABLE[(defined(LOG_TABLE[value]) + normalizedBasis) % 255]);
     }
   }
   return result;
@@ -292,7 +312,7 @@ function splitSecret(
 
 function recoverSecret(threshold: number, shares: readonly RawShare[]): Uint8Array {
   if (shares.length < threshold) fail(`At least ${threshold} SLIP-39 shares are required.`);
-  if (threshold === 1) return shares[0]!.data.slice();
+  if (threshold === 1) return defined(shares[0]).data.slice();
   const selected = shares.slice(0, threshold);
   const secret = interpolate(selected, SECRET_INDEX);
   const digestShare = interpolate(selected, DIGEST_INDEX);
@@ -311,15 +331,6 @@ function recoverSecret(threshold: number, shares: readonly RawShare[]): Uint8Arr
     digestShare.fill(0);
     expected.fill(0);
   }
-}
-
-function validatePassphrase(passphrase: string): Uint8Array {
-  const bytes = utf8ToBytes(passphrase);
-  if ([...bytes].some((byte) => byte < 32 || byte > 126)) {
-    bytes.fill(0);
-    fail("A SLIP-39 passphrase may contain printable ASCII characters only.");
-  }
-  return bytes;
 }
 
 function salt(identifier: number, extendable: boolean): Uint8Array {
@@ -372,10 +383,7 @@ function crypt(
   }
 }
 
-export function createSlip39Shares(
-  masterSecret: Uint8Array,
-  options: Slip39GenerateOptions,
-): string[][] {
+function createShares(masterSecret: Uint8Array, options: Slip39GenerateOptions): string[][] {
   if (masterSecret.length * 8 < MIN_STRENGTH_BITS || masterSecret.length % 2 !== 0) {
     fail("SLIP-39 master secret must contain at least 128 bits and an even number of bytes.");
   }
@@ -390,16 +398,18 @@ export function createSlip39Shares(
       fail("SLIP-39 does not permit multiple member shares with a 1-of-N member threshold.");
     }
   }
-  const iterationExponent = options.iterationExponent ?? 1;
+  const iterationExponent = options.iterationExponent ?? DEFAULT_ITERATION_EXPONENT;
   assertSmallInteger(iterationExponent, "Iteration exponent", 0, 15);
   const extendable = options.extendable ?? true;
   const source = new CheckedRandomByteSource(options.randomBytes ?? defaultRandomBytes);
   const randomBytes = (length: number): Uint8Array => source.bytes(length);
   const identifierBytes = randomBytes(2);
   const identifier =
-    (((identifierBytes[0]! << 8) | identifierBytes[1]!) & ((1 << ID_LENGTH_BITS) - 1)) >>> 0;
+    (((defined(identifierBytes[0]) << 8) | defined(identifierBytes[1])) &
+      ((1 << ID_LENGTH_BITS) - 1)) >>>
+    0;
   identifierBytes.fill(0);
-  const passphrase = validatePassphrase(options.passphrase ?? "");
+  const passphrase = Slip39Passphrase.encode(options.passphrase ?? "");
   let encrypted: Uint8Array | undefined;
   let groupShares: RawShare[] = [];
   try {
@@ -415,7 +425,7 @@ export function createSlip39Shares(
         const memberShares = splitSecret(
           group.memberThreshold,
           group.memberCount,
-          groupShares[groupIndex]!.data,
+          defined(groupShares[groupIndex]).data,
           randomBytes,
         );
         try {
@@ -455,62 +465,202 @@ function commonKey(share: Slip39ShareInfo): string {
   ].join(":");
 }
 
-export function recoverSlip39Shares(
-  mnemonics: readonly string[],
-  passphraseInput = "",
-): Uint8Array {
-  if (mnemonics.length === 0) fail("Enter at least one SLIP-39 share.");
-  const parsed: Slip39ShareInfo[] = [];
-  try {
-    for (const mnemonic of mnemonics) parsed.push(parseSlip39Share(mnemonic));
-    if (new Set(parsed.map(commonKey)).size !== 1)
+/** Public cost of the admitted encrypted value; no secret bytes or KDF execution. */
+export interface Slip39Work {
+  readonly iterationExponent: number;
+  readonly valueBytes: number;
+  readonly rounds: number;
+  readonly iterationsPerRound: number;
+  /** Total PBKDF2 PRF iterations, including every output hash block. */
+  readonly prfIterations: bigint;
+  readonly requiresConfirmation: boolean;
+}
+
+/** Admits a whole set without its KDF, owns parsed/encrypted values and reports exact work. */
+export class Slip39Recovery implements Disposable {
+  readonly #parsed: Slip39Share[] = [];
+  #encrypted: Uint8Array | undefined;
+  readonly #first: Slip39Share;
+  readonly #work: Slip39Work;
+
+  /** Validates shares, thresholds and digest before any passphrase stretching. */
+  constructor(mnemonics: readonly string[]) {
+    let admitted = false;
+    using _rollback = {
+      [Symbol.dispose]: () => {
+        if (!admitted) this.wipe();
+      },
+    };
+    if (mnemonics.length === 0) fail("Enter at least one SLIP-39 share.");
+    for (const mnemonic of mnemonics) this.#parsed.push(Slip39.parse(mnemonic));
+    if (new Set(this.#parsed.map(commonKey)).size !== 1)
       fail("The supplied SLIP-39 shares belong to different sets.");
-    const first = parsed[0]!;
-    const groups = new Map<number, Slip39ShareInfo[]>();
-    for (const share of parsed) {
+    this.#first = defined(this.#parsed[0]);
+    const groups = new Map<number, Slip39Share[]>();
+    for (const share of this.#parsed) {
       const group = groups.get(share.groupIndex) ?? [];
       if (group.some((candidate) => candidate.memberIndex === share.memberIndex)) continue;
-      if (group.some((candidate) => candidate.memberThreshold !== share.memberThreshold)) {
+      if (group.some((candidate) => candidate.memberThreshold !== share.memberThreshold))
         fail("SLIP-39 shares in one group declare different member thresholds.");
-      }
       group.push(share);
       groups.set(share.groupIndex, group);
     }
-    const completeGroups = [...groups.entries()].filter(
-      ([, group]) => group.length >= group[0]!.memberThreshold,
+    const complete = [...groups.entries()].filter(
+      ([, group]) => group.length >= defined(group[0]).memberThreshold,
     );
-    if (completeGroups.length < first.groupThreshold) {
-      fail(`At least ${first.groupThreshold} complete SLIP-39 groups are required.`);
-    }
+    if (complete.length < this.#first.groupThreshold)
+      fail(`At least ${this.#first.groupThreshold} complete SLIP-39 groups are required.`);
     const groupShares: RawShare[] = [];
-    let encrypted: Uint8Array | undefined;
-    let passphrase: Uint8Array | undefined;
     try {
-      for (const [x, group] of completeGroups.slice(0, first.groupThreshold)) {
+      for (const [x, group] of complete.slice(0, this.#first.groupThreshold))
         groupShares.push({
           x,
           data: recoverSecret(
-            group[0]!.memberThreshold,
+            defined(group[0]).memberThreshold,
             group.map((share) => ({ x: share.memberIndex, data: share.value })),
           ),
         });
-      }
-      encrypted = recoverSecret(first.groupThreshold, groupShares);
-      passphrase = validatePassphrase(passphraseInput);
+      this.#encrypted = recoverSecret(this.#first.groupThreshold, groupShares);
+    } finally {
+      for (const share of groupShares) share.data.fill(0);
+    }
+    const iterationsPerRound =
+      (BASE_ITERATION_COUNT * 2 ** this.#first.iterationExponent) / ROUND_COUNT;
+    const blocks = Math.ceil(this.#encrypted.length / 2 / sha256.outputLen);
+    const prfIterations = BigInt(iterationsPerRound) * BigInt(ROUND_COUNT) * BigInt(blocks);
+    this.#work = Object.freeze({
+      iterationExponent: this.#first.iterationExponent,
+      valueBytes: this.#encrypted.length,
+      rounds: ROUND_COUNT,
+      iterationsPerRound,
+      prfIterations,
+      requiresConfirmation:
+        prfIterations > BigInt(BASE_ITERATION_COUNT * 2 ** DEFAULT_ITERATION_EXPONENT),
+    });
+    admitted = true;
+  }
+
+  /** Harmless metadata remains readable after disposal; it never contains a share or phrase. */
+  get work(): Slip39Work {
+    return this.#work;
+  }
+
+  /** Borrows a transient passphrase and returns independently owned plaintext entropy. */
+  recover(passphraseInput = ""): Uint8Array {
+    if (this.#encrypted === undefined) throw ERRORS.create("wiped", []);
+    const passphrase = Slip39Passphrase.encode(passphraseInput);
+    try {
       return crypt(
-        encrypted,
+        this.#encrypted,
         passphrase,
-        first.iterationExponent,
-        first.identifier,
-        first.extendable,
+        this.#first.iterationExponent,
+        this.#first.identifier,
+        this.#first.extendable,
         true,
       );
     } finally {
-      for (const group of groupShares) group.data.fill(0);
-      encrypted?.fill(0);
-      passphrase?.fill(0);
+      passphrase.fill(0);
     }
-  } finally {
-    for (const share of parsed) share.value.fill(0);
+  }
+
+  /** Releases every admitted share and the combined encrypted value; future recovery refuses. */
+  wipe(): void {
+    this.#encrypted?.fill(0);
+    this.#encrypted = undefined;
+    for (const share of this.#parsed) share.wipe();
+    this.#parsed.length = 0;
+  }
+  /** Ends admission/recovery ownership. */
+  [Symbol.dispose](): void {
+    this.wipe();
   }
 }
+
+/** An independently owned parsed share; public metadata survives, secret value reads end at wipe. */
+export class Slip39Share implements Slip39ShareInfo, Disposable {
+  readonly #info: Slip39ShareInfo;
+  #wiped = false;
+
+  /** Consumes transient mnemonic text and takes ownership of the parser's mutable value bytes. */
+  constructor(mnemonic: string) {
+    this.#info = Object.freeze(parseShare(mnemonic));
+  }
+  /** Public SLIP39 set identifier. */
+  get identifier(): number {
+    return this.#info.identifier;
+  }
+  /** Whether the share uses the extendable customization. */
+  get extendable(): boolean {
+    return this.#info.extendable;
+  }
+  /** The admitted four-bit iteration exponent. */
+  get iterationExponent(): number {
+    return this.#info.iterationExponent;
+  }
+  /** Zero-based group index. */
+  get groupIndex(): number {
+    return this.#info.groupIndex;
+  }
+  /** Number of complete groups required. */
+  get groupThreshold(): number {
+    return this.#info.groupThreshold;
+  }
+  /** Total number of groups in the set. */
+  get groupCount(): number {
+    return this.#info.groupCount;
+  }
+  /** Zero-based member index. */
+  get memberIndex(): number {
+    return this.#info.memberIndex;
+  }
+  /** Number of members required within this group. */
+  get memberThreshold(): number {
+    return this.#info.memberThreshold;
+  }
+  /** Borrows mutable encrypted-share bytes while live; callers must not retain or mutate them. */
+  get value(): Uint8Array {
+    if (this.#wiped) throw ERRORS.create("wiped", []);
+    return this.#info.value;
+  }
+  /** Clears this owner's bytes as far as the runtime allows and revokes secret reads. */
+  wipe(): void {
+    this.#wiped = true;
+    this.#info.value.fill(0);
+  }
+  /** Ends the parsed value's lifetime. */
+  [Symbol.dispose](): void {
+    this.wipe();
+  }
+}
+
+/** The host-neutral SLIP39 operations and their fixed generation limits. */
+export class Slip39 {
+  /** Generation defaults, shared by front ends instead of repeating protocol limits. */
+  static parameters(): { maximumShares: number; defaultIterationExponent: number } {
+    return { maximumShares: MAX_SHARE_COUNT, defaultIterationExponent: DEFAULT_ITERATION_EXPONENT };
+  }
+  /** Parses one share into a disposable owner; coded refusals never echo an unknown word. */
+  static parse(this: void, mnemonic: string): Slip39Share {
+    return new Slip39Share(mnemonic);
+  }
+  /** Creates grouped shares; borrows entropy/randomness and returns caller-owned text views. */
+  static create(this: void, masterSecret: Uint8Array, options: Slip39GenerateOptions): string[][] {
+    return createShares(masterSecret, options);
+  }
+  /** Admits a set and exposes public cost without running its KDF; caller disposes the plan. */
+  static prepare(mnemonics: readonly string[]): Slip39Recovery {
+    return new Slip39Recovery(mnemonics);
+  }
+  /** Recovers caller-owned entropy; always disposes parsed shares and temporary KDF inputs. */
+  static recover(this: void, mnemonics: readonly string[], passphrase = ""): Uint8Array {
+    using plan = Slip39.prepare(mnemonics);
+    return plan.recover(passphrase);
+  }
+}
+
+/** Compatibility entry; use Slip39.parse and dispose the returned owner after borrowing value. */
+export const parseSlip39Share = Slip39.parse;
+/** Compatibility entry for the same single generation implementation. */
+export const createSlip39Shares = Slip39.create;
+/** Compatibility entry; the caller must wipe returned entropy after use. */
+export const recoverSlip39Shares = Slip39.recover;

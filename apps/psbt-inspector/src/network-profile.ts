@@ -42,6 +42,11 @@ export class InspectorNetworkProfile {
     return { ...this.facts.versions };
   }
 
+  /** Legacy key/address versions; regtest shares these with testnet. Returns an isolated value. */
+  get keyNetwork(): Pick<BitcoinNetwork, "p2pkh" | "wif"> {
+    return { p2pkh: this.facts.p2pkh, wif: this.facts.wif };
+  }
+
   private get witnessHrp(): string {
     if (!("bech32Hrp" in this.facts))
       throw new Error("Witness address encoding is unavailable for this chain.");

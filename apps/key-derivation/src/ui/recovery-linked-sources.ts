@@ -1,11 +1,16 @@
-// Links the phrase of Generate & Derive into the backup panels without copying it: a panel holds a
-// reference that reads the phrase only when an operation starts. The class knows each panel only
-// through the phrase slot its feature module describes (recovery-feature.ts).
+// Links Generate & Derive through expiring references. A card owns its explicit disclosure and
+// clears its DOM when hidden, replaced or expired. The class knows each panel only through the
+// phrase slot its feature module describes (recovery-feature.ts).
 import type { RecoveryPhraseSlot } from "./recovery-feature.js";
 import type { RecoverySourceReference, RecoverySourceTarget } from "./recovery-source-link.js";
 import { required } from "./recovery-workspace-shared.js";
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 
 const SOURCE_CHANGED = "The linked source changed or was cleared. Choose the source again.";
+const ERRORS = new ErrorCatalog("recovery.linked-source", {
+  changed: () => SOURCE_CHANGED,
+  unavailable: () => "The selected recovery feature is not included in this build.",
+});
 
 interface LinkedPhraseView {
   readonly toggle: HTMLButtonElement;
@@ -13,9 +18,15 @@ interface LinkedPhraseView {
   readonly problem: HTMLElement;
 }
 
+interface LinkedSource {
+  readonly reference: RecoverySourceReference;
+  card?: HTMLElement;
+}
+
+/** Owns linked source capabilities and the DOM cards that may currently reveal them. */
 export class LinkedSources {
   readonly #slots: ReadonlyMap<RecoverySourceTarget, RecoveryPhraseSlot>;
-  readonly #linked = new Map<RecoverySourceTarget, RecoverySourceReference>();
+  readonly #linked = new Map<RecoverySourceTarget, LinkedSource>();
   /** Linked phrases the user chose to show, with the function that hides each again. */
   readonly #revealed = new Map<RecoverySourceTarget, () => void>();
   /** Links whose phrase was changed or cleared in Generate & Derive, already announced. */
@@ -24,6 +35,7 @@ export class LinkedSources {
   #offered: RecoverySourceReference | null = null;
   readonly #offers = new Map<RecoverySourceTarget, HTMLElement>();
 
+  /** The build supplies only its included phrase slots. */
   constructor(slots: readonly RecoveryPhraseSlot[]) {
     this.#slots = new Map(slots.map((slot) => [slot.target, slot]));
   }
@@ -35,7 +47,9 @@ export class LinkedSources {
   install(): void {
     for (const slot of this.#slots.values()) this.#installOffer(slot);
     const concealAll = (): void => {
-      for (const conceal of [...this.#revealed.values()]) conceal();
+      // Concealment removes entries and dispatches events; this pass owns only its starting set.
+      const visible = Array.from(this.#revealed.values());
+      for (const conceal of visible) conceal();
     };
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") concealAll();
@@ -44,28 +58,38 @@ export class LinkedSources {
     document.querySelector("#derive-generate-mode")?.addEventListener("click", concealAll);
   }
 
+  /** Retire visible expired sources while publishing the current offer to included slots. */
   offer(reference: RecoverySourceReference | null): void {
     this.#offered = reference;
     for (const target of this.#offers.keys()) this.#updateOffer(target);
     // The phrase of Generate & Derive changed or was cleared: a panel linked to it drops what it
     // made from it (an encoded record, card QR images), as on any change of its source. The link
     // stays and says it changed when it is used.
-    for (const [target, linked] of this.#linked)
-      if (!this.#expired.has(target) && linked.read() === null) {
+    // Visibility handlers may replace links; this pass owns only the links present at its start.
+    for (const [target, linked] of Array.from(this.#linked))
+      if (
+        this.#linked.get(target) === linked &&
+        !this.#expired.has(target) &&
+        linked.reference.read() === null &&
+        this.#linked.get(target) === linked
+      ) {
         this.#expired.add(target);
-        document.dispatchEvent(new CustomEvent("recovery-source-change", { detail: target }));
+        this.#revealed.get(target)?.();
+        if (this.#linked.get(target) === linked)
+          document.dispatchEvent(new CustomEvent("recovery-source-change", { detail: target }));
       }
   }
 
   /** The linked phrase and passphrase, or null when the panel's own fields are used. */
   linkedValue(target: RecoverySourceTarget): { mnemonic: string; passphrase: string } | null {
-    const reference = this.#linked.get(target);
-    if (reference === undefined) return null;
-    const value = reference.read();
-    if (value === null) throw new Error(SOURCE_CHANGED);
+    const linked = this.#linked.get(target);
+    if (linked === undefined) return null;
+    const value = linked.reference.read();
+    if (value === null) throw ERRORS.create("changed", []);
     return value;
   }
 
+  /** Read the current capability only when requested, falling back to the manual field. */
   readMnemonic(target: RecoverySourceTarget, selector: string): string {
     return this.linkedValue(target)?.mnemonic ?? required<HTMLTextAreaElement>(selector).value;
   }
@@ -75,28 +99,33 @@ export class LinkedSources {
     return this.#revealed.has(target);
   }
 
+  /** Atomically replace a slot; reentrant event handlers may supersede this particular link. */
   use(reference: RecoverySourceReference, target: RecoverySourceTarget): void {
     const slot = this.#slots.get(target);
-    if (slot === undefined)
-      throw new Error(`Recovery feature "${target}" is not included in this build.`);
-    this.#unlink(slot);
+    if (slot === undefined) throw ERRORS.create("unavailable", []);
+    // Replacement publishes one change after installing its new identity, not an intermediate unlink.
+    this.#unlink(slot, false);
     const manualElements = manualFieldElements(slot);
     for (const element of manualElements) element.hidden = true;
     required<HTMLTextAreaElement>(slot.phraseField).value = "";
     if (slot.passphraseField !== undefined)
       required<HTMLInputElement | HTMLTextAreaElement>(slot.passphraseField).value = "";
-    this.#linked.set(target, reference);
+    const linked: LinkedSource = { reference };
+    this.#linked.set(target, linked);
     this.#expired.delete(target);
     document.dispatchEvent(new CustomEvent("recovery-source-change", { detail: target }));
+    if (this.#linked.get(target) !== linked) return;
     this.#updateOffer(target);
     const panel = required<HTMLElement>(`#${slot.panelId}`);
-    const card = this.#linkedCard(slot, reference);
+    const card = this.#linkedCard(slot, linked);
+    linked.card = card;
     const anchor = manualElements[0] ?? panel.firstElementChild;
     if (anchor === null) panel.append(card);
     else anchor.before(card);
     document
       .querySelector<HTMLButtonElement>(`[data-recovery-tab][aria-controls="${slot.panelId}"]`)
       ?.click();
+    if (this.#linked.get(target) !== linked) return;
     // Panels with operation tabs open their backup tab; the Wallet Matcher has none.
     document
       .querySelector<HTMLButtonElement>(
@@ -105,14 +134,19 @@ export class LinkedSources {
       ?.click();
   }
 
-  #unlink(slot: RecoveryPhraseSlot): void {
+  #unlink(slot: RecoveryPhraseSlot, announce = true): void {
+    const linked = this.#linked.get(slot.target);
+    const conceal = this.#revealed.get(slot.target);
     this.#linked.delete(slot.target);
     this.#expired.delete(slot.target);
     this.#revealed.delete(slot.target);
-    document.querySelector<HTMLElement>(`[data-linked-source-for="${slot.target}"]`)?.remove();
+    // The callback clears its own DOM even after it has lost authority over the slot.
+    conceal?.();
+    linked?.card?.remove();
     for (const element of manualFieldElements(slot)) element.hidden = false;
-    document.dispatchEvent(new CustomEvent("recovery-source-change", { detail: slot.target }));
     this.#updateOffer(slot.target);
+    if (announce)
+      document.dispatchEvent(new CustomEvent("recovery-source-change", { detail: slot.target }));
   }
 
   #installOffer(slot: RecoveryPhraseSlot): void {
@@ -148,7 +182,8 @@ export class LinkedSources {
       required<HTMLTextAreaElement>(slot.phraseField).value.trim() !== "";
   }
 
-  #linkedCard(slot: RecoveryPhraseSlot, reference: RecoverySourceReference): HTMLElement {
+  #linkedCard(slot: RecoveryPhraseSlot, linked: LinkedSource): HTMLElement {
+    const reference = linked.reference;
     const card = document.createElement("div");
     card.className = "linked-recovery-source";
     card.dataset.linkedSourceFor = slot.target;
@@ -169,12 +204,14 @@ export class LinkedSources {
     unlink.type = "button";
     unlink.className = "secondary compact";
     unlink.textContent = "Enter another phrase";
-    unlink.addEventListener("click", () => this.#unlink(slot));
+    unlink.addEventListener("click", () => {
+      if (this.#linked.get(slot.target) === linked) this.#unlink(slot);
+    });
     const summary = document.createElement("div");
     summary.className = "linked-source-summary";
     const actions = document.createElement("div");
     actions.className = "linked-source-actions";
-    const phraseView = this.#linkedPhraseView(slot.target, reference);
+    const phraseView = this.#linkedPhraseView(slot.target, linked);
     actions.append(phraseView.toggle, unlink);
     summary.append(description, actions);
     card.append(summary, phraseView.phrase, phraseView.problem);
@@ -185,10 +222,7 @@ export class LinkedSources {
    * Show/Hide for the linked phrase. Showing reads the in-memory reference and places the words in a
    * read-only field inside the card; hiding removes them from the DOM again.
    */
-  #linkedPhraseView(
-    target: RecoverySourceTarget,
-    reference: RecoverySourceReference,
-  ): LinkedPhraseView {
+  #linkedPhraseView(target: RecoverySourceTarget, linked: LinkedSource): LinkedPhraseView {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "danger-outline compact";
@@ -196,7 +230,7 @@ export class LinkedSources {
     phrase.className = "linked-source-phrase";
     phrase.rows = 3;
     phrase.readOnly = true;
-    phrase.setAttribute("aria-label", `${reference.label} (read-only)`);
+    phrase.setAttribute("aria-label", `${linked.reference.label} (read-only)`);
     const problem = document.createElement("p");
     problem.className = "error";
     problem.setAttribute("role", "alert");
@@ -207,18 +241,23 @@ export class LinkedSources {
       if (!revealed) phrase.value = "";
     };
     const conceal = (): void => {
-      if (!this.#revealed.has(target)) return;
+      if (this.#revealed.get(target) !== conceal) {
+        render(false);
+        return;
+      }
       this.#revealed.delete(target);
       render(false);
       document.dispatchEvent(new CustomEvent("recovery-source-visibility", { detail: target }));
     };
     toggle.addEventListener("click", () => {
+      if (!toggle.isConnected || this.#linked.get(target) !== linked) return;
       problem.hidden = true;
       if (this.#revealed.has(target)) {
         conceal();
         return;
       }
-      const value = reference.read();
+      const value = linked.reference.read();
+      if (!toggle.isConnected || this.#linked.get(target) !== linked) return;
       if (value === null) {
         problem.textContent = SOURCE_CHANGED;
         problem.hidden = false;
@@ -266,7 +305,7 @@ function linkedSourceHelp(): HTMLDetailsElement {
   title.textContent = "Kept inside this offline workspace";
   const text = document.createElement("p");
   text.textContent =
-    "This tab receives only a temporary in-memory reference. The recovery phrase and passphrase remain inside this offline page and are read only when this operation starts. They are not copied to the OS clipboard or sent over the network.";
+    "The recovery phrase and passphrase remain inside this offline page. Choose Show phrase to display the linked phrase. The card hides it when the source changes, the card is replaced or the window loses focus. This link does not copy these values to the OS clipboard or send them over the network.";
   popover.append(title, text);
   help.append(summary, popover);
   return help;

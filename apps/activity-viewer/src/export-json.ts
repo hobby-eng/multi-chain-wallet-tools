@@ -1,6 +1,7 @@
 import type { PlatformIdentityLookupSnapshot } from "@ckd/dash-network/platform-identity-source.js";
 import { ShieldedActivityState } from "@ckd/dash-network/shielded-activity-state.js";
 import { CoreActivityState } from "./core-activity-state.js";
+import { IdentityHistoryCoverage } from "@ckd/dash-network/identity-history-coverage.js";
 import type { ViewerSingleExportState } from "./export-model.js";
 
 function groupedIdentityProofs(snapshot: PlatformIdentityLookupSnapshot): unknown[] {
@@ -38,6 +39,7 @@ function identityJsonData(state: Extract<ViewerSingleExportState, { mode: "ident
     identities: snapshot.identities.map((identity) => {
       const result = state.histories.find(({ identifier }) => identifier === identity.identifier);
       const history = result?.history ?? null;
+      const coverage = new IdentityHistoryCoverage(result);
       // What the proof says of the identity; its history from the index follows when it came.
       const proven = {
         identifier: identity.identifier,
@@ -55,6 +57,8 @@ function identityJsonData(state: Extract<ViewerSingleExportState, { mode: "ident
       return {
         ...proven,
         history: {
+          historyWarnings: coverage.warnings,
+          historyCoverage: coverage.status,
           source: {
             provider: history.provider,
             endpoint: history.endpoint,
@@ -107,84 +111,93 @@ function identityJsonData(state: Extract<ViewerSingleExportState, { mode: "ident
   };
 }
 
-export function viewerJsonData(state: ViewerSingleExportState): unknown {
-  if (state.mode === "identity") return identityJsonData(state);
-  if (state.mode === "platform") {
-    const { snapshot, history } = state;
-    return {
-      address: snapshot.address,
-      state: {
-        exists: snapshot.exists,
-        balanceCredits: snapshot.balanceCredits,
-        nonce: snapshot.nonce,
-        proofHeight: snapshot.proofHeight,
-        coreChainLockedHeight: snapshot.coreChainLockedHeight,
-        protocolVersion: snapshot.protocolVersion,
-        responseTimeMs: snapshot.responseTimeMs,
-      },
-      history: {
-        provider: history.provider,
-        endpoint: history.endpoint,
-        base58Address: history.base58Address,
-        totals: {
-          transitions: history.totalTransitions,
-          incomingTransitions: history.incomingTransitions,
-          outgoingTransitions: history.outgoingTransitions,
-          incomingCredits: history.totalIncomingCredits,
-          outgoingCredits: history.totalOutgoingCredits,
-        },
-        explorerState: {
-          balanceCredits: history.explorerBalanceCredits,
-          nonce: history.explorerNonce,
-        },
-        transitions: history.transitions,
-        historyLimit: history.historyLimit,
-        indexStatus: history.indexStatus,
-        indexedHeight: history.indexedHeight,
-        indexedTimeMs: history.indexedTimeMs,
-        requests: history.requests,
-      },
-    };
-  }
-  if (state.mode === "core") {
-    const { snapshot } = state;
-    return {
-      address: snapshot.address,
-      provider: snapshot.provider,
-      endpoint: snapshot.endpoint,
-      balance: new CoreActivityState(snapshot).balance,
-      transactionCount: snapshot.transactionCount,
-      transactions: snapshot.transactions.map((transaction) => ({
-        ...transaction,
-        confirmationStatus: CoreActivityState.confirmationStatus(transaction),
-      })),
-      historyLimit: snapshot.historyLimit,
-      indexStatus: snapshot.indexStatus,
-      indexedHeight: snapshot.indexedHeight,
-      indexedTimeMs: snapshot.indexedTimeMs,
-      requests: snapshot.requests,
-    };
-  }
-  const activity = new ShieldedActivityState(state.snapshot);
-  return {
-    keyCapability: state.snapshot.keyKind,
-    complete: state.snapshot.complete,
-    summary: {
-      scannedNotes: state.snapshot.scannedNotes,
-      proofHeight: state.snapshot.proofHeight,
-      protocolVersion: state.snapshot.protocolVersion,
-      balanceCredits: activity.balance,
-      externalReceivedCredits: state.snapshot.receivedExternal,
-      externalSentCredits: state.snapshot.sentExternal,
-      selfChangeCredits: state.snapshot.selfOrChange,
-    },
-    notes: state.snapshot.records.map((record) => {
-      const spendStatus = activity.noteSpendStatus(record);
+/** Projects public activity with explicit auxiliary-history coverage and exact monetary integers. */
+export class ViewerJson {
+  /** Returns a public data projection; BigInts remain exact for the shared serializer. */
+  static data(state: ViewerSingleExportState): unknown {
+    if (state.mode === "identity") return identityJsonData(state);
+    if (state.mode === "platform") {
+      const { snapshot, history } = state;
       return {
-        ...record,
-        spent: spendStatus === "unknown" ? null : spendStatus === "spent",
-        spendStatus,
+        address: snapshot.address,
+        state: {
+          exists: snapshot.exists,
+          balanceCredits: snapshot.balanceCredits,
+          nonce: snapshot.nonce,
+          proofHeight: snapshot.proofHeight,
+          coreChainLockedHeight: snapshot.coreChainLockedHeight,
+          protocolVersion: snapshot.protocolVersion,
+          responseTimeMs: snapshot.responseTimeMs,
+        },
+        history: {
+          provider: history.provider,
+          endpoint: history.endpoint,
+          base58Address: history.base58Address,
+          totals: {
+            transitions: history.totalTransitions,
+            incomingTransitions: history.incomingTransitions,
+            outgoingTransitions: history.outgoingTransitions,
+            incomingCredits: history.totalIncomingCredits,
+            outgoingCredits: history.totalOutgoingCredits,
+          },
+          explorerState: {
+            balanceCredits: history.explorerBalanceCredits,
+            nonce: history.explorerNonce,
+          },
+          transitions: history.transitions,
+          historyLimit: history.historyLimit,
+          indexStatus: history.indexStatus,
+          indexedHeight: history.indexedHeight,
+          indexedTimeMs: history.indexedTimeMs,
+          requests: history.requests,
+        },
       };
-    }),
-  };
+    }
+    if (state.mode === "core") {
+      const { snapshot } = state;
+      return {
+        address: snapshot.address,
+        provider: snapshot.provider,
+        endpoint: snapshot.endpoint,
+        balance: new CoreActivityState(snapshot).balance,
+        transactionCount: snapshot.transactionCount,
+        transactions: snapshot.transactions.map((transaction) => ({
+          ...transaction,
+          confirmationStatus: CoreActivityState.confirmationStatus(transaction),
+        })),
+        historyLimit: snapshot.historyLimit,
+        indexStatus: snapshot.indexStatus,
+        indexedHeight: snapshot.indexedHeight,
+        indexedTimeMs: snapshot.indexedTimeMs,
+        requests: snapshot.requests,
+      };
+    }
+    const activity = new ShieldedActivityState(state.snapshot);
+    return {
+      keyCapability: state.snapshot.keyKind,
+      complete: state.snapshot.complete,
+      summary: {
+        scannedNotes: state.snapshot.scannedNotes,
+        proofHeight: state.snapshot.proofHeight,
+        protocolVersion: state.snapshot.protocolVersion,
+        balanceCredits: activity.balance,
+        externalReceivedCredits: state.snapshot.receivedExternal,
+        externalSentCredits: state.snapshot.sentExternal,
+        selfChangeCredits: state.snapshot.selfOrChange,
+      },
+      notes: state.snapshot.records.map((record) => {
+        const spendStatus = activity.noteSpendStatus(record);
+        return {
+          ...record,
+          spent: spendStatus === "unknown" ? null : spendStatus === "spent",
+          spendStatus,
+        };
+      }),
+    };
+  }
+}
+
+/** Compatibility entry point for one public JSON data projection. */
+export function viewerJsonData(state: ViewerSingleExportState): unknown {
+  return ViewerJson.data(state);
 }

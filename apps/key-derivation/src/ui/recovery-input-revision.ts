@@ -1,9 +1,22 @@
 // The edits of a tab's fields, for a long job that reads them. A job captures the fields when it
 // starts and shows its result or error only while that capture is current, so that nothing it found
-// is shown next to inputs that are no longer the ones it used. The job is not stopped: what it
-// found is only dropped.
+// is shown next to inputs that are no longer the ones it used. The host callback owns job
+// cancellation and result cleanup; this object revokes captures.
 
 import { FieldEdits } from "./field-edits.js";
+
+interface AncestorTarget {
+  closest(selector: string): unknown;
+}
+
+const INTERACTION_SELECTORS = ["[data-job-question]", "[data-result-interaction]"] as const;
+
+function interactionTarget(target: EventTarget | null): AncestorTarget | undefined {
+  if (target === null || !("closest" in target) || typeof target.closest !== "function")
+    return undefined;
+  // The callable native method shape is checked; its return remains unknown until the null check.
+  return target as EventTarget & AncestorTarget;
+}
 
 export class InputRevision {
   #revision = 0;
@@ -26,11 +39,16 @@ export class InputRevision {
   /** Add a field outside the original block to the same request and result ownership. */
   watch(root: EventTarget): void {
     const edited = (event: Event): void => {
+      // Job answers and recovered-result checks are not source fields; never snapshot their text.
+      const target = interactionTarget(event.target);
+      if (
+        INTERACTION_SELECTORS.some((selector) => {
+          const interaction = target?.closest(selector);
+          return interaction !== undefined && interaction !== null;
+        })
+      )
+        return;
       if (!this.#edits.isNew(event)) return;
-      const target = event.target as { closest?: (selector: string) => unknown } | null;
-      if ((target?.closest?.("[data-job-question]") ?? null) !== null) return;
-      // A recovered result has its own interactive checks; those do not edit the source request.
-      if ((target?.closest?.("[data-result-interaction]") ?? null) !== null) return;
       this.revise();
     };
     root.addEventListener("input", edited);
@@ -38,9 +56,22 @@ export class InputRevision {
   }
 
   /** Clear all and leaving the page invalidate the same captured inputs as a field edit. */
-  bindPageLifetime(): void {
-    document.querySelector("#clear-all")?.addEventListener("click", () => this.revise());
-    window.addEventListener("pagehide", () => this.revise());
+  bindPageLifetime(retireInputs?: () => void): void {
+    const retire = (): void => {
+      try {
+        this.retire();
+      } finally {
+        retireInputs?.();
+      }
+    };
+    document.querySelector("#clear-all")?.addEventListener("click", retire);
+    window.addEventListener("pagehide", retire);
+  }
+
+  /** End a source lifetime, wiping comparisons before revoking captures and calling onEdit. */
+  retire(): void {
+    this.#edits.wipe();
+    this.revise();
   }
 
   /** The fields changed: every capture taken before is outdated. */

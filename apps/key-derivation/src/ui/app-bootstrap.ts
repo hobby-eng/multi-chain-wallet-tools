@@ -4,6 +4,7 @@ import { generateMnemonic, mnemonicToSeed } from "@ckd/core/bip39.js";
 import type { CoinRegistry } from "@ckd/coins/registry-base.js";
 import { runBip39SelfTest } from "@ckd/bip39-self-test";
 import { writeClipboard } from "@ckd/export/clipboard.js";
+import { HelpPopovers } from "@ckd/ui/help-popovers.js";
 import { downloadBlob, downloadText } from "@ckd/export/download.js";
 import { DerivationWorkerClient } from "../workers/derive-client.js";
 import { createKeyDerivationController } from "./controller.js";
@@ -25,11 +26,17 @@ export function startKeyDerivationApp(
   if (BUILD_INFO.profile !== "multi-chain" && BUILD_INFO.profile !== "dash-community") {
     throw new Error("Key Derivation requires an offline Secret Boundary profile.");
   }
+  const getAdapterFamilyId = registry.getAdapterFamilyId.bind(registry);
+  const getCoinFamily = registry.getCoinFamily.bind(registry);
+  const getCoinAdapter = registry.getCoinAdapter.bind(registry);
+  const getDefaultCoinAdapter = registry.getDefaultCoinAdapter.bind(registry);
   const view = createKeyDerivationView(document, {
     COIN_FAMILIES: registry.COIN_FAMILIES,
-    getAdapterFamilyId: registry.getAdapterFamilyId,
-    getCoinFamily: registry.getCoinFamily,
+    getAdapterFamilyId,
+    getCoinFamily,
   });
+  // Every "?" of the page, in Generate & Derive too, also in a build without Recover & Back Up.
+  new HelpPopovers().install(document);
   const modes = installTopLevelModes();
   const handoff = new RecoveryDeriverHandoff(document, () => modes.setMode("derive"));
   const recovery = __CKD_HAS_RECOVERY__
@@ -63,9 +70,9 @@ export function startKeyDerivationApp(
   );
   const controller = createKeyDerivationController(view, {
     coinFamilies: registry.COIN_FAMILIES,
-    getAdapterFamilyId: registry.getAdapterFamilyId,
-    getCoinAdapter: registry.getCoinAdapter,
-    getDefaultCoinAdapter: registry.getDefaultCoinAdapter,
+    getAdapterFamilyId,
+    getCoinAdapter,
+    getDefaultCoinAdapter,
     buildInfo: BUILD_INFO,
     generateMnemonic,
     chosenWords: installChosenWordsFeature(),
