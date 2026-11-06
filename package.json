@@ -74,7 +74,7 @@
   },
   "dependencies": {
     "@bitcoinerlab/miniscript": "2.0.0",
-    "@dashevo/evo-sdk": "4.1.1",
+    "@dashevo/evo-sdk": "5.0.1",
     "@noble/ciphers": "2.4.0",
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
