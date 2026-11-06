@@ -3,14 +3,16 @@
 import {
   MNEMOCODE_VERSION,
   type MnemoCodeFormat,
-  type MnemoCodeMissingWordCandidate,
   type MnemoCodeMode,
 } from "@ckd/recovery-backup/mnemocode.js";
-import {
-  Masking,
-  PHRASE_WORDS,
-} from "../../../../packages/recovery-mnemocode/source/core/masking.js";
+import { Masking, PHRASE_WORDS, foundAmongOthers } from "@ckd/recovery-backup/mnemocode-facts.js";
 import { paragraph, renderRecoveredSecret } from "./recovery-workspace-shared.js";
+import { defined } from "@ckd/core/defined.js";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
+import {
+  MNEMOCODE_FINGERPRINT_NOTICE,
+  MNEMOCODE_FINGERPRINT_EXPLANATION,
+} from "./recovery-mnemocode-help.js";
 
 export function appendMetadata(
   container: HTMLElement,
@@ -148,8 +150,9 @@ export function renderShorterPhrases(
   container.append(
     warningCallout(
       `The first codes give a phrase with a valid checksum: ${listed}. Printed cards end with ` +
-        `codes that belong to nothing; choose how many words the seed phrase has (${shorter[0]!.words}).`,
+        `codes that belong to nothing; choose how many words the seed phrase has (${defined(shorter[0]).words}).`,
     ),
+    paragraph(MNEMOCODE_FINGERPRINT_EXPLANATION, "field-note"),
   );
 }
 
@@ -173,7 +176,7 @@ export function renderLegacyCandidates(
   list.className = "field-note mnemocode-candidate-fingerprints";
   list.textContent = `Fingerprints (empty BIP39 passphrase): ${fingerprints
     .map((fingerprint, index) => `${index + 1} ${fingerprint}`)
-    .join(" · ")}`;
+    .join(" · ")}. ${MNEMOCODE_FINGERPRINT_NOTICE}`;
   const label = document.createElement("label");
   label.textContent = "Your wallet's fingerprint, to find its candidate";
   const lookup = document.createElement("input");
@@ -217,11 +220,19 @@ export function renderLegacyCandidates(
 /**
  * Codes marked with ? that the search found, as MnemoCode's decode reports them: which codes were
  * filled in, the codes whole (concealed, since codes without Seedshift are the phrase), the dates
- * found, and the advice to correct the written copy.
+ * found, what the wallet check said of the match (such as a fingerprint's warning, AUD-037-SEC004),
+ * and the advice to correct the written copy; where other sets of codes and dates give the same
+ * phrase, the warning that those found are one of them (foundAmongOthers) instead.
  */
 export function renderFoundCodes(
   container: HTMLElement,
-  found: { readonly places: string; readonly codes: string; readonly foundDates?: string },
+  found: {
+    readonly places: string;
+    readonly codes: string;
+    readonly foundDates?: string;
+    readonly others?: number;
+    readonly warning?: string;
+  },
   correct: string,
   copy: (value: string) => Promise<void>,
   current: () => boolean = () => true,
@@ -239,7 +250,10 @@ export function renderFoundCodes(
     ...(found.foundDates === undefined
       ? []
       : [paragraph(`Dates found: ${found.foundDates}`, "field-note")]),
-    paragraph(correct, "field-note"),
+    ...(found.warning === undefined ? [] : [paragraph(found.warning, "field-note")]),
+    found.others === undefined
+      ? paragraph(correct, "field-note")
+      : paragraph(foundAmongOthers(found.others), "warning-callout"),
   );
 }
 
@@ -257,6 +271,7 @@ export function renderMissingCodesList(
 ): void {
   container.append(
     paragraph(`${rows.length} candidate${rows.length === 1 ? "" : "s"}.`, "field-note"),
+    ...(rows.length === 0 ? [] : [paragraph(MNEMOCODE_FINGERPRINT_EXPLANATION, "field-note")]),
     ...concealedText({
       value: rows
         .map(
@@ -272,6 +287,32 @@ export function renderMissingCodesList(
     }),
     paragraph(explanation, "field-note"),
   );
+}
+
+/** One phrase that a forgotten word's search found: the word at its place and the phrase. */
+export interface MnemoCodeMissingWordCandidate {
+  /** The place of the word, from 1. */
+  readonly position: number;
+  readonly word: string;
+  /** Its number in the BIP39 list, from 1. */
+  readonly wordIndex: number;
+  readonly mnemonic: string;
+  /** For a legacy last word: whether it keeps the entropy of the old one. */
+  readonly preservesLegacyEntropy?: boolean;
+}
+
+/** BIP39 word numbers have 11 bits; the checksum is one bit for every three words. */
+const WORD_BITS = 11;
+const WORDS_PER_CHECKSUM_BIT = 3;
+
+/** The checksum bits that end the last word of `mnemonic`, as the candidate tables show them. */
+function checksumBits(mnemonic: string): string {
+  const words = mnemonic.trim().split(/\s+/u);
+  const index = wordlist.indexOf(words.at(-1) ?? "");
+  return index
+    .toString(2)
+    .padStart(WORD_BITS, "0")
+    .slice(-(words.length / WORDS_PER_CHECKSUM_BIT));
 }
 
 export function renderMissingWordCandidates(
@@ -300,7 +341,7 @@ export function renderMissingWordCandidates(
     `candidate\tword\tword-index\tchecksum-bits${legacyReplacement ? "\tlegacy-tail" : ""}`,
     ...candidates.map(
       (candidate, index) =>
-        `${index + 1}\t${candidate.word}\t${candidate.wordIndex}\t${candidate.checksumBits}${
+        `${index + 1}\t${candidate.word}\t${candidate.wordIndex}\t${checksumBits(candidate.mnemonic)}${
           legacyReplacement
             ? `\t${candidate.preservesLegacyEntropy ? "preserved" : "alternative"}`
             : ""
@@ -315,7 +356,7 @@ export function renderMissingWordCandidates(
         `candidate\tword\tword-index\tchecksum-bits${legacyReplacement ? "\tlegacy-tail" : ""}\tmnemonic`,
         ...candidates.map(
           (candidate, index) =>
-            `${index + 1}\t${candidate.word}\t${candidate.wordIndex}\t${candidate.checksumBits}${
+            `${index + 1}\t${candidate.word}\t${candidate.wordIndex}\t${checksumBits(candidate.mnemonic)}${
               legacyReplacement
                 ? `\t${candidate.preservesLegacyEntropy ? "preserved" : "alternative"}`
                 : ""
@@ -347,11 +388,11 @@ export function appendEncodeFingerprints(
   const text =
     encoded === undefined
       ? `${PHRASE_WORDS.originalFingerprint} ${original}. The encoded words fail the BIP39 checksum, so they have no ` +
-        "fingerprint. It is a BIP32 master key fingerprint for an empty BIP39 passphrase and does not " +
-        "reveal the phrase."
+        "fingerprint. It is a BIP32 master key fingerprint for an empty BIP39 passphrase. " +
+        MNEMOCODE_FINGERPRINT_NOTICE
       : `${PHRASE_WORDS.originalFingerprint} ${original} · ${masking.encodedFingerprintLabel} ${encoded}.` +
         (masking.masked ? ` ${PHRASE_WORDS.fingerprintRoles}` : "") +
-        " Both are BIP32 master key fingerprints for an empty BIP39 passphrase and do not reveal the phrase. " +
+        ` Both are BIP32 master key fingerprints for an empty BIP39 passphrase. ${MNEMOCODE_FINGERPRINT_NOTICE} ` +
         "Note the encoded one with the record: Decode shows the fingerprint of the codes you type, so a " +
         "miscopied code is caught at once.";
   container.append(paragraph(text, "field-note"));
@@ -362,7 +403,7 @@ export function appendRecoveredFingerprint(container: HTMLElement, fingerprint: 
   container.append(
     paragraph(
       `Phrase: ${PHRASE_WORDS.original}. ${PHRASE_WORDS.originalFingerprint} ${fingerprint} (BIP32 ` +
-        "master key fingerprint for an empty BIP39 passphrase). Compare it with your wallet's.",
+        `master key fingerprint for an empty BIP39 passphrase). ${MNEMOCODE_FINGERPRINT_NOTICE} Compare it with your wallet's.`,
       "field-note",
     ),
   );

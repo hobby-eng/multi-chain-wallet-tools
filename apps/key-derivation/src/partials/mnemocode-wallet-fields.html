@@ -22,8 +22,8 @@
       value="address"
       autocomplete="off"
     />
-    Bitcoin address
-    <span class="answer-note">the first receiving address, m/.../0/0, or the place below</span>
+    <span id="__MNEMOCODE_PREFIX__-wallet-address-label">Address</span>
+    <span id="__MNEMOCODE_PREFIX__-wallet-address-note" class="answer-note"></span>
   </label>
   <label id="__MNEMOCODE_PREFIX__-wallet-key-row" class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-key-choice">
     <input
@@ -34,18 +34,7 @@
       autocomplete="off"
     />
     Another key of the wallet
-    <span class="answer-note">an xpub, an account xpub, a public key or a WIF</span>
-  </label>
-  <label id="__MNEMOCODE_PREFIX__-wallet-coin-row" class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-coin-choice">
-    <input
-      id="__MNEMOCODE_PREFIX__-wallet-coin-choice"
-      type="radio"
-      name="__MNEMOCODE_PREFIX__-wallet"
-      value="coin"
-      autocomplete="off"
-    />
-    <span id="__MNEMOCODE_PREFIX__-wallet-coin-label">Address of another coin</span>
-    <span id="__MNEMOCODE_PREFIX__-wallet-coin-note" class="answer-note"></span>
+    <span class="answer-note">a Bitcoin xpub, an account xpub, a public key or a WIF</span>
   </label>
   <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-none">
     <input
@@ -70,14 +59,16 @@
         as the original fingerprint. The check unmasks each candidate with the dates first, so the encoded fingerprint
         never matches.
       </p>
-      <p id="__MNEMOCODE_PREFIX__-wallet-located-help">
-        An address, an xpub or a key compares the wallet itself. An address, a public key or a WIF is looked for at the
-        account, branch and index below, by default the first receiving address of account 0, in every address type or
-        the one chosen. An account xpub is compared at its account.
+      <p id="__MNEMOCODE_PREFIX__-wallet-address-help">
+        An address compares the wallet itself. It names its coin: it is read as every coin whose form it has and looked
+        for on the paths that each coin's wallets use, a path two coins share once, at the account, branch and index
+        below, by default the first receiving address of account 0, among as many addresses from there as the number
+        says.
       </p>
-      <p id="__MNEMOCODE_PREFIX__-wallet-coin-help">
-        An address of a coin is looked for on the paths that its wallets use, at the account, branch and index below,
-        among as many addresses from there as the number says.
+      <p id="__MNEMOCODE_PREFIX__-wallet-key-help">
+        A Bitcoin address's type names its path. A ypub or upub is looked for at BIP49 and a zpub or vpub at BIP84;
+        another extended key, a public key or a WIF at BIP44, BIP49, BIP84 and BIP86. An account xpub is compared at its
+        account.
       </p>
     </div>
   </details>
@@ -90,25 +81,16 @@
 </div>
 <div id="__MNEMOCODE_PREFIX__-wallet-address-field" hidden>
   <label for="__MNEMOCODE_PREFIX__-wallet-address">
-    Bitcoin address
+    Receiving address
     <input
       id="__MNEMOCODE_PREFIX__-wallet-address"
       type="text"
       autocomplete="off"
       autocapitalize="none"
-      placeholder="1..., 3..., bc1q... or bc1p..."
+      aria-describedby="__MNEMOCODE_PREFIX__-wallet-address-coins"
     />
   </label>
-</div>
-<div id="__MNEMOCODE_PREFIX__-wallet-coin-field" hidden>
-  <label for="__MNEMOCODE_PREFIX__-wallet-coin">
-    Coin
-    <select id="__MNEMOCODE_PREFIX__-wallet-coin"></select>
-  </label>
-  <label for="__MNEMOCODE_PREFIX__-wallet-coin-address">
-    Receiving address
-    <input id="__MNEMOCODE_PREFIX__-wallet-coin-address" type="text" autocomplete="off" autocapitalize="none" />
-  </label>
+  <p id="__MNEMOCODE_PREFIX__-wallet-address-coins" class="field-note" aria-live="polite" hidden></p>
 </div>
 <div id="__MNEMOCODE_PREFIX__-wallet-key-field" hidden>
   <label for="__MNEMOCODE_PREFIX__-wallet-key-kind">
@@ -129,35 +111,6 @@
   </p>
 </div>
 <div id="__MNEMOCODE_PREFIX__-wallet-location-field" class="backup-options-grid" hidden>
-  <fieldset id="__MNEMOCODE_PREFIX__-wallet-profile-row" class="choice-group">
-    <legend>Address types <span class="answer-note">none ticked: every type</span></legend>
-    <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-profile-legacy">
-      <input id="__MNEMOCODE_PREFIX__-wallet-profile-legacy" type="checkbox" value="legacy" autocomplete="off" />
-      Legacy (BIP44)
-    </label>
-    <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-profile-nested-segwit">
-      <input
-        id="__MNEMOCODE_PREFIX__-wallet-profile-nested-segwit"
-        type="checkbox"
-        value="nested-segwit"
-        autocomplete="off"
-      />
-      Nested SegWit (BIP49)
-    </label>
-    <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-profile-native-segwit">
-      <input
-        id="__MNEMOCODE_PREFIX__-wallet-profile-native-segwit"
-        type="checkbox"
-        value="native-segwit"
-        autocomplete="off"
-      />
-      Native SegWit (BIP84)
-    </label>
-    <label class="checkbox-row" for="__MNEMOCODE_PREFIX__-wallet-profile-taproot">
-      <input id="__MNEMOCODE_PREFIX__-wallet-profile-taproot" type="checkbox" value="taproot" autocomplete="off" />
-      Taproot (BIP86)
-    </label>
-  </fieldset>
   <label for="__MNEMOCODE_PREFIX__-wallet-account">
     Account
     <input id="__MNEMOCODE_PREFIX__-wallet-account" type="number" min="0" step="1" value="0" />

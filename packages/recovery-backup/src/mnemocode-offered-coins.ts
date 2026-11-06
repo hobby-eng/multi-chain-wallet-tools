@@ -1,13 +1,25 @@
-// The coins of MnemoCode that the Deriver's wallet questions offer as "an address of another coin",
-// with their known answers. The full build, with every coin of the Deriver, offers all of
-// MnemoCode's (core/coins.ts). A build with fewer coins gets a generated list of its own coins in
-// place of this module (tooling/key-derivation-composition.mjs), as the owner chose on 2026-10-07,
-// so that it offers and checks no coin it leaves out.
-import { COINS } from "../../recovery-mnemocode/source/core/coins.js";
-import { COIN_ADDRESS_SELF_TEST } from "../../recovery-mnemocode/source/core/coins-self-test.js";
-import type { Coin } from "../../recovery-mnemocode/source/core/coins/coin.js";
-import type { SelfTestFeature } from "../../recovery-mnemocode/source/core/self-test-check.js";
+// The coins whose addresses the Deriver's wallet questions compare, and the words MnemoCode's menu
+// uses for them; MnemoCode reads the coin from the address. The full build offers every coin of
+// its MnemoCode file (OFFERED_COIN_IDS undefined here). A selective build with fewer coins, and the
+// Dash Community Edition, get a generated module of their own coins in place of this one
+// (tooling/key-derivation-composition.mjs), as the owner chose on 2026-10-07, so that it offers,
+// and names, no coin it leaves out.
+export const OFFERED_COIN_IDS: readonly string[] | undefined = undefined;
 
-export const OFFERED_COINS: readonly Coin[] = COINS;
-/** The known answers of the offered coins' addresses. */
-export const OFFERED_COIN_CHECKS: readonly SelfTestFeature[] = [COIN_ADDRESS_SELF_TEST];
+/** The name and address forms of each coin of MnemoCode's full file, as its menu words them. */
+export const COIN_WORDS: Readonly<
+  Record<string, { readonly name: string; readonly addressForms: string }>
+> = Object.freeze({
+  bitcoin: { name: "Bitcoin", addressForms: "1…, 3…, bc1q… or bc1p…" },
+  "bitcoin-cash": { name: "Bitcoin Cash", addressForms: "bitcoincash:q… or 1…" },
+  cosmos: { name: "Cosmos", addressForms: "cosmos1…" },
+  dash: { name: "Dash", addressForms: "X… or dash1k…" },
+  dogecoin: { name: "Dogecoin", addressForms: "D…" },
+  ethereum: { name: "Ethereum and EVM networks", addressForms: "0x…" },
+  "ethereum-classic": { name: "Ethereum Classic", addressForms: "0x…" },
+  injective: { name: "Injective", addressForms: "inj1…" },
+  litecoin: { name: "Litecoin", addressForms: "L…, M…, 3… or ltc1q…" },
+  tron: { name: "Tron", addressForms: "T…" },
+  xrp: { name: "XRP", addressForms: "r…" },
+  zcash: { name: "Zcash", addressForms: "t1…" },
+});

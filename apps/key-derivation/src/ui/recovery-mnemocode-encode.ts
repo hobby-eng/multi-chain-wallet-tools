@@ -1,24 +1,25 @@
 import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
+import { RenderedSecrets } from "./secrets.js";
+import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
 import { MnemoCodeDisclosureFields } from "./recovery-mnemocode-disclosure.js";
 import { MnemoCodeDisclosure } from "@ckd/recovery-backup/mnemocode-disclosure.js";
 // The Encode tab of the MnemoCode panel: a BIP39 phrase into an MNC1 record in one of five
 // representations, directly or shifted by dates (Seedshift).
-import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
 import {
   encodeMnemoCode,
   type MnemoCodeEncodeResult,
   type MnemoCodeFormat,
   type MnemoCodeMode,
 } from "@ckd/recovery-backup/mnemocode.js";
-import { EncodedBackupCheck } from "../../../../packages/recovery-mnemocode/source/core/backup-check.js";
+import { EncodedBackupCheck } from "@ckd/recovery-backup/mnemocode-backup-check.js";
 import {
   ALWAYS_MASKED_NOTE,
   UNMASKED_NOTE,
   alwaysMasked,
-} from "../../../../packages/recovery-mnemocode/source/core/backup-options.js";
-import { EncodedForm } from "../../../../packages/recovery-mnemocode/source/core/encoded-form.js";
-import { EncodedBackup } from "../../../../packages/recovery-mnemocode/source/core/encoded-backup.js";
-import { Masking } from "../../../../packages/recovery-mnemocode/source/core/masking.js";
+  isEncodedFormat,
+  EncodedForm,
+  Masking,
+} from "@ckd/recovery-backup/mnemocode-facts.js";
 import { BackupCheckSection } from "./recovery-mnemocode-backup-check.js";
 import { MNEMOCODE_FORMAT_HELP, MNEMOCODE_MODE_HELP } from "./recovery-mnemocode-help.js";
 import {
@@ -49,7 +50,7 @@ export class MnemoCodeEncodeTab {
   readonly #format = required<HTMLSelectElement>("#mnemocode-encode-format");
   readonly #dates = new DatesField("encode");
   readonly #result = required<HTMLElement>("#mnemocode-encode-result");
-  readonly #backupCheck = new BackupCheckSection("mnemocode-encode", EncodedForm.typedWords);
+  readonly #backupCheck = new BackupCheckSection("mnemocode-encode", "codes");
   readonly #maskNote = required<HTMLElement>("#mnemocode-encode-mask-note");
   readonly #disclosure = new MnemoCodeDisclosureFields();
 
@@ -95,28 +96,30 @@ export class MnemoCodeEncodeTab {
   }
 
   /**
-   * MnemoCode's menu always masks English words and word numbers, which unmasked show the phrase
-   * itself; a copy of the other forms without Seedshift is only disguised. Direct stays offered
-   * here, for plain copies and standard shares, with the line that says what it is worth.
+   * MnemoCode writes English words and word numbers only masked: unmasked they are the seed phrase
+   * itself, so Direct does not offer them. A copy of the other forms without Seedshift is only
+   * disguised; Direct stays offered for them, for plain copies and standard shares, with the line
+   * that says what it is worth.
    */
   #showMasking(): void {
     const direct = selectedMode(this.#mode) === "direct";
     this.#disclosure.showFor(selectedMode(this.#mode));
-    const shown = selectedFormat(this.#format);
-    const exposed = direct && alwaysMasked(shown);
+    const options = [...this.#format.querySelectorAll("option")];
+    for (const option of options)
+      option.disabled = direct && isEncodedFormat(option.value) && alwaysMasked(option.value);
+    if (options.find((option) => option.value === this.#format.value)?.disabled === true)
+      this.#format.value = options.find((option) => !option.disabled)?.value ?? "";
     this.#maskNote.hidden = !direct;
-    this.#maskNote.className = exposed ? "warning-callout" : "field-note";
-    this.#maskNote.textContent = exposed
-      ? `${ALWAYS_MASKED_NOTE} MnemoCode itself offers it only with Seedshift.`
-      : `Direct: ${UNMASKED_NOTE}.`;
+    this.#maskNote.className = "field-note";
+    this.#maskNote.textContent = `Direct: ${UNMASKED_NOTE}. ${ALWAYS_MASKED_NOTE.replace("this form shows", "English words and word numbers show")}`;
   }
 
   #clear(): void {
     this.#backupCheck.offer(undefined);
-    this.#result.replaceChildren();
-    this.#result
-      .closest<HTMLElement>(".backup-operation")
-      ?.dispatchEvent(new CustomEvent("secret-content-reset"));
+    RenderedSecrets.replace(this.#result);
+    RecoverySecretLifecycle.concealControl(
+      required<HTMLButtonElement>("#toggle-mnemocode-created"),
+    );
   }
 
   #encode(): void {
@@ -139,7 +142,6 @@ export class MnemoCodeEncodeTab {
               mnemonic: result.mnemonic,
               format: result.format,
               mode: result.mode,
-              codes: result.indexes,
               dates,
             })
           : undefined,
@@ -220,37 +222,20 @@ export class MnemoCodeEncodeTab {
       );
     });
     recordActions.append(save);
-    const json = document.createElement("button");
-    json.type = "button";
-    json.className = "secret-action compact secret-copy-action";
-    json.textContent = "Save JSON with dates and shifts";
-    json.disabled = true;
-    json.addEventListener("click", () => {
-      MnemoCodeDownload.text(
-        this.#context,
-        result.json,
-        "mnemocode-representation.json",
-        "application/json",
-      );
-    });
-    recordActions.append(json);
     const saveNote = document.createElement("p");
     saveNote.className = "field-note";
     saveNote.textContent =
-      "The saved text record includes the mode, representation, and payload. Dates are not saved. The separate JSON export includes every representation, dates and shifts: keep it private.";
+      "The saved text record includes the mode, representation, and payload. Dates are not saved.";
     this.#result.append(saveNote);
-    const seed = this.#context.mnemonicToSeed;
     // The encoded fingerprint is MnemoCode's: the codes read as a phrase, when they are a valid one.
     appendEncodeFingerprints(
       this.#result,
       result.mode,
-      fingerprintWithoutPassphrase(result.mnemonic, seed),
-      EncodedBackup.of(result.indexes, result.format, result.mode).fingerprint((codes) =>
-        fingerprintWithoutPassphrase(codes, seed),
-      ),
+      result.originalFingerprint,
+      result.encodedFingerprint,
     );
-    // The palette of a backup written in colors (EncodedForm writtenInColors).
-    if (EncodedForm.of(result.format).writtenInColors) appendPalette(this.#result, result.colors);
+    // The palette of a backup written in colors.
+    if (result.colors !== undefined) appendPalette(this.#result, result.colors);
     MnemoCodeDisclosureFields.render(
       this.#result,
       MnemoCodeDisclosure.masked(

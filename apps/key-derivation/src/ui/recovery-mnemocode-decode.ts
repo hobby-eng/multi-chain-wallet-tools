@@ -1,28 +1,34 @@
+import { RenderedSecrets } from "./secrets.js";
+import { qrText } from "@ckd/ui/qr-text.js";
 // The Decode tab of the MnemoCode panel: an MNC1 record or a raw representation back into the
 // BIP39 phrase. The input comes first because a record names its own mode and representation; the
-// selects and the dates field follow what the record says.
+// selects and the dates field follow what the record says. A SeedStitch legend line stands for the
+// record of the masked phrase it holds, as in MnemoCode's decode.
 import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
 import {
   decodeMnemoCode,
   effectiveMnemoCodeMode,
-  mnemoCodeEncodedPhrase,
-  parseMnemoCodeDates,
-  parseMnemoCodeRecord,
+  mnemoCodeEncodedFingerprint,
+  mnemoCodeRecordHeader,
   type MnemoCodeDecodeResult,
   type MnemoCodeFormat,
   type MnemoCodeMode,
   type MnemoCodePhraseWords,
   mnemoCodeTakesDates,
 } from "@ckd/recovery-backup/mnemocode.js";
-import { EncodedForm } from "../../../../packages/recovery-mnemocode/source/core/encoded-form.js";
-import { MasterFingerprintCheck } from "../../../../packages/recovery-mnemocode/source/core/master-fingerprint.js";
-import { Masking } from "../../../../packages/recovery-mnemocode/source/core/masking.js";
-import { MISSING_CODES_TEXTS } from "../../../../packages/recovery-mnemocode/source/core/missing-codes-search.js";
-import { webCryptoPbkdf2 } from "../workers/webcrypto-pbkdf2.js";
+import { mnemocode } from "@ckd/recovery-backup/mnemocode-engine.js";
+import { Masking, MISSING_CODES_TEXTS } from "@ckd/recovery-backup/mnemocode-facts.js";
+import {
+  correctedRowWarning,
+  isStitchLegendRefusal,
+  readStitchLegendLine,
+  type StitchLegendReading,
+} from "@ckd/recovery-backup/mnemocode-stitch.js";
 import {
   MNEMOCODE_AUTO_FORMAT_HELP,
   MNEMOCODE_DECODE_MODE_HELP,
   MNEMOCODE_FORMAT_HELP,
+  MNEMOCODE_FINGERPRINT_NOTICE,
 } from "./recovery-mnemocode-help.js";
 import {
   chosenPhraseWords,
@@ -55,13 +61,16 @@ import {
   RECORD_FILE_IMPORT,
   RESERVED_NOTE_LINE,
 } from "./recovery-workspace-shared.js";
-import { BackupReading } from "../../../../packages/recovery-mnemocode/source/core/backup-reading.js";
 import { handOverShare } from "./recovery-mnemocode-share-handover.js";
 import { InputRevision } from "./recovery-input-revision.js";
 import { attachMnemoCodeWordHints } from "./recovery-mnemocode-word-hints.js";
 
 /** Typing pause before the codes' fingerprint is computed; a QR import counts as typing. */
 const FINGERPRINT_DELAY_MS = 300;
+
+/** The input as MnemoCode decodes it, or why a legend line in it does not read. */
+type DecodeInput =
+  { readonly text: string; readonly legend?: StitchLegendReading } | { readonly refused: unknown };
 
 export class MnemoCodeDecodeTab {
   readonly #context: RecoveryFeatureContext;
@@ -74,7 +83,6 @@ export class MnemoCodeDecodeTab {
   readonly #words = required<HTMLSelectElement>("#mnemocode-decode-words");
   readonly #dates = new DatesField("decode");
   readonly #result = required<HTMLElement>("#mnemocode-decode-result");
-  readonly #fingerprints = new MasterFingerprintCheck(webCryptoPbkdf2);
   readonly #inputKind = required<HTMLFieldSetElement>("#mnemocode-decode-input-kind");
   /** The search of codes marked with ?, which MnemoCode's decode offers. */
   readonly #missing: MnemoCodeMissingCodes;
@@ -93,13 +101,13 @@ export class MnemoCodeDecodeTab {
       (found) => this.#showFound(found),
       () => {
         const current = this.#inputs.capture();
-        this.#result.replaceChildren();
+        RenderedSecrets.replace(this.#result);
         return current;
       },
     );
     this.#result.dataset.resultInteraction = "";
     this.#inputs = new InputRevision(this.#input, () => {
-      this.#result.replaceChildren();
+      RenderedSecrets.replace(this.#result);
       this.#missing.revise();
     });
     installPhraseWordCounts(this.#words);
@@ -122,27 +130,29 @@ export class MnemoCodeDecodeTab {
         ? MNEMOCODE_AUTO_FORMAT_HELP
         : MNEMOCODE_FORMAT_HELP[value as MnemoCodeFormat],
     );
-    installFieldImports(this.#input, (message) => (this.#result.textContent = message), {
+    installFieldImports(this.#input, (message) => RenderedSecrets.text(this.#result, message), {
       file: RECORD_FILE_IMPORT,
       qr: {
         onDecoded: (decoded) => {
-          const text = decoded.text.trim();
+          const text = qrText(decoded).trim();
           this.#qrText = text;
           // A share read from a QR code goes to Restore at once, as MnemoCode's decode sends it.
           queueMicrotask(() => {
             if (this.#input.value.trim() !== text || !this.#context.jobs.ready) return;
             try {
-              if (BackupReading.shareKind(text) === "share") this.#decode();
+              if (mnemocode().shareKind(text) === "share") this.#decode();
             } catch (cause) {
-              this.#result.textContent =
-                cause instanceof Error ? cause.message : "The share input could not be read.";
+              RenderedSecrets.text(
+                this.#result,
+                cause instanceof Error ? cause.message : "The share input could not be read.",
+              );
             }
           });
           return text;
         },
       },
     });
-    attachMnemoCodeWordHints(this.#input, EncodedForm.typedWords);
+    attachMnemoCodeWordHints(this.#input, "codes");
     for (const input of [this.#input, this.#mode, this.#format, this.#words, this.#dates.input]) {
       input.addEventListener("input", () => this.#inputChanged());
       input.addEventListener("change", () => this.#inputChanged());
@@ -153,13 +163,25 @@ export class MnemoCodeDecodeTab {
     );
   }
 
-  /** The mode the decode will use: a record's own, otherwise the selected one. */
-  #effectiveMode(): MnemoCodeMode {
+  /**
+   * The input as MnemoCode decodes it: a SeedStitch legend line turned into the record of the
+   * masked phrase it holds, any other text as typed; read once for each use, as it takes a moment.
+   */
+  #backup(): DecodeInput {
     try {
-      return effectiveMnemoCodeMode(this.#input.value, selectedMode(this.#mode));
-    } catch {
-      return selectedMode(this.#mode);
+      const legend = readStitchLegendLine(this.#input.value);
+      return legend === undefined ? { text: this.#input.value } : { text: legend.record, legend };
+    } catch (refused) {
+      return { refused };
     }
+  }
+
+  /** The mode the decode will use: a record's own, otherwise the selected one. */
+  #effectiveMode(backup: DecodeInput = this.#backup()): MnemoCodeMode {
+    // A legend line that does not read yet still stands for a Seedshift record.
+    if ("refused" in backup)
+      return isStitchLegendRefusal(backup.refused) ? "seedshift" : selectedMode(this.#mode);
+    return effectiveMnemoCodeMode(backup.text, selectedMode(this.#mode));
   }
 
   #inputChanged(): void {
@@ -193,14 +215,27 @@ export class MnemoCodeDecodeTab {
 
   /** Says what a record names, and shows the dates field only for a mode that uses dates. */
   #readHeader(): void {
-    this.#dates.showFor(this.#effectiveMode());
-    showNote(this.#recordNote, this.#recordText());
+    const backup = this.#backup();
+    this.#dates.showFor(this.#effectiveMode(backup));
+    showNote(
+      this.#recordNote,
+      this.#recordText(backup),
+      "legend" in backup && backup.legend?.correctedRow !== undefined,
+    );
   }
 
-  #recordText(): string {
+  #recordText(backup: DecodeInput): string {
     if (this.#input.value.trim() === "") return "";
+    if ("refused" in backup) return backup.refused instanceof Error ? backup.refused.message : "";
+    const legend = backup.legend;
+    if (legend !== undefined)
+      return (
+        `SeedStitch legend · the record of a phrase masked with MnemoCode Seedshift, as ${formatLabel("indexes")}. ` +
+        "The legend names its mode and representation, so the two selectors are not used; type the dates." +
+        (legend.correctedRow === undefined ? "" : ` ${correctedRowWarning(legend.correctedRow)}`)
+      );
     try {
-      const record = parseMnemoCodeRecord(this.#input.value);
+      const record = mnemoCodeRecordHeader(backup.text);
       return record === undefined
         ? ""
         : `MNC1 record · mode ${record.mode} · ${formatLabel(record.format)}. The record names its mode ` +
@@ -216,18 +251,23 @@ export class MnemoCodeDecodeTab {
   }
 
   #showCodesFingerprint(): void {
-    const phrase = mnemoCodeEncodedPhrase(
-      this.#input.value,
+    const backup = this.#backup();
+    if ("refused" in backup) {
+      showNote(this.#codesNote, this.#keptNoteLine());
+      return;
+    }
+    const fingerprint = mnemoCodeEncodedFingerprint(
+      backup.text,
       selectedMode(this.#mode),
       this.#format.value as MnemoCodeFormat | "auto",
       this.#phraseWords(),
     );
     showNote(
       this.#codesNote,
-      phrase === undefined
+      fingerprint === undefined
         ? this.#keptNoteLine()
-        : `${Masking.of(this.#effectiveMode()).encodedFingerprintLabel}, from the codes as typed: ${fingerprintWithoutPassphrase(phrase, this.#context.mnemonicToSeed)}. ` +
-            "If it differs from the one noted at Encode, a code is miscopied.",
+        : `${Masking.of(this.#effectiveMode(backup)).encodedFingerprintLabel}, from the codes as typed: ${fingerprint}. ` +
+            `If it differs from the one noted at Encode, a code is miscopied. ${MNEMOCODE_FINGERPRINT_NOTICE}`,
     );
   }
 
@@ -241,7 +281,7 @@ export class MnemoCodeDecodeTab {
    */
   #handedOver(): boolean {
     const text = this.#input.value.trim();
-    const kind = BackupReading.shareKind(text);
+    const kind = mnemocode().shareKind(text);
     if (kind === undefined) return false;
     const answer = this.#kindRadios().find((radio) => radio.checked)?.value;
     if (kind === "either" && answer === undefined) {
@@ -273,13 +313,16 @@ export class MnemoCodeDecodeTab {
   #decode(): void {
     this.#flushFingerprint();
     const current = this.#inputs.capture();
-    this.#result.replaceChildren();
+    RenderedSecrets.replace(this.#result);
     try {
       if (this.#handedOver()) return;
+      const backup = this.#backup();
+      if ("refused" in backup) throw backup.refused;
+      const { text, legend } = backup;
       // Codes marked with ? are searched, as MnemoCode's decode searches them.
       if (
         this.#missing.offer(
-          this.#input.value,
+          text,
           this.#format.value as MnemoCodeFormat | "auto",
           selectedMode(this.#mode),
           this.#phraseWords(),
@@ -293,22 +336,27 @@ export class MnemoCodeDecodeTab {
         );
         return;
       }
-      const mode = this.#effectiveMode();
+      const mode = this.#effectiveMode(backup);
       // Complete codes with forgotten date digits are a date search, which the Forgotten tab makes.
       if (mnemoCodeTakesDates(mode) && /[?|]/u.test(this.#dates.input.value))
         throw new Error(
           "Dates with ? or | are searched in Forgotten › “A digit of a date”, with these codes. Here, type every date in full.",
         );
-      const result = decodeMnemoCode(this.#input.value, {
+      // A legend holds a whole phrase: every word number of its record is read.
+      const result = decodeMnemoCode(text, {
         mode: selectedMode(this.#mode),
         format: this.#format.value as MnemoCodeFormat | "auto",
         dates: this.#dates.values(mode),
-        words: this.#phraseWords(),
+        words: legend === undefined ? this.#phraseWords() : undefined,
       });
+      if (legend?.correctedRow !== undefined)
+        this.#result.append(paragraph(correctedRowWarning(legend.correctedRow), "warning-callout"));
       this.#show(result, current);
     } catch (cause) {
-      this.#result.textContent =
-        cause instanceof Error ? cause.message : "MnemoCode decoding failed.";
+      RenderedSecrets.text(
+        this.#result,
+        cause instanceof Error ? cause.message : "MnemoCode decoding failed.",
+      );
     }
   }
 
@@ -318,7 +366,7 @@ export class MnemoCodeDecodeTab {
    */
   #showFound(found: MissingCodesFound): void {
     const current = this.#inputs.capture();
-    this.#result.replaceChildren();
+    RenderedSecrets.replace(this.#result);
     const copy = this.#copy(current);
     if (found.kind === "list") {
       renderMissingCodesList(this.#result, found.rows, MISSING_CODES_TEXTS.list, copy, current);
@@ -331,8 +379,7 @@ export class MnemoCodeDecodeTab {
         decodeMnemoCode(found.codes, {
           mode,
           format: found.format as MnemoCodeFormat,
-          dates:
-            found.dates === undefined ? this.#dates.values(mode) : parseMnemoCodeDates(found.dates),
+          dates: found.dates ?? this.#dates.values(mode),
         }),
         current,
         found.passphrase,
@@ -347,14 +394,12 @@ export class MnemoCodeDecodeTab {
     }
   }
 
-  /** Each candidate's fingerprint comes from WebCrypto: up to 128 seeds, without a pause. */
-  async #showCandidates(candidates: readonly string[], current: () => boolean): Promise<void> {
-    // The fingerprints come later: a newer input or press means another result is shown by then.
+  /** Each candidate's fingerprint, by MnemoCode: up to 128 seeds. */
+  #showCandidates(candidates: readonly string[], current: () => boolean): void {
     let fingerprints: string[];
     try {
-      fingerprints = await Promise.all(
-        candidates.map((candidate) => this.#fingerprints.fingerprintAsync(candidate)),
-      );
+      const binding = mnemocode();
+      fingerprints = candidates.map((candidate) => binding.masterFingerprint(candidate, undefined));
     } catch (cause) {
       if (!current()) return;
       this.#result.append(
@@ -380,7 +425,7 @@ export class MnemoCodeDecodeTab {
     appendMetadata(this.#result, result.mode, result.format);
     const copy = this.#copy(current);
     if (result.candidates !== undefined) {
-      void this.#showCandidates(result.candidates, current);
+      this.#showCandidates(result.candidates, current);
       return;
     }
     if (result.mnemonic === undefined) return;
@@ -423,7 +468,8 @@ export class MnemoCodeDecodeTab {
 }
 
 /** An empty note is hidden, so that it leaves no gap. */
-function showNote(note: HTMLElement, text: string): void {
+function showNote(note: HTMLElement, text: string, warning = false): void {
   note.textContent = text;
   note.hidden = text === "";
+  note.classList.toggle("warning", warning);
 }

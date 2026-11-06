@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MnemoCodeWorkerProtocol } from "../src/workers/mnemocode-worker-protocol.js";
-import { ErrorCatalog } from "../../../packages/recovery-mnemocode/source/core/error-catalog.js";
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 import { selectedMode, selectedFormat } from "../src/ui/recovery-mnemocode-fields.js";
 
 describe("MnemoCode worker refusal and stop boundary", () => {
@@ -51,6 +51,12 @@ describe("MnemoCode worker refusal and stop boundary", () => {
       expect(MnemoCodeWorkerProtocol.completed(noMatch)).toBe(noMatch);
     },
   );
+
+  it("wipes the PDF of a pattern whose result is dropped, as it holds the legend", () => {
+    const pdf = Uint8Array.of(37, 80, 68, 70);
+    MnemoCodeWorkerProtocol.discard({ legend: "synthetic", pdf });
+    expect([...pdf]).toEqual([0, 0, 0, 0]);
+  });
 
   it.each([selectedMode, selectedFormat])(
     "refuses invalid selectors without showing supplied text",

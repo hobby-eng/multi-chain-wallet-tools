@@ -17,7 +17,6 @@ const PASSPHRASE_LIMIT_PREFIXES = new Set([
   "mnemocode-restore",
   "mnemocode-forgotten",
 ]);
-const BITCOIN_PROFILES = ["legacy", "nested-segwit", "native-segwit", "taproot"];
 const marker = (prefix) => `<!-- MNEMOCODE_WALLET_FIELDS: ${prefix} -->`;
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const ids = (html) => [...html.matchAll(/\bid="([^"]+)"/gu)].map((match) => match[1]);
@@ -45,7 +44,6 @@ describe("shared MnemoCode wallet fields", () => {
           "fingerprint",
           "address",
           "key",
-          "coin",
           "none",
         ]);
         expect(radios.every((tag) => attribute(tag, "type") === "radio")).toBe(true);
@@ -80,14 +78,9 @@ describe("shared MnemoCode wallet fields", () => {
       for (const reference of references.split(/\s+/u))
         expect(renderedIds.has(reference), reference).toBe(true);
 
-    for (const profile of BITCOIN_PROFILES) {
-      const input = tags(rendered).find(
-        (tag) => attribute(tag, "id") === `${prefix}-wallet-profile-${profile}`,
-      );
-      expect(input, profile).toBeDefined();
-      expect(attribute(input, "type")).toBe("checkbox");
-      expect(attribute(input, "value")).toBe(profile);
-    }
+    // MnemoCode reads the coin from the address and the address types from the form of a key.
+    expect(rendered).not.toContain(`${prefix}-wallet-profile`);
+    expect(rendered).not.toContain(`${prefix}-wallet-coin`);
     const passphrase = tags(rendered).find(
       (tag) => attribute(tag, "id") === `${prefix}-wallet-passphrase`,
     );
@@ -228,14 +221,13 @@ describe("shared MnemoCode wallet fields", () => {
     const admitted = applyKeyDerivationFeatureTemplate(expanded, selection);
     for (const prefix of ALL_PREFIXES) {
       expect(admitted).toContain(`id="${prefix}-wallet-fingerprint"`);
-      expect(admitted.includes(`id="${prefix}-wallet-address-row"`)).toBe(
-        coins.includes("bitcoin"),
-      );
-      expect(admitted.includes(`id="${prefix}-wallet-key-field"`)).toBe(coins.includes("bitcoin"));
-      expect(admitted.includes(`id="${prefix}-wallet-profile-row"`)).toBe(
-        coins.includes("bitcoin"),
-      );
-      expect(admitted).toContain(`id="${prefix}-wallet-coin-field"`);
+      expect(admitted).toContain(`id="${prefix}-wallet-address-row"`);
+      expect(admitted).toContain(`id="${prefix}-wallet-address-field"`);
+      expect(admitted).toContain(`id="${prefix}-wallet-location-field"`);
+      for (const part of ["key-row", "key-help", "key-field", "network-field"])
+        expect(admitted.includes(`id="${prefix}-wallet-${part}"`), part).toBe(
+          coins.includes("bitcoin"),
+        );
     }
   });
 

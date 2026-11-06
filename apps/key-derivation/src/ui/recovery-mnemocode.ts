@@ -1,14 +1,15 @@
 // MnemoCode panel: converts a BIP39 phrase between words, word numbers, mapped Unicode and colors,
-// directly or shifted by dates (Seedshift), with the MnemoCode core that tooling/sync-mnemocode-source.mjs
-// vendors. Each tab of the panel is its own class: Encode, Decode, Forgotten, Word table and
-// Self-test; the shares are a module of their own (recovery-mnemocode-shares.ts).
-import { WordList } from "../../../../packages/recovery-mnemocode/source/core/word-hints.js";
+// directly or shifted by dates (Seedshift), with MnemoCode's WebAssembly
+// (packages/recovery-mnemocode-wasm). Each tab of the panel is its own class: Encode, Decode,
+// Forgotten, Word table and Self-test; Encode's cross-stitch pattern is a class of its own, and the
+// shares are a module of their own (recovery-mnemocode-shares.ts).
 import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
 import { MnemoCodeDecodeTab } from "./recovery-mnemocode-decode.js";
 import { MnemoCodeEncodeTab } from "./recovery-mnemocode-encode.js";
 import { MnemoCodeReEncodeTab } from "./recovery-mnemocode-reencode.js";
 import { MnemoCodeForgottenTab } from "./recovery-mnemocode-forgotten.js";
 import { MnemoCodeSelfTestTab } from "./recovery-mnemocode-self-test.js";
+import { MnemoCodeStitchSection } from "./recovery-mnemocode-stitch.js";
 import { MnemoCodeWordTableTab } from "./recovery-mnemocode-word-table.js";
 import { attachMnemoCodeWordHints } from "./recovery-mnemocode-word-hints.js";
 import {
@@ -20,7 +21,7 @@ import {
 } from "./recovery-workspace-shared.js";
 
 function installMnemoCode(context: RecoveryFeatureContext): void {
-  attachMnemoCodeWordHints(required<HTMLTextAreaElement>("#mnemocode-source"), WordList.BIP39);
+  attachMnemoCodeWordHints(required<HTMLTextAreaElement>("#mnemocode-source"), "phrase");
   installSecretToggle(
     "#toggle-mnemocode-source",
     "#mnemocode-source",
@@ -40,8 +41,15 @@ function installMnemoCode(context: RecoveryFeatureContext): void {
     "Show records",
     "Hide records",
   );
+  installSecretToggle(
+    "#toggle-mnemocode-stitch-result",
+    shownTextsIn("#mnemocode-stitch-result"),
+    "Show legend",
+    "Hide legend",
+  );
   installSecretToggle("#toggle-mnemocode-input", "#mnemocode-input", "Show", "Hide", "input");
   new MnemoCodeEncodeTab(context);
+  new MnemoCodeStitchSection(context);
   new MnemoCodeReEncodeTab(context);
   new MnemoCodeDecodeTab(context);
   new MnemoCodeForgottenTab(context);

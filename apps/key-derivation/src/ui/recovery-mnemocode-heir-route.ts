@@ -19,10 +19,8 @@ function decodeModeLabel(mode: Parameters<HeirRoute["decode"]>[0]): string {
 /** The Decode tab's question for the words of the phrase, as its label reads (index.html). */
 export const DECODE_WORDS_QUESTION = "How many words does the seed phrase have?";
 
-/** ", then `dates`" after what is typed, or nothing when no dates are asked. */
-function thenDates(dates: string | undefined): string {
-  return dates === undefined ? "" : `, then ${dates}`;
-}
+/** Where MnemoCode puts ", then" and the dates, or nothing when no dates are asked. */
+const DATES = "{dates}";
 
 /**
  * The way through this page, as an heir finds it. The repository is named as owner/name, without
@@ -36,16 +34,16 @@ export function deriverHeirRoute(build: HeirRouteBuild): HeirRoute {
       `On a computer you trust, find ${build.releaseRepository} on GitHub, download the Wallet Key Derivation Tool of the ${build.edition} from its Releases, and check it as its README says.`,
       "Go offline, then open the downloaded file in a web browser.",
     ],
-    decode(mode, words, dates) {
+    decode(mode, words) {
       return [
         `Open "Recover & Back Up", then "MnemoCode" and its "Decode" tab. As the transformation mode choose ${decodeModeLabel(mode)}, and to "${DECODE_WORDS_QUESTION}" choose "${words} words".`,
-        `Type the backup${thenDates(dates)}, and press "Restore phrase". The page shows the seed phrase.`,
+        `Type the backup${DATES}, and press "Restore phrase". The page shows the seed phrase.`,
       ];
     },
-    restore(mode, threshold, dates) {
+    restore(mode, threshold) {
       return [
         `Open "Recover & Back Up", then "MnemoCode" and its "Restore" tab. To "Was Seedshift used before it was split?" answer "${mode === "direct" ? "No" : "Yes"}".`,
-        `Type any ${threshold} shares, one per line${thenDates(dates)}, and press "Restore phrase". The page shows the seed phrase.`,
+        `Type any ${threshold} shares, one per line${DATES}, and press "Restore phrase". The page shows the seed phrase.`,
       ];
     },
     dateDigitHelp:

@@ -1,13 +1,16 @@
 // "Check the written backup": after Encode or a split, the person types the backup again from the
 // paper, and MnemoCode says whether it restores the same seed phrase, without showing it. Most
 // losses come from a backup written wrongly. The rules and their lines are MnemoCode's
-// (core/backup-check.ts); one section serves both kinds of backup through its BackupCheck.
-import type {
-  BackupCheck,
-  BackupResult,
-} from "../../../../packages/recovery-mnemocode/source/core/backup-check.js";
-import type { WordHints } from "../../../../packages/recovery-mnemocode/source/core/word-hints.js";
-import { attachMnemoCodeWordHints } from "./recovery-mnemocode-word-hints.js";
+// (checkBackup, checkShareBackup); one section serves both kinds of backup through its BackupCheck.
+import {
+  BackupCheckSession,
+  type BackupCheck,
+  type BackupResult,
+} from "@ckd/recovery-backup/mnemocode-backup-check.js";
+import {
+  attachMnemoCodeWordHints,
+  type MnemoCodeHintList,
+} from "./recovery-mnemocode-word-hints.js";
 import { installSecretToggle, paragraph, required } from "./recovery-workspace-shared.js";
 
 export class BackupCheckSection {
@@ -16,15 +19,15 @@ export class BackupCheckSection {
   readonly #datesField: HTMLElement;
   readonly #dates: HTMLInputElement;
   readonly #result: HTMLElement;
-  #check: BackupCheck | undefined;
+  #check: BackupCheckSession | undefined;
   /** Counts edits, offers and presses, so that a late verdict of an older one is not shown. */
   #revision = 0;
 
   /**
    * `prefix` names the section's fields, as in `#{prefix}-check-backup`; `hints` are those of the
-   * backup typed there: an encoded seed phrase's codes, or shares.
+   * backup typed there: an encoded seed phrase's codes, or none for shares.
    */
-  constructor(prefix: string, hints: WordHints) {
+  constructor(prefix: string, hints: MnemoCodeHintList | undefined) {
     this.#section = required<HTMLElement>(`#${prefix}-check-section`);
     this.#backup = required<HTMLTextAreaElement>(`#${prefix}-check-backup`);
     this.#datesField = required<HTMLElement>(`#${prefix}-check-dates-field`);
@@ -37,14 +40,13 @@ export class BackupCheckSection {
       "Hide",
       "backup",
     );
-    attachMnemoCodeWordHints(this.#backup, hints);
+    if (hints !== undefined) attachMnemoCodeWordHints(this.#backup, hints);
     for (const field of [this.#backup, this.#dates])
       field.addEventListener("input", () => this.#invalidate());
-    required<HTMLButtonElement>(`#${prefix}-check`).addEventListener(
-      "click",
-      () => void this.#run(),
-    );
+    required<HTMLButtonElement>(`#${prefix}-check`).addEventListener("click", () => this.#run());
     this.offer(undefined);
+    document.querySelector("#clear-all")?.addEventListener("click", () => this.offer(undefined));
+    document.defaultView?.addEventListener("pagehide", () => this.offer(undefined));
   }
 
   /**
@@ -52,13 +54,30 @@ export class BackupCheckSection {
    * for an earlier result is cleared, since it would be compared with the wrong phrase.
    */
   offer(check: BackupCheck | undefined): void {
-    this.#check = check;
-    this.#section.hidden = check === undefined;
-    this.#datesField.hidden = check?.dated !== true;
-    this.#backup.value = "";
-    this.#dates.value = "";
-    // Setting a value from code fires no input event, so the offer moves the revision itself.
-    this.#invalidate();
+    const incoming = check === undefined ? undefined : new BackupCheckSession(check);
+    let transferred = false;
+    using _incoming = {
+      [Symbol.dispose]: () => {
+        if (!transferred) incoming?.wipe();
+      },
+    };
+    let dated = false;
+    {
+      using _previous = this.#check;
+      this.#check = undefined;
+      // Revoke the old verdict before any backend getter or retirement can fail.
+      this.#section.hidden = true;
+      this.#datesField.hidden = true;
+      this.#backup.value = "";
+      this.#dates.value = "";
+      // Setting a value from code fires no input event, so the offer moves the revision itself.
+      this.#invalidate();
+      dated = incoming?.dated === true;
+    }
+    this.#section.hidden = incoming === undefined;
+    this.#datesField.hidden = !dated;
+    this.#check = incoming;
+    transferred = true;
   }
 
   /** What was typed or offered changed: a verdict shown, or still to come, is of older text. */
@@ -67,14 +86,14 @@ export class BackupCheckSection {
     this.#result.replaceChildren();
   }
 
-  async #run(): Promise<void> {
+  #run(): void {
     const check = this.#check;
     if (check === undefined) return;
     this.#invalidate();
     const revision = this.#revision;
     let result: BackupResult;
     try {
-      result = await check.check({
+      result = check.check({
         backup: this.#backup.value,
         ...(check.dated ? { dates: this.#dates.value } : {}),
       });

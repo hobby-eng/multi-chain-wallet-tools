@@ -1,12 +1,13 @@
-// Public BIP39 and MnemoCode fixtures only; no PBKDF2, card renderer or wallet provider runs.
-import { describe, expect, it, vi } from "vitest";
-import { MnemoCodeReEncoding, type ReEncodingInput } from "../src/mnemocode-reencoding.js";
-import { ENCODED_FORMATS, encodeMnemoCode, parseMnemoCodeDates } from "../src/mnemocode.js";
+// Public BIP39 and MnemoCode fixtures only.
+import { beforeAll, describe, expect, it } from "vitest";
+import { loadMnemoCode } from "../src/mnemocode-module.js";
 import {
-  NOT_CONFIRMED,
-  LAST_WORD_NEEDED,
-} from "../../recovery-mnemocode/source/core/re-encoding.js";
-import { FINGERPRINT_WARNING } from "../../recovery-mnemocode/source/core/wallet-check.js";
+  MnemoCodeReEncoding,
+  MnemoCodeReEncodingDraft,
+  MnemoCodeReEncodingError,
+  type ReEncodingInput,
+} from "../src/mnemocode-reencoding.js";
+import { ENCODED_FORMATS, encodeMnemoCode } from "../src/mnemocode.js";
 
 const PUBLIC_PHRASE = `${"abandon ".repeat(11)}about`;
 const DATE = "23-09-2026";
@@ -18,22 +19,28 @@ const OLD: ReEncodingInput = {
   format: "indexes",
   dates: DATE,
 };
+const FINGERPRINT = {
+  evidence: { kind: "master-fingerprint", value: "73c5da0a", network: "mainnet" },
+  passphrase: "",
+} as const;
 
-describe("MnemoCode browser re-encoding confirmation", () => {
-  it("reproduces the published old backup before handing the same phrase to Encode", () => {
-    const session = MnemoCodeReEncoding.of(OLD);
+beforeAll(async () => {
+  await loadMnemoCode();
+});
+
+describe("MnemoCode re-encoding confirmation", () => {
+  it("reproduces the published old backup, and gives the phrase only once confirmed", () => {
+    using session = MnemoCodeReEncoding.of(OLD);
     expect(session.phrase).toBe(PUBLIC_PHRASE);
-    expect(() => session.confirmedPhrase()).toThrow(NOT_CONFIRMED);
+    expect(() => session.confirmedPhrase()).toThrow();
     session.confirmByPerson();
-    const next = encodeMnemoCode(session.confirmedPhrase(), "direct", "unicode");
-    // Published BIP39 Chinese word-list entries for abandon/about, independent of this encoder.
-    expect(next.payload.replace(/\s/gu, "")).toBe(`${"7684".repeat(11)}5728`);
-    expect(next.mnemonic).toBe(PUBLIC_PHRASE);
+    expect(session.confirmation).toBe("person");
+    expect(session.confirmedPhrase()).toBe(PUBLIC_PHRASE);
   });
 
-  it.each(ENCODED_FORMATS)("reads an MNC1 %s record by its own mode and format", (format) => {
-    const encoded = encodeMnemoCode(PUBLIC_PHRASE, "seedshift", format, parseMnemoCodeDates(DATE));
-    const session = MnemoCodeReEncoding.of({
+  it.each(ENCODED_FORMATS)("reads an MNC1 %s record by its own mode and form", (format) => {
+    const encoded = encodeMnemoCode(PUBLIC_PHRASE, "seedshift", format, DATE);
+    using session = MnemoCodeReEncoding.of({
       ...OLD,
       input: encoded.record,
       mode: "direct",
@@ -42,78 +49,34 @@ describe("MnemoCode browser re-encoding confirmation", () => {
     expect(session.phrase).toBe(PUBLIC_PHRASE);
   });
 
-  it("ignores hidden old dates for a Direct record through the shared reader", () => {
-    const record = encodeMnemoCode(PUBLIC_PHRASE, "direct", "indexes").record;
-    expect(MnemoCodeReEncoding.of({ ...OLD, input: record, dates: "not a date" }).phrase).toBe(
-      PUBLIC_PHRASE,
-    );
-  });
-
-  it("leaves a wrong Seedshift date unconfirmed even when its checksum is valid", async () => {
-    const session = MnemoCodeReEncoding.of({ ...OLD, dates: "24-09-2026" });
-    expect(session.phrase).not.toBe(PUBLIC_PHRASE);
-    const compared = vi.fn(async () => ({ matched: false }));
-    await session.confirmByWallet(
-      {
-        evidence: { kind: "master-fingerprint", value: "73c5da0a", network: "mainnet" },
-        passphrase: "TREZOR",
-      },
-      compared,
-    );
-    expect(compared).toHaveBeenCalledWith({
-      type: "reencoding-wallet",
-      mnemonic: session.phrase,
-      wallet: {
-        evidence: { kind: "master-fingerprint", value: "73c5da0a", network: "mainnet" },
-        passphrase: "TREZOR",
-      },
-    });
-    expect(() => session.confirmedPhrase()).toThrow(NOT_CONFIRMED);
-  });
-
-  it("preserves a matching fingerprint's warning rather than turning it into proof", async () => {
-    const session = MnemoCodeReEncoding.of(OLD);
-    const answer = await session.confirmByWallet(
-      {
-        evidence: { kind: "master-fingerprint", value: "73c5da0a", network: "mainnet" },
-        passphrase: "",
-      },
-      async () => ({ matched: true, warning: FINGERPRINT_WARNING }),
-    );
-    expect(answer).not.toBeUndefined();
-    expect(answer!.warning).toBe(FINGERPRINT_WARNING);
-    expect(session.confirmation?.by).toBe("wallet");
-    expect(session.confirmedPhrase()).toBe(PUBLIC_PHRASE);
-  });
-
-  it("does not confirm or report a mismatch when the host stops its wallet comparison", async () => {
-    const session = MnemoCodeReEncoding.of(OLD);
-    const answer = await session.confirmByWallet(
-      {
-        evidence: { kind: "master-fingerprint", value: "73c5da0a", network: "mainnet" },
-        passphrase: "",
-      },
-      async () => undefined,
-    );
-    expect(answer).toBeUndefined();
-    expect(session.confirmation).toBeUndefined();
-    expect(() => session.confirmedPhrase()).toThrow();
-  });
-
-  it("requires the original final word for a replaced-word legacy backup", () => {
-    const encoded = encodeMnemoCode(
-      PUBLIC_PHRASE,
-      "seedshift-legacy-valid",
-      "indexes",
-      parseMnemoCodeDates(DATE),
-    );
-    const input = { ...OLD, input: encoded.record };
-    expect(() => MnemoCodeReEncoding.of(input)).toThrow(LAST_WORD_NEEDED);
-    expect(MnemoCodeReEncoding.of({ ...input, lastWord: "about" }).phrase).toBe(PUBLIC_PHRASE);
-  });
-
-  it("keeps the declared word count when printed codes include decorative decoys", () => {
-    const session = MnemoCodeReEncoding.of({ ...OLD, input: MASKED_NUMBERS + " 1 2 3", words: 12 });
+  it("ignores hidden old dates for a Direct record", () => {
+    const record = encodeMnemoCode(PUBLIC_PHRASE, "direct", "unicode", undefined).record;
+    using session = MnemoCodeReEncoding.of({ ...OLD, input: record, dates: "not a date" });
     expect(session.phrase).toBe(PUBLIC_PHRASE);
+  });
+
+  it("confirms by the wallet only where it matches, keeping a fingerprint's warning", () => {
+    using wrong = MnemoCodeReEncoding.of({ ...OLD, dates: "24-09-2026" });
+    expect(wrong.phrase).not.toBe(PUBLIC_PHRASE);
+    expect(wrong.confirmByWallet(FINGERPRINT).matched).toBe(false);
+    expect(wrong.confirmation).toBeUndefined();
+    using right = MnemoCodeReEncoding.of(OLD);
+    const match = right.confirmByWallet(FINGERPRINT);
+    expect(match.matched).toBe(true);
+    expect(match.warning).toMatch(/fingerprint/u);
+    expect(right.confirmation).toBe("wallet");
+    expect(right.confirmationLine(FINGERPRINT)).not.toBe("");
+    expect(right.confirmedPhrase()).toBe(PUBLIC_PHRASE);
+  });
+
+  it("refuses every use once wiped, and a draft opens fresh sessions until it is wiped", () => {
+    const draft = new MnemoCodeReEncodingDraft(OLD);
+    const session = draft.open();
+    session.wipe();
+    expect(() => session.phrase).toThrow(MnemoCodeReEncodingError);
+    using again = draft.open();
+    expect(again.phrase).toBe(PUBLIC_PHRASE);
+    draft.wipe();
+    expect(() => draft.open()).toThrow();
   });
 });

@@ -1,8 +1,6 @@
-import { EncodedBackup } from "../../recovery-mnemocode/source/core/encoded-backup.js";
-import { EncodedForm } from "../../recovery-mnemocode/source/core/encoded-form.js";
-import { ErrorCatalog } from "../../recovery-mnemocode/source/core/error-catalog.js";
-import { Masking } from "../../recovery-mnemocode/source/core/masking.js";
-import type { EncodedFormat, MaskingMode } from "../../recovery-mnemocode/source/core/types.js";
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
+import { mnemocode } from "./mnemocode-engine.js";
+import { EncodedForm, Masking, type EncodedFormat, type MaskingMode } from "./mnemocode-facts.js";
 
 const ORIGINAL_CHOICES = [
   { value: "none", label: "Do not show the original phrase", words: false, codes: false },
@@ -67,7 +65,7 @@ export class MnemoCodeDisclosure {
         note: ORIGINAL_NOTE,
       });
     if (selected.codes) {
-      const text = EncodedBackup.encode(original, [], format, "direct").backup.text();
+      const text = this.#unmasked(original, format);
       // English codes are the same words: when both were requested, that complete copy appears once.
       if (!rows.some((row) => row.text === text))
         rows.push({
@@ -79,6 +77,25 @@ export class MnemoCodeDisclosure {
         });
     }
     return rows;
+  }
+
+  /**
+   * The original phrase written in `format` without Seedshift. MnemoCode encodes English words and
+   * word numbers only masked, so these two are the words themselves and their numbers in the list.
+   */
+  static #unmasked(original: string, format: EncodedFormat): string {
+    const binding = mnemocode();
+    if (format === "english") return original;
+    if (format === "indexes")
+      return original
+        .split(/\s+/u)
+        .map((word) => {
+          using row = binding.wordLookup("word", word);
+          return String(row.index);
+        })
+        .join(" ");
+    using backup = binding.EncodedBackup.encode(original, undefined, format, "direct", false);
+    return backup.codes();
   }
 
   /** A separate explicit checkbox permits masked words; an existing identical English row suffices. */

@@ -6,10 +6,8 @@
 // the retained split, before its decoys. Built with the card export, which draws PDFs.
 import { BUILD_INFO } from "@ckd/build-info";
 import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
-import { readMnemoCodeCardAsset } from "@ckd/recovery-backup/mnemocode-card-assets.js";
-import { createMnemoCodeCardPlatform } from "@ckd/recovery-backup/mnemocode-cards.js";
-import { Share, ownShareCards } from "@ckd/recovery-backup/mnemocode-share-cards.js";
-import { heirSheetSelfTest } from "../../../../packages/recovery-mnemocode/source/export/heir-sheet-self-test.js";
+import { mnemocode } from "@ckd/recovery-backup/mnemocode-engine.js";
+import { shareFormatHasCards } from "@ckd/recovery-backup/mnemocode-cards.js";
 import {
   MnemoCodeHeirSheets,
   type HeirSheetFacts,
@@ -20,10 +18,7 @@ import {
   mnemoCodeDatesFor,
   type MnemoCodeMode,
 } from "@ckd/recovery-backup/mnemocode.js";
-import type { RecordFormat } from "../../../../packages/recovery-mnemocode/source/record.js";
-import { Masking } from "../../../../packages/recovery-mnemocode/source/core/masking.js";
-import { ONE_GROUP } from "../../../../packages/recovery-mnemocode/source/sskr/share-platform.js";
-import { shareFormatHasCards } from "../../../../packages/recovery-mnemocode/source/sskr/transport.js";
+import { Masking, type EncodedFormat } from "@ckd/recovery-backup/mnemocode-facts.js";
 import type { RecoveryFeature } from "./recovery-feature.js";
 import { InputRevision } from "./recovery-input-revision.js";
 import { deriverHeirRoute } from "./recovery-mnemocode-heir-route.js";
@@ -40,7 +35,7 @@ const SPLIT_FIRST =
 
 class MnemoCodeHeirsSection {
   readonly #context: RecoveryFeatureContext;
-  readonly #sheets = new MnemoCodeHeirSheets(deriverHeirRoute(BUILD_INFO), readMnemoCodeCardAsset);
+  readonly #sheets = new MnemoCodeHeirSheets(deriverHeirRoute(BUILD_INFO));
   readonly #mode = required<HTMLSelectElement>("#mnemocode-encode-mode");
   readonly #format = required<HTMLSelectElement>("#mnemocode-encode-format");
   readonly #dates = required<HTMLTextAreaElement>("#mnemocode-encode-dates");
@@ -86,7 +81,15 @@ class MnemoCodeHeirsSection {
       throw new Error(
         "A backup whose last word was replaced has no sheet for heirs: only a search restores it.",
       );
-    const dates = mnemoCodeDatesFor(mode, this.#dates.value).length;
+    // The sheet says how many dates there are, never which: they are counted as MnemoCode reads them.
+    const typed = mnemoCodeDatesFor(mode, this.#dates.value);
+    const dates =
+      typed === undefined
+        ? 0
+        : typed
+            .trim()
+            .split(/[\s,;]+/u)
+            .filter(Boolean).length;
     const shares =
       document.querySelector<HTMLInputElement>('input[name="mnemocode-heirs-backup"]:checked')
         ?.value === "shares";
@@ -94,7 +97,7 @@ class MnemoCodeHeirsSection {
       return {
         backup: {
           kind: "encoded",
-          format: this.#format.value as RecordFormat,
+          format: this.#format.value as EncodedFormat,
           words: this.#phraseWords(),
         },
         mode: mode as HeirSheetFacts["mode"],
@@ -102,7 +105,8 @@ class MnemoCodeHeirsSection {
       };
     const set = chosenShareSet();
     const form = chosenShareForm();
-    Masking.assertSplitMode(mode);
+    if (!Masking.of(mode).capabilities.split)
+      throw new Error("Shares are made without Seedshift or with MnemoCode Seedshift.");
     let codes: number | undefined;
     if (shareFormatHasCards(form)) {
       const held = latestShares.shares;
@@ -117,14 +121,7 @@ class MnemoCodeHeirsSection {
         held.records.length !== set.count
       )
         throw new Error(SPLIT_FIRST);
-      const { info } = Share.read(record);
-      if (
-        info.groupCount !== ONE_GROUP ||
-        info.groupThreshold !== ONE_GROUP ||
-        info.memberThreshold !== set.threshold
-      )
-        throw new Error(SPLIT_FIRST);
-      codes = ownShareCards(record, form);
+      codes = mnemocode().ownShareCards(record, form);
     }
     return {
       backup: {
@@ -165,7 +162,7 @@ class MnemoCodeHeirsSection {
           // Facts and size belong to one capture, including the chosen split and its metadata.
           const facts = this.#facts();
           const size = this.#size.value as HeirSheetSize;
-          const sheet = await this.#sheets.render(facts, size);
+          const sheet = this.#sheets.render(facts, size);
           try {
             if (!current()) return;
             MnemoCodeDownload.bytes(sheet.bytes, "application/pdf", sheet.fileName);
@@ -189,9 +186,7 @@ class MnemoCodeHeirsSection {
 export const recoveryFeature: RecoveryFeature = {
   install: (context) => {
     new MnemoCodeHeirsSection(context);
-    // The sheet's checks join MnemoCode's self-test; its PDF needs the cards' render platform.
-    mnemoCodeSelfTest.addFeature(
-      heirSheetSelfTest(createMnemoCodeCardPlatform(readMnemoCodeCardAsset)),
-    );
+    // The sheet's known answers are the cards part's, which joins MnemoCode's self-test.
+    mnemoCodeSelfTest.addCards();
   },
 };

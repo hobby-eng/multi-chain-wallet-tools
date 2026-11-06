@@ -1,57 +1,30 @@
 import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
-import { MnemoCodeDisclosureFields } from "./recovery-mnemocode-disclosure.js";
-import { MnemoCodeDisclosure } from "@ckd/recovery-backup/mnemocode-disclosure.js";
-// MnemoCode's Shamir shares in the Deriver: "Split into Shamir shares" in the Encode tab, the
-// Restore tab, and the repair of shares with unreadable elements in the Forgotten tab, as
-// MnemoCode's sskr-split, sskr-combine and sskr-export do them. A module of its own because the
-// shares need the SSKR library: the build installs it only when both the mnemocode and the sskr
-// features are selected. Every rule is MnemoCode's; restores and repairs run in a worker.
 import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
-import {
-  MnemoCodeShares,
-  sskrSharePlatform,
-  type RepairOutcome,
-  type RestoreOutcome,
-  type Stop,
-  type ShareMode,
+import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
+import type {
+  RepairOutcome,
+  RestoreOutcome,
+  Stop,
+  ShareMode,
 } from "@ckd/recovery-backup/mnemocode-shares.js";
-import { sskrCodec, sskrWasmBytes } from "@ckd/recovery-backup/sskr.js";
-import { fillSecureRandom } from "@ckd/core/secure-random.js";
+import { mnemocode } from "@ckd/recovery-backup/mnemocode-engine.js";
 import {
-  encodeMnemoCode,
-  mnemoCodeDatesFor,
-  type MnemoCodeFormat,
-} from "@ckd/recovery-backup/mnemocode.js";
-import { ShareBackupCheck } from "../../../../packages/recovery-mnemocode/source/core/backup-check.js";
-import { ShareSetChoice } from "../../../../packages/recovery-mnemocode/source/core/backup-options.js";
-import { DatesAnswer } from "../../../../packages/recovery-mnemocode/source/core/date-search.js";
-import {
+  alwaysMasked,
+  EncodedForm,
+  isShareFormat,
   Masking,
   PHRASE_WORDS,
-  type MaskingMode,
-} from "../../../../packages/recovery-mnemocode/source/core/masking.js";
-import {
-  REPAIR_NOTES,
-  type ShareRepairs,
-} from "../../../../packages/recovery-mnemocode/source/sskr/repair-report.js";
-import { EncodedForm } from "../../../../packages/recovery-mnemocode/source/core/encoded-form.js";
-import { SHARE_WORD_HINTS } from "../../../../packages/recovery-mnemocode/source/sskr/share-input.js";
-import { SHARE_FORMAT_NAMES } from "../../../../packages/recovery-mnemocode/source/sskr/share-set.js";
-import { MAX_REPAIR_COMBINATIONS } from "../../../../packages/recovery-mnemocode/source/sskr/joint-repair.js";
-import {
-  MIRRORED_FORM,
+  RESTORED_FORM,
+  type EncodedFormat,
   type ShareFormat,
-} from "../../../../packages/recovery-mnemocode/source/sskr/transport.js";
-import type { MnemoCodeSharesRequest } from "../workers/mnemocode-shares-worker.js";
-import { BackupCheckSection } from "./recovery-mnemocode-backup-check.js";
-import { renderCandidateListSave } from "./recovery-mnemocode-candidates.js";
+} from "@ckd/recovery-backup/mnemocode-facts.js";
 import { formatLabel } from "./recovery-mnemocode-results.js";
-import { attachMnemoCodeWordHints } from "./recovery-mnemocode-word-hints.js";
+import type { MnemoCodeSearchRequest } from "../workers/mnemocode-search-worker.js";
+import { renderCandidateListSave } from "./recovery-mnemocode-candidates.js";
 import { CandidateListField } from "./recovery-mnemocode-list.js";
 import { showShareRepairTimes } from "./recovery-mnemocode-repair-times.js";
 import { mnemoCodeSelfTest } from "./recovery-mnemocode-self-test.js";
 import { latestShares } from "./recovery-mnemocode-share-store.js";
-import { OTHER_SET, chosenSetValue, chosenShareSet } from "./recovery-mnemocode-share-choice.js";
 import type { RecoveryFeature } from "./recovery-feature.js";
 import { WalletEvidenceField } from "./recovery-mnemocode-evidence.js";
 import { MnemoCodeWorkerJob } from "./recovery-mnemocode-worker-job.js";
@@ -72,29 +45,16 @@ import {
   QR_IMAGES_IMPORT,
 } from "./recovery-workspace-shared.js";
 import { takeHandedOverShares, type FirstShare } from "./recovery-mnemocode-share-handover.js";
+import { DatesField } from "./recovery-mnemocode-fields.js";
+import { ShareActions } from "./recovery-mnemocode-share-actions.js";
+import { ShareResultView } from "./recovery-mnemocode-share-result-view.js";
+import { MnemoCodeSplitSection } from "./recovery-mnemocode-split.js";
 
-// The shares worker's script, bundled and embedded by build-key-derivation-html.mjs.
-declare const __MNEMOCODE_SHARES_WORKER_SOURCE__: string;
-
-/** The share forms offered, the command line's two first, then the forms of an encoded phrase. */
-const SHARE_FORMS: readonly ShareFormat[] = [
-  "words",
-  "ur",
-  "indexes",
-  "unicode",
-  "colors",
-  "colors-unicode",
-];
-/** The text file of a split, as MnemoCode's menu names it. */
-const SHARES_FILE = "mnemocode-shares.txt";
-const FINGERPRINT_NOTE =
-  "BIP32 master key fingerprints for an empty BIP39 passphrase; they do not reveal the phrase.";
+// The MnemoCode worker's script, bundled and embedded by build-key-derivation-html.mjs.
+declare const __MNEMOCODE_SEARCH_WORKER_SOURCE__: string;
+type MnemoCodeSharesRequest = Extract<MnemoCodeSearchRequest, { type: "restore" | "repair" }>;
 
 const grouped = (count: number): string => count.toLocaleString("en-US");
-
-function notes(texts: readonly string[], className = "field-note"): HTMLElement[] {
-  return texts.map((text) => paragraph(text, className));
-}
 
 /** Restore and Repair read the same share files and several QR images into their own fields. */
 function installShareImports(input: HTMLTextAreaElement, status: HTMLElement): void {
@@ -104,118 +64,54 @@ function installShareImports(input: HTMLTextAreaElement, status: HTMLElement): v
   });
 }
 
-/** Every share result loses its ownership on edits, page departure or a failed startup check. */
-function shareInputs(
-  root: EventTarget,
-  context: RecoveryFeatureContext,
-  changed: () => void,
-): InputRevision {
-  const inputs = new InputRevision(root, changed);
-  inputs.bindPageLifetime();
-  context.jobs.onChange((change) => {
-    if (change === "ready" && !context.jobs.ready) inputs.revise();
-  });
-  return inputs;
-}
-
-function shareJobAvailable(context: RecoveryFeatureContext): boolean {
-  return context.jobs.ready && context.jobs.runningJob === null;
-}
-
-function captureShareInputs(inputs: InputRevision, context: RecoveryFeatureContext): () => boolean {
-  const current = inputs.capture();
-  return () => context.jobs.ready && current();
-}
-
-function shareClipboard(
-  context: RecoveryFeatureContext,
-  current: () => boolean,
-): (value: string) => Promise<void> {
-  return async (value) => {
-    if (current()) await context.writeClipboard(value);
-  };
-}
-
-/** Capture guards stay on detached actions too, including the shared candidate-list Save button. */
-function guardShareResultActions(result: HTMLElement, current: () => boolean): void {
-  for (const action of result.querySelectorAll<HTMLElement>("button, a"))
-    action.addEventListener(
-      "click",
-      (event) => {
-        if (current()) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-      },
-      { capture: true },
-    );
-}
-
-function tableCell(tag: "th" | "td", content: string | Node): HTMLElement {
-  const cell = document.createElement(tag);
-  cell.append(content);
-  return cell;
+/** The encoded fingerprint of `phrase` masked with `dates`; none where MnemoCode cannot give it. */
+function maskedFingerprint(phrase: string, dates: string | undefined): string | undefined {
+  try {
+    using backup = mnemocode().EncodedBackup.encode(phrase, dates, "unicode", "seedshift", false);
+    return backup.encodedFingerprint();
+  } catch {
+    return undefined;
+  }
 }
 
 /**
- * What a repair filled in where ? stood, as MnemoCode's command line lays it out: a table with a
- * row for each share and, in it, each element's number and what was filled in; then MnemoCode's
- * notes on guesses and on correcting the written copy. Nothing when no ? was typed.
+ * The backup that was split, in the form of the first share that MnemoCode reads in `answer`, which
+ * the dates turn into `phrase`; none where it is the phrase's own words again, or a form that
+ * MnemoCode writes only masked.
  */
-function repairsTable(repairs: readonly ShareRepairs[]): HTMLElement[] {
-  if (repairs.length === 0) return [];
-  const head = document.createElement("thead");
-  const headings = document.createElement("tr");
-  headings.append(tableCell("th", "Share"), tableCell("th", "Element and what was filled in"));
-  head.append(headings);
-  const body = document.createElement("tbody");
-  for (const { share, elements } of repairs) {
-    const filled = document.createElement("span");
-    filled.className = "mnemocode-repair-elements";
-    for (const { position, value, guess } of elements) {
-      const element = document.createElement("span");
-      const number = document.createElement("span");
-      number.className = "mnemocode-repair-position";
-      number.textContent = String(position);
-      const word = document.createElement("strong");
-      word.textContent = value;
-      element.append(number, " ", word);
-      if (guess) {
-        const mark = document.createElement("span");
-        mark.className = "mnemocode-repair-guess";
-        mark.textContent = " (guess)";
-        element.append(mark);
+function splitBackup(
+  answer: string,
+  phrase: string,
+  mode: ShareMode,
+  dates: string | undefined,
+): { readonly form: EncodedFormat; readonly text: string } | undefined {
+  // The backup is shown beside the phrase; where MnemoCode cannot give it, the phrase stands alone.
+  try {
+    const binding = mnemocode();
+    let form: EncodedFormat | undefined;
+    for (const line of answer.split(/\r?\n/u)) {
+      try {
+        const shareForm = binding.shareForm(line.trim());
+        if (isShareFormat(shareForm)) form = RESTORED_FORM[shareForm];
+      } catch {
+        continue;
       }
-      filled.append(element);
+      if (form !== undefined) break;
     }
-    const row = document.createElement("tr");
-    row.append(tableCell("td", String(share)), tableCell("td", filled));
-    body.append(row);
+    if (form === undefined || (mode === "direct" && alwaysMasked(form))) return undefined;
+    using backup = binding.EncodedBackup.encode(phrase, dates, form, mode, false);
+    return { form, text: backup.codes() };
+  } catch {
+    return undefined;
   }
-  const table = document.createElement("table");
-  table.className = "mnemocode-repair-table";
-  table.append(head, body);
-  // The heading, the table and the warning on guesses stand together in one callout.
-  const callout = document.createElement("div");
-  callout.className = "warning-callout mnemocode-repairs";
-  const heading = document.createElement("p");
-  heading.textContent = REPAIR_NOTES.heading;
-  callout.append(heading, table);
-  if (repairs.some(({ elements }) => elements.some(({ guess }) => guess))) {
-    const guesses = document.createElement("p");
-    guesses.textContent = REPAIR_NOTES.guesses;
-    callout.append(guesses);
-  }
-  return [callout, paragraph(REPAIR_NOTES.correct, "field-note")];
 }
 
 function chosenRadio(name: string): string | undefined {
   return document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`)?.value;
 }
 
-/** Keep each operation's optional fields when omitting the factors added by the job. */
-type WithoutJobFactors<Request> = Request extends unknown
-  ? Omit<Request, "sskrWasm" | "confirmed">
-  : never;
+/** Keep each operation's optional fields when omitting the factor added by the job. */
+type WithoutJobFactors<Request> = Request extends unknown ? Omit<Request, "confirmed"> : never;
 
 /**
  * Runs a restore or a repair of shares for the `inputs` given, and settles what every outcome
@@ -232,7 +128,7 @@ async function runSharesJob<
 ): Promise<Exclude<Outcome, Stop> | undefined> {
   const { status, result } = elements;
   const done = await job.run(
-    { ...request, confirmed: job.confirmed(inputs), sskrWasm: sskrWasmBytes() },
+    { ...request, confirmed: job.confirmed(inputs) } as MnemoCodeSharesRequest,
     (progress, elapsed) =>
       `Searching · ${grouped(progress.checked)} of ${grouped(progress.total)} · ${elapsed} elapsed`,
     "Reading the shares.",
@@ -240,7 +136,7 @@ async function runSharesJob<
   if (done === undefined) return undefined;
   status.textContent = `Done in ${done.elapsed}.`;
   const outcome = done.outcome;
-  result.append(...notes(outcome.lines));
+  result.append(...ShareResultView.notes(outcome.lines));
   if (outcome.kind === "question") {
     job.ask((outcome as Extract<Stop, { kind: "question" }>).question, inputs);
     return undefined;
@@ -259,260 +155,6 @@ async function runSharesJob<
  * "Split into Shamir shares" in the Encode tab: the phrase, mode and dates of Encode into one
  * group of shares, checked before they are shown, as MnemoCode's split makes them.
  */
-class MnemoCodeSplitSection {
-  readonly #context: RecoveryFeatureContext;
-  readonly #shares: MnemoCodeShares;
-  readonly #mode = required<HTMLSelectElement>("#mnemocode-encode-mode");
-  readonly #dates = required<HTMLTextAreaElement>("#mnemocode-encode-dates");
-  readonly #form = required<HTMLSelectElement>("#mnemocode-split-form");
-  readonly #save = required<HTMLButtonElement>("#mnemocode-split-save");
-  readonly #status = required<HTMLElement>("#mnemocode-split-status");
-  readonly #result = required<HTMLElement>("#mnemocode-split-result");
-  /** The shares shown, for the text file; gone when anything changes. */
-  #written: readonly string[] = [];
-  readonly #backupCheck = new BackupCheckSection("mnemocode-split", SHARE_WORD_HINTS);
-  readonly #copy = required<HTMLInputElement>("#mnemocode-split-copy");
-  readonly #disclosure = new MnemoCodeDisclosureFields();
-  readonly #original = MnemoCodeDisclosureFields.installOriginal();
-  readonly #inputs: InputRevision;
-  #current: () => boolean = () => false;
-
-  constructor(context: RecoveryFeatureContext) {
-    this.#context = context;
-    this.#shares = new MnemoCodeShares(
-      sskrSharePlatform(sskrCodec()),
-      fillSecureRandom,
-      (mnemonic) => fingerprintWithoutPassphrase(mnemonic, context.mnemonicToSeed),
-    );
-    this.#renderSets();
-    this.#form.replaceChildren(
-      ...SHARE_FORMS.map((form) => {
-        const option = document.createElement("option");
-        option.value = form;
-        option.textContent = SHARE_FORMAT_NAMES[form];
-        return option;
-      }),
-    );
-    // Shares shown for other inputs would be mistaken for the current ones.
-    // What is typed into the backup check belongs to the shares shown, not to a new split.
-    const section = required<HTMLElement>("#mnemocode-split-section");
-    const check = required<HTMLElement>("#mnemocode-split-check-section");
-    check.dataset.resultInteraction = "";
-    this.#result.dataset.resultInteraction = "";
-    this.#inputs = shareInputs(section, context, () => this.#changed());
-    for (const field of [
-      this.#mode,
-      this.#dates,
-      required<HTMLTextAreaElement>("#mnemocode-source"),
-      required<HTMLSelectElement>("#mnemocode-encode-format"),
-      this.#disclosure.masked,
-    ])
-      if (!section.contains(field)) this.#inputs.watch(field);
-    document.addEventListener("recovery-source-change", (event) => {
-      if (event instanceof CustomEvent && event.detail === "mnemocode") this.#inputs.revise();
-    });
-    installSecretToggle(
-      "#toggle-mnemocode-split-result",
-      shownTextsIn("#mnemocode-split-result"),
-      "Show split result",
-      "Hide split result",
-    );
-    required<HTMLButtonElement>("#mnemocode-split").addEventListener(
-      "click",
-      () => void this.#split(),
-    );
-    this.#save.addEventListener("click", () => {
-      if (this.#written.length === 0 || !this.#current()) return;
-      MnemoCodeDownload.text(
-        this.#context,
-        `${this.#written.join("\n")}\n`,
-        SHARES_FILE,
-        "text/plain",
-      );
-    });
-    this.#changed();
-  }
-
-  /** The usual share sets come from MnemoCode, then Other for any set that SSKR allows. */
-  #renderSets(): void {
-    const choices = [
-      ...ShareSetChoice.PRESETS.map((set) => ({
-        value: set.label,
-        label: set.label,
-        note: set.note,
-      })),
-      { value: OTHER_SET, label: "Other", note: ShareSetChoice.OTHER_NOTE },
-    ];
-    required<HTMLElement>("#mnemocode-split-sets").replaceChildren(
-      ...choices.map((choice, index) => {
-        const radio = document.createElement("input");
-        radio.type = "radio";
-        radio.name = "mnemocode-split-set";
-        radio.id = `mnemocode-split-set-${index}`;
-        radio.value = choice.value;
-        radio.autocomplete = "off";
-        radio.checked = index === 0;
-        const label = document.createElement("label");
-        label.className = "checkbox-row";
-        label.htmlFor = radio.id;
-        const note = document.createElement("span");
-        note.className = "answer-note";
-        note.textContent = choice.note;
-        label.append(radio, ` ${choice.label} `, note);
-        return label;
-      }),
-    );
-  }
-
-  #changed(): void {
-    required<HTMLElement>("#mnemocode-split-other").hidden = chosenSetValue() !== OTHER_SET;
-    required<HTMLElement>("#mnemocode-split-copy-warning").hidden = !this.#copy.checked;
-    this.#result.replaceChildren();
-    // Only this section's Show button: the records of Encode keep theirs.
-    required<HTMLElement>("#mnemocode-split-section").dispatchEvent(
-      new CustomEvent("secret-content-reset"),
-    );
-    this.#status.textContent = "";
-    this.#status.classList.remove("warning");
-    this.#written = [];
-    this.#save.hidden = true;
-    this.#backupCheck.offer(undefined);
-    latestShares.forget("split");
-  }
-
-  /** Direct or MnemoCode Seedshift: SSKR splits a valid BIP39 phrase, which the others are not. */
-  #shareMode(): ShareMode {
-    const mode = this.#mode.value as MaskingMode;
-    // MnemoCode's Masking says which modes split: no Original Seedshift.
-    if (!Masking.of(mode).capabilities.split)
-      throw new Error(
-        "The Original Seedshift cannot be split into shares: choose Direct or Seedshift · checksum-valid.",
-      );
-    return mode as ShareMode;
-  }
-
-  async #split(): Promise<void> {
-    if (!shareJobAvailable(this.#context)) return;
-    this.#inputs.revise();
-    const current = captureShareInputs(this.#inputs, this.#context);
-    this.#current = current;
-    try {
-      const mode = this.#shareMode();
-      const set = chosenShareSet();
-      const form = this.#form.value as ShareFormat;
-      const dates = this.#dates.value;
-      const wholeCopy = this.#copy.checked;
-      const originalCopy = MnemoCodeDisclosureFields.originalChoice(this.#original);
-      const maskedWords = this.#disclosure.masked.checked;
-      const wholeFormat = required<HTMLSelectElement>("#mnemocode-encode-format")
-        .value as MnemoCodeFormat;
-      // Snapshot every request and presentation choice before the first asynchronous turn.
-      const request = {
-        phrase: this.#context.readMnemonic("mnemocode", "#mnemocode-source"),
-        mode,
-        dates,
-        threshold: set.threshold,
-        count: set.count,
-        form,
-      };
-      const outcome = await this.#context.jobs.runHeavy("A MnemoCode share split", () =>
-        this.#shares.split(request),
-      );
-      if (!current()) return;
-      const seed = this.#context.mnemonicToSeed;
-      const clipboard = shareClipboard(this.#context, current);
-      const holds = Masking.of(mode).holds;
-      renderSensitiveShares(
-        this.#result,
-        outcome.shares,
-        clipboard,
-        outcome.shares.map((_, index) => `Share ${index + 1} of ${set.count}, holds ${holds}`),
-        outcome.shares.map((share) => apartShareCodes(share, form)),
-        current,
-      );
-      // MnemoCode's words for what the shares hold and for both fingerprints (PHRASE_WORDS).
-      const fingerprints =
-        `${PHRASE_WORDS.originalFingerprint} ${fingerprintWithoutPassphrase(outcome.original, seed)}` +
-        (mode === "seedshift"
-          ? ` · ${PHRASE_WORDS.encodedFingerprint} ${fingerprintWithoutPassphrase(outcome.split, seed)}. ${PHRASE_WORDS.fingerprintRoles}`
-          : ".");
-      this.#result.append(
-        ...notes([
-          `The shares hold ${holds}. ${set.note}. ${SHARE_FORMAT_NAMES[form]}; each share was checked: together they restore it.`,
-          `${fingerprints} ${FINGERPRINT_NOTE}`,
-        ]),
-        ...(mode === "seedshift"
-          ? notes(
-              [
-                "Only the same dates turn the masked phrase back into the original seed phrase. Keep the dates: the shares do not store them.",
-              ],
-              "warning-callout",
-            )
-          : []),
-      );
-      // The whole phrase in Encode's representation, as MnemoCode's encode --sskr --format shows it.
-      let alreadyShown: string | undefined;
-      if (wholeCopy) {
-        const copy = encodeMnemoCode(
-          outcome.original,
-          mode,
-          wholeFormat,
-          mnemoCodeDatesFor(mode, dates),
-        );
-        renderSensitiveShares(
-          this.#result,
-          [copy.payload],
-          clipboard,
-          [
-            mode === "seedshift"
-              ? "Complete masked/decoy backup after Seedshift"
-              : "Complete original wallet backup",
-          ],
-          [EncodedForm.of(copy.format).apartCodes(copy.payload)],
-          current,
-        );
-        if (copy.format === "english") alreadyShown = copy.payload;
-      }
-      MnemoCodeDisclosureFields.render(
-        this.#result,
-        [
-          ...MnemoCodeDisclosure.original(outcome.original, wholeFormat, originalCopy),
-          ...MnemoCodeDisclosure.masked(outcome.split, mode, maskedWords, alreadyShown),
-        ],
-        clipboard,
-        current,
-      );
-      this.#written = outcome.shares;
-      this.#save.hidden = false;
-      latestShares.shares = {
-        records: outcome.records,
-        form,
-        masked: Masking.of(mode).masked,
-        origin: "split",
-      };
-      this.#backupCheck.offer(
-        new ShareBackupCheck(
-          {
-            mnemonic: outcome.original,
-            mode,
-            threshold: set.threshold,
-            ...(mode === "seedshift"
-              ? { dates: DatesAnswer.parse(dates, { patterns: false }).known }
-              : {}),
-          },
-          sskrSharePlatform(sskrCodec()),
-          { decodeEntry: "MnemoCode › Decode" },
-        ),
-      );
-      guardShareResultActions(this.#result, current);
-      this.#status.textContent = `Split into ${set.count} shares.`;
-    } catch (cause) {
-      if (!current()) return;
-      this.#status.classList.add("warning");
-      this.#status.textContent = cause instanceof Error ? cause.message : "The split failed.";
-    }
-  }
-}
 
 /**
  * The Restore tab: shares, with unreadable elements marked ?, back into the seed phrase, and on
@@ -521,26 +163,30 @@ class MnemoCodeSplitSection {
 class MnemoCodeRestoreTab {
   readonly #context: RecoveryFeatureContext;
   readonly #input = required<HTMLTextAreaElement>("#mnemocode-restore-shares");
-  readonly #dates = required<HTMLInputElement>("#mnemocode-restore-dates");
+  readonly #dates = new DatesField("restore");
   readonly #status = required<HTMLElement>("#mnemocode-restore-status");
   readonly #result = required<HTMLElement>("#mnemocode-restore-result");
   readonly #evidence = new WalletEvidenceField("mnemocode-restore");
   readonly #list = new CandidateListField("mnemocode-restore");
-  readonly #settings = new MnemoCodeSearchSettingsFields(
-    "mnemocode-restore",
-    "shares",
-    MAX_REPAIR_COMBINATIONS,
-  );
+  readonly #settings = new MnemoCodeSearchSettingsFields("mnemocode-restore", "shares");
   /** The candidate list on the result's Save button; wiped when the result goes. */
   #listBytes: Uint8Array | undefined;
   readonly #inputs: InputRevision;
   readonly #job = new MnemoCodeWorkerJob<MnemoCodeSharesRequest, RestoreOutcome>(
-    __MNEMOCODE_SHARES_WORKER_SOURCE__,
+    __MNEMOCODE_SEARCH_WORKER_SOURCE__,
     {
       button: required<HTMLButtonElement>("#mnemocode-restore"),
       cancel: required<HTMLButtonElement>("#mnemocode-restore-stop"),
       status: this.#status,
     },
+  );
+
+  readonly #actions = new ShareActions(
+    this.#job,
+    this.#dates,
+    "restore",
+    () => this.#mode(),
+    (releases) => this.#clearResult(releases),
   );
 
   constructor(context: RecoveryFeatureContext) {
@@ -553,13 +199,12 @@ class MnemoCodeRestoreTab {
       "shares",
     );
     installShareImports(this.#input, this.#status);
-    attachMnemoCodeWordHints(this.#input, SHARE_WORD_HINTS);
     this.#list.onChange((wanted) => {
       this.#evidence.listWanted = wanted;
     });
     const panel = required<HTMLElement>("#mnemocode-restore-panel");
     this.#result.dataset.resultInteraction = "";
-    this.#inputs = shareInputs(panel, context, () => this.#changed());
+    this.#inputs = ShareActions.inputs(panel, context, () => this.#changed());
     takeHandedOverShares((share) => this.#takeFirstShare(share));
     required<HTMLButtonElement>("#mnemocode-restore").addEventListener("click", () =>
       this.#start(),
@@ -573,37 +218,34 @@ class MnemoCodeRestoreTab {
 
   /** Each guessed date gives a valid phrase: only the wallet tells which is yours. */
   #walletNeeded(): boolean {
-    return this.#mode() === "seedshift" && this.#dates.value.includes("?");
+    return this.#mode() === "seedshift" && this.#dates.input.value.includes("?");
   }
 
   #changed(): void {
-    required<HTMLElement>("#mnemocode-restore-dates-field").hidden = this.#mode() !== "seedshift";
+    if (!this.#actions.changed()) return;
     this.#evidence.optional = !this.#walletNeeded();
     // A phrase shown for other inputs would be mistaken for theirs.
-    this.#clearResult();
-    this.#job.revise();
     this.#status.classList.remove("warning");
     this.#status.textContent = "";
   }
 
   /** Removes the result and wipes the candidate list it offered to save. */
-  #clearResult(): void {
-    this.#result.replaceChildren();
-    this.#listBytes?.fill(0);
+  #clearResult(releases: readonly (() => void)[] = []): boolean {
+    const bytes = this.#listBytes;
     this.#listBytes = undefined;
-    required<HTMLElement>("#mnemocode-restore-panel").dispatchEvent(
-      new CustomEvent("secret-content-reset"),
+    return ShareActions.clear(
+      {
+        result: this.#result,
+        status: this.#status,
+      },
+      [() => bytes?.fill(0), ...releases],
     );
   }
 
   #start(): void {
-    if (!shareJobAvailable(this.#context)) return;
-    const current = captureShareInputs(this.#inputs, this.#context);
-    this.#clearResult();
-    this.#status.classList.remove("warning");
-    void this.#context.jobs
-      .runHeavy("A MnemoCode share restore", () => this.#restore(current))
-      .catch((cause: unknown) => this.#job.fail(cause, "The restore failed.", current));
+    this.#actions.start(this.#context, this.#inputs, this.#status, (current) =>
+      this.#restore(current),
+    );
   }
 
   async #restore(current: () => boolean): Promise<void> {
@@ -613,7 +255,7 @@ class MnemoCodeRestoreTab {
       this.#evidence.choice === undefined && !this.#walletNeeded()
         ? undefined
         : this.#evidence.request();
-    const dates = mode === "seedshift" ? this.#dates.value : "";
+    const dates = mode === "seedshift" ? this.#dates.input.value : undefined;
     const list = this.#list.request();
     const limits = this.#settings.limits;
     // A list stores the BIP39 passphrase typed for it, also when no wallet is compared.
@@ -643,12 +285,12 @@ class MnemoCodeRestoreTab {
       { status: this.#status, result: this.#result },
     );
     if (outcome === undefined || !current()) return;
-    const clipboard = shareClipboard(this.#context, current);
+    const clipboard = ShareActions.clipboard(this.#context, current);
     const count = outcome.phrases.length;
     this.#status.textContent = `${this.#status.textContent} ${
       count === 1 ? "The phrase is restored." : `${count} phrases fit.`
     }`;
-    this.#result.append(...notes(outcome.notes));
+    this.#result.append(...ShareResultView.notes(outcome.notes));
     const seed = this.#context.mnemonicToSeed;
     for (const [index, phrase] of outcome.phrases.entries()) {
       if (count > 1) {
@@ -656,12 +298,12 @@ class MnemoCodeRestoreTab {
         heading.textContent = `Phrase ${index + 1} of ${count}`;
         this.#result.append(heading);
       }
-      this.#result.append(...repairsTable(phrase.repairs));
+      this.#result.append(...ShareResultView.repairs(phrase.repairs));
       const facts = [
         ...(phrase.dates === undefined ? [] : [`Dates found: ${phrase.dates}.`]),
         ...(phrase.matchedAt === undefined ? [] : [`Matches the wallet at ${phrase.matchedAt}.`]),
       ];
-      this.#result.append(...notes(facts));
+      this.#result.append(...ShareResultView.notes(facts));
       // MnemoCode Seedshift gives a valid phrase for any dates: only the wallet confirms it.
       if (mode === "seedshift" && wallet === undefined)
         this.#result.append(
@@ -672,28 +314,24 @@ class MnemoCodeRestoreTab {
           ),
         );
       // Each fingerprint stands directly under its own phrase, as MnemoCode's command line shows
-      // them, so that the decoy's is never taken for the wallet's.
-      const encoded =
-        mode === "seedshift"
-          ? paragraph(
-              `${PHRASE_WORDS.encodedFingerprint} ${fingerprintWithoutPassphrase(phrase.held, seed)}, ` +
-                `as the split showed it. ${FINGERPRINT_NOTE}`,
-              "field-note",
-            )
-          : undefined;
+      // them, so that the decoy's is never taken for the wallet's: the masked phrase is the
+      // phrase masked again with the dates that restored it.
+      const restoredDates = mode === "seedshift" ? (phrase.dates ?? dates) : undefined;
+      const masked =
+        mode === "seedshift" ? maskedFingerprint(phrase.mnemonic, restoredDates) : undefined;
       // The backup that was split, in its shares' form; the dates turn it into the phrase below.
       // It has a Show button of its own: the panel's buttons show input fields, not results.
-      if (phrase.backup !== undefined) {
-        const { form, text } = phrase.backup;
+      const backup = splitBackup(this.#input.value, phrase.mnemonic, mode, restoredDates);
+      if (backup !== undefined) {
         this.#result.append(
-          paragraph(`${formatLabel(form)} of ${Masking.of(mode).holds}`, "field-note"),
+          paragraph(`${formatLabel(backup.form)} of ${Masking.of(mode).holds}`, "field-note"),
         );
         // Codes written joined are shown apart above them too, behind the same Show button.
-        const codes = EncodedForm.of(form).apartCodes(text);
+        const codes = EncodedForm.of(backup.form).apartCodes(backup.text);
         const apart = codes === undefined ? undefined : appendApartCodes(this.#result, codes);
         renderRecoveredSecret(
           this.#result,
-          text,
+          backup.text,
           { reveal: "Show backup", hide: "Hide backup", copy: "Copy restored backup" },
           clipboard,
           undefined,
@@ -701,7 +339,13 @@ class MnemoCodeRestoreTab {
           (revealed) => apart?.classList.toggle("concealed", !revealed),
         );
       }
-      if (encoded !== undefined) this.#result.append(encoded);
+      if (masked !== undefined)
+        this.#result.append(
+          paragraph(
+            `${PHRASE_WORDS.encodedFingerprint} ${masked}, as the split showed it. ${ShareResultView.FINGERPRINT_NOTE}`,
+            "field-note",
+          ),
+        );
       // What follows is the wallet's own phrase: with Seedshift, the dates turned the decoy back.
       this.#result.append(paragraph(`Phrase: ${PHRASE_WORDS.original}.`, "field-note"));
       renderRecoveredMnemonic(
@@ -718,14 +362,16 @@ class MnemoCodeRestoreTab {
         paragraph(
           `${PHRASE_WORDS.originalFingerprint} ${fingerprintWithoutPassphrase(phrase.mnemonic, seed)}.` +
             (mode === "seedshift" ? ` ${PHRASE_WORDS.fingerprintRoles}` : "") +
-            ` ${FINGERPRINT_NOTE}`,
+            ` ${ShareResultView.FINGERPRINT_NOTE}`,
           "field-note",
         ),
       );
     }
+    // What the wallet check said of the matches, each once after the phrases (AUD-037-SEC004).
+    this.#result.append(...ShareResultView.notes(outcome.warnings));
     this.#listBytes = outcome.list?.bytes;
     renderCandidateListSave(this.#result, outcome.list, "Phrase");
-    guardShareResultActions(this.#result, current);
+    ShareActions.guard(this.#result, current);
   }
 
   /**
@@ -756,24 +402,28 @@ class MnemoCodeRestoreTab {
 class MnemoCodeShareRepair {
   readonly #context: RecoveryFeatureContext;
   readonly #input = required<HTMLTextAreaElement>("#mnemocode-forgotten-shares");
-  readonly #dates = required<HTMLInputElement>("#mnemocode-forgotten-shares-dates");
+  readonly #dates = new DatesField("forgotten-shares");
   readonly #form = required<HTMLSelectElement>("#mnemocode-forgotten-shares-form");
   readonly #status = required<HTMLElement>("#mnemocode-forgotten-shares-status");
   readonly #result = required<HTMLElement>("#mnemocode-forgotten-shares-result");
   readonly #evidence = new WalletEvidenceField("mnemocode-forgotten-shares");
-  readonly #settings = new MnemoCodeSearchSettingsFields(
-    "mnemocode-forgotten-shares",
-    "shares",
-    MAX_REPAIR_COMBINATIONS,
-  );
+  readonly #settings = new MnemoCodeSearchSettingsFields("mnemocode-forgotten-shares", "shares");
   readonly #inputs: InputRevision;
   readonly #job = new MnemoCodeWorkerJob<MnemoCodeSharesRequest, RepairOutcome>(
-    __MNEMOCODE_SHARES_WORKER_SOURCE__,
+    __MNEMOCODE_SEARCH_WORKER_SOURCE__,
     {
       button: required<HTMLButtonElement>("#mnemocode-forgotten-shares-repair"),
       cancel: required<HTMLButtonElement>("#mnemocode-forgotten-shares-stop"),
       status: this.#status,
     },
+  );
+
+  readonly #actions = new ShareActions(
+    this.#job,
+    this.#dates,
+    "repair",
+    () => this.#mode(),
+    (releases) => this.#clearResult(releases),
   );
 
   constructor(context: RecoveryFeatureContext) {
@@ -786,7 +436,6 @@ class MnemoCodeShareRepair {
       "shares",
     );
     installShareImports(this.#input, this.#status);
-    attachMnemoCodeWordHints(this.#input, SHARE_WORD_HINTS);
     installSecretToggle(
       "#toggle-mnemocode-forgotten-shares-result",
       shownTextsIn("#mnemocode-forgotten-shares-result"),
@@ -795,7 +444,7 @@ class MnemoCodeShareRepair {
     );
     const block = required<HTMLElement>("#mnemocode-forgotten-share");
     this.#result.dataset.resultInteraction = "";
-    this.#inputs = shareInputs(block, context, () => this.#changed());
+    this.#inputs = ShareActions.inputs(block, context, () => this.#changed());
     required<HTMLButtonElement>("#mnemocode-forgotten-shares-repair").addEventListener(
       "click",
       () => this.#start(),
@@ -816,34 +465,37 @@ class MnemoCodeShareRepair {
   }
 
   #changed(): void {
+    if (!this.#actions.changed()) return;
     required<HTMLElement>("#mnemocode-forgotten-shares-masked-field").hidden = !this.#walletGiven();
-    required<HTMLElement>("#mnemocode-forgotten-shares-dates-field").hidden =
-      this.#mode() !== "seedshift";
-    this.#result.replaceChildren();
-    required<HTMLElement>("#mnemocode-forgotten-share").dispatchEvent(
-      new CustomEvent("secret-content-reset"),
-    );
-    latestShares.forget("repair");
-    this.#job.revise();
     this.#status.classList.remove("warning");
     this.#status.textContent = "";
   }
 
   #start(): void {
-    if (!shareJobAvailable(this.#context)) return;
-    const current = captureShareInputs(this.#inputs, this.#context);
-    this.#result.replaceChildren();
-    latestShares.forget("repair");
-    this.#status.classList.remove("warning");
-    void this.#context.jobs
-      .runHeavy("A MnemoCode share repair", () => this.#repair(current))
-      .catch((cause: unknown) => this.#job.fail(cause, "The repair failed.", current));
+    this.#actions.start(this.#context, this.#inputs, this.#status, (current) =>
+      this.#repair(current),
+    );
+  }
+
+  #clearResult(releases: readonly (() => void)[] = []): boolean {
+    return ShareActions.clear(
+      {
+        result: this.#result,
+        status: this.#status,
+        reset: () => {
+          RecoverySecretLifecycle.concealControl(
+            required<HTMLButtonElement>("#toggle-mnemocode-forgotten-shares-result"),
+          );
+        },
+      },
+      [() => latestShares.forget("repair"), ...releases],
+    );
   }
 
   async #repair(current: () => boolean): Promise<void> {
     const wallet = this.#walletGiven() ? this.#evidence.request() : undefined;
     const mode = this.#mode();
-    const dates = mode === "seedshift" ? this.#dates.value : "";
+    const dates = mode === "seedshift" ? this.#dates.input.value : undefined;
     const form = this.#form.value === "" ? undefined : (this.#form.value as ShareFormat);
     const limits = this.#settings.limits;
     const inputs = JSON.stringify([this.#input.value, mode, dates, wallet, form, limits]);
@@ -872,21 +524,25 @@ class MnemoCodeShareRepair {
           (variant.fingerprint === undefined
             ? ""
             : `, ${PHRASE_WORDS.originalFingerprint} ${variant.fingerprint}`);
-        this.#result.append(heading, ...repairsTable(variant.repairs));
+        this.#result.append(heading, ...ShareResultView.repairs(variant.repairs));
         this.#renderShares(variant.shares, current);
       }
       if (outcome.variants.some((variant) => variant.fingerprint !== undefined))
         this.#result.append(
           paragraph(
-            `Each is the fingerprint of ${PHRASE_WORDS.original}, with an empty BIP39 passphrase.`,
+            `Each is the fingerprint of ${PHRASE_WORDS.original}. ${ShareResultView.FINGERPRINT_NOTE}`,
             "field-note",
           ),
         );
-      guardShareResultActions(this.#result, current);
+      // The wallet check's warning once, after the sets, as sskr-export says it (AUD-037-SEC004).
+      this.#result.append(
+        ...ShareResultView.notes(outcome.warning === undefined ? [] : [outcome.warning]),
+      );
+      ShareActions.guard(this.#result, current);
       return;
     }
     this.#status.textContent = `${this.#status.textContent} The shares are written again.`;
-    this.#result.append(...repairsTable(outcome.repairs));
+    this.#result.append(...ShareResultView.repairs(outcome.repairs));
     // The shares are the backup as written: with Seedshift they hold the decoy, whatever was typed.
     // Without a wallet the Seedshift question is not asked, so what they hold is not known here.
     this.#result.append(
@@ -900,9 +556,13 @@ class MnemoCodeShareRepair {
       current,
       mode === "seedshift" ? `, holds ${PHRASE_WORDS.masked}` : "",
     );
-    this.#result.append(...notes(outcome.notes));
+    this.#result.append(...ShareResultView.notes(outcome.notes));
+    // What the wallet check said of the match that chose these shares, such as a fingerprint's.
+    this.#result.append(
+      ...ShareResultView.notes(outcome.warning === undefined ? [] : [outcome.warning]),
+    );
     this.#offerShares(outcome.shares, outcome.form, mode === "seedshift", current);
-    guardShareResultActions(this.#result, current);
+    ShareActions.guard(this.#result, current);
   }
 
   /**
@@ -922,7 +582,12 @@ class MnemoCodeShareRepair {
     const lines = shares.map((share) => share.text);
     save.addEventListener("click", () => {
       if (current())
-        MnemoCodeDownload.text(this.#context, `${lines.join("\n")}\n`, SHARES_FILE, "text/plain");
+        MnemoCodeDownload.text(
+          this.#context,
+          `${lines.join("\n")}\n`,
+          ShareResultView.FILE_NAME,
+          "text/plain",
+        );
     });
     const actions = document.createElement("div");
     actions.className = "actions";
@@ -961,9 +626,9 @@ class MnemoCodeShareRepair {
     renderSensitiveShares(
       block,
       shares.map((share) => share.text),
-      shareClipboard(this.#context, current),
+      ShareActions.clipboard(this.#context, current),
       shares.map((share) => `Share ${share.number}${holds}`),
-      shares.map((share) => apartShareCodes(share.text, share.format)),
+      shares.map((share) => ShareResultView.apartCodes(share.text, share.format)),
       current,
     );
     this.#result.append(block);
@@ -974,16 +639,17 @@ class MnemoCodeShareRepair {
  * The codes of `share`, a share written in `format`, apart where that form writes them joined, as
  * MnemoCode's command line shows a share: like the encoded phrase its form looks like.
  */
-function apartShareCodes(share: string, format: ShareFormat): string[] | undefined {
-  return EncodedForm.of(MIRRORED_FORM[format]).apartCodes(share);
-}
 
-function installMnemoCodeShares(context: RecoveryFeatureContext): void {
-  mnemoCodeSelfTest.addShares(sskrSharePlatform(sskrCodec()), "the pinned SSKR WebAssembly");
-  new MnemoCodeSplitSection(context);
-  new MnemoCodeRestoreTab(context);
-  new MnemoCodeShareRepair(context);
-  showShareRepairTimes();
+/** Composes the independent split, restore and repair operations and their self-test. */
+export class MnemoCodeShareFeature {
+  /** Install the selected share workspace, whose known answers join MnemoCode's self-test. */
+  static install(this: void, context: RecoveryFeatureContext): void {
+    mnemoCodeSelfTest.addShares();
+    new MnemoCodeSplitSection(context);
+    new MnemoCodeRestoreTab(context);
+    new MnemoCodeShareRepair(context);
+    showShareRepairTimes();
+  }
 }
-
-export const recoveryFeature: RecoveryFeature = { install: installMnemoCodeShares };
+/** Browser feature adapter retained for existing build composition. */
+export const recoveryFeature: RecoveryFeature = { install: MnemoCodeShareFeature.install };

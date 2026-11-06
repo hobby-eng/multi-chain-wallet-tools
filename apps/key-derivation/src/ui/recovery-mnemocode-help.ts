@@ -1,5 +1,10 @@
 import type { MnemoCodeFormat, MnemoCodeMode } from "@ckd/recovery-backup/mnemocode.js";
 
+/** Shared explanation beside original, recovered and encoded fingerprint displays (DOC-05). */
+export const MNEMOCODE_FINGERPRINT_NOTICE = "They do not reveal the phrase.";
+/** Unambiguous explanation where a nearby list also contains phrases or their codes. */
+export const MNEMOCODE_FINGERPRINT_EXPLANATION = `The fingerprints are short comparison values. ${MNEMOCODE_FINGERPRINT_NOTICE}`;
+
 /** Text of one "How it works" popover. Steps are shown as a numbered list. */
 export interface MnemoCodeHelp {
   readonly title: string;
@@ -56,6 +61,7 @@ export const MNEMOCODE_MODE_HELP: Readonly<Record<MnemoCodeMode, MnemoCodeHelp>>
   },
 };
 
+/** The help of each form, numbered and listed in MnemoCode's order of forms (ENCODED_FORMATS). */
 export const MNEMOCODE_FORMAT_HELP: Readonly<Record<MnemoCodeFormat, MnemoCodeHelp>> = {
   english: {
     title: "1 · English BIP39 words",
@@ -89,6 +95,19 @@ export const MNEMOCODE_FORMAT_HELP: Readonly<Record<MnemoCodeFormat, MnemoCodeHe
       "Decoding cuts the line into groups of four digits, finds each character in the Chinese list and takes the English word at the same place.",
     ],
   },
+  "colors-unicode": {
+    title: "4 · Color Unicode code points",
+    introduction:
+      "The same colors as in representation 5, written as plain text instead of color codes.",
+    steps: [
+      "The phrase is turned into colors as in representation 5.",
+      "Each color is split into two codes of four hexadecimal digits from the Unicode Private Use Area.",
+      "The codes are written one after another, so 8 colors become 16 codes.",
+    ],
+    notes: [
+      "Decoding joins each pair of codes back into a color and then reads the colors as in representation 5.",
+    ],
+  },
   colors: {
     title: "5 · #RRGGBB colors",
     introduction: "The phrase becomes a short list of colors written as #RRGGBB codes.",
@@ -99,19 +118,6 @@ export const MNEMOCODE_FORMAT_HELP: Readonly<Record<MnemoCodeFormat, MnemoCodeHe
     notes: [
       "The codes are the recovery data, and every one of them is needed. A shade that only looks similar is not enough.",
       "For 12 and 24 words the packing is compatible with BIP39Colors. This representation can be printed as cards.",
-    ],
-  },
-  "colors-unicode": {
-    title: "6 · Color Unicode code points",
-    introduction:
-      "The same colors as in representation 5, written as plain text instead of color codes.",
-    steps: [
-      "The phrase is turned into colors as in representation 5.",
-      "Each color is split into two codes of four hexadecimal digits from the Unicode Private Use Area.",
-      "The codes are written one after another, so 8 colors become 16 codes.",
-    ],
-    notes: [
-      "Decoding joins each pair of codes back into a color and then reads the colors as in representation 5.",
     ],
   },
 };

@@ -1,62 +1,120 @@
 // MnemoCode's self-test as the Deriver runs it on the person's button press, never at start (the
-// owner's rule): the library's checks (core/self-test.ts) with the public vectors bundled here,
-// the master fingerprint from WebCrypto, and the checks that the parts of this build add: the
-// shares their SSKR library, the card export its renderers. Each part adds its checks when it is
-// installed, so that a build without it neither runs nor names them.
-import type { SharePlatform } from "../../recovery-mnemocode/source/sskr/share-platform.js";
-import {
-  MasterFingerprintCheck,
-  type Pbkdf2HmacSha512,
-} from "../../recovery-mnemocode/source/core/master-fingerprint.js";
-import {
-  MnemoCodeSelfTest,
-  type SelfTestCheck,
-  type SelfTestFeature,
-  type SelfTestReport,
-} from "../../recovery-mnemocode/source/core/self-test.js";
-import publicVectors from "../../recovery-mnemocode/source/vectors/mnemocode-v1.json";
+// owner's rule): every case of each part of MnemoCode's WebAssembly that this build uses
+// (selfCheck* with `full`), the shares' and the cards' only where the build offers them, then the
+// checks that parts of the page add. It throws at the first difference.
+import { mnemocode, type MnemoCodeBinding } from "./mnemocode-engine.js";
 
-export type { SelfTestCheck, SelfTestReport };
+/** One row of the report. */
+export interface SelfTestRow {
+  readonly name: string;
+  readonly detail: string;
+  readonly milliseconds: number;
+}
+
+export interface SelfTestReport {
+  readonly rows: readonly SelfTestRow[];
+  readonly milliseconds: number;
+}
+
+/** A check of the page's own, run after MnemoCode's. */
+export interface SelfTestCheck {
+  readonly name: string;
+  readonly detail: string;
+  run(): void | Promise<void>;
+}
+
+type Part =
+  "phrase" | "wallet" | "qr" | "candidates" | "sskr" | "recovery" | "cards" | "embroidery";
+
+const PARTS: Readonly<
+  Record<
+    Part,
+    { readonly name: string; readonly detail: string; readonly check: keyof MnemoCodeBinding }
+  >
+> = {
+  phrase: { name: "Phrase", detail: "forms, modes, records and backups", check: "selfCheckPhrase" },
+  wallet: {
+    name: "Wallet",
+    detail: "fingerprints, keys and coin addresses",
+    check: "selfCheckWallet",
+  },
+  qr: { name: "QR codes", detail: "QR symbols and PNG images", check: "selfCheckQr" },
+  candidates: {
+    name: "Candidate lists",
+    detail: "MNCL, age and scrypt",
+    check: "selfCheckCandidates",
+  },
+  sskr: {
+    name: "Shamir shares",
+    detail: "SSKR split, restore and share forms",
+    check: "selfCheckSskr",
+  },
+  recovery: {
+    name: "Recovery",
+    detail: "decoding, backup checks and searches",
+    check: "selfCheckRecovery",
+  },
+  cards: {
+    name: "Cards",
+    detail: "card sets, share cards and the heir sheet",
+    check: "selfCheckCards",
+  },
+  embroidery: {
+    name: "Cross-stitch patterns",
+    detail: "SeedStitch legends, misread rows and a pattern",
+    check: "selfCheckEmbroidery",
+  },
+};
 
 export class MnemoCodeSelfTestRun {
-  readonly #pbkdf2: Pbkdf2HmacSha512;
-  readonly #fingerprints: MasterFingerprintCheck;
-  #shares: { readonly platform: SharePlatform; readonly library: string } | undefined;
-  readonly #features: SelfTestFeature[] = [];
+  readonly #parts = new Set<Part>([
+    "phrase",
+    "wallet",
+    "qr",
+    "candidates",
+    "recovery",
+    "embroidery",
+  ]);
   readonly #after: SelfTestCheck[] = [];
 
-  constructor(pbkdf2: Pbkdf2HmacSha512) {
-    this.#pbkdf2 = pbkdf2;
-    this.#fingerprints = new MasterFingerprintCheck(pbkdf2);
+  /** The shares of this build: their known answers join the run. */
+  addShares(): void {
+    this.#parts.add("sskr");
   }
 
-  /** The checks of a feature of this build, such as its wallet recognition or the heir sheet. */
-  addFeature(feature: SelfTestFeature): void {
-    if (!this.#features.includes(feature)) this.#features.push(feature);
+  /** The card export of this build: its known answers join the run. */
+  addCards(): void {
+    this.#parts.add("cards");
   }
 
-  /** The SSKR library of the build, for the share rows; `library` names it in the report. */
-  addShares(platform: SharePlatform, library: string): void {
-    this.#shares = { platform, library };
-  }
-
-  /** A check of the build's own, run after the library's. */
+  /** A check of the build's own, run after MnemoCode's. */
   addCheck(check: SelfTestCheck): void {
     this.#after.push(check);
   }
 
   /** Runs every check; throws at the first that fails. */
-  run(): Promise<SelfTestReport> {
-    return new MnemoCodeSelfTest({
-      fingerprint: (mnemonic) => this.#fingerprints.fingerprintAsync(mnemonic),
-      publicVectors,
-      // The BIP39 seed vectors run in full with the page's own PBKDF2.
-      pbkdf2: this.#pbkdf2,
-      features: [...this.#features],
-      ...(this.#shares === undefined
-        ? {}
-        : { sharePlatform: this.#shares.platform, shareLibrary: this.#shares.library }),
-      after: [...this.#after],
-    }).run();
+  async run(): Promise<SelfTestReport> {
+    const started = performance.now();
+    const binding = mnemocode();
+    const rows: SelfTestRow[] = [];
+    for (const part of Object.keys(PARTS) as Part[]) {
+      if (!this.#parts.has(part)) continue;
+      const { name, detail, check } = PARTS[part];
+      const begun = performance.now();
+      (binding[check] as (full: boolean) => void)(true);
+      rows.push({ name, detail, milliseconds: performance.now() - begun });
+      // Each part's full cases take a while: the page is given a turn between them.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    for (const check of this.#after) {
+      const begun = performance.now();
+      await check.run();
+      rows.push({
+        name: check.name,
+        detail: check.detail,
+        milliseconds: performance.now() - begun,
+      });
+    }
+    return { rows, milliseconds: performance.now() - started };
   }
 }

@@ -1,122 +1,143 @@
-/** Import an exact local MnemoCode bridge closure without claiming a wallet-tools rebuild. */
-import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+/** Verify an exact imported bridge; coordinated intake also updates its portable readers. */
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isMainScript } from "./run-script.mjs";
+import {
+  IntakeDirectory,
+  IntakeIdentity,
+  MnemoCodeIntakeError,
+} from "./mnemocode-intake-files.mjs";
+import { MnemoCodeSskrLayout } from "./mnemocode-sskr-layout.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const DIRECTORY = "packages/recovery-sskr-wasm";
-const PIN_FILES = Object.freeze([
-  "rust/Cargo.lock",
-  "rust/Cargo.toml",
-  "rust/clippy.toml",
-  "rust/rust-toolchain.toml",
-  "rust/src/lib.rs",
-  "rust/src/refusal.rs",
-  "generated/recovery_sskr_wasm.js",
-  "generated/recovery_sskr_wasm.d.ts",
-  "generated/recovery_sskr_wasm_bg.wasm",
-  "generated/recovery_sskr_wasm_bg.wasm.d.ts",
-]);
-const NOTICES = Object.freeze(["LICENSE", "NOTICE.md", "UPSTREAM_NOTICES.md"]);
-const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const DIRECTORY = MnemoCodeSskrLayout.directory;
 
-/** Owns source/asset pin verification and copying; the canonical container gate stays separate. */
+function bridgeVersion(bytes) {
+  // Match only [package], never a dependency's version.
+  const section = bytes
+    .toString("utf8")
+    .split(/^\[package\]\s*$/mu)[1]
+    ?.split(/^\[/mu)[0];
+  const version = section?.match(/^version\s*=\s*"(\d+\.\d+\.\d+)"\s*$/mu)?.[1];
+  if (version === undefined) throw new MnemoCodeIntakeError("version");
+  return version;
+}
+
+/** Owns source/asset pins and package version; the host canonical container gate stays separate. */
 export class MnemoCodeSskrSource {
   #root;
-
   constructor(root = ROOT) {
     this.#root = root;
   }
 
-  /** Refuses drift of any imported input, notice, bridge version or integrity pin. */
-  verify() {
+  /**
+   * Refuses drift in the legacy ten-pin intake or the reviewed producer closure. `before`: the
+   * state an intake starts from, which may predate files and pins that the layout added since (they
+   * are then written new); what it has must be in the layout, pinned by its own integrity.json.
+   */
+  verify({ before = false } = {}) {
     const base = resolve(this.#root, DIRECTORY);
-    const manifest = JSON.parse(readFileSync(resolve(base, "source.json"), "utf8"));
-    const pins = JSON.parse(readFileSync(resolve(base, "integrity.json"), "utf8"));
-    if (
-      manifest.repository !== "hobby-eng/mnemocode" ||
-      !/^[0-9a-f]{64}$/u.test(manifest.sourceFingerprint ?? "")
-    )
-      throw new Error("Imported SSKR source identity is missing or unsupported.");
-    if (
-      JSON.stringify(Object.keys(manifest.files).sort()) !==
-      JSON.stringify([...PIN_FILES, ...NOTICES, "integrity.json"].sort())
-    )
-      throw new Error("Imported SSKR source file set differs from the reviewed closure.");
-    if (JSON.stringify(Object.keys(pins).sort()) !== JSON.stringify([...PIN_FILES].sort()))
-      throw new Error("The MnemoCode bridge must retain its exact ten-pin closure.");
-    for (const file of [...PIN_FILES, ...NOTICES, "integrity.json"]) {
-      const actual = hash(readFileSync(resolve(base, file)));
-      if (actual !== manifest.files[file] || (Object.hasOwn(pins, file) && actual !== pins[file]))
-        throw new Error(`Imported SSKR input differs from its source pin: ${file}`);
+    const metadata = new IntakeDirectory(base, ["source.json", "package.json"]);
+    const manifest = IntakeIdentity.json(metadata.read("source.json"));
+    if (manifest.repository !== "hobby-eng/mnemocode") throw new MnemoCodeIntakeError("identity");
+    IntakeIdentity.requireHash(manifest.sourceFingerprint);
+    const current = manifest.schemaVersion === 2;
+    if (!current && manifest.schemaVersion !== 1) throw new MnemoCodeIntakeError("identity");
+    const layout = current
+      ? MnemoCodeSskrLayout.files
+      : MnemoCodeSskrLayout.legacyFiles.map((path) => ({ target: path }));
+    // An intake before MnemoCode shipped its licence files kept the bridge's LICENSE as it was;
+    // the state an intake starts from may still list it.
+    const retained = before && Object.hasOwn(manifest.files, "LICENSE") ? ["LICENSE"] : [];
+    const expected = current
+      ? [
+          ...layout
+            .map(({ target }) => target)
+            .filter((target) => !before || Object.hasOwn(manifest.files, target)),
+          ...retained,
+        ]
+      : layout.map(({ target }) => target);
+    IntakeIdentity.exactKeys(manifest.files, expected);
+    const directory = new IntakeDirectory(base, [...expected, "package.json"]);
+    const loaded = new Map(
+      expected.map((file) => [
+        file,
+        IntakeIdentity.pinned(directory.read(file), manifest.files[file]),
+      ]),
+    );
+    const pins = IntakeIdentity.json(loaded.get("integrity.json"));
+    const pinLayout = current
+      ? MnemoCodeSskrLayout.pins.filter(({ pin }) => !before || Object.hasOwn(pins, pin))
+      : MnemoCodeSskrLayout.pins.filter(({ target }) => expected.includes(target));
+    IntakeIdentity.exactKeys(
+      pins,
+      pinLayout.map(({ pin }) => pin),
+    );
+    for (const { pin, target } of pinLayout) IntakeIdentity.pinned(loaded.get(target), pins[pin]);
+    const version = IntakeIdentity.json(directory.read("package.json")).version;
+    if (version !== manifest.version || bridgeVersion(loaded.get("rust/Cargo.toml")) !== version)
+      throw new MnemoCodeIntakeError("version");
+    if (current) {
+      IntakeIdentity.handover(manifest.handover);
+      if (manifest.handover?.snapshotFingerprint !== manifest.sourceFingerprint)
+        throw new MnemoCodeIntakeError("identity");
     }
-    const version = JSON.parse(readFileSync(resolve(base, "package.json"), "utf8")).version;
-    const cargo = readFileSync(resolve(base, "rust/Cargo.toml"), "utf8");
-    if (version !== manifest.version || !cargo.includes(`version = "${version}"`))
-      throw new Error("Imported SSKR package and bridge versions disagree.");
     return manifest;
   }
 
-  /** Copies only the frozen handover inputs, validating everything before writing anything. */
-  sync(workingTree, sourceManifest) {
-    const incoming = JSON.parse(readFileSync(sourceManifest, "utf8"));
-    const sourcePins = new Map(incoming.files.map(({ path, sha256 }) => [path, sha256]));
-    const base = resolve(workingTree, "sskr-wasm");
-    const files = [...PIN_FILES, ...NOTICES, "integrity.json"].map((file) => {
-      const bytes = readFileSync(resolve(base, file));
-      if (hash(bytes) !== sourcePins.get(`sskr-wasm/${file}`))
-        throw new Error(`MnemoCode handover input changed: ${file}`);
-      return { file, bytes, sha256: hash(bytes) };
-    });
-    const integrity = files.find(({ file }) => file === "integrity.json");
-    if (integrity === undefined) throw new Error("Bridge integrity pins are missing.");
-    const pins = JSON.parse(integrity.bytes.toString("utf8"));
-    if (JSON.stringify(Object.keys(pins).sort()) !== JSON.stringify([...PIN_FILES].sort()))
-      throw new Error("Unsupported bridge integrity pin set.");
-    for (const entry of files)
-      if (Object.hasOwn(pins, entry.file) && pins[entry.file] !== entry.sha256)
-        throw new Error(`MnemoCode bridge input does not match integrity.json: ${entry.file}`);
-    const cargo = files.find(({ file }) => file === "rust/Cargo.toml");
-    const version = cargo?.bytes.toString("utf8").match(/^version = "([^"]+)"$/mu)?.[1];
-    if (version === undefined) throw new Error("Bridge package version is missing.");
-    const target = resolve(this.#root, DIRECTORY);
-    for (const { file, bytes } of files) {
-      const path = resolve(target, file);
-      mkdirSync(dirname(path), { recursive: true });
-      writeFileSync(path, bytes);
-    }
-    const packagePath = resolve(target, "package.json");
-    const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
-    writeFileSync(packagePath, JSON.stringify({ ...pkg, version }, null, 2) + "\n");
-    writeFileSync(
-      resolve(target, "source.json"),
-      JSON.stringify(
-        {
-          schemaVersion: 1,
-          repository: "hobby-eng/mnemocode",
-          sourceFingerprint: incoming.fingerprint,
-          version,
-          unreleased: "Imported from a frozen uncommitted local MnemoCode handover.",
-          canonicalWalletToolsComparison: "Not run; the existing canonical gate remains mandatory.",
-          files: Object.fromEntries(files.map(({ file, sha256 }) => [file, sha256])),
-        },
-        null,
-        2,
-      ) + "\n",
+  /** Builds validated writes; importing native bytes without their portable readers is unavailable. */
+  prepare(handover) {
+    const previous = this.verify({ before: true });
+    const files = MnemoCodeSskrLayout.files.map(({ source, target }) => ({
+      path: `${DIRECTORY}/${target}`,
+      target,
+      bytes: handover.read(source),
+    }));
+    const loaded = new Map(files.map(({ target, bytes }) => [target, bytes]));
+    const pins = IntakeIdentity.json(loaded.get("integrity.json"));
+    IntakeIdentity.exactKeys(
+      pins,
+      MnemoCodeSskrLayout.pins.map(({ pin }) => pin),
     );
-    return this.verify();
+    for (const { pin, target } of MnemoCodeSskrLayout.pins)
+      IntakeIdentity.pinned(loaded.get(target), pins[pin]);
+    const version = bridgeVersion(loaded.get("rust/Cargo.toml"));
+    const pkgPath = `${DIRECTORY}/package.json`;
+    const pkg = IntakeIdentity.json(new IntakeDirectory(this.#root, [pkgPath]).read(pkgPath));
+    const manifest = {
+      schemaVersion: 2,
+      repository: "hobby-eng/mnemocode",
+      version,
+      sourceFingerprint: handover.identity.snapshotFingerprint,
+      handover: handover.identity,
+      unreleased: "a reviewed frozen local producer candidate, not a release",
+      canonicalWalletToolsComparison:
+        "Not run for this intake; the canonical host gate remains mandatory.",
+      files: Object.fromEntries(
+        files.map(({ target, bytes }) => [target, IntakeIdentity.hash(bytes)]),
+      ),
+    };
+    const encode = (value) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
+    return {
+      files: files.map(({ path, target, bytes }) => ({
+        path,
+        bytes,
+        expectedBefore: previous.files[target] ?? null,
+      })),
+      metadata: [
+        { path: pkgPath, bytes: encode({ ...pkg, version }) },
+        { path: `${DIRECTORY}/source.json`, bytes: encode(manifest) },
+      ],
+      manifest,
+    };
   }
 }
 
 if (isMainScript(import.meta.url)) {
-  const [operation, workingTree, manifest] = process.argv.slice(2);
-  const source = new MnemoCodeSskrSource();
-  if (operation === "--check") source.verify();
-  else if (operation === "--working-tree" && workingTree !== undefined && manifest !== undefined)
-    source.sync(resolve(workingTree), resolve(manifest));
-  else
-    throw new Error("Usage: sync-mnemocode-sskr.mjs --check | --working-tree PATH SOURCE-MANIFEST");
-  console.log("Verified the imported MnemoCode SSKR closure; no wallet-tools rebuild claimed.");
+  if (process.argv.length !== 3 || process.argv[2] !== "--check")
+    throw new MnemoCodeIntakeError("identity");
+  new MnemoCodeSskrSource().verify();
+  console.log(
+    "Verified the imported MnemoCode SSKR closure; use sync-mnemocode-intake.mjs for coherent intake.",
+  );
 }

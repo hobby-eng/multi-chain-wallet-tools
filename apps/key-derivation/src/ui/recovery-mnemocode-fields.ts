@@ -3,7 +3,7 @@
 import {
   mnemoCodeDatesFor,
   mnemoCodeTakesDates,
-  type MnemoCodeDate,
+  type MnemoCodeDates,
   type MnemoCodeFormat,
   type MnemoCodeMode,
   MNEMOCODE_PHRASE_WORD_COUNTS,
@@ -17,12 +17,11 @@ import {
   renderMnemoCodeHelp,
   type MnemoCodeHelp,
 } from "./recovery-mnemocode-help.js";
-import { required } from "./recovery-workspace-shared.js";
-import {
-  isMaskingMode,
-  isEncodedFormat,
-} from "../../../../packages/recovery-mnemocode/source/core/types.js";
-import { ErrorCatalog } from "../../../../packages/recovery-mnemocode/source/core/error-catalog.js";
+import { PHRASE_FILE_IMPORT, required } from "./recovery-workspace-shared.js";
+import { installTextFileImport } from "@ckd/ui/text-file-import.js";
+import { FieldImportRevision } from "@ckd/ui/field-import-revision.js";
+import { isMaskingMode, isEncodedFormat } from "@ckd/recovery-backup/mnemocode-facts.js";
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 
 const ERRORS = new ErrorCatalog("wallet.mnemocode-fields", {
   mode: () => "Choose a supported MnemoCode mode.",
@@ -62,22 +61,46 @@ export function installModeAndFormatChoices(prefix: string, auto = false, datesO
 
 /** A Seedshift dates field, shown only for a mode that uses dates. */
 export class DatesField {
-  readonly input: HTMLTextAreaElement;
+  readonly #input: HTMLTextAreaElement;
   readonly #field: HTMLElement;
+  readonly #imports: FieldImportRevision;
+  #mode: MnemoCodeMode | undefined;
 
   /** `prefix` names the tab, as in `#mnemocode-{prefix}-dates`. */
   constructor(prefix: string) {
-    this.input = required<HTMLTextAreaElement>(`#mnemocode-${prefix}-dates`);
+    this.#input = required<HTMLTextAreaElement>(`#mnemocode-${prefix}-dates`);
     this.#field = required<HTMLElement>(`#mnemocode-${prefix}-dates-field`);
+    this.#imports = new FieldImportRevision(document, this.#input);
+    installTextFileImport(document, this.#input, {
+      label: "Open a dates text file",
+      accept: PHRASE_FILE_IMPORT.accept,
+      preserveWhitespace: false,
+    });
   }
 
+  /** The editable native field; callers attach operation edits and read marked date patterns. */
+  get input(): HTMLTextAreaElement {
+    return this.#input;
+  }
+
+  /** Ends pending imports when the operation stops accepting dates, even if it later reopens. */
+  set available(available: boolean) {
+    if (this.#input.disabled === available) this.#imports.revise();
+    this.#input.disabled = !available;
+  }
+
+  /** Hidden date controls reject pending file publication until a dates mode is selected. */
   showFor(mode: MnemoCodeMode): void {
-    this.#field.hidden = !mnemoCodeTakesDates(mode);
+    if (this.#mode !== mode) this.#imports.revise();
+    this.#mode = mode;
+    const takesDates = mnemoCodeTakesDates(mode);
+    this.#field.hidden = !takesDates;
+    this.available = takesDates;
   }
 
-  /** The dates for `mode`; Direct has none, and text left in the hidden field is ignored. */
-  values(mode: MnemoCodeMode): MnemoCodeDate[] {
-    return mnemoCodeDatesFor(mode, this.input.value);
+  /** The dates for `mode` as typed; Direct has none, and text left in the hidden field is ignored. */
+  values(mode: MnemoCodeMode): MnemoCodeDates {
+    return mnemoCodeDatesFor(mode, this.#input.value);
   }
 }
 

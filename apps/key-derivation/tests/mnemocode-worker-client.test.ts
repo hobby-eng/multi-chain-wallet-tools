@@ -1,27 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadMnemoCode } from "@ckd/recovery-backup/mnemocode-module.js";
 import { JOB_STOPPED, MnemoCodeWorker } from "../src/workers/mnemocode-worker-client.js";
 
-class FakeWorker {
-  static latest: FakeWorker;
-  onmessage: ((event: { data: unknown }) => void) | undefined;
-  onerror: ((event: { preventDefault(): void }) => void) | undefined;
-  readonly postMessage = vi.fn();
-  readonly terminate = vi.fn();
+import { FakeRecoveryWorker as FakeWorker } from "./fake-recovery-worker.js";
 
-  constructor() {
-    FakeWorker.latest = this;
-  }
+const revoke = vi.fn<(url: string) => void>();
 
-  reply(data: unknown): void {
-    this.onmessage?.({ data });
-  }
-}
+// The page loads MnemoCode at startup; each worker is given its compiled module with the job.
+beforeAll(async () => {
+  await loadMnemoCode();
+});
 
 beforeEach(() => {
+  revoke.mockClear();
   vi.useFakeTimers();
   vi.stubGlobal("Worker", FakeWorker);
   vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:public-mnemocode-worker");
-  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(revoke);
 });
 
 afterEach(() => {
@@ -62,9 +57,12 @@ describe("MnemoCode worker job lifetime", () => {
     await expect(client.run("second public request", progress)).rejects.toThrow(
       "already started a job",
     );
-    expect(FakeWorker.latest.postMessage).toHaveBeenCalledExactlyOnceWith("first public request");
+    expect(FakeWorker.latest.postMessage).toHaveBeenCalledExactlyOnceWith({
+      module: expect.any(WebAssembly.Module),
+      request: "first public request",
+    });
     FakeWorker.latest.reply({ type: "ready" });
-    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:public-mnemocode-worker");
+    expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:public-mnemocode-worker");
     FakeWorker.latest.reply({ type: "result", outcome: "public result" });
     await expect(pending).resolves.toBe("public result");
     expect(FakeWorker.latest.terminate).toHaveBeenCalledOnce();
@@ -82,7 +80,7 @@ describe("MnemoCode worker job lifetime", () => {
     });
     await expect(client.run("public request", vi.fn())).rejects.toThrow("synthetic clone failure");
     expect(FakeWorker.latest.terminate).toHaveBeenCalledOnce();
-    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:public-mnemocode-worker");
+    expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:public-mnemocode-worker");
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -93,7 +91,7 @@ describe("MnemoCode worker job lifetime", () => {
     vi.advanceTimersByTime(15_000);
     await rejected;
     expect(FakeWorker.latest.terminate).toHaveBeenCalledOnce();
-    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:public-mnemocode-worker");
+    expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:public-mnemocode-worker");
     await expect(client.run("another public request", vi.fn())).rejects.toThrow(JOB_STOPPED);
   });
 
@@ -114,7 +112,27 @@ describe("MnemoCode worker job lifetime", () => {
       FakeWorker.latest.reply({ type: "result", outcome: "stale public result" });
       expect(progress).not.toHaveBeenCalled();
       expect(FakeWorker.latest.terminate).toHaveBeenCalledOnce();
-      expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:public-mnemocode-worker");
+      expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:public-mnemocode-worker");
     },
   );
 });
+
+it.each(["cleanup", "late"] as const)(
+  "releases candidate-list bytes after %s prevents transfer to the caller",
+  async (reason) => {
+    const client = new MnemoCodeWorker<string, { list: { bytes: Uint8Array } }>("public source");
+    const pending = client.run("public request", () => undefined);
+    const settled = pending.catch((cause: unknown) => cause);
+    const bytes = Uint8Array.of(7, 8);
+    if (reason === "late") client.terminate();
+    else
+      FakeWorker.latest.terminate.mockImplementationOnce(() => {
+        throw new Error("private cleanup fault");
+      });
+    expect(() =>
+      FakeWorker.latest.reply({ type: "result", outcome: { list: { bytes } } }),
+    ).not.toThrow();
+    await settled;
+    expect(bytes).toEqual(Uint8Array.of(0, 0));
+  },
+);

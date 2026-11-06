@@ -1,17 +1,18 @@
 // One public all-zero BIP39 entropy: no providers, KDFs, files, wallets or bulk candidate search.
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { loadMnemoCode } from "@ckd/recovery-backup/mnemocode-module.js";
+import { mnclList } from "@ckd/test-support/mncl-list.js";
 import { CandidateListImport } from "../src/candidate-list-import.js";
 import { CandidateListTestFile } from "./candidate-list-file.js";
-import {
-  encodeCandidateList,
-  MAX_CANDIDATE_LIST_BYTES,
-} from "../../../packages/recovery-mnemocode/source/core/candidate-list.js";
 
 const PUBLIC_PHRASE = `${"abandon ".repeat(11)}about`;
-const file = () =>
-  new CandidateListTestFile(
-    encodeCandidateList({ records: [{ entropy: new Uint8Array(16) }], passphrase: "TREZOR" }),
-  );
+/** MnemoCode's largest age file of a list (docs/CANDIDATES.md), above any plaintext list. */
+const MAX_ENCRYPTED_BYTES = 155_292_688;
+const file = () => new CandidateListTestFile(mnclList([{ phrase: PUBLIC_PHRASE }], "TREZOR"));
+
+beforeAll(async () => {
+  await loadMnemoCode();
+});
 
 describe("explicit plaintext MNCL import", () => {
   it("requires consent before reading any body and never falls back after an age refusal", async () => {
@@ -24,7 +25,7 @@ describe("explicit plaintext MNCL import", () => {
     expect(input.readsWiped).toBe(true);
   });
 
-  it("delegates to the shared parser, preserves numbering/passphrases and wipes owned file bytes", async () => {
+  it("delegates to MnemoCode's reader, preserves numbering/passphrases and wipes owned file bytes", async () => {
     const source = new CandidateListImport();
     const input = file();
     expect(await source.openPlaintext(input, true)).toEqual({ count: 1, passphrases: "list" });
@@ -44,14 +45,14 @@ describe("explicit plaintext MNCL import", () => {
   it("rejects announced oversize before buffering", async () => {
     const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
     const slice = vi.fn();
-    const input = { size: MAX_CANDIDATE_LIST_BYTES + 1, arrayBuffer, slice };
+    const input = { size: MAX_ENCRYPTED_BYTES + 1, arrayBuffer, slice };
     await expect(new CandidateListImport().openPlaintext(input, true)).rejects.toThrow();
     expect(arrayBuffer).not.toHaveBeenCalled();
     expect(slice).not.toHaveBeenCalled();
   });
 
   it("wipes refused malformed bytes without retaining candidates", async () => {
-    const encoded = encodeCandidateList({ records: [{ entropy: new Uint8Array(16) }] });
+    const encoded = mnclList([{ phrase: PUBLIC_PHRASE }]);
     encoded[0] = 0;
     const input = new CandidateListTestFile(encoded);
     const source = new CandidateListImport();

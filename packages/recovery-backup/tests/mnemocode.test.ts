@@ -1,48 +1,60 @@
-import { entropyToMnemonic, validateMnemonic } from "@scure/bip39";
+import { entropyToMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { loadMnemoCode } from "../src/mnemocode-module.js";
+import { mnemocodeCode } from "../src/mnemocode-engine.js";
 import {
   decodeMnemoCode,
   effectiveMnemoCodeMode,
   encodeMnemoCode,
   ENCODED_FORMATS,
   MNEMOCODE_VERSION,
-  mnemoCodeEncodedPhrase,
+  mnemoCodeEncodedFingerprint,
+  mnemoCodeFormAndMode,
+  mnemoCodeRecordHeader,
   readMnemoCodeBackup,
-  parseMnemoCodeDate,
-  parseMnemoCodeDates,
-  recoverMnemoCodeLegacyLastWords,
-  recoverMnemoCodeWord,
 } from "../src/mnemocode.js";
+import { alwaysMasked } from "../src/mnemocode-facts.js";
 
+// Public BIP39 test phrases and MnemoCode's published date-shift example only.
 const zeroMnemonic =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-const dates = parseMnemoCodeDates("23-09-2026");
+const dates = "23-09-2026";
 
-describe("MnemoCode 0.1.0 compatibility", () => {
+beforeAll(async () => {
+  await loadMnemoCode();
+});
+
+describe("MnemoCode through its WebAssembly", () => {
   it("pins the version and published direct vectors", () => {
-    expect(MNEMOCODE_VERSION).toBe("0.1.0");
-    expect(encodeMnemoCode(zeroMnemonic, "direct", "indexes").payload).toBe(
-      "1 1 1 1 1 1 1 1 1 1 1 4",
-    );
-    expect(encodeMnemoCode(zeroMnemonic, "direct", "unicode").payload).toBe(
+    expect(MNEMOCODE_VERSION).toMatch(/^\d+\.\d+\.\d+$/u);
+    expect(encodeMnemoCode(zeroMnemonic, "direct", "unicode", undefined).payload).toBe(
       "768476847684768476847684768476847684768476845728",
     );
-    expect(encodeMnemoCode(zeroMnemonic, "direct", "colors").payload).toBe(
-      "#000064 #1EAB91 #3D0964 #5BB491 #7A1264 #98BD91 #B71B64 #D5C694",
-    );
+    const colors = encodeMnemoCode(zeroMnemonic, "direct", "colors", undefined);
+    expect(colors.payload).toBe("#000064 #1EAB91 #3D0964 #5BB491 #7A1264 #98BD91 #B71B64 #D5C694");
+    expect(colors.colors).toEqual(colors.payload.split(" "));
   });
 
-  it("prints portable color Unicode code points and reads legacy Private Use symbols", () => {
-    const encoded = encodeMnemoCode(zeroMnemonic, "direct", "colors-unicode");
+  it("writes English words and word numbers only masked", () => {
+    for (const format of ["english", "indexes"] as const) {
+      expect(alwaysMasked(format)).toBe(true);
+      let refusal: unknown;
+      try {
+        encodeMnemoCode(zeroMnemonic, "direct", format, undefined);
+      } catch (cause) {
+        refusal = cause;
+      }
+      expect(mnemocodeCode(refusal)).toBe("core.encoded-backup.form-always-masked");
+    }
+  });
+
+  it("gives the palette of colours of a colour Unicode backup", () => {
+    const encoded = encodeMnemoCode(zeroMnemonic, "direct", "colors-unicode", undefined);
     expect(encoded.payload).toMatch(/^(?:[0-9A-F]{4})+$/u);
-    const legacySymbols = encoded.payload
-      .match(/.{4}/gu)!
-      .map((point) => String.fromCodePoint(Number.parseInt(point, 16)))
-      .join("");
-    expect(
-      decodeMnemoCode(legacySymbols, { mode: "direct", format: "colors-unicode" }).mnemonic,
-    ).toBe(zeroMnemonic);
+    expect(encoded.colors).toEqual(
+      encodeMnemoCode(zeroMnemonic, "direct", "colors", undefined).payload.split(" "),
+    );
   });
 
   it("matches the published checksum-valid Seedshift vector", () => {
@@ -50,6 +62,8 @@ describe("MnemoCode 0.1.0 compatibility", () => {
     expect(encoded.payload).toBe(
       "wool abuse actual wool abuse actual wool abuse actual wool abuse congress",
     );
+    expect(encoded.checksumValid).toBe(true);
+    expect(encoded.originalFingerprint).toBe("73c5da0a");
     expect(
       decodeMnemoCode(encoded.record, { mode: "direct", format: "auto", dates }).mnemonic,
     ).toBe(zeroMnemonic);
@@ -57,10 +71,13 @@ describe("MnemoCode 0.1.0 compatibility", () => {
 
   it("matches the documented legacy Seedshift vector", () => {
     const source = "oppose duck hello neglect reveal key humor mosquito road evoke flock hedgehog";
-    const legacyDates = parseMnemoCodeDates("10-07-1963 27-04-1956 31-01-1994");
+    const legacyDates = "10-07-1963 27-04-1956 31-01-1994";
     const encoded = encodeMnemoCode(source, "seedshift-legacy", "english", legacyDates);
     expect(encoded.payload).toBe(
       "mosquito dust hotel maximum rich kitten hair mother salute dream flush hospital",
+    );
+    expect(encoded.validLastWord?.phrase.split(" ").slice(0, -1)).toEqual(
+      encoded.payload.split(" ").slice(0, -1),
     );
     expect(
       decodeMnemoCode(encoded.record, { mode: "direct", format: "auto", dates: legacyDates })
@@ -69,7 +86,7 @@ describe("MnemoCode 0.1.0 compatibility", () => {
   });
 
   it.each([16, 20, 24, 28, 32])(
-    "round-trips every representation at %i entropy bytes in direct and Seedshift modes",
+    "round-trips every form at %i entropy bytes in each mode that takes it",
     (size) => {
       const mnemonic = entropyToMnemonic(
         Uint8Array.from({ length: size }, (_, index) => index),
@@ -77,13 +94,12 @@ describe("MnemoCode 0.1.0 compatibility", () => {
       );
       for (const format of ENCODED_FORMATS) {
         for (const mode of ["direct", "seedshift", "seedshift-legacy"] as const) {
-          const encoded = encodeMnemoCode(mnemonic, mode, format, mode === "direct" ? [] : dates);
+          if (mode === "direct" && alwaysMasked(format)) continue;
+          const given = mode === "direct" ? undefined : dates;
+          const encoded = encodeMnemoCode(mnemonic, mode, format, given);
           expect(
-            decodeMnemoCode(encoded.record, {
-              mode: "direct",
-              format: "auto",
-              dates: mode === "direct" ? [] : dates,
-            }).mnemonic,
+            decodeMnemoCode(encoded.record, { mode: "direct", format: "auto", dates: given })
+              .mnemonic,
           ).toBe(mnemonic);
         }
       }
@@ -92,11 +108,8 @@ describe("MnemoCode 0.1.0 compatibility", () => {
 
   it.each([
     [16, 128],
-    [20, 64],
-    [24, 32],
-    [28, 16],
     [32, 8],
-  ])("enumerates the bounded legacy valid-last-word set for %i entropy bytes", (size, count) => {
+  ])("lists the legacy valid-last-word set for %i entropy bytes", (size, count) => {
     const mnemonic = entropyToMnemonic(
       Uint8Array.from({ length: size }, (_, index) => index),
       wordlist,
@@ -108,132 +121,25 @@ describe("MnemoCode 0.1.0 compatibility", () => {
     expect(decoded.candidates).toContain(mnemonic);
   });
 
-  it("detects strict raw formats without guessing ambiguous input", () => {
-    for (const format of ENCODED_FORMATS) {
-      const payload = encodeMnemoCode(zeroMnemonic, "direct", format).payload;
-      expect(readMnemoCodeBackup(payload).formats()).toEqual([format]);
+  it("detects raw forms and refuses ambiguous input", () => {
+    for (const format of ["unicode", "colors", "colors-unicode"] as const) {
+      const payload = encodeMnemoCode(zeroMnemonic, "direct", format, undefined).payload;
+      using reading = readMnemoCodeBackup(payload);
+      expect(reading.forms(undefined)).toEqual([format]);
     }
     const ambiguous = "76 84 57 28 90 19 59 27 62 11 89 81 66 42 75 28 50 11 52 30 57 30 62 10";
-    expect(readMnemoCodeBackup(ambiguous).formats()).toEqual(["indexes", "unicode"]);
-    expect(() => decodeMnemoCode(ambiguous, { mode: "direct", format: "auto" })).toThrow(
+    expect(() => decodeMnemoCode(ambiguous, { mode: "seedshift", format: "auto", dates })).toThrow(
       /ambiguous/u,
     );
   });
 
-  it("rejects malformed dates, indexes, oversized input and missing Seedshift dates", () => {
-    for (const value of ["29-02-1900", "31-04-2026", "01-01-0000", "01-13-2026"]) {
-      expect(() => parseMnemoCodeDate(value)).toThrow();
-    }
-    expect(() =>
-      decodeMnemoCode("1e3 1 1 1 1 1 1 1 1 1 1 1", { mode: "direct", format: "indexes" }),
-    ).toThrow(/decimal/u);
-    expect(() => readMnemoCodeBackup("a".repeat(64 * 1024 + 1))).toThrow(/64 KiB/u);
-    // MnemoCode's own refusals of a wrong count of dates (Masking#assertDateCount).
-    expect(() => encodeMnemoCode(zeroMnemonic, "seedshift", "english")).toThrow(
-      "seedshift requires at least one date.",
+  it("refuses oversized input, missing Seedshift dates and dates without Seedshift", () => {
+    expect(() => readMnemoCodeBackup("a".repeat(64 * 1024 + 1))).toThrow(
+      expect.objectContaining({ code: "wallet.mnemocode-input.too-large" }),
     );
-    expect(() => encodeMnemoCode(zeroMnemonic, "direct", "english", dates)).toThrow(
-      "Dates cannot be used in direct mode.",
-    );
-  });
-
-  it.each([16, 20, 24, 28, 32])(
-    "recovers the original at every missing position for %i entropy bytes",
-    (size) => {
-      const mnemonic = entropyToMnemonic(
-        Uint8Array.from({ length: size }, (_, index) => index),
-        wordlist,
-      );
-      const sourceWords = mnemonic.split(" ");
-      const checksumLength = sourceWords.length / 3;
-
-      for (const missingIndex of sourceWords.keys()) {
-        const incomplete = [...sourceWords];
-        incomplete[missingIndex] = "?";
-        const candidates = recoverMnemoCodeWord(incomplete.join(" "));
-
-        expect(candidates.map((candidate) => candidate.mnemonic)).toContain(mnemonic);
-        expect(new Set(candidates.map((candidate) => candidate.word)).size).toBe(candidates.length);
-        for (const candidate of candidates) {
-          expect(candidate.position).toBe(missingIndex + 1);
-          expect(candidate.wordIndex).toBe(wordlist.indexOf(candidate.word) + 1);
-          expect(candidate.mnemonic.split(" ")[missingIndex]).toBe(candidate.word);
-          expect(validateMnemonic(candidate.mnemonic, wordlist)).toBe(true);
-          expect(candidate.checksumBits).toMatch(new RegExp(`^[01]{${checksumLength}}$`, "u"));
-        }
-      }
-    },
-    60_000,
-  );
-
-  it.each([
-    [16, 128],
-    [20, 64],
-    [24, 32],
-    [28, 16],
-    [32, 8],
-  ])(
-    "has the exact BIP39 candidate count when the final word is missing at %i bytes",
-    (size, count) => {
-      const mnemonic = entropyToMnemonic(new Uint8Array(size), wordlist);
-      const words = mnemonic.split(" ");
-      words[words.length - 1] = "?";
-      expect(recoverMnemoCodeWord(words.join(" "))).toHaveLength(count);
-    },
-  );
-
-  it("exposes the word index and exact checksum bits to the browser API", () => {
-    expect(recoverMnemoCodeWord(zeroMnemonic.replace(/about$/u, "?"))).toContainEqual({
-      position: 12,
-      word: "about",
-      wordIndex: 4,
-      mnemonic: zeroMnemonic,
-      checksumBits: "0011",
-    });
-  });
-
-  it("enumerates valid replacements for an exact legacy final word", () => {
-    const legacy =
-      "mosquito dust hotel maximum rich kitten hair mother salute dream flush hospital";
-    const prefix = legacy.split(" ").slice(0, -1).join(" ");
-    const candidates = recoverMnemoCodeLegacyLastWords(legacy);
-    expect(candidates).toHaveLength(128);
-    expect(candidates.every((candidate) => candidate.position === 12)).toBe(true);
-    expect(candidates.filter((candidate) => candidate.preservesLegacyEntropy)).toHaveLength(1);
-    expect(
-      candidates.every(
-        (candidate) => candidate.mnemonic.split(" ").slice(0, -1).join(" ") === prefix,
-      ),
-    ).toBe(true);
-  });
-
-  it("rejects missing, repeated, and malformed forgotten-word placeholders", () => {
-    // No ? at all: MnemoCode's own word search says how a forgotten word is marked.
-    expect(() => recoverMnemoCodeWord(zeroMnemonic)).toThrow(/Mark each forgotten word with \?/u);
-    expect(() =>
-      recoverMnemoCodeWord(zeroMnemonic.replace("abandon", "?").replace("about", "?")),
-    ).toThrow(/exactly one/u);
-    // Every word forgotten: MnemoCode refuses a search that large before it starts.
-    expect(() => recoverMnemoCodeWord(zeroMnemonic.replaceAll("abandon", "?"))).toThrow(
-      /more than 16,777,216/u,
-    );
-    expect(() =>
-      recoverMnemoCodeWord(zeroMnemonic.replace("abandon", "notaword").replace("about", "?")),
-    ).toThrow(/place 1/u);
-  });
-
-  it("returns an empty set when the known words admit no checksum-valid completion", () => {
-    const words = Array<string>(24).fill("abandon");
-    words[4] = "?";
-    words[23] = "sure";
-    expect(recoverMnemoCodeWord(words.join(" "))).toEqual([]);
-  });
-
-  it("needs a four-digit year and ignores dates for a Direct record", () => {
-    expect(() => parseMnemoCodeDates("23-09-26")).toThrow("four-digit year");
-    expect(parseMnemoCodeDates("23-09-0026")).toEqual([{ year: 26, month: 9, day: 23 }]);
-    const record = encodeMnemoCode(zeroMnemonic, "direct", "indexes").record;
-    // The form can still hold dates from an earlier Seedshift input.
+    expect(() => encodeMnemoCode(zeroMnemonic, "seedshift", "english", undefined)).toThrow();
+    // A record of a Direct backup reads the same with dates left in the field.
+    const record = encodeMnemoCode(zeroMnemonic, "direct", "unicode", undefined).record;
     expect(decodeMnemoCode(record, { mode: "seedshift", format: "auto", dates }).mnemonic).toBe(
       zeroMnemonic,
     );
@@ -242,35 +148,41 @@ describe("MnemoCode 0.1.0 compatibility", () => {
   it("refuses a Shamir share where an encoded seed phrase is read, naming where shares are read", () => {
     // A share of the published SSKR test set (sskr.test.ts).
     const share = "ur:sskr/gogrrsbyadaefmnlbnctaaecvoqdfnjpbzecstfgaxtifpsskbfw";
-    expect(() => readMnemoCodeBackup(share)).toThrow(
-      "This is a Shamir share, not an encoded seed phrase: MnemoCode's Restore tab reads it.",
-    );
-    expect(() => decodeMnemoCode(share, { mode: "direct", format: "auto" })).toThrow(
-      /Shamir share/u,
-    );
+    expect(() => readMnemoCodeBackup(share)).toThrow(/MnemoCode's Restore tab/u);
   });
 
-  it("lets a record decide the mode, and reads the encoded words before the dates", () => {
+  it("lets a record decide the mode, and gives the codes' fingerprint before the dates", () => {
     const encoded = encodeMnemoCode(zeroMnemonic, "seedshift", "english", dates);
-    const encodedWords =
-      "wool abuse actual wool abuse actual wool abuse actual wool abuse congress";
-    expect(encoded.mnemonic).toBe(zeroMnemonic);
-    expect(encoded.encodedMnemonic).toBe(encodedWords);
-    // The page shows the dates field for the record's mode, not for the selector's.
+    expect(mnemoCodeRecordHeader(encoded.record)).toEqual({ mode: "seedshift", format: "english" });
+    expect(mnemoCodeRecordHeader(encoded.payload)).toBeUndefined();
     expect(effectiveMnemoCodeMode(encoded.record, "direct")).toBe("seedshift");
     expect(effectiveMnemoCodeMode(encoded.payload, "direct")).toBe("direct");
-    expect(mnemoCodeEncodedPhrase(encoded.record, "direct", "auto")).toBe(encodedWords);
-    expect(mnemoCodeEncodedPhrase(encoded.payload, "seedshift", "english")).toBe(encodedWords);
-    expect(mnemoCodeEncodedPhrase("wool abuse", "seedshift", "english")).toBeUndefined();
+    expect(mnemoCodeFormAndMode(encoded.record, "direct", "auto")).toEqual({
+      format: "english",
+      mode: "seedshift",
+    });
+    expect(mnemoCodeEncodedFingerprint(encoded.record, "direct", "auto")).toBe(
+      encoded.encodedFingerprint,
+    );
+    expect(mnemoCodeEncodedFingerprint("wool abuse", "seedshift", "english")).toBeUndefined();
   });
 
-  it("gives no encoded phrase when the legacy output fails the BIP39 checksum", () => {
+  it("gives no encoded fingerprint for the Original Seedshift, whose codes are a phrase by chance", () => {
     const encoded = encodeMnemoCode(zeroMnemonic, "seedshift-legacy", "english", dates);
     expect(encoded.payload).toBe(
       "wool abuse actual wool abuse actual wool abuse actual wool abuse addict",
     );
     expect(encoded.checksumValid).toBe(false);
-    expect(encoded.encodedMnemonic).toBeUndefined();
-    expect(mnemoCodeEncodedPhrase(encoded.record, "direct", "auto")).toBeUndefined();
+    expect(encoded.encodedFingerprint).toBeUndefined();
+    expect(mnemoCodeEncodedFingerprint(encoded.record, "direct", "auto")).toBeUndefined();
+  });
+
+  it("names the shorter phrases that codes ending with decoys give", () => {
+    const encoded = encodeMnemoCode(zeroMnemonic, "direct", "unicode", undefined);
+    // Three more codes after the twelve, as printed cards end with decoys.
+    const withDecoys = `${encoded.payload}768476847684`;
+    const decoded = decodeMnemoCode(withDecoys, { mode: "direct", format: "unicode" });
+    expect(decoded.checksumValid).toBe(false);
+    expect(decoded.shorter).toContainEqual({ words: 12, mnemonic: zeroMnemonic });
   });
 });

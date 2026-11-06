@@ -10,30 +10,25 @@ import {
   type WorkerStopped,
 } from "../workers/mnemocode-worker-protocol.js";
 import { JobClock, formatDuration } from "./recovery-progress.js";
+import { SecretValue } from "@ckd/core/secret-value.js";
 
 /** What the status line says of an outcome, a result or an error, that was dropped. */
 const DROPPED = "The inputs changed while the job ran, so its result was dropped.";
 
-/**
- * The candidate list of a dropped outcome is wiped, as a saved one is: a plain list holds seed
- * phrases. Searches and restores carry it as `list.bytes` (mnemocode-search.ts); other outcomes
- * have none.
- */
-function wipeList(outcome: unknown): void {
-  const list = (outcome as { readonly list?: { readonly bytes?: unknown } } | undefined)?.list;
-  if (list?.bytes instanceof Uint8Array) list.bytes.fill(0);
-}
-
-export class MnemoCodeWorkerJob<Request, Outcome> {
+/** Owns confirmation bytes, the current native job and its Cancel/status presentation together. */
+export class MnemoCodeWorkerJob<Request, Outcome> implements Disposable {
   readonly #source: string;
   readonly #button: HTMLButtonElement;
   readonly #cancel: HTMLButtonElement;
   readonly #status: HTMLElement;
   readonly #label: string;
   /** The inputs a long search was confirmed for; any change asks again. */
-  #confirmedFor: string | undefined;
+  #confirmedFor: SecretValue<string> | undefined;
   /** Counts the changes of the inputs; a job that sees it move drops its result. */
   #revision = 0;
+  #runRevision = 0;
+  #cancelledRun: number | undefined;
+  #active: MnemoCodeWorker<Request, Outcome> | undefined;
 
   /** `source` is the text of the worker script that the build embeds. */
   constructor(
@@ -49,11 +44,40 @@ export class MnemoCodeWorkerJob<Request, Outcome> {
     this.#cancel = elements.cancel;
     this.#status = elements.status;
     this.#label = elements.button.textContent?.trim() ?? "";
+    this.#cancel.addEventListener("click", () => {
+      this.#forgetConfirmation();
+      this.#cancelledRun = this.#runRevision;
+      const worker = this.#active;
+      this.#active = undefined;
+      try {
+        worker?.terminate();
+      } finally {
+        this.#cancel.hidden = true;
+        this.#status.textContent = JOB_STOPPED;
+      }
+    });
+    this.#button.ownerDocument
+      .querySelector("#clear-all")
+      ?.addEventListener("click", () => this.wipe());
+    this.#button.ownerDocument.defaultView?.addEventListener("pagehide", () => this.wipe());
   }
 
   /** The inputs changed: a running job drops its result, and a confirmation is forgotten. */
   revise(): void {
     this.#revision += 1;
+    this.#cancelledRun = undefined;
+    this.#forgetConfirmation();
+    const worker = this.#active;
+    this.#active = undefined;
+    try {
+      worker?.terminate();
+    } finally {
+      this.#cancel.hidden = true;
+    }
+  }
+
+  #forgetConfirmation(): void {
+    this.#confirmedFor?.wipe();
     this.#confirmedFor = undefined;
     this.#button.textContent = this.#label;
   }
@@ -67,12 +91,13 @@ export class MnemoCodeWorkerJob<Request, Outcome> {
 
   /** Whether the person agreed to the long search of exactly these inputs. */
   confirmed(inputs: string): boolean {
-    return this.#confirmedFor === inputs;
+    return this.#confirmedFor?.value === inputs;
   }
 
   /** After a question: the next press of the button starts the search announced. */
   ask(question: string, inputs: string): void {
-    this.#confirmedFor = inputs;
+    this.#forgetConfirmation();
+    this.#confirmedFor = SecretValue.text(inputs);
     this.#button.textContent = "Search anyway";
     this.#status.textContent = `${question} Press Search anyway to start it.`;
   }
@@ -88,23 +113,36 @@ export class MnemoCodeWorkerJob<Request, Outcome> {
   ): Promise<
     { readonly outcome: Exclude<Outcome, WorkerStopped>; readonly elapsed: string } | undefined
   > {
+    const runRevision = ++this.#runRevision;
+    this.#cancelledRun = undefined;
+    const previous = this.#active;
+    this.#active = undefined;
+    previous?.terminate();
     const revision = this.#revision;
     // Progress, a result and an error all belong to the inputs the job started with: after an
     // edit the status line says only that the job's outcome was dropped (AUD-024-API003).
-    const current = (): boolean => revision === this.#revision;
-    const worker = new MnemoCodeWorker<Request, Outcome>(this.#source);
-    const clock = new JobClock();
-    this.#cancel.hidden = false;
-    this.#cancel.onclick = () => worker.terminate();
-    this.#status.textContent = startLine;
+    const current = (): boolean =>
+      revision === this.#revision &&
+      runRevision === this.#runRevision &&
+      this.#cancelledRun !== runRevision;
+    const dropped = (): void => {
+      if (runRevision === this.#runRevision)
+        this.#status.textContent = this.#cancelledRun === runRevision ? JOB_STOPPED : DROPPED;
+    };
+    let worker: MnemoCodeWorker<Request, Outcome> | undefined;
     try {
+      worker = new MnemoCodeWorker<Request, Outcome>(this.#source);
+      this.#active = worker;
+      const clock = new JobClock();
+      this.#cancel.hidden = false;
+      this.#status.textContent = startLine;
       const outcome = await worker.run(request, (progress) => {
         if (!current()) return;
         this.#status.textContent = progressLine(progress, formatDuration(clock.elapsed()));
       });
       if (!current()) {
-        wipeList(outcome);
-        this.#status.textContent = DROPPED;
+        MnemoCodeWorkerProtocol.discard(outcome);
+        dropped();
         return undefined;
       }
       const completed = MnemoCodeWorkerProtocol.completed<Outcome>(outcome);
@@ -115,14 +153,27 @@ export class MnemoCodeWorkerJob<Request, Outcome> {
       return { outcome: completed, elapsed: formatDuration(clock.elapsed()) };
     } catch (cause) {
       if (!current()) {
-        this.#status.textContent = DROPPED;
+        dropped();
         return undefined;
       }
       throw cause;
     } finally {
-      worker.terminate();
-      this.#cancel.hidden = true;
-      this.#cancel.onclick = null;
+      try {
+        worker?.terminate();
+      } finally {
+        if (runRevision === this.#runRevision && this.#active === worker) {
+          this.#active = undefined;
+          this.#cancel.hidden = true;
+        }
+      }
     }
+  }
+  /** Ends confirmation and pending native work; a late result cannot be published. */
+  wipe(): void {
+    this.revise();
+  }
+  /** Ends this tab operation's lifetime. */
+  [Symbol.dispose](): void {
+    this.wipe();
   }
 }

@@ -1,9 +1,7 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
-import {
-  HeirInstructions,
-  type HeirSheetFacts,
-} from "../../../packages/recovery-mnemocode/source/export/heir-sheet-text.js";
+import { beforeAll, describe, expect, it } from "vitest";
+import { loadMnemoCode } from "@ckd/recovery-backup/mnemocode-module.js";
+import { MnemoCodeHeirSheets, type HeirSheetFacts } from "@ckd/recovery-backup/mnemocode-heirs.js";
 import {
   DECODE_WORDS_QUESTION,
   deriverHeirRoute,
@@ -40,8 +38,19 @@ const ENGLISH_DIRECT: HeirSheetFacts = {
   dates: 0,
 };
 
-function sheetText(build: HeirRouteBuild, facts: HeirSheetFacts) {
-  const text = new HeirInstructions(deriverHeirRoute(build)).text(facts);
+beforeAll(async () => {
+  await loadMnemoCode();
+});
+
+// The sheet's words are MnemoCode's and its PDF draws them in a subset font; the Deriver owns the
+// route that the sheet prints.
+function routeText(build: HeirRouteBuild, facts: HeirSheetFacts) {
+  const route = deriverHeirRoute(build);
+  const steps =
+    facts.backup.kind === "encoded"
+      ? route.decode(facts.mode, facts.backup.words)
+      : route.restore(facts.mode === "seedshift" ? "seedshift" : "direct", facts.backup.threshold);
+  const text = { subtitle: route.subtitle, steps: [...route.start, ...steps] };
   return { ...text, all: JSON.stringify(text) };
 }
 
@@ -51,7 +60,7 @@ describe("MnemoCode heir sheet route through the Deriver", () => {
     ["Shamir shares", SHARES],
   ] as const) {
     it(`sends heirs of ${name} to the Dash release repository from the Dash edition`, () => {
-      const text = sheetText(DASH, facts);
+      const text = routeText(DASH, facts);
       expect(text.steps.join("\n")).toContain("find hobby-eng/dash-wallet-tools on GitHub");
       expect(text.steps.join("\n")).toContain("of the Dash Community Edition from its Releases");
       expect(text.subtitle).toContain("Dash Community Edition");
@@ -59,7 +68,7 @@ describe("MnemoCode heir sheet route through the Deriver", () => {
     });
 
     it(`sends heirs of ${name} to the Multi-Chain release repository from that edition`, () => {
-      const text = sheetText(MULTI_CHAIN, facts);
+      const text = routeText(MULTI_CHAIN, facts);
       expect(text.steps.join("\n")).toContain("find hobby-eng/multi-chain-wallet-tools on GitHub");
       expect(text.steps.join("\n")).toContain("of the Multi-Chain Edition from its Releases");
       expect(text.subtitle).toContain("Multi-Chain Edition");
@@ -67,16 +76,26 @@ describe("MnemoCode heir sheet route through the Deriver", () => {
     });
   }
 
-  it("names no repository when the backup needs no program", () => {
-    for (const build of [MULTI_CHAIN, DASH]) {
-      const steps = sheetText(build, ENGLISH_DIRECT).steps.join("\n");
-      expect(steps).not.toContain(MULTI_CHAIN.releaseRepository);
-      expect(steps).not.toContain(DASH.releaseRepository);
+  it("leaves the place of the dates to MnemoCode", () => {
+    const route = deriverHeirRoute(MULTI_CHAIN);
+    expect(route.decode("seedshift", 24).join("\n")).toContain("{dates}");
+    expect(route.restore("direct", 2).join("\n")).toContain("{dates}");
+    expect(route.address).toBe(MULTI_CHAIN.releaseRepository);
+  });
+
+  it("is taken by MnemoCode for every kind of backup, in both sizes", () => {
+    const sheets = new MnemoCodeHeirSheets(deriverHeirRoute(DASH));
+    for (const facts of [ENCODED, SHARES, ENGLISH_DIRECT]) {
+      for (const size of ["a5", "a6"] as const) {
+        const { fileName, bytes } = sheets.render(facts, size);
+        expect(fileName).toBe("mnemocode-heirs.pdf");
+        expect(new TextDecoder().decode(bytes.subarray(0, 5))).toBe("%PDF-");
+      }
     }
   });
 
   it("tells heirs the word count, by the question the Decode tab asks", () => {
-    const steps = sheetText(MULTI_CHAIN, ENCODED).steps.join("\n");
+    const steps = routeText(MULTI_CHAIN, ENCODED).steps.join("\n");
     expect(steps).toContain(`"${DECODE_WORDS_QUESTION}" choose "24 words"`);
     const page = readFileSync(new URL("../src/index.html", import.meta.url), "utf8");
     expect(page).toContain(`<label for="mnemocode-decode-words">${DECODE_WORDS_QUESTION}</label>`);

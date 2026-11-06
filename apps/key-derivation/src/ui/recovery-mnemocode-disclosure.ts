@@ -3,8 +3,7 @@ import {
   type MnemoCodeCopy,
   type OriginalCopyChoice,
 } from "@ckd/recovery-backup/mnemocode-disclosure.js";
-import { Masking } from "../../../../packages/recovery-mnemocode/source/core/masking.js";
-import type { MaskingMode } from "../../../../packages/recovery-mnemocode/source/core/types.js";
+import { Masking, type MaskingMode } from "@ckd/recovery-backup/mnemocode-facts.js";
 import { paragraph, required, renderSensitiveShares } from "./recovery-workspace-shared.js";
 
 /** Shared display fields and concealed copy rendering for ordinary Encode and Encode + SSKR. */

@@ -1,32 +1,28 @@
-// How MnemoCode recognises the wallet among the candidates of a search, as its command line asks:
-// the master fingerprint, a Bitcoin address, another key of the wallet (a master or account
-// extended public key, a compressed public key, or a WIF, which can spend the funds), an address
-// of another coin, or nothing. An address, a public key or a WIF is compared at its place and among
-// as many addresses from there as the person says (20 by default, MnemoCode's). The Dash Community
-// Edition offers the fingerprint and a Dash address, an edition with neither coin the fingerprint
-// only: the build removes the other fields and gives it the matching recognition
-// (mnemocode-wallet.ts). The evidence is checked by MnemoCode's rules before the search starts.
+// How MnemoCode recognises the wallet among the candidates of a search, as its menu asks: the
+// master fingerprint, an address of any coin, which names its coin, another key of the wallet (a
+// master or account extended public key, a compressed public key, or a WIF, which can spend the
+// funds), or nothing. An address, a public key or a WIF is compared at its place and among as many
+// addresses from there as the person says (20 by default, MnemoCode's). The Dash Community Edition
+// offers the fingerprint and a Dash address: the build removes the key fields and gives it its own
+// coins (mnemocode-wallet.ts). The evidence is checked by MnemoCode's rules before the search
+// starts.
 import {
+  ADDRESS_SCAN,
+  MAX_LIST_PASSPHRASE_BYTES,
+  addressCoinNames,
+  addressOf,
   defaultAddressCount,
-  parseAddressCount,
-  parsePlaceNumber,
-  DEFAULT_ADDRESS_COUNT,
-  MAX_ADDRESS_COUNT,
-  ADDRESS_COUNT_RANGE,
-  LAST_NORMAL_INDEX,
-} from "../../../../packages/recovery-mnemocode/source/core/address-scan.js";
-import { MAX_PASSPHRASE_BYTES } from "../../../../packages/recovery-mnemocode/source/core/candidate-list.js";
-import type { AddressLocation } from "../../../../packages/recovery-mnemocode/source/core/coins/coin.js";
-import type {
-  BitcoinNetworkName,
-  BitcoinProfile,
-  DerivationLocation,
-} from "../../../../packages/recovery-mnemocode/source/core/wallet-evidence.js";
-import type {
-  WalletEvidence,
-  WalletEvidenceRequest,
+  isPlacedKind,
+  offeredCoins,
+  walletEvidenceOf,
+  type AddressLocation,
+  type BitcoinNetworkName,
+  type DerivationLocation,
+  type OfferedCoin,
+  type WalletEvidence,
+  type WalletEvidenceRequest,
 } from "@ckd/recovery-backup/mnemocode-wallet.js";
-import { MnemoCodeWalletRecognition } from "@ckd/recovery-backup/mnemocode-wallet-bitcoin.js";
+import { mnemocode, whenMnemoCodeLoaded } from "@ckd/recovery-backup/mnemocode-engine.js";
 import { LiteralSecretField } from "@ckd/ui/literal-secret-field.js";
 import { installTextFileImport } from "@ckd/ui/text-file-import.js";
 import { installSecretToggle, PHRASE_FILE_IMPORT, required } from "./recovery-workspace-shared.js";
@@ -34,10 +30,15 @@ import { installSecretToggle, PHRASE_FILE_IMPORT, required } from "./recovery-wo
 /** The network named with a master fingerprint, which is the same on every network. */
 const MASTER_FINGERPRINT_NETWORK: BitcoinNetworkName = "mainnet";
 
-type EvidenceChoice = "fingerprint" | "address" | "key" | "coin" | "none";
-/** How many coins the note of "Address of another coin" names, as MnemoCode's menu does. */
+type EvidenceChoice = "fingerprint" | "address" | "key" | "none";
+/** How many coins the note of "Address" names, as MnemoCode's menu does. */
 const NAMED_COINS = 3;
 type KeyKind = "master-xpub" | "account-xpub" | "compressed-public-key" | "wif";
+
+/** A typed whole number, or NaN for other text, which MnemoCode refuses in its own words. */
+function wholeNumber(text: string): number {
+  return /^\d+$/u.test(text) ? Number(text) : Number.NaN;
+}
 
 export class WalletEvidenceField {
   readonly #prefix: string;
@@ -45,8 +46,8 @@ export class WalletEvidenceField {
   readonly #keyKind: HTMLSelectElement | null;
   readonly #key: HTMLInputElement | null;
   readonly #passphrase: LiteralSecretField;
-  /** The coin of "Address of another coin", absent from a build that offers no other coin. */
-  readonly #coin: HTMLSelectElement | null;
+  /** The address field; a test page may leave it out. */
+  readonly #address: HTMLInputElement | null;
   /** Shows the passphrase also when a candidate list needs it without a wallet check. */
   #listWanted = false;
   #defaultAddresses = true;
@@ -55,8 +56,11 @@ export class WalletEvidenceField {
   constructor(prefix: string) {
     this.#prefix = prefix;
     this.#installLimits();
-    this.#coin = document.querySelector<HTMLSelectElement>(`#${prefix}-wallet-coin`);
-    this.#offerCoins();
+    this.#address = document.querySelector<HTMLInputElement>(`#${prefix}-wallet-address`);
+    whenMnemoCodeLoaded((binding) => this.#offerCoins(offeredCoins(binding)));
+    // The coins MnemoCode reads the address as are named while it is typed, as its summary names them.
+    for (const type of ["input", "change"])
+      this.#address?.addEventListener(type, () => this.#showAddressCoins());
     this.#keyKind = document.querySelector<HTMLSelectElement>(`#${prefix}-wallet-key-kind`);
     this.#key = document.querySelector<HTMLInputElement>(`#${prefix}-wallet-key`);
     const passphrase = required<HTMLTextAreaElement>(`#${prefix}-wallet-passphrase`);
@@ -95,13 +99,14 @@ export class WalletEvidenceField {
     for (const name of ["account", "branch", "index"]) {
       document
         .querySelector<HTMLInputElement>(`#${this.#prefix}-wallet-${name}`)
-        ?.setAttribute("max", String(LAST_NORMAL_INDEX));
+        ?.setAttribute("max", String(ADDRESS_SCAN.lastIndex));
     }
     const count = document.querySelector<HTMLInputElement>(`#${this.#prefix}-wallet-addresses`);
     if (count !== null) {
-      count.setAttribute("min", String(ADDRESS_COUNT_RANGE.min));
-      count.setAttribute("max", String(MAX_ADDRESS_COUNT));
-      this.#defaultAddresses = count.value === "" || count.value === String(DEFAULT_ADDRESS_COUNT);
+      count.setAttribute("min", "1");
+      count.setAttribute("max", String(ADDRESS_SCAN.maxCount));
+      this.#defaultAddresses =
+        count.value === "" || count.value === String(ADDRESS_SCAN.defaultCount);
       const updateDefault = (): void => {
         if (!this.#defaultAddresses) return;
         try {
@@ -122,9 +127,9 @@ export class WalletEvidenceField {
     }
     const note = document.querySelector<HTMLElement>(`#${this.#prefix}-wallet-addresses-note`);
     if (note !== null)
-      note.textContent = `${DEFAULT_ADDRESS_COUNT} by default (or the addresses left at the final index), at most ${MAX_ADDRESS_COUNT.toLocaleString("en-US")}, so that a wallet that skipped addresses is found.`;
+      note.textContent = `${ADDRESS_SCAN.defaultCount} by default (or the addresses left at the final index), at most ${ADDRESS_SCAN.maxCount.toLocaleString("en-US")}, so that a wallet that skipped addresses is found.`;
     const limit = document.querySelector<HTMLElement>(`#${this.#prefix}-wallet-passphrase-limit`);
-    if (limit !== null) limit.textContent = String(MAX_PASSPHRASE_BYTES);
+    if (limit !== null) limit.textContent = String(MAX_LIST_PASSPHRASE_BYTES);
   }
 
   /** The person's choice; undefined until one is made, since none is preselected. */
@@ -157,8 +162,26 @@ export class WalletEvidenceField {
   request(): WalletEvidenceRequest | undefined {
     const evidence = this.#evidence();
     if (evidence === undefined) return undefined;
-    MnemoCodeWalletRecognition.assertEvidence(evidence);
+    // MnemoCode checks the evidence as it is made, so wrong evidence is refused before a search.
+    walletEvidenceOf(mnemocode(), evidence).free();
     return { evidence, passphrase: this.#passphrase.read() };
+  }
+
+  /**
+   * The kind of evidence that the choice gives, as MnemoCode names it, with `keyKind` the kind of
+   * key chosen; none before a choice.
+   */
+  #evidenceKind(keyKind: KeyKind | undefined): WalletEvidence["kind"] | undefined {
+    switch (this.choice) {
+      case "fingerprint":
+        return "master-fingerprint";
+      case "address":
+        return "address";
+      case "key":
+        return keyKind;
+      default:
+        return undefined;
+    }
   }
 
   #evidence(): WalletEvidence | undefined {
@@ -174,23 +197,11 @@ export class WalletEvidenceField {
         return {
           kind: "address",
           value: this.#value("address"),
-          profiles: this.#profiles(),
-          location: this.#location(this.#network()),
+          location: this.#place(),
           addresses: this.#addresses(),
         };
       case "key":
         return this.#keyEvidence(this.#network());
-      case "coin":
-        return {
-          kind: "coin-address",
-          coin: (this.#coin?.value ?? "") as Extract<
-            WalletEvidence,
-            { kind: "coin-address" }
-          >["coin"],
-          value: this.#value("coin-address"),
-          location: this.#place(),
-          addresses: this.#addresses(),
-        };
       case "none":
         return undefined;
       default:
@@ -204,39 +215,50 @@ export class WalletEvidenceField {
     const value = this.#key.value.trim();
     const kind = this.#keyKind.value as KeyKind;
     if (kind === "master-xpub") return { kind, value, network };
-    const located = { value, profiles: this.#profiles(), location: this.#location(network) };
+    const located = { value, location: this.#location(network) };
     // An account xpub is compared at its account; a public key or a WIF among the addresses.
     if (kind === "account-xpub") return { kind, ...located };
     return { kind, ...located, addresses: this.#addresses() };
   }
 
-  /** The coins of this edition in the coin choice, and the row's words for them. */
-  #offerCoins(): void {
-    const coins = MnemoCodeWalletRecognition.COINS;
-    if (this.#coin === null || coins.length === 0) return;
-    this.#coin.replaceChildren(
-      ...coins.map((coin) => {
-        const option = document.createElement("option");
-        option.value = coin.id;
-        option.textContent = `${coin.name} · ${coin.addressForms}`;
-        return option;
-      }),
-    );
-    const label = required<HTMLElement>(`#${this.#prefix}-wallet-coin-label`);
-    const note = required<HTMLElement>(`#${this.#prefix}-wallet-coin-note`);
+  /** The words of the address row for the coins of this edition. */
+  #offerCoins(coins: readonly OfferedCoin[]): void {
+    if (this.#address === null || coins.length === 0) return;
+    const label = required<HTMLElement>(`#${this.#prefix}-wallet-address-label`);
+    const note = required<HTMLElement>(`#${this.#prefix}-wallet-address-note`);
     // One coin, as in the Dash Community Edition, is named itself; several as MnemoCode's menu does.
     if (coins.length === 1) {
       label.textContent = `${coins[0]!.name} address`;
       note.textContent = coins[0]!.addressForms;
-      this.#coin.closest<HTMLElement>("label")!.hidden = true;
+      this.#address.placeholder = coins[0]!.addressForms;
       return;
     }
     const named = coins.slice(0, NAMED_COINS).map((coin) => coin.name);
     const more = coins.length - named.length;
-    note.textContent = more > 0 ? `${named.join(", ")} and ${more} more` : named.join(" or ");
+    const coinNames = more > 0 ? `${named.join(", ")} and ${more} more` : named.join(" or ");
+    note.textContent = `${coinNames}; the coin is read from the address`;
   }
 
-  /** The place of a coin address: account, branch and index, without a network or address type. */
+  /** Which coins MnemoCode reads the address typed as; nothing until one reads it. */
+  #showAddressCoins(): void {
+    const note = required<HTMLElement>(`#${this.#prefix}-wallet-address-coins`);
+    const address = this.#address?.value.trim() ?? "";
+    let names: readonly string[] = [];
+    try {
+      if (address !== "") names = addressCoinNames(mnemocode(), address);
+    } catch {
+      // Before MnemoCode is loaded nothing is named; the check refuses the address in its words.
+    }
+    note.textContent =
+      names.length === 0
+        ? ""
+        : names.length === 1
+          ? `Read as ${addressOf(names)}.`
+          : `Read as ${addressOf(names)}: each is looked for on its own paths.`;
+    note.hidden = names.length === 0;
+  }
+
+  /** The place of an address: account, branch and index, without a network or address type. */
   #place(): AddressLocation {
     return {
       account: this.#number("account"),
@@ -251,30 +273,16 @@ export class WalletEvidenceField {
    */
   #addresses(): number {
     const typed = this.#value("addresses");
-    const first = this.#number("index");
-    return typed === "" ? defaultAddressCount(first) : parseAddressCount(typed, first);
-  }
-
-  /**
-   * The address types ticked, as the command line's --bitcoin-profile list; none ticked tries the
-   * four single-key profiles, as its auto does.
-   */
-  #profiles(): readonly BitcoinProfile[] {
-    const ticked = MnemoCodeWalletRecognition.PROFILES.filter(
-      (profile) =>
-        document.querySelector<HTMLInputElement>(`#${this.#prefix}-wallet-profile-${profile}`)
-          ?.checked === true,
-    );
-    return (ticked.length === 0 ? MnemoCodeWalletRecognition.PROFILES : ticked) as BitcoinProfile[];
+    return typed === "" ? defaultAddressCount(this.#number("index")) : wholeNumber(typed);
   }
 
   #location(network: BitcoinNetworkName): DerivationLocation {
     return { network, ...this.#place() };
   }
 
-  /** An account, branch or index, read as MnemoCode's questions read it. */
+  /** An account, branch or index; MnemoCode refuses one that is no whole number in its range. */
   #number(name: string): number {
-    return parsePlaceNumber(this.#value(name));
+    return wholeNumber(this.#value(name));
   }
 
   /** The network chosen; MnemoCode refuses one it does not compare on (assertWalletEvidence). */
@@ -303,16 +311,13 @@ export class WalletEvidenceField {
     field("fingerprint", choice === "fingerprint");
     field("address", choice === "address");
     field("key", choice === "key");
-    field("coin", choice === "coin");
-    const located =
-      choice === "address" || choice === "coin" || (choice === "key" && kind !== "master-xpub");
+    // Where the evidence sits at a place of an account, as MnemoCode tells the kinds apart.
+    const evidenceKind = this.#evidenceKind(kind);
+    const located = evidenceKind !== undefined && isPlacedKind(evidenceKind);
     field("location", located);
-    // A coin address names its own type and network; Bitcoin's address and keys are told them.
-    const profile = document.querySelector<HTMLElement>(`#${this.#prefix}-wallet-profile-row`);
-    if (profile !== null) profile.hidden = !(choice === "address" || choice === "key");
     field("addresses", located && !(choice === "key" && kind === "account-xpub"));
-    // A master fingerprint is the same on every network.
-    field("network", choice === "address" || choice === "key");
+    // An address names its own network, and a master fingerprint is the same on every network.
+    field("network", choice === "key");
     field("passphrase", (choice !== undefined && choice !== "none") || this.#listWanted);
     // A WIF is a private key: it is typed concealed, with the command line's warning.
     if (this.#key === null) return;

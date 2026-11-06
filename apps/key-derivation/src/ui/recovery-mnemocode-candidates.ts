@@ -1,8 +1,10 @@
+import { RenderedSecrets } from "./secrets.js";
 // What a MnemoCode search found: a summary in the command line's words, a table of the candidates
 // (number, what was found, the wallet's answer), and the phrase of a candidate the person picks.
 // Phrases are never listed together and never copied in bulk: only one chosen candidate is shown.
 import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
 import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
+import { MNEMOCODE_FINGERPRINT_NOTICE } from "./recovery-mnemocode-help.js";
 import {
   NO_CANDIDATE_TO_SAVE,
   type CandidateListFile,
@@ -105,7 +107,7 @@ export function renderCandidates(
   view: CandidateView,
   context: RecoveryFeatureContext,
 ): void {
-  target.replaceChildren(...summary(outcome, view));
+  RenderedSecrets.replace(target, ...summary(outcome, view));
   if (outcome.shown.length === 0) return renderCandidateListSave(target, outcome.list);
   const chosen = document.createElement("div");
   chosen.className = "mnemocode-chosen-candidate";
@@ -170,11 +172,12 @@ function useButton(
   use.addEventListener("click", () => {
     const heading = document.createElement("h3");
     heading.textContent = `Candidate ${grouped(candidate.number)}`;
-    chosen.replaceChildren(
+    RenderedSecrets.replace(
+      chosen,
       heading,
       paragraph(
         `Fingerprint ${fingerprintWithoutPassphrase(candidate.phrase, context.mnemonicToSeed)} (BIP32 master key ` +
-          "fingerprint for an empty BIP39 passphrase). It does not reveal the phrase.",
+          `fingerprint for an empty BIP39 passphrase). ${MNEMOCODE_FINGERPRINT_NOTICE}`,
         "field-note",
       ),
     );

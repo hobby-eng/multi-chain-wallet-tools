@@ -1,51 +1,45 @@
-// MnemoCode's long searches in a worker of their own, so that the page stays responsive and Cancel
-// stops a search at once: the page terminates this worker, which also frees what it kept. The
-// worker only translates messages; the searches are MnemoCode's (packages/recovery-backup).
+// MnemoCode's long jobs in a worker of their own, so that the page stays responsive and Cancel
+// stops a job at once: the page terminates this worker, which also frees what it kept. The worker
+// instantiates the page's compiled MnemoCode it is given and only translates messages; the
+// searches, restores, repairs and cross-stitch patterns are MnemoCode's (packages/recovery-backup).
+import { instantiateMnemoCode } from "@ckd/recovery-backup/mnemocode-engine.js";
 import { MnemoCodeSearches } from "@ckd/recovery-backup/mnemocode-search.js";
-// The build swaps in the fingerprint-only recognition when Bitcoin is not selected.
-import { MnemoCodeWalletRecognition } from "@ckd/recovery-backup/mnemocode-wallet-bitcoin.js";
-import { MasterFingerprintCheck } from "../../../../packages/recovery-mnemocode/source/core/master-fingerprint.js";
-import { webCryptoPbkdf2 } from "./webcrypto-pbkdf2.js";
-import type { ReEncodingWalletRequest } from "@ckd/recovery-backup/mnemocode-reencoding.js";
+import { MnemoCodeShareJobs } from "@ckd/recovery-backup/mnemocode-shares.js";
+import { makeStitchPattern, type StitchRequest } from "@ckd/recovery-backup/mnemocode-stitch.js";
+import type { MnemoCodeWorkerMessage } from "./mnemocode-worker-client.js";
 import { MnemoCodeWorkerProtocol } from "./mnemocode-worker-protocol.js";
 
-// The adapter owns each input shape; the worker adds only the routing discriminator.
+// The searches own each input shape; the worker adds only the routing discriminator.
 export type MnemoCodeSearchRequest =
-  | ReEncodingWalletRequest
   | ({ readonly type: "words" } & Parameters<MnemoCodeSearches["words"]>[0])
   | ({ readonly type: "dates" } & Parameters<MnemoCodeSearches["dates"]>[0])
-  | ({ readonly type: "missing-codes" } & Parameters<MnemoCodeSearches["missingCodes"]>[0]);
+  | ({ readonly type: "missing-codes" } & Parameters<MnemoCodeSearches["missingCodes"]>[0])
+  | ({ readonly type: "restore" } & Parameters<MnemoCodeShareJobs["restore"]>[0])
+  | ({ readonly type: "repair" } & Parameters<MnemoCodeShareJobs["repair"]>[0])
+  | ({ readonly type: "stitch" } & StitchRequest);
 
-const fingerprints = new MasterFingerprintCheck(webCryptoPbkdf2);
-const recognition = new MnemoCodeWalletRecognition(webCryptoPbkdf2);
-const searches = new MnemoCodeSearches(recognition, (phrase) =>
-  fingerprints.fingerprintAsync(phrase),
-);
-// Cancel terminates the worker; the searches still take a signal, which never fires here.
-const neverAborted = new AbortController().signal;
-
-self.onmessage = async ({ data }: MessageEvent<MnemoCodeSearchRequest>) => {
+self.onmessage = ({ data }: MessageEvent<MnemoCodeWorkerMessage<MnemoCodeSearchRequest>>) => {
   try {
-    if (data.type === "reencoding-wallet") {
-      const match = await recognition.checkFor(data.wallet)(data.mnemonic);
-      // Only the fields of a confirmation cross the worker boundary, never private match state.
-      postMessage({
-        type: "result",
-        outcome: {
-          matched: match.matched,
-          path: match.path,
-          warning: match.warning,
-        },
-      });
+    const binding = instantiateMnemoCode(data.module);
+    const searches = new MnemoCodeSearches(binding);
+    const shares = new MnemoCodeShareJobs(binding);
+    const progress = (value: unknown): void => postMessage({ type: "progress", progress: value });
+    const request = data.request;
+    if (request.type === "stitch") {
+      const pattern = makeStitchPattern(binding, request);
+      postMessage({ type: "result", outcome: pattern }, { transfer: [pattern.pdf.buffer] });
       return;
     }
-    const progress = (value: unknown): void => postMessage({ type: "progress", progress: value });
     const outcome =
-      data.type === "words"
-        ? await searches.words(data, progress, neverAborted)
-        : data.type === "dates"
-          ? await searches.dates(data, progress, neverAborted)
-          : await searches.missingCodes(data, progress, neverAborted);
+      request.type === "words"
+        ? searches.words(request, progress)
+        : request.type === "dates"
+          ? searches.dates(request, progress)
+          : request.type === "missing-codes"
+            ? searches.missingCodes(request, progress)
+            : request.type === "restore"
+              ? shares.restore(request, progress)
+              : shares.repair(request, progress);
     // A question carries no list.
     const transfer =
       "list" in outcome && outcome.list !== undefined ? [outcome.list.bytes.buffer] : [];

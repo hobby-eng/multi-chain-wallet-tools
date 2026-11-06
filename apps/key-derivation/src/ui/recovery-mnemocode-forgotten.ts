@@ -11,12 +11,8 @@ import {
   type SearchProgress,
   type SearchQuestion,
 } from "@ckd/recovery-backup/mnemocode-search.js";
-import { recoverMnemoCodeLegacyLastWords } from "@ckd/recovery-backup/mnemocode.js";
-import { WordCandidateSearch } from "../../../../packages/recovery-mnemocode/source/core/candidates.js";
-import { BackupReading } from "../../../../packages/recovery-mnemocode/source/core/backup-reading.js";
-import { PHRASE_WORDS } from "../../../../packages/recovery-mnemocode/source/core/masking.js";
-import { WordList } from "../../../../packages/recovery-mnemocode/source/core/word-hints.js";
-import { walletNeeded } from "../../../../packages/recovery-mnemocode/source/core/date-search.js";
+import { mnemocode } from "@ckd/recovery-backup/mnemocode-engine.js";
+import { Masking, PHRASE_WORDS } from "@ckd/recovery-backup/mnemocode-facts.js";
 import type { MnemoCodeSearchRequest } from "../workers/mnemocode-search-worker.js";
 import { renderCandidates } from "./recovery-mnemocode-candidates.js";
 import { WalletEvidenceField } from "./recovery-mnemocode-evidence.js";
@@ -93,7 +89,7 @@ export class MnemoCodeForgottenTab {
       file: PHRASE_FILE_IMPORT,
       qr: {},
     });
-    attachMnemoCodeWordHints(this.#phrase, WordList.BIP39);
+    attachMnemoCodeWordHints(this.#phrase, "phrase");
     this.#list.onChange((wanted) => {
       this.#evidence.listWanted = wanted;
     });
@@ -172,34 +168,35 @@ export class MnemoCodeForgottenTab {
     if (forgotten === "date") {
       this.#datesNote.textContent = this.#dates.size() || RESERVED_NOTE_LINE;
       try {
-        this.#evidence.optional = !walletNeeded(this.#dates.mode);
+        this.#evidence.optional = !Masking.of(this.#dates.mode).keepsChecksum;
       } catch {
         this.#evidence.optional = true;
       }
     } else this.#evidence.optional = true;
   }
 
+  /** What MnemoCode says of the words typed: nothing while it reads them, its refusal otherwise. */
   #wordSize(): string {
     const where = this.#chosen<Where>("where");
     if (this.#phrase.value.trim() === "" || where === "legacy") return "";
+    if (this.#codesTyped()) return CODES_NOT_WORDS;
     try {
-      const search = WordCandidateSearch.parse(this.#phrase.value, this.#wordKind());
-      const { count, exact } = search.expected;
-      return `${grouped(search.combinations)} combinations · ${exact ? "" : "about "}${grouped(count)} pass the checksum`;
+      using recovery = mnemocode().Recovery.withoutWallet();
+      using _search = recovery.wordSearch(
+        this.#phrase.value,
+        this.#wordKind() === "missing-word",
+        Number.NaN,
+        0,
+      );
+      return "";
     } catch (cause) {
-      if (BackupReading.isCodes(this.#phrase.value)) return CODES_NOT_WORDS;
       return cause instanceof Error ? cause.message : "";
     }
   }
 
   /** Whether codes were typed in place of the words, which only Decode reads. */
   #codesTyped(): boolean {
-    try {
-      WordCandidateSearch.parse(this.#phrase.value, this.#wordKind());
-      return false;
-    } catch {
-      return BackupReading.isCodes(this.#phrase.value);
-    }
+    return mnemocode().isCodes(this.#phrase.value);
   }
 
   #wordKind(): Exclude<MnemoCodeWordSearchKind, "legacy-replacements"> {
@@ -230,12 +227,22 @@ export class MnemoCodeForgottenTab {
   /** The last-word replacements of an old Original Seedshift phrase: a quick list, no worker. */
   #legacy(): void {
     try {
-      renderMissingWordCandidates(
-        this.#result,
-        recoverMnemoCodeLegacyLastWords(this.#phrase.value),
-        this.#context.writeClipboard,
-        true,
-      );
+      const binding = mnemocode();
+      using replacements = binding.legacyLastWords(this.#phrase.value);
+      const candidates = Array.from({ length: replacements.count }, (_, at) => {
+        const mnemonic = replacements.phrase(at) ?? "";
+        const words = mnemonic.split(" ");
+        const word = words.at(-1) ?? "";
+        using row = binding.wordLookup("word", word);
+        return {
+          position: words.length,
+          word,
+          wordIndex: row.index,
+          mnemonic,
+          preservesLegacyEntropy: replacements.keepsEntropy(at),
+        };
+      });
+      renderMissingWordCandidates(this.#result, candidates, this.#context.writeClipboard, true);
       this.#status.textContent = "";
     } catch (cause) {
       this.#status.classList.add("warning");
@@ -317,10 +324,9 @@ export class MnemoCodeForgottenTab {
         : "";
     const matched =
       choice === undefined || choice === "none" ? "" : ` · ${grouped(progress.matched)} matched`;
-    const takes = progress.takes === undefined ? "" : ` · it takes ${progress.takes}`;
     return (
       `Searching · ${grouped(progress.checked)} of ${grouped(progress.total)}${percent} · ` +
-      `${grouped(progress.found)} candidates${matched} · ${elapsed} elapsed${takes}`
+      `${grouped(progress.found)} candidates${matched} · ${elapsed} elapsed`
     );
   }
 }

@@ -68,6 +68,8 @@ export class CandidateListPanel {
     this.#openButton = required<HTMLButtonElement>("#candidate-list-open");
     this.#openButton.addEventListener("click", () => void this.#open());
     this.#remove.addEventListener("click", () => this.clear());
+    // The page's one-time key is gone when the page goes: a list saved to it no longer opens.
+    this.#key.ownerDocument.defaultView?.addEventListener("pagehide", () => this.#endKey());
     this.setEnabled(false);
   }
 
@@ -90,7 +92,13 @@ export class CandidateListPanel {
   /** After a failed self-test: the list and the key of this copy of the page are dropped. */
   close(): void {
     this.setEnabled(false);
+    this.#endKey();
+  }
+
+  /** Drops the list and wipes the page's one-time key, with the key shown for it. */
+  #endKey(): void {
     this.clear();
+    this.#lists.end();
     this.#key.value = "";
     this.#key.hidden = true;
     this.#keyNote.hidden = true;

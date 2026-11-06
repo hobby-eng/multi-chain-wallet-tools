@@ -1,85 +1,72 @@
+// MnemoCode's startup known answers in the Deriver: its WebAssembly is compiled and loaded, each of
+// its parts that the page uses runs its startup cases (selfCheck* of the binding), a public
+// phrase goes through the page's own adapter once, encoded in every form and decoded again, and the
+// legend of MnemoCode's SeedStitch specification is read back into the record of its phrase.
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
-// The build puts the recognition of its coins here (see mnemocode-wallet.ts), so that the known
-// answers of the coins it leaves out are left out too.
-import { MnemoCodeWalletRecognition } from "@ckd/recovery-backup/mnemocode-wallet-bitcoin.js";
-import { MnemoCodeSelfTest } from "../../recovery-mnemocode/source/core/self-test.js";
-import type { SelfTestFeature } from "../../recovery-mnemocode/source/core/self-test-check.js";
-import { WORD_HINTS_SELF_TEST } from "../../recovery-mnemocode/source/core/word-hints-self-test.js";
-import { RE_ENCODING_SELF_TEST } from "../../recovery-mnemocode/source/core/re-encoding-self-test.js";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
+import { loadMnemoCode } from "./mnemocode-module.js";
 import {
   ENCODED_FORMATS,
   decodeMnemoCode,
   encodeMnemoCode,
   MNEMOCODE_VERSION,
-  parseMnemoCodeDates,
-  recoverMnemoCodeLegacyLastWords,
-  recoverMnemoCodeWord,
 } from "./mnemocode.js";
+import { readStitchLegendLine } from "./mnemocode-stitch.js";
 import { expectText, now } from "./self-test-helpers.js";
 
 const PUBLIC_MNEMONIC =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-/**
- * The checks of what the page builds into MnemoCode beside its library, in the startup known answers
- * and in the self-test the person starts: the recognition of this build's coins and the hints below
- * the word fields.
- */
-export const MNEMOCODE_PAGE_FEATURES: readonly SelfTestFeature[] = [
-  ...MnemoCodeWalletRecognition.SELF_TESTS,
-  WORD_HINTS_SELF_TEST,
-  RE_ENCODING_SELF_TEST,
-];
+const PUBLIC_DATES = "23-09-2026";
+/** The legend of MnemoCode's docs/SEEDSTITCH.md, which holds its public phrase as word numbers. */
+const SPECIFICATION_LEGEND =
+  "28:1725 25:2163 57:3275 34:3917 9:480 54:1505 17:5063 63:372 46:328 7:2818 62:1114 53:1997 " +
+  "37:2496 40:1945 3:882 58:7130 41:180 59:336 22:1634 36:778 64:1147 10:3804 24:1214 69:479 " +
+  "56:931 30:2066 23:3224 29:797";
+const SPECIFICATION_PHRASE =
+  "void come effort suffer camp survey warrior heavy shoot primary clutch crush open amazing " +
+  "screen patrol group space point ten exist slush involve unfold";
 
-const PUBLIC_LEGACY =
-  "mosquito dust hotel maximum rich kitten hair mother salute dream flush hospital";
-
-export function runMnemoCodeSelfTest(): CryptoSelfTestReport {
+export async function runMnemoCodeSelfTest(): Promise<CryptoSelfTestReport> {
   const started = now();
-  const dates = parseMnemoCodeDates("23-09-2026");
-  const shifted = encodeMnemoCode(PUBLIC_MNEMONIC, "seedshift", "english", dates);
+  const binding = await loadMnemoCode();
+  for (const check of [
+    binding.selfCheckPhrase,
+    binding.selfCheckWallet,
+    binding.selfCheckQr,
+    binding.selfCheckCandidates,
+    binding.selfCheckSskr,
+    binding.selfCheckRecovery,
+    binding.selfCheckEmbroidery,
+  ])
+    check(false);
   expectText(
     "MnemoCode Seedshift vector",
-    shifted.payload,
+    encodeMnemoCode(PUBLIC_MNEMONIC, "seedshift", "english", PUBLIC_DATES).payload,
     "wool abuse actual wool abuse actual wool abuse actual wool abuse congress",
   );
-  expectText(
-    "MnemoCode BIP39Colors vector",
-    encodeMnemoCode(PUBLIC_MNEMONIC, "direct", "colors").payload,
-    "#000064 #1EAB91 #3D0964 #5BB491 #7A1264 #98BD91 #B71B64 #D5C694",
-  );
   for (const format of ENCODED_FORMATS) {
-    const encoded = encodeMnemoCode(PUBLIC_MNEMONIC, "seedshift", format, dates);
+    const encoded = encodeMnemoCode(PUBLIC_MNEMONIC, "seedshift", format, PUBLIC_DATES);
     const decoded = decodeMnemoCode(encoded.record, {
       mode: "direct",
       format: "auto",
-      dates,
+      dates: PUBLIC_DATES,
     });
     expectText(`MnemoCode ${format} round trip`, decoded.mnemonic ?? "", PUBLIC_MNEMONIC);
   }
-  const candidates = recoverMnemoCodeWord(PUBLIC_MNEMONIC.replace(/about$/u, "?"));
-  if (candidates.length !== 128) {
-    throw new Error("MnemoCode final-word recovery candidate count mismatch.");
-  }
-  const recoveredAbout = candidates.find((candidate) => candidate.word === "about");
-  expectText("MnemoCode word recovery vector", recoveredAbout?.mnemonic ?? "", PUBLIC_MNEMONIC);
-  expectText("MnemoCode word recovery index", String(recoveredAbout?.wordIndex), "4");
-  expectText("MnemoCode word recovery checksum", recoveredAbout?.checksumBits ?? "", "0011");
-  const legacyCandidates = recoverMnemoCodeLegacyLastWords(PUBLIC_LEGACY);
-  if (legacyCandidates.length !== 128) {
-    throw new Error("MnemoCode legacy final-word candidate count mismatch.");
-  }
-  if (legacyCandidates.filter((candidate) => candidate.preservesLegacyEntropy).length !== 1) {
-    throw new Error("MnemoCode legacy entropy-preserving candidate count mismatch.");
-  }
-  // MnemoCode's own quick known answers: its word lists and fixed vectors, every library feature
-  // (dates, searches, candidate lists, backup checks, share repair), the wallet recognition of
-  // this build's coins and the word hints. It throws at the first difference.
-  MnemoCodeSelfTest.core(MNEMOCODE_PAGE_FEATURES);
+  // The word numbers are counted from 1, as MnemoCode writes them.
+  expectText(
+    "MnemoCode SeedStitch legend",
+    readStitchLegendLine(SPECIFICATION_LEGEND)?.record ?? "",
+    `MNC1:seedshift:indexes:${SPECIFICATION_PHRASE.split(" ")
+      .map((word) => wordlist.indexOf(word) + 1)
+      .join(" ")}`,
+  );
   return {
     passed: true,
     checks: [
-      `MnemoCode v${MNEMOCODE_VERSION} vectors, word recovery, and all representation round trips`,
-      "MnemoCode library, wallet recognition and word hint known answers",
+      `MnemoCode v${MNEMOCODE_VERSION} WebAssembly: phrase, wallet, QR, candidate, share, recovery and cross-stitch known answers`,
+      "MnemoCode encode and decode round trips in every form",
+      "MnemoCode SeedStitch: the specification's legend read back",
     ],
     durationMs: Math.round(now() - started),
   };

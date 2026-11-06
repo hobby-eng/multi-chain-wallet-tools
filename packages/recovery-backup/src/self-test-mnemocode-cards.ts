@@ -1,18 +1,16 @@
-// The quick known answers of card sets, built only with MnemoCode's card export. The shared
-// feature owns its exact answers and refusals; drawing its PDF belongs to the full self-test.
+// The startup known answers of MnemoCode's cards, built only with the card export: the cards part
+// of its WebAssembly runs its startup cases (selfCheckCards), the heir sheet's and the share
+// cards' among them. Drawing whole sheets belongs to the full self-test.
 import type { CryptoSelfTestReport } from "@ckd/self-test-types";
-import { cardSetsSelfTest } from "../../recovery-mnemocode/source/export/card-sets-self-test.js";
-import { readMnemoCodeCardAsset } from "./mnemocode-card-assets.js";
-import { createMnemoCodeCardRenderer } from "./mnemocode-cards.js";
+import { loadMnemoCode } from "./mnemocode-module.js";
 import { now } from "./self-test-helpers.js";
 
-export function runMnemoCodeCardsSelfTest(): CryptoSelfTestReport {
+export async function runMnemoCodeCardsSelfTest(): Promise<CryptoSelfTestReport> {
   const started = now();
-  // Constructing the renderer is passive: startup reads no asset and requests no host randomness.
-  cardSetsSelfTest(createMnemoCodeCardRenderer(readMnemoCodeCardAsset)).startup();
+  (await loadMnemoCode()).selfCheckCards(false);
   return {
     passed: true,
-    checks: ["MnemoCode card set known answers"],
+    checks: ["MnemoCode card, heir sheet and share card known answers"],
     durationMs: Math.round(now() - started),
   };
 }

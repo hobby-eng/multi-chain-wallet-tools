@@ -1,7 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { MnemoCodeDisclosure } from "../src/mnemocode-disclosure.js";
-import { encodeMnemoCode, parseMnemoCodeDates } from "../src/mnemocode.js";
-import { EncodedBackup } from "../../recovery-mnemocode/source/core/encoded-backup.js";
+import { mnemocode } from "../src/mnemocode-engine.js";
+import { loadMnemoCode } from "../src/mnemocode-module.js";
+import { encodeMnemoCode } from "../src/mnemocode.js";
+
+beforeAll(async () => {
+  await loadMnemoCode();
+});
 
 const ORIGINAL =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -9,7 +14,7 @@ const MASKED = "wool abuse actual wool abuse actual wool abuse actual wool abuse
 
 describe("Original and masked copy choices", () => {
   it("does not compute or expose any original copy by default", () => {
-    const encode = vi.spyOn(EncodedBackup, "encode");
+    const encode = vi.spyOn(mnemocode().EncodedBackup, "encode");
     expect(MnemoCodeDisclosure.original(ORIGINAL, "colors", "none")).toEqual([]);
     expect(encode).not.toHaveBeenCalled();
     encode.mockRestore();
@@ -31,12 +36,13 @@ describe("Original and masked copy choices", () => {
     expect(MnemoCodeDisclosure.masked(MASKED, "seedshift", true)[0]?.note).toContain("same dates");
   });
 
-  it("uses the library's direct representation for original codes regardless of masking", () => {
-    const encode = vi.spyOn(EncodedBackup, "encode");
-    const rows = MnemoCodeDisclosure.original(ORIGINAL, "indexes", "codes");
-    expect(rows[0]?.text).toBe("1 1 1 1 1 1 1 1 1 1 1 4");
-    expect(encode).toHaveBeenCalledExactlyOnceWith(ORIGINAL, [], "indexes", "direct");
-    encode.mockRestore();
+  it("writes the original codes without Seedshift, word numbers from the word table", () => {
+    expect(MnemoCodeDisclosure.original(ORIGINAL, "indexes", "codes")[0]?.text).toBe(
+      "1 1 1 1 1 1 1 1 1 1 1 4",
+    );
+    expect(MnemoCodeDisclosure.original(ORIGINAL, "unicode", "codes")[0]?.text).toBe(
+      "768476847684768476847684768476847684768476845728",
+    );
   });
 
   it("shows words plus distinct codes, but only one English original when both were requested", () => {
@@ -50,12 +56,7 @@ describe("Original and masked copy choices", () => {
   });
 
   it("provides exact library shifted words independently of the selected code format", () => {
-    const result = encodeMnemoCode(
-      ORIGINAL,
-      "seedshift",
-      "colors",
-      parseMnemoCodeDates("23-09-2026"),
-    );
+    const result = encodeMnemoCode(ORIGINAL, "seedshift", "colors", "23-09-2026");
     expect(result.shiftedEnglish).toBe(MASKED);
     expect(MnemoCodeDisclosure.masked(result.shiftedEnglish, result.mode, true)[0]?.text).toBe(
       MASKED,

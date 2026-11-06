@@ -1,18 +1,23 @@
-// Re-encode an old backup through MnemoCode's confirmation owner, then the existing Encode tab.
+// Re-encode an old backup through MnemoCode's confirmation owner, then the existing Encode tab. A
+// SeedStitch legend line stands for the record of the masked phrase it holds, as in Decode.
 import { fingerprintWithoutPassphrase } from "@ckd/recovery-backup/fingerprint.js";
 import {
   MnemoCodeReEncoding,
+  MnemoCodeReEncodingDraft,
+  MnemoCodeReEncodingError,
+  RE_ENCODING_WORDS,
   type ReEncodingInput,
-  type ReEncodingWalletRequest,
 } from "@ckd/recovery-backup/mnemocode-reencoding.js";
 import { effectiveMnemoCodeMode, type MnemoCodeFormat } from "@ckd/recovery-backup/mnemocode.js";
-import type { WalletMatch } from "../../../../packages/recovery-mnemocode/source/core/wallet-check.js";
-import { EncodedForm } from "../../../../packages/recovery-mnemocode/source/core/encoded-form.js";
-import { WordList } from "../../../../packages/recovery-mnemocode/source/core/word-hints.js";
-import { JOB_STOPPED, MnemoCodeWorker } from "../workers/mnemocode-worker-client.js";
-import { MnemoCodeWorkerProtocol } from "../workers/mnemocode-worker-protocol.js";
+import {
+  correctedRowWarning,
+  isStitchLegendRefusal,
+  readStitchLegendLine,
+} from "@ckd/recovery-backup/mnemocode-stitch.js";
+import { SecretValue } from "@ckd/core/secret-value.js";
 import { InputRevision } from "./recovery-input-revision.js";
 import { WalletEvidenceField } from "./recovery-mnemocode-evidence.js";
+import { installTextFileImport } from "@ckd/ui/text-file-import.js";
 import {
   DatesField,
   chosenPhraseWords,
@@ -35,12 +40,17 @@ import {
   renderRecoveredSecret,
   required,
   RECORD_FILE_IMPORT,
+  PHRASE_FILE_IMPORT,
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
 
-declare const __MNEMOCODE_SEARCH_WORKER_SOURCE__: string;
-
 const PREFIX = "mnemocode-reencode";
+
+function reencodingErrorText(cause: unknown, fallback: string): string {
+  if (cause instanceof MnemoCodeReEncodingError)
+    return "Read the old backup again before confirming its phrase.";
+  return cause instanceof Error ? cause.message : fallback;
+}
 
 export class MnemoCodeReEncodeTab {
   readonly #context: RecoveryFeatureContext;
@@ -54,18 +64,16 @@ export class MnemoCodeReEncodeTab {
   readonly #confirm = required<HTMLElement>(`#${PREFIX}-confirmation`);
   readonly #person = required<HTMLInputElement>(`#${PREFIX}-person`);
   readonly #continue = required<HTMLButtonElement>(`#${PREFIX}-continue`);
-  readonly #cancel = required<HTMLButtonElement>(`#${PREFIX}-cancel`);
   readonly #status = required<HTMLElement>(`#${PREFIX}-status`);
   readonly #evidence = new WalletEvidenceField(PREFIX);
   readonly #inputs: InputRevision;
   readonly #walletInputs: InputRevision;
-  #snapshot: ReEncodingInput | undefined;
+  #snapshot: MnemoCodeReEncodingDraft | undefined;
   #session: MnemoCodeReEncoding | undefined;
   #current: () => boolean = () => false;
-  #worker: MnemoCodeWorker<ReEncodingWalletRequest, WalletMatch> | undefined;
   #linked = false;
   #handoffRevision = 0;
-  #confirmedPassphrase = "";
+  #confirmedPassphrase: SecretValue<string> | undefined;
 
   constructor(context: RecoveryFeatureContext) {
     this.#context = context;
@@ -94,8 +102,12 @@ export class MnemoCodeReEncodeTab {
       "Hide",
       "original last word",
     );
-    attachMnemoCodeWordHints(this.#input, EncodedForm.typedWords);
-    attachMnemoCodeWordHints(this.#lastWord, WordList.BIP39);
+    attachMnemoCodeWordHints(this.#input, "codes");
+    attachMnemoCodeWordHints(this.#lastWord, "phrase");
+    installTextFileImport(document, this.#lastWord, {
+      accept: PHRASE_FILE_IMPORT.accept,
+      preserveWhitespace: false,
+    });
     installFieldImports(
       this.#input,
       (text) => {
@@ -137,9 +149,12 @@ export class MnemoCodeReEncodeTab {
 
   #showDates(): void {
     try {
-      this.#dates.showFor(effectiveMnemoCodeMode(this.#input.value, selectedMode(this.#mode)));
-    } catch {
-      // Reading reports invalid mode/record input; an edit must still revoke old confirmation.
+      const input = readStitchLegendLine(this.#input.value)?.record ?? this.#input.value;
+      this.#dates.showFor(effectiveMnemoCodeMode(input, selectedMode(this.#mode)));
+    } catch (cause) {
+      // A legend line that does not read yet still stands for a Seedshift record. Reading reports
+      // other invalid input; an edit must still revoke old confirmation.
+      if (isStitchLegendRefusal(cause)) this.#dates.showFor("seedshift");
     }
   }
 
@@ -151,8 +166,10 @@ export class MnemoCodeReEncodeTab {
 
   #clear(): void {
     this.#handoffRevision += 1;
-    this.#confirmedPassphrase = "";
-    this.#worker?.terminate();
+    this.#confirmedPassphrase?.wipe();
+    this.#confirmedPassphrase = undefined;
+    this.#snapshot?.wipe();
+    this.#session?.wipe();
     this.#snapshot = undefined;
     this.#session = undefined;
     this.#revokeLink();
@@ -165,12 +182,11 @@ export class MnemoCodeReEncodeTab {
 
   #resetConfirmation(): void {
     this.#handoffRevision += 1;
-    this.#confirmedPassphrase = "";
-    this.#worker?.terminate();
+    this.#confirmedPassphrase?.wipe();
+    this.#confirmedPassphrase = undefined;
+    this.#session?.wipe();
     this.#session =
-      this.#snapshot !== undefined && this.#current()
-        ? MnemoCodeReEncoding.of(this.#snapshot)
-        : undefined;
+      this.#snapshot !== undefined && this.#current() ? this.#snapshot.open() : undefined;
     this.#revokeLink();
     this.#person.checked = false;
     this.#continue.disabled = true;
@@ -183,16 +199,18 @@ export class MnemoCodeReEncodeTab {
     this.#current = this.#inputs.capture();
     try {
       const lastWord = this.#lastWord.value.trim();
+      // A legend holds a whole phrase: every word number of its record is read.
+      const legend = readStitchLegendLine(this.#input.value);
       const snapshot: ReEncodingInput = Object.freeze({
-        input: this.#input.value,
+        input: legend?.record ?? this.#input.value,
         mode: selectedMode(this.#mode),
         format: this.#format.value as MnemoCodeFormat | "auto",
         dates: this.#dates.input.value,
-        words: chosenPhraseWords(this.#words),
+        words: legend === undefined ? chosenPhraseWords(this.#words) : undefined,
         ...(lastWord === "" ? {} : { lastWord }),
       });
-      this.#snapshot = snapshot;
-      this.#session = MnemoCodeReEncoding.of(snapshot);
+      this.#snapshot = new MnemoCodeReEncodingDraft(snapshot);
+      this.#session = this.#snapshot.open();
       this.#confirm.hidden = false;
       const phrase = this.#session.phrase;
       renderRecoveredSecret(
@@ -209,6 +227,8 @@ export class MnemoCodeReEncodeTab {
         this.#result,
         fingerprintWithoutPassphrase(phrase, this.#context.mnemonicToSeed),
       );
+      if (legend?.correctedRow !== undefined)
+        this.#result.append(paragraph(correctedRowWarning(legend.correctedRow), "warning-callout"));
       this.#result.append(
         paragraph(
           "A valid BIP39 checksum does not confirm the old backup. Recognise the phrase or its fingerprint, or compare it with the wallet before making the new backup.",
@@ -217,15 +237,16 @@ export class MnemoCodeReEncodeTab {
       );
       this.#result.append(
         paragraph(
-          "Making a new backup does not revoke the old one. The new dates and representation are chosen in Encode; its share, card and backup-check options apply to the same confirmed phrase.",
+          `${RE_ENCODING_WORDS.oldBackupStillOpens} The new dates and representation are chosen in Encode; its share, card and backup-check options apply to the same confirmed phrase.`,
           "field-note",
         ),
       );
     } catch (cause) {
+      this.#snapshot?.wipe();
+      this.#session?.wipe();
       this.#snapshot = undefined;
       this.#session = undefined;
-      this.#status.textContent =
-        cause instanceof Error ? cause.message : "The old backup could not be read.";
+      this.#status.textContent = reencodingErrorText(cause, "The old backup could not be read.");
     }
   }
 
@@ -238,47 +259,22 @@ export class MnemoCodeReEncodeTab {
     try {
       const wallet = this.#evidence.request();
       if (wallet === undefined) throw new Error("Choose the wallet to compare with.");
-      await this.#context.jobs.runHeavy("Confirm the old MnemoCode backup", async () => {
-        const worker = new MnemoCodeWorker<ReEncodingWalletRequest, WalletMatch>(
-          __MNEMOCODE_SEARCH_WORKER_SOURCE__,
-        );
-        this.#worker = worker;
-        this.#cancel.hidden = false;
-        this.#cancel.onclick = () => worker.terminate();
-        try {
-          const match = await session.confirmByWallet(wallet, (request) =>
-            worker
-              .run(request, () => undefined)
-              .then((result) => MnemoCodeWorkerProtocol.completed(result)),
-          );
-          if (!current() || !this.#current() || session !== this.#session) return;
-          if (match === undefined) {
-            this.#status.textContent = JOB_STOPPED;
-            return;
-          }
-          this.#status.textContent = [
-            match.warning,
-            match.matched
-              ? "The wallet matches. Continue to choose the new backup."
-              : "The wallet does not match: the phrase is not confirmed.",
-            match.path,
-          ]
-            .filter(Boolean)
-            .join(" ");
-          this.#continue.disabled = !match.matched;
-        } finally {
-          worker.terminate();
-          if (this.#worker === worker) {
-            this.#worker = undefined;
-            this.#cancel.hidden = true;
-            this.#cancel.onclick = null;
-          }
-        }
+      // One phrase compared with the wallet: MnemoCode does it at once, here.
+      await this.#context.jobs.runHeavy("Confirm the old MnemoCode backup", () => {
+        const match = session.confirmByWallet(wallet);
+        if (!current() || !this.#current() || session !== this.#session) return Promise.resolve();
+        this.#status.textContent = [
+          match.warning,
+          match.matched ? session.confirmationLine(wallet) : RE_ENCODING_WORDS.notMatched,
+        ]
+          .filter(Boolean)
+          .join(" ");
+        this.#continue.disabled = !match.matched;
+        return Promise.resolve();
       });
     } catch (cause) {
-      if (current() && this.#current())
-        this.#status.textContent =
-          cause instanceof Error ? cause.message : "Wallet comparison failed.";
+      if (current() && this.#current() && session === this.#session)
+        this.#status.textContent = reencodingErrorText(cause, "Wallet comparison failed.");
     }
   }
 
@@ -293,22 +289,28 @@ export class MnemoCodeReEncodeTab {
       if (link === undefined) throw new Error("The shared backup source owner is unavailable.");
       const oldCurrent = this.#current;
       const revision = this.#handoffRevision;
-      this.#confirmedPassphrase = this.#evidence.passphrase;
+      this.#confirmedPassphrase?.wipe();
+      this.#confirmedPassphrase = SecretValue.text(this.#evidence.passphrase);
       this.#linked = true;
       // The source owner retains only a revocable capability, never an expired session or factor.
       link(
         {
           label: "Confirmed old MnemoCode backup",
           read: () =>
-            oldCurrent() && revision === this.#handoffRevision && this.#session !== undefined
-              ? { mnemonic: this.#session.confirmedPhrase(), passphrase: this.#confirmedPassphrase }
+            oldCurrent() &&
+            revision === this.#handoffRevision &&
+            this.#session !== undefined &&
+            this.#confirmedPassphrase !== undefined
+              ? {
+                  mnemonic: this.#session.confirmedPhrase(),
+                  passphrase: this.#confirmedPassphrase.value,
+                }
               : null,
         },
         "mnemocode",
       );
     } catch (cause) {
-      this.#status.textContent =
-        cause instanceof Error ? cause.message : "The phrase is not confirmed.";
+      this.#status.textContent = reencodingErrorText(cause, "The phrase is not confirmed.");
     }
   }
 }

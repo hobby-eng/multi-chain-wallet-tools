@@ -1,53 +1,58 @@
 import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
-import { readMnemoCodeCardAsset } from "@ckd/recovery-backup/mnemocode-card-assets.js";
 import {
-  createMnemoCodeCardExporter,
+  cardTemplates,
+  MnemoCodeCardExporter,
   MNEMOCODE_CARD_FILE_FORMATS,
   MNEMOCODE_CARD_PAGE_SIZES,
-  MNEMOCODE_CARD_TEMPLATES,
   MNEMOCODE_SAMPLE_WORD_COUNTS,
   mnemoCodeCardOutput,
   mnemoCodeShareCardLayout,
   mnemoCodeCardSavedNote,
-  mnemoCodeCardSelfTest,
-  createMnemoCodeCardRenderer,
   mnemoCodeCardTexts,
   mnemoCodeFormatHasCards,
+  PROFILE_FIELDS,
+  SHEET_PLAN_TEXT,
+  SHEET_QR_HOLDS,
+  shareFormatHasCards,
+  type MnemoCodeCardCopy,
+  type MnemoCodeCardCopyKey,
   type MnemoCodeCardFile,
   type MnemoCodeCardProfile,
+  type MnemoCodeCardTemplate,
 } from "@ckd/recovery-backup/mnemocode-cards.js";
-import { cardSetsSelfTest } from "../../../../packages/recovery-mnemocode/source/export/card-sets-self-test.js";
-import { shareFormatHasCards } from "../../../../packages/recovery-mnemocode/source/sskr/transport.js";
-import type { CardCopyOverrides } from "../../../../packages/recovery-mnemocode/source/export/card-copy.js";
+import { whenMnemoCodeLoaded } from "@ckd/recovery-backup/mnemocode-engine.js";
+import { SHARE_FORMAT_NAMES } from "@ckd/recovery-backup/mnemocode-facts.js";
 import { mnemoCodeDatesFor, type MnemoCodeMode } from "@ckd/recovery-backup/mnemocode.js";
-import { cardPagesAsImages } from "./recovery-mnemocode-card-images.js";
 import { mnemoCodeSelfTest } from "./recovery-mnemocode-self-test.js";
 import { latestShares } from "./recovery-mnemocode-share-store.js";
 import { required, type RecoveryFeatureContext } from "./recovery-workspace-shared.js";
 import type { RecoveryFeature } from "./recovery-feature.js";
-import { shareCardChecks } from "@ckd/recovery-backup/mnemocode-share-card-checks.js";
-import { SHARE_FORMAT_NAMES } from "../../../../packages/recovery-mnemocode/source/sskr/share-set.js";
 import { createQrAction } from "@ckd/ui/payment-qr.js";
 import { InputRevision } from "./recovery-input-revision.js";
-import {
-  profileFields,
-  SHEET_QR_HOLDS,
-} from "../../../../packages/recovery-mnemocode/source/export/card-settings.js";
-import { SHEET_PLAN_TEXT } from "../../../../packages/recovery-mnemocode/source/export/collection-layout.js";
+
+/** The longest text of a card field, in UTF-16 units, before MnemoCode reads it. */
+const MAX_CARD_TEXT = 512 * 1024;
 
 /** The texts around the cards, each with its field, as MnemoCode's card copy names them. */
-const COPY_FIELDS: Readonly<Record<keyof CardCopyOverrides, string>> = {
+const COPY_FIELDS: Readonly<Record<MnemoCodeCardCopyKey, string>> = {
   studioName: "#mnemocode-card-studio",
   slogan: "#mnemocode-card-slogan",
   subtitle: "#mnemocode-card-subtitle",
   footer: "#mnemocode-card-footer",
   referenceLabel: "#mnemocode-card-reference-label",
 };
-const COPY_KEYS = Object.keys(COPY_FIELDS) as (keyof CardCopyOverrides)[];
+const COPY_KEYS = Object.keys(COPY_FIELDS) as MnemoCodeCardCopyKey[];
 
 /** Said when any input of an export changes before its file is ready. */
 const STALE_EXPORT =
   "The source or settings changed while the cards were drawn, so nothing was saved. Start the export again.";
+
+/** Bound raw input before MnemoCode reads it, which checks each text by its own rules. */
+function boundedCardText(field: HTMLInputElement): string {
+  const value = field.value;
+  if (value.length > MAX_CARD_TEXT) throw new Error("Card text exceeds the 1 MiB safety limit.");
+  return value;
+}
 
 function fillSelect(
   select: HTMLSelectElement,
@@ -62,20 +67,22 @@ function fillSelect(
 }
 
 /** The texts typed for the fields shown; a hidden field is not printed by this design. */
-function ownCopy(): CardCopyOverrides {
-  const entries: [keyof CardCopyOverrides, string][] = [];
+function ownCopy(): MnemoCodeCardCopy {
+  const entries: [MnemoCodeCardCopyKey, string][] = [];
   for (const key of COPY_KEYS) {
     const field = required<HTMLInputElement>(COPY_FIELDS[key]);
     const shown = field.closest<HTMLElement>("[hidden]") === null;
-    if (shown && field.value.trim() !== "") entries.push([key, field.value]);
+    if (!shown) continue;
+    const value = boundedCardText(field).trim();
+    if (value !== "") entries.push([key, value]);
   }
   return Object.fromEntries(entries);
 }
 
 function profile(): MnemoCodeCardProfile {
   const entries: [string, string][] = [];
-  for (const field of profileFields) {
-    const value = required<HTMLInputElement>(`#mnemocode-card-${field}`).value.trim();
+  for (const field of PROFILE_FIELDS) {
+    const value = boundedCardText(required<HTMLInputElement>(`#mnemocode-card-${field}`)).trim();
     if (value !== "") entries.push([field, value]);
   }
   return Object.fromEntries(entries);
@@ -89,17 +96,8 @@ function nextFrame(): Promise<void> {
 }
 
 function installMnemoCodeCards(context: RecoveryFeatureContext): void {
-  mnemoCodeSelfTest.addCheck(mnemoCodeCardSelfTest(readMnemoCodeCardAsset));
-  // Sets of cards: colors of codes, full rows and the decoys after a backup's codes.
-  mnemoCodeSelfTest.addFeature(
-    cardSetsSelfTest(createMnemoCodeCardRenderer(readMnemoCodeCardAsset)),
-  );
-  // The share cards are drawn by the same renderers, in a build with the SSKR library; their PDF
-  // check needs the render platform, which the self-test may not have set yet.
-  if (shareCardChecks !== undefined)
-    mnemoCodeSelfTest.addFeature(
-      shareCardChecks(createMnemoCodeCardRenderer(readMnemoCodeCardAsset)),
-    );
+  // The cards' known answers, the heir sheet's and the share cards' among them.
+  mnemoCodeSelfTest.addCards();
   /** The phrase above, with the mode and dates of Encode, as its cards print it. */
   const phraseCard = () => {
     const mode = required<HTMLSelectElement>("#mnemocode-encode-mode").value as MnemoCodeMode;
@@ -114,11 +112,9 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
       format,
     };
   };
-  // Image conversion belongs to the same admitted job and input capture as its PDF renderer.
-  let imageCurrent: () => boolean = () => false;
-  const exporter = createMnemoCodeCardExporter(readMnemoCodeCardAsset, (pdf, format) =>
-    cardPagesAsImages(pdf, format, imageCurrent),
-  );
+  const exporter = new MnemoCodeCardExporter();
+  /** MnemoCode's designs, once it is loaded. */
+  let templates: readonly MnemoCodeCardTemplate[] = [];
   const section = required<HTMLDetailsElement>("#mnemocode-cards-section");
   const representation = required<HTMLSelectElement>("#mnemocode-encode-format");
   // The shares of a split, as a choice of their own; absent from a build without SSKR.
@@ -166,14 +162,6 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
   latestShares.onChange(synchronizeVisibility);
   synchronizeVisibility();
   const template = required<HTMLSelectElement>("#mnemocode-card-template");
-  // The list is read from the embedded MnemoCode registry, in its own order.
-  fillSelect(
-    template,
-    MNEMOCODE_CARD_TEMPLATES.map(({ id, name }, index) => ({
-      id,
-      label: `${index + 1} · ${name}`,
-    })),
-  );
   const pageSize = required<HTMLSelectElement>("#mnemocode-card-page-size");
   fillSelect(pageSize, MNEMOCODE_CARD_PAGE_SIZES);
   const orientation = required<HTMLSelectElement>("#mnemocode-card-orientation");
@@ -197,12 +185,12 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
     qrRow.hidden = separate || layout === "qr";
     if (qrRow.hidden) qr.checked = false;
     // As MnemoCode's design question: separate cards are made in the business card designs only.
-    for (const [index, design] of MNEMOCODE_CARD_TEMPLATES.entries()) {
+    for (const [index, design] of templates.entries()) {
       const option = template.options.item(index);
       if (option !== null) option.disabled = separate && !design.separateCards;
     }
     if (template.selectedOptions.item(0)?.disabled === true) {
-      const first = MNEMOCODE_CARD_TEMPLATES.find((design) => design.separateCards);
+      const first = templates.find((design) => design.separateCards);
       if (first !== undefined) template.value = first.id;
     }
     plannedOrientation.textContent = separate
@@ -241,6 +229,15 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
   representation.addEventListener("change", synchronizeOutput);
   latestShares.onChange(synchronizeOutput);
   synchronizeOutput();
+  // The designs are MnemoCode's, in its own order, read once it is loaded.
+  whenMnemoCodeLoaded((binding) => {
+    templates = cardTemplates(binding);
+    fillSelect(
+      template,
+      templates.map(({ id, name }, index) => ({ id, label: `${index + 1} · ${name}` })),
+    );
+    synchronizeOutput();
+  });
 
   const ownDetails = required<HTMLInputElement>("#mnemocode-card-own-details");
   const ownDetailsFields = required<HTMLElement>("#mnemocode-card-profile");
@@ -306,7 +303,7 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
   refreshButtons();
 
   /** Read every setting and the selected source before the first asynchronous turn. */
-  const captureRender = (sample: boolean): (() => Promise<MnemoCodeCardFile>) => {
+  const captureRender = (sample: boolean): (() => MnemoCodeCardFile) => {
     const settings = {
       template: template.value,
       pageSize: pageSize.value,
@@ -333,7 +330,6 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
       const request = {
         ...settings,
         records: [...shares.records],
-        masked: shares.masked,
         shareFormat: shares.form,
         ...(shareQr?.checked === true ? { layout: "qr" as const } : {}),
       };
@@ -348,7 +344,7 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
     MnemoCodeDownload.bytes(file.bytes, file.mimeType, file.fileName);
     if (!current()) return;
     status.textContent = sample
-      ? `Saved ${file.fileName}: sample cards with the public test phrase.`
+      ? `Saved ${file.fileName}: sample cards with a random sample phrase.`
       : mnemoCodeCardSavedNote(file);
     if (!sample) {
       qrImages.replaceChildren(
@@ -373,7 +369,6 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
     void context.jobs
       .runHeavy(sample ? "MnemoCode sample cards" : "A MnemoCode card export", async () => {
         activeCurrent = current;
-        imageCurrent = current;
         forgetQrImages();
         status.classList.remove("warning");
         status.textContent = sample ? "Drawing sample cards…" : "Rendering cards…";
@@ -381,7 +376,7 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
           const render = captureRender(sample);
           await nextFrame();
           if (!current()) return;
-          const file = await render();
+          const file = render();
           try {
             publish(file, sample, current);
           } finally {
@@ -389,7 +384,6 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
           }
         } finally {
           activeCurrent = undefined;
-          imageCurrent = () => false;
         }
       })
       .catch((cause: unknown) => {
@@ -407,4 +401,19 @@ function installMnemoCodeCards(context: RecoveryFeatureContext): void {
   button.addEventListener("click", () => start(false));
 }
 
-export const recoveryFeature: RecoveryFeature = { install: installMnemoCodeCards };
+/** Browser feature adapter; the library remains the authority for the logical card-text limit. */
+export class MnemoCodeCardsFeature implements RecoveryFeature {
+  /** Keep input intact; capture validates the library's rules before reading a private source. */
+  install(context: RecoveryFeatureContext): void {
+    const fields = [
+      ...PROFILE_FIELDS.map((field) => required<HTMLInputElement>(`#mnemocode-card-${field}`)),
+      ...Object.values(COPY_FIELDS).map((selector) => required<HTMLInputElement>(selector)),
+    ];
+    // Native maxlength counts UTF-16 units and silently truncates text before validation.
+    for (const field of fields) field.removeAttribute("maxlength");
+    installMnemoCodeCards(context);
+  }
+}
+
+/** Compatibility entry consumed by the recovery feature composition. */
+export const recoveryFeature: RecoveryFeature = new MnemoCodeCardsFeature();

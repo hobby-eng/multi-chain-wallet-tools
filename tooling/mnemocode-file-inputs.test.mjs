@@ -1,13 +1,10 @@
-// Real input controllers and their source fields; no worker, derivation or encryption runs.
+// Real input controllers and their source fields, with MnemoCode's WebAssembly checking the
+// wallet evidence; no worker, derivation or encryption runs.
 import { readFileSync } from "node:fs";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { MnemoCodeWalletTemplate } from "./mnemocode-wallet-template.mjs";
 import { installTextFileImport } from "@ckd/ui/text-file-import.js";
-import { MnemoCodeWalletRecognition } from "@ckd/recovery-backup/mnemocode-wallet-bitcoin.js";
-import {
-  parseListPassphrase,
-  parseRecipient,
-} from "../packages/recovery-mnemocode/source/core/candidate-encryption.ts";
+import { loadMnemoCode } from "../packages/recovery-backup/src/mnemocode-module.ts";
 import { WalletEvidenceField } from "../apps/key-derivation/src/ui/recovery-mnemocode-evidence.ts";
 import { CandidateListField } from "../apps/key-derivation/src/ui/recovery-mnemocode-list.ts";
 import { PHRASE_FILE_IMPORT } from "../apps/key-derivation/src/ui/recovery-workspace-shared.ts";
@@ -17,10 +14,6 @@ import {
 } from "../apps/key-derivation/tests/fake-recovery-page.ts";
 
 vi.mock("@ckd/ui/text-file-import.js", () => ({ installTextFileImport: vi.fn() }));
-vi.mock("@ckd/recovery-backup/mnemocode-wallet-bitcoin.js", () => ({
-  MnemoCodeWalletRecognition: { COINS: [], PROFILES: [], assertEvidence: vi.fn() },
-}));
-
 const WALLET_PREFIXES = [
   "mnemocode-decode",
   "mnemocode-restore",
@@ -86,6 +79,10 @@ function importOptions(page, id) {
   return options;
 }
 
+beforeAll(async () => {
+  await loadMnemoCode();
+});
+
 describe("MnemoCode secret and recipient file-input bindings", () => {
   let page;
 
@@ -124,11 +121,9 @@ describe("MnemoCode secret and recipient file-input bindings", () => {
         evidence: { kind: "master-fingerprint", value: "73c5da0a", network: "mainnet" },
         passphrase: literal,
       });
-      expect(MnemoCodeWalletRecognition.assertEvidence).toHaveBeenCalledWith({
-        kind: "master-fingerprint",
-        value: "73c5da0a",
-        network: "mainnet",
-      });
+      page.require(`${prefix}-wallet-fingerprint`).value = "73c5da0";
+      expect(() => wallet.request()).toThrow();
+      page.require(`${prefix}-wallet-fingerprint`).value = "73C5DA0A";
       const toggle = page.require(`toggle-${prefix}-wallet-passphrase`);
       toggle.click();
       expect(field.classList.contains("concealed")).toBe(false);
@@ -162,7 +157,7 @@ describe("MnemoCode secret and recipient file-input bindings", () => {
   });
 
   it.each(LIST_PREFIXES)(
-    "delegates %s file normalization and retains internal CR/LF",
+    "trims %s files at their ends only and retains internal CR/LF",
     async (prefix) => {
       fields(page, prefix);
       const list = new CandidateListField(prefix);
@@ -170,15 +165,20 @@ describe("MnemoCode secret and recipient file-input bindings", () => {
       const password = importOptions(page, `${prefix}-list-passphrase`);
       const confirm = importOptions(page, `${prefix}-list-passphrase-confirm`);
       expect(installTextFileImport).toHaveBeenCalledTimes(3);
-      expect(key.normalize).toBe(parseRecipient);
-      expect(password.normalize).toBe(parseListPassphrase);
-      expect(confirm.normalize).toBe(parseListPassphrase);
+      expect(password.normalize).toBe(key.normalize);
+      expect(confirm.normalize).toBe(key.normalize);
       const fileText = "\uFEFF  public synthetic list password \r\n\n";
       expect(password.normalize(fileText)).toBe("public synthetic list password");
       expect(confirm.normalize(fileText)).toBe("public synthetic list password");
-      expect(() => key.normalize("synthetic invalid recipient")).toThrow();
-      expect(() => password.normalize("tiny")).toThrow();
+      // The key and the passphrase are checked when the list is asked for, by MnemoCode's rules.
       page.require(`${prefix}-list`).checked = true;
+      page.require(`${prefix}-list-key`).value = key.normalize("synthetic invalid recipient");
+      choose(page, `${prefix}-list-protect`, "key");
+      expect(() => list.request()).toThrow("The Scanner key is one age key");
+      password.value.assign("tiny");
+      confirm.value.assign("tiny");
+      choose(page, `${prefix}-list-protect`, "passphrase");
+      expect(() => list.request()).toThrow("at least 12 characters");
       const exact = password.normalize("\uFEFF  public synthetic\r\nlist password\rsecond line \n");
       const passwordField = page.require(`${prefix}-list-passphrase`);
       const confirmField = page.require(`${prefix}-list-passphrase-confirm`);

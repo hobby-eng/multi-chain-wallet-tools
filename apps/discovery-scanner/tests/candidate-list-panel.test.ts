@@ -1,54 +1,10 @@
-import { mnemonicToEntropy } from "@scure/bip39";
-import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { CandidateFileAdmission } from "../../../packages/recovery-mnemocode/source/core/candidate-file-admission.js";
-import {
-  encryptCandidates,
-  encryptCandidatesWithPassphrase,
-} from "../../../packages/recovery-mnemocode/source/core/candidate-encryption.js";
-import { encodeCandidateList } from "../../../packages/recovery-mnemocode/source/core/candidate-list.js";
+import { type MnemoCodeBinding } from "@ckd/recovery-backup/mnemocode-engine.js";
+import { loadMnemoCode } from "@ckd/recovery-backup/mnemocode-module.js";
+import { mnclList } from "@ckd/test-support/mncl-list.js";
 import { CandidateListImport } from "../src/candidate-list-import.js";
 import { CandidateListPanel } from "../src/candidate-list-panel.js";
 import { CandidateListTestFile as ListFile } from "./candidate-list-file.js";
-
-// Lets a test hold the importer at the decryption step, to clear the panel while it waits there.
-const decryption = vi.hoisted(() => {
-  let next: { reached: () => void; released: Promise<void> } | undefined;
-  return {
-    /** Holds the next decryption: `started` settles when it begins, `release` lets it go on. */
-    holdNext(): { started: Promise<void>; release: () => void } {
-      let reached!: () => void;
-      let release!: () => void;
-      const started = new Promise<void>((resolve) => (reached = resolve));
-      const released = new Promise<void>((resolve) => (release = resolve));
-      next = { reached, released };
-      return { started, release };
-    },
-    async pass(): Promise<void> {
-      const held = next;
-      next = undefined;
-      held?.reached();
-      await held?.released;
-    },
-  };
-});
-
-vi.mock(
-  "../../../packages/recovery-mnemocode/source/core/candidate-encryption.js",
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<
-        typeof import("../../../packages/recovery-mnemocode/source/core/candidate-encryption.js")
-      >();
-    return {
-      ...actual,
-      decryptCandidates: async (...args: Parameters<typeof actual.decryptCandidates>) => {
-        await decryption.pass();
-        return actual.decryptCandidates(...args);
-      },
-    };
-  },
-);
 
 // Public BIP39 test phrases and synthetic list passphrases only.
 const PHRASES = [
@@ -56,10 +12,24 @@ const PHRASES = [
   "legal winner thank year wave sausage worth useful legal winner thank yellow",
 ];
 const LIST_PASSPHRASE = "public list passphrase";
+/** MnemoCode's limits (docs/CANDIDATES.md): the age header read for the lock, and an age file. */
+const HEADER_BYTES = 64 * 1024;
+const MAX_ENCRYPTED_BYTES = 155_292_688;
+
+let mnemocode: MnemoCodeBinding;
+beforeAll(async () => {
+  mnemocode = await loadMnemoCode();
+});
 
 function plainList(phrases: readonly string[], passphrase?: string): Uint8Array {
-  const records = phrases.map((phrase) => ({ entropy: mnemonicToEntropy(phrase, wordlist) }));
-  return encodeCandidateList(passphrase === undefined ? { records } : { passphrase, records });
+  return mnclList(
+    phrases.map((phrase) => ({ phrase })),
+    passphrase,
+  );
+}
+
+function encryptCandidates(list: Uint8Array, recipient: string): Uint8Array {
+  return mnemocode.protectList(list, "key", recipient);
 }
 
 class FakeElement extends EventTarget {
@@ -68,6 +38,8 @@ class FakeElement extends EventTarget {
   checked = false;
   value = "";
   textContent = "";
+  /** The page's document, with its window where the page sets one (panelPage). */
+  ownerDocument: { readonly defaultView?: EventTarget } = {};
   click(): void {
     this.dispatchEvent(new Event("click"));
   }
@@ -131,6 +103,9 @@ function panelPage(selfTestPassed = true) {
   };
   // As the page starts: index.html hides these until they apply.
   page.key.hidden = page.keyNote.hidden = page.passphraseField.hidden = page.remove.hidden = true;
+  // The window of the page, whose pagehide ends its lists and its key.
+  const window = new EventTarget();
+  page.key.ownerDocument = { defaultView: window };
   const selectors: Readonly<Record<string, EventTarget>> = {
     "#candidate-list-key": page.key,
     "#candidate-list-key-note": page.keyNote,
@@ -151,7 +126,7 @@ function panelPage(selfTestPassed = true) {
   };
   const panel = new CandidateListPanel(CandidateListImport, required, () => undefined);
   panel.setEnabled(selfTestPassed);
-  return { panel, ...page };
+  return { panel, window, ...page };
 }
 
 type Page = ReturnType<typeof panelPage>;
@@ -172,6 +147,26 @@ async function opened(page: Page): Promise<void> {
 function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
+
+describe("candidate-list panel key lifetime", () => {
+  it("wipes the page's key when the page goes, so that a list saved to it no longer opens", async () => {
+    const page = panelPage();
+    const recipient = await scannerKey(page);
+    const file = new ListFile(encryptCandidates(plainList(PHRASES), recipient));
+    page.window.dispatchEvent(new Event("pagehide"));
+    expect(page.key.value).toBe("");
+    expect(page.key.hidden).toBe(true);
+    page.file.choose(file);
+    await settle();
+    page.open.click();
+    await opened(page);
+    expect(page.panel.source).toBeUndefined();
+    expect(page.status.textContent).toMatch(/no Scanner key yet/u);
+    // A new key is made when one is asked for again.
+    expect(await scannerKey(page)).not.toBe(recipient);
+    page.panel.close();
+  });
+});
 
 describe("candidate-list panel File admission", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -200,9 +195,7 @@ describe("candidate-list panel File admission", () => {
       const page = panelPage();
       const file = new ListFile(Uint8Array.of(1, 2, 3));
       // Metadata-only fault injection: ordinary fixtures retain native File/Blob sizes and slices.
-      vi.spyOn(file, "size", "get").mockReturnValue(
-        CandidateFileAdmission.parameters().encryptedBytes + 1,
-      );
+      vi.spyOn(file, "size", "get").mockReturnValue(MAX_ENCRYPTED_BYTES + 1);
       const arrayBuffer = vi.spyOn(file, "arrayBuffer");
       const slice = vi.spyOn(file, "slice");
       if (action === "Select") page.file.choose(file);
@@ -223,14 +216,12 @@ describe("candidate-list panel File admission", () => {
   it("inspects only a native File prefix during selection", async () => {
     const page = panelPage();
     const recipient = await scannerKey(page);
-    const file = new ListFile(await encryptCandidates(plainList(PHRASES), recipient));
+    const file = new ListFile(encryptCandidates(plainList(PHRASES), recipient));
     const body = vi.spyOn(file, "arrayBuffer");
     page.file.choose(file);
     await vi.waitFor(() => expect(file.buffers).toHaveLength(1));
     await settle();
-    expect(file.prefixSizes).toEqual([
-      Math.min(file.size, CandidateFileAdmission.parameters().headerBytes),
-    ]);
+    expect(file.prefixSizes).toEqual([Math.min(file.size, HEADER_BYTES)]);
     expect(file.readsWiped).toBe(true);
     expect(body).not.toHaveBeenCalled();
     expect(page.passphraseField.hidden).toBe(true);
@@ -242,9 +233,10 @@ describe("candidate-list panel File admission", () => {
 describe("MnemoCode candidate list panel in the Scanner", () => {
   // scrypt at the fixed work factor takes about a second, so the passphrase list is made once.
   let passphraseList: Uint8Array;
-  beforeAll(async () => {
-    passphraseList = await encryptCandidatesWithPassphrase(
+  beforeAll(() => {
+    passphraseList = mnemocode.protectList(
       plainList(PHRASES, "TREZOR"),
+      "passphrase",
       LIST_PASSPHRASE,
     );
   });
@@ -259,9 +251,7 @@ describe("MnemoCode candidate list panel in the Scanner", () => {
 
   it("keeps no list cleared while its file is read (the AUD-022 reproduction)", async () => {
     const page = panelPage();
-    const file = new ListFile(
-      await encryptCandidates(plainList([PHRASES[0]!]), await scannerKey(page)),
-    );
+    const file = new ListFile(encryptCandidates(plainList([PHRASES[0]!]), await scannerKey(page)));
     page.file.choose(file);
     await settle();
     const { release } = file.holdNextRead();
@@ -278,7 +268,7 @@ describe("MnemoCode candidate list panel in the Scanner", () => {
 
   it("drops the open of a file replaced while it is read; the new file decides", async () => {
     const page = panelPage();
-    const file = new ListFile(await encryptCandidates(plainList(PHRASES), await scannerKey(page)));
+    const file = new ListFile(encryptCandidates(plainList(PHRASES), await scannerKey(page)));
     page.file.choose(file);
     await settle();
     const { release } = file.holdNextRead();
@@ -290,21 +280,6 @@ describe("MnemoCode candidate list panel in the Scanner", () => {
     expect(page.passphraseField.hidden).toBe(false);
     expect(page.status.textContent).toBe("");
     expect(file.readsWiped).toBe(true);
-  });
-
-  it("keeps no list cleared while it is decrypted, and reports nothing of it", async () => {
-    const page = panelPage();
-    await choosePassphraseList(page);
-    page.passphrase.value = LIST_PASSPHRASE;
-    const held = decryption.holdNext();
-    page.open.click();
-    await held.started;
-    page.panel.clear();
-    held.release();
-    await opened(page);
-    expect(page.panel.source).toBeUndefined();
-    expect(page.status.textContent).toBe("");
-    expect(page.passphrase.value).toBe("");
   });
 
   it("does not ask for a passphrase again when Clear comes while the header is read", async () => {
@@ -367,9 +342,7 @@ describe("MnemoCode candidate list panel in the Scanner", () => {
     expect(page.key.hidden).toBe(true);
 
     page.panel.setEnabled(true);
-    const file = new ListFile(
-      await encryptCandidates(plainList([PHRASES[0]!]), await scannerKey(page)),
-    );
+    const file = new ListFile(encryptCandidates(plainList([PHRASES[0]!]), await scannerKey(page)));
     page.file.choose(file);
     await settle();
     page.open.click();

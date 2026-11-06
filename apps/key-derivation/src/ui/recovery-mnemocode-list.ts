@@ -1,14 +1,21 @@
 // The candidate list for the Discovery Scanner, as MnemoCode's command line offers it: encrypted
 // to the Scanner's one-time key or under a passphrase, or, behind Advanced and a confirmation, not
-// encrypted at all. The library checks the key and the passphrase when the search starts.
+// encrypted at all. The key and the passphrase are checked before the search starts, by
+// MnemoCode's rules (docs/CANDIDATES.md), and MnemoCode checks them again when it protects the list.
 import type { ListProtectionRequest } from "@ckd/recovery-backup/mnemocode-search.js";
-import {
-  parseListPassphrase,
-  parseRecipient,
-} from "../../../../packages/recovery-mnemocode/source/core/candidate-encryption.js";
 import { installTextFileImport } from "@ckd/ui/text-file-import.js";
 import { LiteralSecretField } from "@ckd/ui/literal-secret-field.js";
 import { installSecretToggle, PHRASE_FILE_IMPORT, required } from "./recovery-workspace-shared.js";
+
+/** A Scanner key: age1 and 58 more characters of its Bech32 alphabet, upper or lower case. */
+const RECIPIENT = /^age1[02-9ac-hj-np-z]{58}$/iu;
+/** The fewest characters of a list passphrase. */
+const MIN_PASSPHRASE_CHARACTERS = 12;
+
+/** A key or passphrase read from a file: without a leading byte order mark or white space at its ends. */
+function fileText(text: string): string {
+  return text.replace(/^\uFEFF/u, "").trim();
+}
 
 export class CandidateListField {
   readonly #prefix: string;
@@ -25,7 +32,7 @@ export class CandidateListField {
     this.#plain = required<HTMLInputElement>(`#${prefix}-list-plain`);
     installTextFileImport(document, required<HTMLInputElement>(`#${prefix}-list-key`), {
       accept: PHRASE_FILE_IMPORT.accept,
-      normalize: parseRecipient,
+      normalize: fileText,
     });
     const passphrase = required<HTMLTextAreaElement>(`#${prefix}-list-passphrase`);
     const confirm = required<HTMLTextAreaElement>(`#${prefix}-list-passphrase-confirm`);
@@ -37,7 +44,7 @@ export class CandidateListField {
     ] as const)
       installTextFileImport(document, field, {
         accept: PHRASE_FILE_IMPORT.accept,
-        normalize: parseListPassphrase,
+        normalize: fileText,
         value,
       });
     installSecretToggle(
@@ -77,11 +84,20 @@ export class CandidateListField {
       return { kind: "none" };
     }
     const choice = this.#radios().find((radio) => radio.checked)?.value;
-    if (choice === "key") return { kind: "key", recipient: this.#value("key") };
+    if (choice === "key") {
+      const recipient = fileText(this.#value("key"));
+      if (!RECIPIENT.test(recipient))
+        throw new Error("The Scanner key is one age key: 62 characters that start with age1.");
+      return { kind: "key", recipient };
+    }
     if (choice === "passphrase") {
       const passphrase = this.#passphrase.read();
       if (passphrase !== this.#passphraseConfirm.read())
         throw new Error("The two list passphrases differ. Please type them again.");
+      if ([...passphrase.trim()].length < MIN_PASSPHRASE_CHARACTERS)
+        throw new Error(
+          `Use at least ${MIN_PASSPHRASE_CHARACTERS} characters for a list passphrase: it protects every candidate seed phrase.`,
+        );
       return { kind: "passphrase", passphrase };
     }
     throw new Error("Choose how the list should be encrypted.");

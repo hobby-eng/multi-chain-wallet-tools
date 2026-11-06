@@ -4,19 +4,13 @@ import { MnemoCodeDownload } from "./recovery-mnemocode-download.js";
 // whole table saved as a file. Public data only; the rows are MnemoCode's.
 import {
   UNICODE_CODE_HINT,
-  wordTableRow,
-  wordTableText,
+  WordTable,
+  MnemoCodeWordTableExports,
   type WordTableLookup,
 } from "@ckd/recovery-backup/mnemocode-word-table.js";
-import {
-  LineWordHints,
-  WordList,
-} from "../../../../packages/recovery-mnemocode/source/core/word-hints.js";
 import { attachMnemoCodeWordHints } from "./recovery-mnemocode-word-hints.js";
 import { required, type RecoveryFeatureContext } from "./recovery-workspace-shared.js";
 
-/** The file of the whole table, as the command line's output would be saved. */
-const TABLE_FILE = "mnemocode-word-table.tsv";
 /** How each look-up is typed, shown as the field's example. */
 const PLACEHOLDERS: Readonly<Record<WordTableLookup, string>> = {
   word: "abandon",
@@ -27,6 +21,8 @@ const PLACEHOLDERS: Readonly<Record<WordTableLookup, string>> = {
 export class MnemoCodeWordTableTab {
   readonly #value = required<HTMLInputElement>("#mnemocode-table-value");
   readonly #result = required<HTMLElement>("#mnemocode-table-result");
+  readonly #exportFormat = required<HTMLSelectElement>("#mnemocode-table-export-format");
+  readonly #exportStatus = required<HTMLElement>("#mnemocode-table-export-status");
 
   constructor(context: RecoveryFeatureContext) {
     for (const radio of this.#radios())
@@ -36,19 +32,51 @@ export class MnemoCodeWordTableTab {
       });
     this.#value.placeholder = PLACEHOLDERS[this.#lookup()];
     // A word looked up gets the hints of the BIP39 list; a number or a code gets none.
-    attachMnemoCodeWordHints(
-      this.#value,
-      new LineWordHints(() => (this.#lookup() === "word" ? WordList.BIP39 : undefined)),
-    );
+    attachMnemoCodeWordHints(this.#value, () => (this.#lookup() === "word" ? "phrase" : undefined));
     this.#value.addEventListener("keydown", (event) => {
       if (event.key === "Enter") this.#lookUp();
     });
     required<HTMLButtonElement>("#mnemocode-table-look-up").addEventListener("click", () =>
       this.#lookUp(),
     );
-    required<HTMLButtonElement>("#mnemocode-table-save").addEventListener("click", () =>
-      MnemoCodeDownload.text(context, wordTableText(), TABLE_FILE, "text/tab-separated-values"),
-    );
+    for (const choice of MnemoCodeWordTableExports.CHOICES) {
+      const option = document.createElement("option");
+      option.value = choice.value;
+      option.textContent = choice.label;
+      this.#exportFormat.append(option);
+    }
+    this.#exportFormat.value = "legacy";
+    for (const [selector, makeExport] of [
+      ["#mnemocode-table-save", () => MnemoCodeWordTableExports.table(this.#exportFormat.value)],
+      ["#mnemocode-table-guide", () => MnemoCodeWordTableExports.recoveryGuide()],
+    ] as const) {
+      required<HTMLButtonElement>(selector).addEventListener("click", () => {
+        this.#exportStatus.textContent = "";
+        try {
+          const { text, fileName, mimeType } = makeExport();
+          MnemoCodeDownload.text(context, text, fileName, mimeType);
+        } catch (cause) {
+          this.#exportStatus.textContent =
+            cause instanceof Error ? cause.message : "The public reference could not be exported.";
+        }
+      });
+    }
+    required<HTMLButtonElement>("#mnemocode-table-full-set").addEventListener("click", () => {
+      this.#exportStatus.textContent = "";
+      try {
+        const bytes = MnemoCodeWordTableExports.fullSet();
+        try {
+          MnemoCodeDownload.bytes(bytes, "application/zip", "mnemocode-recovery-reference-set.zip");
+        } finally {
+          bytes.fill(0);
+        }
+      } catch (cause) {
+        this.#exportStatus.textContent =
+          cause instanceof Error
+            ? cause.message
+            : "The recovery reference set could not be exported.";
+      }
+    });
   }
 
   #radios(): HTMLInputElement[] {
@@ -62,7 +90,7 @@ export class MnemoCodeWordTableTab {
   #lookUp(): void {
     this.#result.replaceChildren();
     try {
-      const row = wordTableRow(this.#lookup(), this.#value.value);
+      const row = WordTable.lookup(this.#lookup(), this.#value.value);
       const list = document.createElement("dl");
       list.className = "mnemocode-table-row";
       const character = String.fromCodePoint(Number.parseInt(row.unicodeHex, 16));

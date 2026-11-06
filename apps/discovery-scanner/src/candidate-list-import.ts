@@ -1,30 +1,25 @@
 // A MnemoCode candidate list in the Scanner: the candidates of a forgotten word or date, saved by
 // MnemoCode or the Wallet Deriver as one encrypted MNCL file (MnemoCode docs/CANDIDATES.md), which
 // the Scanner opens and checks like typed seed phrases. The Scanner holds no recovery code: it only
-// opens the list, with MnemoCode's own modules for the encryption (core/candidate-encryption.ts)
-// and the format (core/candidate-list.ts), used unchanged.
+// opens the list, with the candidates part of MnemoCode's WebAssembly (candidateFileLock,
+// SessionIdentity, decryptWithPassphrase, OpenedCandidateList).
 //
 // A list is encrypted either to this page's one-time key (age X25519), made when the person asks
 // for it and gone when the page closes, or, as a separate file, under a list passphrase (scrypt).
 // The candidates are never shown: they become the seed inputs of a scan, candidate N as MnemoCode
-// numbers it, and their entropy is wiped when the list is removed or replaced.
-import {
-  CandidateFileRefusedError,
-  createSessionIdentity,
-  decryptCandidates,
-  parseListPassphrase,
-  type SessionIdentity,
-} from "../../../packages/recovery-mnemocode/source/core/candidate-encryption.js";
-import {
-  CandidateFileAdmission,
-  type CandidateFileForm,
-  type ListFileLock,
-} from "../../../packages/recovery-mnemocode/source/core/candidate-file-admission.js";
-import {
-  OpenedCandidateList,
-  type ListPassphrases,
-} from "../../../packages/recovery-mnemocode/source/core/candidate-list.js";
+// numbers it, and the list is freed, which wipes it, when it is removed or replaced.
+import type { OpenedCandidateList, SessionIdentity } from "@ckd/mnemocode-wasm/mnemocode.js";
+import { mnemocode, mnemocodeCode } from "@ckd/recovery-backup/mnemocode-engine.js";
 import type { RecoverySeedInput } from "./types.js";
+
+/** How an encrypted list file is locked: to a Scanner key or with a passphrase. */
+export type ListFileLock = "key" | "passphrase";
+/** Which passphrases a list holds: none, one for all, or one for each candidate. */
+export type ListPassphrases = "none" | "list" | "records";
+
+/** The bytes of a file that MnemoCode reads for its lock: its age header fits in them. */
+const HEADER_BYTES = 64 * 1024;
+const LOCKS: Readonly<Record<string, ListFileLock>> = { X25519: "key", scrypt: "passphrase" };
 
 /** What an opened list holds, as the page reports it. */
 export interface OpenedList {
@@ -42,37 +37,39 @@ export interface CandidateSource {
 export type CandidateListFile = Pick<Blob, "size" | "slice" | "arrayBuffer">;
 
 export class CandidateListImport implements CandidateSource {
-  #session: Promise<SessionIdentity> | undefined;
+  #session: SessionIdentity | undefined;
   #list: OpenedCandidateList | undefined;
   /** Counts removals: a list that finishes opening after one is wiped and not kept. */
   #generation = 0;
 
   /** The kind of key that opens `file`; refused unless it is a list file of one of the two kinds. */
   static lockOf(file: Uint8Array): ListFileLock {
-    return CandidateFileAdmission.lock(file);
+    const lock = LOCKS[mnemocode().candidateFileLock(file)];
+    if (lock === undefined)
+      throw new Error("This file is locked in a way the Scanner cannot open.");
+    return lock;
   }
 
   /** Size and bounded prefix admission, before the panel asks for a key or reads the body. */
-  static inspect(file: Pick<Blob, "size" | "slice">): Promise<ListFileLock> {
-    return CandidateListImport.#inspect(file, file.size);
+  static async inspect(file: Pick<Blob, "size" | "slice">): Promise<ListFileLock> {
+    mnemocode().checkCandidateFileSize(file.size);
+    const head = new Uint8Array(await file.slice(0, HEADER_BYTES).arrayBuffer());
+    try {
+      return CandidateListImport.lockOf(head);
+    } finally {
+      head.fill(0);
+    }
   }
 
   /** Plaintext is selected explicitly, never guessed from an encrypted file's failure. */
   static inspectPlaintext(file: Pick<Blob, "size">): void {
-    CandidateFileAdmission.assertSize(file.size, "plaintext");
-  }
-
-  static #inspect(file: Pick<Blob, "slice">, size: number): Promise<ListFileLock> {
-    return CandidateFileAdmission.inspect(
-      size,
-      async (length) => new Uint8Array(await file.slice(0, length).arrayBuffer()),
-    );
+    mnemocode().checkCandidateFileSize(file.size);
   }
 
   /** The age1… key that MnemoCode or the Deriver encrypts a list to: one for this page. */
-  async recipient(): Promise<string> {
-    this.#session ??= createSessionIdentity();
-    return (await this.#session).recipient;
+  recipient(): Promise<string> {
+    this.#session ??= mnemocode().SessionIdentity.create();
+    return Promise.resolve(this.#session.recipient);
   }
 
   get count(): number {
@@ -87,7 +84,7 @@ export class CandidateListImport implements CandidateSource {
    * opened: nothing of it is kept, and a failure of it is not reported.
    */
   async open(file: CandidateListFile, passphrase?: string): Promise<OpenedList | undefined> {
-    return this.#open(file, "age", passphrase);
+    return this.#open(file, true, passphrase);
   }
 
   async openPlaintext(file: CandidateListFile, consent = false): Promise<OpenedList | undefined> {
@@ -95,13 +92,13 @@ export class CandidateListImport implements CandidateSource {
       throw new Error(
         "Confirm that this candidate list contains unencrypted recovery material before opening it.",
       );
-    return this.#open(file, "plaintext");
+    return this.#open(file, false);
   }
 
   /** One lifecycle and ownership path for the two explicitly selected file forms. */
   async #open(
     file: CandidateListFile,
-    form: CandidateFileForm,
+    encrypted: boolean,
     passphrase?: string,
   ): Promise<OpenedList | undefined> {
     this.clear();
@@ -110,89 +107,84 @@ export class CandidateListImport implements CandidateSource {
     const dropped = (): boolean => generation !== this.#generation;
     let bytes: Uint8Array | undefined;
     let plain: Uint8Array | undefined;
+    let list: OpenedCandidateList | undefined;
     try {
       const size = file.size;
-      const lock = form === "age" ? await CandidateListImport.#inspect(file, size) : undefined;
-      if (form === "plaintext") CandidateFileAdmission.assertSize(size, form);
+      const lock = encrypted ? await CandidateListImport.inspect(file) : undefined;
+      if (!encrypted) CandidateListImport.inspectPlaintext(file);
       if (dropped()) return undefined;
       bytes = new Uint8Array(await file.arrayBuffer());
       if (dropped()) return undefined;
-      CandidateFileAdmission.assertSize(bytes.byteLength, form);
       if (
         bytes.byteLength !== size ||
-        (lock !== undefined && CandidateFileAdmission.lock(bytes) !== lock)
+        (lock !== undefined && CandidateListImport.lockOf(bytes) !== lock)
       )
-        throw new CandidateFileRefusedError(
-          "damaged",
-          "The candidate file changed or ended while it was being read.",
-        );
-      plain = lock === undefined ? bytes : await this.#decrypt(bytes, lock, passphrase);
-      CandidateFileAdmission.assertSize(plain.byteLength, "plaintext");
+        throw new Error("The file changed while it was read. Choose it again.");
+      plain = lock === undefined ? bytes : this.#decrypt(bytes, lock, passphrase);
+      list = mnemocode().OpenedCandidateList.read(plain);
       if (dropped()) return undefined;
-      // fromBytes takes ownership and wipes the plaintext even when parsing refuses it.
-      const parsedBytes = plain;
-      plain = undefined;
-      const list = OpenedCandidateList.fromBytes(parsedBytes);
-      if (dropped()) {
-        list.wipe();
-        return undefined;
-      }
       this.#list = list;
+      list = undefined;
     } catch (cause) {
       if (dropped()) return undefined;
       throw cause;
     } finally {
       bytes?.fill(0);
       plain?.fill(0);
+      list?.free();
     }
-    return { count: this.#list.count, passphrases: this.#list.passphrases };
+    return {
+      count: this.#list.count,
+      passphrases: this.#list.passphrases as ListPassphrases,
+    };
   }
 
   /** The candidates as seed inputs, candidate N as MnemoCode numbers it; made fresh each time. */
   inputs(): RecoverySeedInput[] {
-    return (this.#list?.candidates() ?? []).map((candidate, index) => ({
+    const list = this.#list;
+    if (list === undefined) return [];
+    return Array.from({ length: list.count }, (_, index) => ({
       id: `candidate-${index + 1}`,
       label: `Candidate ${index + 1} · MnemoCode list`,
-      mnemonic: candidate.phrase,
-      passphrase: candidate.passphrase,
+      mnemonic: list.phrase(index),
+      passphrase: list.passphrase(index),
     }));
   }
 
-  /** Removes the list and wipes its entropy; the page's key stays for the next list. */
+  /** Removes the list and wipes it; the page's key stays for the next list. */
   clear(): void {
     this.#generation += 1;
-    this.#list?.wipe();
+    this.#list?.free();
     this.#list = undefined;
   }
 
+  /**
+   * Ends this page's lists: wipes any list and the page's one-time key, which this import owns, so
+   * that a list saved to it no longer opens; a later recipient() makes a new key.
+   */
+  end(): void {
+    this.clear();
+    this.#session?.free();
+    this.#session = undefined;
+  }
+
   /** Decrypts `file` with the key its header asks for, in words a person can act on if it fails. */
-  async #decrypt(
-    file: Uint8Array,
-    lock: ListFileLock,
-    passphrase: string | undefined,
-  ): Promise<Uint8Array> {
-    const key =
-      lock === "passphrase"
-        ? { passphrase: parseListPassphrase(passphrase ?? "") }
-        : { identity: (await this.#sessionForOpening()).identity };
+  #decrypt(file: Uint8Array, lock: ListFileLock, passphrase: string | undefined): Uint8Array {
+    if (lock === "passphrase") return mnemocode().decryptWithPassphrase(file, passphrase ?? "");
+    if (this.#session === undefined)
+      throw new Error(
+        "This page has no Scanner key yet: show the key, save the list to it, then open the list here.",
+      );
     try {
-      return await decryptCandidates(file, key);
+      return this.#session.decrypt(file);
     } catch (cause) {
       // MnemoCode's message says what failed; only the page knows which page a key belongs to.
-      if (cause instanceof CandidateFileRefusedError && cause.code === "key" && "identity" in key)
+      if (mnemocodeCode(cause) === "core.candidate-file-refusal.scanner-key-does-not-open")
         throw new Error(
           "This list was saved for another Scanner key. A list opens only in the page whose key it was saved to, while that page stays open.",
           { cause },
         );
       throw cause;
     }
-  }
-
-  async #sessionForOpening(): Promise<SessionIdentity> {
-    if (this.#session === undefined)
-      throw new Error(
-        "This page has no Scanner key yet: show the key, save the list to it, then open the list here.",
-      );
-    return this.#session;
   }
 }

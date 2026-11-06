@@ -1,7 +1,6 @@
 // Share text given in Decode goes to Restore intact, including multiple and unreadable parts.
-// The historical event name is kept for existing installers; parsing belongs to ShareInput.
-// BackupReading.shareKind classifies it. Decode knows nothing
-// of the Restore tab, which only a build with SSKR has: it sends the share as an event, and the
+// The historical event name is kept for existing installers; MnemoCode's shareKind tells a share
+// from codes, and its restore reads the shares. Decode knows nothing of the Restore tab, which only a build with SSKR has: it sends the share as an event, and the
 // Restore tab takes it.
 
 /** The event that carries a share from Decode to Restore. */

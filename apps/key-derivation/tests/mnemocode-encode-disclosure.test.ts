@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { loadMnemoCode } from "@ckd/recovery-backup/mnemocode-module.js";
 import { MnemoCodeEncodeTab } from "../src/ui/recovery-mnemocode-encode.js";
 import { RecoveryTestPage } from "./fake-recovery-page.js";
 import { RecoveryJobGate } from "../src/ui/recovery-job-gate.js";
@@ -16,6 +17,10 @@ vi.mock("../src/ui/recovery-workspace-shared.js", async (original) => ({
   ...(await original<typeof import("../src/ui/recovery-workspace-shared.js")>()),
   installFieldImports: () => undefined,
 }));
+
+beforeAll(async () => {
+  await loadMnemoCode();
+});
 
 const PHRASE =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -44,6 +49,7 @@ function page() {
     page.add(`${id}-popover`, "div", page.require(id)).className = "recovery-help-popover";
   page.add("mnemocode-show-masked-words", "input", root).type = "checkbox";
   page.add("encode-mnemocode", "button", root);
+  page.add("toggle-mnemocode-created", "button", root);
   const jobs = new RecoveryJobGate();
   jobs.setReady(true);
   new MnemoCodeEncodeTab({
@@ -82,6 +88,7 @@ describe("Ordinary Encode's separate masked-English opt-in", () => {
     expect(words?.classList.contains("concealed")).toBe(true);
     p.require("mnemocode-show-masked-words").dispatchEvent(new Event("change"));
     expect(p.require("mnemocode-encode-result").children).toHaveLength(0);
+    expect(words?.textContent).toBe("");
   });
 
   it("never duplicates the words when English is already the selected representation", () => {
@@ -102,4 +109,22 @@ describe("Ordinary Encode's separate masked-English opt-in", () => {
     expect(p.require("mnemocode-show-masked-words").disabled).toBe(true);
     expect(p.require("mnemocode-show-masked-words-field").hidden).toBe(true);
   });
+
+  it.each(["unicode", "colors-unicode"])(
+    "retires both joined and separated %s codes when the source changes",
+    (format) => {
+      const p = page();
+      p.require("mnemocode-encode-mode").value = "direct";
+      p.require("mnemocode-encode-format").value = format;
+      p.require("encode-mnemocode").click();
+      const result = p.require("mnemocode-encode-result");
+      const joined = result.querySelector(".share-secret");
+      const separated = result.querySelector(".apart-codes");
+      expect(joined?.textContent.length).toBeGreaterThan(0);
+      expect(separated?.textContent.length).toBeGreaterThan(0);
+      p.require("mnemocode-source").dispatchEvent(new Event("input"));
+      expect(joined?.textContent).toBe("");
+      expect(separated?.textContent).toBe("");
+    },
+  );
 });

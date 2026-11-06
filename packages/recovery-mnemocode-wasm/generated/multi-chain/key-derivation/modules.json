@@ -1,0 +1,47 @@
+{
+  "buildId": "c52799e6a967806a",
+  "files": {
+    "mnemocode.d.ts": "77276375339d1c87f25f6d96db31b3bb8db494f955d73e9c13ef8fb62eddf35a",
+    "mnemocode.js": "46a04f51094ef07fb2dc36c718440ab8c08164e04f221a389f78f0c534b4b981",
+    "mnemocode.wasm": "fc3fe0292c2760680149b215679fce0d275aed40228e62ce07b247c168b55ed9"
+  },
+  "modules": [
+    "phrase",
+    "wallet",
+    "qr",
+    "candidates",
+    "sskr",
+    "recovery",
+    "cards",
+    "embroidery"
+  ],
+  "profile": "multi-chain/key-derivation",
+  "units": [
+    "template-business-architect",
+    "template-business-it",
+    "template-business-estate",
+    "template-business-diagonal",
+    "template-business-contact",
+    "template-business-curves",
+    "template-business-facets",
+    "template-business-mixed",
+    "template-material-vehicle",
+    "template-material-enclosure",
+    "template-material-tile",
+    "template-material-switch",
+    "template-material-kitchen",
+    "coin-bitcoin",
+    "coin-bitcoin-cash",
+    "coin-cosmos",
+    "coin-dash",
+    "coin-dogecoin",
+    "coin-ethereum",
+    "coin-ethereum-classic",
+    "coin-injective",
+    "coin-litecoin",
+    "coin-tron",
+    "coin-xrp",
+    "coin-zcash"
+  ],
+  "version": "0.2.0"
+}

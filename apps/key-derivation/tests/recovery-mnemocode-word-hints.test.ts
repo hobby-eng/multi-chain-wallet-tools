@@ -1,14 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { EncodedForm } from "../../../packages/recovery-mnemocode/source/core/encoded-form.js";
-import { WordList } from "../../../packages/recovery-mnemocode/source/core/word-hints.js";
-import { SHARE_WORD_HINTS } from "../../../packages/recovery-mnemocode/source/sskr/share-input.js";
+import { beforeAll, describe, expect, it } from "vitest";
+import { loadMnemoCode } from "@ckd/recovery-backup/mnemocode-module.js";
 import { mnemoCodeWordHints } from "../src/ui/recovery-mnemocode-word-hints.js";
+
+beforeAll(async () => {
+  await loadMnemoCode();
+});
 
 // What the page shows below MnemoCode's word fields: MnemoCode's own texts, a warning where no
 // word fits, the words listed at most 24 at a time, and Tab's completion. Public BIP39 words only.
 
 describe("MnemoCode word hints in the Deriver", () => {
-  const bip39 = mnemoCodeWordHints(WordList.BIP39);
+  const bip39 = mnemoCodeWordHints("phrase");
 
   it("shows MnemoCode's count, its warning and nothing for a whole word", () => {
     expect(bip39("abandon z")).toEqual({
@@ -39,16 +41,11 @@ describe("MnemoCode word hints in the Deriver", () => {
     expect(bip39("artw")).toMatchObject({ completion: { letters: "ork", wordEnds: true } });
   });
 
-  it("hints English codes and Bytewords, never Unicode codes or colors", () => {
-    expect(mnemoCodeWordHints(EncodedForm.typedWords)("abandon zo")).toMatchObject({
+  it("hints English codes by MnemoCode, never Unicode codes or colors", () => {
+    expect(mnemoCodeWordHints("codes")("abandon zo")).toMatchObject({
       shown: { text: "zone zoo" },
     });
-    expect(mnemoCodeWordHints(EncodedForm.typedWords)("7684 5728 CA")).toMatchObject({
-      shown: null,
-    });
-    expect(mnemoCodeWordHints(SHARE_WORD_HINTS)("tuna acid; ta")).toMatchObject({
-      shown: { text: "taco task taxi" },
-    });
-    expect(mnemoCodeWordHints(SHARE_WORD_HINTS)("#1A2B3C AB")).toMatchObject({ shown: null });
+    expect(mnemoCodeWordHints("codes")("7684 5728 CA")).toMatchObject({ shown: null });
+    expect(mnemoCodeWordHints("codes")("xq")).toMatchObject({ shown: { warning: true } });
   });
 });
