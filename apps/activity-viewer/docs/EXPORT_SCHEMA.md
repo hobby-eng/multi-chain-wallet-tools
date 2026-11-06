@@ -2,6 +2,8 @@
 
 Dash JSON exports use `schema: "wallet-activity-viewer-export"` and `version: 3`. CSV and XLSX detail rows carry `schema_version=3`. The same rules apply to individual results and Dash or mixed batches. Bitcoin and Ethereum use their separate normalized public-activity export schema.
 
+Text report entry points accept only `csv` or `json`; the public-address file exporter also accepts `xlsx`. `PublicReportFormat` supplies the common runtime admission and format types. Unsupported, empty or missing choices fail with `export.report.format` before timestamp formatting, file naming or serialization. They never select another format as a fallback. Existing function entry points remain available alongside their class owners.
+
 ## Core accounting migration from version 2
 
 The JSON `balance` object contains exact decimal strings:
@@ -32,3 +34,7 @@ The scan summary remains explicitly `partial` or `complete` in CSV/XLSX and carr
 The address info resource must be a valid DIP18 address for the requested network and normalize to the requested address. Missing, malformed, mixed-case, wrong-network, and unrelated resources are refused before transition history is loaded. Uniform uppercase Bech32m representations normalize to the same lowercase resource. A synchronized Explorer status must identify the requested network; an optional network in address info must agree as well.
 
 Resource admission does not authenticate Explorer accounting. Proof-backed balance/nonce remain in JSON `state`; auxiliary indexed balance/nonce remain in `history.explorerState`, with provider and index height recorded separately. CSV/XLSX use the proof balance and label disagreement as `proof_takes_precedence`. The proof does not authenticate auxiliary history.
+
+Identity JSON history retains `historyWarnings` and `historyCoverage`. CSV and XLSX Identity detail metadata retain `history_warnings` and `history_coverage`; the XLSX Summary has separate columns with those names. These qualifications do not change the proof-backed balance or its verification status. Summary warnings identify the Identity they concern.
+
+Coverage is `limited-or-unverified` when warnings are reported, `no-warnings-reported` for an explicit empty warning list, `unreported` when a history result supplies no coverage field, and `unavailable` when indexed history is absent. No label certifies universally complete chain history. Missing warning information stays `null` in JSON rather than becoming an empty list.

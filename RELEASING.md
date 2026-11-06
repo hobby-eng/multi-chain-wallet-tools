@@ -33,13 +33,13 @@ Use a clean checkout of the intended canonical source commit/tag. Confirm that l
 The checked-in workflows pin every referenced GitHub-maintained action to a full commit SHA. Compilation itself runs through the repository's canonical Dockerfile:
 
 - `.github/workflows/ci.yml` runs bounded metadata, type, format and tooling checks on pushes and pull requests. Its full canonical and browser jobs run only by manual dispatch for pre-release verification.
-- `.github/workflows/full-wasm.yml` runs the complete pinned Rust/WASM build gate only by manual dispatch before a release. `vectors.yml` also runs only manually; dependency updates and pushes do not replay the full vector set.
-- `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version and a matching curated `docs/releases/<tag>.md`, creates GitHub provenance attestations, and publishes a Multi-Chain release containing the four standalone HTML files, the executable Key Derivation Tool for its five platforms, their sidecars, `verification-record.json`, the MIT `LICENSE`, `ATTRIBUTION.md`, `THIRD_PARTY_NOTICES.md`, the MHFE and MnemoCode licence and notice files it cites, and a flat `SHA256SUMS`. It intentionally does not publish the Dash Community bundle.
+- `.github/workflows/full-wasm.yml` runs the complete pinned Rust/WASM build gate only by manual dispatch before a release. `vectors.yml` and the executable acceptance in `launchers.yml` also run only manually; dependency updates, pushes and pull requests do not start those heavy checks.
+- `.github/workflows/release.yml` runs for `v*` tags. It repeats the source/artifact checks, requires the tag to equal `v` plus `package.json` version and a matching curated `docs/releases/<tag>.md`, creates GitHub provenance attestations, and publishes a Multi-Chain release containing the four standalone HTML files, the executable Key Derivation Tool for its five platforms, their sidecars, `verification-record.json`, the MIT `LICENSE`, `ATTRIBUTION.md`, `THIRD_PARTY_NOTICES.md`, the licence and notice files it cites (MHFE, MnemoCode and the licence texts of the linked Rust crates), and a flat `SHA256SUMS`. It intentionally does not publish the Dash Community bundle.
 - `.github/dependabot.yml` proposes pinned npm, Cargo, GitHub Actions and Docker updates weekly. `.github/workflows/upstream-versions.yml` separately compares the pinned Node.js release line, pnpm, stable Rust, rustup, Evo SDK, wasm-bindgen, Dash Orchard tag/commit and note-encryption source, the Codex32, SSKR, Gordian Envelope and Blockchain Commons components crates, the qr, uqr and Playwright packages, and the reviewed SLIP-39 and SeedQR source commits with their upstream releases; it opens or refreshes one review issue instead of modifying release inputs. Never merge a cryptographic/dependency update only because CI is green; inspect its changelog, lockfile diff and vectors.
 
 Before every supported build, `pnpm verify:provenance` requires SHA-512 integrity entries for the complete pnpm closure, SHA-256 checksums for every crates.io package, and full commits for every Cargo git source. It records SHA-256 hashes for the local SeedQR, MnemoCode, MHFE, SLIP-39, Codex32, SSKR, Gordian Envelope, QR rendering, and QR decoding sources. When GitHub is reachable, each reviewed upstream commit must resolve exactly; a mismatch aborts the build. If an upstream repository is unavailable, the command prints an explicit warning and continues because package-manager integrity pins remain mandatory and the exact local source hashes are recorded in the verification evidence. Stable provenance pins and local source hashes are embedded in `verification-record.json`; transient network availability is kept out so identical source builds remain reproducible.
 
-`Dockerfile.reproducible` pins the Ubuntu 24.04-based base image by immutable digest and pins Node.js 26.10.0, pnpm 12.8.1, Rust/Cargo 1.99.0 and wasm-bindgen 0.2.129. Downloaded Node/rustup installers are checksum-verified. Dependency fetching happens before the final `pnpm verify` layer; that complete verification/build layer runs with `--network=none`. Every generated Orchard, Codex32, SSKR, and Gordian Envelope WASM/glue file and the canonical source/output integrity manifest are compared byte for byte with their committed reviewed inputs before any release artifact can leave the image. Use `pnpm build:wasm` to regenerate those committed inputs in the canonical container. Its separate target runs no full test suite or build matrix; the release artifact target retains both and the generated-byte comparison. Set `WALLET_TOOLS_BUILD_MEMORY_MIB` and `WALLET_TOOLS_BUILD_CPUS` to positive integers for per-build resource caps without changing the Docker daemon or selected builder. The memory cap permits no swap beyond that same combined limit. `pnpm build:wasm:local` is for development experiments and cannot satisfy the canonical integrity gate.
+`Dockerfile.reproducible` pins the Ubuntu 24.04-based base image by immutable digest and pins Node.js 26.12.1, pnpm 12.15.0, Rust/Cargo 1.99.1 and wasm-bindgen 0.2.129. Downloaded Node/rustup installers are checksum-verified. Dependency fetching happens before the final `pnpm verify` layer; that complete verification/build layer runs with `--network=none`. Every generated Orchard, Codex32, SSKR, and Gordian Envelope WASM/glue file and the canonical source/output integrity manifest are compared byte for byte with their committed reviewed inputs before any release artifact can leave the image. Use `pnpm build:wasm` to regenerate those committed inputs in the canonical container. Its separate target runs no full test suite or build matrix; the release artifact target retains both and the generated-byte comparison. Set `WALLET_TOOLS_BUILD_MEMORY_MIB` and `WALLET_TOOLS_BUILD_CPUS` to positive integers for per-build resource caps without changing the Docker daemon or selected builder. The memory cap permits no swap beyond that same combined limit. `pnpm build:wasm:local` is for development experiments and cannot satisfy the canonical integrity gate.
 
 The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checksum)` value is a digest of the source tree and embedded build inputs, including the canonical Docker definition and generated WASM; it is not the byte-for-byte HTML checksum. The latter exists only in the external per-file `.sha256` sidecar and flat `SHA256SUMS`. A native build on another host may be functionally correct but byte-different. `./tooling/build-reproducible.sh` is the supported Docker-only way to reproduce the official release bytes locally; `pnpm build:reproducible` is an equivalent convenience command.
 
@@ -47,7 +47,7 @@ The Release passport's `Source/build fingerprint · SHA-256 (not the HTML checks
 
 Before assigning the next version, carry every applicable **Unreleased** entry from [CHANGELOG.md](CHANGELOG.md) and [the next-release draft](docs/releases/unreleased.md) into both editions' curated release notes. In particular, explicitly name every removed module and every replaced dependency, and do not present a later change as part of an already published release. Dependency replacement commits must name the old and new packages and versions in their message and explain the reason and compatibility impact. Confirm that the in-page help, release passport, attribution and third-party notices identify the library actually bundled.
 
-1. Set the version and `releaseDate` once in the root `package.json`, create curated notes at `docs/releases/v<version>.md`, then run `pnpm metadata:sync`. That command copies the release version into workspace manifests, the local Rust crate/lock entry, and notices. Audit dates, reviewed commits, and evidence remain unchanged. `pnpm metadata:check` derives network-operation counts, batch sizes, Identity concurrency, artifact paths, and current release-note expectations from their canonical code/build definitions and fails when documentation drifts. Update the remaining substantive documentation and commit the changes. Give each significant user-facing, security, dependency, or build change its own release-note bullet instead of combining distinct features. The intended tag is always `v` plus the root `package.json` version.
+1. Set the version and `releaseDate` once in the root `package.json`, create curated notes at `docs/releases/v<version>.md`, then run `pnpm metadata:sync`. That command copies the release version into workspace manifests, the local Rust crate/lock entry, and notices. Audit dates, reviewed commits, and evidence remain unchanged. `pnpm metadata:check` derives network-operation counts, batch sizes, Identity concurrency, artifact paths, and current release-note expectations from their canonical code/build definitions and fails when documentation drifts. After any `Cargo.lock` change, run `pnpm licenses:linked` to write the licence texts of the linked Rust crates again. `pnpm check`, CI and the canonical container refuse a file written from another lock; before a release, `pnpm check:licenses` writes every file again offline from the local Cargo home and compares it with the committed one. Update the remaining substantive documentation and commit the changes. Give each significant user-facing, security, dependency, or build change its own release-note bullet instead of combining distinct features. The intended tag is always `v` plus the root `package.json` version.
 2. From a clean source checkout with Docker Engine/Desktop running, run `./tooling/build-reproducible.sh`. This performs the locked install, TypeScript checks, JavaScript/fixed-vector tests, native Rust tests, release WASM rebuilds and exact generated-byte comparisons, generated-browser-WASM tests, two byte-identical builds of both profiles, per-profile manifest checks, Dash graph/content isolation checks, and each application's CSP/artifact verifier.
 3. Run direct-file acceptance and extended browser regressions for the eight freshly built artifacts using [the verification map](docs/VERIFICATION.md). These browser checks are separate from the current Docker/CI command. Then run the live network release observations below. They are intentionally not part of deterministic CI because changing chain state or a provider outage must not change the reproducible build result.
 4. Ensure the working tree is clean. A GPG key is not required. Create and push an annotated tag:
@@ -97,10 +97,16 @@ dist/multi-chain-edition/release/ATTRIBUTION.md
 dist/multi-chain-edition/release/THIRD_PARTY_NOTICES.md
 dist/multi-chain-edition/release/MHFE-THIRD_PARTY_NOTICES.md
 dist/multi-chain-edition/release/MHFE-LICENSE-ARGON2
-dist/multi-chain-edition/release/MnemoCode-LICENSE
+dist/multi-chain-edition/release/MnemoCode-LICENSE-MIT
+dist/multi-chain-edition/release/MnemoCode-LICENSE-APACHE
 dist/multi-chain-edition/release/MnemoCode-NOTICE
-dist/multi-chain-edition/release/MnemoCode-DejaVuSans-NOTICE
-dist/multi-chain-edition/release/MnemoCode-NaturalEarth-NOTICE
+dist/multi-chain-edition/release/MnemoCode-THIRD_PARTY_NOTICES.md
+dist/multi-chain-edition/release/MnemoCode-SSKR-LINKED_LICENSES.txt
+dist/multi-chain-edition/release/recovery-envelope-wasm-LINKED_LICENSES.txt
+dist/multi-chain-edition/release/recovery-codex32-wasm-LINKED_LICENSES.txt
+dist/multi-chain-edition/release/dash-shielded-wasm-LINKED_LICENSES.txt
+dist/multi-chain-edition/release/key-derivation-launcher-LINKED_LICENSES.txt
+dist/multi-chain-edition/release/Rust-library-NOTICE.html
 dist/multi-chain-edition/release/SHA256SUMS
 ```
 
@@ -125,10 +131,16 @@ dist/dash-community-edition/release/ATTRIBUTION.md
 dist/dash-community-edition/release/THIRD_PARTY_NOTICES.md
 dist/dash-community-edition/release/MHFE-THIRD_PARTY_NOTICES.md
 dist/dash-community-edition/release/MHFE-LICENSE-ARGON2
-dist/dash-community-edition/release/MnemoCode-LICENSE
+dist/dash-community-edition/release/MnemoCode-LICENSE-MIT
+dist/dash-community-edition/release/MnemoCode-LICENSE-APACHE
 dist/dash-community-edition/release/MnemoCode-NOTICE
-dist/dash-community-edition/release/MnemoCode-DejaVuSans-NOTICE
-dist/dash-community-edition/release/MnemoCode-NaturalEarth-NOTICE
+dist/dash-community-edition/release/MnemoCode-THIRD_PARTY_NOTICES.md
+dist/dash-community-edition/release/MnemoCode-SSKR-LINKED_LICENSES.txt
+dist/dash-community-edition/release/recovery-envelope-wasm-LINKED_LICENSES.txt
+dist/dash-community-edition/release/recovery-codex32-wasm-LINKED_LICENSES.txt
+dist/dash-community-edition/release/dash-shielded-wasm-LINKED_LICENSES.txt
+dist/dash-community-edition/release/key-derivation-launcher-LINKED_LICENSES.txt
+dist/dash-community-edition/release/Rust-library-NOTICE.html
 dist/dash-community-edition/release/SHA256SUMS
 ```
 

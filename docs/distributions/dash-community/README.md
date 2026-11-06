@@ -48,7 +48,7 @@ Download the release files into one directory and run:
 sha256sum -c SHA256SUMS
 ```
 
-Release bundles include `verification-record.json`, `LICENSE`, `ATTRIBUTION.md`, `THIRD_PARTY_NOTICES.md`, and the MHFE and MnemoCode licence and notice files it names (`MHFE-THIRD_PARTY_NOTICES.md`, `MHFE-LICENSE-ARGON2`, `MnemoCode-LICENSE`, `MnemoCode-NOTICE`, `MnemoCode-DejaVuSans-NOTICE` and `MnemoCode-NaturalEarth-NOTICE`). Verify GitHub build-provenance attestations on the computer that downloaded the file, because it needs the network:
+Release bundles include `verification-record.json`, `LICENSE`, `ATTRIBUTION.md`, `THIRD_PARTY_NOTICES.md`, and the MHFE and MnemoCode licence and notice files it names (`MHFE-THIRD_PARTY_NOTICES.md`, `MHFE-LICENSE-ARGON2`, `MnemoCode-LICENSE-MIT`, `MnemoCode-LICENSE-APACHE`, `MnemoCode-NOTICE`, `MnemoCode-SSKR-LINKED_LICENSES.txt`, `MnemoCode-DejaVuSans-NOTICE`, `MnemoCode-NaturalEarth-NOTICE` and `MnemoCode-CardArtwork-NOTICE`), the licence texts of the Rust crates linked into each WebAssembly module and executable (`*-LINKED_LICENSES.txt`), and the Rust standard library's notices (`Rust-library-NOTICE.html`). Verify GitHub build-provenance attestations on the computer that downloaded the file, because it needs the network:
 
 ```sh
 gh attestation verify Dash_Community_Key_Derivation_Tool.html -R hobby-eng/dash-wallet-tools

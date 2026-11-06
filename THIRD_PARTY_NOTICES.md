@@ -22,17 +22,9 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 | `@dashevo/evo-sdk`         | 4.1.1         | `dashpay/platform` (`packages/js-evo-sdk`)   | MIT               | Connected Viewer/Recovery facades and trusted DAPI queries                                                                        |
 | `@dashevo/wasm-sdk`        | 4.1.1         | `dashpay/platform` (`packages/wasm-sdk`)     | MIT               | Embedded proof-verifying DAPI transport for connected artifacts                                                                   |
 | `write-excel-file`         | 4.1.1         | `gitlab.com/catamphetamine/write-excel-file` | MIT               | Local XLSX workbook generation for Activity Viewer exports                                                                        |
-| `fflate`                   | 0.8.3         | `101arrowz/fflate`                           | MIT               | ZIP container generation for local XLSX exports                                                                                   |
-| `pdf-lib`                  | 1.17.1        | `Hopding/pdf-lib`                            | MIT               | PDF creation for MnemoCode card export in the Key Derivation Tool                                                                 |
-| `@pdf-lib/fontkit`         | 1.1.1         | `Hopding/fontkit`                            | MIT               | Font embedding for MnemoCode card export                                                                                          |
-| `@pdf-lib/upng`            | 1.0.1         | `Hopding/upng`                               | MIT               | PNG coding for MnemoCode card artwork; also a dependency of `pdf-lib`                                                             |
-| `@pdf-lib/standard-fonts`  | 1.0.0         | `Hopding/standard-fonts`                     | MIT               | Dependency of `pdf-lib`                                                                                                           |
-| `pako`                     | 1.0.11        | `nodeca/pako`                                | MIT AND Zlib      | Compression used by the PDF libraries                                                                                             |
-| `tslib`                    | 1.14.1        | `microsoft/tslib`                            | 0BSD              | Runtime helpers used by `pdf-lib`                                                                                                 |
+| `fflate`                   | 0.8.3         | `101arrowz/fflate`                           | MIT               | ZIP files: XLSX exports, and MnemoCode card and word-table files                                                                  |
 | `uqr`                      | 0.1.3         | `unjs/uqr`                                   | MIT               | Offline QR matrix encoding for public payment addresses                                                                           |
 | `qr`                       | 0.7.0         | `paulmillr/qr`                               | MIT OR Apache-2.0 | Offline QR image decoding for SeedQR and recovery-share imports                                                                   |
-| `age-encryption`           | 0.3.1         | `FiloSottile/typage`                         | BSD-3-Clause      | age encryption of MnemoCode candidate lists: written in the Key Derivation Tool, opened in the Discovery Scanner                  |
-| `@noble/post-quantum`      | 0.5.4         | `paulmillr/noble-post-quantum`               | MIT               | Dependency of `age-encryption`; its post-quantum recipients are bundled but not used, since lists use X25519 or scrypt only       |
 
 The two Dash SDK packages are bundled into both editions of the Wallet Activity Viewer and scan-only Wallet Discovery Scanner, never into either Wallet Key Derivation Tool. Their pnpm integrity pins are `sha512-DsfHXlLByyhvAerDknozg0HT4KHNsYP6rEy949aj/KGLLydb9bwJBHOWyn5oDsNR016tvr3oeT/jCkjMA4qoCA==` and `sha512-/be0D7qohZc9fHgYjbtzOg8KOajarzo0NtKCNybv4Z1xeV617Wo0CusnsxCzwbV7C/jDgPJiGel0KtcSTzQcfQ==`. Copyright notices embedded by Noble/Scure identify Paul Miller and, for Scure BIP32/BIP39, Patricio Palladino. esbuild preserves inline legal comments in the standalone JavaScript.
 
@@ -77,11 +69,13 @@ These packages are not imported by production source except esbuild/TypeScript d
 | `@dashincubator/secp256k1` | 1.7.1-5       | `dashhive/secp256k1`   | MIT        | Dash verification dependency                                  |
 | `dashhd`                   | 3.3.3         | `dashhive/dashhd.js`   | MIT        | Independent Dash Core cross-check                             |
 | `dashkeys`                 | 1.1.5         | `dashhive/dashkeys.js` | MIT        | DashHD test closure                                           |
+| `pdf-lib`                  | 1.17.1        | `Hopding/pdf-lib`      | MIT        | Reading MnemoCode's PDF files in browser tests                |
+| `@pdf-lib/upng`            | 1.0.1         | `Hopding/upng`         | MIT        | PNG decoding of MnemoCode cards in a browser test             |
 | `ethers`                   | 6.17.0        | `ethers-io/ethers.js`  | MIT        | Independent Ethereum cross-check                              |
 | `esbuild`                  | 0.28.2        | `evanw/esbuild`        | MIT        | Browser bundle and CSS minification                           |
 | `typescript`               | 7.0.2         | `microsoft/TypeScript` | Apache-2.0 | Static type checking                                          |
-| `vitest`                   | 5.0.3         | `vitest-dev/vitest`    | MIT        | JS/TS tests                                                   |
-| `playwright`               | 1.64.0        | `microsoft/playwright` | Apache-2.0 | Chromium/Firefox standalone-file and browser-regression tests |
+| `vitest`                   | 5.0.5         | `vitest-dev/vitest`    | MIT        | JS/TS tests                                                   |
+| `playwright`               | 1.64.1        | `microsoft/playwright` | Apache-2.0 | Chromium/Firefox standalone-file and browser-regression tests |
 
 ## Complete locked Rust metadata closure
 
@@ -101,7 +95,7 @@ corez 0.1.1                     cpufeatures 0.2.17
 critical-section 1.2.0          crypto-common 0.1.7
 dash-shielded-wasm 0.1.5
 recovery-codex32-wasm 0.1.5
-recovery-sskr-wasm 0.1.7
+recovery-sskr-wasm 0.1.9
 recovery-envelope-wasm 0.1.5
 document-features 0.2.12
 either 1.19.0                   embedded-io 0.4.0
@@ -307,7 +301,7 @@ crypto-common 0.2.2             digest 0.11.3                 hybrid-array 0.4.1
 libc 0.2.190                    sha2 0.11.0                   typenum 1.20.1
 ```
 
-Each executable also contains the standard library of Rust 1.99.0, licensed MIT OR Apache-2.0. The Linux and Windows executables are linked in `Dockerfile.launchers` with the GNU toolchains of its pinned Ubuntu snapshot (`gcc-aarch64-linux-gnu`, MinGW-w64 `gcc-mingw-w64-x86-64`), the macOS executables with Apple's toolchain on the release runner.
+Each executable also contains the standard library of Rust 1.99.0, licensed MIT OR Apache-2.0; its notices are released as `Rust-library-NOTICE.html`. The Linux and Windows executables are linked in `Dockerfile.launchers` with the GNU toolchains of its pinned Ubuntu snapshot (`gcc-aarch64-linux-gnu`, MinGW-w64 `gcc-mingw-w64-x86-64`), the macOS executables with Apple's toolchain on the release runner.
 
 ## Reproduced notices for Recovery and QR components
 
@@ -367,39 +361,22 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### BSD-3-Clause notice
+### MnemoCode SSKR engine
 
-`age-encryption` (`FiloSottile/typage`), bundled into the Key Derivation Tool and the seed-capable Discovery Scanner, is distributed under these terms:
+The SSKR WebAssembly (`recovery-sskr-wasm`, MnemoCode's SSKR engine) also links code whose licences ask for their texts: libsecp256k1, the C library that `secp256k1-sys` compiles, `ur` and `phf` under MIT, the `dalek` crates and `subtle` under BSD-3-Clause, and `minicbor` under BlueOak-1.0.0. The licence texts of every crate it links, with their copyright lines, are in `packages/recovery-sskr-wasm/LINKED_LICENSES.txt`, released as `MnemoCode-SSKR-LINKED_LICENSES.txt`. MnemoCode's `scripts/sskr-licenses.mjs` writes that file from the crates' own sources, and the MnemoCode intake brings it with the engine.
 
-```text
-Copyright 2023 The age Authors
+### Licence texts of the linked Rust crates
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
+MIT, the BSD licences and Blue Oak ask for their copyright and permission texts to travel with the binary. `tooling/linked-licenses.mjs` writes the licence texts of every crate that each of this project's Rust products links, read from the crates' own sources: the crates that `cargo metadata` gives for the product's targets through normal dependencies, procedural macros left out. Of a crate offered under several licences, MIT is taken where it is one of them; a crate under CC0-1.0 is only listed. Four crates were published without their licence files (`blake2b_simd`, `frost-core`, `frost-rerandomized`, `halo2_poseidon`); their texts are kept in `tooling/linked-license-texts/` as they are at the commit each package was published from.
 
-   * Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-   * Redistributions in binary form must reproduce the above
-copyright notice, this list of conditions and the following disclaimer
-in the documentation and/or other materials provided with the
-distribution.
-   * Neither the name of the age project nor the names of its
-contributors may be used to endorse or promote products derived from
-this software without specific prior written permission.
+- Gordian Envelope WebAssembly: `packages/recovery-envelope-wasm/LINKED_LICENSES.txt`, released as `recovery-envelope-wasm-LINKED_LICENSES.txt`.
+- Codex32 WebAssembly: `packages/recovery-codex32-wasm/LINKED_LICENSES.txt`, released as `recovery-codex32-wasm-LINKED_LICENSES.txt`.
+- Dash Shielded WebAssembly: `packages/dash-shielded-wasm/LINKED_LICENSES.txt`, released as `dash-shielded-wasm-LINKED_LICENSES.txt`.
+- Executable Key Derivation Tool, for the crates of its five platforms: `apps/key-derivation/launcher/LINKED_LICENSES.txt`, released as `key-derivation-launcher-LINKED_LICENSES.txt`.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-```
+Each of these products, and the MHFE, MnemoCode and SSKR WebAssembly too, also links the Rust standard library of Rust 1.99.1. Its own notices, which the toolchain writes for binaries that link it, are kept byte for byte as `notices/rust-1.99.1-library-NOTICE.html`, released as `Rust-library-NOTICE.html`.
+
+`pnpm check` refuses a file written from another `Cargo.lock`, or a library notice of another Rust; `pnpm check:licenses` writes every file again offline and compares it. The MHFE WebAssembly's crates are in `MHFE-THIRD_PARTY_NOTICES.md`, MnemoCode's in `MnemoCode-THIRD_PARTY_NOTICES.md` and the SSKR engine's in `MnemoCode-SSKR-LINKED_LICENSES.txt`.
 
 ### MIT notices
 
@@ -413,7 +390,7 @@ Copyright (c) 2021 SeedSigner
 SeedSigner — SeedQR specification and vectors
 
 Copyright (c) 2026 Sergei Semenov
-MHFE 0.6.0 — browser package (runtime, worker, WebAssembly and module classes)
+MHFE 0.7.0 — browser package (runtime, worker, WebAssembly and module classes)
 (its Emscripten, musl and wasm-bindgen notices, the licences of the Rust crates in its WebAssembly, and
 the EFF large wordlist by the Electronic Frontier Foundation, CC BY 4.0, built into that WebAssembly,
 are in `packages/recovery-mhfe-wasm/notices/THIRD_PARTY_NOTICES.md`, released as
@@ -454,7 +431,7 @@ SOFTWARE.
 - `package.json` uses exact dependency versions; pnpm's lockfile pins the npm closure and integrity hashes.
 - `Cargo.toml` uses exact registry versions and one exact audited Orchard tag; `Cargo.lock` pins all transitive versions and git commits.
 - Every supported build validates SHA-512 integrity entries for the complete pnpm package closure, SHA-256 checksums for every crates.io package, and full commit pins for Cargo git sources before compiling.
-- Exact GitHub revisions are recorded for Orchard, note encryption, rust-codex32, the SLIP-39 reference, SeedSigner SeedQR, MHFE 0.6.0, Blockchain Commons SSKR, Gordian Envelope, and bc-components. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply. The registry-published `blahaj` source is bound by its Cargo SHA-256 checksum.
+- Exact GitHub revisions are recorded for Orchard, note encryption, rust-codex32, the SLIP-39 reference, SeedSigner SeedQR, MHFE 0.7.0, Blockchain Commons SSKR, Gordian Envelope, and bc-components. If GitHub is reachable, a differing revision fails the build. If it is unavailable, the build prints a conspicuous warning while the mandatory local/package-manager hash checks still apply. The registry-published `blahaj` source is bound by its Cargo SHA-256 checksum.
 - The verification record also carries SHA-256 hashes for the local SeedQR, MnemoCode, MHFE, SLIP-39, Codex32, SSKR, Gordian Seed Envelope, QR rendering, and QR decoding sources. The vendored MHFE package files are checked against the package's `modules.json`, whose own SHA-256 is pinned, before every supported build. The package's Argon2 builds contain the reference C implementation of Argon2 (`P-H-C/phc-winner-argon2`, commit `f57e61e19229e23c4445b85494dbf7c07de721cb`), which is dual licensed CC0-1.0 or Apache-2.0; MHFE uses it under Apache-2.0, whose text is in `packages/recovery-mhfe-wasm/LICENSE-ARGON2`, released as `MHFE-LICENSE-ARGON2`.
 - `apps/key-derivation/src/index.html` contains a human-readable embedded production-dependency notice so the standalone artifact retains provenance when copied alone.
 - `apps/activity-viewer/src/index.html` identifies its embedded Evo SDK/Orchard versions and online security boundary; the current Bitcoin, Ethereum, and Dash runtime providers are documented in its application README and the root security audit.
@@ -463,6 +440,6 @@ SOFTWARE.
 - Every flat release carries the MHFE and MnemoCode licence and notice files this report names, byte for byte and under the release names given with them, next to this file. `tooling/release-legal-documents.mjs` lists them, and the release scripts check each copy against its package file.
 - Original project code is licensed under MIT as declared in the root `LICENSE` and `package.json`. Third-party components retain the licenses and notices listed above.
 
-## MnemoCode card font and artwork
+## MnemoCode
 
-The `mnemocode-cards` feature embeds the DejaVu Sans font and the card artwork from MnemoCode, vendored under `packages/recovery-mnemocode/source/assets/`. The font notice is `packages/recovery-mnemocode/source/assets/fonts/DejaVuSans-NOTICE`, released as `MnemoCode-DejaVuSans-NOTICE`. The MnemoCode licence and notice are `packages/recovery-mnemocode/source/LICENSE` and `packages/recovery-mnemocode/source/NOTICE`, released as `MnemoCode-LICENSE` and `MnemoCode-NOTICE`. The world map on collection sheets is drawn from public-domain Natural Earth land polygons; its notice is `packages/recovery-mnemocode/source/assets/maps/NOTICE`, released as `MnemoCode-NaturalEarth-NOTICE`.
+MnemoCode reaches the pages as its own WebAssembly, one file for each page, vendored under `packages/recovery-mnemocode-wasm/generated/`. The Key Derivation Tool's file embeds the DejaVu Sans font subset, the Natural Earth world map and the card artwork that MnemoCode draws its cards and sheets with, and the number, name and colour of DMC's threads for its cross-stitch patterns, from `makebead/craft-color-codes` under CC BY 4.0. MnemoCode is licensed MIT OR Apache-2.0, at the recipient's option, and so is its SSKR engine's own code: its licence texts are `packages/recovery-mnemocode-wasm/LICENSE-MIT` and `packages/recovery-mnemocode-wasm/LICENSE-APACHE`, released as `MnemoCode-LICENSE-MIT` and `MnemoCode-LICENSE-APACHE`, and its notice is `packages/recovery-mnemocode-wasm/NOTICE`, released as `MnemoCode-NOTICE`. Its third-party notices, `packages/recovery-mnemocode-wasm/THIRD_PARTY_NOTICES.md`, released as `MnemoCode-THIRD_PARTY_NOTICES.md`, give the font's licence, the origin of the map and of the twelve card images with the SHA-256 of each image, the attribution of the DMC thread colours, and the licence texts of every Rust crate the WebAssembly links.

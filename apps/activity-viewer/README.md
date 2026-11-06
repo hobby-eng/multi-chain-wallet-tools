@@ -27,6 +27,8 @@ Live provider checks are separate from deterministic builds; see the root [relea
 
 Query controls, including Coin, remain locked until the active request settles. Clear and Cancel discard late responses. Dash address-history pagination uses a fixed page size; inconsistent totals, repeated transaction IDs or premature page termination produce an error instead of an apparently complete ledger. Explorer histories remain provider-reported data.
 
+Core transaction input and output lists must be present. Amounts for the queried address must be exact nonnegative duffs; missing or malformed amounts stop the query before displaying or exporting a transfer direction. A valid zero remains zero. If an unrelated input or output has no known amount, the address flow can remain exact while the transaction fee is unavailable.
+
 ### Input and history integrity
 
 Bitcoin addresses are decoded with Base58Check or the appropriate Bech32/Bech32m witness checksum, including network and program-length checks. Uniform uppercase Bech32 is accepted and normalized. Ethereum mixed-case addresses must pass EIP-55; lower/uppercase representations are accepted and canonicalized before batch deduplication. The complete input batch is screened before any network request; detected private material is erased from both input fields.

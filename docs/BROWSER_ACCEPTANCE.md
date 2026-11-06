@@ -11,7 +11,7 @@ pnpm test:browser:regressions
 pnpm test:browser:selective
 ```
 
-Release acceptance requires the browsers bundled with pinned Playwright 1.64.0: Chromium 156 and Firefox 157 or newer. Firefox 153 is below the supported acceptance baseline because its process can crash while reloading the BIP85 regression case.
+Release acceptance requires the browsers bundled with pinned Playwright 1.64.1: Chromium 156 and Firefox 157 or newer. Firefox 153 is below the supported acceptance baseline because its process can crash while reloading the BIP85 regression case.
 
 `PLAYWRIGHT_MODULE` can override module resolution for a separately installed matching copy. `HEADED=1` shows the browsers. `BROWSER_ENGINES=chromium` selects a single engine for diagnosis; it is not evidence that Firefox passed.
 
@@ -37,3 +37,5 @@ The selective smoke runner is `pnpm test:browser:selective`. It builds Bitcoin-o
 The extended regression runner is `pnpm test:browser:regressions`. Its current 42-case matrix covers all four tools in both editions and both engines, including verification revision binding, unsafe custom Tapscript rejection, CoinJoin visibility, BIP38 round trips, BIP85 child wallets, and commands issued immediately while the derivation Worker is booting. The Worker case confirms that Clear, Cancel, and protocol-tab changes neither expose inputs nor terminate the Blob Worker before its shared `ready` handshake. Run it after functional changes. A failed case can be repeated with
 `BROWSER_CASES`, `BROWSER_ENGINES`, and `BROWSER_PROFILE` rather than repeating the
 entire matrix. Deliberately injected CSP violations are retained in console/probe records. Chromium’s extra undefined pageerror from an explicitly denied opaque-frame IndexedDB probe is recorded separately; other application errors still fail the run. The script-execution/network/storage assertions remain enforced.
+
+MnemoCode parity acceptance also checks the offered modes, representations, share forms, phrase lengths, card templates, page sizes, orientations, document formats and heir-sheet sizes. The date fields accept local text files, including multiline date lists; Re-encode accepts a final-word text file. Repeated share-file imports append records, with a combined UTF-8 text limit of 1 MiB, so a quorum can be assembled from separate files. Edits, Clear, page departure and a change away from a dates operation revoke pending imports. The native parity cases exercise the built controls; source inventories and option presence alone do not establish that every combination renders or restores correctly.
