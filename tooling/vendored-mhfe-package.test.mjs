@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { VendoredMhfePackage } from "./vendored-mhfe-package.mjs";
+import { MHFE_SOURCE_MANIFEST, VendoredMhfePackage } from "./vendored-mhfe-package.mjs";
 import { bindgenStaged, runTool } from "./wasm-build.mjs";
 
 const temporary = [];
@@ -24,6 +24,45 @@ function fixture(manifest = valid()) {
 }
 
 describe("MHFE inventory refuses unsafe inputs before publishing paths", () => {
+  it("binds source metadata and its inventory to the verified runtime identity", () => {
+    const manifest = { ...valid(), version: "0.6.1", buildId: "0".repeat(16) };
+    const { root, owner } = fixture(manifest);
+    const pin = sha256(JSON.stringify(manifest));
+    const source = {
+      repository: "hobby-eng/mhfe",
+      commit: "0".repeat(40),
+      sourceFingerprint: "0".repeat(64),
+      version: manifest.version,
+      buildId: manifest.buildId,
+      manifestSha256: pin,
+      files: { "modules.json": pin, "runtime/worker.js": sha256("worker") },
+    };
+    const path = join(root, MHFE_SOURCE_MANIFEST);
+    writeFileSync(path, JSON.stringify(source));
+    expect(owner.sourceIdentity().version).toBe("0.6.1");
+    for (const mutation of [
+      { version: "0.6.0" },
+      { buildId: "f".repeat(16) },
+      { files: { "modules.json": pin } },
+    ]) {
+      writeFileSync(path, JSON.stringify({ ...source, ...mutation }));
+      expect(() => owner.sourceIdentity()).toThrow(/does not match/u);
+    }
+  });
+
+  it("admits separately pinned producer documentation without weakening runtime inventory", () => {
+    const { root, folder } = fixture();
+    writeFileSync(join(folder, "README.md"), "producer instructions");
+    const manifestPin = sha256(JSON.stringify(valid()));
+    const documented = new VendoredMhfePackage(root, manifestPin, {
+      documentation: { "README.md": sha256("producer instructions") },
+    });
+    expect(documented.entries()).toEqual([{ path: "runtime/worker.js", sha256: sha256("worker") }]);
+    expect(() => new VendoredMhfePackage(root, manifestPin).verify()).toThrow(/does not list/u);
+    writeFileSync(join(folder, "README.md"), "changed instructions");
+    expect(() => documented.verify()).toThrow(/does not match/u);
+  });
+
   it("admits pinned bytes but refuses changed files at enumeration too", () => {
     const { folder, owner } = fixture();
     expect(owner.entries()).toEqual([{ path: "runtime/worker.js", sha256: sha256("worker") }]);

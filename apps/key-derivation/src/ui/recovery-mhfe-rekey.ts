@@ -8,7 +8,8 @@ import {
   type WordCount,
 } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import { NewContainerResult } from "./recovery-mhfe-cards.js";
-import { adaptToContainer, showContainerFacts } from "./recovery-mhfe-decode.js";
+import { showContainerFacts } from "./recovery-mhfe-decode.js";
+import { MhfeContainerPreview } from "./recovery-mhfe-container-preview.js";
 import { weakPasswordText } from "./recovery-mhfe-encode.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import {
@@ -27,9 +28,9 @@ import { OwnerPhraseCheck } from "./recovery-mhfe-owner-check.js";
 import { WalletReferenceField } from "./recovery-mhfe-reference.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
 import { WalletPassphraseQuestion } from "./recovery-mhfe-wallet-passphrase.js";
-import { REKEY_STAGES, progressCallback } from "./recovery-mhfe-status.js";
-import { NewPasswordChoice } from "./recovery-mhfe-new-password.js";
-import { MhfeTask } from "./recovery-mhfe-task.js";
+import { REKEY_STAGES, progressCallback, StageProgress } from "./recovery-mhfe-status.js";
+import { NewPasswordChoice, type NewPasswordDisclosure } from "./recovery-mhfe-new-password.js";
+import { MhfeTask, type MhfeTaskOutcome } from "./recovery-mhfe-task.js";
 import { required, type RecoveryFeatureContext } from "./recovery-workspace-shared.js";
 
 /**
@@ -82,7 +83,8 @@ export class MhfeRekeyTab {
   readonly #newPasswordChoice: NewPasswordChoice;
   readonly #result: NewContainerResult;
   readonly #task: MhfeTask;
-  #facts: MhfeContainerFacts | undefined;
+  readonly #preview: MhfeContainerPreview;
+  #confirmationFor: MhfeContainerFacts["confirmationFor"] | undefined;
   /**
    * Set when the package refused to confirm by the built-in check alone (several lengths pass, or
    * the check contradicts the length): the page then asks for an address, the fingerprint or the
@@ -116,6 +118,7 @@ export class MhfeRekeyTab {
       "rekey-new",
       { password: this.#newPassword, repeat: this.#newRepeat },
       this.#status,
+      context.jobs,
     );
     this.#reference = new WalletReferenceField(engine, "rekey", this.#walletPassphrase);
     this.#confirmAgain = new ConfirmAgainPrompt({
@@ -139,7 +142,7 @@ export class MhfeRekeyTab {
     this.#result = new NewContainerResult(
       required<HTMLElement>("#mhfe-rekey-result"),
       engine,
-      context.writeClipboard,
+      context,
       "New MHFE container",
     );
     this.#task = new MhfeTask(context, engine, {
@@ -154,8 +157,8 @@ export class MhfeRekeyTab {
         this.#ownerCheck.dispose();
       },
     });
-    adaptToContainer(engine, this.#container, (facts) => {
-      this.#facts = facts;
+    this.#preview = new MhfeContainerPreview(engine, this.#container, this.#status, (facts) => {
+      this.#confirmationFor = facts.confirmationFor;
       this.#referenceRequired = false;
       this.#length.adapt(facts);
       this.#showConfirmation();
@@ -192,7 +195,7 @@ export class MhfeRekeyTab {
     const words = this.#chosenLength();
     if (words === undefined) return undefined;
     if (this.#referenceRequired) return "walletOrOwner";
-    return this.#facts?.confirmationFor[`${words}`];
+    return this.#confirmationFor?.[`${words}`];
   }
 
   #chosenLength(): 0 | WordCount | undefined {
@@ -217,11 +220,13 @@ export class MhfeRekeyTab {
 
   #start(): void {
     if (!this.#task.available) return;
+    this.#preview.retire();
     this.#readBack.replaceChildren();
     this.#result.reset();
     this.#ownerCheck.dispose();
+    const disclosure = this.#newPasswordChoice.captureDisclosure();
     void this.#task
-      .run((run) => this.#rekey(run), { failed: (cause) => this.#fail(cause) })
+      .run((run) => this.#rekey(run, disclosure), { failed: (cause) => this.#fail(cause) })
       .finally(() => {
         // Success, failure, Cancel and a refused start all close the owner's questions.
         this.#confirmAgain.dispose();
@@ -230,22 +235,26 @@ export class MhfeRekeyTab {
       });
   }
 
-  async #rekey(run: MhfeRun): Promise<void> {
+  async #rekey(run: MhfeRun, disclosure: NewPasswordDisclosure): Promise<MhfeTaskOutcome> {
     const read = await this.#marked.read(run);
     if (read === undefined) return;
     const { client, facts } = read;
-    this.#facts = facts;
+    this.#confirmationFor = facts.confirmationFor;
     this.#length.adapt(facts);
     showContainerFacts(this.#readBack, this.#container.value, facts, this.#context.writeClipboard);
     const words = this.#length.value();
     const terms = this.#confirmationTerms();
-    const repairWordCount = selectedRepairCount("mhfe-rekey-repair-count");
+    const parameters = await run.step(() => this.#engine.coreParameters());
+    const repairWordCount = selectedRepairCount("mhfe-rekey-repair-count", parameters);
     const old = await this.#old.reviewed(run);
-    const typed = this.#newPasswordChoice.passwords();
-    const fresh = await this.#newReview.require(run, typed.password, typed.repeat);
+    if ("wait" in old) return old;
+    required<HTMLElement>("#mhfe-rekey-keep-old").textContent = KEEP_FOR_OTHER_WALLETS;
+    const typed = this.#newPasswordChoice.passwords(disclosure);
+    const fresh = await this.#newReview.choose(run, typed.password, typed.repeat);
+    if ("wait" in fresh) return fresh;
     // The new password's review came after the old one's.
     this.#old.review.assertCurrent(old.choice);
-    const progress = await run.step(() => this.#engine.progress(REKEY_STAGES));
+    const progress = new StageProgress(REKEY_STAGES, parameters.rounds);
     this.#old.review.assertCurrent(old.choice);
     this.#newReview.assertCurrent(fresh);
 

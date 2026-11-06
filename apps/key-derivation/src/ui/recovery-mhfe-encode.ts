@@ -5,6 +5,7 @@
 // encrypts a phrase such a question looks suspicious, and without an answer the package's list of
 // what to keep names any passphrase of the wallet (mhfe docs/BROWSER-PACKAGE.md).
 import { NewContainerResult } from "./recovery-mhfe-cards.js";
+import { MhfeInputText } from "@ckd/recovery-backup/mhfe-input-text.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
 import {
@@ -21,9 +22,10 @@ import {
   clearOnFirstProgress,
   listed,
   readBackDiffers,
+  StageProgress,
 } from "./recovery-mhfe-status.js";
-import { NewPasswordChoice } from "./recovery-mhfe-new-password.js";
-import { MhfeTask } from "./recovery-mhfe-task.js";
+import { NewPasswordChoice, type NewPasswordDisclosure } from "./recovery-mhfe-new-password.js";
+import { MhfeTask, type MhfeTaskOutcome } from "./recovery-mhfe-task.js";
 import {
   renderReadBackWords,
   required,
@@ -62,11 +64,12 @@ export class MhfeEncodeTab {
       "encrypt",
       { password: this.#password, repeat: this.#repeat },
       this.#status,
+      context.jobs,
     );
     this.#result = new NewContainerResult(
       required<HTMLElement>("#mhfe-encrypt-result"),
       engine,
-      context.writeClipboard,
+      context,
     );
     this.#task = new MhfeTask(context, engine, {
       status: this.#status,
@@ -87,25 +90,28 @@ export class MhfeEncodeTab {
     if (!this.#task.available) return;
     this.#readBack.replaceChildren();
     this.#result.reset();
-    void this.#task.run((run) => this.#encrypt(run), {
+    const disclosure = this.#newPassword.captureDisclosure();
+    void this.#task.run((run) => this.#encrypt(run, disclosure), {
       failed: (cause) => this.#result.failed(cause),
     });
   }
 
-  async #encrypt(run: MhfeRun): Promise<void> {
-    const typed = this.#newPassword.passwords();
-    const repairWordCount = selectedRepairCount("mhfe-repair-count");
-    const phrase = this.#context.readMnemonic("mhfe", "#mhfe-source").trim();
+  async #encrypt(run: MhfeRun, disclosure: NewPasswordDisclosure): Promise<MhfeTaskOutcome> {
     const client = await run.step(() => this.#engine.client());
-    const facts = await run.step(() => client.readPhrase(phrase));
-    if (readBackDiffers(phrase, facts.phrase))
+    const parameters = await run.step(() => this.#engine.coreParameters());
+    using phrase = new MhfeInputText(this.#context.readMnemonic("mhfe", "#mhfe-source"));
+    const typed = this.#newPassword.passwords(disclosure);
+    const repairWordCount = selectedRepairCount("mhfe-repair-count", parameters);
+    const facts = await run.step(() => phrase.use((text) => client.readPhrase(text)));
+    if (phrase.use((text) => readBackDiffers(text, facts.phrase)))
       renderReadBackWords(
         this.#readBack,
         facts.phrase,
         "MHFE read your phrase as these words, written out in full. Check them against your backup.",
         this.#context.writeClipboard,
       );
-    const choice = await this.#review.require(run, typed.password, typed.repeat);
+    const choice = await this.#review.choose(run, typed.password, typed.repeat);
+    if ("wait" in choice) return choice;
     const sameLength = this.#sameLength.checked;
     // About one phrase in four billion also passes the check of another length; automatic detection
     // would then not give it back on its own. The package says so for each container it offers:
@@ -117,27 +123,29 @@ export class MhfeEncodeTab {
         ? ""
         : ` Write down that your phrase has ${facts.words} words and select that length when you recover: ` +
           `by chance it also passes the check of ${listed(otherLengths)} words.`;
-    const progress = await run.step(() => this.#engine.progress(ENCRYPT_STAGES));
+    const progress = new StageProgress(ENCRYPT_STAGES, parameters.rounds);
     this.#review.assertCurrent(choice);
     const outcome = reviewSaid(choice);
     this.#status.textContent = `Starting · ${facts.words}-word phrase accepted.${outcome}${lengthNote}`;
     const clearPasswords = clearOnFirstProgress(...this.#newPassword.inputs());
     const sealed = await run.step(() =>
-      client.encrypt({
-        phrase,
-        password: typed.password,
-        passwordRepeat: typed.repeat,
-        passwordRepair: choice.repair,
-        pim: this.#pim.value(),
-        sameLength,
-        repairWordCount,
-        onProgress: (report) =>
-          run.publish(() => {
-            clearPasswords();
-            this.#status.textContent = progress.line(report) + lengthNote;
-          }),
-        onUnverified: (result) => run.publish(() => this.#result.unverified(result)),
-      }),
+      phrase.use((text) =>
+        client.encrypt({
+          phrase: text,
+          password: typed.password,
+          passwordRepeat: typed.repeat,
+          passwordRepair: choice.repair,
+          pim: this.#pim.value(),
+          sameLength,
+          repairWordCount,
+          onProgress: (report) =>
+            run.publish(() => {
+              clearPasswords();
+              this.#status.textContent = progress.line(report) + lengthNote;
+            }),
+          onUnverified: (result) => run.publish(() => this.#result.unverified(result)),
+        }),
+      ),
     );
     await this.#result.seal(
       sealed,

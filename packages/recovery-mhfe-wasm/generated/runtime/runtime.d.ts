@@ -65,7 +65,7 @@ export type MhfeErrorCode =
   | "INVALID_PASSWORD_UTF8"
   /** The password has a control character, U+2028 or U+2029. */
   | "CONTROL_CHARACTER_IN_PASSWORD"
-  /** The password has a code point unassigned in Unicode 17.0.0. */
+  /** The password has a code point unassigned in Unicode 18.0.0. */
   | "UNASSIGNED_CHARACTER"
   /** No built-in check passes where a short length was stated or needed. */
   | "VERIFIER_MISMATCH"
@@ -86,8 +86,6 @@ export type MhfeErrorCode =
    * again.
    */
   | "PACKAGE_MISMATCH"
-  /** cancel() stopped the operation (MhfeCancelledError); a failing callback is CALLBACK_FAILED. */
-  | "CANCELLED"
   /** The check's address cannot be used. */
   | "INVALID_ADDRESS"
   /** The check's path is malformed. */
@@ -210,13 +208,15 @@ export interface MhfeSelfCheckReport {
   components: MhfeComponentResult[];
 }
 
-/** A part of a self-check as it starts (`running: true`) and as it ends, with its outcome. */
+/** A part a worker runs in a self-check, as it starts (`running: true`) and as it ends. */
 export type MhfeSelfCheckProgress =
   { id: string; label: string; running: true } | (MhfeComponentResult & { running: false });
 
-export class MhfeCancelledError extends MhfeError {
-  constructor();
+/** What a long operation resolves to when cancel() stopped it: a cancel is no error. */
+export interface MhfeCancelled {
+  readonly cancelled: true;
 }
+export const CANCELLED: MhfeCancelled;
 
 /**
  * A secret as text or as its UTF-8 bytes; a caller's own array is copied, never emptied. One that

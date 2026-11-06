@@ -35,6 +35,8 @@ function texts(element: FakeElement | string): string[] {
 function setup() {
   const element = installPage(RADIO_GROUPS);
   element("#mhfe-encrypt-password-kind-own").checked = true;
+  // The person's explicit choice of no repair words: an absent choice is refused, never read as 0.
+  element('input[name="mhfe-repair-count"]:checked').value = "0";
   const gate = new RecoveryJobGate();
   gate.setReady(true);
   const engine = new MhfeEngine();

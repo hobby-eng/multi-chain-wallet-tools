@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { MhfeCancelledError } from "@ckd/recovery-mhfe-wasm/runtime/runtime.js";
+import { CANCELLED } from "@ckd/recovery-mhfe-wasm/runtime/runtime.js";
 import { RecoveryJobGate } from "../src/ui/recovery-job-gate.js";
-import { MhfeRun } from "../src/ui/recovery-mhfe-run.js";
+import { MhfeRun, MhfeRunStopped } from "../src/ui/recovery-mhfe-run.js";
 
 /** The parts of a Cancel button that a run uses; no DOM is needed. */
 interface FakeButton {
@@ -33,8 +33,6 @@ async function settle(): Promise<void> {
   for (let turn = 0; turn < 10; turn += 1) await new Promise((done) => setTimeout(done, 0));
 }
 
-const CANCELLED = { code: "CANCELLED" };
-
 describe("an MHFE run latches Cancel over every step", () => {
   it("starts nothing after a Cancel during the package's compilation", async () => {
     const { fake, button } = cancelButton();
@@ -48,7 +46,7 @@ describe("an MHFE run latches Cancel over every step", () => {
     expect(fake.hidden).toBe(false);
     fake.onclick!();
     compile.resolve("synthetic client");
-    await expect(result).rejects.toMatchObject(CANCELLED);
+    await expect(result).rejects.toBeInstanceOf(MhfeRunStopped);
     await settle();
     expect(operation).not.toHaveBeenCalled();
     expect(stopActive).toHaveBeenCalledTimes(1);
@@ -71,7 +69,7 @@ describe("an MHFE run latches Cancel over every step", () => {
       fake.onclick!();
       // The quick step had started; its answer arrives after the Cancel.
       quick.resolve("synthetic answer");
-      await expect(result).rejects.toBeInstanceOf(MhfeCancelledError);
+      await expect(result).rejects.toBeInstanceOf(MhfeRunStopped);
       await settle();
       expect(lateSideEffect).not.toHaveBeenCalled();
       expect(next).not.toHaveBeenCalled();
@@ -80,17 +78,26 @@ describe("an MHFE run latches Cancel over every step", () => {
 
   it("stops the active operation through the package and returns no result", async () => {
     const { fake, button } = cancelButton();
-    const active = deferred<string>();
-    // As MhfeClient.cancel does, stopping rejects the operation's own promise.
-    const stopActive = vi.fn(() => active.reject(new MhfeCancelledError()));
+    const active = deferred<string | typeof CANCELLED>();
+    // As MhfeClient.cancel does, stopping resolves the operation's own promise with CANCELLED.
+    const stopActive = vi.fn(() => active.resolve(CANCELLED));
     const shown = vi.fn();
     const result = new MhfeRun(stopActive).withButton(button, async (run) => {
       shown(await run.step(() => active.promise));
     });
     await settle();
     fake.onclick!();
-    await expect(result).rejects.toMatchObject(CANCELLED);
+    await expect(result).rejects.toBeInstanceOf(MhfeRunStopped);
     expect(stopActive).toHaveBeenCalledTimes(1);
+    expect(shown).not.toHaveBeenCalled();
+  });
+
+  it("stops the run where the package's own work resolves to CANCELLED", async () => {
+    const shown = vi.fn();
+    const run = new MhfeRun(() => undefined);
+    await expect(
+      run.step(async () => CANCELLED).then((value) => shown(value)),
+    ).rejects.toBeInstanceOf(MhfeRunStopped);
     expect(shown).not.toHaveBeenCalled();
   });
 
@@ -102,7 +109,7 @@ describe("an MHFE run latches Cancel over every step", () => {
     expect(stopActive).toHaveBeenCalledTimes(1);
     expect(run.cancelled).toBe(true);
     const work = vi.fn(async () => "synthetic");
-    await expect(run.step(work)).rejects.toMatchObject(CANCELLED);
+    await expect(run.step(work)).rejects.toBeInstanceOf(MhfeRunStopped);
     expect(work).not.toHaveBeenCalled();
   });
 
@@ -133,7 +140,7 @@ describe("an MHFE run latches Cancel over every step", () => {
     current = false;
     run.publish(publish);
     answer.resolve("synthetic late answer");
-    await expect(result).rejects.toBeInstanceOf(MhfeCancelledError);
+    await expect(result).rejects.toBeInstanceOf(MhfeRunStopped);
     expect(publish).not.toHaveBeenCalled();
   });
 
@@ -147,7 +154,7 @@ describe("an MHFE run latches Cancel over every step", () => {
     run.cancel();
     expect(publish).not.toHaveBeenCalled();
     expect(stop).not.toHaveBeenCalled();
-    await expect(run.step(async () => "late")).rejects.toBeInstanceOf(MhfeCancelledError);
+    await expect(run.step(async () => "late")).rejects.toBeInstanceOf(MhfeRunStopped);
   });
 
   it("frees the job gate at once when Cancel comes during compilation", async () => {
@@ -160,7 +167,7 @@ describe("an MHFE run latches Cancel over every step", () => {
     );
     expect(gate.runningJob).toBe("MHFE encryption");
     fake.onclick!();
-    await expect(job).rejects.toMatchObject(CANCELLED);
+    await expect(job).rejects.toBeInstanceOf(MhfeRunStopped);
     // The compilation is still pending, yet another long operation may start.
     expect(gate.runningJob).toBeNull();
     compile.resolve("synthetic client");

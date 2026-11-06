@@ -16,6 +16,7 @@ import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import type { ContainerField, RecoverySettings } from "./recovery-mhfe-fields.js";
 import { MissingWordsSearch, type FoundContainer } from "./recovery-mhfe-missing-words.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
+import type { MhfeWaiting } from "./recovery-mhfe-task.js";
 import { describe, listed } from "./recovery-mhfe-status.js";
 import {
   installSecretToggle,
@@ -24,6 +25,22 @@ import {
   type RecoveryFeatureContext,
 } from "./recovery-workspace-shared.js";
 import { FieldEdits } from "./field-edits.js";
+import { MhfeInputLifetime, MhfeInputText } from "@ckd/recovery-backup/mhfe-input-text.js";
+import type { MhfeRepair } from "@ckd/recovery-mhfe-wasm/repair/repair.js";
+const CARD_REFUSALS = {
+  card: "Type the repair words as written on the card.",
+  "card-or-search": "Type the repair words as written on the card, or press No repair words.",
+} as const;
+
+/** Fixed diagnostics for a missing card; no supplied container or repair words are repeated. */
+export class MhfeMarkedContainerError extends Error {
+  readonly code: `mhfe.marked.${keyof typeof CARD_REFUSALS}`;
+  constructor(code: keyof typeof CARD_REFUSALS) {
+    super(CARD_REFUSALS[code]);
+    this.name = "MhfeMarkedContainerError";
+    this.code = `mhfe.marked.${code}`;
+  }
+}
 
 /** The tab around a container field. */
 export interface MarkedContainerHost {
@@ -34,12 +51,12 @@ export interface MarkedContainerHost {
   readonly status: HTMLElement;
   /**
    * The tab's PIM, and where the tab has the container's password (ContainerPassword) the
-   * password and settings for a search with the owner's wallet, after its review (AwaitingAnswer
+   * password and settings for a search with the owner's wallet, after its review (a waiting outcome
    * while that needs an answer); see MissingWordsSearch.
    */
   readonly recovery: {
     readonly pim: { value(): number };
-    settings?(run: MhfeRun): Promise<RecoverySettings>;
+    settings?(run: MhfeRun): Promise<RecoverySettings | MhfeWaiting>;
   };
   /**
    * Starts the tab's operation again, with the repaired or found container phrase in the field;
@@ -48,6 +65,7 @@ export interface MarkedContainerHost {
   readonly resume: (foundBy?: string) => void;
 }
 
+/** Bounded container admission and repair prompts; retained input snapshots are wiped on retirement. */
 export class MarkedContainer {
   readonly #context: RecoveryFeatureContext;
   readonly #engine: MhfeEngine;
@@ -63,7 +81,8 @@ export class MarkedContainer {
   readonly #result: HTMLElement;
   readonly #search: MissingWordsSearch;
   /** The container phrase as typed when the block opened: a repair applies to it only. */
-  #written = "";
+  #written: MhfeInputText | undefined;
+  readonly #inputLifetime = new MhfeInputLifetime();
   #revision = 0;
 
   constructor(context: RecoveryFeatureContext, engine: MhfeEngine, host: MarkedContainerHost) {
@@ -88,8 +107,9 @@ export class MarkedContainer {
       "repair words",
     );
     const { recovery } = host;
+    const settings = recovery.settings?.bind(recovery);
     this.#search = new MissingWordsSearch(context, engine, host.prefix, this.#status, {
-      ...(recovery.settings === undefined ? {} : { settings: (run) => recovery.settings!(run) }),
+      ...(settings === undefined ? {} : { settings }),
       pim: () => recovery.pim.value(),
       found: (found) => this.#offerFound(found),
       back: () => this.#typeAgain(),
@@ -112,6 +132,7 @@ export class MarkedContainer {
       });
     this.#card.addEventListener("input", () => {
       this.#revision += 1;
+      this.#inputLifetime.wipe();
       this.#result.replaceChildren();
     });
     document.querySelector("#clear-all")?.addEventListener("click", () => this.hide());
@@ -124,11 +145,12 @@ export class MarkedContainer {
    * the tab's operation; undefined when the block took over (see ready).
    */
   async read(run: MhfeRun): Promise<{ client: MhfeClient; facts: MhfeContainerFacts } | undefined> {
-    const container = this.#host.field.value;
-    if (!(await this.ready(run))) return undefined;
-    const client = await run.step(() => this.#engine.client());
-    const facts = await run.step(() => client.readContainer(container));
-    return { client, facts };
+    return this.#withInput(run, async (container, repair) => {
+      if (!(await this.#inspect(container, repair, run))) return undefined;
+      const client = await run.step(() => this.#engine.client());
+      const facts = await run.step(() => container.use((text) => client.readContainer(text)));
+      return { client, facts };
+    });
   }
 
   /**
@@ -137,35 +159,63 @@ export class MarkedContainer {
    * message); false when it marks words as ? or is not a container, and the block takes over.
    */
   async ready(run: MhfeRun): Promise<boolean> {
-    const written = this.#host.field.value;
+    return this.#withInput(run, (written, repair) => this.#inspect(written, repair, run));
+  }
+
+  async #withInput<Result>(
+    run: MhfeRun,
+    action: (written: MhfeInputText, repair: MhfeRepair) => Promise<Result>,
+  ): Promise<Result> {
     const repair = await run.step(() => this.#engine.repair());
-    const reading = await run.step(() => repair.inspectContainer({ container: written }));
+    using written = new MhfeInputText(this.#host.field.value);
+    return await action(written, repair);
+  }
+
+  async #inspect(written: MhfeInputText, repair: MhfeRepair, run: MhfeRun): Promise<boolean> {
+    const reading = await run.step(() =>
+      written.use((text) => repair.inspectContainer({ container: text })),
+    );
     if (reading.reading === "container" || reading.reading === "wrongLength") {
       this.hide();
       return true;
     }
-    this.#written = written;
-    await this.#open(reading, run);
-    run.assertCurrent();
-    this.#host.status.classList.remove("warning");
-    this.#host.status.textContent =
-      reading.reading === "marked"
-        ? "Some words of the container phrase are marked ?: repair them below."
-        : "These words are not a container: see below.";
-    return false;
+    this.hide();
+    const staged = written.copy();
+    this.#written = staged;
+    let opened = false;
+    try {
+      await this.#open(reading, staged, run);
+      run.assertCurrent();
+      this.#host.status.classList.remove("warning");
+      this.#host.status.textContent =
+        reading.reading === "marked"
+          ? "Some words of the container phrase are marked ?: repair them below."
+          : "These words are not a container: see below.";
+      opened = true;
+      return false;
+    } finally {
+      if (!opened) {
+        // An old opening may finish after a replacement; its rollback owns only its own snapshot.
+        if (this.#written === staged) this.hide();
+        else staged.wipe();
+      }
+    }
   }
 
+  /** Retires the current input and repair/search presentation, including held byte snapshots. */
   hide(): void {
     this.#revision += 1;
+    this.#inputLifetime.wipe();
     this.#block.hidden = true;
-    this.#written = "";
+    this.#written?.wipe();
+    this.#written = undefined;
     this.#card.value = "";
     this.#search.hide();
     this.#result.replaceChildren();
     this.#status.textContent = "";
   }
 
-  async #open(reading: MhfeContainerReading, run: MhfeRun): Promise<void> {
+  async #open(reading: MhfeContainerReading, written: MhfeInputText, run: MhfeRun): Promise<void> {
     this.#result.replaceChildren();
     this.#status.textContent = "";
     this.#search.hide();
@@ -181,7 +231,7 @@ export class MarkedContainer {
       const client = await run.step(() => this.#engine.client());
       let why = "These words are not a container phrase.";
       try {
-        await run.step(() => client.readContainer(this.#written));
+        await run.step(() => written.use((text) => client.readContainer(text)));
       } catch (cause) {
         run.assertCurrent();
         why = describe(cause, why);
@@ -208,31 +258,28 @@ export class MarkedContainer {
   }
 
   async #repair(): Promise<void> {
+    this.#inputLifetime.wipe();
     const revision = ++this.#revision;
-    const container = this.#written;
-    const card = this.#card.value;
+    const written = this.#written;
+    if (written === undefined) return;
     const current = (): boolean => revision === this.#revision;
     this.#status.classList.remove("warning");
     this.#result.replaceChildren();
     try {
-      if (card.trim() === "")
-        throw new Error(
-          this.#noCard.hidden
-            ? "Type the repair words as written on the card."
-            : "Type the repair words as written on the card, or press No repair words.",
-        );
-      const repair = await this.#engine.repair();
-      if (!current()) return;
-      const repaired = await repair.repairContainer({
-        container,
-        card,
-      });
-      if (!current()) return;
-      this.#card.value = "";
-      const { said, output, actions, changes } = repairedContainer(
-        repaired,
-        this.#context.writeClipboard,
+      const repaired = await this.#inputLifetime.hold(written.copy(), (container) =>
+        this.#inputLifetime.hold(new MhfeInputText(this.#card.value), async (card) => {
+          if (card.use((text) => text.trim() === ""))
+            throw new MhfeMarkedContainerError(this.#noCard.hidden ? "card" : "card-or-search");
+          const repair = await this.#engine.repair();
+          if (!current()) return undefined;
+          return container.use((text) =>
+            card.use((words) => repair.repairContainer({ container: text, card: words })),
+          );
+        }),
       );
+      if (!current() || repaired === undefined) return;
+      this.#card.value = "";
+      const { said, output, actions, changes } = repairedContainer(repaired, this.#context);
       this.#offer(
         containerHeading("Repaired container phrase", repaired.container),
         repaired.container,
@@ -246,12 +293,17 @@ export class MarkedContainer {
   }
 
   async #searchWithoutCard(): Promise<void> {
+    this.#inputLifetime.wipe();
     const revision = ++this.#revision;
     this.#status.classList.remove("warning");
     this.#result.replaceChildren();
     this.#cardField.hidden = true;
     try {
-      await this.#search.show(this.#written);
+      const written = this.#written;
+      if (written === undefined) return;
+      await this.#inputLifetime.hold(written.copy(), (container) =>
+        container.use((text) => this.#search.show(text)),
+      );
     } catch (cause) {
       if (revision !== this.#revision) return;
       this.#cardField.hidden = false;
@@ -264,7 +316,7 @@ export class MarkedContainer {
     const { output, actions } = concealedContainer(
       found.container,
       "Found MHFE container QR",
-      this.#context.writeClipboard,
+      this.#context,
     );
     // The words found are words of the container: shown and hidden with it, never in a summary.
     const places = paragraph(

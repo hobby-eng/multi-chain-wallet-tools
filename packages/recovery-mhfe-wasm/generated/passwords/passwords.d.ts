@@ -61,8 +61,8 @@ export class MhfePasswords extends MhfeModuleClass<MhfePasswordsParameters> {
   }): Promise<{ bits: number; weak: boolean }>;
   /**
    * `count`: words (1 to 32, by default 5) or characters (1 to 64, by default 16). "checkWord"
-   * always gives five words and their check word and takes no `count`: one given is a TypeError,
-   * as `mhfe password` refuses `--check-word` with `--words`. `dice`: five digits from 1 to 6 per
+   * always gives five words and their check word and takes no `count`: one given is
+   * INVALID_REQUEST, as `mhfe password` refuses `--check-word` with `--words`. `dice`: five digits from 1 to 6 per
    * word, separated by spaces; empty for the browser's randomness.
    */
   make(

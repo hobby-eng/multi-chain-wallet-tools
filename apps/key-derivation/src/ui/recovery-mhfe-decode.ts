@@ -1,16 +1,26 @@
-// The Decode tab of the MHFE panel: a container and its password back into the BIP39 phrase. Each
-// recovered phrase comes with its status, its fingerprint and, for 24 words, the phrase and
-// passphrase check; the page never calls a check by itself.
+import { RenderedSecrets } from "./secrets.js";
+// The Decode tab of the MHFE panel: a container and one or more passwords back into their BIP39
+// phrases, as mhfe decrypt recovers them. Every question comes before the work: the passwords and
+// the repair of each, and for a 24-word container the original seed phrase's BIP39 passphrase for
+// the 16-bit check. Each password is then recovered in turn, and its phrases show under it at once
+// while the next one runs. Each recovered phrase comes with its status, its fingerprint and, for
+// 24 words, the outcome of the 16-bit check; the page never calls a check by itself.
 import type {
   MhfeCandidate,
   MhfeContainerFacts,
   MhfeRecovery,
 } from "@ckd/recovery-mhfe-wasm/core/client.js";
-import { InputRevision } from "./recovery-input-revision.js";
+import { MhfeContainerPreview } from "./recovery-mhfe-container-preview.js";
 import { fingerprintLine, renderPhrase } from "./recovery-mhfe-cards.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
-import { ContainerField, ContainerPassword, PhraseLengthChoice } from "./recovery-mhfe-fields.js";
+import { DecryptPasswords } from "./recovery-mhfe-decrypt-passwords.js";
+import {
+  ContainerField,
+  ContainerPassword,
+  PasswordField,
+  PhraseLengthChoice,
+} from "./recovery-mhfe-fields.js";
 import { MarkedContainer } from "./recovery-mhfe-marked-container.js";
 import {
   RECOVER_STAGES,
@@ -25,7 +35,7 @@ import {
   readBackDiffers,
   walletCheckOdds,
 } from "./recovery-mhfe-status.js";
-import { MhfeTask } from "./recovery-mhfe-task.js";
+import { MhfeTask, type MhfeTaskOutcome } from "./recovery-mhfe-task.js";
 import {
   paragraph,
   renderReadBackWords,
@@ -61,32 +71,6 @@ export function showContainerFacts(
   );
 }
 
-/**
- * Reads the container in `field` whenever it changes, for the fields that adapt to it, such as
- * the lengths its phrase can have; a container that cannot be read is reported when the
- * operation starts.
- */
-export function adaptToContainer(
-  engine: MhfeEngine,
-  field: ContainerField,
-  adapt: (facts: MhfeContainerFacts) => void,
-): void {
-  const inputs = new InputRevision(field.textarea, () => undefined);
-  field.textarea.addEventListener("change", () => {
-    const current = inputs.capture();
-    const container = field.value;
-    void engine
-      .client()
-      .then((client) => client.readContainer(container))
-      .then(
-        (facts) => {
-          if (current()) adapt(facts);
-        },
-        () => undefined,
-      );
-  });
-}
-
 export class MhfeDecodeTab {
   readonly #context: RecoveryFeatureContext;
   readonly #engine: MhfeEngine;
@@ -96,8 +80,21 @@ export class MhfeDecodeTab {
   readonly #container: ContainerField;
   readonly #length: PhraseLengthChoice;
   readonly #password: ContainerPassword;
+  readonly #passwords: DecryptPasswords;
+  /** The original seed phrase's BIP39 passphrase for the 16-bit check of a 24-word reading. */
+  readonly #checkPassphrase = new PasswordField(
+    "mhfe-decrypt-check-passphrase",
+    "BIP39 passphrase",
+  );
+  readonly #checkPassphraseField = required<HTMLElement>("#mhfe-decrypt-check-passphrase-field");
+  readonly #sourceWords = required<HTMLSelectElement>("#mhfe-decrypt-source-words");
+  /** Whether the container read last is of 24 words, whose readings take the 16-bit check. */
+  #offersWalletCheck = false;
+  /** The lengths with a built-in check of the container read last. */
+  #builtInCheckLengths: readonly number[] = [];
   readonly #marked: MarkedContainer;
   readonly #task: MhfeTask;
+  readonly #preview: MhfeContainerPreview;
 
   constructor(context: RecoveryFeatureContext, engine: MhfeEngine) {
     this.#context = context;
@@ -110,6 +107,10 @@ export class MhfeDecodeTab {
       { lengths: "all", detectFirst: true },
     );
     this.#password = new ContainerPassword(engine, "decrypt", "MHFE password");
+    this.#passwords = new DecryptPasswords(engine, this.#password);
+    required<HTMLElement>("#mhfe-decrypt-check-passphrase-note").textContent =
+      `${WALLET_CHECK_EXPLANATION} Leave it empty for none.`;
+    this.#sourceWords.addEventListener("change", () => this.#adaptToLength());
     this.#marked = new MarkedContainer(context, engine, {
       prefix: "decrypt",
       field: this.#container,
@@ -124,73 +125,147 @@ export class MhfeDecodeTab {
       failure: "MHFE recovery failed.",
       inputs: required<HTMLElement>("#mhfe-restore-panel"),
       onEdit: () => {
-        this.#result.replaceChildren();
+        RenderedSecrets.replace(this.#result);
         this.#readBack.replaceChildren();
       },
     });
-    adaptToContainer(engine, this.#container, (facts) => this.#length.adapt(facts));
+    this.#preview = new MhfeContainerPreview(engine, this.#container, this.#status, (facts) => {
+      this.#length.adapt(facts);
+      this.#adaptToContainer(facts);
+    });
     required<HTMLButtonElement>("#mhfe-decrypt").addEventListener("click", () => this.#start());
+  }
+
+  #adaptToContainer(
+    facts: Pick<MhfeContainerFacts, "offersWalletCheck" | "builtInCheckLengths">,
+  ): void {
+    this.#offersWalletCheck = facts.offersWalletCheck;
+    this.#builtInCheckLengths = facts.builtInCheckLengths;
+    this.#adaptToLength();
+  }
+
+  /**
+   * As mhfe decrypt asks: a stated length with a built-in check takes one password, the
+   * container's own, and gives no 24-word reading, so the 16-bit check's passphrase is not asked.
+   */
+  #adaptToLength(): void {
+    const checked = this.#builtInCheckLengths.includes(Number(this.#sourceWords.value));
+    this.#passwords.single = checked;
+    this.#checkPassphraseField.hidden = !this.#offersWalletCheck || checked;
   }
 
   #start(): void {
     if (!this.#task.available) return;
-    this.#result.replaceChildren();
+    this.#preview.retire();
+    RenderedSecrets.replace(this.#result);
     this.#readBack.replaceChildren();
     void this.#task.run((run) => this.#decrypt(run));
   }
 
-  async #decrypt(run: MhfeRun): Promise<void> {
+  async #decrypt(run: MhfeRun): Promise<MhfeTaskOutcome> {
     const read = await this.#marked.read(run);
     if (read === undefined) return;
     const { client, facts } = read;
     this.#length.adapt(facts);
+    this.#adaptToContainer(facts);
     showContainerFacts(this.#readBack, this.#container.value, facts, this.#context.writeClipboard);
     const words = this.#length.value();
-    const { settings, outcome } = await this.#password.reviewed(run);
-    const { password } = this.#password;
-    const progress = await run.step(() => this.#engine.progress(RECOVER_STAGES));
-
-    const recovery = await run.step(() =>
-      client.decrypt({
-        container: facts.container,
-        ...settings,
-        words,
-        onProgress: progressCallback(run, progress, this.#status, password.input),
-      }),
-    );
+    // Every password, and the repair of each, is settled before the first recovery, as mhfe asks.
+    const reviewed = [];
+    for (const password of this.#passwords.used) {
+      const review = await password.reviewed(run);
+      if ("wait" in review) return review;
+      reviewed.push({ fields: password, ...review });
+    }
+    const several = reviewed.length > 1;
+    // The field is emptied once the work starts; each 24-word reading says how it was checked.
+    const passphrase = this.#checkPassphraseField.hidden ? "" : this.#checkPassphrase.value;
     const { walletCheckBits } = await run.step(() => this.#engine.walletParameters());
-    this.#showRecovery(recovery, facts.offersWalletCheck, walletCheckBits);
-    this.#status.textContent =
-      recovery.kind === "ambiguous"
-        ? "Several lengths passed their check, which happens by accident for about one container in four " +
-          "billion. Every candidate is shown: compare each with your wallet, or select the known length."
-        : `Recovery complete in ${progress.elapsed()}.${outcome}`;
-    this.#status.classList.toggle("warning", recovery.kind === "ambiguous");
+    let ambiguous = false;
+    for (const [index, { fields, settings, outcome }] of reviewed.entries()) {
+      // With several passwords each has its heading and its own progress line, above its phrases.
+      let progressLine = this.#status;
+      if (several) {
+        const heading = document.createElement("h3");
+        heading.className = "mhfe-password-heading";
+        heading.textContent = `Password ${index + 1}`;
+        progressLine = paragraph("Starting.", "status");
+        this.#result.append(heading, progressLine);
+        if (outcome !== "") this.#result.append(paragraph(outcome.trim(), "field-note"));
+        this.#status.textContent = `Recovering the seed phrase of password ${index + 1}.`;
+      }
+      const progress = await run.step(() => this.#engine.progress(RECOVER_STAGES));
+      const recovery = await run.step(() =>
+        client.decrypt({
+          container: facts.container,
+          ...settings,
+          words,
+          passphrase,
+          onProgress: progressCallback(
+            run,
+            progress,
+            progressLine,
+            fields.password.input,
+            this.#checkPassphrase.input,
+          ),
+        }),
+      );
+      const elapsed = `Recovered in ${progress.elapsed()}.`;
+      if (several) progressLine.textContent = elapsed;
+      else this.#status.textContent = `Recovery complete in ${progress.elapsed()}.${outcome}`;
+      this.#showRecovery(recovery, facts.offersWalletCheck, walletCheckBits, {
+        password: index,
+        withPassphrase: passphrase !== "",
+      });
+      ambiguous ||= recovery.kind === "ambiguous";
+    }
+    this.#result.append(this.#doneButton());
+    if (ambiguous)
+      this.#status.textContent =
+        "Several lengths passed their check, which happens by accident for about one container in four " +
+        "billion. Every candidate is shown: compare each with your wallet, or select the known length.";
+    else if (several)
+      this.#status.textContent = "Recovery complete: the seed phrases of every password are below.";
+    this.#status.classList.toggle("warning", ambiguous);
   }
 
-  #showRecovery(recovery: MhfeRecovery, offersWalletCheck: boolean, checkBits: number): void {
+  /**
+   * The readings of one password; `checked` numbers it among the passwords and says whether its
+   * 24-word readings were checked with a passphrase.
+   */
+  #showRecovery(
+    recovery: MhfeRecovery,
+    offersWalletCheck: boolean,
+    checkBits: number,
+    checked: { readonly password: number; readonly withPassphrase: boolean },
+  ): void {
     recovery.candidates.forEach((candidate, index) => {
       if (recovery.kind === "ambiguous") {
         const heading = document.createElement("h3");
         heading.textContent = `${candidate.words}-word candidate`;
         this.#result.append(heading);
       }
-      const { text, verified } = candidateSummary(candidate);
+      const { text, verified, hint } = candidateSummary(candidate);
       const summary = document.createElement("div");
       summary.className = verified ? "success-callout" : "warning-callout";
       summary.textContent = text;
       this.#result.append(summary);
+      if (hint !== undefined) this.#result.append(paragraph(hint, "field-note"));
       if (candidate.statedWords !== null)
         this.#result.append(
           paragraph(statedLengthDiffers(candidate.words, candidate.statedWords), "warning-callout"),
         );
       if (candidate.otherLengths.length > 0)
         this.#result.append(paragraph(otherLengthsPass(candidate.otherLengths), "field-note"));
-      // Every 24-word reading is tested without a passphrase (decrypt's default).
+      // Every 24-word reading is tested, with the passphrase given or without one.
       if (candidate.walletCheck === true)
-        this.#result.append(paragraph(passesWalletCheck(checkBits), "success-callout"));
+        this.#result.append(
+          paragraph(passesWalletCheck(checkBits, checked.withPassphrase), "success-callout"),
+        );
       else if (candidate.walletCheck === false)
-        this.#result.append(paragraph(failsWalletCheck(checkBits), "field-note"));
+        this.#result.append(
+          paragraph(failsWalletCheck(checkBits, checked.withPassphrase), "field-note"),
+        );
       renderPhrase(
         this.#result,
         candidate.phrase,
@@ -199,20 +274,20 @@ export class MhfeDecodeTab {
         this.#context,
       );
       if (offersWalletCheck && candidate.words === 24)
-        this.#result.append(this.#walletCheck(candidate, index, checkBits));
+        this.#result.append(
+          this.#walletCheck(candidate, `${checked.password}-${index}`, checkBits),
+        );
     });
-    this.#result.append(this.#doneButton());
   }
 
   /** The phrase and passphrase check of a recovered 24-word phrase, a quick call on request. */
-  #walletCheck(candidate: MhfeCandidate, index: number, checkBits: number): HTMLElement {
+  #walletCheck(candidate: MhfeCandidate, key: string, checkBits: number): HTMLElement {
     const block = document.createElement("div");
     block.className = "mhfe-wallet-check";
-    const id = `mhfe-decrypt-wallet-check-passphrase-${index}`;
+    const id = `mhfe-decrypt-wallet-check-passphrase-${key}`;
     const label = document.createElement("label");
     label.htmlFor = id;
-    label.textContent = "Is a BIP39 passphrase used with the original seed phrase? Type it to test";
-    const why = paragraph(WALLET_CHECK_EXPLANATION, "field-note");
+    label.textContent = "Test the check with another BIP39 passphrase of the original seed phrase";
     const input = document.createElement("input");
     input.id = id;
     input.type = "password";
@@ -246,7 +321,7 @@ export class MhfeDecodeTab {
           run.disabled = false;
         });
     });
-    block.append(why, label, input, run, answer);
+    block.append(label, input, run, answer);
     return block;
   }
 
@@ -257,7 +332,8 @@ export class MhfeDecodeTab {
     done.className = "secondary compact";
     done.textContent = "Done: remove the phrase from the screen";
     done.addEventListener("click", () => {
-      this.#result.replaceChildren(
+      RenderedSecrets.replace(
+        this.#result,
         paragraph(
           "Recovered. The seed phrase is no longer on the screen. When you are done, close this page: the " +
             "browser cannot wipe what it showed.",

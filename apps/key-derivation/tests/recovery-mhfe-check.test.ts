@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@ckd/recovery-mhfe-wasm/runtime/mhfe.wasm", () => ({ default: new Uint8Array() }));
 
 import { RecoveryJobGate } from "../src/ui/recovery-job-gate.js";
+import { MhfeCheckResult } from "@ckd/recovery-backup/mhfe-check-result.js";
 import { MhfeCheckTab, matchedLines } from "../src/ui/recovery-mhfe-check.js";
 import { MhfeEngine } from "../src/ui/recovery-mhfe-engine.js";
 import { installPage, settle, withPackageValues } from "./fake-mhfe-page.js";
@@ -28,11 +29,10 @@ function deferred<T>(): {
   return { promise, resolve, reject };
 }
 
-type Verdict = {
-  matches: boolean;
-  path: string | null;
-  evidence: { builtInCheck: number | null; walletCheck: boolean | null };
-};
+type Verdict = Exclude<
+  Awaited<ReturnType<import("@ckd/recovery-mhfe-wasm/core/client.js").MhfeClient["check"]>>,
+  import("@ckd/recovery-mhfe-wasm/runtime/runtime.js").MhfeCancelled
+>;
 interface CheckRequest {
   container: string;
   reference: Record<string, unknown>;
@@ -117,9 +117,40 @@ function setup(options: { client?: Promise<void> } = {}) {
   };
 }
 
-const MATCHES = { matches: true, path: null, evidence: { builtInCheck: null, walletCheck: null } };
+const MATCHES: Verdict = {
+  matches: true,
+  withoutPassphrase: false,
+  outcome: "matches",
+  path: null,
+  evidence: { builtInCheck: null, otherLengths: [], walletCheck: null },
+};
 
 describe("the MHFE Check verdict belongs to the fields it checked", () => {
+  it("says that a passphrase is not confirmed where only the wallet without it matched", async () => {
+    const tab = setup();
+    tab.element("#mhfe-check-passphrase").value = "synthetic BIP39 passphrase";
+    tab.press();
+    await settle();
+    tab.replies[0]!.resolve({ ...MATCHES, withoutPassphrase: true });
+    await settle();
+    expect(tab.verdict()).toContain("✓ Matches");
+    expect(tab.verdict()).toContain(MhfeCheckResult.PASSPHRASE_NOT_CONFIRMED);
+    expect(tab.verdict()).toContain(
+      "the master key fingerprint of the wallet, without a BIP39 passphrase",
+    );
+    expect(tab.verdict()).not.toContain("with this BIP39 passphrase");
+  });
+
+  it("shows an unverified recovery without claiming a mismatch", async () => {
+    const tab = setup();
+    tab.press();
+    await settle();
+    tab.replies[0]!.resolve({ ...MATCHES, matches: false, outcome: "not verified" });
+    await settle();
+    expect(tab.verdict()).toContain("Not verified");
+    expect(tab.verdict()).not.toContain("Does not match");
+    expect(tab.verdict()).not.toContain("✓ Matches");
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -305,7 +336,13 @@ describe("the matches a check lists, as mhfe check lists them", () => {
   it("names the checksum, the search, the reference and the original seed phrase's own checks", () => {
     const foundBy = "the container's own wallet: master key fingerprint e0f73b78";
     expect(
-      matchedLines("fingerprint", { builtInCheck: 12, walletCheck: true }, true, foundBy, 16),
+      matchedLines(
+        "fingerprint",
+        { builtInCheck: 12, otherLengths: [], walletCheck: true },
+        true,
+        foundBy,
+        16,
+      ),
     ).toEqual([
       "the container phrase passes its BIP39 checksum",
       foundBy,
@@ -317,19 +354,37 @@ describe("the matches a check lists, as mhfe check lists them", () => {
 
   it("lists a check only where it passed, and the chosen one once", () => {
     expect(
-      matchedLines("address", { builtInCheck: null, walletCheck: false }, false, undefined, 16),
+      matchedLines(
+        "address",
+        { builtInCheck: null, otherLengths: [], walletCheck: false },
+        false,
+        undefined,
+        16,
+      ),
     ).toEqual([
       "the container phrase passes its BIP39 checksum",
       "the receiving address of the wallet, without a BIP39 passphrase",
     ]);
     expect(
-      matchedLines("builtInCheck", { builtInCheck: 15, walletCheck: null }, false, undefined, 16),
+      matchedLines(
+        "builtInCheck",
+        { builtInCheck: 15, otherLengths: [], walletCheck: null },
+        false,
+        undefined,
+        16,
+      ),
     ).toEqual([
       "the container phrase passes its BIP39 checksum",
       "the built-in check of a 15-word original seed phrase",
     ]);
     expect(
-      matchedLines("walletCheck", { builtInCheck: null, walletCheck: true }, true, undefined, 16),
+      matchedLines(
+        "walletCheck",
+        { builtInCheck: null, otherLengths: [], walletCheck: true },
+        true,
+        undefined,
+        16,
+      ),
     ).toEqual([
       "the container phrase passes its BIP39 checksum",
       "the phrase + passphrase check: its first 16 bits are zero",

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@ckd/recovery-mhfe-wasm/runtime/mhfe.wasm", () => ({ default: new Uint8Array() }));
 
 import { MhfeError } from "@ckd/recovery-mhfe-wasm/core/client.js";
+import { CANCELLED } from "@ckd/recovery-mhfe-wasm/runtime/runtime.js";
 import { RecoveryJobGate } from "../src/ui/recovery-job-gate.js";
 import { MhfeEngine } from "../src/ui/recovery-mhfe-engine.js";
 import { KEEP_FOR_OTHER_WALLETS, MhfeRekeyTab } from "../src/ui/recovery-mhfe-rekey.js";
@@ -16,6 +17,10 @@ import { installPage, settle, withPackageValues } from "./fake-mhfe-page.js";
 
 /** The radio groups the tab reads by name, with the value of each radio. */
 const RADIO_GROUPS: Readonly<Record<string, readonly [string, string][]>> = {
+  "mhfe-rekey-new-password-kind": [
+    ["mhfe-rekey-kind-own", "own"],
+    ["mhfe-rekey-kind-words", "words"],
+  ],
   "mhfe-rekey-reference": [
     ["mhfe-rekey-ref-address", "address"],
     ["mhfe-rekey-ref-fingerprint", "fingerprint"],
@@ -40,19 +45,22 @@ type RekeyRequest = Record<string, unknown> & {
  */
 function setup(
   confirmation: "builtInCheck" | "walletOrOwner",
-  rekey: (request: RekeyRequest, cancelled: Promise<never>) => Promise<unknown> = async () =>
+  rekey: (request: RekeyRequest, cancelled: Promise<unknown>) => Promise<unknown> = async () =>
     SEALED,
+  waitBeforeNewPassword?: Promise<void>,
 ) {
   const element = installPage(RADIO_GROUPS);
   const gate = new RecoveryJobGate();
   gate.setReady(true);
   const engine = new MhfeEngine();
   withPackageValues(engine);
+  element('input[name="mhfe-rekey-repair-count"]:checked').value = "0";
   const requests: RekeyRequest[] = [];
-  let cancel!: (cause: unknown) => void;
-  const cancelled = new Promise<never>((_, reject) => (cancel = reject));
-  cancelled.catch(() => undefined);
-  engine.cancelCore = () => cancel(new MhfeError("CANCELLED", "Synthetic cancellation"));
+  let reviews = 0;
+  // As MhfeClient.cancel does: the running operation resolves to CANCELLED.
+  let cancel!: () => void;
+  const cancelled = new Promise<unknown>((resolve) => (cancel = () => resolve(CANCELLED)));
+  engine.cancelCore = () => cancel();
   // A container phrase as typed is read first; these are valid containers.
   engine.repair = (async () => ({
     inspectContainer: async () => ({ reading: "container", wordCount: 12, unreadable: [] }),
@@ -73,15 +81,26 @@ function setup(
   })) as never;
   // A synthetic review that needs no answer.
   engine.passwords = (async () => ({
-    review: async () => ({
-      profile: "MHFE-PASSWORD-CHECK-1",
-      reading: "notThisShape",
-      correction: null,
-      correctionText: null,
-      offersCorrection: false,
-      repairsFirst: false,
-      repairs: [],
+    make: async () => ({
+      password: "public made password five words",
+      bits: 64,
+      weak: false,
+      checkWord: false,
     }),
+    // The old password is reviewed first; a test may hold the rekey there.
+    review: async () => {
+      reviews += 1;
+      if (reviews === 1) await waitBeforeNewPassword;
+      return {
+        profile: "MHFE-PASSWORD-CHECK-1",
+        reading: "notThisShape",
+        correction: null,
+        correctionText: null,
+        offersCorrection: false,
+        repairsFirst: false,
+        repairs: [],
+      };
+    },
     strength: async () => ({ weak: false }),
   })) as never;
   new MhfeRekeyTab({ jobs: gate, writeClipboard: async () => undefined } as never, engine);
@@ -108,6 +127,7 @@ function setup(
     element,
     gate,
     requests,
+    reviews: () => reviews,
     fill,
     reference,
     answer,
@@ -119,6 +139,18 @@ function setup(
 }
 
 describe("an MHFE password change is told about the wallet's BIP39 passphrase (AUD-022-API004)", () => {
+  it("says to keep the old container and passes the old and the new settings", async () => {
+    const tab = setup("builtInCheck");
+    tab.fill();
+    tab.answer(false);
+    tab.element("#mhfe-rekey-pim").value = "3";
+    tab.element("#mhfe-rekey-use-pim").checked = true;
+    tab.element("#mhfe-rekey-new-pim").value = "7";
+    tab.element("#mhfe-rekey-new-use-pim").checked = true;
+    await tab.start();
+    expect(tab.element("#mhfe-rekey-keep-old").textContent).toBe(KEEP_FOR_OTHER_WALLETS);
+    expect(tab.requests[0]).toMatchObject({ pim: 3, newPim: 7 });
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -211,7 +243,7 @@ describe("the owner's phrase question closes on every way out (AUD-022-API007)",
 
   /** A rekey that shows the owner the phrase and waits, until Cancel or `fail`. */
   function asksOwner(fail?: Promise<never>) {
-    return (request: RekeyRequest, cancelled: Promise<never>) => {
+    return (request: RekeyRequest, cancelled: Promise<unknown>) => {
       void request.confirmation.owner?.({ phrase: "synthetic recovered phrase" });
       return Promise.race([cancelled, ...(fail === undefined ? [] : [fail])]);
     };
@@ -349,3 +381,36 @@ describe("a password change confirmed again on the same recovery (mhfe 0.6.0 onC
     expect(tab.owner.childElementCount).toBe(0);
   });
 });
+
+it.each([false, true])(
+  "keeps generated password disclosure current through pending rekey (blur=%s)",
+  async (blur) => {
+    let release: () => void = () => {
+      throw new Error("No pending boundary.");
+    };
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const tab = setup("builtInCheck", undefined, pending);
+    tab.fill();
+    tab.answer(false);
+    tab.element("#mhfe-rekey-kind-words").checked = true;
+    tab.element("#mhfe-rekey-kind-words").dispatchEvent(new Event("change"));
+    await settle();
+    expect(tab.element("#mhfe-rekey-new-made-text").textContent).toBe(
+      "public made password five words",
+    );
+    tab.element("#mhfe-rekey-new-made-written").click();
+    tab.element("#mhfe-rekey-new-made-copy").value = "wrong public copy";
+    await tab.start();
+    expect(tab.reviews()).toBe(1);
+    if (blur) window.dispatchEvent(new Event("blur"));
+    release();
+    await settle();
+    expect(tab.requests).toHaveLength(0);
+    expect(tab.status()).toContain("That is not the password shown");
+    expect(tab.element("#mhfe-rekey-new-made-text").textContent).toBe(
+      blur ? "" : "public made password five words",
+    );
+  },
+);

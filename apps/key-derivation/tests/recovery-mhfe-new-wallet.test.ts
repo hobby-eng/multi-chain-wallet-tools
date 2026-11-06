@@ -53,6 +53,7 @@ function setup() {
   );
   element("#mhfe-new-password").value = "synthetic password";
   element("#mhfe-new-password-confirm").value = "synthetic password";
+  element('input[name="mhfe-new-repair-count"]:checked').value = "0";
   return { element, gate, engine, encrypt };
 }
 
@@ -63,7 +64,7 @@ describe("New wallet result lifetime", () => {
     const tab = setup();
     tab.element("#mhfe-new").click();
     await settle();
-    expect(tab.encrypt).toHaveBeenCalledTimes(1);
+    expect(tab.encrypt, tab.element("#mhfe-new-status").textContent).toHaveBeenCalledTimes(1);
     expect(tab.element("#mhfe-new-status").textContent).toContain("New wallet encrypted");
     expect(tab.element("#mhfe-new-result").childElementCount).toBeGreaterThan(0);
     expect(tab.gate.runningJob).toBeNull();
@@ -106,7 +107,7 @@ describe("New wallet result lifetime", () => {
       tab.engine.coreParameters = () => (++calls === 1 ? parameters() : late);
       tab.element("#mhfe-new").click();
       await settle();
-      expect(tab.encrypt).toHaveBeenCalledTimes(1);
+      expect(tab.encrypt, tab.element("#mhfe-new-status").textContent).toHaveBeenCalledTimes(1);
       expect(calls).toBe(2);
       if (clear) tab.element("#clear-all").click();
       else tab.element("#mhfe-new-stop").onclick!();

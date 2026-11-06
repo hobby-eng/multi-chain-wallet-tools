@@ -10,7 +10,12 @@ import type { MhfeEngine } from "../src/ui/recovery-mhfe-engine.js";
  */
 export function withPackageValues(engine: MhfeEngine): void {
   engine.coreParameters = (async () => ({
+    maxInputTextBytes: 8192,
+    repairWordCounts: [2, 4, 6, 8],
     rounds: 12,
+    progressStages: ["recover", "encrypt", "check", "compare"],
+    progressRoundTotals: [12, 24, 36],
+    openedWordCount: 24,
     sameLengthSuiteId: "MHFE-BIP39-LP-EXPERIMENTAL-4",
     decoyScanGap: 20,
     wordCounts: [12, 15, 18, 21, 24],
@@ -18,10 +23,12 @@ export function withPackageValues(engine: MhfeEngine): void {
     hiddenWalletRefusals: ["PASSWORD_ALREADY_USED", "PASSWORDS_DIFFER", "EMPTY_PASSWORD"],
   })) as never;
   engine.walletParameters = (async () => ({
+    maxInputTextBytes: 8192,
     walletCheckBits: 16,
     coins: [{ id: "bitcoin", name: "Bitcoin", addressForms: "synthetic forms" }],
   })) as never;
   engine.passwordParameters = (async () => ({
+    maxInputTextBytes: 8192,
     defaultWords: 5,
     recommendedWords: 5,
     mostWords: 32,
@@ -77,6 +84,11 @@ export class FakeElement extends EventTarget {
     ].join(" ");
   }
 
+  /** Native firstElementChild ignores text nodes; diagnostic rendering depends on it. */
+  get firstElementChild(): FakeElement | null {
+    return this.children.find((child): child is FakeElement => typeof child !== "string") ?? null;
+  }
+
   get childElementCount(): number {
     return this.children.filter((child) => typeof child !== "string").length;
   }
@@ -97,11 +109,29 @@ export class FakeElement extends EventTarget {
   closest(): FakeElement | null {
     return this.label;
   }
-  querySelector(): null {
-    return null;
+  /** Native single-class matching used by private presentation cleanup. */
+  matches(selector: string): boolean {
+    const name = /^\.([\w-]+)$/u.exec(selector)?.[1];
+    return (
+      name !== undefined &&
+      (this.classList.contains(name) || this.className.split(/\s+/u).includes(name))
+    );
   }
-  querySelectorAll(): FakeElement[] {
-    return [];
+  contains(node: FakeElement): boolean {
+    return (
+      this === node ||
+      this.children.some((child) => typeof child !== "string" && child.contains(node))
+    );
+  }
+  querySelector(selector: string): FakeElement | null {
+    return this.querySelectorAll(selector)[0] ?? null;
+  }
+  querySelectorAll(selector: string): FakeElement[] {
+    return this.children.flatMap((child) =>
+      typeof child === "string"
+        ? []
+        : [...(child.matches(selector) ? [child] : []), ...child.querySelectorAll(selector)],
+    );
   }
   focus(): void {}
   click(): void {
@@ -114,33 +144,44 @@ export function installPage(
   radioGroups: Readonly<Record<string, readonly [string, string][]>> = {},
 ): (selector: string) => FakeElement {
   const elements = new Map<string, FakeElement>();
+  const makeElement = (): FakeElement =>
+    Object.assign(new FakeElement(), { ownerDocument: page, isConnected: true });
   const element = (selector: string): FakeElement => {
     let found = elements.get(selector);
     if (found === undefined) {
-      found = new FakeElement();
+      found = makeElement();
       elements.set(selector, found);
     }
     return found;
   };
-  for (const radios of Object.values(radioGroups))
-    for (const [id, value] of radios) {
-      element(`#${id}`).value = value;
-      element(`#${id}`).label = new FakeElement();
-    }
   const documentEvents = new EventTarget();
-  vi.stubGlobal("document", {
+  const windowEvents = new EventTarget();
+  const page = {
+    defaultView: windowEvents,
+    visibilityState: "visible",
     addEventListener: documentEvents.addEventListener.bind(documentEvents),
     dispatchEvent: documentEvents.dispatchEvent.bind(documentEvents),
     body: new FakeElement(),
     querySelector: element,
     querySelectorAll: (selector: string) => {
+      if (selector === "[data-recovery-secret-control]")
+        return [...elements.values()].filter(
+          (node) => node.dataset.recoverySecretControl !== undefined,
+        );
       const group = /^input\[name="([^"]+)"\]$/u.exec(selector)?.[1];
       if (group !== undefined) return (radioGroups[group] ?? []).map(([id]) => element(`#${id}`));
       return selector.startsWith("#") ? [element(selector)] : [];
     },
-    createElement: () => new FakeElement(),
-  });
-  vi.stubGlobal("window", new EventTarget());
+    createElement: makeElement,
+  };
+  Object.assign(page.body, { ownerDocument: page, isConnected: true });
+  for (const radios of Object.values(radioGroups))
+    for (const [id, value] of radios) {
+      element(`#${id}`).value = value;
+      element(`#${id}`).label = makeElement();
+    }
+  vi.stubGlobal("document", page);
+  vi.stubGlobal("window", windowEvents);
   return element;
 }
 

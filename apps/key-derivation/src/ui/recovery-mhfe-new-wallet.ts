@@ -1,7 +1,10 @@
+import { RenderedSecrets } from "./secrets.js";
 // The New wallet tab of the MHFE panel: draws a new 24-word phrase from the browser's random
 // generator, with the phrase + passphrase check and a chosen word if the user chooses them, shows it
 // for the wallet and encrypts it at once into a 24-word container.
 import type { MhfeNewPhrase } from "@ckd/recovery-mhfe-wasm/wallet/wallet.js";
+import type { MhfeParameters } from "@ckd/recovery-mhfe-wasm/core/client.js";
+import { StageProgress } from "./recovery-mhfe-status.js";
 import { ChosenWordFields } from "./chosen-word-fields.js";
 import { NewContainerResult, renderPhrase } from "./recovery-mhfe-cards.js";
 import { MhfeDrawOutlook, NO_WISHES, type MhfeWishes } from "./recovery-mhfe-draw-outlook.js";
@@ -28,8 +31,8 @@ import {
   drawLine,
   drawStartLine,
 } from "./recovery-mhfe-status.js";
-import { NewPasswordChoice } from "./recovery-mhfe-new-password.js";
-import { MhfeTask } from "./recovery-mhfe-task.js";
+import { NewPasswordChoice, type NewPasswordDisclosure } from "./recovery-mhfe-new-password.js";
+import { MhfeTask, type MhfeTaskOutcome } from "./recovery-mhfe-task.js";
 import { JobClock, formatDuration } from "./recovery-progress.js";
 import { paragraph, required, type RecoveryFeatureContext } from "./recovery-workspace-shared.js";
 
@@ -78,6 +81,7 @@ export class MhfeNewWalletTab {
       "new",
       { password: this.#password, repeat: this.#passwordRepeat },
       this.#status,
+      context.jobs,
     );
     this.#passphraseStrength = new StrengthNote(
       engine,
@@ -96,7 +100,7 @@ export class MhfeNewWalletTab {
     this.#result = new NewContainerResult(
       required<HTMLElement>("#mhfe-new-result"),
       engine,
-      context.writeClipboard,
+      context,
     );
     const task = {
       status: this.#status,
@@ -116,7 +120,7 @@ export class MhfeNewWalletTab {
     this.#encryption = new MhfeTask(context, engine, { ...task, name: "MHFE encryption" });
     const clear = (): void => {
       this.#drawn = undefined;
-      this.#phraseResult.replaceChildren();
+      RenderedSecrets.replace(this.#phraseResult);
       this.#retrySubscription?.();
       this.#retrySubscription = undefined;
     };
@@ -196,35 +200,39 @@ export class MhfeNewWalletTab {
     if (!this.#generation.available) return;
     this.#retrySubscription?.();
     this.#retrySubscription = undefined;
-    this.#phraseResult.replaceChildren();
+    RenderedSecrets.replace(this.#phraseResult);
     this.#result.reset();
     this.#drawn = undefined;
-    void this.#generation.run((run) => this.#generate(run), {
+    const disclosure = this.#newPassword.captureDisclosure();
+    void this.#generation.run((run) => this.#generate(run, disclosure), {
       failed: (cause) => this.#fail(cause),
     });
   }
 
-  async #generate(run: MhfeRun): Promise<void> {
+  async #generate(run: MhfeRun, disclosure: NewPasswordDisclosure): Promise<MhfeTaskOutcome> {
+    const parameters = await run.step(() => this.#engine.coreParameters());
     const passphrase = this.#passphrase.value;
     const walletCheck = this.#walletCheck();
     if (walletCheck === undefined) throw new Error("Choose whether the new phrase gets a check.");
     // Every answer is taken before the phrase is drawn, so that a refusal comes before any work.
-    selectedRepairCount("mhfe-new-repair-count");
-    const typed = this.#newPassword.passwords();
-    const choice = await this.#review.require(run, typed.password, typed.repeat);
+    selectedRepairCount("mhfe-new-repair-count", parameters);
+    const typed = this.#newPassword.passwords(disclosure);
+    const choice = await this.#review.choose(run, typed.password, typed.repeat);
+    if ("wait" in choice) return choice;
     const drawn = await this.#draw(run, passphrase, walletCheck, this.#wishes());
     this.#showPhrase(drawn, passphrase);
     this.#drawn = { phrase: drawn, hasPassphrase: passphrase !== "" };
     // The password was reviewed before the phrase was drawn; typing meanwhile voids that answer.
     this.#review.assertCurrent(choice);
-    await this.#encrypt(run, choice);
+    return this.#encrypt(run, choice, disclosure, parameters);
   }
 
   /** Encrypts the phrase shown again, after a failed or cancelled encryption. */
   #encryptAgain(): void {
     if (this.#drawn === undefined || !this.#encryption.available) return;
     this.#result.reset();
-    void this.#encryption.run((run) => this.#encrypt(run), {
+    const disclosure = this.#newPassword.captureDisclosure();
+    void this.#encryption.run((run) => this.#encrypt(run, undefined, disclosure), {
       failed: (cause) => this.#fail(cause),
     });
   }
@@ -253,7 +261,7 @@ export class MhfeNewWalletTab {
         onProgress: ({ draws }) =>
           run.publish(() => {
             clearPassphrases();
-            this.#status.textContent = drawLine(draws, clock, walletCheck);
+            this.#status.textContent = drawLine(draws, clock, walletCheck, expectedDraws);
           }),
       }),
     );
@@ -276,10 +284,7 @@ export class MhfeNewWalletTab {
     );
     if (drawn.walletCheck)
       this.#phraseResult.append(
-        paragraph(
-          `Drawn so that it passes its wallet check with your passphrase, on ${drawn.workers} workers.`,
-          "field-note",
-        ),
+        paragraph("Drawn so that it passes its wallet check with your passphrase.", "field-note"),
       );
     renderPhrase(
       this.#phraseResult,
@@ -295,14 +300,21 @@ export class MhfeNewWalletTab {
    * Encrypts the phrase drawn, with the container password and settings in the fields now;
    * `reviewed` is the answer of a review made before the phrase was drawn.
    */
-  async #encrypt(run: MhfeRun, reviewed?: ReviewChoice): Promise<void> {
+  async #encrypt(
+    run: MhfeRun,
+    reviewed: ReviewChoice | undefined,
+    disclosure: NewPasswordDisclosure,
+    parameters?: MhfeParameters,
+  ): Promise<MhfeTaskOutcome> {
+    parameters ??= await run.step(() => this.#engine.coreParameters());
     const drawn = this.#drawn;
     if (drawn === undefined) return;
-    const repairWordCount = selectedRepairCount("mhfe-new-repair-count");
-    const typed = this.#newPassword.passwords();
-    const choice = reviewed ?? (await this.#review.require(run, typed.password, typed.repeat));
+    const repairWordCount = selectedRepairCount("mhfe-new-repair-count", parameters);
+    const typed = this.#newPassword.passwords(disclosure);
+    const choice = reviewed ?? (await this.#review.choose(run, typed.password, typed.repeat));
+    if ("wait" in choice) return choice;
     const client = await run.step(() => this.#engine.client());
-    const progress = await run.step(() => this.#engine.progress(ENCRYPT_STAGES));
+    const progress = new StageProgress(ENCRYPT_STAGES, parameters.rounds);
     this.#review.assertCurrent(choice);
 
     const sealed = await run.step(() =>

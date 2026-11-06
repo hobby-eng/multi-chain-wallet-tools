@@ -4,18 +4,28 @@
 // sixteen random characters. A password made is shown once, then typed back from the person's
 // copy, which shows that the copy is right before anything is encrypted with it; only an exact
 // copy is used, with no second field, and the result names how it was made, never the words.
-import type { MhfeEngine } from "./recovery-mhfe-engine.js";
+import type { MhfePasswords } from "@ckd/recovery-mhfe-wasm/passwords/passwords.js";
+import type { RecoveryJobGate } from "./recovery-job-gate.js";
+import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
+import { SecretValue } from "@ckd/core/secret-value.js";
+import { ErrorCatalog } from "@ckd/core/error-catalog.js";
 import { PasswordField } from "./recovery-mhfe-fields.js";
 import { describe } from "./recovery-mhfe-status.js";
 import { required } from "./recovery-workspace-shared.js";
 
 type MadeKind = "words" | "checkWord" | "characters";
 
+const ERRORS = new ErrorCatalog("wallet.mhfe-password-choice", {
+  pending: () => "The password is still being made. Try again.",
+  copy: () => "Type the password from what you wrote down.",
+  differs: () => NOT_AS_SHOWN,
+  kind: () => "Choose a supported password kind.",
+});
 const NOT_AS_SHOWN = "That is not the password shown: correct your copy from the screen.";
 
 /** A password made, held only until it is used or the choice changes. */
 interface Made {
-  readonly text: string;
+  readonly secret: SecretValue<string>;
   readonly summary: string;
   readonly checkWord: boolean;
 }
@@ -28,8 +38,18 @@ export interface NewPassword {
   readonly made?: string;
 }
 
-export class NewPasswordChoice {
-  readonly #engine: MhfeEngine;
+/** A user operation may show a corrected-copy prompt only while its disclosure remains current. */
+export type NewPasswordDisclosure = () => boolean;
+
+/** The package edge needed to make one container password; recipes stay in MHFE. */
+export interface NewPasswordEngine {
+  passwords(): Promise<Pick<MhfePasswords, "make">>;
+}
+
+/** Owns one generated password until use, replacement or readiness loss; text views are temporary. */
+export class NewPasswordChoice implements Disposable {
+  readonly #engine: NewPasswordEngine;
+  readonly #jobs: RecoveryJobGate;
   readonly #prefix: string;
   readonly #own: { readonly password: PasswordField; readonly repeat: PasswordField };
   readonly #ownFields: HTMLElement;
@@ -44,15 +64,18 @@ export class NewPasswordChoice {
   #made: Made | undefined;
   /** Counts the passwords asked for, so that a late one for an older choice is dropped. */
   #revision = 0;
+  #disclosureRevision = 0;
 
   /** `prefix` names the fields, as in `#mhfe-{prefix}-password-kind`; `status` is the tab's line. */
   constructor(
-    engine: MhfeEngine,
+    engine: NewPasswordEngine,
     prefix: string,
     own: { readonly password: PasswordField; readonly repeat: PasswordField },
     status: HTMLElement,
+    jobs: RecoveryJobGate,
   ) {
     this.#engine = engine;
+    this.#jobs = jobs;
     this.#prefix = `mhfe-${prefix}`;
     this.#own = own;
     this.#status = status;
@@ -65,8 +88,8 @@ export class NewPasswordChoice {
     this.#checkWordNote = required<HTMLElement>(`#${made}-check-word-note`);
     this.#copyField = required<HTMLElement>(`#${made}-copy-field`);
     this.#copy = new PasswordField(`${made}-copy`, "password as written down");
-    document.querySelector("#clear-all")?.addEventListener("click", () => this.forget());
-    window.addEventListener("pagehide", () => this.forget());
+    document.querySelector("#clear-all")?.addEventListener("click", () => this.wipe());
+    window.addEventListener("pagehide", () => this.wipe());
     for (const radio of this.#radios()) radio.addEventListener("change", () => void this.#choose());
     required<HTMLButtonElement>(`#${made}-written`).addEventListener("click", () =>
       this.#askCopy(),
@@ -76,33 +99,53 @@ export class NewPasswordChoice {
     this.#copy.input.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && this.#copy.value === "") this.#show();
     });
+    RecoverySecretLifecycle.register(this.#shown, () => {
+      this.#disclosureRevision += 1;
+      this.#askCopy(false);
+    });
+    jobs.onChange((change) => {
+      if (change === "ready" && !jobs.ready) this.wipe();
+    });
     this.#render();
   }
 
   /** The kind chosen; "own" until another is chosen. */
   get kind(): "own" | MadeKind {
     const checked = this.#radios().find((radio) => radio.checked);
-    return (checked?.value as "own" | MadeKind | undefined) ?? "own";
+    const kind = checked?.value ?? "own";
+    if (kind === "own" || kind === "words" || kind === "checkWord" || kind === "characters")
+      return kind;
+    throw ERRORS.create("kind", []);
   }
 
   /**
    * The password and its repetition for the operation: one's own as typed twice, or a password
-   * made once its copy was typed back exactly. Throws, and shows a made password again after a
-   * wrong copy, before any work starts.
+   * made once its copy was typed back exactly. A wrong copy throws; it is shown again only with
+   * a current disclosure permit captured at the operation's start, before its first await.
    */
-  passwords(): NewPassword {
+  passwords(disclosure: NewPasswordDisclosure = () => false): NewPassword {
+    this.#jobs.assertReady();
     if (this.kind === "own")
       return { password: this.#own.password.value, repeat: this.#own.repeat.value };
     const made = this.#made;
-    if (made === undefined) throw new Error("The password is still being made. Try again.");
+    if (made === undefined) throw ERRORS.create("pending", []);
     const copy = this.#copy.value;
-    if (copy === "") throw new Error("Type the password from what you wrote down.");
-    if (copy !== made.text) {
+    if (copy === "") throw ERRORS.create("copy", []);
+    if (copy !== made.secret.value) {
       this.#copy.clear();
-      this.#show();
-      throw new Error(NOT_AS_SHOWN);
+      if (disclosure()) this.#show();
+      throw ERRORS.create("differs", []);
     }
-    return { password: made.text, repeat: made.text, made: made.summary };
+    const password = made.secret.value;
+    return { password, repeat: password, made: made.summary };
+  }
+
+  /** Capture before the operation's first await; blur, hiding, replacement and gate loss revoke it. */
+  captureDisclosure(): NewPasswordDisclosure {
+    const revision = this.#revision;
+    const disclosure = this.#disclosureRevision;
+    const ready = this.#jobs.captureReadiness();
+    return () => revision === this.#revision && disclosure === this.#disclosureRevision && ready();
   }
 
   /** The fields that hold the password, emptied once the work has started. */
@@ -116,8 +159,25 @@ export class NewPasswordChoice {
   forget(): void {
     this.#revision += 1;
     for (const radio of this.#radios()) radio.checked = radio.value === "own";
-    this.#made = undefined;
+    this.#dropMade();
     this.#render();
+  }
+
+  #dropMade(): void {
+    const made = this.#made;
+    this.#made = undefined;
+    made?.secret.wipe();
+  }
+
+  /** Retires generated bytes and pending permission; JavaScript strings cannot be erased. */
+  wipe(): void {
+    this.forget();
+    this.#own.password.clear();
+    this.#own.repeat.clear();
+  }
+  /** Ends the generated-password lifetime. */
+  [Symbol.dispose](): void {
+    this.wipe();
   }
 
   #radios(): HTMLInputElement[] {
@@ -129,24 +189,38 @@ export class NewPasswordChoice {
   async #choose(): Promise<void> {
     this.#revision += 1;
     const revision = this.#revision;
-    this.#made = undefined;
-    this.#render();
-    const kind = this.kind;
-    if (kind === "own") return;
-    this.#own.password.clear();
-    this.#own.repeat.clear();
+    this.#dropMade();
+    this.#askCopy(false);
+    this.#copy.clear();
+    const disclosure = this.#disclosureRevision;
+    const ready = this.#jobs.captureReadiness();
     try {
+      const kind = this.kind;
+      this.#render();
+      if (kind === "own" || !ready()) return;
+      this.#own.password.clear();
+      this.#own.repeat.clear();
       const passwords = await this.#engine.passwords();
-      // The module owns its recipe defaults; describe what it actually returned.
+      if (revision !== this.#revision || !ready()) return;
       const made = await passwords.make({ kind });
-      // Another kind chosen meanwhile makes its own password.
-      if (revision !== this.#revision) return;
-      this.#made = {
-        text: made.password,
-        summary: `made by MHFE: ${this.#description(kind, made.password)}, about ${made.bits.toFixed(1)} bits.`,
-        checkWord: made.checkWord,
-      };
-      this.#show();
+      // Every returned password is owned immediately, even a result whose permission expired.
+      const secret = SecretValue.text(made.password);
+      let admitted = false;
+      try {
+        made.password = "";
+        if (revision !== this.#revision || !ready() || !this.#block.isConnected) return;
+        this.#made = {
+          secret,
+          summary: `made by MHFE: ${this.#description(kind, secret.value)}, about ${made.bits.toFixed(1)} bits.`,
+          checkWord: made.checkWord,
+        };
+        admitted = true;
+        if (disclosure === this.#disclosureRevision && document.visibilityState !== "hidden")
+          this.#show();
+        else this.#askCopy(false);
+      } finally {
+        if (!admitted) secret.wipe();
+      }
     } catch (cause) {
       if (revision !== this.#revision) return;
       this.#status.classList.add("warning");
@@ -165,8 +239,8 @@ export class NewPasswordChoice {
   /** Shows the password made, privately, until the person says it is written down. */
   #show(): void {
     const made = this.#made;
-    if (made === undefined) return;
-    this.#text.textContent = made.text;
+    if (made === undefined || !this.#jobs.ready || document.visibilityState === "hidden") return;
+    this.#text.textContent = made.secret.value;
     this.#strength.textContent = made.summary.replace(/^made by MHFE: /u, "");
     this.#checkWordNote.hidden = !made.checkWord;
     this.#shown.hidden = false;
@@ -174,11 +248,11 @@ export class NewPasswordChoice {
   }
 
   /** Hides the password made and asks for it as written down. */
-  #askCopy(): void {
+  #askCopy(focus = true): void {
     this.#text.textContent = "";
     this.#shown.hidden = true;
-    this.#copyField.hidden = false;
-    this.#copy.input.focus();
+    this.#copyField.hidden = this.#made === undefined;
+    if (focus && this.#made !== undefined) this.#copy.input.focus();
   }
 
   #render(): void {

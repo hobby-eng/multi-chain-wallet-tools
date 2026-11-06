@@ -25,6 +25,7 @@ interface AddressRequest {
 }
 
 const STANDARD_SCOPE = {
+  coins: ["bitcoin"],
   type: "P2WPKH",
   onlyPath: false,
   search: "standard receiving and change paths",
@@ -42,6 +43,9 @@ function setup(prefix = PREFIXES[0]!) {
   const engine = {
     coreParameters: async () => ({ decoyScanGap: 20 }),
     wallet: async () => ({ describeAddress }),
+    walletParameters: async () => ({
+      coins: [{ id: "bitcoin", name: "Bitcoin", addressForms: "1…, 3…, bc1q… or bc1p…" }],
+    }),
   } as unknown as MhfeEngine;
   const reference = new SearchReference(engine, prefix);
   reference.show(false);
@@ -78,7 +82,7 @@ describe("MHFE address references in missing-word and recovery questions", () =>
         scanGap: 0,
       });
       expect(page.scope()).toBe(
-        "Type: P2WPKH · Search: standard receiving and change paths, 2,000 addresses",
+        "Coin: Bitcoin · Type: P2WPKH · Search: standard receiving and change paths, 2,000 addresses",
       );
       page.edit("path", PATH);
       page.edit("use-path", true);
@@ -106,7 +110,7 @@ describe("MHFE address references in missing-word and recovery questions", () =>
       expect(page.element(`#${prefix}-path`).getAttribute("placeholder")).toBe("m/…");
       await page.describeScope();
       expect(page.describeAddress).toHaveBeenLastCalledWith({ ...expected, scanGap: 0 });
-      expect(page.scope()).toBe(`Type: P2WPKH · Search: only ${PATH}`);
+      expect(page.scope()).toBe(`Coin: Bitcoin · Type: P2WPKH · Search: only ${PATH}`);
     });
   }
 

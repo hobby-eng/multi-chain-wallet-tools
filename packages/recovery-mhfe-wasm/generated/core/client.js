@@ -1,3 +1,4 @@
+// long: every method of the class, each with what a page must know.
 // The core module of the mhfe browser package: encryption, recovery, the rehearsal check, rekey,
 // hidden wallets and the self-test, with Argon2. Every operation runs in a new Web Worker, so a
 // long Argon2 computation never blocks the page, cancel() can end it at once, and the worker's
@@ -26,7 +27,7 @@
 
 import {
   CompiledModule,
-  MhfeCancelledError,
+  CANCELLED,
   MhfeError,
   OperationSlot,
   PackageCheck,
@@ -45,16 +46,16 @@ import {
   wipeSecrets,
 } from "../runtime/runtime.js";
 
-export { MhfeCancelledError, MhfeError } from "../runtime/runtime.js";
+export { CANCELLED, MhfeError } from "../runtime/runtime.js";
 
 /** Four Argon2 lanes in parallel; needs a cross-origin isolated page, such as `mhfe serve` gives. */
 export const FAST_MODE = "fast";
 /** One lane after another; works everywhere, including a page opened as a file. */
 export const STANDARD_MODE = "standard";
 
-// These limits are checked here, before any secret is copied, so that a refusal never waits for a
-// worker. scripts/verify-browser-package.mjs checks that each equals the core's suiteParameters();
-// a repair word count of 0 means none.
+// A deliberate copy of the core's limits, checked here before any secret is copied, so that a
+// refusal never waits for a worker. `cargo xtask package-check` checks that each equals the core's
+// suiteParameters(); a repair word count of 0 means none.
 /** The reference Argon2 code allows 2 GiB when pointers are 32 bits wide, as in WebAssembly: memory level 0 only. */
 const HIGHEST_BROWSER_MEMORY_LEVEL = 0;
 const MAX_PIM = 1023;
@@ -66,11 +67,11 @@ const DECOY_SCAN_GAP = 20;
 const REFERENCE_KINDS = ["address", "fingerprint", "words", "walletCheck"];
 /** The name of this module's operations in the package's worker. */
 const CORE_MODULE = "core";
-/** The build of this file, which scripts/stamp-build-id.mjs writes; see BUILD_ID in the runtime. */
-const CLIENT_BUILD_ID = "4f5000f4290fa5eb";
+/** The build of this file, from `cargo xtask wasm stamp-build-id`; see BUILD_ID in the runtime. */
+const CLIENT_BUILD_ID = "7da6a9c673903bea";
 
 // The parts of the self-check that run Argon2: its known answer at 1 MiB, and at 64 and 256 MiB.
-// The page names them before any worker runs; scripts/verify-browser-package.mjs checks that they
+// The page names them before any worker runs; `cargo xtask package-check` checks that they
 // are the core's parameters().argon2Parts.
 const ARGON2_PART = "argon2";
 const ARGON2_SIZES_PART = "argon2-sizes";
@@ -185,7 +186,8 @@ export class MhfeClient {
    * then on a cross-origin isolated page the threaded one (not run otherwise). It lists the
    * published vectors as not run (selfTest() runs them) and the parts a browser cannot check as not
    * available, with the reason. `onProgress({ id, label, running, outcome?, detail? })` hears of
-   * each part as it starts and ends. Resolves to a report as startupCheck() does; a failed part
+   * each part a worker runs as it starts and ends; the page's own parts and those not run are in
+   * the report only. Resolves to a report as startupCheck() does; a failed part
    * closes the client as there. A browser that cannot give 256 MiB, and an Argon2 build that does
    * not start, make those parts not available rather than failed, as startupCheck() describes.
    */
@@ -273,11 +275,11 @@ export class MhfeClient {
    * `{ repair: position }`. The encryption then decrypts the container's words again and compares
    * the result with the phrase, so it runs 24 rounds: "encrypt" 1 to 12, then "check" 13 to 24.
    *
-   * Resolves only after that check has passed to `{ container, suiteId, containerFingerprint,
-   * builtInCheck, otherLengths, repairWords, repairProfile, keep: [{ item, ... }] }`; a failed
-   * check rejects with VERIFICATION_FAILED. `keep` lists what the owner keeps, in order:
-   * containerWords {words}, password, passphrase or passphraseIfAny, repairWords, pim {value},
-   * memoryLevel {value}, wordCount {words}.
+   * Resolves only after that check has passed, to `{ container, suiteId, containerFingerprint,
+   * builtInCheck, otherLengths, repairWords, repairProfile, keep: [{ item, ... }] }`, or to
+   * CANCELLED after cancel(); a failed check rejects with VERIFICATION_FAILED. `keep` lists what
+   * the owner keeps, in order: containerWords {words}, password, passphrase or passphraseIfAny,
+   * repairWords, pim {value}, memoryLevel {value}, wordCount {words}.
    *
    * The container has 24 words. With `sameLength: true`, which only the user's own choice may
    * set after the page has shown its consequences, a 12- to 21-word phrase gives a container of
@@ -340,7 +342,7 @@ export class MhfeClient {
    * 'phrase' | 'ambiguous', candidates: [{ words, verified, status, phrase, suiteId,
    * fingerprintWithoutPassphrase, walletCheck, statedWords, otherLengths }] }`; `status` is
    * "verified", "noBuiltInCheck", "readAs24" or "readAs24Chosen". `walletCheck` is the 16-bit
-   * source check of a 24-word reading with `passphrase`, the wallet's BIP39 passphrase or "" for
+   * wallet check of a 24-word reading with `passphrase`, the wallet's BIP39 passphrase or "" for
    * none, which every recovery evaluates: the container does not show whether the phrase was
    * made with the check, so a page asks for the passphrase when a 24-word reading comes out,
    * says why, and decrypts again with it, or asks before; null for other lengths. A pass makes a
@@ -370,18 +372,24 @@ export class MhfeClient {
   }
 
   /**
-   * The rehearsal check. `reference` is `{ address, coin, path? }` (strong), `{ fingerprint }`
+   * The rehearsal check. `reference` is `{ address, coin?, path? }` (strong; without `coin` the
+   * address is searched as every coin whose form it has), `{ fingerprint }`
    * (quick, weaker), `{ words }` (built-in check of a 12- to 21-word original; 0 detects the
    * length, and with `passphrase` a 24-word phrase drawn with the phrase + passphrase check is
    * found too) or `{ walletCheck: true }` (the phrase and passphrase check of a 24-word container,
-   * with a passphrase). Resolves to `{ matches, path, evidence }`, `path` being where a matched
-   * address was found and null otherwise, `evidence` `{ builtInCheck, walletCheck }` the original
-   * seed phrase's own checks from the same recovery, and never to any part of the phrase.
-   * Progress: "recover" 1 to 12, then once "compare".
+   * with a passphrase). Resolves to `{ matches, outcome, path, withoutPassphrase, evidence }`,
+   * `outcome` "matches", "does not match" or "not verified" (only a 24-word reading came out,
+   * which nothing confirmed), `path` being where a matched address was found and null otherwise,
+   * `withoutPassphrase` true when an address or fingerprint matched only the wallet without the
+   * `passphrase` given, compared after the wallet with it, which confirms the phrase but not the
+   * passphrase, `evidence`
+   * `{ builtInCheck, otherLengths, walletCheck }`
+   * the original seed phrase's own checks from the same recovery, every length that matches among
+   * them, and never to any part of the phrase. Progress: "recover" 1 to 12, then once "compare".
    *
    * With `{ words: 0 }`, `onNoLength` is called when detection found no length: ask the user how
    * many words the original seed phrase has, and return `{ words }` (12 to 21) or for 24 words
-   * `{ address, coin, path?, passphrase? }` or `{ fingerprint, passphrase? }`, compared on the
+   * `{ address, coin?, path?, passphrase? }` or `{ fingerprint, passphrase? }`, compared on the
    * same recovery without its rounds again; null keeps the result.
    */
   async check({
@@ -446,7 +454,7 @@ export class MhfeClient {
    * Searches for the words of a container phrase typed as "?", up to two, with the decoy wallet:
    * the container itself as a wallet, whose master key fingerprint the page showed under the
    * container. No password and no Argon2: seconds for one word, minutes for two. `reference` is
-   * `{ address, coin, path? }` or `{ fingerprint }`, `passphrase` the BIP39 passphrase used with
+   * `{ address, coin?, path? }` or `{ fingerprint }`, `passphrase` the BIP39 passphrase used with
    * the container phrase, "" for none: ask the user whether one is used. For two missing words an
    * address is searched among the first `scanGap` receiving and as many change addresses of the
    * first account: parameters().decoyScanGap by default, the usual gap of a wallet; more takes
@@ -487,7 +495,7 @@ export class MhfeClient {
    * candidate is recovered with `password` at the settings given, a full recovery each, at the
    * defaults about one and a half to two minutes in fast mode and four to seven in standard mode,
    * so that the page states the time first: the candidates of searchCandidates() times one
-   * recovery in this mode. `reference` is `{ address, coin, path? }`, `{ fingerprint }`,
+   * recovery in this mode. `reference` is `{ address, coin?, path? }`, `{ fingerprint }`,
    * or the original seed phrase's own checks: `{ walletCheck: true }` with its BIP39 passphrase,
    * which takes the built-in check of a 12- to 21-word one and the phrase + passphrase check of a
    * 24-word one made by `mhfe new` (16 bits: a wrong candidate passes it about once in 65,536), or
@@ -553,7 +561,7 @@ export class MhfeClient {
    * `onConfirmAgain` is called, when given, with `{ error, ownerLengths }`: the refusal as an
    * MhfeError, and the lengths at which the owner may compare the phrase with their backup, empty
    * where only an address or the fingerprint confirms it. It returns another confirmation, which
-   * is judged on the same recovery without the rounds again: `{ address, coin, path?,
+   * is judged on the same recovery without the rounds again: `{ address, coin?, path?,
    * passphrase? }`, `{ fingerprint, passphrase? }`, or `{ owner, words }` with `words` one of
    * `ownerLengths` (left out when there is only one); or null, which rejects with the refusal.
    * After AMBIGUOUS_LENGTH the owner states the length of the reading to compare; after
@@ -562,14 +570,14 @@ export class MhfeClient {
    * and after every other refusal, the rekey ends: a page calls rekey() again, which recovers
    * again.
    *
-   * `confirmation` is exactly one of `{ builtInCheck: true }`, `{ address, coin, path? }`,
+   * `confirmation` is exactly one of `{ builtInCheck: true }`, `{ address, coin?, path? }`,
    * `{ fingerprint }` or `{ owner: (check) => boolean | Promise<boolean> }`
    * (readContainer().confirmationFor says which a length needs, "0" for detection). The wallet
    * check, 16 bits, never confirms a phrase to encrypt again. The owner callback receives
    * `{ phrase, words, statedWords?, fingerprintWithoutPassphrase }` to compare with the written
    * backup, `statedWords` only where the built-in check found another length than the one stated,
    * which the page says first; anything but true stops the rekey with NOT_CONFIRMED_BY_OWNER.
-   * Resolves as encrypt does, with `walletCheck`, the 16-bit source check of a recovered 24-word
+   * Resolves as encrypt does, with `walletCheck`, the 16-bit wallet check of a recovered 24-word
    * reading with the reference's passphrase or none (null for other lengths), which every recovery
    * reports and which never confirms a rekey.
    *
@@ -580,7 +588,7 @@ export class MhfeClient {
    * show nothing, and a reference without a passphrase matches the phrase's wallet without one,
    * which says nothing about funds under a passphrase, so it confirms only a wallet stated to have
    * none: true is refused, as such a wallet is compared with its passphrase. These refusals come
-   * before the first round; only the 1 MiB known answer of the Argon2 build runs first.
+   * before the first round.
    * `passphrase` belongs only to an address or a fingerprint: a non-empty one with the built-in
    * check or the owner is a TypeError.
    */
@@ -747,8 +755,8 @@ export class MhfeClient {
         // An open is running: its worker stops at once.
         const open = pendingOpen;
         pendingOpen = null;
-        job.stop(new MhfeCancelledError());
-        open?.reject(new MhfeCancelledError());
+        job.stop(CANCELLED);
+        open?.resolve(CANCELLED);
       }
       await done.then(
         () => undefined,
@@ -758,16 +766,27 @@ export class MhfeClient {
     const started = new Promise((resolve, reject) => {
       ready = { resolve, reject };
     });
-    let done;
-    ({ job, done } = await this.#begin(
+    const begun = await this.#begin(
       { operation: "hiddenWallets", container },
       { pim, memoryLevel, mainPassphrase, handlers, noPassword: true },
-    ));
-    done.then(undefined, (error) => {
-      ready.reject(error);
-      pendingOpen?.reject(error);
-      pendingOpen = null;
-    });
+    );
+    if (begun === CANCELLED) return CANCELLED;
+    const { done } = begun;
+    job = begun.job;
+    done.then(
+      (value) => {
+        // cancel() before the session was ready, or during an open.
+        if (value !== CANCELLED) return;
+        ready.resolve(CANCELLED);
+        pendingOpen?.resolve(CANCELLED);
+        pendingOpen = null;
+      },
+      (error) => {
+        ready.reject(error);
+        pendingOpen?.reject(error);
+        pendingOpen = null;
+      },
+    );
     return started;
   }
 
@@ -789,9 +808,9 @@ export class MhfeClient {
   }
 
   /**
-   * Stops the running long operation or session: its promise rejects at once with
-   * MhfeCancelledError, and its worker is terminated, as soon as it has loaded the WebAssembly if
-   * it is still loading it.
+   * Stops the running long operation or session: its promise resolves at once to CANCELLED,
+   * `{ cancelled: true }`, and its worker is terminated, as soon as it has loaded the WebAssembly
+   * if it is still loading it.
    */
   cancel() {
     this.#slot.cancel();
@@ -811,8 +830,8 @@ export class MhfeClient {
 
   /** A long operation, which resolves to its result; see #begin. */
   async #long(request, options, gated = true) {
-    const { done } = await this.#begin(request, options, gated);
-    return done;
+    const begun = await this.#begin(request, options, gated);
+    return begun === CANCELLED ? CANCELLED : begun.done;
   }
 
   /**
@@ -962,7 +981,7 @@ export class MhfeClient {
 
 /**
  * The core's fixed values must be the limits this file checks before any secret is copied
- * (scripts/verify-browser-package.mjs compares them too); otherwise the files come from different
+ * (`cargo xtask package-check` compares them too); otherwise the files come from different
  * builds.
  */
 function requireSameLimits(parameters) {
@@ -1003,8 +1022,8 @@ function requireRepetition(password, passwordRepeat, name) {
 function requireSettings(pim, memoryLevel) {
   requireSetting(pim, MAX_PIM, "INVALID_PIM", "pim");
   requireSetting(memoryLevel, MAX_MEMORY_LEVEL, "INVALID_MEMORY_LEVEL", "memoryLevel");
-  // The library's refusal (WorkFactor::require_level), with its code and message, before any
-  // secret reaches a worker; scripts/verify-browser-package.mjs keeps the two in step.
+  // The library's refusal (require_level in src/suite.rs), with its code and message, before any
+  // secret reaches a worker; `cargo xtask package-check` keeps the two in step.
   if (memoryLevel > HIGHEST_BROWSER_MEMORY_LEVEL) {
     throw new MhfeError(
       "MEMORY_LEVEL_NOT_SUPPORTED_HERE",
@@ -1055,8 +1074,8 @@ function describeSearchReference(reference, ofWallet) {
   if (isObject && (reference.words !== undefined || (!ofWallet && reference.walletCheck))) {
     throw new TypeError(
       ofWallet
-        ? "reference must be { address, coin, path? }, { fingerprint }, { walletCheck: true } or { builtInCheck: true }."
-        : "reference must be { address, coin, path? } or { fingerprint }.",
+        ? "reference must be { address, coin?, path? }, { fingerprint }, { walletCheck: true } or { builtInCheck: true }."
+        : "reference must be { address, coin?, path? } or { fingerprint }.",
     );
   }
   return describeReference(reference);
@@ -1072,7 +1091,7 @@ function describeReference(reference) {
   const kinds = isObject ? REFERENCE_KINDS.filter(given) : [];
   if (kinds.length !== 1) {
     throw new TypeError(
-      "reference must be exactly one of { address, coin, path? }, { fingerprint }, { words } or { walletCheck: true }.",
+      "reference must be exactly one of { address, coin?, path? }, { fingerprint }, { words } or { walletCheck: true }.",
     );
   }
   for (const key of ["coin", "path"]) {
@@ -1080,18 +1099,16 @@ function describeReference(reference) {
       throw new TypeError(`reference.${key} belongs only to an address reference.`);
     }
   }
+  if (reference.passphrase !== undefined) {
+    throw new TypeError("passphrase goes beside the reference, not inside it.");
+  }
   switch (kinds[0]) {
     case "address":
       requireText(reference.address, "reference.address");
       if (reference.path !== undefined) requireText(reference.path, "reference.path");
-      // No coin is the default, so that a page for one coin names no other.
-      if (reference.coin === undefined) {
-        throw new TypeError(
-          "reference.coin must name the coin of the address, an id of MhfeWallet.parameters().coins.",
-        );
-      }
-      requireText(reference.coin, "reference.coin");
-      return ["address", reference.address, reference.coin, reference.path ?? ""];
+      // Without a coin, every coin whose form the address has (Address::parse_any).
+      if (reference.coin !== undefined) requireText(reference.coin, "reference.coin");
+      return ["address", reference.address, reference.coin ?? "", reference.path ?? ""];
     case "fingerprint":
       requireText(reference.fingerprint, "reference.fingerprint");
       return ["fingerprint", reference.fingerprint, "", ""];
@@ -1103,7 +1120,7 @@ function describeReference(reference) {
       // 0 detects the length (the library's detection).
       requireWordCount(reference.words);
       // The library's refusal (rehearsal::require_built_in_check_length), with its code and
-      // message, before any secret reaches a worker; scripts/verify-browser-package.mjs keeps the
+      // message, before any secret reaches a worker; `cargo xtask package-check` keeps the
       // two in step.
       if (reference.words !== 0 && !BUILT_IN_CHECK_WORD_COUNTS.includes(reference.words)) {
         throw new MhfeError(
@@ -1157,15 +1174,9 @@ async function answerConfirmAgain(onConfirmAgain, { code, message, ownerLengths 
   requirePassphraseFits(confirmKind, passphrase);
   let stated = 0;
   if (owner !== undefined) {
-    stated = words ?? (ownerLengths.length === 1 ? ownerLengths[0] : undefined);
-    // The core refuses any other length too; this names the page's mistake at once.
-    if (!ownerLengths.includes(stated)) {
-      throw new TypeError(
-        ownerLengths.length === 0
-          ? "the owner cannot confirm this phrase: give an address or the fingerprint."
-          : `words must name the reading the owner compares: ${countsText(ownerLengths)}.`,
-      );
-    }
+    // The core refuses a length that is not one of ownerLengths.
+    if (words !== undefined) requireWordCount(words);
+    stated = words ?? (ownerLengths.length === 1 ? ownerLengths[0] : 0);
     useOwner(owner);
   } else if (words !== undefined) {
     throw new TypeError("words belongs only to the owner's confirmation.");
@@ -1201,7 +1212,7 @@ function requirePassphraseFits(confirmKind, passphrase) {
 function describeConfirmation(confirmation) {
   if (confirmation === null || typeof confirmation !== "object") {
     throw new TypeError(
-      "confirmation must be one of { builtInCheck: true }, { address, coin, path? }, " +
+      "confirmation must be one of { builtInCheck: true }, { address, coin?, path? }, " +
         "{ fingerprint } or { owner }.",
     );
   }
@@ -1237,7 +1248,7 @@ function describeConfirmation(confirmation) {
   }
   if (!given.includes("address") && !given.includes("fingerprint")) {
     throw new TypeError(
-      "confirmation must be one of { builtInCheck: true }, { address, coin, path? }, " +
+      "confirmation must be one of { builtInCheck: true }, { address, coin?, path? }, " +
         "{ fingerprint } or { owner }.",
     );
   }

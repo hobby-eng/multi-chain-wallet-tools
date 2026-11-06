@@ -1,9 +1,12 @@
+import { RenderedSecrets } from "./secrets.js";
 // Result cards of the MHFE panel: a new container with its state, what to keep and its repair card;
 // a repaired container phrase with every change; a recovered or new phrase with its fingerprint;
 // and the lines that say what a fingerprint is of.
 import { MhfeError, type MhfeSealed } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import type { MhfeRepaired } from "@ckd/recovery-mhfe-wasm/repair/repair.js";
 import { createQrAction } from "@ckd/ui/payment-qr.js";
+import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
+import { QrActionLifecycle } from "@ckd/ui/qr-action-lifecycle.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
 import { keepLine, listed, sealedNotes } from "./recovery-mhfe-status.js";
@@ -15,6 +18,9 @@ import {
 
 /** What a master key fingerprint is of; the page shows each kind openly, with this note. */
 export type FingerprintOf = "container" | "withoutPassphrase" | "withPassphrase" | "noPassphrase";
+
+/** The two host permissions used by a secret result card. */
+type SecretAccess = Pick<RecoveryFeatureContext, "jobs" | "writeClipboard">;
 
 const FINGERPRINT_NOTES: Record<FingerprintOf, string> = {
   container: "of the container itself, not your wallet",
@@ -42,7 +48,7 @@ export function factsList(facts: readonly (readonly [string, string])[]): HTMLDL
 }
 
 /**
- * Show, Copy (only while shown; left out when `copy` is undefined) and an optional QR action for a
+ * Show, Copy (only while shown; left out when `copyEnabled` is false) and an optional QR action for a
  * secret shown in `concealed`, which carries the "concealed" class until Show. `copied` is the
  * text Copy and QR give.
  */
@@ -50,7 +56,8 @@ function secretActions(
   concealed: HTMLElement,
   copied: string,
   labels: { subject: string; qrHeading?: string; qrDescription?: string },
-  copy: ((value: string) => Promise<void>) | undefined,
+  access: SecretAccess,
+  copyEnabled = true,
 ): HTMLElement {
   const reveal = document.createElement("button");
   reveal.type = "button";
@@ -62,24 +69,34 @@ function secretActions(
   copyButton.textContent = "Copy";
   copyButton.setAttribute("aria-label", `Copy ${labels.subject}`);
   copyButton.disabled = true;
-  reveal.addEventListener("click", () => {
-    const visible = concealed.classList.contains("concealed");
+  const permitted = access.jobs.captureReadiness();
+  const current = (): boolean => permitted() && concealed.isConnected;
+  const revealed = (): boolean => current() && !concealed.classList.contains("concealed");
+  const show = (visible: boolean): void => {
     concealed.classList.toggle("concealed", !visible);
     reveal.textContent = `${visible ? "Hide" : "Show"} ${labels.subject}`;
     reveal.setAttribute("aria-pressed", String(visible));
     copyButton.disabled = !visible;
+    if (!visible) QrActionLifecycle.hideWithin(actions);
+  };
+  reveal.addEventListener("click", () => {
+    if (current()) show(!revealed());
   });
-  copyButton.addEventListener("click", () => void copy?.(copied));
+  RecoverySecretLifecycle.register(reveal, () => show(false));
+  copyButton.addEventListener("click", () => {
+    if (revealed()) void access.writeClipboard(copied);
+  });
   const actions = document.createElement("div");
   actions.className = "share-secret-actions";
   actions.append(reveal);
-  if (copy !== undefined) actions.append(copyButton);
+  if (copyEnabled) actions.append(copyButton);
   if (labels.qrHeading !== undefined)
     actions.append(
       createQrAction(document, copied, labels.subject, copied, {
         heading: labels.qrHeading,
         description: labels.qrDescription ?? "Sensitive payload:",
         ecc: "M",
+        current: revealed,
       }),
     );
   return actions;
@@ -95,26 +112,30 @@ export function concealedWith(
   actions: HTMLElement,
 ): void {
   element.classList.add("concealed");
-  actions.querySelector("button")?.addEventListener("click", () => {
+  const reveal = actions.querySelector("button");
+  const synchronize = (): void => {
     element.classList.toggle("concealed", output.classList.contains("concealed"));
-  });
+  };
+  reveal?.addEventListener("click", synchronize);
+  if (reveal !== null) RecoverySecretLifecycle.onConceal(reveal, synchronize);
 }
 
 /**
- * A secret in a concealed field with Show, Copy (only while shown; left out when `copy` is
- * undefined) and an optional QR action.
+ * A secret in a concealed field with Show, optional Copy, and an optional QR action.
+ * Access ends when the host gate closes or the field leaves the page.
  */
 export function concealedValue(
   value: string,
   labels: { subject: string; qrHeading?: string; qrDescription?: string },
-  copy: ((value: string) => Promise<void>) | undefined,
+  access: SecretAccess,
+  copyEnabled = true,
 ): { output: HTMLTextAreaElement; actions: HTMLElement } {
   const output = document.createElement("textarea");
   output.rows = 4;
   output.readOnly = true;
   output.className = "concealed share-secret";
   output.value = value;
-  return { output, actions: secretActions(output, value, labels, copy) };
+  return { output, actions: secretActions(output, value, labels, access, copyEnabled) };
 }
 
 /** The words of a container phrase, which the package always writes out one space apart. */
@@ -126,7 +147,7 @@ function wordCount(container: string): number {
 export function concealedContainer(
   container: string,
   qrHeading: string,
-  copy: (value: string) => Promise<void>,
+  access: SecretAccess,
 ): { output: HTMLTextAreaElement; actions: HTMLElement } {
   return concealedValue(
     container,
@@ -135,7 +156,7 @@ export function concealedContainer(
       qrHeading,
       qrDescription: `Checksum-valid ${wordCount(container)}-word BIP39 container:`,
     },
-    copy,
+    access,
   );
 }
 
@@ -147,15 +168,15 @@ export function concealedContainer(
 export class ContainerCard {
   readonly #card: HTMLElement;
   readonly #state: HTMLElement;
-  readonly #copy: (value: string) => Promise<void>;
+  readonly #access: SecretAccess;
 
   constructor(
     target: HTMLElement,
     result: { container: string; containerFingerprint: string },
-    copy: (value: string) => Promise<void>,
+    access: SecretAccess,
     title = "Encrypted MHFE container",
   ) {
-    this.#copy = copy;
+    this.#access = access;
     this.#card = document.createElement("article");
     const heading = document.createElement("strong");
     heading.textContent = `${title}, ${wordCount(result.container)} words`;
@@ -168,7 +189,7 @@ export class ContainerCard {
     const { output, actions } = concealedContainer(
       result.container,
       "Encrypted MHFE container QR",
-      copy,
+      access,
     );
     // A container is itself a BIP39 phrase; its fingerprint lets Decode catch a miscopied word
     // before the long recovery starts.
@@ -179,7 +200,7 @@ export class ContainerCard {
       "field-note",
     );
     this.#card.append(heading, this.#state, output, actions, fingerprint);
-    target.replaceChildren(this.#card);
+    RenderedSecrets.replace(target, this.#card);
   }
 
   /**
@@ -201,7 +222,7 @@ export class ContainerCard {
       ...sealedNotes(sealed, sameLength).map((note) => paragraph(note, "field-note")),
     );
     if (sealed.repairWords !== null && sealed.repairProfile !== null)
-      this.#card.append(repairCard(sealed.repairWords, sealed.repairProfile, this.#copy));
+      this.#card.append(repairCard(sealed.repairWords, sealed.repairProfile, this.#access));
   }
 
   /** The check found that the container does not turn back into the phrase. */
@@ -231,11 +252,7 @@ export class ContainerCard {
  * Repair words as a card is written: a grid of "i/k word" cells, concealed until shown. Copy and QR
  * give the written form on one line, which the Repair tab reads back.
  */
-export function repairCard(
-  words: string,
-  profile: string,
-  copy: (value: string) => Promise<void>,
-): HTMLElement {
+export function repairCard(words: string, profile: string, access: SecretAccess): HTMLElement {
   const list = words.split(" ");
   const cells = list.map((word, index) => `${index + 1}/${list.length} ${word}`);
   const written = `${profile} ${cells.join(" ")}`;
@@ -254,7 +271,7 @@ export function repairCard(
     grid,
     written,
     { subject: "repair words", qrHeading: "MHFE repair words QR", qrDescription: "Repair card:" },
-    copy,
+    access,
   );
   card.append(
     heading,
@@ -285,26 +302,21 @@ export interface SealTexts {
 export class NewContainerResult {
   readonly #target: HTMLElement;
   readonly #engine: MhfeEngine;
-  readonly #copy: (value: string) => Promise<void>;
+  readonly #access: SecretAccess;
   readonly #title: string | undefined;
   #card: ContainerCard | undefined;
 
-  constructor(
-    target: HTMLElement,
-    engine: MhfeEngine,
-    copy: (value: string) => Promise<void>,
-    title?: string,
-  ) {
+  constructor(target: HTMLElement, engine: MhfeEngine, access: SecretAccess, title?: string) {
     this.#target = target;
     this.#engine = engine;
-    this.#copy = copy;
+    this.#access = access;
     this.#title = title;
   }
 
   /** Removes the card of an earlier operation. */
   reset(): void {
     this.#card = undefined;
-    this.#target.replaceChildren();
+    RenderedSecrets.replace(this.#target);
   }
 
   /** The package's onUnverified: the container is shown before its check ends. */
@@ -326,7 +338,7 @@ export class NewContainerResult {
   }
 
   #cardFor(result: { container: string; containerFingerprint: string }): ContainerCard {
-    return new ContainerCard(this.#target, result, this.#copy, this.#title);
+    return new ContainerCard(this.#target, result, this.#access, this.#title);
   }
 }
 
@@ -353,12 +365,12 @@ export function whatWasRepaired(repaired: MhfeRepaired): string {
  */
 export function repairedContainer(
   repaired: MhfeRepaired,
-  copy: (value: string) => Promise<void>,
+  access: SecretAccess,
 ): { said: HTMLElement; output: HTMLTextAreaElement; actions: HTMLElement; changes: HTMLElement } {
   const { output, actions } = concealedContainer(
     repaired.container,
     "Repaired MHFE container QR",
-    copy,
+    access,
   );
   const changes = document.createElement("ul");
   changes.className = "mhfe-changes";

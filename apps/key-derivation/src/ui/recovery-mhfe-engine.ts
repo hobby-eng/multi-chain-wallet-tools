@@ -8,7 +8,6 @@ import {
   MhfeClient,
   type MhfeParameters,
   type MhfeSelfCheckProgress,
-  type MhfeSelfCheckReport,
 } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import {
   MhfePasswords,
@@ -19,6 +18,13 @@ import mhfeWasm from "@ckd/recovery-mhfe-wasm/runtime/mhfe.wasm";
 import { MhfeWallet, type MhfeWalletParameters } from "@ckd/recovery-mhfe-wasm/wallet/wallet.js";
 import { MhfeRun } from "./recovery-mhfe-run.js";
 import { StageProgress, type StageLabels } from "./recovery-mhfe-status.js";
+import {
+  MhfeCheckSequence,
+  type MhfeClassChecks,
+  type MhfeClassName,
+  type MhfeClassReport,
+} from "@ckd/verification/mhfe-checks.js";
+export type { MhfeClassName, MhfeClassReport } from "@ckd/verification/mhfe-checks.js";
 
 // Texts of the package's classic scripts, embedded by build-key-derivation-html.mjs.
 declare const __MHFE_WORKER_SOURCE__: string;
@@ -38,22 +44,6 @@ export const FAST_MODE_THREADS = 4;
  * search for missing words both read it; a PIM multiplies it by PIM + 1.
  */
 const RECOVERY_SECONDS = { fast: [60, 120], slow: [240, 420] } as const;
-
-/** The name the page shows for each class of the package. */
-export type MhfeClassName = "Core" | "Repair words" | "Passwords" | "Wallet";
-
-/** The self-check report of one of the panel's classes, with the name the page shows for it. */
-export interface MhfeClassReport {
-  readonly name: MhfeClassName;
-  readonly report: MhfeSelfCheckReport;
-}
-
-/** The two self-checks of one class: the quick one before first use, and the full one. */
-interface MhfeClassChecks {
-  readonly name: MhfeClassName;
-  quick(): Promise<MhfeSelfCheckReport>;
-  full(onProgress: (progress: MhfeSelfCheckProgress) => void): Promise<MhfeSelfCheckReport>;
-}
 
 export class MhfeEngine {
   /** The WebAssembly, compiled once for every engine of the page. */
@@ -142,24 +132,18 @@ export class MhfeEngine {
    * classes in `only`, the core's without Argon2, which every Argon2 operation checks itself before
    * its first round: milliseconds each. A failed part closes its class for good.
    */
-  async startupChecks(only?: readonly MhfeClassName[]): Promise<MhfeClassReport[]> {
-    const reports: MhfeClassReport[] = [];
-    for (const { name, quick } of this.#classChecks())
-      if (only === undefined || only.includes(name)) reports.push({ name, report: await quick() });
-    return reports;
+  startupChecks(only?: readonly MhfeClassName[]): Promise<MhfeClassReport[]> {
+    return MhfeCheckSequence.startup(this.#classChecks(), only);
   }
 
   /**
    * The full self-check of every class, one after another, as `mhfe self-test` runs it without its
    * vectors: seconds, and at most 256 MiB for one Argon2 build at a time.
    */
-  async fullChecks(
+  fullChecks(
     onProgress?: (name: string, progress: MhfeSelfCheckProgress) => void,
   ): Promise<MhfeClassReport[]> {
-    const reports: MhfeClassReport[] = [];
-    for (const { name, full } of this.#classChecks())
-      reports.push({ name, report: await full((progress) => onProgress?.(name, progress)) });
-    return reports;
+    return MhfeCheckSequence.full(this.#classChecks(), onProgress);
   }
 
   /**

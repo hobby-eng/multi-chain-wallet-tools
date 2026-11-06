@@ -1,7 +1,9 @@
 // The package owns numerical limits and repair choices; the page renders its parameters only.
 import type { MhfeParameters } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
+import { defined } from "@ckd/core/defined.js";
 
+/** Renders the producer's numerical bounds and repair choices without a second host policy. */
 export class MhfePanelParameters {
   readonly #panel: HTMLElement;
 
@@ -21,11 +23,12 @@ export class MhfePanelParameters {
     }
   }
 
+  /** Refuses a malformed native group with MISSING_VALUE; all limits come from the producer. */
   apply(parameters: MhfeParameters): void {
     for (const input of this.#panel.querySelectorAll<HTMLInputElement>('input[id$="-pim"]'))
       input.max = String(parameters.maxPim);
     for (const group of this.#panel.querySelectorAll<HTMLElement>("[data-mhfe-repair-choices]")) {
-      const name = group.dataset.mhfeRepairChoices!;
+      const name = defined(group.dataset.mhfeRepairChoices);
       const counts: number[] = [...parameters.repairWordCounts].sort(
         (a, b) =>
           Number(b === parameters.recommendedRepairWords) -

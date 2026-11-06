@@ -1,13 +1,23 @@
+import { PasswordControl } from "./password-control.js";
+import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
 // Input fields that the MHFE operation tabs share: the PIM with its checkbox, a password with its
 // Show button, the check word review of a password, its strength warning, a container field, the
 // password and PIM of a container to recover, the length of its original seed phrase and the
 // repair word choice. Each owns its elements; the rules come from the package's classes.
-import type { MhfeContainerFacts, WordCount } from "@ckd/recovery-mhfe-wasm/core/client.js";
+import type {
+  MhfeContainerFacts,
+  MhfeParameters,
+  WordCount,
+} from "@ckd/recovery-mhfe-wasm/core/client.js";
+import {
+  MhfeRepairChoices,
+  type MhfeRepairWordCount,
+} from "@ckd/recovery-backup/mhfe-repair-choices.js";
 import type { MhfePasswordReview } from "@ckd/recovery-mhfe-wasm/passwords/passwords.js";
 import type { MhfePasswordRepair } from "@ckd/recovery-mhfe-wasm/runtime/runtime.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
-import { AwaitingAnswer } from "./recovery-mhfe-task.js";
+import type { MhfeWaiting } from "./recovery-mhfe-task.js";
 import {
   reviewAnswers,
   reviewExplanation,
@@ -16,7 +26,6 @@ import {
   type ReviewAnswer,
 } from "./recovery-mhfe-status.js";
 import { installFieldImports, installSecretToggle, required } from "./recovery-workspace-shared.js";
-import { RecoverySecretLifecycle } from "./recovery-secret-lifecycle.js";
 
 /** The status line of a review dropped because the password changed while it ran. */
 const REVIEW_DROPPED = "The password changed while it was reviewed. Press the button again.";
@@ -53,43 +62,32 @@ export class PimField {
 
 /** A password or passphrase input with a Show/Hide button; `label` names it for screen readers. */
 export class PasswordField {
-  readonly input: HTMLInputElement;
-  readonly #toggle: HTMLButtonElement;
-  readonly #label: string;
+  readonly #control: PasswordControl;
 
+  /** Compatibility binding for MHFE's field IDs; disclosure itself belongs to PasswordControl. */
   constructor(id: string, label: string) {
-    this.input = required<HTMLInputElement>(`#${id}`);
-    this.#toggle = required<HTMLButtonElement>(`#toggle-${id}`);
-    this.#label = label;
-    this.#toggle.addEventListener("click", () => {
-      this.input.type = this.input.type === "password" ? "text" : "password";
-      this.#render();
-    });
-    RecoverySecretLifecycle.register(this.#toggle, () => {
-      this.input.type = "password";
-      this.#render();
-    });
-    this.#render();
+    this.#control = new PasswordControl(
+      required<HTMLInputElement>(`#${id}`),
+      required<HTMLButtonElement>(`#toggle-${id}`),
+      label,
+    );
   }
-
+  /** Native input used by operation progress to drop the typed password. */
+  get input(): HTMLInputElement {
+    return this.#control.input;
+  }
+  /** Transient typed text; not a retained password copy. */
   get value(): string {
-    return this.input.value;
+    return this.#control.value;
   }
-
+  /** Drops the native field's reference. */
   clear(): void {
-    this.input.value = "";
-  }
-
-  #render(): void {
-    const revealed = this.input.type === "text";
-    this.#toggle.textContent = revealed ? "Hide" : "Show";
-    this.#toggle.setAttribute("aria-pressed", String(revealed));
-    this.#toggle.setAttribute("aria-label", `${revealed ? "Hide" : "Show"} ${this.#label}`);
+    this.#control.clear();
   }
 }
 
 /** The choice of a review, or why the operation must wait. */
-export type ReviewResult = ReviewChoice | { readonly wait: string };
+export type ReviewResult = ReviewChoice | MhfeWaiting;
 
 /** The repair chosen for the password in the fields, and the line that says what it did. */
 export interface ReviewChoice {
@@ -166,16 +164,6 @@ export class PasswordReview {
       return this.#give({ repair: "asTyped", outcome: reviewOutcome(review, "asTyped") });
     this.#show(password, review);
     return { wait: "Choose how to use the password, then press the button again." };
-  }
-
-  /**
-   * The repair to pass on; an AwaitingAnswer, which ends the operation quietly, while the person
-   * must answer first.
-   */
-  async require(run: MhfeRun, password: string, repeat?: string): Promise<ReviewChoice> {
-    const result = await this.choose(run, password, repeat);
-    if ("wait" in result) throw new AwaitingAnswer(result.wait);
-    return result;
   }
 
   /**
@@ -344,6 +332,13 @@ export interface RecoverySettings {
   readonly pim: number;
 }
 
+/** Settings admitted by the password review and the answer that remains current for them. */
+export interface ReviewedRecoverySettings {
+  readonly settings: RecoverySettings;
+  readonly outcome: string;
+  readonly choice: ReviewChoice;
+}
+
 /**
  * The password of a container to recover, with its check word review and its PIM: the fields of
  * Decode, Check and the old container of Change password, named `#mhfe-{prefix}-password`,
@@ -362,12 +357,11 @@ export class ContainerPassword {
 
   /**
    * The password as reviewed and the PIM, with the line that says what the review did;
-   * AwaitingAnswer while the review needs an answer.
+   * a waiting outcome while the review needs an answer.
    */
-  async reviewed(
-    run: MhfeRun,
-  ): Promise<{ settings: RecoverySettings; outcome: string; choice: ReviewChoice }> {
-    const choice = await this.review.require(run, this.password.value);
+  async reviewed(run: MhfeRun): Promise<ReviewedRecoverySettings | MhfeWaiting> {
+    const choice = await this.review.choose(run, this.password.value);
+    if ("wait" in choice) return choice;
     const settings = {
       password: this.password.value,
       passwordRepair: choice.repair,
@@ -377,8 +371,9 @@ export class ContainerPassword {
   }
 
   /** The password as reviewed and the PIM, for a search with the owner's wallet. */
-  async settings(run: MhfeRun): Promise<RecoverySettings> {
-    return (await this.reviewed(run)).settings;
+  async settings(run: MhfeRun): Promise<RecoverySettings | MhfeWaiting> {
+    const outcome = await this.reviewed(run);
+    return "wait" in outcome ? outcome : outcome.settings;
   }
 }
 
@@ -423,7 +418,9 @@ export class PhraseLengthChoice {
   }
 
   /** Offers the lengths a container's phrase can have; a length chosen before stays if it fits. */
-  adapt(facts: MhfeContainerFacts): void {
+  adapt(
+    facts: Pick<MhfeContainerFacts, "phraseLengths" | "builtInCheckLengths" | "confirmationFor">,
+  ): void {
     this.#select.dataset["read"] = "";
     this.#offer(
       this.#lengths({ all: facts.phraseLengths, builtIn: facts.builtInCheckLengths }),
@@ -480,8 +477,26 @@ export class PhraseLengthChoice {
  * The repair word count chosen in the radio group `name`; 0 means none. The package refuses a
  * count it does not make, with its own message.
  */
-export function selectedRepairCount(name: string): 0 | 2 | 4 | 6 | 8 {
+export function selectedRepairCount(
+  name: string,
+  parameters: Pick<MhfeParameters, "repairWordCounts">,
+  kind: "required",
+): MhfeRepairWordCount;
+/** Reads an optional repair count using the producer's current choices. */
+export function selectedRepairCount(
+  name: string,
+  parameters: Pick<MhfeParameters, "repairWordCounts">,
+  kind?: "optional",
+): 0 | MhfeRepairWordCount;
+/** Translates a native radio value; the library refuses absent, coerced or unsupported choices. */
+export function selectedRepairCount(
+  name: string,
+  parameters: Pick<MhfeParameters, "repairWordCounts">,
+  kind: "required" | "optional" = "optional",
+): 0 | MhfeRepairWordCount {
   const selected = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
-  if (selected === null) throw new Error("Choose whether the container phrase gets repair words.");
-  return Number(selected.value) as 0 | 2 | 4 | 6 | 8;
+  const choices = new MhfeRepairChoices(parameters);
+  return kind === "required"
+    ? choices.required(selected?.value)
+    : choices.optional(selected?.value);
 }

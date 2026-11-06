@@ -12,14 +12,14 @@
 // runs in the same WebAssembly, runtime/mhfe.wasm; a request names its module and operation.
 
 /**
- * The build of the package these files come from, which scripts/stamp-build-id.mjs derives from
- * every file a page loads before it stamps any: runtime/mhfe.wasm, this file, runtime/worker.js,
- * each class file and both Argon2 builds. It writes it into each of these, the WebAssembly's
- * custom section "mhfe-build" included; the classes and the worker compare them, so that parts of
- * different builds, even ones that differ in a script alone, are never used together.
+ * The build of the package these files come from, which `cargo xtask wasm stamp-build-id` derives
+ * from every file a page loads before it stamps any: runtime/mhfe.wasm, this file,
+ * runtime/worker.js, each class file and both Argon2 builds. It writes it into each of these, the
+ * WebAssembly's custom section "mhfe-build" included; the classes and the worker compare them, so
+ * that parts of different builds, even ones that differ in a script alone, are never used together.
  * "development" before the build stamps it.
  */
-export const BUILD_ID = "4f5000f4290fa5eb";
+export const BUILD_ID = "7da6a9c673903bea";
 
 export class MhfeError extends Error {
   /**
@@ -34,12 +34,8 @@ export class MhfeError extends Error {
   }
 }
 
-export class MhfeCancelledError extends MhfeError {
-  constructor() {
-    super("CANCELLED", "The operation was cancelled.");
-    this.name = "MhfeCancelledError";
-  }
-}
+/** What a long operation resolves to when cancel() stopped it: a cancel is no error. */
+export const CANCELLED = Object.freeze({ cancelled: true });
 
 /** The package's WebAssembly, compiled the first time a worker needs it and then shared. */
 export class CompiledModule {
@@ -86,8 +82,8 @@ const WORKER_START_TIMEOUT_MS = 60_000;
 /**
  * One operation in one worker. `scripts` are joined into the worker's Blob; `handlers` receive the
  * worker's messages by type. A handler of the page that fails ends the operation: the worker
- * stops, which frees its secrets, and the promise rejects with CALLBACK_FAILED and the page's error
- * as the cause. An `ask` handler answers the worker; its promise is awaited.
+ * stops, which frees its memory without overwriting it, and the promise rejects with
+ * CALLBACK_FAILED and the page's error as the cause. An `ask` handler answers the worker; its promise is awaited.
  */
 export class WorkerJob {
   #scripts;
@@ -184,13 +180,14 @@ export class WorkerJob {
   }
 
   /**
-   * Ends the job once: `error` rejects its promise, null resolves nothing, and the worker stops.
+   * Ends the job once: `reason` rejects its promise, CANCELLED resolves it with CANCELLED, null
+   * settles nothing, and the worker stops.
    * A worker that is still loading the WebAssembly stops once it has loaded it, or when it fails,
    * or at the start's time limit: Firefox crashes the whole page when a worker is terminated while
-   * it loads the WebAssembly, as when every worker of a draw fails within milliseconds. Its
-   * request is answered by nobody: its messages are ignored from now on.
+   * it loads the WebAssembly. Its request is answered by nobody: its messages are ignored from now
+   * on.
    */
-  stop(error) {
+  stop(reason) {
     if (this.#ended) return;
     this.#ended = true;
     clearTimeout(this.#startTimer);
@@ -200,7 +197,8 @@ export class WorkerJob {
       this.#startTimer = setTimeout(() => this.#terminate(), WORKER_START_TIMEOUT_MS);
     }
     this.#onEnd(this);
-    if (error !== null) this.#settle?.reject(error);
+    if (reason === CANCELLED) this.#settle?.resolve(CANCELLED);
+    else if (reason !== null) this.#settle?.reject(reason);
   }
 
   #terminate() {
@@ -243,7 +241,7 @@ export class WorkerJob {
       this.#answer(reply.question, reply.value);
     } else if (WORKER_NEWS.includes(reply.type)) {
       // News the page did not ask for has no handler and is dropped.
-      this.callPage(this.#ownHandler(reply.type), reply.value, reply.type);
+      this.callPage(this.#ownHandler(reply.type), reply.value);
     } else {
       this.stop(unknownMessage(reply.type));
     }
@@ -266,18 +264,11 @@ export class WorkerJob {
   #started(buildId) {
     clearTimeout(this.#startTimer);
     this.#startTimer = null;
-    if (buildId !== BUILD_ID) {
-      this.stop(
-        packageMismatch(
-          `The file runtime/worker.js is of build ${buildId} and runtime/runtime.js of build ` +
-            BUILD_ID,
-        ),
-      );
-    }
+    if (buildId !== BUILD_ID) this.stop(buildMismatch("runtime/worker.js", buildId));
   }
 
   /** Calls a page callback whose result is not awaited; a throw or a rejection stops the job. */
-  callPage(callback, value, name) {
+  callPage(callback, value) {
     try {
       const returned = callback?.(value);
       if (typeof returned?.then === "function") {
@@ -285,11 +276,11 @@ export class WorkerJob {
           // Once the job has ended there is nothing left to stop: the page's rejection stays
           // unhandled, as it would be without this client, instead of being swallowed.
           if (this.#ended) throw cause;
-          this.stop(callbackFailed(name, cause));
+          this.stop(callbackFailed(cause));
         });
       }
     } catch (cause) {
-      this.stop(callbackFailed(name, cause));
+      this.stop(callbackFailed(cause));
     }
   }
 
@@ -308,7 +299,7 @@ export class WorkerJob {
       // A handler that wraps the page's callback may name the failure itself; anything else,
       // an MhfeError of another call included, becomes CALLBACK_FAILED with it as the cause.
       const named = cause instanceof MhfeError && cause.code === "CALLBACK_FAILED";
-      this.stop(named ? cause : callbackFailed(question, cause));
+      this.stop(named ? cause : callbackFailed(cause));
     }
   }
 }
@@ -339,48 +330,35 @@ export class OperationSlot {
   /**
    * Holds the slot while `ready`, the class's startup check, settles, then returns what `begin`
    * returns: `begin` starts the operation's job in the slot at once, with nothing in between. A
-   * cancel() in the meantime rejects with MhfeCancelledError, and a rejected `ready` rejects with
-   * its error; both free the slot.
+   * cancel() in the meantime resolves to CANCELLED, and a rejected `ready` rejects with its error;
+   * both free the slot.
    */
   async after(ready, begin) {
     this.requireIdle();
-    let cancel;
-    let stopped = null;
-    const cancelled = new Promise((_, reject) => {
-      cancel = reject;
+    let stopped = false;
+    let stop;
+    const cancelled = new Promise((resolve) => {
+      stop = resolve;
     });
     const waiting = {
-      stop: (error) => {
-        stopped = error;
-        cancel(error);
+      stop: () => {
+        stopped = true;
+        stop();
       },
     };
     this.#running = waiting;
     try {
       await Promise.race([ready, cancelled]);
-      // A cancel() after the check settled, before this went on, stops the operation too.
-      if (stopped !== null) throw stopped;
     } finally {
       if (this.#running === waiting) this.#running = null;
     }
+    // A cancel() while waiting, or after the check settled and before this went on, ends it here.
+    if (stopped) return CANCELLED;
     return begin();
   }
 
-  /**
-   * Holds the slot for work the class runs itself, such as a phrase drawn on several workers at
-   * once: cancel() calls `stop(error)`. Returns the function that frees the slot when it ends.
-   */
-  hold(stop) {
-    this.requireIdle();
-    const running = { stop };
-    this.#running = running;
-    return () => {
-      if (this.#running === running) this.#running = null;
-    };
-  }
-
   cancel() {
-    this.#running?.stop(new MhfeCancelledError());
+    this.#running?.stop(CANCELLED);
   }
 }
 
@@ -393,8 +371,8 @@ export const HIGHEST_WORD_POSITION = 0xffff_ffff;
 
 /**
  * Parts of the package that come from different builds (PACKAGE_MISMATCH): `what` says which, and
- * the advice follows. The worker says it in the same words (web/worker-runtime.js), as a worker
- * script imports nothing; the package checks compare both.
+ * the advice follows. The worker has a deliberate copy in the same words (web/worker-runtime.js),
+ * as a worker script imports nothing; `cargo xtask wasm verify` holds both to one advice.
  */
 export function packageMismatch(what) {
   return new MhfeError(
@@ -404,9 +382,21 @@ export function packageMismatch(what) {
 }
 
 /**
+ * The file `file` is of the build `build`, not of this runtime's. The worker has a deliberate copy
+ * with its own file and build (buildMismatch() in web/worker-runtime.js), as a worker script
+ * imports nothing; `cargo xtask package-check` holds both to one wording
+ * (buildMismatchMessage).
+ */
+function buildMismatch(file, build) {
+  return packageMismatch(
+    `The file ${file} is of build ${build} and runtime/runtime.js of build ${BUILD_ID}`,
+  );
+}
+
+/**
  * The news a worker posts besides its result, error and questions, which go to the page's
  * handlers of the same name: web/worker-runtime.js (progress and the self-check's parts),
- * web/core-worker.js (unverified) and web/wallet-worker.js (draws). scripts/verify-browser-package.mjs
+ * web/core-worker.js (unverified) and web/wallet-worker.js (draws). `cargo xtask wasm verify`
  * keeps this list equal to the types the worker scripts post.
  */
 const WORKER_NEWS = ["progress", "componentStart", "component", "draws", "unverified"];
@@ -442,7 +432,8 @@ function isReadableReply(reply) {
 
 /**
  * The fields of a request that hold secrets; this client's own byte copies of them. The worker
- * lists the same fields (web/worker-runtime.js), as a worker script imports nothing.
+ * has a deliberate copy of the list (web/worker-runtime.js), as a worker script imports nothing;
+ * `cargo xtask wasm verify` holds both to one list.
  */
 const SECRET_FIELDS = [
   "phrase",
@@ -512,7 +503,7 @@ export function encodeSecret(value, name) {
     if (!isWellFormed(value)) {
       throw new MhfeError(
         "INVALID_PASSWORD_TEXT",
-        `The ${name} contains an unpaired surrogate, which is not valid text.`,
+        `An unpaired surrogate in the ${name} is not valid text.`,
       );
     }
     bytes = new TextEncoder().encode(value);
@@ -556,7 +547,7 @@ export function describeChoice(choice, name) {
  */
 export async function wordHintsOf(module, typed) {
   await module.ready();
-  return module.run({ operation: "wordHints", typed: encodeSecret(typed, "typed") });
+  return module.run({ operation: "wordHints", typed: encodeSecret(typed, "typed text") });
 }
 
 export function requireText(value, name) {
@@ -588,8 +579,8 @@ export function sentence(text) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function callbackFailed(name, cause) {
-  return new MhfeError("CALLBACK_FAILED", `The page's ${name} callback failed.`, { cause });
+function callbackFailed(cause) {
+  return new MhfeError("CALLBACK_FAILED", "The page's callback failed.", { cause });
 }
 
 // The self-check of a class: known answers of every part the class computes, compared before its
@@ -682,19 +673,15 @@ export class ModuleWorker {
     return this.#check.require(() => this.startupCheck());
   }
 
-  /** Runs an operation of the module in a worker of its own, its secret buffers transferred. */
-  run(message) {
-    return this.start(message).done;
-  }
-
   /**
-   * Starts an operation in a worker of its own, whose messages go to `handlers`, and gives the
-   * job, which can be stopped, with the promise of its result.
+   * Runs an operation of the module in a worker of its own, its secret buffers transferred. A long
+   * operation holds `slot` until it ends, and the worker's messages go to `handlers`.
    */
-  start(message, handlers = {}) {
-    const job = new WorkerJob([this.#workerSource], handlers);
+  run(message, slot = null, handlers = {}) {
+    const scripts = [this.#workerSource];
+    const job = slot === null ? new WorkerJob(scripts, handlers) : slot.job(scripts, handlers);
     const request = { module: this.#module, ...message };
-    return { job, done: job.run(request, secretBuffers(request), this.#wasm) };
+    return job.run(request, secretBuffers(request), this.#wasm);
   }
 
   /** Runs the module's set of known answers at `tier` in a worker of its own. */
@@ -735,8 +722,9 @@ export class MhfeModuleClass {
 
   /**
    * The full self-check, run anew each time: every part with its slower cases.
-   * `onProgress({ id, label, running, outcome?, detail? })` hears of each part as it starts and
-   * ends. Resolves to a report as startupCheck() does; a failed part closes the class as there.
+   * `onProgress({ id, label, running, outcome?, detail? })` hears of each part a worker runs as it
+   * starts and ends; the page's own parts are in the report only. Resolves to a report as
+   * startupCheck() does; a failed part closes the class as there.
    */
   async fullCheck({ onProgress } = {}) {
     return this.#module.fullCheck(onProgress);
@@ -830,7 +818,8 @@ export class PackageCheck {
    * Every part at the full tier, run anew. `steps` are run one after the other, never two at once:
    * `{ run(skip, handlers), rename? }` runs a set in a worker, `rename(component)` naming its parts
    * in this report, such as those of one Argon2 build; `{ components }` lists parts that are not
-   * run here, with the reason. `onProgress` hears of each part as it starts and ends.
+   * run here, with the reason. `onProgress` hears of each part a worker runs as it starts and ends;
+   * the page's own parts and the listed ones are in the report only.
    */
   full(steps, onProgress) {
     return this.#check("full", steps, onProgress);
@@ -840,6 +829,7 @@ export class PackageCheck {
     const components = [this.#features(), this.#packageParts()];
     if (this.#secrets) components.push(encodingPart());
     let version = null;
+    let latched = null;
     if (components[0].outcome === "passed") {
       const compiled = await this.#compiles();
       if (compiled !== null) components[0] = compiled;
@@ -853,7 +843,15 @@ export class PackageCheck {
         const rename = step.rename ?? ((component) => component);
         const ran = await step.run(step.skipPassed ? this.#passedIds() : [], {
           componentStart: (part) => onProgress?.({ ...rename(part), running: true }),
-          component: (part) => onProgress?.({ ...rename(part), running: false }),
+          component: (part) => {
+            const named = rename(part);
+            // A failed part closes the class even if its worker dies before the report.
+            if (named.outcome === "failed" && this.#failed === null) {
+              latched = { passed: false, tier, version, buildId: BUILD_ID, components: [named] };
+              this.#failed = latched;
+            }
+            onProgress?.({ ...named, running: false });
+          },
         });
         version ??= ran.version;
         components.push(...this.#placed(ran, step.skipPassed).map(rename));
@@ -866,7 +864,8 @@ export class PackageCheck {
       buildId: BUILD_ID,
       components,
     };
-    if (!report.passed) this.#failed ??= report;
+    // The whole report takes the place of a part latched on the way.
+    if (!report.passed && (this.#failed === null || this.#failed === latched)) this.#failed = report;
     return report;
   }
 
@@ -934,12 +933,7 @@ export class PackageCheck {
    * the WebAssembly's and with this runtime's when it starts (WorkerJob).
    */
   #packageParts() {
-    if (this.#classBuildId !== BUILD_ID) {
-      throw packageMismatch(
-        `The file ${this.#classFile} is of build ${this.#classBuildId} and runtime/runtime.js of ` +
-          `build ${BUILD_ID}`,
-      );
-    }
+    if (this.#classBuildId !== BUILD_ID) throw buildMismatch(this.#classFile, this.#classBuildId);
     return { ...PAGE_PARTS.package, outcome: "passed" };
   }
 

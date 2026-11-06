@@ -86,6 +86,7 @@ function setup(
   );
   element("#mhfe-encrypt-password").value = "synthetic password";
   element("#mhfe-encrypt-password-confirm").value = "synthetic password";
+  element('input[name="mhfe-repair-count"]:checked').value = "0";
   return { element, requests, engine, gate };
 }
 

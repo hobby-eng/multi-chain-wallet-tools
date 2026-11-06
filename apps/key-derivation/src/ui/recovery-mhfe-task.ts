@@ -1,17 +1,23 @@
 // One long MHFE operation of a tab, from its button to its status line: the page's single heavy
 // job (the job gate), Cancel over every step (MhfeRun), and what the status line says at the end.
 // An operation that waits for the person, such as for an answer to a password review, ends quietly
-// with AwaitingAnswer; any other error is a warning in the package's words (describe).
+// with a waiting result; a refused operation is a warning in the package's words (describe).
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
 import { InputRevision } from "./recovery-input-revision.js";
 import { describe } from "./recovery-mhfe-status.js";
 import type { RecoveryFeatureContext } from "./recovery-workspace-shared.js";
 
-/** Ends an operation that must wait for the person; its message is said, not as an error. */
-export class AwaitingAnswer extends Error {
-  override readonly name = "AwaitingAnswer";
+/** The worker lifecycle services that one UI task needs. */
+export type MhfeTaskEngine = Pick<MhfeEngine, "cancelCore" | "runCancellable">;
+
+/** An operation paused for a person's answer, with no failure or retained heavy job. */
+export interface MhfeWaiting {
+  readonly wait: string;
 }
+
+/** Completion or a question that must be answered before the next operation starts. */
+export type MhfeTaskOutcome = void | MhfeWaiting;
 
 export interface MhfeTaskOptions {
   /** The tab's status line. */
@@ -46,13 +52,17 @@ export interface MhfeTaskRun {
 }
 
 export class MhfeTask {
-  readonly #context: RecoveryFeatureContext;
-  readonly #engine: MhfeEngine;
+  readonly #context: Pick<RecoveryFeatureContext, "jobs">;
+  readonly #engine: MhfeTaskEngine;
   readonly #options: MhfeTaskOptions;
   readonly #inputs: InputRevision | undefined;
   #active: MhfeRun | undefined;
 
-  constructor(context: RecoveryFeatureContext, engine: MhfeEngine, options: MhfeTaskOptions) {
+  constructor(
+    context: Pick<RecoveryFeatureContext, "jobs">,
+    engine: MhfeTaskEngine,
+    options: MhfeTaskOptions,
+  ) {
     this.#context = context;
     this.#engine = engine;
     this.#options = options;
@@ -81,8 +91,20 @@ export class MhfeTask {
     return this.#context.jobs.runningJob === null;
   }
 
+  /** End this panel's work and source comparisons, even if a native cancellation callback fails. */
+  retire(): void {
+    try {
+      this.#active?.cancel();
+    } finally {
+      this.#inputs?.retire();
+    }
+  }
+
   /** Runs `operation` as the page's heavy job; it never rejects. */
-  run(operation: (run: MhfeRun) => Promise<void>, ends: MhfeTaskRun = {}): Promise<void> {
+  run(
+    operation: (run: MhfeRun) => Promise<MhfeTaskOutcome>,
+    ends: MhfeTaskRun = {},
+  ): Promise<void> {
     if (!this.available) return Promise.resolve();
     const { status, cancel, name, failure } = this.#options;
     const captured = this.#inputs?.capture();
@@ -92,24 +114,25 @@ export class MhfeTask {
     status.classList.remove("warning");
     return this.#context.jobs
       .runHeavy(name, async () => {
-        await this.#engine.runCancellable(cancel, stop, async (run) => {
+        const outcome = await this.#engine.runCancellable(cancel, stop, async (run) => {
           this.#active = run;
           run.bindCurrent(current);
           try {
-            await operation(run);
+            const outcome = await operation(run);
             run.assertCurrent();
+            return outcome;
           } finally {
             this.#active = undefined;
           }
         });
+        if (outcome !== undefined) {
+          status.textContent = outcome.wait;
+          return;
+        }
         await ends.holds?.();
       })
       .catch((cause: unknown) => {
         if (!current()) return;
-        if (cause instanceof AwaitingAnswer) {
-          status.textContent = cause.message;
-          return;
-        }
         status.classList.add("warning");
         status.textContent = describe(cause, failure);
         ends.failed?.(cause);

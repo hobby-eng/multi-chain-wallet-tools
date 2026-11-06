@@ -24,6 +24,7 @@ import {
   walletCheckOdds,
 } from "../src/ui/recovery-mhfe-status.js";
 import { JobClock } from "../src/ui/recovery-progress.js";
+import { MhfeRunStopped } from "../src/ui/recovery-mhfe-run.js";
 
 const FULL_SUITE_ID = "MHFE-BIP39-256-EXPERIMENTAL-3";
 /** Rounds of one pass through the cipher, as the package's parameters() give them. */
@@ -90,7 +91,7 @@ group("MHFE panel texts", () => {
     expect(describe(error, "fallback")).toContain(
       "Stopped because this page failed to show the progress (progress element missing)",
     );
-    expect(describe(new MhfeError("CANCELLED", "x"), "fallback")).toContain("Stopped.");
+    expect(describe(new MhfeRunStopped(), "fallback")).toContain("Stopped.");
     // The library's sentence, with the page's next step as `mhfe` adds one to a refused answer.
     expect(
       describe(
@@ -152,6 +153,10 @@ group("MHFE panel texts", () => {
     expect(drawLine(170, clock, false)).toBe(
       "Drawing a phrase that meets your words · 170 tried · 1 min 6 s elapsed",
     );
+    // Half of the 131,072 expected draws in 66 s: 132 s on average at this speed.
+    expect(drawLine(65_536, clock, true, 131_072)).toBe(
+      "Drawing a phrase that passes the check · 65,536 tried · 1 min 6 s elapsed · about 2 min 12 s on average at this speed",
+    );
   });
 
   it("starts a draw with the draws MHFE expects", () => {
@@ -168,6 +173,7 @@ group("MHFE panel texts", () => {
   it("states what a new phrase keeps as MHFE rates it, in the words of mhfe new", () => {
     // The values of MhfeWallet.parameters() that the statements name.
     const parameters = {
+      maxInputTextBytes: 8192,
       version: "0.6.0",
       coins: [],
       walletCheckBits: 16,
@@ -286,8 +292,12 @@ group("MHFE panel texts", () => {
     expect(candidateSummary(candidate("noBuiltInCheck", 12)).text).toMatch(
       /^Not verified: this container keeps/u,
     );
-    expect(candidateSummary(candidate("readAs24", 24)).text).toContain("no shorter length passed");
-    expect(candidateSummary(candidate("readAs24Chosen", 24)).text).toContain("as selected");
+    expect(candidateSummary(candidate("readAs24", 24))).toEqual({
+      verified: false,
+      text: "Not verified: a 24-word phrase has no built-in check. Compare it with your wallet.",
+      hint: "If your original seed phrase has 12 to 21 words, a wrong password or setting gives this too.",
+    });
+    expect(candidateSummary(candidate("readAs24Chosen", 24)).text).toContain("as you chose");
   });
 
   it("asks about a check word only when the review needs an answer", () => {

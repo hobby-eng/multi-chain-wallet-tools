@@ -1,4 +1,4 @@
-// MHFE panel: every operation of the MHFE 0.6.0 browser package, one class per tab over one shared
+// MHFE panel: every operation of the MHFE 0.7.0 browser package, one class per tab over one shared
 // engine: encrypt and recover a BIP39 phrase, rehearse a recovery, draw a new wallet, change the
 // password, open hidden wallets, repair a container phrase, make a password, and the self-test on request.
 import { PHRASE_ONLY_NOTE, type RecoveryFeature } from "./recovery-feature.js";
@@ -28,8 +28,8 @@ import {
 function renderSpeedNotice(engine: MhfeEngine): void {
   const experimental = leadParagraph(
     "Experimental:",
-    "not independently reviewed; do not use it to protect real funds. Recovery needs the password, and the " +
-      "PIM or memory level if you changed them.",
+    "not independently reviewed. Recovery needs the password, and the PIM or memory level if you " +
+      "changed them.",
   );
   const recovery = `a recovery takes about ${timeRange(...engine.recoverySeconds)}`;
   const speed = engine.fastMode
@@ -71,7 +71,7 @@ function installMhfe(context: RecoveryFeatureContext): void {
   new MhfeRekeyTab(context, engine);
   new MhfeWalletsTab(context, engine);
   new MhfeRepairTab(context, engine);
-  new MhfePasswordTab(engine);
+  new MhfePasswordTab(context, engine);
   new MhfeSelfTestTab(context, engine);
   // Hints below every field of words, as mhfe gives them where it reads typed words.
   installMhfeWordHints(engine, required<HTMLElement>("#mhfe-panel"));

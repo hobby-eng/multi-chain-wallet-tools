@@ -19,6 +19,7 @@ class FakeClassList {
 
 /** The parts of an element that the owner's check uses. */
 class FakeElement extends EventTarget {
+  readonly dataset: Record<string, string> = {};
   value = "";
   textContent = "";
   type = "";
@@ -71,6 +72,7 @@ class FakeWindow extends EventTarget {
 /** A synthetic check: never a real phrase. */
 const CHECK = {
   phrase: "public test phrase",
+  rehearsalNeedsPassphrase: false,
   words: 24 as const,
   fingerprintWithoutPassphrase: "73c5da0a",
 };
@@ -102,6 +104,17 @@ const buttonNamed = (host: FakeElement, text: string) =>
   host.find((element) => element.tag === "button" && element.textContent === text)!;
 
 describe("the owner's check of a rekey", () => {
+  it("answers yes or no only, and asks for no passphrase", async () => {
+    const { host, check } = prompt();
+    const answered = check.ask(CHECK);
+    expect(host.find((element) => element.tag === "input")).toBeUndefined();
+    buttonNamed(host, "Yes, every word").click();
+    await expect(answered).resolves.toBe(true);
+    expect(host.children).toHaveLength(0);
+    const refused = check.ask(CHECK);
+    check.dispose();
+    await expect(refused).resolves.toBe(false);
+  });
   for (const [answer, matches] of [
     ["Yes, every word", true],
     ["No, stop", false],

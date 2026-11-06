@@ -77,7 +77,7 @@ export class OwnerPhraseCheck {
         this.#host.replaceChildren();
         if (matches) this.#confirmed = check.fingerprintWithoutPassphrase;
         // Only true is a yes (the package seals nothing before it).
-        resolve(matches === true);
+        resolve(matches);
       };
       this.#close = close;
       const fingerprint = paragraph(

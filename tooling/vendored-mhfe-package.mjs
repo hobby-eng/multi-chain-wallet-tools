@@ -11,7 +11,9 @@ import { resolve } from "node:path";
 const DIRECTORY = "packages/recovery-mhfe-wasm/generated";
 const MANIFEST = "modules.json";
 export const MHFE_MANIFEST_SHA256 =
-  "31a81f5b7ce8a07fe38fd61abfd923302071d3a81f9757eceb5a59e49a39ca1a";
+  "3ac0f5a3c5390ee5c0e41f7d44e273096a0ceceb10fb9640810ca0d37ebefeca";
+/** Source identity accompanies the package without adding undeclared runtime files. */
+export const MHFE_SOURCE_MANIFEST = "packages/recovery-mhfe-wasm/source.json";
 const SHA256 = /^[0-9a-f]{64}$/u;
 /** Files of the MHFE package that are not vendored: the executable Deriver replaces the launcher. */
 const NOT_VENDORED = new Set(["core/mhfe-fast-mode.py"]);
@@ -40,19 +42,32 @@ export class VendoredMhfePackage {
   static DIRECTORY = DIRECTORY;
   #root;
   #pin;
+  #directory;
+  #verifyHostOmissions;
+  #documentation;
 
-  constructor(root, pinnedManifestSha256 = MHFE_MANIFEST_SHA256) {
+  constructor(root, pinnedManifestSha256 = MHFE_MANIFEST_SHA256, options = {}) {
     this.#root = root;
     this.#pin = pinnedManifestSha256;
+    this.#directory = safePath(options.directory ?? DIRECTORY, "package directory");
+    this.#verifyHostOmissions = options.verifyHostOmissions === true;
+    this.#documentation = Object.entries(record(options.documentation ?? {}, "documentation")).map(
+      ([path, hash]) => {
+        safePath(path, "documentation file");
+        if (typeof hash !== "string" || !SHA256.test(hash))
+          throw new Error("Invalid MHFE documentation hash.");
+        return Object.freeze({ path, sha256: hash });
+      },
+    );
   }
 
   get manifestPath() {
-    return `${DIRECTORY}/${MANIFEST}`;
+    return `${this.#directory}/${MANIFEST}`;
   }
 
   // Reject links at every component: a safe relative spelling alone does not confine reads.
   #read(path) {
-    const parts = `${DIRECTORY}/${path}`.split("/");
+    const parts = `${this.#directory}/${path}`.split("/");
     let file = this.#root;
     for (const [index, part] of parts.entries()) {
       file = resolve(file, part);
@@ -68,7 +83,7 @@ export class VendoredMhfePackage {
     return readFileSync(file);
   }
 
-  #entries(pin) {
+  #entries(pin, includeHostOmissions = false) {
     if (typeof pin !== "string" || !SHA256.test(pin))
       throw new Error("Invalid MHFE manifest pin: expected a lowercase SHA-256.");
     const bytes = this.#read(MANIFEST);
@@ -103,7 +118,8 @@ export class VendoredMhfePackage {
         if (typeof hash !== "string" || !SHA256.test(hash))
           throw new Error(`Invalid MHFE manifest hash for ${folder}/${name}.`);
         const path = `${folder}/${name}`;
-        if (!NOT_VENDORED.has(path)) entries.push(Object.freeze({ path, sha256: hash }));
+        if (includeHostOmissions || !NOT_VENDORED.has(path))
+          entries.push(Object.freeze({ path, sha256: hash }));
       }
     }
     return entries;
@@ -117,12 +133,52 @@ export class VendoredMhfePackage {
   }
 
   files() {
-    return [this.manifestPath, ...this.entries().map(({ path }) => `${DIRECTORY}/${path}`)].sort();
+    return [
+      this.manifestPath,
+      ...this.entries().map(({ path }) => `${this.#directory}/${path}`),
+    ].sort();
+  }
+
+  /** Version and build identity come only from the verified package manifest. */
+  identity() {
+    this.verify();
+    const manifest = JSON.parse(this.#read(MANIFEST).toString("utf8"));
+    if (!/^\d+\.\d+\.\d+$/u.test(manifest.version) || !/^[0-9a-f]{16}$/u.test(manifest.buildId))
+      throw new Error("Invalid MHFE package version or build identity.");
+    return Object.freeze({ version: manifest.version, buildId: manifest.buildId });
+  }
+
+  /** Admits the host's source record against the same verified package, never a second file list. */
+  sourceIdentity() {
+    const identity = this.identity();
+    const source = record(
+      JSON.parse(readFileSync(resolve(this.#root, MHFE_SOURCE_MANIFEST), "utf8")),
+      "source identity",
+    );
+    const expected = Object.fromEntries([
+      [MANIFEST, this.#pin],
+      ...this.#entries(this.#pin).map(({ path, sha256 }) => [path, sha256]),
+    ]);
+    const declared = record(source.files, "source files");
+    if (
+      source.repository !== "hobby-eng/mhfe" ||
+      !/^[0-9a-f]{40}$/u.test(source.commit ?? "") ||
+      !SHA256.test(source.sourceFingerprint ?? "") ||
+      source.version !== identity.version ||
+      source.buildId !== identity.buildId ||
+      source.manifestSha256 !== this.#pin ||
+      JSON.stringify(Object.entries(declared).sort()) !==
+        JSON.stringify(Object.entries(expected).sort())
+    )
+      throw new Error("MHFE source identity does not match the verified package.");
+    return Object.freeze(source);
   }
 
   verify(pinnedManifestSha256 = this.#pin) {
     const listed = new Set([MANIFEST]);
-    for (const { path, sha256: expected } of this.#entries(pinnedManifestSha256)) {
+    const runtime = this.#entries(pinnedManifestSha256, this.#verifyHostOmissions);
+    for (const { path, sha256: expected } of [...runtime, ...this.#documentation]) {
+      if (listed.has(path)) throw new Error("MHFE documentation overlaps its runtime manifest.");
       listed.add(path);
       const actual = sha256(this.#read(path));
       if (actual !== expected)
@@ -130,7 +186,7 @@ export class VendoredMhfePackage {
           `MHFE package file ${path} does not match modules.json: expected ${expected}, got ${actual}.`,
         );
     }
-    const folder = resolve(this.#root, DIRECTORY);
+    const folder = resolve(this.#root, this.#directory);
     const present = readdirSync(folder, { recursive: true, withFileTypes: true });
     if (present.some((entry) => !entry.isDirectory() && !entry.isFile()))
       throw new Error("The MHFE package contains a link or non-regular file.");

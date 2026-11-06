@@ -1,7 +1,8 @@
 // What a recovered phrase is compared with, for the rehearsal check and for Change password: a
-// receiving address (with its coin and, optionally, one path), the master key fingerprint, the
-// container's built-in check or the phrase + passphrase check. The address search is described by
-// the package before any work, as the command-line tool shows it.
+// receiving address (with its coin, or every coin whose form it has, and optionally one path), the
+// master key fingerprint, the container's built-in check or the phrase + passphrase check. The
+// address search is described by the package before any work, its coins included, as the
+// command-line tool shows it.
 import type { MhfeCoin, MhfeReference } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import type { MhfeWallet } from "@ckd/recovery-mhfe-wasm/wallet/wallet.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
@@ -14,18 +15,28 @@ declare const __DASH_COMMUNITY__: boolean;
 
 /** Pause after the last change before the address search is described. */
 const DESCRIBE_DELAY_MS = 400;
+/** The coin choice that leaves the coin to MHFE, which reads it from the address. */
+const FROM_ADDRESS = "from-address";
 /** Shared by every address-reference control, including the search and recovery questions. */
 const ADDRESS_PATH_LABEL = "Only one derivation path";
 
-export type ReferenceKind = "address" | "fingerprint" | "builtInCheck" | "walletCheck" | "owner";
+/** "A or B", "A, B or C", as mhfe lists coins (style::or_list). */
+function orList(names: readonly string[]): string {
+  return names.length < 2
+    ? (names[0] ?? "")
+    : `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`;
+}
+
+export type { MhfeRehearsalKind as ReferenceKind } from "@ckd/recovery-backup/mhfe-check-result.js";
+import type { MhfeRehearsalKind as ReferenceKind } from "@ckd/recovery-backup/mhfe-check-result.js";
 
 /** A receiving address or the master key fingerprint of the wallet. */
 export type WalletReference = Extract<MhfeReference, { address: string } | { fingerprint: string }>;
 
 /**
- * The coin of an address, chosen from the coins of the package's address search, with a note on
- * what its Ethereum search covers; the Dash edition offers Dash only. The list is loaded once, on
- * first use.
+ * The coin of an address: read from the address, as MHFE's command line reads it, or chosen from
+ * the coins of the package's address search, with a note on what its Ethereum search covers. The
+ * Dash edition offers Dash only. The list is loaded once, on first use.
  */
 export class AddressCoinChoice {
   readonly #engine: MhfeEngine;
@@ -48,24 +59,42 @@ export class AddressCoinChoice {
       const options = request();
       if (options === undefined) return;
       const wallet = await this.#engine.wallet();
-      publish(AddressCoinChoice.#description(await wallet.describeAddress(options)));
+      const search = await wallet.describeAddress(options);
+      const { coins } = await this.#engine.walletParameters();
+      const names = new Map(coins.map((coin) => [coin.id, coin.name]));
+      publish(AddressCoinChoice.#description(search, names, options.coin === undefined));
     } catch (cause) {
       publish(describe(cause, "This address cannot be used."));
     }
   }
 
-  /** The scope MHFE will use, shared by address checks and missing-word searches. */
-  static #description(search: Awaited<ReturnType<MhfeWallet["describeAddress"]>>): string {
+  /**
+   * The coins and the scope MHFE will search, shared by address checks and missing-word searches:
+   * `names` names the coins, and `detected` says they were read from the address.
+   */
+  static #description(
+    search: Awaited<ReturnType<MhfeWallet["describeAddress"]>>,
+    names: ReadonlyMap<string, string>,
+    detected: boolean,
+  ): string {
+    const coins = orList(search.coins.map((id) => names.get(id) ?? id));
+    const coin = coins === "" ? "" : `Coin: ${coins}${detected ? " (from the address)" : ""} · `;
     const type = search.type === null ? "" : `Type: ${search.type} · `;
     const scope = search.onlyPath
       ? `only ${search.search}`
       : `${search.search}, ${search.addresses.toLocaleString("en-US")} addresses`;
-    return `${type}Search: ${scope}`;
+    return `${coin}${type}Search: ${scope}`;
   }
 
   /** The coin chosen; "" while the list is loading. */
   get value(): string {
     return this.#select.value;
+  }
+
+  /** The coin of a request: none where MHFE reads it from the address. */
+  option(): { coin?: MhfeCoin } {
+    const value = this.#select.value;
+    return value === FROM_ADDRESS || value === "" ? {} : { coin: value as MhfeCoin };
   }
 
   /** Loads the list once; a failed load is tried again on the next call. */
@@ -80,13 +109,19 @@ export class AddressCoinChoice {
   async #fill(): Promise<void> {
     const { coins } = await this.#engine.walletParameters();
     const offered = __DASH_COMMUNITY__ ? coins.filter((coin) => coin.id === "dash") : coins;
+    const option = (value: string, text: string): HTMLOptionElement => {
+      const item = document.createElement("option");
+      item.value = value;
+      item.textContent = text;
+      return item;
+    };
+    // Without a coin, MHFE searches every coin whose form the address has, so "1…", "3…" and "0x…"
+    // are searched as two coins each; the search described below says how far.
     this.#select.replaceChildren(
-      ...offered.map((coin) => {
-        const option = document.createElement("option");
-        option.value = coin.id;
-        option.textContent = `${coin.name} · ${coin.addressForms}`;
-        return option;
-      }),
+      ...(__DASH_COMMUNITY__
+        ? []
+        : [option(FROM_ADDRESS, "From the address · every coin whose form it has")]),
+      ...offered.map((coin) => option(coin.id, `${coin.name} · ${coin.addressForms}`)),
     );
     // MHFE's Ethereum search covers every EVM network. The Dash edition names no other coin.
     if (!__DASH_COMMUNITY__ && offered.some((coin) => coin.id === "ethereum")) {
@@ -171,7 +206,8 @@ export class WalletReferenceField {
    * `prefix` names the fields, as in `#mhfe-{prefix}-address`. With `question` (Change password),
    * whether the wallet has a BIP39 passphrase is asked once a kind is chosen and before the address
    * or fingerprint is typed, and the passphrase is asked only of a wallet that has one, as the
-   * command-line tool asks them.
+   * command-line tool asks them. Without it (Check), the passphrase is asked before what to compare
+   * with, as mhfe check asks it, and its field stays shown.
    */
   constructor(engine: MhfeEngine, prefix: string, question?: WalletPassphraseQuestion) {
     this.#prefix = prefix;
@@ -222,7 +258,7 @@ export class WalletReferenceField {
     if (this.kind === "address")
       return {
         address: this.#address.value.trim(),
-        coin: this.#coin.value as MhfeCoin,
+        ...this.#coin.option(),
         ...this.#path.options(),
       };
     if (this.kind === "fingerprint") return { fingerprint: this.#fingerprint.value.trim() };
@@ -292,10 +328,10 @@ export class WalletReferenceField {
       kind === "fingerprint" ||
       kind === "walletCheck" ||
       (kind === "builtInCheck" && this.#passphraseAsked);
-    required<HTMLElement>(`#mhfe-${this.#prefix}-passphrase-field`).hidden = !(
-      comparesPassphrase &&
-      (this.#question === undefined || answer === true)
-    );
+    if (this.#question !== undefined)
+      required<HTMLElement>(`#mhfe-${this.#prefix}-passphrase-field`).hidden = !(
+        comparesPassphrase && answer === true
+      );
     if (kind === "address" && this.#coin.value === "") void this.#loadCoins();
     else if (kind === "address" && answered) this.#scheduleDescription();
   }
@@ -321,13 +357,13 @@ export class WalletReferenceField {
   async #describeSearch(revision: number): Promise<void> {
     if (revision !== this.#revision || this.kind !== "address") return;
     const address = this.#address.value.trim();
-    // The package needs the coin named; its list may still be loading.
+    // The coin choice may still be loading.
     if (address === "" || this.#coin.value === "") {
       this.#search.textContent = "";
       return;
     }
     await this.#coin.describe(
-      () => ({ address, coin: this.#coin.value, ...this.#path.options() }),
+      () => ({ address, ...this.#coin.option(), ...this.#path.options() }),
       (text) => {
         if (revision === this.#revision) this.#search.textContent = text;
       },

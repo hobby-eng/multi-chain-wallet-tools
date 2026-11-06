@@ -16,7 +16,7 @@ import { PasswordField, offerAnswer, type RecoverySettings } from "./recovery-mh
 import type { MhfeRun } from "./recovery-mhfe-run.js";
 import { SearchReference } from "./recovery-mhfe-search-reference.js";
 import { timeRange } from "./recovery-mhfe-status.js";
-import { MhfeTask } from "./recovery-mhfe-task.js";
+import { MhfeTask, type MhfeTaskOutcome, type MhfeWaiting } from "./recovery-mhfe-task.js";
 import { JobClock, formatDuration } from "./recovery-progress.js";
 import { required, type RecoveryFeatureContext } from "./recovery-workspace-shared.js";
 import { FieldEdits } from "./field-edits.js";
@@ -72,7 +72,7 @@ export interface MissingWordsOptions {
    * The tab's password and settings, after its password review; left out where the block has a
    * password field of its own (Hidden wallets, whose passwords belong to the session).
    */
-  readonly settings?: (run: MhfeRun) => Promise<RecoverySettings>;
+  readonly settings?: (run: MhfeRun) => Promise<RecoverySettings | MhfeWaiting>;
   /** The tab's PIM, for the time a search with the owner's wallet takes. */
   readonly pim: () => number;
   /** Shows a found container phrase, to be used only after the person says so. */
@@ -103,6 +103,7 @@ export class MissingWordsSearch {
   readonly #notNow: HTMLButtonElement;
   readonly #status: HTMLElement;
   readonly #task: MhfeTask;
+  readonly #edits = new FieldEdits();
   #container = "";
   #candidates = 0;
   /** Whether a search with the owner's wallet applies: one missing word. */
@@ -114,7 +115,7 @@ export class MissingWordsSearch {
 
   /** `prefix` names the fields, as in `#mhfe-{prefix}-missing`; `status` is the block's line. */
   constructor(
-    context: RecoveryFeatureContext,
+    context: Pick<RecoveryFeatureContext, "jobs">,
     engine: MhfeEngine,
     prefix: string,
     status: HTMLElement,
@@ -177,10 +178,9 @@ export class MissingWordsSearch {
     });
     required<HTMLButtonElement>(id("-back")).addEventListener("click", () => options.back());
     // A search said for other answers is not started: any change asks for the search again.
-    const edits = new FieldEdits();
     for (const event of ["input", "change"])
       this.#block.addEventListener(event, (happened) => {
-        if (!edits.isNew(happened)) return;
+        if (!this.#edits.isNew(happened)) return;
         this.#forgetLongSearch();
         this.#sync();
       });
@@ -188,7 +188,8 @@ export class MissingWordsSearch {
 
   /** Offers the search for the words of `container` typed as ?. Throws for more than two. */
   async show(container: string): Promise<void> {
-    const revision = ++this.#revision;
+    this.hide();
+    const revision = this.#revision;
     const client = await this.#engine.client();
     if (revision !== this.#revision) return;
     const search = await client.searchCandidates({ container });
@@ -220,13 +221,14 @@ export class MissingWordsSearch {
 
   hide(): void {
     this.#revision += 1;
-    this.#active?.cancel();
+    this.#edits.wipe();
     this.#block.hidden = true;
     this.#container = "";
     this.#password?.clear();
     this.#passphrase.clear();
     this.#reference.reset();
     this.#forgetLongSearch();
+    this.#task.retire();
   }
 
   #radios(name: string): HTMLInputElement[] {
@@ -277,7 +279,7 @@ export class MissingWordsSearch {
     this.#run.textContent = "Search";
   }
 
-  async #search(run: MhfeRun): Promise<void> {
+  async #search(run: MhfeRun): Promise<MhfeTaskOutcome> {
     const known = this.#known();
     if (known === undefined) throw new Error("Choose what you know.");
     const passphrase = this.#passphraseFor(known);
@@ -346,16 +348,17 @@ export class MissingWordsSearch {
   }
 
   /** The original seed phrase's wallet or own checks: a full recovery a candidate. */
-  async #searchWallet(run: MhfeRun, known: Known, passphrase: string): Promise<void> {
+  async #searchWallet(run: MhfeRun, known: Known, passphrase: string): Promise<MhfeTaskOutcome> {
     const settings = await this.#settings(run);
+    if ("wait" in settings) return settings;
     // The original seed phrase's passphrase adds the phrase + passphrase check to its built-in
     // check; an empty one leaves the built-in check alone, as "Nothing" does.
-    const reference =
+    const terms =
       known === "original"
-        ? this.#reference.reference()
+        ? { reference: this.#reference.reference(), passphrase }
         : passphrase === ""
-          ? ({ builtInCheck: true } as const)
-          : ({ walletCheck: true } as const);
+          ? { reference: { builtInCheck: true } as const }
+          : { reference: { walletCheck: true } as const, passphrase };
     const client: MhfeClient = await run.step(() => this.#engine.client());
     const clock = new JobClock();
     const found = await run.step(() =>
@@ -364,8 +367,7 @@ export class MissingWordsSearch {
         password: settings.password,
         passwordRepair: settings.passwordRepair,
         pim: settings.pim,
-        reference,
-        passphrase,
+        ...terms,
         onProgress: (progress) => run.publish(() => this.#progress(progress, clock)),
       }),
     );
@@ -379,7 +381,7 @@ export class MissingWordsSearch {
   }
 
   /** The host's password and settings, or the block's own password at the host's PIM. */
-  async #settings(run: MhfeRun): Promise<RecoverySettings> {
+  async #settings(run: MhfeRun): Promise<RecoverySettings | MhfeWaiting> {
     if (this.#options.settings !== undefined) return this.#options.settings(run);
     return {
       password: this.#password?.value ?? "",

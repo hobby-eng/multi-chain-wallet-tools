@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "repository": "hobby-eng/mhfe",
+  "reference": "release tag v0.7.0 at commit 8a15bed9f181cf78c5880558cc88d0d90ee4a72f",
+  "commit": "8a15bed9f181cf78c5880558cc88d0d90ee4a72f",
+  "sourceFingerprint": "a7e6dfc44dd44f6c367fbc15036a131293cd34c924b8d7d70d85420f4dc29ec6",
+  "sourceFingerprintAlgorithm": "SHA-256 of git archive --format=tar of the commit",
+  "upstreamPackageFingerprint": "96b096232c3bc59035b0e8f243586f329d6b6482b714c6d9c336ac369c9772e7",
+  "upstreamPackageFingerprintAlgorithm": "SHA-256 of sorted file SHA-256, two spaces, relative path, LF rows; includes README and launcher",
+  "archive": {
+    "name": "mhfe-v0.7.0-browser.tar.gz",
+    "sha256": "8daad8def1f9719c2991781548b976aa2cb1edd479d9ca5955b70d40b8d09022"
+  },
+  "version": "0.7.0",
+  "buildId": "7da6a9c673903bea",
+  "manifestSha256": "3ac0f5a3c5390ee5c0e41f7d44e273096a0ceceb10fb9640810ca0d37ebefeca",
+  "files": {
+    "core/argon2-mt.js": "66a51d847a7cc03c195911c70dfd1969a67317363f97a0a05bef50c6b2fb527c",
+    "core/argon2-st.js": "500754399223cf6bdf26ea3d4e1796e77fdf44cdbd8f94ae21451eecdbbe4238",
+    "core/client.d.ts": "5075a7928d01307b202d4a56782d2a6c31e4fa4ce25920df3bb28ed71eea2c5d",
+    "core/client.js": "d141e074f5504e7e5f0dad9204670404c731c42b9a865c0b3903e39e0734ff26",
+    "modules.json": "3ac0f5a3c5390ee5c0e41f7d44e273096a0ceceb10fb9640810ca0d37ebefeca",
+    "passwords/passwords.d.ts": "aea840384f2564ffefc956f40321c4bb54393efeec67658e9971ba33983c3360",
+    "passwords/passwords.js": "fae3b98510b1372195d9c4e43e51997fee800bc850fffd6212fecc8bf9d97c08",
+    "repair/repair.d.ts": "b6e72947711806cff42a00fd60296f1eb9f4fab716a9d1e856e545a8473b54a6",
+    "repair/repair.js": "fa06670c33a62eb3bbc2fe8bd03ea74e7a14a37b25397baf31eb8329b0b84f05",
+    "runtime/mhfe.wasm": "3cc6a8465c7c71e98c8eeaab06b9ea9b8016245f67e13933b40f7557a9c59b13",
+    "runtime/runtime.d.ts": "597649b1393cc67ed26a3682a5e0e36a5d531fa8107f43bf08fb189d777678c3",
+    "runtime/runtime.js": "bf24d5f781ed9a87857500fa4188ba943c88e5fbb00c641e3652c726afa16a0a",
+    "runtime/worker.js": "2e4bcb1d2e1d08cc5f6241ee387f4920bd6155a24bce48d91d7f42ab5c82ea0d",
+    "wallet/wallet.d.ts": "c1e42efeb9f322ea0db85b34bc348f87ff4a57456dbe9e2837a8d7b369bf369a",
+    "wallet/wallet.js": "8948036e0b4e6e35d3b9a792326418f15c30a3a7b16d2a374f756f62ff28c8cb"
+  }
+}

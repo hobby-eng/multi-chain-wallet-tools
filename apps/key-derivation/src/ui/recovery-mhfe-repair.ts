@@ -7,8 +7,10 @@ import {
   fingerprintLine,
   repairCard,
   repairedContainer,
+  whatWasRepaired,
 } from "./recovery-mhfe-cards.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
+import { MhfeInputLifetime, MhfeInputText } from "@ckd/recovery-backup/mhfe-input-text.js";
 import { InputRevision } from "./recovery-input-revision.js";
 import { ContainerField, selectedRepairCount } from "./recovery-mhfe-fields.js";
 import { describe } from "./recovery-mhfe-status.js";
@@ -28,6 +30,7 @@ export class MhfeRepairTab {
   readonly #wordsResult = required<HTMLElement>("#mhfe-repair-words-result");
   readonly #container: ContainerField;
   readonly #inputs: InputRevision;
+  readonly #inputLifetime = new MhfeInputLifetime();
 
   constructor(context: RecoveryFeatureContext, engine: MhfeEngine) {
     this.#context = context;
@@ -48,6 +51,7 @@ export class MhfeRepairTab {
     );
     this.#container = new ContainerField("mhfe-repair-words-container", this.#wordsResult);
     this.#inputs = new InputRevision(required<HTMLElement>("#mhfe-repair-panel"), () => {
+      this.#inputLifetime.wipe();
       this.#repairResult.replaceChildren();
       this.#wordsResult.replaceChildren();
     });
@@ -69,6 +73,7 @@ export class MhfeRepairTab {
     operation: (current: () => boolean) => Promise<void>,
   ): void {
     if (button.disabled) return;
+    this.#inputLifetime.wipe();
     const current = this.#inputs.capture();
     button.disabled = true;
     result.replaceChildren();
@@ -83,23 +88,25 @@ export class MhfeRepairTab {
   }
 
   async #repairContainer(current: () => boolean): Promise<void> {
-    const container = this.#written.value;
-    const card = this.#card.value;
     const repair = await this.#engine.repair();
     if (!current()) return;
-    const repaired = await repair.repairContainer({
-      container,
-      card,
-    });
+    const repaired = await this.#inputLifetime.hold(
+      new MhfeInputText(this.#written.value),
+      (container) =>
+        this.#inputLifetime.hold(new MhfeInputText(this.#card.value), (card) =>
+          container.use((text) =>
+            card.use((repairWords) =>
+              repair.repairContainer({ container: text, card: repairWords }),
+            ),
+          ),
+        ),
+    );
     if (!current()) return;
     if (repaired.unchanged) {
-      this.#repairResult.append(repairedContainer(repaired, this.#context.writeClipboard).said);
+      this.#repairResult.append(paragraph(whatWasRepaired(repaired), "success-callout"));
       return;
     }
-    const { said, output, actions, changes } = repairedContainer(
-      repaired,
-      this.#context.writeClipboard,
-    );
+    const { said, output, actions, changes } = repairedContainer(repaired, this.#context);
     const useInDecode = document.createElement("button");
     useInDecode.type = "button";
     useInDecode.className = "secondary compact";
@@ -133,17 +140,17 @@ export class MhfeRepairTab {
   }
 
   async #makeRepairWords(current: () => boolean): Promise<void> {
-    const count = selectedRepairCount("mhfe-repair-words-count");
-    const container = this.#container.value;
     const repair = await this.#engine.repair();
+    const parameters = await repair.parameters();
     if (!current()) return;
-    const card = await repair.repairWords({
-      container,
-      count: count as 2 | 4 | 6 | 8,
-    });
+    const count = selectedRepairCount("mhfe-repair-words-count", parameters, "required");
+    const card = await this.#inputLifetime.hold(
+      new MhfeInputText(this.#container.value),
+      (container) => container.use((text) => repair.repairWords({ container: text, count })),
+    );
     if (!current()) return;
     this.#wordsResult.append(
-      repairCard(card.words, card.profile, this.#context.writeClipboard),
+      repairCard(card.words, card.profile, this.#context),
       factsList([
         ["Repairs", `${card.repairsUnreadable} unreadable or ${card.repairsWrong} wrong words`],
         ["Keep", "the repair words on a card, apart from the container phrase"],

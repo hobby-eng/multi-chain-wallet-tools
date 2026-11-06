@@ -6,9 +6,19 @@ import type { MhfePasswordsParameters } from "@ckd/recovery-mhfe-wasm/passwords/
 import { InputRevision } from "./recovery-input-revision.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import { describe } from "./recovery-mhfe-status.js";
-import { installSecretToggle, paragraph, required } from "./recovery-workspace-shared.js";
+import {
+  installSecretToggle,
+  paragraph,
+  required,
+  type RecoveryFeatureContext,
+} from "./recovery-workspace-shared.js";
 
 type PasswordKind = "words" | "checkWord" | "characters";
+
+/** Only the package and startup services that the password page consumes. */
+export interface MhfePasswordEngine extends Pick<MhfeEngine, "whenPassed" | "passwordParameters"> {
+  passwords(): Promise<Pick<Awaited<ReturnType<MhfeEngine["passwords"]>>, "make">>;
+}
 
 function strengthLine(kind: PasswordKind, count: number, bits: number): string {
   const rounded = bits.toFixed(1);
@@ -22,7 +32,8 @@ function strengthLine(kind: PasswordKind, count: number, bits: number): string {
 }
 
 export class MhfePasswordTab {
-  readonly #engine: MhfeEngine;
+  readonly #context: Pick<RecoveryFeatureContext, "jobs" | "writeClipboard">;
+  readonly #engine: MhfePasswordEngine;
   readonly #count = required<HTMLInputElement>("#mhfe-password-count");
   readonly #countLabel = required<HTMLElement>("#mhfe-password-count-label");
   readonly #dice = required<HTMLInputElement>("#mhfe-password-dice");
@@ -31,8 +42,13 @@ export class MhfePasswordTab {
   readonly #make = required<HTMLButtonElement>("#mhfe-password-make");
   readonly #inputs: InputRevision;
   #parameters: MhfePasswordsParameters | undefined;
+  #running = false;
 
-  constructor(engine: MhfeEngine) {
+  constructor(
+    context: Pick<RecoveryFeatureContext, "jobs" | "writeClipboard">,
+    engine: MhfePasswordEngine,
+  ) {
+    this.#context = context;
     this.#engine = engine;
     this.#inputs = new InputRevision(required<HTMLElement>("#mhfe-password-panel"), () =>
       this.#result.replaceChildren(),
@@ -101,8 +117,11 @@ export class MhfePasswordTab {
   }
 
   #makePassword(): void {
-    if (this.#make.disabled) return;
-    const current = this.#inputs.capture();
+    if (this.#running || this.#make.disabled || !this.#context.jobs.ready) return;
+    const inputsCurrent = this.#inputs.capture();
+    const ready = this.#context.jobs.captureReadiness();
+    const current = (): boolean => inputsCurrent() && ready();
+    this.#running = true;
     this.#make.disabled = true;
     this.#result.replaceChildren();
     const kind = this.#kind();
@@ -132,7 +151,8 @@ export class MhfePasswordTab {
           const { output, actions } = concealedValue(
             made.password,
             { subject: "password" },
-            undefined,
+            this.#context,
+            false,
           );
           this.#result.append(
             output,
@@ -163,7 +183,8 @@ export class MhfePasswordTab {
         },
       )
       .finally(() => {
-        this.#make.disabled = false;
+        this.#running = false;
+        this.#make.disabled = !this.#context.jobs.ready;
       });
   }
 }

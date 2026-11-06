@@ -7,6 +7,7 @@
 import { MhfeError, type MhfeComponentResult } from "@ckd/recovery-mhfe-wasm/runtime/runtime.js";
 import type { MhfeClassName, MhfeClassReport, MhfeEngine } from "./recovery-mhfe-engine.js";
 import { describe, selfCheckFailure, selfCheckPart } from "./recovery-mhfe-status.js";
+import { MhfeCheckSequence } from "@ckd/verification/mhfe-checks.js";
 
 /** How a part that did not pass is named, by the package's outcomes. */
 const OUTCOME_TEXTS: Readonly<Record<Exclude<MhfeComponentResult["outcome"], "passed">, string>> = {
@@ -39,11 +40,15 @@ export function componentRow(
 
 /** The parts that failed in `reports`, each as "class: label: detail". */
 export function failedParts(reports: readonly MhfeClassReport[]): string[] {
-  return reports.flatMap(({ name, report }) =>
-    report.components
-      .filter((part) => part.outcome === "failed")
-      .map((part) => `${name}: ${selfCheckPart(part)}`),
-  );
+  return reports.flatMap(({ name, report }) => {
+    const failed = MhfeCheckSequence.failedComponents(report).map(
+      (part) => `${name}: ${selfCheckPart(part)}`,
+    );
+    // The aggregate verdict remains authoritative even when a failed part was not supplied.
+    return failed.length === 0 && !MhfeCheckSequence.passed(report)
+      ? [`${name}: self-check failed`]
+      : failed;
+  });
 }
 
 /**

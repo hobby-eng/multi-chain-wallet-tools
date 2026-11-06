@@ -1,18 +1,24 @@
+import { MhfeCheckResult } from "@ckd/recovery-backup/mhfe-check-result.js";
 // The Check tab of the MHFE panel: rehearses a recovery and compares it with the wallet without
 // showing the phrase. It runs only when the user presses its button: a rehearsal takes as long as a
 // recovery. Its verdict belongs to the fields it checked: an edit removes it, and a check whose
 // fields changed while it ran shows no verdict.
 import type { MhfeNoLengthAnswer, MhfeReference } from "@ckd/recovery-mhfe-wasm/core/client.js";
+import type {
+  MhfeCheckEvidence,
+  MhfeCheckOutcome,
+} from "@ckd/recovery-backup/mhfe-check-result.js";
 import { InputRevision } from "./recovery-input-revision.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
-import { adaptToContainer, showContainerFacts } from "./recovery-mhfe-decode.js";
+import { showContainerFacts } from "./recovery-mhfe-decode.js";
+import { MhfeContainerPreview } from "./recovery-mhfe-container-preview.js";
 import { ContainerField, ContainerPassword, PhraseLengthChoice } from "./recovery-mhfe-fields.js";
 import { MarkedContainer } from "./recovery-mhfe-marked-container.js";
 import { NoLengthQuestion } from "./recovery-mhfe-no-length.js";
 import { WalletReferenceField, type ReferenceKind } from "./recovery-mhfe-reference.js";
 import type { MhfeRun } from "./recovery-mhfe-run.js";
 import { CHECK_STAGES, progressCallback } from "./recovery-mhfe-status.js";
-import { MhfeTask } from "./recovery-mhfe-task.js";
+import { MhfeTask, type MhfeTaskOutcome } from "./recovery-mhfe-task.js";
 import { paragraph, required, type RecoveryFeatureContext } from "./recovery-workspace-shared.js";
 
 /**
@@ -30,45 +36,10 @@ const MATCH_LIMITS: Partial<Record<ReferenceKind, string>> = {
 };
 
 /** What the same recovery also showed: the original seed phrase's own checks (check().evidence). */
-export interface CheckEvidence {
-  readonly builtInCheck: number | null;
-  readonly walletCheck: boolean | null;
-}
+export type CheckEvidence = MhfeCheckEvidence;
 
-function walletCheckLine(bits: number): string {
-  return `the phrase + passphrase check: its first ${bits} bits are zero`;
-}
-
-function builtInLine(words: number): string {
-  return `the built-in check of a ${words}-word original seed phrase`;
-}
-
-/**
- * Every check of a match, one a line, as `mhfe check` lists them (src/bin/mhfe/check.rs,
- * matched_lines): the container phrase's BIP39 checksum; the wallet a search for missing words
- * matched, `foundBy`; the reference compared with; and the original seed phrase's own checks beside
- * it, only where they pass, as a phrase drawn without the phrase + passphrase check fails it.
- */
-export function matchedLines(
-  kind: ReferenceKind,
-  evidence: CheckEvidence,
-  withPassphrase: boolean,
-  foundBy: string | undefined,
-  checkBits: number,
-): string[] {
-  const passphrase = withPassphrase ? "with this BIP39 passphrase" : "without a BIP39 passphrase";
-  const lines = ["the container phrase passes its BIP39 checksum"];
-  if (foundBy !== undefined) lines.push(foundBy);
-  if (kind === "address") lines.push(`the receiving address of the wallet, ${passphrase}`);
-  else if (kind === "fingerprint")
-    lines.push(`the master key fingerprint of the wallet, ${passphrase}`);
-  else if (kind === "walletCheck") lines.push(walletCheckLine(checkBits));
-  // The built-in check says its length itself, the one detected too.
-  if (evidence.builtInCheck !== null) lines.push(builtInLine(evidence.builtInCheck));
-  if (evidence.walletCheck === true && kind !== "walletCheck")
-    lines.push(walletCheckLine(checkBits));
-  return lines;
-}
+/** Shared presentation of the package's ordered check evidence. */
+export const matchedLines = MhfeCheckResult.lines;
 
 /** The status line when the fields changed during a check: its verdict is not theirs. */
 const INPUTS_CHANGED =
@@ -98,8 +69,11 @@ export class MhfeCheckTab {
   readonly #inputs: InputRevision;
   readonly #marked: MarkedContainer;
   readonly #task: MhfeTask;
+  readonly #preview: MhfeContainerPreview;
   /** What a search for missing words matched the container's own wallet by, for the next result. */
   #foundBy: string | undefined;
+  /** Whether the container read last has the phrase + passphrase check: 24 words. */
+  #offersWalletCheck = false;
 
   constructor(context: RecoveryFeatureContext, engine: MhfeEngine) {
     this.#context = context;
@@ -138,11 +112,15 @@ export class MhfeCheckTab {
     );
     this.#inputs.bindPageLifetime();
     // The built-in check and the wallet check exist only in a 24-word container.
-    adaptToContainer(engine, this.#container, (facts) => {
+    this.#preview = new MhfeContainerPreview(engine, this.#container, this.#status, (facts) => {
       this.#length.adapt(facts);
       this.#reference.offer("builtInCheck", facts.builtInCheckLengths.length > 0);
-      this.#reference.offer("walletCheck", facts.offersWalletCheck);
+      this.#offersWalletCheck = facts.offersWalletCheck;
+      this.#offerWalletCheck();
     });
+    // As mhfe check offers it: the phrase + passphrase check only once a passphrase is typed.
+    this.#reference.passphrase.input.addEventListener("input", () => this.#offerWalletCheck());
+    this.#offerWalletCheck();
     // Detection takes the original seed phrase's passphrase, if it has one, as the wallet check does.
     this.#length.onChange(() => this.#reference.askPassphrase(this.#detects()));
     // A container phrase typed again was not found by that search.
@@ -150,6 +128,13 @@ export class MhfeCheckTab {
       this.#foundBy = undefined;
     });
     required<HTMLButtonElement>("#mhfe-check").addEventListener("click", () => this.#start());
+  }
+
+  #offerWalletCheck(): void {
+    this.#reference.offer(
+      "walletCheck",
+      this.#offersWalletCheck && this.#reference.passphrase.value !== "",
+    );
   }
 
   #detects(): boolean {
@@ -167,6 +152,7 @@ export class MhfeCheckTab {
 
   #start(): void {
     if (!this.#task.available) return;
+    this.#preview.retire();
     const current = this.#inputs.capture();
     this.#clearOutcome();
     void this.#task.run((run) => this.#check(run, current), {
@@ -187,7 +173,7 @@ export class MhfeCheckTab {
     return { words: this.#length.value() as 0 | 12 | 15 | 18 | 21 };
   }
 
-  async #check(run: MhfeRun, current: () => boolean): Promise<void> {
+  async #check(run: MhfeRun, current: () => boolean): Promise<MhfeTaskOutcome> {
     const kind = this.#reference.kind;
     const reference = this.#compared();
     const read = await this.#marked.read(run);
@@ -195,7 +181,9 @@ export class MhfeCheckTab {
     const { client, facts } = read;
     if (!this.#stillCurrent(current)) return;
     showContainerFacts(this.#readBack, this.#container.value, facts, this.#context.writeClipboard);
-    const { settings } = await this.#password.reviewed(run);
+    const reviewed = await this.#password.reviewed(run);
+    if ("wait" in reviewed) return reviewed;
+    const { settings } = reviewed;
     // Minutes of work are not started for fields that have changed meanwhile.
     if (!this.#stillCurrent(current)) return;
     const passphraseField = this.#reference.passphrase;
@@ -243,19 +231,35 @@ export class MhfeCheckTab {
 
   #showOutcome(
     kind: ReferenceKind | undefined,
-    outcome: { matches: boolean; path: string | null; evidence: CheckEvidence },
-    withPassphrase: boolean,
+    outcome: {
+      readonly outcome: MhfeCheckOutcome;
+      readonly evidence: MhfeCheckEvidence;
+      readonly path: string | null;
+      readonly withoutPassphrase: boolean;
+    },
+    passphraseTyped: boolean,
     foundBy: string | undefined,
     checkBits: number,
   ): void {
-    if (!outcome.matches) {
-      this.#result.append(
-        paragraph("✗ Does not match.", "warning-callout"),
-        paragraph(noMatchHint(kind), "field-note"),
-      );
+    // The wallet that matched, or else the one compared first, as mhfe check names it.
+    const withPassphrase = passphraseTyped && !outcome.withoutPassphrase;
+    const verdict = MhfeCheckResult.verdict(outcome.outcome);
+    this.#result.append(
+      paragraph(verdict.text, verdict.matched ? "success-callout" : "warning-callout"),
+    );
+    if (!verdict.matched) {
+      if (outcome.outcome === "does not match")
+        this.#result.append(paragraph(noMatchHint(kind), "field-note"));
+      for (const line of matchedLines(
+        kind ?? "builtInCheck",
+        outcome.evidence,
+        withPassphrase,
+        foundBy,
+        checkBits,
+      ))
+        this.#result.append(paragraph(line, "field-note"));
       return;
     }
-    this.#result.append(paragraph("✓ Matches", "success-callout"));
     if (kind !== undefined) {
       const list = document.createElement("ul");
       list.className = "mhfe-check-evidence";
@@ -268,6 +272,13 @@ export class MhfeCheckTab {
     }
     if (outcome.path !== null)
       this.#result.append(paragraph(`Found at ${outcome.path}.`, "field-note"));
+    if (outcome.withoutPassphrase)
+      this.#result.append(
+        paragraph(
+          MhfeCheckResult.passphraseNote(kind, outcome.evidence, checkBits),
+          "warning-callout mhfe-passphrase-note",
+        ),
+      );
     const limit = kind === undefined ? undefined : MATCH_LIMITS[kind];
     if (limit !== undefined) this.#result.append(paragraph(limit, "field-note"));
   }

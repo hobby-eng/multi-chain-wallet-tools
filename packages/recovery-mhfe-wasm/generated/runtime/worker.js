@@ -23,8 +23,10 @@ let mhfe = (function(exports) {
         }
         /**
          * Compares the recovery with a reference given as for [`CheckSession::new`], as JSON
-         * `{"matches": bool, "path": string | null, "evidence": {...}}`: only whether it matches
-         * comes out, and for a matched address the path where it was found.
+         * `{"matches": bool, "outcome": string, "path": string | null, "withoutPassphrase": bool,
+         * "evidence": {...}}`:
+         * only whether it matches comes out, for a matched address the path where it was found, and
+         * whether it matched the wallet without the BIP39 passphrase given.
          * @param {string} reference_kind
          * @param {string} reference
          * @param {string} coin
@@ -367,10 +369,10 @@ let mhfe = (function(exports) {
          * INVALID_REQUEST. Only a reference with a non-empty passphrase shows the answer, and there
          * false is refused; everywhere else it is required (see [`Rekey::recover`]). The answer holds
          * for every confirmation of the rekey. These refusals, and REFERENCE_REQUIRED for a
-         * confirmation that cannot confirm a phrase of the rekey's length, come before the first
-         * round; only the Argon2 build's 1 MiB known answer runs before them. Returns JSON
+         * confirmation that cannot confirm a phrase of the rekey's length, come before the engine is
+         * made, so before any Argon2 work. Returns JSON
          * `{ ownerCheck, walletCheck }`: for "owner", the phrase to compare, and the rekey then waits
-         * for `ownerAnswer`; `walletCheck` the 16-bit source check of a 24-word reading with the
+         * for `ownerAnswer`; `walletCheck` the 16-bit wallet check of a 24-word reading with the
          * reference's passphrase or the empty one, null for other lengths. A refusal after the
          * rounds that allows another confirmation (AMBIGUOUS_LENGTH, LENGTH_DIFFERS) keeps the
          * recovery for `confirmAgain`; `ownerLengths` then says whether the owner may give it.
@@ -477,30 +479,9 @@ let mhfe = (function(exports) {
     exports.RekeySession = RekeySession;
 
     /**
-     * Checks a password before anything runs. The bytes are wiped afterwards.
-     * @param {Uint8Array} password_utf8
-     */
-    function checkPassword(password_utf8) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passArray8ToWasm0(password_utf8, wasm.__wbindgen_export);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.checkPassword(retptr, ptr0, len0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            if (r1) {
-                throw takeObject(r0);
-            }
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    exports.checkPassword = checkPassword;
-
-    /**
      * Recovers the phrase; the container's word count selects the suite. `words` is 0 for automatic
      * detection, otherwise the chosen length, which a same-length container takes only as its own.
-     * `passphrase_utf8` is the wallet's BIP39 passphrase, empty for none, for the 16-bit source
+     * `passphrase_utf8` is the wallet's BIP39 passphrase, empty for none, for the 16-bit wallet
      * check, which every recovery evaluates on each 24-word reading; it is wiped afterwards. Returns
      * JSON `{ kind, candidates: [{ words, verified, status, phrase, suiteId,
      * fingerprintWithoutPassphrase, walletCheck, statedWords, otherLengths }] }`. A stated length
@@ -546,13 +527,14 @@ let mhfe = (function(exports) {
     exports.decrypt = decrypt;
 
     /**
-     * What an address check would search, to show before it runs: JSON `{ type, search, addresses,
-     * onlyPath }`. `coin` is one of the ids of `walletParameters().coins` (INVALID_COIN otherwise);
-     * `path` is empty for the standard paths. `scan_gap` 0 states the usual search, and any other
-     * the first account's first `scan_gap` receiving and change addresses, as the decoy search of two
-     * missing words looks for an address. The library states it ([`AddressSearch::describe`]),
-     * the same call the self-check part "address-search" compares with its known answers. No coin is
-     * named here: the glue carries this text, and a page for one coin carries no other coin's name.
+     * What an address check would search, to show before it runs: JSON `{ coins, type, search,
+     * addresses, onlyPath }`. `coin` is one of the ids of `walletParameters().coins` (INVALID_COIN
+     * otherwise), or empty for every coin whose form the address has; `path` is empty for the
+     * standard paths. `scan_gap` 0 states the usual search, and any other the first account's first
+     * `scan_gap` receiving and change addresses, as the decoy search of two missing words looks for
+     * an address. The library states it ([`AddressSearch::describe`]), the same call the self-check
+     * part "address-search" compares with its known answers. Coins are given by their ids, which
+     * `walletParameters().coins` names: a page for one coin carries no other coin's name.
      * @param {string} address
      * @param {string} coin
      * @param {string} path
@@ -705,9 +687,9 @@ let mhfe = (function(exports) {
      * same text (PASSPHRASES_DIFFER). With `wallet_check`, it draws until the phrase passes
      * the wallet check with the passphrase, which must not be empty; that takes about 65,536 BIP39
      * seeds, and `on_draws(draws)` hears the count every 1,024 draws, a throw there stopping it
-     * (CANCELLED). The phrase meets the wishes given as for [`describe_draw`], refused as it says. A
-     * page may run it in several workers at once and take the first result. Returns JSON `{ phrase,
-     * words, walletCheck, fingerprintWithPassphrase }`.
+     * (INTERNAL_ERROR); the class cancels a draw by ending its worker. The phrase meets the wishes
+     * given as for [`describe_draw`], refused as it says.
+     * Returns JSON `{ phrase, words, walletCheck, fingerprintWithPassphrase }`.
      * @param {Uint8Array} passphrase_utf8
      * @param {Uint8Array} passphrase_repeat_utf8
      * @param {Uint8Array} chosen_words_utf8
@@ -1742,10 +1724,10 @@ let mhfe = (function(exports) {
                 const ret = getObject(arg0).call(getObject(arg1), getObject(arg2));
                 return addHeapObject(ret);
             }, arguments); },
-            __wbg_derive_040190b7b9c88e4a: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+            __wbg_derive_89b32c905102ba9c: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
                 getObject(arg0).derive(getArrayU8FromWasm0(arg1, arg2), getArrayU8FromWasm0(arg3, arg4), arg5 >>> 0, arg6 >>> 0, getArrayU8FromWasm0(arg7, arg8));
             }, arguments); },
-            __wbg_fill_cd4d9542c9f02f2e: function() { return handleError(function (arg0, arg1, arg2) {
+            __wbg_fill_0f8e2aa37674d2ab: function() { return handleError(function (arg0, arg1, arg2) {
                 getObject(arg0).fill(getArrayU8FromWasm0(arg1, arg2));
             }, arguments); },
             __wbg_get_31af05bd4842a84f: function() { return handleError(function (arg0, arg1) {
@@ -1760,7 +1742,7 @@ let mhfe = (function(exports) {
                 const ret = getObject(arg0).push(getObject(arg1));
                 return ret;
             },
-            __wbg_reserve_06f4e471942678b9: function() { return handleError(function (arg0, arg1) {
+            __wbg_reserve_2e0639c2f56fc054: function() { return handleError(function (arg0, arg1) {
                 getObject(arg0).reserve(arg1 >>> 0);
             }, arguments); },
             __wbindgen_generic_0000000000000001: function(arg0) {
@@ -1999,13 +1981,20 @@ let mhfe = (function(exports) {
     return Object.assign(__wbg_init, { initSync }, exports);
 })({ __proto__: null });
 // The bridge from the Rust core to the Emscripten build of the reference Argon2 code. It is
-// joined into runtime/worker.js by scripts/build-wasm.sh, and the Node.js tests load the same file.
+// joined into runtime/worker.js by scripts/build-wasm.sh, and `cargo xtask package-check` loads
+// the same file.
 "use strict";
 
 /** Argon2id output length and lane count of MHFE suite 3. */
 const ARGON2_KEY_BYTES = 32;
 const ARGON2_LANES = 4;
-/** ARGON2_MEMORY_ALLOCATION_ERROR in vendor/phc-winner-argon2/include/argon2.h. */
+/**
+ * ARGON2_MEMORY_ALLOCATION_ERROR in vendor/phc-winner-argon2/include/argon2.h. A deliberate copy:
+ * the bridge is a classic worker script, which cannot import, and the Emscripten build exports the
+ * C code's functions, not its constants. `cargo xtask package-check` reads the value from
+ * the header and drives it through the bridge ("the bridge reads argon2.h's memory error as
+ * MEMORY_ALLOCATION_FAILED").
+ */
 const ARGON2_MEMORY_ALLOCATION_ERROR = -22;
 
 /**
@@ -2027,7 +2016,7 @@ function argon2Engine(module) {
         }
         module.HEAPU8.set(password, passwordPointer);
         module.HEAPU8.set(salt, saltPointer);
-        const code = module._argon2id_hash_raw(
+        const code = module._mhfe_argon2id_hash_raw(
           passes,
           memoryKib,
           ARGON2_LANES,
@@ -2044,7 +2033,7 @@ function argon2Engine(module) {
           );
         }
         if (code !== 0) {
-          throw new Error(`ARGON2_FAILED: the reference code returned error ${code}`);
+          throw new Error(`the reference code returned error ${code}`);
         }
         key.set(module.HEAPU8.subarray(keyPointer, keyPointer + ARGON2_KEY_BYTES));
       } finally {
@@ -2084,18 +2073,21 @@ function wipeAndFree(module, heap, pointer, length) {
 "use strict";
 
 /**
- * The build of this worker script, which scripts/stamp-build-id.mjs writes here and into
+ * The build of this worker script, which `cargo xtask wasm stamp-build-id` writes here and into
  * runtime/mhfe.wasm, runtime/runtime.js and each class; "development" before the build stamps it.
  */
-const WORKER_BUILD_ID = "4f5000f4290fa5eb";
-/** The custom section of runtime/mhfe.wasm that names its build (scripts/stamp-build-id.mjs). */
+const WORKER_BUILD_ID = "7da6a9c673903bea";
+/**
+ * The custom section of runtime/mhfe.wasm that names its build (`cargo xtask wasm stamp-build-id`).
+ */
 const BUILD_SECTION = "mhfe-build";
 /** The detail of a part in which the WebAssembly stopped: a Rust panic or a fault of the computer. */
 const STOPPED_DETAIL = "the WebAssembly stopped";
 
 /**
- * The fields of a request or an answer that hold secrets; the worker wipes its copies. The page's
- * runtime lists the same fields (web/runtime.js), as a worker script imports nothing.
+ * The fields of a request or an answer that hold secrets; the worker wipes its copies. A
+ * deliberate copy of the page runtime's list (web/runtime.js), as a worker script imports nothing;
+ * `cargo xtask wasm verify` holds both to one list.
  */
 const SECRET_FIELDS = [
   "phrase",
@@ -2222,9 +2214,7 @@ function operationOf(modules, module, name) {
 
 /**
  * Refuses a WebAssembly of another build than this script before it runs: parts of different
- * builds may call each other wrongly. One without the section has not been stamped either. The
- * message starts with a word, not the file's path, since the page makes a sentence of it
- * (sentence() in web/runtime.js), which would capitalize the path.
+ * builds may call each other wrongly. One without the section has not been stamped either.
  */
 function requireSameBuild(compiled) {
   const sections = WebAssembly.Module.customSections(compiled, BUILD_SECTION);
@@ -2232,21 +2222,30 @@ function requireSameBuild(compiled) {
     sections.length === 0
       ? "development"
       : sections.map((bytes) => new TextDecoder().decode(bytes)).join("+");
-  if (build !== WORKER_BUILD_ID) {
-    throw packageMismatch(
-      `the file runtime/mhfe.wasm is of build ${build} and runtime/worker.js of build ` +
-        WORKER_BUILD_ID,
-    );
-  }
+  if (build !== WORKER_BUILD_ID) throw buildMismatch("runtime/mhfe.wasm", build);
 }
 
 /**
- * Parts of the package that come from different builds: `what` says which, and the advice follows,
- * in the words of the page's runtime (packageMismatch() in web/runtime.js). It starts with a word,
- * not a file's path, which the page's sentence() would capitalize.
+ * Parts of the package that come from different builds: `what` says which, and the advice follows.
+ * A deliberate copy of packageMismatch() in web/runtime.js, as a worker script imports nothing;
+ * `cargo xtask wasm verify` holds both to one advice. It starts with a word, not a file's path,
+ * which the page's sentence() would capitalize.
  */
 function packageMismatch(what) {
   return new Error(`PACKAGE_MISMATCH: ${what}: take every file of the package from one build.`);
+}
+
+/**
+ * The file `file` is of the build `build`, not of this worker's. A deliberate copy of
+ * buildMismatch() in web/runtime.js, with this script's own file and build: a worker script
+ * imports nothing. `cargo xtask package-check` holds both to one wording
+ * (buildMismatchMessage). The message starts with a word, not the file's path, since the page
+ * makes a sentence of it (sentence() in web/runtime.js), which would capitalize the path.
+ */
+function buildMismatch(file, build) {
+  return packageMismatch(
+    `the file ${file} is of build ${build} and runtime/worker.js of build ${WORKER_BUILD_ID}`,
+  );
 }
 
 /** The Rust core has its own copies, which it wipes; these are the copies in this worker. */
@@ -2276,7 +2275,6 @@ const FALLBACK_NOTE = "the check ran the single-threaded build of the standard m
 
 const CORE_OPERATIONS = {
   parameters: () => JSON.parse(mhfe.suiteParameters()),
-  packageVersion: () => mhfe.packageVersion(),
   describePhrase: (request) => JSON.parse(mhfe.describePhrase(request.phrase)),
   describeContainer: (request) => JSON.parse(mhfe.describeContainer(request.container)),
 
@@ -2353,7 +2351,7 @@ const CORE_OPERATIONS = {
           ),
         );
       const result = compare(request);
-      if (result.matches || !request.asksLength) return result;
+      if (result.matches || result.evidence.walletCheck || !request.asksLength) return result;
       const next = await host.ask("noLength", null);
       if (next === null) return result;
       try {
@@ -2480,7 +2478,7 @@ const CORE_OPERATIONS = {
       const sealed = JSON.parse(
         session.seal(host.progress, (json) => host.post("unverified", JSON.parse(json))),
       );
-      // The 16-bit source check of the recovered 24-word reading, reported beside the result.
+      // The 16-bit wallet check of the recovered 24-word reading, reported beside the result.
       return { ...sealed, walletCheck: recovered.walletCheck };
     } finally {
       session.free();
@@ -2637,8 +2635,8 @@ function afterFallback(result, failures) {
 
 /**
  * The Emscripten builds of the reference Argon2 code that may be placed in front of this file:
- * the factory each defines, and its build, which scripts/stamp-build-id.mjs stamps into it. A
- * build that is not in front leaves its names undefined, hence typeof.
+ * the factory each defines, and its build, which `cargo xtask wasm stamp-build-id` stamps into
+ * it. A build that is not in front leaves its names undefined, hence typeof.
  */
 function argon2Builds() {
   return {
@@ -2667,12 +2665,7 @@ function argon2Builds() {
  */
 function startArgon2(build, threadedScript) {
   if (build.create === undefined) throw noArgon2Build();
-  if (build.buildId !== WORKER_BUILD_ID) {
-    throw packageMismatch(
-      `the file ${build.file} is of build ${build.buildId} and runtime/worker.js of build ` +
-        WORKER_BUILD_ID,
-    );
-  }
+  if (build.buildId !== WORKER_BUILD_ID) throw buildMismatch(build.file, build.buildId);
   if (build.name === "threaded") {
     // Without cross-origin isolation the threaded build cannot share its memory with its lane
     // workers, and its start-up would wait forever instead of failing, so refuse it here.
@@ -2696,7 +2689,6 @@ function noArgon2Build() {
 
 const REPAIR_OPERATIONS = {
   parameters: () => JSON.parse(mhfe.repairParameters()),
-  packageVersion: () => mhfe.packageVersion(),
   selfCheck: (request, host) =>
     host.selfCheck(request.tier, (onStart, onResult) =>
       mhfe.selfCheckRepair(request.tier, request.skip, onStart, onResult),
@@ -2711,7 +2703,6 @@ const REPAIR_OPERATIONS = {
 
 const PASSWORD_OPERATIONS = {
   parameters: () => JSON.parse(mhfe.passwordParameters()),
-  packageVersion: () => mhfe.packageVersion(),
   selfCheck: (request, host) =>
     host.selfCheck(request.tier, (onStart, onResult) =>
       mhfe.selfCheckPasswords(request.tier, request.skip, host.random, onStart, onResult),
@@ -2730,7 +2721,6 @@ const PASSWORD_OPERATIONS = {
 
 const WALLET_OPERATIONS = {
   parameters: () => JSON.parse(mhfe.walletParameters()),
-  packageVersion: () => mhfe.packageVersion(),
   selfCheck: (request, host) =>
     host.selfCheck(request.tier, (onStart, onResult) =>
       mhfe.selfCheckWallet(request.tier, request.skip, host.random, onStart, onResult),

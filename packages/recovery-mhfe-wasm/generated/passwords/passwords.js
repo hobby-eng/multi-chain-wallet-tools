@@ -32,12 +32,8 @@ export { MhfeError } from "../runtime/runtime.js";
 
 /** The name of this module's operations in the package's worker. */
 const PASSWORDS_MODULE = "passwords";
-/** make()'s refusal of a count with the check word (makePassword in src/wasm_api/passwords.rs). */
-const CHECK_WORD_TAKES_NO_COUNT =
-  'count belongs only to the kinds "words" and "characters": "checkWord" always gives five ' +
-  "words and their check word.";
-/** The build of this file, which scripts/stamp-build-id.mjs writes; see BUILD_ID in the runtime. */
-const PASSWORDS_BUILD_ID = "4f5000f4290fa5eb";
+/** The build of this file, from `cargo xtask wasm stamp-build-id`; see BUILD_ID in the runtime. */
+const PASSWORDS_BUILD_ID = "7da6a9c673903bea";
 
 export class MhfePasswords extends MhfeModuleClass {
   #module;
@@ -117,8 +113,8 @@ export class MhfePasswords extends MhfeModuleClass {
   /**
    * Makes a password: `kind` "words" (`count` 1 to 32, by default 5), "checkWord" (five words
    * and their check word) or "characters" (`count` 1 to 64, by default 16). "checkWord" takes no
-   * `count`, a TypeError, as `mhfe password` refuses `--check-word` with `--words`: a page never
-   * gets fewer words than it asked for. With `dice`, five digits from 1 to 6 per word separated by
+   * `count`, INVALID_REQUEST, as `mhfe password` refuses `--check-word` with `--words`: a page
+   * never gets fewer words than it asked for. With `dice`, five digits from 1 to 6 per word separated by
    * spaces, the words come from real dice; otherwise from the browser's random generator.
    * Resolves to `{ password, bits, weak, checkWord }`.
    */
@@ -126,9 +122,6 @@ export class MhfePasswords extends MhfeModuleClass {
     requireText(kind, "kind");
     if (count !== undefined && !Number.isSafeInteger(count)) {
       throw new TypeError("count must be a whole number.");
-    }
-    if (kind === "checkWord" && count !== undefined) {
-      throw new TypeError(CHECK_WORD_TAKES_NO_COUNT);
     }
     await this.#module.ready();
     const message = {

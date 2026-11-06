@@ -1,3 +1,5 @@
+import { RenderedSecrets } from "./secrets.js";
+import { DerivationErrorText } from "./derivation-error-text.js";
 // The Hidden wallets tab of the MHFE panel (`mhfe wallets`): on a 24-word container every password
 // other than the container's own opens another valid wallet. A session holds the Argon2 work area;
 // each password typed shows the wallet it opens. Nothing is listed or counted, on screen or in a
@@ -21,7 +23,7 @@ import {
   describe,
   type StageProgress,
 } from "./recovery-mhfe-status.js";
-import { AwaitingAnswer, MhfeTask } from "./recovery-mhfe-task.js";
+import { MhfeTask, type MhfeWaiting } from "./recovery-mhfe-task.js";
 import {
   paragraph,
   renderRecoveredMnemonic,
@@ -73,15 +75,20 @@ export class MhfeWalletsTab {
       name: "An MHFE hidden-wallet session",
       failure: "The session could not start.",
       inputs: required<HTMLElement>("#mhfe-wallets-panel"),
-      onEdit: () => this.#result.replaceChildren(),
+      onEdit: () => {
+        this.#clearResult();
+      },
     });
     this.#review = new PasswordReview(engine, "mhfe-wallets-password-review", [
       this.#password,
       this.#repeat,
     ]);
     this.#inputs = new InputRevision(required<HTMLElement>("#mhfe-wallets-panel"), () => {
-      this.#active?.cancel();
-      this.#result.replaceChildren();
+      try {
+        this.#active?.cancel();
+      } finally {
+        this.#clearResult();
+      }
     });
     new StrengthNote(engine, this.#password.input, "mhfe-wallets-strength", weakPasswordText);
     // The session's passwords come only once it is open, so a search with the owner's wallet
@@ -118,7 +125,7 @@ export class MhfeWalletsTab {
 
   #start(): void {
     if (!this.#task.available) return;
-    this.#result.replaceChildren();
+    if (!this.#clearResult()) return;
     void this.#task.run((run) => this.#openSession(run), { holds: () => this.#sessionEnds() });
   }
 
@@ -141,16 +148,25 @@ export class MhfeWalletsTab {
         mainPassphrase: this.#mainPassphrase.value,
       }),
     );
-    // The session holds the passphrase now; the field is emptied and the inputs locked meanwhile.
-    this.#mainPassphrase.clear();
-    this.#session = session;
-    this.#lockInputs(true);
-    this.#sessionBlock.hidden = false;
-    this.#status.textContent = "";
+    // Publish the close lifetime before a native setter can reenter Close.
     this.#ended = new Promise<void>((resolve) => {
       this.#endSession = resolve;
     });
-    this.#restartIdleTimer();
+    this.#session = session;
+    const current = (): boolean => this.#session === session;
+    try {
+      this.#mainPassphrase.clear();
+      if (!current()) return;
+      this.#lockInputs(true);
+      if (!current()) return;
+      this.#sessionBlock.hidden = false;
+      if (!current()) return;
+      this.#status.textContent = "";
+      if (current()) this.#restartIdleTimer();
+    } catch (cause) {
+      if (current()) await this.#close("");
+      throw cause;
+    }
   }
 
   /** Settles once the open session ends, at once when none opened. */
@@ -180,6 +196,10 @@ export class MhfeWalletsTab {
         },
       );
       if (opened === undefined || !current()) return;
+      if ("wait" in opened) {
+        this.#status.textContent = opened.wait;
+        return;
+      }
       this.#showWallet(opened.phrase);
       // No number and no count: the main screen must not tell how many wallets were opened.
       this.#status.textContent = `Opened in ${opened.progress.elapsed()}.`;
@@ -187,10 +207,6 @@ export class MhfeWalletsTab {
     } catch (cause) {
       // A close already owns cleanup and its status; a late open refusal cannot overwrite it.
       if (this.#session !== session) return;
-      if (cause instanceof AwaitingAnswer) {
-        this.#status.textContent = cause.message;
-        return;
-      }
       this.#status.classList.add("warning");
       this.#status.textContent = describe(cause, "The wallet could not be opened.");
       // The refusals after which the session stays open are the package's (parameters()).
@@ -210,16 +226,17 @@ export class MhfeWalletsTab {
   }
 
   /**
-   * The review of the typed password, then the wallet it opens; AwaitingAnswer while the review
+   * The review of the typed password, then the wallet it opens; a waiting outcome while the review
    * waits for the user's answer.
    */
   async #openWallet(
     run: MhfeRun,
     session: MhfeHiddenWallets,
-  ): Promise<{ phrase: string; progress: StageProgress }> {
+  ): Promise<{ phrase: string; progress: StageProgress } | MhfeWaiting> {
     const password = this.#password.value;
     const passwordRepeat = this.#repeat.value;
-    const choice = await this.#review.require(run, password, passwordRepeat);
+    const choice = await this.#review.choose(run, password, passwordRepeat);
+    if ("wait" in choice) return choice;
     const progress = await run.step(() => this.#engine.progress(OPEN_STAGES));
     this.#review.assertCurrent(choice);
 
@@ -245,7 +262,7 @@ export class MhfeWalletsTab {
   #showWallet(phrase: string): void {
     const heading = document.createElement("h3");
     heading.textContent = "Hidden wallet, 24 words";
-    this.#result.replaceChildren(heading);
+    RenderedSecrets.replace(this.#result, heading);
     // No Copy: clipboard history would keep a list of the hidden wallets opened. The fingerprint
     // appears only with the phrase, in the Seed Diagnostic under Show phrase.
     renderRecoveredMnemonic(
@@ -268,36 +285,64 @@ export class MhfeWalletsTab {
     const session = this.#session;
     if (session === undefined) return;
     this.#session = undefined;
-    this.#active?.cancel();
+    const active = this.#active;
+    this.#active = undefined;
+    const endSession = this.#endSession;
+    this.#endSession = undefined;
+    let clean = true;
+    const release = (operation: () => void): void => {
+      try {
+        operation();
+      } catch {
+        clean = false;
+      }
+    };
+    release(() => active?.cancel());
     clearTimeout(this.#idleTimer);
-    this.#result.replaceChildren();
-    this.#status.textContent = "";
-    this.#password.clear();
-    this.#repeat.clear();
-    this.#review.reset();
-    this.#sessionBlock.hidden = true;
-    this.#lockInputs(false);
+    release(() => RenderedSecrets.replace(this.#result));
+    release(() => this.#password.clear());
+    release(() => this.#repeat.clear());
+    release(() => this.#review.reset());
+    release(() => {
+      this.#sessionBlock.hidden = true;
+    });
+    release(() => this.#lockInputs(false));
     try {
       await session.close();
     } catch (cause) {
       message += ` Session cleanup reported: ${describe(cause, "The session worker stopped.")}`;
     } finally {
       // Even a failed close reply cannot retain the worker's Argon2 arena.
-      this.#engine.cancelCore();
+      release(() => this.#engine.cancelCore());
+      release(() => endSession?.());
+      if (!clean) message += ` ${DerivationErrorText.CLEANUP_FAILURE}`;
+      this.#status.textContent = "";
       if (message !== "")
         this.#status.textContent =
           `${message} Fund hidden wallets only from sources linked neither to you nor to the main ` +
           "wallet; Change password changes them.";
-      this.#endSession?.();
-      this.#endSession = undefined;
+    }
+  }
+
+  #clearResult(): boolean {
+    try {
+      RenderedSecrets.replace(this.#result);
+      return true;
+    } catch (cause) {
+      this.#status.classList.add("warning");
+      this.#status.textContent = DerivationErrorText.of(cause, DerivationErrorText.CLEANUP_FAILURE);
+      return false;
     }
   }
 
   #restartIdleTimer(): void {
+    const session = this.#session;
+    if (session === undefined) return;
     clearTimeout(this.#idleTimer);
     this.#sessionNote.textContent =
       "Session open. The 2 GiB of Argon2 memory and the passwords used stay inside it until you close it; " +
       "it closes itself after 10 minutes without an open.";
+    if (this.#session !== session) return;
     this.#idleTimer = setTimeout(
       () => void this.#close("The session closed itself after 10 minutes without use."),
       IDLE_CLOSE_MS,
@@ -305,8 +350,10 @@ export class MhfeWalletsTab {
   }
 
   #lockInputs(locked: boolean): void {
-    this.#container.textarea.disabled = locked;
-    this.#pim.disabled = locked;
-    this.#mainPassphrase.input.disabled = locked;
+    const session = this.#session;
+    for (const input of [this.#container.textarea, this.#pim, this.#mainPassphrase.input]) {
+      if (locked && this.#session !== session) return;
+      input.disabled = locked;
+    }
   }
 }

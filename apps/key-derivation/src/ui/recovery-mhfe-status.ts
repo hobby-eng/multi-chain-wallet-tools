@@ -18,7 +18,7 @@ import type {
 } from "@ckd/recovery-mhfe-wasm/wallet/wallet.js";
 import { bip39EntropyBits } from "@ckd/core/bip39-parameters.js";
 import { englishList } from "@ckd/core/listing.js";
-import type { MhfeRun } from "./recovery-mhfe-run.js";
+import { MhfeRunStopped, type MhfeRun } from "./recovery-mhfe-run.js";
 import { formatDuration, JobClock } from "./recovery-progress.js";
 
 /** What each stage of an operation is called on the status line. */
@@ -98,12 +98,23 @@ export function drawStartLine(walletCheck: boolean, expectedDraws: number): stri
   return `Drawing a phrase that ${drawGoal(walletCheck)}, about ${draws} draws.`;
 }
 
-/** The status line while a new phrase is drawn; how long it takes varies. */
-export function drawLine(draws: number, clock: JobClock, walletCheck: boolean): string {
-  return (
+/**
+ * The status line while a new phrase is drawn; how long it takes varies. Given the draws MHFE
+ * expects (describeDraw), it also says how long they take on average at the speed so far, an
+ * estimate rather than a countdown: a draw may finish much sooner or later.
+ */
+export function drawLine(
+  draws: number,
+  clock: JobClock,
+  walletCheck: boolean,
+  expectedDraws?: number,
+): string {
+  const elapsed = clock.elapsed();
+  const line =
     `Drawing a phrase that ${drawGoal(walletCheck)} · ${draws.toLocaleString("en-US")} tried · ` +
-    `${formatDuration(clock.elapsed())} elapsed`
-  );
+    `${formatDuration(elapsed)} elapsed`;
+  if (expectedDraws === undefined || draws === 0) return line;
+  return `${line} · about ${formatDuration((elapsed * expectedDraws) / draws)} on average at this speed`;
 }
 
 /**
@@ -157,19 +168,24 @@ export function walletCheckOdds(bits: number): string {
   return (2 ** bits).toLocaleString("en-US");
 }
 
-/** The line about a 24-word phrase that passes its wallet check without a BIP39 passphrase. */
-export function passesWalletCheck(bits: number): string {
+/** How the 16-bit check of a 24-word reading was made, as mhfe decrypt says it. */
+function checkedWith(withPassphrase: boolean): string {
+  return withPassphrase ? "with this BIP39 passphrase" : "without a BIP39 passphrase";
+}
+
+/** The line about a 24-word phrase that passes its wallet check, with or without a passphrase. */
+export function passesWalletCheck(bits: number, withPassphrase = false): string {
   return (
-    `It passes the ${bits}-bit check without a BIP39 passphrase: a right password is very likely, but ` +
-    "this does not show which wallet it is."
+    `It passes the ${bits}-bit check ${checkedWith(withPassphrase)}: a right password is very ` +
+    "likely, but this does not show which wallet it is."
   );
 }
 
-/** The line about a 24-word phrase that does not pass its wallet check without a passphrase. */
-export function failsWalletCheck(bits: number): string {
+/** The line about a 24-word phrase that does not pass its wallet check, as mhfe decrypt says it. */
+export function failsWalletCheck(bits: number, withPassphrase = false): string {
   return (
-    `It does not pass the ${bits}-bit check without a BIP39 passphrase. This matters only if the wallet ` +
-    "was made with the check; with a passphrase, test it below."
+    `It does not pass the ${bits}-bit check ${checkedWith(withPassphrase)}. That matters only for ` +
+    "a phrase made with this check."
   );
 }
 
@@ -231,6 +247,7 @@ function sentence(text: string): string {
 
 /** Error text for the status line: the package's codes carry a message written for people. */
 export function describe(cause: unknown, fallback: string): string {
+  if (cause instanceof MhfeRunStopped) return STOPPED;
   if (cause instanceof MhfeError) {
     // A class whose self-check failed stays closed: its report names the part.
     if (cause.code === "SELF_CHECK_FAILED") {
@@ -244,7 +261,6 @@ export function describe(cause: unknown, fallback: string): string {
       const detail = cause.cause instanceof Error ? ` (${cause.cause.message})` : "";
       return `Stopped because this page failed to show the progress${detail}. The worker and its memory were discarded.`;
     }
-    if (cause.code === "CANCELLED") return STOPPED;
     const next = NEXT_STEPS[cause.code];
     return next === undefined ? sentence(cause.message) : `${sentence(cause.message)} ${next}`;
   }
@@ -291,7 +307,7 @@ function keepItemText(item: MhfeKeepItem): string {
     case "memoryLevel":
       return `memory level ${item.value}`;
     case "wordCount":
-      return `the word count, ${item.words}`;
+      return `the word count, ${item.words}, kept apart from the container phrase`;
   }
 }
 
@@ -352,7 +368,12 @@ export function sealedNotes(sealed: MhfeSealed, sameLength: boolean): string[] {
 }
 
 /** The verdict on one recovered phrase, by the status the package gives it. */
-export function candidateSummary(candidate: MhfeCandidate): { text: string; verified: boolean } {
+export function candidateSummary(candidate: MhfeCandidate): {
+  text: string;
+  verified: boolean;
+  /** A quieter line below, as mhfe decrypt's grey hint. */
+  hint?: string;
+} {
   switch (candidate.status) {
     case "verified":
       return {
@@ -369,20 +390,17 @@ export function candidateSummary(candidate: MhfeCandidate): { text: string; veri
           "built-in check, so any password gives a valid phrase. Compare its fingerprint, or a known address " +
           "after Use in Generate & Derive, with your wallet.",
       };
+    // The usual result for a 24-word phrase, and every other password's, as mhfe decrypt says it.
     case "readAs24":
       return {
         verified: false,
-        text:
-          "Not verified: no shorter length passed its check, so the result is read as 24 words. If your " +
-          "original seed phrase has 24 words, compare this phrase with your wallet. If it has fewer, the password, PIM " +
-          "or container is wrong.",
+        text: "Not verified: a 24-word phrase has no built-in check. Compare it with your wallet.",
+        hint: "If your original seed phrase has 12 to 21 words, a wrong password or setting gives this too.",
       };
     case "readAs24Chosen":
       return {
         verified: false,
-        text:
-          "Not verified: recovered as 24 words, as selected. A 24-word phrase has no built-in check, so " +
-          "any password gives a valid phrase: compare it with your wallet.",
+        text: "Not verified: read as 24 words, as you chose. Compare it with your wallet.",
       };
   }
 }

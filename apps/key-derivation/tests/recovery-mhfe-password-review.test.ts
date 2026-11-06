@@ -31,6 +31,11 @@ class FakeElement extends EventTarget {
   readonly children: (FakeElement | string)[] = [];
   readonly #attributes = new Map<string, string>();
 
+  /** The page's document, as every element of a real page has it: the lifecycle installs there. */
+  get ownerDocument(): Document {
+    return document;
+  }
+
   setAttribute(name: string, value: string): void {
     this.#attributes.set(name, value);
   }

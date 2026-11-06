@@ -1,11 +1,11 @@
 // The wallet a search for missing words compares with, as `mhfe` reads it
 // (WalletReference::read_address_or_fingerprint in src/bin/mhfe/check.rs): one field, where eight
-// hex digits are a master key fingerprint and anything else an address, whose coin is then asked;
+// hex digits are a master key fingerprint and anything else an address, whose coin is read from it
+// unless one is chosen;
 // for two missing words in the container's own wallet, how far its first account goes, which the
 // package takes as `scanGap`, asked with mhfe's answers (src/bin/mhfe/container_search.rs). The
 // scope of an address search is stated before any work starts (MhfeWallet.describeAddress with the
 // same gap or exact path); a path or gap the library does not take is refused there with its message.
-import type { MhfeCoin } from "@ckd/recovery-mhfe-wasm/core/client.js";
 import type { MhfeEngine } from "./recovery-mhfe-engine.js";
 import {
   AddressCoinChoice,
@@ -112,7 +112,7 @@ export class SearchReference {
     if (typed === "") throw new Error("Type an address or a master key fingerprint of the wallet.");
     if (FINGERPRINT.test(typed)) return { fingerprint: typed.toLowerCase() };
     if (this.#coin.value === "") throw new Error("Choose the coin of the address.");
-    return { address: typed, coin: this.#coin.value as MhfeCoin, ...this.#path.options() };
+    return { address: typed, ...this.#coin.option(), ...this.#path.options() };
   }
 
   /** What was compared, for the list of a check's matches: "address …" or "master key fingerprint …". */
@@ -212,10 +212,10 @@ export class SearchReference {
       () => {
         const gap = this.scanGap();
         const { address, coin, path } = this.reference();
-        if (address === undefined || coin === undefined) return undefined;
+        if (address === undefined) return undefined;
         return {
           address,
-          coin,
+          ...(coin === undefined ? {} : { coin }),
           ...(path === undefined ? {} : { path }),
           // 0 asks for the usual search.
           scanGap: gap ?? 0,

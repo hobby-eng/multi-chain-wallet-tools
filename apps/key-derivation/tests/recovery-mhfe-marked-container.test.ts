@@ -65,6 +65,7 @@ function setup(written: string, found = true, pendingSearch?: Promise<void>) {
   const calls: { name: string; request: Record<string, unknown> }[] = [];
   const missing = written.split(" ").flatMap((word, index) => (word === "?" ? [index + 1] : []));
   engine.repair = (async () => ({
+    parameters: async () => ({ maxInputTextBytes: 8192 }),
     inspectContainer: async ({ container }: { container: string }) =>
       container.includes("?")
         ? { reading: "marked", wordCount: 24, unreadable: missing }
@@ -379,8 +380,14 @@ describe("a container phrase with words marked ?", () => {
       await page.press(`#${M}-run`);
       expect(page.calls[0]).toMatchObject({
         name: "searchWallet",
-        request: { container: markedAt(24), reference, passphrase },
+        request: {
+          container: markedAt(24),
+          reference,
+          ...("builtInCheck" in reference ? {} : { passphrase }),
+        },
       });
+      if ("builtInCheck" in reference)
+        expect(page.calls[0]!.request).not.toHaveProperty("passphrase");
       expect(texts(page.result())).toContain(
         "Found word 24: peace, by the original seed phrase's own check.",
       );

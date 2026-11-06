@@ -1,8 +1,14 @@
-import type { MhfePackageParts, MhfeSecret, MhfeWordHint } from "../runtime/runtime.js";
+import type {
+  MhfeCancelled,
+  MhfePackageParts,
+  MhfeSecret,
+  MhfeWordHint,
+} from "../runtime/runtime.js";
 import { MhfeModuleClass } from "../runtime/runtime.js";
 export {
-  MhfeCancelledError,
+  CANCELLED,
   MhfeError,
+  type MhfeCancelled,
   type MhfeErrorCode,
   type MhfeSelfCheckProgress,
   type MhfeSelfCheckReport,
@@ -18,8 +24,6 @@ export interface MhfeNewPhrase {
   walletCheck: boolean;
   /** The master key fingerprint with the passphrase given, which may be empty. */
   fingerprintWithPassphrase: string;
-  /** How many workers drew it. */
-  workers: number;
 }
 
 /** The module's fixed values, from parameters(). */
@@ -65,7 +69,9 @@ export interface MhfeDrawOdds {
   fixedPosition: boolean;
 }
 
-/** Every method returns a promise and reports every error by rejecting it; cancel() is synchronous. */
+/**
+ * Every method returns a promise and reports every error by rejecting it; cancel() is synchronous.
+ */
 export class MhfeWallet extends MhfeModuleClass<MhfeWalletParameters> {
   constructor(sources: MhfeWalletSources);
   /** A 24-word phrase and a passphrase that is not empty; otherwise refused. */
@@ -73,14 +79,16 @@ export class MhfeWallet extends MhfeModuleClass<MhfeWalletParameters> {
   fingerprint(options: { phrase: string; passphrase?: MhfeSecret }): Promise<string>;
   /** The hint below a line of BIP39 words being typed, by the command-line tool's rule. */
   wordHints(options: { typed: MhfeSecret }): Promise<MhfeWordHint>;
-  /** `coin` is required: an id of parameters().coins. */
+  /** `coin` is an id of parameters().coins; without it, every coin whose form the address has. */
   describeAddress(options: {
     address: string;
-    coin: string;
+    coin?: string;
     path?: string;
     /** 0, the default, for the usual search; else the decoy search's first-account gap. */
     scanGap?: number;
   }): Promise<{
+    /** The ids of the coins searched: without `coin`, every coin of the address's form. */
+    coins: string[];
     /** The address type, such as "native SegWit (BIP84)", when the coin has several. */
     type: string | null;
     /** The path pattern searched, or the one path given. */
@@ -97,17 +105,16 @@ export class MhfeWallet extends MhfeModuleClass<MhfeWalletParameters> {
   }): Promise<MhfeDrawOdds>;
   /**
    * With a passphrase, typed twice, `walletCheck` must be given: never preselected. A checked
-   * phrase takes about 65,536 draws, spread over `workers` workers, 1 to 256. The phrase holds
-   * every chosen word and none of `neverUse`, refused as describeDraw() says.
+   * phrase takes about 65,536 draws, one after another in one worker, which takes minutes. The
+   * phrase holds every chosen word and none of `neverUse`, refused as describeDraw() says.
    */
   drawPhrase(options?: {
     passphrase?: MhfeSecret;
     passphraseRepeat?: MhfeSecret;
     walletCheck?: boolean;
-    workers?: number;
     chosen?: MhfeChosenWord[];
     neverUse?: string[];
     onProgress?: (progress: { stage: "draw"; draws: number }) => void | Promise<void>;
-  }): Promise<MhfeNewPhrase>;
+  }): Promise<MhfeNewPhrase | MhfeCancelled>;
   cancel(): void;
 }

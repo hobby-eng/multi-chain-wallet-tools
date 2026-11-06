@@ -1,4 +1,4 @@
-// Checks the embedded MHFE 0.6.0 browser package with Node: suite MHFE-BIP39-256-EXPERIMENTAL-3 for
+// Checks the embedded MHFE browser package with Node: suite MHFE-BIP39-256-EXPERIMENTAL-3 for
 // 24-word containers, MHFE-BIP39-LP-EXPERIMENTAL-4 for containers of the phrase's own length, and
 // the repair, wallet and password modules, all with public vectors.
 //
@@ -61,7 +61,8 @@ const manifest = JSON.parse(read("modules.json").toString());
 // message handler is not used here. Under Node the Emscripten build takes the Node path, which
 // reads `require` and `__dirname` as a CommonJS script would find them; it reads no file, because
 // its WebAssembly is embedded.
-globalThis.self = {};
+// The Argon2 builds are built for a worker and read the worker's location, which no file is loaded from.
+globalThis.self = { location: { href: import.meta.url } };
 globalThis.require = createRequire(import.meta.url);
 globalThis.__dirname = resolve(packageDirectory, "core");
 vm.runInThisContext(read("runtime/worker.js").toString(), { filename: "worker.js" });
@@ -79,6 +80,9 @@ assert.equal(parameters.suiteId, FULL_SUITE);
 assert.equal(parameters.sameLengthSuiteId, SAME_LENGTH_SUITE);
 assert.equal(parameters.maxPim, PAGE_MAX_PIM);
 assert.equal(parameters.highestBrowserMemoryLevel, PAGE_MEMORY_LEVEL);
+// The progress stages and their round totals left the parameters with 0.7.0: a page counts the
+// rounds of its own operation from `rounds`.
+assert.equal(parameters.rounds, 12);
 
 const engine = argon2Engine(await createArgon2St());
 /** The suite defaults that both suites share with suite 3: 2 GiB and 12 passes. */
