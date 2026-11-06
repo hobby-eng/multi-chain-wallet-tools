@@ -1,0 +1,44 @@
+{
+  "package": "sskr",
+  "version": "0.12.0",
+  "source": "https://crates.io/api/v1/crates/sskr/0.12.0/download",
+  "repository": "https://github.com/BlockchainCommons/bc-sskr-rust",
+  "revision": "177cd9305c152b6cc1b9768651e65e7d563b4e8e",
+  "archiveSha256": "0ef3a90a4a282e53765d6ba384c6f7e1ed7c9efef8373d7a71310a0649e6c795",
+  "license": "BSD-2-Clause-Patent",
+  "upstreamFilesSha256": {
+    "Cargo.toml": "a7108cc8ebd1c7a9ae8f38806122870de17f2295a1976239bae5918d9ffa92db",
+    "Cargo.toml.orig": "5bcf6016674d28633b4d87e2d463b171a61418700a4d94fe3e9d3328d1d8ec3f",
+    ".cargo_vcs_info.json": "47436a006737a4b9ba095445eb4437de8b7f8a3d84b60abc4c01b272f88c5260",
+    "LICENSE.md": "d2c043c3d4bfc59d9898cc60366d4a8d26a677d152148859477dd02be24d2acc",
+    "src/lib.rs": "a84d832f6d5d149c829f5e3f10874c3f6e5a8c710a0da5db5a715aafde3594bf",
+    "src/secret.rs": "685e7a218eea9fd11c15ef8a3ee1a407367a769549c37cad7299c7d04c09abaf",
+    "src/encoding.rs": "4073a5466c8fc601e544f6d09231ade4c506f51123849c988096df9d57079f77",
+    "src/share.rs": "40f4689c284ba3d9f0d95b5c46c2497e8c97f533c7722c4e42de598703d38e67",
+    "src/spec.rs": "c1b2eff3daa1c42f672a8b9a9904625b9a953365b8b7ceab4ad8a77ebe19a736",
+    "src/error.rs": "3eeb5410b40263f724d4af2937535dc5a30492de17b77c8ab1534a9f55ed6aa6"
+  },
+  "scope": "Runtime source subset; no upstream examples, CI, Cargo.lock or additional test dependencies.",
+  "changes": [
+    "Secret implements Zeroize, ZeroizeOnDrop and Drop; Debug is redacted.",
+    "Direct bc-shamir result buffers are Zeroizing until copied into another owner or consumed.",
+    "Upstream lib.rs retains the runtime API and doctest; its cfg(test) module is omitted.",
+    "Add deterministic ownership/error-path tests in secret.rs with a cfg(test) pre-free Drop observer.",
+    "Minimal manifest pins existing graph versions; no new crate version, feature or toolchain.",
+    "Error-variant documentation and an equivalent infallible GroupSpec default support existing workspace rules; the unchanged seven-argument metadata constructor needs no lint expectation.",
+    "Format runtime sources with the pinned workspace rustfmt; upstream compact formatting and import order are not retained.",
+    "Use the pinned local bc-shamir 0.13.0 recovery-secret owner.",
+    "Refuse a decoded group index outside its declared group count with GroupIndexInvalid; successful metadata/wire outputs and algorithms are preserved."
+  ],
+  "downstreamSourceSha256": {
+    "Cargo.toml": "d3208e6da5126544ae50a4f657e178d6662c87a7f18cdcbe61c0e75b968cdeb7",
+    "LICENSE.md": "d2c043c3d4bfc59d9898cc60366d4a8d26a677d152148859477dd02be24d2acc",
+    "clippy.toml": "42205e005acff1dd5d36837c3c1a93000bd677f84b81f7722fec94c75e609c46",
+    "src/encoding.rs": "7a4879c14f4277837944f53d1a857e3a4a61d88c6eb498b83cb1f73333b6cc0d",
+    "src/error.rs": "e5870a349193659e0bdae5f57cc10a22e518f37b56894204108b0126132a4391",
+    "src/lib.rs": "be376af622920486442403de7b2a7875174395258e4dac5a4d0ca8c7bd0284d5",
+    "src/secret.rs": "59a04706e87e2675315e42326b2914b14cd49986a55b5f719df7e6d6827c53b9",
+    "src/share.rs": "4615fd979e15998397e209ddb08c3209f43ed08a4d284c0fa19a397be913b01a",
+    "src/spec.rs": "bdeb4fab24e8c833ec0436064898fc828d1e2ae384be7374518a96c24b94634c"
+  }
+}

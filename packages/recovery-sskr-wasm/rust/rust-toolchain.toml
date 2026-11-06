@@ -1,6 +1,6 @@
 # The toolchain of this crate's checks, clippy and rustfmt in pnpm check (RUST-02): the version that
 # its container builds with (Dockerfile.sskr, RUST_VERSION).
 [toolchain]
-channel = "1.99.0"
+channel = "1.99.1"
 components = ["clippy", "rustfmt"]
 profile = "minimal"

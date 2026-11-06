@@ -1,0 +1,27 @@
+[package]
+name = "bc-shamir"
+version = "0.13.0"
+edition = "2024"
+license = "BSD-2-Clause-Patent"
+repository = "https://github.com/BlockchainCommons/bc-shamir-rust"
+description = "Pinned Shamir arithmetic with scoped recovery-secret cleanup."
+publish = false
+
+[dependencies]
+bc-crypto = "=0.14.0"
+bc-rand = "=0.5.0"
+thiserror = "=2.0.21"
+zeroize = "=1.9.1"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+too_many_lines = "deny"
+mod_module_files = "deny"
+undocumented_unsafe_blocks = "deny"

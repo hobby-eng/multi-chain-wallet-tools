@@ -1,0 +1,80 @@
+# Builds the SSKR engine, sskr-wasm/rust, into WebAssembly with pinned tools and no network.
+# scripts/build-sskr-wasm.mjs runs it with sskr-wasm/rust as the build context and turns the
+# output into sskr-wasm/generated. The image is x86-64 (linux/amd64) on every host.
+#
+# What decides the bytes: the base image digest, clang, wasi-libc, Rust, wasm-bindgen, the folder
+# that the crate is built in and the Rust flags below. Each version is declared once here;
+# scripts/verify-toolchain.mjs checks the pins that other files hold too.
+FROM buildpack-deps:noble@sha256:27bdb6ab1ca0df6acfe341752ee4d9c08a341d80e3ee75ccc3b34b79af0dfaf1 AS toolchain
+
+ARG NODE_VERSION=26.12.1
+ARG NODE_ARCHIVE_SHA256=6170b2d474e1c626f43cff3adc118df9fe3b573258a4fc3d850c8dbc6b079bbd
+ARG RUSTUP_VERSION=1.29.2
+ARG RUSTUP_INIT_SHA256=5be191e8c70a5007074254cb74d78dbfdd25cd5a61c27de7b8e5410122ec24f4
+ARG CLANG_VERSION=1:18.0-59~exp2
+ARG WASI_LIBC_VERSION=0.0~git20230113.4362b18-3
+ARG RUST_VERSION=1.99.1
+ARG WASM_BINDGEN_VERSION=0.2.129
+ARG PNPM_VERSION=12.15.0
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends "clang=${CLANG_VERSION}" "wasi-libc=${WASI_LIBC_VERSION}" \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CARGO_HOME=/root/.cargo \
+    RUSTUP_HOME=/root/.rustup \
+    CARGO_NET_GIT_FETCH_WITH_CLI=true \
+    PATH=/root/.cargo/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin \
+    CI=true \
+    CFLAGS_wasm32_unknown_unknown="-I/usr/include/wasm32-wasi -include /usr/include/wasm32-wasi/string.h"
+
+RUN curl --fail --silent --show-error --location \
+      "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+      --output /tmp/node.tar.xz \
+    && echo "${NODE_ARCHIVE_SHA256}  /tmp/node.tar.xz" | sha256sum --check --strict \
+    && tar --extract --xz --file /tmp/node.tar.xz --directory /usr/local --strip-components=1 \
+    && rm /tmp/node.tar.xz \
+    && node --version \
+    && npm --version
+
+RUN curl --fail --silent --show-error --location \
+      "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/x86_64-unknown-linux-gnu/rustup-init" \
+      --output /tmp/rustup-init \
+    && echo "${RUSTUP_INIT_SHA256}  /tmp/rustup-init" | sha256sum --check --strict \
+    && chmod 0755 /tmp/rustup-init \
+    && /tmp/rustup-init -y --profile minimal --default-toolchain "${RUST_VERSION}" --target wasm32-unknown-unknown \
+    && rm /tmp/rustup-init \
+    && cargo --version \
+    && rustc --version
+
+RUN git config --system http.version HTTP/1.1 \
+    && npm install --global "pnpm@${PNPM_VERSION}" \
+    && cargo install wasm-bindgen-cli --version "${WASM_BINDGEN_VERSION}" --locked \
+    && test "$(pnpm --version)" = "${PNPM_VERSION}" \
+    && test "$(cargo --version | cut -d ' ' -f 1-2)" = "cargo ${RUST_VERSION}" \
+    && test "$(wasm-bindgen --version | cut -d ' ' -f 1-2)" = "wasm-bindgen ${WASM_BINDGEN_VERSION}"
+
+FROM toolchain AS dependencies
+# The folder that the crate is built in: its path is part of the bytes, so it stays as it is.
+WORKDIR /workspace/packages/recovery-sskr-wasm/rust
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY vendor ./vendor
+RUN cargo fetch --locked
+
+FROM dependencies AS built
+# Cargo and Rustup homes are written as /cargo and /rustup, taken from their ENV values above, and
+# getrandom takes its randomness from the JavaScript host. Cargo reads the list separated by 0x1F
+# (octal 037).
+RUN --network=none \
+    CARGO_ENCODED_RUSTFLAGS="$(printf '%s\037%s\037%s\037%s\037%s' \
+      "--remap-path-prefix=${CARGO_HOME}=/cargo" \
+      "--remap-path-prefix=${RUSTUP_HOME}=/rustup" \
+      '--remap-path-prefix=/workspace=/workspace' \
+      '--cfg' 'getrandom_backend="wasm_js"')" \
+    cargo build --jobs 1 --target wasm32-unknown-unknown --release --locked --offline \
+    && wasm-bindgen target/wasm32-unknown-unknown/release/recovery_sskr_wasm.wasm \
+      --target web --out-dir /output
+
+FROM scratch AS output
+COPY --from=built /output /

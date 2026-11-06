@@ -6,8 +6,14 @@ filtered against that lockfile; they are not a new upstream license audit. Some
 entries are build-time or platform-specific and need not appear in the WASM binary.
 Crate sources and their license files remain authoritative.
 
-The bridge source is included in `rust/src/lib.rs`, with its manifest and lockfile.
-The MIT copyright and license for the bridge are retained in [LICENSE](LICENSE).
+The license texts of every crate that the WebAssembly links, with their copyright lines, are in
+[LINKED_LICENSES.txt](LINKED_LICENSES.txt), written from the crates' own sources by
+`scripts/sskr-licenses.mjs` and checked by `pnpm check:rust`.
+
+The bridge source is included in `rust/src/` (`lib.rs`, `share_text.rs`, `refusal.rs`), with its
+manifest and lockfile.
+The bridge's copyright and its licenses, MIT or Apache-2.0 at your option, are in
+[LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE).
 `integrity.json` pins the source, manifests and generated JS/WASM files.
 
 ## Locked packages
@@ -34,7 +40,7 @@ The MIT copyright and license for the bridge are retained in [LICENSE](LICENSE).
 | `blake2` | 0.10.6 | MIT OR Apache-2.0 |
 | `block-buffer` | 0.10.4 | MIT OR Apache-2.0 |
 | `bumpalo` | 3.20.3 | MIT OR Apache-2.0 |
-| `cc` | 1.6.0 | MIT OR Apache-2.0 |
+| `cc` | 1.10.0 | MIT OR Apache-2.0 |
 | `cfg-if` | 1.0.5 | MIT OR Apache-2.0 |
 | `chacha20` | 0.9.1 | MIT OR Apache-2.0 |
 | `chacha20poly1305` | 0.10.1 | MIT OR Apache-2.0 |
@@ -45,7 +51,7 @@ The MIT copyright and license for the bridge are retained in [LICENSE](LICENSE).
 | `cpufeatures` | 0.2.17 | MIT OR Apache-2.0 |
 | `crc` | 3.4.0 | MIT OR Apache-2.0 |
 | `crc-catalog` | 2.5.0 | MIT OR Apache-2.0 |
-| `crc32fast` | 1.5.2 | MIT OR Apache-2.0 |
+| `crc32fast` | 1.5.3 | MIT OR Apache-2.0 |
 | `crunchy` | 0.2.4 | MIT |
 | `crypto-common` | 0.1.7 | MIT OR Apache-2.0 |
 | `curve25519-dalek` | 4.1.3 | BSD-3-Clause |
@@ -56,7 +62,7 @@ The MIT copyright and license for the bridge are retained in [LICENSE](LICENSE).
 | `ed25519` | 2.2.3 | Apache-2.0 OR MIT |
 | `ed25519-dalek` | 2.2.0 | BSD-3-Clause |
 | `fiat-crypto` | 0.2.9 | MIT OR Apache-2.0 OR BSD-1-Clause |
-| `find-msvc-tools` | 0.1.14 | MIT OR Apache-2.0 |
+| `find-msvc-tools` | 0.1.15 | MIT OR Apache-2.0 |
 | `futures-core` | 0.3.34 | MIT OR Apache-2.0 |
 | `futures-task` | 0.3.34 | MIT OR Apache-2.0 |
 | `futures-util` | 0.3.34 | MIT OR Apache-2.0 |
@@ -74,7 +80,7 @@ The MIT copyright and license for the bridge are retained in [LICENSE](LICENSE).
 | `inout` | 0.1.4 | MIT OR Apache-2.0 |
 | `js-sys` | 0.3.106 | MIT OR Apache-2.0 |
 | `lazy_static` | 1.5.1 | MIT OR Apache-2.0 |
-| `libc` | 0.2.190 | MIT OR Apache-2.0 |
+| `libc` | 0.2.191 | MIT OR Apache-2.0 |
 | `log` | 0.4.34 | MIT OR Apache-2.0 |
 | `minicbor` | 0.19.1 | BlueOak-1.0.0 |
 | `minicbor-derive` | 0.13.0 | BlueOak-1.0.0 |
@@ -102,13 +108,13 @@ The MIT copyright and license for the bridge are retained in [LICENSE](LICENSE).
 | `rand_core` | 0.9.5 | MIT OR Apache-2.0 |
 | `rand_xoshiro` | 0.6.0 | MIT OR Apache-2.0 |
 | `rand_xoshiro` | 0.7.0 | MIT OR Apache-2.0 |
-| `recovery-sskr-wasm` | 0.1.7 | MIT OR Apache-2.0 (MIT text included in LICENSE) |
+| `recovery-sskr-wasm` | 0.1.9 | MIT OR Apache-2.0 (texts in LICENSE-MIT and LICENSE-APACHE) |
 | `rustc_version` | 0.4.1 | MIT OR Apache-2.0 |
 | `rustversion` | 1.0.23 | MIT OR Apache-2.0 |
 | `salsa20` | 0.10.2 | MIT OR Apache-2.0 |
 | `scrypt` | 0.11.0 | MIT OR Apache-2.0 |
 | `secp256k1` | 0.31.1 | CC0-1.0 |
-| `secp256k1-sys` | 0.11.0 | CC0-1.0 |
+| `secp256k1-sys` | 0.11.0 | CC0-1.0; the C library libsecp256k1 that it compiles is under MIT |
 | `semver` | 1.0.28 | MIT OR Apache-2.0 |
 | `serde` | 1.0.229 | MIT OR Apache-2.0 |
 | `serde_core` | 1.0.229 | MIT OR Apache-2.0 |
@@ -123,13 +129,13 @@ The MIT copyright and license for the bridge are retained in [LICENSE](LICENSE).
 | `subtle` | 2.6.1 | BSD-3-Clause |
 | `syn` | 1.0.109 | MIT OR Apache-2.0 |
 | `syn` | 2.0.119 | MIT OR Apache-2.0 |
-| `syn` | 3.0.6 | MIT OR Apache-2.0 |
+| `syn` | 3.0.9 | MIT OR Apache-2.0 |
 | `thiserror` | 2.0.21 | MIT OR Apache-2.0 |
 | `thiserror-impl` | 2.0.21 | MIT OR Apache-2.0 |
 | `tinyvec` | 1.13.3 | Zlib OR Apache-2.0 OR MIT |
 | `typenum` | 1.20.1 | MIT OR Apache-2.0 |
-| `unicode-ident` | 1.0.26 | (MIT OR Apache-2.0) AND Unicode-3.0 |
-| `unicode-normalization` | 0.1.25 | MIT OR Apache-2.0 |
+| `unicode-ident` | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 |
+| `unicode-normalization` | 0.1.26 | (MIT OR Apache-2.0) AND Unicode-3.0 |
 | `universal-hash` | 0.5.1 | MIT OR Apache-2.0 |
 | `ur` | 0.4.1 | MIT |
 | `version_check` | 0.9.5 | MIT OR Apache-2.0 |
@@ -147,8 +153,8 @@ The MIT copyright and license for the bridge are retained in [LICENSE](LICENSE).
 | `windows-strings` | 0.5.1 | MIT OR Apache-2.0 |
 | `wit-bindgen` | 0.57.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
 | `x25519-dalek` | 2.0.1 | BSD-3-Clause |
-| `zerocopy` | 0.8.62 | BSD-2-Clause OR Apache-2.0 OR MIT |
-| `zerocopy-derive` | 0.8.62 | BSD-2-Clause OR Apache-2.0 OR MIT |
+| `zerocopy` | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT |
+| `zerocopy-derive` | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT |
 | `zeroize` | 1.9.1 | Apache-2.0 OR MIT |
 | `zeroize_derive` | 1.5.0 | MIT OR Apache-2.0 |
 
@@ -206,3 +212,17 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
 TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
+
+## Patched SSKR and Shamir sources
+
+The sskr 0.12.0 runtime source is included in
+[rust/vendor/sskr-0.12.0](rust/vendor/sskr-0.12.0/UPSTREAM.json). Its local
+lifetime patch reuses zeroize 1.9.1 already pinned by the bridge. Its original
+[license](rust/vendor/sskr-0.12.0/LICENSE.md) is retained. Source changes do not
+upgrade any crate or change the SSKR arithmetic or transport formats.
+
+The [bc-shamir 0.13.0 runtime source](rust/vendor/bc-shamir-0.13.0/UPSTREAM.json)
+retains the reconstructed entropy in a zeroizing owner until digest validation
+succeeds. Its original [license](rust/vendor/bc-shamir-0.13.0/LICENSE.md) is
+included. The SSKR decoder also rejects an impossible group index. Provenance
+records bind both source subsets to their registry archives and local files.

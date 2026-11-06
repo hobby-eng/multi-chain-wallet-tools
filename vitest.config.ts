@@ -12,6 +12,11 @@ export default defineConfig({
     alias: [
       // This is an explicit test implementation, not a product path alias.
       { find: "btcutil-js-wasm", replacement: `${root}test/support/btcutil-wasm.ts` },
+      // The bytes of MnemoCode's WebAssembly, which esbuild's binary loader gives the page.
+      {
+        find: "@ckd/mnemocode-wasm/mnemocode.wasm",
+        replacement: `${root}test/support/mnemocode-wasm.ts`,
+      },
       ...Object.entries(tsconfig.compilerOptions.paths).map(([name, targets]) => {
         const target = targets[0]!;
         const wildcard = name.includes("*");

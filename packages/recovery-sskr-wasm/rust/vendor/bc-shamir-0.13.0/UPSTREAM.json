@@ -1,0 +1,37 @@
+{
+  "package": "bc-shamir",
+  "version": "0.13.0",
+  "source": "https://crates.io/api/v1/crates/bc-shamir/0.13.0/download",
+  "repository": "https://github.com/BlockchainCommons/bc-shamir-rust",
+  "revision": "fcf8deb2b0f51566635a7de89ae6d8d6628921c7",
+  "archiveSha256": "d283bf658d34e351bf65dd105a01d2a4e480750b58a218e768cd641a2d0eceb4",
+  "license": "BSD-2-Clause-Patent",
+  "upstreamFilesSha256": {
+    "Cargo.toml": "51b8e5880052e1ddb83b9659ad0b432ebc13c4f11efed04b039090af6b1588a2",
+    "Cargo.toml.orig": "00f748146d1d213771764f037515b216ff665b2931ded41f4ac03e969f716944",
+    ".cargo_vcs_info.json": "84a15b2f3f533fbf4c4032aedc6c4e0650d5439ec47fae350d69b2ad7428ad90",
+    "LICENSE.md": "d2c043c3d4bfc59d9898cc60366d4a8d26a677d152148859477dd02be24d2acc",
+    "src/lib.rs": "fddd846618f313a8e612ff7f7b617894d1e5083936ff3cad363d891d894fa2b0",
+    "src/error.rs": "9b17f440033c42aeec44249022b29f7aa5a4e19b3d15d4567940f6126f5636fb",
+    "src/shamir.rs": "8afcd23c522c0da7114b6abd49defff5c757ed3f662e9d24cf41d2f8dbb4344a",
+    "src/interpolate.rs": "ce4c27ada0a0eee53d6740af24d7341496bfb6721cd0cd2ccfbb640c2e4d867e",
+    "src/hazmat.rs": "691440844b7e5963181798c4ebeb7c49513946353ebe377649ac44b097f25059"
+  },
+  "scope": "Runtime-only pinned source subset; upstream example/CI/randomized test/development dependency graph is omitted. New targeted cleanup tests and existing independent public SSKR vectors remain explicit.",
+  "changes": [
+    "Add a scoped recovery-secret owner and pre-free actual-byte test observer; successful ownership transfer preserves the allocation.",
+    "Add module/error documentation and workspace formatting/lints; no Shamir arithmetic, randomness or successful wire output is intentionally changed.",
+    "Use the already locked zeroize1.9.1 dependency; no new dependency version."
+  ],
+  "downstreamSourceSha256": {
+    "Cargo.toml": "d4b81944f361426ae6ab38407390b766352cde931ae99e060acc395d7d81137d",
+    "LICENSE.md": "d2c043c3d4bfc59d9898cc60366d4a8d26a677d152148859477dd02be24d2acc",
+    "clippy.toml": "42205e005acff1dd5d36837c3c1a93000bd677f84b81f7722fec94c75e609c46",
+    "src/error.rs": "be92191000b5ca57d4c0d7d5967de11d317627a656b306352b9aafe0f7084fac",
+    "src/hazmat.rs": "12cb5ebf51b65e64b8729128b35caff00cf185bcafb3f6c4704d91cefebbb663",
+    "src/interpolate.rs": "9c9d8c4df2a101870cdfcb5f87f5470dbb1fea1c61504df46a1919a09e517ac0",
+    "src/lib.rs": "8da1461a0526add4864754a5a342d1a4b8f1371f0ce7baf84c54fba0ea064b1a",
+    "src/recovery_secret.rs": "bdc3e1c0d72ffb6411c6720e4cf163d508e77a0decc728cab273f3bee27aa0b9",
+    "src/shamir.rs": "a3c0327301038028c1523466ec432ca9493c0fdde1cacde9625893e062681de6"
+  }
+}

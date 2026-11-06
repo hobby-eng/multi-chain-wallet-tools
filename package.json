@@ -5,9 +5,9 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@12.8.1",
+  "packageManager": "pnpm@12.15.0",
   "engines": {
-    "node": ">=26.10.0"
+    "node": ">=26.12.1"
   },
   "scripts": {
     "build": "node tooling/verify-dependency-provenance.mjs && node tooling/verify-wasm-producers.mjs && node tooling/build-html-profiles.mjs",
@@ -30,7 +30,7 @@
     "build:wasm:local": "node tooling/verify-dependency-provenance.mjs && node tooling/build-all-wasm.mjs",
     "metadata:sync": "node tooling/sync-project-metadata.mjs",
     "metadata:check": "node tooling/sync-project-metadata.mjs --check && node tooling/verify-project-facts.mjs",
-    "check": "pnpm metadata:check && tsc --noEmit && node tooling/verify-no-copies.mjs",
+    "check": "pnpm metadata:check && tsc --noEmit && node tooling/verify-no-copies.mjs && node tooling/linked-licenses.mjs --check-locks",
     "format": "prettier --write \"apps/**/*.{ts,mjs,css,html}\" \"packages/**/*.{ts,mjs,css,html}\" \"tooling/**/*.{ts,mjs,css,html}\" \"test/**/*.{ts,mjs,css,html}\" \"*.{ts,mjs,css,html}\" \"**/*.md\" \"docs/**/*.json\" \"!docs/audits/**\"",
     "format:check": "prettier --check \"apps/**/*.{ts,mjs,css,html}\" \"packages/**/*.{ts,mjs,css,html}\" \"tooling/**/*.{ts,mjs,css,html}\" \"test/**/*.{ts,mjs,css,html}\" \"*.{ts,mjs,css,html}\" \"**/*.md\" \"docs/**/*.json\" \"!docs/audits/**\"",
     "audit": "pnpm audit --audit-level high",
@@ -59,14 +59,16 @@
     "release:bundle": "node tooling/verify-dependency-provenance.mjs && node tooling/create-verification-record.mjs --mode bundle && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs",
     "release:bundle:dash-community": "node tooling/verify-dependency-provenance.mjs && node tooling/create-verification-record.mjs --mode bundle && node tooling/create-github-release-assets.mjs --profile dash-community && node tooling/verify-github-release-assets.mjs --profile dash-community",
     "release:sign": "node tooling/verify-dependency-provenance.mjs && node tooling/create-verification-record.mjs --mode bundle && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs && node tooling/sign-release.mjs",
-    "verify:ci": "pnpm format:check && node tooling/sync-project-metadata.mjs --check && node tooling/verify-project-facts.mjs && node tooling/verify-reproducible-container.mjs && node tooling/verify-dependency-provenance.mjs && node tooling/verify-wasm-producers.mjs && tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node apps/key-derivation/scripts/verify-dash-self-test.mjs && node tooling/verify-shielded-wasm.mjs && node tooling/build-html-profiles.mjs && node tooling/verify-reproducible-build.mjs --reuse-generated-wasm && node tooling/verify-artifact-profiles.mjs && node tooling/create-verification-record.mjs --mode ci && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs && node tooling/create-github-release-assets.mjs --profile dash-community && node tooling/verify-github-release-assets.mjs --profile dash-community && node tooling/verify-verification-record.mjs",
-    "verify": "node tooling/sync-project-metadata.mjs --check && node tooling/verify-project-facts.mjs && node tooling/verify-reproducible-container.mjs && node tooling/verify-dependency-provenance.mjs && node tooling/verify-wasm-producers.mjs && tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node apps/key-derivation/scripts/verify-dash-self-test.mjs && node tooling/test-rust.mjs && node tooling/build-html-profiles.mjs && node tooling/verify-shielded-wasm.mjs && node tooling/verify-reproducible-build.mjs --reuse-generated-wasm && node tooling/verify-artifact-profiles.mjs && node tooling/create-verification-record.mjs --mode full && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs && node tooling/create-github-release-assets.mjs --profile dash-community && node tooling/verify-github-release-assets.mjs --profile dash-community && node tooling/verify-verification-record.mjs",
+    "verify:ci": "pnpm format:check && node tooling/sync-project-metadata.mjs --check && node tooling/linked-licenses.mjs --check-locks && node tooling/verify-project-facts.mjs && node tooling/verify-reproducible-container.mjs && node tooling/verify-dependency-provenance.mjs && node tooling/verify-wasm-producers.mjs && tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node apps/key-derivation/scripts/verify-dash-self-test.mjs && node tooling/verify-shielded-wasm.mjs && node tooling/build-html-profiles.mjs && node tooling/verify-reproducible-build.mjs --reuse-generated-wasm && node tooling/verify-artifact-profiles.mjs && node tooling/create-verification-record.mjs --mode ci && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs && node tooling/create-github-release-assets.mjs --profile dash-community && node tooling/verify-github-release-assets.mjs --profile dash-community && node tooling/verify-verification-record.mjs",
+    "verify": "node tooling/sync-project-metadata.mjs --check && node tooling/linked-licenses.mjs --check-locks && node tooling/verify-project-facts.mjs && node tooling/verify-reproducible-container.mjs && node tooling/verify-dependency-provenance.mjs && node tooling/verify-wasm-producers.mjs && tsc --noEmit && vitest run && node tooling/verify-dip13-vectors.mjs && node apps/discovery-scanner/scripts/verify-shielded-stream.mjs && node apps/key-derivation/scripts/verify-self-test.mjs && node apps/key-derivation/scripts/verify-dash-self-test.mjs && node tooling/test-rust.mjs && node tooling/build-html-profiles.mjs && node tooling/verify-shielded-wasm.mjs && node tooling/verify-reproducible-build.mjs --reuse-generated-wasm && node tooling/verify-artifact-profiles.mjs && node tooling/create-verification-record.mjs --mode full && node tooling/create-github-release-assets.mjs && node tooling/verify-github-release-assets.mjs && node tooling/create-github-release-assets.mjs --profile dash-community && node tooling/verify-github-release-assets.mjs --profile dash-community && node tooling/verify-verification-record.mjs",
     "test:browser:files": "node tooling/verify-browser-files.mjs",
     "test:browser:regressions": "node tooling/verify-browser-regressions.mjs",
     "test:browser:selective": "node tooling/verify-selective-browser-smoke.mjs",
     "check:layout": "node tooling/check-layout.mjs",
-    "sync:mnemocode": "node tooling/sync-mnemocode-source.mjs",
-    "verify:mnemocode": "node tooling/sync-mnemocode-source.mjs --check",
+    "sync:mnemocode": "node tooling/sync-mnemocode-wasm.mjs",
+    "licenses:linked": "node tooling/linked-licenses.mjs",
+    "check:licenses": "node tooling/linked-licenses.mjs --check",
+    "verify:mnemocode": "node tooling/sync-mnemocode-wasm.mjs --check",
     "verify:provenance": "node tooling/verify-dependency-provenance.mjs",
     "build:key-derivation": "node tooling/verify-dependency-provenance.mjs && node apps/key-derivation/scripts/build-key-derivation-html.mjs"
   },
@@ -76,29 +78,29 @@
     "@noble/ciphers": "2.4.0",
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
-    "@pdf-lib/fontkit": "1.1.1",
-    "@pdf-lib/upng": "1.0.1",
     "@scure/base": "2.4.0",
     "@scure/bip32": "2.4.0",
     "@scure/bip39": "2.4.0",
     "@scure/btc-signer": "2.4.1",
-    "age-encryption": "0.3.1",
     "btcutil-js": "0.4.2",
     "fflate": "0.8.3",
-    "pdf-lib": "1.17.1",
     "qr": "0.7.2",
     "uqr": "0.1.3",
     "write-excel-file": "4.1.1"
   },
   "devDependencies": {
     "@dashincubator/secp256k1": "1.7.1-5",
+    "@pdf-lib/upng": "1.0.1",
     "dashhd": "3.3.3",
     "dashkeys": "1.1.5",
     "esbuild": "0.28.2",
     "ethers": "6.17.0",
-    "playwright": "1.64.0",
-    "prettier": "3.9.9",
+    "oxlint": "1.89.0",
+    "oxlint-tsgolint": "7.0.2005",
+    "pdf-lib": "1.17.1",
+    "playwright": "1.64.1",
+    "prettier": "3.9.10",
     "typescript": "7.0.2",
-    "vitest": "5.0.3"
+    "vitest": "5.0.5"
   }
 }

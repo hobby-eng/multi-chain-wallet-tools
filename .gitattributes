@@ -9,3 +9,6 @@
 *.ico -text
 *.woff -text
 *.woff2 -text
+
+# Licence texts kept byte for byte as the crates ship them; some use CRLF line endings.
+LINKED_LICENSES.txt -text

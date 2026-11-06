@@ -1,7 +1,7 @@
 use std::fmt;
 use wasm_bindgen::prelude::*;
 
-/// Owned bridge failures; upstream details retain their established messages.
+/// Owned bridge failures; decode refusals never retain upstream input or diagnostics.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refusal {
     /// The encoding code is not supported.
@@ -17,7 +17,7 @@ pub enum Refusal {
     /// The randomness seed has the wrong length.
     Randomness,
     /// A share's transport or CBOR is invalid.
-    Decode(String),
+    Decode,
     /// Upstream splitting failed.
     Generate(String),
     /// Upstream reconstruction failed.
@@ -36,7 +36,7 @@ impl Refusal {
             Self::Specification(_) => "sskr.engine.specification",
             Self::Secret(_) => "sskr.engine.secret",
             Self::Randomness => "sskr.engine.randomness",
-            Self::Decode(_) => "sskr.engine.decode",
+            Self::Decode => "sskr.engine.decode",
             Self::Generate(_) => "sskr.engine.generate",
             Self::Combine(_) => "sskr.engine.combine",
             Self::NoShares => "sskr.engine.no-shares",
@@ -63,10 +63,10 @@ impl fmt::Display for Refusal {
                 std::mem::size_of::<crate::Seed>()
             ),
             Self::NoShares => formatter.write_str(crate::NO_SHARES),
+            Self::Decode => formatter.write_str("The SSKR share could not be decoded."),
             Self::Group(text)
             | Self::Specification(text)
             | Self::Secret(text)
-            | Self::Decode(text)
             | Self::Generate(text)
             | Self::Combine(text) => formatter.write_str(text),
         }
@@ -91,6 +91,7 @@ extern "C" {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error;
 
     #[test]
     fn preserves_messages_and_distinguishes_owned_codes() {
@@ -102,5 +103,14 @@ mod tests {
             Refusal::GroupPairs.code(),
             Refusal::Specification("test".into()).code()
         );
+    }
+
+    #[test]
+    fn decode_has_only_a_stable_safe_message_code_and_debug_value() {
+        let refusal = Refusal::Decode;
+        assert_eq!(refusal.code(), "sskr.engine.decode");
+        assert_eq!(refusal.to_string(), "The SSKR share could not be decoded.");
+        assert_eq!(format!("{refusal:?}"), "Decode");
+        assert!(refusal.source().is_none());
     }
 }

@@ -1,0 +1,6 @@
+# The thresholds and the exceptions of the lints of Cargo.toml (RUST-01): a function stops at 150
+# lines (CORE-15), and tests may unwrap, expect and panic.
+too-many-lines-threshold = 150
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true

@@ -20,6 +20,9 @@
       "@ckd/recovery-sskr-wasm/*": ["./packages/recovery-sskr-wasm/generated/*"],
       "@ckd/recovery-envelope-wasm/*": ["./packages/recovery-envelope-wasm/generated/*"],
       "@ckd/recovery-mhfe-wasm/*": ["./packages/recovery-mhfe-wasm/generated/*"],
+      "@ckd/mnemocode-wasm/*": [
+        "./packages/recovery-mnemocode-wasm/generated/multi-chain/key-derivation/*"
+      ],
       "@ckd/build-info": ["./packages/build-security/src/build-info.ts"],
       "@ckd/verification/*": ["./packages/verification/src/*"],
       "@ckd/self-test": ["./packages/verification/src/self-test.ts"],
@@ -32,7 +35,7 @@
       "@ckd/test-support/*": ["./test/support/*"],
       "@ckd/recovery-codex32-wasm/*": ["./packages/recovery-codex32-wasm/generated/*"]
     },
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "ESNext.Disposable", "DOM", "DOM.Iterable"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,

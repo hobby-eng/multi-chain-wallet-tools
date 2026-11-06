@@ -8,7 +8,12 @@ packages/recovery-codex32-wasm/generated/
 packages/recovery-envelope-wasm/generated/
 packages/recovery-sskr-wasm/generated/
 packages/recovery-mhfe-wasm/generated/
-packages/recovery-mnemocode/source/
+packages/recovery-mnemocode-wasm/generated/
+# Byte-for-byte copies from MHFE and MnemoCode; their intakes check them, not the formatter.
+packages/recovery-mhfe-wasm/notices/THIRD_PARTY_NOTICES.md
+packages/recovery-mnemocode-wasm/THIRD_PARTY_NOTICES.md
+packages/recovery-sskr-wasm/NOTICE.md
+packages/recovery-sskr-wasm/UPSTREAM_NOTICES.md
 .git/
 .github/
 docs/audits/archive/

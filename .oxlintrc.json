@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "import", "oxc", "eslint"],
+  "categories": { "correctness": "error" },
+  "ignorePatterns": [
+    "docs/audits/**",
+    "dist/**",
+    "output/**",
+    "test-results/**",
+    "coverage/**",
+    "**/node_modules/**",
+    "packages/*/generated/**",
+    "packages/recovery-mnemocode/source/**"
+  ],
+  "rules": {
+    "max-lines": ["error", { "max": 800, "skipBlankLines": false, "skipComments": false }],
+    "max-lines-per-function": [
+      "error",
+      { "max": 150, "skipBlankLines": false, "skipComments": false }
+    ],
+    "import/no-cycle": "error",
+    "import/no-default-export": "error",
+    "unicorn/filename-case": ["error", { "case": "kebabCase" }],
+    "no-restricted-properties": [
+      "error",
+      { "property": "innerHTML", "message": "WEB-01: create elements and assign textContent." },
+      { "property": "outerHTML", "message": "WEB-01: create elements and assign textContent." },
+      {
+        "property": "insertAdjacentHTML",
+        "message": "WEB-01: create elements and assign textContent."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.ts", "**/*.mts"],
+      "rules": {
+        "typescript/no-explicit-any": "error",
+        "typescript/no-non-null-assertion": "error",
+        "typescript/no-unsafe-argument": "error",
+        "typescript/no-unsafe-assignment": "error",
+        "typescript/no-unsafe-call": "error",
+        "typescript/no-unsafe-member-access": "error",
+        "typescript/no-unsafe-return": "error"
+      }
+    },
+    {
+      "files": ["apps/**/src/**", "packages/**/src/**"],
+      "rules": { "no-console": "error" }
+    },
+    {
+      "files": ["apps/**/tests/**", "packages/**/tests/**", "test/**"],
+      "rules": { "typescript/no-non-null-assertion": "off" }
+    }
+  ]
+}
