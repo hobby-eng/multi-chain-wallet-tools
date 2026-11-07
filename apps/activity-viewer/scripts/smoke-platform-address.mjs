@@ -2,10 +2,13 @@ import { smokeNetwork, withNodeModule } from "../../../tooling/node-module.mjs";
 import { EvoSDK } from "@dashevo/evo-sdk";
 
 const network = smokeNetwork("Platform Explorer smoke");
-// DIP17 m/9'/5'/17'/0'/0'/0 and m/9'/1'/17'/0'/0'/0 of the public test phrase "abandon … about".
+// Mainnet: a public Platform address with real history, taken from the Platform Explorer index. The
+// test phrase's own mainnet address has never been used, so it has no history to check. Its owner
+// may spend it; the check needs only its history, and Platform keeps a spent address at balance 0.
+// Testnet: DIP17 m/9'/1'/17'/0'/0'/0 of the public test phrase "abandon … about", which has history.
 const knownAddress =
   network === "mainnet"
-    ? "dash1krma5z3ttj75la4m93xcndna9ullamq9y5e9n5rs"
+    ? "dash1kqdatlxnn9yhxdvks8p3a5aehmz7c0cg8uvey6gs"
     : "tdash1kzfj6fvrpza60u6m9u2nhzkthey68v7cqg2u9ymk";
 
 await withNodeModule("packages/dash-network/src/platform-address-history.ts", async (module) => {
