@@ -346,8 +346,8 @@ for (const marker of [
   if (!html.includes(marker))
     throw new Error(`Standalone artifact is missing recovery workspace marker: ${marker}`);
 }
-// One popover per method: eight methods remain in Recover & Back Up.
-if (occurrences(html, "<summary>What is this?</summary>") !== 8) {
+// One popover per method: nine methods are in Recover & Back Up.
+if (occurrences(html, "<summary>What is this?</summary>") !== 9) {
   throw new Error("Every Recover & Back Up method must include one explanatory help popover.");
 }
 if (profile.id === "dash-community") {

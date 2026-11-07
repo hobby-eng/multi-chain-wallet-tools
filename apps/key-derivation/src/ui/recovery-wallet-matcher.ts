@@ -1,8 +1,9 @@
 import { WalletMatcherPlan } from "@ckd/recovery/matcher-plan.js";
 import { installNumberedInput, updateLineNumbers } from "@ckd/ui/dom.js";
 import { MnemonicEntries } from "@ckd/core/mnemonic-entries.js";
-import { DerivationCancelledError, DerivationWorkerClient } from "../workers/derive-client.js";
+import { DerivationCancelledError } from "../workers/derive-client.js";
 import { InputRevision } from "./recovery-input-revision.js";
+import { RecoveryPanelRun } from "./recovery-panel-run.js";
 import { MatcherResults } from "./matcher-results.js";
 import {
   installSecretToggle,
@@ -21,9 +22,8 @@ export class WalletMatcher {
   readonly #seeds: HTMLTextAreaElement;
   readonly #passphrases: HTMLTextAreaElement;
   readonly #inputs: InputRevision;
-  #worker: DerivationWorkerClient | undefined;
+  readonly #run: RecoveryPanelRun;
   #result: MatcherResults | undefined;
-  #running = false;
 
   /** Installs input/output adapters; WalletMatcherPlan owns admission and all computations. */
   constructor(context: RecoveryFeatureContext) {
@@ -40,12 +40,7 @@ export class WalletMatcher {
     document.addEventListener("recovery-source-change", (event) => {
       if (event instanceof CustomEvent && event.detail === "matcher") this.#inputs.revise();
     });
-    context.jobs.onChange((change) => {
-      if (change !== "ready") return;
-      if (!context.jobs.ready) this.#inputs.revise();
-      this.#button.disabled = !context.jobs.ready || this.#running;
-    });
-    this.#button.disabled = !context.jobs.ready;
+    this.#run = new RecoveryPanelRun(context, this.#inputs, this.#button, this.#root);
     this.#button.addEventListener("click", () => void this.#search());
     this.#cancel.addEventListener("click", () => {
       this.#inputs.revise();
@@ -135,35 +130,25 @@ export class WalletMatcher {
   }
 
   #revoke(): void {
-    this.#worker?.terminate(new DerivationCancelledError("Wallet matcher cancelled."));
-    this.#worker = undefined;
-    this.#running = false;
+    this.#run.revoke(new DerivationCancelledError("Wallet matcher cancelled."));
     this.#result?.wipe();
     this.#result = undefined;
     this.#root.replaceChildren();
     this.#root.classList.remove("revealed");
     this.#status.textContent = "";
-    this.#button.disabled = !this.#context.jobs.ready;
     this.#cancel.hidden = true;
   }
 
   async #search(): Promise<void> {
-    if (!this.#context.jobs.ready || this.#running) return;
-    this.#inputs.revise();
-    const inputCurrent = this.#inputs.capture();
-    const ready = this.#context.jobs.captureReadiness();
-    const current = (): boolean => inputCurrent() && ready() && this.#root.isConnected;
-    this.#running = true;
-    this.#button.disabled = true;
+    const run = this.#run.begin();
+    if (run === undefined) return;
+    const { current } = run;
     this.#cancel.hidden = false;
     this.#status.textContent = "Validating recovery inputs…";
-    let worker: DerivationWorkerClient | undefined;
     try {
       using plan = this.#plan();
       if (!current()) return;
-      worker = new DerivationWorkerClient();
-      this.#worker = worker;
-      const outcome = await plan.search(worker, current, (completed, total) => {
+      const outcome = await plan.search(run.worker(), current, (completed, total) => {
         if (current())
           this.#status.textContent = `Scanning ${completed}/${total} wallet structures…`;
       });
@@ -186,13 +171,8 @@ export class WalletMatcher {
       if (current())
         this.#status.textContent = cause instanceof Error ? cause.message : "Wallet search failed.";
     } finally {
-      worker?.terminate();
-      if (this.#worker === worker) this.#worker = undefined;
-      if (current()) {
-        this.#running = false;
-        this.#button.disabled = !this.#context.jobs.ready;
-        this.#cancel.hidden = true;
-      }
+      this.#run.end(run);
+      if (current()) this.#cancel.hidden = true;
     }
   }
 }

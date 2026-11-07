@@ -91,6 +91,18 @@ The startup self-test checks Dash Core v24's `friendship_derivation_matches_key_
 
 The tab has two text inputs of its own. A protocol that needs text inputs is offered only where the form has them, so it is absent from a BIP85 child wallet.
 
+## Multisig wallets
+
+**Recover & Back Up → Multisig wallet** builds a shared Dash P2SH wallet from 2 to 15 cosigners, each a BIP39 phrase with its passphrase or an account xpub/tpub with an optional `[fingerprint/path]` origin. Phrases are taken to their account at Dash Core's signer path `m/44'/coin_type'/account'`, the default and what Dash Core's descriptor multisig uses, or at Purpose48 `m/48'/coin_type'/account'/0'` (Trezor's convention); the master fingerprint becomes the key origin.
+
+For a branch and index, each cosigner's compressed child key goes into `OP_m <keys> OP_n OP_CHECKMULTISIG`, in BIP67 byte order (`sortedmulti`) or in the entered order (`multi`, as `createmultisig` and `addmultisigaddress` write it). Equal keys are refused. The script's HASH160 gives the Dash Core P2SH address (version 16, `7…`; testnet 19, `8…`) and, as DIP18 type `0x80`, the Platform P2SH address (`dash1s…`, `tdash1s…`). Platform spends such an address with exactly this bare multisig script of compressed keys; it would allow 16 keys, but Core's 520-byte P2SH limit caps both at 15. DIP17 and DIP18 define no path for Platform multisig keys, so the `dash1s…` form is the same script, not a path any wallet documents.
+
+The summary gives `sh(sortedmulti(m,[fingerprint/44h/5h/0h]xpub…/branch/*,…))#checksum` for Dash Core's `importdescriptors`. A cosigner given as a phrase also shows its child private key, hidden until revealed; a cosigner given as an xpub shows public keys only.
+
+Shared masternodes (Dash Core v24) are not multisig: two to eight owners each keep their own refund and reward scripts and owner key ID, and the collateral is protected by consensus rules, not by an m-of-n script. Their keys are ordinary wallet addresses, and no DIP9 path exists for them.
+
+The unit tests check BIP67's two-key vector (Dash testnet `8nL86iHTC8K4eVZ6YwyhRWMLhSauj8XQAK`, Bitcoin `39bgKC7RFbpoCRbtD5KEdkYKtNyhpsNa3Z`), DIP18's P2SH encoding vector, Bitcoin Core's `wsh(multi)` and `sh(wsh(multi))` descriptor vectors, and that phrases and their xpubs give the same wallet.
+
 ## Masternode keys
 
 The **Masternode DIP9** tab derives the keys of one masternode per index under DIP9's feature `3'`:

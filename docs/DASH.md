@@ -37,6 +37,8 @@ Identity funding keys are Dash Core keys, not Identity keys. An identity is regi
 
 DashPay payments are on Dash Core too. A contact pays you on addresses derived from your recovery phrase, your identity ID and the contact's identity ID (DIP15); the Deriver shows them when you enter both IDs. What you paid the contact is on the contact's chain and cannot be derived from your phrase.
 
+A shared multisig wallet is built in Recover & Back Up from its cosigners' phrases or xpubs: its Dash Core `7…` addresses and the Platform `dash1s…` addresses of the same scripts. Shared masternodes are a different thing: their owners keep separate ordinary addresses, not one multisig address.
+
 Masternode keys are derived too: the owner and voting keys, the operator's BLS key and an Evonode's Ed25519 Platform node key, on the DIP9 paths that the Dash mobile wallets and the Platform wallet use. Dash Core itself takes these keys from wherever they come and does not derive them from a recovery phrase.
 
 ### Orchard

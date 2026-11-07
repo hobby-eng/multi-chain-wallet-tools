@@ -4,6 +4,7 @@ import type { DerivationResult } from "@ckd/core/types.js";
 import type { CompactMessageSignature } from "@ckd/core/compact-message.js";
 import type { SilentPaymentResult } from "./silent-payment.js";
 import type { Bip85RequestOptions, Bip85Result } from "@ckd/core/bip85-parameters.js";
+import type { MultisigWalletOptions } from "@ckd/coins/multisig-wallet.js";
 
 export interface Bip38EncryptionResult {
   encryptedKey: string;
@@ -66,6 +67,7 @@ export type WorkerRequest =
       labelIndexes?: readonly number[];
     }
   | { id: number; type: "bip85"; seed: Uint8Array; options: Bip85RequestOptions }
+  | { id: number; type: "multisig"; seeds: Uint8Array[]; options: MultisigWalletOptions }
   | {
       id: number;
       type: "bip38-encrypt";
@@ -84,6 +86,7 @@ type WorkerSuccess =
   | { id: number; ok: true; type: "sign-message"; result: CompactMessageSignature }
   | { id: number; ok: true; type: "silent-payment"; result: SilentPaymentResult }
   | { id: number; ok: true; type: "bip85"; result: Bip85Result }
+  | { id: number; ok: true; type: "multisig"; result: DerivationResult }
   | { id: number; ok: true; type: "bip38-encrypt"; result: Bip38EncryptionResult }
   | { id: number; ok: true; type: "self-test"; result: CryptoSelfTestReport };
 

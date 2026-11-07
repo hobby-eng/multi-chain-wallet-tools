@@ -4,6 +4,7 @@ import { runLocalSearchSelfTest } from "@ckd/verification/local-search-self-test
 import { startDerivationWorker } from "./worker-runtime.js";
 import { encryptDerivedP2pkhKey } from "./bip38-encrypter-dash.js";
 import { signDerivedMessage } from "./message-signer-dash.js";
+import { deriveMultisigWallet } from "./multisig-wallet-dash.js";
 import { runDashBip38FullSelfTest } from "./bip38-self-test-dash.js";
 import { runDashMessageSigningSelfTest } from "./message-signer-self-test-dash.js";
 import { runDashMasternodeFullSelfTest } from "./masternode-self-test-dash.js";
@@ -15,4 +16,5 @@ startDerivationWorker({
   fullSelfTests: [runDashBip38FullSelfTest, runDashMasternodeFullSelfTest],
   encryptDerivedP2pkhKey,
   signDerivedMessage,
+  deriveMultisigWallet,
 });

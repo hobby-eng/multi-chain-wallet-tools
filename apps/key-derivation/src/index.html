@@ -456,6 +456,16 @@
             type="button"
             role="tab"
             aria-selected="false"
+            aria-controls="multisig-panel"
+            data-recovery-tab
+          >
+            Multisig wallet
+          </button>
+          <button
+            class="recovery-subtab"
+            type="button"
+            role="tab"
+            aria-selected="false"
             aria-controls="seedqr-panel"
             data-recovery-tab
           >
@@ -659,6 +669,168 @@
           </div>
           <p id="wallet-matcher-status" class="status" role="status" aria-live="polite"></p>
           <div id="wallet-matcher-results" class="matcher-results"></div>
+        </section>
+        <section id="multisig-panel" class="panel recovery-panel" role="tabpanel" data-recovery-panel hidden>
+          <div class="section-head">
+            <div>
+              <span class="step">02</span>
+              <h2>Multisig wallet</h2>
+            </div>
+          </div>
+          <details class="recovery-help">
+            <summary>What is this?</summary>
+            <div class="recovery-help-popover">
+              <h3>Multisig wallet</h3>
+              <p>
+                Builds the addresses of a shared m-of-n wallet from its cosigners: each one a BIP39 recovery phrase,
+                with its passphrase, or an account extended public key. It shows each address, the multisig script,
+                every cosigner's child key and the watch-only descriptor, so that a lost wallet can be found and
+                checked.
+              </p>
+              <p>
+                Holding every cosigner's phrase in one place undoes what multisig protects against. Use it offline, for
+                recovery and checking.
+              </p>
+            </div>
+          </details>
+          <p class="field-note">
+            One cosigner per numbered line: a recovery phrase, or an account xpub or tpub, optionally written
+            <code>[fingerprint/path]xpub…</code>. The passphrase on the same numbered line belongs to that phrase; leave
+            it empty for an xpub or when no passphrase was used.
+          </p>
+          <button
+            id="toggle-multisig-secrets"
+            class="danger-outline compact matcher-secret-toggle"
+            type="button"
+            aria-pressed="false"
+          >
+            Show lists
+          </button>
+          <div class="matcher-input-grid">
+            <div>
+              <label for="multisig-cosigners">Cosigners</label>
+              <div class="numbered-textarea">
+                <pre id="multisig-cosigner-lines" aria-hidden="true"></pre>
+                <textarea
+                  id="multisig-cosigners"
+                  class="concealed matcher-entry-textarea"
+                  rows="6"
+                  wrap="off"
+                  autocomplete="off"
+                  autocapitalize="none"
+                  spellcheck="false"
+                  placeholder="One recovery phrase or account xpub per line"
+                ></textarea>
+              </div>
+            </div>
+            <div>
+              <label for="multisig-passphrases">BIP39 passphrases <span class="optional">optional</span></label>
+              <div class="numbered-textarea">
+                <pre id="multisig-passphrase-lines" aria-hidden="true"></pre>
+                <textarea
+                  id="multisig-passphrases"
+                  class="concealed matcher-entry-textarea"
+                  rows="6"
+                  wrap="off"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Line 1 belongs to cosigner 1, and so on"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="matcher-range-grid">
+            <div>
+              <label for="multisig-scheme">Address type</label>
+              <select id="multisig-scheme">
+                <option value="dash-p2sh" data-coin="dash">Dash · P2SH, Core 7… and Platform dash1s…</option>
+                <option value="bitcoin-p2wsh" data-coin="bitcoin">Bitcoin · P2WSH (bc1q…)</option>
+                <option value="bitcoin-p2sh-p2wsh" data-coin="bitcoin">Bitcoin · P2SH-P2WSH (3…)</option>
+                <option value="bitcoin-p2sh" data-coin="bitcoin">Bitcoin · legacy P2SH (3…)</option>
+              </select>
+            </div>
+            <div>
+              <label for="multisig-network">Network</label
+              ><select id="multisig-network">
+                <option value="mainnet">Mainnet</option>
+                <option value="testnet">Testnet</option>
+              </select>
+            </div>
+            <div>
+              <label for="multisig-required">Signatures required</label
+              ><input id="multisig-required" type="number" value="2" min="1" max="20" step="1" />
+            </div>
+            <div>
+              <label for="multisig-path">Cosigner path of the phrases</label>
+              <select id="multisig-path">
+                <option value="core" data-coin="dash" data-scheme="dash-p2sh">
+                  Dash Core signer · m/44'/5'/account'
+                </option>
+                <option value="purpose48" data-coin="dash" data-scheme="dash-p2sh">
+                  Purpose48 · m/48'/5'/account'/0'
+                </option>
+                <option value="bip48-2" data-coin="bitcoin" data-scheme="bitcoin-p2wsh">
+                  BIP48 · m/48'/0'/account'/2'
+                </option>
+                <option value="bip48-1" data-coin="bitcoin" data-scheme="bitcoin-p2sh-p2wsh">
+                  BIP48 · m/48'/0'/account'/1'
+                </option>
+                <option value="bip48-0" data-coin="bitcoin" data-scheme="bitcoin-p2sh">
+                  Trezor legacy · m/48'/0'/account'/0'
+                </option>
+                <option value="electrum-45" data-coin="bitcoin" data-scheme="bitcoin-p2sh">
+                  Electrum legacy · m/45'/0
+                </option>
+              </select>
+            </div>
+            <div>
+              <label for="multisig-account">Account</label
+              ><input id="multisig-account" type="number" value="0" min="0" max="2147483647" step="1" />
+            </div>
+            <div>
+              <label for="multisig-order">Key order</label>
+              <select id="multisig-order">
+                <option value="sorted">Sorted (BIP67, sortedmulti)</option>
+                <option value="entered">As entered (createmultisig)</option>
+              </select>
+            </div>
+            <div>
+              <label for="multisig-branch">Addresses</label>
+              <select id="multisig-branch">
+                <option value="0">Receive (branch 0)</option>
+                <option value="1">Change (branch 1)</option>
+              </select>
+            </div>
+            <div>
+              <label for="multisig-start">Start index</label
+              ><input id="multisig-start" type="number" value="0" min="0" max="2147483647" step="1" />
+            </div>
+            <div>
+              <label for="multisig-count">Number of addresses</label
+              ><input id="multisig-count" type="number" value="20" min="1" max="1000" step="1" />
+            </div>
+          </div>
+          <p class="field-note">
+            The coin type in a path is that of the selected network: 1' on testnet. The key order changes the address;
+            check it against the wallet that made the multisig.
+          </p>
+          <div class="actions">
+            <button class="primary" id="run-multisig" type="button">Build multisig wallet</button>
+          </div>
+          <p id="multisig-status" class="status" role="status" aria-live="polite"></p>
+          <div id="multisig-output" class="multisig-output" hidden>
+            <div class="result-toolbar">
+              <label class="feature-tab-toggle" for="multisig-advanced"
+                ><input id="multisig-advanced" type="checkbox" /><span>Advanced details</span></label
+              >
+              <button class="danger-outline compact" id="toggle-multisig-private" type="button" aria-pressed="false">
+                Show private keys
+              </button>
+            </div>
+            <div id="multisig-summary"></div>
+            <div id="multisig-results"></div>
+            <div id="multisig-notices" class="notices"></div>
+          </div>
         </section>
 
         <section

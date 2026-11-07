@@ -211,6 +211,16 @@ export function selectedWorkerEntry(root, profile, features) {
       "signDerivedMessage",
       features.hasCoin("bitcoin") ? "message-signer.ts" : "message-signer-dash.ts",
     ],
+    [
+      "multisig",
+      "deriveMultisigWallet",
+      // Each coin's schemes come only with the coin.
+      features.hasCoin("bitcoin")
+        ? features.hasCoin("dash")
+          ? "multisig-wallet.ts"
+          : "multisig-wallet-bitcoin.ts"
+        : "multisig-wallet-dash.ts",
+    ],
   ];
   if (features.has("bip85")) {
     imports.push(
@@ -363,6 +373,15 @@ const featureSourceMarkers = {
     "/wallet-recovery/src/matcher-scope.ts",
     "/wallet-recovery/src/matcher-secrets.ts",
     ...LOCAL_SEARCH_SELF_TEST.sourceMarkers,
+  ],
+  multisig: [
+    "/recovery-multisig.ts",
+    "apps/key-derivation/src/workers/multisig-wallet.ts",
+    "apps/key-derivation/src/workers/multisig-wallet-dash.ts",
+    "apps/key-derivation/src/workers/multisig-wallet-bitcoin.ts",
+    "/coin-protocols/src/coins/multisig-wallet.ts",
+    "/coins/dash/multisig-wallet.ts",
+    "/coins/bitcoin/multisig-wallet.ts",
   ],
   seedqr: ["/recovery-seedqr.ts", "/recovery-backup/src/seedqr.ts", "/self-test-seedqr.ts"],
   mnemocode: [

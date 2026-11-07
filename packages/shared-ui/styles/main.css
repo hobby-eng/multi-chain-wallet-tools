@@ -759,6 +759,15 @@ textarea.concealed {
 .span-three {
   grid-column: 1 / -1;
 }
+/* The Multisig wallet's display switches above its result cards. */
+#multisig-output .result-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 10px;
+}
 /* A protocol's own text inputs, such as DashPay's two identity IDs, side by side where they fit. */
 #protocol-text-controls {
   display: grid;

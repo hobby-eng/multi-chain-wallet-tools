@@ -3,6 +3,7 @@ import { runDerivationSelfTest } from "@ckd/derivation-self-test";
 import { runLocalSearchSelfTest } from "@ckd/verification/local-search-self-test.js";
 import { startDerivationWorker } from "./worker-runtime.js";
 import { deriveSilentPayment } from "./silent-payment.js";
+import { deriveMultisigWallet } from "./multisig-wallet.js";
 import { Bip85 } from "@ckd/core/bip85.js";
 import { encryptDerivedP2pkhKey } from "./bip38-encrypter.js";
 import { signDerivedMessage } from "./message-signer.js";
@@ -37,4 +38,5 @@ startDerivationWorker({
   deriveSilentPayment,
   deriveBip85: (seed, options) => Bip85.derive(seed, options),
   encryptDerivedP2pkhKey,
+  deriveMultisigWallet,
 });

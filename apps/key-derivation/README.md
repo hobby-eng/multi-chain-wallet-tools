@@ -59,6 +59,12 @@ BIP48 itself specifies script types `1'` and `2'` for SegWit multisig; this tool
 
 Use the origin-tagged account xpub from the selected variant as one cosigner input in the PSBT & Multisig Inspector utility. The inspector also accepts the complete checksummed public Dash Core `pkh` signer descriptor and extracts its account xpub. It combines all cosigner xpubs to build the shared M-of-N P2SH address range. The signer's ordinary P2PKH addresses are not part of that shared wallet.
 
+### Multisig wallet
+
+**Recover & Back Up → Multisig wallet** builds a shared m-of-n wallet in the Deriver itself. Each numbered cosigner line is a BIP39 recovery phrase, with the passphrase on the same numbered line, or an account `xpub`/`tpub`, optionally written `[fingerprint/path]xpub…`. A phrase is taken to its account at the chosen cosigner path; Dash offers the Dash Core signer path `m/44'/coin'/account'` and Purpose48 `m/48'/coin'/account'/0'`. Each address of the chosen branch and index range shows the Dash Core P2SH address (`7…`, testnet `8…`) and the Platform P2SH address of the same script (`dash1s…`, testnet `tdash1s…`); Advanced mode adds the script and the keys in script order. Every cosigner's child public key is shown, and for a phrase its child private key, hidden until private keys are revealed. The summary gives the checksummed watch-only descriptor `sh(sortedmulti(…))` or `sh(multi(…))` for Dash Core's `importdescriptors`. The Multi-Chain Edition also builds Bitcoin P2WSH (BIP48 `2'`), P2SH-P2WSH (BIP48 `1'`) and legacy P2SH (Trezor `m/48'/0'/account'/0'` or Electrum `m/45'/0`).
+
+Key order changes the address: sorted (BIP67, `sortedmulti`) is what descriptor wallets use; Dash Core's `createmultisig` and `addmultisigaddress` keep the given order, which **As entered** reproduces. A repeated cosigner is refused, as it silently lowers the real threshold. P2SH admits 15 compressed keys (a 520-byte redeem script), P2WSH 20. Holding every cosigner's phrase in one place undoes what multisig protects against, so the tab is meant for offline recovery and checking.
+
 ### Account descriptor export
 
 Enter `0` explicitly for account or start index zero. An empty field is refused. Numeric controls accept decimal notation, including an exponent when its value is a whole number; hexadecimal, binary and octal prefixes are refused.
@@ -81,7 +87,7 @@ pnpm build:key-derivation -- --profile dash-community --exclude mnemocode,slip39
 pnpm build:key-derivation -- --profile multi-chain --features derive,bip85,seedqr,slip39 --exclude slip39
 ```
 
-`--features` starts from the named allowlist; `--exclude` starts from the edition's complete set and removes names. When both are present, exclusions are applied after the allowlist. The base `derive` feature is required. Available names are `derive`, `bip85`, `silent-payments`, `bip38-encrypt`, `message-signing`, `wallet-matcher`, `seedqr`, `mnemocode`, `mnemocode-cards`, `mhfe`, `slip39`, `codex32`, `sskr`, and `gordian-envelope`. `silent-payments` is available only in the multi-chain edition. Use `--output path/file.html` to choose a custom output path.
+`--features` starts from the named allowlist; `--exclude` starts from the edition's complete set and removes names. When both are present, exclusions are applied after the allowlist. The base `derive` feature is required. Available names are `derive`, `bip85`, `silent-payments`, `bip38-encrypt`, `message-signing`, `wallet-matcher`, `multisig`, `seedqr`, `mnemocode`, `mnemocode-cards`, `mhfe`, `slip39`, `codex32`, `sskr`, and `gordian-envelope`. `silent-payments` is available only in the multi-chain edition. Use `--output path/file.html` to choose a custom output path.
 
 ## The executable version
 

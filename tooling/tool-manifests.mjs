@@ -17,6 +17,7 @@ export const TOOL_MANIFESTS = Object.freeze({
       "bip38-encrypt",
       "message-signing",
       "wallet-matcher",
+      "multisig",
       "seedqr",
       "mnemocode",
       "mnemocode-cards",

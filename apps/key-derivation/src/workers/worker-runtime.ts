@@ -8,7 +8,8 @@ import type { WorkerMessage, WorkerRequest } from "./protocol.js";
 import type { SilentPaymentResult } from "./silent-payment.js";
 import type { Bip85RequestOptions, Bip85Result } from "@ckd/core/bip85-parameters.js";
 import type { MessageSigningFormat } from "./protocol.js";
-import type { ResultField } from "@ckd/core/types.js";
+import type { DerivationResult, ResultField } from "@ckd/core/types.js";
+import type { MultisigWalletOptions } from "@ckd/coins/multisig-wallet.js";
 
 interface WorkerScope {
   addEventListener(type: "message", listener: (event: MessageEvent<WorkerRequest>) => void): void;
@@ -59,6 +60,10 @@ interface WorkerDependencies {
     labelIndexes?: readonly number[],
   ): Promise<SilentPaymentResult>;
   deriveBip85?(seed: Uint8Array, options: Bip85RequestOptions): Bip85Result;
+  deriveMultisigWallet?(
+    seeds: readonly Uint8Array[],
+    options: MultisigWalletOptions,
+  ): DerivationResult;
   encryptDerivedP2pkhKey?(
     this: void,
     privateKey: Uint8Array,
@@ -127,6 +132,22 @@ export function startDerivationWorker(dependencies: WorkerDependencies): void {
             workerScope.postMessage({ id: request.id, ok: true, type: "silent-payment", result });
           } finally {
             request.seed.fill(0);
+          }
+          return;
+        }
+        if (request.type === "multisig") {
+          try {
+            if (dependencies.deriveMultisigWallet === undefined)
+              throw new Error("Multisig wallets are unavailable in this build profile.");
+            const result = dependencies.deriveMultisigWallet(request.seeds, request.options);
+            try {
+              DerivationSecrets.take(result);
+              workerScope.postMessage({ id: request.id, ok: true, type: "multisig", result });
+            } finally {
+              clearDerivationResult(result);
+            }
+          } finally {
+            for (const seed of request.seeds) seed.fill(0);
           }
           return;
         }

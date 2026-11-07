@@ -5,6 +5,7 @@ import { MnemoCodeShareFormsCase } from "./browser-cases/mnemocode-share-forms.m
 import { MnemoCodeSelfTestCase } from "./browser-cases/mnemocode-self-test.mjs";
 import { MnemoCodeCrossStitchCase } from "./browser-cases/mnemocode-cross-stitch.mjs";
 import { MhfeSeveralPasswordsCase } from "./browser-cases/mhfe-several-passwords.mjs";
+import { DashKeysAndMultisigCase } from "./browser-cases/dash-keys-and-multisig.mjs";
 import { MnemoCodeShareHintsCase } from "./browser-cases/mnemocode-share-hints.mjs";
 import { MnemoCodeSourceHintsCase } from "./browser-cases/mnemocode-source-hints.mjs";
 // Synthetic, direct-file integration tests. Never point this at a live browser profile.
@@ -234,6 +235,11 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
         execute: (context, run) => selfTestFailure(context, profile, run),
       });
       cases.push({ name: "coinjoin", execute: (context, run) => coinJoin(context, profile, run) });
+      cases.push({
+        name: "dash-keys-and-multisig",
+        execute: (context, run) =>
+          DashKeysAndMultisigCase.run(context, profile, run, open, BrowserHarness.storageSnapshot),
+      });
       cases.push({
         name: "bip38-lifecycle",
         execute: (context, run) => bip38Lifecycle(context, profile, run),

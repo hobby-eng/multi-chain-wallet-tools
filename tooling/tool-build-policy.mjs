@@ -65,7 +65,7 @@ export class ToolBuildPolicy {
       if (this.#toolId !== "key-derivation") return true;
       if (feature === "silent-payments")
         return this.#profile.capabilities.bitcoinSilentPayments && coins.includes("bitcoin");
-      if (feature === "bip38-encrypt" || feature === "message-signing")
+      if (feature === "bip38-encrypt" || feature === "message-signing" || feature === "multisig")
         return coins.includes("bitcoin") || coins.includes("dash");
       return true;
     });
@@ -115,6 +115,8 @@ export class ToolBuildPolicy {
         !coins.includes("dash")
       )
         refuse("BIP38 encryption and message signing require Bitcoin or Dash.");
+      if (selected.has("multisig") && !coins.includes("bitcoin") && !coins.includes("dash"))
+        refuse('The "multisig" feature requires Bitcoin or Dash.');
     }
     if (this.#toolId === "discovery-scanner") {
       if (!selected.has("seed-discovery") && !selected.has("watch-only-discovery"))

@@ -184,6 +184,7 @@ export const installMessageSigningFeature = createMessageSigningInstaller(${poli
           // Each module exports `recoveryFeature`; the order is the order of installation.
           const files = [
             ["wallet-matcher", "recovery-wallet-matcher.ts"],
+            ["multisig", "recovery-multisig.ts"],
             ["seedqr", "recovery-seedqr.ts"],
             ["mnemocode", "recovery-mnemocode.ts"],
             ["mnemocode-cards", "recovery-mnemocode-cards.ts"],

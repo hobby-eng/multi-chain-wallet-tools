@@ -6,6 +6,7 @@ import { recoveryFeature as gordianEnvelope } from "./recovery-gordian-envelope.
 import { recoveryFeature as mhfe } from "./recovery-mhfe.js";
 import { recoveryFeature as mnemoCode } from "./recovery-mnemocode.js";
 import { recoveryFeature as mnemoCodeCards } from "./recovery-mnemocode-cards.js";
+import { recoveryFeature as multisig } from "./recovery-multisig.js";
 import { recoveryFeature as seedQr } from "./recovery-seedqr.js";
 import { recoveryFeature as slip39 } from "./recovery-slip39.js";
 import { recoveryFeature as sskr } from "./recovery-sskr.js";
@@ -13,6 +14,7 @@ import { recoveryFeature as walletMatcher } from "./recovery-wallet-matcher.js";
 
 export const selectedRecoveryFeatures: readonly RecoveryFeature[] = [
   walletMatcher,
+  multisig,
   seedQr,
   mnemoCode,
   mnemoCodeCards,

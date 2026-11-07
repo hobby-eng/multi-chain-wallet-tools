@@ -13,6 +13,7 @@ import type { CompactMessageSignature } from "@ckd/core/compact-message.js";
 import type { SilentPaymentResult } from "./silent-payment.js";
 import type { Bip85RequestOptions, Bip85Result } from "@ckd/core/bip85-parameters.js";
 import type { Bip38EncryptionResult } from "./protocol.js";
+import type { MultisigWalletOptions } from "@ckd/coins/multisig-wallet.js";
 import { EmbeddedWorkerResource } from "@ckd/ui/embedded-worker-resource.js";
 import { DerivationSecrets } from "@ckd/core/secrets.js";
 
@@ -98,14 +99,17 @@ export class DerivationWorkerClient {
       }
       const pending = this.#pending.get(response.id);
       if (pending === undefined) {
-        if (response.ok && response.type === "derive") DerivationSecrets.clear(response.result);
+        if (response.ok && (response.type === "derive" || response.type === "multisig"))
+          DerivationSecrets.clear(response.result);
         return;
       }
       this.#pending.delete(response.id);
       if (response.ok) {
         try {
           pending.resolve(
-            response.type === "derive" ? DerivationSecrets.take(response.result) : response.result,
+            response.type === "derive" || response.type === "multisig"
+              ? DerivationSecrets.take(response.result)
+              : response.result,
           );
         } catch (cause) {
           pending.reject(
@@ -228,6 +232,18 @@ export class DerivationWorkerClient {
         ...(labelIndexes === undefined ? {} : { labelIndexes }),
       },
       [seed.buffer],
+    );
+  }
+
+  /** Builds a multisig wallet; the seeds are copied and the copies move to the worker. */
+  async deriveMultisigWallet(
+    seedInputs: readonly Uint8Array[],
+    options: MultisigWalletOptions,
+  ): Promise<DerivationResult> {
+    const seeds = seedInputs.map((seed) => seed.slice());
+    return this.#request<DerivationResult>(
+      { id: this.#nextId, type: "multisig", seeds, options },
+      seeds.map(({ buffer }) => buffer),
     );
   }
 
