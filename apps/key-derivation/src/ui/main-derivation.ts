@@ -234,6 +234,6 @@ export class MainDerivation {
       );
       return;
     }
-    view.showError(DerivationErrorText.of(cause));
+    view.showError(DerivationErrorText.of(cause, undefined, this.#options.adapter().inputMessages));
   }
 }

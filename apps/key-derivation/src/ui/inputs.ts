@@ -36,6 +36,8 @@ export interface DerivationControls {
   countLabel: HTMLLabelElement;
   count: HTMLInputElement;
   preview: HTMLElement;
+  /** Holds a protocol's text inputs; a host without it does not offer such protocols. */
+  textControls?: HTMLElement;
 }
 
 import type { DerivationParameters as DerivationControlValues } from "@ckd/coins/derivation-request.js";
@@ -82,7 +84,9 @@ export class DerivationControlsView {
     const family = registry.getCoinFamily(registry.getAdapterFamilyId(adapter));
     const showHidden = controls.includeLegacyMobile.checked;
     for (const variant of family.adapters.filter(
-      (candidate) => !candidate.hiddenByDefault || showHidden || candidate.id === adapter.id,
+      (candidate) =>
+        (!candidate.hiddenByDefault || showHidden || candidate.id === adapter.id) &&
+        (candidate.textControls === undefined || controls.textControls !== undefined),
     )) {
       const button = document.createElement("button");
       const selected = variant.id === adapter.id;
@@ -198,7 +202,48 @@ export class DerivationControlsView {
     controls.includeChange.checked = adapter.addressBranches !== undefined && values.includeChange;
     controls.coinJoinField.hidden = adapter.coinJoin === undefined;
     controls.includeCoinJoin.checked = adapter.coinJoin !== undefined && values.includeCoinJoin;
+    DerivationControlsView.#renderTextControls(adapter, controls, values.text);
     DerivationControlsView.updatePathPreview(adapter, controls);
+  }
+
+  /** One labelled text input per text control of the protocol, with its remembered value. */
+  static #renderTextControls(
+    adapter: CoinAdapter,
+    controls: DerivationControls,
+    values: Readonly<Record<string, string>> | undefined,
+  ): void {
+    const host = controls.textControls;
+    if (host === undefined) return;
+    host.replaceChildren();
+    host.hidden = adapter.textControls === undefined;
+    const document = host.ownerDocument;
+    for (const control of adapter.textControls ?? []) {
+      const field = document.createElement("div");
+      field.className = "protocol-text-control";
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.id = `protocol-text-${control.key}`;
+      input.type = "text";
+      input.dataset.textKey = control.key;
+      input.placeholder = control.placeholder;
+      input.maxLength = control.maxLength;
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      input.value = values?.[control.key] ?? "";
+      label.htmlFor = input.id;
+      label.textContent = control.label;
+      field.append(label, input);
+      host.append(field);
+    }
+  }
+
+  static #readTextControls(controls: DerivationControls): Record<string, string> {
+    const text: Record<string, string> = {};
+    for (const input of controls.textControls?.querySelectorAll<HTMLInputElement>(
+      "input[data-text-key]",
+    ) ?? [])
+      text[input.dataset.textKey!] = input.value;
+    return text;
   }
 
   /** Translate native controls only; the library admits every derivation setting. */
@@ -214,6 +259,7 @@ export class DerivationControlsView {
       count: controls.count.value,
       includeChange: controls.includeChange.checked,
       includeCoinJoin: controls.includeCoinJoin.checked,
+      text: DerivationControlsView.#readTextControls(controls),
     });
   }
 

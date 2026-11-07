@@ -569,6 +569,8 @@ export class KeyDerivationController {
       this.#view.controls.includeCoinJoin,
       this.#view.controls.start,
       this.#view.controls.count,
+      // A protocol's text inputs are rendered per protocol; their edits bubble to this host.
+      ...(this.#view.controls.textControls === undefined ? [] : [this.#view.controls.textControls]),
     ]) {
       const refresh = (): void => {
         // Changing a derivation setting revokes its generation too; discard the worker now.

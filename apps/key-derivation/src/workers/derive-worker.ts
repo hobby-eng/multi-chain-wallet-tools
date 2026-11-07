@@ -14,6 +14,7 @@ import {
   runBitcoinMessageSigningSelfTest,
 } from "./message-signer-self-test-bitcoin.js";
 import { runDashMessageSigningSelfTest } from "./message-signer-self-test-dash.js";
+import { runDashMasternodeFullSelfTest } from "./masternode-self-test-dash.js";
 import { runSilentPaymentSelfTest } from "./silent-payment-self-test.js";
 
 startDerivationWorker({
@@ -26,7 +27,12 @@ startDerivationWorker({
     runBitcoinMessageSigningSelfTest,
     runDashMessageSigningSelfTest,
   ],
-  fullSelfTests: [runBip322FullSelfTest, runBitcoinBip38FullSelfTest, runDashBip38FullSelfTest],
+  fullSelfTests: [
+    runBip322FullSelfTest,
+    runBitcoinBip38FullSelfTest,
+    runDashBip38FullSelfTest,
+    runDashMasternodeFullSelfTest,
+  ],
   signDerivedMessage,
   deriveSilentPayment,
   deriveBip85: (seed, options) => Bip85.derive(seed, options),

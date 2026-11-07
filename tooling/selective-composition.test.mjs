@@ -337,14 +337,19 @@ describe("selective bundle graph guards", () => {
     const dashWorker = selectedWorkerEntry("/workspace", profile, options(["dash"], all));
     expect(dashWorker).toContain("message-signer-self-test-dash.ts");
     expect(dashWorker).toContain("bip38-self-test-dash.ts");
+    expect(dashWorker).toContain("masternode-self-test-dash.ts");
     expect(dashWorker).not.toContain("-bitcoin.ts");
     expect(dashWorker).not.toContain("runBip322FullSelfTest");
     const both = selectedWorkerEntry("/workspace", profile, options(["bitcoin", "dash"], all));
     expect(both).toContain(
-      "fullSelfTests: [runBip322FullSelfTest, runBitcoinBip38FullSelfTest, runDashBip38FullSelfTest]",
+      "fullSelfTests: [runBip322FullSelfTest, runBitcoinBip38FullSelfTest, runDashBip38FullSelfTest, runDashMasternodeFullSelfTest]",
     );
+    // The masternode keys are Dash's own protocol: they come with the coin, without a feature.
     const bare = selectedWorkerEntry("/workspace", profile, options(["dash"], []));
-    expect(bare).toContain("startupSelfTests: [], fullSelfTests: []");
+    expect(bare).toContain("startupSelfTests: [], fullSelfTests: [runDashMasternodeFullSelfTest]");
+    expect(selectedWorkerEntry("/workspace", profile, options(["bitcoin"], []))).toContain(
+      "startupSelfTests: [], fullSelfTests: []",
+    );
   });
 
   it("keeps recovery destination menus ordered like their tabs", () => {

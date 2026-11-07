@@ -2,6 +2,8 @@ import { deriveDashCore } from "@ckd/coins/dash/core.js";
 import { DASH_COIN_ADAPTERS } from "@ckd/coins/adapters/dash.js";
 import { runDashPathSelfTest } from "@ckd/coins/dash/path-self-test.js";
 import { deriveDashIdentityAuthenticationKey } from "@ckd/coins/dash/identity.js";
+import { deriveDashIdentityFunding } from "@ckd/coins/dash/identity-funding.js";
+import { deriveDashPay } from "@ckd/coins/dash/dashpay.js";
 import { deriveDashPlatform } from "@ckd/coins/dash/platform.js";
 import { requirePublic, rootFromSeed } from "@ckd/core/bip32.js";
 import { bytesToHex, encodeP2pkh, hash160, hexToBytes, wipe } from "@ckd/core/crypto.js";
@@ -25,6 +27,13 @@ import type { CryptoSelfTestReport } from "./types.js";
 const COINJOIN_SEED_HEX =
   "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e5349553" +
   "1f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04";
+
+// The seed of DIP-14's test mnemonic, which Dash Core v24.0.0's src/wallet/test/platformkeys_tests.cpp
+// uses on testnet for its DIP13 funding vectors (the invitation index hardened, as Dash Core derives
+// it) and its DIP15 friendship vector.
+const DIP14_SEED_HEX =
+  "b16d3782e714da7c55a397d5f19104cfed7ffa8036ac514509bbb50807f8ac59" +
+  "8eeb26f0797bd8cc221a6cbff2168d90a5e9ee025a5bd977977b9eccd97894bb";
 
 /** Dash-only worker vectors. This module has no non-Dash protocol imports. */
 export async function runDashDerivationSelfTest(): Promise<CryptoSelfTestReport> {
@@ -105,12 +114,80 @@ export async function runDashDerivationSelfTest(): Promise<CryptoSelfTestReport>
     identitySeed.fill(0);
   }
 
-  // DIP-0009 CoinJoin external-chain vectors: m/9'/coin_type'/4'/0'/0/0.
-  // Independently derived from the canonical upstream BIP39 vector above and
-  // cross-checked against Dash Core v23.1.8 GetPathTemplate()/CHDChain
-  // semantics (the same path in v24.0.0's inactive CoinJoin descriptor) (src/wallet/scriptpubkeyman.cpp, src/wallet/hdchain.h) and
-  // DIP-0009 §"Address Generation and Assignment" (account 0', external
-  // chain 0 only; no DIP9 change chain in current Dash Core).
+  for (const vector of [
+    {
+      name: "Dash identity registration funding testnet / DIP13",
+      kind: "registration",
+      index: 7,
+      path: "m/9'/1'/5'/1'/7",
+      privateKey: "804cc77cec9ce9ccf576a9b5978f5da67a86b9307f2686a26fa4cf873bc5645c",
+    },
+    {
+      name: "Dash identity top-up funding testnet / DIP13",
+      kind: "topUp",
+      index: 11,
+      path: "m/9'/1'/5'/2'/11",
+      privateKey: "cd6adc39e772ed2b2186ecc42cbdb5b881fe755db086a9c8a94343815af8784a",
+    },
+    {
+      name: "Dash invitation funding (hardened) testnet / DIP13",
+      kind: "invitationHardened",
+      index: 13,
+      path: "m/9'/1'/5'/3'/13'",
+      privateKey: "4d731224222afd2b28539a8588fbb7579e85b5d6cec9e328a1c5a78f522581a8",
+    },
+  ] as const) {
+    const result = deriveDashIdentityFunding({
+      seed: hexToBytes(DIP14_SEED_HEX),
+      network: "testnet",
+      account: 0,
+      branch: 0,
+      start: vector.index,
+      count: 1,
+    });
+    try {
+      expectEqual(`${vector.name} path`, resultValue(result, `${vector.kind}Path`), vector.path);
+      expectEqual(
+        `${vector.name} private key`,
+        resultValue(result, `${vector.kind}PrivateKeyHex`),
+        vector.privateKey,
+      );
+      checks.push(vector.name);
+    } finally {
+      clearDerivationResult(result);
+    }
+  }
+
+  // Dash Core v24 platformkeys_tests.cpp friendship_derivation_matches_key_wallet, cross-checked
+  // there with the Platform wallet library: m/9'/1'/15'/0'/(00 01 … 1f)/(ff fe … e0) on the DIP-14
+  // seed. The contact payload ends with that node's chain code and public key.
+  const dashPay = deriveDashPay({
+    seed: hexToBytes(DIP14_SEED_HEX),
+    network: "testnet",
+    account: 0,
+    branch: 0,
+    start: 0,
+    count: 1,
+    ownIdentityId: bytesToHex(Uint8Array.from({ length: 32 }, (_, index) => index)),
+    contactIdentityId: bytesToHex(Uint8Array.from({ length: 32 }, (_, index) => 0xff - index)),
+  });
+  try {
+    expectEqual(
+      "Dash DashPay friendship testnet / DIP15",
+      resultValue(dashPay, "contactPayload").slice(8),
+      "1ed00e776865c0308fddae8d22fb3ae47ffd51ce409b298d1987aafdec6bef6b" +
+        "025b4ff1b10b9e1990df46dfa2f986300a7e6eb4a85289f4419581950edd3760bf",
+    );
+    checks.push("Dash DashPay friendship testnet / DIP15");
+  } finally {
+    clearDerivationResult(dashPay);
+  }
+
+  // DIP-0009 CoinJoin external-chain vectors: m/9'/coin_type'/4'/0'/0/0, derived from the
+  // canonical upstream BIP39 vector above. Cross-checked against Dash Core v23.1.8
+  // GetPathTemplate()/CHDChain semantics (src/wallet/scriptpubkeyman.cpp, src/wallet/hdchain.h),
+  // the same path as v24.0.0's inactive CoinJoin descriptor, and DIP-0009 §"Address Generation and
+  // Assignment" (account 0', external chain 0 only; no DIP9 change chain in current Dash Core).
   const coinJoinSeed = hexToBytes(COINJOIN_SEED_HEX);
   try {
     for (const vector of [

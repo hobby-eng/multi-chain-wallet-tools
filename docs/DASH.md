@@ -33,6 +33,12 @@ A Platform Identity is created by a state transition and has its own Identity ID
 
 The Deriver shows the current official wallet's default four-key registration profile as candidate material. The Viewer obtains actual registered roles, security levels, balance, revision, nonce, and names from proof-verified Platform state. The Scanner uses a derived public-key fingerprint to look for an Identity that has already been registered. It does not invent an Identity ID or claim that an unused candidate exists on Platform.
 
+Identity funding keys are Dash Core keys, not Identity keys. An identity is registered or topped up with credits from an asset lock, a Core transaction whose credit output pays a one-time DIP13 funding address. The Deriver shows those addresses and keys for registration, top-up, invitations, and Platform address and shielded pool top-ups. They matter only for an asset lock that Platform never consumed; once consumed, the credits belong to what the lock funded.
+
+DashPay payments are on Dash Core too. A contact pays you on addresses derived from your recovery phrase, your identity ID and the contact's identity ID (DIP15); the Deriver shows them when you enter both IDs. What you paid the contact is on the contact's chain and cannot be derived from your phrase.
+
+Masternode keys are derived too: the owner and voting keys, the operator's BLS key and an Evonode's Ed25519 Platform node key, on the DIP9 paths that the Dash mobile wallets and the Platform wallet use. Dash Core itself takes these keys from wherever they come and does not derive them from a recovery phrase.
+
 ### Orchard
 
 Dash Orchard is a shielded pool. Its ZIP32 account derivation, key types, addresses, encrypted notes, and nullifiers differ from Core and Platform payment addresses.

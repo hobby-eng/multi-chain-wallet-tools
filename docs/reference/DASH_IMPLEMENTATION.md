@@ -57,6 +57,59 @@ One result and selection unit is an Identity candidate containing all four key s
 
 Identity IDs are created from registration funding inputs, not from the recovery phrase or DIP13 path. Consequently the offline tool does not fabricate an ID, registration status, balance, or DPNS name. It derives candidate registration keys only; the connected Discovery Scanner separately uses the first MASTER key's HASH160 to locate an Identity that has already been registered.
 
+## Identity funding keys
+
+The **Identity funding DIP13** tab derives the one-time keys whose Dash Core P2PKH addresses receive the credit outputs of asset-lock transactions:
+
+```text
+m/9'/coin_type'/5'/1'/index   identity registration
+m/9'/coin_type'/5'/2'/index   identity top-up (any identity)
+m/9'/coin_type'/5'/2'/identity_index'/index   identity top-up bound to one identity
+m/9'/coin_type'/5'/3'/index   invitation, as the deployed wallets derive it
+m/9'/coin_type'/5'/3'/index'  invitation, as the DIP13 text and Dash Core v24 derive it
+m/9'/coin_type'/5'/4'/index   Platform address top-up
+m/9'/coin_type'/5'/5'/index   shielded pool top-up
+```
+
+Features 1' to 3' are DIP13's, including its top-up key bound to one identity, which the Platform wallet library derives and Dash Core v24 and dashj do not; the tab's **Identity index of the bound top-up key** field selects that identity. Features 4' and 5' are the identity sub-features that DIP9 lists for asset locks funding a Platform address or the shielded pool. Wallets disagree on the invitation index: the DIP13 text and Dash Core v24 (`src/wallet/test/platformkeys_tests.cpp`) harden it, while dashj, DashSync, Dash Evo Tool and the Platform wallet library (rust-dashcore `key-wallet`) do not, so both forms are shown and labelled. One result row holds one funding index of every kind. Basic mode shows each kind's address, compressed public key and Dash WIF; Advanced mode adds the path, HASH160, raw private scalar and whether the index is hardened.
+
+These keys spend an asset lock that Platform never consumed, for example when a registration failed after the lock was mined. Once Platform consumed it, the credits belong to the identity, Platform address or shielded pool that it funded, and the funding key no longer controls them. An identity ID is derived from the asset lock's outpoint, so it is not derivable from the recovery phrase. The vectors are Dash Core v24's `dip13_funding_vectors` (registration, top-up and the hardened invitation on testnet) and dashj's mainnet funding addresses, including its normal invitation index.
+
+## DashPay incoming payments
+
+The **DashPay DIP15** tab derives the addresses on which one DashPay contact pays the owner of the recovery phrase:
+
+```text
+m/9'/coin_type'/15'/account'/(your identity ID)/(contact's identity ID)/index
+```
+
+Purpose, coin type, feature and account are hardened; the two identity IDs are DIP14 256-bit normal children and the index is a normal 32-bit child. The tab takes both IDs in Base58 (Bitcoin alphabet, no checksum) or as 64 hex digits, decodes them to 32 bytes and uses them as they are, big-endian, as Dash Core and the Platform wallet library do. An ID whose first 28 bytes are zero is refused: Dash Core reads such an index as a 32-bit one (DIP14's compatibility mode) and the Platform wallet library does not, and no real identity ID is one. The two IDs must differ.
+
+Each row shows a Dash Core P2PKH address, the compressed public key and the private key; Advanced mode adds the path, HASH160 and the raw private key. The summary shows both IDs in Base58 and hex and the DIP15 contact payload, the 69-byte parent fingerprint, chain code and public key of the receiving chain, which the owner's wallet encrypts into its contact request. Payments the owner sent to the contact are on the contact's own chain and cannot be derived from this recovery phrase. Swapping the IDs gives a chain that no wallet uses. The DIP-9 table writes this feature as `15'/0'/account'`; every implementation follows DIP15's `15'/account'`, as this tab does.
+
+The startup self-test checks Dash Core v24's `friendship_derivation_matches_key_wallet` vector (chain code and public key of the receiving chain); the unit tests add DIP-14 test vector 3 and public derivation from the shown contact payload.
+
+The tab has two text inputs of its own. A protocol that needs text inputs is offered only where the form has them, so it is absent from a BIP85 child wallet.
+
+## Masternode keys
+
+The **Masternode DIP9** tab derives the keys of one masternode per index under DIP9's feature `3'`:
+
+```text
+m/9'/coin_type'/3'/2'/index    owner key, secp256k1
+m/9'/coin_type'/3'/1'/index    voting key, secp256k1
+m/9'/coin_type'/3'/3'/index    operator key, BLS12-381
+m/9'/coin_type'/3'/4'/index'   Platform node key of an Evonode, Ed25519
+```
+
+Dash Core does not derive these keys from a recovery phrase: `protx register` takes the owner and voting addresses, the operator public key and, through `protx register_evo`, the Platform node ID. These are the paths of the Dash mobile wallets (dashj `DerivationPathFactory`) and of the Platform wallet library (rust-dashcore `key-wallet`). The owner and voting keys show their P2PKH address, their key ID (HASH160 of the compressed public key, the ProRegTx `keyIDOwner` and `keyIDVoting`), the public key and the private key.
+
+The operator key follows dashbls's `ExtendedPrivateKey` ("BLS HD"): the master secret and chain code are HMAC-SHA256 of the seed with the key `BLS HD seed`, a hardened child hashes the 32-byte secret without BIP32's leading zero byte, and a normal child hashes the 48-byte public key in the legacy encoding, as dashbls's `PrivateChild` does by default and as dashj and `key-wallet` derive. The tab shows the 32-byte secret key and the public key in both encodings: basic (IETF) for `protx register` and ProRegTx version 2 or later, legacy for version 1.
+
+The Platform node key follows SLIP-10 for Ed25519, every level hardened (DIP28). Its node ID is the first 20 bytes of SHA-256 of the 32-byte public key, not HASH160.
+
+BLS12-381 and Ed25519 come from the pinned Noble curves package already in the build; the module loads only when the tab derives. The BLS secret is a JavaScript big integer, which cannot be overwritten; its byte form and every chain code are wiped after use. The known answers, checked in the full self-test, are dashj's `keyTest` (owner and voting addresses, operator legacy public key, Platform node ID) and `key-wallet`'s dashbls and Ed25519 vectors; the unit tests add dashbls's own test-suite seed and SLIP-10 test vector 1.
+
 ## Public address viewing
 
 The separate network-enabled viewer supports four resource types and deliberately keeps their trust models distinct:

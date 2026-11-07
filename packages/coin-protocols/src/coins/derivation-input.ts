@@ -1,6 +1,6 @@
 import { MAX_BIP32_INDEX } from "@ckd/core/bip32-limits.js";
 import { IntegerInput } from "@ckd/core/validation.js";
-import type { CoinAdapter } from "./registry-base.js";
+import type { CoinAdapter, TextControl } from "./registry-base.js";
 import type { DerivationParameters } from "./derivation-request.js";
 
 const MIN_RESULT_COUNT = 1;
@@ -14,6 +14,8 @@ export interface DerivationFields {
   readonly count: unknown;
   readonly includeChange: boolean;
   readonly includeCoinJoin: boolean;
+  /** The values of the protocol's text controls, by key. */
+  readonly text?: Readonly<Record<string, string>>;
 }
 
 /** Public settings carried between compatible protocol profiles. */
@@ -24,12 +26,17 @@ export type SharedDerivationParameters = Pick<
 
 /** A refused derivation setting, with no supplied field text in the error. */
 export class DerivationInputError extends Error {
-  readonly code: "derivation.input.network" | "derivation.input.range" | "derivation.input.branch";
+  readonly code:
+    | "derivation.input.network"
+    | "derivation.input.range"
+    | "derivation.input.branch"
+    | "derivation.input.text";
   constructor(code: DerivationInputError["code"], maximum?: number) {
     const messages = {
       "derivation.input.network": "Choose a supported derivation network.",
       "derivation.input.range": `The requested index range exceeds ${maximum}.`,
       "derivation.input.branch": "Choose a supported derivation branch.",
+      "derivation.input.text": `A text field of this derivation type is longer than ${maximum} characters.`,
     };
     super(messages[code]);
     this.name = "DerivationInputError";
@@ -88,7 +95,27 @@ export class DerivationInput {
       count,
       includeChange: adapter.addressBranches !== undefined && fields.includeChange,
       includeCoinJoin: adapter.coinJoin !== undefined && fields.includeCoinJoin,
+      ...(adapter.textControls === undefined
+        ? {}
+        : { text: DerivationInput.#text(adapter.textControls, fields.text) }),
     };
+  }
+
+  /** Every text control's trimmed value, empty when absent; the protocol judges its content. */
+  static #text(
+    controls: readonly TextControl[],
+    values: Readonly<Record<string, string>> | undefined,
+  ): Readonly<Record<string, string>> {
+    return Object.freeze(
+      Object.fromEntries(
+        controls.map(({ key, maxLength }) => {
+          const value = (Object.hasOwn(values ?? {}, key) ? values![key]! : "").trim();
+          if (value.length > maxLength)
+            throw new DerivationInputError("derivation.input.text", maxLength);
+          return [key, value];
+        }),
+      ),
+    );
   }
 
   /** Preserve admitted shared settings while clamping to the target profile's index space. */

@@ -6,8 +6,9 @@ export class DashAddressFamilies {
     return [...this.#core];
   }
 
+  /** Every profile with payment addresses, which the Wallet Matcher searches for the coin. */
   addressAdapters(): readonly string[] {
-    return [...this.#core, "dash-platform", "dash-shielded"];
+    return [...this.#core, "dash-identity-funding", "dash-platform", "dash-shielded"];
   }
 
   signsCompact(adapterId: string): boolean {

@@ -1,7 +1,9 @@
 import { deriveDashCoinJoin } from "./coinjoin.js";
 import { deriveDashCore } from "./core.js";
+import { deriveDashPay } from "./dashpay.js";
 import { deriveDashLegacyMobile } from "./legacy-mobile.js";
 import { deriveDashIdentity } from "./identity.js";
+import { deriveDashIdentityFunding } from "./identity-funding.js";
 import { deriveDashCoreMultisig, deriveDashMultisig } from "./multisig.js";
 import { deriveDashPlatform } from "./platform.js";
 import { resolveCoinProtocol, type CoinRegistry } from "../registry-base.js";
@@ -18,8 +20,26 @@ export class DashRuntimeRegistry {
     ["dash-legacy-mobile", deriveDashLegacyMobile],
     ["dash-platform", deriveDashPlatform],
     ["dash-identity", deriveDashIdentity],
+    ["dash-identity-funding", deriveDashIdentityFunding],
+    [
+      "dash-dashpay",
+      (input) =>
+        deriveDashPay({
+          ...input,
+          ownIdentityId: input.text?.ownIdentityId ?? "",
+          contactIdentityId: input.text?.contactIdentityId ?? "",
+        }),
+    ],
     ["dash-multisig-p2sh", deriveDashMultisig],
     ["dash-multisig-core-pkh", deriveDashCoreMultisig],
+    // BLS12-381 and Ed25519 load only when the masternode keys are derived.
+    [
+      "dash-masternode",
+      async (input) => {
+        const { deriveDashMasternode } = await import("./masternode.js");
+        return deriveDashMasternode(input);
+      },
+    ],
     [
       "dash-shielded",
       async (input) => {

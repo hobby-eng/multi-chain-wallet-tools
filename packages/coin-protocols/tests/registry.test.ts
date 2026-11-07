@@ -46,6 +46,9 @@ describe("coin adapter extension contract", () => {
       "dash-legacy-mobile",
       "dash-platform",
       "dash-identity",
+      "dash-identity-funding",
+      "dash-dashpay",
+      "dash-masternode",
       "dash-shielded",
     ]);
     for (const adapter of COIN_ADAPTERS) {
@@ -59,6 +62,12 @@ describe("coin adapter extension contract", () => {
       ) {
         expect(adapter.fieldRoles.addresses).toEqual([]);
         expect(adapter.defaults.count).toBe(adapter.id === "dash-identity" ? 5 : 20);
+      } else if (adapter.id === "dash-identity-funding") {
+        expect(adapter.fieldRoles.addresses).toContain("registrationAddress");
+        expect(adapter.defaults.count).toBe(5);
+      } else if (adapter.id === "dash-masternode") {
+        expect(adapter.fieldRoles.addresses).toEqual(["ownerAddress", "votingAddress"]);
+        expect(adapter.defaults.count).toBe(5);
       } else {
         expect(adapter.fieldRoles.addresses).toContain("address");
         expect(adapter.defaults.count).toBe(20);
@@ -95,6 +104,9 @@ describe("coin adapter extension contract", () => {
       "Legacy mobile\nCore",
       "Platform\nDIP17 / DIP18",
       "Identity\nDIP13",
+      "Identity funding\nDIP13",
+      "DashPay\nDIP15",
+      "Masternode\nDIP9",
       "Shielded\nOrchard / ZIP-32",
     ]);
     expect(getDefaultCoinAdapter("bitcoin").id).toBe("bitcoin-taproot");
@@ -152,6 +164,45 @@ describe("coin branch and edition contracts", () => {
         count: 2,
       }),
     ).toBe("m/9'/5'/5'/0'/0'/{1'…2'}/{0'…3'}");
+    expect(getCoinAdapter("dash-identity-funding")).toMatchObject({
+      controlLabels: {
+        account: "Identity index of the bound top-up key",
+        start: "Start funding index",
+        count: "Number of funding indexes",
+      },
+    });
+    expect(getCoinAdapter("dash-identity-funding").accountControl).toBeUndefined();
+    expect(
+      getCoinAdapter("dash-identity-funding").pathPreview({
+        network: "testnet",
+        account: 2,
+        branch: 0,
+        start: 3,
+        count: 4,
+      }),
+    ).toBe("m/9'/1'/5'/{1'…5'}/3…6 · bound top-up m/9'/1'/5'/2'/2'/3…6");
+    expect(
+      getCoinAdapter("dash-masternode").pathPreview({
+        network: "mainnet",
+        account: 0,
+        branch: 0,
+        start: 1,
+        count: 3,
+      }),
+    ).toBe("m/9'/5'/3'/{1'…3'}/1…3 · platform node m/9'/5'/3'/4'/{1'…3'}");
+    expect(
+      getCoinAdapter("dash-dashpay").pathPreview({
+        network: "testnet",
+        account: 2,
+        branch: 0,
+        start: 0,
+        count: 20,
+      }),
+    ).toBe("m/9'/1'/15'/2'/(your ID)/(contact ID)/0…19");
+    expect(getCoinAdapter("dash-dashpay").textControls?.map(({ key }) => key)).toEqual([
+      "ownIdentityId",
+      "contactIdentityId",
+    ]);
     const dashMultisig = getCoinAdapter("dash-multisig-p2sh");
     expect(dashMultisig.addressBranches).toMatchObject({ receive: 0, change: 1 });
     expect(
@@ -184,6 +235,9 @@ describe("coin branch and edition contracts", () => {
       "dash-legacy-mobile",
       "dash-platform",
       "dash-identity",
+      "dash-identity-funding",
+      "dash-dashpay",
+      "dash-masternode",
       "dash-shielded",
     ]);
     expect(DASH_COIN_FAMILIES.map(({ id }) => id)).toEqual(["dash"]);

@@ -159,6 +159,9 @@ These are the main defaults, not an exhaustive list of every optional recovery f
 | Dash Mobile CoinJoin    | `m/9'/5'/4'/0'/0/index`                    | DIP9 P2PKH                        |
 | Dash Platform Payment   | `m/9'/5'/17'/account'/0'/index`            | DIP17/DIP18 receive address       |
 | Dash Identity candidate | `m/9'/5'/5'/0'/0'/identity_index'/key_id'` | DIP13 registration key profile    |
+| Dash identity funding   | `m/9'/5'/5'/feature'/index`                | DIP13 asset-lock funding P2PKH    |
+| Dash masternode keys    | `m/9'/5'/3'/feature'/index`                | Owner, voting, BLS, Ed25519 node  |
+| DashPay from a contact  | `m/9'/5'/15'/account'/own_id/contact_id/i` | DIP15 receiving P2PKH             |
 | Dash Orchard            | `m/32'/5'/account'` plus diversifier index | Shielded address and key material |
 
 For Bitcoin and Dash Core, change normally uses branch `/1`. Dash Platform's optional internal/change-like results use the separate hardened key class `1'`. Testnet changes the applicable coin type and network encoding. Advanced Dash recovery families, exact semantics, and authoritative references are documented in [How Dash support works](docs/DASH.md) and the [detailed Dash reference](docs/reference/DASH_IMPLEMENTATION.md).

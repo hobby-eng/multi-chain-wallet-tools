@@ -260,7 +260,12 @@ export function selectedWorkerEntry(root, profile, features) {
       "bip38-self-test-bitcoin.ts",
     ],
     ["bip38-encrypt", "dash", "full", "runDashBip38FullSelfTest", "bip38-self-test-dash.ts"],
-  ].filter(([feature, coin]) => features.has(feature) && (coin === null || features.hasCoin(coin)));
+    // A coin's own protocols carry no feature name; they come and go with the coin.
+    [null, "dash", "full", "runDashMasternodeFullSelfTest", "masternode-self-test-dash.ts"],
+  ].filter(
+    ([feature, coin]) =>
+      (feature === null || features.has(feature)) && (coin === null || features.hasCoin(coin)),
+  );
   for (const [, , , symbol, file] of selfTests)
     imports.push(
       `import { ${symbol} } from ${JSON.stringify(resolve(root, "apps/key-derivation/src/workers", file))};`,
@@ -305,6 +310,7 @@ const coinSourceMarkers = {
     "derivation-self-test-dash.ts",
     "/message-signer-self-test-dash.ts",
     "/bip38-self-test-dash.ts",
+    "/masternode-self-test-dash.ts",
     "dash-shielded-wasm",
     "/wallet-recovery/src/matcher-targets-dash.ts",
   ],

@@ -49,6 +49,7 @@ export class DerivationRequest {
       input.count,
       input.includeChange,
       input.includeCoinJoin,
+      JSON.stringify(input.text ?? null),
     ].join(":");
   }
 

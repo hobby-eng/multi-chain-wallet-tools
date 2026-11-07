@@ -6,12 +6,13 @@ import { encryptDerivedP2pkhKey } from "./bip38-encrypter-dash.js";
 import { signDerivedMessage } from "./message-signer-dash.js";
 import { runDashBip38FullSelfTest } from "./bip38-self-test-dash.js";
 import { runDashMessageSigningSelfTest } from "./message-signer-self-test-dash.js";
+import { runDashMasternodeFullSelfTest } from "./masternode-self-test-dash.js";
 
 startDerivationWorker({
   getRuntimeCoinAdapter,
   runDerivationSelfTest: runDashDerivationSelfTest,
   startupSelfTests: [runLocalSearchSelfTest, runDashMessageSigningSelfTest],
-  fullSelfTests: [runDashBip38FullSelfTest],
+  fullSelfTests: [runDashBip38FullSelfTest, runDashMasternodeFullSelfTest],
   encryptDerivedP2pkhKey,
   signDerivedMessage,
 });

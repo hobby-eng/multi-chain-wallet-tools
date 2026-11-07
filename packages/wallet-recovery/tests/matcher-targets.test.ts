@@ -69,6 +69,8 @@ describe("wallet matcher target detection", () => {
     const adapters = detectDashMatcherTargets(DASH_PLATFORM, "mainnet", true)[0]?.adapterIds ?? [];
     expect(adapters).toContain("dash-core");
     expect(adapters).toContain("dash-shielded");
+    expect(adapters).toContain("dash-identity-funding");
+    expect(adapters).not.toContain("dash-dashpay");
     expect(adapters).not.toContain("bitcoin-legacy");
   });
 });

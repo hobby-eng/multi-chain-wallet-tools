@@ -7,6 +7,17 @@ export interface CoinDerivationInput {
   branch: number;
   start: number;
   count: number;
+  /** Public text that the protocol needs beyond indexes, by the keys of its text controls. */
+  text?: Readonly<Record<string, string>>;
+}
+
+/** A public text input of one protocol, such as the identity IDs of a DashPay contact. */
+export interface TextControl {
+  readonly key: string;
+  readonly label: string;
+  readonly placeholder: string;
+  /** The longest accepted text, in UTF-16 code units, after trimming. */
+  readonly maxLength: number;
 }
 
 export interface ControlOption {
@@ -84,6 +95,10 @@ export interface CoinAdapter {
     start?: string;
     count?: string;
   };
+  /** Text inputs the protocol needs; a host without them does not offer the protocol. */
+  textControls?: readonly TextControl[];
+  /** The page's texts of the protocol's own input refusals, by error code; never typed text. */
+  inputMessages?: Readonly<Record<string, string>>;
   /** Internal work chunk. This is not a user-visible total-result limit. */
   batchSize?: number;
   defaults: { network: NetworkName; account: number; branch: number; start: number; count: number };

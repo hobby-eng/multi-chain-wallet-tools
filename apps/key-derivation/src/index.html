@@ -379,6 +379,7 @@
               </div>
             </div>
             __SILENT_PAYMENT_PANEL__ __BIP85_PANEL__
+            <div id="protocol-text-controls" class="span-three standard-derivation-content" hidden></div>
             <div id="account-field" class="standard-derivation-content">
               <label id="account-label" for="account">Account</label>
               <input id="account" type="number" value="0" min="0" max="2147483647" step="1" />
@@ -647,9 +648,10 @@
             ></label
           >
           <p class="field-note">
-            Payment addresses are matched locally across the selected coin's compatible paths. For Dash Identity, enter
-            the 40-character HASH160 of the MASTER authentication public key. Finding an Identity from its Identity ID
-            or DPNS name requires the proof-verified Discovery Scanner.
+            Payment addresses are matched locally across the selected coin's compatible paths, for Dash including the
+            identity funding addresses. For Dash Identity, enter the 40-character HASH160 of the MASTER authentication
+            public key. Finding an Identity from its Identity ID or DPNS name requires the proof-verified Discovery
+            Scanner.
           </p>
           <div class="actions">
             <button class="primary" id="run-wallet-matcher" type="button">Find wallet matches</button

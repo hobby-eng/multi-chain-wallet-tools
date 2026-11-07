@@ -141,6 +141,7 @@ export class KeyDerivationView {
       countLabel: this.required<HTMLLabelElement>("#count-label"),
       count: this.required<HTMLInputElement>("#count"),
       preview: this.required<HTMLElement>("#path-preview"),
+      textControls: this.required<HTMLElement>("#protocol-text-controls"),
     };
     this.errorRoot = this.required<HTMLElement>("#error");
     this.statusRoot = this.required<HTMLElement>("#status");

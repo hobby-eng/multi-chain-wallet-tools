@@ -23,6 +23,7 @@ export function resultValue(result: DerivationResult, key: string): string {
     ...result.basicSummary,
     ...result.summary,
     ...(result.rows[0] === undefined ? [] : [...result.rows[0].basic, ...result.rows[0].advanced]),
+    ...(result.rows[0]?.groups ?? []).flatMap((group) => [...group.basic, ...group.advanced]),
   ];
   const match = fields.find((field) => field.key === key);
   if (match === undefined) throw new Error(`Self-test result is missing ${key}.`);

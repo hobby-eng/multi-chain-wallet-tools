@@ -81,7 +81,7 @@ describe("matcher export and coin scope", () => {
       "bitcoin-taproot",
     ]);
   });
-  it("includes Core, legacy, CoinJoin, Platform and Orchard for Dash only", () => {
+  it("includes Core, legacy, CoinJoin, identity funding, Platform and Orchard for Dash only", () => {
     const targets = MatcherScope.targets(
       DASH,
       "mainnet",
@@ -94,6 +94,7 @@ describe("matcher export and coin scope", () => {
       "dash-core",
       "dash-legacy-mobile",
       "dash-core-coinjoin",
+      "dash-identity-funding",
       "dash-platform",
       "dash-shielded",
     ]);

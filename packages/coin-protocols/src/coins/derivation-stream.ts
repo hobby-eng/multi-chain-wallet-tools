@@ -76,7 +76,7 @@ export class DerivationStream {
     const batchSize = adapter.batchSize ?? MAX_BATCH_SIZE;
     if (!Number.isSafeInteger(batchSize) || batchSize < 1)
       throw new DerivationStreamError("derivation.stream.batch-size");
-    const { network, account, branch, start, count, includeChange, includeCoinJoin } = input;
+    const { network, account, branch, start, count, includeChange, includeCoinJoin, text } = input;
     this.#worker = worker;
     this.#adapterId = adapter.id;
     this.#batchSize = batchSize;
@@ -88,6 +88,8 @@ export class DerivationStream {
       count,
       includeChange,
       includeCoinJoin,
+      // A protocol's text inputs, such as DashPay's identity IDs, go with every batch.
+      ...(text === undefined ? {} : { text: Object.freeze({ ...text }) }),
     });
     this.#branches = Object.freeze(
       branches.map(({ kind, branch, workerAdapterId }) =>
@@ -134,6 +136,7 @@ export class DerivationStream {
           branch,
           start: input.start + generated,
           count,
+          ...(input.text === undefined ? {} : { text: input.text }),
         });
         const stale = callbacks.isStale();
         if (stale || callbacks.isCancelled()) {

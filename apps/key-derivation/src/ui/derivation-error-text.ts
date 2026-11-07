@@ -37,12 +37,23 @@ export class DerivationErrorText {
   static readonly CLEANUP_FAILURE =
     "The derivation worker or a wallet panel could not be released normally.";
 
-  /** Translate stable codes across transport; supplied diagnostics never enter the page. */
-  static of(cause: unknown, fallback = "Derivation failed."): string {
+  /**
+   * Translate stable codes across transport; supplied diagnostics never enter the page. A protocol
+   * may add the texts of its own input refusals (CoinAdapter.inputMessages).
+   */
+  static of(
+    cause: unknown,
+    fallback = "Derivation failed.",
+    protocolMessages: Readonly<Record<string, string>> = {},
+  ): string {
     try {
       const code =
         typeof cause === "object" && cause !== null && "code" in cause ? cause.code : undefined;
-      return Object.entries(MESSAGES).find(([candidate]) => candidate === code)?.[1] ?? fallback;
+      return (
+        [...Object.entries(MESSAGES), ...Object.entries(protocolMessages)].find(
+          ([candidate]) => candidate === code,
+        )?.[1] ?? fallback
+      );
     } catch {
       // Foreign errors can have throwing getters; handling a failure must remain input-free.
       return fallback;

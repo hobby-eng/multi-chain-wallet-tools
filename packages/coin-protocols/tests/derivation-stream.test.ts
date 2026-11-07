@@ -108,6 +108,28 @@ function privateBatch(start: number): DerivationResult {
 }
 
 describe("streamed derivation engine", () => {
+  it("sends a protocol's text inputs with every batch, captured before the first await", async () => {
+    const text = { ownIdentityId: "own", contactIdentityId: "contact" };
+    const requests: unknown[] = [];
+    const derive = vi.fn(
+      async (_id: string, request: { start: number; count: number; text?: unknown }) => {
+        requests.push(request.text);
+        text.ownIdentityId = "changed";
+        return result(request.start, request.count);
+      },
+    );
+    await runStreamedDerivation({
+      worker: { derive },
+      adapter,
+      input: { ...input, text },
+      branches: [{ kind: "receive", branch: 0 }],
+      seed: new Uint8Array(64),
+      ...callbacks(),
+    });
+    expect(derive).toHaveBeenCalledTimes(3);
+    expect(requests).toEqual(Array(3).fill({ ownIdentityId: "own", contactIdentityId: "contact" }));
+  });
+
   it("refuses an incomplete first batch before publication", async () => {
     const initial = vi.fn();
     await expect(
