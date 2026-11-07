@@ -747,6 +747,10 @@
                 <option value="bitcoin-p2wsh" data-coin="bitcoin">Bitcoin · P2WSH (bc1q…)</option>
                 <option value="bitcoin-p2sh-p2wsh" data-coin="bitcoin">Bitcoin · P2SH-P2WSH (3…)</option>
                 <option value="bitcoin-p2sh" data-coin="bitcoin">Bitcoin · legacy P2SH (3…)</option>
+                <option value="bitcoin-p2tr-multi-a" data-coin="bitcoin">Bitcoin · Taproot multi_a (bc1p…)</option>
+                <option value="bitcoin-p2tr-musig2" data-coin="bitcoin" data-all-of-n>
+                  Bitcoin · Taproot MuSig2, n-of-n, draft BIP390 (bc1p…)
+                </option>
               </select>
             </div>
             <div>
@@ -780,6 +784,12 @@
                 </option>
                 <option value="electrum-45" data-coin="bitcoin" data-scheme="bitcoin-p2sh">
                   Electrum legacy · m/45'/0
+                </option>
+                <option value="bip48-3" data-coin="bitcoin" data-scheme="bitcoin-p2tr-multi-a bitcoin-p2tr-musig2">
+                  BIP48 Taproot, proposed 3' · m/48'/0'/account'/3'
+                </option>
+                <option value="bip87" data-coin="bitcoin" data-scheme="bitcoin-p2tr-multi-a bitcoin-p2tr-musig2">
+                  BIP87 · m/87'/0'/account'
                 </option>
               </select>
             </div>

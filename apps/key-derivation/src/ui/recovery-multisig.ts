@@ -78,11 +78,19 @@ class MultisigWallet {
     });
   }
 
+  /** Whether the selected type needs every cosigner (MuSig2): no threshold or order to choose. */
+  #allOfN(): boolean {
+    return this.#scheme.selectedOptions[0]?.dataset.allOfN !== undefined;
+  }
+
   /** Only the cosigner paths of the selected address type are offered. */
   #offerPaths(): void {
+    const allOfN = this.#allOfN();
+    required<HTMLInputElement>("#multisig-required").disabled = allOfN;
+    required<HTMLSelectElement>("#multisig-order").disabled = allOfN;
     let first: HTMLOptionElement | undefined;
     for (const option of this.#path.options) {
-      option.hidden = option.dataset.scheme !== this.#scheme.value;
+      option.hidden = !(option.dataset.scheme ?? "").split(" ").includes(this.#scheme.value);
       option.disabled = option.hidden;
       if (!option.hidden) first ??= option;
     }
@@ -150,12 +158,14 @@ class MultisigWallet {
         options: {
           schemeId: this.#scheme.value,
           network,
-          required: integer(
-            required<HTMLInputElement>("#multisig-required"),
-            "Signatures required",
-            1,
-            cosigners.length,
-          ),
+          required: this.#allOfN()
+            ? cosigners.length
+            : integer(
+                required<HTMLInputElement>("#multisig-required"),
+                "Signatures required",
+                1,
+                cosigners.length,
+              ),
           order,
           pathId: this.#path.value,
           account: integer(

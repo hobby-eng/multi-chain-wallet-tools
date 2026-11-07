@@ -1,13 +1,21 @@
 import { HDKey } from "@scure/bip32";
 import { bech32, bech32m, createBase58check } from "@scure/base";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { TAPROOT_UNSPENDABLE_KEY } from "@scure/btc-signer";
+import { keyAggregate, sortKeys } from "@scure/btc-signer/musig2.js";
+import { descriptors, hdkeychain, init, musig2 } from "btcutil-js";
+import { beforeAll, describe, expect, it } from "vitest";
+import officialVectors from "../../../apps/psbt-inspector/tests/independent-audit/official-vectors.json";
+import remediationVectors from "../../../apps/psbt-inspector/tests/independent-audit/remediation-vectors.json";
 import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { bytesToHex, hexToBytes } from "@ckd/core/crypto.js";
 import type { DerivationResult } from "@ckd/core/types.js";
 import {
   BITCOIN_P2SH_MULTISIG,
   BITCOIN_P2SH_P2WSH_MULTISIG,
+  BITCOIN_P2TR_MULTI_A_MULTISIG,
+  BITCOIN_P2TR_MUSIG2_MULTISIG,
   BITCOIN_P2WSH_MULTISIG,
 } from "../src/coins/bitcoin/multisig-wallet.js";
 import { DASH_P2SH_MULTISIG, encodePlatformP2sh } from "../src/coins/dash/multisig-wallet.js";
@@ -191,5 +199,170 @@ describe("multisig wallets from cosigner accounts", () => {
     expect(() =>
       parseCosignerKey(first!.account.privateExtendedKey, DASH_P2SH_MULTISIG.versions("mainnet")),
     ).toThrow();
+  });
+});
+
+describe("Bitcoin Taproot multisig", () => {
+  // The Go/btcd WASM oracle is independent of Scure/Noble (as in the Inspector's audit tests).
+  beforeAll(async () => {
+    const wasm = readFileSync(
+      new URL("../../../node_modules/btcutil-js/dist/btcutil.wasm", import.meta.url),
+    );
+    await init(Uint8Array.from(wasm).buffer);
+  }, 30_000);
+
+  const accounts = () =>
+    MNEMONICS.map((mnemonic) =>
+      HDKey.fromMasterSeed(mnemonicToSeed(mnemonic)).derive("m/48'/0'/0'/3'"),
+    );
+
+  it("writes multi_a as Bitcoin Core's miniscript vector does", () => {
+    // Bitcoin Core miniscript_tests.cpp: multi_a(2,03d01115…,025601570c…).
+    const keys = [
+      "03d01115d548e7561b15c38f004d734633687cf4419620095bc5b0f47070afe85a",
+      "025601570cb47f238d2b0286db4a990fa0f3ba28d1a319f5e7cf55c2a2444da7cc",
+    ].map(hexToBytes);
+    expect(bytesToHex(BITCOIN_P2TR_MULTI_A_MULTISIG.script!(2, keys))).toBe(
+      "20d01115d548e7561b15c38f004d734633687cf4419620095bc5b0f47070afe85aac" +
+        "205601570cb47f238d2b0286db4a990fa0f3ba28d1a319f5e7cf55c2a2444da7ccba529c",
+    );
+  });
+
+  it.each(["sorted", "entered"] as const)(
+    "matches Go's tr(H, %smulti_a) addresses",
+    async (order) => {
+      const nodes = accounts();
+      const result = buildMultisigWallet({
+        scheme: BITCOIN_P2TR_MULTI_A_MULTISIG,
+        network: "mainnet",
+        required: 2,
+        order,
+        cosigners: nodes.map((account, place) => ({ label: `Cosigner ${place + 1}`, account })),
+        branch: 0,
+        start: 0,
+        count: 3,
+      });
+      const keys = nodes.map((node) => `${node.publicExtendedKey}/0/*`).join(",");
+      const go = await descriptors.create(
+        `tr(${bytesToHex(TAPROOT_UNSPENDABLE_KEY)},${order === "sorted" ? "sorted" : ""}multi_a(2,${keys}))`,
+      );
+      try {
+        expect(result.rows.map((row) => row.basic[0]?.value)).toEqual(
+          [0, 1, 2].map((index) => go.addressAt("mainnet", 0, index)),
+        );
+      } finally {
+        go.free();
+      }
+      expect(result.rows[0]?.basic[0]?.value).toMatch(/^bc1p/u);
+      expect(value(result, "descriptor")).toMatch(
+        new RegExp(
+          `^tr\\(50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,${order === "sorted" ? "sorted" : ""}multi_a\\(2,`,
+          "u",
+        ),
+      );
+    },
+  );
+
+  it("builds BIP328's published aggregate xpubs from KeyAgg and its chain code", () => {
+    // BIP328 aggregates its vector keys in the order given; BIP390's musig() sorts them first,
+    // which the rawtr vectors below check through the scheme itself.
+    for (const vector of officialVectors.bip328) {
+      const aggregate = keyAggregate(
+        vector.keys.map((key) => hexToBytes(key.toLowerCase())),
+      ).aggPublicKey.toBytes(true);
+      expect(bytesToHex(aggregate)).toBe(vector.aggregate_pubkey);
+      const sorted = BITCOIN_P2TR_MUSIG2_MULTISIG.aggregate!(
+        sortKeys(vector.keys.map((key) => hexToBytes(key.toLowerCase()))).map(
+          (publicKey) => new HDKey({ publicKey }),
+        ),
+        "mainnet",
+      );
+      expect(sorted.chainCode).toEqual(
+        hexToBytes("868087ca02a6f974c4598924c36b57762d32cb45717167e300622c7167e38965"),
+      );
+      expect(
+        new HDKey({ publicKey: aggregate, chainCode: sorted.chainCode! }).publicExtendedKey,
+      ).toBe(vector.xpub);
+    }
+  });
+
+  it("derives BIP390's published rawtr(musig(…)/0/*) keys", () => {
+    for (const vector of remediationVectors.musig.filter(({ descriptor }) =>
+      descriptor.startsWith("rawtr(musig(xpub"),
+    )) {
+      const xpubs = /musig\((xpub\w+),(xpub\w+)\)/u.exec(vector.descriptor)!.slice(1);
+      const node = BITCOIN_P2TR_MUSIG2_MULTISIG.aggregate!(
+        xpubs.map((xpub) => HDKey.fromExtendedKey(xpub)),
+        "mainnet",
+      );
+      const child = node.deriveChild(0).deriveChild(vector.index);
+      expect(`5120${bytesToHex(child.publicKey!.slice(1))}`).toBe(vector.script);
+    }
+  });
+
+  it("matches Go's MuSig2 aggregate, BIP32 child and Taproot key-path address", async () => {
+    const nodes = accounts();
+    const result = buildMultisigWallet({
+      scheme: BITCOIN_P2TR_MUSIG2_MULTISIG,
+      network: "mainnet",
+      required: 3,
+      order: "sorted",
+      cosigners: nodes.map((account, place) => ({ label: `Cosigner ${place + 1}`, account })),
+      branch: 1,
+      start: 4,
+      count: 1,
+    });
+    const keys = nodes.map((node) => bytesToHex(node.publicKey!)).sort();
+    const aggregate = await musig2.aggregateKeys(keys);
+    const synthetic = new HDKey({
+      publicKey: aggregate.combinedKey,
+      chainCode: hexToBytes("868087ca02a6f974c4598924c36b57762d32cb45717167e300622c7167e38965"),
+    }).publicExtendedKey;
+    const child = await hdkeychain.derivePath(synthetic, "m/1/4");
+    const go = await descriptors.create(
+      `tr(${bytesToHex(await hdkeychain.publicKey(child)).slice(2)})`,
+    );
+    try {
+      expect(result.rows[0]?.basic[0]?.value).toBe(go.addressAt("mainnet", 0, 0));
+    } finally {
+      go.free();
+    }
+    expect(value(result, "descriptor")).toMatch(/^tr\(musig\(xpub\w+,xpub\w+,xpub\w+\)\/1\/\*\)#/u);
+    expect(value(result, "cosigner1PrivateKeyWif")).toBeUndefined();
+    expect(() =>
+      buildMultisigWallet({
+        scheme: BITCOIN_P2TR_MUSIG2_MULTISIG,
+        network: "mainnet",
+        required: 2,
+        order: "sorted",
+        cosigners: nodes.map((account, place) => ({ label: `Cosigner ${place + 1}`, account })),
+        branch: 0,
+        start: 0,
+        count: 1,
+      }),
+    ).toThrow(/n-of-n/u);
+  });
+});
+
+describe("P2WSH beyond the P2SH limit", () => {
+  it("builds a 16-of-20 P2WSH wallet, whose 684-byte script P2SH could not carry", () => {
+    const root = HDKey.fromMasterSeed(mnemonicToSeed(MNEMONICS[0]!));
+    const cosigners = Array.from({ length: 20 }, (_, account) => ({
+      label: `Cosigner ${account + 1}`,
+      account: root.derive(`m/48'/0'/${account}'/2'`),
+    }));
+    const result = buildMultisigWallet({
+      scheme: BITCOIN_P2WSH_MULTISIG,
+      network: "mainnet",
+      required: 16,
+      order: "sorted",
+      cosigners,
+      branch: 0,
+      start: 0,
+      count: 1,
+    });
+    // OP_16, twenty 34-byte key pushes, the two-byte push of 20, OP_CHECKMULTISIG.
+    expect(value(result, "redeemScript")).toHaveLength(684 * 2);
+    expect(result.rows[0]?.basic[0]?.value).toMatch(/^bc1q/u);
   });
 });

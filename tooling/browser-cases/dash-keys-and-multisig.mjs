@@ -95,6 +95,23 @@ export class DashKeysAndMultisigCase {
       true,
     );
     assert.match(await page.locator("#multisig-summary").innerText(), /sh\(sortedmulti\(2,/u);
+    if (profile.id === "multi-chain") {
+      // Taproot multi_a: a script-path bc1p address under BIP341's unspendable internal key.
+      await page.locator("#multisig-scheme").selectOption("bitcoin-p2tr-multi-a");
+      assert.equal(await page.locator("#multisig-path").inputValue(), "bip48-3");
+      await page.locator("#run-multisig").click();
+      await page.locator("#multisig-summary").filter({ hasText: "sortedmulti_a(2," }).waitFor();
+      const [taproot] = await fieldValues(page, "#multisig-results", "address");
+      assert.match(taproot ?? "", /^bc1p/u);
+      // MuSig2 is n-of-n: no threshold or key order to choose.
+      await page.locator("#multisig-scheme").selectOption("bitcoin-p2tr-musig2");
+      assert.equal(await page.locator("#multisig-required").isDisabled(), true);
+      await page.locator("#run-multisig").click();
+      await page.locator("#multisig-summary").filter({ hasText: "tr(musig(" }).waitFor();
+      assert.match(await page.locator("#multisig-summary").innerText(), /3 of 3/u);
+    } else {
+      assert.equal(await page.locator('#multisig-scheme option[data-coin="bitcoin"]').count(), 0);
+    }
     assert.deepEqual(await storageSnapshot(page), before);
     assert.equal(run.requests.length, 0);
     run.checks.push(

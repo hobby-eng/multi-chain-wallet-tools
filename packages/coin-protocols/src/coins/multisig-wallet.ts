@@ -1,8 +1,9 @@
 // A shared m-of-n wallet built from its cosigners' account keys: each cosigner's child key at
-// branch/index, the OP_CHECKMULTISIG script over them, and the coin's addresses and descriptor for
-// that script. A coin brings only its scheme (wrapper, encodings, key limit), so a Dash-only build
-// carries no other coin's text. Cosigners given as recovery phrases also yield their child private
-// keys, marked secret; cosigners given as extended public keys yield public keys only.
+// branch/index, the script over them (OP_CHECKMULTISIG unless the scheme brings its own), and the
+// coin's addresses and descriptor for that script. A scheme may instead aggregate every cosigner
+// into one key (MuSig2, n-of-n) and derive the addresses from the aggregate. A coin brings only its
+// schemes, so a Dash-only build carries no other coin's text. Cosigners given as recovery phrases
+// also yield their child private keys, marked secret; extended public keys yield public keys only.
 import { HDKey } from "@scure/bip32";
 import { assertBatch } from "@ckd/core/bip32.js";
 import { assertIndex } from "@ckd/core/bip32-limits.js";
@@ -37,10 +38,21 @@ export interface MultisigScheme {
   readonly maxKeys: number;
   readonly cosignerPaths: readonly MultisigCosignerPath[];
   versions(network: NetworkName): Bip32Versions;
-  /** Wraps `sortedmulti(…)` or `multi(…)` into the coin's descriptor form. */
+  /** The descriptor's key list: OP_CHECKMULTISIG's `multi` by default, or Tapscript's `multi_a`. */
+  readonly keyList?: "multi" | "multi_a";
+  /** Wraps the key list (`sortedmulti(…)`, `multi_a(…)`, or `musig(…)/branch/*`) into a descriptor. */
   descriptor(inner: string): string;
-  /** The addresses and scripts that the multisig script gives, as result fields. */
-  outputs(script: Uint8Array, network: NetworkName): readonly ResultField[];
+  /** The child keys in script order when sorted; compressed-key byte order (BIP67) by default. */
+  sortKeys?(keys: readonly Uint8Array[]): Uint8Array[];
+  /** One address's script over the child keys in script order; OP_CHECKMULTISIG by default. */
+  script?(required: number, keys: readonly Uint8Array[]): Uint8Array;
+  /**
+   * MuSig2: the public account node that aggregates every cosigner's account key (n-of-n). The
+   * addresses derive from it, and `outputs` receives each address's aggregate key, not a script.
+   */
+  aggregate?(accounts: readonly HDKey[], network: NetworkName): HDKey;
+  /** The addresses and scripts of one script, or of one aggregate key, as result fields. */
+  outputs(scriptOrKey: Uint8Array, network: NetworkName): readonly ResultField[];
   /** The coin's WIF of a cosigner's child private key. */
   wif(privateKey: Uint8Array, network: NetworkName): string;
 }
@@ -148,19 +160,26 @@ export function descriptorPath(path: string): string {
   return path.replace(/^m\/?/u, "").replaceAll("'", "h");
 }
 
-function cosignerKeyText(cosigner: MultisigCosigner, branch: MultisigBranch): string {
+/** A cosigner's key in a descriptor: `[origin]xpub`, followed by `suffix`. */
+function cosignerKeyText(cosigner: MultisigCosigner, suffix: string): string {
   const origin =
     cosigner.origin === undefined
       ? ""
       : `[${cosigner.origin.fingerprint}${cosigner.origin.path === "" ? "" : `/${cosigner.origin.path}`}]`;
-  return `${origin}${cosigner.account.publicExtendedKey}/${branch}/*`;
+  return `${origin}${cosigner.account.publicExtendedKey}${suffix}`;
 }
 
 /** The ranged watch-only descriptor of one branch, with its checksum. */
 export function multisigDescriptor(request: MultisigWalletRequest): string {
-  const keys = request.cosigners.map((cosigner) => cosignerKeyText(cosigner, request.branch));
-  const inner = `${request.order === "sorted" ? "sortedmulti" : "multi"}(${request.required},${keys.join(",")})`;
-  return addDescriptorChecksum(request.scheme.descriptor(inner));
+  const { scheme, branch } = request;
+  // BIP390: MuSig2 derives after aggregation, so the branch follows musig(…).
+  if (scheme.aggregate !== undefined) {
+    const keys = request.cosigners.map((cosigner) => cosignerKeyText(cosigner, ""));
+    return addDescriptorChecksum(scheme.descriptor(`musig(${keys.join(",")})/${branch}/*`));
+  }
+  const keys = request.cosigners.map((cosigner) => cosignerKeyText(cosigner, `/${branch}/*`));
+  const list = `${request.order === "sorted" ? "sorted" : ""}${scheme.keyList ?? "multi"}`;
+  return addDescriptorChecksum(scheme.descriptor(`${list}(${request.required},${keys.join(",")})`));
 }
 
 function assertWallet(request: MultisigWalletRequest): void {
@@ -170,6 +189,10 @@ function assertWallet(request: MultisigWalletRequest): void {
     throw new Error(`${scheme.label} admits at most ${scheme.maxKeys} cosigners.`);
   if (request.required < 1 || request.required > cosigners.length)
     throw new Error("The required signatures must be between 1 and the number of cosigners.");
+  if (scheme.aggregate !== undefined && request.required !== cosigners.length)
+    throw new Error(
+      `${scheme.label} is n-of-n: every cosigner signs, so set the required signatures to ${cosigners.length}.`,
+    );
   const accounts = new Set(cosigners.map(({ account }) => account.publicExtendedKey));
   if (accounts.size !== cosigners.length)
     throw new Error(
@@ -237,9 +260,28 @@ function cosignerGroup(
   };
 }
 
-/** One branch of a shared m-of-n wallet over an index range, as a derivation result. */
-export function buildMultisigWallet(request: MultisigWalletRequest): DerivationResult {
-  assertWallet(request);
+/** A MuSig2 participant: its account key goes into the aggregate; it signs with that key. */
+function participantGroup(cosigner: MultisigCosigner, place: number): ResultFieldGroup {
+  const key = `cosigner${place + 1}`;
+  return {
+    key,
+    title: cosigner.label,
+    description:
+      "MuSig2 aggregates the cosigners' account keys; each signs through its own MuSig2 session with its account key, so no child key of its own belongs to this address.",
+    basic: [
+      field(
+        `${key}PublicKey`,
+        "Participant key (account public key)",
+        bytesToHex(cosigner.account.publicKey!),
+      ),
+    ],
+    advanced: [],
+  };
+}
+
+/** The rows of a script scheme: each cosigner's child key at branch/index and the script over them. */
+function scriptRows(request: MultisigWalletRequest) {
+  const { scheme } = request;
   const branchNodes = request.cosigners.map(({ account }) => account.deriveChild(request.branch));
   try {
     const rows = [];
@@ -247,17 +289,17 @@ export function buildMultisigWallet(request: MultisigWalletRequest): DerivationR
       const index = request.start + offset;
       const children = branchNodes.map((node) => node.deriveChild(index));
       try {
-        const keys = orderMultisigKeys(
-          children.map((child) => child.publicKey!),
-          request.order,
-        );
-        const script = multisigScript(request.required, keys);
-        if (script.length > 520) throw new Error("The redeem script is longer than 520 bytes.");
+        const childKeys = children.map((child) => child.publicKey!);
+        const keys =
+          request.order === "entered"
+            ? [...childKeys]
+            : (scheme.sortKeys?.(childKeys) ?? orderMultisigKeys(childKeys, "sorted"));
+        const script = (scheme.script ?? multisigScript)(request.required, keys);
         rows.push({
           index,
           path: `${request.branch}/${index}`,
           title: `Address #${index}`,
-          basic: [...request.scheme.outputs(script, request.network)],
+          basic: [...scheme.outputs(script, request.network)],
           advanced: [
             field("redeemScript", "Multisig script", bytesToHex(script)),
             field("scriptKeys", "Public keys in script order", keys.map(bytesToHex).join("\n")),
@@ -270,45 +312,83 @@ export function buildMultisigWallet(request: MultisigWalletRequest): DerivationR
         for (const child of children) child.wipePrivateData();
       }
     }
-    const cosignerFields = request.cosigners.flatMap((cosigner, place) => [
-      field(
-        `cosigner${place + 1}AccountKey`,
-        `${cosigner.label} · account key`,
-        cosigner.origin === undefined
-          ? cosigner.account.publicExtendedKey
-          : `[${cosigner.origin.fingerprint}/${cosigner.origin.path}]${cosigner.account.publicExtendedKey}`,
-      ),
-    ]);
-    return {
-      id: `multisig-${request.scheme.id}`,
-      title: `${request.scheme.label} · ${request.required} of ${request.cosigners.length}`,
-      networkLabel: request.network === "mainnet" ? "Mainnet" : "Testnet",
-      pathTemplate: `(each cosigner's account)/${request.branch}/i`,
-      basicSummary: [
-        field(
-          "requirement",
-          "Signatures required",
-          `${request.required} of ${request.cosigners.length}`,
-        ),
-        field(
-          "keyOrder",
-          "Key order",
-          request.order === "sorted"
-            ? "Sorted (BIP67, sortedmulti)"
-            : "As entered (multi, createmultisig)",
-        ),
-        field("descriptor", "Watch-only descriptor", multisigDescriptor(request)),
-      ],
-      summary: cosignerFields,
-      rows,
-      notices: [
-        "Every cosigner's recovery phrase on one page undoes what multisig protects against. Use this for recovery and checking, offline, and keep private keys hidden unless you need them.",
-        "The order of the keys changes the address. Sorted order is what descriptor wallets use (sortedmulti); Dash Core's createmultisig and addmultisigaddress keep the order in which the keys are given.",
-      ],
-    };
+    return rows;
   } finally {
     for (const node of branchNodes) node.wipePrivateData();
   }
+}
+
+/** The rows of a MuSig2 scheme: the aggregate account node's child at branch/index (BIP328). */
+function aggregateRows(
+  request: MultisigWalletRequest,
+  aggregate: NonNullable<MultisigScheme["aggregate"]>,
+) {
+  const accounts = request.cosigners.map(({ account }) => account);
+  const branchNode = aggregate(accounts, request.network).deriveChild(request.branch);
+  const rows = [];
+  for (let offset = 0; offset < request.count; offset += 1) {
+    const index = request.start + offset;
+    const child = branchNode.deriveChild(index);
+    rows.push({
+      index,
+      path: `${request.branch}/${index}`,
+      title: `Address #${index}`,
+      basic: [...request.scheme.outputs(child.publicKey!, request.network)],
+      advanced: [
+        field("aggregateKey", "Aggregate public key of this address", bytesToHex(child.publicKey!)),
+      ],
+      groups: request.cosigners.map((cosigner, place) => participantGroup(cosigner, place)),
+    });
+  }
+  return rows;
+}
+
+/** One branch of a shared m-of-n wallet over an index range, as a derivation result. */
+export function buildMultisigWallet(request: MultisigWalletRequest): DerivationResult {
+  assertWallet(request);
+  const { scheme } = request;
+  const rows =
+    scheme.aggregate === undefined ? scriptRows(request) : aggregateRows(request, scheme.aggregate);
+  const cosignerFields = request.cosigners.flatMap((cosigner, place) => [
+    field(
+      `cosigner${place + 1}AccountKey`,
+      `${cosigner.label} · account key`,
+      cosigner.origin === undefined
+        ? cosigner.account.publicExtendedKey
+        : `[${cosigner.origin.fingerprint}/${cosigner.origin.path}]${cosigner.account.publicExtendedKey}`,
+    ),
+  ]);
+  return {
+    id: `multisig-${request.scheme.id}`,
+    title: `${request.scheme.label} · ${request.required} of ${request.cosigners.length}`,
+    networkLabel: request.network === "mainnet" ? "Mainnet" : "Testnet",
+    pathTemplate: `(each cosigner's account)/${request.branch}/i`,
+    basicSummary: [
+      field(
+        "requirement",
+        "Signatures required",
+        `${request.required} of ${request.cosigners.length}`,
+      ),
+      field(
+        "keyOrder",
+        "Key order",
+        scheme.aggregate !== undefined
+          ? "Sorted before aggregation (BIP390 musig())"
+          : request.order === "entered"
+            ? `As entered (${scheme.keyList ?? "multi"})`
+            : `Sorted (sorted${scheme.keyList ?? "multi"})`,
+      ),
+      field("descriptor", "Watch-only descriptor", multisigDescriptor(request)),
+    ],
+    summary: cosignerFields,
+    rows,
+    notices: [
+      "Every cosigner's recovery phrase on one page undoes what multisig protects against. Use this for recovery and checking, offline, and keep private keys hidden unless you need them.",
+      scheme.aggregate !== undefined
+        ? "MuSig2 is n-of-n: every cosigner must sign, and the address looks like a single-key Taproot address. Its descriptor standard (BIP390) is still a draft, and few wallets sign with it yet."
+        : "The order of the keys changes the address. Sorted order is what descriptor wallets use; Dash Core's createmultisig and addmultisigaddress keep the order in which the keys are given.",
+    ],
+  };
 }
 
 /** One cosigner as the page sends it: a seed's place in the request's seeds, or its account key. */
