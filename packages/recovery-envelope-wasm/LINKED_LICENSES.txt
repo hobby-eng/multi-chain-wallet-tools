@@ -1,7 +1,7 @@
 Licenses of the crates linked into the Gordian Envelope WebAssembly (recovery-envelope-wasm)
 
 Written by tooling/linked-licenses.mjs from the crates' own sources; do not edit it.
-Cargo.lock SHA-256: 3df3c4b89626c2c98c4b3e121e24b7817ddefbd0e77852c8bd0fa0998d214094
+Cargo.lock SHA-256: a6db10884bd23d431312907f538e6819d733abdc55e156b1abafaf5542471fbd
 Targets: wasm32-unknown-unknown
 Of a crate offered under several licenses, MIT is taken where it is one of them.
 A crate under CC0-1.0 asks for no notice and is only listed.
@@ -101,7 +101,7 @@ secp256k1 0.31.1: CC0-1.0
 secp256k1-sys 0.11.0: CC0-1.0; MIT for libsecp256k1
 serde 1.0.229: MIT
 serde_core 1.0.229: MIT
-serde_json 1.0.151: MIT
+serde_json 1.0.154: MIT
 sha2 0.10.9: MIT
 signature 2.2.0: MIT
 siphasher 1.0.4: MIT
@@ -3547,7 +3547,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 ==============================================================================
-serde_json 1.0.151: MIT
+serde_json 1.0.154: MIT
 ==============================================================================
 
 --- LICENSE-MIT

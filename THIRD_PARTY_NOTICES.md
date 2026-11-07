@@ -51,7 +51,7 @@ The connected Multi-Chain applications use Blockchain.com, BlockCypher, Blockstr
 | `zip32`                 | 0.2.1                                                                             | `zcash/librustzcash` / crates.io       | MIT OR Apache-2.0   | ZIP32 account identifier/types                                                                            |
 | `hex`                   | 0.4.3                                                                             | `KokaKiwi/rust-hex` / crates.io        | MIT OR Apache-2.0   | Raw boundary serialization                                                                                |
 | `serde`                 | 1.0.229                                                                           | `serde-rs/serde` / crates.io           | MIT OR Apache-2.0   | Typed Rust boundary serialization                                                                         |
-| `serde_json`            | 1.0.151                                                                           | `serde-rs/json` / crates.io            | MIT OR Apache-2.0   | Escaped JSON boundary encoding and fixture parsing                                                        |
+| `serde_json`            | 1.0.154                                                                           | `serde-rs/json` / crates.io            | MIT OR Apache-2.0   | Escaped JSON boundary encoding and fixture parsing                                                        |
 | `bech32` (test only)    | 0.12.0                                                                            | `rust-bitcoin/rust-bech32` / crates.io | MIT                 | Independent Rust display-vector encoding                                                                  |
 | `rand_core` (test only) | 0.6.4                                                                             | `rust-random/rand_core` / crates.io    | MIT OR Apache-2.0   | Real encrypted-note scanner round-trip fixture                                                            |
 | `sha2` (executable)     | 0.11.0                                                                            | `RustCrypto/hashes` / crates.io        | MIT OR Apache-2.0   | SHA-256 check of the page embedded in the executable Key Derivation Tool                                  |
@@ -130,7 +130,7 @@ wasm-bindgen-macro-support 0.2.129
 wasm-bindgen-shared 0.2.129     zcash_note_encryption 0.4.1
 zcash_spec 0.2.1                zeroize 1.9.1
 zeroize_derive 1.5.0            zip32 0.2.1
-itoa 1.0.18                     serde_json 1.0.151
+itoa 1.0.18                     serde_json 1.0.154
 ```
 
 `bls12_381`, `ff`, `fpe`, `group`, `jubjub`, `memuse`, and `version_check` spell the dual expression as `MIT/Apache-2.0`; the others use `MIT OR Apache-2.0` or its reversed equivalent.
@@ -251,7 +251,7 @@ salsa20 0.10.2                                   MIT OR Apache-2.0
 scrypt 0.11.0                                    MIT OR Apache-2.0
 secp256k1 0.31.1                                 CC0-1.0
 secp256k1-sys 0.11.0                             CC0-1.0
-serde_json 1.0.151                               MIT OR Apache-2.0
+serde_json 1.0.154                               MIT OR Apache-2.0
 sha2 0.10.9                                      MIT OR Apache-2.0
 shlex 2.0.1                                      MIT OR Apache-2.0
 signature 2.2.0                                  Apache-2.0 OR MIT

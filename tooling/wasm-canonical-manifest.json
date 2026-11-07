@@ -3,7 +3,7 @@
   "generator": "Dockerfile.reproducible wasm-artifacts",
   "modules": {
     "dash-shielded-wasm": {
-      "sourceSha256": "0aadb28ed3bdc335c5de8c082da7961a5d944ce302a48a0ce33dfdf15dcb7f05",
+      "sourceSha256": "399969955db72aebbd3be326dbc39ca786064d9806b11d096e563034bb1d70bb",
       "generated": {
         "dash_shielded_wasm.d.ts": "e38d08ed2d86940ba89f2c53ffc36cb5cf1b83c5a2603b8749e9d859d87b0153",
         "dash_shielded_wasm.js": "1dff2368bab097bc9489c6ac7b45ad599db59dfbba2a44e9961490cbd03a17b8",
@@ -30,11 +30,11 @@
       }
     },
     "recovery-envelope-wasm": {
-      "sourceSha256": "ff0129e04c85d5d019b364305e0929cc991aaa2a6f688052e86c882fb47d08b2",
+      "sourceSha256": "c9db3eb40fa627b5e0e279796da3e1d8f53ee08337fa166e1dd5c01e90d1b8ae",
       "generated": {
         "recovery_envelope_wasm.d.ts": "cf11b9ff3071e59622584256b141c173e2636e746cd27354d3543c09f04935fe",
         "recovery_envelope_wasm.js": "9d8dd967797774751b5352a35b8d3b59687074e62687361956fd5a76b6b18b82",
-        "recovery_envelope_wasm_bg.wasm": "6aaeca8a6500bb1fa6aca25e70cb8ce9bb59385d740d92f58420393842c173c5",
+        "recovery_envelope_wasm_bg.wasm": "8ffd8cfefa123efdd51101ee11b508c8b829a851af577d5bdfe4f0f6c1b82701",
         "recovery_envelope_wasm_bg.wasm.d.ts": "8c0071f36cef2e7465b137dae65f8de629f48eae090b4f37cc02493589e5e1ed"
       }
     }

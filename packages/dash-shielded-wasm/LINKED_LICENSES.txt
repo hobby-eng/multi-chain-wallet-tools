@@ -1,7 +1,7 @@
 Licenses of the crates linked into the Dash Shielded WebAssembly (dash-shielded-wasm)
 
 Written by tooling/linked-licenses.mjs from the crates' own sources; do not edit it.
-Cargo.lock SHA-256: ab260ad3eeee768852ea83f2a0156f91b3a00a76d8c6b8e47bdae57b811d6897
+Cargo.lock SHA-256: d20c313840dbf46733a2b6fe8b960a68fcf2e2f507ac7e5fb606d83b89c61d8a
 Targets: wasm32-unknown-unknown
 Of a crate offered under several licenses, MIT is taken where it is one of them.
 A crate under CC0-1.0 asks for no notice and is only listed.
@@ -68,7 +68,7 @@ reddsa 0.5.2: MIT
 scopeguard 1.2.0: MIT
 serde 1.0.229: MIT
 serde_core 1.0.229: MIT
-serde_json 1.0.151: MIT
+serde_json 1.0.154: MIT
 serdect 0.2.0: MIT
 sinsemilla 0.1.0: MIT
 spin 0.9.9: MIT
@@ -2706,7 +2706,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 ==============================================================================
-serde_json 1.0.151: MIT
+serde_json 1.0.154: MIT
 ==============================================================================
 
 --- LICENSE-MIT
