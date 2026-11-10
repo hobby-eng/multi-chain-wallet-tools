@@ -307,6 +307,7 @@ export function selectedWorkerEntry(root, profile, features) {
     ["bip38-encrypt", "dash", "full", "runDashBip38FullSelfTest", "bip38-self-test-dash.ts"],
     // A coin's own protocols carry no feature name; they come and go with the coin.
     [null, "dash", "full", "runDashMasternodeFullSelfTest", "masternode-self-test-dash.ts"],
+    [null, "ton", "full", "runTonKeyFullSelfTest", "ton-key-self-test.ts"],
   ].filter(
     ([feature, coin]) =>
       (feature === null || features.has(feature)) && (coin === null || features.hasCoin(coin)),

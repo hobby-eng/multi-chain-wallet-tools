@@ -1,5 +1,4 @@
 import { CopyFeedback } from "@ckd/ui/copy-feedback.js";
-import { BIP39_WORD_COUNTS } from "@ckd/core/bip39-word-counts.js";
 import { markTab } from "@ckd/ui/tabs.js";
 import { ButtonActivity } from "@ckd/ui/button-activity.js";
 import { ENGLISH_BIP39_WORDS } from "@ckd/core/bip39-word-reader.js";
@@ -547,7 +546,8 @@ export class KeyDerivationView {
     this.deriveButton.disabled = !enabled;
     if (this.searchAddressButton !== null)
       this.searchAddressButton.disabled = !enabled || !this.#addressSearchAvailable;
-    for (const words of BIP39_WORD_COUNTS) this[`generate${words}Button`].disabled = !enabled;
+    // The Generate buttons belong to GenerateButtons (generation-option.ts), which the controller
+    // enables with the other controls.
   };
   readonly showCryptoSelfTestPassed = (checks: readonly string[], durationMs: number): void => {
     this.selfTestStatus.classList.remove("checking", "failed");

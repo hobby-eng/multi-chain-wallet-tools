@@ -320,6 +320,9 @@ if (profile.id === "multi-chain")
     "GB3JDWCQJCWMJ3IILWIGDTQJJC5567PGVEVXSCVPEQOTDN64VJBDQBYX",
     "5510e2b44cae6eb807e3e0e45d579dda058c274abcba15e5cb84636f5d1ee412",
     "0xC283f34aDafdB758a557304C5F5e4c1E0A554713",
+    "UQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-RKY",
+    "UQAhEnZmOZ4XCJ1BKsvvt4D1DobiFgIf8nbZdTiT0l-8mOpj",
+    "UQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53h3h",
   ])
     if (!html.includes(marker))
       throw new Error(
@@ -386,6 +389,9 @@ if (profile.id === "dash-community") {
     "solana-ledger",
     "hedera-ecdsa",
     "Stellar",
+    "ton-trust",
+    "ton-generation",
+    "TON default seed",
   ]) {
     if (html.includes(marker)) {
       throw new Error(

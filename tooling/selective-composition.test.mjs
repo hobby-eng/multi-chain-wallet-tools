@@ -24,6 +24,7 @@ import {
 } from "./key-derivation-composition.mjs";
 import {
   applyKeyDerivationFeatureTemplate,
+  derivationFeatureModules,
   parseKeyDerivationFeatures,
 } from "./key-derivation-features.mjs";
 import { assertPsbtComposition } from "./psbt-inspector-composition.mjs";
@@ -353,6 +354,30 @@ describe("selective bundle graph guards", () => {
     expect(bare).toContain("startupSelfTests: [], fullSelfTests: [runDashMasternodeFullSelfTest]");
     expect(selectedWorkerEntry("/workspace", profile, options(["bitcoin"], []))).toContain(
       "startupSelfTests: [], fullSelfTests: []",
+    );
+    // TON's 100,000-round key check comes with TON alone.
+    expect(selectedWorkerEntry("/workspace", profile, options(["ton"], []))).toContain(
+      "startupSelfTests: [], fullSelfTests: [runTonKeyFullSelfTest]",
+    );
+    expect(both).not.toContain("ton-key-self-test.ts");
+  });
+
+  it("brings the page's TON phrase feature with TON alone", () => {
+    const installers = (coins, features) =>
+      derivationFeatureModules(options(coins, features)).map(([, , symbol]) => symbol);
+    expect(installers(["ton"], [])).toEqual(["installTonPhraseFeature"]);
+    expect(installers(["bitcoin", "ton"], ["mhfe", "bip85"])).toEqual([
+      "installBip85Feature",
+      "installCheckedMnemonicFeature",
+      "installTonPhraseFeature",
+    ]);
+    expect(installers(["bitcoin", "tron"], ["mhfe"])).toEqual(["installCheckedMnemonicFeature"]);
+    const template = '<div id="ton-generation"><input id="ton-generation-enabled" /></div>';
+    expect(applyKeyDerivationFeatureTemplate(template, options(["ton"]))).toContain(
+      "ton-generation-enabled",
+    );
+    expect(applyKeyDerivationFeatureTemplate(template, options(["tron"]))).not.toContain(
+      "ton-generation",
     );
   });
 

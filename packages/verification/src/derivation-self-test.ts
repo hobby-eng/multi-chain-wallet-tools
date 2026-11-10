@@ -11,6 +11,7 @@ import { runLitecoinDerivationSelfTest } from "./derivation-self-test-litecoin.j
 import { runNearDerivationSelfTest } from "./derivation-self-test-near.js";
 import { runSolanaDerivationSelfTest } from "./derivation-self-test-solana.js";
 import { runStellarDerivationSelfTest } from "./derivation-self-test-stellar.js";
+import { runTonDerivationSelfTest } from "./derivation-self-test-ton.js";
 import { runTronDerivationSelfTest } from "./derivation-self-test-tron.js";
 import { runXrpDerivationSelfTest } from "./derivation-self-test-xrp.js";
 import { runZcashDerivationSelfTest } from "./derivation-self-test-zcash.js";
@@ -39,5 +40,6 @@ export function runDerivationSelfTest(): Promise<CryptoSelfTestReport> {
     runStellarDerivationSelfTest,
     runNearDerivationSelfTest,
     runHederaDerivationSelfTest,
+    runTonDerivationSelfTest,
   ]);
 }

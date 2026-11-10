@@ -76,6 +76,7 @@ const DERIVATION_TYPE_COPY = {
   near: "<strong>NEAR:</strong> keys at m/44'/397'/i'; the address is the key's implicit account.",
   hedera:
     "<strong>Hedera:</strong> the Ed25519 and ECDSA keys of the Hedera SDK; the network numbers an account (0.0.N) when it is created.",
+  ton: "<strong>TON:</strong> Telegram wallet reads a TON phrase, whose one key the Telegram wallet and TON's own wallets keep; Trust Wallet (m/44'/607'/i') and Ledger (m/44'/607'/0'/0'/i'/0') derive TON keys from any BIP39 phrase. Each key has an address for each wallet contract: W5, v4R2 and v3R2.",
   dash: "<strong>Dash:</strong> Core BIP44 holds the ordinary addresses of Dash Core and the Dash mobile wallets. The two Multisig tabs give one cosigner's account xpub for a shared P2SH wallet: Purpose48 for wallets that use that path, Core pkh signer for a Dash Core signer wallet. Platform DIP17 / DIP18 gives Dash Platform payment addresses, Identity DIP13 the keys of a Platform identity, Identity funding DIP13 the Dash Core addresses whose asset locks fund an identity, its top-ups, invitations and Platform address or shielded top-ups, DashPay DIP15 the addresses on which one DashPay contact pays you, from your and the contact's identity IDs, Masternode DIP9 a masternode's owner, voting, BLS operator and Evonode Platform node keys, and Shielded Orchard / ZIP-32 private Orchard addresses.",
 };
 

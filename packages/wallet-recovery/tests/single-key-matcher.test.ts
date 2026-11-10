@@ -24,6 +24,9 @@ const KNOWN: readonly (readonly [string, readonly string[]])[] = [
     "0.0.302a300506032b657003210010fcec8c5db29aeab62272a08be39b1ec75eba50624351fba9948ff5d3d78ecf",
     ["hedera"],
   ],
+  // TON's Trust Wallet address; the Telegram wallet's key needs a TON phrase, which the Matcher's
+  // BIP39 seeds are not.
+  ["UQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-RKY", ["ton-trust", "ton-ledger"]],
 ];
 
 const targetOf = (value: string, network: "mainnet" | "testnet" = "mainnet") =>
@@ -74,6 +77,23 @@ describe("single-key coins in the Wallet Matcher", () => {
     expect(() => targetOf("bitcoincash:ppm2qsznhks23z7629mms6s4cwef74vcwvn0h829pq")).toThrow(
       /not recognized/u,
     );
+  });
+
+  it("read every form of a TON address as its non-bounceable UQ… form", () => {
+    for (const form of [
+      "EQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-U9d",
+      "EQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9+U9d",
+      "0:335996ba9cce6625ebfdd7019ced50927c1a08b1846a289a55efc37c01d77df9",
+      "0:335996BA9CCE6625EBFDD7019CED50927C1A08B1846A289A55EFC37C01D77DF9",
+    ])
+      expect(targetOf(form)?.normalized).toBe("UQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-RKY");
+    // A broken checksum, a testnet-only address and another workchain are refused.
+    for (const refused of [
+      "UQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-RKZ",
+      "0QAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-akS",
+      "-1:335996ba9cce6625ebfdd7019ced50927c1a08b1846a289a55efc37c01d77df9",
+    ])
+      expect(() => targetOf(refused)).toThrow(/not recognized/u);
   });
 
   it("refuse a line longer than any supported address before decoding it", () => {

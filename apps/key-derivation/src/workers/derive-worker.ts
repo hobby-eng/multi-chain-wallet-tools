@@ -17,6 +17,7 @@ import {
 import { runDashMessageSigningSelfTest } from "./message-signer-self-test-dash.js";
 import { runDashMasternodeFullSelfTest } from "./masternode-self-test-dash.js";
 import { runSilentPaymentSelfTest } from "./silent-payment-self-test.js";
+import { runTonKeyFullSelfTest } from "./ton-key-self-test.js";
 
 startDerivationWorker({
   getRuntimeCoinAdapter,
@@ -33,6 +34,7 @@ startDerivationWorker({
     runBitcoinBip38FullSelfTest,
     runDashBip38FullSelfTest,
     runDashMasternodeFullSelfTest,
+    runTonKeyFullSelfTest,
   ],
   signDerivedMessage,
   deriveSilentPayment,

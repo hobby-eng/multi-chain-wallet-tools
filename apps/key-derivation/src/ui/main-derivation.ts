@@ -29,7 +29,10 @@ interface MainDerivationOptions {
   cancelAutomatic(): void;
   bip38(): Bip38EncryptionFeature | undefined;
   createWorker(): JobWorker;
+  /** The seed of the phrase for the current variant: BIP39's, or for TON's Telegram wallet the TON phrase's. */
   mnemonicToSeed: typeof import("@ckd/core/bip39.js").mnemonicToSeed;
+  /** The page's texts of refusals that are neither the stream's nor the protocol's, by code. */
+  messages?(): Readonly<Record<string, string>>;
 }
 
 /** One owned worker/seed pair; both revocation and normal settlement release its mutable seed. */
@@ -234,6 +237,11 @@ export class MainDerivation {
       );
       return;
     }
-    view.showError(DerivationErrorText.of(cause, undefined, this.#options.adapter().inputMessages));
+    view.showError(
+      DerivationErrorText.of(cause, undefined, {
+        ...this.#options.messages?.(),
+        ...this.#options.adapter().inputMessages,
+      }),
+    );
   }
 }

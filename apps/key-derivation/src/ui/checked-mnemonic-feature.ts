@@ -4,7 +4,6 @@
 // on a few workers (wallet-check-draw.ts): from MHFE 0.8.0 it is the one generator of phrases. MHFE's
 // wallet module checks the phrase once more (MhfeWallet.walletCheck) before it is shown.
 import type { ChosenWordCount, ChosenWordsRequest } from "@ckd/core/bip39-chosen-words.js";
-import { BIP39_WORD_COUNTS } from "@ckd/core/bip39-parameters.js";
 import {
   runWalletCheckSelfTest,
   WALLET_CHECK_EXPECTED_DRAWS,
@@ -25,6 +24,11 @@ import {
   selfCheckFailure,
 } from "./recovery-mhfe-status.js";
 import { JobClock } from "./recovery-progress.js";
+import {
+  GenerationOptionState,
+  type GenerateButtons,
+  type GenerationOption,
+} from "./generation-option.js";
 import { WalletCheckDraw } from "./wallet-check-draw.js";
 
 /** The wishes of the chosen-word panel, for a phrase of a given length. */
@@ -35,20 +39,20 @@ type WishesFor = (wordCount: ChosenWordCount) => ChosenWordsRequest;
  * the chosen-word panel as its checked mode (CheckedGeneration). Its engine is its own, so that a
  * draw of the MHFE panel and this one never stop each other.
  */
-export class CheckedMnemonicFeature implements CheckedGeneration {
+export class CheckedMnemonicFeature implements CheckedGeneration, GenerationOption {
   readonly #engine: MhfeEngine;
   readonly #box: HTMLInputElement;
+  readonly #state: GenerationOptionState;
   readonly #panel: HTMLElement;
   readonly #help: HTMLDetailsElement;
   readonly #cancel: HTMLButtonElement;
   /** The note beside the passphrase label: optional, or required while this mode is chosen. */
   readonly #need: HTMLElement | null;
-  readonly #buttons: ReadonlyMap<number, HTMLButtonElement>;
+  readonly #buttons: GenerateButtons;
   /** What the wishes keep with the check, shown while the box is ticked. */
   readonly #outlook: HTMLElement;
   /** MHFE's quick check of its wallet module, run when the box is first ticked. */
   readonly #check: MhfePanelCheck;
-  #enabled = false;
   #failed = false;
   /** The phrase being drawn, whose Cancel latches over every step (MhfeRun). */
   #run: MhfeRun | undefined;
@@ -56,18 +60,29 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
   #draw: WalletCheckDraw | undefined;
   #wishes: WishesFor | null = null;
 
-  constructor(page: Document, onChange: () => void, engine: MhfeEngine = new MhfeEngine()) {
+  constructor(
+    page: Document,
+    onChange: () => void,
+    buttons: GenerateButtons,
+    engine: MhfeEngine = new MhfeEngine(),
+  ) {
     const required = <T extends Element>(selector: string) =>
       requireQueryElement<T>(page, selector);
     this.#engine = engine;
     this.#box = required<HTMLInputElement>("#wallet-check-enabled");
+    this.#state = new GenerationOptionState(
+      this.#box,
+      () => this.cancel(),
+      () => {
+        this.#showOutlook();
+        this.#sync();
+      },
+    );
     this.#panel = required<HTMLElement>("#wallet-check-options");
     this.#help = required<HTMLDetailsElement>("#wallet-check-help");
     this.#cancel = required<HTMLButtonElement>("#wallet-check-cancel");
     this.#need = page.querySelector<HTMLElement>("#passphrase-need");
-    this.#buttons = new Map(
-      BIP39_WORD_COUNTS.map((count) => [count, required<HTMLButtonElement>(`#generate-${count}`)]),
-    );
+    this.#buttons = buttons;
     this.#outlook = required<HTMLElement>("#wallet-check-outlook");
     this.#check = new MhfePanelCheck(engine, this.#panel, required("#wallet-check-status"), [
       "Wallet",
@@ -89,8 +104,17 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
     this.#sync();
   }
 
+  // The same three methods as TonPhraseFeature's, both GenerationOption's (a deliberate copy).
   active(): boolean {
     return this.#box.checked;
+  }
+
+  setEnabled(enabled: boolean): void {
+    this.#state.setEnabled(enabled);
+  }
+
+  clear(): void {
+    this.#state.clear();
   }
 
   onChange(listener: () => void): void {
@@ -100,19 +124,6 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
   showWishes(request: WishesFor | null): void {
     this.#wishes = request;
     this.#showOutlook();
-  }
-
-  setEnabled(enabled: boolean): void {
-    this.#enabled = enabled;
-    if (!enabled) this.cancel();
-    this.#sync();
-  }
-
-  clear(): void {
-    this.cancel();
-    this.#box.checked = false;
-    this.#showOutlook();
-    this.#sync();
   }
 
   cancel(): void {
@@ -131,7 +142,7 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
     onStatus: (line: string) => void,
   ): Promise<string> {
     this.cancel();
-    if (!this.#enabled) throw new Error("The cryptographic self-test has not passed.");
+    if (!this.#state.enabled) throw new Error("The cryptographic self-test has not passed.");
     if (words !== WALLET_CHECK_WORDS)
       throw new Error(`The MHFE wallet check draws ${WALLET_CHECK_WORDS}-word phrases only.`);
     // As MHFE took it: the check needs the wallet's passphrase.
@@ -209,7 +220,7 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
   }
 
   #sync(): void {
-    const open = this.#enabled && !this.#failed;
+    const open = this.#state.enabled && !this.#failed;
     this.#box.disabled = !open;
     this.#panel.hidden = !this.#box.checked;
     // The "?" explains the option before it is chosen (owner, 2026-10-23).
@@ -219,14 +230,14 @@ export class CheckedMnemonicFeature implements CheckedGeneration {
       this.#need.textContent = this.#box.checked
         ? "required for MHFE generation, case-sensitive"
         : "optional, case-sensitive";
-    for (const [count, button] of this.#buttons)
-      button.disabled = !this.#enabled || (this.#box.checked && count !== WALLET_CHECK_WORDS);
+    this.#buttons.limit("mhfe-wallet-check", this.#box.checked ? WALLET_CHECK_WORDS : undefined);
   }
 }
 
 export function installCheckedMnemonicFeature(
   page: Document,
   onChange: () => void,
+  buttons: GenerateButtons,
 ): CheckedMnemonicFeature {
-  return new CheckedMnemonicFeature(page, onChange);
+  return new CheckedMnemonicFeature(page, onChange, buttons);
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { runBitcoinBip38FullSelfTest } from "../src/workers/bip38-self-test-bitcoin.js";
 import { runDashBip38FullSelfTest } from "../src/workers/bip38-self-test-dash.js";
 import { runDashMasternodeFullSelfTest } from "../src/workers/masternode-self-test-dash.js";
+import { runTonKeyFullSelfTest } from "../src/workers/ton-key-self-test.js";
 import { encryptDerivedP2pkhKey } from "../src/workers/bip38-encrypter.js";
 import { encryptDerivedP2pkhKey as encryptDashP2pkhKey } from "../src/workers/bip38-encrypter-dash.js";
 import { runBip85SelfTest } from "../src/workers/bip85-self-test.js";
@@ -49,6 +50,9 @@ describe("the known answers of the Deriver's optional features", () => {
       ]);
     expect((await runDashMasternodeFullSelfTest()).checks).toEqual([
       "Dash masternode owner, voting, BLS operator and Ed25519 Platform node keys",
+    ]);
+    expect(runTonKeyFullSelfTest().checks).toEqual([
+      "TON phrase key · PBKDF2-SHA512, 100,000 iterations",
     ]);
   }, 60_000);
 

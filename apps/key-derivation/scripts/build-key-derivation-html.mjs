@@ -23,6 +23,7 @@ import {
 import {
   applyKeyDerivationFeatureTemplate,
   customKeyDerivationArtifact,
+  derivationFeatureModules,
   describeCustomArtifact,
   featureDefines,
   parseKeyDerivationFeatures,
@@ -131,11 +132,7 @@ const bundled = await build({
           namespace: "ckd-derivation-selection",
         }));
         buildContext.onLoad({ filter: /.*/, namespace: "ckd-derivation-selection" }, () => {
-          const definitions = [
-            ["bip85", "bip85-feature.ts", "installBip85Feature"],
-            ["silent-payments", "silent-payment-feature.ts", "installSilentPaymentFeature"],
-            ["mhfe", "checked-mnemonic-feature.ts", "installCheckedMnemonicFeature"],
-          ].filter(([feature]) => features.has(feature));
+          const definitions = derivationFeatureModules(features);
           const exports = definitions
             .map(
               ([, file, symbol]) =>
