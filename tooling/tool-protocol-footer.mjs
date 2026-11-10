@@ -42,6 +42,7 @@ export class ToolProtocolFooter {
         stellar: "Stellar",
         near: "NEAR",
         hedera: "Hedera",
+        ton: "TON",
       })}`;
     if (toolId === "psbt-inspector")
       return selected({

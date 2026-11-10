@@ -163,6 +163,9 @@ export class DerivationControlsView {
     controls.accountLabel.textContent = adapter.controlLabels?.account ?? "Account";
     controls.startLabel.textContent = adapter.controlLabels?.start ?? "Start index";
     controls.countLabel.textContent = adapter.controlLabels?.count ?? "Number of results";
+    // A protocol of one key has no range: its start index and number of results are not shown.
+    for (const label of [controls.startLabel, controls.countLabel])
+      if (label.parentElement !== null) label.parentElement.hidden = adapter.rangeControl === false;
     DerivationControlsView.#setNumeric(controls.account, values.account, limits.account);
     DerivationControlsView.#setNumeric(controls.start, values.start, limits.start);
     DerivationControlsView.#setNumeric(
@@ -241,8 +244,10 @@ export class DerivationControlsView {
     const text: Record<string, string> = {};
     for (const input of controls.textControls?.querySelectorAll<HTMLInputElement>(
       "input[data-text-key]",
-    ) ?? [])
-      text[input.dataset.textKey!] = input.value;
+    ) ?? []) {
+      const key = input.dataset.textKey;
+      if (key !== undefined) text[key] = input.value;
+    }
     return text;
   }
 

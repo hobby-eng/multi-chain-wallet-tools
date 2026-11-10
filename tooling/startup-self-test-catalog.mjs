@@ -164,6 +164,17 @@ const HEDERA = Object.freeze([
   "Hedera ECDSA · BIP44",
   "Hedera master/account extended-key integrity",
 ]);
+const TON = Object.freeze([
+  "ton mainnet path metadata",
+  "ton path boundary refusal",
+  "ton-trust mainnet path metadata",
+  "ton-trust path boundary refusal",
+  "ton-ledger mainnet path metadata",
+  "ton-ledger path boundary refusal",
+  "TON Trust Wallet · m/44'/607'/i'",
+  "TON Ledger · m/44'/607'/0'/0'/i'/0'",
+  "TON phrase check and wallet contracts W5, v4R2, v3R2",
+]);
 const MULTI_CHAIN = Object.freeze({
   entry: "packages/verification/src/self-test.ts",
   run: "runCryptoSelfTest",
@@ -186,6 +197,7 @@ const MULTI_CHAIN = Object.freeze({
     ...STELLAR,
     ...NEAR,
     ...HEDERA,
+    ...TON,
   ]),
 });
 const DASH_COMMUNITY = Object.freeze({

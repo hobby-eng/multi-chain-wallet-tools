@@ -604,6 +604,46 @@ describe("Key Derivation generated source publication", () => {
     expect(view.passphrase.value).toBe(exactPassphrase);
   });
 
+  it("reads a TON phrase typed during the startup checks once they pass, and opens its tab", async () => {
+    const bitcoin = { id: "bitcoin-bip44", label: "Bitcoin", variantLabel: "BIP44", defaults: {} };
+    const telegram = {
+      id: "ton",
+      label: "TON Telegram wallet",
+      variantLabel: "Telegram wallet",
+      seedSource: "ton-phrase",
+      defaults: {},
+    };
+    const ton = {
+      active: vi.fn(() => false),
+      show: vi.fn((phrase: string) => (phrase === "" ? "other" : "ton-only")),
+      cancel: vi.fn(),
+      clear: vi.fn(),
+      setEnabled: vi.fn(),
+      messages: {},
+      seedFor: vi.fn(),
+    };
+    const adapters = [bitcoin, telegram];
+    const { controller, view, resolveWorkerSelfTest } = controllerHarness({
+      coinFamilies: [
+        { id: "bitcoin", label: "Bitcoin", adapters: [bitcoin] },
+        { id: "ton", label: "TON", adapters: [telegram] },
+      ],
+      getAdapterFamilyId: (adapter: { id: string }) => (adapter.id === "ton" ? "ton" : "bitcoin"),
+      getCoinAdapter: (id: string) => adapters.find((adapter) => adapter.id === id),
+      installTonPhraseFeature: vi.fn(() => ton),
+    });
+    controller.start();
+    (view.mnemonic as unknown as TestControl).value = "a TON phrase";
+    view.mnemonic.dispatchEvent(new Event("input"));
+    // Before the checks pass, no note and no switch.
+    expect(ton.show).toHaveBeenLastCalledWith("");
+    expect(view.configureControls).not.toHaveBeenCalledWith(telegram, expect.anything());
+    resolveWorkerSelfTest({ passed: true, checks: ["worker fixture"], durationMs: 1 });
+    await settle();
+    expect(ton.show).toHaveBeenLastCalledWith("a TON phrase");
+    expect(view.configureControls).toHaveBeenLastCalledWith(telegram, expect.anything());
+  });
+
   it("cancels a checked draw when a derivation control changes (AUD-026-API001)", async () => {
     let fail!: (cause: Error) => void;
     const draw = new Promise<string>((_, reject) => {

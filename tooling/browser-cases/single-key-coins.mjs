@@ -34,7 +34,14 @@ const FIRST_ADDRESSES = [
     "0.0.302a300506032b657003210010fcec8c5db29aeab62272a08be39b1ec75eba50624351fba9948ff5d3d78ecf",
   ],
   ["hedera", "hedera-ecdsa", "0xC283f34aDafdB758a557304C5F5e4c1E0A554713"],
+  ["ton", "ton-trust", "UQAzWZa6nM5mJev91wGc7VCSfBoIsYRqKJpV78N8Add9-RKY"],
+  ["ton", "ton-ledger", "UQAhEnZmOZ4XCJ1BKsvvt4D1DobiFgIf8nbZdTiT0l-8mOpj"],
 ];
+
+/** ton-crypto's test phrase, a TON phrase that is not a BIP39 phrase, and its W5 address. */
+const TON_PHRASE =
+  "hospital stove relief fringe tongue always charge angry urge sentence again match nerve inquiry senior coconut label tumble carry category beauty bean road solution";
+const TON_W5 = "UQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53h3h";
 
 /** The first shown address of the result list, as the copy buttons name it. */
 const firstAddress = (page) =>
@@ -42,6 +49,49 @@ const firstAddress = (page) =>
     const button = document.querySelector('#address-list [data-copy-field="address"]');
     return button?.parentElement?.querySelector(".value")?.textContent ?? null;
   });
+
+/** Waits until the first shown address is `expected`, or with `changed`, any UQ… address but it. */
+const waitForFirstAddress = (page, expected, changed = false) =>
+  page.waitForFunction(
+    ([address, other]) => {
+      const shown =
+        document
+          .querySelector('#address-list [data-copy-field="address"]')
+          ?.parentElement?.querySelector(".value")?.textContent ?? null;
+      return other ? shown?.startsWith("UQ") === true && shown !== address : shown === address;
+    },
+    [expected, changed],
+  );
+
+/**
+ * The Telegram wallet's tab: a BIP39 phrase that is not TON's is refused, a pasted TON phrase opens
+ * the tab with its one key and no range, and "Generate a phrase the Telegram wallet accepts" draws a
+ * BIP39 phrase whose Telegram wallet key the tab shows.
+ */
+async function checkTelegramWallet(page) {
+  await page.locator("#coin").selectOption("ton");
+  await page.locator('#protocol-tabs [data-adapter-id="ton"]').click();
+  assert.equal(await page.locator("#count").isVisible(), false, "a TON phrase has one key");
+  await page.locator("#derive-button").click();
+  await page.locator("#error:not([hidden])").waitFor();
+  assert.match(await page.locator("#error").innerText(), /not a TON phrase/u);
+  // A TON phrase that is not BIP39's: the Telegram wallet's tab, from any other coin.
+  await page.locator("#coin").selectOption("litecoin");
+  await page.locator("#mnemonic").fill(TON_PHRASE);
+  await page.locator('#protocol-tabs [data-adapter-id="ton"][aria-checked="true"]').waitFor();
+  await waitForFirstAddress(page, TON_W5);
+  assert.match(await page.locator("#ton-phrase-note").innerText(), /not a BIP39 phrase/u);
+  // Telegram-compatible generation: 24 words only, and the tab shows the new phrase's key.
+  await page.locator("#ton-generation-enabled").check();
+  assert.equal(await page.locator("#generate-12").isDisabled(), true);
+  await page.locator("#generate-24").click();
+  await page.locator("#ton-phrase-note:not([hidden])").waitFor();
+  await page.waitForFunction(() =>
+    document.querySelector("#ton-phrase-note")?.textContent?.includes("also a TON phrase"),
+  );
+  await waitForFirstAddress(page, TON_W5, true);
+  await page.locator("#ton-generation-enabled").uncheck();
+}
 
 /** Every single-key coin of the Multi-Chain Deriver derives its known first address in the page. */
 export class SingleKeyCoinsCase {
@@ -62,6 +112,7 @@ export class SingleKeyCoinsCase {
       );
       assert.equal(await firstAddress(page), expected, adapter);
     }
-    return "Each single-key coin's variant derives its known first address of the public phrase in the page";
+    await checkTelegramWallet(page);
+    return "Each single-key coin's variant derives its known first address of the public phrase in the page, and TON's Telegram wallet tab reads TON phrases";
   }
 }

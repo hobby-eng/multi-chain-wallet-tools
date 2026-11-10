@@ -18,12 +18,14 @@ export class AdapterSettingsStore {
   remember(adapter: CoinAdapter, values: DerivationControlValues): void {
     const family = this.#familyId(adapter);
     this.#settingsByAdapter.set(adapter.id, { ...values });
-    this.#sharedByCoin.set(family, {
-      network: values.network,
-      account: values.account,
-      start: values.start,
-      count: values.count,
-    });
+    // A protocol of one key has no range to share with its coin's other variants.
+    if (adapter.rangeControl !== false)
+      this.#sharedByCoin.set(family, {
+        network: values.network,
+        account: values.account,
+        start: values.start,
+        count: values.count,
+      });
     if (adapter.addressBranches !== undefined)
       this.#includeChangeByCoin.set(family, values.includeChange);
     if (adapter.coinJoin !== undefined)

@@ -68,6 +68,9 @@ describe("coin adapter extension contract", () => {
       "near",
       "hedera",
       "hedera-ecdsa",
+      "ton",
+      "ton-trust",
+      "ton-ledger",
     ]);
     for (const adapter of COIN_ADAPTERS) {
       expect(adapter.label.length).toBeGreaterThan(0);
@@ -86,10 +89,21 @@ describe("coin adapter extension contract", () => {
       } else if (adapter.id === "dash-masternode") {
         expect(adapter.fieldRoles.addresses).toEqual(["ownerAddress", "votingAddress"]);
         expect(adapter.defaults.count).toBe(5);
+      } else if (adapter.id === "ton") {
+        // The Telegram wallet's one key of a TON phrase: no range and no BIP32 path.
+        expect(adapter.fieldRoles.addresses).toContain("address");
+        expect(adapter.defaults.count).toBe(1);
+        expect(adapter.rangeControl).toBe(false);
+        expect(adapter.seedSource).toBe("ton-phrase");
+        expect(adapter.pathPreview({ ...adapter.defaults })).toContain("TON default seed");
+        expect(() => adapter.pathPreview({ ...adapter.defaults, count: 2 })).toThrow(RangeError);
+        expect(getCoinAdapter(adapter.id)).toBe(adapter);
+        continue;
       } else {
         expect(adapter.fieldRoles.addresses).toContain("address");
         expect(adapter.defaults.count).toBe(20);
       }
+      expect(adapter.seedSource).toBeUndefined();
       expect(adapter.pathPreview({ ...adapter.defaults })).toContain("m/");
       expect(getCoinAdapter(adapter.id)).toBe(adapter);
     }
@@ -113,6 +127,7 @@ describe("coin adapter extension contract", () => {
       { id: "stellar", label: "Stellar" },
       { id: "near", label: "NEAR" },
       { id: "hedera", label: "Hedera" },
+      { id: "ton", label: "TON" },
     ]);
     expect(
       COIN_FAMILIES.find(({ id }) => id === "bitcoin")?.adapters.map(

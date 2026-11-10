@@ -77,6 +77,12 @@ export const SINGLE_KEY_COINS = Object.freeze({
     kinds: ["ed25519", "bip44"],
     shared: ["slip10-ed25519", "keccak-account"],
   },
+  ton: {
+    prefix: "TON",
+    derivation: "tonDerivation",
+    kinds: ["ed25519"],
+    shared: ["slip10-ed25519", "crc16"],
+  },
 });
 
 export const SINGLE_KEY_COIN_IDS = Object.freeze(Object.keys(SINGLE_KEY_COINS));
@@ -97,6 +103,17 @@ export function singleKeyCoinModules(coin) {
   });
 }
 
+/**
+ * TON's phrase, beyond its coin modules: its mnemonic, the page's TON phrase feature (the Telegram
+ * wallet's seed and Telegram-compatible generation) and the worker's slower key check.
+ */
+export const TON_PHRASE_MODULES = Object.freeze([
+  "/crypto-core/src/ton-mnemonic.ts",
+  "/crypto-core/src/ton-phrase.ts",
+  "/key-derivation/src/ui/ton-phrase-feature.ts",
+  "/key-derivation/src/workers/ton-key-self-test.ts",
+]);
+
 /** The graph markers of a single-key coin's own modules, which no build without it may hold. */
 export function singleKeyCoinMarkers(coin) {
   return [
@@ -105,6 +122,7 @@ export function singleKeyCoinMarkers(coin) {
     `derivation-self-test-${coin}.ts`,
     `/wallet-recovery/src/matcher-targets-${coin}.ts`,
     ...(coin === "bitcoin-cash" ? ["/crypto-core/src/cashaddr.ts"] : []),
+    ...(coin === "ton" ? TON_PHRASE_MODULES : []),
   ];
 }
 

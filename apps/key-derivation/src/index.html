@@ -202,6 +202,35 @@
               <button id="wallet-check-cancel" type="button" class="secondary compact" hidden>Stop</button>
             </div>
           </div>
+          <div id="ton-generation" class="generation-option">
+            <div class="field-heading-row">
+              <label class="feature-tab-toggle" for="ton-generation-enabled">
+                <input id="ton-generation-enabled" type="checkbox" disabled />
+                <span
+                  ><strong>Generate a phrase the Telegram wallet accepts</strong
+                  ><small>24 words · a BIP39 phrase that is also a TON phrase.</small></span
+                >
+              </label>
+              <details id="ton-generation-help" class="recovery-help option-help">
+                <summary class="help-mark" aria-label="What a phrase the Telegram wallet accepts is">?</summary>
+                <div class="recovery-help-popover">
+                  <h3>BIP39 and TON phrases</h3>
+                  <p>
+                    The Telegram wallet and TON's own wallets keep a TON phrase: 24 words of the same English list,
+                    without BIP39's checksum, which pass TON's own check instead; about one random phrase in 256 does.
+                    The key comes from the words alone, not from BIP39's seed, so a BIP39 passphrase is not part of it.
+                  </p>
+                  <p>
+                    With this option the Deriver draws BIP39 phrases of 24 words until one also passes TON's check,
+                    about 256 draws. That phrase gives every coin's BIP39 keys, and the Telegram wallet's key under TON
+                    · Telegram wallet. Trust Wallet and Ledger derive their TON keys from the BIP39 seed of any phrase,
+                    so their addresses differ from the Telegram wallet's.
+                  </p>
+                </div>
+              </details>
+            </div>
+            <p id="ton-phrase-note" class="field-note" role="status" aria-live="polite" hidden></p>
+          </div>
           <div class="field-heading-row generation-option">
             <label class="feature-tab-toggle chosen-words-toggle" for="chosen-words-enabled">
               <input id="chosen-words-enabled" type="checkbox" />

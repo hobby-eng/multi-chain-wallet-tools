@@ -12,7 +12,11 @@ async function selfTests(context, profile, run) {
   const deriver = await open(context, profile, "key-derivation", run);
   await deriver.locator("#full-self-test").click();
   await fullSelfTestPasses(deriver, "#full-self-test-status");
-  assert.match(await deriver.locator("#full-self-test-result").innerText(), /BIP38/u);
+  const fullResult = await deriver.locator("#full-self-test-result").innerText();
+  assert.match(fullResult, /BIP38/u);
+  // TON's phrase key, 100,000 PBKDF2 rounds, is checked in the full self-test only.
+  if (profile.id === "multi-chain") assert.match(fullResult, /TON phrase key/u);
+  else assert.doesNotMatch(fullResult, /TON/u);
   assert.match(await deriver.locator("#crypto-self-test-details").innerText(), /BIP85/u);
 
   const inspector = await open(context, profile, "psbt-inspector", run);

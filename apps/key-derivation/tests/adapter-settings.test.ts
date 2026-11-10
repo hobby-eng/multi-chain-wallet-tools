@@ -60,3 +60,22 @@ it("returns an independent shared range that cannot mutate future remembered set
     count: 25,
   });
 });
+
+it("keeps a coin's shared range when a variant of one key is remembered", () => {
+  const owner = new AdapterSettingsStore(getAdapterFamilyId);
+  const trust = getCoinAdapter("ton-trust");
+  owner.remember(trust, {
+    ...trust.defaults,
+    start: 5,
+    count: 30,
+    includeChange: false,
+    includeCoinJoin: false,
+  });
+  // The Telegram wallet's one key: start 0, one result.
+  const telegram = getCoinAdapter("ton");
+  owner.remember(telegram, { ...telegram.defaults, includeChange: false, includeCoinJoin: false });
+  expect(owner.controlsFor(getCoinAdapter("ton-ledger")).shared).toMatchObject({
+    start: 5,
+    count: 30,
+  });
+});

@@ -90,6 +90,13 @@ export interface CoinAdapter {
   branchControl?: BranchControl;
   limits?: CoinLimits;
   accountControl?: boolean;
+  /** False when the protocol has one key: the page shows no start index or number of results. */
+  rangeControl?: false;
+  /**
+   * Where the derivation's seed comes from: BIP39's seed of the phrase and its passphrase when
+   * absent; "ton-phrase", the 64-byte entropy of a TON phrase (@ckd/core/ton-mnemonic.js).
+   */
+  seedSource?: "ton-phrase";
   controlLabels?: {
     account?: string;
     start?: string;

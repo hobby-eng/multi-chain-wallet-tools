@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@ckd/recovery-mhfe-wasm/runtime/mhfe.wasm", () => ({ default: new Uint8Array() }));
 import { MhfeError } from "@ckd/recovery-mhfe-wasm/runtime/runtime.js";
 import { CheckedMnemonicFeature } from "../src/ui/checked-mnemonic-feature.js";
+import { GenerateButtons } from "../src/ui/generation-option.js";
 import type { MhfeEngine } from "../src/ui/recovery-mhfe-engine.js";
 
 class Control extends EventTarget {
@@ -95,8 +96,18 @@ function setup({ passed = true } = {}) {
     passed: vi.fn(),
   };
   const changed = vi.fn();
-  const feature = new CheckedMnemonicFeature(page, changed, engine as unknown as MhfeEngine);
-  return { feature, elements, wallet, engine, changed };
+  const buttons = new GenerateButtons(
+    [12, 15, 18, 21, 24].map(
+      (n) => [n, page.querySelector(`#generate-${n}`) as HTMLButtonElement] as const,
+    ),
+  );
+  const feature = new CheckedMnemonicFeature(
+    page,
+    changed,
+    buttons,
+    engine as unknown as MhfeEngine,
+  );
+  return { feature, elements, wallet, engine, changed, buttons };
 }
 
 /** Ticks the box, as the person does. */
@@ -112,11 +123,13 @@ describe("checked mnemonic page lifecycle", () => {
   });
 
   it("gates generation and restricts the mode to 24 words", async () => {
-    const { feature, elements, wallet } = setup();
+    const { feature, elements, wallet, buttons } = setup();
     expect(elements["wallet-check-enabled"]!.disabled).toBe(true);
     await expect(feature.generate(24, "TREZOR", wishes, () => undefined)).rejects.toThrow(
       /self-test/u,
     );
+    // The controller enables the Generate buttons with the option, after the startup checks.
+    buttons.setEnabled(true);
     feature.setEnabled(true);
     tick(elements);
     expect(elements["generate-12"]!.disabled).toBe(true);

@@ -143,6 +143,8 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     rendered = removeBalancedElement(rendered, "mnemocode-card-share-qr-row");
     rendered = removeBalancedElement(rendered, "mnemocode-forgotten-share");
   }
+  // A TON phrase's option and note come with TON (tooling/single-key-coins.mjs TON_PHRASE_MODULES).
+  if (!features.hasCoin("ton")) rendered = removeBalancedElement(rendered, "ton-generation");
   // The passport names only what this build contains.
   if (!features.has("mhfe")) rendered = removeBalancedElement(rendered, "passport-mhfe-dependency");
   if (!features.has("mnemocode"))
@@ -167,6 +169,22 @@ export function applyKeyDerivationFeatureTemplate(template, features) {
     );
   }
   return rendered;
+}
+
+/**
+ * The page's derivation feature modules of a build, as [feature, file in apps/key-derivation/src/ui,
+ * exported installer]: each optional feature's, and a coin's own (the TON phrase comes with TON).
+ */
+export function derivationFeatureModules(features) {
+  return [
+    ["bip85", "bip85-feature.ts", "installBip85Feature"],
+    ["silent-payments", "silent-payment-feature.ts", "installSilentPaymentFeature"],
+    ["mhfe", "checked-mnemonic-feature.ts", "installCheckedMnemonicFeature"],
+  ]
+    .filter(([feature]) => features.has(feature))
+    .concat(
+      features.hasCoin("ton") ? [["ton", "ton-phrase-feature.ts", "installTonPhraseFeature"]] : [],
+    );
 }
 
 export function featureDefines(features) {

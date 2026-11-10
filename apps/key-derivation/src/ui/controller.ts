@@ -26,6 +26,7 @@ import { SELF_TEST_NOT_PASSED } from "./crypto-self-test-gate.js";
 import { FieldEdits } from "./field-edits.js";
 import { DerivationResults } from "@ckd/ui/derivation-results.js";
 import { DeriverSource } from "./deriver-source.js";
+import { GenerateButtons } from "./generation-option.js";
 
 interface KeyDerivationDependencies {
   coinFamilies: typeof import("@ckd/coins/registry.js").COIN_FAMILIES;
@@ -36,6 +37,8 @@ interface KeyDerivationDependencies {
   generateMnemonic: typeof import("@ckd/core/bip39.js").generateMnemonic;
   chosenWords?: import("./chosen-words-feature.js").ChosenWordsFeature;
   installCheckedMnemonicFeature?: typeof import("./checked-mnemonic-feature.js").installCheckedMnemonicFeature;
+  /** TON's phrase, in builds with TON: the Telegram wallet's seed and Telegram-compatible generation. */
+  installTonPhraseFeature?: typeof import("./ton-phrase-feature.js").installTonPhraseFeature;
   mnemonicToSeed: typeof import("@ckd/core/bip39.js").mnemonicToSeed;
   runBip39SelfTest: typeof import("@ckd/bip39-self-test").runBip39SelfTest;
   runRecoveryBackupSelfTest: typeof import("@ckd/recovery-backup/self-test.js").runRecoveryBackupSelfTest;
@@ -74,6 +77,9 @@ export class KeyDerivationController {
   #cryptoReady: boolean;
   #checkedMnemonic:
     ReturnType<NonNullable<KeyDerivationDependencies["installCheckedMnemonicFeature"]>> | undefined;
+  #tonPhrase:
+    ReturnType<NonNullable<KeyDerivationDependencies["installTonPhraseFeature"]>> | undefined;
+  readonly #generateButtons: GenerateButtons;
   #adapterSettings: AdapterSettingsStore;
   #automaticDerivation: AutomaticDerivationScheduler;
   #workspaceTabs: DerivationWorkspaceTabs;
@@ -95,9 +101,19 @@ export class KeyDerivationController {
     this.#adapter = dependencies.getDefaultCoinAdapter(defined(dependencies.coinFamilies[0]).id);
     this.#results = new DerivationResults();
     this.#cryptoReady = false;
+    // One object owns the Generate buttons, which each generation option limits while ticked.
+    this.#generateButtons = new GenerateButtons(
+      BIP39_WORD_COUNTS.map((words) => [words, this.#view[`generate${words}Button`]] as const),
+    );
     this.#checkedMnemonic = this.#dependencies.installCheckedMnemonicFeature?.(
       this.#view.document,
       this.#invalidateGeneration,
+      this.#generateButtons,
+    );
+    this.#tonPhrase = this.#dependencies.installTonPhraseFeature?.(
+      this.#view.document,
+      this.#invalidateGeneration,
+      this.#generateButtons,
     );
     this.#adapterSettings = new AdapterSettingsStore(this.#dependencies.getAdapterFamilyId);
     this.#automaticDerivation = new AutomaticDerivationScheduler(window);
@@ -203,7 +219,8 @@ export class KeyDerivationController {
       cancelAutomatic: () => this.#cancelAutomaticDerivation(),
       bip38: () => this.#bip38Feature,
       createWorker: () => this.#dependencies.createWorker(),
-      mnemonicToSeed: this.#dependencies.mnemonicToSeed,
+      mnemonicToSeed: this.#seedOf,
+      messages: () => this.#tonPhrase?.messages ?? {},
     });
     this.#installChildWallet();
   }
@@ -216,11 +233,57 @@ export class KeyDerivationController {
     };
   }
 
+  /**
+   * The seed of the phrase for the current variant: BIP39's seed with the passphrase, or for TON's
+   * Telegram wallet the TON phrase's entropy (TonPhraseFeature.seedFor).
+   */
+  readonly #seedOf = (mnemonic: string, passphrase = ""): Uint8Array => {
+    const ton = this.#tonPhrase;
+    if (ton !== undefined)
+      return ton.seedFor(this.#adapter, mnemonic, passphrase, this.#dependencies.mnemonicToSeed);
+    if (this.#adapter.seedSource !== undefined)
+      throw new Error("This build cannot read the seed of this protocol.");
+    return this.#dependencies.mnemonicToSeed(mnemonic, passphrase);
+  };
+
+  /**
+   * The note of what the phrase is to TON; a TON phrase that is not BIP39's opens the Telegram
+   * wallet's tab, as the note says. Neither before the startup checks pass.
+   */
+  readonly #readTonPhrase = (): void => {
+    const ton = this.#tonPhrase;
+    if (ton === undefined) return;
+    if (!this.#cryptoReady) {
+      ton.show("");
+      return;
+    }
+    if (ton.show(this.#view.mnemonic.value) !== "ton-only") return;
+    const standard = this.#tonStandardAdapter();
+    if (standard !== undefined && this.#adapter !== standard) {
+      this.#workspaceTabs.select(null);
+      this.#resetForAdapter(standard);
+    }
+  };
+
+  /** The variant derived from a TON phrase, in a build with TON. */
+  #tonStandardAdapter(): CoinAdapter | undefined {
+    return this.#dependencies.coinFamilies
+      .flatMap((family) => family.adapters)
+      .find((adapter) => adapter.seedSource === "ton-phrase");
+  }
+
   #installChildWallet(): void {
     this.#bip85Feature =
       this.#dependencies.installBip85Feature?.({
         document: this.#view.document,
-        coinFamilies: this.#dependencies.coinFamilies,
+        // A child phrase is drawn by BIP85, never a TON phrase: its variants are BIP39's only.
+        coinFamilies:
+          this.#tonPhrase === undefined
+            ? this.#dependencies.coinFamilies
+            : this.#dependencies.coinFamilies.map((family) => ({
+                ...family,
+                adapters: family.adapters.filter((adapter) => adapter.seedSource === undefined),
+              })),
         getAdapterFamilyId: this.#dependencies.getAdapterFamilyId,
         getCoinAdapter: this.#dependencies.getCoinAdapter,
         getDefaultCoinAdapter: this.#dependencies.getDefaultCoinAdapter,
@@ -249,6 +312,7 @@ export class KeyDerivationController {
   }
   readonly #invalidateGeneration = (): void => {
     this.#checkedMnemonic?.cancel();
+    this.#tonPhrase?.cancel();
     this.#derivation.advance();
     this.#view.clearMessages();
   };
@@ -339,7 +403,9 @@ export class KeyDerivationController {
   };
   readonly #setCryptoControlsEnabled = (enabled: boolean): void => {
     this.#view.setCryptoControlsEnabled(enabled);
+    this.#generateButtons.setEnabled(enabled);
     this.#checkedMnemonic?.setEnabled(enabled);
+    this.#tonPhrase?.setEnabled(enabled);
     this.#bip85Feature?.setEnabled(enabled);
     this.#silentPaymentFeature?.setEnabled(enabled);
     this.#dependencies.setRecoveryControlsEnabled(enabled);
@@ -369,6 +435,8 @@ export class KeyDerivationController {
       this.#view.showCryptoSelfTestPassed(report.checks, report.durationMs);
       this.#setCryptoControlsEnabled(true);
       this.#mnemonicDiagnostic.update();
+      // A phrase entered while the checks ran is read for TON now.
+      this.#readTonPhrase();
       this.#scheduleAutomaticDerivation();
     } catch (cause) {
       this.#failCryptoSelfTest(cause);
@@ -385,6 +453,7 @@ export class KeyDerivationController {
     }
     this.#source.changed();
     this.#checkedMnemonic?.cancel();
+    this.#tonPhrase?.cancel();
     this.#cancelAutomaticDerivation();
     this.#invalidateAddressSearch();
     this.#derivation.advance();
@@ -393,11 +462,17 @@ export class KeyDerivationController {
     const revision = this.#derivation.revision;
     const wishes =
       this.#dependencies.chosenWords?.active() === true ? this.#dependencies.chosenWords : null;
+    const tonFeature = this.#tonPhrase?.active() === true ? this.#tonPhrase : undefined;
     try {
       let phrase: string;
       const checkedFeature = this.#checkedMnemonic;
       const checked = checkedFeature?.active() === true;
-      if (checkedFeature !== undefined && checked) {
+      if (tonFeature !== undefined) {
+        if (wishes !== null)
+          throw new Error("A phrase the Telegram wallet accepts is drawn without a chosen word.");
+        this.#view.showStatus("Looking for a 24-word BIP39 phrase that is also a TON phrase…");
+        phrase = await tonFeature.generate(() => revision === this.#derivation.revision);
+      } else if (checkedFeature !== undefined && checked) {
         const request = wishes?.request(words) ?? {
           wordCount: words,
           chosen: [],
@@ -435,8 +510,18 @@ export class KeyDerivationController {
       this.#source.publish(phrase, this.#adapter.defaults.count);
       this.#rememberCurrentSettings();
       this.#mnemonicDiagnostic.update();
+      this.#tonPhrase?.show(phrase);
+      // A phrase drawn for the Telegram wallet opens its tab when TON is the coin shown.
+      const standard = tonFeature === undefined ? undefined : this.#tonStandardAdapter();
+      if (
+        standard !== undefined &&
+        this.#adapter !== standard &&
+        this.#dependencies.getAdapterFamilyId(this.#adapter) ===
+          this.#dependencies.getAdapterFamilyId(standard)
+      )
+        this.#resetForAdapter(standard, false);
       this.#view.showStatus(
-        `Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues()${wishes === null ? "" : ", with your chosen words"}${checked ? ", passing the MHFE wallet check with the BIP39 passphrase you confirmed" : ""}.${passphraseCleared ? " The BIP39 passphrase field was emptied: a new phrase starts without one; type one now if this wallet should use one." : ""} Deriving ${this.#adapter.defaults.count} results…`,
+        `Generated a new ${words}-word BIP39 recovery phrase using crypto.getRandomValues()${wishes === null ? "" : ", with your chosen words"}${checked ? ", passing the MHFE wallet check with the BIP39 passphrase you confirmed" : ""}${tonFeature === undefined ? "" : ", which is also a TON phrase the Telegram wallet accepts"}.${passphraseCleared ? " The BIP39 passphrase field was emptied: a new phrase starts without one; type one now if this wallet should use one." : ""} Deriving ${this.#adapter.defaults.count === 1 ? "its key" : `${this.#adapter.defaults.count} results`}…`,
       );
       void this.#derivation.run(true);
     } catch (cause) {
@@ -472,6 +557,7 @@ export class KeyDerivationController {
     this.#releaseOwnedPart(() => this.#silentPaymentFeature?.reset());
     this.#dependencies.chosenWords?.clear();
     this.#checkedMnemonic?.clear();
+    this.#tonPhrase?.clear();
     this.#mnemonicDiagnostic.reset();
   };
   readonly #concealSensitiveValues = (): void => {
@@ -606,6 +692,8 @@ export class KeyDerivationController {
         this.#scheduleAutomaticDerivation();
       });
     }
+    // Added after the edit above: the TON phrase's note and tab (#readTonPhrase).
+    this.#view.mnemonic.addEventListener("input", this.#readTonPhrase);
   }
 
   #installLifecycle(): void {
@@ -655,6 +743,7 @@ export class KeyDerivationController {
         passphrase: this.#view.passphrase,
         view: this.#view,
         readControls,
+        // Its targets are Bitcoin addresses, whose seed is always BIP39's.
         mnemonicToSeed: this.#dependencies.mnemonicToSeed,
         createWorker: () => this.#dependencies.createWorker(),
       });

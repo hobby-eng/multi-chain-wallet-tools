@@ -23,8 +23,12 @@ interface SingleKeySelfTestSpec {
   readonly group: string;
   readonly adapters: readonly CoinAdapter[];
   derivation(id: string): ((options: Bip32BatchOptions) => DerivationResult) | undefined;
-  /** One vector for every adapter, in the adapters' order. */
+  /** One vector for every adapter of a BIP39 seed, in the adapters' order. */
   readonly vectors: readonly SingleKeyVector[];
+  /** The first paths of variants whose seed is not BIP39's, checked before the vectors' paths. */
+  readonly otherPaths?: readonly (readonly [id: string, path: string])[];
+  /** The coin's further checks, after its vectors; each returns its check's name. */
+  readonly checks?: readonly (() => string)[];
 }
 
 /** The self-test of one single-key coin, as its derivation self-test module exports it. */
@@ -33,10 +37,10 @@ export function singleKeyCoinSelfTest(
 ): () => Promise<CryptoSelfTestReport> {
   return async () => {
     const started = now();
-    const paths = runSingleKeyPathSelfTest(
-      spec.adapters,
-      spec.vectors.map(({ adapterId, path }) => [adapterId, path] as const),
-    );
+    const paths = runSingleKeyPathSelfTest(spec.adapters, [
+      ...(spec.otherPaths ?? []),
+      ...spec.vectors.map(({ adapterId, path }) => [adapterId, path] as const),
+    ]);
     const vectors: DerivationVector[] = spec.vectors.map((vector) => {
       const { adapterId, address, accountXpub, masterXpub } = vector;
       const adapter = spec.adapters.find(({ id }) => id === adapterId);
@@ -55,6 +59,11 @@ export function singleKeyCoinSelfTest(
       vectors,
       `${spec.group} master/account extended-key integrity`,
     );
-    return { passed: true, checks: [...paths, ...checks], durationMs: Math.round(now() - started) };
+    const own = (spec.checks ?? []).map((check) => check());
+    return {
+      passed: true,
+      checks: [...paths, ...checks, ...own],
+      durationMs: Math.round(now() - started),
+    };
   };
 }

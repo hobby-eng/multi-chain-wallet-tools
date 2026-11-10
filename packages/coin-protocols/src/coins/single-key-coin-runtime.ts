@@ -11,6 +11,7 @@ import { litecoinDerivation } from "./litecoin/index.js";
 import { nearDerivation } from "./near/index.js";
 import { solanaDerivation } from "./solana/index.js";
 import { stellarDerivation } from "./stellar/index.js";
+import { tonDerivation } from "./ton/index.js";
 import { tronDerivation } from "./tron/index.js";
 import { xrpDerivation } from "./xrp/index.js";
 import { zcashDerivation } from "./zcash/index.js";
@@ -29,6 +30,7 @@ const DERIVATIONS = [
   stellarDerivation,
   nearDerivation,
   hederaDerivation,
+  tonDerivation,
 ];
 
 /** The derivation of a single-key coin's adapter id, or undefined for any other id. */
