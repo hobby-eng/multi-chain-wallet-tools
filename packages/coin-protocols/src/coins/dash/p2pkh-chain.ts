@@ -1,7 +1,14 @@
 // The Dash chains of compressed-key P2PKH addresses: Dash Core's BIP44 account, the DIP9 CoinJoin
 // chain and the historical mobile path. They derive the same rows and descriptors and differ only
 // in where the account lies and how the result names itself, which each chain's profile says.
-import { bytesToHex, encodeP2pkh, encodeWif, hash160, wipe } from "@ckd/core/crypto.js";
+import {
+  bytesToHex,
+  encodeP2pkh,
+  encodeWif,
+  hash160,
+  p2pkhScriptHex,
+  wipe,
+} from "@ckd/core/crypto.js";
 import { getDashNetwork } from "@ckd/core/networks.js";
 import {
   field,
@@ -62,7 +69,7 @@ export function deriveDashP2pkhChain(
             field("path", "Derivation path", path),
             field("privateKeyHex", "Private key (hex)", bytesToHex(privateKey), true),
             field("publicKeyHash", "HASH160(public key)", bytesToHex(publicKeyHash)),
-            field("scriptPubKey", "scriptPubKey", `76a914${bytesToHex(publicKeyHash)}88ac`),
+            field("scriptPubKey", "scriptPubKey", p2pkhScriptHex(publicKeyHash)),
             field("childXprv", "Child xprv", node.privateExtendedKey, true),
             field("childXpub", "Child xpub", node.publicExtendedKey),
           ],

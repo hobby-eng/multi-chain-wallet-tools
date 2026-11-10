@@ -1,28 +1,19 @@
 import { DASH_ADDRESS_FAMILIES } from "@ckd/coins/dash/address-families.js";
-import { bech32m, createBase58check } from "@scure/base";
-import { sha256 } from "@noble/hashes/sha2.js";
+import { bech32m } from "@scure/base";
+import { decodeBase58Check } from "@ckd/core/crypto.js";
 import type { NetworkName } from "@ckd/core/types.js";
 import { detectMatcherTargets, type MatcherCoin } from "./matcher-targets.js";
 import type { WalletMatcherTargetDetector } from "./matcher-types.js";
-
-const base58check = createBase58check(sha256);
 
 function detectDashAddress(
   address: string,
   network: NetworkName,
 ): { readonly normalized: string; readonly adapters: readonly string[] } | null {
-  try {
-    const payload = base58check.decode(address);
-    const expected = network === "mainnet" ? 76 : 140;
-    if (payload.length === 21 && payload[0] === expected) {
-      return {
-        normalized: address,
-        adapters: DASH_ADDRESS_FAMILIES.coreAdapters(),
-      };
-    }
-  } catch {
-    // A valid Platform or Orchard address is Bech32m rather than Base58Check.
-  }
+  // A valid Platform or Orchard address is Bech32m rather than Base58Check.
+  const payload = decodeBase58Check(address);
+  const expected = network === "mainnet" ? 76 : 140;
+  if (payload?.length === 21 && payload[0] === expected)
+    return { normalized: address, adapters: DASH_ADDRESS_FAMILIES.coreAdapters() };
   try {
     const decoded = bech32m.decode(address, 200);
     const expectedHrp = network === "mainnet" ? "dash" : "tdash";

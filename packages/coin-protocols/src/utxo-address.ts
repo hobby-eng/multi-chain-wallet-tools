@@ -3,7 +3,14 @@
 // hash (P2WPKH). A coin brings only its version bytes and its bech32 prefix, so a build with one of
 // these coins carries no other coin's code.
 import { bech32 } from "@scure/base";
-import { bytesToHex, concatBytes, encodeP2pkh, encodeP2sh, hash160 } from "@ckd/core/crypto.js";
+import {
+  bytesToHex,
+  concatBytes,
+  encodeP2pkh,
+  encodeP2sh,
+  hash160,
+  p2pkhScriptHex,
+} from "@ckd/core/crypto.js";
 import { field, type ResultField } from "@ckd/core/types.js";
 
 /** A coin's base58 address version bytes. */
@@ -21,7 +28,7 @@ export interface SegwitAddressFacts extends UtxoAddressFacts {
 export function p2pkhScript(publicKeyHash: Uint8Array) {
   return {
     publicKeyHashHex: bytesToHex(publicKeyHash),
-    scriptPubKeyHex: `76a914${bytesToHex(publicKeyHash)}88ac`,
+    scriptPubKeyHex: p2pkhScriptHex(publicKeyHash),
   };
 }
 
