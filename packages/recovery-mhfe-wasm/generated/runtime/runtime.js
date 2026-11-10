@@ -19,7 +19,7 @@
  * that parts of different builds, even ones that differ in a script alone, are never used together.
  * "development" before the build stamps it.
  */
-export const BUILD_ID = "7da6a9c673903bea";
+export const BUILD_ID = "19de50ce492d1e35";
 
 export class MhfeError extends Error {
   /**
@@ -364,10 +364,9 @@ export class OperationSlot {
 
 /**
  * The highest word position the Rust core reads (a 32-bit number): of a password's repair, which
- * it refuses above the password's words (PASSWORD_REPAIR_NOT_OFFERED), and of a chosen word of a
- * new phrase, which it refuses above 24 (INVALID_WORD_WISH).
+ * it refuses above the password's words (PASSWORD_REPAIR_NOT_OFFERED).
  */
-export const HIGHEST_WORD_POSITION = 0xffff_ffff;
+const HIGHEST_WORD_POSITION = 0xffff_ffff;
 
 /**
  * Parts of the package that come from different builds (PACKAGE_MISMATCH): `what` says which, and
@@ -396,10 +395,10 @@ function buildMismatch(file, build) {
 /**
  * The news a worker posts besides its result, error and questions, which go to the page's
  * handlers of the same name: web/worker-runtime.js (progress and the self-check's parts),
- * web/core-worker.js (unverified) and web/wallet-worker.js (draws). `cargo xtask wasm verify`
- * keeps this list equal to the types the worker scripts post.
+ * web/core-worker.js (unverified). `cargo xtask wasm verify` keeps this list equal to the types
+ * the worker scripts post.
  */
-const WORKER_NEWS = ["progress", "componentStart", "component", "draws", "unverified"];
+const WORKER_NEWS = ["progress", "componentStart", "component", "unverified"];
 
 /**
  * A message or question of a worker that this page does not know or cannot read, as from a worker
@@ -440,8 +439,6 @@ const SECRET_FIELDS = [
   "password",
   "passwordRepeat",
   "passphrase",
-  "passphraseRepeat",
-  "chosenWords",
   "newPassword",
   "newPasswordRepeat",
   "mainPassphrase",

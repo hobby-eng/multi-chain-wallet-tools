@@ -1,21 +1,26 @@
 # MHFE browser package
 
-This directory holds the browser package of MHFE 0.7.0 from
+This directory holds the browser package of MHFE 0.8.0 from
 [`hobby-eng/mhfe`](https://github.com/hobby-eng/mhfe), unchanged: suites
 `MHFE-BIP39-256-EXPERIMENTAL-3` for 24-word containers and `MHFE-BIP39-LP-EXPERIMENTAL-4` for
-containers as long as a 12- to 21-word phrase, and every other operation of the mhfe program.
+containers as long as a 12- to 21-word phrase, and every other operation of the mhfe program. From
+0.8.0, MHFE draws no new phrases: the Deriver's own generator does, with MHFE's wallet check of the
+phrase drawn (`MhfeWallet.walletCheck`).
 
-**Release v0.7.0.** It is the browser archive of MHFE's release
-[v0.7.0](https://github.com/hobby-eng/mhfe/releases/tag/v0.7.0), tag `v0.7.0` on commit
-`8a15bed9f181cf78c5880558cc88d0d90ee4a72f`: `mhfe-v0.7.0-browser.tar.gz`, SHA-256
-`8daad8def1f9719c2991781548b976aa2cb1edd479d9ca5955b70d40b8d09022`, as listed in the release's
-`SHA256SUMS`, whose OpenPGP signature verifies with the release key
-`28FC51B1DB80DF2101128CB30EDD4814591DD095`. `generated/modules.json` identifies version 0.7.0 and
-build ID `7da6a9c673903bea`; its SHA-256 is
-`3ac0f5a3c5390ee5c0e41f7d44e273096a0ceceb10fb9640810ca0d37ebefeca`. [source.json](source.json)
-records the source commit, a SHA-256 of its `git archive`, the archive, the whole package's
-fingerprint and the hash of every vendored file. Every vendored runtime file is unchanged. The Python fast-mode launcher is omitted here because the executable Deriver replaces
-it.
+**Development build of 0.8.0, not yet released.** It is MHFE's verified build of its uncommitted
+0.8.0 tree on v0.7.0 (commit `8a15bed9f181cf78c5880558cc88d0d90ee4a72f`; `git diff 8a15bed` of the
+tree without `docs/audits/README.md` has SHA-256
+`f5b7c6394c2bb54ab0f8fbdec1dcce25fb83503755a0a079a5ffe59b02c1754e`, the tree that MHFE's AUD-048
+verified), taken from MHFE's canonical Docker browser archive `mhfe-v0.8.0-browser.tar.gz`, SHA-256
+`553e8d30c1af463e30839ed7c3e43f9cbb7707b637646bc656745fe3b9167a90`, whose 17 package files equal
+those of MHFE's `dist/` byte for byte. `generated/modules.json` identifies version 0.8.0 and build
+ID `19de50ce492d1e35`; its SHA-256 is
+`897d0e5b11efbb1e3a817acb2a51da6e85d0a5187b4b62c9c3d899aefaa6f69e`. [source.json](source.json)
+records the base commit, a SHA-256 of its `git archive`, the archive, the whole package's
+fingerprint and the hash of every vendored file, and says that the build is unreleased. The
+release of these tools waits for MHFE's signed v0.8.0, whose archive will differ only in
+`BUILD-INFO.txt`. Every vendored runtime file is unchanged. The Python fast-mode launcher is
+omitted here because the executable Deriver replaces it.
 
 The package is a set of independent module classes over one WebAssembly. The Key Derivation Tool
 compiles the WebAssembly once, passes it with the worker script to each class, and embeds the worker
@@ -27,7 +32,7 @@ and both Argon2 builds as text. Every operation runs in a disposable Worker.
 | `core/`      | `client.js`, `client.d.ts`, `argon2-mt.js`, `argon2-st.js` | Encryption, recovery, the rehearsal check, rekey, hidden wallets and the self-test |
 | `repair/`    | `repair.js`, `repair.d.ts`                                 | Repair words of a container (MHFE-REPAIR-1) and the repair of a damaged plate      |
 | `passwords/` | `passwords.js`, `passwords.d.ts`                           | The check word review (MHFE-PASSWORD-CHECK-1), strength and new passwords          |
-| `wallet/`    | `wallet.js`, `wallet.d.ts`                                 | The wallet check, master key fingerprints, address searches and new phrases        |
+| `wallet/`    | `wallet.js`, `wallet.d.ts`                                 | The wallet check, master key fingerprints and address searches                     |
 
 The Argon2 builds are the reference Argon2 C code compiled with Emscripten 6.0.12, threaded and
 single-threaded. `modules.json` gives the package version and every file with its SHA-256; the

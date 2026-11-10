@@ -429,8 +429,6 @@ const featureSourceMarkers = {
     "/recovery-backup/src/mnemocode-hidden-qr.ts",
     "/mnemocode-search-worker.ts",
     "/mnemocode-worker-client.ts",
-    // The page's BIP39 list in a worker, which only MnemoCode's worker is given.
-    "/workers/page-wordlist.ts",
     "/recovery-backup/src/mnemocode.ts",
     "/recovery-mnemocode-wasm/",
     "/self-test-mnemocode.ts",
@@ -481,6 +479,18 @@ const featureSourceMarkers = {
 
 /** Sources that a pair of features needs: absent unless both are built. */
 const sharedSourceMarkers = [
+  {
+    // The Deriver's own draw of phrases that pass the MHFE wallet check, on workers of its own.
+    label: "MHFE wallet-check draw (mhfe)",
+    needed: (features) => features.has("mhfe"),
+    markers: ["/wallet-check-draw", "/crypto-core/src/bip39-wallet-check.ts"],
+  },
+  {
+    // The page's BIP39 list in a worker, which MnemoCode's and the wallet-check draw's are given.
+    label: "Page wordlist in workers (mnemocode or mhfe)",
+    needed: (features) => features.has("mnemocode") || features.has("mhfe"),
+    markers: ["/workers/page-wordlist.ts"],
+  },
   {
     label: "MnemoCode shares (mnemocode with sskr)",
     needed: (features) => features.has("mnemocode") && features.has("sskr"),

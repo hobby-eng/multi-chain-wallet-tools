@@ -68,7 +68,7 @@ const REFERENCE_KINDS = ["address", "fingerprint", "words", "walletCheck"];
 /** The name of this module's operations in the package's worker. */
 const CORE_MODULE = "core";
 /** The build of this file, from `cargo xtask wasm stamp-build-id`; see BUILD_ID in the runtime. */
-const CLIENT_BUILD_ID = "7da6a9c673903bea";
+const CLIENT_BUILD_ID = "19de50ce492d1e35";
 
 // The parts of the self-check that run Argon2: its known answer at 1 MiB, and at 64 and 256 MiB.
 // The page names them before any worker runs; `cargo xtask package-check` checks that they
@@ -256,8 +256,8 @@ export class MhfeClient {
 
   /**
    * Like readPhrase for a container: resolves to `{ container, words, suiteId, phraseLengths,
-   * builtInCheckLengths, confirmationFor, hiddenWallets, offersWalletCheck, containerFingerprint }`.
-   * `confirmationFor` says, for each phrase length, what confirms a recovery to encrypt again:
+   * builtInCheckLengths, confirmationFor, hiddenWallets, offersWalletCheck, containerFingerprint
+   * }`. `confirmationFor` says, for each phrase length, what confirms a recovery to encrypt again:
    * "builtInCheck" for a stated 12- to 21-word length of a 24-word container, and "walletOrOwner"
    * for every other length and for "0", the length detected, which the built-in check alone does
    * not confirm.
@@ -281,11 +281,11 @@ export class MhfeClient {
    * the owner keeps, in order: containerWords {words}, password, passphrase or passphraseIfAny,
    * repairWords, pim {value}, memoryLevel {value}, wordCount {words}.
    *
-   * The container has 24 words. With `sameLength: true`, which only the user's own choice may
-   * set after the page has shown its consequences, a 12- to 21-word phrase gives a container of
-   * its own length instead. `repairWordCount` 2, 4, 6 or 8 makes repair words, which come only
-   * with the result. `walletHasPassphrase` says whether the wallet has a BIP39 passphrase, only
-   * where the page knows it, such as after drawPhrase(): true adds it to what to keep, since MHFE
+   * The container has 24 words. With `sameLength: true`, which only the user's own choice may set
+   * after the page has shown its consequences, a 12- to 21-word phrase gives a container of its own
+   * length instead. `repairWordCount` 2, 4, 6 or 8 makes repair words, which come only with the
+   * result. `walletHasPassphrase` says whether the wallet has a BIP39 passphrase, only where the
+   * page knows it, such as for a phrase it drew itself: true adds it to what to keep, since MHFE
    * encrypts only the phrase, and false leaves it out. Left out or null, `keep` names any BIP39
    * passphrase of the wallet (passphraseIfAny) instead: the page need not ask.
    *
@@ -498,7 +498,7 @@ export class MhfeClient {
    * recovery in this mode. `reference` is `{ address, coin?, path? }`, `{ fingerprint }`,
    * or the original seed phrase's own checks: `{ walletCheck: true }` with its BIP39 passphrase,
    * which takes the built-in check of a 12- to 21-word one and the phrase + passphrase check of a
-   * 24-word one made by `mhfe new` (16 bits: a wrong candidate passes it about once in 65,536), or
+   * 24-word one drawn to pass it (16 bits: a wrong candidate passes it about once in 65,536), or
    * `{ builtInCheck: true }`, which needs nothing and takes the built-in check alone. Two
    * missing words reject with TOO_MANY_MISSING_WORDS, a same-length container with the built-in
    * check with NO_BUILT_IN_CHECK. Progress: `{ stage: "search", candidate, candidates, round,

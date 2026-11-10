@@ -33,7 +33,7 @@ export { MhfeError } from "../runtime/runtime.js";
 /** The name of this module's operations in the package's worker. */
 const PASSWORDS_MODULE = "passwords";
 /** The build of this file, from `cargo xtask wasm stamp-build-id`; see BUILD_ID in the runtime. */
-const PASSWORDS_BUILD_ID = "7da6a9c673903bea";
+const PASSWORDS_BUILD_ID = "19de50ce492d1e35";
 
 export class MhfePasswords extends MhfeModuleClass {
   #module;

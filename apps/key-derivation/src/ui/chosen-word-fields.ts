@@ -1,7 +1,6 @@
 // The fields of the words a new phrase must hold and must not hold: a chosen word, at a position or
-// anywhere, and a word never to use. Generate & Derive and MHFE's New wallet tab show the same
-// fields, built here; each hands what they hold to its own generator, whose library decides what
-// it takes and what it costs.
+// anywhere, and a word never to use, which Generate & Derive shows and hands to the Deriver's one
+// generator, with or without the MHFE wallet check.
 import type { ChosenWord } from "@ckd/core/bip39-chosen-words.js";
 import { BIP39_WORD_COUNTS } from "@ckd/core/bip39-parameters.js";
 import { ENGLISH_BIP39_WORDS } from "@ckd/core/bip39-word-reader.js";
@@ -12,11 +11,10 @@ import { attachBip39WordHints } from "./bip39-word-hint-field.js";
 const LONGEST_NUMBERED_POSITION = Math.max(...BIP39_WORD_COUNTS) - 1;
 
 /**
- * What a chosen word gives away and what it does not, in the words of mhfe new
- * (src/bin/mhfe/chosen_words.rs, tell) and of mhfe's README as the owner approved them: MHFE asks a
- * page to warn whenever describeDraw() says a phrase is recognisable, with any chosen word. Shown
- * whenever a word is chosen, with or without MHFE, since a phrase of the Deriver may be encrypted
- * with MHFE later.
+ * What a chosen word gives away and what it does not, in the words of mhfe new before 0.8.0
+ * (src/bin/mhfe/chosen_words.rs, tell) and of mhfe's README as the owner approved them: a phrase
+ * with any chosen word is recognisable. Shown whenever a word is chosen, with or without MHFE, since
+ * a phrase of the Deriver may be encrypted with MHFE later.
  */
 const CHOSEN_WORD_WARNING =
   "If someone learns or guesses your chosen word, it lets them rule out almost every wrong " +

@@ -167,11 +167,6 @@ export class MhfeEngine {
     this.#created.client?.cancel();
   }
 
-  /** Stops a new phrase being drawn. */
-  cancelDraw(): void {
-    this.#created.wallet?.cancel();
-  }
-
   /**
    * Runs one operation with its Cancel button shown. Cancel calls `cancel`, which stops the
    * package's running work, and latches over every step the operation takes through its run

@@ -1,7 +1,7 @@
-// A new container password where one is set (Encode, New wallet, the new password of Change
-// password), as `mhfe` offers it (mhfe src/bin/mhfe/made_password.rs): the person's own, typed
-// twice, or one that MhfePasswords.make() makes: five dice words, five words and a check word, or
-// sixteen random characters. A password made is shown once, then typed back from the person's
+// A new container password where one is set (Encode, the new password of Change password), as
+// `mhfe` offers it (mhfe src/bin/mhfe/made_password.rs): the person's own, typed twice, or one that
+// MhfePasswords.make() makes: five dice words, five words and a check word, or sixteen random
+// characters. A password made is shown once, then typed back from the person's
 // copy, which shows that the copy is right before anything is encrypted with it; only an exact
 // copy is used, with no second field, and the result names how it was made, never the words.
 import type { MhfePasswords } from "@ckd/recovery-mhfe-wasm/passwords/passwords.js";

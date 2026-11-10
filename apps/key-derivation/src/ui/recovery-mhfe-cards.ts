@@ -295,7 +295,7 @@ export interface SealTexts {
 }
 
 /**
- * The result of an operation that makes a container (Encode, New wallet, Change password): its
+ * The result of an operation that makes a container (Encode, Change password): its
  * card appears with the unverified container (the package's onUnverified), is sealed once the
  * check passed, and is marked wrong or unfinished when the operation fails.
  */

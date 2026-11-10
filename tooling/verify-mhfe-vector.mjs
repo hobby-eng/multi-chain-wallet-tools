@@ -246,33 +246,13 @@ assert.throws(
     ),
   /TOO_MANY_MISSING_WORDS/u,
 );
-// The Deriver's own generator holds copies of MHFE's limits of wishes, since it also runs in builds
-// without MHFE (packages/crypto-core/src/bip39-chosen-words.ts): each pair must stay equal.
-const chosenWordsSource = readFileSync(
-  resolve(root, "packages/crypto-core/src/bip39-chosen-words.ts"),
-  "utf8",
-);
-const walletParameters = JSON.parse(mhfe.walletParameters());
-for (const [deriver, package_] of [
-  ["MOST_CHOSEN_WORDS", "maxChosenWords"],
-  ["MOST_NEVER_USE_WORDS", "maxNeverUseWords"],
-]) {
-  const copy = Number(
-    new RegExp(`^export const ${deriver} = (\\d+);$`, "mu").exec(chosenWordsSource)?.[1],
-  );
-  assert.equal(
-    walletParameters[package_],
-    copy,
-    `the Deriver's ${deriver} equals MHFE's ${package_}`,
-  );
-}
 assert.equal(mhfe.walletFingerprint(encode(PHRASE), noBytes()), PHRASE_FINGERPRINT);
 assert.equal(mhfe.walletCheck(encode(WALLET_CHECKED_PHRASE), encode("TREZOR")), true);
 assert.equal(mhfe.walletCheck(encode(WALLET_CHECKED_PHRASE), encode("trezor")), false);
 assert.ok(suiteCalls > 0, "the rounds asked for the suite defaults");
 console.log(
   `Verified the embedded MHFE ${manifest.version} package: suites 3 and 4 at reduced cost, repair words, ` +
-    "container phrase repair, the search for missing words, the wallet check, fingerprints and the limits of a new phrase's wishes.",
+    "container phrase repair, the search for missing words, the wallet check and fingerprints.",
 );
 
 if (process.argv.includes("--full")) {

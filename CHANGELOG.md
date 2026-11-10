@@ -6,8 +6,8 @@ The next stable release is being prepared; v0.1.5 has not been published.
 
 ## v0.1.5 (in preparation)
 
-The draft includes MnemoCode 0.2.0 (its own WebAssembly), its cards, cross-stitch patterns, steganography in photos and MP3 files and QR codes with a hidden record, MHFE 0.7.0, the executable Deriver,
-generation with one chosen word or one excluded word, the explicit MHFE wallet-check option, the Deriver's own Unicode 18.0.0 NFKD of BIP39 phrases and passphrases, and Node.js 26.13.0, pnpm 12.18.0, Rust 1.99.1 and wasm-bindgen 0.2.129. See
+The draft includes MnemoCode 0.2.0 (its own WebAssembly), its cards, cross-stitch patterns, steganography in photos and MP3 files and QR codes with a hidden record, MHFE 0.8.0, the executable Deriver,
+generation with one chosen word or one excluded word, the explicit MHFE wallet-check option, whose phrases the Deriver now draws itself, the Deriver's own Unicode 18.0.0 NFKD of BIP39 phrases and passphrases, and Node.js 26.13.0, pnpm 12.18.0, Rust 1.99.1 and wasm-bindgen 0.2.129. See
 [the v0.1.5 notes](docs/releases/v0.1.5.md) and
 [the Dash Community notes](docs/releases/v0.1.5-dash-community.md).
 
