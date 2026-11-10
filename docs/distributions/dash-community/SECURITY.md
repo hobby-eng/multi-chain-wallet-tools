@@ -2,7 +2,7 @@
 
 These boundaries describe canonical source version **{{VERSION}}**. Verify the version of the HTML you actually downloaded in its Release passport.
 
-Report vulnerabilities privately through this repository's GitHub security-advisory interface. Never include real recovery phrases, passphrases, private keys, viewing keys, or private wallet exports.
+Report bugs and suspected vulnerabilities through [GitHub Issues](https://github.com/hobby-eng/dash-wallet-tools/issues). Reports are visible to everyone who can access the repository. Use public test vectors or synthetic data and include the affected version, reproduction steps, expected result and actual result. Never include real recovery phrases, passphrases, private keys, viewing keys, or private wallet exports.
 
 ## Tool boundaries
 

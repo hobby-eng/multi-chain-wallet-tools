@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Report suspected vulnerabilities privately through this repository's [GitHub private vulnerability reporting form](https://github.com/hobby-eng/multi-chain-wallet-tools/security/advisories/new). Reports are for the repository owner and maintainers; do not disclose an unpatched security issue in a public issue or pull request.
+Report bugs and suspected vulnerabilities through [GitHub Issues](https://github.com/hobby-eng/multi-chain-wallet-tools/issues). Reports are visible to everyone who can access the repository.
 
 Never include real recovery phrases, passphrases, private keys, spending/viewing keys, or private wallet exports. Use public test vectors or an empty test wallet and provide the source commit or HTML Release passport, selected build modules, reproduction steps, and expected versus actual behavior.
 

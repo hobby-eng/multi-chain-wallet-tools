@@ -1,6 +1,6 @@
 # Security and implementation audit
 
-For private vulnerability reporting and a concise overview of the security boundaries, see [SECURITY.md](SECURITY.md). This document records the detailed implementation threat model and audit context.
+For vulnerability reporting and a concise overview of the security boundaries, see [SECURITY.md](SECURITY.md). This document records the detailed implementation threat model and audit context.
 
 Audit baseline: [2026-09-08 review record](docs/audits/AUD-001-2026-09-08.json), commit `b91957b2cfa333faf74d54f14a4014e7f4cb8151`, release 0.1.3 at review. This date and commit are immutable review metadata; a release bump does not refresh them. The review found defects and test gaps. Later corrections require their own verification evidence.
 
