@@ -1,5 +1,6 @@
 import { basename, isAbsolute, relative, resolve } from "node:path";
 
+import { EVM_NETWORKS, evmProviderOrigins } from "./evm-networks.mjs";
 import { ToolBuildPolicy } from "./tool-build-policy.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
@@ -64,18 +65,14 @@ const FIXED_PROVIDER_ORIGINS = Object.freeze({
     "https://blockchain.info",
     "https://api.blockcypher.com",
   ],
-  ethereum: [
-    "https://ethereum-rpc.publicnode.com",
-    "https://ethereum-sepolia-rpc.publicnode.com",
-    "https://eth.blockscout.com",
-    "https://eth-sepolia.blockscout.com",
-  ],
+  // Each EVM network's JSON-RPC and history origins, from the EVM network table.
+  ...Object.fromEntries(EVM_NETWORKS.map(({ id }) => [id, evmProviderOrigins(id)])),
 });
 
 export function applySelectedNetworkCsp(template, options) {
   // Dash Platform discovers quorum endpoints at runtime, so Dash builds retain
-  // the HTTPS scheme boundary. Fixed-provider Bitcoin/Ethereum builds can pin
-  // every permitted origin directly in CSP.
+  // the HTTPS scheme boundary. Fixed-provider Bitcoin and EVM network builds can
+  // pin every permitted origin directly in CSP.
   if (options.hasCoin("dash")) return template;
   const origins = [...new Set(options.coins.flatMap((coin) => FIXED_PROVIDER_ORIGINS[coin] ?? []))];
   if (origins.length === 0)

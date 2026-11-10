@@ -1,5 +1,7 @@
 import { BitcoinPublicDataService } from "./bitcoin-service.js";
 import { EthereumPublicDataService } from "./ethereum-service.js";
+import { EvmAccountService } from "./evm-service.js";
+import { EVM_NETWORKS, evmNetwork } from "./evm-networks.js";
 import type {
   EvmAccountBatchView,
   PublicDataNetwork,
@@ -7,10 +9,14 @@ import type {
   UtxoAddressView,
 } from "./types.js";
 
-/** Compatibility facade for callers that intentionally ship both public provider modules. */
+/**
+ * Compatibility facade for callers that intentionally ship every public provider module and every
+ * EVM network of the EVM network table: the development builds and tests.
+ */
 export class PublicMultiChainDataService {
   readonly #bitcoin = new BitcoinPublicDataService();
-  readonly #ethereum = new EthereumPublicDataService();
+  readonly #ethereum = new EthereumPublicDataService(evmNetwork("ethereum"));
+  readonly #evm = new EvmAccountService(EVM_NETWORKS);
 
   async addressHistory(
     coin: "bitcoin" | "ethereum",
@@ -30,10 +36,11 @@ export class PublicMultiChainDataService {
     return this.#bitcoin.utxoAddresses(network, addresses, signal);
   }
   evmAccounts(
+    coin: string,
     network: PublicDataNetwork,
     addresses: string[],
     signal?: AbortSignal,
   ): Promise<EvmAccountBatchView> {
-    return this.#ethereum.evmAccounts(network, addresses, signal);
+    return this.#evm.accounts(coin, network, addresses, signal);
   }
 }

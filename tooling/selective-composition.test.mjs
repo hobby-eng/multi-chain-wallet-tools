@@ -29,6 +29,7 @@ import {
 } from "./key-derivation-features.mjs";
 import { assertPsbtComposition } from "./psbt-inspector-composition.mjs";
 import { assertDashOnlyGraph, BUILD_PROFILES } from "./build-profiles.mjs";
+import { assertSelectedEvmEndpoints } from "./evm-networks.mjs";
 import { MnemoCodeWalletTemplate } from "./mnemocode-wallet-template.mjs";
 
 const options = (coins, features = []) => ({
@@ -207,9 +208,28 @@ describe("selective bundle graph guards", () => {
       "connect-src https:;",
       options(["bitcoin", "ethereum"]),
     );
-    expect(rendered).toContain("https://blockstream.info");
-    expect(rendered).toContain("https://ethereum-rpc.publicnode.com");
     expect(rendered).not.toContain("connect-src https:;");
+    // Exactly Bitcoin's providers and Ethereum's four origins (JSON-RPC and Blockscout, mainnet
+    // and Sepolia); no other EVM network's endpoint.
+    expect(
+      new Set(
+        rendered
+          .replace(/^connect-src /u, "")
+          .replace(/;$/u, "")
+          .split(" "),
+      ),
+    ).toEqual(
+      new Set([
+        "https://blockstream.info",
+        "https://mempool.space",
+        "https://blockchain.info",
+        "https://api.blockcypher.com",
+        "https://ethereum-rpc.publicnode.com",
+        "https://ethereum-sepolia-rpc.publicnode.com",
+        "https://eth.blockscout.com",
+        "https://eth-sepolia.blockscout.com",
+      ]),
+    );
     expect(applySelectedNetworkCsp("connect-src https:;", options(["dash"]))).toBe(
       "connect-src https:;",
     );
@@ -481,6 +501,72 @@ describe("selective bundle graph guards", () => {
     expect(bitcoin).toContain("case 'address.history'");
     expect(bitcoin).toContain("case 'utxo.addresses'");
     expect(bitcoin).not.toMatch(/core\.|platform\.|shielded\.|ethereum|evm\.accounts/iu);
+  });
+
+  it("composes an EVM network alone with its own row, endpoint and Ethereum's derivation only", () => {
+    const base = options(["base"], ["seed-discovery"]);
+    const runtime = discoveryNetworkRuntimeSource("/workspace", base);
+    expect(runtime).toContain(`validateEvmAccountsPayload(value, ["base"])`);
+    expect(runtime).toContain("request.payload.coin");
+    expect(runtime).not.toMatch(/ethereum|bnb-chain|address\.history|utxo\.addresses/u);
+    const csp = applySelectedNetworkCsp("connect-src https:;", base);
+    expect(csp).toBe("connect-src https://base-rpc.publicnode.com;");
+    const shared = [
+      "apps/discovery-scanner/src/coins/evm/seed.ts",
+      "packages/public-data-providers/src/evm-service.ts",
+      "packages/public-data-providers/src/evm-network-facts.ts",
+      "packages/coin-protocols/src/coins/keccak-account.ts",
+      // Ethereum's derivation self-test comes with every EVM network.
+      "packages/coin-protocols/src/coins/ethereum/index.ts",
+      "packages/network-boundary/src/request-validation.ts",
+      "apps/discovery-scanner/src/seed-scan-input.ts",
+      "packages/secret-vault/src/worker-bootstrap.ts",
+    ];
+    expect(() => assertDiscoveryComposition(base, shared)).not.toThrow();
+    expect(() =>
+      assertDiscoveryComposition(base, [
+        ...shared,
+        "apps/discovery-scanner/src/coins/ethereum/history.ts",
+      ]),
+    ).toThrow(/excluded ethereum/u);
+    expect(() =>
+      assertDiscoveryComposition(options(["bitcoin"], ["seed-discovery"]), [
+        "apps/discovery-scanner/src/coins/bitcoin/seed.ts",
+        "packages/network-boundary/src/request-validation.ts",
+        "apps/discovery-scanner/src/seed-scan-input.ts",
+        "packages/secret-vault/src/worker-bootstrap.ts",
+        "apps/discovery-scanner/src/coins/evm/seed.ts",
+      ]),
+    ).toThrow(/excluded ethereum/u);
+    expect(() =>
+      assertSelectedEvmEndpoints(base, "https://base-rpc.publicnode.com", "page"),
+    ).not.toThrow();
+    expect(() =>
+      assertSelectedEvmEndpoints(base, "https://bsc-rpc.publicnode.com", "page"),
+    ).toThrow(/bsc-rpc\.publicnode\.com/u);
+  });
+
+  it("offers the EVM networks of the EVM network table in the Activity Viewer and removes unselected ones", () => {
+    const template =
+      '<select id="viewer-coin"><option value="bitcoin">Bitcoin</option><optgroup label="EVM networks"><option value="ethereum">Ethereum</option><option value="gnosis">Gnosis</option></optgroup><option value="dash">Dash</option></select>';
+    expect(applyActivityCoinTemplate(template, options(["dash", "gnosis"]))).toBe(
+      '<select id="viewer-coin"><optgroup label="EVM networks"><option value="gnosis">Gnosis</option></optgroup><option value="dash">Dash</option></select>',
+    );
+    expect(applyActivityCoinTemplate(template, options(["bitcoin", "dash"]))).not.toContain(
+      "optgroup",
+    );
+    expect(() =>
+      assertActivityViewerComposition(options(["gnosis"]), [
+        "apps/activity-viewer/src/activity-evm.ts",
+        "packages/public-data-providers/src/evm-service.ts",
+      ]),
+    ).not.toThrow();
+    expect(() =>
+      assertActivityViewerComposition(options(["bitcoin"]), [
+        "apps/activity-viewer/src/activity-bitcoin.ts",
+        "packages/public-data-providers/src/evm-service.ts",
+      ]),
+    ).toThrow(/every EVM network/u);
   });
 
   it("physically removes seed controls from watch-only Discovery HTML", () => {

@@ -1,3 +1,4 @@
+import { EVM_NETWORK_IDS } from "./evm-networks.mjs";
 import { SINGLE_KEY_COIN_IDS } from "./single-key-coins.mjs";
 
 const manifest = (coins, features) =>
@@ -30,9 +31,11 @@ export const TOOL_MANIFESTS = Object.freeze({
       "gordian-envelope",
     ],
   ),
-  "activity-viewer": manifest(["bitcoin", "dash", "ethereum"], []),
+  // The connected tools also read the EVM networks of the EVM network table
+  // (tooling/evm-networks.mjs).
+  "activity-viewer": manifest(["bitcoin", "dash", "ethereum", ...EVM_NETWORK_IDS], []),
   "discovery-scanner": manifest(
-    ["bitcoin", "dash", "ethereum"],
+    ["bitcoin", "dash", "ethereum", ...EVM_NETWORK_IDS],
     ["seed-discovery", "watch-only-discovery", "wallet-matcher", "custom-paths"],
   ),
   "psbt-inspector": manifest(

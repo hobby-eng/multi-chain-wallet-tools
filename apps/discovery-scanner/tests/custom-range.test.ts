@@ -173,9 +173,11 @@ describe("custom account range and free-form editor", () => {
           onProgress: () => {},
           onFinding: () => {},
           networkApi: api({
-            evmAccounts: async (_network, addresses) => {
+            evmAccounts: async (_coin, evmNetwork, addresses) => {
               queried.push(...addresses);
               return {
+                // Ethereum's EIP-155 chain ids: mainnet 1, Sepolia 11155111.
+                chainId: evmNetwork === "mainnet" ? "1" : "11155111",
                 blockNumber: "10",
                 entries: addresses.map((address) => ({ address, balance: "0", nonce: "0" })),
               };

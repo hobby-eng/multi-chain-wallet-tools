@@ -32,6 +32,8 @@ export interface EvmAccountView {
   nonce: string;
 }
 export interface EvmAccountBatchView {
+  /** The EIP-155 chain id that the endpoint reported, in decimal; the provider checked it. */
+  chainId: string;
   entries: EvmAccountView[];
   blockNumber: string;
 }

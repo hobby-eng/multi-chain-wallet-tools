@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertOneOf,
   assertPublicToken,
   assertPublicTokenBatch,
   assertRecoveryNetwork,
@@ -63,4 +64,14 @@ describe("network-boundary untrusted request validation", () => {
       );
     },
   );
+});
+
+describe("assertOneOf", () => {
+  it("admits only a name of the build's list, as a string", () => {
+    expect(() => assertOneOf("base", ["ethereum", "base"], "EVM network")).not.toThrow();
+    for (const value of ["bnb-chain", "Base", 8453, null, undefined])
+      expect(() => assertOneOf(value, ["ethereum", "base"], "EVM network")).toThrow(
+        "EVM network is not included in this build.",
+      );
+  });
 });

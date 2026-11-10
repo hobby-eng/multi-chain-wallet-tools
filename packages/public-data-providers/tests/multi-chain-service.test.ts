@@ -13,7 +13,7 @@ describe("public multi-chain data service", () => {
     await expect(service.utxoAddresses("mainnet", ["not-a-bitcoin-address"])).rejects.toThrow(
       /invalid Bitcoin/iu,
     );
-    await expect(service.evmAccounts("mainnet", ["0xnot-an-address"])).rejects.toThrow(
+    await expect(service.evmAccounts("ethereum", "mainnet", ["0xnot-an-address"])).rejects.toThrow(
       /invalid Ethereum/iu,
     );
     await expect(service.addressHistory("bitcoin", "mainnet", "not-an-address")).rejects.toThrow(

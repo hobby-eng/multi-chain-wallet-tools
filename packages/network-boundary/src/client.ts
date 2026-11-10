@@ -207,11 +207,15 @@ class NetworkBoundaryClient implements RecoveryNetworkApi {
     return this.#request({ operation: "utxo.addresses", payload: { network, addresses } }, signal);
   }
   evmAccounts(
+    coin: string,
     network: RecoveryNetwork,
     addresses: string[],
     signal?: AbortSignal,
   ): Promise<EvmAccountBatchView> {
-    return this.#request({ operation: "evm.accounts", payload: { network, addresses } }, signal);
+    return this.#request(
+      { operation: "evm.accounts", payload: { network, coin, addresses } },
+      signal,
+    );
   }
 }
 

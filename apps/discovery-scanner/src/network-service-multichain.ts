@@ -28,10 +28,11 @@ export class MultiChainRecoveryNetworkService extends DirectRecoveryNetworkServi
   }
 
   override evmAccounts(
+    coin: string,
     network: RecoveryNetwork,
     addresses: string[],
     signal?: AbortSignal,
   ): Promise<EvmAccountBatchView> {
-    return this.#public.evmAccounts(network, addresses, signal);
+    return this.#public.evmAccounts(coin, network, addresses, signal);
   }
 }

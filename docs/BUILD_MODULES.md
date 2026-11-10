@@ -9,7 +9,7 @@ Standalone HTML builds have independent coin and feature selections. With no sel
 - Mnemonics, seeds, xprvs and private keys never cross a network boundary.
 - Xpubs and descriptors are privacy-sensitive public material. Networked tools derive addresses locally and send providers only the concrete addresses or identifiers required for the current bounded request.
 - Orchard viewing material remains local; network workers receive only public chain-query parameters and return public chain data.
-- Connected builds without Dash pin every fixed Bitcoin/Ethereum provider origin in CSP. Dash Platform discovers quorum endpoints at runtime, so a build containing Dash retains an HTTPS-scheme connection boundary while application code and request protocols still expose no arbitrary URL input.
+- Connected builds without Dash pin every fixed Bitcoin and EVM network provider origin of their selected coins in CSP. Dash Platform discovers quorum endpoints at runtime, so a build containing Dash retains an HTTPS-scheme connection boundary while application code and request protocols still expose no arbitrary URL input.
 - Network protocols use discriminated request allowlists, reject secret/private-material field names and arbitrary URLs, and minimize every request payload. The build generates an operation allowlist and dispatcher from the selected coins. The Worker validates exact envelope and payload keys, network names, public-token shape, request IDs and per-operation batch/range ceilings before dispatch; operations for excluded coins are absent from its code and rejected by construction.
 - PSBT Inspector and Key Derivation remain offline regardless of selected features.
 - Generated Rust modules must report the exact crates.io `wasm-bindgen 0.2.129` producer. Source-built CLIs that append Git metadata are rejected before generation. The canonical manifest also checks every generated-file hash and a digest of each module's Rust and build inputs, so a host rebuild or stale source fails local verification before packaging.
@@ -27,7 +27,7 @@ Dash is one shared protocol stack, not four copied implementations. Shared addre
 | Discovery Scanner | Seed/watch adapters for the enabled source modes and the complete supported Core, Platform, Identity and Orchard discovery scopes     |
 | PSBT Inspector    | Dash Core parsing/formatting within every selected Inspector workflow that supports Dash; Platform and Orchard are not PSBT protocols |
 
-Bitcoin and Ethereum follow the same rule. Optional workflows remain controlled by `--features`/`--exclude`; removing one deletes its marked HTML fragment and prevents its UI, worker and WASM entrypoints from entering the bundle graph.
+Bitcoin and Ethereum follow the same rule. The EVM networks besides Ethereum (`bnb-chain`, `polygon`, `arbitrum`, `optimism`, `base`, `avalanche`, `gnosis`) are rows of one EVM network table (`packages/public-data-providers/src/evm-networks.json`, read by `tooling/evm-networks.mjs`): one EVM factory builds each selected network's Scanner adapter and Viewer adapter from its inlined row, and the network worker admits only the selected networks' ids. A build names no endpoint of an unselected network (`assertSelectedEvmEndpoints`), and any EVM network brings Ethereum's derivation self-test, since every EVM network derives Ethereum's accounts. The build matrix builds each of them alone and all of them together with each set of the other coins, as it does for the single-key coins (`tooling/build-matrix-plan.mjs`). Optional workflows remain controlled by `--features`/`--exclude`; removing one deletes its marked HTML fragment and prevents its UI, worker and WASM entrypoints from entering the bundle graph.
 
 ## Key Derivation
 
@@ -53,11 +53,13 @@ Coins: `bitcoin`, `dash`, `ethereum`, `litecoin`, `dogecoin`, `bitcoin-cash`, `z
 
 ## Activity Viewer
 
-Coin selection is the primary composition boundary. Single and batch queries are both part of the required base viewer. Selecting Dash includes Core, Platform, Identity and Orchard activity.
+Coins: `bitcoin`, `dash`, `ethereum`, `bnb-chain`, `polygon`, `arbitrum`, `optimism`, `base`, `avalanche`, `gnosis`. Coin selection is the primary composition boundary. Single and batch queries are both part of the required base viewer. Selecting Dash includes Core, Platform, Identity and Orchard activity. An EVM network besides Ethereum loads balance and nonce only.
 
 Future optional modules are tracked in `ROADMAP.md`: watch-only activity, transaction details, snapshot comparison, address labels, Ethereum token activity, advanced activity export and wallet summary.
 
 ## Discovery Scanner
+
+Coins: `bitcoin`, `dash`, `ethereum`, `bnb-chain`, `polygon`, `arbitrum`, `optimism`, `base`, `avalanche`, `gnosis`.
 
 | Feature                | Purpose                                                                           | Secret Vault                              |
 | ---------------------- | --------------------------------------------------------------------------------- | ----------------------------------------- |
@@ -105,6 +107,10 @@ pnpm build:html -- --profile multi-chain --tool key-derivation \
 # Watch-only Bitcoin/Ethereum Discovery, with no mnemonic or seed modules
 pnpm build:html -- --profile multi-chain --tool discovery-scanner \
   --coins bitcoin,ethereum --features watch-only-discovery
+
+# Seed Discovery on Base and Gnosis only, naming no other network's endpoint
+pnpm build:html -- --profile multi-chain --tool discovery-scanner \
+  --coins base,gnosis --features seed-discovery
 
 # Bitcoin PSBT and descriptor inspection only
 pnpm build:html -- --profile multi-chain --tool psbt-inspector \

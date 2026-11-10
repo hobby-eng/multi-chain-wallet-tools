@@ -5,7 +5,7 @@ describe("exhaustive standalone build matrix", () => {
   const plan = createBuildMatrixPlan();
 
   it("enumerates every reviewed valid composition exactly once", () => {
-    expect(plan).toHaveLength(142676);
+    expect(plan).toHaveLength(142841);
     expect(new Set(plan.map(({ relativePath }) => relativePath)).size).toBe(plan.length);
   });
 
@@ -30,7 +30,7 @@ describe("exhaustive standalone build matrix", () => {
 
   it("can constrain planning without changing composition rules", () => {
     const discovery = createBuildMatrixPlan(["multi-chain"], "discovery-scanner");
-    expect(discovery).toHaveLength(70);
+    expect(discovery).toHaveLength(220);
     expect(discovery.every(({ toolId }) => toolId === "discovery-scanner")).toBe(true);
   });
 });
@@ -45,7 +45,7 @@ describe("bounded standalone build smoke matrix", () => {
   );
 
   it("selects a stable unique subset of valid builds", () => {
-    expect(smoke).toHaveLength(86);
+    expect(smoke).toHaveLength(100);
     expect(new Set(smoke.map(({ relativePath }) => relativePath)).size).toBe(smoke.length);
     for (const job of smoke) {
       expect(

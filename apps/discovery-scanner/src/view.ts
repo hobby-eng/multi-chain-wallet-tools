@@ -23,13 +23,12 @@ import type { CandidateSource } from "./candidate-list-import.js";
 import { CandidateListPanel } from "./candidate-list-panel.js";
 import { createDiscoveryRenderers } from "./discovery-renderers.js";
 import { createDiscoveryResultsView } from "./discovery-results-view.js";
+import { appendCoinOptions, CandidateCoinPicker, offerNetworks } from "./coin-choices.js";
 import {
-  bitcoinScanEstimate,
   coinJoinPathPattern,
   countCandidateLines,
   dashScanEstimate,
   estimateInteger,
-  ethereumScanEstimate,
   formatLookupEstimate,
   needsLargeScanConfirmation,
   seedLookupEstimate,
@@ -231,9 +230,11 @@ export function createDiscoveryScannerView(
   const batchPanel = seedElement<HTMLElement>("#batch-input", "div");
   const automaticCandidates = wrappedSeedInput("#automatic-candidates", "candidate-choice");
   const candidateOptions = seedElement<HTMLElement>("#candidate-options", "div");
-  const candidateCoins = seedElement<HTMLElement>("#candidate-coins", "div");
-  const candidateAll = seedElement<HTMLInputElement>("#candidate-all-coins", "input");
-  const candidateCoinInputs: HTMLInputElement[] = [];
+  const candidatePicker = new CandidateCoinPicker(
+    seedElement<HTMLElement>("#candidate-coins", "div"),
+    seedElement<HTMLInputElement>("#candidate-all-coins", "input"),
+    () => view.updateEstimate(),
+  );
   const candidateMode = (): boolean => sourceMode === "seed" && automaticCandidates.checked;
   automaticCandidates.closest<HTMLElement>(".candidate-choice")!.hidden = !features.seedDiscovery;
   customPathOptions.dataset.featureEnabled = String(features.customPaths);
@@ -399,8 +400,7 @@ export function createDiscoveryScannerView(
 
   function setComponentSettings(): void {
     const coinId =
-      candidateMode() &&
-      candidateCoinInputs.some((input) => input.checked && input.value === "dash")
+      candidateMode() && candidatePicker.selectedIds().includes("dash")
         ? "dash"
         : (coinInput?.value ?? profileCoinId ?? "dash");
     if (sourceMode === "public") return;
@@ -491,25 +491,18 @@ export function createDiscoveryScannerView(
         ? selectedFormat
         : (customPath.formats[0]?.id ?? "");
     }
-    if (!__DASH_COMMUNITY__ && !dash) {
+    // A coin with a standard scan form (every coin but Dash) states its own labels and notes.
+    const standardScan = dash ? undefined : coinAdapters.get(coinId)?.standardScan;
+    if (standardScan !== undefined) {
       for (const elements of Object.values(componentSettings)) {
         for (const element of elements) element.hidden = true;
       }
       receiveField.hidden = false;
-      changeField.hidden = coinId === "ethereum";
-      receiveLabel.textContent =
-        coinId === "bitcoin"
-          ? "Receive addresses per Bitcoin family"
-          : "Ethereum EOA address minimum";
-      changeLabel.textContent = "Change addresses per Bitcoin family";
-      scanCoverageDescription.textContent =
-        coinId === "bitcoin"
-          ? "Scan the standard Bitcoin BIP44, BIP49, BIP84, and BIP86 receive/change families."
-          : "Scan three common Ethereum externally owned account path profiles.";
-      genericCoinScanNote.textContent =
-        coinId === "bitcoin"
-          ? "Bitcoin discovery includes legacy, nested SegWit, native SegWit, and Taproot, extending every receive/change chain through a 20-address post-use gap."
-          : "Ethereum discovery checks Standard BIP44, Ledger Live, and Legacy Ledger paths by default, extending each through a 20-address post-use gap. Duplicate addresses are queried and counted once. ERC-20 tokens and contract wallets are outside this scan.";
+      changeField.hidden = standardScan.changeLabel === undefined;
+      receiveLabel.textContent = standardScan.receiveLabel;
+      changeLabel.textContent = standardScan.changeLabel ?? "";
+      scanCoverageDescription.textContent = standardScan.coverage;
+      genericCoinScanNote.textContent = standardScan.note;
       networkInput.options[0]!.textContent = "Mainnet";
       networkInput.options[1]!.textContent = "Testnet";
       return;
@@ -645,9 +638,7 @@ export function createDiscoveryScannerView(
       return {
         coinId,
         automaticCandidates: candidateMode(),
-        candidateCoinIds: candidateCoinInputs
-          .filter((input) => input.checked)
-          .map((input) => input.value),
+        candidateCoinIds: candidatePicker.selectedIds(),
         sourceMode,
         watchOnlyKeys: watchOnlyKeys.value,
         watchOnlyMinimumCount: watchOnlyMinimum.value,
@@ -729,6 +720,14 @@ export function createDiscoveryScannerView(
         if (publicInput) publicCoinId = coinInput.value;
         else seedCoinId = coinInput.value;
       }
+      // A coin without a testnet here (most EVM networks) offers Mainnet only; a candidate scan
+      // reports such a coin as unsupported on Testnet instead.
+      offerNetworks(
+        networkInput,
+        candidateMode() || coinInput?.value === "auto"
+          ? undefined
+          : coinAdapters.get(coinInput?.value ?? profileCoinId ?? "")?.networks,
+      );
       setComponentSettings();
       publicPanel.hidden = !publicInput;
       seedSourcePanel.hidden = publicInput;
@@ -852,18 +851,15 @@ export function createDiscoveryScannerView(
           "Change addresses per standard family (where supported)";
         startButtonLabel.textContent =
           seedMode === "single" ? "Scan selected coins" : "Check seed candidates";
-        const selected = candidateCoinInputs.filter((input) => input.checked);
+        const selected = candidatePicker.selectedIds();
         let lookupText: string;
         try {
-          lookupText = showLookupEstimate(
-            selected.map((input) => input.value),
-            coinInput?.value ?? profileCoinId ?? "dash",
-          );
+          lookupText = showLookupEstimate(selected, coinInput?.value ?? profileCoinId ?? "dash");
         } catch {
           largeScanWarning.hidden = true;
           lookupText = "enter valid scan counts";
         }
-        estimate.textContent = `${selected.map((input) => coinAdapters.get(input.value)?.label).join(" · ") || "Select at least one coin"} · ${lookupText} · selected coins in parallel · shared network concurrency${includeUsedZeroInput.checked ? " · zero-balance history enabled" : ""}`;
+        estimate.textContent = `${selected.map((id) => coinAdapters.get(id)?.label).join(" · ") || "Select at least one coin"} · ${lookupText} · selected coins in parallel · shared network concurrency${includeUsedZeroInput.checked ? " · zero-balance history enabled" : ""}`;
         scanCoverageDescription.textContent =
           "Multi-coin scan coverage · supported standard branches and selected components";
         return;
@@ -872,8 +868,9 @@ export function createDiscoveryScannerView(
       try {
         const coinId = coinInput?.value ?? profileCoinId ?? "dash";
         const lookupText = showLookupEstimate([coinId], coinId);
-        if (!__DASH_COMMUNITY__ && coinId === "bitcoin") {
-          estimate.textContent = `${bitcoinScanEstimate(
+        const standardScan = coinAdapters.get(coinId)?.standardScan;
+        if (standardScan !== undefined) {
+          estimate.textContent = `${standardScan.estimate(
             coreReceiveInput.value,
             coreChangeInput.value,
             {
@@ -883,17 +880,7 @@ export function createDiscoveryScannerView(
               includeUsedZero: includeUsedZeroInput.checked,
             },
           )} · ${lookupText}`;
-          startButtonLabel.textContent = "Scan Bitcoin holdings";
-          return;
-        }
-        if (!__DASH_COMMUNITY__ && coinId === "ethereum") {
-          estimate.textContent = `${ethereumScanEstimate(coreReceiveInput.value, {
-            customPath: scanCustomPathInput.checked,
-            customRange: customRangeInput.checked,
-            requests: requestConcurrencyInput.value,
-            includeUsedZero: includeUsedZeroInput.checked,
-          })} · ${lookupText}`;
-          startButtonLabel.textContent = "Scan Ethereum holdings";
+          startButtonLabel.textContent = standardScan.startLabel;
           return;
         }
         startButtonLabel.textContent = "Scan Dash holdings";
@@ -1055,29 +1042,8 @@ export function createDiscoveryScannerView(
       if (coins.length === 0) throw new Error("Recovery coin registry is empty.");
       automaticCandidates.closest<HTMLElement>(".candidate-choice")!.hidden =
         features.seedDiscovery === false || coins.length < 2;
-      for (const coin of coins) {
-        coinAdapters.set(coin.id, coin);
-        const label = document.createElement("label");
-        label.className = "candidate-choice";
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.value = coin.id;
-        checkbox.checked = coin === coins[0];
-        checkbox.addEventListener("change", () => {
-          candidateAll.checked = candidateCoinInputs.every((input) => input.checked);
-          candidateAll.indeterminate =
-            !candidateAll.checked && candidateCoinInputs.some((input) => input.checked);
-          this.updateEstimate();
-        });
-        label.append(checkbox, document.createTextNode(` ${coin.label}`));
-        candidateCoins.append(label);
-        candidateCoinInputs.push(checkbox);
-      }
-      candidateAll.checked = coins.length === 1;
-      candidateAll.addEventListener("change", () => {
-        for (const input of candidateCoinInputs) input.checked = candidateAll.checked;
-        this.updateEstimate();
-      });
+      for (const coin of coins) coinAdapters.set(coin.id, coin);
+      candidatePicker.populate(coins);
       if (coinInput === null) {
         if (coins.length !== 1)
           throw new Error(
@@ -1086,12 +1052,7 @@ export function createDiscoveryScannerView(
         profileCoinId = coins[0]?.id ?? null;
         return;
       }
-      for (const coin of coins) {
-        const option = document.createElement("option");
-        option.value = coin.id;
-        option.textContent = coin.label;
-        coinInput.append(option);
-      }
+      appendCoinOptions(coinInput, coins);
       const auto = document.createElement("option");
       auto.value = "auto";
       auto.textContent = "Auto-detect (exact formats only)";

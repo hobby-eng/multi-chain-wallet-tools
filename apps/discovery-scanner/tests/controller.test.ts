@@ -10,8 +10,12 @@ import type { RecoveryInputSnapshot, DiscoveryScannerView } from "../src/view.js
 import type { RecoveryWalletResult } from "../src/types.js";
 import type { RuntimeCoinAdapter } from "@ckd/coins/runtime-registry.js";
 import { BITCOIN_SEED_RECOVERY_ADAPTER } from "../src/coins/bitcoin/seed.js";
-import { ETHEREUM_SEED_RECOVERY_ADAPTER } from "../src/coins/ethereum/seed.js";
+import { createEvmSeedRecoveryAdapter } from "../src/coins/evm/seed.js";
+import { evmNetwork } from "@ckd/public-data-providers/evm-networks.js";
 import { dashSeedLookups, type SeedLookupSettings } from "../src/scan-estimate.js";
+
+// Ethereum's seed scans, built as every composed build builds them; only its lookup count is used.
+const ETHEREUM_SEED_RECOVERY_ADAPTER = createEvmSeedRecoveryAdapter(evmNetwork("ethereum"));
 
 /** Each fake coin counts its lookups as the real adapter does, for the large-scan limit. */
 const minimumSeedLookups = (id: string) => (settings: SeedLookupSettings) =>

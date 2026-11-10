@@ -53,12 +53,37 @@ describe("seed scan lookup estimate", () => {
     expect(seedLookupsPerPhrase(coins("bitcoin"), defaults)).toBe(8);
     // Three wallet profiles, receive addresses only.
     expect(seedLookupsPerPhrase(coins("ethereum"), defaults)).toBe(3);
+    // Every EVM network scans the same three profiles on its own chain.
+    expect(seedLookupsPerPhrase(coins("bnb-chain", "gnosis"), defaults)).toBe(6);
     // Core receive + change in two batches, two Platform batches, ten identity proof calls.
     expect(seedLookupsPerPhrase(coins("dash"), defaults)).toBe(14);
     expect(seedLookupsPerPhrase(coins("bitcoin", "ethereum", "dash"), defaults)).toBe(25);
     expect(seedLookupsPerPhrase(coins("bitcoin"), { ...defaults, coreReceiveCount: "101" })).toBe(
       12,
     );
+  });
+
+  it("lets each standard coin state its scan form, and Dash keep its components", () => {
+    const options = {
+      customPath: false,
+      customRange: false,
+      requests: "5",
+      includeUsedZero: false,
+    };
+    const bnb = getRecoveryCoin("bnb-chain").standardScan!;
+    expect(bnb).toMatchObject({
+      receiveLabel: "BNB Chain EOA address minimum",
+      startLabel: "Scan BNB Chain holdings",
+    });
+    expect(bnb.estimate("100", "0", options)).toBe(
+      "BNB Chain EOA · 3 standard wallet profiles · 100 minimum derivations per profile + 20-address post-use gaps · 5 network requests at once",
+    );
+    expect(bnb.changeLabel).toBeUndefined();
+    expect(getRecoveryCoin("bitcoin").standardScan).toMatchObject({
+      changeLabel: "Change addresses per Bitcoin family",
+      startLabel: "Scan Bitcoin holdings",
+    });
+    expect(getRecoveryCoin("dash").standardScan).toBeUndefined();
   });
 
   it("refuses a coin it has no estimate for instead of dropping it", () => {

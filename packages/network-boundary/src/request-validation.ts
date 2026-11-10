@@ -38,6 +38,16 @@ export function assertRecoveryNetwork(value: unknown): asserts value is Recovery
     throw new Error("Network must be mainnet or testnet.");
 }
 
+/** Refuses a payload value that is not one of the names this build admits, such as a coin. */
+export function assertOneOf<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  label: string,
+): asserts value is T {
+  if (typeof value !== "string" || !(allowed as readonly string[]).includes(value))
+    throw new Error(`${label} is not included in this build.`);
+}
+
 export function assertPublicToken(
   value: unknown,
   label: string,

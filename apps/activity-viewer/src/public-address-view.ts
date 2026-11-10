@@ -8,7 +8,7 @@ function required<T extends HTMLElement>(document: Document, selector: string): 
   return element;
 }
 
-/** Minimal host UI for Bitcoin/Ethereum public-address builds. */
+/** Minimal host UI for public-address builds without Dash: Bitcoin and the EVM networks. */
 export function createPublicAddressActivityView(
   document: Document,
   buildInfo: typeof BUILD_INFO,

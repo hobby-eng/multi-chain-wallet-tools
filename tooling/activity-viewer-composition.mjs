@@ -1,3 +1,5 @@
+import { isEvmCoin, selectedEvmNetworks } from "./evm-networks.mjs";
+import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 import { replaceBalancedElement as replaceHtmlElement } from "./html-elements.mjs";
 import { resolve } from "node:path";
 
@@ -17,7 +19,7 @@ export function activityViewerEntry(root, options) {
     );
     lines.push("const view = createPublicAddressActivityView(document, BUILD_INFO);");
   }
-  if (options.hasCoin("bitcoin") || options.hasCoin("ethereum")) {
+  if (options.coins.some((coin) => coin !== "dash")) {
     lines.push(
       `import { installExternalActivity } from ${JSON.stringify(resolve(root, "apps/activity-viewer/src/external-activity.ts"))};`,
     );
@@ -29,15 +31,40 @@ export function activityViewerEntry(root, options) {
   return lines.join("\n");
 }
 
+/** The selected public-address adapters: Bitcoin's, and one per EVM network with its inlined row. */
+function selectedAdaptersSource(root, options) {
+  const module = (file) => JSON.stringify(resolve(root, file));
+  const lines = [];
+  const adapters = [];
+  if (options.hasCoin("bitcoin")) {
+    lines.push(
+      `import { BITCOIN_ACTIVITY_ADAPTER } from ${module("apps/activity-viewer/src/activity-bitcoin.ts")};`,
+    );
+    adapters.push("BITCOIN_ACTIVITY_ADAPTER");
+  }
+  const evm = selectedEvmNetworks(options);
+  if (evm.length > 0) {
+    lines.push(
+      `import { createEvmActivityAdapter } from ${module("apps/activity-viewer/src/activity-evm.ts")};`,
+      `import { EvmAccountService } from ${module("packages/public-data-providers/src/evm-service.ts")};`,
+      `const evmNetworks = ${JSON.stringify(evm)};`,
+      "const evmAccounts = new EvmAccountService(evmNetworks);",
+    );
+    if (options.hasCoin("ethereum"))
+      lines.push(
+        `import { EthereumPublicDataService } from ${module("packages/public-data-providers/src/ethereum-service.ts")};`,
+      );
+    // Ethereum alone has a history provider (Blockscout); the others load balance and nonce.
+    for (const [index, { id }] of evm.entries())
+      adapters.push(
+        `createEvmActivityAdapter(evmNetworks[${index}], evmAccounts${id === "ethereum" ? `, new EthereumPublicDataService(evmNetworks[${index}])` : ""})`,
+      );
+  }
+  return `${lines.join("\n")}\nexport const SELECTED_EXTERNAL_ACTIVITY_ADAPTERS = [${adapters.join(", ")}];`;
+}
+
 export function createActivityViewerCompositionPlugin(root, options) {
-  const definitions = [
-    ["bitcoin", "BITCOIN_ACTIVITY_ADAPTER", "apps/activity-viewer/src/activity-bitcoin.ts"],
-    ["ethereum", "ETHEREUM_ACTIVITY_ADAPTER", "apps/activity-viewer/src/activity-ethereum.ts"],
-  ].filter(([coin]) => options.hasCoin(coin));
-  const imports = definitions.map(
-    ([, symbol, file]) => `import { ${symbol} } from ${JSON.stringify(resolve(root, file))};`,
-  );
-  const source = `${imports.join("\n")}\nexport const SELECTED_EXTERNAL_ACTIVITY_ADAPTERS = [${definitions.map(([, symbol]) => symbol).join(", ")}];`;
+  const source = selectedAdaptersSource(root, options);
   return {
     name: "activity-viewer-composition",
     setup(build) {
@@ -59,18 +86,27 @@ const replaceBalancedElement = (source, openingPattern, replacement = "") =>
 
 export function applyActivityCoinTemplate(template, options) {
   let rendered = template;
-  for (const coin of ["bitcoin", "dash", "ethereum"]) {
+  for (const coin of TOOL_MANIFESTS["activity-viewer"].coins) {
     if (!options.hasCoin(coin))
       rendered = rendered.replace(
         new RegExp(`<option value=["']${coin}["'][^>]*>[^<]*<\\/option>`, "giu"),
         "",
       );
   }
+  // A coin group none of whose coins was selected leaves no empty <optgroup>.
+  rendered = rendered.replace(/<optgroup\b[^>]*>\s*<\/optgroup>/giu, "");
   if (!options.hasCoin("dash")) {
-    const labels = options.coins.map((coin) => (coin === "bitcoin" ? "Bitcoin" : "Ethereum"));
+    const evm = selectedEvmNetworks(options);
+    const labels = [
+      ...(options.hasCoin("bitcoin") ? ["Bitcoin"] : []),
+      ...evm.map(({ label }) => label),
+    ];
     const providerSummary = [
       ...(options.hasCoin("bitcoin") ? ["Bitcoin: Blockstream Esplora"] : []),
-      ...(options.hasCoin("ethereum") ? ["Ethereum: PublicNode"] : []),
+      ...(evm.length > 0
+        ? [`${evm.map(({ label }) => label).join(", ")}: PublicNode JSON-RPC`]
+        : []),
+      ...(options.hasCoin("ethereum") ? ["Ethereum history: Blockscout"] : []),
     ].join(" · ");
     rendered = replaceBalancedElement(
       rendered,
@@ -212,7 +248,7 @@ export function assertActivityViewerComposition(options, inputs) {
   const normalized = inputs.map((input) => input.replaceAll("\\", "/"));
   const markers = {
     bitcoin: ["/activity-bitcoin.ts", "/bitcoin-service.ts"],
-    ethereum: ["/activity-ethereum.ts", "/ethereum-service.ts"],
+    ethereum: ["/ethereum-service.ts"],
     dash: [
       "/dash-network/",
       "/activity-viewer/src/start.ts",
@@ -238,7 +274,21 @@ export function assertActivityViewerComposition(options, inputs) {
       );
   };
   if (options.hasCoin("bitcoin")) requireInput("Bitcoin", "/activity-bitcoin.ts");
-  if (options.hasCoin("ethereum")) requireInput("Ethereum", "/activity-ethereum.ts");
+  if (options.hasCoin("ethereum")) requireInput("Ethereum history", "/ethereum-service.ts");
+  if (options.coins.some(isEvmCoin)) {
+    requireInput("EVM networks", "/activity-evm.ts");
+    requireInput("EVM networks", "/evm-service.ts");
+  } else {
+    const leaked = normalized.filter((input) =>
+      ["/activity-evm.ts", "/evm-service.ts", "/evm-network-facts.ts"].some((marker) =>
+        input.includes(marker),
+      ),
+    );
+    if (leaked.length > 0)
+      throw new Error(
+        `Activity Viewer excluded every EVM network, but its modules remain:\n${leaked.join("\n")}`,
+      );
+  }
   if (options.hasCoin("dash")) {
     for (const marker of [
       "/dash-core-activity.ts",

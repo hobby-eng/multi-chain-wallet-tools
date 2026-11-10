@@ -6,4 +6,8 @@ export type PublicRecoveryRequestInput =
       payload: { coin: "bitcoin" | "ethereum"; network: NetworkName; address: string };
     }
   | { operation: "utxo.addresses"; payload: { network: NetworkName; addresses: string[] } }
-  | { operation: "evm.accounts"; payload: { network: NetworkName; addresses: string[] } };
+  | {
+      operation: "evm.accounts";
+      /** `coin` is the id of an EVM network of the EVM network table, such as "base". */
+      payload: { network: NetworkName; coin: string; addresses: string[] };
+    };

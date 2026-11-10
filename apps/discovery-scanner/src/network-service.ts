@@ -80,6 +80,7 @@ export class DirectRecoveryNetworkService implements RecoveryNetworkApi {
   }
 
   async evmAccounts(
+    _coin: string,
     _network: RecoveryNetwork,
     _addresses: string[],
     _signal?: AbortSignal,

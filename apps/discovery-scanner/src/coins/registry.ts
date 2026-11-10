@@ -30,7 +30,15 @@ export function createRecoveryCoinRegistry(
 /** What a coin is, whichever scans a build includes: its name, networks, unit, history and paths. */
 export type RecoveryCoinFacts = Pick<
   RecoveryCoinAdapter,
-  "id" | "label" | "networks" | "amountUnit" | "getHistory" | "customPath"
+  | "id"
+  | "label"
+  | "networks"
+  | "amountUnit"
+  | "getHistory"
+  | "customPath"
+  | "group"
+  | "groupNote"
+  | "standardScan"
 >;
 
 /** The watch-only half of an adapter. */

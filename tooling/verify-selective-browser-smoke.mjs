@@ -21,6 +21,41 @@ const variants = [
     },
   })),
   {
+    // An EVM network alone: its own option, Mainnet only.
+    id: "activity-bnb-chain",
+    script: "apps/activity-viewer/scripts/build-activity-viewer-html.mjs",
+    args: ["--coins", "bnb-chain"],
+    selfTest: "#viewer-crypto-self-test-status.pass, #viewer-crypto-self-test-status.passed",
+    fingerprint: "#viewer-build-fingerprint",
+    inspect: async (page) => {
+      assert.deepEqual(await page.locator("#viewer-coin option").allTextContents(), ["BNB Chain"]);
+      await page.waitForFunction(
+        () => document.querySelector('#viewer-network option[value="testnet"]').disabled,
+      );
+    },
+  },
+  {
+    // Two EVM networks without Ethereum: their own group, Ethereum's derivation self-test.
+    id: "discovery-evm-networks",
+    script: "apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
+    args: ["--coins", "base,gnosis", "--features", "seed-discovery"],
+    selfTest: "#recovery-crypto-self-test-status.passed",
+    fingerprint: "#recovery-build-fingerprint",
+    frame: "#recovery-secret-vault",
+    inspect: async (scope) => {
+      assert.deepEqual(
+        await scope
+          .locator('#recovery-coin optgroup[label="EVM networks"] option')
+          .allTextContents(),
+        ["Base", "Gnosis"],
+      );
+      assert.match(
+        await scope.locator("#recovery-crypto-self-test-details").textContent(),
+        /Ethereum/u,
+      );
+    },
+  },
+  {
     id: "discovery-seed-without-custom-paths",
     script: "apps/discovery-scanner/scripts/build-discovery-scanner-html.mjs",
     args: ["--coins", "bitcoin", "--features", "seed-discovery"],
