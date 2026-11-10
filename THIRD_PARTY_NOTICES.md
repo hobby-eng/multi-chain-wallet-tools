@@ -8,7 +8,7 @@ Original project code is licensed under the repository's [MIT License](LICENSE),
 
 | Package                    | Exact version | Source repository                            | License           | Purpose                                                                                                                           |
 | -------------------------- | ------------- | -------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `@bitcoinerlab/miniscript` | 2.0.0         | `bitcoinerlab/miniscript`                    | MIT               | Local Bitcoin Miniscript parsing, safety analysis, and Script ASM compilation                                                     |
+| `@bitcoinerlab/miniscript` | 2.0.1         | `bitcoinerlab/miniscript`                    | MIT               | Local Bitcoin Miniscript parsing, safety analysis, and Script ASM compilation                                                     |
 | `bip68`                    | 1.0.4         | `bitcoinjs/bip68`                            | ISC               | Relative-locktime handling used by the Miniscript analyzer                                                                        |
 | `@scure/btc-signer`        | 2.4.1         | `paulmillr/scure-btc-signer`                 | MIT               | Local BIP-327 MuSig2 key aggregation, BIP-328 derivation, Taproot output construction, and BIP-373 field definitions              |
 | `btcutil-js`               | 0.4.1         | `guggero/btcutil-js`                         | MIT               | Offline BIP-322 legacy/simple/full/proof-of-funds verification using a btcd-derived Bitcoin Script engine compiled to WebAssembly |
@@ -74,8 +74,8 @@ These packages are not imported by production source except esbuild/TypeScript d
 | `ethers`                   | 6.17.0        | `ethers-io/ethers.js`  | MIT        | Independent Ethereum cross-check                              |
 | `esbuild`                  | 0.28.2        | `evanw/esbuild`        | MIT        | Browser bundle and CSS minification                           |
 | `typescript`               | 7.0.2         | `microsoft/TypeScript` | Apache-2.0 | Static type checking                                          |
-| `vitest`                   | 5.0.5         | `vitest-dev/vitest`    | MIT        | JS/TS tests                                                   |
-| `playwright`               | 1.64.1        | `microsoft/playwright` | Apache-2.0 | Chromium/Firefox standalone-file and browser-regression tests |
+| `vitest`                   | 5.1.0         | `vitest-dev/vitest`    | MIT        | JS/TS tests                                                   |
+| `playwright`               | 1.65.0        | `microsoft/playwright` | Apache-2.0 | Chromium/Firefox standalone-file and browser-regression tests |
 
 ## Complete locked Rust metadata closure
 

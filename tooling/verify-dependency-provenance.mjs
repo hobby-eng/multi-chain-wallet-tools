@@ -57,13 +57,13 @@ export const GITHUB_SOURCES = [
     id: "slip39-reference",
     repository: "trezor/python-shamir-mnemonic",
     reference: "source revision used by the local port and official vectors",
-    commit: "17fcce14736afe498871d3018e4fa9330443471a",
+    commit: "9fcb9c807c185e06d6269b65f3d795d3c724da3b",
   },
   {
     id: "seedsigner-seedqr",
     repository: "SeedSigner/seedsigner",
     reference: "SeedQR documentation revision",
-    commit: "cfaf443a5f19e3a3e2b2c7be7572ae3924142c0e",
+    commit: "995ce5c65df4bd333f61cd3dd992b39a49138a1d",
   },
   {
     id: "mhfe-browser-package",

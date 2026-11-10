@@ -5,9 +5,9 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@12.15.0",
+  "packageManager": "pnpm@12.18.0",
   "engines": {
-    "node": ">=26.12.1"
+    "node": ">=26.13.0"
   },
   "scripts": {
     "build": "node tooling/verify-dependency-provenance.mjs && node tooling/verify-wasm-producers.mjs && node tooling/build-html-profiles.mjs",
@@ -73,7 +73,7 @@
     "build:key-derivation": "node tooling/verify-dependency-provenance.mjs && node apps/key-derivation/scripts/build-key-derivation-html.mjs"
   },
   "dependencies": {
-    "@bitcoinerlab/miniscript": "2.0.0",
+    "@bitcoinerlab/miniscript": "2.0.1",
     "@dashevo/evo-sdk": "5.0.3",
     "@noble/ciphers": "2.4.0",
     "@noble/curves": "2.4.0",
@@ -95,12 +95,12 @@
     "dashkeys": "1.1.5",
     "esbuild": "0.28.2",
     "ethers": "6.17.0",
-    "oxlint": "1.89.0",
-    "oxlint-tsgolint": "7.0.2005",
+    "oxlint": "1.92.0",
+    "oxlint-tsgolint": "7.0.2006",
     "pdf-lib": "1.17.1",
-    "playwright": "1.64.1",
+    "playwright": "1.65.0",
     "prettier": "3.9.10",
     "typescript": "7.0.2",
-    "vitest": "5.0.5"
+    "vitest": "5.1.0"
   }
 }

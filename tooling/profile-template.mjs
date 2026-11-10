@@ -282,8 +282,8 @@ function secondaryToolMarkup(profile, footer) {
     ? ""
     : '<p class="field-note"><strong>MuSig2 scope:</strong> the BIP-390 descriptor spelling is <code>musig(...)</code>, but it represents the modern BIP-327 MuSig2 protocol—not legacy MuSig1. Pinned public-key routines from <code>@scure/btc-signer</code> calculate and cross-check KeySort/KeyAgg, Taproot outputs, and BIP-328 aggregate-key derivation; the PSBT inspector structurally recognizes BIP-373 fields. The dependency package name contains “Signer”, but this utility does not expose transaction signing, secret nonces, or interactive partial-signature rounds.</p>';
   const psbtDependencyScope = !profile.capabilities.advancedPsbt
-    ? "BitcoinerLab Miniscript 2.0.0, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC."
-    : "BitcoinerLab Miniscript 2.0.0, Scure BTC Signer 2.4.1, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC.";
+    ? "BitcoinerLab Miniscript 2.0.1, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC."
+    : "BitcoinerLab Miniscript 2.0.1, Scure BTC Signer 2.4.1, Noble Curves/Hashes 2.4.0, and Scure Base/BIP32 2.4.0 — MIT; bip68 1.0.4 — ISC.";
   const psbtDecoderIntroduction = !profile.capabilities.advancedPsbt
     ? "Inspect raw Dash Script hex or a supported legacy Dash output descriptor/Miniscript."
     : "Inspect raw Script hex or a Bitcoin output descriptor/Miniscript exported by wallets such as Nunchuk.";
