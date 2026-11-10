@@ -9,6 +9,7 @@ import { renderDashDistributionDocs } from "./sync-dash-distribution-docs.mjs";
 import { checkMnemoCodeWasm } from "./sync-mnemocode-wasm.mjs";
 import { MnemoCodeSskrSource } from "./sync-mnemocode-sskr.mjs";
 import { MnemoCodeSskrLayout } from "./mnemocode-sskr-layout.mjs";
+import { UNICODE_VERSION as NFKD_UNICODE_VERSION } from "./generate-unicode-nfkd.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Formatting a producer's licence would break its reviewed byte identity. Verify those bytes first.
@@ -214,6 +215,8 @@ const PASSPORT_VERSIONS = [
   ["bc-envelope ", cargoVersion(ENVELOPE_LOCK, "bc-envelope")],
   ["bc-components ", cargoVersion(ENVELOPE_LOCK, "bc-components")],
   ["MHFE ", mhfeRelease],
+  // The Deriver's own NFKD tables (packages/crypto-core/src/unicode-nfkd-data.ts).
+  ["Unicode ", NFKD_UNICODE_VERSION],
   ["MnemoCode ", MNEMOCODE_VERSION],
 ];
 const VERSION = /\d+\.\d+\.\d+/gu;

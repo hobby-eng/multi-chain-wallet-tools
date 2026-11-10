@@ -2,6 +2,7 @@
 // Admit a new check deliberately here; never build expectations from a self-test's returned list.
 const BIP39 = Object.freeze([
   "BIP39",
+  "BIP39 passphrase NFKD (Unicode 18.0.0)",
   "BIP39 chosen words",
   "BIP39 chosen-word bit placement and readback (five lengths)",
   "BIP39 chosen-word checksum, predicates and refusals (five lengths)",

@@ -440,6 +440,10 @@ SOFTWARE.
 - Every flat release carries the MHFE and MnemoCode licence and notice files this report names, byte for byte and under the release names given with them, next to this file. `tooling/release-legal-documents.mjs` lists them, and the release scripts check each copy against its package file.
 - Original project code is licensed under MIT as declared in the root `LICENSE` and `package.json`. Third-party components retain the licenses and notices listed above.
 
+## Unicode data
+
+The Deriver's NFKD tables (`packages/crypto-core/src/unicode-nfkd-data.ts`), embedded in every page that derives a BIP39 seed, are generated from the Unicode Character Database 18.0.0 (`UnicodeData.txt`); the unit test reads Unicode 18.0.0's `NormalizationTest.txt`. Both files are kept, compressed, in `test/fixtures/unicode18/`. © 2026 Unicode®, Inc., distributed under the Unicode License v3: https://www.unicode.org/license.txt.
+
 ## MnemoCode
 
 MnemoCode reaches the pages as its own WebAssembly, one file for each page, vendored under `packages/recovery-mnemocode-wasm/generated/`. The Key Derivation Tool's file embeds the DejaVu Sans font subset, the Natural Earth world map and the card artwork that MnemoCode draws its cards and sheets with, and the number, name and colour of DMC's threads for its cross-stitch patterns, from `makebead/craft-color-codes` under CC BY 4.0. MnemoCode is licensed MIT OR Apache-2.0, at the recipient's option, and so is its SSKR engine's own code: its licence texts are `packages/recovery-mnemocode-wasm/LICENSE-MIT` and `packages/recovery-mnemocode-wasm/LICENSE-APACHE`, released as `MnemoCode-LICENSE-MIT` and `MnemoCode-LICENSE-APACHE`, and its notice is `packages/recovery-mnemocode-wasm/NOTICE`, released as `MnemoCode-NOTICE`. Its third-party notices, `packages/recovery-mnemocode-wasm/THIRD_PARTY_NOTICES.md`, released as `MnemoCode-THIRD_PARTY_NOTICES.md`, give the font's licence, the origin of the map and of the twelve card images with the SHA-256 of each image, the attribution of the DMC thread colours, and the licence texts of every Rust crate the WebAssembly links.

@@ -14,6 +14,7 @@ describe("BIP39 chosen-word startup checks", () => {
     expect(report.passed).toBe(true);
     expect(report.checks).toEqual([
       "BIP39",
+      "BIP39 passphrase NFKD (Unicode 18.0.0)",
       "BIP39 chosen words",
       "BIP39 chosen-word bit placement and readback (five lengths)",
       "BIP39 chosen-word checksum, predicates and refusals (five lengths)",

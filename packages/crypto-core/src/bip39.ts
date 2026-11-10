@@ -1,12 +1,11 @@
 import { MnemonicInspection } from "./mnemonic-inspection.js";
 export type { MnemonicDiagnostic } from "./mnemonic-inspection.js";
 import { secureRandomBytes } from "./secure-random.js";
-import {
-  entropyToMnemonic,
-  mnemonicToEntropy,
-  mnemonicToSeedSync,
-  validateMnemonic,
-} from "@scure/bip39";
+import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
+import { sha512 } from "@noble/hashes/sha2.js";
+import { utf8ToBytes } from "@noble/hashes/utils.js";
+import { entropyToMnemonic, mnemonicToEntropy, validateMnemonic } from "@scure/bip39";
+import { nfkd } from "./unicode-nfkd.js";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import {
   BIP39_WORD_COUNT_LIST,
@@ -42,8 +41,20 @@ export function assertValidMnemonic(value: string): string {
   return mnemonic;
 }
 
+/**
+ * BIP39's seed: PBKDF2-HMAC-SHA512 of the phrase, salted with "mnemonic" and the passphrase, 2048
+ * rounds. Both are normalized by the Deriver's own NFKD of Unicode 18.0.0, which MHFE's
+ * specification pins, never by the browser's, whose Unicode version varies.
+ */
 export function mnemonicToSeed(mnemonic: string, passphrase = ""): Uint8Array {
-  return mnemonicToSeedSync(assertValidMnemonic(mnemonic), passphrase);
+  const password = utf8ToBytes(nfkd(assertValidMnemonic(mnemonic)));
+  const salt = utf8ToBytes(`mnemonic${nfkd(passphrase)}`);
+  try {
+    return pbkdf2(sha512, password, salt, { c: 2048, dkLen: 64 });
+  } finally {
+    password.fill(0);
+    salt.fill(0);
+  }
 }
 
 export function generateMnemonic(wordCount: Bip39WordCount): string {

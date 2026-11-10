@@ -1,3 +1,4 @@
+import { nfkd } from "./unicode-nfkd.js";
 import { BIP39_WORD_COUNTS } from "./bip39-word-counts.js";
 
 // Generous admission padding for one human phrase, checked before and after Unicode expansion.
@@ -39,9 +40,12 @@ export class Bip39Input {
     return value;
   }
 
-  /** Preserve the established English NFKD/case/whitespace conversion; never truncate a phrase. */
+  /**
+   * Preserve the established English NFKD/case/whitespace conversion; never truncate a phrase. The
+   * NFKD is the Deriver's own, of Unicode 18.0.0, not the browser's.
+   */
   static normalize(value: unknown): string {
-    const compatible = this.text(value).normalize("NFKD");
+    const compatible = nfkd(this.text(value));
     return this.text(compatible).trim().toLowerCase().split(/\s+/u).filter(Boolean).join(" ");
   }
 
