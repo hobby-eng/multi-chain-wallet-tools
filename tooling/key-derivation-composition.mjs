@@ -6,11 +6,28 @@ import {
 } from "./derivation-self-tests.mjs";
 import { resolve } from "node:path";
 import { COIN_WORDS } from "../packages/recovery-backup/src/mnemocode-offered-coins.ts";
+import {
+  hasSingleKeyKind,
+  needsSharedModule,
+  SHARED_MODULES,
+  SINGLE_KEY_COINS,
+  SINGLE_KEY_COIN_IDS,
+  SINGLE_KEY_SHARED_MARKERS,
+  singleKeyCoinMarkers,
+  singleKeyCoinModules,
+} from "./single-key-coins.mjs";
+import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
 const adapterModules = {
   bitcoin: ["BITCOIN_COIN_ADAPTERS", "packages/coin-protocols/src/coins/adapters/bitcoin.ts"],
   dash: ["DASH_COIN_ADAPTERS", "packages/coin-protocols/src/coins/adapters/dash.ts"],
   ethereum: ["ETHEREUM_COIN_ADAPTERS", "packages/coin-protocols/src/coins/adapters/ethereum.ts"],
+  ...Object.fromEntries(
+    Object.entries(SINGLE_KEY_COINS).map(([coin, { prefix }]) => [
+      coin,
+      [`${prefix}_COIN_ADAPTERS`, singleKeyCoinModules(coin).adapters],
+    ]),
+  ),
 };
 
 function selectedRegistrySource(root, coins) {
@@ -51,6 +68,15 @@ if (bitcoin !== undefined) return { ...metadata, derive: (input) => deriveBitcoi
     dispatch.push(`const dash = DashRuntimeRegistry.derivationFor(id);
 if (dash !== undefined) return { ...metadata, derive: dash };`);
   }
+  // Each single-key coin's derivation answers only its own adapter ids.
+  for (const coin of coins.filter((selected) => Object.hasOwn(SINGLE_KEY_COINS, selected))) {
+    const { derivation } = SINGLE_KEY_COINS[coin];
+    imports.push(
+      `import { ${derivation} } from ${JSON.stringify(resolve(root, singleKeyCoinModules(coin).derivation))};`,
+    );
+    dispatch.push(`{ const derive = ${derivation}(id);
+if (derive !== undefined) return { ...metadata, derive }; }`);
+  }
   return `${imports.join("\n")}
 export function getRuntimeCoinAdapter(id) {
   const metadata = resolveCoinProtocol(registry, id) ?? registry.getCoinAdapter(id);
@@ -60,7 +86,7 @@ export function getRuntimeCoinAdapter(id) {
 }
 
 function selectedSelfTestSource(root, coins) {
-  if (coins.length === 3) {
+  if (coins.length === DERIVER_COINS.length) {
     return `export { runDerivationSelfTest } from ${JSON.stringify(resolve(root, "packages/verification/src/derivation-self-test.ts"))};`;
   }
   if (coins.length === 1 && coins[0] === "dash") {
@@ -82,6 +108,12 @@ const MATCHER_COINS = {
   bitcoin: ["BITCOIN_MATCHER", "packages/wallet-recovery/src/address-targets.ts"],
   dash: ["DASH_MATCHER", "packages/wallet-recovery/src/matcher-targets-dash.ts"],
   ethereum: ["ETHEREUM_MATCHER", "packages/wallet-recovery/src/matcher-targets-ethereum.ts"],
+  ...Object.fromEntries(
+    Object.entries(SINGLE_KEY_COINS).map(([coin, { prefix }]) => [
+      coin,
+      [`${prefix}_MATCHER`, singleKeyCoinModules(coin).matcher],
+    ]),
+  ),
 };
 
 function selectedMatcherSource(root, features) {
@@ -126,18 +158,21 @@ export async function runRecoveryBackupSelfTest() {
 }
 
 /** The Deriver's coins: a build with all of them offers every coin of MnemoCode's. */
-const DERIVER_COINS = ["bitcoin", "dash", "ethereum"];
+const DERIVER_COINS = TOOL_MANIFESTS["key-derivation"].coins;
 
 /**
  * The coins of MnemoCode whose addresses a build with only some of the Deriver's coins compares:
- * its own of Bitcoin, Dash and Ethereum. MnemoCode's other nine coins come only with the full build
- * (the owner's choice of 2026-10-07; packages/recovery-backup/src/mnemocode-offered-coins.ts).
- * MnemoCode's file of the page still holds them: it is one file per page (MnemoCode ADR 0007), and
- * the page narrows an address to its own coins. Only the offered coins' names come with the list,
- * so that the Dash Community Edition names no other coin.
+ * those of its own coins that MnemoCode knows (COIN_WORDS); a coin MnemoCode does not know, such as
+ * Solana, is never offered to it. The full build offers all of MnemoCode's coins (the owner's
+ * choice of 2026-10-07; packages/recovery-backup/src/mnemocode-offered-coins.ts). MnemoCode's file
+ * of the page still holds them: it is one file per page (MnemoCode ADR 0007), and the page narrows
+ * an address to its own coins. Only the offered coins' names come with the list, so that the Dash
+ * Community Edition names no other coin.
  */
 function selectedMnemoCodeCoinsSource(features) {
-  const coins = DERIVER_COINS.filter((coin) => features.hasCoin(coin));
+  const coins = DERIVER_COINS.filter(
+    (coin) => features.hasCoin(coin) && Object.hasOwn(COIN_WORDS, coin),
+  );
   const words = Object.fromEntries(coins.map((coin) => [coin, COIN_WORDS[coin]]));
   return [
     `export const OFFERED_COIN_IDS = ${JSON.stringify(coins)};`,
@@ -330,6 +365,7 @@ const coinSourceMarkers = {
     "derivation-self-test-ethereum.ts",
     "/wallet-recovery/src/matcher-targets-ethereum.ts",
   ],
+  ...Object.fromEntries(SINGLE_KEY_COIN_IDS.map((coin) => [coin, singleKeyCoinMarkers(coin)])),
 };
 
 const featureSourceMarkers = {
@@ -479,6 +515,27 @@ const featureSourceMarkers = {
 
 /** Sources that a pair of features needs: absent unless both are built. */
 const sharedSourceMarkers = [
+  {
+    label: "BIP44-coin derivation (a BIP44 coin)",
+    needed: (features) => hasSingleKeyKind(features.hasCoin, "bip44"),
+    markers: [...SINGLE_KEY_SHARED_MARKERS.bip44],
+  },
+  {
+    label: "Ed25519-coin derivation (an Ed25519 coin)",
+    needed: (features) => hasSingleKeyKind(features.hasCoin, "ed25519"),
+    markers: [...SINGLE_KEY_SHARED_MARKERS.ed25519],
+  },
+  {
+    label: "Single-key coin self-test and matcher (a single-key coin)",
+    needed: (features) => SINGLE_KEY_COIN_IDS.some((coin) => features.hasCoin(coin)),
+    markers: [...SINGLE_KEY_SHARED_MARKERS.any],
+  },
+  // The modules a few coins share, needed exactly by the coins that import them.
+  ...Object.entries(SHARED_MODULES).map(([name, { marker }]) => ({
+    label: `Shared module ${name}`,
+    needed: (features) => needsSharedModule(features.hasCoin, name),
+    markers: [marker],
+  })),
   {
     // The Deriver's own draw of phrases that pass the MHFE wallet check, on workers of its own.
     label: "MHFE wallet-check draw (mhfe)",

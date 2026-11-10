@@ -21,6 +21,11 @@ const DASH_FORBIDDEN_ARTIFACT_PATTERNS = [
     "non-Dash protocol copy",
   ],
   [/Multi-Chain (?:Wallet Tools|Edition)/u, "Multi-Chain branding"],
+  // The single-key coins of the Multi-Chain Deriver. "Zcash" alone is not one: Dash's Orchard notes
+  // name Zcash's protocol, so the transparent adapter is found by its id.
+  [/\bbitcoincash\b|\bCashAddr\b/iu, "Bitcoin Cash"],
+  [/\b(?:XRP|Tron|Cosmos|Injective|Solana|Stellar|NEAR|Hedera)\b/u, "single-key coin"],
+  [/\bzcash\b|Zcash transparent|\bTransparent · BIP44\b/u, "Zcash transparent adapter"],
 ];
 
 const DASH_DERIVATION_ADAPTER_IDS = new Set([
@@ -53,8 +58,48 @@ function registeredAdapterViolations(html) {
   return violations;
 }
 
+/** The shortest base64 run taken for an embedded binary rather than text or code. */
+const EMBEDDED_BINARY_RUN = 512;
+
+/** Whether the UTF-16 code is a base64 character (A–Z, a–z, 0–9, "+", "/", "="). */
+function isBase64Code(code) {
+  return (
+    (code >= 0x30 && code <= 0x39) ||
+    (code >= 0x41 && code <= 0x5a) ||
+    (code >= 0x61 && code <= 0x7a) ||
+    code === 0x2b ||
+    code === 0x2f ||
+    code === 0x3d
+  );
+}
+
+/**
+ * `html` without its base64 runs of embedded WebAssembly, images and compressed data: a short word
+ * could appear in them by chance, as "+XRP/" might, and no word of their content can, so the
+ * lexical scan leaves them out. Adapter registrations are code, which no such run holds. A linear
+ * scan, since a regular expression over a 12 MB run exhausts the stack.
+ */
+function withoutEmbeddedBinary(html) {
+  const kept = [];
+  let from = 0;
+  let run = -1;
+  for (let at = 0; at <= html.length; at += 1) {
+    if (at < html.length && isBase64Code(html.charCodeAt(at))) {
+      if (run < 0) run = at;
+      continue;
+    }
+    if (run >= 0 && at - run >= EMBEDDED_BINARY_RUN) {
+      kept.push(html.slice(from, run));
+      from = at;
+    }
+    run = -1;
+  }
+  kept.push(html.slice(from));
+  return kept.join("");
+}
+
 export function findDashArtifactViolations(html) {
-  const protocolNeutralHtml = html.replace(/(['"`])Bitcoin seed\1/gu, "");
+  const protocolNeutralHtml = withoutEmbeddedBinary(html).replace(/(['"`])Bitcoin seed\1/gu, "");
   const lexicalViolations = DASH_FORBIDDEN_ARTIFACT_PATTERNS.filter(([pattern]) =>
     pattern.test(protocolNeutralHtml),
   ).map(([, label]) => label);

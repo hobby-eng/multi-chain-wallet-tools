@@ -4,7 +4,7 @@ import { ETHEREUM_COIN } from "./coin.js";
 import { SeedScanSecrets } from "../../seed-scan-secrets.js";
 import { assertIndex, requirePublic, rootFromSeed } from "@ckd/core/bip32.js";
 import { wipe } from "@ckd/core/crypto.js";
-import { ethereumAddressOfKey } from "@ckd/coins/ethereum/index.js";
+import { evmAddressOfKey } from "@ckd/coins/keccak-account.js";
 import { RECOVERY_EVM_ACCOUNT_BATCH } from "@ckd/network-boundary/protocol.js";
 import type {
   RecoveryCoinAdapter,
@@ -80,7 +80,7 @@ function deriveAddress(root: ReturnType<typeof rootFromSeed>, path: string): str
   const child = root.derive(path);
   const publicKey = requirePublic(child, path);
   try {
-    return ethereumAddressOfKey(publicKey);
+    return evmAddressOfKey(publicKey);
   } finally {
     wipe(publicKey);
     child.wipePrivateData();

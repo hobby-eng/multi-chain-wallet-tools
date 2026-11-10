@@ -21,6 +21,29 @@ describe("Dash Community artifact exclusion rules", () => {
     );
   });
 
+  it("rejects the single-key coins by name, CashAddr and the Zcash transparent adapter", () => {
+    expect(findDashArtifactViolations("XRP Ledger · bitcoincash:q · zcash")).toEqual(
+      expect.arrayContaining(["single-key coin", "Bitcoin Cash", "Zcash transparent adapter"]),
+    );
+    // Dash's Orchard notes name Zcash's protocol, which is not the transparent adapter.
+    expect(findDashArtifactViolations("Orchard, the shielded pool Zcash designed")).toEqual([]);
+  });
+
+  it("leaves embedded base64 runs of 512 characters or more out of the word scan", () => {
+    const pad = (length) => "A".repeat(length);
+    // A word that falls inside a long run is binary by chance, as "+XRP/" might be.
+    expect(findDashArtifactViolations(`x ${pad(300)}+XRP/${pad(300)}== y`)).toEqual([]);
+    // A shorter run is text and is scanned.
+    expect(findDashArtifactViolations(`x ${pad(200)}+XRP/${pad(200)} y`)).toEqual([
+      "single-key coin",
+    ]);
+    // Words right before and after a run, and between two runs, are still read.
+    expect(findDashArtifactViolations(`Tron ${pad(600)} Solana ${pad(600)}`)).toEqual([
+      "single-key coin",
+    ]);
+    expect(findDashArtifactViolations(`${pad(600)} NEAR`)).toEqual(["single-key coin"]);
+  });
+
   it("rejects Silent Payments labels outside the Inspector's refusal text", () => {
     expect(findDashArtifactViolations("Silent Payments BIP-352")).toContain("Silent Payments");
     expect(

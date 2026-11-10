@@ -73,11 +73,120 @@ const ETHEREUM = Object.freeze([
   "Ethereum / EIP55",
   "Ethereum master/account extended-key integrity",
 ]);
+// The single-key coins (packages/verification/src/single-key-coin-self-test.ts), in the Coin menu's order.
+const LITECOIN = Object.freeze([
+  "litecoin-legacy mainnet path metadata",
+  "litecoin-legacy path boundary refusal",
+  "litecoin-nested-segwit mainnet path metadata",
+  "litecoin-nested-segwit path boundary refusal",
+  "litecoin-native-segwit mainnet path metadata",
+  "litecoin-native-segwit path boundary refusal",
+  "Litecoin Legacy · BIP44 / P2PKH",
+  "Litecoin Nested SegWit · BIP49 / P2SH-P2WPKH",
+  "Litecoin Native SegWit · BIP84 / P2WPKH",
+  "Litecoin master/account extended-key integrity",
+]);
+const DOGECOIN = Object.freeze([
+  "dogecoin mainnet path metadata",
+  "dogecoin path boundary refusal",
+  "Dogecoin BIP44 / P2PKH",
+  "Dogecoin master/account extended-key integrity",
+]);
+const BITCOIN_CASH = Object.freeze([
+  "bitcoin-cash mainnet path metadata",
+  "bitcoin-cash path boundary refusal",
+  "bitcoin-cash-coin-type-0 mainnet path metadata",
+  "bitcoin-cash-coin-type-0 path boundary refusal",
+  "Bitcoin Cash BIP44 · coin type 145 / P2PKH",
+  "Bitcoin Cash BIP44 · coin type 0 / P2PKH",
+  "Bitcoin Cash master/account extended-key integrity",
+]);
+const ZCASH = Object.freeze([
+  "zcash mainnet path metadata",
+  "zcash path boundary refusal",
+  "Zcash Transparent · BIP44 / P2PKH",
+  "Zcash master/account extended-key integrity",
+]);
+const XRP = Object.freeze([
+  "xrp mainnet path metadata",
+  "xrp path boundary refusal",
+  "XRP BIP44",
+  "XRP master/account extended-key integrity",
+]);
+const TRON = Object.freeze([
+  "tron mainnet path metadata",
+  "tron path boundary refusal",
+  "Tron BIP44",
+  "Tron master/account extended-key integrity",
+]);
+const ETHEREUM_CLASSIC = Object.freeze([
+  "ethereum-classic mainnet path metadata",
+  "ethereum-classic path boundary refusal",
+  "Ethereum Classic BIP44 · coin type 61",
+  "Ethereum Classic master/account extended-key integrity",
+]);
+const COSMOS = Object.freeze([
+  "cosmos mainnet path metadata",
+  "cosmos path boundary refusal",
+  "Cosmos BIP44",
+  "Cosmos master/account extended-key integrity",
+]);
+const INJECTIVE = Object.freeze([
+  "injective mainnet path metadata",
+  "injective path boundary refusal",
+  "Injective BIP44 · coin type 60",
+  "Injective master/account extended-key integrity",
+]);
+const SOLANA = Object.freeze([
+  "solana mainnet path metadata",
+  "solana path boundary refusal",
+  "solana-ledger mainnet path metadata",
+  "solana-ledger path boundary refusal",
+  "Solana Phantom, Solflare · m/44'/501'/i'/0'",
+  "Solana Ledger · m/44'/501'/i'",
+]);
+const STELLAR = Object.freeze([
+  "stellar mainnet path metadata",
+  "stellar path boundary refusal",
+  "Stellar SEP-0005 · m/44'/148'/i'",
+]);
+const NEAR = Object.freeze([
+  "near mainnet path metadata",
+  "near path boundary refusal",
+  "NEAR m/44'/397'/i'",
+]);
+const HEDERA = Object.freeze([
+  "hedera mainnet path metadata",
+  "hedera path boundary refusal",
+  "hedera-ecdsa mainnet path metadata",
+  "hedera-ecdsa path boundary refusal",
+  "Hedera Ed25519 · m/44'/3030'/0'/0'/i'",
+  "Hedera ECDSA · BIP44",
+  "Hedera master/account extended-key integrity",
+]);
 const MULTI_CHAIN = Object.freeze({
   entry: "packages/verification/src/self-test.ts",
   run: "runCryptoSelfTest",
   label: "startup cryptographic self-test",
-  expectedChecks: Object.freeze([...BIP39, ...BITCOIN, ...DASH, ...ETHEREUM]),
+  expectedChecks: Object.freeze([
+    ...BIP39,
+    ...BITCOIN,
+    ...DASH,
+    ...ETHEREUM,
+    ...LITECOIN,
+    ...DOGECOIN,
+    ...BITCOIN_CASH,
+    ...ZCASH,
+    ...XRP,
+    ...TRON,
+    ...ETHEREUM_CLASSIC,
+    ...COSMOS,
+    ...INJECTIVE,
+    ...SOLANA,
+    ...STELLAR,
+    ...NEAR,
+    ...HEDERA,
+  ]),
 });
 const DASH_COMMUNITY = Object.freeze({
   entry: "packages/verification/src/derivation-self-test-dash.ts",

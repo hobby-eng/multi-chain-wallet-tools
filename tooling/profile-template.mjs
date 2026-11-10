@@ -53,7 +53,29 @@ const DERIVATION_TYPE_COPY = {
   bitcoin:
     "<strong>Bitcoin:</strong> each tab is an address type, with its own path and its own addresses from the same phrase: Legacy BIP44, Nested SegWit BIP49, Native SegWit BIP84 and Taproot BIP86, whose mainnet addresses begin with 1, 3, bc1q and bc1p. Choose the type of your wallet's addresses.",
   ethereum:
-    "<strong>Ethereum:</strong> EOA · BIP44 gives the ordinary accounts that Ethereum wallets derive from a recovery phrase.",
+    "<strong>Ethereum:</strong> EOA · BIP44 gives the ordinary accounts that Ethereum wallets derive from a recovery phrase. The same 0x address is yours on every EVM network: BNB Chain, Polygon, Arbitrum, Optimism, Base, Avalanche C-Chain, Gnosis and Hyperliquid's HyperEVM among them.",
+  litecoin:
+    "<strong>Litecoin:</strong> Legacy BIP44, Nested SegWit BIP49 and Native SegWit BIP84, whose addresses begin with L, M and ltc1q, at Litecoin's coin type 2.",
+  dogecoin: "<strong>Dogecoin:</strong> BIP44 gives the D… addresses of Dogecoin wallets.",
+  "bitcoin-cash":
+    "<strong>Bitcoin Cash:</strong> BIP44 at its own coin type 145, or at Bitcoin's coin type 0, which wallets made around the 2017 fork kept; addresses in CashAddr form.",
+  zcash:
+    "<strong>Zcash:</strong> Transparent BIP44 gives the public t1… addresses; shielded addresses are not derived here.",
+  xrp: "<strong>XRP:</strong> BIP44 at coin type 144 gives XRP Ledger r… accounts; Ledger Live counts accounts with the Account field.",
+  tron: "<strong>Tron:</strong> BIP44 at coin type 195 gives the T… accounts of Tron wallets.",
+  "ethereum-classic":
+    "<strong>Ethereum Classic:</strong> BIP44 at coin type 61; wallets that keep it at Ethereum's coin type 60 show the Ethereum addresses.",
+  cosmos:
+    "<strong>Cosmos:</strong> BIP44 at coin type 118 gives the cosmos1… accounts of the Cosmos Hub.",
+  injective:
+    "<strong>Injective:</strong> BIP44 at Ethereum's coin type 60 gives inj1… accounts; the same key controls the 0x address.",
+  solana:
+    "<strong>Solana:</strong> Phantom and Solflare derive account i at m/44'/501'/i'/0', Ledger at m/44'/501'/i'; every level is hardened (SLIP-10 Ed25519).",
+  stellar:
+    "<strong>Stellar:</strong> SEP-0005 accounts at m/44'/148'/i', with their G… account ID and S… secret seed.",
+  near: "<strong>NEAR:</strong> keys at m/44'/397'/i'; the address is the key's implicit account.",
+  hedera:
+    "<strong>Hedera:</strong> the Ed25519 and ECDSA keys of the Hedera SDK; the network numbers an account (0.0.N) when it is created.",
   dash: "<strong>Dash:</strong> Core BIP44 holds the ordinary addresses of Dash Core and the Dash mobile wallets. The two Multisig tabs give one cosigner's account xpub for a shared P2SH wallet: Purpose48 for wallets that use that path, Core pkh signer for a Dash Core signer wallet. Platform DIP17 / DIP18 gives Dash Platform payment addresses, Identity DIP13 the keys of a Platform identity, Identity funding DIP13 the Dash Core addresses whose asset locks fund an identity, its top-ups, invitations and Platform address or shielded top-ups, DashPay DIP15 the addresses on which one DashPay contact pays you, from your and the contact's identity IDs, Masternode DIP9 a masternode's owner, voting, BLS operator and Evonode Platform node keys, and Shielded Orchard / ZIP-32 private Orchard addresses.",
 };
 

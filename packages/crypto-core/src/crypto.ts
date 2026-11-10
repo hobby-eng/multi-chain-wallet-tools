@@ -18,6 +18,15 @@ export function encodeBase58Check(payload: Uint8Array): string {
   return base58check.encode(payload);
 }
 
+/** The payload of a base58check `text`, or null when it is not base58 or its checksum fails. */
+export function decodeBase58Check(text: string): Uint8Array | null {
+  try {
+    return base58check.decode(text);
+  } catch {
+    return null;
+  }
+}
+
 export function encodeP2pkh(hash: Uint8Array, prefix: number): string {
   if (hash.length !== ADDRESS_HASH_BYTES)
     throw new Error(`P2PKH hash must be ${ADDRESS_HASH_BYTES} bytes.`);

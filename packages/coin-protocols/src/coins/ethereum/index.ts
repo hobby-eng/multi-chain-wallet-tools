@@ -1,5 +1,5 @@
-import { keccak_256 } from "@noble/hashes/sha3.js";
 import { EthereumAddress } from "@ckd/core/eip55.js";
+import { keccakAccount } from "../keccak-account.js";
 import { bytesToHex, secp256k1, wipe } from "@ckd/core/crypto.js";
 import {
   field,
@@ -22,22 +22,8 @@ export function ethereumAddressFromPublicKey(uncompressedPublicKey: Uint8Array):
   if (uncompressedPublicKey.length !== 65 || uncompressedPublicKey[0] !== 0x04) {
     throw new Error("Ethereum address derivation requires a 65-byte uncompressed secp256k1 key.");
   }
-  const digest = keccak_256(uncompressedPublicKey.slice(1));
-  const raw = bytesToHex(digest.slice(-20));
+  const raw = bytesToHex(keccakAccount(uncompressedPublicKey));
   return { raw, checksummed: toEip55(raw) };
-}
-
-/** The checksummed address of a secp256k1 public key in either SEC1 form; an expanded copy is wiped. */
-export function ethereumAddressOfKey(publicKey: Uint8Array): string {
-  const uncompressed =
-    publicKey.length === 65
-      ? publicKey
-      : secp256k1.Point.fromHex(bytesToHex(publicKey)).toBytes(false);
-  try {
-    return ethereumAddressFromPublicKey(uncompressed).checksummed;
-  } finally {
-    if (uncompressed !== publicKey) wipe(uncompressed);
-  }
 }
 
 export function deriveEthereum(options: Bip32BatchOptions): DerivationResult {

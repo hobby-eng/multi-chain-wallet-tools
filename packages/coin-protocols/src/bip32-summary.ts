@@ -4,12 +4,16 @@ import { bytesToHex, hash160, wipe } from "@ckd/core/crypto.js";
 import { field, type ResultField } from "@ckd/core/types.js";
 
 export interface Bip32SummaryLabels {
+  masterXprv: string;
+  masterXpub: string;
   accountPath: string;
   accountXprv: string;
   accountXpub: string;
 }
 
 const DEFAULT_LABELS: Bip32SummaryLabels = {
+  masterXprv: "Master xprv",
+  masterXpub: "Master xpub",
   accountPath: "Account derivation path",
   accountXprv: "Account xprv",
   accountXpub: "Account xpub",
@@ -38,8 +42,8 @@ export function bip32SummaryFields(
     return {
       masterFingerprint,
       fields: [
-        field("masterXprv", "Master xprv", root.privateExtendedKey, true),
-        field("masterXpub", "Master xpub", root.publicExtendedKey),
+        field("masterXprv", resolved.masterXprv, root.privateExtendedKey, true),
+        field("masterXpub", resolved.masterXpub, root.publicExtendedKey),
         field("masterPrivateKey", "Master private key (hex)", bytesToHex(rootPrivate), true),
         field("masterPublicKey", "Master compressed public key", bytesToHex(rootPublic)),
         field("accountPath", resolved.accountPath, accountPath),

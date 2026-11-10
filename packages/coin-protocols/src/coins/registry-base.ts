@@ -125,6 +125,21 @@ export interface CoinRegistry {
 
 export const BIP44_ADDRESS_BRANCHES: AddressBranches = { receive: 0, change: 1 };
 
+/** The two BIP44 branches of an account-based coin (Ethereum's model), offered as one choice. */
+export const ADDRESS_BRANCH_CONTROL: BranchControl = {
+  label: "Address branch",
+  max: 1,
+  options: [
+    { value: 0, label: "0 — common path" },
+    { value: 1, label: "1 — alternate path" },
+  ],
+};
+
+/** Equality of 0x hexadecimal addresses, whose EIP-55 case is only a checksum. */
+export function hexAddressesEqual(derived: string, expected: string): boolean {
+  return derived.toLowerCase() === expected.toLowerCase();
+}
+
 export const TRANSPARENT_ROLES: CoinFieldRoles = {
   addresses: ["address"],
   publicKeys: [

@@ -1,3 +1,4 @@
+import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -49,7 +50,8 @@ const PNG_ADMISSION_INPUT = "packages/shared-ui/src/png-admission.ts";
 describe("selective bundle graph guards", () => {
   for (const profileId of ["multi-chain", "dash-community"]) {
     const profile = BUILD_PROFILES[profileId];
-    const coins = profile.id === "dash-community" ? ["dash"] : ["bitcoin", "dash", "ethereum"];
+    const coins =
+      profile.id === "dash-community" ? ["dash"] : TOOL_MANIFESTS["key-derivation"].coins;
     const genericQr = options(coins, ["seedqr"]);
     const pngGraph = [QR_IMAGE_INPUT, PNG_ADMISSION_INPUT, ...GENERIC_PNG_INPUTS];
 

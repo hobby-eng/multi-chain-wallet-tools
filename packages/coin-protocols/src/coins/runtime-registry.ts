@@ -1,3 +1,4 @@
+import { singleKeyCoinDerivationFor } from "./single-key-coin-runtime.js";
 import { deriveBitcoin } from "./bitcoin/index.js";
 import { BitcoinPurposeProfile } from "./bitcoin/profiles.js";
 import { DashRuntimeRegistry } from "./dash/runtime.js";
@@ -10,6 +11,8 @@ function deriveForAdapter(adapterId: string): RuntimeCoinAdapter["derive"] {
   const bitcoinProfile = BitcoinPurposeProfile.forAdapterId(adapterId);
   if (bitcoinProfile !== undefined) return (input) => deriveBitcoin(bitcoinProfile.mode, input);
   if (adapterId === "ethereum") return deriveEthereum;
+  const singleKey = singleKeyCoinDerivationFor(adapterId);
+  if (singleKey !== undefined) return singleKey;
   throw new Error(`Unsupported derivation protocol: ${adapterId}.`);
 }
 

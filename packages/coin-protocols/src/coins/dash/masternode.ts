@@ -9,7 +9,8 @@ import {
   type NetworkName,
   type ResultFieldGroup,
 } from "@ckd/core/types.js";
-import { DashBlsHdKey, platformNodeId, Slip10Ed25519Key } from "./masternode-keys.js";
+import { Slip10Ed25519Key } from "../../slip10-ed25519.js";
+import { DashBlsHdKey, platformNodeId } from "./masternode-keys.js";
 import { secp256k1PathKey } from "./path-key.js";
 import {
   DASH_MASTERNODE_KEY_KINDS,

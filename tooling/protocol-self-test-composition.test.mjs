@@ -1,3 +1,4 @@
+import { SINGLE_KEY_COIN_IDS } from "./single-key-coins.mjs";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it, vi } from "vitest";
@@ -261,15 +262,33 @@ describe("selected worker self-tests", () => {
     // Inspect wiring only; executing these vector suites would also load crypto/WASM checks.
     for (const [coin, [, module]] of Object.entries(DERIVATION_SELF_TESTS)) {
       const source = readFileSync(new URL(`../${module}`, import.meta.url), "utf8");
+      for (const other of Object.keys(DERIVATION_SELF_TESTS).filter((name) => name !== coin))
+        expect(source).not.toContain(`@ckd/coins/${other}/`);
+      // A single-key coin hands its own adapters to the shared suite, which runs the path checks.
+      if (SINGLE_KEY_COIN_IDS.includes(coin)) {
+        expect(occurrences(source, "singleKeyCoinSelfTest(")).toBe(1);
+        expect(source).toContain(`@ckd/coins/adapters/${coin}.js`);
+        continue;
+      }
       const name = `run${coin[0].toUpperCase()}${coin.slice(1)}PathSelfTest`;
       expect(occurrences(source, `${name}(`)).toBe(1);
       expect(source.indexOf(`${name}(`)).toBeLessThan(source.indexOf("checkDerivationVectors("));
       expect(source).toContain("checks.unshift(...pathChecks)");
       expect(source).toContain(`@ckd/coins/${coin}/path-self-test.js`);
       expect(source).not.toMatch(/@ckd\/coins\/(?:registry|dash-registry)\.js/u);
-      for (const other of Object.keys(DERIVATION_SELF_TESTS).filter((name) => name !== coin))
-        expect(source).not.toContain(`@ckd/coins/${other}/`);
     }
+  });
+
+  it("the shared single-key suite reports its path checks once, before the vectors", () => {
+    const source = readFileSync(
+      new URL("../packages/verification/src/single-key-coin-self-test.ts", import.meta.url),
+      "utf8",
+    );
+    expect(occurrences(source, "runSingleKeyPathSelfTest(")).toBe(1);
+    expect(source.indexOf("runSingleKeyPathSelfTest(")).toBeLessThan(
+      source.indexOf("checkDerivationVectors("),
+    );
+    expect(source).not.toMatch(/@ckd\/coins\/(?:registry|dash-registry)\.js/u);
   });
 });
 

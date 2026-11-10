@@ -303,6 +303,28 @@ if (
 ) {
   throw new Error("Dash Community artifact is missing its Dash-only extended-key startup vector.");
 }
+// The single-key coins' startup vectors come with the full Multi-Chain build (CORE-31). Their check
+// names are built at run time, so the markers are the vectors' literal first addresses.
+if (profile.id === "multi-chain")
+  for (const marker of [
+    "LUWPbpM43E2p7ZSh8cyTBEkvpHmr3cB8Ez",
+    "DBus3bamQjgJULBJtYXpEzDWQRwF5iwxgC",
+    "bitcoincash:qqyx49mu0kkn9ftfj6hje6g2wfer34yfnq5tahq3q6",
+    "t1XVXWCvpMgBvUaed4XDqWtgQgJSu1Ghz7F",
+    "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+    "TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH",
+    "0xFA22515E43658ce56A7682B801e9B5456f511420",
+    "cosmos19rl4cm2hmr8afy4kldpxz3fka4jguq0auqdal4",
+    "inj1npvwllfr9dqr8erajqqr6s0vxnk2ak55re90dz",
+    "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk",
+    "GB3JDWCQJCWMJ3IILWIGDTQJJC5567PGVEVXSCVPEQOTDN64VJBDQBYX",
+    "5510e2b44cae6eb807e3e0e45d579dda058c274abcba15e5cb84636f5d1ee412",
+    "0xC283f34aDafdB758a557304C5F5e4c1E0A554713",
+  ])
+    if (!html.includes(marker))
+      throw new Error(
+        `Multi-Chain artifact is missing a single-key coin startup vector: ${marker}`,
+      );
 for (const marker of [
   "Wallet Matcher / Derivation Discovery",
   "SeedSigner SeedQR",
@@ -356,6 +378,14 @@ if (profile.id === "dash-community") {
     "bitcoin-taproot",
     "bitcoin-native-segwit",
     "adapterIds:['ethereum']",
+    // The single-key coins, by their adapter ids and names.
+    "litecoin-native-segwit",
+    "bitcoin-cash-coin-type-0",
+    "ethereum-classic",
+    "Injective",
+    "solana-ledger",
+    "hedera-ecdsa",
+    "Stellar",
   ]) {
     if (html.includes(marker)) {
       throw new Error(

@@ -1,7 +1,7 @@
 import { WASM_MODULES } from "./wasm-modules.mjs";
 import { verifyToolchainProjections } from "./toolchain-pins.mjs";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
 import { formatEnglishList, PRODUCT_FACTS, readReleaseMetadata } from "./project-metadata.mjs";
@@ -152,8 +152,18 @@ function markdownFiles(directory, output = []) {
 const VENDORED_UPSTREAM_MARKDOWN = new Set([
   resolve(root, "packages/recovery-mnemocode-wasm/THIRD_PARTY_NOTICES.md"),
 ]);
+/**
+ * A historical audit report (docs/audits/AUD-NNN-*.md) records the tree it audited: a later audit
+ * binds its bytes by hash, so its links to files since moved or removed are kept as they were.
+ */
+const HISTORICAL_AUDIT_REPORT = /^AUD-\d+-\d{4}-\d{2}-\d{2}\.md$/u;
 for (const path of markdownFiles(root)) {
   if (VENDORED_UPSTREAM_MARKDOWN.has(path)) continue;
+  if (
+    dirname(path) === resolve(root, "docs/audits") &&
+    HISTORICAL_AUDIT_REPORT.test(basename(path))
+  )
+    continue;
   const text = readFileSync(path, "utf8");
   for (const match of text.matchAll(/\[[^\]]+\]\(([^)]+)\)/gu)) {
     const target = match[1].split("#")[0];

@@ -10,7 +10,8 @@ export interface ResultField {
   value: string;
   secret: boolean;
   role?: "paymentAddress";
-  paymentUriScheme?: "bitcoin" | "ethereum" | "dash";
+  /** The URI scheme of a payment QR code, only for a coin with a standard one (BIP21 and its kin). */
+  paymentUriScheme?: "bitcoin" | "ethereum" | "dash" | "litecoin" | "dogecoin" | "zcash" | "solana";
   description?: string;
 }
 

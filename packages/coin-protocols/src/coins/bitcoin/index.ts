@@ -8,9 +8,8 @@ import {
   type ResultField,
 } from "@ckd/core/types.js";
 import { addDescriptorChecksum } from "@ckd/core/descriptor-checksum.js";
-import { deriveLegacyAddress } from "./legacy.js";
-import { deriveNativeSegwitAddress } from "./native-segwit.js";
-import { deriveNestedSegwitAddress } from "./nested-segwit.js";
+import { utxoAddressDetails } from "../../utxo-address.js";
+import { BITCOIN_SINGLE_KEY_ENCODINGS } from "./single-key-addresses.js";
 import { Taproot } from "./taproot.js";
 import { accountDescriptorExport, descriptorOrigin } from "../../account-descriptors.js";
 import { withAccountBranch } from "../../account-branch.js";
@@ -48,30 +47,10 @@ export function deriveBitcoin(mode: BitcoinMode, options: Bip32BatchOptions): De
       let address: string;
       let advanced: ResultField[];
 
-      if (mode === "legacy") {
-        const details = deriveLegacyAddress(publicKey, network);
+      if (mode !== "taproot") {
+        const details = BITCOIN_SINGLE_KEY_ENCODINGS[mode](publicKey, network);
         address = details.address;
-        advanced = [
-          field("publicKeyHash", "HASH160(public key)", details.publicKeyHashHex),
-          field("scriptPubKey", "scriptPubKey", details.scriptPubKeyHex),
-        ];
-      } else if (mode === "nested-segwit") {
-        const details = deriveNestedSegwitAddress(publicKey, network);
-        address = details.address;
-        advanced = [
-          field("publicKeyHash", "HASH160(public key)", details.publicKeyHashHex),
-          field("redeemScript", "P2WPKH redeem script", details.redeemScriptHex),
-          field("scriptHash", "HASH160(redeem script)", details.scriptHashHex),
-          field("scriptPubKey", "scriptPubKey", details.scriptPubKeyHex),
-        ];
-      } else if (mode === "native-segwit") {
-        const details = deriveNativeSegwitAddress(publicKey, network);
-        address = details.address;
-        advanced = [
-          field("publicKeyHash", "HASH160(public key)", details.publicKeyHashHex),
-          field("witnessProgram", "Witness program", details.witnessProgramHex),
-          field("scriptPubKey", "scriptPubKey", details.scriptPubKeyHex),
-        ];
+        advanced = utxoAddressDetails(details);
       } else {
         const details = Taproot.details(privateKey, network);
         address = details.address;
