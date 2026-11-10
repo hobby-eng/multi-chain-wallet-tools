@@ -74,10 +74,3 @@ export class Dip14PrivateNode {
     wipe(this.#privateKey, this.#chainCode);
   }
 }
-
-/** ser32 of a normal index. */
-export function ser32(index: number): Uint8Array {
-  const out = new Uint8Array(4);
-  new DataView(out.buffer).setUint32(0, index >>> 0);
-  return out;
-}

@@ -1,3 +1,5 @@
+import { SINGLE_KEY_COIN_IDS } from "./single-key-coins.mjs";
+
 const manifest = (coins, features) =>
   Object.freeze({ coins: Object.freeze(coins), features: Object.freeze(features) });
 
@@ -9,7 +11,7 @@ const manifest = (coins, features) =>
  */
 export const TOOL_MANIFESTS = Object.freeze({
   "key-derivation": manifest(
-    ["bitcoin", "dash", "ethereum"],
+    ["bitcoin", "dash", "ethereum", ...SINGLE_KEY_COIN_IDS],
     [
       "derive",
       "bip85",

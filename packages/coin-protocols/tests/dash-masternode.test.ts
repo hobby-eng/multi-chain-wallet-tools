@@ -3,11 +3,8 @@ import { mnemonicToSeed } from "@ckd/core/bip39.js";
 import { bytesToHex, hexToBytes } from "@ckd/core/crypto.js";
 import type { DerivationResult } from "@ckd/core/types.js";
 import { deriveDashMasternode } from "../src/coins/dash/masternode.js";
-import {
-  DashBlsHdKey,
-  platformNodeId,
-  Slip10Ed25519Key,
-} from "../src/coins/dash/masternode-keys.js";
+import { DashBlsHdKey, platformNodeId } from "../src/coins/dash/masternode-keys.js";
+import { Slip10Ed25519Key } from "../src/slip10-ed25519.js";
 import { DASH_MASTERNODE_KEY_KINDS } from "../src/coins/dash/profiles.js";
 
 // dashj AuthenticationGroupExtensionTest keyTest: a public test mnemonic, mainnet.

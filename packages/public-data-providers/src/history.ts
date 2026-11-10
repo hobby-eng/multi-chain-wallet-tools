@@ -169,6 +169,9 @@ const ETHEREUM_HISTORY_ENDPOINTS: Record<PublicDataNetwork, string> = {
 function ethAddress(value: unknown): string | null {
   if (value === null) return null;
   const address = record(value, "Ethereum address").hash;
+  // Deliberate copy of the EVM address shape (@ckd/core/eip55.ts): importing that module here would
+  // put Ethereum text into Dash Community builds. A provider's "0X" prefix is read too; the 0x form
+  // is what this module returns.
   if (typeof address !== "string" || !/^0x[0-9a-f]{40}$/iu.test(address))
     throw new Error("Invalid Ethereum history address.");
   return address.toLowerCase();

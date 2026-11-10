@@ -54,6 +54,8 @@ export interface DerivationVector {
   readonly address: string;
   /** The account's extended public key, which checks the master and the account path too. */
   readonly accountXpub?: string;
+  /** The master extended public key, where the coin serializes it under its own version. */
+  readonly masterXpub?: string;
 }
 
 /**
@@ -87,7 +89,7 @@ export function checkDerivationVectors(
         expectEqual(
           `${vector.name} master extended key`,
           resultValue(result, "masterXpub"),
-          ABANDON_ABOUT_MASTER.xpub,
+          vector.masterXpub ?? ABANDON_ABOUT_MASTER.xpub,
         );
         expectEqual(
           `${vector.name} account extended key`,

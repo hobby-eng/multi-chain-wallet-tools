@@ -1,9 +1,21 @@
+import {
+  SINGLE_KEY_COIN_IDS,
+  singleKeyCoinModules,
+  singleKeySelfTest,
+} from "./single-key-coins.mjs";
+
 // The derivation self-test of each coin, as the build composition imports it: the function and the
 // module that holds the coin's vectors. One list for every tool that a build composes with fewer
 // coins, so that an edition carries exactly the checks of its own coins.
 
 /** coin → [exported function, module from the repository root]. */
 export const DERIVATION_SELF_TESTS = Object.freeze({
+  ...Object.fromEntries(
+    SINGLE_KEY_COIN_IDS.map((coin) => [
+      coin,
+      [singleKeySelfTest(coin), singleKeyCoinModules(coin).selfTest],
+    ]),
+  ),
   bitcoin: [
     "runBitcoinDerivationSelfTest",
     "packages/verification/src/derivation-self-test-bitcoin.ts",

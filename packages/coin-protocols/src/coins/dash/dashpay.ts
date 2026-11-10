@@ -16,7 +16,8 @@ import {
   type Bip32BatchOptions,
   type DerivationResult,
 } from "@ckd/core/types.js";
-import { Dip14PrivateNode, isCompatibilityIndex, ser32 } from "./dip14.js";
+import { ser32 } from "../../slip10-ed25519.js";
+import { Dip14PrivateNode, isCompatibilityIndex } from "./dip14.js";
 import { DASH_DASHPAY_PATHS, DASH_PAY_INPUT_MESSAGES } from "./profiles.js";
 
 /** The two identities of one DashPay contact, as the person types them. */

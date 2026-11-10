@@ -12,6 +12,7 @@ import { MnemoCodeSourceHintsCase } from "./browser-cases/mnemocode-source-hints
 // Synthetic, direct-file integration tests. Never point this at a live browser profile.
 import { CopyFeedbackCase } from "./browser-cases/copy-feedback.mjs";
 import { Bip85ManualStartCase } from "./browser-cases/bip85-manual-start.mjs";
+import { SingleKeyCoinsCase } from "./browser-cases/single-key-coins.mjs";
 import { CoinJoinPartialCase } from "./browser-cases/coinjoin-partial.mjs";
 import { ProtocolNavigationCase } from "./browser-cases/protocol-navigation.mjs";
 import { RecoverySourceRoutingCase } from "./browser-cases/recovery-source-routing.mjs";
@@ -156,6 +157,15 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
           },
         });
       }
+      // The single-key coins are the Multi-Chain Edition's only.
+      if (profile.id === "multi-chain")
+        cases.push({
+          name: "single-key-coins",
+          execute: async (context, run) => {
+            const page = await open(context, profile, "key-derivation", run);
+            run.checks.push(await SingleKeyCoinsCase.run(page));
+          },
+        });
       cases.push({
         name: "copy-feedback",
         execute: async (context, run) => {

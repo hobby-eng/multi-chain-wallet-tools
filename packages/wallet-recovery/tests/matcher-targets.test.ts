@@ -45,7 +45,7 @@ describe("wallet matcher target detection", () => {
     );
   });
 
-  it("routes Bitcoin and Ethereum only in the multi-chain profile", () => {
+  it("routes Bitcoin and EVM addresses only in the multi-chain profile", () => {
     expect(
       detectMultiChainMatcherTargets(
         "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
@@ -59,7 +59,7 @@ describe("wallet matcher target detection", () => {
         "mainnet",
         false,
       )[0]?.adapterIds,
-    ).toEqual(["ethereum"]);
+    ).toEqual(["ethereum", "ethereum-classic", "hedera-ecdsa"]);
     expect(() =>
       detectDashMatcherTargets("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu", "mainnet", false),
     ).toThrow();

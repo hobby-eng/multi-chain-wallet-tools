@@ -1,11 +1,12 @@
 import packageManifest from "../package.json" with { type: "json" };
-import { PRODUCT_FACTS } from "./project-metadata.mjs";
+import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
 /** The coins a build includes: the selected ones, else all of its edition. */
 export function selectedCoins(profile, selection) {
   return new Set(
     selection?.coins ??
-      (profile.id === "dash-community" ? ["dash"] : PRODUCT_FACTS.multiChainCoinIds),
+      // Every coin any tool has; each tool's copy names only its own.
+      (profile.id === "dash-community" ? ["dash"] : TOOL_MANIFESTS["key-derivation"].coins),
   );
 }
 
@@ -26,8 +27,21 @@ export class ToolProtocolFooter {
     if (toolId === "key-derivation")
       return `BIP39 · BIP32 · ${selected({
         bitcoin: "Bitcoin",
-        ethereum: "Ethereum",
+        ethereum: "Ethereum and EVM networks",
         dash: "Dash Core · Platform · Identity · Orchard",
+        litecoin: "Litecoin",
+        dogecoin: "Dogecoin",
+        "bitcoin-cash": "Bitcoin Cash",
+        zcash: "Zcash transparent",
+        xrp: "XRP",
+        tron: "Tron",
+        "ethereum-classic": "Ethereum Classic",
+        cosmos: "Cosmos",
+        injective: "Injective",
+        solana: "Solana",
+        stellar: "Stellar",
+        near: "NEAR",
+        hedera: "Hedera",
       })}`;
     if (toolId === "psbt-inspector")
       return selected({

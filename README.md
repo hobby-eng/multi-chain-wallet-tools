@@ -19,7 +19,7 @@ Multi-Chain Wallet Tools is a set of four portable wallet utilities delivered as
 
 The same source tree produces two editions:
 
-- **Multi-Chain Edition** is the universal and extensible edition. It currently supports Bitcoin, Ethereum, and Dash.
+- **Multi-Chain Edition** is the universal and extensible edition. It currently supports Bitcoin, Ethereum, and Dash. Its Deriver also derives the addresses of every EVM network (the Ethereum addresses), Litecoin, Dogecoin, Bitcoin Cash, Zcash's transparent addresses, XRP, Tron, Ethereum Classic, Cosmos, Injective, Solana, Stellar, NEAR and Hedera.
 - **Dash Community Edition** contains only Dash Core, Platform Payments, Identity, and Orchard features. Its visual design follows the official Dash BrandBook and Brand Guidelines. Its distribution documentation is generated from this repository and synchronized automatically; [details](RELEASING.md#dash-distribution-documentation).
 
 This is an independent hobby project. It is not an official Dash product or a replacement for a hardware or standard wallet.
@@ -211,7 +211,7 @@ The canonical release build uses a pinned Linux/amd64 Docker environment and run
 ./tooling/build-reproducible.sh
 ```
 
-Use `pnpm build:wasm` (or `./tooling/build-reproducible.sh --wasm`) only when intentionally regenerating the four committed browser WASM modules (Orchard, Codex32, SSKR and Gordian Envelope; the MHFE package is vendored separately and is not rebuilt here; see its [current provenance](packages/recovery-mhfe-wasm/README.md)). This target builds the modules and records source and generated-file hashes; it does not run the full verification or build matrix. Run targeted checks after regeneration and the complete procedure before a release. Ordinary verification detects bytes that differ from that record; canonical origin is established by the container rebuild and byte comparison, not by the local record alone. Set `WALLET_TOOLS_BUILD_MEMORY_MIB` and `WALLET_TOOLS_BUILD_CPUS` to positive integers to cap each Docker build; the memory limit also caps combined memory and swap. Native development requires Node.js 26.10.0 or newer, pnpm 12.8.1, Rust/Cargo 1.99.0 with `wasm32-unknown-unknown`, and `wasm-bindgen-cli` 0.2.129:
+Use `pnpm build:wasm` (or `./tooling/build-reproducible.sh --wasm`) only when intentionally regenerating the four committed browser WASM modules (Orchard, Codex32, SSKR and Gordian Envelope; the MHFE package is vendored separately and is not rebuilt here; see its [current provenance](packages/recovery-mhfe-wasm/README.md)). This target builds the modules and records source and generated-file hashes; it does not run the full verification or build matrix. Run targeted checks after regeneration and the complete procedure before a release. Ordinary verification detects bytes that differ from that record; canonical origin is established by the container rebuild and byte comparison, not by the local record alone. Set `WALLET_TOOLS_BUILD_MEMORY_MIB` and `WALLET_TOOLS_BUILD_CPUS` to positive integers to cap each Docker build; the memory limit also caps combined memory and swap. Native development requires Node.js 26.13.0 or newer, pnpm 12.18.0, Rust/Cargo 1.99.1 with `wasm32-unknown-unknown`, `wasm-bindgen-cli` 0.2.129, and Python 3 whose `hashlib` offers RIPEMD-160 (OpenSSL 3.0.7 or newer): `pnpm test:vectors` and `pnpm verify` run the standard-library oracles in `test/oracles` through `tooling/verify-oracles.mjs`. The pinned build image has Python 3.12 with OpenSSL 3.0.13:
 
 ```bash
 pnpm install --frozen-lockfile

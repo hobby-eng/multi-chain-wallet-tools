@@ -4,7 +4,7 @@ import { ETHEREUM_COIN } from "./coin.js";
 import { ScanSecrets } from "../../scan-secrets.js";
 import { assertWatchOnlyMinimum } from "@ckd/recovery/watch-only.js";
 import { HDKey } from "@scure/bip32";
-import { ethereumAddressOfKey } from "@ckd/coins/ethereum/index.js";
+import { evmAddressOfKey } from "@ckd/coins/keccak-account.js";
 import { requirePublic } from "@ckd/core/bip32.js";
 import { RECOVERY_EVM_ACCOUNT_BATCH, type EvmAccountView } from "@ckd/network-boundary/protocol.js";
 import type {
@@ -25,7 +25,7 @@ import {
 } from "./shared.js";
 
 function addressForNode(node: HDKey): string {
-  return ethereumAddressOfKey(requirePublic(node, "the watch-only key"));
+  return evmAddressOfKey(requirePublic(node, "the watch-only key"));
 }
 
 interface EthCandidateProfile {
@@ -83,11 +83,7 @@ export async function scanEthereumWatchOnly(
 
   if (input.kind === "public-key") {
     const { uncompressed } = watchOnlyPublicKey(input.value);
-    await recordExact(
-      ethereumAddressOfKey(uncompressed),
-      "exact public key",
-      "Exact public key · EOA",
-    );
+    await recordExact(evmAddressOfKey(uncompressed), "exact public key", "Exact public key · EOA");
     descriptionText =
       "A single public key maps to exactly one EOA; it cannot derive descendant addresses.";
   } else {

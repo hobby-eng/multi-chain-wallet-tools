@@ -1,3 +1,4 @@
+import { SINGLE_KEY_COIN_IDS } from "./single-key-coins.mjs";
 import { BUILD_PROFILES, profileToolIds } from "./build-profiles.mjs";
 import { KEY_DERIVATION_COINS, KEY_DERIVATION_FEATURES } from "./key-derivation-features.mjs";
 import { ToolBuildPolicy } from "./tool-build-policy.mjs";
@@ -8,6 +9,24 @@ function nonemptySubsets(values) {
     const mask = maskIndex + 1;
     return values.filter((_, index) => (mask & (1 << index)) !== 0);
   });
+}
+
+/**
+ * The coin sets of a tool: every subset of the coins with protocols of their own, each single-key
+ * coin alone, and each of those subsets with all the single-key coins. The single-key coins share
+ * their derivations (tooling/single-key-coins.mjs), so among themselves they combine like one coin;
+ * every subset of all the coins would be thousands of sets, each with every feature set.
+ */
+function coinSets(coins) {
+  const own = coins.filter((coin) => !SINGLE_KEY_COIN_IDS.includes(coin));
+  const singleKey = coins.filter((coin) => SINGLE_KEY_COIN_IDS.includes(coin));
+  if (singleKey.length === 0) return nonemptySubsets(own);
+  const ordered = (set) => coins.filter((coin) => set.includes(coin));
+  return [
+    ...nonemptySubsets(own),
+    ...singleKey.map((coin) => [coin]),
+    ...[[], ...nonemptySubsets(own)].map((subset) => ordered([...subset, ...singleKey])),
+  ];
 }
 
 function featureSets(policy, coins) {
@@ -23,7 +42,7 @@ export function createBuildMatrixPlan(profileIds = Object.keys(BUILD_PROFILES), 
     return profileToolIds(profile).flatMap((toolId) => {
       if (requestedTool !== undefined && requestedTool !== toolId) return [];
       const policy = new ToolBuildPolicy(toolId, profile);
-      return nonemptySubsets(policy.profileCoins()).flatMap((coins) =>
+      return coinSets(policy.profileCoins()).flatMap((coins) =>
         featureSets(policy, coins).map((features) => {
           const featureSlug = features.length === 0 ? "base" : features.join("_");
           return {

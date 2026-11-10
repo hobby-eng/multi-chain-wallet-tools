@@ -6,9 +6,7 @@ import type { AddressSource } from "../../address-book.js";
 import type { RecoveryNetworkGateway } from "../../network-gateway.js";
 import type { RecoveryNetwork } from "../../types.js";
 import { getBitcoinNetwork } from "@ckd/core/networks.js";
-import { deriveLegacyAddress } from "@ckd/coins/bitcoin/legacy.js";
-import { deriveNativeSegwitAddress } from "@ckd/coins/bitcoin/native-segwit.js";
-import { deriveNestedSegwitAddress } from "@ckd/coins/bitcoin/nested-segwit.js";
+import { BITCOIN_SINGLE_KEY_ENCODINGS } from "@ckd/coins/bitcoin/single-key-addresses.js";
 import { Taproot } from "@ckd/coins/bitcoin/taproot.js";
 
 export type { BitcoinMode } from "@ckd/coins/bitcoin/profiles.js";
@@ -28,10 +26,9 @@ export function addressFor(
   publicKey: Uint8Array,
   network: ReturnType<typeof getBitcoinNetwork>,
 ): string {
-  if (mode === "legacy") return deriveLegacyAddress(publicKey, network).address;
-  if (mode === "nested-segwit") return deriveNestedSegwitAddress(publicKey, network).address;
-  if (mode === "native-segwit") return deriveNativeSegwitAddress(publicKey, network).address;
-  return Taproot.address(publicKey, network).address;
+  return mode === "taproot"
+    ? Taproot.address(publicKey, network).address
+    : BITCOIN_SINGLE_KEY_ENCODINGS[mode](publicKey, network).address;
 }
 
 /** The providers a Bitcoin section names as its source. */
