@@ -23,7 +23,8 @@ function estimateConcurrency(value: string): number {
   return SCANNER_NETWORK_CONCURRENCY.parse(value, "Estimate concurrency");
 }
 
-interface StandardEstimateOptions {
+/** The settings of a standard seed scan that its estimate line names. */
+export interface StandardEstimateOptions {
   readonly customPath: boolean;
   readonly customRange: boolean;
   readonly requests: string;
@@ -39,11 +40,13 @@ export function bitcoinScanEstimate(
   return `Bitcoin · 4 standard address families${options.customPath ? (options.customRange ? " + custom account range" : " + custom path") : ""} · ${(perFamily * 4).toLocaleString()} standard minimum addresses + 20-address post-use gaps · ${estimateConcurrency(options.requests)} network requests at once${options.includeUsedZero ? " · zero-balance history enabled" : ""}`;
 }
 
-export function ethereumScanEstimate(
+/** The estimate line of an EVM network's seed scan (`label` names the network). */
+export function evmScanEstimate(
+  label: string,
   receiveCount: string,
   options: StandardEstimateOptions,
 ): string {
-  return `Ethereum EOA · 3 standard wallet profiles${options.customPath ? (options.customRange ? " + custom account range" : " + custom path") : ""} · ${estimateInteger(receiveCount, 1).toLocaleString()} minimum derivations per profile + 20-address post-use gaps · ${estimateConcurrency(options.requests)} network requests at once${options.includeUsedZero ? " · used zero-balance accounts enabled" : ""}`;
+  return `${label} EOA · 3 standard wallet profiles${options.customPath ? (options.customRange ? " + custom account range" : " + custom path") : ""} · ${estimateInteger(receiveCount, 1).toLocaleString()} minimum derivations per profile + 20-address post-use gaps · ${estimateConcurrency(options.requests)} network requests at once${options.includeUsedZero ? " · used zero-balance accounts enabled" : ""}`;
 }
 
 interface DashScanEstimateInput {

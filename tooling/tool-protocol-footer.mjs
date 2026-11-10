@@ -1,4 +1,5 @@
 import packageManifest from "../package.json" with { type: "json" };
+import { EVM_NETWORKS } from "./evm-networks.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
 /** The coins a build includes: the selected ones, else all of its edition. */
@@ -6,7 +7,9 @@ export function selectedCoins(profile, selection) {
   return new Set(
     selection?.coins ??
       // Every coin any tool has; each tool's copy names only its own.
-      (profile.id === "dash-community" ? ["dash"] : TOOL_MANIFESTS["key-derivation"].coins),
+      (profile.id === "dash-community"
+        ? ["dash"]
+        : Object.values(TOOL_MANIFESTS).flatMap(({ coins }) => coins)),
   );
 }
 
@@ -49,12 +52,18 @@ export class ToolProtocolFooter {
         bitcoin: "BIP-174 · BIP-370 · BIP-371 · BIP-373 · P2SH/P2WSH · Taproot · MuSig2 · CLTV/CSV",
         dash: "Dash Core PSBT · P2SH · multisig · hashlocks · CLTV/CSV",
       });
-    if (toolId === "discovery-scanner")
-      return selected({
-        bitcoin: "Bitcoin BIP44/BIP49/BIP84/BIP86 public discovery",
-        ethereum: "Ethereum EOA account discovery",
-        dash: `Dash Core BIP44 · Platform DIP17/DIP18 · Identity DIP13 · Dash Orchard ZIP-32 · Evo SDK ${packageManifest.dependencies["@dashevo/evo-sdk"]}`,
-      });
+    if (toolId === "discovery-scanner") {
+      const evm = EVM_NETWORKS.filter(({ id }) => this.#coins.has(id)).map(({ label }) => label);
+      return [
+        selected({ bitcoin: "Bitcoin BIP44/BIP49/BIP84/BIP86 public discovery" }),
+        ...(evm.length === 0 ? [] : [`EVM EOA account discovery: ${evm.join(", ")}`]),
+        selected({
+          dash: `Dash Core BIP44 · Platform DIP17/DIP18 · Identity DIP13 · Dash Orchard ZIP-32 · Evo SDK ${packageManifest.dependencies["@dashevo/evo-sdk"]}`,
+        }),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    }
     throw new Error(`No protocol footer for ${toolId}.`);
   }
 }

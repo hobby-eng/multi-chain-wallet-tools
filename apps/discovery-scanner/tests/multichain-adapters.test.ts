@@ -167,9 +167,10 @@ describe("Multi-Chain recovery adapters", () => {
       {
         signal: new AbortController().signal,
         networkApi: api({
-          evmAccounts: async (_network, addresses) => {
+          evmAccounts: async (_coin, _network, addresses) => {
             requested.push(...addresses);
             return {
+              chainId: "1",
               blockNumber: "1",
               entries: addresses.map((address) => ({ address, balance: "0", nonce: "0" })),
             };
@@ -210,9 +211,10 @@ describe("Multi-Chain recovery adapters", () => {
         {
           signal: new AbortController().signal,
           networkApi: api({
-            evmAccounts: async (_network, addresses) => {
+            evmAccounts: async (_coin, _network, addresses) => {
               requested.push(...addresses);
               return {
+                chainId: "1",
                 blockNumber: "1",
                 entries: addresses.map((address) => ({ address, balance: "0", nonce: "0" })),
               };

@@ -1,8 +1,10 @@
+import { evmNetwork } from "@ckd/public-data-providers/evm-networks.js";
 import type { RecoveryCoinAdapter } from "../../types.js";
-import { ETHEREUM_SEED_RECOVERY_ADAPTER } from "./seed.js";
-import { ETHEREUM_WATCH_ONLY } from "./watch-adapter.js";
+import { createEvmRecoveryAdapter } from "../evm/index.js";
+import { getEthereumHistory } from "./history.js";
 
-export const ETHEREUM_RECOVERY_ADAPTER: RecoveryCoinAdapter = {
-  ...ETHEREUM_SEED_RECOVERY_ADAPTER,
-  ...ETHEREUM_WATCH_ONLY,
-};
+/** Ethereum: the EVM network table's first row, with the Blockscout history it alone reads. */
+export const ETHEREUM_RECOVERY_ADAPTER: RecoveryCoinAdapter = createEvmRecoveryAdapter(
+  evmNetwork("ethereum"),
+  { getHistory: getEthereumHistory },
+);

@@ -1,0 +1,97 @@
+{
+  "ethereum": {
+    "label": "Ethereum",
+    "asset": "ETH",
+    "networks": {
+      "mainnet": {
+        "chainId": 1,
+        "name": "Ethereum mainnet",
+        "rpc": "https://ethereum-rpc.publicnode.com",
+        "history": "https://eth.blockscout.com/api/v2"
+      },
+      "testnet": {
+        "chainId": 11155111,
+        "name": "Sepolia testnet",
+        "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
+        "history": "https://eth-sepolia.blockscout.com/api/v2"
+      }
+    }
+  },
+  "bnb-chain": {
+    "label": "BNB Chain",
+    "asset": "BNB",
+    "networks": {
+      "mainnet": {
+        "chainId": 56,
+        "name": "BNB Smart Chain mainnet",
+        "rpc": "https://bsc-rpc.publicnode.com"
+      }
+    }
+  },
+  "polygon": {
+    "label": "Polygon",
+    "asset": "POL",
+    "networks": {
+      "mainnet": {
+        "chainId": 137,
+        "name": "Polygon PoS mainnet",
+        "rpc": "https://polygon-bor.publicnode.com"
+      }
+    }
+  },
+  "arbitrum": {
+    "label": "Arbitrum One",
+    "asset": "ETH",
+    "networks": {
+      "mainnet": {
+        "chainId": 42161,
+        "name": "Arbitrum One",
+        "rpc": "https://arbitrum-one-rpc.publicnode.com"
+      }
+    }
+  },
+  "optimism": {
+    "label": "OP Mainnet",
+    "asset": "ETH",
+    "networks": {
+      "mainnet": {
+        "chainId": 10,
+        "name": "OP Mainnet",
+        "rpc": "https://optimism-rpc.publicnode.com"
+      }
+    }
+  },
+  "base": {
+    "label": "Base",
+    "asset": "ETH",
+    "networks": {
+      "mainnet": {
+        "chainId": 8453,
+        "name": "Base mainnet",
+        "rpc": "https://base-rpc.publicnode.com"
+      }
+    }
+  },
+  "avalanche": {
+    "label": "Avalanche C-Chain",
+    "asset": "AVAX",
+    "networks": {
+      "mainnet": {
+        "chainId": 43114,
+        "name": "Avalanche C-Chain",
+        "rpc": "https://avalanche-c-chain-rpc.publicnode.com"
+      }
+    }
+  },
+  "gnosis": {
+    "label": "Gnosis",
+    "asset": "xDAI",
+    "networks": {
+      "mainnet": {
+        "chainId": 100,
+        "name": "Gnosis Chain",
+        "rpc": "https://gnosis-rpc.publicnode.com"
+      }
+    }
+  }
+}

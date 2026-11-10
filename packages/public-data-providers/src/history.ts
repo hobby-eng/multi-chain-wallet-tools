@@ -3,7 +3,7 @@ import {
   RECOVERY_HISTORY_DATE_FIELDS,
 } from "@ckd/network-boundary/recovery-history.js";
 import { decimal, fetchJson, record, unsignedInteger } from "./http.js";
-import type { PublicDataNetwork, RecoveryHistory } from "./types.js";
+import type { RecoveryHistory } from "./types.js";
 
 export const HISTORY_MAX_PAGES = 20;
 const HISTORY_TIMEOUT_MS = 15_000;
@@ -162,10 +162,6 @@ export async function bitcoinAddressHistory(
   throw new Error("No Bitcoin history provider.");
 }
 
-const ETHEREUM_HISTORY_ENDPOINTS: Record<PublicDataNetwork, string> = {
-  mainnet: "https://eth.blockscout.com/api/v2",
-  testnet: "https://eth-sepolia.blockscout.com/api/v2",
-};
 function ethAddress(value: unknown): string | null {
   if (value === null) return null;
   const address = record(value, "Ethereum address").hash;
@@ -218,12 +214,16 @@ async function ethPages(
   return false;
 }
 
+/**
+ * The native ETH history of `address` from a Blockscout API v2 root (`endpoint`, from Ethereum's row
+ * of the EVM network table).
+ */
 export async function ethereumAddressHistory(
   address: string,
-  network: PublicDataNetwork,
+  endpoint: string,
   signal?: AbortSignal,
 ): Promise<RecoveryHistory> {
-  const url = `${ETHEREUM_HISTORY_ENDPOINTS[network]}/addresses/${address.toLowerCase()}`;
+  const url = `${endpoint}/addresses/${address.toLowerCase()}`;
   const target = address.toLowerCase();
   const h = emptyRecoveryHistory("ETH", "wei", 18);
   h.source = "Blockscout";

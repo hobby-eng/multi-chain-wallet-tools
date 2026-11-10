@@ -29,6 +29,14 @@ describe("Dash Community artifact exclusion rules", () => {
     expect(findDashArtifactViolations("Orchard, the shielded pool Zcash designed")).toEqual([]);
   });
 
+  it("rejects the EVM networks by name, endpoint and chain-id request, but not the word Base", () => {
+    expect(
+      findDashArtifactViolations("BNB Chain · Avalanche C-Chain · https://bsc-rpc.publicnode.com"),
+    ).toEqual(["EVM network BNB Chain", "EVM network Avalanche C-Chain", "EVM endpoint"]);
+    expect(findDashArtifactViolations('{"method":"eth_chainId"}')).toEqual(["EVM endpoint"]);
+    expect(findDashArtifactViolations("Base58Check · Base URL")).toEqual([]);
+  });
+
   it("leaves embedded base64 runs of 512 characters or more out of the word scan", () => {
     const pad = (length) => "A".repeat(length);
     // A word that falls inside a long run is binary by chance, as "+XRP/" might be.

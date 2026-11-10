@@ -49,7 +49,7 @@ it("rejects invalid network inputs before fetch", async () => {
     service.addressHistory("bitcoin", "mainnet", "1BoatSLRHtKNngkdXEeobR76b53LETtpyU"),
   ).rejects.toThrow();
   await expect(
-    service.evmAccounts("mainnet", ["0x5Aeda56215b167893e80B4fE645BA6d5Bab767DE"]),
+    service.evmAccounts("ethereum", "mainnet", ["0x5Aeda56215b167893e80B4fE645BA6d5Bab767DE"]),
   ).rejects.toThrow();
   expect(fetcher).not.toHaveBeenCalled();
 });

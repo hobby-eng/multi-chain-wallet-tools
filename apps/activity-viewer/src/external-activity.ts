@@ -30,6 +30,10 @@ export interface ExternalActivityAdapter {
   label: string;
   asset: string;
   decimals: number;
+  /** The networks the coin offers; Testnet is disabled for a coin without one. */
+  networks: readonly PublicDataNetwork[];
+  /** Whether address history is read; without it only the balance (and nonce) are loaded. */
+  readsHistory: boolean;
   singlePlaceholder: string;
   batchPlaceholder: string;
   normalize(value: string, network: PublicDataNetwork): string;
@@ -49,10 +53,13 @@ function adapterSelfTests(
   adapters: readonly ExternalActivityAdapter[],
 ): { readonly checks: readonly string[] } | { readonly failure: string } {
   try {
+    // Coins that share their address checks (the EVM networks) name them once.
     return {
       checks: [
-        ...runPublicInputGuardSelfTest(),
-        ...adapters.flatMap((adapter) => adapter.selfTest()),
+        ...new Set([
+          ...runPublicInputGuardSelfTest(),
+          ...adapters.flatMap((adapter) => adapter.selfTest()),
+        ]),
       ],
     };
   } catch (cause) {
@@ -265,10 +272,24 @@ export function installExternalActivity(
     if (view.isQueryRunning()) return;
     setExportState(null);
     const selected = externalCoin();
+    const networkLabel = network.previousElementSibling;
+    const mainnet = network.options[0];
+    const testnet = network.options[1];
+    const privacyText = privacyChip.lastChild;
+    if (
+      networkLabel === null ||
+      mainnet === undefined ||
+      testnet === undefined ||
+      privacyText === null
+    )
+      throw new Error(
+        "The Viewer page lost the network label, its Mainnet or Testnet option, or the privacy chip text.",
+      );
     if (selected === null) {
+      testnet.disabled = false;
       detectionTabs.hidden = false;
       document.querySelector<HTMLButtonElement>('[data-detection-mode="auto"]')?.click();
-      network.previousElementSibling!.textContent = "Dash network";
+      networkLabel.textContent = "Dash network";
       (queryMode() === "batch" ? batch : single).dispatchEvent(new Event("input"));
       return;
     }
@@ -276,18 +297,23 @@ export function installExternalActivity(
     detectionTabs.hidden = true;
     advancedModes.hidden = true;
     capability.hidden = true;
-    network.previousElementSibling!.textContent = "Network";
-    network.options[0]!.textContent = "Mainnet";
-    network.options[1]!.textContent = "Testnet";
+    networkLabel.textContent = "Network";
+    mainnet.textContent = "Mainnet";
+    testnet.textContent = "Testnet";
+    // Most EVM networks have no testnet here: Mainnet stays the only choice.
+    testnet.disabled = !selected.networks.includes("testnet");
+    if (testnet.disabled && network.value === "testnet") network.value = "mainnet";
     const batchMode = queryMode() === "batch";
     inputLabel.textContent = `${metadata.label} public address`;
     single.placeholder = selected.singlePlaceholder;
     batch.placeholder = selected.batchPlaceholder;
-    inputHelp.textContent = `Loads current ${metadata.asset} balance and confirmed lifetime address history. Only public addresses are sent to fixed network providers.`;
+    inputHelp.textContent = metadata.readsHistory
+      ? `Loads current ${metadata.asset} balance and confirmed lifetime address history. Only public addresses are sent to fixed network providers.`
+      : `Loads current ${metadata.asset} balance and account nonce; ${metadata.label} address history is not read. Only public addresses are sent to fixed network providers.`;
     scanLabel.textContent = batchMode
       ? `Load ${metadata.label} address batch`
       : `Load ${metadata.label} address activity`;
-    privacyChip.lastChild!.textContent = " Public address lookup";
+    privacyText.textContent = " Public address lookup";
     diagnosticMode.textContent = `${selected.id} · ${network.value}`;
   };
 
@@ -336,11 +362,12 @@ export function installExternalActivity(
         view.setExternalRunning(true);
         status.textContent = `Loading ${values.length.toLocaleString()} ${selected.label} address${values.length === 1 ? "" : "es"}…`;
         status.hidden = false;
-        diagnosticDetail.textContent =
-          "Validating public addresses and loading current state plus confirmed lifetime history.";
+        diagnosticDetail.textContent = selected.readsHistory
+          ? "Validating public addresses and loading current state plus confirmed lifetime history."
+          : "Validating public addresses and loading current balance and account nonce; address history is not read.";
         try {
           const loaded: AddressResult[] = [];
-          // Ethereum identity is the 20-byte address, independent of display casing.
+          // An EVM account is its 20-byte address, independent of display casing.
           const unique = [
             ...new Map(values.map((value) => [selected.dedupeKey(value), value])).values(),
           ];
@@ -397,7 +424,9 @@ export function installExternalActivity(
             .join(" ");
           completeness.textContent = loaded.every(({ history }) => history.status === "complete")
             ? "Complete provider history was read for every address."
-            : "At least one provider history reached its bounded pagination limit; unavailable lifetime dates or sums are not inferred.";
+            : loaded.every(({ history }) => history.status === "unsupported")
+              ? "Address history is not read for this network; received and sent totals and dates are unknown, not zero."
+              : "At least one provider history reached its bounded pagination limit; unavailable lifetime dates or sums are not inferred.";
           activity.replaceChildren(...loaded.map((item) => resultCard(document, item, metadata)));
           diagnosticSource.textContent = [
             ...new Set(loaded.map(({ history }) => history.source)),

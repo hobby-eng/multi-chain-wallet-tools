@@ -11,6 +11,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { applyProfileTemplate, parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 import { assertEvoSdkReadOnly } from "../../../tooling/verify-evo-read-only.mjs";
+import { evmArtifactMarkers } from "../../../tooling/evm-networks.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
@@ -235,13 +236,29 @@ for (const id of [
   if (!vaultIds.includes(id))
     throw new Error(`Discovery Scanner artifact is missing extensible custom-path control #${id}.`);
 }
-for (const marker of ["Bitcoin wallet addresses", "Ethereum EOA addresses"]) {
+// The EVM networks' sections are named from their rows; evmArtifactMarkers() below checks them.
+for (const marker of ["Bitcoin wallet addresses"]) {
   if (profile.id === "multi-chain" && !html.includes(marker)) {
     throw new Error(`Multi-Chain Discovery Scanner artifact is missing its ${marker} adapter.`);
   }
   if (profile.id === "dash-community" && html.includes(marker)) {
     throw new Error(`Dash Community recovery vault unexpectedly bundles the ${marker} adapter.`);
   }
+}
+// Every EVM network of the EVM network table in the Multi-Chain Edition, none in the Dash
+// Community one.
+const evmMarkers = evmArtifactMarkers();
+for (const marker of profile.id === "multi-chain" ? evmMarkers.required : []) {
+  if (!html.includes(marker))
+    throw new Error(
+      `Multi-Chain Discovery Scanner artifact is missing EVM network marker ${marker}.`,
+    );
+}
+for (const marker of profile.id === "dash-community" ? evmMarkers.forbidden : []) {
+  if (html.includes(marker))
+    throw new Error(
+      `Dash Community Discovery Scanner artifact names EVM network marker ${marker}.`,
+    );
 }
 for (const marker of [
   "Custom derivation path",

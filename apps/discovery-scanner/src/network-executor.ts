@@ -1,6 +1,7 @@
+import { validateEvmAccountsPayload } from "@ckd/public-data-providers/evm-network-facts.js";
+import { EVM_NETWORKS } from "@ckd/public-data-providers/evm-networks.js";
 import {
   RECOVERY_CORE_ADDRESS_BATCH,
-  RECOVERY_EVM_ACCOUNT_BATCH,
   RECOVERY_PLATFORM_ADDRESS_BATCH,
   RECOVERY_UTXO_ADDRESS_BATCH,
   type RecoveryNetworkApi,
@@ -10,6 +11,7 @@ import {
   assertDecimal,
   assertHex,
   assertIntegerRange,
+  assertOneOf,
   assertPublicToken,
   assertPublicTokenBatch,
   assertRecoveryNetwork,
@@ -64,13 +66,16 @@ const ALL_OPERATION_VALIDATORS: NetworkOperationValidators = {
   },
   "address.history": (value) => {
     const body = exactNetworkPayload(value, ["coin", "network", "address"]);
-    if (body.coin !== "bitcoin" && body.coin !== "ethereum")
-      throw new Error("Public history coin is invalid.");
+    assertOneOf(body.coin, ["bitcoin", "ethereum"], "Public history coin");
     assertRecoveryNetwork(body.network);
     assertPublicToken(body.address, "Address");
   },
   "utxo.addresses": addressBatch(RECOVERY_UTXO_ADDRESS_BATCH),
-  "evm.accounts": addressBatch(RECOVERY_EVM_ACCOUNT_BATCH),
+  "evm.accounts": (value) =>
+    validateEvmAccountsPayload(
+      value,
+      EVM_NETWORKS.map(({ id }) => id),
+    ),
 };
 
 /** Reference validator for the unfiltered development worker; release builds generate a smaller allowlist. */
@@ -132,7 +137,12 @@ export async function executeRecoveryNetworkRequest(
     case "utxo.addresses":
       return service.utxoAddresses(request.payload.network, request.payload.addresses, signal);
     case "evm.accounts":
-      return service.evmAccounts(request.payload.network, request.payload.addresses, signal);
+      return service.evmAccounts(
+        request.payload.coin,
+        request.payload.network,
+        request.payload.addresses,
+        signal,
+      );
     default:
       throw new Error("Recovery Network Worker rejected an unsupported operation.");
   }

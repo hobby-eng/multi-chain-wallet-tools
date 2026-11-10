@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
+import { EVM_NETWORKS, evmProviderHosts } from "./evm-networks.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const profile = BUILD_PROFILES["dash-community"];
@@ -26,6 +27,22 @@ const DASH_FORBIDDEN_ARTIFACT_PATTERNS = [
   [/\bbitcoincash\b|\bCashAddr\b/iu, "Bitcoin Cash"],
   [/\b(?:XRP|Tron|Cosmos|Injective|Solana|Stellar|NEAR|Hedera)\b/u, "single-key coin"],
   [/\bzcash\b|Zcash transparent|\bTransparent · BIP44\b/u, "Zcash transparent adapter"],
+  // The EVM networks of the connected tools, by name ("Base" is too common a word; the endpoint
+  // pattern finds it), by endpoint and by their chain-id request.
+  ...EVM_NETWORKS.filter(({ label }) => label !== "Base").map(({ label }) => [
+    new RegExp(`\\b${label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}\\b`, "u"),
+    `EVM network ${label}`,
+  ]),
+  [
+    new RegExp(
+      [
+        ...EVM_NETWORKS.flatMap(evmProviderHosts).map((host) => host.replaceAll(".", "\\.")),
+        "\\beth_chainId\\b",
+      ].join("|"),
+      "u",
+    ),
+    "EVM endpoint",
+  ],
 ];
 
 const DASH_DERIVATION_ADAPTER_IDS = new Set([

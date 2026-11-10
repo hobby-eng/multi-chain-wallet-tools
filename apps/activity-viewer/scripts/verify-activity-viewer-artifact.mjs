@@ -13,6 +13,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 import { assertEvoSdkReadOnly } from "../../../tooling/verify-evo-read-only.mjs";
+import { evmArtifactMarkers } from "../../../tooling/evm-networks.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
@@ -169,6 +170,17 @@ for (const marker of [
 ]) {
   if (!html.includes(marker))
     throw new Error(`Viewer artifact is missing required marker: ${marker}`);
+}
+// Every EVM network of the EVM network table in the Multi-Chain Edition, none in the Dash
+// Community one.
+const evmMarkers = evmArtifactMarkers();
+for (const marker of profile.id === "multi-chain" ? evmMarkers.required : []) {
+  if (!html.includes(marker))
+    throw new Error(`Multi-Chain Viewer artifact is missing EVM network marker ${marker}.`);
+}
+for (const marker of profile.id === "dash-community" ? evmMarkers.forbidden : []) {
+  if (html.includes(marker))
+    throw new Error(`Dash Community Viewer artifact names EVM network marker ${marker}.`);
 }
 const runtimeMarker =
   profile.id === "dash-community"

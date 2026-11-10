@@ -10,6 +10,7 @@ import { checkMnemoCodeWasm } from "./sync-mnemocode-wasm.mjs";
 import { MnemoCodeSskrSource } from "./sync-mnemocode-sskr.mjs";
 import { MnemoCodeSskrLayout } from "./mnemocode-sskr-layout.mjs";
 import { UNICODE_VERSION as NFKD_UNICODE_VERSION } from "./generate-unicode-nfkd.mjs";
+import { EVM_NETWORKS } from "./evm-networks.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Formatting a producer's licence would break its reviewed byte identity. Verify those bytes first.
@@ -78,6 +79,18 @@ for (const [index, coinId] of PRODUCT_FACTS.multiChainCoinIds.entries()) {
     `<option value="${coinId}"`,
     `Multi-Chain Activity Viewer coin ${index + 1}`,
   );
+}
+// Every EVM network of the EVM network table, by name and endpoint, where a reader looks for it.
+for (const [path, text] of [
+  ["README.md", rootReadme],
+  ["apps/discovery-scanner/README.md", read("apps/discovery-scanner/README.md")],
+  ["THIRD_PARTY_NOTICES.md", read("THIRD_PARTY_NOTICES.md")],
+]) {
+  for (const { label, networks } of EVM_NETWORKS) {
+    requireText(text, label, `${path} EVM network`);
+    for (const { rpc } of Object.values(networks))
+      requireText(text, new URL(rpc).host, `${path} EVM network endpoint`);
+  }
 }
 for (const tool of PRODUCT_FACTS.tools) requireText(audit, tool, "Security audit tool list");
 requireText(

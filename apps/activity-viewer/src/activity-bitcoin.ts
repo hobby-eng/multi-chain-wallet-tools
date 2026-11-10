@@ -12,6 +12,8 @@ export function createBitcoinActivityAdapter(
     label: "Bitcoin",
     asset: "BTC",
     decimals: 8,
+    networks: ["mainnet", "testnet"],
+    readsHistory: true,
     singlePlaceholder: "Paste a Bitcoin address",
     batchPlaceholder: "One Bitcoin address per line",
     normalize: normalizeBitcoinAddress,

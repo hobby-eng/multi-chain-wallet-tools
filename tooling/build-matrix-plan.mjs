@@ -1,3 +1,4 @@
+import { EVM_NETWORK_IDS } from "./evm-networks.mjs";
 import { SINGLE_KEY_COIN_IDS } from "./single-key-coins.mjs";
 import { BUILD_PROFILES, profileToolIds } from "./build-profiles.mjs";
 import { KEY_DERIVATION_COINS, KEY_DERIVATION_FEATURES } from "./key-derivation-features.mjs";
@@ -11,21 +12,25 @@ function nonemptySubsets(values) {
   });
 }
 
+/** The coins that share one implementation each: the single-key coins and the EVM networks. */
+const TABLE_COIN_IDS = Object.freeze([...SINGLE_KEY_COIN_IDS, ...EVM_NETWORK_IDS]);
+
 /**
- * The coin sets of a tool: every subset of the coins with protocols of their own, each single-key
- * coin alone, and each of those subsets with all the single-key coins. The single-key coins share
- * their derivations (tooling/single-key-coins.mjs), so among themselves they combine like one coin;
- * every subset of all the coins would be thousands of sets, each with every feature set.
+ * The coin sets of a tool: every subset of the coins with protocols of their own, each table coin
+ * alone, and each of those subsets with all the table coins. The table coins share their code (the
+ * single-key coins their derivations, tooling/single-key-coins.mjs; the EVM networks their scans,
+ * tooling/evm-networks.mjs), so among themselves they combine like one coin; every subset of all the
+ * coins would be thousands of sets, each with every feature set.
  */
 function coinSets(coins) {
-  const own = coins.filter((coin) => !SINGLE_KEY_COIN_IDS.includes(coin));
-  const singleKey = coins.filter((coin) => SINGLE_KEY_COIN_IDS.includes(coin));
-  if (singleKey.length === 0) return nonemptySubsets(own);
+  const own = coins.filter((coin) => !TABLE_COIN_IDS.includes(coin));
+  const tableCoins = coins.filter((coin) => TABLE_COIN_IDS.includes(coin));
+  if (tableCoins.length === 0) return nonemptySubsets(own);
   const ordered = (set) => coins.filter((coin) => set.includes(coin));
   return [
     ...nonemptySubsets(own),
-    ...singleKey.map((coin) => [coin]),
-    ...[[], ...nonemptySubsets(own)].map((subset) => ordered([...subset, ...singleKey])),
+    ...tableCoins.map((coin) => [coin]),
+    ...[[], ...nonemptySubsets(own)].map((subset) => ordered([...subset, ...tableCoins])),
   ];
 }
 

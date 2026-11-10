@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BITCOIN_RECOVERY_ADAPTER } from "../src/coins/bitcoin/index.js";
 import { ETHEREUM_RECOVERY_ADAPTER } from "../src/coins/ethereum/index.js";
+import { EVM_NETWORK_RECOVERY_ADAPTERS } from "../src/coins/evm-networks.js";
 import { createRecoveryExport } from "../src/export.js";
 import { enrichRecoveryHistory } from "../src/history.js";
 import type { RecoveryNetworkApi } from "@ckd/network-boundary/protocol.js";
@@ -17,6 +18,7 @@ import type {
 const MNEMONIC =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 const BALANCE = 12_345_678n;
+const BNB_CHAIN = EVM_NETWORK_RECOVERY_ADAPTERS.find(({ id }) => id === "bnb-chain")!;
 
 function unavailable(): Promise<never> {
   return Promise.reject(new Error("Unexpected network operation."));
@@ -84,7 +86,9 @@ function publicData(): RecoveryNetworkApi {
           transactionCount: used ? 1 : 0,
         };
       }),
-    evmAccounts: async (_network, addresses) => ({
+    evmAccounts: async (coin, _network, addresses) => ({
+      // EIP-155 chain ids of Ethereum and BNB Chain.
+      chainId: coin === "bnb-chain" ? "56" : "1",
       blockNumber: "1",
       entries: addresses.map((address) => {
         const used = funded();
@@ -122,6 +126,7 @@ describe("Discovery CSV balance of non-Dash results", () => {
   it.each([
     [BITCOIN_RECOVERY_ADAPTER, "0.12345678", "BTC", "satoshis", "8"],
     [ETHEREUM_RECOVERY_ADAPTER, "0.000000000012345678", "ETH", "wei", "18"],
+    [BNB_CHAIN, "0.000000000012345678", "BNB", "wei", "18"],
   ])("%s: exact display amount and unit", async (adapter, display, asset, atomicUnit, decimals) => {
     const result = await scanAndEnrich(adapter);
     const findings = result.sections.flatMap((section) => section.findings);

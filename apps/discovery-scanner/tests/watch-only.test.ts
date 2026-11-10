@@ -188,12 +188,14 @@ it("checks known Bitcoin addresses and exports a funded public key without block
     ).not.toThrow();
 });
 it("derives the known Ethereum address locally and sends only the address", async () => {
-  const evmAccounts = vi.fn(async (_network, addresses: string[]) => ({
+  const evmAccounts = vi.fn(async (_coin: string, _network, addresses: string[]) => ({
+    chainId: "1",
     blockNumber: "100",
     entries: addresses.map((address) => ({ address, balance: "0", nonce: "0" })),
   }));
   const result = await scan(ETHEREUM_RECOVERY_ADAPTER, publicKey, context({ evmAccounts }));
-  expect(evmAccounts.mock.calls[0]?.[1]).toEqual(["0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"]);
+  expect(evmAccounts.mock.calls[0]?.[0]).toBe("ethereum");
+  expect(evmAccounts.mock.calls[0]?.[2]).toEqual(["0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"]);
   expect(result.sections[0]?.scanned).toBe(1);
 });
 it("keeps xpubs out of queries and exports, while deriving address batches", async () => {

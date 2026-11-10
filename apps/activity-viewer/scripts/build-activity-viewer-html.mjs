@@ -30,6 +30,7 @@ import {
   parseBuildProfile,
 } from "../../../tooling/build-profiles.mjs";
 import { verifyDashSdkBuild } from "../../../tooling/verify-dash-sdk-build.mjs";
+import { assertSelectedEvmEndpoints } from "../../../tooling/evm-networks.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
 const profile = parseBuildProfile();
@@ -78,4 +79,5 @@ if (profile.id === "dash-community") {
   assertDashOnlyGraph(Object.keys(bundled.metafile.inputs), "Dash Community activity viewer");
 }
 const html = inlineApplication(template, css, javascript, "Viewer");
+assertSelectedEvmEndpoints(options, html, "Activity Viewer artifact");
 writeToolArtifact(root, tool, customArtifact, html, artifactDisplayName);

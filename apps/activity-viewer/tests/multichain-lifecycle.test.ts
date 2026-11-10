@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createActivityViewerView } from "../src/view.js";
 import { createBitcoinActivityAdapter } from "../src/activity-bitcoin.js";
-import { createEthereumActivityAdapter } from "../src/activity-ethereum.js";
+import { createEvmActivityAdapter } from "../src/activity-evm.js";
+import { evmNetwork } from "@ckd/public-data-providers/evm-networks.js";
 import { installExternalActivity } from "../src/external-activity.js";
 import { emptyPublicHistory as emptyHistory } from "@ckd/public-data-providers/history.js";
 
@@ -68,10 +69,12 @@ function fixture(batchMode = false) {
       addressHistory: network.addressHistory,
       utxoAddresses: network.utxoAddresses,
     }),
-    createEthereumActivityAdapter({
-      addressHistory: network.addressHistory,
-      evmAccounts: network.evmAccounts,
-    }),
+    createEvmActivityAdapter(
+      evmNetwork("ethereum"),
+      { accounts: network.evmAccounts },
+      { addressHistory: network.addressHistory },
+    ),
+    createEvmActivityAdapter(evmNetwork("gnosis"), { accounts: network.evmAccounts }),
   ]);
   view.setRunning(false, true, "core");
   return { element, view };
@@ -182,7 +185,8 @@ it("counts Ethereum addresses once regardless of casing, while keeping distinct 
     ...emptyHistory("ETH", "wei", 18),
     status: "complete",
   });
-  network.evmAccounts.mockImplementation(async (_network, addresses) => ({
+  network.evmAccounts.mockImplementation(async (_coin, _network, addresses) => ({
+    chainId: "1",
     blockNumber: "1",
     entries: addresses.map((address: string) => ({
       address,
@@ -217,3 +221,37 @@ for (const input of [
       expect(element("full-viewing-key").value).toBe("");
     }
   });
+
+it("offers Gnosis on Mainnet only and loads its balance and nonce without a history", async () => {
+  const { element } = fixture();
+  await settle();
+  element("viewer-network").value = "testnet";
+  element("viewer-coin").value = "gnosis";
+  element("viewer-coin").dispatchEvent(new Event("change"));
+  await settle();
+  expect(element("viewer-network").options[1]).toMatchObject({ disabled: true });
+  expect(element("viewer-network").value).toBe("mainnet");
+  const address = "0x52908400098527886E0F7030069857D2E4169EE7";
+  element("full-viewing-key").value = address;
+  network.evmAccounts.mockResolvedValue({
+    chainId: "100",
+    blockNumber: "7",
+    entries: [{ address, balance: "1500000000000000000", nonce: "2" }],
+  });
+  element("viewer-form").dispatchEvent(new Event("submit", { cancelable: true }));
+  await settle();
+  expect(network.evmAccounts).toHaveBeenCalledWith(
+    "gnosis",
+    "mainnet",
+    [address],
+    expect.anything(),
+  );
+  expect(network.addressHistory).not.toHaveBeenCalled();
+  const cards = element("viewer-summary").replaceChildren.mock.calls[0]! as Control[];
+  expect(cards[0]!.append.mock.calls[0]![2].textContent).toBe("1.5 xDAI");
+  expect(element("viewer-completeness").textContent).toMatch(/not read for this network/u);
+  element("viewer-coin").value = "ethereum";
+  element("viewer-coin").dispatchEvent(new Event("change"));
+  await settle();
+  expect(element("viewer-network").options[1]).toMatchObject({ disabled: false });
+});

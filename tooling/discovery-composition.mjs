@@ -3,6 +3,7 @@ import {
   DERIVATION_SELF_TESTS,
   LOCAL_SEARCH_SELF_TEST,
 } from "./derivation-self-tests.mjs";
+import { EVM_SHARED_MARKERS, isEvmCoin, selectedEvmNetworks } from "./evm-networks.mjs";
 import { replaceBalancedElement as replaceHtmlElement } from "./html-elements.mjs";
 import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
@@ -28,14 +29,48 @@ function selectedAdapter(coin, options) {
   ];
 }
 
+/** The EVM factory of the selected scans: seed and watch-only, seed only, or watch-only only. */
+function evmFactory(options) {
+  if (options.has("seed-discovery") && options.has("watch-only-discovery"))
+    return ["createEvmRecoveryAdapter", "apps/discovery-scanner/src/coins/evm/index.ts"];
+  if (options.has("seed-discovery"))
+    return ["createEvmSeedRecoveryAdapter", "apps/discovery-scanner/src/coins/evm/seed.ts"];
+  return [
+    "createEvmWatchOnlyRecoveryAdapter",
+    "apps/discovery-scanner/src/coins/evm/watch-adapter.ts",
+  ];
+}
+
+/** Ethereum's history, the one an EVM network adds to its EVM network table row. */
+const ETHEREUM_HISTORY = [
+  "getEthereumHistory",
+  "apps/discovery-scanner/src/coins/ethereum/history.ts",
+];
+
 function registrySource(root, options) {
-  const adapters = options.coins.map((coin) => selectedAdapter(coin, options));
-  const lines = adapters.map(
+  const evm = new Map(selectedEvmNetworks(options).map((row) => [row.id, row]));
+  const imports = new Map();
+  const entries = options.coins.map((coin) => {
+    const row = evm.get(coin);
+    if (row === undefined) {
+      const [symbol, file] = selectedAdapter(coin, options);
+      imports.set(symbol, file);
+      return symbol;
+    }
+    // Each EVM network is its row of the EVM network table, inlined, so that the build names no
+    // other network.
+    const [factory, file] = evmFactory(options);
+    imports.set(factory, file);
+    if (coin !== "ethereum") return `${factory}(${JSON.stringify(row)})`;
+    imports.set(...ETHEREUM_HISTORY);
+    return `${factory}(${JSON.stringify(row)}, { getHistory: ${ETHEREUM_HISTORY[0]} })`;
+  });
+  const lines = [...imports].map(
     ([symbol, file]) => `import { ${symbol} } from ${JSON.stringify(resolve(root, file))};`,
   );
   return `${lines.join("\n")}
 import { createRecoveryCoinRegistry } from ${JSON.stringify(resolve(root, "apps/discovery-scanner/src/coins/registry.ts"))};
-export const { getRecoveryCoin, listRecoveryCoins } = createRecoveryCoinRegistry([${adapters.map(([symbol]) => symbol).join(", ")}]);`;
+export const { getRecoveryCoin, listRecoveryCoins } = createRecoveryCoinRegistry([${entries.join(", ")}]);`;
 }
 
 function networkServiceSource(root, options) {
@@ -72,14 +107,25 @@ function networkServiceSource(root, options) {
       "utxoAddresses(network, addresses, signal) { return bitcoin.utxoAddresses(network, addresses, signal); }",
     );
   }
+  const evm = selectedEvmNetworks(options);
+  if (evm.length > 0) {
+    imports.push(
+      `import { EvmAccountService } from ${JSON.stringify(resolve(root, "packages/public-data-providers/src/evm-service.ts"))};`,
+    );
+    setup.push(`const evm = new EvmAccountService(${JSON.stringify(evm)});`);
+    methods.push(
+      "evmAccounts(coin, network, addresses, signal) { return evm.accounts(coin, network, addresses, signal); }",
+    );
+  }
   if (options.hasCoin("ethereum")) {
     imports.push(
       `import { EthereumPublicDataService } from ${JSON.stringify(resolve(root, "packages/public-data-providers/src/ethereum-service.ts"))};`,
     );
-    setup.push("const ethereum = new EthereumPublicDataService();");
+    setup.push(
+      `const ethereum = new EthereumPublicDataService(${JSON.stringify(evm.find(({ id }) => id === "ethereum"))});`,
+    );
     methods.push(
       "ethereumAddressHistory(network, address, signal) { return ethereum.addressHistory(network, address, signal); }",
-      "evmAccounts(network, addresses, signal) { return ethereum.evmAccounts(network, addresses, signal); }",
     );
   }
   methods.push(
@@ -131,16 +177,23 @@ export function discoveryNetworkRuntimeSource(root, options) {
       `case 'utxo.addresses': return service.utxoAddresses(request.payload.network, request.payload.addresses, signal);`,
     );
   }
-  if (options.hasCoin("ethereum")) {
-    historyCoins.push("ethereum");
-    validators.push(`'evm.accounts': addressBatch(RECOVERY_EVM_ACCOUNT_BATCH)`);
+  if (options.hasCoin("ethereum")) historyCoins.push("ethereum");
+  const evmIds = selectedEvmNetworks(options).map(({ id }) => id);
+  const evmImport = [];
+  if (evmIds.length > 0) {
+    evmImport.push(
+      `import { validateEvmAccountsPayload } from ${JSON.stringify(resolve(root, "packages/public-data-providers/src/evm-network-facts.ts"))};`,
+    );
+    validators.push(
+      `'evm.accounts': (value) => validateEvmAccountsPayload(value, ${JSON.stringify(evmIds)})`,
+    );
     cases.push(
-      `case 'evm.accounts': return service.evmAccounts(request.payload.network, request.payload.addresses, signal);`,
+      `case 'evm.accounts': return service.evmAccounts(request.payload.coin, request.payload.network, request.payload.addresses, signal);`,
     );
   }
   if (historyCoins.length > 0) {
     validators.push(
-      `'address.history': (value) => { const body = exactNetworkPayload(value, ['coin', 'network', 'address']); if (!${JSON.stringify(historyCoins)}.includes(body.coin)) throw new Error('Public history coin is not included in this build.'); assertRecoveryNetwork(body.network); assertPublicToken(body.address, 'Address'); }`,
+      `'address.history': (value) => { const body = exactNetworkPayload(value, ['coin', 'network', 'address']); assertOneOf(body.coin, ${JSON.stringify(historyCoins)}, 'Public history coin'); assertRecoveryNetwork(body.network); assertPublicToken(body.address, 'Address'); }`,
     );
     const routes = [];
     if (options.hasCoin("bitcoin"))
@@ -156,8 +209,9 @@ export function discoveryNetworkRuntimeSource(root, options) {
     );
   }
   return `import { selectedRecoveryNetworkService as service } from 'ckd:selected-discovery-network-service';
-import { RECOVERY_CORE_ADDRESS_BATCH, RECOVERY_PLATFORM_ADDRESS_BATCH, RECOVERY_UTXO_ADDRESS_BATCH, RECOVERY_EVM_ACCOUNT_BATCH } from ${protocol};
-import { assertDecimal, assertHex, assertIntegerRange, assertPublicToken, assertPublicTokenBatch, assertRecoveryNetwork, exactNetworkPayload, validateNetworkRequest } from ${validation};
+${evmImport.join("\n")}
+import { RECOVERY_CORE_ADDRESS_BATCH, RECOVERY_PLATFORM_ADDRESS_BATCH, RECOVERY_UTXO_ADDRESS_BATCH } from ${protocol};
+import { assertDecimal, assertHex, assertIntegerRange, assertOneOf, assertPublicToken, assertPublicTokenBatch, assertRecoveryNetwork, exactNetworkPayload, validateNetworkRequest } from ${validation};
 const networkOnly = (value) => { const body = exactNetworkPayload(value, ['network']); assertRecoveryNetwork(body.network); };
 const publicField = (field) => (value) => { const body = exactNetworkPayload(value, ['network', field]); assertRecoveryNetwork(body.network); assertPublicToken(body[field], field); };
 const addressBatch = (maximum) => (value) => { const body = exactNetworkPayload(value, ['network', 'addresses']); assertRecoveryNetwork(body.network); assertPublicTokenBatch(body.addresses, maximum); };
@@ -221,8 +275,10 @@ export function discoveryAppEntry(root, options) {
 }
 
 function selfTestSource(root, options) {
+  // Every EVM network derives Ethereum's accounts, so any of them brings Ethereum's known answers.
+  const evm = selectedEvmNetworks(options).length > 0;
   const modules = Object.entries(DERIVATION_SELF_TESTS)
-    .filter(([coin]) => options.hasCoin(coin))
+    .filter(([coin]) => options.hasCoin(coin) || (coin === "ethereum" && evm))
     .map(([, module]) => module);
   // The candidate lists come with seed discovery, which is the only build of this self-test.
   modules.push([
@@ -258,10 +314,12 @@ function watchOnlyProfileSource(root, options) {
   const depthCases = [];
   if (options.hasCoin("bitcoin")) depthCases.push("if (adapterId === 'bitcoin') return [3, 4];");
   if (options.hasCoin("dash")) depthCases.push("if (adapterId === 'dash') return [3, 4, 5];");
-  if (options.hasCoin("ethereum"))
-    depthCases.push("if (adapterId === 'ethereum') return [3, 4, 5];");
+  // An xpub names no EVM chain: every EVM network takes the selected network and indexed keys.
+  const evmIds = selectedEvmNetworks(options).map(({ id }) => id);
+  if (evmIds.length > 0)
+    depthCases.push(`if (${JSON.stringify(evmIds)}.includes(adapterId)) return [3, 4, 5];`);
   return `const prefixCoins = ${JSON.stringify(prefixCoins)};
-export const SELECTED_WATCH_ONLY_PROFILE = { prefixCoins, multiChain: ${options.coins.length > 1}, networklessAdapterIds: ${JSON.stringify(options.hasCoin("ethereum") ? ["ethereum"] : [])}, supportedDepths: (adapterId) => { ${depthCases.join(" ")} throw new Error('Unsupported watch-only adapter.'); }, singleChainCoinId: ${JSON.stringify(options.coins[0])} };`;
+export const SELECTED_WATCH_ONLY_PROFILE = { prefixCoins, multiChain: ${options.coins.length > 1}, networklessAdapterIds: ${JSON.stringify(evmIds)}, supportedDepths: (adapterId) => { ${depthCases.join(" ")} throw new Error('Unsupported watch-only adapter.'); }, singleChainCoinId: ${JSON.stringify(options.coins[0])} };`;
 }
 
 function featureRuntimeSource(root, options) {
@@ -439,12 +497,11 @@ export function assertDiscoveryComposition(options, inputs) {
       "/dash-network/",
       "/@dashevo/evo-sdk/",
     ],
-    ethereum: [
-      "/coins/ethereum/",
-      "/ethereum-service.ts",
-      "/wallet-recovery/src/watch-only/ethereum.ts",
-    ],
+    ethereum: ["/discovery-scanner/src/coins/ethereum/", "/ethereum-service.ts"],
   };
+  const evm = selectedEvmNetworks(options).length > 0;
+  // Without any EVM network, Ethereum's derivation and every shared EVM module stay out too.
+  if (!evm) markers.ethereum.push("/coins/ethereum/", ...EVM_SHARED_MARKERS);
   for (const [coin, values] of Object.entries(markers)) {
     if (options.hasCoin(coin)) continue;
     const leaked = normalized.filter((input) => values.some((marker) => input.includes(marker)));
@@ -503,7 +560,15 @@ export function assertDiscoveryComposition(options, inputs) {
       );
   };
   requireInput("runtime network request validation", "/network-boundary/src/request-validation.ts");
-  for (const coin of options.coins) requireInput(`${coin} coin support`, `/coins/${coin}/`);
+  for (const coin of options.coins) {
+    if (!isEvmCoin(coin)) requireInput(`${coin} coin support`, `/coins/${coin}/`);
+    else if (coin === "ethereum")
+      requireInput("Ethereum history", "/discovery-scanner/src/coins/ethereum/history.ts");
+  }
+  if (evm)
+    for (const marker of EVM_SHARED_MARKERS)
+      if (marker !== "/watch-only/evm.ts" || options.has("watch-only-discovery"))
+        requireInput("EVM network support", marker);
   if (options.has("seed-discovery")) {
     requireInput("seed-discovery", "/seed-scan-input.ts");
     requireInput("the Secret Vault lifecycle", "/secret-vault/src/worker-bootstrap.ts");

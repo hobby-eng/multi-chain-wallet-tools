@@ -1428,6 +1428,20 @@ label.candidate-choice input[type="checkbox"] {
   flex-wrap: wrap;
   gap: 8px 24px;
 }
+/* A coin group (the EVM networks) takes its own row: its "All" box, then its coins indented. */
+.candidate-coin-group {
+  flex: 1 0 100%;
+}
+.candidate-group-note {
+  display: block;
+  margin: -4px 0 4px 26px;
+}
+.candidate-group-coins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 24px;
+  padding-left: 26px;
+}
 
 /* The opened batch options keep room from the phrase panel below them. */
 #candidate-options:not([hidden]) {

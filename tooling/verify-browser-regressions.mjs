@@ -13,6 +13,7 @@ import { MnemoCodeSourceHintsCase } from "./browser-cases/mnemocode-source-hints
 import { CopyFeedbackCase } from "./browser-cases/copy-feedback.mjs";
 import { Bip85ManualStartCase } from "./browser-cases/bip85-manual-start.mjs";
 import { SingleKeyCoinsCase } from "./browser-cases/single-key-coins.mjs";
+import { EvmNetworkCandidatesCase } from "./browser-cases/evm-network-candidates.mjs";
 import { CoinJoinPartialCase } from "./browser-cases/coinjoin-partial.mjs";
 import { ProtocolNavigationCase } from "./browser-cases/protocol-navigation.mjs";
 import { RecoverySourceRoutingCase } from "./browser-cases/recovery-source-routing.mjs";
@@ -166,6 +167,23 @@ for (const browserName of (process.env.BROWSER_ENGINES ?? "chromium,firefox").sp
             run.checks.push(await SingleKeyCoinsCase.run(page));
           },
         });
+      // The EVM networks besides Ethereum are the Multi-Chain Edition's only.
+      if (profile.id === "multi-chain") {
+        cases.push({
+          name: "evm-network-candidates",
+          execute: async (context, run) => {
+            const page = await open(context, profile, "discovery-scanner", run);
+            run.checks.push(await EvmNetworkCandidatesCase.scanner(context, page, run.requests));
+          },
+        });
+        cases.push({
+          name: "evm-network-activity",
+          execute: async (context, run) => {
+            const page = await open(context, profile, "activity-viewer", run);
+            run.checks.push(await EvmNetworkCandidatesCase.viewer(context, page, run.requests));
+          },
+        });
+      }
       cases.push({
         name: "copy-feedback",
         execute: async (context, run) => {

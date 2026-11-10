@@ -1,4 +1,4 @@
-import type { SeedLookupSettings } from "./scan-estimate.js";
+import type { SeedLookupSettings, StandardEstimateOptions } from "./scan-estimate.js";
 import type { NetworkName } from "@ckd/core/types.js";
 import type { RecoveryTaskLimiter } from "./concurrency.js";
 import type { RecoveryNetworkApi } from "@ckd/network-boundary/protocol.js";
@@ -167,10 +167,35 @@ export interface RecoveryScanContext {
   onFinding(inputId: string, section: RecoverySectionId, finding: RecoveryFinding): void;
 }
 
+/**
+ * What the standard seed-scan form (every coin but Dash, whose components have their own settings)
+ * shows for a coin, and how it estimates a scan.
+ */
+export interface RecoveryStandardScan {
+  /** The label of the receive-address minimum. */
+  readonly receiveLabel: string;
+  /** The label of the change-address minimum, for a coin that scans change addresses. */
+  readonly changeLabel?: string;
+  /** One line on what a scan covers. */
+  readonly coverage: string;
+  /** The note under the scan settings: paths, gaps and what stays outside the scan. */
+  readonly note: string;
+  /** The label of the start button. */
+  readonly startLabel: string;
+  /** The estimate line of a scan with these settings; throws on an invalid count. */
+  estimate(receiveCount: string, changeCount: string, options: StandardEstimateOptions): string;
+}
+
 export interface RecoveryCoinAdapter {
   readonly id: string;
   readonly label: string;
   readonly networks: readonly RecoveryNetwork[];
+  /** The coin menus' group that holds the coin, such as "EVM networks"; none for a coin alone. */
+  readonly group?: string;
+  /** One sentence beside the group's "All" box in the candidate picker, such as its privacy cost. */
+  readonly groupNote?: string;
+  /** The standard seed-scan form of the coin; absent for Dash, whose components have their own. */
+  readonly standardScan?: RecoveryStandardScan;
   /** Native balance units, independent of optional history availability. */
   amountUnit?(section: RecoverySectionId): RecoveryAmountUnit;
   /** Optional public-resource enrichment. The common runner handles failures,

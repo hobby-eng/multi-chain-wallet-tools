@@ -135,6 +135,9 @@ function trace(n: number, index: number, from: string, to: string, value: string
     type: "call",
   };
 }
+// The Blockscout API roots of Ethereum's EVM network table row.
+const BLOCKSCOUT = "https://eth.blockscout.com/api/v2";
+const SEPOLIA_BLOCKSCOUT = "https://eth-sepolia.blockscout.com/api/v2";
 describe("Ethereum history", () => {
   it("counts contract deployment value once when the normal recipient is null", async () => {
     const deployed = { ...ethTx(1, other, eth, "100"), to: null, created_contract: { hash: eth } };
@@ -148,7 +151,7 @@ describe("Ethereum history", () => {
       items: url.endsWith("/internal-transactions") ? [root] : [deployed],
       next_page_params: null,
     }));
-    expect(await ethereumAddressHistory(eth, "mainnet")).toMatchObject({
+    expect(await ethereumAddressHistory(eth, BLOCKSCOUT)).toMatchObject({
       status: "complete",
       totalReceivedAtomic: "100",
       totalSentAtomic: "0",
@@ -156,7 +159,7 @@ describe("Ethereum history", () => {
       transactionCount: 1,
       firstSeen: deployed.timestamp,
     });
-    expect(await ethereumAddressHistory(other, "mainnet")).toMatchObject({
+    expect(await ethereumAddressHistory(other, BLOCKSCOUT)).toMatchObject({
       totalReceivedAtomic: "0",
       totalSentAtomic: "100",
       totalFeesAtomic: "3",
@@ -170,12 +173,12 @@ describe("Ethereum history", () => {
       items: url.endsWith("/internal-transactions") ? [] : [deployed],
       next_page_params: null,
     }));
-    expect(await ethereumAddressHistory(other, "mainnet")).toMatchObject({
+    expect(await ethereumAddressHistory(other, BLOCKSCOUT)).toMatchObject({
       totalReceivedAtomic: "0",
       totalSentAtomic: "0",
       totalFeesAtomic: "3",
     });
-    await expect(ethereumAddressHistory(eth, "mainnet")).rejects.toThrow("Unrelated");
+    await expect(ethereumAddressHistory(eth, BLOCKSCOUT)).rejects.toThrow("Unrelated");
   });
 
   it("counts incoming/internal ETH exactly, separates gas and ignores failed transfers and duplicate root calls", async () => {
@@ -194,7 +197,7 @@ describe("Ethereum history", () => {
           ],
       next_page_params: null,
     }));
-    const h = await ethereumAddressHistory(eth, "mainnet");
+    const h = await ethereumAddressHistory(eth, BLOCKSCOUT);
     expect(h).toMatchObject({
       status: "complete",
       asset: "ETH",
@@ -227,12 +230,12 @@ describe("Ethereum history", () => {
               },
             },
     );
-    expect((await ethereumAddressHistory(eth, "testnet")).totalReceivedAtomic).toBe("1");
+    expect((await ethereumAddressHistory(eth, SEPOLIA_BLOCKSCOUT)).totalReceivedAtomic).toBe("1");
     fetchMock(() => ({
       items: [ethTx(1, other, eth, "1")],
       next_page_params: { url: "https://attacker.test" },
     }));
-    await expect(ethereumAddressHistory(eth, "mainnet")).rejects.toThrow("cursor");
+    await expect(ethereumAddressHistory(eth, BLOCKSCOUT)).rejects.toThrow("cursor");
   });
   it("withholds lifetime sums when a history stream is truncated", async () => {
     let page = 0;
@@ -244,7 +247,7 @@ describe("Ethereum history", () => {
             next_page_params: { block_number: page, index: 1 },
           },
     );
-    expect(await ethereumAddressHistory(eth, "mainnet")).toMatchObject({
+    expect(await ethereumAddressHistory(eth, BLOCKSCOUT)).toMatchObject({
       status: "partial",
       totalReceivedAtomic: null,
       totalSentAtomic: null,

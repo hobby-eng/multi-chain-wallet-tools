@@ -67,7 +67,9 @@ export interface RecoveryNetworkApi {
     addresses: string[],
     signal?: AbortSignal,
   ): Promise<UtxoAddressView[]>;
+  /** Balances and nonces on one EVM network (`coin`, its EVM network table id) at one height. */
   evmAccounts(
+    coin: string,
     network: RecoveryNetwork,
     addresses: string[],
     signal?: AbortSignal,

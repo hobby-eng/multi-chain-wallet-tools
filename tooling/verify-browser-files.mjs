@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
+import { EVM_NETWORKS } from "./evm-networks.mjs";
 import { BUILD_PROFILES, getToolBuild, profileToolIds } from "./build-profiles.mjs";
 import { readReleaseMetadata } from "./project-metadata.mjs";
 import { launchForReport, loadPlaywright } from "./playwright-loader.mjs";
@@ -70,6 +71,16 @@ async function buildPolicyWithoutError(page) {
   await page.locator("#policy-results").waitFor({ state: "visible" });
 }
 
+/** The JSON-RPC host of every EVM network's chain → its chain id, as eth_chainId answers it. */
+const EVM_CHAIN_IDS = new Map(
+  EVM_NETWORKS.flatMap(({ networks }) =>
+    Object.values(networks).map(({ rpc, chainId }) => [
+      new URL(rpc).hostname,
+      `0x${chainId.toString(16)}`,
+    ]),
+  ),
+);
+
 function providerFixture(request) {
   const url = new URL(request.url());
   if (url.hostname === "blockchain.info" && url.pathname === "/balance") {
@@ -90,12 +101,19 @@ function providerFixture(request) {
         mempool_stats: { tx_count: 0 },
       };
   }
-  if (url.hostname === "ethereum-rpc.publicnode.com") {
+  const evmChainId = EVM_CHAIN_IDS.get(url.hostname);
+  if (evmChainId !== undefined) {
+    // Every EVM network's endpoint proves its own chain id, then reads zero at block 0x10.
     const query = request.postDataJSON();
     const reply = (item) => ({
       jsonrpc: "2.0",
       id: item.id,
-      result: item.method === "eth_blockNumber" ? "0x10" : "0x0",
+      result:
+        item.method === "eth_chainId"
+          ? evmChainId
+          : item.method === "eth_blockNumber"
+            ? "0x10"
+            : "0x0",
     });
     return Array.isArray(query) ? query.map(reply) : reply(query);
   }
