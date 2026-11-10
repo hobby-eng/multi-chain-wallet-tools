@@ -1,5 +1,6 @@
 import { LITECOIN_ADDRESS } from "@ckd/coins/litecoin/profiles.js";
-import { base58Hash, bech32Hash, singleKeyMatcher } from "./matcher-targets-single-key.js";
+import { base58Hash } from "@ckd/core/crypto.js";
+import { bech32Hash, singleKeyMatcher } from "./matcher-targets-single-key.js";
 
 /**
  * Litecoin's part of the matcher: L… and M… addresses, ltc1q… addresses, and the old 3… form of a

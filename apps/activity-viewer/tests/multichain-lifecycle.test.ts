@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createActivityViewerView } from "../src/view.js";
 import { createBitcoinActivityAdapter } from "../src/activity-bitcoin.js";
 import { createEvmActivityAdapter } from "../src/activity-evm.js";
+import { createAccountActivityAdapter } from "../src/activity-account.js";
+import { accountCoin, accountStatesReader } from "@ckd/public-data-providers/account-coins.js";
 import { evmNetwork } from "@ckd/public-data-providers/evm-networks.js";
 import { installExternalActivity } from "../src/external-activity.js";
 import { emptyPublicHistory as emptyHistory } from "@ckd/public-data-providers/history.js";
@@ -10,6 +12,7 @@ const network = vi.hoisted(() => ({
   addressHistory: vi.fn(),
   utxoAddresses: vi.fn(),
   evmAccounts: vi.fn(),
+  accountStates: vi.fn(),
 }));
 vi.mock("@ckd/public-data-providers/multi-chain-service.js", () => ({
   PublicMultiChainDataService: class {
@@ -75,6 +78,11 @@ function fixture(batchMode = false) {
       { addressHistory: network.addressHistory },
     ),
     createEvmActivityAdapter(evmNetwork("gnosis"), { accounts: network.evmAccounts }),
+    ...["solana", "stellar", "near", "tron"].map((id) =>
+      createAccountActivityAdapter(accountStatesReader(accountCoin(id)), {
+        states: network.accountStates,
+      }),
+    ),
   ]);
   view.setRunning(false, true, "core");
   return { element, view };
@@ -254,4 +262,89 @@ it("offers Gnosis on Mainnet only and loads its balance and nonce without a hist
   element("viewer-coin").dispatchEvent(new Event("change"));
   await settle();
   expect(element("viewer-network").options[1]).toMatchObject({ disabled: false });
+});
+
+// NEAR's first implicit account of the public "abandon … about" phrase, its public key and its
+// secret key as the Deriver shows them, Solana's first keypair in Phantom's import form and
+// Stellar's first secret seed.
+const NEAR_ACCOUNT = "5510e2b44cae6eb807e3e0e45d579dda058c274abcba15e5cb84636f5d1ee412";
+const NEAR_PUBLIC_KEY = "ed25519:6j4b6zUaty6fD1awqcGCCU9JYGCWYUgdJhQrzfZhqE25";
+const NEAR_SECRET_KEY =
+  "ed25519:F1kPR175szkGxEL52A9H6Z5ocS2BtaipprK2Hiob9DjGzHTkScrBb1yt44baXPZ3LxyHcsTPdBjHmn6zx147txH";
+const SOLANA_KEYPAIR =
+  "27npWoNE4HfmLeQo1TyWcW7NEA28qnsnDK7kcttDQEWrCWnro83HMJ97rMmpvYYZRwDAvG4KRuB7hTBacvwD7bgi";
+const STELLAR_SECRET_SEED = "SBUV3MRWKNS6AYKZ6E6MOUVF2OYMON3MIUASWL3JLY5E3ISDJFELYBRZ";
+
+/** A fixture with `coin` selected and `input` in the single field, submitted. */
+async function submitted(coin: string, input: string) {
+  const fixed = fixture();
+  await settle();
+  fixed.element("viewer-coin").value = coin;
+  fixed.element("viewer-coin").dispatchEvent(new Event("change"));
+  await settle();
+  fixed.element("full-viewing-key").value = input;
+  fixed.element("viewer-form").dispatchEvent(new Event("submit", { cancelable: true }));
+  await settle();
+  return fixed;
+}
+
+it("reads a NEAR public key's implicit account, the value screened before it is read", async () => {
+  network.accountStates.mockImplementation(async (coin: string, _network, addresses: string[]) => ({
+    coin,
+    height: "9",
+    entries: addresses.map((address) => ({
+      address,
+      exists: true,
+      used: true,
+      balance: "2000000000000000000000000",
+      sequence: null,
+    })),
+  }));
+  const { element } = await submitted("near", NEAR_PUBLIC_KEY);
+  expect(element("viewer-input-label").textContent).toBe("NEAR account public key");
+  expect(network.accountStates).toHaveBeenCalledWith(
+    "near",
+    "mainnet",
+    [NEAR_ACCOUNT],
+    expect.anything(),
+  );
+  expect(element("viewer-results-description").textContent).toBe(NEAR_ACCOUNT);
+  expect(element("diagnostic-proof").textContent).toBe("Account query heights 9");
+});
+
+it.each([
+  ["NEAR's 64 hex digits", "near", NEAR_ACCOUNT, true],
+  ["a NEAR secret key", "near", NEAR_SECRET_KEY, true],
+  ["a Solana keypair", "solana", SOLANA_KEYPAIR, false],
+  ["a Stellar secret seed", "stellar", STELLAR_SECRET_SEED, false],
+])(
+  "refuses %s as private material: input erased, no request made",
+  async (_name, coin, input, hinted) => {
+    const { element } = await submitted(coin, input);
+    expect(network.accountStates).not.toHaveBeenCalled();
+    expect(element("full-viewing-key").value).toBe("");
+    expect(element("viewer-error").hidden).toBe(false);
+    expect(element("viewer-error").textContent).toMatch(/Private key-like material/u);
+    expect(element("viewer-error").textContent.includes(input)).toBe(false);
+    expect(element("viewer-error").textContent.includes("public key (ed25519:…)")).toBe(hinted);
+  },
+);
+
+it("claims no history for a balance read without a height (Tron)", async () => {
+  network.accountStates.mockImplementation(async (coin: string, _network, addresses: string[]) => ({
+    coin,
+    height: null,
+    entries: addresses.map((address) => ({
+      address,
+      exists: true,
+      used: true,
+      balance: "5000000",
+      sequence: null,
+    })),
+  }));
+  const { element } = await submitted("tron", "TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH");
+  expect(element("viewer-input-help").textContent).toMatch(/^Loads current TRX balance; Tron/u);
+  expect(element("diagnostic-proof").textContent).toBe(
+    "Current provider state; the provider reports no height",
+  );
 });

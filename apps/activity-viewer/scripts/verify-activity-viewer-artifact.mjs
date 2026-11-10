@@ -13,6 +13,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 import { assertEvoSdkReadOnly } from "../../../tooling/verify-evo-read-only.mjs";
+import { accountArtifactMarkers } from "../../../tooling/account-coins.mjs";
 import { evmArtifactMarkers } from "../../../tooling/evm-networks.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
@@ -181,6 +182,17 @@ for (const marker of profile.id === "multi-chain" ? evmMarkers.required : []) {
 for (const marker of profile.id === "dash-community" ? evmMarkers.forbidden : []) {
   if (html.includes(marker))
     throw new Error(`Dash Community Viewer artifact names EVM network marker ${marker}.`);
+}
+// Every account coin of the account coin table in the Multi-Chain Edition, none in the Dash
+// Community one.
+const accountMarkers = accountArtifactMarkers();
+for (const marker of profile.id === "multi-chain" ? accountMarkers.required : []) {
+  if (!html.includes(marker))
+    throw new Error(`Multi-Chain Viewer artifact is missing account coin marker ${marker}.`);
+}
+for (const marker of profile.id === "dash-community" ? accountMarkers.forbidden : []) {
+  if (html.includes(marker))
+    throw new Error(`Dash Community Viewer artifact names account coin marker ${marker}.`);
 }
 const runtimeMarker =
   profile.id === "dash-community"

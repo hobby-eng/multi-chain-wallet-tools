@@ -1,3 +1,4 @@
+import { ACCOUNT_COIN_IDS } from "./account-coins.mjs";
 import { EVM_NETWORK_IDS } from "./evm-networks.mjs";
 import { SINGLE_KEY_COIN_IDS } from "./single-key-coins.mjs";
 
@@ -32,10 +33,14 @@ export const TOOL_MANIFESTS = Object.freeze({
     ],
   ),
   // The connected tools also read the EVM networks of the EVM network table
-  // (tooling/evm-networks.mjs).
-  "activity-viewer": manifest(["bitcoin", "dash", "ethereum", ...EVM_NETWORK_IDS], []),
+  // (tooling/evm-networks.mjs) and the account coins of the account coin table
+  // (tooling/account-coins.mjs).
+  "activity-viewer": manifest(
+    ["bitcoin", "dash", "ethereum", ...EVM_NETWORK_IDS, ...ACCOUNT_COIN_IDS],
+    [],
+  ),
   "discovery-scanner": manifest(
-    ["bitcoin", "dash", "ethereum", ...EVM_NETWORK_IDS],
+    ["bitcoin", "dash", "ethereum", ...EVM_NETWORK_IDS, ...ACCOUNT_COIN_IDS],
     ["seed-discovery", "watch-only-discovery", "wallet-matcher", "custom-paths"],
   ),
   "psbt-inspector": manifest(

@@ -11,6 +11,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { applyProfileTemplate, parseBuildProfile } from "../../../tooling/build-profiles.mjs";
 import { assertEvoSdkReadOnly } from "../../../tooling/verify-evo-read-only.mjs";
+import { accountArtifactMarkers } from "../../../tooling/account-coins.mjs";
 import { evmArtifactMarkers } from "../../../tooling/evm-networks.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
@@ -260,6 +261,21 @@ for (const marker of profile.id === "dash-community" ? evmMarkers.forbidden : []
       `Dash Community Discovery Scanner artifact names EVM network marker ${marker}.`,
     );
 }
+// Every account coin of the account coin table in the Multi-Chain Edition, none in the Dash
+// Community one.
+const accountMarkers = accountArtifactMarkers();
+for (const marker of profile.id === "multi-chain" ? accountMarkers.required : []) {
+  if (!html.includes(marker))
+    throw new Error(
+      `Multi-Chain Discovery Scanner artifact is missing account coin marker ${marker}.`,
+    );
+}
+for (const marker of profile.id === "dash-community" ? accountMarkers.forbidden : []) {
+  if (html.includes(marker))
+    throw new Error(
+      `Dash Community Discovery Scanner artifact names account coin marker ${marker}.`,
+    );
+}
 for (const marker of [
   "Custom derivation path",
   "Custom path template",
@@ -274,7 +290,11 @@ for (const marker of [
 }
 // The watch-only path screens its inputs with the public-input guard, whose known answers must
 // run at startup with the rest (AUD-023-BLD007).
-if (!html.includes("Public-input guard refuses phrases, WIF and extended private keys"))
+if (
+  !html.includes(
+    "Public-input guard refuses phrases, WIF, extended private keys, Ed25519 secret keys and secret seeds",
+  )
+)
   throw new Error("Discovery Scanner artifact lacks the public-input guard's startup check.");
 for (const match of vaultTemplate.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gu)) {
   if (!vaultIds.includes(match[1]))

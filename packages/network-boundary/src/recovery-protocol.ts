@@ -7,7 +7,12 @@ import type {
   RecoveryNetwork,
   ShieldedPageView,
 } from "./dash-recovery-protocol.js";
-import type { EvmAccountBatchView, RecoveryHistory, UtxoAddressView } from "./data-types.js";
+import type {
+  AccountStatesView,
+  EvmAccountBatchView,
+  RecoveryHistory,
+  UtxoAddressView,
+} from "./data-types.js";
 import type { PublicRecoveryRequestInput } from "./public-recovery-protocol.js";
 import type { NetworkBoundaryPortMessage, NetworkBoundaryResponse } from "./transport-protocol.js";
 
@@ -74,6 +79,13 @@ export interface RecoveryNetworkApi {
     addresses: string[],
     signal?: AbortSignal,
   ): Promise<EvmAccountBatchView>;
+  /** Balances and states of an account coin's addresses (`coin`, its account coin table id). */
+  accountStates(
+    coin: string,
+    network: RecoveryNetwork,
+    addresses: string[],
+    signal?: AbortSignal,
+  ): Promise<AccountStatesView>;
 }
 
 export type RecoveryNetworkRequestInput =

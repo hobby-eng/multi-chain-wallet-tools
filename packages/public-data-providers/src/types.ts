@@ -1,4 +1,6 @@
 export type {
+  AccountStatesView,
+  AccountStateView,
   EvmAccountBatchView,
   EvmAccountView,
   RecoveryHistory,

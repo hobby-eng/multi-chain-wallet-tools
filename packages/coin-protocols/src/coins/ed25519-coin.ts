@@ -2,6 +2,7 @@
 // variant's path with the row index in it, shown with the coin's address and key forms. Every key
 // and private-key copy is wiped when its row is built.
 import { assertBatch } from "@ckd/core/bip32.js";
+import { BIP32_BRANCH_SIZE } from "@ckd/core/bip32-limits.js";
 import { wipe } from "@ckd/core/crypto.js";
 import {
   field,
@@ -13,6 +14,7 @@ import {
 import { Slip10Ed25519Key } from "../slip10-ed25519.js";
 import type { Ed25519CoinProfile } from "./ed25519-coin-profile.js";
 import { variantDerivation, type VariantDerivation } from "./coin-variant.js";
+import type { AddressLayout, CoinAddressScheme } from "./address-scheme.js";
 
 /** How a coin shows an Ed25519 key. */
 export interface Ed25519CoinKeys {
@@ -85,4 +87,43 @@ export function ed25519CoinDerivation(
   return variantDerivation(profiles, id, (profile, options) =>
     deriveEd25519Coin(profile, keys, options),
   );
+}
+
+/**
+ * The public addresses of an Ed25519 coin for the connected tools: one layout per variant, whose
+ * index is its row index counted from the scan's account; each key is derived as its row's is, only
+ * its address (`address` of the public key, the one the row shows) is kept, and the key is wiped.
+ */
+export function ed25519CoinAddresses(
+  profiles: readonly Ed25519CoinProfile[],
+  address: (publicKey: Uint8Array) => string,
+): CoinAddressScheme {
+  const profileOf = new Map<AddressLayout, Ed25519CoinProfile>(
+    profiles.map((profile) => [
+      Object.freeze({
+        id: profile.adapterId,
+        label: profile.variantLabel,
+        path: (account: number, index: number) => profile.path(account + index),
+        maximumCount: (account: number) => BIP32_BRANCH_SIZE - account,
+      }),
+      profile,
+    ]),
+  );
+  return Object.freeze({
+    layouts: Object.freeze([...profileOf.keys()]),
+    open: (seed: Uint8Array) => ({
+      address(layout: AddressLayout, account: number, index: number): string {
+        const profile = profileOf.get(layout);
+        if (profile === undefined) throw new Error(`${layout.id} is not a layout of this coin.`);
+        const key = Slip10Ed25519Key.atPath(seed, profile.indexes(account + index));
+        try {
+          return address(key.publicKey());
+        } finally {
+          key.wipe();
+        }
+      },
+      // Each key is derived from the seed and wiped at once: nothing outlives a call.
+      wipe(): void {},
+    }),
+  });
 }

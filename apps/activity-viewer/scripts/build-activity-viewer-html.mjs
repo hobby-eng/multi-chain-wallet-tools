@@ -30,6 +30,7 @@ import {
   parseBuildProfile,
 } from "../../../tooling/build-profiles.mjs";
 import { verifyDashSdkBuild } from "../../../tooling/verify-dash-sdk-build.mjs";
+import { assertSelectedAccountEndpoints } from "../../../tooling/account-coins.mjs";
 import { assertSelectedEvmEndpoints } from "../../../tooling/evm-networks.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../..", import.meta.url)));
@@ -80,4 +81,5 @@ if (profile.id === "dash-community") {
 }
 const html = inlineApplication(template, css, javascript, "Viewer");
 assertSelectedEvmEndpoints(options, html, "Activity Viewer artifact");
+assertSelectedAccountEndpoints(options, html, "Activity Viewer artifact");
 writeToolArtifact(root, tool, customArtifact, html, artifactDisplayName);

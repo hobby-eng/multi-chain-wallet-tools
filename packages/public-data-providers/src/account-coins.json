@@ -1,0 +1,52 @@
+{
+  "solana": {
+    "label": "Solana",
+    "asset": "SOL",
+    "atomicUnit": "lamport",
+    "decimals": 9,
+    "api": "solana-rpc",
+    "endpoint": "https://solana-rpc.publicnode.com",
+    "batch": 10,
+    "addressesPerRequest": 10
+  },
+  "xrp": {
+    "label": "XRP",
+    "asset": "XRP",
+    "atomicUnit": "drop",
+    "decimals": 6,
+    "api": "xrpl",
+    "endpoint": "https://xrplcluster.com",
+    "batch": 20,
+    "addressesPerRequest": 1
+  },
+  "stellar": {
+    "label": "Stellar",
+    "asset": "XLM",
+    "atomicUnit": "stroop",
+    "decimals": 7,
+    "api": "horizon",
+    "endpoint": "https://horizon.stellar.org",
+    "batch": 20,
+    "addressesPerRequest": 1
+  },
+  "near": {
+    "label": "NEAR",
+    "asset": "NEAR",
+    "atomicUnit": "yoctoNEAR",
+    "decimals": 24,
+    "api": "near-rpc",
+    "endpoint": "https://free.rpc.fastnear.com",
+    "batch": 20,
+    "addressesPerRequest": 1
+  },
+  "tron": {
+    "label": "Tron",
+    "asset": "TRX",
+    "atomicUnit": "sun",
+    "decimals": 6,
+    "api": "trongrid",
+    "endpoint": "https://api.trongrid.io",
+    "batch": 20,
+    "addressesPerRequest": 1
+  }
+}

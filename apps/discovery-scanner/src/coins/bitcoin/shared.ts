@@ -1,10 +1,10 @@
 import { PROVIDER_UNSIGNED_DECIMAL } from "@ckd/core/numeric-limits.js";
-import { AtomicAmount } from "@ckd/core/atomic-amount.js";
 import { BitcoinPurposeProfile, type BitcoinMode } from "@ckd/coins/bitcoin/profiles.js";
 import type { UtxoAddressView } from "@ckd/network-boundary/protocol.js";
 import type { AddressSource } from "../../address-book.js";
 import type { RecoveryNetworkGateway } from "../../network-gateway.js";
 import type { RecoveryNetwork } from "../../types.js";
+import { amountFormatter } from "../../wallet-result.js";
 import { getBitcoinNetwork } from "@ckd/core/networks.js";
 import { BITCOIN_SINGLE_KEY_ENCODINGS } from "@ckd/coins/bitcoin/single-key-addresses.js";
 import { Taproot } from "@ckd/coins/bitcoin/taproot.js";
@@ -17,9 +17,8 @@ export const BITCOIN_MODES = BitcoinPurposeProfile.profiles.map((profile) => ({
   purpose: profile.purpose,
 }));
 
-export function formatBitcoin(satoshis: bigint): string {
-  return `${AtomicAmount.format(satoshis, 8, { whole: (value) => value.toLocaleString("en-US") })} BTC`;
-}
+/** An amount in satoshis, written in BTC. */
+export const formatBitcoin = amountFormatter({ asset: "BTC", decimals: 8 });
 
 export function addressFor(
   mode: BitcoinMode,

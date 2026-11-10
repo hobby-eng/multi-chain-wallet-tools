@@ -121,7 +121,7 @@ pnpm test:browser:selective
 
 For an uncached canonical check, inspect Dockerfile.reproducible and the wrapper's current build arguments, then run the corresponding Docker build with `--no-cache`, `--platform linux/amd64`, the recorded `SOURCE_COMMIT`/`SOURCE_DIRTY`, and the correct target. Record the exact command and retain the resulting comparison evidence. A cached successful layer cannot prove that current source reproduces the committed files.
 
-The routine format script currently targets source formats; explicitly check Markdown/JSON documentation with Prettier as well. A browser subset filtered with `BROWSER_CASES`, `BROWSER_ENGINES`, or `BROWSER_PROFILE` is diagnostic evidence, not the full matrix.
+The routine format script currently targets source formats; explicitly check Markdown/JSON documentation with Prettier as well. A browser subset filtered with `BROWSER_CASES`, `BROWSER_TOOLS`, `BROWSER_ENGINES`, or `BROWSER_PROFILE` is diagnostic evidence, not the full matrix.
 
 Optional live commands include the Activity Viewer Core/Platform mainnet/testnet scripts and Discovery mainnet/testnet/batch scripts listed in package.json. They use mutable remote data and are outside deterministic CI. Choose public fixtures and record provider/network/time; never substitute real secrets.
 

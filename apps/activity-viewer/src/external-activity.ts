@@ -34,6 +34,12 @@ export interface ExternalActivityAdapter {
   networks: readonly PublicDataNetwork[];
   /** Whether address history is read; without it only the balance (and nonce) are loaded. */
   readsHistory: boolean;
+  /** The label of the account's nonce or sequence line, where the coin's accounts have one. */
+  nonceLabel?: string;
+  /** What a person enters, where it is not a public address (NEAR's public key). */
+  inputName?: string;
+  /** The sentence added to a refusal of private-looking input, saying what to enter instead. */
+  privateMaterialHint?: string;
   singlePlaceholder: string;
   batchPlaceholder: string;
   normalize(value: string, network: PublicDataNetwork): string;
@@ -41,6 +47,51 @@ export interface ExternalActivityAdapter {
   query(address: string, network: PublicDataNetwork, signal: AbortSignal): Promise<AddressResult>;
   /** The known answers of the address checks, at startup; throws when one differs. */
   selfTest(): readonly string[];
+}
+
+/** What a lookup of `adapter` reads besides any history: the balance, and its nonce or sequence. */
+function stateRead(adapter: Pick<ExternalActivityAdapter, "nonceLabel">): string {
+  return adapter.nonceLabel === undefined
+    ? "balance"
+    : `balance and ${adapter.nonceLabel.toLowerCase()}`;
+}
+
+/** What a person enters for `adapter`: a public address, unless the coin names another form. */
+function inputName(adapter: Pick<ExternalActivityAdapter, "inputName">): string {
+  return adapter.inputName ?? "public address";
+}
+
+/**
+ * The lookups of `input` for `adapter`, screened first: the whole input is refused as private
+ * material before any value is read as the coin's address (PrivateMaterialError), and every line
+ * must be one of the coin's addresses. No request is made for a refused input.
+ */
+function readLookupInput(
+  input: string,
+  adapter: Pick<ExternalActivityAdapter, "normalize">,
+  network: PublicDataNetwork,
+): string[] {
+  assertPublicBatchLookupInput(input);
+  return nonEmptyLines(input).map((value) => adapter.normalize(value, network));
+}
+
+/**
+ * The proof line of `loaded` lookups: the heights the account reads named; without any, confirmed
+ * history where it was read, else the provider's current state, which claims no history.
+ */
+function lookupProof(
+  adapter: Pick<ExternalActivityAdapter, "readsHistory">,
+  loaded: readonly Pick<AddressResult, "blockHeight">[],
+): string {
+  const heights = [
+    ...new Set(
+      loaded.flatMap(({ blockHeight }) => (blockHeight === null ? [] : [blockHeight.toString()])),
+    ),
+  ];
+  if (heights.length > 0) return `Account query heights ${heights.join(", ")}`;
+  return adapter.readsHistory
+    ? "Confirmed history"
+    : "Current provider state; the provider reports no height";
 }
 
 /**
@@ -148,7 +199,9 @@ function resultCard(
     ],
     ["First seen", formatDate(result.history.firstSeen)],
     ["Last seen", formatDate(result.history.lastSeen)],
-    ...(result.nonce === null ? [] : [["Account nonce", result.nonce.toLocaleString()] as const]),
+    ...(result.nonce === null || metadata.nonceLabel === undefined
+      ? []
+      : [[metadata.nonceLabel, result.nonce.toLocaleString()] as const]),
     ...(result.blockHeight === null
       ? []
       : [["Account query block height", result.blockHeight.toLocaleString()] as const]),
@@ -304,12 +357,12 @@ export function installExternalActivity(
     testnet.disabled = !selected.networks.includes("testnet");
     if (testnet.disabled && network.value === "testnet") network.value = "mainnet";
     const batchMode = queryMode() === "batch";
-    inputLabel.textContent = `${metadata.label} public address`;
+    inputLabel.textContent = `${metadata.label} ${inputName(metadata)}`;
     single.placeholder = selected.singlePlaceholder;
     batch.placeholder = selected.batchPlaceholder;
     inputHelp.textContent = metadata.readsHistory
       ? `Loads current ${metadata.asset} balance and confirmed lifetime address history. Only public addresses are sent to fixed network providers.`
-      : `Loads current ${metadata.asset} balance and account nonce; ${metadata.label} address history is not read. Only public addresses are sent to fixed network providers.`;
+      : `Loads current ${metadata.asset} ${stateRead(metadata)}; ${metadata.label} address history is not read. Only public values are sent to fixed network providers.`;
     scanLabel.textContent = batchMode
       ? `Load ${metadata.label} address batch`
       : `Load ${metadata.label} address activity`;
@@ -338,21 +391,24 @@ export function installExternalActivity(
         let values: string[];
         try {
           const input = queryMode() === "batch" ? batch.value : single.value;
-          assertPublicBatchLookupInput(input);
-          values = nonEmptyLines(input).map((value) => selected.normalize(value, selectedNetwork));
+          values = readLookupInput(input, selected, selectedNetwork);
         } catch (cause) {
-          if (cause instanceof PrivateMaterialError) {
+          const privateMaterial = cause instanceof PrivateMaterialError;
+          if (privateMaterial) {
             single.value = "";
             batch.value = "";
           }
-          error.textContent =
-            cause instanceof Error ? cause.message : "Invalid public address input.";
+          const hint =
+            privateMaterial && selected.privateMaterialHint !== undefined
+              ? ` ${selected.privateMaterialHint}`
+              : "";
+          error.textContent = `${cause instanceof Error ? cause.message : "Invalid public address input."}${hint}`;
           error.hidden = false;
           status.hidden = true;
           return;
         }
         if (values.length === 0) {
-          error.textContent = `Enter a ${selected.label} public address.`;
+          error.textContent = `Enter a ${selected.label} ${inputName(selected)}.`;
           error.hidden = false;
           return;
         }
@@ -364,7 +420,7 @@ export function installExternalActivity(
         status.hidden = false;
         diagnosticDetail.textContent = selected.readsHistory
           ? "Validating public addresses and loading current state plus confirmed lifetime history."
-          : "Validating public addresses and loading current balance and account nonce; address history is not read.";
+          : `Validating public values and loading current ${stateRead(selected)}; address history is not read.`;
         try {
           const loaded: AddressResult[] = [];
           // An EVM account is its 20-byte address, independent of display casing.
@@ -432,13 +488,7 @@ export function installExternalActivity(
             ...new Set(loaded.map(({ history }) => history.source)),
           ].join(" + ");
           diagnosticRequests.textContent = "Bounded provider requests";
-          diagnosticProof.textContent =
-            loaded[0]?.blockHeight === null
-              ? "Confirmed history"
-              : `Account query heights ${loaded
-                  .map((item) => item.blockHeight!.toString())
-                  .filter((height, index, all) => all.indexOf(height) === index)
-                  .join(", ")}`;
+          diagnosticProof.textContent = lookupProof(metadata, loaded);
           status.textContent = `${metadata.label} activity loaded for ${loaded.length.toLocaleString()} address${loaded.length === 1 ? "" : "es"}.`;
           setExportState({
             coin: selected.id,

@@ -1,5 +1,5 @@
 import { XRP_COIN_ADAPTERS } from "@ckd/coins/adapters/xrp.js";
-import { xrpDerivation } from "@ckd/coins/xrp/index.js";
+import { XRP_ADDRESSES, xrpDerivation } from "@ckd/coins/xrp/index.js";
 import { singleKeyCoinSelfTest } from "./single-key-coin-self-test.js";
 
 // The first addresses of the public phrase, which MnemoCode's own Rust derivation finds at the same
@@ -11,6 +11,7 @@ export const runXrpDerivationSelfTest = singleKeyCoinSelfTest({
   group: "XRP",
   adapters: XRP_COIN_ADAPTERS,
   derivation: xrpDerivation,
+  addresses: XRP_ADDRESSES,
   vectors: [
     {
       adapterId: "xrp",

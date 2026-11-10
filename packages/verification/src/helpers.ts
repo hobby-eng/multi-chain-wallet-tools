@@ -56,11 +56,14 @@ export interface DerivationVector {
   readonly accountXpub?: string;
   /** The master extended public key, where the coin serializes it under its own version. */
   readonly masterXpub?: string;
+  /** The same address from the connected tools' public-only derivation, where the coin has one. */
+  publicAddress?(seed: Uint8Array): string;
 }
 
 /**
- * Derives each vector from the "abandon … about" seed and compares its address, and for a vector
- * with an account key the master key, its fingerprint, the master and the account extended keys. Every result is wiped.
+ * Derives each vector from the "abandon … about" seed and compares its address, and its public-only
+ * address where it has one, and for a vector with an account key the master key, its fingerprint,
+ * the master and the account extended keys. Every result is wiped.
  * Returns the names of the checks passed; `accountCheck` names the check of the account keys.
  */
 export function checkDerivationVectors(
@@ -74,6 +77,8 @@ export function checkDerivationVectors(
       const result = vector.derive(seed);
       try {
         expectEqual(vector.name, resultValue(result, "address"), vector.address);
+        if (vector.publicAddress !== undefined)
+          expectEqual(`${vector.name} public address`, vector.publicAddress(seed), vector.address);
         checks.push(vector.name);
         if (vector.accountXpub === undefined) continue;
         expectEqual(

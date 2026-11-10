@@ -10,4 +10,9 @@ export type PublicRecoveryRequestInput =
       operation: "evm.accounts";
       /** `coin` is the id of an EVM network of the EVM network table, such as "base". */
       payload: { network: NetworkName; coin: string; addresses: string[] };
+    }
+  | {
+      operation: "account.states";
+      /** `coin` is the id of an account coin of the account coin table, such as "solana". */
+      payload: { network: NetworkName; coin: string; addresses: string[] };
     };

@@ -118,6 +118,25 @@ export class AddressBook<State> {
     ];
   }
 
+  /** The metrics of a section that checked `scanned` derivation candidates through this book. */
+  scanMetrics(format: (amount: bigint) => string, scanned: number): RecoveryMetric[] {
+    return [
+      ...this.metrics(format),
+      { label: "Unique addresses queried", value: String(this.queried) },
+      { label: "Derivation candidates", value: String(scanned) },
+    ];
+  }
+
+  /** The overview of a scan of `profiles` path profiles whose addresses are accounts. */
+  accountOverview(format: (amount: bigint) => string, profiles: number): RecoveryMetric[] {
+    return [
+      ...this.overview(format, "Funded accounts"),
+      { label: "Used accounts", value: String(this.#used) },
+      { label: "Path profiles", value: String(profiles) },
+      { label: "Unique addresses queried", value: String(this.queried) },
+    ];
+  }
+
   /** The value located and the funded addresses that a wallet result opens its overview with. */
   overview(format: (amount: bigint) => string, fundedLabel = "Funded addresses"): RecoveryMetric[] {
     return [locatedValueMetric(this.#balance, format), fundedMetric(this.#funded, fundedLabel)];

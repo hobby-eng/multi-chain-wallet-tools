@@ -1,7 +1,7 @@
 import { bytesToHex, hash160 } from "@ckd/core/crypto.js";
 import { BIP32_MAINNET_VERSIONS } from "@ckd/core/networks.js";
 import { field } from "@ckd/core/types.js";
-import { bip44CoinDerivation, type Bip44CoinKeys } from "../bip44-coin.js";
+import { bip44CoinAddresses, bip44CoinDerivation, type Bip44CoinKeys } from "../bip44-coin.js";
 import { xrpClassicAddress } from "./address.js";
 import { XRP_PROFILES } from "./profiles.js";
 
@@ -25,3 +25,6 @@ export const XRP_KEYS: Bip44CoinKeys = {
 export function xrpDerivation(id: string) {
   return bip44CoinDerivation(XRP_PROFILES, () => XRP_KEYS, id);
 }
+
+/** XRP's public classic addresses for the connected tools, as the rows show them. */
+export const XRP_ADDRESSES = bip44CoinAddresses(XRP_PROFILES, XRP_KEYS);

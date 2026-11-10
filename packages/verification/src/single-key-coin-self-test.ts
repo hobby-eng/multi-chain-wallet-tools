@@ -3,6 +3,7 @@
 // "abandon … about" seed, and where given its account key, which also checks the master key. Each
 // coin's module says where its values come from (CORE-27).
 import type { Bip32BatchOptions, DerivationResult } from "@ckd/core/types.js";
+import type { CoinAddressScheme } from "@ckd/coins/address-scheme.js";
 import type { CoinAdapter } from "@ckd/coins/registry-base.js";
 import { runSingleKeyPathSelfTest } from "@ckd/coins/single-key-path-self-test.js";
 import { checkDerivationVectors, firstAddressOf, now, type DerivationVector } from "./helpers.js";
@@ -29,6 +30,24 @@ interface SingleKeySelfTestSpec {
   readonly otherPaths?: readonly (readonly [id: string, path: string])[];
   /** The coin's further checks, after its vectors; each returns its check's name. */
   readonly checks?: readonly (() => string)[];
+  /**
+   * The coin's public-only addresses (the Discovery Scanner's), each vector's also derived through
+   * its layout of the same id, at account 0 and index 0.
+   */
+  readonly addresses?: CoinAddressScheme;
+}
+
+/** The address of `seed` at the first index of the `addresses` layout `id`, opened and wiped. */
+function firstPublicAddress(addresses: CoinAddressScheme, id: string, seed: Uint8Array): string {
+  const layout = addresses.layouts.find((candidate) => candidate.id === id);
+  if (layout === undefined)
+    throw new Error(`Cryptographic self-test failed: ${id} has no public address layout.`);
+  const opened = addresses.open(seed);
+  try {
+    return opened.address(layout, 0, 0);
+  } finally {
+    opened.wipe();
+  }
 }
 
 /** The self-test of one single-key coin, as its derivation self-test module exports it. */
@@ -41,6 +60,7 @@ export function singleKeyCoinSelfTest(
       ...(spec.otherPaths ?? []),
       ...spec.vectors.map(({ adapterId, path }) => [adapterId, path] as const),
     ]);
+    const { addresses } = spec;
     const vectors: DerivationVector[] = spec.vectors.map((vector) => {
       const { adapterId, address, accountXpub, masterXpub } = vector;
       const adapter = spec.adapters.find(({ id }) => id === adapterId);
@@ -53,6 +73,11 @@ export function singleKeyCoinSelfTest(
         address,
         ...(accountXpub === undefined ? {} : { accountXpub }),
         ...(masterXpub === undefined ? {} : { masterXpub }),
+        ...(addresses === undefined
+          ? {}
+          : {
+              publicAddress: (seed: Uint8Array) => firstPublicAddress(addresses, adapterId, seed),
+            }),
       };
     });
     const checks = checkDerivationVectors(

@@ -23,7 +23,12 @@ import type { CandidateSource } from "./candidate-list-import.js";
 import { CandidateListPanel } from "./candidate-list-panel.js";
 import { createDiscoveryRenderers } from "./discovery-renderers.js";
 import { createDiscoveryResultsView } from "./discovery-results-view.js";
-import { appendCoinOptions, CandidateCoinPicker, offerNetworks } from "./coin-choices.js";
+import {
+  appendCoinOptions,
+  CandidateCoinPicker,
+  offerNetworks,
+  offerSourceCoins,
+} from "./coin-choices.js";
 import {
   coinJoinPathPattern,
   countCandidateLines,
@@ -717,6 +722,7 @@ export function createDiscoveryScannerView(
           autoOption.hidden = !publicInput;
           autoOption.disabled = !publicInput;
         }
+        offerSourceCoins(coinInput, coinAdapters, publicInput);
         if (publicInput) publicCoinId = coinInput.value;
         else seedCoinId = coinInput.value;
       }

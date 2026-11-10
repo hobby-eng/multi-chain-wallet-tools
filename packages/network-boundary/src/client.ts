@@ -2,6 +2,7 @@ import { onParentMessage } from "./iframe-protocol.js";
 import {
   RECOVERY_NETWORK_FATAL,
   RECOVERY_VAULT_CHANNEL,
+  type AccountStatesView,
   type DashCoreTransactionView,
   type EvmAccountBatchView,
   type IdentityLookupView,
@@ -214,6 +215,17 @@ class NetworkBoundaryClient implements RecoveryNetworkApi {
   ): Promise<EvmAccountBatchView> {
     return this.#request(
       { operation: "evm.accounts", payload: { network, coin, addresses } },
+      signal,
+    );
+  }
+  accountStates(
+    coin: string,
+    network: RecoveryNetwork,
+    addresses: string[],
+    signal?: AbortSignal,
+  ): Promise<AccountStatesView> {
+    return this.#request(
+      { operation: "account.states", payload: { network, coin, addresses } },
       signal,
     );
   }

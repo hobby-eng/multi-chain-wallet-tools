@@ -1,6 +1,6 @@
 // How a person chooses coins and their network: the coin menu, grouped as the coins' facts group
-// them (the EVM networks), the candidate scan's coin boxes with one box per group, and the networks
-// a chosen coin offers.
+// them (the EVM networks, the other networks) and holding the coins the chosen source can scan, the
+// candidate scan's coin boxes with one box per group, and the networks a chosen coin offers.
 import type { RecoveryCoinAdapter, RecoveryNetwork } from "./types.js";
 
 type CoinChoice = Pick<RecoveryCoinAdapter, "id" | "label" | "group" | "groupNote">;
@@ -40,6 +40,31 @@ export function offerNetworks(
   if (testnet === null) return;
   testnet.disabled = networks !== undefined && !networks.includes("testnet");
   if (testnet.disabled && select.value === "testnet") select.value = "mainnet";
+}
+
+/**
+ * Offers in the coin menu only the coins the chosen source can scan: from public keys, the coins
+ * with a watch-only scan (an account coin has none). A choice no longer offered falls back to the
+ * first coin offered; the "auto" option keeps its own rule.
+ */
+export function offerSourceCoins(
+  select: HTMLSelectElement,
+  coins: ReadonlyMap<string, Pick<RecoveryCoinAdapter, "scanWatchOnly">>,
+  publicInput: boolean,
+): void {
+  const options = [...select.querySelectorAll<HTMLOptionElement>("option")].filter(
+    (option) => option.value !== "auto",
+  );
+  for (const option of options) {
+    const unavailable = publicInput && coins.get(option.value)?.scanWatchOnly === undefined;
+    option.hidden = unavailable;
+    option.disabled = unavailable;
+  }
+  for (const group of select.querySelectorAll<HTMLOptGroupElement>("optgroup"))
+    group.hidden = [...group.querySelectorAll("option")].every((option) => option.hidden);
+  const offered = options.find((option) => !option.disabled);
+  if (select.selectedOptions[0]?.disabled === true && offered !== undefined)
+    select.value = offered.value;
 }
 
 /** A box that stands for several: checked when all are, mixed when some are. */

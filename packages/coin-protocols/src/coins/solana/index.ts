@@ -1,7 +1,12 @@
 import { base58 } from "@scure/base";
 import { bytesToHex, concatBytes, wipe } from "@ckd/core/crypto.js";
 import { field, paymentAddressField } from "@ckd/core/types.js";
-import { ed25519CoinDerivation, type Ed25519CoinKeys } from "../ed25519-coin.js";
+import {
+  ed25519CoinAddresses,
+  ed25519CoinDerivation,
+  type Ed25519CoinKeys,
+} from "../ed25519-coin.js";
+import { solanaAddress } from "./address.js";
 import { SOLANA_PROFILES } from "./profiles.js";
 
 /** Solana's key forms: the address is the base58 public key; wallets import base58 of seed ‖ key. */
@@ -12,7 +17,7 @@ export const SOLANA_KEYS: Ed25519CoinKeys = {
     try {
       return {
         basic: [
-          paymentAddressField("address", "Address", base58.encode(publicKey), "solana"),
+          paymentAddressField("address", "Address", solanaAddress(publicKey), "solana"),
           field(
             "privateKey",
             "Private key (base58 keypair, as Phantom imports it)",
@@ -35,3 +40,6 @@ export const SOLANA_KEYS: Ed25519CoinKeys = {
 export function solanaDerivation(id: string) {
   return ed25519CoinDerivation(SOLANA_PROFILES, SOLANA_KEYS, id);
 }
+
+/** Solana's public addresses for the connected tools: both variants, as the rows show them. */
+export const SOLANA_ADDRESSES = ed25519CoinAddresses(SOLANA_PROFILES, solanaAddress);

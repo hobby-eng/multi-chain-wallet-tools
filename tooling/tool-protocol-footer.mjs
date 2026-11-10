@@ -1,4 +1,5 @@
 import packageManifest from "../package.json" with { type: "json" };
+import { ACCOUNT_COINS } from "./account-coins.mjs";
 import { EVM_NETWORKS } from "./evm-networks.mjs";
 import { TOOL_MANIFESTS } from "./tool-manifests.mjs";
 
@@ -53,13 +54,17 @@ export class ToolProtocolFooter {
         dash: "Dash Core PSBT · P2SH · multisig · hashlocks · CLTV/CSV",
       });
     if (toolId === "discovery-scanner") {
-      const evm = EVM_NETWORKS.filter(({ id }) => this.#coins.has(id)).map(({ label }) => label);
+      const labels = (rows) =>
+        rows.filter(({ id }) => this.#coins.has(id)).map(({ label }) => label);
+      const evm = labels(EVM_NETWORKS);
+      const accounts = labels(ACCOUNT_COINS);
       return [
         selected({ bitcoin: "Bitcoin BIP44/BIP49/BIP84/BIP86 public discovery" }),
         ...(evm.length === 0 ? [] : [`EVM EOA account discovery: ${evm.join(", ")}`]),
         selected({
           dash: `Dash Core BIP44 · Platform DIP17/DIP18 · Identity DIP13 · Dash Orchard ZIP-32 · Evo SDK ${packageManifest.dependencies["@dashevo/evo-sdk"]}`,
         }),
+        ...(accounts.length === 0 ? [] : [`Account balance discovery: ${accounts.join(", ")}`]),
       ]
         .filter(Boolean)
         .join(" · ");

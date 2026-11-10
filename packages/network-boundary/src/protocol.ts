@@ -5,6 +5,8 @@ export * from "./dash-recovery-protocol.js";
 export * from "./public-recovery-protocol.js";
 export * from "./recovery-protocol.js";
 export type {
+  AccountStatesView,
+  AccountStateView,
   EvmAccountBatchView,
   EvmAccountView,
   RecoveryHistory,
